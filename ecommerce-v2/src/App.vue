@@ -17,6 +17,8 @@ import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
 import ShopifyStore from './ShopifyStore.vue'
 import ShopifyLog from './ShopifyLog.vue'
+import ShopifyConnections from './ShopifyConnections.vue'
+import { allOk as demoAllOk, demo as demoState, checkConnections as checkDemoConnections } from './shopify-demo-state.js'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
@@ -240,7 +242,8 @@ function toggleStoreView(store, kind) {
   storeView.value = isStoreView(store, kind) ? null : { store, kind }
   // La Store demo tiene su ruta (#/shopify-demo) para volver a ella, y usa el panel derecho para sus peticiones.
   if (kind === 'demo') {
-    if (storeView.value) { auxOpen.value = true; setRoute('#/shopify-demo') } else writeRoute()
+    if (storeView.value) { auxOpen.value = true; panelOpen.value = true; panelTab.value = 'connections'; setRoute('#/shopify-demo') }
+    else { if (panelTab.value === 'connections') panelTab.value = 'states'; writeRoute() }
   }
 }
 // `#/shopify-demo?order=<id>`: la Store demo abierta, en ese pedido. Es a donde vuelve el comprador desde Creditop.
@@ -248,6 +251,8 @@ function demoFromRoute(r = readHashRoute()) {
   if (r.parts[0] !== 'shopify-demo') return false
   storeView.value = { store: 'Shopify', kind: 'demo', order: r.params.get('order') || '' }
   auxOpen.value = true
+  panelOpen.value = true
+  panelTab.value = 'connections'
   return true
 }
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
@@ -398,7 +403,7 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables · table
+const panelTab = ref('states') // states · tables · table · connections (sólo con la Store demo abierta)
 // La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
 const docTable = ref(null)
 const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
@@ -898,13 +903,25 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
+        <!-- Las conexiones de la Store demo: sólo mientras está abierta. El punto dice si se llega a todo. -->
+        <button v-if="storeView?.kind === 'demo'" type="button" role="tab" class="tab" :class="{ on: panelTab === 'connections' }" :aria-selected="panelTab === 'connections'" @click="panelTab = 'connections'">
+          Conexiones <i class="dot" :data-state="demoState.status ? (demoAllOk ? 'ok' : 'fail') : 'off'" aria-hidden="true"></i>
+        </button>
+        <div v-if="panelTab === 'connections' && storeView?.kind === 'demo'" class="region-actions">
+          <button type="button" class="region-action" :disabled="demoState.checking" title="Volver a comprobar las conexiones" aria-label="Volver a comprobar las conexiones" @click="checkDemoConnections">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
         <div v-if="panelTab === 'tables'" class="region-actions">
           <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
       </nav>
-      <div v-if="panelTab === 'table' && docTable" class="region-body table-doc">
+      <div v-if="panelTab === 'connections' && storeView?.kind === 'demo'" class="region-body">
+        <ShopifyConnections />
+      </div>
+      <div v-else-if="panelTab === 'table' && docTable" class="region-body table-doc">
         <template v-if="docOf">
           <h3>{{ docOf.title }} <code class="muted">{{ docTable }}</code></h3>
           <p>{{ docOf.what }}</p>

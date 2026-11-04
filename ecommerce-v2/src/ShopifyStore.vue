@@ -90,11 +90,11 @@ onBeforeUnmount(stopPolling)
             <div><b>Creditop</b><div class="muted small">Financia tu compra con Creditop</div></div>
           </div>
           <div class="total"><span>Total</span><b>{{ money(cartTotal) }}</b></div>
-          <button type="submit" class="btn" :disabled="demo.paying || !allOk" :title="allOk ? '' : 'Primero tienen que estar en verde las conexiones (panel derecho)'">
+          <button type="submit" class="btn" :disabled="demo.paying || !allOk" :title="allOk ? '' : 'Primero tienen que estar en verde las conexiones (consola de abajo, pestaña Conexiones)'">
             {{ demo.paying ? 'Pidiendo la sesión de pago…' : 'Pagar con Creditop' }}
           </button>
           <button type="button" class="btn btn-ghost btn-sm" @click="step = 'cart'">Volver al carrito</button>
-          <p v-if="!allOk" class="muted small">Las conexiones del panel derecho tienen que estar en verde.</p>
+          <p v-if="!allOk" class="muted small">Las conexiones de la consola de abajo tienen que estar en verde.</p>
         </form>
         <p v-if="demo.message" class="hot small">{{ demo.message }}</p>
       </aside>

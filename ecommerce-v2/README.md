@@ -62,7 +62,9 @@ hace falta tener ese repo: el host se usa por la dirección de su canal del play
 - **El editor es la tienda**: productos en tarjetas, el carrito, los datos del comprador y «Pagar con Creditop». La
   pestaña **Pedidos** los muestra como los vería el comercio en Shopify, con lo que pasó en cada uno y los botones para
   avisar el resultado.
-- **El panel derecho es lo que pasa por debajo**: si se llega a todo (las tres conexiones) y cada petición HTTP y cada
+- **La consola de abajo, pestaña Conexiones**: si se llega a todo (playground, host de la app y este Shopify falso),
+  con el botón para volver a comprobar. Se elige sola al abrir la Store demo.
+- **El panel derecho es lo que pasa por debajo**: cada petición a la API y cada
   webhook, en orden —la sesión de pago a la app, el aviso de Creditop y el `paymentSessionResolve` que la app le manda al
   Shopify falso—, con su cuerpo al tocarla. La lupa deja sólo las del pedido elegido.
 

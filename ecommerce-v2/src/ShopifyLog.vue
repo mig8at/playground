@@ -1,9 +1,9 @@
 <script setup>
-/* Shopify · Store demo, en el panel derecho: si se llega a todo (el playground, el host de la app y este Shopify falso)
- * y cada petición HTTP que pasó por debajo de una compra —la sesión de pago, el aviso de Creditop y lo que la app le
- * contestó a Shopify—, con su cuerpo. Lo registra el servidor (GET /api/shopify-demo/log). */
+/* Shopify · Store demo, en el panel derecho: cada petición a la API que pasó por debajo de una compra y cómo llega cada
+ * webhook —la sesión de pago a la app, el aviso de Creditop y el resolve/reject que la app le manda a Shopify—, con su
+ * cuerpo. Lo registra el servidor (GET /api/shopify-demo/log). Las conexiones están en la consola de abajo. */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { demo, clock, checkConnections, startPolling, stopPolling } from './shopify-demo-state.js'
+import { demo, clock, startPolling, stopPolling } from './shopify-demo-state.js'
 
 const open = ref('')
 const onlyOrder = ref(false)
@@ -21,23 +21,6 @@ onBeforeUnmount(stopPolling)
 
 <template>
   <div class="region-head">
-    <span>Conexiones</span>
-    <div class="region-actions">
-      <button type="button" class="region-action" :disabled="demo.checking" title="Volver a comprobar" aria-label="Volver a comprobar" @click="checkConnections">
-        <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-      </button>
-    </div>
-  </div>
-  <div class="checks">
-    <p v-if="demo.statusError" class="hot small">{{ demo.statusError }}</p>
-    <p v-else-if="!demo.status" class="muted small">Comprobando…</p>
-    <div v-for="c in demo.status?.checks ?? []" :key="c.name" class="check" :title="c.url">
-      <i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>
-      <div><div class="name">{{ c.name }}</div><div class="muted small">{{ c.detail }}</div></div>
-    </div>
-  </div>
-
-  <div class="region-head group">
     <span>Peticiones y webhooks</span>
     <span class="count">{{ list.length }}</span>
     <div class="region-actions">
@@ -68,18 +51,10 @@ onBeforeUnmount(stopPolling)
 </template>
 
 <style scoped>
-.checks { padding: var(--space-2) var(--gutter) var(--space-3) }
-.check { display: flex; gap: var(--space-2); align-items: flex-start; padding: var(--space-1) 0 }
-.check .dot { margin-top: 5px }
-.name { font-weight: 600 }
 .pad { padding: var(--space-3) var(--gutter) }
 .muted { color: var(--fg-3) }
 .small { font-size: var(--text-sm); margin: 0 }
-.hot { color: var(--ecommerce-fail) }
 .mono { font-family: var(--font-mono, ui-monospace, monospace); font-size: var(--text-sm) }
-.dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
-.dot[data-state="ok"] { background: var(--ecommerce-ok) }
-.dot[data-state="fail"] { background: var(--ecommerce-fail) }
 .ex { border-bottom: 1px solid var(--border); padding: var(--space-2) var(--gutter) }
 .ex-head { width: 100%; display: grid; grid-template-columns: 16px minmax(0, 1fr) auto auto; gap: var(--space-2); align-items: center;
            border: 0; background: none; color: inherit; font: inherit; text-align: left; padding: 0; cursor: pointer }
