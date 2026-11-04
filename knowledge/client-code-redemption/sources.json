@@ -2,12 +2,12 @@
   "version": 1,
   "title": "Canje del código de preaprobado",
   "summary": "Consulta, creación, consumo y filtro del listado; formatos y diferencias con el receptor anterior.",
-  "reviewedAt": "2026-11-02T15:33:45+00:00",
+  "reviewedAt": "2026-11-04T01:00:00+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
       "sections": [
         "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
@@ -15,8 +15,17 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Providers/RouteServiceProvider.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "c3c05e5b43405b823e995882b5d090ebfcbf8cc9",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/ClientCodeRedemptionService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "49e2fb77860073db72149b02c2dabbef0fcce86f",
       "sections": [
         "el-receptor-admite-dos-formatos-y-consulta-por-comercio",
@@ -24,20 +33,74 @@
       ]
     },
     {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OriginationGuard.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "7708c1457aa8d8475d3c26fb313742faaf2f85e5",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Traits/ApiResponse.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b3b1455116a3342eaf5dd866525f333a438e884c",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/CreditopXRequestHistory.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "5e085b60333d06bae163438dd4256cc5296e5f4c",
+      "sections": [
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/CreditBenefitResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "04ca8f0fc83904e8fc885f62ae5b4fe71c0740fc",
+      "sections": [
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
+      ]
+    },
+    {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/client-code.repository.ts",
-      "commit": "3492b9059de25e6e9b809fda10dac30cfd306b53",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "d9e167509f7ca09e97c9b66d16b4845eae6ebecd",
       "sections": [
-        "el-recorte-del-wizard-depende-de-una-marca-de-sesion",
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio",
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-application-form/src/lib/infrastructure/allied-disabled-error.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "07b3973686dde900c34884d06559bd5624e3fb1f",
+      "sections": [
         "el-receptor-admite-dos-formatos-y-consulta-por-comercio"
       ]
     },
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-application-form/client-code.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "c2579df69a0e0c8aff4315a888dc3a49b1295db5",
+      "sections": [
+        "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/components/client-code-flow-switch.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "5dc5f8ae833c637fb76e53afa0e2502e1cdb84e5",
       "sections": [
         "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
       ]
@@ -52,37 +115,56 @@
       ]
     },
     {
-      "repo": "application",
-      "path": "app/Http/Controllers/Customer/ClientCodeController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
-      "blob": "495241674db44a3518c2afefd1d5d89271760a3a",
-      "sections": [
-        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
-      ]
-    },
-    {
-      "repo": "application",
-      "path": "app/Http/Controllers/Customer/ListLenderController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
-      "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
-      "sections": [
-        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
-      ]
-    },
-    {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/server/services/session.server.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "fb162382022aaebfbe471b5e0a41871c2d49237c",
       "sections": [
         "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
       ]
     },
     {
-      "repo": "legacy-backend",
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ClientCodeController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "495241674db44a3518c2afefd1d5d89271760a3a",
+      "sections": [
+        "el-receptor-admite-dos-formatos-y-consulta-por-comercio",
+        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ListLenderController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
+      "sections": [
+        "el-receptor-anterior-conserva-cuatro-digitos-y-otro-estado-de-sesion"
+      ]
+    },
+    {
+      "repo": "application",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
-      "blob": "5e085b60333d06bae163438dd4256cc5296e5f4c",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "31dcb679ac2261278dcca831f43c2ce4b694391e",
+      "sections": [
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
+      "sections": [
+        "se-crea-la-solicitud-antes-de-consumir-el-codigo"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/CreditopX/Benefits/CreditBenefitResolver.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "4c7f3f2b74d731ee349c43d77350ebf2fdce48a2",
       "sections": [
         "se-crea-la-solicitud-antes-de-consumir-el-codigo"
       ]
