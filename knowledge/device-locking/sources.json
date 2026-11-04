@@ -1,13 +1,13 @@
 {
   "version": 1,
   "title": "Bloqueo y desbloqueo de equipos IMEI por mora",
-  "summary": "Los dos motores de bloqueo IMEI de legacy-backend (legacy y DeviceLockingV1), el umbral de mora de cada uno, las capas contra el doble bloqueo, cómo se lee la respuesta del gateway y los caminos de desbloqueo y liberación con sus interruptores.",
-  "reviewedAt": "2026-11-02T15:34:59+00:00",
+  "summary": "Los dos motores de bloqueo IMEI de legacy-backend (legacy y DeviceLockingV1), el umbral de mora de cada uno, las capas contra el doble bloqueo, cómo se lee la respuesta del gateway, los caminos de desbloqueo y liberación con sus interruptores en ambos monolitos, y qué protege (y qué no) a los endpoints del bloqueo manual.",
+  "reviewedAt": "2026-11-04T00:29:06+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Constants/DeviceLockingEngine.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "70132378bd34f18a272a5fdf48fa014da5174b6a",
       "sections": [
         "dos-motores-uno-a-la-vez"
@@ -16,7 +16,7 @@
     {
       "repo": "legacy-backend",
       "path": "config/device_locking.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "56038c8f2e6288fd077f4de03a418d9270c479c8",
       "sections": [
         "dos-motores-uno-a-la-vez",
@@ -26,7 +26,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Kernel.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
       "sections": [
         "dos-motores-uno-a-la-vez"
@@ -35,7 +35,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Providers/DeviceLockingV1ScheduleServiceProvider.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "1bed7479d5322041b0c578e276a30105386d373e",
       "sections": [
         "dos-motores-uno-a-la-vez",
@@ -45,7 +45,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/LockDevicesPastDueCommand.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "271317b217536ebd744f3ba7590f3192682665b3",
       "sections": [
         "cuando-se-bloquea",
@@ -55,7 +55,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Repositories/LockCandidateRepository.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "0523393daa19b4356f81d6b10651772b3648b4f9",
       "sections": [
         "cuando-se-bloquea",
@@ -65,7 +65,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Repositories/DeviceLockingConfigRepository.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "192779dc197213ba5e740c2228b7ad7f022492d9",
       "sections": [
         "cuando-se-bloquea"
@@ -74,7 +74,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Http/Requests/UpsertAlliedLockingConfigRequest.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b15422f03460929cbeed95281595c5d6a56100ab",
       "sections": [
         "cuando-se-bloquea"
@@ -83,7 +83,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Console/Commands/DeviceLockingTickConsoleCommand.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "980a5ff0b9b20e616ae3a585872a5ee6b3f5bc51",
       "sections": [
         "cuando-se-bloquea"
@@ -92,7 +92,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Services/SelectAndDispatchLocksService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "cb9a8f506eb871b6581c9dd7acefbbd736c2738e",
       "sections": [
         "cuando-se-bloquea",
@@ -102,17 +102,18 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Services/LockDeviceService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "902814e6bfe2f873b5228b2eba0cde4ff5b9f87f",
       "sections": [
         "cuando-se-bloquea",
-        "proteccion-contra-el-doble-bloqueo"
+        "proteccion-contra-el-doble-bloqueo",
+        "que-pasa-con-la-respuesta-del-gateway-legacy"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "app/Jobs/DeviceLockStatusJob.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "d3626d3a18b086ab8fa6455fdf102350874f18bb",
       "sections": [
         "cuando-se-bloquea",
@@ -123,7 +124,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequestProduct.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "43a28cb42e9b92021afbebe3360ce8a8b66fe19e",
       "sections": [
         "proteccion-contra-el-doble-bloqueo",
@@ -133,7 +134,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Constants/DeviceLockState.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "96cb3d6d2da07a7c71f9f312e9ba094452c28d44",
       "sections": [
         "proteccion-contra-el-doble-bloqueo"
@@ -142,7 +143,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Jobs/LockDeviceJob.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "8a2581eeffba8555b3680e5782f8292943475e1b",
       "sections": [
         "que-pasa-con-la-respuesta-del-gateway-legacy"
@@ -151,7 +152,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/UnlockDevicesPaidCommand.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "4f099f44e800d901c8139e297ccd7310c1574519",
       "sections": [
         "desbloqueo-y-liberacion"
@@ -160,7 +161,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/UnrollDevicesPaidCommand.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "fb83038390e2ed47a97f1849e97884b135462234",
       "sections": [
         "desbloqueo-y-liberacion"
@@ -169,7 +170,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Services/UnlockDeviceOnPaymentService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9fe9bbe45c4800ab0854ab8c86ea15885736f57a",
       "sections": [
         "desbloqueo-y-liberacion"
@@ -178,7 +179,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/DeviceLockingV1/App/Services/SelectAndDispatchPaymentUnlocksService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "20a3e804801a88b0f6e4b11e6297e08de36176ad",
       "sections": [
         "desbloqueo-y-liberacion"
@@ -187,7 +188,7 @@
     {
       "repo": "application",
       "path": "app/Support/PaymentUnlockSwitch.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "aafdd00ee28184374cd0190b3b9ff34ab18aad16",
       "sections": [
         "desbloqueo-y-liberacion"
@@ -198,6 +199,124 @@
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
+      "sections": [
+        "desbloqueo-y-liberacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/routes/api.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "29bc9b60adf04a7182ef2774c151522c121b029a",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Providers/RouteServiceProvider.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "be53e077937d3c7816a724207e2371d75efb17ba",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Kernel.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "e59fdd5fa47411673a3e06ad8bd6edd63a1fbd3a",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedProductsController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "1316601ec1117fccd62b363aced93a10bac57e8a",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedProductService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d50c97bdfda295419183610c6c2339667b14d2a1",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "routes/admin.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "331696df154357eb6b9664a17491c8524a9a456b",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Providers/RouteServiceProvider.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "410b71bf5e2b9e53a1a9000b0f2be2584c6069cc",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Kernel.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
+      "sections": [
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Api/DeviceLockApiClient.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "b58a1b8ab2b05e8f8542f70e515e6fccacdd4edf",
+      "sections": [
+        "desbloqueo-y-liberacion",
+        "bloqueo-y-desbloqueo-manual"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Jobs/UnlockDeviceIfUpToDate.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "fdff935baec7f970a2ae51623da7324e172ced9f",
+      "sections": [
+        "desbloqueo-y-liberacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/ReconcilePaymentUnlocksCommand.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "ee23f1a8676eb37087a47a4d5614447580e33bb0",
+      "sections": [
+        "desbloqueo-y-liberacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Kernel.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
       "sections": [
         "desbloqueo-y-liberacion"
       ]

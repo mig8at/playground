@@ -4,7 +4,8 @@ Cubre cómo `legacy-backend` genera y registra los OTP de onboarding y del pagar
 por origen en `otps`, cómo los lee el backoffice y cuándo se puede saltar el envío en ambientes de
 prueba. No describe el `otp-service` ni el `messaging-service` por dentro (canal SMS o WhatsApp por
 país, plantillas, límites de envío): legacy sólo les pasa país, identificador, largo y plantilla.
-Tampoco dice qué teléfonos están en la lista de bypass de un ambiente.
+Tampoco dice qué teléfonos están en la lista de bypass de un ambiente. `legacy-application` no tiene
+`otps.source`, `qa_bypass` ni `qa_otp_bypass_phones`: el mecanismo es sólo de `legacy-backend`.
 
 ## El origen queda en la fila del OTP
 
@@ -23,8 +24,9 @@ La migración `2026_07_09_130000_add_source_and_qa_bypass_to_otps` agrega `otps.
 El resultado (`outcome`) no se persiste: el backoffice lo deriva (`UsersService::deriveOtpOutcome`)
 como `validated` si la fila está validada, `send_failed` si `status` es falso, y `sent` en otro
 caso. El historial del backoffice lee `otps` directamente (no la vista `VW_OTPs`), descifra el
-código en PHP y suma como `send_failed` los errores de `otp_logs`, cuyo origen deduce del texto de
-la descripción.
+código en PHP y suma como `send_failed` las filas de `otp_logs` cuyo `name` empieza por «Error». Su
+origen lo deduce del texto de la descripción: `login_migration`, `login_forgot_password`, `mobile`
+si dice «Mobile», y `onboarding_web` en cualquier otro caso, también un error de envío del pagaré.
 
 ## El OTP del pagaré se genera en el servicio de OTP
 
@@ -42,14 +44,20 @@ la descripción.
 No hay rama por país ni envío por Twilio en este servicio. La validación (`OtpValidationService`)
 también la hace el servicio de OTP con el mismo `identifier` de la fila (o el teléfono nacional
 para filas viejas sin él); la fila local sigue siendo la que se marca validada y la que viaja a la
-firma. Si el cliente corrigió su celular en la firma, se valida contra el número pendiente.
+firma.
+
+En el auto-onboarding con pedido firmado por la tienda, el cliente puede corregir su celular en la
+firma: `PromissoryNotePhoneChangeService` lo guarda como `pending_cell_phone` del pedido, el código
+se envía a ese número, la validación busca el OTP por él y, sólo al validarse, pasa a ser el celular
+del usuario. La validación recibe ese servicio por el contenedor; quien construye
+`OtpValidationService` a mano con `null` valida contra el celular del usuario.
 
 ## El OTP de onboarding
 
 `sendOtpCode` acepta largo 4 o 6 (`otp_length` del request) y también genera por `otp-service`,
 con el país que resuelve `PhoneRoutingService` desde la sucursal (`partner_branch_hash`) y, si no
-viene, desde el indicativo. `createOtpRecord` guarda el código como texto con su largo (rellena
-ceros a la izquierda) y cifrado.
+viene o no resuelve país, el que deduce `PhoneService` del indicativo y el teléfono.
+`createOtpRecord` guarda el código como texto con su largo (rellena ceros a la izquierda) y cifrado.
 
 ## El bypass de QA
 
@@ -59,9 +67,12 @@ Un JSON roto deja la lista vacía y lo reporta con `Log::error`.
 
 - El código esperado son los **últimos 4** dígitos en onboarding y los **últimos 6** en el pagaré.
 - No se llama al proveedor, pero se persiste la fila cifrada con `qa_bypass = true` y el mismo
-  `source`, para que la validación y la firma la encuentren por el camino normal. La validación de
-  AuthV1 (`ValidateOtpService`) lee esa marca de la fila, no el setting: con `qa_bypass` y fuera de
-  producción descifra el código guardado y lo compara, sin consultar al servicio de OTP.
+  `source`, para que la validación y la firma la encuentren por el camino normal.
+- Quién decide el bypass al validar depende de la entrada. La de onboarding
+  (`Onboarding\OtpService::validateOtpCode`) y la del pagaré (`Loans\OtpValidationService`) vuelven a
+  consultar el setting con el teléfono y comparan contra sus últimos dígitos. La de AuthV1
+  (`ValidateOtpService`) lee la marca `qa_bypass` de la fila, no el setting: fuera de producción
+  descifra el código guardado y lo compara, sin consultar al servicio de OTP.
 - La comparación es en tiempo constante (`hash_equals`).
 
 El bypass sólo actúa si `QaModeService::enabled()`: falso siempre con `APP_ENV=production`, y en
