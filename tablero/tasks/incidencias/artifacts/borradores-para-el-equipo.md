@@ -282,7 +282,12 @@ del mismo archivo evita a propósito registrar esos secretos; una sola traza se 
 contando en los registros de producción: esa traza salió **14 veces en las últimas 24 horas**, así que está ocurriendo
 hoy. No se trajo el contenido para no exponer el valor.
 
-**Propuesta.** Sacar la contraseña de esa traza y decidir con seguridad si el certificado se rota. Aparte, el comando
+**Y es más que la del certificado.** Credifamilia Consumo reusa la credencial de la integración REST de Credifamilia, y
+ese mismo campo es la contraseña con la que la integración REST pide su token de acceso. O sea que lo que llega a los
+registros sirve también para entrar a esa integración.
+
+**Propuesta.** Sacar la contraseña de esa traza y decidir con seguridad qué se rota: el certificado y, por lo de arriba,
+también la contraseña de la integración REST. Aparte, el comando
 que siembra esa credencial usa nombres de campo distintos a los que lee la radicación.
 
 ---
