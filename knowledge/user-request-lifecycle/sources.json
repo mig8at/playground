@@ -1,14 +1,50 @@
 {
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
-  "summary": "El catálogo de estados de user_requests con sus ids de producción y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar, safeCancel, el webhook tardío contra Autorizada, la gestión manual del comercio y una solicitud por pedido en ecommerce, y Nequi, el pago de contado que puede salir de Autorizada al reversarse.",
-  "reviewedAt": "2026-11-02T16:44:28+00:00",
+  "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi y los links que vencen.",
+  "reviewedAt": "2026-11-04T01:01:34Z",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequestStatus.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "8f4e22887e1fc446d4bf768ee63fdf83c41cdf91",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_04_20_175349_create_user_request_statuses_table.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b492dd0824eb2c014704ac4aee1936f48ccb0934",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_02_20_110000_add_authorized_pending_disbursement_status.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "0bbf44a93f714d67a9df0b1f960f8ecbbbb12e6a",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_08_16_110000_add_pending_cosigner_signature_request_status.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "7619dcf35624f5086859ac1cd748c64e404161cc",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_09_11_120100_add_manual_approval_statuses.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "fb2ddded112efadcbb87c4fd148871dd896d0183",
       "sections": [
         "el-catalogo-no-esta-versionado-y-se-lee-por-nombre"
       ]
@@ -24,41 +60,105 @@
       ]
     },
     {
+      "repo": "application",
+      "path": "app/Models/UserRequestStatus.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "836297e80463c1e13f92df069ab55972dead779e",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
+        "links-que-vencen-continuacion-y-aprobacion-manual"
+      ]
+    },
+    {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
       "sections": [
         "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
         "que-estados-cierran-una-solicitud",
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
         "el-comercio-solo-gestiona-a-mano-las-entidades-que-originan-afuera"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/UserRequestRepository.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "d9a90d0bd79ac538035b3419b23f1c1d091f883d",
       "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
         "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
+        "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx",
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
+        "con-originacion-delegada-11-se-confirma-antes-de-radicar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CancelRequestService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "281b4b3554077ad55770b0b36035534e89cee49a",
       "sections": [
         "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
       ]
     },
     {
       "repo": "legacy-backend",
-      "path": "Modules/Loans/App/Services/CancelRequestService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "281b4b3554077ad55770b0b36035534e89cee49a",
+      "path": "Modules/Loans/routes/api.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
       "sections": [
-        "al-autorizar-se-cancelan-las-solicitudes-hermanas-creditopx"
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
+        "con-originacion-delegada-11-se-confirma-antes-de-radicar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/routes/admin.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "e13c49bccd1817d5fa94891098b913c53d589c43",
+      "sections": [
+        "con-originacion-delegada-11-se-confirma-antes-de-radicar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Middleware/ValidateAuthorizedStatus.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d0941921c33e6c64133f317a012bc8b01e9711f6",
+      "sections": [
+        "el-catalogo-no-esta-versionado-y-se-lee-por-nombre",
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
+        "con-originacion-delegada-11-se-confirma-antes-de-radicar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d4aced89c87106c3302318f98228b8aa85ba406f",
+      "sections": [
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "4d4c0e353191281a6a79426b504dd72fe4cd9420",
+      "sections": [
+        "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
+        "con-originacion-delegada-11-se-confirma-antes-de-radicar"
       ]
     },
     {
@@ -73,7 +173,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
       "sections": [
         "en-ecommerce-hay-una-solicitud-por-pedido"
@@ -81,8 +181,17 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/UserRequestRepository.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b83bbe39b083fd192804e8d34ed6f89118e0b9e0",
+      "sections": [
+        "en-ecommerce-hay-una-solicitud-por-pedido"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "app/Services/Lenders/Nequi/NequiUserRequestSealer.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "7ae251cd2b0c18f228e61db76b3941db2efb59e1",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
@@ -90,8 +199,17 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiPaymentService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "73d6bcce3a0663b6d2112716791a515ab318a88b",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/NequiPaymentController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9ec8634b100f733d04c9ca31a22fbdf7de817967",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
@@ -100,7 +218,7 @@
     {
       "repo": "legacy-backend",
       "path": "docs/lenders/nequi/README.md",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "2b17fb492d01a0d57fb7ce2f9ee9c864f3d61df0",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
@@ -109,8 +227,26 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/CardComposer.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "e3b2542ec683c954de8d6ef40932bcfed38b1906",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
+      "sections": [
+        "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.helpers.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "857b590c419fbb804521805f31eb2e3104a9b06e",
       "sections": [
         "nequi-un-pago-de-contado-que-puede-salir-de-autorizada"
       ]
@@ -118,7 +254,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/UserRequestV1/App/Constants/LinkExpirationConstants.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b892d72fb24b5807932a2640b340ac8d1462ce4b",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
@@ -126,9 +262,27 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/UserRequestV1/App/Services/IsLinkExpiredService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "7e1519089fbf4e95efd51151f461a715af3efc9f",
+      "sections": [
+        "links-que-vencen-continuacion-y-aprobacion-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/LenderPostRedirectController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "4fca036bab0fbd1ff6445d3d56b32858097ce8ac",
+      "sections": [
+        "links-que-vencen-continuacion-y-aprobacion-manual"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "63783c386ce3438d38928d8bb54efb169b6971a9",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
       ]
@@ -138,15 +292,6 @@
       "path": "app/Services/ManualApproval/ManualApprovalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d0c63811fa4fd49c177fdad6e886b69e7aef6785",
-      "sections": [
-        "links-que-vencen-continuacion-y-aprobacion-manual"
-      ]
-    },
-    {
-      "repo": "legacy-backend",
-      "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "63783c386ce3438d38928d8bb54efb169b6971a9",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
       ]
