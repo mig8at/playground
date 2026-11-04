@@ -120,11 +120,11 @@ test.describe('OBS-KYC-03 — sufijos de ONB005 / KYC', () => {
     // Los tres veredictos de TusDatos, en un comercio estándar: Ágil Data y Mareigua «sin información» para que la
     // cascada llegue a TusDatos, y TusDatos con la forma que espera el backend (`dictateTusdatosVerdict`).
     //
-    // ⚠ «Documento inexistente» NO se puede ejercitar por el lambda: TusDatos lo devuelve como HTTP 404, y el
-    // backend trata CUALQUIER respuesta no-2xx del lambda como caída y sigue con el fixture de respaldo
-    // (`Tusdatos.php`, el `catch` de la llamada al lambda): el formulario pasa como validado. Medido el 2026-11-03
-    // (log: `Tusdatos: lambda mock failed, falling back to the local fixture`). Queda en `fixme` con el motivo;
-    // se activa si el backend deja de caer al fixture ante un 4xx de negocio.
+    // ⚠ «Documento inexistente» NO se puede ejercitar en el modo lambda: TusDatos lo devuelve como HTTP 404, y el
+    // backend trata CUALQUIER respuesta no-2xx del lambda como caída y sigue con el fixture de respaldo (`Tusdatos.php`,
+    // el `catch` de la llamada al lambda; log `Tusdatos: lambda mock failed, falling back to the local fixture`). Por el
+    // camino de PRODUCCIÓN (`TUSDATOS_HOST` al lambda y `TUSDATOS_MOCK_HOST` vacío) sí sale ONB005 + DOCUMENT_NOT_FOUND
+    // (medido el 2026-11-03). Queda en `fixme` mientras el backend local corra en el modo lambda.
     const TUSDATOS_CASES: Array<{ verdict: TusdatosVerdict; subcode: string; masked?: string }> = [
         { verdict: 'issue-date-mismatch', subcode: expectedSubcodes.kyc.expeditionDateMismatch },
         { verdict: 'document-not-found', subcode: expectedSubcodes.kyc.documentNotFound,
@@ -151,9 +151,11 @@ test.describe('OBS-KYC-03 — sufijos de ONB005 / KYC', () => {
         });
     }
 
-    // ⚠ Igual que el 404 de TusDatos: ante un 500 del lambda, `Experian.php` cae al fixture de respaldo y el formulario
-    // pasa como validado (log: «Lambda mock failed, falling back to the local fixture», medido el 2026-11-03). El
-    // ONB030 que esta prueba esperaba salía del driver «fake», que ya no se usa. Queda en `fixme` con el motivo.
+    // ⚠ Igual que el 404 de TusDatos: ante un 500 del lambda, `Experian.php` cae al fixture de respaldo (log: «Lambda
+    // mock failed, falling back to the local fixture», 2026-11-03). Y la EXPECTATIVA era la equivocada: corrido por el
+    // camino de PRODUCCIÓN (con `EXPERIAN_HOST` al lambda y `EXPERIAN_MOCK_HOST` vacío), el 500 sí llega —«performRequest
+    // failed», correo de error— y el formulario PASA igual: una caída de Experian no bloquea los datos personales. El
+    // ONB030 sólo existía con el driver «fake». Para activarla: correr en ese modo y afirmar que pasa y que el error quedó.
     test.fixme('Experian falla (HTTP 500 dictado al lambda) → el formulario no pasa, y contestó el lambda', async () => {
         const api = await request.newContext({ baseURL: config.mockUrl });
         const doc = uniqueDoc();

@@ -314,8 +314,13 @@ export async function dictateBureauMode(doc: string, central: Bureau, mode: Bure
  * «sin información», igual que `HttpFakeRegistrar::TUSDATOS_VERDICT_SCENARIOS`. */
 export type TusdatosVerdict = 'issue-date-mismatch' | 'name-mismatch' | 'document-not-found';
 const TUSDATOS_VERDICTS: Record<TusdatosVerdict, unknown> = {
-    'issue-date-mismatch': { status: 'success', data: { findings: { issue_date: { match_code: 0 } } } },
-    'name-mismatch': { status: 'success', data: { findings: { first_name: { match_code: 0 }, first_surname: { match_code: 2 } } } },
+    // ⚠ COMPLETAS: el backend trata un `match_code` AUSENTE en primer nombre, primer apellido o fecha como «no
+    // coincide» (nota en `TusdatosHttpFake::verifyCcSecondSurnameMismatch`). Con sólo `issue_date: 0`, el camino de
+    // producción lo leía también como nombres que no coinciden y daba KYC_VALIDATION_FAILED, no la fecha (2026-11-03).
+    'issue-date-mismatch': { status: 'success', data: { findings: {
+        first_name: { match_code: 1 }, first_surname: { match_code: 1 }, issue_date: { match_code: 0 } } } },
+    'name-mismatch': { status: 'success', data: { findings: {
+        first_name: { match_code: 0 }, first_surname: { match_code: 2 }, issue_date: { match_code: 1 } } } },
     'document-not-found': { __http_status: 404, __body: { error: { code: 'DOCUMENT_NOT_FOUND',
         message: 'Documento no existe en Registraduría', details: 'no_data' } } },
 };
