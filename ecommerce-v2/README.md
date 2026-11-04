@@ -75,28 +75,35 @@ la demo ──sesión de pago──► canal del host ──► el host (en la m
 «Avisar como Creditop» ──► canal del host ──► el host ──paymentSessionResolve──► canal de la demo ──► ESTE Shopify falso
 ```
 
-**Una vez por día** (los canales vencen a las 24 h):
+**Una sola vez** (las direcciones tienen nombre y no cambian):
 
-1. Pedile al dueño del host la dirección de su canal (`playground hooks new shopify-host-qa --serve`, en su máquina).
-2. Abrí el canal de tu Shopify falso y servilo desde esta máquina, en una terminal que quede abierta:
+1. Mirá los servicios que publicó el dueño del host y copiá la dirección del suyo:
    ```bash
-   playground hooks new shopify-falso --serve
-   playground hooks listen <canal> --to http://127.0.0.1:5187
+   playground services @miguel
+   playground url shopify.ecommerce.miguel.com
    ```
-   Pasale esa dirección al dueño del host: va en su `SHOPIFY_PAYMENTS_API_URL`, para que el host le avise a tu Shopify falso.
-3. En el `.env` de acá:
+2. Publicá tu Shopify falso con nombre, en `~/playground/team/services.json`:
+   ```json
+   [{ "alias": "shopify-falso.ecommerce", "to": "http://127.0.0.1:5187", "description": "Shopify falso de la Store demo" }]
+   ```
+   y servilo desde esta máquina, en una terminal que quede abierta: `playground serve`. Queda como
+   `shopify-falso.ecommerce.<tu usuario>.com`. Pasale ese nombre al dueño del host: su dirección va en su
+   `SHOPIFY_PAYMENTS_API_URL`, para que el host le avise a tu Shopify falso.
+3. En el `.env` de acá, las direcciones completas (el nombre solo es para el CLI y nunca se resuelve):
    ```text
    SHOPIFY_DEMO_PLAYGROUND=https://playground.creditop.com
-   SHOPIFY_DEMO_HOST_URL=https://playground.creditop.com/hooks/<canal del host>
-   SHOPIFY_DEMO_CHANNEL_URL=https://playground.creditop.com/hooks/<tu canal>
+   SHOPIFY_DEMO_HOST_URL=https://playground.creditop.com/s/shopify.ecommerce.miguel.com
+   SHOPIFY_DEMO_CHANNEL_URL=https://playground.creditop.com/s/shopify-falso.ecommerce.<tu usuario>.com
    SHOPIFY_DEMO_SHOP=creditop-demo.myshopify.com      # la tienda que el host tiene configurada
    SHOPIFY_DEMO_TARGET=qa                             # dónde busca «Avisar como Creditop» el aviso firmado
    ```
    y `npm run dev` de nuevo (el `.env` se lee al arrancar).
 
-Las tres conexiones de la izquierda tienen que estar en verde antes de comprar: **playground** (contesta su `/health`),
-**host de la app** (su canal contesta; 503 = su dueño no está corriendo el `listen`) y **este Shopify falso** (el playground
-llega a este servidor por tu canal: se comprueba con un ping que sólo este proceso sabe contestar).
+Cada día sólo hace falta que tu `playground serve` esté corriendo (y el del dueño del host).
+
+Las tres conexiones de la pestaña Conexiones tienen que estar en verde antes de comprar: **playground** (contesta su `/health`),
+**host de la app** (su nombre contesta; 503 = su dueño no está corriendo `playground serve`) y **este Shopify falso** (el playground
+llega a este servidor por tu nombre: se comprueba con un ping que sólo este proceso sabe contestar).
 
 **«Pagar con Creditop»** le manda al host la sesión de pago con la forma de Shopify y abre la URL que devuelve: el wizard.
 **«Avisar como Creditop»** le manda al host el aviso de fin de solicitud (aprobada, negada, cancelada o pendiente) al

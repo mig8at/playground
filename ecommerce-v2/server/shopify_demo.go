@@ -7,13 +7,12 @@ package main
  *   «Avisar como Creditop» ──POST <webhook_url firmado>──► el host ──paymentSessionResolve──► el Shopify falso
  *                                                                       (acá: el pedido queda Pagado)
  *
- * El host no tiene por qué estar en esta máquina: SHOPIFY_DEMO_HOST_URL es su dirección, normalmente un canal en modo
- * servicio del playground (`playground hooks new … --serve`) que su dueño sirve desde la suya. Y para que el host le
- * avise a ESTE Shopify falso, esta máquina sirve el suyo por otro canal (SHOPIFY_DEMO_CHANNEL_URL), que el dueño del
- * host pone en su SHOPIFY_PAYMENTS_API_URL:
+ * El host no tiene por qué estar en esta máquina: SHOPIFY_DEMO_HOST_URL es su dirección, un servicio con nombre del
+ * playground (`https://…/s/shopify.ecommerce.miguel.com`) que su dueño sirve desde la suya con `playground serve`. Y para
+ * que el host le avise a ESTE Shopify falso, esta máquina publica el suyo con otro nombre (SHOPIFY_DEMO_CHANNEL_URL), que
+ * el dueño del host pone en su SHOPIFY_PAYMENTS_API_URL. En ~/playground/team/services.json, y `playground serve`:
  *
- *   playground hooks new shopify-falso --serve
- *   playground hooks listen <canal> --to http://127.0.0.1:5187
+ *   [{ "alias": "shopify-falso.ecommerce", "to": "http://127.0.0.1:5187" }]
  *
  * «Avisar como Creditop» hace lo que hace Creditop cuando la solicitud termina: le manda al `webhook_url` firmado del
  * pedido (lo lee de la base del ambiente, SHOPIFY_DEMO_TARGET) el estado elegido. Cuando el host tenga un dominio que el
