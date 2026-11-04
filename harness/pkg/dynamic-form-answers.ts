@@ -66,6 +66,12 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
                 const pick = options.find((o) => /^no$/i.test(o.key ?? o.value ?? '') || /^no$/i.test(o.name ?? o.label ?? '')) ?? options[0];
                 value = String(pick.key ?? pick.value ?? pick.id ?? '');
                 label = pick.name ?? pick.label ?? value;
+            } else if (/^field_options\.years/.test(ds)) {
+                // Los años del vehículo: la fuente no viaja en el esquema; un año reciente es una respuesta válida.
+                value = String(new Date().getFullYear() - 2); label = value;
+            } else if (f.type === 'date') {
+                // Una fecha a futuro (p. ej. el vencimiento de la licencia), en el formato del input de fecha.
+                value = `${new Date().getFullYear() + 3}-01-15`; label = value;
             } else if (f.type === 'currency') {
                 value = /pasiv/i.test(f.label ?? '') ? (ctx.liabilities ?? 1_000_000) : (ctx.assets ?? 10_000_000);
                 label = String(value);

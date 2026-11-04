@@ -120,6 +120,15 @@ El caminador lo escribe en su log: cada paso termina con su pieza (`⟨tramo com
 el mapa, y al elegir la entidad imprime su recorrido, los campos del formulario de la sucursal y, si la
 fecha de nacimiento no se escribe, que la edad se estima. `harness-case` imprime el mismo recorrido bajo cada caso (sin pasos, porque no navega pantallas). En el riel 4 se agrega el paso a paso, con `*` en lo que en `main` está atado a Credifamilia.
 
+El **formulario adicional** sólo lo recorre el caminador (el runner de casos no navega pantallas), en sus dos
+ubicaciones: después de elegir la entidad (`dynamic-form/<n>`, el 7 de Motai:
+`make harness-walk-wizard TARGET=local CASES='motai:173' CLOSE=1 LAMBDA=1 MANUAL=1`, cierra en 11 con codeudor) y
+antes de firmar (`additional-info/<n>`, el 6 de Credifamilia: `CASES='#82e8961e:24'`). Los contesta
+`pkg/dynamic-form-answers.ts` con el esquema del loader, y `mock-forms-g2` (:8109) guarda las respuestas como el
+servicio real: también en `user_field_values` de la base local, que es donde el backend mira si el formulario
+ya se contestó. El formulario 7 y sus ubicaciones se cargaron en local como en producción
+(`tablero/tasks/harness/artifacts/base-local-alineada-2026-11-04/formulario-7-motai.sql`, con cómo deshacerlo).
+
 ## Cuándo cargar una skill
 
 Lo profundo vive en skills, y se carga cuando hace falta:

@@ -59,12 +59,48 @@ const key = (ft, ur) => `${ft}:${ur}`;
 /** El id numérico que el front usa como clave: manda `field_248`, el servicio guarda `248`. */
 const withoutPrefix = (k) => String(k).replace(/^field_/, '');
 
+/** LO QUE EL SERVICIO REAL ESCRIBE EN LA BASE DEL BACKEND. form-service guarda cada respuesta como una fila de
+ *  `user_field_values` (DELETE+INSERT en una transacción, `user_field_value_queries.sql`), y el backend lee esa tabla
+ *  para saber si el formulario ya se contestó (`hasResponseForForm`). Sin esto el backend pide el formulario de
+ *  nuevo, el front no reconoce ese paso y manda a identidad: el recorrido se corta por el mock, no por el producto.
+ *  ⚠ SÓLO LA BASE LOCAL: el target se fija acá y se exige `isLocalDb()`; nunca escribe en la compartida. */
+let dbLocal = null;
+async function writeUserFieldValues(formId, userRequestId, answers) {
+    try {
+        if (!dbLocal) {
+            process.env.E2E_TARGET = 'local';
+            dbLocal = await import('../pkg/db.ts');
+        }
+        if (!dbLocal.isLocalDb()) return 'sin escribir: la base no es local';
+        const owner = await dbLocal.one('SELECT user_id AS u FROM user_requests WHERE id = ?', [userRequestId]);
+        if (!owner) return `sin escribir: la solicitud ${userRequestId} no existe en la base local`;
+        const rows = Object.entries(answers).filter(([, v]) => v !== null && v !== undefined && v !== '');
+        const conn = await dbLocal.pool().getConnection();
+        try {
+            await conn.beginTransaction();
+            await conn.query('DELETE FROM user_field_values WHERE form_id = ? AND user_id = ? AND user_request_id = ?',
+                [formId, owner.u, userRequestId]);
+            for (const [field, value] of rows) {
+                await conn.query(`INSERT INTO user_field_values (field_id, user_id, user_request_id, form_id, value, file, file_name, status, created_at, updated_at)
+                                  VALUES (?, ?, ?, ?, ?, NULL, NULL, 1, NOW(), NOW())`,
+                    [Number(field), owner.u, userRequestId, formId, typeof value === 'object' ? JSON.stringify(value) : String(value)]);
+            }
+            await conn.commit();
+        } catch (e) { await conn.rollback(); throw e; } finally { conn.release(); }
+        return `${rows.length} fila(s) en user_field_values (local)`;
+    } catch (e) {
+        return `⚠ no se escribió user_field_values: ${String(e?.message ?? e).slice(0, 120)}`;
+    }
+}
+
 async function capture() {
     const pieces = [
         ['dynamic-form/8/schema', 'esquema-8.json', 'GET'],
         ['dynamic-form/9/schema', 'esquema-9.json', 'GET'],
         // El formulario adicional de Credifamilia (antes de firmar): sin él, su recorrido se corta en additional-info/6.
         ['dynamic-form/6/schema', 'esquema-6.json', 'GET'],
+        // El de Motai después de elegir la entidad («motai-renting»: la moto y los bienes), en la 158 y la 193 de prod.
+        ['dynamic-form/7/schema', 'esquema-7.json', 'GET'],
         ['field-options/bcp/cars-tree', 'cars-tree.json', 'GET'],
         ['field-options/countries', 'countries.json', 'GET'],
         // ⚠ El árbol de un país se pide con PUT, no con GET: lo CONSTRUYE si no está cacheado.
@@ -131,7 +167,8 @@ const server = http.createServer(async (req, res) => {
                volver a guardar el formulario con un campo menos DEJE ESE CAMPO VACÍO. Si acá se
                mezclara, una prueba de re-edición pasaría por el recuerdo del mock. */
             answers_.set(key(ft, ur), normalized);
-            log(`guardado form ${ft} · solicitud ${ur} · ${Object.keys(normalized).length} campos`);
+            const written = await writeUserFieldValues(Number(ft), Number(ur), normalized);
+            log(`guardado form ${ft} · solicitud ${ur} · ${Object.keys(normalized).length} campos · ${written}`);
             return json(res, 200, {
                 code: 'DYNAMIC_FORM_RESPONSE_SAVED', message: 'Dynamic form response saved.',
                 payload: { formId: Number(ft), userRequestId: Number(ur), answers: normalized },

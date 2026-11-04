@@ -806,11 +806,12 @@ async function correr(c: Case, i: number): Promise<Result> {
             if (!next) return finish('trabado', `kyc: la corrida no contestó en ${Math.round(WAIT_SCREEN_MS / 1000)} s`);
             routePath = next;
             continue;
-        } else if (seg.at(-2) === 'additional-info' && /^\d+$/.test(sheet)) {
-            // EL FORMULARIO ADICIONAL (form-service): el de Credifamilia antes de firmar es el 6. Se contesta lo mínimo
-            // con el esquema que trae el loader (`pkg/dynamic-form-answers.ts`) y el action lo guarda y manda a firmar.
+        } else if ((seg.at(-2) === 'additional-info' || seg.at(-2) === 'dynamic-form') && /^\d+$/.test(sheet)) {
+            // EL FORMULARIO ADICIONAL (form-service), en sus dos ubicaciones: `additional-info/<n>` antes de firmar (el 6
+            // de Credifamilia) y `dynamic-form/<n>` después de elegir la entidad (el 7 de Motai). Las dos rutas reciben lo
+            // mismo, `{ answers }`. Se contesta lo mínimo con el esquema que trae el loader (`pkg/dynamic-form-answers.ts`).
             const answers = answersFromSchema(res.datos, { occupation: arg('occupation', 'Empleado') });
-            if (!Object.keys(answers).length) return finish('trabado', `additional-info/${sheet}: el loader no trajo el esquema del formulario`);
+            if (!Object.keys(answers).length) return finish('trabado', `${seg.at(-2)}/${sheet}: el loader no trajo el esquema del formulario`);
             log(`formulario adicional ${sheet}: ${Object.keys(answers).length} respuestas`);
             jsonBody = { answers };
         } else if (/^identity-validation/.test(sheet)) {
