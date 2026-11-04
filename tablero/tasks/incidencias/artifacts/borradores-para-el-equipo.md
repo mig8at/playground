@@ -497,6 +497,91 @@ igual que en producción, sin ramas propias para pruebas.
 
 ---
 
+## 25 · El formulario de perfilamiento de la aplicación anterior escribe en cualquier solicitud sin sesión (Seguridad)
+
+**Qué pasa.** En `legacy-application`, el formulario de perfilamiento del onboarding (situación laboral, ingreso,
+estrato, central de riesgo, estado civil y correo) se guarda con una ruta del sitio de comercios que está **fuera del
+grupo que exige sesión**. El guardado busca la solicitud por el número que llega en el cuerpo de la petición, no por
+la sesión, y no comprueba que esa solicitud sea de quien envía el formulario. Así, con una sesión cualquiera del
+sitio, se pueden sobrescribir el correo y los datos de perfil de otra solicitud.
+
+**Cómo se comprobó.** Leyendo `main` (igual al último tag de producción): la ruta está antes del bloque con sesión en el
+archivo de rutas del sitio de comercios, el grupo de ese sitio no autentica, la validación del formulario autoriza siempre y el
+controlador hace `UserRequest::find` con el número del cuerpo. No se corrió.
+
+**Falta comprobar:** si esa pantalla sigue en uso en producción o quedó del onboarding anterior.
+
+**Propuesta.** Meter la ruta en el grupo con sesión y tomar la solicitud de la sesión del cliente, o comprobar que
+la solicitud sea suya. Si la pantalla ya no se usa, retirarla.
+
+---
+
+## 26 · Las rutas internas de administración de préstamos del backend no piden identidad (Seguridad · decisión)
+
+**Qué pasa.** En `legacy-backend`, el grupo `api/loans/admin` no tiene ningún middleware de autenticación: sólo el de
+trazas y el grupo base, que no autentica. En ese grupo hay acciones que escriben:
+
+- **marcar la validación manual de un usuario**, que hace que el paso de identidad se salte por 24 horas;
+- **reintentar la radicación** de una solicitud del riel 4 ante la entidad;
+- **regenerar los documentos de Credifamilia** de una solicitud;
+- **rellenar las imágenes de ADO** de los usuarios.
+
+Y lecturas: la revisión de la política de riesgo y la capacidad de endeudamiento de una solicitud, y los intentos de
+preaprobación de una entidad. El admin de `legacy-application` llama algunas de estas rutas desde su servidor.
+
+**Cómo se comprobó.** Leyendo `main`: el `RouteServiceProvider` de Loans monta el grupo con `['otel', 'api']`, y el
+grupo `api` sólo enlaza modelos, traza y marca el tipo de flujo. En el repositorio de infraestructura, el API Gateway
+de producción no publica ninguna ruta `loans/admin`, y el backend sí está detrás del balanceador interno. No se corrió.
+
+**Falta comprobar:** si hay otra entrada pública al backend además del gateway, y quién tiene acceso a la red interna.
+Si sólo se llega por la red interna, el riesgo es de quien tenga acceso a ella; igual, nada en la aplicación lo frena.
+
+**Propuesta.** Ponerle al grupo una autenticación de servicio (una llave interna, como ya tiene el grupo de
+comprobantes de pago) o la identidad del backoffice, y dejar en una lista explícita las rutas que de verdad tienen que
+ser internas.
+
+---
+
+## 27 · En el admin viejo, dos pantallas de perfilamiento no piden permiso (Seguridad)
+
+**Qué pasa.** En el admin de `legacy-application` hay dos pantallas de perfilamiento que no piden ningún permiso en la
+ruta; sólo el menú las esconde:
+
+- **Usuarios perfilamiento** (el listado y su descarga): qué entidades se le mostraron a cada solicitud y con qué
+  probabilidad. El servicio recorta por rol, pero los roles que no están en su lista (por ejemplo, Operaciones y
+  Analista) ven todo.
+- **Validar perfil**: recibe el número de una solicitud en la dirección y muestra su resultado del modelo
+  demográfico y de la matriz, sin mirar de qué comercio es.
+
+En el sitio del comercio, el menú «Perfilamiento» además se muestra sin chequear ningún permiso.
+
+Son de la misma familia que el 17 (la revisión de perfilamiento) y el 20 (lecturas por id sin mirar el comercio).
+
+**Cómo se comprobó.** Leyendo `main` (igual al último tag): las rutas `usuarios-perfilamiento` y `validar-perfil/{id}`
+no llevan `can:`, y sus controladores no autorizan. No se corrió.
+
+**Propuesta.** Ponerles el permiso que usa su menú, y que «Validar perfil» compare el comercio de la solicitud con el
+del usuario.
+
+---
+
+## 28 · El listado de perfilamiento del comercio en el asistente recorta distinto que el de la aplicación anterior (Baja)
+
+**Qué pasa.** La pantalla «Perfilamiento» del comercio se pasó al asistente con un servicio nuevo en `legacy-backend`
+que, a propósito, sólo atiende al asesor: los demás perfiles del comercio no reciben filas. Pero el menú del
+asistente la muestra a todos, así que un admin o superadmin de comercio la ve vacía. Y para el asesor recorta distinto
+que la aplicación anterior: allá ve las solicitudes de su sucursal que son suyas **o que no tienen asesor**; en el
+asistente sólo las suyas (salvo los comercios del setting que les deja ver todo).
+
+**Cómo se comprobó.** Leyendo `main` de los dos monolitos y del asistente: el servicio nuevo lo dice en su comentario
+(«scoped to the "Comercial" role only»), el menú tiene `show: true`, y los dos filtros del asesor difieren en las
+solicitudes sin asesor. No se corrió.
+
+**Propuesta.** Decidir si la pantalla nueva es sólo para el asesor (y entonces esconder el menú a los demás) o portar
+los filtros del resto de los perfiles; y alinear el del asesor con el de la aplicación anterior o anotar por qué cambia.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
