@@ -54,43 +54,6 @@ function toggleView(id) {
   sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
-/* LA SEGURIDAD (server/safety.go): prender y apagar tus agentes del equipo (time, fact) y «Mi agente», uno por uno
-   o todos de una vez. Apagado, un agente tuyo deja de contestarle al equipo; «Mi agente» apagado es «contesto yo». */
-const safety = ref({ agents: [], file: '' })
-const safetyError = ref('')
-const safetyBusy = ref('')
-let safetyTimer = null
-async function loadSafety() {
-  clearTimeout(safetyTimer)
-  try {
-    const res = await fetch('/api/safety')
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    safety.value = body
-    safetyError.value = ''
-  } catch (e) { safetyError.value = e.message }
-  safetyTimer = setTimeout(loadSafety, 15000)
-}
-async function safetyPost(path, body, busy) {
-  safetyBusy.value = busy
-  try {
-    const res = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body || {}) })
-    const out = await res.json().catch(() => ({}))
-    if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
-    safetyError.value = ''
-  } catch (e) { safetyError.value = e.message } finally {
-    safetyBusy.value = ''
-    await loadSafety()
-    chat.loadTeamAgents()
-  }
-}
-const toggleOwnAgent = (a) => safetyPost(`/api/safety/agents/${encodeURIComponent(a.name)}`, { on: !a.on }, a.name)
-const anythingOn = computed(() => safety.value.agents.some((a) => a.on) || mine.agent.mode === 'agente')
-function shutDownAll() {
-  if (!window.confirm('¿Apagar todo? Tus agentes dejan de contestarle al equipo y «Mi agente» deja de contestar por vos.')) return
-  mine.setMode('yo')
-  safetyPost('/api/safety/off', {}, 'todo')
-}
 const servers = ref([])
 const serverOpen = ref('')
 const openServer = computed(() => servers.value.find((s) => s.id === serverOpen.value) || null)
@@ -146,7 +109,11 @@ function setShareOpen(v) { shareOpen.value = v; saveSize('chat.server-share-open
 const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
-const rightOpen = computed(() => (serverOpen.value ? shareOpen.value : agentOpen.value && !chat.activeKey))
+const rightOpen = computed(() => {
+  if (serverOpen.value) return shareOpen.value
+  if (activeOwnAgent.value) return ownPanelOpen.value
+  return agentOpen.value && !chat.activeKey
+})
 // Si no entra todo, se pliega primero la derecha (tu agente) y después las conversaciones, como en VS Code.
 const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min', 360), [
   { size: rightOpen.value ? agentW.value : 0, min: 320 },
@@ -193,12 +160,13 @@ const agentResize = {
   get: () => agentShown.value,
   set: (v) => {
     if (serverOpen.value) shareOpen.value = !!v
+    else if (activeOwnAgent.value) ownPanelOpen.value = !!v
     else agentOpen.value = !!v
     if (v) agentW.value = v
   },
   reopen: () => agentW.value,
   commit: (v) => {
-    saveSize(serverOpen.value ? 'chat.server-share-open' : 'chat.agente-open', v ? 1 : 0)
+    saveSize(serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
     if (v) saveSize('chat.agente-w', agentW.value)
   },
 }
@@ -247,6 +215,24 @@ const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim()
 const activeIsAgent = computed(() => !!chat.active?.person.agent)
 const activeOwner = computed(() => chat.active?.person.owner || null)
 const activeOwnerIsMe = computed(() => (activeOwner.value?.email || '').toLowerCase() === chat.meKey)
+/* UNO DE TUS AGENTES LOCALES abierto (time, fact): a la derecha, su ficha con el interruptor. Apagado no le contesta a
+   nadie, ni al equipo ni a vos, y en la lista sale en gris. */
+const activeOwnAgent = computed(() => (activeIsAgent.value && activeOwnerIsMe.value
+  ? chat.ownAgents.find((a) => a.name === (chat.active.person.agentName || chat.active.person.name)) || null : null))
+const ownPanelOpen = ref(readSize('chat.own-agent-open', 1) !== 0)
+function setOwnPanelOpen(v) { ownPanelOpen.value = v; saveSize('chat.own-agent-open', v ? 1 : 0) }
+const ownBusy = ref(false)
+async function toggleOwnAgent() {
+  const a = activeOwnAgent.value
+  if (!a || ownBusy.value) return
+  ownBusy.value = true
+  try { await chat.setOwnAgent(a.name, !a.on) } finally { ownBusy.value = false }
+}
+async function shutDownOwnAgents() {
+  if (!window.confirm('¿Apagar todos tus agentes? Dejan de contestarle al equipo hasta que los prendas.')) return
+  ownBusy.value = true
+  try { await chat.shutDownOwnAgents() } finally { ownBusy.value = false }
+}
 const activeTitle = computed(() => {
   const p = chat.active?.person
   if (!p) return 'chat'
@@ -371,6 +357,7 @@ function startTask(task, kind) {
 const agentAnswers = computed(() => mine.agent.mode === 'agente' && !!chat.active && !chat.active.person.agent)
 const canSubmit = computed(() => {
   if (agentAnswers.value) return false
+  if (activeOwnAgent.value && !activeOwnAgent.value.on) return false
   if (!activeIsCuadrilla.value) return !!draft.value.trim()
   const t = taskTarget.value
   if (!t) return false
@@ -431,6 +418,7 @@ watch(() => chat.activeKey, async (key) => {
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const placeholder = computed(() => {
   if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
+  if (activeOwnAgent.value && !activeOwnAgent.value.on) return `${activeOwnAgent.value.name} está apagado: prendelo a la derecha para preguntarle`
   if (activeIsCuadrilla.value) {
     const t = taskTarget.value
     if (!t) return 'Elegí una tarea de arriba para anotar en ella'
@@ -468,7 +456,6 @@ onMounted(() => {
   applyRoute()
   chat.start()
   loadServers()
-  loadSafety()
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('popstate', applyRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
@@ -476,7 +463,6 @@ onMounted(() => {
 onBeforeUnmount(() => {
   chat.stop()
   clearTimeout(serversTimer)
-  clearTimeout(safetyTimer)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('popstate', applyRoute)
   themeBinding?.destroy?.()
@@ -580,12 +566,12 @@ const statusText = computed(() => {
         </p>
         <ul v-else class="conversations">
           <li v-for="a in chat.agentList" :key="a.key">
-            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="serverOpen = ''; chat.openAgent(a)">
+            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey, off: a.off }" @click="serverOpen = ''; chat.openAgent(a)">
               <span class="avatar agent" :class="{ mine: a.mine, tool: a.tool }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ a.agentName }}</b>
-                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? 'tuyo' : firstName(a.owner) }}{{ a.offline ? ' · sin conexión' : '' }}</span>
+                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? (a.off ? 'tuyo · apagado' : 'tuyo') : firstName(a.owner) }}{{ a.offline ? ' · sin conexión' : '' }}</span>
                   <span class="when">{{ shortWhen(a.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
@@ -622,37 +608,6 @@ const statusText = computed(() => {
       </div>
       </section>
 
-      <!-- La seguridad: prender y apagar tus agentes y «Mi agente», o todo de una vez. -->
-      <section class="view wb-bloque bloque-seguridad" :class="{ open: isViewOpen('safety') }">
-      <div class="region-head">
-        <button type="button" class="view-tog" :aria-expanded="isViewOpen('safety')" @click="toggleView('safety')">
-          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Seguridad</span>
-        </button>
-        <span class="count" :class="{ filtered: anythingOn }" :title="anythingOn ? 'hay agentes prendidos' : 'todo apagado'">{{ anythingOn ? 'prendido' : 'apagado' }}</span>
-      </div>
-      <div v-if="isViewOpen('safety')" class="region-body safety">
-        <p v-if="safetyError" class="side-note bad">{{ safetyError }}</p>
-        <ul class="safety-list">
-          <li>
-            <span class="safety-main"><b>{{ agentLabel }}</b><span class="safety-sub">contesta por vos en tus conversaciones</span></span>
-            <button type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
-                    :aria-label="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}` : `Prender a ${agentLabel}`"></button>
-          </li>
-          <li v-for="a in safety.agents" :key="a.name">
-            <span class="safety-main">
-              <b>{{ a.name }}</b>
-              <span class="safety-sub" :title="a.url">{{ a.on ? (a.listening ? 'le contesta al equipo' : 'prendido, pero su puerto no contesta') : 'apagado: el equipo no lo ve' }}</span>
-            </span>
-            <button type="button" class="switch" role="switch" :aria-checked="a.on" :disabled="!!safetyBusy" @click="toggleOwnAgent(a)"
-                    :aria-label="a.on ? `Apagar a ${a.name}` : `Prender a ${a.name}`"></button>
-          </li>
-        </ul>
-        <p v-if="!safety.agents.length && !safetyError" class="side-note">No tenés agentes en <code>~/playground/team/agents.json</code>.</p>
-        <button type="button" class="btn btn-outline btn-sm safety-off" :disabled="!anythingOn || !!safetyBusy" @click="shutDownAll">
-          {{ safetyBusy === 'todo' ? 'Apagando…' : 'Apagar todo' }}
-        </button>
-      </div>
-      </section>
     </aside>
 
     <main v-if="openServer" class="editor">
@@ -889,6 +844,32 @@ const statusText = computed(() => {
     <aside v-show="agentShown" class="auxiliarybar" :aria-label="openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <ServerShare v-if="openServer" :server="openServer" @close="setShareOpen(false)" />
+      <template v-else-if="activeOwnAgent">
+        <div class="region-head">
+          <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
+          <div class="region-actions">
+            <button type="button" class="switch" role="switch" :aria-checked="activeOwnAgent.on" :disabled="ownBusy" @click="toggleOwnAgent"
+                    :title="activeOwnAgent.on ? 'Apagar: deja de contestarle al equipo' : 'Prender: el equipo lo vuelve a ver'"
+                    :aria-label="activeOwnAgent.on ? `Apagar a ${activeOwnAgent.name}` : `Prender a ${activeOwnAgent.name}`"></button>
+            <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="setOwnPanelOpen(false)">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div class="region-body own-agent">
+          <p>{{ activeOwnAgent.description }}</p>
+          <dl>
+            <dt>Estado</dt>
+            <dd>{{ activeOwnAgent.on ? (activeOwnAgent.listening ? 'le contesta al equipo' : 'prendido, pero su puerto no contesta: `make chat` lo levanta') : 'apagado: el equipo no lo ve y no contesta' }}</dd>
+            <dt>Dónde escucha</dt>
+            <dd><code>{{ activeOwnAgent.url }}</code>, sólo en esta máquina</dd>
+            <dt>Se declara en</dt>
+            <dd><code>~/playground/team/agents.json</code></dd>
+          </dl>
+          <p v-if="chat.ownAgentsError" class="bad">{{ chat.ownAgentsError }}</p>
+          <button type="button" class="btn btn-outline btn-sm" :disabled="ownBusy || !chat.ownAgents.some((a) => a.on)" @click="shutDownOwnAgents">Apagar todos tus agentes</button>
+        </div>
+      </template>
       <template v-else>
       <div class="region-head">
         <span>Mi agente <small class="agent-state">{{ mine.agent.mode === 'agente' ? 'activo' : 'apagado' }}</small></span>
@@ -958,6 +939,10 @@ const statusText = computed(() => {
             <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
           </button>
         </template>
+        <button v-else-if="activeOwnAgent" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar la ficha del agente"
+                aria-label="Mostrar u ocultar la ficha del agente" @click="setOwnPanelOpen(!agentShown)">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
         <button v-else-if="!chat.activeKey" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
                 aria-label="Mostrar u ocultar tu agente" @click="setAgentOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
@@ -1114,12 +1099,14 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
 .note-del { align-self: center; opacity: 0 }
-.safety { padding: var(--space-2) var(--gutter) var(--space-3); display: flex; flex-direction: column; gap: var(--space-2) }
-.safety-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2) }
-.safety-list li { display: flex; align-items: center; gap: var(--space-3) }
-.safety-main { flex: 1; min-width: 0; display: flex; flex-direction: column }
-.safety-sub { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.safety-off { align-self: flex-start }
+.conversation.off { opacity: .55 }
+.conversation.off .avatar { filter: grayscale(1) }
+.own-agent { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-3) }
+.own-agent p { margin: 0 }
+.own-agent dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm) }
+.own-agent dt { color: var(--fg-2) }
+.own-agent dd { margin: 0; word-break: break-word }
+.own-agent .btn { align-self: flex-start }
 .agent-row { gap: var(--space-2); align-items: flex-end }
 .agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
 .thinking { color: var(--fg-2); font-style: italic }

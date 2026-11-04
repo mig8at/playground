@@ -173,6 +173,25 @@ export const useChatStore = defineStore('chat', () => {
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
   // Los agentes del equipo, uno por fila, con su conversación si ya hubo una: canon primero, después los tuyos.
+  /* TUS AGENTES LOCALES (server/safety.go): los de ~/playground/team/agents.json, prendidos o apagados. Apagado, uno
+     no se le anuncia al equipo, pero sigue en tu lista (en gris), para prenderlo de nuevo desde su conversación. */
+  const ownAgents = ref([])
+  const ownAgentsError = ref('')
+  async function loadOwnAgents() {
+    try { ownAgents.value = (await api('/api/safety')).agents || []; ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
+  }
+  async function setOwnAgent(name, on) {
+    try { await post(`/api/safety/agents/${encodeURIComponent(name)}`, { on }); ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
+    await loadOwnAgents()
+    loadTeamAgents()
+  }
+  async function shutDownOwnAgents() {
+    try { await post('/api/safety/off', {}); ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
+    await loadOwnAgents()
+    loadTeamAgents()
+  }
+  const ownAgentOf = (row) => (row?.mine ? ownAgents.value.find((a) => a.name === row.agentName) || null : null)
+
   const agentList = computed(() => {
     const rows = []
     if (state.value?.installed) {
@@ -187,6 +206,17 @@ export const useChatStore = defineStore('chat', () => {
         const c = conversations.value[key]
         rows.push({ key, agentName: a.name, description: a.description, owner: p, mine: keyOf(p.email) === meKey.value,
                     ...(c ? summarize(c) : { last: null, unread: 0 }) })
+      }
+    }
+    // Tus agentes locales que el equipo no ve (apagados, o sin `listen`): igual en tu lista, para prenderlos.
+    const meP = me.value || (state.value?.session?.email ? { email: state.value.session.email, name: state.value.session.name } : null)
+    if (meP) {
+      for (const a of ownAgents.value) {
+        const key = agentKey(meP.email, a.name)
+        const row = rows.find((r) => r.key === key)
+        if (row) { row.off = !a.on; continue }
+        const c = conversations.value[key]
+        rows.push({ key, agentName: a.name, description: a.description, owner: meP, mine: true, off: !a.on, ...(c ? summarize(c) : { last: null, unread: 0 }) })
       }
     }
     // Las conversaciones con agentes cuyo dueño no está conectado (lo que publicaron sigue acá), al final.
@@ -371,6 +401,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function loadTeamAgents() {
+    loadOwnAgents()
     if (!state.value?.installed) return
     try {
       teamAgents.value = ((await api('/api/team-agents')).people || [])
@@ -599,7 +630,7 @@ export const useChatStore = defineStore('chat', () => {
       const st = state.value
       if (st && !st.session && !st.login?.running && !loginBusy.value) login()
     }
-    loadState().then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
+    loadState().then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla(), loadOwnAgents()])).then(proposeReplies)
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
@@ -613,7 +644,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes,
+    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, shutDownOwnAgents, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }
