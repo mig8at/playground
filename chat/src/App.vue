@@ -365,6 +365,16 @@ function autosize() {
 const notesEl = ref(null)
 const myAgentThinking = computed(() => chat.notes.some((n) => n.status === 'pensando'))
 const modelName = (id) => MODELS.find((m) => m.id === id)?.name || id
+// «leyó 2 archivos · corrió make tareas»: lo que hizo tu agente para contestar, en una línea.
+function stepsSummary(steps) {
+  const count = (tool) => steps.filter((s) => s.tool === tool).length
+  const parts = []
+  if (count('leyó')) parts.push(`leyó ${count('leyó')} ${count('leyó') === 1 ? 'archivo' : 'archivos'}`)
+  if (count('buscó') + count('listó')) parts.push(`buscó ${count('buscó') + count('listó')} ${count('buscó') + count('listó') === 1 ? 'vez' : 'veces'}`)
+  const ran = steps.filter((s) => s.tool === 'corrió').map((s) => s.detail.split(' ').slice(0, 2).join(' '))
+  if (ran.length) parts.push(`corrió ${[...new Set(ran)].join(', ')}`)
+  return parts.join(' · ') || `${steps.length} pasos`
+}
 async function scrollNotesToEnd() {
   await nextTick()
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
@@ -641,15 +651,20 @@ const statusText = computed(() => {
            Lo que te escribe cada persona está en su conversación. -->
       <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes" aria-live="polite">
         <p v-if="!chat.notes.length" class="side-note center">
-          Escribile a {{ agentLabel }}: te contesta acá, con {{ modelName(mine.agent.model) }}. Sólo están ustedes dos, en este navegador.
+          Escribile a {{ agentLabel }}: te contesta acá, con {{ modelName(mine.agent.model) }}. Puede leer tu playground —knowledge/, el
+          tablero y las herramientas— y correr comandos que sólo consultan; nada que escriba, y no lee credenciales.
         </p>
         <template v-for="n in chat.notes" :key="n.id">
           <div v-if="n.from === 'agente'" class="bubble-row in agent-row">
             <img v-if="mine.agent.avatar" class="agent-avatar" :src="mine.agent.avatar" alt="">
             <div class="bubble" :class="{ failed: n.status === 'error' }">
               <span class="published-label">{{ agentLabel }}<template v-if="n.model"> · {{ modelName(n.model) }}</template></span>
-              <p v-if="n.status === 'pensando'" class="text thinking">pensando…</p>
+              <p v-if="n.status === 'pensando'" class="text thinking">pensando… (si lee tu playground, tarda un poco más)</p>
               <p v-else class="text">{{ n.text }}</p>
+              <details v-if="n.steps?.length" class="agent-steps">
+                <summary>{{ stepsSummary(n.steps) }}</summary>
+                <ul><li v-for="(st, i) in n.steps" :key="i"><b>{{ st.tool }}</b> <code>{{ st.detail }}</code></li></ul>
+              </details>
               <span class="meta">{{ clock(n.time) }}</span>
             </div>
             <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)">✕</button>
@@ -1031,6 +1046,10 @@ code { font-family: var(--font-mono); font-size: .92em }
 .agent-row { gap: var(--space-2); align-items: flex-end }
 .agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
 .thinking { color: var(--fg-2); font-style: italic }
+.agent-steps { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-2) }
+.agent-steps summary { cursor: pointer }
+.agent-steps ul { margin: var(--space-1) 0 0; padding-left: var(--space-4) }
+.agent-steps code { font-family: var(--font-mono); word-break: break-all }
 .bubble-row:hover .note-del { opacity: 1 }
 .published-label { font-size: var(--text-xs); font-weight: 600; color: var(--quote-rule) }
 

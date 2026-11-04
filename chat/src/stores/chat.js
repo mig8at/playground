@@ -323,7 +323,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       const tasks = (myTasks.value || []).map((t) => ({ titulo: t.titulo, estado: t.bloqueo ? `bloqueada: depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso' }))
       const r = await post('/api/my-agent/ask', { model: mine.agent.model, name: mine.agent.name, owner: ownerName(), rules: RULES, tasks, history, text: body })
-      Object.assign(stored() || {}, { text: r.text, status: '' })
+      Object.assign(stored() || {}, { text: r.text, status: '', steps: r.steps || [] })
     } catch (e) {
       Object.assign(stored() || {}, { text: e.message, status: 'error' })
     }

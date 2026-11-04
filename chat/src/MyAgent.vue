@@ -134,7 +134,7 @@ onBeforeUnmount(() => {
             <b>{{ m.name }}</b><small>{{ m.note }}</small>
           </button>
         </div>
-        <p class="hint">En «Mi chat» te contesta con este modelo (Claude Code en esta máquina; gasta el límite de tu asiento). A los demás todavía les contesta con una plantilla.</p>
+        <p class="hint">En «Mi chat» te contesta con este modelo (Claude Code en esta máquina; gasta el límite de tu asiento). Lee tu playground y corre sólo comandos que consultan. A los demás todavía les contesta con una plantilla.</p>
       </div>
 
       <div class="field">
