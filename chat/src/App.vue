@@ -43,6 +43,16 @@ function openMyChat() { serverOpen.value = ''; chat.activeKey = ''; setAgentOpen
 /* LOS SERVERS (server/servers.go): lo que hay que tener prendido en esta máquina para que otra persona pruebe contra
    ella. Su estado se mira cada 15 s, y cada 2 s mientras se levanta; abierto, ocupa el editor. Abrir una
    conversación lo cierra. */
+/* LAS VISTAS DEL SIDEBAR, como en canon y VS Code: cada bloque se pliega con su encabezado, las abiertas se reparten el
+   alto y una cerrada ocupa una fila (no desaparece). Lo abierto se recuerda en este navegador; sin almacenamiento,
+   arrancan todas abiertas. */
+const SIDEBAR_VIEWS_KEY = 'chat.sidebar-views'
+const sidebarViews = ref((() => { try { return JSON.parse(localStorage.getItem(SIDEBAR_VIEWS_KEY) || '{}') || {} } catch { return {} } })())
+const isViewOpen = (id) => sidebarViews.value[id] ?? true
+function toggleView(id) {
+  sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
+  try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
+}
 const servers = ref([])
 const serverOpen = ref('')
 const openServer = computed(() => servers.value.find((s) => s.id === serverOpen.value) || null)
@@ -360,12 +370,14 @@ const statusText = computed(() => {
 <template>
   <div class="workbench" :style="layoutVars">
     <aside v-show="sidebarShown" class="sidebar en-bloques" aria-label="Conversaciones">
-      <!-- DOS BLOQUES (`en-bloques` de la base): tus conversaciones y los agentes del equipo. Con «Paneles», cada uno es un
-           panel sobre el lienzo, como en canon. -->
+      <!-- TRES VISTAS (`en-bloques` y `.view` de la base): tus conversaciones, los agentes del equipo y los servers. Cada
+           una se pliega como en VS Code; con «Paneles», cada una es un panel sobre el lienzo, como en canon. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="wb-bloque bloque-conversaciones">
+      <section class="view wb-bloque bloque-conversaciones" :class="{ open: isViewOpen('conversations') }">
       <div class="region-head">
-        <span>Conversaciones</span>
+        <button type="button" class="view-tog" :aria-expanded="isViewOpen('conversations')" @click="toggleView('conversations')">
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Conversaciones</span>
+        </button>
         <span v-if="chat.unreadTotal" class="count filtered" :title="`${chat.unreadTotal} sin leer`">{{ chat.unreadTotal }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" title="Actualizar" aria-label="Actualizar"
@@ -374,7 +386,7 @@ const statusText = computed(() => {
           </button>
         </div>
       </div>
-      <div class="region-body">
+      <div v-if="isViewOpen('conversations')" class="region-body">
         <ul class="conversations">
           <li>
             <button type="button" class="conversation" :class="{ on: !chat.activeKey && !serverOpen }" @click="openMyChat">
@@ -423,15 +435,17 @@ const statusText = computed(() => {
         </ul>
 
       </div>
-      </div>
+      </section>
 
       <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
-      <div class="wb-bloque bloque-agentes">
+      <section class="view wb-bloque bloque-agentes" :class="{ open: isViewOpen('agents') }">
       <div class="region-head">
-        <span>Agentes</span>
+        <button type="button" class="view-tog" :aria-expanded="isViewOpen('agents')" @click="toggleView('agents')">
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Agentes</span>
+        </button>
         <span class="count">{{ chat.agentList.length }}</span>
       </div>
-      <div class="region-body">
+      <div v-if="isViewOpen('agents')" class="region-body">
         <p v-if="chat.teamAgentsError" class="side-note bad">{{ chat.teamAgentsError }}</p>
         <p v-else-if="!chat.agentList.length" class="side-note">
           Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: los de
@@ -456,15 +470,17 @@ const statusText = computed(() => {
           </li>
         </ul>
       </div>
-      </div>
+      </section>
 
       <!-- Los servers: lo que hay que prender acá para que otra persona pruebe contra esta máquina. -->
-      <div class="wb-bloque bloque-servers">
+      <section class="view wb-bloque bloque-servers" :class="{ open: isViewOpen('servers') }">
       <div class="region-head">
-        <span>Servers</span>
+        <button type="button" class="view-tog" :aria-expanded="isViewOpen('servers')" @click="toggleView('servers')">
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Servers</span>
+        </button>
         <span class="count">{{ servers.length }}</span>
       </div>
-      <div class="region-body">
+      <div v-if="isViewOpen('servers')" class="region-body">
         <ul class="conversations">
           <li v-for="s in servers" :key="s.id">
             <button type="button" class="conversation" :class="{ on: serverOpen === s.id }" @click="serverOpen = serverOpen === s.id ? '' : s.id">
@@ -477,7 +493,7 @@ const statusText = computed(() => {
           </li>
         </ul>
       </div>
-      </div>
+      </section>
     </aside>
 
     <main v-if="openServer" class="editor">
@@ -873,9 +889,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 .proposal-actions { display: flex; gap: var(--space-1); margin-top: 2px }
 /* Los dos bloques del costado: las conversaciones se llevan el alto que sobra; los agentes, lo suyo y no más de la
    mitad. Cada uno scrollea su cuerpo. */
-.bloque-conversaciones { flex: 1 1 auto }
-.bloque-agentes { flex: 0 1 auto; max-height: 45% }
-.bloque-servers { flex: 0 0 auto }
 
 .mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
 .mode-toggle.on { color: var(--office-accent); font-weight: 600 }
