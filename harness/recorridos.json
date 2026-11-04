@@ -290,6 +290,6 @@
       "evidente": "Evidente (cuestionario y código)",
       "questions": "Preguntas (en el catálogo; el backend no lo atiende)"
     },
-    "withoutProvider": "el paso de identidad termina en error, salvo una validación manual de las últimas 24 horas"
+    "withoutProvider": "el backend contesta error en el paso de identidad y el asistente lo tapa: manda a las instrucciones de identidad (salvo una validación manual de las últimas 24 horas)"
   }
 }

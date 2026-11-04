@@ -96,6 +96,15 @@
       "sections": [
         "crosscore-y-evidente"
       ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "d724df6690f53c018f71f0b5853dfe2008dabf93",
+      "sections": [
+        "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
     }
   ]
 }

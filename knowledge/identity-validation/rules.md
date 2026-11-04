@@ -28,7 +28,9 @@ conocen personas colombianas.
 
 Antes de mirar el proveedor, `CreditopXFlowService` revisa dos cosas: si la persona tiene una
 validación manual de las últimas 24 horas, el paso se salta; y si la entidad no tiene proveedor
-primario, el paso termina en error («no tiene tipo de validación principal configurado»).
+primario, el backend contesta `next_step: error` («no tiene tipo de validación principal
+configurado»), con HTTP 200. El asistente no reconoce ese tipo y cae a su destino por defecto, las
+instrucciones de identidad: el cliente ve la pantalla de siempre y el error no se nota.
 
 `IdentityValidationStepResolver` traduce el proveedor al paso que sigue:
 

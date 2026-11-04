@@ -135,11 +135,11 @@ sucursal, y cada uno se decide en un lugar distinto:
 
 La fecha de nacimiento tiene una consecuencia que no se ve en la pantalla. Si no se escribe, el backend
 la **estima**: la fecha de expedición menos 18 años y un mes. Si el comercio tampoco recauda la
-expedición, queda vacía. De esa fecha sale la edad que evalúan las reglas de edad de las categorías
-(`LenderUserCategoryService`): en las sucursales que no están en las listas, una entidad con regla de
-edad decide con una edad estimada, que sale más baja cuanto más tarde se expidió el documento. Si el
-comercio no recauda la expedición, el criterio de edad se salta.
-Las listas usan ids fijos, y el mismo id puede ser otro comercio en otra base.
+expedición, queda vacía. La edad que evalúan las reglas de edad de las categorías
+(`LenderUserCategoryService`) depende de qué central validó a la persona: si fue Ágil Data, es la
+edad que devuelve Ágil Data; si fue Mareigua o TusDatos, se calcula desde la fecha de nacimiento, y
+entonces es la estimada, más baja cuanto más tarde se expidió el documento. Si el comercio no recauda
+la expedición, el criterio de edad se salta. Las listas usan ids fijos, y el mismo id puede ser otro comercio en otra base.
 
 La información laboral sale primero de las centrales. Si respondió Ágil Data o Mareigua, el backend
 completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la

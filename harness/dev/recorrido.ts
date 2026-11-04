@@ -28,7 +28,8 @@ if (channelArg && !cat.channels[channelArg]) {
 }
 
 async function main(): Promise<number> {
-    const merchantArg = arg('merchant');
+    // `#hash` es la forma de los casos del harness: se acepta igual que el hash pelado.
+    const merchantArg = arg('merchant').replace(/^#/, '');
     const lenderArg = arg('lender');
     if (!merchantArg && !lenderArg) {
         console.error('falta --merchant <clave de harness.json, hash, slug o nombre> o --lender <id[,id…]>');
