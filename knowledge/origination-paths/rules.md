@@ -83,6 +83,21 @@ Por eso hay dos clases de variación: las **por entidad**, que se leen en la con
 toda solicitud con esa entidad, y las **por cliente**, que dependen de la categoría que le toca y sólo
 se saben al evaluarlo.
 
+Ábaco es una variación que además **trae datos**. Es un proveedor externo que, con las credenciales
+que da el cliente, lee sus ingresos en plataformas como las de reparto o transporte: un ingreso
+informal que las centrales no ven. Las pantallas aparecen después de elegir la entidad y antes de la
+validación de identidad, sólo si la entidad lo pide. Lo que devuelve se usa de dos formas:
+
+- **Ingreso:** `MonthlyIncomeResolver` evalúa las políticas con el ingreso formal (la primera central
+  con monto: Ágil Data, Mareigua o Quanto) **más** el informal de Ábaco (campo 235). No recibe la
+  entidad, así que el informal cuenta para toda entidad que evalúe a esa persona, no sólo para la que
+  pidió Ábaco.
+- **Criterios propios:** las categorías pueden exigir viajes al mes o antigüedad en la plataforma, y
+  negar a quien no tiene esos datos (`GigCriteria`).
+
+La consulta vale por persona durante su vigencia, no por solicitud ([requisitos de
+Ábaco](knowledge:abaco-requirements)).
+
 La cuota inicial es además la variación que depende del canal. `InitialFeePolicyResolver` es su única
 autoridad y sólo resuelve los tipos 2 y 3; con cualquier otro riel no hay cuota inicial. El porcentaje
 sale de la categoría del cliente, y el monto suma lo que fija el convenio del comercio con la entidad

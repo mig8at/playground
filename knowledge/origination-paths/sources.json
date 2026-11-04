@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-04T11:11:55+00:00",
+  "reviewedAt": "2026-11-04T11:17:11+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -229,6 +229,33 @@
       "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Income/MonthlyIncomeResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d33a1c4f52f7b2e57b377515ef622c3b4592b815",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Income/GigCriteria.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "3cf2f96ad63fd06f4b9585a0ec5d6a5f5dfbf9d1",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoStepResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b99c638db0600a35fc2ab931c4409b284ef6963b",
+      "sections": [
+        "variaciones-y-ajustes"
       ]
     }
   ]

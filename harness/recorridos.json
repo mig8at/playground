@@ -115,7 +115,9 @@
     "abaco": {
       "name": "Ábaco",
       "scope": "entidad",
-      "when": "lender_requirements.abaco_is_enabled = 1 y el cliente sin consulta vigente"
+      "when": "lender_requirements.abaco_is_enabled = 1 y el cliente sin consulta vigente",
+      "brings": "ingreso informal de plataformas (campo 235), que MonthlyIncomeResolver suma al formal para toda entidad, y datos de viajes y antigüedad para los criterios gig de las categorías",
+      "where": "después de elegir la entidad y antes de la validación de identidad"
     },
     "manual-approval": {
       "name": "Aprobación manual",
