@@ -2,12 +2,12 @@
   "version": 1,
   "title": "Planes de renting y RTO",
   "summary": "Calculadora por entidad, planes y conteo de pagos, tarjeta y recálculo; límites entre listado, simulación y firma; montos que se guardan al autorizar con calculadora.",
-  "reviewedAt": "2026-11-02T15:34:07+00:00",
+  "reviewedAt": "2026-11-04T01:01:37Z",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
       "sections": [
         "producto-y-calculadora"
@@ -16,7 +16,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/LenderController.php",
-      "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",
       "sections": [
         "producto-y-calculadora"
@@ -25,7 +25,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Support/FormulaCalculator.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "000f79661fe91b95a896d2e6c4b5164aaabcce68",
       "sections": [
         "producto-y-calculadora",
@@ -35,7 +35,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Support/LenderCalculator.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "abfbec07c9f88dd9cf0edd1a69c61db72c8cde92",
       "sections": [
         "orden-y-errores-de-las-formulas",
@@ -45,7 +45,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Support/LenderCalculation.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "f1a54f8d9af50536b0be4bedce6cf91152b1d03c",
       "sections": [
         "opciones-y-cantidad-de-pagos"
@@ -54,7 +54,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
       "sections": [
         "producto-y-calculadora",
@@ -66,7 +66,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/LenderListingController.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "692916187803b04d738b2609530fe1e289623948",
       "sections": [
         "recalculo-por-monto"
@@ -75,16 +75,17 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/CalculatorPaymentScheduleService.php",
-      "commit": "63123374a5d0875c908a83e3145f334b2ff913ee",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "be5c946694f63565dcc2bfa932db3e7bce90dccc",
       "sections": [
-        "simulacion-y-documentos"
+        "simulacion-y-documentos",
+        "montos-que-se-guardan-al-autorizar"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
       "sections": [
         "simulacion-y-documentos"
@@ -111,7 +112,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
@@ -120,7 +121,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-approval.service.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "715c82651e64f2bc08e44f8d895a708490e04182",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
@@ -129,7 +130,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
@@ -138,7 +139,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "082360218246a8a16f2c37e045aa22c4afb823a9",
       "sections": [
         "recalculo-por-monto"
@@ -147,7 +148,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/RecalculatingAmountBridge.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "840eead8cfe8045e8eb47fc036eb10835e8dcf3b",
       "sections": [
         "recalculo-por-monto"
@@ -156,7 +157,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/lenders/recalculate.tsx",
-      "commit": "68ce7349c4e2a52c83fe4ee174a23ac71fe667cc",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "a42a20c8a7f022f37b0e8c6c4fb7dcbada9d1084",
       "sections": [
         "recalculo-por-monto"
@@ -165,8 +166,89 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Amounts/CalculatorAuthorizationAmounts.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "30466a38ee8898e5ed8e3da5330573814c9b819a",
+      "sections": [
+        "montos-que-se-guardan-al-autorizar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Support/CalculationOption.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "61abc533f45440c84bbefc441b8830d800c38e76",
+      "sections": [
+        "opciones-y-cantidad-de-pagos"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/PaymentScheduleController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "205a67146e9ee053fb510b25cd776288e73cd12b",
+      "sections": [
+        "simulacion-y-documentos"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/payment-schedule.entity.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "6644f08c6b3fc5489f6d635aa2af3cabb114cf48",
+      "sections": [
+        "simulacion-y-documentos"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/payment-schedule.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "9ae56fdb33e8aab1c10065df563fbdd9d7108f02",
+      "sections": [
+        "simulacion-y-documentos"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/card-config.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "8728e7a23fc13726a00320e981a32595e8109026",
+      "sections": [
+        "tarjeta-y-seleccion-del-plan"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "112c2e0444bce4136fbbc78d1f9315bf5060ead8",
+      "sections": [
+        "recalculo-por-monto"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/marketplace-view.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "658578af539c270c914fb35cae83027d82a01af6",
+      "sections": [
+        "recalculo-por-monto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "montos-que-se-guardan-al-autorizar"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
       "sections": [
         "montos-que-se-guardan-al-autorizar"
       ]

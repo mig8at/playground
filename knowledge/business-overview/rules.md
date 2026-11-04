@@ -32,10 +32,11 @@ Para ir directo a una pregunta:
   documento.
 - **Comercio o aliado** (`allieds`): la tienda que vende. Tiene **sucursales** (`allied_branches`), y
   la sucursal es la unidad operativa: tiene su `hash` (que va en las URLs del asistente), sus
-  entidades habilitadas, el grafo de KYC (el pipeline se elige por comercio), si el monto queda fijo (`lock_amount`) y sus
-  credenciales de integración ecommerce.
+  entidades habilitadas (`lenders_by_allied_branches`), si el monto queda fijo (`lock_amount`) y sus
+  credenciales de integración ecommerce. El camino de KYC no vive en la sucursal: se decide por
+  comercio (el hash se resuelve a su comercio y se busca en el setting `kyc_pipeline_allieds`).
 - **Asesor**: el vendedor del comercio que acompaña al cliente en el punto de venta; la solicitud
-  queda a su nombre.
+  queda a su nombre (`user_requests.corporate_user_id`).
 - **Entidad** (`lenders`): quien presta. Puede ser externa (un banco, una fintech) o un producto
   propio de CreditOp, CreditopX.
 - **Solicitud** (`user_requests`): un intento de financiar una compra: cliente, comercio, sucursal,
@@ -51,22 +52,27 @@ La columna que más cambia el comportamiento es `lenders.response_type`. Separa 
 - **2 CreditopX consumo** y **3 CreditopX rotativo**: la política es de CreditOp, que calcula cupo
   con su motor de perfiles y origina, firma y administra la cartera.
 - **4 Originación delegada**: la política es de la entidad pero CreditOp origina por sus rieles
-  (identidad, firma, pagaré) y radica ante la entidad.
+  (identidad, firma, pagaré) y, al autorizar, radica ante la entidad (`legacy-backend`,
+  `LoanAuthorizationService`).
 
 La cobranza es otro eje (`externally_serviced`), y la periodicidad de corte (`cutoff_type_id`:
 mensual, quincenal, semanal) es por entidad. Detalle: `lender-response-types`.
 
 ## Por dónde entra un cliente
 
-El canal queda en `users.onboarding_channel` la primera vez:
+El canal queda en `users.onboarding_channel` la primera vez: en los dos monolitos, el modelo `User`
+restaura el valor anterior si un update intenta cambiar uno no nulo. Es una guarda del modelo, no de
+la base: una escritura que no pase por ese modelo puede pisarlo. El asistente sólo envía `merchant`
+(ruta `/merchant`), `ecommerce` o `self_service`; `mobile` lo pone el backend en su flujo móvil.
 
 - **`merchant`**: el asesor abre el asistente con el hash de su sucursal y acompaña al cliente.
 - **`self_service`**: el cliente entra solo, por QR o código en tienda física, o por las rutas de
-  autogestión.
-- **`ecommerce`**: una tienda online (WooCommerce, VTEX, Shopify, link de pago) manda el pedido
-  serializado; hay una solicitud por pedido.
-- **`mobile`**: el cliente se registra en CreditOp Mobile; la app genera un código para comprar en un
-  comercio aliado por venta asistida o tienda física.
+  autogestión; es también el valor por defecto de cualquier flujo que no sea comercio ni ecommerce.
+- **`ecommerce`**: una tienda online manda el pedido, serializado en la URL de checkout o creado antes
+  con `payment-link` (el conector de VTEX usa este); el pedido se vincula a su solicitud, y ese
+  vínculo puede pasar a otra solicitud si se recrea.
+- **`mobile`**: el cliente se registra en CreditOp Mobile; la app le pide a self-manager-api un
+  código para comprar en un comercio aliado por venta asistida o tienda física.
 
 Detalle: `onboarding-origin`, `ecommerce-context`, `creditop-mobile`.
 
@@ -83,19 +89,24 @@ catálogo `user_request_statuses`):
 4. **Formulario de perfil** y, si la entidad lo pide, codeudor, documentos, aprobación manual o cuota
    inicial.
 5. **Firma**: contrato y pagaré (Deceval), con OTP.
-6. **Autorizada** (11): el crédito existe. Es terminal; al llegar, se cancelan las otras solicitudes
-   CreditopX del cliente en ese comercio.
+6. **Autorizada** (11): el crédito existe y la originación terminó (el asistente no deja retomarla).
+   Al autorizar una CreditopX consumo (riel 2), `legacy-backend` cancela (8) las otras solicitudes
+   de riel 2 del cliente en ese comercio, salvo las que ya están en 11, tienen el registro de creación
+   en el core o tienen una cuota inicial aprobada. El riel 3 no dispara esa cascada.
 
-En los rieles 0 y 1 el desenlace lo cuenta la entidad por webhook o lo marca el comercio a mano.
-Nequi también figura en el listado como entidad de riel 0, pero es un **pago de contado**: un cobro
-aprobado lleva la solicitud a 11 sin crédito detrás (ver `user-request-lifecycle`).
+En los rieles 0 y 1 el desenlace lo cuenta la entidad por webhook o lo marca el comercio a mano:
+la gestión manual del portal de aliados en `legacy-backend` rechaza las solicitudes de los rieles
+2, 3 y 4, que se mueven por el flujo. Nequi también figura en el listado como entidad de riel 0,
+pero es un **pago de contado**: un cobro aprobado lleva la solicitud a 11 sin crédito detrás, y si
+el pago se reversa vuelve a Cancelado (ver `user-request-lifecycle`).
 
 ## Después de originar
 
 - **Entidad externa**: desembolsa y cobra ella. CreditOp conserva la solicitud y su estado.
-- **CreditopX**: CreditOp administra la cartera. Cada noche se causan intereses, se aplican pagos
-  retenidos, se condonan colillas, se cobran gastos de cobranza por mora y se aplican beneficios
-  (subsidio de intereses de las primeras cuotas). El cliente paga por Wompi (portal de pagos, app),
+- **CreditopX**: CreditOp administra la cartera. Cada noche loan-servicing agenda, por hora y dependencias, comandos
+  de `application`: concilia pagos Wompi no aplicados, condona colillas, causa intereses (y ahí el
+  gasto de cobranza por días de mora), aplica pagos retenidos, actualiza los créditos rotativos,
+  aplica beneficios (subsidio de intereses de las primeras cuotas) y envía recordatorios. El cliente paga por Wompi (portal de pagos, app),
   en caja del comercio, o por otros medios configurados por entidad. Los equipos financiados pueden
   bloquearse por mora (IMEI).
 
@@ -111,8 +122,8 @@ Detalle: `creditopx-payment-application`, `creditopx-portfolio-servicing`, `devi
 - **Servicios en Go**: pre-approvals-service (preaprobación multi-entidad), merchant-api (comercios
   y sedes para la app), self-manager-api (códigos QR, de barras y numéricos de autogestión),
   customer-profiling-service (pipeline de KYC), financial-health-service (salud financiera de la app),
-  loan-servicing (la noche de cartera), y otros más nuevos (identity-service, entitlement-service,
-  access-service).
+  loan-servicing (la noche de cartera), identity-service (verificación de identidad con ADO) y
+  entitlement-service (beneficios de la app móvil).
 - **creditop_mobile**: la app Flutter del cliente final.
 
 Muchas reglas existen en **los dos monolitos** con diferencias; antes de afirmar una, se revisan

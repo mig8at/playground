@@ -2,12 +2,12 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-02T15:59:04+00:00",
+  "reviewedAt": "2026-11-04T01:00:58Z",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequest.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "7f20bdcc26b03bc553307da35247d0632ca7143e",
       "sections": [
         "quien-es-quien"
@@ -16,7 +16,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/AlliedBranch.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9738d4fb07b3995cc447f777d5f945dcd91df9e5",
       "sections": [
         "quien-es-quien"
@@ -25,7 +25,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/Lender.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "01aa3f99100fe17ed904b0911f86ffc2b5da5549",
       "sections": [
         "quien-es-quien",
@@ -53,7 +53,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "2cc3688440c9c5afa2554012559888753395c860",
       "sections": [
         "por-donde-entra-un-cliente"
@@ -62,7 +62,7 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/infrastructure/home/datasources/lender_code_datasource.dart",
-      "commit": "23838f6058b6bd29c4262efa99c81117c303e801",
+      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
       "blob": "dc083eb520132dec7b997b0dc415e1448a1e7f03",
       "sections": [
         "por-donde-entra-un-cliente",
@@ -72,7 +72,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/UserRequestStatus.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "8f4e22887e1fc446d4bf768ee63fdf83c41cdf91",
       "sections": [
         "el-recorrido-de-una-solicitud"
@@ -81,7 +81,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/UserRequestRepository.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "d9a90d0bd79ac538035b3419b23f1c1d091f883d",
       "sections": [
         "el-recorrido-de-una-solicitud"
@@ -90,7 +90,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/UserRequestManagementService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "69c25adcd59a7f818caa5452b9128727ebf7425d",
       "sections": [
         "el-recorrido-de-una-solicitud"
@@ -145,10 +145,111 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/Lenders/Nequi/NequiUserRequestSealer.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "7ae251cd2b0c18f228e61db76b3941db2efb59e1",
       "sections": [
         "el-recorrido-de-una-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/User.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "0c0a94200d800005f15b218b4fc5d54dfab0eb71",
+      "sections": [
+        "por-donde-entra-un-cliente"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/User.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "a5390759c3d5c096f4def56a2d9d37f652ef3e5d",
+      "sections": [
+        "por-donde-entra-un-cliente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "quien-presta-y-con-que-politica-los-rieles",
+        "el-recorrido-de-una-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentDateService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "d8138cb2bbecbf39b4529f4081d9846187736aa6",
+      "sections": [
+        "quien-presta-y-con-que-politica-los-rieles"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveKycFlowService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "fe289ca39ed4f3d69549fc2aa654a26a73275d13",
+      "sections": [
+        "quien-es-quien",
+        "el-recorrido-de-una-solicitud"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/DeviceLockingV1/App/Constants/DeviceLockingEngine.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "70132378bd34f18a272a5fdf48fa014da5174b6a",
+      "sections": [
+        "despues-de-originar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "300f20fd4ae4293e75380bc96b93b18785eb6c7f",
+      "sections": [
+        "despues-de-originar"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Commands/ApplyPendingCashPaymentCommand.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "5b091e51d8055bc7dc14629d5b8e09324d658b06",
+      "sections": [
+        "despues-de-originar"
+      ]
+    },
+    {
+      "repo": "self-manager-api",
+      "path": "internal/infra/generate/bar-generator.go",
+      "commit": "f1d8002e1d88d6628f7a1172e5b704e15015beb6",
+      "blob": "1fbf734bfe4152a29a668a9ea7aa190286844ae0",
+      "sections": [
+        "que-sistema-hace-que"
+      ]
+    },
+    {
+      "repo": "customer-profiling-service",
+      "path": "internal/core/domain/pipeline.go",
+      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
+      "blob": "283e91d7285aca9a2777d2caf746c604114c8501",
+      "sections": [
+        "que-sistema-hace-que"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/EcommerceRequest.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "bea3b19932ffacdddd675c7d6f2e6c4d0c5397eb",
+      "sections": [
+        "por-donde-entra-un-cliente"
       ]
     }
   ]
