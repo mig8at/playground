@@ -51,7 +51,51 @@ Slack, canal `#qa-messages`.
 Para ver el pedido y su estado del lado de la tienda: el admin de VTEX (enlaces del sidebar), con un usuario en la cuenta
 `creditop`. Si al pagar no aparece Creditop, o el wizard no es el de qa, alguien cambió la condición de pago: avisale a Miguel.
 
-Shopify todavía no: su app no está desplegada y sólo corre mientras alguien tiene `shopify app dev` levantado.
+Shopify todavía no tiene una tienda que pague con la app desplegada. Mientras tanto, la **Shopify demo**.
+
+## 3b · Comprar en la Shopify demo
+
+http://localhost:5186/shopify-demo.html: una tienda Shopify de mentira que paga con la app de Creditop de verdad (el host
+de temp-shopify), que corre en la máquina de quien la está cambiando. No hace falta tener ese repo: el host se usa por
+la dirección de su canal del playground. A la izquierda, si se llega a todo; abajo, el checkout; a la derecha, los
+pedidos como los vería el comercio en Shopify, con lo que pasó en cada uno.
+
+```text
+la demo ──sesión de pago──► canal del host ──► el host (en la máquina de su dueño) ──► Creditop ──► el wizard
+«Avisar como Creditop» ──► canal del host ──► el host ──paymentSessionResolve──► canal de la demo ──► ESTE Shopify falso
+```
+
+**Una vez por día** (los canales vencen a las 24 h):
+
+1. Pedile al dueño del host la dirección de su canal (`playground hooks new shopify-host-qa --serve`, en su máquina).
+2. Abrí el canal de tu Shopify falso y servilo desde esta máquina, en una terminal que quede abierta:
+   ```bash
+   playground hooks new shopify-falso --serve
+   playground hooks listen <canal> --to http://127.0.0.1:5187
+   ```
+   Pasale esa dirección al dueño del host: va en su `SHOPIFY_PAYMENTS_API_URL`, para que el host le avise a tu Shopify falso.
+3. En el `.env` de acá:
+   ```text
+   SHOPIFY_DEMO_PLAYGROUND=https://playground.creditop.com
+   SHOPIFY_DEMO_HOST_URL=https://playground.creditop.com/hooks/<canal del host>
+   SHOPIFY_DEMO_CHANNEL_URL=https://playground.creditop.com/hooks/<tu canal>
+   SHOPIFY_DEMO_SHOP=creditop-demo.myshopify.com      # la tienda que el host tiene configurada
+   SHOPIFY_DEMO_TARGET=qa                             # dónde busca «Avisar como Creditop» el aviso firmado
+   ```
+   y `npm run dev` de nuevo (el `.env` se lee al arrancar).
+
+Las tres conexiones de la izquierda tienen que estar en verde antes de comprar: **playground** (contesta su `/health`),
+**host de la app** (su canal contesta; 503 = su dueño no está corriendo el `listen`) y **este Shopify falso** (el playground
+llega a este servidor por tu canal: se comprueba con un ping que sólo este proceso sabe contestar).
+
+**«Pagar con Creditop»** le manda al host la sesión de pago con la forma de Shopify y abre la URL que devuelve: el wizard.
+**«Avisar como Creditop»** le manda al host el aviso de fin de solicitud (aprobada, negada, cancelada o pendiente) al
+`webhook_url` firmado que Creditop guardó del pedido. El host se lo dice al Shopify falso, y el pedido pasa a **Pagado**,
+**Pago fallido** o **Pago pendiente**. Cuando el host tenga un dominio que el backend alcance, ese aviso llega solo al
+aprobar la solicitud de verdad. Los pedidos de la demo quedan en `.data/shopify-demo.json` (fuera de git).
+
+`SHOPIFY_DEMO_HOST_ANNOUNCED_URL` sólo hace falta con un playground local en `http`: payment-link exige `https`, así que
+el host se anuncia con `https://localhost:…` y la demo traduce sus enlaces a la dirección `http` por la que se le llega.
 
 ## 4 · Mirar y cerrar la compra en ecommerce
 
