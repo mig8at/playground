@@ -2205,6 +2205,23 @@ const server = createServer(async (req, res) => {
     }
 
 
+    // ── LAS FALLAS (el registro de corridas, `pkg/failure-log.ts`) ──────────────────────────────────────────────────
+    // La página de `make harness-fallas HTML=1`, REGENERADA en cada pedido: el archivo suelto queda con los datos del
+    // momento en que alguien lo generó, y desde el pie del panel lo que se quiere es lo de ahora. Sólo lee el registro
+    // de esta máquina (`.runs/registry/`): no toca bases ni sale a la red.
+    if (path === '/fallas') {
+        execFile(process.execPath, ['bin/failures.ts', '--html'], { cwd: ROOT, timeout: 60_000 }, (err) => {
+            const file = join(ROOT, '.runs', 'registry', 'fallas.html');
+            if (err || !existsSync(file)) {
+                res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
+                return res.end(`no pude generar la página de fallas: ${err?.message ?? 'sin archivo'}\n(por consola: make harness-fallas HTML=1)`);
+            }
+            res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
+            res.end(readFileSync(file));
+        });
+        return;
+    }
+
     // ── EL REGISTRO DE COMERCIOS (`harness.json`, ver `pkg/flows.ts`) ──────────────────────────────────────────────
     // La barra son sus entradas con `panel: true`, en el orden del archivo. Se lee en cada pedido: lo que agrega o asocia
     // `make harness-merchants` se ve al recargar. El panel NO agrega comercios (eso es el CLI); sólo renombra la fila y
