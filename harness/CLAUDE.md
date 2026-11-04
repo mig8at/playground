@@ -118,7 +118,7 @@ variación o formalización que el catálogo no tiene) o **recorrido nuevo**.
 El caminador lo escribe en su log: cada paso termina con su pieza (`⟨tramo común · Oferta⟩`,
 `⟨variación Ábaco · Plataformas⟩`, `⟨en casa · Firma⟩`), sacada del mismo `panel/steps.json` que dibuja
 el mapa, y al elegir la entidad imprime su recorrido, los campos del formulario de la sucursal y, si la
-fecha de nacimiento no se escribe, que la edad se estima. `harness-case` todavía no lo hace.
+fecha de nacimiento no se escribe, que la edad se estima. `harness-case` imprime el mismo recorrido bajo cada caso (sin pasos, porque no navega pantallas). En el riel 4 se agrega el paso a paso, con `*` en lo que en `main` está atado a Credifamilia.
 
 ## Cuándo cargar una skill
 
