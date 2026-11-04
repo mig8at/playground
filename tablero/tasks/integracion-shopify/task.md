@@ -92,6 +92,12 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 - [ ] Alojar la app con URL fija (QA y después producción): en pausa hasta que Shopify apruebe a Creditop como Payments
       Partner; el plan y las variables están en `artifacts/creditop-para-shopify.html`. Ojo: desde el cambio a Postgres,
       `shopify app dev` en local necesita `DATABASE_URL`.
+- [ ] Que el backend de qa llegue a `playground.creditop.com`, para que el aviso de fin de solicitud le llegue solo al host
+      que se sirve por el playground (`/s/shopify.app.miguel.com`). Hoy el balanceador `alb-internal-tools` (cuenta de
+      producción, grupo `sg-000e5f43000d3c97d`) sólo deja entrar 3 IPs en el 443 —las de la VPN— y qa sale por otra: el
+      aviso de la solicitud 504501 dio `cURL error 28` a los 10 s y no se reintenta. Mientras tanto, la Store demo de
+      ecommerce-v2 lo manda con «Avisar como Creditop». Termina con un aviso de qa que llega al host (pedido en `paid`
+      sin el botón). Depende de: Infra — sumar la IP de salida de qa/dev a ese grupo, o decidir otra forma.
 
 - [ ] Versión posterior · un aviso «Paga con Creditop» en la página del producto, antes del checkout, como el de Addi
       (texto con cuotas y un modal que explica cómo comprar). En Shopify sería un bloque de tema de la app (theme app
