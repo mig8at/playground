@@ -74,8 +74,8 @@ func (s *shopifyServer) logf(format string, args ...any) {
 	defer s.mu.Unlock()
 	line := time.Now().Format("15:04:05") + "  " + fmt.Sprintf(format, args...)
 	s.log = append(s.log, line)
-	if len(s.log) > 200 {
-		s.log = s.log[len(s.log)-200:]
+	if len(s.log) > 2000 {
+		s.log = s.log[len(s.log)-2000:]
 	}
 }
 
@@ -252,20 +252,39 @@ func shopifyStatus() serverView {
 
 // ---- levantar ----------------------------------------------------------------------------------------------------
 
+// Corre un comando y va mandando a la consola cada línea que imprime, mientras corre. La consola lo muestra con
+// su `$ comando` arriba.
 func runLogged(ctx context.Context, dir string, name string, args ...string) error {
 	path, err := lookTool(name)
 	if err != nil {
 		return fmt.Errorf("no está %s en esta máquina", name)
 	}
+	shopifySrv.logf("$ %s %s", name, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, path, args...)
 	cmd.Dir, cmd.Env = dir, toolEnv()
-	out, err := cmd.CombinedOutput()
-	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		if line = strings.TrimSpace(line); line != "" {
-			shopifySrv.logf("   %s", line)
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	cmd.Stderr = cmd.Stdout
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	streamLines(out)
+	return cmd.Wait()
+}
+
+// Cada línea a la consola, sin los códigos de color ni los marcos de las TUIs.
+var ansi = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
+
+func streamLines(r interface{ Read([]byte) (int, error) }) {
+	scanner := bufio.NewScanner(r)
+	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		if line := strings.TrimRight(ansi.ReplaceAllString(scanner.Text(), ""), " \r"); strings.TrimSpace(line) != "" {
+			shopifySrv.logf("  %s", line)
 		}
 	}
-	return err
 }
 
 var tunnelURL = regexp.MustCompile(`https://[a-z0-9-]+\.trycloudflare\.com`)
@@ -281,7 +300,10 @@ func startTunnel(ctx context.Context) (shopifyMemory, error) {
 	if err != nil {
 		return shopifyMemory{}, err
 	}
-	cmd := exec.Command(path, "tunnel", "--no-autoupdate", "--url", "http://localhost:"+shopifyAppPort)
+	// HTTP/2 y no QUIC: con la VPN la conexión por UDP falla y cloudflared tarda más de un minuto en darse cuenta.
+	args := []string{"tunnel", "--no-autoupdate", "--protocol", "http2", "--url", "http://localhost:" + shopifyAppPort}
+	shopifySrv.logf("$ cloudflared %s", strings.Join(args, " "))
+	cmd := exec.Command(path, args...)
 	cmd.Stdout, cmd.Stderr, cmd.Env = logFile, logFile, toolEnv()
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	if err := cmd.Start(); err != nil {
@@ -293,31 +315,46 @@ func startTunnel(ctx context.Context) (shopifyMemory, error) {
 	logFile.Close()
 	shopifySrv.logf("   cloudflared prendido (pid %d)", pid)
 
-	deadline := time.Now().Add(60 * time.Second)
+	// Lo que va imprimiendo cloudflared, a la consola: se relee su log y se manda lo nuevo.
+	shown := 0
+	follow := func() []byte {
+		raw, _ := os.ReadFile(tunnelLogPath())
+		lines := strings.Split(strings.TrimRight(string(raw), "\n"), "\n")
+		for ; shown < len(lines); shown++ {
+			if line := strings.TrimSpace(lines[shown]); line != "" {
+				shopifySrv.logf("  %s", line)
+			}
+		}
+		return raw
+	}
+
+	deadline := time.Now().Add(150 * time.Second)
 	for time.Now().Before(deadline) {
 		if ctx.Err() != nil {
 			return shopifyMemory{}, ctx.Err()
 		}
-		raw, _ := os.ReadFile(tunnelLogPath())
+		raw := follow()
 		if url := tunnelURL.Find(raw); url != nil {
 			m := readMemory()
 			m.TunnelPID, m.TunnelURL = pid, string(url)
 			writeMemory(m)
 			// Cloudflare tarda unos segundos en propagar la dirección nueva.
+			shopifySrv.logf("  esperando a que %s llegue a la app…", m.TunnelURL)
 			for time.Now().Before(deadline) {
+				follow()
 				if httpOK(m.TunnelURL+"/", 10*time.Second) {
 					return m, nil
 				}
 				time.Sleep(2 * time.Second)
 			}
-			return m, fmt.Errorf("el túnel %s no llegó a la app en 60 s", m.TunnelURL)
+			return m, fmt.Errorf("el túnel %s sigue sin llegar a la app: queda prendido; vuelve a «Levantar» en un minuto", m.TunnelURL)
 		}
 		if !processAlive(pid) {
 			return shopifyMemory{}, errors.New("cloudflared se cerró: " + tailLog(raw))
 		}
 		time.Sleep(time.Second)
 	}
-	return shopifyMemory{}, errors.New("cloudflared no dio una dirección en 60 s")
+	return shopifyMemory{}, errors.New("cloudflared no dio una dirección en 150 s")
 }
 
 func tailLog(raw []byte) string {
@@ -337,7 +374,9 @@ func uploadPreview(ctx context.Context, repo string) error {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 4*time.Minute)
 	defer cancel()
-	cmd := exec.Command(path, "shopify", "app", "dev", "--config", shopifyConfig, "--store", shopifyStore, "--no-update")
+	args := []string{"shopify", "app", "dev", "--config", shopifyConfig, "--store", shopifyStore, "--no-update"}
+	shopifySrv.logf("$ npx %s", strings.Join(args, " "))
+	cmd := exec.Command(path, args...)
 	cmd.Dir, cmd.Env = repo, append(toolEnv(), "CI=1", "FORCE_COLOR=0")
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	out, err := cmd.StdoutPipe()
@@ -365,11 +404,11 @@ func uploadPreview(ctx context.Context, repo string) error {
 		accepted := false
 		scanner := bufio.NewScanner(out)
 		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
+			line := strings.TrimSpace(ansi.ReplaceAllString(scanner.Text(), ""))
 			if line == "" {
 				continue
 			}
-			shopifySrv.logf("   %s", line)
+			shopifySrv.logf("  %s", line)
 			if strings.Contains(line, "Configuration accepted") {
 				accepted = true
 			}

@@ -21,6 +21,7 @@ import { useChatStore } from './stores/chat.js'
 import { useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
+import ServerShare from './ServerShare.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -106,23 +107,70 @@ watch(() => chat.activeKey, (key) => {
 const sidebarOpen = ref(readSize('chat.sidebar-open', 1) !== 0)
 const sidebarW = ref(readSize('chat.sidebar-w', 300))
 const viewportW = ref(window.innerWidth)
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+const viewportH = ref(window.innerHeight)
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
+/* Con un server abierto, la derecha es «Para probar» (ServerShare) y abajo aparece su consola: la salida de cada
+   comando mientras corre. Las dos se cierran y se recuerdan aparte de tu agente. */
+const shareOpen = ref(readSize('chat.server-share-open', 1) !== 0)
+function setShareOpen(v) { shareOpen.value = v; saveSize('chat.server-share-open', v ? 1 : 0) }
+const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
+const consoleH = ref(readSize('chat.server-console-h', 240))
+function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
+const rightOpen = computed(() => (serverOpen.value ? shareOpen.value : agentOpen.value && !chat.activeKey))
 // Si no entra todo, se pliega primero la derecha (tu agente) y después las conversaciones, como en VS Code.
 const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-  { size: agentOpen.value && !chat.activeKey ? agentW.value : 0, min: 320 },
+  { size: rightOpen.value ? agentW.value : 0, min: 320 },
   { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
 ]))
 const agentShown = computed(() => fitted.value[0])
 const sidebarShown = computed(() => fitted.value[1])
-const layoutVars = computed(() => ({ '--sidebar-w': `${sidebarShown.value}px`, '--auxiliarybar-w': `${agentShown.value}px` }))
+const panelShown = computed(() => fitRegions(viewportH.value - 200, [
+  { size: serverOpen.value && consoleOpen.value ? consoleH.value : 0, min: cssSize('--panel-min', 124) },
+])[0])
+const layoutVars = computed(() => ({
+  '--sidebar-w': `${sidebarShown.value}px`, '--auxiliarybar-w': `${agentShown.value}px`, '--panel-h': `${panelShown.value}px`,
+}))
+const consoleResize = {
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 240,
+  min: () => cssSize('--panel-min', 124),
+  max: () => viewportH.value - 200,
+  get: () => panelShown.value,
+  set: (v) => { if (!v) consoleOpen.value = false; else { consoleOpen.value = true; consoleH.value = v } },
+  reopen: () => consoleH.value,
+  commit: (v) => { saveSize('chat.server-console-open', v ? 1 : 0); if (v) saveSize('chat.server-console-h', consoleH.value) },
+}
+// La consola sigue a lo último que imprimió, salvo que hayas subido a leer algo.
+const consoleBody = ref(null)
+const consoleFollow = ref(true)
+function onConsoleScroll() {
+  const el = consoleBody.value
+  if (el) consoleFollow.value = el.scrollHeight - el.scrollTop - el.clientHeight < 24
+}
+const consoleLines = computed(() => (openServer.value?.log || []).map((l) => {
+  const time = l.slice(0, 8)
+  const text = l.slice(10)
+  return { time, text, command: text.startsWith('$ '), ok: text.startsWith('✓'), bad: text.startsWith('✗') }
+}))
+watch(() => consoleLines.value.length, async () => {
+  if (!consoleFollow.value) return
+  await nextTick()
+  if (consoleBody.value) consoleBody.value.scrollTop = consoleBody.value.scrollHeight
+})
 const agentResize = {
   label: 'Ancho de tu agente', sign: -1, defaultValue: 380,
   min: () => 320,
   max: () => viewportW.value - cssSize('--editor-min', 360) - sidebarShown.value,
   get: () => agentShown.value,
-  set: (v) => { if (!v) agentOpen.value = false; else { agentOpen.value = true; agentW.value = v } },
+  set: (v) => {
+    if (serverOpen.value) shareOpen.value = !!v
+    else agentOpen.value = !!v
+    if (v) agentW.value = v
+  },
   reopen: () => agentW.value,
-  commit: (v) => { saveSize('chat.agente-open', v ? 1 : 0); if (v) saveSize('chat.agente-w', agentW.value) },
+  commit: (v) => {
+    saveSize(serverOpen.value ? 'chat.server-share-open' : 'chat.agente-open', v ? 1 : 0)
+    if (v) saveSize('chat.agente-w', agentW.value)
+  },
 }
 const sidebarResize = {
   label: 'Ancho de las conversaciones', sign: 1, defaultValue: 300,
@@ -497,7 +545,7 @@ const statusText = computed(() => {
     </aside>
 
     <main v-if="openServer" class="editor">
-      <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" @sent="serverOpen = ''" />
+      <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" />
     </main>
 
     <main v-else class="editor">
@@ -746,8 +794,10 @@ const statusText = computed(() => {
     </main>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" aria-label="Mi agente">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
+      <ServerShare v-if="openServer" :server="openServer" @close="setShareOpen(false)" />
+      <template v-else>
       <div class="region-head">
         <span>Mi agente <small class="agent-state">{{ mine.agent.mode === 'agente' ? 'activo' : 'apagado' }}</small></span>
         <div class="region-actions">
@@ -761,7 +811,27 @@ const statusText = computed(() => {
         </div>
       </div>
       <MyAgent v-if="agentShown" class="region-body" />
+      </template>
     </aside>
+
+    <!-- ── la consola de un server: lo que imprime cada comando mientras corre ─────────────── -->
+    <section v-if="openServer && panelShown" class="panel" aria-label="Consola">
+      <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
+      <div class="region-head">
+        <span>Consola <span class="count">{{ openServer.busy ? openServer.step || 'corriendo…' : consoleLines.length ? `${consoleLines.length} líneas` : '' }}</span></span>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Ocultar la consola" aria-label="Ocultar la consola" @click="setConsoleOpen(false)">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div ref="consoleBody" class="region-body console" @scroll="onConsoleScroll">
+        <p v-if="!consoleLines.length" class="console-empty">Acá se ve lo que va haciendo «Levantar»: cada comando con su salida.</p>
+        <div v-for="(l, i) in consoleLines" :key="i" class="console-line" :class="{ command: l.command, ok: l.ok, bad: l.bad }">
+          <span class="console-time">{{ l.time }}</span><span class="console-text">{{ l.text }}</span>
+        </div>
+      </div>
+    </section>
 
     <footer class="statusbar">
       <span class="statusbar-item">
@@ -786,7 +856,17 @@ const statusText = computed(() => {
                 aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button v-if="!chat.activeKey" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
+        <template v-if="openServer">
+          <button type="button" class="region-action" :aria-pressed="!!panelShown" title="Mostrar u ocultar la consola"
+                  aria-label="Mostrar u ocultar la consola" @click="setConsoleOpen(!panelShown)">
+            <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar «Para probar»"
+                  aria-label="Mostrar u ocultar «Para probar»" @click="setShareOpen(!agentShown)">
+            <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+          </button>
+        </template>
+        <button v-else-if="!chat.activeKey" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
                 aria-label="Mostrar u ocultar tu agente" @click="setAgentOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
@@ -797,6 +877,14 @@ const statusText = computed(() => {
 
 <style scoped>
 code { font-family: var(--font-mono); font-size: .92em }
+.console { font-family: var(--font-mono); font-size: var(--text-xs); padding: var(--space-2) var(--gutter); overflow: auto }
+.console-empty { margin: 0; color: var(--fg-2); font-family: var(--font-sans); font-size: var(--text-sm) }
+.console-line { display: flex; gap: var(--space-3); line-height: 1.6; color: var(--fg-2) }
+.console-time { flex: none; color: var(--fg-3) }
+.console-text { white-space: pre-wrap; word-break: break-word; min-width: 0 }
+.console-line.command .console-text { color: var(--foreground); font-weight: 500 }
+.console-line.ok .console-text { color: var(--presence-on) }
+.console-line.bad .console-text { color: var(--send-fail) }
 .bad { color: var(--send-fail) }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
 
