@@ -212,7 +212,7 @@ const OUTCOMES = [
 // La tienda de prueba (VTEX, la de master: la condición «Creditop qa» manda el pago al conector v5 de develop) y dónde se
 // ven sus pedidos. El admin pide un
 // usuario en la cuenta creditop. Shopify todavía no tiene tienda con la app desplegada: su bloque trae la Store demo
-// (ShopifyStore.vue), una tienda de mentira que paga con el host de temp-shopify por los canales del playground.
+// (ShopifyStore.vue), una tienda de mentira que paga con el host del repo shopify (`docker/`) por los canales del playground.
 const STORES = [
   { name: 'VTEX', links: [
     { label: 'Tienda', href: 'https://creditop.myvtex.com' },

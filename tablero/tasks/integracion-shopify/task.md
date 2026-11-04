@@ -218,7 +218,7 @@ El token 28 no está en ningún `.env`: vive cifrado en la base local de la app 
 `CreditopShop`, tienda `creditop-dev-store.myshopify.com`), con la llave que la app deriva de `SHOPIFY_API_SECRET`.
 Ese secreto no está en `.env`: lo pasa `shopify app dev` y se lee con
 `cd ~/Desktop/CREDITOP/github/shopify && npx shopify app env show --config shopify.app.creditop-ecommerce-payments.toml`.
-Para llevarlo a otra base (el host de `temp-shopify`, por ejemplo) se descifra con esa llave y se vuelve a cifrar con la
+Para llevarlo a otra base (el `docker/` del repo shopify, por ejemplo) se descifra con esa llave y se vuelve a cifrar con la
 del destino, sin imprimirlo.
 
 1. **Levantar la app** (la rama de #22), en una terminal propia porque es interactiva:

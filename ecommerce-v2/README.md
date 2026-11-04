@@ -56,7 +56,7 @@ Shopify todavía no tiene una tienda que pague con la app desplegada. Mientras t
 ## 3b · Comprar en la Shopify demo
 
 En el sidebar, bloque **Shopify → Store demo** (o http://localhost:5186/#/shopify-demo): una tienda Shopify de mentira que
-paga con la app de Creditop de verdad (el host de temp-shopify), que corre en la máquina de quien la está cambiando. No
+paga con la app de Creditop de verdad (el host del repo shopify, `docker/`), que corre en la máquina de quien la está cambiando. No
 hace falta tener ese repo: el host se usa por su nombre en el playground.
 
 - **El editor es la tienda**: productos en tarjetas, el carrito, los datos del comprador y «Pagar con Creditop». La
@@ -109,7 +109,7 @@ alcanza con hacerlo en otra terminal, sin reiniciar nada. Lo que hizo queda en `
 falso lo publica `npm run dev`) y `playground serve`:
 
 ```json
-[{ "alias": "shopify.app", "to": "http://localhost:8121", "description": "host de la app de pagos (temp-shopify)" }]
+[{ "alias": "shopify.app", "to": "http://localhost:8121", "description": "host de la app de pagos (docker/ del repo shopify)" }]
 ```
 
 Quedan `shopify.app.<vos>.com` (el host) y `shopify.<vos>.com` (tu Shopify falso): `SHOPIFY_DEMO_HOST_URL` va al primero

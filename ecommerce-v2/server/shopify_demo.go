@@ -1,6 +1,6 @@
 package main
 
-/* SHOPIFY DEMO: una tienda Shopify de mentira que usa la app de pagos de Creditop (el host de temp-shopify) como si
+/* SHOPIFY DEMO: una tienda Shopify de mentira que usa la app de pagos de Creditop (el host del repo shopify, `docker/`) como si
  * fuera Shopify, para probar el círculo entero sin una tienda real:
  *
  *   la tienda demo ──POST /payments/session──► el host de la app ──payment-link──► Creditop ──► el wizard
