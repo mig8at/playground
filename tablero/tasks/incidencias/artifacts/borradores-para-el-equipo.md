@@ -467,6 +467,36 @@ día del mes, y la comparación es por fecha. No se corrió.
 
 ---
 
+## 24 · Fuera de producción, los errores de las centrales de riesgo no se pueden probar (Baja · mejora de pruebas)
+
+**Qué pasa.** Fuera de producción, el backend consulta las centrales (Ágil Data, Mareigua, TusDatos y Experian) a un
+simulador. Si el simulador contesta algo que no sea éxito, el backend lo toma como si estuviera caído y sigue con una
+respuesta fija guardada en el código, sin avisar. Pero un 404 o un 500 del simulador no es una caída: es justo el
+error que queremos probar. Resultado: fuera de producción no se pueden ejercitar casos como «documento inexistente»
+en TusDatos o «el proveedor falló» en Experian. El flujo sigue como si la central hubiera contestado bien y la prueba
+da verde sin haber probado nada.
+
+**No es un bug de producción.** Ese respaldo sólo existe fuera de producción; en producción la llamada va directo a la
+central y un error se propaga. Lo que se pierde es poder probar esos caminos antes de que lleguen a producción.
+
+**Cómo se comprobó.** Corriéndolo en local el 2026-11-03, con el simulador contestando cada error a pedido:
+- en el modo normal, el 404 de TusDatos y el 500 de Experian quedan en el log como «falling back to the local
+  fixture» y el formulario de datos personales pasa sin error;
+- con el backend configurado como en producción (la central apuntando al simulador, sin el respaldo), el mismo 404 de
+  TusDatos da `ONB005` + `DOCUMENT_NOT_FOUND`, y el 500 de Experian queda registrado como error («performRequest
+  failed», con su correo) y el formulario pasa: una caída de Experian no bloquea los datos personales.
+
+El respaldo está en los cuatro drivers de `app/Actions/RiskCentrals/` de legacy-backend (`main`). La línea de Experian,
+además, no deja la marca de origen que sí dejan las otras tres, así que desde el log cuesta saber que cayó al respaldo.
+
+**Propuesta.** Usar la respuesta fija sólo cuando el simulador no contesta (conexión rechazada o tiempo agotado), y
+dejar pasar al flujo cualquier respuesta que sí llegue, también los 4xx y 5xx. Y que Experian deje la misma marca de
+origen que las otras. A futuro, la dirección sería la misma para el resto de los atajos de no-producción: que el
+comportamiento se simule desde afuera, con mocks que contestan lo que se les pide, y que el código del backend corra
+igual que en producción, sin ramas propias para pruebas.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
