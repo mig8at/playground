@@ -1,0 +1,163 @@
+{
+  "version": 1,
+  "title": "Recorrido de una solicitud: canal, riel y variaciones",
+  "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, ajustes y desenlace— y qué activa cada variación en el código.",
+  "reviewedAt": "2026-11-04T10:57:11+00:00",
+  "sources": [
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "9a44ef3b3383e53b3a09a781f9852cf957e7741d",
+      "sections": [
+        "canal-por-donde-entra-la-solicitud",
+        "tramo-comun-hasta-el-listado"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/layouts/public-layout.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "97659b24696815065a9a34ce66773c9dc6ed2302",
+      "sections": [
+        "canal-por-donde-entra-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/utils/route-helpers.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "863b14dc30156a1ae4e4417ed238e0ae12f57bd7",
+      "sections": [
+        "canal-por-donde-entra-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/auto-onboarding/start.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "582bf9b00d07a86387053bebaf0dc245eb152fcb",
+      "sections": [
+        "canal-por-donde-entra-la-solicitud",
+        "tramo-comun-hasta-el-listado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/MerchantOrderSignatureService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "3571b26009feb1beae2297f88419f02fb9c29ad7",
+      "sections": [
+        "canal-por-donde-entra-la-solicitud"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/modules/request-management/types/loan-request.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "3a1ae106ae9691b76e92557beecc3f17e234bbcb",
+      "sections": [
+        "riel-que-hace-la-solicitud-despues-del-listado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/CardComposer.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "e3b2542ec683c954de8d6ef40932bcfed38b1906",
+      "sections": [
+        "producto-que-se-financia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "53eff617408e64f2425037835de677e2d0ce33bd",
+      "sections": [
+        "producto-que-se-financia"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/AbacoRequirementService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "a0a8090d0bdbc84cbe817c1c0f19096e17b8c44c",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "af218af50c736862f34062307fdf28c4decd8706",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/ImeiValidationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "f3c3e0867fbe89f197bd7d43e6026f34908b96b8",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "f65dbda90c2d1d54989b2907510b2c7a04943a64",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/Signing/CosignerRequirementService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "506e98e432e87140d02dc4b6b0d19bd1146b6fc4",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Middleware/ValidateInitialFeePaid.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b62577140e2208badac93af0f6ca202f97fc6908",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/first-payment-date.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "29f4eca246d0ce63105920c949e0af190476c46b",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "desenlace-como-termina"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
+      "sections": [
+        "desenlace-como-termina"
+      ]
+    }
+  ]
+}

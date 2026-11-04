@@ -1,0 +1,108 @@
+{
+  "_comentario": "El catálogo de RECORRIDOS: los nombres de cada pieza (canal, riel, producto, variación, desenlace) y cómo se reconoce cada una en la base. El porqué y las fuentes en `main` están en knowledge/origination-paths. Este archivo NOMBRA y dice cómo MEDIR; no guarda qué entidad cae en qué recorrido, porque eso cambia por ambiente (el riel de una misma entidad no siempre coincide entre local y qa): lo mide `make harness-recorrido`. Los ids van en inglés; los nombres, como se dicen.",
+  "version": 1,
+  "knowledge": "origination-paths",
+  "channels": {
+    "advisor": {
+      "name": "Asesor",
+      "routes": "/merchant/{hash}/…",
+      "harness": "FLOW=merchant (el default del caminador)"
+    },
+    "self-service": {
+      "name": "Autogestión",
+      "routes": "/self-service/{hash}/…",
+      "harness": "FLOW=self-service"
+    },
+    "store": {
+      "name": "Tienda",
+      "routes": "/ecommerce/{hash}/checkout → /ecommerce/{hash}/…",
+      "entries": {
+        "signed": { "name": "con pedido firmado", "routes": "/auto/{hash}/…", "note": "se salta el código del celular" },
+        "unsigned": { "name": "sin firma", "routes": "/ecommerce/{hash}/…" }
+      },
+      "harness": "FLOW=ecommerce · make harness-ecommerce"
+    },
+    "bancolombia": {
+      "name": "Bancolombia",
+      "routes": "/bancolombia/self-service/{hash}/… → /bancolombia/{bnpl|consumo}/…",
+      "note": "árbol propio para sus dos entidades; termina con el código de compra que se paga en caja",
+      "harness": "make harness-qr"
+    }
+  },
+  "commonStretch": {
+    "name": "Tramo común",
+    "steps": ["monto", "celular", "código", "datos personales", "empleo", "listado"],
+    "appliesTo": ["advisor", "self-service", "store"]
+  },
+  "rails": {
+    "0": { "name": "Redirección", "policyOwner": "entidad", "origination": "afuera", "outcome": "decide-afuera" },
+    "1": { "name": "Integrada", "policyOwner": "entidad", "origination": "afuera", "outcome": "integracion-informa" },
+    "2": { "name": "CreditopX consumo", "policyOwner": "creditop", "origination": "en-casa", "outcome": "autorizacion" },
+    "3": { "name": "CreditopX rotativo", "policyOwner": "creditop", "origination": "en-casa", "outcome": "autorizacion" },
+    "4": { "name": "Originación delegada", "policyOwner": "entidad", "origination": "en-casa", "outcome": "autorizacion-y-formalizacion" }
+  },
+  "railAxes": {
+    "policyOwner": { "name": "Dueño de la política", "values": { "entidad": "la entidad", "creditop": "Creditop" } },
+    "origination": { "name": "Dónde se origina", "values": { "afuera": "afuera: la entidad sigue en su sitio o su flujo", "en-casa": "en casa: las pantallas de Creditop" } }
+  },
+  "products": {
+    "credit": { "name": "Compra financiada" },
+    "renting": { "name": "Renting operativo" },
+    "rto": { "name": "Rent-to-Own" }
+  },
+  "variations": {
+    "abaco": {
+      "name": "Ábaco",
+      "scope": "entidad",
+      "when": "lender_requirements.abaco_is_enabled = 1 y el cliente sin consulta vigente"
+    },
+    "manual-approval": {
+      "name": "Aprobación manual",
+      "scope": "entidad",
+      "when": "lender_requirements.manual_approval = 1"
+    },
+    "imei": {
+      "name": "IMEI",
+      "scope": "entidad",
+      "when": "la ruta de la entidad (lenders.path_id) es IMEI"
+    },
+    "cosigner": {
+      "name": "Codeudor",
+      "scope": "cliente",
+      "when": "la categoría que le toca al cliente tiene requires_cosigner = 1",
+      "measured": "la entidad tiene alguna categoría activa con requires_cosigner = 1"
+    },
+    "down-payment": {
+      "name": "Cuota inicial por pasarela",
+      "scope": "cliente",
+      "channels": ["store"],
+      "when": "en la tienda, la política de la categoría exige cuota inicial y no hay pago aprobado",
+      "measured": "la entidad tiene alguna categoría activa con min_initial_fee > 0"
+    }
+  },
+  "outcomes": {
+    "decide-afuera": { "name": "La entidad decide en su sitio" },
+    "integracion-informa": { "name": "La integración decide e informa" },
+    "autorizacion": { "name": "Autorización (estado 11)" },
+    "autorizacion-y-formalizacion": {
+      "name": "Autorización y formalización ante la entidad",
+      "formalizations": {
+        "radicacion": "radicación de Credifamilia: lo que hace main con todo riel 4",
+        "ninguna": "sin formalización (perfil del riel con formalization vacío)",
+        "propia": "la clase que nombra el perfil del riel"
+      },
+      "note": "El perfil del riel 4 (delegated_origination_profiles) no está en main: llegó a qa con CORE-918. Donde la tabla no existe, la formalización es la radicación."
+    }
+  },
+  "servicing": {
+    "name": "Cobranza",
+    "values": { "0": "de Creditop", "1": "de la entidad" },
+    "column": "lenders.externally_serviced"
+  },
+  "fit": {
+    "_comentario": "Cómo se ubica un cambio o una tarea frente al catálogo.",
+    "encaja": "el recorrido existe y sólo pide ajustes (configuración: reglas, categorías, plazos, perfil)",
+    "encaja-con-variacion": "el recorrido existe, pero el cambio agrega una variación o una formalización que no está en el catálogo",
+    "recorrido-nuevo": "no existe ese canal o ese riel"
+  }
+}

@@ -102,6 +102,19 @@ aprende una lección distinta y dejan de hacer lo mismo. Las duplicadas se encue
 Los specs de `channel/` corren contra **local** por defecto (`playwright.config.ts` fija
 `E2E_TARGET ||= 'local'`); sin eso escribían en dev, y la guarda F-53 no frena las escrituras por API.
 
+## Recorridos: cómo se nombra lo que se prueba
+
+Un recorrido es `canal · riel · producto · +variación · desenlace`. Los nombres viven en
+`recorridos.json` y el porqué, con sus fuentes en `main`, en `knowledge/origination-paths`. Los
+rieles se agrupan por dos ejes: **dueño de la política** (la entidad o Creditop) y **dónde se origina**
+(afuera o en casa). El riel 4 se origina en casa y no es CreditopX. Una **variación** cambia el camino;
+un **ajuste** (reglas, categorías, plazos, perfil) cambia valores en el mismo camino.
+
+`make harness-recorrido TARGET=… MERCHANT=…` (o `LENDER=149,172`) mide en la base en qué recorrido cae
+cada entidad. No se guarda: el riel de una misma entidad cambia entre ambientes. Antes de escribir una
+suite o tocar un runner, ubicá el cambio: **encaja** (sólo ajustes), **encaja con variación** (una
+variación o formalización que el catálogo no tiene) o **recorrido nuevo**.
+
 ## Cuándo cargar una skill
 
 Lo profundo vive en skills, y se carga cuando hace falta:

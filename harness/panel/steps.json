@@ -128,7 +128,7 @@
   ],
   "ramales": {
     "creditopx": {
-      "label": "CreditopX · in-platform (rt2/3/4)",
+      "label": "En casa · riel 2, 3 y 4",
       "cuando": "update-user-request devuelve standBy=true y una URL a /self-service/{hash}/{ur}/confirmation (UserRequestService.php:450-461: response_type 2/3/4 SIN credencial, más el case 4 con credencial en :601-611). El asesor queda en /merchant/{hash}/{ur}/continue con el QR; el cliente sigue en su celular desde /self-service. OJO: el front NO mira standBy — la rama la elige por showModal && url==null (available-lenders.tsx:564).",
       "pasos": [
         {
@@ -278,7 +278,7 @@
       ]
     },
     "agregador": {
-      "label": "Agregador · rt1 integración",
+      "label": "Integrada · riel 1",
       "cuando": "El lender tiene response_type=1 Y credencial en lender_allied_credentials: UserRequestService.php:466 entra al case 1, instancia la clase de $lender->action (app/Actions/Lenders/*.php) y llama register($request) — la decisión de crédito la toma la API externa. El wizard NO navega a una ruta propia: se queda en /lenders con modal (showModal / openProcessModal; el ajuste fino por lender está en el switch ($lender->name) de UserRequestService.php:577) o redirige a la URL que devolvió la integración.",
       "pasos": [
         {
@@ -327,7 +327,7 @@
       ]
     },
     "redirect": {
-      "label": "Estándar · rt0",
+      "label": "Redirección · riel 0",
       "cuando": "lenders.response_type = 0: sin pre-aprobación y sin integración. El backend solo devuelve la url_utm configurada (UserRequestService.php:414-416 y :443/:468 — lenders_by_allied_branches.url_utm, con fallback a lenders_by_allieds.url_utm).",
       "pasos": [
         {
@@ -456,8 +456,8 @@
   ],
   "extensiones": {
     "credifamilia": {
-      "label": "Radicación SOAP · Credifamilia",
-      "cuando": "response_type = 4 (único lender: Credifamilia #24). Al autorizar (Estado 11), LoanAuthorizationService::formalizeExternalManagedIfApplicable (:194) corta si el rt no es 4; si lo es, dispara la formalización SOAP que radica el crédito con un PDF unificado de los documentos firmados. Después queda en polling hasta APROBADO/RECHAZADO — estados 40/41 de `lender_transaction_statuses`, OTRO namespace que user_request_statuses.",
+      "label": "Formalización ante la entidad · riel 4",
+      "cuando": "response_type = 4 (originación delegada; los nombres, en knowledge/origination-paths). En main, al autorizar (Estado 11), LoanAuthorizationService::formalizeExternalManagedIfApplicable (:194) corta si el rt no es 4; si lo es, dispara la formalización SOAP que radica el crédito con un PDF unificado de los documentos firmados. Después queda en polling hasta APROBADO/RECHAZADO — estados 40/41 de `lender_transaction_statuses`, OTRO namespace que user_request_statuses. Con el perfil del riel (delegated_origination_profiles, CORE-918, todavía no en main) la formalización la decide la fila de cada entidad: la radicación de Credifamilia, ninguna (la 149 y la 172 en local) o una clase propia. El mapa no lee el perfil: este paso se dibuja para todo riel 4, y `make harness-recorrido` dice cuál le toca a cada entidad.",
       "requiere": {
         "rt": 4
       },

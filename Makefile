@@ -409,7 +409,7 @@ $(1):
 endef
 $(foreach p,$(HARNESS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
 
-.PHONY: harness-bureaus-set harness-bureaus-show harness-bureaus-reset harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-codeudor harness-listing harness-case harness-check soporte-qa
+.PHONY: harness-bureaus-set harness-bureaus-show harness-bureaus-reset harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-codeudor harness-listing harness-recorrido harness-case harness-check soporte-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -527,6 +527,9 @@ harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los
 # sigue valiendo solo, pero si los dos están y no coinciden, no se corre. Y `prod` no se acepta: todos crean algo
 # (`pkg/target-policy.ts` lo frena también dentro del proceso).
 harness_target = $(strip $(if $(filter prod,$(TARGET) $(E2E_TARGET)),$(error TARGET=prod: estos comandos crean solicitudes y prod es de sólo lectura. Para leer prod: bin/pg sql · request timeline · client state))$(if $(and $(TARGET),$(E2E_TARGET)),$(if $(filter-out $(TARGET),$(E2E_TARGET)),$(error TARGET=$(TARGET) y E2E_TARGET=$(E2E_TARGET) no coinciden: dejá uno)))$(or $(TARGET),$(E2E_TARGET),$(error falta TARGET=local|dev|qa|staging: sin él la corrida iría contra dev, que es compartido)))
+
+harness-recorrido: ## @har en qué RECORRIDO cae cada entidad de un comercio (canal · riel · producto · variaciones · desenlace), medido en la base del ambiente; sólo lee. MERCHANT=sonria | LENDER=149,172 [CHANNEL=advisor|self-service|store|bancolombia] [JSON=1] [TARGET=local|dev|qa|staging obligatorio: el ambiente]. Los nombres: harness/recorridos.json · el porqué: knowledge/origination-paths
+	@cd harness && E2E_TARGET=$(harness_target) node dev/recorrido.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(CHANNEL),--channel $(CHANNEL)) $(if $(JSON),--json)
 
 harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
 	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
