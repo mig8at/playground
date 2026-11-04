@@ -283,8 +283,8 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
-	// La tienda Shopify demo y su Shopify falso (shopify_demo.go).
-	registerShopifyDemo(mux)
+	// La tienda real de Shopify: si el servidor de la app y su túnel contestan (shopify.go).
+	registerShopify(mux)
 	return mux
 }
 
