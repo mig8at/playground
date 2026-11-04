@@ -54,6 +54,12 @@ ninguna central (`workflow.go`, `missingUserFields`). El wizard manda al formula
 `resume=1`, y al guardarlo arranca una corrida NUEVA (`kycFlagAfterSave` → `start`). Sólo la razón
 `IDENTITY_MISMATCH` lleva `resume=1` y despierta la corrida suspendida.
 
+**El auto-onboarding no elige el camino.** Sus dos pantallas usan siempre los repositorios v1: el OTP
+(`auto-onboarding/otp.tsx`, `PhoneOtpLegacyRepository`) y el guardado de datos personales
+(`auto-onboarding/verifying.tsx`, `PersonalInfoLegacyRepository`). No llaman a `resolveKycFlow`, que es lo
+que el formulario normal usa para elegir. Un comercio del setting que además tenga auto-onboarding valida
+la identidad por la cascada vieja y no arranca la corrida.
+
 `kyc-processing` está registrada para todos los comercios; a uno que no va por el pipeline lo
 devuelve a su destino.
 

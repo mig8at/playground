@@ -274,6 +274,24 @@
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/auto-onboarding/otp.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "0012fe1359e7899e66ade6c36af12565ca43e1d8",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/auto-onboarding/verifying.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "55de3fea29cbf93bd43accd3e55d2719798b1837",
+      "sections": [
+        "que-cambia-en-el-wizard-segun-el-camino"
+      ]
     }
   ]
 }
