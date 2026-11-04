@@ -305,6 +305,31 @@ export async function dictateBureauMode(doc: string, central: Bureau, mode: Bure
 }
 
 
+/* ── LOS VEREDICTOS DE TUSDATOS ───────────────────────────────────────────────────────────────────────────
+ * Antes se pedían con un encabezado (`X-Fake-Scenario`) a los drivers «fake» del backend, que se dejaron de usar
+ * (F-139): hoy el backend local consulta el lambda, y el encabezado no hace nada. Las formas son las del respaldo
+ * de prueba del propio backend (`TusdatosHttpFake::verifyCc*`), para que lo que se prueba sea lo que el backend
+ * espera. ⚠ La cascada de identidad corta en la PRIMERA central que responde (Ágil Data → Mareigua → TusDatos):
+ * si Ágil Data contesta, TusDatos ni se consulta y el veredicto pedido no se ve. Por eso las otras dos se dictan
+ * «sin información», igual que `HttpFakeRegistrar::TUSDATOS_VERDICT_SCENARIOS`. */
+export type TusdatosVerdict = 'issue-date-mismatch' | 'name-mismatch' | 'document-not-found';
+const TUSDATOS_VERDICTS: Record<TusdatosVerdict, unknown> = {
+    'issue-date-mismatch': { status: 'success', data: { findings: { issue_date: { match_code: 0 } } } },
+    'name-mismatch': { status: 'success', data: { findings: { first_name: { match_code: 0 }, first_surname: { match_code: 2 } } } },
+    'document-not-found': { __http_status: 404, __body: { error: { code: 'DOCUMENT_NOT_FOUND',
+        message: 'Documento no existe en Registraduría', details: 'no_data' } } },
+};
+
+/** Dicta un veredicto de TusDatos para la cédula, con Ágil Data y Mareigua «sin información» para que la
+ *  cascada llegue hasta TusDatos. Devuelve false si el mock no tomó alguno de los tres dictados. */
+export async function dictateTusdatosVerdict(doc: string, verdict: TusdatosVerdict): Promise<boolean> {
+    const agil = await dictate(doc, 'agildata', NO_INFO.agildata!(doc));
+    const mareigua = await dictate(doc, 'mareigua', NO_INFO.mareigua!(doc));
+    const tusdatos = await dictate(doc, 'tusdatos', TUSDATOS_VERDICTS[verdict]);
+    return agil && mareigua && tusdatos;
+}
+
+
 /* ── LA CONFIGURACIÓN DE LOS BURÓS PARA UNA CÉDULA (panel y `bin/bureaus.ts`) ─────────────────────────────
  * Una sola fuente de VALORES POR DEFECTO, para que el panel y un agente que configura su prueba por consola
  * partan del mismo cliente: lo que no se dice queda como acá. Trece meses y no ocho: la continuidad de 12

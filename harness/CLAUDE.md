@@ -202,6 +202,14 @@ donde se dice otra cosa:
   leídos en el código. Es la pareja de `make knowledge-check`: aquél avisa que una fuente cambió, éste contesta si
   la regla sigue siendo cierta corriendo.
   En 3a y 2, `AMOUNT`, el score y el ingreso valen para **toda la tanda**: dos montos distintos son dos tandas.
+- **Una prueba que dicta un buró tiene que comprobar que contestó el lambda** (F-139): el backend tiene un respaldo
+  silencioso, y ante CUALQUIER respuesta no-2xx del lambda (un 404 de «documento inexistente», un 500) cae al fixture y
+  el flujo sigue como si nada. `pkg/loki.ts` → `bureauSources(desde, hasta)` + `bureauSourceProblem(líneas, ['tusdatos'])`
+  devuelve el motivo si alguna central cayó al fixture o no dejó su marca `lambda`; reconoce la caída de Experian por
+  su mensaje, que no trae marca. Se ancla por ventana de tiempo (las líneas no traen la solicitud): vale en local con
+  las pruebas en fila, y tira si Loki no responde (`make harness-obs-up`). Los veredictos de TusDatos se dictan con
+  `dictateTusdatosVerdict` (Ágil Data y Mareigua «sin información» para que la cascada llegue). Por ese respaldo,
+  «documento inexistente» y «error del proveedor» no se pueden ejercitar en local.
 - **Las corridas que cierran agotan el cupo mensual del perfil en local**: cada crédito CreditopX suma a
   `already_used_loan` y el reinicio del día 1 no corre en local. El prevuelo avisa los perfiles agotados del
   comercio (su cupo dará `profile_quota_exhausted` por la base, no por el caso), y

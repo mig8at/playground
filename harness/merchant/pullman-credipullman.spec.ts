@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { runHappyPathUntilLenders } from '../channel/steps';
+import { bureauSources, bureauSourceProblem } from '../pkg/loki';
 
 /**
  * Pullman → CrediPullman por UI, contra el LEGACY-BACKEND REAL en modo mock.
@@ -23,8 +24,16 @@ test.use({ launchOptions: { slowMo: 200 } });
 
 test('Pullman por UI: Quanto auto-inyecta → salta a /lenders y el marketplace responde', async ({ page }) => {
     test.setTimeout(60_000);
+    const from = Date.now();
     await runHappyPathUntilLenders(page, PULLMAN_HASH);
     expect(page.url()).toMatch(/\/lenders/);
+    // Pullman salta employment-info porque Experian (Quanto) le dio el ingreso: que eso lo haya contestado el lambda
+    // y no el fixture de respaldo es la única prueba de que Experian participó (F-139). Sólo en local.
+    if (String(process.env.E2E_TARGET || 'local') === 'local') {
+        await new Promise((r) => setTimeout(r, 4_000));
+        const problem = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), ['experian']);
+        expect(problem, problem ?? '').toBeNull();
+    }
     // El marketplace real para Pullman ofrece Meddipay (rt=1). Que aparezca = el flujo Pullman
     // (Quanto → perfil → marketplace) llegó y pintó entidades por UI.
     await expect(page.getByText(/meddipay/i).first()).toBeVisible({ timeout: 15_000 });

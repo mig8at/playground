@@ -719,3 +719,48 @@ export function printForensic(r: Summary, lane?: Lane, opts: { pii?: boolean } =
     log(gray('   ⚠ solo se ven traces con al menos una línea que traiga el uReq; los demás son invisibles'));
     log(gray('     y no se pueden contar. Una ausencia acá NO prueba que no pasó.'));
 }
+
+/* ── DE DÓNDE SALIÓ LA RESPUESTA DE CADA CENTRAL ─────────────────────────────────────────────────────────
+ * F-139: el backend tiene un respaldo silencioso. Si el lambda de centrales no contesta, cae a un fixture y
+ * el flujo sigue igual de rápido, así que una prueba que «dictó» un buró puede dar verde con una respuesta
+ * que nadie dictó. La única prueba de que contestó el dictado es la marca que deja cada Action en el log:
+ * `risk_central.source` (Ágil Data, Mareigua, TusDatos) o `source` en «Resolved response source» (Experian).
+ * ⚠ La marca `lambda` se escribe ANTES de llamar: si la llamada falla, después aparece `fixture_fallback`.
+ * Por eso no alcanza con ver `lambda`; tampoco puede haber un respaldo. Las líneas no traen la solicitud
+ * (sin Tempo no hay `trace_id`), así que se ancla por VENTANA de tiempo: vale en local con las pruebas en fila. */
+
+export type BureauCentral = 'agildata' | 'mareigua' | 'tusdatos' | 'experian';
+export type BureauSourceLine = { ts: number; central: BureauCentral | '?'; source: string; msg: string };
+
+// ⚠ La caída de Experian se escribe sin marca y sin su nombre («Lambda mock failed, falling back to the local
+// fixture», `Experian.php`): se reconoce por el mensaje. Medido el 2026-11-03: sin esto, un Experian que cayó al
+// fixture se leía como «lambda», porque la marca de resolución se escribe antes de llamar.
+const FALLBACK_MSG = /falling back to the local fixture/i;
+const centralOf = (msg: string): BureauCentral | '?' =>
+    /^Agildata\b/i.test(msg) ? 'agildata' : /^Mareigua\b/i.test(msg) ? 'mareigua'
+        : /^Tusdatos\b/i.test(msg) ? 'tusdatos'
+        : /Resolved response source|^Lambda mock failed/.test(msg) ? 'experian' : '?';
+
+/** Las marcas de origen que dejaron las centrales entre `fromMs` y `toMs`. Tira si Loki no se puede leer:
+ *  sin el log no hay forma de afirmar que contestó el dictado, y un verde sin evidencia es el que se busca evitar. */
+export async function bureauSources(fromMs: number, toMs: number, c: LokiConfig = lokiConfig()): Promise<BureauSourceLine[]> {
+    const why = whyNot(c);
+    if (why) throw new Error(`no se puede comprobar de dónde salió el buró: ${why}`);
+    const lines = await query(c, '{service_name=~".+"} |~ "risk_central.source|Resolved response source|falling back to the local fixture"', fromMs, toMs);
+    return lines.map((l) => ({
+        ts: l.ts, central: centralOf(l.msg), msg: l.msg,
+        source: FALLBACK_MSG.test(l.msg) ? 'fixture_fallback'
+            : String((l.ctx as Record<string, unknown>)['risk_central.source'] ?? (l.ctx as Record<string, unknown>).source ?? '?'),
+    }));
+}
+
+/** `null` si cada central de `expected` contestó desde el lambda en la ventana; si no, el motivo. Falla también
+ *  si alguna central cayó al fixture, aunque no esté en `expected`: ese respaldo es justo lo que se esconde. */
+export function bureauSourceProblem(lines: BureauSourceLine[], expected: BureauCentral[]): string | null {
+    const fallback = lines.filter((l) => l.source === 'fixture_fallback' || l.source === 'fixture');
+    if (fallback.length) return `cayó al fixture: ${fallback.map((l) => `${l.central} (${l.source})`).join(', ')}`;
+    const missing = expected.filter((c) => !lines.some((l) => l.central === c && l.source === 'lambda'));
+    if (missing.length) return `sin la marca «lambda» de ${missing.join(', ')} en el log`
+        + (lines.length ? ` (se vio: ${lines.map((l) => `${l.central}=${l.source}`).join(', ')})` : ' (no hubo ninguna marca)');
+    return null;
+}

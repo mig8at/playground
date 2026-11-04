@@ -1,90 +1,93 @@
 import { test, expect, request } from '@playwright/test';
 import { config, expectedSubcodes, fakeScenarios } from '../pkg/config';
 import { assertSubcode } from '../pkg/error-shape';
+import { dictateBureauMode, dictateTusdatosVerdict, type TusdatosVerdict } from '../pkg/risk-lambda';
+import { bureauSources, bureauSourceProblem, type BureauCentral } from '../pkg/loki';
 
 /**
  * OBS-KYC-03 — el backend debe emitir cada sufijo de la familia ONB005 (personal-info) o el
- * subcódigo KYC anidado (TusDatos/Experian) cuando se le inyecta el escenario correspondiente
- * o cuando recibe input que viola el guard (fecha imposible, documento duplicado).
+ * subcódigo KYC anidado (TusDatos/Experian) según lo que contesten las centrales.
  *
- * Shape del backend real: HETEROGÉNEO (ver docs/REFERENCIA-FLUJOS.md [histórico: git show 159906a:docs/REFERENCIA-FLUJOS.md] §13 y pkg/error-shape.ts).
- * Para personal-info, el sufijo puede llegar concatenado al error_code o en errors/data; en KYC
- * (TusDatos/Experian) puede llegar como `error.code` anidado. `assertSubcode` busca ambos markers
- * como substrings en cualquier parte del body — misma estrategia que backend-e2e::negative.go.
+ * Shape del backend real: HETEROGÉNEO (ver pkg/error-shape.ts). Para personal-info, el sufijo puede
+ * llegar concatenado al error_code o en errors/data; en KYC (TusDatos/Experian) puede llegar como
+ * `error.code` anidado. `assertSubcode` busca ambos markers como substrings en cualquier parte del body.
  *
- * Estado tras la reescritura (backlog #2):
- *   - 2 activos (✅ evidencia VERDE en backend-e2e::negative.go):
- *     EXPEDITION_DATE_INVALID (31-feb · checkdate), DOCUMENT_DUPLICATE (segundo intento mismo doc).
- *   - 4 fixme con razón concreta: usan escenarios `kyc-*` del mock viejo :4000. Migrados a los
- *     nombres reales del backend (`issue-date-mismatch`, `document-not-found`, `name-mismatch`,
- *     `server-error`) vía pkg/config.ts::fakeScenarios.tusdatos, pero no verificados extremo a
- *     extremo: requieren TusDatos en modo fake (`ONBOARDING_DRIVER_TUSDATOS=fake`) +
- *     ONBOARDING_FAKES_ALLOW_HEADER=true. Activar cuando el setup local los confirme.
+ * LAS CENTRALES SE DICTAN AL LAMBDA (F-139). Hasta el 2026-11-03 estas pruebas pedían el veredicto con el
+ * encabezado `X-Fake-Scenario` a los drivers «fake» del backend; el backend local ya consulta el lambda de
+ * centrales (`*_MOCK_HOST`), así que el encabezado no hacía nada y las pruebas de TusDatos estaban en `fixme`.
+ * Ahora cada prueba dicta la respuesta para SU cédula y, además, comprueba en el log que contestó el lambda
+ * y no el fixture de respaldo (`bureauSourceProblem`): sin esa marca, un verde no prueba que se ejerció la
+ * central. Sólo local (el dictado en qa puede caer en otra copia del lambda, F-245), y en fila: el log se
+ * ancla por ventana de tiempo, porque sus líneas no traen la solicitud.
+ *
+ * El OTP sigue con su driver «fake» por decisión de F-139: no es una central.
  */
+test.describe.configure({ mode: 'serial' });
+
+/** Un comercio estándar: fuera del pipeline de KYC v2, sin Experian forzado. La cascada de identidad corre entera. */
+const STANDARD_HASH = process.env.E2E_KYC_STANDARD_HASH || '802df3ce';   // Tu Colchón (112) en la base local
+/** Un comercio que dispara Experian (`experian_trigger_allieds`): Pullman. */
+const EXPERIAN_HASH = config.partnerHash;
+
 test.describe('OBS-KYC-03 — sufijos de ONB005 / KYC', () => {
+    test.skip(String(process.env.E2E_TARGET || 'local') !== 'local', 'dicta al lambda local: sólo vale en local');
+
     const phoneUrl = `/api/onboarding/phone/register`;
-    const validateOtpUrl = `/api/onboarding/loan-application/otp-validate/${config.partnerHash}`;
 
     function uniquePhone(): string {
         return `300${Math.floor(Math.random() * 10_000_000).toString().padStart(7, '0')}`;
     }
 
     function uniqueDoc(): string {
-        // FE validates `10000 < doc < 3_000_000_000`. Constrain generation a ese rango.
+        // El front valida `10000 < doc < 3_000_000_000`.
         return Math.floor(Math.random() * 2_899_999_999 + 100_000_000).toString();
     }
 
+    /** El formulario de datos personales como lo manda hoy el asistente (con la fecha de nacimiento y el estrato,
+     *  que el backend exige). Sin ellos el rechazo es `BIRTH_DATE_INVALID` y la prueba no llega a la central. */
+    function personalInfo(doc: string, over: Record<string, unknown> = {}) {
+        return {
+            document_type: 'CC', document_number: doc, name: 'JUAN', surname: 'PEREZ',
+            email: `juan${doc}@example.com`,
+            expedition_day: 10, expedition_month: 5, expedition_year: 2019,
+            birth_day: 10, birth_month: 5, birth_year: 2001, stratum: 3,
+            ...over,
+        };
+    }
+
     /**
-     * Avanza el estado hasta tener un user_request_id válido sobre el cual probar /personal-info.
-     *
-     * Shape observado en el backend real (heterogéneo según código):
-     *   - `success: true` (no-temporal) → `data.payload.user_request_id` (o similar).
-     *   - `success: false` + `error_code: "ONB002"` (temporal, normal en este flujo) →
-     *     `errors.payload.user_request_id`. ONB002 ≠ fallo: indica "ir a /personal-info" con el id.
-     * Buscamos en todos los lugares conocidos antes de fallar.
+     * Avanza el estado hasta tener un user_request_id sobre el cual probar /personal-info.
+     * `success:false` + `ONB002` (usuario temporal) es lo normal acá: «ir a /personal-info» con el id.
      */
-    async function setupUserRequest(
-        api: import('@playwright/test').APIRequestContext,
-        phone: string,
-    ): Promise<number> {
-        await api.post(phoneUrl, {
-            data: { phone_number: phone, otp_length: 4, terms: true, policies: true },
-        });
-        const otpRes = await api.post(validateOtpUrl, {
+    async function setupUserRequest(api: import('@playwright/test').APIRequestContext, phone: string,
+        hash = config.partnerHash): Promise<number> {
+        await api.post(phoneUrl, { data: { phone_number: phone, otp_length: 4, terms: true, policies: true } });
+        const otpRes = await api.post(`/api/onboarding/loan-application/otp-validate/${hash}`, {
             data: { cell_phone: phone, otp_code: '0000', original_amount: 1_000_000, amount: 1_000_000 },
             headers: { 'X-Fake-Scenario': fakeScenarios.otp.success },
         });
         const body = await otpRes.json();
-        const id =
-            body?.payload?.user_request_id ??
-            body?.data?.user_request_id ??
-            body?.data?.payload?.user_request_id ??
-            body?.errors?.payload?.user_request_id;
+        const id = body?.payload?.user_request_id ?? body?.data?.user_request_id
+            ?? body?.data?.payload?.user_request_id ?? body?.errors?.payload?.user_request_id;
         if (typeof id !== 'number') {
             throw new Error(`No pude extraer user_request_id — respuesta: ${JSON.stringify(body).slice(0, 400)}`);
         }
         return id;
     }
 
+    /** Que la(s) central(es) contestaron desde el lambda entre `from` y ahora. Espera a que el log llegue a Loki. */
+    async function expectAnsweredByLambda(from: number, centrals: BureauCentral[]): Promise<void> {
+        await new Promise((r) => setTimeout(r, 4_000));
+        const problem = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), centrals);
+        expect(problem, problem ?? '').toBeNull();
+    }
+
     test('fecha imposible (31/02/2010) → ONB005 + EXPEDITION_DATE_INVALID', async () => {
         const api = await request.newContext({ baseURL: config.mockUrl });
-        const phone = uniquePhone();
-        const userRequestId = await setupUserRequest(api, phone);
-
+        const userRequestId = await setupUserRequest(api, uniquePhone());
         const res = await api.post(
             `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${userRequestId}`,
-            {
-                data: {
-                    document_type: 'CC',
-                    document_number: uniqueDoc(),
-                    name: 'JUAN',
-                    surname: 'PEREZ',
-                    email: `juan${Date.now()}@example.com`,
-                    expedition_day: 31,
-                    expedition_month: 2, // febrero no tiene 31 → checkdate() rechaza
-                    expedition_year: 2010,
-                },
-            },
+            { data: personalInfo(uniqueDoc(), { expedition_day: 31, expedition_month: 2, expedition_year: 2010 }) },
         );
         const body = await res.json();
         const r = assertSubcode(body, 'ONB005', expectedSubcodes.kyc.expeditionDateInvalid);
@@ -95,137 +98,75 @@ test.describe('OBS-KYC-03 — sufijos de ONB005 / KYC', () => {
         const api = await request.newContext({ baseURL: config.mockUrl });
         const docNumber = uniqueDoc();
 
-        // 1) Primer usuario reserva el documento sin problema (escenario success).
-        const firstPhone = uniquePhone();
-        const firstUserRequestId = await setupUserRequest(api, firstPhone);
+        // 1) Primer usuario reserva el documento.
+        const firstUserRequestId = await setupUserRequest(api, uniquePhone());
         await api.post(
             `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${firstUserRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: docNumber,
-                    name: 'PRIMERO', surname: 'USUARIO', email: `primero${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-                headers: { 'X-Fake-Scenario': fakeScenarios.tusdatos.success },
-            },
+            { data: personalInfo(docNumber, { name: 'PRIMERO', surname: 'USUARIO', email: `primero${docNumber}@example.com` }) },
         );
 
         // 2) Segundo usuario (otro celular) intenta el MISMO documento → rechazo por findByDocumentAndType.
-        const secondPhone = uniquePhone();
-        const secondUserRequestId = await setupUserRequest(api, secondPhone);
+        const secondUserRequestId = await setupUserRequest(api, uniquePhone());
         const res = await api.post(
             `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${secondUserRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: docNumber,
-                    name: 'SEGUNDO', surname: 'USUARIO', email: `segundo${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-            },
+            { data: personalInfo(docNumber, { name: 'SEGUNDO', surname: 'USUARIO', email: `segundo${docNumber}@example.com` }) },
         );
         const body = await res.json();
-        // El backend real puede emitir el marker como sufijo O como mensaje "document number already in use"
-        // — `assertSubcode` busca el sufijo como substring en cualquier parte; también vale el message.
         const r = assertSubcode(body, 'ONB005', expectedSubcodes.kyc.documentDuplicate);
         const messageMarker = typeof body?.message === 'string' && body.message.includes('document number already in use');
         expect(r.ok || messageMarker, `${r.debug} · message=${body?.message ?? ''}`).toBe(true);
     });
 
-    test('X-Fake-Scenario: server-error (Experian) → ONB030 internal server error', async () => {
-        // Hallazgo en validación E2E: el escenario `server-error` (driver Experian) produce
-        // ONB030 ("internal server error") en personal-info — NO ONB005. ONB030 es un code NUEVO
-        // (no estaba en docs antes); también aparece con `timeout` y `no-hit`. Ver REFERENCIA-FLUJOS.md §13.
-        const api = await request.newContext({ baseURL: config.mockUrl });
-        const phone = uniquePhone();
-        const userRequestId = await setupUserRequest(api, phone);
+    // Los tres veredictos de TusDatos, en un comercio estándar: Ágil Data y Mareigua «sin información» para que la
+    // cascada llegue a TusDatos, y TusDatos con la forma que espera el backend (`dictateTusdatosVerdict`).
+    //
+    // ⚠ «Documento inexistente» NO se puede ejercitar por el lambda: TusDatos lo devuelve como HTTP 404, y el
+    // backend trata CUALQUIER respuesta no-2xx del lambda como caída y sigue con el fixture de respaldo
+    // (`Tusdatos.php`, el `catch` de la llamada al lambda): el formulario pasa como validado. Medido el 2026-11-03
+    // (log: `Tusdatos: lambda mock failed, falling back to the local fixture`). Queda en `fixme` con el motivo;
+    // se activa si el backend deja de caer al fixture ante un 4xx de negocio.
+    const TUSDATOS_CASES: Array<{ verdict: TusdatosVerdict; subcode: string; masked?: string }> = [
+        { verdict: 'issue-date-mismatch', subcode: expectedSubcodes.kyc.expeditionDateMismatch },
+        { verdict: 'document-not-found', subcode: expectedSubcodes.kyc.documentNotFound,
+          masked: 'el backend cae al fixture ante el 404 del lambda: el veredicto no llega' },
+        { verdict: 'name-mismatch', subcode: expectedSubcodes.kyc.kycValidationFailed },
+    ];
+    for (const { verdict, subcode, masked } of TUSDATOS_CASES) {
+        (masked ? test.fixme : test)(`TusDatos ${verdict} (dictado al lambda) → ONB005 + ${subcode}`, async () => {
+            const api = await request.newContext({ baseURL: config.mockUrl });
+            const doc = uniqueDoc();
+            expect(await dictateTusdatosVerdict(doc, verdict), 'el lambda local no tomó el dictado').toBe(true);
+            const userRequestId = await setupUserRequest(api, uniquePhone(), STANDARD_HASH);
 
+            const from = Date.now();
+            const res = await api.post(
+                `/api/onboarding/loan-application/personal-info/${STANDARD_HASH}/${userRequestId}`,
+                { data: personalInfo(doc) },
+            );
+            const body = await res.json();
+            // Primero de dónde salió la respuesta: si cayó al fixture, el subcódigo que falte se explica por eso.
+            await expectAnsweredByLambda(from, ['tusdatos']);
+            const r = assertSubcode(body, 'ONB005', subcode);
+            expect(r.ok, r.debug).toBe(true);
+        });
+    }
+
+    // ⚠ Igual que el 404 de TusDatos: ante un 500 del lambda, `Experian.php` cae al fixture de respaldo y el formulario
+    // pasa como validado (log: «Lambda mock failed, falling back to the local fixture», medido el 2026-11-03). El
+    // ONB030 que esta prueba esperaba salía del driver «fake», que ya no se usa. Queda en `fixme` con el motivo.
+    test.fixme('Experian falla (HTTP 500 dictado al lambda) → el formulario no pasa, y contestó el lambda', async () => {
+        const api = await request.newContext({ baseURL: config.mockUrl });
+        const doc = uniqueDoc();
+        expect((await dictateBureauMode(doc, 'experian', 'fail')).ok, 'el lambda local no tomó el dictado').toBe(true);
+        const userRequestId = await setupUserRequest(api, uniquePhone(), EXPERIAN_HASH);
+
+        const from = Date.now();
         const res = await api.post(
-            `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${userRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: uniqueDoc(),
-                    name: 'JUAN', surname: 'PEREZ', email: `juan${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-                headers: { 'X-Fake-Scenario': fakeScenarios.experian.serverError },
-            },
+            `/api/onboarding/loan-application/personal-info/${EXPERIAN_HASH}/${userRequestId}`,
+            { data: personalInfo(doc) },
         );
         const body = await res.json();
-        const r = assertSubcode(body, 'ONB030', 'internal server error');
-        expect(r.ok, r.debug).toBe(true);
+        expect(body?.success, JSON.stringify(body).slice(0, 400)).toBe(false);
+        await expectAnsweredByLambda(from, ['experian']);
     });
-
-    test.fixme('X-Fake-Scenario: issue-date-mismatch → ONB005 + EXPEDITION_DATE_MISMATCH', async () => {
-        // ⏸️ El partner por defecto (3e67eade = Pullman, allied 94) ejecuta Experian Quanto,
-        // no TusDatos — los escenarios `issue-date-mismatch`/`name-mismatch`/etc. devuelven
-        // success:true (no aplican). Para activar: usar un partner_hash ESTÁNDAR (no
-        // Pullman/Corbeta/Motai) + ONBOARDING_DRIVER_TUSDATOS=fake + ONBOARDING_FAKES_ALLOW_HEADER=true.
-        const api = await request.newContext({ baseURL: config.mockUrl });
-        const phone = uniquePhone();
-        const userRequestId = await setupUserRequest(api, phone);
-
-        const res = await api.post(
-            `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${userRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: uniqueDoc(),
-                    name: 'JUAN', surname: 'PEREZ', email: `juan${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-                headers: { 'X-Fake-Scenario': fakeScenarios.tusdatos.issueDateMismatch },
-            },
-        );
-        const body = await res.json();
-        const r = assertSubcode(body, 'ONB005', expectedSubcodes.kyc.expeditionDateMismatch);
-        expect(r.ok, r.debug).toBe(true);
-    });
-
-    test.fixme('X-Fake-Scenario: document-not-found → DOCUMENT_NOT_FOUND', async () => {
-        // ⏸️ Pullman usa Experian, no TusDatos — escenario no aplica. Ver fixme anterior.
-        const api = await request.newContext({ baseURL: config.mockUrl });
-        const phone = uniquePhone();
-        const userRequestId = await setupUserRequest(api, phone);
-
-        const res = await api.post(
-            `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${userRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: uniqueDoc(),
-                    name: 'JUAN', surname: 'PEREZ', email: `juan${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-                headers: { 'X-Fake-Scenario': fakeScenarios.tusdatos.documentNotFound },
-            },
-        );
-        const body = await res.json();
-        // En KYC el sufijo puede llegar como `error.code` anidado — la búsqueda tolerante lo cubre.
-        const r = assertSubcode(body, 'ONB005', expectedSubcodes.kyc.documentNotFound);
-        expect(r.ok, r.debug).toBe(true);
-    });
-
-    test.fixme('X-Fake-Scenario: name-mismatch → KYC_VALIDATION_FAILED', async () => {
-        // ⏸️ Pullman usa Experian, no TusDatos — escenario no aplica.
-        const api = await request.newContext({ baseURL: config.mockUrl });
-        const phone = uniquePhone();
-        const userRequestId = await setupUserRequest(api, phone);
-
-        const res = await api.post(
-            `/api/onboarding/loan-application/personal-info/${config.partnerHash}/${userRequestId}`,
-            {
-                data: {
-                    document_type: 'CC', document_number: uniqueDoc(),
-                    name: 'JUAN', surname: 'PEREZ', email: `juan${Date.now()}@example.com`,
-                    expedition_day: 1, expedition_month: 1, expedition_year: 2010,
-                },
-                headers: { 'X-Fake-Scenario': fakeScenarios.tusdatos.nameMismatch },
-            },
-        );
-        const body = await res.json();
-        const r = assertSubcode(body, 'ONB005', expectedSubcodes.kyc.kycValidationFailed);
-        expect(r.ok, r.debug).toBe(true);
-    });
-
-    // (eliminado: el test antiguo "server-error → ONB005 + PROVIDER_ERROR" no aplica al backend
-    // real — `server-error` produce ONB030, no un sufijo de ONB005. Reemplazado por el test
-    // ACTIVO de arriba que valida ONB030.)
 });

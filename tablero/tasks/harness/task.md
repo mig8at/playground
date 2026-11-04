@@ -70,14 +70,11 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 - [ ] Validar preparación, ejecución, progreso y resultado durante una corrida real.
 - [ ] Migrar un llamador a la vez a las funciones de escritura seguras cuando se modifique.
-- [ ] Migrar los specs de burós al lambda y conservar `source=lambda` como evidencia de participación.
-  **Diagnosticado (2026-11-03):** viene de F-139 (dejar los drivers `fake` de burós y quedarse con el lambda).
-  `source=lambda` es un campo del LOG del backend (`risk_central.source`, y `source` en Experian), no una columna: es lo
-  único que prueba que la respuesta salió del dictado y no del fixture. Plan por valor: (1) un `assertBureauSource` en
-  `pkg/loki.ts`; (2) `merchant/pullman-credipullman.spec.ts`; (3) `dev/guided.spec.ts`; (4) `channel/kyc-subcodes.spec.ts`
-  y (5) `kyc-ui.spec.ts`, que siguen con headers `X-Fake-Scenario`; (6) retirar `fakeScenarios`. Decide Miguel: ¿sólo
-  local o también qa?; sin Loki, ¿falla o queda «no concluyente»?; ¿los `fixme` de TusDatos se migran o se retiran?;
-  ¿`synthFill` sigue forjando Experian y KYC en `guided`?
+- [x] ~~Migrar los specs de burós al lambda y conservar `source=lambda` como evidencia de participación~~ — hecho
+  (2026-11-03): `kyc-subcodes`, `kyc-ui` y `pullman-credipullman` dictan al lambda y afirman en Loki que contestó el
+  lambda (`bureauSourceProblem` en `pkg/loki.ts`); los escenarios de burós salieron de `pkg/config.ts`. Quedan en
+  `fixme` con motivo: «documento inexistente» y «error del proveedor», porque el backend cae al fixture ante el no-2xx
+  del lambda; y la de `kyc-ui` con fecha de expedición, porque sus `data-testid` son de la rama `fe-obs-04` del front.
 - [ ] Mantener asserts, transiciones y veredicto como reglas determinísticas.
 - [x] Comprobar en qa el sidebar del panel: con Refurbi elegido y canal Asesor, la línea bajo la fila dice «el asesor entra por 6e377fa6 · 3 entidades»; Celucambio, DENTIX, Smart y BCP (Perú) salen con ⚠ y ▶ apagado, con el comando `bin/pg admin test-advisor` en el tooltip. Termina cuando las dos cosas se ven así. Depende de: Miguel — la VPN de dev.
 - [x] Comprobar en qa que el panel trae las excepciones del front de PostHog a la consola del celular (`✗ PostHog …`) en una corrida que falle. Termina con una excepción real en la consola. Depende de: Miguel — la VPN de dev.

@@ -2,8 +2,13 @@ import { test, expect, request } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { config, fakeScenarios } from '../pkg/config';
 import { injectFakeScenario } from '../pkg/mock-control';
+import { dictateTusdatosVerdict } from '../pkg/risk-lambda';
+import { bureauSources, bureauSourceProblem } from '../pkg/loki';
 
 const PARTNER = config.partnerHash;
+/** Un comercio estándar (fuera del pipeline de KYC v2, sin Experian forzado): la cascada de identidad llega a
+ *  TusDatos. Pullman, el de por defecto, corre Experian Quanto y los veredictos de TusDatos no se ven ahí. */
+const STANDARD = process.env.E2E_KYC_STANDARD_HASH || '802df3ce';   // Tu Colchón (112) en la base local
 
 test.describe.configure({ mode: 'serial' });
 
@@ -18,17 +23,18 @@ test.describe.configure({ mode: 'serial' });
  * tests pueden volver al camino completo OTP → personal-info.
  */
 
-async function createUserRequest(): Promise<{ phone: string; userRequestId: number }> {
+async function createUserRequest(hash = PARTNER): Promise<{ phone: string; userRequestId: number }> {
     const api = await request.newContext({ baseURL: config.mockUrl });
     const phone = `300${Math.floor(Math.random() * 10_000_000).toString().padStart(7, '0')}`;
     await api.post('/api/onboarding/phone/register', {
         data: { phone_number: phone, otp_length: 4, terms: true, policies: true },
     });
-    const otpRes = await api.post(`/api/onboarding/loan-application/otp-validate/${PARTNER}`, {
+    const otpRes = await api.post(`/api/onboarding/loan-application/otp-validate/${hash}`, {
         data: { cell_phone: phone, otp_code: '1234', original_amount: 1_000_000, amount: 1_000_000 },
     });
     const body = await otpRes.json();
-    const userRequestId = body?.payload?.user_request_id;
+    // `success:false` + ONB002 (usuario temporal) es lo normal: el id viene en `errors.payload`.
+    const userRequestId = body?.payload?.user_request_id ?? body?.data?.payload?.user_request_id ?? body?.errors?.payload?.user_request_id;
     if (typeof userRequestId !== 'number') {
         throw new Error('Mock no devolvió user_request_id: ' + JSON.stringify(body));
     }
@@ -39,8 +45,8 @@ function uniqueDoc(): string {
     return Math.floor(Math.random() * 9_000_000_000 + 1_000_000_000).toString();
 }
 
-function personalInfoUrl(userRequestId: number): string {
-    return `/self-service/${PARTNER}/${userRequestId}/personal-info`;
+function personalInfoUrl(userRequestId: number, hash = PARTNER): string {
+    return `/self-service/${hash}/${userRequestId}/personal-info`;
 }
 
 async function typeInto(page: Page, testId: string, value: string) {
@@ -116,14 +122,22 @@ test.fixme('happy path: identification + documentDate → siguiente paso', async
     await page.waitForURL(/employment-info|laboral-info|lenders/, { timeout: 15_000 });
 });
 
-test.fixme('OBS-KYC-03 UI: scenario kyc-date-mismatch → mensaje específico', async ({ page }) => {
-    await injectFakeScenario(page, fakeScenarios.kyc.dateMismatch, config.mockUrl);
-    const { userRequestId } = await createUserRequest();
+// Las centrales se DICTAN al lambda (F-139): el encabezado `X-Fake-Scenario` ya no llega a ningún driver «fake» de
+// burós en local. Cada prueba dicta para SU cédula y comprueba en el log que contestó el lambda, no el fixture.
+// ⏸️ El dictado y la comprobación de origen ya están; lo que falta es la PANTALLA: los `data-testid` que usa
+// (`docnum-input`, `expedition-date-error`…) son de la rama `feature/onboarding/fe-obs-04` del front, que no está en
+// `main` (medido el 2026-11-03: cero coincidencias en origin/main). Se activa cuando esa rama entre.
+test.fixme('OBS-KYC-03 UI: TusDatos con fecha de expedición que no coincide (dictado al lambda) → mensaje específico', async ({ page }) => {
+    test.skip(String(process.env.E2E_TARGET || 'local') !== 'local', 'dicta al lambda local: sólo vale en local');
+    const doc = uniqueDoc();
+    expect(await dictateTusdatosVerdict(doc, 'issue-date-mismatch'), 'el lambda local no tomó el dictado').toBe(true);
+    const { userRequestId } = await createUserRequest(STANDARD);
 
-    await page.goto(personalInfoUrl(userRequestId));
+    await page.goto(personalInfoUrl(userRequestId, STANDARD));
+    const from = Date.now();
 
     await fillIdentificationStep(page, {
-        docNum: uniqueDoc(),
+        docNum: doc,
         name: 'JUAN',
         surname: 'PEREZ',
         email: 'juan.perez@example.com',
@@ -139,10 +153,15 @@ test.fixme('OBS-KYC-03 UI: scenario kyc-date-mismatch → mensaje específico', 
         .or(page.getByRole('alert'))
         .or(page.getByText(/coincide|registradur[íi]a|fecha/i));
     await expect(errorLocator.first()).toBeVisible({ timeout: 15_000 });
+    await new Promise((r) => setTimeout(r, 4_000));
+    const problem = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), ['tusdatos']);
+    expect(problem, problem ?? '').toBeNull();
 });
 
+// ⚠ «Documento inexistente» y «error del proveedor» NO se pueden ejercitar por el lambda: el backend trata cualquier
+// respuesta no-2xx del lambda como caída y sigue con el fixture de respaldo, y el formulario pasa como validado
+// (`Tusdatos.php`/`Experian.php`; medido el 2026-11-03, ver `channel/kyc-subcodes.spec.ts`). Quedan en `fixme`.
 test.fixme('OBS-KYC-03 UI: scenario kyc-doc-not-found → mensaje específico', async ({ page }) => {
-    await injectFakeScenario(page, fakeScenarios.kyc.documentNotFound, config.mockUrl);
     const { userRequestId } = await createUserRequest();
 
     await page.goto(personalInfoUrl(userRequestId));
@@ -164,7 +183,6 @@ test.fixme('OBS-KYC-03 UI: scenario kyc-doc-not-found → mensaje específico', 
 });
 
 test.fixme('OBS-KYC-03 UI: scenario kyc-provider-error → mensaje accionable', async ({ page }) => {
-    await injectFakeScenario(page, fakeScenarios.kyc.providerError, config.mockUrl);
     const { userRequestId } = await createUserRequest();
 
     await page.goto(personalInfoUrl(userRequestId));

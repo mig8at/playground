@@ -138,6 +138,24 @@ export async function fillPersonalInfoIdentification(page: Page): Promise<void> 
     await writeIfNeeded(field(/apellidos/i, 'surname-input'), 'PEREZ');
     await writeIfNeeded(field(/correo|email/i, 'email-input'), `juan${Date.now()}@example.com`);
 
+    // ⚠ FECHA DE NACIMIENTO en el primer paso (vista el 2026-11-03): sin ella «Siguiente» queda apagado, y el paso
+    // siguiente (la fecha de expedición) abría el selector «Año» de NACIMIENTO, cuya lista (1925–2008) no tiene
+    // 2010. Se acota al grupo de su rótulo, porque los tres combobox no tienen nombre ni testid propio.
+    const birth = page.getByText(/fecha de nacimiento/i).first().locator('xpath=..');
+    if (await birth.count()) {
+        const combos = birth.getByRole('combobox');
+        const pick = async (i: number, option: RegExp) => {
+            const c = combos.nth(i);
+            if (!(await c.count())) return;
+            await expect(c).toBeEnabled({ timeout: 10_000 });
+            await c.click();
+            await page.getByRole('option', { name: option }).first().click();
+        };
+        await pick(0, /^15$/);
+        await pick(1, /^junio$/i);
+        await pick(2, /^1995$/);
+    }
+
     const submit = page.getByTestId('identification-submit').or(page.getByRole('button', { name: /^siguiente$/i }));
     await expect(submit).toBeEnabled({ timeout: 10_000 });
     await submit.click();

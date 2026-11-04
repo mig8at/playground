@@ -279,36 +279,10 @@ export const fakeScenarios = {
         providerDown: 'provider-down',
         providerError: 'provider-5xx',
     },
-    /** Driver TusDatos fake (KYC). */
-    tusdatos: {
-        success: 'success',
-        issueDateMismatch: 'issue-date-mismatch',
-        nameMismatch: 'name-mismatch',
-        documentNotFound: 'document-not-found',
-        amlFindings: 'aml-findings',
-        /** SEGUNDO apellido «no coincide» (match_code 0) con el resto en coincidencia — el caso
-         *  de la uReq 523201. Distinto de `nameMismatch`, que pega en el PRIMER nombre/apellido:
-         *  la tolerancia de los campos SEGUNDOS es donde vivía el defecto. Ver dev/kyc-surname.ts. */
-        secondSurnameMismatch: 'second-surname-mismatch',
-        /** Cliente de UN nombre y UN apellido, todo coincidente (campos segundos AUSENTES).
-         *  Es la red: esta persona debe seguir pasando. */
-        singleNameAndSurname: 'single-name-and-surname',
-    },
-    /** Driver Experian fake (riesgo/scoring). */
-    experian: {
-        success: 'success',
-        poorScore: 'poor-score',
-        noHit: 'no-hit',
-        serverError: 'server-error',
-        timeout: 'timeout',
-    },
-    /** @deprecated alias del mock-server :4000 eliminado — usar `tusdatos.*` arriba. Se mantiene por back-compat con specs viejos. */
-    kyc: {
-        dateMismatch: 'issue-date-mismatch',
-        documentNotFound: 'document-not-found',
-        nameMismatch: 'name-mismatch',
-        providerError: 'server-error',
-    },
+    // Los escenarios de centrales (TusDatos, Experian y el alias `kyc`) se retiraron el 2026-11-03: el backend local
+    // consulta el lambda de centrales y el encabezado no llegaba a ningún driver «fake» (F-139). Hoy se dicta la
+    // respuesta por cédula (`pkg/risk-lambda.ts`: `dictateTusdatosVerdict`, `dictateBureauMode`) y se comprueba en el
+    // log que contestó el lambda (`pkg/loki.ts`: `bureauSourceProblem`). El OTP sí sigue con su driver «fake».
 } as const;
 
 /** Subcódigos esperados en la respuesta del backend (deben coincidir con OBS-OTP-02 / OBS-KYC-03). */
