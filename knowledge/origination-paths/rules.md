@@ -77,12 +77,23 @@ Las variaciones vigentes, con lo que las activa:
 | **Aprobación manual** | la entidad tiene `lender_requirements.manual_approval`: un asesor aprueba antes de seguir | por entidad |
 | **IMEI** | la entidad tiene la ruta `IMEI` (`lenders.path_id`): el equipo financiado es la garantía | por entidad (`ImeiValidationService`, `otp-validation.tsx`) |
 | **Codeudor** | la categoría del cliente en esa entidad tiene `requires_cosigner` | por cliente (`CosignerRequirementService`) |
-| **Cuota inicial por pasarela** | sólo en el canal tienda: la política de la categoría exige cuota inicial y no hay pago aprobado, así que el backend frena con `INITIAL_FEE_PAYMENT_REQUIRED` y el cliente paga antes de firmar | por cliente (`ValidateInitialFeePaid`, `InitialFeePolicyResolver`) |
+| **Cuota inicial** | sólo CreditopX (riel 2 y 3): la categoría que le toca al cliente en esa entidad tiene `min_initial_fee` (en el rotativo, el crédito rotativo publica el porcentaje) | por cliente (`InitialFeePolicyResolver`) |
 
 Por eso hay dos clases de variación: las **por entidad**, que se leen en la configuración y valen para
 toda solicitud con esa entidad, y las **por cliente**, que dependen de la categoría que le toca y sólo
-se saben al evaluarlo. Una variación también puede depender del canal: fuera de la tienda la cuota
-inicial la cobra el comercio y no pasa por la pasarela, así que no cambia el camino.
+se saben al evaluarlo.
+
+La cuota inicial es además la variación que depende del canal. `InitialFeePolicyResolver` es su única
+autoridad y sólo resuelve los tipos 2 y 3; con cualquier otro riel no hay cuota inicial. El porcentaje
+sale de la categoría del cliente, y el monto suma lo que fija el convenio del comercio con la entidad
+(`lenders_by_allieds`: gastos administrativos y fondo de garantía). Cómo se cobra depende del canal:
+
+- **Tienda:** el listado no ofrece el campo; si la entidad elegida exige cuota inicial y no hay pago
+  aprobado, el backend frena la firma con `INITIAL_FEE_PAYMENT_REQUIRED` y el cliente paga por la
+  pasarela antes de seguir (`ValidateInitialFeePaid`).
+- **Asesor:** el campo aparece en el listado sólo si el comercio lo tiene activado
+  (`allieds.initial_fee`). La firma no espera un pago por pasarela: fuera de la tienda la cuota inicial
+  la cobra el comercio.
 
 ## Desenlace: cómo termina
 

@@ -78,6 +78,7 @@ async function main(): Promise<number> {
             const off = p.lender.lenderStatus !== 1 ? ' [apagada]' : '';
             console.log(`  #${p.lender.id} ${p.lender.name}${off}`);
             console.log(`      ${p.line}`);
+            for (const n of p.notes) console.log(`      · ${n}`);
             for (const w of p.warnings) console.log(`      ⚠ ${w}`);
         }
     }

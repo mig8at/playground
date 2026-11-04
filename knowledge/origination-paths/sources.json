@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, ajustes y desenlace— y qué activa cada variación en el código.",
-  "reviewedAt": "2026-11-04T10:57:11+00:00",
+  "reviewedAt": "2026-11-04T11:06:45+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -157,6 +157,24 @@
       "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
       "sections": [
         "desenlace-como-termina"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "sections": [
+        "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
+      "sections": [
+        "variaciones-y-ajustes"
       ]
     }
   ]

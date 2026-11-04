@@ -22,7 +22,7 @@ export interface Catalog {
     rails: Record<string, Named & { policyOwner: string; origination: string; outcome: string }>;
     railAxes: Record<string, Named & { values: Record<string, string> }>;
     products: Record<string, Named>;
-    variations: Record<string, Named & { scope: string; when: string; measured?: string; channels?: string[] }>;
+    variations: Record<string, Named & { scope: string; when: string; measured?: string; channels?: string[]; rails?: string[]; byChannel?: Record<string, string> }>;
     outcomes: Record<string, Named & { formalizations?: Record<string, string> }>;
     servicing: Named & { values: Record<string, string> };
     fit: Record<string, string>;
@@ -64,6 +64,8 @@ export interface Path {
     outcome: string;
     servicing: string;
     line: string;
+    /** Cómo se comporta una variación en el canal pedido. */
+    notes: string[];
     warnings: string[];
 }
 
@@ -147,6 +149,7 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
 /** Ubica una entidad medida en el catálogo. `channel` limita las variaciones que dependen del canal. */
 export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
     const warnings: string[] = [];
+    const notes: string[] = [];
     const rail = String(f.rt);
     const r = cat.rails[rail];
     if (!r) warnings.push(`response_type ${f.rt} no está en el catálogo: sería un riel nuevo`);
@@ -157,9 +160,11 @@ export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
     const add = (id: string, conditional: boolean) => {
         const v = cat.variations[id];
         if (!v) return;
+        if (v.rails && !v.rails.includes(rail)) return;
         if (channel && v.channels && !v.channels.includes(channel)) return;
         // Sin canal fijado, una variación que sólo existe en algunos canales lo dice en el nombre.
         const only = !channel && v.channels ? ` (sólo ${v.channels.map((c) => cat.channels[c]?.name ?? c).join(', ').toLowerCase()})` : '';
+        if (channel && v.byChannel?.[channel]) notes.push(`${v.name}: ${v.byChannel[channel]}`);
         variations.push({ id, name: v.name + only, scope: v.scope, conditional });
     };
     if (f.abaco) add('abaco', false);
@@ -200,6 +205,7 @@ export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
         outcome,
         servicing,
         line: parts.join(' · '),
+        notes,
         warnings,
     };
 }

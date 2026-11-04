@@ -17,8 +17,15 @@
       "name": "Tienda",
       "routes": "/ecommerce/{hash}/checkout → /ecommerce/{hash}/…",
       "entries": {
-        "signed": { "name": "con pedido firmado", "routes": "/auto/{hash}/…", "note": "se salta el código del celular" },
-        "unsigned": { "name": "sin firma", "routes": "/ecommerce/{hash}/…" }
+        "signed": {
+          "name": "con pedido firmado",
+          "routes": "/auto/{hash}/…",
+          "note": "se salta el código del celular"
+        },
+        "unsigned": {
+          "name": "sin firma",
+          "routes": "/ecommerce/{hash}/…"
+        }
       },
       "harness": "FLOW=ecommerce · make harness-ecommerce"
     },
@@ -31,24 +38,78 @@
   },
   "commonStretch": {
     "name": "Tramo común",
-    "steps": ["monto", "celular", "código", "datos personales", "empleo", "listado"],
-    "appliesTo": ["advisor", "self-service", "store"]
+    "steps": [
+      "monto",
+      "celular",
+      "código",
+      "datos personales",
+      "empleo",
+      "listado"
+    ],
+    "appliesTo": [
+      "advisor",
+      "self-service",
+      "store"
+    ]
   },
   "rails": {
-    "0": { "name": "Redirección", "policyOwner": "entidad", "origination": "afuera", "outcome": "decide-afuera" },
-    "1": { "name": "Integrada", "policyOwner": "entidad", "origination": "afuera", "outcome": "integracion-informa" },
-    "2": { "name": "CreditopX consumo", "policyOwner": "creditop", "origination": "en-casa", "outcome": "autorizacion" },
-    "3": { "name": "CreditopX rotativo", "policyOwner": "creditop", "origination": "en-casa", "outcome": "autorizacion" },
-    "4": { "name": "Originación delegada", "policyOwner": "entidad", "origination": "en-casa", "outcome": "autorizacion-y-formalizacion" }
+    "0": {
+      "name": "Redirección",
+      "policyOwner": "entidad",
+      "origination": "afuera",
+      "outcome": "decide-afuera"
+    },
+    "1": {
+      "name": "Integrada",
+      "policyOwner": "entidad",
+      "origination": "afuera",
+      "outcome": "integracion-informa"
+    },
+    "2": {
+      "name": "CreditopX consumo",
+      "policyOwner": "creditop",
+      "origination": "en-casa",
+      "outcome": "autorizacion"
+    },
+    "3": {
+      "name": "CreditopX rotativo",
+      "policyOwner": "creditop",
+      "origination": "en-casa",
+      "outcome": "autorizacion"
+    },
+    "4": {
+      "name": "Originación delegada",
+      "policyOwner": "entidad",
+      "origination": "en-casa",
+      "outcome": "autorizacion-y-formalizacion"
+    }
   },
   "railAxes": {
-    "policyOwner": { "name": "Dueño de la política", "values": { "entidad": "la entidad", "creditop": "Creditop" } },
-    "origination": { "name": "Dónde se origina", "values": { "afuera": "afuera: la entidad sigue en su sitio o su flujo", "en-casa": "en casa: las pantallas de Creditop" } }
+    "policyOwner": {
+      "name": "Dueño de la política",
+      "values": {
+        "entidad": "la entidad",
+        "creditop": "Creditop"
+      }
+    },
+    "origination": {
+      "name": "Dónde se origina",
+      "values": {
+        "afuera": "afuera: la entidad sigue en su sitio o su flujo",
+        "en-casa": "en casa: las pantallas de Creditop"
+      }
+    }
   },
   "products": {
-    "credit": { "name": "Compra financiada" },
-    "renting": { "name": "Renting operativo" },
-    "rto": { "name": "Rent-to-Own" }
+    "credit": {
+      "name": "Compra financiada"
+    },
+    "renting": {
+      "name": "Renting operativo"
+    },
+    "rto": {
+      "name": "Rent-to-Own"
+    }
   },
   "variations": {
     "abaco": {
@@ -73,17 +134,30 @@
       "measured": "la entidad tiene alguna categoría activa con requires_cosigner = 1"
     },
     "down-payment": {
-      "name": "Cuota inicial por pasarela",
+      "name": "Cuota inicial",
       "scope": "cliente",
-      "channels": ["store"],
-      "when": "en la tienda, la política de la categoría exige cuota inicial y no hay pago aprobado",
-      "measured": "la entidad tiene alguna categoría activa con min_initial_fee > 0"
+      "rails": [
+        "2",
+        "3"
+      ],
+      "when": "sólo CreditopX: la categoría del cliente en esa entidad tiene min_initial_fee (el rotativo, su porcentaje publicado)",
+      "measured": "la entidad es riel 2 o 3 y tiene alguna categoría activa con min_initial_fee > 0",
+      "byChannel": {
+        "store": "se paga por la pasarela antes de firmar (el backend frena con INITIAL_FEE_PAYMENT_REQUIRED)",
+        "advisor": "el campo sale en el listado sólo si el comercio tiene allieds.initial_fee; la cobra el comercio"
+      }
     }
   },
   "outcomes": {
-    "decide-afuera": { "name": "La entidad decide en su sitio" },
-    "integracion-informa": { "name": "La integración decide e informa" },
-    "autorizacion": { "name": "Autorización (estado 11)" },
+    "decide-afuera": {
+      "name": "La entidad decide en su sitio"
+    },
+    "integracion-informa": {
+      "name": "La integración decide e informa"
+    },
+    "autorizacion": {
+      "name": "Autorización (estado 11)"
+    },
     "autorizacion-y-formalizacion": {
       "name": "Autorización y formalización ante la entidad",
       "formalizations": {
@@ -96,7 +170,10 @@
   },
   "servicing": {
     "name": "Cobranza",
-    "values": { "0": "de Creditop", "1": "de la entidad" },
+    "values": {
+      "0": "de Creditop",
+      "1": "de la entidad"
+    },
     "column": "lenders.externally_serviced"
   },
   "fit": {
