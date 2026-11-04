@@ -627,6 +627,8 @@
     .theme-toggle { margin-right: var(--space-1) }
     /* Arranque, demora y servicios van a la derecha del pie, pegados a los botones de disposición. */
     .statusbar > .statusbar-item { flex: none }
+    /* El de incidencias es un enlace: sin subrayado y con el color de los demás ítems del pie. */
+    a.statusbar-item { text-decoration: none; color: inherit }
     /* Un dato vacío no deja su hueco: el icono solo contesta. */
     .statusbar-item > span:empty:not(.ui-icon):not(.status-dot) { display: none }
     .statusbar > .run-start { margin-left: auto }
@@ -1269,6 +1271,11 @@
       <button type="button" class="statusbar-item health-item" id="btnHealth" aria-haspopup="dialog" title="Estado de los servicios">
         <span class="ui-icon" data-icon="server" aria-hidden="true"></span><span class="status-dot" id="healthDot"></span><span id="healthText"></span>
       </button>
+      <!-- Las INCIDENCIAS: los defectos de CreditOp que salieron de las corridas y se confirmaron en el código viven en el
+           tablero, en la tarea `incidencias` (sus borradores para el equipo son un artifact). Un enlace, no una copia:
+           el panel corre flujos, el tablero guarda lo que se concluye. Abre en otra pestaña; necesita el tablero arriba
+           (`make tablero`, :5191). -->
+      <a class="statusbar-item incidents-item" id="lnkIncidents" href="http://localhost:5191/#/tareas/incidencias?vista=artifacts" target="_blank" rel="noopener" title="Incidencias: los borradores para el equipo, en el tablero (:5191)"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span><span>Incidencias</span></a>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
              porque su orden copia la pantalla (izquierda, abajo, derecha). -->
