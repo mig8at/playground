@@ -21,7 +21,6 @@ import { useChatStore } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
-import RegionMenu from './RegionMenu.vue'
 import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
 import {
@@ -473,16 +472,6 @@ function clearActive() {
   const c = chat.active
   if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
 }
-// Lo poco frecuente, al menú «⋯» de cada región (la base: en la barra, lo frecuente; en el menú, lo demás).
-const conversationMenu = computed(() => [
-  { id: 'clear', label: 'Vaciar chat (la conversación queda, sin mensajes)', icon: 'trash' },
-  { id: 'forget', label: 'Borrar conversación (sale de la lista)', icon: 'close' },
-])
-function onConversationMenu(id) { if (id === 'clear') clearActive(); else if (id === 'forget') forgetActive() }
-const myChatMenu = computed(() => [{ id: 'clear', label: 'Vaciar tu conversación con tu agente', icon: 'trash', disabled: !chat.notes.length }])
-function onMyChatMenu(id) { if (id === 'clear') clearNotes() }
-const ownAgentMenu = computed(() => [{ id: 'off-all', label: 'Apagar todos tus agentes', icon: 'stop', disabled: ownBusy.value || !chat.ownAgents.some((a) => a.on) }])
-function onOwnAgentMenu(id) { if (id === 'off-all') shutDownOwnAgents() }
 function clearNotes() {
   if (window.confirm('¿Vaciar tu conversación con tu agente? Sólo está en este navegador: no se puede recuperar.')) chat.clearNotes()
 }
@@ -672,13 +661,23 @@ const statusText = computed(() => {
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
-            <RegionMenu title="Más opciones de la conversación" :items="conversationMenu" @select="onConversationMenu" />
+            <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
+                    aria-label="Vaciar chat" @click="clearActive">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Borrar conversación: sale de la lista (sólo en este navegador)"
+                    aria-label="Borrar conversación" @click="forgetActive">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
           </div>
         </template>
         <template v-else>
           <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
-            <RegionMenu title="Más opciones de Mi chat" :items="myChatMenu" @select="onMyChatMenu" />
+            <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
+                    aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
           </div>
         </template>
       </div>
@@ -894,7 +893,10 @@ const statusText = computed(() => {
             <button type="button" class="switch" role="switch" :aria-checked="activeOwnAgent.on" :disabled="ownBusy" @click="toggleOwnAgent"
                     :title="activeOwnAgent.on ? 'Apagar: deja de contestarle al equipo' : 'Prender: el equipo lo vuelve a ver'"
                     :aria-label="activeOwnAgent.on ? `Apagar a ${activeOwnAgent.name}` : `Prender a ${activeOwnAgent.name}`"></button>
-            <RegionMenu title="Más opciones del agente" :items="ownAgentMenu" @select="onOwnAgentMenu" />
+            <button type="button" class="region-action" title="Apagar todos tus agentes" aria-label="Apagar todos tus agentes"
+                    :disabled="ownBusy || !chat.ownAgents.some((a) => a.on)" @click="shutDownOwnAgents">
+              <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
+            </button>
             <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="setOwnPanelOpen(false)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
