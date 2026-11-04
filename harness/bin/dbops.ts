@@ -224,6 +224,20 @@ try {
                  ORDER BY COALESCE(la.sort, 9999), l.response_type, l.name`,
                 [a[0] ?? ''],
             );
+            // Lo que el mapa del panel necesita para dibujar el recorrido de VERDAD de cada entidad, medido por el
+            // mismo clasificador que `make harness-recorrido` (pkg/journeys.ts): si pide Ábaco (la bandera de la
+            // entidad, no su producto) y qué formalización le toca a un riel 4. Si la medición falla, las filas
+            // salen igual, sin estos dos campos, y el mapa cae a lo que dibujaba antes.
+            try {
+                const { measureLenders, formalizationCode } = await import('../pkg/journeys.ts');
+                const facts = new Map((await measureLenders({ branchHash: a[0] ?? '' })).map((f) => [f.id, f]));
+                for (const row of r as any[]) {
+                    const f = facts.get(Number(row.id));
+                    if (!f) continue;
+                    row.abaco = f.abaco ? 1 : 0;
+                    row.formalization = formalizationCode(f);
+                }
+            } catch { /* el mapa sigue con lo de antes */ }
             }
             break;
         case 'cryptocheck': { // ¿el APP_KEY es el de ESTE target? Recomputa el HMAC de una fila Experian

@@ -404,10 +404,7 @@
         }
       ],
       "requiere": {
-        "product": [
-          "renting",
-          "rto"
-        ],
+        "abaco": 1,
         "rt": [
           2,
           3,
@@ -457,9 +454,10 @@
   "extensiones": {
     "credifamilia": {
       "label": "Formalización ante la entidad · riel 4",
-      "cuando": "response_type = 4 (originación delegada; los nombres, en knowledge/origination-paths). En main, al autorizar (Estado 11), LoanAuthorizationService::formalizeExternalManagedIfApplicable (:194) corta si el rt no es 4; si lo es, dispara la formalización SOAP que radica el crédito con un PDF unificado de los documentos firmados. Después queda en polling hasta APROBADO/RECHAZADO — estados 40/41 de `lender_transaction_statuses`, OTRO namespace que user_request_statuses. Con el perfil del riel (delegated_origination_profiles, CORE-918, todavía no en main) la formalización la decide la fila de cada entidad: la radicación de Credifamilia, ninguna (la 149 y la 172 en local) o una clase propia. El mapa no lee el perfil: este paso se dibuja para todo riel 4, y `make harness-recorrido` dice cuál le toca a cada entidad.",
+      "cuando": "response_type = 4 (originación delegada; los nombres, en knowledge/origination-paths). En main, al autorizar (Estado 11), LoanAuthorizationService::formalizeExternalManagedIfApplicable (:194) corta si el rt no es 4; si lo es, dispara la formalización SOAP que radica el crédito con un PDF unificado de los documentos firmados. Después queda en polling hasta APROBADO/RECHAZADO — estados 40/41 de `lender_transaction_statuses`, OTRO namespace que user_request_statuses. Con el perfil del riel (delegated_origination_profiles, CORE-918, todavía no en main) la formalización la decide la fila de cada entidad: la radicación de Credifamilia, ninguna (la 149 y la 172 en local) o una clase propia. El mapa lo dibuja sólo para las entidades cuya formalización es la radicación, medida por el clasificador (`formalization` de `dbops lenders-for`, pkg/journeys.ts).",
       "requiere": {
-        "rt": 4
+        "rt": 4,
+        "formalization": "radicacion"
       },
       "desde": "loan-approved",
       "pasos": [

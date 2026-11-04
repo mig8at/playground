@@ -3092,6 +3092,11 @@
       const lanes = [];
       const groups = new Map();
       for (const l of todos.filter((l) => [2, 3, 4].includes(Number(l.rt)))) {
+        // `abaco` y `formalization` los mide el clasificador (pkg/journeys.ts) en `dbops lenders-for`. Si no
+        // vinieron (la medición falló), se cae a lo que el mapa suponía antes: Ábaco por producto y radicación para
+        // todo riel 4. Así un fallo de la medición dibuja lo de siempre, no un recorrido sin desvíos.
+        if (l.abaco === undefined) l.abaco = ['renting', 'rto'].includes(l.product) ? 1 : 0;
+        if (l.formalization === undefined) l.formalization = Number(l.rt) === 4 ? 'radicacion' : null;
         const deviations = Object.entries(STEPS.desvios || {}).filter(([, d]) => meetsL(l, d.requiere));
         const exts = Object.entries(STEPS.extensiones || {}).filter(([, e]) => meetsL(l, e.requiere));
         const key = [l.rt, l.product, ...deviations.map(([k]) => 'd:' + k), ...exts.map(([k]) => 'e:' + k)].join('|');

@@ -175,6 +175,19 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
     }));
 }
 
+/**
+ * La formalización de un riel 4 como CÓDIGO (la usa el mapa del panel para decidir si dibuja la radicación):
+ * `radicacion` · `ninguna` · `propia` · `sin-perfil`. Sin la tabla del perfil del riel (bases sin CORE-918) es
+ * `radicacion`, que es lo que hace main con todo tipo 4. `null` para los demás rieles.
+ */
+export function formalizationCode(f: LenderFacts): string | null {
+    if (f.rt !== 4) return null;
+    if (f.profileFormalization === undefined) return 'radicacion';
+    if (!f.hasProfile) return 'sin-perfil';
+    if (f.profileFormalization == null) return 'ninguna';
+    return /credifamilia/i.test(f.profileFormalization) ? 'radicacion' : 'propia';
+}
+
 /** Ubica una entidad medida en el catálogo. `channel` limita las variaciones que dependen del canal. */
 export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
     const warnings: string[] = [];
