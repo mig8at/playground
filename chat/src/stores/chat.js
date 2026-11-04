@@ -27,7 +27,7 @@
  * ⚠ El texto de un mensaje lo escribió otra persona: se guarda y se pinta como texto, nunca se interpreta.
  */
 import { defineStore } from 'pinia'
-import { useMyAgentStore } from './myAgent.js'
+import { RULES, useMyAgentStore } from './myAgent.js'
 import { computed, ref, watch } from 'vue'
 
 const STORAGE_KEY = 'chat:conversations:v1'
@@ -301,15 +301,32 @@ export const useChatStore = defineStore('chat', () => {
       send(text, m.sid || '', c, { auto: true }).finally(() => autoReplying.delete(c.person.email))
     }
   }
-  /* «MI CHAT»: tus notas, como el «mensaje a ti mismo» de WhatsApp. Sólo escribís vos y quedan en este navegador; lo
-     que te escribe cada persona está en su conversación, y lo que le preguntan a tus agentes, en la de cada agente. */
+  /* «MI CHAT»: tu conversación con tu agente. Le escribís y contesta él, con el modelo que elegiste en su panel
+     (`POST /api/my-agent/ask`, que redacta con Claude Code en esta máquina). Sólo están ustedes dos y vive en este
+     navegador; lo que te escribe cada persona está en su conversación. Cada mensaje lleva `from`: «yo» o «agente»
+     (los de antes, que eran notas, son tuyos). */
   const NOTES_KEY = 'chat:notas:v1'
   const notes = ref((() => { try { const v = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] } })())
+  // Una respuesta que quedó «pensando» al cerrar la pestaña no va a llegar.
+  for (const n of notes.value) if (n.status === 'pensando') Object.assign(n, { status: 'error', text: 'No llegó a contestar: se cerró la pestaña.' })
   const saveNotes = () => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes.value)) } catch { /* vale mientras la pestaña */ } }
-  function addNote(text) {
+  const newNote = (from, text, extra = {}) => ({ id: `nota|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, from, text, time: new Date().toISOString(), ...extra })
+  async function askMyAgent(text) {
     const body = String(text || '').trim()
     if (!body) return
-    notes.value.push({ id: `nota|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, text: body, time: new Date().toISOString() })
+    const history = notes.value.filter((n) => n.status !== 'error' && n.status !== 'pensando').map((n) => ({ from: n.from || 'yo', text: n.text }))
+    notes.value.push(newNote('yo', body))
+    const reply = newNote('agente', '', { status: 'pensando', model: mine.agent.model })
+    notes.value.push(reply)
+    saveNotes()
+    const stored = () => notes.value.find((n) => n.id === reply.id)
+    try {
+      const tasks = (myTasks.value || []).map((t) => ({ titulo: t.titulo, estado: t.bloqueo ? `bloqueada: depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso' }))
+      const r = await post('/api/my-agent/ask', { model: mine.agent.model, name: mine.agent.name, owner: ownerName(), rules: RULES, tasks, history, text: body })
+      Object.assign(stored() || {}, { text: r.text, status: '' })
+    } catch (e) {
+      Object.assign(stored() || {}, { text: e.message, status: 'error' })
+    }
     saveNotes()
   }
   function removeNote(id) { notes.value = notes.value.filter((n) => n.id !== id); saveNotes() }
@@ -596,7 +613,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, addNote, removeNote, clearNotes,
+    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }

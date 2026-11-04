@@ -18,7 +18,7 @@
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useChatStore } from './stores/chat.js'
-import { useMyAgentStore } from './stores/myAgent.js'
+import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
 import ServerShare from './ServerShare.vue'
@@ -292,12 +292,15 @@ const threadEl = ref(null)
 async function submit() {
   if (agentAnswers.value) return
   const text = draft.value.trim()
-  // En «Mi chat» lo que escribís es una nota tuya: no sale a nadie.
+  // En «Mi chat» le escribís a tu agente: contesta él y no sale a nadie.
   if (!chat.active) {
-    if (!text) return
-    chat.addNote(text)
+    if (!text || myAgentThinking.value) return
     draft.value = ''
-    await nextTick(); autosize(); scrollNotesToEnd()
+    await nextTick(); autosize()
+    const asked = chat.askMyAgent(text)
+    scrollNotesToEnd()
+    await asked
+    scrollNotesToEnd()
     return
   }
   if (activeIsCuadrilla.value) return submitCuadrilla(text)
@@ -360,6 +363,8 @@ function autosize() {
   el.style.height = `${Math.min(el.scrollHeight, 160)}px`
 }
 const notesEl = ref(null)
+const myAgentThinking = computed(() => chat.notes.some((n) => n.status === 'pensando'))
+const modelName = (id) => MODELS.find((m) => m.id === id)?.name || id
 async function scrollNotesToEnd() {
   await nextTick()
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
@@ -401,7 +406,7 @@ function clearActive() {
   if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
 }
 function clearNotes() {
-  if (window.confirm('¿Borrar todas tus notas de Mi chat? Sólo están en este navegador: no se pueden recuperar.')) chat.clearNotes()
+  if (window.confirm('¿Vaciar tu conversación con tu agente? Sólo está en este navegador: no se puede recuperar.')) chat.clearNotes()
 }
 function forgetActive() {
   if (chat.active) chat.forget(chat.active.person.email)
@@ -466,7 +471,7 @@ const statusText = computed(() => {
               <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
-                <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? chat.notes[chat.notes.length - 1].text : 'tus notas' }} · {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contestás vos' }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? (chat.notes[chat.notes.length - 1].status === 'pensando' ? `${agentLabel} está pensando…` : chat.notes[chat.notes.length - 1].text) : `vos y ${agentLabel}` }}</span></span>
               </span>
             </button>
           </li>
@@ -599,8 +604,8 @@ const statusText = computed(() => {
         <template v-else>
           <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
-            <button type="button" class="region-action" title="Borrar todas tus notas"
-                    aria-label="Borrar todas tus notas" :disabled="!chat.notes.length" @click="clearNotes">
+            <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
+                    aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </div>
@@ -632,27 +637,39 @@ const statusText = computed(() => {
         <span v-if="chat.listenError" class="bad">{{ chat.listenError }}</span>
       </div>
 
-      <!-- MI CHAT: tus notas, como el «mensaje a ti mismo» de WhatsApp. Sólo escribís vos y no sale a nadie; lo que te
-           escribe cada persona está en su conversación. -->
-      <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes">
+      <!-- MI CHAT: tu conversación con tu agente. Le escribís y contesta él, con el modelo de su panel; no sale a nadie.
+           Lo que te escribe cada persona está en su conversación. -->
+      <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes" aria-live="polite">
         <p v-if="!chat.notes.length" class="side-note center">
-          Tus notas: lo que escribas acá queda sólo para vos, en este navegador. Lo que te escribe cada persona está en su conversación.
+          Escribile a {{ agentLabel }}: te contesta acá, con {{ modelName(mine.agent.model) }}. Sólo están ustedes dos, en este navegador.
         </p>
-        <div v-for="n in chat.notes" :key="n.id" class="bubble-row out">
-          <div class="bubble note">
-            <p class="text">{{ n.text }}</p>
-            <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
+        <template v-for="n in chat.notes" :key="n.id">
+          <div v-if="n.from === 'agente'" class="bubble-row in agent-row">
+            <img v-if="mine.agent.avatar" class="agent-avatar" :src="mine.agent.avatar" alt="">
+            <div class="bubble" :class="{ failed: n.status === 'error' }">
+              <span class="published-label">{{ agentLabel }}<template v-if="n.model"> · {{ modelName(n.model) }}</template></span>
+              <p v-if="n.status === 'pensando'" class="text thinking">pensando…</p>
+              <p v-else class="text">{{ n.text }}</p>
+              <span class="meta">{{ clock(n.time) }}</span>
+            </div>
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)">✕</button>
           </div>
-          <button type="button" class="conv-del note-del" title="Borrar esta nota" aria-label="Borrar esta nota" @click="chat.removeNote(n.id)">✕</button>
-        </div>
+          <div v-else class="bubble-row out">
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)">✕</button>
+            <div class="bubble">
+              <p class="text">{{ n.text }}</p>
+              <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
+            </div>
+          </div>
+        </template>
       </div>
 
       <form v-if="!chat.active" class="composer" @submit.prevent="submit">
         <div class="composer-row">
-          <label class="sr-only" for="composer-text">Una nota para vos</label>
+          <label class="sr-only" for="composer-text">Escribile a tu agente</label>
           <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
-                    maxlength="2000" placeholder="Una nota para vos" @keydown="onKeydown" @input="autosize"></textarea>
-          <button type="submit" class="btn" :disabled="!draft.trim()">Guardar</button>
+                    maxlength="2000" :placeholder="`Escribile a ${agentLabel}`" @keydown="onKeydown" @input="autosize"></textarea>
+          <button type="submit" class="btn" :disabled="!draft.trim() || myAgentThinking">{{ myAgentThinking ? 'Pensando…' : 'Mandar' }}</button>
         </div>
       </form>
 
@@ -1011,6 +1028,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
 .note-del { align-self: center; opacity: 0 }
+.agent-row { gap: var(--space-2); align-items: flex-end }
+.agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
+.thinking { color: var(--fg-2); font-style: italic }
 .bubble-row:hover .note-del { opacity: 1 }
 .published-label { font-size: var(--text-xs); font-weight: 600; color: var(--quote-rule) }
 

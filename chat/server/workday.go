@@ -22,6 +22,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -358,25 +359,47 @@ Datos (JSON): %[4]s`
 
 // redactar con Claude Code, sin herramientas y aislado; devuelve "" si no se puede.
 func claudeWrite(ctx context.Context, prompt string) string {
-	path, err := exec.LookPath("claude")
+	text, _ := claudeAsk(ctx, "", prompt)
+	return text
+}
+
+// claudeAsk redacta con Claude Code en esta máquina (`claude -p`), con el modelo pedido (vacío: el de siempre), sin
+// herramientas y aislado: sin MCP, sin los ajustes de usuario ni de proyecto, en una carpeta vacía y sin guardar la
+// sesión. El error dice por qué no contestó, para mostrarlo tal cual.
+func claudeAsk(ctx context.Context, model, prompt string) (string, error) {
+	path, err := lookTool("claude")
 	if err != nil {
-		return ""
+		return "", errors.New("no está `claude` (Claude Code) en esta máquina")
 	}
 	dir, err := os.MkdirTemp("", "chat-agent-")
 	if err != nil {
-		return ""
+		return "", err
 	}
 	defer os.RemoveAll(dir)
-	cmd := exec.CommandContext(ctx, path, "-p", "--output-format", "text", "--tools", "", "--strict-mcp-config",
-		"--restricted", "--no-session-persistence")
-	cmd.Dir = dir
-	cmd.Stdin = strings.NewReader(prompt)
-	var out bytes.Buffer
-	cmd.Stdout = &out
-	if cmd.Run() != nil {
-		return ""
+	args := []string{"-p", "--output-format", "text", "--tools", "", "--strict-mcp-config", "--restricted", "--no-session-persistence"}
+	if model != "" {
+		args = append(args, "--model", model)
 	}
-	return strings.TrimSpace(out.String())
+	cmd := exec.CommandContext(ctx, path, args...)
+	cmd.Dir, cmd.Env = dir, toolEnv()
+	cmd.Stdin = strings.NewReader(prompt)
+	var out, errOut bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &errOut
+	if err := cmd.Run(); err != nil {
+		if ctx.Err() != nil {
+			return "", errors.New("claude no contestó a tiempo")
+		}
+		msg := strings.TrimSpace(errOut.String() + " " + out.String())
+		if len(msg) > 300 {
+			msg = msg[:300] + "…"
+		}
+		return "", fmt.Errorf("claude falló: %s", strings.TrimSpace(msg+" ("+err.Error()+")"))
+	}
+	text := strings.TrimSpace(out.String())
+	if text == "" {
+		return "", errors.New("claude no devolvió nada")
+	}
+	return text, nil
 }
 
 // workdayReply contesta «¿cómo te fue <día>?» (o una semana).

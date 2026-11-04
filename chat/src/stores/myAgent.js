@@ -1,7 +1,7 @@
 /* MI AGENTE — un yo que contesta por vos cuando no estás (PROTOTIPO).
  *
  * Tiene cara (uno de los muñecos del creador de personajes, con sus colores), nombre y el modelo que va a usar. El
- * interruptor del pie dice quién contesta: «yo» o «mi agente». Con el agente prendido, a cada mensaje que te llega
+ * interruptor del pie dice quién contesta a los demás: «yo» o «mi agente». En «Mi chat» habla con vos con el modelo elegido.
  * después de prenderlo le arma una PROPUESTA de respuesta; no manda nada solo: «Mandar» la manda a tu nombre y
  * «Descartar» la tira.
  *

@@ -134,7 +134,9 @@ func toolEnv() []string {
 }
 
 func lookTool(name string) (string, error) {
-	for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin", "/Applications/Docker.app/Contents/Resources/bin"} {
+	home, _ := os.UserHomeDir()
+	for _, dir := range []string{"/opt/homebrew/bin", "/usr/local/bin", "/Applications/Docker.app/Contents/Resources/bin",
+		filepath.Join(home, ".local", "bin"), filepath.Join(home, ".claude", "local")} {
 		if p := filepath.Join(dir, name); fileExists(p) {
 			return p, nil
 		}
