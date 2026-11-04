@@ -207,7 +207,7 @@ const OUTCOMES = [
 // Las tiendas de prueba y dónde se ven sus pedidos. VTEX: la de master (la condición «Creditop qa» manda el pago al
 // conector v5 de develop); su admin pide un usuario en la cuenta creditop. Shopify: la tienda de desarrollo, que paga con
 // la app del repo shopify corriendo en Docker (`app-qa`, contra qa) detrás de un túnel público; `status` muestra si el
-// servidor y el túnel contestan (server/shopify.go).
+// servidor y el túnel contestan (server/shopify.go), en la pestaña Conexiones de la consola.
 const SHOPIFY_STORE = 'creditop-dev-store'
 const STORES = [
   { name: 'VTEX', links: [
@@ -215,7 +215,7 @@ const STORES = [
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
   ] },
-  { name: 'Shopify', status: true, links: [
+  { name: 'Shopify', links: [
     { label: 'Tienda', href: `https://${SHOPIFY_STORE}.myshopify.com` },
     { label: 'Admin · pedidos', href: `https://admin.shopify.com/store/${SHOPIFY_STORE}/orders` },
     { label: 'Admin · la app', href: `https://admin.shopify.com/store/${SHOPIFY_STORE}/apps/creditop-ecommerce-payments` },
@@ -226,7 +226,8 @@ const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.
 // El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
 watch(() => result.value, () => { storeView.value = null })
-// Si el servidor de la app de Shopify y su túnel contestan. Se mira al abrir el bloque y con su botón.
+// Si el servidor de la app de Shopify y su túnel contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
+// con su botón.
 const shopifyChecks = ref(null) // [{ name, ok, detail, url }]
 const shopifyChecking = ref(false)
 async function checkShopify() {
@@ -249,7 +250,6 @@ const sidebarViews = ref((() => {
 const isViewOpen = (id) => sidebarViews.value[id] ?? false
 function toggleSidebarView(id) {
   sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
-  if (id === 'Shopify' && isViewOpen(id)) checkShopify()
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
@@ -404,7 +404,9 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables · table
+const panelTab = ref('states') // states · tables · table · connections
+watch(panelTab, (tab) => { if (tab === 'connections') checkShopify() })
+const shopifyAllOk = computed(() => !!shopifyChecks.value?.length && shopifyChecks.value.every((c) => c.ok))
 // La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
 const docTable = ref(null)
 const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
@@ -578,7 +580,7 @@ onMounted(async () => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
-  if (isViewOpen('Shopify')) checkShopify()
+  checkShopify()
   targetMenu = bindMenu(targetTrigger.value, {
     label: 'Contra qué base se busca', getItems: () => targetItems.value,
     onSelect: (id) => { target.value = id },
@@ -665,13 +667,6 @@ onBeforeUnmount(() => {
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
             </a>
-            <!-- Lo que tiene que estar arriba para que la tienda pague: el servidor de la app, su túnel y la extensión. -->
-            <template v-if="s.status">
-              <button v-for="c in shopifyChecks || []" :key="c.name" type="button" class="row" :title="[c.detail, c.url].filter(Boolean).join(' · ')" @click="checkShopify">
-                <i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i><span class="label">{{ c.name }}</span>
-                <span class="row-meta">{{ shopifyChecking ? '…' : (c.ok ? 'ok' : 'revisar') }}</span>
-              </button>
-            </template>
           </nav>
         </section>
     </aside>
@@ -901,13 +896,30 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
+        <!-- Lo que tiene que estar arriba para que la tienda de Shopify pague. El punto dice si está todo. -->
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'connections' }" :aria-selected="panelTab === 'connections'" @click="panelTab = 'connections'">
+          Conexiones <i class="dot" :data-state="shopifyChecks ? (shopifyAllOk ? 'ok' : 'fail') : 'off'" aria-hidden="true"></i>
+        </button>
+        <div v-if="panelTab === 'connections'" class="region-actions">
+          <button type="button" class="region-action" :disabled="shopifyChecking" title="Volver a comprobar" aria-label="Volver a comprobar las conexiones" @click="checkShopify">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
         <div v-if="panelTab === 'tables'" class="region-actions">
           <button type="button" class="region-action" title="Volver a lo de siempre: todas menos logs y auditorías" aria-label="Volver a lo de siempre" @click="resetTables">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
       </nav>
-      <div v-if="panelTab === 'table' && docTable" class="region-body table-doc">
+      <div v-if="panelTab === 'connections'" class="region-body">
+        <p v-if="!shopifyChecks" class="none">Comprobando…</p>
+        <div v-for="c in shopifyChecks || []" :key="c.name" class="log-line">
+          <i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>
+          <span class="status">Shopify · {{ c.name }}</span>
+          <span class="what" :title="c.detail">{{ c.detail }}<template v-if="c.url"> · <code>{{ c.url }}</code></template></span>
+        </div>
+      </div>
+      <div v-else-if="panelTab === 'table' && docTable" class="region-body table-doc">
         <template v-if="docOf">
           <h3>{{ docOf.title }} <code class="muted">{{ docTable }}</code></h3>
           <p>{{ docOf.what }}</p>

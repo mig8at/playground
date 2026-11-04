@@ -6,7 +6,10 @@ llama desde internet: el playground no sirve para esto, porque su balanceador s�
 
 Esto sólo mira, no cambia nada: si el servidor de la app contesta, a qué dirección pública está apuntado (el
 SHOPIFY_APP_URL de su secreto de qa), si esa dirección contesta desde afuera y si la extensión de pagos apunta a la
-misma. Apuntar la tienda a un túnel nuevo es `docker/usar-tunel.sh` del repo shopify. */
+misma. Apuntar la tienda a un túnel nuevo es `docker/usar-tunel.sh` del repo shopify.
+
+Quien prueba con la app de OTRA persona (no tiene el repo shopify) ve si la tienda contesta y, con SHOPIFY_TUNNEL_URL
+en su .env (la dirección del túnel que le pasaron), si ese túnel llega a la app. */
 
 import (
 	"encoding/json"
@@ -73,9 +76,41 @@ func reach(client *http.Client, url string) (int, time.Duration, error) {
 	return res.StatusCode, time.Since(start).Round(time.Millisecond), nil
 }
 
+const shopifyStoreURL = "https://creditop-dev-store.myshopify.com"
+
+// Sin el repo shopify: la app corre en la máquina de otra persona.
+func remoteShopifyStatus(client *http.Client) []shopifyCheck {
+	store := shopifyCheck{Name: "Tienda", URL: shopifyStoreURL}
+	if code, took, err := reach(client, shopifyStoreURL+"/"); err != nil {
+		store.Detail = "no contesta"
+	} else {
+		store.OK = code == http.StatusOK
+		store.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + "); se entra con la contraseña de la tienda"
+	}
+
+	tunnel := shopifyCheck{Name: "Túnel de la app"}
+	url := strings.TrimRight(env("SHOPIFY_TUNNEL_URL"), "/")
+	if url == "" {
+		tunnel.Detail = "la app corre en la máquina de Miguel: con su túnel abierto, la tienda paga. Para verlo acá, " +
+			"pedile la dirección del túnel y ponela en SHOPIFY_TUNNEL_URL del .env"
+		return []shopifyCheck{store, tunnel}
+	}
+	tunnel.URL = url
+	if code, took, err := reach(client, url+"/"); err != nil {
+		tunnel.Detail = "no contesta: el túnel se cerró o cambió de dirección (pedile a Miguel la nueva)"
+	} else {
+		tunnel.OK = code == http.StatusOK
+		tunnel.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + ")"
+	}
+	return []shopifyCheck{store, tunnel}
+}
+
 func shopifyStatus() []shopifyCheck {
 	client := &http.Client{Timeout: 8 * time.Second}
 	repo := shopifyRepo()
+	if _, err := os.Stat(filepath.Join(repo, "docker", "docker-compose.yml")); err != nil {
+		return remoteShopifyStatus(client)
+	}
 	checks := []shopifyCheck{}
 
 	host := shopifyCheck{Name: "Servidor de la app", URL: "http://localhost:8121"}

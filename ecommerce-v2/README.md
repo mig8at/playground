@@ -76,11 +76,15 @@ cloudflared tunnel --url http://localhost:8121
 cd ~/Desktop/CREDITOP/github/shopify/docker && ./usar-tunel.sh https://<lo-que-imprimió-cloudflared>
 ```
 
-En el bloque **Shopify** se ve si está todo arriba: **Servidor de la app** (contesta en `:8121`), **Túnel** (la dirección
-de la app contesta desde afuera) y **Extensión de pagos** (apunta a esa misma dirección). Tocar una fila lo vuelve a
-mirar; el detalle, al pasar el mouse. Lo leen del repo `shopify` (`SHOPIFY_REPO` si no está en
-`~/Desktop/CREDITOP/github/shopify`): sin ese repo, las filas salen en rojo aunque la tienda funcione con la app de otra
-persona.
+En la consola de abajo, pestaña **Conexiones**, se ve si está todo arriba (el punto de la pestaña lo resume; el botón
+lo vuelve a mirar):
+
+- **con el repo `shopify`** en `~/Desktop/CREDITOP/github/shopify` (o `SHOPIFY_REPO`): **Servidor de la app**
+  (contesta en `:8121`), **Túnel** (la dirección de la app contesta desde afuera) y **Extensión de pagos** (apunta a esa
+  misma dirección);
+- **sin el repo** (la app corre en la máquina de otra persona): **Tienda** (contesta) y **Túnel de la app**, si en el
+  `.env` está `SHOPIFY_TUNNEL_URL` con la dirección que te pasaron. El túnel rápido cambia de dirección cada vez que se
+  reabre: si sale en rojo, pedí la nueva.
 
 ## 4 · Mirar y cerrar la compra en ecommerce
 
