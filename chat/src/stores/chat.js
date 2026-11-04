@@ -301,37 +301,19 @@ export const useChatStore = defineStore('chat', () => {
       send(text, m.sid || '', c, { auto: true }).finally(() => autoReplying.delete(c.person.email))
     }
   }
-  // Una propuesta se manda o se descarta desde su conversación o desde «Mi chat»: se busca en todas.
-  function findProposal(id) {
-    for (const c of Object.values(conversations.value)) {
-      const p = c.messages.find((m) => m.id === id && m.kind === 'propuesta')
-      if (p) return { c, p }
-    }
-    return null
+  /* «MI CHAT»: tus notas, como el «mensaje a ti mismo» de WhatsApp. Sólo escribís vos y quedan en este navegador; lo
+     que te escribe cada persona está en su conversación, y lo que le preguntan a tus agentes, en la de cada agente. */
+  const NOTES_KEY = 'chat:notas:v1'
+  const notes = ref((() => { try { const v = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] } })())
+  const saveNotes = () => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes.value)) } catch { /* vale mientras la pestaña */ } }
+  function addNote(text) {
+    const body = String(text || '').trim()
+    if (!body) return
+    notes.value.push({ id: `nota|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, text: body, time: new Date().toISOString() })
+    saveNotes()
   }
-  async function sendProposal(id) {
-    const found = findProposal(id)
-    if (!found) return
-    found.c.messages.splice(found.c.messages.indexOf(found.p), 1)
-    await send(found.p.text, found.p.re, found.c)
-  }
-  function discardProposal(id) {
-    const found = findProposal(id)
-    if (found) Object.assign(found.p, { status: 'descartada' })
-  }
-
-  /* «MI CHAT»: todo lo que te escriben, de cualquier persona, en un solo hilo, lo más nuevo abajo. Cada mensaje trae
-     su conversación, si ya le contestaste y la propuesta de tu agente si la hay. Las preguntas a tus agentes también
-     son preguntas a vos. */
-  // «Vaciar» Mi chat: lo anterior a este momento deja de mostrarse (las conversaciones siguen intactas).
-  const SINCE_KEY = 'chat:mi-chat-desde:v1'
-  const inboxSince = ref((() => { try { return localStorage.getItem(SINCE_KEY) || '' } catch { return '' } })())
-  function clearInbox() {
-    let latest = new Date().toISOString()
-    for (const c of Object.values(conversations.value)) for (const m of c.messages) if (m.time > latest) latest = m.time
-    inboxSince.value = latest
-    try { localStorage.setItem(SINCE_KEY, latest) } catch { /* vale mientras la pestaña */ }
-  }
+  function removeNote(id) { notes.value = notes.value.filter((n) => n.id !== id); saveNotes() }
+  function clearNotes() { notes.value = []; saveNotes() }
   // «Vaciar chat», como en WhatsApp: se van los mensajes y la conversación queda; lo ya recibido no vuelve.
   function clearMessages(key) {
     const c = conversations.value[key]
@@ -342,21 +324,6 @@ export const useChatStore = defineStore('chat', () => {
     c.messages = []
     c.readAt = last || c.readAt
   }
-  const inbox = computed(() => {
-    const out = []
-    for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email)) continue
-      const msgs = c.messages
-      msgs.forEach((m, i) => {
-        if (m.dir !== 'in' || (m.kind && m.kind !== 'asked')) return
-        const answered = !isMe(c.person) && msgs.slice(i + 1).some((x) => x.dir === 'out' && x.kind !== 'propuesta')
-        const proposal = msgs.find((x) => x.kind === 'propuesta' && x.replyTo === m.id) || null
-        if (m.time <= inboxSince.value) return
-        out.push({ ...m, key: `${c.person.email}|${m.id}`, person: c.person, answered, proposal, self: isMe(c.person) })
-      })
-    }
-    return out.sort((a, b) => a.time.localeCompare(b.time)).slice(-80)
-  })
   watch(() => mine.agent.mode, proposeReplies)
 
   // La conversación abierta se da por leída sólo si la pestaña está a la vista.
@@ -629,7 +596,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearInbox, clearMessages, isMe, proposeReplies, sendProposal, discardProposal, ownerName, inbox,
+    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, addNote, removeNote, clearNotes,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
   }

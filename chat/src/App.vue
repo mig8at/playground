@@ -75,13 +75,6 @@ const photoOf = (p) => {
   if (email && email === chat.meKey) return myPhoto.value
   return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
 }
-// Responder desde «Mi chat»: abre la conversación con ese mensaje citado, listo para escribir.
-async function replyFromInbox(item) {
-  chat.open(item.person)
-  await nextTick()
-  if (item.sid) startReply({ ...item, kind: 'message' })
-  composer.value?.focus()
-}
 function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
 
 // ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
@@ -299,6 +292,14 @@ const threadEl = ref(null)
 async function submit() {
   if (agentAnswers.value) return
   const text = draft.value.trim()
+  // En «Mi chat» lo que escribís es una nota tuya: no sale a nadie.
+  if (!chat.active) {
+    if (!text) return
+    chat.addNote(text)
+    draft.value = ''
+    await nextTick(); autosize(); scrollNotesToEnd()
+    return
+  }
   if (activeIsCuadrilla.value) return submitCuadrilla(text)
   if (!text) return
   const re = replyTo.value?.sid || ''
@@ -358,6 +359,12 @@ function autosize() {
   el.style.height = 'auto'
   el.style.height = `${Math.min(el.scrollHeight, 160)}px`
 }
+const notesEl = ref(null)
+async function scrollNotesToEnd() {
+  await nextTick()
+  if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
+}
+watch(() => chat.activeKey, (key) => { if (!key) scrollNotesToEnd() })
 async function scrollToEnd() {
   await nextTick()
   if (threadEl.value) threadEl.value.scrollTop = threadEl.value.scrollHeight
@@ -393,8 +400,8 @@ function clearActive() {
   const c = chat.active
   if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
 }
-function clearInbox() {
-  if (window.confirm('¿Vaciar Mi chat? Se ocultan los mensajes recibidos hasta ahora; las conversaciones siguen.')) chat.clearInbox()
+function clearNotes() {
+  if (window.confirm('¿Borrar todas tus notas de Mi chat? Sólo están en este navegador: no se pueden recuperar.')) chat.clearNotes()
 }
 function forgetActive() {
   if (chat.active) chat.forget(chat.active.person.email)
@@ -459,7 +466,7 @@ const statusText = computed(() => {
               <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
-                <span class="conversation-bottom"><span class="snippet">todo lo que te escriben · {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contestás vos' }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? chat.notes[chat.notes.length - 1].text : 'tus notas' }} · {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contestás vos' }}</span></span>
               </span>
             </button>
           </li>
@@ -592,8 +599,8 @@ const statusText = computed(() => {
         <template v-else>
           <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
-            <button type="button" class="region-action" title="Vaciar Mi chat: oculta lo recibido hasta ahora"
-                    aria-label="Vaciar Mi chat" :disabled="!chat.inbox.length" @click="clearInbox">
+            <button type="button" class="region-action" title="Borrar todas tus notas"
+                    aria-label="Borrar todas tus notas" :disabled="!chat.notes.length" @click="clearNotes">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </div>
@@ -625,50 +632,27 @@ const statusText = computed(() => {
         <span v-if="chat.listenError" class="bad">{{ chat.listenError }}</span>
       </div>
 
-      <!-- MI CHAT: sin conversación abierta, el editor es tu bandeja. Vos y tu agente usan el mismo chat: lo que te
-           escriben llega acá; con tu agente prendido, él contesta solo. -->
-      <div v-if="!chat.active" class="region-body my-chat">
-
-        <p v-if="!chat.inbox.length" class="side-note center">
-          Todavía no te escribió nadie. Lo que te escriban llega acá, de cualquier conversación.
+      <!-- MI CHAT: tus notas, como el «mensaje a ti mismo» de WhatsApp. Sólo escribís vos y no sale a nadie; lo que te
+           escribe cada persona está en su conversación. -->
+      <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes">
+        <p v-if="!chat.notes.length" class="side-note center">
+          Tus notas: lo que escribas acá queda sólo para vos, en este navegador. Lo que te escribe cada persona está en su conversación.
         </p>
-        <ol v-else class="inbox">
-          <li v-for="item in chat.inbox" :key="item.key" class="inbox-item" :class="{ answered: item.answered }">
-            <span class="avatar" aria-hidden="true"><img v-if="photoOf(item.person)" class="avatar-photo" :src="photoOf(item.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(item.person) }}</template></span>
-            <div class="inbox-body">
-              <span class="inbox-top">
-                <button type="button" class="btn-link inbox-name" @click="chat.open(item.person)">{{ item.person.name || item.person.email }}</button>
-                <span v-if="item.kind === 'asked'" class="inbox-tag">le preguntó a tu agente {{ item.agent }}</span>
-                <span class="when">{{ shortWhen(item.time) === clock(item.time) ? clock(item.time) : `${shortWhen(item.time)} · ${clock(item.time)}` }}</span>
-              </span>
-              <p class="text">{{ item.text }}</p>
-              <div v-if="item.proposal && item.proposal.status !== 'descartada' && !item.answered" class="proposal-inline">
-                <img v-if="mine.agent.avatar" class="proposal-avatar" :src="mine.agent.avatar" alt="">
-                <div class="proposal-body">
-                  <span class="proposal-label"><b>{{ agentLabel }}</b> contestaría · no se mandó</span>
-                  <p class="text">{{ item.proposal.text }}</p>
-                  <span class="proposal-actions">
-                    <button type="button" class="btn btn-sm" @click="chat.sendProposal(item.proposal.id)">Mandar</button>
-                    <button type="button" class="btn btn-ghost btn-sm" @click="chat.discardProposal(item.proposal.id)">Descartar</button>
-                  </span>
-                </div>
-              </div>
-              <span class="inbox-actions">
-                <span v-if="item.answered" class="inbox-done">✓ contestado</span>
-                <button v-else-if="!item.self && item.kind !== 'asked' && mine.agent.mode !== 'agente'" type="button" class="btn btn-outline btn-sm" @click="replyFromInbox(item)">{{ item.proposal && item.proposal.status !== 'descartada' ? 'Responder yo' : 'Responder' }}</button>
-              </span>
-            </div>
-          </li>
-        </ol>
+        <div v-for="n in chat.notes" :key="n.id" class="bubble-row out">
+          <div class="bubble note">
+            <p class="text">{{ n.text }}</p>
+            <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
+          </div>
+          <button type="button" class="conv-del note-del" title="Borrar esta nota" aria-label="Borrar esta nota" @click="chat.removeNote(n.id)">✕</button>
+        </div>
       </div>
 
-      <!-- En tu chat no hay a quién escribirle (serías vos mismo): el campo está, pero apagado. -->
-      <form v-if="!chat.active" class="composer" @submit.prevent>
+      <form v-if="!chat.active" class="composer" @submit.prevent="submit">
         <div class="composer-row">
-          <label class="sr-only" for="composer-mine">Tu chat</label>
-          <textarea id="composer-mine" class="input composer-text" rows="1" disabled
-                    placeholder="En tu chat no te escribís a vos mismo"></textarea>
-          <button type="submit" class="btn" disabled>Mandar</button>
+          <label class="sr-only" for="composer-text">Una nota para vos</label>
+          <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
+                    maxlength="2000" placeholder="Una nota para vos" @keydown="onKeydown" @input="autosize"></textarea>
+          <button type="submit" class="btn" :disabled="!draft.trim()">Guardar</button>
         </div>
       </form>
 
@@ -718,20 +702,6 @@ const statusText = computed(() => {
             </div>
 
             <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
-            <div v-else-if="item.kind === 'propuesta'" class="proposal" :class="{ discarded: item.status === 'descartada' }">
-              <img v-if="mine.agent.avatar" class="proposal-avatar" :src="mine.agent.avatar" alt="">
-              <div class="proposal-body">
-                <span class="proposal-label">
-                  <b>{{ agentLabel }}</b> contestaría · {{ item.status === 'descartada' ? 'descartada' : 'no se mandó' }}
-                </span>
-                <p class="text">{{ item.text }}</p>
-                <span v-if="item.status !== 'descartada'" class="proposal-actions">
-                  <button type="button" class="btn btn-sm" @click="chat.sendProposal(item.id)">Mandar</button>
-                  <button type="button" class="btn btn-ghost btn-sm" @click="chat.discardProposal(item.id)">Descartar</button>
-                </span>
-              </div>
-            </div>
-
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
@@ -968,32 +938,13 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* MI CHAT: tu bandeja, cada mensaje con su respuesta o la de tu agente. Quién contesta se elige en tu agente (derecha) y en el pie. */
 .my-chat { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4) }
-.inbox { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3) }
-.inbox-item { display: flex; gap: var(--space-3); align-items: flex-start }
-.inbox-item.answered .inbox-body > .text { color: var(--fg-2) }
-.inbox-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px }
-.inbox-top { display: flex; align-items: baseline; gap: var(--space-2); flex-wrap: wrap }
-.inbox-name { font-weight: 600; text-decoration: none }
-.inbox-name:hover { text-decoration: underline }
-.inbox-tag, .inbox-top .when { font-size: var(--text-xs); color: var(--fg-2) }
-.inbox-body > .text { margin: 0; white-space: pre-wrap }
-.proposal-inline { display: flex; gap: var(--space-2); margin-top: 2px }
-.inbox-actions { display: flex; gap: var(--space-2); align-items: center }
-.inbox-done { font-size: var(--text-xs); color: var(--fg-2) }
 
 /* La foto de Google ocupa el círculo entero del avatar; el punto verde sigue encima. */
 .avatar-photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block }
 .me-photo { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; vertical-align: -3px }
 
-/* MI AGENTE: su avatar es la foto del muñeco; sus propuestas, una burbuja punteada con «Mandar» y «Descartar». */
+/* MI AGENTE: su avatar es la foto del muñeco. */
 .avatar-img { object-fit: cover; background: var(--office-bg); border-radius: 8px }
-.proposal { display: flex; gap: var(--space-2); align-self: flex-end; max-width: min(560px, 85%); margin: 2px 0 var(--space-2) }
-.proposal.discarded { opacity: .55 }
-.proposal-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
-.proposal-body { display: flex; flex-direction: column; gap: 4px; padding: 8px 10px; border-radius: 12px;
-  border: 1px dashed var(--office-accent); background: color-mix(in oklab, var(--office-accent) 8%, var(--background)) }
-.proposal-label { font-size: var(--text-xs); color: var(--fg-2) }
-.proposal-actions { display: flex; gap: var(--space-1); margin-top: 2px }
 /* Los dos bloques del costado: las conversaciones se llevan el alto que sobra; los agentes, lo suyo y no más de la
    mitad. Cada uno scrollea su cuerpo. */
 
@@ -1059,6 +1010,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 .asked-text { font-size: var(--text-sm); overflow-wrap: anywhere }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
+.note-del { align-self: center; opacity: 0 }
+.bubble-row:hover .note-del { opacity: 1 }
 .published-label { font-size: var(--text-xs); font-weight: 600; color: var(--quote-rule) }
 
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
