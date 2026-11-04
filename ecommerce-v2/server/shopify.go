@@ -13,6 +13,7 @@ en su .env (la dirección del túnel que le pasaron), si ese túnel llega a la a
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,13 +97,22 @@ func remoteShopifyStatus(client *http.Client) []shopifyCheck {
 		return []shopifyCheck{store, tunnel}
 	}
 	tunnel.URL = url
-	if code, took, err := reach(client, url+"/"); err != nil {
-		tunnel.Detail = "no contesta: el túnel se cerró o cambió de dirección (pedile a Miguel la nueva)"
-	} else {
-		tunnel.OK = code == http.StatusOK
-		tunnel.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + ")"
-	}
+	tunnel.OK, tunnel.Detail = tunnelState(client, url, "pedile a Miguel la nueva")
 	return []shopifyCheck{store, tunnel}
+}
+
+// Si un túnel llega a la app. Uno cerrado no siempre falla la conexión: Cloudflare puede seguir contestando con su
+// propio error (530) aunque del otro lado no haya nada. Sólo un 200 es la app.
+func tunnelState(client *http.Client, url, fix string) (bool, string) {
+	code, took, err := reach(client, url+"/")
+	switch {
+	case err != nil:
+		return false, "apagado: la dirección no responde (el túnel se cerró o cambió); " + fix
+	case code != http.StatusOK:
+		return false, fmt.Sprintf("apagado: el túnel no llega a la app (respondió %d); %s", code, fix)
+	default:
+		return true, "prendido: llega a la app (" + took.String() + ")"
+	}
 }
 
 func shopifyStatus() []shopifyCheck {
@@ -132,12 +142,7 @@ func shopifyStatus() []shopifyCheck {
 		tunnel.Detail = "el servidor no apunta a un túnel público (Shopify no llega al playground): `cloudflared tunnel --url http://localhost:8121` y `docker/usar-tunel.sh <dirección>`"
 	default:
 		tunnel.URL = url
-		if code, took, err := reach(client, url+"/"); err != nil {
-			tunnel.Detail = "no contesta desde afuera: el túnel se cerró. Ábrelo de nuevo y apunta la tienda con `docker/usar-tunel.sh`"
-		} else {
-			tunnel.OK = code == http.StatusOK
-			tunnel.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + ")"
-		}
+		tunnel.OK, tunnel.Detail = tunnelState(client, url, "ábrelo de nuevo y apunta la tienda con `docker/usar-tunel.sh`")
 	}
 	checks = append(checks, tunnel)
 
