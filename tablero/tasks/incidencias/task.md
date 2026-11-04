@@ -140,6 +140,9 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   es coherente. Termina con la validación en el readiness o con la decisión de no hacerla. **Medido (2026-11-03): hoy no
   pasa** ni en prod ni en la base compartida de dev/qa/staging; en prod sólo Motai Renting (158) y Rent to Own (193)
   exigen codeudor y las dos tienen catálogo para esa rama. Queda latente: la validación sería para la próxima.
+  ⚠ Lo que haría el caso si apareciera (`knowledge/cosigner-signature`, 2026-11-03): sin catálogo tampoco corre la
+  compuerta del codeudor (`LoanAuthorizationService.php:128-132`), así que sin codeudor activo la solicitud llega a 11
+  aunque la categoría lo exija.
 
 - [ ] Decidir con producto si el asistente nuevo debe ocultar Sistecrédito al cliente moroso. Verificado en `main`
   (2026-11-02): el camino viejo (`PreApprovedLenderService`, listado v1 y legacy-application) lo quita si Sistecrédito
@@ -228,6 +231,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Que el auto-onboarding use el pipeline de KYC cuando el comercio va por él: hoy `auto-onboarding/verifying.tsx` y
   `otp.tsx` (frontend-monorepo) usan sólo los repositorios v1, y el formulario normal elige por `resolveKycFlow`. Leído en
   `main` (2026-11-03); falta correrlo en local con un comercio en el pipeline y con auto-onboarding. Borrador 22.
+
+- [ ] Que el código de autogestión no venza antes el último día del mes: `self-manager-api` compara el vencimiento
+  (último día del mes) contra la fecha de hoy en UTC (`qr-generator.go` `currentTime`, `isStoredCodeExpired`), así que desde
+  las 19:00 de Colombia de ese día lo da por vencido. Leído en `main` f1d8002 (2026-11-03). Borrador 23.
 
 ### Baja — documentación y comentarios que dicen lo contrario del código
 

@@ -302,6 +302,10 @@ interruptor que exigiría un identificador firmado en vez del número pelado, pe
 consulta acepta un id numérico y devuelve el nombre del titular, y la ruta es pública. En local, una llamada sin sesión
 llegó a la lógica de negocio (no la frenó ninguna autenticación).
 
+**Qué devuelve.** Además del nombre completo: el documento enmascarado, la entidad, el comercio, los montos y el estado
+del crédito. No tiene límite de frecuencia. Con el interruptor encendido sólo acepta un identificador firmado que vence
+a los 60 minutos.
+
 **Propuesta.** Encender el interruptor del identificador firmado (o exigirlo siempre) para que el número consecutivo no
 devuelva datos del titular.
 
@@ -447,6 +451,19 @@ cambia lo que ve el cliente y lo decide producto.
 
 **Propuesta.** Que el auto-onboarding resuelva el flujo del comercio como el formulario normal y use el camino nuevo
 cuando corresponde.
+
+---
+
+## 23 · El código de autogestión vence cinco horas antes el último día del mes (Baja)
+
+**Qué pasa.** El código de compra de la app vale hasta el último día del mes. El servicio que lo valida compara esa
+fecha contra el día de hoy en hora universal (UTC), y a las 19:00 de Colombia en UTC ya es el día siguiente. Resultado:
+el último día de cada mes, desde las 19:00, el código se rechaza como vencido aunque la app lo siga mostrando vigente.
+
+**Cómo se comprobó.** Leyendo `main` del servicio de códigos: la hora actual se toma en UTC, el vencimiento es el último
+día del mes, y la comparación es por fecha. No se corrió.
+
+**Propuesta.** Calcular «hoy» en la zona horaria de Colombia (o del país del comercio) al validar el vencimiento.
 
 ---
 

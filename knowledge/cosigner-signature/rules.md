@@ -14,7 +14,7 @@ El wizard usa `/api/v1/user-request/cosigner/signature` para contexto, monto, do
 
 Ante `no_validation_required`, confirmación consulta `available-quota/extended`: ese tipo sólo descarta identidad pendiente. El resolver traduce `next_step:cosigner`, `first_payment_date`, `rejected` y `manual_approval` a sus pantallas. Si falla, confirmación conserva el destino histórico de fecha de pago; ese fallback no acredita política aprobada.
 
-En backend, sin política type 2 el cupo extendido devuelve aprobado, categoría nula y `type_policy_configured:false`. `withNextStep` toma el requisito sólo de esa categoría: nula conduce a `first_payment_date`. Al firmar, `CosignerRequirementService` vuelve a type 1 si falta type 2, reevalúa al titular con id de solicitud y exige codeudor validado si la categoría lo pide. Las decisiones pueden discrepar. Los estados validados incluyen `approved`, ambas esperas de firma y `formalized`; una invitación activa no basta. Describe la discrepancia de `main`, sin dar por integrada una corrección local.
+En backend, sin política type 2 el cupo extendido devuelve aprobado, categoría nula y `type_policy_configured:false`. `withNextStep` toma el requisito sólo de esa categoría: nula conduce a `first_payment_date`. `CosignerRequirementService` vuelve a type 1 si falta type 2 y reevalúa al titular con id de solicitud. Al autorizar exige codeudor validado si la categoría lo pide, pero sólo cuando la entidad tiene catálogo para esa rama de política; si falta, lanza una excepción con código 409 que `disburse` captura como genérica y responde 500. Las decisiones pueden discrepar. Los estados validados incluyen `approved`, ambas esperas de firma y `formalized`; una invitación activa no basta. Describe la discrepancia de `main`, sin dar por integrada una corrección local.
 
 ## Firma del titular y espera
 
@@ -28,11 +28,7 @@ URV27000 incluye `userRequestAuthorized` según esa autorización. El schema del
 
 ## Catálogo y evidencia de documentos
 
-Si las categorías activas de una entidad exigen codeudor pero su catálogo sólo tiene filas con
-`requires_cosigner = 0`, la autorización del titular difiere al codeudor sin numerar ni generar documentos
-(`LoanAuthorizationService::authorize` sólo lo hace con catálogo para esa política) y la solicitud queda en
-el estado intermedio con HTTP 200, sin error. El backoffice no cruza las dos cosas; `make harness-doctor
-TARGET=local` lo avisa en la base local.
+Con un codeudor activo sin formalizar, `authorize` siempre difiere: `CosignerSignatureGateService` lo pasa de `approved` o `waiting_applicant_signature` a `waiting_cosigner_signature` y la respuesta lleva `deferred_for_cosigner:true`. Lo demás depende de `hasCatalogForPolicy`: filas con `status = 1` en `lender_signing_documents` para la rama `requires_cosigner` que da la categoría del titular. Con catálogo numera, pasa la solicitud a «Pendiente firma codeudor» y genera los documentos del titular en una transacción. Sin catálogo (la categoría exige codeudor y no hay filas activas con `requires_cosigner = 1`, o la lectura falla) no numera ni genera: devuelve `status_id:null` y `documents:[]`, `disburse` responde HTTP 200 con success y la solicitud sigue en el estado que dejó `verify-otp` («Autorizado pendiente desembolso», resuelto por nombre). En ese caso tampoco corre `assertApplicantMaySign`: sin codeudor activo se autoriza a 11 aunque la categoría lo exija. Si el codeudor firma y la rama sigue sin filas suyas, el cierre devuelve `closed:false`, `userRequestAuthorized` sale falso y la solicitud sólo se mueve si `COSIGNER_SIGNATURE_CLOSE_USER_REQUEST_STATUS_ID` está configurado.
 
 `lender_signing_documents` elige política por `requires_cosigner` y firmantes por `signed_by_applicant`/`signed_by_cosigner`; la columna histórica `signer_role` no decide ese filtro. Documentos prefiere catálogo y vuelve a configuración del módulo si no hay filas para el rol. Lee URLs de `user_request_signing_documents`, priorizando codeudor y última fila del rol; consulta Netco sólo si ese mapa está vacío. Puede omitir tipos sin PDF y devolver lista parcial: HTTP 200 no acredita el juego completo.
 
@@ -56,7 +52,7 @@ Workflow v1 coordina validación, firma del titular y segunda firma mediante Upd
 
 ## Confirmación del titular y estado persistido
 
-El GET de validación devuelve `data.user_request.status_id` en `pending_validation` y `already_authorized`; éste agrupa autorizado 11 e IMEI 28. Saga, success, número y token terminal no sustituyen estado.
+El GET de validación devuelve `data.user_request.status_id` en `pending_validation` y `already_authorized`; éste exige exactamente el estado 11, así que «Autorizado pendiente desembolso» (IMEI y el intermedio de `verify-otp`) sale como `pending_validation`. Saga, success, número y token terminal no sustituyen estado.
 
 En `main`, `PromissoryNoteValidationUserRequestSchema` descarta `status_id`. El loader de `loan-approved` confirma con cualquier respuesta exitosa: enlace directo o `COMPLETED` pueden mostrar desembolso pendiente. Ante error no retorna recuperación y el componente queda vacío. Corrección y mediciones de rama viven en la tarea.
 
