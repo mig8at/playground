@@ -587,7 +587,10 @@ async function correr(c: Case, i: number): Promise<Result> {
             }
             r.listado = options.map((l) => Number(l.id));
             log(`listado: [${r.listado.join(', ')}]${lo?.requestedAmount ? ` · monto ${lo.requestedAmount}` : ''}`);
-            if (!flag('close')) return finish('listo', `listó ${options.length} entidad(es)`);
+            // ⚠ Sin `CLOSE` y SIN entidad pedida, llegar al listado es el desenlace. Pero si el caso pide una entidad
+            // (`#hash:77`), «listó» sin mirar si esa entidad está era un VERDE FALSO (2026-11-03: CrediPullman no salía en
+            // ese comercio y el caso daba ✓): pasa por la misma comprobación —y el mismo reintento— que con `CLOSE`.
+            if (!flag('close') && c.lender == null) return finish('listo', `listó ${options.length} entidad(es)`);
             const order = c.lender ?? Number(options.find((l) => Number(l.response_type) === 2)?.id);
             chosenLender = options.find((l) => Number(l.id) === order);
             r.enListado = !!chosenLender;
@@ -607,6 +610,7 @@ async function correr(c: Case, i: number): Promise<Result> {
                 continue;
             }
             if (!chosenLender) return finish('trabado', `la entidad ${order || '(ninguna rt=2)'} no salió en el listado${reseeded ? ' (ni después de resembrar para ella: la exclusión es del comercio)' : ''}`);
+            if (!flag('close')) return finish('listo', `listó ${options.length} entidad(es), con la pedida (${order})`);
             // El mismo payload que arma `useLenderSelection.ts`. `amount` va igual al pedido: el
             // cálculo de garantía que hace el cliente (financedAmountWithGuarantee) no se replica acá.
             form = {
@@ -1183,11 +1187,14 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         }
 
         if (sheet === 'lenders') {
-            if (!flag('close')) return finish('listo', 'llegó al listado');
+            // ⚠ Igual que en el motor HTTP: sin `CLOSE` y con entidad pedida, «llegó al listado» sin mirarla era un
+            // verde falso. Se confirma que está SIN elegirla (`lookOnly`): elegirla escribe en la solicitud.
+            if (!flag('close') && !entityName) return finish('listo', 'llegó al listado');
             if (!entityName) return finish('trabado', 'con --engine navegador hay que pedir la entidad (`#hash:ID`)');
-            const el = await chooseEntity(page, entityName);
+            const el = await chooseEntity(page, entityName, { lookOnly: !flag('close') });
             r.enListado = el.ok;
             if (!el.ok) return finish('trabado', `«${entityName}» no está en el listado · visibles: ${el.visibles.slice(0, 8).join(' · ')}`);
+            if (!flag('close')) return finish('listo', `llegó al listado, con «${entityName}»`);
             log(`elegí «${entityName}» en el listado${el.motivo ? ` · ⚠ ${el.motivo}` : ''}`);
             await page.waitForTimeout(1500);
             continue;
@@ -1434,6 +1441,29 @@ if (process.env.MD === '1' || process.env.BLOQUE) {
             PARALLEL: flag('parallel') ? 1 : '', CLOSE: flag('close') ? 1 : '', MANUAL: flag('manual') ? 1 : '',
       }), evidence);
 }
+// EL REGISTRO DE FALLAS (`pkg/failure-log.ts`), igual que el runner de casos: cada caso, verde o rojo, con la PUERTA y
+// el motor como canal (el mismo comercio por la tienda y por el asesor son dos filas). Nunca cambia la salida.
+await (async () => {
+    const { appendCases, repoRef, repoPath } = await import('../pkg/failure-log.ts');
+    const { cmdMake } = await import('../pkg/annotation.ts');
+    const comando = cmdMake('harness-walk-wizard', TARGET, {
+        CASES: arg('cases'), MERCHANT: arg('cases') ? '' : arg('merchant'), LENDER: arg('cases') ? '' : arg('lender'),
+        AMOUNT: AMOUNT === 2000000 ? '' : AMOUNT, DOWN_PAYMENT: DOWN_PAYMENT, INSTALLMENTS: INSTALLMENTS ?? '',
+        FLOW: FLOW === 'self-service' ? '' : FLOW, ENGINE: ENGINE === 'http' ? '' : ENGINE,
+        CLOSE: flag('close') ? 1 : '', MANUAL: flag('manual') ? 1 : '', LAMBDA: flag('lambda') ? 1 : '',
+    });
+    const lb = repoPath('legacy-backend');
+    const base = { v: 1 as const, at: new Date().toISOString(), run: `${Date.now().toString(36)}-${process.pid}`,
+        runner: 'walk' as const, target: TARGET, suite: null, canal: `${FLOW} · ${ENGINE}`, comando,
+        backend: lb ? repoRef(lb) : null };
+    appendCases(results.map((r) => {
+        // `caso` es `<comercio>[:<entidad>]`, como se pidió en CASES.
+        const [comercio, lender] = r.caso.split(':');
+        const ok = r.fin === 'cerro' || r.fin === 'listo';
+        return { ...base, caso: null, comercio, lender: lender ?? null, ur: r.ur, ok,
+            detalle: ok ? null : `${r.fin}: ${r.motivo || 'sin motivo registrado'}`, desvios: [] };
+    }));
+})().catch(() => {});
 console.log('');
 await close();
 process.exit(closedOnes === results.length ? 0 : 1);

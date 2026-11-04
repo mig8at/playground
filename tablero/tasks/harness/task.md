@@ -12,9 +12,9 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 
 ## Pendientes
 
-- [ ] Que el caminador (`dev/walk-wizard.ts`) también escriba en el registro de fallas (`pkg/failure-log.ts`), con su
-  canal (`FLOW=`) y su motor: hoy sólo lo llena el runner de casos. Termina con una corrida del caminador visible en
-  `make harness-fallas` con `runner: walk` y su canal.
+- [x] ~~Que el caminador (`dev/walk-wizard.ts`) también escriba en el registro de fallas~~ — hecho (2026-11-03): escribe
+  `runner: walk` con canal «puerta · motor». De paso se cerró un verde falso: sin `CLOSE`, un caso con entidad pedida
+  daba «listo» sin mirar si esa entidad estaba en el listado (en los dos motores); ahora lo comprueba sin elegirla.
 - [x] ~~Que `LAMBDA=1` en qa le llegue a Experian~~ (hecho el 2026-11-03): el runner de casos dictaba el perfil con
   `experian_profile_<cédula>`, que sólo entiende el mock local; el lambda de qa lee `experian_<cédula>`, que ya cubre
   `hdcplus`, `acierta-quanto` y `quanto`. `dictateCase` ahora usa `dictateCompanyLambda` cuando el destino es el lambda de

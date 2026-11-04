@@ -293,7 +293,9 @@ async function ctaInCard(page: Page, header: ReturnType<Page['getByRole']>) {
     return best;
 }
 
-export async function chooseEntity(page: Page, name: string): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
+/** `lookOnly`: sólo confirma que la entidad está en el listado, SIN abrir ni elegir su tarjeta (elegir escribe en la
+ *  solicitud). Es lo que necesita una corrida que termina en el listado y pidió una entidad concreta. */
+export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: boolean } = {}): Promise<{ ok: boolean; visibles: string[]; motivo?: string }> {
     // El listado se arma con las tarjetas ya resueltas: se espera a que aparezca alguna antes de mirar.
     // ⚠ Y NO SÓLO A UN BOTÓN «continuar/solicitar/elegir»: en los listados de tarjetas desplegables no
     // hay ninguno, y esta espera se comía sus 30 s enteros en cada caso (medido el 2026-09-25). La señal
@@ -310,6 +312,7 @@ export async function chooseEntity(page: Page, name: string): Promise<{ ok: bool
         const txt = ((await b.textContent().catch(() => '')) ?? '').replace(/\s+/g, ' ').trim();
         if (txt) visibles.push(txt.slice(0, 40));
         if (txt.toLowerCase().includes(name.toLowerCase()) && (await b.isEnabled().catch(() => false))) {
+            if (opts.lookOnly) return { ok: true, visibles };
             /* ⚠ UNA TARJETA QUE SE DESPLIEGA: el botón con el nombre sólo la ABRE, y el que elige la
              * entidad es otro botón, debajo, adentro de la tarjeta («Validar Pre aprobado», «Activar mi
              * crédito»). Clickear sólo el encabezado decía «elegí X» sin elegir nada, y la vuelta siguiente
@@ -337,6 +340,7 @@ export async function chooseEntity(page: Page, name: string): Promise<{ ok: bool
     // La tarjeta puede no ser un `button`: se prueba por texto y se clickea su botón de avance.
     const card = page.getByText(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i')).first();
     if (await card.count().catch(() => 0)) {
+        if (opts.lookOnly) return { ok: true, visibles };
         await card.click({ timeout: 5_000 }).catch(() => {});
         const av = await clickAdvance(page);
         if (av.ok) return { ok: true, visibles };

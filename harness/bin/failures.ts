@@ -60,7 +60,8 @@ if (broken) console.log(`  ⚠ ${broken} línea(s) del registro no se pudieron l
 if (!cases.length) console.log(`\n  El registro está vacío: lo llenan las corridas del runner de casos (make harness-case / harness-suite / harness-regression).\n`);
 else if (!shown.length) console.log(`\n  Nada en «${estado}» con ese filtro.\n`);
 for (const s of shown) {
-    const who = s.suite && s.caso ? `${s.suite} · ${s.caso}` : `${s.comercio} → ${s.lender ?? 'listado'}`;
+    const who = s.suite && s.caso ? `${s.suite} · ${s.caso}`
+        : `${s.comercio} → ${s.lender ?? 'listado'}` + (s.runner === 'walk' ? ` · caminador (${s.canal})` : '');
     const hist = s.historia.map((h) => h.ok ? '·' : '✗').join('');
     console.log(`\n  ${mark[s.estado]} ${s.estado.padEnd(13)} ${s.target.padEnd(8)} ${who}`);
     console.log(`      ${s.fallas}/${s.corridas} con falla · historia ${hist}`
@@ -184,7 +185,7 @@ function render() {
     + '<td><span class="st" data-e="' + r.estado + '">' + r.estado + '</span></td>'
     + '<td>' + esc(r.target) + '</td>'
     + '<td class="who" title="' + esc((r.suite ?? '') + ' · ' + who(r)) + '">' + esc(who(r))
-      + '<span class="sub">' + esc([r.suite, r.comercio + ' → ' + (r.lender ?? 'listado')].filter(Boolean).join(' · ')) + '</span></td>'
+      + '<span class="sub">' + esc([r.suite, r.comercio + ' → ' + (r.lender ?? 'listado'), r.runner === 'walk' ? 'caminador · ' + r.canal : null].filter(Boolean).join(' · ')) + '</span></td>'
     + '<td class="num">' + r.fallas + '/' + r.corridas + '</td>'
     + '<td><span class="hist">' + r.historia.map((h) => '<i' + (h.ok ? '' : ' class="f"') + ' title="' + esc(when(h.at)) + (h.ur ? ' · uReq ' + h.ur : '') + '"></i>').join('') + '</span></td>'
     + '<td class="when">' + when(r.ultima.at).slice(5) + '</td></tr>').join('');
