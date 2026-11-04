@@ -117,12 +117,44 @@ type demoConfig struct {
 	HostAnnounced string `json:"hostAnnounced,omitempty"`
 }
 
+// sharedURL es la dirección con que `npm run dev` publicó este Shopify falso, si lo está sirviendo. El .env gana.
+func sharedURL() string {
+	if s := readDemoShare(); s != nil && s.State == "serving" {
+		return s.URL
+	}
+	return ""
+}
+
 // reachable traduce un enlace del host (anunciado) a la dirección por la que de verdad se le llega.
 func (c demoConfig) reachable(link string) string {
 	if c.HostAnnounced != "" && c.HostURL != "" && strings.HasPrefix(link, c.HostAnnounced) {
 		return c.HostURL + strings.TrimPrefix(link, c.HostAnnounced)
 	}
 	return link
+}
+
+// demoShare es lo que dejó `npm run dev` al publicar este Shopify falso en el playground (scripts/share.mjs):
+// { state, name, url, hint }. Sin archivo, nada.
+type demoShare struct {
+	State      string `json:"state"`
+	Name       string `json:"name,omitempty"`
+	URL        string `json:"url,omitempty"`
+	Hint       string `json:"hint,omitempty"`
+	Email      string `json:"email,omitempty"`
+	Playground string `json:"playground,omitempty"`
+	At         string `json:"at,omitempty"`
+}
+
+func readDemoShare() *demoShare {
+	data, err := os.ReadFile(filepath.Join(appRoot(), ".data", "shopify-share.json"))
+	if err != nil {
+		return nil
+	}
+	var s demoShare
+	if json.Unmarshal(data, &s) != nil {
+		return nil
+	}
+	return &s
 }
 
 func shopifyDemoConfig() demoConfig {
@@ -135,7 +167,7 @@ func shopifyDemoConfig() demoConfig {
 	return demoConfig{
 		Playground:    strings.TrimRight(or(env("SHOPIFY_DEMO_PLAYGROUND"), "https://playground.creditop.com"), "/"),
 		HostURL:       strings.TrimRight(env("SHOPIFY_DEMO_HOST_URL"), "/"),
-		ChannelURL:    strings.TrimRight(env("SHOPIFY_DEMO_CHANNEL_URL"), "/"),
+		ChannelURL:    strings.TrimRight(or(env("SHOPIFY_DEMO_CHANNEL_URL"), sharedURL()), "/"),
 		Shop:          or(env("SHOPIFY_DEMO_SHOP"), "creditop-demo.myshopify.com"),
 		Target:        or(env("SHOPIFY_DEMO_TARGET"), "qa"),
 		PublicURL:     strings.TrimRight(or(env("SHOPIFY_DEMO_PUBLIC_URL"), "http://localhost:5186"), "/"),
@@ -280,8 +312,11 @@ func demoChecks(c demoConfig) []demoCheck {
 	}
 
 	if c.ChannelURL == "" {
-		checks = append(checks, demoCheck{Name: "este Shopify falso", OK: false,
-			Detail: "falta SHOPIFY_DEMO_CHANNEL_URL: sin canal, el host no puede avisar que el pago se resolvió (playground hooks new shopify-falso --serve)"})
+		detail := "todavía no está publicado en el playground: lo publica `npm run dev` solo"
+		if s := readDemoShare(); s != nil && s.Hint != "" {
+			detail = "no está publicado: " + s.Hint
+		}
+		checks = append(checks, demoCheck{Name: "este Shopify falso", OK: false, Detail: detail})
 	} else {
 		r := demoCall("GET", c.ChannelURL+"/api/shopify-demo/ping", nil, nil)
 		var pong struct {
@@ -465,7 +500,7 @@ func registerShopifyDemo(mux *http.ServeMux) {
 	})
 	mux.HandleFunc("/api/shopify-demo/status", func(w http.ResponseWriter, r *http.Request) {
 		c := shopifyDemoConfig()
-		writeJSON(w, http.StatusOK, map[string]any{"config": c, "checks": demoChecks(c)})
+		writeJSON(w, http.StatusOK, map[string]any{"config": c, "checks": demoChecks(c), "share": readDemoShare()})
 	})
 	// Las peticiones de la demo, las que hace y las que le hacen: lo que muestra el panel derecho.
 	mux.HandleFunc("/api/shopify-demo/log", func(w http.ResponseWriter, r *http.Request) {

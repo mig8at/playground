@@ -100,7 +100,10 @@ export function startPolling() {
   if (watchers.value++ === 0) {
     checkConnections()
     refresh()
-    timer = setInterval(refresh, 3000)
+    let ticks = 0
+    // Los pedidos y las peticiones cada 3 s; las conexiones cada ~10 s mientras alguna esté en rojo (p. ej. mientras
+    // `npm run dev` publica el Shopify falso, o hasta que su dueño prenda el serve del host).
+    timer = setInterval(() => { refresh(); if (++ticks % 3 === 0 && !allOk.value && !demo.checking) checkConnections() }, 3000)
   }
 }
 export function stopPolling() {

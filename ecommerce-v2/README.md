@@ -57,7 +57,7 @@ Shopify todavía no tiene una tienda que pague con la app desplegada. Mientras t
 
 En el sidebar, bloque **Shopify → Store demo** (o http://localhost:5186/#/shopify-demo): una tienda Shopify de mentira que
 paga con la app de Creditop de verdad (el host de temp-shopify), que corre en la máquina de quien la está cambiando. No
-hace falta tener ese repo: el host se usa por la dirección de su canal del playground.
+hace falta tener ese repo: el host se usa por su nombre en el playground.
 
 - **El editor es la tienda**: productos en tarjetas, el carrito, los datos del comprador y «Pagar con Creditop». La
   pestaña **Pedidos** los muestra como los vería el comercio en Shopify, con lo que pasó en cada uno y los botones para
@@ -71,49 +71,53 @@ hace falta tener ese repo: el host se usa por la dirección de su canal del play
 El comprador vuelve de Creditop a `#/shopify-demo?order=<id>`, que abre la demo en ese pedido.
 
 ```text
-la demo ──sesión de pago──► canal del host ──► el host (en la máquina de su dueño) ──► Creditop ──► el wizard
-«Avisar como Creditop» ──► canal del host ──► el host ──paymentSessionResolve──► canal de la demo ──► ESTE Shopify falso
+la demo ──sesión de pago──► shopify.app.miguel.com ──► el host (en la máquina de Miguel) ──► Creditop ──► el wizard
+Creditop (o «Avisar como Creditop») ──► shopify.app.miguel.com ──► el host ──resolve──► shopify.<vos>.com ──► ESTE Shopify falso
 ```
 
-**Una sola vez** (las direcciones tienen nombre y no cambian):
+### Para empezar (una sola vez)
 
-1. Mirá los servicios que publicó el dueño del host y copiá la dirección del suyo:
+1. **Instalá el CLI del playground y entrá** (abre el navegador con tu cuenta de Google de Creditop):
    ```bash
-   playground services @miguel
-   playground url shopify.ecommerce.miguel.com
+   curl -fsSL https://playground.creditop.com/cli/install | sh
    ```
-2. Publicá tu Shopify falso con nombre, en `~/playground/team/services.json`:
-   ```json
-   [{ "alias": "shopify-falso.ecommerce", "to": "http://127.0.0.1:5187", "description": "Shopify falso de la Store demo" }]
+   ```bash
+   playground login
    ```
-   y servilo desde esta máquina, en una terminal que quede abierta: `playground serve`. Queda como
-   `shopify-falso.ecommerce.<tu usuario>.com`. Pasale ese nombre al dueño del host: su dirección va en su
-   `SHOPIFY_PAYMENTS_API_URL`, para que el host le avise a tu Shopify falso.
-3. En el `.env` de acá, las direcciones completas (el nombre solo es para el CLI y nunca se resuelve):
+   Si ya lo tenías, `playground update`: hace falta una versión que sepa `playground serve`.
+2. **En el `.env` de acá**, la dirección del host de la app (te la da Miguel, o `playground url shopify.app.miguel.com`):
    ```text
    SHOPIFY_DEMO_PLAYGROUND=https://playground.creditop.com
-   SHOPIFY_DEMO_HOST_URL=https://playground.creditop.com/s/shopify.ecommerce.miguel.com
-   SHOPIFY_DEMO_CHANNEL_URL=https://playground.creditop.com/s/shopify-falso.ecommerce.<tu usuario>.com
+   SHOPIFY_DEMO_HOST_URL=https://playground.creditop.com/s/shopify.app.miguel.com
    SHOPIFY_DEMO_SHOP=creditop-demo.myshopify.com      # la tienda que el host tiene configurada
    SHOPIFY_DEMO_TARGET=qa                             # dónde busca «Avisar como Creditop» el aviso firmado
    ```
-   y `npm run dev` de nuevo (el `.env` se lee al arrancar).
+3. **`npm run dev`**, como siempre. Además de la API y la interfaz, arranca `share`: publica tu Shopify falso en el
+   playground como `shopify.<tu usuario>.com` (el usuario es tu correo antes de la @). No hay que escribir ningún
+   `services.json` ni dejar otra terminal abierta: se apaga con `npm run dev`.
+4. **Abrí Shopify → Store demo**. En la consola de abajo, pestaña **Conexiones**, aparece «Tu Shopify falso:
+   `shopify.<tu usuario>.com`» con el botón **Copiar dirección**. **Mandásela a Miguel**: va en el
+   `SHOPIFY_PAYMENTS_API_URL` del host, para que el host le avise a tu tienda cuando un pago se resuelve.
 
-Cada día sólo hace falta que tu `playground serve` esté corriendo (y el del dueño del host).
+Después, cada día, sólo `npm run dev`.
 
-**Probarlo solo, con las dos puntas en tu máquina:** un único `services.json` con el host y el Shopify falso, y un solo
-`playground serve`:
+Si en Conexiones dice «Tu Shopify falso todavía no está publicado», dice también qué falta: instalar el CLI,
+`playground update` (uno viejo no sabe servir) o `playground login`. `share` lo vuelve a probar solo cada 15 s, así que
+alcanza con hacerlo en otra terminal, sin reiniciar nada. Lo que hizo queda en `.data/shopify-share.json`.
+
+**Probarlo solo, con las dos puntas en tu máquina:** el host en tu `~/playground/team/services.json` (sólo él: el Shopify
+falso lo publica `npm run dev`) y `playground serve`:
 
 ```json
-[
-  { "alias": "shopify.app", "to": "http://localhost:8121", "description": "host de la app de pagos (temp-shopify)" },
-  { "alias": "shopify", "to": "http://127.0.0.1:5187", "description": "Shopify falso (Store demo)" }
-]
+[{ "alias": "shopify.app", "to": "http://localhost:8121", "description": "host de la app de pagos (temp-shopify)" }]
 ```
 
-`SHOPIFY_DEMO_HOST_URL` va a `…/s/shopify.app.<vos>.com`, `SHOPIFY_DEMO_CHANNEL_URL` a `…/s/shopify.<vos>.com`, y el
-`SHOPIFY_PAYMENTS_API_URL` del host también a `…/s/shopify.<vos>.com`. Cuando lo pruebe otra persona, sólo cambia ese
-último: a `…/s/shopify.<esa persona>.com`. El host le avisa a un solo Shopify falso a la vez.
+Quedan `shopify.app.<vos>.com` (el host) y `shopify.<vos>.com` (tu Shopify falso): `SHOPIFY_DEMO_HOST_URL` va al primero
+y el `SHOPIFY_PAYMENTS_API_URL` del host, al segundo. Cuando lo pruebe otra persona, sólo cambia ese último, a
+`…/s/shopify.<esa persona>.com`. El host le avisa a un solo Shopify falso a la vez.
+
+`SHOPIFY_DEMO_CHANNEL_URL` ya no hace falta: la demo toma la dirección que publicó `share`. Si está en el `.env`, gana
+(sirve para apuntar a otro Shopify falso a mano).
 
 Las tres conexiones de la pestaña Conexiones tienen que estar en verde antes de comprar: **playground** (contesta su `/health`),
 **host de la app** (su nombre contesta; 503 = su dueño no está corriendo `playground serve`) y **este Shopify falso** (el playground
