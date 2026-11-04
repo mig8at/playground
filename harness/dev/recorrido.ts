@@ -10,7 +10,7 @@
 //
 // Los imports de la base van DINÁMICOS: `pkg/db.ts` resuelve el ambiente al cargarse (F-187).
 export {};
-const { readCatalog, measureLenders, classify } = await import('../pkg/recorridos.ts');
+const { readCatalog, measureLenders, measureFields, classify } = await import('../pkg/recorridos.ts');
 const { readFlows, baseOf } = await import('../pkg/flows.ts');
 const { resolveMerchant } = await import('../pkg/merchants.ts');
 const { close } = await import('../pkg/db.ts');
@@ -38,6 +38,7 @@ async function main(): Promise<number> {
     let header = '';
     let channels: string[] = channelArg ? [channelArg] : [];
     let facts;
+    let fields: Awaited<ReturnType<typeof measureFields>> = [];
     if (merchantArg) {
         // Primero el registro del harness (la sucursal de ESTE ambiente); si no está, la base.
         const entry = readFlows().merchants?.[merchantArg];
@@ -46,6 +47,7 @@ async function main(): Promise<number> {
         const name = entry?.name || (branch ? merchantArg : (await resolveMerchant(merchantArg)).name);
         if (!channelArg && entry?.channels?.length) channels = entry.channels;
         facts = await measureLenders({ branchHash: hash });
+        fields = await measureFields(hash, cat);
         header = `${name} · sucursal ${hash} · ${target} — ${facts.length} entidad(es)`;
     } else {
         facts = await measureLenders({ lenderIds: lenderArg.split(',').map((s) => Number(s.trim())) });
@@ -54,7 +56,7 @@ async function main(): Promise<number> {
 
     const paths = facts.map((f) => classify(f, cat, channelArg || undefined));
     if (process.argv.includes('--json')) {
-        console.log(JSON.stringify({ target, channels, paths }, null, 2));
+        console.log(JSON.stringify({ target, channels, fields, paths }, null, 2));
         return 0;
     }
 
@@ -63,6 +65,13 @@ async function main(): Promise<number> {
     console.log(channelNames.length
         ? `canal: ${channelNames.join(', ')}`
         : 'canal: no declarado en harness.json (cada línea vale para los canales del asistente; --channel lo fija)');
+    if (fields.length) {
+        console.log('formulario:');
+        for (const fr of fields) {
+            const mark = fr.asked == null ? '?' : fr.asked ? '✔' : '–';
+            console.log(`  ${mark} ${fr.name.padEnd(28)} ${fr.why}`);
+        }
+    }
     if (!paths.length) {
         console.log('\n  sin entidades: la sucursal no tiene ninguna en lenders_by_allied_branches, o los ids no existen en esta base');
         return 1;

@@ -1,8 +1,8 @@
 {
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
-  "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, ajustes y desenlace— y qué activa cada variación en el código.",
-  "reviewedAt": "2026-11-04T11:06:45+00:00",
+  "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
+  "reviewedAt": "2026-11-04T11:11:55+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -175,6 +175,60 @@
       "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
       "sections": [
         "variaciones-y-ajustes"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OnboardingService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Constants/ManualPersonalDataAllieds.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "57020717199ba3fb27738deaacf11d99c99c18c5",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Constants/ManualBirthDateConstants.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "8189420013f1ae8b237a76064b115109c5dda9ec",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Onboarding/OnboardingFieldsGate.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "a915814e9bafe2b10b7316421de8d639b4af64a6",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Services/ResolveEmploymentRequirementService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "3dd43a83f79496f3114d8cb2e6aab7d60eef7ecb",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "sections": [
+        "campos-que-pide-el-formulario-en-cada-comercio"
       ]
     }
   ]

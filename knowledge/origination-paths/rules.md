@@ -1,8 +1,8 @@
 # Recorrido de una solicitud: canal, riel y variaciones
 
 Un **recorrido** es el camino que sigue una solicitud desde que entra hasta que termina. Se describe con
-siete piezas que no se mezclan: **canal**, **tramo común**, **riel**, **producto**, **variaciones**,
-**ajustes** y **desenlace**. Con ellas se puede decir de un cambio si cae en un recorrido que ya existe,
+ocho piezas que no se mezclan: **canal**, **tramo común**, **riel**, **producto**, **variaciones**,
+**campos**, **ajustes** y **desenlace**. Con ellas se puede decir de un cambio si cae en un recorrido que ya existe,
 si le agrega una variación o si hace falta uno nuevo.
 
 Se escribe en una línea: `canal · riel · producto · +variación · desenlace`. Por ejemplo,
@@ -94,6 +94,33 @@ sale de la categoría del cliente, y el monto suma lo que fija el convenio del c
 - **Asesor:** el campo aparece en el listado sólo si el comercio lo tiene activado
   (`allieds.initial_fee`). La firma no espera un pago por pasarela: fuera de la tienda la cuota inicial
   la cobra el comercio.
+
+## Campos: qué pide el formulario en cada comercio
+
+Entre la variación y el ajuste hay una tercera clase: el **campo**, que cambia qué pide una pantalla sin
+cambiar por dónde pasa la solicitud. Los de datos personales y empleo dependen del comercio o de la
+sucursal, y cada uno se decide en un lugar distinto:
+
+| campo | lo pide cuando | se decide en |
+|---|---|---|
+| **Fecha de expedición** | el comercio la recauda; sin fila o con la celda vacía, se recauda | `allieds.collect_expedition_date` (`OnboardingFieldsGate`) |
+| **Fecha de nacimiento escrita** | el comercio es el 272, o la sucursal ofrece alguna de las entidades 39, 23, 141, 142, 166 o 24 | dos listas de ids en el código (`ManualPersonalDataAllieds`, copiadas en `ManualBirthDateConstants`) |
+| **Estrato** | el comercio está en el setting `stratum_field_allieds` | `settings` |
+| **Información laboral** | el comercio la recauda y las centrales no la dieron | `allieds.collect_employment_info` y la respuesta de las centrales |
+
+La fecha de nacimiento tiene una consecuencia que no se ve en la pantalla. Si no se escribe, el backend
+la **estima**: la fecha de expedición menos 18 años y un mes. Si el comercio tampoco recauda la
+expedición, queda vacía. De esa fecha sale la edad que evalúan las reglas de edad de las categorías
+(`LenderUserCategoryService`): en las sucursales que no están en las listas, una entidad con regla de
+edad decide con una edad estimada, que sale más baja cuanto más tarde se expidió el documento. Si el
+comercio no recauda la expedición, el criterio de edad se salta.
+Las listas usan ids fijos, y el mismo id puede ser otro comercio en otra base.
+
+La información laboral sale primero de las centrales. Si respondió Ágil Data o Mareigua, el backend
+completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la
+pantalla de empleo no se muestra. Si ninguna contestó, la pide el formulario (`ONB004`), salvo que el
+comercio no la recaude. Los comercios de Corbeta reciben valores por defecto (1.500.000, empleado,
+continuidad 3) en vez de la pantalla.
 
 ## Desenlace: cómo termina
 

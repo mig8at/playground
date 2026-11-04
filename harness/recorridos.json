@@ -148,6 +148,38 @@
       }
     }
   },
+  "fields": {
+    "_comentario": "Un CAMPO cambia qué pide una pantalla, no por dónde pasa la solicitud. Se miden por sucursal. Las listas de la fecha de nacimiento son una COPIA de las del backend (ManualPersonalDataAllieds): si cambian allá, `make knowledge-check` avisa porque el tema origination-paths cita ese archivo.",
+    "expedition-date": {
+      "name": "Fecha de expedición",
+      "decidedBy": "allieds.collect_expedition_date (vacío = se recauda)"
+    },
+    "birth-date": {
+      "name": "Fecha de nacimiento escrita",
+      "decidedBy": "listas de ids en el código del backend",
+      "alliedIds": [
+        272
+      ],
+      "lenderIds": [
+        39,
+        23,
+        141,
+        142,
+        166,
+        24
+      ],
+      "otherwise": "se estima como la fecha de expedición menos 18 años y un mes; sin expedición, queda vacía"
+    },
+    "stratum": {
+      "name": "Estrato",
+      "decidedBy": "setting stratum_field_allieds"
+    },
+    "employment": {
+      "name": "Información laboral",
+      "decidedBy": "allieds.collect_employment_info (vacío = se recauda) y si contestó Ágil Data o Mareigua",
+      "otherwise": "si contestó una central, se completa con su resumen y la pantalla no aparece"
+    }
+  },
   "outcomes": {
     "decide-afuera": {
       "name": "La entidad decide en su sitio"

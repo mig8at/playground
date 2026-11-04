@@ -25,6 +25,7 @@ export interface Catalog {
     variations: Record<string, Named & { scope: string; when: string; measured?: string; channels?: string[]; rails?: string[]; byChannel?: Record<string, string> }>;
     outcomes: Record<string, Named & { formalizations?: Record<string, string> }>;
     servicing: Named & { values: Record<string, string> };
+    fields: Record<string, Named & { decidedBy: string; alliedIds?: number[]; lenderIds?: number[]; otherwise?: string }>;
     fit: Record<string, string>;
 }
 
@@ -208,4 +209,55 @@ export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
         notes,
         warnings,
     };
+}
+
+/** Lo que pide el formulario en una sucursal: un renglón por campo, con el porqué. */
+export interface FieldReading { id: string; name: string; asked: boolean | null; why: string }
+
+/**
+ * Mide los CAMPOS de una sucursal. Cada uno se decide en un lugar distinto (columna del comercio, setting o
+ * una lista de ids del backend), así que cada renglón dice de dónde salió. `asked: null` = la base no tiene
+ * el dato para decidirlo.
+ */
+export async function measureFields(branchHash: string, cat: Catalog): Promise<FieldReading[]> {
+    const [hasExp, hasEmp] = await Promise.all([
+        columnExists('allieds', 'collect_expedition_date'),
+        columnExists('allieds', 'collect_employment_info'),
+    ]);
+    const row = (await query(
+        `SELECT ab.id AS branch_id, a.id AS allied_id,
+                ${hasExp ? 'a.collect_expedition_date' : 'NULL'} AS exp, ${hasEmp ? 'a.collect_employment_info' : 'NULL'} AS emp
+         FROM allied_branches ab JOIN allieds a ON a.id = ab.allied_id WHERE ab.hash = ? LIMIT 1`,
+        [branchHash],
+    ))[0];
+    if (!row) return [];
+    const f = cat.fields;
+    const out: FieldReading[] = [];
+
+    // Vacío = se recauda: es el `?? true` de OnboardingFieldsGate.
+    const flag = (v: any) => (v == null ? true : Number(v) === 1);
+    out.push({ id: 'expedition-date', name: f['expedition-date'].name, asked: hasExp ? flag(row.exp) : null,
+        why: hasExp ? (row.exp == null ? 'el comercio no lo dice: se recauda' : 'collect_expedition_date del comercio') : 'la base no tiene la columna' });
+
+    const birth = f['birth-date'];
+    const byAllied = (birth.alliedIds ?? []).includes(Number(row.allied_id));
+    const lenderHits = byAllied ? [] : (await query(
+        `SELECT lab.lender_id AS id FROM lenders_by_allied_branches lab WHERE lab.allied_branch_id = ? AND lab.lender_id IN (${(birth.lenderIds ?? [0]).map(() => '?').join(',')})`,
+        [row.branch_id, ...(birth.lenderIds ?? [0])],
+    )).map((r: any) => Number(r.id));
+    const typed = byAllied || lenderHits.length > 0;
+    out.push({ id: 'birth-date', name: birth.name, asked: typed,
+        why: byAllied ? `el comercio ${row.allied_id} está en la lista del backend`
+            : typed ? `la sucursal ofrece ${lenderHits.map((i) => '#' + i).join(', ')}, de la lista del backend`
+            : (birth.otherwise ?? 'no se escribe') });
+
+    const stratum = (await query("SELECT value FROM settings WHERE `key` = 'stratum_field_allieds' LIMIT 1"))[0];
+    let stratumIds: number[] = [];
+    try { stratumIds = (typeof stratum?.value === 'string' ? JSON.parse(stratum.value) : stratum?.value)?.allieds ?? []; } catch { /* sin setting legible */ }
+    out.push({ id: 'stratum', name: f.stratum.name, asked: stratum ? stratumIds.map(Number).includes(Number(row.allied_id)) : null,
+        why: stratum ? 'setting stratum_field_allieds' : 'la base no tiene el setting' });
+
+    out.push({ id: 'employment', name: f.employment.name, asked: hasEmp ? flag(row.emp) : null,
+        why: hasEmp ? `${row.emp == null ? 'el comercio no lo dice: se recauda' : 'collect_employment_info del comercio'}; sólo si no contestó Ágil Data ni Mareigua` : 'la base no tiene la columna' });
+    return out;
 }
