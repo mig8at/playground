@@ -636,6 +636,36 @@ no pide permiso.
 
 ---
 
+## 31 · En qa, Credifamilia Materiales cierra pero no radica: la entidad rechaza el certificado (Configuración)
+
+**Qué pasa.** En qa, una solicitud de Credifamilia Materiales (216) llega a «Autorizada» (11), pero queda sin radicar.
+La transacción con la entidad queda en `CREDIT_ERROR`. El documento firmado se genera, se une y se envía; lo que falla es
+la llamada `guardarDocumentoOpenKm`, que responde HTTP 500 con «Error during certificate path validation: No trusted
+certs found». La llamada sale con la credencial del comercio (`lender_allied_credentials` 2072: entidad 216, comercio
+94 Amoblando Pullman), que lleva certificado y llave de cliente. El servidor de la entidad no confía en ese
+certificado.
+
+**Cómo se comprobó, el 2026-11-04.**
+- **En qa (backend en la rama `qa`, `8d0b1f90a`):** dos solicitudes de prueba, 504522 y 504523, llegaron a 11 y
+  quedaron en `CREDIT_ERROR` con ese mensaje. Los logs de la formalización muestran el envío con la credencial 2072 y
+  la respuesta 500.
+- **En la base compartida de dev, qa y staging:** las únicas radicaciones del 216 que existen son las de esta prueba.
+  En qa, Materiales nunca radicó.
+- **En producción, sólo lectura:** Credifamilia (24) radica bien, con 239 transacciones completas en 30 días.
+  Materiales no tiene radicaciones allá.
+- La credencial 2072 se actualizó por última vez el 2026-05-28, al mismo segundo que la 926 de Credifamilia (24): parece
+  una carga en bloque.
+
+**Lo que no se verificó.** A qué servidor de Credifamilia apunta el backend de qa (`CREDIFAMILIA_CONSUMO_WSDL`) y qué
+certificado lleva la credencial: los dos son configuración con credenciales y no se leyeron. No se sabe si el
+certificado es el de producción contra el servidor de pruebas, si venció o si nunca se registró del lado de la entidad.
+
+**Propuesta.** Que quien administra las credenciales de Credifamilia confirme qué servidor usa qa y qué certificado
+espera la entidad en ese ambiente, y lo cargue en la credencial del 216 para Amoblando Pullman. Mientras tanto, en qa se
+puede probar Materiales hasta la autorización, pero no la radicación.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
