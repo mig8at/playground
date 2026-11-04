@@ -1,18 +1,19 @@
 {
   "version": 1,
   "title": "Oferta de CreditopX en la tarjeta: cupo, cuota inicial y cuota",
-  "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el backend al liquidar.",
-  "reviewedAt": "2026-11-02T15:34:07+00:00",
+  "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, qué pasa con la cuota escrita o sin campo al elegir y liquidar, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el plan de pagos del backend.",
+  "reviewedAt": "2026-11-04T01:01:11+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/application/calculate-loan-financials.uc.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "66dd5daad3abe2a5749dfc1df8226ecfb931abed",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "la-cuota-inicial-minima-es-el-mayor-de-dos-pisos",
         "cuando-se-resta-la-cuota-inicial",
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
         "valor-a-financiar-fga-y-cuota"
       ]
     },
@@ -29,7 +30,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
@@ -37,8 +38,17 @@
     },
     {
       "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/lender-transaction-data.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "11ba7614a3c4452d97274074d9a18a63913e514c",
+      "sections": [
+        "de-donde-salen-los-numeros-de-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/infrastructure/repositories/loan-options.repository.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "112c2e0444bce4136fbbc78d1f9315bf5060ead8",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
@@ -47,7 +57,7 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/backoffice/app/components/profiling/Paso4Calculo.tsx",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "dfc43a5b907247f385ed436ab0dc1d062c5f9adf",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
@@ -55,8 +65,55 @@
     },
     {
       "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/lender-card/useLenderFinancials.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "0aad2d311d609254932104202d17f9e38d1afc83",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
+        "valor-a-financiar-fga-y-cuota"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/services/initial-fee.service.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "c0e529a4acaf0e4be75f7c308a43a9aef97ce25b",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useLenderSelection.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "bc11ed963a60430f6970f1bc5b429406df985bf2",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
+        "valor-a-financiar-fga-y-cuota"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "082360218246a8a16f2c37e045aa22c4afb823a9",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/hooks/useInstallmentOptions.ts",
-      "commit": "1238d30ef1459fd1fb84ac8020fbacb64a658e55",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "60bbe2da3d8f21a5a644aa71c0530c2cad758780",
       "sections": [
         "plazos-que-ofrece-la-tarjeta"
@@ -65,7 +122,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
@@ -74,10 +131,19 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
+        "plazos-que-ofrece-la-tarjeta"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PaymentSchedule/AmountConditionTermPolicy.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "08ff09da1bc21b2e7713d7b5bbe0c6f102834d43",
+      "sections": [
         "plazos-que-ofrece-la-tarjeta"
       ]
     },
@@ -102,7 +168,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
@@ -111,8 +177,54 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Middleware/ValidateInitialFeePaid.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "b62577140e2208badac93af0f6ca202f97fc6908",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
+        "el-backend-repite-la-regla-con-iva-fijo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/InitialFee/StoreInitialFeeRegisterService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "9412d0c7cc91de652aadcbb92eed608d6c54e328",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "6d171e392990eb74d46c374f7832157ad998a82a",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
       "sections": [
         "el-backend-repite-la-regla-con-iva-fijo"
@@ -121,8 +233,18 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "c2dfb16c21dc9188f0fb087387eb103f3ba4b06d",
+      "sections": [
+        "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
+        "el-backend-repite-la-regla-con-iva-fijo"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Support/CutoffCalendar.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
       "sections": [
         "el-backend-repite-la-regla-con-iva-fijo"
       ]
