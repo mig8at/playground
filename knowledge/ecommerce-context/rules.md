@@ -17,6 +17,27 @@ una base de frontend no vacía; si no puede construirse, continúa el checkout a
 Se reenvía el query original del contrato, sin decodificar y recomponer su base64.
 El código permite leer el mecanismo; qué comercios están habilitados se mide en la base.
 
+## El contrato se deserializa antes de validar la credencial
+
+En legacy-backend, `POST api/onboarding/ecommerce-request/create/{partner_id}`
+(`Modules/Onboarding/routes/api.php:235`) no lleva middleware propio: el grupo del módulo sólo
+agrega `otel` y `auth.cognito` (`RouteServiceProvider.php:41-44`), y `ResolveCognitoUser` resuelve
+el actor sin rechazar la petición. `CreateEcommerceRequest::validate` sólo exige cadenas. El
+orquestador empieza por `unserializeCreateEcommerceRequest` (`EcommerceRequestService.php:418`,
+`:599-622`): decodifica de base64 `order`, `returnUrl`, `processUrl`, `config` y, si viene, `backUrl`,
+y los reconstruye con `unserialize()` sin la opción `allowed_classes` (`:640`, `:651`, `:660`, `:670`;
+`processUrl` sólo si contiene `"`). `products` pasa por `json_decode` y `token` sólo se decodifica.
+Recién después valida el total (`:420`), la sucursal (`:428`) y la credencial con
+`findValidCredential` (`:437`). La entrada del wizard (`checkout.tsx:164-179`) reenvía esos
+parámetros sin tocarlos a este endpoint.
+
+application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`,
+fuera del grupo `auth` de `routes/customer.php:244`). Corbeta y las sucursales habilitadas para el
+wizard salen antes (`:153-180`) sin decodificar; el resto decodifica y deserializa (`:207-213`, con
+`unserialize()` sin `allowed_classes` en `:732`, `:744`, `:755`, `:767`) antes de comparar la
+credencial (`:249`). En cambio, el checkout de Corbeta en legacy-backend deserializa con
+`['allowed_classes' => false]` y cae a JSON si falla (`CorbetaCheckoutController.php:950`).
+
 ## El pedido se relee por id antes y después del OTP
 
 El loader `/ecommerce/:partner_hash/checkout` tiene dos entradas. Con el contrato en la URL
@@ -70,7 +91,9 @@ verificable exige revisar el pedido, no inventar un monto desde un dato del nave
 
 ## El canal de tienda tiene precedencia y gobierna el monto
 
-`OnboardingOrigin::resolve` comprueba el vínculo ecommerce antes de la autenticación.
+`OnboardingOrigin::resolve` recibe dos booleanos y mira el vínculo ecommerce antes que la
+autenticación; el vínculo lo calcula el llamador con `existsForUserRequest`
+(`UserRequestService.php:898-902`, `LenderListingService.php:748-750`).
 Con pedido devuelve `ECOMMERCE` incluso si viaja sesión de asesor. Sólo sin pedido distingue
 `ADVISOR` y `SELF_SERVICE`. `isCustomerPresent` es falso únicamente para asesor;
 `locksAmount` es verdadero únicamente para ecommerce.
@@ -88,9 +111,11 @@ pedido (`buildEcommerceRequestDetailData`). El `backUrl` es a dónde vuelve el c
 con otro medio, y viaja dentro del JSON del pedido en `data` como `back_url`:
 
 - con la URL armada, el checkout manda `b` como `backUrl` en el create; `CreateEcommerceRequest` lo
-  acepta opcional y el orquestador lo decodifica como la `returnUrl` y lo guarda en el pedido después
-  de verificar la firma del comercio, que sigue siendo sobre el `o` recibido;
-- con `payment-link`, `back_url` se valida y queda en el pedido sólo si llegó.
+  acepta opcional y el orquestador lo decodifica como la `returnUrl`, lo filtra con `storeUrlOrNull`
+  (`EcommerceRequestService.php:607-609`) y lo guarda en el pedido después de verificar la firma del
+  comercio, que sigue siendo sobre el `o` recibido (`:469-471`);
+- con `payment-link`, `back_url` debe ser una URL `https://` (`CreatePaymentLinkRequest.php:49`) y
+  queda en el pedido sólo si llegó.
 
 El detalle y la respuesta del create devuelven `backUrl` sólo si es una URL absoluta `http` o `https`
 (`storeUrlOrNull`); vacía, sin protocolo o con otro esquema llega como `null`, y entonces el link del
