@@ -593,6 +593,49 @@ los filtros del resto de los perfiles; y alinear el del asesor con el de la apli
 
 ---
 
+## 29 · Sin proveedor de identidad, el paso de identidad falla en silencio (Media)
+
+**Qué pasa.** Cuando el cliente confirma una entidad que se origina en casa (CreditopX u originación delegada), el
+backend busca su proveedor de identidad principal (la fila de orden 1 de la entidad). Si no la tiene, contesta HTTP
+200 con `next_step: error` y el mensaje «El lender no tiene tipo de validación principal configurado». El asistente no
+reconoce ese caso y cae a su destino por defecto: las instrucciones de identidad. El cliente ve la pantalla de siempre,
+pero ningún proveedor lo va a validar, y el error no queda a la vista de nadie.
+
+**Cómo se comprobó.**
+- **En local, el 2026-11-04:** con una entidad sin proveedor, la confirmación devolvió exactamente esa respuesta, y
+  el recorrido del asistente siguió a las instrucciones de identidad.
+- **En producción, sólo lectura:** hay 11 entidades activas de los rieles 2, 3 y 4 sin proveedor. Sólo dos tuvieron
+  solicitudes en los últimos 90 días, y ninguna de esas solicitudes llegó al paso de identidad. Una de las dos es
+  Elite Vacances, que está en 9 sucursales. Entre las demás está Credifamilia Materiales de producción, hoy sin
+  sucursales.
+
+No hay evidencia de clientes trabados todavía: es un defecto latente.
+
+**Propuesta.**
+- En el asistente, tratar `no_validation_configured` como error visible, en vez del destino por defecto.
+- En el backoffice, que la revisión de si una entidad está lista exija un proveedor de identidad a las que se
+  originan en casa.
+- Configurar proveedor a las entidades de la lista que se vayan a usar.
+
+---
+
+## 30 · Un crédito CreditopX llegó a «Autorizada» por el asesor sin identidad, pagaré ni firma (Decisión)
+
+**Qué pasa.** La solicitud 538343 de Elite Vacances (2026-08-26) pasó de «Seleccionó entidad» a «Autorizada» en 53
+segundos, y el cambio lo hizo el asesor del comercio. No tiene pagaré, ni documentos firmados, ni validación de
+identidad; el cliente tampoco tenía validación manual.
+
+**Cómo se comprobó.** Sólo lectura en producción: el historial de estados de la solicitud y las tablas de pagarés,
+documentos firmados y consultas de identidad, las tres sin filas para esa solicitud o su cliente. No se buscó por
+qué pantalla la autorizó el asesor.
+
+**Pregunta para el equipo.** ¿Está previsto que un CreditopX llegue a «Autorizada» sin pasar por identidad, pagaré y
+firma? Si es un camino previsto para algunos comercios, conviene dejar dicho cuáles y por qué. Si no lo es, hay que
+ver qué permite al asesor cambiar ese estado: el borrador 21 ya muestra que gestionar una solicitud en el admin viejo
+no pide permiso.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:
