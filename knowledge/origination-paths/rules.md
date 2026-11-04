@@ -157,7 +157,7 @@ nueva del riel (Finandina) no hereda sola.
 | paso | qué pasa | en `main` |
 |---|---|---|
 | **Preaprobación** | el asistente la pide por el `slug` de la entidad; decide el adaptador de `pre-approvals-service` con esa clave | del riel; el adaptador `credifamilia` es propio ([preaprobación](knowledge:credifamilia-origination)) |
-| **Identidad** | los proveedores salen de la configuración de la entidad, con respaldo en orden (Credifamilia usa CrossCore y Evidente) | del riel, por configuración |
+| **Identidad** | los proveedores salen de la configuración de la entidad, con respaldo en orden (Credifamilia usa CrossCore y Evidente) | del riel, por configuración ([validación de identidad](knowledge:identity-validation)) |
 | **Fecha de pago y plan** | opciones, fechas, cuotas y fianza | atado: los servicios de plan sólo atienden a las entidades de Credifamilia ([rieles](knowledge:lender-response-types)) |
 | **Formulario adicional** | un formulario dinámico antes de firmar; sus respuestas alimentan los PDF | del riel, por configuración (Credifamilia tiene el suyo) |
 | **Documentos** | `pdf-mapper` llena los PDF (vinculación, fondo de garantías, plan de pagos, reglamento, términos y autorización de desembolso) con los datos del cliente y las respuestas del formulario | atado: `CredifamiliaDocumentsBuilder`, con la configuración de la entidad de Credifamilia |

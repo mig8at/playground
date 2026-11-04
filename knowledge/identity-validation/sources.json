@@ -1,0 +1,101 @@
+{
+  "version": 1,
+  "title": "Validación de identidad: proveedores y cuándo corre",
+  "summary": "Qué proveedor valida a la persona después de elegir una entidad que origina en casa (ADO, AWS, CrossCore, Evidente o ninguno), cómo se elige por entidad y en orden, los estados de ADO y su re-validación sólo con selfie, y en qué se diferencia de la validación de datos del tramo común.",
+  "reviewedAt": "2026-11-04T11:33:12+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/IdentityValidationStepResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "39a7977351c4f194610e9233713e065fcc2b4c90",
+      "sections": [
+        "dos-etapas-que-no-hay-que-confundir",
+        "cada-entidad-elige-sus-proveedores-en-orden",
+        "crosscore-y-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/IdentityValidationProvidersService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "45eef771b41d3f739b00b7af4b7ee3f25a57a037",
+      "sections": [
+        "dos-etapas-que-no-hay-que-confundir",
+        "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/SwitchValidationProviderService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "9f36f8502a929c1c5a97f92f1644a12c8316ecb9",
+      "sections": [
+        "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/LenderIdentityValidationType.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "e4a8f2f69f3d1ad5afe68dd9a54c080b3cb006d4",
+      "sections": [
+        "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/CreditopXFlowService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "07b48b30765d5cb0fd35294bf7019ba4f728e75a",
+      "sections": [
+        "cada-entidad-elige-sus-proveedores-en-orden"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/AdoService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "886a0ce596c113d5260b94751a5453d9eb274ce1",
+      "sections": [
+        "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Identity/App/Services/AdoValidationModeResolver.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "97c4be52638ab6878b24b1153e12c06802534907",
+      "sections": [
+        "ado-documento-y-selfie-y-la-re-validacion-solo-con-selfie"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Controllers/Api/CredifamiliaV2/CrossCoreController.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "0748064f016312840632d899c1f82b19a79f2f91",
+      "sections": [
+        "crosscore-y-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteFlowService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "644eb0d6b9eed69b2894b25d1def3cfc32c1046e",
+      "sections": [
+        "crosscore-y-evidente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/CredifamiliaV2/Evidente/EvidenteOtpFlowService.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "4bacf6ec5f32130a09a15e148301c5d0dcd68b38",
+      "sections": [
+        "crosscore-y-evidente"
+      ]
+    }
+  ]
+}

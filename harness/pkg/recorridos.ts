@@ -28,6 +28,7 @@ export interface Catalog {
     outcomes: Record<string, Named & { formalizations?: Record<string, string> }>;
     servicing: Named & { values: Record<string, string> };
     fields: Record<string, Named & { decidedBy: string; alliedIds?: number[]; lenderIds?: number[]; otherwise?: string }>;
+    identity: { providers: Record<string, string>; withoutProvider: string };
     fit: Record<string, string>;
 }
 
@@ -51,6 +52,8 @@ export interface LenderFacts {
     cosignerCategory: boolean;
     /** Los puntos del formulario adicional que tiene encendidos (`post_lender_selection`, `pre_sign_documents`). */
     dynamicForms: string[];
+    /** Los proveedores de identidad activos, en orden (slugs de identity_validation_types). `null` = la base no tiene la tabla. */
+    identityProviders: string[] | null;
     initialFeeCategory: boolean;
     /** El perfil del riel 4: `undefined` si la base no tiene la tabla, `null` si no hay fila, o su `formalization`. */
     profileFormalization?: string | null;
@@ -91,13 +94,14 @@ async function tableExists(table: string): Promise<boolean> {
  * la de `lenders_by_allied_branches`, la misma que el listado usa para decidir qué ve el comercio.
  */
 export async function measureLenders(opts: { branchHash?: string; lenderIds?: number[] }): Promise<LenderFacts[]> {
-    const [hasProduct, hasServiced, hasRequirements, hasManual, hasProfiles, hasPlacements, hasFormLender, hasDynFlag] = await Promise.all([
+    const [hasProduct, hasServiced, hasRequirements, hasManual, hasProfiles, hasPlacements, hasIdentity, hasFormLender, hasDynFlag] = await Promise.all([
         columnExists('lenders', 'product'),
         columnExists('lenders', 'externally_serviced'),
         tableExists('lender_requirements'),
         columnExists('lender_requirements', 'manual_approval'),
         tableExists('delegated_origination_profiles'),
         tableExists('dynamic_form_placements'),
+        tableExists('lender_identity_validation_types'),
         columnExists('form_types', 'lender_id'),
         columnExists('lender_requirements', 'dynamic_form_is_enabled'),
     ]);
@@ -126,6 +130,9 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
             EXISTS (SELECT 1 FROM lender_users_categories c WHERE c.lender_id = l.id AND c.active = 1 AND c.requires_cosigner = 1) AS cosigner,
             EXISTS (SELECT 1 FROM lender_users_categories c WHERE c.lender_id = l.id AND c.active = 1 AND c.min_initial_fee > 0) AS initial_fee,
             (${formPost}) AS form_post, (${formPre}) AS form_pre,
+            ${hasIdentity ? `(SELECT GROUP_CONCAT(ivt.slug ORDER BY litv.\`order\` SEPARATOR ',') FROM lender_identity_validation_types litv
+                JOIN identity_validation_types ivt ON ivt.id = litv.identity_validation_type_id
+                WHERE litv.lender_id = l.id AND litv.status = 1)` : 'NULL'} AS identity,
             ${profile}`;
     let rows: any[];
     if (opts.branchHash) {
@@ -161,6 +168,7 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
         manualApproval: Number(r.manual) === 1,
         cosignerCategory: Number(r.cosigner) === 1,
         initialFeeCategory: Number(r.initial_fee) === 1,
+        identityProviders: hasIdentity ? (r.identity ? String(r.identity).split(',') : []) : null,
         dynamicForms: [Number(r.form_post) === 1 ? 'post_lender_selection' : '', Number(r.form_pre) === 1 ? 'pre_sign_documents' : ''].filter(Boolean),
         profileFormalization: hasProfiles ? (r.formalization == null ? null : String(r.formalization)) : undefined,
         hasProfile: hasProfiles ? Number(r.has_profile) > 0 : undefined,
@@ -219,6 +227,8 @@ export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
         : f.externallyServiced == null ? 'cobranza sin dato'
         : `cobranza ${cat.servicing.values[String(f.externallyServiced)] ?? '?'}`;
     if (f.lenderStatus !== 1) warnings.push('la entidad está apagada (lenders.status ≠ 1): no lista');
+    if (r?.origination === 'en-casa' && f.identityProviders && !f.identityProviders.length)
+        warnings.push(`sin proveedor de identidad: ${cat.identity.withoutProvider}`);
 
     const parts = [`riel ${rail}`, productName.toLowerCase(), ...variations.map((v) => `+${v.name.toLowerCase()}${v.conditional ? '?' : ''}`), outcome.toLowerCase(), servicing].filter(Boolean);
     return {
@@ -302,6 +312,8 @@ const EXTRA_PIECES: Array<[RegExp, string]> = [
     [/\/dynamic-form\/|\/formulario\//, 'variación Formulario adicional'],
     [/\/imei(\/|$)/, 'variación IMEI'],
     [/\/manual-approval-pending/, 'variación Aprobación manual'],
+    [/\/additional-identity-validation/, 'en casa · Identidad: cuestionario (Evidente)'],
+    [/\/identity-validation-status|\/retry-validation/, 'en casa · Identidad: resultado'],
     [/\/bancolombia\//, 'canal Bancolombia'],
 ];
 
@@ -371,6 +383,8 @@ export async function routeSummary(lenderId: number, branchHash: string, flow: s
                 ? '   * = atado a Credifamilia en main; esta entidad es de Credifamilia, así que corre por ahí'
                 : `   ⚠ * = atado a Credifamilia en main: con esta entidad, ${tied.join(', ')} se resuelven como Credifamilia o fallan`);
         }
+        if (p.origination === 'en-casa' && facts.identityProviders?.length)
+            out.push(`   identidad: ${facts.identityProviders.map((x) => cat.identity.providers[x] ?? x).join(' → ')}`);
         for (const n of p.notes) out.push(`   ${n}`);
         for (const w of p.warnings) out.push(`   ⚠ ${w}`);
         const fields = await measureFields(branchHash, cat).catch(() => []);

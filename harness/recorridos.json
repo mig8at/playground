@@ -279,5 +279,17 @@
     "encaja": "el recorrido existe y sólo pide ajustes (configuración: reglas, categorías, plazos, perfil)",
     "encaja-con-variacion": "el recorrido existe, pero el cambio agrega una variación o una formalización que no está en el catálogo",
     "recorrido-nuevo": "no existe ese canal o ese riel"
+  },
+  "identity": {
+    "_comentario": "El proveedor que valida a la persona en el recorrido en casa: lender_identity_validation_types por orden (1 primario, el resto respaldo). Detalle: knowledge/identity-validation.",
+    "providers": {
+      "none": "Sin validación",
+      "ado": "ADO (documento y selfie)",
+      "aws": "AWS (OCR + Rekognition)",
+      "crosscore": "CrossCore (biométrico)",
+      "evidente": "Evidente (cuestionario y código)",
+      "questions": "Preguntas (en el catálogo; el backend no lo atiende)"
+    },
+    "withoutProvider": "el paso de identidad termina en error, salvo una validación manual de las últimas 24 horas"
   }
 }

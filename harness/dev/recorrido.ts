@@ -87,6 +87,8 @@ async function main(): Promise<number> {
             const off = p.lender.lenderStatus !== 1 ? ' [apagada]' : '';
             console.log(`  #${p.lender.id} ${p.lender.name}${off}`);
             console.log(`      ${p.line}`);
+            if (p.origination === 'en-casa' && p.lender.identityProviders?.length)
+                console.log(`      identidad: ${p.lender.identityProviders.map((x) => cat.identity.providers[x] ?? x).join(' → ')}`);
             for (const n of p.notes) console.log(`      · ${n}`);
             for (const w of p.warnings) console.log(`      ⚠ ${w}`);
         }
