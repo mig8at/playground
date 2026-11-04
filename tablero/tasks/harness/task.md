@@ -59,8 +59,11 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
   cambio que entró y se revirtió (el auto de Refurbi, legacy-backend #1621). Termina con el caso real marcado como
   revertido. Ya hay una propuesta de sesión con el detalle.
 - [ ] Que el auto-onboarding guarde los datos personales por el guardado nuevo (v2) cuando el comercio va por el
-  pipeline de KYC: hoy usa el viejo y se saltaría el pipeline. Termina con el auto respetando `kyc_pipeline_allieds`,
-  probado con un comercio encendido en local. Ver `knowledge/kyc-pipeline`.
+  pipeline de KYC. **Diagnosticado (2026-11-03): el defecto es del FRONT, no del harness** — `auto-onboarding/verifying.tsx`
+  y `otp.tsx` usan sólo los repositorios v1 (`PersonalInfoLegacyRepository`, `PhoneOtpLegacyRepository`), mientras el
+  formulario normal resuelve `resolveKycFlow` (`loan-request-form.tsx:259`). Va como incidencia (borrador 22). Del lado
+  del harness sólo falta que `dev/auto-onboarding.ts` reconozca `kyc-processing` cuando el front cambie.
+  Depende de: el equipo de front — el arreglo en `frontend-monorepo` (PR con permiso de Miguel).
 - [x] Al retomar el celular del asesor después de reiniciar el panel, volver a armar el traspaso automático al
   celular del cliente («continuá en tu celular»). Hoy «Retomar» deja al asesor donde estaba pero sin ese paso.
 - [ ] Confirmar con una corrida del panel en local que «Buró inyectado» gobierna la categoría: ya se le dicta el caso al mock de centrales antes de personal-info (`dictateCase`). Termina cuando «Categoría por entidad» muestra la categoría de la corrida igual a la predicha, sin la nota «el motor leyó otros datos». Depende de: Miguel — la corrida, con el mock de centrales arriba (`make harness-centrales`).
@@ -68,6 +71,13 @@ ramas: ["risk-services-mockery-lambda:dictado-compartido"]
 - [ ] Validar preparación, ejecución, progreso y resultado durante una corrida real.
 - [ ] Migrar un llamador a la vez a las funciones de escritura seguras cuando se modifique.
 - [ ] Migrar los specs de burós al lambda y conservar `source=lambda` como evidencia de participación.
+  **Diagnosticado (2026-11-03):** viene de F-139 (dejar los drivers `fake` de burós y quedarse con el lambda).
+  `source=lambda` es un campo del LOG del backend (`risk_central.source`, y `source` en Experian), no una columna: es lo
+  único que prueba que la respuesta salió del dictado y no del fixture. Plan por valor: (1) un `assertBureauSource` en
+  `pkg/loki.ts`; (2) `merchant/pullman-credipullman.spec.ts`; (3) `dev/guided.spec.ts`; (4) `channel/kyc-subcodes.spec.ts`
+  y (5) `kyc-ui.spec.ts`, que siguen con headers `X-Fake-Scenario`; (6) retirar `fakeScenarios`. Decide Miguel: ¿sólo
+  local o también qa?; sin Loki, ¿falla o queda «no concluyente»?; ¿los `fixme` de TusDatos se migran o se retiran?;
+  ¿`synthFill` sigue forjando Experian y KYC en `guided`?
 - [ ] Mantener asserts, transiciones y veredicto como reglas determinísticas.
 - [x] Comprobar en qa el sidebar del panel: con Refurbi elegido y canal Asesor, la línea bajo la fila dice «el asesor entra por 6e377fa6 · 3 entidades»; Celucambio, DENTIX, Smart y BCP (Perú) salen con ⚠ y ▶ apagado, con el comando `bin/pg admin test-advisor` en el tooltip. Termina cuando las dos cosas se ven así. Depende de: Miguel — la VPN de dev.
 - [x] Comprobar en qa que el panel trae las excepciones del front de PostHog a la consola del celular (`✗ PostHog …`) en una corrida que falle. Termina con una excepción real en la consola. Depende de: Miguel — la VPN de dev.

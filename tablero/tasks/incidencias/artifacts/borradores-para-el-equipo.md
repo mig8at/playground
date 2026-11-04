@@ -416,6 +416,26 @@ Falta saber cuántos usuarios no administradores pueden entrar al admin (un come
 
 ---
 
+## 22 · El auto-onboarding se salta el pipeline nuevo de KYC (Media)
+
+**Qué pasa.** En el canal de auto-onboarding (la tienda que llena los datos del cliente sola), el asistente guarda los
+datos personales y valida el código del celular **siempre por el camino viejo**. El formulario normal, en cambio,
+pregunta primero si el comercio usa el pipeline nuevo de KYC y elige el camino según eso. Resultado: un comercio que va
+por el pipeline nuevo, si además usa auto-onboarding, valida la identidad por la cascada vieja y nunca corre el pipeline.
+
+**Cómo se comprobó.** Leyendo `main` del front y del backend: las pantallas del auto-onboarding usan sólo los
+repositorios del camino viejo, mientras que el formulario normal resuelve el flujo del comercio y elige entre los dos.
+No se corrió todavía: falta sembrar en local un comercio que esté en el pipeline y tenga auto-onboarding.
+
+**Ojo al arreglarlo.** Hay que cambiar las dos pantallas juntas (OTP y guardado); si se cambia sólo una, el buró se
+consulta dos veces. Y con el pipeline, la pantalla de «validando» ya no sabe en el momento si la identidad pasó: eso
+cambia lo que ve el cliente y lo decide producto.
+
+**Propuesta.** Que el auto-onboarding resuelva el flujo del comercio como el formulario normal y use el camino nuevo
+cuando corresponde.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

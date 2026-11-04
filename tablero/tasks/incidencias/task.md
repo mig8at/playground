@@ -224,6 +224,10 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   `change-phone` están en `main` de legacy-backend y en el tag `v0.6.41`, y en local la ruta que llama el front
   contesta 200.
 
+- [ ] Que el auto-onboarding use el pipeline de KYC cuando el comercio va por él: hoy `auto-onboarding/verifying.tsx` y
+  `otp.tsx` (frontend-monorepo) usan sólo los repositorios v1, y el formulario normal elige por `resolveKycFlow`. Leído en
+  `main` (2026-11-03); falta correrlo en local con un comercio en el pipeline y con auto-onboarding. Borrador 22.
+
 ### Baja — documentación y comentarios que dicen lo contrario del código
 
 - [ ] Corregir el comentario de `ValidateInitialFeePaid` («fuera de ecommerce la cuota inicial nunca pasa
