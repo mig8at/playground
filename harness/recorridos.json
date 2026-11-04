@@ -124,6 +124,16 @@
       "scope": "entidad",
       "when": "lender_requirements.manual_approval = 1"
     },
+    "dynamic-form": {
+      "name": "Formulario adicional",
+      "scope": "entidad",
+      "when": "la entidad tiene un formulario dinámico en alguno de sus dos puntos: después de elegirla o antes de firmar",
+      "measured": "dynamic_form_placements por entidad; sin filas para ese punto, el respaldo: lender_requirements.dynamic_form_is_enabled con su formulario (después de elegir) o form_types.lender_id activo (antes de firmar). Ignora la línea de crédito.",
+      "placements": {
+        "post_lender_selection": "después de elegir la entidad",
+        "pre_sign_documents": "antes de firmar"
+      }
+    },
     "imei": {
       "name": "IMEI",
       "scope": "entidad",

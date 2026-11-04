@@ -74,6 +74,7 @@ Las variaciones vigentes, con lo que las activa:
 | variación | se activa cuando | se decide |
 |---|---|---|
 | **Ábaco** | la entidad tiene `lender_requirements.abaco_is_enabled` y el cliente no tiene una consulta vigente | por entidad (`AbacoRequirementService`) |
+| **Formulario adicional** | la entidad tiene un formulario dinámico después de elegirla o antes de firmar; la tabla central de ubicaciones manda y, sin filas para ese punto, se hereda de la configuración anterior | por entidad (`LenderFormPlacementResolver`) |
 | **Aprobación manual** | la entidad tiene `lender_requirements.manual_approval`: un asesor aprueba antes de seguir | por entidad |
 | **IMEI** | la entidad tiene la ruta `IMEI` (`lenders.path_id`): el equipo financiado es la garantía | por entidad (`ImeiValidationService`, `otp-validation.tsx`) |
 | **Codeudor** | la categoría del cliente en esa entidad tiene `requires_cosigner` | por cliente (`CosignerRequirementService`) |
@@ -97,6 +98,15 @@ validación de identidad, sólo si la entidad lo pide. Lo que devuelve se usa de
 
 La consulta vale por persona durante su vigencia, no por solicitud ([requisitos de
 Ábaco](knowledge:abaco-requirements)).
+
+El codeudor se decide por **rangos de la política**, no por una bandera de la entidad. Las categorías
+de la etapa extendida (tipo 2) se evalúan en orden de prioridad y gana la primera cuyas reglas cumple
+el cliente ([perfiles de una entidad](knowledge:lender-profile-rules)); el codeudor lo pide esa
+categoría con `requires_cosigner`. Así, una entidad puede tener una categoría «directa» con un ingreso
+mínimo alto y otra «con codeudor» con un ingreso mínimo más bajo: quien no alcanza el primer rango cae
+en el segundo y se le pide codeudor. El ingreso que se compara es el total de `MonthlyIncomeResolver`,
+así que el informal de Ábaco puede subir a alguien de rango. El codeudor se evalúa con su propio juego
+de reglas, y su firma tiene recorrido aparte ([firma del codeudor](knowledge:cosigner-signature)).
 
 La cuota inicial es además la variación que depende del canal. `InitialFeePolicyResolver` es su única
 autoridad y sólo resuelve los tipos 2 y 3; con cualquier otro riel no hay cuota inicial. El porcentaje

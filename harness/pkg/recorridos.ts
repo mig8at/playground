@@ -47,6 +47,8 @@ export interface LenderFacts {
     abaco: boolean;
     manualApproval: boolean;
     cosignerCategory: boolean;
+    /** Los puntos del formulario adicional que tiene encendidos (`post_lender_selection`, `pre_sign_documents`). */
+    dynamicForms: string[];
     initialFeeCategory: boolean;
     /** El perfil del riel 4: `undefined` si la base no tiene la tabla, `null` si no hay fila, o su `formalization`. */
     profileFormalization?: string | null;
@@ -87,13 +89,27 @@ async function tableExists(table: string): Promise<boolean> {
  * la de `lenders_by_allied_branches`, la misma que el listado usa para decidir qué ve el comercio.
  */
 export async function measureLenders(opts: { branchHash?: string; lenderIds?: number[] }): Promise<LenderFacts[]> {
-    const [hasProduct, hasServiced, hasRequirements, hasManual, hasProfiles] = await Promise.all([
+    const [hasProduct, hasServiced, hasRequirements, hasManual, hasProfiles, hasPlacements, hasFormLender, hasDynFlag] = await Promise.all([
         columnExists('lenders', 'product'),
         columnExists('lenders', 'externally_serviced'),
         tableExists('lender_requirements'),
         columnExists('lender_requirements', 'manual_approval'),
         tableExists('delegated_origination_profiles'),
+        tableExists('dynamic_form_placements'),
+        columnExists('form_types', 'lender_id'),
+        columnExists('lender_requirements', 'dynamic_form_is_enabled'),
     ]);
+    // El formulario adicional, con la precedencia de LenderFormPlacementResolver: si la tabla central tiene filas de
+    // la entidad para ese punto, manda (encendida o apagada); si no, se hereda del respaldo de cada punto.
+    const central = (placement: string, fallback: string) => hasPlacements
+        ? `CASE WHEN EXISTS (SELECT 1 FROM dynamic_form_placements dp WHERE dp.scope_type = 'lender' AND dp.scope_id = l.id AND dp.placement = '${placement}')
+                THEN EXISTS (SELECT 1 FROM dynamic_form_placements dp WHERE dp.scope_type = 'lender' AND dp.scope_id = l.id AND dp.placement = '${placement}' AND dp.is_enabled = 1)
+                ELSE ${fallback} END`
+        : fallback;
+    const formPost = central('post_lender_selection', hasDynFlag
+        ? 'EXISTS (SELECT 1 FROM lender_requirements lr WHERE lr.lender_id = l.id AND lr.dynamic_form_is_enabled = 1 AND lr.dynamic_form_type_id IS NOT NULL)' : '0');
+    const formPre = central('pre_sign_documents', hasFormLender
+        ? 'EXISTS (SELECT 1 FROM form_types ft WHERE ft.lender_id = l.id AND ft.status = 1)' : '0');
     const product = hasProduct ? "COALESCE(l.product, 'credit')" : 'NULL';
     const serviced = hasServiced ? 'l.externally_serviced' : 'NULL';
     const abaco = hasRequirements ? '(SELECT MAX(lr.abaco_is_enabled) FROM lender_requirements lr WHERE lr.lender_id = l.id)' : '0';
@@ -107,6 +123,7 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
             ${abaco} AS abaco, ${manual} AS manual,
             EXISTS (SELECT 1 FROM lender_users_categories c WHERE c.lender_id = l.id AND c.active = 1 AND c.requires_cosigner = 1) AS cosigner,
             EXISTS (SELECT 1 FROM lender_users_categories c WHERE c.lender_id = l.id AND c.active = 1 AND c.min_initial_fee > 0) AS initial_fee,
+            (${formPost}) AS form_post, (${formPre}) AS form_pre,
             ${profile}`;
     let rows: any[];
     if (opts.branchHash) {
@@ -142,6 +159,7 @@ export async function measureLenders(opts: { branchHash?: string; lenderIds?: nu
         manualApproval: Number(r.manual) === 1,
         cosignerCategory: Number(r.cosigner) === 1,
         initialFeeCategory: Number(r.initial_fee) === 1,
+        dynamicForms: [Number(r.form_post) === 1 ? 'post_lender_selection' : '', Number(r.form_pre) === 1 ? 'pre_sign_documents' : ''].filter(Boolean),
         profileFormalization: hasProfiles ? (r.formalization == null ? null : String(r.formalization)) : undefined,
         hasProfile: hasProfiles ? Number(r.has_profile) > 0 : undefined,
     }));
@@ -170,6 +188,12 @@ export function classify(f: LenderFacts, cat: Catalog, channel?: string): Path {
     };
     if (f.abaco) add('abaco', false);
     if (f.manualApproval) add('manual-approval', false);
+    if (f.dynamicForms.length) {
+        const places = cat.variations['dynamic-form'] as { placements?: Record<string, string> };
+        add('dynamic-form', false);
+        const last = variations[variations.length - 1];
+        if (last?.id === 'dynamic-form') last.name += ` (${f.dynamicForms.map((p) => places.placements?.[p] ?? p).join(' y ')})`;
+    }
     if (f.path === 'IMEI') add('imei', false);
     else if (f.path !== 'default') warnings.push(`la ruta «${f.path}» no está en el catálogo`);
     if (f.cosignerCategory) add('cosigner', true);
@@ -260,4 +284,90 @@ export async function measureFields(branchHash: string, cat: Catalog): Promise<F
     out.push({ id: 'employment', name: f.employment.name, asked: hasEmp ? flag(row.emp) : null,
         why: hasEmp ? `${row.emp == null ? 'el comercio no lo dice: se recauda' : 'collect_employment_info del comercio'}; sólo si no contestó Ágil Data ni Mareigua` : 'la base no tiene la columna' });
     return out;
+}
+
+// ─── en el LOG de una corrida ───────────────────────────────────────────────────────────────────────
+// Cada navegación del caminador dice a qué pieza del recorrido pertenece. Sale del mismo mapa del panel
+// (`panel/steps.json`), así que lo que dibuja el panel y lo que dice el log no pueden divergir. Las rutas del
+// mapa son PLANTILLAS (`/{flow}/{hash}/{ur}/lenders`): se comparan convertidas a expresión regular.
+
+const STEPS_FILE = fileURLToPath(new URL('../panel/steps.json', import.meta.url));
+
+/** Rutas que el mapa no tiene como nodo pero son de una variación del catálogo. */
+const EXTRA_PIECES: Array<[RegExp, string]> = [
+    [/\/cosigner(\/|$)/, 'variación Codeudor'],
+    [/\/down-payment(\/|$)|\/initial-fee-payment|\/down-payment-validation/, 'variación Cuota inicial'],
+    [/\/dynamic-form\/|\/formulario\//, 'variación Formulario adicional'],
+    [/\/imei(\/|$)/, 'variación IMEI'],
+    [/\/manual-approval-pending/, 'variación Aprobación manual'],
+    [/\/bancolombia\//, 'canal Bancolombia'],
+];
+
+let routeIndex: Array<{ re: RegExp; piece: string }> | null = null;
+
+function buildRouteIndex(): Array<{ re: RegExp; piece: string }> {
+    const steps = JSON.parse(readFileSync(STEPS_FILE, 'utf8'));
+    const out: Array<{ re: RegExp; piece: string }> = [];
+    const add = (pasos: any[] | undefined, prefix: string) => {
+        for (const p of pasos ?? []) {
+            // Una ruta con texto al lado («… (sin navegación)», «… → URL externa») no es una pantalla propia.
+            const raw = String(p?.ruta ?? '');
+            if (!raw.startsWith('/') || /\s/.test(raw)) continue;
+            const ruta = raw.split('?')[0];
+            const re = new RegExp('^' + ruta.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '[^/]+') + '/?$');
+            out.push({ re, piece: `${prefix} · ${p.label}` });
+        }
+    };
+    // Primero lo específico (desvíos, ramas, entradas) y al final el tramo común: una ruta del tronco
+    // con plantilla genérica no debe tapar a una de una variación.
+    for (const [, d] of Object.entries<any>(steps.desvios ?? {})) add(d.pasos, `variación ${d.label}`);
+    for (const [k, r] of Object.entries<any>(steps.ramales ?? {})) add(r.pasos, k === 'creditopx' ? 'en casa' : r.label);
+    for (const [, e] of Object.entries<any>(steps.extensiones ?? {})) add(e.pasos, 'desenlace');
+    for (const [k, e] of Object.entries<any>(steps.entradas ?? {})) if (!k.startsWith('_')) add(e.pasos, `canal ${e.canal === 'auto' ? 'Tienda' : e.label}`);
+    add(steps.terminales?.pasos, 'terminal');
+    add(steps.tronco, 'tramo común');
+    return out;
+}
+
+/** La pieza del recorrido de una ruta del asistente («tramo común · Oferta», «variación Ábaco · Plataformas»…), o null. */
+export function pieceOfRoute(path: string): string | null {
+    const clean = path.split('?')[0].split('#')[0];
+    for (const [re, piece] of EXTRA_PIECES) if (re.test(clean)) return piece;
+    try { routeIndex ??= buildRouteIndex(); } catch { return null; }
+    return routeIndex.find((x) => x.re.test(clean))?.piece ?? null;
+}
+
+/** El canal del catálogo para el `FLOW` del caminador (merchant · self-service · ecommerce). */
+export function channelOfFlow(flow: string): string {
+    return flow === 'ecommerce' ? 'store' : flow === 'self-service' ? 'self-service' : 'advisor';
+}
+
+/**
+ * Las líneas que el log de una corrida imprime al elegir la entidad: el recorrido que le toca, con los
+ * campos del formulario de la sucursal y lo que hay que saber para leer el resto. No consulta nada que no
+ * consulte `make harness-recorrido`; si la base no contesta, devuelve una sola línea que lo dice.
+ */
+export async function routeSummary(lenderId: number, branchHash: string, flow: string): Promise<string[]> {
+    try {
+        const cat = readCatalog();
+        const channel = channelOfFlow(flow);
+        const [facts] = await measureLenders({ lenderIds: [lenderId] });
+        if (!facts) return [`recorrido: la entidad ${lenderId} no está en esta base`];
+        const p = classify(facts, cat, channel);
+        const out = [
+            `recorrido: ${cat.channels[channel]?.name.toLowerCase() ?? channel} · ${p.line}`,
+            `   riel ${p.rail} ${p.railName}: política ${p.policyOwner}, se origina ${p.origination.replace('-', ' ')}`,
+        ];
+        for (const n of p.notes) out.push(`   ${n}`);
+        for (const w of p.warnings) out.push(`   ⚠ ${w}`);
+        const fields = await measureFields(branchHash, cat).catch(() => []);
+        const asked = fields.filter((f) => f.asked).map((f) => f.name.toLowerCase());
+        if (fields.length) out.push(`   formulario: ${asked.length ? asked.join(', ') : 'sólo lo básico'}`);
+        const birth = fields.find((f) => f.id === 'birth-date');
+        if (birth && !birth.asked) out.push(`   fecha de nacimiento: ${birth.why}`);
+        if (p.variations.some((v) => v.conditional)) out.push('   `?` = la pide la categoría que le toque al cliente');
+        return out;
+    } catch (e: any) {
+        return [`recorrido: no se pudo medir (${e?.message ?? e})`];
+    }
 }

@@ -84,6 +84,9 @@ export type TraceOpts = {
      *  el runner visual, cuyas rutas son cortas; el de endpoints camina rutas con flujo, hash y query,
      *  y con 54 la columna se desalinea. */
     ancho?: number;
+    /** A qué pieza del recorrido pertenece una ruta (`pieceOfRoute` de `pkg/recorridos.ts`): va al final de la
+     *  línea, para leer la corrida en el vocabulario del negocio y no sólo en rutas. */
+    pieza?: (path: string) => string | null;
 };
 
 /** UNA traza: una solicitud, su contador, sus alertas y su cola. Instanciá una por caso. */
@@ -109,11 +112,13 @@ export class Trace {
     private readonly salida: (l: string) => void;
     private readonly prefijo: string;
     private readonly ancho: number;
+    private readonly pieza?: (path: string) => string | null;
 
     constructor(opts: TraceOpts = {}) {
         this.salida = opts.salida ?? ((l) => console.log(l));
         this.prefijo = opts.prefijo ?? '';
         this.ancho = opts.ancho ?? (useColor ? 62 : 54);
+        this.pieza = opts.pieza;
     }
 
     /** Cuántos pasos lleva registrados (ya drenados o no). */
@@ -166,7 +171,9 @@ export class Trace {
             // `ventana` vacía es legítima (el runner de endpoints no tiene A/B): sin esto queda un
             // espacio doble en cada línea.
             const left = `${idx} ${window ? `${bold(window)} ` : ''}${path}`.padEnd(this.ancho);
-            const queue = suffix ? `   ${gray(suffix)}` : '';
+            let piece: string | null = null;
+            try { piece = this.pieza?.(path) ?? null; } catch { /* la pieza es un extra */ }
+            const queue = (suffix ? `   ${gray(suffix)}` : '') + (piece ? `   ${gray(`⟨${piece}⟩`)}` : '');
             const snapshot_ = async () => {
                 if (!snapshot) return;
                 const f = await snapshot(n).catch(() => null);

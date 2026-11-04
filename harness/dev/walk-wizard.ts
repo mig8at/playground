@@ -101,6 +101,8 @@ const { joinAsCosigner, coSignerSignature, cosignerApi } = await import('../pkg/
 const { findBranch: findBranchIn, merchantDocumentType: documentType } = await import('../pkg/merchants.ts');
 const { postHogForensic } = await import('../pkg/posthog.ts');
 const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
+// El vocabulario de los recorridos en el log: cada paso dice su pieza y, al elegir la entidad, su recorrido entero.
+const { pieceOfRoute, routeSummary } = await import('../pkg/recorridos.ts');
 const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
@@ -436,7 +438,7 @@ async function correr(c: Case, i: number): Promise<Result> {
     }
     // La traza de ESTE caso. Su salida va al buffer del caso, no a consola: en paralelo, N casos
     // escribiendo a la vez dan un log ilegible.
-    const t = createTrace({ salida: (l) => lines.push(l), ancho: 74 });
+    const t = createTrace({ salida: (l) => lines.push(l), ancho: 74, pieza: pieceOfRoute });
 
     /** Una pantalla: la carga (su loader) y la contrasta con la BD. Devuelve la respuesta del loader. */
     const screen = async (routePath: string) => {
@@ -610,6 +612,8 @@ async function correr(c: Case, i: number): Promise<Result> {
                 continue;
             }
             if (!chosenLender) return finish('trabado', `la entidad ${order || '(ninguna rt=2)'} no salió en el listado${reseeded ? ' (ni después de resembrar para ella: la exclusión es del comercio)' : ''}`);
+            // El recorrido que le toca a la entidad elegida, en el vocabulario del catálogo (recorridos.json).
+            for (const l of await routeSummary(Number(chosenLender.id), br.hash, FLOW)) log(l);
             if (!flag('close')) return finish('listo', `listó ${options.length} entidad(es), con la pedida (${order})`);
             // El mismo payload que arma `useLenderSelection.ts`. `amount` va igual al pedido: el
             // cálculo de garantía que hace el cliente (financedAmountWithGuarantee) no se replica acá.
@@ -931,7 +935,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
     const r: Result = { caso: c.ref + (c.lender ? `:${c.lender}` : ''), ur: null, tel, doc, pantallas: 0,
         listado: [], enListado: null, fin: 'trabado', motivo: '', estado: null, ms: 0, lineas: lines };
     const walkedPaths: string[] = [];
-    const t = createTrace({ salida: (l) => lines.push(l), ancho: 74 });
+    const t = createTrace({ salida: (l) => lines.push(l), ancho: 74, pieza: pieceOfRoute });
     const evidenceDir = `.runs/caminar-${new Date(t0).toISOString().slice(0, 19).replace(/[:T]/g, '')}-caso${i}`;
 
     const br = await findBranch(c.ref);

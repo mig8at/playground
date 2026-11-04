@@ -115,6 +115,11 @@ cada entidad. No se guarda: el riel de una misma entidad cambia entre ambientes.
 suite o tocar un runner, ubicá el cambio: **encaja** (sólo ajustes), **encaja con variación** (una
 variación o formalización que el catálogo no tiene) o **recorrido nuevo**.
 
+El caminador lo escribe en su log: cada paso termina con su pieza (`⟨tramo común · Oferta⟩`,
+`⟨variación Ábaco · Plataformas⟩`, `⟨en casa · Firma⟩`), sacada del mismo `panel/steps.json` que dibuja
+el mapa, y al elegir la entidad imprime su recorrido, los campos del formulario de la sucursal y, si la
+fecha de nacimiento no se escribe, que la edad se estima. `harness-case` todavía no lo hace.
+
 ## Cuándo cargar una skill
 
 Lo profundo vive en skills, y se carga cuando hace falta:
