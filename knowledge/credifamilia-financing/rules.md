@@ -18,8 +18,8 @@ caer en Salud.
 solicitud y conserva el resultado por solicitud dentro de la instancia. Sólo acepta la respuesta
 si es 2xx, trae `status === 'approved'` y su `lending_product_id` es idéntico, como texto, al id de
 la entidad que envió (un id numérico no coincide); un fallo de conexión, otro estado o un id
-distinto se tratan igual que no haber preaprobación. Del `transaction_data` toma las tasas; el
-plan convierte la TEA porcentual a decimal. El IVA predeterminado del builder es `0.19`. El
+distinto se tratan igual que no haber preaprobación. Del `transaction_data` toma la TEA y el
+porcentaje de seguro de vida, y el builder divide los dos por 100 antes del motor. El IVA predeterminado del builder es `0.19`. El
 `max_amount` se guarda en `partner_limits` bajo el nombre del comercio de la solicitud, o `Gaes`
 si no tiene comercio; es sólo la clave con la que el motor lo vuelve a leer, no cambia el valor.
 
@@ -95,8 +95,12 @@ la tabla FNG no dependen de la preaprobación, así que `montoTotalCredito` igua
 fianza financiada.
 
 El builder del plan falla cuando no obtiene preaprobación o `transaction_data`, o cuando el plazo
-no está en la tabla FNG; el resumen devuelve un error de cálculo. Si el comprobante no consigue el
-resumen, usa el desglose genérico para el total y deja vacíos varios componentes de fianza. No
+no está en la tabla FNG; el resumen devuelve un error de cálculo. El resumen también falla si la
+solicitud no tiene una entidad Credifamilia. `OnboardingPayloadBuilder` recibe el resumen y el
+desglose genérico del contenedor: el constructor los declara anulables sin valor por defecto, y
+sólo quien lo construye a mano y pasa `null` lo deja sin ellos. Si el comprobante no consigue el
+resumen (servicio nulo, excepción o `success: false`), usa el desglose genérico para el total y
+deja vacíos varios componentes de fianza. No
 inferir que hubo preaprobación válida o fianza financiada por encontrar un total en cualquiera de
 esas salidas.
 
@@ -116,13 +120,15 @@ ese último día.
   de la preaprobación) y, si la fianza es Vencida, total de fianza / plazo. Con Anticipada la fianza
   ya está en el capital y no se cobra por cuota.
 
-Sólo se aceptan los días de pago 2 y 16; el servicio de fechas ofrece las dos próximas que cumplen
-la regla de 30 días. El listado de plazos recorre los `fee_numbers` de la línea de crédito de la
+El plan de cuotas sólo acepta los días de pago 2 y 16, y el servicio de fechas ofrece las dos
+próximas que cumplen la regla de 30 días. El resumen no valida el día: lo toma de
+`selected_payment_date`, con desembolso hoy. El listado de plazos recorre los `fee_numbers` de la línea de crédito de la
 entidad de la solicitud, calcula con día 2 y desembolso hoy, y muestra la cuota 2 como
 representativa porque la 1 lleva el interés diario.
 
 Límites: el Days360 del código sólo ajusta el día 31, no el fin de febrero como DAYS360 de Excel, y
 la calculadora del proveedor cuenta los 30 días en días calendario: en los bordes de mes la primera
 fecha puede diferir. El seguro se calcula sobre el total a desembolsar, no sobre el monto
-solicitado. `max_amount` de la preaprobación debe ser mayor que cero, pero no topa el monto: sólo
-produce `available_amount` (total − máximo).
+solicitado. `max_amount` de la preaprobación debe ser mayor que cero, pero no topa el monto: el
+motor sólo deriva `available_amount` (total − máximo). El listado de plazos, en cambio, expone
+como `available_amount` el propio `max_amount`, y como `interest_rate` la tasa mensual.
