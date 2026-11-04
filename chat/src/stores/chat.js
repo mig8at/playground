@@ -352,8 +352,17 @@ export const useChatStore = defineStore('chat', () => {
     const stored = () => notes.value.find((n) => n.id === reply.id)
     try {
       const tasks = (myTasks.value || []).map((t) => ({ titulo: t.titulo, estado: t.bloqueo ? `bloqueada: depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso' }))
-      const r = await post('/api/my-agent/ask', { model: mine.agent.model, name: mine.agent.name, owner: ownerName(), rules: RULES, tasks, history, text: body })
-      Object.assign(stored() || {}, { text: r.text, status: '', steps: r.steps || [] })
+      const { id } = await post('/api/my-agent/ask', { model: mine.agent.model, name: mine.agent.name, owner: ownerName(), rules: RULES, tasks, history, text: body })
+      // Los pasos llegan mientras trabaja: se piden cada segundo hasta que contesta.
+      for (;;) {
+        await new Promise((r) => setTimeout(r, 1000))
+        const job = await api(`/api/my-agent/jobs/${id}`)
+        Object.assign(stored() || {}, { steps: job.steps || [] })
+        if (!job.done) continue
+        if (job.error) throw new Error(job.error)
+        Object.assign(stored() || {}, { text: job.text, status: '' })
+        break
+      }
     } catch (e) {
       Object.assign(stored() || {}, { text: e.message, status: 'error' })
     }

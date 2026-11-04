@@ -21,9 +21,11 @@ import { useChatStore } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
+import RegionMenu from './RegionMenu.vue'
+import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
 import {
-  vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute,
+  vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
@@ -83,6 +85,10 @@ function routeKey() {
   return parts[0] === 'c' && parts[1] ? parts[1].toLowerCase() : ''
 }
 function applyRoute() {
+  // `#/server/<id>`: un server abierto en el editor.
+  const { parts } = readHashRoute()
+  if (parts[0] === 'server' && parts[1]) { serverOpen.value = parts[1]; return }
+  serverOpen.value = ''
   // `#/mi-agente`, de cuando era una pantalla: abre la región de la derecha.
   if (readHashRoute().parts[0] === 'mi-agente') { setAgentOpen(true); chat.activeKey = ''; return }
   const key = routeKey()
@@ -91,10 +97,13 @@ function applyRoute() {
   else if (key && !key.startsWith('agent:')) chat.open({ email: key, name: key.split('@')[0] })
   else chat.activeKey = ''
 }
-watch(() => chat.activeKey, (key) => {
-  const target = key ? hashRoute(['c', key]) : ''
+// Lo que se mira va en la URL: la conversación (`#/c/<clave>`) o el server abierto (`#/server/<id>`).
+function writeRoute() {
+  const target = serverOpen.value ? hashRoute(['server', serverOpen.value]) : chat.activeKey ? hashRoute(['c', chat.activeKey]) : ''
   if (target !== (location.hash || '')) setRoute(`${location.pathname}${location.search}${target}`, { push: true })
-})
+}
+watch(() => chat.activeKey, writeRoute)
+watch(serverOpen, writeRoute)
 
 // ── las regiones: el sidebar a la izquierda, con el contrato de la base ──
 const sidebarOpen = ref(readSize('chat.sidebar-open', 1) !== 0)
@@ -143,11 +152,35 @@ function onConsoleScroll() {
   const el = consoleBody.value
   if (el) consoleFollow.value = el.scrollHeight - el.scrollTop - el.clientHeight < 24
 }
-const consoleLines = computed(() => (openServer.value?.log || []).map((l) => {
-  const time = l.slice(0, 8)
-  const text = l.slice(10)
-  return { time, text, command: text.startsWith('$ '), ok: text.startsWith('✓'), bad: text.startsWith('✗') }
-}))
+/* La consola en pestañas por paso de «Levantar»: cada línea es del paso que la abrió (las marcas que escribe
+   server/servers.go). «Todo» muestra la corrida entera. */
+const CONSOLE_TABS = [
+  { id: 'all', label: 'Todo' },
+  { id: 'app', label: 'App' },
+  { id: 'tunnel', label: 'Túnel' },
+  { id: 'store', label: 'Tienda' },
+]
+const PHASE_MARKS = [
+  [/^Prendiendo la app|^✓ la app contesta/, 'app'],
+  [/^Abriendo el túnel|^✓ túnel|^túnel apagado|^el túnel .* terminal|^no había túnel/, 'tunnel'],
+  [/^Apuntando la app|^Subiendo la extensión|^✓ listo/, 'store'],
+]
+const consoleTab = ref('all')
+const allConsoleLines = computed(() => {
+  let phase = 'app'
+  return (openServer.value?.log || []).map((l) => {
+    const time = l.slice(0, 8)
+    const text = l.slice(10)
+    for (const [re, p] of PHASE_MARKS) if (re.test(text)) { phase = p; break }
+    return { time, text, phase, command: text.startsWith('$ '), ok: text.startsWith('✓'), bad: text.startsWith('✗') }
+  })
+})
+const consoleLines = computed(() => (consoleTab.value === 'all' ? allConsoleLines.value : allConsoleLines.value.filter((l) => l.phase === consoleTab.value)))
+const phaseCount = (id) => (id === 'all' ? allConsoleLines.value.length : allConsoleLines.value.filter((l) => l.phase === id).length)
+// Maximizar la consola (temporal, como en la base): el botón se ata cuando la consola aparece.
+const consoleMax = ref(null)
+let consoleMaxBinding = null
+watch(consoleMax, (el) => { consoleMaxBinding?.destroy(); consoleMaxBinding = el ? bindPanelMaximize(el) : null })
 watch(() => consoleLines.value.length, async () => {
   if (!consoleFollow.value) return
   await nextTick()
@@ -440,6 +473,16 @@ function clearActive() {
   const c = chat.active
   if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
 }
+// Lo poco frecuente, al menú «⋯» de cada región (la base: en la barra, lo frecuente; en el menú, lo demás).
+const conversationMenu = computed(() => [
+  { id: 'clear', label: 'Vaciar chat', icon: 'trash' },
+  { id: 'forget', label: 'Borrar la conversación de este navegador', icon: 'close' },
+])
+function onConversationMenu(id) { if (id === 'clear') clearActive(); else if (id === 'forget') forgetActive() }
+const myChatMenu = computed(() => [{ id: 'clear', label: 'Vaciar tu conversación con tu agente', icon: 'trash', disabled: !chat.notes.length }])
+function onMyChatMenu(id) { if (id === 'clear') clearNotes() }
+const ownAgentMenu = computed(() => [{ id: 'off-all', label: 'Apagar todos tus agentes', icon: 'stop', disabled: ownBusy.value || !chat.ownAgents.some((a) => a.on) }])
+function onOwnAgentMenu(id) { if (id === 'off-all') shutDownOwnAgents() }
 function clearNotes() {
   if (window.confirm('¿Vaciar tu conversación con tu agente? Sólo está en este navegador: no se puede recuperar.')) chat.clearNotes()
 }
@@ -534,7 +577,7 @@ const statusText = computed(() => {
               </span>
             </button>
             <button type="button" class="conv-del" title="Borrar conversación" aria-label="Borrar conversación"
-                    @click.stop="deleteConversation(c)">✕</button>
+                    @click.stop="deleteConversation(c)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </li>
           <li v-for="p in onlineWithoutChat" :key="p.email">
             <button type="button" class="conversation" @click="serverOpen = ''; chat.open(p)">
@@ -597,7 +640,7 @@ const statusText = computed(() => {
         <ul class="conversations">
           <li v-for="s in servers" :key="s.id">
             <button type="button" class="conversation" :class="{ on: serverOpen === s.id }" @click="serverOpen = serverOpen === s.id ? '' : s.id">
-              <span class="avatar tool" aria-hidden="true">S<i v-if="s.ready" class="presence"></i></span>
+              <span class="avatar tool" aria-hidden="true"><span class="ui-icon" data-icon="server"></span><i v-if="s.ready" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ s.name }}</b></span>
                 <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo · ' + s.tunnelUrl : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
@@ -627,23 +670,13 @@ const statusText = computed(() => {
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
-            <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y deja la conversación"
-                    aria-label="Vaciar chat" @click="clearActive">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-            </button>
-            <button type="button" class="region-action" title="Borrar esta conversación de este navegador"
-                    aria-label="Borrar esta conversación de este navegador" @click="forgetActive">
-              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-            </button>
+            <RegionMenu title="Más opciones de la conversación" :items="conversationMenu" @select="onConversationMenu" />
           </div>
         </template>
         <template v-else>
           <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
-            <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
-                    aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-            </button>
+            <RegionMenu title="Más opciones de Mi chat" :items="myChatMenu" @select="onMyChatMenu" />
           </div>
         </template>
       </div>
@@ -685,18 +718,24 @@ const statusText = computed(() => {
             <img v-if="mine.agent.avatar" class="agent-avatar" :src="mine.agent.avatar" alt="">
             <div class="bubble" :class="{ failed: n.status === 'error' }">
               <span class="published-label">{{ agentLabel }}<template v-if="n.model"> · {{ modelName(n.model) }}</template></span>
-              <p v-if="n.status === 'pensando'" class="text thinking">pensando… (si lee tu playground, tarda un poco más)</p>
-              <p v-else class="text">{{ n.text }}</p>
-              <details v-if="n.steps?.length" class="agent-steps">
+              <template v-if="n.status === 'pensando'">
+                <p class="text thinking">{{ n.steps?.length ? 'trabajando…' : 'pensando…' }}</p>
+                <ul v-if="n.steps?.length" class="live-steps">
+                  <li v-for="(st, i) in n.steps" :key="i"><b>{{ st.tool }}</b> <code>{{ st.detail }}</code></li>
+                </ul>
+              </template>
+              <p v-else-if="n.status === 'error'" class="text">{{ n.text }}</p>
+              <div v-else class="text md" v-html="renderMarkdown(n.text)"></div>
+              <details v-if="n.steps?.length && n.status !== 'pensando'" class="agent-steps">
                 <summary>{{ stepsSummary(n.steps) }}</summary>
                 <ul><li v-for="(st, i) in n.steps" :key="i"><b>{{ st.tool }}</b> <code>{{ st.detail }}</code></li></ul>
               </details>
               <span class="meta">{{ clock(n.time) }}</span>
             </div>
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)">✕</button>
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <div v-else class="bubble-row out">
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)">✕</button>
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
             <div class="bubble">
               <p class="text">{{ n.text }}</p>
               <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
@@ -775,7 +814,9 @@ const statusText = computed(() => {
                 <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
                 <template v-else>
                   <p v-if="item.summary" class="summary">{{ item.summary }}</p>
-                  <p class="text">{{ item.text }}</p>
+                  <!-- Lo que contesta un agente viene con formato: Markdown seguro (escapa todo y entiende una lista corta). -->
+                  <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
+                  <p v-else class="text">{{ item.text }}</p>
                 </template>
                 <p v-if="item.backed === false" class="unbacked">El corpus no la respalda del todo: tomala como pista, no como regla.</p>
                 <ul v-if="item.sources?.length" class="sources" aria-label="Fuentes">
@@ -851,6 +892,7 @@ const statusText = computed(() => {
             <button type="button" class="switch" role="switch" :aria-checked="activeOwnAgent.on" :disabled="ownBusy" @click="toggleOwnAgent"
                     :title="activeOwnAgent.on ? 'Apagar: deja de contestarle al equipo' : 'Prender: el equipo lo vuelve a ver'"
                     :aria-label="activeOwnAgent.on ? `Apagar a ${activeOwnAgent.name}` : `Prender a ${activeOwnAgent.name}`"></button>
+            <RegionMenu title="Más opciones del agente" :items="ownAgentMenu" @select="onOwnAgentMenu" />
             <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="setOwnPanelOpen(false)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
@@ -860,14 +902,15 @@ const statusText = computed(() => {
           <p>{{ activeOwnAgent.description }}</p>
           <dl>
             <dt>Estado</dt>
-            <dd>{{ activeOwnAgent.on ? (activeOwnAgent.listening ? 'le contesta al equipo' : 'prendido, pero su puerto no contesta: `make chat` lo levanta') : 'apagado: el equipo no lo ve y no contesta' }}</dd>
+            <dd v-if="!activeOwnAgent.on">apagado: el equipo no lo ve y no contesta</dd>
+            <dd v-else-if="activeOwnAgent.listening">le contesta al equipo</dd>
+            <dd v-else>prendido, pero su puerto no contesta: <code>make chat</code> lo levanta</dd>
             <dt>Dónde escucha</dt>
             <dd><code>{{ activeOwnAgent.url }}</code>, sólo en esta máquina</dd>
             <dt>Se declara en</dt>
             <dd><code>~/playground/team/agents.json</code></dd>
           </dl>
           <p v-if="chat.ownAgentsError" class="bad">{{ chat.ownAgentsError }}</p>
-          <button type="button" class="btn btn-outline btn-sm" :disabled="ownBusy || !chat.ownAgents.some((a) => a.on)" @click="shutDownOwnAgents">Apagar todos tus agentes</button>
         </div>
       </template>
       <template v-else>
@@ -890,18 +933,23 @@ const statusText = computed(() => {
     <!-- ── la consola de un server: lo que imprime cada comando mientras corre ─────────────── -->
     <section v-if="openServer && panelShown" class="panel" aria-label="Consola">
       <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
-      <div class="region-head">
-        <span>Consola <span class="count">{{ openServer.busy ? openServer.step || 'corriendo…' : consoleLines.length ? `${consoleLines.length} líneas` : '' }}</span></span>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button v-for="t in CONSOLE_TABS" :key="t.id" type="button" role="tab" class="tab" :class="{ on: consoleTab === t.id }"
+                :aria-selected="consoleTab === t.id" @click="consoleTab = t.id">
+          {{ t.label }} <span v-if="phaseCount(t.id)" class="count">{{ phaseCount(t.id) }}</span>
+        </button>
         <div class="region-actions">
+          <span v-if="openServer.busy" class="count console-step">{{ openServer.step || 'corriendo…' }}</span>
+          <button ref="consoleMax" type="button" class="region-action"><span class="ui-icon" aria-hidden="true"></span></button>
           <button type="button" class="region-action" title="Ocultar la consola" aria-label="Ocultar la consola" @click="setConsoleOpen(false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
-      </div>
+      </nav>
       <div ref="consoleBody" class="region-body console" @scroll="onConsoleScroll">
-        <p v-if="!consoleLines.length" class="console-empty">Acá se ve lo que va haciendo «Levantar»: cada comando con su salida.</p>
-        <div v-for="(l, i) in consoleLines" :key="i" class="console-line" :class="{ command: l.command, ok: l.ok, bad: l.bad }">
-          <span class="console-time">{{ l.time }}</span><span class="console-text">{{ l.text }}</span>
+        <p v-if="!consoleLines.length" class="console-empty">{{ allConsoleLines.length ? 'Este paso todavía no escribió nada.' : 'Acá se ve lo que va haciendo «Levantar»: cada comando con su salida.' }}</p>
+        <div v-for="(l, i) in consoleLines" :key="i" class="log-line" :class="{ 'is-command': l.command, 'is-ok': l.ok, 'is-bad': l.bad }">
+          <span class="log-time">{{ l.time }}</span><span class="log-text">{{ l.text }}</span>
         </div>
       </div>
     </section>
@@ -954,14 +1002,14 @@ const statusText = computed(() => {
 
 <style scoped>
 code { font-family: var(--font-mono); font-size: .92em }
-.console { font-family: var(--font-mono); font-size: var(--text-xs); padding: var(--space-2) var(--gutter); overflow: auto }
-.console-empty { margin: 0; color: var(--fg-2); font-family: var(--font-sans); font-size: var(--text-sm) }
-.console-line { display: flex; gap: var(--space-3); line-height: 1.6; color: var(--fg-2) }
-.console-time { flex: none; color: var(--fg-3) }
-.console-text { white-space: pre-wrap; word-break: break-word; min-width: 0 }
-.console-line.command .console-text { color: var(--foreground); font-weight: 500 }
-.console-line.ok .console-text { color: var(--presence-on) }
-.console-line.bad .console-text { color: var(--send-fail) }
+.console { padding: var(--space-2) 0 }
+.console-empty { padding: 0 var(--gutter) }
+.console-empty { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
+.console .log-text { white-space: pre-wrap; word-break: break-word; min-width: 0; color: var(--fg-2) }
+.console .log-line.is-command .log-text { color: var(--foreground); font-weight: 600 }
+.console .log-line.is-ok .log-text { color: var(--presence-on) }
+.console .log-line.is-bad .log-text { color: var(--send-fail) }
+.console-step { white-space: nowrap }
 .bad { color: var(--send-fail) }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
 
@@ -969,11 +1017,14 @@ code { font-family: var(--font-mono); font-size: .92em }
 .side-note { margin: 0; padding: var(--space-3) var(--gutter); color: var(--fg-2); font-size: var(--text-sm); line-height: 1.5 }
 .side-note.center { text-align: center; padding-top: var(--space-6) }
 .conv-item { position: relative }
-.conv-del { position: absolute; top: 6px; right: 6px; width: 22px; height: 22px; padding: 0; border: 0; border-radius: 6px; background: var(--muted);
-  color: var(--fg-2); font-size: 11px; cursor: pointer; opacity: 0; transition: opacity .12s }
+.conv-del { position: absolute; top: 6px; right: 6px; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0;
+  border-radius: var(--radius-control); background: var(--muted); color: var(--fg-2); display: grid; place-items: center;
+  cursor: pointer; opacity: 0; transition: opacity .12s }
 .conv-item:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
 .conv-del:hover { color: var(--task-blocked) }
 .conversations { list-style: none; margin: 0; padding: var(--space-1) 0 }
+/* DESVIACIÓN DECLARADA de la base: las filas del sidebar son de conversación, como en WhatsApp —avatar, nombre, hora y
+   el último mensaje en dos renglones— y no las `.row` de 28 de las listas. Un chat se elige por quién es y qué dijo. */
 .conversation { display: flex; align-items: center; gap: 10px; width: 100%; padding: 8px var(--gutter);
   border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; font: inherit }
 .conversation:hover { background: var(--hover) }
@@ -1019,7 +1070,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .bubble-row.out .bubble { background: var(--bubble-mine) }
 .bubble-row.out:not(.cont) .bubble { border-top-right-radius: 4px }
 .bubble.failed { box-shadow: inset 0 0 0 1px var(--send-fail) }
-.text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 14px; line-height: 1.45 }
+.text { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--text-body); line-height: 1.45 }
 .meta { align-self: flex-end; color: var(--fg-2); font-size: var(--text-xs); font-variant-numeric: tabular-nums }
 .error { margin: 2px 0 0; color: var(--send-fail); font-size: var(--text-sm) }
 .btn-link { border: 0; padding: 0; background: none; color: inherit; text-decoration: underline; cursor: pointer; font: inherit }
@@ -1066,7 +1117,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .block-owner { flex: 0 1 220px; min-width: 0 }
 
 /* La respuesta de canon: el resumen arriba, las fuentes abajo y la pregunta para seguir. */
-.summary { margin: 0; font-weight: 600; font-size: 14px; line-height: 1.4 }
+.summary { margin: 0; font-weight: 600; font-size: var(--text-body); line-height: 1.4 }
 .unbacked { margin: 0; color: var(--fg-2); font-size: var(--text-xs); font-style: italic }
 .sources { list-style: none; margin: 4px 0 0; padding: 6px 0 0; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px;
   font-size: var(--text-xs); color: var(--fg-2) }
@@ -1099,8 +1150,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
 .note-del { align-self: center; opacity: 0 }
-.conversation.off { opacity: .55 }
-.conversation.off .avatar { filter: grayscale(1) }
+.conversation.off .name, .conversation.off .owner, .conversation.off .snippet { color: var(--fg-3) }
+.conversation.off .avatar { filter: grayscale(1); color: var(--fg-3) }
 .own-agent { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-3) }
 .own-agent p { margin: 0 }
 .own-agent dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm) }
@@ -1110,7 +1161,17 @@ code { font-family: var(--font-mono); font-size: .92em }
 .agent-row { gap: var(--space-2); align-items: flex-end }
 .agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
 .thinking { color: var(--fg-2); font-style: italic }
+/* Markdown de un agente: los mismos espacios de la burbuja, sin el pre-wrap del texto plano. */
+.text.md { white-space: normal }
+.text.md :is(p, ul, ol, pre) { margin: 0 0 var(--space-2) }
+.text.md > :last-child { margin-bottom: 0 }
+.text.md :is(ul, ol) { padding-left: var(--space-4) }
+.text.md code { font-family: var(--font-mono); font-size: .92em }
+.text.md pre { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; overflow-x: auto }
+.text.md strong { font-weight: 600 }
 .agent-steps { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-2) }
+.live-steps { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: var(--text-xs); color: var(--fg-2) }
+.live-steps code { font-family: var(--font-mono); word-break: break-all }
 .agent-steps summary { cursor: pointer }
 .agent-steps ul { margin: var(--space-1) 0 0; padding-left: var(--space-4) }
 .agent-steps code { font-family: var(--font-mono); word-break: break-all }
@@ -1123,9 +1184,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .replying .quote { flex: 1 }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
-  font: inherit; font-size: 14px; border-radius: 18px; padding-inline: 14px }
+  font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 
-.json { font-family: var(--font-mono); font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-x: auto; margin: 0;
+.json { font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.5; white-space: pre-wrap; overflow-x: auto; margin: 0;
   max-height: 420px; overflow-y: auto }
 .bubble-row.in .bubble:has(.json) { max-width: min(720px, 92%) }
 

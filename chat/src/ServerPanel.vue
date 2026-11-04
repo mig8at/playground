@@ -53,7 +53,7 @@ const STEPS = [
 
     <div class="actions">
       <button type="button" class="btn btn-sm" :disabled="server.busy || !!acting" @click="act('up')">
-        {{ server.busy ? 'Levantando…' : server.ready ? 'Revisar y levantar lo que falte' : 'Levantar todo' }}
+        {{ server.busy ? 'Levantando…' : server.ready ? 'Levantar lo que falte' : 'Levantar todo' }}
       </button>
       <button type="button" class="btn btn-outline btn-sm" :disabled="server.busy || !!acting || !server.tunnelUrl" @click="act('down')">Apagar túnel</button>
     </div>

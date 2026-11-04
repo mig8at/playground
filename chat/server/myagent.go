@@ -22,6 +22,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -97,7 +98,7 @@ func stepOf(name string, input map[string]any) myAgentStep {
 }
 
 // claudeAskPlayground contesta con Claude Code dentro del playground, con herramientas de lectura.
-func claudeAskPlayground(ctx context.Context, model, prompt string) (string, []myAgentStep, error) {
+func claudeAskPlayground(ctx context.Context, model, prompt string, onStep func(myAgentStep)) (string, []myAgentStep, error) {
 	path, err := lookTool("claude")
 	if err != nil {
 		return "", nil, errors.New("no está `claude` (Claude Code) en esta máquina")
@@ -151,7 +152,11 @@ func claudeAskPlayground(ctx context.Context, model, prompt string) (string, []m
 		case "assistant":
 			for _, c := range ev.Message.Content {
 				if c.Type == "tool_use" {
-					steps = append(steps, stepOf(c.Name, c.Input))
+					step := stepOf(c.Name, c.Input)
+					steps = append(steps, step)
+					if onStep != nil {
+						onStep(step)
+					}
 				}
 			}
 		case "result":
@@ -254,7 +259,60 @@ func myAgentPromptFor(in myAgentAsk) string {
 		strings.TrimSpace(in.Text), "`"+strings.Join(playgroundReadCommands, "`, `")+"`")
 }
 
+// UNA PREGUNTA EN CURSO: la interfaz la pide con su id cada segundo y va mostrando los pasos mientras llegan.
+type myAgentJob struct {
+	mu     sync.Mutex
+	steps  []myAgentStep
+	text   string
+	model  string
+	err    string
+	done   bool
+	expire time.Time
+}
+
+func (j *myAgentJob) view() map[string]any {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+	out := map[string]any{"steps": append([]myAgentStep{}, j.steps...), "done": j.done, "model": j.model}
+	if j.text != "" {
+		out["text"] = j.text
+	}
+	if j.err != "" {
+		out["error"] = j.err
+	}
+	return out
+}
+
+var (
+	myAgentJobsMu sync.Mutex
+	myAgentJobs   = map[string]*myAgentJob{}
+)
+
+func newMyAgentJob(model string) (string, *myAgentJob) {
+	myAgentJobsMu.Lock()
+	defer myAgentJobsMu.Unlock()
+	for id, j := range myAgentJobs { // las terminadas se guardan diez minutos
+		if j.done && time.Now().After(j.expire) {
+			delete(myAgentJobs, id)
+		}
+	}
+	id := fmt.Sprintf("%d", time.Now().UnixNano())
+	j := &myAgentJob{model: model, steps: []myAgentStep{}}
+	myAgentJobs[id] = j
+	return id, j
+}
+
 func myAgentHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("GET /api/my-agent/jobs/{id}", func(w http.ResponseWriter, r *http.Request) {
+		myAgentJobsMu.Lock()
+		j := myAgentJobs[r.PathValue("id")]
+		myAgentJobsMu.Unlock()
+		if j == nil {
+			fail(w, http.StatusNotFound, errors.New("esa pregunta ya no está (se reinició el chat)"))
+			return
+		}
+		writeJSON(w, http.StatusOK, j.view())
+	})
 	mux.HandleFunc("POST /api/my-agent/ask", func(w http.ResponseWriter, r *http.Request) {
 		var in myAgentAsk
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 256<<10)).Decode(&in); err != nil {
@@ -279,13 +337,26 @@ func myAgentHandlers(mux *http.ServeMux) {
 		if in.Owner == "" {
 			in.Owner = "tu dueño"
 		}
-		ctx, cancel := context.WithTimeout(r.Context(), 240*time.Second)
-		defer cancel()
-		text, steps, err := claudeAskPlayground(ctx, in.Model, myAgentPromptFor(in))
-		if err != nil {
-			writeJSON(w, http.StatusBadGateway, map[string]any{"error": err.Error(), "steps": steps})
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"text": text, "model": in.Model, "steps": steps})
+		// Corre aparte: la interfaz pide el avance con el id (GET /api/my-agent/jobs/{id}).
+		id, job := newMyAgentJob(in.Model)
+		prompt := myAgentPromptFor(in)
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 240*time.Second)
+			defer cancel()
+			text, _, err := claudeAskPlayground(ctx, in.Model, prompt, func(st myAgentStep) {
+				job.mu.Lock()
+				job.steps = append(job.steps, st)
+				job.mu.Unlock()
+			})
+			job.mu.Lock()
+			defer job.mu.Unlock()
+			job.done, job.expire = true, time.Now().Add(10*time.Minute)
+			if err != nil {
+				job.err = err.Error()
+			} else {
+				job.text = text
+			}
+		}()
+		writeJSON(w, http.StatusAccepted, map[string]string{"id": id})
 	})
 }

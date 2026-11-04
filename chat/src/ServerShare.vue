@@ -29,7 +29,7 @@ watch(people, (list) => { if (!to.value && list.length) to.value = list[0].email
 
 const defaultText = () =>
   `El ambiente de Shopify está listo para probar. En el .env de ecommerce-final:\n${envLine.value}\n` +
-  'Después reinicia npm run dev. La tienda: https://creditop-dev-store.myshopify.com (con la contraseña de siempre).'
+  'Después reinicia npm run dev. La tienda: https://creditop-dev-store.myshopify.com. La contraseña de la tienda te la paso aparte.'
 const draft = ref('')
 watch(envLine, (line) => { if (line && !draft.value) draft.value = defaultText() }, { immediate: true })
 const sending = ref(false)
@@ -70,7 +70,7 @@ async function send() {
         <textarea v-model="draft" class="input" rows="6" aria-label="Mensaje"></textarea>
         <div class="send-row">
           <button type="submit" class="btn btn-sm" :disabled="!server.ready || !people.length || sending">{{ sending ? 'Mandando…' : 'Mandar' }}</button>
-          <button type="button" class="btn btn-ghost btn-sm" @click="draft = defaultText()">Volver al texto de siempre</button>
+          <button type="button" class="btn btn-ghost btn-sm" @click="draft = defaultText()">Restaurar texto</button>
         </div>
         <p v-if="!server.ready" class="note">Se manda cuando el server esté listo: si no, la dirección no sirve.</p>
       </form>

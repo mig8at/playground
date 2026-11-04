@@ -171,7 +171,7 @@ onBeforeUnmount(() => {
 .agent-form { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-4) }
 .who { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap }
 .who > span:first-of-type { display: flex; flex-direction: column; min-width: 0; flex: 1 }
-.who b { font-size: 15px }
+.who b { font-size: var(--text-title) }
 .who small { color: var(--fg-2); font-size: var(--text-xs) }
 .avatar-img { width: 44px; height: 44px; border-radius: 12px; background: var(--office-bg); object-fit: cover; flex: none }
 .avatar-img.small { width: 28px; height: 28px; border-radius: 8px }
