@@ -1,23 +1,24 @@
 {
   "version": 1,
   "title": "Cupo mensual y mandato de CreditopX",
-  "summary": "Cupo mensual por perfil CreditopX: cálculo, carga, reinicio y backoffice; el cupo del log y el mandato de la entidad.",
-  "reviewedAt": "2026-11-02T15:35:39+00:00",
+  "summary": "Cupo mensual por perfil CreditopX: cálculo, carga, reinicio y backoffice; el cupo del log, el creditCard nulo del buró y el mandato de la entidad.",
+  "reviewedAt": "2026-11-04T00:59:35+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/MonthlyQuota.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "350109ea5c9dc9875f9623c8231a2240e4419268",
       "sections": [
         "el-cupo-es-una-bolsa-mensual-por-perfil",
-        "se-carga-al-autorizar-con-la-fila-bloqueada"
+        "se-carga-al-autorizar-con-la-fila-bloqueada",
+        "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
       ]
     },
     {
       "repo": "application",
       "path": "app/Support/MonthlyQuota.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "8beaf2ff33d1ba7033d0958f32d73a3397175282",
       "sections": [
         "el-cupo-es-una-bolsa-mensual-por-perfil",
@@ -26,8 +27,17 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "app/Models/LenderUsersCategory.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "0b6e0d67db176628e669a7bdc96467712f48f1b2",
+      "sections": [
+        "el-cupo-es-una-bolsa-mensual-por-perfil"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/MonthlyQuota/MonthlyQuotaBookingService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "eaf10e09bd8f4ba3c28747a1cd1b5654d48f27cf",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada"
@@ -35,8 +45,18 @@
     },
     {
       "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/LenderUsersCategoryRepository.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "ddf950de9ddaae70bff1591090628e8fbdc1b9ea",
+      "sections": [
+        "se-carga-al-autorizar-con-la-fila-bloqueada",
+        "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada"
@@ -45,7 +65,7 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada",
@@ -55,7 +75,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/MonthlyQuota/MonthlyQuotaResetService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "823c8369504a40c4c86733a2dedbe92f3bbd13cc",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
@@ -64,7 +84,7 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Kernel.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "9ee74124d8db9ff4d1d0f902832eb1159dd863b7",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
@@ -73,7 +93,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderQuotaWriterService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "e06650d230a523980111ca89ffaa7358c29a0e45",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
@@ -82,7 +102,7 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "fc74cf4b77646b167e0cbcfa3a4b09452aa9c4c0",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
@@ -91,25 +111,45 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
       "sections": [
-        "el-cupo-del-log-es-lo-que-le-queda-al-perfil"
+        "el-cupo-del-log-es-lo-que-le-queda-al-perfil",
+        "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion"
       ]
     },
     {
       "repo": "application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
       "sections": [
-        "el-cupo-del-log-es-lo-que-le-queda-al-perfil"
+        "el-cupo-del-log-es-lo-que-le-queda-al-perfil",
+        "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/RiskCentralUserData.php",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
+      "blob": "8fe33aabb0028cf07587ea576c1223a43958f83c",
+      "sections": [
+        "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Models/RiskCentralUserData.php",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
+      "blob": "8fe33aabb0028cf07587ea576c1223a43958f83c",
+      "sections": [
+        "un-creditcard-nulo-en-el-reporte-de-experian-rompe-la-evaluacion"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/ApplicationsService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "7c7a42ab564ceae1b9bec83d231f15c0b40cfaad",
       "sections": [
         "el-cupo-del-log-es-lo-que-le-queda-al-perfil"
@@ -118,7 +158,7 @@
     {
       "repo": "legacy-backend",
       "path": "database/migrations/2025_01_15_232943_add_amount_to_lend_to_lenders_table.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
+      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "c754fd211ad6c39f5515050b2e7ae722025899ab",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
@@ -127,7 +167,7 @@
     {
       "repo": "application",
       "path": "resources/js/content/creditopXDashboard/statistics/StatisticsCreditopXLegacy.vue",
-      "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
+      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ef02c7e96469687a16c1fd94eb5272e6085f3bd3",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
@@ -138,6 +178,24 @@
       "path": "modules/backoffice/lender-rules/src/lib/domain/issues.ts",
       "commit": "e0c370c299cf4a613c7282626a9977d635484616",
       "blob": "28b157c33cff392de9e4b7674095887c83254ba6",
+      "sections": [
+        "el-mandato-no-frena-ninguna-originacion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/lender-rules/src/components/LenderRulesView.tsx",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "82dca4940716b1fcfae93af03902d5b4c2397f9a",
+      "sections": [
+        "el-mandato-no-frena-ninguna-originacion"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/mappers/lender-response.mapper.ts",
+      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
+      "blob": "e4f0b23c1ff2e90737fa8a8ca99eca80da495770",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
       ]
