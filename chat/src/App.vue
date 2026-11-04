@@ -626,7 +626,7 @@ const statusText = computed(() => {
       </div>
 
       <!-- MI CHAT: sin conversación abierta, el editor es tu bandeja. Vos y tu agente usan el mismo chat: lo que te
-           escriben llega acá, y con tu agente prendido cada mensaje trae su propuesta de respuesta. -->
+           escriben llega acá; con tu agente prendido, él contesta solo. -->
       <div v-if="!chat.active" class="region-body my-chat">
 
         <p v-if="!chat.inbox.length" class="side-note center">
@@ -735,6 +735,7 @@ const statusText = computed(() => {
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
+                <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
                 <span v-if="item.cuadrilla" class="task-note-label">
                   <template v-if="item.dir === 'in'"><b>{{ item.cuadrilla.autor }}</b> · </template>{{ NOTE_LABEL[item.cuadrilla.tipo] || item.cuadrilla.tipo }}
                   en «{{ item.cuadrilla.tarea }}»<template v-if="item.cuadrilla.dependeDe"> · depende de {{ item.cuadrilla.dependeDe }}</template>

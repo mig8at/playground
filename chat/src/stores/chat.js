@@ -273,25 +273,32 @@ export const useChatStore = defineStore('chat', () => {
     proposeReplies()
   }
 
-  /* LAS PROPUESTAS DE TU AGENTE. Con el agente prendido, cada mensaje de una persona que llegó DESPUÉS de prenderlo
-     recibe una propuesta de respuesta en su conversación (`kind: 'propuesta'`), justo debajo. No sale sola: «Mandar»
-     la manda a tu nombre, como respuesta a ese mensaje, y «Descartar» la tira. */
+  /* LAS RESPUESTAS DE TU AGENTE. Con «contestás vos» no hace nada. Con el agente prendido, a lo que te escribe una
+     persona DESPUÉS de prenderlo le contesta solo, a tu nombre y como respuesta a ese mensaje (`auto: true`).
+     Contesta UNA vez por conversación hasta que vos vuelvas a escribir ahí: a una ráfaga de mensajes va una sola
+     respuesta, y si del otro lado también contesta un agente, no se arma un ida y vuelta sin fin. */
   // Tu nombre, para que el agente diga de quién es: del listen si está prendido, si no de la sesión.
   const ownerName = () => me.value?.name || state.value?.session?.name || me.value?.email || state.value?.session?.email || ''
+  const autoReplying = new Set()
   function proposeReplies() {
+    // Las propuestas de antes (cuando el agente proponía y vos mandabas) ya no se usan: fuera.
+    for (const c of Object.values(conversations.value)) {
+      if (c.messages.some((m) => m.kind === 'propuesta')) c.messages = c.messages.filter((m) => m.kind !== 'propuesta')
+    }
     const a = mine.agent
     if (a.mode !== 'agente' || !a.modeSince) return
-    // Con tu nombre y tus tareas, o no se arma: una propuesta sin eso diría «mi persona» y nada de lo que hacés.
+    // Con tu nombre y tus tareas, o no se arma: una respuesta sin eso diría «mi persona» y nada de lo que hacés.
     if (!state.value || (!cuadrilla.value && !cuadrillaError.value)) return
     for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email) || isMe(c.person)) continue
-      for (const m of [...c.messages]) {
-        if (m.dir !== 'in' || m.kind || m.time <= a.modeSince) continue
-        if (c.messages.some((x) => x.kind === 'propuesta' && x.replyTo === m.id)) continue
-        const time = new Date(new Date(m.time).getTime() + 1).toISOString()
-        push(c, { id: `propuesta|${m.id}`, dir: 'out', kind: 'propuesta', replyTo: m.id, re: m.sid || '', time, status: 'propuesta',
-                  text: mine.draftReply({ from: c.person.name || c.person.email, text: m.text, tasks: myTasks.value, owner: ownerName() }) })
-      }
+      if (isAgentKey(c.person.email) || isMe(c.person) || autoReplying.has(c.person.email)) continue
+      const lastOut = c.messages.reduce((idx, m, i) => (m.dir === 'out' ? i : idx), -1)
+      if (lastOut >= 0 && c.messages[lastOut].auto) continue
+      const pending = c.messages.slice(lastOut + 1).filter((m) => m.dir === 'in' && !m.kind && m.time > a.modeSince)
+      const m = pending[pending.length - 1]
+      if (!m) continue
+      autoReplying.add(c.person.email)
+      const text = mine.draftReply({ from: c.person.name || c.person.email, text: m.text, tasks: myTasks.value, owner: ownerName() })
+      send(text, m.sid || '', c, { auto: true }).finally(() => autoReplying.delete(c.person.email))
     }
   }
   // Una propuesta se manda o se descarta desde su conversación o desde «Mi chat»: se busca en todas.
@@ -428,12 +435,13 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // `re`: el id del home del mensaje que se contesta (sólo en conversaciones con personas).
-  async function send(text, re = '', conversation = null) {
+  // `extra`: marcas del mensaje (`auto`: lo contestó tu agente solo).
+  async function send(text, re = '', conversation = null, extra = {}) {
     const c = conversation || active.value
     const body = String(text || '').trim()
     if (!c || !body) return
     const message = { id: `out|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, dir: 'out', text: body,
-                      time: new Date().toISOString(), status: 'sending', ...(re && !c.person.agent ? { re } : {}) }
+                      time: new Date().toISOString(), status: 'sending', ...(re && !c.person.agent ? { re } : {}), ...extra }
     c.messages.push(message)
     const stored = () => c.messages.find((m) => m.id === message.id)
     if (c.person.agent) return askAgent(c, body, stored)
