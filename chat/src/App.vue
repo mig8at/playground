@@ -894,8 +894,8 @@ const statusText = computed(() => {
                       <img :src="imageSrc(item, f)" :alt="f.name">
                     </button>
                     <div v-else class="media-placeholder">
-                      <span v-if="f.status === 'error'">{{ f.error }}</span>
-                      <span v-else-if="item.dir === 'out'">{{ f.status === 'subiendo' ? 'subiendo…' : f.name }}</span>
+                      <span v-if="f.status === 'error' && f.error">{{ f.error }}</span>
+                      <span v-else-if="item.dir === 'out'">{{ item.status === 'error' || f.status === 'error' ? `${f.name}: no salió` : f.status === 'subiendo' ? 'subiendo…' : f.name }}</span>
                       <span v-else>cargando…</span>
                       <button v-if="item.dir === 'in' && f.status === 'error'" type="button" class="btn-link" @click="chat.getFile(item, f, { cache: true })">reintentar</button>
                     </div>
@@ -907,7 +907,8 @@ const statusText = computed(() => {
                       <span class="attachment-name" :title="f.path || f.name">{{ f.name }}</span>
                       <span class="attachment-size">{{ sizeText(f.size) }}</span>
                       <template v-if="item.dir === 'out'">
-                        <span v-if="f.status === 'subiendo'" class="attachment-state">subiendo…</span>
+                        <span v-if="item.status === 'error' || f.status === 'error'" class="attachment-state">no salió</span>
+                        <span v-else-if="f.status === 'subiendo'" class="attachment-state">subiendo…</span>
                       </template>
                       <template v-else>
                         <button v-if="!f.status || f.status === 'error'" type="button" class="btn btn-outline btn-sm"
@@ -945,7 +946,9 @@ const statusText = computed(() => {
                 </span>
                 <p v-if="item.status === 'error'" class="error">
                   No salió: {{ item.error }}
-                  <button v-if="!item.cuadrilla" type="button" class="btn-link" @click="chat.retry(item.id)">reintentar</button>
+                  <button v-if="!item.cuadrilla && chat.canRetry(item)" type="button" class="btn-link" @click="chat.retry(item.id)">reintentar</button>
+                  <button v-if="item.dir === 'out' && !item.cuadrilla" type="button" class="btn-link"
+                          title="Sacarlo de la conversación: no le llegó a nadie" @click="chat.discard(item.id)">borrar</button>
                 </p>
               </div>
               <button v-if="canReply(item)" type="button" class="reply-action" title="Responder a este mensaje"
@@ -1421,6 +1424,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .attachment-size, .attachment-state { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
 .attachment-row .btn, .attachment-row .btn-link { flex: none; margin-left: auto }
 .attachment-row .btn-link + .btn-link { margin-left: var(--space-2) }
+.error .btn-link { margin-left: var(--space-2) }
 .attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
   border: 1px solid var(--border); border-radius: 999px }

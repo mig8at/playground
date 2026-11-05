@@ -507,8 +507,13 @@ export const useChatStore = defineStore('chat', () => {
       }
       const r = await post('/api/send', { to: c.person.email, text: body, re: message.re || '', ...(ids.length ? { files: ids } : {}) })
       Object.assign(stored(), { status: 'sent', delivered: r.delivered, sid: r.id || '' })
+      unsentFiles.delete(message.id)
     } catch (e) {
       Object.assign(stored(), { status: 'error', error: e.message })
+      // Los adjuntos que no llegaron a salir quedan «no salió», no «subiendo…»; y se guardan (sólo en esta pestaña)
+      // para que «reintentar» los vuelva a subir.
+      for (const f of stored().files || []) if (f.status !== 'subido') f.status = 'error'
+      if (attach.length) unsentFiles.set(message.id, attach)
     }
   }
 
@@ -663,12 +668,28 @@ export const useChatStore = defineStore('chat', () => {
     catch (e) { Object.assign(file, { error: e.message }) }
   }
 
+  // Los archivos de un mensaje que no salió, para reintentarlo. Sólo en memoria: al recargar la página no están, y
+  // entonces «reintentar» no aparece en un mensaje con adjuntos (se borra y se manda de nuevo).
+  const unsentFiles = new Map()
+  const canRetry = (m) => !m.files?.length || unsentFiles.has(m.id)
+
   async function retry(id) {
     const c = active.value
     const failed = c?.messages.find((m) => m.id === id)
-    if (!failed) return
+    if (!failed || !canRetry(failed)) return
+    const files = unsentFiles.get(id) || []
+    unsentFiles.delete(id)
     c.messages.splice(c.messages.indexOf(failed), 1)
-    await send(failed.text, failed.re || '')
+    await send(failed.text, failed.re || '', null, {}, files)
+  }
+
+  // Borrar un mensaje que no salió: nunca le llegó a nadie, así que sólo se saca de acá.
+  function discard(id) {
+    const c = active.value
+    const failed = c?.messages.find((m) => m.id === id && m.dir === 'out' && m.status === 'error')
+    if (!failed) return
+    unsentFiles.delete(id)
+    c.messages.splice(c.messages.indexOf(failed), 1)
   }
 
   function forget(key) {
@@ -713,6 +734,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
-    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })
