@@ -34,13 +34,14 @@ async function copy() {
 
 // ── la petición ──
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
+// Por defecto, por el playground: lo que importa es que le sirva al equipo, no que ande en tu máquina.
 const VIAS = [
-  { id: 'local', label: 'esta máquina' },
   { id: 'playground', label: 'el playground' },
+  { id: 'local', label: 'esta máquina' },
 ]
 const method = ref('GET')
 const path = ref('/persona')
-const via = ref('local')
+const via = ref('playground')
 const reqTab = ref('body')
 const bodyText = ref('')
 const headersText = ref('')
