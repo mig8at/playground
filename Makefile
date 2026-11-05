@@ -691,13 +691,20 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # (`bin/pg sql` · `bin/pg logs` · `bin/pg events`), y la traza por etapas de una solicitud de PRODUCCIÓN
 # la da el tracer del equipo (`tools/tracer` en el playground compartido). Este atajo lo dice en vez de
 # fallar con «no rule to make target» cuando alguien corre un comando viejo de una nota.
-trazador trazador-%:
-	@echo "  el trazador se retiró (2026-10-13). En su lugar:"
-	@echo "    SQL           bin/pg sql --target T --query 'SELECT …' [--md] [--bloque TAREA]   (o make tablero-db)"
-	@echo "    logs (Loki)   bin/pg logs --target T --query '{…}' --since 1h"
-	@echo "    PostHog       bin/pg events request --target T --ureq N [--tel CEL]  ·  bin/pg events errors --target T"
-	@echo "    una solicitud de prod, por etapas: el tracer del equipo (tools/tracer del playground compartido)"
-	@exit 2
+# Un target normal y un patrón no pueden compartir regla (GNU make lo marca como sintaxis obsoleta en cada
+# corrida): la receta va en una variable y cada uno tiene la suya.
+define TRAZADOR_RETIRADO
+@echo "  el trazador se retiró (2026-10-13). En su lugar:"
+@echo "    SQL           bin/pg sql --target T --query 'SELECT …' [--md] [--bloque TAREA]   (o make tablero-db)"
+@echo "    logs (Loki)   bin/pg logs --target T --query '{…}' --since 1h"
+@echo "    PostHog       bin/pg events request --target T --ureq N [--tel CEL]  ·  bin/pg events errors --target T"
+@echo "    una solicitud de prod, por etapas: el tracer del equipo (tools/tracer del playground compartido)"
+@exit 2
+endef
+trazador:
+	$(TRAZADOR_RETIRADO)
+trazador-%:
+	$(TRAZADOR_RETIRADO)
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
 # está en Confluence. Solo lectura: no hay verbo que escriba.

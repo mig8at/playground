@@ -100,6 +100,11 @@ func evals(args []string) error {
 		fmt.Printf("%-20s %-4s %-26s %6d %7.1f %9.4f\n", r.c.Name, mark, strings.Join(r.outcome.Rounds, " → "), r.outcome.Turns, r.outcome.Seconds, r.outcome.Cost)
 	}
 	fmt.Printf("\n%d de %d pasaron · US$ %.4f · %s\n", len(results)-failed, len(results), cost, time.Since(start).Round(time.Second))
+	if err := appendHistory(root, results, cost, time.Since(start)); err != nil {
+		fmt.Fprintln(os.Stderr, "navegador: no pude guardar el historial:", err)
+	} else {
+		fmt.Println("historial: navegador/evals/historial.jsonl")
+	}
 	if failed > 0 {
 		return fmt.Errorf("%d caso(s) fallaron", failed)
 	}
@@ -243,4 +248,51 @@ func contains(list []string, v string) bool {
 		}
 	}
 	return false
+}
+
+// appendHistory suma una línea a navegador/evals/historial.jsonl: fecha, commit, y cada caso con cómo terminó y
+// lo que costó. Es la historia de la calidad de ask: un cambio que empeora algo se ve contra la línea de base.
+func appendHistory(root string, results []evalResult, cost float64, took time.Duration) error {
+	commit, _ := exec.Command("git", "-C", root, "rev-parse", "--short", "HEAD").Output()
+	dirty, _ := exec.Command("git", "-C", root, "status", "--porcelain", "--", "navegador").Output()
+	type row struct {
+		Case    string   `json:"caso"`
+		OK      bool     `json:"ok"`
+		Rounds  []string `json:"termino"`
+		Turns   int      `json:"turnos"`
+		Seconds float64  `json:"seg"`
+		Cost    float64  `json:"usd"`
+		Why     string   `json:"por_que,omitempty"`
+	}
+	entry := struct {
+		At     string  `json:"fecha"`
+		Commit string  `json:"commit"`
+		Dirty  bool    `json:"cambios_sin_commit"`
+		Passed int     `json:"pasaron"`
+		Total  int     `json:"total"`
+		Cost   float64 `json:"usd"`
+		Took   float64 `json:"seg"`
+		Cases  []row   `json:"casos"`
+	}{At: time.Now().Format(time.RFC3339), Commit: strings.TrimSpace(string(commit)), Dirty: len(dirty) > 0, Total: len(results), Cost: cost, Took: took.Seconds()}
+	for _, r := range results {
+		if r.ok {
+			entry.Passed++
+		}
+		why := ""
+		if !r.ok {
+			why = r.why
+		}
+		entry.Cases = append(entry.Cases, row{Case: r.c.Name, OK: r.ok, Rounds: r.outcome.Rounds, Turns: r.outcome.Turns, Seconds: r.outcome.Seconds, Cost: r.outcome.Cost, Why: why})
+	}
+	b, err := json.Marshal(entry)
+	if err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(root, "navegador", "evals", "historial.jsonl"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o644)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	_, err = f.Write(append(b, '\n'))
+	return err
 }
