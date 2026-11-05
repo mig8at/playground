@@ -45,13 +45,39 @@ type Control struct {
 	Action   string    `json:"action"` // .fill('…') · .check() · .selectOption('…') · .click()
 	Form     int       `json:"form"`   // índice del formulario al que pertenece, o -1
 	Box      Box       `json:"box"`    // en coordenadas de la página entera: las de la captura
+	Options  []Option  `json:"options,omitempty"`
+	Checked  *bool     `json:"checked,omitempty"`
 	Locators []Locator `json:"locators"`
 	Best     int       `json:"best"` // índice del recomendado, o -1 si ninguno sirve
 }
 
+type Option struct {
+	Value    string `json:"value"`
+	Label    string `json:"label"`
+	Disabled bool   `json:"disabled,omitempty"`
+}
+
+// locatorFor arma en playwright-go el mismo localizador que dice el código TS del candidato.
+func locatorFor(p playwright.Page, l Locator) playwright.Locator {
+	exact := playwright.Bool(true)
+	switch l.Kind {
+	case "role":
+		return p.GetByRole(playwright.AriaRole(l.Role), playwright.PageGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)})
+	case "label":
+		return p.GetByLabel(l.Value, playwright.PageGetByLabelOptions{Exact: exact})
+	case "placeholder":
+		return p.GetByPlaceholder(l.Value, playwright.PageGetByPlaceholderOptions{Exact: exact})
+	case "text":
+		return p.GetByText(l.Value, playwright.PageGetByTextOptions{Exact: exact})
+	case "testid":
+		return p.GetByTestId(l.Value)
+	default:
+		return p.Locator(l.Value)
+	}
+}
+
 // verifyControls prueba cada candidato contra la página tal como está.
 func verifyControls(p playwright.Page, controls []Control) {
-	exact := playwright.Bool(true)
 	quick := playwright.Float(1500)
 	for i := range controls {
 		c := &controls[i]
@@ -59,21 +85,7 @@ func verifyControls(p playwright.Page, controls []Control) {
 		want := strconv.Itoa(c.ID)
 		for j := range c.Locators {
 			l := &c.Locators[j]
-			var loc playwright.Locator
-			switch l.Kind {
-			case "role":
-				loc = p.GetByRole(playwright.AriaRole(l.Role), playwright.PageGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)})
-			case "label":
-				loc = p.GetByLabel(l.Value, playwright.PageGetByLabelOptions{Exact: exact})
-			case "placeholder":
-				loc = p.GetByPlaceholder(l.Value, playwright.PageGetByPlaceholderOptions{Exact: exact})
-			case "text":
-				loc = p.GetByText(l.Value, playwright.PageGetByTextOptions{Exact: exact})
-			case "testid":
-				loc = p.GetByTestId(l.Value)
-			default:
-				loc = p.Locator(l.Value)
-			}
+			loc := locatorFor(p, *l)
 			n, err := loc.Count()
 			if err != nil {
 				continue

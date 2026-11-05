@@ -64,6 +64,7 @@ type Runner struct {
 	cancel  context.CancelFunc
 	log     []LogLine
 	seq     int
+	live    *live // la sesión en vivo, si hay una (live.go)
 }
 
 func NewRunner(store *Store) *Runner { return &Runner{store: store} }

@@ -103,8 +103,146 @@ function expandSite(slug, open) {
   savePref('navegador.expanded', [...next])
   if (open && !pagesBySite.value[slug]) loadPages(slug)
 }
-const page = computed(() => pages.value.find((p) => p.id === pageId.value))
-function pickPage(id) { pageId.value = id; auxOpen.value = true; saveSize('navegador.aux-open', 1) }
+const storedPage = computed(() => pages.value.find((p) => p.id === pageId.value))
+// Con la sesión en vivo, «la página» es la que está abierta en ese navegador, tal como se analizó por última vez.
+const page = computed(() => (isLive.value && liveState.value.page ? liveState.value.page : storedPage.value))
+function pickPage(id) {
+  pageId.value = id
+  auxOpen.value = true
+  saveSize('navegador.aux-open', 1)
+  // En vivo, elegir una página del árbol es ir a ella.
+  const target = pages.value.find((p) => p.id === id)
+  if (isLive.value && target && liveState.value.page?.id !== id) liveNav('goto', target.finalUrl || target.url)
+}
+
+// El elemento señalado y el elegido: los comparten la captura, la sesión en vivo y la pestaña Acciones.
+const hoverControl = ref(-1)
+const pickedControl = ref(-1)
+
+// ── la sesión en vivo: el navegador real en el editor (live.go) ──
+const liveState = ref({ active: false, steps: [] })
+const isLive = computed(() => liveState.value.active && liveState.value.site === siteSlug.value)
+const liveError = ref('')
+const liveURL = ref('')
+const inspect = ref(false) // los cuadros se tocan (y abren su menú) en vez de dejar pasar el clic a la página
+const frameMeta = ref(null)
+const liveCanvas = ref(null)
+let frames = null
+let liveTimer = null
+async function pollLive() {
+  clearTimeout(liveTimer)
+  try {
+    const st = await api('/api/live/state')
+    const prev = liveState.value
+    liveState.value = st
+    if (st.active && st.url !== prev.url && document.activeElement?.id !== 'live-url') liveURL.value = st.url
+    if (st.active && st.version !== prev.version) {
+      loadPages(st.site)
+      if (st.site === siteSlug.value && st.page) pageId.value = st.page.id
+    }
+  } catch { /* la API se cae al reiniciar */ }
+  liveTimer = setTimeout(pollLive, liveState.value.active ? 1000 : 4000)
+}
+function drawFrame(msg) {
+  const canvas = liveCanvas.value
+  if (!canvas) return
+  const img = new Image()
+  img.onload = () => {
+    if (canvas.width !== img.width || canvas.height !== img.height) { canvas.width = img.width; canvas.height = img.height }
+    canvas.getContext('2d').drawImage(img, 0, 0)
+  }
+  img.src = 'data:image/jpeg;base64,' + msg.data
+  frameMeta.value = msg.meta
+}
+function openFrames() {
+  closeFrames()
+  frames = new EventSource('/api/live/frames')
+  frames.onmessage = (e) => { try { drawFrame(JSON.parse(e.data)) } catch { /* cuadro roto */ } }
+  frames.addEventListener('end', closeFrames)
+}
+function closeFrames() { frames?.close(); frames = null }
+watch(isLive, (on) => { on ? requestAnimationFrame(openFrames) : closeFrames() })
+async function liveStart(start = '') {
+  liveError.value = ''
+  panelOpen.value = true
+  saveSize('navegador.panel-open', 1)
+  try {
+    const q = `site=${encodeURIComponent(siteSlug.value)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
+    liveState.value = await api(`/api/live/start?${q}`, { method: 'POST' })
+    liveURL.value = liveState.value.url
+    poll()
+    pollLive()
+  } catch (e) {
+    liveError.value = e.message
+  }
+}
+async function liveStop() { await api('/api/live/stop', { method: 'POST' }); closeFrames(); setTimeout(pollLive, 300) }
+async function liveNav(action, target = '') {
+  liveError.value = ''
+  try { await api('/api/live/nav', { method: 'POST', body: JSON.stringify({ action, url: target }) }) } catch (e) { liveError.value = e.message }
+}
+// Del canvas a la página: el canvas se escala al ancho del editor, la página mide lo que dice el cuadro.
+function toPage(e) {
+  const r = liveCanvas.value.getBoundingClientRect()
+  const w = frameMeta.value?.deviceWidth || 1280
+  const h = frameMeta.value?.deviceHeight || 800
+  return { x: ((e.clientX - r.left) / r.width) * w, y: ((e.clientY - r.top) / r.height) * h }
+}
+function sendInput(ev) { api('/api/live/input', { method: 'POST', body: JSON.stringify(ev) }).catch((e) => { liveError.value = e.message }) }
+function onCanvasClick(e) { liveCanvas.value.focus(); sendInput({ type: 'click', ...toPage(e) }) }
+let wheelAcc = 0, wheelTimer = null, wheelAt = null
+function onCanvasWheel(e) {
+  wheelAcc += e.deltaY
+  wheelAt = toPage(e)
+  clearTimeout(wheelTimer)
+  wheelTimer = setTimeout(() => { sendInput({ type: 'wheel', ...wheelAt, dy: wheelAcc }); wheelAcc = 0 }, 60)
+}
+const KEYS = new Set(['Enter', 'Backspace', 'Tab', 'Escape', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
+function onCanvasKey(e) {
+  const mod = e.ctrlKey || e.metaKey || e.altKey
+  if (e.key.length === 1 && !mod) { e.preventDefault(); sendInput({ type: 'text', text: e.key }); return }
+  if (KEYS.has(e.key) || (mod && e.key.length === 1)) {
+    e.preventDefault()
+    const prefix = (e.ctrlKey ? 'Control+' : '') + (e.metaKey ? 'Meta+' : '') + (e.altKey ? 'Alt+' : '') + (e.shiftKey && e.key.length > 1 ? 'Shift+' : '')
+    sendInput({ type: 'key', key: prefix + e.key })
+  }
+}
+// Los cuadros de los elementos sobre el canvas: la página se mueve (scroll), los cuadros vienen del análisis.
+function liveBoxStyle(c) {
+  const m = frameMeta.value
+  if (!m) return { display: 'none' }
+  const x = c.box.x - (m.scrollOffsetX || 0)
+  const y = c.box.y - (m.scrollOffsetY || 0)
+  if (y + c.box.h < 0 || y > m.deviceHeight || x + c.box.w < 0 || x > m.deviceWidth) return { display: 'none' }
+  return { left: `${(x / m.deviceWidth) * 100}%`, top: `${(y / m.deviceHeight) * 100}%`, width: `${(c.box.w / m.deviceWidth) * 100}%`, height: `${(c.box.h / m.deviceHeight) * 100}%` }
+}
+// El menú de un elemento: lo que se le puede hacer, por su localizador.
+const actValue = ref('')
+const actBusy = ref(false)
+const actError = ref('')
+const pickedLive = computed(() => (isLive.value ? (page.value?.controls || [])[pickedControl.value] : null))
+watch(pickedControl, () => {
+  actError.value = ''
+  const c = pickedLive.value
+  actValue.value = c?.kind === 'select' ? (c.options || []).find((o) => o.value && !o.disabled)?.value || '' : ''
+})
+async function liveAct(action) {
+  const c = pickedLive.value
+  if (!c) return
+  actBusy.value = true
+  actError.value = ''
+  try {
+    await api('/api/live/act', { method: 'POST', body: JSON.stringify({ control: c.id, action, value: actValue.value, version: liveState.value.version }) })
+    pickedControl.value = -1
+  } catch (e) {
+    actError.value = e.message
+  } finally {
+    actBusy.value = false
+    pollLive()
+  }
+}
+async function copyLiveScript() { try { copyText(await (await fetch('/api/live/script')).text(), 'live-script') } catch { /* sin API */ } }
+async function clearSteps() { await api('/api/live/steps', { method: 'DELETE' }); pollLive() }
 async function clearPages() {
   if (!site.value || !confirm(`¿Vaciar el mapa de ${site.value.name}? La sesión se conserva.`)) return
   await api(`/api/pages?site=${encodeURIComponent(siteSlug.value)}`, { method: 'DELETE' })
@@ -296,6 +434,7 @@ const busyLabel = computed(() => {
 // ── las pestañas de la consola: lo que hace el navegador y, con una página elegida, lo técnico de ella ──
 const TABS = [
   { id: 'log', label: 'Consola' },
+  { id: 'steps', label: 'Pasos', live: true },
   { id: 'actions', label: 'Acciones', count: (p) => (p.controls || []).length, page: true },
   { id: 'forms', label: 'Formularios', count: (p) => (p.forms || []).length, page: true },
   { id: 'links', label: 'Enlaces', count: (p) => (p.links || []).length, page: true },
@@ -304,7 +443,11 @@ const TABS = [
 ]
 const tab = ref(TABS.some((t) => t.id === readPref('navegador.panel-tab', 'log')) ? readPref('navegador.panel-tab', 'log') : 'log')
 watch(tab, (v) => savePref('navegador.panel-tab', v))
-const panelTab = computed(() => (page.value || !TABS.find((t) => t.id === tab.value)?.page ? tab.value : 'log'))
+const panelTab = computed(() => {
+  const t = TABS.find((x) => x.id === tab.value)
+  if (t?.live) return isLive.value ? tab.value : 'log'
+  return page.value || !t?.page ? tab.value : 'log'
+})
 
 const internalLinks = computed(() => {
   if (!page.value || !site.value) return []
@@ -344,11 +487,9 @@ const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', bu
 const LOC_LABEL = { role: 'rol', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
 const showBoxes = ref(readPref('navegador.boxes', true))
 watch(showBoxes, (v) => savePref('navegador.boxes', v))
-const hoverControl = ref(-1)
-const pickedControl = ref(-1)
 const shotSize = ref({ w: 0, h: 0 })
 const controls = computed(() => page.value?.controls || [])
-watch(pageId, () => { pickedControl.value = -1; hoverControl.value = -1; shotSize.value = { w: 0, h: 0 } })
+watch(() => page.value?.id, () => { pickedControl.value = -1; hoverControl.value = -1; shotSize.value = { w: 0, h: 0 } })
 function onShotLoad(e) { shotSize.value = { w: e.target.naturalWidth, h: e.target.naturalHeight } }
 function boxStyle(c) {
   const { w, h } = shotSize.value
@@ -360,6 +501,7 @@ const bestCode = (c) => (c.best >= 0 ? c.locators[c.best].code + c.action : '')
 const fragile = (l) => l.kind === 'css' && /nth-of-type|>/.test(l.value)
 function pickControl(c, from) {
   pickedControl.value = c.id
+  if (isLive.value && from === 'row') return // en vivo, la fila abre el menú del elemento sobre el canvas
   if (from === 'shot') {
     openTab('actions')
     requestAnimationFrame(() => document.getElementById(`control-row-${c.id}`)?.scrollIntoView({ block: 'nearest' }))
@@ -512,8 +654,11 @@ onMounted(async () => {
   if (siteSlug.value) expandSite(siteSlug.value, true)
   for (const slug of expandedSites.value) if (sites.value.some((x) => x.slug === slug)) loadPages(slug)
   poll()
+  pollLive()
 })
 onBeforeUnmount(() => {
+  clearTimeout(liveTimer)
+  closeFrames()
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', onHashChange)
   clearTimeout(pollTimer)
@@ -601,20 +746,50 @@ onBeforeUnmount(() => {
 
     <!-- EDITOR · la captura entera de la página con su resumen arriba; sin página, el resumen del sitio -->
     <main class="editor">
-      <div class="region-head">
-        <span class="ellipsis">{{ page ? (page.title || pathOf(page.url)) : site ? site.name : 'navegador' }}</span>
-        <div v-if="page" class="region-actions">
-          <button type="button" class="region-action" :aria-pressed="showBoxes" :disabled="!page.shot || !controls.length"
-            :title="showBoxes ? 'Ocultar los elementos interactivos' : 'Marcar los elementos interactivos'" aria-label="Marcar los elementos interactivos" @click="showBoxes = !showBoxes">
+      <div v-if="isLive" class="region-head live-head">
+        <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')">
+          <span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span>
+        </button>
+        <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')">
+          <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+        </button>
+        <form class="live-url" @submit.prevent="liveNav('goto', liveURL)">
+          <input id="live-url" v-model="liveURL" class="input input-sm" aria-label="URL de la sesión en vivo" spellcheck="false" />
+        </form>
+        <span v-if="liveState.analyzing" class="muted head-note">analizando…</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" :aria-pressed="inspect" :title="inspect ? 'Volver a usar la página' : 'Inspeccionar: tocar un elemento abre su localizador y sus acciones'"
+            aria-label="Inspeccionar los elementos" @click="inspect = !inspect; pickedControl = -1">
             <span class="ui-icon" data-icon="pick" aria-hidden="true"></span>
           </button>
-          <button type="button" class="region-action" :aria-pressed="!shotFit" :disabled="!page.shot"
-            :title="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" :aria-label="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" @click="shotFit = !shotFit">
-            <span class="ui-icon" :data-icon="shotFit ? 'maximize' : 'restore'" aria-hidden="true"></span>
+          <button type="button" class="region-action" :aria-pressed="showBoxes" :title="showBoxes ? 'Ocultar los marcos' : 'Marcar los elementos interactivos'" aria-label="Marcar los elementos interactivos" @click="showBoxes = !showBoxes">
+            <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
           </button>
-          <button type="button" class="region-action" title="Volver al resumen del sitio" aria-label="Volver al resumen del sitio" @click="pageId = ''">
-            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop">
+            <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
           </button>
+        </div>
+      </div>
+      <div v-else class="region-head">
+        <span class="ellipsis">{{ page ? (page.title || pathOf(page.url)) : site ? site.name : 'navegador' }}</span>
+        <div v-if="site" class="region-actions">
+          <button type="button" class="region-action" :disabled="state.busy" title="Abrir en vivo: el navegador real en el editor" aria-label="Abrir en vivo"
+            @click="liveStart(page ? page.finalUrl || page.url : '')">
+            <span class="ui-icon" data-icon="start" aria-hidden="true"></span>
+          </button>
+          <template v-if="page">
+            <button type="button" class="region-action" :aria-pressed="showBoxes" :disabled="!page.shot || !controls.length"
+              :title="showBoxes ? 'Ocultar los elementos interactivos' : 'Marcar los elementos interactivos'" aria-label="Marcar los elementos interactivos" @click="showBoxes = !showBoxes">
+              <span class="ui-icon" data-icon="pick" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" :aria-pressed="!shotFit" :disabled="!page.shot"
+              :title="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" :aria-label="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" @click="shotFit = !shotFit">
+              <span class="ui-icon" :data-icon="shotFit ? 'maximize' : 'restore'" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Volver al resumen del sitio" aria-label="Volver al resumen del sitio" @click="pageId = ''">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </template>
         </div>
       </div>
       <div class="region-body">
@@ -623,7 +798,46 @@ onBeforeUnmount(() => {
           <div class="alert-title">{{ runError }}</div>
         </div>
 
-        <div v-if="!site" class="empty">
+        <div v-if="liveError" class="alert alert-destructive" role="alert">
+          <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
+          <div class="alert-title">{{ liveError }}</div>
+        </div>
+
+        <div v-if="isLive" class="live-wrap">
+          <div class="live-stage">
+            <canvas ref="liveCanvas" class="live-canvas" tabindex="0" aria-label="La página en vivo: hacé clic y escribí como en un navegador"
+              @click="onCanvasClick" @wheel.prevent="onCanvasWheel" @keydown="onCanvasKey"></canvas>
+            <template v-if="showBoxes || inspect">
+              <button v-for="c in page?.controls || []" :key="`live-${c.id}`" type="button" class="control-box live-box"
+                :class="{ on: pickedControl === c.id, hot: hoverControl === c.id, none: c.best < 0, touch: inspect, [`k-${c.kind}`]: true }"
+                :style="liveBoxStyle(c)" :tabindex="inspect ? 0 : -1"
+                :title="`${c.id + 1} · ${KIND_LABEL[c.kind]} «${c.name}»\n${bestCode(c) || 'sin localizador único'}`" :aria-label="`${KIND_LABEL[c.kind]} ${c.name}`"
+                @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickedControl = c.id; openTab('actions')">
+                <span class="control-num">{{ c.id + 1 }}</span>
+              </button>
+            </template>
+            <div v-if="pickedLive" class="act-pop" :style="{ left: liveBoxStyle(pickedLive).left, top: `calc(${liveBoxStyle(pickedLive).top} + ${liveBoxStyle(pickedLive).height} + 6px)` }"
+              role="dialog" :aria-label="`Acciones de ${pickedLive.name}`" @click.stop>
+              <div class="act-head">
+                <strong>{{ pickedLive.id + 1 }} · {{ KIND_LABEL[pickedLive.kind] }} «{{ pickedLive.name }}»</strong>
+                <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="pickedControl = -1"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+              </div>
+              <code v-if="pickedLive.best >= 0" class="act-code">{{ pickedLive.locators[pickedLive.best].code }}</code>
+              <p v-else class="bad small">Ningún localizador encuentra sólo este elemento: no se puede actuar sobre él.</p>
+              <form v-if="pickedLive.best >= 0" class="act-row" @submit.prevent="liveAct(pickedLive.kind === 'field' ? 'fill' : pickedLive.kind === 'select' ? 'select' : pickedLive.kind === 'check' ? 'check' : 'click')">
+                <input v-if="pickedLive.kind === 'field'" v-model="actValue" class="input input-sm" placeholder="Valor a escribir" aria-label="Valor a escribir" />
+                <select v-else-if="pickedLive.kind === 'select'" v-model="actValue" class="input input-sm" aria-label="Opción">
+                  <option v-for="o in pickedLive.options || []" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</option>
+                </select>
+                <button type="submit" class="btn btn-sm" :disabled="actBusy">{{ { field: 'Llenar', select: 'Elegir', check: 'Marcar', button: 'Hacer clic', link: 'Hacer clic' }[pickedLive.kind] }}</button>
+                <button v-if="pickedLive.kind === 'check'" type="button" class="btn btn-outline btn-sm" :disabled="actBusy" @click="liveAct('uncheck')">Desmarcar</button>
+              </form>
+              <p v-if="actError" class="bad small">{{ actError }}</p>
+            </div>
+          </div>
+        </div>
+
+        <div v-else-if="!site" class="empty">
           <div class="empty-title">Ningún sitio elegido</div>
           <div class="empty-desc">Pegá una URL en el explorador: se agrega y se explora sola. Si pide login, abrí la ventana desde el menú del sitio, entrá a mano y volvé a explorar.</div>
         </div>
@@ -735,8 +949,8 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
       <nav class="tabs">
         <template v-for="t in TABS" :key="t.id">
-          <button v-if="!t.page || page" type="button" class="tab" :class="{ on: panelTab === t.id }" @click="tab = t.id">
-            {{ t.label }} <span v-if="t.page && t.count(page)" class="count">{{ t.count(page) }}</span>
+          <button v-if="t.live ? isLive : !t.page || page" type="button" class="tab" :class="{ on: panelTab === t.id }" @click="tab = t.id">
+            {{ t.label }} <span v-if="t.page && t.count(page)" class="count">{{ t.count(page) }}</span><span v-if="t.live && liveState.steps?.length" class="count">{{ liveState.steps.length }}</span>
           </button>
         </template>
         <div class="region-actions">
@@ -745,6 +959,14 @@ onBeforeUnmount(() => {
             :title="copied === 'script' ? 'Copiado' : 'Copiar como script de Playwright'" aria-label="Copiar como script de Playwright" @click="copyText(playwrightScript, 'script')">
             <span class="ui-icon" :data-icon="copied === 'script' ? 'check' : 'code'" aria-hidden="true"></span>
           </button>
+          <template v-if="panelTab === 'steps'">
+            <button type="button" class="region-action" :disabled="!liveState.steps?.length" :title="copied === 'live-script' ? 'Copiado' : 'Copiar los pasos como script de Playwright'" aria-label="Copiar los pasos como script de Playwright" @click="copyLiveScript">
+              <span class="ui-icon" :data-icon="copied === 'live-script' ? 'check' : 'code'" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" :disabled="!liveState.steps?.length" title="Empezar los pasos de cero" aria-label="Empezar los pasos de cero" @click="clearSteps">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </template>
           <button v-if="panelTab === 'log'" type="button" class="region-action" title="Limpiar la consola" aria-label="Limpiar la consola" @click="log = []">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
@@ -755,6 +977,13 @@ onBeforeUnmount(() => {
           <p v-if="!log.length" class="none">Acá sale lo que hace el navegador: cada página que analiza y lo que falla.</p>
           <div v-for="l in log" :key="l.seq" class="log-line" :data-kind="l.kind">
             <span class="log-time">{{ fmtTime(l.at) }}</span><span class="what wrap">{{ l.text }}</span>
+          </div>
+        </template>
+
+        <template v-else-if="panelTab === 'steps'">
+          <p v-if="!liveState.steps?.length" class="none">Todavía no hay pasos. Cada acción sobre un elemento (desde el menú del elemento o con bin/navegador) queda acá con su línea de Playwright.</p>
+          <div v-for="(st, i) in liveState.steps || []" :key="i" class="log-line" :data-kind="st.ok ? 'ok' : 'error'">
+            <span class="log-time">{{ fmtTime(st.at) }}</span><span class="what wrap">{{ st.ok ? '' : '✗ ' }}{{ st.code }}<template v-if="st.error"> · {{ st.error }}</template></span>
           </div>
         </template>
 
@@ -937,6 +1166,22 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .control-num { position: absolute; top: -9px; left: -9px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px;
   background: var(--control-box); color: var(--control-box-ink); font-size: 10px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums }
 .control-box.none .control-num { background: var(--status-bad) }
+/* la sesión en vivo: el canvas a lo ancho del editor, los marcos encima y el menú del elemento */
+.live-head { gap: var(--space-1) }
+.live-url { flex: 1; min-width: 0; display: flex }
+.live-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
+.live-wrap { padding: var(--space-3) }
+.live-stage { position: relative }
+.live-canvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); outline-offset: 2px }
+.live-box { pointer-events: none }
+.live-box.touch { pointer-events: auto }
+.act-pop { position: absolute; z-index: 2; width: 360px; max-width: calc(100% - 16px); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
+  background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); border-radius: var(--radius-float); box-shadow: 0 8px 24px rgb(0 0 0 / .25) }
+.act-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2); font-size: var(--text-sm) }
+.act-code { font-family: var(--font-mono); font-size: var(--text-xs); overflow-wrap: anywhere; color: var(--fg-2) }
+.act-row { display: flex; gap: var(--space-2) }
+.act-row .input { flex: 1; min-width: 0 }
+.log-line[data-kind="ok"] .what { color: var(--foreground) }
 /* la tabla de acciones */
 .controls .el { max-width: 220px }
 .controls .best { white-space: nowrap }

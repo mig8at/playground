@@ -136,6 +136,9 @@
   }
   const CONTROL = 'input:not([type=hidden]), select, textarea, button, a[href], [role=button], [role=link], [role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=switch], [role=combobox], [role=textbox], [contenteditable=""], [contenteditable=true]'
   const controls = []
+  // En vivo la misma página se analiza varias veces: las marcas del análisis anterior se borran, o un elemento
+  // que dejó de verse conservaría un id viejo y confundiría la verificación.
+  for (const old of document.querySelectorAll('[data-navegador-id]')) old.removeAttribute('data-navegador-id')
   const formIndex = new Map([...document.forms].map((f, i) => [f, i]))
   let linkControls = 0
   for (const el of document.querySelectorAll(CONTROL)) {
@@ -191,6 +194,8 @@
       id, kind, tag, type, role, name: name || label || placeholder || nameAttr || el.id || tag, action,
       form: el.form && formIndex.has(el.form) ? formIndex.get(el.form) : -1,
       box: { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) },
+      options: tag === 'select' ? [...el.options].slice(0, 50).map((o) => ({ value: o.value, label: clean(o.textContent, 60), disabled: o.disabled })) : undefined,
+      checked: type === 'checkbox' || type === 'radio' ? el.checked : undefined,
       locators: unique,
     })
   }

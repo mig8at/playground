@@ -213,6 +213,148 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"pages": pages, "run": store.LastRun(slug)})
 	})
+	// ── la sesión en vivo (live.go) ──
+	// POST /api/live/start?site=…&start=… · POST /api/live/stop
+	mux.HandleFunc("/api/live/start", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
+			return
+		}
+		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start")); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, runner.LiveState(false))
+	})
+	mux.HandleFunc("/api/live/stop", func(w http.ResponseWriter, r *http.Request) {
+		if st := runner.State(0); st.Busy && st.Kind == "live" {
+			runner.Stop()
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// GET /api/live/state[?fresh=1] — dónde está, qué hay para tocar (con sus localizadores) y los pasos.
+	mux.HandleFunc("/api/live/state", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, runner.LiveState(r.URL.Query().Get("fresh") == "1"))
+	})
+	// GET /api/live/frames — los cuadros del screencast, por Server-Sent Events (JSON: {data: jpeg base64, meta}).
+	mux.HandleFunc("/api/live/frames", func(w http.ResponseWriter, r *http.Request) {
+		frames, cancel, err := runner.LiveSubscribe()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		defer cancel()
+		flusher, okFlush := w.(http.Flusher)
+		if !okFlush {
+			writeErr(w, http.StatusInternalServerError, fmt.Errorf("sin streaming"))
+			return
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.Header().Set("Cache-Control", "no-store")
+		w.Header().Set("X-Accel-Buffering", "no")
+		flusher.Flush()
+		for {
+			select {
+			case <-r.Context().Done():
+				return
+			case f, open := <-frames:
+				if !open {
+					fmt.Fprint(w, "event: end\ndata: {}\n\n")
+					flusher.Flush()
+					return
+				}
+				fmt.Fprintf(w, "data: %s\n\n", f)
+				flusher.Flush()
+			}
+		}
+	})
+	// POST /api/live/input {type, x, y, dx, dy, key, text} — lo que se hizo sobre el canvas.
+	mux.HandleFunc("/api/live/input", func(w http.ResponseWriter, r *http.Request) {
+		var in LiveInput
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := runner.LiveInput(in); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// POST /api/live/nav {action: goto|back|forward|reload, url}
+	mux.HandleFunc("/api/live/nav", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Action, URL string }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := runner.LiveNav(in.Action, in.URL); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// POST /api/live/act {control, action, value, version} — una acción sobre un elemento, por su localizador.
+	mux.HandleFunc("/api/live/act", func(w http.ResponseWriter, r *http.Request) {
+		var in LiveAct
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		step, err := runner.LiveAct(in)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
+			return
+		}
+		writeJSON(w, http.StatusOK, step)
+	})
+	// GET /api/live/text — el texto visible de la página.
+	mux.HandleFunc("/api/live/text", func(w http.ResponseWriter, r *http.Request) {
+		text, err := runner.LiveText()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"text": text})
+	})
+	// GET /api/live/shot — lo que se ve ahora, en PNG.
+	mux.HandleFunc("/api/live/shot", func(w http.ResponseWriter, r *http.Request) {
+		png, err := runner.LiveShot()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		w.Header().Set("Content-Type", "image/png")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = w.Write(png)
+	})
+	// GET /api/live/script — los pasos como script de Playwright.
+	mux.HandleFunc("/api/live/script", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		_, _ = w.Write([]byte(runner.LiveScript()))
+	})
+	// POST /api/live/expect {text, seconds} — espera a que el texto se vea y lo deja como aserción.
+	mux.HandleFunc("/api/live/expect", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Text    string
+			Seconds float64
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		step, err := runner.LiveExpect(in.Text, in.Seconds)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
+			return
+		}
+		writeJSON(w, http.StatusOK, step)
+	})
+	// DELETE /api/live/steps — empieza la lista de pasos de cero.
+	mux.HandleFunc("/api/live/steps", func(w http.ResponseWriter, r *http.Request) {
+		runner.LiveClearSteps()
+		writeJSON(w, http.StatusOK, ok)
+	})
 	// GET /api/shot?site=…&id=… — la captura de una página.
 	mux.HandleFunc("/api/shot", func(w http.ResponseWriter, r *http.Request) {
 		slug, id := r.URL.Query().Get("site"), r.URL.Query().Get("id")
