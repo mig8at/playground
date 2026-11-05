@@ -220,7 +220,9 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
 			return
 		}
-		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start")); err != nil {
+		vw, _ := strconv.Atoi(r.URL.Query().Get("w"))
+		vh, _ := strconv.Atoi(r.URL.Query().Get("h"))
+		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start"), vw, vh); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -276,6 +278,19 @@ func handler(store *Store, runner *Runner) http.Handler {
 			return
 		}
 		if err := runner.LiveInput(in); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// POST /api/live/viewport {w, h} — el tamaño del editor, para que la página se vea 1:1.
+	mux.HandleFunc("/api/live/viewport", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ W, H int }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := runner.LiveResize(in.W, in.H); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}

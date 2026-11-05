@@ -26,8 +26,16 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// Viewport de la sesión en vivo: el editor lo escala a su ancho.
+// El tamaño de la sesión en vivo es el del editor (la interfaz lo manda al abrir y cada vez que cambia), así la
+// página se ve 1:1. Sin tamaño, el de una pantalla de escritorio común.
 const liveW, liveH = 1280, 800
+
+func clampSize(w, h int) (int, int) {
+	if w <= 0 || h <= 0 {
+		return liveW, liveH
+	}
+	return min(max(w, 320), 2560), min(max(h, 240), 1600)
+}
 
 // Step es una acción hecha en la sesión, con la línea de Playwright que la reproduce.
 type Step struct {
@@ -57,8 +65,10 @@ type live struct {
 	site  Site
 	bctx  playwright.BrowserContext
 	page  playwright.Page
+	cdp   playwright.CDPSession
 	tap   *tap
 	start string
+	w, h  int
 
 	mu        sync.Mutex
 	subs      map[chan []byte]struct{}
@@ -99,8 +109,8 @@ func (r *Runner) liveSession() *live {
 	return r.live
 }
 
-// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio).
-func (r *Runner) LiveStart(slug, start string) error {
+// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), del tamaño w×h.
+func (r *Runner) LiveStart(slug, start string, w, h int) error {
 	site, err := r.store.Site(slug)
 	if err != nil {
 		return err
@@ -115,7 +125,7 @@ func (r *Runner) LiveStart(slug, start string) error {
 	ready := make(chan error, 1)
 	go func() {
 		defer r.end()
-		if err := r.runLive(ctx, site, start, ready); err != nil {
+		if err := r.runLive(ctx, site, start, w, h, ready); err != nil {
 			r.say("error", "en vivo: %v", err)
 			select {
 			case ready <- err:
@@ -131,14 +141,15 @@ func (r *Runner) LiveStart(slug, start string) error {
 	}
 }
 
-func (r *Runner) runLive(ctx context.Context, site Site, start string, ready chan<- error) error {
+func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int, ready chan<- error) error {
+	w, h = clampSize(w, h)
 	pw, err := r.playwright()
 	if err != nil {
 		return err
 	}
 	bctx, err := pw.Chromium.LaunchPersistentContext(r.store.ProfileDir(site.Slug), playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: playwright.Bool(true),
-		Viewport: &playwright.Size{Width: liveW, Height: liveH},
+		Viewport: &playwright.Size{Width: w, Height: h},
 		Args:     []string{"--disable-blink-features=AutomationControlled"},
 	})
 	if err != nil {
@@ -151,7 +162,7 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 			return err
 		}
 	}
-	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
+	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
 	page.OnFrameNavigated(func(f playwright.Frame) {
 		if f.ParentFrame() == nil {
@@ -180,7 +191,8 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, ready cha
 		msg, _ := json.Marshal(map[string]any{"data": data, "meta": ev["metadata"]})
 		l.broadcast(msg)
 	})
-	if _, err := cdp.Send("Page.startScreencast", map[string]any{"format": "jpeg", "quality": 75, "maxWidth": liveW, "maxHeight": liveH}); err != nil {
+	l.cdp = cdp
+	if err := l.startScreencast(); err != nil {
 		return fmt.Errorf("screencast: %w", err)
 	}
 
@@ -271,7 +283,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: liveW, Height: liveH,
+		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h,
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 	}
 }
@@ -535,10 +547,13 @@ func (r *Runner) LiveScript() string {
 	l.mu.Lock()
 	steps := append([]Step{}, l.steps...)
 	start := l.start
+	w, h := l.w, l.h
 	l.mu.Unlock()
 	var b strings.Builder
 	b.WriteString("import { test, expect } from '@playwright/test'\n\n")
 	fmt.Fprintf(&b, "test('%s', async ({ page }) => {\n", jsQuote("recorrido en "+l.site.Name))
+	// El tamaño con que se recorrió: la disposición (y algún localizador) depende de él.
+	fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
 	if len(steps) == 0 || !strings.HasPrefix(steps[0].Code, "page.goto(") {
 		fmt.Fprintf(&b, "  await page.goto('%s')\n", jsQuote(start))
 	}
@@ -566,4 +581,37 @@ func controlsSignature(p *Page) string {
 		fmt.Fprintf(&b, "|%s:%s:%s", c.Kind, c.Name, code)
 	}
 	return b.String()
+}
+
+func (l *live) startScreencast() error {
+	_, err := l.cdp.Send("Page.startScreencast", map[string]any{"format": "jpeg", "quality": 75, "maxWidth": l.w, "maxHeight": l.h})
+	return err
+}
+
+// LiveResize cambia el tamaño de la página al del editor y reinicia el screencast con ese tamaño. La disposición
+// cambia, así que la página se vuelve a analizar (los cuadros y, a veces, los localizadores).
+func (r *Runner) LiveResize(w, h int) error {
+	l := r.liveSession()
+	if l == nil {
+		return errors.New("no hay sesión en vivo")
+	}
+	w, h = clampSize(w, h)
+	l.mu.Lock()
+	same := l.w == w && l.h == h
+	l.mu.Unlock()
+	if same {
+		return nil
+	}
+	if err := l.page.SetViewportSize(w, h); err != nil {
+		return err
+	}
+	l.mu.Lock()
+	l.w, l.h = w, h
+	l.mu.Unlock()
+	_, _ = l.cdp.Send("Page.stopScreencast", nil)
+	if err := l.startScreencast(); err != nil {
+		return err
+	}
+	l.markDirty()
+	return nil
 }

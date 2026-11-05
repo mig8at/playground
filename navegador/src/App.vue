@@ -127,6 +127,32 @@ const liveURL = ref('')
 const inspect = ref(false) // los cuadros se tocan (y abren su menú) en vez de dejar pasar el clic a la página
 const frameMeta = ref(null)
 const liveCanvas = ref(null)
+// El tamaño del navegador en vivo es el del área del editor: se mide y se manda al abrir y cada vez que cambia
+// (un separador, una región plegada, la ventana).
+const editorBody = ref(null)
+const editorSize = () => {
+  const el = editorBody.value
+  return el ? { w: Math.floor(el.clientWidth), h: Math.floor(el.clientHeight) } : { w: 0, h: 0 }
+}
+let resizeObs = null
+let resizeTimer = null
+let sentSize = ''
+function watchEditorSize(on) {
+  resizeObs?.disconnect()
+  resizeObs = null
+  if (!on || !editorBody.value) return
+  resizeObs = new ResizeObserver(() => {
+    clearTimeout(resizeTimer)
+    resizeTimer = setTimeout(() => {
+      const { w, h } = editorSize()
+      const key = `${w}x${h}`
+      if (!w || !h || key === sentSize) return
+      sentSize = key
+      api('/api/live/viewport', { method: 'POST', body: JSON.stringify({ w, h }) }).catch((e) => { liveError.value = e.message })
+    }, 200)
+  })
+  resizeObs.observe(editorBody.value)
+}
 let frames = null
 let liveTimer = null
 async function pollLive() {
@@ -161,13 +187,18 @@ function openFrames() {
   frames.addEventListener('end', closeFrames)
 }
 function closeFrames() { frames?.close(); frames = null }
-watch(isLive, (on) => { on ? requestAnimationFrame(openFrames) : closeFrames() })
+watch(isLive, (on) => {
+  on ? requestAnimationFrame(openFrames) : closeFrames()
+  requestAnimationFrame(() => watchEditorSize(on))
+})
 async function liveStart(start = '') {
   liveError.value = ''
   panelOpen.value = true
   saveSize('navegador.panel-open', 1)
   try {
-    const q = `site=${encodeURIComponent(siteSlug.value)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
+    const { w, h } = editorSize()
+    sentSize = `${w}x${h}`
+    const q = `site=${encodeURIComponent(siteSlug.value)}&w=${w}&h=${h}${start ? `&start=${encodeURIComponent(start)}` : ''}`
     liveState.value = await api(`/api/live/start?${q}`, { method: 'POST' })
     liveURL.value = liveState.value.url
     poll()
@@ -659,6 +690,7 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   clearTimeout(liveTimer)
   closeFrames()
+  resizeObs?.disconnect()
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', onHashChange)
   clearTimeout(pollTimer)
@@ -792,7 +824,7 @@ onBeforeUnmount(() => {
           </template>
         </div>
       </div>
-      <div class="region-body">
+      <div ref="editorBody" class="region-body" :class="{ 'live-body': isLive }">
         <div v-if="runError" class="alert alert-destructive" role="alert">
           <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
           <div class="alert-title">{{ runError }}</div>
@@ -1170,9 +1202,10 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-head { gap: var(--space-1) }
 .live-url { flex: 1; min-width: 0; display: flex }
 .live-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
-.live-wrap { padding: var(--space-3) }
+/* el navegador ocupa el editor entero, 1:1: el área se mide y la página toma ese tamaño */
+.live-body { overflow: hidden }
 .live-stage { position: relative }
-.live-canvas { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); outline-offset: 2px }
+.live-canvas { display: block; width: 100%; height: auto; background: var(--card); outline: none }
 .live-box { pointer-events: none }
 .live-box.touch { pointer-events: auto }
 .act-pop { position: absolute; z-index: 2; width: 360px; max-width: calc(100% - 16px); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);
