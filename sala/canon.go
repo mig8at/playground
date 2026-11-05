@@ -46,7 +46,7 @@ const canonSystem = `Trabajás SOLO sobre un TEMA de CANON, el corpus compartido
 	`Si sí, la pieza es un «verificado» que sube el hash. Si no, o si el cambio agregó una regla que el tema no cuenta, la pieza ` +
 	`reescribe la sección (mismo node y section reemplaza; corregir es reescribir, no agregar otra al lado). ` +
 	`REGLAS DE LA PROSA: sólo lo que está en main; directa, sin rellenos; sin mediciones del ambiente, sin cifras de prod y sin ` +
-	`fechas de cuándo se descubrió algo; sin la crónica de cómo lo comprobaste; hasta 600 palabras por sección. ` +
+	`fechas de cuándo se descubrió algo; sin la crónica de cómo lo comprobaste; hasta 550 palabras por sección (el tope de canon es 600 y cuenta las palabras distinto). ` +
 	`Ya estás en la raíz del playground: make y bin/pg van sin -C. ` +
 	`Una sección reescrita sobre archivos que el tema YA declara no mueve su hash (queda enlazada al área): después de esa pieza ` +
 	`agregá un «verificado» con esos mismos archivos, que es lo que saca la deriva. En «tablas», sólo tablas que existen en el ` +
