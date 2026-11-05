@@ -26,3 +26,22 @@ func TestVerdictLine(t *testing.T) {
 		t.Fatalf("no se leyó el veredicto: %v", m)
 	}
 }
+
+// Las piezas salen de los bloques ```pieza; un JSON roto no cuenta, y la etiqueta lleva tema, sección y archivos.
+func TestParsePieces(t *testing.T) {
+	text := mockCanonPieces("cuota") + "\n```pieza\n{roto\n```\n"
+	got := parsePieces(text)
+	if len(got) != 2 {
+		t.Fatalf("quería 2 piezas, salieron %d", len(got))
+	}
+	if kind, _ := pieceLabel(got[0]); kind != "verificado" {
+		t.Fatalf("la primera es un verificado, salió %q", kind)
+	}
+	kind, label := pieceLabel(got[1])
+	if kind != "correction" || !strings.Contains(label, "«Regla simulada»") || !strings.Contains(label, "legacy-backend:app/Y.php") {
+		t.Fatalf("la segunda quedó mal: %q %q", kind, label)
+	}
+	if m := reVerdict.FindStringSubmatch("VEREDICTO: P2 | ✓ | git show | sigue"); m == nil || m[1] != "P2" {
+		t.Fatalf("no se leyó el veredicto de una pieza: %v", m)
+	}
+}

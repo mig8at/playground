@@ -2,6 +2,7 @@
 //
 //	make sala              la página (http://127.0.0.1:5201): elegís temas, la larga y ves trabajar a cada agente
 //	make barrido TEMAS=…   lo mismo por consola, sin página
+//	make barrido-canon     el barrido sobre los temas de CANON que la ronda marca con archivos cambiados (canon.go)
 //
 // Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura del playground, sobre UN tema:
 // no habla con los otros ni espera turno. Cuando terminan todos, un verificador que no escribió nada comprueba cada
@@ -33,6 +34,7 @@ func main() {
 	sweepN := flag.Int("n", 3, "cuántos temas toma el barrido en «auto»")
 	sweepBudget := flag.Float64("tope", 2.5, "tope de cada agente del barrido, en US$ equivalentes")
 	sweepCheck := flag.Float64("tope-verificador", 3, "tope del verificador del barrido, en US$ equivalentes")
+	sweepMode := flag.String("modo", "knowledge", "sobre qué barre: knowledge (los temas locales) o canon (los que la ronda marca)")
 	flag.Parse()
 	root, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
@@ -47,7 +49,7 @@ func main() {
 		if *sweepTopics != "auto" {
 			topics = splitTopics(*sweepTopics)
 		}
-		err := sw.start(topics, *sweepN, *sweepBudget, *sweepCheck, mock, func(path string, err error) {
+		err := sw.start(*sweepMode, topics, *sweepN, *sweepBudget, *sweepCheck, mock, func(path string, err error) {
 			if err != nil {
 				log.Print(err)
 			}
@@ -60,8 +62,10 @@ func main() {
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("barrido: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
-			len(sw.b.Agents), *sweepBudget, *sweepCheck)
+		sw.mu.Lock()
+		fmt.Printf("barrido %s sobre %s: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
+			sw.b.Mode, topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
+		sw.mu.Unlock()
 		<-done
 		return
 	}
@@ -79,6 +83,23 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(root, "tools", "ui", "theme.css"))
 	})
 	http.HandleFunc("/api/topics", func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("mode") == "canon" {
+			// Los temas de canon con archivos cambiados en main, de más a menos: la ronda del servidor.
+			_, work, err := canonRound(r.Context(), nil, 0)
+			if err != nil {
+				http.Error(w, err.Error(), 502)
+				return
+			}
+			out := []topicInfo{}
+			for t, changes := range work {
+				out = append(out, topicInfo{ID: t, Title: fmt.Sprintf("%d archivo(s) cambiados en main", len(changes)), Reviewed: fmt.Sprintf("%04d", len(changes))})
+			}
+			sort.Slice(out, func(i, j int) bool {
+				return out[i].Reviewed > out[j].Reviewed || (out[i].Reviewed == out[j].Reviewed && out[i].ID < out[j].ID)
+			})
+			writeJSON(w, out)
+			return
+		}
 		writeJSON(w, allTopics(root))
 	})
 	// El estado del barrido en curso (o el último): la página lo pide cada segundo.
@@ -88,6 +109,7 @@ func main() {
 	})
 	http.HandleFunc("/api/start", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
+			Mode        string   `json:"mode"`
 			Topics      []string `json:"topics"`
 			N           int      `json:"n"`
 			Budget      float64  `json:"budget"`
@@ -111,7 +133,7 @@ func main() {
 			http.Error(w, "hasta 6 temas por barrido: cada uno gasta del asiento", 400)
 			return
 		}
-		if err := sw.start(in.Topics, in.N, in.Budget, in.CheckBudget, in.Mock || mock, nil); err != nil {
+		if err := sw.start(in.Mode, in.Topics, in.N, in.Budget, in.CheckBudget, in.Mock || mock, nil); err != nil {
 			http.Error(w, err.Error(), 409)
 			return
 		}
@@ -213,4 +235,12 @@ func splitTopics(s string) []string {
 func writeJSON(w http.ResponseWriter, v any) {
 	w.Header().Set("content-type", "application/json")
 	_ = json.NewEncoder(w).Encode(v)
+}
+
+func topicNames(b *board) string {
+	var names []string
+	for _, a := range b.Agents {
+		names = append(names, a.Topic)
+	}
+	return strings.Join(names, ", ")
 }

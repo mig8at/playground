@@ -32,6 +32,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"creditop/playground/connectors/canon"
 )
 
 const (
@@ -120,11 +122,16 @@ type finding struct {
 	Text    string `json:"text"`
 	Verdict string `json:"verdict"` // ✓ ✗ — o vacío si el verificador no llegó
 	Check   string `json:"check"`
+	// Sólo en el barrido de canon: dónde quedó la pieza y qué dijo canon al ensayarla.
+	Piece     string `json:"piece,omitempty"`
+	Rehearsal string `json:"rehearsal,omitempty"`
+	piece     canon.Piece
 }
 
 // board es el estado de un barrido: lo que pinta la interfaz y lo que queda en barrido.json.
 type board struct {
 	ID          string     `json:"id"`
+	Mode        string     `json:"mode"`  // knowledge · canon
 	Phase       string     `json:"phase"` // agentes · verificador · terminado · cortado
 	Mock        bool       `json:"mock"`
 	Budget      float64    `json:"budget"`
@@ -139,7 +146,7 @@ type board struct {
 }
 
 var (
-	reVerdict   = regexp.MustCompile(`(?m)^\s*VEREDICTO:\s*(H[0-9]+)\s*\|\s*(✓|✗|—)\s*\|\s*(.+?)\s*$`)
+	reVerdict   = regexp.MustCompile(`(?m)^\s*VEREDICTO:\s*([HP][0-9]+)\s*\|\s*(✓|✗|—)\s*\|\s*(.+?)\s*$`)
 	reFindStart = regexp.MustCompile(`^\s*(?:[-*]\s*)?HALLAZGO:`)
 	reFindKind  = regexp.MustCompile(`^HALLAZGO:\s*([^|]+?)\s*\|`)
 )
@@ -150,6 +157,7 @@ type sweeper struct {
 	mu     sync.Mutex
 	b      *board
 	cancel context.CancelFunc
+	work   canonWork // los archivos cambiados de cada tema, en el barrido de canon
 }
 
 func (s *sweeper) snapshot() []byte {
@@ -178,25 +186,37 @@ func (s *sweeper) stop() {
 }
 
 // start arranca un barrido en segundo plano; done recibe la ruta del informe al terminar.
-func (s *sweeper) start(topics []string, n int, budget, checkBudget float64, mock bool, done func(string, error)) error {
+func (s *sweeper) start(mode string, topics []string, n int, budget, checkBudget float64, mock bool, done func(string, error)) error {
 	if s.running() {
 		return fmt.Errorf("ya hay un barrido corriendo")
 	}
-	if len(topics) == 0 {
-		topics = oldestTopics(s.root, n)
+	var work canonWork
+	if mode == "canon" {
+		rctx, rcancel := context.WithTimeout(context.Background(), 90*time.Second)
+		var err error
+		topics, work, err = canonRound(rctx, topics, n)
+		rcancel()
+		if err != nil {
+			return err
+		}
+	} else {
+		mode = "knowledge"
+		if len(topics) == 0 {
+			topics = oldestTopics(s.root, n)
+		}
 	}
 	if len(topics) == 0 {
-		return fmt.Errorf("no encontré temas en knowledge/")
+		return fmt.Errorf("no hay temas para barrer en %s", mode)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
-	b := &board{ID: time.Now().Format("20060102-150405"), Phase: "agentes", Mock: mock, Budget: budget, CheckBudget: checkBudget,
+	b := &board{ID: time.Now().Format("20060102-150405"), Mode: mode, Phase: "agentes", Mock: mock, Budget: budget, CheckBudget: checkBudget,
 		Verifier: &agent{Topic: "verificador", Status: "esperando", Steps: []step{}}, Findings: []*finding{},
 		Started: time.Now().Format(time.RFC3339)}
 	for _, t := range topics {
 		b.Agents = append(b.Agents, &agent{Topic: t, Status: "esperando", Steps: []step{}})
 	}
 	s.mu.Lock()
-	s.b, s.cancel = b, cancel
+	s.b, s.cancel, s.work = b, cancel, work
 	s.mu.Unlock()
 	go func() {
 		path, err := s.run(ctx, b)
@@ -218,7 +238,11 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 		wg.Add(1)
 		go func(a *agent) {
 			defer wg.Done()
-			s.work(ctx, a, sweepBrief(s.root, a.Topic), sweepSystem, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+			if b.Mode == "canon" {
+				s.runOne(ctx, a, canonBrief(ctx, s.root, a.Topic, s.work[a.Topic]), canonSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+			} else {
+				s.runOne(ctx, a, sweepBrief(s.root, a.Topic), sweepSystem, sweepTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+			}
 			_ = os.WriteFile(filepath.Join(dir, a.Topic+".md"), []byte(a.text), 0o644)
 		}(a)
 	}
@@ -226,6 +250,14 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 
 	s.mu.Lock()
 	for _, a := range b.Agents {
+		if b.Mode == "canon" {
+			for _, p := range parsePieces(a.text) {
+				kind, label := pieceLabel(p)
+				b.Findings = append(b.Findings, &finding{ID: fmt.Sprintf("P%d", len(b.Findings)+1), Topic: a.Topic, Kind: kind, Text: label, piece: p})
+				a.Findings++
+			}
+			continue
+		}
 		for _, text := range parseFindings(a.text) {
 			f := &finding{ID: fmt.Sprintf("H%d", len(b.Findings)+1), Topic: a.Topic, Text: text}
 			if m := reFindKind.FindStringSubmatch(text); m != nil {
@@ -243,11 +275,21 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 
 	if ctx.Err() == nil && len(findings) > 0 {
 		var p strings.Builder
-		p.WriteString("Hallazgos del barrido. Comprobá cada uno:\n\n")
-		for _, f := range findings {
-			fmt.Fprintf(&p, "%s [%s] %s\n\n", f.ID, f.Topic, f.Text)
+		system, tools := verifierSystem, sweepTools
+		if b.Mode == "canon" {
+			system, tools = canonVerifierSystem, canonTools
+			p.WriteString("Piezas del barrido de canon. Comprobá cada una:\n\n")
+			for _, f := range findings {
+				raw, _ := json.Marshal(f.piece)
+				fmt.Fprintf(&p, "%s [%s]\n%s\n\n", f.ID, f.Topic, raw)
+			}
+		} else {
+			p.WriteString("Hallazgos del barrido. Comprobá cada uno:\n\n")
+			for _, f := range findings {
+				fmt.Fprintf(&p, "%s [%s] %s\n\n", f.ID, f.Topic, f.Text)
+			}
 		}
-		s.work(ctx, b.Verifier, p.String(), verifierSystem, verifierModel, verifierLevel, b.CheckBudget, b.Mock, findings)
+		s.runOne(ctx, b.Verifier, p.String(), system, tools, verifierModel, verifierLevel, b.CheckBudget, b.Mock, findings)
 		s.mu.Lock()
 		byID := map[string]*finding{}
 		for _, f := range b.Findings {
@@ -261,10 +303,28 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 		s.mu.Unlock()
 		_ = os.WriteFile(filepath.Join(dir, "verificador.md"), []byte(b.Verifier.text), 0o644)
 	}
+	if b.Mode == "canon" && len(findings) > 0 {
+		// Fuera del candado: el ensayo habla con canon. Cada pieza es de un solo hilo acá.
+		s.mu.Lock()
+		if ctx.Err() == nil {
+			b.Phase = "ensayo"
+		}
+		s.mu.Unlock()
+		rehearse(ctx, dir, findings, b.Mock, func(f *finding, piece, rehearsal string) {
+			s.mu.Lock()
+			defer s.mu.Unlock()
+			if piece != "" {
+				f.Piece = piece
+			}
+			if rehearsal != "" {
+				f.Rehearsal = rehearsal
+			}
+		})
+	}
 
 	s.mu.Lock()
 	if !b.Mock { // lo simulado no alimenta lo conocido
-		remember(s.root, b.Findings)
+		remember(s.root, b.Mode, b.Findings)
 	}
 	b.Phase = "terminado"
 	if ctx.Err() != nil {
@@ -285,7 +345,7 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 }
 
 // work corre un agente y va dejando en el tablero lo que hace.
-func (s *sweeper) work(ctx context.Context, a *agent, prompt, system, model, effort string, budget float64, mock bool, findings []*finding) {
+func (s *sweeper) runOne(ctx context.Context, a *agent, prompt, system string, tools []string, model, effort string, budget float64, mock bool, findings []*finding) {
 	s.mu.Lock()
 	a.Status, a.started = "trabajando", time.Now()
 	s.mu.Unlock()
@@ -308,8 +368,11 @@ func (s *sweeper) work(ctx context.Context, a *agent, prompt, system, model, eff
 	var err error
 	if mock {
 		res, err = mockAgent(ctx, a.Topic, findings, onStep)
+		if err == nil && findings == nil && system == canonSystem {
+			res.Result = mockCanonPieces(a.Topic)
+		}
 	} else {
-		res, err = runAgent(ctx, s.root, prompt, system, model, effort, budget, onStep, onTokens)
+		res, err = runAgent(ctx, s.root, prompt, system, tools, model, effort, budget, onStep, onTokens)
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -418,11 +481,15 @@ func sweepBrief(root, topic string) string {
 }
 
 // remember agrega a lo conocido de cada tema lo que el verificador confirmó.
-func remember(root string, findings []*finding) {
+func remember(root, mode string, findings []*finding) {
 	byTopic := map[string][]string{}
 	for _, f := range findings {
 		if f.Verdict == "✓" {
-			byTopic[f.Topic] = append(byTopic[f.Topic], "- "+time.Now().Format("2006-01-02")+" · "+f.Text)
+			key := f.Topic
+			if mode == "canon" {
+				key = "canon-" + f.Topic
+			}
+			byTopic[key] = append(byTopic[key], "- "+time.Now().Format("2006-01-02")+" · "+f.Text)
 		}
 	}
 	for topic, lines := range byTopic {
@@ -443,8 +510,14 @@ func sweepReport(b *board) string {
 	for _, f := range b.Findings {
 		count[f.Verdict]++
 	}
-	fmt.Fprintf(&r, "\n# Barrido · %s\n\n", b.ID)
-	fmt.Fprintf(&r, "%d hallazgo(s): %d ✓ · %d ✗ · %d — · %d sin veredicto. Costo: US$%.2f eq. (corre con el asiento; no se cobra aparte).\n\n",
+	what := "hallazgo(s)"
+	if b.Mode == "canon" {
+		what = "pieza(s) de canon"
+		fmt.Fprintf(&r, "\n# Barrido de canon · %s\n\n", b.ID)
+	} else {
+		fmt.Fprintf(&r, "\n# Barrido · %s\n\n", b.ID)
+	}
+	fmt.Fprintf(&r, "%d "+what+": %d ✓ · %d ✗ · %d — · %d sin veredicto. Costo: US$%.2f eq. (corre con el asiento; no se cobra aparte).\n\n",
 		len(b.Findings), count["✓"], count["✗"], count["—"], count[""], b.Cost)
 	r.WriteString("| agente | US$ eq. | pasos | s | hallazgos |\n|---|---|---|---|---|\n")
 	for _, a := range append(append([]*agent(nil), b.Agents...), b.Verifier) {
@@ -459,6 +532,25 @@ func sweepReport(b *board) string {
 		if f.Check != "" {
 			fmt.Fprintf(&r, "> %s\n", f.Check)
 		}
+		if f.Rehearsal != "" {
+			fmt.Fprintf(&r, "> ensayo en canon: %s\n", f.Rehearsal)
+		}
+		if f.Piece != "" {
+			fmt.Fprintf(&r, "> pieza: %s\n", f.Piece)
+		}
+	}
+	if b.Mode == "canon" {
+		var ready []string
+		for _, f := range b.Findings {
+			if f.Verdict == "✓" && strings.HasPrefix(f.Rehearsal, "ok") && f.Piece != "" {
+				ready = append(ready, f.Piece)
+			}
+		}
+		if len(ready) > 0 {
+			fmt.Fprintf(&r, "\n## Listas para publicar (%d)\n\nNada se publicó. Para ensayarlas juntas y después publicarlas, en UNA revisión:\n\n"+
+				"    make canon-write DRY=1 PIECE='%s'\n    make canon-write PIECE='%s' TITLE='canon: puesta al día desde la sala'\n",
+				len(ready), strings.Join(ready, " "), strings.Join(ready, " "))
+		}
 	}
 	return r.String()
 }
@@ -471,14 +563,14 @@ type agentResult struct {
 
 // runAgent corre un agente de una sesión larga con `claude -p` en stream-json, desde la raíz (carga el CLAUDE.md
 // y sus guardas), y avisa cada herramienta que usa y cada cosa que dice.
-func runAgent(ctx context.Context, root, prompt, system, model, effort string, budget float64,
+func runAgent(ctx context.Context, root, prompt, system string, tools []string, model, effort string, budget float64,
 	onStep func(kind, text string), onTokens func(int)) (agentResult, error) {
 	tctx, cancel := context.WithTimeout(ctx, 30*time.Minute)
 	defer cancel()
 	cmd := exec.CommandContext(tctx, "claude", "-p", prompt, "--output-format", "stream-json", "--verbose",
 		"--max-budget-usd", fmt.Sprintf("%.2f", budget), "--model", model, "--effort", effort,
 		"--append-system-prompt", system,
-		"--allowedTools", strings.Join(sweepTools, ","),
+		"--allowedTools", strings.Join(tools, ","),
 		"--disallowedTools", strings.Join(denied, ","),
 		"--add-dir", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"),
 		// Sin servidores MCP: cada sesión cargaba sus definiciones (~4.600 tokens) y el agente tiene bin/pg.

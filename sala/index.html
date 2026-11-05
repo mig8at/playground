@@ -96,8 +96,12 @@
 </head>
 <body>
 <nav>
-  <h2>Temas de knowledge <span class="count" id="tcount"></span></h2>
-  <div class="hint" style="padding:6px 12px 0">De la revisión más vieja a la más nueva. Un agente por tema.</div>
+  <div class="row" id="modes" style="padding:8px 12px 0">
+    <label><input type="radio" name="mode" value="knowledge" checked> knowledge/</label>
+    <label title="Pone al día canon: piezas que se comprueban y se ensayan, sin publicar"><input type="radio" name="mode" value="canon"> canon</label>
+  </div>
+  <h2><span id="ttitle">Temas de knowledge</span> <span class="count" id="tcount"></span></h2>
+  <div class="hint" id="thint" style="padding:6px 12px 0">De la revisión más vieja a la más nueva. Un agente por tema.</div>
   <div class="topics" id="topics"></div>
   <div class="controls">
     <div class="row">
@@ -133,14 +137,23 @@ const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<
 const code = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
 let viewing = null, filter = 'todos', lastState = null;
 
+const mode = () => document.querySelector('#modes input:checked').value;
 async function loadTopics() {
-  const topics = await (await fetch('/api/topics')).json();
+  const canon = mode() === 'canon';
+  $('ttitle').textContent = canon ? 'Temas de canon con deriva' : 'Temas de knowledge';
+  $('thint').textContent = canon
+    ? 'Los que la ronda marca con archivos cambiados en main, de más a menos. Cada agente arma piezas; las confirmadas se ensayan en canon sin publicar.'
+    : 'De la revisión más vieja a la más nueva. Un agente por tema.';
+  $('topics').innerHTML = '<div class="hint" style="padding:8px 12px">Cargando…</div>';
+  const r = await fetch('/api/topics' + (canon ? '?mode=canon' : ''));
+  if (!r.ok) { $('topics').innerHTML = `<div class="hint" style="padding:8px 12px">${esc(await r.text())}</div>`; $('tcount').textContent = ''; return; }
+  const topics = await r.json();
   $('tcount').textContent = topics.length;
   $('topics').innerHTML = topics.map((t, i) => `
     <label class="topic" title="${esc(t.title)}">
       <input type="checkbox" value="${esc(t.id)}" ${i < 3 ? 'checked' : ''}>
       <span class="id">${esc(t.id)}</span>
-      <span class="when">revisado ${esc((t.reviewed || '—').slice(0, 10))}</span>
+      <span class="when">${canon ? esc(t.title) : `revisado ${esc((t.reviewed || '—').slice(0, 10))}`}</span>
     </label>`).join('');
   updateCost();
 }
@@ -153,10 +166,11 @@ function updateCost() {
   $('start').disabled = n === 0 || n > 6 || Boolean(lastState && !lastState.ended);
 }
 $('topics').addEventListener('change', updateCost);
+$('modes').addEventListener('change', loadTopics);
 ['budget', 'check', 'mock'].forEach((id) => $(id).addEventListener('input', updateCost));
 
 $('start').onclick = async () => {
-  const body = { topics: chosen(), budget: Number($('budget').value), checkBudget: Number($('check').value), mock: $('mock').checked };
+  const body = { mode: mode(), topics: chosen(), budget: Number($('budget').value), checkBudget: Number($('check').value), mock: $('mock').checked };
   if (!body.mock && !confirm(`Lanzar ${body.topics.length} agente(s) reales: hasta US$${(body.topics.length * body.budget + body.checkBudget).toFixed(2)} eq. del asiento.`)) return;
   const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) { alert(await r.text()); return; }
@@ -165,7 +179,7 @@ $('start').onclick = async () => {
 };
 $('stop').onclick = () => fetch('/api/stop', { method: 'POST' });
 
-const phaseName = { agentes: 'Agentes en paralelo', verificador: 'Verificador', terminado: 'Terminado', cortado: 'Cortado' };
+const phaseName = { agentes: 'Agentes en paralelo', verificador: 'Verificador', ensayo: 'Ensayo en canon', terminado: 'Terminado', cortado: 'Cortado' };
 
 function render(s) {
   if (!s) {
@@ -185,7 +199,7 @@ function render(s) {
   const cost = [...(s.agents || []), s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
   const clock = s.started && s.started !== s.ended ? ` · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
   $('meta').textContent = `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`;
-  const order = ['agentes', 'verificador', s.phase === 'cortado' ? 'cortado' : 'terminado'];
+  const order = ['agentes', 'verificador', ...(s.mode === 'canon' ? ['ensayo'] : []), s.phase === 'cortado' ? 'cortado' : 'terminado'];
   const at = order.indexOf(s.phase);
   $('phases').innerHTML = order.map((p, i) => `<span class="phase ${i < at ? 'done' : i === at ? 'now' : ''}">${i + 1}. ${phaseName[p]}</span>`).join('');
 
@@ -225,6 +239,8 @@ function render(s) {
       <div class="tags"><span class="fid">${esc(f.id)}</span><span class="kind">${esc(f.kind || (f.text.match(/^HALLAZGO:\s*([^|]+?)\s*\|/) || [])[1] || 'hallazgo')}</span><span>${esc(f.topic)}</span></div>
       <div class="text">${code(text)}</div>
       ${f.check ? `<div class="check">${code(f.check)}</div>` : ''}
+      ${f.rehearsal ? `<div class="check">ensayo en canon: ${esc(f.rehearsal)}</div>` : ''}
+      ${f.piece ? `<div class="check"><code>${esc(f.piece)}</code></div>` : ''}
     </div>`;
   }).join('') : `<div class="hint" style="padding:8px 0">${fs.length ? 'Nada con ese filtro.' : live ? 'Todavía no hay hallazgos.' : 'Este barrido no dejó hallazgos.'}</div>`;
 }

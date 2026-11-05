@@ -355,6 +355,8 @@ radar-sesion: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, c
 .PHONY: ensayo ensayo-comparar
 barrido: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TEMAS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [TOPE=2.5 US$ por agente] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
 	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
+barrido-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TEMAS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [TOPE=2.5] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
+	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -modo canon -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
 ensayo: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. TANDA=<nombre> [N=3 corridas por pregunta] [SOLO=listado-local,…] [BUDGET=1.5 US$ por corrida] [SECO=1 sólo los jueces, gratis]
 	@go run ./ensayo -tanda "$(TANDA)" $(if $(N),-n $(N),) $(if $(SOLO),-solo $(SOLO),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(SECO),-seco,)
 ensayo-comparar: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
