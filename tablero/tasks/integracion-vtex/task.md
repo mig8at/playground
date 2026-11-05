@@ -76,13 +76,12 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1
       cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
       AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
-- [ ] Que el primer authorize del conector no tarde ni dé `ProxyTimeout` y no deje trabadas las cancelaciones: la
-      5.0.1 (rama `fix/core-800-vtex-5-0-1` del repo `vtex`). En qa el 2026-11-04 dieron `ProxyTimeout` 2 de 9 compras
-      (15,6 s tras 6,5 h sin compras, y 2,1 s); los pagos pendientes de más de 6 h quedaron en `Cancelling`. Termina con
-      la 5.0.1 linkeada en `develop`, varias compras seguidas en qa sin `ProxyTimeout` (también la primera tras una hora
-      quieta) y un pendiente vencido cancelado, antes de instalar la 5 en el piloto.
-      Depende de: VTEX — desde el 2026-11-05 `vtex link` (también de `main`) falla en el builder de pagos con
-      «Failed to fetch payment methods from PaymentGateway API: 403» (ErrorID 79071e6a8a6fc43bada4ade0a4e7d5e4).
+- [ ] Publicar la 5.0.1 (rama `fix/core-800-vtex-5-0-1` del repo `vtex`, PR vtex#22): linkeada en `develop`, ya pasa
+      en qa los cuatro desenlaces y la cancelación desde la tienda (`make harness-vtex TARGET=qa`, 4/4). Falta ver que
+      la primera compra tras una hora quieta no tarde ni dé `ProxyTimeout` con la versión publicada (la linkeada corre con
+      una réplica y no toma el `ttl`). Termina con el PR mergeado, el tag `v5.0.1`, `vtex publish` + `vtex deploy`,
+      `develop` deslinkeado y `make harness-vtex TARGET=qa` en verde contra la publicada, antes de instalar la 5 en el
+      piloto.
 - [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
       comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
       regla escrita y, si se decide, el aviso del conector a Creditop. Depende de: Producto — junto con el vencimiento de
@@ -173,6 +172,16 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 - La entrada sin OTP para VTEX: VTEX no manda aceptación de términos.
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
+
+**La tienda VTEX de verdad, sin nadie en el checkout (verificado el 2026-11-05).** Compra en la tienda de pruebas por
+la API de Checkout con la identidad de cada caso, entra al wizard de qa por el `?ref=`, le da el desenlace y espera a
+VTEX. Pide la VPN de dev (simulador y base de qa) y la llave de `harness/.env.vtex`. La versión del conector que atendió
+sale en la primera línea; en ecommerce-v2 se ve en el bloque VTEX del sidebar.
+
+```sh
+make harness-vtex TARGET=qa                       # aprobada, negada, cancelada y tienda-cancela, en paralelo (~90 s)
+make harness-vtex TARGET=qa CASES=tienda-cancela VERBOSE=1
+```
 
 **La tienda demo (verificado el 2026-10-19).** Mientras `payment-link` no esté en el backend local, un mock de su
 contrato (el de legacy-backend#1682) más el plugin de VTEX simulado, con el wizard en :5174 y legacy-backend local:
