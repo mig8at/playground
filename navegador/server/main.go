@@ -40,6 +40,7 @@ func main() {
 	start := flag.String("start", "", "con -browse o -explore: arrancar en esta URL en vez de la entrada del sitio")
 	sites := flag.Bool("sites", false, "lista los sitios")
 	demo := flag.String("demo", "", "con -serve: sirve también Credidemo, el sitio de práctica (navegador/demo), en esta dirección")
+	real := flag.String("real", "", "con -serve: sirve también Tienda Andina (navegador/demo-real), una tienda ficticia que ask trata como sitio REAL")
 	flag.Parse()
 
 	store, err := OpenStore(dataDir())
@@ -52,7 +53,10 @@ func main() {
 	switch {
 	case *addr != "":
 		if *demo != "" {
-			go serveDemo(*demo)
+			go serveDir(*demo, "demo", "Credidemo")
+		}
+		if *real != "" {
+			go serveDir(*real, "demo-real", "Tienda Andina")
 		}
 		if err := serve(*addr, store, runner); err != nil {
 			fail(err)
@@ -90,19 +94,19 @@ func main() {
 	}
 }
 
-// serveDemo sirve Credidemo (navegador/demo): un sitio de práctica con formularios, reglas y pasos encadenados,
-// en otro puerto para que el navegador lo trate como un sitio aparte.
-func serveDemo(addr string) {
+// serveDir sirve un sitio de prueba de navegador/<sub> en otro puerto, para que el navegador lo trate como un
+// sitio aparte: Credidemo (demo, de práctica) o Tienda Andina (demo-real, que ask trata como real).
+func serveDir(addr, sub, name string) {
 	_, file, _, _ := runtime.Caller(0)
-	dir := filepath.Join(filepath.Dir(filepath.Dir(file)), "demo")
+	dir := filepath.Join(filepath.Dir(filepath.Dir(file)), sub)
 	fs := http.FileServer(http.Dir(dir))
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		fs.ServeHTTP(w, r)
 	})
-	fmt.Fprintf(os.Stderr, "navegador: Credidemo en http://%s\n", addr)
+	fmt.Fprintf(os.Stderr, "navegador: %s en http://%s\n", name, addr)
 	if err := http.ListenAndServe(addr, h); err != nil {
-		fmt.Fprintln(os.Stderr, "navegador: Credidemo:", err)
+		fmt.Fprintf(os.Stderr, "navegador: %s: %v\n", name, err)
 	}
 }
 

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "concurrently -k -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
-    "dev:server": "cd .. && go run ./navegador/server -serve 127.0.0.1:5203 -demo 127.0.0.1:5204",
+    "dev:server": "cd .. && go run ./navegador/server -serve 127.0.0.1:5203 -demo 127.0.0.1:5204 -real 127.0.0.1:5205",
     "dev:web": "vite",
     "build": "vite build"
   },

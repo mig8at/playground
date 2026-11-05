@@ -1,0 +1,16 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tienda Andina · Boletín</title><link rel="stylesheet" href="/estilo.css"></head><body>
+<header><a class="marca" href="/">Tienda Andina</a><a href="/">Productos</a><a href="/boletin.html">Boletín</a><a href="/cuenta.html">Mi cuenta</a><a href="/checkout.html">Carrito</a></header>
+<main><form class="caja" id="f">
+  <h1>Recibí nuestras novedades</h1>
+  <label for="correo">Correo</label><input id="correo" type="email">
+  <label class="check"><input type="checkbox" id="autorizo"> Autorizo el envío de publicidad y el tratamiento de mis datos según la política de privacidad</label>
+  <button id="suscribir" disabled>Suscribirme</button>
+</form><p class="ok" id="ok" hidden>¡Listo! Te suscribiste al boletín.</p></main>
+<footer>© Tienda Andina</footer>
+<script>
+const f = document.getElementById('f')
+f.addEventListener('input', () => { document.getElementById('suscribir').disabled = !(/@/.test(document.getElementById('correo').value) && document.getElementById('autorizo').checked) })
+f.addEventListener('submit', (e) => { e.preventDefault(); f.hidden = true; document.getElementById('ok').hidden = false })
+</script>
+</body></html>

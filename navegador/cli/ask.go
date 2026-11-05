@@ -20,6 +20,7 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -30,8 +31,36 @@ import (
 //go:embed ask.md
 var askInstructions string
 
-// Los sitios de práctica: ahí se pueden inventar datos de prueba.
-const practiceHosts = "127.0.0.1, localhost y los dominios .test"
+// Los sitios de práctica (ahí se pueden inventar datos y dar consentimientos de prueba) los decide ESTA lista,
+// no el modelo: por host:puerto exacto, o un sufijo que empieza con punto. Por defecto, Credidemo y los dominios
+// .test; cualquier otro sitio —también una app propia en localhost— se trata como real. NAVEGADOR_PRACTICE la
+// reemplaza (separada por comas).
+func practiceList() []string {
+	raw := os.Getenv("NAVEGADOR_PRACTICE")
+	if raw == "" {
+		raw = "127.0.0.1:5204,localhost:5204,.test"
+	}
+	var out []string
+	for _, h := range strings.Split(raw, ",") {
+		if h = strings.TrimSpace(h); h != "" {
+			out = append(out, h)
+		}
+	}
+	return out
+}
+
+func isPractice(rawURL string) bool {
+	u, err := url.Parse(rawURL)
+	if err != nil {
+		return false
+	}
+	for _, h := range practiceList() {
+		if strings.HasPrefix(h, ".") && strings.HasSuffix(u.Hostname(), h) || u.Host == h {
+			return true
+		}
+	}
+	return false
+}
 
 func ask(args []string) error {
 	fs := flag.NewFlagSet("ask", flag.ExitOnError)
@@ -78,8 +107,13 @@ func ask(args []string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	system := strings.NewReplacer("{{NAV}}", self, "{{PASOS}}", fmt.Sprint(*steps), "{{DIR}}", dir, "{{PRACTICA}}", practiceHosts).Replace(askInstructions)
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).", goal, st.URL, st.Title)
+	practice := strings.Join(practiceList(), ", ")
+	system := strings.NewReplacer("{{NAV}}", self, "{{PASOS}}", fmt.Sprint(*steps), "{{DIR}}", dir, "{{PRACTICA}}", practice).Replace(askInstructions)
+	kind := "NO es un sitio de práctica: tratalo como REAL"
+	if isPractice(st.URL) {
+		kind = "es un sitio de práctica"
+	}
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.", goal, st.URL, st.Title, kind)
 
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
@@ -91,7 +125,7 @@ func ask(args []string) error {
 		base = append(base, "--model", *model)
 	}
 
-	fmt.Printf("meta: %s\n\n", goal)
+	fmt.Printf("meta: %s\nsitio: %s\n\n", goal, kind)
 	session := ""
 	for round := 0; ; round++ {
 		argv := append([]string{}, base...)

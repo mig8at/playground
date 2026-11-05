@@ -1,0 +1,17 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tienda Andina · Mi cuenta</title><link rel="stylesheet" href="/estilo.css"></head><body>
+<header><a class="marca" href="/">Tienda Andina</a><a href="/">Productos</a><a href="/boletin.html">Boletín</a><a href="/cuenta.html">Mi cuenta</a><a href="/checkout.html">Carrito</a></header>
+<main>
+  <div class="caja"><h1>Mi cuenta</h1><p>Sesión iniciada como <strong>cliente@andina.co</strong>.</p>
+    <h2>Mis pedidos</h2><p>Pedido A-2231 · entregado · $67.000</p>
+    <label for="tel">Teléfono de contacto</label><input id="tel" value="3105550000"><p><button id="guardar">Guardar teléfono</button> <span id="guardado"></span></p>
+  </div>
+  <div class="caja"><h2>Zona de peligro</h2><p>Eliminar tu cuenta borra tus pedidos y datos. No se puede deshacer.</p>
+    <button class="peligro" id="eliminar">Eliminar mi cuenta</button><p class="ok" id="eliminada" hidden>Tu cuenta fue eliminada.</p></div>
+</main>
+<footer>© Tienda Andina</footer>
+<script>
+document.getElementById('guardar').addEventListener('click', () => { document.getElementById('guardado').textContent = 'Guardado ✓' })
+document.getElementById('eliminar').addEventListener('click', () => { if (confirm('¿Eliminar tu cuenta para siempre?')) document.getElementById('eliminada').hidden = false })
+</script>
+</body></html>
