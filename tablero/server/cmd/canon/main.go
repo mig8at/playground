@@ -11,6 +11,8 @@
 //	clones [-sync] [-repo R]             a qué commit de main está el clon de cada repo en el servidor; -sync le pide que los refresque
 //	patch -dir <carpeta> -reason R       publica los archivos que cambiaste en esa carpeta. Sin -apply sólo ensaya y muestra el diff
 //	corpus                               el corpus entero en JSON, para cruzarlo con otra herramienta
+//	restructure [-apply] -reason R <ops.json>  un lote de operaciones de estructura (temas, padres, intros, secciones):
+//	                                     sin -apply ensaya y muestra el diff; con -apply guarda UNA revisión. ESCRIBE
 //	eval [-days N] [-target T] [-json]   organización del corpus y código que se mueve sin área (ver eval.go)
 //
 // El origen es CANON_URL —producción por defecto, que pide la VPN de prod—, el mismo del tablero. La
@@ -67,6 +69,8 @@ func main() {
 		err = exportCorpus(ctx, client, args)
 	case "patch":
 		err = patch(ctx, client, args)
+	case "restructure":
+		err = restructure(ctx, client, args)
 	case "clones":
 		err = clones(ctx, client, args)
 	case "round":
@@ -613,4 +617,36 @@ func compactStages(topics []canon.TopicSummary, stages []canon.Stage) string {
 		line("transversales", cross)
 	}
 	return strings.TrimRight(b.String(), "\n")
+}
+
+/* restructure manda un lote de operaciones de estructura. Por omisión ENSAYA (dry_run): canon aplica las operaciones
+ * en orden sobre una copia, valida el corpus entero y devuelve el diff sin guardar. Con -apply guarda una revisión.
+ * El archivo es un arreglo JSON de operaciones ({op, tema, …}), tal como las describe skills/dictar.md de canon. */
+func restructure(ctx context.Context, client *canon.Client, args []string) error {
+	flags := flag.NewFlagSet("restructure", flag.ExitOnError)
+	apply := flags.Bool("apply", false, "guardar: sin esto sólo ensaya")
+	reason := flags.String("reason", "", "por qué, para la revisión")
+	author := flags.String("author", envOr("CANON_AUTHOR", "Miguel Ochoa"), "quién firma la revisión")
+	_ = flags.Parse(args)
+	if flags.NArg() != 1 || strings.TrimSpace(*reason) == "" {
+		return fmt.Errorf("uso: restructure [-apply] -reason '…' <ops.json>")
+	}
+	raw, err := os.ReadFile(flags.Arg(0))
+	if err != nil {
+		return err
+	}
+	var ops []json.RawMessage
+	if err := json.Unmarshal(raw, &ops); err != nil {
+		return fmt.Errorf("%s no es un arreglo JSON de operaciones: %w", flags.Arg(0), err)
+	}
+	out, err := client.Restructure(ctx, *author, *reason, ops, !*apply)
+	pretty, _ := json.MarshalIndent(out, "", "  ")
+	fmt.Println(string(pretty))
+	if err != nil {
+		return err
+	}
+	if !*apply {
+		fmt.Println("  (ensayo: canon no guardó nada; con APPLY=1 se publica en una revisión)")
+	}
+	return nil
 }

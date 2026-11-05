@@ -740,6 +740,9 @@ canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara 
 	@cd tablero/server && go run ./cmd/canon round $(if $(FORCE),-force)
 canon-eval: ## @can ¿canon está parejo y qué código se mueve sin área? tamaño de cada tema, secciones sin área, repos con dos nombres y, por módulo, cambios en main en archivos que ningún área vigila. Sin modelo, sólo lectura. DIAS=90 · TOP=15 · REPOS=legacy-backend,application,frontend-monorepo · TARGET=prod lee además lo que canon no supo contestar (VPN) · JSON=1
 	@cd tablero/server && go run ./cmd/canon eval -days $(or $(DIAS),90) -top $(or $(TOP),15) $(if $(REPOS),-repos '$(REPOS)') $(if $(TARGET),-target $(TARGET)) $(if $(JSON),-json)
+canon-restructure: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya y muestra el diff): un lote de operaciones de estructura de canon —crear o reubicar temas, editar su introducción, mover secciones, asignar entidades— en UNA revisión. OPS=<ops.json> REASON='…'
+	@test -n "$(OPS)" -a -n "$(REASON)" || { echo "falta OPS=<ops.json> y REASON='<por qué>'"; exit 2; }
+	@cd tablero/server && go run ./cmd/canon restructure $(if $(APPLY),-apply) -reason '$(REASON)' '$(abspath $(OPS))'
 canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
 	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
 canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch

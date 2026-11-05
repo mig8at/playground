@@ -1,0 +1,18 @@
+[
+  {"op": "crear_tema", "tema": "originacion-delegada", "capa": "context",
+   "titulo": "Riel 4 · Originación delegada: Creditop origina y la entidad lleva el crédito",
+   "resumen": "La entidad entrega su política; Creditop pone las pantallas, la identidad, los documentos y la firma, y la entidad desembolsa y lleva la cartera.",
+   "parent": "entidad/context", "enlazar_desde": ["entidad"]},
+  {"op": "editar_intro", "tema": "originacion-delegada",
+   "texto": "Una entidad de originación delegada **le entrega su política a Creditop para que origine con ella, y después se queda con el crédito**. Creditop pone las pantallas: la preaprobación por el nombre corto de la entidad, la identidad, el plan de pagos, el formulario, los documentos, la firma y el pagaré. La entidad desembolsa, cobra y lleva la cartera. Por eso la solicitud se origina en casa sin ser CreditopX: la política y el crédito son de la entidad.\n\nEl riel entra por el tipo de respuesta 4, pero buena parte de lo que corre después todavía está atado a Credifamilia, su primera entidad: el plan de pagos, los documentos y la formalización. Qué decide el tipo de respuesta: [[entidad/context#el-eje-que-decide-todo-es-el-tipo-de-respuesta]]; el recorrido de su primera entidad: [[credifamilia/context]]."},
+  {"op": "editar_tema", "tema": "credifamilia", "parent": "originacion-delegada/context"},
+  {"op": "editar_tema", "tema": "nequi", "parent": "redireccion/context"},
+  {"op": "editar_tema", "tema": "redireccion",
+   "titulo": "Riel 0 · Redirección: la entidad decide y origina en su sitio"},
+  {"op": "editar_tema", "tema": "agregador",
+   "titulo": "Riel 1 · Integrada: la entidad decide y origina en su flujo"},
+  {"op": "editar_tema", "tema": "creditopx", "parent": "entidad/context",
+   "titulo": "Rieles 2 y 3 · CreditopX: el comercio pone la plata y Creditop opera hasta la cartera"},
+  {"op": "editar_tema", "tema": "cartera", "parent": "creditopx/context"},
+  {"op": "editar_tema", "tema": "recaudo", "parent": "creditopx/context"}
+]

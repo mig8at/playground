@@ -501,3 +501,44 @@ func (c *Client) Whoami(ctx context.Context) (Identity, error) {
 	err := c.call(ctx, http.MethodGet, "/api/yo", nil, "", &out)
 	return out, err
 }
+
+// CorpusETag pide el ETag del corpus entero (`/api/index`): la precondición de una reestructuración. Si el corpus
+// cambia entre esta lectura y el envío, canon rechaza el lote sin tocar nada.
+func (c *Client) CorpusETag(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/index", nil)
+	if err != nil {
+		return "", err
+	}
+	res, err := c.http.Do(req)
+	if err != nil {
+		return "", fmt.Errorf("canon no respondió en %s: %w", c.baseURL, err)
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("canon contestó %d al pedir el índice", res.StatusCode)
+	}
+	if tag := res.Header.Get("ETag"); tag != "" {
+		return tag, nil
+	}
+	return "", errors.New("canon no mandó el ETag del corpus en /api/index")
+}
+
+/* Restructure manda un lote de operaciones de estructura (`POST /api/restructure`): crear o reubicar temas,
+ * renombrarlos sin romper enlaces, mover secciones con su id, editar la introducción de un tema o asignar una
+ * entidad a su tema. Corren en orden sobre una copia y canon valida el corpus entero al final: si una falla, no
+ * se guarda nada. Con `dry` sólo valida y devuelve el diff. La respuesta va cruda: trae el diff y, si algo falla,
+ * qué operación y por qué. */
+func (c *Client) Restructure(ctx context.Context, author, reason string, ops []json.RawMessage, dry bool) (map[string]any, error) {
+	key, err := WriteKey()
+	if err != nil {
+		return nil, err
+	}
+	etag, err := c.CorpusETag(ctx)
+	if err != nil {
+		return nil, err
+	}
+	body := map[string]any{"author": author, "reason": reason, "dry_run": dry, "ops": ops}
+	var raw map[string]any
+	err = c.callOn(ctx, patientClient(), http.MethodPost, "/api/restructure", body, key, map[string]string{"If-Match": etag}, &raw)
+	return raw, err
+}
