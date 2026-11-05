@@ -14,7 +14,13 @@ numerados con su localizador y sus avisos, UNA acción por vez, verificar con `t
 con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 
 ## Cuándo usar qué
-- **Lo hace Claude en esta conversación:** seguí ask.md con `bin/navegador …` desde Bash. Al final,
+- **Lo hace Claude en esta conversación** (lo normal): seguí ask.md con `bin/navegador …` desde Bash, a la vista de
+  Miguel en el panel de la interfaz:
+  1. `bin/navegador empezar --url <url de la app> '<la meta>'` abre la sesión en el panel (y el navegador).
+  2. Antes de cada acción, `bin/navegador pienso '<por qué, en una línea>'`: es lo que Miguel lee en el panel y
+     el subtítulo del paso en el video del flujo. Cada comando aparece solo en el panel.
+  3. `bin/navegador terminar 'LISTO: …'` (o `NO PUDE: …`): guarda la corrida y, con LISTO, el flujo en
+     `navegador/flujos/<proyecto>/`.
   `bin/navegador script` da el recorrido como prueba de Playwright.
 - **Que te enseñe:** `bin/navegador ask --guia [--url U] "<meta>"` (o «Enseñame» en la interfaz): Claude marca
   cada paso en la página en vivo y Miguel lo hace. Sin `--guia` es automático: lo hace Claude y sólo frena antes

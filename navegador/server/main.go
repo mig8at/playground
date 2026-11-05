@@ -542,6 +542,32 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, ok)
 	})
+	// POST /api/ask/external {accion: begin|event|end, meta, k, t} — una sesión que maneja Claude desde la
+	// conversación (bin/navegador empezar · pienso · terminar): el panel la muestra igual que una de ask.
+	mux.HandleFunc("/api/ask/external", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Action string `json:"accion"`
+			Goal   string `json:"meta"`
+			Kind   string `json:"k"`
+			Text   string `json:"t"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		switch in.Action {
+		case "begin":
+			if err := asker.Begin(in.Goal); err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+		case "end":
+			asker.End()
+		default:
+			if in.Kind == "think" {
+				runner.LiveNarrate(in.Text) // también es el subtítulo del próximo paso
+			}
+			asker.Event(in.Kind, in.Text)
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
 	mux.HandleFunc("/api/ask/stop", func(w http.ResponseWriter, r *http.Request) {
 		asker.Stop()
 		writeJSON(w, http.StatusOK, ok)

@@ -19,6 +19,9 @@
 //	bin/navegador point <n> '<instrucción>'      modo guía: marca el elemento en la página en vivo y espera a que la
 //	                                             persona lo haga (guide.go del servidor)
 //	bin/navegador cambios                        lo que cambió en cada campo desde el último guardar (antes → después)
+//	bin/navegador empezar [--url U] '<meta>'     abre una sesión de Claude desde la conversación: el panel de la interfaz
+//	              pienso '<texto>'              muestra cada comando, lo que piensa (pienso) y cómo terminó (terminar,
+//	              terminar 'LISTO: …'           que guarda la corrida y, con LISTO, el flujo)
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador report [meta]                  el paso a paso con una foto por paso (md, html y script)
@@ -70,8 +73,23 @@ func main() {
 		usage()
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
+	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
+	inSession := cmd != "ask" && cmd != "evals" && cmd != "empezar" && cmd != "pienso" && cmd != "terminar" && os.Getenv("NAVEGADOR_ASK") == "" && os.Getenv("NAVEGADOR_EVENTS") == ""
+	if inSession {
+		panelEvent("act", "navegador "+shellLine(os.Args[1:]))
+	}
 	var err error
 	switch cmd {
+	case "empezar":
+		err = begin(args)
+	case "pienso":
+		if len(args) == 0 {
+			usage()
+		}
+		err = panelEvent("think", strings.Join(args, " "))
+	case "terminar":
+		err = finish(args)
 	case "ask":
 		err = ask(args)
 	case "evals":
@@ -154,6 +172,9 @@ func main() {
 		usage()
 	}
 	if err != nil {
+		if inSession {
+			panelEvent("fail", err.Error())
+		}
 		fmt.Fprintln(os.Stderr, "navegador:", err)
 		os.Exit(1)
 	}
@@ -167,6 +188,7 @@ func usage() {
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
+  empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
   steps · script · report [meta] · reset
   ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
@@ -964,4 +986,75 @@ func quoteOrEmpty(s string) string {
 		return "(vacío)"
 	}
 	return "«" + s + "»"
+}
+
+// ── una sesión de Claude desde la conversación, a la vista en el panel ──
+
+func panelEvent(kind, text string) error {
+	return call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "event", "k": kind, "t": text}, nil)
+}
+
+// shellLine es el comando como se escribió, con comillas simples donde hacen falta.
+func shellLine(args []string) string {
+	out := make([]string, len(args))
+	for i, a := range args {
+		if a == "" || strings.ContainsAny(a, " \t'\"$!*?;&|<>()") {
+			a = "'" + strings.ReplaceAll(a, "'", `'\''`) + "'"
+		}
+		out[i] = a
+	}
+	return strings.Join(out, " ")
+}
+
+func begin(args []string) error {
+	start := ""
+	if len(args) > 1 && args[0] == "--url" {
+		start, args = args[1], args[2:]
+	}
+	goal := strings.TrimSpace(strings.Join(args, " "))
+	if goal == "" {
+		usage()
+	}
+	// Los pasos de cero, ANTES de ir a la URL: la corrida (y el flujo) son de esta meta, con la ida incluida.
+	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
+	if start != "" {
+		if err := startLive([]string{start}, false, ""); err != nil {
+			return err
+		}
+	}
+	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "begin", "meta": goal}, nil); err != nil {
+		return err
+	}
+	fmt.Printf("sesión abierta en el panel: %s\n\n", goal)
+	if start != "" {
+		return look(true)
+	}
+	return nil
+}
+
+func finish(args []string) error {
+	result := strings.TrimSpace(strings.Join(args, " "))
+	if result == "" {
+		usage()
+	}
+	var st struct{ Meta string }
+	_ = call(http.MethodGet, "/api/ask?desde=999999", nil, &st)
+	goal := st.Meta
+	defer call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "end"}, nil)
+	_ = panelEvent("result", result)
+	url, err := writeReportInfo(map[string]any{"meta": goal, "resultado": result, "palabra": keyword(result), "origen": "Claude desde la conversación"})
+	if err != nil {
+		return err
+	}
+	_ = panelEvent("report", url)
+	fmt.Printf("la corrida, como video: %s\n", url)
+	if keyword(result) == "LISTO" && lastRunID != "" && goal != "" {
+		var fl struct{ App, ID, Path string }
+		if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err != nil {
+			return fmt.Errorf("no se guardó como flujo: %w", err)
+		}
+		_ = panelEvent("flow", fl.App+"/"+fl.ID)
+		fmt.Printf("flujo guardado: %s\n", fl.Path)
+	}
+	return nil
 }

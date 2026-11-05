@@ -83,6 +83,8 @@ const askFlow = computed(() => askEvents.value.find((e) => e.k === 'flow')?.t ||
 const timeline = computed(() => askEvents.value.filter((e) => !['out', 'ask', 'report', 'flow', 'site'].includes(e.k)))
 function guideText(cmd) { return cmd.match(/^navegador point\s+(?:\S+|'[^']*')\s+'(.*)'\s*$/)?.[1] || '' }
 const agentShown = computed(() => askState.value.running || askEvents.value.length > 0)
+// Cuando Claude arranca (por ask o desde la conversación), su panel se abre aunque se haya cerrado antes.
+watch(() => askState.value.running, (on) => { if (on) { auxOpen.value = true; saveSize('navegador.aux-open', 1) } })
 
 // ── la sesión en vivo: el navegador real en el editor ──
 const isLive = computed(() => !!liveState.value.active)
@@ -599,7 +601,7 @@ const status = computed(() => {
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
         <span>Claude</span>
-        <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : 'trabajando…' }}</span>
+        <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : askState.externa ? 'desde la conversación' : 'trabajando…' }}</span>
         <div class="region-actions">
           <button v-if="askState.running" type="button" class="region-action" title="Frenar" aria-label="Frenar" @click="stopAsk"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
           <button v-else type="button" class="region-action" title="Limpiar" aria-label="Limpiar" @click="askEvents = []"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
