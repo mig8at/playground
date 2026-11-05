@@ -25,6 +25,7 @@ import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
+import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -123,12 +124,15 @@ const shareOpen = ref(readSize('chat.server-share-open', 1) !== 0)
 function setShareOpen(v) { shareOpen.value = v; saveSize('chat.server-share-open', v ? 1 : 0) }
 const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
-// El historial de un servicio va a la derecha, y también se cierra y se recuerda aparte.
-const historyOpen = ref(readSize('chat.service-history-open', 1) !== 0)
-function setHistoryOpen(v) { historyOpen.value = v; saveSize('chat.service-history-open', v ? 1 : 0) }
+/* Un servicio: sus rutas a la derecha (se cierran y se recuerdan aparte) y su historial abajo, en la consola, que es la
+   misma de los servers. */
+const routesOpen = ref(readSize('chat.service-routes-open', 1) !== 0)
+function setRoutesOpen(v) { routesOpen.value = v; saveSize('chat.service-routes-open', v ? 1 : 0) }
+const serviceHistory = computed(() => (openService.value ? historyFor(openService.value.alias) : []))
+const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) } catch { return '' } }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
-  if (openService.value) return historyOpen.value
+  if (openService.value) return routesOpen.value
   if (serverOpen.value) return shareOpen.value
   if (activeOwnAgent.value) return ownPanelOpen.value
   return agentOpen.value && !chat.activeKey
@@ -202,7 +206,7 @@ const agentResize = {
   max: () => viewportW.value - cssSize('--editor-min', 360) - sidebarShown.value,
   get: () => agentShown.value,
   set: (v) => {
-    if (openService.value) historyOpen.value = !!v
+    if (openService.value) routesOpen.value = !!v
     else if (serverOpen.value) shareOpen.value = !!v
     else if (activeOwnAgent.value) ownPanelOpen.value = !!v
     else agentOpen.value = !!v
@@ -210,7 +214,7 @@ const agentResize = {
   },
   reopen: () => agentW.value,
   commit: (v) => {
-    saveSize(openService.value ? 'chat.service-history-open' : serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
+    saveSize(openService.value ? 'chat.service-routes-open' : serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
     if (v) saveSize('chat.agente-w', agentW.value)
   },
 }
@@ -912,9 +916,9 @@ const statusText = computed(() => {
     </main>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas e historial' : openServer ? 'Para probar' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
-      <ServiceSide v-if="openService" :service="openService" @close="setHistoryOpen(false)" />
+      <ServiceSide v-if="openService" :service="openService" @close="setRoutesOpen(false)" />
       <ServerShare v-else-if="openServer" :server="openServer" @close="setShareOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
@@ -960,8 +964,39 @@ const statusText = computed(() => {
       </template>
     </aside>
 
+    <!-- ── la consola de un servicio: el historial de lo que le mandaste; un clic lo vuelve a cargar ──────────── -->
+    <section v-if="openService && panelShown" class="panel" aria-label="Consola">
+      <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button type="button" role="tab" class="tab on" aria-selected="true">
+          Historial <span v-if="serviceHistory.length" class="count">{{ serviceHistory.length }}</span>
+        </button>
+        <div class="region-actions">
+          <button v-if="serviceHistory.length" type="button" class="region-action" title="Vaciar el historial" aria-label="Vaciar el historial"
+                  @click="forgetHistory(openService.alias)">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+          </button>
+          <button ref="consoleMax" type="button" class="region-action"><span class="ui-icon" aria-hidden="true"></span></button>
+          <button type="button" class="region-action" title="Ocultar la consola" aria-label="Ocultar la consola" @click="setConsoleOpen(false)">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+      <div class="region-body console">
+        <p v-if="!serviceHistory.length" class="console-empty">Las peticiones que mandes a {{ openService.alias }} quedan acá; un clic la vuelve a cargar.</p>
+        <button v-for="(h, i) in serviceHistory" :key="i" type="button" class="log-line history-line" :title="`Cargar ${h.method} ${h.path}`"
+                @click="pickHistory(openService.alias, h)">
+          <span class="log-time">{{ historyTime(h.at) }}</span>
+          <span class="history-status" :class="h.status >= 400 || !h.status ? 'is-bad' : 'is-ok'">{{ h.status || '—' }}</span>
+          <b class="history-method">{{ h.method }}</b>
+          <span class="log-text">{{ h.path }}</span>
+          <span v-if="h.ms != null" class="history-ms">{{ h.ms }} ms</span>
+        </button>
+      </div>
+    </section>
+
     <!-- ── la consola de un server: lo que imprime cada comando mientras corre ─────────────── -->
-    <section v-if="openServer && panelShown" class="panel" aria-label="Consola">
+    <section v-else-if="openServer && panelShown" class="panel" aria-label="Consola">
       <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
       <nav class="tabs" role="tablist" aria-label="Consola">
         <button v-for="t in CONSOLE_TABS" :key="t.id" type="button" role="tab" class="tab" :class="{ on: consoleTab === t.id }"
@@ -1007,20 +1042,16 @@ const statusText = computed(() => {
                 aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <template v-if="openServer">
-          <button type="button" class="region-action" :aria-pressed="!!panelShown" title="Mostrar u ocultar la consola"
-                  aria-label="Mostrar u ocultar la consola" @click="setConsoleOpen(!panelShown)">
+        <template v-if="openServer || openService">
+          <button type="button" class="region-action" :aria-pressed="!!panelShown" :title="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'"
+                  :aria-label="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'" @click="setConsoleOpen(!panelShown)">
             <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
           </button>
-          <button type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar «Para probar»"
-                  aria-label="Mostrar u ocultar «Para probar»" @click="setShareOpen(!agentShown)">
+          <button type="button" class="region-action" :aria-pressed="!!agentShown" :title="openService ? 'Mostrar u ocultar las rutas' : 'Mostrar u ocultar «Para probar»'"
+                  :aria-label="openService ? 'Mostrar u ocultar las rutas' : 'Mostrar u ocultar «Para probar»'" @click="openService ? setRoutesOpen(!agentShown) : setShareOpen(!agentShown)">
             <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
           </button>
         </template>
-        <button v-else-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar las rutas y el historial"
-                aria-label="Mostrar u ocultar las rutas y el historial" @click="setHistoryOpen(!agentShown)">
-          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-        </button>
         <button v-else-if="activeOwnAgent" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar la ficha del agente"
                 aria-label="Mostrar u ocultar la ficha del agente" @click="setOwnPanelOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
@@ -1044,6 +1075,14 @@ code { font-family: var(--font-mono); font-size: .92em }
 .console .log-line.is-ok .log-text { color: var(--presence-on) }
 .console .log-line.is-bad .log-text { color: var(--send-fail) }
 .console-step { white-space: nowrap }
+/* El historial de un servicio, como líneas de consola que se pueden cliquear. */
+.history-line { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer }
+.history-line:hover { background: var(--accent) }
+.history-status, .history-method { flex: none; font-family: var(--font-mono); font-size: var(--text-xs); width: 3.5em }
+.history-status.is-ok { color: var(--presence-on) }
+.history-status.is-bad { color: var(--send-fail) }
+.history-method { color: var(--fg-2); font-weight: 600 }
+.history-ms { flex: none; margin-left: auto; padding-left: var(--space-3); color: var(--fg-3); font-family: var(--font-mono); font-size: var(--text-xs) }
 .bad { color: var(--send-fail) }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap }
 

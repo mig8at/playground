@@ -1,20 +1,14 @@
 <script setup>
-/* EL SIDEBAR DERECHO DE UN SERVICIO, en dos pestañas:
-   - Rutas: lo que el servicio dice de sí mismo, su `/openapi.json` y su `/health` (la convención de los servicios del
-     playground; server/services.go los lee). Un clic en una ruta la deja lista en el Postman, con los parámetros y el
-     cuerpo de ejemplo que declare.
-   - Historial: lo que mandaste, lo último arriba; un clic lo vuelve a cargar. Vive en este navegador.
-   Las dos cargan en la ficha por stores/service-history.js (`pick`). */
+/* EL SIDEBAR DERECHO DE UN SERVICIO: sus rutas. Lo que el servicio dice de sí mismo, su `/openapi.json` y su `/health`
+   (la convención de los servicios del playground; server/services.go los lee). Un clic en una ruta la deja lista en el
+   Postman, con los parámetros y el cuerpo de ejemplo que declare (stores/service-history.js, `pick`). El historial de
+   lo que mandaste va abajo, en la consola (App.vue). */
 import { computed, ref, watch } from 'vue'
-import { forget, historyFor, pick } from './stores/service-history.js'
+import { pick } from './stores/service-history.js'
 import { loadSchema as fetchSchema, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true } })
 const emit = defineEmits(['close'])
-
-const TAB_KEY = 'chat.service-side-tab'
-const tab = ref((() => { try { return localStorage.getItem(TAB_KEY) || 'routes' } catch { return 'routes' } })())
-function setTab(t) { tab.value = t; try { localStorage.setItem(TAB_KEY, t) } catch { /* sólo no se recuerda */ } }
 
 // ── rutas ──
 const schemaOf = computed(() => schemaState(props.service.alias))
@@ -84,26 +78,17 @@ async function copySchema() {
   try { await navigator.clipboard.writeText(schemaUrl.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 
-// ── historial ──
-const history = computed(() => historyFor(props.service.alias))
-const when = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) } catch { return '' } }
 </script>
 
 <template>
   <nav class="tabs" role="tablist" aria-label="El servicio">
-    <button type="button" role="tab" class="tab" :class="{ on: tab === 'routes' }" :aria-selected="tab === 'routes'" @click="setTab('routes')">
+    <button type="button" role="tab" class="tab on" aria-selected="true">
       Rutas <span v-if="routes.length" class="count">{{ routes.length }}</span>
     </button>
-    <button type="button" role="tab" class="tab" :class="{ on: tab === 'history' }" :aria-selected="tab === 'history'" @click="setTab('history')">
-      Historial <span v-if="history.length" class="count">{{ history.length }}</span>
-    </button>
     <div class="region-actions">
-      <button v-if="tab === 'routes'" type="button" class="region-action" title="Volver a leer el esquema" aria-label="Volver a leer el esquema"
+      <button type="button" class="region-action" title="Volver a leer el esquema" aria-label="Volver a leer el esquema"
               :disabled="loading" @click="loadSchema">
         <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-      </button>
-      <button v-if="tab === 'history' && history.length" type="button" class="region-action" title="Vaciar el historial" aria-label="Vaciar el historial" @click="forget(service.alias)">
-        <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
       </button>
       <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="emit('close')">
         <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -111,7 +96,7 @@ const when = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour
     </div>
   </nav>
 
-  <div v-if="tab === 'routes'" class="region-body side">
+  <div class="region-body side">
     <p v-if="loading && !info" class="note">Leyendo el esquema…</p>
     <template v-else-if="info">
       <p v-if="health" class="health" :data-kind="health.kind"><span class="dot" aria-hidden="true"></span>{{ health.text }}</p>
@@ -127,15 +112,6 @@ const when = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour
       </template>
     </template>
   </div>
-
-  <div v-else class="region-body side">
-    <p v-if="!history.length" class="note">Las peticiones que mandes a {{ service.alias }} quedan acá.</p>
-    <button v-for="(h, i) in history" :key="i" type="button" class="row history-row" :title="`${h.method} ${h.path}`" @click="pick(service.alias, h)">
-      <b class="m">{{ h.method }}</b><span class="label">{{ h.path }}</span>
-      <span class="row-meta" :data-kind="h.status >= 400 || !h.status ? 'bad' : 'ok'">{{ h.status || '—' }}</span>
-      <span class="row-meta">{{ when(h.at) }}</span>
-    </button>
-  </div>
 </template>
 
 <style scoped>
@@ -147,10 +123,9 @@ const when = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour
 .health[data-kind="bad"] .dot { background: var(--send-fail) }
 .m { flex: none; width: 52px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
 .label { font-family: var(--font-mono); font-size: var(--text-sm) }
-.history-row, .route-row { gap: var(--space-2) }
+.route-row { gap: var(--space-2) }
 .route-row { height: auto; align-items: flex-start; padding-top: var(--space-1); padding-bottom: var(--space-1) }
 .route { display: flex; flex-direction: column; min-width: 0 }
 .params { color: var(--fg-2) }
 .summary { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.row-meta[data-kind="bad"] { color: var(--send-fail) }
 </style>

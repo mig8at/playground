@@ -1,5 +1,5 @@
 /* EL HISTORIAL DEL POSTMAN DE LOS SERVICIOS: por servicio y en este navegador, las últimas 20. Lo comparten la ficha del
-   servicio (que manda y recuerda) y el sidebar derecho (ServiceSide.vue, que lo lista con las rutas del esquema): elegir una fila deja la petición en `picked`, y
+   servicio (que manda y recuerda) y la consola de abajo (App.vue, que lo lista): elegir una fila deja la petición en `picked`, y
    la ficha la carga. */
 import { reactive, ref } from 'vue'
 

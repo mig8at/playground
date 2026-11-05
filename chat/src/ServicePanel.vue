@@ -2,8 +2,8 @@
 /* UN SERVICIO DEL PLAYGROUND EN EL EDITOR (server/services.go): un servidor de esta máquina que el equipo alcanza por
    la VPN con un nombre fijo. El interruptor lo prende (el chat levanta el programa y reinicia `playground serve`) o lo
    apaga. Y para probarlo, un Postman chico: método, ruta, cuerpo y encabezados, siempre por el playground (como le
-   llega al equipo); y la respuesta con su estado, tiempo y tamaño. El historial va en el sidebar derecho
-   (ServiceSide.vue, con las rutas del esquema) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
+   llega al equipo); y la respuesta con su estado, tiempo y tamaño. El historial va abajo, en la consola (App.vue), y
+   las rutas del esquema en el sidebar derecho (ServiceSide.vue) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
 import { picked, remember } from './stores/service-history.js'
 import { loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
@@ -90,7 +90,7 @@ async function send() {
     const out = await res.json()
     if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
     response.value = out
-    remember(props.service.alias, { method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, at: new Date().toISOString() })
+    remember(props.service.alias, { method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, ms: out.ms, at: new Date().toISOString() })
   } catch (e) { response.value = { error: e.message } } finally { sending.value = false }
 }
 function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send() }
@@ -132,10 +132,15 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
     <div class="main">
       <!-- La petición -->
       <form class="request-bar" @submit.prevent="send">
-        <select v-model="method" class="input input-sm method" aria-label="Método" :disabled="methodFixed" :title="methodTitle">
-          <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
-        </select>
-        <input v-model="path" class="input input-sm path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
+        <!-- El método va pegado a la ruta, como el indicativo de un teléfono: fijo si el esquema lo dicta; si hay varios
+             para elegir, el mismo rótulo se despliega. -->
+        <label class="input-group url-field">
+          <span v-if="methodFixed" class="ico-txt method-tag" :title="methodTitle">{{ method }}</span>
+          <select v-else v-model="method" class="method-tag method-pick" aria-label="Método" :title="methodTitle">
+            <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
+          </select>
+          <input v-model="path" class="input path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
+        </label>
         <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">
           {{ sending ? 'Enviando…' : 'Enviar' }}
         </button>
@@ -191,8 +196,14 @@ code, pre, .code { font-family: var(--font-mono) }
 .serve-log pre { margin: var(--space-2) 0 0; font-size: var(--text-sm); white-space: pre-wrap }
 .main { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0 }
 .request-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center }
-.request-bar .method { flex: none; width: 96px; font-family: var(--font-mono) }
-.request-bar .path { flex: 1 1 180px; min-width: 0; font-family: var(--font-mono) }
+.url-field { flex: 1 1 240px; min-width: 0; height: var(--control-sm); padding-left: 0 }
+.url-field .path { min-width: 0; font-family: var(--font-mono) }
+/* El rótulo del método: una pestañita a la izquierda del campo, con su raya, como el +57 de un teléfono. */
+.method-tag { flex: none; align-self: stretch; display: inline-flex; align-items: center; padding: 0 var(--space-2);
+  border-right: 1px solid var(--input); font-family: var(--font-mono); font-size: var(--text-xs); font-weight: 600; color: var(--fg-2) }
+.method-pick { appearance: none; background: transparent; border-top: 0; border-bottom: 0; border-left: 0; border-radius: 0;
+  color: var(--foreground); cursor: pointer }
+.method-pick:focus-visible { outline: none; color: var(--primary) }
 .code { width: 100%; font-size: var(--text-sm); resize: vertical }
 .response { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3) }
 .response-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0 }
