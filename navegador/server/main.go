@@ -511,6 +511,42 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, run)
 	})
+	// POST /api/ask {meta, url, pasos} — lanza una meta (bin/navegador ask). GET /api/ask?desde=N — lo que va
+	// diciendo. POST /api/ask/answer {text} — contesta un NECESITO/CONFIRMAR. POST /api/ask/stop — la frena.
+	mux.HandleFunc("/api/ask", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			since, _ := strconv.Atoi(r.URL.Query().Get("desde"))
+			writeJSON(w, http.StatusOK, asker.State(since))
+			return
+		}
+		var in struct {
+			Goal  string `json:"meta"`
+			URL   string `json:"url"`
+			Steps int    `json:"pasos"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := asker.Start("http://"+apiAddr, in.Goal, in.URL, in.Steps); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	mux.HandleFunc("/api/ask/answer", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Text string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := asker.Answer(in.Text); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	mux.HandleFunc("/api/ask/stop", func(w http.ResponseWriter, r *http.Request) {
+		asker.Stop()
+		writeJSON(w, http.StatusOK, ok)
+	})
 	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (reporte.html, sus fotos, el script).
 	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))
 	mux.Handle("/api/corridas/", corridas)
@@ -527,7 +563,14 @@ func handler(store *Store, runner *Runner) http.Handler {
 	return mux
 }
 
+// apiAddr es la dirección de la API, para que el ask que se lanza desde la interfaz le hable a ésta.
+var apiAddr string
+
+// asker es la meta lanzada desde la interfaz (una a la vez).
+var asker = &Asker{}
+
 func serve(addr string, store *Store, runner *Runner) error {
+	apiAddr = addr
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return err
@@ -541,6 +584,7 @@ func serve(addr string, store *Store, runner *Runner) error {
 	srv := &http.Server{Addr: addr, Handler: handler(store, runner)}
 	go func() {
 		<-stop
+		asker.Stop()
 		runner.Close()
 		_ = srv.Close()
 	}()

@@ -20,6 +20,7 @@
 | Investigar | `read` (el contenido principal, legible, con la fecha de actualización y sus enlaces) y `readfile` (un PDF bajado, con `pdftotext`) | `server/live.go` (`readJS`), `cli/main.go` |
 | CLI | `bin/navegador`: maneja la sesión en vivo por consola | `cli/main.go` |
 | `ask` | Claude Code (`claude -p`) maneja la sesión hasta cumplir una meta | `cli/ask.go`, `cli/ask.md` (sus instrucciones) |
+| Meta desde la interfaz | La API corre el MISMO `bin/navegador ask` con `NAVEGADOR_EVENTS=1` (una línea JSON por evento), en su propia sesión y sin terminal: la respuesta a un NECESITO/CONFIRMAR le llega por stdin. El panel **Agente** muestra lo que piensa y hace, la pregunta con Sí/No y el resultado. Una a la vez | `server/ask.go`, `/api/ask` |
 | Evals | La suite de regresión de `ask` | `cli/evals.go`, `evals/casos.json`, `evals/replay.cjs`, `evals/historial.jsonl` |
 | Credidemo | Sitio de **práctica** (:5204): solicitud de crédito con reglas + laboratorio (`/lab/`) | `demo/` |
 | Tienda Andina | Sitio ficticio que `ask` trata como **real** (:5205): consentimientos, pago, borrado | `demo-real/` |
@@ -82,6 +83,11 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
   viejo se niega salvo que ese número siga nombrando lo mismo (el CLI manda el nombre).
 - **El costo de una corrida depende de la caché de prompts:** el mismo caso costó US$ 0,066 con 2 400 tokens
   escritos a caché y US$ 0,325 con 13 900. La telemetría de `ask` (modelo y tokens) está para comparar eso.
+- **Una meta lanzada desde la interfaz hereda el entorno de la API**: sin `CLAUDE_CODE_OAUTH_TOKEN` en la shell
+  que levantó `make navegador`, el panel Agente muestra el error de login. Para probar la interfaz sin gastar,
+  la configuración `navegador-prueba` (`.claude/launch.json`) levanta otra copia con un Claude simulado.
+- **Claude Code corre en su propia sesión (`setsid`)**: un Ctrl-C o el «Frenar» no le llegan solos; `runClaude`
+  se los pasa a su grupo.
 - **Claude Code de consola necesita su propia sesión**: la del Code tab no se hereda. `CLAUDE_CODE_OAUTH_TOKEN`
   exportada (de `claude setup-token`). Corre en una sesión de terminal propia (`setsid`) y la respuesta a un
   NECESITO/CONFIRMAR se lee de `/dev/tty`.

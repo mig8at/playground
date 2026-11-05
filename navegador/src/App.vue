@@ -53,6 +53,74 @@ const fmtRunDate = (t) => (t ? new Date(t).toLocaleString('es-CO', { day: 'numer
 async function copyRunScript() { if (runData.value?.script) copyText(runData.value.script, 'run-script') }
 watch(runId, (id) => { writeRoute(true); loadRun(id) })
 
+// ── una meta lanzada desde acá: la API corre bin/navegador ask y junta lo que va diciendo (server/ask.go) ──
+const askGoal = ref('')
+const askURL = ref('')
+const askState = ref({ running: false, waiting: false, meta: '', eventos: [] })
+const askEvents = ref([])
+const askError = ref('')
+const askReply = ref('')
+const askBusy = ref(false)
+let askTimer = null
+async function pollAsk() {
+  clearTimeout(askTimer)
+  try {
+    const st = await api(`/api/ask?desde=${askEvents.value.length}`)
+    if (st.total < askEvents.value.length) askEvents.value = [] // otra corrida: se empieza de cero
+    else askEvents.value.push(...st.eventos)
+    const wasRunning = askState.value.running
+    askState.value = st
+    if (wasRunning && !st.running) loadRuns()
+  } catch { /* la API se cae al reiniciar */ }
+  askTimer = setTimeout(pollAsk, askState.value.running ? 800 : 5000)
+}
+async function launchAsk() {
+  if (!askGoal.value.trim() || askState.value.running) return
+  askBusy.value = true
+  askError.value = ''
+  try {
+    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: askGoal.value, url: askURL.value.trim() }) })
+    askEvents.value = []
+    runId.value = '' // el editor pasa a mostrar el navegador en vivo
+    auxOpen.value = true
+    askGoal.value = ''
+    pollAsk()
+  } catch (e) { askError.value = e.message } finally { askBusy.value = false }
+}
+async function answerAsk(text) {
+  askError.value = ''
+  try {
+    await api('/api/ask/answer', { method: 'POST', body: JSON.stringify({ text }) })
+    askReply.value = ''
+    pollAsk()
+  } catch (e) { askError.value = e.message }
+}
+async function stopAsk() {
+  try { await api('/api/ask/stop', { method: 'POST' }); pollAsk() } catch (e) { askError.value = e.message }
+}
+const showAgent = computed(() => !runId.value && (askState.value.running || askEvents.value.length > 0))
+// La pregunta pendiente: el texto de la última vuelta (el que terminó con NECESITO o CONFIRMAR).
+const askQuestion = computed(() => {
+  if (!askState.value.waiting) return ''
+  const last = [...askEvents.value].reverse().find((e) => e.k === 'result')
+  return last ? stripKeyword(last.t) : ''
+})
+const askKeyword = computed(() => [...askEvents.value].reverse().find((e) => e.k === 'ask')?.t || '')
+// La corrida que dejó: el reporte trae la URL con su carpeta.
+const askRunId = computed(() => {
+  const ev = askEvents.value.find((e) => e.k === 'report')
+  return ev?.t.match(/\/corridas\/([^/]+)\//)?.[1] || ''
+})
+const askOut = computed(() => askEvents.value.filter((e) => e.k === 'out'))
+const askTimeline = computed(() => askEvents.value.filter((e) => e.k !== 'out' && e.k !== 'ask' && e.k !== 'report'))
+function keywordOf(text) {
+  const head = (text || '').replace(/^[\s*_#>`]+/, '').toUpperCase()
+  return ['LISTO', 'NO PUDE', 'NECESITO', 'CONFIRMAR'].find((k) => head.startsWith(k)) || ''
+}
+// Claude escribe con Markdown; acá va como texto: sin los ** y __ de la negrita.
+function stripKeyword(text) { return plainText(text).replace(/^\s*[*_#>`]*\s*(LISTO|NO PUDE|NECESITO|CONFIRMAR)\s*:?[*_]*\s*/i, '') }
+const plainText = (text) => (text || '').replace(/(\*\*|__)(.+?)\1/g, '$2')
+
 async function api(path, opts = {}) {
   const res = await fetch(path, opts)
   const body = await res.json().catch(() => ({}))
@@ -192,6 +260,8 @@ async function pollLive() {
     const prev = liveState.value
     liveState.value = st
     if (st.active && st.url !== prev.url && document.activeElement?.id !== 'live-url') liveURL.value = st.url
+    // Mientras corre una meta, el editor sigue al navegador del agente aunque cambie de sitio.
+    if (askState.value.running && st.active && st.site !== siteSlug.value && !runId.value) { siteSlug.value = st.site; pageId.value = '' }
     if (st.active && st.version !== prev.version) {
       loadPages(st.site)
       if (st.site === siteSlug.value && st.page) pageId.value = st.page.id
@@ -635,7 +705,7 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.va
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-    { size: auxOpen.value && (runId.value ? runData.value : page.value) ? auxW.value : 0, min },
+    { size: auxOpen.value && (runId.value ? runData.value : showAgent.value || page.value) ? auxW.value : 0, min },
     { size: sidebarOpen.value ? sidebarW.value : 0, min },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
@@ -725,11 +795,13 @@ onMounted(async () => {
   pollLive()
   loadRuns()
   loadRun(runId.value)
+  pollAsk()
   runsTimer = setInterval(loadRuns, 8000)
 })
 let runsTimer = null
 onBeforeUnmount(() => {
   clearInterval(runsTimer)
+  clearTimeout(askTimer)
   clearTimeout(liveTimer)
   closeFrames()
   resizeObs?.disconnect()
@@ -764,6 +836,15 @@ onBeforeUnmount(() => {
         </div>
       </nav>
       <div v-if="sideTab === 'runs'" class="region-body">
+        <form class="ask-form" @submit.prevent="launchAsk">
+          <textarea v-model="askGoal" class="input ask-goal" rows="3" placeholder="La meta, como se la dirías a alguien: «averiguá hasta cuándo hay descuento en el predial de Bogotá»" aria-label="La meta" @keydown.enter.exact.prevent="launchAsk"></textarea>
+          <div class="ask-form-row">
+            <input v-model="askURL" class="input input-sm" type="url" placeholder="URL de arranque (vacío: la sesión abierta)" aria-label="URL de arranque" />
+            <button type="submit" class="btn btn-sm" :disabled="!askGoal.trim() || askState.running || askBusy">Lanzar</button>
+          </div>
+          <p v-if="askState.running" class="none">Hay una meta corriendo: la sigue el panel Agente.</p>
+          <p v-if="askError && !showAgent" class="ask-error">{{ askError }}</p>
+        </form>
         <p v-if="!runs.length" class="none">Todavía no hay corridas con reporte. Aparecen cuando termina un <code>bin/navegador ask</code>, una corrida de evals o un <code>bin/navegador report</code>.</p>
         <button v-for="r in runs" :key="r.id" type="button" class="row stacked run-row" :class="{ on: r.id === runId }" @click="pickRun(r.id)">
           <span class="run-row-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="run-row-meta">{{ r.meta || '(sin meta)' }}</span></span>
@@ -1013,7 +1094,61 @@ onBeforeUnmount(() => {
     </main>
 
     <!-- SIDEBAR SECUNDARIO · la ficha de la página: lo que se sabe de ella -->
-    <aside v-if="shown.aux && runId && runData" class="auxiliarybar" aria-label="Ficha de la corrida">
+    <aside v-if="shown.aux && showAgent" class="auxiliarybar" aria-label="El agente">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span class="ellipsis">Agente</span>
+        <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : 'trabajando…' }}</span>
+        <div class="region-actions">
+          <button v-if="askState.running" type="button" class="region-action" title="Frenar la meta" aria-label="Frenar la meta" @click="stopAsk">
+            <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
+          </button>
+          <button v-else type="button" class="region-action" title="Cerrar el panel del agente" aria-label="Cerrar el panel del agente" @click="askEvents = []">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body agent">
+        <p class="agent-goal">{{ askState.meta }}</p>
+        <template v-for="e in askTimeline" :key="e.n">
+          <p v-if="e.k === 'think'" class="ev-think">{{ plainText(e.t) }}</p>
+          <code v-else-if="e.k === 'act'" class="ev-act">{{ e.t }}</code>
+          <p v-else-if="e.k === 'look'" class="ev-note">mira la captura {{ e.t }}</p>
+          <code v-else-if="e.k === 'fail' || e.k === 'err'" class="ev-fail">✗ {{ e.t }}</code>
+          <div v-else-if="e.k === 'result'" class="ev-result">
+            <span class="badge badge-xs kw" :class="KW_CLASS[keywordOf(e.t)] || 'kw-none'">{{ keywordOf(e.t) || '¿?' }}</span>
+            <div class="ev-result-text">{{ stripKeyword(e.t) }}</div>
+          </div>
+          <p v-else-if="e.k === 'stats'" class="ev-note">{{ e.t }}</p>
+          <p v-else-if="e.k === 'answer'" class="ev-answer">› {{ e.t }}</p>
+          <p v-else class="ev-note">{{ e.t }}</p>
+        </template>
+        <details v-if="askOut.length" class="ev-out">
+          <summary>Salida del CLI ({{ askOut.length }} líneas)</summary>
+          <pre>{{ askOut.map((e) => e.t).join('\n') }}</pre>
+        </details>
+
+        <div v-if="askState.waiting" class="card ask-card">
+          <div class="ask-card-head"><span class="badge badge-xs kw kw-ask">{{ askKeyword }}</span> Te pregunta:</div>
+          <div class="ev-result-text">{{ askQuestion }}</div>
+          <div v-if="askKeyword === 'CONFIRMAR'" class="ask-card-row">
+            <button type="button" class="btn btn-sm" @click="answerAsk('sí')">Sí</button>
+            <button type="button" class="btn btn-outline btn-sm" @click="answerAsk('no')">No</button>
+          </div>
+          <form class="ask-card-row" @submit.prevent="askReply.trim() && answerAsk(askReply)">
+            <input v-model="askReply" class="input input-sm" :placeholder="askKeyword === 'CONFIRMAR' ? 'u otra respuesta…' : 'tu respuesta…'" aria-label="Tu respuesta" />
+            <button type="submit" class="btn btn-outline btn-sm" :disabled="!askReply.trim()">Enviar</button>
+          </form>
+          <button type="button" class="btn btn-ghost btn-sm" @click="answerAsk('')">Terminar sin contestar</button>
+        </div>
+        <p v-if="askState.running && !askState.waiting" class="ev-note">trabajando…</p>
+        <p v-if="askError" class="ask-error">{{ askError }}</p>
+        <p v-if="!askState.running && askState.salida" class="ask-error">El proceso terminó: {{ askState.salida }}</p>
+        <button v-if="!askState.running && askRunId" type="button" class="btn btn-outline btn-sm" @click="pickRun(askRunId)">Ver la corrida paso a paso</button>
+      </div>
+    </aside>
+
+    <aside v-else-if="shown.aux && runId && runData" class="auxiliarybar" aria-label="Ficha de la corrida">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head"><span>Corrida</span></div>
       <div class="region-body">
@@ -1037,7 +1172,7 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <aside v-else-if="shown.aux && !runId" class="auxiliarybar" aria-label="Ficha de la página">
+    <aside v-else-if="shown.aux && !runId && page" class="auxiliarybar" aria-label="Ficha de la página">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
         <span>Página</span>
@@ -1331,6 +1466,28 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 .source-row { text-decoration: none; color: inherit }
+/* la meta y el agente */
+.ask-form { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3); border-bottom: 1px solid var(--border) }
+.ask-goal { resize: vertical; min-height: 64px; font: inherit }
+.ask-form-row, .ask-card-row { display: flex; gap: var(--space-2); align-items: center }
+.ask-form-row .input, .ask-card-row .input { flex: 1; min-width: 0 }
+.ask-error { color: var(--status-bad); font-size: var(--text-sm); margin: 0 }
+.agent { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) }
+.agent p { margin: 0 }
+.agent-goal { font-weight: 600 }
+.ev-think { line-height: 1.5; white-space: pre-wrap }
+.ev-act, .ev-fail { font-family: var(--font-mono); font-size: var(--text-sm); overflow-wrap: anywhere; color: var(--fg-2) }
+.ev-act::before { content: '→ '; color: var(--fg-3) }
+.ev-fail { color: var(--status-bad) }
+.ev-note { color: var(--fg-3); font-size: var(--text-sm) }
+.ev-answer { color: var(--fg-2) }
+.ev-result { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-2) var(--space-3); border-left: 2px solid var(--border); background: var(--hover) }
+.ev-result .kw { align-self: flex-start }
+.ev-result-text { white-space: pre-wrap; line-height: 1.5 }
+.ev-out pre { font-size: var(--text-sm); white-space: pre-wrap; max-height: 240px; overflow: auto; margin: var(--space-1) 0 0 }
+.ev-out summary { color: var(--fg-3); font-size: var(--text-sm); cursor: pointer }
+.ask-card { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3); border: 1px solid var(--kw-ask); border-radius: var(--radius-control) }
+.ask-card-head { display: flex; align-items: center; gap: var(--space-2); font-weight: 600 }
 .notice-inline { color: var(--status-warn) }
 .notice-line { color: var(--status-warn) }
 .control-box.k-scroll { border-style: dotted }

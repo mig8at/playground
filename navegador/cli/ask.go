@@ -24,6 +24,7 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -92,10 +93,31 @@ func ask(args []string) error {
 		return err
 	}
 	if path, err := writeReportInfo(outcome.reportInfo(goal, "ask")); err == nil {
-		fmt.Printf("\npaso a paso, con una foto por paso: %s\n", path)
+		say(os.Stdout, "report", path, fmt.Sprintf("\npaso a paso, con una foto por paso: %s\n", path))
+	} else {
+		say(os.Stdout, "note", "no quedó corrida guardada: "+err.Error(), fmt.Sprintf("\n(no quedó corrida guardada: %v)\n", err))
 	}
-	fmt.Println("el script de Playwright: bin/navegador script")
+	say(os.Stdout, "", "", "el script de Playwright: bin/navegador script\n")
 	return nil
+}
+
+// eventsMode lo prende la API cuando lanza ask desde la interfaz (NAVEGADOR_EVENTS=1): lo que va haciendo sale
+// como una línea JSON por evento ({"k": tipo, "t": texto}) en vez de texto para la terminal, y la respuesta a
+// un NECESITO/CONFIRMAR llega por stdin.
+var eventsMode = os.Getenv("NAVEGADOR_EVENTS") == "1"
+
+// say escribe un evento: para la interfaz, el tipo y el texto completo; para la terminal, human. Con kind
+// vacío es sólo para la terminal.
+func say(out io.Writer, kind, text, human string) {
+	if !eventsMode {
+		fmt.Fprint(out, human)
+		return
+	}
+	if kind == "" {
+		return
+	}
+	b, _ := json.Marshal(map[string]string{"k": kind, "t": text})
+	fmt.Fprintf(out, "%s\n", b)
 }
 
 // askOpts es una corrida de ask: la meta y cómo se contesta un NECESITO/CONFIRMAR.
@@ -181,8 +203,10 @@ func runAsk(o askOpts) (askOutcome, error) {
 		base = append(base, "--model", o.model)
 	}
 
-	ttyState = sttySave()
-	fmt.Fprintf(o.out, "meta: %s\nsitio: %s\n\n", o.goal, kind)
+	if !eventsMode {
+		ttyState = sttySave()
+	}
+	say(o.out, "site", kind, fmt.Sprintf("meta: %s\nsitio: %s\n\n", o.goal, kind))
 	session := ""
 	autoAnswered := false
 	repaired := false
@@ -201,7 +225,8 @@ func runAsk(o askOpts) (askOutcome, error) {
 		// «No pagué: …» y la pregunta nunca llegó). Se le pide UNA vez que lo reescriba, en la misma sesión.
 		if keyword(res.text) == "?" && !repaired {
 			repaired = true
-			fmt.Fprintf(o.out, "\n  (la respuesta no empezó con LISTO, NO PUDE, NECESITO ni CONFIRMAR: le pido que la reescriba)\n")
+			say(o.out, "note", "la respuesta no empezó con LISTO, NO PUDE, NECESITO ni CONFIRMAR: le pido que la reescriba",
+				"\n  (la respuesta no empezó con LISTO, NO PUDE, NECESITO ni CONFIRMAR: le pido que la reescriba)\n")
 			outcome.Turns += res.turns
 			outcome.Cost += res.cost
 			outcome.Seconds += res.seconds
@@ -218,10 +243,11 @@ func runAsk(o askOpts) (askOutcome, error) {
 		if res.model != "" {
 			outcome.Model = res.model
 		}
-		fmt.Fprintf(o.out, "\n%s\n", res.text)
+		say(o.out, "result", res.text, fmt.Sprintf("\n%s\n", res.text))
 		t := res.tokens
-		fmt.Fprintf(o.out, "\n(%d turnos · %.1f s · US$ %.4f · %s · tokens: %d entrada, %d de caché, %d a caché, %d salida)\n",
+		stats := fmt.Sprintf("%d turnos · %.1f s · US$ %.4f · %s · tokens: %d entrada, %d de caché, %d a caché, %d salida",
 			res.turns, res.seconds, res.cost, res.model, t.Input, t.CacheRead, t.CacheCreate, t.Output)
+		say(o.out, "stats", stats, "\n("+stats+")\n")
 		if k := outcome.Final(); k != "NECESITO" && k != "CONFIRMAR" {
 			break
 		}
@@ -231,14 +257,16 @@ func runAsk(o askOpts) (askOutcome, error) {
 				break // ya contestó sola una vez: no se queda en un ida y vuelta
 			}
 			reply, autoAnswered = o.answer, true
-			fmt.Fprintf(o.out, "\n  › respuesta automática: %s\n\n", reply)
+			say(o.out, "answer", reply, fmt.Sprintf("\n  › respuesta automática: %s\n\n", reply))
 		} else {
+			say(o.out, "ask", outcome.Final(), "")
 			reply = askUser("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
 			if reply == "" {
-				fmt.Fprintln(o.out, "  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)")
+				say(o.out, "note", "sin respuesta: termino acá, sin hacer lo que estaba por confirmar",
+					"  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)\n")
 				break
 			}
-			fmt.Fprintf(o.out, "  › respuesta: %s\n\n", reply)
+			say(o.out, "answer", reply, fmt.Sprintf("  › respuesta: %s\n\n", reply))
 		}
 		prompt = reply
 	}
@@ -293,6 +321,20 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 	if err := cmd.Start(); err != nil {
 		return claudeResult{}, fmt.Errorf("no pude lanzar Claude Code (%s): %w", claude, err)
 	}
+	// Por estar en su propia sesión, un Ctrl-C (o el «Frenar» de la interfaz) no le llega solo: se le pasa.
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	finished := make(chan struct{})
+	defer func() { signal.Stop(stop); close(finished) }()
+	go func() {
+		select {
+		case <-stop:
+			_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGTERM)
+			fmt.Fprintln(os.Stderr, "frenado: Claude Code terminó sin cerrar la meta")
+			os.Exit(130)
+		case <-finished:
+		}
+	}()
 	var res claudeResult
 	actions := 0
 	sc := bufio.NewScanner(stdout)
@@ -342,15 +384,15 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 			for _, c := range ev.Message.Content {
 				switch {
 				case c.Type == "text" && strings.TrimSpace(c.Text) != "":
-					fmt.Fprintf(out, "  · %s\n", oneLine(c.Text, 160))
+					say(out, "think", strings.TrimSpace(c.Text), fmt.Sprintf("  · %s\n", oneLine(c.Text, 160)))
 				case c.Type == "tool_use" && c.Name == "Bash":
 					command := strings.ReplaceAll(c.Input.Command, self, "navegador")
-					fmt.Fprintf(out, "  → %s\n", oneLine(command, 160))
+					say(out, "act", command, fmt.Sprintf("  → %s\n", oneLine(command, 160)))
 					if isAction(command) {
 						actions++
 					}
 				case c.Type == "tool_use" && c.Name == "Read":
-					fmt.Fprintf(out, "  👁 mira %s\n", filepath.Base(c.Input.FilePath))
+					say(out, "look", filepath.Base(c.Input.FilePath), fmt.Sprintf("  👁 mira %s\n", filepath.Base(c.Input.FilePath)))
 				}
 			}
 			if actions > maxActions {
@@ -364,7 +406,8 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 			// expansión de la shell, por ejemplo), que si no pasa sin que se vea.
 			for _, c := range ev.Message.Content {
 				if c.Type == "tool_result" && c.IsError {
-					fmt.Fprintf(out, "    ✗ %s\n", oneLine(strings.ReplaceAll(toolText(c.Result), self, "navegador"), 160))
+					msg := strings.ReplaceAll(toolText(c.Result), self, "navegador")
+					say(out, "fail", msg, fmt.Sprintf("    ✗ %s\n", oneLine(msg, 160)))
 				}
 			}
 		case "result":
@@ -498,6 +541,9 @@ func toolText(raw json.RawMessage) string {
 
 // ── la respuesta de la persona ──
 
+// stdinReader es uno solo para toda la corrida: un bufio nuevo por pregunta perdería lo que el anterior ya leyó.
+var stdinReader = bufio.NewReader(os.Stdin)
+
 // ttyState es el modo de la terminal al arrancar (stty -g), para restaurarlo antes de preguntar.
 var ttyState string
 
@@ -520,6 +566,10 @@ func sttySave() string {
 // terminal (por si algo lo tocó), descarta lo que se tecleó mientras Claude trabajaba (un Enter suelto contaba
 // como respuesta vacía) y lee de /dev/tty. Sin terminal (una tubería), lee de stdin.
 func askUser(prompt string) string {
+	if eventsMode { // la interfaz contesta por stdin, una línea
+		line, _ := stdinReader.ReadString('\n')
+		return strings.TrimSpace(line)
+	}
 	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
 	if err != nil {
 		fmt.Print(prompt)
