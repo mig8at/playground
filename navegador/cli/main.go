@@ -4,7 +4,8 @@
 //
 //	bin/navegador sites                          los sitios dados de alta
 //	bin/navegador open <sitio|url> [url]         abre la sesión en vivo (una URL nueva se da de alta sola)
-//	bin/navegador look                           la página actual: sus elementos numerados, con su localizador
+//	bin/navegador look [--todo]                  la página actual: sus elementos numerados, con su localizador
+//	                                             (los enlaces del menú y el pie se resumen; --todo los muestra)
 //	bin/navegador click <n> | dblclick <n> | hover <n> | fill <n> <valor> | check <n> | uncheck <n>
 //	              select <n> <valor> | press <n> <tecla> | upload <n> <archivo> | drag <n> <destino>
 //	              (<n>: el número del último look, o un texto visible: dblclick "Revisar el informe")
@@ -41,6 +42,10 @@ import (
 
 var api = envOr("NAVEGADOR_API", "http://127.0.0.1:5203")
 
+// lookAll: mostrar también los enlaces del menú, el encabezado y el pie, que se repiten en cada página y por
+// defecto se resumen en una línea (cada look los repetía: tokens y lectura de más).
+var lookAll bool
+
 func envOr(k, d string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
@@ -62,6 +67,7 @@ func main() {
 	case "open":
 		err = open(args)
 	case "look":
+		lookAll = len(args) > 0 && args[0] == "--todo"
 		err = look(true)
 	case "click", "dblclick", "hover", "check", "uncheck":
 		err = act(cmd, args, false)
@@ -113,7 +119,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
-  sites · open <sitio|url> [url] · look · close
+  sites · open <sitio|url> [url] · look [--todo] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
@@ -173,6 +179,7 @@ type control struct {
 	Disabled bool
 	Blocked  bool
 	Frame    string
+	Zone     string
 	AtEnd    *bool
 	Options  []struct{ Value, Label string }
 	Locators []struct {
@@ -323,7 +330,12 @@ func look(fresh bool) error {
 		fmt.Printf("aviso: %s\n", n)
 	}
 	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll", "file": "archivo", "drag": "arrastrable"}
+	hidden := 0
 	for _, c := range st.Page.Controls {
+		if !lookAll && c.Kind == "link" && (c.Zone == "navigation" || c.Zone == "banner" || c.Zone == "contentinfo") {
+			hidden++
+			continue
+		}
 		loc := "SIN LOCALIZADOR ÚNICO"
 		if c.Best >= 0 {
 			loc = c.Locators[c.Best].Code
@@ -352,6 +364,9 @@ func look(fresh bool) error {
 			}
 			fmt.Printf("       opciones: %s\n", strings.Join(opts, " · "))
 		}
+	}
+	if hidden > 0 {
+		fmt.Printf("  (+%d enlaces del menú, el encabezado y el pie: look --todo)\n", hidden)
 	}
 	return nil
 }

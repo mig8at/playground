@@ -52,6 +52,7 @@ type Control struct {
 	Checked  *bool    `json:"checked,omitempty"`
 	Disabled bool     `json:"disabled,omitempty"`
 	Blocked  bool     `json:"blocked,omitempty"` // detrás de un modal abierto: un clic ahí no llega
+	Zone     string   `json:"zone,omitempty"`    // la zona de la página: navigation, banner, main, contentinfo…
 	// Frame: el selector del iframe donde vive, si no está en la página principal; FrameID es su número allá adentro.
 	Frame    string    `json:"frame,omitempty"`
 	FrameID  int       `json:"frameId,omitempty"`

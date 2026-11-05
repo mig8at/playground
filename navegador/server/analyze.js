@@ -241,6 +241,7 @@
       checked: type === 'checkbox' || type === 'radio' ? el.checked : undefined,
       disabled: !!(el.disabled || el.getAttribute('aria-disabled') === 'true'),
       blocked: !!(modal && !modal.contains(el)),
+      zone: landmarkOf(el)?.role || '',
       locators: unique,
     })
   }
