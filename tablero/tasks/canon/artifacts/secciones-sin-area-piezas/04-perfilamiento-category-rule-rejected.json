@@ -1,0 +1,21 @@
+{
+  "node": "perfilamiento/context",
+  "section": "CATEGORY_RULE_REJECTED",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿por qué una entidad no le apareció a una persona, y cómo se lee CATEGORY_RULE_REJECTED?",
+  "objetivo": "Registrar qué criterios de una regla de categoría no cumplió una persona con una entidad, y guardar el desenlace de cada evaluación.",
+  "se_deduce_leyendo": "Dónde se emite el registro y con qué campos, cómo se escribe el histórico de categoría por evaluación, el atajo que lo salta y el nivel de log que lo deja visible o no según el ambiente.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "Modules/Loans/App/Repositories/UsersCategoryLogRepository.php",
+      "config/logging.php"
+    ],
+    "legacy-application": [
+      "app/Services/lenders/LenderUserCategoryService.php"
+    ]
+  },
+  "text": "**Es el registro que dice por qué una entidad no le apareció a alguien.** Sale al resolver la categoría y trae la persona, la entidad, la regla, la categoría y `failed_criteria`: la lista exacta de criterios que no cumplió. Se lee bien si se tienen en cuenta cuatro cosas:\n\n- Sale una vez por cada regla que no se cumplió. Las reglas se recorren en orden y gana la primera que cumple todos los criterios, así que quien sí vio la entidad deja igual varios de estos registros por las reglas anteriores.\n- Que ninguna regla aplique no es el final. Si todas fallan sigue un camino de puntaje que todavía puede asignar categoría; sólo si ése tampoco resuelve, la persona queda sin cupo con esa entidad.\n- El desenlace se lee en `users_category_log`: una fila por cada evaluación del par persona-entidad, con la categoría en 0 cuando no hubo y los criterios evaluados; manda la más reciente. Para «¿le dio cupo?» manda esa tabla; estos registros contestan «¿qué criterio falló?». La excepción: con cédula de extranjería y una entidad en particular, la evaluación corta antes de las reglas y devuelve una categoría fija, sin este registro, y en el monolito nuevo la escritura del log está comentada. Ver categoría y ninguna fila, para ese par, es ese atajo.\n- Se emite a nivel debug, mientras los dos rechazos de cupo de la sección siguiente van a info. El nivel se decide por ambiente y en producción el debug suele estar apagado, así que no encontrarlo no quiere decir que la entidad no se evaluó.\n\nQue un criterio aparezca ahí tampoco quiere decir que la excluyó: algunas reglas clasifican en vez de excluir ([[credifamilia/context#no-aparece-en-el-listado-primero-mira-que-puerta]]). El mecanismo completo está en [[creditopx/context]]."
+}

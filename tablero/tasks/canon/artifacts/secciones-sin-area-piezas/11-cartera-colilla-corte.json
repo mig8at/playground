@@ -1,0 +1,9 @@
+{
+  "node": "cartera/context",
+  "section": "La colilla puede condonar el mínimo de cualquier ciclo",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿por qué un cliente que no pagó aparece al día, y cuándo se condona la colilla?",
+  "text": "La **colilla** es el saldo residual que la entidad deja de cobrar. No se limita al final del crédito:\nel proceso nocturno revisa el **pago mínimo de cualquier ciclo cuando llega su corte**, es decir cuando\nla próxima fecha de facturación ya es hoy o pasó; la fecha de pago no cuenta para esto.\nSi el mínimo queda **menor o igual** al umbral de la entidad —cinco mil pesos si no configuró otro—,\nlo lleva a cero, corre la fecha de pago al siguiente ciclo y borra la mora: los días de atraso\nvuelven a cero y el crédito queda al día. El capital de ese mínimo no se perdona: sigue en el saldo y\nvuelve a quedar por facturar, así que reaparece en cortes siguientes. El saldo total menor o igual al umbral también queda en cero,\naunque su condonación no depende de que la fecha de pago haya vencido.\n\nLa fecha de pago vencida sólo cuenta en otro caso del mismo proceso: un mínimo en cero que sigue en mora\n([[cartera/context#un-minimo-ya-pagado-que-quedo-en-mora-se-regulariza-esa-noche]]).\n\nEsto explica que **un cliente que no pagó aparezca sin mora**. Los cupos rotativos quedan fuera de la\ncondonación del mínimo en ese proceso; su tratamiento está en\n[[cartera/context#el-rotativo-tiene-reparaciones-umbral-residual-y-corte-semanal]].\n\nEl **pago aplicado en el acto** sigue otra regla para cambiar el estado:\n[[cartera/context#paz-y-salvo-con-saldo-y-pagos-que-no-desbloquean]].\nLa diferencia entre las dos cifras está en\n[[cartera/context#el-exigible-y-el-total-son-dos-numeros-de-naturaleza-distinta-y-el-primero-puede-ser-mayor]]."
+}

@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Prami",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Por qué Prami aprobó y la solicitud quedó en seleccionar entidad?",
+  "text": "**Prami es una entidad (12) que decide afuera y avisa por webhook.** Para «aprobado y quedó en seleccionar entidad» o «el monto no es el pactado»: [[fronteras/context#el-aviso-de-prami-no-se-pierde-llega-con-un-identificador-que-no-existe]].\n\nQueda fuera del preaprobado por una lista escrita en el código, no por configuración: [[preaprobado/context#y-dentro-del-sistema-nuevo-hay-dos-puntos-con-listas-distintas]]."
+}

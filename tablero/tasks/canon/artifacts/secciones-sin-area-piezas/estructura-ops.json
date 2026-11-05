@@ -1,0 +1,34 @@
+[
+  {
+    "op": "editar_evidencia",
+    "tema": "negocio",
+    "area": "definicion-comercial",
+    "objetivo": "Explicar el modelo comercial de Creditop: el comercio organiza la oferta y orienta las prioridades, y quién financia depende de la entidad.",
+    "secciones": [
+      "el-que-decide-es-el-comercio-y-eso-ordena-casi-todas-las-prioridades"
+    ],
+    "evidence": [
+      {
+        "id": "modelo-comercial",
+        "kind": "decision",
+        "reference": "dictado:miguel-ochoa/2026-11-05",
+        "scope": "todos los comercios",
+        "authority": "Producto (dictado por Miguel Ochoa)",
+        "role": "intended",
+        "version": "1",
+        "verified_at": "2026-11-05T00:00:00Z",
+        "review_after": "2027-02-05T00:00:00Z"
+      }
+    ]
+  },
+  {
+    "op": "borrar_seccion",
+    "tema": "observabilidad",
+    "seccion": "El volumen de registros NO mide importancia: mide latidos"
+  },
+  {
+    "op": "borrar_seccion",
+    "tema": "mobile",
+    "seccion": "Arquitectura y frontera entre paquetes e infraestructura"
+  }
+]

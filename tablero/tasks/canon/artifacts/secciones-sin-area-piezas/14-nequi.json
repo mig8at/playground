@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Nequi",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Nequi es una entidad que da crédito?",
+  "text": "**Nequi es un medio de pago que aparece entre las entidades (192, tipo de respuesta 0): cobra la compra, no origina crédito.** Sólo existe en el monolito nuevo. Habilitación, estados, rechazos y reversas: [[nequi/context#aparece-entre-las-entidades-pero-al-elegirla-no-se-origina-un-credito-se-cobra-la-compra]]."
+}

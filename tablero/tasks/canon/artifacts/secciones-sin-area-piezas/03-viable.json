@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Viable / no sale viable",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué significa que un cliente «no sale viable»?",
+  "text": "**Cumple o no los requisitos para obtener el cupo.** En CreditopX pueden intervenir crédito activo, reglas, buró y categoría, y el resultado corresponde a esa evaluación y ese momento: [[creditopx/context]].\n\n«No viable» también es la respuesta del disparador de Experian (RKV24009) y el veredicto de algunas entidades en la preaprobación. Ante el reporte, la primera pregunta es de cuál de los tres habla: [[kyc/context]], [[preaprobado/context]]."
+}

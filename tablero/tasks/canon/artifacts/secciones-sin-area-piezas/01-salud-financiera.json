@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Salud financiera",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué muestra la pantalla de salud financiera de la app y de dónde salen sus datos?",
+  "text": "**La pantalla de la app con el puntaje, la capacidad de endeudamiento y los consejos del cliente.** Sin el beneficio completo muestra una versión reducida. Cómo se arma: [[salud-financiera/context]]; el reporte de buró del que sale: [[kyc/context]]; el canal móvil: [[mobile/context]]."
+}

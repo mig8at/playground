@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Créditos de consumo",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Por qué una solicitud no aparece en créditos de consumo pero sí en solicitudes?",
+  "text": "**Nombra dos cosas distintas.**\n\n- El producto de libre destino. Lo ofrecen las entidades CreditopX «X Consumo» y también Bancolombia, Credifamilia y la entidad de Perú. Ante un reporte de «consumo», la primera pregunta es de qué entidad.\n- El menú del admin viejo que lista los créditos CreditopX.\n\n«No aparece en créditos de consumo pero sí en solicitudes» habla del menú, no del producto: son dos máquinas de estado, [[datos/context#un-estado-dice-donde-esta-no-que-se-completo]]."
+}

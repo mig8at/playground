@@ -1,0 +1,20 @@
+{
+  "node": "cuota/context",
+  "section": "Hay una entidad cuyo costo de financiación vive en un factor por plazo, y sin él sale a costo cero",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿por qué un crédito sale sin costo de financiación aunque la entidad sí cobra?",
+  "objetivo": "Cobrar el costo de financiación de una entidad mediante un factor por plazo, en el plan de pagos y en el pagaré.",
+  "se_deduce_leyendo": "Cómo el cálculo del plan aplica el factor del plazo elegido, de dónde lo toma la entidad y cómo el pagaré del monolito viejo arma su valor con el mismo factor.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
+      "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Customer/PromissoryNoteController.php"
+    ]
+  },
+  "text": "**Un producto puede incorporar su costo mediante un factor por plazo, aunque tasa, administrativos, garantía y seguros estén en cero.** El factor representa la cuota por peso de capital para ese plazo; multiplicarlo por el capital y el número de cuotas produce el total del plan y el valor del pagaré.\n\nSi falta el factor del plazo elegido, no se aplica el ajuste y no hay alerta. Cuando los demás cargos también son cero, el crédito se presenta sin costo de financiación."
+}

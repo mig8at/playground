@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "CTX / CreditopX",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué es CTX o CreditopX y qué significa «CTX política estándar»?",
+  "text": "**El crédito de la casa: las entidades con tipo de respuesta 2 (consumo) y 3 (rotativo), con política de Creditop.** «Salen con CTX política estándar» quiere decir que usan el paquete de reglas por defecto. La familia: [[creditopx/context]]; los tipos de respuesta: [[entidad/context#el-eje-que-decide-todo-es-el-tipo-de-respuesta]]."
+}

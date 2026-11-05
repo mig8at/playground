@@ -1,0 +1,22 @@
+{
+  "node": "backoffice/context",
+  "section": "Guardar la política de una entidad por primera vez tiene que crear también los clones de sus sucursales",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿por qué una sucursal ofrece una entidad sin filtrar, y qué políticas se editan desde el backoffice?",
+  "objetivo": "Guardar la política dura y los perfiles de una entidad CreditopX desde el backoffice, dejando la plantilla y los clones por sucursal alineados.",
+  "se_deduce_leyendo": "Cómo el guardado escribe en una transacción la plantilla, los clones de las sucursales habilitadas, los perfiles con su etapa inicial y extendida y la auditoría; qué etapas quedan de sólo lectura; y cómo el admin viejo copia la plantilla al habilitar una sucursal.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
+      "Modules/Backoffice/App/Services/LenderRulesService.php",
+      "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
+      "Modules/Partner/App/Http/Controllers/LenderRulesController.php"
+    ],
+    "legacy-application": [
+      "app/Http/Controllers/Admin/LenderRulesController.php"
+    ]
+  },
+  "text": "Las reglas duras viven como una **plantilla** de la entidad y un **clon por sucursal** donde está habilitada. Cuando alguien configura por primera vez desde el editor, crear sólo la plantilla dejaría un hueco: el admin viejo copia la plantilla al habilitar una sucursal, y si en ese momento **no había plantilla**, esa sucursal termina con un grupo de reglas **vacío**.\n\n⚠ **Un grupo vacío no filtra.** El listado sólo mira los grupos que tienen filas de la entidad, así que esa sucursal **ofrece la entidad sin ningún filtro** — mientras la consulta de cupo, que sí lee la política recién guardada, la rechaza. El cliente ve la opción y se cae después.\n\nDos límites más del editor, a propósito. Lee y escribe la política de evaluación inicial del titular y, dentro de cada perfil, la etapa extendida cuando vive en la misma categoría; la etapa extendida que una entidad tiene en categorías propias (Motai, Rent to Own) se muestra de sólo lectura, y la del codeudor no se toca desde acá. Y **las entidades con política específica** —cupo por multiplicadores, no por estas reglas— se muestran de sólo lectura y ningún guardado pasa: reescribirlas desde acá sería cambiar su política a ciegas."
+}

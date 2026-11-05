@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Mis créditos",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué créditos ve el cliente en «Mis créditos» de la app?",
+  "text": "**La pantalla de la app donde el cliente consulta sus créditos CreditopX, de consumo y rotativo.** Las deudas con otras entidades no salen aquí. El saldo, los pagos y cuándo se aplican: [[cartera/context]]; cómo la consume la app: [[mobile/context]]."
+}

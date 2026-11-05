@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "CATEGORY_RULE_REJECTED",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué significa el registro CATEGORY_RULE_REJECTED en los logs?",
+  "text": "**Registro del monolito nuevo, a nivel debug, con los criterios (`failed_criteria`) de una regla de categoría que una persona no cumplió con una entidad.** Cómo leerlo: [[perfilamiento/context#category-rule-rejected]]."
+}

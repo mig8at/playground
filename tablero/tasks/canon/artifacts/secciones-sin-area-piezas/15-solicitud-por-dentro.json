@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Solicitud, por dentro: la tabla user_requests y su estado",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿En qué columna está el estado de una solicitud en user_requests?",
+  "text": "**El estado de la solicitud en `user_requests` es `user_request_status_id`, no `status`.** Apunta al catálogo `user_request_statuses`, que cambia según el ambiente: [[datos/context#el-catalogo-de-estados-de-la-solicitud-depende-del-ambiente]]. Quién la pidió está en `user_id`, y a qué comercio y entidad, en `allied_id` y `lender_id`."
+}

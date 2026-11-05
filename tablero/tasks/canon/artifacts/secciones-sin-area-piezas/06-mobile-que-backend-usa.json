@@ -1,0 +1,19 @@
+{
+  "node": "mobile/context",
+  "section": "Qué backend usa mobile y dónde investigar un síntoma",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿a qué backend llama la app móvil y dónde investigo un dato que no coincide?",
+  "objetivo": "Dirigir cada llamada de la app móvil al backend que corresponde según el ambiente, y limpiar lo que la sesión guardó al salir.",
+  "se_deduce_leyendo": "Las bases de URL por ambiente (la general y la de `/customers`), qué cliente HTTP usa cada capacidad —preaprobación por `/customers`, identidad por la base general—, y qué se invalida al cerrar o vencer la sesión.",
+  "archivos": {
+    "Creditop-SAS/creditop_mobile": [
+      "app/lib/config/environment_config.dart",
+      "app/lib/infrastructure/home/datasources/preapprovals_datasource.dart",
+      "app/lib/ui/identity_gate/identity_sign_out.dart",
+      "app/lib/config/dependency_injection.dart"
+    ]
+  },
+  "text": "**Para capacidades de cliente que viven en servicios nuevos, la app sale por la puerta `/customers`.** La consulta de preaprobación combina la identidad autenticada con comercio, producto financiero y tipo de producto; su resultado puede ser aprobado con monto, aprobado sin monto o rechazado. Si el resultado no coincide con lo esperado, el siguiente lugar a mirar es `pre-approvals-service` y la configuración del comercio/producto, antes de asumir un defecto de interfaz.\n\nLa validación de identidad no va por esa puerta: sale por la base general de la API, la misma que usa la app para el monolito, así que un fallo ahí no se busca entre los servicios bajo `/customers`.\n\nLa salud financiera, el home y el perfil tienen adapters propios en la app. Perfil y salud financiera se mantienen en caché durante la sesión y se invalidan al salir o cuando vence la sesión; un dato viejo en pantalla no prueba que el backend haya entregado el mismo valor en la última consulta."
+}

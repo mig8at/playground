@@ -1,0 +1,17 @@
+{
+  "node": "perfilamiento/context",
+  "section": "QUOTA_CHECK_REJECTED · REVOLVING_CREDIT_REJECTED",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿qué significa un QUOTA_CHECK_REJECTED o un REVOLVING_CREDIT_REJECTED, y por qué el rechazo no es siempre de cupo?",
+  "objetivo": "Registrar por qué se niega un cupo de CreditopX, de consumo o rotativo, distinguiendo configuración, política, buró y capacidad.",
+  "se_deduce_leyendo": "Dónde emite el endpoint de cupo su rechazo con `reason` y `product_type`, y las tres etapas del motor del rotativo que emiten el suyo; cuándo se devuelve el cupo guardado sin registro.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
+      "Modules/Loans/App/Services/RevolvingCreditsService.php"
+    ]
+  },
+  "text": "Los registros de **rechazo de cupo**. ⚠ El primero **no es del crédito de consumo de la casa: es del ENDPOINT de cupo**, que atiende a los dos productos; para el rotativo sale con `product_type = 'revolving'`. **Lo que separa los productos es el campo `product_type`, no el nombre del registro.** El segundo sí es del motor del rotativo, y por eso **un rechazo de rotativo pedido por el endpoint de cupo deja DOS registros**: contarlos por nombre duplica.\n\n⚠ **Lo primero que se lee es su campo `reason`, porque no todo lo que registran es cupo.** El del endpoint sale también cuando **la persona no se encuentra**, cuando **la entidad no existe o está inactiva** —también para una entidad rotativa— o cuando **la entidad no es de la familia**: eso es configuración, no capacidad de pago. El del rotativo sale en tres etapas —**la política dura de la entidad no se cumple** (con `rejection_stage = 'hard_policy'`), **sin datos de buró vigentes** o **sin capacidad**— y **no se emite cuando ya hay cupo aprobado**, porque ahí se devuelve el guardado sin recalcular: **la ausencia del registro no significa que pasó**. Leerlos como «rechazo por cupo» a secas manda a revisar ingresos cuando lo que falta es una regla de la política, un dato de buró o una entidad prendida.\n\nSi el motivo es un crédito vivo o la categoría que no resuelve, el mecanismo está en [[creditopx/context#un-credito-activo-bloquea-el-siguiente-por-entidad-no-por-comercio]] y [[perfilamiento/context#la-categoria-corre-al-final-y-es-la-que-manda]]. Y para el rotativo, su frontera: [[perfilamiento/context#el-rotativo-parece-de-la-familia-pero-tiene-otro-motor]]."
+}

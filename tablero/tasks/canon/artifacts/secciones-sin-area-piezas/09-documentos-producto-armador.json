@@ -1,0 +1,18 @@
+{
+  "node": "documentos/context",
+  "section": "El producto determina cómo se arma el documento",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿qué datos recibe la plantilla de un documento de firma, y por qué un documento sale vacío o falla al firmar?",
+  "objetivo": "Elegir qué datos recibe cada plantilla de firma de una entidad, sin depender de identificadores que cambian entre ambientes.",
+  "se_deduce_leyendo": "El orden de resolución del armador (prefijo de plantilla, nombre corto de la entidad, producto, genérico) y lo que agregan o reemplazan los armadores de Credi ASYCO y Alta Fleet.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/DocumentGeneration/CatalogDocumentPayloadResolver.php",
+      "Modules/Loans/App/Services/DocumentGeneration/Payload/CrediAsycoPayloadBuilder.php",
+      "Modules/Loans/App/Services/DocumentGeneration/Payload/AltaPayloadBuilder.php"
+    ]
+  },
+  "text": "**El armador de los datos de una plantilla se elige en un orden fijo: la plantilla, después la entidad, después el producto y, si nada coincide, el genérico.** Ningún paso usa el identificador numérico de la entidad, que cambia entre ambientes.\n\n- La familia de la plantilla decide primero, porque su ruta es la misma en todos los ambientes: las plantillas propias de Alta Fleet llevan su armador aunque el nombre corto de la entidad cambie entre ambientes.\n- Una plantilla exclusiva de una entidad puede tener un armador por nombre corto; es el caso de Credi ASYCO, que es de producto genérico. Ponerlo en el producto afectaría a todas las entidades de crédito con catálogo, porque ese armador reemplaza campos.\n- El producto resuelve el resto: renting y Rent to Own necesitan datos del cliente y del vehículo, y una entidad nueva de un producto ya soportado funciona sin tocar código.\n- El genérico entrega nombre completo y documento.\n\nCon el armador equivocado, una plantilla que espera otros nombres de campo puede fallar al renderizar y tumbar la firma, o, si tolera campos ausentes, salir firmada y vacía. Esta selección vive en el monolito nuevo."
+}

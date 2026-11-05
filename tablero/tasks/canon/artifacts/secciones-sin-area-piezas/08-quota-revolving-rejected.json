@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "QUOTA_CHECK_REJECTED · REVOLVING_CREDIT_REJECTED",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué quieren decir QUOTA_CHECK_REJECTED y REVOLVING_CREDIT_REJECTED en los logs?",
+  "text": "**Registros de rechazo de cupo del monolito nuevo**: el primero sale del endpoint de cupo y el segundo del motor del rotativo. Se leen por `reason` y `product_type`: [[perfilamiento/context#quota-check-rejected-revolving-credit-rejected]]."
+}

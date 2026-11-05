@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "hard_rules",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Dónde veo por qué cada entidad se mostró o no en una solicitud?",
+  "text": "**La columna `profiling_reviews.hard_rules`: la foto, por entidad, de las reglas evaluadas en el perfilamiento de una solicitud.** Es la entrada cuando alguien pregunta por qué una entidad se mostró o no.\n\nCuál guardado cuenta como lo que vio el cliente: [[listado/context#el-ultimo-guardado-del-perfilamiento-es-lo-que-vio-el-cliente-una-entidad-oculta-desaparece-y-una-no-aprobada-queda-en-cero]]. Qué omite la foto cuando la sirvió el monolito nuevo: [[listado/context#la-foto-de-lo-evaluado-omite-las-reglas-de-creditopx-cuando-la-sirvio-el-sistema-nuevo]]."
+}

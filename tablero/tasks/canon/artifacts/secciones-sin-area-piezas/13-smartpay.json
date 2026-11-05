@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "SmartPay",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué es SmartPay y por qué se comporta distinto fuera de producción?",
+  "text": "**SmartPay es una entidad CreditopX de celulares a crédito en mostrador, en República Dominicana**, con tipo de respuesta 2; en producción su id es 160. Entra por el formulario dinámico ([[onboarding/context]]) y el equipo vendido queda bloqueable con Trustonic: [[imei/context]].\n\nSu id está fijado en el código y no coincide entre ambientes: fuera de producción es 152 o 153 según el archivo. Por eso probarla fuera de producción se comporta distinto."
+}

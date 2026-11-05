@@ -1,0 +1,20 @@
+{
+  "node": "bcp/context",
+  "section": "El identificador de la entidad de consumo estuvo quemado, y en producción apuntaba a una fila que no existe",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿de dónde sale el id de la entidad de BCP de consumo y vehicular en cada ambiente?",
+  "objetivo": "Resolver en cada ambiente qué entidad es la de consumo y cuál la vehicular de BCP, para la solicitud, el rechazo del asesor y la decisión.",
+  "se_deduce_leyendo": "Las claves de configuración de los dos identificadores con su respaldo de desarrollo, y dónde los usan la entrega, el rechazo del flujo alterno y el servicio de la entidad.",
+  "archivos": {
+    "legacy-backend": [
+      "config/services.php",
+      "app/Actions/Lenders/Bcp/Bcp.php",
+      "app/Actions/Lenders/Bcp/BcpVehicular.php",
+      "app/Http/Controllers/Api/AlternateFlowRejectionController.php",
+      "Modules/Onboarding/App/Services/lenders/Bcp/BcpService.php"
+    ]
+  },
+  "text": "**Los identificadores de consumo y vehicular salen de la configuración del ambiente; el literal del código es sólo el de desarrollo.** Son filas autonumeradas y no coinciden entre desarrollo y producción, así que el literal sirve de respaldo en desarrollo y no dice nada de otro ambiente. Cualquier lógica que necesite el identificador lo lee de esa configuración, no de la constante de la clase.\n\nUn identificador incorrecto puede hacer que la solicitud tome el servicio genérico, que el rechazo apunte a otra entidad o a una inexistente, o que la decisión quede asociada a un producto distinto del que consulta el listado. El nombre del producto no vuelve intercambiables esos identificadores."
+}

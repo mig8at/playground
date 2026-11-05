@@ -1,0 +1,20 @@
+{
+  "node": "perfilamiento/context",
+  "section": "Hay un criterio de perfil que cuenta cuentas embargadas, y su ausencia deja pasar",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿se evalúan las cuentas embargadas al asignar la categoría?",
+  "objetivo": "Limitar por perfil cuántas cuentas embargadas tolera una entidad al asignar la categoría del cliente.",
+  "se_deduce_leyendo": "Dónde se cuenta el embargo en el reporte de buró, cómo se compara con el máximo del perfil, la columna que lo guarda y que el evaluador del monolito viejo no lo tiene.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Loans/App/Services/LenderUserCategoryService.php",
+      "database/migrations/2026_09_08_130000_add_seized_accounts_to_lender_users_category_rules.php"
+    ],
+    "legacy-application": [
+      "app/Services/lenders/LenderUserCategoryService.php"
+    ]
+  },
+  "text": "**Una categoría puede limitar las cuentas embargadas que tolera.** El motor cuenta el código de embargo dentro del bloque de cuentas de ahorro del reporte y lo compara con ese máximo.\n\nSi el reporte no trae ese bloque, el conteo devuelve cero. La ausencia de información permite superar este criterio; no demuestra que se haya comprobado la inexistencia de embargos.\n\nSólo lo evalúa el monolito nuevo: el viejo no tiene este criterio, así que cuando la categoría se resuelve allá el máximo configurado no se aplica ([[perfilamiento/context#hay-dos-gemelos-corriendo-y-el-que-lees-no-siempre-es-el-que-corre]])."
+}

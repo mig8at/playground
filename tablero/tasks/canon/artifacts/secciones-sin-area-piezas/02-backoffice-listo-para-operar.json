@@ -1,0 +1,17 @@
+{
+  "node": "backoffice/context",
+  "section": "Listo para operar son cinco chequeos, y dos no bloquean a propósito",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿qué le falta a una entidad para quedar lista para operar?",
+  "objetivo": "Decidir si una entidad CreditopX está lista para operar, con los mismos chequeos para todas las pantallas que lo muestran.",
+  "se_deduce_leyendo": "Los cinco chequeos con su clave, cuáles bloquean en consumo y en rotativo, cómo el método de pago y la cobranza externa cambian el de pagos, y la ruta que los expone.",
+  "archivos": {
+    "legacy-backend": [
+      "Modules/Backoffice/App/Services/LenderReadinessService.php",
+      "Modules/Backoffice/routes/backoffice.php"
+    ]
+  },
+  "text": "**Que una entidad esté lista para operar lo deciden cinco chequeos con clave fija**, los mismos en el listado, la pantalla de configuración y el flujo guiado:\n\n- `identity` — `lenders.originator_nit` cargado. Sin NIT la pasarela rechaza los pagos.\n- `identityValidation` — un proveedor de identidad principal activo. Sin él el flujo lanza una excepción.\n- `payments` — depende del método de pago de la entidad. Sin método de pago bloquea, porque los recordatorios fallan; con un método externo (el portal de la propia entidad) pasa sin pedir cuentas; con el de la casa exige al menos un comercio de la entidad con su cuenta lista para cobrar.\n- `policy` — el conteo de reglas duras activas.\n- `profiles` — al menos un perfil que el motor evalúe.\n\nEn una entidad de consumo, dos no bloquean, a propósito:\n\n- Pagos deja de bloquear cuando `lenders.externally_serviced` está prendido: si el crédito lo gestiona otro, no hay recaudo que configurar. El chequeo se devuelve igual, con `applicable: false`, para conservar las cinco claves; «Cobranza externa: no aplica» describe una entidad servida por fuera.\n- La política dura no bloquea: una entidad sin reglas no está incompleta, está sin filtros, y se lista para todos.\n\nEl rotativo contesta las mismas cinco claves con dos cambios. Su política dura **sí bloquea**: tiene que estar confirmada y con al menos una regla activa, porque hasta entonces no se guardan sus condiciones ni se le calcula cupo a nadie. Y `profiles` se reemplaza por `conditions`: un tope y exactamente una fila de cuota inicial y aval en cada una de sus cinco bandas ([[backoffice/context#al-rotativo-solo-se-le-edita-la-politica-dura-y-confirmarla-destraba-sus-condiciones]])."
+}

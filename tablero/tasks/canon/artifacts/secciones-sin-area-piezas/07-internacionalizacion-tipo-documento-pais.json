@@ -1,0 +1,17 @@
+{
+  "node": "internacionalizacion/context",
+  "section": "El tipo de documento con que nace una ficha sale del catálogo del PAÍS, no del de la sucursal",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿qué tipo de documento le queda a una ficha nueva antes de que la persona lo elija?",
+  "objetivo": "Asignar a una ficha nueva el tipo de documento principal del país del comercio cuando el alta necesita uno antes de que la persona elija.",
+  "se_deduce_leyendo": "De dónde sale el tipo de documento principal de cada país y cómo el registro por celular lo usa para completar la ficha sin pisar el que la persona ya eligió.",
+  "archivos": {
+    "legacy-backend": [
+      "app/Services/DocumentTypesService.php",
+      "Modules/Onboarding/App/Services/RegisterCellPhoneService.php"
+    ]
+  },
+  "text": "Cuando el alta tiene que escribir un tipo de documento antes de que la persona elija —porque el canal\nde autogestión pide el número en la primera pantalla— usa el **principal del país del comercio**:\nColombia, Dominicana y Perú tienen cada uno el suyo.\n\n⚠ **Y sale del catálogo del país a propósito, no del primero de la lista de la sucursal.** Esa lista es\nlo que **aceptan las entidades** habilitadas ahí, cruzado con el país, así que su primer elemento no\ndice nada sobre qué documento tiene la persona. Peor: **no es determinista** — la consulta que la arma\nno declara orden, así que con dos entidades de distinta carga «el primero» cambia sin que cambie el\ncódigo. Cualquier lógica que dependa del primer elemento de esa lista es una bomba de tiempo.\n\nLa ficha nueva nace con un tipo centinela mientras no hay número; si el alta trae número, lo completa con ese principal sin reemplazar un tipo que la persona ya eligió. Así la preaprobación puede consultarse antes del formulario personal con un tipo que la entidad resuelve."
+}

@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "LB / integración de LB",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Qué es «prender la integración de LB» para un comercio?",
+  "text": "**LB son las siglas del repositorio del monolito nuevo**, que pese al nombre («legacy») es el nuevo: [[arquitectura/context#los-nombres-enganan-y-es-lo-primero]].\n\nNo existe un interruptor llamado «integración LB». Cuando alguien dice que se prendió para un comercio, habla de las dos filas de configuración que pasan al comercio o a sus sucursales al recorrido nuevo: [[arquitectura/context#quien-ve-el-recorrido-nuevo-lo-deciden-dos-filas-de-configuracion]]."
+}

@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Llamadas de cobro / cobranza",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Por qué le llamaron a cobrar a un cliente que ya pagó?",
+  "text": "**La gestión de cobro de un crédito en mora.** Se apoya en el estado que tiene el sistema, que puede ir atrasado respecto al pago; por eso primero se revisan el estado y el libro del crédito: [[cartera/context]].\n\nNo confundir con la cobranza externa, la de la entidad que gestiona sus propios créditos: [[entidad/context]]."
+}

@@ -1,0 +1,9 @@
+{
+  "node": "vocabulario/context",
+  "section": "Sonría",
+  "kind": "correction",
+  "source": "verified",
+  "verified": "2026-11-05",
+  "as_asked": "¿Sonría es una entidad? ¿Por qué Welli se comporta distinto en Sonría?",
+  "text": "**Sonría es un comercio de salud (allied 26), no una entidad.** Un «no consulta en Sonría» o «error al activar en Sonría» suele ser de la entidad por la que iba esa solicitud, y la primera pregunta es cuál era.\n\nSu particularidad con Welli: [[welli/context#que-es-y-por-que-son-varias-entidades]] y [[welli/context#el-veredicto-entra-por-el-monolito-viejo-y-sonria-se-omite]]."
+}
