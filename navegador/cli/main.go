@@ -16,6 +16,7 @@
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador close                          cierra la sesión en vivo
+//	bin/navegador ask [--url URL] "<meta>"       Claude maneja la sesión en vivo hasta cumplir la meta (ask.go)
 //
 // Después de cada acción muestra la página como quedó. Los números valen para el ÚLTIMO `look`: si la página
 // cambió entre medio, la acción se niega en vez de tocar otro elemento.
@@ -56,6 +57,8 @@ func main() {
 	switch cmd {
 	case "sites":
 		err = sites()
+	case "ask":
+		err = ask(args)
 	case "open":
 		err = open(args)
 	case "look":
@@ -115,7 +118,8 @@ func usage() {
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · shot <archivo.png>
-  steps · script · reset`)
+  steps · script · reset
+  ask [--url URL] [--pasos 40] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
 	os.Exit(2)
 }
 
@@ -266,6 +270,20 @@ func open(args []string) error {
 		if start == "" {
 			start = raw
 		}
+	}
+	// Si ya hay una sesión en vivo: del mismo sitio, se reusa y se navega; de otro, se cierra primero.
+	var st liveState
+	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
+		if st.Site == slug {
+			if start == "" {
+				return look(true)
+			}
+			return nav("goto", start)
+		}
+		if err := call(http.MethodPost, "/api/live/stop", nil, nil); err != nil {
+			return err
+		}
+		time.Sleep(time.Second)
 	}
 	q := "site=" + url.QueryEscape(slug)
 	if start != "" {
