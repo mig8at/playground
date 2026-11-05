@@ -189,20 +189,20 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
       </nav>
       <textarea v-if="reqTab === 'body'" v-model="bodyText" class="input code" rows="4" spellcheck="false"
                 :placeholder="bodyPlaceholder" :disabled="method === 'GET'"></textarea>
-      <table v-else class="table headers-table">
+      <table v-else class="headers-table">
         <thead><tr><th>Clave</th><th>Valor</th><th class="act" aria-label="Quitar"></th></tr></thead>
         <tbody>
           <tr v-for="h in declaredHeaders" :key="h.name" class="declared">
-            <td :title="h.description">
+            <td class="key">
               <code>{{ h.name }}</code><span v-if="h.required" class="req" title="Obligatorio">*</span>
-              <div v-if="h.description" class="hint">{{ h.description }}</div>
+              <span v-if="h.description" class="hint">{{ h.description }}</span>
             </td>
-            <td><input v-model="declaredValues[h.name.toLowerCase()]" class="input input-xs code" :placeholder="h.example" spellcheck="false" :aria-label="`Valor de ${h.name}`" /></td>
+            <td class="cell"><input v-model="declaredValues[h.name.toLowerCase()]" class="cell-input" :placeholder="h.example" spellcheck="false" :aria-label="`Valor de ${h.name}`" /></td>
             <td class="act"></td>
           </tr>
           <tr v-for="(row, i) in extraRows" :key="`x${i}`">
-            <td><input v-model="row.key" class="input input-xs code" placeholder="Otro encabezado" spellcheck="false" aria-label="Clave" /></td>
-            <td><input v-model="row.value" class="input input-xs code" placeholder="valor" spellcheck="false" aria-label="Valor" /></td>
+            <td class="cell"><input v-model="row.key" class="cell-input" placeholder="Agregar encabezado" spellcheck="false" aria-label="Clave" /></td>
+            <td class="cell"><input v-model="row.value" class="cell-input" placeholder="valor" spellcheck="false" aria-label="Valor" /></td>
             <td class="act">
               <button v-if="row.key || row.value" type="button" class="region-action" title="Quitar" aria-label="Quitar este encabezado" @click="removeExtra(i)">
                 <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -262,13 +262,25 @@ code, pre, .code { font-family: var(--font-mono) }
   color: var(--foreground); cursor: pointer }
 .method-pick:focus-visible { outline: none; color: var(--primary) }
 .code { width: 100%; font-size: var(--text-sm); resize: vertical }
-.headers-table { width: 100%; table-layout: fixed }
-.headers-table th:first-child, .headers-table td:first-child { width: 40% }
-.headers-table .act { width: 32px; text-align: right }
-.headers-table td { vertical-align: top }
-.headers-table .declared code { font-size: var(--text-sm) }
+.headers-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border);
+  border-radius: var(--radius-md); overflow: hidden; font-size: var(--text-sm) }
+.headers-table th, .headers-table td { border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle }
+.headers-table th + th, .headers-table td + td { border-left: 1px solid var(--border) }
+.headers-table tbody tr:last-child td { border-bottom: 0 }
+.headers-table th { height: 28px; padding: 0 var(--space-3); background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
+.headers-table th:first-child, .headers-table td:first-child { width: 38% }
+.headers-table .act { width: 32px; padding: 0; text-align: center; border-left: 0 }
+/* La clave que dicta el esquema no se edita: va en gris, con su descripción debajo. */
+.headers-table .key { padding: var(--space-2) var(--space-3); background: var(--muted) }
+.headers-table .key code { font-family: var(--font-mono); color: var(--foreground) }
 .headers-table .req { margin-left: 2px; color: var(--send-fail) }
-.headers-table .hint { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.headers-table .hint { display: block; margin-top: 2px; color: var(--fg-2); font-size: var(--text-xs); line-height: 1.35 }
+/* Las celdas que se escriben: el campo ocupa la celda entera y el foco la marca por dentro. */
+.headers-table .cell { padding: 0 }
+.headers-table .cell:focus-within { box-shadow: inset 0 0 0 1px var(--ring) }
+.cell-input { display: block; width: 100%; height: 36px; padding: 0 var(--space-3); border: 0; outline: none; background: transparent;
+  color: var(--foreground); font-family: var(--font-mono); font-size: var(--text-sm) }
+.cell-input::placeholder { color: var(--fg-3) }
 .response { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3) }
 .response-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0 }
 .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }

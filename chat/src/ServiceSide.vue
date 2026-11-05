@@ -100,10 +100,18 @@ async function copySchema() {
         <p v-if="schema?.info?.description" class="note">{{ schema.info.description }}</p>
         <button v-for="r in routes" :key="r.method + r.path" type="button" class="row route-row" :title="`Cargar ${r.entry.method} ${r.entry.path}`" @click="pick(service.alias, r.entry)">
           <b class="m">{{ r.method }}</b>
-          <span class="route"><span class="label">{{ r.path }}<span v-if="r.params.length" class="params">?{{ r.params.join('&') }}</span></span>
+          <span class="route"><span class="route-path"><span class="label">{{ r.path }}</span><span v-for="q in r.params" :key="q" class="param" :title="`parámetro ${q}`">{{ q }}</span></span>
             <span v-if="r.summary" class="summary">{{ r.summary }}</span></span>
         </button>
-        <p class="note share">Para conectarse: <code>{{ schemaUrl }}</code> <button type="button" class="btn-link" @click="copySchema">{{ copied ? 'copiada' : 'copiar' }}</button></p>
+        <div class="share">
+          <span class="share-label">Para conectarse (Postman, un agente…)</span>
+          <div class="share-box">
+            <code :title="schemaUrl">{{ schemaUrl }}</code>
+            <button type="button" class="region-action" :title="copied ? 'Copiada' : 'Copiar la dirección del esquema'" aria-label="Copiar la dirección del esquema" @click="copySchema">
+              <span class="ui-icon" :data-icon="copied ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
       </template>
     </template>
   </div>
@@ -112,15 +120,21 @@ async function copySchema() {
 <style scoped>
 .side { display: flex; flex-direction: column; overflow: auto; padding: var(--space-2) 0 }
 .note { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-2); font-size: var(--text-sm) }
-.share code { font-family: var(--font-mono); word-break: break-all }
+.share { margin: var(--space-3) var(--gutter) 0; display: flex; flex-direction: column; gap: var(--space-1) }
+.share-label { color: var(--fg-2); font-size: var(--text-xs) }
+.share-box { display: flex; align-items: center; gap: var(--space-1); padding-left: var(--space-2); border: 1px solid var(--border);
+  border-radius: var(--radius-md); background: var(--muted) }
+.share-box code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs) }
 .health { margin: 0; padding: var(--space-2) var(--gutter); display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm) }
 .health .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--presence-on) }
 .health[data-kind="bad"] .dot { background: var(--send-fail) }
-.m { flex: none; width: 52px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
+.m { flex: none; width: 44px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
 .label { font-family: var(--font-mono); font-size: var(--text-sm) }
 .route-row { gap: var(--space-2) }
 .route-row { height: auto; align-items: flex-start; padding-top: var(--space-1); padding-bottom: var(--space-1) }
 .route { display: flex; flex-direction: column; min-width: 0 }
-.params { color: var(--fg-2) }
+.route-path { display: flex; align-items: center; gap: var(--space-1); min-width: 0 }
+.param { flex: none; padding: 0 var(--space-1); border: 1px solid var(--border); border-radius: var(--radius-sm); color: var(--fg-2);
+  font-family: var(--font-mono); font-size: var(--text-xs); line-height: 16px }
 .summary { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 </style>
