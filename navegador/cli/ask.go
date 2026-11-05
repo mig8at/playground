@@ -19,6 +19,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -126,6 +127,7 @@ func ask(args []string) error {
 		base = append(base, "--model", *model)
 	}
 
+	ttyState = sttySave()
 	fmt.Printf("meta: %s\nsitio: %s\n\n", goal, kind)
 	session := ""
 	for round := 0; ; round++ {
@@ -145,9 +147,7 @@ func ask(args []string) error {
 		if !strings.HasPrefix(head, "NECESITO:") && !strings.HasPrefix(head, "CONFIRMAR:") {
 			break
 		}
-		fmt.Print("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
-		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
-		answer = strings.TrimSpace(answer)
+		answer := askUser("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
 		if answer == "" {
 			fmt.Println("  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)")
 			break
@@ -175,7 +175,13 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 	// En una sesión de terminal PROPIA: Claude Code es una app de terminal y, aun sin stdin, puede abrir /dev/tty
 	// y dejarla sin eco; entonces la respuesta a un NECESITO/CONFIRMAR no se ve ni se lee bien.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	cmd.Stderr = os.Stderr
+	// Ni la salida de errores le llega como terminal: pasa por una tubería y se reimprime. Así el proceso hijo
+	// no tiene NINGÚN descriptor de la terminal de la persona para cambiarle el modo.
+	errPipe, err := cmd.StderrPipe()
+	if err != nil {
+		return claudeResult{}, err
+	}
+	go func() { _, _ = io.Copy(os.Stderr, errPipe) }()
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return claudeResult{}, err
@@ -373,4 +379,46 @@ func toolText(raw json.RawMessage) string {
 		return strings.Join(parts, " ")
 	}
 	return string(raw)
+}
+
+// ── la respuesta de la persona ──
+
+// ttyState es el modo de la terminal al arrancar (stty -g), para restaurarlo antes de preguntar.
+var ttyState string
+
+func sttySave() string {
+	tty, err := os.Open("/dev/tty")
+	if err != nil {
+		return ""
+	}
+	defer tty.Close()
+	cmd := exec.Command("stty", "-g")
+	cmd.Stdin = tty
+	out, err := cmd.Output()
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
+}
+
+// askUser pregunta en la terminal y lee UNA línea escrita DESPUÉS de la pregunta: restaura el modo de la
+// terminal (por si algo lo tocó), descarta lo que se tecleó mientras Claude trabajaba (un Enter suelto contaba
+// como respuesta vacía) y lee de /dev/tty. Sin terminal (una tubería), lee de stdin.
+func askUser(prompt string) string {
+	tty, err := os.OpenFile("/dev/tty", os.O_RDWR, 0)
+	if err != nil {
+		fmt.Print(prompt)
+		line, _ := bufio.NewReader(os.Stdin).ReadString('\n')
+		return strings.TrimSpace(line)
+	}
+	defer tty.Close()
+	if ttyState != "" {
+		restore := exec.Command("stty", ttyState)
+		restore.Stdin = tty
+		_ = restore.Run()
+	}
+	_, _, _ = syscall.Syscall(syscall.SYS_IOCTL, tty.Fd(), 0x540B, uintptr(syscall.TCIFLUSH)) // TCFLSH (Linux)
+	fmt.Fprint(tty, prompt)
+	line, _ := bufio.NewReader(tty).ReadString('\n')
+	return strings.TrimSpace(line)
 }
