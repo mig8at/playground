@@ -76,6 +76,17 @@ ramas: core-800-vtex-payment-link
       cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
       AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
+- [ ] Que el conector conteste el authorize antes del límite de VTEX (~2 s) y no deje trabadas las cancelaciones: la
+      5.0.1 (rama `fix/core-800-vtex-5-0-1` del repo `vtex`). En qa el 2026-11-04 dieron `ProxyTimeout` 2 de 9 compras
+      (15,6 s tras 6,5 h sin compras, y 2,1 s); los pagos pendientes de más de 6 h quedaron en `Cancelling`. Termina con
+      la 5.0.1 linkeada en `develop`, varias compras seguidas en qa sin `ProxyTimeout` (también la primera tras una hora
+      quieta) y un pendiente vencido cancelado, antes de instalar la 5 en el piloto.
+- [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
+      comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
+      regla escrita y, si se decide, el aviso del conector a Creditop. Depende de: Producto — junto con el vencimiento de
+      la referencia.
+- [ ] ¿Una solicitud puede salir de un estado final por el webhook de una entidad real? (Duncan lo vio sólo con el
+      simulador, que lo permite a propósito). Termina reproducido —y entonces una guarda en legacy-backend— o descartado.
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
       resueltos antes): termina con VTEX aprobándola.
 
