@@ -165,7 +165,7 @@ watch(cur, async () => {
       <div class="run-title">
         <span v-if="meta.palabra" class="badge kw" :class="kwClass(meta.palabra)">{{ meta.palabra }}</span>
         <h1>{{ meta.meta || 'Corrida sin meta' }}</h1>
-        <button v-if="canReplay" type="button" class="btn btn-sm replay-btn" title="Recorrerla de nuevo en la sesión en vivo, paso a paso: en cada uno elegís si lo hace la herramienta, lo hacés vos o lo saltás" @click="emit('replay')">Repetir esta guía</button>
+        <button v-if="canReplay" type="button" class="btn btn-sm replay-btn" title="Recorrerla de nuevo en la sesión en vivo, paso a paso: en cada uno elegís si lo hace la herramienta, lo hacés vos o lo saltás" @click="emit('replay')">Reproducir esta corrida</button>
       </div>
       <p class="muted small">
         {{ meta.sitio }}<template v-if="meta.dispositivo === 'mobile'"> · móvil</template> · {{ fmtDate(meta.fecha) }} · {{ meta.pasos }} pasos<template v-if="meta.fallidos">, {{ meta.fallidos }} fallidos</template>

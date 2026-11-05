@@ -224,6 +224,16 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 		return Flow{}, errors.New("la corrida no tiene pasos para repetir")
 	}
 	fl.App = appFor(meta.Start)
+	// En una app local, las URLs quedan relativas a la app: el flujo sigue andando aunque cambie el puerto.
+	if origin := appOrigin(fl.App); origin != "" {
+		fl.Start = strings.TrimPrefix(fl.Start, origin)
+		for i := range fl.Steps {
+			if fl.Steps[i].Action == "goto" {
+				fl.Steps[i].Value = strings.TrimPrefix(fl.Steps[i].Value, origin)
+				fl.Steps[i].Instruction = stepInstruction(Step{Action: "goto", Value: fl.Steps[i].Value})
+			}
+		}
+	}
 	base := slugify(fl.Name)
 	fl.ID = base
 	for i := 2; ; i++ {
@@ -236,12 +246,35 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 	return fl, writeFlow(fl)
 }
 
+// appOrigin es el origen (http://127.0.0.1:<puerto>) de una app local del registro, o vacío.
+func appOrigin(app string) string {
+	for _, a := range listApps() {
+		if a.ID == app {
+			return fmt.Sprintf("http://127.0.0.1:%d", a.Port)
+		}
+	}
+	return ""
+}
+
+// absURL completa una URL relativa de un flujo con el origen actual de su app.
+func absURL(app, u string) string {
+	if strings.HasPrefix(u, "/") {
+		if origin := appOrigin(app); origin != "" {
+			return origin + u
+		}
+	}
+	return u
+}
+
 // flowSteps convierte los pasos de un flujo en pasos para la repetición, con los valores que la persona cambió
 // al reproducir (por número de paso).
 func flowSteps(fl Flow, values map[int]string) []Step {
 	out := make([]Step, 0, len(fl.Steps))
 	for i, s := range fl.Steps {
 		st := Step{OK: true, Action: s.Action, Target: s.Target, Value: s.Value, Guide: s.Instruction, Why: s.Why, Secret: s.Secret, Ref: s.Ref, Code: s.Code, Pause: s.Pause}
+		if s.Action == "goto" {
+			st.Value = absURL(fl.App, s.Value)
+		}
 		if v, ok := values[i]; ok && s.Param != "" {
 			st.Value = v
 			st.Guide = stepInstruction(Step{Action: s.Action, Target: s.Target, Value: v})

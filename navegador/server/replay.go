@@ -159,7 +159,7 @@ func (r *Runner) LiveReplayFlow(app, id, mode string, values map[int]string) err
 	if err != nil {
 		return err
 	}
-	return r.startReplay(replaySource{goal: fl.Name, start: fl.Start, device: fl.Device, flowApp: app, flowID: id}, flowSteps(fl, values), mode)
+	return r.startReplay(replaySource{goal: fl.Name, start: absURL(app, fl.Start), device: fl.Device, flowApp: app, flowID: id}, flowSteps(fl, values), mode)
 }
 
 type replaySource struct {

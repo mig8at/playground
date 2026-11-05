@@ -263,11 +263,15 @@ const stopsCount = computed(() => flowSteps.value.filter((s) => s.pausa).length)
 const sideTab = ref(readPref('navegador.lado', 'flows'))
 watch(sideTab, (v) => savePref('navegador.lado', v))
 const appName = (id) => apps.value.find((a) => a.id === id)?.nombre || id
+// Los proyectos: cada app del registro (aunque todavía no tenga flujos) y los sitios reales que ya tienen alguno.
 const flowGroups = computed(() => {
-  const g = {}
+  const g = Object.fromEntries(apps.value.map((a) => [a.id, []]))
   for (const f of flows.value) (g[f.app] ||= []).push(f)
-  return Object.entries(g).map(([app, list]) => ({ app, list }))
+  return Object.entries(g).map(([app, list]) => ({ app, list, url: apps.value.find((a) => a.id === app)?.url }))
 })
+const projectOpen = ref(readPref('navegador.proyectos', {}))
+watch(projectOpen, (v) => savePref('navegador.proyectos', v), { deep: true })
+function newFlowIn(app) { composeApp.value = app; document.getElementById('compose-goal')?.focus() }
 const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
 // ── el panel de abajo: los pasos de la sesión y su script ──
@@ -349,10 +353,10 @@ const status = computed(() => {
     <aside v-if="shown.sidebar" class="sidebar" aria-label="Flujos y corridas">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <form class="compose" @submit.prevent="launch">
-        <textarea v-model="goal" class="input compose-goal" rows="3" aria-label="Qué querés hacer"
+        <textarea id="compose-goal" v-model="goal" class="input compose-goal" rows="3" aria-label="Qué querés hacer"
           placeholder="¿Qué querés hacer o aprender? «agregá Crédito Ya como medio de pago, en modo pruebas»" @keydown.enter.exact.prevent="launch"></textarea>
         <div class="compose-row">
-          <select v-model="composeApp" class="input input-sm" aria-label="En qué app">
+          <select v-model="composeApp" class="input input-sm" aria-label="En qué proyecto">
             <option v-for="a in apps" :key="a.id" :value="a.id">{{ a.nombre }}</option>
             <option value="otra">Otra URL…</option>
           </select>
@@ -373,14 +377,22 @@ const status = computed(() => {
       </form>
 
       <nav class="tabs">
-        <button type="button" class="tab" :class="{ on: sideTab === 'flows' }" @click="sideTab = 'flows'">Flujos <span class="count">{{ flows.length }}</span></button>
+        <button type="button" class="tab" :class="{ on: sideTab === 'flows' }" @click="sideTab = 'flows'">Proyectos <span class="count">{{ flowGroups.length }}</span></button>
         <button type="button" class="tab" :class="{ on: sideTab === 'runs' }" @click="sideTab = 'runs'">Corridas <span class="count">{{ runs.length }}</span></button>
       </nav>
       <div v-if="sideTab === 'flows'" class="region-body">
-        <p v-if="!flows.length" class="none">Todavía no hay flujos. Pedile algo a Claude arriba: lo que aprende queda acá, para reproducirlo navegando de nuevo o enseñarlo.</p>
+        <p v-if="!flowGroups.length" class="none">No hay proyectos: las apps de navegador/apps aparecen acá.</p>
         <template v-for="g in flowGroups" :key="g.app">
-          <div class="region-head group"><span>{{ appName(g.app) }}</span><span class="count">{{ g.list.length }}</span></div>
-          <div class="cards">
+          <div class="region-head group project-head" @click="projectOpen[g.app] = projectOpen[g.app] === false">
+            <span class="ui-icon twisty" data-icon="chevron" :style="{ transform: projectOpen[g.app] === false ? '' : 'rotate(90deg)' }" aria-hidden="true"></span>
+            <span class="ellipsis">{{ appName(g.app) }}</span><span class="count">{{ g.list.length }}</span>
+            <div class="region-actions">
+              <button v-if="g.url" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click.stop="openApp({ url: g.url })"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+              <button type="button" class="region-action" title="Un flujo nuevo en este proyecto: escribí qué querés hacer arriba" aria-label="Flujo nuevo" @click.stop="newFlowIn(g.app)"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+            </div>
+          </div>
+          <p v-if="projectOpen[g.app] !== false && !g.list.length" class="none">Sin flujos todavía. Pedile a Claude algo para hacer acá (el + lo elige arriba).</p>
+          <div v-if="projectOpen[g.app] !== false && g.list.length" class="cards">
             <button v-for="f in g.list" :key="f.id" type="button" class="flow-card" :class="{ on: view.kind === 'flow' && view.app === f.app && view.id === f.id }" @click="go({ kind: 'flow', app: f.app, id: f.id })">
               <img v-if="f.foto" :src="f.foto" alt="" loading="lazy" />
               <span class="flow-card-name">{{ f.nombre }}</span>
@@ -536,7 +548,7 @@ const status = computed(() => {
           <div v-else class="home">
             <h1>¿Qué querés hacer o aprender?</h1>
             <p class="muted">Escribilo arriba a la izquierda y elegí la app. Claude lo hace en un navegador real (o te enseña paso a paso) y lo ves trabajar acá. Lo que aprende queda como flujo: se reproduce navegando de nuevo, con sus datos precargados, y para donde tenés que actuar vos.</p>
-            <h2>Apps para entrenar</h2>
+            <h2>Proyectos</h2>
             <div class="apps">
               <button v-for="a in apps" :key="a.id" type="button" class="card app-card" @click="openApp(a)">
                 <strong>{{ a.nombre }}</strong>
@@ -657,6 +669,8 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .run-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 
 /* la galería de flujos */
+.project-head { cursor: pointer; gap: var(--space-1) }
+.project-head .twisty { flex: none; transition: transform .15s }
 .cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter) var(--space-3) }
 .flow-card { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); color: inherit; font: inherit; cursor: pointer }
 .flow-card:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)) }
