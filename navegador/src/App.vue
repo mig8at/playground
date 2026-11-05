@@ -3,8 +3,8 @@
  * para loguearse a mano, se lanza el recorrido y se lee el mapa. El sitio y la página elegida viven en la URL.
  *
  * Las regiones son las de la base: el sidebar con UN árbol (cada sitio es una raíz y sus páginas cuelgan
- * adentro, como las carpetas del Explorer de VS Code), el editor con la página SIMPLIFICADA en Markdown (o el
- * resumen del sitio), el sidebar secundario con la ficha de la página y su captura, y abajo la consola con
+ * adentro, como las carpetas del Explorer de VS Code), el editor con la captura ENTERA de la página y su resumen
+ * arriba (o el resumen del sitio), el sidebar secundario con la ficha de la página, y abajo la consola con
  * pestañas: lo que hace el navegador y lo técnico de la página (formularios, enlaces, llamadas, errores). */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
@@ -12,7 +12,6 @@ import {
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 import RegionMenu from './RegionMenu.vue'
-import { renderMarkdown } from './markdown.js'
 
 // ── la ruta: #/<sitio>?page=<id> ──
 const route = readHashRoute()
@@ -306,18 +305,6 @@ const tab = ref(TABS.some((t) => t.id === readPref('navegador.panel-tab', 'log')
 watch(tab, (v) => savePref('navegador.panel-tab', v))
 const panelTab = computed(() => (page.value || !TABS.find((t) => t.id === tab.value)?.page ? tab.value : 'log'))
 
-// ── la página simplificada del editor ──
-const mdMode = ref(readPref('navegador.md-mode', 'render')) // render · source
-watch(mdMode, (v) => savePref('navegador.md-mode', v))
-const pageHTML = computed(() => (page.value?.markdown ? renderMarkdown(page.value.markdown) : ''))
-async function copyMarkdown() { try { await navigator.clipboard.writeText(page.value.markdown || '') } catch { /* sin permiso */ } }
-// Un enlace a una página que ya está en el mapa se abre acá; el resto, en una pestaña nueva.
-function onDocClick(e) {
-  const a = e.target.closest('a[data-href]')
-  if (!a) return
-  const target = pageByURL(a.dataset.href)
-  if (target) { e.preventDefault(); pickPage(target.id) }
-}
 const internalLinks = computed(() => {
   if (!page.value || !site.value) return []
   return (page.value.links || []).map((l) => {
@@ -332,6 +319,23 @@ function pageByURL(href) {
 }
 const parentPage = computed(() => page.value && pages.value.find((p) => p.id === page.value.parent))
 async function copyURL() { try { await navigator.clipboard.writeText(page.value.finalUrl || page.value.url) } catch { /* sin permiso */ } }
+
+// ── la página en el editor: su captura entera y, arriba, cuánto tiene ──
+const shotFit = ref(readPref('navegador.shot-fit', true)) // ajustada al ancho o en tamaño real
+watch(shotFit, (v) => savePref('navegador.shot-fit', v))
+const pageStats = computed(() => {
+  const p = page.value
+  if (!p) return []
+  const internal = internalLinks.value.filter((l) => l.internal).length
+  return [
+    { id: 'forms', label: 'formularios', value: (p.forms || []).length },
+    { id: 'links', label: 'enlaces internos', value: internal },
+    { id: 'links', label: 'enlaces externos', value: internalLinks.value.length - internal },
+    { id: 'calls', label: 'llamadas', value: (p.requests || []).length },
+    { id: 'errors', label: 'errores', value: (p.console || []).length, bad: true },
+  ]
+})
+function openTab(id) { tab.value = id; panelOpen.value = true; saveSize('navegador.panel-open', 1) }
 
 // ── formato ──
 function pathOf(u) {
@@ -528,21 +532,14 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <!-- EDITOR · la página simplificada, como un documento en Markdown; sin página, el resumen del sitio -->
+    <!-- EDITOR · la captura entera de la página con su resumen arriba; sin página, el resumen del sitio -->
     <main class="editor">
       <div class="region-head">
         <span class="ellipsis">{{ page ? (page.title || pathOf(page.url)) : site ? site.name : 'navegador' }}</span>
         <div v-if="page" class="region-actions">
-          <div class="toggle-group" role="group" aria-label="Cómo se muestra la página">
-            <button type="button" class="region-action" :aria-pressed="mdMode === 'render'" title="Ver la página simplificada" aria-label="Ver la página simplificada" @click="mdMode = 'render'">
-              <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
-            </button>
-            <button type="button" class="region-action" :aria-pressed="mdMode === 'source'" title="Ver el Markdown" aria-label="Ver el Markdown" @click="mdMode = 'source'">
-              <span class="ui-icon" data-icon="code" aria-hidden="true"></span>
-            </button>
-          </div>
-          <button type="button" class="region-action" :disabled="!page.markdown" title="Copiar el Markdown" aria-label="Copiar el Markdown" @click="copyMarkdown">
-            <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+          <button type="button" class="region-action" :aria-pressed="!shotFit" :disabled="!page.shot"
+            :title="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" :aria-label="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" @click="shotFit = !shotFit">
+            <span class="ui-icon" :data-icon="shotFit ? 'maximize' : 'restore'" aria-hidden="true"></span>
           </button>
           <button type="button" class="region-action" title="Volver al resumen del sitio" aria-label="Volver al resumen del sitio" @click="pageId = ''">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -561,13 +558,18 @@ onBeforeUnmount(() => {
         </div>
 
         <template v-else-if="page">
-          <div v-if="!page.markdown" class="empty">
-            <div class="empty-title">Sin versión simplificada</div>
-            <div class="empty-desc">{{ page.error || 'Esta página se analizó antes de que existiera la simplificación. Volvé a explorar el sitio y aparece.' }}</div>
+          <div class="page-stats">
+            <button v-for="(st, i) in pageStats" :key="i" type="button" class="stat stat-btn" :title="`Ver ${st.label} en la consola`" @click="openTab(st.id)">
+              <strong :class="{ bad: st.bad && st.value }">{{ st.value }}</strong><span>{{ st.label }}</span>
+            </button>
           </div>
-          <pre v-else-if="mdMode === 'source'" class="md-source">{{ page.markdown }}</pre>
-          <!-- eslint-disable-next-line vue/no-v-html — renderMarkdown escapa todo el HTML antes de reconocer la marca -->
-          <article v-else class="md" @click="onDocClick" v-html="pageHTML"></article>
+          <div v-if="page.shot" class="shot-wrap" :class="{ fit: shotFit }">
+            <img class="shot-full" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura completa de ${page.title}`" />
+          </div>
+          <div v-else class="empty">
+            <div class="empty-title">Sin captura</div>
+            <div class="empty-desc">{{ page.error || 'La página no dejó sacar la captura. Volvé a explorarla.' }}</div>
+          </div>
         </template>
 
         <article v-else class="doc">
@@ -607,7 +609,7 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <!-- SIDEBAR SECUNDARIO · la ficha de la página: su captura y lo que se sabe de ella -->
+    <!-- SIDEBAR SECUNDARIO · la ficha de la página: lo que se sabe de ella -->
     <aside v-if="shown.aux" class="auxiliarybar" aria-label="Ficha de la página">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
@@ -624,10 +626,6 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <div class="card">
-          <a v-if="page.shot" :href="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" target="_blank" rel="noopener" title="Ver la captura completa">
-            <img class="shot" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura de ${page.title}`" />
-          </a>
-          <p v-else class="muted small">Sin captura.</p>
           <div class="card-title">{{ page.title || pathOf(page.url) }}</div>
           <a class="doc-url small" :href="page.finalUrl || page.url" target="_blank" rel="noopener noreferrer"><code>{{ page.finalUrl || page.url }}</code></a>
           <dl class="facts">
@@ -790,7 +788,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .facts { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: 0; font-size: var(--text-sm) }
 .facts dt { color: var(--fg-3) }
 .facts dd { margin: 0; overflow-wrap: anywhere }
-.shot { width: 100%; border: 1px solid var(--border); border-radius: var(--radius-control) }
 .heading { font-size: var(--text-sm) }
 .stats { display: flex; flex-wrap: wrap; gap: var(--space-6) }
 .stat { display: flex; flex-direction: column }
@@ -807,28 +804,15 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .link-btn { padding: 0; height: auto; min-width: 0 }
 .nowrap { white-space: nowrap }
 
-/* la página simplificada: prosa de documento, a 65 caracteres por renglón como pide la base */
-.md, .md-source { padding: var(--space-6); max-width: 80ch }
-.md { font-size: var(--text-body); line-height: 1.6 }
-.md :deep(h1) { font-size: var(--text-title); font-weight: 600; margin: 0 0 var(--space-3) }
-.md :deep(h2), .md :deep(h3), .md :deep(h4), .md :deep(h5), .md :deep(h6) { font-size: var(--text-body); font-weight: 600; margin: var(--space-6) 0 var(--space-2) }
-.md :deep(h3), .md :deep(h4), .md :deep(h5), .md :deep(h6) { color: var(--fg-2) }
-.md :deep(p) { margin: 0 0 var(--space-3) }
-.md :deep(ul), .md :deep(ol) { margin: 0 0 var(--space-3); padding-left: var(--space-6) }
-.md :deep(li) { margin: 2px 0 }
-.md :deep(a) { color: var(--primary-ink); text-decoration: none }
-.md :deep(a:hover) { text-decoration: underline }
-.md :deep(code) { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--hover); padding: 0 4px; border-radius: 4px }
-.md :deep(pre) { margin: 0 0 var(--space-3); padding: var(--space-3); background: var(--hover); border-radius: var(--radius-control); overflow-x: auto }
-.md :deep(pre code) { background: none; padding: 0 }
-.md :deep(blockquote) { margin: 0 0 var(--space-3); padding: var(--space-1) var(--space-3); border-left: 2px solid var(--border); color: var(--fg-2) }
-.md :deep(hr) { border: 0; border-top: 1px solid var(--border); margin: var(--space-6) 0 }
-.md :deep(table) { border-collapse: collapse; margin: 0 0 var(--space-3); font-size: var(--text-sm) }
-.md :deep(th), .md :deep(td) { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border) }
-.md :deep(th) { color: var(--fg-2); font-weight: 600 }
-.md :deep(.md-img) { color: var(--fg-3); font-size: var(--text-sm) }
-.md :deep(.md-img)::before { content: "imagen · " }
-.md-source { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.5; color: var(--fg-2) }
+/* la página en el editor: el resumen fijo arriba y la captura entera debajo */
+.page-stats { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: var(--space-6);
+  padding: var(--space-3) var(--space-6); background: var(--region-bg, var(--background)); border-bottom: 1px solid var(--border) }
+.stat-btn { border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.stat-btn:hover span { color: var(--foreground) }
+.shot-wrap { padding: var(--space-6) }
+.shot-full { display: block; border: 1px solid var(--border); border-radius: var(--radius-control) }
+.shot-wrap.fit .shot-full { width: 100%; height: auto }
+.shot-wrap:not(.fit) { overflow-x: auto }
 
 .call .method { min-width: 48px; font-family: var(--font-mono); font-size: var(--text-sm) }
 .call .code { min-width: 32px; font-variant-numeric: tabular-nums; font-size: var(--text-sm) }

@@ -272,7 +272,14 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 	page.Requests, page.Console = t.drain()
 	shot := r.store.ShotPath(site.Slug, page.ID)
 	if err := os.MkdirAll(filepath.Dir(shot), 0o700); err == nil {
-		if _, err := p.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(shot), Timeout: playwright.Float(15000)}); err == nil {
+		// La página ENTERA, de arriba abajo: es lo que muestra el editor. Una página muy larga tarda más; si no
+		// alcanza el tiempo, queda la parte visible antes que nada.
+		full := playwright.PageScreenshotOptions{Path: playwright.String(shot), FullPage: playwright.Bool(true), Timeout: playwright.Float(30000)}
+		_, err := p.Screenshot(full)
+		if err != nil {
+			_, err = p.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(shot), Timeout: playwright.Float(15000)})
+		}
+		if err == nil {
 			page.Shot = true
 		}
 	}
