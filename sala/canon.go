@@ -335,7 +335,7 @@ func (s *sweeper) pipeline(ctx context.Context, b *board, dir string) {
 				}
 			}
 			s.mu.Unlock()
-			rehearse(ctx, dir, mine, b.Mock, func(f *finding, piece, rehearsal string) {
+			set := func(f *finding, piece, rehearsal string) {
 				s.mu.Lock()
 				defer s.mu.Unlock()
 				if piece != "" {
@@ -344,7 +344,9 @@ func (s *sweeper) pipeline(ctx context.Context, b *board, dir string) {
 				if rehearsal != "" {
 					f.Rehearsal = rehearsal
 				}
-			})
+			}
+			rehearse(ctx, dir, mine, b.Mock, set)
+			s.correct(ctx, b, dir, a.Topic, mine, set)
 		}(a, b.Verifiers[i])
 	}
 	wg.Wait()
@@ -596,3 +598,85 @@ var (
 	reIntegration = regexp.MustCompile(`^\s*INTEGRACIÓN:\s*([^|]+?)\s*\|\s*(.+)$`)
 	reID          = regexp.MustCompile(`P[0-9]+`)
 )
+
+// ── EL CORRECTOR ────────────────────────────────────────────────────────────────────────────────────────────────────
+/* Con el verificador estricto, la mitad de las piezas vuelve ✗, y cada ✗ trae la frase falsa y la corrección exacta.
+ * Aplicarlas a mano era el cuello de botella (2026-11-05: 10 de 16 en una tanda). El corrector reescribe cada pieza
+ * rechazada con esa corrección —un «verificado» sobre prosa vencida pasa a sección corregida + «verificado»— y otro
+ * verificador, que no vio ni la pieza original ni la corrección, la vuelve a revisar antes del ensayo. Una sola vuelta:
+ * lo que vuelve a fallar queda para una persona. */
+
+var canonCorrectorSystem = "Sos el CORRECTOR de un tema de canon: recibís piezas que el verificador rechazó, cada una con su motivo y la " +
+	"corrección exacta, y las reescribís siguiendo esta guía.\n\n" + canonGuide + "\n\n" + canonFormat +
+	`
+
+## Qué hacés vos
+
+Por cada pieza rechazada, aplicá la corrección del verificador y comprobala vos mismo en main antes de escribir (puede ` +
+	`equivocarse). Si era una sección, entregá la sección entera corregida (mismo node y section). Si era un «verificado» ` +
+	`rechazado porque una frase de la prosa vigente dejó de ser cierta, entregá esa sección vigente entera con la frase ` +
+	`corregida (kind correction, con los archivos que la respaldan) y DESPUÉS el mismo «verificado». Si la corrección pide ` +
+	`algo que no podés comprobar, no armes la pieza: dejalo como PREGUNTA. Antes de cada bloque pieza, una línea ` +
+	`«CORRIGE: P<n>» con la pieza original que reemplaza. ` + sweepRules
+
+func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine []*finding, set func(*finding, string, string)) {
+	s.mu.Lock()
+	var bad []*finding
+	for _, f := range mine {
+		if f.Verdict == "✗" {
+			bad = append(bad, f)
+		}
+	}
+	if len(bad) == 0 || ctx.Err() != nil {
+		s.mu.Unlock()
+		return
+	}
+	fixer := &agent{Topic: "corrector · " + topic, Status: "esperando", Steps: []step{}}
+	recheck := &agent{Topic: "reverificador · " + topic, Status: "esperando", Steps: []step{}}
+	b.Correctors = append(b.Correctors, fixer, recheck)
+	var p strings.Builder
+	fmt.Fprintf(&p, "Piezas rechazadas del tema %s, con lo que dijo el verificador:\n\n", topic)
+	for _, f := range bad {
+		raw, _ := json.Marshal(f.piece)
+		fmt.Fprintf(&p, "%s\n%s\nVERIFICADOR: %s\n\n", f.ID, raw, f.Check)
+	}
+	s.mu.Unlock()
+	p.WriteString(canonProse(ctx, []string{topic}))
+	s.runOne(ctx, fixer, p.String(), canonCorrectorSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+	_ = os.WriteFile(filepath.Join(dir, "corrector-"+topic+".md"), []byte(fixer.text), 0o644)
+
+	s.mu.Lock()
+	var fixed []*finding
+	for _, piece := range parsePieces(fixer.text) {
+		kind, label := pieceLabel(piece)
+		f := &finding{ID: fmt.Sprintf("P%d", len(b.Findings)+1), Topic: topic, Kind: kind, Text: "(corregida) " + label, piece: piece}
+		b.Findings = append(b.Findings, f)
+		fixed = append(fixed, f)
+		fixer.Findings++
+	}
+	s.mu.Unlock()
+	if len(fixed) == 0 || ctx.Err() != nil {
+		return
+	}
+	var q strings.Builder
+	fmt.Fprintf(&q, "Piezas del tema %s. Comprobá cada una:\n\n", topic)
+	for _, f := range fixed {
+		raw, _ := json.Marshal(f.piece)
+		fmt.Fprintf(&q, "%s\n%s\n\n", f.ID, raw)
+	}
+	q.WriteString(canonProse(ctx, []string{topic}))
+	s.runOne(ctx, recheck, q.String(), canonVerifierSystem, canonTools, verifierModel, verifierLevel, b.CheckBudget, b.Mock, fixed)
+	_ = os.WriteFile(filepath.Join(dir, "reverificador-"+topic+".md"), []byte(recheck.text), 0o644)
+	s.mu.Lock()
+	byID := map[string]*finding{}
+	for _, f := range fixed {
+		byID[f.ID] = f
+	}
+	for _, m := range reVerdict.FindAllStringSubmatch(recheck.text, -1) {
+		if f := byID[m[1]]; f != nil {
+			f.Verdict, f.Check = m[2], m[3]
+		}
+	}
+	s.mu.Unlock()
+	rehearse(ctx, dir, fixed, b.Mock, set)
+}

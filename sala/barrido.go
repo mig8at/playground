@@ -143,6 +143,7 @@ type board struct {
 	Verifiers   []*agent   `json:"verifiers,omitempty"`   // canon: uno por tema, en cadena detrás de su agente
 	Notes       []*agent   `json:"notes,omitempty"`       // canon: los agentes de archivo compartido, antes de los temas
 	Integrator  *agent     `json:"integrator,omitempty"`  // canon: el que cruza las piezas de temas que comparten archivos
+	Correctors  []*agent   `json:"correctors,omitempty"`  // canon: corrector y reverificador de cada tema con piezas rechazadas
 	SharedFiles int        `json:"sharedFiles,omitempty"` // canon: archivos de estos temas que la ronda marca en más de un tema
 	ReusedNotes int        `json:"reusedNotes,omitempty"` // …y cuántas notas se reusaron de un barrido anterior
 	Findings    []*finding `json:"findings"`
@@ -393,7 +394,7 @@ func (s *sweeper) runOne(ctx context.Context, a *agent, prompt, system string, t
 		res, err = mockAgent(ctx, a.Topic, findings, onStep)
 		if err == nil && findings == nil {
 			switch system {
-			case canonSystem:
+			case canonSystem, canonCorrectorSystem:
 				res.Result = mockCanonPieces(a.Topic)
 			case canonNotesSystem:
 				res.Result = mockNotes(prompt)
@@ -742,7 +743,7 @@ func mockAgent(ctx context.Context, topic string, findings []*finding, onStep fu
 		var b strings.Builder
 		for i, f := range findings {
 			mark := "✓"
-			if i%3 == 2 {
+			if i%3 == 1 { // con dos piezas por tema, una ✗: así el simulado pasa por el corrector
 				mark = "✗"
 			}
 			fmt.Fprintf(&b, "VEREDICTO: %s | %s | git -C legacy-backend grep -n … origin/main | visto en main\n", f.ID, mark)
@@ -760,7 +761,7 @@ func mockAgent(ctx context.Context, topic string, findings []*finding, onStep fu
 // allVerifiers: el verificador único (knowledge) o los de cada tema (canon).
 func (b *board) allVerifiers() []*agent {
 	if len(b.Verifiers) > 0 {
-		out := append(append([]*agent(nil), b.Notes...), b.Verifiers...)
+		out := append(append(append([]*agent(nil), b.Notes...), b.Verifiers...), b.Correctors...)
 		if b.Integrator != nil {
 			out = append(out, b.Integrator)
 		}

@@ -198,7 +198,7 @@ function render(s) {
   $('fpanel').style.display = '';
   const live = !s.ended;
   const secs = Math.max(0, Math.round(((s.ended ? new Date(s.ended) : new Date()) - new Date(s.started)) / 1000));
-  const cost = [...(s.agents || []), ...(s.verifiers || []), ...(s.notes || []), s.integrator, s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
+  const cost = [...(s.agents || []), ...(s.verifiers || []), ...(s.notes || []), ...(s.correctors || []), s.integrator, s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
   const clock = s.started && s.started !== s.ended ? ` · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
   $('meta').textContent = `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`;
   const order = s.verifiers?.length
@@ -214,6 +214,7 @@ function render(s) {
     if (s.verifiers?.[i]) lanes.push({ ...s.verifiers[i], isVerifier: true });
   });
   if (s.verifier) lanes.push({ ...s.verifier, isVerifier: true });
+  (s.correctors || []).forEach((a) => lanes.push({ ...a, isVerifier: true }));
   if (s.integrator) lanes.push({ ...s.integrator, isVerifier: true });
   $('lanes').innerHTML = lanes.map((a) => {
     const steps = a.steps || [];
