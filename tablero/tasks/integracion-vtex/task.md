@@ -80,8 +80,9 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       `master` y `develop`. Contra la publicada: 4/4 con instancias arriba y 0,8 s una compra sola.
 - [x] ~~Publicar la 5.0.2~~ — 2026-11-05: vtex#23 mergeado (97f4f6e), tag `v5.0.2`, instalada en `master` y `develop`;
       recién instalada ya no hubo 401.
-- [ ] Mergear la CI del conector (vtex#24, rama `ci/connector-smoke`): chequeo de tipos y los 14 casos de `local/smoke.js`
-      en cada PR. Termina con el check corriendo en un PR posterior.
+- [ ] Publicar la 5.0.3 (vtex#24, rama `ci/connector-smoke`, junto con la CI): con la configuración caída usa la última
+      buena (memoria o VBase) en vez de negar todo, como pasó en la prueba en frío de la 5.0.2. Termina con el PR
+      mergeado, `v5.0.3` publicada e instalada en `master` y `develop`, y la compra en frío aprobada.
 - [ ] Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout` con la versión publicada (5.0.2)
       (instancias calientes). Termina con `make harness-vtex TARGET=qa CASES=aprobada` después de una hora quieta.
 - [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
