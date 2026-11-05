@@ -3,7 +3,7 @@
 <main>
   <form class="card" id="form" style="max-width:420px">
     <h1>Ingresar</h1>
-    <p class="muted">Usuario de prueba: está en <code>navegador/demo/credenciales.json</code>.</p>
+    <p class="notice" id="demo-creds">Usuario de prueba: cargando…</p>
     <div class="field"><label for="u">Correo</label><input id="u" type="email" autocomplete="username"></div>
     <div class="field"><label for="p">Contraseña</label><input id="p" type="password" autocomplete="current-password"></div>
     <p class="error" id="error"></p>
@@ -12,6 +12,10 @@
 </main>
 <script type="module">
 import { header } from '/demo.js'; header()
+// Como en cualquier sitio de práctica, las credenciales de prueba están a la vista (las lee de credenciales.json).
+fetch('/credenciales.json').then((r) => r.json()).then((c) => {
+  document.getElementById('demo-creds').innerHTML = `Usuario de prueba: <strong>${c.email}</strong> · contraseña <strong>${c.password}</strong>`
+})
 document.getElementById('form').addEventListener('submit', async (e) => {
   e.preventDefault()
   const creds = await (await fetch('/credenciales.json')).json()
