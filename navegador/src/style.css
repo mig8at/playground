@@ -27,6 +27,12 @@
   --stage-bg: #111113;
   --stage-chip: rgba(0, 0, 0, .62);
   --stage-ink: #ffffff;
+  /* El reproductor: subtítulos estilo video y el cursor (iguales en los dos temas: van sobre una foto). */
+  --subs-bg: rgba(0, 0, 0, .78);
+  --subs-ink: #ffffff;
+  --subs-ink-2: #e8e8e8;
+  --cursor-fill: #ffffff;
+  --cursor-line: #111111;
   --kw-ok-ink: #15803d;
 }
 .dark {

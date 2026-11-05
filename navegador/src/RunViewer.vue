@@ -261,13 +261,13 @@ watch(cur, async () => {
 .hit.bad { border-color: var(--status-bad); background: color-mix(in srgb, var(--status-bad) 14%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-bad) 25%, transparent) }
 @keyframes hit-in { from { transform: scale(1.25); opacity: 0 } to { transform: scale(1); opacity: 1 } }
 .cursor { position: absolute; width: 0; height: 0; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); z-index: 2 }
-.cursor svg { position: absolute; left: -3px; top: -2px; fill: #fff; stroke: #111; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5)) }
+.cursor svg { position: absolute; left: -3px; top: -2px; fill: var(--cursor-fill); stroke: var(--cursor-line); stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5)) }
 .ripple { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--primary); opacity: 0; animation: ripple .9s ease-out .75s 2 }
 @keyframes ripple { 0% { transform: scale(.3); opacity: 1 } 100% { transform: scale(1.8); opacity: 0 } }
 .subs { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); max-width: 88%; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; pointer-events: none; z-index: 3 }
-.subs span { background: rgb(0 0 0 / .78); color: #fff; padding: 3px 10px; border-radius: 4px; line-height: 1.35 }
+.subs span { background: var(--subs-bg); color: var(--subs-ink); padding: 3px 10px; border-radius: 4px; line-height: 1.35 }
 .subs-what { font-size: 15px; font-weight: 600 }
-.subs-why { font-size: 13px; color: #e8e8e8 }
+.subs-why { font-size: 13px; color: var(--subs-ink-2) }
 .ctl-tog { font-size: var(--text-sm); padding: 0 var(--space-2) }
 .ctl-tog[aria-pressed="false"] { opacity: .55 }
 .replay-btn { margin-left: auto; flex: none }
