@@ -283,6 +283,11 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 				raw, _ := json.Marshal(f.piece)
 				fmt.Fprintf(&p, "%s [%s]\n%s\n\n", f.ID, f.Topic, raw)
 			}
+			var topics []string
+			for _, ag := range b.Agents {
+				topics = append(topics, ag.Topic)
+			}
+			p.WriteString(canonProse(ctx, topics))
 		} else {
 			p.WriteString("Hallazgos del barrido. Comprobá cada uno:\n\n")
 			for _, f := range findings {

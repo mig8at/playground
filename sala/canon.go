@@ -30,7 +30,14 @@ import (
 
 // Las herramientas de un agente de canon: las del barrido más la lectura de canon.
 var canonTools = append(append([]string(nil), sweepTools...),
-	"Bash(make canon-search *)", "Bash(make canon-read *)", "Bash(make canon-route *)", "Bash(make canon-mapa*)")
+	"Bash(make canon-search *)", "Bash(make canon-read *)", "Bash(make canon-route *)", "Bash(make canon-mapa*)",
+	// En la primera corrida real (2026-11-05) los agentes llamaron con -C a la raíz, y eso pedía aprobación: sin la
+	// prosa, 3 de 8 piezas quedaron en «—».
+	"Bash(make -C * canon-read *)", "Bash(make -s -C * canon-read *)", "Bash(make -C * canon-search *)")
+
+// La prosa entera va en el brief: un tema de canon tiene un tope de 8.000 palabras, y recortarla dejaba al agente
+// pidiendo el resto por una herramienta.
+const maxCanonBriefRunes = 60000
 
 const canonSystem = `Trabajás SOLO sobre un TEMA de CANON, el corpus compartido del equipo de CreditOp, y lo ponés al día con main. ` +
 	`Recibís la prosa vigente del tema y los archivos que declara y que CAMBIARON en main desde que se verificó. Por cada archivo: ` +
@@ -40,6 +47,10 @@ const canonSystem = `Trabajás SOLO sobre un TEMA de CANON, el corpus compartido
 	`reescribe la sección (mismo node y section reemplaza; corregir es reescribir, no agregar otra al lado). ` +
 	`REGLAS DE LA PROSA: sólo lo que está en main; directa, sin rellenos; sin mediciones del ambiente, sin cifras de prod y sin ` +
 	`fechas de cuándo se descubrió algo; sin la crónica de cómo lo comprobaste; hasta 600 palabras por sección. ` +
+	`Ya estás en la raíz del playground: make y bin/pg van sin -C. ` +
+	`Una sección reescrita sobre archivos que el tema YA declara no mueve su hash (queda enlazada al área): después de esa pieza ` +
+	`agregá un «verificado» con esos mismos archivos, que es lo que saca la deriva. En «tablas», sólo tablas que existen en el ` +
+	`esquema de producción (comprobalo con bin/pg sql --target prod --query "SELECT table_name FROM information_schema.tables WHERE table_name LIKE '<prefijo>%'"; SHOW no está permitido); si dudás, no la pongas. ` +
 	`Cada pieza va en un bloque de código con la etiqueta pieza, con UN objeto JSON válido. Las dos formas:` + "\n" +
 	"```pieza\n" + `{"node":"<tema>/context","operacion":"verificado","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"<la pregunta que contesta la sección>","archivos":{"<repo>":["<ruta>"]}}` + "\n```\n" +
 	"```pieza\n" + `{"node":"<tema>/context","section":"<título exacto de la sección>","kind":"correction|addition","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"…","objetivo":"<la responsabilidad, una frase de negocio>","se_deduce_leyendo":"<lo que resuelven los archivos>","archivos":{"<repo>":["<ruta>"]},"tablas":["…"],"text":"<la prosa en markdown, sin el título>"}` + "\n```\n" +
@@ -104,8 +115,8 @@ func canonBrief(ctx context.Context, root, topic string, changes []canon.RoundCh
 	}
 	text, err := canon.FromEnv().Markdown(ctx, topic+"/context")
 	if err == nil && strings.TrimSpace(text) != "" {
-		if r := []rune(text); len(r) > maxBriefRunes {
-			text = string(r[:maxBriefRunes]) + "\n…(recortado: el resto con make canon-read IDS=" + topic + "/context#<ancla>)"
+		if r := []rune(text); len(r) > maxCanonBriefRunes {
+			text = string(r[:maxCanonBriefRunes]) + "\n…(recortado: el resto con make canon-read IDS=" + topic + "/context#<ancla>)"
 		}
 		b.WriteString("\nLa prosa vigente:\n\n" + text)
 	} else {
@@ -209,4 +220,21 @@ func mockCanonPieces(topic string) string {
 		`{"node":"` + topic + `/context","section":"Regla simulada","kind":"correction","source":"verified","verified":"` + time.Now().Format("2006-01-02") +
 		`","as_asked":"¿y si Y?","objetivo":"Decidir Y.","se_deduce_leyendo":"cuándo pasa Y","archivos":{"legacy-backend":["app/Y.php"]},"text":"**Y ya no excluye.** Ahora sólo ordena."}` +
 		"\n```\n\nPREGUNTA: ¿app/Z.php se movió?"
+}
+
+// canonProse: la prosa vigente de cada tema, para que el verificador compare sin tener que pedirla.
+func canonProse(ctx context.Context, topics []string) string {
+	var b strings.Builder
+	for _, t := range topics {
+		text, err := canon.FromEnv().Markdown(ctx, t+"/context")
+		if err != nil || strings.TrimSpace(text) == "" {
+			fmt.Fprintf(&b, "\n(No pude leer la prosa de %s: make canon-read IDS=%s/context)\n", t, t)
+			continue
+		}
+		if r := []rune(text); len(r) > maxCanonBriefRunes {
+			text = string(r[:maxCanonBriefRunes]) + "\n…(recortado)"
+		}
+		fmt.Fprintf(&b, "\n── PROSA VIGENTE DE %s ──\n%s\n", t, text)
+	}
+	return b.String()
 }
