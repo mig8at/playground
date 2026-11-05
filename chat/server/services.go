@@ -41,12 +41,11 @@ type teamService struct {
 // Los programas del playground que el chat sabe levantar, por alias. Un servicio sin programa (otro servidor tuyo) se
 // prende y se apaga igual, pero levantarlo es cosa tuya.
 type knownProgram struct {
-	Dir    string // carpeta del programa, relativa al playground
-	Sample string // la ruta que sirve de ejemplo
+	Dir string // carpeta del programa, relativa al playground
 }
 
 var knownPrograms = map[string]knownProgram{
-	"faker": {Dir: "services/faker", Sample: "/persona"},
+	"faker": {Dir: "services/faker"},
 }
 
 var defaultServices = []teamService{
@@ -375,30 +374,53 @@ func teamServiceHandlers(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, map[string]any{"status": res.StatusCode, "statusText": http.StatusText(res.StatusCode),
 			"ms": took, "size": len(raw), "headers": headers, "body": string(raw), "url": base + path})
 	})
-	// Un ejemplo de lo que devuelve, pedido desde esta máquina (el navegador no llega al puerto del servicio).
-	mux.HandleFunc("GET /api/services/{alias}/sample", func(w http.ResponseWriter, r *http.Request) {
+	/* Cómo se usa y cómo está: la convención de los servicios del playground es servir `/openapi.json` (el esquema) y
+	   `/health`. Se piden a su `to` en esta máquina (el navegador no llega al puerto), y lo que falte se dice, sin
+	   bloquear: un servicio sin esquema se sigue probando a mano. */
+	mux.HandleFunc("GET /api/services/{alias}/schema", func(w http.ResponseWriter, r *http.Request) {
 		on, off := readServices()
-		alias := r.PathValue("alias")
 		var target *teamService
 		for _, s := range append(on, off...) {
-			if s.Alias == alias {
+			if s.Alias == r.PathValue("alias") {
 				s := s
 				target = &s
 			}
 		}
-		prog, ok := knownPrograms[alias]
-		if target == nil || !ok {
-			fail(w, http.StatusNotFound, errors.New("ese servicio no tiene ejemplo"))
+		if target == nil {
+			fail(w, http.StatusNotFound, errors.New("no hay un servicio con ese alias"))
 			return
 		}
-		client := &http.Client{Timeout: 3 * time.Second}
-		res, err := client.Get(strings.TrimRight(target.To, "/") + prog.Sample)
+		writeJSON(w, http.StatusOK, readSchema(r.Context(), strings.TrimRight(target.To, "/")))
+	})
+}
+
+// Lo que el servicio dice de sí mismo: su esquema OpenAPI y su salud. Cada uno trae su error si no se pudo leer.
+func readSchema(ctx context.Context, base string) map[string]any {
+	client := &http.Client{Timeout: 3 * time.Second}
+	get := func(path string) (any, string) {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
 		if err != nil {
-			fail(w, http.StatusBadGateway, errors.New("no contesta: prendelo primero"))
-			return
+			return nil, err.Error()
+		}
+		res, err := client.Do(req)
+		if err != nil {
+			return nil, "no contesta: prendelo primero"
 		}
 		defer res.Body.Close()
-		body, _ := io.ReadAll(io.LimitReader(res.Body, 16<<10))
-		writeJSON(w, http.StatusOK, map[string]string{"path": prog.Sample, "body": string(body)})
-	})
+		if res.StatusCode == http.StatusNotFound {
+			return nil, "no tiene " + path
+		}
+		var v any
+		if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&v); err != nil {
+			return nil, path + " no devuelve JSON"
+		}
+		if res.StatusCode >= 400 {
+			return v, fmt.Sprintf("%s contesta %d", path, res.StatusCode)
+		}
+		return v, ""
+	}
+	out := map[string]any{}
+	out["schema"], out["schemaError"] = get("/openapi.json")
+	out["health"], out["healthError"] = get("/health")
+	return out
 }

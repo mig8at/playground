@@ -3,7 +3,7 @@
    la VPN con un nombre fijo. El interruptor lo prende (el chat levanta el programa y reinicia `playground serve`) o lo
    apaga. Y para probarlo, un Postman chico: método, ruta, cuerpo y encabezados, siempre por el playground (como le
    llega al equipo); y la respuesta con su estado, tiempo y tamaño. El historial va en el sidebar derecho
-   (ServiceHistory.vue) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
+   (ServiceSide.vue, con las rutas del esquema) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
 import { picked, remember } from './stores/service-history.js'
 

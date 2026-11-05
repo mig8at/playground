@@ -47,6 +47,43 @@ func TestPersonas(t *testing.T) {
 	}
 }
 
+// El esquema declara justo las rutas que el servicio contesta, y /health dice que está vivo.
+func TestSchemaAndHealth(t *testing.T) {
+	srv := httptest.NewServer(handler(rand.New(rand.NewSource(1))))
+	defer srv.Close()
+
+	var doc struct {
+		OpenAPI string                    `json:"openapi"`
+		Paths   map[string]map[string]any `json:"paths"`
+	}
+	res, err := http.Get(srv.URL + "/openapi.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.NewDecoder(res.Body).Decode(&doc); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(doc.OpenAPI, "3.1") {
+		t.Errorf("openapi = %q", doc.OpenAPI)
+	}
+	for path := range doc.Paths {
+		res, err := http.Get(srv.URL + path)
+		if err != nil || res.StatusCode != http.StatusOK {
+			t.Errorf("el esquema declara GET %s y no contesta 200 (%v)", path, err)
+		}
+	}
+	if len(doc.Paths) != 3 {
+		t.Errorf("esperaba 3 rutas, el esquema trae %d", len(doc.Paths))
+	}
+
+	var health map[string]string
+	res, _ = http.Get(srv.URL + "/health")
+	_ = json.NewDecoder(res.Body).Decode(&health)
+	if health["status"] != "ok" || health["desde"] == "" {
+		t.Errorf("health = %v", health)
+	}
+}
+
 func contains(list []string, s string) bool {
 	for _, x := range list {
 		if x == s {

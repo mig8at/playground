@@ -24,7 +24,7 @@ import ServerPanel from './ServerPanel.vue'
 import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
 import ServicePanel from './ServicePanel.vue'
-import ServiceHistory from './ServiceHistory.vue'
+import ServiceSide from './ServiceSide.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -912,9 +912,9 @@ const statusText = computed(() => {
     </main>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Historial' : openServer ? 'Para probar' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas e historial' : openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
-      <ServiceHistory v-if="openService" :service="openService" @close="setHistoryOpen(false)" />
+      <ServiceSide v-if="openService" :service="openService" @close="setHistoryOpen(false)" />
       <ServerShare v-else-if="openServer" :server="openServer" @close="setShareOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
@@ -1017,8 +1017,8 @@ const statusText = computed(() => {
             <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
           </button>
         </template>
-        <button v-else-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar el historial"
-                aria-label="Mostrar u ocultar el historial" @click="setHistoryOpen(!agentShown)">
+        <button v-else-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar las rutas y el historial"
+                aria-label="Mostrar u ocultar las rutas y el historial" @click="setHistoryOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
         <button v-else-if="activeOwnAgent" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar la ficha del agente"

@@ -4,7 +4,12 @@
 //
 //	GET /persona            una persona: nombres, apellidos, correo y ciudad
 //	GET /personas?n=5       varias (hasta 50)
-//	GET /                   esta ayuda
+//	GET /health             si está vivo, y desde cuándo
+//	GET /openapi.json       el esquema de uso (OpenAPI 3.1): con él se conecta cualquiera, Postman o un agente
+//	GET /                   adónde mirar
+//
+// La convención para los servicios del playground: `/health` y `/openapi.json`. El chat los lee para armar el listado de
+// rutas y decir si el servicio está bien.
 //
 // Todo es inventado y nada se guarda. A propósito no da cédulas ni celulares: un número con forma real puede ser el de
 // una persona de verdad. El correo es siempre @example.com, que no existe.
@@ -90,7 +95,44 @@ func writeJSON(w http.ResponseWriter, v any) {
 	_ = json.NewEncoder(w).Encode(v)
 }
 
+const version = "1"
+
+// El esquema de uso, en OpenAPI 3.1. Se escribe a mano: son dos rutas y así se lee de una.
+func openAPI() map[string]any {
+	persona := map[string]any{
+		"type":     "object",
+		"required": []string{"nombres", "apellidos", "correo", "ciudad"},
+		"properties": map[string]any{
+			"nombres":   map[string]any{"type": "string", "example": "Laura"},
+			"apellidos": map[string]any{"type": "string", "example": "Álvarez Restrepo"},
+			"correo":    map[string]any{"type": "string", "format": "email", "example": "laura.alvarez.083@example.com"},
+			"ciudad":    map[string]any{"type": "string", "example": "Santa Marta"},
+		},
+	}
+	ok := func(desc string, schema any) map[string]any {
+		return map[string]any{"200": map[string]any{"description": desc,
+			"content": map[string]any{"application/json": map[string]any{"schema": schema}}}}
+	}
+	return map[string]any{
+		"openapi": "3.1.0",
+		"info": map[string]any{"title": "faker", "version": version,
+			"description": "Personas inventadas para pruebas. Sin cédulas ni celulares; los correos son @example.com. Nada se guarda."},
+		"paths": map[string]any{
+			"/persona": map[string]any{"get": map[string]any{"summary": "Una persona inventada",
+				"responses": ok("una persona", map[string]any{"$ref": "#/components/schemas/Persona"})}},
+			"/personas": map[string]any{"get": map[string]any{"summary": "Varias personas inventadas",
+				"parameters": []any{map[string]any{"name": "n", "in": "query", "description": "cuántas (de 1 a 50; si no, 5)",
+					"schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 50, "default": 5}, "example": 5}},
+				"responses": ok("la lista", map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/Persona"}})}},
+			"/health": map[string]any{"get": map[string]any{"summary": "Si está vivo, y desde cuándo",
+				"responses": ok("está vivo", map[string]any{"type": "object"})}},
+		},
+		"components": map[string]any{"schemas": map[string]any{"Persona": persona}},
+	}
+}
+
 func handler(rng *rand.Rand) http.Handler {
+	started := time.Now()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /persona", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, newPersona(rng)) })
 	mux.HandleFunc("GET /personas", func(w http.ResponseWriter, r *http.Request) {
@@ -107,10 +149,16 @@ func handler(rng *rand.Rand) http.Handler {
 		}
 		writeJSON(w, out)
 	})
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, map[string]any{"status": "ok", "servicio": "faker", "version": version,
+			"desde": started.UTC().Format(time.RFC3339)})
+	})
+	mux.HandleFunc("GET /openapi.json", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, openAPI()) })
 	mux.HandleFunc("GET /{$}", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, map[string]any{
 			"servicio": "faker: personas inventadas para pruebas (sin cédulas ni celulares; correos @example.com)",
-			"rutas":    []string{"GET /persona", "GET /personas?n=5"},
+			"esquema":  "/openapi.json",
+			"salud":    "/health",
 		})
 	})
 	return mux
