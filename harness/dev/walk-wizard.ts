@@ -339,6 +339,7 @@ type Result = {
     caso: string; ur: number | null; tel: string; doc: string;
     pantallas: number; listado: number[]; enListado: boolean | null;
     fin: 'cerro' | 'listo' | 'trabado' | 'malo'; motivo: string; estado: number | null; ms: number;
+    vtex?: { orderId: string; transactionId: string; ms: number };   // `--store vtex`: el pedido real que abrió el caso
     lineas: string[];
 };
 
@@ -494,6 +495,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         const entry = await ecommerceEntry(br, c.ref, tel, doc, docType);
         if ('error' in entry) return finish('trabado', entry.error);
         routePath = entry.path;
+        if (entry.vtex) { r.vtex = entry.vtex; log(entry.vtex.line); }
     }
     let bureauInjected = false;
     let phoneChanged = false;   // `E2E_CHANGE_PHONE`: corregir el celular en la firma, una vez
@@ -908,7 +910,25 @@ async function correr(c: Case, i: number): Promise<Result> {
  * leído directo el valor del archivo se ignoraba, y el preflight del panel frenaba la corrida.
  */
 async function ecommerceEntry(br: { hash: string; com: string }, ref: string, tel: string, doc: string, docType: string)
-: Promise<{ path: string } | { error: string }> {
+: Promise<{ path: string; vtex?: { orderId: string; transactionId: string; ms: number; line: string } } | { error: string }> {
+    /* `--store vtex`: LA TIENDA ES VTEX DE VERDAD. En vez de armar la URL base64, se compra en la tienda de pruebas
+     * (`pkg/vtex.ts`) con la identidad de este caso —su celular con bypass de OTP, su cédula y su nombre— y se entra por
+     * la URL que devuelve el checkout (`/ecommerce/<hash>/checkout?ref=…`). El pedido lo crea el conector con
+     * `payment-link`, así que la sucursal es la de la afiliación de VTEX, no la del caso: si no coinciden, se avisa. */
+    if (arg('store') === 'vtex') {
+        if (TARGET !== 'qa') return { error: `--store vtex sólo contra qa: la condición de pago de la tienda manda el pago a qa (este caso va contra ${TARGET})` };
+        const { placeVtexOrder } = await import('../pkg/vtex.ts');
+        try {
+            const o = await placeVtexOrder({ tel, doc, firstName: typedName(), lastName: typedSurname(), email: `vtex-${doc}@creditop.com` });
+            const u = new URL(o.redirectUrl);
+            const hash = u.pathname.split('/')[2];
+            const line = `tienda VTEX: pedido ${o.orderId} · transacción ${o.transactionId} · el checkout tardó ${(o.ms / 1000).toFixed(1)}s en dar la URL`
+                + (hash !== br.hash ? ` · ⚠ la afiliación usa la sucursal ${hash}, no ${br.hash}` : '');
+            return { path: u.pathname + u.search, vtex: { orderId: o.orderId, transactionId: o.transactionId, ms: o.ms, line } };
+        } catch (e) {
+            return { error: e instanceof Error ? e.message : String(e) };
+        }
+    }
     const token = await branchToken(br.hash);
     if (!token) return { error: `la sucursal ${br.hash} (${br.com}) no tiene credencial de ecommerce: sin ella no hay checkout. Probá el hash de una sucursal «Ecommerce» de ese comercio (node bin/dbops.ts ecommerce-url ${ref.replace(/^#/, '')} te la da)` };
     const webhook = env('E2E_WEBHOOK_URL') || 'http://localhost:9/notificacion/';
@@ -1040,6 +1060,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         const e = await ecommerceEntry(br, c.ref, tel, doc, await merchantDocumentType(br.hash));
         if ('error' in e) return finish('trabado', e.error);
         entry = e.path;
+        if (e.vtex) { r.vtex = e.vtex; log(e.vtex.line); }
     }
     await page.goto(entry, { waitUntil: 'domcontentloaded', timeout: 90_000 }).catch(() => {});
     let seeded = false;
@@ -1408,6 +1429,11 @@ for (const r of results) {
         for (const l of await backendLogsNotice(TARGET, r.ur)) console.log(`      ${l}`);
     }
     console.log('');
+}
+// `--result-file <ruta>`: la tanda en JSON, para que otro runner (p. ej. `dev/vtex-run.ts`) siga desde acá sin leer el texto.
+if (arg('result-file')) {
+    const { writeFileSync } = await import('node:fs');
+    writeFileSync(arg('result-file'), JSON.stringify(results.map(({ lineas, ...rest }) => rest), null, 2));
 }
 const closedOnes = results.filter((r) => r.fin === 'cerro' || r.fin === 'listo').length;
 console.log(`  ${closedOnes}/${results.length} ${flag('close') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);

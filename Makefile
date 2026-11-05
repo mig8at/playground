@@ -502,6 +502,9 @@ harness-suite-countries: ## @har ¿el cliente nace con el país de su comercio, 
 harness-ecommerce: ## @har EL CANAL ECOMMERCE de punta a punta: ¿el carrito de la tienda entra, el comercio queda atado al crédito y sus datos llegan al formulario? [SUITE=suites/ecommerce.json] [MERCHANT=amoblar] [TEL=<uno de qa_otp_bypass_phones> — obligatorio contra un ambiente desplegado: el OTP sólo es predecible para los teléfonos de esa lista]
 	@cd harness && node dev/ecommerce.ts $(if $(SUITE),--suite '$(patsubst harness/%,%,$(SUITE))',--suite suites/ecommerce.json) $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(TEL),--tel $(TEL))
 
+harness-vtex: ## @har LA TIENDA VTEX DE VERDAD, sin nadie en el checkout: compra en la tienda de pruebas con Creditop por API, entra al wizard de qa por el ?ref= del checkout, le da el desenlace (simulador o cancelación desde la tienda) y comprueba en qué quedó VTEX, cuánto tardó el authorize y con qué versión del conector. ESCRIBE pedidos en VTEX y en qa. TARGET=qa [CASES=aprobada,negada,cancelada,tienda-cancela] [JSON=1] [VERBOSE=1 la salida del caminador]
+	@cd harness && E2E_TARGET=$(harness_target) JSON=$(JSON) VERBOSE=$(VERBOSE) node dev/vtex-run.ts $(if $(CASES),--cases '$(CASES)') $(if $(BRANCH),--branch $(BRANCH))
+
 harness-environment: ## @har ¿la config del target es coherente? [TARGET=qa] [JSON=1] [LIVE=1 consulta API, wizard, MySQL y puertos de mocks; sólo lectura] [MOCKS=bureaus,pdf-mapper exige esos mocks, sólo local] [TIMEOUT_MS=5000 por sonda; máximo 60000]
 	@cd harness && node bin/preflight.ts $(if $(TARGET),$(TARGET)) $(if $(JSON),--json) $(if $(LIVE),--live) $(if $(MOCKS),--mocks '$(MOCKS)') $(if $(TIMEOUT_MS),--timeout-ms '$(TIMEOUT_MS)')
 

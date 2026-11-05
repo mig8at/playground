@@ -32,6 +32,12 @@ function parseEnv(p: string): Record<string, string> {
 
 const fileEnv: Record<string, string> = parseEnv(resolve(ROOT, `.env.${TARGET}`));
 
+/** Un `harness/.env.<nombre>` que no es de un ambiente (p. ej. `.env.vtex`, la llave de la cuenta VTEX de pruebas),
+ *  con process.env ganando igual que en `env()`. */
+export function envFrom(name: string, key: string, fallback = ''): string {
+    return process.env[key] ?? parseEnv(resolve(ROOT, `.env.${name}`))[key] ?? fallback;
+}
+
 /** Los nombres VIEJOS (en español) de algunas variables, que pasaron a inglés el 2026-09-25. Si sólo está
  *  el viejo —en un `.env.<target>` que nadie tocó, o exportado en la shell—, se copia al nuevo en
  *  `process.env`, así lo ven también los que lo leen directo y los procesos hijos. */
