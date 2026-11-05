@@ -80,9 +80,24 @@ async function simulate(sku: string) {
     return { paymentSystem: Number(pay.id), price: Number(item.sellingPrice ?? item.price), sla: { id: sla.id as string, price: Number(sla.price) } };
 }
 
+/* Qué producto comprar: el de VTEX_TEST_SKU si se fijó; si no, el que tenga más stock. Cada pedido aprobado de una
+   prueba se queda con su unidad (nadie lo factura ni lo cancela), y el 2026-11-05 la BMX de siempre (SKU 9) llegó a 1:
+   de cuatro compras a la vez, tres dieron 400 al crear el pedido. */
+async function pickSku(): Promise<string> {
+    const fixed = envFrom('vtex', 'VTEX_TEST_SKU');
+    if (fixed) return fixed;
+    const r = await call('GET', `${store()}/api/catalog_system/pub/products/search?_from=0&_to=49`);
+    const items = ((r.data ?? []) as any[]).flatMap((p) => p.items ?? [])
+        .map((it: any) => ({ id: String(it.itemId), stock: Number(it.sellers?.[0]?.commertialOffer?.AvailableQuantity ?? 0) }))
+        .sort((a, b) => b.stock - a.stock);
+    if (!items.length || items[0].stock < 1) throw new Error('VTEX: no hay ningún producto con stock en la tienda de pruebas (hay que reponer el inventario)');
+    return items[0].id;
+}
+
 /** Una compra con Creditop, como desde el checkout. Devuelve la URL a la que iría el comprador. */
-export async function placeVtexOrder(buyer: VtexBuyer, sku = envFrom('vtex', 'VTEX_TEST_SKU', '9')): Promise<VtexOrder> {
+export async function placeVtexOrder(buyer: VtexBuyer, chosen?: string): Promise<VtexOrder> {
     const t0 = Date.now();
+    const sku = chosen ?? await pickSku();
     const sim = await simulate(sku);
     const total = sim.price + sim.sla.price;
     const order = {
@@ -102,7 +117,11 @@ export async function placeVtexOrder(buyer: VtexBuyer, sku = envFrom('vtex', 'VT
         await new Promise((r) => setTimeout(r, 2000));
         placed = await call('PUT', `${store()}/api/checkout/pub/orders?sc=1`, order);
     }
-    if (placed.status !== 201 && placed.status !== 200) throw new Error(`VTEX: crear el pedido dio ${placed.status} · ${placed.text.slice(0, 200)}`);
+    if (placed.status !== 201 && placed.status !== 200) {
+        const why = (placed.data?.orderForm?.messages ?? placed.data?.messages ?? []).map((m: any) => m.text).filter(Boolean).join(' · ')
+            || placed.data?.error?.message || placed.text.slice(0, 200);
+        throw new Error(`VTEX: crear el pedido dio ${placed.status} · ${why} (SKU ${sku})`);
+    }
     const o = placed.data.orders[0];
     const mt = placed.data.transactionData.merchantTransactions[0];
     const pay = await call('POST', `${payments()}/api/pub/transactions/${mt.transactionId}/payments?orderId=${o.orderGroup}`, [{
