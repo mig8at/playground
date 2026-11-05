@@ -262,6 +262,29 @@ func saveVersion(v int) {
 	_ = os.WriteFile(versionFile(), []byte(strconv.Itoa(v)), 0o644)
 }
 
+// Y cómo se llamaba cada número en ese look: si la página cambió pero el número sigue nombrando lo mismo, la
+// acción puede seguir.
+func namesFile() string { return versionFile() + ".nombres" }
+
+func saveNames(controls []control) {
+	m := map[int]string{}
+	for _, c := range controls {
+		m[c.ID] = c.Name
+	}
+	b, _ := json.Marshal(m)
+	_ = os.WriteFile(namesFile(), b, 0o644)
+}
+
+func lastName(id int) string {
+	b, err := os.ReadFile(namesFile())
+	if err != nil {
+		return ""
+	}
+	m := map[int]string{}
+	_ = json.Unmarshal(b, &m)
+	return m[id]
+}
+
 func lastVersion() int {
 	b, _ := os.ReadFile(versionFile())
 	v, _ := strconv.Atoi(strings.TrimSpace(string(b)))
@@ -380,6 +403,7 @@ func look(fresh bool) error {
 		fmt.Println("(todavía sin analizar)")
 		return nil
 	}
+	saveNames(st.Page.Controls)
 	if len(st.Page.Console) > 0 {
 		fmt.Printf("⚠ %d errores de consola\n", len(st.Page.Console))
 	}
@@ -521,6 +545,7 @@ func act(action string, args []string, needsValue bool) error {
 	// El objetivo es el número de un elemento del último look o, si no es un número, su texto visible.
 	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
 		body["control"] = n - 1
+		body["name"] = lastName(n - 1)
 	} else {
 		body["text"] = args[0]
 	}

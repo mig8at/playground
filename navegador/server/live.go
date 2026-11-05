@@ -540,6 +540,7 @@ type LiveAct struct {
 	Action  string `json:"action"`  // click · dblclick · hover · fill · check · uncheck · select · press · scroll · upload · drag
 	Value   string `json:"value"`   // lo que se escribe, la opción, la tecla, la ruta del archivo o el destino de drag
 	Version int    `json:"version"` // el análisis sobre el que se eligió el elemento: si cambió, se avisa
+	Name    string `json:"name"`    // cómo se llamaba ese número en aquel análisis: si sigue igual, no hay riesgo
 }
 
 // target resuelve a qué apunta una acción: el localizador, su código TS y un nombre para los mensajes.
@@ -614,8 +615,14 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		version = l.version
 		l.mu.Unlock()
 	}
+	// La página cambió desde el look: un número viejo podría tocar OTRO elemento, así que se niega… salvo que ese
+	// número todavía nombre lo mismo (en una búsqueda, los resultados que cargan después cambian la lista sin mover
+	// lo que ya estaba).
 	if in.Text == "" && in.Version != 0 && in.Version != version {
-		return Step{}, fmt.Errorf("la página cambió desde que la miraste (análisis %d, ahora %d): volvé a mirarla", in.Version, version)
+		same := in.Name != "" && in.Control >= 0 && in.Control < len(cur.Controls) && cur.Controls[in.Control].Name == in.Name
+		if !same {
+			return Step{}, fmt.Errorf("la página cambió desde que la miraste (análisis %d, ahora %d) y el elemento %d ya no es «%s»: volvé a mirarla", in.Version, version, in.Control+1, in.Name)
+		}
 	}
 	target, base, c, err := r.liveTarget(l, cur, in.Control, in.Text)
 	if err != nil {
