@@ -90,6 +90,7 @@ type Page struct {
 	Landmarks map[string]int `json:"landmarks"`
 	Requests  []Request      `json:"requests"`
 	Console   []string       `json:"console"`
+	Markdown  string         `json:"markdown"` // la página simplificada: lo que se lee, sin el maquillaje
 	Shot      bool           `json:"shot"`
 	AuthWall  bool           `json:"authWall"`
 	Error     string         `json:"error,omitempty"`

@@ -3,14 +3,16 @@
  * para loguearse a mano, se lanza el recorrido y se lee el mapa. El sitio y la página elegida viven en la URL.
  *
  * Las regiones son las de la base: el sidebar con UN árbol (cada sitio es una raíz y sus páginas cuelgan
- * adentro, como las carpetas del Explorer de VS Code), el editor con la página como documento (o el resumen del sitio), el sidebar
- * secundario con el detalle de la página y la consola abajo. */
+ * adentro, como las carpetas del Explorer de VS Code), el editor con la página SIMPLIFICADA en Markdown (o el
+ * resumen del sitio), el sidebar secundario con la ficha de la página y su captura, y abajo la consola con
+ * pestañas: lo que hace el navegador y lo técnico de la página (formularios, enlaces, llamadas, errores). */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
   vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle,
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 import RegionMenu from './RegionMenu.vue'
+import { renderMarkdown } from './markdown.js'
 
 // ── la ruta: #/<sitio>?page=<id> ──
 const route = readHashRoute()
@@ -273,6 +275,7 @@ async function run(kind, start = '', slug = siteSlug.value) {
   runError.value = ''
   panelOpen.value = true
   saveSize('navegador.panel-open', 1)
+  tab.value = 'log'
   if (slug !== siteSlug.value) pickSite(slug)
   try {
     const q = `site=${encodeURIComponent(slug)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
@@ -291,15 +294,30 @@ const busyLabel = computed(() => {
   return `${what} · ${state.value.site} · ${state.value.visited} páginas`
 })
 
-// ── el detalle de la página (sidebar secundario) ──
+// ── las pestañas de la consola: lo que hace el navegador y, con una página elegida, lo técnico de ella ──
 const TABS = [
-  { id: 'forms', label: 'Formularios', count: (p) => (p.forms || []).length },
-  { id: 'links', label: 'Enlaces', count: (p) => (p.links || []).length },
-  { id: 'calls', label: 'Llamadas', count: (p) => (p.requests || []).length },
-  { id: 'console', label: 'Consola', count: (p) => (p.console || []).length },
+  { id: 'log', label: 'Consola' },
+  { id: 'forms', label: 'Formularios', count: (p) => (p.forms || []).length, page: true },
+  { id: 'links', label: 'Enlaces', count: (p) => (p.links || []).length, page: true },
+  { id: 'calls', label: 'Llamadas', count: (p) => (p.requests || []).length, page: true },
+  { id: 'errors', label: 'Errores', count: (p) => (p.console || []).length, page: true },
 ]
-const tab = ref(TABS.some((t) => t.id === readPref('navegador.tab', 'forms')) ? readPref('navegador.tab', 'forms') : 'forms')
-watch(tab, (v) => savePref('navegador.tab', v))
+const tab = ref(TABS.some((t) => t.id === readPref('navegador.panel-tab', 'log')) ? readPref('navegador.panel-tab', 'log') : 'log')
+watch(tab, (v) => savePref('navegador.panel-tab', v))
+const panelTab = computed(() => (page.value || !TABS.find((t) => t.id === tab.value)?.page ? tab.value : 'log'))
+
+// ── la página simplificada del editor ──
+const mdMode = ref(readPref('navegador.md-mode', 'render')) // render · source
+watch(mdMode, (v) => savePref('navegador.md-mode', v))
+const pageHTML = computed(() => (page.value?.markdown ? renderMarkdown(page.value.markdown) : ''))
+async function copyMarkdown() { try { await navigator.clipboard.writeText(page.value.markdown || '') } catch { /* sin permiso */ } }
+// Un enlace a una página que ya está en el mapa se abre acá; el resto, en una pestaña nueva.
+function onDocClick(e) {
+  const a = e.target.closest('a[data-href]')
+  if (!a) return
+  const target = pageByURL(a.dataset.href)
+  if (target) { e.preventDefault(); pickPage(target.id) }
+}
 const internalLinks = computed(() => {
   if (!page.value || !site.value) return []
   return (page.value.links || []).map((l) => {
@@ -329,7 +347,7 @@ const sidebarW = ref(readSize('navegador.sidebar-w', 320))
 const auxOpen = ref(readSize('navegador.aux-open', 1) !== 0)
 const auxW = ref(readSize('navegador.aux-w', 380))
 const panelOpen = ref(readSize('navegador.panel-open', 1) !== 0)
-const panelH = ref(readSize('navegador.panel-h', 180))
+const panelH = ref(readSize('navegador.panel-h', 220))
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
@@ -366,7 +384,7 @@ const auxResize = {
   commit: (v) => { saveSize('navegador.aux-open', v ? 1 : 0); if (v) saveSize('navegador.aux-w', auxW.value) },
 }
 const panelResize = {
-  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 180,
+  label: 'Alto de la consola', axis: 'y', sign: -1, defaultValue: 220,
   min: () => cssSize('--panel-min', 124),
   max: () => viewportH.value - 200,
   get: () => shown.value.panel,
@@ -510,23 +528,25 @@ onBeforeUnmount(() => {
       </div>
     </aside>
 
-    <!-- EDITOR · la página elegida como documento, o el resumen del sitio -->
+    <!-- EDITOR · la página simplificada, como un documento en Markdown; sin página, el resumen del sitio -->
     <main class="editor">
       <div class="region-head">
-        <span class="ellipsis">{{ page ? pathOf(page.url) : site ? site.name : 'navegador' }}</span>
-        <div class="region-actions">
-          <template v-if="page">
-            <button type="button" class="region-action" :disabled="state.busy" title="Abrir esta página en la ventana" aria-label="Abrir esta página en la ventana"
-              @click="run('browse', page.finalUrl || page.url)">
-              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+        <span class="ellipsis">{{ page ? (page.title || pathOf(page.url)) : site ? site.name : 'navegador' }}</span>
+        <div v-if="page" class="region-actions">
+          <div class="toggle-group" role="group" aria-label="Cómo se muestra la página">
+            <button type="button" class="region-action" :aria-pressed="mdMode === 'render'" title="Ver la página simplificada" aria-label="Ver la página simplificada" @click="mdMode = 'render'">
+              <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
             </button>
-            <button type="button" class="region-action" title="Copiar la URL" aria-label="Copiar la URL" @click="copyURL">
-              <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+            <button type="button" class="region-action" :aria-pressed="mdMode === 'source'" title="Ver el Markdown" aria-label="Ver el Markdown" @click="mdMode = 'source'">
+              <span class="ui-icon" data-icon="code" aria-hidden="true"></span>
             </button>
-            <button type="button" class="region-action" title="Volver al resumen del sitio" aria-label="Volver al resumen del sitio" @click="pageId = ''">
-              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-            </button>
-          </template>
+          </div>
+          <button type="button" class="region-action" :disabled="!page.markdown" title="Copiar el Markdown" aria-label="Copiar el Markdown" @click="copyMarkdown">
+            <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Volver al resumen del sitio" aria-label="Volver al resumen del sitio" @click="pageId = ''">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
         </div>
       </div>
       <div class="region-body">
@@ -537,34 +557,18 @@ onBeforeUnmount(() => {
 
         <div v-if="!site" class="empty">
           <div class="empty-title">Ningún sitio elegido</div>
-          <div class="empty-desc">Pegá una URL en Sitios: se agrega y se explora sola. Si pide login, abrí la ventana, entrá a mano y volvé a explorar.</div>
+          <div class="empty-desc">Pegá una URL en el explorador: se agrega y se explora sola. Si pide login, abrí la ventana desde el menú del sitio, entrá a mano y volvé a explorar.</div>
         </div>
 
-        <article v-else-if="page" class="doc">
-          <h1 class="doc-title">{{ page.title || pathOf(page.url) }}</h1>
-          <a class="doc-url" :href="page.finalUrl || page.url" target="_blank" rel="noopener noreferrer"><code>{{ page.finalUrl || page.url }}</code></a>
-          <dl class="facts">
-            <dt>Estado</dt><dd :class="statusClass(page.status)">{{ page.status || '—' }}<template v-if="page.authWall"> · mandó al login</template></dd>
-            <dt>Stack</dt><dd>{{ (page.stack || []).join(' · ') || 'sin señales conocidas' }}</dd>
-            <dt>Llegó desde</dt>
-            <dd>
-              <button v-if="parentPage" type="button" class="btn btn-link btn-xs" @click="pickPage(parentPage.id)">{{ pathOf(parentPage.url) }}</button>
-              <template v-else>{{ page.depth === 0 ? 'es la entrada' : '—' }}</template>
-            </dd>
-            <dt>Visitada</dt><dd>{{ fmtFull(page.at) }} · {{ page.source === 'manual' ? 'a mano' : `explorando, nivel ${page.depth}` }}</dd>
-            <dt>Estructura</dt>
-            <dd>{{ Object.entries(page.landmarks || {}).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ') || '—' }}</dd>
-            <template v-if="page.error"><dt>Error</dt><dd class="bad">{{ page.error }}</dd></template>
-          </dl>
-          <img v-if="page.shot" class="shot" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura de ${page.title}`" />
-          <h2 class="doc-h">Encabezados</h2>
-          <p v-if="!(page.headings || []).length" class="muted">Ninguno.</p>
-          <div v-for="(h, i) in page.headings || []" :key="i" class="heading" :style="{ paddingLeft: `calc(${(h.level - 1)} * var(--indent))` }">
-            <small class="muted">h{{ h.level }}</small> {{ h.text }}
+        <template v-else-if="page">
+          <div v-if="!page.markdown" class="empty">
+            <div class="empty-title">Sin versión simplificada</div>
+            <div class="empty-desc">{{ page.error || 'Esta página se analizó antes de que existiera la simplificación. Volvé a explorar el sitio y aparece.' }}</div>
           </div>
-          <h2 class="doc-h">Botones</h2>
-          <p class="muted">{{ (page.buttons || []).join(' · ') || 'Ninguno.' }}</p>
-        </article>
+          <pre v-else-if="mdMode === 'source'" class="md-source">{{ page.markdown }}</pre>
+          <!-- eslint-disable-next-line vue/no-v-html — renderMarkdown escapa todo el HTML antes de reconocer la marca -->
+          <article v-else class="md" @click="onDocClick" v-html="pageHTML"></article>
+        </template>
 
         <article v-else class="doc">
           <h1 class="doc-title">{{ site.name }}</h1>
@@ -603,73 +607,124 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
-    <!-- SIDEBAR SECUNDARIO · el detalle de la página -->
-    <aside v-if="shown.aux" class="auxiliarybar" aria-label="Detalle de la página">
+    <!-- SIDEBAR SECUNDARIO · la ficha de la página: su captura y lo que se sabe de ella -->
+    <aside v-if="shown.aux" class="auxiliarybar" aria-label="Ficha de la página">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span>Página</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" :disabled="state.busy" title="Abrir esta página en la ventana" aria-label="Abrir esta página en la ventana"
+            @click="run('browse', page.finalUrl || page.url)">
+            <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Copiar la URL" aria-label="Copiar la URL" @click="copyURL">
+            <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <div class="card">
+          <a v-if="page.shot" :href="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" target="_blank" rel="noopener" title="Ver la captura completa">
+            <img class="shot" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura de ${page.title}`" />
+          </a>
+          <p v-else class="muted small">Sin captura.</p>
+          <div class="card-title">{{ page.title || pathOf(page.url) }}</div>
+          <a class="doc-url small" :href="page.finalUrl || page.url" target="_blank" rel="noopener noreferrer"><code>{{ page.finalUrl || page.url }}</code></a>
+          <dl class="facts">
+            <dt>Estado</dt><dd :class="statusClass(page.status)">{{ page.status || '—' }}<template v-if="page.authWall"> · mandó al login</template></dd>
+            <dt>Stack</dt><dd>{{ (page.stack || []).join(' · ') || 'sin señales conocidas' }}</dd>
+            <dt>Idioma</dt><dd>{{ page.lang || '—' }}</dd>
+            <dt>Llegó desde</dt>
+            <dd>
+              <button v-if="parentPage" type="button" class="btn btn-link btn-xs link-btn" @click="pickPage(parentPage.id)">{{ pathOf(parentPage.url) }}</button>
+              <template v-else>{{ page.depth === 0 ? 'es la entrada' : '—' }}</template>
+            </dd>
+            <dt>Visitada</dt><dd>{{ fmtFull(page.at) }} · {{ page.source === 'manual' ? 'a mano' : `nivel ${page.depth}` }}</dd>
+            <dt>Estructura</dt>
+            <dd>{{ Object.entries(page.landmarks || {}).filter(([, n]) => n).map(([k, n]) => `${k} ${n}`).join(' · ') || '—' }}</dd>
+            <dt>Contiene</dt>
+            <dd>{{ (page.forms || []).length }} formularios · {{ (page.links || []).length }} enlaces · {{ (page.requests || []).length }} llamadas · {{ (page.buttons || []).length }} botones</dd>
+            <template v-if="page.error"><dt>Error</dt><dd class="bad">{{ page.error }}</dd></template>
+          </dl>
+        </div>
+      </div>
+    </aside>
+
+    <!-- PANEL · la consola con pestañas: lo que hace el navegador y lo técnico de la página elegida -->
+    <section v-if="shown.panel" class="panel" aria-label="Consola">
+      <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
       <nav class="tabs">
-        <button v-for="t in TABS" :key="t.id" type="button" class="tab" :class="{ on: tab === t.id }" @click="tab = t.id">
-          {{ t.label }} <span v-if="t.count(page)" class="count">{{ t.count(page) }}</span>
+        <button v-for="t in TABS" :key="t.id" v-show="!t.page || page" type="button" class="tab" :class="{ on: panelTab === t.id }" @click="tab = t.id">
+          {{ t.label }} <span v-if="t.page && t.count(page)" class="count">{{ t.count(page) }}</span>
         </button>
+        <div class="region-actions">
+          <span v-if="state.busy" class="muted head-note">{{ busyLabel }}</span>
+          <button v-if="panelTab === 'log'" type="button" class="region-action" title="Limpiar la consola" aria-label="Limpiar la consola" @click="log = []">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+          </button>
+        </div>
       </nav>
       <div class="region-body">
-        <template v-if="tab === 'forms'">
+        <template v-if="panelTab === 'log'">
+          <p v-if="!log.length" class="none">Acá sale lo que hace el navegador: cada página que analiza y lo que falla.</p>
+          <div v-for="l in log" :key="l.seq" class="log-line" :data-kind="l.kind">
+            <span class="log-time">{{ fmtTime(l.at) }}</span><span class="what wrap">{{ l.text }}</span>
+          </div>
+        </template>
+
+        <template v-else-if="panelTab === 'forms'">
           <p v-if="!(page.forms || []).length" class="none">Sin formularios ni campos.</p>
           <section v-for="(f, i) in page.forms || []" :key="i">
             <div class="region-head group">
               <span>{{ f.loose ? 'Campos sueltos (sin form)' : `${(f.method || 'get').toUpperCase()} ${f.action ? pathOf(f.action) : '(misma página)'}` }}</span>
               <span class="count">{{ (f.fields || []).length }}</span>
+              <span v-if="(f.submits || []).length" class="muted head-note">envía con {{ f.submits.join(' · ') }}</span>
             </div>
-            <div v-for="(x, j) in f.fields || []" :key="j" class="row stacked">
-              <span>{{ x.label || x.placeholder || x.name || x.id || '—' }}<template v-if="x.required"> *</template></span>
-              <span class="row-desc">{{ x.tag === 'input' ? x.type || 'text' : x.tag }}<template v-if="x.name"> · name={{ x.name }}</template><template v-if="(x.options || []).length"> · {{ x.options.join(' / ') }}</template></span>
-            </div>
-            <p v-if="(f.submits || []).length" class="none">Envía con: {{ f.submits.join(' · ') }}</p>
+            <table class="table">
+              <thead><tr><th>Campo</th><th>Tipo</th><th>name</th><th>Opciones</th><th></th></tr></thead>
+              <tbody>
+                <tr v-for="(x, j) in f.fields || []" :key="j">
+                  <td>{{ x.label || x.placeholder || x.id || '—' }}</td>
+                  <td class="muted">{{ x.tag === 'input' ? x.type || 'text' : x.tag }}</td>
+                  <td><code>{{ x.name }}</code></td>
+                  <td class="muted">{{ (x.options || []).join(' · ') }}</td>
+                  <td class="muted">{{ x.required ? 'requerido' : '' }}</td>
+                </tr>
+              </tbody>
+            </table>
           </section>
         </template>
 
-        <template v-else-if="tab === 'links'">
+        <template v-else-if="panelTab === 'links'">
           <p v-if="!internalLinks.length" class="none">Sin enlaces.</p>
-          <div v-for="l in internalLinks" :key="l.href" class="row stacked" :class="{ clickable: pageByURL(l.href) }"
-            @click="pageByURL(l.href) && pickPage(pageByURL(l.href).id)">
-            <span>{{ l.text || '(sin texto)' }}</span>
-            <span class="row-desc">
-              <template v-if="!l.internal">afuera · </template><template v-else-if="pageByURL(l.href)">en el mapa · </template>{{ l.internal ? pathOf(l.href) : l.href }}
-            </span>
-          </div>
+          <table v-else class="table">
+            <thead><tr><th>Texto</th><th>Destino</th><th></th></tr></thead>
+            <tbody>
+              <tr v-for="l in internalLinks" :key="l.href" :class="{ clickable: pageByURL(l.href) }" @click="pageByURL(l.href) && pickPage(pageByURL(l.href).id)">
+                <td>{{ l.text || '(sin texto)' }}</td>
+                <td><code>{{ l.internal ? pathOf(l.href) : l.href }}</code></td>
+                <td class="muted nowrap">{{ !l.internal ? 'afuera' : pageByURL(l.href) ? 'en el mapa' : '' }}</td>
+              </tr>
+            </tbody>
+          </table>
         </template>
 
-        <template v-else-if="tab === 'calls'">
+        <template v-else-if="panelTab === 'calls'">
           <p v-if="!(page.requests || []).length" class="none">Sin llamadas registradas.</p>
-          <div v-for="(r, i) in page.requests || []" :key="i" class="row stacked" :title="r.url">
-            <span><code>{{ r.method }}</code> <span :class="statusClass(r.status)">{{ r.status }}</span> <small class="muted">{{ r.type }}</small></span>
-            <span class="row-desc">{{ r.url }}</span>
+          <div v-for="(r, i) in page.requests || []" :key="i" class="log-line call" :title="r.url">
+            <span class="method">{{ r.method }}</span>
+            <span class="code" :class="statusClass(r.status)">{{ r.status }}</span>
+            <span class="kind">{{ r.type }}</span>
+            <span class="what">{{ r.url }}</span>
           </div>
         </template>
 
-        <template v-else-if="tab === 'console'">
-          <p v-if="!(page.console || []).length" class="none">La consola no dijo nada.</p>
-          <div v-for="(c, i) in page.console || []" :key="i" class="log-line"><span class="what wrap" :class="{ bad: !c.startsWith('warning') }">{{ c }}</span></div>
+        <template v-else-if="panelTab === 'errors'">
+          <p v-if="!(page.console || []).length" class="none">La consola de la página no dijo nada.</p>
+          <div v-for="(c, i) in page.console || []" :key="i" class="log-line" :data-kind="c.startsWith('warning') ? 'warn' : 'error'">
+            <span class="what wrap">{{ c }}</span>
+          </div>
         </template>
-      </div>
-    </aside>
-
-    <!-- PANEL · lo que hace el navegador, en vivo -->
-    <section v-if="shown.panel" class="panel" aria-label="Consola">
-      <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
-      <div class="region-head">
-        <span>Consola</span>
-        <span v-if="state.busy" class="muted head-note">{{ busyLabel }}</span>
-        <div class="region-actions">
-          <button type="button" class="region-action" title="Limpiar la consola" aria-label="Limpiar la consola" @click="log = []">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-      <div class="region-body">
-        <p v-if="!log.length" class="none">Acá sale lo que hace el navegador: cada página que analiza y lo que falla.</p>
-        <div v-for="l in log" :key="l.seq" class="log-line" :data-kind="l.kind">
-          <span class="log-time">{{ fmtTime(l.at) }}</span><span class="what wrap">{{ l.text }}</span>
-        </div>
       </div>
     </section>
 
@@ -743,6 +798,39 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .controls .field { width: 160px }
 .actions { display: flex; gap: var(--space-2) }
 
+/* la ficha del sidebar secundario */
+.card { padding: var(--space-3) var(--gutter); display: flex; flex-direction: column; gap: var(--space-2) }
+.card-title { font-weight: 600; font-size: var(--text-base) }
+.card .facts { margin-top: var(--space-2); gap: var(--space-1) var(--space-3) }
+.link-btn { padding: 0; height: auto; min-width: 0 }
+.nowrap { white-space: nowrap }
+
+/* la página simplificada: prosa de documento, a 65 caracteres por renglón como pide la base */
+.md, .md-source { padding: var(--space-6); max-width: 80ch }
+.md { font-size: var(--text-body); line-height: 1.6 }
+.md :deep(h1) { font-size: var(--text-title); font-weight: 600; margin: 0 0 var(--space-3) }
+.md :deep(h2), .md :deep(h3), .md :deep(h4), .md :deep(h5), .md :deep(h6) { font-size: var(--text-body); font-weight: 600; margin: var(--space-6) 0 var(--space-2) }
+.md :deep(h3), .md :deep(h4), .md :deep(h5), .md :deep(h6) { color: var(--fg-2) }
+.md :deep(p) { margin: 0 0 var(--space-3) }
+.md :deep(ul), .md :deep(ol) { margin: 0 0 var(--space-3); padding-left: var(--space-6) }
+.md :deep(li) { margin: 2px 0 }
+.md :deep(a) { color: var(--primary-ink); text-decoration: none }
+.md :deep(a:hover) { text-decoration: underline }
+.md :deep(code) { font-family: var(--font-mono); font-size: var(--text-sm); background: var(--hover); padding: 0 4px; border-radius: 4px }
+.md :deep(pre) { margin: 0 0 var(--space-3); padding: var(--space-3); background: var(--hover); border-radius: var(--radius-control); overflow-x: auto }
+.md :deep(pre code) { background: none; padding: 0 }
+.md :deep(blockquote) { margin: 0 0 var(--space-3); padding: var(--space-1) var(--space-3); border-left: 2px solid var(--border); color: var(--fg-2) }
+.md :deep(hr) { border: 0; border-top: 1px solid var(--border); margin: var(--space-6) 0 }
+.md :deep(table) { border-collapse: collapse; margin: 0 0 var(--space-3); font-size: var(--text-sm) }
+.md :deep(th), .md :deep(td) { text-align: left; padding: var(--space-1) var(--space-2); border-bottom: 1px solid var(--border) }
+.md :deep(th) { color: var(--fg-2); font-weight: 600 }
+.md :deep(.md-img) { color: var(--fg-3); font-size: var(--text-sm) }
+.md :deep(.md-img)::before { content: "imagen · " }
+.md-source { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-mono); font-size: var(--text-sm); line-height: 1.5; color: var(--fg-2) }
+
+.call .method { min-width: 48px; font-family: var(--font-mono); font-size: var(--text-sm) }
+.call .code { min-width: 32px; font-variant-numeric: tabular-nums; font-size: var(--text-sm) }
+.call .kind { min-width: 64px; color: var(--fg-3); font-size: var(--text-sm) }
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
 .log-line .what { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-sm) }
 .log-line .what.wrap { white-space: pre-wrap; overflow-wrap: anywhere }

@@ -259,12 +259,14 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 			Forms     []Form         `json:"forms"`
 			Buttons   []string       `json:"buttons"`
 			Landmarks map[string]int `json:"landmarks"`
+			Markdown  string         `json:"markdown"`
 		}
 		if err := json.Unmarshal([]byte(s), &a); err != nil {
 			page.Error = "leer el análisis: " + err.Error()
 		} else {
 			page.Title, page.Lang, page.Stack, page.Headings = a.Title, a.Lang, a.Stack, a.Headings
 			page.Links, page.Forms, page.Buttons, page.Landmarks = a.Links, a.Forms, a.Buttons, a.Landmarks
+			page.Markdown = a.Markdown
 		}
 	}
 	page.Requests, page.Console = t.drain()
