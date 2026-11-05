@@ -332,9 +332,11 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 
 # navegador: Chromium por playwright-go; el perfil (la sesión) de cada sitio vive en navegador/.data.
-.PHONY: navegador
+.PHONY: navegador navegador-evals
 navegador: ## @dia abre navegador (:5202 · API :5203): das de alta un sitio, te logueás A MANO en una ventana de Chromium (la sesión queda en navegador/.data/) y lo recorre solo con playwright-go: de cada página, estructura, formularios, enlaces, stack, llamadas a backends, errores y captura. Sólo sigue enlaces del mismo host; nunca envía formularios. «En vivo» muestra el Chromium real en el editor (clic, teclado, y los elementos con su localizador de Playwright); bin/navegador maneja esa misma sesión por consola (open · look · click/fill/check/select <n> · wait · script), y bin/navegador ask "<meta>" deja que Claude Code la maneje hasta cumplir la meta. Levanta también Tienda Andina (:5205, navegador/demo-real), una tienda ficticia que ask trata como sitio REAL, y Credidemo (:5204, navegador/demo), un sitio de práctica con formularios, reglas, términos que hay que leer hasta el final, pasos encadenados y login. Recorrer por consola: go run ./navegador/server -explore <sitio>
 	@cd navegador && npm run dev
+navegador-evals: ## @dia la suite de regresión de bin/navegador ask: corre las metas de navegador/evals/casos.json (Credidemo, Tienda Andina, the-internet) y compara cómo terminaron (LISTO, o CONFIRMAR sin hacer nada prohibido) y si el script se repite. Necesita make navegador arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
+	@bin/navegador evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y

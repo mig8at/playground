@@ -19,6 +19,7 @@
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador close                          cierra la sesión en vivo
 //	bin/navegador ask [--url URL] "<meta>"       Claude maneja la sesión en vivo hasta cumplir la meta (ask.go)
+//	bin/navegador evals [--solo X]               corre las metas de navegador/evals/casos.json y compara (evals.go)
 //
 // Después de cada acción muestra la página como quedó. Los números valen para el ÚLTIMO `look`: si la página
 // cambió entre medio, la acción se niega en vez de tocar otro elemento.
@@ -65,6 +66,8 @@ func main() {
 		err = sites()
 	case "ask":
 		err = ask(args)
+	case "evals":
+		err = evals(args)
 	case "open":
 		err = open(args)
 	case "look":
@@ -128,7 +131,8 @@ func usage() {
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · shot <archivo.png>
   steps · script · reset
-  ask [--url URL] [--pasos 40] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
+  ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
+  evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
 	os.Exit(2)
 }
 
@@ -245,6 +249,14 @@ func open(args []string) error {
 	if len(args) < 1 {
 		usage()
 	}
+	if err := startLive(args); err != nil {
+		return err
+	}
+	return look(true)
+}
+
+// startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, sin mostrar la página.
+func startLive(args []string) error {
 	slug, start := args[0], ""
 	if len(args) > 1 {
 		start = args[1]
@@ -286,9 +298,9 @@ func open(args []string) error {
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
 		if st.Site == slug {
 			if start == "" {
-				return look(true)
+				return nil
 			}
-			return nav("goto", start)
+			return call(http.MethodPost, "/api/live/nav", map[string]string{"action": "goto", "url": start}, nil)
 		}
 		if err := call(http.MethodPost, "/api/live/stop", nil, nil); err != nil {
 			return err
@@ -299,10 +311,7 @@ func open(args []string) error {
 	if start != "" {
 		q += "&start=" + url.QueryEscape(start)
 	}
-	if err := call(http.MethodPost, "/api/live/start?"+q, nil, nil); err != nil {
-		return err
-	}
-	return look(true)
+	return call(http.MethodPost, "/api/live/start?"+q, nil, nil)
 }
 
 func look(fresh bool) error {

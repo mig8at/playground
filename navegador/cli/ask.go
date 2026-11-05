@@ -69,8 +69,9 @@ func ask(args []string) error {
 	start := fs.String("url", "", "abre la sesión en vivo en esta URL antes de empezar (si no, usa la que está abierta)")
 	steps := fs.Int("pasos", 40, "cuántas acciones como mucho")
 	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
+	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `uso: bin/navegador ask [--url URL] [--pasos 40] [--modelo M] "<meta>"`)
+		fmt.Fprintln(os.Stderr, `uso: bin/navegador ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
 		fs.PrintDefaults()
 	}
 	_ = fs.Parse(args)
@@ -79,84 +80,140 @@ func ask(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
-
-	// Cada meta empieza con los pasos en cero: el script del final es SU camino, no el de la corrida anterior.
-	// Se limpia antes de navegar, así el goto a --url queda como primer paso.
-	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	if *start != "" {
 		if err := open([]string{*start}); err != nil {
 			return err
 		}
 		fmt.Println()
 	}
+	_, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, out: os.Stdout})
+	if err == nil {
+		fmt.Println("\nlos pasos: bin/navegador steps · como script de Playwright: bin/navegador script")
+	}
+	return err
+}
+
+// askOpts es una corrida de ask: la meta y cómo se contesta un NECESITO/CONFIRMAR.
+type askOpts struct {
+	goal   string
+	steps  int
+	model  string
+	answer string    // si no está vacía, se contesta sola UNA vez con esto (la usan las evals)
+	out    io.Writer // adónde va lo que va haciendo
+}
+
+// askOutcome es cómo terminó: la palabra de cada vuelta (LISTO, NO PUDE, NECESITO, CONFIRMAR) y lo que costó.
+type askOutcome struct {
+	Rounds  []string
+	Text    string
+	Turns   int
+	Cost    float64
+	Seconds float64
+}
+
+func (o askOutcome) Final() string {
+	if len(o.Rounds) == 0 {
+		return ""
+	}
+	return o.Rounds[len(o.Rounds)-1]
+}
+
+// keyword saca la palabra con que empieza la respuesta final.
+func keyword(text string) string {
+	head := strings.ToUpper(strings.TrimSpace(text))
+	for _, k := range []string{"LISTO", "NO PUDE", "NECESITO", "CONFIRMAR"} {
+		if strings.HasPrefix(head, k) {
+			return k
+		}
+	}
+	return "?"
+}
+
+// runAsk es el motor de ask: lanza Claude Code sobre la sesión en vivo que esté abierta y la maneja hasta
+// cumplir la meta, preguntando (o contestando solo) cuando termina con NECESITO o CONFIRMAR.
+func runAsk(o askOpts) (askOutcome, error) {
+	var outcome askOutcome
+	// Cada meta empieza con los pasos en cero: el script del final es SU camino, no el de la corrida anterior.
+	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	var st liveState
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err != nil {
-		return err
+		return outcome, err
 	}
 	if !st.Active {
-		return errors.New("no hay sesión en vivo: pasá --url o abrí una con `bin/navegador open`")
+		return outcome, errors.New("no hay sesión en vivo: pasá --url o abrí una con `bin/navegador open`")
 	}
-
 	claude, err := claudeBinary()
 	if err != nil {
-		return err
+		return outcome, err
 	}
 	self, err := os.Executable()
 	if err != nil {
-		return err
+		return outcome, err
 	}
 	dir := filepath.Join(must(os.UserCacheDir()), "navegador", "ask")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
+		return outcome, err
 	}
 	practice := strings.Join(practiceList(), ", ")
-	system := strings.NewReplacer("{{NAV}}", self, "{{PASOS}}", fmt.Sprint(*steps), "{{DIR}}", dir, "{{PRACTICA}}", practice).Replace(askInstructions)
+	system := strings.NewReplacer("{{NAV}}", self, "{{PASOS}}", fmt.Sprint(o.steps), "{{DIR}}", dir, "{{PRACTICA}}", practice).Replace(askInstructions)
 	kind := "NO es un sitio de práctica: tratalo como REAL"
 	if isPractice(st.URL) {
 		kind = "es un sitio de práctica"
 	}
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.", goal, st.URL, st.Title, kind)
-
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.", o.goal, st.URL, st.Title, kind)
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,
 		"--allowedTools", "Bash(" + self + ":*)", "Bash(" + self + " *)", "Read", "Bash(grep:*)", "Bash(head:*)",
 		"--setting-sources", "user", "--strict-mcp-config",
 	}
-	if *model != "" {
-		base = append(base, "--model", *model)
+	if o.model != "" {
+		base = append(base, "--model", o.model)
 	}
 
 	ttyState = sttySave()
-	fmt.Printf("meta: %s\nsitio: %s\n\n", goal, kind)
+	fmt.Fprintf(o.out, "meta: %s\nsitio: %s\n\n", o.goal, kind)
 	session := ""
-	for round := 0; ; round++ {
+	autoAnswered := false
+	for {
 		argv := append([]string{}, base...)
 		if session != "" {
 			argv = append(argv, "--resume", session)
 		}
 		argv = append(argv, prompt)
-		res, err := runClaude(claude, dir, argv, self, *steps)
+		res, err := runClaude(claude, dir, argv, self, o.steps, o.out)
 		if err != nil {
-			return err
+			return outcome, err
 		}
 		session = res.session
-		fmt.Printf("\n%s\n", res.text)
-		fmt.Printf("\n(%d turnos · %.1f s · US$ %.4f)\n", res.turns, res.seconds, res.cost)
-		head := strings.ToUpper(strings.TrimSpace(res.text))
-		if !strings.HasPrefix(head, "NECESITO:") && !strings.HasPrefix(head, "CONFIRMAR:") {
+		outcome.Rounds = append(outcome.Rounds, keyword(res.text))
+		outcome.Text = res.text
+		outcome.Turns += res.turns
+		outcome.Cost += res.cost
+		outcome.Seconds += res.seconds
+		fmt.Fprintf(o.out, "\n%s\n", res.text)
+		fmt.Fprintf(o.out, "\n(%d turnos · %.1f s · US$ %.4f)\n", res.turns, res.seconds, res.cost)
+		if k := outcome.Final(); k != "NECESITO" && k != "CONFIRMAR" {
 			break
 		}
-		answer := askUser("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
-		if answer == "" {
-			fmt.Println("  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)")
-			break
+		var reply string
+		if o.answer != "" {
+			if autoAnswered {
+				break // ya contestó sola una vez: no se queda en un ida y vuelta
+			}
+			reply, autoAnswered = o.answer, true
+			fmt.Fprintf(o.out, "\n  › respuesta automática: %s\n\n", reply)
+		} else {
+			reply = askUser("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
+			if reply == "" {
+				fmt.Fprintln(o.out, "  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)")
+				break
+			}
+			fmt.Fprintf(o.out, "  › respuesta: %s\n\n", reply)
 		}
-		fmt.Printf("  › respuesta: %s\n\n", answer)
-		prompt = answer
+		prompt = reply
 	}
-	fmt.Println("\nlos pasos: bin/navegador steps · como script de Playwright: bin/navegador script")
-	return nil
+	return outcome, nil
 }
 
 type claudeResult struct {
@@ -168,7 +225,7 @@ type claudeResult struct {
 }
 
 // runClaude corre una vuelta de claude -p y va mostrando lo que hace; corta si se pasa de acciones.
-func runClaude(claude, dir string, argv []string, self string, maxActions int) (claudeResult, error) {
+func runClaude(claude, dir string, argv []string, self string, maxActions int, out io.Writer) (claudeResult, error) {
 	cmd := exec.Command(claude, argv...)
 	cmd.Dir = dir
 	cmd.Env = childEnv()
@@ -182,7 +239,7 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 		return claudeResult{}, err
 	}
 	go func() { _, _ = io.Copy(os.Stderr, errPipe) }()
-	out, err := cmd.StdoutPipe()
+	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return claudeResult{}, err
 	}
@@ -191,7 +248,7 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 	}
 	var res claudeResult
 	actions := 0
-	sc := bufio.NewScanner(out)
+	sc := bufio.NewScanner(stdout)
 	sc.Buffer(make([]byte, 1<<20), 16<<20)
 	for sc.Scan() {
 		var ev struct {
@@ -228,15 +285,15 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 			for _, c := range ev.Message.Content {
 				switch {
 				case c.Type == "text" && strings.TrimSpace(c.Text) != "":
-					fmt.Printf("  · %s\n", oneLine(c.Text, 160))
+					fmt.Fprintf(out, "  · %s\n", oneLine(c.Text, 160))
 				case c.Type == "tool_use" && c.Name == "Bash":
 					command := strings.ReplaceAll(c.Input.Command, self, "navegador")
-					fmt.Printf("  → %s\n", oneLine(command, 160))
+					fmt.Fprintf(out, "  → %s\n", oneLine(command, 160))
 					if isAction(command) {
 						actions++
 					}
 				case c.Type == "tool_use" && c.Name == "Read":
-					fmt.Printf("  👁 mira %s\n", filepath.Base(c.Input.FilePath))
+					fmt.Fprintf(out, "  👁 mira %s\n", filepath.Base(c.Input.FilePath))
 				}
 			}
 			if actions > maxActions {
@@ -250,7 +307,7 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 			// expansión de la shell, por ejemplo), que si no pasa sin que se vea.
 			for _, c := range ev.Message.Content {
 				if c.Type == "tool_result" && c.IsError {
-					fmt.Printf("    ✗ %s\n", oneLine(strings.ReplaceAll(toolText(c.Result), self, "navegador"), 160))
+					fmt.Fprintf(out, "    ✗ %s\n", oneLine(strings.ReplaceAll(toolText(c.Result), self, "navegador"), 160))
 				}
 			}
 		case "result":

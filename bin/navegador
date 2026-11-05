@@ -14,4 +14,4 @@ if [ ! -x "$bin" ] || [ -n "$stale" ]; then
   fi
   mv -f "$tmp" "$bin"
 fi
-exec "$bin" "$@"
+NAVEGADOR_ROOT="$root" exec "$bin" "$@"
