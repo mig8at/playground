@@ -193,9 +193,9 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
         <thead><tr><th>Clave</th><th>Valor</th><th class="act" aria-label="Quitar"></th></tr></thead>
         <tbody>
           <tr v-for="h in declaredHeaders" :key="h.name" class="declared">
-            <td class="key">
-              <code>{{ h.name }}</code><span v-if="h.required" class="req" title="Obligatorio">*</span>
-              <span v-if="h.description" class="hint">{{ h.description }}</span>
+            <td class="key" :title="h.description || null">
+              <code :class="{ described: h.description }">{{ h.name }}</code><span v-if="h.required" class="req" title="Obligatorio">*</span>
+              <span v-if="h.description" class="visually-hidden">{{ h.description }}</span>
             </td>
             <td class="cell"><input v-model="declaredValues[h.name.toLowerCase()]" class="cell-input" :placeholder="h.example" spellcheck="false" :aria-label="`Valor de ${h.name}`" /></td>
             <td class="act"></td>
@@ -270,11 +270,13 @@ code, pre, .code { font-family: var(--font-mono) }
 .headers-table th { height: 28px; padding: 0 var(--space-3); background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
 .headers-table th:first-child, .headers-table td:first-child { width: 38% }
 .headers-table .act { width: 32px; padding: 0; text-align: center; border-left: 0 }
-/* La clave que dicta el esquema no se edita: va en gris, con su descripción debajo. */
-.headers-table .key { padding: var(--space-2) var(--space-3); background: var(--muted) }
+/* La clave que dicta el esquema no se edita: va en gris, y su descripción al pasar el mouse (el subrayado punteado lo avisa), así
+   todas las filas tienen el alto de su campo. */
+.headers-table .key { height: 36px; padding: 0 var(--space-3); background: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .headers-table .key code { font-family: var(--font-mono); color: var(--foreground) }
 .headers-table .req { margin-left: 2px; color: var(--send-fail) }
-.headers-table .hint { display: block; margin-top: 2px; color: var(--fg-2); font-size: var(--text-xs); line-height: 1.35 }
+.headers-table .key code.described { text-decoration: underline dotted var(--fg-3); text-underline-offset: 3px; cursor: help }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
 /* Las celdas que se escriben: el campo ocupa la celda entera y el foco la marca por dentro. */
 .headers-table .cell { padding: 0 }
 .headers-table .cell:focus-within { box-shadow: inset 0 0 0 1px var(--ring) }
