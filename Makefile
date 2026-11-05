@@ -331,13 +331,16 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 
 
+# navegador: Chromium por playwright-go; el perfil (la sesión) de cada sitio vive en navegador/.data.
+.PHONY: navegador
+navegador: ## @dia abre navegador (:5202 · API :5203): das de alta un sitio, te logueás A MANO en una ventana de Chromium (la sesión queda en navegador/.data/) y lo recorre solo con playwright-go: de cada página, estructura, formularios, enlaces, stack, llamadas a backends, errores y captura. Sólo sigue enlaces del mismo host; nunca envía formularios. Por consola: go run ./navegador/server -explore <sitio>
+	@cd navegador && npm run dev
+
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
 RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
 .PHONY: radar radar-uso radar-friccion radar-deriva radar-sesion
-navegador: ## @dia abre navegador (:5202 · API :5203): das de alta un sitio, te logueás A MANO en una ventana de Chromium (la sesión queda en navegador/.data/) y lo recorre solo con playwright-go: de cada página, estructura, formularios, enlaces, stack, llamadas a backends, errores y captura. Sólo sigue enlaces del mismo host; nunca envía formularios. Por consola: go run ./navegador/server -explore <sitio>
-	@cd navegador && npm run dev
 radar: ## @dia abre radar: el uso real de las herramientas, visual (:5188 · API :5189). Lo mismo que los radar-* de abajo
 	@cd radar && npm run dev
 radar-uso: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
