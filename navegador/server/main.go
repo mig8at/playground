@@ -26,82 +26,32 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
-	"time"
 )
 
 var cliMode bool
 
 func main() {
-	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
-	add := flag.String("add", "", "da de alta un sitio por su URL de entrada")
-	name := flag.String("name", "", "con -add: el nombre a mostrar")
-	browse := flag.String("browse", "", "abre la ventana visible en ese sitio (login manual y navegación)")
-	explore := flag.String("explore", "", "recorre ese sitio sin ventana, con la sesión guardada")
-	max := flag.Int("max", 300, "con -explore: cuántas páginas como mucho (tope 2000)")
-	depth := flag.Int("depth", 0, "con -explore: cuántos clics desde la entrada (0: sin límite)")
-	start := flag.String("start", "", "con -browse o -explore: arrancar en esta URL en vez de la entrada del sitio")
-	sites := flag.Bool("sites", false, "lista los sitios")
-	demo := flag.String("demo", "", "con -serve: sirve también Credidemo, el sitio de práctica (navegador/demo), en esta dirección")
-	real := flag.String("real", "", "con -serve: sirve también Tienda Andina (navegador/demo-real), una tienda ficticia que ask trata como sitio REAL")
-	admin := flag.String("admin", "", "con -serve: sirve también Panel Andino (navegador/demo-admin), el admin ficticio de Tienda Andina, para practicar configuraciones (sitio REAL para ask)")
+	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1); sirve también las apps locales de navegador/apps")
 	flag.Parse()
-
+	if *addr == "" {
+		flag.Usage()
+		os.Exit(2)
+	}
 	store, err := OpenStore(dataDir())
 	if err != nil {
 		fail(err)
 	}
 	runner := NewRunner(store)
 	defer runner.Close()
-
-	switch {
-	case *addr != "":
-		if *demo != "" {
-			go serveDir(*demo, "demo", "Credidemo")
-		}
-		if *real != "" {
-			go serveDir(*real, "demo-real", "Tienda Andina")
-		}
-		if *admin != "" {
-			go serveDir(*admin, "demo-admin", "Panel Andino")
-		}
-		if err := serve(*addr, store, runner); err != nil {
-			fail(err)
-		}
-	case *add != "":
-		site, err := store.AddSite(*add, *name)
-		if err != nil {
-			fail(err)
-		}
-		printJSON(site)
-	case *sites:
-		printJSON(store.Sites())
-	case *explore != "":
-		cliMode = true
-		if err := runner.ExploreSync(*explore, ExploreOptions{Max: *max, Depth: *depth, Start: *start}); err != nil {
-			fail(err)
-		}
-	case *browse != "":
-		cliMode = true
-		if err := runner.Browse(*browse, *start); err != nil {
-			fail(err)
-		}
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
-		for runner.State(0).Busy {
-			select {
-			case <-stop:
-				runner.Stop()
-			case <-time.After(300 * time.Millisecond):
-			}
-		}
-	default:
-		flag.Usage()
-		os.Exit(2)
+	for _, a := range listApps() {
+		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
+	}
+	if err := serve(*addr, store, runner); err != nil {
+		fail(err)
 	}
 }
 
-// serveDir sirve un sitio de prueba de navegador/<sub> en otro puerto, para que el navegador lo trate como un
-// sitio aparte: Credidemo (demo, de práctica) o Tienda Andina (demo-real, que ask trata como real).
+// serveDir sirve una app local (navegador/apps/<app>) en su puerto: el navegador la trata como un sitio aparte.
 func serveDir(addr, sub, name string) {
 	_, file, _, _ := runtime.Caller(0)
 	dir := filepath.Join(filepath.Dir(filepath.Dir(file)), sub)
@@ -154,104 +104,31 @@ func handler(store *Store, runner *Runner) http.Handler {
 	mux := http.NewServeMux()
 	ok := map[string]bool{"ok": true}
 
-	// GET /api/sites · POST /api/sites {url, name} · DELETE /api/sites?site=… (borra perfil, mapa y capturas)
-	mux.HandleFunc("/api/sites", func(w http.ResponseWriter, r *http.Request) {
-		switch r.Method {
-		case http.MethodGet:
-			writeJSON(w, http.StatusOK, store.Sites())
-		case http.MethodPost:
-			var in struct{ URL, Name string }
-			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-				writeErr(w, http.StatusBadRequest, err)
-				return
-			}
-			site, err := store.AddSite(in.URL, in.Name)
-			if err != nil {
-				writeErr(w, http.StatusBadRequest, err)
-				return
-			}
-			writeJSON(w, http.StatusOK, site)
-		case http.MethodDelete:
-			slug := r.URL.Query().Get("site")
-			if st := runner.State(0); st.Busy && st.Site == slug {
-				writeErr(w, http.StatusConflict, fmt.Errorf("el sitio está en uso: paralo primero"))
-				return
-			}
-			if err := store.RemoveSite(slug); err != nil {
-				writeErr(w, http.StatusBadRequest, err)
-				return
-			}
-			writeJSON(w, http.StatusOK, ok)
-		default:
-			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("GET, POST o DELETE"))
-		}
-	})
-	// GET /api/state?since=<seq> — si hay algo corriendo y los renglones nuevos de la consola.
+	// GET /api/state?since=N — el registro de lo que hace el corredor (y si está ocupado).
 	mux.HandleFunc("/api/state", func(w http.ResponseWriter, r *http.Request) {
 		since, _ := strconv.Atoi(r.URL.Query().Get("since"))
 		writeJSON(w, http.StatusOK, runner.State(since))
 	})
-	// POST /api/browse?site=…&start=… — la ventana visible.
-	mux.HandleFunc("/api/browse", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
-			return
-		}
-		if err := runner.Browse(r.URL.Query().Get("site"), r.URL.Query().Get("start")); err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, ok)
-	})
-	// POST /api/explore?site=… {max, depth, start} — el recorrido sin ventana.
-	mux.HandleFunc("/api/explore", func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodPost {
-			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
-			return
-		}
-		var opts ExploreOptions
-		_ = json.NewDecoder(r.Body).Decode(&opts)
-		if err := runner.Explore(r.URL.Query().Get("site"), opts); err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, ok)
-	})
-	mux.HandleFunc("/api/stop", func(w http.ResponseWriter, r *http.Request) {
-		runner.Stop()
-		writeJSON(w, http.StatusOK, ok)
-	})
-	// GET /api/pages?site=… · DELETE /api/pages?site=… (vacía el mapa, no la sesión)
-	mux.HandleFunc("/api/pages", func(w http.ResponseWriter, r *http.Request) {
-		slug := r.URL.Query().Get("site")
-		if _, err := store.Site(slug); err != nil {
-			writeErr(w, http.StatusNotFound, err)
-			return
-		}
-		if r.Method == http.MethodDelete {
-			if err := store.ClearPages(slug); err != nil {
-				writeErr(w, http.StatusInternalServerError, err)
-				return
-			}
-			writeJSON(w, http.StatusOK, ok)
-			return
-		}
-		pages, err := store.Pages(slug)
-		if err != nil {
-			writeErr(w, http.StatusInternalServerError, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"pages": pages, "run": store.LastRun(slug)})
+	// GET /api/events — el stream en tiempo real de la interfaz (events.go).
+	mux.HandleFunc("/api/events", func(w http.ResponseWriter, r *http.Request) { serveEvents(w, r, runner, store) })
+	// GET /api/apps — las apps locales para practicar (navegador/apps/*/app.json).
+	mux.HandleFunc("/api/apps", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, listApps())
 	})
 	// ── la sesión en vivo (live.go) ──
-	// POST /api/live/start?site=…&start=… · POST /api/live/stop
+	// POST /api/live/start?url=…&device=…&clean=1 · POST /api/live/stop
 	mux.HandleFunc("/api/live/start", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
 			return
 		}
 		q := r.URL.Query()
-		if err := runner.LiveStart(q.Get("site"), q.Get("start"), q.Get("device"), q.Get("clean") == "1"); err != nil {
+		site, err := store.SiteFor(q.Get("url"))
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := runner.LiveStart(site.Slug, q.Get("url"), q.Get("device"), q.Get("clean") == "1"); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -439,8 +316,7 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]string{"dir": dir, "html": filepath.Join(dir, "reporte.html"), "md": filepath.Join(dir, "reporte.md"),
-			"url": "http://localhost:5202/api/corridas/" + filepath.Base(dir) + "/reporte.html"})
+		writeJSON(w, http.StatusOK, map[string]string{"dir": dir, "id": filepath.Base(dir), "url": "http://localhost:5202/#/corrida/" + filepath.Base(dir)})
 	})
 	// POST /api/live/download {control, text, url} — baja el recurso de un elemento o de una URL.
 	mux.HandleFunc("/api/live/download", func(w http.ResponseWriter, r *http.Request) {
@@ -516,9 +392,9 @@ func handler(store *Store, runner *Runner) http.Handler {
 	// POST /api/live/replay/start {run} — repite una corrida sin Claude, paso a paso, con la persona eligiendo.
 	// POST /api/live/replay/answer {choice: do|self|done|skip|stop|auto|manual}
 	mux.HandleFunc("/api/live/replay/start", func(w http.ResponseWriter, r *http.Request) {
-		var in struct{ Run string }
+		var in struct{ Run, Mode string }
 		_ = json.NewDecoder(r.Body).Decode(&in)
-		if err := runner.LiveReplayStart(in.Run); err != nil {
+		if err := runner.LiveReplayStart(in.Run, in.Mode); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -551,6 +427,73 @@ func handler(store *Store, runner *Runner) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
+	})
+	// GET /api/flows — los flujos (navegador/flujos). POST /api/flows {run, name} — guarda una corrida como flujo.
+	// GET|DELETE /api/flows/<app>/<id> · POST /api/flows/<app>/<id>/replay {mode: auto|teach}
+	mux.HandleFunc("/api/flows", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			var in struct{ Run, Name string }
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			fl, err := store.SaveFlow(in.Run, in.Name)
+			if err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]string{"app": fl.App, "id": fl.ID, "path": filepath.Join("navegador", "flujos", fl.App, fl.ID+".json")})
+			return
+		}
+		writeJSON(w, http.StatusOK, listFlows())
+	})
+	mux.HandleFunc("/api/flows/", func(w http.ResponseWriter, r *http.Request) {
+		parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/api/flows/"), "/")
+		if len(parts) < 2 {
+			http.NotFound(w, r)
+			return
+		}
+		app, id := parts[0], parts[1]
+		switch {
+		case len(parts) == 3 && parts[2] == "replay" && r.Method == http.MethodPost:
+			var in struct {
+				Mode   string         `json:"mode"`
+				Values map[int]string `json:"valores"` // los datos que la persona cambió, por número de paso
+			}
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			if err := runner.LiveReplayFlow(app, id, in.Mode, in.Values); err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, runner.LiveState(false))
+		case r.Method == http.MethodPut:
+			var in struct {
+				Name  string `json:"nombre"`
+				Steps []struct {
+					Value *string `json:"valor"`
+					Pause *bool   `json:"pausa"`
+				} `json:"pasos"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+				writeErr(w, http.StatusBadRequest, err)
+				return
+			}
+			if _, err := updateFlow(app, id, in.Name, in.Steps); err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, ok)
+		case r.Method == http.MethodDelete:
+			if err := deleteFlow(app, id); err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, ok)
+		default:
+			fl, err := getFlow(app, id)
+			if err != nil {
+				writeErr(w, http.StatusNotFound, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "flujo": fl})
+		}
 	})
 	// GET /api/runs — las corridas con reporte (meta, palabra final, costo), las más nuevas primero.
 	// GET /api/runs/<id> — una corrida completa: pasos con sus fotos, fuentes y script.
@@ -603,40 +546,9 @@ func handler(store *Store, runner *Runner) http.Handler {
 		asker.Stop()
 		writeJSON(w, http.StatusOK, ok)
 	})
-	// GET /api/evals — los casos de la suite (evals/casos.json) y su historial (evals/historial.jsonl), tal cual.
-	mux.HandleFunc("/api/evals", func(w http.ResponseWriter, r *http.Request) {
-		_, file, _, _ := runtime.Caller(0)
-		dir := filepath.Join(filepath.Dir(filepath.Dir(file)), "evals")
-		var suite struct {
-			Cases []map[string]any `json:"casos"`
-		}
-		if b, err := os.ReadFile(filepath.Join(dir, "casos.json")); err == nil {
-			_ = json.Unmarshal(b, &suite)
-		}
-		cases := suite.Cases
-		history := []json.RawMessage{}
-		if b, err := os.ReadFile(filepath.Join(dir, "historial.jsonl")); err == nil {
-			for _, line := range strings.Split(string(b), "\n") {
-				if json.Valid([]byte(line)) && strings.TrimSpace(line) != "" {
-					history = append(history, json.RawMessage(line))
-				}
-			}
-		}
-		writeJSON(w, http.StatusOK, map[string]any{"casos": cases, "historial": history})
-	})
-	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (reporte.html, sus fotos, el script).
+	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (sus fotos y el script).
 	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))
 	mux.Handle("/api/corridas/", corridas)
-	// GET /api/shot?site=…&id=… — la captura de una página.
-	mux.HandleFunc("/api/shot", func(w http.ResponseWriter, r *http.Request) {
-		slug, id := r.URL.Query().Get("site"), r.URL.Query().Get("id")
-		if _, err := store.Site(slug); err != nil || len(id) != 12 {
-			http.NotFound(w, r)
-			return
-		}
-		w.Header().Set("Cache-Control", "no-cache")
-		http.ServeFile(w, r, store.ShotPath(slug, id))
-	})
 	return mux
 }
 
@@ -648,6 +560,7 @@ var asker = &Asker{}
 
 func serve(addr string, store *Store, runner *Runner) error {
 	apiAddr = addr
+	go watchLive(runner)
 	host, _, err := net.SplitHostPort(addr)
 	if err != nil {
 		return err

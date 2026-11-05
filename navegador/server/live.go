@@ -83,6 +83,7 @@ type Step struct {
 	// Para el video: dónde fue la interacción (px de la ventana View) y por qué (lo que Claude pensó antes).
 	Point *Box   `json:"punto,omitempty"`
 	Why   string `json:"porque,omitempty"`
+	Pause bool   `json:"pausa,omitempty"` // al repetir un flujo, este paso lo hace la persona
 }
 
 // elementBox es dónde está un elemento en la ventana y el tamaño de la ventana (nil si no se ve).
@@ -472,24 +473,11 @@ func (r *Runner) liveAnalyze(l *live) (*Page, error) {
 	defer l.analyzeMu.Unlock()
 	l.mu.Lock()
 	l.analyzing = true
-	prev := l.current
 	l.mu.Unlock()
 	defer func() { l.mu.Lock(); l.analyzing = false; l.mu.Unlock() }()
 
 	settle(l.page)
-	parent, depth := "", 0
-	if prev != nil && NormalizeURL(l.page.URL()) != prev.URL {
-		parent, depth = prev.ID, prev.Depth+1
-	} else if prev != nil {
-		parent, depth = prev.Parent, prev.Depth
-	}
-	if old := r.store.Page(l.site.Slug, PageID(NormalizeURL(l.page.URL()))); old != nil {
-		parent, depth = old.Parent, old.Depth
-	}
-	pg, err := r.analyze(l.site, l.page, l.tap, "", 0, depth, "live", parent)
-	if err != nil {
-		return nil, err
-	}
+	pg := r.analyze(l.page, l.tap)
 	sig := controlsSignature(pg)
 	l.mu.Lock()
 	l.current = pg

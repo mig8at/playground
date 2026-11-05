@@ -1,6 +1,6 @@
 ---
 name: navegador
-description: Manejar un navegador real con bin/navegador para cumplir una meta en una página (llenar un formulario, llegar a una pantalla, verificar un texto, reproducir un bug) y dejar el recorrido como script de Playwright. Usala cuando Miguel pida «usá el navegador para…», «entrá a esta página y…», «armá la prueba de Playwright de…», o cuando haya que probar Credidemo (:5204) o el laboratorio. No es para el wizard de CreditOp con datos de dominio: eso es el harness.
+description: Manejar un navegador real con bin/navegador para hacer o aprender algo en una herramienta compleja (un panel admin, un backoffice) y dejarlo como flujo reproducible (navegador/flujos) y script de Playwright. Usala cuando Miguel pida «usá el navegador para…», «entrá a esta página y…», «enseñame cómo se hace X en…», «armá el flujo de…», o cuando haya que practicar en las apps locales (navegador/apps, Panel Andino :5206). No es para el wizard de CreditOp con datos de dominio: eso es el harness.
 ---
 
 # navegador · cumplir una meta en una página
@@ -16,24 +16,23 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 ## Cuándo usar qué
 - **Lo hace Claude en esta conversación:** seguí ask.md con `bin/navegador …` desde Bash. Al final,
   `bin/navegador script` da el recorrido como prueba de Playwright.
-- **Que te guíe en un panel admin:** `bin/navegador ask --guia [--url U] "<meta>"` (o «Guiame» en la interfaz):
-  Claude marca cada paso en la página en vivo y Miguel lo hace. Sin `--guia`, lo hace Claude y frena antes de
-  guardar con `cambios`; el CLI niega guardar en un sitio real sin el sí.
+- **Que te enseñe:** `bin/navegador ask --guia [--url U] "<meta>"` (o «Enseñame» en la interfaz): Claude marca
+  cada paso en la página en vivo y Miguel lo hace. Sin `--guia` es automático: lo hace Claude y sólo frena antes
+  de algo irreversible (eliminar, desactivar, pagar, enviar); el CLI niega ese clic sin el sí.
+- **Lo que termina en LISTO queda como flujo** en `navegador/flujos/<app>/` (o desde la interfaz, «Guardar como
+  flujo» sobre una corrida): se reproduce sin Claude, con sus datos precargados o abiertos.
 - **Que lo haga otro Claude, desde la terminal de Miguel:** `bin/navegador ask [--url U] "<meta>"` lanza
   Claude Code en modo `-p` desde una carpeta neutra, con permiso sólo para el navegador. Necesita que el Claude
   Code de consola tenga sesión propia (`claude setup-token`); si no, lo dice.
 
 ## Para practicar
-Panel Andino (http://127.0.0.1:5206, `navegador/demo-admin`) es un admin de tienda ficticio, tratado como sitio
-REAL: practicar configuraciones (medios de pago, envíos, una app en iframe) en los dos modos.
-Credidemo (http://127.0.0.1:5204, `navegador/demo`) es nuestro: una solicitud de crédito con reglas (formulario
-que habilita, términos que hay que bajar, oferta que tarda, OTP de prueba, login) y un laboratorio (`/lab/`:
-tienda con confirm(), tareas SPA, admin, reservas, widgets con iframe, Shadow DOM, hover, archivo, arrastrar).
-Ahí se pueden inventar datos de prueba; las credenciales de prueba están en `navegador/demo/credenciales.json`.
+Las apps de `navegador/apps/` (cada una con su `app.json`; `make navegador` las levanta). Panel Andino
+(http://127.0.0.1:5206/?restaurar) es un admin de tienda ficticio, tratado como sitio REAL: medios de pago (con
+una app en iframe donde está el ID de pruebas), envíos, impuestos y usuarios. `?restaurar` lo deja como nuevo.
 
 ## Lo que ya se sabe que pasa
 - Un `confirm()`/`alert()` se acepta por defecto y se informa (`dialog dismiss` para rechazar).
 - Un elemento [deshabilitado] o [detrás del modal] se niega al instante con la causa: resolvé eso primero.
 - Lo que no es un elemento (un texto con doble clic) se alcanza por su texto: `dblclick "…"`.
 - Contra prod, sólo mirar. Nunca contraseñas reales ni datos de clientes: el login lo hace Miguel a mano en la
-  ventana (`make navegador` › Abrir la ventana).
+  página en vivo de la interfaz (el perfil de Chromium lo guarda).

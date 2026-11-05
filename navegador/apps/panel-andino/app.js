@@ -174,6 +174,14 @@ function paginaProveedor(id, nuevo) {
   const c = existente?.config || {}
   const cuotas = c.cuotas || []
   if (nuevo) setTimeout(marcarSucio) // uno nuevo no existe hasta que se guarda
+  enlazar = () => {
+    const b = $('#eliminar-pago')
+    if (b) b.onclick = () => {
+      if (!confirm(`¿Eliminar ${nombre}? Se borra su configuración y deja de aparecer en el checkout.`)) return
+      estado.pagos = estado.pagos.filter((p) => p.id !== id)
+      persistir(); limpiar(); aviso(`${nombre} eliminado`); location.hash = '#/config/pagos'
+    }
+  }
   borrador = { aplicar() {
     const modo = $('#p-modo').value
     const comercio = $('#p-comercio').value.trim()
@@ -205,7 +213,8 @@ function paginaProveedor(id, nuevo) {
       ${id === 'creditoya' ? `<fieldset><legend>Plazos que se ofrecen</legend>${[3, 6, 12].map((n) => `<label class="check"><input type="checkbox" name="cuotas" value="${n}" ${cuotas.includes(n) ? 'checked' : ''}> ${n} cuotas</label>`).join('')}</fieldset>` : ''}
       <label for="p-etiqueta">Cómo se muestra en el checkout</label><input id="p-etiqueta" value="${esc(c.etiqueta || (id === 'creditoya' ? 'Paga a cuotas con Crédito Ya' : nombre))}">
     </div>
-    <p class="muted">Guardar no lo activa: después se activa desde Pagos.</p>`
+    <p class="muted">Guardar no lo activa: después se activa desde Pagos.</p>
+    ${existente ? '<div class="caja peligro-zona"><h2>Zona peligrosa</h2><p class="ayuda">Eliminarlo lo saca del checkout y borra su configuración. No se puede deshacer.</p><button type="button" class="peligro" id="eliminar-pago">Eliminar medio de pago</button></div>' : ''}`
 }
 
 function paginaEnvios(qs) {

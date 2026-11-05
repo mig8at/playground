@@ -35,6 +35,7 @@ fieldset { border: 1px solid #e3e5ec; border-radius: 8px; margin: 12px 0; paddin
 button, .boton { font: inherit; padding: 8px 14px; border: 0; border-radius: 6px; background: #5b3df5; color: #fff; cursor: pointer; text-decoration: none; display: inline-block }
 button.sec, .boton.sec { background: #e7e8ef; color: #1f2430 }
 button.peligro { background: #b42318 }
+.peligro-zona { border-color: #f3c4bf }
 .fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px }
 .proveedor { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
 .estado { margin-left: 8px; font-size: 12px; padding: 2px 8px; border-radius: 99px }

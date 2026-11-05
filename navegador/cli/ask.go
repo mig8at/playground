@@ -43,7 +43,7 @@ var askInstructions string
 func practiceList() []string {
 	raw := os.Getenv("NAVEGADOR_PRACTICE")
 	if raw == "" {
-		raw = "127.0.0.1:5204,localhost:5204,.test"
+		raw = ".test"
 	}
 	var out []string
 	for _, h := range strings.Split(raw, ",") {
@@ -74,7 +74,8 @@ func ask(args []string) error {
 	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
 	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
 	mobile := fs.Bool("movil", false, "en un teléfono (Pixel 7) en vez de escritorio")
-	guide := fs.Bool("guia", false, "modo guía: Claude no toca la página; marca qué hacer y la persona lo hace")
+	guide := fs.Bool("guia", false, "enseñame: Claude no toca la página; marca qué hacer y la persona lo hace")
+	noFlow := fs.Bool("sin-flujo", false, "no guardar la corrida como flujo aunque termine en LISTO")
 	devFlag := fs.String("dispositivo", "", "movil o escritorio (lo usa la interfaz)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `uso: bin/navegador ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
@@ -109,7 +110,16 @@ func ask(args []string) error {
 		return err
 	}
 	if path, err := writeReportInfo(outcome.reportInfo(goal, "ask")); err == nil {
-		say(os.Stdout, "report", path, fmt.Sprintf("\npaso a paso, con una foto por paso: %s\n", path))
+		say(os.Stdout, "report", path, fmt.Sprintf("\nla corrida, como video: %s\n", path))
+		// Lo que salió bien queda como flujo (navegador/flujos): se repite sin Claude o se enseña.
+		if outcome.Final() == "LISTO" && !*noFlow && lastRunID != "" {
+			var fl struct{ App, ID, Path string }
+			if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err == nil {
+				say(os.Stdout, "flow", fl.App+"/"+fl.ID, fmt.Sprintf("flujo guardado: %s\n", fl.Path))
+			} else {
+				say(os.Stdout, "note", "no se guardó como flujo: "+err.Error(), fmt.Sprintf("(no se guardó como flujo: %v)\n", err))
+			}
+		}
 	} else {
 		say(os.Stdout, "note", "no quedó corrida guardada: "+err.Error(), fmt.Sprintf("\n(no quedó corrida guardada: %v)\n", err))
 	}
@@ -219,9 +229,9 @@ func runAsk(o askOpts) (askOutcome, error) {
 		kind = "es un sitio de práctica"
 	}
 	// HOY: sin la fecha, no se puede decir si un plazo ya pasó o si una página habla de otro año.
-	mode := "hacerlo: actuás vos, y antes de guardar algo en un sitio real pedís CONFIRMAR"
+	mode := "automático: actuás vos; guardar y activar van solos, y sólo frenás con CONFIRMAR antes de algo irreversible (borrar, desactivar, pagar, enviar)"
 	if o.guide {
-		mode = "guía: NO tocás la página; marcás cada paso con point y la persona lo hace"
+		mode = "enseñame: NO tocás la página; marcás cada paso con point y la persona lo hace"
 	}
 	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: %s.\nMODO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, deviceName[normDev(st.Device)], mode, time.Now().Format("2006-01-02"))
 	base := []string{

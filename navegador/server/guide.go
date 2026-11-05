@@ -288,6 +288,10 @@ func (r *Runner) LiveChanges() ([]Change, error) {
 	return kept, nil
 }
 
+// destructiveLike reconoce lo IRREVERSIBLE: lo único que, en modo automático, frena y pide el sí de la persona.
+// Guardar, activar o conectar van solos. (El CLI usa el mismo criterio para frenar a Claude.)
+var destructiveLike = regexp.MustCompile(`(?i)^\s*(eliminar|borrar|delete|remove|quitar|desactivar|deactivate|disable|desconectar|disconnect|pagar|pay|comprar|buy|enviar|send|publicar|publish|vaciar|empty|revocar|revoke|dar de baja|cancelar (la |mi )?(cuenta|suscripci))`)
+
 // savesLike reconoce un botón que guarda, activa o confirma algo (el mismo criterio que el CLI usa para frenar).
 var savesLike = regexp.MustCompile(`(?i)^\s*(guardar|save|publicar|publish|activar|activate|desactivar|deactivate|confirmar|confirm|aplicar|apply|enviar|send|conectar|connect|desconectar|eliminar|borrar|delete|remove|pagar|pay|comprar|buy)`)
 

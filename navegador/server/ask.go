@@ -121,7 +121,9 @@ func (a *Asker) Start(api, goal, url, device string, guide bool, steps int) erro
 			a.exit = err.Error()
 		}
 		a.running, a.waiting = false, false
+		go func() { hub.Publish("askstate", a.State(-1)) }() // en otra goroutine: acá el lock está tomado
 	}()
+	go func() { hub.Publish("askstate", a.State(-1)) }()
 	return nil
 }
 
@@ -151,13 +153,20 @@ func (a *Asker) read(r io.Reader, plain string) {
 			a.waiting = false
 		}
 		a.mu.Unlock()
+		hub.Publish("ask", ev)
+		if ev.Kind == "ask" || ev.Kind == "answer" || ev.Kind == "note" {
+			hub.Publish("askstate", a.State(-1))
+		}
 	}
 }
 
 func (a *Asker) State(since int) AskState {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if since < 0 || since > len(a.events) {
+	if since < 0 { // sólo el estado, sin eventos (para el stream)
+		since = len(a.events)
+	}
+	if since > len(a.events) {
 		since = 0
 	}
 	return AskState{Running: a.running, Waiting: a.waiting, Goal: a.goal, Started: a.started, Exit: a.exit,
@@ -176,6 +185,7 @@ func (a *Asker) Answer(text string) error {
 		return err
 	}
 	a.waiting = false
+	go func() { hub.Publish("askstate", a.State(-1)) }() // en otra goroutine: acá el lock está tomado
 	return nil
 }
 

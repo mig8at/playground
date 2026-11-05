@@ -1,10 +1,13 @@
 package main
 
-/* Repetir una guía SIN Claude: cada paso grabado trae su localizador, su acción y su valor, así que se puede volver
- * a recorrer en la sesión en vivo. En cada paso la persona elige: que lo haga la herramienta, hacerlo ella o
- * saltarlo; lo que guarda o activa pide un sí explícito, y una llave la escribe siempre ella. Si un elemento ya no
- * está (el panel cambió), el paso queda para la persona. La repetición es una corrida nueva: su reporte es la guía
- * verificada con la fecha de hoy. */
+/* Repetir una corrida o un flujo SIN Claude: cada paso trae su localizador, su acción y su valor, así que se puede
+ * volver a recorrer en la sesión en vivo. Dos modos:
+ *
+ *	auto    la herramienta hace todo y frena sólo en lo destructivo (borrar, desactivar, pagar, enviar: un sí
+ *	        explícito), en una llave (la escribe la persona) o si un elemento ya no está (el panel cambió)
+ *	teach   «enseñame»: cada paso lo hace la persona, con la instrucción y el elemento marcados
+ *
+ * La repetición es una corrida nueva; la de un flujo completo lo da por verificado con la fecha de hoy. */
 
 import (
 	"errors"
@@ -63,9 +66,10 @@ type Replay struct {
 	Index   int      `json:"index"` // el paso que se está repitiendo (de 0)
 	Total   int      `json:"total"`
 	Status  string   `json:"status"` // waiting (elige la persona) · doing · person (la persona lo está haciendo) · done · stopped
-	Auto    bool     `json:"auto"`   // seguir solo hasta el próximo paso que guarda, pide una llave o no se encuentra
+	Mode    string   `json:"mode"`   // auto (la herramienta hace todo salvo lo destructivo) · teach (cada paso lo hace la persona)
+	Auto    bool     `json:"auto"`   // seguir solo hasta el próximo paso destructivo, que pide una llave o no se encuentra
 	Choices []string `json:"choices,omitempty"`
-	Saves   bool     `json:"saves,omitempty"`   // el paso guarda o activa algo: «hacelo» es un sí explícito
+	Danger  bool     `json:"danger,omitempty"`  // el paso es destructivo (borra, desactiva, paga, envía): «hacelo» es un sí explícito
 	Missing bool     `json:"missing,omitempty"` // el elemento ya no está en la página
 	Secret  bool     `json:"secret,omitempty"`
 	Note    string   `json:"note,omitempty"` // cómo salió el paso anterior
@@ -73,6 +77,7 @@ type Replay struct {
 	ByHand  int      `json:"byHand"`         // los hizo la persona
 	Skipped int      `json:"skipped"`
 	Report  string   `json:"report,omitempty"` // la corrida nueva, al terminar
+	Flow    string   `json:"flow,omitempty"`   // app/id, si se repite un flujo
 	answers chan string
 }
 
@@ -95,6 +100,18 @@ func stepInstruction(s Step) string {
 	}
 	t := "«" + s.Target + "»"
 	switch s.Action {
+	case "goto":
+		return "Abrí " + s.Value
+	case "back":
+		return "Volvé atrás"
+	case "reload":
+		return "Recargá la página"
+	case "scroll-page":
+		return "Bajá la página"
+	case "expect":
+		return "Comprobá que se vea «" + s.Value + "»"
+	case "dialog":
+		return map[bool]string{true: "Rechazá", false: "Aceptá"}[s.Value == "dismiss"] + " el aviso que aparece: " + s.Target
 	case "fill":
 		if s.Secret || s.Value == "" {
 			return "Escribí " + t + " (lo escribís vos)"
@@ -116,9 +133,8 @@ func stepInstruction(s Step) string {
 	return "Hacé clic en " + t
 }
 
-// LiveReplayStart repite una corrida: abre (o reusa) la sesión en vivo en su sitio y dispositivo, y recorre sus
-// pasos esperando a la persona en cada uno.
-func (r *Runner) LiveReplayStart(runID string) error {
+// LiveReplayStart repite una corrida guardada.
+func (r *Runner) LiveReplayStart(runID, mode string) error {
 	data, err := r.store.Run(runID)
 	if err != nil {
 		return err
@@ -134,6 +150,27 @@ func (r *Runner) LiveReplayStart(runID string) error {
 	if len(steps) == 0 {
 		return errors.New("esta corrida no tiene pasos para repetir (es de antes de que se guardaran los localizadores, o no hizo nada)")
 	}
+	return r.startReplay(replaySource{goal: meta.Goal, start: meta.Start, device: meta.Device, run: runID}, steps, mode)
+}
+
+// LiveReplayFlow repite un flujo guardado (navegador/flujos).
+func (r *Runner) LiveReplayFlow(app, id, mode string, values map[int]string) error {
+	fl, err := getFlow(app, id)
+	if err != nil {
+		return err
+	}
+	return r.startReplay(replaySource{goal: fl.Name, start: fl.Start, device: fl.Device, flowApp: app, flowID: id}, flowSteps(fl, values), mode)
+}
+
+type replaySource struct {
+	goal, start, device string
+	run                 string // la corrida de origen
+	flowApp, flowID     string // o el flujo
+}
+
+// startReplay abre (o reusa) la sesión en vivo en el sitio y el dispositivo de la guía, y la recorre.
+func (r *Runner) startReplay(src replaySource, steps []Step, mode string) error {
+	meta := struct{ Goal, Start, Device string }{src.goal, src.start, src.device}
 	if l := r.liveSession(); l != nil && l.replay != nil && l.replay.Status != "done" && l.replay.Status != "stopped" {
 		return errors.New("ya hay una repetición en curso")
 	}
@@ -142,19 +179,11 @@ func (r *Runner) LiveReplayStart(runID string) error {
 	if err != nil || u.Host == "" {
 		return fmt.Errorf("la corrida no dice dónde empezó (%q)", meta.Start)
 	}
-	slug := ""
-	for _, s := range r.store.Sites() {
-		if s.Host == u.Host {
-			slug = s.Slug
-		}
+	site, err := r.store.SiteFor(meta.Start)
+	if err != nil {
+		return err
 	}
-	if slug == "" {
-		site, err := r.store.AddSite(meta.Start, "")
-		if err != nil {
-			return err
-		}
-		slug = site.Slug
-	}
+	slug := site.Slug
 	l := r.liveSession()
 	if l == nil || l.site.Slug != slug || l.device != normDevice(meta.Device) {
 		if l != nil {
@@ -173,7 +202,13 @@ func (r *Runner) LiveReplayStart(runID string) error {
 		return err
 	}
 	r.LiveClearSteps() // la repetición es una corrida nueva (con la ida a la entrada como primer paso, si no la tiene)
-	rp := &Replay{Run: runID, Goal: meta.Goal, Total: len(steps), Status: "doing", answers: make(chan string, 1)}
+	if mode != "teach" {
+		mode = "auto"
+	}
+	rp := &Replay{Run: src.run, Goal: meta.Goal, Total: len(steps), Status: "doing", Mode: mode, Auto: mode == "auto", answers: make(chan string, 1)}
+	if src.flowID != "" {
+		rp.Flow = src.flowApp + "/" + src.flowID
+	}
 	l.mu.Lock()
 	l.replay = rp
 	l.mu.Unlock()
@@ -222,7 +257,7 @@ func (r *Runner) runReplay(l *live, rp *Replay, steps []Step) {
 			break
 		}
 		set(func() {
-			rp.Index, rp.Status, rp.Choices, rp.Saves, rp.Missing, rp.Secret = i, "doing", nil, false, false, false
+			rp.Index, rp.Status, rp.Choices, rp.Danger, rp.Missing, rp.Secret = i, "doing", nil, false, false, false
 		})
 		switch st.Action {
 		case "goto", "back", "forward", "reload", "scroll-page":
@@ -265,8 +300,25 @@ func (r *Runner) runReplay(l *live, rp *Replay, steps []Step) {
 	if stopped {
 		keyword, status = "NO PUDE", "stopped"
 	}
-	result := fmt.Sprintf("%s: se repitió la guía «%s»: %d pasos los hizo la herramienta, %d la persona y %d se saltaron.", keyword, rp.Goal, rp.Did, rp.ByHand, rp.Skipped)
-	dir, _ := r.LiveReport(ReportInfo{Goal: "Repetición · " + rp.Goal, Result: result, Keyword: keyword, Source: "repetición de " + rp.Run})
+	result := fmt.Sprintf("%s: se repitió «%s»: %d pasos los hizo la herramienta, %d la persona y %d se saltaron.", keyword, rp.Goal, rp.Did, rp.ByHand, rp.Skipped)
+	origin := "repetición de " + rp.Run
+	if rp.Flow != "" {
+		origin = "flujo " + rp.Flow
+	}
+	dir, _ := r.LiveReport(ReportInfo{Goal: "Repetición · " + rp.Goal, Result: result, Keyword: keyword, Source: origin})
+	// Un flujo que se repitió entero (sin saltear nada) queda verificado con la fecha de hoy.
+	if rp.Flow != "" && !stopped && rp.Skipped == 0 {
+		app, id, _ := strings.Cut(rp.Flow, "/")
+		flowsMu.Lock()
+		if fl, err := getFlow(app, id); err == nil {
+			fl.Verified = time.Now()
+			if dir != "" {
+				fl.LastRun = filepath.Base(dir)
+			}
+			_ = writeFlow(fl)
+		}
+		flowsMu.Unlock()
+	}
 	set(func() {
 		rp.Status, rp.Choices = status, nil
 		if dir != "" {
@@ -299,9 +351,9 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 			missing = true
 		}
 	}
-	saves := (st.Action == "click" || st.Action == "dblclick") && savesLike.MatchString(st.Target)
+	danger := (st.Action == "click" || st.Action == "dblclick") && destructiveLike.MatchString(st.Target)
 	choices := []string{"do", "self", "skip", "stop"}
-	if missing || st.Secret {
+	if missing || st.Secret || st.Pause || rp.Mode == "teach" {
 		choices = []string{"self", "skip", "stop"}
 	}
 	var shown Step
@@ -316,8 +368,8 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 	l.guideSeq++
 	l.guide = &GuideReq{ID: l.guideSeq, Instruction: note, Target: st.Target, Box: shown.Box, View: shown.View, Replay: true}
 	startInputs, started := l.inputs, time.Now()
-	auto := rp.Auto && !missing && !st.Secret && !saves
-	rp.Status, rp.Choices, rp.Saves, rp.Missing, rp.Secret = "waiting", choices, saves, missing, st.Secret
+	auto := rp.Auto && rp.Mode != "teach" && !missing && !st.Secret && !danger
+	rp.Status, rp.Choices, rp.Danger, rp.Missing, rp.Secret = "waiting", choices, danger, missing, st.Secret
 	l.mu.Unlock()
 	l.markDirty()
 	defer func() {
@@ -329,7 +381,9 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 	}()
 
 	choice := "do"
-	if !auto {
+	if rp.Mode == "teach" || st.Pause {
+		choice = "self" // enseñame, o un paso donde el flujo para: lo hace la persona, con la instrucción a la vista
+	} else if !auto {
 		choice = <-rp.answers
 	}
 	switch choice {

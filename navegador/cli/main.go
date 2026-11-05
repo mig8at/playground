@@ -2,8 +2,7 @@
 // `make navegador`): abrir un sitio, mirar qué hay para tocar, actuar sobre un elemento por su número y
 // verificar el resultado. Habla con la API (:5203), así que la interfaz tiene que estar levantada.
 //
-//	bin/navegador sites                          los sitios dados de alta
-//	bin/navegador open <sitio|url> [url]         abre la sesión en vivo (una URL nueva se da de alta sola)
+//	bin/navegador open [--movil] <url>           abre la sesión en vivo en esa URL
 //	bin/navegador look [--todo]                  la página actual: sus elementos numerados, con su localizador
 //	                                             (los enlaces del menú y el pie se resumen; --todo los muestra)
 //	bin/navegador click <n> | dblclick <n> | hover <n> | fill <n> <valor> | check <n> | uncheck <n>
@@ -73,8 +72,6 @@ func main() {
 	cmd, args := os.Args[1], os.Args[2:]
 	var err error
 	switch cmd {
-	case "sites":
-		err = sites()
 	case "ask":
 		err = ask(args)
 	case "evals":
@@ -164,7 +161,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
-  sites · open [--movil] <sitio|url> [url] · device [movil|escritorio] · look [--todo | --buscar texto] · close
+  open [--movil] <url> · device [movil|escritorio] · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
@@ -207,12 +204,6 @@ func call(method, path string, body, out any) error {
 		return json.Unmarshal(raw, out)
 	}
 	return nil
-}
-
-type site struct {
-	Slug, Name, URL, Host string
-	Pages                 int
-	Queued                int
 }
 
 type control struct {
@@ -301,17 +292,6 @@ func lastVersion() int {
 
 // ── los comandos ──
 
-func sites() error {
-	var list []site
-	if err := call(http.MethodGet, "/api/sites", nil, &list); err != nil {
-		return err
-	}
-	for _, s := range list {
-		fmt.Printf("%-32s %4d páginas  %s\n", s.Slug, s.Pages, s.URL)
-	}
-	return nil
-}
-
 func open(args []string) error {
 	dev := ""
 	var rest []string
@@ -373,53 +353,23 @@ func device(args []string) error {
 // abre SIEMPRE una sesión nueva con un perfil limpio (la que hubiera se cierra): sin el login ni lo guardado
 // de corridas anteriores.
 func startLive(args []string, clean bool, dev string) error {
-	slug, start := args[0], ""
-	if len(args) > 1 {
-		start = args[1]
+	raw := args[0]
+	if !strings.Contains(raw, "://") {
+		raw = "https://" + raw
 	}
-	// Una URL en vez de un sitio: se busca el sitio de ese host y, si no hay, se da de alta.
-	if strings.Contains(slug, "://") || strings.Contains(slug, ".") {
-		raw := slug
-		if !strings.Contains(raw, "://") {
-			raw = "https://" + raw
-		}
-		u, err := url.Parse(raw)
-		if err != nil {
-			return err
-		}
-		var list []site
-		if err := call(http.MethodGet, "/api/sites", nil, &list); err != nil {
-			return err
-		}
-		slug = ""
-		for _, s := range list {
-			if s.Host == u.Host {
-				slug = s.Slug
-			}
-		}
-		if slug == "" {
-			var s site
-			if err := call(http.MethodPost, "/api/sites", map[string]string{"url": raw}, &s); err != nil {
-				return err
-			}
-			slug = s.Slug
-			fmt.Printf("sitio nuevo: %s\n", slug)
-		}
-		if start == "" {
-			start = raw
-		}
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("no es una URL: %q", args[0])
 	}
+	start := raw
 	// Si ya hay una sesión en vivo: del mismo sitio, se reusa y se navega; de otro, se cierra primero.
 	var st liveState
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
-		if st.Site == slug && !clean {
+		if su, _ := url.Parse(st.URL); su != nil && su.Host == u.Host && !clean {
 			if dev != "" && dev != st.Device {
 				if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": dev}, nil); err != nil {
 					return err
 				}
-			}
-			if start == "" {
-				return nil
 			}
 			return call(http.MethodPost, "/api/live/nav", map[string]string{"action": "goto", "url": start}, nil)
 		}
@@ -435,10 +385,7 @@ func startLive(args []string, clean bool, dev string) error {
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	q := "site=" + url.QueryEscape(slug)
-	if start != "" {
-		q += "&start=" + url.QueryEscape(start)
-	}
+	q := "url=" + url.QueryEscape(start)
 	if clean {
 		q += "&clean=1"
 	}
@@ -904,12 +851,16 @@ func writeReport(goal, result string) (string, error) {
 
 // writeReportInfo escribe el reporte con todo lo que se sepa de la corrida (palabra final, costo, modelo…).
 func writeReportInfo(info map[string]any) (string, error) {
-	var out struct{ Dir, HTML, MD, URL string }
+	var out struct{ Dir, ID, URL string }
 	if err := call(http.MethodPost, "/api/live/report", info, &out); err != nil {
 		return "", err
 	}
-	return out.URL + "\n  (en disco: " + out.Dir + ")", nil
+	lastRunID = out.ID
+	return out.URL, nil
 }
+
+// lastRunID es la corrida que dejó el último reporte (ask la guarda como flujo).
+var lastRunID string
 
 func script() error {
 	var s string
@@ -941,13 +892,14 @@ func guideRefuses(action string) error {
 // approvalFile lo escribe ask cuando la persona contesta que sí a un CONFIRMAR, y lo borra al terminar esa vuelta.
 func approvalFile() string { return filepath.Join(must(os.UserCacheDir()), "navegador", "aprobado") }
 
-var savesLike = regexp.MustCompile(`(?i)^\s*(guardar|save|publicar|publish|activar|activate|desactivar|deactivate|confirmar|confirm|aplicar|apply|enviar|send|conectar|connect|desconectar|eliminar|borrar|delete|remove|pagar|pay|comprar|buy)`)
+// destructiveLike: lo IRREVERSIBLE (el mismo criterio que la repetición del servidor, guide.go). Guardar, activar
+// o conectar van solos.
+var destructiveLike = regexp.MustCompile(`(?i)^\s*(eliminar|borrar|delete|remove|quitar|desactivar|deactivate|disable|desconectar|disconnect|pagar|pay|comprar|buy|enviar|send|publicar|publish|vaciar|empty|revocar|revoke|dar de baja|cancelar (la |mi )?(cuenta|suscripci))`)
 
-// saveGuard frena, cuando la maneja Claude (ask), un clic que guarda, activa, envía o borra algo en un sitio
-// REAL sin un sí de la persona en esta vuelta. Lo decide el CLI, no el modelo: un panel de un comercio es
-// producción, y «ya lo había confirmado antes» no alcanza.
+// saveGuard frena, cuando la maneja Claude (ask), un clic DESTRUCTIVO (borrar, desactivar, pagar, enviar) en un
+// sitio real sin un sí de la persona en esta vuelta. Lo decide el CLI, no el modelo.
 func saveGuard(action, name string) error {
-	if os.Getenv("NAVEGADOR_ASK") != "1" || (action != "click" && action != "dblclick") || !savesLike.MatchString(name) {
+	if os.Getenv("NAVEGADOR_ASK") != "1" || (action != "click" && action != "dblclick") || !destructiveLike.MatchString(name) {
 		return nil
 	}
 	var st liveState
@@ -957,7 +909,7 @@ func saveGuard(action, name string) error {
 	if _, err := os.Stat(approvalFile()); err == nil {
 		return nil
 	}
-	return fmt.Errorf("«%s» cambia algo en un sitio real y la persona todavía no dijo que sí: terminá con CONFIRMAR, con lo que va a cambiar (`cambios`)", name)
+	return fmt.Errorf("«%s» es irreversible en un sitio real y la persona todavía no dijo que sí: terminá con CONFIRMAR, diciendo qué se va a borrar, desactivar, pagar o enviar", name)
 }
 
 func point(args []string) error {
