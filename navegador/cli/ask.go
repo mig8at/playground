@@ -159,10 +159,12 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 			Duration  float64 `json:"duration_ms"`
 			Message   struct {
 				Content []struct {
-					Type  string `json:"type"`
-					Text  string `json:"text"`
-					Name  string `json:"name"`
-					Input struct {
+					Type    string          `json:"type"`
+					Text    string          `json:"text"`
+					Name    string          `json:"name"`
+					IsError bool            `json:"is_error"`
+					Result  json.RawMessage `json:"content"`
+					Input   struct {
 						Command  string `json:"command"`
 						FilePath string `json:"file_path"`
 					} `json:"input"`
@@ -196,6 +198,14 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 				_ = cmd.Wait()
 				res.text = fmt.Sprintf("NO PUDE: se pasó de %d acciones sin terminar (cortado por el límite).", maxActions)
 				return res, nil
+			}
+		case "user":
+			// Lo que devolvieron las herramientas: sólo se muestra lo que falló o se negó (un comando con una
+			// expansión de la shell, por ejemplo), que si no pasa sin que se vea.
+			for _, c := range ev.Message.Content {
+				if c.Type == "tool_result" && c.IsError {
+					fmt.Printf("    ✗ %s\n", oneLine(strings.ReplaceAll(toolText(c.Result), self, "navegador"), 160))
+				}
 			}
 		case "result":
 			res.text = ev.Result
@@ -304,4 +314,23 @@ func must[T any](v T, err error) T {
 		panic(err)
 	}
 	return v
+}
+
+// toolText saca el texto de un tool_result, que llega como string o como lista de bloques.
+func toolText(raw json.RawMessage) string {
+	var s string
+	if json.Unmarshal(raw, &s) == nil {
+		return s
+	}
+	var blocks []struct {
+		Text string `json:"text"`
+	}
+	if json.Unmarshal(raw, &blocks) == nil {
+		parts := []string{}
+		for _, b := range blocks {
+			parts = append(parts, b.Text)
+		}
+		return strings.Join(parts, " ")
+	}
+	return string(raw)
 }

@@ -30,7 +30,9 @@ como un script de Playwright.
    la página genera (el script se repite y esos cambian; nombralos en tu resumen, no en el wait).
    Ante algo que tarda («Calculando…», un spinner), usá `wait` con el texto que va a aparecer, no `look`: así la
    espera queda en el script.
-5. No uses tuberías ni otros comandos: sólo `{{NAV}}`, y Read para las capturas.
+5. No uses tuberías ni otros comandos: sólo `{{NAV}}`, y Read para las capturas. Poné cada valor de texto
+   entre comillas SIMPLES (`fill 3 'Ana Prueba'`, `wait '$1.500.000 a 12 meses'`): con comillas dobles la shell
+   interpreta `$` y `!`, y un comando con eso se niega antes de correr.
 6. Tenés como mucho {{PASOS}} acciones. Si no avanzás, pará y explicá dónde te trabaste.
 
 ## Reglas que no se negocian
