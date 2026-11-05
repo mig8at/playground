@@ -2,9 +2,10 @@
 /* UN SERVICIO DEL PLAYGROUND EN EL EDITOR (server/services.go): un servidor de esta máquina que el equipo alcanza por
    la VPN con un nombre fijo. El interruptor lo prende (el chat levanta el programa y reinicia `playground serve`) o lo
    apaga. Y para probarlo, un Postman chico: método, ruta, cuerpo y encabezados, siempre por el playground (como le
-   llega al equipo); la respuesta con su estado, tiempo y tamaño; y el historial, que
-   vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
+   llega al equipo); y la respuesta con su estado, tiempo y tamaño. El historial va en el sidebar derecho
+   (ServiceHistory.vue) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
+import { picked, remember } from './stores/service-history.js'
 
 const props = defineProps({ service: { type: Object, required: true }, serving: Boolean, serveLog: { type: String, default: '' } })
 const emit = defineEmits(['changed', 'close'])
@@ -58,18 +59,13 @@ const statusKind = computed(() => {
 })
 const size = (n) => (n >= 1024 ? `${(n / 1024).toFixed(1)} KB` : `${n} B`)
 
-// El historial, por servicio y en este navegador: las últimas 20.
-const historyKey = computed(() => `chat.service-history.${props.service.alias}`)
-const readHistory = () => { try { return JSON.parse(localStorage.getItem(historyKey.value) || '[]') } catch { return [] } }
-const history = ref(readHistory())
-watch(historyKey, () => { history.value = readHistory(); response.value = null })
-function remember(entry) {
-  history.value = [entry, ...history.value.filter((h) => !(h.method === entry.method && h.path === entry.path && h.body === entry.body))].slice(0, 20)
-  try { localStorage.setItem(historyKey.value, JSON.stringify(history.value)) } catch { /* sólo no se recuerda */ }
-}
-function load(h) {
+// Al cambiar de servicio, la respuesta de otro no sirve. Y lo que elijas en el historial (sidebar derecho) se carga acá.
+watch(() => props.service.alias, () => { response.value = null })
+watch(picked, (p) => {
+  if (!p || p.alias !== props.service.alias) return
+  const h = p.entry
   method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; headersText.value = h.headers || ''
-}
+})
 
 async function send() {
   if (sending.value || !path.value.trim()) return
@@ -83,7 +79,7 @@ async function send() {
     const out = await res.json()
     if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
     response.value = out
-    remember({ method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, at: new Date().toISOString() })
+    remember(props.service.alias, { method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, at: new Date().toISOString() })
   } catch (e) { response.value = { error: e.message } } finally { sending.value = false }
 }
 function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send() }
@@ -122,71 +118,58 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
     </details>
     <p v-if="error" class="bad">{{ error }}</p>
 
-    <div class="postman">
-      <div class="main">
-        <!-- La petición -->
-        <form class="request-bar" @submit.prevent="send">
-          <select v-model="method" class="input input-sm method" aria-label="Método">
-            <option v-for="m in METHODS" :key="m" :value="m">{{ m }}</option>
-          </select>
-          <input v-model="path" class="input input-sm path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
-          <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">
-            {{ sending ? 'Enviando…' : 'Enviar' }}
-          </button>
-        </form>
-        <nav class="tabs" role="tablist" aria-label="La petición">
-          <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'body' }" :aria-selected="reqTab === 'body'" @click="reqTab = 'body'">Cuerpo</button>
-          <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'headers' }" :aria-selected="reqTab === 'headers'" @click="reqTab = 'headers'">
-            Encabezados <span v-if="Object.keys(parseHeaders(headersText)).length" class="count">{{ Object.keys(parseHeaders(headersText)).length }}</span>
-          </button>
-        </nav>
-        <textarea v-if="reqTab === 'body'" v-model="bodyText" class="input code" rows="4" spellcheck="false"
-                  :placeholder="bodyPlaceholder" :disabled="method === 'GET'"></textarea>
-        <textarea v-else v-model="headersText" class="input code" rows="4" spellcheck="false" placeholder="Authorization: Bearer …&#10;X-Algo: valor"></textarea>
-
-        <!-- La respuesta -->
-        <section class="response" aria-live="polite">
-          <p v-if="!response && !sending" class="note">{{ service.listening ? 'Mandá una petición: la respuesta sale acá.' : 'Prendé el servicio para probarlo.' }}</p>
-          <p v-else-if="sending" class="note">Enviando…</p>
-          <template v-else-if="response.error">
-            <p class="bad">{{ response.error }}</p>
-            <p v-if="response.url" class="note"><code>{{ response.url }}</code></p>
-          </template>
-          <template v-else>
-            <div class="response-head">
-              <span class="badge" :data-kind="statusKind">{{ response.status }} {{ response.statusText }}</span>
-              <span class="note">{{ response.ms }} ms · {{ size(response.size) }}</span>
-              <code class="note url" :title="response.url">{{ response.url }}</code>
-            </div>
-            <nav class="tabs" role="tablist" aria-label="La respuesta">
-              <button type="button" role="tab" class="tab" :class="{ on: resTab === 'body' }" :aria-selected="resTab === 'body'" @click="resTab = 'body'">Cuerpo</button>
-              <button type="button" role="tab" class="tab" :class="{ on: resTab === 'headers' }" :aria-selected="resTab === 'headers'" @click="resTab = 'headers'">
-                Encabezados <span class="count">{{ Object.keys(response.headers || {}).length }}</span>
-              </button>
-            </nav>
-            <pre v-if="resTab === 'body'" class="out">{{ prettyBody }}</pre>
-            <dl v-else class="out headers"><template v-for="(v, k) in response.headers" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></template></dl>
-          </template>
-        </section>
-      </div>
-
-      <!-- El historial -->
-      <aside class="history" aria-label="Historial">
-        <div class="region-head group"><span>Historial</span><span class="count">{{ history.length }}</span></div>
-        <p v-if="!history.length" class="note">Las peticiones que mandes quedan acá.</p>
-        <button v-for="(h, i) in history" :key="i" type="button" class="row history-row" :title="`${h.method} ${h.path}`" @click="load(h)">
-          <b class="m">{{ h.method }}</b><span class="label">{{ h.path }}</span>
-          <span class="row-meta" :data-kind="h.status >= 400 || !h.status ? 'bad' : 'ok'">{{ h.status || '—' }}</span>
+    <div class="main">
+      <!-- La petición -->
+      <form class="request-bar" @submit.prevent="send">
+        <select v-model="method" class="input input-sm method" aria-label="Método">
+          <option v-for="m in METHODS" :key="m" :value="m">{{ m }}</option>
+        </select>
+        <input v-model="path" class="input input-sm path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
+        <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">
+          {{ sending ? 'Enviando…' : 'Enviar' }}
         </button>
-      </aside>
+      </form>
+      <nav class="tabs" role="tablist" aria-label="La petición">
+        <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'body' }" :aria-selected="reqTab === 'body'" @click="reqTab = 'body'">Cuerpo</button>
+        <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'headers' }" :aria-selected="reqTab === 'headers'" @click="reqTab = 'headers'">
+          Encabezados <span v-if="Object.keys(parseHeaders(headersText)).length" class="count">{{ Object.keys(parseHeaders(headersText)).length }}</span>
+        </button>
+      </nav>
+      <textarea v-if="reqTab === 'body'" v-model="bodyText" class="input code" rows="4" spellcheck="false"
+                :placeholder="bodyPlaceholder" :disabled="method === 'GET'"></textarea>
+      <textarea v-else v-model="headersText" class="input code" rows="4" spellcheck="false" placeholder="Authorization: Bearer …&#10;X-Algo: valor"></textarea>
+
+      <!-- La respuesta -->
+      <section class="response" aria-live="polite">
+        <p v-if="!response && !sending" class="note">{{ service.listening ? 'Mandá una petición: la respuesta sale acá.' : 'Prendé el servicio para probarlo.' }}</p>
+        <p v-else-if="sending" class="note">Enviando…</p>
+        <template v-else-if="response.error">
+          <p class="bad">{{ response.error }}</p>
+          <p v-if="response.url" class="note"><code>{{ response.url }}</code></p>
+        </template>
+        <template v-else>
+          <div class="response-head">
+            <span class="badge" :data-kind="statusKind">{{ response.status }} {{ response.statusText }}</span>
+            <span class="note">{{ response.ms }} ms · {{ size(response.size) }}</span>
+            <code class="note url" :title="response.url">{{ response.url }}</code>
+          </div>
+          <nav class="tabs" role="tablist" aria-label="La respuesta">
+            <button type="button" role="tab" class="tab" :class="{ on: resTab === 'body' }" :aria-selected="resTab === 'body'" @click="resTab = 'body'">Cuerpo</button>
+            <button type="button" role="tab" class="tab" :class="{ on: resTab === 'headers' }" :aria-selected="resTab === 'headers'" @click="resTab = 'headers'">
+              Encabezados <span class="count">{{ Object.keys(response.headers || {}).length }}</span>
+            </button>
+          </nav>
+          <pre v-if="resTab === 'body'" class="out">{{ prettyBody }}</pre>
+          <dl v-else class="out headers"><template v-for="(v, k) in response.headers" :key="k"><dt>{{ k }}</dt><dd>{{ v }}</dd></template></dl>
+        </template>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
 .head-who { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
-.service { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); overflow: auto;
-  container-type: inline-size }
+.service { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); overflow: auto }
 .info summary { cursor: pointer; color: var(--fg-2) }
 .info dl { margin: var(--space-3) 0 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); font-size: var(--text-sm) }
 dt { color: var(--fg-2) }
@@ -195,9 +178,6 @@ code, pre, .code { font-family: var(--font-mono) }
 .serve-log { margin-top: var(--space-3) }
 .serve-log summary { cursor: pointer; color: var(--fg-2); font-size: var(--text-sm) }
 .serve-log pre { margin: var(--space-2) 0 0; font-size: var(--text-sm); white-space: pre-wrap }
-.postman { display: grid; grid-template-columns: minmax(0, 1fr) 220px; gap: var(--space-4); min-height: 0 }
-/* Angosto (el editor entre dos sidebars): el historial baja, debajo de la respuesta. */
-@container (max-width: 640px) { .postman { grid-template-columns: minmax(0, 1fr) } }
 .main { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0 }
 .request-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center }
 .request-bar .method { flex: none; width: 96px; font-family: var(--font-mono) }
@@ -212,11 +192,6 @@ code, pre, .code { font-family: var(--font-mono) }
 .badge[data-kind="bad"] { background: color-mix(in oklab, var(--send-fail) 18%, transparent); color: var(--foreground) }
 .out { margin: 0; font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; word-break: break-word }
 .out.headers { display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3) }
-.history { display: flex; flex-direction: column; min-width: 0 }
-.history-row { gap: var(--space-2) }
-.history-row .m { flex: none; width: 52px; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
-.history-row .label { font-family: var(--font-mono); font-size: var(--text-sm) }
-.row-meta[data-kind="bad"] { color: var(--send-fail) }
 .note { margin: 0; color: var(--fg-2); font-size: var(--text-sm) }
 .bad { margin: 0; color: var(--send-fail) }
 </style>

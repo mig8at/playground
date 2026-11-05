@@ -24,6 +24,7 @@ import ServerPanel from './ServerPanel.vue'
 import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
 import ServicePanel from './ServicePanel.vue'
+import ServiceHistory from './ServiceHistory.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -122,9 +123,12 @@ const shareOpen = ref(readSize('chat.server-share-open', 1) !== 0)
 function setShareOpen(v) { shareOpen.value = v; saveSize('chat.server-share-open', v ? 1 : 0) }
 const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
+// El historial de un servicio va a la derecha, y también se cierra y se recuerda aparte.
+const historyOpen = ref(readSize('chat.service-history-open', 1) !== 0)
+function setHistoryOpen(v) { historyOpen.value = v; saveSize('chat.service-history-open', v ? 1 : 0) }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
-  if (openService.value) return false
+  if (openService.value) return historyOpen.value
   if (serverOpen.value) return shareOpen.value
   if (activeOwnAgent.value) return ownPanelOpen.value
   return agentOpen.value && !chat.activeKey
@@ -198,14 +202,15 @@ const agentResize = {
   max: () => viewportW.value - cssSize('--editor-min', 360) - sidebarShown.value,
   get: () => agentShown.value,
   set: (v) => {
-    if (serverOpen.value) shareOpen.value = !!v
+    if (openService.value) historyOpen.value = !!v
+    else if (serverOpen.value) shareOpen.value = !!v
     else if (activeOwnAgent.value) ownPanelOpen.value = !!v
     else agentOpen.value = !!v
     if (v) agentW.value = v
   },
   reopen: () => agentW.value,
   commit: (v) => {
-    saveSize(serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
+    saveSize(openService.value ? 'chat.service-history-open' : serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
     if (v) saveSize('chat.agente-w', agentW.value)
   },
 }
@@ -907,9 +912,10 @@ const statusText = computed(() => {
     </main>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openServer ? 'Para probar' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Historial' : openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
-      <ServerShare v-if="openServer" :server="openServer" @close="setShareOpen(false)" />
+      <ServiceHistory v-if="openService" :service="openService" @close="setHistoryOpen(false)" />
+      <ServerShare v-else-if="openServer" :server="openServer" @close="setShareOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
           <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
@@ -1011,6 +1017,10 @@ const statusText = computed(() => {
             <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
           </button>
         </template>
+        <button v-else-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar el historial"
+                aria-label="Mostrar u ocultar el historial" @click="setHistoryOpen(!agentShown)">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
         <button v-else-if="activeOwnAgent" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar la ficha del agente"
                 aria-label="Mostrar u ocultar la ficha del agente" @click="setOwnPanelOpen(!agentShown)">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
