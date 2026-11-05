@@ -215,6 +215,7 @@ const STORES = [
     { label: 'Tienda', href: 'https://creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+    { label: 'Admin · apps instaladas', href: 'https://creditop.myvtex.com/admin/apps' },
   ] },
   { name: 'Shopify', links: [
     { label: 'Tienda', href: `https://${SHOPIFY_STORE}.myshopify.com` },
@@ -230,6 +231,24 @@ watch(() => result.value, () => { storeView.value = null })
 // Si el servidor de la app de Shopify y su túnel contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
 // con su botón.
 const shopifyChecks = ref(null) // [{ name, ok, detail, url }]
+// Qué versión del conector VTEX corre en cada workspace (server/vtex_apps.go): master siempre una publicada; develop
+// una instalada o una linkeada desde la máquina de alguien. Se lee al abrir el bloque VTEX.
+const connector = ref(null) // { loading } | { data: { workspaces: [{ workspace, version, build, source, error }] } } | { error }
+async function loadConnector() {
+  if (readOnly.value) { connector.value = null; return }
+  connector.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/connector?target=${encodeURIComponent(target.value)}`)
+    const body = await res.json()
+    connector.value = res.ok ? { data: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    connector.value = { error: e.message }
+  }
+}
+const connectorMeta = (w) => w.error ? w.error : w.source === 'link' ? `${w.version} · linkeada` : `${w.version} · publicada`
+const connectorTitle = (w) => w.error ? w.error
+  : w.source === 'link' ? `Versión linkeada desde la máquina de alguien (${w.build}); la tienda de ${w.workspace} la usa hasta que se deslinkee`
+  : `Versión publicada e instalada en ${w.workspace}`
 const shopifyChecking = ref(false)
 async function checkShopify() {
   if (shopifyChecking.value) return
@@ -253,6 +272,8 @@ function toggleSidebarView(id) {
   sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
+// La versión del conector se lee al abrir el bloque VTEX y al cambiar de base.
+watch(() => [isViewOpen('VTEX'), target.value], ([open]) => { if (open) loadConnector() }, { immediate: true })
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
 function toggleStoreView(store, kind) {
   storeView.value = isStoreView(store, kind) ? null : { store, kind }
@@ -712,6 +733,13 @@ onBeforeUnmount(() => {
               :title="`Los pedidos VTEX de los últimos ${INCIDENT_DAYS} días que no cuadran: timeouts, cancelaciones trabadas, estados distintos`" @click="toggleStoreView('VTEX', 'incidents')">
               <span class="label">Pedidos con incidencias</span><span class="row-meta">{{ incidents?.data ? incidents.data.orders.length : '' }}</span>
             </button>
+            <template v-if="s.name === 'VTEX' && !readOnly">
+              <p v-if="!connector || connector.loading" class="row muted"><span class="label">Conector · leyendo…</span></p>
+              <p v-else-if="connector.error" class="row muted" :title="connector.error"><span class="label">Conector · no se pudo leer</span></p>
+              <p v-for="w in connector?.data?.workspaces || []" v-else :key="w.workspace" class="row" :title="connectorTitle(w)">
+                <span class="label">Conector · {{ w.workspace }}</span><span class="row-meta" :class="{ warn: w.source === 'link' || w.error }">{{ connectorMeta(w) }}</span>
+              </p>
+            </template>
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
             </a>

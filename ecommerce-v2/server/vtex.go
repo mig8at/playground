@@ -506,6 +506,15 @@ func registerVtex(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, rep)
 	})
+	// GET /api/vtex/connector?target=qa — qué versión del conector tiene cada workspace (vtex_apps.go).
+	mux.HandleFunc("/api/vtex/connector", func(w http.ResponseWriter, r *http.Request) {
+		out, err := ReadConnectorVersions(r.URL.Query().Get("target"))
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
 	// GET /api/vtex/incidents?target=qa&days=7 — los pedidos VTEX con alguna incidencia.
 	mux.HandleFunc("/api/vtex/incidents", func(w http.ResponseWriter, r *http.Request) {
 		days, _ := strconv.Atoi(r.URL.Query().Get("days"))

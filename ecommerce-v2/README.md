@@ -114,6 +114,12 @@ cuánto tardó el conector en contestar el authorize del checkout, el historial 
 pedidos VTEX de los últimos 7 días que tienen alguna, también los que no tienen solicitud (que no se pueden buscar por
 celular); cada fila se despliega con su detalle.
 
+El mismo bloque dice **qué versión del conector** corre en cada workspace: `master` (la publicada e instalada) y
+`develop`, que es el que atiende las compras contra qa. Si `develop` dice **linkeada**, alguien la subió desde su
+máquina con `vtex link` para probar una versión sin publicar; sigue así hasta que se deslinkee. La lista de versiones
+publicadas del registro no se puede ver: VTEX la niega a la llave y a los usuarios de la cuenta. **Admin · apps
+instaladas** abre lo mismo en el admin.
+
 | incidencia | qué quiere decir |
 |---|---|
 | el conector no contestó a tiempo | el authorize del checkout cortó (`ProxyTimeout`): VTEX negó el pago y el comprador volvió al checkout sin aviso |
