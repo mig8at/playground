@@ -153,7 +153,7 @@ type board struct {
 }
 
 var (
-	reVerdict   = regexp.MustCompile(`(?m)^\s*VEREDICTO:\s*([HP][0-9]+)\s*\|\s*(✓|✗|—)\s*\|\s*(.+?)\s*$`)
+	reVerdict   = regexp.MustCompile(`(?m)^[\s*_-]*VEREDICTO:?[*_]*\s*([HP][0-9]+)\s*\|\s*(✓|✗|—)\s*\|\s*(.+?)[\s*_]*$`)
 	reFindStart = regexp.MustCompile(`^\s*(?:[-*]\s*)?HALLAZGO:`)
 	reFindKind  = regexp.MustCompile(`^HALLAZGO:\s*([^|]+?)\s*\|`)
 )

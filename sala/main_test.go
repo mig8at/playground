@@ -67,3 +67,11 @@ func TestNotesAndIntegration(t *testing.T) {
 		t.Fatalf("compartidos mal: %v", shared)
 	}
 }
+
+// Un verificador que escribe el veredicto en negrita sigue contando (pasó el 2026-11-05 y dejó dos piezas sin veredicto).
+func TestVerdictInBold(t *testing.T) {
+	m := reVerdict.FindStringSubmatch("**VEREDICTO: P1 | ✗ | git show x | la sección dice otra cosa**")
+	if m == nil || m[1] != "P1" || m[2] != "✗" || strings.HasSuffix(m[3], "*") {
+		t.Fatalf("no se leyó el veredicto en negrita: %q", m)
+	}
+}
