@@ -4,6 +4,7 @@
 //
 //	GET /persona            una persona: nombres, apellidos, correo y ciudad
 //	GET /personas?n=5       varias (hasta 50)
+//	                        con `X-Semilla: 42`, siempre las mismas (para pruebas que se repiten)
 //	GET /health             si está vivo, y desde cuándo
 //	GET /openapi.json       el esquema de uso (OpenAPI 3.1): con él se conecta cualquiera, Postman o un agente
 //	GET /                   adónde mirar
@@ -109,6 +110,8 @@ func openAPI() map[string]any {
 			"ciudad":    map[string]any{"type": "string", "example": "Santa Marta"},
 		},
 	}
+	seed := map[string]any{"name": "X-Semilla", "in": "header", "required": false,
+		"description": "un entero: con la misma semilla, las mismas personas", "schema": map[string]any{"type": "integer"}, "example": 42}
 	ok := func(desc string, schema any) map[string]any {
 		return map[string]any{"200": map[string]any{"description": desc,
 			"content": map[string]any{"application/json": map[string]any{"schema": schema}}}}
@@ -119,10 +122,11 @@ func openAPI() map[string]any {
 			"description": "Personas inventadas para pruebas. Sin cédulas ni celulares; los correos son @example.com. Nada se guarda."},
 		"paths": map[string]any{
 			"/persona": map[string]any{"get": map[string]any{"summary": "Una persona inventada",
-				"responses": ok("una persona", map[string]any{"$ref": "#/components/schemas/Persona"})}},
+				"parameters": []any{seed},
+				"responses":  ok("una persona", map[string]any{"$ref": "#/components/schemas/Persona"})}},
 			"/personas": map[string]any{"get": map[string]any{"summary": "Varias personas inventadas",
 				"parameters": []any{map[string]any{"name": "n", "in": "query", "description": "cuántas (de 1 a 50; si no, 5)",
-					"schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 50, "default": 5}, "example": 5}},
+					"schema": map[string]any{"type": "integer", "minimum": 1, "maximum": 50, "default": 5}, "example": 5}, seed},
 				"responses": ok("la lista", map[string]any{"type": "array", "items": map[string]any{"$ref": "#/components/schemas/Persona"}})}},
 			"/health": map[string]any{"get": map[string]any{"summary": "Si está vivo, y desde cuándo",
 				"responses": ok("está vivo", map[string]any{"type": "object"})}},
@@ -131,11 +135,43 @@ func openAPI() map[string]any {
 	}
 }
 
-func handler(rng *rand.Rand) http.Handler {
+// El generador de la petición: con `X-Semilla`, uno nuevo con esa semilla (las mismas personas); sin ella, el del
+// servicio. `ok` es falso si la semilla no es un entero.
+func rngFor(r *http.Request, shared *rand.Rand) (*rand.Rand, bool) {
+	raw := strings.TrimSpace(r.Header.Get("X-Semilla"))
+	if raw == "" {
+		return shared, true
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil {
+		return nil, false
+	}
+	return rand.New(rand.NewSource(n)), true
+}
+
+func badSeed(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusBadRequest)
+	_ = json.NewEncoder(w).Encode(map[string]string{"error": "X-Semilla va como un entero, por ejemplo 42"})
+}
+
+func handler(shared *rand.Rand) http.Handler {
 	started := time.Now()
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /persona", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, newPersona(rng)) })
+	mux.HandleFunc("GET /persona", func(w http.ResponseWriter, r *http.Request) {
+		rng, ok := rngFor(r, shared)
+		if !ok {
+			badSeed(w)
+			return
+		}
+		writeJSON(w, newPersona(rng))
+	})
 	mux.HandleFunc("GET /personas", func(w http.ResponseWriter, r *http.Request) {
+		rng, ok := rngFor(r, shared)
+		if !ok {
+			badSeed(w)
+			return
+		}
 		n, _ := strconv.Atoi(r.URL.Query().Get("n"))
 		if n < 1 {
 			n = 5

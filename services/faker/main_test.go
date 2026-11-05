@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
@@ -81,6 +82,38 @@ func TestSchemaAndHealth(t *testing.T) {
 	_ = json.NewDecoder(res.Body).Decode(&health)
 	if health["status"] != "ok" || health["desde"] == "" {
 		t.Errorf("health = %v", health)
+	}
+}
+
+// Con la misma X-Semilla salen las mismas personas; una semilla que no es entero se rechaza.
+func TestSeed(t *testing.T) {
+	srv := httptest.NewServer(handler(rand.New(rand.NewSource(1))))
+	defer srv.Close()
+	get := func(seed string) (int, string) {
+		req, _ := http.NewRequest(http.MethodGet, srv.URL+"/personas?n=3", nil)
+		if seed != "" {
+			req.Header.Set("X-Semilla", seed)
+		}
+		res, err := http.DefaultClient.Do(req)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer res.Body.Close()
+		var b strings.Builder
+		_, _ = io.Copy(&b, res.Body)
+		return res.StatusCode, b.String()
+	}
+	_, a := get("42")
+	_, b := get("42")
+	_, c := get("7")
+	if a != b {
+		t.Errorf("la misma semilla dio personas distintas:\n%s\n%s", a, b)
+	}
+	if a == c {
+		t.Errorf("semillas distintas dieron lo mismo")
+	}
+	if code, _ := get("cuarenta"); code != http.StatusBadRequest {
+		t.Errorf("semilla inválida: %d", code)
 	}
 }
 

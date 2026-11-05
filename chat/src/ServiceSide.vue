@@ -5,7 +5,7 @@
    lo que mandaste va abajo, en la consola (App.vue). */
 import { computed, ref, watch } from 'vue'
 import { pick } from './stores/service-history.js'
-import { loadSchema as fetchSchema, schemaState } from './stores/service-schema.js'
+import { deref as derefIn, loadSchema as fetchSchema, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true } })
 const emit = defineEmits(['close'])
@@ -19,14 +19,9 @@ watch(() => [props.service.alias, props.service.listening], loadSchema, { immedi
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete']
 const schema = computed(() => info.value?.schema || null)
-// `$ref` de un mismo documento (#/components/…): lo justo para armar ejemplos.
-function deref(node, depth = 0) {
-  if (!node || depth > 8) return node
-  if (node.$ref?.startsWith('#/')) return deref(node.$ref.slice(2).split('/').reduce((o, k) => o?.[k], schema.value), depth + 1)
-  return node
-}
+const deref = (node) => derefIn(props.service.alias, node)
 function exampleOf(node, depth = 0) {
-  node = deref(node, depth)
+  node = deref(node)
   if (!node || depth > 8) return null
   if (node.example !== undefined) return node.example
   if (node.default !== undefined) return node.default

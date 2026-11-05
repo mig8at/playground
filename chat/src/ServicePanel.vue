@@ -6,7 +6,7 @@
    las rutas del esquema en el sidebar derecho (ServiceSide.vue) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
 import { picked, remember } from './stores/service-history.js'
-import { loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
+import { headersFor, loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true }, serving: Boolean, serveLog: { type: String, default: '' } })
 const emit = defineEmits(['changed', 'close'])
@@ -52,7 +52,43 @@ watch(methods, (list) => { if (!list.includes(method.value)) method.value = list
 const via = 'playground'
 const reqTab = ref('body')
 const bodyText = ref('')
-const headersText = ref('')
+/* Los encabezados, en tabla: los que el esquema declara para esta ruta vienen con la clave puesta y sólo se escribe el
+   valor (con el ejemplo de pista); debajo, filas libres para cualquier otro. */
+const declaredHeaders = computed(() => headersFor(props.service.alias, method.value, path.value))
+const declaredValues = ref({}) // por nombre en minúsculas
+watch(declaredHeaders, (list) => {
+  for (const h of list) if (h.value && declaredValues.value[h.name.toLowerCase()] === undefined) declaredValues.value[h.name.toLowerCase()] = h.value
+}, { immediate: true })
+const extraRows = ref([{ key: '', value: '' }])
+// Siempre queda una fila vacía al final para escribir otro.
+watch(extraRows, (rows) => {
+  const last = rows[rows.length - 1]
+  if (!last || last.key || last.value) rows.push({ key: '', value: '' })
+}, { deep: true })
+function removeExtra(i) { extraRows.value.splice(i, 1) }
+const effectiveHeaders = computed(() => {
+  const out = {}
+  for (const h of declaredHeaders.value) {
+    const v = (declaredValues.value[h.name.toLowerCase()] ?? '').trim()
+    if (v) out[h.name] = v
+  }
+  for (const row of extraRows.value) if (row.key.trim()) out[row.key.trim()] = row.value.trim()
+  return out
+})
+const headersCount = computed(() => Object.keys(effectiveHeaders.value).length)
+// El historial los guarda como texto, «Clave: valor» por línea.
+const headersToText = (obj) => Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n')
+function setHeadersFromText(text) {
+  const declared = new Set(declaredHeaders.value.map((h) => h.name.toLowerCase()))
+  const values = {}
+  const extras = []
+  for (const [k, v] of Object.entries(parseHeaders(text || ''))) {
+    if (declared.has(k.toLowerCase())) values[k.toLowerCase()] = v
+    else extras.push({ key: k, value: v })
+  }
+  declaredValues.value = values
+  extraRows.value = [...extras, { key: '', value: '' }]
+}
 const bodyPlaceholder = computed(() => (method.value === 'GET' ? 'GET no lleva cuerpo' : '{ "campo": "valor" }'))
 const sending = ref(false)
 const response = ref(null)
@@ -75,7 +111,7 @@ watch(() => props.service.alias, () => { response.value = null })
 watch(picked, (p) => {
   if (!p || p.alias !== props.service.alias) return
   const h = p.entry
-  method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; headersText.value = h.headers || ''
+  method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; setHeadersFromText(h.headers)
 })
 
 async function send() {
@@ -85,12 +121,12 @@ async function send() {
   try {
     const res = await fetch(`/api/services/${encodeURIComponent(props.service.alias)}/request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: method.value, path: path.value, via, headers: parseHeaders(headersText.value), body: bodyText.value }),
+      body: JSON.stringify({ method: method.value, path: path.value, via, headers: effectiveHeaders.value, body: bodyText.value }),
     })
     const out = await res.json()
     if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
     response.value = out
-    remember(props.service.alias, { method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, ms: out.ms, at: new Date().toISOString() })
+    remember(props.service.alias, { method: method.value, path: path.value, body: bodyText.value, headers: headersToText(effectiveHeaders.value), status: out.status || 0, ms: out.ms, at: new Date().toISOString() })
   } catch (e) { response.value = { error: e.message } } finally { sending.value = false }
 }
 function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send() }
@@ -148,12 +184,33 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
       <nav class="tabs" role="tablist" aria-label="La petición">
         <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'body' }" :aria-selected="reqTab === 'body'" @click="reqTab = 'body'">Cuerpo</button>
         <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'headers' }" :aria-selected="reqTab === 'headers'" @click="reqTab = 'headers'">
-          Encabezados <span v-if="Object.keys(parseHeaders(headersText)).length" class="count">{{ Object.keys(parseHeaders(headersText)).length }}</span>
+          Encabezados <span v-if="headersCount" class="count">{{ headersCount }}</span>
         </button>
       </nav>
       <textarea v-if="reqTab === 'body'" v-model="bodyText" class="input code" rows="4" spellcheck="false"
                 :placeholder="bodyPlaceholder" :disabled="method === 'GET'"></textarea>
-      <textarea v-else v-model="headersText" class="input code" rows="4" spellcheck="false" placeholder="Authorization: Bearer …&#10;X-Algo: valor"></textarea>
+      <table v-else class="table headers-table">
+        <thead><tr><th>Clave</th><th>Valor</th><th class="act" aria-label="Quitar"></th></tr></thead>
+        <tbody>
+          <tr v-for="h in declaredHeaders" :key="h.name" class="declared">
+            <td :title="h.description">
+              <code>{{ h.name }}</code><span v-if="h.required" class="req" title="Obligatorio">*</span>
+              <div v-if="h.description" class="hint">{{ h.description }}</div>
+            </td>
+            <td><input v-model="declaredValues[h.name.toLowerCase()]" class="input input-xs code" :placeholder="h.example" spellcheck="false" :aria-label="`Valor de ${h.name}`" /></td>
+            <td class="act"></td>
+          </tr>
+          <tr v-for="(row, i) in extraRows" :key="`x${i}`">
+            <td><input v-model="row.key" class="input input-xs code" placeholder="Otro encabezado" spellcheck="false" aria-label="Clave" /></td>
+            <td><input v-model="row.value" class="input input-xs code" placeholder="valor" spellcheck="false" aria-label="Valor" /></td>
+            <td class="act">
+              <button v-if="row.key || row.value" type="button" class="region-action" title="Quitar" aria-label="Quitar este encabezado" @click="removeExtra(i)">
+                <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
 
       <!-- La respuesta -->
       <section class="response" aria-live="polite">
@@ -205,6 +262,13 @@ code, pre, .code { font-family: var(--font-mono) }
   color: var(--foreground); cursor: pointer }
 .method-pick:focus-visible { outline: none; color: var(--primary) }
 .code { width: 100%; font-size: var(--text-sm); resize: vertical }
+.headers-table { width: 100%; table-layout: fixed }
+.headers-table th:first-child, .headers-table td:first-child { width: 40% }
+.headers-table .act { width: 32px; text-align: right }
+.headers-table td { vertical-align: top }
+.headers-table .declared code { font-size: var(--text-sm) }
+.headers-table .req { margin-left: 2px; color: var(--send-fail) }
+.headers-table .hint { color: var(--fg-2); font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .response { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3) }
 .response-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0 }
 .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
