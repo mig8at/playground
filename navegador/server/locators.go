@@ -29,9 +29,9 @@ type Locator struct {
 	Role  string `json:"role,omitempty"`
 	Value string `json:"value"`
 	Exact bool   `json:"exact,omitempty"` // sólo para role: el nombre entero o una parte
-	Code  string `json:"code"`  // la línea de Playwright (TS), lista para pegar
-	Count int    `json:"count"` // cuántos elementos encuentra en la página
-	Works bool   `json:"works"` // encuentra uno solo y es este control
+	Code  string `json:"code"`            // la línea de Playwright (TS), lista para pegar
+	Count int    `json:"count"`           // cuántos elementos encuentra en la página
+	Works bool   `json:"works"`           // encuentra uno solo y es este control
 }
 
 // Control es un elemento con el que se interactúa: un campo, un botón, un enlace, una casilla.
