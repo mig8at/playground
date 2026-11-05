@@ -273,7 +273,14 @@ func versionLess(a, b string) bool {
 }
 
 func loginHelp(claude string) string {
-	return fmt.Sprintf(`Claude Code de consola no tiene sesión (la del Code tab de la app no se hereda).
+	if os.Getenv("CLAUDE_CODE_OAUTH_TOKEN") == "" && os.Getenv("ANTHROPIC_API_KEY") == "" {
+		return `Claude Code de consola no tiene sesión: CLAUDE_CODE_OAUTH_TOKEN no está exportada en ESTA terminal.
+setup-token sólo muestra el token; hay que exportarlo. En tu ~/.zshrc:
+  export CLAUDE_CODE_OAUTH_TOKEN=<el token>
+y después: source ~/.zshrc (o una terminal nueva).`
+	}
+	return fmt.Sprintf(`Claude Code de consola rechaza la sesión aunque CLAUDE_CODE_OAUTH_TOKEN está exportada: puede estar
+vencida o revocada (la del Code tab de la app no se hereda).
 Una sola vez, en tu terminal:
   %s setup-token
 y exportá el token que te da en tu ~/.zshrc:
