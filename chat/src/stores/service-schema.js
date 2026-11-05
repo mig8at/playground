@@ -40,21 +40,33 @@ export function deref(alias, node, depth = 0) {
   return node
 }
 
-/* Los encabezados que el esquema declara para esa operación: sus parámetros `in: header` (los de la ruta y los de la
-   operación) y, si lleva cuerpo, su Content-Type. Cada uno con `name`, `required`, `description` y `example`. */
-export function headersFor(alias, method, path) {
-  const found = operation(alias, method, path)
-  if (!found) return []
-  const { item, op } = found
+// Los parámetros de una operación en un lugar (`query`, `header`…), los de la ruta y los de la operación, por nombre.
+function paramsIn(alias, found, where, fold) {
   const byName = new Map()
-  for (const raw of [...(item.parameters || []), ...(op.parameters || [])]) {
+  if (!found) return byName
+  for (const raw of [...(found.item.parameters || []), ...(found.op.parameters || [])]) {
     const p = deref(alias, raw)
-    if (p?.in !== 'header' || !p.name) continue
-    byName.set(p.name.toLowerCase(), {
+    if (p?.in !== where || !p.name) continue
+    byName.set(fold ? p.name.toLowerCase() : p.name, {
       name: p.name, required: !!p.required, description: p.description || '',
       example: String(p.example ?? p.schema?.example ?? p.schema?.default ?? ''),
     })
   }
+  return byName
+}
+
+// Los parámetros de consulta que el esquema declara para esa operación (`?n=5`), con `name`, `required`, `description` y `example`.
+export function queryFor(alias, method, path) {
+  return [...paramsIn(alias, operation(alias, method, path), 'query', false).values()]
+}
+
+/* Los encabezados que el esquema declara para esa operación: sus parámetros `in: header` y, si lleva cuerpo, su
+   Content-Type (con su valor puesto). */
+export function headersFor(alias, method, path) {
+  const found = operation(alias, method, path)
+  if (!found) return []
+  const { op } = found
+  const byName = paramsIn(alias, found, 'header', true)
   const types = Object.keys(deref(alias, op.requestBody)?.content || {})
   if (types.length && !byName.has('content-type')) {
     byName.set('content-type', { name: 'Content-Type', required: true, description: 'el tipo del cuerpo', example: types[0], value: types[0] })

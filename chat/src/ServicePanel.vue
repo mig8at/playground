@@ -1,12 +1,13 @@
 <script setup>
 /* UN SERVICIO DEL PLAYGROUND EN EL EDITOR (server/services.go): un servidor de esta máquina que el equipo alcanza por
    la VPN con un nombre fijo. El interruptor lo prende (el chat levanta el programa y reinicia `playground serve`) o lo
-   apaga. Y para probarlo, un Postman chico: método, ruta, cuerpo y encabezados, siempre por el playground (como le
+   apaga. Y para probarlo, un Postman chico: método, ruta, parámetros, cuerpo y encabezados, siempre por el playground (como le
    llega al equipo); y la respuesta con su estado, tiempo y tamaño. El historial va abajo, en la consola (App.vue), y
    las rutas del esquema en el sidebar derecho (ServiceSide.vue) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, reactive, ref, watch } from 'vue'
+import KeyValueTable from './KeyValueTable.vue'
 import { picked, remember } from './stores/service-history.js'
-import { headersFor, loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
+import { headersFor, loadSchema, methodsFor, queryFor, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true }, serving: Boolean })
 const emit = defineEmits(['changed', 'close'])
@@ -46,31 +47,27 @@ watch(() => props.service.alias, (alias) => { const st = schemaState(alias); if 
 watch(methods, (list) => { if (!list.includes(method.value)) method.value = list[0] }, { immediate: true })
 // Siempre por el playground: lo que importa es que le sirva al equipo, no que ande en tu máquina.
 const via = 'playground'
-const reqTab = ref('body')
+const reqTab = ref('params')
 const bodyText = ref('')
-/* Los encabezados, en tabla: los que el esquema declara para esta ruta vienen con la clave puesta y sólo se escribe el
-   valor (con el ejemplo de pista); debajo, filas libres para cualquier otro. */
-const declaredHeaders = computed(() => headersFor(props.service.alias, method.value, path.value))
-const declaredValues = ref({}) // por nombre en minúsculas
-watch(declaredHeaders, (list) => {
-  for (const h of list) if (h.value && declaredValues.value[h.name.toLowerCase()] === undefined) declaredValues.value[h.name.toLowerCase()] = h.value
-}, { immediate: true })
-const extraRows = ref([{ key: '', value: '' }])
-// Siempre queda una fila vacía al final para escribir otro.
-watch(extraRows, (rows) => {
-  const last = rows[rows.length - 1]
-  if (!last || last.key || last.value) rows.push({ key: '', value: '' })
-}, { deep: true })
-function removeExtra(i) { extraRows.value.splice(i, 1) }
-const effectiveHeaders = computed(() => {
-  const out = {}
-  for (const h of declaredHeaders.value) {
-    const v = (declaredValues.value[h.name.toLowerCase()] ?? '').trim()
-    if (v) out[h.name] = v
+/* Parámetros y encabezados, en tabla (KeyValueTable.vue): los que el esquema declara para esta ruta vienen con la
+   clave puesta y sólo se escribe el valor; debajo, filas libres para cualquier otro. */
+const pairsOf = (rows, declared, fold) => {
+  const out = []
+  for (const d of declared) {
+    const v = (rows.values[fold ? d.name.toLowerCase() : d.name] ?? '').trim()
+    if (v) out.push([d.name, v])
   }
-  for (const row of extraRows.value) if (row.key.trim()) out[row.key.trim()] = row.value.trim()
+  for (const row of rows.extras) if (row.key.trim()) out.push([row.key.trim(), row.value.trim()])
   return out
-})
+}
+
+// Encabezados.
+const declaredHeaders = computed(() => headersFor(props.service.alias, method.value, path.value))
+const headerRows = reactive({ values: {}, extras: [] }) // los declarados, por nombre en minúsculas
+watch(declaredHeaders, (list) => {
+  for (const h of list) if (h.value && headerRows.values[h.name.toLowerCase()] === undefined) headerRows.values[h.name.toLowerCase()] = h.value
+}, { immediate: true })
+const effectiveHeaders = computed(() => Object.fromEntries(pairsOf(headerRows, declaredHeaders.value, true)))
 const headersCount = computed(() => Object.keys(effectiveHeaders.value).length)
 // El historial los guarda como texto, «Clave: valor» por línea.
 const headersToText = (obj) => Object.entries(obj).map(([k, v]) => `${k}: ${v}`).join('\n')
@@ -82,9 +79,38 @@ function setHeadersFromText(text) {
     if (declared.has(k.toLowerCase())) values[k.toLowerCase()] = v
     else extras.push({ key: k, value: v })
   }
-  declaredValues.value = values
-  extraRows.value = [...extras, { key: '', value: '' }]
+  headerRows.values = values
+  headerRows.extras = extras
 }
+
+/* Parámetros de consulta: la tabla y la ruta son lo mismo, como en Postman. Escribir `?n=3` en la ruta llena la tabla;
+   cambiar la tabla reescribe la consulta de la ruta. */
+const basePath = computed(() => path.value.split('?')[0])
+const declaredQuery = computed(() => queryFor(props.service.alias, method.value, path.value))
+const queryRows = reactive({ values: {}, extras: [] })
+// Mientras la tabla se llena desde la ruta, la ruta no se reescribe: así lo que vas escribiendo (`?n=`) queda como está.
+let fromPath = false
+function syncQueryFromPath() {
+  fromPath = true
+  nextTick(() => { fromPath = false })
+  const declared = new Set(declaredQuery.value.map((q) => q.name))
+  const values = {}
+  const extras = []
+  for (const [k, v] of new URLSearchParams(path.value.split('?').slice(1).join('?'))) {
+    if (declared.has(k) && values[k] === undefined) values[k] = v
+    else extras.push({ key: k, value: v })
+  }
+  queryRows.values = values
+  queryRows.extras = extras
+}
+const queryPairs = computed(() => pairsOf(queryRows, declaredQuery.value, false))
+watch(queryPairs, (pairs) => {
+  if (fromPath) return
+  const qs = new URLSearchParams(pairs).toString()
+  path.value = basePath.value + (qs ? `?${qs}` : '')
+})
+watch(() => declaredQuery.value.map((q) => q.name).join(), syncQueryFromPath, { immediate: true })
+const queryCount = computed(() => queryPairs.value.length)
 const bodyPlaceholder = computed(() => (method.value === 'GET' ? 'GET no lleva cuerpo' : '{ "campo": "valor" }'))
 const sending = ref(false)
 const response = ref(null)
@@ -107,7 +133,7 @@ watch(() => props.service.alias, () => { response.value = null })
 watch(picked, (p) => {
   if (!p || p.alias !== props.service.alias) return
   const h = p.entry
-  method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; setHeadersFromText(h.headers)
+  method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; setHeadersFromText(h.headers); syncQueryFromPath()
 })
 
 async function send() {
@@ -154,13 +180,16 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
           <select v-else v-model="method" class="method-tag method-pick" aria-label="Método" :title="methodTitle">
             <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
           </select>
-          <input v-model="path" class="input path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
+          <input v-model="path" class="input path" aria-label="Ruta" placeholder="/persona" spellcheck="false" @input="syncQueryFromPath" />
         </label>
         <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">
           {{ sending ? 'Enviando…' : 'Enviar' }}
         </button>
       </form>
       <nav class="tabs" role="tablist" aria-label="La petición">
+        <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'params' }" :aria-selected="reqTab === 'params'" @click="reqTab = 'params'">
+          Parámetros <span v-if="queryCount" class="count">{{ queryCount }}</span>
+        </button>
         <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'body' }" :aria-selected="reqTab === 'body'" @click="reqTab = 'body'">Cuerpo</button>
         <button type="button" role="tab" class="tab" :class="{ on: reqTab === 'headers' }" :aria-selected="reqTab === 'headers'" @click="reqTab = 'headers'">
           Encabezados <span v-if="headersCount" class="count">{{ headersCount }}</span>
@@ -168,28 +197,8 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
       </nav>
       <textarea v-if="reqTab === 'body'" v-model="bodyText" class="input code" rows="4" spellcheck="false"
                 :placeholder="bodyPlaceholder" :disabled="method === 'GET'"></textarea>
-      <table v-else class="headers-table">
-        <thead><tr><th>Clave</th><th>Valor</th><th class="act" aria-label="Quitar"></th></tr></thead>
-        <tbody>
-          <tr v-for="h in declaredHeaders" :key="h.name" class="declared">
-            <td class="key" :title="h.description || null">
-              <code :class="{ described: h.description }">{{ h.name }}</code><span v-if="h.required" class="req" title="Obligatorio">*</span>
-              <span v-if="h.description" class="visually-hidden">{{ h.description }}</span>
-            </td>
-            <td class="cell"><input v-model="declaredValues[h.name.toLowerCase()]" class="cell-input" :placeholder="h.example" spellcheck="false" :aria-label="`Valor de ${h.name}`" /></td>
-            <td class="act"></td>
-          </tr>
-          <tr v-for="(row, i) in extraRows" :key="`x${i}`">
-            <td class="cell"><input v-model="row.key" class="cell-input" placeholder="Agregar encabezado" spellcheck="false" aria-label="Clave" /></td>
-            <td class="cell"><input v-model="row.value" class="cell-input" placeholder="valor" spellcheck="false" aria-label="Valor" /></td>
-            <td class="act">
-              <button v-if="row.key || row.value" type="button" class="region-action" title="Quitar" aria-label="Quitar este encabezado" @click="removeExtra(i)">
-                <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+      <KeyValueTable v-else-if="reqTab === 'params'" :declared="declaredQuery" :rows="queryRows" noun="parámetro" />
+      <KeyValueTable v-else :declared="declaredHeaders" :rows="headerRows" fold noun="encabezado" />
 
       <!-- La respuesta -->
       <section class="response" aria-live="polite">
@@ -202,7 +211,7 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
         <template v-else>
           <div class="response-head">
             <span class="badge" :data-kind="statusKind">{{ response.status }} {{ response.statusText }}</span>
-            <span class="note">{{ response.ms }} ms · {{ size(response.size) }}</span>
+            <span class="note timing">{{ response.ms }} ms · {{ size(response.size) }}</span>
             <code class="note url" :title="response.url">{{ response.url }}</code>
           </div>
           <nav class="tabs" role="tablist" aria-label="La respuesta">
@@ -234,29 +243,9 @@ code, pre, .code { font-family: var(--font-mono) }
   color: var(--foreground); cursor: pointer }
 .method-pick:focus-visible { outline: none; color: var(--primary) }
 .code { width: 100%; font-size: var(--text-sm); resize: vertical }
-.headers-table { width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; border: 1px solid var(--border);
-  border-radius: var(--radius-md); overflow: hidden; font-size: var(--text-sm) }
-.headers-table th, .headers-table td { border-bottom: 1px solid var(--border); text-align: left; vertical-align: middle }
-.headers-table th + th, .headers-table td + td { border-left: 1px solid var(--border) }
-.headers-table tbody tr:last-child td { border-bottom: 0 }
-.headers-table th { height: 28px; padding: 0 var(--space-3); background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
-.headers-table th:first-child, .headers-table td:first-child { width: 38% }
-.headers-table .act { width: 32px; padding: 0; text-align: center; border-left: 0 }
-/* La clave que dicta el esquema no se edita: va en gris, y su descripción al pasar el mouse (el subrayado punteado lo avisa), así
-   todas las filas tienen el alto de su campo. */
-.headers-table .key { height: 36px; padding: 0 var(--space-3); background: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.headers-table .key code { font-family: var(--font-mono); color: var(--foreground) }
-.headers-table .req { margin-left: 2px; color: var(--send-fail) }
-.headers-table .key code.described { text-decoration: underline dotted var(--fg-3); text-underline-offset: 3px; cursor: help }
-.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap }
-/* Las celdas que se escriben: el campo ocupa la celda entera y el foco la marca por dentro. */
-.headers-table .cell { padding: 0 }
-.headers-table .cell:focus-within { box-shadow: inset 0 0 0 1px var(--ring) }
-.cell-input { display: block; width: 100%; height: 36px; padding: 0 var(--space-3); border: 0; outline: none; background: transparent;
-  color: var(--foreground); font-family: var(--font-mono); font-size: var(--text-sm) }
-.cell-input::placeholder { color: var(--fg-3) }
 .response { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3) }
 .response-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0 }
+.timing { flex: none; white-space: nowrap }
 .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0 }
 .badge { flex: none; padding: 2px var(--space-2); border-radius: 999px; font-size: var(--text-xs); font-weight: 600; font-family: var(--font-mono) }
 .badge[data-kind="ok"] { background: color-mix(in oklab, var(--presence-on) 18%, transparent); color: var(--foreground) }
