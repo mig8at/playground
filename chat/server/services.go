@@ -297,6 +297,84 @@ func teamServiceHandlers(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
+	/* Una petición a un servicio, como Postman (ServicePanel.vue): la hace este servidor, así el navegador no choca con
+	   CORS. Sólo va a la dirección de ESE servicio —su `to` en esta máquina, o su nombre en el playground, como le llega
+	   al equipo—: la ruta se pega a esa base y no puede salir de ahí. */
+	mux.HandleFunc("POST /api/services/{alias}/request", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Method  string            `json:"method"`
+			Path    string            `json:"path"`
+			Via     string            `json:"via"` // "local" o "playground"
+			Headers map[string]string `json:"headers"`
+			Body    string            `json:"body"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {method, path, via, headers, body}"))
+			return
+		}
+		on, off := readServices()
+		var target *teamService
+		for _, s := range append(on, off...) {
+			if s.Alias == r.PathValue("alias") {
+				s := s
+				target = &s
+			}
+		}
+		if target == nil {
+			fail(w, http.StatusNotFound, errors.New("no hay un servicio con ese alias"))
+			return
+		}
+		method := strings.ToUpper(strings.TrimSpace(in.Method))
+		switch method {
+		case "GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS":
+		default:
+			fail(w, http.StatusBadRequest, fmt.Errorf("método no permitido: %q", in.Method))
+			return
+		}
+		path := "/" + strings.TrimLeft(strings.TrimSpace(in.Path), "/")
+		if strings.Contains(path, "://") || strings.HasPrefix(path, "//") || strings.Contains(path, "..") {
+			fail(w, http.StatusBadRequest, errors.New("la ruta va sola (/persona), sin dominio ni «..»"))
+			return
+		}
+		base := strings.TrimRight(target.To, "/")
+		if in.Via == "playground" {
+			base = strings.TrimRight(cli.Base(), "/") + "/s/" + target.Alias + "." + myHandle(r.Context()) + ".com"
+		}
+		var body io.Reader
+		if in.Body != "" && method != "GET" && method != "HEAD" {
+			body = strings.NewReader(in.Body)
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+		defer cancel()
+		req, err := http.NewRequestWithContext(ctx, method, base+path, body)
+		if err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		for k, v := range in.Headers {
+			if k = strings.TrimSpace(k); k != "" && !strings.EqualFold(k, "Host") {
+				req.Header.Set(k, v)
+			}
+		}
+		if body != nil && req.Header.Get("Content-Type") == "" {
+			req.Header.Set("Content-Type", "application/json")
+		}
+		start := time.Now()
+		res, err := (&http.Client{CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}).Do(req)
+		took := time.Since(start).Milliseconds()
+		if err != nil {
+			writeJSON(w, http.StatusOK, map[string]any{"error": err.Error(), "ms": took, "url": base + path})
+			return
+		}
+		defer res.Body.Close()
+		raw, _ := io.ReadAll(io.LimitReader(res.Body, 2<<20))
+		headers := map[string]string{}
+		for k := range res.Header {
+			headers[k] = res.Header.Get(k)
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"status": res.StatusCode, "statusText": http.StatusText(res.StatusCode),
+			"ms": took, "size": len(raw), "headers": headers, "body": string(raw), "url": base + path})
+	})
 	// Un ejemplo de lo que devuelve, pedido desde esta máquina (el navegador no llega al puerto del servicio).
 	mux.HandleFunc("GET /api/services/{alias}/sample", func(w http.ResponseWriter, r *http.Request) {
 		on, off := readServices()
