@@ -12,7 +12,7 @@
 
 | Pieza | Qué es | Archivos |
 |---|---|---|
-| Interfaz | Vue en **:5202**. Izquierda: qué hacer (meta, proyecto, dispositivo, **Automático** / **Enseñame**) y un árbol: cada **proyecto** es una carpeta con sus **flujos** y una subcarpeta **Corridas**; abrir la carpeta muestra la portada del proyecto (sus flujos con play). Centro: el navegador en vivo (con la barra del paso de la guía o de la reproducción), el video de una corrida o un flujo con sus datos. Derecha: **Claude trabajando**. Abajo: Pasos y Script | `src/App.vue`, `src/RunViewer.vue` |
+| Interfaz | Vue en **:5202**, para MIRAR y reproducir: lo que hay que hacer se le pide a Claude en la conversación (él maneja todo por la API y el CLI). Izquierda: un árbol: cada **proyecto** es una carpeta con sus **flujos** y una subcarpeta **Corridas**; abrir la carpeta muestra la portada del proyecto (sus flujos con play). Centro: el navegador en vivo (con la barra del paso de la guía o de la reproducción), el video de una corrida o un flujo con sus datos. Derecha: **Claude trabajando**. Abajo: Pasos y Script | `src/App.vue`, `src/RunViewer.vue` |
 | Tiempo real | UN stream SSE (`/api/events`): el estado de la sesión cuando cambia, cada evento de Claude, las corridas y los flujos al guardarse. Los cuadros del navegador van por `/api/live/frames` | `server/events.go` |
 | API | Go en **:5203**. Sesión en vivo, Claude, corridas, flujos, apps | `server/main.go` |
 | Sesión en vivo | Chromium sin ventana transmitido por CDP, acciones por localizador, diálogos, descargas. Escritorio 1280×800 (por defecto) o móvil (perfil Pixel 7) | `server/live.go`, `server/browser.go` |

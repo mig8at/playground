@@ -57,32 +57,12 @@ function connect() {
   on('ask', (ev) => { if (ev.n === askEvents.value.length) askEvents.value.push(ev) })
   on('runs', (v) => { runs.value = v })
   on('flows', (v) => { flows.value = v; if (view.value.kind === 'flow') loadView(view.value) })
-  on('apps', (v) => { apps.value = v; if (!apps.value.some((a) => a.id === composeApp.value) && composeApp.value !== 'otra' && v.length) composeApp.value = v[0].id })
+  on('apps', (v) => { apps.value = v })
 }
 
-// ── lo que se pide: una meta, en una app, automático o enseñame ──
-const goal = ref('')
-const composeApp = ref(readPref('navegador.app', ''))
-const otherURL = ref('')
-const mode = ref(readPref('navegador.modo', 'do')) // do (automático) · guide (enseñame)
+// El dispositivo con que se abre una app en vivo (Claude elige el suyo por la API).
 const device = ref(readPref('navegador.device', 'desktop'))
-watch(composeApp, (v) => savePref('navegador.app', v))
-watch(mode, (v) => savePref('navegador.modo', v))
 watch(device, (v) => savePref('navegador.device', v))
-const composeError = ref('')
-const launching = ref(false)
-const startURL = computed(() => (composeApp.value === 'otra' ? otherURL.value.trim() : apps.value.find((a) => a.id === composeApp.value)?.url || ''))
-async function launch() {
-  if (!goal.value.trim() || askState.value.running) return
-  launching.value = true
-  composeError.value = ''
-  try {
-    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: goal.value, url: startURL.value, device: device.value, modo: mode.value }) })
-    goal.value = ''
-    go({ kind: 'live' })
-    auxOpen.value = true
-  } catch (e) { composeError.value = e.message } finally { launching.value = false }
-}
 
 // ── Claude trabajando ──
 const askReply = ref('')
@@ -289,7 +269,7 @@ const project = computed(() => (view.value.kind === 'project' ? {
   id: view.value.app, app: apps.value.find((a) => a.id === view.value.app),
   flows: flows.value.filter((f) => f.app === view.value.app), runs: runsOf(view.value.app),
 } : null))
-function newFlowIn(app) { composeApp.value = app; document.getElementById('compose-goal')?.focus() }
+
 const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
 // ── el panel de abajo: los pasos de la sesión y su script ──
@@ -370,29 +350,6 @@ const status = computed(() => {
   <div class="workbench" :style="layoutVars">
     <aside v-if="shown.sidebar" class="sidebar" aria-label="Flujos y corridas">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <form class="compose" @submit.prevent="launch">
-        <textarea id="compose-goal" v-model="goal" class="input compose-goal" rows="3" aria-label="Qué querés hacer"
-          placeholder="¿Qué querés hacer o aprender? «agregá Crédito Ya como medio de pago, en modo pruebas»" @keydown.enter.exact.prevent="launch"></textarea>
-        <div class="compose-row">
-          <select v-model="composeApp" class="input input-sm" aria-label="En qué proyecto">
-            <option v-for="a in apps" :key="a.id" :value="a.id">{{ a.nombre }}</option>
-            <option value="otra">Otra URL…</option>
-          </select>
-          <select v-model="device" class="input input-sm compose-device" aria-label="Dispositivo">
-            <option value="desktop">Escritorio</option>
-            <option value="mobile">Móvil</option>
-          </select>
-        </div>
-        <input v-if="composeApp === 'otra'" v-model="otherURL" class="input input-sm" type="url" placeholder="https://… (vacío: la sesión abierta)" aria-label="URL" />
-        <div class="compose-row">
-          <div class="seg-toggle" role="group" aria-label="Cómo trabaja">
-            <button type="button" :aria-pressed="mode === 'do'" title="Claude lo hace solo y frena únicamente antes de algo irreversible (borrar, desactivar, pagar, enviar)" @click="mode = 'do'">Automático</button>
-            <button type="button" :aria-pressed="mode === 'guide'" title="Claude te marca cada paso en la página y vos lo hacés" @click="mode = 'guide'">Enseñame</button>
-          </div>
-          <button type="submit" class="btn btn-sm compose-go" :disabled="!goal.trim() || askState.running || launching">{{ askState.running ? 'Trabajando…' : 'Hacerlo' }}</button>
-        </div>
-        <p v-if="composeError" class="err">{{ composeError }}</p>
-      </form>
 
       <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>
       <div class="region-body tree" role="tree" aria-label="Proyectos">
@@ -405,7 +362,6 @@ const status = computed(() => {
             <span class="node-flag">{{ g.list.length }}</span>
             <span class="node-actions">
               <button v-if="g.url" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click.stop="openApp({ url: g.url })"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
-              <button type="button" class="region-action" title="Un flujo nuevo: escribí arriba qué querés hacer" aria-label="Flujo nuevo" @click.stop="newFlowIn(g.app)"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
             </span>
           </div>
           <template v-if="isOpen(g.app)">
@@ -418,7 +374,7 @@ const status = computed(() => {
                 <button type="button" class="region-action" title="Reproducir (automático)" aria-label="Reproducir" @click.stop="playFlowOf(f, 'auto')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
               </span>
             </div>
-            <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía: el + pide uno.</p>
+            <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía.</p>
             <!-- y sus corridas, en una subcarpeta -->
             <template v-if="runsOf(g.app).length">
               <div class="tree-row folder sub" role="treeitem" :aria-expanded="isOpen(g.app + '/corridas', false)" @click="toggleOpen(g.app + '/corridas', false)">
@@ -471,12 +427,11 @@ const status = computed(() => {
               <p v-if="project.app" class="muted">{{ project.app.descripcion }}</p>
               <div class="flow-actions">
                 <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
-                <button type="button" class="btn btn-ghost" @click="newFlowIn(project.id)">Pedir un flujo nuevo</button>
               </div>
             </header>
             <section>
               <h2>Flujos</h2>
-              <p v-if="!project.flows.length" class="muted">Todavía no tiene. Escribí arriba a la izquierda qué querés hacer en {{ appName(project.id) }}: lo que Claude aprenda queda acá.</p>
+              <p v-if="!project.flows.length" class="muted">Todavía no tiene. Pedíselo a Claude en la conversación: lo que aprenda en {{ appName(project.id) }} queda acá.</p>
               <div class="project-flows">
                 <div v-for="f in project.flows" :key="f.id" class="pflow">
                   <button type="button" class="pflow-shot" :title="`Abrir «${f.nombre}»`" @click="go({ kind: 'flow', app: f.app, id: f.id })">
@@ -625,8 +580,8 @@ const status = computed(() => {
             </div>
           </div>
           <div v-else class="home">
-            <h1>¿Qué querés hacer o aprender?</h1>
-            <p class="muted">Escribilo arriba a la izquierda y elegí la app. Claude lo hace en un navegador real (o te enseña paso a paso) y lo ves trabajar acá. Lo que aprende queda como flujo: se reproduce navegando de nuevo, con sus datos precargados, y para donde tenés que actuar vos.</p>
+            <h1>navegador</h1>
+            <p class="muted">Pedile a Claude en la conversación qué querés hacer o aprender en una app: lo hace en un navegador real y lo ves trabajar acá. Lo que aprende queda como flujo en su proyecto: se reproduce navegando de nuevo, con sus datos precargados, y para donde tenés que actuar vos.</p>
             <h2>Proyectos</h2>
             <div class="apps">
               <button v-for="a in apps" :key="a.id" type="button" class="card app-card" @click="openApp(a)">
@@ -733,13 +688,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 
-/* el compositor */
-.compose { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--gutter); border-bottom: 1px solid var(--border) }
-.compose-goal { resize: vertical; min-height: 64px; font: inherit }
-.compose-row { display: flex; gap: var(--space-2); align-items: center }
-.compose-row > select:first-child { flex: 1; min-width: 0 }
-.compose-device { flex: none; width: auto }
-.compose-go { margin-left: auto }
 .seg-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; flex: none }
 .seg-toggle button { border: 0; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--text-sm); padding: 2px var(--space-2); cursor: pointer }
 .seg-toggle button + button { border-left: 1px solid var(--border) }
