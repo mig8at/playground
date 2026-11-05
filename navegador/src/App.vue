@@ -135,6 +135,23 @@ const guideStyle = computed(() => {
 })
 const guideNote = ref('')
 const guideStuck = ref(false)
+// La repetición de una guía (replay.go): en cada paso, la persona elige.
+const replay = computed(() => (isLive.value ? liveState.value.replay : null))
+const replayHidden = ref('')
+const replayShown = computed(() => replay.value && !(replay.value.report && replay.value.report === replayHidden.value))
+const replayActive = computed(() => replay.value && !['done', 'stopped'].includes(replay.value.status))
+async function startReplay(id) {
+  liveError.value = ''
+  try {
+    liveState.value = await api('/api/live/replay/start', { method: 'POST', body: JSON.stringify({ run: id }) })
+    siteSlug.value = liveState.value.site
+    runId.value = '' // el editor pasa a la sesión en vivo
+    pollLive()
+  } catch (e) { runLoadError.value = e.message }
+}
+async function replayAnswer(choice) {
+  try { await api('/api/live/replay/answer', { method: 'POST', body: JSON.stringify({ choice }) }); pollLive() } catch (e) { liveError.value = e.message }
+}
 async function answerGuide(done) {
   try {
     await api('/api/live/guide/answer', { method: 'POST', body: JSON.stringify({ done, note: done ? '' : guideNote.value }) })
@@ -297,7 +314,7 @@ const isMobile = computed(() => liveState.value.device === 'mobile')
 const liveFit = computed(() => {
   const w = liveState.value.width || 1280
   const h = liveState.value.height || 800
-  const pad = (isMobile.value ? 48 : 16) + (liveState.value.guide ? 64 : 0)
+  const pad = (isMobile.value ? 48 : 16) + (liveState.value.guide || liveState.value.replay ? 72 : 0)
   const sc = Math.min((editorBox.value.w - pad) / w, (editorBox.value.h - pad) / h, 1)
   return sc > 0 ? { width: `${Math.floor(w * sc)}px`, height: `${Math.floor(h * sc)}px` } : {}
 })
@@ -1072,7 +1089,7 @@ onBeforeUnmount(() => {
       </div>
       <div v-if="runId" class="region-body run-body">
         <div v-if="runLoadError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-title">{{ runLoadError }}</div></div>
-        <RunViewer v-else-if="runData" :run="runData" />
+        <RunViewer v-else-if="runData" :run="runData" @replay="startReplay(runId)" />
         <div v-else class="empty"><div class="empty-desc">Leyendo la corrida…</div></div>
       </div>
       <div v-show="!runId" ref="editorBody" class="region-body" :class="{ 'live-body': isLive }">
@@ -1086,9 +1103,35 @@ onBeforeUnmount(() => {
           <div class="alert-title">{{ liveError }}</div>
         </div>
 
-        <div v-if="isLive" class="live-wrap" :class="{ guiding: guide }">
+        <div v-if="isLive" class="live-wrap" :class="{ guiding: guide || replayShown }">
+          <!-- La repetición de una guía: el paso, cómo salió el anterior y qué hacer con éste. -->
+          <div v-if="replayShown" class="guide-bar replay-bar" role="status" aria-live="polite">
+            <div class="replay-text">
+              <span class="replay-count">{{ replayActive ? `Paso ${replay.index + 1} de ${replay.total}` : replay.status === 'done' ? 'Repetición terminada' : 'Repetición frenada' }}</span>
+              <span v-if="replayActive && guide" class="guide-what">👉 {{ guide.instruction }}</span>
+              <span v-else-if="replayActive" class="muted">{{ replay.status === 'person' ? 'Hacelo en la página…' : 'trabajando…' }}</span>
+              <span v-else class="muted">{{ replay.did }} los hizo la herramienta · {{ replay.byHand }} vos · {{ replay.skipped }} saltados</span>
+              <span v-if="replay.note && replayActive" class="replay-note">{{ replay.note }}</span>
+            </div>
+            <template v-if="replayActive && replay.status === 'waiting'">
+              <button v-if="replay.choices?.includes('do')" type="button" class="btn btn-sm" :class="{ 'btn-destructive': replay.saves }" @click="replayAnswer('do')">{{ replay.saves ? 'Sí, hacelo (guarda)' : 'Hacelo vos' }}</button>
+              <button type="button" class="btn btn-outline btn-sm" @click="replayAnswer('self')">Lo hago yo</button>
+              <button type="button" class="btn btn-ghost btn-sm" @click="replayAnswer('skip')">Saltar</button>
+              <button v-if="replay.choices?.includes('do') && !replay.auto && !replay.saves" type="button" class="btn btn-ghost btn-sm" title="Hacer solo los pasos que siguen, hasta uno que guarde, pida una llave o no se encuentre" @click="replayAnswer('auto')">Seguí solo</button>
+            </template>
+            <template v-else-if="replayActive && replay.status === 'person'">
+              <button type="button" class="btn btn-sm" @click="replayAnswer('done')">Hecho</button>
+              <button type="button" class="btn btn-ghost btn-sm" @click="replayAnswer('skip')">Saltar</button>
+            </template>
+            <button v-if="replayActive && replay.auto" type="button" class="btn btn-ghost btn-sm" @click="replayAnswer('manual')">Preguntame en cada paso</button>
+            <button v-if="replayActive" type="button" class="btn btn-ghost btn-sm" @click="replayAnswer('stop')">Terminar</button>
+            <template v-else>
+              <button v-if="replay.report" type="button" class="btn btn-outline btn-sm" @click="pickRun(replay.report)">Ver la corrida</button>
+              <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="replayHidden = replay.report || 'x'"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+            </template>
+          </div>
           <!-- El paso de la guía va AFUERA de la página: encima taparía lo que la persona tiene que tocar. -->
-          <div v-if="guide" class="guide-bar" role="status" aria-live="polite">
+          <div v-if="guide && !guide.replay" class="guide-bar" role="status" aria-live="polite">
             <span class="guide-what">👉 {{ guide.instruction }}</span>
             <template v-if="!guideStuck">
               <button type="button" class="btn btn-sm" @click="answerGuide(true)">Hecho</button>
@@ -1577,6 +1620,10 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-wrap.guiding { grid-template-rows: auto 1fr; align-content: start; gap: var(--space-2); padding-top: var(--space-2) }
 .guide-bar { justify-self: stretch; margin: 0 var(--space-3); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 2px solid var(--primary); border-radius: var(--radius-control); background: var(--card) }
 .guide-what { flex: 1; min-width: 0; font-weight: 600; line-height: 1.4 }
+.replay-bar { flex-wrap: wrap }
+.replay-text { flex: 1; min-width: 200px; display: flex; flex-direction: column; gap: 2px }
+.replay-count { font-size: var(--text-sm); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.replay-note { font-size: var(--text-sm); color: var(--fg-3) }
 .guide-row { display: flex; gap: var(--space-2); align-items: center }
 .guide-row .input { flex: 1; min-width: 0 }
 .live-box { pointer-events: none }

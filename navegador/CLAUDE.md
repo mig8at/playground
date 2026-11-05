@@ -21,6 +21,8 @@
 | Reporte | El paso a paso de una corrida: md, html con una foto por paso, las fuentes consultadas, script | `server/report.go` |
 | Modo guía | `point <n> '<instrucción>'` marca el elemento en la página en vivo, con la instrucción en una barra encima, y espera a la persona (su clic o su teclado, o «Hecho» / «No lo encuentro»; hasta 100 s). El paso queda con su foto de antes y la línea de Playwright de lo que se pidió | `server/guide.go`, `cli/main.go` |
 | Modo hacerlo | Claude actúa; `cambios` lista cada campo antes → después (secretos tapados) para el CONFIRMAR. Bajo `ask`, en un sitio real, el CLI **niega** Guardar/Activar/Publicar/Enviar/Eliminar… hasta que la persona dice que sí en esa vuelta | `server/guide.go` (`LiveChanges`), `cli/main.go` (`saveGuard`), `cli/ask.go` |
+| Video | El reproductor de una corrida: por paso, la foto de antes y la de después, un cursor que va al punto de la interacción (el centro del elemento, o el clic real de la persona) y deja una onda, y subtítulos con qué se hace y **por qué** (lo que Claude pensó antes de actuar: `ask` lo manda a `/api/live/narrate`). Voz opcional con la del navegador | `src/RunViewer.vue` |
+| Repetir una guía | «Repetir esta guía» recorre una corrida de nuevo en la sesión en vivo, **sin Claude**: cada paso trae su localizador estructurado (`ref`), su acción y su valor. En cada uno la persona elige «Hacelo vos» / «Lo hago yo» / «Saltar»; «Seguí solo» avanza hasta el próximo paso que guarda, pide una llave o no se encuentra. Moverse y comprobar textos se hacen solos. La repetición es una corrida nueva (la guía verificada con fecha) | `server/replay.go`, `src/App.vue` |
 | Panel Andino | Admin **ficticio** de Tienda Andina (:5206), tratado como sitio REAL: menú lateral anidado, buscador, barra «cambios sin guardar», modal de medios de pago, condiciones de pago, activar con confirm(), envíos con pestañas, una app en iframe | `demo-admin/` |
 | CLI | `bin/navegador`: maneja la sesión en vivo por consola | `cli/main.go` |
 | `ask` | Claude Code (`claude -p`) maneja la sesión hasta cumplir una meta | `cli/ask.go`, `cli/ask.md` (sus instrucciones) |
@@ -63,6 +65,10 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
 - **Guardar en un sitio real lo autoriza la persona, y lo hace cumplir el CLI** (`saveGuard`): `ask` escribe
   `~/.cache/navegador/aprobado` cuando la persona contesta que sí a un CONFIRMAR y lo borra al terminar esa
   vuelta. Un `press Enter` en un formulario no pasa por esa guarda: es un hueco conocido (queda la regla del prompt).
+- **Sólo se repiten las corridas grabadas desde que cada paso guarda su `ref`** (el localizador como datos: la
+  línea TS no se puede ejecutar desde Go). Las más viejas se ven en el reproductor pero no muestran «Repetir».
+- **El «por qué» de un paso es el último texto que Claude escribió antes de actuar**: si un pensamiento llega
+  después de que el comando ya corrió, queda en el paso siguiente (es una carrera entre el stream y el comando).
 - **En el modo guía la instrucción va AFUERA de la página** (una barra sobre el editor): encima del canvas tapaba
   lo que la persona tenía que tocar.
 - Se sacaron la investigación de páginas públicas y las descargas de contenido (`readfile`, `images`, `media`, la

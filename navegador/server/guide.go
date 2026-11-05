@@ -25,6 +25,7 @@ type GuideReq struct {
 	Target      string `json:"target"`
 	Box         *Box   `json:"box,omitempty"`
 	View        *Box   `json:"view,omitempty"`
+	Replay      bool   `json:"replay,omitempty"` // es un paso de una repetición (replay.go), no de Claude
 }
 
 // GuideResult es cómo terminó: lo hizo (y qué), dijo que no lo encuentra, o no hizo nada a tiempo.
@@ -86,6 +87,8 @@ func (r *Runner) LiveGuide(in LiveAct, instruction string) (GuideResult, error) 
 	l.guideAnswers = make(chan guideAnswer, 1)
 	answers := l.guideAnswers
 	startInputs := l.inputs
+	started := time.Now()
+	l.pendingWhy = "" // en la guía, el porqué ya va en la instrucción
 	l.mu.Unlock()
 	defer func() {
 		l.mu.Lock()
@@ -130,33 +133,62 @@ wait:
 		return res, nil
 	}
 
-	// La línea del script: lo que se le pidió, con el valor que quedó (sin secretos).
-	step := Step{Target: name, OK: true, Manual: true, Guide: instruction, Before: shown.Before, Box: shown.Box, View: shown.View}
+	step := r.recordManual(l, target, base, name, kind, instruction, shown, targetRef(c, in.Text, base), started)
+	res.Code = step.Code
+	return res, nil
+}
+
+// recordManual registra un paso que hizo la persona: la línea del script es lo que se le pidió, con el valor que
+// quedó (sin secretos), y el punto es su clic de verdad si lo hubo.
+func (r *Runner) recordManual(l *live, target playwright.Locator, base, name, kind, instruction string, shown Step, ref *Ref, since time.Time) Step {
+	step := Step{Target: name, OK: true, Manual: true, Guide: instruction, Before: shown.Before, Box: shown.Box, View: shown.View, Ref: ref, Point: center(shown.Box)}
+	l.mu.Lock()
+	if l.lastClick != nil && l.lastClickAt.After(since) {
+		step.Point = l.lastClick
+	}
+	l.mu.Unlock()
 	switch kind {
 	case "field":
+		step.Action = "fill"
 		v, _ := target.InputValue(playwright.LocatorInputValueOptions{Timeout: playwright.Float(2000)})
 		if isSecret(target, name) {
 			step.Code = fmt.Sprintf("// la persona escribió %s (un secreto: no va en el script)", name)
-			step.Raw = true
+			step.Raw, step.Secret = true, true
 		} else {
 			step.Code = fmt.Sprintf("%s.fill('%s')", base, jsQuote(v))
+			step.Value = v
 		}
 	case "select":
 		v, _ := target.InputValue(playwright.LocatorInputValueOptions{Timeout: playwright.Float(2000)})
 		step.Code = fmt.Sprintf("%s.selectOption('%s')", base, jsQuote(v))
+		step.Action, step.Value = "select", v
 	case "check":
 		if on, err := target.IsChecked(playwright.LocatorIsCheckedOptions{Timeout: playwright.Float(2000)}); err == nil && !on {
-			step.Code = base + ".uncheck()"
+			step.Code, step.Action = base+".uncheck()", "uncheck"
 		} else {
-			step.Code = base + ".check()"
+			step.Code, step.Action = base+".check()", "check"
 		}
 	default:
-		step.Code = base + ".click()"
+		step.Code, step.Action = base+".click()", "click"
 	}
-	res.Code = step.Code
 	r.recordStep(l, step)
 	l.markDirty()
-	return res, nil
+	return step
+}
+
+// LiveNarrate guarda lo que Claude pensó antes de actuar: es el «por qué» del subtítulo del próximo paso.
+func (r *Runner) LiveNarrate(text string) {
+	l := r.liveSession()
+	if l == nil {
+		return
+	}
+	text = strings.Join(strings.Fields(text), " ")
+	if len([]rune(text)) > 220 {
+		text = string([]rune(text)[:219]) + "…"
+	}
+	l.mu.Lock()
+	l.pendingWhy = text
+	l.mu.Unlock()
 }
 
 // LiveGuideAnswer es el «Hecho» o «No lo encuentro» de la interfaz.

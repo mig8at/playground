@@ -6,6 +6,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({ run: { type: Object, required: true } })
+const emit = defineEmits(['replay'])
 const meta = computed(() => props.run.corrida || {})
 const steps = computed(() => props.run.pasos || [])
 const shot = (name) => `/api/corridas/${encodeURIComponent(meta.value.id)}/${encodeURIComponent(name)}`
@@ -20,8 +21,8 @@ const result = computed(() => (meta.value.resultado || '')
 // ── los cuadros: por paso, el de antes (con el elemento marcado) y el de después ──
 const frames = computed(() => steps.value.flatMap((s, i) => {
   const out = []
-  if (s.before) out.push({ step: i, img: s.before, box: s.box, view: s.view, phase: 'antes' })
-  if (s.shot) out.push({ step: i, img: s.shot, box: s.before ? null : s.box, view: s.view, phase: s.before ? 'después' : '' })
+  if (s.before) out.push({ step: i, img: s.before, box: s.box, view: s.view, point: s.punto, phase: 'antes' })
+  if (s.shot) out.push({ step: i, img: s.shot, box: s.before ? null : s.box, view: s.view, point: s.punto, phase: s.before ? 'después' : '' })
   return out
 }))
 const cur = ref(0)
@@ -55,11 +56,6 @@ function describe(s) {
   if (/\.dragTo\(/.test(c)) return `arrastra ${t}`
   return t || c
 }
-// La etiqueta corta sobre el cuadro marcado.
-const boxLabel = computed(() => {
-  const d = describe(step.value)
-  return d.length > 48 ? d.slice(0, 47) + '…' : d
-})
 const boxStyle = computed(() => {
   const f = frame.value
   if (!f?.box || !f.view?.w || !f.view?.h) return null
@@ -67,11 +63,49 @@ const boxStyle = computed(() => {
   return { left: pct(f.box.x, f.view.w), top: pct(f.box.y, f.view.h), width: pct(f.box.w, f.view.w), height: pct(f.box.h, f.view.h) }
 })
 
+// ── el cursor: va del punto del paso anterior al de éste, y en la foto de antes deja una onda donde toca ──
+const cursor = ref(null) // { left, top } en % de la foto; se queda donde estaba si el cuadro no tiene punto
+watch(frame, (f) => {
+  if (f?.point && f.view?.w && f.view?.h) cursor.value = { left: `${(f.point.x / f.view.w) * 100}%`, top: `${(f.point.y / f.view.h) * 100}%` }
+}, { immediate: true })
+const ripple = computed(() => frame.value?.phase === 'antes' && !!frame.value?.point)
+
+// ── los subtítulos (qué y por qué) y la voz del navegador ──
+const captions = ref(readPref('navegador.cc', true))
+const voice = ref(readPref('navegador.voz', false))
+watch(captions, (v) => savePref('navegador.cc', v))
+watch(voice, (v) => { savePref('navegador.voz', v); if (!v) speechSynthesis?.cancel() })
+const subtitle = computed(() => {
+  const s = step.value
+  if (!s) return null
+  const what = describe(s)
+  const why = s.porque && s.porque !== what ? s.porque.replace(/(\*\*|__)(.+?)\1/g, '$2') : ''
+  return { what, why }
+})
+const spoken = computed(() => (subtitle.value ? [subtitle.value.what, subtitle.value.why].filter(Boolean).join('. ') : ''))
+function speak() {
+  if (!voice.value || !window.speechSynthesis || !spoken.value) return
+  speechSynthesis.cancel()
+  const u = new SpeechSynthesisUtterance(spoken.value)
+  u.lang = 'es-CO'
+  u.rate = Math.min(1.6, 0.95 * speed.value)
+  speechSynthesis.speak(u)
+}
+// Se dice una vez por paso, al entrar (no otra vez en la foto de después).
+watch(() => frame.value?.step, () => speak())
+function readPref(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v === '1' } catch { return d } }
+function savePref(k, v) { try { localStorage.setItem(k, v ? '1' : '0') } catch { /* sin almacenamiento */ } }
+
 // ── reproducir ──
 const playing = ref(false)
 const speed = ref(1)
 let timer = null
-const frameMs = () => (frame.value?.phase === 'antes' ? 1300 : 1900) / speed.value
+// Con voz, el cuadro dura lo que tarda en decirse (aprox. 65 ms por letra).
+const frameMs = () => {
+  const base = (frame.value?.phase === 'antes' ? 1500 : 1900) / speed.value
+  if (!voice.value || frame.value?.phase === 'después') return base
+  return Math.max(base, (spoken.value.length * 65) / speed.value)
+}
 function tick() {
   clearTimeout(timer)
   if (!playing.value) return
@@ -105,7 +139,9 @@ onMounted(() => {
   if (stage.value) obs.observe(stage.value)
   window.addEventListener('keydown', onKey)
 })
-onBeforeUnmount(() => { obs?.disconnect(); clearTimeout(timer); window.removeEventListener('keydown', onKey) })
+onBeforeUnmount(() => { obs?.disconnect(); clearTimeout(timer); window.removeEventListener('keydown', onKey); window.speechSynthesis?.cancel() })
+// Se puede repetir si algún paso trae su localizador (o es moverse o comprobar): las corridas viejas no.
+const canReplay = computed(() => steps.value.some((s) => s.ok && (s.ref || ['goto', 'expect'].includes(s.accion))))
 
 // Otra corrida: desde el principio, con las fotos precargadas para que el video no parpadee.
 watch(() => meta.value.id, () => {
@@ -129,6 +165,7 @@ watch(cur, async () => {
       <div class="run-title">
         <span v-if="meta.palabra" class="badge kw" :class="kwClass(meta.palabra)">{{ meta.palabra }}</span>
         <h1>{{ meta.meta || 'Corrida sin meta' }}</h1>
+        <button v-if="canReplay" type="button" class="btn btn-sm replay-btn" title="Recorrerla de nuevo en la sesión en vivo, paso a paso: en cada uno elegís si lo hace la herramienta, lo hacés vos o lo saltás" @click="emit('replay')">Repetir esta guía</button>
       </div>
       <p class="muted small">
         {{ meta.sitio }}<template v-if="meta.dispositivo === 'mobile'"> · móvil</template> · {{ fmtDate(meta.fecha) }} · {{ meta.pasos }} pasos<template v-if="meta.fallidos">, {{ meta.fallidos }} fallidos</template>
@@ -142,9 +179,15 @@ watch(cur, async () => {
       <div ref="stage" class="stage" :class="{ bad: step && !step.ok }" @click="toggle">
         <div v-if="frame" class="shot-wrap">
           <img :src="shot(frame.img)" :style="{ maxHeight: `${stageH}px` }" :alt="`Paso ${frame.step + 1}: ${describe(step)}`" />
-          <div v-if="boxStyle" :key="cur" class="hit" :class="{ bad: !step.ok }" :style="boxStyle">
-            <span class="hit-label">{{ boxLabel }}</span>
+          <div v-if="boxStyle" :key="cur" class="hit" :class="{ bad: !step.ok }" :style="boxStyle"></div>
+          <div v-if="cursor" class="cursor" :style="cursor" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="22" height="22"><path d="M3 2l7 19 2.5-7.5L20 11z" /></svg>
+            <span v-if="ripple" :key="`r${cur}`" class="ripple"></span>
           </div>
+        </div>
+        <div v-if="captions && subtitle" class="subs" aria-live="polite">
+          <span class="subs-what">{{ subtitle.what }}</span>
+          <span v-if="subtitle.why" class="subs-why">{{ subtitle.why }}</span>
         </div>
         <span v-if="frame?.phase" class="phase">{{ frame.phase }}</span>
         <span v-if="!playing" class="big-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
@@ -162,6 +205,8 @@ watch(cur, async () => {
         </button>
         <button type="button" class="ctl" title="Siguiente (→)" aria-label="Cuadro siguiente" :disabled="cur >= frames.length - 1" @click="go(cur + 1)">›</button>
         <span class="counter">paso {{ (frame?.step ?? 0) + 1 }} de {{ steps.length }}</span>
+        <button type="button" class="ctl ctl-tog" :aria-pressed="captions" title="Subtítulos (qué y por qué)" aria-label="Subtítulos" @click.stop="captions = !captions">CC</button>
+        <button type="button" class="ctl ctl-tog" :aria-pressed="voice" title="Que lo diga en voz alta (la voz del navegador)" aria-label="Voz" @click.stop="voice = !voice; voice && speak()">🔊</button>
         <button type="button" class="ctl ctl-speed" :title="`Velocidad ${speed}×`" aria-label="Cambiar la velocidad" @click="speed = speed === 1 ? 2 : speed === 2 ? 0.5 : 1; tick()">{{ speed }}×</button>
       </div>
 
@@ -214,9 +259,18 @@ watch(cur, async () => {
 .shot-wrap img { display: block; max-width: 100%; height: auto }
 .hit { position: absolute; border: 2px solid var(--primary); border-radius: 4px; background: color-mix(in srgb, var(--primary) 14%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--primary) 25%, transparent); animation: hit-in 420ms ease-out; pointer-events: none }
 .hit.bad { border-color: var(--status-bad); background: color-mix(in srgb, var(--status-bad) 14%, transparent); box-shadow: 0 0 0 4px color-mix(in srgb, var(--status-bad) 25%, transparent) }
-.hit-label { position: absolute; left: -2px; bottom: calc(100% + 4px); white-space: nowrap; line-height: 1.3; font-size: 12px; padding: 2px 6px; border-radius: 4px; background: var(--primary); color: var(--primary-foreground) }
-.hit.bad .hit-label { background: var(--status-bad); color: var(--kw-ink) }
 @keyframes hit-in { from { transform: scale(1.25); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+.cursor { position: absolute; width: 0; height: 0; pointer-events: none; transition: left .7s cubic-bezier(.4, 0, .2, 1), top .7s cubic-bezier(.4, 0, .2, 1); z-index: 2 }
+.cursor svg { position: absolute; left: -3px; top: -2px; fill: #fff; stroke: #111; stroke-width: 1.5; filter: drop-shadow(0 1px 2px rgb(0 0 0 / .5)) }
+.ripple { position: absolute; left: -14px; top: -14px; width: 28px; height: 28px; border-radius: 50%; border: 3px solid var(--primary); opacity: 0; animation: ripple .9s ease-out .75s 2 }
+@keyframes ripple { 0% { transform: scale(.3); opacity: 1 } 100% { transform: scale(1.8); opacity: 0 } }
+.subs { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); max-width: 88%; display: flex; flex-direction: column; align-items: center; gap: 2px; text-align: center; pointer-events: none; z-index: 3 }
+.subs span { background: rgb(0 0 0 / .78); color: #fff; padding: 3px 10px; border-radius: 4px; line-height: 1.35 }
+.subs-what { font-size: 15px; font-weight: 600 }
+.subs-why { font-size: 13px; color: #e8e8e8 }
+.ctl-tog { font-size: var(--text-sm); padding: 0 var(--space-2) }
+.ctl-tog[aria-pressed="false"] { opacity: .55 }
+.replay-btn { margin-left: auto; flex: none }
 .phase { position: absolute; top: var(--space-2); left: var(--space-2); font-size: var(--text-sm); padding: 2px 8px; border-radius: 999px; background: var(--stage-chip); color: var(--stage-ink) }
 .big-play { position: absolute; right: var(--space-3); bottom: var(--space-3); width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--stage-chip); color: var(--stage-ink) }
 .big-play .ui-icon { width: 20px; height: 20px }

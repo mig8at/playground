@@ -35,10 +35,13 @@ type Locator struct {
 	ScopeName string `json:"scopeName,omitempty"`
 	// nth: el rol con nombre encuentra varios (en YouTube, el título y la miniatura de un video se llaman igual) y
 	// éste es el número Nth: getByRole(…).nth(N). Más legible y estable que una ruta CSS.
-	Nth   int    `json:"nth,omitempty"`
-	Code  string `json:"code"`  // la línea de Playwright (TS), lista para pegar
-	Count int    `json:"count"` // cuántos elementos encuentra en la página
-	Works bool   `json:"works"` // encuentra uno solo y es este control
+	Nth int `json:"nth,omitempty"`
+	// Para los objetivos por texto (click 'Guardar'): sólo los visibles, y si el texto puede ser una parte.
+	Visible bool   `json:"visible,omitempty"`
+	Loose   bool   `json:"loose,omitempty"`
+	Code    string `json:"code"`  // la línea de Playwright (TS), lista para pegar
+	Count   int    `json:"count"` // cuántos elementos encuentra en la página
+	Works   bool   `json:"works"` // encuentra uno solo y es este control
 }
 
 // Control es un elemento con el que se interactúa: un campo, un botón, un enlace, una casilla.
@@ -82,7 +85,15 @@ func rootFor(p playwright.Page, frame string) playwright.Locator {
 
 // locatorFor arma en playwright-go el mismo localizador que dice el código TS del candidato.
 func locatorFor(p playwright.Page, l Locator, frame string) playwright.Locator {
-	exact := playwright.Bool(true)
+	loc := baseLocator(p, l, frame)
+	if l.Visible {
+		loc = loc.Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)})
+	}
+	return loc
+}
+
+func baseLocator(p playwright.Page, l Locator, frame string) playwright.Locator {
+	exact := playwright.Bool(!l.Loose)
 	root := rootFor(p, frame)
 	switch l.Kind {
 	case "role":
@@ -103,6 +114,8 @@ func locatorFor(p playwright.Page, l Locator, frame string) playwright.Locator {
 		return root.GetByPlaceholder(l.Value, playwright.LocatorGetByPlaceholderOptions{Exact: exact})
 	case "text":
 		return root.GetByText(l.Value, playwright.LocatorGetByTextOptions{Exact: exact})
+	case "alt":
+		return root.GetByAltText(l.Value, playwright.LocatorGetByAltTextOptions{Exact: exact})
 	case "testid":
 		return root.GetByTestId(l.Value)
 	default:

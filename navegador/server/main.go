@@ -513,6 +513,33 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, ch)
 	})
+	// POST /api/live/replay/start {run} — repite una corrida sin Claude, paso a paso, con la persona eligiendo.
+	// POST /api/live/replay/answer {choice: do|self|done|skip|stop|auto|manual}
+	mux.HandleFunc("/api/live/replay/start", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Run string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := runner.LiveReplayStart(in.Run); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, runner.LiveState(false))
+	})
+	mux.HandleFunc("/api/live/replay/answer", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Choice string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := runner.LiveReplayAnswer(in.Choice); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// POST /api/live/narrate {text} — lo que Claude pensó antes de su próxima acción (el «por qué» del subtítulo).
+	mux.HandleFunc("/api/live/narrate", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Text string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		runner.LiveNarrate(in.Text)
+		writeJSON(w, http.StatusOK, ok)
+	})
 	// POST /api/live/check {js} — para la suite de evals: si una expresión da true en la página (lo que quedó
 	// guardado). No tiene comando en el CLI: Claude no corre JS.
 	mux.HandleFunc("/api/live/check", func(w http.ResponseWriter, r *http.Request) {

@@ -74,6 +74,15 @@ type Step struct {
 	Guide  string  `json:"guia,omitempty"`
 	Manual bool    `json:"manual,omitempty"`
 	Change *Change `json:"cambio,omitempty"` // lo que cambió en el campo (antes → después), para mostrar antes de guardar
+	// Para repetir el paso sin Claude (replay.go): a qué elemento (el localizador, no la línea TS), qué acción y con
+	// qué valor (vacío en un secreto, que siempre escribe la persona).
+	Ref    *Ref   `json:"ref,omitempty"`
+	Action string `json:"accion,omitempty"`
+	Value  string `json:"valor,omitempty"`
+	Secret bool   `json:"secreto,omitempty"`
+	// Para el video: dónde fue la interacción (px de la ventana View) y por qué (lo que Claude pensó antes).
+	Point *Box   `json:"punto,omitempty"`
+	Why   string `json:"porque,omitempty"`
 }
 
 // elementBox es dónde está un elemento en la ventana y el tamaño de la ventana (nil si no se ve).
@@ -132,9 +141,10 @@ type LiveState struct {
 	Title     string    `json:"title"`
 	Width     int       `json:"width"`
 	Height    int       `json:"height"`
-	Device    string    `json:"device"`          // desktop · mobile
-	Guide     *GuideReq `json:"guide,omitempty"` // el paso de la guía que espera a la persona
-	Version   int       `json:"version"`         // sube con cada análisis nuevo
+	Device    string    `json:"device"`           // desktop · mobile
+	Guide     *GuideReq `json:"guide,omitempty"`  // el paso de la guía que espera a la persona
+	Replay    *Replay   `json:"replay,omitempty"` // la repetición de una guía en curso (o la última)
+	Version   int       `json:"version"`          // sube con cada análisis nuevo
 	Analyzing bool      `json:"analyzing"`
 	Page      *Page     `json:"page,omitempty"`
 	Steps     []Step    `json:"steps"`
@@ -197,6 +207,14 @@ type live struct {
 	guideAnswers chan guideAnswer
 	inputs       int
 	lastInput    time.Time
+	lastClick    *Box // dónde hizo clic la persona por última vez (px de la ventana): el punto del paso en el video
+	lastClickAt  time.Time
+
+	// Lo que Claude pensó antes de su próxima acción (lo manda ask): el «por qué» del subtítulo de ese paso.
+	pendingWhy string
+
+	// La repetición de una guía en curso (replay.go).
+	replay *Replay
 }
 
 func (l *live) broadcast(frame []byte) {
@@ -500,7 +518,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide,
+		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(),
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
@@ -551,6 +569,9 @@ func (r *Runner) LiveInput(in LiveInput) error {
 		l.mu.Lock()
 		l.inputs++
 		l.lastInput = time.Now()
+		if in.Type == "click" || in.Type == "up" {
+			l.lastClick, l.lastClickAt = &Box{X: int(in.X), Y: int(in.Y)}, time.Now()
+		}
 		l.mu.Unlock()
 	}
 	var err error
@@ -622,22 +643,22 @@ func (r *Runner) LiveNav(action, target string) error {
 			for _, d := range downloads {
 				note = fmt.Sprintf("era una descarga: quedó en %s (%d bytes)", d.path, d.size)
 			}
-			r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: true, Note: note})
+			r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: true, Note: note, Action: "goto", Value: target})
 			return &NavNote{Note: note}
 		}
-		r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: err == nil, Error: errText(err)})
+		r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: err == nil, Error: errText(err), Action: "goto", Value: target})
 	case "back":
 		_, err = l.page.GoBack()
-		r.recordStep(l, Step{Code: "page.goBack()", Target: "atrás", OK: err == nil, Error: errText(err)})
+		r.recordStep(l, Step{Code: "page.goBack()", Target: "atrás", OK: err == nil, Error: errText(err), Action: "back"})
 	case "forward":
 		_, err = l.page.GoForward()
-		r.recordStep(l, Step{Code: "page.goForward()", Target: "adelante", OK: err == nil, Error: errText(err)})
+		r.recordStep(l, Step{Code: "page.goForward()", Target: "adelante", OK: err == nil, Error: errText(err), Action: "forward"})
 	case "scroll": // la página entera, hasta abajo
 		_, err = l.page.Evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
-		r.recordStep(l, Step{Code: "page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))", Target: "bajar la página", OK: err == nil, Error: errText(err)})
+		r.recordStep(l, Step{Code: "page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))", Target: "bajar la página", OK: err == nil, Error: errText(err), Action: "scroll-page"})
 	case "reload":
 		_, err = l.page.Reload()
-		r.recordStep(l, Step{Code: "page.reload()", Target: "recargar", OK: err == nil, Error: errText(err)})
+		r.recordStep(l, Step{Code: "page.reload()", Target: "recargar", OK: err == nil, Error: errText(err), Action: "reload"})
 	default:
 		err = fmt.Errorf("navegación desconocida %q", action)
 	}
@@ -741,6 +762,13 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	if err != nil {
 		return Step{}, err
 	}
+	return r.performAct(l, cur, in, target, base, c, targetRef(c, in.Text, base))
+}
+
+// performAct hace la acción sobre un objetivo ya resuelto (por número, por texto, o por el localizador guardado
+// de un paso cuando se repite una guía) y la registra con todo lo que el reproductor y la repetición necesitan.
+func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Locator, base string, c *Control, ref *Ref) (Step, error) {
+	var err error
 	name := in.Text
 	kind := ""
 	if c != nil {
@@ -869,7 +897,7 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	l.downloads = nil
 	l.mu.Unlock()
 	for _, d := range dialogs {
-		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true})
+		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true, Action: "dialog", Value: map[bool]string{true: "dismiss", false: "accept"}[strings.Contains(d.code, "dismiss")]})
 	}
 	// Una descarga va en el script como lo escribe Playwright: la espera ANTES del paso y el guardado después.
 	var after []Step
@@ -885,7 +913,11 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		}
 		after = append(after, Step{Code: fmt.Sprintf("(await %s).saveAs('%s')", v, jsQuote(d.name)), Target: d.name, OK: d.err == nil, Error: errText(d.err), Note: note})
 	}
-	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err), Before: shown.Before, Box: shown.Box, View: shown.View}
+	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err), Before: shown.Before, Box: shown.Box, View: shown.View,
+		Ref: ref, Action: action, Value: in.Value, Point: center(shown.Box)}
+	if (action == "fill" || action == "press") && isSecret(target, name) {
+		step.Value, step.Secret = "", true // lo que se escribió en una llave no se guarda ni para repetirlo
+	}
 	if tracked && err == nil {
 		after := fieldState(target, action)
 		if isSecret(target, name) { // una llave no se muestra nunca: sólo si cambió
@@ -941,6 +973,9 @@ func (r *Runner) recordStep(l *live, s Step) {
 	// puede ser de antes de un reset.
 	title, _ := l.page.Title()
 	l.mu.Lock()
+	if s.Why == "" && !s.Manual && s.Action != "dialog" && !s.Raw {
+		s.Why, l.pendingWhy = l.pendingWhy, ""
+	}
 	l.steps = append(l.steps, s)
 	l.noteSource(s.URL, title, "")
 	l.mu.Unlock()
@@ -965,10 +1000,11 @@ func (r *Runner) LiveExpect(text string, seconds float64) (Step, error) {
 	// plantilla), y esperar al primero a secas no termina nunca.
 	found := l.page.GetByText(text).Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)}).First()
 	err := found.WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible, Timeout: playwright.Float(seconds * 1000)})
-	step := Step{Code: fmt.Sprintf("expect(page.getByText('%s').filter({ visible: true }).first()).toBeVisible()", jsQuote(text)), Target: text, OK: err == nil, Error: errText(err)}
+	step := Step{Code: fmt.Sprintf("expect(page.getByText('%s').filter({ visible: true }).first()).toBeVisible()", jsQuote(text)), Target: text, OK: err == nil, Error: errText(err), Action: "expect", Value: text}
 	if err == nil { // el texto que se vio, marcado sobre la foto de después
 		_ = found.ScrollIntoViewIfNeeded(playwright.LocatorScrollIntoViewIfNeededOptions{Timeout: playwright.Float(1500)})
 		step.Box, step.View = elementBox(l, found)
+		step.Point = center(step.Box)
 	}
 	r.recordStep(l, step)
 	l.markDirty()
@@ -1405,3 +1441,13 @@ const downloadTargetJS = `e => {
 	}
 	return (a && a.href) || e.src || ''
 }`
+
+// replayCopy es la repetición tal como está, para mandarla a la interfaz sin compartir el canal (con l.mu tomado).
+func (l *live) replayCopy() *Replay {
+	if l.replay == nil {
+		return nil
+	}
+	c := *l.replay
+	c.answers = nil
+	return &c
+}

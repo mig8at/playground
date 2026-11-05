@@ -427,6 +427,8 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 				switch {
 				case c.Type == "text" && strings.TrimSpace(c.Text) != "":
 					say(out, "think", strings.TrimSpace(c.Text), fmt.Sprintf("  · %s\n", oneLine(c.Text, 160)))
+					// Es el «por qué» del próximo paso: el subtítulo del video de la corrida.
+					_ = call(http.MethodPost, "/api/live/narrate", map[string]string{"text": c.Text}, nil)
 				case c.Type == "tool_use" && c.Name == "Bash":
 					command := strings.ReplaceAll(c.Input.Command, self, "navegador")
 					say(out, "act", command, fmt.Sprintf("  → %s\n", oneLine(command, 160)))
