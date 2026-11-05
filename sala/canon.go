@@ -164,9 +164,11 @@ func canonBrief(ctx context.Context, root, topic string, changes []canon.RoundCh
 	} else {
 		b.WriteString("\n(No pude leer la prosa: make canon-read IDS=" + topic + "/context)")
 	}
-	if known, err := os.ReadFile(knownPath(root, "canon-"+topic)); err == nil && len(known) > 0 {
-		b.WriteString("\n\nYA CONFIRMADO en barridos anteriores (no lo repitas):\n" + string(known))
-	}
+	/* Sin «lo ya confirmado»: en knowledge evita redescubrir, pero acá la ronda es la única verdad. Un agente de imei
+	 * leyó que un barrido anterior había confirmado sus 15 archivos y no armó ninguna pieza, y ese «verificado» nunca se
+	 * había publicado (lo frenó el integrador). Si un archivo está en la lista, canon no lo tiene verificado (2026-11-05). */
+	b.WriteString("\n\nTodo archivo de la lista de arriba está SIN verificar en canon hoy, aunque algún barrido anterior lo haya " +
+		"revisado: si no armás su pieza, sigue en la ronda.")
 	return b.String()
 }
 
