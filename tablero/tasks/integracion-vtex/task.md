@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-5-0-2
+ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-5-0-2, vtex:ci/connector-smoke
 ---
 
 ## Pendientes
@@ -78,11 +78,11 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
 - [x] ~~Publicar la 5.0.1~~ — 2026-11-05: vtex#22 mergeado (f4e2896), tag `v5.0.1`, publicada, desplegada e instalada en
       `master` y `develop`. Contra la publicada: 4/4 con instancias arriba y 0,8 s una compra sola.
-- [ ] Publicar la 5.0.2 (vtex#23, rama `fix/core-800-vtex-5-0-2`), que hace que una configuración que no se pudo leer no mande el pago a producción: hasta la 5.0.1 `settings()` devuelve `{}` y el
-      conector cae a la API de producción, donde el token de qa da 401 (una compra de la primera tanda tras instalar la
-      5.0.1). Termina con el conector reintentando la lectura y negando con `CREDITOP_UNAVAILABLE` si no la consigue,
-      y `make harness-vtex TARGET=qa` en verde justo después de instalar.
-- [ ] Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout` con la 5.0.1 publicada
+- [x] ~~Publicar la 5.0.2~~ — 2026-11-05: vtex#23 mergeado (97f4f6e), tag `v5.0.2`, instalada en `master` y `develop`;
+      recién instalada ya no hubo 401.
+- [ ] Mergear la CI del conector (vtex#24, rama `ci/connector-smoke`): chequeo de tipos y los 14 casos de `local/smoke.js`
+      en cada PR. Termina con el check corriendo en un PR posterior.
+- [ ] Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout` con la versión publicada (5.0.2)
       (instancias calientes). Termina con `make harness-vtex TARGET=qa CASES=aprobada` después de una hora quieta.
 - [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
       comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
