@@ -53,6 +53,25 @@ const fmtRunDate = (t) => (t ? new Date(t).toLocaleString('es-CO', { day: 'numer
 async function copyRunScript() { if (runData.value?.script) copyText(runData.value.script, 'run-script') }
 watch(runId, (id) => { writeRoute(true); loadRun(id) })
 
+// ── las evals: cada caso de la suite con su último resultado y su historia (evals/historial.jsonl) ──
+const evals = ref({ casos: [], historial: [] })
+async function loadEvals() {
+  try { evals.value = await api('/api/evals') } catch { /* la API se cae al reiniciar */ }
+}
+// Por caso: sus resultados de la más nueva a la más vieja, con la fecha y el commit de la corrida de la suite.
+const evalCases = computed(() => {
+  const byCase = {}
+  for (const run of [...evals.value.historial].reverse()) {
+    for (const c of run.casos || []) (byCase[c.caso] ||= []).push({ ...c, fecha: run.fecha, commit: run.commit })
+  }
+  return (evals.value.casos || []).map((c) => ({ ...c, runs: byCase[c.nombre] || [] }))
+})
+const evalSuites = computed(() => [...evals.value.historial].reverse())
+const evalPassing = computed(() => evalCases.value.filter((c) => c.runs[0]?.ok).length)
+const reportRunId = (url) => (url || '').match(/\/corridas\/([^/]+)\//)?.[1] || ''
+function pickEval(c) { const id = reportRunId(c.runs[0]?.reporte); if (id) pickRun(id) }
+watch(sideTab, (v) => { if (v === 'evals') loadEvals() })
+
 // ── una meta lanzada desde acá: la API corre bin/navegador ask y junta lo que va diciendo (server/ask.go) ──
 const askGoal = ref('')
 const askURL = ref('')
@@ -796,6 +815,7 @@ onMounted(async () => {
   loadRuns()
   loadRun(runId.value)
   pollAsk()
+  if (sideTab.value === 'evals') loadEvals()
   runsTimer = setInterval(loadRuns, 8000)
 })
 let runsTimer = null
@@ -819,9 +839,10 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <nav class="tabs">
         <button type="button" class="tab" :class="{ on: sideTab === 'runs' }" @click="sideTab = 'runs'">Corridas <span class="count">{{ runs.length }}</span></button>
+        <button type="button" class="tab" :class="{ on: sideTab === 'evals' }" @click="sideTab = 'evals'">Evals <span class="count">{{ evalCases.length ? `${evalPassing}/${evalCases.length}` : '' }}</span></button>
         <button type="button" class="tab" :class="{ on: sideTab === 'sites' }" @click="sideTab = 'sites'">Sitios <span class="count" :class="{ filtered: filter }">{{ sites.length }}</span></button>
-        <div v-if="sideTab === 'runs'" class="region-actions">
-          <button type="button" class="region-action" title="Volver a leer las corridas" aria-label="Volver a leer las corridas" @click="loadRuns">
+        <div v-if="sideTab !== 'sites'" class="region-actions">
+          <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" @click="sideTab === 'runs' ? loadRuns() : loadEvals()">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
@@ -850,6 +871,27 @@ onBeforeUnmount(() => {
           <span class="run-row-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="run-row-meta">{{ r.meta || '(sin meta)' }}</span></span>
           <span class="row-desc">{{ r.sitio }} · {{ fmtRunDate(r.fecha) }}<template v-if="r.usd"> · US$ {{ r.usd.toFixed(2) }}</template> · {{ r.pasos }} pasos<template v-if="r.fallidos"> ({{ r.fallidos }} ✗)</template></span>
         </button>
+      </div>
+      <div v-else-if="sideTab === 'evals'" class="region-body">
+        <p class="none">La suite de regresión de <code>ask</code>: <code>make navegador-evals</code> (cuesta, por eso se corre desde la terminal). Un caso abre la corrida de su último reporte, si lo dejó.</p>
+        <button v-for="c in evalCases" :key="c.nombre" type="button" class="row stacked run-row" :class="{ on: reportRunId(c.runs[0]?.reporte) && reportRunId(c.runs[0]?.reporte) === runId }" :title="c.meta" @click="pickEval(c)">
+          <span class="run-row-top">
+            <span class="badge badge-xs kw" :class="!c.runs.length ? 'kw-none' : c.runs[0].ok ? 'kw-ok' : 'kw-bad'">{{ !c.runs.length ? 'sin correr' : c.runs[0].ok ? 'pasa' : 'falla' }}</span>
+            <span class="run-row-meta">{{ c.nombre }}</span>
+            <span v-if="c.externo" class="row-desc">internet</span>
+          </span>
+          <span class="row-desc ellipsis">{{ c.meta }}</span>
+          <span v-if="c.runs.length" class="row-desc">
+            <span class="eval-dots" aria-label="Historia, la más nueva primero"><span v-for="(r, i) in c.runs.slice(0, 12)" :key="i" class="eval-dot" :class="r.ok ? 'ok' : 'bad'" :title="`${fmtRunDate(r.fecha)} · ${r.commit} · ${(r.termino || []).join(' → ')}${r.por_que ? ' · ' + r.por_que : ''}`"></span></span>
+            {{ fmtRunDate(c.runs[0].fecha) }} · US$ {{ (c.runs[0].usd || 0).toFixed(2) }}
+          </span>
+          <span v-if="c.runs[0] && !c.runs[0].ok && c.runs[0].por_que" class="row-desc eval-why">{{ c.runs[0].por_que }}</span>
+        </button>
+        <div class="region-head group"><span>Corridas de la suite</span><span class="count">{{ evalSuites.length }}</span></div>
+        <div v-for="(r, i) in evalSuites" :key="i" class="row stacked">
+          <span>{{ r.pasaron }}/{{ r.total }} · {{ fmtRunDate(r.fecha) }}</span>
+          <span class="row-desc">{{ r.commit }}<template v-if="r.cambios_sin_commit"> + cambios</template> · US$ {{ (r.usd || 0).toFixed(2) }} · {{ Math.round(r.seg || 0) }} s</span>
+        </div>
       </div>
       <div v-else class="region-body">
         <div class="tree-top">
@@ -1466,6 +1508,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 .source-row { text-decoration: none; color: inherit }
+.eval-dots { display: inline-flex; gap: 2px; margin-right: var(--space-1); vertical-align: middle }
+.eval-dot { width: 7px; height: 7px; border-radius: 50% }
+.eval-dot.ok { background: var(--kw-ok) }
+.eval-dot.bad { background: var(--kw-bad) }
+.eval-why { color: var(--status-bad); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 /* la meta y el agente */
 .ask-form { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3); border-bottom: 1px solid var(--border) }
 .ask-goal { resize: vertical; min-height: 64px; font: inherit }

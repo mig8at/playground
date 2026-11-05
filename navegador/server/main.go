@@ -547,6 +547,27 @@ func handler(store *Store, runner *Runner) http.Handler {
 		asker.Stop()
 		writeJSON(w, http.StatusOK, ok)
 	})
+	// GET /api/evals — los casos de la suite (evals/casos.json) y su historial (evals/historial.jsonl), tal cual.
+	mux.HandleFunc("/api/evals", func(w http.ResponseWriter, r *http.Request) {
+		_, file, _, _ := runtime.Caller(0)
+		dir := filepath.Join(filepath.Dir(filepath.Dir(file)), "evals")
+		var suite struct {
+			Cases []map[string]any `json:"casos"`
+		}
+		if b, err := os.ReadFile(filepath.Join(dir, "casos.json")); err == nil {
+			_ = json.Unmarshal(b, &suite)
+		}
+		cases := suite.Cases
+		history := []json.RawMessage{}
+		if b, err := os.ReadFile(filepath.Join(dir, "historial.jsonl")); err == nil {
+			for _, line := range strings.Split(string(b), "\n") {
+				if json.Valid([]byte(line)) && strings.TrimSpace(line) != "" {
+					history = append(history, json.RawMessage(line))
+				}
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"casos": cases, "historial": history})
+	})
 	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (reporte.html, sus fotos, el script).
 	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))
 	mux.Handle("/api/corridas/", corridas)
