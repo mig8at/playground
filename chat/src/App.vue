@@ -1061,6 +1061,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .notice { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 8px var(--gutter);
   border-bottom: 1px solid var(--border); background: var(--muted); color: var(--fg-2); font-size: var(--text-sm) }
 .thread { display: flex; flex-direction: column; gap: 8px; padding: var(--space-4) var(--space-6) }
+/* DESVIACIÓN DECLARADA de la base (superficies planas): el hilo de una conversación lleva un patrón tenue de fondo, como
+   un chat. Sólo acá; scrollea con los mensajes (`local`). El patrón es un token del tema (--chat-wallpaper, style.css). */
+.thread { background-image: var(--chat-wallpaper); background-attachment: local; background-repeat: repeat }
 .day { align-self: center; margin: var(--space-3) 0 var(--space-1); padding: 2px 10px; border-radius: 999px; background: var(--muted);
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
 
