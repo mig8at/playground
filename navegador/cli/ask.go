@@ -113,6 +113,8 @@ type askOutcome struct {
 	Turns   int
 	Cost    float64
 	Seconds float64
+	Model   string
+	Tokens  tokenUsage
 }
 
 func (o askOutcome) Final() string {
@@ -196,8 +198,14 @@ func runAsk(o askOpts) (askOutcome, error) {
 		outcome.Turns += res.turns
 		outcome.Cost += res.cost
 		outcome.Seconds += res.seconds
+		outcome.Tokens.add(res.tokens)
+		if res.model != "" {
+			outcome.Model = res.model
+		}
 		fmt.Fprintf(o.out, "\n%s\n", res.text)
-		fmt.Fprintf(o.out, "\n(%d turnos · %.1f s · US$ %.4f)\n", res.turns, res.seconds, res.cost)
+		t := res.tokens
+		fmt.Fprintf(o.out, "\n(%d turnos · %.1f s · US$ %.4f · %s · tokens: %d entrada, %d de caché, %d a caché, %d salida)\n",
+			res.turns, res.seconds, res.cost, res.model, t.Input, t.CacheRead, t.CacheCreate, t.Output)
 		if k := outcome.Final(); k != "NECESITO" && k != "CONFIRMAR" {
 			break
 		}
@@ -227,6 +235,24 @@ type claudeResult struct {
 	turns   int
 	cost    float64
 	seconds float64
+	model   string
+	tokens  tokenUsage
+}
+
+// tokenUsage son los tokens de una corrida: sin esto, un costo que se duplica no tiene explicación (¿más
+// texto, otro modelo, la caché fría?).
+type tokenUsage struct {
+	Input       int `json:"entrada"`
+	CacheRead   int `json:"cache_leida"`
+	CacheCreate int `json:"cache_escrita"`
+	Output      int `json:"salida"`
+}
+
+func (t *tokenUsage) add(o tokenUsage) {
+	t.Input += o.Input
+	t.CacheRead += o.CacheRead
+	t.CacheCreate += o.CacheCreate
+	t.Output += o.Output
 }
 
 // runClaude corre una vuelta de claude -p y va mostrando lo que hace; corta si se pasa de acciones.
@@ -265,7 +291,14 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 			NumTurns  int     `json:"num_turns"`
 			Cost      float64 `json:"total_cost_usd"`
 			Duration  float64 `json:"duration_ms"`
-			Message   struct {
+			Model     string  `json:"model"`
+			Usage     struct {
+				Input       int `json:"input_tokens"`
+				CacheRead   int `json:"cache_read_input_tokens"`
+				CacheCreate int `json:"cache_creation_input_tokens"`
+				Output      int `json:"output_tokens"`
+			} `json:"usage"`
+			Message struct {
 				Content []struct {
 					Type    string          `json:"type"`
 					Text    string          `json:"text"`
@@ -284,6 +317,9 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 		}
 		if ev.SessionID != "" {
 			res.session = ev.SessionID
+		}
+		if ev.Type == "system" && ev.Model != "" {
+			res.model = ev.Model
 		}
 		switch ev.Type {
 		case "assistant":
@@ -320,6 +356,7 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int, o
 			res.turns = ev.NumTurns
 			res.cost = ev.Cost
 			res.seconds = ev.Duration / 1000
+			res.tokens = tokenUsage{Input: ev.Usage.Input, CacheRead: ev.Usage.CacheRead, CacheCreate: ev.Usage.CacheCreate, Output: ev.Usage.Output}
 			if ev.IsError && strings.Contains(strings.ToLower(ev.Result), "not logged in") {
 				_ = cmd.Wait()
 				return res, errors.New(loginHelp(claude))

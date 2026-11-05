@@ -95,7 +95,7 @@ func evals(args []string) error {
 		return errors.New("ningún caso para correr")
 	}
 
-	fmt.Printf("%-20s %-4s %-26s %6s %7s %9s\n", "caso", "", "terminó", "turnos", "seg", "US$")
+	fmt.Printf("%-20s %-4s %-26s %6s %7s %9s  %s\n", "caso", "", "terminó", "turnos", "seg", "US$", "modelo · tokens (entrada/de caché/a caché/salida)")
 	failed, cost := 0, 0.0
 	for _, r := range results {
 		mark := "✓"
@@ -104,7 +104,9 @@ func evals(args []string) error {
 			failed++
 		}
 		cost += r.outcome.Cost
-		fmt.Printf("%-20s %-4s %-26s %6d %7.1f %9.4f\n", r.c.Name, mark, strings.Join(r.outcome.Rounds, " → "), r.outcome.Turns, r.outcome.Seconds, r.outcome.Cost)
+		t := r.outcome.Tokens
+		fmt.Printf("%-20s %-4s %-26s %6d %7.1f %9.4f  %s · %d/%d/%d/%d\n", r.c.Name, mark, strings.Join(r.outcome.Rounds, " → "), r.outcome.Turns, r.outcome.Seconds, r.outcome.Cost,
+			r.outcome.Model, t.Input, t.CacheRead, t.CacheCreate, t.Output)
 	}
 	fmt.Printf("\n%d de %d pasaron · US$ %.4f · %s\n", len(results)-failed, len(results), cost, time.Since(start).Round(time.Second))
 	// Una corrida con otro Claude (NAVEGADOR_CLAUDE: uno simulado, para probar la suite) no es una medición de
@@ -267,14 +269,16 @@ func appendHistory(root string, results []evalResult, cost float64, took time.Du
 	commit, _ := exec.Command("git", "-C", root, "rev-parse", "--short", "HEAD").Output()
 	dirty, _ := exec.Command("git", "-C", root, "status", "--porcelain", "--", "navegador").Output()
 	type row struct {
-		Case    string   `json:"caso"`
-		OK      bool     `json:"ok"`
-		Rounds  []string `json:"termino"`
-		Turns   int      `json:"turnos"`
-		Seconds float64  `json:"seg"`
-		Cost    float64  `json:"usd"`
-		Why     string   `json:"por_que,omitempty"`
-		Report  string   `json:"reporte,omitempty"`
+		Case    string     `json:"caso"`
+		OK      bool       `json:"ok"`
+		Rounds  []string   `json:"termino"`
+		Turns   int        `json:"turnos"`
+		Seconds float64    `json:"seg"`
+		Cost    float64    `json:"usd"`
+		Why     string     `json:"por_que,omitempty"`
+		Report  string     `json:"reporte,omitempty"`
+		Model   string     `json:"modelo,omitempty"`
+		Tokens  tokenUsage `json:"tokens"`
 	}
 	entry := struct {
 		At     string  `json:"fecha"`
@@ -298,7 +302,7 @@ func appendHistory(root string, results []evalResult, cost float64, took time.Du
 		if !r.ok {
 			report = r.report
 		}
-		entry.Cases = append(entry.Cases, row{Case: r.c.Name, OK: r.ok, Rounds: r.outcome.Rounds, Turns: r.outcome.Turns, Seconds: r.outcome.Seconds, Cost: r.outcome.Cost, Why: why, Report: report})
+		entry.Cases = append(entry.Cases, row{Case: r.c.Name, OK: r.ok, Rounds: r.outcome.Rounds, Turns: r.outcome.Turns, Seconds: r.outcome.Seconds, Cost: r.outcome.Cost, Why: why, Report: report, Model: r.outcome.Model, Tokens: r.outcome.Tokens})
 	}
 	b, err := json.Marshal(entry)
 	if err != nil {
