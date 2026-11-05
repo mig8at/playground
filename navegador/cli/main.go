@@ -249,14 +249,16 @@ func open(args []string) error {
 	if len(args) < 1 {
 		usage()
 	}
-	if err := startLive(args); err != nil {
+	if err := startLive(args, false); err != nil {
 		return err
 	}
 	return look(true)
 }
 
-// startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, sin mostrar la página.
-func startLive(args []string) error {
+// startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, sin mostrar la página. Con clean
+// abre SIEMPRE una sesión nueva con un perfil limpio (la que hubiera se cierra): sin el login ni lo guardado
+// de corridas anteriores.
+func startLive(args []string, clean bool) error {
 	slug, start := args[0], ""
 	if len(args) > 1 {
 		start = args[1]
@@ -296,7 +298,7 @@ func startLive(args []string) error {
 	// Si ya hay una sesión en vivo: del mismo sitio, se reusa y se navega; de otro, se cierra primero.
 	var st liveState
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
-		if st.Site == slug {
+		if st.Site == slug && !clean {
 			if start == "" {
 				return nil
 			}
@@ -310,6 +312,9 @@ func startLive(args []string) error {
 	q := "site=" + url.QueryEscape(slug)
 	if start != "" {
 		q += "&start=" + url.QueryEscape(start)
+	}
+	if clean {
+		q += "&clean=1"
 	}
 	return call(http.MethodPost, "/api/live/start?"+q, nil, nil)
 }

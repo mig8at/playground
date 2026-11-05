@@ -132,8 +132,10 @@ func (r *Runner) liveSession() *live {
 	return r.live
 }
 
-// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), del tamaño w×h.
-func (r *Runner) LiveStart(slug, start string, w, h int) error {
+// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), del tamaño w×h. Con clean, en un
+// perfil TEMPORAL que se borra al cerrar: sin el login ni lo guardado de corridas anteriores (lo usan las evals,
+// para que el script no dependa de un estado que dejó otra corrida).
+func (r *Runner) LiveStart(slug, start string, w, h int, clean bool) error {
 	site, err := r.store.Site(slug)
 	if err != nil {
 		return err
@@ -148,7 +150,7 @@ func (r *Runner) LiveStart(slug, start string, w, h int) error {
 	ready := make(chan error, 1)
 	go func() {
 		defer r.end()
-		if err := r.runLive(ctx, site, start, w, h, ready); err != nil {
+		if err := r.runLive(ctx, site, start, w, h, clean, ready); err != nil {
 			r.say("error", "en vivo: %v", err)
 			select {
 			case ready <- err:
@@ -164,13 +166,22 @@ func (r *Runner) LiveStart(slug, start string, w, h int) error {
 	}
 }
 
-func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int, ready chan<- error) error {
+func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int, clean bool, ready chan<- error) error {
 	w, h = clampSize(w, h)
+	profile := r.store.ProfileDir(site.Slug)
+	if clean {
+		tmp, err := os.MkdirTemp("", "navegador-limpio-")
+		if err != nil {
+			return err
+		}
+		defer os.RemoveAll(tmp)
+		profile = tmp
+	}
 	pw, err := r.playwright()
 	if err != nil {
 		return err
 	}
-	bctx, err := pw.Chromium.LaunchPersistentContext(r.store.ProfileDir(site.Slug), playwright.BrowserTypeLaunchPersistentContextOptions{
+	bctx, err := pw.Chromium.LaunchPersistentContext(profile, playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: playwright.Bool(true),
 		Viewport: &playwright.Size{Width: w, Height: h},
 		Args:     []string{"--disable-blink-features=AutomationControlled"},
@@ -282,7 +293,11 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 		l.mu.Unlock()
 	}()
 
-	r.say("info", "en vivo en %s · lo que hagas en el editor (o con bin/navegador) pasa en este navegador", start)
+	if clean {
+		r.say("info", "en vivo en %s, con un perfil limpio (sin sesiones ni datos guardados)", start)
+	} else {
+		r.say("info", "en vivo en %s · lo que hagas en el editor (o con bin/navegador) pasa en este navegador", start)
+	}
 	if _, err := page.Goto(start, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded, Timeout: playwright.Float(45000)}); err != nil {
 		r.say("warn", "no cargó %s: %v", start, firstLine(err.Error()))
 	}
@@ -516,7 +531,14 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	cur, version := l.current, l.version
 	l.mu.Unlock()
 	if cur == nil {
-		return Step{}, errors.New("la página todavía no se analizó: esperá un momento")
+		// Recién abierta, la página todavía no tiene análisis: se hace ahora en vez de negar la acción.
+		var err error
+		if cur, err = r.liveAnalyze(l); err != nil {
+			return Step{}, fmt.Errorf("analizar la página: %v", err)
+		}
+		l.mu.Lock()
+		version = l.version
+		l.mu.Unlock()
 	}
 	if in.Text == "" && in.Version != 0 && in.Version != version {
 		return Step{}, fmt.Errorf("la página cambió desde que la miraste (análisis %d, ahora %d): volvé a mirarla", in.Version, version)
@@ -845,7 +867,10 @@ func (r *Runner) LiveValue(num int, text, expected string) (string, Step, error)
 	cur := l.current
 	l.mu.Unlock()
 	if cur == nil {
-		return "", Step{}, errors.New("la página todavía no se analizó: esperá un momento")
+		var err error
+		if cur, err = r.liveAnalyze(l); err != nil {
+			return "", Step{}, fmt.Errorf("analizar la página: %v", err)
+		}
 	}
 	target, code, c, err := r.liveTarget(l, cur, num, text)
 	if err != nil {

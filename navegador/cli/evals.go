@@ -108,7 +108,9 @@ func evals(args []string) error {
 
 func runCase(root string, c evalCase, verbose bool) evalResult {
 	r := evalResult{c: c}
-	if err := startLive([]string{c.URL}); err != nil {
+	// Cada caso arranca con un navegador limpio: un login o un carrito que dejó otra corrida haría que el script
+	// dependa de un estado que una repetición no tiene (pasó con credidemo-cuenta en la primera corrida real).
+	if err := startLive([]string{c.URL}, true); err != nil {
 		r.why = "no se pudo abrir la sesión: " + err.Error()
 		return r
 	}
@@ -164,8 +166,15 @@ func runCase(root string, c evalCase, verbose bool) evalResult {
 			r.why = "leer el script: " + err.Error()
 			return r
 		}
-		if !strings.Contains(script, "expect(") {
-			r.why = "LISTO, pero el script no tiene ninguna aserción: no prueba que la meta se cumplió"
+		// Sólo cuentan las aserciones que corren: una que falló queda COMENTADA en el script y no prueba nada.
+		asserts := 0
+		for _, line := range strings.Split(script, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "await expect(") {
+				asserts++
+			}
+		}
+		if asserts == 0 {
+			r.why = "LISTO, pero el script no tiene ninguna aserción que pase: no prueba que la meta se cumplió"
 			return r
 		}
 		res, err := replay(root)

@@ -246,7 +246,7 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		vw, _ := strconv.Atoi(r.URL.Query().Get("w"))
 		vh, _ := strconv.Atoi(r.URL.Query().Get("h"))
-		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start"), vw, vh); err != nil {
+		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start"), vw, vh, r.URL.Query().Get("clean") == "1"); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
