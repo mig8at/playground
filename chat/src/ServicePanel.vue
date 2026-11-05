@@ -8,7 +8,7 @@ import { computed, ref, watch } from 'vue'
 import { picked, remember } from './stores/service-history.js'
 import { headersFor, loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
 
-const props = defineProps({ service: { type: Object, required: true }, serving: Boolean, serveLog: { type: String, default: '' } })
+const props = defineProps({ service: { type: Object, required: true }, serving: Boolean })
 const emit = defineEmits(['changed', 'close'])
 
 // ── prender y apagar ──
@@ -28,10 +28,6 @@ async function toggle() {
     busy.value = false
     emit('changed')
   }
-}
-const copied = ref(false)
-async function copy() {
-  try { await navigator.clipboard.writeText(props.service.url); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 
 // ── la petición ──
@@ -146,23 +142,6 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
     </div>
   </div>
   <div class="region-body service" @keydown="onKeydown">
-    <details class="info">
-      <summary>{{ service.description }}</summary>
-      <dl>
-        <dt>Estado</dt>
-        <dd v-if="!service.on">apagado: el equipo no lo ve</dd>
-        <dd v-else-if="!service.listening">prendido, pero su puerto no contesta</dd>
-        <dd v-else-if="!serving">prendido, pero <code>playground serve</code> no está corriendo</dd>
-        <dd v-else>el equipo lo alcanza por la VPN</dd>
-        <dt>En el equipo</dt>
-        <dd><code>{{ service.url }}</code> <button type="button" class="btn-link" @click="copy">{{ copied ? 'copiada' : 'copiar' }}</button></dd>
-        <dt>En esta máquina</dt>
-        <dd><code>{{ service.to }}</code>{{ service.managed ? ' · lo levanta el chat' : ' · lo levantás vos' }}</dd>
-        <dt>Se declara en</dt>
-        <dd><code>~/playground/team/services.json</code> (prendidos) y <code>services.off.json</code> (apagados)</dd>
-      </dl>
-      <details v-if="serveLog" class="serve-log"><summary>Lo último de <code>playground serve</code></summary><pre>{{ serveLog }}</pre></details>
-    </details>
     <p v-if="error" class="bad">{{ error }}</p>
 
     <div class="main">
@@ -243,14 +222,7 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
 <style scoped>
 .head-who { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
 .service { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); overflow: auto }
-.info summary { cursor: pointer; color: var(--fg-2) }
-.info dl { margin: var(--space-3) 0 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-2) var(--space-4); font-size: var(--text-sm) }
-dt { color: var(--fg-2) }
-dd { margin: 0; word-break: break-word }
 code, pre, .code { font-family: var(--font-mono) }
-.serve-log { margin-top: var(--space-3) }
-.serve-log summary { cursor: pointer; color: var(--fg-2); font-size: var(--text-sm) }
-.serve-log pre { margin: var(--space-2) 0 0; font-size: var(--text-sm); white-space: pre-wrap }
 .main { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0 }
 .request-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center }
 .url-field { flex: 1 1 240px; min-width: 0; height: var(--control-sm); padding-left: 0 }

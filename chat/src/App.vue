@@ -129,6 +129,15 @@ const consoleH = ref(readSize('chat.server-console-h', 240))
 const routesOpen = ref(readSize('chat.service-routes-open', 1) !== 0)
 function setRoutesOpen(v) { routesOpen.value = v; saveSize('chat.service-routes-open', v ? 1 : 0) }
 const serviceHistory = computed(() => (openService.value ? historyFor(openService.value.alias) : []))
+// La consola del servicio: el historial, su ficha (estado, direcciones, dónde se declara) y lo último de `playground serve`.
+const SERVICE_TABS = [{ id: 'history', label: 'Historial' }, { id: 'info', label: 'Servicio' }, { id: 'serve', label: 'serve', title: 'Lo último de playground serve' }]
+const serviceTab = ref((() => { try { return localStorage.getItem('chat.service-console-tab') || 'history' } catch { return 'history' } })())
+function setServiceTab(id) { serviceTab.value = id; try { localStorage.setItem('chat.service-console-tab', id) } catch { /* sólo no se recuerda */ } }
+const serveLines = computed(() => (teamServices.value.serveLog || '').split('\n').filter((l) => l.trim()))
+const serviceUrlCopied = ref(false)
+async function copyServiceUrl() {
+  try { await navigator.clipboard.writeText(openService.value.url); serviceUrlCopied.value = true; setTimeout(() => { serviceUrlCopied.value = false }, 1500) } catch { /* sin portapapeles */ }
+}
 const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) } catch { return '' } }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
@@ -667,7 +676,7 @@ const statusText = computed(() => {
     </aside>
 
     <main v-if="openService" class="editor">
-      <ServicePanel :service="openService" :serving="teamServices.serving" :serve-log="teamServices.serveLog" @changed="loadServers" @close="serverOpen = ''" />
+      <ServicePanel :service="openService" :serving="teamServices.serving" @changed="loadServers" @close="serverOpen = ''" />
     </main>
     <main v-else-if="openServer" class="editor">
       <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" />
@@ -968,11 +977,12 @@ const statusText = computed(() => {
     <section v-if="openService && panelShown" class="panel" aria-label="Consola">
       <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
       <nav class="tabs" role="tablist" aria-label="Consola">
-        <button type="button" role="tab" class="tab on" aria-selected="true">
-          Historial <span v-if="serviceHistory.length" class="count">{{ serviceHistory.length }}</span>
+        <button v-for="t in SERVICE_TABS" :key="t.id" type="button" role="tab" class="tab" :class="{ on: serviceTab === t.id }"
+                :aria-selected="serviceTab === t.id" :title="t.title || null" @click="setServiceTab(t.id)">
+          {{ t.label }} <span v-if="t.id === 'history' && serviceHistory.length" class="count">{{ serviceHistory.length }}</span>
         </button>
         <div class="region-actions">
-          <button v-if="serviceHistory.length" type="button" class="region-action" title="Vaciar el historial" aria-label="Vaciar el historial"
+          <button v-if="serviceTab === 'history' && serviceHistory.length" type="button" class="region-action" title="Vaciar el historial" aria-label="Vaciar el historial"
                   @click="forgetHistory(openService.alias)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
@@ -982,7 +992,30 @@ const statusText = computed(() => {
           </button>
         </div>
       </nav>
-      <div class="region-body console">
+      <div v-if="serviceTab === 'info'" class="region-body console service-info">
+        <p class="console-empty">{{ openService.description }}</p>
+        <dl>
+          <dt>Estado</dt>
+          <dd v-if="!openService.on">apagado: el equipo no lo ve</dd>
+          <dd v-else-if="!openService.listening">prendido, pero su puerto no contesta</dd>
+          <dd v-else-if="!teamServices.serving">prendido, pero <code>playground serve</code> no está corriendo</dd>
+          <dd v-else>el equipo lo alcanza por la VPN</dd>
+          <dt>En el equipo</dt>
+          <dd><code>{{ openService.url }}</code>
+            <button type="button" class="region-action" :title="serviceUrlCopied ? 'Copiada' : 'Copiar la dirección'" aria-label="Copiar la dirección" @click="copyServiceUrl">
+              <span class="ui-icon" :data-icon="serviceUrlCopied ? 'check' : 'copy'" aria-hidden="true"></span>
+            </button></dd>
+          <dt>En esta máquina</dt>
+          <dd><code>{{ openService.to }}</code>{{ openService.managed ? ' · lo levanta el chat' : ' · lo levantás vos' }}</dd>
+          <dt>Se declara en</dt>
+          <dd><code>~/playground/team/services.json</code> (prendidos) y <code>services.off.json</code> (apagados)</dd>
+        </dl>
+      </div>
+      <div v-else-if="serviceTab === 'serve'" class="region-body console">
+        <p v-if="!serveLines.length" class="console-empty"><code>playground serve</code> todavía no escribió nada.</p>
+        <div v-for="(l, i) in serveLines" :key="i" class="log-line"><span class="log-text">{{ l }}</span></div>
+      </div>
+      <div v-else class="region-body console">
         <p v-if="!serviceHistory.length" class="console-empty">Las peticiones que mandes a {{ openService.alias }} quedan acá; un clic la vuelve a cargar.</p>
         <button v-for="(h, i) in serviceHistory" :key="i" type="button" class="log-line history-line" :title="`Cargar ${h.method} ${h.path}`"
                 @click="pickHistory(openService.alias, h)">
@@ -1076,6 +1109,10 @@ code { font-family: var(--font-mono); font-size: .92em }
 .console .log-line.is-bad .log-text { color: var(--send-fail) }
 .console-step { white-space: nowrap }
 /* El historial de un servicio, como líneas de consola que se pueden cliquear. */
+.service-info dl { margin: var(--space-2) 0 0; padding: 0 var(--gutter); display: grid; grid-template-columns: auto 1fr;
+  gap: var(--space-2) var(--space-4); align-items: center; font-size: var(--text-sm) }
+.service-info dt { color: var(--fg-2) }
+.service-info dd { margin: 0; display: flex; align-items: center; gap: var(--space-1); flex-wrap: wrap; word-break: break-word }
 .history-line { width: 100%; border: 0; background: transparent; text-align: left; font: inherit; color: inherit; cursor: pointer }
 .history-line:hover { background: var(--accent) }
 .history-status, .history-method { flex: none; font-family: var(--font-mono); font-size: var(--text-xs); width: 3.5em }
