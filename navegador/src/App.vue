@@ -2,8 +2,8 @@
 /* navegador · la interfaz. Todo lo hace la API en Go (playwright-go): acá se elige el sitio, se abre la ventana
  * para loguearse a mano, se lanza el recorrido y se lee el mapa. El sitio y la página elegida viven en la URL.
  *
- * Las regiones son las de la base: el sidebar con dos vistas (los sitios y el árbol de páginas del elegido,
- * como el Explorer de VS Code), el editor con la página como documento (o el resumen del sitio), el sidebar
+ * Las regiones son las de la base: el sidebar con UN árbol (cada sitio es una raíz y sus páginas cuelgan
+ * adentro, como las carpetas del Explorer de VS Code), el editor con la página como documento (o el resumen del sitio), el sidebar
  * secundario con el detalle de la página y la consola abajo. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import {
@@ -71,23 +71,36 @@ async function removeSite(s) {
     sitesError.value = e.message
   }
 }
-function pickSite(slug) { siteSlug.value = slug; pageId.value = ''; views.value = { ...views.value, pages: true } }
+function pickSite(slug) { siteSlug.value = slug; pageId.value = ''; expandSite(slug, true) }
 const site = computed(() => sites.value.find((s) => s.slug === siteSlug.value))
 
 // ── el mapa del sitio ──
-const pages = ref([])
-const lastRun = ref(null)
+// Cada sitio desplegado tiene su mapa cargado; el elegido es el que muestran el editor y el detalle.
+const pagesBySite = ref({})
+const runBySite = ref({})
+const pages = computed(() => pagesBySite.value[siteSlug.value] || [])
+const lastRun = computed(() => runBySite.value[siteSlug.value] || null)
 const pagesError = ref('')
 const filter = ref('')
-async function loadPages() {
-  if (!siteSlug.value) { pages.value = []; lastRun.value = null; return }
-  const slug = siteSlug.value
+const filtering = ref(false)
+async function loadPages(slug = siteSlug.value) {
+  if (!slug) return
   try {
     const body = await api(`/api/pages?site=${encodeURIComponent(slug)}`)
-    if (slug === siteSlug.value) { pages.value = body.pages || []; lastRun.value = body.run; pagesError.value = '' }
+    pagesBySite.value = { ...pagesBySite.value, [slug]: body.pages || [] }
+    runBySite.value = { ...runBySite.value, [slug]: body.run }
+    pagesError.value = ''
   } catch (e) {
     pagesError.value = e.message
   }
+}
+const expandedSites = ref(new Set(readPref('navegador.expanded', [])))
+function expandSite(slug, open) {
+  const next = new Set(expandedSites.value)
+  open ? next.add(slug) : next.delete(slug)
+  expandedSites.value = next
+  savePref('navegador.expanded', [...next])
+  if (open && !pagesBySite.value[slug]) loadPages(slug)
 }
 const page = computed(() => pages.value.find((p) => p.id === pageId.value))
 function pickPage(id) { pageId.value = id; auxOpen.value = true; saveSize('navegador.aux-open', 1) }
@@ -112,18 +125,26 @@ const summary = computed(() => {
   return { stack: [...stack.keys()], calls, errors, walls, forms }
 })
 
-// ── el árbol de páginas del sidebar ──
-// Dos formas de agrupar: por CARPETAS de la URL (como un explorador de archivos) o por NAVEGACIÓN (cada página
-// cuelga de la página desde la que se llegó; el recorrido va a lo ancho, así que la rama es el camino más corto).
+// ── el árbol del sidebar: cada sitio es una raíz y sus páginas cuelgan adentro ──
+// Dos formas de agrupar las páginas: por CARPETAS de la URL (como un explorador de archivos) o por NAVEGACIÓN
+// (cada página cuelga de la página desde la que se llegó; el recorrido va a lo ancho, así que la rama es el
+// camino más corto desde la entrada).
 const grouping = ref(readPref('navegador.grouping', 'folders'))
 watch(grouping, (v) => { savePref('navegador.grouping', v); openNodes.value = new Map() })
 const showPending = ref(readPref('navegador.show-pending', true))
 watch(showPending, (v) => savePref('navegador.show-pending', v))
-// Abierta o cerrada la elige la persona; mientras no elija, se abren los dos primeros niveles.
+// Abierta o cerrada la elige la persona; mientras no elija, se abren los primeros niveles bajo el sitio.
 const openNodes = ref(new Map())
-const isOpen = (n) => openNodes.value.has(n.id) ? openNodes.value.get(n.id) : n.level < 2
-function toggleNode(n) { const m = new Map(openNodes.value); m.set(n.id, !isOpen(n)); openNodes.value = m }
-function collapseAll() { const m = new Map(); for (const r of treeRows.value) if (r.children) m.set(r.id, false); openNodes.value = m }
+const isOpen = (n) => openNodes.value.has(n.id) ? openNodes.value.get(n.id) : n.level < 3
+function toggleNode(n) {
+  if (n.kind === 'site') return expandSite(n.site.slug, !expandedSites.value.has(n.site.slug))
+  const m = new Map(openNodes.value); m.set(n.id, !isOpen(n)); openNodes.value = m
+}
+function collapseAll() {
+  const m = new Map()
+  for (const r of treeRows.value) if (r.children && r.kind !== 'site') m.set(r.id, false)
+  openNodes.value = m
+}
 
 function segmentsOf(u) {
   try {
@@ -135,77 +156,90 @@ function segmentsOf(u) {
     return parts
   } catch { return [u] }
 }
-const pendingNodes = computed(() => (showPending.value ? lastRun.value?.pending || [] : [])
-  .map((l, i) => ({ id: `pending-${i}`, url: l.url, parent: l.parent, pending: true })))
+function pendingOf(slug) {
+  return showPending.value ? (runBySite.value[slug]?.pending || []).map((l, i) => ({ ...l, id: `${slug}:pending:${i}` })) : []
+}
 
-// Cada nodo: { id, name, url?, page?, pending?, kids: [] }. Una carpeta puede ser también página (su índice).
-function folderTree() {
-  const root = { id: 'folder:/', name: site.value?.host || '/', kids: [], map: new Map() }
+// Un nodo: { id, name, url?, page?, pendingLeaf?, kids: [] }. Una carpeta puede ser también página (su índice).
+// La raíz es el sitio: su página («/») queda en la fila del sitio.
+function folderTree(slug, list) {
+  const root = { id: `${slug}:folder:/`, kids: [], map: new Map() }
   const place = (url, attach) => {
     let node = root
     let path = ''
     for (const seg of segmentsOf(url)) {
       path += '/' + seg
       if (!node.map.has(seg)) {
-        const child = { id: 'folder:' + path, name: seg, kids: [], map: new Map() }
+        const child = { id: `${slug}:folder:${path}`, name: seg, kids: [], map: new Map() }
         node.map.set(seg, child)
         node.kids.push(child)
       }
       node = node.map.get(seg)
     }
-    // Si la carpeta ya era la página de otra variante (con y sin barra), gana la visitada.
     if (!node.page || attach.page) Object.assign(node, attach)
   }
-  for (const p of pages.value) place(p.url, { page: p, url: p.url })
-  for (const n of pendingNodes.value) place(n.url, { url: n.url, pendingLeaf: true })
-  return [root]
+  for (const p of list) place(p.url, { page: p, url: p.url })
+  for (const l of pendingOf(slug)) place(l.url, { url: l.url, pendingLeaf: true })
+  return root
 }
-function navTree() {
-  const byId = new Map(pages.value.map((p) => [p.id, { id: p.id, name: pathOf(p.url), url: p.url, page: p, kids: [] }]))
-  const roots = []
-  for (const n of byId.values()) {
-    const parent = byId.get(n.page.parent)
-    parent && parent !== n ? parent.kids.push(n) : roots.push(n)
+function navTree(slug, list) {
+  const byId = new Map(list.map((p) => [p.id, { id: `${slug}:${p.id}`, name: pathOf(p.url), url: p.url, page: p, kids: [] }]))
+  // La entrada se funde con la fila del sitio: lo que colgaba de ella cuelga del sitio.
+  const entry = list.find((p) => p.depth === 0 && !p.parent)
+  const root = { id: `${slug}:nav`, kids: [], page: entry, url: entry?.url }
+  const hang = (node, parentId) => {
+    const parent = byId.get(parentId)
+    if (parent && parent !== node && parentId !== entry?.id) parent.kids.push(node)
+    else root.kids.push(node)
   }
-  for (const l of pendingNodes.value) {
-    const node = { id: l.id, name: pathOf(l.url), url: l.url, pendingLeaf: true, kids: [] }
-    const parent = byId.get(l.parent)
-    parent ? parent.kids.push(node) : roots.push(node)
-  }
-  roots.sort((a, b) => (a.page?.depth ?? 99) - (b.page?.depth ?? 99))
-  return roots
+  for (const n of byId.values()) if (n.page !== entry) hang(n, n.page.parent)
+  for (const l of pendingOf(slug)) hang({ id: l.id, name: pathOf(l.url), url: l.url, pendingLeaf: true, kids: [] }, l.parent)
+  return root
 }
 const treeRows = computed(() => {
-  const roots = grouping.value === 'nav' ? navTree() : folderTree()
   const q = filter.value.trim().toLowerCase()
-  const match = (n) => !q || ((n.url || n.name) + ' ' + (n.page?.title || '')).toLowerCase().includes(q)
+  const match = (n) => !q || ((n.url || n.name || '') + ' ' + (n.page?.title || '')).toLowerCase().includes(q)
   // Carpetas primero, después archivos, por nombre; lo sin visitar al final de su carpeta.
-  const order = (a, b) => (!!a.pendingLeaf - !!b.pendingLeaf) || (!b.kids.length - !a.kids.length) || a.name.localeCompare(b.name)
-  const keep = new Map()
-  const mark = (n) => {
-    if (keep.has(n.id)) return keep.get(n.id)
-    keep.set(n.id, false) // corta un ciclo, si lo hubiera
-    let hit = match(n)
-    for (const k of n.kids) hit = mark(k) || hit
-    keep.set(n.id, hit)
-    return hit
-  }
-  roots.forEach(mark)
+  const order = (a, b) => (!!a.pendingLeaf - !!b.pendingLeaf) || (!b.kids.length - !a.kids.length) || (a.name || '').localeCompare(b.name || '')
   const out = []
-  const seen = new Set()
-  const walk = (n, level) => {
-    if (seen.has(n.id) || !keep.get(n.id)) return
-    seen.add(n.id)
-    const kids = n.kids.sort(order)
-    const row = { id: n.id, name: n.name, url: n.url, page: n.page, pending: n.pendingLeaf && !n.page, level, children: kids.length }
-    out.push(row)
-    if (kids.length && (q || isOpen(row))) kids.forEach((k) => walk(k, level + 1))
+  for (const s of sites.value) {
+    const list = pagesBySite.value[s.slug]
+    const expanded = expandedSites.value.has(s.slug)
+    const root = list ? (grouping.value === 'nav' ? navTree(s.slug, list) : folderTree(s.slug, list)) : { kids: [] }
+    const keep = new Map()
+    const mark = (n) => {
+      if (keep.has(n.id)) return keep.get(n.id)
+      keep.set(n.id, false) // corta un ciclo, si lo hubiera
+      let hit = match(n)
+      for (const k of n.kids) hit = mark(k) || hit
+      keep.set(n.id, hit)
+      return hit
+    }
+    const anyHit = root.kids.map(mark).some(Boolean)
+    if (q && !anyHit && !s.name.toLowerCase().includes(q)) continue
+    out.push({ id: `site:${s.slug}`, kind: 'site', site: s, name: s.name, page: root.page, level: 0,
+      children: list ? root.kids.length : s.pages + (s.queued || 0), open: expanded || !!q })
+    if (!(expanded || q) || !list) continue
+    const seen = new Set()
+    const walk = (n, level) => {
+      if (seen.has(n.id) || (q && !keep.get(n.id))) return
+      seen.add(n.id)
+      const kids = [...n.kids].sort(order)
+      const row = { id: n.id, kind: 'page', slug: s.slug, name: n.name, url: n.url, page: n.page, pending: n.pendingLeaf && !n.page, level, children: kids.length }
+      row.open = kids.length && (q || isOpen(row))
+      out.push(row)
+      if (row.open) kids.forEach((k) => walk(k, level + 1))
+    }
+    root.kids.sort(order).forEach((k) => walk(k, 1))
   }
-  roots.forEach((r) => walk(r, 0))
   return out
 })
 function onRow(r) {
-  if (r.page) pickPage(r.page.id)
+  if (r.kind === 'site') {
+    if (siteSlug.value === r.site.slug && !pageId.value) return toggleNode(r)
+    return pickSite(r.site.slug)
+  }
+  if (r.page) { siteSlug.value = r.slug; pickPage(r.page.id) }
   else if (r.children) toggleNode(r)
 }
 
@@ -228,19 +262,20 @@ async function poll() {
     if (st.log.length) {
       log.value = [...log.value, ...st.log].slice(-600)
       lastSeq = st.lastSeq
-      if (st.site === siteSlug.value) loadPages()
+      if (st.site === siteSlug.value || expandedSites.value.has(st.site)) loadPages(st.site)
       loadSites()
     }
-    if (wasBusy && !st.busy) { loadSites(); loadPages() }
+    if (wasBusy && !st.busy) { loadSites(); loadPages(st.site || siteSlug.value) }
   } catch { /* la API se cae al reiniciar: se reintenta */ }
   pollTimer = setTimeout(poll, state.value.busy ? 1000 : 3000)
 }
-async function run(kind, start = '') {
+async function run(kind, start = '', slug = siteSlug.value) {
   runError.value = ''
   panelOpen.value = true
   saveSize('navegador.panel-open', 1)
+  if (slug !== siteSlug.value) pickSite(slug)
   try {
-    const q = `site=${encodeURIComponent(siteSlug.value)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
+    const q = `site=${encodeURIComponent(slug)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
     if (kind === 'browse') await api(`/api/browse?${q}`, { method: 'POST' })
     else await api(`/api/explore?${q}`, { method: 'POST', body: JSON.stringify({ max: Number(maxPages.value) || 0, depth: Number(maxDepth.value) || 0, start }) })
     poll()
@@ -287,11 +322,6 @@ function pathOf(u) {
 const fmtTime = (t) => (t ? new Date(t).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '')
 const fmtFull = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO') : '')
 const statusClass = (s) => (s >= 400 ? 'bad' : s >= 300 ? 'warn' : '')
-
-// ── las vistas del sidebar: abiertas o cerradas (cerrada cuesta una fila) ──
-const views = ref({ sites: true, pages: true, ...readPref('navegador.views', {}) })
-watch(views, (v) => savePref('navegador.views', v), { deep: true })
-function toggleView(id) { views.value = { ...views.value, [id]: !views.value[id] } }
 
 // ── las regiones, con el contrato de la base ──
 const sidebarOpen = ref(readSize('navegador.sidebar-open', 1) !== 0)
@@ -348,25 +378,38 @@ function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('n
 function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('navegador.aux-open', auxOpen.value ? 1 : 0) }
 function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('navegador.panel-open', panelOpen.value ? 1 : 0) }
 
-const pagesMenu = computed(() => [
+// El menú de la región: cómo se agrupa el árbol y qué se ve.
+const treeMenu = computed(() => [
   { id: 'folders', label: 'Agrupar por carpetas de la URL', selected: grouping.value === 'folders' },
   { id: 'nav', label: 'Agrupar por navegación (desde dónde se llegó)', selected: grouping.value === 'nav' },
   { separator: true },
-  { id: 'pending', label: 'Mostrar lo encontrado sin visitar', checked: showPending.value, count: totals.value.pending || undefined },
+  { id: 'pending', label: 'Mostrar lo encontrado sin visitar', checked: showPending.value },
   { separator: true },
-  { id: 'collapse', label: 'Plegar todo', icon: 'collapse' },
-  { id: 'reload', label: 'Volver a leer el mapa', icon: 'refresh' },
-  { id: 'clear', label: 'Vaciar el mapa', icon: 'trash', disabled: !pages.value.length || busyHere.value },
+  { id: 'reload', label: 'Volver a leer', icon: 'refresh' },
 ])
-function onPagesMenu(id) {
+function onTreeMenu(id) {
   if (id === 'folders' || id === 'nav') grouping.value = id
   if (id === 'pending') showPending.value = !showPending.value
-  if (id === 'collapse') collapseAll()
-  if (id === 'reload') loadPages()
-  if (id === 'clear') clearPages()
+  if (id === 'reload') { loadSites(); for (const slug of expandedSites.value) loadPages(slug) }
 }
+// El menú de cada sitio: lo que se hace con él y se toca poco.
+function siteMenu(s) {
+  const busy = state.value.busy
+  return [
+    { id: 'browse', label: 'Abrir la ventana (login a mano)', icon: 'external', disabled: busy },
+    { id: 'clear', label: 'Vaciar el mapa', icon: 'trash', disabled: !s.pages || (busy && state.value.site === s.slug) },
+    { separator: true },
+    { id: 'remove', label: 'Olvidar el sitio', icon: 'trash', disabled: busy && state.value.site === s.slug },
+  ]
+}
+function onSiteMenu(s, id) {
+  if (id === 'browse') run('browse', '', s.slug)
+  if (id === 'clear') { pickSite(s.slug); clearPages() }
+  if (id === 'remove') removeSite(s)
+}
+function toggleFilter() { filtering.value = !filtering.value; if (!filtering.value) filter.value = '' }
 
-watch(siteSlug, () => { writeRoute(true); filter.value = ''; openNodes.value = new Map(); loadPages() })
+watch(siteSlug, (slug) => { writeRoute(true); if (!pagesBySite.value[slug]) loadPages(slug) })
 watch(pageId, () => writeRoute(false))
 
 const themeToggle = ref(null)
@@ -377,7 +420,8 @@ onMounted(async () => {
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   await loadSites()
   writeRoute(false)
-  loadPages()
+  if (siteSlug.value) expandSite(siteSlug.value, true)
+  for (const slug of expandedSites.value) if (sites.value.some((x) => x.slug === slug)) loadPages(slug)
   poll()
 })
 onBeforeUnmount(() => {
@@ -390,97 +434,80 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <!-- SIDEBAR · el explorador: los sitios arriba y el árbol de páginas del elegido abajo -->
+    <!-- SIDEBAR · el explorador: un solo árbol, cada sitio es una raíz y sus páginas cuelgan adentro -->
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Explorador">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head"><span>Explorador</span></div>
-
-      <section class="view" :class="{ open: views.sites }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="views.sites" @click="toggleView('sites')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-            <span>Sitios</span>
+      <div class="region-head">
+        <span>Explorador</span>
+        <span class="count" :class="{ filtered: filter }">{{ sites.length }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" :aria-pressed="filtering" title="Filtrar páginas" aria-label="Filtrar páginas" @click="toggleFilter">
+            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
           </button>
-          <span class="count">{{ sites.length }}</span>
+          <button type="button" class="region-action" title="Plegar las carpetas" aria-label="Plegar las carpetas" @click="collapseAll">
+            <span class="ui-icon" data-icon="collapse" aria-hidden="true"></span>
+          </button>
+          <RegionMenu :items="treeMenu" :active="grouping !== 'folders' || !showPending" @select="onTreeMenu" />
         </div>
-        <div v-if="views.sites" class="region-body">
+      </div>
+      <div class="region-body">
+        <div class="tree-top">
           <form class="add" @submit.prevent="addSite">
-            <input v-model="newURL" class="input input-sm" placeholder="https://sitio.com/entrada" aria-label="URL de entrada del sitio" />
+            <input v-model="newURL" class="input input-sm" placeholder="Pegá una URL para agregar y explorar" aria-label="URL de entrada del sitio" />
             <button type="submit" class="region-action" :disabled="adding || !newURL.trim()" title="Agregar y explorar el sitio" aria-label="Agregar y explorar el sitio">
               <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
             </button>
           </form>
-          <p v-if="sitesError" class="none bad">{{ sitesError }}</p>
-          <div v-for="s in sites" :key="s.slug" class="row stacked" :class="{ on: s.slug === siteSlug }"
-            role="button" tabindex="0" @click="pickSite(s.slug)" @keydown.enter="pickSite(s.slug)">
-            <span>{{ s.name }}</span>
-            <span class="row-desc">{{ s.pages }} páginas<template v-if="s.queued"> + {{ s.queued }} sin visitar</template> · {{ s.hasSession ? 'perfil guardado' : 'sin abrir' }}</span>
-            <div class="row-actions">
-              <button type="button" class="region-action" title="Olvidar el sitio" aria-label="Olvidar el sitio" @click.stop="removeSite(s)">
-                <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-              </button>
-            </div>
-          </div>
-          <p v-if="!sites.length && !sitesError" class="none">Pegá la URL de entrada de un sitio: se agrega y se explora solo.</p>
-        </div>
-      </section>
-
-      <section class="view" :class="{ open: views.pages }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="views.pages" @click="toggleView('pages')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-            <span>{{ site ? site.name : 'Páginas' }}</span>
-          </button>
-          <span v-if="site" class="count" :class="{ filtered: filter }"
-            :title="totals.pending ? `${totals.visited} visitadas y ${totals.pending} encontradas sin visitar` : `${totals.visited} páginas`">
-            {{ totals.pending ? `${totals.visited} + ${totals.pending}` : totals.visited }}
+          <span v-if="filtering" class="input-group input-group-xs">
+            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+            <input v-model="filter" class="input input-xs" placeholder="Filtrar por ruta o título" aria-label="Filtrar páginas" />
           </span>
-          <div v-if="site" class="region-actions">
-            <button type="button" class="region-action" :disabled="state.busy" title="Abrir la ventana: loguearte a mano y navegar" aria-label="Abrir la ventana" @click="run('browse')">
-              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+        </div>
+        <p v-if="sitesError" class="none bad">{{ sitesError }}</p>
+        <p v-else-if="pagesError" class="none bad">{{ pagesError }}</p>
+        <p v-if="!sites.length && !sitesError" class="none">Pegá la URL de entrada de un sitio: se agrega y se explora solo.</p>
+
+        <div class="tree" role="tree" aria-label="Sitios y sus páginas">
+          <div v-for="r in treeRows" :key="r.id" class="row tree-row" role="treeitem"
+            :class="{
+              on: r.kind === 'site' ? r.site.slug === siteSlug && !pageId : r.page && r.slug === siteSlug && r.page.id === pageId,
+              site: r.kind === 'site', pending: r.pending, folder: r.kind === 'page' && !r.page && !r.pending,
+            }"
+            :aria-expanded="r.children ? !!r.open : undefined"
+            :style="{ paddingLeft: `calc(var(--space-1) + ${r.level} * var(--indent))` }"
+            :title="r.kind === 'site' ? r.site.url : r.pending ? `${r.url} · encontrada, sin visitar` : r.page ? `${r.page.title || ''}\n${r.url}` : r.name"
+            tabindex="0" @click="onRow(r)" @keydown.enter="onRow(r)">
+            <button v-if="r.children" type="button" class="twisty" :aria-expanded="!!r.open"
+              :aria-label="r.open ? 'Plegar' : 'Desplegar'" @click.stop="toggleNode(r)">
+              <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
             </button>
-            <button v-if="!busyHere" type="button" class="region-action" :disabled="state.busy" title="Explorar sin ventana, con la sesión guardada" aria-label="Explorar" @click="run('explore')">
-              <span class="ui-icon" data-icon="play" aria-hidden="true"></span>
-            </button>
-            <button v-else type="button" class="region-action" title="Parar" aria-label="Parar" @click="stop">
-              <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
-            </button>
-            <RegionMenu :items="pagesMenu" :active="grouping !== 'folders' || !showPending" @select="onPagesMenu" />
+            <div v-else class="twisty"></div>
+            <span class="node-name">{{ r.name }}</span>
+            <template v-if="r.kind === 'site'">
+              <small v-if="state.busy && state.site === r.site.slug" class="node-flag">{{ state.kind === 'browse' ? 'ventana abierta' : `explorando · ${state.visited}` }}</small>
+              <small v-else class="node-flag" :title="`${r.site.pages} visitadas${r.site.queued ? `, ${r.site.queued} sin visitar` : ''}`">
+                {{ r.site.queued ? `${r.site.pages} + ${r.site.queued}` : r.site.pages }}
+              </small>
+              <div class="row-actions">
+                <button v-if="state.busy && state.site === r.site.slug" type="button" class="region-action" title="Parar" aria-label="Parar" @click.stop="stop">
+                  <span class="ui-icon" data-icon="stop" aria-hidden="true"></span>
+                </button>
+                <button v-else type="button" class="region-action" :disabled="state.busy" title="Explorar el sitio (sin ventana, con la sesión guardada)" aria-label="Explorar el sitio"
+                  @click.stop="run('explore', '', r.site.slug)">
+                  <span class="ui-icon" data-icon="play" aria-hidden="true"></span>
+                </button>
+                <RegionMenu :items="siteMenu(r.site)" title="Más acciones del sitio" @click.stop @select="(id) => onSiteMenu(r.site, id)" />
+              </div>
+            </template>
+            <template v-else>
+              <small v-if="r.page?.authWall" class="node-flag bad">login</small>
+              <small v-else-if="r.page?.status >= 300" class="node-flag" :class="statusClass(r.page.status)">{{ r.page.status }}</small>
+              <small v-else-if="r.page?.error" class="node-flag bad">error</small>
+              <small v-else-if="r.pending" class="node-flag">sin visitar</small>
+            </template>
           </div>
         </div>
-        <div v-if="views.pages" class="region-body">
-          <template v-if="site">
-            <div class="tree-filter">
-              <span class="input-group input-group-xs">
-                <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-                <input v-model="filter" class="input input-xs" placeholder="Filtrar páginas" aria-label="Filtrar páginas" />
-              </span>
-            </div>
-            <p v-if="pagesError" class="none bad">{{ pagesError }}</p>
-            <p v-else-if="!pages.length" class="none">{{ busyHere ? 'Explorando…' : 'Todavía no hay páginas: explorá o abrí la ventana.' }}</p>
-            <div class="tree" role="tree" :aria-label="`Páginas de ${site.name}`">
-              <div v-for="r in treeRows" :key="r.id" class="row tree-row" role="treeitem"
-                :class="{ on: r.page && r.page.id === pageId, pending: r.pending, folder: !r.page && !r.pending }"
-                :aria-expanded="r.children ? (filter ? true : isOpen(r)) : undefined"
-                :style="{ paddingLeft: `calc(var(--space-1) + ${r.level} * var(--indent))` }"
-                :title="r.pending ? `${r.url} · encontrada, sin visitar` : r.page ? `${r.page.title || ''}\n${r.url}` : r.name"
-                tabindex="0" @click="onRow(r)" @keydown.enter="onRow(r)">
-                <button v-if="r.children" type="button" class="twisty" :aria-expanded="filter ? true : isOpen(r)"
-                  :aria-label="isOpen(r) ? 'Plegar' : 'Desplegar'" @click.stop="toggleNode(r)">
-                  <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-                </button>
-                <div v-else class="twisty"></div>
-                <span class="node-name">{{ r.name }}</span>
-                <small v-if="r.page?.authWall" class="node-flag bad">login</small>
-                <small v-else-if="r.page?.status >= 300" class="node-flag" :class="statusClass(r.page.status)">{{ r.page.status }}</small>
-                <small v-else-if="r.page?.error" class="node-flag bad">error</small>
-                <small v-else-if="r.pending" class="node-flag">sin visitar</small>
-              </div>
-            </div>
-          </template>
-          <p v-else class="none">Elegí un sitio.</p>
-        </div>
-      </section>
+      </div>
     </aside>
 
     <!-- EDITOR · la página elegida como documento, o el resumen del sitio -->
@@ -681,7 +708,12 @@ onBeforeUnmount(() => {
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 
 /* el árbol: filas de 28 como el Explorer, el chevron en su lugar aunque la fila no tenga hijos */
-.tree-filter { position: sticky; top: 0; z-index: 1; padding: var(--space-1) var(--gutter); background: var(--region-bg, var(--sidebar)) }
+.tree-top { position: sticky; top: 0; z-index: 1; display: flex; flex-direction: column; gap: var(--space-1);
+  padding: var(--space-2) var(--gutter); background: var(--region-bg, var(--sidebar)) }
+.tree-top .add { padding: 0 }
+.tree-row.site > .node-name { font-weight: 600 }
+/* las acciones del sitio aparecen en el lugar del conteo: no se pisan */
+.tree-row.site:hover > .node-flag, .tree-row.site.on > .node-flag { visibility: hidden }
 .tree { padding-bottom: var(--space-2) }
 .tree-row { display: flex; justify-content: flex-start; align-items: center; gap: var(--space-1); cursor: pointer; min-width: 0 }
 .tree-row.pending { color: var(--fg-3) }
