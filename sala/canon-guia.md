@@ -50,11 +50,13 @@ Tres reglas que la ronda no perdona:
 4. **Las tablas:** cada una de `tablas` tiene que existir en producción: `bin/pg sql --target prod --query "SELECT table_name FROM information_schema.tables WHERE table_name LIKE '<prefijo>%'"`. No inventes el plural ni el sufijo.
 5. **El largo:** hasta 550 palabras por sección. Canon corta en 600 y cuenta distinto.
 6. **Lo que no pudiste comprobar** no se escribe como cierto. Va como `PREGUNTA:` al final.
+7. **Lo que el lint de canon rechaza:** nombres de función con paréntesis en la prosa (`lenderId()`; se nombra la regla, no la función), mediciones, fechas de descubrimiento y secciones de más de 600 palabras. Una tabla que todavía no está en el índice de canon (por ejemplo, la del congelamiento de cuotas, `creditop_x_lender_freeze_periods`) no va en `tablas`, aunque exista en producción.
+8. **`declarar` es sólo para archivos que el mapa NO declara.** Si ya están declarados y la prosa sigue siendo cierta, la pieza es un `verificado`.
 
 ## El reparto en paralelo
 
 - **Un agente por tema.** Recibe la prosa vigente, sus archivos de la ronda y las notas de los archivos compartidos. No toca otros temas.
 - **Un agente por archivo compartido.** Si un archivo está en varios temas, lo lee una sola vez un agente propio y deja una **nota del cambio**: qué cambió en `main` desde el hash más viejo declarado, qué reglas toca y qué no cambió. No escribe piezas. Cada agente de tema parte de esa nota, y no de releer el diff, para que diez temas no cuenten el mismo cambio de diez maneras. La nota no lo exime de leer su propia prosa.
-- **Un verificador por tema**, que no escribió nada. Comprueba cada pieza contra `main` con el método de arriba, afirmación por afirmación. Una pieza con una parte falsa es ✗.
+- **Un verificador por tema**, que no escribió nada. Las piezas de un tema se publican **juntas y en orden**: un `verificado` que va después de una corrección del mismo lote se juzga contra la prosa YA corregida por esa pieza, no contra la vigente. Comprueba cada pieza contra `main` con el método de arriba, afirmación por afirmación. Una pieza con una parte falsa es ✗.
 - **Un integrador al final**, que mira juntas las piezas de **distintos temas** que tocan los mismos archivos. Busca reglas contadas distinto, la misma regla escrita dos veces (una debería enlazar a la otra), enlaces a secciones que una pieza renombró y un `verificado` de un tema que contradice la corrección de otro.
 - **Nada se publica solo.** El resultado es un lote de piezas ensayadas en canon (borrador abandonado). La publicación la decide una persona, con `make canon-write`.

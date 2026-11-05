@@ -68,7 +68,8 @@ Por cada pieza: en un «verificado», leé las secciones de la prosa vigente que
 	`buscá la excepción de cada absoluto y de cada lista cerrada; mirá que no pierda una condición que la prosa vigente tenía, que las ` +
 	`tablas existan en prod y que no traiga mediciones, fechas de descubrimiento ni crónica. Una pieza con una parte falsa es ✗ aunque ` +
 	`el resto sea cierto. Por cada pieza, una línea exacta «VEREDICTO: P<n> | ✓, ✗ o — | <el comando que corriste> | <una frase: qué ` +
-	`viste y, si es ✗, la corrección exacta>», donde — es «no se pudo comprobar». Si el presupuesto no alcanza, empezá por las secciones. ` + sweepRules
+	`viste y, si es ✗, la corrección exacta>», donde — es «no se pudo comprobar». Las piezas se publican juntas y en el orden en que ` +
+	`vienen: un «verificado» que sigue a una corrección del mismo lote se juzga contra la prosa YA corregida por esa pieza. Si el presupuesto no alcanza, empezá por las secciones. ` + sweepRules
 
 var canonNotesSystem = "Sos un AGENTE DE ARCHIVO COMPARTIDO: los archivos que te tocan los declaran varios temas de canon, y tu nota evita " +
 	"que cada tema relea el mismo cambio y lo cuente distinto. No escribís piezas.\n\n" + canonGuide + "\n\n" +
@@ -619,7 +620,22 @@ Por cada pieza rechazada, aplicá la corrección del verificador y comprobala vo
 	`algo que no podés comprobar, no armes la pieza: dejalo como PREGUNTA. Antes de cada bloque pieza, una línea ` +
 	`«CORRIGE: P<n>» con la pieza original que reemplaza. ` + sweepRules
 
+// correctRounds: cuántas vueltas de corrector + reverificador tiene un tema. Con una, una corrección que volvía con otra
+// observación se perdía, y imei y bcp no bajaban (2026-11-05).
+const correctRounds = 2
+
 func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine []*finding, set func(*finding, string, string)) {
+	for round := 1; round <= correctRounds && ctx.Err() == nil; round++ {
+		next := s.correctOnce(ctx, b, dir, topic, round, mine, set)
+		if len(next) == 0 {
+			return
+		}
+		mine = next
+	}
+}
+
+// correctOnce corre una vuelta y devuelve las piezas corregidas, para que la siguiente vuelta tome las que volvieron ✗.
+func (s *sweeper) correctOnce(ctx context.Context, b *board, dir, topic string, round int, mine []*finding, set func(*finding, string, string)) []*finding {
 	s.mu.Lock()
 	var bad []*finding
 	for _, f := range mine {
@@ -629,10 +645,14 @@ func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine
 	}
 	if len(bad) == 0 || ctx.Err() != nil {
 		s.mu.Unlock()
-		return
+		return nil
 	}
-	fixer := &agent{Topic: "corrector · " + topic, Status: "esperando", Steps: []step{}}
-	recheck := &agent{Topic: "reverificador · " + topic, Status: "esperando", Steps: []step{}}
+	suffix := ""
+	if round > 1 {
+		suffix = fmt.Sprintf(" (%d)", round)
+	}
+	fixer := &agent{Topic: "corrector · " + topic + suffix, Status: "esperando", Steps: []step{}}
+	recheck := &agent{Topic: "reverificador · " + topic + suffix, Status: "esperando", Steps: []step{}}
 	b.Correctors = append(b.Correctors, fixer, recheck)
 	var p strings.Builder
 	fmt.Fprintf(&p, "Piezas rechazadas del tema %s, con lo que dijo el verificador:\n\n", topic)
@@ -643,7 +663,7 @@ func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine
 	s.mu.Unlock()
 	p.WriteString(canonProse(ctx, []string{topic}))
 	s.runOne(ctx, fixer, p.String(), canonCorrectorSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
-	_ = os.WriteFile(filepath.Join(dir, "corrector-"+topic+".md"), []byte(fixer.text), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("corrector-%s-%d.md", topic, round)), []byte(fixer.text), 0o644)
 
 	s.mu.Lock()
 	var fixed []*finding
@@ -656,7 +676,7 @@ func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine
 	}
 	s.mu.Unlock()
 	if len(fixed) == 0 || ctx.Err() != nil {
-		return
+		return nil
 	}
 	var q strings.Builder
 	fmt.Fprintf(&q, "Piezas del tema %s. Comprobá cada una:\n\n", topic)
@@ -666,7 +686,7 @@ func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine
 	}
 	q.WriteString(canonProse(ctx, []string{topic}))
 	s.runOne(ctx, recheck, q.String(), canonVerifierSystem, canonTools, verifierModel, verifierLevel, b.CheckBudget, b.Mock, fixed)
-	_ = os.WriteFile(filepath.Join(dir, "reverificador-"+topic+".md"), []byte(recheck.text), 0o644)
+	_ = os.WriteFile(filepath.Join(dir, fmt.Sprintf("reverificador-%s-%d.md", topic, round)), []byte(recheck.text), 0o644)
 	s.mu.Lock()
 	byID := map[string]*finding{}
 	for _, f := range fixed {
@@ -679,4 +699,5 @@ func (s *sweeper) correct(ctx context.Context, b *board, dir, topic string, mine
 	}
 	s.mu.Unlock()
 	rehearse(ctx, dir, fixed, b.Mock, set)
+	return fixed
 }
