@@ -86,11 +86,15 @@ func ask(args []string) error {
 		}
 		fmt.Println()
 	}
-	_, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, out: os.Stdout})
-	if err == nil {
-		fmt.Println("\nlos pasos: bin/navegador steps · como script de Playwright: bin/navegador script")
+	outcome, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, out: os.Stdout})
+	if err != nil {
+		return err
 	}
-	return err
+	if path, err := writeReport(goal, oneLine(outcome.Text, 400)); err == nil {
+		fmt.Printf("\npaso a paso, con una foto por paso: %s\n", path)
+	}
+	fmt.Println("el script de Playwright: bin/navegador script")
+	return nil
 }
 
 // askOpts es una corrida de ask: la meta y cómo se contesta un NECESITO/CONFIRMAR.

@@ -420,11 +420,61 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, ok)
 	})
+	// POST /api/live/report {meta, resultado} — el paso a paso de la corrida (md, html con fotos y script).
+	mux.HandleFunc("/api/live/report", func(w http.ResponseWriter, r *http.Request) {
+		var in ReportInfo
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		dir, err := runner.LiveReport(in)
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"dir": dir, "html": filepath.Join(dir, "reporte.html"), "md": filepath.Join(dir, "reporte.md"),
+			"url": "http://localhost:5202/api/corridas/" + filepath.Base(dir) + "/reporte.html"})
+	})
+	// POST /api/live/download {control, text, url} — baja el recurso de un elemento o de una URL.
+	mux.HandleFunc("/api/live/download", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Control   int
+			Text, URL string
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		step, err := runner.LiveDownload(in.Control, in.Text, in.URL)
+		if err != nil {
+			writeErr(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, step)
+	})
+	// GET /api/live/images — las imágenes visibles, las más grandes primero.
+	mux.HandleFunc("/api/live/images", func(w http.ResponseWriter, r *http.Request) {
+		m, err := runner.LiveImages()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, m)
+	})
+	// GET /api/live/media — el estado de los videos y audios de la página.
+	mux.HandleFunc("/api/live/media", func(w http.ResponseWriter, r *http.Request) {
+		m, err := runner.LiveMedia()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, m)
+	})
 	// DELETE /api/live/steps — empieza la lista de pasos de cero.
 	mux.HandleFunc("/api/live/steps", func(w http.ResponseWriter, r *http.Request) {
 		runner.LiveClearSteps()
 		writeJSON(w, http.StatusOK, ok)
 	})
+	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (reporte.html, sus fotos, el script).
+	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))
+	mux.Handle("/api/corridas/", corridas)
 	// GET /api/shot?site=…&id=… — la captura de una página.
 	mux.HandleFunc("/api/shot", func(w http.ResponseWriter, r *http.Request) {
 		slug, id := r.URL.Query().Get("site"), r.URL.Query().Get("id")

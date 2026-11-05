@@ -11,6 +11,7 @@ package main
  */
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/playwright-community/playwright-go"
@@ -32,9 +33,12 @@ type Locator struct {
 	// scoped: el rol con nombre adentro de una zona de la página (navigation, main, dialog, form…)
 	ScopeRole string `json:"scopeRole,omitempty"`
 	ScopeName string `json:"scopeName,omitempty"`
-	Code      string `json:"code"`  // la línea de Playwright (TS), lista para pegar
-	Count     int    `json:"count"` // cuántos elementos encuentra en la página
-	Works     bool   `json:"works"` // encuentra uno solo y es este control
+	// nth: el rol con nombre encuentra varios (en YouTube, el título y la miniatura de un video se llaman igual) y
+	// éste es el número Nth: getByRole(…).nth(N). Más legible y estable que una ruta CSS.
+	Nth   int    `json:"nth,omitempty"`
+	Code  string `json:"code"`  // la línea de Playwright (TS), lista para pegar
+	Count int    `json:"count"` // cuántos elementos encuentra en la página
+	Works bool   `json:"works"` // encuentra uno solo y es este control
 }
 
 // Control es un elemento con el que se interactúa: un campo, un botón, un enlace, una casilla.
@@ -91,6 +95,8 @@ func locatorFor(p playwright.Page, l Locator, frame string) playwright.Locator {
 			zone = root.GetByRole(playwright.AriaRole(l.ScopeRole))
 		}
 		return zone.GetByRole(playwright.AriaRole(l.Role), playwright.LocatorGetByRoleOptions{Name: l.Value, Exact: exact})
+	case "nth":
+		return root.GetByRole(playwright.AriaRole(l.Role), playwright.LocatorGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)}).Nth(l.Nth)
 	case "label":
 		return root.GetByLabel(l.Value, playwright.LocatorGetByLabelOptions{Exact: exact})
 	case "placeholder":
@@ -132,5 +138,43 @@ func verifyControls(p playwright.Page, controls []Control) {
 				c.Best = j
 			}
 		}
+		// Si ningún candidato por rol sirvió porque el nombre se repite, se busca cuál de esos es: así queda
+		// getByRole(…).nth(i) antes de caer en una ruta CSS.
+		if c.Best < 0 || c.Locators[c.Best].Kind == "css" {
+			if nth, at, ok := nthCandidate(p, c, want); ok {
+				c.Locators = append(c.Locators[:at], append([]Locator{nth}, c.Locators[at:]...)...)
+				c.Best = at
+			}
+		}
 	}
+}
+
+// nthCandidate busca, entre los que encuentra el primer rol con nombre que se repite, en qué posición está el
+// control (hasta 10). Devuelve el candidato y dónde va: justo después de los candidatos por rol.
+func nthCandidate(p playwright.Page, c *Control, want string) (Locator, int, bool) {
+	for j, l := range c.Locators {
+		if l.Kind != "role" || l.Count < 2 || l.Count > 10 {
+			continue
+		}
+		all, err := locatorFor(p, l, c.Frame).All()
+		if err != nil {
+			continue
+		}
+		for k, el := range all {
+			got, err := el.Evaluate(`e => e.closest('[data-navegador-id]')?.getAttribute('data-navegador-id') ?? ''`, nil, playwright.LocatorEvaluateOptions{Timeout: playwright.Float(1500)})
+			if err != nil || got != want {
+				continue
+			}
+			suffix := fmt.Sprintf(".nth(%d)", k)
+			if k == 0 {
+				suffix = ".first()"
+			}
+			at := j + 1
+			for at < len(c.Locators) && (c.Locators[at].Kind == "role" || c.Locators[at].Kind == "scoped") {
+				at++
+			}
+			return Locator{Kind: "nth", Role: l.Role, Value: l.Value, Exact: l.Exact, Nth: k, Code: l.Code + suffix, Count: 1, Works: true}, at, true
+		}
+	}
+	return Locator{}, 0, false
 }

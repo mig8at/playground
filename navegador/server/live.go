@@ -19,7 +19,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -48,6 +50,19 @@ type Step struct {
 	OK      bool      `json:"ok"`
 	Error   string    `json:"error,omitempty"`
 	Dialogs []string  `json:"dialogs,omitempty"` // los diálogos del navegador que disparó, con su respuesta
+	Shot    string    `json:"shot,omitempty"`    // la foto de cómo quedó la página (NN.png, o NN-fallo.png), en la carpeta de la corrida
+	Refused bool      `json:"refused,omitempty"` // se negó antes de actuar (deshabilitado, detrás de un modal): no va al script
+	Raw     bool      `json:"raw,omitempty"`     // en el script va tal cual, sin await (const d = page.waitForEvent(…))
+	UsesFS  bool      `json:"usesFs,omitempty"`  // en el script necesita import fs
+	Note    string    `json:"note,omitempty"`    // un dato más para el paso a paso (dónde quedó una descarga)
+}
+
+// savedDownload es un archivo que bajó el navegador por una acción.
+type savedDownload struct {
+	name string
+	path string
+	size int64
+	err  error
 }
 
 // dialogSeen es un alert/confirm/prompt que apareció, cómo se contestó y la línea que lo reproduce.
@@ -100,10 +115,20 @@ type live struct {
 	dialogs        []dialogSeen
 	recentDialogs  []string
 
+	// La corrida: la carpeta donde quedan las fotos de cada paso y el reporte (report.go). Se crea con el primer
+	// paso después de un reset.
+	runDir string
+
 	// Una pestaña nueva se procesa en paralelo; si la abrió una acción, su goto va DESPUÉS de ese paso.
 	acting       bool
 	popupsFlying int
 	popupSteps   []Step
+
+	// Las descargas que dispara una acción: se guardan en .data/descargas y en el script quedan como
+	// waitForEvent('download') antes del paso y saveAs después.
+	downloadsFlying int
+	downloads       []savedDownload
+	downloadSeq     int
 }
 
 func (l *live) broadcast(frame []byte) {
@@ -222,6 +247,27 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 		}
 		l.mu.Unlock()
 		r.say("info", "diálogo · %s", msg)
+	})
+	page.OnDownload(func(d playwright.Download) {
+		l.mu.Lock()
+		l.downloadsFlying++
+		l.mu.Unlock()
+		go func() {
+			defer func() { l.mu.Lock(); l.downloadsFlying--; l.mu.Unlock() }()
+			dir := filepath.Join(r.store.dir, "descargas")
+			_ = os.MkdirAll(dir, 0o700)
+			name := d.SuggestedFilename()
+			path := filepath.Join(dir, name)
+			err := d.SaveAs(path)
+			var size int64
+			if fi, statErr := os.Stat(path); statErr == nil {
+				size = fi.Size()
+			}
+			l.mu.Lock()
+			l.downloads = append(l.downloads, savedDownload{name: name, path: path, size: size, err: err})
+			l.mu.Unlock()
+			r.say("info", "descarga · %s (%d bytes) → %s", name, size, path)
+		}()
 	})
 	page.OnFrameNavigated(func(f playwright.Frame) {
 		if f.ParentFrame() == nil {
@@ -509,7 +555,30 @@ func (r *Runner) liveTarget(l *live, cur *Page, num int, text string) (playwrigh
 				return nil, "", nil, fmt.Errorf("«%s» aparece %d veces: usá un texto más largo o el número del elemento", text, n)
 			}
 		}
-		return nil, "", nil, fmt.Errorf("no hay un texto «%s» en la página", text)
+		// Sin texto visible: una imagen por su texto alternativo, o un campo por su etiqueta o su placeholder
+		// («Buscar» es la etiqueta del buscador, no un texto de la página).
+		visible := playwright.LocatorFilterOptions{Visible: playwright.Bool(true)}
+		exact := playwright.Bool(true)
+		for _, alt := range []struct {
+			loc  playwright.Locator
+			code string
+		}{
+			{l.page.GetByAltText(text, playwright.PageGetByAltTextOptions{Exact: exact}).Filter(visible), "page.getByAltText('%s', { exact: true }).filter({ visible: true })"},
+			{l.page.GetByLabel(text, playwright.PageGetByLabelOptions{Exact: exact}).Filter(visible), "page.getByLabel('%s', { exact: true }).filter({ visible: true })"},
+			{l.page.GetByPlaceholder(text, playwright.PageGetByPlaceholderOptions{Exact: exact}).Filter(visible), "page.getByPlaceholder('%s', { exact: true }).filter({ visible: true })"},
+		} {
+			n, err := alt.loc.Count()
+			if err != nil {
+				continue
+			}
+			if n == 1 {
+				return alt.loc, fmt.Sprintf(alt.code, jsQuote(text)), nil, nil
+			}
+			if n > 1 {
+				return nil, "", nil, fmt.Errorf("«%s» nombra %d elementos: usá el número del elemento", text, n)
+			}
+		}
+		return nil, "", nil, fmt.Errorf("no hay un texto, una imagen ni un campo «%s» en la página", text)
 	}
 	if num < 0 || num >= len(cur.Controls) {
 		return nil, "", nil, fmt.Errorf("no hay un elemento %d (la página tiene %d)", num+1, len(cur.Controls))
@@ -561,8 +630,14 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	}
 	timeout := playwright.Float(10000)
 	// Lo que no va a funcionar se niega al instante, con la causa: esperar 10 s la esconde.
+	// Una acción negada queda como paso FALLIDO, con su foto: es lo que más interesa ver en el paso a paso.
+	refuse := func(err error) (Step, error) {
+		st := Step{Code: base + "." + action + "()", Target: name, OK: false, Error: err.Error(), Refused: true}
+		r.recordStep(l, st)
+		return st, err
+	}
 	if c != nil && c.Blocked {
-		return Step{}, fmt.Errorf("«%s» está detrás de un modal abierto: cerralo o actuá adentro de él", name)
+		return refuse(fmt.Errorf("«%s» está detrás de un modal abierto: cerralo o actuá adentro de él", name))
 	}
 	if action != "scroll" && action != "press" && action != "hover" {
 		if enabled, err := target.IsEnabled(playwright.LocatorIsEnabledOptions{Timeout: playwright.Float(3000)}); err == nil && !enabled {
@@ -570,7 +645,7 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 			if len(cur.Notices) > 0 {
 				why = " · avisos: " + strings.Join(cur.Notices, " | ")
 			}
-			return Step{}, fmt.Errorf("«%s» está deshabilitado: la página exige algo antes%s", name, why)
+			return refuse(fmt.Errorf("«%s» está deshabilitado: la página exige algo antes%s", name, why))
 		}
 	}
 	l.mu.Lock()
@@ -641,10 +716,10 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	// Un confirm() o alert() que dispara la acción llega un instante después: se espera un poco para registrarlo
 	// ANTES del paso, que es donde lo pone una prueba (page.once('dialog', …) antes del clic).
 	time.Sleep(250 * time.Millisecond)
-	// Si la acción abrió una pestaña nueva, se espera a que termine de traerla (hasta 10 s).
+	// Si la acción abrió una pestaña nueva o bajó un archivo, se espera a que termine (hasta 10 s).
 	for i := 0; i < 100; i++ {
 		l.mu.Lock()
-		flying := l.popupsFlying
+		flying := l.popupsFlying + l.downloadsFlying
 		l.mu.Unlock()
 		if flying == 0 {
 			break
@@ -656,15 +731,37 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	l.dialogs = nil
 	popups := l.popupSteps
 	l.popupSteps = nil
+	downloads := l.downloads
+	l.downloads = nil
 	l.mu.Unlock()
 	for _, d := range dialogs {
 		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true})
 	}
+	// Una descarga va en el script como lo escribe Playwright: la espera ANTES del paso y el guardado después.
+	var after []Step
+	for _, d := range downloads {
+		l.mu.Lock()
+		l.downloadSeq++
+		v := fmt.Sprintf("descarga%d", l.downloadSeq)
+		l.mu.Unlock()
+		r.recordStep(l, Step{Code: fmt.Sprintf("const %s = page.waitForEvent('download')", v), Target: d.name, OK: true, Raw: true})
+		note := fmt.Sprintf("descargado: %s (%d bytes)", d.path, d.size)
+		if d.err != nil {
+			note = "no se pudo guardar la descarga: " + d.err.Error()
+		}
+		after = append(after, Step{Code: fmt.Sprintf("(await %s).saveAs('%s')", v, jsQuote(d.name)), Target: d.name, OK: d.err == nil, Error: errText(d.err), Note: note})
+	}
 	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err)}
+	for _, x := range after {
+		step.Note = strings.TrimPrefix(step.Note+"; "+x.Note, "; ")
+	}
 	for _, d := range dialogs {
 		step.Dialogs = append(step.Dialogs, d.message)
 	}
 	r.recordStep(l, step)
+	for _, a := range after {
+		r.recordStep(l, a)
+	}
 	for _, p := range popups {
 		r.recordStep(l, p)
 	}
@@ -678,6 +775,27 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 func (r *Runner) recordStep(l *live, s Step) {
 	s.At = time.Now()
 	s.URL = l.page.URL()
+	// La foto de cómo quedó la página: la evidencia del paso a paso. Un fallo la lleva marcada.
+	l.mu.Lock()
+	n := len(l.steps) + 1
+	if l.runDir == "" {
+		l.runDir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+	}
+	dir := l.runDir
+	l.mu.Unlock()
+	if err := os.MkdirAll(dir, 0o700); err == nil {
+		// Un instante para que la página termine de cargar: la foto es de cómo QUEDÓ, no del medio de la
+		// navegación (sin esto salían desplegables a medio cerrar y videos en negro). Con tope, para no trabar.
+		_ = l.page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad, Timeout: playwright.Float(3000)})
+		time.Sleep(300 * time.Millisecond)
+		name := fmt.Sprintf("%02d.png", n)
+		if !s.OK {
+			name = fmt.Sprintf("%02d-fallo.png", n)
+		}
+		if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
+			s.Shot = name
+		}
+	}
 	l.mu.Lock()
 	l.steps = append(l.steps, s)
 	l.mu.Unlock()
@@ -698,8 +816,10 @@ func (r *Runner) LiveExpect(text string, seconds float64) (Step, error) {
 	if seconds <= 0 {
 		seconds = 15
 	}
-	err := l.page.GetByText(text).First().WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible, Timeout: playwright.Float(seconds * 1000)})
-	step := Step{Code: fmt.Sprintf("expect(page.getByText('%s').first()).toBeVisible()", jsQuote(text)), Target: text, OK: err == nil, Error: errText(err)}
+	// La primera VISIBLE: en sitios grandes el mismo texto suele estar también en un elemento oculto (un menú, una
+	// plantilla), y esperar al primero a secas no termina nunca.
+	err := l.page.GetByText(text).Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)}).First().WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible, Timeout: playwright.Float(seconds * 1000)})
+	step := Step{Code: fmt.Sprintf("expect(page.getByText('%s').filter({ visible: true }).first()).toBeVisible()", jsQuote(text)), Target: text, OK: err == nil, Error: errText(err)}
 	r.recordStep(l, step)
 	l.markDirty()
 	if err != nil {
@@ -714,6 +834,7 @@ func (r *Runner) LiveClearSteps() {
 		l.mu.Lock()
 		l.steps = nil
 		l.recentDialogs = nil
+		l.runDir = "" // la próxima acción abre una corrida nueva
 		l.mu.Unlock()
 	}
 }
@@ -778,7 +899,15 @@ func (r *Runner) LiveScript() string {
 	w, h := l.w, l.h
 	l.mu.Unlock()
 	var b strings.Builder
-	b.WriteString("import { test, expect } from '@playwright/test'\n\n")
+	usesFS := false
+	for _, s := range steps {
+		usesFS = usesFS || s.UsesFS
+	}
+	b.WriteString("import { test, expect } from '@playwright/test'\n")
+	if usesFS {
+		b.WriteString("import fs from 'node:fs'\n")
+	}
+	b.WriteString("\n")
 	fmt.Fprintf(&b, "test('%s', async ({ page }) => {\n", jsQuote("recorrido en "+l.site.Name))
 	// El tamaño con que se recorrió: la disposición (y algún localizador) depende de él.
 	fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
@@ -786,7 +915,12 @@ func (r *Runner) LiveScript() string {
 		fmt.Fprintf(&b, "  await page.goto('%s')\n", jsQuote(start))
 	}
 	for _, s := range steps {
-		if s.OK {
+		if s.Refused {
+			continue // nunca llegó a correr: en el script no dice nada
+		}
+		if s.OK && s.Raw {
+			fmt.Fprintf(&b, "  %s\n", s.Code)
+		} else if s.OK {
 			fmt.Fprintf(&b, "  await %s\n", s.Code)
 		} else {
 			fmt.Fprintf(&b, "  // falló: await %s  (%s)\n", s.Code, s.Error)
@@ -895,4 +1029,154 @@ func (r *Runner) LiveValue(num int, text, expected string) (string, Step, error)
 		return value, step, fmt.Errorf("el campo tiene «%s», no «%s»", value, expected)
 	}
 	return value, step, nil
+}
+
+// LiveDownload baja el recurso de un elemento (un enlace, o la imagen que envuelve) o de una URL, con la sesión
+// del navegador (sirve también detrás de un login), y lo guarda en .data/descargas.
+func (r *Runner) LiveDownload(num int, text, rawURL string) (Step, error) {
+	l := r.liveSession()
+	if l == nil {
+		return Step{}, errors.New("no hay sesión en vivo")
+	}
+	target := rawURL
+	if target == "" {
+		l.mu.Lock()
+		cur := l.current
+		l.mu.Unlock()
+		if cur == nil {
+			var err error
+			if cur, err = r.liveAnalyze(l); err != nil {
+				return Step{}, err
+			}
+		}
+		// Para bajar, una IMAGEN va antes que un texto: «Bandera de Colombia» es tanto la imagen como su pie de
+		// foto. Y no sólo por su texto alternativo, que en sitios reales suele faltar (la bandera de la ficha de
+		// Wikipedia tiene alt=""): también por el nombre de su archivo. Entre varias, la más grande.
+		if text != "" {
+			v, err := l.page.Evaluate(imageByTextJS, text)
+			if err != nil {
+				return Step{}, err
+			}
+			if u, _ := v.(string); u != "" {
+				target = u
+			}
+		}
+		var loc playwright.Locator
+		if target == "" {
+			var err error
+			if loc, _, _, err = r.liveTarget(l, cur, num, text); err != nil {
+				return Step{}, err
+			}
+		}
+		// Una imagen, o la que envuelve un enlace (la bandera de una página enlaza a su ficha), antes que el href.
+		if loc == nil {
+			goto fetch
+		}
+		v, err := loc.Evaluate(`e => {
+			const img = e.tagName === 'IMG' ? e : e.querySelector('img')
+			if (img) {
+				// La mejor resolución que ofrece (srcset), no la miniatura que se pinta.
+				const best = (img.srcset || '').split(',').map((c) => c.trim().split(/\s+/))
+					.filter((c) => c[0]).map(([u, d]) => ({ u, w: parseFloat(d) || 1 })).sort((a, b) => b.w - a.w)[0]
+				return best ? new URL(best.u, location.href).href : (img.currentSrc || img.src)
+			}
+			return e.href || e.src || ''
+		}`, nil, playwright.LocatorEvaluateOptions{Timeout: playwright.Float(5000)})
+		if err != nil {
+			return Step{}, err
+		}
+		target, _ = v.(string)
+		if target == "" {
+			return Step{}, errors.New("ese elemento no tiene nada para bajar (ni imagen ni enlace)")
+		}
+	}
+fetch:
+	res, err := l.bctx.Request().Get(target, playwright.APIRequestContextGetOptions{Timeout: playwright.Float(30000)})
+	if err != nil {
+		return Step{}, fmt.Errorf("bajar %s: %v", target, firstLine(err.Error()))
+	}
+	if !res.Ok() {
+		return Step{}, fmt.Errorf("bajar %s: HTTP %d", target, res.Status())
+	}
+	body, err := res.Body()
+	if err != nil {
+		return Step{}, err
+	}
+	name := downloadName(target, res.Headers()["content-disposition"])
+	dir := filepath.Join(r.store.dir, "descargas")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return Step{}, err
+	}
+	path := filepath.Join(dir, name)
+	if err := os.WriteFile(path, body, 0o600); err != nil {
+		return Step{}, err
+	}
+	step := Step{
+		Code:   fmt.Sprintf("fs.writeFileSync('%s', await (await page.request.get('%s')).body())", jsQuote(name), jsQuote(target)),
+		Target: name, OK: true, UsesFS: true,
+		Note: fmt.Sprintf("descargado: %s (%d bytes, %s)", path, len(body), res.Headers()["content-type"]),
+	}
+	r.recordStep(l, step)
+	return step, nil
+}
+
+// downloadName elige el nombre del archivo: el de Content-Disposition, o el último tramo de la URL.
+func downloadName(rawURL, disposition string) string {
+	if i := strings.Index(disposition, "filename="); i >= 0 {
+		if n := strings.Trim(strings.TrimSpace(strings.Split(disposition[i+9:], ";")[0]), `"`); n != "" {
+			return filepath.Base(n)
+		}
+	}
+	if u, err := url.Parse(rawURL); err == nil {
+		if n, err := url.PathUnescape(filepath.Base(u.Path)); err == nil && n != "" && n != "/" && n != "." {
+			return n
+		}
+	}
+	return fmt.Sprintf("descarga-%d", time.Now().Unix())
+}
+
+// LiveMedia dice el estado de cada video y audio visible: si suena, por dónde va y cuánto dura.
+func (r *Runner) LiveMedia() (any, error) {
+	l := r.liveSession()
+	if l == nil {
+		return nil, errors.New("no hay sesión en vivo")
+	}
+	return l.page.Evaluate(`() => [...document.querySelectorAll('video, audio')]
+		.filter((m) => m.tagName === 'AUDIO' || (m.getBoundingClientRect().width > 0 && m.getBoundingClientRect().height > 0))
+		.map((m) => ({ tipo: m.tagName.toLowerCase(), sonando: !m.paused && !m.ended && m.readyState > 2,
+			segundo: Math.round(m.currentTime * 10) / 10, duracion: isFinite(m.duration) ? Math.round(m.duration) : null,
+			silenciado: m.muted, volumen: m.volume }))`)
+}
+
+// imageByTextJS busca la imagen visible más grande cuyo texto alternativo o nombre de archivo contenga el texto
+// (sin importar mayúsculas, acentos ni espacios contra guiones bajos) y devuelve su mejor resolución.
+const imageByTextJS = `(q) => {
+	const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[_\-\s]+/g, ' ')
+	const words = norm(q).split(' ').filter(Boolean)
+	const file = (img) => { try { return decodeURIComponent(new URL(img.currentSrc || img.src).pathname.split('/').pop()) } catch { return '' } }
+	const hits = [...document.querySelectorAll('img')].filter((img) => {
+		const r = img.getBoundingClientRect()
+		if (r.width < 2 || r.height < 2 || !img.checkVisibility()) return false
+		const hay = norm(img.alt + ' ' + img.title + ' ' + file(img))
+		return words.every((w) => hay.includes(w))
+	}).sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return rb.width * rb.height - ra.width * ra.height })
+	const img = hits[0]
+	if (!img) return ''
+	const best = (img.srcset || '').split(',').map((c) => c.trim().split(/\s+/)).filter((c) => c[0])
+		.map(([u, d]) => ({ u, w: parseFloat(d) || 1 })).sort((a, b) => b.w - a.w)[0]
+	return best ? new URL(best.u, location.href).href : (img.currentSrc || img.src)
+}`
+
+// LiveImages lista las imágenes visibles (las más grandes primero): texto alternativo, tamaño y archivo.
+func (r *Runner) LiveImages() (any, error) {
+	l := r.liveSession()
+	if l == nil {
+		return nil, errors.New("no hay sesión en vivo")
+	}
+	return l.page.Evaluate(`() => [...document.querySelectorAll('img')].map((img) => {
+		const r = img.getBoundingClientRect()
+		let file = ''
+		try { file = decodeURIComponent(new URL(img.currentSrc || img.src).pathname.split('/').pop()) } catch {}
+		return { alt: img.alt, ancho: Math.round(r.width), alto: Math.round(r.height), archivo: file, visible: r.width > 1 && r.height > 1 && img.checkVisibility() }
+	}).filter((i) => i.visible && i.ancho * i.alto >= 400).sort((a, b) => b.ancho * b.alto - a.ancho * a.alto).slice(0, 40)`)
 }

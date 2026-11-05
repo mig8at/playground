@@ -41,6 +41,7 @@ type evalResult struct {
 	outcome askOutcome
 	ok      bool
 	why     string
+	report  string
 }
 
 func evals(args []string) error {
@@ -81,7 +82,13 @@ func evals(args []string) error {
 		if !r.ok {
 			mark = "✗"
 		}
-		fmt.Printf("  %s %s\n\n", mark, r.why)
+		fmt.Printf("  %s %s\n", mark, r.why)
+		// El paso a paso de cada caso, con sus fotos: sobre todo para entender uno que falló.
+		if path, err := writeReport(c.Goal, oneLine(r.outcome.Text, 400)); err == nil {
+			r.report = path
+			fmt.Printf("    paso a paso: %s\n", path)
+		}
+		fmt.Println()
 		results = append(results, r)
 	}
 	if len(results) == 0 {
@@ -100,7 +107,11 @@ func evals(args []string) error {
 		fmt.Printf("%-20s %-4s %-26s %6d %7.1f %9.4f\n", r.c.Name, mark, strings.Join(r.outcome.Rounds, " → "), r.outcome.Turns, r.outcome.Seconds, r.outcome.Cost)
 	}
 	fmt.Printf("\n%d de %d pasaron · US$ %.4f · %s\n", len(results)-failed, len(results), cost, time.Since(start).Round(time.Second))
-	if err := appendHistory(root, results, cost, time.Since(start)); err != nil {
+	// Una corrida con otro Claude (NAVEGADOR_CLAUDE: uno simulado, para probar la suite) no es una medición de
+	// ask: no va al historial, que es la línea de base.
+	if os.Getenv("NAVEGADOR_CLAUDE") != "" {
+		fmt.Println("historial: no se guarda (NAVEGADOR_CLAUDE apunta a otro Claude)")
+	} else if err := appendHistory(root, results, cost, time.Since(start)); err != nil {
 		fmt.Fprintln(os.Stderr, "navegador: no pude guardar el historial:", err)
 	} else {
 		fmt.Println("historial: navegador/evals/historial.jsonl")
@@ -263,6 +274,7 @@ func appendHistory(root string, results []evalResult, cost float64, took time.Du
 		Seconds float64  `json:"seg"`
 		Cost    float64  `json:"usd"`
 		Why     string   `json:"por_que,omitempty"`
+		Report  string   `json:"reporte,omitempty"`
 	}
 	entry := struct {
 		At     string  `json:"fecha"`
@@ -282,7 +294,11 @@ func appendHistory(root string, results []evalResult, cost float64, took time.Du
 		if !r.ok {
 			why = r.why
 		}
-		entry.Cases = append(entry.Cases, row{Case: r.c.Name, OK: r.ok, Rounds: r.outcome.Rounds, Turns: r.outcome.Turns, Seconds: r.outcome.Seconds, Cost: r.outcome.Cost, Why: why})
+		report := ""
+		if !r.ok {
+			report = r.report
+		}
+		entry.Cases = append(entry.Cases, row{Case: r.c.Name, OK: r.ok, Rounds: r.outcome.Rounds, Turns: r.outcome.Turns, Seconds: r.outcome.Seconds, Cost: r.outcome.Cost, Why: why, Report: report})
 	}
 	b, err := json.Marshal(entry)
 	if err != nil {

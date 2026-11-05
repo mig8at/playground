@@ -16,7 +16,7 @@ const lineas = body.split('\n').filter((l) => l.trim().startsWith('await ')).len
   const page = await browser.newPage()
   page.setDefaultTimeout(15000)
   try {
-    await new Function('page', 'expect', 'return (async () => {' + body + '})()')(page, expect)
+    await new Function('page', 'expect', 'fs', 'return (async () => {' + body + '})()')(page, expect, require('fs'))
     console.log(JSON.stringify({ ok: true, lineas, url: page.url() }))
   } catch (e) {
     console.log(JSON.stringify({ ok: false, lineas, url: page.url(), error: e.message.split('\n')[0] }))

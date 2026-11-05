@@ -15,8 +15,12 @@
 //	bin/navegador text [buscar]                  el texto visible (o si aparece `buscar`)
 //	bin/navegador wait <texto> [segundos]        espera a que el texto se vea (queda como aserción en el script)
 //	bin/navegador value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
+//	bin/navegador download <n|texto|url>         baja un enlace o la imagen que envuelve (a .data/descargas)
+//	bin/navegador images                         las imágenes visibles: tamaño, archivo y texto alternativo
+//	bin/navegador media                          si los videos/audios suenan, por dónde van y cuánto duran
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
+//	bin/navegador report [meta]                  el paso a paso con una foto por paso (md, html y script)
 //	bin/navegador close                          cierra la sesión en vivo
 //	bin/navegador ask [--url URL] "<meta>"       Claude maneja la sesión en vivo hasta cumplir la meta (ask.go)
 //	bin/navegador evals [--solo X]               corre las metas de navegador/evals/casos.json y compara (evals.go)
@@ -104,12 +108,20 @@ func main() {
 		err = wait(args)
 	case "value":
 		err = value(args)
+	case "download":
+		err = download(args)
+	case "media":
+		err = media()
+	case "images":
+		err = images()
 	case "shot":
 		err = shot(args)
 	case "steps":
 		err = steps()
 	case "script":
 		err = script()
+	case "report":
+		err = report(args)
 	case "reset":
 		err = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	case "close":
@@ -129,8 +141,8 @@ func usage() {
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · shot <archivo.png>
-  steps · script · reset
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media · shot <archivo.png>
+  steps · script · report [meta] · reset
   ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
 	os.Exit(2)
@@ -307,7 +319,14 @@ func startLive(args []string, clean bool) error {
 		if err := call(http.MethodPost, "/api/live/stop", nil, nil); err != nil {
 			return err
 		}
-		time.Sleep(time.Second)
+		// Cerrar es asincrónico: se espera a que termine de verdad (con un segundo fijo a veces no alcanzaba).
+		for i := 0; i < 50; i++ {
+			var busy struct{ Busy bool }
+			if err := call(http.MethodGet, "/api/state?since=999999999", nil, &busy); err == nil && !busy.Busy {
+				break
+			}
+			time.Sleep(200 * time.Millisecond)
+		}
 	}
 	q := "site=" + url.QueryEscape(slug)
 	if start != "" {
@@ -411,12 +430,16 @@ func act(action string, args []string, needsValue bool) error {
 	var step struct {
 		Code    string
 		Dialogs []string
+		Note    string
 	}
 	if err := call(http.MethodPost, "/api/live/act", body, &step); err != nil {
 		return err
 	}
 	for _, d := range step.Dialogs {
 		fmt.Printf("diálogo: %s\n", d)
+	}
+	if step.Note != "" {
+		fmt.Println(step.Note)
 	}
 	fmt.Printf("✓ %s\n\n", step.Code)
 	return look(true)
@@ -464,6 +487,83 @@ func wait(args []string) error {
 	fmt.Printf("✓ %s\n\n", step.Code)
 	// Lo que se esperaba casi siempre cambió la página: se muestra como quedó, con los números nuevos.
 	return look(true)
+}
+
+// download baja el recurso de un elemento (un enlace, o la imagen que envuelve) o de una URL.
+func download(args []string) error {
+	if len(args) < 1 {
+		usage()
+	}
+	body := map[string]any{}
+	switch n, err := strconv.Atoi(args[0]); {
+	case err == nil && n >= 1:
+		body["control"] = n - 1
+	case strings.Contains(args[0], "://"):
+		body["url"] = args[0]
+	default:
+		body["text"] = strings.Join(args, " ")
+	}
+	var step struct{ Code, Note string }
+	if err := call(http.MethodPost, "/api/live/download", body, &step); err != nil {
+		return err
+	}
+	fmt.Printf("✓ %s\n  %s\n", step.Code, step.Note)
+	return nil
+}
+
+// images lista las imágenes visibles de la página, las más grandes primero.
+func images() error {
+	var list []struct {
+		Alt     string
+		Ancho   int
+		Alto    int
+		Archivo string
+	}
+	if err := call(http.MethodGet, "/api/live/images", nil, &list); err != nil {
+		return err
+	}
+	for _, i := range list {
+		alt := i.Alt
+		if alt == "" {
+			alt = "(sin texto alternativo)"
+		}
+		fmt.Printf("%4d×%-4d %s · %s\n", i.Ancho, i.Alto, trim(i.Archivo, 60), trim(alt, 60))
+	}
+	return nil
+}
+
+// media dice si los videos y audios de la página están sonando, por dónde van y cuánto duran.
+func media() error {
+	var list []struct {
+		Tipo       string
+		Sonando    bool
+		Segundo    float64
+		Duracion   *float64
+		Silenciado bool
+	}
+	if err := call(http.MethodGet, "/api/live/media", nil, &list); err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		fmt.Println("no hay videos ni audios en la página")
+		return nil
+	}
+	for i, m := range list {
+		dur := "?"
+		if m.Duracion != nil {
+			dur = fmt.Sprintf("%.0f s", *m.Duracion)
+		}
+		state := "en pausa"
+		if m.Sonando {
+			state = "SONANDO"
+		}
+		mute := ""
+		if m.Silenciado {
+			mute = " · silenciado"
+		}
+		fmt.Printf("%d %s · %s · va por %.1f s de %s%s\n", i+1, m.Tipo, state, m.Segundo, dur, mute)
+	}
+	return nil
 }
 
 // value lee el valor de un campo; con un esperado, lo compara y queda como aserción (toHaveValue).
@@ -537,6 +637,24 @@ func steps() error {
 		fmt.Println()
 	}
 	return nil
+}
+
+// report escribe el paso a paso de la corrida (md, html con las fotos de cada paso y script) y dice dónde.
+func report(args []string) error {
+	path, err := writeReport(strings.Join(args, " "), "")
+	if err != nil {
+		return err
+	}
+	fmt.Println(path)
+	return nil
+}
+
+func writeReport(goal, result string) (string, error) {
+	var out struct{ Dir, HTML, MD, URL string }
+	if err := call(http.MethodPost, "/api/live/report", map[string]string{"meta": goal, "resultado": result}, &out); err != nil {
+		return "", err
+	}
+	return out.URL + "\n  (en disco: " + out.Dir + ")", nil
 }
 
 func script() error {

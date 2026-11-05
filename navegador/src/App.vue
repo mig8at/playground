@@ -273,6 +273,13 @@ async function liveAct(action) {
   }
 }
 async function copyLiveScript() { try { copyText(await (await fetch('/api/live/script')).text(), 'live-script') } catch { /* sin API */ } }
+// El paso a paso de la corrida (con una foto por paso), en una pestaña nueva.
+async function openReport() {
+  try {
+    const r = await api('/api/live/report', { method: 'POST', body: JSON.stringify({}) })
+    window.open(r.url.replace(/^https?:\/\/[^/]+/, ''), '_blank', 'noopener')
+  } catch (e) { liveError.value = e.message }
+}
 async function clearSteps() { await api('/api/live/steps', { method: 'DELETE' }); pollLive() }
 async function clearPages() {
   if (!site.value || !confirm(`¿Vaciar el mapa de ${site.value.name}? La sesión se conserva.`)) return
@@ -515,7 +522,7 @@ function openTab(id) { tab.value = id; panelOpen.value = true; saveSize('navegad
 
 // ── los elementos interactivos: el localizador de Playwright para llegar a cada uno, probado en la página ──
 const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace', scroll: 'zona con scroll', file: 'archivo', drag: 'arrastrable' }
-const LOC_LABEL = { role: 'rol', scoped: 'rol en zona', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
+const LOC_LABEL = { role: 'rol', scoped: 'rol en zona', nth: 'rol (n-ésimo)', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
 const showBoxes = ref(readPref('navegador.boxes', true))
 watch(showBoxes, (v) => savePref('navegador.boxes', v))
 const shotSize = ref({ w: 0, h: 0 })
@@ -998,6 +1005,9 @@ onBeforeUnmount(() => {
             <span class="ui-icon" :data-icon="copied === 'script' ? 'check' : 'code'" aria-hidden="true"></span>
           </button>
           <template v-if="panelTab === 'steps'">
+            <button type="button" class="region-action" :disabled="!liveState.steps?.length" title="Ver el paso a paso, con una foto por paso" aria-label="Ver el paso a paso" @click="openReport">
+              <span class="ui-icon" data-icon="image" aria-hidden="true"></span>
+            </button>
             <button type="button" class="region-action" :disabled="!liveState.steps?.length" :title="copied === 'live-script' ? 'Copiado' : 'Copiar los pasos como script de Playwright'" aria-label="Copiar los pasos como script de Playwright" @click="copyLiveScript">
               <span class="ui-icon" :data-icon="copied === 'live-script' ? 'check' : 'code'" aria-hidden="true"></span>
             </button>
