@@ -385,6 +385,24 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, step)
 	})
+	// POST /api/live/value {control, text, expected} — el valor de un campo; con expected, queda como aserción.
+	mux.HandleFunc("/api/live/value", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Control  int
+			Text     string
+			Expected string
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		value, step, err := runner.LiveValue(in.Control, in.Text, in.Expected)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "value": value, "step": step})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"value": value, "step": step})
+	})
 	// POST /api/live/dialog {dismiss} — cómo contestar los próximos alert/confirm/prompt.
 	mux.HandleFunc("/api/live/dialog", func(w http.ResponseWriter, r *http.Request) {
 		var in struct{ Dismiss bool }

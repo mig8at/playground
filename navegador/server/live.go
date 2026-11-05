@@ -827,3 +827,41 @@ func (r *Runner) LiveDialogPolicy(dismiss bool) error {
 	l.mu.Unlock()
 	return nil
 }
+
+// LiveValue lee el valor de un campo (que no es texto visible: wait y text no lo ven). Con `expected`, lo
+// compara y lo deja como aserción del script: expect(…).toHaveValue('…').
+func (r *Runner) LiveValue(num int, text, expected string) (string, Step, error) {
+	l := r.liveSession()
+	if l == nil {
+		return "", Step{}, errors.New("no hay sesión en vivo")
+	}
+	l.mu.Lock()
+	cur := l.current
+	l.mu.Unlock()
+	if cur == nil {
+		return "", Step{}, errors.New("la página todavía no se analizó: esperá un momento")
+	}
+	target, code, c, err := r.liveTarget(l, cur, num, text)
+	if err != nil {
+		return "", Step{}, err
+	}
+	if c != nil && c.Kind == "field" && strings.EqualFold(c.Type, "password") {
+		return "", Step{}, errors.New("no leo el valor de un campo de contraseña")
+	}
+	value, err := target.InputValue(playwright.LocatorInputValueOptions{Timeout: playwright.Float(5000)})
+	if err != nil {
+		return "", Step{}, fmt.Errorf("leer el valor: %s", firstLine(err.Error()))
+	}
+	if expected == "" {
+		return value, Step{}, nil
+	}
+	step := Step{Code: fmt.Sprintf("expect(%s).toHaveValue('%s')", code, jsQuote(expected)), Target: expected, OK: value == expected}
+	if !step.OK {
+		step.Error = fmt.Sprintf("tiene «%s»", value)
+	}
+	r.recordStep(l, step)
+	if !step.OK {
+		return value, step, fmt.Errorf("el campo tiene «%s», no «%s»", value, expected)
+	}
+	return value, step, nil
+}

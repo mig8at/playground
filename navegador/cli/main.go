@@ -14,6 +14,7 @@
 //	bin/navegador goto <url> | back | reload
 //	bin/navegador text [buscar]                  el texto visible (o si aparece `buscar`)
 //	bin/navegador wait <texto> [segundos]        espera a que el texto se vea (queda como aserción en el script)
+//	bin/navegador value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador close                          cierra la sesión en vivo
@@ -98,6 +99,8 @@ func main() {
 		err = text(args)
 	case "wait":
 		err = wait(args)
+	case "value":
+		err = value(args)
 	case "shot":
 		err = shot(args)
 	case "steps":
@@ -123,7 +126,7 @@ func usage() {
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · shot <archivo.png>
   steps · script · reset
   ask [--url URL] [--pasos 40] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
 	os.Exit(2)
@@ -444,7 +447,37 @@ func wait(args []string) error {
 	if err := call(http.MethodPost, "/api/live/expect", map[string]any{"text": needle, "seconds": secs}, &step); err != nil {
 		return err
 	}
-	fmt.Printf("✓ %s\n", step.Code)
+	fmt.Printf("✓ %s\n\n", step.Code)
+	// Lo que se esperaba casi siempre cambió la página: se muestra como quedó, con los números nuevos.
+	return look(true)
+}
+
+// value lee el valor de un campo; con un esperado, lo compara y queda como aserción (toHaveValue).
+func value(args []string) error {
+	if len(args) < 1 {
+		usage()
+	}
+	body := map[string]any{}
+	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
+		body["control"] = n - 1
+	} else {
+		body["text"] = args[0]
+	}
+	if len(args) > 1 {
+		body["expected"] = strings.Join(args[1:], " ")
+	}
+	var out struct {
+		Value string
+		Step  struct{ Code string }
+	}
+	if err := call(http.MethodPost, "/api/live/value", body, &out); err != nil {
+		return err
+	}
+	if out.Step.Code != "" {
+		fmt.Printf("✓ %s\n", out.Step.Code)
+		return nil
+	}
+	fmt.Printf("«%s»\n", out.Value)
 	return nil
 }
 

@@ -12,7 +12,10 @@ como un script de Playwright.
   `<n>` es el número del ÚLTIMO look; si lo que buscás no es un elemento (un texto con doble clic, un ítem),
   usá su texto visible entre comillas: `{{NAV}} dblclick "Revisar el informe"`.
   Después de cada acción la herramienta muestra la página como quedó: no hace falta un look extra.
-- `{{NAV}} wait "<texto>" [segundos]` — espera a que un texto se vea (para lo que tarda) y queda como aserción.
+- `{{NAV}} wait '<texto>' [segundos]` — espera a que un texto se vea (para lo que tarda) y queda como aserción.
+  Al terminar muestra la página como quedó, con los números nuevos.
+- `{{NAV}} value <n> ['<esperado>']` — el valor de un campo (lo que tiene escrito NO es texto visible: `wait` y
+  `text` no lo ven). Con el esperado, lo compara y queda como aserción `toHaveValue` en el script.
 - `{{NAV}} text ["<buscar>"]` — el texto visible, o si aparece algo. `{{NAV}} goto <url>` · `back` · `reload`.
 - `{{NAV}} shot <archivo.png>` y después Read de ese archivo — para MIRAR la pantalla cuando el texto no alcanza
   (una disposición, un gráfico, algo que no se entiende). Guardalo en `{{DIR}}`.
