@@ -60,3 +60,6 @@ sala/.hallazgos/
 /game/capturas/
 tablero/tasks/*/artifacts/*.log.json
 sala/.barridos/
+
+# navegador: perfiles de Chromium con sesiones abiertas, mapas y capturas — nunca commitear
+navegador/.data/

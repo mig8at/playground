@@ -334,6 +334,16 @@
       "env": {
         "SALA_PORTERO": "1"
       }
+    },
+    {
+      "name": "navegador",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "navegador",
+      "port": 5202
     }
   ]
 }
