@@ -6,6 +6,7 @@
    (ServiceSide.vue, con las rutas del esquema) y vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
 import { picked, remember } from './stores/service-history.js'
+import { loadSchema, methodsFor, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true }, serving: Boolean, serveLog: { type: String, default: '' } })
 const emit = defineEmits(['changed', 'close'])
@@ -37,6 +38,16 @@ async function copy() {
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
 const method = ref('GET')
 const path = ref('/persona')
+/* El método lo dicta el esquema: si la ruta está en él con uno solo, queda fijo; con varios, se elige entre esos. Sin
+   esquema, o con una ruta que no declara, se elige libre. */
+const declared = computed(() => methodsFor(props.service.alias, path.value))
+const methods = computed(() => (declared.value?.length ? declared.value : METHODS))
+const methodFixed = computed(() => declared.value?.length === 1)
+const methodTitle = computed(() => (methodFixed.value ? 'Lo fija el esquema del servicio'
+  : declared.value?.length ? 'Los métodos que el esquema declara para esta ruta'
+    : declared.value ? 'Esta ruta no está en el esquema' : 'Método'))
+watch(() => props.service.alias, (alias) => { const st = schemaState(alias); if (!st.info && !st.loading) loadSchema(alias) }, { immediate: true })
+watch(methods, (list) => { if (!list.includes(method.value)) method.value = list[0] }, { immediate: true })
 // Siempre por el playground: lo que importa es que le sirva al equipo, no que ande en tu máquina.
 const via = 'playground'
 const reqTab = ref('body')
@@ -121,8 +132,8 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
     <div class="main">
       <!-- La petición -->
       <form class="request-bar" @submit.prevent="send">
-        <select v-model="method" class="input input-sm method" aria-label="Método">
-          <option v-for="m in METHODS" :key="m" :value="m">{{ m }}</option>
+        <select v-model="method" class="input input-sm method" aria-label="Método" :disabled="methodFixed" :title="methodTitle">
+          <option v-for="m in methods" :key="m" :value="m">{{ m }}</option>
         </select>
         <input v-model="path" class="input input-sm path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
         <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">

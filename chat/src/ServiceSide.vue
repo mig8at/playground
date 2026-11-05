@@ -7,6 +7,7 @@
    Las dos cargan en la ficha por stores/service-history.js (`pick`). */
 import { computed, ref, watch } from 'vue'
 import { forget, historyFor, pick } from './stores/service-history.js'
+import { loadSchema as fetchSchema, schemaState } from './stores/service-schema.js'
 
 const props = defineProps({ service: { type: Object, required: true } })
 const emit = defineEmits(['close'])
@@ -16,14 +17,10 @@ const tab = ref((() => { try { return localStorage.getItem(TAB_KEY) || 'routes' 
 function setTab(t) { tab.value = t; try { localStorage.setItem(TAB_KEY, t) } catch { /* sólo no se recuerda */ } }
 
 // ── rutas ──
-const info = ref(null)
-const loading = ref(false)
-async function loadSchema() {
-  loading.value = true
-  try { info.value = await (await fetch(`/api/services/${encodeURIComponent(props.service.alias)}/schema`)).json() } catch (e) {
-    info.value = { schemaError: e.message, healthError: e.message }
-  } finally { loading.value = false }
-}
+const schemaOf = computed(() => schemaState(props.service.alias))
+const info = computed(() => schemaOf.value.info)
+const loading = computed(() => schemaOf.value.loading)
+const loadSchema = () => fetchSchema(props.service.alias)
 watch(() => [props.service.alias, props.service.listening], loadSchema, { immediate: true })
 
 const METHODS = ['get', 'post', 'put', 'patch', 'delete']
