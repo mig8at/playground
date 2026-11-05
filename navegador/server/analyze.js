@@ -273,6 +273,12 @@
 
   // Los avisos a la vista: errores de validación, alertas, notas. Dicen por qué un botón sigue deshabilitado.
   const notices = []
+  // Un muro anti-bots o un captcha se AVISA, primero y explícito: no es algo que la herramienta (ni un agente)
+  // intente pasar, y reconocerlo de entrada ahorra turnos de prueba y error.
+  const bodyText = (document.body?.innerText || '').slice(0, 3000).toLowerCase()
+  const botWall = /performing security verification|verify you are (a )?human|checking your browser|just a moment\.\.\.|are you a robot|no soy un robot|verificando que eres humano|unusual traffic|attention required/.test(bodyText + ' ' + document.title.toLowerCase())
+  const captcha = document.querySelector('iframe[src*="recaptcha"], iframe[src*="hcaptcha"], iframe[src*="challenges.cloudflare.com"], .g-recaptcha, .h-captcha, .cf-turnstile, [data-sitekey]')
+  if (botWall || captcha) notices.push('MURO ANTI-BOTS: la página pide una verificación de que no sos un robot (captcha o similar). La herramienta no la pasa: es un NO PUDE.')
   for (const el of document.querySelectorAll('[role=alert], [aria-live], .error, .errors, .invalid-feedback, .alert, .notice, .warning, [class*="error"]')) {
     const t = clean(el.innerText, 160)
     if (t && isVisible(el) && !notices.includes(t)) notices.push(t)

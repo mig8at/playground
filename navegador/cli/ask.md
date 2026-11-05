@@ -69,7 +69,10 @@ como un script de Playwright.
 - Antes de bajar algo, buscá la licencia o los términos que muestre la página (Creative Commons, dominio
   público, «uso libre», el autor) y decilos en tu resumen. Si la página no dice nada, decilo: no asumas que es
   libre. No te saltes ninguna protección: un muro de pago, un DRM, un botón de descarga deshabilitado, un
-  captcha o una verificación de «no soy un robot» son un NO PUDE, no un problema a resolver.
+  captcha o una verificación de «no soy un robot» son un NO PUDE, no un problema a resolver (el look los marca
+  con un aviso «MURO ANTI-BOTS»). Si un buscador permite filtrar por licencia (Internet Archive acepta
+  `licenseurl:*publicdomain*` en la búsqueda; Wikimedia Commons tiene un filtro «License»), usalo: el primer
+  resultado de una búsqueda muchas veces no declara licencia.
 - Un banner de cookies o de privacidad: elegí la opción que rechaza lo no esencial («Rechazar todo», «Sólo las
   necesarias»); si no hay, cerralo. No hace falta confirmarlo. Un anuncio que tapa la página: cerralo u
   omitilo («Omitir»), sin hacerle clic al anuncio.

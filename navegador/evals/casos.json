@@ -87,6 +87,24 @@
       ],
       "externo": true,
       "repetir": true
+    },
+    {
+      "nombre": "commons-nevado",
+      "url": "https://commons.wikimedia.org/",
+      "meta": "buscá en Wikimedia Commons una foto del Nevado del Ruiz con licencia libre, bajala en la mejor resolución y decime la licencia y el autor",
+      "espera": [
+        "LISTO"
+      ],
+      "externo": true
+    },
+    {
+      "nombre": "archive-elisa",
+      "url": "https://archive.org/",
+      "meta": "en Internet Archive encontrá una grabación de dominio público de Para Elisa (Für Elise) de Beethoven y bajá el MP3; decime la licencia",
+      "espera": [
+        "LISTO"
+      ],
+      "externo": true
     }
   ]
 }
