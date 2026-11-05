@@ -82,8 +82,8 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       recién instalada ya no hubo 401.
 - [x] ~~Publicar la 5.0.3~~ — 2026-11-05: vtex#24 mergeado (6a661a1, con la CI), `v5.0.3` publicada e instalada en
       `master` y `develop` a las 16:02; los cuatro desenlaces bien en qa.
-- [ ] Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout` con la versión publicada (5.0.2)
-      (instancias calientes). Termina con `make harness-vtex TARGET=qa CASES=aprobada` después de una hora quieta.
+- [x] ~~Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout`~~ — 2026-11-05 17:50, con la
+      5.0.3: aprobada en 1,3 s tras hora y media quieta; y el cobro al facturar quedó Finished.
 - [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
       comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
       regla escrita y, si se decide, el aviso del conector a Creditop. Depende de: Producto — junto con el vencimiento de
