@@ -693,6 +693,31 @@ con aprobación manual que no tenga la aprobación registrada, igual que la auto
 
 ---
 
+## 33 · Dos rutas internas que niegan una solicitud y le fijan el monto quedan abiertas sin la llave, y el asistente no la manda (Seguridad)
+
+**Qué pasa.** El asistente tiene dos operaciones que cambian una solicitud desde su servidor: negarla cuando el asesor
+rechaza en la pantalla de resultado del flujo alterno, y fijarle los tres montos del vehículo. Van de servidor a servidor
+por la red interna, sin la identidad del cliente, protegidas por una llave interna compartida. Pero esa guarda **deja
+pasar todo mientras la llave no esté configurada**, y sólo lo advierte en el registro de cada llamada. Mientras eso pase,
+quien alcance la red interna puede negar una solicitud ajena y fijarle el monto. Los identificadores de solicitud son
+secuenciales.
+
+Además, **el asistente no manda la llave**: la llamada de la pantalla de resultado sólo lleva los encabezados de
+autenticación de siempre. Así que configurar la llave hoy en el backend rompería el rechazo del asesor. La ruta de los
+montos no tiene quien la llame en el asistente.
+
+**Cómo se comprobó, el 2026-11-05.** Leyendo el código de `main`: la guarda deja pasar con la llave vacía y escribe la
+advertencia; las dos rutas están detrás de esa guarda; y en el asistente no aparece el encabezado de la llave en ninguna
+llamada.
+
+**Falta comprobar:** si en producción la llave está configurada, buscando esa advertencia en los registros. Si no
+aparece, la puerta está cerrada y el problema es sólo que el asistente, al configurarla, empezaría a fallar.
+
+**Propuesta.** Que el asistente mande la llave en las dos llamadas, configurarla en cada ambiente y, después, que la
+guarda rechace cuando falta en vez de dejar pasar.
+
+---
+
 ## Sobre originación delegada (CORE-918)
 
 Lo que sigue va con la tarea de originación delegada, no con incidencias, pero conviene conversarlo junto:

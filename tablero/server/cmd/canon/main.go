@@ -645,6 +645,11 @@ func restructure(ctx context.Context, client *canon.Client, args []string) error
 	if err != nil {
 		return err
 	}
+	// Canon contesta 200 con ok:false cuando el corpus resultante no carga: eso es un rechazo, no un éxito
+	// (pasó el 2026-11-05: el comando terminó en 0 y el borrado no se había guardado).
+	if ok, _ := out["ok"].(bool); !ok {
+		return fmt.Errorf("canon rechazó el lote: no se guardó nada")
+	}
 	if !*apply {
 		fmt.Println("  (ensayo: canon no guardó nada; con APPLY=1 se publica en una revisión)")
 	}
