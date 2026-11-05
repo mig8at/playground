@@ -76,6 +76,11 @@ type canonWork map[string][]canon.RoundChange
 // canonRound pide la ronda y agrupa por tema; sin temas pedidos devuelve los n con más archivos cambiados.
 func canonRound(ctx context.Context, topics []string, n int) ([]string, canonWork, error) {
 	round, err := canon.FromEnv().Round(ctx, false)
+	if err != nil && ctx.Err() == nil {
+		// La primera medición después de que el servidor la invalida tarda más que el cliente (8 s); para la segunda
+		// ya la tiene en caché. Pasó el 2026-11-05 al lanzar desde la página.
+		round, err = canon.FromEnv().Round(ctx, false)
+	}
 	if err != nil {
 		return nil, nil, fmt.Errorf("canon no devolvió la ronda (%s): %w", canon.URL(), err)
 	}
