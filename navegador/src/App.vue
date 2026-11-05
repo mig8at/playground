@@ -296,6 +296,7 @@ const busyLabel = computed(() => {
 // ── las pestañas de la consola: lo que hace el navegador y, con una página elegida, lo técnico de ella ──
 const TABS = [
   { id: 'log', label: 'Consola' },
+  { id: 'actions', label: 'Acciones', count: (p) => (p.controls || []).length, page: true },
   { id: 'forms', label: 'Formularios', count: (p) => (p.forms || []).length, page: true },
   { id: 'links', label: 'Enlaces', count: (p) => (p.links || []).length, page: true },
   { id: 'calls', label: 'Llamadas', count: (p) => (p.requests || []).length, page: true },
@@ -328,6 +329,7 @@ const pageStats = computed(() => {
   if (!p) return []
   const internal = internalLinks.value.filter((l) => l.internal).length
   return [
+    { id: 'actions', label: 'elementos interactivos', value: (p.controls || []).length },
     { id: 'forms', label: 'formularios', value: (p.forms || []).length },
     { id: 'links', label: 'enlaces internos', value: internal },
     { id: 'links', label: 'enlaces externos', value: internalLinks.value.length - internal },
@@ -336,6 +338,71 @@ const pageStats = computed(() => {
   ]
 })
 function openTab(id) { tab.value = id; panelOpen.value = true; saveSize('navegador.panel-open', 1) }
+
+// ── los elementos interactivos: el localizador de Playwright para llegar a cada uno, probado en la página ──
+const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace' }
+const LOC_LABEL = { role: 'rol', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
+const showBoxes = ref(readPref('navegador.boxes', true))
+watch(showBoxes, (v) => savePref('navegador.boxes', v))
+const hoverControl = ref(-1)
+const pickedControl = ref(-1)
+const shotSize = ref({ w: 0, h: 0 })
+const controls = computed(() => page.value?.controls || [])
+watch(pageId, () => { pickedControl.value = -1; hoverControl.value = -1; shotSize.value = { w: 0, h: 0 } })
+function onShotLoad(e) { shotSize.value = { w: e.target.naturalWidth, h: e.target.naturalHeight } }
+function boxStyle(c) {
+  const { w, h } = shotSize.value
+  if (!w || !h) return { display: 'none' }
+  return { left: `${(c.box.x / w) * 100}%`, top: `${(c.box.y / h) * 100}%`, width: `${(c.box.w / w) * 100}%`, height: `${(c.box.h / h) * 100}%` }
+}
+const bestCode = (c) => (c.best >= 0 ? c.locators[c.best].code + c.action : '')
+// Un CSS por posición encuentra el elemento hoy, pero se rompe con cualquier cambio del HTML.
+const fragile = (l) => l.kind === 'css' && /nth-of-type|>/.test(l.value)
+function pickControl(c, from) {
+  pickedControl.value = c.id
+  if (from === 'shot') {
+    openTab('actions')
+    requestAnimationFrame(() => document.getElementById(`control-row-${c.id}`)?.scrollIntoView({ block: 'nearest' }))
+  } else {
+    requestAnimationFrame(() => document.getElementById(`control-box-${c.id}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' }))
+  }
+}
+const copied = ref('')
+async function copyText(text, key) {
+  try { await navigator.clipboard.writeText(text); copied.value = key; setTimeout(() => { if (copied.value === key) copied.value = '' }, 1200) } catch { /* sin permiso */ }
+}
+// El script: entra a la página, llena cada formulario y lo envía. Los enlaces quedan afuera (navegan a otra página).
+const playwrightScript = computed(() => {
+  const p = page.value
+  if (!p) return ''
+  const lines = []
+  const groups = new Map()
+  for (const c of controls.value) {
+    if (c.kind === 'link') continue
+    const key = c.form
+    if (!groups.has(key)) groups.set(key, [])
+    groups.get(key).push(c)
+  }
+  for (const [form, list] of groups) {
+    const f = form >= 0 ? (p.forms || [])[form] : null
+    lines.push('', `  // ${f ? `Formulario ${form + 1}${f.action ? ` · ${(f.method || 'get').toUpperCase()} ${pathOf(f.action)}` : ''}` : 'Fuera de un formulario'}`)
+    const fields = list.filter((c) => c.kind !== 'button')
+    const buttons = list.filter((c) => c.kind === 'button')
+    for (const c of [...fields, ...buttons]) {
+      lines.push(c.best >= 0 ? `  await ${bestCode(c)}` : `  // sin localizador único: ${c.name}`)
+    }
+  }
+  const title = (p.title || pathOf(p.url)).replace(/'/g, "\\'")
+  return [
+    "import { test } from '@playwright/test'",
+    '',
+    `test('${title}', async ({ page }) => {`,
+    `  await page.goto('${(p.finalUrl || p.url).replace(/'/g, "\\'")}')`,
+    ...lines,
+    '})',
+    '',
+  ].join('\n')
+})
 
 // ── formato ──
 function pathOf(u) {
@@ -537,6 +604,10 @@ onBeforeUnmount(() => {
       <div class="region-head">
         <span class="ellipsis">{{ page ? (page.title || pathOf(page.url)) : site ? site.name : 'navegador' }}</span>
         <div v-if="page" class="region-actions">
+          <button type="button" class="region-action" :aria-pressed="showBoxes" :disabled="!page.shot || !controls.length"
+            :title="showBoxes ? 'Ocultar los elementos interactivos' : 'Marcar los elementos interactivos'" aria-label="Marcar los elementos interactivos" @click="showBoxes = !showBoxes">
+            <span class="ui-icon" data-icon="pick" aria-hidden="true"></span>
+          </button>
           <button type="button" class="region-action" :aria-pressed="!shotFit" :disabled="!page.shot"
             :title="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" :aria-label="shotFit ? 'Ver la captura en tamaño real' : 'Ajustar la captura al ancho'" @click="shotFit = !shotFit">
             <span class="ui-icon" :data-icon="shotFit ? 'maximize' : 'restore'" aria-hidden="true"></span>
@@ -564,7 +635,18 @@ onBeforeUnmount(() => {
             </button>
           </div>
           <div v-if="page.shot" class="shot-wrap" :class="{ fit: shotFit }">
-            <img class="shot-full" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura completa de ${page.title}`" />
+            <div class="shot-stage">
+              <img class="shot-full" :src="`/api/shot?site=${siteSlug}&id=${page.id}&t=${page.at}`" :alt="`Captura completa de ${page.title}`" @load="onShotLoad" />
+              <template v-if="showBoxes">
+                <button v-for="c in controls" :id="`control-box-${c.id}`" :key="c.id" type="button" class="control-box"
+                  :class="{ on: pickedControl === c.id, hot: hoverControl === c.id, none: c.best < 0, [`k-${c.kind}`]: true }"
+                  :style="boxStyle(c)" :title="`${c.id + 1} · ${KIND_LABEL[c.kind]} «${c.name}»\n${bestCode(c) || 'sin localizador único'}`"
+                  :aria-label="`${KIND_LABEL[c.kind]} ${c.name}`"
+                  @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickControl(c, 'shot')">
+                  <span class="control-num">{{ c.id + 1 }}</span>
+                </button>
+              </template>
+            </div>
           </div>
           <div v-else class="empty">
             <div class="empty-title">Sin captura</div>
@@ -659,6 +741,10 @@ onBeforeUnmount(() => {
         </template>
         <div class="region-actions">
           <span v-if="state.busy" class="muted head-note">{{ busyLabel }}</span>
+          <button v-if="panelTab === 'actions' && controls.length" type="button" class="region-action"
+            :title="copied === 'script' ? 'Copiado' : 'Copiar como script de Playwright'" aria-label="Copiar como script de Playwright" @click="copyText(playwrightScript, 'script')">
+            <span class="ui-icon" :data-icon="copied === 'script' ? 'check' : 'code'" aria-hidden="true"></span>
+          </button>
           <button v-if="panelTab === 'log'" type="button" class="region-action" title="Limpiar la consola" aria-label="Limpiar la consola" @click="log = []">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
@@ -670,6 +756,36 @@ onBeforeUnmount(() => {
           <div v-for="l in log" :key="l.seq" class="log-line" :data-kind="l.kind">
             <span class="log-time">{{ fmtTime(l.at) }}</span><span class="what wrap">{{ l.text }}</span>
           </div>
+        </template>
+
+        <template v-else-if="panelTab === 'actions'">
+          <p v-if="!controls.length" class="none">{{ page.controls ? 'La página no tiene elementos interactivos visibles.' : 'Esta página se analizó antes de que existieran los localizadores: volvé a explorarla.' }}</p>
+          <table v-else class="table controls">
+            <thead><tr><th class="num">#</th><th>Elemento</th><th>Localizador recomendado</th><th>Alternativas</th></tr></thead>
+            <tbody>
+              <tr v-for="c in controls" :id="`control-row-${c.id}`" :key="c.id" :class="{ on: pickedControl === c.id, hot: hoverControl === c.id }"
+                @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickControl(c, 'row')">
+                <td class="num muted">{{ c.id + 1 }}</td>
+                <td class="el"><span>{{ c.name }}</span> <small class="muted">{{ KIND_LABEL[c.kind] }}</small></td>
+                <td class="best">
+                  <template v-if="c.best >= 0">
+                    <code :class="{ warn: fragile(c.locators[c.best]) }" :title="fragile(c.locators[c.best]) ? 'Funciona hoy, pero depende de la posición en el HTML: frágil' : ''">{{ bestCode(c) }}</code>
+                    <button type="button" class="region-action copy" :title="copied === `c${c.id}` ? 'Copiado' : 'Copiar'" aria-label="Copiar el localizador" @click.stop="copyText(bestCode(c), `c${c.id}`)">
+                      <span class="ui-icon" :data-icon="copied === `c${c.id}` ? 'check' : 'copy'" aria-hidden="true"></span>
+                    </button>
+                  </template>
+                  <span v-else class="bad">ningún candidato encuentra sólo este elemento</span>
+                </td>
+                <td class="alts">
+                  <button v-for="(l, j) in c.locators" :key="j" type="button" class="alt" :class="{ ok: l.works, off: !l.works, best: j === c.best }"
+                    :title="`${l.code}${l.action || ''}\n${l.works ? 'encuentra sólo este elemento' : l.count === 0 ? 'no encuentra nada' : l.count === 1 ? 'encuentra otro elemento' : `encuentra ${l.count} elementos`}\nclic: copiar`"
+                    @click.stop="copyText(l.code + c.action, `a${c.id}-${j}`)">
+                    {{ copied === `a${c.id}-${j}` ? 'copiado' : LOC_LABEL[l.kind] }}<template v-if="!l.works"> · {{ l.count }}</template>
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </template>
 
         <template v-else-if="panelTab === 'forms'">
@@ -810,6 +926,30 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .stat-btn { border: 0; background: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .stat-btn:hover span { color: var(--foreground) }
 .shot-wrap { padding: var(--space-6) }
+.shot-stage { position: relative; display: inline-block; vertical-align: top }
+.shot-wrap.fit .shot-stage { display: block }
+/* los elementos interactivos sobre la captura: un marco por elemento, con su número */
+.control-box { position: absolute; padding: 0; border: 1px solid var(--control-box); background: transparent; border-radius: 2px; cursor: pointer }
+.control-box.k-link { border-style: dashed; opacity: .7 }
+.control-box.none { border-color: var(--status-bad) }
+.control-box:hover, .control-box.hot { background: var(--control-box-fill); opacity: 1 }
+.control-box.on { border-width: 2px; background: var(--control-box-fill); opacity: 1 }
+.control-num { position: absolute; top: -9px; left: -9px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 8px;
+  background: var(--control-box); color: var(--control-box-ink); font-size: 10px; line-height: 16px; text-align: center; font-variant-numeric: tabular-nums }
+.control-box.none .control-num { background: var(--status-bad) }
+/* la tabla de acciones */
+.controls .el { max-width: 220px }
+.controls .best { white-space: nowrap }
+.controls .best code { white-space: normal; overflow-wrap: anywhere }
+.controls .best .copy { vertical-align: middle; margin-left: var(--space-1) }
+.controls tr.hot td { background: var(--hover) }
+.controls tr { cursor: pointer }
+.alts { white-space: normal }
+.alt { margin: 1px 2px 1px 0; padding: 0 6px; height: 20px; border-radius: 10px; font: inherit; font-size: var(--text-xs); cursor: pointer;
+  background: none; border: 1px solid var(--border); color: var(--fg-3) }
+.alt.ok { color: var(--foreground) }
+.alt.best { background: var(--accent); color: var(--accent-foreground); border-color: transparent }
+.alt.off { text-decoration: line-through }
 .shot-full { display: block; border: 1px solid var(--border); border-radius: var(--radius-control) }
 .shot-wrap.fit .shot-full { width: 100%; height: auto }
 .shot-wrap:not(.fit) { overflow-x: auto }

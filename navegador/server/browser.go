@@ -259,12 +259,15 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 			Forms     []Form         `json:"forms"`
 			Buttons   []string       `json:"buttons"`
 			Landmarks map[string]int `json:"landmarks"`
+			Controls  []Control      `json:"controls"`
 		}
 		if err := json.Unmarshal([]byte(s), &a); err != nil {
 			page.Error = "leer el análisis: " + err.Error()
 		} else {
 			page.Title, page.Lang, page.Stack, page.Headings = a.Title, a.Lang, a.Stack, a.Headings
 			page.Links, page.Forms, page.Buttons, page.Landmarks = a.Links, a.Forms, a.Buttons, a.Landmarks
+			verifyControls(p, a.Controls)
+			page.Controls = a.Controls
 		}
 	}
 	page.Requests, page.Console = t.drain()
@@ -535,7 +538,7 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 		}
 	}()
 
-	done, walls := 0, 0
+	done, walls, downloads := 0, 0, 0
 	for len(queue) > 0 && done < opts.Max {
 		if ctx.Err() != nil {
 			r.say("warn", "parado a pedido · %d páginas analizadas, %d en la cola", done, len(queue))
@@ -549,6 +552,11 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 		status := 0
 		if res != nil {
 			status = res.Status()
+		}
+		// Un enlace que baja un archivo no es una página: se salta sin contarlo (the-internet tiene cientos así).
+		if err != nil && strings.Contains(err.Error(), "Download is starting") {
+			downloads++
+			continue
 		}
 		if err != nil {
 			r.say("warn", "%s · no cargó: %v", shortURL(it.url), firstLine(err.Error()))
@@ -611,6 +619,9 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 	}
 	if walls > 0 {
 		msg += fmt.Sprintf(" · ⚠ %d mandaron al login: la sesión pudo vencer", walls)
+	}
+	if downloads > 0 {
+		msg += fmt.Sprintf(" · %d enlaces eran descargas y se saltaron", downloads)
 	}
 	r.say("ok", "%s", msg)
 	return nil

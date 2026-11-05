@@ -90,6 +90,7 @@ type Page struct {
 	Landmarks map[string]int `json:"landmarks"`
 	Requests  []Request      `json:"requests"`
 	Console   []string       `json:"console"`
+	Controls  []Control      `json:"controls"` // lo interactivo, con el localizador de Playwright para llegar a cada uno
 	Shot      bool           `json:"shot"`
 	AuthWall  bool           `json:"authWall"`
 	Error     string         `json:"error,omitempty"`
