@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"syscall"
 )
 
 //go:embed ask.md
@@ -144,12 +145,14 @@ func ask(args []string) error {
 		if !strings.HasPrefix(head, "NECESITO:") && !strings.HasPrefix(head, "CONFIRMAR:") {
 			break
 		}
-		fmt.Print("\n› tu respuesta (vacío para terminar): ")
+		fmt.Print("\n› tu respuesta (escribí y Enter; vacío para terminar): ")
 		answer, _ := bufio.NewReader(os.Stdin).ReadString('\n')
 		answer = strings.TrimSpace(answer)
 		if answer == "" {
+			fmt.Println("  (sin respuesta: termino acá, sin hacer lo que estaba por confirmar)")
 			break
 		}
+		fmt.Printf("  › respuesta: %s\n\n", answer)
 		prompt = answer
 	}
 	fmt.Println("\nlos pasos: bin/navegador steps · como script de Playwright: bin/navegador script")
@@ -169,6 +172,9 @@ func runClaude(claude, dir string, argv []string, self string, maxActions int) (
 	cmd := exec.Command(claude, argv...)
 	cmd.Dir = dir
 	cmd.Env = childEnv()
+	// En una sesión de terminal PROPIA: Claude Code es una app de terminal y, aun sin stdin, puede abrir /dev/tty
+	// y dejarla sin eco; entonces la respuesta a un NECESITO/CONFIRMAR no se ve ni se lee bien.
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	cmd.Stderr = os.Stderr
 	out, err := cmd.StdoutPipe()
 	if err != nil {
