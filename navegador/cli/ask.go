@@ -124,9 +124,10 @@ func (o askOutcome) Final() string {
 	return o.Rounds[len(o.Rounds)-1]
 }
 
-// keyword saca la palabra con que empieza la respuesta final.
+// keyword saca la palabra con que empieza la respuesta final, aunque venga con adornos de Markdown
+// («**CONFIRMAR:**», «> LISTO:», «# NO PUDE»).
 func keyword(text string) string {
-	head := strings.ToUpper(strings.TrimSpace(text))
+	head := strings.ToUpper(strings.TrimLeft(strings.TrimSpace(text), "*_#>` \t"))
 	for _, k := range []string{"LISTO", "NO PUDE", "NECESITO", "CONFIRMAR"} {
 		if strings.HasPrefix(head, k) {
 			return k
@@ -182,6 +183,7 @@ func runAsk(o askOpts) (askOutcome, error) {
 	fmt.Fprintf(o.out, "meta: %s\nsitio: %s\n\n", o.goal, kind)
 	session := ""
 	autoAnswered := false
+	repaired := false
 	for {
 		argv := append([]string{}, base...)
 		if session != "" {
@@ -193,6 +195,18 @@ func runAsk(o askOpts) (askOutcome, error) {
 			return outcome, err
 		}
 		session = res.session
+		// Sin la palabra clave, ask no sabe si tiene que preguntar (en una compra, Claude frenó bien pero empezó con
+		// «No pagué: …» y la pregunta nunca llegó). Se le pide UNA vez que lo reescriba, en la misma sesión.
+		if keyword(res.text) == "?" && !repaired {
+			repaired = true
+			fmt.Fprintf(o.out, "\n  (la respuesta no empezó con LISTO, NO PUDE, NECESITO ni CONFIRMAR: le pido que la reescriba)\n")
+			outcome.Turns += res.turns
+			outcome.Cost += res.cost
+			outcome.Seconds += res.seconds
+			outcome.Tokens.add(res.tokens)
+			prompt = "Tu último mensaje no empezó con LISTO:, NO PUDE:, NECESITO: ni CONFIRMAR:. Reescribilo igual, pero empezando con la palabra que corresponde (si falta algo que sólo la persona puede dar o decidir, es NECESITO: o CONFIRMAR:). No hagas nada más en la página."
+			continue
+		}
 		outcome.Rounds = append(outcome.Rounds, keyword(res.text))
 		outcome.Text = res.text
 		outcome.Turns += res.turns

@@ -70,7 +70,9 @@ como un script de Playwright.
   omitilo («Omitir»), sin hacerle clic al anuncio.
 
 ## Cómo terminar
-Tu último mensaje empieza con UNA de estas palabras, en mayúsculas, y sigue con un resumen corto:
+Tu último mensaje empieza con UNA de estas palabras, en mayúsculas, como PRIMERA palabra (sin nada antes: ni
+«No pagué», ni negrita), y sigue con un resumen corto. La herramienta la lee para saber si tiene que preguntarle
+algo a la persona:
 - `LISTO:` la meta se cumplió. Decí qué evidencia lo prueba (un texto, un número de pedido).
 - `NO PUDE:` no se pudo. Decí dónde te trabaste y por qué.
 - `NECESITO:` te falta un dato que sólo la persona tiene. Preguntá exactamente qué.
