@@ -95,7 +95,13 @@ export async function placeVtexOrder(buyer: VtexBuyer, sku = envFrom('vtex', 'VT
             logisticsInfo: [{ itemIndex: 0, selectedSla: sim.sla.id, price: sim.sla.price }] },
         paymentData: { payments: [{ paymentSystem: sim.paymentSystem, referenceValue: total, value: total, installments: 1 }] },
     };
-    const placed = await call('PUT', `${store()}/api/checkout/pub/orders?sc=1`, order);
+    // VTEX a veces no crea el pedido con un 500 que pide reintentar («ORD015.6 … Vuelve a intentarlo», visto el
+    // 2026-11-05 con cuatro compras a la vez): se reintenta una vez, para no contarlo como una falla del conector.
+    let placed = await call('PUT', `${store()}/api/checkout/pub/orders?sc=1`, order);
+    if (placed.status >= 500) {
+        await new Promise((r) => setTimeout(r, 2000));
+        placed = await call('PUT', `${store()}/api/checkout/pub/orders?sc=1`, order);
+    }
     if (placed.status !== 201 && placed.status !== 200) throw new Error(`VTEX: crear el pedido dio ${placed.status} · ${placed.text.slice(0, 200)}`);
     const o = placed.data.orders[0];
     const mt = placed.data.transactionData.merchantTransactions[0];
