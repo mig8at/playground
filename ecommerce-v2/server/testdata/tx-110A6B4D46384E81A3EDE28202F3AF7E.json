@@ -1,0 +1,73 @@
+{
+ "status": "Approved",
+ "interactions": [
+  {
+   "Date": "2026-11-04T20:51:17.6756355",
+   "Message": "Confirmed authorization for payment BB52749649F441CD8B63E18247DFDC6B."
+  },
+  {
+   "Date": "2026-11-04T20:51:17.6426094",
+   "Message": "Payment has been Authorized"
+  },
+  {
+   "Date": "2026-11-04T19:54:56.6069733",
+   "Message": "Status change: from Authorized to Approved, for 110A6B4D46384E81A3EDE28202F3AF7E."
+  },
+  {
+   "Date": "2026-11-04T19:54:56.5757137",
+   "Message": "Status change: from Authorizing to Authorized, for 110A6B4D46384E81A3EDE28202F3AF7E."
+  },
+  {
+   "Date": "2026-11-04T19:54:56.5444767",
+   "Message": "Started authorization retry for payment BB52749649F441CD8B63E18247DFDC6B."
+  },
+  {
+   "Date": "2026-11-04T19:54:55.3412405",
+   "Message": "Status change: from Authorizing to Authorized, for BB52749649F441CD8B63E18247DFDC6B."
+  },
+  {
+   "Date": "2026-11-04T19:54:55.3256244",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T19:54:55.3256244",
+   "Message": "Message: approved."
+  },
+  {
+   "Date": "2026-11-04T19:54:54.5027301",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T19:51:16.95429",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-04T19:51:16.9386248",
+   "Message": "Payment pending: user needs to finish payment through https://originaciones-qa.dev.creditop.com/ecommerce/ecf9342be/checkout?ref=…"
+  },
+  {
+   "Date": "2026-11-04T19:51:16.9386248",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-04T19:51:16.9229863",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T19:51:15.8013216",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T19:51:15.7700774",
+   "Message": "Status change: from Received to Authorizing, for BB52749649F441CD8B63E18247DFDC6B."
+  },
+  {
+   "Date": "2026-11-04T19:51:15.7700774",
+   "Message": "Status change: from Started to Authorizing, for 110A6B4D46384E81A3EDE28202F3AF7E."
+  },
+  {
+   "Date": "2026-11-04T19:51:15.7388216",
+   "Message": "Transaction authorization started Author: vtex-service::checkout::stable."
+  }
+ ]
+}

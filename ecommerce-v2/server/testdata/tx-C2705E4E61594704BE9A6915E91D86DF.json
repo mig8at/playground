@@ -1,0 +1,81 @@
+{
+ "status": "Cancelled",
+ "interactions": [
+  {
+   "Date": "2026-11-04T21:00:54.1732513",
+   "Message": "Could not authorize payment D1F5C50C933841128D867C120DF7E111. Authorization tries: 1.Finished retries."
+  },
+  {
+   "Date": "2026-11-04T20:02:37.7027789",
+   "Message": "The payment with Id = D1F5C50C933841128D867C120DF7E111 cannot advance from Cancelled to Authorizing."
+  },
+  {
+   "Date": "2026-11-04T20:02:31.2156901",
+   "Message": "Status change: from Cancelling to Cancelled, for C2705E4E61594704BE9A6915E91D86DF."
+  },
+  {
+   "Date": "2026-11-04T20:02:31.1165942",
+   "Message": "Status change: from Cancelling to Cancelled, for D1F5C50C933841128D867C120DF7E111."
+  },
+  {
+   "Date": "2026-11-04T20:02:31.099491",
+   "Message": "Status change: from AuthorizationDenied to Cancelling, for D1F5C50C933841128D867C120DF7E111."
+  },
+  {
+   "Date": "2026-11-04T20:02:30.8440664",
+   "Message": "Status change: from AuthorizationDenied to Cancelling, for C2705E4E61594704BE9A6915E91D86DF."
+  },
+  {
+   "Date": "2026-11-04T20:02:30.7386728",
+   "Message": "Status change: from Authorizing to AuthorizationDenied, for C2705E4E61594704BE9A6915E91D86DF."
+  },
+  {
+   "Date": "2026-11-04T20:02:30.6637115",
+   "Message": "Status change: from Authorizing to AuthorizationDenied, for D1F5C50C933841128D867C120DF7E111."
+  },
+  {
+   "Date": "2026-11-04T20:02:30.6528009",
+   "Message": "Connector Code: CREDITOP_CANCELLED - Message: denied - Source Message: La solicitud de crédito quedó cancelled"
+  },
+  {
+   "Date": "2026-11-04T20:02:30.6398635",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T20:02:29.719706",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T20:00:53.434454",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-04T20:00:53.4188323",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-04T20:00:53.4032428",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T20:00:53.4032428",
+   "Message": "Payment pending: user needs to finish payment through https://originaciones-qa.dev.creditop.com/ecommerce/ecf9342be/checkout?ref=…"
+  },
+  {
+   "Date": "2026-11-04T20:00:52.5434525",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T20:00:52.5122119",
+   "Message": "Status change: from Received to Authorizing, for D1F5C50C933841128D867C120DF7E111."
+  },
+  {
+   "Date": "2026-11-04T20:00:52.5122119",
+   "Message": "Status change: from Started to Authorizing, for C2705E4E61594704BE9A6915E91D86DF."
+  },
+  {
+   "Date": "2026-11-04T20:00:52.4809393",
+   "Message": "Transaction authorization started Author: vtex-service::checkout::stable."
+  }
+ ]
+}

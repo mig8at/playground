@@ -1,0 +1,157 @@
+{
+ "status": "Cancelling",
+ "interactions": [
+  {
+   "Date": "2026-11-03T23:20:33.8610015",
+   "Message": "Connector Code: cancellation-not-supported - Message: The payment cancellation has failed - Source Message: This payment method does not support cancellations"
+  },
+  {
+   "Date": "2026-11-03T23:20:33.8500729",
+   "Message": "Cancellation response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T23:20:33.6682595",
+   "Message": "Sending cancellation request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments/7988FB2354564E1687BE95F29A09998A/cancellations?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T23:20:33.5797613",
+   "Message": "Started cancelling value 2400005.00 for payment 7988FB2354564E1687BE95F29A09998A."
+  },
+  {
+   "Date": "2026-11-03T23:20:33.5662113",
+   "Message": "Started cancelling value 2400005.00 for payment 7988FB2354564E1687BE95F29A09998A."
+  },
+  {
+   "Date": "2026-11-03T23:20:33.4354487",
+   "Message": "Status change: from Authorizing to Cancelling, for 8A12CD3532E947A4A50312C2B736723D."
+  },
+  {
+   "Date": "2026-11-03T23:19:32.7858324",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 6.Finished retries."
+  },
+  {
+   "Date": "2026-11-03T23:19:32.6722709",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T23:19:32.662432",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T23:19:31.6181086",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T22:19:29.5207331",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 5."
+  },
+  {
+   "Date": "2026-11-03T22:19:29.4290596",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T22:19:29.4151472",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T22:19:28.6114492",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T21:19:27.9952079",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 4."
+  },
+  {
+   "Date": "2026-11-03T21:19:27.9440232",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T21:19:27.9350727",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T21:19:27.1465071",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T20:19:23.3309064",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 3."
+  },
+  {
+   "Date": "2026-11-03T20:19:23.2527969",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T20:19:23.2527969",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T20:19:22.5968174",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T19:19:21.4472905",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 2."
+  },
+  {
+   "Date": "2026-11-03T19:19:21.3715105",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T19:19:21.3590633",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T19:19:20.6713286",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T18:19:19.2531322",
+   "Message": "Could not authorize payment 7988FB2354564E1687BE95F29A09998A. Authorization tries: 1."
+  },
+  {
+   "Date": "2026-11-03T18:19:19.1736258",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T18:19:19.1600823",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T18:19:17.5408991",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T17:19:14.669635",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-03T17:19:14.6514687",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-03T17:19:14.6468159",
+   "Message": "Payment pending: user needs to finish payment through https://originaciones-qa.dev.creditop.com/ecommerce/ecf9342be/checkout?ref=…"
+  },
+  {
+   "Date": "2026-11-03T17:19:14.6416145",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-03T17:19:13.7857666",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-03T17:19:13.7579927",
+   "Message": "Status change: from Received to Authorizing, for 7988FB2354564E1687BE95F29A09998A."
+  },
+  {
+   "Date": "2026-11-03T17:19:13.7490724",
+   "Message": "Status change: from Started to Authorizing, for 8A12CD3532E947A4A50312C2B736723D."
+  },
+  {
+   "Date": "2026-11-03T17:19:13.7187997",
+   "Message": "Transaction authorization started Author: vtex-service::checkout::stable."
+  }
+ ]
+}

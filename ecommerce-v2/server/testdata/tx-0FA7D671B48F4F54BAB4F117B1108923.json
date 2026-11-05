@@ -1,0 +1,133 @@
+{
+ "status": "Approved",
+ "interactions": [
+  {
+   "Date": "2026-11-05T14:03:32.0007339",
+   "Message": "ReEnqueue AutoSettlement"
+  },
+  {
+   "Date": "2026-11-05T14:03:31.9867865",
+   "Message": "Could not auto settle payment BED6241D46024777B689241E4E5FA13E. Auto settlement tries: 1, Error: The payment has not been settled."
+  },
+  {
+   "Date": "2026-11-05T14:03:31.9530556",
+   "Message": "Connector Code: SETTLE_ERROR - Message: The payment has not been settled - Source Message: Request failed with status code 401"
+  },
+  {
+   "Date": "2026-11-05T14:03:31.9432406",
+   "Message": "Notificação de erro de captura enviada com sucesso para : manuela@creditop.com"
+  },
+  {
+   "Date": "2026-11-05T14:03:31.932879",
+   "Message": "Task successfully created. CreationDate=11/5/2026 2:03:31 PM, Assignee={…}"
+  },
+  {
+   "Date": "2026-11-05T14:03:31.7319807",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-05T14:03:31.6855395",
+   "Message": "Settlement response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-05T14:03:21.6575543",
+   "Message": "Sending settlement request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments/BED6241D46024777B689241E4E5FA13E/settlements?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-05T14:03:21.5354525",
+   "Message": "Auto settlement worker trying to settle payment BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T14:04:43.5494496",
+   "Message": "Confirmed authorization for payment BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T14:04:43.525058",
+   "Message": "Payment has been Authorized"
+  },
+  {
+   "Date": "2026-11-04T14:03:21.7100215",
+   "Message": "Status change: from Authorized to Approved, for 0FA7D671B48F4F54BAB4F117B1108923."
+  },
+  {
+   "Date": "2026-11-04T14:03:21.6475336",
+   "Message": "Status change: from Authorizing to Authorized, for 0FA7D671B48F4F54BAB4F117B1108923."
+  },
+  {
+   "Date": "2026-11-04T14:03:21.6006351",
+   "Message": "Started authorization retry for payment BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T14:03:20.6306334",
+   "Message": "Confirmed authorization for payment BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T14:03:20.5254397",
+   "Message": "Message: approved."
+  },
+  {
+   "Date": "2026-11-04T14:03:20.5254397",
+   "Message": "Status change: from Authorizing to Authorized, for BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T14:03:20.5098148",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T14:03:20.3569503",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T13:04:55.9492379",
+   "Message": "User returned from external payment page. Payment: BED6241D46024777B689241E4E5FA13E, Status: , Message:"
+  },
+  {
+   "Date": "2026-11-04T13:04:42.1713789",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-04T13:04:42.1193588",
+   "Message": "Connector Code: ProxyTimeout - Message: The provider did not returned a valid status, still waiting for payment confirmation - Source Message: Request to creditop.creditop@5.0.0 timed out after 2.0055282"
+  },
+  {
+   "Date": "2026-11-04T13:04:42.1079992",
+   "Message": "Authorization response received: [504 GatewayTimeout] {…}"
+  },
+  {
+   "Date": "2026-11-04T13:04:40.0101873",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T13:03:17.868956",
+   "Message": "{…}"
+  },
+  {
+   "Date": "2026-11-04T13:03:17.8493554",
+   "Message": "Message: undefined."
+  },
+  {
+   "Date": "2026-11-04T13:03:17.8447349",
+   "Message": "Payment pending: user needs to finish payment through https://originaciones-qa.dev.creditop.com/ecommerce/ecf9342be/checkout?ref=…"
+  },
+  {
+   "Date": "2026-11-04T13:03:17.8395887",
+   "Message": "Authorization response received: [200 OK] {…}"
+  },
+  {
+   "Date": "2026-11-04T13:03:16.6577995",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T13:03:16.6273016",
+   "Message": "Status change: from Received to Authorizing, for BED6241D46024777B689241E4E5FA13E."
+  },
+  {
+   "Date": "2026-11-04T13:03:16.6210403",
+   "Message": "Status change: from Started to Authorizing, for 0FA7D671B48F4F54BAB4F117B1108923."
+  },
+  {
+   "Date": "2026-11-04T13:03:16.5935216",
+   "Message": "Transaction authorization started Author: vtex-service::checkout::stable."
+  }
+ ]
+}

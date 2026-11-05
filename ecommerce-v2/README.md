@@ -106,6 +106,28 @@ a donde vuelve el comprador y ahí se ve en qué quedó la compra. El bloqueo se
 - VTEX: aprobada, el pedido queda 30 minutos en `window-to-cancel` y no cobra hasta facturarlo (`start-handling` +
   `invoice`; pedile el comando a Miguel).
 
+## 4b · El lado de VTEX: qué pasó en la tienda y qué no cuadra
+
+Una solicitud que vino de VTEX muestra arriba la sección **VTEX**: el pedido y la transacción en la cuenta `creditop`,
+cuánto tardó el conector en contestar el authorize del checkout, el historial de la transacción (hora UTC) y las
+**incidencias**, dichas en palabras de negocio. En el bloque **VTEX** del sidebar, **Pedidos con incidencias** lista los
+pedidos VTEX de los últimos 7 días que tienen alguna, también los que no tienen solicitud (que no se pueden buscar por
+celular); cada fila se despliega con su detalle.
+
+| incidencia | qué quiere decir |
+|---|---|
+| el conector no contestó a tiempo | el authorize del checkout cortó (`ProxyTimeout`): VTEX negó el pago y el comprador volvió al checkout sin aviso |
+| tardó N s en contestar | el authorize del checkout pasó de 1,5 s: el comprador esperó, y VTEX a veces corta a los ~2 s |
+| reintento sin contestar a tiempo | un authorize posterior (tras el aviso de Creditop, o el de cada hora) cortó: el resultado llegó tarde a la tienda |
+| cancelación trabada | VTEX pidió cancelar, el conector contestó `cancellation-not-supported` y la transacción quedó en `Cancelling` |
+| estados distintos | Creditop en 11 y VTEX sin aprobar; Creditop en 6, 7 u 8 y VTEX aprobado; VTEX cancelado y la solicitud viva |
+| otro resultado ignorado | Creditop mandó un segundo resultado después de que VTEX canceló (`cannot advance from Cancelled`) |
+| nunca llegó al wizard | el pedido de Creditop no tiene solicitud, con la causa si se sabe |
+
+Sólo lee (OMS y la API de pagos de VTEX), sólo en `local` y `qa`, y necesita la llave de la cuenta en el `.env`:
+`VTEX_ACCOUNT`, `VTEX_APP_KEY` y `VTEX_APP_TOKEN` (pedísela a Miguel). Sin ella la sección lo dice y lo demás anda igual.
+Los mensajes de VTEX se recortan en el servidor: el cuerpo de cada llamada (el comprador) no llega al navegador.
+
 ## 5 · Repetir de cero
 
 - La **basura** de una solicitud la borra con lo que cuelga de ella (con copia en `.backups/`). Si es la última

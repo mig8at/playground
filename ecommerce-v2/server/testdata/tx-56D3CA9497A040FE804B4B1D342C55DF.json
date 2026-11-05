@@ -1,0 +1,53 @@
+{
+ "status": "Cancelled",
+ "interactions": [
+  {
+   "Date": "2026-11-04T21:41:14.6874415",
+   "Message": "Status change: from Cancelling to Cancelled, for 56D3CA9497A040FE804B4B1D342C55DF."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.6137083",
+   "Message": "Status change: from Cancelling to Cancelled, for 9D0B3AF7FCE84C1CB6FFD919C8EE31A3."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.603355",
+   "Message": "Status change: from AuthorizationDenied to Cancelling, for 9D0B3AF7FCE84C1CB6FFD919C8EE31A3."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.4351786",
+   "Message": "Status change: from AuthorizationDenied to Cancelling, for 56D3CA9497A040FE804B4B1D342C55DF."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.3832896",
+   "Message": "Status change: from Authorizing to AuthorizationDenied, for 56D3CA9497A040FE804B4B1D342C55DF."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.3599395",
+   "Message": "Status change: from Authorizing to AuthorizationDenied, for 9D0B3AF7FCE84C1CB6FFD919C8EE31A3."
+  },
+  {
+   "Date": "2026-11-04T21:41:14.3552132",
+   "Message": "Connector Code: ProxyTimeout - Message: The provider did not returned a response with a valid paymentId - Source Message: Request to creditop.creditop@5.0.0 timed out after 1.995995"
+  },
+  {
+   "Date": "2026-11-04T21:41:14.3505754",
+   "Message": "Authorization response received: [504 GatewayTimeout] {…}"
+  },
+  {
+   "Date": "2026-11-04T21:41:12.2838834",
+   "Message": "Sending authorization request to https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/payments?an=creditop: {…}"
+  },
+  {
+   "Date": "2026-11-04T21:41:12.2537022",
+   "Message": "Status change: from Received to Authorizing, for 9D0B3AF7FCE84C1CB6FFD919C8EE31A3."
+  },
+  {
+   "Date": "2026-11-04T21:41:12.2469066",
+   "Message": "Status change: from Started to Authorizing, for 56D3CA9497A040FE804B4B1D342C55DF."
+  },
+  {
+   "Date": "2026-11-04T21:41:12.2182543",
+   "Message": "Transaction authorization started Author: vtex-service::checkout::stable."
+  }
+ ]
+}

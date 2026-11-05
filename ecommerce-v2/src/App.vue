@@ -15,6 +15,7 @@ import {
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
+import VtexReport from './VtexReport.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
@@ -255,6 +256,49 @@ function toggleSidebarView(id) {
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
 function toggleStoreView(store, kind) {
   storeView.value = isStoreView(store, kind) ? null : { store, kind }
+  if (storeView.value?.kind === 'incidents') loadIncidents()
+}
+
+// ── el lado de VTEX (server/vtex.go): el pedido y su transacción en la cuenta de pruebas, con lo que no cuadra. Sólo
+// local y qa; en prod no se pide ──
+const vtex = ref(null) // { loading, error, report } de la solicitud abierta
+let vtexSeq = 0
+async function loadVtex() {
+  const order = r.value?.order
+  if (readOnly.value || !r.value?.request || String(order?.ecommerce_id) !== '3') { vtex.value = null; return }
+  const mine = ++vtexSeq
+  vtex.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/order?target=${encodeURIComponent(target.value)}&request=${r.value.request.id}`)
+    const body = await res.json().catch(() => ({}))
+    if (mine !== vtexSeq) return
+    vtex.value = res.ok ? { report: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    if (mine === vtexSeq) vtex.value = { error: e.message }
+  }
+}
+watch(() => result.value, loadVtex)
+// La lista de pedidos VTEX con incidencias de los últimos días, en el editor. Cada fila se abre ahí mismo.
+const INCIDENT_DAYS = 7
+const incidents = ref(null) // { loading, error, data }
+async function loadIncidents() {
+  if (readOnly.value) { incidents.value = { error: 'En prod no se mira VTEX: la cuenta creditop es de pruebas.' }; return }
+  incidents.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/incidents?target=${encodeURIComponent(target.value)}&days=${INCIDENT_DAYS}`)
+    const body = await res.json().catch(() => ({}))
+    incidents.value = res.ok ? { data: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    incidents.value = { error: e.message }
+  }
+}
+const worstLevel = (fs) => (fs?.some((f) => f.level === 'fail') ? 'fail' : fs?.some((f) => f.level === 'warn') ? 'warn' : 'info')
+const openIncident = ref(null) // el ecommerce_request desplegado en la lista
+function openRequest(id) {
+  storeView.value = null
+  req.value = ''
+  draft.value = String(id)
+  if (query.value === String(id)) lookup(); else query.value = String(id)
 }
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
@@ -664,6 +708,10 @@ onBeforeUnmount(() => {
               title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
               <span class="label">Diagrama</span><span class="row-meta">⇄</span>
             </button>
+            <button v-if="s.name === 'VTEX' && !readOnly" type="button" class="row" :class="{ on: isStoreView('VTEX', 'incidents') }" :aria-pressed="isStoreView('VTEX', 'incidents')"
+              :title="`Los pedidos VTEX de los últimos ${INCIDENT_DAYS} días que no cuadran: timeouts, cancelaciones trabadas, estados distintos`" @click="toggleStoreView('VTEX', 'incidents')">
+              <span class="label">Pedidos con incidencias</span><span class="row-meta">{{ incidents?.data ? incidents.data.orders.length : '' }}</span>
+            </button>
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
             </a>
@@ -671,7 +719,45 @@ onBeforeUnmount(() => {
         </section>
     </aside>
 
-    <main v-if="storeView" class="editor">
+    <main v-if="storeView?.kind === 'incidents'" class="editor">
+      <div class="region-head">
+        <span>VTEX · pedidos con incidencias</span>
+        <span v-if="incidents?.data" class="count">{{ incidents.data.orders.length }} de {{ incidents.data.checked }} pedidos · últimos {{ incidents.data.days }} días · {{ target }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" :disabled="incidents?.loading" title="Volver a leer" aria-label="Volver a leer" @click="loadIncidents">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="storeView = null">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <p v-if="!incidents || incidents.loading" class="none">Leyendo los pedidos VTEX de {{ target }} y su lado en VTEX…</p>
+        <p v-else-if="incidents.error" class="none hot">{{ incidents.error }}</p>
+        <template v-else>
+          <p v-if="incidents.data.missing" class="none warn">VTEX: {{ incidents.data.missing }}. Sólo se ven los pedidos sin solicitud.</p>
+          <p v-if="!incidents.data.orders.length" class="none ok">Ningún pedido VTEX con incidencias en los últimos {{ incidents.data.days }} días.</p>
+          <table v-else class="table incidents">
+            <thead><tr><th>pedido</th><th>creado</th><th>solicitud</th><th>VTEX</th><th>authorize</th><th>incidencia</th></tr></thead>
+            <tbody>
+              <template v-for="o in incidents.data.orders" :key="o.ecommerceRequest">
+                <tr class="incident" :class="{ on: openIncident === o.ecommerceRequest }" @click="openIncident = openIncident === o.ecommerceRequest ? null : o.ecommerceRequest">
+                  <td><i class="dot" :data-state="worstLevel(o.findings)" aria-hidden="true"></i><code>{{ o.ecommerceRequest }}</code></td>
+                  <td>{{ o.createdAt }}</td>
+                  <td>{{ o.request ? `${o.request} · ${o.statusId}` : '—' }}</td>
+                  <td>{{ o.vtex?.txStatus || '—' }}</td>
+                  <td :class="{ hot: o.authLatency > 1.5 }">{{ o.authLatency == null ? '—' : `${o.authLatency.toFixed(1)} s` }}</td>
+                  <td class="what">{{ (o.findings || []).map((f) => f.text.split(':')[0]).join(' · ') || o.vtexError }}</td>
+                </tr>
+                <tr v-if="openIncident === o.ecommerceRequest" class="detail"><td colspan="6"><VtexReport :report="o" compact @open-request="openRequest" /></td></tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </div>
+    </main>
+    <main v-else-if="storeView" class="editor">
       <div class="region-head">
         <span>{{ STORE_FLOWS[storeView.store].title }}</span>
         <div class="region-actions">
@@ -738,6 +824,15 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <template v-else>
+          <section v-if="vtex">
+            <div class="region-head group"><span>VTEX</span>
+              <span v-if="vtex.report" class="count">{{ vtex.report.vtex?.txStatus || 'sin transacción' }}{{ vtex.report.findings?.length ? ` · ${vtex.report.findings.length} incidencias` : '' }}</span>
+              <button type="button" class="btn-link hidden-link" title="Volver a leer VTEX" @click="loadVtex">leer de nuevo</button>
+            </div>
+            <p v-if="vtex.loading" class="none">Leyendo el pedido en VTEX…</p>
+            <p v-else-if="vtex.error" class="none hot">{{ vtex.error }}</p>
+            <VtexReport v-else-if="vtex.report" :report="vtex.report" />
+          </section>
           <section>
             <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span>
               <button v-if="hiddenCount" type="button" class="btn-link hidden-link" title="Elegir qué tablas se ven" @click="panelTab = 'tables'; panelOpen = true">{{ hiddenCount }} ocultas</button>
@@ -1141,4 +1236,12 @@ code.wrap { word-break: break-all }
 .warn { color: var(--ecommerce-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
+/* Los pedidos VTEX con incidencias: una fila por pedido que se despliega con su detalle debajo. */
+.table.incidents tr.incident { cursor: pointer }
+.table.incidents tr.incident td { white-space: nowrap }
+.table.incidents tr.detail td { white-space: normal }
+.dot[data-state="warn"] { background: var(--ecommerce-warn) }
+.table.incidents tr.incident:hover td, .table.incidents tr.incident.on td { background: var(--hover) }
+.table.incidents td.what { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
+.table.incidents tr.detail > td { padding: 0 0 var(--space-3) }
 </style>
