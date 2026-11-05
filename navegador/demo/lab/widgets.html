@@ -1,0 +1,70 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab · Widgets difíciles</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <h1>Widgets difíciles</h1>
+  <section class="card" aria-label="Pestañas">
+    <h2>Pestañas</h2>
+    <div class="tabs-ui" role="tablist" aria-label="Información">
+      <button role="tab" aria-selected="true" aria-controls="p1" id="t1">Resumen</button><button role="tab" aria-selected="false" aria-controls="p2" id="t2">Detalles</button>
+    </div>
+    <div role="tabpanel" id="p1" aria-labelledby="t1">Este es el resumen.</div>
+    <div role="tabpanel" id="p2" aria-labelledby="t2" hidden>Detalles secretos: <strong>código 7Q</strong>.</div>
+  </section>
+  <section class="card" aria-label="Menú al pasar">
+    <h2>Menú que aparece al pasar el mouse</h2>
+    <div class="menu-wrap"><button class="secondary">Opciones ▾</button><div class="menu"><a href="#exportar" id="exportar">Exportar</a><a href="#compartir">Compartir</a></div></div>
+    <span id="menu-msg" class="muted"></span>
+  </section>
+  <section class="card" aria-label="Archivo">
+    <h2>Subir un archivo</h2>
+    <div class="field"><label for="archivo">Comprobante (PDF o imagen)</label><input type="file" id="archivo" accept=".pdf,image/*"></div>
+    <p id="archivo-msg" class="muted"></p>
+  </section>
+  <section class="card" aria-label="Arrastrar">
+    <h2>Ordenar arrastrando</h2>
+    <ul class="dnd" id="dnd"><li draggable="true">Primero</li><li draggable="true">Segundo</li><li draggable="true">Tercero</li></ul>
+    <p class="muted" id="orden"></p>
+  </section>
+  <section class="card" aria-label="Pestaña nueva">
+    <h2>Enlace que abre pestaña nueva</h2>
+    <a href="/lab/tienda.html" target="_blank" rel="noopener">Abrir la tienda en otra pestaña</a>
+  </section>
+  <section class="card" aria-label="Componente con Shadow DOM">
+    <h2>Componente con Shadow DOM</h2>
+    <demo-suscripcion></demo-suscripcion>
+  </section>
+  <section class="card" aria-label="iframe">
+    <h2>Formulario dentro de un iframe</h2>
+    <iframe title="Encuesta" style="width:100%;height:170px;border:1px solid #e5e7eb;border-radius:8px" srcdoc="<style>body{font:14px system-ui;margin:12px}</style><form onsubmit='event.preventDefault();document.body.innerHTML=&quot;<p>¡Gracias por tu respuesta!</p>&quot;'><label>¿Cómo nos calificás? <select name='nota'><option>Elegí</option><option>Bien</option><option>Muy bien</option></select></label><p><label>Comentario <input name='coment'></label></p><button>Enviar encuesta</button></form>"></iframe>
+  </section>
+  <section class="card" aria-label="Lista infinita">
+    <h2>Lista que carga al bajar</h2>
+    <div id="infinita" style="height:160px;overflow:auto;border:1px solid #e5e7eb;border-radius:8px;padding:8px"></div>
+  </section>
+</main>
+<script type="module">
+import { header, toast } from '/demo.js'; header()
+document.querySelectorAll('[role=tab]').forEach((t) => t.addEventListener('click', () => {
+  document.querySelectorAll('[role=tab]').forEach((x) => { x.setAttribute('aria-selected', x === t); document.getElementById(x.getAttribute('aria-controls')).hidden = x !== t })
+}))
+document.getElementById('exportar').addEventListener('click', (e) => { e.preventDefault(); document.getElementById('menu-msg').textContent = 'Exportado ✓' })
+document.getElementById('archivo').addEventListener('change', (e) => { const f = e.target.files[0]; document.getElementById('archivo-msg').textContent = f ? `Recibido: ${f.name} (${f.size} bytes)` : '' })
+const dnd = document.getElementById('dnd'); let drag = null
+const orden = () => { document.getElementById('orden').textContent = 'Orden: ' + [...dnd.children].map((li) => li.textContent).join(', ') }
+dnd.addEventListener('dragstart', (e) => { drag = e.target })
+dnd.addEventListener('dragover', (e) => e.preventDefault())
+dnd.addEventListener('drop', (e) => { e.preventDefault(); const t = e.target.closest('li'); if (t && drag && t !== drag) { dnd.insertBefore(drag, t.nextSibling === drag ? t : t.nextSibling === null && dnd.lastElementChild === t ? null : t); orden() } })
+orden()
+customElements.define('demo-suscripcion', class extends HTMLElement {
+  connectedCallback() {
+    const r = this.attachShadow({ mode: 'open' })
+    r.innerHTML = `<style>input,button{font:inherit;padding:8px;border-radius:6px;border:1px solid #cbd5e1}button{background:#4c39ff;color:#fff;border:0}</style>
+      <label>Correo para novedades <input type="email" id="mail"></label> <button id="sus">Suscribirme</button><p id="msg"></p>`
+    r.getElementById('sus').addEventListener('click', () => { r.getElementById('msg').textContent = /@/.test(r.getElementById('mail').value) ? '¡Suscripto!' : 'Correo inválido' })
+  }
+})
+const inf = document.getElementById('infinita'); let n = 0
+const mas = () => { for (let i = 0; i < 8; i++) inf.insertAdjacentHTML('beforeend', `<p style="margin:4px 0">Elemento ${++n}</p>`) }
+mas(); inf.addEventListener('scroll', () => { if (inf.scrollTop + inf.clientHeight >= inf.scrollHeight - 4 && n < 40) { mas(); if (n >= 40) toast('No hay más elementos') } })
+</script>
+</body></html>

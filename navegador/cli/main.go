@@ -5,7 +5,10 @@
 //	bin/navegador sites                          los sitios dados de alta
 //	bin/navegador open <sitio|url> [url]         abre la sesión en vivo (una URL nueva se da de alta sola)
 //	bin/navegador look                           la página actual: sus elementos numerados, con su localizador
-//	bin/navegador click <n> | fill <n> <valor> | check <n> | uncheck <n> | select <n> <valor> | press <n> <tecla>
+//	bin/navegador click <n> | dblclick <n> | hover <n> | fill <n> <valor> | check <n> | uncheck <n>
+//	              select <n> <valor> | press <n> <tecla> | upload <n> <archivo> | drag <n> <destino>
+//	              (<n>: el número del último look, o un texto visible: dblclick "Revisar el informe")
+//	bin/navegador dialog accept|dismiss          cómo contestar los próximos alert/confirm (por defecto, aceptar)
 //	bin/navegador scroll [n]                     baja la página entera, o la zona con scroll n hasta el final
 //	bin/navegador goto <url> | back | reload
 //	bin/navegador text [buscar]                  el texto visible (o si aparece `buscar`)
@@ -57,10 +60,18 @@ func main() {
 		err = open(args)
 	case "look":
 		err = look(true)
-	case "click", "check", "uncheck":
+	case "click", "dblclick", "hover", "check", "uncheck":
 		err = act(cmd, args, false)
-	case "fill", "select", "press":
+	case "fill", "select", "press", "upload", "drag":
 		err = act(cmd, args, true)
+	case "dialog":
+		if len(args) < 1 || (args[0] != "accept" && args[0] != "dismiss") {
+			usage()
+		}
+		err = call(http.MethodPost, "/api/live/dialog", map[string]bool{"dismiss": args[0] == "dismiss"}, nil)
+		if err == nil {
+			fmt.Printf("los próximos diálogos se van a %s\n", map[bool]string{true: "rechazar", false: "aceptar"}[args[0] == "dismiss"])
+		}
 	case "scroll": // sin número, la página entera; con número, una zona con scroll hasta el final
 		if len(args) == 0 {
 			err = nav("scroll", "")
@@ -100,7 +111,9 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
   sites · open <sitio|url> [url] · look · close
-  click <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor> · press <n> <tecla>
+  click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
+  press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
+  (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · shot <archivo.png>
   steps · script · reset`)
 	os.Exit(2)
@@ -154,6 +167,8 @@ type control struct {
 	Best     int
 	Checked  *bool
 	Disabled bool
+	Blocked  bool
+	Frame    string
 	AtEnd    *bool
 	Options  []struct{ Value, Label string }
 	Locators []struct {
@@ -179,6 +194,7 @@ type liveState struct {
 		Code, Error string
 		OK          bool
 	}
+	Dialogs []string
 }
 
 // La versión del último `look`, para que un número viejo no toque otro elemento.
@@ -282,10 +298,13 @@ func look(fresh bool) error {
 	if len(st.Page.Console) > 0 {
 		fmt.Printf("⚠ %d errores de consola\n", len(st.Page.Console))
 	}
+	for _, d := range st.Dialogs {
+		fmt.Printf("diálogo: %s\n", d)
+	}
 	for _, n := range st.Page.Notices {
 		fmt.Printf("aviso: %s\n", n)
 	}
-	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll"}
+	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll", "file": "archivo", "drag": "arrastrable"}
 	for _, c := range st.Page.Controls {
 		loc := "SIN LOCALIZADOR ÚNICO"
 		if c.Best >= 0 {
@@ -300,6 +319,12 @@ func look(fresh bool) error {
 		}
 		if c.Disabled {
 			extra += " [deshabilitado]"
+		}
+		if c.Blocked {
+			extra += " [detrás del modal]"
+		}
+		if c.Frame != "" {
+			extra += " [en " + c.Frame + "]"
 		}
 		fmt.Printf("%3d  %-11s «%s»%s\n       %s\n", c.ID+1, kinds[c.Kind], trim(c.Name, 60), extra, loc)
 		if len(c.Options) > 0 {
@@ -317,18 +342,31 @@ func act(action string, args []string, needsValue bool) error {
 	if len(args) < 1 || (needsValue && len(args) < 2) {
 		usage()
 	}
-	n, err := strconv.Atoi(args[0])
-	if err != nil || n < 1 {
-		return fmt.Errorf("el elemento va por su número del último `look`, no %q", args[0])
+	body := map[string]any{"action": action, "version": lastVersion()}
+	// El objetivo es el número de un elemento del último look o, si no es un número, su texto visible.
+	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
+		body["control"] = n - 1
+	} else {
+		body["text"] = args[0]
 	}
-	value := ""
 	if needsValue {
-		value = strings.Join(args[1:], " ")
+		value := strings.Join(args[1:], " ")
+		if action == "upload" {
+			if abs, err := filepath.Abs(value); err == nil {
+				value = abs
+			}
+		}
+		body["value"] = value
 	}
-	var step struct{ Code string }
-	err = call(http.MethodPost, "/api/live/act", map[string]any{"control": n - 1, "action": action, "value": value, "version": lastVersion()}, &step)
-	if err != nil {
+	var step struct {
+		Code    string
+		Dialogs []string
+	}
+	if err := call(http.MethodPost, "/api/live/act", body, &step); err != nil {
 		return err
+	}
+	for _, d := range step.Dialogs {
+		fmt.Printf("diálogo: %s\n", d)
 	}
 	fmt.Printf("✓ %s\n\n", step.Code)
 	return look(true)

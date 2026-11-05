@@ -1,0 +1,40 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab · Tareas</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <h1>Tareas</h1>
+  <form class="row card" id="nueva"><input id="texto" placeholder="¿Qué hay que hacer?" aria-label="Nueva tarea" style="flex:1"><button>Agregar</button></form>
+  <div class="tabs-ui" role="tablist" aria-label="Filtro">
+    <a role="tab" href="#/todas">Todas</a><a role="tab" href="#/pendientes">Pendientes</a><a role="tab" href="#/hechas">Hechas</a>
+  </div>
+  <ul id="lista" style="padding:0"></ul>
+  <p class="muted">Doble clic sobre una tarea para editarla.</p>
+</main>
+<dialog id="borrar" aria-labelledby="borrar-t"><h2 id="borrar-t">¿Borrar la tarea?</h2><p id="borrar-txt" class="muted"></p>
+  <div class="row"><button class="secondary" id="no">Cancelar</button><button id="si">Borrar</button></div></dialog>
+<script type="module">
+import { header, toast } from '/demo.js'; header()
+let tareas = [{ t: 'Revisar el informe', hecha: false }, { t: 'Llamar a soporte', hecha: true }, { t: 'Preparar la demo', hecha: false }]
+let editando = -1, aBorrar = -1
+const filtro = () => (location.hash.replace('#/', '') || 'todas')
+function render() {
+  const f = filtro()
+  document.querySelectorAll('[role=tab]').forEach((a) => a.setAttribute('aria-selected', a.getAttribute('href') === '#/' + f))
+  const vis = tareas.map((x, i) => ({ ...x, i })).filter((x) => f === 'todas' || (f === 'hechas') === x.hecha)
+  document.getElementById('lista').innerHTML = vis.map((x) => `<li class="card row" style="margin-bottom:8px" data-i="${x.i}">
+    <input type="checkbox" ${x.hecha ? 'checked' : ''} aria-label="Hecha: ${x.t}" data-check="${x.i}">
+    ${editando === x.i ? `<input class="edit" value="${x.t}" aria-label="Editar tarea" style="flex:1">` : `<span style="flex:1;${x.hecha ? 'text-decoration:line-through' : ''}" data-dbl="${x.i}">${x.t}</span>`}
+    <button class="secondary" data-del="${x.i}" aria-label="Borrar ${x.t}">Borrar</button></li>`).join('') || '<li class="muted">Nada por acá.</li>'
+  document.querySelector('.edit')?.focus()
+}
+window.addEventListener('hashchange', render)
+document.getElementById('nueva').addEventListener('submit', (e) => { e.preventDefault(); const v = document.getElementById('texto').value.trim(); if (!v) return toast('Escribí algo primero'); tareas.push({ t: v, hecha: false }); document.getElementById('texto').value = ''; toast('Tarea agregada'); render() })
+const lista = document.getElementById('lista')
+lista.addEventListener('change', (e) => { const i = e.target.dataset.check; if (i != null) { tareas[i].hecha = e.target.checked; render() } })
+lista.addEventListener('dblclick', (e) => { const i = e.target.dataset.dbl; if (i != null) { editando = +i; render() } })
+lista.addEventListener('keydown', (e) => { if (e.target.classList.contains('edit') && e.key === 'Enter') { tareas[editando].t = e.target.value; editando = -1; toast('Tarea editada'); render() } if (e.key === 'Escape') { editando = -1; render() } })
+lista.addEventListener('click', (e) => { const i = e.target.dataset.del; if (i == null) return; aBorrar = +i; document.getElementById('borrar-txt').textContent = tareas[i].t; document.getElementById('borrar').showModal() })
+document.getElementById('no').addEventListener('click', () => document.getElementById('borrar').close())
+document.getElementById('si').addEventListener('click', () => { tareas.splice(aBorrar, 1); document.getElementById('borrar').close(); toast('Tarea borrada'); render() })
+render()
+</script>
+</body></html>

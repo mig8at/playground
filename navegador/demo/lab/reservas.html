@@ -1,0 +1,45 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lab · Reservas</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <h1>Reservá una mesa</h1>
+  <div class="card">
+    <h2>Fecha</h2>
+    <div class="row"><button class="secondary" id="mes-prev" aria-label="Mes anterior">‹</button><strong id="mes"></strong><button class="secondary" id="mes-next" aria-label="Mes siguiente">›</button></div>
+    <div class="cal" id="cal" role="grid" aria-label="Calendario" style="margin-top:8px"></div>
+    <h2>Horario</h2>
+    <div class="row" id="horas" role="group" aria-label="Horario"></div>
+    <h2>Personas</h2>
+    <div class="stepper"><button class="secondary" id="menos" aria-label="Una persona menos">−</button><output id="personas" aria-label="Personas">2</output><button class="secondary" id="mas" aria-label="Una persona más">+</button></div>
+    <p class="muted" id="resumen">Elegí fecha y horario.</p>
+    <button id="reservar" disabled>Reservar</button>
+  </div>
+</main>
+<script type="module">
+import { header } from '/demo.js'; header()
+const hoy = new Date(); hoy.setHours(0, 0, 0, 0)
+let mes = new Date(hoy.getFullYear(), hoy.getMonth(), 1), fecha = null, hora = '', personas = 2
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre']
+function render() {
+  document.getElementById('mes').textContent = `${MESES[mes.getMonth()]} ${mes.getFullYear()}`
+  const dias = new Date(mes.getFullYear(), mes.getMonth() + 1, 0).getDate()
+  const pad = (new Date(mes.getFullYear(), mes.getMonth(), 1).getDay() + 6) % 7
+  document.getElementById('cal').innerHTML = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => `<small class="muted" style="text-align:center">${d}</small>`).join('') + '<span></span>'.repeat(pad) +
+    Array.from({ length: dias }, (_, i) => { const d = new Date(mes.getFullYear(), mes.getMonth(), i + 1); const off = d < hoy || d.getDay() === 1
+      return `<button data-d="${i + 1}" ${off ? 'disabled' : ''} class="${fecha && +d === +fecha ? 'sel' : ''}" aria-label="${i + 1} de ${MESES[mes.getMonth()]}${off ? ', no disponible' : ''}">${i + 1}</button>` }).join('')
+  document.getElementById('horas').innerHTML = ['12:00', '13:30', '19:00', '20:30'].map((h) => `<button class="${h === hora ? '' : 'secondary'}" data-h="${h}" aria-pressed="${h === hora}" ${!fecha ? 'disabled' : ''}>${h}</button>`).join('')
+  document.getElementById('personas').textContent = personas
+  document.getElementById('menos').disabled = personas <= 1
+  document.getElementById('mas').disabled = personas >= 8
+  document.getElementById('reservar').disabled = !(fecha && hora)
+  document.getElementById('resumen').textContent = fecha && hora ? `${fecha.getDate()} de ${MESES[fecha.getMonth()]} a las ${hora}, ${personas} personas` : 'Elegí fecha y horario. Los lunes no abrimos.'
+}
+document.getElementById('cal').addEventListener('click', (e) => { const d = e.target.dataset.d; if (d) { fecha = new Date(mes.getFullYear(), mes.getMonth(), +d); hora = ''; render() } })
+document.getElementById('horas').addEventListener('click', (e) => { if (e.target.dataset.h) { hora = e.target.dataset.h; render() } })
+document.getElementById('mes-prev').addEventListener('click', () => { mes = new Date(mes.getFullYear(), mes.getMonth() - 1, 1); render() })
+document.getElementById('mes-next').addEventListener('click', () => { mes = new Date(mes.getFullYear(), mes.getMonth() + 1, 1); render() })
+document.getElementById('menos').addEventListener('click', () => { personas--; render() })
+document.getElementById('mas').addEventListener('click', () => { personas++; render() })
+document.getElementById('reservar').addEventListener('click', () => { alert(`Reserva confirmada: ${document.getElementById('resumen').textContent}`); document.getElementById('resumen').textContent = '✓ Reserva confirmada' })
+render()
+</script>
+</body></html>

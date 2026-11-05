@@ -1,14 +1,14 @@
 // Credidemo: lo común a todas las páginas. El encabezado, el estado de la solicitud (sessionStorage) y la sesión.
 const NAV = [
   ['/', 'Inicio'], ['/productos.html', 'Productos'], ['/solicitud/datos.html', 'Solicitar crédito'],
-  ['/ayuda.html', 'Ayuda'], ['/contacto.html', 'Contacto'],
+  ['/ayuda.html', 'Ayuda'], ['/contacto.html', 'Contacto'], ['/lab/', 'Laboratorio'],
 ]
 export function header() {
   const logged = !!sessionStorage.getItem('demo.user')
   const h = document.createElement('header')
   h.className = 'site'
   h.innerHTML = `<a class="brand" href="/">Credidemo</a><nav aria-label="Principal">${NAV.map(([href, label]) =>
-    `<a href="${href}" class="${location.pathname === href ? 'on' : ''}">${label}</a>`).join('')}</nav>
+    `<a href="${href}" class="${location.pathname === href || (href !== '/' && location.pathname.startsWith(href)) ? 'on' : ''}">${label}</a>`).join('')}</nav>
     ${logged ? '<a href="/cuenta.html" style="color:#fff">Mi cuenta</a> <button id="logout" class="secondary">Salir</button>' : '<a href="/ingresar.html" style="color:#fff">Ingresar</a>'}`
   document.body.prepend(h)
   h.querySelector('#logout')?.addEventListener('click', () => { sessionStorage.removeItem('demo.user'); location.href = '/' })
@@ -23,3 +23,14 @@ export const store = {
 }
 // Un paso exige el anterior: si se llega por URL sin completar, vuelve al que falta.
 export function requireStep(key, back) { if (!store.get()[key]) location.replace(back) }
+
+// Un aviso que aparece y se va solo (como los de muchas apps): quien lo quiera leer tiene que esperarlo a tiempo.
+export function toast(text, ms = 3000) {
+  let box = document.getElementById('toasts')
+  if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite'); document.body.append(box) }
+  const t = document.createElement('div')
+  t.className = 'toast'
+  t.textContent = text
+  box.append(t)
+  setTimeout(() => t.remove(), ms)
+}

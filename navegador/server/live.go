@@ -19,6 +19,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,26 +41,35 @@ func clampSize(w, h int) (int, int) {
 
 // Step es una acción hecha en la sesión, con la línea de Playwright que la reproduce.
 type Step struct {
-	At     time.Time `json:"at"`
-	URL    string    `json:"url"`
-	Code   string    `json:"code"`
-	Target string    `json:"target"`
-	OK     bool      `json:"ok"`
-	Error  string    `json:"error,omitempty"`
+	At      time.Time `json:"at"`
+	URL     string    `json:"url"`
+	Code    string    `json:"code"`
+	Target  string    `json:"target"`
+	OK      bool      `json:"ok"`
+	Error   string    `json:"error,omitempty"`
+	Dialogs []string  `json:"dialogs,omitempty"` // los diálogos del navegador que disparó, con su respuesta
+}
+
+// dialogSeen es un alert/confirm/prompt que apareció, cómo se contestó y la línea que lo reproduce.
+type dialogSeen struct {
+	message string
+	code    string
 }
 
 // LiveState es lo que la interfaz y el CLI preguntan: dónde está, qué hay para tocar y qué se hizo.
 type LiveState struct {
-	Active    bool   `json:"active"`
-	Site      string `json:"site"`
-	URL       string `json:"url"`
-	Title     string `json:"title"`
-	Width     int    `json:"width"`
-	Height    int    `json:"height"`
-	Version   int    `json:"version"` // sube con cada análisis nuevo
-	Analyzing bool   `json:"analyzing"`
-	Page      *Page  `json:"page,omitempty"`
-	Steps     []Step `json:"steps"`
+	Active    bool     `json:"active"`
+	Site      string   `json:"site"`
+	URL       string   `json:"url"`
+	Title     string   `json:"title"`
+	Width     int      `json:"width"`
+	Height    int      `json:"height"`
+	Version   int      `json:"version"` // sube con cada análisis nuevo
+	Analyzing bool     `json:"analyzing"`
+	Page      *Page    `json:"page,omitempty"`
+	Steps     []Step   `json:"steps"`
+	Dialogs   []string `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
+	Dismiss   bool     `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
 }
 
 type live struct {
@@ -81,6 +92,18 @@ type live struct {
 
 	analyzeMu sync.Mutex
 	dirty     chan struct{}
+
+	// Los diálogos del navegador (alert, confirm, prompt). Sin respuesta, Playwright los descarta en silencio y un
+	// «Vaciar carrito» con confirm() parece funcionar sin hacer nada. Se contestan según dismiss (por defecto,
+	// aceptar) y quedan registrados.
+	dismissDialogs bool
+	dialogs        []dialogSeen
+	recentDialogs  []string
+
+	// Una pestaña nueva se procesa en paralelo; si la abrió una acción, su goto va DESPUÉS de ese paso.
+	acting       bool
+	popupsFlying int
+	popupSteps   []Step
 }
 
 func (l *live) broadcast(frame []byte) {
@@ -164,18 +187,61 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 	}
 	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
+	page.OnDialog(func(d playwright.Dialog) {
+		l.mu.Lock()
+		dismiss := l.dismissDialogs
+		l.mu.Unlock()
+		answer, code := "aceptado", "page.once('dialog', (d) => d.accept())"
+		if dismiss {
+			answer, code = "rechazado", "page.once('dialog', (d) => d.dismiss())"
+		}
+		msg := fmt.Sprintf("%s «%s» → %s", d.Type(), d.Message(), answer)
+		go func() {
+			if dismiss {
+				_ = d.Dismiss()
+			} else {
+				_ = d.Accept()
+			}
+		}()
+		l.mu.Lock()
+		l.dialogs = append(l.dialogs, dialogSeen{message: msg, code: code})
+		l.recentDialogs = append(l.recentDialogs, msg)
+		if len(l.recentDialogs) > 5 {
+			l.recentDialogs = l.recentDialogs[len(l.recentDialogs)-5:]
+		}
+		l.mu.Unlock()
+		r.say("info", "diálogo · %s", msg)
+	})
 	page.OnFrameNavigated(func(f playwright.Frame) {
 		if f.ParentFrame() == nil {
 			l.markDirty()
 		}
 	})
 	// Una pestaña nueva (target=_blank) se trae a la misma: la sesión muestra una sola página.
+	// En el script queda como un goto a esa URL después del clic: al repetirlo, el clic abre su pestaña aparte y el
+	// goto deja la página principal donde siguió el recorrido.
 	bctx.OnPage(func(p playwright.Page) {
+		l.mu.Lock()
+		l.popupsFlying++
+		l.mu.Unlock()
 		go func() {
+			defer func() { l.mu.Lock(); l.popupsFlying--; l.mu.Unlock() }()
+			_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded, Timeout: playwright.Float(10000)})
 			u := p.URL()
 			_ = p.Close()
 			if u != "" && u != "about:blank" {
-				_, _ = l.page.Goto(u)
+				_, err := l.page.Goto(u)
+				step := Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(u)), Target: "pestaña nueva", OK: err == nil, Error: errText(err)}
+				l.mu.Lock()
+				acting := l.acting
+				if acting {
+					l.popupSteps = append(l.popupSteps, step)
+				}
+				l.mu.Unlock()
+				if !acting {
+					r.recordStep(l, step)
+				}
+				r.say("info", "una pestaña nueva (%s) se abrió en la misma sesión", u)
 			}
 		}()
 	})
@@ -285,6 +351,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	return LiveState{
 		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h,
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
+		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs,
 	}
 }
 
@@ -394,12 +461,45 @@ func (r *Runner) LiveNav(action, target string) error {
 	return err
 }
 
-// LiveAct hace una acción sobre un elemento de la página actual, por su localizador recomendado.
+// LiveAct hace una acción sobre un elemento de la página actual: por su número (con su localizador recomendado)
+// o, si no es un elemento interactivo (un texto con doble clic, un ítem de una lista), por su texto visible.
 type LiveAct struct {
 	Control int    `json:"control"`
-	Action  string `json:"action"` // click · fill · check · uncheck · select · press
-	Value   string `json:"value"`
+	Text    string `json:"text"`    // en vez de un número: el texto visible del objetivo
+	Action  string `json:"action"`  // click · dblclick · hover · fill · check · uncheck · select · press · scroll · upload · drag
+	Value   string `json:"value"`   // lo que se escribe, la opción, la tecla, la ruta del archivo o el destino de drag
 	Version int    `json:"version"` // el análisis sobre el que se eligió el elemento: si cambió, se avisa
+}
+
+// target resuelve a qué apunta una acción: el localizador, su código TS y un nombre para los mensajes.
+func (r *Runner) liveTarget(l *live, cur *Page, num int, text string) (playwright.Locator, string, *Control, error) {
+	if text != "" {
+		for _, exact := range []bool{true, false} {
+			// Sólo lo visible: el botón de un modal cerrado existe en el DOM, pero no se puede tocar.
+			loc := l.page.GetByText(text, playwright.PageGetByTextOptions{Exact: playwright.Bool(exact)}).Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)})
+			n, err := loc.Count()
+			if err != nil {
+				return nil, "", nil, err
+			}
+			if n == 1 {
+				code := fmt.Sprintf("page.getByText('%s'%s).filter({ visible: true })", jsQuote(text), map[bool]string{true: ", { exact: true }", false: ""}[exact])
+				return loc, code, nil, nil
+			}
+			if n > 1 {
+				return nil, "", nil, fmt.Errorf("«%s» aparece %d veces: usá un texto más largo o el número del elemento", text, n)
+			}
+		}
+		return nil, "", nil, fmt.Errorf("no hay un texto «%s» en la página", text)
+	}
+	if num < 0 || num >= len(cur.Controls) {
+		return nil, "", nil, fmt.Errorf("no hay un elemento %d (la página tiene %d)", num+1, len(cur.Controls))
+	}
+	c := &cur.Controls[num]
+	if c.Best < 0 {
+		return nil, "", nil, fmt.Errorf("el elemento %d «%s» no tiene un localizador único: probá por su texto", num+1, c.Name)
+	}
+	loc := c.Locators[c.Best]
+	return locatorFor(l.page, loc, c.Frame), loc.Code, c, nil
 }
 
 func (r *Runner) LiveAct(in LiveAct) (Step, error) {
@@ -413,43 +513,58 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	if cur == nil {
 		return Step{}, errors.New("la página todavía no se analizó: esperá un momento")
 	}
-	if in.Version != 0 && in.Version != version {
+	if in.Text == "" && in.Version != 0 && in.Version != version {
 		return Step{}, fmt.Errorf("la página cambió desde que la miraste (análisis %d, ahora %d): volvé a mirarla", in.Version, version)
 	}
-	if in.Control < 0 || in.Control >= len(cur.Controls) {
-		return Step{}, fmt.Errorf("no hay un elemento %d (la página tiene %d)", in.Control+1, len(cur.Controls))
+	target, base, c, err := r.liveTarget(l, cur, in.Control, in.Text)
+	if err != nil {
+		return Step{}, err
 	}
-	c := cur.Controls[in.Control]
-	if c.Best < 0 {
-		return Step{}, fmt.Errorf("el elemento %d «%s» no tiene un localizador único", in.Control+1, c.Name)
+	name := in.Text
+	kind := ""
+	if c != nil {
+		name, kind = c.Name, c.Kind
 	}
-	loc := c.Locators[c.Best]
 	action := in.Action
 	if action == "" {
-		action = map[string]string{"field": "fill", "select": "select", "check": "check", "scroll": "scroll"}[c.Kind]
+		action = map[string]string{"field": "fill", "select": "select", "check": "check", "scroll": "scroll", "file": "upload", "drag": "drag"}[kind]
 		if action == "" {
 			action = "click"
 		}
 	}
-	target := locatorFor(l.page, loc)
 	timeout := playwright.Float(10000)
-	// Un elemento deshabilitado se niega al instante: esperar 10 s a que se habilite solo esconde la causa, que
-	// casi siempre es una regla de la página (un campo inválido, un texto sin leer).
-	if action != "scroll" && action != "press" {
+	// Lo que no va a funcionar se niega al instante, con la causa: esperar 10 s la esconde.
+	if c != nil && c.Blocked {
+		return Step{}, fmt.Errorf("«%s» está detrás de un modal abierto: cerralo o actuá adentro de él", name)
+	}
+	if action != "scroll" && action != "press" && action != "hover" {
 		if enabled, err := target.IsEnabled(playwright.LocatorIsEnabledOptions{Timeout: playwright.Float(3000)}); err == nil && !enabled {
 			why := ""
 			if len(cur.Notices) > 0 {
 				why = " · avisos: " + strings.Join(cur.Notices, " | ")
 			}
-			return Step{}, fmt.Errorf("«%s» está deshabilitado: la página exige algo antes%s", c.Name, why)
+			return Step{}, fmt.Errorf("«%s» está deshabilitado: la página exige algo antes%s", name, why)
 		}
 	}
+	l.mu.Lock()
+	l.dialogs = nil
+	l.acting = true
+	l.mu.Unlock()
+	defer func() { l.mu.Lock(); l.acting = false; l.mu.Unlock() }()
+
 	var code string
-	var err error
 	switch action {
 	case "click":
 		code = ".click()"
 		err = target.Click(playwright.LocatorClickOptions{Timeout: timeout})
+	case "dblclick":
+		code = ".dblclick()"
+		// Dblclick de playwright-go manda un campo (steps) que el driver rechaza; dos clics seguidos disparan el
+		// mismo dblclick en el navegador, y en el script queda .dblclick(), que en Playwright TS anda.
+		err = target.Click(playwright.LocatorClickOptions{Timeout: timeout, ClickCount: playwright.Int(2)})
+	case "hover":
+		code = ".hover()"
+		err = target.Hover(playwright.LocatorHoverOptions{Timeout: timeout})
 	case "fill":
 		code = fmt.Sprintf(".fill('%s')", jsQuote(in.Value))
 		err = target.Fill(in.Value, playwright.LocatorFillOptions{Timeout: timeout})
@@ -471,14 +586,64 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	case "press":
 		code = fmt.Sprintf(".press('%s')", jsQuote(in.Value))
 		err = target.Press(in.Value, playwright.LocatorPressOptions{Timeout: timeout})
+	case "upload":
+		if in.Value == "" {
+			return Step{}, errors.New("falta la ruta del archivo a subir")
+		}
+		if _, statErr := os.Stat(in.Value); statErr != nil {
+			return Step{}, fmt.Errorf("no encuentro el archivo %s", in.Value)
+		}
+		code = fmt.Sprintf(".setInputFiles('%s')", jsQuote(in.Value))
+		err = target.SetInputFiles(in.Value, playwright.LocatorSetInputFilesOptions{Timeout: timeout})
+	case "drag":
+		// El destino es otro elemento: su número (1, 2…) o su texto.
+		n, convErr := strconv.Atoi(in.Value)
+		destNum, destText := -1, in.Value
+		if convErr == nil {
+			destNum, destText = n-1, ""
+		}
+		dest, destCode, _, dErr := r.liveTarget(l, cur, destNum, destText)
+		if dErr != nil {
+			return Step{}, fmt.Errorf("destino del arrastre: %v", dErr)
+		}
+		code = fmt.Sprintf(".dragTo(%s)", destCode)
+		err = target.DragTo(dest, playwright.LocatorDragToOptions{Timeout: timeout})
 	default:
-		return Step{}, fmt.Errorf("acción desconocida %q (click · fill · check · uncheck · select · press · scroll)", action)
+		return Step{}, fmt.Errorf("acción desconocida %q (click · dblclick · hover · fill · check · uncheck · select · press · scroll · upload · drag)", action)
 	}
-	step := Step{Code: loc.Code + code, Target: c.Name, OK: err == nil, Error: errText(err)}
+	// Un confirm() o alert() que dispara la acción llega un instante después: se espera un poco para registrarlo
+	// ANTES del paso, que es donde lo pone una prueba (page.once('dialog', …) antes del clic).
+	time.Sleep(250 * time.Millisecond)
+	// Si la acción abrió una pestaña nueva, se espera a que termine de traerla (hasta 10 s).
+	for i := 0; i < 100; i++ {
+		l.mu.Lock()
+		flying := l.popupsFlying
+		l.mu.Unlock()
+		if flying == 0 {
+			break
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	l.mu.Lock()
+	dialogs := l.dialogs
+	l.dialogs = nil
+	popups := l.popupSteps
+	l.popupSteps = nil
+	l.mu.Unlock()
+	for _, d := range dialogs {
+		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true})
+	}
+	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err)}
+	for _, d := range dialogs {
+		step.Dialogs = append(step.Dialogs, d.message)
+	}
 	r.recordStep(l, step)
+	for _, p := range popups {
+		r.recordStep(l, p)
+	}
 	l.markDirty()
 	if err != nil {
-		return step, fmt.Errorf("%s sobre «%s»: %s", action, c.Name, firstLine(err.Error()))
+		return step, fmt.Errorf("%s sobre «%s»: %s", action, name, firstLine(err.Error()))
 	}
 	return step, nil
 }
@@ -536,13 +701,31 @@ func errText(err error) string {
 	return firstLine(err.Error())
 }
 
-// LiveText devuelve el texto visible de la página (para verificar un mensaje sin mirar la pantalla).
+// LiveText devuelve el texto visible de la página, CON lo que hay en shadow roots e iframes: el innerText del
+// body no los incluye, y un «no aparece» falso es peor que no saber (lo que se lee de menos se lee como «no existe»).
 func (r *Runner) LiveText() (string, error) {
 	l := r.liveSession()
 	if l == nil {
 		return "", errors.New("no hay sesión en vivo")
 	}
-	return l.page.InnerText("body", playwright.PageInnerTextOptions{Timeout: playwright.Float(5000)})
+	raw, err := l.page.Evaluate(`() => {
+		const parts = [document.body.innerText]
+		const walk = (root) => root.querySelectorAll('*').forEach((el) => {
+			if (el.shadowRoot) { parts.push([...el.shadowRoot.children].map((c) => c.innerText || '').join('\n')); walk(el.shadowRoot) }
+		})
+		walk(document)
+		return parts.join('\n')
+	}`)
+	if err != nil {
+		return "", err
+	}
+	text, _ := raw.(string)
+	for _, f := range l.page.MainFrame().ChildFrames() {
+		if t, err := f.InnerText("body", playwright.FrameInnerTextOptions{Timeout: playwright.Float(2000)}); err == nil && strings.TrimSpace(t) != "" {
+			text += "\n" + t
+		}
+	}
+	return text, nil
 }
 
 // LiveShot devuelve la captura de lo que se ve ahora (PNG).
@@ -630,5 +813,17 @@ func (r *Runner) LiveResize(w, h int) error {
 		return err
 	}
 	l.markDirty()
+	return nil
+}
+
+// LiveDialogPolicy decide cómo se contestan los próximos diálogos: aceptar (por defecto) o rechazar.
+func (r *Runner) LiveDialogPolicy(dismiss bool) error {
+	l := r.liveSession()
+	if l == nil {
+		return errors.New("no hay sesión en vivo")
+	}
+	l.mu.Lock()
+	l.dismissDialogs = dismiss
+	l.mu.Unlock()
 	return nil
 }

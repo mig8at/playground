@@ -268,8 +268,9 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 		} else {
 			page.Title, page.Lang, page.Stack, page.Headings = a.Title, a.Lang, a.Stack, a.Headings
 			page.Links, page.Forms, page.Buttons, page.Landmarks = a.Links, a.Forms, a.Buttons, a.Landmarks
-			verifyControls(p, a.Controls)
-			page.Controls = a.Controls
+			controls := append(a.Controls, frameControls(p, len(a.Controls))...)
+			verifyControls(p, controls)
+			page.Controls = controls
 			page.Notices = a.Notices
 		}
 	}

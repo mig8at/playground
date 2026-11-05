@@ -39,18 +39,22 @@ type Locator struct {
 
 // Control es un elemento con el que se interactúa: un campo, un botón, un enlace, una casilla.
 type Control struct {
-	ID       int       `json:"id"`
-	Kind     string    `json:"kind"` // field · select · check · button · link
-	Tag      string    `json:"tag"`
-	Type     string    `json:"type"`
-	Role     string    `json:"role"`
-	Name     string    `json:"name"`
-	Action   string    `json:"action"` // .fill('…') · .check() · .selectOption('…') · .click()
-	Form     int       `json:"form"`   // índice del formulario al que pertenece, o -1
-	Box      Box       `json:"box"`    // en coordenadas de la página entera: las de la captura
-	Options  []Option  `json:"options,omitempty"`
-	Checked  *bool     `json:"checked,omitempty"`
-	Disabled bool      `json:"disabled,omitempty"`
+	ID       int      `json:"id"`
+	Kind     string   `json:"kind"` // field · select · check · button · link
+	Tag      string   `json:"tag"`
+	Type     string   `json:"type"`
+	Role     string   `json:"role"`
+	Name     string   `json:"name"`
+	Action   string   `json:"action"` // .fill('…') · .check() · .selectOption('…') · .click()
+	Form     int      `json:"form"`   // índice del formulario al que pertenece, o -1
+	Box      Box      `json:"box"`    // en coordenadas de la página entera: las de la captura
+	Options  []Option `json:"options,omitempty"`
+	Checked  *bool    `json:"checked,omitempty"`
+	Disabled bool     `json:"disabled,omitempty"`
+	Blocked  bool     `json:"blocked,omitempty"` // detrás de un modal abierto: un clic ahí no llega
+	// Frame: el selector del iframe donde vive, si no está en la página principal; FrameID es su número allá adentro.
+	Frame    string    `json:"frame,omitempty"`
+	FrameID  int       `json:"frameId,omitempty"`
 	AtEnd    *bool     `json:"atEnd,omitempty"` // zona con scroll: ya se bajó hasta el final
 	Locators []Locator `json:"locators"`
 	Best     int       `json:"best"` // índice del recomendado, o -1 si ninguno sirve
@@ -62,30 +66,40 @@ type Option struct {
 	Disabled bool   `json:"disabled,omitempty"`
 }
 
+// rootFor es desde dónde se busca: la página entera o el documento de un iframe. Las dos son un Locator, así el
+// resto no distingue.
+func rootFor(p playwright.Page, frame string) playwright.Locator {
+	if frame != "" {
+		return p.FrameLocator(frame).Locator(":root")
+	}
+	return p.Locator(":root")
+}
+
 // locatorFor arma en playwright-go el mismo localizador que dice el código TS del candidato.
-func locatorFor(p playwright.Page, l Locator) playwright.Locator {
+func locatorFor(p playwright.Page, l Locator, frame string) playwright.Locator {
 	exact := playwright.Bool(true)
+	root := rootFor(p, frame)
 	switch l.Kind {
 	case "role":
-		return p.GetByRole(playwright.AriaRole(l.Role), playwright.PageGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)})
+		return root.GetByRole(playwright.AriaRole(l.Role), playwright.LocatorGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)})
 	case "scoped":
 		var zone playwright.Locator
 		if l.ScopeName != "" {
-			zone = p.GetByRole(playwright.AriaRole(l.ScopeRole), playwright.PageGetByRoleOptions{Name: l.ScopeName})
+			zone = root.GetByRole(playwright.AriaRole(l.ScopeRole), playwright.LocatorGetByRoleOptions{Name: l.ScopeName})
 		} else {
-			zone = p.GetByRole(playwright.AriaRole(l.ScopeRole))
+			zone = root.GetByRole(playwright.AriaRole(l.ScopeRole))
 		}
 		return zone.GetByRole(playwright.AriaRole(l.Role), playwright.LocatorGetByRoleOptions{Name: l.Value, Exact: exact})
 	case "label":
-		return p.GetByLabel(l.Value, playwright.PageGetByLabelOptions{Exact: exact})
+		return root.GetByLabel(l.Value, playwright.LocatorGetByLabelOptions{Exact: exact})
 	case "placeholder":
-		return p.GetByPlaceholder(l.Value, playwright.PageGetByPlaceholderOptions{Exact: exact})
+		return root.GetByPlaceholder(l.Value, playwright.LocatorGetByPlaceholderOptions{Exact: exact})
 	case "text":
-		return p.GetByText(l.Value, playwright.PageGetByTextOptions{Exact: exact})
+		return root.GetByText(l.Value, playwright.LocatorGetByTextOptions{Exact: exact})
 	case "testid":
-		return p.GetByTestId(l.Value)
+		return root.GetByTestId(l.Value)
 	default:
-		return p.Locator(l.Value)
+		return root.Locator(l.Value)
 	}
 }
 
@@ -96,9 +110,12 @@ func verifyControls(p playwright.Page, controls []Control) {
 		c := &controls[i]
 		c.Best = -1
 		want := strconv.Itoa(c.ID)
+		if c.Frame != "" {
+			want = strconv.Itoa(c.FrameID)
+		}
 		for j := range c.Locators {
 			l := &c.Locators[j]
-			loc := locatorFor(p, *l)
+			loc := locatorFor(p, *l, c.Frame)
 			n, err := loc.Count()
 			if err != nil {
 				continue

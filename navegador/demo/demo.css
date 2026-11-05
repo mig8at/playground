@@ -35,3 +35,23 @@ details { border-bottom: 1px solid #e5e7eb; padding: 10px 0 } summary { cursor: 
 .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap }
 .radio-group { display: flex; gap: 16px; padding: 6px 0 }
 footer.site { text-align: center; color: #6b7280; font-size: 13px; padding: 32px }
+
+#toasts { position: fixed; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 8px; z-index: 10 }
+.toast { background: #252256; color: #fff; padding: 10px 16px; border-radius: 8px; box-shadow: 0 6px 20px rgb(0 0 0 / .2) }
+table.data { width: 100%; border-collapse: collapse; font-size: 14px }
+table.data th, table.data td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #e5e7eb }
+table.data th button { background: none; color: inherit; padding: 0; font-weight: 600 }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: 360px; background: #fff; box-shadow: -10px 0 30px rgb(0 0 0 / .15); padding: 24px; z-index: 5 }
+.tabs-ui { display: flex; gap: 4px; border-bottom: 1px solid #e5e7eb; margin-bottom: 12px }
+.tabs-ui [role=tab] { background: none; color: #374151; border-radius: 0; border-bottom: 2px solid transparent; padding: 8px 14px }
+.tabs-ui [role=tab][aria-selected=true] { border-bottom-color: #4c39ff; color: #4c39ff }
+.cal { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; max-width: 340px }
+.cal button { padding: 8px 0; background: #eef0ff; color: #252256 }
+.cal button.sel { background: #4c39ff; color: #fff }
+.cal button:disabled { background: #f3f4f6; color: #c7c9d1 }
+.stepper { display: inline-flex; align-items: center; gap: 8px }
+.menu-wrap { position: relative; display: inline-block }
+.menu-wrap .menu { display: none; position: absolute; top: 100%; left: 0; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; padding: 6px; min-width: 180px; z-index: 3 }
+.menu-wrap:hover .menu { display: block }
+.menu a { display: block; padding: 6px 10px }
+.dnd li { padding: 10px; margin: 4px 0; background: #eef0ff; border-radius: 6px; cursor: grab; list-style: none }

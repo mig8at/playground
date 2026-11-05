@@ -514,7 +514,7 @@ const pageStats = computed(() => {
 function openTab(id) { tab.value = id; panelOpen.value = true; saveSize('navegador.panel-open', 1) }
 
 // ── los elementos interactivos: el localizador de Playwright para llegar a cada uno, probado en la página ──
-const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace', scroll: 'zona con scroll' }
+const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace', scroll: 'zona con scroll', file: 'archivo', drag: 'arrastrable' }
 const LOC_LABEL = { role: 'rol', scoped: 'rol en zona', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
 const showBoxes = ref(readPref('navegador.boxes', true))
 watch(showBoxes, (v) => savePref('navegador.boxes', v))
@@ -1033,7 +1033,7 @@ onBeforeUnmount(() => {
               <tr v-for="c in controls" :id="`control-row-${c.id}`" :key="c.id" :class="{ on: pickedControl === c.id, hot: hoverControl === c.id }"
                 @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickControl(c, 'row')">
                 <td class="num muted">{{ c.id + 1 }}</td>
-                <td class="el"><span>{{ c.name }}</span> <small class="muted">{{ KIND_LABEL[c.kind] }}<template v-if="c.disabled"> · deshabilitado</template><template v-if="c.kind === 'scroll'"> · {{ c.atEnd ? 'leída' : 'falta bajar' }}</template></small></td>
+                <td class="el"><span>{{ c.name }}</span> <small class="muted">{{ KIND_LABEL[c.kind] }}<template v-if="c.disabled"> · deshabilitado</template><template v-if="c.blocked"> · detrás del modal</template><template v-if="c.frame"> · en iframe</template><template v-if="c.kind === 'scroll'"> · {{ c.atEnd ? 'leída' : 'falta bajar' }}</template></small></td>
                 <td class="best">
                   <template v-if="c.best >= 0">
                     <code :class="{ warn: fragile(c.locators[c.best]) }" :title="fragile(c.locators[c.best]) ? 'Funciona hoy, pero depende de la posición en el HTML: frágil' : ''">{{ bestCode(c) }}</code>

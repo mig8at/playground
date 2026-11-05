@@ -385,6 +385,19 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, step)
 	})
+	// POST /api/live/dialog {dismiss} — cómo contestar los próximos alert/confirm/prompt.
+	mux.HandleFunc("/api/live/dialog", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Dismiss bool }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := runner.LiveDialogPolicy(in.Dismiss); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
 	// DELETE /api/live/steps — empieza la lista de pasos de cero.
 	mux.HandleFunc("/api/live/steps", func(w http.ResponseWriter, r *http.Request) {
 		runner.LiveClearSteps()

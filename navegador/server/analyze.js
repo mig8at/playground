@@ -4,13 +4,21 @@
   const clean = (s, n = 120) => (s || '').replace(/\s+/g, ' ').trim().slice(0, n)
   const uniq = (xs) => [...new Set(xs.filter(Boolean))]
 
+  // El texto de una etiqueta SIN el del control que envuelve: un <label> con un <select> adentro no se llama
+  // «Calificación ElegíBienMuy bien».
+  const labelText = (lbl) => {
+    if (!lbl) return ''
+    const copy = lbl.cloneNode(true)
+    copy.querySelectorAll('select, textarea, input, button').forEach((n) => n.remove())
+    return clean(copy.textContent, 100)
+  }
   const labelOf = (el) => {
     if (el.id) {
       const l = document.querySelector(`label[for="${CSS.escape(el.id)}"]`)
-      if (l) return clean(l.textContent, 80)
+      if (l) return labelText(l)
     }
     const wrap = el.closest('label')
-    if (wrap) return clean(wrap.textContent, 80)
+    if (wrap) return labelText(wrap)
     return clean(el.getAttribute('aria-label') || el.getAttribute('placeholder') || '', 80)
   }
   const fieldOf = (el) => ({
@@ -111,7 +119,7 @@
       const type = (el.getAttribute('type') || '').toLowerCase()
       if (['submit', 'button', 'reset'].includes(type)) return clean(el.value || (type === 'submit' ? 'Submit' : ''), 100)
       if (type === 'image') return clean(el.alt || el.value, 100)
-      const lbl = el.labels && el.labels[0] ? clean(el.labels[0].textContent, 100) : ''
+      const lbl = el.labels && el.labels[0] ? labelText(el.labels[0]) : ''
       return lbl || clean(el.getAttribute('title') || el.getAttribute('placeholder') || '', 100)
     }
     const txt = clean(el.innerText || el.textContent, 100)
@@ -151,6 +159,16 @@
     }
     return null
   }
+  // querySelectorAll que entra a los shadow roots abiertos (los web components esconden ahí sus campos).
+  const deepAll = (sel, root = document, out = []) => {
+    for (const el of root.querySelectorAll('*')) {
+      if (el.matches(sel)) out.push(el)
+      if (el.shadowRoot) deepAll(sel, el.shadowRoot, out)
+    }
+    return out
+  }
+  // Un modal abierto deja inerte lo de atrás: se marca, porque un clic ahí no llega.
+  const modal = [...document.querySelectorAll('dialog[open], [aria-modal="true"]')].find((d) => isVisible(d) && (d.tagName !== 'DIALOG' || d.matches(':modal')))
   const CONTROL = 'input:not([type=hidden]), select, textarea, button, a[href], [role=button], [role=link], [role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=switch], [role=combobox], [role=textbox], [contenteditable=""], [contenteditable=true]'
   const controls = []
   // En vivo la misma página se analiza varias veces: las marcas del análisis anterior se borran, o un elemento
@@ -158,7 +176,7 @@
   for (const old of document.querySelectorAll('[data-navegador-id]')) old.removeAttribute('data-navegador-id')
   const formIndex = new Map([...document.forms].map((f, i) => [f, i]))
   let linkControls = 0
-  for (const el of document.querySelectorAll(CONTROL)) {
+  for (const el of deepAll(CONTROL + ', [draggable="true"]')) {
     if (controls.length >= 160 || !isVisible(el)) continue
     const role = roleOf(el)
     if (role === 'link' && ++linkControls > 60) continue // en una página de documentación son cientos: con 60 alcanza para ver el patrón
@@ -167,7 +185,7 @@
     const tag = el.tagName.toLowerCase()
     const type = (el.getAttribute('type') || '').toLowerCase()
     const name = nameOf(el)
-    const label = el.labels && el.labels[0] ? clean(el.labels[0].textContent, 100) : ''
+    const label = el.labels && el.labels[0] ? labelText(el.labels[0]) : ''
     const placeholder = el.getAttribute('placeholder') || ''
     const cands = []
     const testId = el.getAttribute('data-testid')
@@ -189,7 +207,7 @@
     }
     if (label) cands.push({ kind: 'label', value: label, code: `page.getByLabel('${q(label)}', { exact: true })` })
     if (placeholder) cands.push({ kind: 'placeholder', value: placeholder, code: `page.getByPlaceholder('${q(placeholder)}', { exact: true })` })
-    const text = /^(BUTTON|A)$/.test(el.tagName) || role === 'button' || role === 'link' ? clean(el.innerText, 80) : ''
+    const text = /^(BUTTON|A)$/.test(el.tagName) || role === 'button' || role === 'link' || el.getAttribute('draggable') === 'true' ? clean(el.innerText, 80) : ''
     if (text) cands.push({ kind: 'text', value: text, code: `page.getByText('${q(text)}', { exact: true })` })
     if (el.id && /^[A-Za-z][\w:.-]*$/.test(el.id)) cands.push({ kind: 'css', value: '#' + CSS.escape(el.id), code: `page.locator('#${q(CSS.escape(el.id))}')` })
     const nameAttr = el.getAttribute('name')
@@ -200,17 +218,19 @@
 
     // Qué se le hace: llenar, marcar, elegir o hacer clic.
     let action = '.click()'
-    if (tag === 'select') {
+    const draggable = el.getAttribute('draggable') === 'true' && !/^(INPUT|SELECT|TEXTAREA|BUTTON|A)$/.test(el.tagName)
+    if (draggable) action = ".dragTo(/* destino */)"
+    else if (tag === 'select') {
       const opt = [...el.options].find((o) => o.value && !o.disabled)
       action = `.selectOption('${q(opt ? opt.value : '')}')`
     } else if (type === 'checkbox' || type === 'radio' || role === 'checkbox' || role === 'radio' || role === 'switch') action = '.check()'
-    else if (type === 'file') action = ".setInputFiles('archivo.pdf')"
+    else if (type === 'file') action = ".setInputFiles('ruta/al/archivo')"
     else if (tag === 'textarea' || el.isContentEditable || role === 'textbox' || role === 'searchbox' || role === 'spinbutton' ||
       (tag === 'input' && !['submit', 'button', 'reset', 'image', 'range', 'color'].includes(type))) {
       const sample = { email: 'prueba@example.com', tel: '3001234567', number: '1', date: '2026-01-31', url: 'https://example.com', password: '<contraseña>', search: 'texto' }[type]
       action = `.fill('${q(sample || '<' + (label || placeholder || nameAttr || 'texto') + '>')}')`
     }
-    const kind = action.startsWith('.fill') || action.startsWith('.setInputFiles') ? 'field'
+    const kind = draggable ? 'drag' : type === 'file' ? 'file' : action.startsWith('.fill') ? 'field'
       : action.startsWith('.select') ? 'select' : action.startsWith('.check') ? 'check' : role === 'link' ? 'link' : 'button'
     const r = el.getBoundingClientRect()
     controls.push({
@@ -220,6 +240,7 @@
       options: tag === 'select' ? [...el.options].slice(0, 50).map((o) => ({ value: o.value, label: clean(o.textContent, 60), disabled: o.disabled })) : undefined,
       checked: type === 'checkbox' || type === 'radio' ? el.checked : undefined,
       disabled: !!(el.disabled || el.getAttribute('aria-disabled') === 'true'),
+      blocked: !!(modal && !modal.contains(el)),
       locators: unique,
     })
   }
