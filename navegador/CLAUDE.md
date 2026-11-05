@@ -10,7 +10,7 @@
 
 | Pieza | Qué es | Archivos |
 |---|---|---|
-| Interfaz | Vue en **:5202**. Explorador (árbol de sitios y páginas) · editor (la página en vivo, o la captura con sus elementos marcados) · ficha · consola con pestañas (Pasos, Acciones, Formularios, Enlaces, Llamadas, Errores) | `src/App.vue` |
+| Interfaz | Vue en **:5202**. Sidebar con dos pestañas: **Corridas** (las que tienen reporte; `#/corrida/<id>` abre su paso a paso con fotos en el editor y su resumen y fuentes a la derecha) y **Sitios** (el explorador: árbol de sitios y páginas, la página en vivo o la captura). Consola con pestañas | `src/App.vue`, `src/RunViewer.vue` |
 | API | Go en **:5203**. Sitios, recorrido, análisis, sesión en vivo, reporte | `server/main.go` |
 | Análisis | Lo que corre adentro de cada página: estructura, elementos interactivos y sus candidatos a localizador, avisos, muros anti-bots | `server/analyze.js` (embebido) |
 | Localizadores | Prueba cada candidato con Playwright (cuántos encuentra y si es ese elemento) y elige el primero que sirve | `server/locators.go`, `server/frames.go` (iframes) |
@@ -29,7 +29,7 @@
 
 Lo que se guarda vive en `navegador/.data/` (gitignoreado: trae sesiones abiertas): `sites.json`, y por sitio su
 perfil de Chromium (el login), el mapa y las capturas; `corridas/<fecha>/` (fotos, reporte y script de cada
-corrida, servidas en `http://localhost:5202/api/corridas/…`) y `descargas/`.
+corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pasos.json` son lo que lee la interfaz por `/api/runs`) y `descargas/`.
 
 ## Cómo se valida
 

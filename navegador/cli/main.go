@@ -966,8 +966,13 @@ func report(args []string) error {
 }
 
 func writeReport(goal, result string) (string, error) {
+	return writeReportInfo(map[string]any{"meta": goal, "resultado": result})
+}
+
+// writeReportInfo escribe el reporte con todo lo que se sepa de la corrida (palabra final, costo, modelo…).
+func writeReportInfo(info map[string]any) (string, error) {
 	var out struct{ Dir, HTML, MD, URL string }
-	if err := call(http.MethodPost, "/api/live/report", map[string]string{"meta": goal, "resultado": result}, &out); err != nil {
+	if err := call(http.MethodPost, "/api/live/report", info, &out); err != nil {
 		return "", err
 	}
 	return out.URL + "\n  (en disco: " + out.Dir + ")", nil

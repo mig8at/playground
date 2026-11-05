@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -496,6 +497,19 @@ func handler(store *Store, runner *Runner) http.Handler {
 	mux.HandleFunc("/api/live/steps", func(w http.ResponseWriter, r *http.Request) {
 		runner.LiveClearSteps()
 		writeJSON(w, http.StatusOK, ok)
+	})
+	// GET /api/runs — las corridas con reporte (meta, palabra final, costo), las más nuevas primero.
+	// GET /api/runs/<id> — una corrida completa: pasos con sus fotos, fuentes y script.
+	mux.HandleFunc("/api/runs", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, store.Runs())
+	})
+	mux.HandleFunc("/api/runs/", func(w http.ResponseWriter, r *http.Request) {
+		run, err := store.Run(strings.TrimPrefix(r.URL.Path, "/api/runs/"))
+		if err != nil {
+			writeErr(w, http.StatusNotFound, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, run)
 	})
 	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (reporte.html, sus fotos, el script).
 	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))

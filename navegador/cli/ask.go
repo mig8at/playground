@@ -91,7 +91,7 @@ func ask(args []string) error {
 	if err != nil {
 		return err
 	}
-	if path, err := writeReport(goal, oneLine(outcome.Text, 400)); err == nil {
+	if path, err := writeReportInfo(outcome.reportInfo(goal, "ask")); err == nil {
 		fmt.Printf("\npaso a paso, con una foto por paso: %s\n", path)
 	}
 	fmt.Println("el script de Playwright: bin/navegador script")
@@ -536,4 +536,13 @@ func askUser(prompt string) string {
 	fmt.Fprint(tty, prompt)
 	line, _ := bufio.NewReader(tty).ReadString('\n')
 	return strings.TrimSpace(line)
+}
+
+// reportInfo es lo que va al run.json de la corrida (la lista de corridas de la interfaz lo muestra).
+func (o askOutcome) reportInfo(goal, source string) map[string]any {
+	return map[string]any{
+		"meta": goal, "resultado": o.Text, "palabra": o.Final(), "vueltas": o.Rounds, "usd": o.Cost, "turnos": o.Turns,
+		"seg": o.Seconds, "modelo": o.Model, "origen": source,
+		"tokens": map[string]int{"entrada": o.Tokens.Input, "cache_leida": o.Tokens.CacheRead, "cache_escrita": o.Tokens.CacheCreate, "salida": o.Tokens.Output},
+	}
 }

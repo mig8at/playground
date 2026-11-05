@@ -19,10 +19,17 @@
   --control-box: #2563eb;
   --control-box-fill: rgb(37 99 235 / .14);
   --control-box-ink: #ffffff;
+  /* Cómo terminó una corrida: LISTO, NO PUDE, NECESITO/CONFIRMAR. Relleno con tinta blanca (≥ 4,5:1 en los dos). */
+  --kw-ok: #15803d;
+  --kw-bad: #b91c1c;
+  --kw-ask: #a16207;
+  --kw-ink: #ffffff;
+  --kw-ok-ink: #15803d;
 }
 .dark {
   --status-bad: #f87171;
   --status-warn: #fbbf24;
+  --kw-ok-ink: #4ade80;
 }
 
 /* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */

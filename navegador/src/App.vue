@@ -12,17 +12,46 @@ import {
   readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 import RegionMenu from './RegionMenu.vue'
+import RunViewer from './RunViewer.vue'
 
-// ── la ruta: #/<sitio>?page=<id> ──
+// ── la ruta: #/corrida/<id> (una corrida) o #/<sitio>?page=<id> (el explorador de sitios) ──
 const route = readHashRoute()
-const siteSlug = ref(route.parts[0] || '')
+const runId = ref(route.parts[0] === 'corrida' ? route.parts[1] || '' : '')
+const siteSlug = ref(route.parts[0] === 'corrida' ? '' : route.parts[0] || '')
 const pageId = ref(route.params.get('page') || '')
-function writeRoute(push) { setRoute(hashRoute(siteSlug.value ? [siteSlug.value] : [], { page: pageId.value }), { push }) }
+function writeRoute(push) {
+  if (runId.value) return setRoute(hashRoute(['corrida', runId.value]), { push })
+  setRoute(hashRoute(siteSlug.value ? [siteSlug.value] : [], { page: pageId.value }), { push })
+}
 function onHashChange() {
   const r = readHashRoute()
-  siteSlug.value = r.parts[0] || ''
+  runId.value = r.parts[0] === 'corrida' ? r.parts[1] || '' : ''
+  siteSlug.value = r.parts[0] === 'corrida' ? siteSlug.value : r.parts[0] || ''
   pageId.value = r.params.get('page') || ''
 }
+
+// ── las corridas: lo que hizo ask (o una sesión a mano con su reporte), con su paso a paso ──
+// El sidebar tiene dos pestañas: Corridas (lo de todos los días) y Sitios (el explorador del principio).
+const sideTab = ref(readPref('navegador.side-tab', 'runs'))
+watch(sideTab, (v) => savePref('navegador.side-tab', v))
+const runs = ref([])
+const runData = ref(null)
+const runLoadError = ref('')
+async function loadRuns() {
+  try { runs.value = await api('/api/runs') } catch { /* la API se cae al reiniciar */ }
+}
+async function loadRun(id) {
+  runData.value = null
+  runLoadError.value = ''
+  if (!id) return
+  try { runData.value = await api(`/api/runs/${encodeURIComponent(id)}`) } catch (e) { runLoadError.value = e.message }
+}
+function pickRun(id) { runId.value = id; auxOpen.value = true; saveSize('navegador.aux-open', 1) }
+function closeRun() { runId.value = '' }
+const KW_CLASS = { LISTO: 'kw-ok', 'NO PUDE': 'kw-bad', NECESITO: 'kw-ask', CONFIRMAR: 'kw-ask' }
+const fmtRunDate = (t) => (t ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
+async function copyRunScript() { if (runData.value?.script) copyText(runData.value.script, 'run-script') }
+watch(runId, (id) => { writeRoute(true); loadRun(id) })
 
 async function api(path, opts = {}) {
   const res = await fetch(path, opts)
@@ -72,7 +101,7 @@ async function removeSite(s) {
     sitesError.value = e.message
   }
 }
-function pickSite(slug) { siteSlug.value = slug; pageId.value = ''; expandSite(slug, true) }
+function pickSite(slug) { runId.value = ''; siteSlug.value = slug; pageId.value = ''; expandSite(slug, true) }
 const site = computed(() => sites.value.find((s) => s.slug === siteSlug.value))
 
 // ── el mapa del sitio ──
@@ -107,6 +136,7 @@ const storedPage = computed(() => pages.value.find((p) => p.id === pageId.value)
 // Con la sesión en vivo, «la página» es la que está abierta en ese navegador, tal como se analizó por última vez.
 const page = computed(() => (isLive.value && liveState.value.page ? liveState.value.page : storedPage.value))
 function pickPage(id) {
+  runId.value = ''
   pageId.value = id
   auxOpen.value = true
   saveSize('navegador.aux-open', 1)
@@ -605,7 +635,7 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.va
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-    { size: auxOpen.value && page.value ? auxW.value : 0, min },
+    { size: auxOpen.value && (runId.value ? runData.value : page.value) ? auxW.value : 0, min },
     { size: sidebarOpen.value ? sidebarW.value : 0, min },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [
@@ -693,8 +723,13 @@ onMounted(async () => {
   for (const slug of expandedSites.value) if (sites.value.some((x) => x.slug === slug)) loadPages(slug)
   poll()
   pollLive()
+  loadRuns()
+  loadRun(runId.value)
+  runsTimer = setInterval(loadRuns, 8000)
 })
+let runsTimer = null
 onBeforeUnmount(() => {
+  clearInterval(runsTimer)
   clearTimeout(liveTimer)
   closeFrames()
   resizeObs?.disconnect()
@@ -710,10 +745,15 @@ onBeforeUnmount(() => {
     <!-- SIDEBAR · el explorador: un solo árbol, cada sitio es una raíz y sus páginas cuelgan adentro -->
     <aside v-show="shown.sidebar" class="sidebar" aria-label="Explorador">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
-      <div class="region-head">
-        <span>Explorador</span>
-        <span class="count" :class="{ filtered: filter }">{{ sites.length }}</span>
-        <div class="region-actions">
+      <nav class="tabs">
+        <button type="button" class="tab" :class="{ on: sideTab === 'runs' }" @click="sideTab = 'runs'">Corridas <span class="count">{{ runs.length }}</span></button>
+        <button type="button" class="tab" :class="{ on: sideTab === 'sites' }" @click="sideTab = 'sites'">Sitios <span class="count" :class="{ filtered: filter }">{{ sites.length }}</span></button>
+        <div v-if="sideTab === 'runs'" class="region-actions">
+          <button type="button" class="region-action" title="Volver a leer las corridas" aria-label="Volver a leer las corridas" @click="loadRuns">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+        </div>
+        <div v-else class="region-actions">
           <button type="button" class="region-action" :aria-pressed="filtering" title="Filtrar páginas" aria-label="Filtrar páginas" @click="toggleFilter">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
           </button>
@@ -722,8 +762,15 @@ onBeforeUnmount(() => {
           </button>
           <RegionMenu :items="treeMenu" :active="grouping !== 'folders' || !showPending" @select="onTreeMenu" />
         </div>
+      </nav>
+      <div v-if="sideTab === 'runs'" class="region-body">
+        <p v-if="!runs.length" class="none">Todavía no hay corridas con reporte. Aparecen cuando termina un <code>bin/navegador ask</code>, una corrida de evals o un <code>bin/navegador report</code>.</p>
+        <button v-for="r in runs" :key="r.id" type="button" class="row stacked run-row" :class="{ on: r.id === runId }" @click="pickRun(r.id)">
+          <span class="run-row-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="run-row-meta">{{ r.meta || '(sin meta)' }}</span></span>
+          <span class="row-desc">{{ r.sitio }} · {{ fmtRunDate(r.fecha) }}<template v-if="r.usd"> · US$ {{ r.usd.toFixed(2) }}</template> · {{ r.pasos }} pasos<template v-if="r.fallidos"> ({{ r.fallidos }} ✗)</template></span>
+        </button>
       </div>
-      <div class="region-body">
+      <div v-else class="region-body">
         <div class="tree-top">
           <form class="add" @submit.prevent="addSite">
             <input v-model="newURL" class="input input-sm" placeholder="Pegá una URL para agregar y explorar" aria-label="URL de entrada del sitio" />
@@ -785,7 +832,21 @@ onBeforeUnmount(() => {
 
     <!-- EDITOR · la captura entera de la página con su resumen arriba; sin página, el resumen del sitio -->
     <main class="editor">
-      <div v-if="isLive" class="region-head live-head">
+      <div v-if="runId" class="region-head">
+        <span class="ellipsis">Corrida · {{ runData?.corrida?.meta || runId }}</span>
+        <div class="region-actions">
+          <a class="region-action" :href="`/api/corridas/${runId}/reporte.html`" target="_blank" rel="noopener" title="Abrir el reporte en una pestaña" aria-label="Abrir el reporte en una pestaña">
+            <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+          </a>
+          <button type="button" class="region-action" :disabled="!runData?.script" :title="copied === 'run-script' ? 'Copiado' : 'Copiar el script de Playwright'" aria-label="Copiar el script de Playwright" @click="copyRunScript">
+            <span class="ui-icon" :data-icon="copied === 'run-script' ? 'check' : 'code'" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Cerrar la corrida" aria-label="Cerrar la corrida" @click="closeRun">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div v-else-if="isLive" class="region-head live-head">
         <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')">
           <span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span>
         </button>
@@ -831,7 +892,12 @@ onBeforeUnmount(() => {
           </template>
         </div>
       </div>
-      <div ref="editorBody" class="region-body" :class="{ 'live-body': isLive }">
+      <div v-if="runId" class="region-body run-body">
+        <div v-if="runLoadError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-title">{{ runLoadError }}</div></div>
+        <RunViewer v-else-if="runData" :run="runData" />
+        <div v-else class="empty"><div class="empty-desc">Leyendo la corrida…</div></div>
+      </div>
+      <div v-show="!runId" ref="editorBody" class="region-body" :class="{ 'live-body': isLive }">
         <div v-if="runError" class="alert alert-destructive" role="alert">
           <span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span>
           <div class="alert-title">{{ runError }}</div>
@@ -947,7 +1013,31 @@ onBeforeUnmount(() => {
     </main>
 
     <!-- SIDEBAR SECUNDARIO · la ficha de la página: lo que se sabe de ella -->
-    <aside v-if="shown.aux" class="auxiliarybar" aria-label="Ficha de la página">
+    <aside v-if="shown.aux && runId && runData" class="auxiliarybar" aria-label="Ficha de la corrida">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head"><span>Corrida</span></div>
+      <div class="region-body">
+        <div class="card">
+          <dl class="facts">
+            <dt>Terminó</dt><dd><span class="badge badge-xs kw" :class="KW_CLASS[runData.corrida.palabra] || 'kw-none'">{{ runData.corrida.palabra || '—' }}</span></dd>
+            <dt>Sitio</dt><dd>{{ runData.corrida.sitio }}</dd>
+            <dt>Desde</dt><dd class="ellipsis" :title="runData.corrida.inicio">{{ runData.corrida.inicio }}</dd>
+            <dt>Origen</dt><dd>{{ runData.corrida.origen || '—' }}</dd>
+            <template v-if="runData.corrida.usd"><dt>Costo</dt><dd>US$ {{ runData.corrida.usd.toFixed(4) }} · {{ runData.corrida.turnos }} turnos · {{ Math.round(runData.corrida.seg || 0) }} s</dd></template>
+            <template v-if="runData.corrida.modelo"><dt>Modelo</dt><dd>{{ runData.corrida.modelo }}</dd></template>
+            <template v-if="runData.corrida.tokens?.salida"><dt>Tokens</dt><dd>{{ runData.corrida.tokens.cache_leida }} de caché · {{ runData.corrida.tokens.cache_escrita }} a caché · {{ runData.corrida.tokens.salida }} de salida</dd></template>
+          </dl>
+        </div>
+        <div class="region-head group"><span>Fuentes consultadas</span><span class="count">{{ (runData.fuentes || []).length }}</span></div>
+        <p v-if="!(runData.fuentes || []).length" class="none">Ninguna.</p>
+        <a v-for="(f, i) in runData.fuentes || []" :key="i" class="row stacked source-row" :href="f.url" target="_blank" rel="noopener noreferrer">
+          <span>{{ f.title || f.url }}</span>
+          <span class="row-desc">{{ f.url }}<template v-if="f.updated"> · {{ f.updated }}</template></span>
+        </a>
+      </div>
+    </aside>
+
+    <aside v-else-if="shown.aux && !runId" class="auxiliarybar" aria-label="Ficha de la página">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
         <span>Página</span>
@@ -1231,6 +1321,16 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .act-row { display: flex; gap: var(--space-2) }
 .act-row .input { flex: 1; min-width: 0 }
 .log-line[data-kind="ok"] .what { color: var(--foreground) }
+/* las corridas */
+.run-body { container-type: inline-size }
+.run-row-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
+.run-row-meta { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.kw { flex: none }
+.kw-ok { background: var(--kw-ok); color: var(--kw-ink) }
+.kw-bad { background: var(--kw-bad); color: var(--kw-ink) }
+.kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
+.kw-none { background: var(--hover); color: var(--fg-2) }
+.source-row { text-decoration: none; color: inherit }
 .notice-inline { color: var(--status-warn) }
 .notice-line { color: var(--status-warn) }
 .control-box.k-scroll { border-style: dotted }

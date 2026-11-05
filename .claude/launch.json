@@ -344,6 +344,16 @@
       ],
       "cwd": "navegador",
       "port": 5202
+    },
+    {
+      "name": "navegador-prueba",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "(cd .. && NAVEGADOR_DATA=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/nav-ui go run ./navegador/server -serve 127.0.0.1:5213) & NAVEGADOR_WEB=5212 NAVEGADOR_API=http://127.0.0.1:5213 npx vite"
+      ],
+      "cwd": "navegador",
+      "port": 5212
     }
   ]
 }

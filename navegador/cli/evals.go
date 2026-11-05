@@ -85,7 +85,7 @@ func evals(args []string) error {
 		}
 		fmt.Printf("  %s %s\n", mark, r.why)
 		// El paso a paso de cada caso, con sus fotos: sobre todo para entender uno que falló.
-		if path, err := writeReport(c.Goal, oneLine(r.outcome.Text, 400)); err == nil {
+		if path, err := writeReportInfo(r.outcome.reportInfo(c.Goal, "evals · "+c.Name)); err == nil {
 			r.report = path
 			fmt.Printf("    paso a paso: %s\n", path)
 		}
