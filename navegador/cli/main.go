@@ -15,11 +15,11 @@
 //	bin/navegador text [buscar]                  el texto visible (o si aparece `buscar`)
 //	bin/navegador wait <texto> [segundos]        espera a que el texto se vea (queda como aserción en el script)
 //	bin/navegador value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
-//	bin/navegador download <n|texto|url>         baja un enlace o la imagen que envuelve (a .data/descargas)
-//	bin/navegador images                         las imágenes visibles: tamaño, archivo y texto alternativo
-//	bin/navegador read [--desde N|--buscar t]    el contenido principal, legible, con la fecha de actualización (investigar)
-//	bin/navegador readfile <ruta> [--buscar t]   lee un documento descargado (un PDF, con pdftotext)
-//	bin/navegador media [--afirmar]              si los videos/audios suenan; con --afirmar espera que avance y queda como aserción
+//	bin/navegador download <n|texto|url>         baja lo que apunta un enlace (un export, un reporte) a .data/descargas
+//	bin/navegador read [--desde N|--buscar t]    el texto de la pantalla, legible: los textos de ayuda de una configuración
+//	bin/navegador point <n> '<instrucción>'      modo guía: marca el elemento en la página en vivo y espera a que la
+//	                                             persona lo haga (guide.go del servidor)
+//	bin/navegador cambios                        lo que cambió en cada campo desde el último guardar (antes → después)
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador report [meta]                  el paso a paso con una foto por paso (md, html y script)
@@ -42,8 +42,8 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -100,6 +100,10 @@ func main() {
 		err = act(cmd, args, false)
 	case "fill", "select", "press", "upload", "drag":
 		err = act(cmd, args, true)
+	case "point":
+		err = point(args)
+	case "cambios":
+		err = changes()
 	case "dialog":
 		if len(args) < 1 || (args[0] != "accept" && args[0] != "dismiss") {
 			usage()
@@ -118,8 +122,14 @@ func main() {
 		if len(args) < 1 {
 			usage()
 		}
+		if err = guideRefuses("goto"); err != nil {
+			break
+		}
 		err = nav("goto", args[0])
 	case "back", "forward", "reload":
+		if err = guideRefuses(cmd); err != nil {
+			break
+		}
 		err = nav(cmd, "")
 	case "text":
 		err = text(args)
@@ -129,21 +139,8 @@ func main() {
 		err = value(args)
 	case "download":
 		err = download(args)
-	case "media":
-		if len(args) > 0 && args[0] == "--afirmar" {
-			var step struct{ Code, Note string }
-			if err = call(http.MethodPost, "/api/live/media-expect", nil, &step); err == nil {
-				fmt.Printf("✓ %s\n  %s\n", step.Code, step.Note)
-			}
-		} else {
-			err = media()
-		}
-	case "images":
-		err = images()
 	case "read":
 		err = read(args)
-	case "readfile":
-		err = readFile(args)
 	case "shot":
 		err = shot(args)
 	case "steps":
@@ -171,7 +168,8 @@ func usage() {
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media [--afirmar] · read [--desde N | --buscar texto] · readfile <ruta> [--flujo] [--buscar texto] · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
+  point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
   steps · script · report [meta] · reset
   ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
@@ -606,6 +604,18 @@ func act(action string, args []string, needsValue bool) error {
 	if len(args) < 1 || (needsValue && len(args) < 2) {
 		usage()
 	}
+	if action != "hover" {
+		if err := guideRefuses(action); err != nil {
+			return err
+		}
+	}
+	name := args[0]
+	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
+		name = lastName(n - 1)
+	}
+	if err := saveGuard(action, name); err != nil {
+		return err
+	}
 	body := map[string]any{"action": action, "version": lastVersion()}
 	// El objetivo es el número de un elemento del último look o, si no es un número, su texto visible.
 	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
@@ -648,7 +658,7 @@ func nav(action, target string) error {
 	}
 	if out.Note != "" {
 		fmt.Println(out.Note)
-		fmt.Println("(la página no cambió; un PDF se lee con: bin/navegador readfile <ruta>)")
+		fmt.Println("(la página no cambió: era una descarga)")
 		return nil
 	}
 	return look(true)
@@ -805,141 +815,6 @@ func read(args []string) error {
 	return nil
 }
 
-// readFile lee un documento descargado (PDF, o texto) con la misma paginación y búsqueda que read: mucha
-// información oficial vive en PDFs (cartillas, resoluciones).
-func readFile(args []string) error {
-	if len(args) < 1 {
-		usage()
-	}
-	path, rest := args[0], args[1:]
-	// Por defecto, con la diagramación en columnas (-layout): las tablas quedan alineadas, pero a veces parte un
-	// dato en renglones (el mes de su día). --flujo lee en el orden del texto; cruzar las dos vistas lo resuelve.
-	layout := "-layout"
-	for _, a := range rest {
-		if a == "--flujo" {
-			layout = "-raw"
-		}
-	}
-	var text string
-	if strings.HasSuffix(strings.ToLower(path), ".pdf") {
-		out, err := exec.Command("pdftotext", layout, path, "-").Output()
-		if err != nil {
-			return fmt.Errorf("leer el PDF (hace falta pdftotext, de poppler): %v", err)
-		}
-		text = string(out)
-	} else {
-		b, err := os.ReadFile(path)
-		if err != nil {
-			return err
-		}
-		text = string(b)
-	}
-	var lines []string
-	for _, l := range strings.Split(text, "\n") {
-		if l = strings.TrimRight(l, " \t\f"); strings.TrimSpace(l) != "" {
-			lines = append(lines, l)
-		}
-	}
-	fmt.Printf("%s · %d líneas\n\n", filepath.Base(path), len(lines))
-	from, query := 0, ""
-	for i := 0; i < len(rest); i++ {
-		switch rest[i] {
-		case "--desde":
-			if i+1 < len(rest) {
-				from, _ = strconv.Atoi(rest[i+1])
-				i++
-			}
-		case "--buscar":
-			if i+1 < len(rest) {
-				query = strings.Join(rest[i+1:], " ")
-				i = len(rest)
-			}
-		}
-	}
-	if query != "" {
-		// Cada coincidencia con dos líneas antes y dos después: en un PDF el dato suele partirse en renglones.
-		shown := 0
-		for i, l := range lines {
-			if !strings.Contains(fold(l), fold(query)) {
-				continue
-			}
-			lo, hi := max(0, i-2), min(len(lines), i+3)
-			fmt.Printf("— línea %d\n%s\n", i, strings.Join(lines[lo:hi], "\n"))
-			if shown++; shown >= 20 {
-				break
-			}
-		}
-		if shown == 0 {
-			fmt.Printf("(el documento no menciona «%s»)\n", query)
-		}
-		return nil
-	}
-	budget, i := 9000, from
-	for ; i < len(lines) && budget > 0; i++ {
-		fmt.Println(lines[i])
-		budget -= len(lines[i])
-	}
-	if i < len(lines) {
-		fmt.Printf("\n(sigue: readfile %s --desde %d)\n", path, i)
-	}
-	return nil
-}
-
-// images lista las imágenes visibles de la página, las más grandes primero.
-func images() error {
-	var list []struct {
-		Alt     string
-		Ancho   int
-		Alto    int
-		Archivo string
-	}
-	if err := call(http.MethodGet, "/api/live/images", nil, &list); err != nil {
-		return err
-	}
-	for _, i := range list {
-		alt := i.Alt
-		if alt == "" {
-			alt = "(sin texto alternativo)"
-		}
-		fmt.Printf("%4d×%-4d %s · %s\n", i.Ancho, i.Alto, trim(i.Archivo, 60), trim(alt, 60))
-	}
-	return nil
-}
-
-// media dice si los videos y audios de la página están sonando, por dónde van y cuánto duran.
-func media() error {
-	var list []struct {
-		Tipo       string
-		Sonando    bool
-		Segundo    float64
-		Duracion   *float64
-		Silenciado bool
-	}
-	if err := call(http.MethodGet, "/api/live/media", nil, &list); err != nil {
-		return err
-	}
-	if len(list) == 0 {
-		fmt.Println("no hay videos ni audios en la página")
-		return nil
-	}
-	for i, m := range list {
-		dur := "?"
-		if m.Duracion != nil {
-			dur = fmt.Sprintf("%.0f s", *m.Duracion)
-		}
-		state := "en pausa"
-		if m.Sonando {
-			state = "SONANDO"
-		}
-		mute := ""
-		if m.Silenciado {
-			mute = " · silenciado"
-		}
-		fmt.Printf("%d %s · %s · va por %.1f s de %s%s\n", i+1, m.Tipo, state, m.Segundo, dur, mute)
-	}
-	return nil
-}
-
 // value lee el valor de un campo; con un esperado, lo compara y queda como aserción (toHaveValue).
 func value(args []string) error {
 	if len(args) < 1 {
@@ -1050,4 +925,91 @@ func trim(s string, n int) string {
 		return string(r[:n-1]) + "…"
 	}
 	return s
+}
+
+// ── modo guía y cambios ──
+
+// guideRefuses: con NAVEGADOR_GUIDE=1 (ask --guia) Claude no toca la página: la persona lo hace y él marca con
+// point. Mirar, leer, bajar y pasar el mouse sí.
+func guideRefuses(action string) error {
+	if os.Getenv("NAVEGADOR_GUIDE") != "1" {
+		return nil
+	}
+	return fmt.Errorf("modo guía: no hacés %s vos. Marcá el elemento con `point <n> '<qué tiene que hacer>'` y esperá a que la persona lo haga", action)
+}
+
+// approvalFile lo escribe ask cuando la persona contesta que sí a un CONFIRMAR, y lo borra al terminar esa vuelta.
+func approvalFile() string { return filepath.Join(must(os.UserCacheDir()), "navegador", "aprobado") }
+
+var savesLike = regexp.MustCompile(`(?i)^\s*(guardar|save|publicar|publish|activar|activate|desactivar|deactivate|confirmar|confirm|aplicar|apply|enviar|send|conectar|connect|desconectar|eliminar|borrar|delete|remove|pagar|pay|comprar|buy)`)
+
+// saveGuard frena, cuando la maneja Claude (ask), un clic que guarda, activa, envía o borra algo en un sitio
+// REAL sin un sí de la persona en esta vuelta. Lo decide el CLI, no el modelo: un panel de un comercio es
+// producción, y «ya lo había confirmado antes» no alcanza.
+func saveGuard(action, name string) error {
+	if os.Getenv("NAVEGADOR_ASK") != "1" || (action != "click" && action != "dblclick") || !savesLike.MatchString(name) {
+		return nil
+	}
+	var st liveState
+	if err := call(http.MethodGet, "/api/live/state", nil, &st); err != nil || isPractice(st.URL) {
+		return err
+	}
+	if _, err := os.Stat(approvalFile()); err == nil {
+		return nil
+	}
+	return fmt.Errorf("«%s» cambia algo en un sitio real y la persona todavía no dijo que sí: terminá con CONFIRMAR, con lo que va a cambiar (`cambios`)", name)
+}
+
+func point(args []string) error {
+	if len(args) < 2 {
+		usage()
+	}
+	body := map[string]any{"version": lastVersion(), "instruction": strings.Join(args[1:], " ")}
+	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {
+		body["control"] = n - 1
+		body["name"] = lastName(n - 1)
+	} else {
+		body["text"] = args[0]
+	}
+	fmt.Println("esperando a la persona (hasta 100 s)…")
+	var res struct {
+		Done bool
+		How  string
+		Code string
+	}
+	if err := call(http.MethodPost, "/api/live/guide", body, &res); err != nil {
+		return err
+	}
+	if !res.Done {
+		fmt.Printf("✗ %s\n\n", res.How)
+	} else {
+		fmt.Printf("✓ %s", res.How)
+		if res.Code != "" {
+			fmt.Printf(" · %s", res.Code)
+		}
+		fmt.Print("\n\n")
+	}
+	return look(true)
+}
+
+func changes() error {
+	var list []struct{ Campo, Antes, Despues string }
+	if err := call(http.MethodGet, "/api/live/changes", nil, &list); err != nil {
+		return err
+	}
+	if len(list) == 0 {
+		fmt.Println("sin cambios en campos desde el último guardar")
+		return nil
+	}
+	for _, c := range list {
+		fmt.Printf("  «%s»: %s → %s\n", c.Campo, quoteOrEmpty(c.Antes), quoteOrEmpty(c.Despues))
+	}
+	return nil
+}
+
+func quoteOrEmpty(s string) string {
+	if s == "" {
+		return "(vacío)"
+	}
+	return "«" + s + "»"
 }

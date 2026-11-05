@@ -36,6 +36,9 @@ type evalCase struct {
 	MustSay   []string `json:"debe_decir"` // para investigar: lo que la respuesta tiene que mencionar
 	External  bool     `json:"externo"`
 	Device    string   `json:"dispositivo"` // movil o escritorio (por defecto)
+	// estado: una expresión JS que tiene que dar true en la página al terminar (lo que quedó GUARDADO en un
+	// panel, no lo que Claude dice que hizo). La evalúa la suite; Claude no tiene cómo correr JS.
+	State string `json:"estado"`
 }
 
 type evalResult struct {
@@ -169,6 +172,27 @@ func runCase(root string, c evalCase, verbose bool) evalResult {
 				return r
 			}
 		}
+	}
+	// Lo que quedó guardado de verdad: con un «sí», la configuración pedida; con un «no», nada cambiado.
+	if c.State != "" {
+		var got struct{ OK bool }
+		if err := call(http.MethodPost, "/api/live/check", map[string]string{"js": c.State}, &got); err != nil {
+			r.why = "comprobar el estado: " + err.Error()
+			return r
+		}
+		if !got.OK {
+			r.why = fmt.Sprintf("terminó en %s, pero lo guardado no es lo esperado (%s) · %s", outcome.Final(), oneLine(c.State, 90), oneLine(outcome.Text, 120))
+			return r
+		}
+	}
+	if (first == "CONFIRMAR" || first == "NECESITO") && affirmative.MatchString(answer) {
+		if outcome.Final() != "LISTO" {
+			r.why = fmt.Sprintf("con la respuesta «%s» terminó en %s, se esperaba LISTO · %s", answer, outcome.Final(), oneLine(outcome.Text, 140))
+			return r
+		}
+		r.ok = true
+		r.why = fmt.Sprintf("frenó con %s, siguió con «%s» y lo guardado es lo esperado", first, answer)
+		return r
 	}
 	if first == "CONFIRMAR" || first == "NECESITO" {
 		if outcome.Final() == "LISTO" {

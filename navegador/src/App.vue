@@ -78,6 +78,9 @@ watch(sideTab, (v) => { if (v === 'evals') loadEvals() })
 
 // ── una meta lanzada desde acá: la API corre bin/navegador ask y junta lo que va diciendo (server/ask.go) ──
 const askGoal = ref('')
+// Guía: Claude marca cada paso en la página y la persona lo hace. Hacerlo: Claude actúa y frena antes de guardar.
+const askMode = ref(readPref('navegador.ask-mode', 'guide'))
+watch(askMode, (v) => savePref('navegador.ask-mode', v))
 const askURL = ref('')
 const askState = ref({ running: false, waiting: false, meta: '', eventos: [] })
 const askEvents = ref([])
@@ -102,7 +105,7 @@ async function launchAsk() {
   askBusy.value = true
   askError.value = ''
   try {
-    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: askGoal.value, url: askURL.value.trim(), device: devicePref.value }) })
+    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: askGoal.value, url: askURL.value.trim(), device: devicePref.value, modo: askMode.value }) })
     askEvents.value = []
     runId.value = '' // el editor pasa a mostrar el navegador en vivo
     auxOpen.value = true
@@ -122,6 +125,29 @@ async function stopAsk() {
   try { await api('/api/ask/stop', { method: 'POST' }); pollAsk() } catch (e) { askError.value = e.message }
 }
 const showAgent = computed(() => !runId.value && (askState.value.running || askEvents.value.length > 0))
+// El paso de la guía que espera a la persona, marcado sobre la página en vivo.
+const guide = computed(() => (isLive.value ? liveState.value.guide : null))
+const guideStyle = computed(() => {
+  const g = guide.value
+  if (!g?.box || !g.view?.w) return null
+  const pct = (n, d) => `${(n / d) * 100}%`
+  return { left: pct(g.box.x, g.view.w), top: pct(g.box.y, g.view.h), width: pct(g.box.w, g.view.w), height: pct(g.box.h, g.view.h) }
+})
+const guideNote = ref('')
+const guideStuck = ref(false)
+async function answerGuide(done) {
+  try {
+    await api('/api/live/guide/answer', { method: 'POST', body: JSON.stringify({ done, note: done ? '' : guideNote.value }) })
+    guideNote.value = ''
+    guideStuck.value = false
+    pollLive()
+  } catch (e) { liveError.value = e.message }
+}
+// Un comando de la guía en el panel del agente: «navegador point 5 'Abrí Pagos'» se muestra como la instrucción.
+function guideText(cmd) {
+  const m = cmd.match(/^navegador point\s+(?:\S+|'[^']*')\s+'((?:[^']|'\\'')*)'\s*$/)
+  return m ? m[1] : ''
+}
 // La pregunta pendiente: el texto de la última vuelta (el que terminó con NECESITO o CONFIRMAR).
 const askQuestion = computed(() => {
   if (!askState.value.waiting) return ''
@@ -271,7 +297,7 @@ const isMobile = computed(() => liveState.value.device === 'mobile')
 const liveFit = computed(() => {
   const w = liveState.value.width || 1280
   const h = liveState.value.height || 800
-  const pad = isMobile.value ? 48 : 16
+  const pad = (isMobile.value ? 48 : 16) + (liveState.value.guide ? 64 : 0)
   const sc = Math.min((editorBox.value.w - pad) / w, (editorBox.value.h - pad) / h, 1)
   return sc > 0 ? { width: `${Math.floor(w * sc)}px`, height: `${Math.floor(h * sc)}px` } : {}
 })
@@ -877,7 +903,11 @@ onBeforeUnmount(() => {
       </nav>
       <div v-if="sideTab === 'runs'" class="region-body">
         <form class="ask-form" @submit.prevent="launchAsk">
-          <textarea v-model="askGoal" class="input ask-goal" rows="3" placeholder="La meta, como se la dirías a alguien: «averiguá hasta cuándo hay descuento en el predial de Bogotá»" aria-label="La meta" @keydown.enter.exact.prevent="launchAsk"></textarea>
+          <textarea v-model="askGoal" class="input ask-goal" rows="3" placeholder="Qué querés configurar, como se lo dirías a alguien: «agregá Crédito Ya como medio de pago, en modo pruebas»" aria-label="La meta" @keydown.enter.exact.prevent="launchAsk"></textarea>
+          <div class="seg-toggle ask-mode" role="group" aria-label="Cómo trabaja">
+            <button type="button" :aria-pressed="askMode === 'guide'" title="Claude te marca cada paso en la página y vos lo hacés: aprendés el camino y queda la guía con fotos" @click="askMode = 'guide'">Guiame</button>
+            <button type="button" :aria-pressed="askMode === 'do'" title="Claude lo hace y frena antes de guardar, activar o borrar algo, con la lista de cambios" @click="askMode = 'do'">Hacelo</button>
+          </div>
           <div class="ask-form-row">
             <input v-model="askURL" class="input input-sm" type="url" placeholder="URL de arranque (vacío: la sesión abierta)" aria-label="URL de arranque" />
             <select v-model="devicePref" class="input input-sm ask-device" aria-label="Dispositivo" title="En qué dispositivo navega">
@@ -1056,7 +1086,19 @@ onBeforeUnmount(() => {
           <div class="alert-title">{{ liveError }}</div>
         </div>
 
-        <div v-if="isLive" class="live-wrap">
+        <div v-if="isLive" class="live-wrap" :class="{ guiding: guide }">
+          <!-- El paso de la guía va AFUERA de la página: encima taparía lo que la persona tiene que tocar. -->
+          <div v-if="guide" class="guide-bar" role="status" aria-live="polite">
+            <span class="guide-what">👉 {{ guide.instruction }}</span>
+            <template v-if="!guideStuck">
+              <button type="button" class="btn btn-sm" @click="answerGuide(true)">Hecho</button>
+              <button type="button" class="btn btn-ghost btn-sm" @click="guideStuck = true">No lo encuentro</button>
+            </template>
+            <form v-else class="guide-row" @submit.prevent="answerGuide(false)">
+              <input v-model="guideNote" class="input input-sm" placeholder="Qué ves (opcional)" aria-label="Qué ves" />
+              <button type="submit" class="btn btn-sm">Avisar</button>
+            </form>
+          </div>
           <div class="live-stage" :class="{ phone: isMobile }" :style="liveFit">
             <canvas ref="liveCanvas" class="live-canvas" tabindex="0" aria-label="La página en vivo: hacé clic y escribí como en un navegador"
               @click="onCanvasClick" @wheel.prevent="onCanvasWheel" @keydown="onCanvasKey"></canvas>
@@ -1068,6 +1110,9 @@ onBeforeUnmount(() => {
                 @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickedControl = c.id; openTab('actions')">
                 <span class="control-num">{{ c.id + 1 }}</span>
               </button>
+            </template>
+            <template v-if="guide">
+              <div v-if="guideStyle" :key="guide.id" class="guide-box" :style="guideStyle"></div>
             </template>
             <div v-if="pickedLive" class="act-pop" :style="{ left: liveBoxStyle(pickedLive).left, top: `calc(${liveBoxStyle(pickedLive).top} + ${liveBoxStyle(pickedLive).height} + 6px)` }"
               role="dialog" :aria-label="`Acciones de ${pickedLive.name}`" @click.stop>
@@ -1179,6 +1224,7 @@ onBeforeUnmount(() => {
         <p class="agent-goal">{{ askState.meta }}</p>
         <template v-for="e in askTimeline" :key="e.n">
           <p v-if="e.k === 'think'" class="ev-think">{{ plainText(e.t) }}</p>
+          <p v-else-if="e.k === 'act' && guideText(e.t)" class="ev-guide">👉 {{ guideText(e.t) }}</p>
           <code v-else-if="e.k === 'act'" class="ev-act">{{ e.t }}</code>
           <p v-else-if="e.k === 'look'" class="ev-note">mira la captura {{ e.t }}</p>
           <code v-else-if="e.k === 'fail' || e.k === 'err'" class="ev-fail">✗ {{ e.t }}</code>
@@ -1523,6 +1569,16 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .seg-toggle button[aria-pressed="true"] { background: var(--hover); color: var(--foreground) }
 .seg-toggle button:disabled { opacity: .5; cursor: progress }
 .ask-device { flex: none !important; width: auto }
+.ask-mode { align-self: flex-start }
+.ev-guide { font-weight: 600; line-height: 1.45 }
+/* el paso de la guía sobre la página en vivo */
+.guide-box { position: absolute; z-index: 2; pointer-events: none; border: 3px solid var(--primary); border-radius: 6px; animation: guide-pulse 1.4s ease-in-out infinite }
+@keyframes guide-pulse { 50% { outline: 6px solid color-mix(in srgb, var(--primary) 35%, transparent); outline-offset: 2px } }
+.live-wrap.guiding { grid-template-rows: auto 1fr; align-content: start; gap: var(--space-2); padding-top: var(--space-2) }
+.guide-bar { justify-self: stretch; margin: 0 var(--space-3); display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3); border: 2px solid var(--primary); border-radius: var(--radius-control); background: var(--card) }
+.guide-what { flex: 1; min-width: 0; font-weight: 600; line-height: 1.4 }
+.guide-row { display: flex; gap: var(--space-2); align-items: center }
+.guide-row .input { flex: 1; min-width: 0 }
 .live-box { pointer-events: none }
 .live-box.touch { pointer-events: auto }
 .act-pop { position: absolute; z-index: 2; width: 360px; max-width: calc(100% - 16px); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);

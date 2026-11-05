@@ -16,11 +16,16 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 ## Cuándo usar qué
 - **Lo hace Claude en esta conversación:** seguí ask.md con `bin/navegador …` desde Bash. Al final,
   `bin/navegador script` da el recorrido como prueba de Playwright.
+- **Que te guíe en un panel admin:** `bin/navegador ask --guia [--url U] "<meta>"` (o «Guiame» en la interfaz):
+  Claude marca cada paso en la página en vivo y Miguel lo hace. Sin `--guia`, lo hace Claude y frena antes de
+  guardar con `cambios`; el CLI niega guardar en un sitio real sin el sí.
 - **Que lo haga otro Claude, desde la terminal de Miguel:** `bin/navegador ask [--url U] "<meta>"` lanza
   Claude Code en modo `-p` desde una carpeta neutra, con permiso sólo para el navegador. Necesita que el Claude
   Code de consola tenga sesión propia (`claude setup-token`); si no, lo dice.
 
 ## Para practicar
+Panel Andino (http://127.0.0.1:5206, `navegador/demo-admin`) es un admin de tienda ficticio, tratado como sitio
+REAL: practicar configuraciones (medios de pago, envíos, una app en iframe) en los dos modos.
 Credidemo (http://127.0.0.1:5204, `navegador/demo`) es nuestro: una solicitud de crédito con reglas (formulario
 que habilita, términos que hay que bajar, oferta que tarda, OTP de prueba, login) y un laboratorio (`/lab/`:
 tienda con confirm(), tareas SPA, admin, reservas, widgets con iframe, Shadow DOM, hover, archivo, arrastrar).

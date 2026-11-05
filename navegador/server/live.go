@@ -70,6 +70,10 @@ type Step struct {
 	Before string `json:"before,omitempty"`
 	Box    *Box   `json:"box,omitempty"`
 	View   *Box   `json:"view,omitempty"`
+	// En el modo guía, lo que se le pidió a la persona (el paso lo hizo ella, no Claude).
+	Guide  string  `json:"guia,omitempty"`
+	Manual bool    `json:"manual,omitempty"`
+	Change *Change `json:"cambio,omitempty"` // lo que cambió en el campo (antes → después), para mostrar antes de guardar
 }
 
 // elementBox es dónde está un elemento en la ventana y el tamaño de la ventana (nil si no se ve).
@@ -122,20 +126,21 @@ type dialogSeen struct {
 
 // LiveState es lo que la interfaz y el CLI preguntan: dónde está, qué hay para tocar y qué se hizo.
 type LiveState struct {
-	Active    bool     `json:"active"`
-	Site      string   `json:"site"`
-	URL       string   `json:"url"`
-	Title     string   `json:"title"`
-	Width     int      `json:"width"`
-	Height    int      `json:"height"`
-	Device    string   `json:"device"`  // desktop · mobile
-	Version   int      `json:"version"` // sube con cada análisis nuevo
-	Analyzing bool     `json:"analyzing"`
-	Page      *Page    `json:"page,omitempty"`
-	Steps     []Step   `json:"steps"`
-	Dialogs   []string `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
-	ScrollY   float64  `json:"scrollY"`        // dónde está la pantalla: el look muestra primero lo que se ve
-	Dismiss   bool     `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
+	Active    bool      `json:"active"`
+	Site      string    `json:"site"`
+	URL       string    `json:"url"`
+	Title     string    `json:"title"`
+	Width     int       `json:"width"`
+	Height    int       `json:"height"`
+	Device    string    `json:"device"`          // desktop · mobile
+	Guide     *GuideReq `json:"guide,omitempty"` // el paso de la guía que espera a la persona
+	Version   int       `json:"version"`         // sube con cada análisis nuevo
+	Analyzing bool      `json:"analyzing"`
+	Page      *Page     `json:"page,omitempty"`
+	Steps     []Step    `json:"steps"`
+	Dialogs   []string  `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
+	ScrollY   float64   `json:"scrollY"`        // dónde está la pantalla: el look muestra primero lo que se ve
+	Dismiss   bool      `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
 }
 
 type live struct {
@@ -185,6 +190,13 @@ type live struct {
 	downloadsFlying int
 	downloads       []savedDownload
 	downloadSeq     int
+
+	// El modo guía (guide.go): el paso marcado que espera a la persona, y cuánto tocó ella la página.
+	guide        *GuideReq
+	guideSeq     int
+	guideAnswers chan guideAnswer
+	inputs       int
+	lastInput    time.Time
 }
 
 func (l *live) broadcast(frame []byte) {
@@ -488,7 +500,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device,
+		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide,
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
@@ -535,6 +547,12 @@ func (r *Runner) LiveInput(in LiveInput) error {
 		return errors.New("no hay sesión en vivo")
 	}
 	m, k := l.page.Mouse(), l.page.Keyboard()
+	if in.Type == "click" || in.Type == "up" || in.Type == "key" || in.Type == "text" {
+		l.mu.Lock()
+		l.inputs++
+		l.lastInput = time.Now()
+		l.mu.Unlock()
+	}
 	var err error
 	switch in.Type {
 	case "click":
@@ -764,6 +782,12 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	l.mu.Unlock()
 	defer func() { l.mu.Lock(); l.acting = false; l.mu.Unlock() }()
 
+	// Lo que había en el campo antes: con lo que queda después, es el cambio que se muestra antes de guardar.
+	var before string
+	tracked := action == "fill" || action == "select" || action == "check" || action == "uncheck"
+	if tracked {
+		before = fieldState(target, action)
+	}
 	var code string
 	switch action {
 	case "click":
@@ -862,6 +886,13 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		after = append(after, Step{Code: fmt.Sprintf("(await %s).saveAs('%s')", v, jsQuote(d.name)), Target: d.name, OK: d.err == nil, Error: errText(d.err), Note: note})
 	}
 	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err), Before: shown.Before, Box: shown.Box, View: shown.View}
+	if tracked && err == nil {
+		after := fieldState(target, action)
+		if isSecret(target, name) { // una llave no se muestra nunca: sólo si cambió
+			before, after = map[bool]string{true: "•••", false: ""}[before != ""], map[bool]string{true: "•••", false: ""}[after != ""]
+		}
+		step.Change = &Change{Field: name, Before: before, After: after}
+	}
 	for _, x := range after {
 		step.Note = strings.TrimPrefix(step.Note+"; "+x.Note, "; ")
 	}
@@ -1067,6 +1098,9 @@ func (r *Runner) LiveScript() string {
 		if s.Refused {
 			continue // nunca llegó a correr: en el script no dice nada
 		}
+		if s.Guide != "" {
+			fmt.Fprintf(&b, "  // guía: %s\n", strings.ReplaceAll(s.Guide, "\n", " "))
+		}
 		if s.OK && s.Raw {
 			fmt.Fprintf(&b, "  %s\n", s.Code)
 		} else if s.OK {
@@ -1173,8 +1207,8 @@ func (r *Runner) LiveValue(num int, text, expected string) (string, Step, error)
 	return value, step, nil
 }
 
-// LiveDownload baja el recurso de un elemento (un enlace, o la imagen que envuelve) o de una URL, con la sesión
-// del navegador (sirve también detrás de un login), y lo guarda en .data/descargas.
+// LiveDownload baja lo que apunta un elemento (un enlace: un export, un reporte) o una URL, con la sesión del
+// navegador (sirve también detrás de un login), y lo guarda en .data/descargas.
 func (r *Runner) LiveDownload(num int, text, rawURL string) (Step, error) {
 	l := r.liveSession()
 	if l == nil {
@@ -1189,18 +1223,6 @@ func (r *Runner) LiveDownload(num int, text, rawURL string) (Step, error) {
 			var err error
 			if cur, err = r.liveAnalyze(l); err != nil {
 				return Step{}, err
-			}
-		}
-		// Para bajar, una IMAGEN va antes que un texto: «Bandera de Colombia» es tanto la imagen como su pie de
-		// foto. Y no sólo por su texto alternativo, que en sitios reales suele faltar (la bandera de la ficha de
-		// Wikipedia tiene alt=""): también por el nombre de su archivo. Entre varias, la más grande.
-		if text != "" {
-			v, err := l.page.Evaluate(imageByTextJS, text)
-			if err != nil {
-				return Step{}, err
-			}
-			if u, _ := v.(string); u != "" {
-				target = u
 			}
 		}
 		var loc playwright.Locator
@@ -1266,97 +1288,6 @@ func downloadName(rawURL, disposition string) string {
 		}
 	}
 	return fmt.Sprintf("descarga-%d", time.Now().Unix())
-}
-
-// LiveMedia dice el estado de cada video y audio visible: si suena, por dónde va y cuánto dura.
-func (r *Runner) LiveMedia() (any, error) {
-	l := r.liveSession()
-	if l == nil {
-		return nil, errors.New("no hay sesión en vivo")
-	}
-	return l.page.Evaluate(`() => [...document.querySelectorAll('video, audio')]
-		.filter((m) => m.tagName === 'AUDIO' || (m.getBoundingClientRect().width > 0 && m.getBoundingClientRect().height > 0))
-		.map((m) => ({ tipo: m.tagName.toLowerCase(), sonando: !m.paused && !m.ended && m.readyState > 2,
-			segundo: Math.round(m.currentTime * 10) / 10, duracion: isFinite(m.duration) ? Math.round(m.duration) : null,
-			silenciado: m.muted, volumen: m.volume }))`)
-}
-
-// imageByTextJS busca la imagen visible más grande cuyo texto alternativo o nombre de archivo contenga el texto
-// (sin importar mayúsculas, acentos ni espacios contra guiones bajos) y devuelve su mejor resolución.
-const imageByTextJS = `(q) => {
-	const norm = (s) => (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[_\-\s]+/g, ' ')
-	const words = norm(q).split(' ').filter(Boolean)
-	const file = (img) => { try { return decodeURIComponent(new URL(img.currentSrc || img.src).pathname.split('/').pop()) } catch { return '' } }
-	const hits = [...document.querySelectorAll('img')].filter((img) => {
-		const r = img.getBoundingClientRect()
-		if (r.width < 2 || r.height < 2 || !img.checkVisibility()) return false
-		const hay = norm(img.alt + ' ' + img.title + ' ' + file(img))
-		return words.every((w) => hay.includes(w))
-	}).sort((a, b) => { const ra = a.getBoundingClientRect(), rb = b.getBoundingClientRect(); return rb.width * rb.height - ra.width * ra.height })
-	const img = hits[0]
-	if (!img) return ''
-	const best = (img.srcset || '').split(',').map((c) => c.trim().split(/\s+/)).filter((c) => c[0])
-		.map(([u, d]) => ({ u, w: parseFloat(d) || 1 })).sort((a, b) => b.w - a.w)[0]
-	return best ? new URL(best.u, location.href).href : (img.currentSrc || img.src)
-}`
-
-// LiveImages lista las imágenes visibles (las más grandes primero): texto alternativo, tamaño y archivo.
-func (r *Runner) LiveImages() (any, error) {
-	l := r.liveSession()
-	if l == nil {
-		return nil, errors.New("no hay sesión en vivo")
-	}
-	return l.page.Evaluate(`() => [...document.querySelectorAll('img')].map((img) => {
-		const r = img.getBoundingClientRect()
-		let file = ''
-		try { file = decodeURIComponent(new URL(img.currentSrc || img.src).pathname.split('/').pop()) } catch {}
-		return { alt: img.alt, ancho: Math.round(r.width), alto: Math.round(r.height), archivo: file, visible: r.width > 1 && r.height > 1 && img.checkVisibility() }
-	}).filter((i) => i.visible && i.ancho * i.alto >= 400).sort((a, b) => b.ancho * b.alto - a.ancho * a.alto).slice(0, 40)`)
-}
-
-// LiveMediaExpect espera a que el primer video (o audio) de la página esté sonando DE VERDAD —que el tiempo
-// avance, no sólo que no esté en pausa— y lo deja como aserción del script. Es la prueba de «se reproduce».
-func (r *Runner) LiveMediaExpect(seconds float64) (Step, error) {
-	l := r.liveSession()
-	if l == nil {
-		return Step{}, errors.New("no hay sesión en vivo")
-	}
-	if seconds <= 0 {
-		seconds = 15
-	}
-	read := func() (playing bool, t float64, found bool) {
-		v, err := l.page.Evaluate(`() => { const m = document.querySelector('video, audio'); return m ? [!m.paused && !m.ended, m.currentTime] : null }`)
-		if err != nil || v == nil {
-			return false, 0, false
-		}
-		arr, ok := v.([]any)
-		if !ok || len(arr) != 2 {
-			return false, 0, false
-		}
-		p, _ := arr[0].(bool)
-		t, _ = toFloat(arr[1])
-		return p, t, true
-	}
-	code := fmt.Sprintf("expect.poll(() => page.locator('video, audio').first().evaluate((m) => !m.paused && m.currentTime > 1), { timeout: %d }).toBe(true)", int(seconds*1000))
-	deadline := time.Now().Add(time.Duration(seconds * float64(time.Second)))
-	_, start, found := read()
-	for time.Now().Before(deadline) {
-		playing, t, ok := read()
-		found = found || ok
-		if playing && t > 1 && t > start+0.9 {
-			step := Step{Code: code, Target: "video", OK: true, Note: fmt.Sprintf("sonando: pasó de %.1f s a %.1f s", start, t)}
-			r.recordStep(l, step)
-			return step, nil
-		}
-		time.Sleep(500 * time.Millisecond)
-	}
-	why := "no hay ningún video ni audio en la página"
-	if found {
-		why = fmt.Sprintf("el video no avanzó en %.0f s (pausado, con un anuncio, o cargando)", seconds)
-	}
-	step := Step{Code: code, Target: "video", OK: false, Error: why}
-	r.recordStep(l, step)
-	return step, errors.New(why)
 }
 
 // readJS saca el contenido principal de la página como texto legible —encabezados, párrafos, listas, tablas— sin

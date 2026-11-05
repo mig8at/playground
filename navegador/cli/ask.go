@@ -26,6 +26,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"syscall"
@@ -73,6 +74,7 @@ func ask(args []string) error {
 	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
 	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
 	mobile := fs.Bool("movil", false, "en un teléfono (Pixel 7) en vez de escritorio")
+	guide := fs.Bool("guia", false, "modo guía: Claude no toca la página; marca qué hacer y la persona lo hace")
 	devFlag := fs.String("dispositivo", "", "movil o escritorio (lo usa la interfaz)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `uso: bin/navegador ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
@@ -102,7 +104,7 @@ func ask(args []string) error {
 			return err
 		}
 	}
-	outcome, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, out: os.Stdout})
+	outcome, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, guide: *guide, out: os.Stdout})
 	if err != nil {
 		return err
 	}
@@ -140,6 +142,7 @@ type askOpts struct {
 	steps  int
 	model  string
 	answer string    // si no está vacía, se contesta sola UNA vez con esto (la usan las evals)
+	guide  bool      // modo guía: Claude marca y la persona hace
 	out    io.Writer // adónde va lo que va haciendo
 }
 
@@ -153,6 +156,10 @@ type askOutcome struct {
 	Model   string
 	Tokens  tokenUsage
 }
+
+// affirmative reconoce un sí a un CONFIRMAR.
+// (Sin \b: en RE2 es sólo ASCII, y después de la «í» de «sí» no hay «límite de palabra».)
+var affirmative = regexp.MustCompile(`(?i)^\s*(s[ií]|dale|ok|okay|yes|confirmo|hacelo|hazlo|adelante|de una)([^\pL]|$)`)
 
 func normDev(d string) string {
 	if d == "mobile" {
@@ -212,7 +219,11 @@ func runAsk(o askOpts) (askOutcome, error) {
 		kind = "es un sitio de práctica"
 	}
 	// HOY: sin la fecha, no se puede decir si un plazo ya pasó o si una página habla de otro año.
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, deviceName[normDev(st.Device)], time.Now().Format("2006-01-02"))
+	mode := "hacerlo: actuás vos, y antes de guardar algo en un sitio real pedís CONFIRMAR"
+	if o.guide {
+		mode = "guía: NO tocás la página; marcás cada paso con point y la persona lo hace"
+	}
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: %s.\nMODO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, deviceName[normDev(st.Device)], mode, time.Now().Format("2006-01-02"))
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,
@@ -237,7 +248,8 @@ func runAsk(o askOpts) (askOutcome, error) {
 			argv = append(argv, "--resume", session)
 		}
 		argv = append(argv, prompt)
-		res, err := runClaude(claude, dir, argv, self, o.steps, o.out)
+		res, err := runClaude(claude, dir, argv, self, o.steps, o.out, o.guide)
+		_ = os.Remove(approvalFile()) // un sí vale para la vuelta en que se dio, no para las siguientes
 		if err != nil {
 			return outcome, err
 		}
@@ -289,6 +301,11 @@ func runAsk(o askOpts) (askOutcome, error) {
 			}
 			say(o.out, "answer", reply, fmt.Sprintf("  › respuesta: %s\n\n", reply))
 		}
+		// Un sí a un CONFIRMAR habilita, sólo para la vuelta que sigue, los clics que guardan en un sitio real.
+		if outcome.Final() == "CONFIRMAR" && affirmative.MatchString(reply) {
+			_ = os.MkdirAll(filepath.Dir(approvalFile()), 0o755)
+			_ = os.WriteFile(approvalFile(), []byte(reply), 0o600)
+		}
 		prompt = reply
 	}
 	return outcome, nil
@@ -321,10 +338,14 @@ func (t *tokenUsage) add(o tokenUsage) {
 }
 
 // runClaude corre una vuelta de claude -p y va mostrando lo que hace; corta si se pasa de acciones.
-func runClaude(claude, dir string, argv []string, self string, maxActions int, out io.Writer) (claudeResult, error) {
+func runClaude(claude, dir string, argv []string, self string, maxActions int, out io.Writer, guide bool) (claudeResult, error) {
 	cmd := exec.Command(claude, argv...)
 	cmd.Dir = dir
-	cmd.Env = childEnv()
+	// NAVEGADOR_ASK: el CLI sabe que lo maneja Claude (y frena lo que guarda sin un sí); NAVEGADOR_GUIDE: no actúa.
+	cmd.Env = append(childEnv(), "NAVEGADOR_ASK=1")
+	if guide {
+		cmd.Env = append(cmd.Env, "NAVEGADOR_GUIDE=1")
+	}
 	// En una sesión de terminal PROPIA: Claude Code es una app de terminal y, aun sin stdin, puede abrir /dev/tty
 	// y dejarla sin eco; entonces la respuesta a un NECESITO/CONFIRMAR no se ve ni se lee bien.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
@@ -457,7 +478,7 @@ func isAction(command string) bool {
 		return false
 	}
 	switch fields[1] {
-	case "look", "text", "steps", "script", "shot", "sites", "wait":
+	case "look", "text", "steps", "script", "shot", "sites", "wait", "read", "value", "cambios":
 		return false
 	}
 	return true

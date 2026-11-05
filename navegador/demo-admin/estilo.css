@@ -1,0 +1,61 @@
+/* Panel Andino: el admin ficticio de Tienda Andina (no es una herramienta del playground; tiene su propio aspecto). */
+* { box-sizing: border-box }
+body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1f2430; background: #f3f4f7 }
+a { color: #5b3df5 }
+h1 { font-size: 22px; margin: 0 0 12px } h2 { font-size: 16px; margin: 0 0 8px }
+.top { position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: 16px; height: 56px; padding: 0 16px; background: #1c1b2e; color: #fff }
+.top .marca { color: #fff; font-weight: 700; text-decoration: none; font-size: 17px }
+.top .usuario { margin-left: auto; color: #c9c6e8; white-space: nowrap }
+.menu-btn { display: none; background: none; color: #fff; font-size: 20px; padding: 4px 8px }
+.buscar { position: relative; flex: 1; max-width: 460px }
+.buscar input { width: 100%; padding: 7px 10px; border-radius: 6px; border: 0; font: inherit }
+.sugerencias { position: absolute; top: 100%; left: 0; right: 0; margin: 4px 0 0; padding: 4px; list-style: none; background: #fff; border-radius: 6px; box-shadow: 0 8px 24px rgb(0 0 0 / .18) }
+.sugerencias a { display: block; padding: 6px 8px; color: #1f2430; text-decoration: none }
+.sugerencias a:hover { background: #f0edff }
+.guardar-barra { position: sticky; top: 56px; z-index: 3; display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: #2b2a45; color: #fff }
+.guardar-barra span:first-child { margin-right: auto; font-weight: 600 }
+.guardar-barra .err { color: #fecaca; flex-basis: 100% }
+.guardar-barra[hidden] { display: none }
+.cuerpo { display: flex; min-height: calc(100vh - 56px) }
+.lateral { width: 230px; flex: none; padding: 12px 8px; background: #fff; border-right: 1px solid #e3e5ec }
+.lateral a { display: block; padding: 7px 10px; border-radius: 6px; color: #2c3140; text-decoration: none }
+.lateral a.on, .lateral a:hover { background: #f0edff; color: #3d26c9 }
+.lateral summary { padding: 7px 10px; cursor: pointer; font-weight: 600; color: #2c3140 }
+.lateral details a { padding-left: 24px }
+main { flex: 1; min-width: 0; padding: 24px; max-width: 900px }
+.caja { background: #fff; border: 1px solid #e3e5ec; border-radius: 10px; padding: 18px; margin-bottom: 14px }
+.tarjetas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px }
+.grande { font-size: 24px; font-weight: 700; margin: 4px 0 0 }
+.muted { color: #6b7080 } .ayuda { color: #6b7080; font-size: 13px; margin: 4px 0 10px }
+label { display: block; font-weight: 600; margin: 12px 0 4px }
+label.check { display: flex; gap: 8px; align-items: center; font-weight: 400 }
+input:not([type=checkbox]), select { width: 100%; padding: 8px 10px; border: 1px solid #cdd1dc; border-radius: 6px; font: inherit; background: #fff }
+fieldset { border: 1px solid #e3e5ec; border-radius: 8px; margin: 12px 0; padding: 4px 12px 10px }
+.dos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px }
+button, .boton { font: inherit; padding: 8px 14px; border: 0; border-radius: 6px; background: #5b3df5; color: #fff; cursor: pointer; text-decoration: none; display: inline-block }
+button.sec, .boton.sec { background: #e7e8ef; color: #1f2430 }
+button.peligro { background: #b42318 }
+.fila { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px }
+.proveedor { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap }
+.estado { margin-left: 8px; font-size: 12px; padding: 2px 8px; border-radius: 99px }
+.estado.si { background: #dcfce7; color: #166534 } .estado.no { background: #f1f2f6; color: #4b5060 }
+.tabs { display: flex; gap: 4px; border-bottom: 1px solid #e3e5ec; margin-bottom: 14px }
+.tabs a { padding: 8px 14px; text-decoration: none; color: #4b5060; border-bottom: 2px solid transparent }
+.tabs a[aria-selected=true] { color: #3d26c9; border-bottom-color: #5b3df5 }
+table.datos { width: 100%; border-collapse: collapse } table.datos th, table.datos td { text-align: left; padding: 8px; border-bottom: 1px solid #eceef3 }
+table.datos input { max-width: 140px }
+dialog { border: 0; border-radius: 12px; padding: 22px; width: 480px; max-width: calc(100vw - 32px); box-shadow: 0 20px 50px rgb(0 0 0 / .25) }
+dialog::backdrop { background: rgb(0 0 0 / .4) }
+.proveedores { list-style: none; padding: 0; margin: 12px 0 }
+.proveedores li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eceef3 }
+.proveedores p { margin: 2px 0 0; font-size: 13px }
+.app-marco { width: 100%; height: 360px; border: 1px solid #e3e5ec; border-radius: 10px; background: #fff }
+.aviso { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #1c1b2e; color: #fff; padding: 10px 16px; border-radius: 8px; z-index: 9 }
+@media (max-width: 760px) {
+  .menu-btn { display: block }
+  .top .usuario { display: none }
+  .lateral { display: none; position: fixed; top: 56px; bottom: 0; left: 0; z-index: 5; box-shadow: 4px 0 20px rgb(0 0 0 / .15) }
+  .menu-abierto .lateral { display: block }
+  main { padding: 16px }
+  .tarjetas, .dos { grid-template-columns: 1fr }
+}

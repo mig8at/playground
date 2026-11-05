@@ -1,10 +1,12 @@
 # navegador · reglas de trabajo
 
-> **Para qué existe:** entrar a una página con un Chromium real (playwright-go), loguearse **a mano** si
-> hace falta, y después entenderla y manejarla: qué tiene, qué es interactivo y con qué localizador de
-> Playwright se llega a cada cosa. Lo que se hace queda como **script de Playwright** y como **paso a paso con
-> fotos**. Con `bin/navegador ask`, Claude Code la maneja solo hasta cumplir una meta. No es el harness: el
-> wizard de CreditOp con datos de dominio (siembra, centrales, entidades) se prueba allá.
+> **Para qué existe:** configurar cosas en **paneles de administración** complejos (una tienda en VTEX o
+> Shopify, un backoffice) sin pelearse con la herramienta. Te logueás **a mano** en un Chromium real
+> (playwright-go) y Claude, con `bin/navegador ask`, te **guía** paso a paso marcando en la página qué tocar, o
+> **lo hace** él y frena antes de guardar con la lista de cambios. Lo que se hace queda como **script de
+> Playwright** y como **paso a paso con fotos** (una guía que se puede volver a ver). Leer o investigar páginas
+> públicas NO es para esto: Claude lo hace mejor directo. No es el harness: el wizard de CreditOp con datos de
+> dominio se prueba allá.
 
 ## Cómo está construido
 
@@ -17,7 +19,9 @@
 | Recorrido | Explora el sitio a lo ancho, sólo `<a href>` del mismo host, sin enviar formularios | `server/browser.go` |
 | En vivo | Chromium sin ventana transmitido por CDP al editor, acciones por localizador, pasos, diálogos, descargas. Dos dispositivos de tamaño fijo: **escritorio** 1280×800 (por defecto) y **móvil** (perfil Pixel 7 de Playwright: agente, táctil, densidad); el editor lo escala para que entre | `server/live.go` |
 | Reporte | El paso a paso de una corrida: md, html con una foto por paso, las fuentes consultadas, script | `server/report.go` |
-| Investigar | `read` (el contenido principal, legible, con la fecha de actualización y sus enlaces) y `readfile` (un PDF bajado, con `pdftotext`) | `server/live.go` (`readJS`), `cli/main.go` |
+| Modo guía | `point <n> '<instrucción>'` marca el elemento en la página en vivo, con la instrucción en una barra encima, y espera a la persona (su clic o su teclado, o «Hecho» / «No lo encuentro»; hasta 100 s). El paso queda con su foto de antes y la línea de Playwright de lo que se pidió | `server/guide.go`, `cli/main.go` |
+| Modo hacerlo | Claude actúa; `cambios` lista cada campo antes → después (secretos tapados) para el CONFIRMAR. Bajo `ask`, en un sitio real, el CLI **niega** Guardar/Activar/Publicar/Enviar/Eliminar… hasta que la persona dice que sí en esa vuelta | `server/guide.go` (`LiveChanges`), `cli/main.go` (`saveGuard`), `cli/ask.go` |
+| Panel Andino | Admin **ficticio** de Tienda Andina (:5206), tratado como sitio REAL: menú lateral anidado, buscador, barra «cambios sin guardar», modal de medios de pago, condiciones de pago, activar con confirm(), envíos con pestañas, una app en iframe | `demo-admin/` |
 | CLI | `bin/navegador`: maneja la sesión en vivo por consola | `cli/main.go` |
 | `ask` | Claude Code (`claude -p`) maneja la sesión hasta cumplir una meta | `cli/ask.go`, `cli/ask.md` (sus instrucciones) |
 | Meta desde la interfaz | La API corre el MISMO `bin/navegador ask` con `NAVEGADOR_EVENTS=1` (una línea JSON por evento), en su propia sesión y sin terminal: la respuesta a un NECESITO/CONFIRMAR le llega por stdin. El panel **Agente** muestra lo que piensa y hace, la pregunta con Sí/No y el resultado. Una a la vez | `server/ask.go`, `/api/ask` |
@@ -25,7 +29,7 @@
 | Credidemo | Sitio de **práctica** (:5204): solicitud de crédito con reglas + laboratorio (`/lab/`) | `demo/` |
 | Tienda Andina | Sitio ficticio que `ask` trata como **real** (:5205): consentimientos, pago, borrado | `demo-real/` |
 
-`make navegador` levanta todo (interfaz, API, Credidemo y Tienda Andina). La skill **`navegador`**
+`make navegador` levanta todo (interfaz, API, Credidemo, Tienda Andina y Panel Andino). La skill **`navegador`**
 (`.claude/skills/navegador/`) lleva el ciclo de `ask` a una conversación normal.
 
 Lo que se guarda vive en `navegador/.data/` (gitignoreado: trae sesiones abiertas): `sites.json`, y por sitio su
@@ -37,8 +41,9 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
 - **`make navegador-evals`** corre las metas de `evals/casos.json` con el mismo motor que `ask` y compara cómo
   terminaron. LISTO exige que el script se repita en un Chromium nuevo (`replay.cjs`) y tenga al menos una
   aserción que pase. CONFIRMAR/NECESITO se contestan solos con «no» y se exige que después no haya un paso sobre
-  nada de `prohibido`. En una meta de investigación, `debe_decir` exige que la respuesta traiga el dato correcto
-  (un LISTO con un dato inventado no pasa). `SOLO=`, `SIN_INTERNET=1`, `V=1`. Cada caso arranca con un
+  nada de `prohibido`. En un panel, `estado` es una expresión JS que tiene que dar true al final: lo que quedó
+  GUARDADO, no lo que Claude dice (con respuesta «sí» además tiene que terminar en LISTO). `debe_decir` exige que
+  la respuesta mencione algo. `SOLO=`, `SIN_INTERNET=1`, `V=1`. Cada caso arranca con un
   **perfil limpio**.
 - **Antes de tocar `ask.md` o el CLI, correla.** Cada corrida suma una línea a `evals/historial.jsonl` (en git
   a propósito: es la historia de la calidad de `ask`; se commitea cada tanto). Comparar **tokens**, no sólo
@@ -55,9 +60,15 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
 - **Un muro anti-bots o un captcha no se pasa**, ni se investiga cómo pasarlo. El análisis lo marca
   (`MURO ANTI-BOTS`) y es un NO PUDE. Pexels está detrás de uno (Cloudflare); Unsplash tampoco cargó
   («Something went wrong»), sin confirmar la causa.
-- **Antes de bajar algo, la licencia.** Si la página no la dice, no se asume libre. Con un buscador que filtra
-  por licencia (Internet Archive: `licenseurl:*publicdomain*`), se filtra: el primer resultado muchas veces no
-  declara nada.
+- **Guardar en un sitio real lo autoriza la persona, y lo hace cumplir el CLI** (`saveGuard`): `ask` escribe
+  `~/.cache/navegador/aprobado` cuando la persona contesta que sí a un CONFIRMAR y lo borra al terminar esa
+  vuelta. Un `press Enter` en un formulario no pasa por esa guarda: es un hueco conocido (queda la regla del prompt).
+- **En el modo guía la instrucción va AFUERA de la página** (una barra sobre el editor): encima del canvas tapaba
+  lo que la persona tenía que tocar.
+- Se sacaron la investigación de páginas públicas y las descargas de contenido (`readfile`, `images`, `media`, la
+  descarga de imágenes y sus evals): eso Claude lo hace mejor sin la herramienta. `read` queda para los textos de
+  ayuda de una pantalla; `download`, para un export o un reporte. La historia está en git (commit `2837ec3b` y
+  anteriores).
 - **Contraseñas, tarjetas y documentos reales: nunca.** El login en un sitio real lo hace Miguel a mano en la
   ventana; el perfil de Chromium lo guarda. Contra prod, sólo mirar.
 - **Un paso es una acción por localizador.** Lo que se hace a mano sobre el canvas (clics por coordenadas) no
@@ -107,17 +118,10 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
   texto sobre la foto de después. Las corridas de antes de esto se ven sin cuadro.
 - **Las fotos de los pasos esperan a que la página cargue** (con tope): sin eso salían desplegables a medio
   cerrar y videos en negro.
+- **El «sí» no se reconocía**: `\b` en Go (RE2) es sólo ASCII, y después de la «í» de «sí» no hay límite de
+  palabra. `affirmative` usa `([^\pL]|$)` (`cli/aff_test.go`).
 - **Un `look` sin tope en YouTube eran 28 000 caracteres:** muestra primero lo que está en pantalla, agrupa los
   repetidos y corta en 40 (`look --buscar`, `look --todo`).
-- **Sitios del Estado:** los ASP.NET/SharePoint envuelven la página entera en un `<form>` (si `read` salta los
-  formularios, lee vacío); con cientos de enlaces, el que se busca queda fuera del tope de 60 del análisis (`read
-  --buscar` lista los que coinciden, con su URL, y `click 'texto'` no depende del tope); «Descargue aquí…» suele
-  ser un título con el botón en el elemento siguiente, y el botón un ícono adentro de un enlace a un PDF
-  (`download` busca el enlace al lado y baja el documento, no el ícono); la «Última actualización» de la DIAN
-  dice HOY todos los días; MinTIC devolvió 520 y el SENA bloquea la sesión con un firewall (el análisis lo marca
-  como MURO ANTI-BOTS).
-- **`pdftotext -layout`** alinea las tablas pero puede separar un día de su mes: `readfile --flujo` lee en el
-  orden del texto.
 - **Son fuentes lo que se leyó o donde se hizo algo**, no cualquier página analizada de fondo (una de antes de
   un `reset` se colaba en el reporte).
 - **Un estado que dejó otra corrida contamina la prueba** (un login en la sesión en vivo): las evals abren cada

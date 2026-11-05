@@ -43,6 +43,7 @@ func main() {
 	sites := flag.Bool("sites", false, "lista los sitios")
 	demo := flag.String("demo", "", "con -serve: sirve también Credidemo, el sitio de práctica (navegador/demo), en esta dirección")
 	real := flag.String("real", "", "con -serve: sirve también Tienda Andina (navegador/demo-real), una tienda ficticia que ask trata como sitio REAL")
+	admin := flag.String("admin", "", "con -serve: sirve también Panel Andino (navegador/demo-admin), el admin ficticio de Tienda Andina, para practicar configuraciones (sitio REAL para ask)")
 	flag.Parse()
 
 	store, err := OpenStore(dataDir())
@@ -59,6 +60,9 @@ func main() {
 		}
 		if *real != "" {
 			go serveDir(*real, "demo-real", "Tienda Andina")
+		}
+		if *admin != "" {
+			go serveDir(*admin, "demo-admin", "Panel Andino")
 		}
 		if err := serve(*addr, store, runner); err != nil {
 			fail(err)
@@ -464,38 +468,62 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
-	// GET /api/live/images — las imágenes visibles, las más grandes primero.
-	mux.HandleFunc("/api/live/images", func(w http.ResponseWriter, r *http.Request) {
-		m, err := runner.LiveImages()
-		if err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, m)
-	})
-	// POST /api/live/media?segundos=15 — espera a que el video suene de verdad y queda como aserción.
-	mux.HandleFunc("/api/live/media-expect", func(w http.ResponseWriter, r *http.Request) {
-		secs, _ := strconv.ParseFloat(r.URL.Query().Get("segundos"), 64)
-		step, err := runner.LiveMediaExpect(secs)
-		if err != nil {
-			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
-			return
-		}
-		writeJSON(w, http.StatusOK, step)
-	})
-	// GET /api/live/media — el estado de los videos y audios de la página.
-	mux.HandleFunc("/api/live/media", func(w http.ResponseWriter, r *http.Request) {
-		m, err := runner.LiveMedia()
-		if err != nil {
-			writeErr(w, http.StatusConflict, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, m)
-	})
 	// DELETE /api/live/steps — empieza la lista de pasos de cero.
 	mux.HandleFunc("/api/live/steps", func(w http.ResponseWriter, r *http.Request) {
 		runner.LiveClearSteps()
 		writeJSON(w, http.StatusOK, ok)
+	})
+	// POST /api/live/guide {control|text, version, name, instruction} — modo guía: marca el elemento y espera a que
+	// la persona lo haga (hasta 100 s). POST /api/live/guide/answer {done, note} — su «Hecho» / «No lo encuentro».
+	mux.HandleFunc("/api/live/guide", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			LiveAct
+			Instruction string `json:"instruction"`
+		}
+		in.Control = -1
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		res, err := runner.LiveGuide(in.LiveAct, in.Instruction)
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
+	})
+	mux.HandleFunc("/api/live/guide/answer", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Done bool   `json:"done"`
+			Note string `json:"note"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := runner.LiveGuideAnswer(in.Done, in.Note); err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
+	})
+	// GET /api/live/changes — los campos cambiados desde el último guardar: antes → después (secretos tapados).
+	mux.HandleFunc("/api/live/changes", func(w http.ResponseWriter, r *http.Request) {
+		ch, err := runner.LiveChanges()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ch)
+	})
+	// POST /api/live/check {js} — para la suite de evals: si una expresión da true en la página (lo que quedó
+	// guardado). No tiene comando en el CLI: Claude no corre JS.
+	mux.HandleFunc("/api/live/check", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ JS string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		ok, err := runner.LiveCheck(in.JS)
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
 	})
 	// GET /api/runs — las corridas con reporte (meta, palabra final, costo), las más nuevas primero.
 	// GET /api/runs/<id> — una corrida completa: pasos con sus fotos, fuentes y script.
@@ -523,12 +551,13 @@ func handler(store *Store, runner *Runner) http.Handler {
 			URL    string `json:"url"`
 			Steps  int    `json:"pasos"`
 			Device string `json:"device"`
+			Mode   string `json:"modo"` // guide · do
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		if err := asker.Start("http://"+apiAddr, in.Goal, in.URL, in.Device, in.Steps); err != nil {
+		if err := asker.Start("http://"+apiAddr, in.Goal, in.URL, in.Device, in.Mode == "guide", in.Steps); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}

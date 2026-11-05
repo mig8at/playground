@@ -31,6 +31,7 @@ const step = computed(() => (frame.value ? steps.value[frame.value.step] : null)
 // Qué hace el paso, en palabras: sale del código de Playwright que quedó en el script.
 function describe(s) {
   if (!s) return ''
+  if (s.guia) return s.guia // en el modo guía, lo que se le pidió a la persona
   const c = s.code || ''
   const t = s.target ? `«${s.target}»` : ''
   const arg = (c.match(/\.(?:fill|selectOption|press)\('((?:[^'\\]|\\.)*)'\)\s*$/) || [])[1]
@@ -165,7 +166,8 @@ watch(cur, async () => {
       </div>
 
       <div v-if="step" class="caption" :class="{ bad: !step.ok }">
-        <div class="caption-what"><span class="mark">{{ step.ok ? '✓' : '✗' }}</span> {{ describe(step) }}</div>
+        <div class="caption-what"><span class="mark">{{ step.manual ? '👉' : step.ok ? '✓' : '✗' }}</span> {{ describe(step) }}<span v-if="step.manual" class="muted small"> · lo hizo la persona</span></div>
+        <div v-if="step.cambio" class="muted small">«{{ step.cambio.campo }}»: {{ step.cambio.antes || '(vacío)' }} → {{ step.cambio.despues || '(vacío)' }}</div>
         <div v-if="step.error" class="caption-err">{{ step.error }}</div>
         <div v-for="(d, j) in step.dialogs || []" :key="j" class="muted small">diálogo: {{ d }}</div>
         <div v-if="step.note" class="muted small">{{ step.note }}</div>
