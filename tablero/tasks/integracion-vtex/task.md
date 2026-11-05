@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: core-800-vtex-payment-link
+ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1
 ---
 
 ## Pendientes
