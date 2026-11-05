@@ -654,9 +654,11 @@ onBeforeUnmount(() => {
     <section v-if="shown.panel" class="panel" aria-label="Consola">
       <div class="rsz rsz-edge-top" v-resize="panelResize"></div>
       <nav class="tabs">
-        <button v-for="t in TABS" :key="t.id" v-show="!t.page || page" type="button" class="tab" :class="{ on: panelTab === t.id }" @click="tab = t.id">
-          {{ t.label }} <span v-if="t.page && t.count(page)" class="count">{{ t.count(page) }}</span>
-        </button>
+        <template v-for="t in TABS" :key="t.id">
+          <button v-if="!t.page || page" type="button" class="tab" :class="{ on: panelTab === t.id }" @click="tab = t.id">
+            {{ t.label }} <span v-if="t.page && t.count(page)" class="count">{{ t.count(page) }}</span>
+          </button>
+        </template>
         <div class="region-actions">
           <span v-if="state.busy" class="muted head-note">{{ busyLabel }}</span>
           <button v-if="panelTab === 'log'" type="button" class="region-action" title="Limpiar la consola" aria-label="Limpiar la consola" @click="log = []">
