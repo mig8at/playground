@@ -49,6 +49,9 @@ func ask(args []string) error {
 		os.Exit(2)
 	}
 
+	// Cada meta empieza con los pasos en cero: el script del final es SU camino, no el de la corrida anterior.
+	// Se limpia antes de navegar, así el goto a --url queda como primer paso.
+	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	if *start != "" {
 		if err := open([]string{*start}); err != nil {
 			return err

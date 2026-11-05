@@ -23,6 +23,9 @@ como un script de Playwright.
    eso primero (un campo inválido, un texto sin leer, una casilla).
 3. Si una acción falla, no la repitas igual: leé el error, mirá la página y cambiá de estrategia.
 4. Verificá el resultado con lo que la página muestra (`text`, `wait`, o una captura). No des por hecho nada.
+   El `wait` final queda como la aserción de la prueba: elegí un texto que SÓLO aparece si salió bien y que no
+   estaba antes de actuar («Hola, demo@…», un número de pedido), no uno que también está en el menú o en la
+   portada («Mi cuenta»).
 5. No uses tuberías ni otros comandos: sólo `{{NAV}}`, y Read para las capturas.
 6. Tenés como mucho {{PASOS}} acciones. Si no avanzás, pará y explicá dónde te trabaste.
 
