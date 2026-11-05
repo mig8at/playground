@@ -214,6 +214,11 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 	})
 	page.OnFrameNavigated(func(f playwright.Frame) {
 		if f.ParentFrame() == nil {
+			// Los diálogos recientes son de ESTA página: al navegar, los de la anterior se olvidan (si no, un
+			// confirm viejo se muestra como si acabara de pasar).
+			l.mu.Lock()
+			l.recentDialogs = nil
+			l.mu.Unlock()
 			l.markDirty()
 		}
 	})
@@ -686,6 +691,7 @@ func (r *Runner) LiveClearSteps() {
 	if l := r.liveSession(); l != nil {
 		l.mu.Lock()
 		l.steps = nil
+		l.recentDialogs = nil
 		l.mu.Unlock()
 	}
 }
