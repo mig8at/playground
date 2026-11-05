@@ -1,8 +1,8 @@
 <script setup>
 /* UN SERVICIO DEL PLAYGROUND EN EL EDITOR (server/services.go): un servidor de esta máquina que el equipo alcanza por
    la VPN con un nombre fijo. El interruptor lo prende (el chat levanta el programa y reinicia `playground serve`) o lo
-   apaga. Y para probarlo, un Postman chico: método, ruta, por dónde va (directo a esta máquina o por el playground,
-   como le llega al equipo), cuerpo y encabezados; la respuesta con su estado, tiempo y tamaño; y el historial, que
+   apaga. Y para probarlo, un Postman chico: método, ruta, cuerpo y encabezados, siempre por el playground (como le
+   llega al equipo); la respuesta con su estado, tiempo y tamaño; y el historial, que
    vive en este navegador. La petición la hace el servidor del chat (sin CORS) y sólo va a la dirección del servicio. */
 import { computed, ref, watch } from 'vue'
 
@@ -34,14 +34,10 @@ async function copy() {
 
 // ── la petición ──
 const METHODS = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE']
-// Por defecto, por el playground: lo que importa es que le sirva al equipo, no que ande en tu máquina.
-const VIAS = [
-  { id: 'playground', label: 'el playground' },
-  { id: 'local', label: 'esta máquina' },
-]
 const method = ref('GET')
 const path = ref('/persona')
-const via = ref('playground')
+// Siempre por el playground: lo que importa es que le sirva al equipo, no que ande en tu máquina.
+const via = 'playground'
 const reqTab = ref('body')
 const bodyText = ref('')
 const headersText = ref('')
@@ -68,11 +64,11 @@ const readHistory = () => { try { return JSON.parse(localStorage.getItem(history
 const history = ref(readHistory())
 watch(historyKey, () => { history.value = readHistory(); response.value = null })
 function remember(entry) {
-  history.value = [entry, ...history.value.filter((h) => !(h.method === entry.method && h.path === entry.path && h.via === entry.via && h.body === entry.body))].slice(0, 20)
+  history.value = [entry, ...history.value.filter((h) => !(h.method === entry.method && h.path === entry.path && h.body === entry.body))].slice(0, 20)
   try { localStorage.setItem(historyKey.value, JSON.stringify(history.value)) } catch { /* sólo no se recuerda */ }
 }
 function load(h) {
-  method.value = h.method; path.value = h.path; via.value = h.via; bodyText.value = h.body || ''; headersText.value = h.headers || ''
+  method.value = h.method; path.value = h.path; bodyText.value = h.body || ''; headersText.value = h.headers || ''
 }
 
 async function send() {
@@ -82,12 +78,12 @@ async function send() {
   try {
     const res = await fetch(`/api/services/${encodeURIComponent(props.service.alias)}/request`, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ method: method.value, path: path.value, via: via.value, headers: parseHeaders(headersText.value), body: bodyText.value }),
+      body: JSON.stringify({ method: method.value, path: path.value, via, headers: parseHeaders(headersText.value), body: bodyText.value }),
     })
     const out = await res.json()
     if (!res.ok) throw new Error(out.error || `HTTP ${res.status}`)
     response.value = out
-    remember({ method: method.value, path: path.value, via: via.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, at: new Date().toISOString() })
+    remember({ method: method.value, path: path.value, body: bodyText.value, headers: headersText.value, status: out.status || 0, at: new Date().toISOString() })
   } catch (e) { response.value = { error: e.message } } finally { sending.value = false }
 }
 function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send() }
@@ -134,9 +130,6 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
             <option v-for="m in METHODS" :key="m" :value="m">{{ m }}</option>
           </select>
           <input v-model="path" class="input input-sm path" aria-label="Ruta" placeholder="/persona" spellcheck="false" />
-          <select v-model="via" class="input input-sm via" aria-label="Por dónde va" :title="via === 'local' ? service.to : service.url">
-            <option v-for="v in VIAS" :key="v.id" :value="v.id">por {{ v.label }}</option>
-          </select>
           <button type="submit" class="btn btn-sm" :disabled="sending || !service.listening" :title="service.listening ? 'Enviar (⌘ Enter)' : 'Prendelo para probarlo'">
             {{ sending ? 'Enviando…' : 'Enviar' }}
           </button>
@@ -181,7 +174,7 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
       <aside class="history" aria-label="Historial">
         <div class="region-head group"><span>Historial</span><span class="count">{{ history.length }}</span></div>
         <p v-if="!history.length" class="note">Las peticiones que mandes quedan acá.</p>
-        <button v-for="(h, i) in history" :key="i" type="button" class="row history-row" :title="`${h.method} ${h.path} · por ${h.via === 'local' ? 'esta máquina' : 'el playground'}`" @click="load(h)">
+        <button v-for="(h, i) in history" :key="i" type="button" class="row history-row" :title="`${h.method} ${h.path}`" @click="load(h)">
           <b class="m">{{ h.method }}</b><span class="label">{{ h.path }}</span>
           <span class="row-meta" :data-kind="h.status >= 400 || !h.status ? 'bad' : 'ok'">{{ h.status || '—' }}</span>
         </button>
@@ -209,7 +202,6 @@ code, pre, .code { font-family: var(--font-mono) }
 .request-bar { display: flex; flex-wrap: wrap; gap: var(--space-2); align-items: center }
 .request-bar .method { flex: none; width: 96px; font-family: var(--font-mono) }
 .request-bar .path { flex: 1 1 180px; min-width: 0; font-family: var(--font-mono) }
-.request-bar .via { flex: none; width: 150px }
 .code { width: 100%; font-size: var(--text-sm); resize: vertical }
 .response { display: flex; flex-direction: column; gap: var(--space-2); border-top: 1px solid var(--border); padding-top: var(--space-3) }
 .response-head { display: flex; align-items: center; gap: var(--space-3); min-width: 0 }
