@@ -88,7 +88,9 @@ var canonIntegratorSystem = "Sos el INTEGRADOR: recibís las piezas ya verificad
 Compará las piezas de distintos temas que comparten archivos: la misma regla contada distinto (decí cuál es la cierta, comprobándola ` +
 	`en main), la misma regla escrita en dos temas (la segunda debería enlazar a la primera con [[tema/context#ancla]]), un enlace a ` +
 	`una sección que otra pieza renombró, y un «verificado» de un tema que contradice la corrección de otro. Por cada problema, una ` +
-	`línea exacta «INTEGRACIÓN: P<n>, P<m> | <el problema> | <la corrección exacta>». Si no hay ninguno, una línea «INTEGRACIÓN: ninguna». ` + sweepRules
+	`línea exacta «INTEGRACIÓN: <sólo las piezas que HAY QUE CAMBIAR> | <el problema, nombrando si hace falta la otra pieza> | ` +
+	`<la corrección exacta>». Una pieza que está bien y sólo sirve de contraste NO va en el primer campo: queda frenada sin ` +
+	`motivo. Si no hay ninguno, una línea «INTEGRACIÓN: ninguna». ` + sweepRules
 
 var rePieceBlock = regexp.MustCompile("(?s)```pieza\\s*\\n(.*?)\\n```")
 
