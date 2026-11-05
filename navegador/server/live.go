@@ -55,6 +55,45 @@ type Step struct {
 	Raw     bool      `json:"raw,omitempty"`     // en el script va tal cual, sin await (const d = page.waitForEvent(…))
 	UsesFS  bool      `json:"usesFs,omitempty"`  // en el script necesita import fs
 	Note    string    `json:"note,omitempty"`    // un dato más para el paso a paso (dónde quedó una descarga)
+	// Para el reproductor de la corrida: la foto de ANTES de actuar, con el elemento a la vista (NN-antes.png), y
+	// dónde estaba el elemento (en px CSS de la ventana View) sobre esa foto o, si no la hay, sobre la de después.
+	Before string `json:"before,omitempty"`
+	Box    *Box   `json:"box,omitempty"`
+	View   *Box   `json:"view,omitempty"`
+}
+
+// elementBox es dónde está un elemento en la ventana y el tamaño de la ventana (nil si no se ve).
+func elementBox(l *live, loc playwright.Locator) (*Box, *Box) {
+	bb, err := loc.BoundingBox(playwright.LocatorBoundingBoxOptions{Timeout: playwright.Float(1500)})
+	vs := l.page.ViewportSize()
+	if err != nil || bb == nil || vs == nil || bb.Width <= 0 || bb.Height <= 0 {
+		return nil, nil
+	}
+	return &Box{X: int(bb.X), Y: int(bb.Y), W: int(bb.Width), H: int(bb.Height)}, &Box{W: vs.Width, H: vs.Height}
+}
+
+// shotBefore saca la foto de antes de actuar, con el elemento llevado a la vista (la acción lo haría igual), y
+// lo marca en el paso. Sin elemento visible, el paso queda sin foto de antes.
+func (r *Runner) shotBefore(l *live, loc playwright.Locator, s *Step) {
+	_ = loc.ScrollIntoViewIfNeeded(playwright.LocatorScrollIntoViewIfNeededOptions{Timeout: playwright.Float(1500)})
+	box, view := elementBox(l, loc)
+	if box == nil {
+		return
+	}
+	l.mu.Lock()
+	n := len(l.steps) + 1
+	if l.runDir == "" {
+		l.runDir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+	}
+	dir := l.runDir
+	l.mu.Unlock()
+	if os.MkdirAll(dir, 0o700) != nil {
+		return
+	}
+	name := fmt.Sprintf("%02d-antes.png", n)
+	if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
+		s.Before, s.Box, s.View = name, box, view
+	}
 }
 
 // savedDownload es un archivo que bajó el navegador por una acción.
@@ -670,10 +709,13 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		}
 	}
 	timeout := playwright.Float(10000)
+	// La foto de antes, con el elemento marcado: en el reproductor, se ve QUÉ se va a tocar y después cómo quedó.
+	var shown Step
+	r.shotBefore(l, target, &shown)
 	// Lo que no va a funcionar se niega al instante, con la causa: esperar 10 s la esconde.
 	// Una acción negada queda como paso FALLIDO, con su foto: es lo que más interesa ver en el paso a paso.
 	refuse := func(err error) (Step, error) {
-		st := Step{Code: base + "." + action + "()", Target: name, OK: false, Error: err.Error(), Refused: true}
+		st := Step{Code: base + "." + action + "()", Target: name, OK: false, Error: err.Error(), Refused: true, Before: shown.Before, Box: shown.Box, View: shown.View}
 		r.recordStep(l, st)
 		return st, err
 	}
@@ -792,7 +834,7 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		}
 		after = append(after, Step{Code: fmt.Sprintf("(await %s).saveAs('%s')", v, jsQuote(d.name)), Target: d.name, OK: d.err == nil, Error: errText(d.err), Note: note})
 	}
-	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err)}
+	step := Step{Code: base + code, Target: name, OK: err == nil, Error: errText(err), Before: shown.Before, Box: shown.Box, View: shown.View}
 	for _, x := range after {
 		step.Note = strings.TrimPrefix(step.Note+"; "+x.Note, "; ")
 	}
@@ -863,8 +905,13 @@ func (r *Runner) LiveExpect(text string, seconds float64) (Step, error) {
 	}
 	// La primera VISIBLE: en sitios grandes el mismo texto suele estar también en un elemento oculto (un menú, una
 	// plantilla), y esperar al primero a secas no termina nunca.
-	err := l.page.GetByText(text).Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)}).First().WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible, Timeout: playwright.Float(seconds * 1000)})
+	found := l.page.GetByText(text).Filter(playwright.LocatorFilterOptions{Visible: playwright.Bool(true)}).First()
+	err := found.WaitFor(playwright.LocatorWaitForOptions{State: playwright.WaitForSelectorStateVisible, Timeout: playwright.Float(seconds * 1000)})
 	step := Step{Code: fmt.Sprintf("expect(page.getByText('%s').filter({ visible: true }).first()).toBeVisible()", jsQuote(text)), Target: text, OK: err == nil, Error: errText(err)}
+	if err == nil { // el texto que se vio, marcado sobre la foto de después
+		_ = found.ScrollIntoViewIfNeeded(playwright.LocatorScrollIntoViewIfNeededOptions{Timeout: playwright.Float(1500)})
+		step.Box, step.View = elementBox(l, found)
+	}
 	r.recordStep(l, step)
 	l.markDirty()
 	if err != nil {

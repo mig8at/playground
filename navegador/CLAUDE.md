@@ -10,7 +10,7 @@
 
 | Pieza | Qué es | Archivos |
 |---|---|---|
-| Interfaz | Vue en **:5202**. Sidebar con tres pestañas: **Corridas** (lanzar una meta, y las que tienen reporte; `#/corrida/<id>` abre su paso a paso con fotos en el editor y su resumen y fuentes a la derecha), **Evals** (cada caso con su último resultado y su historia, de `evals/historial.jsonl`; se corren desde la terminal) y **Sitios** (el explorador: árbol de sitios y páginas, la página en vivo o la captura). Consola con pestañas | `src/App.vue`, `src/RunViewer.vue` |
+| Interfaz | Vue en **:5202**. Sidebar con tres pestañas: **Corridas** (lanzar una meta, y las que tienen reporte; `#/corrida/<id>` la abre en el editor como un video: por paso, la foto de antes con el elemento marcado y la de después, con leyenda, play y la tira de cuadros y su resumen y fuentes a la derecha), **Evals** (cada caso con su último resultado y su historia, de `evals/historial.jsonl`; se corren desde la terminal) y **Sitios** (el explorador: árbol de sitios y páginas, la página en vivo o la captura). Consola con pestañas | `src/App.vue`, `src/RunViewer.vue` |
 | API | Go en **:5203**. Sitios, recorrido, análisis, sesión en vivo, reporte | `server/main.go` |
 | Análisis | Lo que corre adentro de cada página: estructura, elementos interactivos y sus candidatos a localizador, avisos, muros anti-bots | `server/analyze.js` (embebido) |
 | Localizadores | Prueba cada candidato con Playwright (cuántos encuentra y si es ese elemento) y elige el primero que sirve | `server/locators.go`, `server/frames.go` (iframes) |
@@ -93,6 +93,9 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
   NECESITO/CONFIRMAR se lee de `/dev/tty`.
 - **Sin la palabra clave** (LISTO, NO PUDE, NECESITO, CONFIRMAR) `ask` no sabe si tiene que preguntar: la pide
   reescrita una vez, y la reconoce aunque venga con Markdown.
+- **El cuadro de un paso se mide ANTES de actuar** (`shotBefore`: lleva el elemento a la vista, guarda su caja y
+  la foto `NN-antes.png`): después de un clic que navega, el elemento ya no está. Una aserción (`wait`) marca el
+  texto sobre la foto de después. Las corridas de antes de esto se ven sin cuadro.
 - **Las fotos de los pasos esperan a que la página cargue** (con tope): sin eso salían desplegables a medio
   cerrar y videos en negro.
 - **Un `look` sin tope en YouTube eran 28 000 caracteres:** muestra primero lo que está en pantalla, agrupa los

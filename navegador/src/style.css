@@ -24,6 +24,9 @@
   --kw-bad: #b91c1c;
   --kw-ask: #a16207;
   --kw-ink: #ffffff;
+  --stage-bg: #111113;
+  --stage-chip: rgba(0, 0, 0, .62);
+  --stage-ink: #ffffff;
   --kw-ok-ink: #15803d;
 }
 .dark {
