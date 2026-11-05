@@ -824,7 +824,15 @@ const statusText = computed(() => {
                   <template v-if="item.dir === 'out'">
                     <span v-if="item.status === 'sending'">· {{ activeIsCuadrilla ? 'anotando…' : activeIsCanon ? 'canon está pensando…' : activeIsAgent ? 'preguntando…' : 'mandando…' }}</span>
                     <span v-else-if="item.status === 'pending'" title="El agente tarda: la respuesta llega acá cuando conteste">· esperando respuesta</span>
-                    <span v-else-if="item.status === 'sent' || item.status === 'answered'" :title="activeIsAgent ? 'Contestó' : 'Entregado a sus terminales abiertas'">· ✓</span>
+                    <span v-else-if="activeIsAgent && (item.status === 'sent' || item.status === 'answered')" title="Contestó">· ✓</span>
+                    <!-- Como en WhatsApp: ✓✓ le llegó a su chat o su terminal; ✓ quedó en el buzón (no estaba conectado). El
+                         playground no avisa cuando el buzón se lo entrega después, ni si lo leyó. -->
+                    <span v-else-if="item.status === 'sent' && item.delivered > 0" class="ticks"
+                          :title="`Entregado: le llegó a ${item.delivered === 1 ? 'su chat o su terminal abierta' : `sus ${item.delivered} terminales abiertas`}`">· ✓✓</span>
+                    <span v-else-if="item.status === 'sent' && item.delivered === 0" class="ticks"
+                          title="Enviado: no estaba conectado, quedó en su buzón y le llega cuando abra el chat">· ✓</span>
+                    <!-- Los de antes de guardar la entrega (o mandados desde la terminal): no se sabe, así que no se afirma. -->
+                    <span v-else-if="item.status === 'sent'" class="ticks" title="Enviado">· ✓</span>
                   </template>
                 </span>
                 <p v-if="item.status === 'error'" class="error">
