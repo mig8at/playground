@@ -125,7 +125,9 @@ type finding struct {
 	// Sólo en el barrido de canon: dónde quedó la pieza y qué dijo canon al ensayarla.
 	Piece     string `json:"piece,omitempty"`
 	Rehearsal string `json:"rehearsal,omitempty"`
-	piece     canon.Piece
+	// Lo que dijo el integrador de esta pieza, si la cruzó con otra de otro tema.
+	Integration string `json:"integration,omitempty"`
+	piece       canon.Piece
 }
 
 // board es el estado de un barrido: lo que pinta la interfaz y lo que queda en barrido.json.
@@ -138,7 +140,11 @@ type board struct {
 	CheckBudget float64    `json:"checkBudget"`
 	Agents      []*agent   `json:"agents"`
 	Verifier    *agent     `json:"verifier"`
-	Verifiers   []*agent   `json:"verifiers,omitempty"` // canon: uno por tema, en cadena detrás de su agente
+	Verifiers   []*agent   `json:"verifiers,omitempty"`   // canon: uno por tema, en cadena detrás de su agente
+	Notes       []*agent   `json:"notes,omitempty"`       // canon: los agentes de archivo compartido, antes de los temas
+	Integrator  *agent     `json:"integrator,omitempty"`  // canon: el que cruza las piezas de temas que comparten archivos
+	SharedFiles int        `json:"sharedFiles,omitempty"` // canon: archivos de estos temas que la ronda marca en más de un tema
+	ReusedNotes int        `json:"reusedNotes,omitempty"` // …y cuántas notas se reusaron de un barrido anterior
 	Findings    []*finding `json:"findings"`
 	Cost        float64    `json:"cost"`
 	Report      string     `json:"report"`
@@ -221,7 +227,7 @@ func (s *sweeper) start(mode string, topics []string, n int, budget, checkBudget
 	}
 	s.mu.Lock()
 	if mode == "canon" {
-		b.Phase, b.Verifier = "en cadena", nil
+		b.Phase, b.Verifier = "notas", nil
 	}
 	s.b, s.cancel, s.work = b, cancel, work
 	s.mu.Unlock()
@@ -385,8 +391,15 @@ func (s *sweeper) runOne(ctx context.Context, a *agent, prompt, system string, t
 	var err error
 	if mock {
 		res, err = mockAgent(ctx, a.Topic, findings, onStep)
-		if err == nil && findings == nil && system == canonSystem {
-			res.Result = mockCanonPieces(a.Topic)
+		if err == nil && findings == nil {
+			switch system {
+			case canonSystem:
+				res.Result = mockCanonPieces(a.Topic)
+			case canonNotesSystem:
+				res.Result = mockNotes(prompt)
+			case canonIntegratorSystem:
+				res.Result = "INTEGRACIÓN: ninguna"
+			}
 		}
 	} else {
 		res, err = runAgent(ctx, s.root, prompt, system, tools, model, effort, budget, onStep, onTokens)
@@ -531,6 +544,9 @@ func sweepReport(b *board) string {
 	if b.Mode == "canon" {
 		what = "pieza(s) de canon"
 		fmt.Fprintf(&r, "\n# Barrido de canon · %s\n\n", b.ID)
+		if b.SharedFiles > 0 {
+			fmt.Fprintf(&r, "Archivos compartidos con otros temas: %d (notas reusadas de un barrido anterior: %d).\n\n", b.SharedFiles, b.ReusedNotes)
+		}
 	} else {
 		fmt.Fprintf(&r, "\n# Barrido · %s\n\n", b.ID)
 	}
@@ -552,6 +568,9 @@ func sweepReport(b *board) string {
 		if f.Rehearsal != "" {
 			fmt.Fprintf(&r, "> ensayo en canon: %s\n", f.Rehearsal)
 		}
+		if f.Integration != "" {
+			fmt.Fprintf(&r, "> integración: %s\n", f.Integration)
+		}
 		if f.Piece != "" {
 			fmt.Fprintf(&r, "> pieza: %s\n", f.Piece)
 		}
@@ -559,7 +578,7 @@ func sweepReport(b *board) string {
 	if b.Mode == "canon" {
 		var ready []string
 		for _, f := range b.Findings {
-			if f.Verdict == "✓" && strings.HasPrefix(f.Rehearsal, "ok") && f.Piece != "" {
+			if f.Verdict == "✓" && strings.HasPrefix(f.Rehearsal, "ok") && f.Integration == "" && f.Piece != "" {
 				ready = append(ready, f.Piece)
 			}
 		}
@@ -741,7 +760,11 @@ func mockAgent(ctx context.Context, topic string, findings []*finding, onStep fu
 // allVerifiers: el verificador único (knowledge) o los de cada tema (canon).
 func (b *board) allVerifiers() []*agent {
 	if len(b.Verifiers) > 0 {
-		return b.Verifiers
+		out := append(append([]*agent(nil), b.Notes...), b.Verifiers...)
+		if b.Integrator != nil {
+			out = append(out, b.Integrator)
+		}
+		return out
 	}
 	if b.Verifier != nil {
 		return []*agent{b.Verifier}

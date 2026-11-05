@@ -16,6 +16,7 @@ package main
 
 import (
 	"context"
+	_ "embed"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -40,34 +41,53 @@ var canonTools = append(append([]string(nil), sweepTools...),
 // pidiendo el resto por una herramienta.
 const maxCanonBriefRunes = 60000
 
-const canonSystem = `Trabajás SOLO sobre un TEMA de CANON, el corpus compartido del equipo de CreditOp, y lo ponés al día con main. ` +
-	`Recibís la prosa vigente del tema y los archivos que declara y que CAMBIARON en main desde que se verificó. Por cada archivo: ` +
-	`mirá qué cambió (git -C <repo> log/diff/show contra origin/main, en los DOS monolitos si la regla los cruza), releé las ` +
-	`secciones que dependen de él (make canon-read IDS='<tema>/context#<ancla>') y decidí: ¿la prosa sigue siendo cierta? ` +
-	`Si sí, la pieza es un «verificado» que sube el hash. Si no, o si el cambio agregó una regla que el tema no cuenta, la pieza ` +
-	`reescribe la sección (mismo node y section reemplaza; corregir es reescribir, no agregar otra al lado). ` +
-	`REGLAS DE LA PROSA: sólo lo que está en main; directa, sin rellenos; sin mediciones del ambiente, sin cifras de prod y sin ` +
-	`fechas de cuándo se descubrió algo; sin la crónica de cómo lo comprobaste; hasta 550 palabras por sección (el tope de canon es 600 y cuenta las palabras distinto). ` +
-	`Ya estás en la raíz del playground: make y bin/pg van sin -C. ` +
-	`Una sección reescrita sobre archivos que el tema YA declara no mueve su hash (queda enlazada al área): después de esa pieza ` +
-	`agregá un «verificado» con esos mismos archivos, que es lo que saca la deriva. En «tablas», sólo tablas que existen en el ` +
-	`esquema de producción (comprobalo con bin/pg sql --target prod --query "SELECT table_name FROM information_schema.tables WHERE table_name LIKE '<prefijo>%'"; SHOW no está permitido); si dudás, no la pongas. ` +
-	`Cada pieza va en un bloque de código con la etiqueta pieza, con UN objeto JSON válido. Las dos formas:` + "\n" +
-	"```pieza\n" + `{"node":"<tema>/context","operacion":"verificado","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"<la pregunta que contesta la sección>","archivos":{"<repo>":["<ruta>"]}}` + "\n```\n" +
-	"```pieza\n" + `{"node":"<tema>/context","section":"<título exacto de la sección>","kind":"correction|addition","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"…","objetivo":"<la responsabilidad, una frase de negocio>","se_deduce_leyendo":"<lo que resuelven los archivos>","archivos":{"<repo>":["<ruta>"]},"tablas":["…"],"text":"<la prosa en markdown, sin el título>"}` + "\n```\n" +
-	`Los repos con el nombre de canon (legacy-backend, legacy-application, frontend-monorepo…), tal como vienen en la lista. ` +
-	`Un archivo que cambió sólo en algo que la prosa no menciona también es un «verificado». Si un archivo ya no existe en main, ` +
-	`decilo como «PREGUNTA:», no armes pieza. Antes de cada pieza comprobá la afirmación volviendo a la fuente. Al final, una línea ` +
-	`«PREGUNTA: …» por cada duda. Nada se escribe: las piezas las comprueba otro y las publica Miguel. ` + sweepRules
+//go:embed canon-guia.md
+var canonGuide string
 
-const canonVerifierSystem = `Sos el VERIFICADOR de un barrido de CANON: otros agentes armaron piezas para poner al día temas del corpus del ` +
-	`equipo de CreditOp y vos no escribiste ninguna. Por cada pieza comprobá, volviendo a la fuente (git grep / git show contra ` +
-	`origin/main en los DOS monolitos, make canon-read para la prosa vigente): en un «verificado», que la prosa vigente de ese tema ` +
-	`SIGA siendo cierta con el archivo de hoy; en una sección, que cada afirmación del texto esté en main, que cada archivo:línea y ` +
-	`cada cita digan lo que dice, que no traiga mediciones de prod ni fechas de descubrimiento, y que no pierda una condición que ` +
-	`la prosa vigente tenía. Una pieza con una parte falsa es ✗ aunque el resto sea cierto. Por cada pieza, una línea exacta ` +
-	`«VEREDICTO: P<n> | ✓, ✗ o — | <el comando que corriste> | <una frase: qué viste>», donde — es «no se pudo comprobar». Si el ` +
-	`presupuesto no alcanza para todas, empezá por las secciones reescritas. ` + sweepRules
+// El formato de salida es lo único que la guía no dice: es de la sala, no de canon.
+const canonFormat = `## Cómo entregás las piezas
+
+Ya estás en la raíz del playground: make y bin/pg van sin -C. Hoy es la fecha de «verified». Cada pieza va en un bloque de ` +
+	"código con la etiqueta `pieza` y UN objeto JSON válido. Los repos van con el nombre que traen en la lista. Las tres formas:\n\n" +
+	"```pieza\n" + `{"node":"<tema>/context","operacion":"verificado","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"<la pregunta que contestan esas secciones>","archivos":{"<repo>":["<ruta>"]}}` + "\n```\n\n" +
+	"```pieza\n" + `{"node":"<tema>/context","section":"<título exacto de la sección>","kind":"correction|addition","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"…","objetivo":"<la responsabilidad, una frase de negocio>","se_deduce_leyendo":"<lo que resuelven los archivos>","archivos":{"<repo>":["<ruta>"]},"tablas":["…"],"text":"<la prosa en markdown, sin el título>"}` + "\n```\n\n" +
+	"```pieza\n" + `{"node":"<tema>/context","operacion":"declarar","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"…","objetivo":"<qué respaldan estos archivos>","archivos":{"<repo>":["<ruta nueva>"]}}` + "\n```\n\n" +
+	"Una corrección va ANTES de su `verificado`. Al final, una línea `PREGUNTA: …` por cada cosa que no pudiste comprobar. " +
+	"Nada se escribe: las piezas las comprueba otro y las publica una persona. "
+
+var canonSystem = "Sos un AGENTE DE TEMA: trabajás SOLO sobre el tema de canon que te tocó y lo ponés al día con main, siguiendo esta guía.\n\n" +
+	canonGuide + "\n\n" + canonFormat + sweepRules
+
+var canonVerifierSystem = "Sos el VERIFICADOR de un tema: otro agente armó las piezas y vos no escribiste ninguna. Seguí el método de " +
+	"«Cómo se comprueba» de esta guía, volviendo a la fuente, sin repetir el razonamiento de quien las escribió.\n\n" + canonGuide + "\n\n" +
+	`## Qué hacés vos
+
+Por cada pieza: en un «verificado», leé las secciones de la prosa vigente que dependen de esos archivos y comprobá que CADA frase siga ` +
+	`siendo cierta con el código de hoy; si una quedó falsa, la pieza es ✗ y decís qué frase y por qué. En una sección, partí el texto ` +
+	`en afirmaciones (reglas, nombres, códigos, números, condiciones) y comprobá cada una en los DOS monolitos cuando la regla los cruza; ` +
+	`buscá la excepción de cada absoluto y de cada lista cerrada; mirá que no pierda una condición que la prosa vigente tenía, que las ` +
+	`tablas existan en prod y que no traiga mediciones, fechas de descubrimiento ni crónica. Una pieza con una parte falsa es ✗ aunque ` +
+	`el resto sea cierto. Por cada pieza, una línea exacta «VEREDICTO: P<n> | ✓, ✗ o — | <el comando que corriste> | <una frase: qué ` +
+	`viste y, si es ✗, la corrección exacta>», donde — es «no se pudo comprobar». Si el presupuesto no alcanza, empezá por las secciones. ` + sweepRules
+
+var canonNotesSystem = "Sos un AGENTE DE ARCHIVO COMPARTIDO: los archivos que te tocan los declaran varios temas de canon, y tu nota evita " +
+	"que cada tema relea el mismo cambio y lo cuente distinto. No escribís piezas.\n\n" + canonGuide + "\n\n" +
+	`## Qué hacés vos
+
+Por cada archivo, mirá qué cambió en origin/main desde el hash más viejo declarado (git -C <repo> log y diff de esa ruta; ` +
+	`ubicá el commit con git log --format=%h -- <ruta> y compará contra el blob con git rev-list si hace falta). Escribí la nota en ` +
+	`un bloque que empiece con una línea exacta «NOTA: <repo>:<ruta>» y siga con: qué cambió (las reglas, con archivo:línea), qué no ` +
+	`cambió aunque el diff lo toque (renombres, formato, tipos) y si el archivo se borró o se movió (con la ruta nueva). Sin opinar ` +
+	`sobre la prosa de ningún tema: eso lo hace cada agente de tema. Máximo 250 palabras por archivo. ` + sweepRules
+
+var canonIntegratorSystem = "Sos el INTEGRADOR: recibís las piezas ya verificadas de varios temas de canon que tocan los mismos archivos, " +
+	"y buscás lo que ningún verificador de tema puede ver solo.\n\n" + canonGuide + "\n\n" +
+	`## Qué hacés vos
+
+Compará las piezas de distintos temas que comparten archivos: la misma regla contada distinto (decí cuál es la cierta, comprobándola ` +
+	`en main), la misma regla escrita en dos temas (la segunda debería enlazar a la primera con [[tema/context#ancla]]), un enlace a ` +
+	`una sección que otra pieza renombró, y un «verificado» de un tema que contradice la corrección de otro. Por cada problema, una ` +
+	`línea exacta «INTEGRACIÓN: P<n>, P<m> | <el problema> | <la corrección exacta>». Si no hay ninguno, una línea «INTEGRACIÓN: ninguna». ` + sweepRules
 
 var rePieceBlock = regexp.MustCompile("(?s)```pieza\\s*\\n(.*?)\\n```")
 
@@ -76,10 +96,11 @@ type canonWork map[string][]canon.RoundChange
 
 // canonRound pide la ronda y agrupa por tema; sin temas pedidos devuelve los n con más archivos cambiados.
 func canonRound(ctx context.Context, topics []string, n int) ([]string, canonWork, error) {
+	// La medición después de que el servidor la invalida tarda más que el cliente (8 s), y sigue midiendo aunque el
+	// cliente corte: el siguiente intento la encuentra en caché. Dos intentos no alcanzaron el 2026-11-05.
 	round, err := canon.FromEnv().Round(ctx, false)
-	if err != nil && ctx.Err() == nil {
-		// La primera medición después de que el servidor la invalida tarda más que el cliente (8 s); para la segunda
-		// ya la tiene en caché. Pasó el 2026-11-05 al lanzar desde la página.
+	for try := 0; err != nil && ctx.Err() == nil && try < 3; try++ {
+		time.Sleep(5 * time.Second)
 		round, err = canon.FromEnv().Round(ctx, false)
 	}
 	if err != nil {
@@ -108,7 +129,7 @@ func canonRound(ctx context.Context, topics []string, n int) ([]string, canonWor
 }
 
 // canonBrief: el tema, sus archivos cambiados, la prosa vigente y lo ya confirmado en barridos anteriores.
-func canonBrief(ctx context.Context, root, topic string, changes []canon.RoundChange) string {
+func canonBrief(ctx context.Context, root, topic string, changes []canon.RoundChange, notes map[string]string) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Tema de canon: %s (node %s/context). Hoy es %s.\n\n", topic, topic, time.Now().Format("2006-01-02"))
 	if len(changes) == 0 {
@@ -116,7 +137,21 @@ func canonBrief(ctx context.Context, root, topic string, changes []canon.RoundCh
 	} else {
 		fmt.Fprintf(&b, "Archivos que el tema declara y cambiaron en main (%d):\n", len(changes))
 		for _, c := range changes {
-			fmt.Fprintf(&b, "- %s:%s  (blob %s → %s)\n", c.Repo, c.Path, c.Before, c.Now)
+			now := c.Now
+			if now == "" {
+				now = "BORRADO de main"
+			}
+			fmt.Fprintf(&b, "- %s:%s  (blob %s → %s)\n", c.Repo, c.Path, c.Before, now)
+		}
+		var shared []string
+		for _, c := range changes {
+			if n := notes[c.Repo+":"+c.Path]; n != "" {
+				shared = append(shared, n)
+			}
+		}
+		if len(shared) > 0 {
+			b.WriteString("\nNOTAS DE LOS ARCHIVOS COMPARTIDOS (otro agente ya leyó estos cambios; partí de acá y no releas el diff entero):\n\n")
+			b.WriteString(strings.Join(shared, "\n\n") + "\n")
 		}
 	}
 	text, err := canon.FromEnv().Markdown(ctx, topic+"/context")
@@ -249,12 +284,18 @@ func canonProse(ctx context.Context, topics []string) string {
  * Con un solo verificador al final, el tema más lento frenaba a todos y el verificador cargaba con las piezas de
  * todos los temas en un presupuesto; con uno por tema, sumar temas suma cadenas en paralelo (Miguel, 2026-11-05). */
 func (s *sweeper) pipeline(ctx context.Context, b *board, dir string) {
+	notes := s.sharedNotes(ctx, b, dir)
+	s.mu.Lock()
+	if ctx.Err() == nil {
+		b.Phase = "en cadena"
+	}
+	s.mu.Unlock()
 	var wg sync.WaitGroup
 	for i, a := range b.Agents {
 		wg.Add(1)
 		go func(a, v *agent) {
 			defer wg.Done()
-			s.runOne(ctx, a, canonBrief(ctx, s.root, a.Topic, s.work[a.Topic]), canonSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+			s.runOne(ctx, a, canonBrief(ctx, s.root, a.Topic, s.work[a.Topic], notes), canonSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
 			_ = os.WriteFile(filepath.Join(dir, a.Topic+".md"), []byte(a.text), 0o644)
 
 			s.mu.Lock()
@@ -307,4 +348,251 @@ func (s *sweeper) pipeline(ctx context.Context, b *board, dir string) {
 		}(a, b.Verifiers[i])
 	}
 	wg.Wait()
+	s.integrate(ctx, b, dir)
 }
+
+// ── LAS NOTAS DE ARCHIVO COMPARTIDO ─────────────────────────────────────────────────────────────────────────────────
+/* Un archivo que declaran varios temas (las rutas de Onboarding, UserRequestService, el listado del asistente: hasta 10
+ * temas cada uno) lo releían todos los agentes de esos temas, y cada uno podía contar el cambio distinto. Antes de las
+ * cadenas, un agente lee cada archivo compartido UNA vez y deja una nota que reciben los temas. Las notas se guardan
+ * por archivo y blob de hoy en sala/.barridos/notas/: el próximo barrido que toque el mismo archivo sin que cambie la
+ * reusa sin gastar (Miguel, 2026-11-05). */
+
+const (
+	notesPerAgent = 5 // archivos por agente de notas
+	maxNoteAgents = 4 // los que no entran van sin nota: el agente de tema lee el diff él mismo
+)
+
+var reNote = regexp.MustCompile(`(?m)^\s*NOTA:\s*(\S+)\s*$`)
+
+// sharedChanges: los archivos de los temas elegidos que la ronda marca en más de un tema, con todos sus temas.
+func sharedChanges(work canonWork, topics []string) map[string][]canon.RoundChange {
+	byFile := map[string][]canon.RoundChange{}
+	for _, changes := range work {
+		for _, c := range changes {
+			byFile[c.Repo+":"+c.Path] = append(byFile[c.Repo+":"+c.Path], c)
+		}
+	}
+	chosen := map[string]bool{}
+	for _, t := range topics {
+		chosen[t] = true
+	}
+	out := map[string][]canon.RoundChange{}
+	for key, cs := range byFile {
+		if len(cs) < 2 {
+			continue
+		}
+		for _, c := range cs {
+			if chosen[c.Topic] {
+				out[key] = cs
+				break
+			}
+		}
+	}
+	return out
+}
+
+func notePath(root, key, now string) string {
+	safe := strings.NewReplacer("/", "__", ":", "--").Replace(key)
+	return filepath.Join(root, "sala", ".barridos", "notas", safe+"@"+now+".md")
+}
+
+// sharedNotes devuelve la nota de cada archivo compartido: las guardadas y las que escriben los agentes de notas.
+func (s *sweeper) sharedNotes(ctx context.Context, b *board, dir string) map[string]string {
+	notes := map[string]string{}
+	var topics []string
+	for _, a := range b.Agents {
+		topics = append(topics, a.Topic)
+	}
+	shared := sharedChanges(s.work, topics)
+	var pending []string
+	for key, cs := range shared {
+		if raw, err := os.ReadFile(notePath(s.root, key, cs[0].Now)); err == nil && !b.Mock {
+			notes[key] = string(raw)
+			continue
+		}
+		pending = append(pending, key)
+	}
+	// Los que más temas tocan primero: son los que más relecturas ahorran.
+	sort.Slice(pending, func(i, j int) bool {
+		if len(shared[pending[i]]) != len(shared[pending[j]]) {
+			return len(shared[pending[i]]) > len(shared[pending[j]])
+		}
+		return pending[i] < pending[j]
+	})
+	if max := notesPerAgent * maxNoteAgents; len(pending) > max {
+		pending = pending[:max]
+	}
+	var groups [][]string
+	for i := 0; i < len(pending); i += notesPerAgent {
+		end := i + notesPerAgent
+		if end > len(pending) {
+			end = len(pending)
+		}
+		groups = append(groups, pending[i:end])
+	}
+	s.mu.Lock()
+	for i := range groups {
+		b.Notes = append(b.Notes, &agent{Topic: fmt.Sprintf("notas · %d", i+1), Status: "esperando", Steps: []step{}})
+	}
+	b.SharedFiles, b.ReusedNotes = len(shared), len(notes)
+	s.mu.Unlock()
+
+	var wg sync.WaitGroup
+	var mu sync.Mutex
+	for i, group := range groups {
+		wg.Add(1)
+		go func(a *agent, group []string) {
+			defer wg.Done()
+			var p strings.Builder
+			p.WriteString("Archivos compartidos que te tocan:\n\n")
+			for _, key := range group {
+				cs := shared[key]
+				oldest, ts := cs[0].Before, []string{}
+				for _, c := range cs {
+					ts = append(ts, c.Topic)
+					if c.Before < oldest { // sólo para mostrar uno; el agente compara contra cada hash si difieren
+						oldest = c.Before
+					}
+				}
+				now := cs[0].Now
+				if now == "" {
+					now = "BORRADO de main"
+				}
+				fmt.Fprintf(&p, "- %s  (blob declarado %s → hoy %s; lo declaran %s)\n", key, oldest, now, strings.Join(ts, ", "))
+			}
+			s.runOne(ctx, a, p.String(), canonNotesSystem, canonTools, sweepModel, sweepEffort, b.CheckBudget, b.Mock, nil)
+			_ = os.WriteFile(filepath.Join(dir, strings.ReplaceAll(a.Topic, " · ", "-")+".md"), []byte(a.text), 0o644)
+			found := parseNotes(a.text)
+			mu.Lock()
+			for _, key := range group {
+				if n := found[key]; n != "" {
+					notes[key] = n
+					if !b.Mock {
+						path := notePath(s.root, key, shared[key][0].Now)
+						_ = os.MkdirAll(filepath.Dir(path), 0o755)
+						_ = os.WriteFile(path, []byte(n), 0o644)
+					}
+				}
+			}
+			mu.Unlock()
+			s.mu.Lock()
+			a.Findings = len(found)
+			s.mu.Unlock()
+		}(b.Notes[i], group)
+	}
+	wg.Wait()
+	return notes
+}
+
+// parseNotes corta la salida en bloques «NOTA: repo:ruta».
+func parseNotes(text string) map[string]string {
+	out := map[string]string{}
+	idx := reNote.FindAllStringSubmatchIndex(text, -1)
+	for i, m := range idx {
+		end := len(text)
+		if i+1 < len(idx) {
+			end = idx[i+1][0]
+		}
+		key := text[m[2]:m[3]]
+		out[key] = strings.TrimSpace(text[m[0]:end])
+	}
+	return out
+}
+
+func mockNotes(prompt string) string {
+	var b strings.Builder
+	for _, line := range strings.Split(prompt, "\n") {
+		if strings.HasPrefix(line, "- ") {
+			key := strings.Fields(strings.TrimPrefix(line, "- "))[0]
+			fmt.Fprintf(&b, "NOTA: %s\nCambió la regla X (`A.php:10`); el resto es formato.\n\n", key)
+		}
+	}
+	return b.String()
+}
+
+// ── EL INTEGRADOR ───────────────────────────────────────────────────────────────────────────────────────────────────
+/* Cada verificador mira su tema; nadie veía que dos temas contaran distinto el mismo cambio, o que una corrección de un
+ * tema contradijera el «verificado» de otro. El integrador corre al final, sólo si hay piezas ✓ de temas distintos que
+ * comparten archivos, y marca las que hay que tocar: esas salen de «listas para publicar». */
+func (s *sweeper) integrate(ctx context.Context, b *board, dir string) {
+	s.mu.Lock()
+	byFile := map[string]map[string][]*finding{}
+	for _, f := range b.Findings {
+		if f.Verdict != "✓" || f.piece == nil {
+			continue
+		}
+		archivos, _ := f.piece["archivos"].(map[string]any)
+		for repo, paths := range archivos {
+			list, _ := paths.([]any)
+			for _, path := range list {
+				key := fmt.Sprintf("%s:%v", repo, path)
+				if byFile[key] == nil {
+					byFile[key] = map[string][]*finding{}
+				}
+				byFile[key][f.Topic] = append(byFile[key][f.Topic], f)
+			}
+		}
+	}
+	picked := map[string]*finding{}
+	var crossed []string
+	for key, topics := range byFile {
+		if len(topics) < 2 {
+			continue
+		}
+		crossed = append(crossed, key)
+		for _, fs := range topics {
+			for _, f := range fs {
+				picked[f.ID] = f
+			}
+		}
+	}
+	if len(crossed) == 0 || ctx.Err() != nil {
+		s.mu.Unlock()
+		return
+	}
+	sort.Strings(crossed)
+	var p strings.Builder
+	fmt.Fprintf(&p, "Archivos que tocan piezas de más de un tema: %s\n\nLas piezas:\n\n", strings.Join(crossed, ", "))
+	var ids []string
+	for id := range picked {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	var topics []string
+	seen := map[string]bool{}
+	for _, id := range ids {
+		f := picked[id]
+		raw, _ := json.Marshal(f.piece)
+		fmt.Fprintf(&p, "%s [%s]\n%s\n\n", id, f.Topic, raw)
+		if !seen[f.Topic] {
+			seen[f.Topic], topics = true, append(topics, f.Topic)
+		}
+	}
+	b.Integrator = &agent{Topic: "integrador", Status: "esperando", Steps: []step{}}
+	b.Phase = "integración"
+	integ := b.Integrator
+	s.mu.Unlock()
+	p.WriteString(canonProse(ctx, topics))
+	s.runOne(ctx, integ, p.String(), canonIntegratorSystem, canonTools, verifierModel, verifierLevel, b.CheckBudget, b.Mock, nil)
+	_ = os.WriteFile(filepath.Join(dir, "integrador.md"), []byte(integ.text), 0o644)
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, line := range strings.Split(integ.text, "\n") {
+		m := reIntegration.FindStringSubmatch(line)
+		if m == nil {
+			continue
+		}
+		for _, id := range reID.FindAllString(m[1], -1) {
+			if f := picked[id]; f != nil {
+				f.Integration = strings.TrimSpace(m[2])
+				integ.Findings++
+			}
+		}
+	}
+}
+
+var (
+	reIntegration = regexp.MustCompile(`^\s*INTEGRACIÓN:\s*([^|]+?)\s*\|\s*(.+)$`)
+	reID          = regexp.MustCompile(`P[0-9]+`)
+)

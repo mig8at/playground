@@ -45,3 +45,25 @@ func TestParsePieces(t *testing.T) {
 		t.Fatalf("no se leyó el veredicto de una pieza: %v", m)
 	}
 }
+
+// Las notas se cortan por su línea «NOTA:», y el integrador marca cada pieza que nombra.
+func TestNotesAndIntegration(t *testing.T) {
+	got := parseNotes("intro\nNOTA: legacy-backend:a/B.php\ncambió X\n\nNOTA: frontend-monorepo:c.tsx\nnada de fondo\n")
+	if len(got) != 2 || !strings.Contains(got["legacy-backend:a/B.php"], "cambió X") || strings.Contains(got["legacy-backend:a/B.php"], "nada de fondo") {
+		t.Fatalf("las notas quedaron mal: %q", got)
+	}
+	m := reIntegration.FindStringSubmatch("INTEGRACIÓN: P3, P12 | cuentan distinto el tope | P12 enlaza a P3")
+	if m == nil || len(reID.FindAllString(m[1], -1)) != 2 || !strings.Contains(m[2], "enlaza") {
+		t.Fatalf("no se leyó la integración: %v", m)
+	}
+	if reIntegration.FindStringSubmatch("INTEGRACIÓN: ninguna") != nil {
+		t.Fatal("«ninguna» no es un problema")
+	}
+	shared := sharedChanges(canonWork{
+		"a": {{Topic: "a", Repo: "r", Path: "x"}, {Topic: "a", Repo: "r", Path: "solo"}},
+		"b": {{Topic: "b", Repo: "r", Path: "x"}},
+	}, []string{"a"})
+	if len(shared) != 1 || len(shared["r:x"]) != 2 {
+		t.Fatalf("compartidos mal: %v", shared)
+	}
+}
