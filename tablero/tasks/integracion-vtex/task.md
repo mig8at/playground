@@ -76,12 +76,14 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1
       cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
       AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
-- [ ] Publicar la 5.0.1 (rama `fix/core-800-vtex-5-0-1` del repo `vtex`, PR vtex#22): linkeada en `develop`, ya pasa
-      en qa los cuatro desenlaces y la cancelación desde la tienda (`make harness-vtex TARGET=qa`, 4/4). Falta ver que
-      la primera compra tras una hora quieta no tarde ni dé `ProxyTimeout` con la versión publicada (la linkeada corre con
-      una réplica y no toma el `ttl`). Termina con el PR mergeado, el tag `v5.0.1`, `vtex publish` + `vtex deploy`,
-      `develop` deslinkeado y `make harness-vtex TARGET=qa` en verde contra la publicada, antes de instalar la 5 en el
-      piloto.
+- [x] ~~Publicar la 5.0.1~~ — 2026-11-05: vtex#22 mergeado (f4e2896), tag `v5.0.1`, publicada, desplegada e instalada en
+      `master` y `develop`. Contra la publicada: 4/4 con instancias arriba y 0,8 s una compra sola.
+- [ ] Que una configuración que no se pudo leer no mande el pago a producción: hoy `settings()` devuelve `{}` y el
+      conector cae a la API de producción, donde el token de qa da 401 (una compra de la primera tanda tras instalar la
+      5.0.1). Termina con el conector reintentando la lectura y negando con `CREDITOP_UNAVAILABLE` si no la consigue,
+      y `make harness-vtex TARGET=qa` en verde justo después de instalar.
+- [ ] Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout` con la 5.0.1 publicada
+      (instancias calientes). Termina con `make harness-vtex TARGET=qa CASES=aprobada` después de una hora quieta.
 - [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
       comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
       regla escrita y, si se decide, el aviso del conector a Creditop. Depende de: Producto — junto con el vencimiento de
