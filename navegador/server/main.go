@@ -246,9 +246,8 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("POST"))
 			return
 		}
-		vw, _ := strconv.Atoi(r.URL.Query().Get("w"))
-		vh, _ := strconv.Atoi(r.URL.Query().Get("h"))
-		if err := runner.LiveStart(r.URL.Query().Get("site"), r.URL.Query().Get("start"), vw, vh, r.URL.Query().Get("clean") == "1"); err != nil {
+		q := r.URL.Query()
+		if err := runner.LiveStart(q.Get("site"), q.Get("start"), q.Get("device"), q.Get("clean") == "1"); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -309,14 +308,14 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, ok)
 	})
-	// POST /api/live/viewport {w, h} — el tamaño del editor, para que la página se vea 1:1.
-	mux.HandleFunc("/api/live/viewport", func(w http.ResponseWriter, r *http.Request) {
-		var in struct{ W, H int }
+	// POST /api/live/device {device: desktop|mobile} — reabre la sesión en la misma página en ese dispositivo.
+	mux.HandleFunc("/api/live/device", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ Device string }
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		if err := runner.LiveResize(in.W, in.H); err != nil {
+		if err := runner.LiveDevice(in.Device); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -520,15 +519,16 @@ func handler(store *Store, runner *Runner) http.Handler {
 			return
 		}
 		var in struct {
-			Goal  string `json:"meta"`
-			URL   string `json:"url"`
-			Steps int    `json:"pasos"`
+			Goal   string `json:"meta"`
+			URL    string `json:"url"`
+			Steps  int    `json:"pasos"`
+			Device string `json:"device"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		if err := asker.Start("http://"+apiAddr, in.Goal, in.URL, in.Steps); err != nil {
+		if err := asker.Start("http://"+apiAddr, in.Goal, in.URL, in.Device, in.Steps); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}

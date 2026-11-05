@@ -72,6 +72,8 @@ func ask(args []string) error {
 	steps := fs.Int("pasos", 40, "cuántas acciones como mucho")
 	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
 	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
+	mobile := fs.Bool("movil", false, "en un teléfono (Pixel 7) en vez de escritorio")
+	devFlag := fs.String("dispositivo", "", "movil o escritorio (lo usa la interfaz)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `uso: bin/navegador ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
 		fs.PrintDefaults()
@@ -82,11 +84,23 @@ func ask(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
+	dev := parseDevice(*devFlag)
+	if *mobile {
+		dev = "mobile"
+	}
 	if *start != "" {
-		if err := open([]string{*start}); err != nil {
+		args := []string{*start}
+		if dev != "" {
+			args = append([]string{"--" + dev}, args...)
+		}
+		if err := open(args); err != nil {
 			return err
 		}
 		fmt.Println()
+	} else if dev != "" {
+		if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": dev}, nil); err != nil {
+			return err
+		}
 	}
 	outcome, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, out: os.Stdout})
 	if err != nil {
@@ -140,6 +154,13 @@ type askOutcome struct {
 	Tokens  tokenUsage
 }
 
+func normDev(d string) string {
+	if d == "mobile" {
+		return d
+	}
+	return "desktop"
+}
+
 func (o askOutcome) Final() string {
 	if len(o.Rounds) == 0 {
 		return ""
@@ -191,7 +212,7 @@ func runAsk(o askOpts) (askOutcome, error) {
 		kind = "es un sitio de práctica"
 	}
 	// HOY: sin la fecha, no se puede decir si un plazo ya pasó o si una página habla de otro año.
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, time.Now().Format("2006-01-02"))
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, deviceName[normDev(st.Device)], time.Now().Format("2006-01-02"))
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,

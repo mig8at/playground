@@ -35,6 +35,7 @@ type evalCase struct {
 	Replay    bool     `json:"repetir"`
 	MustSay   []string `json:"debe_decir"` // para investigar: lo que la respuesta tiene que mencionar
 	External  bool     `json:"externo"`
+	Device    string   `json:"dispositivo"` // movil o escritorio (por defecto)
 }
 
 type evalResult struct {
@@ -129,7 +130,7 @@ func runCase(root string, c evalCase, verbose bool) evalResult {
 	r := evalResult{c: c}
 	// Cada caso arranca con un navegador limpio: un login o un carrito que dejó otra corrida haría que el script
 	// dependa de un estado que una repetición no tiene (pasó con credidemo-cuenta en la primera corrida real).
-	if err := startLive([]string{c.URL}, true); err != nil {
+	if err := startLive([]string{c.URL}, true, parseDevice(c.Device)); err != nil {
 		r.why = "no se pudo abrir la sesión: " + err.Error()
 		return r
 	}

@@ -43,6 +43,7 @@ type RunMeta struct {
 	Steps   int       `json:"pasos"`
 	Failed  int       `json:"fallidos"`
 	Sources int       `json:"fuentes"`
+	Device  string    `json:"dispositivo,omitempty"`
 	ReportInfo
 }
 
@@ -56,7 +57,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 	steps := append([]Step{}, l.steps...)
 	sources := append([]Source{}, l.sources...)
 	dir := l.runDir
-	site, start := l.site, l.start
+	site, start, device := l.site, l.start, l.device
 	l.mu.Unlock()
 	if len(steps) == 0 && len(sources) == 0 {
 		return "", errors.New("la corrida no tiene pasos ni páginas consultadas todavía")
@@ -194,7 +195,7 @@ pre{background:var(--card);border:1px solid var(--line);border-radius:6px;paddin
 	if info.Source == "" {
 		info.Source = "a mano"
 	}
-	meta := RunMeta{ID: filepath.Base(dir), Site: site.Name, Start: start, At: began, Steps: len(steps), Failed: failed, Sources: len(sources), ReportInfo: info}
+	meta := RunMeta{ID: filepath.Base(dir), Site: site.Name, Start: start, At: began, Steps: len(steps), Failed: failed, Sources: len(sources), Device: device, ReportInfo: info}
 	if err := writeJSONFile(filepath.Join(dir, "run.json"), meta); err != nil {
 		return "", err
 	}

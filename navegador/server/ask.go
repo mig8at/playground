@@ -63,7 +63,7 @@ func navegadorBin() string {
 }
 
 // Start lanza la meta. url vacía: sigue en la sesión en vivo que esté abierta.
-func (a *Asker) Start(api, goal, url string, steps int) error {
+func (a *Asker) Start(api, goal, url, device string, steps int) error {
 	goal = strings.TrimSpace(goal)
 	if goal == "" {
 		return errors.New("falta la meta")
@@ -76,6 +76,9 @@ func (a *Asker) Start(api, goal, url string, steps int) error {
 	args := []string{"ask"}
 	if url != "" {
 		args = append(args, "--url", url)
+	}
+	if device != "" {
+		args = append(args, "--dispositivo", device)
 	}
 	if steps > 0 {
 		args = append(args, "--pasos", strconv.Itoa(steps))

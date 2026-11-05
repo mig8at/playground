@@ -15,7 +15,7 @@
 | Análisis | Lo que corre adentro de cada página: estructura, elementos interactivos y sus candidatos a localizador, avisos, muros anti-bots | `server/analyze.js` (embebido) |
 | Localizadores | Prueba cada candidato con Playwright (cuántos encuentra y si es ese elemento) y elige el primero que sirve | `server/locators.go`, `server/frames.go` (iframes) |
 | Recorrido | Explora el sitio a lo ancho, sólo `<a href>` del mismo host, sin enviar formularios | `server/browser.go` |
-| En vivo | Chromium sin ventana transmitido por CDP al editor, acciones por localizador, pasos, diálogos, descargas | `server/live.go` |
+| En vivo | Chromium sin ventana transmitido por CDP al editor, acciones por localizador, pasos, diálogos, descargas. Dos dispositivos de tamaño fijo: **escritorio** 1280×800 (por defecto) y **móvil** (perfil Pixel 7 de Playwright: agente, táctil, densidad); el editor lo escala para que entre | `server/live.go` |
 | Reporte | El paso a paso de una corrida: md, html con una foto por paso, las fuentes consultadas, script | `server/report.go` |
 | Investigar | `read` (el contenido principal, legible, con la fecha de actualización y sus enlaces) y `readfile` (un PDF bajado, con `pdftotext`) | `server/live.go` (`readJS`), `cli/main.go` |
 | CLI | `bin/navegador`: maneja la sesión en vivo por consola | `cli/main.go` |
@@ -66,6 +66,15 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`; `run.json` y `pas
   permiso **sólo** para el binario del navegador y `Read`. Sin `grep` ni `head`: sin tuberías por construcción.
 
 ## Trampas que ya costaron tiempo
+
+- **Cambiar de dispositivo reabre el navegador** en la misma página (el perfil de un teléfono se fija al abrir):
+  con un perfil limpio se pierde lo que había. Por consola: `open --movil`, `device movil|escritorio`, `ask
+  --movil`; en un caso de evals, `"dispositivo": "movil"`. El script de un recorrido móvil lleva
+  `test.use({ ...devices['Pixel 7'] })` y `replay.cjs` lo repite con ese perfil.
+- **«Timeout 10000ms exceeded» no decía nada**: el error de una acción suma la causa del registro de Playwright
+  (`callLogWhy`: quién tapa el clic, no se ve, fuera de la pantalla). En móvil la primera prueba lo destapó:
+  Credidemo medía 634 px en un teléfono de 412 y una tarjeta tapaba «Mi cuenta». Los dos sitios de práctica son
+  responsivos desde entonces (Credidemo con su menú detrás de ☰).
 
 - **El driver de Playwright se arma desde npm** (`server/driver.go`): playwright-go lo baja de un CDN que ya no
   publica los zips (404). Queda en `~/.cache/ms-playwright-go/<versión>/`; `replay.cjs` usa ese mismo

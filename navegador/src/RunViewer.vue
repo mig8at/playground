@@ -130,7 +130,7 @@ watch(cur, async () => {
         <h1>{{ meta.meta || 'Corrida sin meta' }}</h1>
       </div>
       <p class="muted small">
-        {{ meta.sitio }} · {{ fmtDate(meta.fecha) }} · {{ meta.pasos }} pasos<template v-if="meta.fallidos">, {{ meta.fallidos }} fallidos</template>
+        {{ meta.sitio }}<template v-if="meta.dispositivo === 'mobile'"> · móvil</template> · {{ fmtDate(meta.fecha) }} · {{ meta.pasos }} pasos<template v-if="meta.fallidos">, {{ meta.fallidos }} fallidos</template>
         <template v-if="meta.usd"> · {{ usd(meta.usd) }}</template><template v-if="meta.turnos"> · {{ meta.turnos }} turnos</template>
         <template v-if="meta.origen"> · {{ meta.origen }}</template>
         <template v-if="(meta.vueltas || []).length > 1"> · vueltas: {{ meta.vueltas.join(' → ') }}</template>

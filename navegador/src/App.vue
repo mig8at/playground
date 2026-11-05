@@ -48,6 +48,10 @@ async function loadRun(id) {
 }
 function pickRun(id) { runId.value = id; auxOpen.value = true; saveSize('navegador.aux-open', 1) }
 function closeRun() { runId.value = '' }
+const DEVICES = [
+  { id: 'desktop', label: 'Escritorio', title: 'Escritorio, 1280×800' },
+  { id: 'mobile', label: 'Móvil', title: 'Un teléfono (Pixel 7): el sitio sirve su versión móvil. Cambiar reabre la sesión en la misma página' },
+]
 const KW_CLASS = { LISTO: 'kw-ok', 'NO PUDE': 'kw-bad', NECESITO: 'kw-ask', CONFIRMAR: 'kw-ask' }
 const fmtRunDate = (t) => (t ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 async function copyRunScript() { if (runData.value?.script) copyText(runData.value.script, 'run-script') }
@@ -98,7 +102,7 @@ async function launchAsk() {
   askBusy.value = true
   askError.value = ''
   try {
-    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: askGoal.value, url: askURL.value.trim() }) })
+    await api('/api/ask', { method: 'POST', body: JSON.stringify({ meta: askGoal.value, url: askURL.value.trim(), device: devicePref.value }) })
     askEvents.value = []
     runId.value = '' // el editor pasa a mostrar el navegador en vivo
     auxOpen.value = true
@@ -244,31 +248,48 @@ const liveURL = ref('')
 const inspect = ref(false) // los cuadros se tocan (y abren su menú) en vez de dejar pasar el clic a la página
 const frameMeta = ref(null)
 const liveCanvas = ref(null)
-// El tamaño del navegador en vivo es el del área del editor: se mide y se manda al abrir y cada vez que cambia
-// (un separador, una región plegada, la ventana).
+// El navegador en vivo tiene el tamaño FIJO de su dispositivo (escritorio 1280×800, o el teléfono): el editor se
+// mide y la página se escala para entrar entera, sin cambiar su tamaño real (así las fotos y el script no dependen
+// de cómo esté armada la interfaz).
 const editorBody = ref(null)
 const editorSize = () => {
   const el = editorBody.value
   return el ? { w: Math.floor(el.clientWidth), h: Math.floor(el.clientHeight) } : { w: 0, h: 0 }
 }
 let resizeObs = null
-let resizeTimer = null
-let sentSize = ''
+const editorBox = ref({ w: 0, h: 0 })
 function watchEditorSize(on) {
   resizeObs?.disconnect()
   resizeObs = null
   if (!on || !editorBody.value) return
-  resizeObs = new ResizeObserver(() => {
-    clearTimeout(resizeTimer)
-    resizeTimer = setTimeout(() => {
-      const { w, h } = editorSize()
-      const key = `${w}x${h}`
-      if (!w || !h || key === sentSize) return
-      sentSize = key
-      api('/api/live/viewport', { method: 'POST', body: JSON.stringify({ w, h }) }).catch((e) => { liveError.value = e.message })
-    }, 200)
-  })
+  editorBox.value = editorSize()
+  resizeObs = new ResizeObserver(() => { editorBox.value = editorSize() })
   resizeObs.observe(editorBody.value)
+}
+const isMobile = computed(() => liveState.value.device === 'mobile')
+// El tamaño en pantalla del navegador: entra entero en el editor, sin agrandarse más que 1:1.
+const liveFit = computed(() => {
+  const w = liveState.value.width || 1280
+  const h = liveState.value.height || 800
+  const pad = isMobile.value ? 48 : 16
+  const sc = Math.min((editorBox.value.w - pad) / w, (editorBox.value.h - pad) / h, 1)
+  return sc > 0 ? { width: `${Math.floor(w * sc)}px`, height: `${Math.floor(h * sc)}px` } : {}
+})
+// ── el dispositivo: escritorio (por defecto) o un teléfono ──
+const devicePref = ref(readPref('navegador.device', 'desktop'))
+watch(devicePref, (v) => savePref('navegador.device', v))
+const deviceSwitching = ref(false)
+async function setDevice(d) {
+  devicePref.value = d
+  if (!liveState.value.active || liveState.value.device === d) return
+  deviceSwitching.value = true
+  liveError.value = ''
+  try {
+    // Se reabre en la misma página: el perfil de un teléfono se fija al abrir el navegador.
+    liveState.value = await api('/api/live/device', { method: 'POST', body: JSON.stringify({ device: d }) })
+    openFrames()
+    pollLive()
+  } catch (e) { liveError.value = e.message } finally { deviceSwitching.value = false }
 }
 let frames = null
 let liveTimer = null
@@ -315,9 +336,7 @@ async function liveStart(start = '') {
   panelOpen.value = true
   saveSize('navegador.panel-open', 1)
   try {
-    const { w, h } = editorSize()
-    sentSize = `${w}x${h}`
-    const q = `site=${encodeURIComponent(siteSlug.value)}&w=${w}&h=${h}${start ? `&start=${encodeURIComponent(start)}` : ''}`
+    const q = `site=${encodeURIComponent(siteSlug.value)}&device=${devicePref.value}${start ? `&start=${encodeURIComponent(start)}` : ''}`
     liveState.value = await api(`/api/live/start?${q}`, { method: 'POST' })
     liveURL.value = liveState.value.url
     poll()
@@ -861,6 +880,9 @@ onBeforeUnmount(() => {
           <textarea v-model="askGoal" class="input ask-goal" rows="3" placeholder="La meta, como se la dirías a alguien: «averiguá hasta cuándo hay descuento en el predial de Bogotá»" aria-label="La meta" @keydown.enter.exact.prevent="launchAsk"></textarea>
           <div class="ask-form-row">
             <input v-model="askURL" class="input input-sm" type="url" placeholder="URL de arranque (vacío: la sesión abierta)" aria-label="URL de arranque" />
+            <select v-model="devicePref" class="input input-sm ask-device" aria-label="Dispositivo" title="En qué dispositivo navega">
+              <option v-for="d in DEVICES" :key="d.id" :value="d.id">{{ d.label }}</option>
+            </select>
             <button type="submit" class="btn btn-sm" :disabled="!askGoal.trim() || askState.running || askBusy">Lanzar</button>
           </div>
           <p v-if="askState.running" class="none">Hay una meta corriendo: la sigue el panel Agente.</p>
@@ -980,6 +1002,9 @@ onBeforeUnmount(() => {
           <input id="live-url" v-model="liveURL" class="input input-sm" aria-label="URL de la sesión en vivo" spellcheck="false" />
         </form>
         <span v-if="liveState.analyzing" class="muted head-note">analizando…</span>
+        <div class="seg-toggle" role="group" aria-label="Dispositivo">
+          <button v-for="d in DEVICES" :key="d.id" type="button" :aria-pressed="liveState.device === d.id" :disabled="deviceSwitching" :title="d.title" @click="setDevice(d.id)">{{ d.label }}</button>
+        </div>
         <div class="region-actions">
           <button type="button" class="region-action" :aria-pressed="inspect" :title="inspect ? 'Volver a usar la página' : 'Inspeccionar: tocar un elemento abre su localizador y sus acciones'"
             aria-label="Inspeccionar los elementos" @click="inspect = !inspect; pickedControl = -1">
@@ -1032,7 +1057,7 @@ onBeforeUnmount(() => {
         </div>
 
         <div v-if="isLive" class="live-wrap">
-          <div class="live-stage">
+          <div class="live-stage" :class="{ phone: isMobile }" :style="liveFit">
             <canvas ref="liveCanvas" class="live-canvas" tabindex="0" aria-label="La página en vivo: hacé clic y escribí como en un navegador"
               @click="onCanvasClick" @wheel.prevent="onCanvasWheel" @keydown="onCanvasKey"></canvas>
             <template v-if="showBoxes || inspect">
@@ -1485,10 +1510,19 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-head { gap: var(--space-1) }
 .live-url { flex: 1; min-width: 0; display: flex }
 .live-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
-/* el navegador ocupa el editor entero, 1:1: el área se mide y la página toma ese tamaño */
+/* el navegador, escalado para entrar entero en el editor (su tamaño real es el del dispositivo) */
 .live-body { overflow: hidden }
-.live-stage { position: relative }
-.live-canvas { display: block; width: 100%; height: auto; background: var(--card); outline: none }
+.live-wrap { height: 100%; display: grid; place-items: center }
+.live-stage { position: relative; box-shadow: 0 0 0 1px var(--border) }
+.live-stage.phone { border-radius: 18px; box-shadow: 0 0 0 8px var(--stage-bg), 0 0 0 9px var(--border) }
+.live-stage.phone .live-canvas { border-radius: 18px }
+.live-canvas { display: block; width: 100%; height: 100%; background: var(--card); outline: none }
+.seg-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; flex: none }
+.seg-toggle button { border: 0; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--text-sm); padding: 2px var(--space-2); cursor: pointer }
+.seg-toggle button + button { border-left: 1px solid var(--border) }
+.seg-toggle button[aria-pressed="true"] { background: var(--hover); color: var(--foreground) }
+.seg-toggle button:disabled { opacity: .5; cursor: progress }
+.ask-device { flex: none !important; width: auto }
 .live-box { pointer-events: none }
 .live-box.touch { pointer-events: auto }
 .act-pop { position: absolute; z-index: 2; width: 360px; max-width: calc(100% - 16px); padding: var(--space-3); display: flex; flex-direction: column; gap: var(--space-2);

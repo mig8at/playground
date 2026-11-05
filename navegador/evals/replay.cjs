@@ -1,7 +1,7 @@
 // Repite un script de bin/navegador en un Chromium NUEVO (sin la sesión de la herramienta) y dice si pasó.
 // Uso: PW_CORE=<ruta a playwright-core> node replay.cjs <script.spec.ts>  → una línea JSON {ok, lineas, url, error}
 const fs = require('fs')
-const { chromium } = require(process.env.PW_CORE)
+const { chromium, devices } = require(process.env.PW_CORE)
 const src = fs.readFileSync(process.argv[2], 'utf8')
 const head = 'async ({ page }) => {'
 const body = src.slice(src.indexOf(head) + head.length, src.lastIndexOf('})'))
@@ -22,7 +22,9 @@ expect.poll = (fn, opts = {}) => ({
 const lineas = body.split('\n').filter((l) => l.trim().startsWith('await ')).length
 ;(async () => {
   const browser = await chromium.launch()
-  const page = await browser.newPage()
+  // Un recorrido en el teléfono trae test.use({ ...devices['Pixel 7'] }): se repite con ese mismo perfil.
+  const device = (src.match(/devices\['([^']+)'\]/) || [])[1]
+  const page = await (await browser.newContext(device ? devices[device] : {})).newPage()
   page.setDefaultTimeout(15000)
   try {
     await new Function('page', 'expect', 'fs', 'return (async () => {' + body + '})()')(page, expect, require('fs'))

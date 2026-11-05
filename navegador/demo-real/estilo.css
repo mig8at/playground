@@ -15,3 +15,10 @@ button.peligro { background: #a12424 }
 button:disabled { background: #c9b9a6 }
 .ok { background: #e6f4e1; padding: 12px; border-radius: 6px } .error { color: #a12424 }
 footer { text-align: center; color: #8c7a63; font-size: 13px; padding: 30px }
+/* En el teléfono: el menú se reparte en dos líneas y los productos van de a uno. */
+@media (max-width: 720px) {
+  header { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px }
+  header .marca { flex-basis: 100% }
+  main { margin: 16px auto; padding: 0 16px }
+  .productos { grid-template-columns: 1fr }
+}

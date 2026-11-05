@@ -30,15 +30,25 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// El tamaño de la sesión en vivo es el del editor (la interfaz lo manda al abrir y cada vez que cambia), así la
-// página se ve 1:1. Sin tamaño, el de una pantalla de escritorio común.
+// La sesión en vivo corre en uno de dos dispositivos, de tamaño FIJO (el editor la escala para que entre): así
+// las fotos, el video de la corrida y el script salen siempre iguales, abra donde se abra la interfaz.
+//
+//	desktop   una pantalla de escritorio común, 1280×800 (por defecto)
+//	mobile    un teléfono: el perfil Pixel 7 de Playwright (412×839, táctil, agente de Chrome en Android), para
+//	          que el sitio sirva su versión móvil de verdad y no sólo una ventana angosta
+const (
+	deviceDesktop = "desktop"
+	deviceMobile  = "mobile"
+	mobileProfile = "Pixel 7"
+)
+
 const liveW, liveH = 1280, 800
 
-func clampSize(w, h int) (int, int) {
-	if w <= 0 || h <= 0 {
-		return liveW, liveH
+func normDevice(d string) string {
+	if d == deviceMobile {
+		return deviceMobile
 	}
-	return min(max(w, 320), 2560), min(max(h, 240), 1600)
+	return deviceDesktop
 }
 
 // Step es una acción hecha en la sesión, con la línea de Playwright que la reproduce.
@@ -118,6 +128,7 @@ type LiveState struct {
 	Title     string   `json:"title"`
 	Width     int      `json:"width"`
 	Height    int      `json:"height"`
+	Device    string   `json:"device"`  // desktop · mobile
 	Version   int      `json:"version"` // sube con cada análisis nuevo
 	Analyzing bool     `json:"analyzing"`
 	Page      *Page    `json:"page,omitempty"`
@@ -128,13 +139,16 @@ type LiveState struct {
 }
 
 type live struct {
-	site  Site
-	bctx  playwright.BrowserContext
-	page  playwright.Page
-	cdp   playwright.CDPSession
-	tap   *tap
-	start string
-	w, h  int
+	site   Site
+	bctx   playwright.BrowserContext
+	page   playwright.Page
+	cdp    playwright.CDPSession
+	tap    *tap
+	start  string
+	w, h   int
+	device string  // desktop · mobile
+	dpr    float64 // la densidad de la pantalla (2,6 en el teléfono): el screencast va a esa nitidez, con tope
+	clean  bool    // el perfil es temporal (cambiar de dispositivo arranca otro, vacío)
 
 	mu        sync.Mutex
 	subs      map[chan []byte]struct{}
@@ -199,10 +213,10 @@ func (r *Runner) liveSession() *live {
 	return r.live
 }
 
-// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), del tamaño w×h. Con clean, en un
+// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), en ese dispositivo. Con clean, en un
 // perfil TEMPORAL que se borra al cerrar: sin el login ni lo guardado de corridas anteriores (lo usan las evals,
 // para que el script no dependa de un estado que dejó otra corrida).
-func (r *Runner) LiveStart(slug, start string, w, h int, clean bool) error {
+func (r *Runner) LiveStart(slug, start, device string, clean bool) error {
 	site, err := r.store.Site(slug)
 	if err != nil {
 		return err
@@ -217,7 +231,7 @@ func (r *Runner) LiveStart(slug, start string, w, h int, clean bool) error {
 	ready := make(chan error, 1)
 	go func() {
 		defer r.end()
-		if err := r.runLive(ctx, site, start, w, h, clean, ready); err != nil {
+		if err := r.runLive(ctx, site, start, normDevice(device), clean, ready); err != nil {
 			r.say("error", "en vivo: %v", err)
 			select {
 			case ready <- err:
@@ -233,8 +247,7 @@ func (r *Runner) LiveStart(slug, start string, w, h int, clean bool) error {
 	}
 }
 
-func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int, clean bool, ready chan<- error) error {
-	w, h = clampSize(w, h)
+func (r *Runner) runLive(ctx context.Context, site Site, start, device string, clean bool, ready chan<- error) error {
 	profile := r.store.ProfileDir(site.Slug)
 	if clean {
 		tmp, err := os.MkdirTemp("", "navegador-limpio-")
@@ -248,11 +261,25 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 	if err != nil {
 		return err
 	}
-	bctx, err := pw.Chromium.LaunchPersistentContext(profile, playwright.BrowserTypeLaunchPersistentContextOptions{
+	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
 		Headless: playwright.Bool(true),
-		Viewport: &playwright.Size{Width: w, Height: h},
+		Viewport: &playwright.Size{Width: liveW, Height: liveH},
 		Args:     []string{"--disable-blink-features=AutomationControlled"},
-	})
+	}
+	w, h, dpr := liveW, liveH, 1.0
+	if device == deviceMobile {
+		d := pw.Devices[mobileProfile]
+		if d == nil || d.Viewport == nil {
+			return fmt.Errorf("playwright no trae el perfil %s", mobileProfile)
+		}
+		w, h, dpr = d.Viewport.Width, d.Viewport.Height, d.DeviceScaleFactor
+		opts.Viewport = &playwright.Size{Width: w, Height: h}
+		opts.UserAgent = playwright.String(d.UserAgent)
+		opts.DeviceScaleFactor = playwright.Float(d.DeviceScaleFactor)
+		opts.IsMobile = playwright.Bool(d.IsMobile)
+		opts.HasTouch = playwright.Bool(d.HasTouch)
+	}
+	bctx, err := pw.Chromium.LaunchPersistentContext(profile, opts)
 	if err != nil {
 		return err
 	}
@@ -263,7 +290,7 @@ func (r *Runner) runLive(ctx context.Context, site Site, start string, w, h int,
 			return err
 		}
 	}
-	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
+	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, clean: clean, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
 	page.OnDialog(func(d playwright.Dialog) {
 		l.mu.Lock()
@@ -461,7 +488,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h,
+		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device,
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
@@ -850,7 +877,7 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	}
 	l.markDirty()
 	if err != nil {
-		return step, fmt.Errorf("%s sobre «%s»: %s", action, name, firstLine(err.Error()))
+		return step, fmt.Errorf("%s sobre «%s»: %s", action, name, errText(err))
 	}
 	return step, nil
 }
@@ -940,7 +967,26 @@ func errText(err error) string {
 	if err == nil {
 		return ""
 	}
+	if why := callLogWhy(err.Error()); why != "" {
+		return firstLine(err.Error()) + " · " + why
+	}
 	return firstLine(err.Error())
+}
+
+// callLogWhy saca del registro de Playwright por qué esperó hasta el tope: «Timeout 10000ms exceeded» solo no
+// dice nada, y la causa (otro elemento tapa el clic, no se ve, está fuera de la pantalla) es lo que hay que
+// resolver. En un teléfono es lo más común: un menú o una tarjeta encima del enlace.
+func callLogWhy(msg string) string {
+	why := ""
+	for _, line := range strings.Split(msg, "\n") {
+		t := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "-"))
+		for _, k := range []string{"intercepts pointer events", "element is not visible", "element is outside of the viewport", "element is not enabled", "element is not stable", "element is not attached"} {
+			if strings.Contains(t, k) {
+				why = t // la última: es el estado en que quedó al vencer
+			}
+		}
+	}
+	return truncate(why, 200)
 }
 
 // LiveText devuelve el texto visible de la página, CON lo que hay en shadow roots e iframes: el innerText del
@@ -989,21 +1035,31 @@ func (r *Runner) LiveScript() string {
 	l.mu.Lock()
 	steps := append([]Step{}, l.steps...)
 	start := l.start
-	w, h := l.w, l.h
+	w, h, device := l.w, l.h, l.device
 	l.mu.Unlock()
 	var b strings.Builder
 	usesFS := false
 	for _, s := range steps {
 		usesFS = usesFS || s.UsesFS
 	}
-	b.WriteString("import { test, expect } from '@playwright/test'\n")
+	if device == deviceMobile {
+		b.WriteString("import { test, expect, devices } from '@playwright/test'\n")
+	} else {
+		b.WriteString("import { test, expect } from '@playwright/test'\n")
+	}
 	if usesFS {
 		b.WriteString("import fs from 'node:fs'\n")
 	}
 	b.WriteString("\n")
+	// En el teléfono, el perfil entero (agente, táctil, densidad): el sitio sirve otra página que en escritorio.
+	if device == deviceMobile {
+		fmt.Fprintf(&b, "test.use({ ...devices['%s'] })\n\n", mobileProfile)
+	}
 	fmt.Fprintf(&b, "test('%s', async ({ page }) => {\n", jsQuote("recorrido en "+l.site.Name))
 	// El tamaño con que se recorrió: la disposición (y algún localizador) depende de él.
-	fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
+	if device != deviceMobile {
+		fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
+	}
 	if len(steps) == 0 || !strings.HasPrefix(steps[0].Code, "page.goto(") {
 		fmt.Fprintf(&b, "  await page.goto('%s')\n", jsQuote(start))
 	}
@@ -1039,36 +1095,29 @@ func controlsSignature(p *Page) string {
 }
 
 func (l *live) startScreencast() error {
-	_, err := l.cdp.Send("Page.startScreencast", map[string]any{"format": "jpeg", "quality": 75, "maxWidth": l.w, "maxHeight": l.h})
+	scale := min(max(l.dpr, 1), 2) // nítido en el teléfono, sin mandar cuadros de 3× por la red
+	_, err := l.cdp.Send("Page.startScreencast", map[string]any{"format": "jpeg", "quality": 75, "maxWidth": int(float64(l.w) * scale), "maxHeight": int(float64(l.h) * scale)})
 	return err
 }
 
-// LiveResize cambia el tamaño de la página al del editor y reinicia el screencast con ese tamaño. La disposición
-// cambia, así que la página se vuelve a analizar (los cuadros y, a veces, los localizadores).
-func (r *Runner) LiveResize(w, h int) error {
+// LiveDevice cambia de dispositivo: el perfil de un teléfono (agente, táctil, densidad) sólo se fija al abrir
+// el navegador, así que se cierra la sesión y se abre otra en la misma página. Con un perfil limpio, lo que había
+// (un login) se pierde.
+func (r *Runner) LiveDevice(device string) error {
+	device = normDevice(device)
 	l := r.liveSession()
 	if l == nil {
 		return errors.New("no hay sesión en vivo")
 	}
-	w, h = clampSize(w, h)
-	l.mu.Lock()
-	same := l.w == w && l.h == h
-	l.mu.Unlock()
-	if same {
+	if l.device == device {
 		return nil
 	}
-	if err := l.page.SetViewportSize(w, h); err != nil {
-		return err
+	slug, url, clean := l.site.Slug, l.page.URL(), l.clean
+	r.Stop()
+	for i := 0; i < 100 && r.State(0).Busy; i++ {
+		time.Sleep(100 * time.Millisecond)
 	}
-	l.mu.Lock()
-	l.w, l.h = w, h
-	l.mu.Unlock()
-	_, _ = l.cdp.Send("Page.stopScreencast", nil)
-	if err := l.startScreencast(); err != nil {
-		return err
-	}
-	l.markDirty()
-	return nil
+	return r.LiveStart(slug, url, device, clean)
 }
 
 // LiveDialogPolicy decide cómo se contestan los próximos diálogos: aceptar (por defecto) o rechazar.

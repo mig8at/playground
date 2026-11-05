@@ -7,10 +7,16 @@ export function header() {
   const logged = !!sessionStorage.getItem('demo.user')
   const h = document.createElement('header')
   h.className = 'site'
-  h.innerHTML = `<a class="brand" href="/">Credidemo</a><nav aria-label="Principal">${NAV.map(([href, label]) =>
+  // En el teléfono el menú se esconde detrás de ☰, como en la mayoría de los sitios: hay que abrirlo para navegar.
+  h.innerHTML = `<a class="brand" href="/">Credidemo</a><button type="button" class="menu-btn" aria-label="Menú" aria-expanded="false" aria-controls="nav-principal">☰</button><nav id="nav-principal" aria-label="Principal">${NAV.map(([href, label]) =>
     `<a href="${href}" class="${location.pathname === href || (href !== '/' && location.pathname.startsWith(href)) ? 'on' : ''}">${label}</a>`).join('')}</nav>
     ${logged ? '<a href="/cuenta.html" style="color:#fff">Mi cuenta</a> <button id="logout" class="secondary">Salir</button>' : '<a href="/ingresar.html" style="color:#fff">Ingresar</a>'}`
   document.body.prepend(h)
+  const menu = h.querySelector('.menu-btn')
+  menu.addEventListener('click', () => {
+    const open = h.classList.toggle('open')
+    menu.setAttribute('aria-expanded', String(open))
+  })
   h.querySelector('#logout')?.addEventListener('click', () => { sessionStorage.removeItem('demo.user'); location.href = '/' })
   const f = document.createElement('footer')
   f.className = 'site'

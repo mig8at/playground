@@ -81,6 +81,8 @@ func main() {
 		err = evals(args)
 	case "open":
 		err = open(args)
+	case "device":
+		err = device(args)
 	case "look":
 		for i := 0; i < len(args); i++ {
 			switch args[i] {
@@ -165,13 +167,13 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
-  sites · open <sitio|url> [url] · look [--todo | --buscar texto] · close
+  sites · open [--movil] <sitio|url> [url] · device [movil|escritorio] · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media [--afirmar] · read [--desde N | --buscar texto] · readfile <ruta> [--flujo] [--buscar texto] · shot <archivo.png>
   steps · script · report [meta] · reset
-  ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
+  ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
 	os.Exit(2)
 }
@@ -239,6 +241,7 @@ type control struct {
 
 type liveState struct {
 	Active  bool
+	Device  string
 	Site    string
 	URL     string
 	Title   string
@@ -312,19 +315,66 @@ func sites() error {
 }
 
 func open(args []string) error {
-	if len(args) < 1 {
+	dev := ""
+	var rest []string
+	for _, a := range args {
+		if d := parseDevice(strings.TrimPrefix(a, "--")); strings.HasPrefix(a, "--") && d != "" {
+			dev = d
+		} else {
+			rest = append(rest, a)
+		}
+	}
+	if len(rest) < 1 {
 		usage()
 	}
-	if err := startLive(args, false); err != nil {
+	if err := startLive(rest, false, dev); err != nil {
 		return err
 	}
+	return look(true)
+}
+
+// parseDevice acepta el nombre en castellano o en inglés; vacío si no es un dispositivo.
+func parseDevice(s string) string {
+	switch strings.ToLower(s) {
+	case "movil", "móvil", "mobile", "celular":
+		return "mobile"
+	case "escritorio", "desktop":
+		return "desktop"
+	}
+	return ""
+}
+
+var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1280×800)"}
+
+// device dice en qué dispositivo está la sesión o la pasa al otro: se reabre en la misma página (el perfil de
+// un teléfono se fija al abrir el navegador).
+func device(args []string) error {
+	if len(args) == 0 {
+		var st liveState
+		if err := call(http.MethodGet, "/api/live/state", nil, &st); err != nil {
+			return err
+		}
+		if !st.Active {
+			return errors.New("no hay sesión en vivo")
+		}
+		fmt.Println(deviceName[st.Device])
+		return nil
+	}
+	d := parseDevice(args[0])
+	if d == "" {
+		return fmt.Errorf("dispositivo desconocido %q: movil o escritorio", args[0])
+	}
+	if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": d}, nil); err != nil {
+		return err
+	}
+	fmt.Printf("ahora en %s\n\n", deviceName[d])
 	return look(true)
 }
 
 // startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, sin mostrar la página. Con clean
 // abre SIEMPRE una sesión nueva con un perfil limpio (la que hubiera se cierra): sin el login ni lo guardado
 // de corridas anteriores.
-func startLive(args []string, clean bool) error {
+func startLive(args []string, clean bool, dev string) error {
 	slug, start := args[0], ""
 	if len(args) > 1 {
 		start = args[1]
@@ -365,6 +415,11 @@ func startLive(args []string, clean bool) error {
 	var st liveState
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
 		if st.Site == slug && !clean {
+			if dev != "" && dev != st.Device {
+				if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": dev}, nil); err != nil {
+					return err
+				}
+			}
 			if start == "" {
 				return nil
 			}
@@ -388,6 +443,9 @@ func startLive(args []string, clean bool) error {
 	}
 	if clean {
 		q += "&clean=1"
+	}
+	if dev != "" {
+		q += "&device=" + dev
 	}
 	return call(http.MethodPost, "/api/live/start?"+q, nil, nil)
 }
