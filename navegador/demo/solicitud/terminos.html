@@ -1,0 +1,42 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credidemo · Términos</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <div class="steps"><span>1. Datos</span><span class="on">2. Términos</span><span>3. Oferta</span><span>4. Confirmar</span></div>
+  <div class="card">
+    <h1>Términos y condiciones</h1>
+    <p class="muted">Leelos hasta el final para poder aceptarlos.</p>
+    <div class="terms" id="terms" tabindex="0" role="region" aria-label="Texto de los términos"></div>
+    <p class="notice" id="hint">Bajá hasta el final del texto para habilitar la aceptación.</p>
+    <label class="row"><input type="checkbox" id="acepto" disabled> Acepto los términos y condiciones</label>
+    <h2>¿Autorizás la consulta en centrales de riesgo?</h2>
+    <div class="radio-group" role="radiogroup" aria-label="Consulta en centrales">
+      <label><input type="radio" name="centrales" value="si"> Sí, autorizo</label>
+      <label><input type="radio" name="centrales" value="no"> No autorizo</label>
+    </div>
+    <p class="error" id="centrales-error"></p>
+    <div class="row"><button class="secondary" id="volver" type="button">Volver</button><button id="continuar" disabled>Continuar</button></div>
+  </div>
+</main>
+<script type="module">
+import { header, store, requireStep } from '/demo.js'; header()
+requireStep('datos', '/solicitud/datos.html')
+const terms = document.getElementById('terms')
+terms.innerHTML = Array.from({ length: 14 }, (_, i) => `<p><strong>${i + 1}.</strong> Cláusula de práctica número ${i + 1}: el solicitante declara que la información entregada es verdadera, que Credidemo no es un servicio real y que este texto existe sólo para obligar a bajar el scroll antes de aceptar.</p>`).join('') + '<p id="fin"><strong>Fin de los términos.</strong></p>'
+const acepto = document.getElementById('acepto'), btn = document.getElementById('continuar')
+terms.addEventListener('scroll', () => {
+  if (terms.scrollTop + terms.clientHeight >= terms.scrollHeight - 4) {
+    acepto.disabled = false
+    document.getElementById('hint').textContent = 'Listo: ya podés aceptar.'
+  }
+})
+function check() {
+  const c = document.querySelector('input[name=centrales]:checked')?.value
+  document.getElementById('centrales-error').textContent = c === 'no' ? 'Sin autorización no podemos calcular tu oferta' : ''
+  btn.disabled = !(acepto.checked && c === 'si')
+}
+acepto.addEventListener('change', check)
+document.querySelectorAll('input[name=centrales]').forEach((r) => r.addEventListener('change', check))
+document.getElementById('volver').addEventListener('click', () => history.back())
+btn.addEventListener('click', () => { store.set({ terminos: true }); location.href = '/solicitud/oferta.html' })
+</script>
+</body></html>

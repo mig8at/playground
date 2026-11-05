@@ -381,6 +381,9 @@ func (r *Runner) LiveNav(action, target string) error {
 	case "forward":
 		_, err = l.page.GoForward()
 		r.recordStep(l, Step{Code: "page.goForward()", Target: "adelante", OK: err == nil, Error: errText(err)})
+	case "scroll": // la página entera, hasta abajo
+		_, err = l.page.Evaluate("() => window.scrollTo(0, document.body.scrollHeight)")
+		r.recordStep(l, Step{Code: "page.evaluate(() => window.scrollTo(0, document.body.scrollHeight))", Target: "bajar la página", OK: err == nil, Error: errText(err)})
 	case "reload":
 		_, err = l.page.Reload()
 		r.recordStep(l, Step{Code: "page.reload()", Target: "recargar", OK: err == nil, Error: errText(err)})
@@ -423,13 +426,24 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 	loc := c.Locators[c.Best]
 	action := in.Action
 	if action == "" {
-		action = map[string]string{"field": "fill", "select": "select", "check": "check"}[c.Kind]
+		action = map[string]string{"field": "fill", "select": "select", "check": "check", "scroll": "scroll"}[c.Kind]
 		if action == "" {
 			action = "click"
 		}
 	}
 	target := locatorFor(l.page, loc)
 	timeout := playwright.Float(10000)
+	// Un elemento deshabilitado se niega al instante: esperar 10 s a que se habilite solo esconde la causa, que
+	// casi siempre es una regla de la página (un campo inválido, un texto sin leer).
+	if action != "scroll" && action != "press" {
+		if enabled, err := target.IsEnabled(playwright.LocatorIsEnabledOptions{Timeout: playwright.Float(3000)}); err == nil && !enabled {
+			why := ""
+			if len(cur.Notices) > 0 {
+				why = " · avisos: " + strings.Join(cur.Notices, " | ")
+			}
+			return Step{}, fmt.Errorf("«%s» está deshabilitado: la página exige algo antes%s", c.Name, why)
+		}
+	}
 	var code string
 	var err error
 	switch action {
@@ -451,11 +465,14 @@ func (r *Runner) LiveAct(in LiveAct) (Step, error) {
 		if err != nil { // quizás pasaron la etiqueta y no el valor
 			_, err = target.SelectOption(playwright.SelectOptionValues{Labels: &[]string{in.Value}}, playwright.LocatorSelectOptionOptions{Timeout: timeout})
 		}
+	case "scroll":
+		code = ".evaluate((e) => e.scrollTo(0, e.scrollHeight))"
+		_, err = target.Evaluate("e => e.scrollTo(0, e.scrollHeight)", nil, playwright.LocatorEvaluateOptions{Timeout: timeout})
 	case "press":
 		code = fmt.Sprintf(".press('%s')", jsQuote(in.Value))
 		err = target.Press(in.Value, playwright.LocatorPressOptions{Timeout: timeout})
 	default:
-		return Step{}, fmt.Errorf("acción desconocida %q (click · fill · check · uncheck · select · press)", action)
+		return Step{}, fmt.Errorf("acción desconocida %q (click · fill · check · uncheck · select · press · scroll)", action)
 	}
 	step := Step{Code: loc.Code + code, Target: c.Name, OK: err == nil, Error: errText(err)}
 	r.recordStep(l, step)

@@ -1,0 +1,49 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credidemo · Tu oferta</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <div class="steps"><span>1. Datos</span><span>2. Términos</span><span class="on">3. Oferta</span><span>4. Confirmar</span></div>
+  <div class="card">
+    <div id="loading" class="row"><div class="spinner"></div><span>Calculando tu oferta…</span></div>
+    <div id="offer" hidden>
+      <h1>¡Tenés una oferta!</h1>
+      <p>Cupo aprobado hasta <strong id="cupo"></strong></p>
+      <div class="field"><label for="monto">Monto a solicitar</label><input id="monto" type="number" min="300000" step="50000"><span class="error" data-for="monto"></span></div>
+      <h2>Plazo</h2>
+      <div class="radio-group" role="radiogroup" aria-label="Plazo">
+        <label><input type="radio" name="plazo" value="6"> 6 meses</label>
+        <label><input type="radio" name="plazo" value="12"> 12 meses</label>
+        <label><input type="radio" name="plazo" value="24"> 24 meses</label>
+      </div>
+      <p>Cuota estimada: <strong id="cuota">—</strong></p>
+      <button id="confirmar" disabled>Confirmar oferta</button>
+    </div>
+  </div>
+</main>
+<script type="module">
+import { header, store, requireStep } from '/demo.js'; header()
+requireStep('terminos', '/solicitud/terminos.html')
+const CUPO = 3000000
+const fmt = (n) => '$' + Math.round(n).toLocaleString('es-CO')
+setTimeout(() => {
+  document.getElementById('loading').hidden = true
+  document.getElementById('offer').hidden = false
+  document.getElementById('cupo').textContent = fmt(CUPO)
+}, 2500)
+const monto = document.getElementById('monto'), btn = document.getElementById('confirmar')
+function check() {
+  const m = Number(monto.value), p = Number(document.querySelector('input[name=plazo]:checked')?.value || 0)
+  const bad = monto.value && (m < 300000 || m > CUPO) ? `Entre ${fmt(300000)} y ${fmt(CUPO)}` : ''
+  document.querySelector('[data-for=monto]').textContent = bad
+  monto.classList.toggle('invalid', !!bad)
+  const ok = !bad && m && p
+  document.getElementById('cuota').textContent = ok ? fmt((m * 1.019 ** p * 0.019) / (1.019 ** p - 1)) + ' al mes' : '—'
+  btn.disabled = !ok
+}
+monto.addEventListener('input', check)
+document.querySelectorAll('input[name=plazo]').forEach((r) => r.addEventListener('change', check))
+btn.addEventListener('click', () => {
+  store.set({ monto: monto.value, plazo: document.querySelector('input[name=plazo]:checked').value, oferta: true })
+  location.href = '/solicitud/confirmar.html'
+})
+</script>
+</body></html>

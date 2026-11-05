@@ -39,6 +39,7 @@ func main() {
 	depth := flag.Int("depth", 0, "con -explore: cuántos clics desde la entrada (0: sin límite)")
 	start := flag.String("start", "", "con -browse o -explore: arrancar en esta URL en vez de la entrada del sitio")
 	sites := flag.Bool("sites", false, "lista los sitios")
+	demo := flag.String("demo", "", "con -serve: sirve también Credidemo, el sitio de práctica (navegador/demo), en esta dirección")
 	flag.Parse()
 
 	store, err := OpenStore(dataDir())
@@ -50,6 +51,9 @@ func main() {
 
 	switch {
 	case *addr != "":
+		if *demo != "" {
+			go serveDemo(*demo)
+		}
 		if err := serve(*addr, store, runner); err != nil {
 			fail(err)
 		}
@@ -83,6 +87,22 @@ func main() {
 	default:
 		flag.Usage()
 		os.Exit(2)
+	}
+}
+
+// serveDemo sirve Credidemo (navegador/demo): un sitio de práctica con formularios, reglas y pasos encadenados,
+// en otro puerto para que el navegador lo trate como un sitio aparte.
+func serveDemo(addr string) {
+	_, file, _, _ := runtime.Caller(0)
+	dir := filepath.Join(filepath.Dir(filepath.Dir(file)), "demo")
+	fs := http.FileServer(http.Dir(dir))
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-store")
+		fs.ServeHTTP(w, r)
+	})
+	fmt.Fprintf(os.Stderr, "navegador: Credidemo en http://%s\n", addr)
+	if err := http.ListenAndServe(addr, h); err != nil {
+		fmt.Fprintln(os.Stderr, "navegador: Credidemo:", err)
 	}
 }
 

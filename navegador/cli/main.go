@@ -6,6 +6,7 @@
 //	bin/navegador open <sitio|url> [url]         abre la sesión en vivo (una URL nueva se da de alta sola)
 //	bin/navegador look                           la página actual: sus elementos numerados, con su localizador
 //	bin/navegador click <n> | fill <n> <valor> | check <n> | uncheck <n> | select <n> <valor> | press <n> <tecla>
+//	bin/navegador scroll [n]                     baja la página entera, o la zona con scroll n hasta el final
 //	bin/navegador goto <url> | back | reload
 //	bin/navegador text [buscar]                  el texto visible (o si aparece `buscar`)
 //	bin/navegador wait <texto> [segundos]        espera a que el texto se vea (queda como aserción en el script)
@@ -60,6 +61,12 @@ func main() {
 		err = act(cmd, args, false)
 	case "fill", "select", "press":
 		err = act(cmd, args, true)
+	case "scroll": // sin número, la página entera; con número, una zona con scroll hasta el final
+		if len(args) == 0 {
+			err = nav("scroll", "")
+		} else {
+			err = act("scroll", args, false)
+		}
 	case "goto":
 		if len(args) < 1 {
 			usage()
@@ -94,7 +101,7 @@ func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
   sites · open <sitio|url> [url] · look · close
   click <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor> · press <n> <tecla>
-  goto <url> · back · reload · text [buscar] · wait <texto> [s] · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · shot <archivo.png>
   steps · script · reset`)
 	os.Exit(2)
 }
@@ -146,6 +153,8 @@ type control struct {
 	Form     int
 	Best     int
 	Checked  *bool
+	Disabled bool
+	AtEnd    *bool
 	Options  []struct{ Value, Label string }
 	Locators []struct {
 		Kind, Code string
@@ -164,6 +173,7 @@ type liveState struct {
 		Status   int
 		Controls []control
 		Console  []string
+		Notices  []string
 	}
 	Steps []struct {
 		Code, Error string
@@ -272,7 +282,10 @@ func look(fresh bool) error {
 	if len(st.Page.Console) > 0 {
 		fmt.Printf("⚠ %d errores de consola\n", len(st.Page.Console))
 	}
-	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace"}
+	for _, n := range st.Page.Notices {
+		fmt.Printf("aviso: %s\n", n)
+	}
+	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll"}
 	for _, c := range st.Page.Controls {
 		loc := "SIN LOCALIZADOR ÚNICO"
 		if c.Best >= 0 {
@@ -281,6 +294,12 @@ func look(fresh bool) error {
 		extra := ""
 		if c.Checked != nil {
 			extra = map[bool]string{true: " [marcada]", false: " [sin marcar]"}[*c.Checked]
+		}
+		if c.AtEnd != nil {
+			extra += map[bool]string{true: " [leída hasta el final]", false: " [falta bajar]"}[*c.AtEnd]
+		}
+		if c.Disabled {
+			extra += " [deshabilitado]"
 		}
 		fmt.Printf("%3d  %-11s «%s»%s\n       %s\n", c.ID+1, kinds[c.Kind], trim(c.Name, 60), extra, loc)
 		if len(c.Options) > 0 {

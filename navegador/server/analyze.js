@@ -134,6 +134,23 @@
     }
     return parts.join(' > ')
   }
+  // La zona de la página donde vive un elemento: con ella se acota un nombre que se repite (el mismo enlace en el
+  // menú y en el cuerpo) sin caer en un CSS por posición.
+  const landmarkOf = (el) => {
+    for (let n = el.parentElement; n && n !== document.body; n = n.parentElement) {
+      const t = n.tagName, explicit = n.getAttribute('role')
+      const label = clean(n.getAttribute('aria-label') || (n.getAttribute('aria-labelledby') && document.getElementById(n.getAttribute('aria-labelledby'))?.textContent) || '', 60)
+      if (explicit === 'navigation' || t === 'NAV') return { role: 'navigation', name: label }
+      if (explicit === 'dialog' || t === 'DIALOG') return { role: 'dialog', name: label }
+      if (explicit === 'main' || t === 'MAIN') return { role: 'main', name: '' }
+      if (explicit === 'complementary' || t === 'ASIDE') return { role: 'complementary', name: label }
+      if ((explicit === 'form' || t === 'FORM') && label) return { role: 'form', name: label }
+      if ((explicit === 'region' || t === 'SECTION') && label) return { role: 'region', name: label }
+      if (t === 'HEADER' && !n.closest('article, section, main, aside, nav')) return { role: 'banner', name: '' }
+      if (t === 'FOOTER' && !n.closest('article, section, main, aside, nav')) return { role: 'contentinfo', name: '' }
+    }
+    return null
+  }
   const CONTROL = 'input:not([type=hidden]), select, textarea, button, a[href], [role=button], [role=link], [role=checkbox], [role=radio], [role=tab], [role=menuitem], [role=switch], [role=combobox], [role=textbox], [contenteditable=""], [contenteditable=true]'
   const controls = []
   // En vivo la misma página se analiza varias veces: las marcas del análisis anterior se borran, o un elemento
@@ -163,6 +180,12 @@
       cands.push({ kind: 'role', role, value: name, exact: true, code: `page.getByRole('${role}', { name: '${q(name)}', exact: true })` })
       // Sin exact: el nombre accesible incluye texto que innerText no ve (el ícono de una fuente, un ::before).
       cands.push({ kind: 'role', role, value: name, exact: false, code: `page.getByRole('${role}', { name: '${q(name)}' })` })
+      const zone = landmarkOf(el)
+      if (zone) {
+        const scope = `page.getByRole('${zone.role}'${zone.name ? `, { name: '${q(zone.name)}' }` : ''})`
+        cands.push({ kind: 'scoped', role, value: name, exact: true, scopeRole: zone.role, scopeName: zone.name,
+          code: `${scope}.getByRole('${role}', { name: '${q(name)}', exact: true })` })
+      }
     }
     if (label) cands.push({ kind: 'label', value: label, code: `page.getByLabel('${q(label)}', { exact: true })` })
     if (placeholder) cands.push({ kind: 'placeholder', value: placeholder, code: `page.getByPlaceholder('${q(placeholder)}', { exact: true })` })
@@ -196,12 +219,47 @@
       box: { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) },
       options: tag === 'select' ? [...el.options].slice(0, 50).map((o) => ({ value: o.value, label: clean(o.textContent, 60), disabled: o.disabled })) : undefined,
       checked: type === 'checkbox' || type === 'radio' ? el.checked : undefined,
+      disabled: !!(el.disabled || el.getAttribute('aria-disabled') === 'true'),
       locators: unique,
     })
   }
 
+  // Las zonas con scroll propio (unos términos, una lista): hay reglas que exigen bajar hasta el final.
+  for (const el of document.querySelectorAll('body *')) {
+    if (controls.length >= 170) break
+    const cs = getComputedStyle(el)
+    if (!/(auto|scroll)/.test(cs.overflowY) || el.scrollHeight <= el.clientHeight + 4 || !isVisible(el)) continue
+    const id = controls.length
+    el.setAttribute('data-navegador-id', String(id))
+    const label = clean(el.getAttribute('aria-label') || '', 80)
+    const heading = el.closest('section, .card, form, main')?.querySelector('h1, h2, h3')
+    const name = label || clean(heading?.textContent || '', 60) || el.id || 'zona con scroll'
+    const cands = []
+    if (el.getAttribute('data-testid')) cands.push({ kind: 'testid', value: el.getAttribute('data-testid'), code: `page.getByTestId('${q(el.getAttribute('data-testid'))}')` })
+    if (label) cands.push({ kind: 'role', role: 'region', value: label, exact: true, code: `page.getByRole('region', { name: '${q(label)}', exact: true })` })
+    if (el.id && /^[A-Za-z][\w:.-]*$/.test(el.id)) cands.push({ kind: 'css', value: '#' + CSS.escape(el.id), code: `page.locator('#${q(CSS.escape(el.id))}')` })
+    const path = cssPath(el)
+    if (!cands.some((c) => c.value === path)) cands.push({ kind: 'css', value: path, code: `page.locator('${q(path)}')` })
+    const r = el.getBoundingClientRect()
+    controls.push({
+      id, kind: 'scroll', tag: el.tagName.toLowerCase(), type: '', role: el.getAttribute('role') || '', name,
+      action: '.evaluate((e) => e.scrollTo(0, e.scrollHeight))', form: -1,
+      box: { x: Math.round(r.left + scrollX), y: Math.round(r.top + scrollY), w: Math.round(r.width), h: Math.round(r.height) },
+      atEnd: el.scrollTop + el.clientHeight >= el.scrollHeight - 4, disabled: false, locators: cands,
+    })
+  }
+
+  // Los avisos a la vista: errores de validación, alertas, notas. Dicen por qué un botón sigue deshabilitado.
+  const notices = []
+  for (const el of document.querySelectorAll('[role=alert], [aria-live], .error, .errors, .invalid-feedback, .alert, .notice, .warning, [class*="error"]')) {
+    const t = clean(el.innerText, 160)
+    if (t && isVisible(el) && !notices.includes(t)) notices.push(t)
+    if (notices.length >= 12) break
+  }
+
   const count = (sel) => document.querySelectorAll(sel).length
   return JSON.stringify({
+    notices,
     controls,
     title: clean(document.title, 160),
     lang: document.documentElement.lang || '',

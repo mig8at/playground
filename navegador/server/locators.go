@@ -29,9 +29,12 @@ type Locator struct {
 	Role  string `json:"role,omitempty"`
 	Value string `json:"value"`
 	Exact bool   `json:"exact,omitempty"` // sólo para role: el nombre entero o una parte
-	Code  string `json:"code"`            // la línea de Playwright (TS), lista para pegar
-	Count int    `json:"count"`           // cuántos elementos encuentra en la página
-	Works bool   `json:"works"`           // encuentra uno solo y es este control
+	// scoped: el rol con nombre adentro de una zona de la página (navigation, main, dialog, form…)
+	ScopeRole string `json:"scopeRole,omitempty"`
+	ScopeName string `json:"scopeName,omitempty"`
+	Code      string `json:"code"`  // la línea de Playwright (TS), lista para pegar
+	Count     int    `json:"count"` // cuántos elementos encuentra en la página
+	Works     bool   `json:"works"` // encuentra uno solo y es este control
 }
 
 // Control es un elemento con el que se interactúa: un campo, un botón, un enlace, una casilla.
@@ -47,6 +50,8 @@ type Control struct {
 	Box      Box       `json:"box"`    // en coordenadas de la página entera: las de la captura
 	Options  []Option  `json:"options,omitempty"`
 	Checked  *bool     `json:"checked,omitempty"`
+	Disabled bool      `json:"disabled,omitempty"`
+	AtEnd    *bool     `json:"atEnd,omitempty"` // zona con scroll: ya se bajó hasta el final
 	Locators []Locator `json:"locators"`
 	Best     int       `json:"best"` // índice del recomendado, o -1 si ninguno sirve
 }
@@ -63,6 +68,14 @@ func locatorFor(p playwright.Page, l Locator) playwright.Locator {
 	switch l.Kind {
 	case "role":
 		return p.GetByRole(playwright.AriaRole(l.Role), playwright.PageGetByRoleOptions{Name: l.Value, Exact: playwright.Bool(l.Exact)})
+	case "scoped":
+		var zone playwright.Locator
+		if l.ScopeName != "" {
+			zone = p.GetByRole(playwright.AriaRole(l.ScopeRole), playwright.PageGetByRoleOptions{Name: l.ScopeName})
+		} else {
+			zone = p.GetByRole(playwright.AriaRole(l.ScopeRole))
+		}
+		return zone.GetByRole(playwright.AriaRole(l.Role), playwright.LocatorGetByRoleOptions{Name: l.Value, Exact: exact})
 	case "label":
 		return p.GetByLabel(l.Value, playwright.PageGetByLabelOptions{Exact: exact})
 	case "placeholder":

@@ -1,0 +1,27 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Credidemo · Ayuda</title><link rel="stylesheet" href="/demo.css"></head><body>
+<main>
+  <h1>Ayuda</h1>
+  <div class="card">
+    <details><summary>¿Qué necesito para solicitar?</summary><p>Tu cédula, un celular y ser mayor de edad.</p></details>
+    <details><summary>¿Cuánto tarda la respuesta?</summary><p>Unos segundos: la oferta se calcula al final de los términos.</p></details>
+    <details><summary>¿Puedo cancelar una solicitud?</summary><p>Sí, desde Mi cuenta.</p></details>
+  </div>
+  <button id="asesor">Hablar con un asesor</button>
+  <p id="enviado" class="ok" hidden>Un asesor te va a contactar.</p>
+</main>
+<dialog id="modal" aria-labelledby="modal-title">
+  <form method="dialog" id="modal-form">
+    <h2 id="modal-title">Hablar con un asesor</h2>
+    <div class="field"><label for="m-nombre">Tu nombre</label><input id="m-nombre" required></div>
+    <div class="field"><label for="m-tema">Tema</label><select id="m-tema"><option>Mi solicitud</option><option>Pagos</option><option>Otro</option></select></div>
+    <div class="row"><button value="cancel" class="secondary" formnovalidate>Cancelar</button><button value="ok" id="m-enviar">Enviar</button></div>
+  </form>
+</dialog>
+<script type="module">
+import { header } from '/demo.js'; header()
+const modal = document.getElementById('modal')
+document.getElementById('asesor').addEventListener('click', () => modal.showModal())
+modal.addEventListener('close', () => { if (modal.returnValue === 'ok') document.getElementById('enviado').hidden = false })
+</script>
+</body></html>

@@ -91,6 +91,7 @@ type Page struct {
 	Requests  []Request      `json:"requests"`
 	Console   []string       `json:"console"`
 	Controls  []Control      `json:"controls"` // lo interactivo, con el localizador de Playwright para llegar a cada uno
+	Notices   []string       `json:"notices"`  // avisos a la vista: errores de validación, alertas
 	Shot      bool           `json:"shot"`
 	AuthWall  bool           `json:"authWall"`
 	Error     string         `json:"error,omitempty"`
@@ -195,7 +196,8 @@ func (s *Store) AddSite(raw, name string) (Site, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	base := strings.Trim(slugJunk.ReplaceAllString(strings.ToLower(u.Hostname()), "-"), "-")
+	// Con puerto (un sitio local), el puerto es parte del nombre: 127.0.0.1:5204 → 127-0-0-1-5204.
+	base := strings.Trim(slugJunk.ReplaceAllString(strings.ToLower(u.Host), "-"), "-")
 	slug := base
 	for i := 2; s.findLocked(slug) != nil; i++ {
 		slug = fmt.Sprintf("%s-%d", base, i)

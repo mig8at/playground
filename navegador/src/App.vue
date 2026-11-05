@@ -514,8 +514,8 @@ const pageStats = computed(() => {
 function openTab(id) { tab.value = id; panelOpen.value = true; saveSize('navegador.panel-open', 1) }
 
 // ── los elementos interactivos: el localizador de Playwright para llegar a cada uno, probado en la página ──
-const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace' }
-const LOC_LABEL = { role: 'rol', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
+const KIND_LABEL = { field: 'campo', select: 'desplegable', check: 'casilla', button: 'botón', link: 'enlace', scroll: 'zona con scroll' }
+const LOC_LABEL = { role: 'rol', scoped: 'rol en zona', label: 'etiqueta', placeholder: 'placeholder', testid: 'test id', text: 'texto', css: 'CSS' }
 const showBoxes = ref(readPref('navegador.boxes', true))
 watch(showBoxes, (v) => savePref('navegador.boxes', v))
 const shotSize = ref({ w: 0, h: 0 })
@@ -856,12 +856,14 @@ onBeforeUnmount(() => {
               </div>
               <code v-if="pickedLive.best >= 0" class="act-code">{{ pickedLive.locators[pickedLive.best].code }}</code>
               <p v-else class="bad small">Ningún localizador encuentra sólo este elemento: no se puede actuar sobre él.</p>
-              <form v-if="pickedLive.best >= 0" class="act-row" @submit.prevent="liveAct(pickedLive.kind === 'field' ? 'fill' : pickedLive.kind === 'select' ? 'select' : pickedLive.kind === 'check' ? 'check' : 'click')">
+              <p v-if="pickedLive.disabled" class="notice-inline small">Está deshabilitado: la página exige algo antes.<template v-if="page.notices?.length"> {{ page.notices.join(' · ') }}</template></p>
+              <p v-if="pickedLive.kind === 'scroll'" class="muted small">{{ pickedLive.atEnd ? 'Ya se bajó hasta el final.' : 'Todavía no se bajó hasta el final.' }}</p>
+              <form v-if="pickedLive.best >= 0" class="act-row" @submit.prevent="liveAct({ field: 'fill', select: 'select', check: 'check', scroll: 'scroll' }[pickedLive.kind] || 'click')">
                 <input v-if="pickedLive.kind === 'field'" v-model="actValue" class="input input-sm" placeholder="Valor a escribir" aria-label="Valor a escribir" />
                 <select v-else-if="pickedLive.kind === 'select'" v-model="actValue" class="input input-sm" aria-label="Opción">
                   <option v-for="o in pickedLive.options || []" :key="o.value" :value="o.value" :disabled="o.disabled">{{ o.label }}</option>
                 </select>
-                <button type="submit" class="btn btn-sm" :disabled="actBusy">{{ { field: 'Llenar', select: 'Elegir', check: 'Marcar', button: 'Hacer clic', link: 'Hacer clic' }[pickedLive.kind] }}</button>
+                <button type="submit" class="btn btn-sm" :disabled="actBusy || pickedLive.disabled">{{ { field: 'Llenar', select: 'Elegir', check: 'Marcar', button: 'Hacer clic', link: 'Hacer clic', scroll: 'Bajar hasta el final' }[pickedLive.kind] }}</button>
                 <button v-if="pickedLive.kind === 'check'" type="button" class="btn btn-outline btn-sm" :disabled="actBusy" @click="liveAct('uncheck')">Desmarcar</button>
               </form>
               <p v-if="actError" class="bad small">{{ actError }}</p>
@@ -973,6 +975,10 @@ onBeforeUnmount(() => {
             <template v-if="page.error"><dt>Error</dt><dd class="bad">{{ page.error }}</dd></template>
           </dl>
         </div>
+        <template v-if="page.notices?.length">
+          <div class="region-head group"><span>Avisos a la vista</span><span class="count">{{ page.notices.length }}</span></div>
+          <p v-for="(n, i) in page.notices" :key="i" class="none notice-line">{{ n }}</p>
+        </template>
       </div>
     </aside>
 
@@ -1027,7 +1033,7 @@ onBeforeUnmount(() => {
               <tr v-for="c in controls" :id="`control-row-${c.id}`" :key="c.id" :class="{ on: pickedControl === c.id, hot: hoverControl === c.id }"
                 @mouseenter="hoverControl = c.id" @mouseleave="hoverControl = -1" @click="pickControl(c, 'row')">
                 <td class="num muted">{{ c.id + 1 }}</td>
-                <td class="el"><span>{{ c.name }}</span> <small class="muted">{{ KIND_LABEL[c.kind] }}</small></td>
+                <td class="el"><span>{{ c.name }}</span> <small class="muted">{{ KIND_LABEL[c.kind] }}<template v-if="c.disabled"> · deshabilitado</template><template v-if="c.kind === 'scroll'"> · {{ c.atEnd ? 'leída' : 'falta bajar' }}</template></small></td>
                 <td class="best">
                   <template v-if="c.best >= 0">
                     <code :class="{ warn: fragile(c.locators[c.best]) }" :title="fragile(c.locators[c.best]) ? 'Funciona hoy, pero depende de la posición en el HTML: frágil' : ''">{{ bestCode(c) }}</code>
@@ -1215,6 +1221,9 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .act-row { display: flex; gap: var(--space-2) }
 .act-row .input { flex: 1; min-width: 0 }
 .log-line[data-kind="ok"] .what { color: var(--foreground) }
+.notice-inline { color: var(--status-warn) }
+.notice-line { color: var(--status-warn) }
+.control-box.k-scroll { border-style: dotted }
 /* la tabla de acciones */
 .controls .el { max-width: 220px }
 .controls .best { white-space: nowrap }

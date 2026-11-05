@@ -261,6 +261,7 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 			Buttons   []string       `json:"buttons"`
 			Landmarks map[string]int `json:"landmarks"`
 			Controls  []Control      `json:"controls"`
+			Notices   []string       `json:"notices"`
 		}
 		if err := json.Unmarshal([]byte(s), &a); err != nil {
 			page.Error = "leer el análisis: " + err.Error()
@@ -269,6 +270,7 @@ func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string,
 			page.Links, page.Forms, page.Buttons, page.Landmarks = a.Links, a.Forms, a.Buttons, a.Landmarks
 			verifyControls(p, a.Controls)
 			page.Controls = a.Controls
+			page.Notices = a.Notices
 		}
 	}
 	page.Requests, page.Console = t.drain()
