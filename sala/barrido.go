@@ -138,6 +138,7 @@ type board struct {
 	CheckBudget float64    `json:"checkBudget"`
 	Agents      []*agent   `json:"agents"`
 	Verifier    *agent     `json:"verifier"`
+	Verifiers   []*agent   `json:"verifiers,omitempty"` // canon: uno por tema, en cadena detrás de su agente
 	Findings    []*finding `json:"findings"`
 	Cost        float64    `json:"cost"`
 	Report      string     `json:"report"`
@@ -214,8 +215,14 @@ func (s *sweeper) start(mode string, topics []string, n int, budget, checkBudget
 		Started: time.Now().Format(time.RFC3339)}
 	for _, t := range topics {
 		b.Agents = append(b.Agents, &agent{Topic: t, Status: "esperando", Steps: []step{}})
+		if mode == "canon" {
+			b.Verifiers = append(b.Verifiers, &agent{Topic: "verificador · " + t, Status: "esperando", Steps: []step{}})
+		}
 	}
 	s.mu.Lock()
+	if mode == "canon" {
+		b.Phase, b.Verifier = "en cadena", nil
+	}
 	s.b, s.cancel, s.work = b, cancel, work
 	s.mu.Unlock()
 	go func() {
@@ -233,16 +240,16 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
+	if b.Mode == "canon" {
+		s.pipeline(ctx, b, dir)
+		return s.finish(ctx, b, dir)
+	}
 	var wg sync.WaitGroup
 	for _, a := range b.Agents {
 		wg.Add(1)
 		go func(a *agent) {
 			defer wg.Done()
-			if b.Mode == "canon" {
-				s.runOne(ctx, a, canonBrief(ctx, s.root, a.Topic, s.work[a.Topic]), canonSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
-			} else {
-				s.runOne(ctx, a, sweepBrief(s.root, a.Topic), sweepSystem, sweepTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
-			}
+			s.runOne(ctx, a, sweepBrief(s.root, a.Topic), sweepSystem, sweepTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
 			_ = os.WriteFile(filepath.Join(dir, a.Topic+".md"), []byte(a.text), 0o644)
 		}(a)
 	}
@@ -327,6 +334,11 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 		})
 	}
 
+	return s.finish(ctx, b, dir)
+}
+
+// finish cierra el barrido: lo conocido, el costo, el informe y barrido.json.
+func (s *sweeper) finish(ctx context.Context, b *board, dir string) (string, error) {
 	s.mu.Lock()
 	if !b.Mock { // lo simulado no alimenta lo conocido
 		remember(s.root, b.Mode, b.Findings)
@@ -335,8 +347,8 @@ func (s *sweeper) run(ctx context.Context, b *board) (string, error) {
 	if ctx.Err() != nil {
 		b.Phase = "cortado"
 	}
-	b.Cost = b.Verifier.Cost
-	for _, a := range b.Agents {
+	b.Cost = 0
+	for _, a := range append(append([]*agent(nil), b.Agents...), b.allVerifiers()...) {
 		b.Cost += a.Cost
 	}
 	b.Report = sweepReport(b)
@@ -525,7 +537,7 @@ func sweepReport(b *board) string {
 	fmt.Fprintf(&r, "%d "+what+": %d ✓ · %d ✗ · %d — · %d sin veredicto. Costo: US$%.2f eq. (corre con el asiento; no se cobra aparte).\n\n",
 		len(b.Findings), count["✓"], count["✗"], count["—"], count[""], b.Cost)
 	r.WriteString("| agente | US$ eq. | pasos | s | hallazgos |\n|---|---|---|---|---|\n")
-	for _, a := range append(append([]*agent(nil), b.Agents...), b.Verifier) {
+	for _, a := range append(append([]*agent(nil), b.Agents...), b.allVerifiers()...) {
 		fmt.Fprintf(&r, "| %s%s | %.2f | %d | %d | %d |\n", a.Topic, map[bool]string{true: " ⚠"}[a.Err != ""], a.Cost, a.Turns, a.Seconds, a.Findings)
 	}
 	for _, f := range b.Findings {
@@ -724,4 +736,15 @@ func mockAgent(ctx context.Context, topic string, findings []*finding, onStep fu
 		"HALLAZGO: contradicción | " + topic + ": el tema dice X y `Service.php:10` hace Y | " + topic + " | COMANDO: git -C legacy-backend grep -n Y origin/main\n" +
 		"HALLAZGO: hueco | regla en dos partes:\n- `A.php:3` filtra por estado\n- `B.php:9` lo repite | " + topic + " | COMANDO: git -C legacy-backend grep -n estado origin/main\n\n" +
 		"PREGUNTA: ¿esto pesa en prod?", Cost: 0.5, Turns: len(steps)}, nil
+}
+
+// allVerifiers: el verificador único (knowledge) o los de cada tema (canon).
+func (b *board) allVerifiers() []*agent {
+	if len(b.Verifiers) > 0 {
+		return b.Verifiers
+	}
+	if b.Verifier != nil {
+		return []*agent{b.Verifier}
+	}
+	return nil
 }

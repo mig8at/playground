@@ -23,6 +23,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"creditop/playground/connectors/canon"
@@ -242,4 +243,68 @@ func canonProse(ctx context.Context, topics []string) string {
 		fmt.Fprintf(&b, "\n── PROSA VIGENTE DE %s ──\n%s\n", t, text)
 	}
 	return b.String()
+}
+
+/* pipeline: cada tema corre su cadena sin esperar a los otros — agente → su verificador → ensayo de lo confirmado.
+ * Con un solo verificador al final, el tema más lento frenaba a todos y el verificador cargaba con las piezas de
+ * todos los temas en un presupuesto; con uno por tema, sumar temas suma cadenas en paralelo (Miguel, 2026-11-05). */
+func (s *sweeper) pipeline(ctx context.Context, b *board, dir string) {
+	var wg sync.WaitGroup
+	for i, a := range b.Agents {
+		wg.Add(1)
+		go func(a, v *agent) {
+			defer wg.Done()
+			s.runOne(ctx, a, canonBrief(ctx, s.root, a.Topic, s.work[a.Topic]), canonSystem, canonTools, sweepModel, sweepEffort, b.Budget, b.Mock, nil)
+			_ = os.WriteFile(filepath.Join(dir, a.Topic+".md"), []byte(a.text), 0o644)
+
+			s.mu.Lock()
+			var mine []*finding
+			for _, p := range parsePieces(a.text) {
+				kind, label := pieceLabel(p)
+				f := &finding{ID: fmt.Sprintf("P%d", len(b.Findings)+1), Topic: a.Topic, Kind: kind, Text: label, piece: p}
+				b.Findings = append(b.Findings, f)
+				mine = append(mine, f)
+				a.Findings++
+			}
+			if len(mine) == 0 {
+				v.Status = "sin piezas"
+			}
+			s.mu.Unlock()
+			if len(mine) == 0 || ctx.Err() != nil {
+				return
+			}
+
+			var p strings.Builder
+			fmt.Fprintf(&p, "Piezas del tema %s. Comprobá cada una:\n\n", a.Topic)
+			for _, f := range mine {
+				raw, _ := json.Marshal(f.piece)
+				fmt.Fprintf(&p, "%s\n%s\n\n", f.ID, raw)
+			}
+			p.WriteString(canonProse(ctx, []string{a.Topic}))
+			s.runOne(ctx, v, p.String(), canonVerifierSystem, canonTools, verifierModel, verifierLevel, b.CheckBudget, b.Mock, mine)
+			_ = os.WriteFile(filepath.Join(dir, "verificador-"+a.Topic+".md"), []byte(v.text), 0o644)
+			s.mu.Lock()
+			byID := map[string]*finding{}
+			for _, f := range mine {
+				byID[f.ID] = f
+			}
+			for _, m := range reVerdict.FindAllStringSubmatch(v.text, -1) {
+				if f := byID[m[1]]; f != nil {
+					f.Verdict, f.Check = m[2], m[3]
+				}
+			}
+			s.mu.Unlock()
+			rehearse(ctx, dir, mine, b.Mock, func(f *finding, piece, rehearsal string) {
+				s.mu.Lock()
+				defer s.mu.Unlock()
+				if piece != "" {
+					f.Piece = piece
+				}
+				if rehearsal != "" {
+					f.Rehearsal = rehearsal
+				}
+			})
+		}(a, b.Verifiers[i])
+	}
+	wg.Wait()
 }

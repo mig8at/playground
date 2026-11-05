@@ -162,8 +162,10 @@ function updateCost() {
   const n = chosen().length, b = Number($('budget').value), c = Number($('check').value);
   $('cost').textContent = $('mock').checked
     ? `Simulado: ${n} agente(s), sin gasto.`
-    : `Hasta US$${(n * b + c).toFixed(2)} eq. (${n} × ${b} + verificador ${c}), del límite del asiento.`;
-  $('start').disabled = n === 0 || n > 6 || Boolean(lastState && !lastState.ended);
+    : mode() === 'canon'
+      ? `Hasta US$${(n * (b + c)).toFixed(2)} eq. (${n} cadenas × (${b} + verificador ${c})), del límite del asiento.`
+      : `Hasta US$${(n * b + c).toFixed(2)} eq. (${n} × ${b} + verificador ${c}), del límite del asiento.`;
+  $('start').disabled = n === 0 || n > 8 || Boolean(lastState && !lastState.ended);
 }
 $('topics').addEventListener('change', updateCost);
 $('modes').addEventListener('change', loadTopics);
@@ -171,7 +173,7 @@ $('modes').addEventListener('change', loadTopics);
 
 $('start').onclick = async () => {
   const body = { mode: mode(), topics: chosen(), budget: Number($('budget').value), checkBudget: Number($('check').value), mock: $('mock').checked };
-  if (!body.mock && !confirm(`Lanzar ${body.topics.length} agente(s) reales: hasta US$${(body.topics.length * body.budget + body.checkBudget).toFixed(2)} eq. del asiento.`)) return;
+  if (!body.mock && !confirm(`Lanzar ${body.topics.length} agente(s) reales: hasta US$${(body.mode === 'canon' ? body.topics.length * (body.budget + body.checkBudget) : body.topics.length * body.budget + body.checkBudget).toFixed(2)} eq. del asiento.`)) return;
   const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) { alert(await r.text()); return; }
   viewing = null; filter = 'todos';
@@ -179,7 +181,7 @@ $('start').onclick = async () => {
 };
 $('stop').onclick = () => fetch('/api/stop', { method: 'POST' });
 
-const phaseName = { agentes: 'Agentes en paralelo', verificador: 'Verificador', ensayo: 'Ensayo en canon', terminado: 'Terminado', cortado: 'Cortado' };
+const phaseName = { 'en cadena': 'Cada tema en cadena: agente → verificador → ensayo', agentes: 'Agentes en paralelo', verificador: 'Verificador', ensayo: 'Ensayo en canon', terminado: 'Terminado', cortado: 'Cortado' };
 
 function render(s) {
   if (!s) {
@@ -196,14 +198,20 @@ function render(s) {
   $('fpanel').style.display = '';
   const live = !s.ended;
   const secs = Math.max(0, Math.round(((s.ended ? new Date(s.ended) : new Date()) - new Date(s.started)) / 1000));
-  const cost = [...(s.agents || []), s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
+  const cost = [...(s.agents || []), ...(s.verifiers || []), s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
   const clock = s.started && s.started !== s.ended ? ` · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
   $('meta').textContent = `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`;
-  const order = ['agentes', 'verificador', ...(s.mode === 'canon' ? ['ensayo'] : []), s.phase === 'cortado' ? 'cortado' : 'terminado'];
+  const order = s.verifiers?.length
+    ? ['en cadena', s.phase === 'cortado' ? 'cortado' : 'terminado']
+    : ['agentes', 'verificador', ...(s.mode === 'canon' ? ['ensayo'] : []), s.phase === 'cortado' ? 'cortado' : 'terminado'];
   const at = order.indexOf(s.phase);
   $('phases').innerHTML = order.map((p, i) => `<span class="phase ${i < at ? 'done' : i === at ? 'now' : ''}">${i + 1}. ${phaseName[p]}</span>`).join('');
 
-  const lanes = [...(s.agents || [])];
+  const lanes = [];
+  (s.agents || []).forEach((a, i) => {
+    lanes.push(a);
+    if (s.verifiers?.[i]) lanes.push({ ...s.verifiers[i], isVerifier: true });
+  });
   if (s.verifier) lanes.push({ ...s.verifier, isVerifier: true });
   $('lanes').innerHTML = lanes.map((a) => {
     const steps = a.steps || [];
@@ -211,7 +219,7 @@ function render(s) {
       ? steps.map((st, i) => `<div class="step ${st.kind} ${i === steps.length - 1 ? 'last' : ''}"><span class="at">${esc(st.at)}</span><span class="what">${esc(st.text)}</span></div>`).join('')
       : `<div class="hint">${a.status === 'esperando' ? (a.isVerifier ? 'Espera a que terminen los agentes.' : 'En cola.') : a.status === 'trabajando' ? 'Arrancando…' : 'Este barrido no guardó los pasos.'}</div>`;
     return `<div class="lane ${esc(a.status)} ${a.isVerifier ? 'verifier' : ''}">
-      <div class="head"><span class="dot"></span><span class="name">${a.isVerifier ? 'verificador' : esc(a.topic)}</span><span class="status">${esc(a.status)}</span></div>
+      <div class="head"><span class="dot"></span><span class="name">${a.isVerifier ? esc(a.topic || 'verificador') : esc(a.topic)}</span><span class="status">${esc(a.status)}</span></div>
       <div class="stats">
         <span><b>${a.tools || 0}</b> herramientas</span>
         ${a.isVerifier ? '' : `<span><b>${a.findings || 0}</b> hallazgos</span>`}

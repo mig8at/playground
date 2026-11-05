@@ -63,8 +63,13 @@ func main() {
 			log.Fatal(err)
 		}
 		sw.mu.Lock()
-		fmt.Printf("barrido %s sobre %s: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
-			sw.b.Mode, topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
+		if sw.b.Mode == "canon" {
+			fmt.Printf("barrido canon sobre %s: %d cadena(s) en paralelo (agente US$%.2f → su verificador US$%.2f → ensayo)\n",
+				topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
+		} else {
+			fmt.Printf("barrido %s sobre %s: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
+				sw.b.Mode, topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
+		}
 		sw.mu.Unlock()
 		<-done
 		return
@@ -126,11 +131,11 @@ func main() {
 		if in.CheckBudget <= 0 || in.CheckBudget > 8 {
 			in.CheckBudget = *sweepCheck
 		}
-		if in.N <= 0 || in.N > 6 {
+		if in.N <= 0 || in.N > 8 {
 			in.N = *sweepN
 		}
-		if len(in.Topics) > 6 {
-			http.Error(w, "hasta 6 temas por barrido: cada uno gasta del asiento", 400)
+		if len(in.Topics) > 8 {
+			http.Error(w, "hasta 8 temas por barrido: cada uno gasta del asiento", 400)
 			return
 		}
 		if err := sw.start(in.Mode, in.Topics, in.N, in.Budget, in.CheckBudget, in.Mock || mock, nil); err != nil {
