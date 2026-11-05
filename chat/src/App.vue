@@ -633,9 +633,9 @@ const statusText = computed(() => {
         <ul class="conversations">
           <li v-for="s in servers" :key="s.id">
             <button type="button" class="conversation" :class="{ on: serverOpen === s.id }" @click="serverOpen = serverOpen === s.id ? '' : s.id">
-              <span class="avatar tool" aria-hidden="true"><span class="ui-icon" data-icon="server"></span><i v-if="s.ready" class="presence"></i></span>
+              <span class="avatar svc-tunnel" aria-hidden="true">{{ s.name[0] }}<i v-if="s.ready" class="presence"></i></span>
               <span class="conversation-main">
-                <span class="conversation-top"><b class="name">{{ s.name }}</b></span>
+                <span class="conversation-top"><b class="name">{{ s.name }}</b><span class="owner">túnel · Cloudflare</span></span>
                 <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo · ' + s.tunnelUrl : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
               </span>
             </button>
@@ -644,9 +644,9 @@ const statusText = computed(() => {
           <li v-for="t in teamServices.services" :key="t.alias">
             <button type="button" class="conversation" :class="{ on: serverOpen === `svc:${t.alias}`, off: !t.on }"
                     @click="serverOpen = serverOpen === `svc:${t.alias}` ? '' : `svc:${t.alias}`">
-              <span class="avatar tool" aria-hidden="true"><span class="ui-icon" data-icon="channel"></span><i v-if="t.on && t.listening && teamServices.serving" class="presence"></i></span>
+              <span class="avatar svc-playground" aria-hidden="true">{{ t.alias[0].toUpperCase() }}<i v-if="t.on && t.listening && teamServices.serving" class="presence"></i></span>
               <span class="conversation-main">
-                <span class="conversation-top"><b class="name">{{ t.alias }}</b><span class="owner">{{ t.on ? 'servicio' : 'servicio · apagado' }}</span></span>
+                <span class="conversation-top"><b class="name">{{ t.alias }}</b><span class="owner">{{ t.on ? 'playground' : 'playground · apagado' }}</span></span>
                 <span class="conversation-bottom"><span class="snippet">{{ t.description }}</span></span>
               </span>
             </button>
@@ -1061,6 +1061,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 .avatar.agent { border-radius: 8px; background: var(--agent-bg); color: var(--agent-ink) }
 .avatar.agent.mine { background: var(--agent-mine-bg); color: var(--agent-mine-ink) }
 .avatar.agent.tool { background: var(--canon-bg); color: var(--canon-ink) }
+.avatar.svc-playground { background: var(--svc-playground-bg); color: var(--svc-playground-ink) }
+.avatar.svc-tunnel { background: var(--svc-tunnel-bg); color: var(--svc-tunnel-ink) }
 .presence { position: absolute; right: -1px; bottom: -1px; width: 10px; height: 10px; border-radius: 50%;
   background: var(--presence-on); box-shadow: 0 0 0 2px var(--sidebar) }
 .avatar.small .presence { width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--background) }

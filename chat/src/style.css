@@ -36,6 +36,12 @@
   /* Canon, la herramienta del equipo: verde azulado, para no confundirse con el agente de una persona. */
   --canon-bg: #0f766e;
   --canon-ink: #ffffff;
+  /* Los servers de Servers, por cómo se publican: violeta los servicios del playground (por la VPN), naranja los que
+     salen por un túnel de Cloudflare (desde internet). Con tinta blanca: 5,7:1 y 5,2:1. */
+  --svc-playground-bg: #7c3aed;
+  --svc-playground-ink: #ffffff;
+  --svc-tunnel-bg: #c2410c;
+  --svc-tunnel-ink: #ffffff;
   /* La oficina 3D (src/office, fuera de la interfaz por ahora). */
   --office-bg: #1c1c21;
   --office-glow: #34343c;
