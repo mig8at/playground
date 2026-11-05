@@ -7,7 +7,7 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1
+ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-5-0-2
 ---
 
 ## Pendientes
@@ -78,7 +78,7 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1
       las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
 - [x] ~~Publicar la 5.0.1~~ — 2026-11-05: vtex#22 mergeado (f4e2896), tag `v5.0.1`, publicada, desplegada e instalada en
       `master` y `develop`. Contra la publicada: 4/4 con instancias arriba y 0,8 s una compra sola.
-- [ ] Que una configuración que no se pudo leer no mande el pago a producción: hoy `settings()` devuelve `{}` y el
+- [ ] Publicar la 5.0.2 (vtex#23, rama `fix/core-800-vtex-5-0-2`), que hace que una configuración que no se pudo leer no mande el pago a producción: hasta la 5.0.1 `settings()` devuelve `{}` y el
       conector cae a la API de producción, donde el token de qa da 401 (una compra de la primera tanda tras instalar la
       5.0.1). Termina con el conector reintentando la lectura y negando con `CREDITOP_UNAVAILABLE` si no la consigue,
       y `make harness-vtex TARGET=qa` en verde justo después de instalar.
