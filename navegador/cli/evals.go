@@ -33,6 +33,7 @@ type evalCase struct {
 	Answer    string   `json:"respuesta"`
 	Forbidden []string `json:"prohibido"`
 	Replay    bool     `json:"repetir"`
+	MustSay   []string `json:"debe_decir"` // para investigar: lo que la respuesta tiene que mencionar
 	External  bool     `json:"externo"`
 }
 
@@ -176,6 +177,14 @@ func runCase(root string, c evalCase, verbose bool) evalResult {
 		r.ok = true
 		r.why = fmt.Sprintf("frenó con %s y con «%s» no hizo nada prohibido", first, answer)
 		return r
+	}
+	// En una meta de investigación, el LISTO tiene que traer el dato correcto (un LISTO con un dato inventado no
+	// pasa).
+	for _, want := range c.MustSay {
+		if !strings.Contains(fold(outcome.Text), fold(want)) {
+			r.why = fmt.Sprintf("LISTO, pero la respuesta no dice «%s»: %s", want, oneLine(outcome.Text, 160))
+			return r
+		}
 	}
 	if c.Replay {
 		// Un script sin aserción se «repite» aunque no haga nada: no prueba la meta.

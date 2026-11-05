@@ -119,6 +119,8 @@ type live struct {
 	// La corrida: la carpeta donde quedan las fotos de cada paso y el reporte (report.go). Se crea con el primer
 	// paso después de un reset.
 	runDir string
+	// Las páginas consultadas en la corrida (analizadas o leídas): las fuentes del reporte.
+	sources []Source
 
 	// Una pestaña nueva se procesa en paralelo; si la abrió una acción, su goto va DESPUÉS de ese paso.
 	acting       bool
@@ -499,6 +501,11 @@ func (r *Runner) LiveInput(in LiveInput) error {
 	return err
 }
 
+// NavNote no es un error: avisa algo de la navegación (que la URL era una descarga).
+type NavNote struct{ Note string }
+
+func (n *NavNote) Error() string { return n.Note }
+
 // LiveNav: ir a una URL, atrás, adelante o recargar.
 func (r *Runner) LiveNav(action, target string) error {
 	l := r.liveSession()
@@ -512,6 +519,28 @@ func (r *Runner) LiveNav(action, target string) error {
 			target = "https://" + target
 		}
 		_, err = l.page.Goto(target, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded, Timeout: playwright.Float(45000)})
+		// Una URL que baja un archivo (un PDF, un ZIP) no es un error: el archivo queda guardado y se informa dónde.
+		if err != nil && strings.Contains(err.Error(), "Download is starting") {
+			for i := 0; i < 100; i++ {
+				l.mu.Lock()
+				flying := l.downloadsFlying
+				l.mu.Unlock()
+				if flying == 0 {
+					break
+				}
+				time.Sleep(100 * time.Millisecond)
+			}
+			l.mu.Lock()
+			downloads := l.downloads
+			l.downloads = nil
+			l.mu.Unlock()
+			note := "era una descarga"
+			for _, d := range downloads {
+				note = fmt.Sprintf("era una descarga: quedó en %s (%d bytes)", d.path, d.size)
+			}
+			r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: true, Note: note})
+			return &NavNote{Note: note}
+		}
 		r.recordStep(l, Step{Code: fmt.Sprintf("page.goto('%s')", jsQuote(target)), Target: target, OK: err == nil, Error: errText(err)})
 	case "back":
 		_, err = l.page.GoBack()
@@ -808,8 +837,12 @@ func (r *Runner) recordStep(l *live, s Step) {
 			s.Shot = name
 		}
 	}
+	// Es fuente donde se hizo algo (y lo que se leyó, en LiveRead); no cualquier página analizada de fondo, que
+	// puede ser de antes de un reset.
+	title, _ := l.page.Title()
 	l.mu.Lock()
 	l.steps = append(l.steps, s)
+	l.noteSource(s.URL, title, "")
 	l.mu.Unlock()
 	mark := "ok"
 	if !s.OK {
@@ -847,6 +880,7 @@ func (r *Runner) LiveClearSteps() {
 		l.steps = nil
 		l.recentDialogs = nil
 		l.runDir = "" // la próxima acción abre una corrida nueva
+		l.sources = nil
 		l.mu.Unlock()
 	}
 }
@@ -1084,16 +1118,7 @@ func (r *Runner) LiveDownload(num int, text, rawURL string) (Step, error) {
 		if loc == nil {
 			goto fetch
 		}
-		v, err := loc.Evaluate(`e => {
-			const img = e.tagName === 'IMG' ? e : e.querySelector('img')
-			if (img) {
-				// La mejor resolución que ofrece (srcset), no la miniatura que se pinta.
-				const best = (img.srcset || '').split(',').map((c) => c.trim().split(/\s+/))
-					.filter((c) => c[0]).map(([u, d]) => ({ u, w: parseFloat(d) || 1 })).sort((a, b) => b.w - a.w)[0]
-				return best ? new URL(best.u, location.href).href : (img.currentSrc || img.src)
-			}
-			return e.href || e.src || ''
-		}`, nil, playwright.LocatorEvaluateOptions{Timeout: playwright.Float(5000)})
+		v, err := loc.Evaluate(downloadTargetJS, nil, playwright.LocatorEvaluateOptions{Timeout: playwright.Float(5000)})
 		if err != nil {
 			return Step{}, err
 		}
@@ -1237,3 +1262,119 @@ func (r *Runner) LiveMediaExpect(seconds float64) (Step, error) {
 	r.recordStep(l, step)
 	return step, errors.New(why)
 }
+
+// readJS saca el contenido principal de la página como texto legible —encabezados, párrafos, listas, tablas— sin
+// menú, encabezado ni pie, más los enlaces del contenido y la fecha de actualización si la página la declara. Es
+// para INVESTIGAR: el innerText del body entero es caro y ruidoso en un sitio del Estado.
+const readJS = `() => {
+	const root = document.querySelector('main, [role=main], article, #content, #main-content, .main-content, #contenido') || document.body
+	// Sin «form»: los sitios ASP.NET/SharePoint (muchos del Estado) envuelven la página ENTERA en un <form>.
+	const SKIP = 'nav, header, footer, aside, script, style, noscript, template, svg, [role=navigation], [role=banner], [role=contentinfo], [aria-hidden=true], .breadcrumb, .menu'
+	const clean = (s) => (s || '').replace(/\s+/g, ' ').trim()
+	const out = []
+	const links = []
+	const seen = new Set()
+	const walk = (el) => {
+		for (const n of el.children) {
+			if (n.matches(SKIP) || !n.checkVisibility()) continue
+			const t = n.tagName
+			if (/^H[1-6]$/.test(t)) { const x = clean(n.innerText); if (x) out.push('\n' + '#'.repeat(+t[1]) + ' ' + x) }
+			else if (t === 'P' || t === 'DD' || t === 'DT' || t === 'BLOCKQUOTE' || t === 'FIGCAPTION') { const x = clean(n.innerText); if (x) out.push(x) }
+			else if (t === 'LI') { const x = clean(n.innerText); if (x) out.push('- ' + x) }
+			else if (t === 'TABLE') {
+				for (const r of [...n.rows].slice(0, 60)) out.push('| ' + [...r.cells].map((c) => clean(c.innerText)).join(' | ') + ' |')
+			}
+			else if (n.children.length === 0) { const x = clean(n.innerText); if (x && x.length > 40) out.push(x) }
+			else walk(n)
+		}
+	}
+	walk(root)
+	for (const a of root.querySelectorAll('a[href]')) {
+		if (a.closest(SKIP) || !a.checkVisibility()) continue
+		const x = clean(a.innerText || a.getAttribute('aria-label')), h = a.href
+		if (!x || !/^https?:/.test(h) || seen.has(h)) continue
+		seen.add(h); links.push(x.slice(0, 90) + ' → ' + h)
+	}
+	// La fecha de actualización: lo que declare la página (metadatos, <time>, «Fecha de actualización…»).
+	const meta = document.querySelector('meta[property="article:modified_time"], meta[name="last-modified"], meta[property="og:updated_time"], meta[name="dcterms.modified"]')?.content
+	const time = document.querySelector('time[datetime]')?.getAttribute('datetime')
+	const m = document.body.innerText.match(/(fecha de (?:actualizaci[oó]n|publicaci[oó]n|modificaci[oó]n)|[uú]ltima (?:actualizaci[oó]n|modificaci[oó]n)|actualizado(?: el)?|publicado(?: el)?)\s*:?\s*([^\n]{4,40})/i)
+	const updated = meta || (m ? clean(m[0]) : '') || time || ''
+	return { title: document.title, url: location.href, updated, lines: out, links: links.slice(0, 400) }
+}`
+
+// ReadResult es el contenido legible de la página actual.
+type ReadResult struct {
+	Title   string   `json:"title"`
+	URL     string   `json:"url"`
+	Updated string   `json:"updated"`
+	Lines   []string `json:"lines"`
+	Links   []string `json:"links"`
+}
+
+// LiveRead devuelve el contenido principal de la página. Queda como página consultada para las fuentes del
+// reporte (lo que se leyó, aunque no se haya tocado nada).
+func (r *Runner) LiveRead() (ReadResult, error) {
+	l := r.liveSession()
+	if l == nil {
+		return ReadResult{}, errors.New("no hay sesión en vivo")
+	}
+	raw, err := l.page.Evaluate(readJS)
+	if err != nil {
+		return ReadResult{}, err
+	}
+	b, _ := json.Marshal(raw)
+	var res ReadResult
+	if err := json.Unmarshal(b, &res); err != nil {
+		return ReadResult{}, err
+	}
+	l.mu.Lock()
+	l.noteSource(res.URL, res.Title, res.Updated)
+	l.mu.Unlock()
+	return res, nil
+}
+
+// Source es una página consultada durante la corrida: la base de las fuentes de una investigación.
+type Source struct {
+	URL     string    `json:"url"`
+	Title   string    `json:"title"`
+	Updated string    `json:"updated,omitempty"`
+	At      time.Time `json:"at"`
+}
+
+// noteSource registra una página consultada (una vez por URL). Llamar con l.mu tomado.
+func (l *live) noteSource(url, title, updated string) {
+	for i, s := range l.sources {
+		if s.URL == url {
+			if updated != "" {
+				l.sources[i].Updated = updated
+			}
+			return
+		}
+	}
+	l.sources = append(l.sources, Source{URL: url, Title: title, Updated: updated, At: time.Now()})
+}
+
+// downloadTargetJS decide qué bajar de un elemento:
+//   - el enlace: el del elemento, el que lo envuelve, uno adentro, o —si no hay— el de los elementos que vienen
+//     justo después (en los sitios del Estado: un título «Descargue aquí el calendario» y abajo el botón);
+//   - si ese enlace apunta a un DOCUMENTO (pdf, doc, xls, zip, audio…), el documento, aunque adentro tenga un
+//     ícono (si no, se bajaba Icon-pdf.png);
+//   - si no, una imagen: la del elemento, en su mejor resolución (srcset).
+const downloadTargetJS = `e => {
+	const DOC = /\.(pdf|docx?|xlsx?|pptx?|csv|zip|rar|7z|mp3|ogg|flac|wav|m4a|txt|odt|ods)(\?|#|$)/i
+	let a = e.closest('a[href]') || e.querySelector('a[href]')
+	for (let n = e, i = 0; !a && n && i < 3; n = n.parentElement, i++) {
+		for (let s = n.nextElementSibling, j = 0; !a && s && j < 2; s = s.nextElementSibling, j++) {
+			a = s.matches('a[href]') ? s : s.querySelector('a[href]')
+		}
+	}
+	if (a && DOC.test(a.href)) return a.href
+	const img = e.tagName === 'IMG' ? e : e.querySelector('img')
+	if (img) {
+		const best = (img.srcset || '').split(',').map((c) => c.trim().split(/\s+/))
+			.filter((c) => c[0]).map(([u, d]) => ({ u, w: parseFloat(d) || 1 })).sort((x, y) => y.w - x.w)[0]
+		return best ? new URL(best.u, location.href).href : (img.currentSrc || img.src)
+	}
+	return (a && a.href) || e.src || ''
+}`

@@ -17,6 +17,8 @@
 //	bin/navegador value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
 //	bin/navegador download <n|texto|url>         baja un enlace o la imagen que envuelve (a .data/descargas)
 //	bin/navegador images                         las imágenes visibles: tamaño, archivo y texto alternativo
+//	bin/navegador read [--desde N|--buscar t]    el contenido principal, legible, con la fecha de actualización (investigar)
+//	bin/navegador readfile <ruta> [--buscar t]   lee un documento descargado (un PDF, con pdftotext)
 //	bin/navegador media [--afirmar]              si los videos/audios suenan; con --afirmar espera que avance y queda como aserción
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
@@ -40,6 +42,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -135,6 +138,10 @@ func main() {
 		}
 	case "images":
 		err = images()
+	case "read":
+		err = read(args)
+	case "readfile":
+		err = readFile(args)
 	case "shot":
 		err = shot(args)
 	case "steps":
@@ -162,7 +169,7 @@ func usage() {
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media [--afirmar] · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media [--afirmar] · read [--desde N | --buscar texto] · readfile <ruta> [--flujo] [--buscar texto] · shot <archivo.png>
   steps · script · report [meta] · reset
   ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
@@ -577,8 +584,14 @@ func act(action string, args []string, needsValue bool) error {
 }
 
 func nav(action, target string) error {
-	if err := call(http.MethodPost, "/api/live/nav", map[string]string{"action": action, "url": target}, nil); err != nil {
+	var out struct{ Note string }
+	if err := call(http.MethodPost, "/api/live/nav", map[string]string{"action": action, "url": target}, &out); err != nil {
 		return err
+	}
+	if out.Note != "" {
+		fmt.Println(out.Note)
+		fmt.Println("(la página no cambió; un PDF se lee con: bin/navegador readfile <ruta>)")
+		return nil
 	}
 	return look(true)
 }
@@ -639,6 +652,178 @@ func download(args []string) error {
 		return err
 	}
 	fmt.Printf("✓ %s\n  %s\n", step.Code, step.Note)
+	return nil
+}
+
+// read muestra el contenido principal de la página, legible: para investigar, mejor que el texto entero.
+// read [--desde N] pagina; read --buscar 'texto' muestra sólo lo que lo menciona, con el encabezado de su sección.
+func read(args []string) error {
+	from, query := 0, ""
+	for i := 0; i < len(args); i++ {
+		switch args[i] {
+		case "--desde":
+			if i+1 < len(args) {
+				from, _ = strconv.Atoi(args[i+1])
+				i++
+			}
+		case "--buscar":
+			if i+1 < len(args) {
+				query = strings.Join(args[i+1:], " ")
+				i = len(args)
+			}
+		}
+	}
+	var res struct {
+		Title, URL, Updated string
+		Lines, Links        []string
+	}
+	if err := call(http.MethodGet, "/api/live/read", nil, &res); err != nil {
+		return err
+	}
+	fmt.Printf("%s\n%s\n", res.Title, res.URL)
+	if res.Updated != "" {
+		fmt.Printf("actualización que declara la página: %s\n", res.Updated)
+	} else {
+		fmt.Println("la página no declara fecha de actualización")
+	}
+	fmt.Println()
+	if query != "" {
+		// Cada coincidencia con el encabezado de su sección, para que el dato no quede suelto.
+		heading, shown := "", 0
+		for _, line := range res.Lines {
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				heading = strings.TrimSpace(line)
+				continue
+			}
+			if strings.Contains(fold(line), fold(query)) {
+				if heading != "" {
+					fmt.Println(heading)
+					heading = ""
+				}
+				fmt.Println(line)
+				shown++
+				if shown >= 40 {
+					break
+				}
+			}
+		}
+		// Y los enlaces que lo mencionan, con su URL: en un sitio con cientos de enlaces, lo que se busca suele estar
+		// entre ellos (se siguen con goto, o con click 'texto').
+		linksShown := 0
+		for _, l := range res.Links {
+			if strings.Contains(fold(l), fold(query)) {
+				if linksShown == 0 {
+					fmt.Println("\nEnlaces que lo mencionan:")
+				}
+				fmt.Println("- " + l)
+				if linksShown++; linksShown >= 20 {
+					break
+				}
+			}
+		}
+		if shown == 0 && linksShown == 0 {
+			fmt.Printf("(el contenido no menciona «%s»)\n", query)
+		}
+		return nil
+	}
+	// De a ~9 000 caracteres, para no inundar.
+	budget, i := 9000, from
+	for ; i < len(res.Lines) && budget > 0; i++ {
+		fmt.Println(res.Lines[i])
+		budget -= len(res.Lines[i])
+	}
+	if i < len(res.Lines) {
+		fmt.Printf("\n(sigue: read --desde %d · %d líneas en total)\n", i, len(res.Lines))
+	} else if len(res.Links) > 0 {
+		fmt.Println("\nEnlaces del contenido:")
+		for i, l := range res.Links {
+			if i == 40 {
+				fmt.Printf("(+%d enlaces más: read --buscar 'texto' los filtra)\n", len(res.Links)-40)
+				break
+			}
+			fmt.Println("- " + l)
+		}
+	}
+	return nil
+}
+
+// readFile lee un documento descargado (PDF, o texto) con la misma paginación y búsqueda que read: mucha
+// información oficial vive en PDFs (cartillas, resoluciones).
+func readFile(args []string) error {
+	if len(args) < 1 {
+		usage()
+	}
+	path, rest := args[0], args[1:]
+	// Por defecto, con la diagramación en columnas (-layout): las tablas quedan alineadas, pero a veces parte un
+	// dato en renglones (el mes de su día). --flujo lee en el orden del texto; cruzar las dos vistas lo resuelve.
+	layout := "-layout"
+	for _, a := range rest {
+		if a == "--flujo" {
+			layout = "-raw"
+		}
+	}
+	var text string
+	if strings.HasSuffix(strings.ToLower(path), ".pdf") {
+		out, err := exec.Command("pdftotext", layout, path, "-").Output()
+		if err != nil {
+			return fmt.Errorf("leer el PDF (hace falta pdftotext, de poppler): %v", err)
+		}
+		text = string(out)
+	} else {
+		b, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		text = string(b)
+	}
+	var lines []string
+	for _, l := range strings.Split(text, "\n") {
+		if l = strings.TrimRight(l, " \t\f"); strings.TrimSpace(l) != "" {
+			lines = append(lines, l)
+		}
+	}
+	fmt.Printf("%s · %d líneas\n\n", filepath.Base(path), len(lines))
+	from, query := 0, ""
+	for i := 0; i < len(rest); i++ {
+		switch rest[i] {
+		case "--desde":
+			if i+1 < len(rest) {
+				from, _ = strconv.Atoi(rest[i+1])
+				i++
+			}
+		case "--buscar":
+			if i+1 < len(rest) {
+				query = strings.Join(rest[i+1:], " ")
+				i = len(rest)
+			}
+		}
+	}
+	if query != "" {
+		// Cada coincidencia con dos líneas antes y dos después: en un PDF el dato suele partirse en renglones.
+		shown := 0
+		for i, l := range lines {
+			if !strings.Contains(fold(l), fold(query)) {
+				continue
+			}
+			lo, hi := max(0, i-2), min(len(lines), i+3)
+			fmt.Printf("— línea %d\n%s\n", i, strings.Join(lines[lo:hi], "\n"))
+			if shown++; shown >= 20 {
+				break
+			}
+		}
+		if shown == 0 {
+			fmt.Printf("(el documento no menciona «%s»)\n", query)
+		}
+		return nil
+	}
+	budget, i := 9000, from
+	for ; i < len(lines) && budget > 0; i++ {
+		fmt.Println(lines[i])
+		budget -= len(lines[i])
+	}
+	if i < len(lines) {
+		fmt.Printf("\n(sigue: readfile %s --desde %d)\n", path, i)
+	}
 	return nil
 }
 

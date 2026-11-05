@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // ReportInfo es lo que acompaña al reporte cuando lo pide ask: la meta y cómo terminó.
@@ -31,11 +32,21 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 	}
 	l.mu.Lock()
 	steps := append([]Step{}, l.steps...)
+	sources := append([]Source{}, l.sources...)
 	dir := l.runDir
 	site, start := l.site, l.start
 	l.mu.Unlock()
-	if len(steps) == 0 || dir == "" {
-		return "", errors.New("la corrida no tiene pasos todavía")
+	if len(steps) == 0 && len(sources) == 0 {
+		return "", errors.New("la corrida no tiene pasos ni páginas consultadas todavía")
+	}
+	if dir == "" { // una investigación que sólo leyó: igual tiene su carpeta
+		dir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+		if err := os.MkdirAll(dir, 0o700); err != nil {
+			return "", err
+		}
+		l.mu.Lock()
+		l.runDir = dir
+		l.mu.Unlock()
 	}
 	script := r.LiveScript()
 	failed := 0
@@ -44,7 +55,12 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 			failed++
 		}
 	}
-	began := steps[0].At
+	began := time.Now()
+	if len(steps) > 0 {
+		began = steps[0].At
+	} else if len(sources) > 0 {
+		began = sources[0].At
+	}
 
 	// ── Markdown ──
 	var md strings.Builder
@@ -77,6 +93,16 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 			shot = fmt.Sprintf("[%s](%s)", s.Shot, s.Shot)
 		}
 		fmt.Fprintf(&md, "| %d | %s | %s | %s |\n", i+1, mark, what, shot)
+	}
+	if len(sources) > 0 {
+		md.WriteString("\n## Fuentes consultadas\n\n")
+		for _, src := range sources {
+			fmt.Fprintf(&md, "- [%s](%s)", strings.ReplaceAll(src.Title, "]", ")"), src.URL)
+			if src.Updated != "" {
+				fmt.Fprintf(&md, " · %s", src.Updated)
+			}
+			fmt.Fprintf(&md, " · consultada %s\n", src.At.Format("2006-01-02 15:04"))
+		}
 	}
 	md.WriteString("\n## Script\n\n```ts\n" + script + "```\n")
 
@@ -123,6 +149,17 @@ pre{background:var(--card);border:1px solid var(--line);border-radius:6px;paddin
 			fmt.Fprintf(&h, `<a href="%s" target="_blank"><img src="%s" alt="Cómo quedó la página en el paso %d" loading="lazy"></a>`, s.Shot, s.Shot, i+1)
 		}
 		h.WriteString(`</div>`)
+	}
+	if len(sources) > 0 {
+		h.WriteString("<h2>Fuentes consultadas</h2><ul>")
+		for _, src := range sources {
+			fmt.Fprintf(&h, `<li><a href="%s" target="_blank" rel="noopener">%s</a>`, html.EscapeString(src.URL), html.EscapeString(src.Title))
+			if src.Updated != "" {
+				fmt.Fprintf(&h, ` <span class="mut">· %s</span>`, html.EscapeString(src.Updated))
+			}
+			fmt.Fprintf(&h, ` <span class="mut">· consultada %s</span></li>`, src.At.Format("2006-01-02 15:04"))
+		}
+		h.WriteString("</ul>")
 	}
 	fmt.Fprintf(&h, "<h2>Script</h2><pre><code>%s</code></pre></main></body></html>", html.EscapeString(script))
 

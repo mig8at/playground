@@ -28,6 +28,7 @@ import (
 	"sort"
 	"strings"
 	"syscall"
+	"time"
 )
 
 //go:embed ask.md
@@ -167,7 +168,8 @@ func runAsk(o askOpts) (askOutcome, error) {
 	if isPractice(st.URL) {
 		kind = "es un sitio de práctica"
 	}
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.", o.goal, st.URL, st.Title, kind)
+	// HOY: sin la fecha, no se puede decir si un plazo ya pasó o si una página habla de otro año.
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, time.Now().Format("2006-01-02"))
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,

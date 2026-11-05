@@ -14,6 +14,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net"
@@ -328,6 +329,11 @@ func handler(store *Store, runner *Runner) http.Handler {
 			return
 		}
 		if err := runner.LiveNav(in.Action, in.URL); err != nil {
+			var note *NavNote
+			if errors.As(err, &note) {
+				writeJSON(w, http.StatusOK, map[string]any{"ok": true, "note": note.Note})
+				return
+			}
 			writeErr(w, http.StatusConflict, err)
 			return
 		}
@@ -448,6 +454,15 @@ func handler(store *Store, runner *Runner) http.Handler {
 			return
 		}
 		writeJSON(w, http.StatusOK, step)
+	})
+	// GET /api/live/read — el contenido principal de la página, legible, con su fecha de actualización.
+	mux.HandleFunc("/api/live/read", func(w http.ResponseWriter, r *http.Request) {
+		res, err := runner.LiveRead()
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, res)
 	})
 	// GET /api/live/images — las imágenes visibles, las más grandes primero.
 	mux.HandleFunc("/api/live/images", func(w http.ResponseWriter, r *http.Request) {

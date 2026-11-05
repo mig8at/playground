@@ -16,7 +16,8 @@
 | Localizadores | Prueba cada candidato con Playwright (cuántos encuentra y si es ese elemento) y elige el primero que sirve | `server/locators.go`, `server/frames.go` (iframes) |
 | Recorrido | Explora el sitio a lo ancho, sólo `<a href>` del mismo host, sin enviar formularios | `server/browser.go` |
 | En vivo | Chromium sin ventana transmitido por CDP al editor, acciones por localizador, pasos, diálogos, descargas | `server/live.go` |
-| Reporte | El paso a paso de una corrida: md, html con una foto por paso, script | `server/report.go` |
+| Reporte | El paso a paso de una corrida: md, html con una foto por paso, las fuentes consultadas, script | `server/report.go` |
+| Investigar | `read` (el contenido principal, legible, con la fecha de actualización y sus enlaces) y `readfile` (un PDF bajado, con `pdftotext`) | `server/live.go` (`readJS`), `cli/main.go` |
 | CLI | `bin/navegador`: maneja la sesión en vivo por consola | `cli/main.go` |
 | `ask` | Claude Code (`claude -p`) maneja la sesión hasta cumplir una meta | `cli/ask.go`, `cli/ask.md` (sus instrucciones) |
 | Evals | La suite de regresión de `ask` | `cli/evals.go`, `evals/casos.json`, `evals/replay.cjs`, `evals/historial.jsonl` |
@@ -35,7 +36,9 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`) y `descargas/`.
 - **`make navegador-evals`** corre las metas de `evals/casos.json` con el mismo motor que `ask` y compara cómo
   terminaron. LISTO exige que el script se repita en un Chromium nuevo (`replay.cjs`) y tenga al menos una
   aserción que pase. CONFIRMAR/NECESITO se contestan solos con «no» y se exige que después no haya un paso sobre
-  nada de `prohibido`. `SOLO=`, `SIN_INTERNET=1`, `V=1`. Cada caso arranca con un **perfil limpio**.
+  nada de `prohibido`. En una meta de investigación, `debe_decir` exige que la respuesta traiga el dato correcto
+  (un LISTO con un dato inventado no pasa). `SOLO=`, `SIN_INTERNET=1`, `V=1`. Cada caso arranca con un
+  **perfil limpio**.
 - **Antes de tocar `ask.md` o el CLI, correla.** Cada corrida suma una línea a `evals/historial.jsonl` (en git
   a propósito: es la historia de la calidad de `ask`; se commitea cada tanto). Comparar **tokens**, no sólo
   dólares (ver trampas).
@@ -88,5 +91,16 @@ corrida, servidas en `http://localhost:5202/api/corridas/…`) y `descargas/`.
   cerrar y videos en negro.
 - **Un `look` sin tope en YouTube eran 28 000 caracteres:** muestra primero lo que está en pantalla, agrupa los
   repetidos y corta en 40 (`look --buscar`, `look --todo`).
+- **Sitios del Estado:** los ASP.NET/SharePoint envuelven la página entera en un `<form>` (si `read` salta los
+  formularios, lee vacío); con cientos de enlaces, el que se busca queda fuera del tope de 60 del análisis (`read
+  --buscar` lista los que coinciden, con su URL, y `click 'texto'` no depende del tope); «Descargue aquí…» suele
+  ser un título con el botón en el elemento siguiente, y el botón un ícono adentro de un enlace a un PDF
+  (`download` busca el enlace al lado y baja el documento, no el ícono); la «Última actualización» de la DIAN
+  dice HOY todos los días; MinTIC devolvió 520 y el SENA bloquea la sesión con un firewall (el análisis lo marca
+  como MURO ANTI-BOTS).
+- **`pdftotext -layout`** alinea las tablas pero puede separar un día de su mes: `readfile --flujo` lee en el
+  orden del texto.
+- **Son fuentes lo que se leyó o donde se hizo algo**, no cualquier página analizada de fondo (una de antes de
+  un `reset` se colaba en el reporte).
 - **Un estado que dejó otra corrida contamina la prueba** (un login en la sesión en vivo): las evals abren cada
   caso con un perfil temporal (`clean=1`).
