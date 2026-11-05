@@ -23,6 +23,7 @@ import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
 import { renderMarkdown } from './markdown.js'
 import ServerShare from './ServerShare.vue'
+import ServicePanel from './ServicePanel.vue'
 import {
   vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
@@ -58,11 +59,16 @@ function toggleView(id) {
 const servers = ref([])
 const serverOpen = ref('')
 const openServer = computed(() => servers.value.find((s) => s.id === serverOpen.value) || null)
+// Tus servicios del playground (server/services.go): se abren como `svc:<alias>` en el mismo lugar que un server.
+const teamServices = ref({ services: [], serving: false, serveLog: '' })
+const openService = computed(() => (serverOpen.value.startsWith('svc:')
+  ? teamServices.value.services.find((s) => `svc:${s.alias}` === serverOpen.value) || null : null))
 let serversTimer = null
 async function loadServers() {
   clearTimeout(serversTimer)
   try {
     servers.value = (await (await fetch('/api/servers')).json()).servers || []
+    teamServices.value = await (await fetch('/api/services')).json()
   } catch { /* el servidor del chat no contestó: se reintenta */ }
   serversTimer = setTimeout(loadServers, servers.value.some((s) => s.busy) ? 2000 : 15000)
 }
@@ -118,6 +124,7 @@ const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
+  if (openService.value) return false
   if (serverOpen.value) return shareOpen.value
   if (activeOwnAgent.value) return ownPanelOpen.value
   return agentOpen.value && !chat.activeKey
@@ -620,7 +627,7 @@ const statusText = computed(() => {
         <button type="button" class="view-tog" :aria-expanded="isViewOpen('servers')" @click="toggleView('servers')">
           <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Servers</span>
         </button>
-        <span class="count">{{ servers.length }}</span>
+        <span class="count">{{ servers.length + teamServices.services.length }}</span>
       </div>
       <div v-if="isViewOpen('servers')" class="region-body">
         <ul class="conversations">
@@ -633,13 +640,27 @@ const statusText = computed(() => {
               </span>
             </button>
           </li>
+          <!-- Tus servicios del playground: apagados, en gris, como tus agentes. -->
+          <li v-for="t in teamServices.services" :key="t.alias">
+            <button type="button" class="conversation" :class="{ on: serverOpen === `svc:${t.alias}`, off: !t.on }"
+                    @click="serverOpen = serverOpen === `svc:${t.alias}` ? '' : `svc:${t.alias}`">
+              <span class="avatar tool" aria-hidden="true"><span class="ui-icon" data-icon="channel"></span><i v-if="t.on && t.listening && teamServices.serving" class="presence"></i></span>
+              <span class="conversation-main">
+                <span class="conversation-top"><b class="name">{{ t.alias }}</b><span class="owner">{{ t.on ? 'servicio' : 'servicio · apagado' }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ t.description }}</span></span>
+              </span>
+            </button>
+          </li>
         </ul>
       </div>
       </section>
 
     </aside>
 
-    <main v-if="openServer" class="editor">
+    <main v-if="openService" class="editor">
+      <ServicePanel :service="openService" :serving="teamServices.serving" :serve-log="teamServices.serveLog" @changed="loadServers" @close="serverOpen = ''" />
+    </main>
+    <main v-else-if="openServer" class="editor">
       <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" />
     </main>
 

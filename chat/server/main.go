@@ -256,6 +256,7 @@ func handler() http.Handler {
 	serverHandlers(mux)
 	myAgentHandlers(mux)
 	safetyHandlers(mux)
+	teamServiceHandlers(mux)
 	return mux
 }
 

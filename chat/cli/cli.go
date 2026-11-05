@@ -88,6 +88,9 @@ func Installed() bool {
 	return err == nil
 }
 
+// Base es el playground al que habla el CLI (PLAYGROUND_URL, o el de producción).
+func Base() string { return base() }
+
 // base es el playground contra el que habla el CLI: el mismo PLAYGROUND_URL que fija su lanzador.
 func base() string {
 	if b := os.Getenv("PLAYGROUND_URL"); b != "" {
