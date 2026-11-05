@@ -88,6 +88,22 @@ function dropJournal(all) {
   return all
 }
 
+/* LAS IMÁGENES, COMO EN WHATSAPP: una imagen que llega se baja sola para mostrarla (hasta 15 MB, sólo png, jpg, gif y
+   webp), al caché del chat y no a Descargas; la que mandás se muestra con una miniatura hecha en el navegador. */
+export const IMAGE_AUTO_MAX = 15 * 1024 * 1024
+export const isImage = (f) => /\.(png|jpe?g|gif|webp)$/i.test(f?.name || '') && (!f?.type || f.type.startsWith('image/'))
+async function thumbnailOf(file) {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const scale = Math.min(1, 480 / Math.max(bitmap.width, bitmap.height))
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.round(bitmap.width * scale)
+    canvas.height = Math.round(bitmap.height * scale)
+    canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    return canvas.toDataURL('image/jpeg', 0.8)
+  } catch { return '' }
+}
+
 async function api(path, options) {
   const res = await fetch(path, options)
   const body = await res.json().catch(() => ({}))
@@ -291,10 +307,15 @@ export const useChatStore = defineStore('chat', () => {
         if (m.agent && !legacy.kind) Object.assign(legacy, { kind: 'asked', agent: m.agent })
         continue
       }
-      push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time,
+      const id = sid || legacyId(m)
+      const pushed = push(c, { id, sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time,
                 ...(m.agent ? { kind: 'asked', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}),
-                // Los adjuntos que trae: se bajan con «Bajar» (playground get) y quedan en Descargas.
+                // Los adjuntos que trae: las imágenes se bajan solas para mostrarlas; lo demás, con «Bajar».
                 ...(Array.isArray(m.files) && m.files.length ? { files: m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) } : {}) })
+      if (pushed) {
+        const item = c.messages.find((x) => x.id === id)
+        for (const f of item?.files || []) if (isImage(f) && f.size <= IMAGE_AUTO_MAX) getFile(item, f, { cache: true })
+      }
     }
     markActiveRead()
     proposeReplies()
@@ -468,6 +489,10 @@ export const useChatStore = defineStore('chat', () => {
                       time: new Date().toISOString(), status: 'sending', ...(re && !c.person.agent ? { re } : {}), ...extra,
                       ...(attach.length ? { files: attach.map((f) => ({ name: f.name, size: f.size, type: f.type, status: 'subiendo' })) } : {}) }
     c.messages.push(message)
+    // La miniatura de cada imagen que mandás: se hace acá y se guarda con el mensaje (un JPEG chico).
+    for (const [i, f] of attach.entries()) {
+      if (isImage(f)) thumbnailOf(f).then((thumb) => { if (thumb && stored()?.files?.[i]) stored().files[i].thumb = thumb })
+    }
     const stored = () => c.messages.find((m) => m.id === message.id)
     if (c.person.agent) return askAgent(c, body, stored)
     try {
@@ -616,18 +641,25 @@ export const useChatStore = defineStore('chat', () => {
 
   // Reintentar es mandar el mismo texto de nuevo: el que falló se va, para no dejar dos.
   // Bajar un adjunto recibido: queda en Descargas (y el home lo borra). Se recuerda dónde, para mostrarlo.
-  async function getFile(item, file) {
+  async function getFile(item, file, { cache = false } = {}) {
     Object.assign(file, { status: 'bajando', error: '' })
     try {
-      const s = await post(`/api/files/${encodeURIComponent(file.id)}/get`, {})
-      Object.assign(file, { status: 'bajado', path: s.path })
+      const s = await post(`/api/files/${encodeURIComponent(file.id)}/get${cache ? '?cache=1' : ''}`, {})
+      Object.assign(file, { status: 'bajado', path: s.path, ...(cache ? { cached: true } : { savedPath: s.path }) })
     } catch (e) {
       Object.assign(file, { status: 'error', error: e.message })
     }
   }
+  // Guardar en Descargas una imagen que se bajó sola al caché: una copia, sin pisar nada.
+  async function saveFile(file) {
+    try {
+      const r = await post(`/api/files/${encodeURIComponent(file.id)}/save?path=${encodeURIComponent(file.path || '')}`, {})
+      Object.assign(file, { savedPath: r.path, error: '' })
+    } catch (e) { Object.assign(file, { error: e.message }) }
+  }
   const fileUrl = (file) => `/api/files/${encodeURIComponent(file.id)}?path=${encodeURIComponent(file.path || '')}`
   async function revealFile(file) {
-    try { await post(`/api/files/${encodeURIComponent(file.id)}/reveal?path=${encodeURIComponent(file.path || '')}`, {}) }
+    try { await post(`/api/files/${encodeURIComponent(file.id)}/reveal?path=${encodeURIComponent(file.savedPath || file.path || '')}`, {}) }
     catch (e) { Object.assign(file, { error: e.message }) }
   }
 
@@ -681,6 +713,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
-    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, getFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

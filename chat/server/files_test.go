@@ -36,6 +36,22 @@ func TestSavedPathOnlyDownloads(t *testing.T) {
 	if _, err := savedPath("abc", link); err == nil {
 		t.Fatal("no tiene que seguir un symlink")
 	}
+	// El caché de imágenes del chat también vale; y copiar a Descargas nunca pisa.
+	t.Setenv("XDG_CACHE_HOME", filepath.Join(home, "cache"))
+	cache, err := cacheDir()
+	if err != nil {
+		t.Fatal(err)
+	}
+	cached := filepath.Join(cache, "captura.png")
+	_ = os.WriteFile(cached, []byte("img"), 0o600)
+	if p, err := savedPath("abc", cached); err != nil || p != cached {
+		t.Fatalf("una imagen del caché tiene que servirse: %v", err)
+	}
+	first, _ := copyUnique(cached, downloads)
+	second, _ := copyUnique(cached, downloads)
+	if filepath.Base(first) != "captura.png" || filepath.Base(second) != "captura (1).png" {
+		t.Fatalf("copias: %q %q", first, second)
+	}
 	// Lo que bajó este chat se sirve por su id, esté donde esté.
 	saved.Lock()
 	saved.byID["def"] = cli.Saved{ID: "def", Path: secret}

@@ -17,7 +17,7 @@
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { useChatStore } from './stores/chat.js'
+import { useChatStore, isImage, IMAGE_AUTO_MAX } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
@@ -410,8 +410,17 @@ function addFiles(list) {
 function onPickFiles(e) { addFiles([...e.target.files]); e.target.value = '' }
 function onDropFiles(e) { if (canAttach.value && e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]) }
 const sizeText = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`)
-const isPreviewable = (f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name || '')
 const isPdf = (f) => /\.pdf$/i.test(f.name || '')
+/* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
+   15 MB no se baja sola: va con lo demás, con «Bajar». */
+const imagesOf = (item) => (item.files || []).filter((f) => isImage(f) && (item.dir === 'out' || f.size <= IMAGE_AUTO_MAX))
+const othersOf = (item) => (item.files || []).filter((f) => !imagesOf(item).includes(f))
+const imageSrc = (item, f) => (item.dir === 'out' ? f.thumb || '' : f.status === 'bajado' ? chat.fileUrl(f) : '')
+// La imagen en grande, al tocarla: Escape o un clic afuera la cierran.
+const lightbox = ref(null)   // { src, name }
+function openImage(item, f) { const src = imageSrc(item, f); if (src) lightbox.value = { src, name: f.name, item, f } }
+function onLightboxKey(e) { if (e.key === 'Escape') lightbox.value = null }
+watch(lightbox, (v) => (v ? window.addEventListener('keydown', onLightboxKey) : window.removeEventListener('keydown', onLightboxKey)))
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
   if (e.key === 'Escape' && replyTo.value) { e.preventDefault(); replyTo.value = null }
@@ -879,9 +888,21 @@ const statusText = computed(() => {
                   <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
                   <p v-else class="text">{{ item.text }}</p>
                 </template>
-                <ul v-if="item.files?.length" class="attachments" aria-label="Adjuntos">
-                  <li v-for="f in item.files" :key="f.id || f.name" class="attachment">
-                    <img v-if="f.status === 'bajado' && isPreviewable(f)" :src="chat.fileUrl(f)" :alt="f.name" class="attachment-preview">
+                <div v-if="imagesOf(item).length" class="media-grid" :class="{ single: imagesOf(item).length === 1 }">
+                  <figure v-for="f in imagesOf(item)" :key="f.id || f.name" class="media">
+                    <button v-if="imageSrc(item, f)" type="button" class="media-open" :title="`Ver ${f.name}`" @click="openImage(item, f)">
+                      <img :src="imageSrc(item, f)" :alt="f.name">
+                    </button>
+                    <div v-else class="media-placeholder">
+                      <span v-if="f.status === 'error'">{{ f.error }}</span>
+                      <span v-else-if="item.dir === 'out'">{{ f.status === 'subiendo' ? 'subiendo…' : f.name }}</span>
+                      <span v-else>cargando…</span>
+                      <button v-if="item.dir === 'in' && f.status === 'error'" type="button" class="btn-link" @click="chat.getFile(item, f, { cache: true })">reintentar</button>
+                    </div>
+                  </figure>
+                </div>
+                <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
+                  <li v-for="f in othersOf(item)" :key="f.id || f.name" class="attachment">
                     <div class="attachment-row">
                       <span class="attachment-name" :title="f.path || f.name">{{ f.name }}</span>
                       <span class="attachment-size">{{ sizeText(f.size) }}</span>
@@ -893,8 +914,8 @@ const statusText = computed(() => {
                                 title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar</button>
                         <span v-else-if="f.status === 'bajando'" class="attachment-state">bajando…</span>
                         <template v-else-if="f.status === 'bajado'">
-                          <a v-if="isPreviewable(f) || isPdf(f)" class="btn-link" :href="chat.fileUrl(f)" target="_blank" rel="noopener">ver</a>
-                          <button type="button" class="btn-link" title="Mostrarlo en el Finder (no lo abre)" @click="chat.revealFile(f)">en Descargas</button>
+                          <a v-if="isPdf(f)" class="btn-link" :href="chat.fileUrl(f)" target="_blank" rel="noopener">ver</a>
+                          <button type="button" class="btn-link" title="Mostrar en el Finder (no lo abre)" @click="chat.revealFile(f)">en Descargas</button>
                         </template>
                       </template>
                     </div>
@@ -987,6 +1008,23 @@ const statusText = computed(() => {
         </form>
       </template>
     </main>
+
+    <!-- La imagen en grande, como en WhatsApp: clic afuera o Escape la cierran. -->
+    <div v-if="lightbox" class="lightbox" role="dialog" aria-modal="true" :aria-label="lightbox.name" @click.self="lightbox = null">
+      <img :src="lightbox.src" :alt="lightbox.name">
+      <div class="lightbox-bar">
+        <span class="attachment-name">{{ lightbox.name }}</span>
+        <template v-if="lightbox.item.dir === 'in'">
+          <button v-if="!lightbox.f.savedPath" type="button" class="btn btn-outline btn-sm" title="Guardar una copia en Descargas"
+                  @click="chat.saveFile(lightbox.f)">Guardar en Descargas</button>
+          <button v-else type="button" class="btn-link" title="Mostrarla en el Finder (no la abre)" @click="chat.revealFile(lightbox.f)">en Descargas ↗</button>
+        </template>
+      </div>
+      <p v-if="lightbox.f.error" class="error">{{ lightbox.f.error }}</p>
+      <button type="button" class="region-action lightbox-close" aria-label="Cerrar" title="Cerrar (Esc)" @click="lightbox = null">
+        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+      </button>
+    </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
     <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : openServer ? 'Para probar' : 'Mi agente'">
@@ -1359,6 +1397,22 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
   border-top: 1px solid var(--border) }
+/* Las imágenes: en grilla arriba de la burbuja, como WhatsApp; una sola ocupa todo el ancho. */
+.media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; width: 340px; max-width: 100%; margin: 2px 0 4px }
+.media-grid.single { grid-template-columns: minmax(0, 1fr) }
+.media { margin: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.media-open { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 8px; overflow: hidden }
+.media-open:focus-visible { outline: 2px solid var(--ring) }
+.media-open img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover }
+.media-grid.single .media-open img { aspect-ratio: auto; max-height: 340px; object-fit: contain; background: var(--muted) }
+.media-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 4 / 3;
+  padding: 8px; border-radius: 8px; background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); text-align: center }
+.lightbox { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--space-2); padding: 48px 32px 24px;
+  background: color-mix(in srgb, var(--background) 97%, transparent) }
+.lightbox img { flex: 1 1 auto; min-height: 0; width: 100%; object-fit: contain }
+.lightbox-bar { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm) }
+.lightbox-close { position: absolute; top: 12px; right: 12px }
 /* Los adjuntos: en la burbuja (bajar, ver, mostrar en Descargas) y, antes de mandar, como fichas sobre el compositor. */
 .attachments { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px }
 .attachment { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px }
@@ -1367,7 +1421,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 .attachment-size, .attachment-state { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
 .attachment-row .btn, .attachment-row .btn-link { flex: none; margin-left: auto }
 .attachment-row .btn-link + .btn-link { margin-left: var(--space-2) }
-.attachment-preview { display: block; max-width: 100%; max-height: 240px; border-radius: 6px; object-fit: contain }
 .attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
   border: 1px solid var(--border); border-radius: 999px }

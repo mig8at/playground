@@ -254,10 +254,14 @@ type Saved struct {
 	SHA256 string `json:"sha256"`
 }
 
-// Get baja un adjunto con `playground get <id>`: el CLI lo guarda en ~/Downloads sin pisar nada y sin permiso de
-// ejecución, y el home lo borra si quien baja es quien lo recibió.
-func Get(ctx context.Context, id string) (Saved, error) {
-	out, err := run(ctx, nil, "get", id, "--json")
+// Get baja un adjunto con `playground get <id>`: el CLI lo guarda sin pisar nada y sin permiso de ejecución, en
+// `dir` si se da (una carpeta que existe) o en ~/Downloads, y el home lo borra si quien baja es quien lo recibió.
+func Get(ctx context.Context, id, dir string) (Saved, error) {
+	args := []string{"get", id, "--json"}
+	if dir != "" {
+		args = append(args, "-o", dir)
+	}
+	out, err := run(ctx, nil, args...)
 	if err != nil {
 		return Saved{}, err
 	}

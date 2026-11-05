@@ -38,8 +38,41 @@ var saved = struct {
 var inline = map[string]string{".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".gif": "image/gif",
 	".webp": "image/webp", ".pdf": "application/pdf"}
 
+/*
+cacheDir: donde quedan las imágenes que el chat baja solo para mostrarlas (como WhatsApp), aparte de Descargas para
+
+	no llenarla. «Guardar en Descargas» copia una de acá.
+*/
+func cacheDir() (string, error) {
+	base, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	dir := filepath.Join(base, "creditop-playground-chat", "adjuntos")
+	return dir, os.MkdirAll(dir, 0o700)
+}
+
+// allowedDirs: las únicas carpetas de donde el chat sirve un archivo que no bajó en esta vuelta del server.
+func allowedDirs() []string {
+	home, _ := os.UserHomeDir()
+	dirs := []string{filepath.Join(home, "Downloads")}
+	if c, err := cacheDir(); err == nil {
+		dirs = append(dirs, c)
+	}
+	return dirs
+}
+
+func insideAny(p string, dirs []string) bool {
+	for _, d := range dirs {
+		if strings.HasPrefix(p, d+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
+}
+
 // savedPath devuelve el archivo de un adjunto bajado: el que se bajó en esta vuelta del server, o, después de
-// reiniciarlo, uno que la interfaz recuerda y que sigue dentro de ~/Downloads.
+// reiniciarlo, uno que la interfaz recuerda y que sigue dentro de Descargas o del caché de imágenes del chat.
 func savedPath(id, remembered string) (string, error) {
 	saved.Lock()
 	s, ok := saved.byID[id]
@@ -47,10 +80,8 @@ func savedPath(id, remembered string) (string, error) {
 	if ok {
 		return s.Path, nil
 	}
-	home, _ := os.UserHomeDir()
-	downloads := filepath.Join(home, "Downloads")
 	p, err := filepath.Abs(remembered)
-	if remembered == "" || err != nil || !strings.HasPrefix(p, downloads+string(filepath.Separator)) {
+	if remembered == "" || err != nil || !insideAny(p, allowedDirs()) {
 		return "", errors.New("ese adjunto no se bajó desde acá")
 	}
 	if info, err := os.Lstat(p); err != nil || !info.Mode().IsRegular() {
@@ -97,11 +128,21 @@ func registerFiles(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, file)
 	})
 
-	// Bajar un adjunto que te mandaron: queda en ~/Downloads (y el home lo borra).
+	// Bajar un adjunto que te mandaron: queda en ~/Downloads (y el home lo borra). Con ?cache=1 queda en el caché de
+	// imágenes del chat: así se baja solo una imagen para mostrarla, sin llenar Descargas.
 	mux.HandleFunc("POST /api/files/{id}/get", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
 		defer cancel()
-		s, err := cli.Get(ctx, r.PathValue("id"))
+		dir := ""
+		if r.URL.Query().Get("cache") == "1" {
+			c, err := cacheDir()
+			if err != nil {
+				fail(w, http.StatusInternalServerError, err)
+				return
+			}
+			dir = c
+		}
+		s, err := cli.Get(ctx, r.PathValue("id"), dir)
 		if err != nil {
 			fail(w, http.StatusBadGateway, err)
 			return
@@ -133,6 +174,22 @@ func registerFiles(mux *http.ServeMux) {
 		http.ServeFile(w, r, p)
 	})
 
+	// Guardar en Descargas una imagen que el chat bajó a su caché: una copia, sin pisar nada.
+	mux.HandleFunc("POST /api/files/{id}/save", func(w http.ResponseWriter, r *http.Request) {
+		p, err := savedPath(r.PathValue("id"), r.URL.Query().Get("path"))
+		if err != nil {
+			fail(w, http.StatusNotFound, err)
+			return
+		}
+		home, _ := os.UserHomeDir()
+		target, err := copyUnique(p, filepath.Join(home, "Downloads"))
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"path": target})
+	})
+
 	// Mostrar en el Finder lo que se bajó (no lo abre: sólo lo señala).
 	mux.HandleFunc("POST /api/files/{id}/reveal", func(w http.ResponseWriter, r *http.Request) {
 		p, err := savedPath(r.PathValue("id"), r.URL.Query().Get("path"))
@@ -150,4 +207,35 @@ func registerFiles(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"path": p})
 	})
+}
+
+// copyUnique copia `src` a la carpeta `dir` con su nombre, agregando « (1)», « (2)»… si ya hay uno: nunca pisa nada.
+func copyUnique(src, dir string) (string, error) {
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return "", err
+	}
+	name := filepath.Base(src)
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	target := filepath.Join(dir, name)
+	for n := 1; ; n++ {
+		if _, err := os.Lstat(target); errors.Is(err, os.ErrNotExist) {
+			break
+		}
+		target = filepath.Join(dir, fmt.Sprintf("%s (%d)%s", stem, n, ext))
+	}
+	in, err := os.Open(src)
+	if err != nil {
+		return "", err
+	}
+	defer in.Close()
+	out, err := os.OpenFile(target, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return "", err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return "", err
+	}
+	return target, out.Close()
 }
