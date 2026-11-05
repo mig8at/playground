@@ -171,8 +171,13 @@ export function buildDowntown(kit,items,leaves=[]){
  let visibles=null;
  const setVisibles=set=>{if(set===visibles)return;visibles=set;for(const p of piezas)p.bm.setVisibleAt(p.iid,!set||set.has(p.lote));};
  return {group,triangles,meshes:group.children.length,doors:doors.length,setVisibles,lotesConPiezas:()=>new Set(piezas.map(p=>p.lote)),
-  // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió.
-  updateDoors(dt,people){let moved=false;for(const d of doors){const near=people.some(o=>(o.x-d.cx)**2+(o.z-d.cz)**2<6.25&&(d.cy==null||Math.abs((o.feet??o.y??0)-d.cy)<2)),a=near?Math.min(1,d.a+dt*2.5):Math.max(0,d.a-dt*1.4);if(a!==d.a){d.a=a;moved=true;}}if(moved)refresh();},
+  // people: [{x,z}]. Abre las puertas con alguien cerca; sólo se recalculan si alguna se movió. trancada(x, z, y): la
+  // puerta de calle de una vivienda trancada (o de un lugar cerrado) no se abre sola (la ronda, como las de adentro).
+  // (2026-10-18: al jugador —o.esJugador— no se le abren solas: d.mano, la abrió él con E)
+  updateDoors(dt,people,trancada=null){let moved=false;for(const d of doors){const near=!(trancada&&trancada(d.cx,d.cz,d.cy??0))&&(d.mano||people.some(o=>!o.esJugador&&(o.x-d.cx)**2+(o.z-d.cz)**2<6.25&&(d.cy==null||Math.abs((o.feet??o.y??0)-d.cy)<2))),a=near?Math.min(1,d.a+dt*2.5):Math.max(0,d.a-dt*1.4);if(a!==d.a){d.a=a;moved=true;}}if(moved)refresh();},
+  // las puertas de calle cerca de (x, z, y), como world3d.puertasCerca (la hoja: de la bisagra al centro, y otro tanto)
+  puertasCerca(x,z,y,r=1.5,trancada=null){const out=[];for(const d of doors){const cy=d.cy??d.y??0;if(Math.abs(cy-y)>1.6||Math.hypot(d.cx-x,d.cz-z)>r)continue;
+   out.push({cx:d.cx,cz:d.cz,cy,seg:[d.x,d.z,2*d.cx-d.x,2*d.cz-d.z],get a(){return d.a;},get abierta(){return !!d.mano;},alternar(){d.mano=!d.mano;},trancada:()=>!!trancada?.(d.cx,d.cz,cy)});}return out;},
   setNight(on){for(const m of bounce)m.emissive.set(on?BOUNCE_NIGHT:m.userData.day);for(const m of litMats){m.emissive.set(on?'#ffc777':0);m.emissiveIntensity=on?.9:0;m.opacity=on?.55:.22;}},
   dispose(){for(const o of own)o.dispose();}};
 }

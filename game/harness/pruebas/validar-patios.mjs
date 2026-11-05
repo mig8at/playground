@@ -6,8 +6,8 @@
 //    puerta al patio de un edificio abre, del otro lado, a una casilla a la que se llega a pie desde la calle; y cada
 //    patio de manzana tiene al menos una puerta de un edificio (y se cuentan los locales con vidriera al patio).
 // Uso: node scripts/validar-patios.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import City from '../../src/engine/ciudad.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),K=City.K;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

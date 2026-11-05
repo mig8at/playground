@@ -1,4 +1,4 @@
-// La entrada del juego (2026-10-18; src/views/InicioView.vue), en el navegador sin ventana (con el servidor en 5180):
+// La entrada del juego (2026-10-18; src/views/InicioView.vue), en el navegador sin ventana (con el servidor en 5181):
 //  · cada pantalla abre sin errores en la página (título, entrar, perfil, home, crear, sala, cómo se juega);
 //  · el home: las dos salas de prueba arriba, con su mapa guardado en IndexedDB (mapasGuardados.js) en menos de
 //    PRECARGA_MAX s; el filtro «8 vs 8» deja sólo salas de 8 y «Con lugar» sólo las que se pueden unir;
@@ -9,10 +9,10 @@ import {abrirNavegador} from './navegador.mjs';
 const PRECARGA_MAX=90,fallas=[],med=[];
 const N=await abrirNavegador();
 try{
- for(const p of ['titulo','entrar','perfil','crear','sala','reglas']){const P=await N.abrir(`http://localhost:5180/?paso=${p}`);await new Promise(r=>setTimeout(r,p==='crear'||p==='sala'?6000:1500));
+ for(const p of ['titulo','entrar','perfil','crear','sala','reglas']){const P=await N.abrir(`http://localhost:5181/?paso=${p}`);await new Promise(r=>setTimeout(r,p==='crear'||p==='sala'?6000:1500));
   const ok=await P.evaluar(`!!document.querySelector('.inicio section')`);if(!ok)fallas.push(`la pantalla «${p}» no se dibuja`);
   const e=(typeof P.errores==='function'?P.errores():P.errores)||[];for(const x of e.slice(0,2))fallas.push(`error en «${p}»: `+String(x).slice(0,160));}
- const P=await N.abrir('http://localhost:5180/?paso=home');const t0=Date.now();
+ const P=await N.abrir('http://localhost:5181/?paso=home');const t0=Date.now();
  const pre=await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const i=window.__inicio;if(i&&i.mapaEstado[1]==='listo'&&i.mapaEstado[2]==='listo'){clearInterval(t);r(true);}},500);setTimeout(()=>{clearInterval(t);r(false);},${PRECARGA_MAX*1000});})`,{tiempo:(PRECARGA_MAX+10)*1000});
  med.push(`precarga de las salas de prueba: ${pre?((Date.now()-t0)/1000).toFixed(0)+' s':'no terminó'}`);if(!pre)fallas.push('las salas de prueba no guardaron su mapa a tiempo');
  const lista=await P.evaluar(`(async()=>{const filas=()=>[...document.querySelectorAll('.salas li:not(.vacia)')].map(li=>li.querySelector('.info b')?.textContent.trim());const todas=filas();

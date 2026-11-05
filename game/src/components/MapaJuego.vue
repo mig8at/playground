@@ -1,7 +1,7 @@
 <script setup>
 // El mapa del menú del juego (2026-10-18, Miguel: «que el mapa sirva para ver dónde se guardan los robos y la banda; la
 // policía, el lugar robado y los ladrones para buscarlos; los lugares pintando el edificio, sin tanto texto, zoom y clic
-// para ver la información al costado»). Lo diseñado en /prototipo/menu, con los datos de la partida (persecucion3d
+// para ver la información al costado»). Lo diseñado en el prototipo del menú (retirado el 2026-10-30: ya está acá), con los datos de la partida (persecucion3d
 // mapa()): cada lugar pinta su edificio entero ('L'+lote o 'C'+casa), la gente es un punto que crece poco con el zoom,
 // y lo que se toca abre su ficha a la derecha. De policía, el «?» en vivo del rastro (RASTRO) con su anillo que se vacía,
 // la zona amarilla de dónde se vio a cada ladrón por última vez y la guarida delatada con la cuenta de la orden.

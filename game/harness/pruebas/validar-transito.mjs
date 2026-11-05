@@ -11,11 +11,11 @@
 //  · las curvas: en cada giro de las ciudades (carriles3d: el cuarto de círculo de carril a carril, a la derecha y a la
 //    izquierda) la velocidad del giro da a lo sumo TRANSITO.lateral de costado, y viniendo a la tope frena con la cómoda.
 // Uso: node scripts/validar-transito.mjs [ciudades=3] [semilla0=1]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {grillaCarriles,arcoDeGiro} from '../src/engine/carriles3d.js';
-import {TRANSITO as T} from '../src/engine/medidas.js';
-import {luz,CICLO,parar,curva,amarillo,objetivo,paso,PISA} from '../src/engine/transito.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {grillaCarriles,arcoDeGiro} from '../../src/engine/carriles3d.js';
+import {TRANSITO as T} from '../../src/engine/medidas.js';
+import {luz,CICLO,parar,curva,amarillo,objetivo,paso,PISA} from '../../src/engine/transito.js';
+import City from '../../src/engine/ciudad.js';
 const A=process.argv.slice(2),N=+(A[0]||3),S0=+(A[1]||1),S=CELL,K=City.K,dt=1/60;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const med={frenadas:0,frenoMax:0,frenoLejos:0,amarillos:0,para:0,sigue:0,giros:0,vGiro:[],latMax:0};

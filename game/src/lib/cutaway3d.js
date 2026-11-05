@@ -11,14 +11,19 @@
    - Ver a través: las paredes entre la cámara y el jugador (a menos de uSeeR de esa línea) no se dibujan. La gente sí. */
 import * as THREE from 'three';
 
+// (cada corte, su marca al azar en la clave del programa: si no, uno nuevo —al recargar en caliente— reusaba el programa
+// del viejo, con sus uniformes quietos)
 export function createCut({radius=24,see=1.3,cap='#3a3532',band=.17}={}){
- const BAND=band;
+ const BAND=band,ID=Math.random().toString(36).slice(2,7);
  const U={uCutOn:{value:0},uCutY:{value:0},uCutLow:{value:-1e9},uGround:{value:-1e9},uShared:{value:new THREE.Vector4()},uWall:{value:new THREE.Color('#d8d3ca')},uFront:{value:new THREE.Vector2()},uStub:{value:-1e9},uCutC:{value:new THREE.Vector2()},uCutR:{value:radius},uBoxMin:{value:new THREE.Vector2(-1e9,-1e9)},uBoxMax:{value:new THREE.Vector2(1e9,1e9)},
   uSeeOn:{value:0},uCam:{value:new THREE.Vector3()},uSee:{value:new THREE.Vector3()},uSeeR:{value:see},uCap:{value:new THREE.Color(cap)}};
  const VERT_HEAD='varying vec3 vCutW;\n',FRAG_HEAD='uniform vec4 uShared;uniform vec3 uWall;uniform vec2 uFront;uniform float uStub;uniform float uCutOn,uCutY,uCutLow,uGround,uCutR,uSeeOn,uSeeR;uniform vec2 uCutC,uBoxMin,uBoxMax;uniform vec3 uCam,uSee,uCap;varying vec3 vCutW;\n';
  // (la posición del mundo, con la piel y las instancias ya aplicadas: `transformed` después de skinning)
  const VERT_BODY=`
   {vec4 cw=vec4(transformed,1.);
+  #ifdef USE_BATCHING
+   cw=batchingMatrix*cw;
+  #endif
   #ifdef USE_INSTANCING
    cw=instanceMatrix*cw;
   #endif
@@ -28,22 +33,32 @@ export function createCut({radius=24,see=1.3,cap='#3a3532',band=.17}={}){
  bool inCut=uCutOn>.5&&distance(vCutW.xz,uCutC)<uCutR&&all(greaterThan(vCutW.xz,uBoxMin))&&all(lessThan(vCutW.xz,uBoxMax));
  bool party=false;
  #ifdef CUT_CAP
- party=inCut&&vCutW.y>uCutY&&abs(normalize(cross(dFdx(vCutW),dFdy(vCutW))).y)<.5&&(uShared.x>.5&&vCutW.x<uBoxMin.x+.75||uShared.y>.5&&vCutW.z<uBoxMin.y+.75||uShared.z>.5&&vCutW.x>uBoxMax.x-.75||uShared.w>.5&&vCutW.z>uBoxMax.y-.75);
+ // (uShared: hasta qué altura llega el vecino de cada lado —0, ninguno—: la medianera queda en pie sólo hasta ahí; más arriba
+ // es fachada y se corta como las otras —2026-10-18, Miguel: «sólo la pared del contiguo si es más alto»—)
+ party=inCut&&vCutW.y>uCutY&&abs(normalize(cross(dFdx(vCutW),dFdy(vCutW))).y)<.5&&(vCutW.x<uBoxMin.x+.75&&vCutW.y<uShared.x||vCutW.z<uBoxMin.y+.75&&vCutW.y<uShared.y||vCutW.x>uBoxMax.x-.75&&vCutW.y<uShared.z||vCutW.z>uBoxMax.y-.75&&vCutW.y<uShared.w);
  #endif
  bool front=false;
- #ifdef CUT_CAP
+ // (las fachadas —CUT_FACHADA— no bajan a muñón: 2026-10-18, Miguel: «no ocultes las paredes de fachadas»)
+ #if defined(CUT_CAP)&&!defined(CUT_FACHADA)
  // (como Los Sims: las paredes del lado de la cámara —más allá de medio metro del jugador hacia ella— quedan en un
  // muñón de uStub; las del fondo, enteras hasta el corte)
  front=inCut&&dot(vCutW.xz-uCutC,uFront)>.6&&abs(normalize(cross(dFdx(vCutW),dFdy(vCutW))).y)<.5;
  #endif
- if(inCut&&!party&&(vCutW.y>uCutY||front&&vCutW.y>uStub||vCutW.y<uCutLow&&vCutW.y>uGround))discard;
+ bool bajo=vCutW.y<uCutLow&&vCutW.y>uGround;
+ // (la fachada no se corta por debajo: el edificio se ve entero hasta el piso del jugador, no un piso flotando —2026-10-18—)
+ #ifdef CUT_FACHADA
+ bajo=false;
+ #endif
+ if(inCut&&!party&&(vCutW.y>uCutY||front&&vCutW.y>uStub||bajo))discard;
 `;
  // (ver a través: lo que queda a menos de uSeeR de la línea cámara→jugador y por encima de sus pies no se dibuja: en su
- // edificio, sólo las paredes; en los vecinos —que no se cortan y la cámara puede quedar adentro—, también sus losas)
+ // edificio, sólo las paredes; en los vecinos —que no se cortan y la cámara puede quedar adentro—, también sus losas.
+ // Afuera del edificio, a 2,7 veces esa distancia: la copa de un árbol de la calle es ancha y tapaba la vista —2026-10-18—)
  const SEE=`
  #ifndef USE_SKINNING
  if(uSeeOn>.5&&vCutW.y>uSee.y-.9){vec3 ab=uSee-uCam;float t=clamp(dot(vCutW-uCam,ab)/max(dot(ab,ab),1e-4),0.,1.);
-  if(t<.97&&distance(vCutW,uCam+ab*t)<uSeeR){vec3 nv=normalize(cross(dFdx(vCutW),dFdy(vCutW)));bool own=all(greaterThan(vCutW.xz,uBoxMin))&&all(lessThan(vCutW.xz,uBoxMax));if(abs(nv.y)<.6||!own)discard;}}
+  bool own=all(greaterThan(vCutW.xz,uBoxMin))&&all(lessThan(vCutW.xz,uBoxMax));
+  if(t<.97&&distance(vCutW,uCam+ab*t)<(own?uSeeR:uSeeR*2.7)){vec3 nv=normalize(cross(dFdx(vCutW),dFdy(vCutW)));if(abs(nv.y)<.6||!own)discard;}}
  #endif
 `;
  // (y en las paredes de una sola cara —sin grosor, no tienen interior que mostrar— una franja oscura de BAND arriba del
@@ -55,16 +70,18 @@ export function createCut({radius=24,see=1.3,cap='#3a3532',band=.17}={}){
 `;
  const mats=new Set(),done=new WeakSet();
  // opts.see: tramar lo que tapa; opts.cap: el canto oscuro (y dos caras)
- function patch(m,{see=true,cap=false}={}){
+ function patch(m,{see=true,cap=false,fachada=false}={}){
   // (la marca va en un WeakSet y no en userData: un material copiado con clone() se lleva userData pero no el
   // onBeforeCompile, y quedaba marcado como cortado sin estarlo —los muebles de los pisos se arman con copias—)
   if(!m||done.has(m)||m.isShaderMaterial||m.isRawShaderMaterial||m.isPointsMaterial||m.isSpriteMaterial||m.isLineBasicMaterial)return m;
-  done.add(m);m.userData.cut=true;const prev=m.onBeforeCompile,key=m.customProgramCacheKey,tag='|cut'+(see?'s':'')+(cap?'c':'');
+  // (si ya lo parcheó otro corte —recargar en caliente arma uno nuevo—, se parte de lo que había antes de él: si no, el
+  // viejo ponía sus uniformes, ya quietos, y éste veía vCutW y no se ponía)
+  done.add(m);const prev=m.__antesDelCorte!==undefined?m.__antesDelCorte:m.onBeforeCompile;m.__antesDelCorte=prev;m.userData.cut=true;if(m.__claveAntesDelCorte===undefined)m.__claveAntesDelCorte=m.customProgramCacheKey||null;const key=m.__claveAntesDelCorte,tag='|cut'+ID+(see?'s':'')+(cap?'c':'')+(fachada?'f':'');
   if(cap&&m.side===THREE.FrontSide){m.side=THREE.DoubleSide;m.shadowSide=THREE.FrontSide;}
   m.onBeforeCompile=(sh,r)=>{prev?.call(m,sh,r);if(sh.vertexShader.includes('vCutW')||!sh.vertexShader.includes('#include <project_vertex>')||!sh.fragmentShader.includes('#include <clipping_planes_fragment>'))return;
    Object.assign(sh.uniforms,U);
    sh.vertexShader=VERT_HEAD+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>'+VERT_BODY);
-   let f=(cap?'#define CUT_CAP\n':'')+FRAG_HEAD+sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>'+CUT+(see?SEE:''));
+   let f=(cap?'#define CUT_CAP\n':'')+(fachada?'#define CUT_FACHADA\n':'')+FRAG_HEAD+sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>'+CUT+(see?SEE:''));
    if(cap&&f.includes('#include <dithering_fragment>'))f=f.replace('#include <dithering_fragment>','#include <dithering_fragment>'+CAP);
    sh.fragmentShader=f;};
   m.customProgramCacheKey=()=>(key?key.call(m):'')+tag;m.needsUpdate=true;mats.add(m);return m;}
@@ -72,13 +89,13 @@ export function createCut({radius=24,see=1.3,cap='#3a3532',band=.17}={}){
  const isUnder=(o,s)=>{for(let p=o;p;p=p.parent)if(p===s)return true;return false;};
  // Todo lo que cuelga de root, menos lo que cuelga de algo en skip (la isla: el terreno y las montañas).
  // building: edificios (canto oscuro); la gente y los muebles sueltos, sin canto.
- function patchTree(root,skip=[],{building=false,see=true}={}){root.traverse(o=>{if(skip.some(s=>s!==root&&isUnder(o,s)))return;if(!o.isMesh)return;
-  const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>patch(m,{see,cap:building&&!o.isSkinnedMesh&&!o.isInstancedMesh}));
+ function patchTree(root,skip=[],{building=false,see=true,fachada=false}={}){root.traverse(o=>{if(skip.some(s=>s!==root&&isUnder(o,s)))return;if(!o.isMesh)return;
+  const ms=Array.isArray(o.material)?o.material:[o.material];ms.forEach(m=>patch(m,{see,cap:building&&!o.isSkinnedMesh&&!o.isInstancedMesh,fachada}));
   if(o.castShadow&&!o.customDepthMaterial&&!ms.some(m=>m.alphaTest>0||m.transparent))o.customDepthMaterial=depth;});}
  // low: la altura debajo de la cual tampoco se dibuja (en planta baja, ninguna)
  // box: el rectángulo del edificio en planta [x0,z0,x1,z1] (sólo ése se corta; los demás quedan enteros)
  // shared: [x0,z0,x1,z1] lados del rectángulo pegados a otro edificio (la medianera queda en pie, lisa)
- function set(on,x=0,z=0,y=0,low=-1e9,box=null,ground=-1e9,shared=null){U.uCutOn.value=on?1:0;U.uGround.value=ground;U.uShared.value.set(...(shared||[0,0,0,0]).map(v=>v?1:0));U.uCutC.value.set(x,z);U.uCutY.value=y;U.uCutLow.value=low;
+ function set(on,x=0,z=0,y=0,low=-1e9,box=null,ground=-1e9,shared=null){U.uCutOn.value=on?1:0;U.uGround.value=ground;U.uShared.value.set(...(shared||[0,0,0,0]).map(v=>typeof v==='number'?v:v?1e9:-1e9));U.uCutC.value.set(x,z);U.uCutY.value=y;U.uCutLow.value=low;
   if(box){U.uBoxMin.value.set(box[0],box[1]);U.uBoxMax.value.set(box[2],box[3]);}else{U.uBoxMin.value.set(-1e9,-1e9);U.uBoxMax.value.set(1e9,1e9);}}
  // la línea de la cámara al jugador (sin ella, nada se trama)
  // front: dirección horizontal del jugador hacia la cámara (unitaria); stub: alto del muñón de las paredes de adelante

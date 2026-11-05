@@ -5,14 +5,14 @@
 // jugador) y salta (Espacio) al llegar al borde; tiene que caer en el techo de enfrente (los pies a su altura —la del 3D:
 // el realce del lote más los pisos—, del otro lado del hueco) y vivo. Captura del primero. El borde del techo frena al
 // que camina (no se cae nadie sin querer); saltando se pasa.
-// Uso: node scripts/validar-salto.mjs [ciudad=1] [pares=4] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-salto.mjs [ciudad=1] [pares=4] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {alcanceSalto,danoDeCaida} from '../src/engine/juego/huida.js';
-import {VIDA,CIRCULACION} from '../src/engine/medidas.js';
-import {alturaMansarda} from '../src/engine/techos.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {alcanceSalto,danoDeCaida} from '../../src/engine/juego/huida.js';
+import {VIDA,CIRCULACION} from '../../src/engine/medidas.js';
+import {alturaMansarda} from '../../src/engine/techos.js';
 // (lo que sube el salto se cae también: el golpe es desde lo más alto, no desde el techo de partida)
 const SUBE=CIRCULACION.peaton.salto.velocidad**2/(2*CIRCULACION.peaton.salto.gravedad);
 const [ciudad=1,PARES=4,OUT='/tmp']=process.argv.slice(2);const fallas=[],med=[];
@@ -35,7 +35,7 @@ const pares=[];for(const a of T)for(const b of T){if(a.li===b.li)continue;
   const fondo=eje==='z'?a.z1-a.z0:a.x1-a.x0;pares.push({eje,dir,m,borde:borde-dir*cr,gap:gapS,dh:+dh.toFixed(2),cresta:cr>0,li:[a.li,b.li],carrera:Math.min(5,fondo-.8-2*cr)});}}
 pares.sort((p,q)=>p.dh-q.dh||p.gap-q.gap);const elegidos=[];/* (al menos uno desde la cresta de una mansarda, si hay: 2026-10-18) */const cr=pares.find(p=>p.cresta);if(cr)elegidos.push(cr);for(const p of pares){if(elegidos.some(e=>e.li.join()===p.li.join()))continue;elegidos.push(p);if(elegidos.length>=PARES)break;}
 const N=await abrirNavegador(),T0=Date.now(),traza=m=>process.env.TRAZA&&console.log(`[${((Date.now()-T0)/1000).toFixed(1)} s] ${m}`);
-try{traza('navegador abierto');const P=await N.abrir(`http://localhost:5180/demo?jugadores=3&ciudad=${ciudad}`);
+try{traza('navegador abierto');const P=await N.abrir(`http://localhost:5181/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.ronda){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});
  traza('ronda lista');if(!elegidos.length)fallas.push('no hay pares de techos para probar el salto');
  for(const [i,p] of elegidos.entries()){traza(`par ${i}: ${JSON.stringify(p)}`);

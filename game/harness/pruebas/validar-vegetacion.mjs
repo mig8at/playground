@@ -2,10 +2,10 @@
 // sombrilla (medidas.js VEGETACION) y mide la regla 3-30-300 (Konijnendijk 2023): cada vivienda ve ≥ 3 árboles (acá: a
 // menos de 30 m), 30 % de copa por zona y ≤ 300 m a un espacio verde.
 // Uso: node scripts/validar-vegetacion.mjs [ciudades=12] [semilla0=1] [jugadores=3]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {VEGETACION as V,CALLE} from '../src/engine/medidas.js';
-import City from '../src/engine/ciudad.js';
-import {islaDe,mascaraRebaje} from '../src/engine/isla.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {VEGETACION as V,CALLE} from '../../src/engine/medidas.js';
+import City from '../../src/engine/ciudad.js';
+import {islaDe,mascaraRebaje} from '../../src/engine/isla.js';
 
 const N=+(process.argv[2]||12),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3),E=1e-6,K=City.K;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

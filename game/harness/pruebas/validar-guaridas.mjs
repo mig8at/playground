@@ -11,12 +11,12 @@
 // Y la rotación, por ciudad y tamaño: ningún lugar es guarida en más de GUARIDA.rotacion.maxUso de las rondas; se
 // cuenta cuántos lugares distintos se usan y cuántos de la ciudad y del monte.
 // Uso: node scripts/validar-guaridas.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {GUARIDA} from '../src/engine/medidas.js';
-import {prepararGuaridas,guaridasDe,cuantasGuaridas} from '../src/engine/guaridas.js';
-import {caminarDesde} from '../src/engine/circulacion.js';
-import {navEdificio,navCasa} from '../src/engine/nav-interior.js';
-import {casaAMundo} from '../src/engine/botin.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {GUARIDA} from '../../src/engine/medidas.js';
+import {prepararGuaridas,guaridasDe,cuantasGuaridas} from '../../src/engine/guaridas.js';
+import {caminarDesde} from '../../src/engine/circulacion.js';
+import {navEdificio,navCasa} from '../../src/engine/nav-interior.js';
+import {casaAMundo} from '../../src/engine/botin.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),R=GUARIDA.rotacion.rondas,EQUIPOS=[2,3,5,8];
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

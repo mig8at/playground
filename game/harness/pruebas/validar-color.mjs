@@ -12,9 +12,9 @@
 //    ciudad; ningún color de pared pasa del 25 % de la ciudad y la moldura blanca no es la de todos (≤ 60 %);
 //  · el pintado es igual por semilla.
 // Uso: node scripts/validar-color.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {PALETA} from '../src/engine/medidas.js';
-import {deltaE,contraste,familiaDe,luminancia,sombra,TONOS} from '../src/engine/color.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {PALETA} from '../../src/engine/medidas.js';
+import {deltaE,contraste,familiaDe,luminancia,sombra,TONOS} from '../../src/engine/color.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),R=PALETA.reglas;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

@@ -107,6 +107,8 @@ export function createCasas(plan,{nature=null,nature2=null,rampaEn=null}={}){
  return {group,count:casas.length,
   // El detalle del jardín según dónde está la cámara.
   update(cx,cz,lejos=Infinity){lodSet?.update(cx,cz,false,lejos);},get lod(){return lodSet;},
+  // los árboles del jardín se pueden ocultar (la vista de arriba, 2026-10-18)
+  setArboles(on){lodSet?.setVisible?.(n=>/tree|pine|palm|birch|willow/i.test(n),on);},
   // Lo que estorba al caminar: los troncos y las cercas (las paredes de las casas son de vivienda3d.js o de la isla).
   collide,
   // Por dónde entrar o salir de un lote: si from y to no están en el mismo lote, los puntos de afuera y de adentro del

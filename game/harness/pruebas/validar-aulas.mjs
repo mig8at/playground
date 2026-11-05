@@ -4,7 +4,7 @@
 //  · cada pupitre con su silla delante de su frente (la prueba de movimiento saca la que no se alcanza —con pasillos
 //    angostos, 1 de 5— y el pupitre se va con ella).
 // Uso: node scripts/validar-aulas.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

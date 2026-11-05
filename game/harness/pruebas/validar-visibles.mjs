@@ -4,10 +4,10 @@
 // por una abertura (ventana o vidriera, de 0,05 a 2,75 m sobre el piso; puerta de calle, hasta 2,2); afuera, el primer
 // edificio que lo tapa (sus pisos por 3 m) es un lote que se ve: TIENE que estar en la lista de la regla.
 // Uso: node scripts/validar-visibles.mjs [ciudades=2] [semilla0=1] [rayos por piso=1500]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {visiblesDesde,alturasDe,aberturasDe,VISIBLES} from '../src/engine/visibles.js';
-import {ALTURA} from '../src/engine/medidas.js';
-import {rng} from '../src/engine/veredas.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {visiblesDesde,alturasDe,aberturasDe,VISIBLES} from '../../src/engine/visibles.js';
+import {ALTURA} from '../../src/engine/medidas.js';
+import {rng} from '../../src/engine/veredas.js';
 
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),R=+(process.argv[4]||1500),PASO=.25,FL=ALTURA.piso;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

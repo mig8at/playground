@@ -7,11 +7,11 @@
 // · junto a un ladrón sin retrato se ofrece «Pedir papeles»; con E, el policía queda quieto y después contesta;
 // · al llegar los ladrones a la meta, el cartel del final.
 // Captura en la cámara, al atrapar y en el final.
-// Uso: node scripts/validar-policia.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-policia.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];
 try{const P=await N.abrir(`${base}/demo?papel=policia&jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.acciones&&d.persec?.listo&&d.avatar){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});

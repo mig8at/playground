@@ -7,8 +7,8 @@
 //  · los metros, la distancia a la vía cruzada anterior (±3 m: se corren 2 si dos puertas caerían en el mismo número);
 //  · a lo largo de cada vía y de cada lado, los números crecen.
 // Uso: node scripts/validar-direcciones.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {cuerpoCasa} from '../src/engine/circulacion.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {cuerpoCasa} from '../../src/engine/circulacion.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

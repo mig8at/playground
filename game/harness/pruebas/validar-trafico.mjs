@@ -8,11 +8,11 @@
 //  · cada giro a la derecha en una esquina de manzana es un cuarto de círculo con centro en la esquina, y el costado de
 //    adentro del auto no pisa el cordón redondeado (radio CIRCULACION.vehiculo.esquina).
 // Uso: node scripts/validar-trafico.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {grillaCarriles,arcoDeGiro} from '../src/engine/carriles3d.js';
-import {redVehicular} from '../src/engine/circulacion.js';
-import {CALLE,CIRCULACION} from '../src/engine/medidas.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {grillaCarriles,arcoDeGiro} from '../../src/engine/carriles3d.js';
+import {redVehicular} from '../../src/engine/circulacion.js';
+import {CALLE,CIRCULACION} from '../../src/engine/medidas.js';
+import City from '../../src/engine/ciudad.js';
 
 const N=+(process.argv[2]||4),S0=+(process.argv[3]||1),K=City.K,S=CELL,AUTO=1.76,BUS=2.45;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

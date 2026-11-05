@@ -5,9 +5,9 @@
 //  · el alto nunca pasa de lo que mide el modelo que lo dibuja (MUEBLES_MEDIDOS), con 5 cm de holgura;
 //  · (que con estos choques se llegue caminando a cada cuarto lo prueba validar-interiores: nav-interior usa esta regla).
 // Uso: node scripts/validar-muebles.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {CHOQUE_MUEBLE,ALCANCE} from '../src/engine/medidas.js';
-import {MUEBLES_MEDIDOS} from '../src/engine/muebles-medidos.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {CHOQUE_MUEBLE,ALCANCE} from '../../src/engine/medidas.js';
+import {MUEBLES_MEDIDOS} from '../../src/engine/muebles-medidos.js';
 
 const N=+(process.argv[2]||4),S0=+(process.argv[3]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

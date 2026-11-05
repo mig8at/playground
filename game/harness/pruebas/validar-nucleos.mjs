@@ -10,9 +10,9 @@
 // hueco de cada losa, junto a cada pared y al borde del vano, algo cubre desde donde terminan los muros de abajo
 // (ALTURA.cieloRaso − 2 cm) hasta el piso de arriba; y la pared del medio sube sin ranuras de la planta baja al último piso.
 // Y el rincón bajo el carril B de planta baja: debajo, ALTURA.libre en todo su fondo, y detrás, cerrado del suelo arriba.
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {stairOf,stairBoxes,STAIRS} from '../src/lib/town3d.js';
-import {ALTURA} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {stairOf,stairBoxes,STAIRS} from '../../src/lib/town3d.js';
+import {ALTURA} from '../../src/engine/medidas.js';
 const FLOOR=ALTURA.piso;
 
 const N=+(process.argv[2]||40),S0=+(process.argv[3]||1),E=1e-6;

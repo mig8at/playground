@@ -37,8 +37,8 @@ export const SECCIONES=[
 ];
 
 export const CONTROLES=[
- ['W A S D','moverse'],['Ratón','mirar'],['Shift','correr'],['Espacio','saltar'],['E','usar lo de cerca: robar, guardar, forzar, atrapar, pedir papeles, subir a la patrulla'],
- ['R','la otra acción: mirar por el visor, la cortina'],['M','el plano'],['T · F','vista detrás o en primera persona'],['Tab','el menú: el ladrón ve su botín, se cambia de ropa y ve su retrato en las noticias; la policía, los avisos, los retratos y el censo'],['Esc','soltar el ratón']];
+ ['W A S D','moverse'],['Ratón','mirar'],['Shift','correr'],['Espacio','saltar'],['E','usar lo de cerca: abrir y cerrar puertas, robar, guardar, forzar, atrapar, pedir papeles, subir a la patrulla'],
+ ['R','la otra acción: mirar por el visor, la cortina'],['M','el plano'],['T · F','vista de arriba o de atrás · primera persona'],['Tab','el menú: el ladrón ve su botín, se cambia de ropa y ve su retrato en las noticias; la policía, los avisos, los retratos y el censo'],['Esc','soltar el ratón']];
 
 // lo básico de cada bando, para la sala de espera
 export const LO_BASICO={

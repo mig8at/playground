@@ -1,9 +1,9 @@
 // Experimento «botin» del calibrador (2026-10-18): la meta por ladrón (y la duración) del modo «Botín» para que los dos
 // bandos ganen la mitad de las veces en cada tamaño de equipo (bots contra bots, engine/juego). Lento: pocas rondas.
-import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {prepararCiudad,crearPartida,paso} from '../../src/engine/juego/partida.js';
-import {decidir} from '../../src/engine/juego/bots.js';
-import {MODO_BOTIN as M} from '../../src/engine/medidas.js';
+import {generateBlueprint} from '../../../src/engine/blueprint.js';
+import {prepararCiudad,crearPartida,paso} from '../../../src/engine/juego/partida.js';
+import {decidir} from '../../../src/engine/juego/bots.js';
+import {MODO_BOTIN as M} from '../../../src/engine/medidas.js';
 export const nombre='botin';
 export const descripcion='la meta por ladrón para que los ladrones ganen ~50 % en 2, 3, 5 y 8 por equipo';
 export const parametros=[{ruta:'MODO_BOTIN.meta',min:5,max:12}];

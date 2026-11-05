@@ -10,12 +10,12 @@
 //  · lo que se ve (transeuntes, 30 s junto al colegio a las 16): los sentados, en el asiento de su banca y nunca dos en el
 //    mismo punto.
 // Uso: node scripts/validar-descanso.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {sociedadDe} from '../src/engine/sociedad.js';
-import {curvas} from '../src/engine/medirRutina.js';
-import {mapaDeJuego} from '../src/engine/juego/mapa.js';
-import {crearTranseuntes} from '../src/engine/juego/transeuntes.js';
-import {RUTINA} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {sociedadDe} from '../../src/engine/sociedad.js';
+import {curvas} from '../../src/engine/medirRutina.js';
+import {mapaDeJuego} from '../../src/engine/juego/mapa.js';
+import {crearTranseuntes} from '../../src/engine/juego/transeuntes.js';
+import {RUTINA} from '../../src/engine/medidas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),CANSANCIO_MAX=2,QUIETOS=[.15,.3],H=3600;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 for(let s=S0;s<S0+N;s++){const bp=generateBlueprint({seed:s,team:3}),S=sociedadDe(bp),ej={semilla:s};let usos=0,maxC=0;const cmax=[];

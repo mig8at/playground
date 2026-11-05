@@ -11,13 +11,13 @@
 //    edificio y casa, y a ATERRIZAJE.fachada de las fachadas (los balcones salen de ellas);
 //  · si la columna ya sirve, se cae ahí mismo; si no, en el punto que sirve más cercano (comprobado a fuerza bruta).
 // Uso: node scripts/validar-ubicacion.mjs [ciudades=4] [semilla0=1] [--ver]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {ubicacionDe} from '../src/engine/direcciones.js';
-import {zonaDeAterrizaje,aterrizajeDe} from '../src/engine/aterrizaje.js';
-import {cuerpoCasa} from '../src/engine/circulacion.js';
-import {CELL} from '../src/engine/veredas.js';
-import {ATERRIZAJE} from '../src/engine/medidas.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {ubicacionDe} from '../../src/engine/direcciones.js';
+import {zonaDeAterrizaje,aterrizajeDe} from '../../src/engine/aterrizaje.js';
+import {cuerpoCasa} from '../../src/engine/circulacion.js';
+import {CELL} from '../../src/engine/veredas.js';
+import {ATERRIZAJE} from '../../src/engine/medidas.js';
+import City from '../../src/engine/ciudad.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),VER=process.argv.includes('--ver'),K=City.K;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

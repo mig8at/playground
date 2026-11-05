@@ -2,9 +2,9 @@
 // cada edificio, piso por piso, con las medidas del catálogo (src/engine/medidas.js) y los volúmenes del plano
 // (src/engine/volumenes.js).
 // Uso: node scripts/validar-ciudad.mjs [ciudades=10] [semilla0=1] [--todo]   (--todo: lista todos los ejemplos)
-import {generateBlueprint,USE_AT,ITEMS,anchoCalle,enCentro,maxPisos} from '../src/engine/blueprint.js';
-import {MURO,PUERTA,MINIMO,PASILLO,CUERPO,ERGO,mm,VIDRIO,HABITABLE,JUEGO,ENCIERRO,ALTURA,INTERIOR,esVidriera} from '../src/engine/medidas.js';
-import {volumesOf,spanOf} from '../src/engine/volumenes.js';
+import {generateBlueprint,USE_AT,ITEMS,anchoCalle,enCentro,maxPisos} from '../../src/engine/blueprint.js';
+import {MURO,PUERTA,MINIMO,PASILLO,CUERPO,ERGO,mm,VIDRIO,HABITABLE,JUEGO,ENCIERRO,ALTURA,INTERIOR,esVidriera} from '../../src/engine/medidas.js';
+import {volumesOf,spanOf} from '../../src/engine/volumenes.js';
 
 const args=process.argv.slice(2).filter(a=>!a.startsWith('--')),TODO=process.argv.includes('--todo');
 const N=+(args[0]||10),S0=+(args[1]||1),E=1e-6;

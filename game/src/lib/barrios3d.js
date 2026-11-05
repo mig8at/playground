@@ -33,6 +33,8 @@ export function createBarrios(plan,{downtown=null,nature=null,furniture=null,ocu
   floorAt(x,z,feet=0){const B=de(x,z);return B?B.world.floorAt(x-B.ox,z-B.oz,feet-B.y)+B.y:null;},
   collide(x,z,r,hard,feet=0){const B=de(x,z);return B?B.world.collide(x-B.ox,z-B.oz,r,hard,feet-B.y):false;},
   dentro(x,z,y){const B=de(x,z);return B?B.world.dentro(x-B.ox,z-B.oz,y-B.y):false;},
+  // las puertas de sus edificios cerca de (x, z, y), en el marco del mundo (world3d.puertasCerca)
+  puertasCerca(x,z,y,r=1.5){return lista.flatMap(B=>(B.world.puertasCerca?.(x-B.ox,z-B.oz,y-B.y,r)||[]).map(p=>({cx:p.cx+B.ox,cz:p.cz+B.oz,cy:p.cy+B.y,seg:[p.seg[0]+B.ox,p.seg[1]+B.oz,p.seg[2]+B.ox,p.seg[3]+B.oz],get a(){return p.a;},get abierta(){return p.abierta;},alternar:p.alternar,trancada:p.trancada})));},
   updateDoors(dt,people){for(const B of lista)B.world.updateDoors(dt,people.map(p=>({...p,x:p.x-B.ox,z:p.z-B.oz})));},
   updateInteriors(x,z,dt,y){for(const B of lista)B.world.updateInteriors(x-B.ox,z-B.oz,dt,y-B.y);},
   setNight(on){for(const B of lista)B.world.setNight(on);},

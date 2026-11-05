@@ -1,5 +1,5 @@
 // La medición de la rutina (2026-10-18): lo que el tester 2D (validar-rutina) y el calibrador (calibrar.mjs, experimento
-// «rutina») comparan contra las metas (scripts/datos/objetivos-rutina.json). Puro.
+// «rutina») comparan contra las metas (harness/pruebas/datos/objetivos-rutina.json). Puro.
 //  · curvas(S, {dias, paso}): por hora (0-23), de lunes a viernes y el fin de semana, la parte de la gente (o de un
 //    grupo) en cada actividad: casa, trabajo, estudio, comer (afuera), compras, ejercicio, ocio, calle, bus;
 //  · indicadores(S): comidas por persona y día, idas al gimnasio de los socios por semana, llegadas tarde, cosas

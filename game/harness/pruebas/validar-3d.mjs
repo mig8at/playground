@@ -10,7 +10,7 @@
 //    que un cambio chico es normal; uno grande, se avisa;
 //  · ningún error de consola ni excepción en toda la corrida.
 // Con --fijar (o si no hay referencias) guarda las capturas y el presupuesto actuales.
-// Uso: node scripts/validar-3d.mjs [semilla=1] [--fijar] [--base=http://localhost:5180]
+// Uso: node scripts/validar-3d.mjs [semilla=1] [--fijar] [--base=http://localhost:5181]
 import {abrirNavegador} from './navegador.mjs';
 import {spawn} from 'node:child_process';import {existsSync,mkdirSync,readFileSync,writeFileSync} from 'node:fs';import {fileURLToPath} from 'node:url';import {dirname,join} from 'node:path';
 
@@ -20,8 +20,8 @@ const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,
 // el servidor: el que diga --base, el de desarrollo si está andando, o uno propio en 5199 (que se apaga al final)
 let base=(A.find(a=>a.startsWith('--base='))||'').slice(7),propio=null;
 const anda=async u=>{try{return (await fetch(u,{signal:AbortSignal.timeout(1500)})).ok;}catch{return false;}};
-if(!base)base=await anda('http://localhost:5180/')?'http://localhost:5180':'';
-if(!base){propio=spawn(process.execPath,[join(aqui,'../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'..'),stdio:'ignore'});base='http://localhost:5199';
+if(!base)base=await anda('http://localhost:5181/')?'http://localhost:5181':'';
+if(!base){propio=spawn(process.execPath,[join(aqui,'../../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'../..'),stdio:'ignore'});base='http://localhost:5199';
  for(let k=0;k<100&&!(await anda(base+'/'));k++)await new Promise(r=>setTimeout(r,200));}
 const N=await abrirNavegador(),P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${S}`);
 const listo=await P.evaluar(`new Promise(r=>{const t0=Date.now(),t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.planoVista&&d.acciones&&d.soc){clearInterval(t);/* (de día: la ronda empieza a cualquier hora y la noche cambia toda la imagen; las referencias son a mediodía) */d.fijarHora(2,12);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(Date.now()-t0);}},300);})`,{tiempo:240000});

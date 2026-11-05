@@ -7,9 +7,9 @@
 //    muro tapa el vano.
 // Uso: node scripts/validar-fachada3d.mjs
 import {readFileSync,existsSync} from 'node:fs';
-import {ES_DE_FACHADA,piezaLowPoly,puertaDobleLowPoly,PARED} from '../src/lib/fachada3d.js';
-import {FACADE_PIECES,WINDOWS,STYLES,FAMILIES,facadeStyle,VIDRIO_PIEZA,DOUBLES} from '../src/engine/fachada.js';
-import {VIDRIO,PUERTA,COLUMNA,VENTANAS_FAMILIA} from '../src/engine/medidas.js';
+import {ES_DE_FACHADA,piezaLowPoly,puertaDobleLowPoly,PARED} from '../../src/lib/fachada3d.js';
+import {FACADE_PIECES,WINDOWS,STYLES,FAMILIES,facadeStyle,VIDRIO_PIEZA,DOUBLES} from '../../src/engine/fachada.js';
+import {VIDRIO,PUERTA,COLUMNA,VENTANAS_FAMILIA} from '../../src/engine/medidas.js';
 
 const DIR='public/models/downtown/Exports/glTF (Godot)/';
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

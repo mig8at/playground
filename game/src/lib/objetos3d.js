@@ -200,24 +200,27 @@ export const OBJETOS={
  ascensor:{nombre:'Cabina de ascensor',grupo:'Edificio',medida:[1.7,1.7],alto:()=>2.6,
   antes:()=>{const E=.85,T=.07,D=.5,g='#9aa3a8',m='#7d878d';return [p(0,0,-(E-T/2),2*E,2.6,T,g),p(-(E-T/2),0,0,T,2.6,2*E,g),p(E-T/2,0,0,T,2.6,2*E,g),
    ...[-1,1].map(s=>p(s*(D+(E-D)/2),0,E-T/2,E-D,2.6,T,m)),p(0,2.2,E-T/2,2*D,.4,T,m),p(0,2.58,0,2*E,.06,2*E,'#c9cdd0'),p(0,2.55,0,1.1,.03,1.1,null,{luz:true}),p(D+.12,1.1,E-T-.02,.12,.32,.03,'#222')];},
-  piezas:()=>{const E=.85,T=.07,D=.5,I=E-T,st=C.acero,fr='#8d959b';
+  // (o.prof: el fondo, de la puerta a la pared de atrás —2026-10-18, Miguel: «aprovechar para hacer el ascensor más
+  // profundo»: town3d le da todo el hueco—; el centro sigue en el medio de la cabina: E a lo ancho, Z a lo hondo)
+  piezas:(o={})=>{const E=.85,Z=(o.prof||1.7)/2,T=.07,D=.5,I=E-T,IZ=Z-T,st=C.acero,fr='#8d959b',LR=Math.max(1,2*IZ-.7);
    return [// paredes de acero, con zócalo oscuro y el marco del frente
     // (los costados entre el fondo y el marco, sin pisarlos: en las esquinas las caras titilaban)
-    p(0,0,-(E-T/2),2*E,2.6,T,st),p(-(E-T/2),0,0,T,2.6,2*E-2*T,st),p(E-T/2,0,0,T,2.6,2*E-2*T,st),
-    ...[-1,1].map(s=>p(s*(D+(E-D)/2),0,E-T/2,E-D,2.6,T,fr)),p(0,2.2,E-T/2,2*D,.4,T,fr),
-    p(0,0,-I-.004,2*I,.12,.008,C.grafito),...[-1,1].map(s=>p(s*(I+.004),0,0,.008,.12,2*I,C.grafito)),
-    p(0,0,0,2*I,.025,2*I,C.grafito),// el piso
-    p(0,2.58,0,2*E,.06,2*E,'#d9dde0'),p(0,2.55,0,1.1,.03,1.1,null,{luz:true}),p(0,2.54,0,1.2,.01,1.2,C.aceroClaro),// el techo y la luz con su marco
-    p(0,.95,-I+.01,1.2,1.35,.012,'#dfe9ef'),p(0,.92,-I+.004,1.28,1.41,.008,C.aceroOscuro),// el espejo del fondo (sobre la pared, no metido en ella)
+    p(0,0,-(Z-T/2),2*E,2.6,T,st),p(-(E-T/2),0,0,T,2.6,2*Z-2*T,st),p(E-T/2,0,0,T,2.6,2*Z-2*T,st),
+    ...[-1,1].map(s=>p(s*(D+(E-D)/2),0,Z-T/2,E-D,2.6,T,fr)),p(0,2.2,Z-T/2,2*D,.4,T,fr),
+    p(0,0,-IZ-.004,2*I,.12,.008,C.grafito),...[-1,1].map(s=>p(s*(I+.004),0,0,.008,.12,2*IZ,C.grafito)),
+    // el piso (1,5 cm arriba del del edificio: en el mismo plano titilaba a rayas)
+    p(0,.015,0,2*I,.025,2*IZ,C.grafito),
+    p(0,2.58,0,2*E,.06,2*Z,'#d9dde0'),p(0,2.55,0,1.1,.03,1.1,null,{luz:true}),p(0,2.54,0,1.2,.01,1.2,C.aceroClaro),// el techo y la luz con su marco
+    p(0,.95,-IZ+.01,1.2,1.35,.012,'#dfe9ef'),p(0,.92,-IZ+.004,1.28,1.41,.008,C.aceroOscuro),// el espejo del fondo (sobre la pared, no metido en ella)
     // pasamanos al fondo y a los costados, en sus soportes
-    p(0,.88,-I+.06,1.4,.04,.04,C.aceroClaro),...[-.62,.62].map(x=>p(x,.86,-I+.03,.03,.06,.05,C.aceroClaro)),
-    ...[-1,1].flatMap(s=>[p(s*(I-.06),.88,-.15,.04,.04,1.0,C.aceroClaro),...[-.55,.25].map(z=>p(s*(I-.03),.86,z,.05,.06,.03,C.aceroClaro))]),
+    p(0,.88,-IZ+.06,1.4,.04,.04,C.aceroClaro),...[-.62,.62].map(x=>p(x,.86,-IZ+.03,.03,.06,.05,C.aceroClaro)),
+    ...[-1,1].flatMap(s=>[p(s*(I-.06),.88,-.15,.04,.04,LR,C.aceroClaro),...[-.15-LR/2+.1,-.15+LR/2-.1].map(z=>p(s*(I-.03),.86,z,.05,.06,.03,C.aceroClaro))]),
     // la botonera de adentro, junto a la puerta, con dos columnas de botones
-    p(I-.012,.85,I-.24,.024,.6,.16,C.negro),...[0,1,2,3,4].flatMap(r=>[-1,1].map(s=>p(I-.026,.95+r*.09,I-.24+s*.04,.008,.05,.05,'#e8eaec'))),
+    p(I-.012,.85,IZ-.24,.024,.6,.16,C.negro),...[0,1,2,3,4].flatMap(r=>[-1,1].map(s=>p(I-.026,.95+r*.09,IZ-.24+s*.04,.008,.05,.05,'#e8eaec'))),
     // afuera: el contramarco de la puerta, el indicador del piso y el botón de llamada
-    ...[-1,1].map(s=>p(s*(D+.05),0,E+.01,.1,2.3,.02,C.aceroClaro)),p(0,2.22,E+.01,2*D+.2,.08,.02,C.aceroClaro),
-    p(0,2.36,E+.012,.36,.14,.02,C.negro),p(0,2.39,E+.024,.12,.08,.004,'#e05a3a'),
-    p(D+.28,.95,E+.012,.1,.24,.02,C.aceroClaro),p(D+.28,1.04,E+.024,.045,.045,.01,C.ambar)];}},
+    ...[-1,1].map(s=>p(s*(D+.05),0,Z+.01,.1,2.3,.02,C.aceroClaro)),p(0,2.22,Z+.01,2*D+.2,.08,.02,C.aceroClaro),
+    p(0,2.36,Z+.012,.36,.14,.02,C.negro),p(0,2.39,Z+.024,.12,.08,.004,'#e05a3a'),
+    p(D+.28,.95,Z+.012,.1,.24,.02,C.aceroClaro),p(D+.28,1.04,Z+.024,.045,.045,.01,C.ambar)];}},
 
  // ---------- Calle ----------
  // (o.color: el color propio de cada uno, si el mapa se lo da: la papelera, el techo del kiosco)

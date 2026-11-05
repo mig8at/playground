@@ -3,8 +3,8 @@
 // casas de cada media manzana (enteras en su lote, sin pisar la calle, sin encimarse, con el retiro y la separación de
 // medidas.js MANZANA.monte).
 // Uso: node scripts/validar-mundo.mjs [ciudades=12] [semilla0=1] [jugadores=3]
-import {generateBlueprint,CELL,CARRETERA} from '../src/engine/blueprint.js';
-import {CALLE,MANZANA,LADERA,ESCALINATA,TERRAZA}  from '../src/engine/medidas.js';
+import {generateBlueprint,CELL,CARRETERA} from '../../src/engine/blueprint.js';
+import {CALLE,MANZANA,LADERA,ESCALINATA,TERRAZA}  from '../../src/engine/medidas.js';
 
 const N=+(process.argv[2]||12),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3),E=1e-6;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

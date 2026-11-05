@@ -4,10 +4,10 @@
 //  · las líneas del monte, fuera de los cruces y de las cebras;
 //  · cada cebra, partida en franjas de lado a lado (cubren su largo, PINTURA.cebra).
 // Uso: node scripts/validar-pintura.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {esquinasFranja} from '../src/engine/pintura.js';
-import {mapaDeZonas} from '../src/engine/zonas.js';
-import {PINTURA} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {esquinasFranja} from '../../src/engine/pintura.js';
+import {mapaDeZonas} from '../../src/engine/zonas.js';
+import {PINTURA} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

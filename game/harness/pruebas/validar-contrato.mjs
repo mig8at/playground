@@ -9,11 +9,11 @@
 import {readFileSync,existsSync} from 'node:fs';
 import * as THREE from 'three';
 import {OBJLoader} from 'three/addons/loaders/OBJLoader.js';
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {contrato,OBJETO_EQUIPO} from '../src/engine/contrato3d.js';
-import {ubicar,revisarContrato} from '../src/lib/plano3d.js';
-import {OBJETOS} from '../src/lib/objetos3d.js';
-import {NATURE2,PLANTS} from '../src/lib/nature3d.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {contrato,OBJETO_EQUIPO} from '../../src/engine/contrato3d.js';
+import {ubicar,revisarContrato} from '../../src/lib/plano3d.js';
+import {OBJETOS} from '../../src/lib/objetos3d.js';
+import {NATURE2,PLANTS} from '../../src/lib/nature3d.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

@@ -9,10 +9,10 @@
 //    persona con el mismo aspecto es idéntico (el aspecto no recibe nada de la identidad);
 //  · con los papeles pedidos, el cartel trae el nombre, el oficio y la edad —los del ladrón también, sin que falte nada—.
 // Uso: node scripts/validar-identidad.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {sociedadDe,enCenso} from '../src/engine/sociedad.js';
-import {aspectoDe,cartelDe,identidadFalsa} from '../src/engine/juego/identidad.js';
-import {rng} from '../src/engine/veredas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {sociedadDe,enCenso} from '../../src/engine/sociedad.js';
+import {aspectoDe,cartelDe,identidadFalsa} from '../../src/engine/juego/identidad.js';
+import {rng} from '../../src/engine/veredas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),EDAD_MAX=3,M=400;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const PRENDAS={top:['camiseta','rayas','polo','camisa','sudadera','vestido'],outer:[null,null,'abrigo','chaleco'],bottom:['jean','pantalon','cargo','bermuda','pantaloneta','leggings','deportivo'],hat:[null,null,null,'gorra']};

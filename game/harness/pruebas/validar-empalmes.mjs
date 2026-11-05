@@ -11,9 +11,9 @@
 // Uso: node scripts/validar-empalmes.mjs [ciudades=1] [semilla0=1]
 import {armarMundo} from './sin-pantalla.mjs';
 import {indiceTriangulos} from './medir3d.mjs';
-import {CELL} from '../src/engine/veredas.js';
+import {CELL} from '../../src/engine/veredas.js';
 import * as THREE from 'three';
-import {MURO} from '../src/engine/medidas.js';
+import {MURO} from '../../src/engine/medidas.js';
 
 // (PARED: hasta dónde se busca la cara que cubre el escalón —medio tabique más 1 cm: un tabique va centrado en la línea—)
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||1),S0=+(A[1]||1),TOL=.02,PARED=MURO.tabique/2+.01;

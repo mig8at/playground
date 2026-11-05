@@ -8,9 +8,9 @@
 //    MANSARDA.cubierta de un borde) o bajo la cubierta; si no, desde arriba se vería adentro del edificio;
 //  · la parada del ascensor en el techo (el núcleo con ascensor) cae en lo plano: ahí se sale a MANSARDA.alto.
 // Uso: node scripts/validar-mansarda.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {alturaMansarda} from '../src/engine/techos.js';
-import {MANSARDA as M} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {alturaMansarda} from '../../src/engine/techos.js';
+import {MANSARDA as M} from '../../src/engine/medidas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),E=1e-6;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const med={lotes:0,bordes:0,puntos:0,pendiente:0,franja:0,cubierta:0,ascensores:0};

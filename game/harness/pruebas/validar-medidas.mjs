@@ -9,8 +9,8 @@
 //  · la pintura queda por debajo del cordón (CALLE: la vereda sube 15 cm) y las franjas de una cebra entran en su paso;
 //  · la calle del monte: dos medias manzanas y su calle hacen el paso de la grilla.
 // Uso: node scripts/validar-medidas.mjs
-import {ALCANCE,CIRCULACION,CHOQUE_MUEBLE,LADERA,TERRAZA,ATERRIZAJE,PINTURA,EQUIPAMIENTO,UBICACION} from '../src/engine/medidas.js';
-import {CARRETERA} from '../src/engine/blueprint.js';
+import {ALCANCE,CIRCULACION,CHOQUE_MUEBLE,LADERA,TERRAZA,ATERRIZAJE,PINTURA,EQUIPAMIENTO,UBICACION} from '../../src/engine/medidas.js';
+import {CARRETERA} from '../../src/engine/blueprint.js';
 
 const fallas=new Map();let n=0;const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const pide=(ok,k,ej)=>{n++;if(!ok)falla(k,ej);};

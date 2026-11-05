@@ -3,9 +3,9 @@
 // CIRCULACION.peaton) llega a cada cuarto de cada piso. Mide también qué parte de cada cuarto queda a su alcance y el
 // recorrido más largo desde la calle.
 // Uso: node scripts/validar-interiores.mjs [ciudades=4] [semilla0=1] [jugadores=3] [--todo]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {navEdificio,navCasa} from '../src/engine/nav-interior.js';
-import {CIRCULACION as C} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {navEdificio,navCasa} from '../../src/engine/nav-interior.js';
+import {CIRCULACION as C} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),TEAM=+(A[2]||3),TODO=process.argv.includes('--todo');
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(TODO||f.ej.length<3)f.ej.push(ej);};

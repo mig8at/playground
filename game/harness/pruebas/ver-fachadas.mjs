@@ -2,12 +2,12 @@
 // combinación distinta (tipo, familia, techo, toldos; hasta MAX) y casas (del monte y de la ciudad), cada uno con tres
 // fotos a mediodía —de frente desde la vereda de enfrente, en diagonal desde la esquina y desde arriba—, para revisarlas a
 // ojo y anotar lo que falla. Guarda <carpeta>/<ciudad>-<lote>-<vista>.png y un índice (indice.json).
-// Uso: node scripts/ver-fachadas.mjs [ciudad=1] [carpeta=/tmp/fachadas] [max=14]
+// Uso: node harness/pruebas/ver-fachadas.mjs [ciudad=1] [carpeta=/tmp/fachadas] [max=14]
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync,mkdirSync} from 'node:fs';
 import {join} from 'node:path';
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {viviendasDe} from '../src/engine/viviendas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {viviendasDe} from '../../src/engine/viviendas.js';
 const [ciudad=1,OUT='/tmp/fachadas',MAX=14]=process.argv.slice(2);mkdirSync(OUT,{recursive:true});
 const bp=generateBlueprint({seed:+ciudad,team:3}),vistas=[];
 // edificios: uno por combinación, de los más altos primero (se ven más cosas)
@@ -33,7 +33,7 @@ for(const v of vs){if(v.tipo==='apto'||!v.puertas.length)continue;if(v.tipo==='c
   {v:'arriba',x:p.x-m.x*16,z:p.z-m.z*16,y:14,mira:{x:p.x+m.x*4,z:p.z+m.z*4,y:2},suelo:true}]});
  if(nc>=9)break;}
 const N=await abrirNavegador();const indice=[];
-try{const P=await N.abrir(`http://localhost:5180/demo?jugadores=3&ciudad=${ciudad}`);
+try{const P=await N.abrir(`http://localhost:5181/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.soc&&d.avatar&&d.ronda){clearInterval(t);const st=document.createElement('style');st.textContent='.card,.hud,.mini,.accion,.quien,.r-msg,.ronda{display:none!important}';document.head.appendChild(st);d.fijarHora(2,12);r(1);}},300);})`,{tiempo:240000});
  // (el dron: la cámara libre; el muñeco no se ve)
  await P.evaluar(`(async()=>{const d=window.__demo;if(![...document.querySelectorAll('button')].some(b=>b.textContent.trim()==='Caminar'))d.toggleDrone();for(let k=0;k<10;k++)await new Promise(r=>requestAnimationFrame(r));})()`);
@@ -43,4 +43,5 @@ try{const P=await N.abrir(`http://localhost:5180/demo?jugadores=3&ciudad=${ciuda
    for(let k=0;k<45;k++){d.fijarDron(F.x,y,F.z);d.euler.set(pitch,yaw,0,'YXZ');d.camera.quaternion.setFromEuler(d.euler);await new Promise(r=>requestAnimationFrame(r));}})()`,{tiempo:60000});
   const nombre=`${ciudad}-${V.id.replace(/[:#]/g,'_')}-${F.v}.png`;writeFileSync(join(OUT,nombre),Buffer.from(await P.captura(),'base64'));indice.push({archivo:nombre,id:V.id,que:V.que,vista:F.v});}
  const e=(typeof P.errores==='function'?P.errores():P.errores)||[];if(e.length)console.log('errores:',e.slice(0,3));}
+catch(e){console.log('se cortó:',String(e.message||e).slice(0,400));}
 finally{writeFileSync(join(OUT,'indice.json'),JSON.stringify(indice,null,1));console.log(`fachadas · ciudad ${ciudad} · ${vistas.length} edificios y casas, ${indice.length} fotos en ${OUT}`);await N.cerrar();process.exit(0);}

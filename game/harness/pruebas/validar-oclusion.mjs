@@ -9,8 +9,8 @@
 // Fuera: la pintura (cebra), las placas (van en la fachada) y el botín (va adentro). Da la peor de cada tipo.
 // Uso: node scripts/validar-oclusion.mjs [ciudades=1] [semilla0=1]
 import {armarMundo} from './sin-pantalla.mjs';
-import {cuerpoCasa} from '../src/engine/circulacion.js';
-import {planHouse} from '../src/engine/vivienda.js';
+import {cuerpoCasa} from '../../src/engine/circulacion.js';
+import {planHouse} from '../../src/engine/vivienda.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||1),S0=+(A[1]||1),APOYO=.05,COPA=2.2;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
@@ -40,7 +40,7 @@ for(let s=S0;s<S0+N;s++){const M=await armarMundo(s),{bp,suelo}=M,R=M.plano.regi
   if(PLANO.has(r.modelo)&&!p.disco){for(const [x,z] of p.esq){const g=suelo(x,z,r.y+1),d=r.losa?(g<r.losa.y0?r.losa.y0-g:Math.min(0,r.y-g)):r.y-g;med.apoyo.push(d);if(Math.abs(d)>APOYO){falla(d>0?'una esquina flota (se ve por debajo)':'una esquina se hunde en el suelo',{...ej,mm:Math.round(d*1000)});if(!peor[r.modelo]||Math.abs(d)>Math.abs(peor[r.modelo].d))peor[r.modelo]={d,...ej};}}}});}
 // Las aberturas de las casas del monte (2026-10-16, Miguel: «la ventana y la puerta se solapan»): en una misma pared,
 // ninguna puerta, ventana o portón pisa a otra, contando 12 cm de marco.
-const ab={casas:0,pares:0};for(let s=S0;s<S0+N;s++){const {generateBlueprint}=await import('../src/engine/blueprint.js'),bp=generateBlueprint({seed:s,team:3});
+const ab={casas:0,pares:0};for(let s=S0;s<S0+N;s++){const {generateBlueprint}=await import('../../src/engine/blueprint.js'),bp=generateBlueprint({seed:s,team:3});
  for(const h of bp.isla.casas||[]){if(!h.spec)continue;ab.casas++;const O=planHouse(h.spec).openings.filter(o=>!o.inner);
   for(let i=0;i<O.length;i++)for(let j=i+1;j<O.length;j++){const a=O[i],b=O[j];if(a.axis!==b.axis||Math.abs(a.at-b.at)>.3)continue;ab.pares++;
    const ov=Math.min(a.c+a.w/2,b.c+b.w/2)-Math.max(a.c-a.w/2,b.c-b.w/2),oy=Math.min(a.y0+a.h,b.y0+b.h)-Math.max(a.y0,b.y0);

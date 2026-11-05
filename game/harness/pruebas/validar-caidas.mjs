@@ -3,14 +3,14 @@
 // aterrizar contra engine/juego/huida.js danoDeCaida: 3 m no duele, 6 m quita lo que dice la regla (±3), 12 m mata (la
 // pantalla de muerte y lo que llevaba en la mochila, perdido); después de un golpe la vida vuelve de a poco; Enter lo
 // devuelve a la guarida. Captura la caída mortal.
-// Uso: node scripts/validar-caidas.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-caidas.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {danoDeCaida} from '../src/engine/juego/huida.js';
-import {VIDA} from '../src/engine/medidas.js';
+import {danoDeCaida} from '../../src/engine/juego/huida.js';
+import {VIDA} from '../../src/engine/medidas.js';
 const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const N=await abrirNavegador(),fallas=[],med=[];
-try{const P=await N.abrir(`http://localhost:5180/demo?jugadores=3&ciudad=${ciudad}`);
+try{const P=await N.abrir(`http://localhost:5181/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.ronda){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});
  // un punto de calle abierto (el punto de salida del mundo) y soltar desde h m sobre el suelo
  const soltar=h=>P.evaluar(`(async()=>{const d=window.__demo,w=d.world,cuadro=()=>new Promise(r=>requestAnimationFrame(r));

@@ -9,10 +9,10 @@
 //  · cada calle: contra el natural ≤ TERRAZA.mover, y su pendiente ≤ TERRAZA.pendiente;
 //  · el resto del rebaje (lo que la máscara aplana fuera de lotes y calles): contra el natural ≤ TERRAZA.mover.
 // Uso: node scripts/validar-terrazas.mjs [ciudades=4] [semilla0=1] [--medir] (con --medir: sólo mide, sin fallas)
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {islaDe} from '../src/engine/isla.js';
-import {CELL} from '../src/engine/veredas.js';
-import {TERRAZA} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {islaDe} from '../../src/engine/isla.js';
+import {CELL} from '../../src/engine/veredas.js';
+import {TERRAZA} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),MEDIR=process.argv.includes('--medir');
 const fallas=new Map();const falla=(k,ej)=>{if(MEDIR)return;const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

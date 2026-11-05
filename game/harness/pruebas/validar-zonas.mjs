@@ -2,9 +2,9 @@
 // (src/engine/zonas.js huella), contra la tabla ZONAS de medidas.js —en qué zonas no puede caer ninguna parte, y cuáles
 // tiene que pisar su centro—. Una tabla para todo: agregar una regla es agregar una zona a la lista de un objeto.
 // Uso: node scripts/validar-zonas.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {ZONAS} from '../src/engine/medidas.js';
-import {mapaDeZonas,huella,prohibidasDe} from '../src/engine/zonas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {ZONAS} from '../../src/engine/medidas.js';
+import {mapaDeZonas,huella,prohibidasDe} from '../../src/engine/zonas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

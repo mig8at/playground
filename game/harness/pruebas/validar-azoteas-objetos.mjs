@@ -6,9 +6,9 @@
 //  · se camina: en una grilla de 0,5 m, el piso libre del techo (lejos de cada objeto más que el radio del cuerpo) es una
 //    sola pieza, y desde ahí se llega a ≥ 95 % de la franja del borde (de donde se salta).
 // Uso: node scripts/validar-azoteas-objetos.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {AZOTEA,CIRCULACION} from '../src/engine/medidas.js';
-import {cajaDe} from '../src/engine/azoteas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {AZOTEA,CIRCULACION} from '../../src/engine/medidas.js';
+import {cajaDe} from '../../src/engine/azoteas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),O=AZOTEA.objetos,RC=CIRCULACION.peaton.radio,G=.5,E=1e-6;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const med={techos:0,conObjetos:0,objetos:{},ocupaMax:0,franja:[],piezas:0};

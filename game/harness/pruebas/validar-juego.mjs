@@ -3,10 +3,10 @@
 // alcanzarse caminando —por fuera, la grilla peatonal; por dentro, nav-interior— y estar a distancias que den juego:
 // policía ↔ ladrones, comisaría → cada objetivo, cada objetivo → la salida al monte más cercana.
 // Uso: node --max-old-space-size=8192 scripts/validar-juego.mjs [ciudades=4] [semilla0=1] [jugadores=3]
-import {planMap} from '../src/engine/plano.js';
-import {CELL} from '../src/engine/blueprint.js';
-import {grillaPeatonal,caminar,caminarDesde} from '../src/engine/circulacion.js';
-import {navEdificio,NAV_RES} from '../src/engine/nav-interior.js';
+import {planMap} from '../../src/engine/plano.js';
+import {CELL} from '../../src/engine/blueprint.js';
+import {grillaPeatonal,caminar,caminarDesde} from '../../src/engine/circulacion.js';
+import {navEdificio,NAV_RES} from '../../src/engine/nav-interior.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),TEAM=+(A[2]||3);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

@@ -7,10 +7,10 @@
 //    mujer llevan también peinados de hombre y barba, y los de hombre peinados de mujer; y la ropa (outfitFor) pone
 //    vestidos y faldas en los de hombre y pantalones de hombre en los de mujer.
 // Uso: node scripts/validar-cuerpo.mjs [semillas=2000]
-import {CUERPO_UNICO} from '../src/engine/vestuario.js';
-import {CONTEXTURAS,shapeBody} from '../src/lib/persona3d.js';
+import {CUERPO_UNICO} from '../../src/engine/vestuario.js';
+import {CONTEXTURAS,shapeBody} from '../../src/lib/persona3d.js';
 import * as THREE from 'three';
-import {lookFor,outfitFor,CIVILS} from '../src/lib/characters3d.js';
+import {lookFor,outfitFor,CIVILS} from '../../src/lib/characters3d.js';
 
 const N=+(process.argv[2]||2000);const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const rng=s=>()=>(s=(s*16807)%2147483647)/2147483647;

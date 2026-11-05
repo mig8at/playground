@@ -12,7 +12,7 @@ import {Worker,isMainThread,parentPort,workerData} from 'node:worker_threads';
 import {cpus} from 'node:os';
 import {writeFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import * as MED from '../src/engine/medidas.js';
+import * as MED from '../../src/engine/medidas.js';
 
 // (poner un valor en una ruta de medidas.js: 'RUTINA.necesidades.hambre.sube')
 const poner=(ruta,v)=>{const k=ruta.split('.'),o=k.slice(0,-1).reduce((o,x)=>o[x],MED);o[k.at(-1)]=v;};
@@ -58,4 +58,4 @@ else{
  for(const [i,d] of mejor.detalle.entries()){const h=r0.detalle[i];console.log(`  ${d.ok?'✓':'✗'} ${d.meta}`.padEnd(60).slice(0,60)+String(h?.valor).padStart(9)+String(d.valor).padStart(11)+'  '+JSON.stringify(d.rango));}
  const sal=fileURLToPath(new URL(`./datos/calibracion-${nombre}.json`,import.meta.url));
  writeFileSync(sal,JSON.stringify({experimento:nombre,fecha:new Date().toISOString(),semillas,pruebas:ITER,hoy:{valores:base,perdida:r0.perdida,detalle:r0.detalle},calibrado:{valores:mejor.valores,perdida:mejor.perdida,detalle:mejor.detalle},historia},null,1));
- console.log(`\n  guardado en ${sal.replace(/.*\/scripts\//,'scripts/')}`);process.exit(0);}
+ console.log(`\n  guardado en ${sal.replace(/.*\/scripts\//,'harness/pruebas/')}`);process.exit(0);}

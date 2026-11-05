@@ -1,0 +1,14 @@
+{
+  "name": "fuga-harness",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "El harness del juego: el panel visual y la promo (tomas grabadas del juego, textos, banda sonora y montaje).",
+  "scripts": {
+    "panel": "node panel/server.mjs",
+    "toma": "node promo/tomas/$npm_config_toma.mjs",
+    "textos": "node promo/textos.mjs",
+    "audio": "node promo/audio.mjs",
+    "montaje": "node promo/montaje.mjs"
+  }
+}

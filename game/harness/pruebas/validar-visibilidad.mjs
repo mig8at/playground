@@ -7,10 +7,10 @@
 //  4. sin parpadeo: caminando derecho, una pared que se apaga no vuelve a prenderse antes de 0,6 m;
 //  5. desde la calle, nada.
 // Uso: node scripts/validar-visibilidad.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {paredesAClarar,bordesDe,loteEn,VISIBILIDAD} from '../src/engine/visibilidad.js';
-import {rng} from '../src/engine/veredas.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {paredesAClarar,bordesDe,loteEn,VISIBILIDAD} from '../../src/engine/visibilidad.js';
+import {rng} from '../../src/engine/veredas.js';
+import City from '../../src/engine/ciudad.js';
 
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),CAMARA={distancia:4,margen:.35,paso:.15};
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

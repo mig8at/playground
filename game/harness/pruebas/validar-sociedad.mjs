@@ -16,11 +16,11 @@
 // Mide y muestra: personas por papel, los oficios, la parte de viviendas con gente y de gente en la calle por hora (de
 // lunes a viernes y el fin de semana).
 // Uso: node scripts/validar-sociedad.mjs [ciudades=2] [semilla0=1] [días=14]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {SOCIEDAD,RELOJ,MODO_BOTIN} from '../src/engine/medidas.js';
-import {mapaDeJuego} from '../src/engine/juego/mapa.js';
-import {crearTranseuntes} from '../src/engine/juego/transeuntes.js';
-import {sociedadDe,dondeEsta,abierto,enCasaHogar,horarioDia,ocupacionSociedad,inicioRonda,tDeRonda,DIAS} from '../src/engine/sociedad.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {SOCIEDAD,RELOJ,MODO_BOTIN} from '../../src/engine/medidas.js';
+import {mapaDeJuego} from '../../src/engine/juego/mapa.js';
+import {crearTranseuntes} from '../../src/engine/juego/transeuntes.js';
+import {sociedadDe,dondeEsta,abierto,enCasaHogar,horarioDia,ocupacionSociedad,inicioRonda,tDeRonda,DIAS} from '../../src/engine/sociedad.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),DIASN=+(A[2]||14),PASO=10*60,H=3600;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

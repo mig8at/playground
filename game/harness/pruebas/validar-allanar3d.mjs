@@ -5,11 +5,11 @@
 //  · de ladrón: robar y guardar enseguida (con el rastro encendido) avisa que lo vieron y delata la guarida también en el
 //    motor de los bots (la misma, por su índice); la policía bot va y, pasada la espera, la allana: la ronda del jugador
 //    pierde lo guardado ahí y la guarida ya no ofrece guardar.
-// Uso: node scripts/validar-allanar3d.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-allanar3d.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];const res={};
 const tecla=(P,c)=>P.evaluar(`(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'${c}'}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'${c}'}));for(let k=0;k<6;k++)await new Promise(r=>requestAnimationFrame(r));return document.querySelector('.r-msg')?.textContent||null;})()`);
 try{

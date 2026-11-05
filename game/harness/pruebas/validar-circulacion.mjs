@@ -3,11 +3,11 @@
 // puertas (≤ CIRCULACION.peaton.rodeo)—. Vehículos: la red de carriles —una sola, sin carriles tapados, pendientes ≤ tope,
 // calles sin salida, rodeo— y el radio de giro que dejan las esquinas.
 // Uso: node scripts/validar-circulacion.mjs [ciudades=4] [semilla0=1] [jugadores=3]
-import {generateBlueprint,CELL,CARRETERA} from '../src/engine/blueprint.js';
-import {CIRCULACION as C,CALLE} from '../src/engine/medidas.js';
-import {redVehicular,grillaPeatonal,caminar,cuerpoCasa} from '../src/engine/circulacion.js';
-import {rng} from '../src/engine/veredas.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL,CARRETERA} from '../../src/engine/blueprint.js';
+import {CIRCULACION as C,CALLE} from '../../src/engine/medidas.js';
+import {redVehicular,grillaPeatonal,caminar,cuerpoCasa} from '../../src/engine/circulacion.js';
+import {rng} from '../../src/engine/veredas.js';
+import City from '../../src/engine/ciudad.js';
 
 const N=+(process.argv[2]||4),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3),K=City.K;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

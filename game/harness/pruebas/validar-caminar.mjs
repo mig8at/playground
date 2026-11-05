@@ -12,11 +12,11 @@
 //    CAMINAR_NATURAL.patina;
 //  · hacia dónde mira (o.rumbo) contra hacia dónde camina: p95 ≤ CAMINAR_NATURAL.mira °.
 // Uso: node scripts/validar-caminar.mjs [semilla=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {RELOJ,CAMINAR_NATURAL as K,ANIM} from '../src/engine/medidas.js';
-import {mapaDeJuego} from '../src/engine/juego/mapa.js';
-import {crearTranseuntes} from '../src/engine/juego/transeuntes.js';
-import {sociedadDe} from '../src/engine/sociedad.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {RELOJ,CAMINAR_NATURAL as K,ANIM} from '../../src/engine/medidas.js';
+import {mapaDeJuego} from '../../src/engine/juego/mapa.js';
+import {crearTranseuntes} from '../../src/engine/juego/transeuntes.js';
+import {sociedadDe} from '../../src/engine/sociedad.js';
 const S0=+(process.argv[2]||1),H=3600,FPS=30,dt=1/FPS;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const bp=generateBlueprint({seed:S0,team:3}),S=sociedadDe(bp),mapa=mapaDeJuego(bp),col=[...S.lugares.values()].find(l=>l.tipo==='colegio');

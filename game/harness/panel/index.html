@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harness · FUGA</title>
+<style>
+  /* El taller del panel de LocalMart (apps/localmart/harness/panel): un lienzo un tono más oscuro y cada región como un bloque
+     redondeado con 8 de aire; bandas de 40, filas de 28, controles de 28, barra de abajo de 30, texto 11/12/13. Con los
+     colores del juego: ámbar de los ladrones (la marca) y azul de la policía. Oscuro por defecto; claro si el sistema lo pide. */
+  :root {
+    --bg: hsl(220 14% 7%); --canvas: color-mix(in oklab, hsl(220 14% 7%) 40%, black); --line: hsl(220 8% 18%); --panel-line: color-mix(in oklab, hsl(220 8% 18%) 70%, transparent);
+    --text: hsl(40 20% 96%); --muted: hsl(220 6% 62%); --hover: hsl(0 0% 100% / .05); --sel: hsl(0 0% 100% / .08);
+    --brand: #ffb238; --brand-strong: #d98b12; --poli: #4f9bff; --ok: hsl(142 55% 50%); --bad: #e5534b;
+    --gap: 8px; --r: 10px; --rc: 6px; color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #fff; --canvas: color-mix(in oklab, #fff 90%, #1b2230); --line: hsl(220 10% 90%); --panel-line: color-mix(in oklab, hsl(220 10% 90%) 60%, transparent);
+      --text: #1b2230; --muted: #626a76; --hover: #0000000a; --sel: #00000010; --brand: #c27c18; --brand-strong: #a8680e; --poli: #2f74d0; color-scheme: light; }
+  }
+  * { box-sizing: border-box; } [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body { background: var(--canvas); color: var(--text); font: 13px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { color: inherit; } button { font: inherit; color: inherit; }
+  .shell { height: 100%; display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) 30px; padding: calc(var(--gap) / 2); }
+  .shell.noside { grid-template-columns: 0 minmax(0, 1fr); } .shell.noside .side { display: none; }
+  .bloque { background: var(--bg); border: 1px solid var(--panel-line); border-radius: var(--r); box-shadow: 0 1px 2px #0003; overflow: hidden; }
+  /* el árbol */
+  .side { grid-row: 1; display: flex; flex-direction: column; min-height: 0; margin: calc(var(--gap) / 2); }
+  .brand { height: 40px; padding: 0 12px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 8px; font-weight: 700; flex: none; }
+  .brand i { width: 20px; height: 20px; border-radius: 6px; background: linear-gradient(135deg, var(--brand) 50%, var(--poli) 50%); }
+  .brand small { color: var(--muted); font-weight: 500; }
+  .tree { flex: 1; overflow-y: auto; padding: 4px 0 8px; }
+  .grupo { padding: 10px 16px 4px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+  .sec { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; margin: 1px 6px; border-radius: var(--rc); text-decoration: none; cursor: pointer; }
+  .sec:hover { background: var(--hover); } .sec svg { flex: none; color: var(--muted); } .sec .n { margin-left: auto; color: var(--muted); font-size: 11px; }
+  .sec[aria-current="page"] { font-weight: 700; } .sec[aria-current="page"] svg { color: var(--brand); }
+  .branch { margin: 0 6px 6px 22px; padding-left: 8px; border-left: 1px solid var(--line); }
+  .branch a { display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 6px; border-radius: var(--rc); text-decoration: none; font-size: 12px; }
+  .branch a:hover { background: var(--hover); } .branch a[aria-current="page"] { background: var(--sel); font-weight: 600; }
+  .branch a span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  i.p { width: 7px; height: 7px; border-radius: 50%; background: var(--line); flex: none; } i.p.si { background: var(--ok); } i.p.corre { background: var(--brand); animation: pulso 1s infinite; }
+  @keyframes pulso { 50% { opacity: .3; } }
+  /* banda + editor + consola */
+  .work { grid-row: 1; grid-column: 2; display: grid; grid-template-rows: auto minmax(0, 1fr) var(--consola, 190px); min-height: 0; min-width: 0; }
+  .work.noconsola { grid-template-rows: auto minmax(0, 1fr) 0; } .work.noconsola .consola { display: none; }
+  .band { display: flex; align-items: center; gap: 10px; padding: 0 12px; height: 40px; background: var(--bg); margin: calc(var(--gap) / 2) calc(var(--gap) / 2) 0;
+    border: 1px solid var(--panel-line); border-radius: var(--r) var(--r) 0 0; min-width: 0; }
+  .band .title { font-weight: 700; font-size: 14px; white-space: nowrap; } .band .crumb { color: var(--muted); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .grow { flex: 1; }
+  .btn { height: 28px; padding: 0 12px; border-radius: var(--rc); border: 1px solid var(--line); background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--hover); } .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn.primary { background: var(--brand-strong); border-color: var(--brand-strong); color: #1b1305; font-weight: 600; } .btn.primary:hover { background: var(--brand); }
+  .btn.danger { color: var(--bad); } .btn.ico { width: 28px; padding: 0; justify-content: center; }
+  .job { display: inline-flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); min-width: 0; } .job b { color: var(--text); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .editor { min-height: 0; overflow: auto; margin: 0 calc(var(--gap) / 2) calc(var(--gap) / 2); background: var(--bg); border: 1px solid var(--panel-line); border-top: 0; border-radius: 0 0 var(--r) var(--r); }
+  .pagina { padding: 16px 20px 28px; max-width: 1280px; }
+  .pagina h1 { font-size: 18px; margin: 0 0 4px; } .pagina .desc { color: var(--muted); margin: 0 0 16px; max-width: 900px; }
+  .head { height: 32px; display: flex; align-items: center; gap: 8px; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); margin-top: 12px; }
+  video, audio { width: 100%; max-width: 1100px; border-radius: 8px; background: #000; display: block; }
+  audio { background: none; }
+  table { border-collapse: collapse; width: 100%; max-width: 1100px; font-size: 12px; }
+  td, th { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; } th { color: var(--muted); font-weight: 500; }
+  td.num { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+  .chip { display: inline-block; padding: 1px 7px; border-radius: 99px; border: 1px solid var(--line); font-size: 11px; margin: 1px 2px 1px 0; color: var(--muted); }
+  .chip.falta { color: var(--bad); border-color: color-mix(in oklab, var(--bad) 50%, transparent); }
+  .rejilla { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 12px; }
+  .tarjeta { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  .tarjeta img { width: 100%; display: block; background: #000; cursor: zoom-in; } .tarjeta .pie { padding: 6px 10px; font-size: 12px; display: flex; gap: 8px; color: var(--muted); }
+  .tarjeta .pie b { color: var(--text); font-weight: 600; }
+  .texto img { background: repeating-conic-gradient(#20252d 0 25%, #171b21 0 50%) 0 0 / 24px 24px; }
+  .vacio { padding: 18px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); max-width: 1100px; }
+  .vivo { position: relative; max-width: 1100px; } .vivo img { width: 100%; border-radius: 8px; display: block; background: #000; }
+  .vivo .rot { position: absolute; left: 10px; top: 10px; background: #000a; color: #fff; padding: 2px 8px; border-radius: 99px; font-size: 11px; display: flex; align-items: center; gap: 6px; }
+  .vivo .rot::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--bad); animation: pulso 1s infinite; }
+  .mini-vivo { position: fixed; right: 18px; bottom: 54px; width: 300px; z-index: 5; box-shadow: 0 8px 30px #0008; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); }
+  /* la consola */
+  .consola { min-height: 0; margin: 0 calc(var(--gap) / 2) calc(var(--gap) / 2); display: flex; flex-direction: column; }
+  .consola .head { margin: 0; padding: 0 12px; border-bottom: 1px solid var(--line); flex: none; }
+  .consola pre { flex: 1; margin: 0; overflow: auto; padding: 6px 12px; font: 11px/1.5 ui-monospace, monospace; white-space: pre-wrap; }
+  .consola .cab { color: var(--brand); font-weight: 600; } .consola .err { color: var(--bad); } .consola .ok { color: var(--ok); }
+  /* la barra de abajo */
+  .status { grid-row: 2; grid-column: 1 / -1; display: flex; align-items: center; gap: 14px; padding: 0 12px; font-size: 12px; color: var(--muted); }
+  .status .est { display: inline-flex; align-items: center; gap: 6px; } .status .btn { height: 22px; padding: 0 8px; font-size: 11px; }
+  .zoom { position: fixed; inset: 0; background: #000d; display: grid; place-items: center; z-index: 9; cursor: zoom-out; } .zoom img { max-width: 96vw; max-height: 94vh; }
+  @media (max-width: 720px) { .shell { grid-template-columns: 0 minmax(0,1fr); } .side { display: none; } .rejilla { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="shell" id="shell">
+  <aside class="side bloque">
+    <div class="brand"><i></i>FUGA <small>harness</small></div>
+    <nav class="tree" id="arbol"></nav>
+  </aside>
+  <div class="work" id="work">
+    <div class="band">
+      <button class="btn ico" id="lado" title="Secciones (Ctrl+B)"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M6 2.5v11"/></svg></button>
+      <span class="title" id="titulo">Promo</span><span class="crumb" id="miga"></span>
+      <span class="grow"></span>
+      <span id="acciones" style="display:inline-flex;gap:8px"></span>
+      <span class="job" id="job" hidden><i class="p corre"></i><b id="jobLabel"></b><button class="btn danger" id="detener">Detener</button></span>
+      <button class="btn ico" id="verConsola" title="Consola (Ctrl+J)"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><path d="M1.5 10h13"/></svg></button>
+    </div>
+    <main class="editor"><div class="pagina" id="pagina"></div></main>
+    <section class="consola bloque"><div class="head">Consola<span class="grow"></span><button class="btn" id="limpiar" style="height:22px;font-size:11px">Limpiar</button></div><pre id="consola"></pre></section>
+  </div>
+  <footer class="status">
+    <span class="est" id="juego"><i class="p"></i><span>el juego…</span></span>
+    <button class="btn" id="encender" hidden>Encender el juego</button>
+    <span class="grow"></span><span id="ultimo"></span><span>localhost:5197</span>
+  </footer>
+</div>
+<div class="mini-vivo" id="miniVivo" hidden><img id="miniImg" alt="En vivo"></div>
+<script>
+const $=s=>document.querySelector(s);
+const ICO={video:'<path d="M2 4h9v8H2zM11 7l3-2v6l-3-2"/>',toma:'<rect x="2" y="3" width="12" height="10" rx="1.5"/><path d="M2 6h12M5 3v3M8 3v3M11 3v3"/>',banda:'<path d="M6 12V3l7-1.5V10"/><circle cx="4.5" cy="12" r="1.8"/><circle cx="11.5" cy="10" r="1.8"/>',texto:'<path d="M3 4V3h10v1M8 3v10M6 13h4"/>',prueba:'<path d="M3 8.5l3 3 7-7"/><rect x="1.5" y="1.5" width="13" height="13" rx="2"/>'};
+const svg=k=>`<svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">${ICO[k]}</svg>`;
+let E={videos:[],tomas:[],banda:null,juego:{},job:null,pruebas:{lista:[],ultimas:{}}},ultimoCuadro=null,cuadroT=0;
+const tomaActual=()=>{const j=E.job;if(!j)return null;if(j.nombre?.startsWith('toma:'))return j.nombre.slice(5);const m=(j.pasos?.[j.paso]||'').match(/toma «([^»]+)»/);return m?m[1]:null;};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const dur=s=>s<60?`${s} s`:`${Math.floor(s/60)} min ${s%60} s`;
+const cuando=ms=>ms?new Date(ms).toLocaleString('es-CO',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+const mb=b=>(b/1048576).toFixed(1)+' MB';
+
+// ---------- la ruta: /promo/videos/<id>, /promo/tomas/<id>, /promo/banda, /promo/textos/<video> ----------
+function ruta(){const p=location.pathname.split('/').filter(Boolean);if(p[0]==='pruebas')return {sec:'probador'};if(p[0]!=='promo'||!p[1])return {sec:'videos',id:E.videos[0]?.id};return {sec:p[1],id:p[2]?decodeURIComponent(p[2]):undefined};}
+function ir(url){history.pushState(null,'',url);pintar();}
+document.addEventListener('click',e=>{const a=e.target.closest('a[data-r]');if(!a)return;e.preventDefault();ir(a.getAttribute('href'));});
+addEventListener('popstate',pintar);
+
+// ---------- el árbol ----------
+function arbol(){const r=ruta(),corre=E.job?.nombre||'';
+ const sec=(href,ico,txt,cur,n='')=>`<a class="sec" data-r href="${href}" ${cur?'aria-current="page"':''}>${svg(ico)}<span>${txt}</span>${n?`<span class="n">${n}</span>`:''}</a>`;
+ const rama=(items)=>`<div class="branch">${items.join('')}</div>`;
+ const U=E.pruebas.ultimas||{},todas=(E.pruebas.lista||[]).flatMap(L=>L.p),malas=todas.filter(p=>U[p.n]&&(U[p.n].error||U[p.n].fallas)).length,hechas=todas.filter(p=>U[p.n]).length;
+ $('#arbol').innerHTML=`<div class="grupo">Pruebas</div>`
+  +sec('/pruebas/probador','prueba','Probador',r.sec==='probador',malas?`${malas} ✗`:hechas?`${hechas}/${todas.length}`:'')
+  +`<div class="grupo">Promo</div>`
+  +sec(`/promo/videos/${E.videos[0]?.id||''}`,'video','Videos',r.sec==='videos',E.videos.length)
+  +rama(E.videos.map(v=>`<a data-r href="/promo/videos/${v.id}" ${r.sec==='videos'&&r.id===v.id?'aria-current="page"':''}><i class="p ${corre.endsWith(':'+v.id)?'corre':v.archivo?'si':''}"></i><span>${esc(v.titulo)}</span></a>`))
+  +sec(`/promo/tomas/${E.tomas[0]?.id||''}`,'toma','Tomas',r.sec==='tomas',E.tomas.length)
+  +rama(E.tomas.map(t=>{const hechas=t.salidas.filter(s=>s.cuadros).length;return `<a data-r href="/promo/tomas/${t.id}" ${r.sec==='tomas'&&r.id===t.id?'aria-current="page"':''}><i class="p ${tomaActual()===t.id?'corre':hechas===t.salidas.length&&hechas?'si':''}"></i><span>${esc(t.titulo)}</span></a>`;}))
+  +sec('/promo/banda','banda','Banda sonora',r.sec==='banda')
+  +sec(`/promo/textos/${E.videos[0]?.id||''}`,'texto','Textos',r.sec==='textos')
+  +rama(E.videos.map(v=>`<a data-r href="/promo/textos/${v.id}" ${r.sec==='textos'&&r.id===v.id?'aria-current="page"':''}><i class="p ${v.textos.every(t=>t.hecho)?'si':''}"></i><span>${esc(v.titulo)}</span></a>`));}
+
+// ---------- las páginas ----------
+const boton=(txt,job,primario=false,titulo='')=>`<button class="btn ${primario?'primary':''}" data-job="${job}" ${E.job?'disabled':''} title="${esc(titulo)}">${txt}</button>`;
+function pagina(){const r=ruta(),P=$('#pagina');let acc='',titulo='Promo',miga='';
+ if(r.sec==='videos'){const v=E.videos.find(x=>x.id===r.id)||E.videos[0];
+  if(!v){P.innerHTML='<div class="vacio">No hay videos definidos: cada uno es un archivo en <code>promo/videos/&lt;video&gt;.json</code>.</div>';}
+  else{titulo='Videos';miga=v.titulo;
+   acc=boton('Armar',`armar:${v.id}`,true,'Textos, banda sonora y montaje (con las tomas ya grabadas)')+boton('Solo montaje',`montaje:${v.id}`);
+   P.innerHTML=`<h1>${esc(v.titulo)}</h1><p class="desc">${esc(v.descripcion)}</p>`
+    +(v.archivo?`<video controls preload="metadata" src="/archivos/videos/${v.id}.mp4?v=${v.archivo.fecha}"></video><p class="desc" style="margin-top:6px">out/${v.id}.mp4 · ${mb(v.archivo.tam)} · ${cuando(v.archivo.fecha)}</p>`
+     :`<div class="vacio">Todavía no está armado. ${v.faltan.length?'Primero hay que grabar las tomas que faltan.':'Las tomas están: «Armar» lo monta.'}</div>`)
+    +(v.faltan.length?`<p class="desc" style="color:var(--bad)">Faltan tomas: ${v.faltan.map(t=>`<span class="chip falta">${esc(t)}</span>`).join('')}</p>`:'')
+    +`<div class="head">Escenas · ${v.duracion} s</div><table><tr><th>Desde</th><th>Escena</th><th>Cortes</th><th>Tomas</th></tr>`
+    +v.escenas.map(e=>`<tr><td class="num">${e.desde} s</td><td>${esc(e.nombre)}</td><td class="num">${e.cortes}</td><td>${e.tomas.map(t=>`<span class="chip ${v.faltan.includes(t)?'falta':''}">${esc(t)}</span>`).join('')||'<span class="chip">negro</span>'}</td></tr>`).join('')+'</table>'
+    +`<div class="head">Textos</div><table><tr><th>Tiempo</th><th>Texto</th></tr>`+v.textos.map(t=>`<tr><td class="num">${t.desde}–${t.hasta} s</td><td>${t.texto.replace(/<br>/g,' ')}</td></tr>`).join('')+'</table>'
+    +`<p class="desc" style="margin-top:14px">Se cambia en <code>promo/videos/${v.id}.json</code> (los cortes de cada escena y los textos) y se vuelve a armar.</p>`;}}
+ else if(r.sec==='tomas'){const t=E.tomas.find(x=>x.id===r.id)||E.tomas[0];titulo='Tomas';miga=t?.titulo||'';
+  if(t){acc=boton('Grabar',`toma:${t.id}`,true,'Graba la toma en el juego, con la tarjeta de video')+boton('Grabar todas','tomas:todas');
+   const enVivo=tomaActual()===t.id;
+   P.innerHTML=`<h1>${esc(t.titulo)}</h1><p class="desc">${esc(t.descripcion)}</p>`
+    +(enVivo?`<div class="head">En vivo</div><div class="vivo"><img id="vivoImg" ${ultimoCuadro?`src="${ultimoCuadro}"`:'hidden'} alt=""><div class="vacio" id="vivoEspera" ${ultimoCuadro?'hidden':''}>Esperando el primer cuadro… (cargar el juego y adelantar la partida toma unos segundos)</div><span class="rot">grabando</span></div>`:'')
+    +`<div class="head">Lo que sale (${t.salidas.length})</div><div class="rejilla">`
+    +t.salidas.map(s=>s.cuadros?`<div class="tarjeta"><img src="/archivos/hoja/${s.id}.jpg?v=${s.fecha}" alt="${esc(s.id)}" data-zoom><div class="pie"><b>${esc(s.id)}</b><span>${s.cuadros} cuadros · ${(s.cuadros/30).toFixed(1)} s</span><span class="grow"></span><span>${cuando(s.fecha)}</span></div></div>`
+      :`<div class="tarjeta"><div class="vacio" style="border:0">${esc(s.id)}: sin grabar</div></div>`).join('')+'</div>'
+    +`<p class="desc" style="margin-top:14px">El script: <code>promo/tomas/${t.id}.mjs</code>. Cada hoja muestra 24 cuadros repartidos en la toma.</p>`;}}
+ else if(r.sec==='banda'){titulo='Banda sonora';acc=boton('Generar','audio',true);
+  P.innerHTML=`<h1>Banda sonora</h1><p class="desc">Sintetizada en <code>promo/audio.mjs</code> (sin música con derechos): viento, ciudad, sirenas, el dron con pulso que acelera, pasos, los golpes de los cortes, la subida que se corta en seco y el impacto del título. Los tiempos son los del tráiler.</p>`
+   +(E.banda?`<audio controls src="/archivos/banda.wav?v=${E.banda.fecha}"></audio><p class="desc" style="margin-top:6px">${cuando(E.banda.fecha)}</p>`:'<div class="vacio">Todavía no se generó.</div>');}
+ else if(r.sec==='textos'){const v=E.videos.find(x=>x.id===r.id)||E.videos[0];titulo='Textos';miga=v?.titulo||'';
+  if(v){acc=boton('Generar',`textos:${v.id}`,true);
+   P.innerHTML=`<h1>Textos · ${esc(v.titulo)}</h1><p class="desc">Con las letras del juego (Bungee y Rubik), sobre fondo transparente; los dibuja <code>promo/textos.html</code>. Se cambian en <code>promo/videos/${v.id}.json</code>.</p><div class="rejilla">`
+    +v.textos.map(t=>t.hecho?`<div class="tarjeta texto"><img src="/archivos/textos/${v.id}/${t.id}.png?v=${Date.now()>>16}" alt="${esc(t.id)}" data-zoom><div class="pie"><b>${esc(t.id)}</b><span>${t.desde}–${t.hasta} s</span></div></div>`
+      :`<div class="tarjeta"><div class="vacio" style="border:0">${esc(t.id)}: sin generar</div></div>`).join('')+'</div>';}}
+ else if(r.sec==='probador'){titulo='Pruebas';miga='Probador por niveles';const U=E.pruebas.ultimas||{},corre=E.job?.nombre?.startsWith('probar:'),ini=E.job?.inicio||0;
+  acc=boton('Rápido','probar:rapido',true,'1 ciudad y sin las pruebas lentas: el del día a día (unos minutos)')+boton('Completo','probar:completo',false,'4 ciudades y todas las pruebas, antes de dar algo por terminado');
+  const fila=(p,nv)=>{const u=U[p.n],fresca=u&&u.fecha>=ini;const st=corre&&!fresca?'…':!u?'—':u.error?'error':u.fallas?u.fallas+' fallas':'ok';
+   const col=st==='ok'?'var(--ok)':st==='—'||st==='…'?'var(--muted)':'var(--bad)';
+   return `<tr><td style="color:${col};white-space:nowrap;font-weight:600">${st==='ok'?'✓ ok':st==='…'?'<i class="p corre"></i>':st}</td><td>${esc(p.n)}${p.lento?' <span class="chip">lenta</span>':''}</td><td class="num">${u?u.seg+' s':''}</td>
+    <td style="color:var(--muted)">${esc(u?.res||'')}${u?.peor&&(u.error||u.fallas)?`<br><span style="color:var(--bad)">peor: ${esc(u.peor.n+' × '+u.peor.tipo)}</span>`:''}</td><td class="num">${u?cuando(u.fecha):''}</td></tr>`;};
+  P.innerHTML=`<h1>Probador por niveles</h1><p class="desc">De lo más grande a lo más chico: si un nivel falla, los de abajo no se corren (sus fallas serían consecuencia). <b>Rápido</b>: 1 ciudad, sin las lentas. <b>Completo</b>: 4 ciudades y todas. Cada nivel también se corre solo. El script: <code>pruebas/probar.mjs</code>.</p>`
+   +(E.pruebas.lista||[]).map(L=>`<div class="head" style="margin-top:18px"><span style="color:var(--text);font-weight:700;text-transform:none;letter-spacing:0;font-size:13px">Nivel ${L.n} · ${esc(L.t)}</span><span class="grow"></span>${boton('Correr','probar:'+L.n,false,'Este nivel, rápido')}</div>
+    <p class="desc" style="margin:0 0 6px">${esc(L.d)}</p><table><tr><th style="width:90px">Resultado</th><th style="width:170px">Prueba</th><th style="width:60px">Tardó</th><th>Lo que midió</th><th style="width:120px">Cuándo</th></tr>${L.p.map(p=>fila(p,L.n)).join('')}</table>`).join('');}
+ $('#titulo').textContent=titulo;$('#miga').textContent=miga?`· ${miga}`:'';$('#acciones').innerHTML=acc;}
+
+function pintar(){arbol();pagina();
+ $('#job').hidden=!E.job;$('#jobLabel').textContent=E.job?`${E.job.label}${E.job.pasos?.length>1?` · ${E.job.paso+1}/${E.job.pasos.length}`:''}`:'';
+ const j=E.juego||{};$('#juego').innerHTML=`<i class="p ${j.enLinea?'si':''}" style="${j.enLinea?'':'background:var(--bad)'}"></i><span>el juego ${j.enLinea?'en línea':'apagado'} · ${esc(j.url||'')}</span>`;$('#encender').hidden=!!j.enLinea;
+ const enPaginaToma=!!$('#vivoImg');$('#miniVivo').hidden=!(E.job&&ultimoCuadro&&!enPaginaToma&&Date.now()-cuadroT<15000);}
+
+// ---------- los datos y los eventos ----------
+async function cargar(){try{const r=await fetch('/api/estado');Object.assign(E,await r.json());}catch{}pintar();}
+const consola=(linea,tipo='log')=>{const pre=$('#consola'),abajo=pre.scrollHeight-pre.scrollTop-pre.clientHeight<30;const s=document.createElement('span');if(tipo!=='log')s.className=tipo;s.textContent=linea+'\n';pre.append(s);
+ while(pre.childNodes.length>1500)pre.firstChild.remove();if(abajo)pre.scrollTop=pre.scrollHeight;};
+const ev=new EventSource('/api/eventos');
+ev.onmessage=m=>{const d=JSON.parse(m.data);
+ if(d.tipo==='log'||d.tipo==='cab'||d.tipo==='err'||d.tipo==='ok')consola(d.linea,d.tipo);
+ else if(d.tipo==='cuadro'){ultimoCuadro=d.url+'?t='+d.t;cuadroT=Date.now();const v=$('#vivoImg');if(v){v.src=ultimoCuadro;v.hidden=false;$('#vivoEspera')?.setAttribute('hidden','');}else{$('#miniImg').src=ultimoCuadro;$('#miniVivo').hidden=!E.job;}}
+ else if(d.tipo==='estado'){E.job=d.job;pintar();}
+ else if(d.tipo==='prueba'){(E.pruebas.ultimas||(E.pruebas.ultimas={}))[d.r.n]=d.r;pintar();}
+ else if(d.tipo==='lista'){E.pruebas.lista=d.lista;pintar();}
+ else if(d.tipo==='fin'){E.job=null;$('#ultimo').textContent=`${d.fin.ok?'✓':'✗'} ${d.fin.label} · ${d.fin.seg} s`;cargar();}};
+document.addEventListener('click',async e=>{const b=e.target.closest('[data-job]');if(!b)return;
+ const r=await fetch('/api/lanzar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({job:b.dataset.job})});const j=await r.json();
+ if(j.error)consola('✗ '+j.error,'err');if($('#work').classList.contains('noconsola'))$('#work').classList.remove('noconsola');});
+$('#detener').onclick=()=>fetch('/api/detener',{method:'POST'});
+$('#encender').onclick=async()=>{await fetch('/api/juego',{method:'POST'});consola('encendiendo el juego… (unos segundos)','cab');for(let i=0;i<30;i++){await new Promise(r=>setTimeout(r,1000));await cargar();if(E.juego.enLinea)break;}};
+$('#limpiar').onclick=()=>$('#consola').textContent='';
+// (los paneles: Ctrl+B las secciones, Ctrl+J la consola; se recuerdan)
+const guarda=(k,v)=>{try{localStorage.setItem(k,v);}catch{}},lee=k=>{try{return localStorage.getItem(k);}catch{return null;}};
+const tog=(sel,cl,k)=>{const el=$(sel);el.classList.toggle(cl);guarda(k,el.classList.contains(cl)?'1':'0');};
+$('#lado').onclick=()=>tog('#shell','noside','fuga.noside');$('#verConsola').onclick=()=>tog('#work','noconsola','fuga.noconsola');
+if(lee('fuga.noside')==='1')$('#shell').classList.add('noside');if(lee('fuga.noconsola')==='1')$('#work').classList.add('noconsola');
+addEventListener('keydown',e=>{if(!(e.ctrlKey||e.metaKey))return;if(e.key==='b'){e.preventDefault();$('#lado').click();}if(e.key==='j'){e.preventDefault();$('#verConsola').click();}});
+// (una imagen se agranda al tocarla)
+document.addEventListener('click',e=>{const i=e.target.closest('img[data-zoom]');if(!i)return;const z=document.createElement('div');z.className='zoom';z.innerHTML=`<img src="${i.src}">`;z.onclick=()=>z.remove();document.body.append(z);});
+cargar();setInterval(()=>{if(!E.job)cargar();},10000);
+</script>
+</body>
+</html>

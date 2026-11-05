@@ -1,11 +1,11 @@
 // Busca caras que titilan (engine/titileo.js) en lo que el 3D arma en cajas, en node: los objetos del catálogo (cada
 // variante), la escalera de cada material (stairBoxes) y las casas del monte (planHouse). Las piezas de fachada, en
 // validar-fachada3d. Uso: node scripts/validar-titileo.mjs [ciudades=1] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {titilan,cajaDePieza} from '../src/engine/titileo.js';
-import {OBJETOS} from '../src/lib/objetos3d.js';
-import {stairOf,stairBoxes,STAIRS} from '../src/lib/town3d.js';
-import {planHouse} from '../src/engine/vivienda.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {titilan,cajaDePieza} from '../../src/engine/titileo.js';
+import {OBJETOS} from '../../src/lib/objetos3d.js';
+import {stairOf,stairBoxes,STAIRS} from '../../src/lib/town3d.js';
+import {planHouse} from '../../src/engine/vivienda.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||1),S0=+(A[1]||1),V=process.argv.includes('--ver');
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<4)f.ej.push(ej);};

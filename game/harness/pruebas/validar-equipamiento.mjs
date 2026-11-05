@@ -2,10 +2,10 @@
 // semáforo, parada, hidrante, banca y papelera (medidas.js EQUIPAMIENTO), y mide la cobertura: veredas iluminadas,
 // edificios a ≤ 75 m de un hidrante, viviendas a ≤ radio de una parada.
 // Uso: node scripts/validar-equipamiento.mjs [ciudades=6] [semilla0=1] [jugadores=3]
-import {generateBlueprint,CELL} from '../src/engine/blueprint.js';
-import {EQUIPAMIENTO as Q,VEGETACION as V,CALLE} from '../src/engine/medidas.js';
-import {veredasCiudad,ejesMonte,distSeg,crucesCiudad} from '../src/engine/veredas.js';
-import City from '../src/engine/ciudad.js';
+import {generateBlueprint,CELL} from '../../src/engine/blueprint.js';
+import {EQUIPAMIENTO as Q,VEGETACION as V,CALLE} from '../../src/engine/medidas.js';
+import {veredasCiudad,ejesMonte,distSeg,crucesCiudad} from '../../src/engine/veredas.js';
+import City from '../../src/engine/ciudad.js';
 
 const N=+(process.argv[2]||6),S0=+(process.argv[3]||1),TEAM=+(process.argv[4]||3),E=1e-6,K=City.K,vereda=CALLE.vereda;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

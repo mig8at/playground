@@ -5,11 +5,11 @@
 //    queda un tramo continuo sin choques de al menos CALLE.paso;
 //  · todo sigue alcanzándose a pie: las puertas de calle que se alcanzan sin colisiones se alcanzan con ellas.
 // Uso: node --max-old-space-size=8192 scripts/validar-colisiones.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {CALLE,CIRCULACION} from '../src/engine/medidas.js';
-import {colisiones,indiceColisiones,distForma} from '../src/engine/colisiones.js';
-import {veredasCiudad,ejesMonte} from '../src/engine/veredas.js';
-import {grillaPeatonal,caminar,cuerpoCasa} from '../src/engine/circulacion.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {CALLE,CIRCULACION} from '../../src/engine/medidas.js';
+import {colisiones,indiceColisiones,distForma} from '../../src/engine/colisiones.js';
+import {veredasCiudad,ejesMonte} from '../../src/engine/veredas.js';
+import {grillaPeatonal,caminar,cuerpoCasa} from '../../src/engine/circulacion.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),R=CIRCULACION.peaton.radio;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

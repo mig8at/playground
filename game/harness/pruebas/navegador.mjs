@@ -4,15 +4,16 @@
 // errores (los de consola y las excepciones que lanzó), cerrar().
 import {spawn} from 'node:child_process';import {mkdtempSync,rmSync,existsSync,readdirSync} from 'node:fs';import {tmpdir,homedir} from 'node:os';import {join} from 'node:path';
 
-const CACHE=join(homedir(),'Library/Caches/ms-playwright');
+// (la caché de Playwright: en Mac y en Linux —2026-10-30: antes sólo la de Mac y en Linux el nivel 10 no corría—)
+const MAC=process.platform==='darwin',CACHE=join(homedir(),MAC?'Library/Caches/ms-playwright':'.cache/ms-playwright');
 export function chromeDePrueba(){if(process.env.CHROME)return process.env.CHROME;if(!existsSync(CACHE))return null;
  // (el «headless shell» primero: en Chrome for Testing sin ventana no corría requestAnimationFrame —el juego no dibujaba—)
- for(const d of readdirSync(CACHE).filter(d=>/^chromium_headless_shell-\d+$/.test(d)).sort().reverse()){const p=join(CACHE,d,'chrome-headless-shell-mac-arm64/chrome-headless-shell');if(existsSync(p))return p;}
- for(const d of readdirSync(CACHE).filter(d=>/^chromium-\d+$/.test(d)).sort().reverse()){const p=join(CACHE,d,'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing');if(existsSync(p))return p;}return null;}
+ for(const d of readdirSync(CACHE).filter(d=>/^chromium_headless_shell-\d+$/.test(d)).sort().reverse()){const p=join(CACHE,d,MAC?'chrome-headless-shell-mac-arm64/chrome-headless-shell':'chrome-headless-shell-linux64/chrome-headless-shell');if(existsSync(p))return p;}
+ for(const d of readdirSync(CACHE).filter(d=>/^chromium-\d+$/.test(d)).sort().reverse()){const p=join(CACHE,d,MAC?'chrome-mac-arm64/Google Chrome for Testing.app/Contents/MacOS/Google Chrome for Testing':'chrome-linux64/chrome');if(existsSync(p))return p;}return null;}
 
 export async function abrirNavegador({ancho=1280,alto=800,args=[]}={}){const bin=chromeDePrueba();if(!bin)throw Error('no hay Chrome for Testing en la caché de Playwright (o CHROME=ruta)');
  const datos=mkdtempSync(join(tmpdir(),'fuga-nav-')),puerto=9300+Math.floor(Math.random()*500);
- const ch=spawn(bin,['--headless=new',`--remote-debugging-port=${puerto}`,`--user-data-dir=${datos}`,`--window-size=${ancho},${alto}`,'--no-first-run','--no-default-browser-check','--hide-scrollbars','--mute-audio','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling',...(process.platform==='darwin'?['--use-angle=metal']:[]),...args],{stdio:'ignore'});
+ const ch=spawn(bin,['--headless=new',`--remote-debugging-port=${puerto}`,`--user-data-dir=${datos}`,`--window-size=${ancho},${alto}`,'--no-first-run','--no-default-browser-check','--hide-scrollbars','--mute-audio','--enable-unsafe-swiftshader','--ignore-gpu-blocklist','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling',...(process.platform==='darwin'?['--use-angle=metal']:(process.env.GPU??'--use-angle=vulkan --enable-features=Vulkan').split(' ').filter(Boolean)),...args],{stdio:'ignore'});
  let ws=null;for(let k=0;k<100&&!ws;k++){await new Promise(r=>setTimeout(r,100));try{const v=await (await fetch(`http://127.0.0.1:${puerto}/json/version`)).json();ws=new WebSocket(v.webSocketDebuggerUrl);}catch{}}
  if(!ws){ch.kill();throw Error('el navegador no abrió su puerto de DevTools');}
  await new Promise((ok,mal)=>{ws.onopen=ok;ws.onerror=mal;});

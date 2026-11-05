@@ -13,7 +13,7 @@ if(!globalThis.window)globalThis.window=globalThis;
 if(!globalThis.self)globalThis.self=globalThis;
 if(!globalThis.navigator)globalThis.navigator={userAgent:'node'};
 
-export async function armarIsla(semilla,team=3){const {generateBlueprint}=await import('../src/engine/blueprint.js'),{buildIsland}=await import('../src/lib/island3d.js');
+export async function armarIsla(semilla,team=3){const {generateBlueprint}=await import('../../src/engine/blueprint.js'),{buildIsland}=await import('../../src/lib/island3d.js');
  const bp=generateBlueprint({seed:semilla,team});return {bp,isla:buildIsland(bp.map,{plan:bp})};}
 
 // El mundo entero como lo arma el demo (DemoView load): la ciudad con sus modelos, la isla, los barrios y las casas del
@@ -21,9 +21,9 @@ export async function armarIsla(semilla,team=3){const {generateBlueprint}=await 
 // node-model-env (sin red); un juego que no carga queda en null, como en el demo. Devuelve {bp, partes:{nombre: grupo},
 // grupo (todo junto), world, isla, viviendas, plano, kits}.
 export async function armarMundo(semilla,team=3){await import('./node-model-env.mjs');
- const {generateBlueprint}=await import('../src/engine/blueprint.js'),THREE=await import('three');
- const {buildWorld}=await import('../src/lib/world3d.js'),{buildIsland}=await import('../src/lib/island3d.js'),{createBarrios}=await import('../src/lib/barrios3d.js'),{createCasas}=await import('../src/lib/casas3d.js'),{createHouses}=await import('../src/lib/vivienda3d.js'),{dibujarPlano}=await import('../src/lib/plano3d.js');
- const {loadDowntown}=await import('../src/lib/downtown3d.js'),N3=await import('../src/lib/nature3d.js');
+ const {generateBlueprint}=await import('../../src/engine/blueprint.js'),THREE=await import('three');
+ const {buildWorld}=await import('../../src/lib/world3d.js'),{buildIsland}=await import('../../src/lib/island3d.js'),{createBarrios}=await import('../../src/lib/barrios3d.js'),{createCasas}=await import('../../src/lib/casas3d.js'),{createHouses}=await import('../../src/lib/vivienda3d.js'),{dibujarPlano}=await import('../../src/lib/plano3d.js');
+ const {loadDowntown}=await import('../../src/lib/downtown3d.js'),N3=await import('../../src/lib/nature3d.js');
  const kit=async f=>{try{return await f();}catch{return null;}};
  const [downtown,nature,nature2,plants,houseKit,office0,casa2,tienda]=await Promise.all([kit(loadDowntown),kit(N3.loadNature),kit(N3.loadNature2),kit(N3.loadPlants),kit(N3.loadHouseKit),kit(N3.loadOffice),kit(N3.loadCasa2),kit(N3.loadTienda)]);
  const office={...(office0||{}),...(casa2||{}),...(tienda||{})},furniture={...(houseKit||{}),...office};

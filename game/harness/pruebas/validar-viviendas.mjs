@@ -8,13 +8,13 @@
 //    con su familia y la ronda cubierta sin huecos; se muestra la parte del tiempo con gente;
 //  · lo que se roba: adentro de la vivienda, y la parte de viviendas con algo para robar, ≥ 75 %.
 // Uso: node scripts/validar-viviendas.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {VIVIENDA} from '../src/engine/medidas.js';
-import {viviendasDe} from '../src/engine/viviendas.js';
-import {sociedadDe,ocupacionSociedad,inicioRonda} from '../src/engine/sociedad.js';
-import {navEdificio} from '../src/engine/nav-interior.js';
-import {grillaPeatonal,caminar,cuerpoCasa} from '../src/engine/circulacion.js';
-import {MODO_BOTIN} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {VIVIENDA} from '../../src/engine/medidas.js';
+import {viviendasDe} from '../../src/engine/viviendas.js';
+import {sociedadDe,ocupacionSociedad,inicioRonda} from '../../src/engine/sociedad.js';
+import {navEdificio} from '../../src/engine/nav-interior.js';
+import {grillaPeatonal,caminar,cuerpoCasa} from '../../src/engine/circulacion.js';
+import {MODO_BOTIN} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),DUR=MODO_BOTIN.duracion,RONDAS=4,MIN_ROBABLE=.75;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

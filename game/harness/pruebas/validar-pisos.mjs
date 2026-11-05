@@ -9,8 +9,8 @@
 // Uso: node scripts/validar-pisos.mjs [ciudades=1] [semilla0=1]
 import {armarMundo} from './sin-pantalla.mjs';
 import {indiceTriangulos} from './medir3d.mjs';
-import {CELL} from '../src/engine/veredas.js';
-import City from '../src/engine/ciudad.js';
+import {CELL} from '../../src/engine/veredas.js';
+import City from '../../src/engine/ciudad.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||1),S0=+(A[1]||1),TOL=.02,K=City.K,ABIERTA=new Set([K.street,K.avenue,K.alley,K.plaza,K.kiosk,K.courtyard]);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

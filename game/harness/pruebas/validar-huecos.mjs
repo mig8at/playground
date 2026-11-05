@@ -8,8 +8,8 @@
 // Uso: node scripts/validar-huecos.mjs [ciudades=2] [semilla0=1]   (FUGA_CON_HUECOS=1: el dibujo de antes, que tenía)
 import {armarIsla} from './sin-pantalla.mjs';
 import {indiceTriangulos} from './medir3d.mjs';
-import {CELL} from '../src/engine/veredas.js';
-import {CALLE} from '../src/engine/medidas.js';
+import {CELL} from '../../src/engine/veredas.js';
+import {CALLE} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),TOL=.05;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

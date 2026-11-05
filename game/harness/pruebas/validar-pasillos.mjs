@@ -2,9 +2,9 @@
 // LIBRE de cada pasillo —su lado menor menos un tabique, y menos lo que se meten los muebles que lo pisan— contra lo que
 // pide el juego (JUEGO_PASO de medidas.js): los pasillos de los edificios, edificio; los de las casas del monte y los
 // halls de los departamentos, casa. Uso: node scripts/validar-pasillos.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {conHoja,quiereAbierta,giroDe} from '../src/engine/puertas.js';
-import {JUEGO_PASO,MURO,PUERTA,CIRCULACION} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {conHoja,quiereAbierta,giroDe} from '../../src/engine/puertas.js';
+import {JUEGO_PASO,MURO,PUERTA,CIRCULACION} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),T=MURO.tabique,E=1e-6;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

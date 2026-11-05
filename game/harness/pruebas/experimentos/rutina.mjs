@@ -2,10 +2,10 @@
 // scripts/datos/objetivos-rutina.json, midiendo la semana de una o más ciudades (medirRutina.js).
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {generateBlueprint} from '../../src/engine/blueprint.js';
-import {sociedadDe} from '../../src/engine/sociedad.js';
-import {curvas,indicadores,perdida} from '../../src/engine/medirRutina.js';
-import {estabilidad} from '../../src/engine/medirRutina.js';
+import {generateBlueprint} from '../../../src/engine/blueprint.js';
+import {sociedadDe} from '../../../src/engine/sociedad.js';
+import {curvas,indicadores,perdida} from '../../../src/engine/medirRutina.js';
+import {estabilidad} from '../../../src/engine/medirRutina.js';
 export const nombre='rutina';
 export const descripcion='las necesidades, comer afuera, el fin de semana y el viaje, contra las metas de un día de la ciudad';
 export const parametros=[

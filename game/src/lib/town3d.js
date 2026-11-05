@@ -151,6 +151,7 @@ export function buildTown(bp,ctx){
  const wallAny=(ax,az,bx,bz,y0=-1e3,y1=1e3)=>{const x0=Math.min(ax,bx),x1=Math.max(ax,bx),z0=Math.min(az,bz),z1=Math.max(az,bz);if(y0>-999)y0+=wallLift;if(y1<999)y1+=wallLift;
   for(let cy=Math.floor(z0/S);cy<=Math.floor((z1-1e-6)/S);cy++)for(let cx=Math.floor(x0/S);cx<=Math.floor((x1-1e-6)/S);cx++)if(cx>=0&&cy>=0&&cx<W&&cy<H)addWall(cx,cy,x0,z0,x1,z1,y0,y1);};
  // Los segmentos (puertas y ventanas) de un piso, por la línea en que están: «h:z» o «v:x».
+ const VANO_ABIERTO=1.25;// (m: más ancho, el vano va sin dintel ni marco)
  const byLine=list=>{const m=new Map();for(const s of list){const k=Math.abs(s.y0-s.y1)<1e-6?'h:'+s.y0.toFixed(2):'v:'+s.x0.toFixed(2);(m.get(k)||m.set(k,[]).get(k)).push(s);}return m;};
  const along=(s,h)=>h?[Math.min(s.x0,s.x1),Math.max(s.x0,s.x1)]:[Math.min(s.y0,s.y1),Math.max(s.y0,s.y1)];
 
@@ -429,7 +430,10 @@ export function buildTown(bp,ctx){
       if(h)wallAny(p,at-THIN/2,q,at+THIN/2,f*FLOOR-.05,f*FLOOR+FLOOR-.05);else wallAny(at-THIN/2,p,at+THIN/2,q,f*FLOOR-.05,f*FLOOR+FLOOR-.05);}
      // Sobre cada vano, el dintel; alrededor, un marco de madera (no en el ascensor: lo pone la cabina). En el vidrio, el
      // dintel es vidrio y el marco oscuro.
-     for(const [c0,c1] of cuts){if(c1<=a||c0>=b)continue;const m=(c0+c1)/2,len=c1-c0,FC=rank<2?MULL:FRAME_COLOR;
+     // (2026-10-18, Miguel, con una captura del vano ancho del vestíbulo: «elimina este estilo de puerta y deja mejor sin
+     // pared en esas situaciones»): un vano de más de 1,25 m —los que no llevan hoja— va abierto hasta el techo, sin dintel
+     // ni marco. Las puertas de los cuartos, igual que antes.
+     for(const [c0,c1] of cuts){if(c1<=a||c0>=b)continue;const m=(c0+c1)/2,len=c1-c0,FC=rank<2?MULL:FRAME_COLOR;if(len>VANO_ABIERTO)continue;
       if(rank===2)solid(h,at,c0,c1,yb+2.1,CEIL-2.12);
       // (el dintel también choca, de 2,1 m para arriba: a quien camina no lo toca —los choques miran pies + 1 m—, pero la
       // cámara de tercera persona pasaba por encima de la puerta, a través de él, al pasillo; 2026-10-15)
@@ -454,10 +458,17 @@ export function buildTown(bp,ctx){
     const dx=d.x1-d.x0,dz=d.y1-d.y0,len=Math.hypot(dx,dz);if(len>1.25||len<.6)continue;const ux=dx/len,uz=dz/len,cx=(d.x0+d.x1)/2,cz=(d.y0+d.y1)/2;
     const nx=q.x+q.w/2-cx,nz=q.y+q.h/2-cz,th0=Math.atan2(-uz,ux),sgn=Math.sign((-Math.sin(th0))*nx+(-Math.cos(th0))*nz)||1;
     const style=/dormitorio|habitacion|infantil/.test(q.type)?'tablero':/bano|sanitario|vestuario/.test(q.type)?'rejilla':/cocina|oficina|consultorio/.test(q.type)?'vidrio':'lisa';
-    innerLeaves.push({style,f,x:d.x0,y:yb,z:d.y0,th0,sgn,w:len,h:2.06,cx,cz,cy:yb,a:d.abierta?1:0,fija:!!d.abierta});}// (abierta: del todo y quieta, engine/puertas.js)
+    // (la que el plano deja siempre abierta —d.abierta, engine/puertas.js— va sin hoja: sólo el marco. 2026-10-18, Miguel:
+    // «las puertas que siempre están abiertas, quítalas; deja el marco»)
+    if(d.abierta)continue;
+    innerLeaves.push({style,f,x:d.x0,y:yb,z:d.y0,th0,sgn,w:len,h:2.06,cx,cz,cy:yb,a:0});}
    // El ascensor: junto a la puerta del núcleo, mirando al pasillo.
    const cd=lv.liftRect?lv.doors.find(d=>d.core&&!d.stair):null;if(cd&&lv.core&&!cab){const mx=(cd.x0+cd.x1)/2,mz=(cd.y0+cd.y1)/2,C=lv.core,h=Math.abs(cd.y0-cd.y1)<1e-6;
-    let nx=0,nz=0;if(h)nz=mz<C.y+C.h/2?1:-1;else nx=mx<C.x+C.w/2?1:-1;cab={cx:mx+nx*.95,cz:mz+nz*.95,fx:-nx,fz:-nz};}
+    let nx=0,nz=0;if(h)nz=mz<C.y+C.h/2?1:-1;else nx=mx<C.x+C.w/2?1:-1;
+    // (el fondo: todo lo que da el núcleo detrás de la puerta, menos el tabique; antes 1,7 m y detrás quedaba un bloque
+    // muerto del hueco —2026-10-18—)
+    const hondo=h?(nz>0?C.y+C.h-mz:mz-C.y):(nx>0?C.x+C.w-mx:mx-C.x),prof=Math.max(1.7,Math.min(3.6,hondo-.25));
+    cab={cx:mx+nx*(.1+prof/2),cz:mz+nz*(.1+prof/2),fx:-nx,fz:-nz,prof};}
    // Una lámpara de techo por cuarto.
    const lamp=['Light_Ceiling1','Light_Ceiling3'].filter(n=>furniture?.[n]);
    if(lamp.length)for(const q of lv.rooms)if(q.w*q.h>=4)models.push({name:lamp[(q.id+id)%lamp.length],x:q.x+q.w/2,y:yb+2.78,z:q.y+q.h/2,ry:0,s:furniture[lamp[0]].scale||.52,f});
@@ -693,14 +704,15 @@ export function buildCabins(elevators,{FLOOR,group,own,instanced,base,addWall,S,
  for(const e of elevators){
   for(let f=0;f<=e.floors;f++){const y0=(f<e.floors?f*FLOOR:e.roof)+.02+(e.raise||0);
    // (la cabina del catálogo de objetos: su frente, +z, es la puerta; lo que brilla va con la luz)
-   for(const q of placeParts(OBJETOS.ascensor.piezas(),{x:e.cx,y:y0,z:e.cz,ry:Math.atan2(e.fx,e.fz)}))(q.luz?light:cab).push(q);}
+   for(const q of placeParts(OBJETOS.ascensor.piezas({prof:e.prof}),{x:e.cx,y:y0,z:e.cz,ry:Math.atan2(e.fx,e.fz)}))(q.luz?light:cab).push(q);}
   const seg=(n0,t0,n1,t1)=>{const [ax,az]=P(e,n0,t0),[bx,bz]=P(e,n1,t1);wallAny(ax,az,bx,bz);};
-  seg(-E-.05,-E,-E+.05,E);seg(-E,-E-.05,E,-E+.05);seg(-E,E-.05,E,E+.05);seg(E-.05,-E,E+.05,-DOOR);seg(E-.05,DOOR,E+.05,E);}
+  // (n: a lo hondo —Z, la mitad del fondo—; t: a lo ancho —E—)
+  const Z=(e.prof||2*E)/2;seg(-Z-.05,-E,-Z+.05,E);seg(-Z,-E-.05,Z,-E+.05);seg(-Z,E-.05,Z,E+.05);seg(Z-.05,-E,Z+.05,-DOOR);seg(Z-.05,DOOR,Z+.05,E);}
  if(cab.length){const sm=new THREE.MeshStandardMaterial({roughness:.45,metalness:.12});own.push(sm);instanced(group,base(new THREE.BoxGeometry(1,1,1)),sm,cab);
   const lm=new THREE.MeshStandardMaterial({color:'#fff8e8',emissive:'#fff1d6',emissiveIntensity:1.1});own.push(lm);instanced(group,base(new THREE.BoxGeometry(1,1,1)),lm,light,{cast:false});}
  const list=[];for(const e of elevators)for(let f=0;f<=e.floors;f++)for(const s of [-1,1])list.push({e,f,s});
  let mesh=null;if(list.length){const dm=new THREE.MeshStandardMaterial({color:'#c3c9cd',roughness:.3,metalness:.2});own.push(dm);mesh=new THREE.InstancedMesh(base(new THREE.BoxGeometry(1,1,1)),dm,list.length);mesh.frustumCulled=false;mesh.castShadow=true;group.add(mesh);}
  const o3=new THREE.Object3D();
- const setDoors=()=>{if(!mesh)return;list.forEach((d,i)=>{const a=d.e.open[d.f],[x,z]=P(d.e,E+.02,d.s*(DOOR/2+a*DOOR*.9)),ax=Math.abs(d.e.fx)>.5;o3.position.set(x,(d.f<d.e.floors?d.f*FLOOR:d.e.roof)+.02+(d.e.raise||0),z);o3.scale.set(ax?.04:DOOR,2.2,ax?DOOR:.04);o3.updateMatrix();mesh.setMatrixAt(i,o3.matrix);});mesh.instanceMatrix.needsUpdate=true;};
+ const setDoors=()=>{if(!mesh)return;list.forEach((d,i)=>{const a=d.e.open[d.f],[x,z]=P(d.e,(d.e.prof||2*E)/2+.02,d.s*(DOOR/2+a*DOOR*.9)),ax=Math.abs(d.e.fx)>.5;o3.position.set(x,(d.f<d.e.floors?d.f*FLOOR:d.e.roof)+.02+(d.e.raise||0),z);o3.scale.set(ax?.04:DOOR,2.2,ax?DOOR:.04);o3.updateMatrix();mesh.setMatrixAt(i,o3.matrix);});mesh.instanceMatrix.needsUpdate=true;};
  setDoors();return setDoors;
 }

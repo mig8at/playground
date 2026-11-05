@@ -5,11 +5,11 @@
 //   segundos) y el retrato guarda la ropa vieja;
 // · de policía: los Avisos son los del motor; un ladrón con retrato sale en Retratos; «Difundir» lo difunde y un vecino
 //   que lo ve avisa; el Censo encuentra a alguien de verdad y dice «mintió» con un nombre falso.
-// Uso: node scripts/validar-menu.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-menu.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];
 const listo=c=>`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.avatar&&d.soc&&(${c})){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);d.fijarHora(2,12);r(1);}},300);})`;
 const tecla=c=>`(async()=>{window.dispatchEvent(new KeyboardEvent('keydown',{code:'${c}'}));window.dispatchEvent(new KeyboardEvent('keyup',{code:'${c}'}));for(let k=0;k<8;k++)await new Promise(r=>requestAnimationFrame(r));})()`;

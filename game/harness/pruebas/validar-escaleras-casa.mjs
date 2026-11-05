@@ -2,8 +2,8 @@
 // Uso: node scripts/validar-escaleras-casa.mjs
 // Por casa de dos pisos: la escalera cabe (al pie queda ≥ 80 cm hasta la pared), la huella no baja de 22 cm, y por toda
 // la subida el cuerpo (radio 22 cm, de 0,4 a 1,85 m sobre el peldaño) no toca ninguna caja de la casa.
-import {planHouse,houseSpec,OPTIONS,STAIR,T,FH} from '../src/engine/vivienda.js';
-import {HOGARES,planHogar} from '../src/engine/hogar.js';
+import {planHouse,houseSpec,OPTIONS,STAIR,T,FH} from '../../src/engine/vivienda.js';
+import {HOGARES,planHogar} from '../../src/engine/hogar.js';
 
 const casos=[];
 for(const ancho of OPTIONS.ancho)for(const fondo of OPTIONS.fondo)for(const arriba of OPTIONS.arriba)for(const garaje of OPTIONS.garaje)

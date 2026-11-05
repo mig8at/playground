@@ -26,7 +26,7 @@ import {splitClothing,fitGarments,underwear,extractPart,bakeSeatedCloth,installS
 const BASE='/models/personajes/BaseCharacter.gltf';
 let tplCache=null;
 // El esqueleto del paquete (el cuerpo base) y sus animaciones, una vez por página.
-// (cu: el cuerpo hecho en Blender —scripts/blender/cuerpo.py: proporciones, huesos de apoyo en codos y rodillas y las
+// (cu: el cuerpo hecho en Blender —harness/pruebas/blender/cuerpo.py: proporciones, huesos de apoyo en codos y rodillas y las
 // animaciones recalculadas—; sin cu, el del paquete)
 const CUERPOS={intermedio:'/models/personajes/BaseIntermedio.glb',realista:'/models/personajes/BaseRealista.glb'},SKELS=new Map();
 export function loadSkeleton(cu=null){const path=CUERPOS[cu]||BASE;if(!SKELS.has(path))SKELS.set(path,new GLTFLoader().loadAsync(path).then(async g=>{let clips=g.animations;if(!cu){const response=await fetch('/models/personajes/AccionesClasico.json');if(!response.ok)throw new Error('No se pudieron cargar las acciones del cuerpo clásico');const extra=(await response.json()).map(c=>THREE.AnimationClip.parse(c));clips=[...clips,...extra.filter(c=>!clips.some(a=>a.name===c.name))];}return {scene:g.scene,clips};}));return SKELS.get(path);}
@@ -168,7 +168,7 @@ const stripB=n=>n.replace(/_\d+$/,'').replace(/\.?[LR]$/,'');
 const inBeard=c=>c.y<.27&&c.z>.12&&Math.abs(c.x)<.42,REGION={scalp:c=>!inBeard(c),beard:inBeard,beardShort:c=>inBeard(c)&&c.y>.04};
 const PIECE_GEO=new Map();
 // ---------- El catálogo de pelos y barbas, desacoplado (2026-10-12) ----------
-// scripts/extraer-pelos.mjs saca del paquete cada pelo y barba, en coordenadas de la CABEZA y ya simplificado
+// harness/pruebas/extraer-pelos.mjs saca del paquete cada pelo y barba, en coordenadas de la CABEZA y ya simplificado
 // (public/models/pelos: 37 piezas, 840 KB; los modelos enteros pesan 99 MB). Acá se lee y se lleva a la pose de atado
 // del muñeco con la matriz de atado de su cabeza: sirve para cualquier esqueleto con hueso Head, sin el modelo de
 // origen. Atado entero a la cabeza (peso 1).
@@ -181,7 +181,7 @@ async function catalogPiece(id,pc,cu=null,pulido=true){const list=await pelosInd
  const n=g.attributes.position.count,si=new Uint16Array(n*4),sw=new Float32Array(n*4);for(let i=0;i<n;i++){si[i*4]=H;sw[i*4]=1;}
  g.setAttribute('skinIndex',new THREE.BufferAttribute(si,4));g.setAttribute('skinWeight',new THREE.BufferAttribute(sw,4));
  return {pc,parts:[{part:pc.parts[0],geo:g,color:d.color,tris:n/3}]};}
-// Las partes de un modelo, desacopladas (scripts/extraer-pelos.mjs → public/models/partes/<Modelo>.json): ropa, cara,
+// Las partes de un modelo, desacopladas (harness/pruebas/extraer-pelos.mjs → public/models/partes/<Modelo>.json): ropa, cara,
 // sombreros… en la pose de atado y con pesos por nombre de hueso. Se arman como «mallas livianas» con la misma forma
 // que las del .gltf (material, geometría, esqueleto) para que el resto del código no cambie; los huesos ya en el orden
 // del esqueleto base. Si falta el archivo, se usa el modelo entero.
@@ -886,7 +886,7 @@ export async function makePersona2(look={},rand=Math.random,{scale=.52}={}){
  // Trabajar en el computador (2026-10-12): el paquete no lo trae. Se arma desde el final de SitDown: los brazos hacia
  // adelante —el brazo de arriba cae hacia adelante, el antebrazo horizontal sobre el teclado—, la cabeza un poco abajo,
  // y las manos teclean alternadas (el antebrazo sube y baja unos grados, a destiempo). Una vuelta de 1,2 s.
- // (si el cuerpo ya la trae —hecha en Blender, scripts/blender/animaciones.py—, ésa)
+ // (si el cuerpo ya la trae —hecha en Blender, harness/pruebas/blender/animaciones.py—, ésa)
  for(const [k,n] of [['trabajar','Typing'],['esposar','Arrest'],['esposado','Cuffed'],['esposadoCamina','Walk_Cuffed'],['celular','Phone'],['celularCamina','Walk_Phone'],['comer','Eat_Sitting']]){const c=clip(n);if(c)acts[k]=mixer.clipAction(c);}
  {const sit=!acts.trabajar&&clip('SitDown');if(sit){let skel=null;root.traverse(o=>{if(o.isSkinnedMesh&&!skel)skel=o.skeleton;});const tm=new THREE.AnimationMixer(root),ta=tm.clipAction(sit);ta.play();ta.paused=true;ta.time=sit.duration*.999;tm.update(0);root.updateMatrixWorld(true);
   const B=n=>skel.bones.find(b=>b.name===n),fwd=new THREE.Vector3(0,0,1),dn=new THREE.Vector3(0,-1,0),qs={};

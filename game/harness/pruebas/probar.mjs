@@ -99,6 +99,11 @@ const NIVELES=[
   {n:'menú',f:'validar-menu.mjs',a:[S0],fallas:F,res:/^menú/,lento:true},
   {n:'ladrón',f:'validar-ladron.mjs',a:[S0],fallas:F,res:/^ladrón/,lento:true}]}]
  .filter(L=>L.n>=NV0&&L.n<=NV1).map(L=>({...L,p:L.p.filter(p=>(!solo.length||solo.some(s=>p.n.startsWith(s)))&&!(RAP&&p.lento&&!solo.length))})).filter(L=>L.p.length);
+// Para el panel del harness (2026-10-30): --lista imprime los niveles y sus pruebas («LISTA {json}») y termina; --eventos,
+// además, una línea «PRUEBA {json}» al terminar cada una. La salida de siempre (la tabla) no cambia.
+const EVENTOS=A.includes('--eventos')||A.includes('--lista');
+if(EVENTOS)console.log('LISTA '+JSON.stringify(NIVELES.map(L=>({n:L.n,t:L.t,d:L.d,p:L.p.map(p=>({n:p.n,lento:!!p.lento}))}))));
+if(A.includes('--lista'))process.exit(0);
 // El peor caso de una salida: el tipo de falla con más casos y su primer ejemplo (el formato «  N\ttipo» + ejemplos).
 const peor=out=>{const L=out.split('\n'),i=L.findIndex(l=>F.test(l));if(i<0)return null;let best=null;
  for(let k=i+1;k<L.length;k++){const m=/^\s+(\d+)\t(.+)$/.exec(L[k]);if(m&&(!best||+m[1]>best.n))best={n:+m[1],tipo:m[2].trim(),ej:(L[k+1]||'').trim()};}return best;};
@@ -107,7 +112,7 @@ const peor=out=>{const L=out.split('\n'),i=L.findIndex(l=>F.test(l));if(i<0)retu
 // como error. Las del 3D —nivel 10, un navegador cada una— van de a TOPE_3D a la vez: con más, la máquina no da y se
 // cortan solas («la página no contestó»); si una se corta así —un error, no una falla—, se reintenta una vez y se avisa)
 const TIEMPO=+(process.argv.find(a=>a.startsWith('--tiempo='))?.slice(9)||600),TOPE_3D=2;
-const correr=(p,vivo=()=>{})=>new Promise(ok=>{const t=Date.now(),ch=spawn(process.execPath,[...(p.node||[]),join(aqui,p.f),...p.a],{cwd:join(aqui,'..'),detached:true});vivo(ch);let out='',vencio=false;
+const correr=(p,vivo=()=>{})=>new Promise(ok=>{const t=Date.now(),ch=spawn(process.execPath,[...(p.node||[]),join(aqui,p.f),...p.a],{cwd:join(aqui,'../..'),detached:true});vivo(ch);let out='',vencio=false;
  const reloj=setTimeout(()=>{vencio=true;out+=`\nse pasó de ${TIEMPO} s: se cortó (con su navegador)\n`;try{process.kill(-ch.pid,'SIGKILL');}catch{try{ch.kill('SIGKILL');}catch{}}},TIEMPO*1000);
  ch.stdout.on('data',d=>out+=d);ch.stderr.on('data',d=>out+=d);ch.on('close',code=>{clearTimeout(reloj);const m=vencio?null:out.match(p.fallas),res=vencio?`se pasó de ${TIEMPO} s`:out.split('\n').find(l=>p.res.test(l))||'';
   ok({...p,seg:(Date.now()-t)/1000,fallas:m?+m[1]:null,error:vencio||code!==0||!m,vencio,res:res.trim(),out,peor:peor(out)});});});
@@ -137,7 +142,8 @@ await new Promise(fin=>{const pendientes=[...trabajos];
   if(j.g.L.n===10&&r.error&&r.fallas==null&&j.g.li<=cortado){process.stderr.write(`  ↻ ${r.n}: se cortó, otra vez\n`);r={...(await correr(j.p,ch=>vivos.set(j,ch))),reintento:true};}
   vivos.delete(j);for(const k in usado)usado[k]-=j.c[k];
   if(j.g.li<=cortado){j.g.rs.push(r);process.stderr.write(`  ${r.error||r.fallas?'✗':'✓'} ${j.g.L.n}·${r.n}${j.p.parte?` (ciudad ${j.p.parte})`:''} (${r.seg.toFixed(0)} s)${r.reintento?' · al segundo intento':''}\n`);
-   if(j.g.rs.length===j.g.n){porNivel[j.g.li].push(juntar(j.g));const L=j.g.L;
+   if(j.g.rs.length===j.g.n){const jr=juntar(j.g);porNivel[j.g.li].push(jr);const L=j.g.L;
+    if(EVENTOS)console.log('PRUEBA '+JSON.stringify({nivel:L.n,n:jr.n,fallas:jr.fallas,error:!!jr.error,seg:Math.round(jr.seg),res:jr.res,peor:jr.peor}));
     // (un nivel entero hecho y con fallas, sin --seguir: se cortan los de abajo —los que corren se matan—)
     if(porNivel[j.g.li].length===L.p.length&&!SEGUIR&&porNivel[j.g.li].some(r=>r.error||r.fallas)&&j.g.li<cortado){cortado=j.g.li;
      for(const [k,ch] of vivos)if(k.g.li>cortado){try{process.kill(-ch.pid,'SIGKILL');}catch{}}}}}

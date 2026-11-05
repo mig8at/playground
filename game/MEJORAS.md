@@ -61,7 +61,7 @@ tocar. Lo medido está en GENERADOR.md.
 
 ## La rutina (2026-10-18)
 
-1. **Metas de verdad**: reemplazar las metas provisorias (scripts/datos/objetivos-rutina.json) por las de la ENUT del
+1. **Metas de verdad**: reemplazar las metas provisorias (harness/pruebas/datos/objetivos-rutina.json) por las de la ENUT del
    DANE y volver a calibrar.
 2. **Eventos desde el juego**: un robo, un trancón o un local cerrado en el 3D tienen que volver a planear el resto del
    día de la gente que alcanzan (rutina.js, desde la hora del evento), no sólo en la prueba.

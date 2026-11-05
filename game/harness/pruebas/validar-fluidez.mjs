@@ -8,10 +8,10 @@
 //    salto: a saltos de 4 por segundo eran ~0,3 m; medido por velocidad —≥ 4 m/s— contaba pasitos de 4 a 8 cm en un
 //    cuadro de 10 ms, que no se ven y cambian con la hora de la ronda: 0,01 a 0,4 %);
 //  · de los que se mueven, a lo sumo el 40 % de los cuadros quietos en el medio (a saltos, el 92 %).
-// Uso: node scripts/validar-fluidez.mjs [ciudad=1] (con el servidor en 5180)
+// Uso: node scripts/validar-fluidez.mjs [ciudad=1] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 const [ciudad=1]=process.argv.slice(2),SALTO=.25;const fallas=[],res={};const N=await abrirNavegador();
-try{for(const papel of ['ladron','policia']){const P=await N.abrir(`http://localhost:5180/demo?ciudad=${ciudad}&jugadores=3${papel==='policia'?'&papel=policia':''}`);
+try{for(const papel of ['ladron','policia']){const P=await N.abrir(`http://localhost:5181/demo?ciudad=${ciudad}&jugadores=3${papel==='policia'?'&papel=policia':''}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.soc&&d.acciones){clearInterval(t);r(1);}},300);})`,{tiempo:240000});
  await P.evaluar(`new Promise(r=>setTimeout(r,4000))`);
  const r=await P.evaluar(`(async()=>{const d=window.__demo,soc=d.soc,cuadro=()=>new Promise(r=>requestAnimationFrame(r)),ant=new Map(),pasos=[],quietoEnMedio=[0,0];let t0=performance.now(),saltos=0;

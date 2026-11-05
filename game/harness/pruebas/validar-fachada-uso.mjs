@@ -8,8 +8,8 @@
 // La pieza de cada ventana, como la elige town3d: w.pieza, o la del estilo (ventana1 en planta baja y primer piso si
 // la ventana es de 1 m o más; ventana más arriba).
 // Uso: node scripts/validar-fachada-uso.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {esVidriera,VIVE_EN_PLANTA_BAJA,RESIDENCIAL,VIDRIO,VIDRIO_VIVIENDA,VIDRIO_ENTERO,VENTANAS_VIVIENDA,HABITABLE,MINIMO} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {esVidriera,VIVE_EN_PLANTA_BAJA,RESIDENCIAL,VIDRIO,VIDRIO_VIVIENDA,VIDRIO_ENTERO,VENTANAS_VIVIENDA,HABITABLE,MINIMO} from '../../src/engine/medidas.js';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};
 const med={vidrieras:0,enLocal:0,resid:0,ventanas:0,maxParte:0,cuartos:0,oscuros:0};

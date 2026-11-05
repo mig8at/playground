@@ -8,11 +8,11 @@
 //    toda la ventana.
 // Uso: node scripts/validar-cortinas.mjs [ciudades=4] [semilla0=1]
 import {readFileSync} from 'node:fs';
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {cuartoDeVentana,panioCerrado} from '../src/engine/cortinas.js';
-import {CORTINA,ALTURA} from '../src/engine/medidas.js';
-import {WINDOWS} from '../src/engine/fachada.js';
-import {planHouse} from '../src/engine/vivienda.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {cuartoDeVentana,panioCerrado} from '../../src/engine/cortinas.js';
+import {CORTINA,ALTURA} from '../../src/engine/medidas.js';
+import {WINDOWS} from '../../src/engine/fachada.js';
+import {planHouse} from '../../src/engine/vivienda.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1),FLOOR=ALTURA.piso;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

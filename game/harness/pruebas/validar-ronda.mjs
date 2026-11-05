@@ -3,11 +3,11 @@
 // guarida, guarda, y revisa el panel (mochila, guardado, meta); todo apretando las teclas, como el jugador (E, R). Y en
 // la puerta trancada de un apartamento ajeno: ofrece forzar y el visor, el visor contesta, la puerta frena el paso hasta
 // forzarla y forzarla toma su tiempo. Captura en el robo, en la caja y en la puerta.
-// Uso: node scripts/validar-ronda.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-ronda.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];
 try{const P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.acciones&&d.ronda){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});

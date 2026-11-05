@@ -7,7 +7,7 @@
 //    (blueprint SUELTO), sueltos en el medio si contra la pared no entran.
 // Que se alcancen caminando lo prueban interiores y usos. (Antes validar-gimnasios.)
 // Uso: node scripts/validar-giros.mjs [ciudades=4] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||4),S0=+(A[1]||1);
 const GIROS={

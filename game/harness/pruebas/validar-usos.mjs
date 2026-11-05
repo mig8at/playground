@@ -7,11 +7,11 @@
 //  · cada objeto tiene al menos un uso que se puede (una cama, por un costado; un sofá, alguna plaza);
 //  · cada ventana de afuera se puede asomar (2026-10-17): parado delante, o inclinado sobre algo bajo.
 // Uso: node scripts/validar-usos.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {usosDePiso,USOS,miradoresDePiso,miradoresDeCasa} from '../src/engine/usos.js';
-import {navEdificio,navCasa,NAV_RES} from '../src/engine/nav-interior.js';
-import {cuartoDeVentana} from '../src/engine/cortinas.js';
-import {CHOQUE_MUEBLE,CORTINA} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {usosDePiso,USOS,miradoresDePiso,miradoresDeCasa} from '../../src/engine/usos.js';
+import {navEdificio,navCasa,NAV_RES} from '../../src/engine/nav-interior.js';
+import {cuartoDeVentana} from '../../src/engine/cortinas.js';
+import {CHOQUE_MUEBLE,CORTINA} from '../../src/engine/medidas.js';
 
 const N=+(process.argv[2]||2),S0=+(process.argv[3]||1),VER=process.argv.includes('--ver');
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

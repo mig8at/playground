@@ -6,12 +6,12 @@
 // · con E se baja al lado y la patrulla queda estacionada donde se dejó; se puede volver a subir;
 // · de ladrón: las patrullas están, pero no se ofrece subir.
 // Captura manejando y estacionada.
-// Uso: node scripts/validar-patrulla.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-patrulla.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-import {PATRULLA} from '../src/engine/medidas.js';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+import {PATRULLA} from '../../src/engine/medidas.js';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];
 const espera=`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.patrullas&&d.avatar&&(d.persec?.listo||d.ronda)){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);d.fijarHora?.(2,12);r(1);}},300);})`;
 try{const P=await N.abrir(`${base}/demo?papel=policia&jugadores=3&ciudad=${ciudad}`);await P.evaluar(espera,{tiempo:240000});

@@ -1,5 +1,5 @@
 /* El catálogo de medidas (2026-10-15): todo lo que mide algo en la ciudad, en metros, en UN lugar. El plano
-   (blueprint.js) calcula con esto y el validador (scripts/validar-ciudad.mjs) compara contra los MÍNIMOS. La idea:
+   (blueprint.js) calcula con esto y el validador (harness/pruebas/validar-ciudad.mjs) compara contra los MÍNIMOS. La idea:
    la ciudad sale exacta del cálculo, se valida sin abrir el 3D, y el 3D sólo dibuja lo que el plano ya resolvió.
 
    Primer paso: los valores son los que el código usa HOY (no cambia nada). Todavía hay copias que no leen de acá
@@ -49,7 +49,7 @@ ENCIERRO.perfiles=[.55,.8,1];ENCIERRO.salto=2;
 export const MANZANA={min:40,ideal:[80,90],max:120};
 // La manzana del monte (2026-10-15): dos mitades, cada una con casas armadas (vivienda.js) de frente a su calle. La mitad:
 // retiro de la calle + el fondo de la casa más honda + patio de atrás, redondeado a casillas. casaFondo: medido con
-// scripts/medir-casas.mjs (400 casas: mediana 11,05, máximo 12,5); si cambian las casas, se vuelve a medir.
+// harness/pruebas/medir-casas.mjs (400 casas: mediana 11,05, máximo 12,5); si cambian las casas, se vuelve a medir.
 MANZANA.monte={retiro:2.5,casaFondo:12.5,patio:3};
 // ======== INTERIORES (UK Nationally Described Space Standard, 2015; cocina: triángulo de trabajo) ========
 // Alcoba simple ≥ 7,5 m² y 2,15 de ancho; doble ≥ 11,5 m², la principal ≥ 2,75 de ancho y las otras dobles ≥ 2,55.
@@ -141,7 +141,7 @@ ESCALERA.pasilloMax=16;
 // en una casa, uno que camina con la cámara detrás (1,3)—. ancho: 1,8 libres + un tabique, en la grilla de 0,5 → 2.)
 export const JUEGO_PASO={edificio:1.8,casa:1.3};
 export const PASILLO={ancho:2,hall:1.5};
-// Las franjas de un departamento, derivadas de los cuartos (scripts/derivar-edificio.mjs, 2026-10-15): la interior
+// Las franjas de un departamento, derivadas de los cuartos (harness/pruebas/derivar-edificio.mjs, 2026-10-15): la interior
 // (junto al pasillo) lleva el baño completo (2,25) y el hall (1,2 libres) → 2,5; la de fachada, lo que piden de fondo
 // alcobas y sala (≤ 3,25) → 3,5. Juntas, 6 m: una casilla (antes 4 + 2).
 export const FRANJA={interior:2.5,fachada:3.5};
@@ -186,7 +186,7 @@ FRANJA.maxLuz=Math.floor(Math.min(...Object.values(VENTANAS_FAMILIA).map(f=>Math
 // validar-salto: los pisos de los lotes no coincidían con la misma semilla). Ahora es el defecto de generateBlueprint.
 export const JUEGO={parques:true,robables:['objetivo','oficinas','comercio'],puertasRobable:2,
  // (2026-10-16) La escala del motor en metros: su velocidad de ladrón (game.js DEFAULTS.thiefSpeed) es la de caminar del
- // 3D (DemoView WALK, 5,2 m/s); las demás velocidades del motor se escalan igual. El equilibrio (scripts/medir-equilibrio.mjs)
+ // 3D (DemoView WALK, 5,2 m/s); las demás velocidades del motor se escalan igual. El equilibrio (harness/pruebas/medir-equilibrio.mjs)
  // compara la ventana de fuga del ladrón con la respuesta de la policía, a pie y en patrulla por la red de carriles.
  caminar:5.2};
 // La ladera urbanizada (2026-10-15): la franja del monte junto a la ciudad, en terrazas por curvas de nivel. Las calles de
@@ -721,7 +721,7 @@ export const PATRULLA={cuantas:e=>Math.max(2,Math.ceil(e/2)),separa:7,vmax:16,re
 // ======== LA RUTINA: AGENDA Y NECESIDADES (2026-10-18, Miguel: «que tengan agenda y necesidades; si hay un trancón o un
 // robo y el tiempo se descuadró, la necesidad debe priorizar: descartar unas cosas por otras para ponerse al día, y que
 // el juego no se comporte raro después de un tiempo sino que se estabilice; calibrarlo milimétricamente en el 2D») ========
-// Lo arma engine/rutina.js; lo mide validar-rutina; lo calibra scripts/calibrar.mjs (experimento «rutina»).
+// Lo arma engine/rutina.js; lo mide validar-rutina; lo calibra harness/pruebas/calibrar.mjs (experimento «rutina»).
 // Cada persona vive su día decidiendo en el momento: lo obligatorio (trabajo, colegio, llevar y recoger a los chicos,
 // dormir) tiene hora; en los ratos libres elige, entre los lugares abiertos que le quedan a tiempo, el que mejor cubre
 // sus necesidades. Si algo lo atrasa, el resto del día se acomoda solo: lo opcional se cae primero, lo flexible se
@@ -735,7 +735,7 @@ export const PATRULLA={cuantas:e=>Math.max(2,Math.ceil(e/2)),separa:7,vmax:16,re
 //    a «hasta», a «velocidad» m/s con «parada» h por paradero);
 //  · prioridad: el orden de lo que se cae primero cuando no alcanza el tiempo.
 export const RUTINA={
- // (calibrado el 2026-10-18 con scripts/calibrar.mjs rutina —220 pruebas, ciudades 1 y 2, con la estabilidad como meta—:
+ // (calibrado el 2026-10-18 con harness/pruebas/calibrar.mjs rutina —220 pruebas, ciudades 1 y 2, con la estabilidad como meta—:
  // pérdida 0,18 → 0,014, 14 de 15 metas y la ciudad vuelve a lo normal; falta el mercado del fin de semana en la mañana)
  necesidades:{hambre:{sube:.211,umbral:.866,peso:1.4,inicio:[.2,.5]},despensa:{sube:.0134,umbral:.508,peso:1.1,inicio:[.1,.6]},
   fisico:{sube:.0219,umbral:.8,peso:.8,inicio:[.2,.9],socios:.25},ocio:{sube:.0604,umbral:.739,peso:.6,inicio:[.1,.6]},

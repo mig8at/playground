@@ -6,11 +6,11 @@
 //   oficio —el nombre se sabe pidiendo papeles—;
 // · la puerta de un local: a las 3 de la mañana está trancada (caminando hacia ella con W no se pasa) y a mediodía no.
 // Captura a las 15 cerca del colegio, con el cartel, y frente al local cerrado.
-// Uso: node scripts/validar-gente.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5180)
+// Uso: node scripts/validar-gente.mjs [ciudad=1] [carpeta=/tmp] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 import {writeFileSync} from 'node:fs';
 import {join} from 'node:path';
-const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5180';
+const [ciudad=1,OUT='/tmp']=process.argv.slice(2);const base='http://localhost:5181';
 const N=await abrirNavegador();const fallas=[];
 try{const P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.ronda&&d.soc&&d.cierres&&d.avatar){clearInterval(t);const st=document.createElement('style');st.textContent='.card{display:none!important}';document.head.appendChild(st);r(1);}},300);})`,{tiempo:240000});

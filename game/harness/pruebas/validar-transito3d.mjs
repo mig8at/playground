@@ -6,10 +6,10 @@
 //    p99 ≤ la frenada cómoda y nunca más que la máxima (fuera de los sustos: no cuenta cuando frena por alguien que
 //    cruza);
 //  · nadie se queda trabado: ningún vehículo más de 60 s sin moverse (salvo esperando un verde).
-// Uso: node scripts/validar-transito3d.mjs [ciudad=1] (con el servidor en 5180)
+// Uso: node scripts/validar-transito3d.mjs [ciudad=1] (con el servidor en 5181)
 import {abrirNavegador} from './navegador.mjs';
 const [ciudad=1]=process.argv.slice(2);const N=await abrirNavegador();const fallas=[];let res={};
-try{const P=await N.abrir(`http://localhost:5180/demo?jugadores=3&ciudad=${ciudad}`);
+try{const P=await N.abrir(`http://localhost:5181/demo?jugadores=3&ciudad=${ciudad}`);
  await P.evaluar(`new Promise(r=>{const t=setInterval(()=>{const d=window.__demo;if(d?.world&&d.traffic&&d.acciones){clearInterval(t);r(1);}},300);})`,{tiempo:240000});
  res=await P.evaluar(`(async()=>{const d=window.__demo,T=d.traffic,{axis,semaforo}=T.debug,V=T.vehicles,{TRANSITO}=await import('/src/engine/medidas.js');
   const dt=1/30,pasos=120*30,lejos={x:-1e4,z:-1e4},est=V.map(v=>({yaw:v.yaw,speed:v.speed,j:null,quieto:0}));

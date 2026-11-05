@@ -102,7 +102,8 @@ export function createHouses(items,{kit=null,shadows=true}={}){
   if(o.kind==='window'){const m=kit?.[o.m];if(!m)continue;const b=m.box,bw=b.max.x-b.min.x,bh=b.max.y-b.min.y,bd=b.max.z-b.min.z;
    const M=frameOf(h,o).multiply(mm.makeScale(o.w/bw,o.h/bh,.12/bd)).multiply(new THREE.Matrix4().makeTranslation(-(b.min.x+b.max.x)/2,-b.min.y,-(b.min.z+b.max.z)/2));
    (wins[o.m]||(wins[o.m]=[])).push({m:M,color:houseColorTrim(h)});}
-  else if(o.kind==='door')doors.push({h,o,a:o.abierta?1:0,fija:!!o.abierta,frame:frameOf(h,o),color:houseColorDoor(h)});
+  // (la que queda siempre abierta —o.abierta— va sin hoja: sólo el marco, 2026-10-18)
+  else if(o.kind==='door'&&!o.abierta)doors.push({h,o,a:0,frame:frameOf(h,o),color:houseColorDoor(h)});
   else if(o.kind==='garage')garages.push({h,o,a:0,frame:frameOf(h,o),color:o.color});}
  // (por baldosa, como la parte fija)
  const porBaldosa=list=>{const m=new Map();for(const it of list){const t=it.h?it.h.t:baldosaDe(it.m.elements[12],it.m.elements[14]);(m.get(t)||m.set(t,[]).get(t)).push(it);}return [...m.values()];};
@@ -165,9 +166,11 @@ export function createHouses(items,{kit=null,shadows=true}={}){
  // (la ronda, 2026-10-17: la puerta trancada no se abre sola —setTrancadas(fn(x, z, y))—)
  let trancadaFn=null;
  function updateDoors(dt,people){
-  for(const d of doors){if(d.fija)continue;const want=!(trancadaFn&&trancadaFn(d.cx,d.cz,d.cy))&&people.some(p=>(p.x-d.cx)**2+(p.z-d.cz)**2<3.2&&Math.abs((p.feet??p.y??d.cy)-d.cy)<2)?1:0;if(d.a===want||!d.meshes)continue;
+  // (2026-10-18, Miguel: «que toque abrir y cerrar con E»: al jugador —p.esJugador— no se le abren solas; d.mano, la abrió él)
+  for(const d of doors){if(d.fija)continue;const want=!(trancadaFn&&trancadaFn(d.cx,d.cz,d.cy))&&(d.mano||people.some(p=>!p.esJugador&&(p.x-d.cx)**2+(p.z-d.cz)**2<3.2&&Math.abs((p.feet??p.y??d.cy)-d.cy)<2))?1:0;if(d.a===want||!d.meshes)continue;
    d.a=want>d.a?Math.min(1,d.a+dt*3):Math.max(0,d.a-dt*2);const M=leafM(d);for(const im of d.meshes){im.setMatrixAt(d.i,M);im.instanceMatrix.needsUpdate=true;}}
-  garages.forEach((g,i)=>{const want=people.some(p=>(p.x-g.cx)**2+(p.z-g.cz)**2<9)?1:0;if(g.a===want)return;g.a=want>g.a?Math.min(1,g.a+dt*1.2):Math.max(0,g.a-dt*1.2);gIm.setMatrixAt(i,garageM(g));gIm.instanceMatrix.needsUpdate=true;});}
+  // (el portón del garaje de una casa trancada tampoco: si no, se entraba por ahí)
+  garages.forEach((g,i)=>{const want=!(trancadaFn&&doors.some(d=>d.h===g.h&&!d.o.inner&&trancadaFn(d.cx,d.cz,d.cy)))&&(g.mano||people.some(p=>!p.esJugador&&(p.x-g.cx)**2+(p.z-g.cz)**2<9))?1:0;if(g.a===want)return;g.a=want>g.a?Math.min(1,g.a+dt*1.2):Math.max(0,g.a-dt*1.2);gIm.setMatrixAt(i,garageM(g));gIm.instanceMatrix.needsUpdate=true;});}
  // El portón del garaje cerrado estorba (abierto, no).
  const collideAll=(x,z,r=.3,hard=true,feet=0)=>collide(x,z,r,hard,feet)||garages.some(g=>{if(g.a>.6)return false;const dx=x-g.cx,dz=z-g.cz;return dx*dx+dz*dz<(g.o.w/2+r)**2&&(()=>{const [lx,lz]=local(g.h,x,z),[gx,gz]=local(g.h,g.cx,g.cz);return Math.abs(lz-gz)<.25+r&&Math.abs(lx-gx)<g.o.w/2;})();});
  const world=(h,p)=>({x:h.x+p.x*h.c+p.z*h.s,y:h.y+p.y,z:h.z-p.x*h.s+p.z*h.c,porch:!!p.porch});
@@ -221,7 +224,17 @@ export function createHouses(items,{kit=null,shadows=true}={}){
    for(const b of h.beds.filter(b=>!b.by))for(const side of b.sides){const pts=pathIn(h,side,b.up);if(pts)return {pts,act:{bed:b,side},take:q=>{b.by=q;}};}
    return null;}};}
  const sofa=(r,p,lejos)=>visita(r,p,lejos,0);
- return {group,houses,count:houses.length,tris:Math.round(tris),lights,floorAt,collide:collideAll,dentro,houseAt,updateDoors,setTrancadas:fn=>{trancadaFn=fn;},update,sofa,visita,
+ // las puertas cerca de (x, z, y) —las de la casa y el portón del garaje—, como world3d.puertasCerca (el portón ya choca
+ // en collideAll: choque false)
+ const ejeDe=(h,o)=>o.axis==='x'?[h.c,-h.s]:[h.s,h.c];
+ function puertasCerca(x,z,y,r=1.5){const out=[];
+  for(const d of doors){if(d.fija||Math.abs(d.cy-y)>1.6||Math.hypot(d.cx-x,d.cz-z)>r)continue;const [ex,ez]=ejeDe(d.h,d.o),w=d.o.w/2;
+   out.push({cx:d.cx,cz:d.cz,cy:d.cy,seg:[d.cx-ex*w,d.cz-ez*w,d.cx+ex*w,d.cz+ez*w],get a(){return d.a;},get abierta(){return !!d.mano;},alternar(){d.mano=!d.mano;},trancada:()=>!!trancadaFn?.(d.cx,d.cz,d.cy)});}
+  for(const g of garages){if(Math.abs(g.h.y-y)>1.6||Math.hypot(g.cx-x,g.cz-z)>r+1)continue;const [ex,ez]=ejeDe(g.h,g.o),w=g.o.w/2;
+   out.push({cx:g.cx,cz:g.cz,cy:g.h.y,seg:[g.cx-ex*w,g.cz-ez*w,g.cx+ex*w,g.cz+ez*w],choque:false,garaje:true,get a(){return g.a;},get abierta(){return !!g.mano;},alternar(){g.mano=!g.mano;},
+    trancada:()=>!!trancadaFn&&doors.some(d=>d.h===g.h&&!d.o.inner&&trancadaFn(d.cx,d.cz,d.cy))});}
+  return out;}
+ return {group,houses,count:houses.length,tris:Math.round(tris),lights,floorAt,collide:collideAll,dentro,houseAt,updateDoors,puertasCerca,setTrancadas:fn=>{trancadaFn=fn;},update,sofa,visita,
   setNight(on){glass.emissiveIntensity=on?.9:0;glass.opacity=on?.55:.22;for(const m of mats.vidrio||[]){m.emissiveIntensity=on?.9:0;m.opacity=on?.55:.22;}for(const m of mats.farol||[])m.emissiveIntensity=on?2.2:0;},
   dispose(){for(const o of own)o.dispose?.();}};
 }

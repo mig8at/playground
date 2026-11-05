@@ -14,8 +14,8 @@ import {join,dirname} from 'node:path';
 import {fileURLToPath} from 'node:url';
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),S=+(A[0]||1),OUT=A[1]||'/tmp',aqui=dirname(fileURLToPath(import.meta.url));
 const anda=u=>fetch(u).then(r=>r.ok).catch(()=>false);let base=process.argv.find(a=>a.startsWith('--base='))?.slice(7),propio=null;
-if(!base)base=await anda('http://localhost:5180/')?'http://localhost:5180':'';
-if(!base){propio=spawn(process.execPath,[join(aqui,'../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'..'),stdio:'ignore'});base='http://localhost:5199';for(let i=0;i<60&&!await anda(base+'/');i++)await new Promise(r=>setTimeout(r,500));}
+if(!base)base=await anda('http://localhost:5181/')?'http://localhost:5181':'';
+if(!base){propio=spawn(process.execPath,[join(aqui,'../../node_modules/vite/bin/vite.js'),'--port','5199','--strictPort'],{cwd:join(aqui,'../..'),stdio:'ignore'});base='http://localhost:5199';for(let i=0;i<60&&!await anda(base+'/');i++)await new Promise(r=>setTimeout(r,500));}
 const TARDA=1.5,GIRO=1.2;const fallas=[];const falla=(k,ej)=>fallas.push([k,ej]);
 const N=await abrirNavegador();
 try{const P=await N.abrir(`${base}/demo?jugadores=3&ciudad=${S}`);

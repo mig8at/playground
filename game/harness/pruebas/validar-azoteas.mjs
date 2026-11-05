@@ -7,10 +7,10 @@
 //    con medio metro de margen)— y cuánto duele. Se cuentan los techos con salida a otro sin morir y la red más grande.
 //    Falla si menos de MIN_SALIDA de los techos con escalera tiene salida a otro: la huida por los techos no existiría.
 // Uso: node scripts/validar-azoteas.mjs [ciudades=2] [semilla0=1]
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {alcanceSalto,danoDeCaida} from '../src/engine/juego/huida.js';
-import {CIRCULACION as C,VIDA,ALCANCE,MANSARDA} from '../src/engine/medidas.js';
-import {alturaMansarda} from '../src/engine/techos.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {alcanceSalto,danoDeCaida} from '../../src/engine/juego/huida.js';
+import {CIRCULACION as C,VIDA,ALCANCE,MANSARDA} from '../../src/engine/medidas.js';
+import {alturaMansarda} from '../../src/engine/techos.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),PISO=3,MARGEN=.5,HUECO_MAX=16,MIN_SALIDA=.5;
 const fallas=new Map();const falla=(k,ej)=>{const f=fallas.get(k)||fallas.set(k,{n:0,ej:[]}).get(k);f.n++;if(f.ej.length<3)f.ej.push(ej);};

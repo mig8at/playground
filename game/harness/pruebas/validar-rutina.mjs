@@ -16,10 +16,10 @@
 // Uso: node scripts/validar-rutina.mjs [ciudades=2] [semilla0=1]
 import {readFileSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
-import {generateBlueprint} from '../src/engine/blueprint.js';
-import {sociedadDe,dondeEsta,horarioDia} from '../src/engine/sociedad.js';
-import {curvas,indicadores,perdida} from '../src/engine/medirRutina.js';
-import {RELOJ} from '../src/engine/medidas.js';
+import {generateBlueprint} from '../../src/engine/blueprint.js';
+import {sociedadDe,dondeEsta,horarioDia} from '../../src/engine/sociedad.js';
+import {curvas,indicadores,perdida} from '../../src/engine/medirRutina.js';
+import {RELOJ} from '../../src/engine/medidas.js';
 
 const A=process.argv.slice(2).filter(a=>!a.startsWith('--')),N=+(A[0]||2),S0=+(A[1]||1),PERDIDAS_MAX=.01,IGUAL_MIN=.9;
 const O=JSON.parse(readFileSync(fileURLToPath(new URL('./datos/objetivos-rutina.json',import.meta.url)),'utf8')).metas;

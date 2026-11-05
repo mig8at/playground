@@ -7,7 +7,7 @@
 //   titulares de la ronda) y Equipo (los compañeros);
 // · policía: Avisos (los robos), Retratos (los sospechosos; «Difundir en las noticias» es lo que ve el ladrón), Censo
 //   (buscar a alguien por nombre: quién es, dónde vive) y Equipo (los compañeros y las patrullas).
-// · los dos: Mapa (2026-10-18, lo de /prototipo/menu con los datos de la partida: components/MapaJuego.vue), primero.
+// · los dos: Mapa (2026-10-18, lo del prototipo del menú —ya retirado— con los datos de la partida: components/MapaJuego.vue), primero.
 // Prototipo: los datos llegan por props (datos) y lo que hace el jugador sale por eventos (accion); el juego lo conecta
 // después. props: papel ('ladron' | 'policia'), datos, abierto. Emite cerrar y accion ({tipo, …}).
 import {ref,computed,watch} from 'vue';

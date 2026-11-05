@@ -1,4 +1,4 @@
-// Generado por scripts/medir-muebles.mjs (2026-10-17): por tipo de mueble del plano,
+// Generado por harness/pruebas/medir-muebles.mjs (2026-10-17): por tipo de mueble del plano,
 // lo que el plano reserva y lo que mide el modelo que lo dibuja, en milímetros (ancho a lo largo de la pared, fondo, alto).
 export const MUEBLES_MEDIDOS={
  "sofa": {
