@@ -2,7 +2,7 @@ package main
 
 /* ask: una META en lenguaje natural, y Claude maneja la sesión en vivo hasta cumplirla. Lanza Claude Code en
  * modo no interactivo (`claude -p`) desde una carpeta neutra —sin el CLAUDE.md del repo, sus hooks ni los MCP:
- * más barato y enfocado— con permiso SOLO para este mismo binario, Read (para mirar capturas) y grep/head. Las
+ * más barato y enfocado— con permiso SOLO para este mismo binario y Read (para mirar capturas). Las
  * instrucciones del ciclo y sus reglas están en ask.md.
  *
  * Mientras corre muestra cada comando y lo que va pensando; lo que hace se ve en vivo en el editor. Si termina
@@ -168,7 +168,8 @@ func runAsk(o askOpts) (askOutcome, error) {
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,
-		"--allowedTools", "Bash(" + self + ":*)", "Bash(" + self + " *)", "Read", "Bash(grep:*)", "Bash(head:*)",
+		// Sólo el navegador y Read (las capturas): sin grep ni head, la regla de «sin tuberías» se cumple sola.
+		"--allowedTools", "Bash(" + self + ":*)", "Bash(" + self + " *)", "Read",
 		"--setting-sources", "user", "--strict-mcp-config",
 	}
 	if o.model != "" {

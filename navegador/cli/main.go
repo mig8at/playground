@@ -17,7 +17,7 @@
 //	bin/navegador value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
 //	bin/navegador download <n|texto|url>         baja un enlace o la imagen que envuelve (a .data/descargas)
 //	bin/navegador images                         las imágenes visibles: tamaño, archivo y texto alternativo
-//	bin/navegador media                          si los videos/audios suenan, por dónde van y cuánto duran
+//	bin/navegador media [--afirmar]              si los videos/audios suenan; con --afirmar espera que avance y queda como aserción
 //	bin/navegador shot <archivo.png>             guarda lo que se ve ahora
 //	bin/navegador steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/navegador report [meta]                  el paso a paso con una foto por paso (md, html y script)
@@ -41,6 +41,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -51,6 +52,9 @@ var api = envOr("NAVEGADOR_API", "http://127.0.0.1:5203")
 // lookAll: mostrar también los enlaces del menú, el encabezado y el pie, que se repiten en cada página y por
 // defecto se resumen en una línea (cada look los repetía: tokens y lectura de más).
 var lookAll bool
+
+// lookQuery: look --buscar 'texto' muestra sólo los elementos cuyo nombre lo contiene.
+var lookQuery string
 
 func envOr(k, d string) string {
 	if v := os.Getenv(k); v != "" {
@@ -75,7 +79,17 @@ func main() {
 	case "open":
 		err = open(args)
 	case "look":
-		lookAll = len(args) > 0 && args[0] == "--todo"
+		for i := 0; i < len(args); i++ {
+			switch args[i] {
+			case "--todo":
+				lookAll = true
+			case "--buscar":
+				if i+1 < len(args) {
+					lookQuery = strings.Join(args[i+1:], " ")
+					i = len(args)
+				}
+			}
+		}
 		err = look(true)
 	case "click", "dblclick", "hover", "check", "uncheck":
 		err = act(cmd, args, false)
@@ -111,7 +125,14 @@ func main() {
 	case "download":
 		err = download(args)
 	case "media":
-		err = media()
+		if len(args) > 0 && args[0] == "--afirmar" {
+			var step struct{ Code, Note string }
+			if err = call(http.MethodPost, "/api/live/media-expect", nil, &step); err == nil {
+				fmt.Printf("✓ %s\n  %s\n", step.Code, step.Note)
+			}
+		} else {
+			err = media()
+		}
 	case "images":
 		err = images()
 	case "shot":
@@ -137,11 +158,11 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
-  sites · open <sitio|url> [url] · look [--todo] · close
+  sites · open <sitio|url> [url] · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · images · media [--afirmar] · shot <archivo.png>
   steps · script · report [meta] · reset
   ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)
@@ -199,6 +220,7 @@ type control struct {
 	Blocked  bool
 	Frame    string
 	Zone     string
+	Box      struct{ X, Y, W, H int }
 	AtEnd    *bool
 	Options  []struct{ Value, Label string }
 	Locators []struct {
@@ -225,6 +247,8 @@ type liveState struct {
 		OK          bool
 	}
 	Dialogs []string
+	Height  int
+	ScrollY float64
 }
 
 // La versión del último `look`, para que un número viejo no toque otro elemento.
@@ -365,16 +389,75 @@ func look(fresh bool) error {
 	for _, n := range st.Page.Notices {
 		fmt.Printf("aviso: %s\n", n)
 	}
-	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll", "file": "archivo", "drag": "arrastrable"}
-	hidden := 0
+
+	// Qué se muestra. En una página chica, todo (menos los enlaces del menú y el pie). En una grande (YouTube trae
+	// 140 elementos, 21 «Más acciones» con rutas CSS de 20 niveles) eso es caro de leer: primero lo que está en
+	// pantalla, los repetidos agrupados, con tope, y una línea que dice cuánto quedó afuera y cómo verlo.
+	var pool []control
+	navHidden := 0
 	for _, c := range st.Page.Controls {
-		if !lookAll && c.Kind == "link" && (c.Zone == "navigation" || c.Zone == "banner" || c.Zone == "contentinfo") {
-			hidden++
+		if !lookAll && lookQuery == "" && c.Kind == "link" && (c.Zone == "navigation" || c.Zone == "banner" || c.Zone == "contentinfo") {
+			navHidden++
 			continue
 		}
+		if lookQuery != "" && !strings.Contains(fold(c.Name), fold(lookQuery)) {
+			continue
+		}
+		pool = append(pool, c)
+	}
+	limit := 40
+	if lookAll {
+		limit = len(pool)
+	}
+	onScreen := func(c control) bool {
+		return float64(c.Box.Y+c.Box.H) > st.ScrollY && float64(c.Box.Y) < st.ScrollY+float64(st.Height)
+	}
+	// Los repetidos (mismo tipo y nombre) se muestran una vez, con sus números.
+	type group struct {
+		first control
+		nums  []int
+	}
+	var groups []*group
+	byKey := map[string]*group{}
+	for _, c := range pool {
+		key := c.Kind + "|" + c.Name
+		if g, ok := byKey[key]; ok && !lookAll && lookQuery == "" {
+			g.nums = append(g.nums, c.ID+1)
+			continue
+		}
+		g := &group{first: c, nums: []int{c.ID + 1}}
+		byKey[key] = g
+		groups = append(groups, g)
+	}
+	shown := groups
+	offScreen := 0
+	if len(groups) > limit {
+		// Primero los que se ven, después los demás, en el orden de la página; hasta el tope.
+		var vis, rest []*group
+		for _, g := range groups {
+			if onScreen(g.first) {
+				vis = append(vis, g)
+			} else {
+				rest = append(rest, g)
+			}
+		}
+		shown = append(vis, rest...)[:limit]
+		sort.Slice(shown, func(i, j int) bool { return shown[i].first.ID < shown[j].first.ID })
+		for _, g := range append(vis, rest...)[limit:] {
+			if !onScreen(g.first) {
+				offScreen++
+			}
+		}
+	}
+	kinds := map[string]string{"field": "campo", "select": "desplegable", "check": "casilla", "button": "botón", "link": "enlace", "scroll": "con scroll", "file": "archivo", "drag": "arrastrable"}
+	for _, g := range shown {
+		c := g.first
 		loc := "SIN LOCALIZADOR ÚNICO"
 		if c.Best >= 0 {
 			loc = c.Locators[c.Best].Code
+		}
+		if !lookAll && len([]rune(loc)) > 110 {
+			loc = trim(loc, 110) + "  (completo: look --todo)"
 		}
 		extra := ""
 		if c.Checked != nil {
@@ -392,6 +475,17 @@ func look(fresh bool) error {
 		if c.Frame != "" {
 			extra += " [en " + c.Frame + "]"
 		}
+		if len(g.nums) > 1 {
+			nums := []string{}
+			for i, n := range g.nums {
+				if i == 6 {
+					nums = append(nums, "…")
+					break
+				}
+				nums = append(nums, strconv.Itoa(n))
+			}
+			extra += fmt.Sprintf(" ×%d (números %s)", len(g.nums), strings.Join(nums, ", "))
+		}
 		fmt.Printf("%3d  %-11s «%s»%s\n       %s\n", c.ID+1, kinds[c.Kind], trim(c.Name, 60), extra, loc)
 		if len(c.Options) > 0 {
 			opts := []string{}
@@ -401,10 +495,22 @@ func look(fresh bool) error {
 			fmt.Printf("       opciones: %s\n", strings.Join(opts, " · "))
 		}
 	}
-	if hidden > 0 {
-		fmt.Printf("  (+%d enlaces del menú, el encabezado y el pie: look --todo)\n", hidden)
+	if len(shown) < len(groups) {
+		fmt.Printf("  (se muestran %d de %d · %d más abajo o arriba de la pantalla · look --buscar 'texto' para encontrar algo · look --todo para todo)\n", len(shown), len(groups), offScreen)
+	}
+	if navHidden > 0 {
+		fmt.Printf("  (+%d enlaces del menú, el encabezado y el pie: look --todo)\n", navHidden)
+	}
+	if lookQuery != "" && len(pool) == 0 {
+		fmt.Printf("  (nada se llama «%s»)\n", lookQuery)
 	}
 	return nil
+}
+
+// fold pasa a minúsculas y sin acentos, para buscar «Lose yourself» como «Lose Yourself».
+func fold(s string) string {
+	r := strings.NewReplacer("á", "a", "é", "e", "í", "i", "ó", "o", "ú", "u", "ü", "u", "ñ", "n")
+	return r.Replace(strings.ToLower(s))
 }
 
 func act(action string, args []string, needsValue bool) error {

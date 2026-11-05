@@ -10,6 +10,15 @@ const expect = (loc) => ({
   toBeVisible: () => loc.waitFor({ state: 'visible', timeout: 15000 }),
   toHaveValue: async (v) => { const got = await loc.inputValue(); if (got !== v) throw new Error(`toHaveValue: tiene «${got}», se esperaba «${v}»`) },
 })
+// expect.poll(fn, { timeout }).toBe(v): repite fn hasta que dé v.
+expect.poll = (fn, opts = {}) => ({
+  toBe: async (v) => {
+    const end = Date.now() + (opts.timeout || 5000)
+    let last
+    while (Date.now() < end) { last = await fn(); if (last === v) return; await new Promise((r) => setTimeout(r, 300)) }
+    throw new Error(`expect.poll: dio ${last}, se esperaba ${v}`)
+  },
+})
 const lineas = body.split('\n').filter((l) => l.trim().startsWith('await ')).length
 ;(async () => {
   const browser = await chromium.launch()

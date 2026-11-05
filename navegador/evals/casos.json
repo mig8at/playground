@@ -85,7 +85,8 @@
       "espera": [
         "LISTO"
       ],
-      "externo": true
+      "externo": true,
+      "repetir": true
     }
   ]
 }

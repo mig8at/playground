@@ -458,6 +458,16 @@ func handler(store *Store, runner *Runner) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, m)
 	})
+	// POST /api/live/media?segundos=15 — espera a que el video suene de verdad y queda como aserción.
+	mux.HandleFunc("/api/live/media-expect", func(w http.ResponseWriter, r *http.Request) {
+		secs, _ := strconv.ParseFloat(r.URL.Query().Get("segundos"), 64)
+		step, err := runner.LiveMediaExpect(secs)
+		if err != nil {
+			writeJSON(w, http.StatusUnprocessableEntity, map[string]any{"error": err.Error(), "step": step})
+			return
+		}
+		writeJSON(w, http.StatusOK, step)
+	})
 	// GET /api/live/media — el estado de los videos y audios de la página.
 	mux.HandleFunc("/api/live/media", func(w http.ResponseWriter, r *http.Request) {
 		m, err := runner.LiveMedia()

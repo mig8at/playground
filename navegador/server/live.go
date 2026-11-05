@@ -84,6 +84,7 @@ type LiveState struct {
 	Page      *Page    `json:"page,omitempty"`
 	Steps     []Step   `json:"steps"`
 	Dialogs   []string `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
+	ScrollY   float64  `json:"scrollY"`        // dónde está la pantalla: el look muestra primero lo que se ve
 	Dismiss   bool     `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
 }
 
@@ -412,12 +413,16 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 		_, _ = r.liveAnalyze(l)
 	}
 	title, _ := l.page.Title()
+	scrollY := 0.0
+	if v, err := l.page.Evaluate("() => scrollY"); err == nil {
+		scrollY, _ = toFloat(v)
+	}
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
 		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h,
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
-		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs,
+		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
 }
 
@@ -1179,4 +1184,49 @@ func (r *Runner) LiveImages() (any, error) {
 		try { file = decodeURIComponent(new URL(img.currentSrc || img.src).pathname.split('/').pop()) } catch {}
 		return { alt: img.alt, ancho: Math.round(r.width), alto: Math.round(r.height), archivo: file, visible: r.width > 1 && r.height > 1 && img.checkVisibility() }
 	}).filter((i) => i.visible && i.ancho * i.alto >= 400).sort((a, b) => b.ancho * b.alto - a.ancho * a.alto).slice(0, 40)`)
+}
+
+// LiveMediaExpect espera a que el primer video (o audio) de la página esté sonando DE VERDAD —que el tiempo
+// avance, no sólo que no esté en pausa— y lo deja como aserción del script. Es la prueba de «se reproduce».
+func (r *Runner) LiveMediaExpect(seconds float64) (Step, error) {
+	l := r.liveSession()
+	if l == nil {
+		return Step{}, errors.New("no hay sesión en vivo")
+	}
+	if seconds <= 0 {
+		seconds = 15
+	}
+	read := func() (playing bool, t float64, found bool) {
+		v, err := l.page.Evaluate(`() => { const m = document.querySelector('video, audio'); return m ? [!m.paused && !m.ended, m.currentTime] : null }`)
+		if err != nil || v == nil {
+			return false, 0, false
+		}
+		arr, ok := v.([]any)
+		if !ok || len(arr) != 2 {
+			return false, 0, false
+		}
+		p, _ := arr[0].(bool)
+		t, _ = toFloat(arr[1])
+		return p, t, true
+	}
+	code := fmt.Sprintf("expect.poll(() => page.locator('video, audio').first().evaluate((m) => !m.paused && m.currentTime > 1), { timeout: %d }).toBe(true)", int(seconds*1000))
+	deadline := time.Now().Add(time.Duration(seconds * float64(time.Second)))
+	_, start, found := read()
+	for time.Now().Before(deadline) {
+		playing, t, ok := read()
+		found = found || ok
+		if playing && t > 1 && t > start+0.9 {
+			step := Step{Code: code, Target: "video", OK: true, Note: fmt.Sprintf("sonando: pasó de %.1f s a %.1f s", start, t)}
+			r.recordStep(l, step)
+			return step, nil
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+	why := "no hay ningún video ni audio en la página"
+	if found {
+		why = fmt.Sprintf("el video no avanzó en %.0f s (pausado, con un anuncio, o cargando)", seconds)
+	}
+	step := Step{Code: code, Target: "video", OK: false, Error: why}
+	r.recordStep(l, step)
+	return step, errors.New(why)
 }

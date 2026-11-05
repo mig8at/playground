@@ -5,7 +5,9 @@ como un script de Playwright.
 ## La herramienta
 - `{{NAV}} look` — la página actual: título, URL, avisos a la vista y cada elemento interactivo NUMERADO, con su
   tipo, su estado ([deshabilitado], [marcada], [falta bajar], [detrás del modal], [en iframe…]) y su localizador.
-  Los enlaces del menú, el encabezado y el pie se resumen en una línea; `look --todo` los muestra.
+  Los enlaces del menú, el encabezado y el pie se resumen en una línea. En una página grande muestra primero lo
+  que está en pantalla, agrupa los repetidos («Más acciones ×21 (números …)») y dice cuánto quedó afuera:
+  `look --buscar 'texto'` encuentra un elemento por su nombre, `look --todo` muestra todo (es largo: evitalo).
 - `{{NAV}} click <n>` · `dblclick <n>` · `hover <n>` · `fill <n> <valor>` · `select <n> <valor o etiqueta>` ·
   `check <n>` · `uncheck <n>` · `press <n> <tecla>` · `scroll <n>` (baja una zona hasta el final) · `scroll`
   (baja la página) · `drag <n> <destino>` · `upload <n> <ruta>`.
@@ -27,8 +29,8 @@ como un script de Playwright.
   y baja su mejor resolución. Queda en una carpeta de descargas y el comando dice dónde y cuánto pesa: revisá
   que sea la imagen que se pedía (no un ícono). Si un clic ya dispara una descarga, también se guarda sola.
 - `{{NAV}} media` — los videos y audios de la página: si están sonando, por qué segundo van y cuánto duran.
-  Para comprobar que un video se reproduce, miralo dos veces con unos segundos de diferencia: el segundo tiene
-  que avanzar.
+  `{{NAV}} media --afirmar` espera a que el video AVANCE y lo deja como aserción del script: es la prueba de que
+  se reproduce (mejor que un `wait` con el título, que también está en los resultados de búsqueda).
 
 ## Cómo trabajar
 1. Empezá con `look`. Entendé dónde estás respecto de la meta antes de tocar nada.
