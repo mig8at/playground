@@ -231,14 +231,18 @@ func (t *tap) drain() ([]Request, []string) {
 
 var authPath = regexp.MustCompile(`(?i)/(login|log-in|signin|sign-in|auth|sso|oauth|ingresar|iniciar-sesion)\b`)
 
-// analyze describe la página como está AHORA y la guarda en el mapa.
-func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string, status, depth int, source string) (*Page, error) {
+// analyze describe la página como está AHORA y la guarda en el mapa. `parent` es la página desde la que se
+// llegó: con eso se arma el árbol de navegación.
+func (r *Runner) analyze(site Site, p playwright.Page, t *tap, requested string, status, depth int, source, parent string) (*Page, error) {
 	final := p.URL()
 	page := &Page{
 		URL: NormalizeURL(final), FinalURL: final, Status: status, Depth: depth, Source: source, At: time.Now(),
-		Landmarks: map[string]int{},
+		Landmarks: map[string]int{}, Parent: parent,
 	}
 	page.ID = PageID(page.URL)
+	if page.Parent == page.ID {
+		page.Parent = ""
+	}
 	if requested != "" && NormalizeURL(requested) != page.URL && authPath.MatchString(final) {
 		page.AuthWall = true
 	}
@@ -379,8 +383,20 @@ func (r *Runner) browse(ctx context.Context, site Site, start string) error {
 				if u == lastURL[p] || !strings.HasPrefix(u, "http") {
 					continue
 				}
+				parent := ""
+				if prev, ok := lastURL[p]; ok {
+					parent = PageID(prev)
+				}
 				lastURL[p] = u
-				pg, err := r.analyze(site, p, t, "", 0, 0, "manual")
+				// Una página que ya tiene lugar en el árbol (la encontró el recorrido) lo conserva: el orden en que
+				// la visitás a mano es tuyo, no del sitio.
+				depth := 0
+				if old := r.store.Page(site.Slug, PageID(u)); old != nil && (old.Parent != "" || old.Depth == 0) {
+					parent, depth = old.Parent, old.Depth
+				} else if pp := r.store.Page(site.Slug, parent); pp != nil {
+					depth = pp.Depth + 1
+				}
+				pg, err := r.analyze(site, p, t, "", 0, depth, "manual", parent)
 				if err != nil {
 					r.say("error", "%s: %v", u, err)
 					continue
@@ -405,19 +421,27 @@ type ExploreOptions struct {
 	Start string `json:"start"`
 }
 
+// MaxPagesCap es el tope duro: un sitio con páginas generadas (filtros, paginación, calendarios) no termina nunca.
+const MaxPagesCap = 2000
+
+// Depth 0 es sin límite de niveles: sigue hasta que no queden páginas nuevas (o se llegue a Max).
 func (o *ExploreOptions) defaults() {
 	if o.Max <= 0 {
-		o.Max = 40
+		o.Max = 300
 	}
-	if o.Max > 500 {
-		o.Max = 500
+	if o.Max > MaxPagesCap {
+		o.Max = MaxPagesCap
 	}
 	if o.Depth < 0 {
 		o.Depth = 0
 	}
+}
+
+func (o ExploreOptions) depthLabel() string {
 	if o.Depth == 0 {
-		o.Depth = 3
+		return "sin límite de niveles"
 	}
+	return fmt.Sprintf("%d niveles", o.Depth)
 }
 
 func (r *Runner) Explore(slug string, opts ExploreOptions) error {
@@ -480,17 +504,35 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 		start = site.URL
 	}
 	type item struct {
-		url   string
-		depth int
+		url    string
+		depth  int
+		parent string
 	}
-	queue := []item{{start, 0}}
+	queue := []item{{start, 0, ""}}
 	seen := map[string]bool{NormalizeURL(start): true}
-	r.say("info", "explorando %s · hasta %d páginas, %d niveles · sólo enlaces de %s", start, opts.Max, opts.Depth, site.Host)
+	r.say("info", "explorando %s · hasta %d páginas, %s · sólo enlaces de %s", start, opts.Max, opts.depthLabel(), site.Host)
+	run := Run{Started: time.Now(), Max: opts.Max, Depth: opts.Depth}
+	// Al terminar, por la razón que sea, queda escrito cuántas se visitaron y cuáles quedaron en la cola: eso es
+	// lo que hace honesto el conteo del sitio (visitadas + pendientes).
+	defer func() {
+		run.Finished = time.Now()
+		for _, it := range queue {
+			if len(run.Pending) >= MaxPagesCap {
+				break
+			}
+			run.Pending = append(run.Pending, PendingLink{URL: it.url, Parent: it.parent, Depth: it.depth})
+		}
+		run.Queued = len(queue)
+		if err := r.store.SaveRun(site.Slug, run); err != nil {
+			r.say("error", "guardar el resumen: %v", err)
+		}
+	}()
 
 	done, walls := 0, 0
 	for len(queue) > 0 && done < opts.Max {
 		if ctx.Err() != nil {
-			r.say("warn", "parado a pedido · %d páginas", done)
+			r.say("warn", "parado a pedido · %d páginas analizadas, %d en la cola", done, len(queue))
+			run.Stopped = true
 			return nil
 		}
 		it := queue[0]
@@ -503,17 +545,19 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 		}
 		if err != nil {
 			r.say("warn", "%s · no cargó: %v", shortURL(it.url), firstLine(err.Error()))
-			_ = r.store.PutPage(site.Slug, &Page{ID: PageID(NormalizeURL(it.url)), URL: NormalizeURL(it.url), Depth: it.depth, Source: "explore", At: time.Now(), Error: firstLine(err.Error())})
+			_ = r.store.PutPage(site.Slug, &Page{ID: PageID(NormalizeURL(it.url)), URL: NormalizeURL(it.url), Depth: it.depth, Parent: it.parent, Source: "explore", At: time.Now(), Error: firstLine(err.Error())})
 			done++
+			run.Visited = done
 			continue
 		}
 		settle(page)
-		pg, err := r.analyze(site, page, t, it.url, status, it.depth, "explore")
+		pg, err := r.analyze(site, page, t, it.url, status, it.depth, "explore", it.parent)
 		if err != nil {
 			r.say("error", "%s: %v", shortURL(it.url), err)
 			continue
 		}
 		done++
+		run.Visited = done
 		kind := "ok"
 		if status >= 400 || pg.Error != "" {
 			kind = "warn"
@@ -522,13 +566,14 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 			kind = "warn"
 			walls++
 		}
-		r.say(kind, "%d/%d %s · %s", done, opts.Max, shortURL(pg.URL), describe(pg))
+		r.say(kind, "%d/%d %s · %s · %d en la cola", done, opts.Max, shortURL(pg.URL), describe(pg), len(queue))
 		if pg.AuthWall && done == 1 {
-			r.say("error", "la entrada redirige al login: no hay sesión. Abrí la ventana (Navegar), logueate y volvé a explorar.")
+			r.say("error", "la entrada redirige al login: no hay sesión. Abrí la ventana, logueate a mano y volvé a explorar.")
+			run.AuthWall = true
 			return nil
 		}
 		// Si mandó al login no se siguen sus enlaces: serían los del formulario de ingreso.
-		if it.depth >= opts.Depth || pg.AuthWall {
+		if (opts.Depth > 0 && it.depth >= opts.Depth) || pg.AuthWall {
 			continue
 		}
 		for _, l := range pg.Links {
@@ -544,7 +589,7 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 				continue
 			}
 			seen[n] = true
-			queue = append(queue, item{n, it.depth + 1})
+			queue = append(queue, item{n, it.depth + 1, pg.ID})
 		}
 		select {
 		case <-ctx.Done():
@@ -553,7 +598,9 @@ func (r *Runner) explore(ctx context.Context, site Site, opts ExploreOptions) er
 	}
 	msg := fmt.Sprintf("listo · %d páginas analizadas", done)
 	if len(queue) > 0 {
-		msg += fmt.Sprintf(", %d enlaces quedaron en la cola (subí el máximo para seguir)", len(queue))
+		msg += fmt.Sprintf(", %d quedaron en la cola sin visitar (subí el máximo para seguir)", len(queue))
+	} else {
+		msg += " · no quedan enlaces nuevos: es el sitio entero alcanzable desde la entrada"
 	}
 	if walls > 0 {
 		msg += fmt.Sprintf(" · ⚠ %d mandaron al login: la sesión pudo vencer", walls)

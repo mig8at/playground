@@ -79,6 +79,7 @@ type Page struct {
 	Lang      string         `json:"lang"`
 	Status    int            `json:"status"`
 	Depth     int            `json:"depth"`
+	Parent    string         `json:"parent"` // id de la página desde la que se llegó (vacío: la entrada)
 	Source    string         `json:"source"` // manual · explore
 	At        time.Time      `json:"at"`
 	Stack     []string       `json:"stack"`
@@ -92,6 +93,61 @@ type Page struct {
 	Shot      bool           `json:"shot"`
 	AuthWall  bool           `json:"authWall"`
 	Error     string         `json:"error,omitempty"`
+}
+
+// PendingLink es un enlace que el recorrido encontró y no llegó a visitar.
+type PendingLink struct {
+	URL    string `json:"url"`
+	Parent string `json:"parent"`
+	Depth  int    `json:"depth"`
+}
+
+// Run es el resumen del último recorrido: sin esto, «40 páginas» no dice si el sitio tiene 40 o 4.000.
+type Run struct {
+	Started  time.Time     `json:"started"`
+	Finished time.Time     `json:"finished"`
+	Max      int           `json:"max"`
+	Depth    int           `json:"depth"`
+	Visited  int           `json:"visited"`
+	Queued   int           `json:"queued"`
+	Stopped  bool          `json:"stopped"`
+	AuthWall bool          `json:"authWall"`
+	Pending  []PendingLink `json:"pending"`
+}
+
+func (s *Store) SaveRun(slug string, run Run) error {
+	return writeJSONFile(filepath.Join(s.siteDir(slug), "run.json"), run)
+}
+
+// LastRun devuelve el último recorrido, o nil si nunca se exploró.
+func (s *Store) LastRun(slug string) *Run {
+	b, err := os.ReadFile(filepath.Join(s.siteDir(slug), "run.json"))
+	if err != nil {
+		return nil
+	}
+	var run Run
+	if json.Unmarshal(b, &run) != nil {
+		return nil
+	}
+	return &run
+}
+
+// Page devuelve una página del mapa, o nil.
+func (s *Store) Page(slug, id string) *Page {
+	if id == "" {
+		return nil
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	m, err := s.loadPagesLocked(slug)
+	if err != nil {
+		return nil
+	}
+	if p, ok := m[id]; ok {
+		cp := *p
+		return &cp
+	}
+	return nil
 }
 
 // Store guarda sitios y mapas en disco. Un solo candado para todo: las escrituras son pocas y chicas.
@@ -200,6 +256,7 @@ type SiteSummary struct {
 	Pages      int       `json:"pages"`
 	HasSession bool      `json:"hasSession"` // el perfil tiene cookies: NO prueba que haya un login vigente
 	LastAt     time.Time `json:"lastAt"`
+	Queued     int       `json:"queued"` // lo que el último recorrido dejó en la cola sin visitar
 }
 
 func (s *Store) Sites() []SiteSummary {
@@ -218,6 +275,9 @@ func (s *Store) Sites() []SiteSummary {
 		}
 		_, err := os.Stat(filepath.Join(s.ProfileDir(x.Slug), "Default", "Cookies"))
 		row.HasSession = err == nil
+		if run := s.LastRun(x.Slug); run != nil {
+			row.Queued = run.Queued
+		}
 		out = append(out, row)
 	}
 	return out
@@ -278,6 +338,7 @@ func (s *Store) ClearPages(slug string) error {
 	defer s.mu.Unlock()
 	s.pages[slug] = map[string]*Page{}
 	_ = os.RemoveAll(filepath.Join(s.siteDir(slug), "shots"))
+	_ = os.Remove(filepath.Join(s.siteDir(slug), "run.json"))
 	return s.savePagesLocked(slug, s.pages[slug])
 }
 

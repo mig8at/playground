@@ -48,6 +48,9 @@ async function addSite() {
     newURL.value = ''
     await loadSites()
     pickSite(site.slug)
+    // Al agregarlo arranca solo: enlace por enlace hasta que no queden páginas nuevas. Si pide login, el
+    // recorrido lo detecta en la entrada y avisa que hay que abrir la ventana.
+    run('explore')
   } catch (e) {
     sitesError.value = e.message
   } finally {
@@ -69,14 +72,15 @@ const site = computed(() => sites.value.find((s) => s.slug === siteSlug.value))
 
 // ── el mapa del sitio ──
 const pages = ref([])
+const lastRun = ref(null)
 const pagesError = ref('')
 const filter = ref('')
 async function loadPages() {
-  if (!siteSlug.value) { pages.value = []; return }
+  if (!siteSlug.value) { pages.value = []; lastRun.value = null; return }
   const slug = siteSlug.value
   try {
     const body = await api(`/api/pages?site=${encodeURIComponent(slug)}`)
-    if (slug === siteSlug.value) { pages.value = body; pagesError.value = '' }
+    if (slug === siteSlug.value) { pages.value = body.pages || []; lastRun.value = body.run; pagesError.value = '' }
   } catch (e) {
     pagesError.value = e.message
   }
@@ -87,6 +91,57 @@ const shownPages = computed(() => {
   return pages.value.filter((p) => (p.url + ' ' + p.title + ' ' + (p.stack || []).join(' ')).toLowerCase().includes(q))
 })
 const page = computed(() => pages.value.find((p) => p.id === pageId.value))
+
+// ── el árbol de navegación: cada página cuelga de la página desde la que se llegó a ella por primera vez ──
+// El recorrido va a lo ancho, así que la rama de una página es el camino MÁS CORTO desde la entrada.
+const mode = ref(readPref('navegador.mode', 'tree'))
+watch(mode, (v) => savePref('navegador.mode', v))
+const collapsed = ref(new Set())
+function toggleNode(id) {
+  const next = new Set(collapsed.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  collapsed.value = next
+}
+const treeRows = computed(() => {
+  const byId = new Map(pages.value.map((p) => [p.id, p]))
+  const kids = new Map()
+  const roots = []
+  const add = (parent, node) => {
+    if (parent && byId.has(parent)) {
+      if (!kids.has(parent)) kids.set(parent, [])
+      kids.get(parent).push(node)
+    } else roots.push(node)
+  }
+  for (const p of pages.value) add(p.parent, { id: p.id, url: p.url, page: p })
+  for (const [i, l] of (lastRun.value?.pending || []).entries()) add(l.parent, { id: `pending-${i}`, url: l.url, pending: true })
+  const order = (a, b) => (a.pending - b.pending) || a.url.localeCompare(b.url)
+  roots.sort((a, b) => (a.page?.depth ?? 99) - (b.page?.depth ?? 99) || order(a, b))
+  const q = filter.value.trim().toLowerCase()
+  const match = (n) => !q || (n.url + ' ' + (n.page?.title || '')).toLowerCase().includes(q)
+  // Con filtro se muestran las coincidencias y sus ancestros, para no perder el camino.
+  const keep = new Map()
+  const mark = (n) => {
+    if (keep.has(n.id)) return keep.get(n.id)
+    keep.set(n.id, false) // corta un ciclo, si lo hubiera
+    const hit = match(n) | (kids.get(n.id) || []).reduce((acc, k) => mark(k) | acc, 0)
+    keep.set(n.id, !!hit)
+    return !!hit
+  }
+  roots.forEach(mark)
+  const out = []
+  const seen = new Set()
+  const walk = (n, level) => {
+    if (seen.has(n.id) || !keep.get(n.id)) return
+    seen.add(n.id)
+    const children = (kids.get(n.id) || []).sort(order)
+    out.push({ ...n, level, children: children.length, pendingKids: children.filter((c) => c.pending).length })
+    if (!collapsed.value.has(n.id) || q) children.forEach((c) => walk(c, level + 1))
+  }
+  roots.forEach((r) => walk(r, 0))
+  return out
+})
+// Lo que el sitio tiene de verdad hasta donde se sabe: lo visitado más lo que quedó en la cola.
+const totals = computed(() => ({ visited: pages.value.length, pending: lastRun.value?.queued || 0 }))
 function pickPage(id) { pageId.value = id; auxOpen.value = true; saveSize('navegador.aux-open', 1) }
 async function clearPages() {
   if (!site.value || !confirm(`¿Vaciar el mapa de ${site.value.name}? La sesión se conserva.`)) return
@@ -112,10 +167,10 @@ const summary = computed(() => {
 const state = ref({ busy: false, log: [] })
 const log = ref([])
 const runError = ref('')
-const maxPages = ref(readPref('navegador.max', 40))
-const maxDepth = ref(readPref('navegador.depth', 3))
-watch(maxPages, (v) => savePref('navegador.max', v))
-watch(maxDepth, (v) => savePref('navegador.depth', v))
+const maxPages = ref(readPref('navegador.max-pages', 300))
+const maxDepth = ref(readPref('navegador.levels', '')) // vacío: sin límite, hasta que no queden páginas nuevas
+watch(maxPages, (v) => savePref('navegador.max-pages', v))
+watch(maxDepth, (v) => savePref('navegador.levels', v))
 let lastSeq = 0
 let pollTimer = null
 async function poll() {
@@ -128,6 +183,7 @@ async function poll() {
       log.value = [...log.value, ...st.log].slice(-600)
       lastSeq = st.lastSeq
       if (st.site === siteSlug.value) loadPages()
+      loadSites()
     }
     if (wasBusy && !st.busy) loadSites()
   } catch { /* la API se cae al reiniciar: se reintenta */ }
@@ -140,7 +196,7 @@ async function run(kind, start = '') {
   try {
     const q = `site=${encodeURIComponent(siteSlug.value)}${start ? `&start=${encodeURIComponent(start)}` : ''}`
     if (kind === 'browse') await api(`/api/browse?${q}`, { method: 'POST' })
-    else await api(`/api/explore?${q}`, { method: 'POST', body: JSON.stringify({ max: Number(maxPages.value), depth: Number(maxDepth.value), start }) })
+    else await api(`/api/explore?${q}`, { method: 'POST', body: JSON.stringify({ max: Number(maxPages.value) || 0, depth: Number(maxDepth.value) || 0, start }) })
     poll()
   } catch (e) {
     runError.value = e.message
@@ -298,7 +354,9 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span>{{ site ? site.name : 'Mapa' }}</span>
-        <span v-if="site" class="count">{{ filter ? `${shownPages.length} / ${pages.length}` : pages.length }}</span>
+        <span v-if="site" class="count" :title="totals.pending ? `${totals.visited} visitadas y ${totals.pending} encontradas sin visitar` : `${totals.visited} páginas`">
+          {{ filter && mode === 'list' ? `${shownPages.length} / ${pages.length}` : totals.pending ? `${totals.visited} + ${totals.pending}` : totals.visited }}
+        </span>
         <div v-if="site" class="region-actions">
           <button type="button" class="region-action" :disabled="state.busy" title="Abrir la ventana: loguearte a mano y navegar (cada página entra al mapa)"
             aria-label="Abrir la ventana" @click="run('browse')">
@@ -315,12 +373,16 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div v-if="site" class="subband">
+        <div class="toggle-group" role="group" aria-label="Vista del mapa">
+          <button type="button" class="toggle toggle-xs" :aria-pressed="mode === 'tree'" @click="mode = 'tree'">Árbol</button>
+          <button type="button" class="toggle toggle-xs" :aria-pressed="mode === 'list'" @click="mode = 'list'">Lista</button>
+        </div>
         <span class="input-group input-group-xs grow">
           <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
           <input v-model="filter" class="input input-xs" placeholder="Filtrar por ruta, título o stack" aria-label="Filtrar páginas" />
         </span>
-        <label class="knob">Páginas <input v-model="maxPages" class="input input-xs num-input" type="number" min="1" max="500" /></label>
-        <label class="knob">Niveles <input v-model="maxDepth" class="input input-xs num-input" type="number" min="1" max="10" /></label>
+        <label class="knob" title="Tope de páginas por recorrido (2000 como mucho)">Páginas <input v-model="maxPages" class="input input-xs num-input" type="number" min="1" max="2000" /></label>
+        <label class="knob" title="Clics desde la entrada. Vacío: sin límite, hasta que no queden páginas nuevas">Niveles <input v-model="maxDepth" class="input input-xs num-input" type="number" min="1" max="50" placeholder="todos" /></label>
       </div>
       <div class="region-body">
         <div v-if="runError" class="alert alert-destructive" role="alert">
@@ -343,11 +405,35 @@ onBeforeUnmount(() => {
         </div>
         <template v-else>
           <p class="none">
+            <template v-if="lastRun && !state.busy">
+              <template v-if="lastRun.authWall"><span class="bad">La entrada mandó al login: abrí la ventana y logueate.</span> · </template>
+              <template v-else-if="lastRun.queued">{{ lastRun.queued }} enlaces sin visitar (llegó al tope{{ lastRun.stopped ? ' o se paró' : '' }}) · </template>
+              <template v-else>Sitio completo: no quedan enlaces nuevos desde la entrada · </template>
+            </template>
             <template v-if="summary.stack.length">Hecho con {{ summary.stack.join(' · ') }} · </template>
             {{ summary.calls }} llamadas a backends · {{ summary.errors }} errores de consola
             <span v-if="summary.walls" class="bad"> · {{ summary.walls }} páginas mandaron al login</span>
           </p>
-          <table class="table">
+          <div v-if="mode === 'tree'" class="tree" role="tree">
+            <div v-for="n in treeRows" :key="n.id" class="row tree-row" role="treeitem"
+              :class="{ on: n.id === pageId, pending: n.pending }" :aria-expanded="n.children ? !collapsed.has(n.id) : undefined"
+              :style="{ paddingLeft: `calc(var(--gutter) + ${n.level} * var(--indent))` }"
+              :title="n.pending ? `${n.url} · encontrada, sin visitar` : n.url"
+              @click="n.pending ? null : pickPage(n.id)">
+              <button v-if="n.children" type="button" class="twisty" :class="{ closed: collapsed.has(n.id) }"
+                :aria-label="collapsed.has(n.id) ? 'Desplegar' : 'Plegar'" @click.stop="toggleNode(n.id)">
+                <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+              </button>
+              <div v-else class="twisty"></div>
+              <code class="node-path">{{ path(n.url) }}</code>
+              <span class="node-title">{{ n.pending ? 'sin visitar' : n.page.title || n.page.error || '' }}</span>
+              <span v-if="n.page?.authWall" class="badge badge-outline badge-xs bad">login</span>
+              <span v-else-if="n.page?.status >= 300" class="badge badge-outline badge-xs" :class="statusClass(n.page.status)">{{ n.page.status }}</span>
+              <span v-if="n.page?.forms?.length" class="badge badge-ghost badge-xs" title="Formularios">{{ n.page.forms.length }} form.</span>
+              <span v-if="n.children" class="count" :title="`${n.children} páginas cuelgan de esta${n.pendingKids ? `, ${n.pendingKids} sin visitar` : ''}`">{{ n.children }}</span>
+            </div>
+          </div>
+          <table v-else class="table">
             <thead><tr><th>Ruta</th><th>Título</th><th class="num">Estado</th><th class="num">Form.</th><th class="num">Llam.</th><th class="num">Err.</th><th>Vía</th></tr></thead>
             <tbody>
               <tr v-for="p in shownPages" :key="p.id" :class="{ on: p.id === pageId }" class="clickable" tabindex="0"
@@ -512,6 +598,15 @@ onBeforeUnmount(() => {
 .num-input { width: 56px }
 .alert { margin: var(--space-2) var(--gutter) }
 .empty-content { display: flex; gap: var(--space-2) }
+.tree { padding-bottom: var(--space-2) }
+.tree-row { display: flex; justify-content: flex-start; align-items: center; gap: var(--space-2); cursor: pointer; min-width: 0 }
+.tree-row.pending { cursor: default; color: var(--fg-3) }
+.tree-row > .twisty { flex: none; width: var(--icon-size); height: var(--icon-size); display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; border: 0; background: none; color: var(--fg-2); cursor: pointer }
+.twisty .ui-icon { transform: rotate(90deg); transition: transform .12s }
+.twisty.closed .ui-icon { transform: none }
+.tree-row > .node-path { flex: none; max-width: 50%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.tree-row > .node-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-3); font-size: var(--text-sm) }
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .route code { display: block; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .title { min-width: 160px }

@@ -6,7 +6,7 @@
 //	go run ./navegador/server -serve 127.0.0.1:5203                 la API de la interfaz (make navegador)
 //	go run ./navegador/server -add https://sitio.com                da de alta un sitio
 //	go run ./navegador/server -browse <sitio>                       abre la ventana para loguearte y navegar
-//	go run ./navegador/server -explore <sitio> [-max 40 -depth 3]   recorre sin ventana con la sesión guardada
+//	go run ./navegador/server -explore <sitio> [-max 300 -depth 0]  recorre sin ventana con la sesión guardada (0: sin límite de niveles)
 //	go run ./navegador/server -sites                                lista los sitios, en JSON
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
@@ -35,8 +35,8 @@ func main() {
 	name := flag.String("name", "", "con -add: el nombre a mostrar")
 	browse := flag.String("browse", "", "abre la ventana visible en ese sitio (login manual y navegación)")
 	explore := flag.String("explore", "", "recorre ese sitio sin ventana, con la sesión guardada")
-	max := flag.Int("max", 40, "con -explore: cuántas páginas como mucho")
-	depth := flag.Int("depth", 3, "con -explore: cuántos clics desde la entrada")
+	max := flag.Int("max", 300, "con -explore: cuántas páginas como mucho (tope 2000)")
+	depth := flag.Int("depth", 0, "con -explore: cuántos clics desde la entrada (0: sin límite)")
 	start := flag.String("start", "", "con -browse o -explore: arrancar en esta URL en vez de la entrada del sitio")
 	sites := flag.Bool("sites", false, "lista los sitios")
 	flag.Parse()
@@ -211,7 +211,7 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeErr(w, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, pages)
+		writeJSON(w, http.StatusOK, map[string]any{"pages": pages, "run": store.LastRun(slug)})
 	})
 	// GET /api/shot?site=…&id=… — la captura de una página.
 	mux.HandleFunc("/api/shot", func(w http.ResponseWriter, r *http.Request) {
