@@ -23,12 +23,13 @@ function parseRoute() {
   const p = readHashRoute().parts
   if (p[0] === 'corrida' && p[1]) return { kind: 'run', id: p[1] }
   if (p[0] === 'flujo' && p[1] && p[2]) return { kind: 'flow', app: p[1], id: p[2] }
+  if (p[0] === 'proyecto' && p[1]) return { kind: 'project', app: p[1] }
   return { kind: 'live' }
 }
 view.value = parseRoute()
 function go(v) {
   view.value = v
-  const parts = v.kind === 'run' ? ['corrida', v.id] : v.kind === 'flow' ? ['flujo', v.app, v.id] : []
+  const parts = v.kind === 'run' ? ['corrida', v.id] : v.kind === 'flow' ? ['flujo', v.app, v.id] : v.kind === 'project' ? ['proyecto', v.app] : []
   setRoute(hashRoute(parts), { push: true })
 }
 const onHashChange = () => { view.value = parseRoute() }
@@ -260,8 +261,6 @@ async function deleteFlow() {
 const stopsCount = computed(() => flowSteps.value.filter((s) => s.pausa).length)
 
 // ── la barra lateral ──
-const sideTab = ref(readPref('navegador.lado', 'flows'))
-watch(sideTab, (v) => savePref('navegador.lado', v))
 const appName = (id) => apps.value.find((a) => a.id === id)?.nombre || id
 // Los proyectos: cada app del registro (aunque todavía no tenga flujos) y los sitios reales que ya tienen alguno.
 const flowGroups = computed(() => {
@@ -269,8 +268,27 @@ const flowGroups = computed(() => {
   for (const f of flows.value) (g[f.app] ||= []).push(f)
   return Object.entries(g).map(([app, list]) => ({ app, list, url: apps.value.find((a) => a.id === app)?.url }))
 })
+// Qué carpetas están abiertas (los proyectos, abiertos por defecto; sus Corridas, cerradas).
 const projectOpen = ref(readPref('navegador.proyectos', {}))
 watch(projectOpen, (v) => savePref('navegador.proyectos', v), { deep: true })
+const isOpen = (key, def = true) => projectOpen.value[key] ?? def
+const toggleOpen = (key, def = true) => { projectOpen.value[key] = !isOpen(key, def) }
+function openProject(app) { projectOpen.value[app] = true; go({ kind: 'project', app }) }
+// Las corridas de un proyecto: las que arrancaron en su app (por el origen), o en su host si es un sitio real.
+const appOrigins = computed(() => Object.fromEntries(apps.value.map((a) => [new URL(a.url).origin, a.id])))
+function runApp(r) {
+  try { const u = new URL(r.inicio); return appOrigins.value[u.origin] || u.host.toLowerCase().replace(/[^a-z0-9]+/g, '-') } catch { return 'otros' }
+}
+const runsOf = (app) => runs.value.filter((r) => runApp(r) === app)
+const fmtShort = (t) => (t ? new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
+async function playFlowOf(f, m) {
+  viewError.value = ''
+  try { await api(`/api/flows/${f.app}/${f.id}/replay`, { method: 'POST', body: JSON.stringify({ mode: m }) }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
+}
+const project = computed(() => (view.value.kind === 'project' ? {
+  id: view.value.app, app: apps.value.find((a) => a.id === view.value.app),
+  flows: flows.value.filter((f) => f.app === view.value.app), runs: runsOf(view.value.app),
+} : null))
 function newFlowIn(app) { composeApp.value = app; document.getElementById('compose-goal')?.focus() }
 const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
@@ -376,37 +394,48 @@ const status = computed(() => {
         <p v-if="composeError" class="err">{{ composeError }}</p>
       </form>
 
-      <nav class="tabs">
-        <button type="button" class="tab" :class="{ on: sideTab === 'flows' }" @click="sideTab = 'flows'">Proyectos <span class="count">{{ flowGroups.length }}</span></button>
-        <button type="button" class="tab" :class="{ on: sideTab === 'runs' }" @click="sideTab = 'runs'">Corridas <span class="count">{{ runs.length }}</span></button>
-      </nav>
-      <div v-if="sideTab === 'flows'" class="region-body">
+      <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>
+      <div class="region-body tree" role="tree" aria-label="Proyectos">
         <p v-if="!flowGroups.length" class="none">No hay proyectos: las apps de navegador/apps aparecen acá.</p>
         <template v-for="g in flowGroups" :key="g.app">
-          <div class="region-head group project-head" @click="projectOpen[g.app] = projectOpen[g.app] === false">
-            <span class="ui-icon twisty" data-icon="chevron" :style="{ transform: projectOpen[g.app] === false ? '' : 'rotate(90deg)' }" aria-hidden="true"></span>
-            <span class="ellipsis">{{ appName(g.app) }}</span><span class="count">{{ g.list.length }}</span>
-            <div class="region-actions">
+          <!-- la carpeta del proyecto: abrirla muestra su portada en el editor -->
+          <div class="tree-row folder" role="treeitem" :aria-expanded="isOpen(g.app)" :class="{ on: view.kind === 'project' && view.app === g.app }" @click="openProject(g.app)">
+            <button type="button" class="twisty" :aria-label="isOpen(g.app) ? 'Cerrar' : 'Abrir'" @click.stop="toggleOpen(g.app)"><span class="ui-icon" data-icon="chevron" :style="{ transform: isOpen(g.app) ? 'rotate(90deg)' : '' }" aria-hidden="true"></span></button>
+            <span class="node-name">{{ appName(g.app) }}</span>
+            <span class="node-flag">{{ g.list.length }}</span>
+            <span class="node-actions">
               <button v-if="g.url" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click.stop="openApp({ url: g.url })"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
-              <button type="button" class="region-action" title="Un flujo nuevo en este proyecto: escribí qué querés hacer arriba" aria-label="Flujo nuevo" @click.stop="newFlowIn(g.app)"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+              <button type="button" class="region-action" title="Un flujo nuevo: escribí arriba qué querés hacer" aria-label="Flujo nuevo" @click.stop="newFlowIn(g.app)"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+            </span>
+          </div>
+          <template v-if="isOpen(g.app)">
+            <!-- sus flujos -->
+            <div v-for="f in g.list" :key="f.id" class="tree-row leaf" role="treeitem" :class="{ on: view.kind === 'flow' && view.app === f.app && view.id === f.id }" :title="f.meta" @click="go({ kind: 'flow', app: f.app, id: f.id })">
+              <span class="leaf-mark" :class="{ ok: fmtDate(f.verificado) }" aria-hidden="true"></span>
+              <span class="node-name">{{ f.nombre }}</span>
+              <span class="node-flag">{{ f.pasos }}</span>
+              <span class="node-actions">
+                <button type="button" class="region-action" title="Reproducir (automático)" aria-label="Reproducir" @click.stop="playFlowOf(f, 'auto')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+              </span>
             </div>
-          </div>
-          <p v-if="projectOpen[g.app] !== false && !g.list.length" class="none">Sin flujos todavía. Pedile a Claude algo para hacer acá (el + lo elige arriba).</p>
-          <div v-if="projectOpen[g.app] !== false && g.list.length" class="cards">
-            <button v-for="f in g.list" :key="f.id" type="button" class="flow-card" :class="{ on: view.kind === 'flow' && view.app === f.app && view.id === f.id }" @click="go({ kind: 'flow', app: f.app, id: f.id })">
-              <img v-if="f.foto" :src="f.foto" alt="" loading="lazy" />
-              <span class="flow-card-name">{{ f.nombre }}</span>
-              <span class="row-desc">{{ f.pasos }} pasos<template v-if="f.datos"> · {{ f.datos }} datos</template> · {{ fmtDate(f.verificado) ? `✓ ${fmtDate(f.verificado)}` : fmtDate(f.creado) }}</span>
-            </button>
-          </div>
+            <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía: el + pide uno.</p>
+            <!-- y sus corridas, en una subcarpeta -->
+            <template v-if="runsOf(g.app).length">
+              <div class="tree-row folder sub" role="treeitem" :aria-expanded="isOpen(g.app + '/corridas', false)" @click="toggleOpen(g.app + '/corridas', false)">
+                <button type="button" class="twisty" aria-hidden="true" tabindex="-1"><span class="ui-icon" data-icon="chevron" :style="{ transform: isOpen(g.app + '/corridas', false) ? 'rotate(90deg)' : '' }"></span></button>
+                <span class="node-name">Corridas</span>
+                <span class="node-flag">{{ runsOf(g.app).length }}</span>
+              </div>
+              <template v-if="isOpen(g.app + '/corridas', false)">
+                <div v-for="r in runsOf(g.app)" :key="r.id" class="tree-row leaf deep" role="treeitem" :class="{ on: view.kind === 'run' && view.id === r.id }" :title="`${r.meta} · ${fmtDate(r.fecha)}`" @click="go({ kind: 'run', id: r.id })">
+                  <span class="run-dot" :class="KW_CLASS[r.palabra] || 'kw-none'" :title="r.palabra" aria-hidden="true"></span>
+                  <span class="node-name">{{ r.meta || '(sin meta)' }}</span>
+                  <span class="node-flag">{{ fmtShort(r.fecha) }}</span>
+                </div>
+              </template>
+            </template>
+          </template>
         </template>
-      </div>
-      <div v-else class="region-body">
-        <p v-if="!runs.length" class="none">Cada vez que Claude trabaja o se reproduce un flujo queda una corrida: se ve como video.</p>
-        <button v-for="r in runs" :key="r.id" type="button" class="row stacked" :class="{ on: view.kind === 'run' && view.id === r.id }" @click="go({ kind: 'run', id: r.id })">
-          <span class="run-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="ellipsis">{{ r.meta || '(sin meta)' }}</span></span>
-          <span class="row-desc">{{ fmtDate(r.fecha) }} · {{ r.pasos }} pasos<template v-if="r.usd"> · US$ {{ r.usd.toFixed(2) }}</template></span>
-        </button>
       </div>
     </aside>
 
@@ -423,6 +452,56 @@ const status = computed(() => {
         <div class="region-body run-body">
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
           <RunViewer v-if="runData" :run="runData" @replay="replayRun(view.id)" />
+        </div>
+      </template>
+
+      <!-- la portada de un proyecto: sus flujos para reproducir, abrirlo en vivo y pedir uno nuevo -->
+      <template v-else-if="view.kind === 'project' && project">
+        <div class="region-head">
+          <span class="ellipsis">Proyecto</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" title="Volver al navegador en vivo" aria-label="Cerrar" @click="go({ kind: 'live' })"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+          </div>
+        </div>
+        <div class="region-body run-body">
+          <p v-if="viewError" class="err pad">{{ viewError }}</p>
+          <article class="flow">
+            <header class="flow-head">
+              <h1>{{ appName(project.id) }}</h1>
+              <p v-if="project.app" class="muted">{{ project.app.descripcion }}</p>
+              <div class="flow-actions">
+                <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
+                <button type="button" class="btn btn-ghost" @click="newFlowIn(project.id)">Pedir un flujo nuevo</button>
+              </div>
+            </header>
+            <section>
+              <h2>Flujos</h2>
+              <p v-if="!project.flows.length" class="muted">Todavía no tiene. Escribí arriba a la izquierda qué querés hacer en {{ appName(project.id) }}: lo que Claude aprenda queda acá.</p>
+              <div class="project-flows">
+                <div v-for="f in project.flows" :key="f.id" class="pflow">
+                  <button type="button" class="pflow-shot" :title="`Abrir «${f.nombre}»`" @click="go({ kind: 'flow', app: f.app, id: f.id })">
+                    <img v-if="f.foto" :src="f.foto" alt="" loading="lazy" />
+                    <span class="pflow-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
+                  </button>
+                  <div class="pflow-body">
+                    <button type="button" class="pflow-name" @click="go({ kind: 'flow', app: f.app, id: f.id })">{{ f.nombre }}</button>
+                    <span class="muted small">{{ f.pasos }} pasos<template v-if="f.datos"> · {{ f.datos }} datos</template> · {{ fmtDate(f.verificado) ? `verificado ${fmtDate(f.verificado)}` : `creado ${fmtDate(f.creado)}` }}</span>
+                    <div class="flow-actions">
+                      <button type="button" class="btn btn-sm" @click="playFlowOf(f, 'auto')">Reproducir</button>
+                      <button type="button" class="btn btn-outline btn-sm" @click="playFlowOf(f, 'teach')">Enseñame</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+            <section v-if="project.runs.length">
+              <h2>Corridas</h2>
+              <button v-for="r in project.runs.slice(0, 8)" :key="r.id" type="button" class="row stacked" @click="go({ kind: 'run', id: r.id })">
+                <span class="run-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="ellipsis">{{ r.meta || '(sin meta)' }}</span></span>
+                <span class="row-desc">{{ fmtDate(r.fecha) }} · {{ r.pasos }} pasos</span>
+              </button>
+            </section>
+          </article>
         </div>
       </template>
 
@@ -668,15 +747,38 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .seg-toggle button:disabled { opacity: .5; cursor: progress }
 .run-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 
-/* la galería de flujos */
-.project-head { cursor: pointer; gap: var(--space-1) }
-.project-head .twisty { flex: none; transition: transform .15s }
-.cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-2) var(--gutter) var(--space-3) }
-.flow-card { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); color: inherit; font: inherit; cursor: pointer }
-.flow-card:hover { border-color: color-mix(in srgb, var(--primary) 50%, var(--border)) }
-.flow-card.on { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary) }
-.flow-card img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: top; border-radius: 4px; margin-bottom: var(--space-1) }
-.flow-card-name { font-weight: 600; line-height: 1.35 }
+/* el árbol: proyectos como carpetas, sus flujos y sus corridas adentro */
+.tree { padding: var(--space-1) 0 var(--space-3) }
+.tree-row { display: flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-2) 0 var(--gutter); cursor: pointer; min-width: 0 }
+.tree-row:hover { background: var(--hover) }
+.tree-row.on { background: var(--selection, var(--hover)); box-shadow: inset 2px 0 0 var(--primary) }
+.tree-row.folder > .node-name { font-weight: 600 }
+.tree-row.folder.sub > .node-name { font-weight: 400; color: var(--fg-2) }
+.tree-row.sub, .tree-row.leaf { padding-left: calc(var(--gutter) + 18px) }
+.tree-row.deep { padding-left: calc(var(--gutter) + 36px) }
+.twisty { flex: none; width: var(--icon-size); height: var(--icon-size); display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 0; background: none; color: var(--fg-2); cursor: pointer }
+.twisty .ui-icon { transition: transform .15s }
+.node-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.node-flag { flex: none; font-size: var(--text-xs); color: var(--fg-3) }
+.node-actions { display: none; flex: none; gap: 2px }
+.tree-row:hover > .node-actions, .tree-row.on > .node-actions { display: inline-flex }
+.tree-row:hover > .node-flag, .tree-row.on > .node-flag { display: none }
+.tree-row.leaf .node-flag { font-variant-numeric: tabular-nums }
+.leaf-mark { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 2px; border: 1.5px solid var(--fg-3) }
+.leaf-mark.ok { background: var(--kw-ok); border-color: var(--kw-ok) }
+.run-dot { flex: none; width: 8px; height: 8px; margin: 0 4px; border-radius: 50% }
+.tree-none { padding-left: calc(var(--gutter) + 22px) }
+/* la portada de un proyecto */
+.project-flows { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3) }
+.pflow { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; background: var(--card) }
+.pflow-shot { position: relative; padding: 0; border: 0; background: var(--stage-bg); aspect-ratio: 16 / 9; cursor: pointer; overflow: hidden }
+.pflow-shot img { width: 100%; height: 100%; object-fit: cover; object-position: top; display: block; opacity: .85 }
+.pflow-shot:hover img { opacity: 1 }
+.pflow-play { position: absolute; inset: 0; margin: auto; width: 46px; height: 46px; border-radius: 50%; display: grid; place-items: center; background: var(--stage-chip); color: var(--stage-ink) }
+.pflow-body { display: flex; flex-direction: column; gap: var(--space-1); padding: var(--space-3) }
+.pflow-body .flow-actions { margin-top: var(--space-2) }
+.pflow-name { padding: 0; border: 0; background: none; color: inherit; font: inherit; font-weight: 600; text-align: left; cursor: pointer }
+.pflow-name:hover { text-decoration: underline }
 
 /* en vivo */
 .live-head { gap: var(--space-1) }
