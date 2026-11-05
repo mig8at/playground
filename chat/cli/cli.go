@@ -17,6 +17,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -56,6 +57,7 @@ type Message struct {
 	Text    string `json:"text"`
 	Time    string `json:"time"`
 	Display string `json:"display,omitempty"`
+	Files   []File `json:"files,omitempty"` // los adjuntos que trae (se bajan con `playground get <id>`)
 }
 
 // Status es el estado del proceso de `playground listen`.
@@ -197,6 +199,75 @@ type SendResult struct {
 	Re        string `json:"re,omitempty"`
 }
 
+// File es la ficha de un adjunto del chat: lo que el home devuelve al subirlo y lo que viaja en el mensaje.
+type File struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Size   int64  `json:"size"`
+	Type   string `json:"type,omitempty"`
+	SHA256 string `json:"sha256,omitempty"`
+}
+
+// errorOf saca el error del home de una respuesta en JSON ({error, hint}), si la hay.
+func errorOf(out []byte) error {
+	var body struct {
+		Error string `json:"error"`
+		Hint  string `json:"hint"`
+	}
+	_ = json.Unmarshal(out, &body)
+	if body.Error == "" {
+		return nil
+	}
+	if body.Hint != "" {
+		return errors.New(body.Error + ": " + body.Hint)
+	}
+	return errors.New(body.Error)
+}
+
+// Upload sube un archivo como adjunto para `to`, con `playground curl … --data-binary @<ruta>` (los bytes tal
+// cual). Devuelve su ficha; el mensaje lo nombra después por el id (Send con `files`).
+func Upload(ctx context.Context, to, name, path, contentType string) (File, error) {
+	q := url.Values{"to": {to}, "name": {name}}
+	out, err := run(ctx, nil, "curl", base()+"/api/chat/files?"+q.Encode(), "--data-binary", "@"+path,
+		"-H", "content-type: "+contentType, "--json")
+	if e := errorOf(out); e != nil {
+		return File{}, e
+	}
+	if err != nil {
+		return File{}, err
+	}
+	var body struct {
+		File File `json:"file"`
+	}
+	if err := json.Unmarshal(out, &body); err != nil || body.File.ID == "" {
+		return File{}, errors.New("el home no devolvió la ficha del adjunto")
+	}
+	return body.File, nil
+}
+
+// Saved es un adjunto bajado: dónde quedó en esta máquina.
+type Saved struct {
+	ID     string `json:"id"`
+	Name   string `json:"name"`
+	Path   string `json:"path"`
+	Size   int64  `json:"size"`
+	SHA256 string `json:"sha256"`
+}
+
+// Get baja un adjunto con `playground get <id>`: el CLI lo guarda en ~/Downloads sin pisar nada y sin permiso de
+// ejecución, y el home lo borra si quien baja es quien lo recibió.
+func Get(ctx context.Context, id string) (Saved, error) {
+	out, err := run(ctx, nil, "get", id, "--json")
+	if err != nil {
+		return Saved{}, err
+	}
+	var s Saved
+	if err := json.Unmarshal(out, &s); err != nil || s.Path == "" {
+		return Saved{}, errors.New("el CLI no dijo dónde guardó el adjunto")
+	}
+	return s, nil
+}
+
 // Send le manda `text` a `to` (el correo, la parte antes de la @ o el GitHub).
 //
 // ⚠ No va por `playground send <quién> <texto…>`: ese comando arma el texto con los argumentos, y uno que
@@ -204,8 +275,14 @@ type SendResult struct {
 // cuerpo en JSON por la entrada estándar, así que el texto viaja tal cual.
 //
 // `re` es el id del mensaje que se contesta ("" si no contesta a ninguno).
-func Send(ctx context.Context, to, text, re string) (SendResult, error) {
-	body, _ := json.Marshal(map[string]string{"to": to, "text": text, "re": re})
+//
+// `files`: los ids de los adjuntos ya subidos para esa persona (Upload); con adjuntos el texto puede ir vacío.
+func Send(ctx context.Context, to, text, re string, files ...string) (SendResult, error) {
+	payload := map[string]any{"to": to, "text": text, "re": re}
+	if len(files) > 0 {
+		payload["files"] = files
+	}
+	body, _ := json.Marshal(payload)
 	out, err := run(ctx, body, "curl", base()+"/api/chat/send", "-d", "@-", "--json")
 	var result struct {
 		SendResult

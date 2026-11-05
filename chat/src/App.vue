@@ -264,7 +264,9 @@ const firstName = (p) => String(p?.name || p?.email || '').split(/[\s@]+/)[0]
 const snippetOf = (m) => {
   if (!m) return ''
   if (m.kind === 'asked') return `le preguntó a tu ${m.agent}: ${m.text}`
-  return `${m.dir === 'out' ? 'Vos: ' : ''}${m.text}`
+  // Un mensaje con adjuntos y sin texto se ve por sus adjuntos.
+  const body = m.text || (m.files?.length ? m.files.map((f) => `📎 ${f.name}`).join(' · ') : '')
+  return `${m.dir === 'out' ? 'Vos: ' : ''}${body}`
 }
 const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > 120 ? `${x.slice(0, 119)}…` : x }
 
@@ -379,13 +381,37 @@ async function submit() {
     return
   }
   if (activeIsCuadrilla.value) return submitCuadrilla(text)
-  if (!text) return
+  const files = canAttach.value ? attachments.value : []
+  if (!text && !files.length) return
   const re = replyTo.value?.sid || ''
   draft.value = ''
   replyTo.value = null
+  attachments.value = []
   await nextTick(); autosize()
-  await chat.send(text, re)
+  await chat.send(text, re, null, {}, files)
 }
+
+/* ── LOS ADJUNTOS: se eligen con el botón del compositor (o se arrastran encima) y salen con el mensaje, hasta 25 MB
+   cada uno. Sólo a personas: a un agente, canon o cuadrilla no se les mandan archivos. */
+const MAX_ATTACHMENT = 25 * 1024 * 1024
+const attachments = ref([])
+const attachError = ref('')
+const fileInput = ref(null)
+const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.tool && !agentAnswers.value)
+function addFiles(list) {
+  attachError.value = ''
+  for (const f of list) {
+    if (f.size > MAX_ATTACHMENT) { attachError.value = `${f.name} pasa de 25 MB`; continue }
+    if (!f.size) { attachError.value = `${f.name} está vacío`; continue }
+    if (attachments.value.length >= 10) { attachError.value = 'hasta 10 adjuntos por mensaje'; break }
+    attachments.value.push(f)
+  }
+}
+function onPickFiles(e) { addFiles([...e.target.files]); e.target.value = '' }
+function onDropFiles(e) { if (canAttach.value && e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]) }
+const sizeText = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`)
+const isPreviewable = (f) => /\.(png|jpe?g|gif|webp)$/i.test(f.name || '')
+const isPdf = (f) => /\.pdf$/i.test(f.name || '')
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
   if (e.key === 'Escape' && replyTo.value) { e.preventDefault(); replyTo.value = null }
@@ -410,7 +436,7 @@ const agentAnswers = computed(() => mine.agent.mode === 'agente' && !!chat.activ
 const canSubmit = computed(() => {
   if (agentAnswers.value) return false
   if (activeOwnAgent.value && !activeOwnAgent.value.on) return false
-  if (!activeIsCuadrilla.value) return !!draft.value.trim()
+  if (!activeIsCuadrilla.value) return !!draft.value.trim() || (canAttach.value && attachments.value.length > 0)
   const t = taskTarget.value
   if (!t) return false
   if (t.kind === 'desbloqueo') return true
@@ -853,6 +879,28 @@ const statusText = computed(() => {
                   <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
                   <p v-else class="text">{{ item.text }}</p>
                 </template>
+                <ul v-if="item.files?.length" class="attachments" aria-label="Adjuntos">
+                  <li v-for="f in item.files" :key="f.id || f.name" class="attachment">
+                    <img v-if="f.status === 'bajado' && isPreviewable(f)" :src="chat.fileUrl(f)" :alt="f.name" class="attachment-preview">
+                    <div class="attachment-row">
+                      <span class="attachment-name" :title="f.path || f.name">{{ f.name }}</span>
+                      <span class="attachment-size">{{ sizeText(f.size) }}</span>
+                      <template v-if="item.dir === 'out'">
+                        <span v-if="f.status === 'subiendo'" class="attachment-state">subiendo…</span>
+                      </template>
+                      <template v-else>
+                        <button v-if="!f.status || f.status === 'error'" type="button" class="btn btn-outline btn-sm"
+                                title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar</button>
+                        <span v-else-if="f.status === 'bajando'" class="attachment-state">bajando…</span>
+                        <template v-else-if="f.status === 'bajado'">
+                          <a v-if="isPreviewable(f) || isPdf(f)" class="btn-link" :href="chat.fileUrl(f)" target="_blank" rel="noopener">ver</a>
+                          <button type="button" class="btn-link" title="Mostrarlo en el Finder (no lo abre)" @click="chat.revealFile(f)">en Descargas</button>
+                        </template>
+                      </template>
+                    </div>
+                    <p v-if="f.error" class="error">{{ f.error }}</p>
+                  </li>
+                </ul>
                 <p v-if="item.backed === false" class="unbacked">El corpus no la respalda del todo: tomala como pista, no como regla.</p>
                 <ul v-if="item.sources?.length" class="sources" aria-label="Fuentes">
                   <li v-for="src in item.sources" :key="src.read" :title="`playground canon read ${src.read}`">{{ src.title }}</li>
@@ -914,7 +962,23 @@ const statusText = computed(() => {
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
           </div>
-          <div class="composer-row">
+          <ul v-if="attachments.length || attachError" class="attach-list" aria-label="Para adjuntar">
+            <li v-for="(f, i) in attachments" :key="`${f.name}|${i}`" class="attach-chip">
+              <span class="attachment-name">{{ f.name }}</span><span class="attachment-size">{{ sizeText(f.size) }}</span>
+              <button type="button" class="region-action" :aria-label="`Sacar ${f.name}`" title="No adjuntarlo" @click="attachments.splice(i, 1)">
+                <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+              </button>
+            </li>
+            <li v-if="attachError" class="error">{{ attachError }}</li>
+          </ul>
+          <div class="composer-row" @dragover.prevent @drop.prevent="onDropFiles">
+            <template v-if="canAttach">
+              <input ref="fileInput" type="file" multiple class="sr-only" aria-hidden="true" tabindex="-1" @change="onPickFiles">
+              <button type="button" class="btn btn-outline composer-attach" title="Adjuntar archivos (hasta 25 MB cada uno; también se pueden arrastrar)"
+                      aria-label="Adjuntar archivos" @click="fileInput?.click()">
+                <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+              </button>
+            </template>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize"></textarea>
@@ -1295,6 +1359,19 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
   border-top: 1px solid var(--border) }
+/* Los adjuntos: en la burbuja (bajar, ver, mostrar en Descargas) y, antes de mandar, como fichas sobre el compositor. */
+.attachments { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px }
+.attachment { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px }
+.attachment-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
+.attachment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm) }
+.attachment-size, .attachment-state { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
+.attachment-row .btn, .attachment-row .btn-link { flex: none; margin-left: auto }
+.attachment-row .btn-link + .btn-link { margin-left: var(--space-2) }
+.attachment-preview { display: block; max-width: 100%; max-height: 240px; border-radius: 6px; object-fit: contain }
+.attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
+.attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
+  border: 1px solid var(--border); border-radius: 999px }
+.composer-attach { flex: none; width: var(--control-md); min-height: var(--control-md); padding: 0; border-radius: 50% }
 .replying { display: flex; align-items: center; gap: var(--space-2) }
 .replying .quote { flex: 1 }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }

@@ -292,7 +292,9 @@ export const useChatStore = defineStore('chat', () => {
         continue
       }
       push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time,
-                ...(m.agent ? { kind: 'asked', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}) })
+                ...(m.agent ? { kind: 'asked', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}),
+                // Los adjuntos que trae: se bajan con «Bajar» (playground get) y quedan en Descargas.
+                ...(Array.isArray(m.files) && m.files.length ? { files: m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) } : {}) })
     }
     markActiveRead()
     proposeReplies()
@@ -455,17 +457,30 @@ export const useChatStore = defineStore('chat', () => {
 
   // `re`: el id del home del mensaje que se contesta (sólo en conversaciones con personas).
   // `extra`: marcas del mensaje (`auto`: lo contestó tu agente solo).
-  async function send(text, re = '', conversation = null, extra = {}) {
+  // `files`: los archivos que se adjuntan (File del navegador). Se suben uno por uno antes del mensaje; con adjuntos el
+  // texto puede ir vacío. Sólo a personas: a un agente no se le mandan archivos.
+  async function send(text, re = '', conversation = null, extra = {}, files = []) {
     const c = conversation || active.value
     const body = String(text || '').trim()
-    if (!c || !body) return
+    const attach = c?.person.agent ? [] : files
+    if (!c || (!body && !attach.length)) return
     const message = { id: `out|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, dir: 'out', text: body,
-                      time: new Date().toISOString(), status: 'sending', ...(re && !c.person.agent ? { re } : {}), ...extra }
+                      time: new Date().toISOString(), status: 'sending', ...(re && !c.person.agent ? { re } : {}), ...extra,
+                      ...(attach.length ? { files: attach.map((f) => ({ name: f.name, size: f.size, type: f.type, status: 'subiendo' })) } : {}) }
     c.messages.push(message)
     const stored = () => c.messages.find((m) => m.id === message.id)
     if (c.person.agent) return askAgent(c, body, stored)
     try {
-      const r = await post('/api/send', { to: c.person.email, text: body, re: message.re || '' })
+      const ids = []
+      for (const [i, f] of attach.entries()) {
+        const res = await fetch(`/api/upload?to=${encodeURIComponent(c.person.email)}&name=${encodeURIComponent(f.name)}`,
+          { method: 'POST', headers: { 'content-type': f.type || 'application/octet-stream' }, body: f })
+        const up = await res.json().catch(() => ({}))
+        if (!res.ok) throw new Error(`${f.name}: ${up.error || `HTTP ${res.status}`}`)
+        ids.push(up.id)
+        Object.assign(stored().files[i], { id: up.id, status: 'subido' })
+      }
+      const r = await post('/api/send', { to: c.person.email, text: body, re: message.re || '', ...(ids.length ? { files: ids } : {}) })
       Object.assign(stored(), { status: 'sent', delivered: r.delivered, sid: r.id || '' })
     } catch (e) {
       Object.assign(stored(), { status: 'error', error: e.message })
@@ -600,6 +615,22 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Reintentar es mandar el mismo texto de nuevo: el que falló se va, para no dejar dos.
+  // Bajar un adjunto recibido: queda en Descargas (y el home lo borra). Se recuerda dónde, para mostrarlo.
+  async function getFile(item, file) {
+    Object.assign(file, { status: 'bajando', error: '' })
+    try {
+      const s = await post(`/api/files/${encodeURIComponent(file.id)}/get`, {})
+      Object.assign(file, { status: 'bajado', path: s.path })
+    } catch (e) {
+      Object.assign(file, { status: 'error', error: e.message })
+    }
+  }
+  const fileUrl = (file) => `/api/files/${encodeURIComponent(file.id)}?path=${encodeURIComponent(file.path || '')}`
+  async function revealFile(file) {
+    try { await post(`/api/files/${encodeURIComponent(file.id)}/reveal?path=${encodeURIComponent(file.path || '')}`, {}) }
+    catch (e) { Object.assign(file, { error: e.message }) }
+  }
+
   async function retry(id) {
     const c = active.value
     const failed = c?.messages.find((m) => m.id === id)
@@ -650,6 +681,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList,
-    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, forget, findBySid, start, stop,
+    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, getFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

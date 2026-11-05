@@ -113,9 +113,10 @@ func handler() http.Handler {
 
 	mux.HandleFunc("POST /api/send", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			To   string `json:"to"`
-			Text string `json:"text"`
-			Re   string `json:"re"`
+			To    string   `json:"to"`
+			Text  string   `json:"text"`
+			Re    string   `json:"re"`
+			Files []string `json:"files"` // los ids de los adjuntos ya subidos (/api/upload)
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
 			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, text}"))
@@ -126,7 +127,7 @@ func handler() http.Handler {
 		case in.To == "":
 			fail(w, http.StatusBadRequest, errors.New("falta a quién"))
 			return
-		case in.Text == "":
+		case in.Text == "" && len(in.Files) == 0:
 			fail(w, http.StatusBadRequest, errors.New("falta el texto"))
 			return
 		case len([]rune(in.Text)) > maxText:
@@ -135,13 +136,15 @@ func handler() http.Handler {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
-		result, err := cli.Send(ctx, in.To, in.Text, strings.TrimSpace(in.Re))
+		result, err := cli.Send(ctx, in.To, in.Text, strings.TrimSpace(in.Re), in.Files...)
 		if err != nil {
 			fail(w, http.StatusBadGateway, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, result)
 	})
+
+	registerFiles(mux)
 
 	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
 	// la URL (por si el navegador no se abrió); el resultado se ve en /api/state.
