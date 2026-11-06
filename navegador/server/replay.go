@@ -356,6 +356,10 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 	danger := (st.Action == "click" || st.Action == "dblclick") && destructiveLike.MatchString(st.Target)
 	// En autorrelleno, un botón o un enlace lo toca la persona: decide ella cada acción.
 	byPerson := rp.Mode == "teach" || st.Pause || (rp.Mode == "fill" && (st.Action == "click" || st.Action == "dblclick" || st.Action == "press"))
+	// Un campo sin valor en el flujo (raro: el JSON casi siempre lo trae) lo llena la persona.
+	if (st.Action == "fill" || st.Action == "select") && st.Value == "" {
+		byPerson = true
+	}
 	choices := []string{"do", "self", "skip", "stop"}
 	if missing || st.Secret || byPerson {
 		choices = []string{"self", "skip", "stop"}
