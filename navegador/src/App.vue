@@ -767,7 +767,10 @@ const status = computed(() => {
           <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
           <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
         </div>
-        <span class="sb-state">{{ liveStatusLabel }} ·</span>
+        <!-- El punto dice si la página en vivo está conectada (verde) o no (gris). El texto aparece sólo cuando dice
+             algo más que «en vivo»: Claude trabajando, una reproducción. -->
+        <span class="sb-dot" :class="{ on: connected }" role="img" :aria-label="connected ? liveStatusLabel : 'sin conexión con la API'" :title="connected ? liveStatusLabel : 'sin conexión con la API'"></span>
+        <span v-if="liveStatusLabel !== 'en vivo'" class="sb-state">{{ liveStatusLabel }} ·</span>
         <form class="sb-url" @submit.prevent="liveNav('goto', liveURL)">
           <input id="live-url" v-model="liveURL" aria-label="URL de la página en vivo (Enter para ir)" spellcheck="false" autocomplete="off" />
         </form>
@@ -847,7 +850,9 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 
 /* en vivo */
 /* La URL en el pie: casi imperceptible hasta que se la toca. Hereda el tamaño y el color del pie. */
-.sb-state { flex: none; white-space: nowrap }
+.sb-state { flex: none; white-space: nowrap; margin-left: var(--space-1) }
+.sb-dot { flex: none; width: 7px; height: 7px; margin: 0 var(--space-1); border-radius: 50%; background: var(--fg-3) }
+.sb-dot.on { background: var(--kw-ok-ink) }
 .sb-url { flex: 1; min-width: 0; display: flex; margin-left: var(--space-1) }
 .sb-url input { flex: 1; min-width: 0; height: 22px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-control);
   background: transparent; color: inherit; font: inherit; text-overflow: ellipsis }
