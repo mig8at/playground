@@ -12,7 +12,7 @@
 
 | Pieza | Qué es | Archivos |
 |---|---|---|
-| Interfaz | Vue en **:5202**, para MIRAR y reproducir: lo que hay que hacer se le pide a Claude en la conversación (él maneja todo por la API y el CLI). Izquierda: un árbol: cada **proyecto** es una carpeta con sus **flujos**; abrir la carpeta muestra la portada del proyecto (sus flujos con play). Un flujo se borra desde el árbol o su sidebar; un proyecto, desde el árbol o su portada (`DELETE /api/projects/<app>`: sus flujos y sus corridas en .data; una app de práctica queda en la lista, vacía). Con un flujo abierto, el editor muestra sólo su video y el sidebar derecho su información: el botón Reproducir y lo que se edita a gusto (nombre, texto de cada paso, sacar pasos, sus datos y dónde para); si Claude está trabajando, ese sidebar tiene las pestañas Flujo y Claude. Las corridas no se muestran: son el material del video de cada flujo. Centro: el navegador en vivo (con la barra del paso de la guía o de la reproducción), el video de una corrida o un flujo con sus datos. Derecha: **Claude trabajando**. Abajo: Pasos y Script | `src/App.vue`, `src/RunViewer.vue` |
+| Interfaz | Vue en **:5202**, para MIRAR y reproducir: lo que hay que hacer se le pide a Claude en la conversación (él maneja todo por la API y el CLI). Izquierda: «Abrir una página» (cualquier URL en vivo, para loguearse a mano: cada host guarda su login en su perfil) y un árbol: cada **proyecto** es una carpeta con sus **flujos**; abrir la carpeta muestra la portada del proyecto (sus flujos con play). Un flujo se borra desde el árbol o su sidebar; un proyecto, desde el árbol o su portada (`DELETE /api/projects/<app>`: sus flujos y sus corridas en .data; una app de práctica queda en la lista, vacía). Con un flujo abierto, el editor muestra sólo su video y el sidebar derecho su información: el botón Reproducir y lo que se edita a gusto (nombre, texto de cada paso, sacar pasos, sus datos y dónde para); si Claude está trabajando, ese sidebar tiene las pestañas Flujo y Claude. Las corridas no se muestran: son el material del video de cada flujo. Centro: el navegador en vivo (con la barra del paso de la guía o de la reproducción), el video de una corrida o un flujo con sus datos. Derecha: **Claude trabajando**. Abajo: Pasos y Script | `src/App.vue`, `src/RunViewer.vue` |
 | Tiempo real | UN stream SSE (`/api/events`): el estado de la sesión cuando cambia, cada evento de Claude, las corridas y los flujos al guardarse. Los cuadros del navegador van por `/api/live/frames` | `server/events.go` |
 | API | Go en **:5203**. Sesión en vivo, Claude, corridas, flujos, apps | `server/main.go` |
 | Sesión en vivo | Chromium sin ventana transmitido por CDP, acciones por localizador, diálogos, descargas. Escritorio 1280×800 (por defecto) o móvil (perfil Pixel 7) | `server/live.go`, `server/browser.go` |
@@ -102,6 +102,12 @@ corridas con sus fotos, descargas).
   repetidos y corta en 40 (`look --buscar`, `look --todo`).
 - **Un estado que dejó otra corrida contamina la prueba** (un login en la sesión en vivo): las evals abren cada
   caso con un perfil temporal (`clean=1`).
+- **Una ventana emergente que abre la persona a mano** (un «Entrar con Google») se muestra en el editor y recibe su
+  clic y su teclado hasta que se cierra (`showPopup`): antes se cerraba y la página principal iba a esa URL, y un
+  login por popup se rompía (la ventana necesita a la página que la abrió). Lo que hacen Claude o una reproducción
+  sigue igual. Lo que se teclea a mano en el canvas no queda en ningún paso ni registro.
+- **«Abrir una página» con otra sesión abierta** fallaba («ya hay un live corriendo»): `/api/live/start` navega si
+  es el mismo sitio, o cierra la sesión y abre otra.
 - **Dos ediciones de un flujo que llegan juntas se pisaban** (un dato y un «lo escribo yo»): leer, cambiar y
   escribir un flujo va con `flowsMu`.
 - **En automático, la repetición pasa un instante por `waiting`** antes de actuar sola: un cliente que corta en

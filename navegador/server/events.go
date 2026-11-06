@@ -59,7 +59,7 @@ func watchLive(runner *Runner) {
 }
 
 func liveKey(st LiveState) string {
-	k := fmt.Sprintf("%v|%s|%s|%s|%d|%v|%d|%s", st.Active, st.Site, st.URL, st.Title, st.Version, st.Analyzing, len(st.Steps), st.Device)
+	k := fmt.Sprintf("%v|%s|%s|%s|%d|%v|%d|%s|%s", st.Active, st.Site, st.URL, st.Title, st.Version, st.Analyzing, len(st.Steps), st.Device, st.Popup)
 	if st.Guide != nil {
 		k += fmt.Sprintf("|g%d", st.Guide.ID)
 	}

@@ -145,6 +145,7 @@ type LiveState struct {
 	Device    string    `json:"device"`           // desktop · mobile
 	Guide     *GuideReq `json:"guide,omitempty"`  // el paso de la guía que espera a la persona
 	Replay    *Replay   `json:"replay,omitempty"` // la repetición de una guía en curso (o la última)
+	Popup     string    `json:"popup,omitempty"`  // la ventana emergente que se está mostrando (un login)
 	Version   int       `json:"version"`          // sube con cada análisis nuevo
 	Analyzing bool      `json:"analyzing"`
 	Page      *Page     `json:"page,omitempty"`
@@ -216,6 +217,10 @@ type live struct {
 
 	// La repetición de una guía en curso (replay.go).
 	replay *Replay
+
+	// Una ventana emergente que abrió la persona a mano (un login con Google): se ve y se maneja en el editor
+	// hasta que se cierra.
+	popup playwright.Page
 }
 
 func (l *live) broadcast(frame []byte) {
@@ -384,8 +389,17 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 	// goto deja la página principal donde siguió el recorrido.
 	bctx.OnPage(func(p playwright.Page) {
 		l.mu.Lock()
-		l.popupsFlying++
+		manual := !l.acting && l.cdp != nil && r.replayIdle(l)
+		if !manual {
+			l.popupsFlying++
+		}
 		l.mu.Unlock()
+		// La persona navegando a mano (un «Entrar con Google»): la ventana se muestra en el editor tal cual, sin
+		// cerrarla, porque un login por popup necesita a la página que la abrió.
+		if manual {
+			go r.showPopup(l, p)
+			return
+		}
 		go func() {
 			defer func() { l.mu.Lock(); l.popupsFlying--; l.mu.Unlock() }()
 			_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded, Timeout: playwright.Float(10000)})
@@ -506,7 +520,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(),
+		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(), Popup: l.popupURL(),
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
@@ -552,7 +566,13 @@ func (r *Runner) LiveInput(in LiveInput) error {
 	if l == nil {
 		return errors.New("no hay sesión en vivo")
 	}
-	m, k := l.page.Mouse(), l.page.Keyboard()
+	target := l.page
+	l.mu.Lock()
+	if l.popup != nil {
+		target = l.popup
+	}
+	l.mu.Unlock()
+	m, k := target.Mouse(), target.Keyboard()
 	if in.Type == "click" || in.Type == "up" || in.Type == "key" || in.Type == "text" {
 		l.mu.Lock()
 		l.inputs++
@@ -1438,4 +1458,52 @@ func (l *live) replayCopy() *Replay {
 	c := *l.replay
 	c.answers = nil
 	return &c
+}
+
+// replayIdle: no hay una reproducción en curso (con l.mu tomado).
+func (r *Runner) replayIdle(l *live) bool {
+	return l.replay == nil || l.replay.Status == "done" || l.replay.Status == "stopped"
+}
+
+// showPopup pasa el editor a una ventana emergente que abrió la persona: el screencast y su clic y teclado van a
+// la ventana hasta que se cierre (al terminar un login, la ventana de Google se cierra sola) y se vuelve a la página.
+func (r *Runner) showPopup(l *live, p playwright.Page) {
+	_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded, Timeout: playwright.Float(10000)})
+	cdp, err := l.bctx.NewCDPSession(p)
+	if err != nil {
+		return
+	}
+	cdp.On("Page.screencastFrame", func(ev map[string]any) {
+		data, _ := ev["data"].(string)
+		id := ev["sessionId"]
+		go func() { _, _ = cdp.Send("Page.screencastFrameAck", map[string]any{"sessionId": id}) }()
+		msg, _ := json.Marshal(map[string]any{"data": data, "meta": ev["metadata"]})
+		l.broadcast(msg)
+	})
+	_, _ = l.cdp.Send("Page.stopScreencast", nil)
+	l.mu.Lock()
+	l.popup = p
+	w, h := l.w, l.h
+	l.mu.Unlock()
+	_, _ = cdp.Send("Page.startScreencast", map[string]any{"format": "jpeg", "quality": 75, "maxWidth": w, "maxHeight": h})
+	r.say("info", "ventana emergente en el editor: %s", p.URL())
+	l.markDirty()
+	closed := make(chan struct{})
+	p.OnClose(func(playwright.Page) { close(closed) })
+	<-closed
+	l.mu.Lock()
+	if l.popup == p {
+		l.popup = nil
+	}
+	l.mu.Unlock()
+	_ = l.startScreencast()
+	r.say("info", "se cerró la ventana emergente: vuelve la página")
+	l.markDirty()
+}
+
+func (l *live) popupURL() string {
+	if l.popup == nil {
+		return ""
+	}
+	return l.popup.URL()
 }

@@ -26,6 +26,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 )
 
 var cliMode bool
@@ -127,6 +128,21 @@ func handler(store *Store, runner *Runner) http.Handler {
 		if err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
+		}
+		// Si ya hay una sesión: del mismo sitio (y el mismo perfil), se navega ahí; de otro, se cierra primero.
+		if st := runner.LiveState(false); st.Active && q.Get("clean") != "1" {
+			if st.Site == site.Slug && (q.Get("device") == "" || normDevice(q.Get("device")) == st.Device) {
+				if err := runner.LiveNav("goto", q.Get("url")); err != nil {
+					writeErr(w, http.StatusConflict, err)
+					return
+				}
+				writeJSON(w, http.StatusOK, runner.LiveState(false))
+				return
+			}
+			runner.Stop()
+			for i := 0; i < 100 && runner.State(0).Busy; i++ {
+				time.Sleep(100 * time.Millisecond)
+			}
 		}
 		if err := runner.LiveStart(site.Slug, q.Get("url"), q.Get("device"), q.Get("clean") == "1"); err != nil {
 			writeErr(w, http.StatusConflict, err)

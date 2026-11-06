@@ -138,9 +138,10 @@ const replayShown = computed(() => replay.value && replay.value.report !== repla
 const replayActive = computed(() => replay.value && !['done', 'stopped'].includes(replay.value.status))
 // El navegador tiene el tamaño FIJO de su dispositivo: acá se escala para entrar entero (sin agrandarse).
 const liveFit = computed(() => {
-  const w = liveState.value.width || 1280
-  const h = liveState.value.height || 800
-  const pad = (isMobile.value ? 48 : 16) + (guide.value || replayShown.value ? 76 : 0)
+  // El tamaño de lo que se está transmitiendo: la página, o una ventana emergente (más chica) mientras está abierta.
+  const w = (liveState.value.popup && frameMeta.value?.deviceWidth) || liveState.value.width || 1280
+  const h = (liveState.value.popup && frameMeta.value?.deviceHeight) || liveState.value.height || 800
+  const pad = (isMobile.value ? 48 : 16) + (guide.value || replayShown.value || liveState.value.popup ? 76 : 0)
   const sc = Math.min((editorBox.value.w - pad) / w, (editorBox.value.h - pad) / h, 1)
   return sc > 0 ? { width: `${Math.floor(w * sc)}px`, height: `${Math.floor(h * sc)}px` } : {}
 })
@@ -183,6 +184,17 @@ async function setDevice(d) {
   if (!isLive.value || liveState.value.device === d) return
   switching.value = true
   try { await api('/api/live/device', { method: 'POST', body: JSON.stringify({ device: d }) }) } catch (e) { liveError.value = e.message } finally { switching.value = false }
+}
+// Abrir cualquier página en vivo: cada host tiene su propio perfil de Chromium, que guarda el login que hagas.
+const urlInput = ref('')
+const opening = ref(false)
+async function openURL(raw) {
+  let u = raw.trim()
+  if (!u) return
+  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  opening.value = true
+  liveError.value = ''
+  try { await api(`/api/live/start?url=${encodeURIComponent(u)}&device=${device.value}`, { method: 'POST' }); urlInput.value = ''; go({ kind: 'live' }) } catch (e) { liveError.value = e.message } finally { opening.value = false }
 }
 async function openApp(a) {
   liveError.value = ''
@@ -281,6 +293,7 @@ const project = computed(() => (view.value.kind === 'project' ? {
   flows: flows.value.filter((f) => f.app === view.value.app),
 } : null))
 
+const hostOf = (u) => { try { return new URL(u).host } catch { return u } }
 const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 
 // ── el panel de abajo: los pasos de la sesión y su script ──
@@ -362,6 +375,11 @@ const status = computed(() => {
     <aside v-if="shown.sidebar" class="sidebar" aria-label="Proyectos y flujos">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
 
+      <!-- abrir cualquier página en vivo (por ejemplo, para loguearse a mano con Google) -->
+      <form class="open-url" @submit.prevent="openURL(urlInput)">
+        <input v-model="urlInput" class="input input-sm" type="text" inputmode="url" placeholder="Abrir una página: https://…" aria-label="Abrir una página" spellcheck="false" />
+        <button type="submit" class="region-action" title="Abrirla en vivo" aria-label="Abrirla en vivo" :disabled="!urlInput.trim() || opening"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+      </form>
       <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>
       <div class="region-body tree" role="tree" aria-label="Proyectos">
         <p v-if="!flowGroups.length" class="none">No hay proyectos: las apps de navegador/apps aparecen acá.</p>
@@ -472,7 +490,11 @@ const status = computed(() => {
         <div ref="editorBody" class="region-body live-body">
           <p v-if="liveError" class="err pad">{{ liveError }}</p>
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
-          <div v-if="isLive" class="live-wrap" :class="{ guiding: guide || replayShown }">
+          <div v-if="isLive" class="live-wrap" :class="{ guiding: guide || replayShown || liveState.popup }">
+            <div v-if="liveState.popup" class="guide-bar popup-bar">
+              <span class="bar-what">Ventana emergente: {{ hostOf(liveState.popup) }}</span>
+              <span class="muted small">La manejás acá como cualquier página; cuando termina (un login), se cierra sola y vuelve la página.</span>
+            </div>
             <!-- La reproducción: el paso, cómo salió el anterior y qué hacer con éste. -->
             <div v-if="replayShown" class="guide-bar">
               <div class="bar-text">
@@ -518,6 +540,11 @@ const status = computed(() => {
           <div v-else class="home">
             <h1>navegador</h1>
             <p class="muted">Pedile a Claude en la conversación qué querés hacer o aprender en una app: lo hace en un navegador real y lo ves trabajar acá. Lo que aprende queda como flujo en su proyecto: se reproduce navegando de nuevo, con sus datos precargados, y para donde tenés que actuar vos.</p>
+            <h2>Abrir una página</h2>
+            <form class="open-url big" @submit.prevent="openURL(urlInput)">
+              <input v-model="urlInput" class="input" type="text" inputmode="url" placeholder="https://… (si pide login, entrás vos acá; el perfil lo recuerda)" aria-label="Abrir una página" spellcheck="false" />
+              <button type="submit" class="btn" :disabled="!urlInput.trim() || opening">Abrir en vivo</button>
+            </form>
             <h2>Proyectos</h2>
             <div class="apps">
               <button v-for="a in apps" :key="a.id" type="button" class="card app-card" @click="openApp(a)">
@@ -685,6 +712,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .seg-toggle button:disabled { opacity: .5; cursor: progress }
 .run-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 
+/* abrir una página */
+.open-url { display: flex; gap: var(--space-1); align-items: center; padding: var(--space-2) var(--gutter); border-bottom: 1px solid var(--border) }
+.open-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
+.open-url.big { padding: 0; border: 0; gap: var(--space-2) }
+.popup-bar { border-color: var(--kw-ask) }
 /* el árbol: proyectos como carpetas, con sus flujos adentro */
 .tree { padding: var(--space-1) 0 var(--space-3) }
 .tree-row { display: flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-2) 0 var(--gutter); cursor: pointer; min-width: 0 }
