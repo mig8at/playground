@@ -18,6 +18,7 @@ import {CHOQUE_MUEBLE} from './medidas.js';
 export const MOD=3,FH=2.8,T=.2,TI=.12,FLOOR0=.15;
 // Los vanos de afuera (2026-10-18; validar-vanos): lo mínimo de pared entre dos vanos y entre un vano y la esquina.
 export const VANO={hueco:.25,esquina:.3};
+export const EJE={corre:1.7,angosta:.75};// (las ventanas de arriba, sobre los ejes de abajo: hogarWalls)
 // La escalera (medidas reales, 2026-10-15; antes 1 m y 14 peldaños de 20 × 25 cm): 1,2 m de ancho, 16 peldaños de
 // 17,5 cm de alto y 28 de huella (4,48 m); el descanso de arriba, 1,2 m. En una casa corta el tramo se acorta lo justo
 // para dejar 1 m libre al pie (la huella baja hasta 22 cm): stairRun(D).
@@ -148,10 +149,10 @@ export function planHouse(input){
  // Un vano en una pared de afuera: la ventana o la puerta del paquete, y lo que lo rodea (alféizar, dintel, postigos).
  const win=(axis,at,out,c,yFloor,type)=>{const k=WINDOWS[type],y0=yFloor+k.sill,y1=y0+k.h;openings.push({kind:'window',m:k.m,axis,at,out,c,w:k.w,y0,h:k.h,ext:s.postigos?k.w/2+.08+k.w*.45:k.w/2+.08});
   const o=out*(T/2+.03);// el marco sobresale un poco de la pared
-  if(axis==='x'){box('marco',c-k.w/2-.08,y0-.08,at+o-.05,c+k.w/2+.08,y0,at+o+.05+out*.04,cTrim);box('marco',c-k.w/2-.06,y1,at+o-.03,c+k.w/2+.06,y1+.1,at+o+.03,cTrim);
-   if(s.postigos)for(const sg of [-1,1])box('marco',c+sg*(k.w/2+.08),y0,at+o-.02,c+sg*(k.w/2+.08+k.w*.45),y1,at+o+.02,cDoor);}
-  else{box('marco',at+o-.05,y0-.08,c-k.w/2-.08,at+o+.05+out*.04,y0,c+k.w/2+.08,cTrim);box('marco',at+o-.03,y1,c-k.w/2-.06,at+o+.03,y1+.1,c+k.w/2+.06,cTrim);
-   if(s.postigos)for(const sg of [-1,1])box('marco',at+o-.02,y0,c+sg*(k.w/2+.08),at+o+.02,y1,c+sg*(k.w/2+.08+k.w*.45),cDoor);}
+  if(axis==='x'){box('marco',c-k.w/2-.08,y0-.08,at+o-.05,c+k.w/2+.08,y0,at+o+.05+out*.04,cTrim,false);box('marco',c-k.w/2-.06,y1,at+o-.03,c+k.w/2+.06,y1+.1,at+o+.03,cTrim,false);
+   if(s.postigos)for(const sg of [-1,1])box('marco',c+sg*(k.w/2+.08),y0,at+o-.02,c+sg*(k.w/2+.08+k.w*.45),y1,at+o+.02,cDoor,false);}
+  else{box('marco',at+o-.05,y0-.08,c-k.w/2-.08,at+o+.05+out*.04,y0,c+k.w/2+.08,cTrim,false);box('marco',at+o-.03,y1,c-k.w/2-.06,at+o+.03,y1+.1,c+k.w/2+.06,cTrim,false);
+   if(s.postigos)for(const sg of [-1,1])box('marco',at+o-.02,y0,c+sg*(k.w/2+.08),at+o+.02,y1,c+sg*(k.w/2+.08+k.w*.45),cDoor,false);}
   return {c,w:k.w,y0,y1};};
  // Un macetero bajo una ventana del frente (zFace: la cara de afuera de la pared): la caja del color de los postigos,
  // la mata y unas flores (cubitos de dos tonos), todo en cajas: no suma llamadas de dibujo.
@@ -162,8 +163,8 @@ export function planHouse(input){
   const n=Math.max(3,Math.round((x1-x0)/.17));for(let i=0;i<n;i++){const x=x0+.1+(x1-x0-.2)*(i+.5)/n,z=zFace+(i%2?.16:.08),hh=.1+((i*7)%3)*.035;
    box('liso',x-.05,y1+.06,z-.04,x+.05,y1+.06+hh,z+.04,i%3===1?LEAF2:LEAF,false);box('liso',x-.045,y1+.06+hh,z-.045,x+.045,y1+.13+hh,z+.045,i%2?cFlor:cFlor2,false);}};
  const door=(axis,at,out,c,yFloor,m,w=DOOR_W,h=DOOR_H)=>{openings.push({kind:'door',m,axis,at,out,c,w,y0:yFloor,h,ext:w/2+.12});/* (ext: lo que ocupa a lo largo de la pared, con el marco) */const o=out*(T/2+.02);
-  if(axis==='x'){for(const sg of [-1,1])box('marco',c+sg*(w/2+.06)-.06,yFloor,at+o-.04,c+sg*(w/2+.06)+.06,yFloor+h+.08,at+o+.04,cTrim);box('marco',c-w/2-.12,yFloor+h,at+o-.05,c+w/2+.12,yFloor+h+.16,at+o+.05,cTrim);}
-  else{for(const sg of [-1,1])box('marco',at+o-.04,yFloor,c+sg*(w/2+.06)-.06,at+o+.04,yFloor+h+.08,c+sg*(w/2+.06)+.06,cTrim);box('marco',at+o-.05,yFloor+h,c-w/2-.12,at+o+.05,yFloor+h+.16,c+w/2+.12,cTrim);}
+  if(axis==='x'){for(const sg of [-1,1])box('marco',c+sg*(w/2+.06)-.06,yFloor,at+o-.04,c+sg*(w/2+.06)+.06,yFloor+h+.08,at+o+.04,cTrim,false);box('marco',c-w/2-.12,yFloor+h,at+o-.05,c+w/2+.12,yFloor+h+.16,at+o+.05,cTrim,false);}
+  else{for(const sg of [-1,1])box('marco',at+o-.04,yFloor,c+sg*(w/2+.06)-.06,at+o+.04,yFloor+h+.08,c+sg*(w/2+.06)+.06,cTrim,false);box('marco',at+o-.05,yFloor+h,c-w/2-.12,at+o+.05,yFloor+h+.16,c+w/2+.12,cTrim,false);}
   return {c,w,y0:yFloor-.2,y1:yFloor+h};};
  // Zonas que quedan libres (el paso de las puertas, el pie y el descanso de la escalera): un mueble que estorba prueba
  // sus otros lugares (alts: [[x, z], …]) y, si ninguno sirve, no va.
@@ -207,8 +208,10 @@ export function planHouse(input){
  // modelo (para las cortinas y para los muebles que no tapan ventanas). Cada cuarto, la suya: el baño chica y alta
  // (esmerilada), la cocina ancha sobre el mesón, el dormitorio de dos hojas, la sala de tres paños y más baja.
  const conPostigos=(K,w,sin=false)=>!sin&&s.postigos&&K.v!=='bano'&&w<=1.5;
- const ROOM_WIN={bano:{v:'bano',h:.6,sill:1.5,maxW:.7},cocina:{v:'cocina',h:.95,sill:1.1,maxW:1.4},dormitorio:{v:'dos_hojas',h:1.3,sill:.9,maxW:1.5},
-  sala:{v:'tres_panos',h:1.5,sill:.6,maxW:2.1},oficina:{v:'simple',h:1.2,sill:.9,maxW:1.1},otro:{v:'dos_hojas',h:1.2,sill:.9,maxW:1.3}};
+ // (2026-10-30: todos los dinteles a la altura de la puerta —DOOR_H, 2,2 m—: alinear las cabezas de las ventanas de un
+ // piso da a la fachada su línea, aunque los anchos cambien; antes iban de 2,05 a 2,2 m según el cuarto)
+ const ROOM_WIN={bano:{v:'bano',h:.6,sill:DOOR_H-.6,maxW:.7},cocina:{v:'cocina',h:1.1,sill:DOOR_H-1.1,maxW:1.4},dormitorio:{v:'dos_hojas',h:1.3,sill:DOOR_H-1.3,maxW:1.5},
+  sala:{v:'tres_panos',h:1.5,sill:DOOR_H-1.5,maxW:2.1},oficina:{v:'simple',h:1.3,sill:DOOR_H-1.3,maxW:1.1},otro:{v:'dos_hojas',h:1.3,sill:DOOR_H-1.3,maxW:1.3}};
  const roomWin=(axis,at,out,c,yF,K,w,tela=null,sinPostigos=false)=>{const y0=yF+K.sill,h=K.h,ry=axis==='x'?(out>0?0:Math.PI):(out>0?Math.PI/2:-Math.PI/2);
   openings.push({kind:'window',m:null,axis,at,out,c,w,y0,h,room:K.v,tela,ext:conPostigos(K,w,sinPostigos)?w+.06:w/2+.08});
   for(const b of partsBoxes(OBJETOS.ventana.piezas({w,h,variante:K.v,color:cTrim}),{x:axis==='x'?c:at,y:y0,z:axis==='x'?at:c,ry}))box(b.color?'marco':'vidrio',b.x0,b.y0,b.z0,b.x1,b.y1,b.z1,b.color||'#cfe4ee',false);
@@ -217,7 +220,7 @@ export function planHouse(input){
   {const f0=at+out*T/2,sa=(lo,hi,y,yy,sal)=>axis==='x'?box('marco',c-lo,y,f0,c+hi,yy,f0+out*sal,cTrim,false):box('marco',f0,y,c-lo,f0+out*sal,yy,c+hi,cTrim,false);
    sa(w/2+.08,w/2+.08,y0-.06,y0,.1);sa(w/2+.06,w/2+.06,y0+h,y0+h+.1,.06);}
   // (los postigos: media ventana cada uno; los ventanales y el baño, sin)
-  if(conPostigos(K,w,sinPostigos)){const o=out*(T/2+.05),pw=w/2;for(const sg of [-1,1]){if(axis==='x')box('marco',c+sg*(w/2+.06),y0,at+o-.02,c+sg*(w/2+.06+pw),y0+h,at+o+.02,cDoor);else box('marco',at+o-.02,y0,c+sg*(w/2+.06),at+o+.02,y0+h,c+sg*(w/2+.06+pw),cDoor);}}
+  if(conPostigos(K,w,sinPostigos)){const o=out*(T/2+.05),pw=w/2;for(const sg of [-1,1]){if(axis==='x')box('marco',c+sg*(w/2+.06),y0,at+o-.02,c+sg*(w/2+.06+pw),y0+h,at+o+.02,cDoor,false);else box('marco',at+o-.02,y0,c+sg*(w/2+.06),at+o+.02,y0+h,c+sg*(w/2+.06+pw),cDoor,false);}}
   return {c,w,y0,y1:y0+h};};
  // ---- Las casas desde la familia (spec.hogar, 2026-10-12) ----
  // El plano de hogar.js está en (u a lo ancho, v desde el frente): acá x = u y z = D − v (el frente mira a +z).
@@ -227,6 +230,11 @@ export function planHouse(input){
  const hgColOf=(q,nivel)=>(q&&C2?.cuartos?.[nivel+':'+q.id])||(!q?cIn:q.type==='cocina'?cKit:q.type==='bano'?cBath:q.type==='dormitorio'?(q.id%2?cBed2:cBed1):cIn);
  const hgAt=(L,x,z)=>L.rooms.find(q=>x>q.u0-1e-6&&x<q.u1+1e-6&&D-z>q.v0-1e-6&&D-z<q.v1+1e-6&&q.type!=='hall')||L.rooms.find(q=>x>q.u0&&x<q.u1&&D-z>q.v0&&D-z<q.v1);
  const hgCol=(L,x,z)=>hgColOf(hgAt(L,x,z),L.level);
+ // Los ejes (2026-10-30): la regla de composición de una fachada —los vanos de cada piso, uno sobre otro en ejes
+ // verticales— (antes cada piso repartía los suyos por su cuenta: 4 % de las ventanas de arriba sobre un vano de abajo).
+ // La planta baja anota el centro de cada vano por pared; arriba, cada ventana va al eje más cercano (a lo sumo EJE.corre)
+ // si ahí entra entera en su tramo.
+ const ejes=new Map(),ejeK=(axis,at)=>axis+':'+(+at).toFixed(2),anotarEje=(axis,at,c)=>{const k=ejeK(axis,at);(ejes.get(k)||ejes.set(k,[]).get(k)).push(c);};
  function hogarWalls(lv){const L=HG.levels[lv],yF=lv?H1:FLOOR0,y0w=lv?H1:0,yTop=lv?H2:H1,front=[],back=[],left=[],right=[],big=lv?s.ventanaArriba:s.ventana;
   // (cada ventana, la de su cuarto: roomWin; el ancho, lo que da la pared del cuarto hasta el máximo de su tipo)
   // (s.cortinas2d —engine/cortinas.js, de la casa—: los cuartos con la cortina cerrada y su tela)
@@ -247,7 +255,13 @@ export function planHouse(input){
   // (si en su pared no cabe —la cocina chica con la puerta del patio—, la del costado de la casa, si el cuarto llega)
   const ubicar=(w,q,K)=>{const tr=tramoDe(w,q);if(!tr)return null;const edge=w.axis==='u'?q.u1-q.u0:q.v1-q.v0,medio=(tr[1]-tr[0])/2;let ww=Math.min(K.maxW,edge-.7,w.len-.1),sinP=false;
    if(conPostigos(K,ww)&&ww+.06>medio)sinP=true;if(sinP||!conPostigos(K,ww))ww=Math.min(ww,2*(medio-.08));if(ww<.5)return null;
-   const ext=conPostigos(K,ww,sinP)?ww+.06:ww/2+.08;return {w,ww,sinP,c:Math.min(Math.max(w.from+w.len/2,tr[0]+ext),tr[1]-ext)};};
+   const ext=conPostigos(K,ww,sinP)?ww+.06:ww/2+.08;let c=Math.min(Math.max(w.from+w.len/2,tr[0]+ext),tr[1]-ext);
+   // (si en el eje no entra con postigos, sin ellos; si no, más angosta —hasta EJE.angosta de su ancho—)
+   if(lv){const cerca=(ejes.get(ejeK(w.axis,w.at))||[]).filter(e=>Math.abs(e-c)<=EJE.corre).sort((a,b)=>Math.abs(a-c)-Math.abs(b-c));
+    for(const e of cerca){const medioE=Math.min(e-tr[0],tr[1]-e);if(medioE<=0)continue;
+     if(ext<=medioE+1e-6)return {w,ww,sinP,c:e};
+     const w2=Math.min(ww,2*(medioE-.08));if(w2>=Math.max(.5,ww*EJE.angosta))return {w,ww:w2,sinP:true,c:e};}}
+   return {w,ww,sinP,c};};
   for(const w0 of L.windows){const q=L.rooms.find(r=>r.id===w0.a),K=ROOM_WIN[q?.type]||ROOM_WIN.otro;if(!q)continue;
    const unica=L.windows.filter(o=>o.a===q.id).length===1,costados=unica&&w0.axis==='u'?[q.u0<.01?{axis:'v',at:0}:null,Math.abs(q.u1-W)<.01?{axis:'v',at:W}:null].filter(Boolean).map(o=>({...o,from:q.v0+.3,len:q.v1-q.v0-.6,a:q.id})):[];
    const u=[w0,...costados].reduce((r,w)=>r||ubicar(w,q,K),null);if(!u)continue;const {w,ww,sinP,c}=u;
@@ -255,10 +269,10 @@ export function planHouse(input){
    const tl=q&&s.cortinas2d?.cuartos?.includes(L.level+':'+q.id)?s.cortinas2d.tela:null;
    if(w.axis==='u'){if(w.at<.01){front.push(roomWin('x',D-T/2,1,c,yF,K,ww,tl,sinP));if(!lv&&s.maceteros&&K.sill<1)planter(D,c,ww,yF+K.sill);}else back.push(roomWin('x',T/2,-1,c,yF,K,ww,tl,sinP));}
    else{const cz=D-c;if(w.at<.01)left.push(roomWin('z',T/2,-1,cz,yF,K,ww,tl,sinP));else right.push(roomWin('z',W-T/2,1,cz,yF,K,ww,tl,sinP));}
-   if(openings[n0])Object.assign(openings[n0],{cuarto:q.id,nivel:L.level});}
-  const sd=L.doors.find(d=>d.street);if(sd)front.push(door('x',D-T/2,1,sd.from+sd.len/2,yF,s.puerta,doorW));
+   if(openings[n0])Object.assign(openings[n0],{cuarto:q.id,nivel:L.level});if(!lv)anotarEje(w.axis,w.at,c);}
+  const sd=L.doors.find(d=>d.street);if(sd){front.push(door('x',D-T/2,1,sd.from+sd.len/2,yF,s.puerta,doorW));if(!lv)anotarEje('u',0,sd.from+sd.len/2);}
   // (la de atrás, al patio —hogar.js—: como la de calle, en la pared del fondo)
-  const pd=L.doors.find(d=>d.patio);if(pd)back.push(door('x',T/2,-1,pd.from+pd.len/2,yF,s.puerta==='Door_Double'?'Door_1':s.puerta,DOOR_W));// (sencilla siempre: la doble, de 1,9 m, no cabe al lado de la ventana)
+  const pd=L.doors.find(d=>d.patio);if(pd){back.push(door('x',T/2,-1,pd.from+pd.len/2,yF,s.puerta==='Door_Double'?'Door_1':s.puerta,DOOR_W));if(!lv)anotarEje(pd.axis,pd.at,pd.from+pd.len/2);}// (sencilla siempre: la doble, de 1,9 m, no cabe al lado de la ventana)
   // (por dentro, el color del cuarto que está detrás de cada tramo)
   const us=[...new Set(L.rooms.flatMap(q=>[q.u0,q.u1]))].sort((a,b)=>a-b),zs=[...new Set(L.rooms.flatMap(q=>[D-q.v0,D-q.v1]))].sort((a,b)=>a-b);
   outer('x',D-T/2,1,0,W,y0w,yTop,front,x=>hgCol(L,x,D-.3),us);outer('x',T/2,-1,0,W,y0w,yTop,back,x=>hgCol(L,x,.3),us);

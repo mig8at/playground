@@ -1,0 +1,17 @@
+#!/bin/sh
+# navegador — el CLI de la sesión en vivo del navegador (navegador/cli). Lo compila la primera vez y cada vez
+# que cambia su código, a ~/.cache/playground/navegador, igual que bin/pg. Habla con la API de `make navegador`.
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/navegador"
+stale=$(find "$root/navegador/cli" -type f -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./navegador/cli) >&2; then
+    rm -f "$tmp"
+    echo "navegador: no compila navegador/cli" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+NAVEGADOR_ROOT="$root" exec "$bin" "$@"

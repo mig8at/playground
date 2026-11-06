@@ -65,7 +65,7 @@ export function ubicar(e,modelos){
 export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  const group=new THREE.Group(),esperado=contrato(bp),registro=[],modelos={};
  for(const k of Object.values(kits))if(k)for(const [n,m] of Object.entries(k))if(m?.box)modelos[n]=m;
- const plantas=new Map(),piezas=[],placas=[];
+ const plantas=new Map(),nombres=new Map(),piezas=[],placas=[];
  for(const e of esperado){const u=ubicar(e,modelos),y=suelo(e.x,e.z);
   if(!u){registro.push({id:e.id,modelo:e.modelo,falta:true});continue;}
   if(e.kit==='placa'){const yp=suelo(e.dentro.x,e.dentro.z)+e.altura;placas.push({...e,y:yp});registro.push({id:e.id,modelo:'placa',x:e.x,y:yp,z:e.z,ry:e.ang,ancho:u.ancho,fondo:u.fondo,alto:u.alto,texto:e.texto});continue;}
@@ -77,13 +77,15 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
    if(PLANA.has(e.modelo)){const c=Math.cos(e.ang||0),sn=Math.sin(e.ang||0),a=u.ancho/2,b=u.fondo/2,hs=[[-a,-b],[a,-b],[a,b],[-a,b]].map(([du,dv])=>suelo(e.x+du*c+dv*sn,e.z-du*sn+dv*c));
     const hmax=Math.max(y,...hs),hmin=Math.min(y,...hs);if(hmax-hmin>.02){yb=hmax;losa={y0:+(hmin-.05).toFixed(3),y1:+hmax.toFixed(3)};piezas.push({x:e.x,y:losa.y0,z:e.z,ry:e.ang||0,sx:u.ancho+.12,sy:losa.y1-losa.y0,sz:u.fondo+.12,color:'#b9b4aa'});}}
    if(e.modelo!=='cebra')piezas.push(...placeParts(u.piezas,{x:e.x,y:yb+(e.y0||0),z:e.z,ry:e.ang}));registro.push({id:e.id,modelo:e.modelo,x:e.x,y:yb,z:e.z,ry:e.ang,ancho:u.ancho,fondo:u.fondo,alto:u.alto,...(losa?{losa}:{})});}
-  else{(plantas.get(u.M)||plantas.set(u.M,[]).get(u.M)).push({x:u.px,y:y+u.py0,z:u.pz,ry:e.ang,sx:u.sx,sy:u.sy,sz:u.sz,tint:e.tint});
+  else{nombres.set(u.M,e.modelo);(plantas.get(u.M)||plantas.set(u.M,[]).get(u.M)).push({x:u.px,y:y+u.py0,z:u.pz,ry:e.ang,sx:u.sx,sy:u.sy,sz:u.sz,tint:e.tint});
    registro.push({id:e.id,modelo:e.modelo,x:u.tx,y,z:u.tz,ry:e.ang,ancho:u.ancho,fondo:u.fondo,alto:u.alto,tronco:u.tronco});}}
  // las luces (para las de noche del demo): la luminaria del farol de calle, en la punta del brazo; la del de parque, arriba
  const lights=[];for(const e of esperado){if(e.modelo!=='farol'&&e.modelo!=='farol_parque')continue;const k=e.alto&&e.modelo==='farol'?e.alto/OBJETOS.farol.alto():1,y=suelo(e.x,e.z),lz=e.modelo==='farol'?1.15*k:0;
   lights.push({x:e.x+lz*Math.sin(e.ang),y:y+(e.modelo==='farol'?4.2*k:3.15),z:e.z+lz*Math.cos(e.ang)});}
  // (cada planta, descartable sola: plantBatched —con una InstancedMesh por modelo nunca se descartaba ninguna—)
- const lotes=[];for(const [M,items] of plantas){const b=plantBatched({m:M},'m',items,group);if(b)lotes.push(b);}
+ const lotes=[];for(const [M,items] of plantas){const b=plantBatched({m:M},'m',items,group);if(b){b.modelo=nombres.get(M);lotes.push(b);}}
+ // (los árboles se pueden ocultar: la vista de arriba no los quiere —2026-10-18, Miguel: «oculta todos los árboles»—)
+ const ARBOL=/tree|pine|palm|birch|willow|arbol|pino|palmera/i,setArboles=on=>{for(const b of lotes)if(ARBOL.test(b.modelo||''))for(const m of b.meshes)m.visible=on;};
  const setCeldas=(celdas,W)=>{for(const b of lotes)b.setCeldas(celdas,W);};
  // (2026-10-16, medido en el navegador sin ventana —validar-3d—: todo el equipamiento del mundo iba en una malla por pieza
  // y color —350 mil triángulos también desde adentro de un edificio—; ahora por baldosas de 144 m: la cámara deja afuera
@@ -96,7 +98,7 @@ export function dibujarPlano(bp,{kits={},suelo=()=>0}={}){
  const {lista:choques}=colisiones(bp);for(const c of choques)c.y=suelo(c.x,c.z);const I=indiceColisiones(choques);
  const collide=(x,z,r,pies=-Infinity)=>{for(const [f,c] of I.cerca(x,z)){if(pies-c.y>=c.alto-.05)continue;if(distForma(f,x,z)<r)return c;}return null;};
  const dispose=()=>{group.traverse(o=>{if(o.isInstancedMesh||o.isBatchedMesh)o.dispose();});};
- return {group,registro,esperado,lights,choques,collide,dispose,setCeldas};}
+ return {group,registro,esperado,lights,choques,collide,dispose,setCeldas,setArboles};}
 
 // Las placas de dirección: una textura de texto por cada PORLAMINA placas (cada una, PX × PY píxeles: la vía arriba —«CALLE
 // 7»— y el número grande abajo —«# 21-52»—, azul sobre blanco hueso con su borde), una malla de caras por lámina y, atrás,

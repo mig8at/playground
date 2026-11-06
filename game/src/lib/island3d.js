@@ -693,7 +693,10 @@ obj.traverse(o=>{if(o.isMesh){o.material=o.geometry.attributes.uv?mats.get(h.tex
   if(beyond(x,z)>0)continue;const h=height(x,z);if(isFinite(h)&&h<WATER-depth&&h>WATER-depth-30)return {x,z,depth:WATER-h};}return null;};
  const doorPath=h=>{const P=(lx,lz)=>({x:h.x+lx*Math.cos(h.ry)+lz*Math.sin(h.ry),z:h.z-lx*Math.sin(h.ry)+lz*Math.cos(h.ry)});return {outside:P(h.door,h.d/2+1.8),door:P(h.door,h.d/2-.7),inside:P(h.door*.2,-h.d*.05)};};
  // Las puertas: se abren con alguien a menos de 2,2 m (gente: [{x,z}]) y se cierran solas.
- function updateDoors(dt,people){for(const d of doorLeaves){const near=people.some(o=>(o.x-d.cx)**2+(o.z-d.cz)**2<4.8),a=near?Math.min(1,d.a+dt*2.4):Math.max(0,d.a-dt*1.3);if(a!==d.a){d.a=a;d.pivot.rotation.y=d.h.ry+a*1.45;}}}
+ // (la ronda: la de una vivienda trancada no se abre sola —setTrancadas(fn(x, z, y))—)
+ let trancadaFn=null;
+ // (2026-10-18: al jugador —o.esJugador— no se le abren solas; d.mano, la abrió él con E)
+ function updateDoors(dt,people){for(const d of doorLeaves){const near=!(trancadaFn&&trancadaFn(d.cx,d.cz,d.h.base))&&(d.mano||people.some(o=>!o.esJugador&&(o.x-d.cx)**2+(o.z-d.cz)**2<4.8)),a=near?Math.min(1,d.a+dt*2.4):Math.max(0,d.a-dt*1.3);if(a!==d.a){d.a=a;d.pivot.rotation.y=d.h.ry+a*1.45;}}}
  // ---------- Del plano: senderos, plazas, el globo y el parapente ----------
  // Los senderos: losetas de tierra cada 1,2 m entre casillas de sendero vecinas (y hacia las plazas), sobre el terreno.
  // Las plazas: una loseta clara por casilla. El globo, inflado y atado en la arena; el parapente, desplegado al borde.
@@ -962,5 +965,8 @@ obj.traverse(o=>{if(o.isMesh){o.material=o.geometry.attributes.uv?mats.get(h.tex
   // el jugador caía 6 m y quedaba debajo del pasto)
   const tv=enTerraza(x,z);if(tv!=null){const top=tv+(tv.lote?.05:.02);return superficie&&best>-Infinity?Math.max(best,top):top;}
   return terrenoEn(x,z);};
- return {lights:roadLights,superficie,lotesTri:()=>lotesTri,casaDentro:(x,z)=>{const hf=houseFloor(x,z);return hf?.inside&&hf.h.casaIdx!=null?hf.h.casaIdx:null;},rampaEn:(cx,cy)=>rampas.has(cx+','+cy),techo:(x,z)=>{const r=rampas.get(Math.floor(x/6)+','+Math.floor(z/6));return Math.max(sueloEn(x,z),r?r.orig:-Infinity);},group,seats,sleeps,insideHouse:(x,z)=>!!houseFloor(x,z)?.inside,setEdges(on){for(const m of edgeMeshes)m.userData.edges=on;},landmarks:modelHouses,plots,update,updateDoors,setNight,dispose,walkable,where,houses,spot,doorPath,names:{beaches:beaches.map(b=>b.name),cerros:sectors.map(s=>s.name)},ground:(x,z,feet)=>{const hf=houseFloor(x,z);if(!hf)return sueloEn(x,z);if(!hf.inside)return hf.h.base;const [lx,lz]=local(hf.h,x,z);return insideFloor(hf.h,lx,lz,feet);},height:(x,z)=>beyond(x,z)>0?-Infinity:sueloEn(x,z),agua,water:WATER};
+ // las puertas cerca de (x, z, y), como world3d.puertasCerca (la hoja: DW a lo largo del frente de la casa)
+ const puertasCerca=(x,z,y,r=1.5)=>doorLeaves.filter(d=>Math.abs(d.h.base-y)<1.6&&Math.hypot(d.cx-x,d.cz-z)<=r).map(d=>{const ex=Math.cos(d.h.ry),ez=-Math.sin(d.h.ry),w=DW/2;
+  return {cx:d.cx,cz:d.cz,cy:d.h.base,seg:[d.cx-ex*w,d.cz-ez*w,d.cx+ex*w,d.cz+ez*w],get a(){return d.a;},get abierta(){return !!d.mano;},alternar(){d.mano=!d.mano;},trancada:()=>!!trancadaFn?.(d.cx,d.cz,d.h.base)};});
+ return {setTrancadas:fn=>{trancadaFn=fn;},puertasCerca,lights:roadLights,superficie,lotesTri:()=>lotesTri,casaDentro:(x,z)=>{const hf=houseFloor(x,z);return hf?.inside&&hf.h.casaIdx!=null?hf.h.casaIdx:null;},rampaEn:(cx,cy)=>rampas.has(cx+','+cy),techo:(x,z)=>{const r=rampas.get(Math.floor(x/6)+','+Math.floor(z/6));return Math.max(sueloEn(x,z),r?r.orig:-Infinity);},group,seats,sleeps,insideHouse:(x,z)=>!!houseFloor(x,z)?.inside,setEdges(on){for(const m of edgeMeshes)m.userData.edges=on;},landmarks:modelHouses,plots,update,updateDoors,setNight,dispose,walkable,where,houses,spot,doorPath,names:{beaches:beaches.map(b=>b.name),cerros:sectors.map(s=>s.name)},ground:(x,z,feet)=>{const hf=houseFloor(x,z);if(!hf)return sueloEn(x,z);if(!hf.inside)return hf.h.base;const [lx,lz]=local(hf.h,x,z);return insideFloor(hf.h,lx,lz,feet);},height:(x,z)=>beyond(x,z)>0?-Infinity:sueloEn(x,z),agua,water:WATER};
 }

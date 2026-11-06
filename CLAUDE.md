@@ -13,7 +13,9 @@ concreto vive al lado de ese algo, y se lee ahí:
 | el diseño de una herramienta, o cómo se valida contra otra | [`tools/CLAUDE.md`](tools/CLAUDE.md) |
 | una tarea del tablero, el cierre de sesión, Jira | [`tablero/CLAUDE.md`](tablero/CLAUDE.md) |
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
+| el navegador (configurar paneles admin con guía o con confirmación, `bin/navegador ask`, sus evals) | [`navegador/CLAUDE.md`](navegador/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
+| la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
 
 ## `make` es la puerta única

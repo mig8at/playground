@@ -155,4 +155,4 @@ export function plantBatched(kit,name,items,group,{shadow=true}={}){
    bm.castShadow=shadow;bm.receiveShadow=true;group.add(bm);todas.push({bm,ids});}}
  let antes=null;
  const setCeldas=(celdas,W,S=6)=>{if(celdas===antes)return;antes=celdas;for(const {bm,ids} of todas)items.forEach((it,i)=>bm.setVisibleAt(ids[i],!celdas||celdas.has(Math.floor(it.z/S)*W+Math.floor(it.x/S))));};
- return {setCeldas,n:items.length};}
+ return {setCeldas,n:items.length,meshes:todas.map(t=>t.bm)};}

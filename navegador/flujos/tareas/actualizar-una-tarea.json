@@ -1,0 +1,99 @@
+{
+  "nombre": "Actualizar una tarea",
+  "meta": "Actualizar una tarea",
+  "inicio": "/?restaurar",
+  "dispositivo": "desktop",
+  "creado": "2026-11-05T18:23:31.627993705-05:00",
+  "pasos": [
+    {
+      "accion": "goto",
+      "objetivo": "http://127.0.0.1:5217/?restaurar",
+      "valor": "/?restaurar",
+      "instruccion": "Abrí /?restaurar",
+      "codigo": "page.goto('http://127.0.0.1:5217/?restaurar')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Editar Llamar al proveedor",
+      "instruccion": "Hacé clic en «Editar Llamar al proveedor»",
+      "porque": "Cada tarea tiene su «Editar»: abre el mismo formulario con sus datos.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Editar Llamar al proveedor",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Editar Llamar al proveedor', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Editar Llamar al proveedor', exact: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Título",
+      "valor": "Llamar al proveedor de café",
+      "instruccion": "Escribí «Llamar al proveedor de café» en «Título»",
+      "porque": "Le cambio el título para que diga a qué proveedor.",
+      "dato": "Título",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Título",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Título', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Título', exact: true }).fill('Llamar al proveedor de café')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Prioridad",
+      "valor": "alta",
+      "instruccion": "Elegí «alta» en «Prioridad»",
+      "porque": "Y la subo a prioridad alta.",
+      "dato": "Prioridad",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Prioridad",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Prioridad', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Prioridad', exact: true }).selectOption('alta')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Guardar cambios",
+      "instruccion": "Hacé clic en «Guardar cambios»",
+      "porque": "«Guardar cambios» actualiza la tarea en la lista.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Guardar cambios",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Guardar cambios', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Guardar cambios', exact: true }).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Tarea actualizada",
+      "valor": "Tarea actualizada",
+      "instruccion": "Comprobá que se vea «Tarea actualizada»",
+      "codigo": "expect(page.getByText('Tarea actualizada').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

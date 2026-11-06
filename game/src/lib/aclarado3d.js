@@ -3,22 +3,36 @@
    traman: dentro de cada caja del mundo (hasta MAX), de cada píxel queda una parte DEJA y el resto no se dibuja, con un
    ruido fijo de pantalla (no transparencia de verdad: los edificios van fundidos en pocas mallas y una transparencia se
    ordenaría mal y titilaría; el tramado no se ordena y cuesta lo mismo). Sólo lo que no tiene piel (la gente no se trama)
-   y no en las sombras (el cuarto no se llena de luz). La vista desde arriba con el corte se retiró: esto no la usa. */
+   y no en las sombras (el cuarto no se llena de luz). La vista desde arriba con el corte se retiró: esto no la usa.
+   (2026-10-18, Miguel: «que simplemente no se vea la pared detrás del personaje»): con deja = 0 la pared que tapa no se
+   dibuja nada. (negro: lo que queda a menos de esos m del corte se pinta negro —probado y descartado: en 0—.) */
 import * as THREE from 'three';
-export function createAclarado({max=12,deja=.45}={}){
- const U={uAclN:{value:0},uAclK:{value:deja},uAclA:{value:Array.from({length:max},()=>new THREE.Vector4())},uAclB:{value:Array.from({length:max},()=>new THREE.Vector4())}};
- const VH='varying vec3 vAclW;\n',FH=`uniform float uAclN,uAclK;uniform vec4 uAclA[${max}];uniform vec4 uAclB[${max}];varying vec3 vAclW;\n`;
+export function createAclarado({max=12,deja=0,negro=0}={}){
+ const U={uAclN:{value:0},uAclK:{value:deja},uAclM:{value:negro},uAclA:{value:Array.from({length:max},()=>new THREE.Vector4())},uAclB:{value:Array.from({length:max},()=>new THREE.Vector4())}};
+ const VH='varying vec3 vAclW;\n',FH=`uniform float uAclN,uAclK,uAclM;uniform vec4 uAclA[${max}];uniform vec4 uAclB[${max}];varying vec3 vAclW;\n`;
  const VB=`
   {vec4 aw=vec4(transformed,1.);
+  #ifdef USE_BATCHING
+   aw=batchingMatrix*aw;
+  #endif
   #ifdef USE_INSTANCING
    aw=instanceMatrix*aw;
   #endif
   vAclW=(modelMatrix*aw).xyz;}`;
  const FB=`
  #if !defined(USE_SKINNING)&&!defined(DEPTH_PACKING)
+ float aclNegro=0.;
  if(uAclN>.5){for(int i=0;i<${max};i++){if(float(i)>=uAclN)break;vec4 a=uAclA[i],b=uAclB[i];
   if(vAclW.x>a.x&&vAclW.x<a.z&&vAclW.z>a.y&&vAclW.z<a.w&&vAclW.y>b.x&&vAclW.y<b.y){
-   float t=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715))));if(t>uAclK)discard;break;}}}
+   if(uAclK<=0.)discard;
+   float t=fract(52.9829189*fract(dot(floor(gl_FragCoord.xy),vec2(.06711056,.00583715))));if(t>uAclK)discard;break;}
+  float m=uAclM;if(m>0.&&vAclW.x>a.x-m&&vAclW.x<a.z+m&&vAclW.z>a.y-m&&vAclW.z<a.w+m&&vAclW.y>b.x-m&&vAclW.y<b.y+m)aclNegro=1.;}}
+ #endif
+`;
+ // (el borde del corte, negro: al final, sobre el color ya calculado)
+ const FN=`
+ #if !defined(USE_SKINNING)&&!defined(DEPTH_PACKING)
+ if(aclNegro>.5)gl_FragColor.rgb=vec3(.012);
  #endif
 `;
  const done=new WeakSet();
@@ -26,7 +40,7 @@ export function createAclarado({max=12,deja=.45}={}){
   const prev=m.onBeforeCompile,key=m.customProgramCacheKey;
   m.onBeforeCompile=(sh,r)=>{prev?.call(m,sh,r);if(sh.vertexShader.includes('vAclW')||!sh.vertexShader.includes('#include <project_vertex>')||!sh.fragmentShader.includes('#include <clipping_planes_fragment>'))return;
    Object.assign(sh.uniforms,U);sh.vertexShader=VH+sh.vertexShader.replace('#include <project_vertex>','#include <project_vertex>'+VB);
-   sh.fragmentShader=FH+sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>'+FB);};
+   sh.fragmentShader=FH+sh.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>'+FB).replace('#include <dithering_fragment>','#include <dithering_fragment>'+FN);};
   m.customProgramCacheKey=()=>(key?key.call(m):'')+'|acl';m.needsUpdate=true;}
  const isUnder=(o,s)=>{for(let p=o;p;p=p.parent)if(p===s)return true;return false;};
  function patchTree(root,skip=[]){root.traverse(o=>{if(!o.isMesh||o.isSkinnedMesh||skip.some(s=>isUnder(o,s)))return;(Array.isArray(o.material)?o.material:[o.material]).forEach(patch);});}

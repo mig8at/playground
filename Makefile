@@ -331,6 +331,13 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 
 
+# navegador: Chromium por playwright-go; el perfil (la sesión) de cada sitio vive en navegador/.data.
+.PHONY: navegador navegador-evals
+navegador: ## @dia abre navegador (:5202 · API :5203): flujos para usar herramientas complejas. Le decís qué querés hacer en una app y Claude lo hace en un Chromium real (automático: sólo frena antes de algo irreversible) o te enseña paso a paso; lo ves trabajar en vivo y queda como flujo JSON en navegador/flujos (se repite sin Claude o se enseña) y como video. Levanta también las apps locales de práctica (navegador/apps: Panel Andino en :5206). Por consola: bin/navegador ask "<meta>"
+	@cd navegador && npm run dev
+navegador-evals: ## @dia la suite de regresión de bin/navegador ask: corre las metas de navegador/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make navegador arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
+	@bin/navegador evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
+
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
@@ -687,13 +694,20 @@ harness-obs-down: ## @har baja Loki y Tempo locales (se llevan sus datos)
 # (`bin/pg sql` · `bin/pg logs` · `bin/pg events`), y la traza por etapas de una solicitud de PRODUCCIÓN
 # la da el tracer del equipo (`tools/tracer` en el playground compartido). Este atajo lo dice en vez de
 # fallar con «no rule to make target» cuando alguien corre un comando viejo de una nota.
-trazador trazador-%:
-	@echo "  el trazador se retiró (2026-10-13). En su lugar:"
-	@echo "    SQL           bin/pg sql --target T --query 'SELECT …' [--md] [--bloque TAREA]   (o make tablero-db)"
-	@echo "    logs (Loki)   bin/pg logs --target T --query '{…}' --since 1h"
-	@echo "    PostHog       bin/pg events request --target T --ureq N [--tel CEL]  ·  bin/pg events errors --target T"
-	@echo "    una solicitud de prod, por etapas: el tracer del equipo (tools/tracer del playground compartido)"
-	@exit 2
+# Un target normal y un patrón no pueden compartir regla (GNU make lo marca como sintaxis obsoleta en cada
+# corrida): la receta va en una variable y cada uno tiene la suya.
+define TRAZADOR_RETIRADO
+@echo "  el trazador se retiró (2026-10-13). En su lugar:"
+@echo "    SQL           bin/pg sql --target T --query 'SELECT …' [--md] [--bloque TAREA]   (o make tablero-db)"
+@echo "    logs (Loki)   bin/pg logs --target T --query '{…}' --since 1h"
+@echo "    PostHog       bin/pg events request --target T --ureq N [--tel CEL]  ·  bin/pg events errors --target T"
+@echo "    una solicitud de prod, por etapas: el tracer del equipo (tools/tracer del playground compartido)"
+@exit 2
+endef
+trazador:
+	$(TRAZADOR_RETIRADO)
+trazador-%:
+	$(TRAZADOR_RETIRADO)
 
 # El «por qué» del negocio (política de riesgo, contratos con lenders, PRDs) no está en el código:
 # está en Confluence. Solo lectura: no hay verbo que escriba.

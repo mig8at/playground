@@ -26,7 +26,9 @@ export function lodInstances(group,kits,items,{near=70,shadow=true,step=6}={}){
   for(const M of models.values())if(M)for(const im of M.ims){im.count=M.n;im.instanceMatrix.needsUpdate=true;if(im.instanceColor)im.instanceColor.needsUpdate=true;}}
  update(0,0,true);
  const calls=()=>[...models.values()].reduce((a,M)=>a+(M?M.ims.length:0),0);
- return {update,calls,
+ // (ocultar unos modelos —por su nombre: los árboles en la vista de arriba—)
+ const setVisible=(test,on)=>{for(const [k,M] of models)if(M&&test(k.slice(k.indexOf(':')+1)))for(const im of M.ims)im.visible=on;};
+ return {update,calls,setVisible,
   // triángulos dibujados ahora
   tris(){let t=0;for(const M of models.values())if(M)for(const im of M.ims)t+=im.count*im.geometry.attributes.position.count/3;return t;}};
 }

@@ -1,0 +1,48 @@
+{
+  "nombre": "Borrar una tarea",
+  "meta": "Borrar una tarea",
+  "inicio": "/?restaurar",
+  "dispositivo": "desktop",
+  "creado": "2026-11-05T18:23:34.231691479-05:00",
+  "pasos": [
+    {
+      "accion": "goto",
+      "objetivo": "http://127.0.0.1:5217/?restaurar",
+      "valor": "/?restaurar",
+      "instruccion": "Abrí /?restaurar",
+      "codigo": "page.goto('http://127.0.0.1:5217/?restaurar')"
+    },
+    {
+      "accion": "dialog",
+      "objetivo": "confirm «¿Eliminar «Revisar inventario»? No se puede deshacer.» → aceptado",
+      "valor": "accept",
+      "instruccion": "Aceptá el aviso que aparece: confirm «¿Eliminar «Revisar inventario»? No se puede deshacer.» → aceptado",
+      "codigo": "page.once('dialog', (d) => d.accept())"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar Revisar inventario",
+      "instruccion": "Hacé clic en «Eliminar Revisar inventario»",
+      "porque": "«Eliminar» borra la tarea; la app pregunta antes, porque no se puede deshacer.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar Revisar inventario",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar Revisar inventario', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar Revisar inventario', exact: true }).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Tarea eliminada",
+      "valor": "Tarea eliminada",
+      "instruccion": "Comprobá que se vea «Tarea eliminada»",
+      "codigo": "expect(page.getByText('Tarea eliminada').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

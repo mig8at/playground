@@ -1,4 +1,4 @@
-// Generado por scripts/gen-minimos.mjs (2026-10-16): la medida mínima de cada programa (blueprint PROGRAMS,
+// Generado por harness/pruebas/gen-minimos.mjs (2026-10-16): la medida mínima de cada programa (blueprint PROGRAMS,
 // minRoom con proporción ≤ 1:1,5, con TODO lo que el cuarto puede llevar: el programa y sus opcionales), [ancho, fondo] con la puerta en el lado de adelante: hondo (puerta en el lado corto)
 // y ancho (puerta en el lado largo). Cuerpo de la prueba de movimiento: radio 400 mm (medidas.js ERGO.radioPrueba).
 // Si cambian los muebles, el cuerpo o la prueba de movimiento, se vuelve a generar.

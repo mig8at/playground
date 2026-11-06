@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tareas · Demo</title>
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+<!-- Demo · Tareas: la app más simple para practicar flujos (crear, actualizar, borrar). FICTICIA: todo vive en el
+     localStorage de esta página; ?restaurar la deja con sus tareas de ejemplo. -->
+<header class="top">
+  <strong class="marca">Tareas</strong>
+  <input id="buscar" type="search" placeholder="Buscar tareas" aria-label="Buscar tareas">
+  <button type="button" id="nueva">Nueva tarea</button>
+</header>
+<main>
+  <p id="vacio" class="muted" hidden>No hay tareas. Creá la primera con «Nueva tarea».</p>
+  <ul id="lista" class="lista" aria-label="Tareas"></ul>
+</main>
+<dialog id="editor" aria-labelledby="editor-titulo">
+  <form id="form" method="dialog">
+    <h2 id="editor-titulo">Nueva tarea</h2>
+    <label for="f-titulo">Título</label>
+    <input id="f-titulo" required autocomplete="off">
+    <label for="f-fecha">Fecha límite</label>
+    <input id="f-fecha" type="date">
+    <label for="f-prioridad">Prioridad</label>
+    <select id="f-prioridad"><option value="baja">Baja</option><option value="media" selected>Media</option><option value="alta">Alta</option></select>
+    <label for="f-notas">Notas</label>
+    <textarea id="f-notas" rows="3"></textarea>
+    <p id="f-error" class="error" role="alert"></p>
+    <div class="fila">
+      <button type="button" class="sec" id="cancelar">Cancelar</button>
+      <button type="submit" id="enviar">Crear tarea</button>
+    </div>
+  </form>
+</dialog>
+<div id="aviso" class="aviso" role="status" hidden></div>
+<script src="/app.js"></script>
+</body>
+</html>

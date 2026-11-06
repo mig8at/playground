@@ -1,0 +1,47 @@
+/* EL VOCABULARIO VISUAL DE NAVEGADOR.
+ *
+ * Las mismas capas que radar y keyring, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo
+ * acá: cómo respondió una página o una llamada.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* Cómo respondió una página o una llamada: rojo si falló, ámbar si redirigió. Uno por tema.
+ * ⚠ El rojo NO sale de `--destructive`: en Darkmatter es un verde azulado apagado (lo mismo que avisa chat). */
+:root {
+  --status-bad: #b91c1c;
+  --status-warn: #b45309;
+  /* El marco de un elemento interactivo sobre la captura: un azul que se separa de cualquier sitio, y su número
+     en blanco encima (6,7:1). Igual en los dos temas, porque se pinta sobre la captura, no sobre la interfaz. */
+  --control-box: #2563eb;
+  --control-box-fill: rgb(37 99 235 / .14);
+  --control-box-ink: #ffffff;
+  /* Cómo terminó una corrida: LISTO, NO PUDE, NECESITO/CONFIRMAR. Relleno con tinta blanca (≥ 4,5:1 en los dos). */
+  --kw-ok: #15803d;
+  --kw-bad: #b91c1c;
+  --kw-ask: #a16207;
+  --kw-ink: #ffffff;
+  --stage-bg: #111113;
+  --stage-chip: rgba(0, 0, 0, .62);
+  --stage-ink: #ffffff;
+  /* El reproductor: subtítulos estilo video y el cursor (iguales en los dos temas: van sobre una foto). */
+  --subs-bg: rgba(0, 0, 0, .78);
+  --subs-ink: #ffffff;
+  --subs-ink-2: #e8e8e8;
+  --cursor-fill: #ffffff;
+  --cursor-line: #111111;
+  --kw-ok-ink: #15803d;
+}
+.dark {
+  --status-bad: #f87171;
+  --status-warn: #fbbf24;
+  --kw-ok-ink: #4ade80;
+}
+
+/* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font: var(--text-base)/1.4 var(--font-sans) }
+#app { height: 100% }

@@ -1,0 +1,17 @@
+.container--titulo {
+  padding: 2.5rem 1rem 1rem;
+}
+
+.headingLevel2--titulo {
+  color: #1b1446;
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.container--pie {
+  border-top: 1px solid #ecebf5;
+  color: #6b6790;
+  font-size: 0.875rem;
+  padding: 1.5rem 1rem;
+}

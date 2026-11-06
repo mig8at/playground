@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crédito Ya · App</title>
+<style>
+  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #1d2b2a; background: #f4fbf9; padding: 18px }
+  h2 { margin: 0 0 6px; font-size: 16px }
+  .bloque { background: #fff; border: 1px solid #cfe7e1; border-radius: 8px; padding: 14px; margin-bottom: 12px }
+  code { background: #e6f5f1; padding: 2px 6px; border-radius: 4px; font-size: 13px }
+  button { font: inherit; padding: 8px 14px; border: 0; border-radius: 6px; background: #0f766e; color: #fff; cursor: pointer }
+  .estado { font-weight: 600 } .si { color: #15803d } .no { color: #b45309 }
+  .muted { color: #5b6b69 }
+</style>
+</head>
+<body>
+<!-- La app de un proveedor de pagos FICTICIO, como las que un panel de tienda muestra en un iframe. -->
+<div class="bloque">
+  <h2>Credenciales</h2>
+  <p>De <strong>pruebas</strong> (no cobran nada): ID de comercio <code id="id-pruebas">CY-PRUEBA-0001</code></p>
+  <p class="muted">Las de producción se piden a Crédito Ya cuando la tienda pasa la revisión.</p>
+</div>
+<div class="bloque">
+  <h2>Conexión con la tienda</h2>
+  <p>Estado: <span id="estado" class="estado"></span></p>
+  <button type="button" id="conectar"></button>
+</div>
+<script>
+  const KEY = 'panel.estado'
+  const leer = () => JSON.parse(localStorage.getItem(KEY) || '{}')
+  function pintar() {
+    const ok = !!leer().apps?.creditoya?.conectada
+    const e = document.getElementById('estado')
+    e.textContent = ok ? 'Conectada' : 'Sin conectar'
+    e.className = 'estado ' + (ok ? 'si' : 'no')
+    document.getElementById('conectar').textContent = ok ? 'Desconectar tienda' : 'Conectar tienda'
+  }
+  document.getElementById('conectar').onclick = () => {
+    const s = leer()
+    if (!s.apps) return alert('Abrí primero el panel de la tienda.')
+    const ok = !s.apps.creditoya?.conectada
+    if (!confirm(ok ? '¿Conectar Tienda Andina con Crédito Ya?' : '¿Desconectar la tienda de Crédito Ya?')) return
+    s.apps.creditoya = { conectada: ok }
+    localStorage.setItem(KEY, JSON.stringify(s))
+    pintar()
+  }
+  pintar()
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Panel Andino · Administración</title>
+<link rel="stylesheet" href="/estilo.css">
+</head>
+<body>
+<!-- Panel Andino: el admin FICTICIO de una tienda, para practicar flujos en un panel complejo (estilo Shopify o
+     VTEX). El navegador lo trata como sitio REAL: lo irreversible (eliminar, desactivar) pide confirmación. Todo vive
+     en el localStorage de esta página; ?restaurar lo deja como nuevo. -->
+<header class="top">
+  <button type="button" class="menu-btn" aria-label="Menú" aria-expanded="false" aria-controls="lateral">☰</button>
+  <a class="marca" href="#/inicio">Panel Andino</a>
+  <form class="buscar" role="search" onsubmit="return false">
+    <input id="buscar" type="search" placeholder="Buscar en el panel (pagos, envíos, usuarios…)" aria-label="Buscar en el panel" autocomplete="off">
+    <ul id="sugerencias" class="sugerencias" role="listbox" hidden></ul>
+  </form>
+  <span class="usuario">Ana Prueba · Dueña</span>
+</header>
+
+<div id="guardar-barra" class="guardar-barra" role="region" aria-label="Cambios sin guardar" hidden>
+  <span>Cambios sin guardar</span>
+  <button type="button" class="sec" id="descartar">Descartar</button>
+  <button type="button" id="guardar">Guardar</button>
+</div>
+
+<div class="cuerpo">
+  <nav id="lateral" class="lateral" aria-label="Administración">
+    <a href="#/inicio">Inicio</a>
+    <a href="#/pedidos">Pedidos</a>
+    <a href="#/productos">Productos</a>
+    <a href="#/clientes">Clientes</a>
+    <details id="grupo-config">
+      <summary>Configuración</summary>
+      <a href="#/config/general">General</a>
+      <a href="#/config/pagos">Pagos</a>
+      <a href="#/config/envios">Envíos y entregas</a>
+      <a href="#/config/impuestos">Impuestos</a>
+      <a href="#/config/usuarios">Usuarios y permisos</a>
+    </details>
+    <details id="grupo-apps">
+      <summary>Apps</summary>
+      <a href="#/apps/creditoya">Crédito Ya</a>
+    </details>
+  </nav>
+  <main id="vista" tabindex="-1"></main>
+</div>
+
+<dialog id="modal"></dialog>
+<script type="module" src="/app.js"></script>
+</body>
+</html>

@@ -84,7 +84,7 @@ export const PIECES={
   .map(([m,parts,t,long,bones])=>({id:'pantalon:'+m,m,parts,t,long,bones,roles:{[parts[0]]:'pants',...(parts[1]?{[parts[1]]:'belt'}:{})}}))};
 // El catálogo de ciudad: sin lo marcado como disfraz (sombreros de mago, bruja, elfo, casco vikingo, túnica). Los
 // disfraces siguen existiendo (pieceById los encuentra) pero no se ofrecen ni salen al azar.
-// Faldas hechas en Blender a la medida de cada cuerpo (scripts/blender/faldas.py → partes*/Prendas.json): van en el
+// Faldas hechas en Blender a la medida de cada cuerpo (harness/pruebas/blender/faldas.py → partes*/Prendas.json): van en el
 // lugar del pantalón; al caminar se mecen con la cadera y cada lado sigue un poco a su pierna (persona3d: keepWeights).
 PIECES.pantalon.push(...[['FaldaCorta','Falda corta'],['FaldaRodilla','Falda a la rodilla'],['FaldaLarga','Falda larga']].map(([p,t])=>({id:'falda:'+p.slice(5).toLowerCase(),m:'Prendas',parts:[p],t,long:p!=='FaldaCorta',falda:true,roles:{[p]:'pants'}})));
 export const CITY_PIECES=Object.fromEntries(Object.entries(PIECES).map(([k,l])=>[k,l.filter(p=>!p.disfraz)]));

@@ -1,6 +1,6 @@
 // ======== Las zonas del mundo: qué hay en un punto (2026-10-16, idea de Miguel) ========
 // Un solo clasificador para todo el mundo: dado un punto (x, z) del plano, el conjunto de zonas en que cae. Lo usan el
-// validador de zonas (scripts/validar-zonas.mjs), con la tabla ZONAS de medidas.js (qué objeto no puede ir dónde), y lo
+// validador de zonas (harness/pruebas/validar-zonas.mjs), con la tabla ZONAS de medidas.js (qué objeto no puede ir dónde), y lo
 // pueden usar los generadores. Las zonas:
 //  vacio (más allá del borde de la isla) · agua · franja_agua (a menos de VEGETACION.sombrilla.agua del agua) · playa
 //  (casilla de playa con terreno de playa, VEGETACION.arena) · edificio (la planta de un lote, de un edificio del monte o

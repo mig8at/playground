@@ -1,0 +1,27 @@
+{
+  // Encabezado: el logo y el carrito. Nada más. El inicio usa `header.full`; el resto de páginas, `header`.
+  "header": {
+    "blocks": ["header-layout.desktop", "header-layout.mobile"]
+  },
+  "header.full": {
+    "blocks": ["header-layout.desktop", "header-layout.mobile"]
+  },
+  "header-layout.desktop": {
+    "children": ["header-row#principal"]
+  },
+  "header-layout.mobile": {
+    "children": ["header-row#principal"]
+  },
+  "header-row#principal": {
+    "children": ["logo#creditop", "header-spacer", "minicart.v2"],
+    "props": { "sticky": true, "blockClass": "principal" }
+  },
+  "logo#creditop": {
+    "props": {
+      "href": "/",
+      "url": "assets/logo-creditop.png",
+      "width": "150",
+      "title": "CreditOp"
+    }
+  }
+}

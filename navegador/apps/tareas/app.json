@@ -1,0 +1,6 @@
+{
+  "nombre": "Demo · Tareas",
+  "puerto": 5207,
+  "descripcion": "Una lista de tareas para empezar por lo simple: crear, actualizar y borrar (lo último pide confirmación). Trae tareas de ejemplo.",
+  "inicio": "/?restaurar"
+}

@@ -1,0 +1,35 @@
+{
+  // Inicio: un título corto y la grilla de la categoría bicicletas. Sin carruseles ni banners.
+  "store.home": {
+    "blocks": ["rich-text#titulo", "search-result-layout.customQuery#bicicletas"]
+  },
+  "rich-text#titulo": {
+    "props": {
+      "text": "## Elige tu bicicleta y págala a cuotas",
+      "textAlignment": "CENTER",
+      "textPosition": "CENTER",
+      "blockClass": "titulo"
+    }
+  },
+  "search-result-layout.customQuery#bicicletas": {
+    "props": {
+      "querySchema": {
+        "queryField": "bicicletas",
+        "mapField": "c",
+        "orderByField": "OrderByPriceASC",
+        "maxItemsPerPage": 12,
+        "hideUnavailableItems": false,
+        "skusFilter": "ALL_AVAILABLE"
+      }
+    },
+    "blocks": ["search-result-layout.desktop#grilla", "search-result-layout.mobile#grilla"]
+  },
+  "search-result-layout.desktop#grilla": {
+    "children": ["search-content"],
+    "props": { "pagination": "show-more", "preventRouteChange": true }
+  },
+  "search-result-layout.mobile#grilla": {
+    "children": ["search-content"],
+    "props": { "pagination": "show-more", "preventRouteChange": true }
+  }
+}

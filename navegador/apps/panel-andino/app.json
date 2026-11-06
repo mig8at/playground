@@ -1,0 +1,6 @@
+{
+  "nombre": "Panel Andino",
+  "puerto": 5206,
+  "descripcion": "El admin de una tienda ficticia: medios de pago (con una app en iframe), envíos, impuestos y usuarios. Menú anidado, barra de cambios sin guardar y confirmaciones, como un panel de verdad.",
+  "inicio": "/?restaurar"
+}

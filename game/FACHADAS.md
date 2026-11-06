@@ -1,6 +1,6 @@
 # FUGA · revisión de fachadas en el 3D (2026-10-18)
 
-Cómo se revisó: `node scripts/ver-fachadas.mjs <ciudad> <carpeta> 14`. Saca a mediodía tres fotos —de frente desde la
+Cómo se revisó: `node harness/pruebas/ver-fachadas.mjs <ciudad> <carpeta> 14`. Saca a mediodía tres fotos —de frente desde la
 vereda de enfrente, en diagonal desde la esquina y desde arriba— de un edificio de cada combinación distinta (tipo,
 familia, techo, toldos) y de casas del monte y de la ciudad. Se hizo en las ciudades 1 y 2: 46 edificios y casas, 138
 fotos, revisadas una por una en hojas de contacto. Los validadores numéricos de piezas (fachada 3D, titileo, huecos,
@@ -274,6 +274,45 @@ También quedan:
 - **El probador completo** pasa los niveles 0 a 10. Gente y policía fallaron una vez dentro del probador y pasan solas:
   son intermitentes por la carga de la máquina.
 
+## Los ejes y los dinteles de las casas del monte (2026-10-30)
+
+Miguel: «seguí trabajando con la matemática validada en internet: cómo mejorar las fachadas de las casas». Lo que se
+buscó:
+- **Las gramáticas de fachadas** (las reglas de partir y repetir de Müller y Wonka, CGA) arman una fachada en pisos y,
+  en cada piso, en tramos que se repiten. De ahí sale la regla de que los vanos de cada piso van **en los mismos ejes
+  verticales** ([Müller et al.](https://course.ccs.neu.edu/cs5150f13/readings/muller_buildings.pdf)).
+- **Los dinteles.** Alinear las cabezas de las ventanas de un piso da más continuidad a la fachada que igualar las
+  ventanas, aunque los anchos cambien. La guía de diseño de Camden (Londres) recomienda las ventanas verticales en lo
+  doméstico ([Camden](https://camdocs.camden.gov.uk/CMWebDrawer/Record/8593454/file/document)).
+- **La parte vidriada** de una fachada de vivienda: del 15 al 40 %
+  ([Frontiers in Energy Research](https://www.frontiersin.org/journals/energy-research/articles/10.3389/fenrg.2024.1463678/pdf)).
+  La de los edificios ya está topada en el 45 % por módulo.
+- **La pendiente de la teja de barro:** desde 17,5° la de encaje y desde 35° la plana; las limas, de 30 a 45°
+  ([Marley](https://cm.marley.co.uk/blog/what-is-the-minimum-pitch-for-a-roof-tile-or-slate),
+  [Roof Observations](https://roofobservations.com/minimum-roof-pitch-for-tile-roofs/)). Las de los estilos de
+  vivienda.js (pendiente de 0,55 a 0,95: de 29 a 44°) caen todas en el rango, así que no se tocaron.
+
+Lo que se cambió:
+- **Los ejes** (vivienda.js, `EJE`). Antes cada piso repartía sus ventanas por su cuenta, y sólo el **4 %** de las de
+  arriba caía sobre un vano de abajo. Ahora la planta baja anota el eje de cada ventana y de las puertas de la calle y del
+  patio. Arriba, cada ventana va al eje más cercano (a lo sumo a 1,7 m) si ahí entra entera en su tramo: con postigos;
+  si no, sin ellos; y si no, hasta un 25 % más angosta. Quedó en el **90 %**, sin pisadas y con todos los cuartos con su
+  ventana. `validar-vanos.mjs` mide los ejes y pide al menos el 85 %.
+- **Los dinteles**, a la altura de la puerta (2,2 m) en todos los cuartos. Antes iban de 2,05 a 2,2 m: la cocina tenía la
+  ventana más alta y el antepecho de 1,1 m; ahora la ventana mide 1,1 m y el antepecho, también 1,1 m.
+
+Y en el camino:
+- **El apartamento alargado.** Con la regla de «alargar el apartamento» (2026-10-18), si el hueco del fondo tenía luz en
+  alguna parte, el hueco entero era del apartamento. Así, 13 de 346 edificios quedaban con un dormitorio sin ventana o
+  una sala sin el vidrio que necesita (validar-ciudad, 4 ciudades). Ahora se alarga sobre a lo sumo 2 m ciegos
+  (`ALARGA_MAX`). Lo ciego más largo es el ensanche del pasillo, con sus floreros y cuadros, así que tampoco vuelven el
+  baño y la cocina sueltos.
+- **Las pruebas de pantalla** buscaban el juego en el puerto 5180, el de LocalMart: ahora usan el 5181, que también es el
+  de `vite.config.js`. Y en Linux, el navegador de las pruebas dibuja con la tarjeta de video (Vulkan, como el arnés de la
+  promo). Antes dibujaba por software, a 1,2 s por cuadro, y `ver-fachadas` se cortaba en la cuarta foto.
+
+El probador rápido pasa entero, del nivel 0 al 10.
+
 ## Lo que está bien
 
 Las vidrieras de los locales con su interior a la vista y los toldos por giro; las ventanas con su marco y el interior
@@ -284,4 +323,4 @@ con porche, persianas y jardín; la escalinata de los edificios en pendiente; lo
 
 Cada corrección debería quedar con su prueba en el 2D (la regla de trabajo): las 1, 2 y 4 se pueden medir sin
 pantalla (qué módulos son vidriera, la parte vidriada de cada piso, cuánto tapa la copa).
-`node scripts/ver-fachadas.mjs` queda para revisar a ojo antes y después.
+`node harness/pruebas/ver-fachadas.mjs` queda para revisar a ojo antes y después.

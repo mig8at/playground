@@ -1,5 +1,5 @@
 /* Los volúmenes de un edificio, calculados del plano (2026-10-15): cada pared con su grosor real, cortada por sus
-   vanos, piso por piso. Datos puros en metros (sin THREE): los usa el validador (scripts/validar-ciudad.mjs) y, más
+   vanos, piso por piso. Datos puros en metros (sin THREE): los usa el validador (harness/pruebas/validar-ciudad.mjs) y, más
    adelante, el 3D en lugar de su propio cálculo (town3d.js hace hoy lo mismo por su cuenta: OPEN, GLASS, rangos).
 
    Una pared: {x0,y0,x1,y1} su línea (horizontal: y0===y1), t su grosor, kind 'tabique' | 'vidrio' | 'reja' | 'fachada',

@@ -432,6 +432,7 @@ export const corridorAt=Lv=>Lv<=14?Lv-(FRANJA.fachada+FRANJA.interior):Math.min(
 // El ancho del pasillo en un ala de Lv m de fondo: PASILLO.ancho, y en las muy hondas lo que dejan las dos franjas de
 // FRANJA.maxLuz (2026-10-15: con lotes de 18 m las franjas de 8 y 8,5 m no se podían iluminar; ahora 7,5 + 3 + 7,5).
 export const pasilloDe=Lv=>Lv<=14?PASILLO.ancho:Math.max(PASILLO.ancho,Lv-2*corridorAt(Lv));
+const ALARGA_MAX=2;// (m de tramo ciego —un módulo; con 4, 13 de 346 edificios con un cuarto sin ventana— que un departamento se alarga para no dejar cuartos sueltos al pasillo: layoutFloor)
 function layoutFloor(L,F,level,r,opt={}){
  // Núcleo: la escalera (STAIR_W m: dos tramos de ~1,9 m, medidas reales y cómoda para jugar, 2026-10-15; antes 2 m,
  // tramos de 0,88 m) y, desde 4 pisos, el ascensor de 2 m al lado. Donde no cabe —un lote de 6 m de frente y una sola
@@ -508,12 +509,22 @@ function layoutFloor(L,F,level,r,opt={}){
   const servicios=(prog.back||[]).filter(([t])=>!HABITABLE.has(t)),SERV=servicios.length?servicios:[['deposito',3,4],['bano',2,2]];
   // (y cada tramo se parte donde cambia: la parte con luz lleva su programa; la ciega, servicios —antes bastaba un módulo
   // con luz en la punta para llenar el tramo entero de departamentos, y la parte ciega quedaba con cuartos interiores—)
-  const runs=[];for(const [a,b] of gaps){const ms=modulesIn(a,b);if(!ms.length){runs.push([a,b,false]);continue;}let s0=a,cur=null;
-   for(const m of ms){const l=litBack(m,m+2);if(cur===null)cur=l;else if(l!==cur){runs.push([s0,m,cur]);s0=m;cur=l;}}runs.push([s0,b,cur]);}
+  // (2026-10-18, Miguel, viendo una cocina y un baño sueltos al pasillo: «alargar el apartamento»): en los pisos de
+  // departamentos el tramo ciego no queda aparte —salían la cocina y el baño del programa, sin departamento y abiertos al
+  // pasillo—: si el hueco tiene luz en alguna parte, el hueco entero es de departamentos.
+  const runs=[];for(const [a,b] of gaps){const ms=modulesIn(a,b);if(!ms.length){runs.push([a,b,false]);continue;}let s0=a,cur=null;const rs=[];
+   for(const m of ms){const l=litBack(m,m+2);if(cur===null)cur=l;else if(l!==cur){rs.push([s0,m,cur]);s0=m;cur=l;}}rs.push([s0,b,cur]);
+   // (2026-10-30: sólo si lo ciego es corto —ALARGA_MAX—: con más, el cuarto del fondo quedaba sin ventana —validar-ciudad,
+   // lote 54 de la ciudad 1—; lo ciego largo queda como ensanche del pasillo)
+   const ciego=rs.filter(x=>!x[2]).reduce((t,x)=>t+x[1]-x[0],0);
+   if(homes&&rs.some(x=>x[2])&&ciego<=ALARGA_MAX)runs.push([a,b,true]);else runs.push(...rs);}
   // (un pedazo con luz más corto que 2 m se lo queda el de al lado)
   for(let k=0;k<runs.length;k++)if(runs[k][2]&&runs[k][1]-runs[k][0]<2&&runs.length>1){const nb=runs[k+1]&&runs[k+1][0]===runs[k][1]?runs[k+1]:runs[k-1];if(nb){if(nb===runs[k+1])nb[0]=runs[k][0];else nb[1]=runs[k][1];runs.splice(k,1);k--;}}
   gaps.length=0;const dark=new Set();for(const [a,b,l] of runs){gaps.push([a,b]);if(!l)dark.add(a+'|'+b);}
-  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>=2&&dark.has(a+'|'+b))fill(a,b,SERV,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
+  // (2026-10-18, Miguel: «en vez de los cuartos, mejor más pasillo, con floreros y cuadros»): en los pisos de departamentos
+  // el tramo ciego es un ensanche del pasillo —el 3D lo decora: town3d—; antes, la cocina y el baño del programa, sueltos
+  let i=0,nurse=suite==='habitacion_h';for(const [a,b] of gaps)if(b-a>=2&&dark.has(a+'|'+b)&&homes)corr.push({u0:a,v0:c0+P,u1:b,v1:Lv,ensanche:true});
+  else if(b-a>=2&&dark.has(a+'|'+b))fill(a,b,SERV,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));
   else if(b-a>=2){if(homes)rooms.push(...apartments(a,b,c0+P,Lv,'v0',r,'back',units,gmax));
    else if(suite){let a2=a;if(nurse&&b-a>=6){rooms.push({type:'enfermeria',u0:a,u1:a+4,v0:c0+P,v1:Lv,band:'back'});a2=a+4;nurse=false;}if(b-a2>=2)rooms.push(...suites(a2,b,c0+P,Lv,'v0',r,'back',suite));}else fill(a,b,prog.back,r,i++,Lv-c0-P).forEach(q=>rooms.push({...q,v0:c0+P,v1:Lv,band:'back'}));}
    else{const right=solid.find(o=>o.u0===b),left=solid.find(o=>o.u1===a),to=[right,left].find(o=>o&&o===pass)||right||left;if(to===right)right.u0=a;else if(to)left.u1=b;}// (el resto, al paso si lo hay: el núcleo queda de la medida de la escalera)
@@ -1013,7 +1024,7 @@ function buildLot(L,seed,stat){
    lv.parts.forEach((pt,k)=>{const F=Fs[k],R=q=>F.rect(q.u0,q.v0,q.u1,q.v1),id=x=>typeof x==='number'?x+off:x,
      seg=s=>{const [ax,ay]=s.axis==='u'?F.pt(s.from,s.at):F.pt(s.at,s.from),[bx,by]=s.axis==='u'?F.pt(s.from+s.len,s.at):F.pt(s.at,s.from+s.len);return {x0:ax,y0:ay,x1:bx,y1:by};};
     for(const q of pt.plan.rooms)lv.rooms.push({id:q.id+off,type:q.type,...(q.mov?{mov:q.mov}:{}),...(q.giro?{giro:q.giro}:{}),...(q.prog?{prog:q.prog}:{}),...R(q),...(q.unit?{unit:lv.level*100+q.unit+uoff}:{})});
-    lv.corridor.push(...pt.plan.corr.map(R));if(pt.plan.core)lv.core={...R(pt.plan.core),lift:pt.plan.lift};
+    lv.corridor.push(...pt.plan.corr.map(q=>q.ensanche?{...R(q),ensanche:true}:R(q)));if(pt.plan.core)lv.core={...R(pt.plan.core),lift:pt.plan.lift};
     lv.units.push(...(pt.plan.units||[]).map(u=>({n:lv.level*100+u.n+uoff,...R(u)})));
     lv.doors.push(...pt.open.doors.map(d=>({...seg(d),a:id(d.a),b:id(d.b),street:!!d.street,core:!!d.core,wide:!!d.wide,bay:!!d.bay,stair:!!d.stair,...(d.patio?{patio:true}:{})})));
     // fr: el umbral de adelante; bk: el descanso del fondo (lo que dejan los tramos); steps: peldaños por tramo.

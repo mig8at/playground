@@ -86,14 +86,14 @@ los choques están siempre. La gente de adentro (`indoor3d.js`) se sienta en las
 
 Las medidas viven en `src/engine/medidas.js` (el catálogo: grilla, alturas, muros, puertas, escalera, pasillo y los
 mínimos). `src/engine/volumenes.js` calcula del plano cada pared con su grosor real, cortada por sus vanos, piso por
-piso. `node scripts/validar-ciudad.mjs [ciudades] [semilla0] [--todo]` revisa cada edificio: puertas (luz libre, que
+piso. `node harness/pruebas/validar-ciudad.mjs [ciudades] [semilla0] [--todo]` revisa cada edificio: puertas (luz libre, que
 unan lo que dicen, que no se metan en una pared ni en la fachada, que no se encimen), paredes (astillas, tabiques contra
 una ventana), cuartos y halls (lado mínimo), superpuestos y planta sin dueño. Sale con código 1 si algo falla. Correrlo
 después de tocar `blueprint.js`.
 
 ## El núcleo se valida antes del 3D
 
-`node scripts/validar-nucleos.mjs [ciudades] [semilla0]` (2026-10-15) revisa, sobre el plano y sin navegador, cada
+`node harness/pruebas/validar-nucleos.mjs [ciudades] [semilla0]` (2026-10-15) revisa, sobre el plano y sin navegador, cada
 edificio de 2+ pisos: el núcleo y la escalera son los mismos en todos los pisos (el 3D arma la escalera y el hueco de la
 losa con los de planta baja); ningún cuarto, pasillo, ascensor ni mueble se mete en el núcleo; el vano de la escalera da a
 un pasillo o descanso; y el volumen de la escalera armada (las mismas cajas de `stairBoxes`, más la losa sobre el vano)
@@ -134,7 +134,7 @@ el centro.
   Ahora una calle llega al muro donde hay calle a C+1 casillas; la salida trae `eje` (m), `ancho` (casillas), `cells`, `lado`.
 - **Salidas de la circunvalación**: del lado de la montaña, cada línea de la grilla a lo largo de la ciudad sale de la
   circunvalación aunque ninguna calle de la ciudad llegue ahí (`anillo:true`).
-- **Medidas**: `MANZANA.monte` = retiro 2,5 + casa más honda 12,5 (`scripts/medir-casas.mjs`) + patio 3 → media manzana de
+- **Medidas**: `MANZANA.monte` = retiro 2,5 + casa más honda 12,5 (`harness/pruebas/medir-casas.mjs`) + patio 3 → media manzana de
   18 m (3 casillas); paso de la grilla = 12 + 2·18 = 48 m. Calles del monte del ancho de la calle de la que salen (12 o 18),
   en el borde de las casillas; dos ejes a ≥ dos medias manzanas + medio ancho de cada calle.
 - **Piedemonte** (`isla.js MONTE.rebaje.pendiente` = 8°, talud 40 m): en la franja de las manzanas la ladera no pasa de 8°;
@@ -142,8 +142,8 @@ el centro.
 - **Arreglos**: ningún tramo cruza la ciudad (antes uno unía el monte de arriba con el de abajo por encima); la poda
   conserva la entrada desde el muro hasta el primer cruce (antes se podaba y el monte entero quedaba desconectado).
 - Resultado: semillas 1–12, de 2,9 manzanas de media y 4 sin monte → 12,1 de media (5–18) y 0 sin monte; 1–32: 376
-  manzanas, 1.668 casas. `scripts/validar-mundo.mjs`: 0 fallas (ancho y pendiente de calles, conexión a la ciudad, casas en
-  su lote sin pisar la calle ni encimarse, retiro, manzanas ≥ dos medias y ≤ MANZANA.max). `scripts/plano-mundo.mjs [semilla] [--grilla]`.
+  manzanas, 1.668 casas. `harness/pruebas/validar-mundo.mjs`: 0 fallas (ancho y pendiente de calles, conexión a la ciudad, casas en
+  su lote sin pisar la calle ni encimarse, retiro, manzanas ≥ dos medias y ≤ MANZANA.max). `harness/pruebas/plano-mundo.mjs [semilla] [--grilla]`.
 - Pendiente: el 3D de las carreteras del monte con 12 m (island3d usa `r.ancho`; el asfalto es ancho − 2); medir la
   carga del demo con el panel visible (con el panel oculto dio ~29 s, no confiable); escalinatas peatonales como opción.
 
@@ -170,7 +170,7 @@ el centro.
 - Pendiente: el 3D de la escalinata (hoy la dibujaría como calle de 6 m en rampa), el mirador y los muros de las terrazas.
 
 ## 2026-10-15 · plano unificado y parques de barrio
-- `node scripts/plano-unido.mjs [semilla]`: la ciudad y el monte en un solo plano: edificios por tipo, calles con su ancho
+- `node harness/pruebas/plano-unido.mjs [semilla]`: la ciudad y el monte en un solo plano: edificios por tipo, calles con su ancho
   y su eje coloreado por pendiente (blanco 0 % → naranja 9,4 % → rojo 25 % → granate 35 %), curvas de nivel cada 4,5 m,
   muros de contención con su alto, salidas del muro (azul: calle de la ciudad; violeta: de la circunvalación), remates,
   casas, escalinata con sus descansos y el mirador. Leyenda con los metros de calle a nivel, subiendo y escalinata.
@@ -198,7 +198,7 @@ el centro.
   cada 10 m a media casilla del muro y grupos de 2–4 en la arena. Sombrillas: filas paralelas al muro cada 4 m, ≥ 5 m
   del agua (distancia exacta al borde de la casilla de agua), paso libre de 10 m cada 100 m.
 - Su propio azar (no cambia el resto del plano); determinista. Generar un mundo: ~0,8 s.
-- `scripts/validar-vegetacion.mjs`: 0 fallas en 6 mundos (11.209 árboles, 909 palmeras, 4.982 sombrillas). 3-30-300:
+- `harness/pruebas/validar-vegetacion.mjs`: 0 fallas en 6 mundos (11.209 árboles, 909 palmeras, 4.982 sombrillas). 3-30-300:
   100 % de las viviendas ven ≥ 3 árboles a 30 m; 100 % tienen verde a ≤ 300 m; copa: monte urbanizado 52 %, ciudad 23 %
   (bajo la meta del 30 %: la ciudad es casi toda techo y calle; queda medido, no forzado).
 - `plano-unido.mjs` dibuja copas por tipo, palmeras y sombrillas. El 3D todavía no lee `bp.vegetacion`.
@@ -225,18 +225,18 @@ el centro.
 - `src/engine/veredas.js`: lo que comparten vegetación y equipamiento (veredas de la ciudad, ejes del monte, cruces).
   Un brazo de cruce existe si todo el borde del cruce sigue siendo calle (mirando una casilla salía una cebra dentro de
   un edificio en una T).
-- `scripts/validar-equipamiento.mjs`: 0 fallas en 12 mundos (2.786 faroles, 1.806 cebras, 149 semáforos, 531
+- `harness/pruebas/validar-equipamiento.mjs`: 0 fallas en 12 mundos (2.786 faroles, 1.806 cebras, 149 semáforos, 531
   hidrantes, 39 paradas, 356 bancas). Cobertura: veredas iluminadas 95,7 %, edificios a ≤ 75 m de un hidrante 100 %,
   viviendas a ≤ 200 m de una parada 100 %. Determinista.
 - `plano-unido.mjs [semilla] [--detalle]`: el equipamiento dibujado; con --detalle, la ciudad grande para leerlo.
 
 ## 2026-10-15 · visor de pisos por capas y la playa equipada
-- `node scripts/plano-pisos.mjs [semilla]` → `capturas/plano/pisos-<semilla>.html`: el mundo en 2D en el navegador, con un
+- `node harness/pruebas/plano-pisos.mjs [semilla]` → `capturas/plano/pisos-<semilla>.html`: el mundo en 2D en el navegador, con un
   botón por piso. En cada piso, cada edificio con su planta (cuartos por tipo, muros, puertas —rojas las de calle—,
   ventanas, escalera con peldaños, ascensor, muebles) y los que no llegan, su techo con el número de pisos. Las casas del
   monte con su plano (hogar.js) llevado a su lugar según su frente. Interruptores: vegetación (se apaga sola arriba de la
   planta baja y vuelve al bajar), equipamiento, muebles. Rueda: zoom; arrastrar: mover.
-- `scripts/plano-dibujo.mjs`: el dibujo del mundo por capas (terreno, calles, edificios, cebras, vegetación,
+- `harness/pruebas/plano-dibujo.mjs`: el dibujo del mundo por capas (terreno, calles, edificios, cebras, vegetación,
   equipamiento, marcas), compartido por `plano-unido.mjs` (sale igual: 23.945 piezas) y `plano-pisos.mjs`.
 - La playa: torre de salvavidas en cada paso libre entre sombrillas (cada 100 m; Nevada pide ≤ 183), en la arena a 3–9 m
   del agua; kiosco a la entrada de uno de cada dos pasos. 12 mundos: 78 torres, 59 kioscos; orilla a ≤ 150 m de una torre
@@ -271,25 +271,25 @@ el centro.
 - `navEdificio(L)`, `navCasa(h)`, `navHogar(P)`. Las casas armadas (hogar.js) ahora crecen hasta poder recorrerse: un
   cuarto al que no se llega crece 25 cm por vuelta como el que no lleva sus muebles; si no se entra, el de la puerta de
   calle (en las casas «solo» la mesa del comedor quedaba detrás de la puerta: 11 casas sin entrada en 4 mundos).
-- `scripts/validar-interiores.mjs` (12 mundos: 1.205 edificios, 1.095 casas, 5.370 pisos, 50.108 espacios): se llega
+- `harness/pruebas/validar-interiores.mjs` (12 mundos: 1.205 edificios, 1.095 casas, 5.370 pisos, 50.108 espacios): se llega
   caminando al 100 % de los espacios y al 99,7 % de su piso libre; 0 fallas. Recorrido más largo desde la calle: mediana
   16 m, p90 27 m, máx 46. 88 espacios alcanzables en menos de la mitad (muebles que encierran rincones): aviso.
 - El visor de pisos (`plano-pisos.mjs`) marca en magenta lo que no se alcanza caminando adentro.
 
 ## 2026-10-16 · el juego sobre el mundo nuevo y las fachadas activas
-- `scripts/validar-juego.mjs`: las piezas que arma el motor (plano.js planMap) validadas con la navegación fina —por
+- `harness/pruebas/validar-juego.mjs`: las piezas que arma el motor (plano.js planMap) validadas con la navegación fina —por
   fuera la grilla peatonal, por dentro nav-interior—. 3 ciudades: 0 fallas; 100 objetivos con su botín alcanzable,
   celda de la comisaría alcanzable, policías y ladrones aparecen donde se camina, 1.454/1.454 cajas alcanzables.
   A pie: comisaría → objetivo mediana 92 m (16–189); objetivo → salida al monte 47 m (11–103); ladrón ↔ policía al
   aparecer 186 m (162–195); botín ↔ puerta 12 m (5–24). (El ladrón llega a una salida antes que la policía al objetivo:
   se calibra con velocidades y tiempos, no con el plano.)
-- `scripts/medir-fachadas.mjs`: frente de planta baja con uso activo detrás —circunvalación 82 %, calles 79 %,
+- `harness/pruebas/medir-fachadas.mjs`: frente de planta baja con uso activo detrás —circunvalación 82 %, calles 79 %,
   avenidas 77 % (referencia 60–75 %: Northern Territory, Mercer Island, Inner West); comercio estricto (locales) 31–34 %.
 - `plano-unido.mjs <semilla> [--detalle] --juego`: objetivos (botín, puertas vigiladas), comisaría (celda), apariciones,
   cajas y salidas al monte.
 
 ## 2026-10-16 · el probador del 2D (decisión de Miguel: el 2D prueba todo)
-- `node scripts/probar.mjs [ciudades=4] [semilla0=1] [--rapido] [--solo=juego,mundo] [--todo]`: los 9 validadores del mundo
+- `node harness/pruebas/probar.mjs [ciudades=4] [semilla0=1] [--rapido] [--solo=juego,mundo] [--todo]`: los 9 validadores del mundo
   (ciudad, núcleos, escaleras de casa, mundo, vegetación, equipamiento, circulación, interiores, juego) con las mismas
   semillas, en paralelo; tabla con fallas, tiempo y la línea clave; el detalle sólo de lo que falla; código 1 si algo
   falla. 4 ciudades: 18 s (antes, uno por uno, varios minutos). Cualquier arreglo que aparezca en el 3D se corrige en el
@@ -297,7 +297,7 @@ el centro.
 - `caminarDesde(g, puntos)` (circulacion.js): distancias desde varios puntos en una sola pasada (validar-juego: la salida
   al monte más cercana de cada objetivo, de 48 a 14 s; ahora desde la puerta más conveniente: mediana 35 m).
 
-## 2026-10-16 · el equilibrio de equipos (`scripts/medir-equilibrio.mjs`)
+## 2026-10-16 · el equilibrio de equipos (`harness/pruebas/medir-equilibrio.mjs`)
 - Ventana de fuga por objetivo vs respuesta de C policías repartidos (a pie y en patrulla por los carriles), con las
   reglas del motor (game.js DEFAULTS) escaladas a metros con `JUEGO.caminar` (5,2 m/s, el de caminar del 3D). L*(C): los
   ladrones que le ganan a C policías. Equilibrio a pie: 3v3 → 4–5 policías ↔ 3 ladrones; 8v8 → 8–9 ↔ 4–6 (ver IDEAS.md).
@@ -330,7 +330,7 @@ el centro.
   - Se gana por valor entregado al hangar: `map.valorQuota` = `BOTIN.meta` (0.5) del valor en juego, también en «Golpes».
   - El botín del monte queda en `map.botinFuera`, porque la grilla del motor es la de la ciudad.
   - Lo de antes (un botín por edificio robable) sigue con `plan:E:S:edificios`.
-  - **Partidas con bots** en «Golpes» (`scripts/partidas-botin.mjs`, 15 partidas × 3 ciudades), ladrones ganan:
+  - **Partidas con bots** en «Golpes» (`harness/pruebas/partidas-botin.mjs`, 15 partidas × 3 ciudades), ladrones ganan:
 
     | | botín | edificios |
     |---|---|---|
@@ -839,7 +839,7 @@ el centro.
 
 ## El probador por niveles (2026-10-16)
 
-- Miguel: «niveles de pruebas empezando por lo más grande hasta lo más chico». `scripts/probar.mjs` corre un nivel por
+- Miguel: «niveles de pruebas empezando por lo más grande hasta lo más chico». `harness/pruebas/probar.mjs` corre un nivel por
   vez (sus pruebas en paralelo) y, si uno falla, no corre los de abajo: un error grande se arrastra a todo lo chico, y así
   los números apuntan a la causa. `--seguir` corre todo igual; `--nivel=3` o `--nivel=2-5`, sólo esos; `--solo=` sigue.
 - Los niveles: 0 Medidas · 1 Mundo (mundo, zonas) · 2 Vías y manzanas (circulación, terrazas, tráfico, direcciones,
@@ -858,8 +858,8 @@ el centro.
 
 ## El 3D sin pantalla: huecos y suelo al milímetro (2026-10-16)
 
-- `scripts/sin-pantalla.mjs`: lo mínimo para armar el 3D en node (un `document` con lienzos de mentira para las
-  texturas); `armarIsla(semilla)` arma la isla de island3d como el demo, en ~7 s. `scripts/medir3d.mjs`
+- `harness/pruebas/sin-pantalla.mjs`: lo mínimo para armar el 3D en node (un `document` con lienzos de mentira para las
+  texturas); `armarIsla(semilla)` arma la isla de island3d como el demo, en ~7 s. `harness/pruebas/medir3d.mjs`
   `indiceTriangulos(grupo)`: todos los triángulos (también los de cada instancia) en una grilla de 4 m, para preguntar qué
   se ve desde arriba en un punto (la cara más alta y de qué malla) sin rayos contra la isla entera.
 - island3d nombra sus mallas de suelo («suelo:terreno», «suelo:asfalto», «suelo:andenes», «suelo:lotes»,
@@ -917,7 +917,7 @@ el centro.
 
 ## Nivel 10: el 3D de verdad, en un navegador sin ventana (2026-10-16)
 
-- `scripts/navegador.mjs`: el Chromium que ya bajó Playwright (el «headless shell»; en Chrome for Testing sin ventana no
+- `harness/pruebas/navegador.mjs`: el Chromium que ya bajó Playwright (el «headless shell»; en Chrome for Testing sin ventana no
   corría requestAnimationFrame) manejado por el protocolo de DevTools con el WebSocket de node, sin dependencias; en mac
   con Metal (`--use-angle=metal`): la placa de verdad (M4 Pro), no SwiftShader (1,7 cuadros/s).
 - `validar-3d` (nivel 10, fuera de --rapido): abre el demo (el servidor de desarrollo si anda; si no, levanta uno en
@@ -1007,7 +1007,7 @@ el centro.
 - validar-aulas (nivel 4): cada aula con pizarrón, ningún pupitre de espaldas, cada pupitre con su silla delante. 4
   ciudades: 33 aulas, 249 pupitres, 249 con silla, 0 fallas. El titileo atrapó el fieltro del borrador enterrado en la
   madera (corregido).
-- scripts/ver-cuarto.mjs <tipo> [semilla] [salida]: una captura sin pantalla dentro del primer cuarto de ese tipo.
+- harness/pruebas/ver-cuarto.mjs <tipo> [semilla] [salida]: una captura sin pantalla dentro del primer cuarto de ese tipo.
 
 ## Objetos del mundo: el gimnasio (2026-10-17)
 
@@ -1096,7 +1096,7 @@ el centro.
   escalera.
 - validar-patios (nivel 3): cada puerta al patio da, afuera del edificio (no del rectángulo del lote: los lotes en L
   tienen patio adentro), a una casilla a la que se llega a pie desde la calle; cada patio con al menos una puerta.
-  validar-ciudad: la puerta al patio une el cuarto con «afuera», como la de calle. scripts/ver-patio.mjs: captura.
+  validar-ciudad: la puerta al patio une el cuarto con «afuera», como la de calle. harness/pruebas/ver-patio.mjs: captura.
 
 ## Sin género (2026-10-17)
 
@@ -1118,7 +1118,7 @@ el centro.
   gana si los tiene a todos presos. Las guaridas: «que el sistema las escoja, en lugares estratégicos, que roten y
   consuman varios lugares del mapa para que no sea preferible cuál; a los ladrones se les dice el lugar exacto —calle,
   carrera, casa o edificio, piso, apartamento— y ahí está la caja de guardar lo robado». La policía no entra.
-- Medido antes de fijar las reglas (scripts/medir-guaridas.mjs, 4 ciudades): 106–150 candidatas por ciudad (~50
+- Medido antes de fijar las reglas (harness/pruebas/medir-guaridas.mjs, 4 ciudades): 106–150 candidatas por ciudad (~50
   edificios con apartamentos, ~80 casas del monte), casi todas con 2 entradas (calle y patio). Los apartamentos quedan a
   ~80 m de la comisaría y ~200 m de acceso medio al botín; las casas, a ~240 y ~280 m. Por eso la equidad se mide entre
   las guaridas de una ronda: así se mezclan edificios del borde de la ciudad con casas del pie del monte.
@@ -1183,7 +1183,7 @@ el centro.
 - /botin (src/views/BotinView.vue): el motor jugado por los bots desde arriba —el mapa de rutas, las puertas de las
   guaridas, los objetivos, la comisaría, ladrones y policías (hueco: adentro; borde oscuro: con retrato; el número, lo
   que llevan), los avisos como anillos— con el reloj, el botín contra la meta, qué hace cada uno, los avisos y ciudad,
-  jugadores por equipo y ronda (?ciudad=1&jugadores=3&ronda=0), a ×1, ×4 o ×16. scripts/ver-botin.mjs la abre sin
+  jugadores por equipo y ronda (?ciudad=1&jugadores=3&ronda=0), a ×1, ×4 o ×16. harness/pruebas/ver-botin.mjs la abre sin
   pantalla, juega a ×16, mide los cuadros por segundo y captura: 114 cuadros/s, 192 s de ronda en 12 s.
 - El dron y la gente (2026-10-17, Miguel: «dale con el dron de la policía y gente en la calle»): MODO_BOTIN.dron (lo
   pilota el primer policía, quieto mientras vuela; 12 m/s, 30 s de batería, 45 de recarga; ve a 35 m desde arriba, sólo
@@ -1314,7 +1314,7 @@ el centro.
   están trancadas (sólo abre el dueño); entra a las zonas comunes. validar-policia camina con W contra 6 puertas: se
   frena a 0,26 m.
 - Falta: entrar a una guarida persiguiendo.
-- Validador: scripts/validar-policia.mjs (nivel 10): uniforme, un muñeco por bot, adelanta el motor hasta un robo,
+- Validador: harness/pruebas/validar-policia.mjs (nivel 10): uniforme, un muñeco por bot, adelanta el motor hasta un robo,
   revisa la cámara, atrapa, pide papeles y fuerza el final, todo con E.
 
 ## El dron es sólo para mirar (2026-10-17)
@@ -1326,7 +1326,7 @@ el centro.
 - El dron no entra a los edificios ni a las casas (DemoView `dronAdentro`): el paso que lo metería se corta eje por eje,
   así resbala por la fachada y se posa en el techo. Si despega desde adentro de algo, arranca sobre el techo. Las casas
   armadas como modelo (casas3d) no dicen su alto: el dron no baja de 7 m sobre el suelo encima de ellas.
-- Validador: scripts/validar-dron.mjs (nivel 10). Vuela con W hacia 6 edificios desde la calle a 5 m y baja con C
+- Validador: harness/pruebas/validar-dron.mjs (nivel 10). Vuela con W hacia 6 edificios desde la calle a 5 m y baja con C
   sobre un techo: nunca queda adentro. Al soltarlo, el jugador no se movió.
 
 ## La sociedad, etapa 1: familias, trabajos y horarios (2026-10-17)
@@ -1358,8 +1358,8 @@ el centro.
   las 18 (salen de las oficinas). Se arma en ~15 ms.
 - Equilibrio (medir-botin, 2 ciudades × 20 rondas): los ladrones ganan 40/57/50/63 % (2/3/5/8 por equipo; antes 45-50 %).
   Llamadas 0: los bots miran por el visor y sólo entran a las vacías.
-- Para calibrar: `node scripts/ver-sociedad.mjs 1 L8:104` (una familia y la semana de cada uno) y
-  `node scripts/ver-sociedad.mjs 1 martes 11` (dónde está la ciudad a esa hora).
+- Para calibrar: `node harness/pruebas/ver-sociedad.mjs 1 L8:104` (una familia y la semana de cada uno) y
+  `node harness/pruebas/ver-sociedad.mjs 1 martes 11` (dónde está la ciudad a esa hora).
 - Falta (etapa 2): dibujarla en el 3D (cada uno en su lugar a la hora de la ronda; la hora en pantalla), que al cruzarse
   con alguien diga su nombre y su oficio (también los ladrones, con un oficio de pantalla, y los policías), y que sólo
   el dueño abra la puerta de su casa.
@@ -1390,7 +1390,7 @@ el centro.
   adentro del lote siempre puede salir.
 - validar-3d fija el mediodía antes de las capturas (las referencias son de día). __demo.fijarHora(día, hora) lleva la
   ronda a esa hora (para probar).
-- Validador: scripts/validar-gente.mjs (nivel 10): la hora corre un minuto por segundo; un lunes a las 15 hay gente
+- Validador: harness/pruebas/validar-gente.mjs (nivel 10): la hora corre un minuto por segundo; un lunes a las 15 hay gente
   junto al colegio y a las 3 nadie; el cartel coincide con una persona del motor; la puerta de un local frena de
   madrugada y deja pasar a mediodía.
 - Falta: que la gente vaya por las veredas (hoy la grilla de rutas no distingue vereda de calzada), verla entrar y
@@ -1544,7 +1544,7 @@ el centro.
     «Un vecino lo vio», uno cada 20 s por ladrón; sin cámara que revisar).
   - Censo: la sociedad de verdad.
   - Equipo: los compañeros (el que está en el PC del dron), las patrullas y los drones libres.
-- Validador: scripts/validar-menu.mjs (nivel 10).
+- Validador: harness/pruebas/validar-menu.mjs (nivel 10).
   - De ladrón: Tab abre y cierra; robar en un apartamento llena el Botín y lo graba la cámara; el retrato sale en las
     noticias; ponerse una prenda cambia la ropa del muñeco, lo deja quieto, y el retrato guarda la ropa vieja.
   - De policía: Avisos igual al motor, Retratos, Difundir, el aviso del vecino y el Censo (real y falso).
@@ -1641,9 +1641,9 @@ el centro.
 - engine/medirRutina.js: las curvas por hora (casa, trabajo, estudio, comer, compras, ejercicio, ocio, calle, bus; por
   grupo y para entre semana y fin de semana), los indicadores (comidas por día, idas al gimnasio, llegadas tarde,
   perdidas, pendientes), la pérdida contra las metas y la estabilidad.
-- Las metas, en scripts/datos/objetivos-rutina.json. PROVISORIAS: hipótesis de cómo vive una ciudad colombiana, a
+- Las metas, en harness/pruebas/datos/objetivos-rutina.json. PROVISORIAS: hipótesis de cómo vive una ciudad colombiana, a
   reemplazar por las tablas de la ENUT del DANE.
-- scripts/validar-rutina.mjs (nivel 9):
+- harness/pruebas/validar-rutina.mjs (nivel 9):
   - la semana contra las metas: las de peso 3 son reglas; las otras se muestran para calibrar;
   - un martes con trancón (6:30-9, +30 min en bus), un robo frente al colegio a la salida (15 min a 120 m) y una
     panadería cerrada. Mide: lo obligatorio casi no se pierde, los eventos atrasan, lo opcional se cae antes que comer,
@@ -1652,18 +1652,18 @@ el centro.
   - mismos eventos, misma semana.
   Medido: ~210 personas atrasadas, 1 de ~4.000 obligaciones perdida; iguales a la semana normal de miércoles a
   domingo: 90 → 93 % y 89 → 94 %.
-- scripts/calibrar.mjs: el calibrador genérico. Un experimento (scripts/experimentos/<nombre>.mjs) dice sus perillas
+- harness/pruebas/calibrar.mjs: el calibrador genérico. Un experimento (harness/pruebas/experimentos/<nombre>.mjs) dice sus perillas
   (rutas de medidas.js con su rango) y su evaluación (la pérdida contra sus metas). Hace tres cosas:
   1. mide cómo está hoy;
   2. explora con combinaciones repartidas por el rango;
   3. refina alrededor de la mejor, con pasos que se achican.
-  Corre en paralelo (11 trabajadores) y deja el informe meta por meta en scripts/datos/calibracion-<nombre>.json. No toca
+  Corre en paralelo (11 trabajadores) y deja el informe meta por meta en harness/pruebas/datos/calibracion-<nombre>.json. No toca
   medidas.js. Experimentos:
   - «rutina»: 11 perillas, con la estabilidad como meta de peso 3. Sin ella, el calibrador ganaba curvas rompiendo la
     estabilidad: optimiza sólo lo que está en las metas. 220 pruebas en ~80 s: pérdida 0,38 → 0,014, 14 de 15 metas.
     Valores pasados a medidas.js.
   - «botin»: la meta por ladrón para que los ladrones ganen ~50 % en cada tamaño (lento).
-  `node scripts/calibrar.mjs rutina --iter=220 --semillas=1,2`
+  `node harness/pruebas/calibrar.mjs rutina --iter=220 --semillas=1,2`
 - Falta:
   - el mercado del fin de semana en la mañana (1,4 % contra 2-8 %: la tienda no abre el domingo);
   - las metas de verdad (ENUT);
@@ -1673,7 +1673,7 @@ el centro.
 
 ## La revisión de fachadas (2026-10-18)
 
-- scripts/ver-fachadas.mjs: fotos a mediodía de un edificio por cada combinación (tipo, familia, techo, toldos) y de
+- harness/pruebas/ver-fachadas.mjs: fotos a mediodía de un edificio por cada combinación (tipo, familia, techo, toldos) y de
   casas del monte y de la ciudad, de frente, en diagonal y desde arriba. La cámara nunca queda dentro de un lote: se
   acerca hasta quedar en la calle. Revisadas en las ciudades 1 y 2 (46 edificios y casas, 138 fotos).
 - La lista de correcciones y mejoras, con evidencia, dónde tocar y prioridad: FACHADAS.md.
@@ -1719,6 +1719,6 @@ el centro.
 - Arreglo: el reloj de policía es continuo (persec.tiempo = P.t + lo que va del paso); los bots del motor se dibujan entre
   su paso anterior y el actual (antes los seguía un resorte y su animación salía de lo que les faltaba: tirones y a veces
   «corriendo»). Después: p50 1,3 m/s, p99 2,1, saltos 0 % (igual que de ladrón).
-- No hizo falta bajar la población. Validador: scripts/validar-fluidez.mjs (nivel 10, los dos papeles); con el reloj viejo
+- No hizo falta bajar la población. Validador: harness/pruebas/validar-fluidez.mjs (nivel 10, los dos papeles); con el reloj viejo
   da 4 fallas (11,7 m/s de p50, 10 % de saltos).
 

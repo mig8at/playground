@@ -1,0 +1,48 @@
+{
+  // La tarjeta de la grilla: foto, nombre, precio y agregar.
+  "product-summary.shelf": {
+    "children": [
+      "product-summary-image",
+      "product-summary-name",
+      "product-summary-space",
+      "product-list-price",
+      "product-selling-price",
+      "add-to-cart-button"
+    ],
+    "props": { "blockClass": "tarjeta" }
+  },
+  "product-summary-image": {
+    "props": { "showBadge": false, "aspectRatio": "4:3" }
+  },
+
+  // La página de un producto: fotos a la izquierda; nombre, precio, cantidad y agregar a la derecha.
+  "store.product": {
+    "children": ["flex-layout.row#producto"]
+  },
+  "flex-layout.row#producto": {
+    "props": { "marginTop": 6, "marginBottom": 6, "colGap": 7, "blockClass": "producto" },
+    "children": ["flex-layout.col#fotos", "flex-layout.col#compra"]
+  },
+  "flex-layout.col#fotos": {
+    "props": { "width": "55%", "rowGap": 0 },
+    "children": ["product-images"]
+  },
+  "flex-layout.col#compra": {
+    "props": { "width": "45%", "rowGap": 4, "verticalAlign": "top" },
+    "children": [
+      "product-name",
+      "product-list-price",
+      "product-selling-price",
+      "sku-selector",
+      "product-quantity",
+      "add-to-cart-button",
+      "product-description"
+    ]
+  },
+  "product-images": {
+    "props": { "displayThumbnailsArrows": true, "aspectRatio": "4:3" }
+  },
+  "sku-selector": {
+    "props": { "showValueNameForImageVariation": true }
+  }
+}

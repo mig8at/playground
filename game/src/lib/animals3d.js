@@ -35,7 +35,7 @@ let CACHE=null;
 export function loadAnimals(){return CACHE??=(async()=>{const gl=new GLTFLoader(),out={animados:{},granja:{},mar:{},marRig:{}};
  await Promise.all([
   ...Object.keys(ANIMADOS).map(n=>gl.loadAsync('/models/Animales/'+n+'.gltf').then(g=>{out.animados[n]={scene:g.scene,clips:g.animations,...fit(g.scene,ANIMADOS[n])};}).catch(e=>console.warn('animal',n,e))),
-  // (con esqueleto, hechos en Blender —scripts/blender: rig.py presta el de Quaternius a los de granja; mar.py arma una
+  // (con esqueleto, hechos en Blender —harness/pruebas/blender: rig.py presta el de Quaternius a los de granja; mar.py arma una
   // cadena de nado—, en public/models/AnimalesRig; si no están, los OBJ sin huesos)
   ...Object.keys(GRANJA).map(n=>gl.loadAsync('/models/AnimalesRig/'+n+'.glb').then(g=>{out.animados[n]={scene:g.scene,clips:g.animations,...fit(g.scene,GRANJA[n])};}).catch(()=>null)),
   ...Object.keys(MAR).map(n=>gl.loadAsync('/models/AnimalesRig/'+n+'.glb').then(g=>{out.marRig[n]={scene:g.scene,clips:g.animations,...fit(g.scene,MAR[n])};}).catch(()=>null)),
