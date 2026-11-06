@@ -5,7 +5,7 @@
  * /api/corridas/<id>/. Una corrida vieja (sin foto de antes ni cuadro) se ve igual, sólo con las de después. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-const props = defineProps({ run: { type: Object, required: true }, replayable: { type: Boolean, default: true } })
+const props = defineProps({ run: { type: Object, required: true }, replayable: { type: Boolean, default: true }, bare: { type: Boolean, default: false } })
 const emit = defineEmits(['replay'])
 const meta = computed(() => props.run.corrida || {})
 const steps = computed(() => props.run.pasos || [])
@@ -161,7 +161,7 @@ watch(cur, async () => {
 
 <template>
   <article class="run">
-    <header class="run-head">
+    <header v-if="!bare" class="run-head">
       <div class="run-title">
         <span v-if="meta.palabra" class="badge kw" :class="kwClass(meta.palabra)">{{ meta.palabra }}</span>
         <h1>{{ meta.meta || 'Corrida sin meta' }}</h1>
@@ -229,7 +229,7 @@ watch(cur, async () => {
     </section>
     <p v-else class="muted">La corrida no hizo ningún paso: sólo leyó (las fuentes están a la derecha).</p>
 
-    <section v-if="result" class="run-result-wrap">
+    <section v-if="result && !bare" class="run-result-wrap">
       <h2 class="small muted">Lo que respondió</h2>
       <div class="run-result">{{ result }}</div>
     </section>

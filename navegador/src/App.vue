@@ -79,8 +79,12 @@ const askFlow = computed(() => askEvents.value.find((e) => e.k === 'flow')?.t ||
 const timeline = computed(() => askEvents.value.filter((e) => !['out', 'ask', 'report', 'flow', 'site'].includes(e.k)))
 function guideText(cmd) { return cmd.match(/^navegador point\s+(?:\S+|'[^']*')\s+'(.*)'\s*$/)?.[1] || '' }
 const agentShown = computed(() => askState.value.running || askEvents.value.length > 0)
+// El sidebar derecho: la información del flujo abierto, o Claude trabajando (con pestañas si hay las dos).
+const flowOpen = computed(() => view.value.kind === 'flow' && !!flowData.value)
+const auxTab = ref('flow')
+const auxShows = computed(() => (flowOpen.value && (auxTab.value === 'flow' || !agentShown.value) ? 'flow' : 'agent'))
 // Cuando Claude arranca (por ask o desde la conversación), su panel se abre aunque se haya cerrado antes.
-watch(() => askState.value.running, (on) => { if (on) { auxOpen.value = true; saveSize('navegador.aux-open', 1) } })
+watch(() => askState.value.running, (on) => { if (on) { auxOpen.value = true; auxTab.value = 'agent'; saveSize('navegador.aux-open', 1) } })
 
 // ── la sesión en vivo: el navegador real en el editor ──
 const isLive = computed(() => !!liveState.value.active)
@@ -207,7 +211,7 @@ async function loadView(v) {
     }
   } catch (e) { viewError.value = e.message }
 }
-watch(view, (v) => { flowData.value = flowVideo.value = null; loadView(v) }, { immediate: true })
+watch(view, (v) => { flowData.value = flowVideo.value = null; if (v.kind === 'flow') auxTab.value = 'flow'; loadView(v) }, { immediate: true })
 // Lo que se edita de un flujo: el valor de cada dato y si el paso para para que lo haga la persona.
 const flowSteps = computed(() => flowData.value?.flujo.pasos || [])
 const flowParams = computed(() => flowSteps.value.map((s, i) => ({ ...s, i })).filter((s) => s.dato))
@@ -282,7 +286,7 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.va
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
-    { size: auxOpen.value && agentShown.value ? auxW.value : 0, min },
+    { size: auxOpen.value && (agentShown.value || flowOpen.value) ? auxW.value : 0, min },
     { size: sidebarOpen.value ? sidebarW.value : 0, min },
   ])
   const [panel] = fitRegions(viewportH.value - 200, [{ size: panelOpen.value ? panelH.value : 0, min: cssSize('--panel-min', 124) }])
@@ -415,63 +419,21 @@ const status = computed(() => {
         </div>
       </template>
 
-      <!-- un flujo: sus datos, dónde para, y reproducirlo -->
+      <!-- un flujo: en el editor, sólo su video (su información y sus pasos van en el sidebar derecho) -->
       <template v-else-if="view.kind === 'flow'">
         <div class="region-head">
-          <span class="ellipsis">Flujo · {{ appName(view.app) }}</span>
+          <span class="ellipsis">{{ flowData?.flujo.nombre || 'Flujo' }} · {{ appName(view.app) }}</span>
           <div class="region-actions">
-            <button v-if="flowData" type="button" class="region-action" title="Eliminar el flujo" aria-label="Eliminar el flujo" @click="deleteFlow"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             <button type="button" class="region-action" title="Volver al navegador en vivo" aria-label="Cerrar" @click="go({ kind: 'live' })"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
         </div>
         <div class="region-body run-body">
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
-          <article v-if="flowData" class="flow">
-            <header class="flow-head">
-              <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flujo.nombre }}</h1>
-              <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flujo.dispositivo === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flujo.creado) }}
-                <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
-              <p class="muted small"><code>navegador/flujos/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
-              <div class="flow-actions">
-                <button type="button" class="btn" title="Llena los campos solo con estos datos; en cada botón para y lo tocás vos" @click="playFlow('fill')">Autorrellenar</button>
-                <button type="button" class="btn btn-outline" title="Hace todo solo y para sólo donde marcaste, en una llave, en lo irreversible o si algo cambió" @click="playFlow('auto')">Automático{{ stopsCount ? ` (para en ${stopsCount})` : '' }}</button>
-                <button type="button" class="btn btn-ghost" title="Cada paso lo hacés vos, con la instrucción y el elemento marcados" @click="playFlow('teach')">Enseñame</button>
-              </div>
-            </header>
-
-            <section v-if="flowParams.length" class="flow-data">
-              <h2>Datos del flujo</h2>
-              <p class="muted small">Se precargan al reproducir: «Autorrellenar» los escribe solo y te deja los botones a vos. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
-              <div v-for="p in flowParams" :key="p.i" class="data-row">
-                <label :for="`dato-${p.i}`">{{ p.dato }}</label>
-                <input :id="`dato-${p.i}`" class="input input-sm" :value="p.valor" :disabled="p.pausa" @change="saveFlowStep(p.i, { valor: $event.target.value })" />
-                <label class="check"><input type="checkbox" :checked="p.pausa" @change="saveFlowStep(p.i, { pausa: $event.target.checked })" /> lo escribo yo</label>
-              </div>
-            </section>
-
-            <section>
-              <h2>Pasos</h2>
-              <ol class="flow-steps">
-                <li v-for="(s, i) in flowSteps" :key="i" :class="{ stop: s.pausa }">
-                  <span class="flow-n">{{ i + 1 }}</span>
-                  <div class="flow-step-body">
-                    <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruccion || s.accion }}</div>
-                    <div v-if="s.porque" class="muted small">{{ s.porque }}</div>
-                  </div>
-                  <label v-if="!s.dato && !s.secreto && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.accion)" class="check small" title="Que pare acá y lo haga la persona">
-                    <input type="checkbox" :checked="s.pausa" @change="saveFlowStep(i, { pausa: $event.target.checked })" /> lo hago yo
-                  </label>
-                  <span v-else-if="s.secreto" class="muted small">lo escribe la persona</span>
-                  <button type="button" class="region-action step-del" title="Sacar este paso del flujo" :aria-label="`Sacar el paso ${i + 1}`" @click="removeStep(i)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
-                </li>
-              </ol>
-            </section>
-
-            <section v-if="flowVideo">
-              <h2>Cómo se hizo</h2>
-              <RunViewer :run="flowVideo" :replayable="false" />
-            </section>
-          </article>
+          <RunViewer v-if="flowVideo" :run="flowVideo" :replayable="false" :bare="true" />
+          <div v-else-if="flowData" class="home">
+            <h1>Sin video todavía</h1>
+            <p class="muted">Este flujo no tiene su corrida en esta máquina. Reproducilo una vez (a la derecha) y queda el video.</p>
+          </div>
         </div>
       </template>
 
@@ -552,8 +514,64 @@ const status = computed(() => {
       </template>
     </main>
 
-    <aside v-if="shown.aux" class="auxiliarybar" aria-label="Claude trabajando">
+    <aside v-if="shown.aux" class="auxiliarybar" :aria-label="auxShows === 'flow' ? 'El flujo' : 'Claude trabajando'">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <nav v-if="flowOpen && agentShown" class="tabs">
+        <button type="button" class="tab" :class="{ on: auxShows === 'flow' }" @click="auxTab = 'flow'">Flujo</button>
+        <button type="button" class="tab" :class="{ on: auxShows === 'agent' }" @click="auxTab = 'agent'">Claude</button>
+      </nav>
+      <template v-if="auxShows === 'flow'">
+        <div class="region-head">
+          <span>Flujo</span>
+          <div class="region-actions">
+            <button type="button" class="region-action" title="Eliminar el flujo" aria-label="Eliminar el flujo" @click="deleteFlow"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+          </div>
+        </div>
+        <div class="region-body">
+      <article class="flow side">
+        <header class="flow-head">
+          <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flujo.nombre }}</h1>
+          <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flujo.dispositivo === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flujo.creado) }}
+            <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
+          <p class="muted small"><code>navegador/flujos/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
+          <div class="flow-actions">
+            <button type="button" class="btn" title="Llena los campos solo con estos datos; en cada botón para y lo tocás vos" @click="playFlow('fill')">Autorrellenar</button>
+            <button type="button" class="btn btn-outline" title="Hace todo solo y para sólo donde marcaste, en una llave, en lo irreversible o si algo cambió" @click="playFlow('auto')">Automático{{ stopsCount ? ` (para en ${stopsCount})` : '' }}</button>
+            <button type="button" class="btn btn-ghost" title="Cada paso lo hacés vos, con la instrucción y el elemento marcados" @click="playFlow('teach')">Enseñame</button>
+          </div>
+        </header>
+
+        <section v-if="flowParams.length" class="flow-data">
+          <h2>Datos del flujo</h2>
+          <p class="muted small">Se precargan al reproducir: «Autorrellenar» los escribe solo y te deja los botones a vos. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
+          <div v-for="p in flowParams" :key="p.i" class="data-row">
+            <label :for="`dato-${p.i}`">{{ p.dato }}</label>
+            <input :id="`dato-${p.i}`" class="input input-sm" :value="p.valor" :disabled="p.pausa" @change="saveFlowStep(p.i, { valor: $event.target.value })" />
+            <label class="check"><input type="checkbox" :checked="p.pausa" @change="saveFlowStep(p.i, { pausa: $event.target.checked })" /> lo escribo yo</label>
+          </div>
+        </section>
+
+        <section>
+          <h2>Pasos</h2>
+          <ol class="flow-steps">
+            <li v-for="(s, i) in flowSteps" :key="i" :class="{ stop: s.pausa }">
+              <span class="flow-n">{{ i + 1 }}</span>
+              <div class="flow-step-body">
+                <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruccion || s.accion }}</div>
+                <div v-if="s.porque" class="muted small">{{ s.porque }}</div>
+              </div>
+              <label v-if="!s.dato && !s.secreto && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.accion)" class="check small" title="Que pare acá y lo haga la persona">
+                <input type="checkbox" :checked="s.pausa" @change="saveFlowStep(i, { pausa: $event.target.checked })" /> lo hago yo
+              </label>
+              <span v-else-if="s.secreto" class="muted small">lo escribe la persona</span>
+              <button type="button" class="region-action step-del" title="Sacar este paso del flujo" :aria-label="`Sacar el paso ${i + 1}`" @click="removeStep(i)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+            </li>
+          </ol>
+        </section>
+          </article>
+        </div>
+      </template>
+      <template v-else>
       <div class="region-head">
         <span>Claude</span>
         <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : askState.externa ? 'desde la conversación' : 'trabajando…' }}</span>
@@ -596,6 +614,7 @@ const status = computed(() => {
           <button v-if="askFlow" type="button" class="btn btn-sm" @click="go({ kind: 'flow', app: askFlow.split('/')[0], id: askFlow.split('/')[1] })">Abrir el flujo</button>
         </div>
       </div>
+      </template>
     </aside>
 
     <section v-if="shown.panel" class="panel" aria-label="Pasos de la sesión">
@@ -621,7 +640,7 @@ const status = computed(() => {
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('navegador.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('navegador.panel-open', panelOpen)"><span class="ui-icon" data-icon="bottom" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown" title="Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('navegador.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('navegador.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
     </footer>
   </div>
@@ -721,6 +740,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .flow-head p { margin: 0 }
 .flow-actions { display: flex; gap: var(--space-2); margin-top: var(--space-3) }
 .flow-data { display: flex; flex-direction: column; gap: var(--space-2) }
+.flow.side { padding: var(--space-3) var(--gutter); gap: var(--space-4) }
+.flow.side h1 { font-size: var(--text-base) }
+.flow.side .flow-actions { flex-wrap: wrap }
+.flow.side .data-row { grid-template-columns: 1fr auto }
+.flow.side .data-row > label:first-child { grid-column: 1 / -1; margin-bottom: -6px }
 .flow-data p { margin: 0 }
 .data-row { display: grid; grid-template-columns: minmax(140px, 220px) 1fr auto; gap: var(--space-3); align-items: center }
 .data-row > label:first-child { font-weight: 600 }
