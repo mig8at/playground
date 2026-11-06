@@ -825,7 +825,7 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 	if tracked {
 		before = fieldState(target, action)
 	}
-	var code string
+	var code, chooser string
 	switch action {
 	case "click":
 		code = ".click()"
@@ -866,8 +866,22 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 		if _, statErr := os.Stat(in.Value); statErr != nil {
 			return Step{}, fmt.Errorf("no encuentro el archivo %s", in.Value)
 		}
-		code = fmt.Sprintf(".setInputFiles('%s')", jsQuote(in.Value))
-		err = target.SetInputFiles(in.Value, playwright.LocatorSetInputFilesOptions{Timeout: timeout})
+		// Un <input type=file> recibe el archivo directo; un botón («Reemplazar», «Subir imagen») abre el selector
+		// de archivos: se toca y se le contesta al selector.
+		isFile, _ := target.Evaluate("e => e.tagName === 'INPUT' && e.type === 'file'", nil, playwright.LocatorEvaluateOptions{Timeout: playwright.Float(2000)})
+		if ok, _ := isFile.(bool); ok {
+			code = fmt.Sprintf(".setInputFiles('%s')", jsQuote(in.Value))
+			err = target.SetInputFiles(in.Value, playwright.LocatorSetInputFilesOptions{Timeout: timeout})
+			break
+		}
+		code = ".click()"
+		chooser = in.Value
+		var fc playwright.FileChooser
+		if fc, err = l.page.ExpectFileChooser(func() error {
+			return target.Click(playwright.LocatorClickOptions{Timeout: timeout})
+		}, playwright.PageExpectFileChooserOptions{Timeout: timeout}); err == nil {
+			err = fc.SetFiles(in.Value)
+		}
 	case "drag":
 		// El destino es otro elemento: su número (1, 2…) o su texto.
 		n, convErr := strconv.Atoi(in.Value)
@@ -907,6 +921,10 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 	l.mu.Unlock()
 	for _, d := range dialogs {
 		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true, Action: "dialog", Value: map[bool]string{true: "dismiss", false: "accept"}[strings.Contains(d.code, "dismiss")]})
+	}
+	// El archivo para un selector que abre el clic, como lo escribe Playwright: atendido ANTES del paso.
+	if chooser != "" && err == nil {
+		r.recordStep(l, Step{Code: fmt.Sprintf("page.once('filechooser', fc => fc.setFiles('%s'))", jsQuote(chooser)), Target: name, OK: true, Raw: true})
 	}
 	// Una descarga va en el script como lo escribe Playwright: la espera ANTES del paso y el guardado después.
 	var after []Step
