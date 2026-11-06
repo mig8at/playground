@@ -345,3 +345,30 @@ func deleteFlow(app, id string) error {
 	hub.Publish("flows", listFlows())
 	return nil
 }
+
+// DeleteProject borra un proyecto: todos sus flujos (navegador/flujos/<app>) y sus corridas guardadas en .data
+// (las que arrancaron en su app o en su host), con sus fotos. Una app de práctica del registro sigue en la lista,
+// vacía; un sitio real desaparece. Devuelve cuántos flujos y corridas borró.
+func (s *Store) DeleteProject(app string) (int, int, error) {
+	if app == "" || strings.ContainsAny(app, "/\\") || strings.HasPrefix(app, ".") {
+		return 0, 0, errors.New("proyecto inválido")
+	}
+	flowsMu.Lock()
+	defer flowsMu.Unlock()
+	files, _ := filepath.Glob(filepath.Join(flowsDir(), app, "*.json"))
+	if err := os.RemoveAll(filepath.Join(flowsDir(), app)); err != nil {
+		return 0, 0, err
+	}
+	runs := 0
+	for _, r := range s.Runs() {
+		if appFor(r.Start) != app {
+			continue
+		}
+		if err := os.RemoveAll(filepath.Join(s.dir, "corridas", r.ID)); err == nil {
+			runs++
+		}
+	}
+	hub.Publish("flows", listFlows())
+	hub.Publish("runs", s.Runs())
+	return len(files), runs, nil
+}

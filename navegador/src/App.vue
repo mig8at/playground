@@ -236,6 +236,23 @@ async function playFlow(m) {
   viewError.value = ''
   try { await api(`/api/flows/${view.value.app}/${view.value.id}/replay`, { method: 'POST', body: JSON.stringify({ mode: m }) }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
 }
+// Borrar lo que ya no hace falta (algo que sólo se quería entender): un flujo, o un proyecto entero.
+async function deleteFlowOf(f) {
+  if (!confirm(`¿Borrar el flujo «${f.nombre}»? Se borra su archivo de navegador/flujos.`)) return
+  try {
+    await api(`/api/flows/${f.app}/${f.id}`, { method: 'DELETE' })
+    if (view.value.kind === 'flow' && view.value.app === f.app && view.value.id === f.id) go({ kind: 'project', app: f.app })
+  } catch (e) { viewError.value = e.message }
+}
+async function deleteProject(g) {
+  const n = g.list.length
+  const keeps = g.url ? ' La app de práctica sigue en la lista, vacía.' : ''
+  if (!confirm(`¿Borrar el proyecto «${appName(g.app)}»? Se borran ${n === 1 ? 'su flujo' : `sus ${n} flujos`} y sus corridas guardadas (los videos).${keeps}`)) return
+  try {
+    await api(`/api/projects/${g.app}`, { method: 'DELETE' })
+    if (view.value.app === g.app) go(g.url ? { kind: 'project', app: g.app } : { kind: 'live' })
+  } catch (e) { viewError.value = e.message }
+}
 async function deleteFlow() {
   if (!confirm(`¿Eliminar el flujo «${flowData.value.flujo.nombre}»? Se borra su archivo de navegador/flujos.`)) return
   try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'DELETE' }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
@@ -356,6 +373,7 @@ const status = computed(() => {
             <span class="node-flag">{{ g.list.length }}</span>
             <span class="node-actions">
               <button v-if="g.url" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click.stop="openApp({ url: g.url })"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+              <button v-if="g.list.length || !g.url" type="button" class="region-action" title="Borrar el proyecto: sus flujos y sus corridas" aria-label="Borrar el proyecto" @click.stop="deleteProject(g)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             </span>
           </div>
           <template v-if="isOpen(g.app)">
@@ -366,6 +384,7 @@ const status = computed(() => {
               <span class="node-flag">{{ f.pasos }}</span>
               <span class="node-actions">
                 <button type="button" class="region-action" title="Reproducir: los campos se llenan solos, los botones los tocás vos" aria-label="Reproducir" @click.stop="playFlowOf(f, 'fill')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+                <button type="button" class="region-action" title="Borrar el flujo" aria-label="Borrar el flujo" @click.stop="deleteFlowOf(f)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
               </span>
             </div>
             <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía.</p>
@@ -391,6 +410,7 @@ const status = computed(() => {
               <p v-if="project.app" class="muted">{{ project.app.descripcion }}</p>
               <div class="flow-actions">
                 <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
+                <button v-if="project.flows.length || !project.app" type="button" class="btn btn-ghost" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url })">Borrar proyecto</button>
               </div>
             </header>
             <section>

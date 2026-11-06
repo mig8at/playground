@@ -492,6 +492,19 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "flujo": fl})
 		}
 	})
+	// DELETE /api/projects/<app> — borra un proyecto: sus flujos y sus corridas.
+	mux.HandleFunc("/api/projects/", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodDelete {
+			writeErr(w, http.StatusMethodNotAllowed, fmt.Errorf("DELETE"))
+			return
+		}
+		flows, runs, err := store.DeleteProject(strings.TrimPrefix(r.URL.Path, "/api/projects/"))
+		if err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]int{"flujos": flows, "corridas": runs})
+	})
 	// GET /api/runs — las corridas con reporte (meta, palabra final, costo), las más nuevas primero.
 	// GET /api/runs/<id> — una corrida completa: pasos con sus fotos, fuentes y script.
 	mux.HandleFunc("/api/runs", func(w http.ResponseWriter, r *http.Request) {
