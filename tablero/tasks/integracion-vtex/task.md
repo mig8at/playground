@@ -17,12 +17,14 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       el `Proxy-Authorization` de la lectura del pedido (6b1cc44, local).
 - [x] ~~Subir a vtex#25 la ruta del switch y sus correcciones~~ — 2026-11-06: 2a939c1 y 6b1cc44 en la rama del PR, con
       la evidencia de punta a punta en la descripción.
-- [ ] Publicar e instalar la 5.1.0 en `master` cuando aprueben vtex#25; termina cuando el switch aparece en la
-      configuración de la app en `master`.
-      Depende de: Joel / Oscar — la aprobación del PR.
+- [x] ~~Publicar e instalar la 5.1.0 en `master`~~ — 2026-11-06: vtex#25 mergeado (8757569), tag `v5.1.0`, publicada
+      y desplegada a las 17:27 (Bogotá); instalada en `master` con el tema 0.2.0. El switch quedó apagado en `master`.
 - [ ] Correr `make harness-vtex TARGET=qa CASES=rotativo` cuando legacy-backend#1881 entre a `qa`; termina en verde
       (las dos compras en `loan-approved` y VTEX Approved).
       Depende de: Joel — revisión y merge de #1881.
+- [ ] Ver en el admin de la tienda (Apps → Creditop BNPL) que el switch «Auto-onboarding con Creditop» aparece en la
+      configuración de la 5.1.0; termina con la captura en la tarea. La ruta ya contesta en `master`; la pantalla del
+      admin no se miró.
 - [ ] Dejar lista la tienda de Mario para el auto-onboarding: el script del checkout, la app `creditop` en la
       configuración del checkout, su sucursal en `auto_onboarding_allied_branches` y los enlaces de términos y
       política de producción (hoy apuntan a los PDF del bucket de dev); termina con una compra suya sin SMS.
