@@ -284,11 +284,17 @@ func flowSteps(fl Flow, values map[int]string) []Step {
 	return out
 }
 
-// updateFlow guarda lo que la persona cambió en un flujo: el nombre, el valor de cada dato y dónde para.
-func updateFlow(app, id, name string, steps []struct {
-	Value *string `json:"valor"`
-	Pause *bool   `json:"pausa"`
-}) (Flow, error) {
+// FlowEdit es lo que la persona cambia de un paso: su dato, si para, su texto, o sacarlo.
+type FlowEdit struct {
+	Value       *string `json:"valor"`
+	Pause       *bool   `json:"pausa"`
+	Instruction *string `json:"instruccion"`
+	Delete      bool    `json:"borrar"`
+}
+
+// updateFlow guarda lo que la persona cambió en un flujo: el nombre y, por paso, su dato, si para, su texto o
+// sacarlo (los pasos se identifican por su posición ANTES de la edición).
+func updateFlow(app, id, name string, steps []FlowEdit) (Flow, error) {
 	// Leer, cambiar y escribir con turno: dos ediciones seguidas desde la interfaz (un dato y una pausa) se pisaban.
 	flowsMu.Lock()
 	defer flowsMu.Unlock()
@@ -310,7 +316,21 @@ func updateFlow(app, id, name string, steps []struct {
 		if s.Pause != nil && !fl.Steps[i].Secret {
 			fl.Steps[i].Pause = *s.Pause
 		}
+		if s.Instruction != nil && strings.TrimSpace(*s.Instruction) != "" {
+			fl.Steps[i].Instruction = strings.TrimSpace(*s.Instruction)
+		}
 	}
+	kept := fl.Steps[:0]
+	for i, st := range fl.Steps {
+		if i < len(steps) && steps[i].Delete {
+			continue
+		}
+		kept = append(kept, st)
+	}
+	if len(kept) == 0 {
+		return fl, errors.New("un flujo sin pasos no sirve: eliminá el flujo")
+	}
+	fl.Steps = kept
 	return fl, writeFlow(fl)
 }
 

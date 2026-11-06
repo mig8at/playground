@@ -465,11 +465,8 @@ func handler(store *Store, runner *Runner) http.Handler {
 			writeJSON(w, http.StatusOK, runner.LiveState(false))
 		case r.Method == http.MethodPut:
 			var in struct {
-				Name  string `json:"nombre"`
-				Steps []struct {
-					Value *string `json:"valor"`
-					Pause *bool   `json:"pausa"`
-				} `json:"pasos"`
+				Name  string     `json:"nombre"`
+				Steps []FlowEdit `json:"pasos"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 				writeErr(w, http.StatusBadRequest, err)

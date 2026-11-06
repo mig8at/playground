@@ -5,7 +5,7 @@
  * para donde tiene que actuar la persona (o en lo irreversible).
  *
  * Todo llega por UN stream en tiempo real (/api/events, server/events.go); los cuadros del navegador, por el suyo
- * (/api/live/frames). La ruta: #/ (en vivo), #/corrida/<id> (una corrida como video), #/flujo/<app>/<id>. */
+ * (/api/live/frames). La ruta: #/ (en vivo), #/proyecto/<app> (su portada), #/flujo/<app>/<id>. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute } from './workbench.js'
 import RunViewer from './RunViewer.vue'
@@ -21,7 +21,6 @@ async function api(path, opts = {}) {
 const view = ref({ kind: 'live' }) // live · run {id} · flow {app, id}
 function parseRoute() {
   const p = readHashRoute().parts
-  if (p[0] === 'corrida' && p[1]) return { kind: 'run', id: p[1] }
   if (p[0] === 'flujo' && p[1] && p[2]) return { kind: 'flow', app: p[1], id: p[2] }
   if (p[0] === 'proyecto' && p[1]) return { kind: 'project', app: p[1] }
   return { kind: 'live' }
@@ -29,7 +28,7 @@ function parseRoute() {
 view.value = parseRoute()
 function go(v) {
   view.value = v
-  const parts = v.kind === 'run' ? ['corrida', v.id] : v.kind === 'flow' ? ['flujo', v.app, v.id] : v.kind === 'project' ? ['proyecto', v.app] : []
+  const parts = v.kind === 'flow' ? ['flujo', v.app, v.id] : v.kind === 'project' ? ['proyecto', v.app] : []
   setRoute(hashRoute(parts), { push: true })
 }
 const onHashChange = () => { view.value = parseRoute() }
@@ -38,7 +37,6 @@ const onHashChange = () => { view.value = parseRoute() }
 const liveState = ref({ active: false, steps: [] })
 const askState = ref({ running: false, waiting: false, meta: '', total: 0 })
 const askEvents = ref([])
-const runs = ref([])
 const flows = ref([])
 const apps = ref([])
 const connected = ref(false)
@@ -55,7 +53,6 @@ function connect() {
     askState.value = st
   })
   on('ask', (ev) => { if (ev.n === askEvents.value.length) askEvents.value.push(ev) })
-  on('runs', (v) => { runs.value = v })
   on('flows', (v) => { flows.value = v; if (view.value.kind === 'flow') loadView(view.value) })
   on('apps', (v) => { apps.value = v })
 }
@@ -78,7 +75,6 @@ const keywordOf = (t) => ['LISTO', 'NO PUDE', 'NECESITO', 'CONFIRMAR'].find((k) 
 const stripKeyword = (t) => plainText(t).replace(/^\s*[*_#>`]*\s*(LISTO|NO PUDE|NECESITO|CONFIRMAR)\s*:?[*_]*\s*/i, '')
 const askKeyword = computed(() => [...askEvents.value].reverse().find((e) => e.k === 'ask')?.t || '')
 const askQuestion = computed(() => (askState.value.waiting ? stripKeyword([...askEvents.value].reverse().find((e) => e.k === 'result')?.t) : ''))
-const askRun = computed(() => askEvents.value.find((e) => e.k === 'report')?.t.match(/#\/corrida\/([^/\s]+)/)?.[1] || '')
 const askFlow = computed(() => askEvents.value.find((e) => e.k === 'flow')?.t || '')
 const timeline = computed(() => askEvents.value.filter((e) => !['out', 'ask', 'report', 'flow', 'site'].includes(e.k)))
 function guideText(cmd) { return cmd.match(/^navegador point\s+(?:\S+|'[^']*')\s+'(.*)'\s*$/)?.[1] || '' }
@@ -194,22 +190,16 @@ const guideStuck = ref(false)
 async function answerGuide(done) {
   try { await api('/api/live/guide/answer', { method: 'POST', body: JSON.stringify({ done, note: done ? '' : guideNote.value }) }); guideNote.value = ''; guideStuck.value = false } catch (e) { liveError.value = e.message }
 }
-// La reproducción de una corrida o un flujo.
+// La reproducción de un flujo.
 async function replayAnswer(choice) { try { await api('/api/live/replay/answer', { method: 'POST', body: JSON.stringify({ choice }) }) } catch (e) { liveError.value = e.message } }
 const viewError = ref('')
-async function replayRun(id, m = 'auto') {
-  viewError.value = ''
-  try { await api('/api/live/replay/start', { method: 'POST', body: JSON.stringify({ run: id, mode: m }) }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
-}
 
-// ── una corrida o un flujo, abiertos ──
-const runData = ref(null)
+// ── un flujo abierto (su video es el de su última corrida, que vive en .data) ──
 const flowData = ref(null)
 const flowVideo = ref(null)
 async function loadView(v) {
   viewError.value = ''
   try {
-    if (v.kind === 'run') runData.value = await api(`/api/runs/${encodeURIComponent(v.id)}`)
     if (v.kind === 'flow') {
       flowData.value = await api(`/api/flows/${v.app}/${v.id}`)
       const src = flowData.value.flujo.ultima_corrida || flowData.value.flujo.corrida
@@ -217,20 +207,26 @@ async function loadView(v) {
     }
   } catch (e) { viewError.value = e.message }
 }
-watch(view, (v) => { runData.value = flowData.value = flowVideo.value = null; loadView(v) }, { immediate: true })
-const savingFlow = ref(false)
-async function saveAsFlow() {
-  const name = prompt('Nombre del flujo', runData.value?.corrida?.meta?.replace(/^Repetición · /, '') || '')
-  if (!name) return
-  savingFlow.value = true
-  try { const f = await api('/api/flows', { method: 'POST', body: JSON.stringify({ run: view.value.id, name }) }); go({ kind: 'flow', app: f.app, id: f.id }) } catch (e) { viewError.value = e.message } finally { savingFlow.value = false }
-}
+watch(view, (v) => { flowData.value = flowVideo.value = null; loadView(v) }, { immediate: true })
 // Lo que se edita de un flujo: el valor de cada dato y si el paso para para que lo haga la persona.
 const flowSteps = computed(() => flowData.value?.flujo.pasos || [])
 const flowParams = computed(() => flowSteps.value.map((s, i) => ({ ...s, i })).filter((s) => s.dato))
 async function saveFlowStep(i, patch) {
   const pasos = flowSteps.value.map((_, j) => (j === i ? patch : {}))
   try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ pasos }) }) } catch (e) { viewError.value = e.message }
+}
+async function renameFlow(nombre) {
+  nombre = nombre.trim()
+  if (!nombre || nombre === flowData.value.flujo.nombre) return
+  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ nombre }) }) } catch (e) { viewError.value = e.message }
+}
+function editStepText(i, el) {
+  const t = el.innerText.trim()
+  if (t && t !== flowSteps.value[i].instruccion) saveFlowStep(i, { instruccion: t })
+  else el.innerText = flowSteps.value[i].instruccion || flowSteps.value[i].accion
+}
+function removeStep(i) {
+  if (confirm(`¿Sacar el paso ${i + 1} del flujo? «${flowSteps.value[i].instruccion || flowSteps.value[i].accion}»`)) saveFlowStep(i, { borrar: true })
 }
 async function playFlow(m) {
   viewError.value = ''
@@ -256,20 +252,13 @@ watch(projectOpen, (v) => savePref('navegador.proyectos', v), { deep: true })
 const isOpen = (key, def = true) => projectOpen.value[key] ?? def
 const toggleOpen = (key, def = true) => { projectOpen.value[key] = !isOpen(key, def) }
 function openProject(app) { projectOpen.value[app] = true; go({ kind: 'project', app }) }
-// Las corridas de un proyecto: las que arrancaron en su app (por el origen), o en su host si es un sitio real.
-const appOrigins = computed(() => Object.fromEntries(apps.value.map((a) => [new URL(a.url).origin, a.id])))
-function runApp(r) {
-  try { const u = new URL(r.inicio); return appOrigins.value[u.origin] || u.host.toLowerCase().replace(/[^a-z0-9]+/g, '-') } catch { return 'otros' }
-}
-const runsOf = (app) => runs.value.filter((r) => runApp(r) === app)
-const fmtShort = (t) => (t ? new Date(t).toLocaleDateString('es-CO', { day: 'numeric', month: 'short' }) : '')
 async function playFlowOf(f, m) {
   viewError.value = ''
   try { await api(`/api/flows/${f.app}/${f.id}/replay`, { method: 'POST', body: JSON.stringify({ mode: m }) }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
 }
 const project = computed(() => (view.value.kind === 'project' ? {
   id: view.value.app, app: apps.value.find((a) => a.id === view.value.app),
-  flows: flows.value.filter((f) => f.app === view.value.app), runs: runsOf(view.value.app),
+  flows: flows.value.filter((f) => f.app === view.value.app),
 } : null))
 
 const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
@@ -350,7 +339,7 @@ const status = computed(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-if="shown.sidebar" class="sidebar" aria-label="Flujos y corridas">
+    <aside v-if="shown.sidebar" class="sidebar" aria-label="Proyectos y flujos">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
 
       <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>
@@ -377,44 +366,14 @@ const status = computed(() => {
               </span>
             </div>
             <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía.</p>
-            <!-- y sus corridas, en una subcarpeta -->
-            <template v-if="runsOf(g.app).length">
-              <div class="tree-row folder sub" role="treeitem" :aria-expanded="isOpen(g.app + '/corridas', false)" @click="toggleOpen(g.app + '/corridas', false)">
-                <button type="button" class="twisty" aria-hidden="true" tabindex="-1"><span class="ui-icon" data-icon="chevron" :style="{ transform: isOpen(g.app + '/corridas', false) ? 'rotate(90deg)' : '' }"></span></button>
-                <span class="node-name">Corridas</span>
-                <span class="node-flag">{{ runsOf(g.app).length }}</span>
-              </div>
-              <template v-if="isOpen(g.app + '/corridas', false)">
-                <div v-for="r in runsOf(g.app)" :key="r.id" class="tree-row leaf deep" role="treeitem" :class="{ on: view.kind === 'run' && view.id === r.id }" :title="`${r.meta} · ${fmtDate(r.fecha)}`" @click="go({ kind: 'run', id: r.id })">
-                  <span class="run-dot" :class="KW_CLASS[r.palabra] || 'kw-none'" :title="r.palabra" aria-hidden="true"></span>
-                  <span class="node-name">{{ r.meta || '(sin meta)' }}</span>
-                  <span class="node-flag">{{ fmtShort(r.fecha) }}</span>
-                </div>
-              </template>
-            </template>
           </template>
         </template>
       </div>
     </aside>
 
     <main class="editor">
-      <!-- una corrida, como video -->
-      <template v-if="view.kind === 'run'">
-        <div class="region-head">
-          <span class="ellipsis">Corrida</span>
-          <div class="region-actions">
-            <button type="button" class="btn btn-ghost btn-sm" :disabled="savingFlow || !runData" title="Guardarla como flujo en navegador/flujos" @click="saveAsFlow">Guardar como flujo</button>
-            <button type="button" class="region-action" title="Volver al navegador en vivo" aria-label="Cerrar" @click="go({ kind: 'live' })"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
-          </div>
-        </div>
-        <div class="region-body run-body">
-          <p v-if="viewError" class="err pad">{{ viewError }}</p>
-          <RunViewer v-if="runData" :run="runData" @replay="replayRun(view.id)" />
-        </div>
-      </template>
-
-      <!-- la portada de un proyecto: sus flujos para reproducir, abrirlo en vivo y pedir uno nuevo -->
-      <template v-else-if="view.kind === 'project' && project">
+      <!-- la portada de un proyecto: sus flujos para reproducir y abrirlo en vivo -->
+      <template v-if="view.kind === 'project' && project">
         <div class="region-head">
           <span class="ellipsis">Proyecto</span>
           <div class="region-actions">
@@ -451,13 +410,6 @@ const status = computed(() => {
                 </div>
               </div>
             </section>
-            <section v-if="project.runs.length">
-              <h2>Corridas</h2>
-              <button v-for="r in project.runs.slice(0, 8)" :key="r.id" type="button" class="row stacked" @click="go({ kind: 'run', id: r.id })">
-                <span class="run-top"><span class="badge badge-xs kw" :class="KW_CLASS[r.palabra] || 'kw-none'">{{ r.palabra || '—' }}</span><span class="ellipsis">{{ r.meta || '(sin meta)' }}</span></span>
-                <span class="row-desc">{{ fmtDate(r.fecha) }} · {{ r.pasos }} pasos</span>
-              </button>
-            </section>
           </article>
         </div>
       </template>
@@ -475,7 +427,7 @@ const status = computed(() => {
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
           <article v-if="flowData" class="flow">
             <header class="flow-head">
-              <h1>{{ flowData.flujo.nombre }}</h1>
+              <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flujo.nombre }}</h1>
               <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flujo.dispositivo === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flujo.creado) }}
                 <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
               <p class="muted small"><code>navegador/flujos/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
@@ -501,20 +453,21 @@ const status = computed(() => {
                 <li v-for="(s, i) in flowSteps" :key="i" :class="{ stop: s.pausa }">
                   <span class="flow-n">{{ i + 1 }}</span>
                   <div class="flow-step-body">
-                    <div class="flow-what">{{ s.instruccion || s.accion }}</div>
+                    <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruccion || s.accion }}</div>
                     <div v-if="s.porque" class="muted small">{{ s.porque }}</div>
                   </div>
                   <label v-if="!s.dato && !s.secreto && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.accion)" class="check small" title="Que pare acá y lo haga la persona">
                     <input type="checkbox" :checked="s.pausa" @change="saveFlowStep(i, { pausa: $event.target.checked })" /> lo hago yo
                   </label>
                   <span v-else-if="s.secreto" class="muted small">lo escribe la persona</span>
+                  <button type="button" class="region-action step-del" title="Sacar este paso del flujo" :aria-label="`Sacar el paso ${i + 1}`" @click="removeStep(i)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
                 </li>
               </ol>
             </section>
 
             <section v-if="flowVideo">
               <h2>Cómo se hizo</h2>
-              <RunViewer :run="flowVideo" />
+              <RunViewer :run="flowVideo" :replayable="false" />
             </section>
           </article>
         </div>
@@ -559,7 +512,7 @@ const status = computed(() => {
               </template>
               <button v-if="replayActive" type="button" class="btn btn-ghost btn-sm" @click="replayAnswer('stop')">Terminar</button>
               <template v-else>
-                <button v-if="replay.report" type="button" class="btn btn-outline btn-sm" @click="go({ kind: 'run', id: replay.report })">Ver la corrida</button>
+                <button v-if="replay.flow" type="button" class="btn btn-outline btn-sm" @click="go({ kind: 'flow', app: replay.flow.split('/')[0], id: replay.flow.split('/')[1] })">Ver el flujo</button>
                 <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="replayHidden = replay.report"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
               </template>
             </div>
@@ -637,9 +590,8 @@ const status = computed(() => {
         </div>
         <p v-if="askError" class="err">{{ askError }}</p>
         <p v-if="!askState.running && askState.salida" class="err">El proceso terminó: {{ askState.salida }}</p>
-        <div v-if="!askState.running && (askFlow || askRun)" class="agent-done">
+        <div v-if="!askState.running && askFlow" class="agent-done">
           <button v-if="askFlow" type="button" class="btn btn-sm" @click="go({ kind: 'flow', app: askFlow.split('/')[0], id: askFlow.split('/')[1] })">Abrir el flujo</button>
-          <button v-if="askRun" type="button" class="btn btn-outline btn-sm" @click="go({ kind: 'run', id: askRun })">Ver cómo lo hizo</button>
         </div>
       </div>
     </aside>
@@ -665,7 +617,7 @@ const status = computed(() => {
       <span class="ellipsis">{{ status }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Flujos y corridas" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('navegador.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('navegador.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('navegador.panel-open', panelOpen)"><span class="ui-icon" data-icon="bottom" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown" title="Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('navegador.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
@@ -697,7 +649,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .seg-toggle button:disabled { opacity: .5; cursor: progress }
 .run-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 
-/* el árbol: proyectos como carpetas, sus flujos y sus corridas adentro */
+/* el árbol: proyectos como carpetas, con sus flujos adentro */
 .tree { padding: var(--space-1) 0 var(--space-3) }
 .tree-row { display: flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 var(--space-2) 0 var(--gutter); cursor: pointer; min-width: 0 }
 .tree-row:hover { background: var(--hover) }
@@ -776,6 +728,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .flow-n { flex: none; width: 24px; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .flow-step-body { flex: 1; min-width: 0 }
 .flow-what { font-weight: 600 }
+.editable { border-radius: 4px; outline: none; cursor: text }
+.editable:hover { box-shadow: 0 0 0 1px var(--border) }
+.editable:focus { box-shadow: 0 0 0 2px var(--primary) }
+.step-del { visibility: hidden }
+.flow-steps li:hover .step-del { visibility: visible }
 
 /* Claude trabajando */
 .agent { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) }
