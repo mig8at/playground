@@ -217,7 +217,8 @@ func usage() {
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
   empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
-  pestanas [cerrar N]   las pestañas abiertas (cada una, su sesión). Cualquier comando: --sesion N (o NAVEGADOR_SESION=N);
+  pestanas [nueva [--movil] [url] | cerrar N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
+                        Cualquier comando: --sesion N (o NAVEGADOR_SESION=N);
                         sin eso, la última que se abrió. empezar abre una nueva si en la actual ya trabaja otro Claude
   proyecto <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a navegador/flujos/<id>)
   steps · script · report [meta] · reset
@@ -1159,6 +1160,20 @@ func pinTab() {
 }
 
 func tabsCmd(args []string) error {
+	// nueva [--movil] [url]: abre una pestaña y, con url, la página en ella. Lo que sigue va con --sesion N.
+	if len(args) >= 1 && args[0] == "nueva" {
+		var nt struct{ ID string }
+		if err := call(http.MethodPost, "/api/tabs", nil, &nt); err != nil {
+			return err
+		}
+		tabID = nt.ID
+		fmt.Printf("pestaña %s · seguí con --sesion %s (o NAVEGADOR_SESION=%s)\n", nt.ID, nt.ID, nt.ID)
+		if len(args) == 1 {
+			return nil
+		}
+		fmt.Println()
+		return open(args[1:])
+	}
 	if len(args) == 2 && args[0] == "cerrar" {
 		if err := call(http.MethodDelete, "/api/tabs/"+args[1], nil, nil); err != nil {
 			return err
