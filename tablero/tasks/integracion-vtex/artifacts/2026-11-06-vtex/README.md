@@ -66,4 +66,5 @@ También del día, fuera de VTEX pero para esta prueba:
 | `1-rotativo-mario-800k/` | compra de $800.005 con el rotativo de Mario, pantalla por pantalla hasta el pedido Approved en VTEX (`11-vtex-pedido-aprobado.png`) |
 | `2-rotativo-mario-1100k/` | compra de $1.100.005, por encima de la mitad del cupo |
 | `3-auto-onboarding-qa/` | `con-*`: entra por «validando» y llega al listado · `sin-*`: sin aceptaciones pide el código |
-| `4-checkout-autoonb/` | el bloque de Creditop en el checkout: vacío, frenando sin datos, completo y con el texto corregido |
+| `4-checkout-autoonb/` | el bloque de Creditop en el checkout: vacío, frenando sin datos, completo, con el texto corregido y, sin el switch prendido, sin pedir nada |
+| `switch-check.mjs` | prueba del script con la ruta del switch en true, false y 404 (correr desde `harness/`, que tiene Playwright) |
