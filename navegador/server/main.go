@@ -17,6 +17,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -44,11 +45,25 @@ func main() {
 	}
 	tabs := NewTabs(store)
 	defer tabs.CloseAll()
+	go sweepTabs(tabs, IdleLimit(os.Getenv("NAVEGADOR_TAB_IDLE")))
 	for _, a := range listApps() {
 		go serveDir(a.Addr(), filepath.Join("apps", a.ID), a.Name)
 	}
 	if err := serve(*addr, store, tabs); err != nil {
 		fail(err)
+	}
+}
+
+// sweepTabs cierra cada medio minuto las pestañas de Claude que quedaron sin uso (Tabs.Sweep).
+func sweepTabs(tabs *Tabs, idle time.Duration) {
+	if idle <= 0 {
+		return
+	}
+	log.Printf("navegador: las pestañas de Claude sin uso se cierran a los %s (NAVEGADOR_TAB_IDLE)", idle)
+	for range time.Tick(30 * time.Second) {
+		if closed := tabs.Sweep(time.Now(), idle); len(closed) > 0 {
+			log.Printf("navegador: cerré las pestañas %s: Claude las dejó sin uso más de %s", strings.Join(closed, ", "), idle)
+		}
 	}
 }
 
@@ -121,7 +136,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	// cierra (frena su Claude y su sesión).
 	mux.HandleFunc("/api/tabs", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			tab := tabs.New()
+			tab := tabs.NewBy(fromCLI(r))
 			writeJSON(w, http.StatusOK, map[string]string{"id": tab.ID})
 			return
 		}
@@ -148,7 +163,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	mux.HandleFunc("/api/live/start", func(w http.ResponseWriter, r *http.Request) {
 		var tab *Tab
 		if r.URL.Query().Get("tab") == "new" || r.Header.Get(tabHeader) == "new" {
-			tab = tabs.New()
+			tab = tabs.NewBy(fromCLI(r))
 		} else if tab = tabs.pick(w, r); tab == nil {
 			return
 		}
@@ -217,6 +232,8 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		defer cancel()
+		// Mientras la interfaz la mira, la pestaña no se cierra sola (Sweep).
+		defer tabs.Watch(tab)()
 		flusher, okFlush := w.(http.Flusher)
 		if !okFlush {
 			writeErr(w, http.StatusInternalServerError, fmt.Errorf("sin streaming"))

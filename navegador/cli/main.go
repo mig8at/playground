@@ -237,6 +237,9 @@ func call(method, path string, body, out any) error {
 	}
 	req, _ := http.NewRequest(method, api+path, rd)
 	req.Header.Set("Content-Type", "application/json")
+	// Así el servidor sabe que es Claude: las pestañas que abre se cierran solas si las deja sin uso, y cada comando
+	// cuenta como uso de la suya.
+	req.Header.Set("X-Navegador-Client", "cli")
 	if tabID != "" {
 		req.Header.Set("X-Navegador-Tab", tabID)
 	}
@@ -861,6 +864,7 @@ func shot(args []string) error {
 	}
 	// La foto es binaria y no pasa por call: el encabezado de la pestaña va a mano (sin él, sacaba la de la última).
 	req, _ := http.NewRequest(http.MethodGet, api+"/api/live/shot", nil)
+	req.Header.Set("X-Navegador-Client", "cli")
 	if tabID != "" {
 		req.Header.Set("X-Navegador-Tab", tabID)
 	}
@@ -1140,6 +1144,9 @@ type tabInfo struct {
 	Goal   string `json:"meta"`
 	Busy   bool   `json:"busy"`
 	Last   bool   `json:"last"`
+	// ByClaude: la abrió Claude; IdleSec: hace cuánto nadie la usa (las de Claude se cierran solas).
+	ByClaude bool `json:"porClaude"`
+	IdleSec  int  `json:"sinUsoSeg"`
 }
 
 func listTabs() ([]tabInfo, error) {
@@ -1203,8 +1210,11 @@ func tabsCmd(args []string) error {
 		if t.Busy {
 			who = " · Claude: " + t.Goal
 		}
+		if t.ByClaude && !t.Last && t.IdleSec >= 60 {
+			who += fmt.Sprintf(" · sin uso hace %d min", t.IdleSec/60)
+		}
 		fmt.Printf("%s %s  %s%s\n", mark, t.ID, where, who)
 	}
-	fmt.Println("  (* la que atiende un comando sin --sesion)")
+	fmt.Println("  (* la que atiende un comando sin --sesion · las que abrió Claude y deja sin uso se cierran solas)")
 	return nil
 }

@@ -168,6 +168,13 @@ func (a *Asker) read(r io.Reader, plain string) {
 	}
 }
 
+// Process dice si hay un Claude corriendo como proceso (`ask`), que trabaja aunque no mande comandos un rato.
+func (a *Asker) Process() bool {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.running
+}
+
 func (a *Asker) State(since int) AskState {
 	a.mu.Lock()
 	defer a.mu.Unlock()
