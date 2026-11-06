@@ -30,6 +30,8 @@ import { TARGET, query, one, close, withConnection, assertWriteAllowed, mutation
 const argv = process.argv.slice(2);
 const flag = (name: string, def = '') => { const i = argv.indexOf(`--${name}`); return i >= 0 ? argv[i + 1] : def; };
 const APPLY = argv.includes('--apply');
+// --complete: la entidad ya está en el target (de una copia anterior); agrega sólo lo que le falte del puntaje del rotativo.
+const COMPLETE = argv.includes('--complete');
 const ALLIED = Number(flag('allied'));
 const LENDER = Number(flag('lender'));
 const RULES_BRANCH = Number(flag('rules-branch'));
@@ -38,8 +40,9 @@ const NAME = flag('name');
 const BRANCH_NAME = flag('branch-name', 'Tienda VTEX');
 const ECOMMERCE_LIKE = flag('ecommerce-like', 'ecf9342be');
 
-if (!ALLIED || !LENDER || !RULES_BRANCH || !BASE_BRANCH || !NAME) {
+if (COMPLETE ? !LENDER : (!ALLIED || !LENDER || !RULES_BRANCH || !BASE_BRANCH || !NAME)) {
     console.error('uso: E2E_TARGET=qa node dev/copy-creditopx.ts --allied N --lender N --rules-branch N --base-branch N --name \'PRUEBA AUTO · …\' [--branch-name …] [--apply]');
+    console.error('     E2E_TARGET=qa node dev/copy-creditopx.ts --complete --lender N [--apply]   agrega lo que le falte a una copia anterior');
     process.exit(2);
 }
 if (!process.env.E2E_TARGET || TARGET === 'prod') { console.error('✗ E2E_TARGET explícito y distinto de prod: este comando escribe'); process.exit(2); }
@@ -105,9 +108,10 @@ async function build() {
         for (const r of prod(`SELECT * FROM ${t} WHERE allied_id = ${ALLIED} AND lender_id = ${LENDER}`)) plan.push({ table: t, row: await shape(t, r, { confirmation_emails: '[]' }), note: 'sin los correos de confirmación de prod' });
     }
     for (const t of ['credit_line_by_lenders', 'payment_methods_by_lender', 'lender_identity_validation_types', 'creditop_x_revolving_lender_settings',
-        'creditop_x_revolving_fixed_expense_rules', 'creditop_x_revolving_multiplier_variables', 'creditop_x_profiling_down_payment_FGA']) {
+        'creditop_x_revolving_fixed_expense_rules', 'creditop_x_profiling_down_payment_FGA']) {
         for (const r of prod(`SELECT * FROM ${t} WHERE lender_id = ${LENDER}`)) plan.push({ table: t, row: await shape(t, r) });
     }
+    await planRevolvingScoring(new Map());
     for (const r of prod(`SELECT * FROM datacredito_frequencies WHERE allied_id = ${ALLIED}`)) plan.push({ table: 'datacredito_frequencies', row: await shape('datacredito_frequencies', r) });
     // El contador de consultas a Experian del comercio es uso de producción, no configuración: arranca en 0.
     for (const r of prod(`SELECT * FROM datacredito_query_by_allieds WHERE allied_id = ${ALLIED}`)) plan.push({ table: 'datacredito_query_by_allieds', row: await shape('datacredito_query_by_allieds', r, { count: 0 }), note: `en prod ${r.count}` });
@@ -153,6 +157,44 @@ async function build() {
     return { hash, credential, plainToken };
 }
 
+// ── el puntaje del rotativo ──
+// Las variables del multiplicador tienen sus RANGOS en otra tabla, colgados de la variable y no de la entidad (sin
+// ellos cada variable puntúa 0, el multiplicador da 0 y el cupo rotativo sale en 0: la entidad no aparece en el
+// listado; pasó en la primera copia de Mario, 2026-11-06). `existing` trae las variables que el target ya tiene, por
+// nombre: a ésas sólo se les agregan los rangos que les falten. Va también la última foto de condiciones (la que
+// muestra el editor del backoffice), sin quién la cambió.
+async function planRevolvingScoring(existing: Map<string, { id: number; ranges: number }>) {
+    const vars = prod(`SELECT * FROM creditop_x_revolving_multiplier_variables WHERE lender_id = ${LENDER} ORDER BY id`);
+    for (const v of vars) {
+        const have = existing.get(v.name);
+        let varRef: number | Ref;
+        if (have) {
+            varRef = have.id;
+            if (have.ranges > 0) continue;
+        } else {
+            plan.push({ table: 'creditop_x_revolving_multiplier_variables', key: `var:${v.name}`, row: await shape('creditop_x_revolving_multiplier_variables', v) });
+            varRef = { ref: `var:${v.name}` };
+        }
+        for (const r of prod(`SELECT * FROM creditop_x_revolving_multiplier_ranges WHERE multiplier_variable_id = ${v.id} ORDER BY min_range`)) {
+            plan.push({ table: 'creditop_x_revolving_multiplier_ranges', row: await shape('creditop_x_revolving_multiplier_ranges', r, { multiplier_variable_id: varRef }), note: v.name });
+        }
+    }
+    const hasSnapshot = existing.size > 0 && await one('SELECT id FROM creditop_x_revolving_conditions_snapshots WHERE lender_id = ? LIMIT 1', [LENDER]);
+    const snap = prod(`SELECT * FROM creditop_x_revolving_conditions_snapshots WHERE lender_id = ${LENDER} ORDER BY version DESC LIMIT 1`)[0];
+    if (snap && !hasSnapshot) {
+        plan.push({ table: 'creditop_x_revolving_conditions_snapshots', row: await shape('creditop_x_revolving_conditions_snapshots', snap, { changed_by_email: null, changed_by_name: null, changed_by_user_id: null }), note: `versión ${snap.version}, sin quién la cambió` });
+    }
+}
+
+async function buildComplete() {
+    if (!(await one('SELECT id FROM lenders WHERE id = ?', [LENDER]))) throw new Error(`la entidad ${LENDER} no está en ${TARGET}: corré la copia completa`);
+    const rows = await query<{ id: number; name: string; ranges: number }>(
+        `SELECT v.id, v.name, (SELECT COUNT(*) FROM creditop_x_revolving_multiplier_ranges r WHERE r.multiplier_variable_id = v.id) ranges
+         FROM creditop_x_revolving_multiplier_variables v WHERE v.lender_id = ?`, [LENDER]);
+    await planRevolvingScoring(new Map(rows.map((r) => [r.name, { id: r.id, ranges: Number(r.ranges) }])));
+    return null;
+}
+
 // ── claves foráneas declaradas en el target ──
 async function foreignKeyProblems(): Promise<string[]> {
     const tables = [...new Set(plan.map((p) => p.table))];
@@ -174,9 +216,10 @@ async function foreignKeyProblems(): Promise<string[]> {
 const show = (v: any) => (v && typeof v === 'object' && 'ref' in v ? `<${v.ref} nuevo>` : v === null ? 'NULL' : String(v).length > 60 ? JSON.stringify(String(v).slice(0, 57) + '…') : JSON.stringify(v));
 
 try {
-    const made = await build();
+    const made = COMPLETE ? await buildComplete() : await build();
     const problems = await foreignKeyProblems();
-    console.log(`\n  copia mínima prod → ${TARGET}: comercio ${ALLIED} + entidad ${LENDER} · sucursal nueva «${BRANCH_NAME}» (${made.hash}) · reglas de la sucursal ${RULES_BRANCH}\n`);
+    console.log(made ? `\n  copia mínima prod → ${TARGET}: comercio ${ALLIED} + entidad ${LENDER} · sucursal nueva «${BRANCH_NAME}» (${made.hash}) · reglas de la sucursal ${RULES_BRANCH}\n` : `\n  completar la entidad ${LENDER} en ${TARGET} con lo que le falte de prod\n`);
+    if (!plan.length) console.log('  nada que agregar: ya tiene todo');
     const byTable = new Map<string, Planned[]>();
     for (const p of plan) byTable.set(p.table, [...(byTable.get(p.table) ?? []), p]);
     for (const [t, ps] of byTable) {
@@ -221,12 +264,16 @@ try {
         });
         const dir = join(import.meta.dirname, '..', '.runs', 'copy-creditopx');
         mkdirSync(dir, { recursive: true });
-        const undoFile = join(dir, `${TARGET}-${ALLIED}-${new Date().toISOString().replace(/[:.]/g, '-')}-deshacer.sql`);
+        const undoFile = join(dir, `${TARGET}-${COMPLETE ? `lender${LENDER}-completar` : ALLIED}-${new Date().toISOString().replace(/[:.]/g, '-')}-deshacer.sql`);
         writeFileSync(undoFile, undo.join('\n') + '\n');
+        if (made) {
         const tokenLine = `${ids.get('token')}|${made.plainToken}`;
         appendFileSync(join(import.meta.dirname, '..', `.env.${TARGET}`), `\n# copy-creditopx ${NOW}: sucursal ${made.hash} del comercio ${ALLIED}\nCOPY_${ALLIED}_BRANCH_HASH=${made.hash}\nCOPY_${ALLIED}_PAYMENT_LINK_TOKEN=${tokenLine}\n`);
         console.log(`\n  ✓ escrito en una transacción: ${plan.length} filas · sucursal ${ids.get('branch')} (${made.hash})`);
         console.log(`  el token (y el hash) quedaron en harness/.env.${TARGET} como COPY_${ALLIED}_*`);
+        } else {
+            console.log(`\n  ✓ escrito en una transacción: ${plan.length} filas`);
+        }
         console.log(`  deshacer: ${undoFile}`);
     }
 } catch (e) {
