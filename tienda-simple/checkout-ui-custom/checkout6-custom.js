@@ -6,12 +6,25 @@
  * lee del pedido y se los manda a Creditop, que así no vuelve a pedir el SMS ni el formulario.
  *
  * Requisitos de la tienda: la app `creditop` registrada en la configuración del checkout (campos birthDate,
- * expeditionDate y acceptedAt) y el switch encendido en la configuración de la app Creditop. Con otro medio de pago no
- * aparece nada y no se exige nada.
+ * expeditionDate y acceptedAt). Con otro medio de pago no aparece nada y no se exige nada.
+ *
+ * El switch manda: el script le pregunta al conector (`/_v/creditop/auto-onboarding`, 5.1.0) si está prendido. Apagado,
+ * sin conector que conteste o mientras no contestó, no pide nada ni frena la compra: el comprador sigue por el SMS.
  */
 (function () {
   var APP = 'creditop'
   var BOX_ID = 'creditop-auto-onboarding'
+  var SWITCH_URL = '/_v/creditop/auto-onboarding'
+  // null: todavía no se sabe · true / false: lo que contestó el conector (falla = false).
+  var enabled = null
+
+  function askSwitch() {
+    if (!window.fetch) { enabled = false; return }
+    fetch(SWITCH_URL, { credentials: 'same-origin' })
+      .then(function (r) { return r.ok ? r.json() : {} })
+      .then(function (body) { enabled = body && body.autoOnboarding === true; render() })
+      .catch(function () { enabled = false })
+  }
   // Los mismos documentos que el wizard de Creditop enlaza al pedir el celular.
   var TERMS_URL = 'https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/terms-and-conditions/TERMINOS_Y_CONDICIONES_CREDITOP_COLOMBIA_SAS_V20260209.pdf'
   var POLICY_URL = 'https://ct-app-dev.s3.us-east-2.amazonaws.com/admin/config/terms-and-conditions/POLITICA_DE_TRATAMIENTO_DE_DATOS_CREDITOP_COLOMBIA_SAS_V20260310.pdf'
@@ -46,6 +59,7 @@
   }
 
   function render() {
+    if (enabled !== true) return
     var group = creditopGroup()
     if (!group || document.getElementById(BOX_ID)) return
     var f = saved()
@@ -84,7 +98,7 @@
   /* «Comprar ahora» no avanza con Creditop elegido y algún dato sin completar: se dice qué falta. */
   document.addEventListener('click', function (e) {
     var button = e.target && e.target.closest && e.target.closest('#payment-data-submit, .payment-submit-wrap button, .btn-place-order')
-    if (!button || !creditopGroup() || complete()) return
+    if (enabled !== true || !button || !creditopGroup() || complete()) return
     e.preventDefault()
     e.stopPropagation()
     var error = document.getElementById('cr-ao-error')
@@ -94,4 +108,5 @@
   // El checkout vuelve a pintar el paso de pago a menudo (al cambiar de medio, al recalcular): se mira y se repone.
   new MutationObserver(render).observe(document.documentElement, { childList: true, subtree: true })
   document.addEventListener('DOMContentLoaded', render)
+  askSwitch()
 })()
