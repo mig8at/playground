@@ -72,10 +72,7 @@ var slugJunk = regexp.MustCompile(`[^a-z0-9]+`)
 
 // SiteFor devuelve el sitio del host de una URL, y lo da de alta si no existe.
 func (s *Store) SiteFor(raw string) (Site, error) {
-	raw = strings.TrimSpace(raw)
-	if !strings.Contains(raw, "://") {
-		raw = "https://" + raw
-	}
+	raw = withScheme(raw)
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" || (u.Scheme != "http" && u.Scheme != "https") {
 		return Site{}, fmt.Errorf("no es una URL http(s): %q", raw)

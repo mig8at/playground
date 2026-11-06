@@ -628,9 +628,7 @@ func (r *Runner) LiveNav(action, target string) error {
 	var err error
 	switch action {
 	case "goto":
-		if !strings.Contains(target, "://") {
-			target = "https://" + target
-		}
+		target = withScheme(target)
 		_, err = l.page.Goto(target, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded, Timeout: playwright.Float(45000)})
 		// Una URL que baja un archivo (un PDF, un ZIP) no es un error: el archivo queda guardado y se informa dónde.
 		if err != nil && strings.Contains(err.Error(), "Download is starting") {
@@ -1506,4 +1504,17 @@ func (l *live) popupURL() string {
 		return ""
 	}
 	return l.popup.URL()
+}
+
+// withScheme completa una URL escrita sin esquema: http:// para una dirección local (localhost, 127.0.0.1, ::1),
+// que no tiene certificado; https:// para el resto.
+func withScheme(u string) string {
+	u = strings.TrimSpace(u)
+	if strings.Contains(u, "://") || u == "" {
+		return u
+	}
+	if strings.HasPrefix(u, "localhost") || strings.HasPrefix(u, "127.") || strings.HasPrefix(u, "[::1]") {
+		return "http://" + u
+	}
+	return "https://" + u
 }

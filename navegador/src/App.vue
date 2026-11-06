@@ -191,7 +191,7 @@ const opening = ref(false)
 async function openURL(raw) {
   let u = raw.trim()
   if (!u) return
-  if (!/^https?:\/\//i.test(u)) u = 'https://' + u
+  if (!/^https?:\/\//i.test(u)) u = (/^(localhost|127\.|\[::1\])/.test(u) ? 'http://' : 'https://') + u
   opening.value = true
   liveError.value = ''
   try { await api(`/api/live/start?url=${encodeURIComponent(u)}&device=${device.value}`, { method: 'POST' }); urlInput.value = ''; go({ kind: 'live' }) } catch (e) { liveError.value = e.message } finally { opening.value = false }

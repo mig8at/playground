@@ -378,6 +378,9 @@ func startLive(args []string, clean bool, dev string) error {
 	raw := args[0]
 	if !strings.Contains(raw, "://") {
 		raw = "https://" + raw
+		if strings.HasPrefix(args[0], "localhost") || strings.HasPrefix(args[0], "127.") || strings.HasPrefix(args[0], "[::1]") {
+			raw = "http://" + args[0]
+		}
 	}
 	u, err := url.Parse(raw)
 	if err != nil || u.Host == "" {
