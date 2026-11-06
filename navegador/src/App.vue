@@ -776,9 +776,6 @@ const status = computed(() => {
         </form>
       </template>
       <span v-else class="ellipsis">{{ status }}</span>
-      <button v-if="tabs.length > 1 || followClaude === false" type="button" class="follow-toggle" :aria-pressed="followClaude" :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta un rato). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'" @click="followClaude = !followClaude">
-        <span class="follow-dot" aria-hidden="true"></span>{{ followClaude ? 'Siguiendo a Claude' : 'Quieto' }}
-      </button>
       <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Dispositivo">
         <button type="button" class="region-action" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" title="Escritorio" aria-label="Ver como escritorio" @click="setDevice('desktop')"><span class="ui-icon" data-icon="desktop" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Teléfono (Pixel 7): cambiar reabre la sesión en la misma página" aria-label="Ver como teléfono" @click="setDevice('mobile')"><span class="ui-icon" data-icon="phone" aria-hidden="true"></span></button>
@@ -790,6 +787,12 @@ const status = computed(() => {
         <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('navegador.panel-open', panelOpen)"><span class="ui-icon" data-icon="bottom" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('navegador.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
       </div>
+      <!-- Seguir a Claude: un punto al final del pie. Naranja sigue, gris quieto; el clic alterna y el tooltip explica. -->
+      <button type="button" class="follow-dot-btn" :class="{ on: followClaude }" :aria-pressed="followClaude"
+        :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta 20 s). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'"
+        :aria-label="followClaude ? 'Siguiendo a Claude (clic para quedarte quieto)' : 'Quieto (clic para seguir a Claude)'" @click="followClaude = !followClaude">
+        <span class="follow-dot" aria-hidden="true"></span>
+      </button>
     </footer>
   </div>
 </template>
@@ -875,13 +878,11 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .ui-icon[data-icon="desktop"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2220%22%20height%3D%2214%22%20x%3D%222%22%20y%3D%223%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2017v4%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="phone"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2214%22%20height%3D%2220%22%20x%3D%225%22%20y%3D%222%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M12%2018h.01%22%2F%3E%3C%2Fsvg%3E") }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
-.follow-toggle { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); height: 20px;
-  padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--fg-3);
-  font: inherit; font-size: var(--text-xs); white-space: nowrap; cursor: pointer }
-.follow-toggle:hover { color: var(--foreground) }
-.follow-toggle[aria-pressed="true"] { color: var(--foreground); border-color: var(--primary) }
-.follow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-3) }
-.follow-toggle[aria-pressed="true"] .follow-dot { background: var(--primary) }
+.follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
+  border-radius: var(--radius-control); background: none; cursor: pointer }
+.follow-dot-btn:hover, .follow-dot-btn:focus-visible { background: var(--hover) }
+.follow-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3) }
+.follow-dot-btn.on .follow-dot { background: var(--primary) }
 .tab-busy { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: tab-pulse 1.4s ease-in-out infinite }
 @keyframes tab-pulse { 50% { opacity: .35 } }
 @media (prefers-reduced-motion: reduce) { .tab-busy { animation: none } }
