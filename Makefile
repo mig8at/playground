@@ -627,7 +627,7 @@ harness-client-reset: ## @har ⚠ deja LIBRE la cédula de un cliente de prueba 
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/client-reset.ts $(if $(DOC),--document $(DOC)) $(if $(PHONE),--phone $(PHONE)) $(if $(APPLY),--apply)
 
-harness-setting: ## @har ⚠ toca una setting de legacy-backend para una prueba, con foto y vuelta atrás. TARGET obligatorio · A=set KEY=… VALUE='json' (sólo local) · A=add|remove KEY=… LIST=allieds ALLIED=<id> (en dev/qa/staging sólo comercios «PRUEBA AUTO» y settings de comportamiento) · A=undo SNAP=<foto> · [APPLY=1]
+harness-setting: ## @har ⚠ toca una setting de legacy-backend para una prueba, con foto y vuelta atrás. TARGET obligatorio · A=set KEY=… VALUE='json' (sólo local) · A=add|remove KEY=… LIST=allieds ALLIED=<id> (o LIST=hashes ALLIED=<hash de sucursal>; en dev/qa/staging sólo comercios «PRUEBA AUTO» y settings de comportamiento) · A=undo SNAP=<foto> · [APPLY=1]
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/setting.ts $(A) $(if $(filter set,$(A)),$(KEY) '$(VALUE)') $(if $(filter add remove,$(A)),$(KEY) $(or $(LIST),allieds) $(ALLIED)) $(if $(filter undo,$(A)),$(SNAP)) $(if $(APPLY),--apply)
 

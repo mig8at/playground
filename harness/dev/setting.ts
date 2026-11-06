@@ -1,7 +1,7 @@
 // dev/setting.ts — tocar una setting de legacy-backend para una prueba, con foto y vuelta atrás (`pkg/settings-write.ts`).
 //
 //   E2E_TARGET=local node dev/setting.ts set <clave> '<json>' [--apply]          sólo local: fija el valor
-//   E2E_TARGET=dev   node dev/setting.ts add <clave> <lista> <comercio> [--apply] agrega un comercio a la lista
+//   E2E_TARGET=dev   node dev/setting.ts add <clave> <lista> <comercio|hash> [--apply] agrega un comercio (o una sucursal, por hash) a la lista
 //   E2E_TARGET=dev   node dev/setting.ts remove <clave> <lista> <comercio> [--apply]
 //   E2E_TARGET=dev   node dev/setting.ts undo <foto.json> [--apply]             deshace desde la foto
 //
@@ -21,10 +21,11 @@ try {
         const c = await settingSet(rest[0], rest[1], apply);
         console.log(`  ${c.key} en ${c.target}\n    antes  ${c.before ?? '(no existe)'}\n    ahora  ${c.after}`);
         console.log(apply ? `  ✓ cambiado · deshacer: ${c.undo}` : '  (vista previa: repetí con --apply)');
-    } else if ((cmd === 'add' || cmd === 'remove') && rest.length === 3 && /^\d+$/.test(rest[2])) {
+    } else if ((cmd === 'add' || cmd === 'remove') && rest.length === 3 && /^(\d+|[0-9a-f]{6,16})$/i.test(rest[2])) {
         const fn = cmd === 'add' ? settingListAdd : settingListRemove;
-        const c = await fn(rest[0], rest[1], Number(rest[2]), apply);
-        console.log(`  ${c.key}.${rest[1]} en ${c.target}: ${cmd === 'add' ? 'agregar' : 'sacar'} el comercio ${rest[2]}\n    antes  ${c.before}\n    ahora  ${c.after}`);
+        const member = /^\d+$/.test(rest[2]) ? Number(rest[2]) : rest[2];   // id de comercio, o hash de sucursal
+        const c = await fn(rest[0], rest[1], member, apply);
+        console.log(`  ${c.key}.${rest[1]} en ${c.target}: ${cmd === 'add' ? 'agregar' : 'sacar'} ${typeof member === 'number' ? 'el comercio' : 'la sucursal'} ${rest[2]}\n    antes  ${c.before}\n    ahora  ${c.after}`);
         if (TARGET !== 'local') console.log('    ⚠ base COMPARTIDA: dev, qa y staging ven el cambio');
         console.log(apply ? (c.undo ? `  ✓ cambiado · deshacer: ${c.undo}` : '  · ya estaba así: no se escribió nada') : '  (vista previa: repetí con --apply)');
     } else if (cmd === 'undo' && rest.length === 1) {

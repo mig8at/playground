@@ -63,21 +63,34 @@ async function assertTestMerchant(alliedId: number): Promise<void> {
     if (!/^PRUEBA AUTO/i.test(a.name)) throw new Error(`el comercio ${alliedId} («${a.name}») no es de prueba: en la base compartida sólo se tocan comercios «PRUEBA AUTO…»`);
 }
 
-/** El nuevo valor con `id` agregado o sacado de la lista `path` (p. ej. `allieds`) de la setting. */
-function editList(raw: string | null, path: string, id: number, add: boolean): string {
+/** Una sucursal es «de prueba» si su comercio lo es. Las listas de sucursales (p. ej. `auto_onboarding_allied_branches.hashes`)
+ *  guardan el hash de la sucursal, no el id del comercio. */
+async function assertTestBranch(hash: string): Promise<void> {
+    const b = await one<{ allied_id: number }>('SELECT allied_id FROM allied_branches WHERE hash = ?', [hash]);
+    if (!b) throw new Error(`la sucursal ${hash} no existe en ${TARGET}`);
+    await assertTestMerchant(b.allied_id);
+}
+
+/** Un miembro de la lista: el id de un comercio (número) o el hash de una sucursal (texto). */
+export type ListMember = number | string;
+
+/** El nuevo valor con `member` agregado o sacado de la lista `path` (p. ej. `allieds`, `hashes`) de la setting. Los ids se
+ *  comparan como número y los hashes como texto, para no convertir uno en el otro. */
+function editList(raw: string | null, path: string, member: ListMember, add: boolean): string {
     const obj = raw ? JSON.parse(raw) : {};
-    const list: number[] = Array.isArray(obj[path]) ? obj[path].map(Number) : [];
-    const next = add ? (list.includes(id) ? list : [...list, id]) : list.filter((x) => x !== id);
+    const norm = (x: unknown) => (typeof member === 'number' ? Number(x) : String(x));
+    const list: ListMember[] = Array.isArray(obj[path]) ? obj[path].map(norm) : [];
+    const next = add ? (list.includes(member) ? list : [...list, member]) : list.filter((x) => x !== member);
     return JSON.stringify({ ...obj, [path]: next });
 }
 
-async function listChange(key: string, path: string, alliedId: number, add: boolean, apply: boolean): Promise<SettingChange> {
+async function listChange(key: string, path: string, member: ListMember, add: boolean, apply: boolean): Promise<SettingChange> {
     if (!(TEST_SETTING_KEYS as readonly string[]).includes(key)) throw new Error(`«${key}» no está entre las settings de prueba (${TEST_SETTING_KEYS.join(', ')})`);
     if (!/^[a-zA-Z]+$/.test(path)) throw new Error(`la lista «${path}» no es un nombre válido`);
-    if (!isLocalDb()) await assertTestMerchant(alliedId);
+    if (!isLocalDb()) await (typeof member === 'number' ? assertTestMerchant(member) : assertTestBranch(member));
     const before = await current(key);
     if (before === null) throw new Error(`la setting «${key}» no existe en ${TARGET}`);
-    const after = editList(before, path, alliedId, add);
+    const after = editList(before, path, member, add);
     const change = { target: TARGET, key, before, after, snapshot: '', undo: '' };
     if (!apply || after === JSON.stringify(JSON.parse(before))) return change;
     const r = await exec(`UPDATE settings SET value = ?, updated_at = NOW() WHERE \`key\` = '${key}' AND value = ?`, [after, before], { permiso: 'setting-de-prueba' });
@@ -87,10 +100,10 @@ async function listChange(key: string, path: string, alliedId: number, add: bool
     return change;
 }
 
-/** Agrega el comercio a la lista `path` de la setting (en la compartida, sólo comercios de prueba). */
-export const settingListAdd = (key: string, path: string, alliedId: number, apply = false) => listChange(key, path, alliedId, true, apply);
-/** Saca el comercio de la lista `path` de la setting (en la compartida, sólo comercios de prueba). */
-export const settingListRemove = (key: string, path: string, alliedId: number, apply = false) => listChange(key, path, alliedId, false, apply);
+/** Agrega el comercio o la sucursal a la lista `path` de la setting (en la compartida, sólo de prueba). */
+export const settingListAdd = (key: string, path: string, member: ListMember, apply = false) => listChange(key, path, member, true, apply);
+/** Saca el comercio o la sucursal de la lista `path` de la setting (en la compartida, sólo de prueba). */
+export const settingListRemove = (key: string, path: string, member: ListMember, apply = false) => listChange(key, path, member, false, apply);
 
 /** Deshace un cambio desde su foto: sólo si la setting sigue como la dejó ese cambio. */
 export async function settingUndo(file: string, apply = false): Promise<{ key: string; restored: boolean; detail: string }> {
