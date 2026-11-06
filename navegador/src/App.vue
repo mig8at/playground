@@ -437,6 +437,13 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', onHashChange)
   window.removeEventListener('resize', onWindowResize)
 })
+// En vivo el pie muestra la URL en su campo: el rótulo va sin ella.
+const liveStatusLabel = computed(() => {
+  if (!connected.value) return 'sin conexión con la API'
+  if (askState.value.running) return askState.value.waiting ? 'Claude espera tu respuesta' : 'Claude trabajando'
+  if (replayActive.value) return `reproduciendo · paso ${replay.value.index + 1} de ${replay.value.total}`
+  return 'en vivo'
+})
 const status = computed(() => {
   if (!connected.value) return 'sin conexión con la API'
   if (askState.value.running) return askState.value.waiting ? 'Claude espera tu respuesta' : 'Claude trabajando…'
@@ -566,13 +573,7 @@ const status = computed(() => {
         <div v-if="isLive" class="region-head live-head">
           <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
           <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
-          <form class="live-url" @submit.prevent="liveNav('goto', liveURL)">
-            <input id="live-url" v-model="liveURL" class="input input-sm" aria-label="URL" spellcheck="false" />
-          </form>
-          <div class="seg-toggle" role="group" aria-label="Dispositivo">
-            <button type="button" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" @click="setDevice('desktop')">Escritorio</button>
-            <button type="button" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Un teléfono (Pixel 7). Cambiar reabre la sesión en la misma página" @click="setDevice('mobile')">Móvil</button>
-          </div>
+          <span class="live-head-gap"></span>
           <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
         </div>
         <div v-else class="region-head"><span>navegador</span></div>
@@ -766,7 +767,18 @@ const status = computed(() => {
     </section>
 
     <footer class="statusbar">
-      <span class="ellipsis">{{ status }}</span>
+      <!-- En vivo, la URL vive acá: un campo que se lee como texto y se edita como dirección (Enter navega). -->
+      <template v-if="isLive && view.kind === 'live'">
+        <span class="sb-state">{{ liveStatusLabel }} ·</span>
+        <form class="sb-url" @submit.prevent="liveNav('goto', liveURL)">
+          <input id="live-url" v-model="liveURL" aria-label="URL de la página en vivo (Enter para ir)" spellcheck="false" autocomplete="off" />
+        </form>
+      </template>
+      <span v-else class="ellipsis">{{ status }}</span>
+      <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Dispositivo">
+        <button type="button" class="region-action" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" title="Escritorio" aria-label="Ver como escritorio" @click="setDevice('desktop')"><span class="ui-icon" data-icon="desktop" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Teléfono (Pixel 7): cambiar reabre la sesión en la misma página" aria-label="Ver como teléfono" @click="setDevice('mobile')"><span class="ui-icon" data-icon="phone" aria-hidden="true"></span></button>
+      </div>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('navegador.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
@@ -794,11 +806,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .kw-ask { background: var(--kw-ask); color: var(--kw-ink) }
 .kw-none { background: var(--hover); color: var(--fg-2) }
 
-.seg-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; flex: none }
-.seg-toggle button { border: 0; background: transparent; color: var(--fg-2); font: inherit; font-size: var(--text-sm); padding: 2px var(--space-2); cursor: pointer }
-.seg-toggle button + button { border-left: 1px solid var(--border) }
-.seg-toggle button[aria-pressed="true"] { background: var(--hover); color: var(--foreground) }
-.seg-toggle button:disabled { opacity: .5; cursor: progress }
 .run-top { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 
 /* abrir una página */
@@ -841,7 +848,20 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 
 /* en vivo */
 .live-head { gap: var(--space-1) }
-.live-url { flex: 1; min-width: 0; display: flex }
+.live-head-gap { flex: 1 }
+/* La base estira el primer hijo de un encabezado (es el título); acá son botones y se quedan de su tamaño. */
+.live-head > .region-action { flex: none }
+/* La URL en el pie: casi imperceptible hasta que se la toca. Hereda el tamaño y el color del pie. */
+.sb-state { flex: none; white-space: nowrap }
+.sb-url { flex: 1; min-width: 0; display: flex; margin-left: var(--space-1) }
+.sb-url input { flex: 1; min-width: 0; height: 22px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-control);
+  background: transparent; color: inherit; font: inherit; text-overflow: ellipsis }
+.sb-url input:hover { border-color: var(--border) }
+.sb-url input:focus { outline: none; border-color: var(--primary); color: var(--foreground) }
+.device-controls { margin-left: var(--space-2) }
+/* Escritorio y teléfono: no están en el set compartido (tools/ui); se dibujan acá con el mismo formato (máscara SVG). */
+.ui-icon[data-icon="desktop"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2220%22%20height%3D%2214%22%20x%3D%222%22%20y%3D%223%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2017v4%22%2F%3E%3C%2Fsvg%3E") }
+.ui-icon[data-icon="phone"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2214%22%20height%3D%2220%22%20x%3D%225%22%20y%3D%222%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M12%2018h.01%22%2F%3E%3C%2Fsvg%3E") }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
 /* Pegado al borde derecho: con muchas pestañas la barra se desplaza y el botón quedaba fuera de la vista. */
 .follow-toggle { position: sticky; right: var(--space-1); z-index: 1; background: var(--region-bg, var(--background));
@@ -855,7 +875,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .tab-busy { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: tab-pulse 1.4s ease-in-out infinite }
 @keyframes tab-pulse { 50% { opacity: .35 } }
 @media (prefers-reduced-motion: reduce) { .tab-busy { animation: none } }
-.live-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-body { overflow: hidden }
 .live-wrap { height: 100%; display: grid; place-items: center }
 .live-wrap.guiding { grid-template-rows: auto 1fr; align-content: start; gap: var(--space-2); padding-top: var(--space-2) }
