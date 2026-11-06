@@ -269,11 +269,11 @@ async function deleteFlowOf(f) {
 }
 async function deleteProject(g) {
   const n = g.list.length
-  const keeps = g.url ? ' La app de práctica sigue en la lista, vacía.' : ''
+  const keeps = g.url && !g.real ? ' La app de práctica sigue en la lista, vacía.' : ''
   if (!confirm(`¿Borrar el proyecto «${appName(g.app)}»? Se borran ${n === 1 ? 'su flujo' : `sus ${n} flujos`} y sus corridas guardadas (los videos).${keeps}`)) return
   try {
     await api(`/api/projects/${g.app}`, { method: 'DELETE' })
-    if (view.value.app === g.app) go(g.url ? { kind: 'project', app: g.app } : { kind: 'live' })
+    if (view.value.app === g.app) go(g.url && !g.real ? { kind: 'project', app: g.app } : { kind: 'live' })
   } catch (e) { viewError.value = e.message }
 }
 async function deleteFlow() {
@@ -287,7 +287,7 @@ const appName = (id) => apps.value.find((a) => a.id === id)?.nombre || id
 const flowGroups = computed(() => {
   const g = Object.fromEntries(apps.value.map((a) => [a.id, []]))
   for (const f of flows.value) (g[f.app] ||= []).push(f)
-  return Object.entries(g).map(([app, list]) => ({ app, list, url: apps.value.find((a) => a.id === app)?.url }))
+  return Object.entries(g).map(([app, list]) => ({ app, list, url: apps.value.find((a) => a.id === app)?.url, real: apps.value.find((a) => a.id === app)?.real }))
 })
 // Qué carpetas están abiertas (los proyectos, abiertos por defecto; sus Corridas, cerradas).
 const projectOpen = ref(readPref('navegador.proyectos', {}))
@@ -402,7 +402,7 @@ const status = computed(() => {
             <span class="node-flag">{{ g.list.length }}</span>
             <span class="node-actions">
               <button v-if="g.url" type="button" class="region-action" title="Abrirlo en vivo" aria-label="Abrirlo en vivo" @click.stop="openApp({ url: g.url })"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
-              <button v-if="g.list.length || !g.url" type="button" class="region-action" title="Borrar el proyecto: sus flujos y sus corridas" aria-label="Borrar el proyecto" @click.stop="deleteProject(g)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+              <button v-if="g.list.length || !g.url || g.real" type="button" class="region-action" title="Borrar el proyecto: sus flujos y sus corridas" aria-label="Borrar el proyecto" @click.stop="deleteProject(g)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             </span>
           </div>
           <template v-if="isOpen(g.app)">
@@ -439,7 +439,7 @@ const status = computed(() => {
               <p v-if="project.app" class="muted">{{ project.app.descripcion }}</p>
               <div class="flow-actions">
                 <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
-                <button v-if="project.flows.length || !project.app" type="button" class="btn btn-ghost" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url })">Borrar proyecto</button>
+                <button v-if="project.flows.length || !project.app || project.app.real" type="button" class="btn btn-ghost" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url, real: project.app?.real })">Borrar proyecto</button>
               </div>
             </header>
             <section>

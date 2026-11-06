@@ -102,6 +102,14 @@ func appFor(start string) string {
 	if err != nil {
 		return "otros"
 	}
+	// Un proyecto con nombre propio que agrupa ese host (VTEX, Grafana…).
+	for id, p := range listProjects() {
+		for _, h := range p.Hosts {
+			if strings.EqualFold(h, u.Host) {
+				return id
+			}
+		}
+	}
 	for _, a := range listApps() {
 		if strings.HasSuffix(u.Host, fmt.Sprintf(":%d", a.Port)) && (u.Hostname() == "127.0.0.1" || u.Hostname() == "localhost") {
 			return a.ID
@@ -114,6 +122,9 @@ func listFlows() []FlowSummary {
 	files, _ := filepath.Glob(filepath.Join(flowsDir(), "*", "*.json"))
 	out := []FlowSummary{}
 	for _, f := range files {
+		if filepath.Base(f) == "proyecto.json" {
+			continue
+		}
 		fl, err := readFlow(f)
 		if err != nil {
 			continue

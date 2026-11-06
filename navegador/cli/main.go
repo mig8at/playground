@@ -90,6 +90,14 @@ func main() {
 		err = panelEvent("think", strings.Join(args, " "))
 	case "terminar":
 		err = finish(args)
+	case "proyecto":
+		if len(args) < 3 {
+			usage()
+		}
+		err = call(http.MethodPost, "/api/projects", map[string]string{"id": args[0], "nombre": args[1], "url": args[2]}, nil)
+		if err == nil {
+			fmt.Printf("proyecto «%s» (navegador/flujos/%s/): los flujos de %s quedan ahí\n", args[1], args[0], args[2])
+		}
 	case "ask":
 		err = ask(args)
 	case "evals":
@@ -189,6 +197,7 @@ func usage() {
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
   empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  proyecto <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a navegador/flujos/<id>)
   steps · script · report [meta] · reset
   ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
   evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (navegador/evals)`)

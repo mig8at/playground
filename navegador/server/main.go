@@ -114,7 +114,7 @@ func handler(store *Store, runner *Runner) http.Handler {
 	mux.HandleFunc("/api/events", func(w http.ResponseWriter, r *http.Request) { serveEvents(w, r, runner, store) })
 	// GET /api/apps — las apps locales para practicar (navegador/apps/*/app.json).
 	mux.HandleFunc("/api/apps", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, listApps())
+		writeJSON(w, http.StatusOK, listAll())
 	})
 	// ── la sesión en vivo (live.go) ──
 	// POST /api/live/start?url=…&device=…&clean=1 · POST /api/live/stop
@@ -507,6 +507,16 @@ func handler(store *Store, runner *Runner) http.Handler {
 			}
 			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "flujo": fl})
 		}
+	})
+	// POST /api/projects {id, nombre, url} — un proyecto con nombre propio para un sitio real.
+	mux.HandleFunc("/api/projects", func(w http.ResponseWriter, r *http.Request) {
+		var in struct{ ID, Nombre, URL string }
+		_ = json.NewDecoder(r.Body).Decode(&in)
+		if err := createProject(in.ID, in.Nombre, in.URL); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, ok)
 	})
 	// DELETE /api/projects/<app> — borra un proyecto: sus flujos y sus corridas.
 	mux.HandleFunc("/api/projects/", func(w http.ResponseWriter, r *http.Request) {

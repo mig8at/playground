@@ -89,7 +89,7 @@ func serveEvents(w http.ResponseWriter, r *http.Request, runner *Runner, store *
 	send("askstate", asker.State(0))
 	send("runs", store.Runs())
 	send("flows", listFlows())
-	send("apps", listApps())
+	send("apps", listAll())
 	fl.Flush()
 	ping := time.NewTicker(20 * time.Second)
 	defer ping.Stop()
