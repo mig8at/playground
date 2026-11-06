@@ -50,10 +50,10 @@ ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/
       25/9, con #201 ya en `main` (v1.1.25): ninguno de los 11 comercios con tienda está habilitado.
 - [x] ~~Mergear a `qa` los dos PRs del monto de la compra~~ — reemplazado: #1061 y #1483 se cerraron y
       el cambio va directo a `main` en `frontend-monorepo#1073` y `legacy-backend#1492`.
-- [ ] **Mergear a `main` `legacy-backend#1492` y después `frontend-monorepo#1073`, y taguear los dos**
-      (backend `v0.5.42`, front `v1.10.17`). Termina cuando los dos tags desplegaron y en producción
-      `/lenders` de una compra de tienda ya no trae `?amount=`.
-      Depende de: revisión del equipo — los dos piden aprobación.
+- [x] ~~**Mergear a `main` `legacy-backend#1492` y después `frontend-monorepo#1073`, y taguear los dos**~~ —
+      mergeados el 2026-09-25; primer tag con cada uno: backend `v0.5.43`, front `v1.10.19`.
+- [ ] Comprobar en producción que `/lenders` de una compra de tienda ya no trae `?amount=`; termina con una
+      solicitud de tienda de prod posterior a esos tags, vista por sus eventos de pantalla.
 - [ ] **Avisar que `soft-update-user-request` responde 500 siempre** (el controlador no pasa `rate`).
       Hoy no lo usa nadie; termina cuando quede un issue o un PR que lo arregle.
 - [ ] **(Diferido) Sacar `erId` de la URL antes del OTP.** El monto ya no viaja en la dirección y

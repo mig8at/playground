@@ -35,18 +35,17 @@ ramas: flujo-por-origen, autogestion-sin-entrega-al-propio-cliente, ecommerce-cu
       cuyo resultado hoy lo da la decisión por origen. Termina cuando esa lista quede vacía o cerrada.
 - [ ] **Decidir qué pasa con el backend #1392, que quedó solo en `main`** — el revert no lo tocó. Revertirlo
       también, o dejarlo esperando al front. Es la misma asimetría del par de junio.
-- [ ] **Llevar a producción el redirect del checkout viejo** — ya no hace falta pedírselo a Infra:
-      `legacy-application#169` lo hace en el monolito y está en su `develop`. ⚠ No puede ir antes de que
-      `/ecommerce/{hash}/checkout` exista en `main` del wizard, y tiene que seguir dejando afuera a Corbeta
-      (`[24,209,210,211,311]`), que es el tráfico que hoy mejor convierte.
+- [ ] **Llevar a producción el redirect del checkout viejo** — `legacy-application#169` ya está en `main` y en
+      producción desde el tag `v1.1.25` (medido el 2026-11-06). Falta comprobar en prod que redirige y que deja
+      afuera a Corbeta (`[24,209,210,211,311]`), el tráfico que hoy mejor convierte; termina con eso visto en
+      solicitudes de prod posteriores al tag.
 - [ ] Extender el cutover al resto del ecommerce no-Corbeta (el array quemado del `WoocommerceController`).
 - [ ] Borrar la lógica ecommerce duplicada en `legacy-application` una vez completo en `main`.
 
 **Lo que quedó abierto al probar**
 
-- [ ] **Mergear `frontend-monorepo#1039` a `qa`** — el arreglo de los importes en `-`, ya abierto
-      (rama `fix/importes-de-la-tarjeta-en-ecommerce`, `42be10f5`). Termina cuando la tarjeta del
-      canal de tienda muestre números sin tocar nada. *(Era el hallazgo de abajo, ya atacado.)*
+- [x] ~~**Mergear `frontend-monorepo#1039` a `qa`**~~ — el arreglo de los importes en `-`: mergeado a `qa` el
+      2026-09-21 y en producción desde el tag `v1.10.14`.
 - [x] ~~**En ecommerce la tarjeta muestra `-` en «Valor a financiar» y «Cuota», y es un cabo suelto de
       #1018.**~~ El canal no pide la cuota inicial, así que el mínimo nunca se satisface y
       `hasAmountToShow` (`LenderCardSummaries.tsx:71`) deja los dos importes apagados para siempre.
