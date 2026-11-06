@@ -2,7 +2,7 @@
 # Manda UN transaccionConsumo firmado al SOAP de PRUEBAS de Credifamilia, con el SoapClient real de
 # legacy-backend, corriendo dentro del contenedor laravel.test. No lleva claves: las lee de KEYS.
 #
-#   KEYS=/ruta/a/temp/keys NIT=830108482 MONTO_TOTAL=2428673.60 FIANZA=Anticipada \
+#   KEYS=/ruta/a/temp/keys NIT=830108482 MONTO_TOTAL=2430113.60 FIANZA=Anticipada \
 #     artifacts/credifamilia-qa-soap.sh
 #
 # 200 = "Se guardó la transacción…" (queda una transacción de prueba en el QA de Credifamilia).
@@ -11,7 +11,7 @@
 set -euo pipefail
 KEYS="${KEYS:?falta KEYS=<carpeta con clientQA2026.cert y clientQA2026.key>}"
 NIT="${NIT:?falta NIT=<allieds.nit de un convenio que Credifamilia conozca>}"
-MONTO_TOTAL="${MONTO_TOTAL:-2428673.60}"
+MONTO_TOTAL="${MONTO_TOTAL:-2430113.60}"
 MONTO="${MONTO:-2000000}"
 FIANZA="${FIANZA:-Anticipada}"
 CODE="${CODE:-99$(date +%y%m%d%H%M%S)}"

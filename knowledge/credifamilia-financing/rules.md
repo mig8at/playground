@@ -74,7 +74,7 @@ usen `BondBreakdown`. Sólo el respaldo a `final_amount` (sección siguiente) co
 
 El comprobante toma `credit_conditions.total_disbursement` del resumen cuando éste existe,
 y lo pasa a `PayloadFormatters::currency`: convierte a entero y muestra cero decimales.
-Un capital de `2428673.60` puede imprimirse como `2.428.673`. Comparar el cálculo numérico
+Un capital de `2430113.60` puede imprimirse como `2.430.113`. Comparar el cálculo numérico
 antes de comparar el texto del PDF; no afirmar igualdad exacta por usar la misma fórmula.
 
 ## Los respaldos también son distintos
