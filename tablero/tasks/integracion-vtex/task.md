@@ -7,10 +7,25 @@ knowledge: [ecommerce-context]
 canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
-ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-5-0-2, vtex:ci/connector-smoke, legacy-backend:rotativo-cuota-inicial-tras-autorizar
+ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-5-0-2, vtex:ci/connector-smoke, legacy-backend:rotativo-cuota-inicial-tras-autorizar, vtex:auto-onboarding-switch
 ---
 
 ## Pendientes
+
+- [ ] Enlazar el conector 5.1.0 (vtex#25) en el workspace `autoonb` y comprar por el checkout con el switch encendido;
+      termina cuando el wizard entra por `validando` sin OTP y la evidencia está en el PR. Hoy `vtex link` falla con
+      403 del compilador («Failed to fetch payment methods from PaymentGateway API»), también con la 5.0.3.
+      Depende de: VTEX (soporte) — por qué el compilador niega los medios de pago a una sesión que los lee con 200.
+- [ ] Publicar e instalar la 5.1.0 en `master` cuando aprueben vtex#25; termina cuando el switch aparece en la
+      configuración de la app en `master`.
+      Depende de: Joel / Oscar — la aprobación del PR.
+- [ ] Correr `make harness-vtex TARGET=qa CASES=rotativo` cuando legacy-backend#1881 entre a `qa`; termina en verde
+      (las dos compras en `loan-approved` y VTEX Approved).
+      Depende de: Joel — revisión y merge de #1881.
+- [ ] Dejar lista la tienda de Mario para el auto-onboarding: el script del checkout, la app `creditop` en la
+      configuración del checkout, su sucursal en `auto_onboarding_allied_branches` y los enlaces de términos y
+      política de producción (hoy apuntan a los PDF del bucket de dev); termina con una compra suya sin SMS.
+      Depende de: Comercial / Operaciones — la sucursal y el token de Mario en prod.
 
 - [ ] Si vuelve a caerse un cobro sin respuesta del conector (pasó una vez, 2026-11-06 18:01 UTC; no se reprodujo en
       dos cobros nuevos, también tras 7 minutos sin tráfico): leer `vtex logs --past` del conector en `master` en el
