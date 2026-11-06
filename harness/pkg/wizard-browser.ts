@@ -303,6 +303,15 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
     await page.getByText(/hemos terminado de consultar/i)
         .or(page.getByRole('button', { name: /continuar|solicitar|elegir|seleccionar/i }))
         .first().waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+    /* ⚠ UN CREDITOPX ROTATIVO MUESTRA ANTES SU PRESENTACIÓN: «Así funciona tu cupo rotativo» con un solo «Continuar»,
+     * que tapa el listado. Sin pasarla, el nombre de la entidad no está en la pantalla y el caminador decía «no está en
+     * el listado» (2026-11-06, la copia de Mario Hernández en qa, entidad 200). Se pasa como la pasaría el cliente. */
+    const revolvingIntro = page.getByText(/así funciona tu\s+cupo rotativo/i).first();
+    if (await revolvingIntro.isVisible().catch(() => false)) {
+        await page.getByRole('button', { name: /^continuar$/i }).first().click({ timeout: 10_000 }).catch(() => {});
+        await revolvingIntro.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
+        await page.waitForTimeout(700);
+    }
     const buttons = page.getByRole('button');
     const n = await buttons.count().catch(() => 0);
     const visibles: string[] = [];
@@ -370,6 +379,22 @@ export async function advance(page: Page, d: WizardData, sheet = ''): Promise<{ 
         const readOnes = await readToEnd(page);
         if (readOnes) { facts.push(`leí ${readOnes} documento(s) hasta el final`); await page.waitForTimeout(600); }
         av = await clickAdvance(page);
+    }
+    /* ⚠ UN ENVÍO EN CURSO NO ES «SIN BOTÓN». Al confirmar la entidad de un CreditopX el botón queda con los puntitos
+     * mientras el backend consulta listas restrictivas (TusDatos, sondeando) y el cupo: medido el 2026-11-06 con la copia
+     * de Mario en qa, el POST de `confirmation` tardó más de 12 s y el caminador cortaba antes, con la solicitud sana.
+     * Si hay red pendiente, se espera a que se calme (hasta 60 s) y se vuelve a mirar: la pantalla puede haber cambiado
+     * sola (el action redirige) o puede aparecer el botón. */
+    // ⚠ No con `waitForLoadState('networkidle')`: si la página ya llegó a ese estado una vez, vuelve AL INSTANTE, y
+    // la espera era de 0 s. Se mira de verdad: cada 2 s, si la URL cambió o si apareció un botón para avanzar.
+    if (!av.ok) {
+        const before = page.url();
+        const until = Date.now() + 60_000;
+        while (!av.ok && Date.now() < until) {
+            await page.waitForTimeout(2_000);
+            if (page.url() !== before) return { ok: true, hechos: [...facts, 'esperé el envío en curso: la pantalla avanzó sola'], boton: '(envío en curso)' };
+            av = await clickAdvance(page);
+        }
     }
     if (av.ok) return { ok: true, hechos: facts, boton: av.nombre };
     return { ok: false, hechos: facts, candidatos: av.candidatos, motivo: av.motivo, errores: await validationErrors(page).catch(() => []) };

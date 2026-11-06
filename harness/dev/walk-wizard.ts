@@ -1104,6 +1104,10 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         if (routePath !== lastOne) {
             r.pantallas += 1;
             walkedPaths.push(routePath);
+            // La foto de cada pantalla, al llegar: la evidencia paso a paso que se muestra sin abrir la traza.
+            // La pantalla ya se cargó (la vuelta esperó a la red) y no se toca nada antes de sacarla.
+            try { mkdirSync(evidenceDir, { recursive: true }); } catch { /* ya existe */ }
+            await page.screenshot({ path: `${evidenceDir}/${String(r.pantallas).padStart(2, '0')}-${sheet || 'inicio'}.png`, fullPage: true }).catch(() => {});
             // ⚠ EN EL LISTADO, UN MENSAJE DE ERROR NO ES UN MURO. Cada tarjeta consulta su propia
             // pre-aprobación y puede fallar sola: «No pudimos consultar esta entidad» aparece POR
             // ENTIDAD, con su botón de reintentar, y el listado sigue siendo usable. Tratarlo como muro
