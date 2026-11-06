@@ -21,7 +21,11 @@ que encontrar. Mañana otra sesión va a ejecutar esta tarea leyendo sólo este 
    (`~/Desktop/CREDITOP/playground`), los temas de `knowledge:` del encabezado
    (`knowledge/<tema>/rules.md`) y, si el texto los cita, archivos de los repos reales en
    `~/Desktop/CREDITOP/github/<repo>/`.
-3. Nada más. No busques por tu cuenta en el código para «completar» el plan: si para entender un paso
+3. Si el plan **depende de otra tarea** por número (`#107`) o por carpeta, podés leer el `## Pendientes`
+   de esa tarea (`~/Desktop/CREDITOP/playground/tablero/tasks/*/task.md`, buscando `id: <n>`) sólo para
+   saber si la dependencia sigue abierta. Si ya está resuelta allá y este documento no lo dice, el hallazgo
+   es que el documento quedó viejo, no que la dependencia bloquea.
+4. Nada más. No busques por tu cuenta en el código para «completar» el plan: si para entender un paso
    tuviste que salir a buscar, **eso ya es un hallazgo** (el documento no se sostiene solo).
 
 Leer un archivo de un repo real sirve para entender lo que el plan dice, no para verificarlo: el
@@ -70,16 +74,28 @@ Primero una línea de veredicto, una de estas tres:
 - **SE SOSTIENE CON HUECOS** — se puede arrancar, pero hay decisiones que alguien va a tomar a ciegas.
 - **NO SE SOSTIENE** — falta algo sin lo cual quien ejecute va a adivinar el objetivo o el camino.
 
-Después, los hallazgos agrupados por las tres preguntas. Cada uno:
+Después, los hallazgos agrupados por las tres preguntas. **Sólo `Bloquea` e `Importa`**, como mucho cinco
+por pregunta y los más graves primero. Cada uno:
 
-    [Bloquea | Importa | Detalle] · task.md:<línea> · <qué falta o qué choca, en una o dos frases>
+    [Bloquea | Importa] · task.md:<línea> · <qué falta o qué choca, en una o dos frases>
+
+- **Bloquea**: quien ejecute va a hacer algo equivocado o peligroso (en prod, en una base compartida, con
+  dinero o datos de clientes), o no puede empezar.
+- **Importa**: va a tener que adivinar una decisión que cambia el resultado.
+- Lo demás (siglas, nombres de personas, rutas relativas, prolijidad) no se lista: cerrá con una sola
+  línea «Detalles: N», sin enumerarlos.
+- Si falta `## Specs`, decilo **una vez** en la línea del veredicto, no como hallazgo. En la pregunta 2
+  quedan sólo los criterios que no podrían volverse comando aunque existiera la sección.
 
 Al final, la lista para `main-verifier` (pregunta 3), y en una línea qué archivos leíste además del
-`task.md`. Si un archivo enlazado no se pudo leer, decilo: es un hallazgo, no un silencio.
+`task.md`. Si un archivo enlazado no se pudo leer y el plan depende de él, es un hallazgo; si no, va en esa
+línea.
 
 Reglas:
 
 - Criticá primero. No felicites el documento ni repitas lo que dice bien.
+- Antes de marcar una contradicción, comprobá que las dos frases hablan de lo mismo (el estado de la
+  solicitud no es el del crédito; una casilla cerrada describe lo que pasó, no lo vigente).
 - Si no hay hallazgos en una pregunta, escribí «nada» en esa pregunta; no rellenes.
 - Escribí en español, directo, sin adjetivos de relleno.
 - No supongas el contexto de negocio que falta para que el plan cierre: si te falta, es el hallazgo.

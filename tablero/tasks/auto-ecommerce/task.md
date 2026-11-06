@@ -23,9 +23,14 @@ ramas: feat/refurbi-payment-link-ref, feat/auto-onboarding, feat/auto-onboarding
       con los PDFs de términos y política adjuntos.
 - [x] ~~Probar en `qa` con Refurbi~~ — pedido firmado cerrado en 11: 503385 (caminador) y 503388 (panel); correo y
       documento de otro cliente marcados en `personal-info` (503372, 503373).
-- [ ] Volver a llevar el auto a `main` cuando Refurbi salga — se sacó de `main` A PROPÓSITO para subir otros cambios
-      sin Refurbi (legacy-backend #1621, frontend-monorepo 54704c48); vive sólo en `qa`. Para prod además: la sucursal
-      en `auto_onboarding_allied_branches`, el secreto de firma de su credencial y las migraciones.
+- [x] ~~Volver a llevar el auto a `main`~~ — se sacó con legacy-backend #1621 (2026-10-07) y volvió con #1648, el
+      merge de `qa` a `main` del 2026-10-13; está en los tags de producción desde `v0.6.28`. En prod ya están la
+      sucursal Ecommerce-Refurbi (2017, `318d378c`) en `auto_onboarding_allied_branches` y las columnas de las
+      migraciones (medido el 2026-11-06, sólo lectura).
+- [ ] Crear y entregar a Refurbi el secreto de firma de su credencial en prod: hoy no tiene (`signing_secret` nulo,
+      medido el 2026-11-06), así que el camino de la firma no corre en prod. Termina con el secreto en la credencial
+      y un pedido firmado de Refurbi en prod con `merchant_verification.source` de firma.
+      Depende de: Refurbi — que implemente la firma (pendiente siguiente).
 - [ ] Refurbi acepta implementar la firma (no está en los PDFs: es la mejora propuesta del contrato).
 - [ ] Legal: ¿la aceptación tomada por la tienda vale como autorización de consulta a centrales?
 - [ ] Producto: qué ve el comprador con un pedido sin firma o con firma inválida; y qué hacer cuando el celular ya es
@@ -44,7 +49,13 @@ TusDatos) y a las entidades.
 ## Dónde se toca
 
 **legacy-backend**
-- `MerchantOrderSignatureService`: la firma es lo único que decide el salto del OTP del inicio. Esquema de los eventos
+- **Hay dos entradas que saltan el OTP del inicio**, y la de esta tarea es la primera:
+  1. el pedido firmado por la tienda (`o=` con firma), que se describe acá;
+  2. el enlace de pago (`?ref=`, tarea #102): la tienda crea la referencia autenticada con su token, y el salto
+     exige auto-onboarding en la sucursal, teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y la
+     referencia vigente (`knowledge/ecommerce-context`). **Es la que usa Refurbi en prod hoy**
+     (`merchant_verification.source = payment_link`; la medición está en la pila).
+- `MerchantOrderSignatureService`: en la entrada por pedido, la firma es lo único que decide el salto. Esquema de los eventos
   CreditopX (`v1=` + HMAC-SHA256 de `v1\n{ts}\n{o}`, con el `o` tal como viaja). Lo que el pedido declara de la
   aceptación (`terms_accepted_at`, `terms_version`, `privacy_policy_version`, de los PDFs V20260206) se guarda como
   constancia y no decide nada.
@@ -133,7 +144,7 @@ QA, con la tienda de Refurbi (su sucursal ecommerce está habilitada para este r
 - En la firma del pagaré, «Cambiar número» envía el código al número nuevo, y el cliente queda con ese número sólo después de validarlo.
 
 ## Criterios de aceptación
-- Un pedido firmado entra sin código; uno sin una firma válida no.
+- Un pedido firmado entra sin código; un pedido sin una firma válida no. (El enlace de pago es otra entrada, con sus propias condiciones.)
 - Ningún dato que el sistema rechace queda sin mostrarse al comprador.
 
 ## Dependencias / contraparte

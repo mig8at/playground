@@ -18,7 +18,9 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
       emitido desde el admin local que autentica contra `POST /api/ecommerce/payment-link` de legacy-backend local (422 con
       cuerpo vacío, 401 con uno inventado).
 - [ ] Al crear un comercio, crear también la sucursal ecommerce de prueba `e<hash>-fake`, con credencial, las entidades del
-      comercio y su token, junto a la `b<hash>-fake` del asesor (tarea #98). Termina con un comercio nuevo en local que
+      comercio y su token, junto a la física `p<hash>-fake` del asesor (tarea #98; los comercios anteriores la
+      conservan como `b<hash>-fake`). Ya está en `develop` de legacy-application (8ebe12f5) y lo describe
+      `knowledge/merchant-onboarding`. Termina con un comercio nuevo en local que
       trae las dos sucursales y una compra por payment-link con la `e…-fake`.
 - [ ] Agregar `allied_branches.is_test` con una migración de legacy-backend (es el dueño del esquema, como en CRED-367) y
       marcar las dos sucursales de prueba; la app la escribe sólo si la columna existe (`Schema::hasColumn`).
@@ -58,7 +60,9 @@ Que probar un comercio por tienda no dependa de nadie con acceso al contenedor:
 1. Un servicio en application que emite (`createToken('ecommerce-payment-link', ['ecommerce'])`), revoca y resume
    (emitido, último uso) los tokens de una sucursal, el mismo formato que `ecommerce:issue-token` de legacy-backend.
 2. La pestaña de ecommerce lo usa; el token viaja en el flash una vez.
-3. El provisionador crea la sucursal ecommerce de prueba con el mismo hash que la del asesor.
+3. El provisionador crea la sucursal ecommerce de prueba del mismo hash **base** que la física, pero con hash
+   propio `e<hash>`: legacy-backend resuelve la sucursal por hash con `->first()`, y con el mismo hash una compra
+   por la tienda podría caer en la física (`knowledge/merchant-onboarding`).
 
 ## Lo que se evaluó y NO se eligió
 
