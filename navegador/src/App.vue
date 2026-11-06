@@ -158,6 +158,14 @@ function toPage(e) {
   return { x: ((e.clientX - r.left) / r.width) * w, y: ((e.clientY - r.top) / r.height) * h }
 }
 function sendInput(ev) { api('/api/live/input', { method: 'POST', body: JSON.stringify(ev) }).catch((e) => { liveError.value = e.message }) }
+// Pegar en el campo con el foco: el texto copiado se escribe tal cual (una contraseña larga, un código). No queda
+// en ningún paso ni registro: sólo viaja a la API local y se teclea en la página.
+function onCanvasPaste(e) {
+  const text = e.clipboardData?.getData('text/plain') || ''
+  if (!text) return
+  e.preventDefault()
+  sendInput({ type: 'text', text })
+}
 function onCanvasClick(e) { liveCanvas.value.focus(); sendInput({ type: 'click', ...toPage(e) }) }
 let wheelAcc = 0, wheelTimer = null, wheelAt = null
 function onCanvasWheel(e) {
@@ -169,6 +177,9 @@ function onCanvasWheel(e) {
 const KEYS = new Set(['Enter', 'Backspace', 'Tab', 'Escape', 'Delete', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'])
 function onCanvasKey(e) {
   const mod = e.ctrlKey || e.metaKey || e.altKey
+  // Ctrl+V / Cmd+V: no se manda el atajo (el Chromium del navegador tiene su propio portapapeles, vacío); el
+  // navegador de la interfaz dispara «paste» con lo que la persona copió, y onCanvasPaste lo escribe.
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'v') return
   if (e.key.length === 1 && !mod) { e.preventDefault(); sendInput({ type: 'text', text: e.key }); return }
   if (KEYS.has(e.key) || (mod && e.key.length === 1)) {
     e.preventDefault()
@@ -533,7 +544,7 @@ const status = computed(() => {
             </div>
             <div class="live-stage" :class="{ phone: isMobile }" :style="liveFit">
               <canvas ref="liveCanvas" class="live-canvas" tabindex="0" aria-label="La página en vivo: hacé clic y escribí como en un navegador"
-                @click="onCanvasClick" @wheel.prevent="onCanvasWheel" @keydown="onCanvasKey"></canvas>
+                @click="onCanvasClick" @wheel.prevent="onCanvasWheel" @keydown="onCanvasKey" @paste="onCanvasPaste"></canvas>
               <div v-if="guideStyle" :key="guide.id" class="guide-box" :style="guideStyle"></div>
             </div>
           </div>

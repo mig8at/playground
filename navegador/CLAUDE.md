@@ -106,6 +106,9 @@ corridas con sus fotos, descargas).
   clic y su teclado hasta que se cierra (`showPopup`): antes se cerraba y la página principal iba a esa URL, y un
   login por popup se rompía (la ventana necesita a la página que la abrió). Lo que hacen Claude o una reproducción
   sigue igual. Lo que se teclea a mano en el canvas no queda en ningún paso ni registro.
+- **Ctrl+V en la página en vivo no pegaba nada**: el atajo llegaba al Chromium del navegador, que tiene su propio
+  portapapeles (vacío). Ahora la interfaz toma el texto del evento `paste` y lo teclea en el campo con el foco
+  (`onCanvasPaste`); sirve para una contraseña o un código largo, y no queda en ningún paso ni registro.
 - **«Abrir una página» con otra sesión abierta** fallaba («ya hay un live corriendo»): `/api/live/start` navega si
   es el mismo sitio, o cierra la sesión y abre otra.
 - **Dos ediciones de un flujo que llegan juntas se pisaban** (un dato y un «lo escribo yo»): leer, cambiar y
