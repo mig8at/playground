@@ -68,7 +68,25 @@ func envOr(k, d string) string {
 	return d
 }
 
+// tabID es la pestaña a la que le habla este comando (--sesion N o NAVEGADOR_SESION); vacía, la última que se abrió.
+var tabID = os.Getenv("NAVEGADOR_SESION")
+
+// takeTabFlag saca `--sesion N` de los argumentos, esté donde esté.
+func takeTabFlag(argv []string) []string {
+	out := argv[:0:0]
+	for i := 0; i < len(argv); i++ {
+		if (argv[i] == "--sesion" || argv[i] == "--pestana") && i+1 < len(argv) {
+			tabID = argv[i+1]
+			i++
+			continue
+		}
+		out = append(out, argv[i])
+	}
+	return out
+}
+
 func main() {
+	os.Args = takeTabFlag(os.Args)
 	if len(os.Args) < 2 {
 		usage()
 	}
@@ -83,6 +101,8 @@ func main() {
 	switch cmd {
 	case "empezar":
 		err = begin(args)
+	case "pestanas", "pestañas":
+		err = tabsCmd(args)
 	case "pienso":
 		if len(args) == 0 {
 			usage()
@@ -197,6 +217,8 @@ func usage() {
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
   empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  pestanas [cerrar N]   las pestañas abiertas (cada una, su sesión). Cualquier comando: --sesion N (o NAVEGADOR_SESION=N);
+                        sin eso, la última que se abrió. empezar abre una nueva si en la actual ya trabaja otro Claude
   proyecto <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a navegador/flujos/<id>)
   steps · script · report [meta] · reset
   ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
@@ -214,6 +236,9 @@ func call(method, path string, body, out any) error {
 	}
 	req, _ := http.NewRequest(method, api+path, rd)
 	req.Header.Set("Content-Type", "application/json")
+	if tabID != "" {
+		req.Header.Set("X-Navegador-Tab", tabID)
+	}
 	res, err := (&http.Client{Timeout: 120 * time.Second}).Do(req)
 	if err != nil {
 		return fmt.Errorf("la API no contesta en %s: ¿está levantado `make navegador`? (%v)", api, err)
@@ -1034,6 +1059,22 @@ func begin(args []string) error {
 	if goal == "" {
 		usage()
 	}
+	// Si en la pestaña ya trabaja otro Claude (u otra meta sin terminar), ésta va a una pestaña nueva: así dos
+	// trabajos corren en paralelo sin pisarse. Con --sesion N se usa esa, ocupada o no.
+	if tabID == "" {
+		tabs, _ := listTabs()
+		for _, t := range tabs {
+			if t.Last && t.Busy {
+				var nt struct{ ID string }
+				if err := call(http.MethodPost, "/api/tabs", nil, &nt); err != nil {
+					return err
+				}
+				tabID = nt.ID
+				fmt.Printf("la pestaña %s está ocupada (%s): esta meta va en una nueva\n", t.ID, t.Goal)
+			}
+		}
+	}
+	pinTab()
 	// Los pasos de cero, ANTES de ir a la URL: la corrida (y el flujo) son de esta meta, con la ida incluida.
 	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	if start != "" {
@@ -1044,7 +1085,11 @@ func begin(args []string) error {
 	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "begin", "meta": goal}, nil); err != nil {
 		return err
 	}
-	fmt.Printf("sesión abierta en el panel: %s\n\n", goal)
+	fmt.Printf("sesión abierta en el panel, pestaña %s: %s\n", tabID, goal)
+	if tabs, _ := listTabs(); len(tabs) > 1 {
+		fmt.Printf("hay %d pestañas: seguí con --sesion %s (o NAVEGADOR_SESION=%s) para no caer en otra\n", len(tabs), tabID, tabID)
+	}
+	fmt.Println()
 	if start != "" {
 		return look(true)
 	}
@@ -1075,5 +1120,71 @@ func finish(args []string) error {
 		_ = panelEvent("flow", fl.App+"/"+fl.ID)
 		fmt.Printf("flujo guardado: %s\n", fl.Path)
 	}
+	return nil
+}
+
+// ── pestañas ──
+
+type tabInfo struct {
+	ID     string `json:"id"`
+	Site   string `json:"site"`
+	Title  string `json:"title"`
+	URL    string `json:"url"`
+	Active bool   `json:"active"`
+	Goal   string `json:"meta"`
+	Busy   bool   `json:"busy"`
+	Last   bool   `json:"last"`
+}
+
+func listTabs() ([]tabInfo, error) {
+	var tabs []tabInfo
+	err := call(http.MethodGet, "/api/tabs", nil, &tabs)
+	return tabs, err
+}
+
+// pinTab fija la pestaña de este comando (la última, si no se dijo) y la deja en el entorno: lo que lance después
+// (el Claude de ask y sus comandos) le habla a ESA, aunque mientras tanto se abran otras.
+func pinTab() {
+	if tabID == "" {
+		tabs, _ := listTabs()
+		for _, t := range tabs {
+			if t.Last {
+				tabID = t.ID
+			}
+		}
+	}
+	if tabID != "" {
+		os.Setenv("NAVEGADOR_SESION", tabID)
+	}
+}
+
+func tabsCmd(args []string) error {
+	if len(args) == 2 && args[0] == "cerrar" {
+		if err := call(http.MethodDelete, "/api/tabs/"+args[1], nil, nil); err != nil {
+			return err
+		}
+		fmt.Printf("pestaña %s cerrada\n", args[1])
+		return nil
+	}
+	tabs, err := listTabs()
+	if err != nil {
+		return err
+	}
+	for _, t := range tabs {
+		mark := " "
+		if t.Last {
+			mark = "*"
+		}
+		where := "(vacía)"
+		if t.Active {
+			where = t.Title + " · " + t.URL
+		}
+		who := ""
+		if t.Busy {
+			who = " · Claude: " + t.Goal
+		}
+		fmt.Printf("%s %s  %s%s\n", mark, t.ID, where, who)
+	}
+	fmt.Println("  (* la que atiende un comando sin --sesion)")
 	return nil
 }

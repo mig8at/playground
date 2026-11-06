@@ -24,6 +24,7 @@ import (
 // comando que falló (fail), la respuesta de una vuelta (result), lo que costó (stats), una pregunta a la persona
 // (ask), la respuesta (answer), el reporte (report), avisos (note, site) y lo que sale sin formato (out, err).
 type AskEvent struct {
+	Tab  string    `json:"tab"` // la pestaña de este Claude
 	N    int       `json:"n"`
 	Kind string    `json:"k"`
 	Text string    `json:"t"`
@@ -31,6 +32,7 @@ type AskEvent struct {
 }
 
 type Asker struct {
+	tab     string // la pestaña (tabs.go): cada una tiene su Claude
 	mu      sync.Mutex
 	cmd     *exec.Cmd
 	stdin   io.WriteCloser
@@ -47,6 +49,7 @@ type Asker struct {
 
 // AskState es lo que lee la interfaz: los eventos desde el número since.
 type AskState struct {
+	Tab      string     `json:"tab"`
 	Running  bool       `json:"running"`
 	Waiting  bool       `json:"waiting"`
 	Goal     string     `json:"meta"`
@@ -92,7 +95,8 @@ func (a *Asker) Start(api, goal, url, device string, guide bool, steps int) erro
 	}
 	args = append(args, goal)
 	cmd := exec.Command(navegadorBin(), args...)
-	cmd.Env = append(os.Environ(), "NAVEGADOR_API="+api, "NAVEGADOR_EVENTS=1")
+	// NAVEGADOR_SESION: el ask le habla a SU pestaña, aunque la persona abra otras mientras trabaja.
+	cmd.Env = append(os.Environ(), "NAVEGADOR_API="+api, "NAVEGADOR_EVENTS=1", "NAVEGADOR_SESION="+a.tab)
 	// Su propio grupo y sin terminal: frenarlo mata también al Claude Code que lanzó.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdin, err := cmd.StdinPipe()
@@ -137,7 +141,7 @@ func (a *Asker) read(r io.Reader, plain string) {
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 	for sc.Scan() {
 		line := sc.Text()
-		ev := AskEvent{Kind: plain, Text: line}
+		ev := AskEvent{Tab: a.tab, Kind: plain, Text: line}
 		var j struct {
 			K string `json:"k"`
 			T string `json:"t"`
@@ -173,7 +177,7 @@ func (a *Asker) State(since int) AskState {
 	if since > len(a.events) {
 		since = 0
 	}
-	return AskState{Running: a.running || a.external, Waiting: a.waiting, Goal: a.goal, Started: a.started, Exit: a.exit, External: a.external,
+	return AskState{Tab: a.tab, Running: a.running || a.external, Waiting: a.waiting, Goal: a.goal, Started: a.started, Exit: a.exit, External: a.external,
 		Total: len(a.events), Events: append([]AskEvent{}, a.events[since:]...)}
 }
 
@@ -229,7 +233,7 @@ func (a *Asker) Event(kind, text string) {
 		a.mu.Unlock()
 		return
 	}
-	ev := AskEvent{N: len(a.events), Kind: kind, Text: text, At: time.Now()}
+	ev := AskEvent{Tab: a.tab, N: len(a.events), Kind: kind, Text: text, At: time.Now()}
 	a.events = append(a.events, ev)
 	a.mu.Unlock()
 	hub.Publish("ask", ev)

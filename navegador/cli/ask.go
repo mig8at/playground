@@ -68,6 +68,7 @@ func isPractice(rawURL string) bool {
 }
 
 func ask(args []string) error {
+	pinTab() // el Claude que se lanza y sus comandos van a ESTA pestaña aunque se abran otras
 	fs := flag.NewFlagSet("ask", flag.ExitOnError)
 	start := fs.String("url", "", "abre la sesión en vivo en esta URL antes de empezar (si no, usa la que está abierta)")
 	steps := fs.Int("pasos", 40, "cuántas acciones como mucho")

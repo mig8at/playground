@@ -13,7 +13,8 @@
 | Pieza | Qué es | Archivos |
 |---|---|---|
 | Interfaz | Vue en **:5202**, para MIRAR y reproducir: lo que hay que hacer se le pide a Claude en la conversación (él maneja todo por la API y el CLI). Izquierda: «Abrir una página» (cualquier URL en vivo, para loguearse a mano: cada host guarda su login en su perfil) y un árbol: cada **proyecto** es una carpeta con sus **flujos**; abrir la carpeta muestra la portada del proyecto (sus flujos con play). Un flujo se borra desde el árbol o su sidebar; un proyecto, desde el árbol o su portada (`DELETE /api/projects/<app>`: sus flujos y sus corridas en .data; una app de práctica queda en la lista, vacía). Con un flujo abierto, el editor muestra sólo su video y el sidebar derecho su información: el botón Reproducir y lo que se edita a gusto (nombre, texto de cada paso, sacar pasos, sus datos y dónde para); si Claude está trabajando, ese sidebar tiene las pestañas Flujo y Claude. Las corridas no se muestran: son el material del video de cada flujo. Centro: el navegador en vivo (con la barra del paso de la guía o de la reproducción), el video de una corrida o un flujo con sus datos. Derecha: **Claude trabajando**. Abajo: Pasos y Script | `src/App.vue`, `src/RunViewer.vue` |
-| Tiempo real | UN stream SSE (`/api/events`): el estado de la sesión cuando cambia, cada evento de Claude, las corridas y los flujos al guardarse. Los cuadros del navegador van por `/api/live/frames` | `server/events.go` |
+| Tiempo real | UN stream SSE (`/api/events`): las pestañas, el estado de cada sesión cuando cambia, cada evento de Claude (todos llevan su `tab`), las corridas y los flujos al guardarse. Los cuadros del navegador van por `/api/live/frames?tab=N` | `server/events.go` |
+| Pestañas | Varias sesiones a la vez, cada una con su página, su Claude, sus pasos, su corrida y su flujo: una pestaña es un `Runner` + un `Asker`. Qué pestaña atiende un pedido lo dice el encabezado `X-Navegador-Tab` (o `?tab=`); sin él, **la última que se abrió**. Por consola, `--sesion N` (o `NAVEGADOR_SESION=N`) en cualquier comando, y `pestanas [cerrar N]`; `empezar` abre una nueva si en la actual ya trabaja otro Claude, y `ask` fija la suya para él y sus comandos. La interfaz elige cuál MIRA (barra arriba del navegador, «+» abre una vacía) sin cambiar ese default: un clic de la persona no manda los comandos de Claude a otra página. Playwright es uno solo para todas | `server/tabs.go`, `cli/main.go` (`takeTabFlag`, `pinTab`) |
 | API | Go en **:5203**. Sesión en vivo, Claude, corridas, flujos, apps | `server/main.go` |
 | Sesión en vivo | Chromium sin ventana transmitido por CDP, acciones por localizador, diálogos, descargas. Escritorio 1440×900 a densidad 2 (por defecto; las fotos de los pasos, en píxeles CSS) o móvil (perfil Pixel 7) | `server/live.go`, `server/browser.go` |
 | Análisis | Lo interactivo de la pantalla con sus localizadores verificados (también en iframes) y los avisos (incluido MURO ANTI-BOTS) | `server/analyze.js`, `server/locators.go`, `server/frames.go` |
@@ -57,6 +58,11 @@ corridas con sus fotos, descargas).
   contenido, Credidemo y Tienda Andina: la historia está en git.
 
 ## Trampas que ya costaron tiempo
+
+- **Un perfil persistente de Chromium no se abre dos veces** (lo bloquea): dos pestañas del MISMO sitio comparten
+  su BrowserContext, cada una con su página (`acquireContext` en `server/tabs.go`), y el contexto se cierra con la
+  última. Por eso van con el mismo dispositivo (otro se niega con el motivo), y las ventanas emergentes se escuchan
+  con `page.OnPopup` y no con `OnPage` del contexto: la página que abre otra pestaña no es un popup de ésta.
 
 - **Cambiar de dispositivo reabre el navegador** en la misma página (el perfil de un teléfono se fija al abrir):
   con un perfil limpio se pierde lo que había. Por consola: `open --movil`, `device movil|escritorio`, `ask

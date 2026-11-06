@@ -48,7 +48,7 @@ type Runner struct {
 	store *Store
 
 	mu      sync.Mutex
-	pw      *playwright.Playwright
+	tab     string // el id de la pestaña (tabs.go)
 	busy    bool
 	kind    string
 	site    string
@@ -87,13 +87,13 @@ func (r *Runner) State(since int) State {
 	return st
 }
 
-// playwright arranca el driver la primera vez y, si faltan, baja el driver y Chromium (una sola vez, ~150 MB).
+// playwright arranca el driver la primera vez y, si faltan, baja el driver y Chromium (una sola vez, ~150 MB). Es
+// UNO para todas las pestañas: cada una abre su contexto sobre el mismo proceso.
 func (r *Runner) playwright() (*playwright.Playwright, error) {
-	r.mu.Lock()
-	pw := r.pw
-	r.mu.Unlock()
-	if pw != nil {
-		return pw, nil
+	sharedPWMu.Lock()
+	defer sharedPWMu.Unlock()
+	if sharedPW != nil {
+		return sharedPW, nil
 	}
 	r.say("info", "preparando Playwright (la primera vez baja el driver y Chromium)…")
 	opts, err := ensureDriver(r.say)
@@ -103,25 +103,33 @@ func (r *Runner) playwright() (*playwright.Playwright, error) {
 	if err := playwright.Install(opts); err != nil {
 		return nil, fmt.Errorf("instalar Playwright: %w", err)
 	}
-	pw, err = playwright.Run(opts)
+	pw, err := playwright.Run(opts)
 	if err != nil {
 		return nil, fmt.Errorf("arrancar Playwright: %w", err)
 	}
-	r.mu.Lock()
-	r.pw = pw
-	r.mu.Unlock()
+	sharedPW = pw
 	return pw, nil
 }
 
-func (r *Runner) Close() {
-	r.Stop()
-	r.mu.Lock()
-	pw := r.pw
-	r.pw = nil
-	r.mu.Unlock()
+var (
+	sharedPWMu sync.Mutex
+	sharedPW   *playwright.Playwright
+)
+
+// stopPlaywright baja el proceso compartido (al cerrar la API).
+func stopPlaywright() {
+	sharedPWMu.Lock()
+	pw := sharedPW
+	sharedPW = nil
+	sharedPWMu.Unlock()
 	if pw != nil {
 		_ = pw.Stop()
 	}
+}
+
+// Close frena lo que esté corriendo en esta pestaña; el Playwright compartido lo baja stopPlaywright.
+func (r *Runner) Close() {
+	r.Stop()
 }
 
 // begin toma el turno; falla si ya hay algo corriendo.

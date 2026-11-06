@@ -10,8 +10,12 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute } from './workbench.js'
 import RunViewer from './RunViewer.vue'
 
+// Cada pedido va a la pestaña que se está mirando (server/tabs.go): sin el encabezado, el servidor usaría la última
+// que se abrió, que puede ser la de Claude.
 async function api(path, opts = {}) {
-  const res = await fetch(path, opts)
+  const headers = { ...(opts.headers || {}) }
+  if (viewTab.value) headers['X-Navegador-Tab'] = viewTab.value
+  const res = await fetch(path, { ...opts, headers })
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
   return body
@@ -33,10 +37,36 @@ function go(v) {
 }
 const onHashChange = () => { view.value = parseRoute() }
 
-// ── el estado, en tiempo real ──
-const liveState = ref({ active: false, steps: [] })
-const askState = ref({ running: false, waiting: false, meta: '', total: 0 })
-const askEvents = ref([])
+// ── las pestañas: varias sesiones a la vez, cada una con su página, su Claude y sus pasos ──
+const tabs = ref([])
+const viewTab = ref('') // la que se está mirando; elegirla no cambia a qué pestaña le hablan los comandos de Claude
+const liveStates = ref({})
+const askStates = ref({})
+const askEventsBy = ref({})
+const tabLabel = (t) => (t.active ? t.title || t.site || t.url : 'Vacía')
+let tabsSeen = null
+function onTabs(list) {
+  const ids = list.map((t) => t.id)
+  // Una pestaña que aparece después de cargar (la abrió Claude o «+») se sigue: es lo que hay que mirar.
+  const fresh = tabsSeen ? ids.filter((id) => !tabsSeen.has(id)) : []
+  tabsSeen = new Set(ids)
+  tabs.value = list
+  if (fresh.length) viewTab.value = fresh[fresh.length - 1]
+  else if (!ids.includes(viewTab.value)) viewTab.value = (list.find((t) => t.last) || list[list.length - 1])?.id || ''
+}
+async function newTab() {
+  try { const t = await api('/api/tabs', { method: 'POST' }); viewTab.value = t.id; go({ kind: 'live' }) } catch (e) { liveError.value = e.message }
+}
+async function closeTab(id) {
+  const t = tabs.value.find((x) => x.id === id)
+  if (t?.busy && !confirm(`En esta pestaña está trabajando Claude («${t.meta}»). ¿Cerrarla igual? Se frena.`)) return
+  try { await api(`/api/tabs/${id}`, { method: 'DELETE' }) } catch (e) { liveError.value = e.message }
+}
+
+// ── el estado, en tiempo real (el de la pestaña que se mira) ──
+const liveState = computed(() => liveStates.value[viewTab.value] || { active: false, steps: [] })
+const askState = computed(() => askStates.value[viewTab.value] || { running: false, waiting: false, meta: '', total: 0 })
+const askEvents = computed(() => askEventsBy.value[viewTab.value] || [])
 const flows = ref([])
 const apps = ref([])
 const connected = ref(false)
@@ -46,13 +76,18 @@ function connect() {
   events.onopen = () => { connected.value = true }
   events.onerror = () => { connected.value = false } // EventSource se reconecta solo
   const on = (kind, fn) => events.addEventListener(kind, (e) => { try { fn(JSON.parse(e.data)) } catch { /* evento roto */ } })
-  on('live', (st) => { liveState.value = st })
+  on('tabs', onTabs)
+  on('live', (st) => { liveStates.value = { ...liveStates.value, [st.tab]: st } })
   on('askstate', (st) => {
-    if (st.total === 0) askEvents.value = [] // una meta nueva
-    if (st.eventos?.length && st.eventos.length === st.total) askEvents.value = st.eventos // al conectarse: todo
-    askState.value = st
+    const evs = askEventsBy.value
+    if (st.total === 0) askEventsBy.value = { ...evs, [st.tab]: [] } // una meta nueva
+    if (st.eventos?.length && st.eventos.length === st.total) askEventsBy.value = { ...askEventsBy.value, [st.tab]: st.eventos } // al conectarse: todo
+    askStates.value = { ...askStates.value, [st.tab]: st }
   })
-  on('ask', (ev) => { if (ev.n === askEvents.value.length) askEvents.value.push(ev) })
+  on('ask', (ev) => {
+    const list = askEventsBy.value[ev.tab] || []
+    if (ev.n === list.length) askEventsBy.value = { ...askEventsBy.value, [ev.tab]: [...list, ev] }
+  })
   on('flows', (v) => { flows.value = v; if (view.value.kind === 'flow') loadView(view.value) })
   on('apps', (v) => { apps.value = v })
 }
@@ -99,7 +134,7 @@ let resizeObs = null
 let frames = null
 function openFrames() {
   frames?.close()
-  frames = new EventSource('/api/live/frames')
+  frames = new EventSource(`/api/live/frames?tab=${encodeURIComponent(viewTab.value)}`)
   frames.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data)
@@ -122,6 +157,7 @@ watch(showLive, (on) => {
   else { frames?.close(); frames = null }
 }, { immediate: true })
 watch(() => liveState.value.device, () => { if (showLive.value) openFrames() }) // cambiar de dispositivo reabre el navegador
+watch(viewTab, () => { if (showLive.value) requestAnimationFrame(openFrames) }) // otra pestaña: sus cuadros
 function watchEditor() {
   resizeObs?.disconnect()
   if (!editorBody.value) return
@@ -310,7 +346,7 @@ const fmtDate = (t) => (t && !t.startsWith('0001') ? new Date(t).toLocaleString(
 // ── el panel de abajo: los pasos de la sesión y su script ──
 const panelTab = ref('steps')
 const script = ref('')
-async function loadScript() { try { script.value = await fetch('/api/live/script').then((r) => r.text()) } catch { script.value = '' } }
+async function loadScript() { try { script.value = await fetch('/api/live/script', { headers: { 'X-Navegador-Tab': viewTab.value } }).then((r) => r.text()) } catch { script.value = '' } }
 watch([panelTab, () => liveState.value.steps?.length], () => { if (panelTab.value === 'script') loadScript() })
 
 // ── las regiones (workbench) ──
@@ -485,6 +521,16 @@ const status = computed(() => {
 
       <!-- en vivo -->
       <template v-else>
+        <nav class="tabs live-tabs" aria-label="Pestañas">
+          <div v-for="t in tabs" :key="t.id" class="tab" :class="{ on: t.id === viewTab }" :title="t.busy ? `Claude: ${t.meta}` : t.url">
+            <button type="button" class="tab-label" @click="viewTab = t.id">
+              <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
+              <span>{{ tabLabel(t) }}</span>
+            </button>
+            <button type="button" class="tab-close" :aria-label="`Cerrar la pestaña ${tabLabel(t)}`" @click="closeTab(t.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+          </div>
+          <button type="button" class="region-action new-tab" title="Pestaña nueva: otra sesión en paralelo" aria-label="Pestaña nueva" @click="newTab"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+        </nav>
         <div v-if="isLive" class="region-head live-head">
           <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
           <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
@@ -764,6 +810,10 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 /* en vivo */
 .live-head { gap: var(--space-1) }
 .live-url { flex: 1; min-width: 0; display: flex }
+.live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
+.tab-busy { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: tab-pulse 1.4s ease-in-out infinite }
+@keyframes tab-pulse { 50% { opacity: .35 } }
+@media (prefers-reduced-motion: reduce) { .tab-busy { animation: none } }
 .live-url .input { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-body { overflow: hidden }
 .live-wrap { height: 100%; display: grid; place-items: center }

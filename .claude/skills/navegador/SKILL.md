@@ -22,6 +22,10 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   3. `bin/navegador terminar 'LISTO: …'` (o `NO PUDE: …`): guarda la corrida y, con LISTO, el flujo en
      `navegador/flujos/<proyecto>/`.
   `bin/navegador script` da el recorrido como prueba de Playwright.
+- **Varias cosas en paralelo: pestañas.** Cada una es una sesión aparte (su página, sus pasos, su flujo).
+  `empezar` abre una nueva si en la actual ya trabaja otro Claude y dice su número; desde ahí, cada comando de esa
+  meta va con `--sesion N` (si no, cae en la última que se abrió, que puede ser otra). `bin/navegador pestanas`
+  las lista; `pestanas cerrar N` cierra una. Dos pestañas del mismo sitio comparten el login.
 - **Que te enseñe:** `bin/navegador ask --guia [--url U] "<meta>"` (o «Enseñame» en la interfaz): Claude marca
   cada paso en la página en vivo y Miguel lo hace. Sin `--guia` es automático: lo hace Claude y sólo frena antes
   de algo irreversible (eliminar, desactivar, pagar, enviar); el CLI niega ese clic sin el sí.

@@ -141,6 +141,7 @@ type dialogSeen struct {
 
 // LiveState es lo que la interfaz y el CLI preguntan: dónde está, qué hay para tocar y qué se hizo.
 type LiveState struct {
+	Tab       string    `json:"tab"` // la pestaña (tabs.go)
 	Active    bool      `json:"active"`
 	Site      string    `json:"site"`
 	URL       string    `json:"url"`
@@ -321,17 +322,14 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		opts.IsMobile = playwright.Bool(d.IsMobile)
 		opts.HasTouch = playwright.Bool(d.HasTouch)
 	}
-	bctx, err := pw.Chromium.LaunchPersistentContext(profile, opts)
+	// El perfil se comparte con otra pestaña del mismo sitio si ya está abierto (tabs.go): cada una con su página.
+	bctx, page, release, err := acquireContext(profile, device, func() (playwright.BrowserContext, error) {
+		return pw.Chromium.LaunchPersistentContext(profile, opts)
+	})
 	if err != nil {
 		return err
 	}
-	defer bctx.Close()
-	page := firstPage(bctx)
-	if page == nil {
-		if page, err = bctx.NewPage(); err != nil {
-			return err
-		}
-	}
+	defer release()
 	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, clean: clean, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
 	page.OnDialog(func(d playwright.Dialog) {
@@ -393,7 +391,9 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 	// Una pestaña nueva (target=_blank) se trae a la misma: la sesión muestra una sola página.
 	// En el script queda como un goto a esa URL después del clic: al repetirlo, el clic abre su pestaña aparte y el
 	// goto deja la página principal donde siguió el recorrido.
-	bctx.OnPage(func(p playwright.Page) {
+	// Se escucha OnPopup de ESTA página y no OnPage del contexto: el contexto puede ser de varias pestañas del
+	// navegador (el mismo sitio), y la página que abre otra de ellas no es una ventana emergente de ésta.
+	page.OnPopup(func(p playwright.Page) {
 		l.mu.Lock()
 		manual := !l.acting && l.cdp != nil && r.replayIdle(l)
 		if !manual {
@@ -513,7 +513,7 @@ func (r *Runner) liveAnalyze(l *live) (*Page, error) {
 func (r *Runner) LiveState(fresh bool) LiveState {
 	l := r.liveSession()
 	if l == nil {
-		return LiveState{Steps: []Step{}}
+		return LiveState{Tab: r.tab, Steps: []Step{}}
 	}
 	if fresh {
 		_, _ = r.liveAnalyze(l)
@@ -526,7 +526,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return LiveState{
-		Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(), Popup: l.popupURL(),
+		Tab: r.tab, Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(), Popup: l.popupURL(),
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
 		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
 	}
@@ -1214,6 +1214,9 @@ func (r *Runner) LiveDevice(device string) error {
 	}
 	if l.device == device {
 		return nil
+	}
+	if !l.clean && contextShared(r.store.ProfileDir(l.site.Slug)) > 1 {
+		return fmt.Errorf("este sitio está abierto en otra pestaña: cerrala antes de pasar a %s (comparten el perfil)", deviceName(device))
 	}
 	slug, url, clean := l.site.Slug, l.page.URL(), l.clean
 	r.Stop()

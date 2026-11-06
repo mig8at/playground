@@ -19,7 +19,8 @@ type Hub struct {
 
 var hub = &Hub{subs: map[chan []byte]struct{}{}}
 
-// Publish manda un evento a todos: kind es el tipo SSE (live · ask · askstate · runs · flows), v su dato.
+// Publish manda un evento a todos: kind es el tipo SSE (live · ask · askstate · tabs · runs · flows), v su dato.
+// live, ask y askstate llevan su pestaña (`tab`): la interfaz muestra los de la que está mirando.
 func (h *Hub) Publish(kind string, v any) {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -44,16 +45,32 @@ func (h *Hub) subscribe() (chan []byte, func()) {
 	return ch, func() { h.mu.Lock(); delete(h.subs, ch); h.mu.Unlock() }
 }
 
-// watchLive publica el estado de la sesión cada vez que cambia algo que la interfaz muestra (lo compara cada
-// 250 ms: más simple y más robusto que avisar desde cada rincón de live.go).
-func watchLive(runner *Runner) {
-	last := ""
+// watchLive publica el estado de cada pestaña cada vez que cambia algo que la interfaz muestra (lo compara cada
+// 250 ms: más simple y más robusto que avisar desde cada rincón de live.go), y la lista de pestañas cuando cambia.
+func watchLive(tabs *Tabs) {
+	last := map[string]string{}
+	lastTabs := ""
 	for range time.Tick(250 * time.Millisecond) {
-		st := runner.LiveState(false)
-		key := liveKey(st)
-		if key != last {
-			last = key
-			hub.Publish("live", st)
+		seen := map[string]bool{}
+		for _, tab := range tabs.All() {
+			st := tab.Runner.LiveState(false)
+			key := liveKey(st)
+			seen[tab.ID] = true
+			if key != last[tab.ID] {
+				last[tab.ID] = key
+				hub.Publish("live", st)
+			}
+		}
+		for id := range last {
+			if !seen[id] {
+				delete(last, id)
+			}
+		}
+		info := tabs.Info()
+		b, _ := json.Marshal(info)
+		if string(b) != lastTabs {
+			lastTabs = string(b)
+			hub.Publish("tabs", info)
 		}
 	}
 }
@@ -70,7 +87,7 @@ func liveKey(st LiveState) string {
 }
 
 // serveEvents es el stream: al conectarse, el estado completo; después, cada cambio.
-func serveEvents(w http.ResponseWriter, r *http.Request, runner *Runner, store *Store) {
+func serveEvents(w http.ResponseWriter, r *http.Request, tabs *Tabs, store *Store) {
 	fl, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "sin streaming", http.StatusInternalServerError)
@@ -85,8 +102,11 @@ func serveEvents(w http.ResponseWriter, r *http.Request, runner *Runner, store *
 		b, _ := json.Marshal(v)
 		fmt.Fprintf(w, "event: %s\ndata: %s\n\n", kind, b)
 	}
-	send("live", runner.LiveState(false))
-	send("askstate", asker.State(0))
+	send("tabs", tabs.Info())
+	for _, tab := range tabs.All() {
+		send("live", tab.Runner.LiveState(false))
+		send("askstate", tab.Asker.State(0))
+	}
 	send("runs", store.Runs())
 	send("flows", listFlows())
 	send("apps", listAll())
