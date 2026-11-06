@@ -57,17 +57,28 @@
       '<p class="cr-ao-help">Con estos datos Creditop no te los vuelve a pedir y el proceso es más rápido.</p>' +
       field('Fecha de nacimiento', 'cr-ao-birth', f.birthDate, today) +
       field('Fecha de expedición de la cédula', 'cr-ao-expedition', f.expeditionDate, today) +
-      '<label class="cr-ao-accept"><input type="checkbox" id="cr-ao-accept"' + (f.acceptedAt ? ' checked' : '') + '> ' +
-      'Acepto los <a href="' + TERMS_URL + '" target="_blank" rel="noopener">términos y condiciones</a> y la ' +
-      '<a href="' + POLICY_URL + '" target="_blank" rel="noopener">política de tratamiento de datos</a> de Creditop.</label>' +
+      // El texto va en un solo <span>: la etiqueta es flex y, suelto, cada pedazo de texto y cada enlace era una columna.
+      '<label class="cr-ao-accept"><input type="checkbox" id="cr-ao-accept"' + (f.acceptedAt ? ' checked' : '') + '>' +
+      '<span>Acepto los <a href="' + TERMS_URL + '" target="_blank" rel="noopener">términos y condiciones</a> y la ' +
+      '<a href="' + POLICY_URL + '" target="_blank" rel="noopener">política de tratamiento de datos</a> de Creditop.</span></label>' +
       '<p class="cr-ao-error" id="cr-ao-error" hidden>Completá tus fechas y aceptá los términos de Creditop para continuar.</p>'
     group.appendChild(box)
-    box.querySelector('#cr-ao-birth').addEventListener('change', function (e) { save('birthDate', e.target.value) })
-    box.querySelector('#cr-ao-expedition').addEventListener('change', function (e) { save('expeditionDate', e.target.value) })
+    box.querySelector('#cr-ao-birth').addEventListener('change', function (e) { save('birthDate', e.target.value); hideErrorIfFilled() })
+    box.querySelector('#cr-ao-expedition').addEventListener('change', function (e) { save('expeditionDate', e.target.value); hideErrorIfFilled() })
     box.querySelector('#cr-ao-accept').addEventListener('change', function (e) {
       // La hora de la aceptación es la de la casilla: Creditop la guarda como el momento en que el comprador aceptó.
       save('acceptedAt', e.target.checked ? new Date().toISOString() : '')
+      hideErrorIfFilled()
     })
+  }
+
+  /* El aviso de «falta algo» se va en cuanto el bloque está completo (se mira la pantalla: el pedido se guarda después). */
+  function hideErrorIfFilled() {
+    var error = document.getElementById('cr-ao-error')
+    var birth = document.getElementById('cr-ao-birth')
+    var expedition = document.getElementById('cr-ao-expedition')
+    var accept = document.getElementById('cr-ao-accept')
+    if (error && birth && birth.value && expedition && expedition.value && accept && accept.checked) error.hidden = true
   }
 
   /* «Comprar ahora» no avanza con Creditop elegido y algún dato sin completar: se dice qué falta. */
