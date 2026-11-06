@@ -566,9 +566,6 @@ const status = computed(() => {
             <button type="button" class="tab-close" :aria-label="`Cerrar la pestaña ${tabLabel(t)}`" @click="closeTab(t.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <button type="button" class="region-action new-tab" title="Pestaña nueva: otra sesión en paralelo" aria-label="Pestaña nueva" @click="newTab"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
-          <button type="button" class="follow-toggle" :aria-pressed="followClaude" :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta un rato). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'" @click="followClaude = !followClaude">
-            <span class="follow-dot" aria-hidden="true"></span>{{ followClaude ? 'Siguiendo a Claude' : 'Quieto' }}
-          </button>
         </nav>
         <div v-if="!isLive" class="region-head"><span>navegador</span></div>
         <div ref="editorBody" class="region-body live-body">
@@ -765,17 +762,23 @@ const status = computed(() => {
       <template v-if="isLive && view.kind === 'live'">
         <div class="layout-controls nav-controls" role="group" aria-label="Navegación">
           <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
-          <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
         </div>
         <!-- El punto dice si la página en vivo está conectada (verde) o no (gris). El texto aparece sólo cuando dice
              algo más que «en vivo»: Claude trabajando, una reproducción. -->
-        <span class="sb-dot" :class="{ on: connected }" role="img" :aria-label="connected ? liveStatusLabel : 'sin conexión con la API'" :title="connected ? liveStatusLabel : 'sin conexión con la API'"></span>
+        <!-- El punto también recarga: en reposo dice el estado y, con el mouse o el foco encima, se vuelve ⟳. -->
+        <button type="button" class="sb-dot-btn" :class="{ on: connected }" :title="`${connected ? liveStatusLabel : 'sin conexión con la API'} · clic para recargar`" :aria-label="`${connected ? liveStatusLabel : 'sin conexión con la API'}: recargar la página`" @click="liveNav('reload')">
+          <span class="sb-dot" aria-hidden="true"></span>
+          <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+        </button>
         <span v-if="liveStatusLabel !== 'en vivo'" class="sb-state">{{ liveStatusLabel }} ·</span>
         <form class="sb-url" @submit.prevent="liveNav('goto', liveURL)">
           <input id="live-url" v-model="liveURL" aria-label="URL de la página en vivo (Enter para ir)" spellcheck="false" autocomplete="off" />
         </form>
       </template>
       <span v-else class="ellipsis">{{ status }}</span>
+      <button v-if="tabs.length > 1 || followClaude === false" type="button" class="follow-toggle" :aria-pressed="followClaude" :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta un rato). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'" @click="followClaude = !followClaude">
+        <span class="follow-dot" aria-hidden="true"></span>{{ followClaude ? 'Siguiendo a Claude' : 'Quieto' }}
+      </button>
       <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Dispositivo">
         <button type="button" class="region-action" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" title="Escritorio" aria-label="Ver como escritorio" @click="setDevice('desktop')"><span class="ui-icon" data-icon="desktop" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Teléfono (Pixel 7): cambiar reabre la sesión en la misma página" aria-label="Ver como teléfono" @click="setDevice('mobile')"><span class="ui-icon" data-icon="phone" aria-hidden="true"></span></button>
@@ -851,23 +854,29 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 /* en vivo */
 /* La URL en el pie: casi imperceptible hasta que se la toca. Hereda el tamaño y el color del pie. */
 .sb-state { flex: none; white-space: nowrap; margin-left: var(--space-1) }
-.sb-dot { flex: none; width: 7px; height: 7px; margin: 0 var(--space-1); border-radius: 50%; background: var(--fg-3) }
-.sb-dot.on { background: var(--kw-ok-ink) }
+.sb-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; padding: 0; border: 0; border-radius: var(--radius-control);
+  background: none; color: var(--fg-2); cursor: pointer }
+.sb-dot-btn > * { grid-area: 1 / 1 }
+.sb-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3) }
+.sb-dot-btn.on .sb-dot { background: var(--kw-ok-ink) }
+.sb-dot-btn .ui-icon { visibility: hidden }
+.sb-dot-btn:hover, .sb-dot-btn:focus-visible { background: var(--hover); color: var(--foreground) }
+.sb-dot-btn:hover .sb-dot, .sb-dot-btn:focus-visible .sb-dot { visibility: hidden }
+.sb-dot-btn:hover .ui-icon, .sb-dot-btn:focus-visible .ui-icon { visibility: visible }
 .sb-url { flex: 1; min-width: 0; display: flex; margin-left: var(--space-1) }
 .sb-url input { flex: 1; min-width: 0; height: 22px; padding: 0 var(--space-1); border: 1px solid transparent; border-radius: var(--radius-control);
   background: transparent; color: inherit; font: inherit; text-overflow: ellipsis }
 .sb-url input:hover { border-color: var(--border) }
 .sb-url input:focus { outline: none; border-color: var(--primary); color: var(--foreground) }
 .device-controls { margin-left: var(--space-2) }
+.sb-url + .device-controls { margin-left: auto }
 .nav-controls { flex: none; margin-right: var(--space-1) }
 /* Escritorio y teléfono: no están en el set compartido (tools/ui); se dibujan acá con el mismo formato (máscara SVG). */
 .ui-icon[data-icon="desktop"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2220%22%20height%3D%2214%22%20x%3D%222%22%20y%3D%223%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2017v4%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="phone"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2214%22%20height%3D%2220%22%20x%3D%225%22%20y%3D%222%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M12%2018h.01%22%2F%3E%3C%2Fsvg%3E") }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
-/* Pegado al borde derecho: con muchas pestañas la barra se desplaza y el botón quedaba fuera de la vista. */
-.follow-toggle { position: sticky; right: var(--space-1); z-index: 1; background: var(--region-bg, var(--background));
-  align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); height: 26px;
-  padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--fg-3);
+.follow-toggle { flex: none; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-1); height: 20px;
+  padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: 999px; background: none; color: var(--fg-3);
   font: inherit; font-size: var(--text-xs); white-space: nowrap; cursor: pointer }
 .follow-toggle:hover { color: var(--foreground) }
 .follow-toggle[aria-pressed="true"] { color: var(--foreground); border-color: var(--primary) }
