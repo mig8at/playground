@@ -362,7 +362,7 @@ const status = computed(() => {
               <span class="node-name">{{ f.nombre }}</span>
               <span class="node-flag">{{ f.pasos }}</span>
               <span class="node-actions">
-                <button type="button" class="region-action" title="Reproducir (automático)" aria-label="Reproducir" @click.stop="playFlowOf(f, 'auto')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
+                <button type="button" class="region-action" title="Autorrellenar: los campos solos, los botones los tocás vos" aria-label="Autorrellenar" @click.stop="playFlowOf(f, 'fill')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
               </span>
             </div>
             <p v-if="!g.list.length" class="none tree-none">Sin flujos todavía.</p>
@@ -403,8 +403,9 @@ const status = computed(() => {
                     <button type="button" class="pflow-name" @click="go({ kind: 'flow', app: f.app, id: f.id })">{{ f.nombre }}</button>
                     <span class="muted small">{{ f.pasos }} pasos<template v-if="f.datos"> · {{ f.datos }} datos</template> · {{ fmtDate(f.verificado) ? `verificado ${fmtDate(f.verificado)}` : `creado ${fmtDate(f.creado)}` }}</span>
                     <div class="flow-actions">
-                      <button type="button" class="btn btn-sm" @click="playFlowOf(f, 'auto')">Reproducir</button>
-                      <button type="button" class="btn btn-outline btn-sm" @click="playFlowOf(f, 'teach')">Enseñame</button>
+                      <button type="button" class="btn btn-sm" title="Llena los campos solo; los botones los tocás vos" @click="playFlowOf(f, 'fill')">Autorrellenar</button>
+                      <button type="button" class="btn btn-outline btn-sm" title="Todo solo, salvo lo irreversible" @click="playFlowOf(f, 'auto')">Automático</button>
+                      <button type="button" class="btn btn-ghost btn-sm" @click="playFlowOf(f, 'teach')">Enseñame</button>
                     </div>
                   </div>
                 </div>
@@ -432,14 +433,15 @@ const status = computed(() => {
                 <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
               <p class="muted small"><code>navegador/flujos/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
               <div class="flow-actions">
-                <button type="button" class="btn" title="Navega de nuevo con estos datos y para sólo donde marcaste, en una llave, en lo irreversible o si algo cambió" @click="playFlow('auto')">Reproducir{{ stopsCount ? ` (para en ${stopsCount})` : ' (automático)' }}</button>
-                <button type="button" class="btn btn-outline" title="Cada paso lo hacés vos, con la instrucción y el elemento marcados" @click="playFlow('teach')">Enseñame</button>
+                <button type="button" class="btn" title="Llena los campos solo con estos datos; en cada botón para y lo tocás vos" @click="playFlow('fill')">Autorrellenar</button>
+                <button type="button" class="btn btn-outline" title="Hace todo solo y para sólo donde marcaste, en una llave, en lo irreversible o si algo cambió" @click="playFlow('auto')">Automático{{ stopsCount ? ` (para en ${stopsCount})` : '' }}</button>
+                <button type="button" class="btn btn-ghost" title="Cada paso lo hacés vos, con la instrucción y el elemento marcados" @click="playFlow('teach')">Enseñame</button>
               </div>
             </header>
 
             <section v-if="flowParams.length" class="flow-data">
               <h2>Datos del flujo</h2>
-              <p class="muted small">Se precargan al reproducir. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
+              <p class="muted small">Se precargan al reproducir: «Autorrellenar» los escribe solo y te deja los botones a vos. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
               <div v-for="p in flowParams" :key="p.i" class="data-row">
                 <label :for="`dato-${p.i}`">{{ p.dato }}</label>
                 <input :id="`dato-${p.i}`" class="input input-sm" :value="p.valor" :disabled="p.pausa" @change="saveFlowStep(p.i, { valor: $event.target.value })" />
@@ -495,9 +497,9 @@ const status = computed(() => {
             <!-- La reproducción: el paso, cómo salió el anterior y qué hacer con éste. -->
             <div v-if="replayShown" class="guide-bar">
               <div class="bar-text">
-                <span class="bar-count">{{ replayActive ? `${replay.mode === 'teach' ? 'Enseñame' : 'Reproduciendo'} · paso ${replay.index + 1} de ${replay.total}` : replay.status === 'done' ? 'Terminado' : 'Frenado' }}</span>
+                <span class="bar-count">{{ replayActive ? `${{ teach: 'Enseñame', fill: 'Autorrelleno', auto: 'Automático' }[replay.mode] || 'Reproduciendo'} · paso ${replay.index + 1} de ${replay.total}` : replay.status === 'done' ? 'Terminado' : 'Frenado' }}</span>
                 <span v-if="replayActive && guide" class="bar-what">👉 {{ guide.instruction }}</span>
-                <span v-else-if="replayActive" class="muted">{{ replay.status === 'person' ? 'Hacelo en la página…' : 'trabajando…' }}</span>
+                <span v-else-if="replayActive" class="muted">{{ replay.status === 'person' ? 'Hacelo en la página…' : 'llenando…' }}</span>
                 <span v-else class="muted">{{ replay.did }} los hizo la herramienta · {{ replay.byHand }} vos · {{ replay.skipped }} saltados</span>
                 <span v-if="replay.note && replayActive" class="bar-note">{{ replay.note }}</span>
               </div>

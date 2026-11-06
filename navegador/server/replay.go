@@ -3,6 +3,8 @@ package main
 /* Repetir una corrida o un flujo SIN Claude: cada paso trae su localizador, su acción y su valor, así que se puede
  * volver a recorrer en la sesión en vivo. Dos modos:
  *
+ *	fill    «autorrellenar» (como el harness con un formulario): la herramienta escribe, elige y marca sola, y en
+ *	        cada botón o enlace para y lo toca la persona
  *	auto    la herramienta hace todo y frena sólo en lo destructivo (borrar, desactivar, pagar, enviar: un sí
  *	        explícito), en una llave (la escribe la persona) o si un elemento ya no está (el panel cambió)
  *	teach   «enseñame»: cada paso lo hace la persona, con la instrucción y el elemento marcados
@@ -66,7 +68,7 @@ type Replay struct {
 	Index   int      `json:"index"` // el paso que se está repitiendo (de 0)
 	Total   int      `json:"total"`
 	Status  string   `json:"status"` // waiting (elige la persona) · doing · person (la persona lo está haciendo) · done · stopped
-	Mode    string   `json:"mode"`   // auto (la herramienta hace todo salvo lo destructivo) · teach (cada paso lo hace la persona)
+	Mode    string   `json:"mode"`   // fill (llena los campos sola; los botones los toca la persona) · auto (todo salvo lo destructivo) · teach (todo la persona)
 	Auto    bool     `json:"auto"`   // seguir solo hasta el próximo paso destructivo, que pide una llave o no se encuentra
 	Choices []string `json:"choices,omitempty"`
 	Danger  bool     `json:"danger,omitempty"`  // el paso es destructivo (borra, desactiva, paga, envía): «hacelo» es un sí explícito
@@ -202,10 +204,10 @@ func (r *Runner) startReplay(src replaySource, steps []Step, mode string) error 
 		return err
 	}
 	r.LiveClearSteps() // la repetición es una corrida nueva (con la ida a la entrada como primer paso, si no la tiene)
-	if mode != "teach" {
+	if mode != "teach" && mode != "fill" {
 		mode = "auto"
 	}
-	rp := &Replay{Run: src.run, Goal: meta.Goal, Total: len(steps), Status: "doing", Mode: mode, Auto: mode == "auto", answers: make(chan string, 1)}
+	rp := &Replay{Run: src.run, Goal: meta.Goal, Total: len(steps), Status: "doing", Mode: mode, Auto: mode != "teach", answers: make(chan string, 1)}
 	if src.flowID != "" {
 		rp.Flow = src.flowApp + "/" + src.flowID
 	}
@@ -352,8 +354,10 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 		}
 	}
 	danger := (st.Action == "click" || st.Action == "dblclick") && destructiveLike.MatchString(st.Target)
+	// En autorrelleno, un botón o un enlace lo toca la persona: decide ella cada acción.
+	byPerson := rp.Mode == "teach" || st.Pause || (rp.Mode == "fill" && (st.Action == "click" || st.Action == "dblclick" || st.Action == "press"))
 	choices := []string{"do", "self", "skip", "stop"}
-	if missing || st.Secret || st.Pause || rp.Mode == "teach" {
+	if missing || st.Secret || byPerson {
 		choices = []string{"self", "skip", "stop"}
 	}
 	var shown Step
@@ -368,7 +372,7 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 	l.guideSeq++
 	l.guide = &GuideReq{ID: l.guideSeq, Instruction: note, Target: st.Target, Box: shown.Box, View: shown.View, Replay: true}
 	startInputs, started := l.inputs, time.Now()
-	auto := rp.Auto && rp.Mode != "teach" && !missing && !st.Secret && !danger
+	auto := rp.Auto && !byPerson && !missing && !st.Secret && !danger
 	rp.Status, rp.Choices, rp.Danger, rp.Missing, rp.Secret = "waiting", choices, danger, missing, st.Secret
 	l.mu.Unlock()
 	l.markDirty()
@@ -381,8 +385,8 @@ func (r *Runner) replayStep(l *live, rp *Replay, st Step, set func(func())) (str
 	}()
 
 	choice := "do"
-	if rp.Mode == "teach" || st.Pause {
-		choice = "self" // enseñame, o un paso donde el flujo para: lo hace la persona, con la instrucción a la vista
+	if byPerson {
+		choice = "self" // enseñame, autorrelleno en un botón, o un paso donde el flujo para: lo hace la persona
 	} else if !auto {
 		choice = <-rp.answers
 	}
