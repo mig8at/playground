@@ -75,8 +75,16 @@
   </ol>
 
   <h2>2 · Instalar la app en la cuenta VTEX de Mario <span class="who">Quien tenga acceso a su admin</span></h2>
+  <div class="card">
+    <p><strong>La app no está en el App Store de VTEX.</strong> Buscarla en la tienda de apps del admin no la va a mostrar. Está publicada en el registro de apps de VTEX a nombre de la cuenta <code>creditop</code>, como un paquete privado, y se instala <strong>por su nombre</strong> desde la consola de VTEX (VTEX IO CLI). No hay un archivo que mandarle a la tienda.</p>
+    <p><strong>Quién la instala:</strong> alguien con usuario administrador en la cuenta VTEX de Mario. Puede ser alguien de su equipo, o alguien de Creditop a quien Mario invite como usuario de su cuenta. Hace falta el CLI de VTEX instalado (<code>npm i -g vtex</code>).</p>
+  </div>
   <ol>
-    <li>Instalar <code>creditop.creditop</code> 5.x en el workspace <code>master</code> de su cuenta. Por consola: <code>vtex login &lt;cuenta de Mario&gt;</code> y <code>vtex install creditop.creditop@5.x</code>.</li>
+    <li>Instalar <code>creditop.creditop</code> 5.x en el workspace <code>master</code> de su cuenta:
+<pre>vtex login &lt;cuenta de Mario&gt;      # entra con el usuario de esa cuenta y queda en master
+vtex install creditop.creditop@5.x  # pide confirmar por ser master
+vtex ls | grep creditop             # tiene que decir creditop.creditop 5.1.0 (o más nueva de la 5)</pre>
+      Las versiones nuevas de la 5 le llegan solas a la cuenta; una 6 habría que instalarla a propósito.</li>
     <li>En <strong>Apps → Creditop BNPL</strong>:
       <ul>
         <li><strong>Ambiente de Creditop: Producción.</strong> Sin esto el conector le habla al ambiente de pruebas.</li>
