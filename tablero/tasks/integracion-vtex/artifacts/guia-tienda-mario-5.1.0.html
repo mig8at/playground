@@ -130,10 +130,22 @@ POST https://&lt;cuenta&gt;.vtexcommercestable.com.br/api/checkout/pvt/configura
   { "id": "creditop", "major": 1, "fields": ["birthDate", "expeditionDate", "acceptedAt"] }
 ]</pre>
   <p>Si ya trae otras apps en <code>apps</code>, se agrega ésta sin tocar las demás.</p>
+  <p><strong>Cómo autenticarse:</strong> con una llave de API de la cuenta de Mario que tenga permiso sobre el checkout (encabezados <code>X-VTEX-API-AppKey</code> y <code>X-VTEX-API-AppToken</code>, se crean en su admin en Configuración de la cuenta → Llaves de API), o con la sesión del CLI de quien la instaló (<code>vtex local token</code> da un token para el encabezado <code>VtexIdclientAutCookie</code>). No hay que instalar ninguna app para esto.</p>
+<pre>curl -s -H "VtexIdclientAutCookie: $(vtex local token)" \
+  https://&lt;cuenta&gt;.vtexcommercestable.com.br/api/checkout/pvt/configuration/orderForm > orderform.json
+# editar orderform.json: agregar la app creditop a "apps"
+curl -s -X POST -H "VtexIdclientAutCookie: $(vtex local token)" -H 'Content-Type: application/json' \
+  --data @orderform.json https://&lt;cuenta&gt;.vtexcommercestable.com.br/api/checkout/pvt/configuration/orderForm</pre>
+  <p>Guardar una copia de <code>orderform.json</code> antes de editarlo: es la configuración del checkout de la tienda entera.</p>
 
   <h3>5.2 · Agregar el script al checkout</h3>
+  <p>Tampoco se instala nada: es código que se pega en el checkout de la tienda. Dónde, depende de cómo personaliza Mario su checkout:</p>
+  <ul>
+    <li><strong>Por el admin</strong> (lo más común): en la sección de código del checkout (Configuración de la tienda → Checkout → Código, o «Checkout UI Custom» si la tienda la usa).</li>
+    <li><strong>Con una app de tema</strong> (como la tienda de pruebas de Creditop, <code>tienda-simple</code>): en su carpeta <code>checkout-ui-custom/</code>, y se publica con su tema.</li>
+  </ul>
   <ol>
-    <li>En <strong>Storefront → Checkout → Código</strong> de su tienda: copiar el contenido de <code>tienda-simple/checkout-ui-custom/checkout6-custom.js</code> en <code>checkout6-custom.js</code>, y el bloque «Auto-onboarding con Creditop» de <code>checkout6-custom.css</code> en <code>checkout6-custom.css</code>. Si ya tiene código ahí, se agrega al final.</li>
+    <li>Copiar el contenido de <code>tienda-simple/checkout-ui-custom/checkout6-custom.js</code> en su <code>checkout6-custom.js</code>, y el bloque «Auto-onboarding con Creditop» de <code>checkout6-custom.css</code> en su <code>checkout6-custom.css</code>. Si ya tiene código ahí, se agrega al final.</li>
     <li><strong>Cambiar los enlaces de términos y política</strong> (<code>TERMS_URL</code> y <code>POLICY_URL</code> al principio del script) por los PDF de <strong>producción</strong>. Los que trae son los del ambiente de pruebas: falta que alguien de Creditop confirme cuáles son.</li>
   </ol>
   <p>El script le pregunta a la app si el switch está prendido (<code>https://&lt;tienda&gt;/_v/creditop/auto-onboarding</code> contesta <code>{"autoOnboarding": true|false}</code>). Apagado no muestra nada, así que se puede dejar instalado antes de prender el switch.</p>
