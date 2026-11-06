@@ -96,10 +96,10 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 - [ ] Saber qué cuentas VTEX tienen instalada hoy `creditop.creditop` (la 4.x, con `/vtex/init`). En la base de prod
       el único `ecommerce_id=3` es la sucursal de prueba 1440, con el último pedido en marzo; termina con la lista de
       cuentas. Depende de: Oscar / Comercial — quién la instaló.
-- [ ] Publicada `creditop.creditop@5.0.0` (2026-10-28, `vtex publish` desde el tag y `vtex deploy` a las 17:16); falta instalarla sólo en la
-      cuenta del comercio piloto: en VTEX IO las cuentas se actualizan solas dentro de la misma mayor, y en la 5 el
-      AppToken pasa a ser el token de ecommerce de la sucursal, así que una 4.0.x nueva rompería las afiliaciones de
-      las tiendas que ya la tienen. Termina con la 5 instalada en una sola cuenta y las demás en la 4.
+- [ ] Instalar la 5.1.0 en la cuenta VTEX de Mario y hacer la primera compra, siguiendo
+      `artifacts/guia-tienda-mario-5.1.0.html`; termina con una compra suya aprobada en VTEX. Antes, confirmar que la 5
+      (conector `creditop-creditop-v5`) está habilitada para otras cuentas: no está comprobado.
+      Depende de: Comercial / Operaciones — la sucursal y el token de Mario en producción, y el acceso a su cuenta VTEX.
 - [x] ~~Publicar la 5.0.1~~ — 2026-11-05: vtex#22 mergeado (f4e2896), tag `v5.0.1`, publicada, desplegada e instalada en
       `master` y `develop`. Contra la publicada: 4/4 con instancias arriba y 0,8 s una compra sola.
 - [x] ~~Publicar la 5.0.2~~ — 2026-11-05: vtex#23 mergeado (97f4f6e), tag `v5.0.2`, instalada en `master` y `develop`;

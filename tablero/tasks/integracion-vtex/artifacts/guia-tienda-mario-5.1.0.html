@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Guía tienda Mario</title>
+<style>
+  :root {
+    --bg: #f6f6fb; --card: #ffffff; --ink: #1f1d4d; --muted: #5c5a7a; --line: #e3e1f5;
+    --accent: #4b3fe0; --ok: #127a4b; --warn: #9a5b00; --warn-bg: #fff6e5; --code: #f1f0fa;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #13121f; --card: #1c1b2d; --ink: #ecebf7; --muted: #a9a7c4; --line: #2e2c47;
+      --accent: #9b92ff; --ok: #5fd39b; --warn: #f3b860; --warn-bg: #2b2414; --code: #24233a;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #13121f; --card: #1c1b2d; --ink: #ecebf7; --muted: #a9a7c4; --line: #2e2c47;
+    --accent: #9b92ff; --ok: #5fd39b; --warn: #f3b860; --warn-bg: #2b2414; --code: #24233a;
+  }
+  * { box-sizing: border-box }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", sans-serif }
+  main { max-width: 880px; margin: 0 auto; padding: 32px 16px 64px }
+  h1 { font-size: 26px; margin: 0 0 4px }
+  h2 { font-size: 19px; margin: 36px 0 10px; padding-top: 8px; border-top: 1px solid var(--line) }
+  h3 { font-size: 15px; margin: 18px 0 6px }
+  p, li { color: var(--ink) }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 20px }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; margin: 12px 0 }
+  .warn { background: var(--warn-bg); border-color: var(--warn) }
+  .warn strong { color: var(--warn) }
+  .ok { color: var(--ok); font-weight: 600 }
+  code, pre { background: var(--code); border-radius: 6px; font: 13px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace }
+  code { padding: 1px 5px }
+  pre { padding: 12px 14px; overflow-x: auto; white-space: pre }
+  ol, ul { padding-left: 22px }
+  li { margin: 4px 0 }
+  table { width: 100%; border-collapse: collapse; font-size: 14px }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line) }
+  th { color: var(--muted); font-weight: 600 }
+  .who { display: inline-block; font-size: 12px; font-weight: 600; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: 2px }
+  .shots { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin-top: 10px }
+  .shots figure { margin: 0 }
+  .shots img { width: 100%; border: 1px solid var(--line); border-radius: 8px; background: #fff }
+  .shots figcaption { font-size: 12px; color: var(--muted); margin-top: 4px }
+  .wide { grid-column: span 2 }
+  @media (max-width: 560px) { .wide { grid-column: span 1 } h1 { font-size: 22px } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Creditop 5.1.0 en la tienda VTEX de Mario Hernández</h1>
+  <p class="meta">Guía de instalación para el piloto · 6 de noviembre de 2026 · para quien configure la cuenta VTEX de Mario y su sucursal en Creditop · tarea «Integración VTEX» (#102)</p>
+
+  <div class="card">
+    <p><strong>Qué es.</strong> La app de VTEX <code>creditop.creditop</code> versión <strong>5.1.0</strong> pone a Creditop como medio de pago en el checkout. El comprador elige Creditop, VTEX lo manda al wizard de Creditop, y cuando el crédito queda autorizado la tienda recibe el pago aprobado.</p>
+    <p><strong>Lo nuevo en la 5.1.0:</strong> el switch <strong>«Auto-onboarding con Creditop»</strong>. Prendido, el checkout de la tienda pide la fecha de nacimiento, la de expedición de la cédula y la aceptación de los términos de Creditop, y Creditop ya no pide el celular, el código por SMS ni el formulario de datos. Apagado, todo funciona como en la 5.0.</p>
+    <p class="ok">Probado el 6 de noviembre en qa con una copia de la configuración de Mario: compras de punta a punta (crédito autorizado y pedido aprobado en VTEX) con el switch apagado y prendido.</p>
+  </div>
+
+  <div class="card warn">
+    <p><strong>Antes de instalar, confirmar dos cosas.</strong></p>
+    <ol>
+      <li><strong>Que la app 5.x se pueda instalar en la cuenta de Mario.</strong> Está publicada y desplegada por la cuenta <code>creditop</code>, y otras tiendas tienen la 4 instalada. Pero VTEX registra cada versión mayor de un conector de pago como un conector aparte (<code>creditop-creditop-v5</code>), y no está comprobado que la 5 esté habilitada para otras cuentas. Si en el paso 2 el proveedor «Creditop» v5 no aparece, hay que pedirlo a soporte de VTEX.</li>
+      <li><strong>Que el arreglo del cupo rotativo esté en producción</strong> (legacy-backend#1881, en revisión). Sin él, una compra por más de la mitad del cupo disponible termina bien (crédito autorizado, pedido aprobado), pero la última pantalla del comprador, «crédito aprobado», sale en blanco.</li>
+    </ol>
+  </div>
+
+  <h2>1 · En Creditop producción <span class="who">Operaciones</span></h2>
+  <ol>
+    <li>Darle a Mario Hernández una <strong>sucursal de ecommerce</strong> con credencial de VTEX (<code>ecommerce_type_id = 3</code>). Su código (hash) es el <strong>App key</strong> del paso 3.</li>
+    <li>Emitir el <strong>token de ecommerce</strong> de esa sucursal. Es el <strong>App token</strong> del paso 3 y se guarda como una clave: se pega una sola vez en VTEX y no se manda por chat.</li>
+    <li>Si va con auto-onboarding: agregar esa sucursal a la configuración <code>auto_onboarding_allied_branches</code> de producción. Sin esto, aunque la tienda mande los datos, Creditop pide el SMS.</li>
+  </ol>
+
+  <h2>2 · Instalar la app en la cuenta VTEX de Mario <span class="who">Quien tenga acceso a su admin</span></h2>
+  <ol>
+    <li>Instalar <code>creditop.creditop</code> 5.x en el workspace <code>master</code> de su cuenta. Por consola: <code>vtex login &lt;cuenta de Mario&gt;</code> y <code>vtex install creditop.creditop@5.x</code>.</li>
+    <li>En <strong>Apps → Creditop BNPL</strong>:
+      <ul>
+        <li><strong>Ambiente de Creditop: Producción.</strong> Sin esto el conector le habla al ambiente de pruebas.</li>
+        <li><strong>Auto-onboarding con Creditop:</strong> apagado por ahora. Se prende en el paso 5, cuando el checkout ya pida los datos.</li>
+      </ul>
+    </li>
+  </ol>
+  <div class="shots"><figure class="wide"><img src="2026-11-06-vtex/6-switch-en-el-admin-de-master.png" alt="Configuración de la app Creditop BNPL en el admin de VTEX"><figcaption>La configuración de la app en el admin (cuenta de pruebas de Creditop).</figcaption></figure></div>
+
+  <h2>3 · Crear la afiliación y la condición de pago <span class="who">Admin de Mario</span></h2>
+  <ol>
+    <li><strong>Configuración de la tienda → Pago → Proveedores → Nuevo proveedor →</strong> el conector Creditop v5. Datos:
+      <table>
+        <tr><th>Campo</th><th>Valor</th></tr>
+        <tr><td>App key</td><td>el código (hash) de su sucursal de ecommerce en Creditop</td></tr>
+        <tr><td>App token</td><td>el token de ecommerce de esa sucursal</td></tr>
+        <tr><td>Workspace</td><td><code>master</code></td></tr>
+        <tr><td>Modo</td><td>producción (no el de pruebas)</td></tr>
+      </table>
+    </li>
+    <li><strong>Condiciones de pago → nueva → Creditop</strong>, con esa afiliación. Activarla cuando se quiera abrir el medio de pago a los compradores.</li>
+  </ol>
+
+  <h2>4 · Probar sin auto-onboarding <span class="who">Admin de Mario + Creditop</span></h2>
+  <p>Con el switch apagado, una compra eligiendo Creditop tiene que llevar al wizard de Creditop, que pide el celular y el código. En producción una compra crea una solicitud real: coordinar con Operaciones quién compra y cancelar el pedido desde VTEX antes de autorizar el crédito si es sólo de prueba. La cancelación se acepta mientras la solicitud no esté autorizada.</p>
+  <div class="shots">
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/A-switch-apagado/04-pago-sin-campos.png" alt=""><figcaption>Checkout: sólo el bloque de Creditop.</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/A-switch-apagado/07-wizard-pide-celular.png" alt=""><figcaption>Creditop pide el celular…</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/A-switch-apagado/08-codigo-por-sms.png" alt=""><figcaption>…el código por SMS…</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/A-switch-apagado/09-formulario-datos-personales.png" alt=""><figcaption>…y los datos personales.</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/A-switch-apagado/11-listado-mario.png" alt=""><figcaption>Después, el listado con el CreditopX de Mario.</figcaption></figure>
+  </div>
+
+  <h2>5 · Prender el auto-onboarding (opcional) <span class="who">Admin de Mario + Creditop</span></h2>
+  <p>Son tres cosas en la tienda, más la del paso 1.3 en Creditop:</p>
+  <h3>5.1 · Registrar los campos de Creditop en el checkout</h3>
+  <p>Los datos viajan en el pedido como datos propios de la app <code>creditop</code>. Hay que declararlos una vez en la configuración del checkout de su cuenta. Primero se lee la configuración actual, se le agrega la app y se guarda entera:</p>
+<pre>GET  https://&lt;cuenta&gt;.vtexcommercestable.com.br/api/checkout/pvt/configuration/orderForm
+POST https://&lt;cuenta&gt;.vtexcommercestable.com.br/api/checkout/pvt/configuration/orderForm
+     (la misma configuración, con esto en "apps")
+
+"apps": [
+  { "id": "creditop", "major": 1, "fields": ["birthDate", "expeditionDate", "acceptedAt"] }
+]</pre>
+  <p>Si ya trae otras apps en <code>apps</code>, se agrega ésta sin tocar las demás.</p>
+
+  <h3>5.2 · Agregar el script al checkout</h3>
+  <ol>
+    <li>En <strong>Storefront → Checkout → Código</strong> de su tienda: copiar el contenido de <code>tienda-simple/checkout-ui-custom/checkout6-custom.js</code> en <code>checkout6-custom.js</code>, y el bloque «Auto-onboarding con Creditop» de <code>checkout6-custom.css</code> en <code>checkout6-custom.css</code>. Si ya tiene código ahí, se agrega al final.</li>
+    <li><strong>Cambiar los enlaces de términos y política</strong> (<code>TERMS_URL</code> y <code>POLICY_URL</code> al principio del script) por los PDF de <strong>producción</strong>. Los que trae son los del ambiente de pruebas: falta que alguien de Creditop confirme cuáles son.</li>
+  </ol>
+  <p>El script le pregunta a la app si el switch está prendido (<code>https://&lt;tienda&gt;/_v/creditop/auto-onboarding</code> contesta <code>{"autoOnboarding": true|false}</code>). Apagado no muestra nada, así que se puede dejar instalado antes de prender el switch.</p>
+
+  <h3>5.3 · Prender el switch</h3>
+  <p>En <strong>Apps → Creditop BNPL</strong>, marcar «Auto-onboarding con Creditop» y guardar. La ruta de arriba tarda hasta un minuto en contestar <code>true</code>.</p>
+
+  <h3>Qué ve el comprador con el switch prendido</h3>
+  <div class="shots">
+    <figure class="wide"><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/B-switch-prendido/05-pago-campos-completos.png" alt=""><figcaption>El checkout pide nacimiento, expedición y aceptación al elegir Creditop. Sin ellos no deja comprar.</figcaption></figure>
+    <figure class="wide"><img src="2026-11-06-vtex/4-checkout-autoonb/06-fecha-de-menor-de-edad.png" alt=""><figcaption>Valida las fechas: mayor de 18 y la expedición después del nacimiento. La aceptación se pide en cada compra.</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/B-switch-prendido/08-listado-mario.png" alt=""><figcaption>Creditop va directo al listado: sin celular, código ni formulario.</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/B-switch-prendido/13-firma-de-documentos.png" alt=""><figcaption>De ahí sigue igual: confirmación, fecha, plan, firma…</figcaption></figure>
+    <figure><img src="2026-11-06-vtex/7-mario-5.1.0-en-master/B-switch-prendido/15-codigo-de-firma.png" alt=""><figcaption>…y el código de la firma, que el auto-onboarding no saltea.</figcaption></figure>
+  </div>
+
+  <h2>6 · Lo que hay que saber en el piloto</h2>
+  <table>
+    <tr><th>Qué</th><th>Qué pasa</th><th>Qué hacer</th></tr>
+    <tr><td>Primeras compras después de instalar</td><td>El pago tarda 13 a 19 s mientras la app arranca en VTEX; después, menos de 1 s.</td><td>Nada: no falla. Hacer una compra de prueba al instalar.</td></tr>
+    <tr><td>Compra por más de la mitad del cupo rotativo</td><td>Crédito autorizado y pedido aprobado, pero la pantalla final queda en blanco.</td><td>Se arregla con legacy-backend#1881 en producción.</td></tr>
+    <tr><td>La tienda cancela un pedido</td><td>VTEX lo cancela; si el crédito no estaba autorizado, la solicitud sigue viva en Creditop.</td><td>Pendiente de una regla de Producto.</td></tr>
+    <tr><td>Reembolso desde VTEX</td><td>El conector contesta «reembolso manual»: Creditop no se entera solo.</td><td>Avisar a Operaciones. Pendiente de una regla de Producto.</td></tr>
+    <tr><td>Un cobro que no contesta al facturar</td><td>Pasó una vez en pruebas. VTEX lo reintenta solo hasta un día y manda un correo de «error de captura».</td><td>Definir quién recibe ese correo en la cuenta de Mario.</td></tr>
+  </table>
+
+  <h2>Para volver a probar en qa <span class="who">Creditop</span></h2>
+  <p>La copia de Mario en qa (comercio 350, sucursal <code>1126106a</code>, afiliación «Mario Hernández (qa)» en la cuenta VTEX <code>creditop</code>) sigue armada. La receta de las corridas y los comandos están en la pila de la tarea, en los bloques del 6 de noviembre.</p>
+</main>
+</body>
+</html>
