@@ -15,9 +15,8 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 - [x] ~~Enlazar el conector 5.1.0 (vtex#25) en `autoonb` y comprar con el switch prendido~~ — 2026-11-06: el checkout
       real saltó celular, código y formulario (solicitud 504704 al listado, sin OTP), tras corregir la ruta del switch y
       el `Proxy-Authorization` de la lectura del pedido (6b1cc44, local).
-- [ ] Subir a vtex#25 los commits locales 2a939c1 y 6b1cc44 (la ruta del switch y sus correcciones) y sumar la evidencia
-      a la descripción; termina con el PR al día.
-      Depende de: Miguel — el OK para el push.
+- [x] ~~Subir a vtex#25 la ruta del switch y sus correcciones~~ — 2026-11-06: 2a939c1 y 6b1cc44 en la rama del PR, con
+      la evidencia de punta a punta en la descripción.
 - [ ] Publicar e instalar la 5.1.0 en `master` cuando aprueben vtex#25; termina cuando el switch aparece en la
       configuración de la app en `master`.
       Depende de: Joel / Oscar — la aprobación del PR.
