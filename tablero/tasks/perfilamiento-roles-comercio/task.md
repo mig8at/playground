@@ -21,8 +21,11 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [ ] Mergear #366 a `main` y taguear; termina con el despliegue en prod.
   Depende de: Oscar — aprobar #366.
 - [ ] Dar el permiso a los Admin y Superadmin comercio de los comercios que diga Oscar, en cada ambiente;
-  termina con la lista en la pila.
-  Depende de: Oscar — qué comercios.
+  termina con la lista en la pila. ⚠ **En un ambiente, sólo después de que el recorte esté desplegado ahí**:
+  sin el recorte, el permiso deja ver el perfil de cualquier cédula. El recorte (`alliedIdsOf` en
+  `ProfilingReviewController`) está en `develop` (#367), no en `staging` ni en `main` (medido el 2026-11-06), y
+  esta aplicación no tiene rama `qa`. En prod, sólo después de que termine el pendiente anterior.
+  Depende de: Oscar — qué comercios. Depende de: el despliegue de #366 en prod, para prod.
 - [x] Quitar de la base compartida la columna `allieds.allow_risk_profile_view` y su registro en `migrations`
   — 2026-11-03, después del despliegue de #367.
 - [ ] Cerrar `legacy-application#171`: su contenido ya está en `main` por el merge de `develop`
@@ -111,13 +114,19 @@ WHERE r.name = 'Admin comercio' AND u.status = 1 AND u.allied_id = 94;
 
 A un solo usuario: `SELECT p.id, 'App\\Models\\User', 12345 FROM permissions p WHERE p.name = 'view user validation module' AND p.guard_name = 'web'`.
 
-**Quitarlo:**
+**Quitarlo**, con el mismo `WHERE` que al darlo, para que alcance a los mismos usuarios (también a quien tiene
+el comercio por `multiple_allieds`). Quita el permiso también a quien ya lo tuviera antes de esta tarea: el
+`SELECT` previo lo muestra. Esta forma no se corrió todavía; la que se probó en dev filtraba por
+`u.allied_id = 94 AND u.user_profile_id IN (6, 7)` y dejaba afuera a los de `multiple_allieds`.
 
 ```text
 DELETE mp FROM model_has_permissions mp
-JOIN permissions p ON p.id = mp.permission_id AND p.name = 'view user validation module'
+JOIN permissions p ON p.id = mp.permission_id AND p.name = 'view user validation module' AND p.guard_name = 'web'
 JOIN users u ON u.id = mp.model_id AND mp.model_type = 'App\\Models\\User'
-WHERE u.allied_id = 94 AND u.user_profile_id IN (6, 7);
+JOIN model_has_roles mr ON mr.model_id = u.id AND mr.model_type = 'App\\Models\\User'
+JOIN roles r ON r.id = mr.role_id
+WHERE r.name IN ('Admin comercio', 'Superadmin comercio')
+  AND (u.allied_id = 94 OR JSON_CONTAINS(COALESCE(u.multiple_allieds, '[]'), '94'));
 ```
 
 Después de dar o quitar: `php artisan permission:cache-reset`. Antes de correrlo en prod, un `SELECT`

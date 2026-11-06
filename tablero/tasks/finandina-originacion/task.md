@@ -50,7 +50,16 @@ adelante depende de las respuestas de la fase 0.
 
 - [ ] Conectar la preaprobación de la 149 al motor de cupo: la clave de Finandina hacia `creditop_x` en
   pre-approvals-service (en local, el alias en el mock) y la fuente de insumos tomando el cupo del cliente en vez
-  del tope de la línea. Termina con un caso aprobado con cupo menor que 15 MM y uno rechazado, en local.
+  del tope de la línea. ⚠ Falta decidir qué campo es «el cupo del cliente». **No es
+  `users_category_log.current_available_amount`**: esa es la bolsa mensual del perfil, no el cupo de la persona
+  (`knowledge/creditopx-quota`). Los candidatos son el `max_amount` de la categoría o lo que devuelve
+  `available-quota`; se elige antes de escribir la clase. Termina con un caso aprobado con cupo menor que
+  15 MM y uno rechazado, en local.
+- [ ] Decidir sobre qué score se aplica el corte 646. La política pide Experian Advance 1.1, y el motor
+  (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Con el corte
+  sobre ese promedio se aprueba o rechaza con otro número. Termina con la decisión escrita y, si es leer el
+  Advance 1.1, con su pendiente de código.
+  Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
 - [ ] Cargar en las categorías del motor lo que ya existe como criterio: edad 21–64, ocupación empleado o
   pensionado, ingreso ≥ 1 SMMLV, antigüedad 6 meses, experiencia de 12 meses, y score 646 con score 0. Termina
   con un caso fuera de política por cada criterio rechazado por la preaprobación (las reglas del listado no
@@ -240,7 +249,7 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 | experiencia > 12 meses | config | `financial_history_length` (`:699`) o `time_finance_sector` |
 | obligación ≥ 3 MM / deudas ≤ 48 meses | nuevo | `min_vigent_obligations` cuenta obligaciones, no monto |
 | sin experiencia máx. 5 MM | parcial | categoría aparte con `max_amount`; no hay criterio «sin experiencia» |
-| score 646 y score 0 | parcial | `lender_datacredito_rules.score` + `allow_0_score` (`DatacreditoRuleEvaluator.php:86`). ⚠ el score es el PROMEDIO de los modelos del HDC+ (`Experian.php:545`), no el Advance 1.1 filtrado |
+| score 646 y score 0 | parcial | `lender_datacredito_rules.score` + `allow_0_score` (`DatacreditoRuleEvaluator.php:86`). ⚠ el score es el PROMEDIO de los modelos del HDC+ (`Experian.php:547`), no el Advance 1.1 filtrado |
 | veces el ingreso por riesgo | nuevo | segmentos AA…Z no existen; `available_amount_multiplier` multiplica la capacidad, no el ingreso, y no tiene piso |
 | capacidad de pago | parcial | `life_percentage` plano por categoría (`:1374`); las cuotas son las de Experian con el ajuste de CreditopX (descuenta el 70 % de tarjetas, `:1296`); no existe cuota potencial |
 | tasa de modelación | parcial | el cupo usa `creditLines->rate` (`:1367`); la de la categoría sólo cambia la tasa mostrada |
@@ -248,7 +257,7 @@ categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual 
 | monto, plazo, tasa | config | `credit_line_by_lenders` y `max_amount`/`max_fee_number` de la categoría |
 | seguro 1.660 por millón | config | `lenders_by_allied.insurance_percentage_per_million`, por comercio |
 | FGA 5 % / 9 % por score | config (combinatorio) | `lender_users_categories.FGA` con una regla `min_score=856` primero; multiplica las categorías con la tabla de riesgo; hoy entra al capital |
-| 2 créditos al mes por cliente | nuevo | no existe; `ActiveCreditRepository` sólo mira créditos en estado 1 y los de Finandina quedarían en 8 |
+| 2 créditos al mes por cliente | nuevo | no existe; `ActiveCreditRepository` sólo cuenta CreditopX (`l.response_type = 2`, `creditop_x_requests_history.status = 1`): un crédito de Finandina por el riel 4 no entra, termine donde termine (las solicitudes llegan a 11, ver la receta) |
 | tope de desembolsos (mes o día) | nuevo | el cupo mensual es por perfil, no por entidad; no hay tope diario |
 | obligaciones con Finandina | externo | sólo Finandina lo sabe con certeza; el HDC+ trae la entidad de cada obligación pero ningún criterio la filtra |
 | identidad ADO | config | `lender_identity_validation_types` de la entidad; `requires_restrictive_list_check` no lo lee nadie |

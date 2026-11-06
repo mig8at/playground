@@ -47,8 +47,11 @@ ramas: originacion-delegada
 - [x] ~~Generalizar el backend~~ — pasos 1 a 4 en legacy-backend (26fe0cbe6, 05fc86d4a, e6d79b57c,
   c8e1845ea); la foto de después es igual a la de antes en cada paso.
 - [ ] Probar una entidad del riel 4 que no es Credifamilia: listar opciones, elegir fecha, simular cuotas y
-  autorizar sin formalización. Termina con esos pasos corridos en local. Depende de: una fuente de insumos
-  para esa entidad (la de Finandina es de #107).
+  autorizar sin formalización. Termina con esos pasos corridos en local. La entidad de prueba es Finandina
+  (149), que ya armó #107 en local: `tablero/tasks/finandina-originacion/artifacts/finandina-local-149.sql`, el
+  comercio de `harness/merchant-specs/finandina.json` y la suite `harness/suites/finandina.json`, sobre la rama
+  local `feat/finandina-originacion-delegada` de legacy-backend (519495056). Ya no espera a #107: falta correr
+  la suite con este código y anotar el resultado.
 - [ ] Correr las migraciones `2026_10_30_120000` y `2026_10_30_120100` en cada ambiente ANTES o junto con el
   despliegue: sin el perfil sembrado, Credifamilia deja de calcular el plan de pago. Termina con la fila de
   la 24 y la de Materiales en `delegated_origination_profiles` de cada base (dev/qa/staging comparten una).
@@ -70,6 +73,10 @@ legalización y cierre ante la entidad) se resuelve por la configuración de la 
 que es de la integración de Credifamilia se queda como está. Credifamilia tiene que comportarse igual que
 antes: es el primer usuario del riel y está en producción. Habilita a Finandina (#107).
 
+Lo que todavía sigue atado al 24 (el comprobante de Materiales, el sondeo de la preaprobación en el front, el
+armador llamado sin entidad, la firma sin `SigningV1` y la formalización) está en Pendientes: **es parte de esta
+tarea, no deuda aceptada**, y el objetivo no se cumple hasta cerrarlo.
+
 ## Dónde se toca
 
 Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
@@ -88,7 +95,8 @@ Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
 - Cálculo: `Lender/CredifamiliaLenderProfile.php`, que tira error si el id no es de Credifamilia,
   `Engine/CredifamiliaAmortizationEngine.php` y `CredifamiliaPayloadBuilder.php` (`engineLenderIdFor`).
 - Rutas: `Modules/Onboarding/routes/api.php:285-303` (`payment-plan/credifamilia/*`).
-- Firma: ya es configurable por entidad y no se toca. `PromissoryNoteController::show` prueba primero el camino
+- Firma: con `SigningV1` ya es configurable por entidad, y ese camino no se toca. El hueco es el segundo paso:
+  una entidad sin `SigningV1` cae al juego fijo de Credifamilia (pendiente). `PromissoryNoteController::show` prueba primero el camino
   de `SigningV1` (`netco_lender_settings.enabled`), después el juego fijo de Credifamilia
   (`CredifamiliaDocumentsBuilder`, sólo sus ids) y después el catálogo `lender_signing_documents`. En prod la 24
   firma por `SigningV1`.
@@ -113,7 +121,9 @@ Inventario en `origin/main` de legacy-backend 174120193 (detalle en la pila y en
    - el perfil (fianza, plazos, días de pago) sale de la configuración de la entidad;
    - el cálculo del plan se resuelve por entidad;
    - las rutas pasan a `payment-plan/{slug}/…`, manteniendo las de Credifamilia mientras el front no cambie;
-   - la firma y los documentos de legalización salen de la configuración de la entidad;
+   - la firma y los documentos de legalización salen de la configuración de la entidad: la firma por
+     `SigningV1` ya lo hace; falta que una entidad sin `SigningV1` no caiga al juego de Credifamilia, y que la
+     formalización tenga clases por entidad (pendientes);
    - la constante pasa a llamarse «originación delegada».
 3. **Front:** la señal del backend reemplaza la lista de ids.
 4. **Foto de después** igual a la de antes, y una entidad de prueba del riel 4 que no es Credifamilia
