@@ -570,13 +570,7 @@ const status = computed(() => {
             <span class="follow-dot" aria-hidden="true"></span>{{ followClaude ? 'Siguiendo a Claude' : 'Quieto' }}
           </button>
         </nav>
-        <div v-if="isLive" class="region-head live-head">
-          <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
-          <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
-          <span class="live-head-gap"></span>
-          <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
-        </div>
-        <div v-else class="region-head"><span>navegador</span></div>
+        <div v-if="!isLive" class="region-head"><span>navegador</span></div>
         <div ref="editorBody" class="region-body live-body">
           <p v-if="liveError" class="err pad">{{ liveError }}</p>
           <p v-if="viewError" class="err pad">{{ viewError }}</p>
@@ -769,6 +763,10 @@ const status = computed(() => {
     <footer class="statusbar">
       <!-- En vivo, la URL vive acá: un campo que se lee como texto y se edita como dirección (Enter navega). -->
       <template v-if="isLive && view.kind === 'live'">
+        <div class="layout-controls nav-controls" role="group" aria-label="Navegación">
+          <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
+          <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="liveNav('reload')"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+        </div>
         <span class="sb-state">{{ liveStatusLabel }} ·</span>
         <form class="sb-url" @submit.prevent="liveNav('goto', liveURL)">
           <input id="live-url" v-model="liveURL" aria-label="URL de la página en vivo (Enter para ir)" spellcheck="false" autocomplete="off" />
@@ -778,6 +776,7 @@ const status = computed(() => {
       <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Dispositivo">
         <button type="button" class="region-action" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" title="Escritorio" aria-label="Ver como escritorio" @click="setDevice('desktop')"><span class="ui-icon" data-icon="desktop" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Teléfono (Pixel 7): cambiar reabre la sesión en la misma página" aria-label="Ver como teléfono" @click="setDevice('mobile')"><span class="ui-icon" data-icon="phone" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
       </div>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
@@ -847,10 +846,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .pflow-name:hover { text-decoration: underline }
 
 /* en vivo */
-.live-head { gap: var(--space-1) }
-.live-head-gap { flex: 1 }
-/* La base estira el primer hijo de un encabezado (es el título); acá son botones y se quedan de su tamaño. */
-.live-head > .region-action { flex: none }
 /* La URL en el pie: casi imperceptible hasta que se la toca. Hereda el tamaño y el color del pie. */
 .sb-state { flex: none; white-space: nowrap }
 .sb-url { flex: 1; min-width: 0; display: flex; margin-left: var(--space-1) }
@@ -859,6 +854,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .sb-url input:hover { border-color: var(--border) }
 .sb-url input:focus { outline: none; border-color: var(--primary); color: var(--foreground) }
 .device-controls { margin-left: var(--space-2) }
+.nav-controls { flex: none; margin-right: var(--space-1) }
 /* Escritorio y teléfono: no están en el set compartido (tools/ui); se dibujan acá con el mismo formato (máscara SVG). */
 .ui-icon[data-icon="desktop"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2220%22%20height%3D%2214%22%20x%3D%222%22%20y%3D%223%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2017v4%22%2F%3E%3C%2Fsvg%3E") }
 .ui-icon[data-icon="phone"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2214%22%20height%3D%2220%22%20x%3D%225%22%20y%3D%222%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M12%2018h.01%22%2F%3E%3C%2Fsvg%3E") }
