@@ -1,0 +1,23 @@
+{
+  "node": "documentos/context",
+  "section": "Con las cuotas congeladas, el documento y el crédito cuentan lo mismo",
+  "kind": "addition",
+  "source": "verified",
+  "verified": "2026-11-06",
+  "as_asked": "¿Por qué el pagaré muestra la primera cuota meses después de la compra, y qué pasa con ese crédito después?",
+  "objetivo": "Que lo que se firma con cuotas congeladas y lo que queda registrado en el crédito no se separen.",
+  "se_deduce_leyendo": "cómo el congelamiento corre las fechas y el interés en los documentos, de dónde lo toma el crédito al nacer y qué cambios bloquea mientras dura",
+  "archivos": {
+    "legacy-application": [
+      "app/Http/Controllers/Customer/PromissoryNoteController.php",
+      "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php"
+    ],
+    "legacy-backend": [
+      "Modules/Loans/App/Services/PromissoryNoteService.php",
+      "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
+      "Modules/Loans/App/Services/PaymentSchedule/FeeChangeScheduleService.php",
+      "Modules/Loans/App/Services/CreditChangeValidationService.php"
+    ]
+  },
+  "text": "**Lo que imprimen los documentos de una compra con cuotas congeladas es lo que queda en el crédito.** Una entidad puede vender con las primeras cuotas congeladas: el cliente compra hoy y empieza a pagar N meses después. Cuando la entidad lo tiene activo, la compra mensual de CreditopX lo refleja en los documentos que se firman:\n\n- Las opciones de fecha de pago se corren N meses, y la fecha que elige el cliente ya es su primera cuota real.\n- El interés del primer período se cuenta desde el inicio de la amortización, no desde el día siguiente a la compra.\n- El pagaré y el plan de pagos llevan cuántas cuotas se congelan, el calendario congelado y la fecha en que empieza a amortizar. Sin congelamiento esos datos van en cero, vacíos y nulos, y las plantillas no cambian.\n- El cupo rotativo no se congela: su documento lleva cero cuotas congeladas.\n\nAl crearse el crédito, las cuotas congeladas y la fecha de inicio de amortización salen de lo que imprimieron los documentos, no de la configuración que tenga la entidad en ese momento. Así lo firmado y lo registrado no se separan si la configuración cambia entre la firma y el desembolso. El crédito nace al día, como cualquier otro, y su próxima fecha de pago ya es la de la primera cuota real.\n\nMientras el crédito siga congelado, los dos monolitos rechazan cambiarle la fecha de pago o el plazo, y el mensaje dice desde qué día se puede. Si se regenera el plan de pagos de un crédito todavía congelado, por ejemplo tras un abono que reduce la cuota, el plan nuevo conserva las cuotas congeladas; en una refinanciación, no.\n\nSi un cliente reclama que su documento muestra la primera cuota más lejos de lo normal, lo primero es ver si la entidad tenía el congelamiento activo cuando se armó el documento: lo firmado manda sobre la configuración de hoy."
+}
