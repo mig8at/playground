@@ -1,7 +1,9 @@
 package main
 
 import (
+	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -13,4 +15,21 @@ func TestTakeTabFlag(t *testing.T) {
 		t.Fatalf("quedó %v con pestaña %q", got, tabID)
 	}
 	tabID = ""
+}
+
+// Todo pedido a la API tiene que llevar la pestaña: uno que arma su propio http.Get le habla a la última que se abrió
+// (le pasó a `shot`, que sacaba la foto de otra pestaña). call y shot son los únicos que arman el pedido.
+func TestEveryAPIRequestCarriesTheTab(t *testing.T) {
+	src, err := os.ReadFile("main.go")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, bad := range []string{"http.Get(", "http.Post(", "http.Head("} {
+		if strings.Contains(string(src), bad) {
+			t.Errorf("main.go usa %s: ese pedido no lleva X-Navegador-Tab", bad)
+		}
+	}
+	if n := strings.Count(string(src), `"X-Navegador-Tab"`); n < 2 {
+		t.Errorf("el encabezado de la pestaña aparece %d veces; call y shot lo ponen", n)
+	}
 }

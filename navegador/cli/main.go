@@ -859,7 +859,12 @@ func shot(args []string) error {
 	if len(args) < 1 {
 		usage()
 	}
-	res, err := http.Get(api + "/api/live/shot")
+	// La foto es binaria y no pasa por call: el encabezado de la pestaña va a mano (sin él, sacaba la de la última).
+	req, _ := http.NewRequest(http.MethodGet, api+"/api/live/shot", nil)
+	if tabID != "" {
+		req.Header.Set("X-Navegador-Tab", tabID)
+	}
+	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return err
 	}
