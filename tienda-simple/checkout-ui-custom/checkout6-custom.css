@@ -284,3 +284,14 @@ body > .container:last-of-type {
   font-size: 0.875rem;
   line-height: 1.4;
 }
+
+/* ── Auto-onboarding con Creditop (checkout6-custom.js) ─────────────────────────────────────────────────────
+ * Las fechas y la aceptación, dentro del bloque de Creditop en el paso de pago. */
+#creditop-auto-onboarding { margin-top: 16px; padding: 16px; border: 1px solid #e3e1f5; border-radius: 12px; background: #fafaff }
+#creditop-auto-onboarding .cr-ao-title { margin: 0 0 4px; font-weight: 600; color: #1f1d4d }
+#creditop-auto-onboarding .cr-ao-help { margin: 0 0 12px; font-size: 13px; color: #5c5a7a }
+#creditop-auto-onboarding .cr-ao-field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; font-size: 13px; color: #1f1d4d }
+#creditop-auto-onboarding .cr-ao-field input { height: 40px; padding: 0 12px; border: 1px solid #cfcce8; border-radius: 8px; font: inherit }
+#creditop-auto-onboarding .cr-ao-accept { display: flex; gap: 8px; align-items: flex-start; font-size: 13px; color: #1f1d4d; line-height: 1.4 }
+#creditop-auto-onboarding .cr-ao-accept a { color: #4b3fe0 }
+#creditop-auto-onboarding .cr-ao-error { margin: 12px 0 0; font-size: 13px; color: #b42318 }
