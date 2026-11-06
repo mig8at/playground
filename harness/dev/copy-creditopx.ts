@@ -146,13 +146,16 @@ async function build() {
     }
 
     // Credencial de ecommerce y token, como los de la sucursal de prueba VTEX del target
-    const like = await one<Row>('SELECT aec.ecommerce_type_id FROM allied_ecommerce_credentials aec JOIN allied_branches b ON b.id = aec.allied_branch_id WHERE b.hash = ?', [ECOMMERCE_LIKE]);
+    // customer_key/customer_secret/headers son la llave de la TIENDA VTEX (cifradas con la APP_KEY del target): con ellas
+    // el backend le avisa a VTEX el desenlace (VtexNotifier). Sin ellas el aviso falla con «The payload is invalid» y el
+    // pedido queda en Authorizing (2026-11-06). Es la misma tienda de pruebas: se copian cifradas, sin leerlas.
+    const like = await one<Row>('SELECT aec.ecommerce_type_id, aec.customer_key, aec.customer_secret, aec.headers FROM allied_ecommerce_credentials aec JOIN allied_branches b ON b.id = aec.allied_branch_id WHERE b.hash = ?', [ECOMMERCE_LIKE]);
     if (!like) throw new Error(`la sucursal ${ECOMMERCE_LIKE} no tiene credencial de ecommerce en ${TARGET}`);
     const tok = await one<Row>("SELECT tokenable_type FROM personal_access_tokens WHERE name = 'ecommerce-payment-link' LIMIT 1");
     if (!tok) throw new Error(`no hay tokens de payment-link en ${TARGET} para copiar su forma`);
     const credential = randomBytes(20).toString('hex');
     const plainToken = randomBytes(30).toString('base64url').slice(0, 40);
-    plan.push({ table: 'allied_ecommerce_credentials', key: 'credential', row: { allied_id: ALLIED, allied_branch_id: { ref: 'branch' }, credential, ecommerce_type_id: like.ecommerce_type_id, created_at: NOW, updated_at: NOW }, note: `tipo ${like.ecommerce_type_id}, como la de ${ECOMMERCE_LIKE}; la credencial es nueva (no se muestra)` });
+    plan.push({ table: 'allied_ecommerce_credentials', key: 'credential', row: { allied_id: ALLIED, allied_branch_id: { ref: 'branch' }, credential, ecommerce_type_id: like.ecommerce_type_id, customer_key: like.customer_key, customer_secret: like.customer_secret, headers: like.headers, created_at: NOW, updated_at: NOW }, note: `tipo ${like.ecommerce_type_id} y las llaves de la tienda (cifradas) de ${ECOMMERCE_LIKE}; la credencial es nueva (no se muestra)` });
     plan.push({ table: 'personal_access_tokens', key: 'token', row: { tokenable_type: tok.tokenable_type, tokenable_id: { ref: 'branch' }, name: 'ecommerce-payment-link', token: createHash('sha256').update(plainToken).digest('hex'), abilities: '["ecommerce"]', created_at: NOW, updated_at: NOW }, note: 'el texto queda en harness/.env.' + TARGET });
     return { hash, credential, plainToken };
 }
@@ -225,7 +228,7 @@ try {
     for (const [t, ps] of byTable) {
         console.log(`  ── ${t} · ${ps.length} fila(s)`);
         for (const p of ps) {
-            const shown = Object.entries(p.row).filter(([k]) => !['created_at', 'updated_at'].includes(k) && !(t === 'allied_ecommerce_credentials' && k === 'credential') && !(t === 'personal_access_tokens' && k === 'token'));
+            const shown = Object.entries(p.row).filter(([k]) => !['created_at', 'updated_at'].includes(k) && !(t === 'allied_ecommerce_credentials' && ['credential', 'customer_key', 'customer_secret', 'headers'].includes(k)) && !(t === 'personal_access_tokens' && k === 'token'));
             console.log(`     ${p.note ? `(${p.note}) ` : ''}${shown.map(([k, v]) => `${k}=${show(v)}`).join(' · ')}`);
         }
     }
