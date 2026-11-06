@@ -1,0 +1,20 @@
+{
+  // Pie: una línea.
+  "footer": {
+    "blocks": ["footer-layout.desktop", "footer-layout.mobile"]
+  },
+  "footer-layout.desktop": {
+    "children": ["rich-text#pie"]
+  },
+  "footer-layout.mobile": {
+    "children": ["rich-text#pie"]
+  },
+  "rich-text#pie": {
+    "props": {
+      "text": "Tienda de pruebas de CreditOp · Paga a cuotas al finalizar la compra",
+      "textAlignment": "CENTER",
+      "textPosition": "CENTER",
+      "blockClass": "pie"
+    }
+  }
+}

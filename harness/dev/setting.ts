@@ -2,7 +2,7 @@
 //
 //   E2E_TARGET=local node dev/setting.ts set <clave> '<json>' [--apply]          sólo local: fija el valor
 //   E2E_TARGET=dev   node dev/setting.ts add <clave> <lista> <comercio|hash> [--apply] agrega un comercio (id) o una
-//                    sucursal (hash, p. ej. `add auto_onboarding_allied_branches hashes c390eed9`) a la lista
+//                    sucursal (hash, p. ej. `add auto_onboarding_allied_branches hashes <hash>`) a la lista
 //   E2E_TARGET=dev   node dev/setting.ts remove <clave> <lista> <comercio|hash> [--apply]
 //   E2E_TARGET=dev   node dev/setting.ts undo <foto.json> [--apply]             deshace desde la foto
 //

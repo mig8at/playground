@@ -1,0 +1,24 @@
+{
+  "semanticColors": {
+    "background": {
+      "action-primary": "#4c39ff",
+      "hover-action-primary": "#3a28e0",
+      "active-action-primary": "#2f1fc4"
+    },
+    "border": {
+      "action-primary": "#4c39ff",
+      "hover-action-primary": "#3a28e0",
+      "active-action-primary": "#2f1fc4"
+    },
+    "text": {
+      "action-primary": "#4c39ff",
+      "link": "#4c39ff"
+    },
+    "on": {
+      "action-primary": "#ffffff"
+    },
+    "hover-on": {
+      "action-primary": "#ffffff"
+    }
+  }
+}

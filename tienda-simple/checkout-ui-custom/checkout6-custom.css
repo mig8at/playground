@@ -1,0 +1,286 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
+
+/* Logo de CreditOp en el encabezado del checkout, en lugar de «Place your logo here». */
+body > .container > a:first-child {
+  background: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMzIgMzAiIGZpbGw9Im5vbmUiPgo8cGF0aCBmaWxsPSIjNGMzOWZmIiBkPSJNNTIuNDY3IDE5LjAzNWMuMjMtLjA5Ni40MjktLjE4OC42MTgtLjI4MSAxLjY4OS0uODQ0IDMuMDEtMi4wMjUgMy45MjgtMy41MDguOTE2LTEuNDgzIDEuMzgyLTMuMTcyIDEuMzgyLTUuMDI1cy0uNDY2LTMuNTQyLTEuMzgyLTUuMDI1Yy0uOTE4LTEuNDgzLTIuMjQtMi42NjItMy45MjgtMy41MDhDNTEuNC44NDggNDkuNDIuNDIxIDQ3LjIuNDIxSDM1LjY0OWMtLjk3IDAtMS43NTIuNzU5LTEuNzUyIDEuNjk0djI1Ljg0NGMwIC44MTUuNjU2IDEuNDg3IDEuNDk3IDEuNTMyYTQ0LjU5OCA0NC41OTggMCAwIDAgNC42MDcgMGMuODQ3LS4wNDUgMS41MDgtLjcxNSAxLjUwOC0xLjUzMlYyMC4wMmguODZjMS4wNyAwIDIuMDU2LjUxOCAyLjYzOCAxLjM4NWw0LjkyNyA3LjM0NWMuMjcxLjQwNS43MjcuNjY3IDEuMjI2LjY5NSAxLjE5My4wNjggMi40MDIuMTAzIDMuNi4xMDNoLjIyYTYzIDYzIDAgMCAwIDIuODIxLS4wNzJjLjMxNS0uMDE3LjYyMy0uMTY0Ljc4My0uNDI5YS44NS44NSAwIDAgMC0uMDItLjkyM2wtNi4wOTctOS4wOTN6bS0xLjk0LTguODk2YzAgLjU4OC0uMTQgMS4xMy0uNDE2IDEuNjEyYTIuOSAyLjkgMCAwIDEtMS4xNTkgMS4xMmMtLjQ5OS4yNjctMS4wODguNDAzLTEuNzUuNDAzaC01LjAzMWEuNjQ1LjY0NSAwIDAgMS0uNjU3LS42MzVWNy42MDJjMC0uMzUyLjI5My0uNjM1LjY1Ny0uNjM1aDUuMDMxYy42NjIgMCAxLjI1My4xMzYgMS43NS40MDNhMi45IDIuOSAwIDAgMSAxLjE1OSAxLjEyYy4yNzYuNDgyLjQxNyAxLjAzNy40MTcgMS42NTF6TTExMy4wNjUgMi4zMjNjLTIuMzMxLTEuMjYzLTQuOTgtMS45MDUtNy44NzQtMS45MDVoLTEwLjc1Yy0uOTY5IDAtMS43NTIuNzU5LTEuNzUyIDEuNjk0djI1LjU5NWMwIC45MzcuNzg2IDEuNjk0IDEuNzUzIDEuNjk0aDEwLjc0OWMyLjg5NCAwIDUuNTQ1LS42NCA3Ljg3NC0xLjkwNCAyLjMzMi0xLjI2NiA0LjE4My0zLjAyIDUuNTA3LTUuMjIgMS4zMjEtMi4yIDEuOTkyLTQuNjc5IDEuOTkyLTcuMzY5cy0uNjcxLTUuMTctMS45OTItNy4zNjhjLTEuMzIxLTIuMTk3LTMuMTc1LTMuOTU1LTUuNTA3LTUuMjJ6bS0xMi43NjMgNS43YzAtLjU4Ni40OS0xLjA2IDEuMDk2LTEuMDZoMy4xNThjMS42MTQgMCAzLjA1NC4zNCA0LjI4MiAxLjAxM2E3LjEgNy4xIDAgMCAxIDIuODQ4IDIuODE0Yy42NjkgMS4yMDIgMS4wMDggMi41ODkgMS4wMDggNC4xMjNzLS4zMzkgMi45MjItMS4wMDggNC4xMjRhNy4xIDcuMSAwIDAgMS0yLjg0OCAyLjgxM2MtMS4yMjYuNjczLTIuNjY4IDEuMDEyLTQuMjgyIDEuMDEyaC0zLjE1OGMtLjYwNiAwLTEuMDk2LS40NzMtMS4wOTYtMS4wNTlWOC4wMjNNMTMzLjEyOC4zNzdhOTEgOTEgMCAwIDAtMi4yNTctLjAyOGgtLjAxMmMtLjc0OSAwLTEuNTA3LjAwOS0yLjI1OC4wMjgtLjg2Ni4wMi0xLjU0NC42OTYtMS41NDQgMS41MzRWMjcuOTJjMCAuODM3LjY3NiAxLjUxMSAxLjUzOSAxLjUzNS43MjkuMDIgMS40NzEuMDMgMi4yLjAzaC4wNjNjLjc1NCAwIDEuNTE4LS4wMTIgMi4yNzEtLjAzLjg2My0uMDI0IDEuNTM5LS42OTggMS41MzktMS41MzVWMS45MTFjMC0uODM4LS42NzgtMS41MTMtMS41NDQtMS41MzR6TTE2NC41MjEuNDJoLTIxLjkzOWMtLjg0MSAwLTEuNTM5LjYzMy0xLjU4NSAxLjQ0NGEzMiAzMiAwIDAgMCAwIDMuNjUyYy4wNDYuODEzLjc0NCAxLjQ0OCAxLjU4NSAxLjQ0OGg2LjA2N2MuNjA1IDAgMS4wOTUuNDczIDEuMDk1IDEuMDU5djE5Ljk0OWMwIC44MDguNjQ3IDEuNDggMS40NzQgMS41My42OTUuMDQyIDEuNC4wNjYgMi4wOTguMDdoLjIzMWMuNzY4IDAgMS41NDYtLjAyMyAyLjMxNC0uMDcuODM5LS4wNTIgMS40OTYtLjcyNCAxLjQ5Ni0xLjUzMlY4LjAyM2MwLS41ODYuNDg5LTEuMDYgMS4wOTUtMS4wNmg2LjA2OWMuODQzIDAgMS41MzktLjYzOSAxLjU4NS0xLjQ1NmEzMiAzMiAwIDAgMCAwLTMuNjMyYy0uMDQ2LS44MTctLjc0NC0xLjQ1Ny0xLjU4NS0xLjQ1N3pNMjMwLjU1NSA1LjM4Yy0uOTYtMS41NTItMi4zMzktMi43OC00LjA5OC0zLjY1LTEuNzU1LS44Ny0zLjgxMy0xLjMwOC02LjExNS0xLjMwOGgtMTEuMDE4Yy0uODc1IDAtMS41ODguNjg5LTEuNTg4IDEuNTM0djI1Ljk5N2MwIC44Mi42NjQgMS40OTQgMS41MTMgMS41MzJhNTMgNTMgMCAwIDAgMi4yMDMuMDU0aC4wODdjLjc2MyAwIDEuNTM0LS4wMiAyLjI5NS0uMDU0Ljg1MS0uMDQgMS41MTUtLjcxMiAxLjUxNS0xLjUzNXYtNi4yODZjMC0uNTY5LjQ4LTEuMDMgMS4wNjYtMS4wM2gzLjkyNGMyLjMzMiAwIDQuNDAyLS40MjcgNi4xNTQtMS4yNjggMS43Ni0uODQzIDMuMTM0LTIuMDM4IDQuMDc5LTMuNTQ3czEuNDI1LTMuMjU0IDEuNDI1LTUuMTljMC0xLjkzNS0uNDg3LTMuNjk5LTEuNDQ0LTUuMjV6bS02LjQyMyA1LjE2OGMwIC42NjctLjE1NSAxLjI3OS0uNDU4IDEuODE1LS4zLjUzMi0uNzQ5Ljk1Ni0xLjMyNSAxLjI2My0uNTg1LjMwNy0xLjI1OC40NjQtMi4wMDUuNDY0aC00LjMzM2EuNjQ1LjY0NSAwIDAgMS0uNjU3LS42MzVWNy42MDNjMC0uMzUyLjI5My0uNjM1LjY1Ny0uNjM1aDQuMzMzYy43NDcgMCAxLjQyMy4xNTcgMi4wMDUuNDY0YTMuMiAzLjIgMCAwIDEgMS4zMjUgMS4yNjJjLjMwNi41MzcuNDU4IDEuMTYyLjQ1OCAxLjg1OHpNMTg1Ljc1OCAwYy04LjU1NSAwLTE1LjUxNiA2LjcyOS0xNS41MTYgMTUuMDAxIDAgOC4yNzMgNi45NjEgMTQuOTk5IDE1LjUxNiAxNC45OTlzMTUuNTE5LTYuNzI5IDE1LjUxOS0xNC45OTlTMTk0LjMxNiAwIDE4NS43NTggMG04LjExIDE1LjAwMWMwIDQuMzIzLTMuNjM4IDcuODM3LTguMTA3IDcuODM3cy04LjEwNy0zLjUxNy04LjEwNy03LjgzNyAzLjYzOC03LjgzNyA4LjEwNy03LjgzNyA4LjEwNyAzLjUxNyA4LjEwNyA3LjgzN00xNS41MSA3LjE3YzEuMDc5IDAgMi4xNTcuMjggMi4xNy4yODUgMS43MzUuNDczIDIuOTczIDEuNDUzIDMuNzA4IDIuMTlhMS42MiAxLjYyIDAgMCAwIDIuMDA0LjIxMSAyNSAyNSAwIDAgMCAxLjk4LTEuNDA1Yy41NC0uNDI3IDEuMDY5LS44ODEgMS41NjgtMS4zNTRhMS40OTcgMS40OTcgMCAwIDAgLjA1OC0yLjEyNUMyNS41NjIgMy40NjcgMjMuMTE3IDEuNDc4IDE5LjYzNi41NUExNiAxNiAwIDAgMCAxNC4zNy4wNDkgMTUuNjcgMTUuNjcgMCAwIDAgNC4zOCA0LjU4QzEuNzE3IDcuMjQuMTY2IDEwLjcyLjAxMyAxNC4zNzhjLS4xNzQgNC4xMTkgMS4zNTggOC4wMjcgNC4zMTIgMTEgMi45NTcgMi45NzcgNi45MyA0LjYxNSAxMS4xODUgNC42MTVzOC40MzItMS43NSAxMS4zNjItNC44MDNhMS40OTkgMS40OTkgMCAwIDAtLjEwNC0yLjE5MyAyNS4yNjcgMjUuMjY3IDAgMCAwLTMuNjY3LTIuNjIyIDEuNjMgMS42MyAwIDAgMC0xLjkyOS4yMDcgOC4yNiA4LjI2IDAgMCAxLTMuNDk1IDEuOTY4IDggOCAwIDAgMS0yLjE2Mi4yODNjLTIuOTEtLjA1MS04LjEwNy0yLjcxMy04LjEwNy03LjgzNCAwLTQuMzIgMy42MzUtNy44MzUgOC4xMDUtNy44MzV6Ii8+CjxwYXRoIGZpbGw9IiMwNWQ1ODciIGQ9Ik02Ni44NjYgNy4yOTRoMTQuODA2Yy44NDQgMCAxLjU0LS42MzcgMS41ODUtMS40NWEzNiAzNiAwIDAgMCAwLTMuOThjLS4wNDYtLjgxMS0uNzQxLTEuNDQ2LTEuNTg1LTEuNDQ2SDY2Ljg2NmMtLjg0IDAtMS41MzkuNjM1LTEuNTg1IDEuNDQ2YTM1LjMxNyAzNS4zMTcgMCAwIDAgMCAzLjk4NWMuMDQ2LjgxLjc0MiAxLjQ0NSAxLjU4NSAxLjQ0NU04Ni4yMzMgMjQuMTE4Yy0uMDQ2LS44MDktLjc0MS0xLjQ0MS0xLjU4NS0xLjQ0MWgtMTcuNzhjLS44NDMgMC0xLjUzOS42NC0xLjU4NSAxLjQ1NWEzNS4xOCAzNS4xOCAwIDAgMCAwIDMuOTY5Yy4wNDYuODE1Ljc0NCAxLjQ1MiAxLjU4NSAxLjQ1MmgxNy43OGMuODQ0IDAgMS41NDItLjY0MiAxLjU4NS0xLjQ2YTM1IDM1IDAgMCAwIDAtMy45NzN6TTY2Ljg2NiAxOC41ODJoOS40OTljLjg0MyAwIDEuNTQxLS42NDIgMS41ODUtMS40NmEzNiAzNiAwIDAgMCAwLTMuOTczYy0uMDQ2LS44MDktLjc0Mi0xLjQzOS0xLjU4NS0xLjQzOWgtOS40OTljLS44NDMgMC0xLjUzOS42NC0xLjU4NSAxLjQ1NWEzNS4xOCAzNS4xOCAwIDAgMCAwIDMuOTY5Yy4wNDYuODE1Ljc0NCAxLjQ1MiAxLjU4NSAxLjQ1MnoiLz4KPC9zdmc+Cg==") no-repeat left center / contain;
+  display: inline-block;
+  font-size: 0;
+  height: 30px;
+  margin: 18px 0;
+  width: 232px;
+}
+
+/* ── Estilo CreditOp ─────────────────────────────────────────────────────────────────────────────────────────
+ * Morado de marca para las acciones, tarjetas blancas con borde suave sobre un fondo apenas lila, tipografía
+ * Inter. Sólo color, forma y tipografía: no se esconde ni se mueve nada del flujo del checkout. */
+
+body,
+.orderform-template,
+.cart-template,
+input, select, textarea, button, .btn {
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif !important;
+}
+
+body {
+  background: #f7f6fc;
+  color: #1b1446;
+}
+
+body > .container:first-of-type {
+  background: transparent;
+}
+
+hr,
+.checkout-container hr {
+  border-color: #ecebf5;
+}
+
+/* Títulos */
+h1,
+.cart-title,
+#cart-title,
+.orderform-template-holder h1 {
+  color: #1b1446;
+  font-size: 1.9rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.box-step h2,
+.accordion-heading,
+.accordion-toggle,
+.box-step .accordion-toggle {
+  color: #1b1446 !important;
+  font-weight: 600;
+}
+
+/* Tarjetas: sólo las de afuera (cada paso, el carrito y el resumen). Las cajas internas van sin borde: si no,
+ * queda una tarjeta dentro de otra. */
+.orderform-template .step.accordion-group,
+.full-cart .cart,
+.full-cart .summary-template-holder,
+.mini-cart .cart-fixed,
+.client-pre-email {
+  background: #ffffff !important;
+  border: 1px solid #ecebf5 !important;
+  border-radius: 14px !important;
+  box-shadow: none !important;
+  box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+}
+
+/* La columna del resumen no lleva fondo: la tarjeta es la caja fija de adentro, que mide lo que su contenido */
+.cart-template.mini-cart {
+  background: transparent !important;
+}
+
+.step .box-step,
+.step .box-info,
+.step .payment-group,
+.step .box-payment-group2,
+.summary-template-holder .accordion-group,
+.mini-cart .cart,
+.mini-cart .summary-template-holder,
+.mini-cart .summary-template-holder .accordion-group {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+
+.mini-cart .cart-title,
+.mini-cart h2,
+.mini-cart .summary-template-holder h2 {
+  background: transparent !important;
+  color: #1b1446 !important;
+  font-weight: 600;
+}
+
+/* El área del medio de pago elegido, en lila muy suave en vez del gris de VTEX */
+.step .steps-view,
+.step .payment-group-list-btn,
+.step .box-payment-group2,
+.step .payment-group-item-container {
+  background: #faf9ff !important;
+  border-radius: 10px !important;
+}
+
+/* El total no se parte en dos líneas */
+.monetary,
+.totalizers .monetary,
+.summary-totalizers .monetary {
+  white-space: nowrap;
+}
+
+/* «Entrega» en el carrito: respiro arriba y el título en el color de los demás */
+.cart-more-options,
+.srp-container {
+  padding-top: 0.75rem;
+}
+
+.cart-more-options h2,
+.srp-container h2,
+.srp-main-title {
+  color: #1b1446 !important;
+  font-weight: 600 !important;
+}
+
+/* Acciones principales: «Finalizar compra», «Comprar ahora», «Ir al pago» */
+.btn-success,
+.btn-primary,
+.btn-place-order,
+#cart-to-orderform,
+#payment-data-submit,
+.submit,
+#go-to-shipping,
+#go-to-payment,
+#btn-go-to-payment {
+  background: #4c39ff !important;
+  background-image: none !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  color: #ffffff !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.01em;
+  text-shadow: none !important;
+  transition: background 0.15s ease;
+}
+
+.btn-success:hover,
+.btn-primary:hover,
+.btn-place-order:hover,
+#cart-to-orderform:hover,
+#payment-data-submit:hover,
+.submit:hover {
+  background: #3a28e0 !important;
+}
+
+/* Botones secundarios («Calcular», «Cambiar opciones de entrega», «Continuar con la compra»): contorno morado */
+.btn:not(.btn-success):not(.btn-primary):not(.btn-link),
+#shipping-calculate-link,
+.srp-toggle__pickup,
+.srp-toggle__delivery,
+[class*="vtex-omnishipping"] button:not([class*="Selected"]) {
+  background: #ffffff !important;
+  background-image: none !important;
+  border: 1px solid #4c39ff !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+  color: #4c39ff !important;
+  text-shadow: none !important;
+}
+
+/* El recuadro «Guardamos su correo…» y sus tildes: lila en vez de verde */
+.emailInfo {
+  background: #faf9ff !important;
+  border: 1px solid #ecebf5 !important;
+  border-radius: 12px !important;
+}
+
+.emailInfo h3,
+.emailInfo .icon-ok {
+  color: #4c39ff !important;
+}
+
+/* El candado de fondo es decorativo: casi transparente, como en el original */
+.emailInfo .icon-lock,
+.emailInfo [class*="icon-lock"] {
+  color: #ece9ff !important;
+}
+
+/* Los avisos del checkout («Hola!», errores de pago): esquinas redondeadas */
+.vtex-front-messages-modal-template,
+.vtex-front-messages-modal-inner {
+  border-radius: 14px !important;
+}
+
+/* Enlaces y método de pago seleccionado */
+a,
+.link,
+.btn-link {
+  color: #4c39ff;
+}
+
+.payment-group-item.active,
+.payment-group-item:hover {
+  background: #f0eeff !important;
+  border-radius: 10px;
+  color: #4c39ff !important;
+}
+
+/* Campos */
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+select {
+  border: 1px solid #dcd9ee !important;
+  border-radius: 10px !important;
+  box-shadow: none !important;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="tel"]:focus,
+select:focus {
+  border-color: #4c39ff !important;
+  outline: 2px solid rgba(76, 57, 255, 0.15);
+}
+
+/* Totales del resumen */
+.summary-totalizers .monetary,
+.totalizers .monetary,
+.full-cart .summary .monetary {
+  color: #1b1446;
+  font-weight: 600;
+}
+
+.summary-template-holder .totalizers tfoot td,
+.summary-totalizers tfoot td {
+  color: #1b1446 !important;
+  font-weight: 700;
+}
+
+/* Pie */
+.footer,
+body > .container:last-of-type {
+  color: #6b6790;
+  font-size: 0.85rem;
+}
+
+
+/* «Cambiar opciones de entrega» */
+#open-shipping,
+.link-change-shipping {
+  border-color: #4c39ff !important;
+  border-radius: 10px !important;
+  color: #4c39ff !important;
+}
+
+/* Con el carrito vacío, el resumen no tiene nada adentro y su tarjeta quedaba como una franja blanca. */
+.full-cart:has(.empty-cart-content[style*="display: block"]) .summary-template-holder {
+  display: none !important;
+}
+
+/* «Pago al contado - $ …»: VTEX lo pone porque la condición de pago tiene una sola cuota, pero el plazo y la cuota
+ * los elige el comprador en CreditOp. Se reemplaza el texto por lo que de verdad va a pasar. */
+.CreditopGroupPaymentGroup .installments p.sight span {
+  display: none !important;
+}
+
+.CreditopGroupPaymentGroup .installments p.sight::before {
+  color: #1b1446;
+  content: "Paga a cuotas con CreditOp";
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.CreditopGroupPaymentGroup .installments p.sight::after {
+  color: #6b6790;
+  content: "Al tocar «Comprar ahora» te llevamos a CreditOp para elegir el plazo y la cuota.";
+  display: block;
+  font-size: 0.875rem;
+  line-height: 1.4;
+}

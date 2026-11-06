@@ -1,0 +1,9 @@
+.searchResultContainer {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 0 1rem 3rem;
+}
+
+.galleryItem {
+  padding: 0.75rem;
+}

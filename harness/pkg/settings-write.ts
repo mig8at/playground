@@ -72,7 +72,7 @@ async function assertTestBranch(hash: string): Promise<void> {
 
 /** El nuevo valor con `member` agregado o sacado de la lista `path` de la setting. Una lista guarda ids de comercio
  * (números, p. ej. `allieds`) o hashes de sucursal (texto, p. ej. `hashes`): un hash no se convierte a número, porque
- * `Number('c390eed9')` es NaN y la lista quedaba rota. */
+ * `Number('a1b2c3d4')` es NaN y la lista quedaba rota. */
 export function editList(raw: string | null, path: string, member: number | string, add: boolean): string {
     const obj = raw ? JSON.parse(raw) : {};
     const original: unknown[] = Array.isArray(obj[path]) ? obj[path] : [];

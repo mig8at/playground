@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Campos del checkout · prototipo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --morado: #4c39ff;
+    --morado-hover: #3a28e0;
+    --lila: #f7f6fc;
+    --lila-2: #f0eeff;
+    --tinta: #1b1446;
+    --gris: #6b6790;
+    --borde: #ecebf5;
+    --borde-campo: #dcd9ee;
+    --verde: #12b76a;
+    --rojo: #d92d20;
+    --admin-bg: #f1f3f5;
+    --admin-azul: #134cd8;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: #ffffff;
+    color: var(--tinta);
+    font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size: 14px;
+  }
+  header.top {
+    padding: 20px 24px 8px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  header.top h1 { margin: 0 0 4px; font-size: 20px; }
+  header.top p { margin: 0; color: var(--gris); }
+
+  .grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 20px;
+    padding: 16px 24px 24px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; padding: 12px 16px; }
+    header.top { padding: 16px 16px 4px; }
+  }
+  .etiqueta {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--gris);
+    margin: 0 0 8px;
+  }
+
+  /* ── Admin de VTEX (izquierda) ── */
+  .admin {
+    background: var(--admin-bg);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .admin .migas { color: var(--admin-azul); font-weight: 600; font-size: 12px; letter-spacing: 0.04em; }
+  .admin h2 { font-size: 26px; margin: 6px 0 16px; font-weight: 700; }
+  .admin .tarjeta {
+    background: #fff;
+    border: 1px solid #e3e4e6;
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .admin h3 { margin: 0 0 14px; font-size: 18px; }
+  .admin label.titulo { display: block; font-weight: 500; margin: 0 0 6px; }
+  .admin select {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #c4c6c9;
+    border-radius: 4px;
+    font: inherit;
+    background: #fff;
+  }
+  .admin .seccion { margin-top: 22px; padding-top: 18px; border-top: 1px solid #e3e4e6; }
+  .admin .seccion h4 { margin: 0 0 4px; font-size: 15px; }
+  .admin .seccion .ayuda { color: #5a5c5f; margin: 0 0 14px; line-height: 1.45; }
+  .fila {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 0;
+    border-bottom: 1px dashed #e3e4e6;
+  }
+  .fila:last-child { border-bottom: 0; }
+  .fila .nombre { font-weight: 500; }
+  .fila .nombre small { display: block; color: #6b6e72; font-weight: 400; margin-top: 2px; }
+  .segmentos { display: inline-flex; border: 1px solid #c4c6c9; border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  .segmentos button {
+    border: 0;
+    background: #fff;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    color: #3d3f42;
+  }
+  .segmentos button + button { border-left: 1px solid #c4c6c9; }
+  .segmentos button[aria-pressed="true"] { background: var(--admin-azul); color: #fff; }
+  .switch { position: relative; display: inline-block; width: 46px; height: 26px; flex-shrink: 0; }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .switch span { position: absolute; inset: 0; background: #c4c6c9; border-radius: 999px; transition: background 0.15s; cursor: pointer; }
+  .switch span::before { content: ""; position: absolute; width: 20px; height: 20px; left: 3px; top: 3px; background: #fff; border-radius: 50%; transition: transform 0.15s; }
+  .switch input:checked + span { background: var(--admin-azul); }
+  .switch input:checked + span::before { transform: translateX(20px); }
+  .requeridos { margin: 0 0 10px; padding-left: 18px; line-height: 1.7; }
+  #lista-auto[hidden] { display: none; }
+  .aviso {
+    margin-top: 16px;
+    background: #fff8e6;
+    border: 1px solid #f5d98a;
+    border-radius: 6px;
+    padding: 10px 12px;
+    color: #5c4300;
+    line-height: 1.45;
+  }
+  .aviso.ok { background: #ecfdf3; border-color: #a6f4c5; color: #05603a; }
+  .admin .acciones { display: flex; justify-content: flex-end; gap: 16px; margin-top: 18px; }
+  .admin .acciones span { color: var(--admin-azul); font-weight: 600; padding: 10px 4px; }
+  .admin .acciones b { background: var(--admin-azul); color: #fff; padding: 10px 22px; border-radius: 4px; font-weight: 600; }
+
+  /* ── Checkout de la tienda (derecha) ── */
+  .checkout {
+    background: var(--lila);
+    border-radius: 14px;
+    padding: 20px;
+  }
+  .checkout .logo { font-weight: 800; letter-spacing: 0.08em; color: var(--morado); font-size: 22px; margin-bottom: 14px; }
+  .checkout .logo i { color: #12d18e; font-style: normal; }
+  .checkout h2 { margin: 0 0 14px; font-size: 24px; font-weight: 700; }
+  .paso {
+    background: #fff;
+    border: 1px solid var(--borde);
+    border-radius: 14px;
+    padding: 18px;
+  }
+  .paso h3 { margin: 0 0 4px; font-size: 20px; }
+  .paso .sub { color: var(--gris); margin: 0 0 14px; line-height: 1.4; }
+  .campos { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 12px; }
+  .campos .ancho { grid-column: 1 / -1; }
+  @media (max-width: 520px) { .campos { grid-template-columns: 1fr; } }
+  .campo label { display: block; color: var(--gris); font-size: 12.5px; margin: 0 0 4px; }
+  .campo label .opc { color: #9a97b5; }
+  .campo label .obl { color: var(--rojo); }
+  .campo input[type="text"], .campo input[type="email"], .campo input[type="tel"], .campo input[type="date"], .campo select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--borde-campo);
+    border-radius: 10px;
+    font: inherit;
+    color: var(--tinta);
+    background: #fff;
+  }
+  .campo input:focus { outline: 2px solid rgba(76, 57, 255, 0.15); border-color: var(--morado); }
+  .campo input.error { border-color: var(--rojo); }
+  .campo .msg { color: var(--rojo); font-size: 12px; margin-top: 3px; min-height: 0; }
+  .bloque-creditop {
+    margin-top: 16px;
+    padding: 14px;
+    background: var(--lila-2);
+    border-radius: 12px;
+  }
+  .bloque-creditop h4 { margin: 0 0 2px; font-size: 14px; }
+  .bloque-creditop .por-que { color: var(--gris); margin: 0 0 12px; font-size: 12.5px; line-height: 1.4; }
+  .bloque-creditop[hidden], .check[hidden], .campo[hidden] { display: none; }
+  .check { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; line-height: 1.4; }
+  .check input { margin-top: 3px; accent-color: var(--morado); }
+  .check a { color: var(--morado); }
+  .boton {
+    margin-top: 16px;
+    width: 100%;
+    border: 0;
+    border-radius: 10px;
+    background: var(--morado);
+    color: #fff;
+    font: inherit;
+    font-weight: 600;
+    font-size: 15px;
+    padding: 12px;
+    cursor: pointer;
+  }
+  .boton:hover { background: var(--morado-hover); }
+  .boton[disabled] { background: #c9c3ff; cursor: not-allowed; }
+  .resultado { margin-top: 10px; font-size: 13px; color: var(--gris); text-align: center; min-height: 18px; }
+
+  /* ── Lo que recibe CreditOp ── */
+  .envio { margin-top: 16px; }
+  .envio .caja {
+    background: #12102b;
+    color: #e6e3ff;
+    border-radius: 12px;
+    padding: 14px;
+    font: 12px/1.5 ui-monospace, "SFMono-Regular", Menlo, monospace;
+    overflow-x: auto;
+    white-space: pre;
+  }
+  .envio .caja .nuevo { color: #7cf5c0; }
+  .salto {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+  }
+  .chip {
+    border-radius: 999px;
+    padding: 5px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    background: #fff;
+    border: 1px solid var(--borde);
+    color: var(--gris);
+  }
+  .chip.si { background: #ecfdf3; border-color: #a6f4c5; color: #05603a; }
+  .chip.no { background: #fef3f2; border-color: #fecdca; color: #912018; }
+  .nota { color: var(--gris); font-size: 12px; margin-top: 8px; line-height: 1.45; }
+</style>
+</head>
+<body>
+<header class="top">
+  <h1>Campos extra en el checkout · prototipo</h1>
+  <p>Cambiá la configuración de la izquierda y mirá cómo cambia el paso «Identificación» y lo que recibe CreditOp. Datos de ejemplo, ficticios.</p>
+</header>
+
+<main class="grid">
+  <!-- Izquierda: configuración de la app en el admin de VTEX -->
+  <section>
+    <p class="etiqueta">1 · Lo que configura el comercio (admin de VTEX)</p>
+    <div class="admin">
+      <div class="migas">← MY APPS</div>
+      <h2>Creditop BNPL</h2>
+      <div class="tarjeta">
+        <h3>Settings</h3>
+        <label class="titulo" for="ambiente">Ambiente de Creditop</label>
+        <select id="ambiente">
+          <option value="develop">Pruebas (develop)</option>
+          <option value="production">Producción</option>
+        </select>
+
+        <div class="seccion">
+          <div class="fila">
+            <div class="nombre">Auto-onboarding con Creditop<small>El comprador deja sus datos en la tienda y Creditop no se los vuelve a pedir</small></div>
+            <label class="switch"><input type="checkbox" id="auto" checked><span></span></label>
+          </div>
+          <div id="lista-auto">
+            <p class="ayuda">Encendido, el checkout pide como obligatorios:</p>
+            <ul class="requeridos">
+              <li>Fecha de nacimiento</li>
+              <li>Fecha de expedición del documento</li>
+              <li>Aceptación de términos y política de Creditop</li>
+            </ul>
+            <p class="ayuda">Correo, nombre, documento y celular ya los pide VTEX.</p>
+          </div>
+          <div class="aviso" id="aviso"></div>
+        </div>
+
+        <div class="acciones"><span>CANCEL</span><b>SAVE</b></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Derecha: el checkout de la tienda -->
+  <section>
+    <p class="etiqueta">2 · Lo que ve el comprador (checkout de la tienda)</p>
+    <div class="checkout">
+      <div class="logo">CR<i>Ξ</i>DITOP</div>
+      <h2>Finalizar la compra</h2>
+      <form class="paso" id="form" novalidate>
+        <h3>Identificación</h3>
+        <p class="sub">Solicitamos únicamente la información esencial para la finalización de la compra.</p>
+        <div class="campos">
+          <div class="campo ancho"><label>Correo</label><input type="email" value="ana.prueba@ejemplo.com" data-k="email"></div>
+          <div class="campo"><label>Nombre</label><input type="text" value="Ana" data-k="first_name"></div>
+          <div class="campo"><label>Apellidos</label><input type="text" value="Prueba Gómez" data-k="last_name"></div>
+          <div class="campo"><label>Cédula de Ciudadanía</label><input type="text" value="1010101010" data-k="document_number"></div>
+          <div class="campo"><label>Teléfono / Móvil</label><input type="tel" value="300 000 0000" data-k="phone"></div>
+        </div>
+
+        <div class="bloque-creditop" id="bloque">
+          <h4>Para pagar a cuotas con Creditop</h4>
+          <p class="por-que">Con estos datos Creditop no te los vuelve a pedir y el proceso es más rápido.</p>
+          <div class="campos">
+            <div class="campo" id="c-nacimiento">
+              <label for="nacimiento">Fecha de nacimiento <span class="marca"></span></label>
+              <input type="date" id="nacimiento" max="2008-12-31">
+              <div class="msg"></div>
+            </div>
+            <div class="campo" id="c-expedicion">
+              <label for="expedicion">Fecha de expedición de la cédula <span class="marca"></span></label>
+              <input type="date" id="expedicion">
+              <div class="msg"></div>
+            </div>
+          </div>
+          <label class="check" id="c-terminos">
+            <input type="checkbox" id="terminos">
+            <span><span class="obl" style="color:var(--rojo)">*</span> Acepto los <a href="#" onclick="return false">términos y condiciones</a> y la <a href="#" onclick="return false">política de tratamiento de datos</a> de Creditop.</span>
+          </label>
+        </div>
+
+        <button class="boton" id="seguir" type="submit">Ir para la Entrega</button>
+        <div class="resultado" id="resultado"></div>
+      </form>
+
+      <div class="envio">
+        <p class="etiqueta">3 · Lo que recibe Creditop en el payment-link</p>
+        <div class="caja" id="json"></div>
+        <div class="salto" id="salto"></div>
+        <p class="nota">Saltar pasos también exige que la sucursal esté en <code>auto_onboarding_allied_branches</code>. La validación de identidad con las centrales corre siempre.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  let auto = true;
+  $('#auto').addEventListener('change', (e) => { auto = e.target.checked; pintar(); });
+  document.addEventListener('input', pintar);
+  document.addEventListener('change', pintar);
+  $('#ambiente').addEventListener('change', pintar);
+
+  function pintar() {
+    $('#lista-auto').hidden = !auto;
+    $('#bloque').hidden = !auto;
+    for (const k of ['nacimiento', 'expedicion']) {
+      const caja = $('#c-' + k);
+      caja.querySelector('.marca').innerHTML = '<span class="obl">*</span>';
+      caja.querySelector('input').classList.remove('error');
+      caja.querySelector('.msg').textContent = '';
+    }
+    const aviso = $('#aviso');
+    if (auto) {
+      aviso.className = 'aviso';
+      aviso.textContent = 'Requiere que Creditop active el auto-onboarding para tu sucursal. Si no está activo, los datos llegan prellenados pero no se salta ningún paso.';
+    } else {
+      aviso.className = 'aviso';
+      aviso.textContent = 'Apagado: el checkout queda como siempre y Creditop pide el código por SMS y el formulario de datos.';
+    }
+    pintarJson();
+  }
+
+  function pintarJson() {
+    const v = (k) => document.querySelector('[data-k="' + k + '"]').value.trim();
+    const nac = auto ? $('#nacimiento').value : '';
+    const exp = auto ? $('#expedicion').value : '';
+    const acepto = auto && $('#terminos').checked;
+    const ahora = new Date().toISOString().replace(/\.\d{3}Z$/, '+00:00');
+
+    const billing = [
+      ['first_name', v('first_name')],
+      ['last_name', v('last_name')],
+      ['email', v('email')],
+      ['phone', v('phone').replace(/\D/g, '')],
+      ['document_type', 'CC'],
+      ['document_number', v('document_number')],
+    ];
+    const nuevos = [];
+    if (nac) nuevos.push(['birth_date', nac]);
+    if (exp) nuevos.push(['document_expedition_date', exp]);
+
+    const linea = (k, val, nuevo, coma, sangria) =>
+      (nuevo ? '<span class="nuevo">' : '') + sangria + '"' + k + '": ' + JSON.stringify(val) + (coma ? ',' : '') + (nuevo ? '</span>' : '');
+    const out = ['{', '  "hash": "<hash-de-la-sucursal>",', '  "total": 2400005,', '  "billing": {'];
+    const todo = billing.map((x) => [...x, false]).concat(nuevos.map((x) => [...x, true]));
+    todo.forEach(([k, val, nuevo], i) => out.push(linea(k, val, nuevo, i < todo.length - 1, '    ')));
+    out.push('  },');
+    if (acepto) {
+      out.push(linea('termAccepted', ahora, true, true, '  '));
+      out.push(linea('policyAccepted', ahora, true, true, '  '));
+    }
+    out.push('  "products": [ … ],', '  "return_url": "https://…", ', '  "webhook_url": "https://…"', '}');
+    $('#json').innerHTML = out.join('\n');
+
+    const sms = acepto && v('phone');
+    const form = sms && exp && v('first_name') && v('last_name') && v('email') && v('document_number');
+    $('#salto').innerHTML =
+      '<span class="chip ' + (sms ? 'si' : 'no') + '">' + (sms ? 'Salta' : 'Pide') + ' el código por SMS</span>' +
+      '<span class="chip ' + (form ? 'si' : 'no') + '">' + (form ? 'Salta' : 'Pide') + ' el formulario de datos</span>' +
+      '<span class="chip">Valida identidad siempre</span>';
+  }
+
+  $('#form').addEventListener('submit', (e) => {
+    e.preventDefault();
+    if (!auto) { $('#resultado').textContent = '✓ Pasaría a la Entrega (sin auto-onboarding).'; return; }
+    let ok = true;
+    for (const k of ['nacimiento', 'expedicion']) {
+      const caja = $('#c-' + k);
+      const input = caja.querySelector('input');
+      if (!input.value) {
+        ok = false;
+        input.classList.add('error');
+        caja.querySelector('.msg').textContent = 'Este dato es obligatorio para pagar con Creditop.';
+      }
+    }
+    const terminos = $('#terminos').checked;
+    $('#resultado').textContent = ok && terminos
+      ? '✓ Pasaría a la Entrega con estos datos.'
+      : !terminos && ok ? 'Falta aceptar los términos de Creditop.' : 'Faltan datos obligatorios.';
+  });
+
+  pintar();
+</script>
+</body>
+</html>

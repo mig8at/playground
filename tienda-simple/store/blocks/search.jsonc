@@ -1,0 +1,41 @@
+{
+  // Categorías y búsqueda: la misma grilla. Sin filtros ni orden: son seis productos.
+  "store.search": {
+    "blocks": ["search-result-layout"]
+  },
+  "store.search#category": {
+    "blocks": ["search-result-layout"]
+  },
+  "store.search#department": {
+    "blocks": ["search-result-layout"]
+  },
+  "search-result-layout": {
+    "blocks": ["search-result-layout.desktop", "search-result-layout.mobile", "search-not-found-layout"]
+  },
+  "search-result-layout.desktop": {
+    "children": ["search-content"],
+    "props": { "pagination": "show-more" }
+  },
+  "search-result-layout.mobile": {
+    "children": ["search-content"],
+    "props": { "pagination": "show-more" }
+  },
+  // search-content elige entre la grilla y el aviso de «sin resultados»: sin él, la galería queda vacía.
+  "search-content": {
+    "blocks": ["gallery", "not-found"]
+  },
+  "gallery": {
+    "blocks": ["product-summary.shelf"],
+    "props": { "itemsPerRow": { "desktop": 3, "tablet": 2, "phone": 1 } }
+  },
+  "search-not-found-layout": {
+    "children": ["rich-text#sin-resultados"]
+  },
+  "rich-text#sin-resultados": {
+    "props": {
+      "text": "No encontramos ese producto. [Ver todas las bicicletas](/bicicletas)",
+      "textAlignment": "CENTER",
+      "textPosition": "CENTER"
+    }
+  }
+}
