@@ -105,6 +105,28 @@ nuestro— y recién después dispara el webhook. Ver F-171 para las tres guarda
 
 **Mapeo comprobado:** `completed`→11 · `failed`→6 · `cancelled`→7.
 
+## El CreditopX rotativo (rt=3): lo que hace falta para que cierre
+
+Medido el 2026-11-06 con la copia de Mario Hernández (entidad 200) en local y en qa, por la tienda:
+`make harness-rotativo TARGET=local|qa` y `make harness-vtex TARGET=qa CASES=rotativo`.
+
+- **La copia tiene que traer los RANGOS del multiplicador** (`creditop_x_revolving_multiplier_ranges`, colgados de la
+  variable y no de la entidad). Sin ellos cada variable puntúa 0, el cupo sale en 0 y el FRONT esconde la tarjeta aunque
+  el backend la liste (`lenders_count: 1`). `dev/copy-creditopx.ts` ya los copia; `--complete` arregla una copia vieja.
+- **La credencial de la sucursal necesita las llaves de la tienda** (`customer_key`, `customer_secret`, `headers`,
+  cifradas): con ellas el backend le avisa a VTEX el desenlace. Sin ellas: `ecommerce_store_notify_failed` «The payload
+  is invalid» y el pedido se queda en Authorizing.
+- **Antes del listado hay una presentación** («Así funciona tu cupo rotativo», un solo «Continuar») que tapa las tarjetas:
+  el caminador la pasa (`chooseEntity`).
+- **La confirmación tarda >12 s**: consulta listas restrictivas en TusDatos (sondeando) y el cupo. El caminador espera el
+  envío en curso; ⚠ no con `waitForLoadState('networkidle')`, que vuelve al instante si la página ya llegó a ese estado.
+- **La identidad va a mano (`MANUAL=1`)**: la entidad valida con ADO (biometría).
+- **El recorrido**: confirmación (9→3) → fecha de la 1ª cuota (3→10) → plan de pagos → firma de documentos → OTP de la
+  firma (10→11) → `loan-approved` («¡Felicidades! tu monto ha sido desembolsado», con el cupo usado y el disponible).
+- **Una compra sobre la mitad del cupo terminaba en la pantalla de cuota inicial** con 403 `INITIAL_FEE_PAYMENT_REQUIRED`:
+  después de autorizar, el cupo usado ya incluía la compra y el resolvedor de la cuota inicial pedía una que no existía.
+  Arreglo en legacy-backend#1881; hasta que llegue a un ambiente, ahí la compra de arriba sale en rojo.
+
 ## Antes de concluir
 
 - **Un lender solo cierra in-platform si está en `lenders_by_allieds` del comercio**: forzar el 77 (de

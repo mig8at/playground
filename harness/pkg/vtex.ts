@@ -87,11 +87,16 @@ async function simulate(sku: string) {
 async function pickSku(): Promise<string> {
     const fixed = envFrom('vtex', 'VTEX_TEST_SKU');
     if (fixed) return fixed;
+    // VTEX_MAX_PRICE (pesos): sólo productos hasta ese precio. Lo usa el caso `rotativo`, que tiene que caber en el cupo
+    // de la entidad: una compra de 2.400.005 contra un cupo de 1.500.000 pide de verdad una cuota inicial y es otro caso.
+    const maxPrice = Number(process.env.VTEX_MAX_PRICE || 0);
     const r = await call('GET', `${store()}/api/catalog_system/pub/products/search?_from=0&_to=49`);
     const items = ((r.data ?? []) as any[]).flatMap((p) => p.items ?? [])
-        .map((it: any) => ({ id: String(it.itemId), stock: Number(it.sellers?.[0]?.commertialOffer?.AvailableQuantity ?? 0) }))
+        .map((it: any) => ({ id: String(it.itemId), stock: Number(it.sellers?.[0]?.commertialOffer?.AvailableQuantity ?? 0),
+            price: Number(it.sellers?.[0]?.commertialOffer?.Price ?? 0) }))
+        .filter((it) => !maxPrice || (it.price > 0 && it.price <= maxPrice))
         .sort((a, b) => b.stock - a.stock);
-    if (!items.length || items[0].stock < 1) throw new Error('VTEX: no hay ningún producto con stock en la tienda de pruebas (hay que reponer el inventario)');
+    if (!items.length || items[0].stock < 1) throw new Error(`VTEX: no hay ningún producto con stock${maxPrice ? ` hasta $${maxPrice}` : ''} en la tienda de pruebas (hay que reponer el inventario)`);
     return items[0].id;
 }
 
@@ -185,6 +190,55 @@ export async function waitVtex(orderId: string, done: (s: VtexState) => boolean,
         state = await readVtex(orderId);
     }
     return { ok: done(state), state };
+}
+
+/** Corre `fn` con la condición de pago de Creditop apuntada a la afiliación cuyo App key es `hash` (la sucursal de
+ *  CreditOp a la que irán las compras), y la DEVUELVE a la que tenía al terminar: también si `fn` falla o si cortan el
+ *  proceso con Ctrl-C. Mientras dura, TODAS las compras de la tienda de pruebas van a esa sucursal (las de otras
+ *  personas también): por eso se usa sólo para el caso que lo necesita y se deja como estaba enseguida.
+ *  Nació para el rotativo de la copia de Mario en qa (afiliación «Mario Hernández (qa)», sucursal 1126106a). */
+export async function withAffiliationFor<T>(hash: string, fn: () => Promise<T>): Promise<T> {
+    const { account } = creds();
+    const pay = `https://${account}.vtexpayments.com.br/api/pvt`;
+    const rules = await call('GET', `${pay}/rules`);
+    const rule = (rules.data ?? []).find((r: any) => r.enabled && /creditop/i.test(r.connector?.implementation ?? ''));
+    if (!rule) throw new Error('VTEX: no hay una condición de pago activa con el conector Creditop');
+    const list = await call('GET', `${pay}/affiliations`);
+    let target: any = null;
+    for (const a of (list.data ?? []).filter((x: any) => /creditop/i.test(x.implementation ?? ''))) {
+        const conf = a.configuration ?? (await call('GET', `${pay}/affiliations/${a.id}`)).data?.configuration ?? [];
+        if (conf.some((c: any) => c.name === 'appKey' && c.value === hash)) { target = a; break; }
+    }
+    if (!target) throw new Error(`VTEX: ninguna afiliación de Creditop tiene App key ${hash}`);
+    const original: string = rule.connector.affiliationId;
+    if (original === target.id) return fn();
+
+    const point = async (affiliationId: string) => {
+        const full = (await call('GET', `${pay}/rules/${rule.id}`)).data;
+        full.connector.affiliationId = affiliationId;
+        const r = await call('PUT', `${pay}/rules/${rule.id}`, full);
+        if (r.status >= 300) throw new Error(`VTEX: apuntar la condición «${rule.name}» dio ${r.status}`);
+    };
+    // ⚠ Se reintenta: un solo «fetch failed» al devolverla dejó la tienda apuntando a la copia de Mario ~7 minutos
+    // (2026-11-06), con las compras de cualquiera yendo a esa sucursal. Cinco intentos, con espera creciente.
+    const restore = async () => {
+        let last: unknown;
+        for (let attempt = 1; attempt <= 5; attempt++) {
+            try { await point(original); return; } catch (e) { last = e; await new Promise((r) => setTimeout(r, attempt * 2_000)); }
+        }
+        console.error(`\n  ⚠ NO SE PUDO DEVOLVER la condición «${rule.name}» a la afiliación ${original} tras 5 intentos: ${(last as Error)?.message} — hacelo a mano en el admin (Pagos → Configuración)`);
+    };
+    const onSignal = () => { restore().finally(() => process.exit(130)); };
+    process.once('SIGINT', onSignal);
+    process.once('SIGTERM', onSignal);
+    await point(target.id);
+    try {
+        return await fn();
+    } finally {
+        process.off('SIGINT', onSignal);
+        process.off('SIGTERM', onSignal);
+        await restore();
+    }
 }
 
 /** La sucursal de CreditOp a la que va hoy una compra de la tienda: el App key de la afiliación que usa la condición de

@@ -25,7 +25,10 @@ try {
     } else if ((cmd === 'add' || cmd === 'remove') && rest.length === 3 && /^(\d+|[0-9a-f]{6,16})$/i.test(rest[2])) {
         const fn = cmd === 'add' ? settingListAdd : settingListRemove;
         // Sólo dígitos: un id de comercio; con letras: el hash de una sucursal.
-        const member = /^\d+$/.test(rest[2]) ? Number(rest[2]) : rest[2];
+        // La LISTA decide el tipo, no la pinta del valor: `hashes` guarda hashes de sucursal (texto) aunque uno sea sólo
+        // dígitos. Decidirlo por el valor convirtió `69364350` en número, y con él toda la lista a números: los hashes
+        // con letras quedaron en null (local, 2026-11-06; se restauró con la foto).
+        const member = rest[1] === 'hashes' || !/^\d+$/.test(rest[2]) ? rest[2] : Number(rest[2]);
         const c = await fn(rest[0], rest[1], member, apply);
         console.log(`  ${c.key}.${rest[1]} en ${c.target}: ${cmd === 'add' ? 'agregar' : 'sacar'} ${typeof member === 'string' ? 'la sucursal' : 'el comercio'} ${rest[2]}\n    antes  ${c.before}\n    ahora  ${c.after}`);
         if (TARGET !== 'local') console.log('    ⚠ base COMPARTIDA: dev, qa y staging ven el cambio');
