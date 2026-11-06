@@ -12,10 +12,12 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 
 ## Pendientes
 
-- [ ] Enlazar el conector 5.1.0 (vtex#25) en el workspace `autoonb` y comprar por el checkout con el switch encendido;
-      termina cuando el wizard entra por `validando` sin OTP y la evidencia está en el PR. Hoy `vtex link` falla con
-      403 del compilador («Failed to fetch payment methods from PaymentGateway API»), también con la 5.0.3.
-      Depende de: VTEX (soporte) — por qué el compilador niega los medios de pago a una sesión que los lee con 200.
+- [x] ~~Enlazar el conector 5.1.0 (vtex#25) en `autoonb` y comprar con el switch prendido~~ — 2026-11-06: el checkout
+      real saltó celular, código y formulario (solicitud 504704 al listado, sin OTP), tras corregir la ruta del switch y
+      el `Proxy-Authorization` de la lectura del pedido (6b1cc44, local).
+- [ ] Subir a vtex#25 los commits locales 2a939c1 y 6b1cc44 (la ruta del switch y sus correcciones) y sumar la evidencia
+      a la descripción; termina con el PR al día.
+      Depende de: Miguel — el OK para el push.
 - [ ] Publicar e instalar la 5.1.0 en `master` cuando aprueben vtex#25; termina cuando el switch aparece en la
       configuración de la app en `master`.
       Depende de: Joel / Oscar — la aprobación del PR.

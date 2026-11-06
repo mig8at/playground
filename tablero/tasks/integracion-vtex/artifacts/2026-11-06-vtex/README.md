@@ -28,6 +28,9 @@ recorrido completo y el índice de las fotos.
 8. **Switch «Auto-onboarding con Creditop» en el conector** (15:46). Va en la versión 5.1.0, PR vtex#25. Apagado por
    defecto; encendido, lee del pedido las fechas y la aceptación y las manda a payment-link. Casos locales 20/20. El
    conector real en local contra qa saltó SMS y formulario (solicitud 504701).
+10. **El switch de punta a punta en VTEX** (16:33). Con la 5.1.0 enlazada en `autoonb` y dos correcciones (la ruta
+   dentro del servicio y `Proxy-Authorization` al leer el pedido), la compra 1674380500398 entró por `validando` al
+   listado sin celular, código ni formulario (solicitud 504704). Fotos en `5-switch-de-punta-a-punta/`.
 9. **El checkout de la tienda pide los datos de Creditop** (16:00). Tema 0.2.0 en el workspace de desarrollo
    `autoonb`. Sin los datos no deja comprar; con ellos, el pedido `1674370500394-01` los guarda en `customData`.
    Fotos en `4-checkout-autoonb/`.
@@ -40,9 +43,7 @@ También del día, fuera de VTEX pero para esta prueba:
 
 ## Lo que quedó pendiente
 
-- **El conector 5.1.0 en VTEX IO.** `vtex link` falla con 403 del compilador («Failed to fetch payment methods from
-  PaymentGateway API»), también con el código de `main`. Volver a entrar no lo destrabó. Sin eso no está probada la
-  lectura del pedido con `OMSViewer`.
+- **El 403 del compilador** de la mañana no se repitió a la tarde; si vuelve, los ErrorIDs están en la pila.
 - **Publicar la 5.1.0 en `master`**, sólo después de aprobar vtex#25. Recién instalada aparece el switch en la
   configuración de la app.
 - **Después del merge de legacy-backend#1881 a qa**, correr `make harness-vtex TARGET=qa CASES=rotativo`: tiene que dar
@@ -67,4 +68,5 @@ También del día, fuera de VTEX pero para esta prueba:
 | `2-rotativo-mario-1100k/` | compra de $1.100.005, por encima de la mitad del cupo |
 | `3-auto-onboarding-qa/` | `con-*`: entra por «validando» y llega al listado · `sin-*`: sin aceptaciones pide el código |
 | `4-checkout-autoonb/` | el bloque de Creditop en el checkout: vacío, frenando sin datos, completo, con el texto corregido y, sin el switch prendido, sin pedir nada |
+| `5-switch-de-punta-a-punta/` | con el switch prendido: los campos, el checkout completo, «validando» y el listado sin SMS |
 | `switch-check.mjs` | prueba del script con la ruta del switch en true, false y 404 (correr desde `harness/`, que tiene Playwright) |
