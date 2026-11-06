@@ -57,7 +57,10 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
 3. **Chequeo cruzado.** Una verificación que avise si una clave marcada no existe en el catálogo, o si una
    clave que una plantilla usa no tiene campo que la llene.
 4. **Migrar sin romper.** Generar el payload viejo y el nuevo para varias solicitudes reales y comparar con
-   `diff`, igual que la foto de CORE-918. Recién con el diff vacío se borra la tabla escrita a mano.
+   `diff`, igual que la foto de CORE-918 (`tablero/tasks/originacion-delegada-generica`, «Cómo se comprueba»).
+   Recién con el diff vacío se borra la tabla escrita a mano. Falta fijar el ambiente y qué solicitudes (una
+   consulta que las elija, de varias entidades y formularios): los payloads llevan datos de clientes, así que
+   no salen del ambiente donde se generan.
 5. **Desacoplar form-service (propuesta del 2026-10-30).** Hoy el asistente va a form-service, que lee y
    escribe la base de legacy (`legacy_mysql`, `creditop`): un camino circular. Destino:
    - legacy-backend entrega el formulario publicado al asistente y guarda las respuestas (en su base, como hoy);
@@ -66,6 +69,17 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
    - un editor en Vue, como proyecto aparte al estilo de PDF Mapper Studio (no en el backoffice);
    - cada campo del JSON lleva su `document_key`, validada contra el catálogo de pdf-mapper al publicar;
    - cada respuesta registra el formulario y la versión que contestó.
+
+   ⚠ **Lo que este destino rompe si no se resuelve antes.** Hoy quien escribe las respuestas en
+   `user_field_values` es form-service (en la base de legacy, además de una copia en S3), y legacy-backend **no
+   lee esas filas**: las pide a form-service con `FormServiceClient::answers`, que lee Redis y S3. Lo usa el checkout
+   vehicular de BCP (`app/Actions/Lenders/Bcp/BcpVehicular.php:213`, verificado en `main`). Application, en cambio,
+   lee las filas directo (`knowledge/dynamic-form-schema`). Antes de quitar Redis y S3 de form-service hay que
+   decidir:
+   - con qué se reemplaza `FormServiceClient::answers` en BCP (leer `user_field_values` en legacy-backend, y con qué
+     regla: la de application toma la fila de id mayor por campo y no filtra por titular);
+   - quién escribe las respuestas durante la transición, para no tener dos escritores sobre la misma tabla
+     (legacy-backend ya escribe las del form 1 desde el onboarding, y el DELETE de form-service las alcanza).
    Mongo no: S3 alcanza con este volumen y sigue el patrón de pdf-mapper. Se reconsidera si el editor necesita
    consultas que S3 no resuelve.
 

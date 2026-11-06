@@ -16,12 +16,13 @@ ramas: "fix/ecommerce-volver-a-la-tienda"
 - [x] ~~Llevar el link al `back_url` (respaldo: `return_url`), como pidió Oscar~~ — backend
       [#1707](https://github.com/Creditop-SAS/legacy-backend/pull/1707) acepta `b` y devuelve `backUrl`; #1188
       lo usa (`cc04ba21`). Probado en local de punta a punta.
-- [ ] Responder la revisión de Oscar en #1188 y pedirle una nueva revisión de los dos PRs.
-      Depende de: Miguel — revisar los PRs antes.
+- [x] ~~Responder la revisión de Oscar y mergear los dos PRs~~ — `frontend-monorepo#1188` mergeado a `main` el
+      2026-10-22 (en producción desde `v1.11.0`) y `legacy-backend#1707` el 2026-10-29 (desde `v0.6.39`). El front
+      salió primero sin riesgo: sin `backUrl` cae en `returnUrl` (`storeBackUrlOf`).
 - [ ] Contraprueba por el canal de asesor sin entidades: el link no sale. Hasta hoy sólo Storybook y la prueba de
       `showsBackToStore`.
-- [ ] Mergear `legacy-backend#1707` y `frontend-monorepo#1188` y taguear; termina cuando el link sale en producción
-      en una compra de tienda sin opciones. Depende de: revisión del equipo.
+- [ ] Ver el link en producción en una compra de tienda sin opciones; termina con una solicitud de prod donde el
+      cliente lo vio (eventos de pantalla), sin crear compras en prod.
 - [ ] Crear el issue en Jira con la publicable.
       Depende de: Miguel — revisar la publicable.
 
@@ -37,17 +38,23 @@ pantalla queda como está.
 **frontend-monorepo** (va directo a `main`)
 - `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx`: el loader ya resuelve
   `getEcommerceContextByLoanRequest(loanRequestId)` para saber si es tienda; de ese contexto sale también
-  `returnUrl`. Se devuelve y se pasa a `AvailableLenders`.
+  `storeBackUrl` (`storeBackUrlOf`: el `backUrl` del pedido y, si no, el `returnUrl`). Se pasa a `AvailableLenders`.
 - `modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx`:
   los dos avisos naranjas —el de sin entidades (`!hasAvailableLenders`) y el vacío total (`isTrueEmpty`)—.
   El `isSoftEmpty` (ninguna pre-aprobada, pero hay tarjetas de probabilidad baja) NO lleva el link: tiene
   opciones.
-- `apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts`: `EcommerceContext.returnUrl`.
+- `apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts`: `EcommerceContext.backUrl` y
+  `.returnUrl`, y `storeBackUrlOf`, que prefiere el primero y sólo acepta `http`/`https`.
+
+**legacy-backend**
+- #1707: el checkout acepta `b` como `backUrl`, lo filtra y lo guarda en el pedido; el detalle
+  `by-user-request` lo devuelve.
 - Referencia del filtro de la URL: `routes/bancolombia/ecommerce/checkout-error.tsx` (`toSafeExitUrl`).
 
 ## Cómo se ataca
 
-1. El loader devuelve `storeReturnUrl` sólo si es tienda y la URL es `http`/`https`; si no, `null`.
+1. El loader devuelve `storeBackUrl` sólo si es tienda y la URL es `http`/`https` (primero `backUrl`, después
+   `returnUrl`); si no, `null`.
 2. El componente recibe la prop y, si viene, pinta el link debajo del aviso en los dos vacíos.
 
 ## Lo que se evaluó y NO se eligió
