@@ -181,6 +181,11 @@ trabajó.
 (`closeout`) lo corre solo, una vez por sesión, sobre las tareas que ESA sesión escribió. Si te frena en el
 medio del trabajo, decilo en una línea y seguí.
 
+- **Pendientes que quedaron atrás de un merge**: `make cierre` cruza los pendientes abiertos de todas las
+  tareas con el estado de los PRs que citan con su repo (`pr:alias#N`, `repo#N` o la URL) y avisa con `▲` los
+  que ya están mergeados o cerrados. No frena: un pendiente puede nombrar un PR como contexto. Si el pendiente
+  ya lo reconoce («(mergeado)», «ya está en `main`») no avisa. El hook de `Stop` no lo corre (`-sin-prs`: no va
+  a la red). Al ver uno, reescribí el pendiente con lo que de verdad falta.
 - **Cambiar sólo el frontmatter no es trabajar en la tarea**: el cierre no reclama nada.
 - **Un barrido tampoco**: el commit lo declara con un trailer, y el cierre no le pide bloque ni bitácora
   (se declara, no se deduce):

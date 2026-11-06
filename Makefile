@@ -147,8 +147,8 @@ tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET oblig
 	@# La consulta la hace el conector (`bin/pg sql`): una sola implementación del formato, la anotación y el bloque.
 	@bin/pg sql --target "$(TARGET)" --query $$'$(subst ','\'',$(SQL))' $(if $(CSV),--csv) $(if $(MD),--md) $(if $(BLOQUE),--bloque $(BLOQUE))
 
-cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. DIA=YYYY-MM-DD · JSON=1 · TAREA=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
-	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json) $(if $(TAREA),-tarea $(TAREA))
+cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DIA=YYYY-MM-DD · JSON=1 · SIN_PRS=1 no consulta GitHub · TAREA=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
+	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json) $(if $(SIN_PRS),-sin-prs) $(if $(TAREA),-tarea $(TAREA))
 
 trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
 	@cd tablero/server && go run ./cmd/traps $(if $(INDICE),-index)

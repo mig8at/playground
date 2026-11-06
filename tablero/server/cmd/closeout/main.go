@@ -28,6 +28,7 @@
 //	cierre -json           para otro programa
 //	cierre -quiet          silencio si no falta nada
 //	cierre -sin-jira       sin consultar Jira (el hook de Stop: no va a la red)
+//	cierre -sin-prs        sin cruzar los pendientes con el estado de sus PRs (tampoco va a la red)
 package main
 
 import (
@@ -98,8 +99,10 @@ type Report struct {
 	GoneBranches []string `json:"goneBranches,omitempty"`
 	// UnlinkedIssues: mis issues de los últimos sprints que el tablero muestra sin documento (jira.go).
 	UnlinkedIssues []UnlinkedIssue `json:"unlinkedIssues,omitempty"`
-	Warnings       []string        `json:"warnings"`
-	MissingPieces  int             `json:"missingPieces"`
+	// StalePRs: pendientes abiertos que citan un PR ya mergeado o cerrado (prs.go). Avisa, no frena.
+	StalePRs      []StalePR `json:"stalePRs,omitempty"`
+	Warnings      []string  `json:"warnings"`
+	MissingPieces int       `json:"missingPieces"`
 	// Friction: lo que se trabó HOY y no se había trabado igual en el último mes, leído por radar de las
 	// transcripciones. Avisa, no frena: no suma a MissingPieces ni cambia el código de salida.
 	Friction       []FrictionNote `json:"friction,omitempty"`
@@ -464,6 +467,7 @@ func main() {
 		asJSON = flag.Bool("json", false, "salida en JSON")
 		quiet  = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
 		noJira = flag.Bool("sin-jira", false, "no cruzar mis issues de Jira con las tareas locales")
+		noPRs  = flag.Bool("sin-prs", false, "no cruzar los pendientes abiertos con el estado de sus PRs en GitHub")
 		only   = flag.String("tarea", "", "id o slug: propone el bloque y la bitácora de esa tarea, sin escribir nada")
 	)
 	flag.Parse()
@@ -638,6 +642,14 @@ func main() {
 		}
 	}
 
+	if !*noPRs {
+		stale, failed := checkPRs(tasks)
+		inf.StalePRs = stale
+		if failed > 0 {
+			inf.Warnings = append(inf.Warnings, fmt.Sprintf("no se pudo consultar el estado de %d PR(s) citados en pendientes (`gh` sin red o sin acceso)", failed))
+		}
+	}
+
 	failure := inf.MissingPieces > 0 || len(inf.BranchesWithoutTask) > 0 || unlinkedFailures(inf.UnlinkedIssues) > 0
 	if *asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(inf)
@@ -726,6 +738,7 @@ func printReport(inf Report) {
 		fmt.Println()
 	}
 	printUnlinked(inf.UnlinkedIssues)
+	printStalePRs(inf.StalePRs)
 	// ▲ y no ✗: la fricción es para mirar, no una pieza que falte (misma regla que «tocó código y no dice
 	// con qué se comprobó»).
 	if len(inf.Friction) > 0 {
