@@ -12,6 +12,11 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 
 ## Pendientes
 
+- [ ] Averiguar por qué el cobro al facturar del pedido 1674340500366-01 no tuvo respuesta del conector en 30 s
+      (2026-11-06 18:01 UTC; el reintento pasó en 0,8 s): leer `vtex logs` del conector en `master` y repetir el
+      cobro sobre un pedido nuevo; termina cuando se sabe si fue el arranque de una instancia o el conector, y si
+      VTEX reintenta solo un cobro caído. Mientras tanto, un cobro caído se reintenta a mano.
+      Depende de: Comercial / Operaciones — quién recibe en la cuenta de la tienda el aviso de «error de captura».
 - [x] ~~Separar el arreglo de «una solicitud por pedido»~~ — pasó a su propia tarea (CORE-819), con su rama y su PR.
 
 - [x] ~~El conector pide la URL a `payment-link`~~ — rama `payment-link` del repo `vtex` (6eeeb83, local, sin push):
