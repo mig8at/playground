@@ -585,6 +585,10 @@ func act(action string, args []string, needsValue bool) error {
 	if len(args) < 1 || (needsValue && len(args) < 2) {
 		usage()
 	}
+	// Un objetivo vacío (un número que un script no encontró) no puede terminar en un clic sobre cualquier cosa.
+	if strings.TrimSpace(args[0]) == "" {
+		return errors.New("falta el elemento: un número del último look o su texto")
+	}
 	if action != "hover" {
 		if err := guideRefuses(action); err != nil {
 			return err
@@ -949,6 +953,9 @@ func saveGuard(action, name string) error {
 func point(args []string) error {
 	if len(args) < 2 {
 		usage()
+	}
+	if strings.TrimSpace(args[0]) == "" {
+		return errors.New("falta el elemento: un número del último look o su texto")
 	}
 	body := map[string]any{"version": lastVersion(), "instruction": strings.Join(args[1:], " ")}
 	if n, err := strconv.Atoi(args[0]); err == nil && n >= 1 {

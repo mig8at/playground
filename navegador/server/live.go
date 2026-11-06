@@ -685,6 +685,9 @@ type LiveAct struct {
 
 // target resuelve a qué apunta una acción: el localizador, su código TS y un nombre para los mensajes.
 func (r *Runner) liveTarget(l *live, cur *Page, num int, text string) (playwright.Locator, string, *Control, error) {
+	if num < 0 && strings.TrimSpace(text) == "" {
+		return nil, "", nil, errors.New("falta el elemento: un número del último look o su texto")
+	}
 	if text != "" {
 		for _, exact := range []bool{true, false} {
 			// Sólo lo visible: el botón de un modal cerrado existe en el DOM, pero no se puede tocar.
