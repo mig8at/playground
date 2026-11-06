@@ -1,0 +1,86 @@
+{
+  "nombre": "Aprobar la solicitud de la compra VTEX desde ecommerce-v2",
+  "meta": "Aprobar la solicitud de la compra VTEX desde ecommerce-v2",
+  "inicio": "http://localhost:5186/",
+  "dispositivo": "desktop",
+  "creado": "2026-11-06T12:55:32.013246-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-06_12-53-39",
+  "pasos": [
+    {
+      "accion": "fill",
+      "objetivo": "Celular, correo o cédula",
+      "valor": "",
+      "instruccion": "Escribí el celular, el correo o la cédula de la compra (lo hacés vos)",
+      "porque": "La solicitud de esta vez: cada compra trae la suya",
+      "dato": "Celular, correo o cédula",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Celular, correo o cédula",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Celular, correo o cédula', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Celular, correo o cédula', exact: true }).fill('')",
+      "pausa": true
+    },
+    {
+      "accion": "click",
+      "objetivo": "Buscar en qa",
+      "instruccion": "Hacé clic en «Buscar en qa»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Buscar en qa",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Buscar en qa', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Buscar en qa', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Aprobar",
+      "instruccion": "Hacé clic en «Aprobar»",
+      "porque": "Aprobar: el simulador del backend pasa la solicitud a 11 y el backend le avisa a VTEX",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Aprobar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Aprobar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Aprobar', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Aprobar",
+      "instruccion": "Hacé clic en «Aprobar»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Aprobar",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Pasar la solicitud 504666 a 11 · Autorizada?",
+          "code": "page.getByRole('dialog', { name: '¿Pasar la solicitud 504666 a 11 · Autorizada?' }).getByRole('button', { name: 'Aprobar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Pasar la solicitud 504666 a 11 · Autorizada?' }).getByRole('button', { name: 'Aprobar', exact: true }).click()"
+    }
+  ]
+}

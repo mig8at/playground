@@ -1,0 +1,513 @@
+{
+  "nombre": "Comprar una bicicleta en la tienda VTEX pagando con CreditOp",
+  "meta": "Comprar una bicicleta en la tienda VTEX pagando con CreditOp",
+  "inicio": "https://creditop.myvtex.com/",
+  "dispositivo": "desktop",
+  "creado": "2026-11-06T12:53:32.445049-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-06_12-48-05",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "AGREGAR AL CARRITO",
+      "instruccion": "Hacé clic en «AGREGAR AL CARRITO»",
+      "porque": "Agrego la Bicicleta Urbana Turquesa al carrito",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "AGREGAR AL CARRITO",
+          "nth": 2,
+          "code": "page.getByRole('button', { name: 'AGREGAR AL CARRITO' }).nth(2)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'AGREGAR AL CARRITO' }).nth(2).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://creditop.myvtex.com/checkout/#/cart",
+      "valor": "https://creditop.myvtex.com/checkout/#/cart",
+      "instruccion": "Abrí https://creditop.myvtex.com/checkout/#/cart",
+      "porque": "Voy al checkout",
+      "codigo": "page.goto('https://creditop.myvtex.com/checkout/#/cart')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Finalizar compra",
+      "instruccion": "Hacé clic en «Finalizar compra»",
+      "porque": "Finalizo la compra: el checkout pide los datos del comprador",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Finalizar compra",
+          "exact": true,
+          "code": "page.getByRole('link', { name: 'Finalizar compra', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('link', { name: 'Finalizar compra', exact: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "valor": "vtex-prueba@creditop.com",
+      "instruccion": "Escribí «vtex-prueba@creditop.com» en «Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.»",
+      "porque": "Correo de la compradora de prueba (identidad sintética de qa)",
+      "dato": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true }).fill('vtex-prueba@creditop.com')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Continuar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Continuar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Continuar', exact: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre",
+      "valor": "LAURA",
+      "instruccion": "Escribí «LAURA» en «Nombre»",
+      "porque": "Datos de la compradora de prueba: LAURA AUTO PRUEBA, la cédula y el celular sintéticos dictados en las centrales de qa",
+      "dato": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Apellidos",
+      "valor": "AUTO PRUEBA",
+      "instruccion": "Escribí «AUTO PRUEBA» en «Apellidos»",
+      "dato": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Cédula de Ciudadanía",
+      "valor": "",
+      "instruccion": "Escribí la cédula de la persona de prueba (la que se dictó en las centrales de qa) (lo hacés vos)",
+      "dato": "Cédula de Ciudadanía",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Cédula de Ciudadanía",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('')",
+      "pausa": true,
+      "porque": "El repo es público: la cédula no queda en el flujo"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Teléfono / Móvil",
+      "valor": "3793986299",
+      "instruccion": "Escribí «3793986299» en «Teléfono / Móvil»",
+      "dato": "Teléfono / Móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Teléfono / Móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3793986299')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para la Entrega",
+      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Ir para la Entrega",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Ir para la Entrega', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Ir para la Entrega', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Enviar a la dirección",
+      "instruccion": "Hacé clic en «Enviar a la dirección»",
+      "porque": "Envío a domicilio: dirección de prueba en Bogotá",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Enviar a la dirección",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Enviar a la dirección', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Enviar a la dirección', exact: true }).click()"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Departamento",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Departamento»",
+      "dato": "Departamento",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Departamento",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Departamento', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Municipio",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Municipio»",
+      "dato": "Municipio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Municipio",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Municipio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Calle",
+      "valor": "Calle 100 # 10-20",
+      "instruccion": "Escribí «Calle 100 # 10-20» en «Calle»",
+      "dato": "Calle",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Calle",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Calle', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Calle', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Barrio",
+      "valor": "Chicó",
+      "instruccion": "Escribí «Chicó» en «Barrio»",
+      "dato": "Barrio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Barrio",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Barrio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Barrio', exact: true }).fill('Chicó')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para el pago",
+      "instruccion": "Hacé clic en «Ir para el pago»",
+      "porque": "Paso al pago",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Ir para el pago",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Ir para el pago', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Ir para el pago', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Comprar ahora",
+      "instruccion": "Hacé clic en «Comprar ahora»",
+      "porque": "Comprar ahora: VTEX llama al conector y nos manda al wizard de CreditOp en qa",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Comprar ahora",
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Creditop",
+      "valor": "Creditop",
+      "instruccion": "Comprobá que se vea «Creditop»",
+      "codigo": "expect(page.getByText('Creditop').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Número de celular",
+      "valor": "",
+      "instruccion": "Escribí un celular válido (empieza por 30 a 35) (lo hacés vos)",
+      "porque": "El celular lo pone la persona: el repo es público y el código le llega a ese número",
+      "dato": "Número de celular",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "phone-input",
+          "code": "page.getByTestId('phone-input')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('phone-input').fill('')",
+      "pausa": true
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "phone-submit",
+          "code": "page.getByTestId('phone-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('phone-submit').click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "otp",
+      "valor": "",
+      "instruccion": "Escribí el código que llegó (en qa sale en el canal de mensajes de qa) (lo hacés vos)",
+      "dato": "otp",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-input",
+          "code": "page.getByTestId('otp-input')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-input').fill('')",
+      "pausa": true,
+      "porque": "El código vale una vez"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Confirmar",
+      "instruccion": "Hacé clic en «Confirmar»",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-submit",
+          "code": "page.getByTestId('otp-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-submit').click()"
+    },
+    {
+      "accion": "check",
+      "objetivo": "C.C.",
+      "instruccion": "Marcá «C.C.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "radio",
+          "value": "C.C.",
+          "exact": true,
+          "code": "page.getByRole('radio', { name: 'C.C.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('radio', { name: 'C.C.', exact: true }).check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Siguiente",
+      "instruccion": "Hacé clic en «Siguiente»",
+      "porque": "Los datos vienen prellenados de VTEX: sigo",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Siguiente",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Siguiente', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Siguiente', exact: true }).click()"
+    },
+    {
+      "accion": "select",
+      "objetivo": "select",
+      "valor": "1",
+      "instruccion": "Elegí «1» en «select»",
+      "porque": "Fecha de expedición de prueba: 1 de enero de 2010",
+      "dato": "select",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(1)",
+          "code": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(1)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(1)').selectOption('1')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "select",
+      "valor": "Enero",
+      "instruccion": "Elegí «Enero» en «select»",
+      "dato": "select",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(2)",
+          "code": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(2)').selectOption('Enero')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "select",
+      "valor": "2010",
+      "instruccion": "Elegí «2010» en «select»",
+      "dato": "select",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(3)",
+          "code": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(3)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('body > div > div > div > main > div > div:nth-of-type(2) > form > div > div > div > div:nth-of-type(1) > div > div > select:nth-of-type(3)').selectOption('2010')"
+    },
+    {
+      "accion": "check",
+      "objetivo": "confirmIdentity",
+      "instruccion": "Marcá «confirmIdentity»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#confirmIdentity",
+          "code": "page.locator('#confirmIdentity')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('#confirmIdentity').check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "porque": "Confirmo la identidad: el backend la valida con las centrales de qa",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Continuar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Continuar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Continuar', exact: true }).click()"
+    }
+  ]
+}
