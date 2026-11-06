@@ -33,7 +33,8 @@ import (
 // La sesión en vivo corre en uno de dos dispositivos, de tamaño FIJO (el editor la escala para que entre): así
 // las fotos, el video de la corrida y el script salen siempre iguales, abra donde se abra la interfaz.
 //
-//	desktop   una pantalla de escritorio común, 1280×800 (por defecto)
+//	desktop   una pantalla de escritorio, 1440×900 a densidad 2 (por defecto): en una pantalla grande el editor
+//	          la amplía, y a densidad 1 el texto salía borroso
 //	mobile    un teléfono: el perfil Pixel 7 de Playwright (412×839, táctil, agente de Chrome en Android), para
 //	          que el sitio sirva su versión móvil de verdad y no sólo una ventana angosta
 const (
@@ -42,7 +43,11 @@ const (
 	mobileProfile = "Pixel 7"
 )
 
-const liveW, liveH = 1280, 800
+const liveW, liveH = 1440, 900
+
+// La densidad del escritorio: el screencast va a 2× (nítido) y las fotos de los pasos, en píxeles CSS, para que sus
+// coordenadas sigan siendo las de los clics.
+const desktopDPR = 2.0
 
 func normDevice(d string) string {
 	if d == deviceMobile {
@@ -115,7 +120,7 @@ func (r *Runner) shotBefore(l *live, loc playwright.Locator, s *Step) {
 		return
 	}
 	name := fmt.Sprintf("%02d-antes.png", n)
-	if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
+	if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleCss, Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
 		s.Before, s.Box, s.View = name, box, view
 	}
 }
@@ -302,7 +307,8 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		Viewport: &playwright.Size{Width: liveW, Height: liveH},
 		Args:     []string{"--disable-blink-features=AutomationControlled"},
 	}
-	w, h, dpr := liveW, liveH, 1.0
+	w, h, dpr := liveW, liveH, desktopDPR
+	opts.DeviceScaleFactor = playwright.Float(desktopDPR)
 	if device == deviceMobile {
 		d := pw.Devices[mobileProfile]
 		if d == nil || d.Viewport == nil {
@@ -992,7 +998,7 @@ func (r *Runner) recordStep(l *live, s Step) {
 		if !s.OK {
 			name = fmt.Sprintf("%02d-fallo.png", n)
 		}
-		if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
+		if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleCss, Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
 			s.Shot = name
 		}
 	}
@@ -1116,7 +1122,7 @@ func (r *Runner) LiveShot() ([]byte, error) {
 	if l == nil {
 		return nil, errors.New("no hay sesión en vivo")
 	}
-	return l.page.Screenshot(playwright.PageScreenshotOptions{Timeout: playwright.Float(10000)})
+	return l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleCss, Timeout: playwright.Float(10000)})
 }
 
 // LiveScript arma con los pasos un script de Playwright que repite el recorrido. Los pasos que fallaron quedan

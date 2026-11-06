@@ -353,7 +353,7 @@ func parseDevice(s string) string {
 	return ""
 }
 
-var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1280×800)"}
+var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1440×900)"}
 
 // device dice en qué dispositivo está la sesión o la pasa al otro: se reabre en la misma página (el perfil de
 // un teléfono se fija al abrir el navegador).
