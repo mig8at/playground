@@ -7,7 +7,8 @@
 // `?ref=`). Sin autenticar, la API niega el pedido (`CHK003 Aceso bloqueado`): va con la llave de la cuenta.
 //
 // QUÉ CONECTOR ATIENDE lo decide la condición de pago activa, no esta API: hoy «Creditop qa» → afiliación v5 del
-// workspace `develop` → qa. Por eso sólo tiene sentido con TARGET=qa.
+// workspace `master` (el `develop` se borró el 2026-11-06), cuya configuración manda a qa. Por eso sólo tiene sentido
+// con TARGET=qa.
 //
 // ESCRIBE en VTEX (pedidos reales de la cuenta de pruebas) y, a través del conector, en la base compartida de qa (el
 // pedido de `payment-link`), igual que una compra a mano.
@@ -186,9 +187,24 @@ export async function waitVtex(orderId: string, done: (s: VtexState) => boolean,
     return { ok: done(state), state };
 }
 
+/** La sucursal de CreditOp a la que va hoy una compra de la tienda: el App key de la afiliación que usa la condición de
+ *  pago activa del conector Creditop. Cambia cuando alguien apunta la condición a otra afiliación (la copia de Mario en
+ *  qa, 2026-11-06): asumir una fija hacía correr el caso contra el comercio equivocado. */
+export async function activeBranchHash(): Promise<{ hash: string; affiliation: string; rule: string }> {
+    const { account } = creds();
+    const pay = `https://${account}.vtexpayments.com.br/api/pvt`;
+    const rules = await call('GET', `${pay}/rules`);
+    const rule = (rules.data ?? []).find((r: any) => r.enabled && /creditop/i.test(r.connector?.implementation ?? ''));
+    if (!rule) throw new Error('VTEX: no hay una condición de pago activa con el conector Creditop');
+    const aff = await call('GET', `${pay}/affiliations/${rule.connector.affiliationId}`);
+    const hash = (aff.data?.configuration ?? []).find((c: any) => c.name === 'appKey')?.value;
+    if (!hash) throw new Error(`VTEX: la afiliación ${rule.connector.affiliationId} no tiene App key`);
+    return { hash, affiliation: aff.data.name, rule: rule.name };
+}
+
 /** Qué versión del conector (`creditop.creditop`) tiene cada workspace: `installation` (publicada) o `link`. La API de
  *  apps de VTEX IO no acepta la llave en headers: se cambia por un token de VTEX ID. */
-export async function connectorVersions(workspaces = ['master', 'develop']): Promise<{ workspace: string; version: string; source: string }[]> {
+export async function connectorVersions(workspaces = ['master']): Promise<{ workspace: string; version: string; source: string }[]> {
     const { account, key, token } = creds();
     const login = await fetch(`${oms()}/api/vtexid/apptoken/login`, { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ appkey: key, apptoken: token }), signal: AbortSignal.timeout(20_000) });
