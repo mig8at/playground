@@ -54,6 +54,30 @@ function onTabs(list) {
   if (fresh.length) viewTab.value = fresh[fresh.length - 1]
   else if (!ids.includes(viewTab.value)) viewTab.value = (list.find((t) => t.last) || list[list.length - 1])?.id || ''
 }
+// ── seguir a Claude: la vista salta a la pestaña donde está actuando ──
+// Con varias pestañas, Claude trabaja en una mientras se mira otra. Cada señal de trabajo en una pestaña (un comando o
+// un pensamiento suyo, un paso nuevo, otra página) la trae al frente, para ver cómo trabaja sin buscarla. Si la persona
+// eligió una pestaña a mano, se respeta un rato (FOLLOW_PAUSE_MS): seguir no puede pelearle la pantalla.
+const FOLLOW_PAUSE_MS = 20_000
+const followClaude = ref(readPref('navegador.follow', '1') === '1')
+watch(followClaude, (on) => savePref('navegador.follow', on ? '1' : '0'))
+let manualUntil = 0
+function pickTab(id) {
+  viewTab.value = id
+  manualUntil = Date.now() + FOLLOW_PAUSE_MS
+}
+function followTo(id) {
+  if (!followClaude.value || !id || id === viewTab.value || Date.now() < manualUntil) return
+  if (!tabs.value.some((t) => t.id === id)) return
+  viewTab.value = id
+  go({ kind: 'live' })
+}
+/** Lo que cuenta como «Claude trabajó acá»: un paso más o una página distinta (no el análisis de fondo, que sube solo). */
+function liveMoved(prev, st) {
+  if (!prev) return false
+  return (st.steps?.length ?? 0) > (prev.steps?.length ?? 0) || (!!st.url && st.url !== prev.url)
+}
+
 async function newTab() {
   try { const t = await api('/api/tabs', { method: 'POST' }); viewTab.value = t.id; go({ kind: 'live' }) } catch (e) { liveError.value = e.message }
 }
@@ -77,7 +101,11 @@ function connect() {
   events.onerror = () => { connected.value = false } // EventSource se reconecta solo
   const on = (kind, fn) => events.addEventListener(kind, (e) => { try { fn(JSON.parse(e.data)) } catch { /* evento roto */ } })
   on('tabs', onTabs)
-  on('live', (st) => { liveStates.value = { ...liveStates.value, [st.tab]: st } })
+  on('live', (st) => {
+    const prev = liveStates.value[st.tab]
+    liveStates.value = { ...liveStates.value, [st.tab]: st }
+    if (liveMoved(prev, st)) followTo(st.tab)
+  })
   on('askstate', (st) => {
     const evs = askEventsBy.value
     if (st.total === 0) askEventsBy.value = { ...evs, [st.tab]: [] } // una meta nueva
@@ -87,6 +115,7 @@ function connect() {
   on('ask', (ev) => {
     const list = askEventsBy.value[ev.tab] || []
     if (ev.n === list.length) askEventsBy.value = { ...askEventsBy.value, [ev.tab]: [...list, ev] }
+    if (ev.k === 'act' || ev.k === 'think') followTo(ev.tab)
   })
   on('flows', (v) => { flows.value = v; if (view.value.kind === 'flow') loadView(view.value) })
   on('apps', (v) => { apps.value = v })
@@ -523,13 +552,16 @@ const status = computed(() => {
       <template v-else>
         <nav class="tabs live-tabs" aria-label="Pestañas">
           <div v-for="t in tabs" :key="t.id" class="tab" :class="{ on: t.id === viewTab }" :title="t.busy ? `Claude: ${t.meta}` : t.url">
-            <button type="button" class="tab-label" @click="viewTab = t.id">
+            <button type="button" class="tab-label" @click="pickTab(t.id)">
               <span v-if="t.busy" class="tab-busy" aria-label="Claude trabajando"></span>
               <span>{{ tabLabel(t) }}</span>
             </button>
             <button type="button" class="tab-close" :aria-label="`Cerrar la pestaña ${tabLabel(t)}`" @click="closeTab(t.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <button type="button" class="region-action new-tab" title="Pestaña nueva: otra sesión en paralelo" aria-label="Pestaña nueva" @click="newTab"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span></button>
+          <button type="button" class="follow-toggle" :aria-pressed="followClaude" :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta un rato). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'" @click="followClaude = !followClaude">
+            <span class="follow-dot" aria-hidden="true"></span>{{ followClaude ? 'Siguiendo a Claude' : 'Quieto' }}
+          </button>
         </nav>
         <div v-if="isLive" class="region-head live-head">
           <button type="button" class="region-action" title="Atrás" aria-label="Atrás" @click="liveNav('back')"><span class="ui-icon" data-icon="chevron" aria-hidden="true" style="transform: rotate(180deg)"></span></button>
@@ -811,6 +843,15 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .live-head { gap: var(--space-1) }
 .live-url { flex: 1; min-width: 0; display: flex }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
+/* Pegado al borde derecho: con muchas pestañas la barra se desplaza y el botón quedaba fuera de la vista. */
+.follow-toggle { position: sticky; right: var(--space-1); z-index: 1; background: var(--region-bg, var(--background));
+  align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: var(--space-2); height: 26px;
+  padding: 0 var(--space-3); border: 1px solid var(--border); border-radius: 999px; color: var(--fg-3);
+  font: inherit; font-size: var(--text-xs); white-space: nowrap; cursor: pointer }
+.follow-toggle:hover { color: var(--foreground) }
+.follow-toggle[aria-pressed="true"] { color: var(--foreground); border-color: var(--primary) }
+.follow-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--fg-3) }
+.follow-toggle[aria-pressed="true"] .follow-dot { background: var(--primary) }
 .tab-busy { flex: none; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); animation: tab-pulse 1.4s ease-in-out infinite }
 @keyframes tab-pulse { 50% { opacity: .35 } }
 @media (prefers-reduced-motion: reduce) { .tab-busy { animation: none } }
