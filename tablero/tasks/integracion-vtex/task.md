@@ -22,9 +22,8 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 - [ ] Correr `make harness-vtex TARGET=qa CASES=rotativo` cuando legacy-backend#1881 entre a `qa`; termina en verde
       (las dos compras en `loan-approved` y VTEX Approved).
       Depende de: Joel — revisión y merge de #1881.
-- [ ] Ver en el admin de la tienda (Apps → Creditop BNPL) que el switch «Auto-onboarding con Creditop» aparece en la
-      configuración de la 5.1.0; termina con la captura en la tarea. La ruta ya contesta en `master`; la pantalla del
-      admin no se miró.
+- [x] ~~Ver el switch en el admin de la tienda~~ — 2026-11-06: Apps → Creditop BNPL en `master` muestra «Auto-onboarding
+      con Creditop», apagado, debajo de «Ambiente de Creditop» (captura en `artifacts/2026-11-06-vtex/`).
 - [ ] Dejar lista la tienda de Mario para el auto-onboarding: el script del checkout, la app `creditop` en la
       configuración del checkout, su sucursal en `auto_onboarding_allied_branches` y los enlaces de términos y
       política de producción (hoy apuntan a los PDF del bucket de dev); termina con una compra suya sin SMS.
