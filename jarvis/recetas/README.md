@@ -31,6 +31,7 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 | `sinonimo-pantalla` | el mismo caso por el admin (Storefront › Synonyms), grabando la red | `--dejar` · `--solo-borrar <término jarvis…>` |
 | `cupon` | **caso reversible**: crea un cupón (sin promoción ligada: no descuenta nada) y lo **archiva**, que es la vuelta: en VTEX un cupón no se borra | `--codigo` · `--dejar` · `--archivar <código>` · `--json` |
 | `cupon-pantalla` | el mismo caso por el admin (Promotions › Coupons, el menú ⋮ de la fila → Archive), grabando la red | `--dejar` · `--solo-archivar <código jarvis…>` |
+| `pedido` | **sólo lectura · ¿qué pasó con este pedido?** El pedido (estado, total, ítems, motivo si se canceló), su pago en el gateway y el **registro del conector de Creditop** en castellano: cada pedido de autorización, qué contestó Creditop, a qué workspace de la app fue, el link del wizard al que mandó al cliente (para seguirlo con `make ecommerce`), la cancelación y quién la pidió. En hora de Colombia, como el admin. Sin datos del comprador | `<pedido>` (por defecto, el último) · `--ultimos N` · `--json` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
@@ -76,3 +77,9 @@ Cada caso se hace primero **por pantalla con la red grabada** (`recetas/red.ts`:
   - VTEX guarda el código en minúsculas.
   - **La lectura de un cupón queda en caché**: leído antes de archivarlo, sigue diciendo `isArchived: false` por minutos, aunque el archivo ya entró. La receta comprueba la creación con la respuesta del POST y lee recién después de archivar.
 - **La grabadora no guarda datos de la persona**: la barra del admin (`TopbarData`) y la analítica traen el perfil (nombre y correo). Se filtran, y un correo que se cuele se reemplaza por `<correo>`.
+- **Los pedidos y su pago** (2026-11-07, contrastado con el admin en dos pedidos):
+  - El registro de la transacción (`/api/payments/pvt/transactions/<id>/interactions`) es lo que el admin muestra en el detalle de Transactions, y es donde está lo que contestó Creditop: primero `undefined` con el `paymentUrl` del wizard, y `approved` cuando la solicitud se aprueba.
+  - Si Creditop no avisa, VTEX vuelve a preguntar cada 60 min, hasta 6 veces («Authorization Rules»).
+  - **El workspace de la app de Creditop que atiende cambia por pedido**: el del 5 de noviembre fue a `develop--creditop`, el del 7 a `master--creditop`. Mirarlo antes de concluir qué versión del conector respondió.
+  - **Creditop no cancela sola**: a la cancelación contesta `cancel-manually`, y VTEX abre una tarea manual para una persona.
+  - Las horas del registro vienen en UTC sin la «Z»; el admin las muestra en hora local.
