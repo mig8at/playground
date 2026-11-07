@@ -74,3 +74,28 @@ export function saveCase(app: string, caso: string, data: Record<string, unknown
     fs.writeFileSync(file, JSON.stringify({ caso, grabado: new Date().toISOString().slice(0, 10), ...data }, null, 2) + '\n');
     return path.relative(ROOT, file);
 }
+
+/**
+ * El camino rápido cuando la herramienta NO tiene API con llave (en VTEX, los sinónimos del buscador): repetir la
+ * llamada que hizo el admin, con su sesión, desde una pestaña ya abierta en la herramienta. La operación (nombre,
+ * hash y quién la manda) se lee de la GRABACIÓN del caso: si la herramienta la cambia, se vuelve a grabar.
+ */
+export function recordedOperation(app: string, caso: string, operacion: string) {
+    const file = path.join(ROOT, 'jarvis', 'mapas', app, 'casos', `${caso}.json`);
+    const data = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const call = (data.red as Call[]).find((c) => c.operacion === operacion);
+    if (!call) throw new Error(`la grabación ${path.relative(ROOT, file)} no tiene «${operacion}»: volvé a grabar el caso por pantalla`);
+    return { url: call.url, persistedQuery: (call.cuerpo as any).extensions.persistedQuery };
+}
+
+/** Manda una persisted query de GraphQL con la sesión de la pestaña (variables en base64, como el admin). */
+export async function graphqlInPage(page: any, op: { url: string; persistedQuery: unknown }, operationName: string, variables: unknown) {
+    return page.evaluate(async ({ url, persistedQuery, operationName, variables }: any) => {
+        const b64 = btoa(String.fromCharCode(...new TextEncoder().encode(JSON.stringify(variables))));
+        const res = await fetch(url, {
+            method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ operationName, variables: {}, extensions: { persistedQuery, variables: b64 } }),
+        });
+        return { status: res.status, body: await res.json().catch(() => null) };
+    }, { url: op.url, persistedQuery: op.persistedQuery, operationName, variables });
+}
