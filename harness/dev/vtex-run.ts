@@ -127,9 +127,11 @@ async function runRevolving(): Promise<Outcome> {
     let text = '';
     await withAffiliationFor(REVOLVING_BRANCH, async () => {
         try {
+            // Con JARVIS_MANOS la persona toca cada botón: el tope del caso y el del proceso pasan a una hora.
+            const hands = process.env.JARVIS_MANOS === '1';
             text = execFileSync(process.execPath, ['dev/walk-wizard.ts', '--flow', 'ecommerce', '--store', 'vtex', '--close', '--manual',
-                '--engine', 'browser', '--cases', `#${REVOLVING_BRANCH}:${REVOLVING_LENDER}`, '--result-file', file],
-                { encoding: 'utf8', env: { ...process.env, E2E_TARGET: 'qa', VTEX_MAX_PRICE: process.env.VTEX_MAX_PRICE || '1500000' }, timeout: 15 * 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
+                '--engine', 'browser', '--cases', `#${REVOLVING_BRANCH}:${REVOLVING_LENDER}`, '--result-file', file, ...(hands ? ['--timeout', '3600'] : [])],
+                { encoding: 'utf8', env: { ...process.env, E2E_TARGET: 'qa', VTEX_MAX_PRICE: process.env.VTEX_MAX_PRICE || '1500000' }, timeout: (hands ? 65 : 15) * 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
         } catch (e: any) {
             text = String(e.stdout ?? '') + String(e.stderr ?? '');   // sale ≠ 0 si no cerró: igual se lee qué pasó
         }

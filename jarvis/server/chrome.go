@@ -427,6 +427,10 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		session = ""
 	}
 	switch m.Method {
+	case "Browser.close", "Browser.crash", "Browser.crashGpuProcess", "Target.disposeBrowserContext":
+		// Es el Chrome de la persona: ningún cliente lo cierra ni lo tira. Se contesta como hecho, sin reenviarlo.
+		reply(map[string]any{}, nil)
+		return
 	case "Target.attachToBrowserTarget":
 		reply(map[string]string{"sessionId": browserSession}, nil)
 		return

@@ -17,7 +17,7 @@
 // la base — el listado lo muestra y es lo único estable sin testids.
 import { blockDevOverlays } from './dev-overlays.ts';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
-import { autofill, clickAdvance, validationErrors, readToEnd, type Field } from './autofill-qr.ts';
+import { autofill, clickAdvance, validationErrors, readToEnd, HANDS, waitForPerson, type Field } from './autofill-qr.ts';
 import { installWompiWidget } from './wompi-widget.ts';
 
 export type WizardData = {
@@ -76,7 +76,17 @@ export const WIZARD_FIELDS = (d: WizardData, sheet = ''): Field[] => [
 /** Un navegador para toda la tanda; UN CONTEXTO POR CASO.
  *  El contexto es el perfil aislado (cookies, storage), o sea «un cliente distinto», y cuesta ~50-100 MB
  *  contra los cientos de un navegador entero: es lo que hace viable correr varios a la vez. */
+/* JARVIS_CHROME=1: el caminador no lanza un Chromium, maneja el CHROME DE LA PERSONA a través del puente de Jarvis
+ * (`jarvis/server/chrome.go`, la extensión Jarvis): mismo motor, mismas pantallas, pero en una pestaña real de su
+ * Chrome (grupo «Jarvis»), que se cierra al terminar. Lo usa `make jarvis-compra-vtex`. Diferencias, todas en
+ * `openContext`/`closeContext`: el contexto es el de su Chrome (no se crea otro ni se cierra), el agente de iPhone se
+ * pone por CDP a esa pestaña, y no hay traza de Playwright. */
+const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
+const JARVIS_CDP = process.env.JARVIS_CDP || 'ws://127.0.0.1:5203/api/chrome/cdp';
+const jarvisPages = new WeakMap<BrowserContext, Page>();
+
 export async function openBrowser(opts: { headed?: boolean } = {}): Promise<Browser> {
+    if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP);
     return chromium.launch({ headless: !opts.headed });
 }
 
@@ -164,7 +174,7 @@ export function evidenceNotice(consoleOut: string[], red: string[], maximum = 3)
 
 export async function openContext(browser: Browser, baseURL: string, opts: { traza?: string; storageState?: string } = {})
 : Promise<{ ctx: BrowserContext; page: Page; evidencia: Evidence }> {
-    const ctx = await browser.newContext({
+    const ctx = JARVIS_CHROME ? browser.contexts()[0] : await browser.newContext({
         baseURL, userAgent: UA_MOBILE, viewport: { width: 420, height: 900 },
         ...(opts.storageState ? { storageState: opts.storageState } : {}),
     });
@@ -172,12 +182,21 @@ export async function openContext(browser: Browser, baseURL: string, opts: { tra
     // La TRAZA de Playwright: DOM por acción, red y consola, en un zip que se abre con
     // `npx playwright show-trace`. Es la evidencia que un log no puede dar, y se guarda SÓLO si el caso
     // falla (quien llama decide en `closeContext`).
-    if (opts.traza) await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }).catch(() => {});
+    if (opts.traza && !JARVIS_CHROME) await ctx.tracing.start({ screenshots: true, snapshots: true, sources: false }).catch(() => {});
     // La cuota inicial: el widget de Wompi simulado, que acá paga solo (`pkg/wompi-widget.ts`). Sin esto la
     // compra con cuota inicial se quedaba en `/down-payment`, frente al checkout real de Wompi.
     await installWompiWidget(ctx, { auto: true });
     const page = await ctx.newPage();
     await blockDevTools(page);
+    if (JARVIS_CHROME) {
+        // En su Chrome no hay `newContext({ userAgent, baseURL })`: el agente se pone a ESTA pestaña por CDP (el wizard lo
+        // pide de celular para la identidad), y los `goto` relativos se completan con la base.
+        const cdp = await ctx.newCDPSession(page);
+        await cdp.send('Emulation.setUserAgentOverride', { userAgent: UA_MOBILE });
+        const goto = page.goto.bind(page);
+        page.goto = ((url: string, o?: any) => goto(/^https?:/.test(url) ? url : baseURL.replace(/\/$/, '') + url, o)) as typeof page.goto;
+        jarvisPages.set(ctx, page);
+    }
 
     // ⚠ ESTO FALTABA Y SE NOTÓ EN LA PRIMERA CORRIDA REAL (2026-09-03): el caminador reportó «Error al
     // cargar los documentos» —un muro que el motor HTTP no ve— y no pudo decir POR QUÉ, porque no
@@ -235,6 +254,11 @@ const shorten = (u: string) => { try { const x = new URL(u); return x.pathname.s
 
 /** Cierra el contexto y, sólo si el caso salió mal, deja la traza en disco. */
 export async function closeContext(ctx: BrowserContext, saveTo: string | null): Promise<void> {
+    if (JARVIS_CHROME) {
+        // Su Chrome no se cierra: sólo la pestaña que abrió el caminador.
+        await jarvisPages.get(ctx)?.close().catch(() => {});
+        return;
+    }
     if (saveTo) await ctx.tracing.stop({ path: saveTo }).catch(() => {});
     else await ctx.tracing.stop().catch(() => {});
     await ctx.close().catch(() => {});
@@ -311,6 +335,13 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
         await page.getByRole('button', { name: /^continuar$/i }).first().click({ timeout: 10_000 }).catch(() => {});
         await revolvingIntro.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
         await page.waitForTimeout(700);
+    }
+    // JARVIS_MANOS: la entidad la elige la persona; se marca su tarjeta y se espera a que la página siga.
+    if (HANDS && !opts.lookOnly) {
+        const card = page.getByRole('button', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
+        if (await card.isVisible().catch(() => false)) {
+            return (await waitForPerson(page, card)) ? { ok: true, visibles: [name] } : { ok: false, visibles: [name], motivo: `nadie eligió «${name}» en 15 min` };
+        }
     }
     const buttons = page.getByRole('button');
     const n = await buttons.count().catch(() => 0);

@@ -337,6 +337,12 @@ jarvis: ## @dia abre Jarvis (:5202 · API :5203): flujos para usar herramientas 
 	@cd jarvis && npm run dev
 jarvis-evals: ## @dia la suite de regresión de bin/jarvis ask: corre las metas de jarvis/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make jarvis arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
 	@bin/jarvis evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
+.PHONY: jarvis-compra-vtex
+jarvis-compra-vtex: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chrome, sola y a la velocidad del harness: es `harness-vtex CASES=rotativo` (comprador sintético con sus centrales dictadas, la tienda apuntada a la copia de Mario mientras dura y devuelta sola, el pedido por API, el wizard hasta el crédito con la identidad aprobada a mano en qa, VTEX aprobado) con el motor de navegador del caminador manejando una pestaña de tu Chrome por Jarvis (JARVIS_CHROME=1). Necesita la extensión Jarvis conectada y ninguna otra sesión de Jarvis en Chrome. Lanzarlo ES el OK. Medido el 2026-11-07: 2 min 44 s, solicitud en 11 y VTEX Approved. TARGET=qa [MANOS=1 el motor rellena todo y marca cada botón en violeta: lo tocás vos] [VERBOSE=1 el detalle del caminador]
+	@test "$(TARGET)" = qa || { echo "  ✗ TARGET=qa (corre sólo contra qa)"; exit 2; }
+	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"connected":true' || { echo "  ✗ Jarvis no está conectado en Chrome (make jarvis y la extensión cargada)"; exit 2; }
+	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"driving":false' || { echo "  ✗ hay una sesión de Jarvis manejando Chrome: cerrala (bin/jarvis close) antes"; exit 2; }
+	@cd harness && JARVIS_CHROME=1 JARVIS_MANOS=$(MANOS) E2E_TARGET=qa VERBOSE=$(VERBOSE) node dev/vtex-run.ts --cases rotativo
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y

@@ -41,6 +41,10 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   para algo largo que corra solo sin traerle pestañas al frente, o el móvil. Sólo toca las pestañas que él comparte
   desde la pestaña Jarvis y las que abre Claude. Un captcha lo resuelve él.
 
+- **Una compra VTEX entera, sola, en su Chrome**: `make jarvis-compra-vtex TARGET=qa` (≈3 min, hasta el crédito en 11
+  y VTEX aprobado). Con `MANOS=1` el motor rellena y él toca cada botón (marcado en violeta). Para flujos largos de
+  Creditop éste es el camino, no `empezar` + `look`/`act`, que es para herramientas que el harness no conoce.
+
 ## Para practicar
 Las apps de `jarvis/apps/` (cada una con su `app.json`; `make jarvis` las levanta). Panel Andino
 (http://127.0.0.1:5206/?restaurar) es un admin de tienda ficticio, tratado como sitio REAL: medios de pago (con

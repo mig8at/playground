@@ -1296,7 +1296,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
 
 // ─── main ────────────────────────────────────────────────────────────────────────────────────────
 const cases = parseCases();
-console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'browser' ? 'NAVEGADOR (Chromium sin ventana)' : 'HTTP'} · ${flag('parallel') ? 'en paralelo' : 'en serie'} · front ${config.feBaseUrl} · target ${TARGET}`
+console.log(`\n  CAMINAR · ${cases.length} caso(s) · motor ${ENGINE === 'browser' ? (process.env.JARVIS_CHROME === '1' ? `NAVEGADOR (tu Chrome, por Jarvis${process.env.JARVIS_MANOS === '1' ? ' · los botones los tocás vos' : ''})` : 'NAVEGADOR (Chromium sin ventana)') : 'HTTP'} · ${flag('parallel') ? 'en paralelo' : 'en serie'} · front ${config.feBaseUrl} · target ${TARGET}`
     + ` · ${flag('close') ? 'hasta loan-approved' : 'hasta el listado'}${flag('manual') ? ' · identidad manual' : ''}\n`);
 
 // ⚠ SIN LA VPN DE DEV, NINGÚN AMBIENTE QUE NO SEA LOCAL RESPONDE, y el síntoma no se parece a la causa:

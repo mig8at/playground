@@ -379,6 +379,24 @@ export const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|
  * moría por timeout con el nombre ya leído — parecía un muro de la pantalla cuando era el caminador
  * eligiendo mal. Devuelve el nombre del botón clickeado, o los candidatos que encontró si ninguno servía.
  */
+/* JARVIS_MANOS=1: el modo «yo relleno, vos tocás» de Jarvis (`make jarvis-compra-vtex MANOS=1`). El motor llena todo
+ * igual, pero el botón de avance NO lo toca: lo marca en la página y espera a que la persona lo toque (que la página
+ * cambie de URL o el botón desaparezca). Hasta 15 min por pantalla. */
+export const HANDS = process.env.JARVIS_MANOS === '1';
+const HANDS_WAIT_MS = 15 * 60_000;
+
+/** Marca un elemento en la página (borde violeta, el de Jarvis) y espera a que la persona lo use. */
+export async function waitForPerson(page: Page, target: import('@playwright/test').Locator): Promise<boolean> {
+    const before = page.url();
+    await target.scrollIntoViewIfNeeded().catch(() => {});
+    await target.evaluate((el: HTMLElement) => { el.style.outline = '3px solid #8b5cf6'; el.style.outlineOffset = '3px'; }).catch(() => {});
+    const gone = await Promise.race([
+        page.waitForURL((u) => u.toString() !== before, { timeout: HANDS_WAIT_MS }).then(() => true),
+        target.waitFor({ state: 'detached', timeout: HANDS_WAIT_MS }).then(() => true),
+    ]).catch(() => false);
+    return gone;
+}
+
 export async function clickAdvance(page: Page, pattern = ADVANCE): Promise<{ ok: true; nombre: string } | { ok: false; candidatos: string[]; motivo?: string }> {
     const cand = page.getByRole('button', { name: pattern });
     const n = await cand.count().catch(() => 0);
@@ -387,6 +405,10 @@ export async function clickAdvance(page: Page, pattern = ADVANCE): Promise<{ ok:
         if (!(await c.isVisible().catch(() => false))) continue;
         if (!(await c.isEnabled().catch(() => false))) continue;
         const name = ((await c.textContent().catch(() => '')) ?? '').trim();
+        if (HANDS) {
+            if (await waitForPerson(page, c)) return { ok: true, nombre: `${name} (lo tocó la persona)` };
+            return { ok: false, candidatos: [name], motivo: `nadie tocó «${name}» en 15 min` };
+        }
         /* ⚠ EL CLICK NO PUEDE FALLAR EN SILENCIO. Acá había `.catch(() => {})` y un `ok: true` fijo
          * debajo: si el click se caía por timeout —el botón tapado, la pantalla repintándose, un
          * overlay— la función contestaba que TODO BIEN y con el nombre del botón puesto. El caminador

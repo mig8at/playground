@@ -30,6 +30,7 @@
 | Reproducir | Sin Claude y siempre **autorrellenando** (como el harness con un formulario): escribe, elige y marca sola con los datos del JSON, y cada botón o enlace lo toca la persona. También para en una llave, en un «lo hago yo», en un campo sin valor (raro) o si el elemento ya no está. Es una corrida nueva. (El servidor conserva los modos `auto` y `teach`, sin botón en la interfaz) | `server/replay.go` |
 | Corridas | Cada trabajo o reproducción guarda en `.data` sus fotos de antes y después de cada paso, el punto de la interacción, el porqué y el script. No se muestran sueltas: son el video («Cómo se hizo») del flujo que salió de ahí o de su última reproducción | `server/report.go` |
 | Proyectos | Cada app es un **proyecto** con sus flujos (la barra lateral los agrupa así, también los que todavía no tienen ninguno). Las apps de práctica viven en `jarvis/apps/<id>/` con su `app.json` (nombre, puerto, descripción, inicio): la API las sirve al arrancar y las trata como sitios REALES. **Demo · Tareas** (:5207, lo más simple: crear, actualizar, borrar; trae flujos en `flujos/tareas/`) y **Panel Andino** (:5206, un admin de tienda con medios de pago, envíos y una app en iframe). En una app local, el flujo guarda sus URLs relativas a la app | `server/apps.go`, `apps/`, `flujos/` |
+| Compra automática (motor del harness) | `make jarvis-compra-vtex TARGET=qa [MANOS=1]`: una compra VTEX entera en el Chrome de la persona a la velocidad del harness. No pasa por el análisis de Jarvis: es `harness-vtex CASES=rotativo` con `JARVIS_CHROME=1`, y el motor de navegador del caminador (`harness/pkg/wizard-browser.ts`) se conecta por `/api/chrome/cdp` a una pestaña nueva (grupo «Jarvis») con el agente de iPhone puesto por CDP, y la cierra al terminar. `MANOS=1` (`JARVIS_MANOS`): el motor rellena todo y marca en violeta el botón o la entidad que toca; espera a que lo toque la persona (15 min por pantalla). Medido el 2026-11-07: 10 pantallas en 2 min 44 s, solicitud 504729 en 11 y VTEX Approved. El primer intento —manejar el wizard con `look` y `act`— se descartó: el análisis por acción lo hacía lento y frágil | `harness/pkg/wizard-browser.ts`, `harness/pkg/autofill-qr.ts`, `Makefile` |
 | Evals | La suite de `ask` sobre las apps: cómo terminó, qué quedó guardado (`estado`) y si el script se repite | `cli/evals.go`, `evals/casos.json` |
 
 `make jarvis` levanta todo. La skill **`jarvis`** (`.claude/skills/jarvis/`) lleva el ciclo a una
@@ -63,6 +64,11 @@ corridas con sus fotos, descargas).
   contenido, Credidemo y Tienda Andina: la historia está en git.
 
 ## Trampas que ya costaron tiempo
+
+- **El puente no reenvía `Browser.close` (ni `Browser.crash`, `Target.disposeBrowserContext`)**: es el Chrome de la
+  persona, y un cliente de Playwright que «cierra el navegador» al terminar no tiene que poder tirarlo.
+- **Para manejar un flujo largo, el motor del harness y no `look`/`act`**: analizar la página antes de cada acción
+  cuesta segundos y, recién recargada, no encuentra los campos (dos corridas trabadas en el celular, 2026-11-07).
 
 - **El puente de Chrome imita lo que `chrome.debugger` no tiene** (2026-11-07): Playwright 1.60, al conectarse por
   CDP, pide `Target.getTargetInfo` sin sesión, `Target.attachToBrowserTarget` y, para el screencast,
