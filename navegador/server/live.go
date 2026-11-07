@@ -50,8 +50,8 @@ const liveW, liveH = 1440, 900
 const desktopDPR = 2.0
 
 func normDevice(d string) string {
-	if d == deviceMobile {
-		return deviceMobile
+	if d == deviceMobile || d == deviceChrome {
+		return d
 	}
 	return deviceDesktop
 }
@@ -322,12 +322,46 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		opts.IsMobile = playwright.Bool(d.IsMobile)
 		opts.HasTouch = playwright.Bool(d.HasTouch)
 	}
-	// El perfil se comparte con otra pestaña del mismo sitio si ya está abierto (tabs.go): cada una con su página.
-	bctx, page, release, err := acquireContext(profile, device, func() (playwright.BrowserContext, error) {
-		return pw.Chromium.LaunchPersistentContext(profile, opts)
-	})
-	if err != nil {
-		return err
+	var bctx playwright.BrowserContext
+	var page playwright.Page
+	var release func()
+	if device == deviceChrome {
+		// En el Chrome de la persona (chrome.go): una pestaña nueva suya, que se cierra al terminar la sesión.
+		if bctx, err = chromeContext(pw); err != nil {
+			return err
+		}
+		// Si la persona compartió una pestaña de este sitio, se trabaja en ésa y queda abierta al terminar (es suya);
+		// si no, una nueva, que se cierra.
+		done := chromeSessionStarted()
+		page = sharedChromePage(bctx, start)
+		if page != nil {
+			release = done
+		} else {
+			if page, err = bctx.NewPage(); err != nil {
+				done()
+				return fmt.Errorf("abrir la pestaña en Chrome: %w", err)
+			}
+			release = func() { _ = page.Close(); done() }
+		}
+		w, h, dpr = liveW, liveH, 1
+		if v, err := page.Evaluate("() => [innerWidth, innerHeight, devicePixelRatio]"); err == nil {
+			if a, ok := v.([]any); ok && len(a) == 3 {
+				fw, _ := toFloat(a[0])
+				fh, _ := toFloat(a[1])
+				fd, _ := toFloat(a[2])
+				if fw > 0 && fh > 0 {
+					w, h, dpr = int(fw), int(fh), fd
+				}
+			}
+		}
+	} else {
+		// El perfil se comparte con otra pestaña del mismo sitio si ya está abierto (tabs.go): cada una con su página.
+		bctx, page, release, err = acquireContext(profile, device, func() (playwright.BrowserContext, error) {
+			return pw.Chromium.LaunchPersistentContext(profile, opts)
+		})
+		if err != nil {
+			return err
+		}
 	}
 	defer release()
 	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, clean: clean, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}

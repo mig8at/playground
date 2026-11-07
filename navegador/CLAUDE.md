@@ -17,6 +17,7 @@
 | Pestañas | Varias sesiones a la vez, cada una con su página, su Claude, sus pasos, su corrida y su flujo: una pestaña es un `Runner` + un `Asker`. Qué pestaña atiende un pedido lo dice el encabezado `X-Navegador-Tab` (o `?tab=`); sin él, **la última que se abrió**. Por consola, `--sesion N` (o `NAVEGADOR_SESION=N`) en cualquier comando, y `pestanas [nueva [--movil] [url] | cerrar N]`; `empezar` abre una nueva si en la actual ya trabaja otro Claude, y `ask` fija la suya para él y sus comandos. La interfaz elige cuál MIRA (barra arriba del navegador, «+» abre una vacía) sin cambiar ese default: un clic de la persona no manda los comandos de Claude a otra página. **Siguiendo a Claude** (el último punto del pie: naranja sigue, gris quieto; clic alterna, el tooltip explica; se recuerda): la vista salta a la pestaña donde Claude actúa —un comando o un pensamiento suyo, un paso nuevo, otra página—; si la persona eligió una a mano, se respeta 20 s. «Quieto» lo apaga. **Las pestañas que abre Claude y deja sin uso se cierran solas** (`Sweep`, cada 30 s): a los 10 min sin un comando suyo ni una acción de la persona (`NAVEGADOR_TAB_IDLE`, `0` lo apaga). Nunca se cierran las que abrió la persona, la última que se abrió, una que la interfaz está mirando, una con un `ask` corriendo o la única; el CLI se identifica con `X-Navegador-Client: cli` y `pestanas` dice hace cuánto no se usa cada una. Playwright es uno solo para todas | `server/tabs.go`, `cli/main.go` (`takeTabFlag`, `pinTab`) |
 | API | Go en **:5203**. Sesión en vivo, Claude, corridas, flujos, apps | `server/main.go` |
 | Sesión en vivo | Chromium sin ventana transmitido por CDP, acciones por localizador, diálogos, descargas. Escritorio 1440×900 a densidad 2 (por defecto; las fotos de los pasos, en píxeles CSS) o móvil (perfil Pixel 7) | `server/live.go`, `server/browser.go` |
+| Motor «chrome» | La sesión en vivo corre en el **Chrome de la persona** en vez del Chromium: `empezar --chrome`, `open --chrome`, `device chrome` (o `NAVEGADOR_MOTOR=chrome`). La extensión (`extension/`, MV3, se carga «descomprimida» en `chrome://extensions`) se conecta a `/api/chrome/bridge` y pasa el CDP de las pestañas con `chrome.debugger`; `/api/chrome/cdp` le habla a Playwright como si fuera un Chrome (`ConnectOverCDP`), así look, pasos, flujos, script y reproducción son los mismos. Sólo se tocan las pestañas que la persona **comparte** desde el panel lateral y las que abre el navegador (lo niega la extensión, no sólo el servidor); si hay una compartida del mismo sitio, la sesión trabaja en ésa y la deja abierta al terminar, si no abre una que cierra. Al terminar la última sesión en Chrome se suelta el depurador (se va la barra amarilla). El panel lateral muestra la conexión, la sesión y los flujos (copia en IndexedDB para cuando el servidor está apagado; la fuente sigue siendo `flujos/`). `bin/navegador chrome` dice si está conectada | `server/chrome.go`, `extension/` |
 | Análisis | Lo interactivo de la pantalla con sus localizadores verificados (también en iframes) y los avisos (incluido MURO ANTI-BOTS) | `server/analyze.js`, `server/locators.go`, `server/frames.go` |
 | Claude | `bin/navegador ask` corre Claude Code (`claude -p`) sobre la sesión. Desde la interfaz, la API corre el mismo comando con `NAVEGADOR_EVENTS=1` y le pasa las respuestas por stdin. Lo que termina en LISTO se guarda solo como flujo | `cli/ask.go`, `cli/ask.md`, `server/ask.go` |
 | Claude desde la conversación | `bin/navegador empezar [--url U] '<meta>'` abre una sesión en el panel; cada comando aparece solo, `pienso '<texto>'` muestra lo que piensa (y es el subtítulo del próximo paso), y `terminar 'LISTO: …'` guarda la corrida y, con LISTO, el flujo. El servidor ignora los comandos si no hay sesión abierta | `cli/main.go`, `server/ask.go` (`Begin`, `Event`, `End`) |
@@ -58,6 +59,20 @@ corridas con sus fotos, descargas).
   contenido, Credidemo y Tienda Andina: la historia está en git.
 
 ## Trampas que ya costaron tiempo
+
+- **El puente de Chrome imita lo que `chrome.debugger` no tiene** (2026-11-07): Playwright 1.60, al conectarse por
+  CDP, pide `Target.getTargetInfo` sin sesión, `Target.attachToBrowserTarget` y, para el screencast,
+  `Target.attachToTarget` sobre esa sesión. `chrome.debugger` da UNA sesión por pestaña: la segunda es un alias
+  (`pw-alias-N`) que manda a la misma pestaña y recibe una copia de sus eventos. Si una versión nueva de Playwright
+  falla al conectar, el error dice qué comando falta: se contesta en `handleCommand`.
+- **Los eventos de depuración tienen que salir en orden**: la extensión mira qué pestañas están permitidas en una
+  copia en memoria, sin `await`. Con una lectura asíncrona por evento se pueden desordenar.
+- **Al reconectarse, la extensión suelta el depurador de las pestañas**: si el servidor se reinició con una sesión
+  abierta, la pestaña quedaba enganchada con el estado del Playwright anterior y la sesión siguiente no arrancaba
+  («no arrancó en 60 s»).
+- **Para probar la extensión sin el Chrome de la persona**, un Chromium de Playwright con `--load-extension`. Pero
+  ese Playwright **rechaza solo los diálogos que nadie escucha** y le gana al «aceptar» del navegador (un confirm
+  de borrar salía aceptado y no borraba): hay que registrarle un `page.on('dialog', () => {})` vacío. Ese Chromium de prueba ya está armado: `node navegador/dev/chrome-stand-in.cjs`.
 
 - **Un GET de la interfaz no es uso de una pestaña**: la interfaz consulta el estado de todas solas, así que contarlo
   dejaría vivas para siempre las que Claude abandonó. Cuenta un pedido del CLI (cualquiera), una acción de la persona

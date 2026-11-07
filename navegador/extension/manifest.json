@@ -1,0 +1,12 @@
+{
+  "manifest_version": 3,
+  "name": "Navegador · CreditOp playground",
+  "version": "0.1.0",
+  "description": "Conecta tu Chrome con el navegador del playground (127.0.0.1:5203): Claude trabaja en las pestañas que compartís, y ves los flujos al costado.",
+  "minimum_chrome_version": "125",
+  "permissions": ["debugger", "tabs", "storage", "sidePanel", "alarms"],
+  "host_permissions": ["http://127.0.0.1:5203/*"],
+  "background": { "service_worker": "background.js" },
+  "side_panel": { "default_path": "sidepanel.html" },
+  "action": { "default_title": "Navegador" }
+}

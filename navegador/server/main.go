@@ -617,6 +617,12 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	})
 	// GET /api/flows — los flujos (navegador/flujos). POST /api/flows {run, name} — guarda una corrida como flujo.
 	// GET|DELETE /api/flows/<app>/<id> · POST /api/flows/<app>/<id>/replay {mode: auto|teach}
+	// ── el motor «chrome» (chrome.go): la extensión, Playwright y el estado ──
+	mux.HandleFunc("/api/chrome/bridge", chromeBridge.serveExtension)
+	mux.HandleFunc("/api/chrome/cdp", chromeBridge.servePlaywright)
+	mux.HandleFunc("/api/chrome", func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(w, http.StatusOK, chromeBridge.Status())
+	})
 	mux.HandleFunc("/api/flows", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
 			var in struct{ Run, Name string }

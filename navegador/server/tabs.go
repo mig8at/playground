@@ -351,5 +351,8 @@ func deviceName(d string) string {
 	if d == deviceMobile {
 		return "teléfono"
 	}
+	if d == deviceChrome {
+		return "tu Chrome"
+	}
 	return "escritorio"
 }

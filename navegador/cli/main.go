@@ -19,6 +19,7 @@
 //	bin/navegador point <n> '<instrucción>'      modo guía: marca el elemento en la página en vivo y espera a que la
 //	                                             persona lo haga (guide.go del servidor)
 //	bin/navegador cambios                        lo que cambió en cada campo desde el último guardar (antes → después)
+//	bin/navegador chrome                         ¿está conectada la extensión de Chrome? ¿qué pestañas compartió la persona?
 //	bin/navegador empezar [--url U] '<meta>'     abre una sesión de Claude desde la conversación: el panel de la interfaz
 //	              pienso '<texto>'              muestra cada comando, lo que piensa (pienso) y cómo terminó (terminar,
 //	              terminar 'LISTO: …'           que guarda la corrida y, con LISTO, el flujo)
@@ -93,7 +94,7 @@ func main() {
 	cmd, args := os.Args[1], os.Args[2:]
 	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
 	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
-	inSession := cmd != "ask" && cmd != "evals" && cmd != "empezar" && cmd != "pienso" && cmd != "terminar" && os.Getenv("NAVEGADOR_ASK") == "" && os.Getenv("NAVEGADOR_EVENTS") == ""
+	inSession := cmd != "ask" && cmd != "evals" && cmd != "empezar" && cmd != "chrome" && cmd != "pienso" && cmd != "terminar" && os.Getenv("NAVEGADOR_ASK") == "" && os.Getenv("NAVEGADOR_EVENTS") == ""
 	if inSession {
 		panelEvent("act", "navegador "+shellLine(os.Args[1:]))
 	}
@@ -101,6 +102,8 @@ func main() {
 	switch cmd {
 	case "empezar":
 		err = begin(args)
+	case "chrome":
+		err = chromeStatus()
 	case "pestanas", "pestañas":
 		err = tabsCmd(args)
 	case "pienso":
@@ -210,13 +213,14 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/navegador <comando>
-  open [--movil] <url> · device [movil|escritorio] · look [--todo | --buscar texto] · close
+  open [--movil|--chrome] <url> · device [movil|escritorio|chrome] · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
-  empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  chrome   ¿la extensión de Chrome está conectada? (con ella, empezar --chrome / open --chrome corren en tu Chrome)
+  empezar [--chrome] [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
   pestanas [nueva [--movil] [url] | cerrar N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
                         Cualquier comando: --sesion N (o NAVEGADOR_SESION=N);
                         sin eso, la última que se abrió. empezar abre una nueva si en la actual ya trabaja otro Claude
@@ -378,11 +382,13 @@ func parseDevice(s string) string {
 		return "mobile"
 	case "escritorio", "desktop":
 		return "desktop"
+	case "chrome":
+		return "chrome"
 	}
 	return ""
 }
 
-var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1440×900)"}
+var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1440×900)", "chrome": "tu Chrome (la extensión del navegador)"}
 
 // device dice en qué dispositivo está la sesión o la pasa al otro: se reabre en la misma página (el perfil de
 // un teléfono se fija al abrir el navegador).
@@ -1062,7 +1068,19 @@ func shellLine(args []string) string {
 
 func begin(args []string) error {
 	start := ""
-	if len(args) > 1 && args[0] == "--url" {
+	// --chrome (o NAVEGADOR_MOTOR=chrome): la sesión corre en el Chrome de la persona, por la extensión.
+	dev := ""
+	if os.Getenv("NAVEGADOR_MOTOR") == "chrome" {
+		dev = "chrome"
+	}
+	for len(args) > 0 && (args[0] == "--url" || args[0] == "--chrome") {
+		if args[0] == "--chrome" {
+			dev, args = "chrome", args[1:]
+			continue
+		}
+		if len(args) < 2 {
+			usage()
+		}
 		start, args = args[1], args[2:]
 	}
 	goal := strings.TrimSpace(strings.Join(args, " "))
@@ -1088,7 +1106,7 @@ func begin(args []string) error {
 	// Los pasos de cero, ANTES de ir a la URL: la corrida (y el flujo) son de esta meta, con la ida incluida.
 	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	if start != "" {
-		if err := startLive([]string{start}, false, ""); err != nil {
+		if err := startLive([]string{start}, false, dev); err != nil {
 			return err
 		}
 	}
@@ -1216,5 +1234,28 @@ func tabsCmd(args []string) error {
 		fmt.Printf("%s %s  %s%s\n", mark, t.ID, where, who)
 	}
 	fmt.Println("  (* la que atiende un comando sin --sesion · las que abrió Claude y deja sin uso se cierran solas)")
+	return nil
+}
+
+// chromeStatus dice si la extensión de Chrome está conectada y qué pestañas puede manejar el navegador.
+func chromeStatus() error {
+	var st struct {
+		Connected bool           `json:"connected"`
+		Extension map[string]any `json:"extension"`
+		Shared    []int          `json:"shared"`
+		Attached  []int          `json:"attached"`
+		Driving   bool           `json:"driving"`
+	}
+	if err := call(http.MethodGet, "/api/chrome", nil, &st); err != nil {
+		return err
+	}
+	if !st.Connected {
+		fmt.Println("la extensión de Chrome NO está conectada: cargala en chrome://extensions (navegador/extension, «Cargar descomprimida») y abrí su panel lateral")
+		return nil
+	}
+	fmt.Printf("extensión conectada (versión %v) · %d pestaña(s) que se pueden manejar · %d enganchada(s)\n", st.Extension["version"], len(st.Shared), len(st.Attached))
+	if st.Driving {
+		fmt.Println("hay una sesión en vivo corriendo en Chrome")
+	}
 	return nil
 }
