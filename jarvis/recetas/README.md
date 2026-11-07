@@ -23,8 +23,8 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 
 | receta | qué deja | parámetros |
 |---|---|---|
-| `crear-producto-pantalla` | lo mismo, pero el **producto se crea por el admin**, en tu Chrome con Jarvis, con los elementos del mapa (nombre, activo, marca, categoría, todas las políticas comerciales, visible, referencia → Save); el SKU, la imagen, el precio y el stock, que el admin reparte en otras pantallas, los pone `crear-producto --producto <id>` | `--nombre` · `--precio` · `--stock 10` · `--marca "Creditop Pruebas"` · `--categoria "Bicicletas"` · `--json` |
 | `crear-producto` | un producto **vendible** en la tienda de pruebas: producto, SKU con medidas, imagen, política comercial, precio, stock y SKU activo. Lo que no se dice sale del molde, la BMX (SKU 9) | `--nombre` · `--precio` · `--stock 10` · `--ref` · `--categoria 4` · `--marca 2000001` · `--descripcion` · `--oculto` · `--json` |
+| `crear-producto-pantalla` | lo mismo, pero el **producto se crea por el admin**, en tu Chrome con Jarvis, con los elementos del mapa (nombre, activo, marca, categoría, todas las políticas comerciales, visible, referencia → Save); el SKU, la imagen, el precio y el stock, que el admin reparte en otras pantallas, los pone `crear-producto --producto <id>` | `--nombre` · `--precio` · `--stock 10` · `--marca "Creditop Pruebas"` · `--categoria "Bicicletas"` · `--json` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
