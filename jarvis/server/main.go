@@ -294,6 +294,24 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, ok)
 	})
+	// POST /api/live/ua {ua: iphone|<texto>|""} — el agente de la pestaña (live.go, LiveUserAgent).
+	mux.HandleFunc("/api/live/ua", func(w http.ResponseWriter, r *http.Request) {
+		tab := tabs.pick(w, r)
+		if tab == nil {
+			return
+		}
+		var in struct{ UA string }
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+			writeErr(w, http.StatusBadRequest, err)
+			return
+		}
+		ua, err := tab.Runner.LiveUserAgent(in.UA)
+		if err != nil {
+			writeErr(w, http.StatusConflict, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]string{"ua": ua})
+	})
 	// POST /api/live/nav {action: goto|back|forward|reload, url}
 	mux.HandleFunc("/api/live/nav", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)

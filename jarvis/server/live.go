@@ -1618,3 +1618,37 @@ func (r *Runner) focusChrome() {
 	}
 	_ = l.page.BringToFront()
 }
+
+// iPhoneUA es el agente de celular con que el wizard de Creditop deja validar identidad y ver el crédito aprobado
+// (con uno de escritorio pide «continuar desde tu celular»). El mismo que usa el harness (harness/pkg/windows.ts).
+const iPhoneUA = "Mozilla/5.0 (iPhone; CPU iPhone OS 16_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/16.5 Mobile/15E148 Safari/604.1"
+
+// LiveUserAgent cambia el agente de la pestaña de la sesión (las peticiones y navigator.userAgent), sin reabrirla:
+// en el Chrome de la persona no hay otro modo de presentarse como celular. "iphone" usa iPhoneUA; "" lo devuelve
+// al del navegador. Dura mientras la sesión tenga la pestaña; la página hay que recargarla para que el servidor
+// vea el agente nuevo.
+func (r *Runner) LiveUserAgent(ua string) (string, error) {
+	l := r.liveSession()
+	if l == nil {
+		return "", errors.New("no hay sesión en vivo")
+	}
+	if strings.EqualFold(ua, "iphone") {
+		ua = iPhoneUA
+	}
+	if ua == "" {
+		v, err := l.page.Evaluate("() => navigator.userAgent")
+		if err != nil {
+			return "", err
+		}
+		// Sin override el navegador vuelve al suyo; se manda vacío para quitarlo.
+		if _, err := l.cdp.Send("Emulation.setUserAgentOverride", map[string]any{"userAgent": ""}); err != nil {
+			return "", err
+		}
+		s, _ := v.(string)
+		return s, nil
+	}
+	if _, err := l.cdp.Send("Emulation.setUserAgentOverride", map[string]any{"userAgent": ua}); err != nil {
+		return "", err
+	}
+	return ua, nil
+}

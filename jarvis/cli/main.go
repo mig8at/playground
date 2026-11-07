@@ -129,6 +129,8 @@ func main() {
 		err = open(args)
 	case "device":
 		err = device(args)
+	case "ua":
+		err = userAgent(args)
 	case "look":
 		for i := 0; i < len(args); i++ {
 			switch args[i] {
@@ -213,6 +215,7 @@ func main() {
 
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/jarvis <comando>
+  ua iphone|reset|'<agente>'   la pestaña se presenta con otro agente (en tu Chrome, para el wizard «como celular»); después, reload
   open [--chromium|--movil] <url> (por defecto en tu Chrome, con Jarvis) · device [movil|escritorio|chrome] · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
@@ -1284,5 +1287,25 @@ func chromeStatus() error {
 	if st.Driving {
 		fmt.Println("hay una sesión en vivo corriendo en Chrome")
 	}
+	return nil
+}
+
+// userAgent cambia el agente de la pestaña de la sesión: `ua iphone` (el wizard de Creditop pide celular para validar
+// identidad), `ua reset` (el del navegador) o uno escrito. La página se recarga después para que el servidor lo vea.
+func userAgent(args []string) error {
+	if len(args) == 0 {
+		usage()
+	}
+	ua := strings.Join(args, " ")
+	if strings.EqualFold(ua, "reset") || strings.EqualFold(ua, "escritorio") {
+		ua = ""
+	}
+	var out struct {
+		UA string `json:"ua"`
+	}
+	if err := call(http.MethodPost, "/api/live/ua", map[string]string{"ua": ua}, &out); err != nil {
+		return err
+	}
+	fmt.Printf("agente: %s\n(recargá la página para que el servidor lo vea: bin/jarvis reload)\n", out.UA)
 	return nil
 }
