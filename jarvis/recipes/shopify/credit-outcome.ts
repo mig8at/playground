@@ -10,7 +10,7 @@
 // 2. El caminador del harness por HTTP, desde ESE link (`walk-wizard.ts --entry-url`), hasta el listado (~25 s).
 // 3. El simulador de qa pone la solicitud en 11, 6 u 8. CreditOp avisa a la app por su webhook (por el túnel), la app
 //    le pregunta el resultado y lo aplica en Shopify (`paymentSessionResolve` o `paymentSessionReject`).
-// 4. Mira el pedido en el admin: «Pagado» con 11.
+// 4. Lo que aplicó la app (su registro) y el pedido por la Admin API: PAID con 11; con 6 u 8 no hay pedido.
 // Medido el 2026-11-07: pedido #1025, solicitud 504733 en 11 → Shopify «Pagado».
 // ⚠ Necesita el servidor de la app de Shopify prendido y apuntado a la tienda: `make chat` → Servers → «Shopify · app de
 // pagos» → Levantar (la app app-qa contra qa, el túnel y la extensión subida). Y la contraseña de la tienda puesta una
@@ -94,37 +94,46 @@ say(`simulador: solicitud ${walked.ur} → ${STATUS[outcome]} (${outcome}) · ${
 // ── 4 · qué aplicó la app en Shopify (su registro) y, si aprobó, el pedido en el admin ──
 // Con un pago RECHAZADO Shopify no crea el pedido (el checkout vuelve a ofrecer pagar): lo que dice cómo terminó es la
 // línea `creditop.webhook.applied` de la app, con `next: 'resolved' | 'rejected'`.
-await new Promise((res) => setTimeout(res, 15_000)); // CreditOp avisa a la app y la app a Shopify
+// CreditOp avisa a la app y la app a Shopify: casi siempre en ~15 s, pero se espera hasta un minuto.
+// ⚠ Medido el 2026-11-07: en 1 de 4 corridas qa NO avisó (la solicitud en 11 y el pedido de la tienda con
+// `processed = 0` en `ecommerce_requests`), sin rastro en los logs. Si pasa, la receta lo dice con ese dato.
 let applied = '';
-try {
-    const { stdout, stderr } = await run('docker', ['logs', '--since', `${Math.ceil((Date.now() - t0) / 1000) + 5}s`, 'shopify-app-app-qa-1'], { maxBuffer: 20 << 20 });
-    const blocks = (stdout + stderr).split('creditop.webhook.applied').slice(1);
-    const last = blocks.pop() ?? '';
-    applied = /next:\s*'(\w+)'/.exec(last)?.[1] ?? '';
-    const creditop = /creditop:\s*'(\w+)'/.exec(last)?.[1] ?? '?';
-    say(applied ? `la app de Creditop: CreditOp dijo «${creditop}» → en Shopify «${applied}» · ${secs()}` : `⚠ la app todavía no aplicó el resultado (docker logs shopify-app-app-qa-1) · ${secs()}`);
-} catch (e) {
-    say(`⚠ no pude leer el registro de la app (docker): ${String((e as Error).message).split('\n')[0]}`);
+let creditopSaid = '?';
+for (let waited = 0; waited < 60_000 && !applied; waited += 5_000) {
+    await new Promise((res) => setTimeout(res, 5_000));
+    try {
+        const { stdout, stderr } = await run('docker', ['logs', '--since', `${Math.ceil((Date.now() - t0) / 1000) + 5}s`, 'shopify-app-app-qa-1'], { maxBuffer: 20 << 20 });
+        const last = (stdout + stderr).split('creditop.webhook.applied').slice(1).pop() ?? '';
+        applied = /next:\s*'(\w+)'/.exec(last)?.[1] ?? '';
+        creditopSaid = /creditop:\s*'(\w+)'/.exec(last)?.[1] ?? '?';
+    } catch (e) {
+        say(`⚠ no pude leer el registro de la app (docker): ${String((e as Error).message).split('\n')[0]}`);
+        break;
+    }
+}
+if (applied) say(`la app de Creditop: CreditOp dijo «${creditopSaid}» → en Shopify «${applied}» · ${secs()}`);
+else {
+    const erId = new URL(wizard).searchParams.get('erId');
+    const { stdout } = await run(path.join(ROOT, 'bin/pg'), ['sql', '--target', 'qa', '-json', '--query',
+        `SELECT processed FROM ecommerce_requests WHERE id = ${Number(erId)}`], { timeout: 60_000 }).catch(() => ({ stdout: '{}' }));
+    const processed = JSON.parse(stdout).rows?.[0]?.processed;
+    say(`✗ en un minuto CreditOp no le avisó a la app (pedido de la tienda ${erId}: processed = ${processed ?? '?'} en qa) · ${secs()}`);
+    process.exit(1);
 }
 if (applied === 'rejected') {
     say(`Shopify rechazó el pago: no crea pedido · solicitud ${walked.ur} en ${STATUS[outcome]} · ${secs()}`);
     process.exit(outcome === 'aprobada' ? 1 : 0);
 }
+// El pedido, por la Admin API (la app «Jarvis · Admin API (pruebas)», con acceso a pedidos desde la distribución
+// personalizada): el más nuevo pagado con Creditop después de empezar esta corrida.
 {
-    const { page, close } = await openChrome();
-    try {
-        await page.goto(`${ADMIN}/orders`, { waitUntil: 'commit', timeout: 60_000 });
-        await page.waitForTimeout(10_000);
-        let text = '';
-        for (const f of page.frames()) text += '\n' + await f.evaluate(() => document.body?.innerText ?? '').catch(() => '');
-        const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
-        const i = lines.findIndex((l) => /^#\d{4}$/.test(l));
-        if (i >= 0) {
-            orderName = lines[i];
-            say(`Shopify: ${lines.slice(i, i + 7).join(' · ')} · ${secs()}`);
-        } else say('⚠ no pude leer el último pedido en el admin: miralo en ' + `${ADMIN}/orders`);
-    } finally {
-        await close();
-    }
+    const { graphql } = await import('./api.ts');
+    const d = await graphql<any>(`{ orders(first: 5, sortKey: CREATED_AT, reverse: true) { nodes { name createdAt displayFinancialStatus
+        paymentGatewayNames totalPriceSet { shopMoney { amount } } } } }`);
+    const o = d.orders.nodes.find((x: any) => Date.parse(x.createdAt) >= t0 - 60_000 && x.paymentGatewayNames.some((g: string) => /creditop/i.test(g)));
+    if (o) {
+        orderName = o.name;
+        say(`Shopify: pedido ${o.name} · $${Number(o.totalPriceSet.shopMoney.amount).toLocaleString('es-CO')} · ${o.paymentGatewayNames.join(', ')} · ${o.displayFinancialStatus} · ${secs()}`);
+    } else say(`⚠ no aparece un pedido nuevo pagado con Creditop: miralo en ${ADMIN}/orders`);
 }
 say(`listo: pedido ${orderName || '?'} · solicitud ${walked.ur} en ${STATUS[outcome]} · ${secs()}`);
