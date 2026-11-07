@@ -95,8 +95,10 @@ say(`simulador: solicitud ${walked.ur} → ${STATUS[outcome]} (${outcome}) · ${
 // Con un pago RECHAZADO Shopify no crea el pedido (el checkout vuelve a ofrecer pagar): lo que dice cómo terminó es la
 // línea `creditop.webhook.applied` de la app, con `next: 'resolved' | 'rejected'`.
 // CreditOp avisa a la app y la app a Shopify: casi siempre en ~15 s, pero se espera hasta un minuto.
-// ⚠ Medido el 2026-11-07: en 1 de 4 corridas qa NO avisó (la solicitud en 11 y el pedido de la tienda con
-// `processed = 0` en `ecommerce_requests`), sin rastro en los logs. Si pasa, la receta lo dice con ese dato.
+// ⚠ Medido el 2026-11-07: en 1 de 6 corridas qa NO avisó (la solicitud en 11 y el pedido de la tienda con
+// `processed = 0`): el túnel contestó 502 (`ecommerce_store_notify_failed` en Loki) por una conexión que Node ya había
+// cerrado, y el backend no reintenta. El chat abre ahora el túnel con `--proxy-keepalive-timeout 4s`. Si pasa, la
+// receta lo dice con ese dato.
 let applied = '';
 let creditopSaid = '?';
 for (let waited = 0; waited < 60_000 && !applied; waited += 5_000) {

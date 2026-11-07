@@ -303,7 +303,11 @@ func startTunnel(ctx context.Context) (shopifyMemory, error) {
 		return shopifyMemory{}, err
 	}
 	// HTTP/2 y no QUIC: con la VPN la conexión por UDP falla y cloudflared tarda más de un minuto en darse cuenta.
-	args := []string{"tunnel", "--no-autoupdate", "--protocol", "http2", "--url", "http://localhost:" + shopifyAppPort}
+	// --proxy-keepalive-timeout 4s: cloudflared guarda las conexiones ociosas hacia la app 1m30s, y el servidor de Node
+	// de la app las cierra a los 5 s. Si un pedido llega justo cuando Node la cerró, cloudflared contesta 502 («Unable
+	// to reach the origin service … EOF»). Le pasó al aviso de qa de una compra el 2026-11-07 (pedido 8199), y qa no
+	// reintenta: el pago quedó sin aprobar en Shopify. Soltándola antes que Node, no se reusa una conexión muerta.
+	args := []string{"tunnel", "--no-autoupdate", "--protocol", "http2", "--proxy-keepalive-timeout", "4s", "--url", "http://localhost:" + shopifyAppPort}
 	shopifySrv.logf("$ cloudflared %s", strings.Join(args, " "))
 	cmd := exec.Command(path, args...)
 	cmd.Stdout, cmd.Stderr, cmd.Env = logFile, logFile, toolEnv()
