@@ -21,6 +21,9 @@ let state = { status: 'desconectado', shared: [], opened: [] }
 let sessions = []
 let selected = null // el id de la sesión que muestra el editor
 
+// El estilo «Paneles» de la base, como chat y la interfaz web de Jarvis: cada región, un panel sobre el lienzo.
+document.documentElement.setAttribute('data-style', 'panels')
+
 // ── el tema: el mismo arranque que THEME_BOOT de workbench.js (MV3 no deja scripts en línea) ──
 
 function applyTheme(theme) {

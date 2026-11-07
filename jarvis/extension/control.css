@@ -1,6 +1,9 @@
 /* La pestaña Jarvis. Todo lo de la forma lo ponen theme.css y workbench.css (copias de tools/ui, `make estilo-sync`);
  * acá sólo lo que es de esta página. */
 
+/* `hidden` tiene que ganarle al `display` que ponen las clases del workbench (la subbanda, un botón de la banda). */
+[hidden] { display: none !important }
+
 /* La página es el workbench entero, sin el margen que pone el navegador. */
 body { margin: 0 }
 
