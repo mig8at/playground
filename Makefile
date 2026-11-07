@@ -337,6 +337,17 @@ jarvis: ## @dia abre Jarvis (:5202 · API :5203): flujos para usar herramientas 
 	@cd jarvis && npm run dev
 jarvis-evals: ## @dia la suite de regresión de bin/jarvis ask: corre las metas de jarvis/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make jarvis arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
 	@bin/jarvis evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
+.PHONY: jarvis-receta
+jarvis-receta: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea completa de una herramienta (VTEX, …) con parámetros, por su API cuando la tiene. Las recetas viven en jarvis/recetas/<app>/ y su catálogo en jarvis/recetas/README.md. APP=vtex RECETA=crear-producto ARGS='--nombre "Casco urbano" --precio 350000 --stock 20' [JSON=1]
+	@test -n "$(APP)" -a -n "$(RECETA)" || { echo "  ✗ APP=<app> RECETA=<receta> (ver jarvis/recetas/README.md)"; exit 2; }
+	@test -f jarvis/recetas/$(APP)/$(RECETA).ts || { echo "  ✗ no existe jarvis/recetas/$(APP)/$(RECETA).ts"; exit 2; }
+	@node jarvis/recetas/$(APP)/$(RECETA).ts $(ARGS) $(if $(JSON),--json)
+
+.PHONY: jarvis-mapa
+jarvis-mapa: ## @dia el MAPA de una herramienta (jarvis/mapas/<app>/mapa.json): sus pantallas y sus elementos con el localizador que Jarvis verificó. A=ver (default) · A=verificar abre cada pantalla en la sesión de Jarvis y dice qué elemento ya no está (sale 1) · A=guardar PANTALLA=<nombre> [MARCO='#iframe'|SIN_MARCO=1] guarda la pestaña de Jarvis tal como está. APP=vtex [SESION=N]
+	@test -n "$(APP)" || { echo "  ✗ APP=<app> (vtex, …)"; exit 2; }
+	@JARVIS_SESION=$(SESION) node jarvis/dev/mapa.ts $(or $(A),ver) $(APP) $(PANTALLA) $(if $(MARCO),--marco '$(MARCO)') $(if $(SIN_MARCO),--sin-marco)
+
 .PHONY: jarvis-caminar
 jarvis-caminar: ## @dia ⚠ ESCRIBE (en TARGET): cualquier caso del caminador del harness, pero en TU Chrome por Jarvis (el motor de navegador maneja una pestaña del grupo «Jarvis»). Por defecto en LOCAL, con la identidad a mano y el buró dictado al mock: sin qa ni copias de comercios. Es `harness-walk-wizard ENGINE=browser` con JARVIS_CHROME=1, así que acepta sus mismas variables. Medido el 2026-11-07: CrediPullman por la tienda en local, 10 pantallas hasta el 11. CASES='#13874eb6:77' [TARGET=local] [FLOW=ecommerce|self-service|merchant] [CLOSE=1] [MANUAL=1 por defecto] [LAMBDA=1 por defecto en local] [MANOS=1 el motor rellena y marca cada botón: lo tocás vos, hasta una hora] [AMOUNT=…] [FLOW=merchant ASESOR=c<hash>-fake@creditop.com el canal de asesor con la sesión de prueba del comercio (bin/pg advisor status la lista): el asesor en una pestaña y, al elegir una CreditopX, el cliente sigue en otra]
 jarvis-caminar:

@@ -41,6 +41,10 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   para algo largo que corra solo sin traerle pestañas al frente, o el móvil. Sólo toca las pestañas que él comparte
   desde la pestaña Jarvis y las que abre Claude. Un captcha lo resuelve él.
 
+- **Una tarea de una herramienta, de una vez** (crear un producto en VTEX, …): primero mirá si hay **receta**
+  (`jarvis/recetas/README.md`, `make jarvis-receta`). Si hay que hacerla por pantalla, el **mapa** de la herramienta
+  (`make jarvis-mapa APP=vtex`) dice dónde está cada campo y botón: usá sus localizadores en vez de buscar con `look`.
+  Al pasar por una pantalla nueva, guardala en el mapa (`A=guardar PANTALLA=…`).
 - **Cualquier caso del harness en su Chrome, en LOCAL** (lo preferido: sin qa ni copias de comercios):
   `make jarvis-caminar CASES='#13874eb6:77' FLOW=ecommerce` (CrediPullman por la tienda). Mismas variables que
   `harness-walk-wizard`; `MANOS=1` para que él toque los botones. Canal de asesor con dos pestañas (asesor y
