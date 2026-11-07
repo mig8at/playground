@@ -94,32 +94,48 @@ say(`simulador: solicitud ${walked.ur} → ${STATUS[outcome]} (${outcome}) · ${
 // ── 4 · qué aplicó la app en Shopify (su registro) y, si aprobó, el pedido en el admin ──
 // Con un pago RECHAZADO Shopify no crea el pedido (el checkout vuelve a ofrecer pagar): lo que dice cómo terminó es la
 // línea `creditop.webhook.applied` de la app, con `next: 'resolved' | 'rejected'`.
-// CreditOp avisa a la app y la app a Shopify: casi siempre en ~15 s, pero se espera hasta un minuto.
-// ⚠ Medido el 2026-11-07: en 1 de 6 corridas qa NO avisó (la solicitud en 11 y el pedido de la tienda con
-// `processed = 0`): el túnel contestó 502 (`ecommerce_store_notify_failed` en Loki) por una conexión que Node ya había
-// cerrado, y el backend no reintenta. El chat abre ahora el túnel con `--proxy-keepalive-timeout 4s`. Si pasa, la
-// receta lo dice con ese dato.
+// CreditOp avisa a la app y la app a Shopify: casi siempre en ~15 s. Si el aviso no llega, la app CONCILIA sola: cada
+// `CREDITOP_RECONCILE_MINUTES` (10 por defecto, `app/settlement.server.ts` del repo shopify) le pregunta a CreditOp por
+// las sesiones pendientes de más de 2 min y aplica el resultado (`creditop.reconcile.applied`).
+// ⚠ Medido el 2026-11-07: en 1 de 6 corridas el aviso de qa dio 502 en el túnel (`ecommerce_store_notify_failed` en
+// Loki, el backend no reintenta) y la conciliación lo aplicó 3½ min después: pedido #1028 PAID. El chat abre ahora el
+// túnel con `--proxy-keepalive-timeout 4s`, que era la causa del 502.
 let applied = '';
 let creditopSaid = '?';
-for (let waited = 0; waited < 60_000 && !applied; waited += 5_000) {
-    await new Promise((res) => setTimeout(res, 5_000));
-    try {
-        const { stdout, stderr } = await run('docker', ['logs', '--since', `${Math.ceil((Date.now() - t0) / 1000) + 5}s`, 'shopify-app-app-qa-1'], { maxBuffer: 20 << 20 });
-        const last = (stdout + stderr).split('creditop.webhook.applied').slice(1).pop() ?? '';
+let how = 'aviso';
+const readApp = async () => {
+    const { stdout, stderr } = await run('docker', ['logs', '--since', `${Math.ceil((Date.now() - t0) / 1000) + 5}s`, 'shopify-app-app-qa-1'], { maxBuffer: 20 << 20 });
+    const log = stdout + stderr;
+    for (const [marker, kind] of [['creditop.webhook.applied', 'aviso'], ['creditop.reconcile.applied', 'conciliación']] as const) {
+        const last = log.split(marker).slice(1).pop();
+        if (!last) continue;
         applied = /next:\s*'(\w+)'/.exec(last)?.[1] ?? '';
         creditopSaid = /creditop:\s*'(\w+)'/.exec(last)?.[1] ?? '?';
-    } catch (e) {
-        say(`⚠ no pude leer el registro de la app (docker): ${String((e as Error).message).split('\n')[0]}`);
-        break;
+        how = kind;
+        return;
     }
-}
-if (applied) say(`la app de Creditop: CreditOp dijo «${creditopSaid}» → en Shopify «${applied}» · ${secs()}`);
-else {
+};
+const waitApp = async (limit: number) => {
+    for (const end = Date.now() + limit; Date.now() < end && !applied;) {
+        await new Promise((res) => setTimeout(res, 5_000));
+        try { await readApp(); } catch (e) {
+            say(`⚠ no pude leer el registro de la app (docker): ${String((e as Error).message).split('\n')[0]}`);
+            return false;
+        }
+    }
+    return true;
+};
+if (await waitApp(60_000) && !applied) {
     const erId = new URL(wizard).searchParams.get('erId');
     const { stdout } = await run(path.join(ROOT, 'bin/pg'), ['sql', '--target', 'qa', '-json', '--query',
         `SELECT processed FROM ecommerce_requests WHERE id = ${Number(erId)}`], { timeout: 60_000 }).catch(() => ({ stdout: '{}' }));
     const processed = JSON.parse(stdout).rows?.[0]?.processed;
-    say(`✗ en un minuto CreditOp no le avisó a la app (pedido de la tienda ${erId}: processed = ${processed ?? '?'} en qa) · ${secs()}`);
+    say(`⚠ en un minuto el aviso de CreditOp no llegó a la app (pedido de la tienda ${erId}: processed = ${processed ?? '?'} en qa); espero la conciliación de la app (hasta 12 min) · ${secs()}`);
+    await waitApp(12 * 60_000);
+}
+if (applied) say(`la app de Creditop (${how}): CreditOp dijo «${creditopSaid}» → en Shopify «${applied}» · ${secs()}`);
+else {
+    say(`✗ la app no aplicó nada: ni el aviso ni la conciliación · ${secs()}`);
     process.exit(1);
 }
 if (applied === 'rejected') {
