@@ -105,6 +105,6 @@ con CreditOp» en vez de «Pago al contado»; candado del correo). Instalada: 0.
 
 ## Herramientas que se tocaron en el playground
 
-- `navegador/`: subir archivos desde un botón que abre el selector (`upload`), y escritorio a 1440×900 con densidad 2.
+- `jarvis/`: subir archivos desde un botón que abre el selector (`upload`), y escritorio a 1440×900 con densidad 2.
 - `harness/dev/setting.ts`: `add|remove` con **hash de sucursal** (antes convertía un hash como `"a1b2c3d4"` a `NaN` y rompía
   `auto_onboarding_allied_branches.hashes`). En la base compartida sigue exigiendo comercio «PRUEBA AUTO…».

@@ -331,12 +331,12 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 
 
-# navegador: Chromium por playwright-go; el perfil (la sesión) de cada sitio vive en navegador/.data.
-.PHONY: navegador navegador-evals
-navegador: ## @dia abre navegador (:5202 · API :5203): flujos para usar herramientas complejas. Le decís qué querés hacer en una app y Claude lo hace en un Chromium real (automático: sólo frena antes de algo irreversible) o te enseña paso a paso; lo ves trabajar en vivo y queda como flujo JSON en navegador/flujos (se repite sin Claude o se enseña) y como video. Levanta también las apps locales de práctica (navegador/apps: Panel Andino en :5206). Por consola: bin/navegador ask "<meta>"
-	@cd navegador && npm run dev
-navegador-evals: ## @dia la suite de regresión de bin/navegador ask: corre las metas de navegador/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make navegador arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
-	@bin/navegador evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
+# jarvis: Chromium por playwright-go (o tu Chrome, con la extensión Jarvis); el perfil (la sesión) de cada sitio vive en jarvis/.data.
+.PHONY: jarvis jarvis-evals
+jarvis: ## @dia abre Jarvis (:5202 · API :5203): flujos para usar herramientas complejas. Le decís qué querés hacer en una app y Claude lo hace en un Chromium real (automático: sólo frena antes de algo irreversible) o te enseña paso a paso; lo ves trabajar en vivo y queda como flujo JSON en jarvis/flujos (se repite sin Claude o se enseña) y como video. Levanta también las apps locales de práctica (jarvis/apps: Panel Andino en :5206). Con la extensión Jarvis (jarvis/extension) corre en tu Chrome: bin/jarvis empezar --chrome. Por consola: bin/jarvis ask "<meta>"
+	@cd jarvis && npm run dev
+jarvis-evals: ## @dia la suite de regresión de bin/jarvis ask: corre las metas de jarvis/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make jarvis arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
+	@bin/jarvis evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
