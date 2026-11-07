@@ -168,18 +168,11 @@ async function handle(method, params) {
 
 async function addToGroup(tab) {
   try {
-    let { groupId } = await chrome.storage.session.get('groupId')
-    if (groupId !== undefined) {
-      try {
-        const g = await chrome.tabGroups.get(groupId)
-        if (g.windowId !== tab.windowId) groupId = undefined
-      } catch {
-        groupId = undefined // la persona lo cerró o lo desagrupó
-      }
-    }
-    groupId = await chrome.tabs.group(groupId !== undefined ? { tabIds: [tab.id], groupId } : { tabIds: [tab.id], createProperties: { windowId: tab.windowId } })
-    await chrome.tabGroups.update(groupId, { title: 'Jarvis', color: 'purple' })
-    await chrome.storage.session.set({ groupId })
+    // El grupo se busca por su nombre en la ventana, no por un id guardado: un id se pierde al recargar la extensión
+    // (o al reiniciar Chrome) y se terminaba con dos grupos «Jarvis» en la misma ventana.
+    const [group] = await chrome.tabGroups.query({ title: 'Jarvis', windowId: tab.windowId })
+    const groupId = await chrome.tabs.group(group ? { tabIds: [tab.id], groupId: group.id } : { tabIds: [tab.id], createProperties: { windowId: tab.windowId } })
+    if (!group) await chrome.tabGroups.update(groupId, { title: 'Jarvis', color: 'purple' })
   } catch {
     /* sin grupo la pestaña funciona igual */
   }
