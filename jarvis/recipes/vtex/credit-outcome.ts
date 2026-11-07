@@ -3,6 +3,7 @@
 //
 //   make jarvis-recipe APP=vtex RECIPE=credit-outcome                          aprobada: la solicitud en 11
 //   make jarvis-recipe APP=vtex RECIPE=credit-outcome ARGS='--outcome negada'  o cancelada, o tienda-cancela
+//   make jarvis-recipe APP=vtex RECIPE=credit-outcome ARGS='--code <cupón> --sku 10'   con un cupón (discount-purchase --prepare)
 //
 // Es `make harness-vtex TARGET=qa CASES=<desenlace>` (harness/dev/vtex-run.ts), que ya hace todo lo rápido: compra por
 // la API de Checkout, el caminador por HTTP lleva la solicitud hasta el listado de entidades (sin navegador, ~25 s) y el
@@ -27,6 +28,9 @@ const argv = process.argv.slice(2);
 const flag = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
 const OUTCOMES = ['aprobada', 'negada', 'cancelada', 'tienda-cancela'];
 const outcome = flag('outcome') || 'aprobada';
+// Con cupón: la compra va con él (y con el SKU de la promoción), y al final se lee en qa con qué monto quedó la solicitud.
+const coupon = flag('code');
+const sku = flag('sku');
 if (!OUTCOMES.includes(outcome)) {
     console.error(`  ✗ --outcome ${outcome}: ${OUTCOMES.join(', ')}`);
     process.exit(2);
@@ -34,12 +38,13 @@ if (!OUTCOMES.includes(outcome)) {
 const say = (s: string) => console.log(`  ${s}`);
 const run = promisify(execFile);
 
-say(`compra en VTEX → solicitud en qa → desenlace «${outcome}» (por el simulador de qa) → VTEX`);
+say(`compra en VTEX${coupon ? ` con el cupón ${coupon}` : ''} → solicitud en qa → desenlace «${outcome}» (por el simulador de qa) → VTEX`);
 const t0 = Date.now();
 let res: any;
 try {
     const { stdout } = await run('node', ['dev/vtex-run.ts', '--cases', outcome], {
-        cwd: path.join(ROOT, 'harness'), env: { ...process.env, E2E_TARGET: 'qa', JSON: '1' }, timeout: 10 * 60_000, maxBuffer: 10 << 20,
+        cwd: path.join(ROOT, 'harness'), timeout: 10 * 60_000, maxBuffer: 10 << 20,
+        env: { ...process.env, E2E_TARGET: 'qa', JSON: '1', ...(coupon ? { VTEX_COUPON: coupon } : {}), ...(sku ? { VTEX_TEST_SKU: sku } : {}) },
     });
     res = JSON.parse(stdout.trim().split('\n').pop()!);
 } catch (e: any) {
@@ -51,6 +56,28 @@ const c = res.cases?.[0];
 if (!c) { console.error('  ✗ el runner no devolvió el caso'); process.exit(2); }
 say(`${c.ok ? '✓' : '✗'} pedido ${c.orderId ?? '—'} · solicitud ${c.ur ?? '—'} en estado ${c.creditop ?? '?'} · VTEX ${c.vtex} · ${((Date.now() - t0) / 1000).toFixed(0)} s`);
 for (const n of c.notes ?? []) say(`  · ${n}`);
+// Con qué montos quedó la solicitud en qa, al lado de lo que mandó la tienda (sólo lectura): con un cupón, el total del
+// pedido trae el descuento y la lista de productos no (medido el 2026-11-07), así que acá se ve cuál usó CreditOp.
+if (c.ur) {
+    const sql = `SELECT ur.purchase_amount, ur.amount, ur.original_amount, ur.final_amount, ur.initial_fee,
+                        JSON_EXTRACT(er.data, '$.total') AS store_total, er.products AS store_products
+                   FROM user_requests ur
+                   LEFT JOIN user_requests_by_ecommerce_request link ON link.user_request_id = ur.id
+                   LEFT JOIN ecommerce_requests er ON er.id = link.ecommerce_request_id
+                  WHERE ur.id = ${Number(c.ur)}`;
+    try {
+        const { stdout } = await run(path.join(ROOT, 'bin/pg'), ['sql', '--target', 'qa', '-json', '--query', sql], { timeout: 90_000 });
+        const r = JSON.parse(stdout).rows?.[0];
+        if (r) {
+            const products = JSON.parse(r.store_products || '[]');
+            const sum = products.reduce((n: number, p: any) => n + Number(p.price) * Number(p.quantity), 0);
+            say(`la tienda mandó: total $${Number(r.store_total).toLocaleString('es-CO')} · productos suman $${sum.toLocaleString('es-CO')}`);
+            say(`la solicitud quedó: purchase_amount ${r.purchase_amount} · amount ${r.amount} · original_amount ${r.original_amount} · final_amount ${r.final_amount} · initial_fee ${r.initial_fee}`);
+        }
+    } catch (e) {
+        say(`⚠ no pude leer los montos en qa: ${String((e as Error).message).split('\n')[0]}`);
+    }
+}
 if (c.orderId) {
     console.log('');
     const { stdout } = await run('node', [path.join(HERE, 'order.ts'), c.orderId], { timeout: 60_000 });

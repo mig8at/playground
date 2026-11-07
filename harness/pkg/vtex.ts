@@ -102,9 +102,11 @@ async function pickSku(): Promise<string> {
 }
 
 /** Una compra con Creditop, como desde el checkout. Devuelve la URL a la que iría el comprador. */
-/** `opts.coupon`: el pedido va con ese cupón (`marketingData.coupon`), y el precio que se paga es el que da la
- *  simulación con el cupón puesto (el de la promoción que activa). */
+/** `opts.coupon` (o `VTEX_COUPON` en el entorno, para que lo pase un runner padre): el pedido va con ese cupón
+ *  (`marketingData.coupon`), y el precio que se paga es el que da la simulación con el cupón puesto (el de la promoción
+ *  que activa). */
 export async function placeVtexOrder(buyer: VtexBuyer, chosen?: string, opts: { coupon?: string } = {}): Promise<VtexOrder> {
+    opts = { ...opts, coupon: opts.coupon ?? (process.env.VTEX_COUPON || undefined) };
     const t0 = Date.now();
     const sku = chosen ?? await pickSku();
     const sim = await simulate(sku, opts.coupon);
