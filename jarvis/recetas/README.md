@@ -25,6 +25,8 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 |---|---|---|
 | `crear-producto` | un producto **vendible** en la tienda de pruebas: producto, SKU con medidas, imagen, política comercial, precio, stock y SKU activo. Lo que no se dice sale del molde, la BMX (SKU 9) | `--nombre` · `--precio` · `--stock 10` · `--ref` · `--categoria 4` · `--marca 2000001` · `--descripcion` · `--oculto` · `--json` |
 | `crear-producto-pantalla` | lo mismo, pero el **producto se crea por el admin**, en tu Chrome con Jarvis, con los elementos del mapa (nombre, activo, marca, categoría, todas las políticas comerciales, visible, referencia → Save); el SKU, la imagen, el precio y el stock, que el admin reparte en otras pantallas, los pone `crear-producto --producto <id>` | `--nombre` · `--precio` · `--stock 10` · `--marca "Creditop Pruebas"` · `--categoria "Bicicletas"` · `--json` |
+| `coleccion` | **caso reversible**: crea una colección, la comprueba en el listado y la borra (`--dejar` la deja; `--borrar <id>`) | `--nombre` · `--dejar` · `--borrar` · `--json` |
+| `coleccion-pantalla` | el mismo caso por el admin (Catalog › Collections), **grabando la red**: de ahí salió la receta por API (`mapas/vtex/casos/coleccion.json`) | `--dejar` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
@@ -49,3 +51,11 @@ Lo que costó y las recetas ya resuelven:
   - La marca se filtra escribiendo su nombre, pero la opción queda «no visible» para Playwright: se elige con el teclado (flecha abajo y Enter).
   - La categoría no es un listbox accesible y su buscador sólo encuentra las de primer nivel («Bicicletas 2», nombre e id): se elige por el texto del resultado.
   - «All sales channels» asocia la política comercial en el momento; por API hay que hacerlo aparte.
+- **Las colecciones** (2026-11-07):
+  - El admin no llama a la API REST: usa GraphQL (`createCollection` y `deleteCollection` de `vtex.catalog-graphql`) como *persisted query*, que lleva sólo el nombre de la operación y un hash, con las variables en base64. La grabadora (`recetas/red.ts`) las guarda decodificadas.
+  - Con la llave de la cuenta se va a la API REST que esa app envuelve.
+  - **Después de borrar una colección, `GET /api/catalog/pvt/collection/<id>` la sigue devolviendo**, con 200, en los dos hosts. Lo que existe se mira en el listado (`/api/catalog_system/pvt/collection/search`).
+
+## Casos reversibles (nivel 3 de `jarvis/GUIA.md`)
+
+Cada caso se hace primero **por pantalla con la red grabada** (`recetas/red.ts`: `openChrome`, `recordWrites`, `saveCase`), y de esa grabación sale la receta por API, con su vuelta y una comprobación que no depende del camino. Las grabaciones viven en `jarvis/mapas/<app>/casos/`.
