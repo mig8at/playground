@@ -127,7 +127,7 @@ func main() {
 	cmd, args := os.Args[1], os.Args[2:]
 	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
 	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
-	inSession := cmd != "ask" && cmd != "start" && cmd != "chrome" && cmd != "think" && cmd != "finish" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
+	inSession := cmd != "ask" && cmd != "start" && cmd != "chrome" && cmd != "think" && cmd != "finish" && cmd != "docs" && cmd != "recipe" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
 	if inSession {
 		panelEvent("act", "jarvis "+shellLine(os.Args[1:]))
 	}
@@ -137,6 +137,10 @@ func main() {
 		err = begin(args)
 	case "chrome":
 		err = chromeStatus()
+	case "docs":
+		err = docsCmd(args)
+	case "recipe", "receta":
+		err = recipeCmd(args)
 	case "tabs":
 		err = tabsCmd(args)
 	case "think":
@@ -253,6 +257,8 @@ func usage() {
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--from N | --search texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · changes (lo que cambió en cada campo)
+  docs [<herramienta> [apis|screens|cases|overview]] [--json]   lo que Jarvis sabe de cada herramienta (sin servidor)
+  recipe <herramienta> <receta> [args]   corre una receta (bin/jarvis docs <herramienta> las lista)
   chrome   ¿la extensión de Chrome está conectada?
   start [--url U] '<meta>' · think '<texto>' · finish 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
   tabs [new [url] | close N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).

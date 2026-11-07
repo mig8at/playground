@@ -1,11 +1,11 @@
 // CASO REVERSIBLE · una colección: crearla y borrarla por el admin de VTEX, en el Chrome de la persona, grabando lo
-// que el admin escribe (nivel 3 de jarvis/GUIDE.md). De esa grabación sale la receta por API (`coleccion.ts`).
+// que el admin escribe (nivel 3 de jarvis/GUIDE.md). De esa grabación sale la receta por API (`collection.ts`).
 //
 //   make jarvis-recipe APP=vtex RECIPE=collection-screen [ARGS='--keep']
 //
 // Crea «Jarvis <fecha y hora>» (Catalog › Collections › CREATE COLLECTION), la busca en la lista para saber su id y
 // la borra con el tacho de SU fila (DELETE). Sólo borra la que creó: busca por el nombre exacto. Con `--keep` no la
-// borra. Lo grabado queda en `jarvis/maps/vtex/cases/coleccion.json`.
+// borra. Lo grabado queda en `jarvis/maps/vtex/cases/collection.json`.
 // ESCRIBE en el catálogo de la cuenta de pruebas `creditop` (y lo deshace).
 import '../args.ts';
 import { openChrome, recordWrites, saveCase } from '../recorder.ts';
