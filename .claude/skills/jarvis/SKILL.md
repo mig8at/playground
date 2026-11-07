@@ -41,6 +41,9 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   para algo largo que corra solo sin traerle pestañas al frente, o el móvil. Sólo toca las pestañas que él comparte
   desde la pestaña Jarvis y las que abre Claude. Un captcha lo resuelve él.
 
+- **Cualquier caso del harness en su Chrome, en LOCAL** (lo preferido: sin qa ni copias de comercios):
+  `make jarvis-caminar CASES='#13874eb6:77' FLOW=ecommerce` (CrediPullman por la tienda). Mismas variables que
+  `harness-walk-wizard`; `MANOS=1` para que él toque los botones.
 - **Una compra VTEX entera, sola, en su Chrome**: `make jarvis-compra-vtex TARGET=qa` (≈3 min, hasta el crédito en 11
   y VTEX aprobado). Con `MANOS=1` el motor rellena y él toca cada botón (marcado en violeta). Para flujos largos de
   Creditop éste es el camino, no `empezar` + `look`/`act`, que es para herramientas que el harness no conoce.

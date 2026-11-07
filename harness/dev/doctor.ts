@@ -12,7 +12,7 @@
 // Con JSON=1, el texto va a stderr y stdout lleva un objeto `harness.doctor/v1`.
 export {};
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { homedir } from 'node:os';
 
@@ -21,11 +21,18 @@ const say = (...a: unknown[]) => (JSON_OUT ? console.error : console.log)(...a);
 
 const { TARGET, query, close } = await import('../pkg/db.ts');
 const { MOCKS } = await import('../pkg/mock-registry.ts');
+const { config } = await import('../pkg/config.ts');
 
 if (TARGET !== 'local') {
     say(`  ✗ harness-doctor mira el ambiente local; el target es ${TARGET}. Para un remoto: make harness-env-drift TARGET=${TARGET}`);
     process.exit(2);
 }
+
+// Cómo se levanta un mock: no todos tienen launcher en `bin/` (wompi y codes se levantan con su `server.mjs`, que es lo
+// que hace su target de make). Sugerir `bin/mock-wompi start` mandaba a un archivo que no existe.
+const mockStart = (id: string) => existsSync(resolve(import.meta.dirname, '..', 'bin', `mock-${id}`))
+    ? `harness/bin/mock-${id} start`
+    : `cd harness && node mock-${id}/server.mjs   (en otra terminal: queda escuchando)`;
 
 type Check = { id: string; ok: boolean; frena: boolean; detalle: string; arreglo?: string };
 const checks: Check[] = [];
@@ -58,7 +65,8 @@ for (const alias of ['legacy-backend', 'frontend-monorepo']) {
 }
 
 // 2 · EL BACKEND. No por su raíz, que da 404 aunque esté bien: por una ruta que siempre contesta JSON.
-const api = process.env.E2E_API_BASE_URL?.replace(/\/api\/?$/, '') || 'http://localhost';
+// El backend efectivo del target (`config.mockUrl`): leer `process.env` saltea lo que declara `.env.local` (F-65).
+const api = String(config.mockUrl).replace(/\/api\/?$/, '') || 'http://localhost';
 const ping = await fetch(`${api}/api/loans/lender/available-quota`, {
     method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json' },
     body: '{}', signal: AbortSignal.timeout(10_000),
@@ -97,7 +105,7 @@ for (const m of MOCKS) {
     const up = await fetch(`http://127.0.0.1:${m.port}/`, { signal: AbortSignal.timeout(3_000) }).then(() => true).catch(() => false);
     if (up) continue;
     add({ id: `mock:${m.id}`, ok: false, frena: BLOCKING.has(m.id),
-          detalle: `${m.label} (:${m.port}) caído · lo necesita: ${m.needs}`, arreglo: `harness/bin/mock-${m.id} start` });
+          detalle: `${m.label} (:${m.port}) caído · lo necesita: ${m.needs}`, arreglo: mockStart(m.id) });
 }
 if (!checks.some((c) => c.id.startsWith('mock:'))) add({ id: 'mocks', ok: true, frena: false, detalle: `los ${MOCKS.length} mocks contestan` });
 

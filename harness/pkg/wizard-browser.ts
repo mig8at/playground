@@ -63,7 +63,7 @@ export const WIZARD_FIELDS = (d: WizardData, sheet = ''): Field[] => [
      * agotar los intentos — con `CUOTA=720000` puesto en la línea de comandos. Una perilla documentada
      * que no mueve nada es peor que no tenerla: manda a buscar el problema en el producto.
      * El respaldo se queda porque el vehicular de BCP no declara mínimo y ahí cualquier valor sirve. */
-    { label: /cuota inicial/i, name: 'down_payment', valor: String(d.cuotaInicial ?? Math.round(d.amount * 0.2)), tecleado: true },
+    { label: /cuota inicial|pago inicial/i, name: 'down_payment', valor: String(d.cuotaInicial ?? Math.round(d.amount * 0.2)), tecleado: true },
     /* Los dos campos del SEGUNDO formulario del vehículo de BCP (`bcp-vehiculo-paso-2`), el que va
      * DESPUÉS del gate manual. Su esquema los declara `text` sin regex y con `minLength: 1`, así que
      * cualquier cadena sirve; se les da igual la FORMA de un chasis y un motor de verdad —17 caracteres

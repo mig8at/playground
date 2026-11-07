@@ -1091,6 +1091,14 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         }
 
         // Una pantalla de espera no suma «sin avance»: su guarda es el plazo de la espera (abajo).
+        /* CUOTA INICIAL CON EL CRÉDITO YA AUTORIZADO: es el bug del rotativo (legacy-backend#1881), no una pantalla que
+         * haya que llenar. Después de autorizar, el wizard calcula la cuota inicial como si la compra ya ocupara el cupo
+         * y pide casi todo el monto. Antes se leía como «5 intentos sin que la pantalla avance» (2026-11-07, CrediPullman
+         * en local por el Chrome de Miguel: 11 con initial_fee 0 y un mínimo de $2.000.000 sobre $2.119.000). */
+        if (sheet === 'down-payment' && r.ur) {
+            const st = (await one<{ st: number }>('SELECT user_request_status_id AS st FROM user_requests WHERE id = ?', [r.ur]).catch(() => null))?.st;
+            if (st === 11) return finish('malo', 'autorizada (11) y el wizard pide cuota inicial DESPUÉS: el bug del rotativo (legacy-backend#1881), no un paso a llenar');
+        }
         if (routePath === lastOne && !WAIT_SCREEN.test(path)) {
             withoutProgress += 1;
             if (withoutProgress > MAX_WITHOUT_PROGRESS) {
