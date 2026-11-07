@@ -2,7 +2,7 @@
 //
 //   make jarvis-recipe APP=vtex RECIPE=collection [ARGS='--name "…" | --keep | --delete <id>']
 //
-// Sale de la grabación del admin (`collection-screen.ts` → `jarvis/maps/vtex/cases/coleccion.json`). El admin
+// Sale de la grabación del admin (`collection-screen.ts` → `jarvis/maps/vtex/cases/collection.json`). El admin
 // llama `createCollection` y `deleteCollection` por GraphQL (`vtex.catalog-graphql`, con la sesión de la persona);
 // esa app envuelve la API REST del catálogo, que es la que acepta la llave de la cuenta:
 //   crear    POST   /api/catalog/pvt/collection/        { Name, Description, Searchable, Highlight, DateFrom, DateTo }

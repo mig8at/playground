@@ -98,6 +98,8 @@ type Section struct {
 // App es todo lo que Jarvis sabe de una herramienta.
 type App struct {
 	ID       string    `json:"id"`
+	Name     string    `json:"name"`            // maps/<app>/tool.json (si no está, el id)
+	Hosts    []string  `json:"hosts,omitempty"` // los sitios de la herramienta: sus flujos son los de esos hosts
 	Recipes  []Recipe  `json:"recipes"`
 	Cases    []Case    `json:"cases"`
 	Screens  []Screen  `json:"screens"`
@@ -128,7 +130,19 @@ func Apps(root string) []string {
 
 // Load arma la documentación de una herramienta.
 func Load(root, app string) (*App, error) {
-	a := &App{ID: app, Recipes: []Recipe{}, Cases: []Case{}, Screens: []Screen{}, Sections: []Section{}}
+	a := &App{ID: app, Name: app, Recipes: []Recipe{}, Cases: []Case{}, Screens: []Screen{}, Sections: []Section{}}
+	if b, err := os.ReadFile(filepath.Join(root, "jarvis", "maps", app, "tool.json")); err == nil {
+		var t struct {
+			Name  string   `json:"name"`
+			Hosts []string `json:"hosts"`
+		}
+		if json.Unmarshal(b, &t) == nil {
+			if t.Name != "" {
+				a.Name = t.Name
+			}
+			a.Hosts = t.Hosts
+		}
+	}
 	files, _ := filepath.Glob(filepath.Join(root, "jarvis", "recipes", app, "*.ts"))
 	sort.Strings(files)
 	for _, f := range files {

@@ -6,7 +6,7 @@
 // admin y la importación por CSV; probado el 2026-11-07: 404 en las rutas candidatas). El camino rápido es el del
 // admin: sus operaciones de GraphQL (`createSynonym`, `getSynonyms`, `deleteSynonym`) mandadas con la SESIÓN de la
 // persona desde una pestaña del admin en su Chrome. Las operaciones salen de la grabación del caso por pantalla
-// (`synonym-screen.ts` → `jarvis/maps/vtex/cases/sinonimo.json`).
+// (`synonym-screen.ts` → `jarvis/maps/vtex/cases/synonym.json`).
 // ⚠ VTEX avisa que un sinónimo borrado no se puede volver a crear con los mismos términos: por eso los términos por
 // defecto son nuevos en cada corrida («jarvisa<n>», «jarvisb<n>»).
 // ESCRIBE en el buscador de la cuenta de pruebas `creditop` (y lo deshace).

@@ -271,4 +271,3 @@ func (t *Tabs) CloseAll() {
 	}
 	stopPlaywright()
 }
-

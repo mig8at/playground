@@ -5,7 +5,7 @@
 //
 // Crea el cupón «JARVIS<n>» (utm_source «jarvis»), sin promoción ligada: así no descuenta nada. Un cupón en VTEX no
 // se borra: se ARCHIVA, y eso es la vuelta de este caso. Sólo toca el que creó. Lo grabado queda en
-// `jarvis/maps/vtex/cases/cupon.json`. ESCRIBE en las promociones de la cuenta de pruebas `creditop`.
+// `jarvis/maps/vtex/cases/coupon.json`. ESCRIBE en las promociones de la cuenta de pruebas `creditop`.
 import '../args.ts';
 import { openChrome, recordWrites, saveCase } from '../recorder.ts';
 

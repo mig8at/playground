@@ -10,8 +10,13 @@
 </head>
 <body>
   <div class="workbench">
-    <!-- Lo que se elige: las sesiones que corren en este Chrome y tus pestañas, para compartirlas -->
-    <aside class="sidebar en-bloques" aria-label="Sesiones y pestañas">
+    <!-- Lo que se elige: las herramientas (lo que Jarvis sabe de cada una), las sesiones que corren en este Chrome y
+         tus pestañas, para compartirlas -->
+    <aside class="sidebar en-bloques" aria-label="Herramientas, sesiones y pestañas">
+      <section class="view open wb-bloque">
+        <div class="region-head"><span>Herramientas</span><span id="tools-count" class="count">0</span></div>
+        <div id="tools" class="region-body"></div>
+      </section>
       <section class="view open wb-bloque">
         <div class="region-head"><span>Sesiones</span><span id="sessions-count" class="count">0</span></div>
         <div id="sessions" class="region-body"></div>
@@ -22,7 +27,7 @@
       </section>
     </aside>
 
-    <!-- La sesión elegida: sus pasos -->
+    <!-- Lo elegido: los pasos de una sesión, o las APIs, las pantallas o los flujos de una herramienta -->
     <main class="editor">
       <div class="region-head">
         <span id="session-title">Jarvis</span>

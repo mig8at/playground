@@ -2,7 +2,7 @@
 //
 //   make jarvis-recipe APP=vtex RECIPE=coupon [ARGS='--code jarvis… | --keep | --archive <código>']
 //
-// Sale de la grabación del admin (`coupon-screen.ts` → `jarvis/maps/vtex/cases/cupon.json`). Acá el admin llama
+// Sale de la grabación del admin (`coupon-screen.ts` → `jarvis/maps/vtex/cases/coupon.json`). Acá el admin llama
 // directo a la API REST de promociones, la misma que acepta la llave de la cuenta:
 //   crear     POST /api/rnb/v1/pvt/coupon                  { couponCode, utmSource, utmCampaign, maxUsage, … }
 //   leer      GET  /api/rnb/v1/pvt/coupon/<código>          ← trae `isArchived`: es la comprobación

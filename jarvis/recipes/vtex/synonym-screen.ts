@@ -5,7 +5,7 @@
 //
 // Crea un sinónimo bidireccional y activo entre dos palabras que no existen en la tienda («jarvisa<n>» y
 // «jarvisb<n>»), lo busca en la lista y lo borra desde SU fila. Sólo toca el que creó. Lo grabado queda en
-// `jarvis/maps/vtex/cases/sinonimo.json`. ESCRIBE en el buscador de la cuenta de pruebas `creditop` (y lo deshace).
+// `jarvis/maps/vtex/cases/synonym.json`. ESCRIBE en el buscador de la cuenta de pruebas `creditop` (y lo deshace).
 import '../args.ts';
 import { openChrome, recordWrites, saveCase } from '../recorder.ts';
 

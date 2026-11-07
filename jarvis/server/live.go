@@ -137,9 +137,9 @@ type LiveState struct {
 	Analyzing bool      `json:"analyzing"`
 	Page      *Page     `json:"page,omitempty"`
 	Steps     []Step    `json:"steps"`
-	Dialogs   []string  `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
-	ScrollY   float64   `json:"scrollY"`        // dónde está la pantalla: el look muestra primero lo que se ve
-	Dismiss   bool      `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
+	Dialogs   []string  `json:"dialogs"`             // los últimos diálogos del navegador y cómo se contestaron
+	ScrollY   float64   `json:"scrollY"`             // dónde está la pantalla: el look muestra primero lo que se ve
+	Dismiss   bool      `json:"dismissDialogs"`      // la política: true rechaza los confirm, false los acepta
 	ChromeTab int       `json:"chromeTab,omitempty"` // con el motor «chrome», la pestaña de Chrome donde corre
 }
 

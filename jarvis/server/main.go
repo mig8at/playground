@@ -23,6 +23,8 @@ import (
 	"strings"
 	"syscall"
 	"time"
+
+	"creditop/playground/jarvis/docs"
 )
 
 var cliMode bool
@@ -635,6 +637,53 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	mux.HandleFunc("/api/chrome/cdp", chromeBridge.servePlaywright)
 	mux.HandleFunc("/api/chrome", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, chromeBridge.Status())
+	})
+	// ── la documentación de cada herramienta (jarvis/docs: recetas, grabaciones, mapa y barrido) ──
+	// GET /api/docs — las herramientas, con lo que hay de cada una · GET /api/docs/<app> — todo lo de una.
+	// La pestaña Jarvis de la extensión la muestra; el CLI la arma solo, sin el servidor.
+	repo := filepath.Dir(navegadorDir())
+	mux.HandleFunc("/api/docs", func(w http.ResponseWriter, r *http.Request) {
+		type summary struct {
+			ID       string   `json:"id"`
+			Name     string   `json:"name"`
+			Hosts    []string `json:"hosts,omitempty"`
+			Recipes  int      `json:"recipes"`
+			Cases    int      `json:"cases"`
+			Screens  int      `json:"screens"`
+			Sections int      `json:"sections"`
+			Menu     int      `json:"menu"`
+		}
+		out := []summary{}
+		for _, id := range docs.Apps(repo) {
+			a, err := docs.Load(repo, id)
+			if err != nil {
+				writeErr(w, http.StatusInternalServerError, err)
+				return
+			}
+			menu := 0
+			for _, s := range a.Sections {
+				menu += len(s.Screens)
+			}
+			out = append(out, summary{a.ID, a.Name, a.Hosts, len(a.Recipes), len(a.Cases), len(a.Screens), len(a.Sections), menu})
+		}
+		writeJSON(w, http.StatusOK, out)
+	})
+	mux.HandleFunc("/api/docs/", func(w http.ResponseWriter, r *http.Request) {
+		id := strings.Trim(strings.TrimPrefix(r.URL.Path, "/api/docs/"), "/")
+		if id == "" || strings.ContainsAny(id, "./\\") {
+			writeErr(w, http.StatusBadRequest, fmt.Errorf("herramienta inválida %q", id))
+			return
+		}
+		a, err := docs.Load(repo, id)
+		if err != nil {
+			writeErr(w, http.StatusInternalServerError, err)
+			return
+		}
+		if len(a.Recipes) == 0 && len(a.Screens) == 0 && len(a.Sections) == 0 {
+			writeErr(w, http.StatusNotFound, fmt.Errorf("Jarvis no sabe nada de %q", id))
+			return
+		}
+		writeJSON(w, http.StatusOK, a)
 	})
 	mux.HandleFunc("/api/flows", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
