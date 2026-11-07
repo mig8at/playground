@@ -73,6 +73,13 @@ con CreditOp» en vez de «Pago al contado»; candado del correo). Instalada: 0.
 - No hay endpoint para que un comercio mande/verifique un OTP: bajo `api/ecommerce/*` sólo están `payment-link` y
   `status`. Por eso el OTP en la tienda se descartó: con el setting y las aceptaciones alcanza.
 
+> ⚠ **Resuelto el mismo 2026-11-06 por la tarde; lo que sigue en esta sección y las dos siguientes es historia.** El
+> conector 5.1.0 ([vtex#25](https://github.com/Creditop-SAS/vtex/pull/25), switch `autoOnboarding` apagado por
+> defecto, lee los datos del pedido) quedó mergeado, publicado, desplegado e instalado en `master`, con el tema
+> `tienda-simple` 0.2.0 (el bloque de Creditop en el checkout). Probado en qa con la copia de Mario: cierra en 11 y VTEX
+> Approved con y sin el auto-onboarding, y prendido salta SMS y formulario. Las mediciones, en la pila de la tarea
+> `integracion-vtex` (bloques del 2026-11-06 desde las 15:46); la guía para la tienda de Mario, en sus `artifacts/`.
+
 ### Lo que falta en VTEX
 
 1. **El checkout no pide** fecha de nacimiento, fecha de expedición ni aceptación de términos (VTEX no tiene esos campos).
