@@ -35,10 +35,11 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
   Claude Code en modo `-p` desde una carpeta neutra, con permiso sólo para el navegador. Necesita que el Claude
   Code de consola tenga sesión propia (`claude setup-token`); si no, lo dice.
 
-- **En el Chrome de Miguel** (sitios con Cloudflare, o donde ya está logueado): `bin/jarvis chrome` dice si la
-  extensión Jarvis está conectada; `bin/jarvis empezar --chrome --url … '<meta>'` corre la sesión en una pestaña real
-  de su Chrome (grupo «Jarvis»). Sólo toca las pestañas que él comparte desde la pestaña Jarvis y las que abre Claude.
-  Un captcha lo resuelve él.
+- **Por defecto corre en el Chrome de Miguel** (la extensión Jarvis): `empezar` y `open` abren una pestaña real de
+  su Chrome (grupo «Jarvis»), con su login, así Cloudflare no frena. `bin/jarvis chrome` dice si está conectada; si
+  no lo está, la sesión cae al Chromium con un aviso. `--chromium` (o `--movil`) la abre en el Chromium a propósito:
+  para algo largo que corra solo sin traerle pestañas al frente, o el móvil. Sólo toca las pestañas que él comparte
+  desde la pestaña Jarvis y las que abre Claude. Un captcha lo resuelve él.
 
 ## Para practicar
 Las apps de `jarvis/apps/` (cada una con su `app.json`; `make jarvis` las levanta). Panel Andino
