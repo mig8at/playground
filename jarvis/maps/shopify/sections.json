@@ -1,0 +1,2193 @@
+{
+  "app": "shopify",
+  "start": "https://admin.shopify.com/store/creditop-dev-store",
+  "swept": "2026-11-07",
+  "shell": [
+    "GET admin.shopify.com/api/operations/:hash/AdminNotifications/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/AppInstallationsContextProvider/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/CoreCapital/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/CoreCredit/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/CoreExperiment/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/CoreExperiments/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/CriticalAppData/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/DevSessions/app_dev/creditop-dev-store/graphql DevSessions",
+    "GET admin.shopify.com/api/operations/:hash/DismissibleElement/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/ExtensibilityHostUIExtensions/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/Feed/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/FinanceApp/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/Guidance/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/HasAgenticChannels/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/HasLocationsWithShippingGuidance/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/HasStockInventoryLocationsQuery/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/IncentivesExperiment/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/MerchantSubscriptions/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/NavHeader/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/OnsiteActiveMerchantMigrationBanner/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/OrganizationContext/organizations/creditop-dev-store/:n ",
+    "GET admin.shopify.com/api/operations/:hash/OrganizationFlags/organizations/creditop-dev-store/:n ",
+    "GET admin.shopify.com/api/operations/:hash/OrganizationQuery/organizations/creditop-dev-store/:n ",
+    "GET admin.shopify.com/api/operations/:hash/PendingOrderCount/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/ReplatformerPlatforms/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/SavedViewsAndColumns/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/SettingsNavigationItems/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/ShopLocales/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/ShopifyPaymentsActive/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/ShopsOnlyActiveDestinations/destinations ",
+    "GET admin.shopify.com/api/operations/:hash/StaffMemberAccessConditions/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/TrialPeriodQuery/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/UnifiedFiltersQuery/shopify/creditop-dev-store ",
+    "GET admin.shopify.com/api/operations/:hash/UnifiedPaginatedFilterChoicesQuery/shopify/creditop-dev-store ",
+    "GET cdn.shopify.com/shopifycloud/shopifyql/shopifyql-parser-v47.0.0.wasm ",
+    "GET shopify-assets.shopifycdn.com/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-packagesSharedIsomorphicLocalesGuidanceUiLocales.2cd9779f.json ",
+    "GET shopify-assets.shopifycdn.com/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-shopifyPolarisInternalLocales.fd818b66.json ",
+    "POST admin.shopify.com/.well-known/dux ",
+    "POST admin.shopify.com/api/collect ",
+    "POST admin.shopify.com/api/operations/:hash/ArgusAdminContextTokenGenerate/shopify/creditop-dev-store ",
+    "POST admin.shopify.com/api/operations/:hash/LoginNotificationsRead/shopify/creditop-dev-store ",
+    "POST admin.shopify.com/api/shopify/creditop-dev-store ",
+    "POST error-analytics-sessions-production.shopifysvc.com/ ",
+    "POST monorail-edge.shopifysvc.com/unstable/produce_batch ",
+    "POST monorail-edge.shopifysvc.com/v1/produce ",
+    "POST otlp-http-production.shopifysvc.com/v1/logs ",
+    "POST otlp-http-production.shopifysvc.com/v1/metrics ",
+    "POST otlp-http-production.shopifysvc.com/v1/traces "
+  ],
+  "screens": [
+    {
+      "section": "inicio",
+      "name": "Inicio",
+      "url": "https://admin.shopify.com/store/creditop-dev-store",
+      "title": "creditop_dev_store · Inicio · Shopify",
+      "iframes": [],
+      "headings": [
+        "¡Buenas tardes! Sigamos haciendo crecer tu negocio.",
+        "Lanza tu tienda online",
+        "Configura los pagos",
+        "Obtén un dominio personalizado",
+        "Dale una actualización importante a tus cuentas de cliente",
+        "Dale la bienvenida a tu primer miembro del equipo",
+        "Haz crecer tu negocio con Shopify Partners",
+        "Conecta con los clientes con Shopify Messaging"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CollapsibleBannerTrialPeriodQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CombinedChannels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/Experiments/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/HomeCardView/shopify/creditop-dev-store",
+          "n": 3
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/HomeFeedItemInteraction/shopify/creditop-dev-store",
+          "n": 3
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/HomeMetricsLibrary/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/HomeUnlockStoreEligibility/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetricDashboardByAdminSurfaceQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/NextPayout/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/Tasks/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "countries",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "orders",
+      "name": "Pedidos 24",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/orders",
+      "title": "creditop_dev_store · Pedidos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Pedidos",
+        "Marca 0 pedidos como preparados",
+        "Marcar como pagado",
+        "No se pueden crear etiquetas de envío",
+        "No hay pedidos aptos",
+        "Agregar a lote",
+        "0 preparaciones de pedidos excluidas",
+        "Imprimir documentos",
+        "Retiros programados por empresas de transporte"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FetchSlotEntries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/OrderIndexBatchesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/OrderListData/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/OrderListInitial/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/OrdersSavedViewChannelHandlesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StaffMembersSearch/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UpcomingShippingPickups/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "draft_orders",
+      "name": "Borradores",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/draft_orders",
+      "title": "creditop_dev_store · Borradores · Shopify",
+      "iframes": [],
+      "headings": [
+        "Borradores"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DraftOrderList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FetchSlotEntries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "shipping_labels",
+      "name": "Etiquetas de envío",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/shipping_labels",
+      "title": "creditop_dev_store · Calculadora de tarifas de envío · Shopify",
+      "iframes": [],
+      "headings": [
+        "Etiquetas de envío",
+        "Crear etiquetas de Shopify Shipping",
+        "Retiros programados por empresas de transporte"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AvailableCarrierServicesForOnboarding/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/LocationsWithShippingGuidance/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShippingCarrierPreferencesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShippingLabels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShippingLabelsHasPurchasedSignal/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShippingLabelsRecentPurchase/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShippingPickups/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShopPromiseStatus/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StockInventoryLocations/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "countries",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-ShippingLabels.91df6cd7.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "checkouts",
+      "name": "Pedidos abandonados",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/checkouts",
+      "title": "creditop_dev_store · Pedidos abandonados · Shopify",
+      "iframes": [],
+      "headings": [
+        "Pedidos abandonados"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AbandonedCheckout/shopify/creditop-dev-store",
+          "n": 9
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AbandonedCheckoutAutomations/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AbandonedCheckouts/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FetchSlotEntries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FlowAppPermissions/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/HasFlowBasedAbandonedCheckoutAutomation/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketingContentDismissed/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-AbandonedCheckouts.933d76d5.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "products",
+      "name": "Productos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/products",
+      "title": "creditop_dev_store · Productos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Productos",
+        "Elige un plan"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AbandonedCheckout/shopify/creditop-dev-store",
+          "n": 3
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AdminProductDetails/shopify/creditop-dev-store",
+          "n": 3
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CombinedListingsFeaturesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FetchSlotEntries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PrimaryShopDomainQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ProductIndex/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ProductListIntentRead/server_intents/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ReorderValidationQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UnifiedAppliedFilterChoicesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "countries",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Inventory.8a77bb9b.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Products.1009ddd3.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "collections",
+      "name": "Colecciones",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/collections",
+      "title": "creditop_dev_store · Colecciones · Shopify",
+      "iframes": [],
+      "headings": [
+        "Colecciones",
+        "Excluir de canales de ventas"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CollectionDetailsQuery/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CollectionPublications/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CollectionShopContextQuery/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FetchSlotEntries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Collections.839f69f3.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Inventory.8a77bb9b.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Products.1009ddd3.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "products",
+      "name": "Inventario",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/products/inventory",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Inventario",
+        "Tienes cambios sin guardar",
+        "Importa inventario con un archivo CSV"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/InventoryPropertiesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/InventoryResourceIndexItems/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/InventoryResourceIndexTableMetadataQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MerchantInventoryGroupsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ValidateLocationsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Inventory.8a77bb9b.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "purchase_orders",
+      "name": "Órdenes de compra",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/purchase_orders",
+      "title": "creditop_dev_store · Órdenes de compra · Shopify",
+      "iframes": [],
+      "headings": [
+        "Órdenes de compra"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/InventoryPurchaseOrdersList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/InventoryPurchaseOrdersListEmptyState/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UnifiedAppliedFilterChoicesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UnifiedInventoryPurchaseOrderTags/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Inventory.8a77bb9b.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "transfers",
+      "name": "Transferencias",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/transfers",
+      "title": "creditop_dev_store · Transferencias · Shopify",
+      "iframes": [],
+      "headings": [
+        "Transferencias"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/TransferIndexTableActions/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UnifiedTransfersList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Inventory.8a77bb9b.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "gift_cards",
+      "name": "Tarjetas de regalo",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/gift_cards",
+      "title": "creditop_dev_store · Tarjetas de regalo · Shopify",
+      "iframes": [],
+      "headings": [
+        "Tarjetas de regalo"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GiftCardCapabilitiesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GiftCardList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GiftCardListEmptyState/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UnredeemableGiftCardCount/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/VisibleGiftCardProducts/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-GiftCards.5d0dd2ac.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "customers",
+      "name": "Clientes",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/customers",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Clientes",
+        "Exportar clientes",
+        "¿Eliminar ?",
+        "Fusionar clientes",
+        "Configurar 0 empresas",
+        "¿Eliminar 0 clientes?",
+        "Guardar como segmento nuevo"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsCurrenciesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CompanyPaymentTermsTemplates/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CustomerImportDetails/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CustomerListCoreCustomers/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CustomerTotalV2/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Customers.66ee677c.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "customers",
+      "name": "Segmentos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/customers/segments",
+      "title": "creditop_dev_store · Segmentos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Segmentos",
+        "¿Eliminar 0 segmentos?"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CustomerTotalV2/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Customers.66ee677c.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "companies",
+      "name": "Empresas",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/companies",
+      "title": "creditop_dev_store · Empresas · Shopify",
+      "iframes": [],
+      "headings": [
+        "Empresas",
+        "Editar configuración de pago",
+        "Actualización en curso",
+        "Editar empleados asignados",
+        "La edición de los empleados asignados podría tardar en completarse"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CompanyCatalogEmptyState/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CompanyList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CompanyShopFeatures/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CurrentBulkOperationByClientIdentifierQuery/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Companies.905e6cc2.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "growth",
+      "name": "Crecimiento",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/growth",
+      "title": "creditop_dev_store · Crecimiento · Shopify",
+      "iframes": [],
+      "headings": [
+        "Crecimiento"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentChannels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentDriftCases/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentSubsidyEnrollmentQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthOverviewCampaignFeatureSetQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthOverviewMerchantEmailQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthOverviewRecentCampaignsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthTopChannelsMarketingChannelIcons/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/Playbooks/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Growth.3f8c6efc.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "growth",
+      "name": "Atribución",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/growth/attribution",
+      "title": "creditop_dev_store · Atribución · Shopify",
+      "iframes": [],
+      "headings": [
+        "Atribución"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetricDashboardByAdminSurfaceQuery/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Growth.3f8c6efc.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "growth",
+      "name": "Autopilot",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/growth/autopilot",
+      "title": "creditop_dev_store · Crecimiento · Campaign Autopilot · Shopify",
+      "iframes": [],
+      "headings": [
+        "Campaign Autopilot",
+        "Cuenta de Microsoft Advertising",
+        "Permisos de Meta",
+        "Selecciona una cuenta",
+        "Actualiza la configuración del canal"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentChannels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentDriftCases/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAgentSubsidyEnrollmentQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAutopilotEligibility/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAutopilotEligibilityRefresh/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthAvailableCountries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthChannelRequiredApps/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthMerchantDetailsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GrowthShopLocales/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PlaybookBudgetCap/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PlaybookGuardrailDefinitions/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/Playbooks/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ServerIntent/server_intents/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ServerIntentShadowValidation/server_intents/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Growth.3f8c6efc.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "growth",
+      "name": "Campañas",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/growth/campaigns",
+      "title": "creditop_dev_store · Campañas · Shopify",
+      "iframes": [],
+      "headings": [
+        "Campañas",
+        "¿Eliminar 0 campañas?"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CampaignFeatureSetQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/IndexObservedCampaigns/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketingCampaignIndexActivePlaybook/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketingIntegratedCampaigns/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Growth.3f8c6efc.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Marketing.0f90c9c6.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "discounts",
+      "name": "Descuentos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/discounts",
+      "title": "creditop_dev_store · Descuentos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Descuentos",
+        "Seleccionar tipo de descuento",
+        "Permitir acceso a los canales de ventas",
+        "Denegar acceso a los canales de ventas"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CombinedChannels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DiscountCodeCountQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DiscountNode/shopify/creditop-dev-store",
+          "n": 4
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DiscountNodes/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "cdn.shopify.com",
+          "path": "/partners-extensions-scripts-bucket/admin_link/handle/admin-intent-link-create/version/shop-72-87/:id/1c5d11c7327280cc2d108b11e1a44b9a.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "cdn.shopify.com",
+          "path": "/partners-extensions-scripts-bucket/admin_link/handle/admin-intent-link-edit/version/shop-72-87/:id/3f715dc5d36d8639ef84f88967ab50d5.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Discounts.2153ce84.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "content",
+      "name": "Contenido",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/content/metaobjects",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Metaobjetos"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetaobjectDefinitionsIndex/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetaobjectSavedViewSummaries/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Content.bfc7ea14.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "content",
+      "name": "Archivos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/content/files",
+      "title": "creditop_dev_store · Archivos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Archivos",
+        "Agregar archivo desde URL",
+        "Subir archivos",
+        "Nueva carpeta",
+        "Cambiar nombre de la carpeta",
+        "Mover a",
+        "¿Eliminar los artículos seleccionados?"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FileId/shopify/creditop-dev-store",
+          "n": 8
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FileNodes/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FilesManagerFailedFiles/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FilesManagerProcessingFiles/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Content.bfc7ea14.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Products.1009ddd3.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "content",
+      "name": "Menús",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/content/menus",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Menús"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MenuIndex/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Content.bfc7ea14.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "content",
+      "name": "Artículos del blog",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/content/articles",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Artículos del blog"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ArticleList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Content.bfc7ea14.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "markets",
+      "name": "Mercados",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/markets",
+      "title": "creditop_dev_store · Mercados · Shopify",
+      "iframes": [],
+      "headings": [
+        "Mercados"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsAccountData/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsDefaultShippingRates/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsPhase/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsRegionMarkets/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsShopAddress/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsHomeAvailableManagers/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsHomeCurrencyOptions/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsHomeTaxes/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsIndexAdaptiveShippingOnboarding/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsIndexV2/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MarketsShippingSettings/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SuggestedMarkets/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "MarketDetailsRegions",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Markets.4a2220dc.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "catalogs",
+      "name": "Catálogos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/catalogs",
+      "title": "creditop_dev_store · Catálogos · Shopify",
+      "iframes": [],
+      "headings": [
+        "Catálogos",
+        "Exportar CSV",
+        "¿Eliminar 0 catálogos?"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CatalogListIndexFilteringMarketTypeCount/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CatalogListOperation/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CatalogsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExportCSVModalProductVendors/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Catalogs.570e5953.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "rollouts",
+      "name": "Pruebas",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/rollouts",
+      "title": "creditop_dev_store · Pruebas · Shopify",
+      "iframes": [],
+      "headings": [
+        "Programa y prueba cambios en la tienda online",
+        "Pruebas"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/RolloutList/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ServerIntent/server_intents/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Rollouts.30469df7.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "finance",
+      "name": "Finanzas",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/finance",
+      "title": "creditop_dev_store · Finanzas · Shopify",
+      "iframes": [],
+      "headings": [
+        "Herramientas",
+        "Comienza a recibir pagos",
+        "Finanzas"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/BusinessEntityInfoQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CapitalProducts/capital/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesHomeCoreQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesHomeQuery/banking/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesHomeTransactionsCoreQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesShopifyPayments/shopify/creditop-dev-store",
+          "n": 3
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesTax1099KEligibility/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesTaxCoreQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/FinancesToolsCoreQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/LegalEntityRemediationFinances/profile_assessment/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/NextPayout/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StaffMemberAuthenticationQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Analytics.29de4ead.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Finances.1b76b627.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "credit",
+      "name": "Credit",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/credit?referrer=finances-nav",
+      "title": "creditop_dev_store · Shopify Credit · Shopify",
+      "iframes": [],
+      "headings": [
+        "Shopify Credit"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CreditIndexBanking/banking/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CreditIndexBourgeois/capital/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CreditIndexCoreQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CreditIndexShippingRewards/banking/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StaffMemberAuthenticationQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Credit.7ad9431c.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "payments",
+      "name": "Pagos",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/payments/payouts?referrer=finances-nav",
+      "title": "Shopify",
+      "iframes": [],
+      "headings": [
+        "Pagos",
+        "Protege tu cuenta con la autenticación en dos pasos"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ManagedMarketsAccounts/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexBalanceSummary/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexBourgeoisOffers/capital/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexCapitalFact/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexPayoutDayGroups/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexPendingBalances/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexResourceAlerts/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PayoutsIndexState/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StaffMemberIdentityAuthenticationQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Payments.ceca948a.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "finance",
+      "name": "Bill Pay",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/finance/billpay?referrer=finances-nav",
+      "title": "creditop_dev_store · Bill Pay · Shopify",
+      "iframes": [],
+      "headings": [],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/BillPayApp/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ConsolidatedAppHome/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ExtensibilityHostLinkExtensions/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/GenerateIdToken/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/LaunchableAppRuntimeData/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ReviewEligibility/appStore/creditop-dev-store/graphql",
+          "operation": "ReviewEligibility",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShopSetup/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SurfaceGuides/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UpdateAppAccessedAt/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "data-api.melio.com",
+          "path": "/v1/i",
+          "n": 4
+        },
+        {
+          "method": "POST",
+          "host": "data-api.melio.com",
+          "path": "/v1/p",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Apps.e313e8ff.json",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Finances.1b76b627.json",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "shopify-billpay.melio.com",
+          "path": "/cdn-cgi/rum",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "analytics",
+      "name": "Informes y estadísticas",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/analytics",
+      "title": "creditop_dev_store · Informes y estadísticas · Shopify",
+      "iframes": [],
+      "headings": [
+        "Informes y estadísticas",
+        "Datos del gráfico",
+        "month de la primera compra · Cohorte: mar 2026",
+        "Mes 1 · Cohorte: mar 2026",
+        "Mes 2 · Cohorte: mar 2026",
+        "Mes 3 · Cohorte: mar 2026",
+        "Mes 4 · Cohorte: mar 2026",
+        "Mes 5 · Cohorte: mar 2026",
+        "Mes 6 · Cohorte: mar 2026",
+        "Mes 7 · Cohorte: mar 2026",
+        "month de la primera compra · Cohorte: abr 2026",
+        "Mes 1 · Cohorte: abr 2026",
+        "Mes 2 · Cohorte: abr 2026",
+        "Mes 3 · Cohorte: abr 2026",
+        "Mes 4 · Cohorte: abr 2026"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsCurrenciesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsOrganizationDetailsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsReportsIndex/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsTargetsExistQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DashboardInsightsOpinionsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/EmbeddedAppUrl/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetricDashboardByAdminSurfaceQuery/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/NextPayout/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SurfaceGuides/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "POST",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/UpdateAppAccessedAt/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Analytics.29de4ead.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "analytics",
+      "name": "Informes",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/analytics/reports",
+      "title": "creditop_dev_store · Informes · Shopify",
+      "iframes": [],
+      "headings": [
+        "Informes"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsReportsIndex/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShopifyMetricByHandle/shopify/creditop-dev-store",
+          "n": 10
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Analytics.29de4ead.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "analytics",
+      "name": "Vista en tiempo real",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/analytics/live",
+      "title": "creditop_dev_store · Informes y estadísticas · Vista en tiempo real · Shopify",
+      "iframes": [],
+      "headings": [
+        "Vista en tiempo real"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsCurrenciesQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/AnalyticsOrganizationDetailsQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/MetricDashboardByAdminSurfaceQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/NextPayout/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShopLocation/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "cdn.shopify.com",
+          "path": "/shopifycloud/globe-visuals-js/0.12.12/data/admin-countries-states-topology.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Analytics.29de4ead.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Orders.0cd64cb1.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Products.1009ddd3.json",
+          "n": 1
+        }
+      ]
+    },
+    {
+      "section": "settings",
+      "name": "Configuración",
+      "url": "https://admin.shopify.com/store/creditop-dev-store/settings",
+      "title": "creditop_dev_store · General · Shopify",
+      "iframes": [],
+      "headings": [
+        "General",
+        "¿Cambiar la información comercial?",
+        "Cambiar información comercial",
+        "Revisa las formas de pago después del cambio",
+        "¿Cambiar la entidad comercial principal?",
+        "Confirmar dirección de la tienda",
+        "Cambiar moneda de la tienda",
+        "Cambiar formato de moneda"
+      ],
+      "apis": [
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/BackupRegion/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/BusinessDetailsFinancialProducts/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/CombinedChannels/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/DataOrchestratorInvolvedPolicyCompletenessRequirementsQuery/completeness_engine/creditop-dev-store/:n",
+          "n": 10
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/LegalEntity/organizations/creditop-dev-store/:n",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/NextPayout/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PaymentProviders/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/PaymentsFeaturesProviderQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/Replatformer/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ScheduledDowngradeChanges/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsGeneral/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsGeneralLegalEntitiesExistence/organizations/creditop-dev-store/:n",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsGeneralLlcIncentiveOffer/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsGeneralOrderProcessing/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsGeneralPrimaryLegalEntity/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/SettingsModalQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/ShopifyPaymentsContainerQuery/shopify/creditop-dev-store",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "admin.shopify.com",
+          "path": "/api/operations/:hash/StoreCurrencyCard/shopify/creditop-dev-store",
+          "n": 2
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "country",
+          "n": 2
+        },
+        {
+          "method": "POST",
+          "host": "atlas.shopifysvc.com",
+          "path": "/graphql",
+          "operation": "timeZones",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Home.ea08aa86.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Payments.ceca948a.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Settings.ead05d6f.json",
+          "n": 1
+        },
+        {
+          "method": "GET",
+          "host": "shopify-assets.shopifycdn.com",
+          "path": "/shopifycloud/web/assets/v1/vite/client/en/assets/i18n/translations-bundle-es-Shipping.f94ffcbc.json",
+          "n": 1
+        }
+      ]
+    }
+  ]
+}

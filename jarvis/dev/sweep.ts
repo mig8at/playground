@@ -2,7 +2,13 @@
 // SÓLO MIRANDO, y anota de cada pantalla qué es y qué APIs llama al cargar.
 //
 //   node jarvis/dev/sweep.ts <app> <url de inicio> [--menu '<selector del menú>'] [--sections '<selector>']
-//                              [--only texto] [--wait 6000] [--skip-frames regex]
+//                              [--only texto] [--wait 6000] [--skip-frames regex] [--prefix <url>] [--out nombre] [--dry]
+//
+// `--prefix <url>`: sólo se visitan los enlaces que empiezan así. En Shopify es OBLIGATORIO en la práctica: el menú trae
+// el selector de tiendas (también la de PRODUCCIÓN, `tienda-creditop`), «Crear tienda» y los avisos. Si el menú no
+// tiene botones de sección (Shopify), la sección sale del primer tramo de la ruta después del prefijo (`orders`,
+// `products`, `settings`…). `--out nombre` escribe `maps/<app>/<nombre>.json` en vez de `sections.json` (para un
+// segundo menú, como el de Configuración).
 //
 // Abre una pestaña por Jarvis (el puente de Chrome, como el motor del harness), despliega cada sección del menú
 // (`--sections`: lo que se clickea para desplegar), junta los enlaces del menú (`--menu`) y visita cada uno con un
@@ -29,12 +35,18 @@ if (!app || !start) {
 const MENU = flag('menu', '[data-testid="sidebar"]')!;
 const SECTIONS = flag('sections', '[data-testid^="sidebar-section-"]', 'secciones')!;
 const ONLY = flag('only', undefined, 'solo');
+// El prefijo es una CARPETA: `…/store/creditop-dev-store` no tiene que tomar `…/store/creditop-dev-store-plus`.
+const PREFIX = flag('prefix')?.replace(/\/$/, '');
+const inPrefix = (u: string) => !PREFIX || u === PREFIX || u.startsWith(PREFIX + '/') || u.startsWith(PREFIX + '?');
+const DRY = argv.includes('--dry');
+const OUT = flag('out', 'sections')!;
 const WAIT = Number(flag('wait', '6000', 'espera'));
 const SKIP_FRAMES = new RegExp(flag('skip-frames', 'copilot|vercel\\.app', 'sin-marco')!, 'i');
 
 // La analítica, los mapas de fuentes y los recursos estáticos no dicen nada de la herramienta.
 const NOISE = /google|doubleclick|hotjar|segment|sentry|datadog|newrelic|nr-data|clarity|facebook|intercom|amplitude|fullstory|launchdarkly|\/rc\.vtex|vtexassets|vteximg|\.(js|css|png|svg|jpg|woff2?|ico|map)(\?|$)/i;
 const shape = (u: URL) => u.pathname
+    .replace(/\/[0-9a-f]{40,}(?=\/|$)/gi, '/:hash') // Shopify: /api/operations/<hash>/<Operación>/…
     .replace(/\/[0-9a-f]{8}-[0-9a-f-]{27,}/gi, '/:id')
     .replace(/\/\d{3,}(?=\/|$)/g, '/:n');
 
@@ -75,9 +87,17 @@ try {
             return { section, name: a.innerText.replace(/\s+/g, ' ').trim(), url: a.href };
         });
     }, [MENU, SECTIONS]);
-    for (const l of found) if (l.name && !links.some((x) => x.url === l.url)) links.push(l);
+    for (const l of found) {
+        if (!l.name || links.some((x) => x.url === l.url)) continue;
+        if (!inPrefix(l.url)) continue;
+        // Sin botones de sección: el primer tramo de la ruta después del prefijo.
+        if (!l.section && PREFIX) l.section = l.url.slice(PREFIX.length).replace(/^\//, '').split(/[/?#]/)[0] || 'inicio';
+        links.push(l);
+    }
     const todo = links.filter((l) => /^https?:/.test(l.url) && (!ONLY || `${l.section} ${l.name}`.toLowerCase().includes(ONLY.toLowerCase())));
     console.log(`  menú: ${links.length} enlaces en ${count} secciones · visito ${todo.length}`);
+    // --dry: lo que visitaría, sin visitar nada.
+    if (DRY) { for (const l of todo) console.log(`    ${l.section} › ${l.name} → ${l.url}`); todo.length = 0; }
 
     // ── cada pantalla, sólo navegando ──
     for (const [i, l] of todo.entries()) {
@@ -105,7 +125,13 @@ try {
         // se abre otra y se sigue.
         if (page.isClosed()) { page = await browser.contexts()[0].newPage(); console.log('  (la pestaña se cerró: abro otra)'); }
         try {
-            await page.goto(l.url, { waitUntil: 'commit', timeout: 60_000 });
+            // Una app de una sola página puede redirigir sola (Shopify: «interrupted by another navigation»): se espera y
+            // se reintenta una vez.
+            await page.goto(l.url, { waitUntil: 'commit', timeout: 60_000 }).catch(async (e: Error) => {
+                if (!/interrupted/i.test(e.message)) throw e;
+                await page.waitForTimeout(3000);
+                await page.goto(l.url, { waitUntil: 'commit', timeout: 60_000 });
+            });
             await page.waitForTimeout(WAIT);
             p.title = await page.title().catch(() => '');
             for (const f of page.frames()) {
@@ -113,7 +139,16 @@ try {
                 if (SKIP_FRAMES.test(f.url())) continue;
                 if (f !== page.mainFrame() && f.url() && !/^about:/.test(f.url())) p.iframes.push(new URL(f.url()).host + new URL(f.url()).pathname.slice(0, 60));
                 // Sin los del menú (sus títulos de grupo, «Prices», «Inventory», aparecían en todas las pantallas).
-                const hs = await f.evaluate((menu: string) => [...document.querySelectorAll('h1, h2, h3')].filter((h) => !h.closest(menu)).map((h) => (h as HTMLElement).innerText), MENU).catch(() => [] as string[]);
+                // También dentro del Shadow DOM (Shopify arma su admin con web components: sin esto, cero encabezados).
+                const hs = await f.evaluate((menu: string) => {
+                    const out: Element[] = [];
+                    const walk = (root: Document | ShadowRoot) => {
+                        out.push(...root.querySelectorAll('h1, h2, h3'));
+                        for (const el of root.querySelectorAll('*')) if ((el as any).shadowRoot) walk((el as any).shadowRoot);
+                    };
+                    walk(document);
+                    return out.filter((h) => !h.closest(menu)).map((h) => (h as HTMLElement).innerText);
+                }, MENU).catch(() => [] as string[]);
                 for (const h of hs) { const t = h.replace(/\s+/g, ' ').trim(); if (t && !p.headings.includes(t) && p.headings.length < 40) p.headings.push(t.slice(0, 80)); }
             }
         } catch (e) {
@@ -151,7 +186,7 @@ const hfreq = new Map<string, number>();
 for (const p of loaded) for (const h of p.headings) hfreq.set(h, (hfreq.get(h) ?? 0) + 1);
 for (const p of pages) p.headings = p.headings.filter((h) => (hfreq.get(h) ?? 0) < 5).slice(0, 15);
 
-const file = path.join(ROOT, 'jarvis', 'maps', app, 'sections.json');
+const file = path.join(ROOT, 'jarvis', 'maps', app, `${OUT.replace(/[^\w-]/g, '')}.json`);
 fs.mkdirSync(path.dirname(file), { recursive: true });
 fs.writeFileSync(file, JSON.stringify({ app, start, swept: new Date().toISOString().slice(0, 10), shell: shellApis, screens: pages }, null, 2) + '\n');
 console.log(`  → ${path.relative(ROOT, file)}`);

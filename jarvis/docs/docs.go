@@ -131,16 +131,19 @@ func Apps(root string) []string {
 // Load arma la documentación de una herramienta.
 func Load(root, app string) (*App, error) {
 	a := &App{ID: app, Name: app, Recipes: []Recipe{}, Cases: []Case{}, Screens: []Screen{}, Sections: []Section{}}
+	var groups map[string]string
 	if b, err := os.ReadFile(filepath.Join(root, "jarvis", "maps", app, "tool.json")); err == nil {
 		var t struct {
-			Name  string   `json:"name"`
-			Hosts []string `json:"hosts"`
+			Name   string            `json:"name"`
+			Hosts  []string          `json:"hosts"`
+			Groups map[string]string `json:"groups"` // sección del barrido → grupo del menú (Shopify agrupa por ruta)
 		}
 		if json.Unmarshal(b, &t) == nil {
 			if t.Name != "" {
 				a.Name = t.Name
 			}
 			a.Hosts = t.Hosts
+			groups = t.Groups
 		}
 	}
 	files, _ := filepath.Glob(filepath.Join(root, "jarvis", "recipes", app, "*.ts"))
@@ -170,6 +173,24 @@ func Load(root, app string) (*App, error) {
 	}
 	a.Screens = loadMap(filepath.Join(root, "jarvis", "maps", app, "map.json"))
 	a.Sections, a.Swept = loadSections(filepath.Join(root, "jarvis", "maps", app, "sections.json"))
+	// Otros barridos de la misma herramienta (`sweep.ts --out <nombre>`, p. ej. el menú de Configuración de Shopify):
+	// sus secciones van después, con el nombre del barrido adelante («settings › payments»).
+	extra, _ := filepath.Glob(filepath.Join(root, "jarvis", "maps", app, "*.json"))
+	sort.Strings(extra)
+	for _, f := range extra {
+		base := strings.TrimSuffix(filepath.Base(f), ".json")
+		if base == "sections" || base == "map" || base == "tool" {
+			continue
+		}
+		more, _ := loadSections(f)
+		for _, sec := range more {
+			sec.Name = base + " › " + sec.Name
+			a.Sections = append(a.Sections, sec)
+		}
+	}
+	if len(groups) > 0 {
+		a.Sections = regroup(a.Sections, groups)
+	}
 	if b, err := os.ReadFile(filepath.Join(root, "jarvis", "maps", app, "README.md")); err == nil {
 		a.Overview = string(b)
 	}
@@ -467,4 +488,25 @@ func loadSections(path string) ([]Section, string) {
 		out = []Section{}
 	}
 	return out, raw.Swept
+}
+
+// regroup junta las secciones del barrido en los grupos del menú (tool.json → groups), en el orden en que aparecen.
+// Una sección sin grupo queda como estaba.
+func regroup(sections []Section, groups map[string]string) []Section {
+	var out []Section
+	idx := map[string]int{}
+	for _, s := range sections {
+		name := s.Name
+		if g, ok := groups[name]; ok {
+			name = g
+		}
+		i, ok := idx[name]
+		if !ok {
+			i = len(out)
+			idx[name] = i
+			out = append(out, Section{Name: name, Screens: []SweptScreen{}})
+		}
+		out[i].Screens = append(out[i].Screens, s.Screens...)
+	}
+	return out
 }

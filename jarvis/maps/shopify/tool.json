@@ -1,0 +1,24 @@
+{
+  "name": "Shopify",
+  "hosts": ["admin.shopify.com", "myshopify.com"],
+  "groups": {
+    "inicio": "Inicio",
+    "orders": "Pedidos", "draft_orders": "Pedidos", "shipping_labels": "Pedidos", "checkouts": "Pedidos",
+    "products": "Productos", "collections": "Productos", "purchase_orders": "Productos", "transfers": "Productos", "gift_cards": "Productos",
+    "customers": "Clientes", "companies": "Clientes",
+    "growth": "Marketing", "discounts": "Descuentos", "content": "Contenido",
+    "markets": "Mercados", "catalogs": "Mercados", "rollouts": "Tienda online",
+    "finance": "Finanzas", "credit": "Finanzas", "payments": "Finanzas",
+    "analytics": "Informes", "settings": "Configuración",
+    "settings › organization-details": "Configuración · organización", "settings › organization-account": "Configuración · organización",
+    "settings › partner-payouts": "Configuración · organización", "settings › partner-billing": "Configuración · organización",
+    "settings › general": "Configuración · tienda", "settings › plan": "Configuración · tienda", "settings › billing": "Configuración · tienda",
+    "settings › payments": "Configuración · pagos y checkout", "settings › checkout": "Configuración · pagos y checkout",
+    "settings › customer_accounts": "Configuración · pagos y checkout",
+    "settings › shipping": "Configuración · envíos e impuestos", "settings › taxes": "Configuración · envíos e impuestos", "settings › locations": "Configuración · envíos e impuestos",
+    "settings › apps": "Configuración · apps y canales", "settings › sales_channels": "Configuración · apps y canales",
+    "settings › domains": "Configuración · tienda", "settings › customer_events": "Configuración · datos y avisos",
+    "settings › notifications": "Configuración · datos y avisos", "settings › custom_data": "Configuración · datos y avisos",
+    "settings › languages": "Configuración · tienda", "settings › privacy": "Configuración · datos y avisos", "settings › legal": "Configuración · tienda"
+  }
+}
