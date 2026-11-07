@@ -81,6 +81,7 @@ type ChromeBridge struct {
 	lastID      int
 	pw          *websocket.Conn
 	shared      map[int]bool // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
+	opened      map[int]bool // de ésas, las que abrió el navegador (createTarget): no se reusan como «compartidas»
 	attached    map[int]*chromeTab
 	autoAttach  bool
 	nextSession int
@@ -93,7 +94,7 @@ type ChromeBridge struct {
 // browserSession es la sesión «del navegador entero» que Playwright abre con Target.attachToBrowserTarget.
 const browserSession = "navegador-browser"
 
-var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, shared: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
+var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, shared: map[int]bool{}, opened: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
 
 // ChromeStatus es lo que muestran la interfaz y `bin/jarvis chrome`.
 type ChromeStatus struct {
@@ -280,6 +281,7 @@ func (b *ChromeBridge) onExtensionEvent(m extMessage) {
 		}
 		b.mu.Lock()
 		delete(b.shared, id)
+		delete(b.opened, id)
 		b.mu.Unlock()
 		b.detachTab(id)
 	case "chrome.debugger.onDetach":
@@ -329,6 +331,7 @@ func (b *ChromeBridge) onExtensionEvent(m extMessage) {
 			}
 		}
 		b.mu.Unlock()
+		cdpTrace(src.TabID, src.SessionID, method, params[2])
 		b.toPlaywright(cdpMessage{SessionID: session, Method: method, Params: params[2]})
 		for _, a := range aliases {
 			b.toPlaywright(cdpMessage{SessionID: a, Method: method, Params: params[2]})
@@ -679,6 +682,7 @@ func (b *ChromeBridge) createTarget(url string) (map[string]any, error) {
 	}
 	b.mu.Lock()
 	b.shared[tab.ID] = true
+	b.opened[tab.ID] = true
 	b.mu.Unlock()
 	t, err := b.attachTab(tab.ID)
 	if err != nil {
@@ -710,7 +714,25 @@ func (b *ChromeBridge) closeTarget(targetID string) (map[string]any, error) {
 var chromePW struct {
 	mu       sync.Mutex
 	browser  playwright.Browser
-	sessions int // las sesiones en vivo que corren en Chrome ahora
+	sessions int          // las sesiones en vivo que corren en Chrome ahora
+	inUse    map[int]bool // las pestañas de Chrome que ya tiene una sesión: otra no las toma
+}
+
+// chromeTabInUse marca (o suelta) una pestaña de Chrome como tomada por una sesión.
+func chromeTabInUse(tabID int, used bool) {
+	if tabID == 0 {
+		return
+	}
+	chromePW.mu.Lock()
+	defer chromePW.mu.Unlock()
+	if chromePW.inUse == nil {
+		chromePW.inUse = map[int]bool{}
+	}
+	if used {
+		chromePW.inUse[tabID] = true
+	} else {
+		delete(chromePW.inUse, tabID)
+	}
 }
 
 // chromeSessionStarted cuenta una sesión en Chrome y devuelve con qué terminarla: al terminar la última, se corta
@@ -774,18 +796,75 @@ func chromeContext(pw *playwright.Playwright) (playwright.BrowserContext, error)
 	return cs[0], nil
 }
 
-// sharedChromePage busca, entre las pestañas que la persona compartió, una del mismo sitio que start.
-func sharedChromePage(bctx playwright.BrowserContext, start string) playwright.Page {
+// sharedChromePage busca una pestaña del mismo sitio que start que la persona COMPARTIÓ y que no tiene otra sesión.
+// Las que abrió el navegador no cuentan: son de la sesión que las abrió (dos sesiones en la misma pestaña se pisan;
+// pasó con la compra y el admin de VTEX, los dos en creditop.myvtex.com). Devuelve la página y su pestaña de Chrome.
+func sharedChromePage(bctx playwright.BrowserContext, start string) (playwright.Page, int) {
 	want, err := url.Parse(withScheme(start))
 	if err != nil || want.Host == "" {
-		return nil
+		return nil, 0
 	}
 	for _, p := range bctx.Pages() {
-		if u, err := url.Parse(p.URL()); err == nil && u.Host == want.Host {
-			return p
+		u, err := url.Parse(p.URL())
+		if err != nil || u.Host != want.Host {
+			continue
+		}
+		tab := chromeTabOf(bctx, p)
+		chromeBridge.mu.Lock()
+		mine := tab != 0 && chromeBridge.shared[tab] && !chromeBridge.opened[tab]
+		chromeBridge.mu.Unlock()
+		chromePW.mu.Lock()
+		busy := chromePW.inUse[tab]
+		chromePW.mu.Unlock()
+		if mine && !busy {
+			return p, tab
 		}
 	}
-	return nil
+	return nil, 0
+}
+
+// chromeTabOf dice en qué pestaña de Chrome está una página (0 si no se supo).
+func chromeTabOf(bctx playwright.BrowserContext, p playwright.Page) int {
+	cdp, err := bctx.NewCDPSession(p)
+	if err != nil {
+		return 0
+	}
+	defer func() { _ = cdp.Detach() }()
+	raw, err := cdp.Send("Target.getTargetInfo", nil)
+	if err != nil {
+		return 0
+	}
+	if m, ok := raw.(map[string]any); ok {
+		if info, ok := m["targetInfo"].(map[string]any); ok {
+			id, _ := info["targetId"].(string)
+			return chromeBridge.tabForTarget(id)
+		}
+	}
+	return 0
+}
+
+// cdpTrace anota los eventos de depuración de navegación y de targets en el archivo de JARVIS_CDP_LOG (apagado si
+// está vacía): para ver qué llega por el puente cuando algo no se entera (una navegación a otro dominio).
+var cdpTraceMu sync.Mutex
+
+func cdpTrace(tab int, session, method string, params json.RawMessage) {
+	path := os.Getenv("JARVIS_CDP_LOG")
+	if path == "" || !(strings.HasPrefix(method, "Page.frame") || strings.HasPrefix(method, "Page.navigated") || strings.HasPrefix(method, "Target.") ||
+		strings.HasPrefix(method, "Runtime.executionContext") || strings.HasPrefix(method, "Inspector.") || method == "Page.lifecycleEvent") {
+		return
+	}
+	cdpTraceMu.Lock()
+	defer cdpTraceMu.Unlock()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	p := string(params)
+	if len(p) > 300 {
+		p = p[:300] + "…"
+	}
+	fmt.Fprintf(f, "%s tab=%d session=%q %s %s\n", time.Now().Format("15:04:05.000"), tab, session, method, p)
 }
 
 func logf(format string, args ...any) {

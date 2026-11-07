@@ -326,6 +326,8 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		opts.HasTouch = playwright.Bool(d.HasTouch)
 	}
 	var bctx playwright.BrowserContext
+	// Con el motor «chrome», la pestaña de esta sesión: se sabe más abajo (l.chromeTab) y el cierre la lee al final.
+	chromeOwnTab := new(int)
 	var page playwright.Page
 	var release func()
 	if device == deviceChrome {
@@ -336,15 +338,17 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		// Si la persona compartió una pestaña de este sitio, se trabaja en ésa y queda abierta al terminar (es suya);
 		// si no, una nueva, que se cierra.
 		done := chromeSessionStarted()
-		page = sharedChromePage(bctx, start)
+		var sharedTab int
+		page, sharedTab = sharedChromePage(bctx, start)
 		if page != nil {
-			release = done
+			chromeTabInUse(sharedTab, true) // tomada ya, antes de que otra sesión que arranca a la vez la elija
+			release = func() { chromeTabInUse(sharedTab, false); done() }
 		} else {
 			if page, err = bctx.NewPage(); err != nil {
 				done()
 				return fmt.Errorf("abrir la pestaña en Chrome: %w", err)
 			}
-			release = func() { _ = page.Close(); done() }
+			release = func() { chromeTabInUse(*chromeOwnTab, false); _ = page.Close(); done() }
 		}
 		w, h, dpr = liveW, liveH, 1
 		if v, err := page.Evaluate("() => [innerWidth, innerHeight, devicePixelRatio]"); err == nil {
@@ -484,6 +488,8 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 				if info, ok := m["targetInfo"].(map[string]any); ok {
 					id, _ := info["targetId"].(string)
 					l.chromeTab = chromeBridge.tabForTarget(id)
+					chromeTabInUse(l.chromeTab, true)
+					*chromeOwnTab = l.chromeTab
 				}
 			}
 		}
