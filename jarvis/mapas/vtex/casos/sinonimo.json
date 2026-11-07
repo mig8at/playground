@@ -28,8 +28,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "d55c837949d9d753a25ff06a5967ef228443350158379fc994a5fe314e937cfa",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -72,8 +72,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "d55c837949d9d753a25ff06a5967ef228443350158379fc994a5fe314e937cfa",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -118,8 +118,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "0997f93d84c9b909a4c0c77aa79e6e815f3aaa52fde302140e79a9a50c6275ac",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -146,151 +146,6 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
-      "url": "https://api2.amplitude.com/2/httpapi",
-      "cuerpo": {
-        "api_key": "23c9d038440ac2740925bfc477778ec0",
-        "events": [
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075024302,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "en-US",
-            "ip": "$remote",
-            "insert_id": "4d1b0bfd-89a9-4ccf-9b12-b2836e427884",
-            "event_type": "Synonym Deleted",
-            "event_id": 68,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075043231,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "87a904c8-6547-4d1a-a108-260d9c92f73b",
-            "event_type": "[Amplitude] Page Viewed",
-            "event_properties": {
-              "referrer": "https://creditop.myvtex.com/admin/search/v4/synonyms",
-              "referring_domain": "creditop.myvtex.com",
-              "[Amplitude] Page Domain": "creditop.myvtex.com",
-              "[Amplitude] Page Location": "https://creditop.myvtex.com/admin/app/search/v4/synonyms",
-              "[Amplitude] Page Path": "/admin/app/search/v4/synonyms",
-              "[Amplitude] Page Title": "",
-              "[Amplitude] Page URL": "https://creditop.myvtex.com/admin/app/search/v4/synonyms"
-            },
-            "event_id": 69,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075043232,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "cdadeaaf-0cd5-45f0-acd7-0bf2333bdfa3",
-            "event_type": "$identify",
-            "user_properties": {
-              "$set": {
-                "Account": "creditop"
-              }
-            },
-            "groups": {
-              "Account": "creditop"
-            },
-            "event_id": 70,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075043232,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "83d9be6d-485b-4253-a0bf-3883223acc17",
-            "event_type": "$identify",
-            "user_properties": {
-              "$set": {
-                "Workspace": "master"
-              }
-            },
-            "groups": {
-              "Workspace": "master"
-            },
-            "event_id": 71,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075043714,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "en-US",
-            "ip": "$remote",
-            "insert_id": "63a71097-7ad5-45ed-b4fb-899506484dbd",
-            "event_type": "Synonym Created",
-            "event_id": 72,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          }
-        ],
-        "options": {},
-        "client_upload_time": "2026-11-07T18:10:44.230Z"
-      },
-      "status": 200,
-      "respuesta": {
-        "code": 200,
-        "server_upload_time": 1794075044576,
-        "payload_size_bytes": 3200,
-        "events_ingested": 5
-      }
-    },
-    {
-      "paso": "buscar",
-      "metodo": "POST",
-      "url": "https://copilot-chat-ui.vercel.app/api/proxy/myvtex/_v/private/graphql/v1",
-      "operacion": "TopbarData",
-      "cuerpo": {
-        "operationName": "TopbarData",
-        "variables": {},
-        "query": "query TopbarData {\n  topbarData @context(provider: \"vtex.admin-graphql@2.x\") {\n    profile {\n      id\n      name\n      email\n      picture\n      __typename\n    }\n    __typename\n  }\n}"
-      },
-      "status": 200,
-      "respuesta": {
-        "data": {
-          "topbarData": {
-            "profile": {
-              "id": "ea5f106b7f514906a68cb45892bde012",
-              "name": "Miguel Angel Ochoa Torres",
-              "email": "miguel@creditop.com",
-              "picture": null,
-              "__typename": "vtex_admingraphql_2_45_6_TopbarProfileData"
-            },
-            "__typename": "vtex_admingraphql_2_45_6_TopbarData"
-          }
-        }
-      }
-    },
-    {
       "paso": "buscar",
       "metodo": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
@@ -302,8 +157,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "a1adfa987b851132f7e5806d293e5fd5781057f3a9bb1b2bc255d0d87df5c72a",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -317,37 +172,6 @@
             "broadcaster": false,
             "running": false,
             "__typename": "IntegrationStatus"
-          }
-        }
-      }
-    },
-    {
-      "paso": "buscar",
-      "metodo": "POST",
-      "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "topbarData",
-      "cuerpo": {
-        "operationName": "topbarData",
-        "variables": {},
-        "extensions": {
-          "persistedQuery": {
-            "version": 1,
-            "sha256Hash": "654d02f4949e83b3d1cac9e6cf87b4b7cf8b1aef3b2a9bbedb02c619cb6c3d03",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-graphql@1.x"
-          }
-        }
-      },
-      "status": 200,
-      "respuesta": {
-        "data": {
-          "topbarData": {
-            "profile": {
-              "id": "ea5f106b7f514906a68cb45892bde012",
-              "email": "miguel@creditop.com",
-              "__typename": "TopbarProfileData"
-            },
-            "__typename": "TopbarData"
           }
         }
       }
@@ -373,8 +197,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "b255e063b0da027d1366a1bafe61cc7994e380c3138ee8b471fadb7310858af7",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -423,8 +247,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "f0263d030f4d1b80f41d11fa768f0211bd72fbe4721b77ebc50995390af7e4b5",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -447,8 +271,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "335d041aa062150c01b4884009559be2eea66524169b37b83391ad6cf37c4bb0",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -471,8 +295,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "ab342e369facb0864a7822db559f66424d3cba6e943b754abe68c13e6da0a913",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -512,8 +336,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "b255e063b0da027d1366a1bafe61cc7994e380c3138ee8b471fadb7310858af7",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -551,95 +375,6 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
-      "url": "https://api2.amplitude.com/2/httpapi",
-      "cuerpo": {
-        "api_key": "23c9d038440ac2740925bfc477778ec0",
-        "events": [
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075048023,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "626a670a-041d-44ef-8c0a-aa1e5444d5c1",
-            "event_type": "[Amplitude] Page Viewed",
-            "event_properties": {
-              "referrer": "https://creditop.myvtex.com/admin/search/v4/synonyms",
-              "referring_domain": "creditop.myvtex.com",
-              "[Amplitude] Page Domain": "creditop.myvtex.com",
-              "[Amplitude] Page Location": "https://creditop.myvtex.com/admin/app/search/v4/synonyms",
-              "[Amplitude] Page Path": "/admin/app/search/v4/synonyms",
-              "[Amplitude] Page Title": "",
-              "[Amplitude] Page URL": "https://creditop.myvtex.com/admin/app/search/v4/synonyms"
-            },
-            "event_id": 73,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075048023,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "efd8616e-0e62-4663-86a1-9e9e8dbfd304",
-            "event_type": "$identify",
-            "user_properties": {
-              "$set": {
-                "Account": "creditop"
-              }
-            },
-            "groups": {
-              "Account": "creditop"
-            },
-            "event_id": 74,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          },
-          {
-            "user_id": "ea5f106b7f514906a68cb45892bde012",
-            "device_id": "ae9a9cdf-8ffa-498e-9976-66da5df1caa4",
-            "session_id": 1794072294199,
-            "time": 1794075048023,
-            "app_version": "vtex.admin-search@1.95.1",
-            "platform": "Web",
-            "language": "es-419",
-            "ip": "$remote",
-            "insert_id": "c1703ec5-675b-4cd1-90f0-7745a3273b74",
-            "event_type": "$identify",
-            "user_properties": {
-              "$set": {
-                "Workspace": "master"
-              }
-            },
-            "groups": {
-              "Workspace": "master"
-            },
-            "event_id": 75,
-            "library": "amplitude-ts/2.3.8",
-            "user_agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/157.0.0.0 Safari/537.36"
-          }
-        ],
-        "options": {},
-        "client_upload_time": "2026-11-07T18:10:49.024Z"
-      },
-      "status": 200,
-      "respuesta": {
-        "code": 200,
-        "server_upload_time": 1794075049367,
-        "payload_size_bytes": 2204,
-        "events_ingested": 3
-      }
-    },
-    {
       "paso": "borrar",
       "metodo": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
@@ -659,8 +394,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "299ad87378c805281b904d9e14524da99d536c0dc72056237cef4f2f591bb92f",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -709,8 +444,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "b255e063b0da027d1366a1bafe61cc7994e380c3138ee8b471fadb7310858af7",
-            "sender": "vtex.admin-search@1.x",
-            "provider": "vtex.admin-search@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       }

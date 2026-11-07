@@ -32,7 +32,10 @@ export async function openChrome() {
 
 export type Call = { paso: string; metodo: string; url: string; operacion?: string; cuerpo?: unknown; status?: number; respuesta?: unknown };
 
-const NOISE = /monitoring|insights|logger|analytics|sentry|datadog|google|hotjar|clarity|\/api\/sessions|featurehub|feature-flag|messenger|\/rec\/page|\/admin(\/[\w-]+)*\/?(\?|$)/i;
+// Lo que no es de la herramienta: analítica (Amplitude, …), el chat de Copilot y su barra (`TopbarData` trae el
+// perfil de la persona: nombre y correo), el monitoreo, la sesión y las precargas de pantallas del admin.
+const NOISE = /monitoring|insights|logger|analytics|amplitude|sentry|datadog|google|hotjar|clarity|copilot|vercel\.app|\/api\/sessions|featurehub|feature-flag|messenger|\/2\/httpapi|\/rec\/page|\/admin(\/[\w-]+)*\/?(\?|$)/i;
+const NOISE_OPS = /^(TopbarData|topbarData|TopBarData|myself|LoggedUser|CurrentAdminUser|GetUserProfile|MyInfo)$/;
 
 /** Graba las escrituras de la página (también las de sus iframes). `rec.step('…')` rotula las que vienen. */
 export function recordWrites(page: any) {
@@ -51,6 +54,7 @@ export function recordWrites(page: any) {
         // sabe por el cuerpo si escribe. Se anota toda operación que pase DENTRO de un paso, y la lectura de cada una
         // se distingue después por su nombre (getX, listX…) y su respuesta.
         if (isGraphql && !current) return;
+        if (operacion && NOISE_OPS.test(operacion)) return;
         if (!isGraphql && /^(GET|HEAD|OPTIONS)$/.test(r.method())) return;
         const cuerpo: any = parse(body);
         // VTEX manda las variables de una persisted query en base64 (`extensions.variables`): se guardan legibles.
@@ -71,7 +75,9 @@ export function recordWrites(page: any) {
 export function saveCase(app: string, caso: string, data: Record<string, unknown>) {
     const file = path.join(ROOT, 'jarvis', 'mapas', app, 'casos', `${caso}.json`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
-    fs.writeFileSync(file, JSON.stringify({ caso, grabado: new Date().toISOString().slice(0, 10), ...data }, null, 2) + '\n');
+    // Un correo que se cuele en una respuesta (el perfil de quien graba) no queda en el archivo.
+    const text = JSON.stringify({ caso, grabado: new Date().toISOString().slice(0, 10), ...data }, null, 2).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '<correo>');
+    fs.writeFileSync(file, text + '\n');
     return path.relative(ROOT, file);
 }
 

@@ -21,8 +21,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "9c127517a06725e4414517fbf5941827e18f3e4a8e108f338c0b900b878a93fe",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -68,8 +68,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "065e0709455d8b327fe8c19cdb2535a052438844bdea83471873c8030341d0ad",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -102,8 +102,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "6cd13287d560fe9d53532e4f1172e3df7b9643b6d218ed4d7ffa5dcb53cbec19",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -140,8 +140,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "c2aa0a744ca4ade5d10b24796b36f781f47cb0ba94880e09db20279ff367954b",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -185,8 +185,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "acc7c82c3b05757e232f8ee234cb3656457d2f536de3d8db34587603b8f5b3c7",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -207,8 +207,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "627e5c4d31cab6c55c1a32319ca5ed0b58f6f07361a7dfe70d833451b0f45730",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -243,8 +243,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "065e0709455d8b327fe8c19cdb2535a052438844bdea83471873c8030341d0ad",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -274,8 +274,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "0fdd887ed17d2622aec416ad9fc0ec527a1f6528a962cdbb417e89860d166a40",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -310,8 +310,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "51d4f586e76b8a08d3a36885c084fa1bfff984021d676ad0f940bcaafab6d764",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -343,8 +343,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "9638d2529546835acdac7bd93805ff4e2691f779279baffa93d75bf2ed0ab926",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -377,8 +377,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "e691d60ed90c101b798d911783f8433105ab1cffaea18bca89558473442c668f",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -453,32 +453,6 @@
     {
       "paso": "buscar",
       "metodo": "POST",
-      "url": "https://copilot-chat-ui.vercel.app/api/proxy/myvtex/_v/private/graphql/v1",
-      "operacion": "TopbarData",
-      "cuerpo": {
-        "operationName": "TopbarData",
-        "variables": {},
-        "query": "query TopbarData {\n  topbarData @context(provider: \"vtex.admin-graphql@2.x\") {\n    profile {\n      id\n      name\n      email\n      picture\n      __typename\n    }\n    __typename\n  }\n}"
-      },
-      "status": 200,
-      "respuesta": {
-        "data": {
-          "topbarData": {
-            "profile": {
-              "id": "ea5f106b7f514906a68cb45892bde012",
-              "name": "Miguel Angel Ochoa Torres",
-              "email": "miguel@creditop.com",
-              "picture": null,
-              "__typename": "vtex_admingraphql_2_45_6_TopbarProfileData"
-            },
-            "__typename": "vtex_admingraphql_2_45_6_TopbarData"
-          }
-        }
-      }
-    },
-    {
-      "paso": "buscar",
-      "metodo": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
       "operacion": "permission",
       "cuerpo": {
@@ -490,8 +464,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "3448e49936152d386dfcd902767837bf9c73e8a3b6aff77ddb561974b6df5c1f",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.admin-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -519,8 +493,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "62e7ce53bc9e0b6e21d060de50699e4108cbb905ffb17524bb4b942d608cc101",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -582,8 +556,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "9cfbefa1b4eb50fef5830fe51f1048ee360ee3f6926ec4003b202addd5529e9c",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -617,8 +591,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "729e0513069ddfb2651d499b13289df97c3f4d3a675ac97b74dd61e59daac11b",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -667,8 +641,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "62e7ce53bc9e0b6e21d060de50699e4108cbb905ffb17524bb4b942d608cc101",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -718,8 +692,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "c588a3f361f5666111a55946c8e7ee3a9e2fb983ea2cfa59d3f068df3ef4f0c6",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -746,8 +720,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "729e0513069ddfb2651d499b13289df97c3f4d3a675ac97b74dd61e59daac11b",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -786,8 +760,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "9cfbefa1b4eb50fef5830fe51f1048ee360ee3f6926ec4003b202addd5529e9c",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },
@@ -822,8 +796,8 @@
           "persistedQuery": {
             "version": 1,
             "sha256Hash": "62e7ce53bc9e0b6e21d060de50699e4108cbb905ffb17524bb4b942d608cc101",
-            "sender": "vtex.admin-collections@0.x",
-            "provider": "vtex.catalog-graphql@1.x"
+            "sender": "<correo>",
+            "provider": "<correo>"
           }
         }
       },

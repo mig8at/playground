@@ -29,6 +29,8 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 | `coleccion-pantalla` | el mismo caso por el admin (Catalog › Collections), **grabando la red**: de ahí salió la receta por API (`mapas/vtex/casos/coleccion.json`) | `--dejar` |
 | `sinonimo` | **caso reversible sin clics**: crea un sinónimo del buscador entre dos términos nuevos, lo comprueba en la lista y lo borra. No hay API con llave: repite las operaciones del admin con **tu sesión**, desde una pestaña del admin en tu Chrome (`graphqlInPage`), leídas de la grabación. ~9 s | `--terminos "a,b"` · `--dejar` |
 | `sinonimo-pantalla` | el mismo caso por el admin (Storefront › Synonyms), grabando la red | `--dejar` · `--solo-borrar <término jarvis…>` |
+| `cupon` | **caso reversible**: crea un cupón (sin promoción ligada: no descuenta nada) y lo **archiva**, que es la vuelta: en VTEX un cupón no se borra | `--codigo` · `--dejar` · `--archivar <código>` · `--json` |
+| `cupon-pantalla` | el mismo caso por el admin (Promotions › Coupons, el menú ⋮ de la fila → Archive), grabando la red | `--dejar` · `--solo-archivar <código jarvis…>` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
@@ -63,10 +65,14 @@ Lo que costó y las recetas ya resuelven:
 Cada caso se hace primero **por pantalla con la red grabada** (`recetas/red.ts`: `openChrome`, `recordWrites`, `saveCase`), y de esa grabación sale la receta por API, con su vuelta y una comprobación que no depende del camino. Las grabaciones viven en `jarvis/mapas/<app>/casos/`.
 
 **Tres caminos, del más rápido al más visual** (el que se elige depende de la herramienta):
-1. **API con la llave de la cuenta** (`vtex/api.ts`): no necesita tu Chrome. Producto, colección.
+1. **API con la llave de la cuenta** (`vtex/api.ts`): no necesita tu Chrome. Producto, colección, cupón (acá el admin llama directo a la misma API REST).
 2. **La llamada del admin con tu sesión** (`red.ts`: `recordedOperation` + `graphqlInPage`): para lo que no tiene API con llave. La operación sale de la grabación; si VTEX la cambia, se vuelve a grabar el caso por pantalla. Sinónimo.
 3. **Por pantalla**, con los localizadores del mapa o del caso: para ver o enseñar cómo se hace, y la que graba.
 
 - **Los sinónimos** (2026-11-07):
   - El tacho de una fila aparece recién con el mouse encima y no es un botón (un ícono con `tabindex`): el análisis de Jarvis no lo ve. Abrir la fila lleva a «Edit», que no borra.
   - VTEX avisa que un sinónimo borrado no se puede volver a crear con los mismos términos ([known issue](https://help.vtex.com/en/known-issues/intelligent-search-synonyms-does-not-recreate-deleted-synonyms)): cada corrida usa términos nuevos.
+- **Los cupones** (2026-11-07):
+  - VTEX guarda el código en minúsculas.
+  - **La lectura de un cupón queda en caché**: leído antes de archivarlo, sigue diciendo `isArchived: false` por minutos, aunque el archivo ya entró. La receta comprueba la creación con la respuesta del POST y lee recién después de archivar.
+- **La grabadora no guarda datos de la persona**: la barra del admin (`TopbarData`) y la analítica traen el perfil (nombre y correo). Se filtran, y un correo que se cuele se reemplaza por `<correo>`.
