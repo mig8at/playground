@@ -104,7 +104,7 @@ const { createTrace, EXPECTED_STATUS } = await import('../pkg/trace.ts');
 // El vocabulario de los recorridos en el log: cada paso dice su pieza y, al elegir la entidad, su recorrido entero.
 const { pieceOfRoute, routeSummary } = await import('../pkg/journeys.ts');
 const { answersFromSchema } = await import('../pkg/dynamic-form-answers.ts');
-const { openBrowser, openContext, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
+const { openBrowser, openContext, openCustomerTab, evidenceNotice, closeContext, advance, chooseEntity, errorBanner, waitForChange, screenPrint } =
     await import('../pkg/wizard-browser.ts');
 const { validationErrors: screenErrors } = await import('../pkg/autofill-qr.ts');
 const { mkdirSync, readFileSync, statSync } = await import('node:fs');
@@ -991,7 +991,10 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         r.ms = Date.now() - t0;
         return r;
     }
-    const { ctx, page, evidencia: evidence } = await openContext(browser, config.feBaseUrl, { traza: evidenceDir, storageState: session });
+    const opened = await openContext(browser, config.feBaseUrl, { traza: evidenceDir, storageState: session });
+    const { ctx, evidencia: evidence } = opened;
+    // `let`: con Jarvis, en el handoff el cliente sigue en su propia pestaña (openCustomerTab) y la del asesor queda.
+    let page = opened.page;
 
     const finish = async (end: Result['fin'], reason: string) => {
         r.fin = end; r.motivo = reason; r.ms = Date.now() - t0;
@@ -1230,6 +1233,8 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         // para avanzar. El caminador hace lo que haría el cliente al tocar el link. Es el salto A→B del panel.
         if (sheet === 'continue' && r.ur) {
             log(`${CUSTOMER_SEGMENT} CreditopX → ${baseHandoff}/${r.ur}/confirmation`);
+            const customerTab = await openCustomerTab(ctx, config.feBaseUrl);
+            if (customerTab) { page = customerTab; log('   el cliente sigue en su propia pestaña de Chrome; la del asesor queda en «se envió un mensaje»'); }
             await page.goto(`${baseHandoff}/${r.ur}/confirmation`, { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
             continue;
         }

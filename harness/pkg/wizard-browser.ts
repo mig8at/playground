@@ -15,6 +15,7 @@
 // Lo único que SÍ necesita puntería es elegir una entidad concreta del listado, porque ahí el caminador
 // no puede tomar «la primera»: el caso pide una. Se resuelve por el NOMBRE de la entidad, que se lee de
 // la base — el listado lo muestra y es lo único estable sin testids.
+import { readFileSync } from 'node:fs';
 import { blockDevOverlays } from './dev-overlays.ts';
 import { chromium, type Browser, type BrowserContext, type Page } from '@playwright/test';
 import { autofill, clickAdvance, validationErrors, readToEnd, HANDS, waitForPerson, type Field } from './autofill-qr.ts';
@@ -83,7 +84,7 @@ export const WIZARD_FIELDS = (d: WizardData, sheet = ''): Field[] => [
  * pone por CDP a esa pestaña, y no hay traza de Playwright. */
 const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
 const JARVIS_CDP = process.env.JARVIS_CDP || 'ws://127.0.0.1:5203/api/chrome/cdp';
-const jarvisPages = new WeakMap<BrowserContext, Page>();
+const jarvisPages = new WeakMap<BrowserContext, Page[]>();
 
 export async function openBrowser(opts: { headed?: boolean } = {}): Promise<Browser> {
     if (JARVIS_CHROME) return chromium.connectOverCDP(JARVIS_CDP);
@@ -189,13 +190,18 @@ export async function openContext(browser: Browser, baseURL: string, opts: { tra
     const page = await ctx.newPage();
     await blockDevTools(page);
     if (JARVIS_CHROME) {
-        // En su Chrome no hay `newContext({ userAgent, baseURL })`: el agente se pone a ESTA pestaña por CDP (el wizard lo
-        // pide de celular para la identidad), y los `goto` relativos se completan con la base.
-        const cdp = await ctx.newCDPSession(page);
-        await cdp.send('Emulation.setUserAgentOverride', { userAgent: UA_MOBILE });
-        const goto = page.goto.bind(page);
-        page.goto = ((url: string, o?: any) => goto(/^https?:/.test(url) ? url : baseURL.replace(/\/$/, '') + url, o)) as typeof page.goto;
-        jarvisPages.set(ctx, page);
+        await asJarvisTab(ctx, page, baseURL);
+        // La sesión del asesor (canal de asesor): en su Chrome no hay `newContext({ storageState })`, así que se cargan
+        // las cookies en el contexto y el localStorage del wizard en esta pestaña, al abrir su origen. Es la cuenta de
+        // prueba del comercio (`c<hash>-fake@`), y sólo para el origen del wizard que dice el archivo.
+        if (opts.storageState) {
+            const state = JSON.parse(readFileSync(opts.storageState, 'utf8')) as { cookies?: any[]; origins?: { origin: string; localStorage: { name: string; value: string }[] }[] };
+            if (state.cookies?.length) await ctx.addCookies(state.cookies);
+            await page.addInitScript((origins) => {
+                const mine = origins.find((o) => o.origin === location.origin);
+                for (const { name, value } of mine?.localStorage ?? []) localStorage.setItem(name, value);
+            }, state.origins ?? []);
+        }
     }
 
     // ⚠ ESTO FALTABA Y SE NOTÓ EN LA PRIMERA CORRIDA REAL (2026-09-03): el caminador reportó «Error al
@@ -253,10 +259,32 @@ export async function openContext(browser: Browser, baseURL: string, opts: { tra
 const shorten = (u: string) => { try { const x = new URL(u); return x.pathname.slice(0, 90) + (x.search ? '?…' : ''); } catch { return u.slice(0, 90); } };
 
 /** Cierra el contexto y, sólo si el caso salió mal, deja la traza en disco. */
+/** Una pestaña del caminador en el Chrome de la persona: agente de celular por CDP, `goto` relativos a la base, sin
+ *  las herramientas de desarrollo, y anotada para cerrarla al final. */
+async function asJarvisTab(ctx: BrowserContext, page: Page, baseURL: string): Promise<void> {
+    const cdp = await ctx.newCDPSession(page);
+    await cdp.send('Emulation.setUserAgentOverride', { userAgent: UA_MOBILE });
+    const goto = page.goto.bind(page);
+    page.goto = ((url: string, o?: any) => goto(/^https?:/.test(url) ? url : baseURL.replace(/\/$/, '') + url, o)) as typeof page.goto;
+    jarvisPages.set(ctx, [...(jarvisPages.get(ctx) ?? []), page]);
+}
+
+/** JARVIS_CHROME: el CLIENTE en su propia pestaña. En el canal de asesor, al elegir una CreditopX el backend le manda
+ *  al cliente el enlace para seguir desde su celular; con Jarvis eso se ve como lo que es: la pestaña del asesor se
+ *  queda en «se envió un mensaje» y el cliente sigue en otra. Fuera de Jarvis devuelve null (el caminador sigue en la
+ *  misma página, como siempre). */
+export async function openCustomerTab(ctx: BrowserContext, baseURL: string): Promise<Page | null> {
+    if (!JARVIS_CHROME) return null;
+    const page = await ctx.newPage();
+    await blockDevTools(page);
+    await asJarvisTab(ctx, page, baseURL);
+    return page;
+}
+
 export async function closeContext(ctx: BrowserContext, saveTo: string | null): Promise<void> {
     if (JARVIS_CHROME) {
-        // Su Chrome no se cierra: sólo la pestaña que abrió el caminador.
-        await jarvisPages.get(ctx)?.close().catch(() => {});
+        // Su Chrome no se cierra: sólo las pestañas que abrió el caminador.
+        for (const p of jarvisPages.get(ctx) ?? []) await p.close().catch(() => {});
         return;
     }
     if (saveTo) await ctx.tracing.stop({ path: saveTo }).catch(() => {});
