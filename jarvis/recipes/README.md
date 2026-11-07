@@ -3,11 +3,11 @@
 Una **receta** es una tarea completa de una herramienta, con parámetros, que se corre de una vez y sin clics: lo que
 en el día a día se hacía navegando el admin pantalla por pantalla. Se corren con:
 
-    make jarvis-receta APP=<app> RECETA=<receta> ARGS='…' [JSON=1]
+    make jarvis-recipe APP=<app> RECIPE=<receta> ARGS='…' [JSON=1]
 
 Cada receta va **por la API** de la herramienta cuando la tiene: es más rápida y no se rompe cuando cambia la
 pantalla. Lo que sólo existe en el admin va **por pantalla**, con el mapa de esa herramienta
-(`jarvis/mapas/<app>/mapa.json`, `make jarvis-mapa APP=<app>`), que dice dónde está cada campo y botón con un
+(`jarvis/maps/<app>/map.json`, `make jarvis-map APP=<app>`), que dice dónde está cada campo y botón con un
 localizador ya verificado.
 
 Una receta:
@@ -23,26 +23,26 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 
 | receta | qué deja | parámetros |
 |---|---|---|
-| `crear-producto` | un producto **vendible** en la tienda de pruebas: producto, SKU con medidas, imagen, política comercial, precio, stock y SKU activo. Lo que no se dice sale del molde, la BMX (SKU 9) | `--nombre` · `--precio` · `--stock 10` · `--ref` · `--categoria 4` · `--marca 2000001` · `--descripcion` · `--oculto` · `--json` |
-| `crear-producto-pantalla` | lo mismo, pero el **producto se crea por el admin**, en tu Chrome con Jarvis, con los elementos del mapa (nombre, activo, marca, categoría, todas las políticas comerciales, visible, referencia → Save); el SKU, la imagen, el precio y el stock, que el admin reparte en otras pantallas, los pone `crear-producto --producto <id>` | `--nombre` · `--precio` · `--stock 10` · `--marca "Creditop Pruebas"` · `--categoria "Bicicletas"` · `--json` |
-| `coleccion` | **caso reversible**: crea una colección, la comprueba en el listado y la borra (`--dejar` la deja; `--borrar <id>`) | `--nombre` · `--dejar` · `--borrar` · `--json` |
-| `coleccion-pantalla` | el mismo caso por el admin (Catalog › Collections), **grabando la red**: de ahí salió la receta por API (`mapas/vtex/casos/coleccion.json`) | `--dejar` |
-| `sinonimo` | **caso reversible sin clics**: crea un sinónimo del buscador entre dos términos nuevos, lo comprueba en la lista y lo borra. No hay API con llave: repite las operaciones del admin con **tu sesión**, desde una pestaña del admin en tu Chrome (`graphqlInPage`), leídas de la grabación. ~9 s | `--terminos "a,b"` · `--dejar` |
-| `sinonimo-pantalla` | el mismo caso por el admin (Storefront › Synonyms), grabando la red | `--dejar` · `--solo-borrar <término jarvis…>` |
-| `cupon` | **caso reversible**: crea un cupón (sin promoción ligada: no descuenta nada) y lo **archiva**, que es la vuelta: en VTEX un cupón no se borra | `--codigo` · `--dejar` · `--archivar <código>` · `--json` |
-| `cupon-pantalla` | el mismo caso por el admin (Promotions › Coupons, el menú ⋮ de la fila → Archive), grabando la red | `--dejar` · `--solo-archivar <código jarvis…>` |
-| `pedido` | **sólo lectura · ¿qué pasó con este pedido?** El pedido (estado, total, ítems, motivo si se canceló), su pago en el gateway y el **registro del conector de Creditop** en castellano: cada pedido de autorización, qué contestó Creditop, a qué workspace de la app fue, el link del wizard al que mandó al cliente (para seguirlo con `make ecommerce`), la cancelación y quién la pidió. En hora de Colombia, como el admin. Sin datos del comprador | `<pedido>` (por defecto, el último) · `--ultimos N` · `--json` |
-| `pago-creditop` | **sólo lectura · ¿cómo está configurado Creditop como medio de pago?** Quién cobra hoy (la regla activa → su afiliación → el comercio y la sucursal de CreditOp, buscados por el hash en qa y en prod), todas las afiliaciones de Creditop con su versión del conector y su workspace, la versión de la app en cada workspace y avisos (regla a una afiliación «NO USAR», workspace sin la app, hash que no existe, sucursal inactiva). Cruza tres pantallas del admin: Providers, Settings de pagos y My Apps. ~5 s | `--json` |
-| `compra-con-descuento` | **compra de prueba con descuento pagada con Creditop**: promoción (10 % al SKU de prueba) con su cupón → espera a que el carrito la aplique → compra con el cupón → lee en qa qué total y qué productos recibió CreditOp → cancela el pedido y archiva promoción y cupón. ~25 min, casi todo espera (VTEX tarda ~20 min en aplicar una promoción con cupón); `--preparar` deja la promoción y el cupón y `--codigo` compra después. ESCRIBE en VTEX y en qa | `--descuento 10` · `--sku 10` · `--preparar` · `--codigo <cupón>` · `--dejar` |
+| `create-product` | un producto **vendible** en la tienda de pruebas: producto, SKU con medidas, imagen, política comercial, precio, stock y SKU activo. Lo que no se dice sale del molde, la BMX (SKU 9) | `--name` · `--price` · `--stock 10` · `--ref` · `--category 4` · `--brand 2000001` · `--description` · `--hidden` · `--json` |
+| `create-product-screen` | lo mismo, pero el **producto se crea por el admin**, en tu Chrome con Jarvis, con los elementos del mapa (nombre, activo, marca, categoría, todas las políticas comerciales, visible, referencia → Save); el SKU, la imagen, el precio y el stock, que el admin reparte en otras pantallas, los pone `create-product --product <id>` | `--name` · `--price` · `--stock 10` · `--brand "Creditop Pruebas"` · `--category "Bicicletas"` · `--json` |
+| `collection` | **caso reversible**: crea una colección, la comprueba en el listado y la borra (`--keep` la deja; `--delete <id>`) | `--name` · `--keep` · `--delete` · `--json` |
+| `collection-screen` | el mismo caso por el admin (Catalog › Collections), **grabando la red**: de ahí salió la receta por API (`maps/vtex/cases/coleccion.json`) | `--keep` |
+| `synonym` | **caso reversible sin clics**: crea un sinónimo del buscador entre dos términos nuevos, lo comprueba en la lista y lo borra. No hay API con llave: repite las operaciones del admin con **tu sesión**, desde una pestaña del admin en tu Chrome (`graphqlInPage`), leídas de la grabación. ~9 s | `--terms "a,b"` · `--keep` |
+| `synonym-screen` | el mismo caso por el admin (Storefront › Synonyms), grabando la red | `--keep` · `--only-delete <término jarvis…>` |
+| `coupon` | **caso reversible**: crea un cupón (sin promoción ligada: no descuenta nada) y lo **archiva**, que es la vuelta: en VTEX un cupón no se borra | `--code` · `--keep` · `--archive <código>` · `--json` |
+| `coupon-screen` | el mismo caso por el admin (Promotions › Coupons, el menú ⋮ de la fila → Archive), grabando la red | `--keep` · `--only-archive <código jarvis…>` |
+| `order` | **sólo lectura · ¿qué pasó con este pedido?** El pedido (estado, total, ítems, motivo si se canceló), su pago en el gateway y el **registro del conector de Creditop** en castellano: cada pedido de autorización, qué contestó Creditop, a qué workspace de la app fue, el link del wizard al que mandó al cliente (para seguirlo con `make ecommerce`), la cancelación y quién la pidió. En hora de Colombia, como el admin. Sin datos del comprador | `<pedido>` (por defecto, el último) · `--last N` · `--json` |
+| `creditop-payment` | **sólo lectura · ¿cómo está configurado Creditop como medio de pago?** Quién cobra hoy (la regla activa → su afiliación → el comercio y la sucursal de CreditOp, buscados por el hash en qa y en prod), todas las afiliaciones de Creditop con su versión del conector y su workspace, la versión de la app en cada workspace y avisos (regla a una afiliación «NO USAR», workspace sin la app, hash que no existe, sucursal inactiva). Cruza tres pantallas del admin: Providers, Settings de pagos y My Apps. ~5 s | `--json` |
+| `discount-purchase` | **compra de prueba con descuento pagada con Creditop**: promoción (10 % al SKU de prueba) con su cupón → espera a que el carrito la aplique → compra con el cupón → lee en qa qué total y qué productos recibió CreditOp → cancela el pedido y archiva promoción y cupón. ~25 min, casi todo espera (VTEX tarda ~20 min en aplicar una promoción con cupón); `--prepare` deja la promoción y el cupón y `--code` compra después. ESCRIBE en VTEX y en qa | `--discount 10` · `--sku 10` · `--prepare` · `--code <cupón>` · `--keep` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
 
-    make jarvis-receta APP=vtex RECETA=crear-producto ARGS='--nombre "Casco urbano Jarvis" --precio 350000 --stock 20'
+    make jarvis-recipe APP=vtex RECIPE=create-product ARGS='--name "Casco urbano Jarvis" --price 350000 --stock 20'
 
 Por pantalla, medido el 2026-11-07 (productos 11 y 12, vendibles al primer intento):
 
-    make jarvis-receta APP=vtex RECETA=crear-producto-pantalla ARGS='--nombre "Guantes por pantalla Jarvis" --precio 90000 --stock 30'
+    make jarvis-recipe APP=vtex RECIPE=create-product-screen ARGS='--name "Guantes por pantalla Jarvis" --price 90000 --stock 30'
 
 Lo que costó y las recetas ya resuelven:
 - **Por API un producto nace sin política comercial**, y la tienda no lo vende: la simulación del carrito dice «Ítem
@@ -59,17 +59,17 @@ Lo que costó y las recetas ya resuelven:
   - La categoría no es un listbox accesible y su buscador sólo encuentra las de primer nivel («Bicicletas 2», nombre e id): se elige por el texto del resultado.
   - «All sales channels» asocia la política comercial en el momento; por API hay que hacerlo aparte.
 - **Las colecciones** (2026-11-07):
-  - El admin no llama a la API REST: usa GraphQL (`createCollection` y `deleteCollection` de `vtex.catalog-graphql`) como *persisted query*, que lleva sólo el nombre de la operación y un hash, con las variables en base64. La grabadora (`recetas/red.ts`) las guarda decodificadas.
+  - El admin no llama a la API REST: usa GraphQL (`createCollection` y `deleteCollection` de `vtex.catalog-graphql`) como *persisted query*, que lleva sólo el nombre de la operación y un hash, con las variables en base64. La grabadora (`recipes/recorder.ts`) las guarda decodificadas.
   - Con la llave de la cuenta se va a la API REST que esa app envuelve.
   - **Después de borrar una colección, `GET /api/catalog/pvt/collection/<id>` la sigue devolviendo**, con 200, en los dos hosts. Lo que existe se mira en el listado (`/api/catalog_system/pvt/collection/search`).
 
-## Casos reversibles (nivel 3 de `jarvis/GUIA.md`)
+## Casos reversibles (nivel 3 de `jarvis/GUIDE.md`)
 
-Cada caso se hace primero **por pantalla con la red grabada** (`recetas/red.ts`: `openChrome`, `recordWrites`, `saveCase`), y de esa grabación sale la receta por API, con su vuelta y una comprobación que no depende del camino. Las grabaciones viven en `jarvis/mapas/<app>/casos/`.
+Cada caso se hace primero **por pantalla con la red grabada** (`recipes/recorder.ts`: `openChrome`, `recordWrites`, `saveCase`), y de esa grabación sale la receta por API, con su vuelta y una comprobación que no depende del camino. Las grabaciones viven en `jarvis/maps/<app>/cases/`.
 
 **Tres caminos, del más rápido al más visual** (el que se elige depende de la herramienta):
 1. **API con la llave de la cuenta** (`vtex/api.ts`): no necesita tu Chrome. Producto, colección, cupón (acá el admin llama directo a la misma API REST).
-2. **La llamada del admin con tu sesión** (`red.ts`: `recordedOperation` + `graphqlInPage`): para lo que no tiene API con llave. La operación sale de la grabación; si VTEX la cambia, se vuelve a grabar el caso por pantalla. Sinónimo.
+2. **La llamada del admin con tu sesión** (`recorder.ts`: `recordedOperation` + `graphqlInPage`): para lo que no tiene API con llave. La operación sale de la grabación; si VTEX la cambia, se vuelve a grabar el caso por pantalla. Sinónimo.
 3. **Por pantalla**, con los localizadores del mapa o del caso: para ver o enseñar cómo se hace, y la que graba.
 
 - **Los sinónimos** (2026-11-07):

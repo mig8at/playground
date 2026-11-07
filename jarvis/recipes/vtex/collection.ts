@@ -1,8 +1,8 @@
 // CASO REVERSIBLE POR API · una colección del catálogo de VTEX: crearla, comprobarla y borrarla.
 //
-//   make jarvis-receta APP=vtex RECETA=coleccion [ARGS='--nombre "…" | --dejar | --borrar <id>']
+//   make jarvis-recipe APP=vtex RECIPE=collection [ARGS='--name "…" | --keep | --delete <id>']
 //
-// Sale de la grabación del admin (`coleccion-pantalla.ts` → `jarvis/mapas/vtex/casos/coleccion.json`). El admin
+// Sale de la grabación del admin (`collection-screen.ts` → `jarvis/maps/vtex/cases/coleccion.json`). El admin
 // llama `createCollection` y `deleteCollection` por GraphQL (`vtex.catalog-graphql`, con la sesión de la persona);
 // esa app envuelve la API REST del catálogo, que es la que acepta la llave de la cuenta:
 //   crear    POST   /api/catalog/pvt/collection/        { Name, Description, Searchable, Highlight, DateFrom, DateTo }
@@ -11,8 +11,9 @@
 // ⚠ `GET /api/catalog/pvt/collection/<id>` sigue devolviendo 200 con la colección ya borrada (medido el 2026-11-07: 15 s
 // después y en los dos hosts; el DELETE repetido dice «Collection not found»). Lo que existe se comprueba en el listado.
 // Como el admin: nombre y descripción, sin destacar ni buscar, desde ahora y con vencimiento lejano (el admin pone
-// 49 años). Sin `--dejar`, la borra al final y comprueba que ya no está en el listado.
+// 49 años). Sin `--keep`, la borra al final y comprueba que ya no está en el listado.
 // ESCRIBE en el catálogo de la cuenta de pruebas `creditop` (y lo deshace).
+import '../args.ts';
 import { call, hosts, must } from './api.ts';
 
 const argv = process.argv.slice(2);
@@ -32,12 +33,12 @@ async function remove(id: number) {
     say(`borrada: la colección ${id} ya no está en el listado`);
 }
 
-if (flag('borrar')) {
-    await remove(Number(flag('borrar')));
+if (flag('delete')) {
+    await remove(Number(flag('delete')));
     process.exit(0);
 }
 
-const name = flag('nombre') || `Jarvis API ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`;
+const name = flag('name') || `Jarvis API ${new Date().toISOString().slice(0, 19).replace('T', ' ')}`;
 const from = new Date();
 const to = new Date(from); to.setFullYear(to.getFullYear() + 49);
 const created = await must('crear la colección', 'POST', `${base}/`, {
@@ -54,5 +55,5 @@ say(`creada: «${name}» · id ${id}`);
 if (!(await listed(id))) throw new Error(`creé la colección ${id} pero no aparece en el listado`);
 say(`comprobada: ${hosts.admin}/collections/${id}`);
 
-if (!argv.includes('--dejar')) await remove(id);
-if (JSON_OUT) console.log(JSON.stringify({ receta: 'vtex/coleccion', id, nombre: name, borrada: !argv.includes('--dejar') }));
+if (!argv.includes('--keep')) await remove(id);
+if (JSON_OUT) console.log(JSON.stringify({ recipe: 'vtex/collection', id, name, deleted: !argv.includes('--keep') }));

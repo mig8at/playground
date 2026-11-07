@@ -2,7 +2,7 @@
 // Claude, cerrar una a mano (termina su sesión) y soltar el depurador al final. Deja una foto de la pestaña Jarvis.
 // Necesita `make jarvis` arriba y nada más conectado como Jarvis.
 //
-//   node jarvis/dev/jarvis-dos-sesiones.cjs [carpeta para la foto]
+//   node jarvis/dev/two-sessions.cjs [carpeta para la foto]
 const os = require('os'), fs = require('fs'), path = require('path')
 const { execFile } = require('child_process')
 const cache = path.join(os.homedir(), 'Library/Caches/ms-playwright-go')

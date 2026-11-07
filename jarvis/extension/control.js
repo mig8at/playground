@@ -3,7 +3,7 @@
  * real, en el grupo «Jarvis») y tus pestañas para compartirlas; al medio los pasos de la sesión elegida; a la
  * derecha los flujos. Las demás pestañas quedan limpias.
  *
- * Los flujos se leen del servidor (jarvis/flujos, versionados en git: ésa es la fuente) y se guardan además en el
+ * Los flujos se leen del servidor (jarvis/flows, versionados en git: ésa es la fuente) y se guardan además en el
  * IndexedDB de la extensión, para mostrarlos aunque el servidor esté apagado. La copia nunca se edita: sólo se lee.
  */
 

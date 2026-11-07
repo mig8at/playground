@@ -1,7 +1,7 @@
 package main
 
 /* Los flujos: cómo se hace algo en una app, guardado para repetirlo sin Claude o para enseñarlo. Son JSON
- * versionados en git (como los flujos del harness), uno por archivo: jarvis/flujos/<app>/<id>.json. Nacen de una
+ * versionados en git (como los flujos del harness), uno por archivo: jarvis/flows/<app>/<id>.json. Nacen de una
  * corrida que terminó bien (Claude los crea según lo que la persona pidió) y cada repetición completa los da por
  * verificados con la fecha. Las fotos no van en git: el video es el de la corrida de origen, si está en .data. */
 
@@ -66,11 +66,21 @@ type FlowSummary struct {
 	Photo    string    `json:"foto,omitempty"` // la última foto de su corrida (la tarjeta de la galería)
 }
 
+// envFirst devuelve la primera variable que esté puesta (la nueva y, después, su nombre de antes).
+func envFirst(names ...string) string {
+	for _, n := range names {
+		if v := os.Getenv(n); v != "" {
+			return v
+		}
+	}
+	return ""
+}
+
 func flowsDir() string {
-	if d := os.Getenv("JARVIS_FLUJOS"); d != "" {
+	if d := envFirst("JARVIS_FLOWS", "JARVIS_FLUJOS"); d != "" {
 		return d
 	}
-	return filepath.Join(navegadorDir(), "flujos")
+	return filepath.Join(navegadorDir(), "flows")
 }
 
 var flowIDJunk = regexp.MustCompile(`[^a-z0-9]+`)
@@ -122,7 +132,7 @@ func listFlows() []FlowSummary {
 	files, _ := filepath.Glob(filepath.Join(flowsDir(), "*", "*.json"))
 	out := []FlowSummary{}
 	for _, f := range files {
-		if filepath.Base(f) == "proyecto.json" {
+		if b := filepath.Base(f); b == "project.json" || b == "proyecto.json" {
 			continue
 		}
 		fl, err := readFlow(f)
@@ -357,7 +367,7 @@ func deleteFlow(app, id string) error {
 	return nil
 }
 
-// DeleteProject borra un proyecto: todos sus flujos (jarvis/flujos/<app>) y sus corridas guardadas en .data
+// DeleteProject borra un proyecto: todos sus flujos (jarvis/flows/<app>) y sus corridas guardadas en .data
 // (las que arrancaron en su app o en su host), con sus fotos. Una app de práctica del registro sigue en la lista,
 // vacía; un sitio real desaparece. Devuelve cuántos flujos y corridas borró.
 func (s *Store) DeleteProject(app string) (int, int, error) {

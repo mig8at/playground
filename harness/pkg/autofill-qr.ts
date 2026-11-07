@@ -379,10 +379,10 @@ export const ADVANCE = /continuar|siguiente|aceptar|validar|verificar|confirmar|
  * moría por timeout con el nombre ya leído — parecía un muro de la pantalla cuando era el caminador
  * eligiendo mal. Devuelve el nombre del botón clickeado, o los candidatos que encontró si ninguno servía.
  */
-/* JARVIS_MANOS=1: el modo «yo relleno, vos tocás» de Jarvis (`make jarvis-compra-vtex MANOS=1`). El motor llena todo
+/* JARVIS_HANDS=1: el modo «yo relleno, vos tocás» de Jarvis (`make jarvis-vtex-purchase HANDS=1`). El motor llena todo
  * igual, pero el botón de avance NO lo toca: lo marca en la página y espera a que la persona lo toque (que la página
  * cambie de URL o el botón desaparezca). Hasta 15 min por pantalla. */
-export const HANDS = process.env.JARVIS_MANOS === '1';
+export const HANDS = (process.env.JARVIS_HANDS || process.env.JARVIS_MANOS) === '1';
 const HANDS_WAIT_MS = 15 * 60_000;
 
 /** Marca un elemento en la página (borde violeta, el de Jarvis) y espera a que la persona lo use. */

@@ -1,8 +1,8 @@
 // CASO REVERSIBLE POR API · un cupón de VTEX: crearlo, comprobarlo y archivarlo.
 //
-//   make jarvis-receta APP=vtex RECETA=cupon [ARGS='--codigo jarvis… | --dejar | --archivar <código>']
+//   make jarvis-recipe APP=vtex RECIPE=coupon [ARGS='--code jarvis… | --keep | --archive <código>']
 //
-// Sale de la grabación del admin (`cupon-pantalla.ts` → `jarvis/mapas/vtex/casos/cupon.json`). Acá el admin llama
+// Sale de la grabación del admin (`coupon-screen.ts` → `jarvis/maps/vtex/cases/cupon.json`). Acá el admin llama
 // directo a la API REST de promociones, la misma que acepta la llave de la cuenta:
 //   crear     POST /api/rnb/v1/pvt/coupon                  { couponCode, utmSource, utmCampaign, maxUsage, … }
 //   leer      GET  /api/rnb/v1/pvt/coupon/<código>          ← trae `isArchived`: es la comprobación
@@ -13,6 +13,7 @@
 // dice `true`. Por eso la creación se comprueba con la respuesta del POST y el cupón se lee recién después de
 // archivar (con `?_=<ahora>` y reintentos hasta 15 s). Archivar no cambia `lastModifiedUtc`.
 // ESCRIBE en las promociones de la cuenta de pruebas `creditop` (y lo archiva).
+import '../args.ts';
 import { hosts, must } from './api.ts';
 
 const argv = process.argv.slice(2);
@@ -32,12 +33,12 @@ async function archive(code: string) {
     say(`archivado: ${code} (isArchived)`);
 }
 
-if (flag('archivar')) {
-    await archive(flag('archivar')!.toLowerCase());
+if (flag('archive')) {
+    await archive(flag('archive')!.toLowerCase());
     process.exit(0);
 }
 
-const code = (flag('codigo') || `jarvis${Date.now().toString(36)}`).toLowerCase();
+const code = (flag('code') || `jarvis${Date.now().toString(36)}`).toLowerCase();
 const created = await must('crear el cupón', 'POST', `${base}/coupon`, {
     couponCode: code, utmSource: 'jarvis', utmCampaign: 'pruebas-jarvis',
     maxUsage: null, maxItemsPerClient: 0, expirationIntervalPerUse: '00:00:00',
@@ -45,5 +46,5 @@ const created = await must('crear el cupón', 'POST', `${base}/coupon`, {
 if (created?.couponCode !== code || created?.isArchived) throw new Error(`el cupón ${code} no quedó activo: ${JSON.stringify(created)}`);
 say(`creado y comprobado: ${code} · ${hosts.admin}/coupons`);
 
-if (!argv.includes('--dejar')) await archive(code);
-if (JSON_OUT) console.log(JSON.stringify({ receta: 'vtex/cupon', codigo: code, archivado: !argv.includes('--dejar') }));
+if (!argv.includes('--keep')) await archive(code);
+if (JSON_OUT) console.log(JSON.stringify({ recipe: 'vtex/coupon', code, archived: !argv.includes('--keep') }));

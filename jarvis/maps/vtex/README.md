@@ -1,10 +1,10 @@
 # VTEX · nivel 1: qué tiene el admin y cómo se conecta
 
-La cuenta es `creditop`, la de pruebas. Este documento es el nivel 1 de [`jarvis/GUIA.md`](../../GUIA.md).
+La cuenta es `creditop`, la de pruebas. Este documento es el nivel 1 de [`jarvis/GUIDE.md`](../../GUIDE.md).
 
 Cada afirmación lleva su origen:
-- **[visto]**: salió del barrido del 2026-11-07 (`node jarvis/dev/barrido.ts vtex https://creditop.myvtex.com/admin`). Recorrió las 97 pantallas del menú en el Chrome de Miguel, sólo navegando, y las 97 cargaron. El detalle de cada pantalla está en [`secciones.json`](secciones.json): URL, encabezados, iframes y APIs que llamó al cargar.
-- **[medido]**: lo probaron las recetas (`jarvis/recetas/README.md`).
+- **[visto]**: salió del barrido del 2026-11-07 (`node jarvis/dev/sweep.ts vtex https://creditop.myvtex.com/admin`). Recorrió las 97 pantallas del menú en el Chrome de Miguel, sólo navegando, y las 97 cargaron. El detalle de cada pantalla está en [`sections.json`](sections.json): URL, encabezados, iframes y APIs que llamó al cargar.
+- **[medido]**: lo probaron las recetas (`jarvis/recipes/README.md`).
 - **[supuesto]**: viene del nombre de la pantalla o de lo que se sabe de VTEX, sin comprobar en esta cuenta.
 
 Lo que el barrido NO dice es qué escribe cada botón: eso es el nivel 3.
@@ -51,14 +51,14 @@ Por la URL, el iframe y las APIs, el admin junta pantallas de cuatro épocas [vi
 |---|---|---|---|
 | **ASP.NET viejo** | `/admin/Site/<Nombre>.aspx`, dentro de un iframe de `creditop.vtexcommercestable.com.br`, nombres en portugués (`Marca`, `Fornecedor`, `Vale`, `SkuCondicaoComercial`) | Categories, Brands, Gift Cards, Sales channels, Settings (ConfigForm) | Formularios clásicos. Al cargar no llaman APIs: el servidor arma la página |
 | **Apps de una página con hash** | `/admin/<app>#/<ruta>`, iframe `/admin/iframe/<app>/`, con su versión en la ruta de sus textos (`/pricing-vault-ui/v1.27.13/`) | pricing, logistics, rnb, pci-gateway, checkout, message-center, bridge, portal | Llaman las APIs REST de la plataforma directo (`/api/pricing/*`, `/api/logistics/pvt/*`, `/api/payments/pvt/*`): son las mismas que usan las recetas |
-| **Admin IO** | `/admin/<ruta>` sin hash, GraphQL en `/_v/private/graphql/v1` con su operación (`inventoryProducts`, `collections`, `getSynonyms`…) | Inventory, Collections, Orders, Search, Sellers, Apps | Las operaciones GraphQL se ven en `secciones.json`. Su forma exacta sale en el nivel 3 |
+| **Admin IO** | `/admin/<ruta>` sin hash, GraphQL en `/_v/private/graphql/v1` con su operación (`inventoryProducts`, `collections`, `getSynonyms`…) | Inventory, Collections, Orders, Search, Sellers, Apps | Las operaciones GraphQL se ven en `sections.json`. Su forma exacta sale en el nivel 3 |
 | **Micro-frontends** | iframe de `<app>.admin.vtex.com` y APIs en `/api/proxy/…` sobre ese host | Products and SKUs (`catalog-facelift`, `#raccoon-iframe`), Promotions, Shipping strategy, Fraud Prevention, Planner | El proxy envuelve la API de la plataforma (`/api/proxy/catalog/pvt/…` ↔ `/api/catalog/pvt/…`). Por API se va directo a la de la plataforma |
 
 **Master Data** es aparte [visto]: abre `creditop.vtexcrm.com.br`, una aplicación propia en portugués («Produtos», «Contas», «Lojas»).
 
 ## Lo que aparece en todas las pantallas
 
-Es el armazón, no es de ninguna pantalla [visto]. El barrido lo saca de cada pantalla y lo lista en `armazon`:
+Es el armazón, no es de ninguna pantalla [visto]. El barrido lo saca de cada pantalla y lo lista en `shell`:
 - la sesión (`POST /api/sessions`);
 - el monitoreo (`/monitoring`);
 - el chat de **VTEX Copilot**, un iframe de `copilot-chat-ui.vercel.app` con su barra (`TopbarData`);
@@ -79,4 +79,4 @@ Es el armazón, no es de ninguna pantalla [visto]. El barrido lo saca de cada pa
 - **Con cuidado, es de toda la cuenta**: lo de `Store Settings` (pagos, checkout, políticas comerciales, logística general) y `Shipping` (políticas de envío). Se mira, y antes de escribir se pide el OK de Miguel.
 - **Volver a barrer** cuando VTEX cambie el menú. El barrido no escribe nada:
 
-      node jarvis/dev/barrido.ts vtex https://creditop.myvtex.com/admin [--solo 'texto']
+      node jarvis/dev/sweep.ts vtex https://creditop.myvtex.com/admin [--solo 'texto']

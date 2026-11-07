@@ -333,33 +333,39 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 # jarvis: Chromium por playwright-go (o tu Chrome, con la extensión Jarvis); el perfil (la sesión) de cada sitio vive en jarvis/.data.
 .PHONY: jarvis
-jarvis: ## @dia abre Jarvis (:5202 · API :5203): manejar herramientas complejas (VTEX, admins) en TU Chrome con la extensión Jarvis (jarvis/extension). Le decís qué querés hacer y Claude lo hace (sólo frena antes de algo irreversible) o te enseña paso a paso; queda como flujo JSON en jarvis/flujos y como video. Levanta también las apps locales de práctica (jarvis/apps). Por consola: bin/jarvis
+jarvis: ## @dia abre Jarvis (:5202 · API :5203): manejar herramientas complejas (VTEX, admins) en TU Chrome con la extensión Jarvis (jarvis/extension). Le decís qué querés hacer y Claude lo hace (sólo frena antes de algo irreversible) o te enseña paso a paso; queda como flujo JSON en jarvis/flows y como video. Levanta también las apps locales de práctica (jarvis/apps). Por consola: bin/jarvis
 	@cd jarvis && npm run dev
-.PHONY: jarvis-receta
-jarvis-receta: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea completa de una herramienta (VTEX, …) con parámetros, por su API cuando la tiene. Las recetas viven en jarvis/recetas/<app>/ y su catálogo en jarvis/recetas/README.md. APP=vtex RECETA=crear-producto ARGS='--nombre "Casco urbano" --precio 350000 --stock 20' [JSON=1]
-	@test -n "$(APP)" -a -n "$(RECETA)" || { echo "  ✗ APP=<app> RECETA=<receta> (ver jarvis/recetas/README.md)"; exit 2; }
-	@test -f jarvis/recetas/$(APP)/$(RECETA).ts || { echo "  ✗ no existe jarvis/recetas/$(APP)/$(RECETA).ts"; exit 2; }
-	@node jarvis/recetas/$(APP)/$(RECETA).ts $(ARGS) $(if $(JSON),--json)
+.PHONY: jarvis-recipe
+jarvis-recipe: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea completa de una herramienta (VTEX, …) con parámetros, por su API cuando la tiene. Las recetas viven en jarvis/recipes/<app>/ y su catálogo en jarvis/recipes/README.md. APP=vtex RECIPE=create-product ARGS='--nombre "Casco urbano" --precio 350000 --stock 20' [JSON=1]
+	@test -n "$(APP)" -a -n "$(RECIPE)" || { echo "  ✗ APP=<app> RECIPE=<receta> (ver jarvis/recipes/README.md)"; exit 2; }
+	@test -f jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts || { echo "  ✗ no existe jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts"; exit 2; }
+	@node jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts $(ARGS) $(if $(JSON),--json)
 
-.PHONY: jarvis-mapa
-jarvis-mapa: ## @dia el MAPA de una herramienta (jarvis/mapas/<app>/mapa.json): sus pantallas y sus elementos con el localizador que Jarvis verificó. A=ver (default) · A=verificar abre cada pantalla en la sesión de Jarvis y dice qué elemento ya no está (sale 1) · A=guardar PANTALLA=<nombre> [MARCO='#iframe'|SIN_MARCO=1] guarda la pestaña de Jarvis tal como está. APP=vtex [SESION=N]
+# Los nombres de las recetas de antes del 2026-11-07 (en castellano) siguen andando: las tareas guardan el comando.
+JARVIS_OLD_RECIPES := crear-producto:create-product crear-producto-pantalla:create-product-screen coleccion:collection \
+  coleccion-pantalla:collection-screen sinonimo:synonym sinonimo-pantalla:synonym-screen cupon:coupon cupon-pantalla:coupon-screen \
+  pedido:order pago-creditop:creditop-payment compra-con-descuento:discount-purchase
+jarvis_recipe = $(or $(word 2,$(subst :, ,$(filter $(1):%,$(JARVIS_OLD_RECIPES)))),$(1))
+
+.PHONY: jarvis-map
+jarvis-map: ## @dia el MAPA de una herramienta (jarvis/maps/<app>/map.json): sus pantallas y sus elementos con el localizador que Jarvis verificó. A=show (default) · A=verify abre cada pantalla en la sesión de Jarvis y dice qué elemento ya no está (sale 1) · A=save SCREEN=<nombre> [FRAME='#iframe'|NO_FRAME=1] guarda la pestaña de Jarvis tal como está. APP=vtex [SESSION=N]
 	@test -n "$(APP)" || { echo "  ✗ APP=<app> (vtex, …)"; exit 2; }
-	@JARVIS_SESION=$(SESION) node jarvis/dev/mapa.ts $(or $(A),ver) $(APP) $(PANTALLA) $(if $(MARCO),--marco '$(MARCO)') $(if $(SIN_MARCO),--sin-marco)
+	@JARVIS_SESSION=$(or $(SESSION),$(SESION)) node jarvis/dev/map.ts $(or $(A),show) $(APP) $(SCREEN) $(if $(FRAME),--frame '$(FRAME)') $(if $(NO_FRAME),--no-frame)
 
-.PHONY: jarvis-caminar
-jarvis-caminar: ## @dia ⚠ ESCRIBE (en TARGET): cualquier caso del caminador del harness, pero en TU Chrome por Jarvis (el motor de navegador maneja una pestaña del grupo «Jarvis»). Por defecto en LOCAL, con la identidad a mano y el buró dictado al mock: sin qa ni copias de comercios. Es `harness-walk-wizard ENGINE=browser` con JARVIS_CHROME=1, así que acepta sus mismas variables. Medido el 2026-11-07: CrediPullman por la tienda en local, 10 pantallas hasta el 11. CASES='#13874eb6:77' [TARGET=local] [FLOW=ecommerce|self-service|merchant] [CLOSE=1] [MANUAL=1 por defecto] [LAMBDA=1 por defecto en local] [MANOS=1 el motor rellena y marca cada botón: lo tocás vos, hasta una hora] [AMOUNT=…] [FLOW=merchant ASESOR=c<hash>-fake@creditop.com el canal de asesor con la sesión de prueba del comercio (bin/pg advisor status la lista): el asesor en una pestaña y, al elegir una CreditopX, el cliente sigue en otra]
-jarvis-caminar:
+.PHONY: jarvis-walk
+jarvis-walk: ## @dia ⚠ ESCRIBE (en TARGET): cualquier caso del caminador del harness, pero en TU Chrome por Jarvis (el motor de navegador maneja una pestaña del grupo «Jarvis»). Por defecto en LOCAL, con la identidad a mano y el buró dictado al mock: sin qa ni copias de comercios. Es `harness-walk-wizard ENGINE=browser` con JARVIS_CHROME=1, así que acepta sus mismas variables. Medido el 2026-11-07: CrediPullman por la tienda en local, 10 pantallas hasta el 11. CASES='#13874eb6:77' [TARGET=local] [FLOW=ecommerce|self-service|merchant] [CLOSE=1] [MANUAL=1 por defecto] [LAMBDA=1 por defecto en local] [HANDS=1 el motor rellena y marca cada botón: lo tocás vos, hasta una hora] [AMOUNT=…] [FLOW=merchant ASESOR=c<hash>-fake@creditop.com el canal de asesor con la sesión de prueba del comercio (bin/pg advisor status la lista): el asesor en una pestaña y, al elegir una CreditopX, el cliente sigue en otra]
+jarvis-walk:
 	@test -n "$(CASES)" || { echo "  ✗ CASES='#hash:entidad' (como en harness-walk-wizard)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"connected":true' || { echo "  ✗ Jarvis no está conectado en Chrome (make jarvis y la extensión cargada)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"driving":false' || { echo "  ✗ hay una sesión de Jarvis manejando Chrome: cerrala (bin/jarvis close) antes"; exit 2; }
-	@$(if $(ASESOR),E2E_ADVISOR_ACCOUNT=$(ASESOR)) JARVIS_CHROME=1 JARVIS_MANOS=$(MANOS) $(MAKE) --no-print-directory harness-walk-wizard ENGINE=browser TARGET=$(or $(TARGET),local) CASES='$(CASES)' FLOW=$(FLOW) CLOSE=$(or $(CLOSE),1) MANUAL=$(or $(MANUAL),1) LAMBDA=$(or $(LAMBDA),$(if $(filter local,$(or $(TARGET),local)),1,)) AMOUNT=$(AMOUNT) $(if $(MANOS),TIMEOUT=3600)
+	@$(if $(ASESOR),E2E_ADVISOR_ACCOUNT=$(ASESOR)) JARVIS_CHROME=1 JARVIS_HANDS=$(HANDS) $(MAKE) --no-print-directory harness-walk-wizard ENGINE=browser TARGET=$(or $(TARGET),local) CASES='$(CASES)' FLOW=$(FLOW) CLOSE=$(or $(CLOSE),1) MANUAL=$(or $(MANUAL),1) LAMBDA=$(or $(LAMBDA),$(if $(filter local,$(or $(TARGET),local)),1,)) AMOUNT=$(AMOUNT) $(if $(MANOS),TIMEOUT=3600)
 
-.PHONY: jarvis-compra-vtex
-jarvis-compra-vtex: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chrome, sola y a la velocidad del harness: es `harness-vtex CASES=rotativo` (comprador sintético con sus centrales dictadas, la tienda apuntada a la copia de Mario mientras dura y devuelta sola, el pedido por API, el wizard hasta el crédito con la identidad aprobada a mano en qa, VTEX aprobado) con el motor de navegador del caminador manejando una pestaña de tu Chrome por Jarvis (JARVIS_CHROME=1). Necesita la extensión Jarvis conectada y ninguna otra sesión de Jarvis en Chrome. Lanzarlo ES el OK. Medido el 2026-11-07: 2 min 44 s, solicitud en 11 y VTEX Approved. TARGET=qa [MANOS=1 el motor rellena todo y marca cada botón en violeta: lo tocás vos] [VERBOSE=1 el detalle del caminador]
+.PHONY: jarvis-vtex-purchase
+jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chrome, sola y a la velocidad del harness: es `harness-vtex CASES=rotativo` (comprador sintético con sus centrales dictadas, la tienda apuntada a la copia de Mario mientras dura y devuelta sola, el pedido por API, el wizard hasta el crédito con la identidad aprobada a mano en qa, VTEX aprobado) con el motor de navegador del caminador manejando una pestaña de tu Chrome por Jarvis (JARVIS_CHROME=1). Necesita la extensión Jarvis conectada y ninguna otra sesión de Jarvis en Chrome. Lanzarlo ES el OK. Medido el 2026-11-07: 2 min 44 s, solicitud en 11 y VTEX Approved. TARGET=qa [HANDS=1 el motor rellena todo y marca cada botón en violeta: lo tocás vos] [VERBOSE=1 el detalle del caminador]
 	@test "$(TARGET)" = qa || { echo "  ✗ TARGET=qa (corre sólo contra qa)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"connected":true' || { echo "  ✗ Jarvis no está conectado en Chrome (make jarvis y la extensión cargada)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"driving":false' || { echo "  ✗ hay una sesión de Jarvis manejando Chrome: cerrala (bin/jarvis close) antes"; exit 2; }
-	@cd harness && JARVIS_CHROME=1 JARVIS_MANOS=$(MANOS) E2E_TARGET=qa VERBOSE=$(VERBOSE) node dev/vtex-run.ts --cases rotativo
+	@cd harness && JARVIS_CHROME=1 JARVIS_HANDS=$(HANDS) E2E_TARGET=qa VERBOSE=$(VERBOSE) node dev/vtex-run.ts --cases rotativo
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
@@ -401,7 +407,7 @@ ensayo-comparar: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta p
 # `SOLO` y `DIAS` no están acá porque también los usan otras herramientas (`estilo-ui SOLO=`, el tablero):
 # se aceptan sólo dentro de `harness-ssr` y `harness-posthog-errors`. Los flags viejos de los scripts los
 # traduce `harness/pkg/cli-aliases.ts`.
-HARNESS_OLD_VARS := CASOS:CASES CERRAR:CLOSE COMERCIO:MERCHANT ENTIDAD:LENDER CODIGO:CODE MONTO:AMOUNT CUOTA:DOWN_PAYMENT PAGO:PAYMENT PLAZO:INSTALLMENTS MOTOR:ENGINE PAR:PARALLEL GRUPO:GROUP FOTO:SNAPSHOT CONTRA:COMPARE DESDE:SINCE PANTALLAS:SCREENS NIEGA:DENY INICIAL:DOWN_PAYMENT BONO:BONUS FILTRO:FILTER SEGUIR:FOLLOW SIN_ENDPOINTS:NO_ENDPOINTS
+HARNESS_OLD_VARS := CASOS:CASES CERRAR:CLOSE COMERCIO:MERCHANT ENTIDAD:LENDER CODIGO:CODE MONTO:AMOUNT CUOTA:DOWN_PAYMENT PAGO:PAYMENT PLAZO:INSTALLMENTS MOTOR:ENGINE PAR:PARALLEL GRUPO:GROUP FOTO:SNAPSHOT CONTRA:COMPARE DESDE:SINCE PANTALLAS:SCREENS NIEGA:DENY INICIAL:DOWN_PAYMENT BONO:BONUS FILTRO:FILTER SEGUIR:FOLLOW SIN_ENDPOINTS:NO_ENDPOINTS RECETA:RECIPE PANTALLA:SCREEN MARCO:FRAME SIN_MARCO:NO_FRAME MANOS:HANDS
 define harness_old_var
 ifneq ($$(origin $(1)),undefined)
 $(2) ?= $$($(1))
@@ -432,7 +438,11 @@ HARNESS_OLD_TARGETS := \
   harness-comercio:harness-merchant \
   harness-bcp-volver:harness-bcp-return \
   harness-pantallas:harness-screens \
-  harness-paises:harness-countries
+  harness-paises:harness-countries \
+  jarvis-receta:jarvis-recipe \
+  jarvis-mapa:jarvis-map \
+  jarvis-caminar:jarvis-walk \
+  jarvis-compra-vtex:jarvis-vtex-purchase
 define harness_old_target
 .PHONY: $(1)
 $(1):

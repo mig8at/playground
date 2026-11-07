@@ -79,7 +79,7 @@ export const WIZARD_FIELDS = (d: WizardData, sheet = ''): Field[] => [
  *  contra los cientos de un navegador entero: es lo que hace viable correr varios a la vez. */
 /* JARVIS_CHROME=1: el caminador no lanza un Chromium, maneja el CHROME DE LA PERSONA a través del puente de Jarvis
  * (`jarvis/server/chrome.go`, la extensión Jarvis): mismo motor, mismas pantallas, pero en una pestaña real de su
- * Chrome (grupo «Jarvis»), que se cierra al terminar. Lo usa `make jarvis-compra-vtex`. Diferencias, todas en
+ * Chrome (grupo «Jarvis»), que se cierra al terminar. Lo usa `make jarvis-vtex-purchase`. Diferencias, todas en
  * `openContext`/`closeContext`: el contexto es el de su Chrome (no se crea otro ni se cierra), el agente de iPhone se
  * pone por CDP a esa pestaña, y no hay traza de Playwright. */
 const JARVIS_CHROME = process.env.JARVIS_CHROME === '1';
@@ -364,7 +364,7 @@ export async function chooseEntity(page: Page, name: string, opts: { lookOnly?: 
         await revolvingIntro.waitFor({ state: 'hidden', timeout: 10_000 }).catch(() => {});
         await page.waitForTimeout(700);
     }
-    // JARVIS_MANOS: la entidad la elige la persona; se marca su tarjeta y se espera a que la página siga.
+    // JARVIS_HANDS: la entidad la elige la persona; se marca su tarjeta y se espera a que la página siga.
     if (HANDS && !opts.lookOnly) {
         const card = page.getByRole('button', { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i') }).first();
         if (await card.isVisible().catch(() => false)) {

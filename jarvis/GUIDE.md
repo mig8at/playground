@@ -9,12 +9,12 @@ pantalla misma).
 
 **1 · Entender la herramienta por encima.** Qué tiene y para qué sirve cada cosa, tal como se organiza: sus
 secciones, qué se hace en cada una y cómo se relacionan (en VTEX, un producto no se vende sin política comercial,
-precio y stock). Sale de un **barrido de secciones** (`jarvis/dev/barrido.ts`): recorre el menú en el Chrome de la
+precio y stock). Sale de un **barrido de secciones** (`jarvis/dev/sweep.ts`): recorre el menú en el Chrome de la
 persona sólo mirando y anota de cada pantalla su título, sus encabezados, si vive en un iframe y qué APIs llama al
-cargar. Se escribe en `jarvis/mapas/<app>/README.md`, en lenguaje simple, separando lo que se vio de lo que se supone.
+cargar. Se escribe en `jarvis/maps/<app>/README.md`, en lenguaje simple, separando lo que se vio de lo que se supone.
 
 **2 · El mapa de pantallas.** Cada formulario con sus campos y botones, con el localizador que Jarvis verificó
-(`make jarvis-mapa APP=<app> A=guardar PANTALLA=…`), y `A=verificar` para saber cuándo la herramienta cambió.
+(`make jarvis-map APP=<app> A=save SCREEN=…`), y `A=verify` para saber cuándo la herramienta cambió.
 
 **3 · Casos de uso reversibles.** Una tarea concreta, con su ida y su vuelta probadas (crear y borrar, prender y
 apagar), para practicar sin ensuciar la cuenta. Cada caso deja:
@@ -24,7 +24,7 @@ apagar), para practicar sin ensuciar la cuenta. Cada caso deja:
 - una **comprobación de punta a punta** que no depende del camino (en VTEX, la simulación del carrito dice si el
   producto se vende de verdad; un 200 de la API no lo dice).
 
-**4 · El catálogo.** Todo junto y buscable: `jarvis/recetas/README.md` (qué se puede hacer, por pantalla y por API,
+**4 · El catálogo.** Todo junto y buscable: `jarvis/recipes/README.md` (qué se puede hacer, por pantalla y por API,
 con sus trampas) y los mapas.
 
 ## Reglas

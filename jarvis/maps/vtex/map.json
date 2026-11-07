@@ -1,0 +1,468 @@
+{
+  "app": "vtex",
+  "screens": {
+    "admin": {
+      "url": "https://creditop.myvtex.com/admin/catalog-products",
+      "title": "El armazón del admin (barra lateral y encabezado), igual en todas las pantallas",
+      "saved": "2026-11-07",
+      "elements": {
+        "toggle-sidebar": {
+          "kind": "botón",
+          "text": "toggle sidebar",
+          "locator": "page.getByTestId('sidebar-toggle')"
+        },
+        "home": {
+          "kind": "enlace",
+          "text": "home",
+          "locator": "page.getByRole('link', { name: 'home', exact: true })"
+        },
+        "home-2": {
+          "kind": "botón",
+          "text": "home",
+          "locator": "page.getByTestId('home-button')"
+        },
+        "search-vtex": {
+          "kind": "botón",
+          "text": "Search VTEX",
+          "locator": "page.getByTestId('global-search-trigger')"
+        },
+        "copilot": {
+          "kind": "botón",
+          "text": "Copilot",
+          "locator": "page.getByTestId('copilot-button')"
+        },
+        "visit-store": {
+          "kind": "enlace",
+          "text": "Visit Store",
+          "locator": "page.getByRole('link', { name: 'Visit Store', exact: true })"
+        },
+        "help": {
+          "kind": "botón",
+          "text": "Help",
+          "locator": "page.getByTestId('help-modal-trigger')"
+        },
+        "m-options": {
+          "kind": "botón",
+          "text": "M Options",
+          "locator": "page.getByTestId('profile-menu-trigger')"
+        },
+        "dashboards": {
+          "kind": "botón",
+          "text": "Dashboards",
+          "locator": "page.getByTestId('sidebar-section-dashboards')"
+        },
+        "orders": {
+          "kind": "botón",
+          "text": "Orders",
+          "locator": "page.getByTestId('sidebar-section-orders')"
+        },
+        "catalog": {
+          "kind": "botón",
+          "text": "Catalog",
+          "locator": "page.getByTestId('sidebar-section-catalog')"
+        },
+        "products-and-skus": {
+          "kind": "enlace",
+          "text": "Products and SKUs",
+          "locator": "page.getByRole('link', { name: 'Products and SKUs', exact: true })"
+        },
+        "categories": {
+          "kind": "enlace",
+          "text": "Categories",
+          "locator": "page.getByRole('link', { name: 'Categories', exact: true })"
+        },
+        "brands": {
+          "kind": "enlace",
+          "text": "Brands",
+          "locator": "page.getByRole('link', { name: 'Brands', exact: true })"
+        },
+        "collections": {
+          "kind": "enlace",
+          "text": "Collections",
+          "locator": "page.getByRole('link', { name: 'Collections', exact: true })"
+        },
+        "list-types": {
+          "kind": "enlace",
+          "text": "List Types",
+          "locator": "page.getByRole('link', { name: 'List Types', exact: true })"
+        },
+        "custom-product-attributes": {
+          "kind": "enlace",
+          "text": "Custom Product Attributes",
+          "locator": "page.getByRole('link', { name: 'Custom Product Attributes', exact: true })"
+        },
+        "reports": {
+          "kind": "enlace",
+          "text": "Reports",
+          "locator": "page.getByRole('link', { name: 'Reports', exact: true })"
+        },
+        "import-and-export": {
+          "kind": "enlace",
+          "text": "Import and Export",
+          "locator": "page.getByRole('link', { name: 'Import and Export', exact: true })"
+        },
+        "reviews": {
+          "kind": "enlace",
+          "text": "Reviews",
+          "locator": "page.getByRole('link', { name: 'Reviews', exact: true })"
+        },
+        "suppliers": {
+          "kind": "enlace",
+          "text": "Suppliers",
+          "locator": "page.getByRole('link', { name: 'Suppliers', exact: true })"
+        },
+        "price-list": {
+          "kind": "enlace",
+          "text": "Price List",
+          "locator": "page.getByRole('link', { name: 'Price List', exact: true })"
+        },
+        "price-rules": {
+          "kind": "enlace",
+          "text": "Price Rules",
+          "locator": "page.getByRole('link', { name: 'Price Rules', exact: true })"
+        },
+        "inventory-management": {
+          "kind": "enlace",
+          "text": "Inventory Management",
+          "locator": "page.getByRole('link', { name: 'Inventory Management', exact: true })"
+        },
+        "promotions": {
+          "kind": "botón",
+          "text": "Promotions",
+          "locator": "page.getByTestId('sidebar-section-promotions')"
+        },
+        "storefront": {
+          "kind": "botón",
+          "text": "Storefront",
+          "locator": "page.getByTestId('sidebar-section-storefront')"
+        },
+        "shipping": {
+          "kind": "botón",
+          "text": "Shipping",
+          "locator": "page.getByTestId('sidebar-section-shipping')"
+        },
+        "marketplace": {
+          "kind": "botón",
+          "text": "Marketplace",
+          "locator": "page.getByTestId('sidebar-section-marketplace')"
+        },
+        "apps": {
+          "kind": "botón",
+          "text": "Apps",
+          "locator": "page.getByTestId('sidebar-section-apps')"
+        },
+        "store-settings": {
+          "kind": "botón",
+          "text": "Store Settings",
+          "locator": "page.getByTestId('sidebar-section-store-settings')"
+        },
+        "zona-con-scroll": {
+          "kind": "zona con scroll",
+          "text": "zona con scroll",
+          "locator": "page.getByTestId('sidebar')"
+        }
+      }
+    },
+    "products": {
+      "url": "https://creditop.myvtex.com/admin/catalog-products",
+      "title": "Catalog → Products and SKUs (la lista)",
+      "saved": "2026-11-07",
+      "elements": {
+        "add-product": {
+          "kind": "botón",
+          "text": "Add Product",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Add Product', exact: true })"
+        },
+        "use-to-search": {
+          "kind": "campo",
+          "text": "Use <kbd>/</kbd> to search",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('combobox', { name: 'Use <kbd>/</kbd> to search', exact: true })"
+        },
+        "use-to-search-2": {
+          "kind": "botón",
+          "text": "Use <kbd>/</kbd> to search",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Use <kbd>/</kbd> to search', exact: true })"
+        },
+        "object-object": {
+          "kind": "botón",
+          "text": "[object Object]",
+          "locator": "page.frameLocator('#raccoon-iframe').getByText('Export', { exact: true })",
+          "fragile": true
+        },
+        "status": {
+          "kind": "botón",
+          "text": "Status",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Status', exact: true })"
+        },
+        "brand": {
+          "kind": "botón",
+          "text": "Brand",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Brand', exact: true })"
+        },
+        "category": {
+          "kind": "botón",
+          "text": "Category",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Category', exact: true })"
+        },
+        "seller": {
+          "kind": "botón",
+          "text": "Seller",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Seller', exact: true })"
+        },
+        "bundle": {
+          "kind": "botón",
+          "text": "Bundle",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Bundle', exact: true })"
+        },
+        "store-visibility": {
+          "kind": "botón",
+          "text": "Store Visibility",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Store Visibility', exact: true })"
+        },
+        "sales-channel": {
+          "kind": "botón",
+          "text": "Sales channel",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Sales channel', exact: true })"
+        },
+        "created-date": {
+          "kind": "botón",
+          "text": "Created date",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Created date', exact: true })"
+        },
+        "a": {
+          "kind": "enlace",
+          "text": "a",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('body > div:nth-of-type(1) > div > div > div > div > div > table > tbody:nth-of-type(1) > tr > td:nth-of-type(2) > div > a > div > div > a:nth-of-type(1)')",
+          "fragile": true
+        }
+      }
+    },
+    "new-product": {
+      "url": "https://creditop.myvtex.com/admin/catalog-products/product",
+      "title": "Producto nuevo (Products and SKUs → Add Product)",
+      "saved": "2026-11-07",
+      "elements": {
+        "back": {
+          "kind": "botón",
+          "text": "Back",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Back', exact: true })"
+        },
+        "more-actions": {
+          "kind": "botón",
+          "text": "More actions",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'More actions', exact: true })"
+        },
+        "product": {
+          "kind": "botón",
+          "text": "Product",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('tab', { name: 'Product', exact: true })"
+        },
+        "skus": {
+          "kind": "botón",
+          "text": "SKUs",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('tab', { name: 'SKUs', exact: true })"
+        },
+        "basic-information": {
+          "kind": "enlace",
+          "text": "Basic information",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('link', { name: 'Basic information', exact: true })"
+        },
+        "seo": {
+          "kind": "enlace",
+          "text": "SEO",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('link', { name: 'SEO', exact: true })"
+        },
+        "storefront": {
+          "kind": "enlace",
+          "text": "Storefront",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('link', { name: 'Storefront', exact: true })"
+        },
+        "identifiers": {
+          "kind": "enlace",
+          "text": "Identifiers",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('link', { name: 'Identifiers', exact: true })"
+        },
+        "product-name": {
+          "kind": "campo",
+          "text": "Product name *",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Product name *', exact: true })"
+        },
+        "active": {
+          "kind": "casilla",
+          "text": "Active",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('switch', { name: 'Active', exact: true })"
+        },
+        "div": {
+          "kind": "campo",
+          "text": "div",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#product-description > div:nth-of-type(1) > div:nth-of-type(1)')",
+          "fragile": true
+        },
+        "span": {
+          "kind": "botón",
+          "text": "span",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(1) > span > span:nth-of-type(1)')",
+          "fragile": true
+        },
+        "span-2": {
+          "kind": "botón",
+          "text": "span",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(2) > span > span:nth-of-type(1)')",
+          "fragile": true
+        },
+        "button": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(3) > button:nth-of-type(1)')",
+          "fragile": true
+        },
+        "button-2": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(3) > button:nth-of-type(2)')",
+          "fragile": true
+        },
+        "button-3": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(3) > button:nth-of-type(3)')",
+          "fragile": true
+        },
+        "button-4": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(4) > button:nth-of-type(1)')",
+          "fragile": true
+        },
+        "button-5": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(4) > button:nth-of-type(2)')",
+          "fragile": true
+        },
+        "button-6": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(4) > button:nth-of-type(3)')",
+          "fragile": true
+        },
+        "button-7": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(5) > button:nth-of-type(1)')",
+          "fragile": true
+        },
+        "button-8": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > div:nth-of-type(5) > button:nth-of-type(2)')",
+          "fragile": true
+        },
+        "button-9": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > button:nth-of-type(1)')",
+          "fragile": true
+        },
+        "button-10": {
+          "kind": "botón",
+          "text": "button",
+          "locator": "page.frameLocator('#raccoon-iframe').locator('#toolbar > button:nth-of-type(2)')",
+          "fragile": true
+        },
+        "additional-description": {
+          "kind": "casilla",
+          "text": "Additional description",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('switch', { name: 'Additional description', exact: true })"
+        },
+        "brand": {
+          "kind": "campo",
+          "text": "Brand *",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('combobox', { name: 'Brand *', exact: true })"
+        },
+        "category": {
+          "kind": "campo",
+          "text": "Category *",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('combobox', { name: 'Category *', exact: true })"
+        },
+        "all-sales-channels": {
+          "kind": "casilla",
+          "text": "All sales channels",
+          "locator": "page.frameLocator('#raccoon-iframe').getByTestId('select-all-sales-channel')"
+        },
+        "specific-sales-channels": {
+          "kind": "casilla",
+          "text": "Specific sales channels",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('radio', { name: 'Specific sales channels', exact: true })"
+        },
+        "global-category": {
+          "kind": "campo",
+          "text": "Global category",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('combobox', { name: 'Global category', exact: true })"
+        },
+        "product-url": {
+          "kind": "campo",
+          "text": "Product URL",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Product URL', exact: true })"
+        },
+        "page-title": {
+          "kind": "campo",
+          "text": "Page title",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Page title', exact: true })"
+        },
+        "meta-description": {
+          "kind": "campo",
+          "text": "Meta description",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Meta description', exact: true })"
+        },
+        "display-on-website": {
+          "kind": "casilla",
+          "text": "Display on website",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('switch', { name: 'Display on website', exact: true })"
+        },
+        "show-when-out-of-stock": {
+          "kind": "casilla",
+          "text": "Show when out of stock",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('switch', { name: 'Show when out of stock', exact: true })"
+        },
+        "release-date": {
+          "kind": "campo",
+          "text": "Release date",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Release date', exact: true })"
+        },
+        "substitute-words": {
+          "kind": "campo",
+          "text": "Substitute words",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Substitute words', exact: true })"
+        },
+        "priority-in-search-order": {
+          "kind": "campo",
+          "text": "Priority in search order",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('spinbutton', { name: 'Priority in search order', exact: true })"
+        },
+        "reference-code": {
+          "kind": "campo",
+          "text": "Reference code",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Reference code', exact: true })"
+        },
+        "tax-code": {
+          "kind": "campo",
+          "text": "Tax code",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Tax code', exact: true })"
+        },
+        "save": {
+          "kind": "botón",
+          "text": "Save",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Save', exact: true })",
+          "conditional": "aparece recién cuando el formulario tiene cambios"
+        },
+        "discard": {
+          "kind": "botón",
+          "text": "Discard",
+          "locator": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Discard', exact: true })",
+          "conditional": "aparece recién cuando el formulario tiene cambios"
+        }
+      }
+    }
+  }
+}

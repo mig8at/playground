@@ -1,15 +1,15 @@
 {
-  "caso": "cupon",
-  "grabado": "2026-11-07",
-  "codigo": "jarvismw6q6kn7",
-  "fila": "jarvismw6q6kn7 Single coupon jarvis pruebas-jarvis 11/7/2026",
-  "archivado": true,
-  "red": [
+  "case": "coupon",
+  "recorded": "2026-11-07",
+  "code": "jarvismw6q6kn7",
+  "row": "jarvismw6q6kn7 Single coupon jarvis pruebas-jarvis 11/7/2026",
+  "archived": true,
+  "network": [
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/api/rnb/v1/pvt/coupon",
-      "cuerpo": {
+      "body": {
         "couponCode": "jarvismw6q6kn7",
         "utmSource": "jarvis",
         "utmCampaign": "pruebas-jarvis",
@@ -18,7 +18,7 @@
         "expirationIntervalPerUse": "00:00:00"
       },
       "status": 201,
-      "respuesta": {
+      "response": {
         "lastModifiedUtc": "2026-11-07T18:17:03.2870885Z",
         "utmSource": "jarvis",
         "utmCampaign": "pruebas-jarvis",
@@ -29,11 +29,11 @@
       }
     },
     {
-      "paso": "archivar",
-      "metodo": "POST",
+      "step": "archive",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/api/rnb/v1/pvt/archive/coupon/jarvismw6q6kn7",
       "status": 200,
-      "respuesta": "jarvismw6q6kn7"
+      "response": "jarvismw6q6kn7"
     }
   ]
 }

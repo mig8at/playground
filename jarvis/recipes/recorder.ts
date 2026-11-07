@@ -1,10 +1,10 @@
 // Lo que comparten las recetas por pantalla: conectarse al Chrome de la persona por Jarvis y GRABAR lo que la
-// herramienta escribe mientras tanto (nivel 3 de jarvis/GUIA.md: del paso a paso manual sale la API).
+// herramienta escribe mientras tanto (nivel 3 de jarvis/GUIDE.md: del paso a paso manual sale la API).
 //
 //   const { browser, page } = await openChrome();
 //   const rec = recordWrites(page);           // desde acá, cada llamada que escribe queda anotada
 //   …los pasos por pantalla…
-//   saveCase('vtex', 'coleccion', { …lo que el caso quiera dejar…, red: rec.calls });
+//   saveCase('vtex', 'collection', { …lo que el caso quiera dejar…, network: rec.calls });
 //
 // Graba las llamadas que ESCRIBEN: todo lo que no es GET/HEAD/OPTIONS, y las mutaciones de GraphQL aunque vayan por
 // GET (en VTEX, toda operación dentro de un paso). Por cada una: método, URL, cuerpo enviado, status y el principio de la respuesta. Sin la analítica ni el
@@ -30,7 +30,7 @@ export async function openChrome() {
     return { browser, page, close };
 }
 
-export type Call = { paso: string; metodo: string; url: string; operacion?: string; cuerpo?: unknown; status?: number; respuesta?: unknown };
+export type Call = { step: string; method: string; url: string; operation?: string; body?: unknown; status?: number; response?: unknown };
 
 // Lo que no es de la herramienta: analítica (Amplitude, …), el chat de Copilot y su barra (`TopbarData` trae el
 // perfil de la persona: nombre y correo), el monitoreo, la sesión y las precargas de pantallas del admin.
@@ -48,35 +48,35 @@ export function recordWrites(page: any) {
         const url = r.url();
         if (NOISE.test(url)) return;
         const body = r.postData();
-        const operacion = /graphql/i.test(url) ? (/"operationName"\s*:\s*"([^"]+)"/.exec(body || '')?.[1] || new URL(url).searchParams.get('operationName') || undefined) : undefined;
+        const operation = /graphql/i.test(url) ? (/"operationName"\s*:\s*"([^"]+)"/.exec(body || '')?.[1] || new URL(url).searchParams.get('operationName') || undefined) : undefined;
         const isGraphql = /graphql/i.test(url);
         // GraphQL: VTEX manda «persisted queries» (sólo el nombre y un hash, sin el texto `mutation`), así que no se
         // sabe por el cuerpo si escribe. Se anota toda operación que pase DENTRO de un paso, y la lectura de cada una
         // se distingue después por su nombre (getX, listX…) y su respuesta.
         if (isGraphql && !current) return;
-        if (operacion && NOISE_OPS.test(operacion)) return;
+        if (operation && NOISE_OPS.test(operation)) return;
         if (!isGraphql && /^(GET|HEAD|OPTIONS)$/.test(r.method())) return;
-        const cuerpo: any = parse(body);
+        const sent: any = parse(body);
         // VTEX manda las variables de una persisted query en base64 (`extensions.variables`): se guardan legibles.
-        const b64 = cuerpo?.extensions?.variables;
-        if (typeof b64 === 'string') { try { cuerpo.variables = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')); delete cuerpo.extensions.variables; } catch { /* queda como vino */ } }
-        const call: Call = { paso: current, metodo: r.method(), url: url.replace(/\?.*$/, ''), ...(operacion ? { operacion } : {}), cuerpo };
+        const b64 = sent?.extensions?.variables;
+        if (typeof b64 === 'string') { try { sent.variables = JSON.parse(Buffer.from(b64, 'base64').toString('utf8')); delete sent.extensions.variables; } catch { /* queda como vino */ } }
+        const call: Call = { step: current, method: r.method(), url: url.replace(/\?.*$/, ''), ...(operation ? { operation } : {}), body: sent };
         calls.push(call);
         r.response().then(async (res: any) => {
             if (!res) return;
             call.status = res.status();
-            call.respuesta = parse(((await res.text().catch(() => '')) || '').slice(0, 4000));
+            call.response = parse(((await res.text().catch(() => '')) || '').slice(0, 4000));
         }).catch(() => {});
     });
     return { calls, step: (name: string) => { current = name; } };
 }
 
-/** Deja el caso en `jarvis/mapas/<app>/casos/<caso>.json`: es la fuente de la receta por API. */
-export function saveCase(app: string, caso: string, data: Record<string, unknown>) {
-    const file = path.join(ROOT, 'jarvis', 'mapas', app, 'casos', `${caso}.json`);
+/** Deja el caso en `jarvis/maps/<app>/cases/<caso>.json`: es la fuente de la receta por API. */
+export function saveCase(app: string, name: string, data: Record<string, unknown>) {
+    const file = path.join(ROOT, 'jarvis', 'maps', app, 'cases', `${name}.json`);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     // Un correo que se cuele en una respuesta (el perfil de quien graba) no queda en el archivo.
-    const text = JSON.stringify({ caso, grabado: new Date().toISOString().slice(0, 10), ...data }, null, 2).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '<correo>');
+    const text = JSON.stringify({ case: name, recorded: new Date().toISOString().slice(0, 10), ...data }, null, 2).replace(/[\w.+-]+@[\w-]+\.[\w.]+/g, '<correo>');
     fs.writeFileSync(file, text + '\n');
     return path.relative(ROOT, file);
 }
@@ -86,12 +86,12 @@ export function saveCase(app: string, caso: string, data: Record<string, unknown
  * llamada que hizo el admin, con su sesión, desde una pestaña ya abierta en la herramienta. La operación (nombre,
  * hash y quién la manda) se lee de la GRABACIÓN del caso: si la herramienta la cambia, se vuelve a grabar.
  */
-export function recordedOperation(app: string, caso: string, operacion: string) {
-    const file = path.join(ROOT, 'jarvis', 'mapas', app, 'casos', `${caso}.json`);
+export function recordedOperation(app: string, name: string, operation: string) {
+    const file = path.join(ROOT, 'jarvis', 'maps', app, 'cases', `${name}.json`);
     const data = JSON.parse(fs.readFileSync(file, 'utf8'));
-    const call = (data.red as Call[]).find((c) => c.operacion === operacion);
-    if (!call) throw new Error(`la grabación ${path.relative(ROOT, file)} no tiene «${operacion}»: volvé a grabar el caso por pantalla`);
-    return { url: call.url, persistedQuery: (call.cuerpo as any).extensions.persistedQuery };
+    const call = (data.network as Call[]).find((c) => c.operation === operation);
+    if (!call) throw new Error(`la grabación ${path.relative(ROOT, file)} no tiene «${operation}»: volvé a grabar el caso por pantalla`);
+    return { url: call.url, persistedQuery: (call.body as any).extensions.persistedQuery };
 }
 
 /** Manda una persisted query de GraphQL con la sesión de la pestaña (variables en base64, como el admin). */

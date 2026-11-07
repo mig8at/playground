@@ -1,8 +1,8 @@
 // RECETA · una compra de prueba CON DESCUENTO pagada con Creditop, y ver qué monto le llega a CreditOp.
 //
-//   make jarvis-receta APP=vtex RECETA=compra-con-descuento                     todo: ~25 min (casi todo es espera)
-//   make jarvis-receta APP=vtex RECETA=compra-con-descuento ARGS='--preparar'   sólo la promoción y el cupón
-//   make jarvis-receta APP=vtex RECETA=compra-con-descuento ARGS='--codigo <cupón>'   compra con un cupón ya preparado
+//   make jarvis-recipe APP=vtex RECIPE=discount-purchase                     todo: ~25 min (casi todo es espera)
+//   make jarvis-recipe APP=vtex RECIPE=discount-purchase ARGS='--prepare'   sólo la promoción y el cupón
+//   make jarvis-recipe APP=vtex RECIPE=discount-purchase ARGS='--code <cupón>'   compra con un cupón ya preparado
 //
 // 1. Una promoción REGULAR (10 % por defecto) sólo para el SKU de prueba (el 10, «Casco urbano Jarvis»), ligada a
 //    un cupón propio por el mismo `utm_source`, que vence sola a las 2 h. Campos según el esquema oficial de VTEX
@@ -17,7 +17,8 @@
 // 5. Deshace: cancela el pedido (sin aprobar, Creditop lo cancela solo, sin tarea manual), archiva promoción y cupón.
 //
 // ESCRIBE en VTEX (promoción, cupón y un pedido de la cuenta de pruebas) y en qa (la solicitud del pedido), como
-// cualquier compra de `make harness-vtex`. `--dejar` no deshace nada.
+// cualquier compra de `make harness-vtex`. `--keep` no deshace nada.
+import '../args.ts';
 import { execFile } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,11 +29,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '.
 const { placeVtexOrder, cancelVtexOrder } = await import(path.join(ROOT, 'harness/pkg/vtex.ts'));
 const argv = process.argv.slice(2);
 const flag = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
-const KEEP = argv.includes('--dejar');
+const KEEP = argv.includes('--keep');
 const SKU = flag('sku') || '10';
-const PCT = Number(flag('descuento') || 10);
+const PCT = Number(flag('discount') || 10);
 const say = (s: string) => console.log(`  ${s}`);
-const peso = (cents: number) => `$${(cents / 100).toLocaleString('es-CO')}`;
+const money = (cents: number) => `$${(cents / 100).toLocaleString('es-CO')}`;
 const base = `${hosts.store}/api/rnb`;
 
 async function simulate(coupon?: string) {
@@ -42,7 +43,7 @@ async function simulate(coupon?: string) {
 }
 
 // ── 1 · promoción y cupón ──
-let code = flag('codigo');
+let code = flag('code');
 let promoId: string | undefined;
 const list = (await simulate()).item;
 const fullPrice: number = list?.sellingPrice;
@@ -61,8 +62,8 @@ if (!code) {
     promoId = promo.idCalculatorConfiguration;
     await must('crear el cupón', 'POST', `${base}/v1/pvt/coupon`, { couponCode: code, utmSource: code, utmCampaign: '', maxUsage: null, maxItemsPerClient: 0, expirationIntervalPerUse: '00:00:00' });
     say(`promoción ${promoId} (${PCT}% al SKU ${SKU}, vence en 2 h) · cupón ${code}`);
-    if (argv.includes('--preparar')) {
-        say(`lista. En ~20 min: make jarvis-receta APP=vtex RECETA=compra-con-descuento ARGS='--codigo ${code}'`);
+    if (argv.includes('--prepare')) {
+        say(`lista. En ~20 min: make jarvis-recipe APP=vtex RECIPE=discount-purchase ARGS='--code ${code}'`);
         process.exit(0);
     }
 }
@@ -75,15 +76,15 @@ while (Date.now() - t0 < 40 * 60e3) {
     const s = await simulate(code);
     if (s.item?.sellingPrice < fullPrice) { discounted = s.item.sellingPrice; break; }
     const min = Math.round((Date.now() - t0) / 60e3);
-    if (min % 2 === 0 && min !== lastShown && (lastShown = min) >= 0) say(`+${min} min · el carrito todavía da ${peso(s.item?.sellingPrice)}${s.messages.length ? ` («${s.messages[0]}»: es la espera, no el cupón)` : ''}`);
+    if (min % 2 === 0 && min !== lastShown && (lastShown = min) >= 0) say(`+${min} min · el carrito todavía da ${money(s.item?.sellingPrice)}${s.messages.length ? ` («${s.messages[0]}»: es la espera, no el cupón)` : ''}`);
     await new Promise((r) => setTimeout(r, 30_000));
 }
 if (!discounted) throw new Error(`a los 40 min el cupón ${code} todavía no aplica: mirá el Promotion Simulator (botón Cartman del carrito)`);
-say(`el carrito aplica el cupón a los ${Math.round((Date.now() - t0) / 60e3)} min: ${peso(fullPrice)} → ${peso(discounted)}`);
+say(`el carrito aplica el cupón a los ${Math.round((Date.now() - t0) / 60e3)} min: ${money(fullPrice)} → ${money(discounted)}`);
 
 // ── 3 · la compra ──
 const order = await placeVtexOrder({ tel: '3121520000', doc: '1650215200', firstName: 'CARLOS', lastName: 'RUIZ', email: 'vtex-1650215200@creditop.com' }, SKU, { coupon: code });
-say(`pedido ${order.orderId} · total ${peso(order.total)} · wizard ${order.redirectUrl}`);
+say(`pedido ${order.orderId} · total ${money(order.total)} · wizard ${order.redirectUrl}`);
 
 // ── 4 · qué recibió CreditOp (qa, sólo lectura) ──
 const run = promisify(execFile);
@@ -97,16 +98,16 @@ else {
     const sum = products.reduce((a: number, p: any) => a + Number(p.price) * Number(p.quantity), 0);
     say(`qa recibió: solicitud ${row.id} (${row.origin}) · total $${Number(row.total).toLocaleString('es-CO')} · productos suman $${sum.toLocaleString('es-CO')}`);
     if (Math.round(Number(row.total)) === Math.round(order.total / 100)) say('✓ el TOTAL que recibe CreditOp es el del pedido con el descuento');
-    else say(`✗ el total que recibe CreditOp ($${row.total}) no es el del pedido (${peso(order.total)})`);
+    else say(`✗ el total que recibe CreditOp ($${row.total}) no es el del pedido (${money(order.total)})`);
     if (sum > Number(row.total)) say(`⚠ los PRODUCTOS llegan con el precio sin descuento (suman $${sum.toLocaleString('es-CO')}, el total es $${Number(row.total).toLocaleString('es-CO')})`);
 }
 
 // ── 5 · deshacer ──
-if (KEEP) { say(`--dejar: quedan el pedido ${order.orderId}, la promoción y el cupón ${code}`); process.exit(0); }
+if (KEEP) { say(`--keep: quedan el pedido ${order.orderId}, la promoción y el cupón ${code}`); process.exit(0); }
 await cancelVtexOrder(order.orderId);
 say(`pedido ${order.orderId}: cancelación pedida`);
 if (!promoId) {
-    // Con --codigo, la promoción es la del cupón: se busca por su utm en el listado.
+    // Con --code, la promoción es la del cupón: se busca por su utm en el listado.
     const l = await must<any>('listar las promociones', 'GET', `${base}/pvt/benefits/calculatorconfiguration`);
     promoId = (l.items ?? []).find((p: any) => String(p.name).includes(code!))?.idCalculatorConfiguration;
 }

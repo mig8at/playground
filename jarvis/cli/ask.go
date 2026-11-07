@@ -71,14 +71,14 @@ func ask(args []string) error {
 	pinTab() // el Claude que se lanza y sus comandos van a ESTA pestaña aunque se abran otras
 	fs := flag.NewFlagSet("ask", flag.ExitOnError)
 	start := fs.String("url", "", "abre la sesión en vivo en esta URL antes de empezar (si no, usa la que está abierta)")
-	steps := fs.Int("pasos", 40, "cuántas acciones como mucho")
-	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
-	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
-	guide := fs.Bool("guia", false, "enseñame: Claude no toca la página; marca qué hacer y la persona lo hace")
-	noFlow := fs.Bool("sin-flujo", false, "no guardar la corrida como flujo aunque termine en LISTO")
-	_ = fs.String("dispositivo", "", "ya no se usa: Jarvis corre sólo en tu Chrome (lo mandaba la interfaz)")
+	steps := fs.Int("steps", 40, "cuántas acciones como mucho")
+	model := fs.String("model", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
+	answer := fs.String("answer", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
+	guide := fs.Bool("guide", false, "enseñame: Claude no toca la página; marca qué hacer y la persona lo hace")
+	noFlow := fs.Bool("no-flow", false, "no guardar la corrida como flujo aunque termine en LISTO")
+	_ = fs.String("device", "", "ya no se usa: Jarvis corre sólo en tu Chrome (lo mandaba la interfaz)")
 	fs.Usage = func() {
-		fmt.Fprintln(os.Stderr, `uso: bin/jarvis ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
+		fmt.Fprintln(os.Stderr, `uso: bin/jarvis ask [--url URL] [--steps 40] [--model M] [--answer R] [--guide] [--no-flow] "<meta>"`)
 		fs.PrintDefaults()
 	}
 	_ = fs.Parse(args)
@@ -99,7 +99,7 @@ func ask(args []string) error {
 	}
 	if path, err := writeReportInfo(outcome.reportInfo(goal, "ask")); err == nil {
 		say(os.Stdout, "report", path, fmt.Sprintf("\nla corrida, como video: %s\n", path))
-		// Lo que salió bien queda como flujo (jarvis/flujos): se repite sin Claude o se enseña.
+		// Lo que salió bien queda como flujo (jarvis/flows): se repite sin Claude o se enseña.
 		if outcome.Final() == "LISTO" && !*noFlow && lastRunID != "" {
 			var fl struct{ App, ID, Path string }
 			if err := call(http.MethodPost, "/api/flows", map[string]string{"run": lastRunID, "name": goal}, &fl); err == nil {
@@ -471,7 +471,7 @@ func isAction(command string) bool {
 		return false
 	}
 	switch fields[1] {
-	case "look", "text", "steps", "script", "shot", "sites", "wait", "read", "value", "cambios":
+	case "look", "text", "steps", "script", "shot", "sites", "wait", "read", "value", "changes", "cambios":
 		return false
 	}
 	return true

@@ -1,15 +1,16 @@
 // CASO REVERSIBLE · una colección: crearla y borrarla por el admin de VTEX, en el Chrome de la persona, grabando lo
-// que el admin escribe (nivel 3 de jarvis/GUIA.md). De esa grabación sale la receta por API (`coleccion.ts`).
+// que el admin escribe (nivel 3 de jarvis/GUIDE.md). De esa grabación sale la receta por API (`coleccion.ts`).
 //
-//   make jarvis-receta APP=vtex RECETA=coleccion-pantalla [ARGS='--dejar']
+//   make jarvis-recipe APP=vtex RECIPE=collection-screen [ARGS='--keep']
 //
 // Crea «Jarvis <fecha y hora>» (Catalog › Collections › CREATE COLLECTION), la busca en la lista para saber su id y
-// la borra con el tacho de SU fila (DELETE). Sólo borra la que creó: busca por el nombre exacto. Con `--dejar` no la
-// borra. Lo grabado queda en `jarvis/mapas/vtex/casos/coleccion.json`.
+// la borra con el tacho de SU fila (DELETE). Sólo borra la que creó: busca por el nombre exacto. Con `--keep` no la
+// borra. Lo grabado queda en `jarvis/maps/vtex/cases/coleccion.json`.
 // ESCRIBE en el catálogo de la cuenta de pruebas `creditop` (y lo deshace).
-import { openChrome, recordWrites, saveCase } from '../red.ts';
+import '../args.ts';
+import { openChrome, recordWrites, saveCase } from '../recorder.ts';
 
-const KEEP = process.argv.includes('--dejar');
+const KEEP = process.argv.includes('--keep');
 const stamp = new Date().toISOString().slice(0, 19).replace('T', ' ');
 const name = `Jarvis ${stamp}`;
 const say = (s: string) => console.log(`  ${s}`);
@@ -17,12 +18,12 @@ const say = (s: string) => console.log(`  ${s}`);
 const { page, close } = await openChrome();
 const rec = recordWrites(page);
 const io = page.frameLocator('iframe[title="IO iframe container"]');
-const result: Record<string, unknown> = { nombre: name };
+const result: Record<string, unknown> = { name };
 try {
     await page.goto('https://creditop.myvtex.com/admin/collections', { waitUntil: 'commit', timeout: 90_000 });
     await io.getByRole('button', { name: 'CREATE COLLECTION' }).waitFor({ timeout: 60_000 });
 
-    rec.step('crear');
+    rec.step('create');
     await io.getByRole('button', { name: 'CREATE COLLECTION' }).click();
     await io.getByRole('textbox', { name: 'Collection Name*', exact: true }).fill(name);
     await io.getByLabel(/^Simple description/).fill('Colección de prueba de Jarvis: se borra al terminar.');
@@ -31,10 +32,10 @@ try {
     // Al crear, el admin abre la colección: el id está en la URL (/admin/collections/<id>).
     await page.waitForURL(/collections\/\d+/, { timeout: 30_000 }).catch(() => {});
     await page.waitForTimeout(2000);
-    result.urlTrasCrear = page.url();
+    result.urlAfterCreate = page.url();
     const fromUrl = /collections\/(\d+)/.exec(page.url())?.[1];
 
-    rec.step('buscar');
+    rec.step('search');
     await page.goto('https://creditop.myvtex.com/admin/collections', { waitUntil: 'commit', timeout: 90_000 });
     const search = io.getByRole('textbox', { name: 'Search…' }).or(io.getByPlaceholder('Search…'));
     await search.first().waitFor({ timeout: 60_000 });
@@ -47,12 +48,12 @@ try {
     say(`está en la lista: id ${id}`);
 
     if (!KEEP) {
-        rec.step('borrar');
+        rec.step('delete');
         await row.locator('td').last().getByRole('button').click();
         await io.getByRole('button', { name: 'DELETE' }).click();
         await row.waitFor({ state: 'detached', timeout: 30_000 });
         say('borrada: ya no está en la lista');
-        result.borrada = true;
+        result.deleted = true;
     }
 } catch (e) {
     result.error = String((e as Error).message).split('\n')[0];
@@ -62,7 +63,7 @@ try {
     await page.waitForTimeout(1500); // que lleguen las últimas respuestas
     await close();
 }
-const file = saveCase('vtex', 'coleccion', { ...result, red: rec.calls });
-for (const c of rec.calls) say(`[${c.paso}] ${c.metodo} ${c.url.replace(/^https:\/\/[^/]+/, '').slice(0, 90)}${c.operacion ? ' ' + c.operacion : ''} → ${c.status ?? '?'}`);
+const file = saveCase('vtex', 'collection', { ...result, network: rec.calls });
+for (const c of rec.calls) say(`[${c.step}] ${c.method} ${c.url.replace(/^https:\/\/[^/]+/, '').slice(0, 90)}${c.operation ? ' ' + c.operation : ''} → ${c.status ?? '?'}`);
 say(`→ ${file}`);
 if (result.error) process.exit(1);

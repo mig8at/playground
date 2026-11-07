@@ -628,7 +628,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": ok})
 	})
-	// GET /api/flows — los flujos (jarvis/flujos). POST /api/flows {run, name} — guarda una corrida como flujo.
+	// GET /api/flows — los flujos (jarvis/flows). POST /api/flows {run, name} — guarda una corrida como flujo.
 	// GET|DELETE /api/flows/<app>/<id> · POST /api/flows/<app>/<id>/replay {mode: auto|teach}
 	// ── el motor «chrome» (chrome.go): la extensión, Playwright y el estado ──
 	mux.HandleFunc("/api/chrome/bridge", chromeBridge.serveExtension)
@@ -645,7 +645,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				writeErr(w, http.StatusConflict, err)
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]string{"app": fl.App, "id": fl.ID, "path": filepath.Join("jarvis", "flujos", fl.App, fl.ID+".json")})
+			writeJSON(w, http.StatusOK, map[string]string{"app": fl.App, "id": fl.ID, "path": filepath.Join("jarvis", "flows", fl.App, fl.ID+".json")})
 			return
 		}
 		writeJSON(w, http.StatusOK, listFlows())
@@ -784,7 +784,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		writeJSON(w, http.StatusOK, ok)
 	})
 	// POST /api/ask/external {accion: begin|event|end, meta, k, t} — una sesión que maneja Claude desde la
-	// conversación (bin/jarvis empezar · pienso · terminar): el panel la muestra igual que una de ask.
+	// conversación (bin/jarvis start · think · finish): el panel la muestra igual que una de ask.
 	mux.HandleFunc("/api/ask/external", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)
 		if tab == nil {

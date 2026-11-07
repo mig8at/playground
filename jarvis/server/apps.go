@@ -61,17 +61,19 @@ func listApps() []App {
 }
 
 // Project es un proyecto con nombre propio para sitios reales (VTEX, Grafana…): agrupa los flujos de uno o varios
-// hosts. Vive en jarvis/flujos/<id>/proyecto.json, al lado de sus flujos.
+// hosts. Vive en jarvis/flows/<id>/project.json, al lado de sus flujos.
 type Project struct {
 	Name  string   `json:"nombre"`
 	Hosts []string `json:"hosts"`
 	Start string   `json:"inicio"` // dónde se abre en vivo
 }
 
-// listProjects son los proyectos con nombre propio (proyecto.json), con su id.
+// listProjects son los proyectos con nombre propio (project.json; los de antes del 2026-11-07, proyecto.json), con su id.
 func listProjects() map[string]Project {
 	out := map[string]Project{}
-	files, _ := filepath.Glob(filepath.Join(flowsDir(), "*", "proyecto.json"))
+	files, _ := filepath.Glob(filepath.Join(flowsDir(), "*", "project.json"))
+	old, _ := filepath.Glob(filepath.Join(flowsDir(), "*", "proyecto.json"))
+	files = append(files, old...)
 	for _, f := range files {
 		b, err := os.ReadFile(f)
 		if err != nil {
@@ -110,7 +112,7 @@ func createProject(id, name, start string) error {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(dir, "proyecto.json"), append(b, '\n'), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, "project.json"), append(b, '\n'), 0o644); err != nil {
 		return err
 	}
 	hub.Publish("apps", listAll())

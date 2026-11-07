@@ -1,7 +1,7 @@
 <script setup>
 /* Jarvis · la interfaz. Flujos para usar herramientas complejas: le decís a Claude qué querés hacer en una app,
  * lo ves trabajar en vivo (el navegador real en el editor y lo que piensa a la derecha) y lo que aprende queda como
- * FLUJO (jarvis/flujos, JSON en git): se reproduce navegando de nuevo, con sus datos precargados o abiertos, y
+ * FLUJO (jarvis/flows, JSON en git): se reproduce navegando de nuevo, con sus datos precargados o abiertos, y
  * para donde tiene que actuar la persona (o en lo irreversible).
  *
  * Todo llega por UN stream en tiempo real (/api/events, server/events.go); los cuadros del navegador, por el suyo
@@ -316,7 +316,7 @@ async function playFlow(m) {
 }
 // Borrar lo que ya no hace falta (algo que sólo se quería entender): un flujo, o un proyecto entero.
 async function deleteFlowOf(f) {
-  if (!confirm(`¿Borrar el flujo «${f.nombre}»? Se borra su archivo de jarvis/flujos.`)) return
+  if (!confirm(`¿Borrar el flujo «${f.nombre}»? Se borra su archivo de jarvis/flows.`)) return
   try {
     await api(`/api/flows/${f.app}/${f.id}`, { method: 'DELETE' })
     if (view.value.kind === 'flow' && view.value.app === f.app && view.value.id === f.id) go({ kind: 'project', app: f.app })
@@ -332,7 +332,7 @@ async function deleteProject(g) {
   } catch (e) { viewError.value = e.message }
 }
 async function deleteFlow() {
-  if (!confirm(`¿Eliminar el flujo «${flowData.value.flujo.nombre}»? Se borra su archivo de jarvis/flujos.`)) return
+  if (!confirm(`¿Eliminar el flujo «${flowData.value.flujo.nombre}»? Se borra su archivo de jarvis/flows.`)) return
   try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'DELETE' }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
 }
 
@@ -648,7 +648,7 @@ const status = computed(() => {
           <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flujo.nombre }}</h1>
           <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flujo.dispositivo === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flujo.creado) }}
             <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
-          <p class="muted small"><code>jarvis/flujos/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
+          <p class="muted small"><code>jarvis/flows/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
           <div class="flow-actions">
             <button type="button" class="btn" title="Llena los campos solo con estos datos; en cada botón para y lo tocás vos" @click="playFlow('fill')">Reproducir</button>
           </div>

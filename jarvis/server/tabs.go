@@ -4,7 +4,7 @@ package main
  * pestaña es un Runner (su sesión en vivo, su registro) más un Asker (su Claude), así que todo lo que ya sabía
  * hacer una sesión lo sigue haciendo cada una por su lado.
  *
- * Qué pestaña atiende un pedido: el encabezado X-Jarvis-Tab (o ?tab=), que manda el CLI con --sesion N o
+ * Qué pestaña atiende un pedido: el encabezado X-Jarvis-Tab (o ?tab=), que manda el CLI con --session N o
  * JARVIS_SESION; sin él, la ÚLTIMA que se abrió. La interfaz elige cuál MIRA sin cambiar ese default: si no,
  * un clic de la persona mandaría los comandos de Claude a otra página.
  *
@@ -136,7 +136,7 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	}
 	tab := t.Get(id)
 	if tab == nil {
-		writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s (bin/jarvis pestanas las lista)", id))
+		writeErr(w, http.StatusNotFound, fmt.Errorf("no hay pestaña %s (bin/jarvis tabs las lista)", id))
 		return nil
 	}
 	// Uso = un comando de Claude (cualquiera, también mirar) o una acción de la persona (lo que no es un GET). Los GET de
@@ -192,7 +192,7 @@ func IdleLimit(env string) time.Duration {
 
 // Sweep cierra las pestañas que abrió Claude y que llevan más de idle sin uso, y devuelve cuáles cerró. Nunca cierra:
 // - las que abrió la persona;
-// - la última que se abrió (es adonde cae un comando sin --sesion: cerrarla mandaría el próximo a otra página);
+// - la última que se abrió (es adonde cae un comando sin --session: cerrarla mandaría el próximo a otra página);
 // - una que alguien está mirando en la interfaz;
 // - una con un Claude corriendo (`ask`) o una reproducción en marcha;
 // - la única que queda.

@@ -1,20 +1,20 @@
 {
-  "caso": "sinonimo",
-  "grabado": "2026-11-07",
-  "terminos": [
+  "case": "synonym",
+  "recorded": "2026-11-07",
+  "terms": [
     "jarvisamw6pyg9j",
     "jarvisbmw6pyg9j"
   ],
-  "fila": "jarvisamw6pyg9j jarvisbmw6pyg9j 11/07/2026 Active",
-  "confirmacion": "Delete Item? This will permanently delete this item. Cancel Delete",
-  "borrado": true,
-  "red": [
+  "row": "jarvisamw6pyg9j jarvisbmw6pyg9j 11/07/2026 Active",
+  "confirmation": "Delete Item? This will permanently delete this item. Cancel Delete",
+  "deleted": true,
+  "network": [
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonymConflictsSummary",
-      "cuerpo": {
+      "operation": "getSynonymConflictsSummary",
+      "body": {
         "operationName": "getSynonymConflictsSummary",
         "variables": {
           "input": {
@@ -34,7 +34,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSynonymConflictsSummary": {
             "status": "success",
@@ -53,11 +53,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonymConflictsSummary",
-      "cuerpo": {
+      "operation": "getSynonymConflictsSummary",
+      "body": {
         "operationName": "getSynonymConflictsSummary",
         "variables": {
           "input": {
@@ -78,7 +78,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSynonymConflictsSummary": {
             "status": "success",
@@ -97,11 +97,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "createSynonym",
-      "cuerpo": {
+      "operation": "createSynonym",
+      "body": {
         "operationName": "createSynonym",
         "variables": {
           "searchSynonym": {
@@ -124,7 +124,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "createSynonym": {
             "status": "success",
@@ -146,11 +146,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "integrationStatus",
-      "cuerpo": {
+      "operation": "integrationStatus",
+      "body": {
         "operationName": "integrationStatus",
         "variables": {},
         "extensions": {
@@ -163,7 +163,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "integrationStatus": {
             "exists": true,
@@ -177,11 +177,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonyms",
-      "cuerpo": {
+      "operation": "getSynonyms",
+      "body": {
         "operationName": "getSynonyms",
         "variables": {
           "pagination": {
@@ -203,7 +203,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSynonyms": {
             "status": "success",
@@ -236,11 +236,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonymSuggestions",
-      "cuerpo": {
+      "operation": "getSynonymSuggestions",
+      "body": {
         "operationName": "getSynonymSuggestions",
         "variables": {},
         "extensions": {
@@ -253,18 +253,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSynonymSuggestions": []
         }
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSavedSynonymSuggestions",
-      "cuerpo": {
+      "operation": "getSavedSynonymSuggestions",
+      "body": {
         "operationName": "getSavedSynonymSuggestions",
         "variables": {},
         "extensions": {
@@ -277,18 +277,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSavedSynonymSuggestions": []
         }
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "locales",
-      "cuerpo": {
+      "operation": "locales",
+      "body": {
         "operationName": "locales",
         "variables": {},
         "extensions": {
@@ -301,7 +301,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "locales": {
             "supportedLocales": [
@@ -314,11 +314,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonyms",
-      "cuerpo": {
+      "operation": "getSynonyms",
+      "body": {
         "operationName": "getSynonyms",
         "variables": {
           "pagination": {
@@ -342,7 +342,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "getSynonyms": {
             "status": "success",
@@ -375,11 +375,11 @@
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "deleteSynonym",
-      "cuerpo": {
+      "operation": "deleteSynonym",
+      "body": {
         "operationName": "deleteSynonym",
         "variables": {
           "searchSynonym": {
@@ -400,7 +400,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "deleteSynonym": {
             "status": "success",
@@ -422,11 +422,11 @@
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "getSynonyms",
-      "cuerpo": {
+      "operation": "getSynonyms",
+      "body": {
         "operationName": "getSynonyms",
         "variables": {
           "pagination": {

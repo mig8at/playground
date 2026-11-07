@@ -6,7 +6,7 @@ package main
  *	<sitio>/profile/      el perfil del Chromium que se usaba hasta el 2026-11-07 (ya no se abre: el login es el de Chrome)
  *	corridas/<id>/        cada corrida: fotos de los pasos, pasos.json, run.json y su script (report.go)
  *
- * Los FLUJOS no van acá: son JSON versionados en jarvis/flujos/ (flows.go). */
+ * Los FLUJOS no van acá: son JSON versionados en jarvis/flows/ (flows.go). */
 
 import (
 	"encoding/json"

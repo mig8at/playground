@@ -3,8 +3,8 @@
 // verificar el resultado. Habla con la API (:5203), así que la interfaz tiene que estar levantada.
 //
 //	bin/jarvis open <url>                     abre la sesión en vivo en esa URL, en tu Chrome
-//	bin/jarvis look [--todo]                  la página actual: sus elementos numerados, con su localizador
-//	                                             (los enlaces del menú y el pie se resumen; --todo los muestra)
+//	bin/jarvis look [--all]                   la página actual: sus elementos numerados, con su localizador
+//	                                             (los enlaces del menú y el pie se resumen; --all los muestra)
 //	bin/jarvis click <n> | dblclick <n> | hover <n> | fill <n> <valor> | check <n> | uncheck <n>
 //	              select <n> <valor> | press <n> <tecla> | upload <n> <archivo> | drag <n> <destino>
 //	              (<n>: el número del último look, o un texto visible: dblclick "Revisar el informe")
@@ -15,14 +15,14 @@
 //	bin/jarvis wait <texto> [segundos]        espera a que el texto se vea (queda como aserción en el script)
 //	bin/jarvis value <n> [esperado]           el valor de un campo; con esperado, queda como toHaveValue
 //	bin/jarvis download <n|texto|url>         baja lo que apunta un enlace (un export, un reporte) a .data/descargas
-//	bin/jarvis read [--desde N|--buscar t]    el texto de la pantalla, legible: los textos de ayuda de una configuración
+//	bin/jarvis read [--from N|--search t]     el texto de la pantalla, legible: los textos de ayuda de una configuración
 //	bin/jarvis point <n> '<instrucción>'      modo guía: marca el elemento en la página en vivo y espera a que la
 //	                                             persona lo haga (guide.go del servidor)
-//	bin/jarvis cambios                        lo que cambió en cada campo desde el último guardar (antes → después)
+//	bin/jarvis changes                        lo que cambió en cada campo desde el último guardar (antes → después)
 //	bin/jarvis chrome                         ¿está conectada la extensión de Chrome? ¿qué pestañas compartió la persona?
-//	bin/jarvis empezar [--url U] '<meta>'     abre una sesión de Claude desde la conversación: el panel de la interfaz
-//	              pienso '<texto>'              muestra cada comando, lo que piensa (pienso) y cómo terminó (terminar,
-//	              terminar 'LISTO: …'           que guarda la corrida y, con LISTO, el flujo)
+//	bin/jarvis start [--url U] '<meta>'       abre una sesión de Claude desde la conversación: el panel de la interfaz
+//	              think '<texto>'               muestra cada comando, lo que piensa (think) y cómo terminó (finish,
+//	              finish 'LISTO: …'             que guarda la corrida y, con LISTO, el flujo)
 //	bin/jarvis shot <archivo.png>             guarda lo que se ve ahora
 //	bin/jarvis steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/jarvis report [meta]                  el paso a paso con una foto por paso (md, html y script)
@@ -58,7 +58,7 @@ var api = envOr("JARVIS_API", "http://127.0.0.1:5203")
 // defecto se resumen en una línea (cada look los repetía: tokens y lectura de más).
 var lookAll bool
 
-// lookQuery: look --buscar 'texto' muestra sólo los elementos cuyo nombre lo contiene.
+// lookQuery: look --search 'texto' muestra sólo los elementos cuyo nombre lo contiene.
 var lookQuery string
 
 func envOr(k, d string) string {
@@ -68,14 +68,48 @@ func envOr(k, d string) string {
 	return d
 }
 
-// tabID es la pestaña a la que le habla este comando (--sesion N o JARVIS_SESION); vacía, la última que se abrió.
-var tabID = os.Getenv("JARVIS_SESION")
+// tabID es la pestaña a la que le habla este comando (--session N o JARVIS_SESSION); vacía, la última que se abrió.
+var tabID = envOr("JARVIS_SESSION", os.Getenv("JARVIS_SESION"))
 
-// takeTabFlag saca `--sesion N` de los argumentos, esté donde esté.
+// Los nombres de antes del 2026-11-07, en castellano, siguen andando: las tareas y los flujos guardan el comando
+// exacto con que se hizo algo. Se traducen al entrar y todo lo demás habla en inglés.
+var legacyCommands = map[string]string{
+	"empezar": "start", "pienso": "think", "terminar": "finish", "pestanas": "tabs", "pestañas": "tabs",
+	"proyecto": "project", "cambios": "changes",
+}
+var legacyFlags = map[string]string{
+	"--sesion": "--session", "--pestana": "--session", "--todo": "--all", "--buscar": "--search", "--desde": "--from",
+	"--pasos": "--steps", "-pasos": "--steps", "--modelo": "--model", "-modelo": "--model", "--respuesta": "--answer",
+	"-respuesta": "--answer", "--guia": "--guide", "-guia": "--guide", "--sin-flujo": "--no-flow", "-sin-flujo": "--no-flow",
+	"--dispositivo": "--device", "-dispositivo": "--device",
+}
+var legacySubcommands = map[string]string{"nueva": "new", "cerrar": "close"}
+
+func translateLegacy(argv []string) []string {
+	out := make([]string, len(argv))
+	for i, a := range argv {
+		out[i] = a
+		if i == 1 {
+			if n, ok := legacyCommands[a]; ok {
+				out[i] = n
+			}
+		} else if i == 2 && out[1] == "tabs" {
+			if n, ok := legacySubcommands[a]; ok {
+				out[i] = n
+			}
+		}
+		if n, ok := legacyFlags[a]; ok {
+			out[i] = n
+		}
+	}
+	return out
+}
+
+// takeTabFlag saca `--session N` de los argumentos, esté donde esté.
 func takeTabFlag(argv []string) []string {
 	out := argv[:0:0]
 	for i := 0; i < len(argv); i++ {
-		if (argv[i] == "--sesion" || argv[i] == "--pestana") && i+1 < len(argv) {
+		if (argv[i] == "--session" || argv[i] == "--sesion" || argv[i] == "--pestana") && i+1 < len(argv) {
 			tabID = argv[i+1]
 			i++
 			continue
@@ -86,39 +120,39 @@ func takeTabFlag(argv []string) []string {
 }
 
 func main() {
-	os.Args = takeTabFlag(os.Args)
+	os.Args = takeTabFlag(translateLegacy(os.Args))
 	if len(os.Args) < 2 {
 		usage()
 	}
 	cmd, args := os.Args[1], os.Args[2:]
 	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
 	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
-	inSession := cmd != "ask" && cmd != "empezar" && cmd != "chrome" && cmd != "pienso" && cmd != "terminar" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
+	inSession := cmd != "ask" && cmd != "start" && cmd != "chrome" && cmd != "think" && cmd != "finish" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
 	if inSession {
 		panelEvent("act", "jarvis "+shellLine(os.Args[1:]))
 	}
 	var err error
 	switch cmd {
-	case "empezar":
+	case "start":
 		err = begin(args)
 	case "chrome":
 		err = chromeStatus()
-	case "pestanas", "pestañas":
+	case "tabs":
 		err = tabsCmd(args)
-	case "pienso":
+	case "think":
 		if len(args) == 0 {
 			usage()
 		}
 		err = panelEvent("think", strings.Join(args, " "))
-	case "terminar":
+	case "finish":
 		err = finish(args)
-	case "proyecto":
+	case "project":
 		if len(args) < 3 {
 			usage()
 		}
 		err = call(http.MethodPost, "/api/projects", map[string]string{"id": args[0], "nombre": args[1], "url": args[2]}, nil)
 		if err == nil {
-			fmt.Printf("proyecto «%s» (jarvis/flujos/%s/): los flujos de %s quedan ahí\n", args[1], args[0], args[2])
+			fmt.Printf("proyecto «%s» (jarvis/flows/%s/): los flujos de %s quedan ahí\n", args[1], args[0], args[2])
 		}
 	case "ask":
 		err = ask(args)
@@ -131,9 +165,9 @@ func main() {
 	case "look":
 		for i := 0; i < len(args); i++ {
 			switch args[i] {
-			case "--todo":
+			case "--all":
 				lookAll = true
-			case "--buscar":
+			case "--search":
 				if i+1 < len(args) {
 					lookQuery = strings.Join(args[i+1:], " ")
 					i = len(args)
@@ -147,7 +181,7 @@ func main() {
 		err = act(cmd, args, true)
 	case "point":
 		err = point(args)
-	case "cambios":
+	case "changes":
 		err = changes()
 	case "dialog":
 		if len(args) < 1 || (args[0] != "accept" && args[0] != "dismiss") {
@@ -213,20 +247,20 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/jarvis <comando>
   ua iphone|reset|'<agente>'   la pestaña se presenta con otro agente (en tu Chrome, para el wizard «como celular»); después, reload
-  open <url> (en tu Chrome, con Jarvis) · look [--todo | --buscar texto] · close
+  open <url> (en tu Chrome, con Jarvis) · look [--all | --search texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
-  point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
-  chrome   ¿la extensión de Chrome está conectada? (con ella, empezar --chrome / open --chrome corren en tu Chrome)
-  empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
-  pestanas [nueva [url] | cerrar N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
-                        Cualquier comando: --sesion N (o JARVIS_SESION=N);
-                        sin eso, la última que se abrió. empezar abre una nueva si en la actual ya trabaja otro Claude
-  proyecto <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flujos/<id>)
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--from N | --search texto] · shot <archivo.png>
+  point <n> '<instrucción>' (modo guía: marca y espera a la persona) · changes (lo que cambió en cada campo)
+  chrome   ¿la extensión de Chrome está conectada?
+  start [--url U] '<meta>' · think '<texto>' · finish 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  tabs [new [url] | close N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
+                        Cualquier comando: --session N (o JARVIS_SESSION=N);
+                        sin eso, la última que se abrió. start abre una nueva si en la actual ya trabaja otro Claude
+  project <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flows/<id>)
   steps · script · report [meta] · reset
-  ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
+  ask [--url URL] [--steps 40] [--answer R] [--guide] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
 	os.Exit(2)
 }
 
@@ -542,7 +576,7 @@ func look(fresh bool) error {
 			loc = c.Locators[c.Best].Code
 		}
 		if !lookAll && len([]rune(loc)) > 110 {
-			loc = trim(loc, 110) + "  (completo: look --todo)"
+			loc = trim(loc, 110) + "  (completo: look --all)"
 		}
 		extra := ""
 		if c.Checked != nil {
@@ -581,10 +615,10 @@ func look(fresh bool) error {
 		}
 	}
 	if len(shown) < len(groups) {
-		fmt.Printf("  (se muestran %d de %d · %d más abajo o arriba de la pantalla · look --buscar 'texto' para encontrar algo · look --todo para todo)\n", len(shown), len(groups), offScreen)
+		fmt.Printf("  (se muestran %d de %d · %d más abajo o arriba de la pantalla · look --search 'texto' para encontrar algo · look --all para todo)\n", len(shown), len(groups), offScreen)
 	}
 	if navHidden > 0 {
-		fmt.Printf("  (+%d enlaces del menú, el encabezado y el pie: look --todo)\n", navHidden)
+		fmt.Printf("  (+%d enlaces del menú, el encabezado y el pie: look --all)\n", navHidden)
 	}
 	if lookQuery != "" && len(pool) == 0 {
 		fmt.Printf("  (nada se llama «%s»)\n", lookQuery)
@@ -726,17 +760,17 @@ func download(args []string) error {
 }
 
 // read muestra el contenido principal de la página, legible: para investigar, mejor que el texto entero.
-// read [--desde N] pagina; read --buscar 'texto' muestra sólo lo que lo menciona, con el encabezado de su sección.
+// read [--from N] pagina; read --search 'texto' muestra sólo lo que lo menciona, con el encabezado de su sección.
 func read(args []string) error {
 	from, query := 0, ""
 	for i := 0; i < len(args); i++ {
 		switch args[i] {
-		case "--desde":
+		case "--from":
 			if i+1 < len(args) {
 				from, _ = strconv.Atoi(args[i+1])
 				i++
 			}
-		case "--buscar":
+		case "--search":
 			if i+1 < len(args) {
 				query = strings.Join(args[i+1:], " ")
 				i = len(args)
@@ -1068,7 +1102,7 @@ func begin(args []string) error {
 		usage()
 	}
 	// Si en la pestaña ya trabaja otro Claude (u otra meta sin terminar), ésta va a una pestaña nueva: así dos
-	// trabajos corren en paralelo sin pisarse. Con --sesion N se usa esa, ocupada o no.
+	// trabajos corren en paralelo sin pisarse. Con --session N se usa esa, ocupada o no.
 	if tabID == "" {
 		tabs, _ := listTabs()
 		for _, t := range tabs {
@@ -1095,7 +1129,7 @@ func begin(args []string) error {
 	}
 	fmt.Printf("sesión abierta en el panel, pestaña %s: %s\n", tabID, goal)
 	if tabs, _ := listTabs(); len(tabs) > 1 {
-		fmt.Printf("hay %d pestañas: seguí con --sesion %s (o JARVIS_SESION=%s) para no caer en otra\n", len(tabs), tabID, tabID)
+		fmt.Printf("hay %d pestañas: seguí con --session %s (o JARVIS_SESSION=%s) para no caer en otra\n", len(tabs), tabID, tabID)
 	}
 	fmt.Println()
 	if start != "" {
@@ -1165,26 +1199,27 @@ func pinTab() {
 		}
 	}
 	if tabID != "" {
-		os.Setenv("JARVIS_SESION", tabID)
+		os.Setenv("JARVIS_SESSION", tabID)
+		os.Setenv("JARVIS_SESION", tabID) // los scripts de antes
 	}
 }
 
 func tabsCmd(args []string) error {
-	// nueva [url]: abre una pestaña y, con url, la página en ella. Lo que sigue va con --sesion N.
-	if len(args) >= 1 && args[0] == "nueva" {
+	// new [url]: abre una pestaña y, con url, la página en ella. Lo que sigue va con --session N.
+	if len(args) >= 1 && args[0] == "new" {
 		var nt struct{ ID string }
 		if err := call(http.MethodPost, "/api/tabs", nil, &nt); err != nil {
 			return err
 		}
 		tabID = nt.ID
-		fmt.Printf("pestaña %s · seguí con --sesion %s (o JARVIS_SESION=%s)\n", nt.ID, nt.ID, nt.ID)
+		fmt.Printf("pestaña %s · seguí con --session %s (o JARVIS_SESSION=%s)\n", nt.ID, nt.ID, nt.ID)
 		if len(args) == 1 {
 			return nil
 		}
 		fmt.Println()
 		return open(args[1:])
 	}
-	if len(args) == 2 && args[0] == "cerrar" {
+	if len(args) == 2 && args[0] == "close" {
 		if err := call(http.MethodDelete, "/api/tabs/"+args[1], nil, nil); err != nil {
 			return err
 		}
@@ -1213,7 +1248,7 @@ func tabsCmd(args []string) error {
 		}
 		fmt.Printf("%s %s  %s%s\n", mark, t.ID, where, who)
 	}
-	fmt.Println("  (* la que atiende un comando sin --sesion · las que abrió Claude y deja sin uso se cierran solas)")
+	fmt.Println("  (* la que atiende un comando sin --session · las que abrió Claude y deja sin uso se cierran solas)")
 	return nil
 }
 

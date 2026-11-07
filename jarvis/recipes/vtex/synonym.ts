@@ -1,27 +1,28 @@
 // CASO REVERSIBLE SIN CLICS · un sinónimo del buscador de VTEX: crearlo, comprobarlo y borrarlo.
 //
-//   make jarvis-receta APP=vtex RECETA=sinonimo [ARGS='--terminos "a,b" | --dejar']
+//   make jarvis-recipe APP=vtex RECIPE=synonym [ARGS='--terms "a,b" | --keep']
 //
 // Los sinónimos de Intelligent Search no tienen API con la llave de la cuenta (la documentación de VTEX sólo da el
 // admin y la importación por CSV; probado el 2026-11-07: 404 en las rutas candidatas). El camino rápido es el del
 // admin: sus operaciones de GraphQL (`createSynonym`, `getSynonyms`, `deleteSynonym`) mandadas con la SESIÓN de la
 // persona desde una pestaña del admin en su Chrome. Las operaciones salen de la grabación del caso por pantalla
-// (`sinonimo-pantalla.ts` → `jarvis/mapas/vtex/casos/sinonimo.json`).
+// (`synonym-screen.ts` → `jarvis/maps/vtex/cases/sinonimo.json`).
 // ⚠ VTEX avisa que un sinónimo borrado no se puede volver a crear con los mismos términos: por eso los términos por
 // defecto son nuevos en cada corrida («jarvisa<n>», «jarvisb<n>»).
 // ESCRIBE en el buscador de la cuenta de pruebas `creditop` (y lo deshace).
-import { graphqlInPage, openChrome, recordedOperation } from '../red.ts';
+import '../args.ts';
+import { graphqlInPage, openChrome, recordedOperation } from '../recorder.ts';
 
 const argv = process.argv.slice(2);
 const flag = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
-const KEEP = argv.includes('--dejar');
+const KEEP = argv.includes('--keep');
 const n = Date.now().toString(36);
-const terms = flag('terminos')?.split(',').map((t) => t.trim()).filter(Boolean) ?? [`jarvisa${n}`, `jarvisb${n}`];
+const terms = flag('terms')?.split(',').map((t) => t.trim()).filter(Boolean) ?? [`jarvisa${n}`, `jarvisb${n}`];
 const say = (s: string) => console.log(`  ${s}`);
 
-const create = recordedOperation('vtex', 'sinonimo', 'createSynonym');
-const list = recordedOperation('vtex', 'sinonimo', 'getSynonyms');
-const remove = recordedOperation('vtex', 'sinonimo', 'deleteSynonym');
+const create = recordedOperation('vtex', 'synonym', 'createSynonym');
+const list = recordedOperation('vtex', 'synonym', 'getSynonyms');
+const remove = recordedOperation('vtex', 'synonym', 'deleteSynonym');
 
 const { page, close } = await openChrome();
 let failed = false;

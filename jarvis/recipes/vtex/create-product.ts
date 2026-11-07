@@ -1,17 +1,18 @@
 // RECETA · crear un producto vendible en la tienda de pruebas de VTEX (cuenta `creditop`), por API.
 //
-//   make jarvis-receta APP=vtex RECETA=crear-producto ARGS='--nombre "Casco urbano" --precio 350000 --stock 20'
+//   make jarvis-recipe APP=vtex RECIPE=create-product ARGS='--name "Casco urbano" --price 350000 --stock 20'
 //
 // Deja un producto listo para comprar: producto → SKU (con las medidas del paquete) → imagen → precio → stock → SKU
 // activo. Lo que no se dice se toma del molde, la BMX de la tienda (SKU 9): categoría, marca, medidas, bodega e imagen.
 // Si ya existe un producto con la misma referencia (`--ref`, por defecto sacada del nombre), no crea otro: actualiza
 // su precio y su stock y lo dice. Imprime los ids, la URL en la tienda y la del admin.
 //
-// Parámetros: --nombre (obligatorio) · --precio (pesos, obligatorio) · --stock 10 · --ref TEXTO · --producto ID (ya creado: sólo SKU, imagen, precio y stock) · --categoria 4 ·
-// --marca 2000001 · --descripcion TEXTO · --oculto (no se muestra en la tienda: sólo por URL o carrito) · --json
+// Parámetros: --name (obligatorio) · --price (pesos, obligatorio) · --stock 10 · --ref TEXTO · --product ID (ya creado: sólo SKU, imagen, precio y stock) · --category 4 ·
+// --brand 2000001 · --description TEXTO · --hidden (no se muestra en la tienda: sólo por URL o carrito) · --json
 //
 // ESCRIBE en el catálogo de la cuenta de pruebas `creditop` (es la de pruebas: cada comercio tiene su propia cuenta).
-// La versión por pantalla de esta misma receta usa el mapa del admin (`jarvis/mapas/vtex/mapa.json`).
+// La versión por pantalla de esta misma receta usa el mapa del admin (`jarvis/maps/vtex/map.json`).
+import '../args.ts';
 import { call, hosts, must } from './api.ts';
 
 const argv = process.argv.slice(2);
@@ -21,10 +22,10 @@ const JSON_OUT = has('json');
 const say = (s: string) => { if (!JSON_OUT) console.log(`  ${s}`); };
 
 const TEMPLATE_SKU = 9; // la BMX: de ella salen categoría, marca, medidas, bodega e imagen
-const name = (flag('nombre') || '').trim();
-const price = Number(flag('precio'));
+const name = (flag('name') || '').trim();
+const price = Number(flag('price'));
 if (!name || !Number.isFinite(price) || price <= 0) {
-    console.error('  uso: crear-producto --nombre "…" --precio <pesos> [--stock 10] [--ref …] [--categoria 4] [--marca 2000001] [--descripcion …] [--oculto] [--json]');
+    console.error('  uso: create-product --name "…" --price <pesos> [--stock 10] [--ref …] [--category 4] [--brand 2000001] [--description …] [--hidden] [--json]');
     process.exit(2);
 }
 const stock = Number(flag('stock') ?? 10);
@@ -57,20 +58,20 @@ if (found) {
     say(`ya existía (ref ${ref}): producto ${productId}, SKU ${skuId} · actualizo precio y stock`);
 } else {
     created = true;
-    if (flag('producto')) {
-        // `--producto <id>`: el producto ya existe (lo creó la receta por pantalla): sólo se le cuelga lo demás.
-        productId = Number(flag('producto'));
+    if (flag('product')) {
+        // `--product <id>`: el producto ya existe (lo creó la receta por pantalla): sólo se le cuelga lo demás.
+        productId = Number(flag('product'));
         say(`producto ${productId} (ya creado) · le agrego SKU, imagen, precio y stock`);
     } else {
         const product = await must('crear el producto', 'POST', `${catalog}/api/catalog/pvt/product`, {
             Name: name,
-            CategoryId: Number(flag('categoria') ?? tProduct.CategoryId),
-            BrandId: Number(flag('marca') ?? tProduct.BrandId),
+            CategoryId: Number(flag('category') ?? tProduct.CategoryId),
+            BrandId: Number(flag('brand') ?? tProduct.BrandId),
             LinkId: slug,
             RefId: ref,
-            IsVisible: !has('oculto'),
+            IsVisible: !has('hidden'),
             IsActive: true,
-            Description: flag('descripcion') || `${name}. Producto de prueba creado por Jarvis.`,
+            Description: flag('description') || `${name}. Producto de prueba creado por Jarvis.`,
             ShowWithoutStock: false,
         });
         productId = product.Id;
@@ -123,14 +124,14 @@ if (!current.IsActive) {
 }
 
 const out = {
-    receta: 'vtex/crear-producto', creado: created, productId, skuId, ref, nombre: name, precio: price, stock,
-    tienda: `${store}/${slug}/p`,
-    carrito: `${store}/checkout/cart/add?sku=${skuId}&qty=1&seller=1&sc=1`,
+    recipe: 'vtex/create-product', created, productId, skuId, ref, name, price, stock,
+    store: `${store}/${slug}/p`,
+    cart: `${store}/checkout/cart/add?sku=${skuId}&qty=1&seller=1&sc=1`,
     admin: `${admin}/catalog-products/product/${productId}`,
 };
 if (JSON_OUT) console.log(JSON.stringify(out));
 else {
-    say(`tienda:  ${out.tienda}  (la tienda puede tardar unos minutos en indexarlo)`);
-    say(`carrito: ${out.carrito}`);
+    say(`tienda:  ${out.store}  (la tienda puede tardar unos minutos en indexarlo)`);
+    say(`carrito: ${out.cart}`);
     say(`admin:   ${out.admin}`);
 }

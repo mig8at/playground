@@ -1,17 +1,17 @@
 {
-  "caso": "coleccion",
-  "grabado": "2026-11-07",
-  "nombre": "Jarvis 2026-11-07 18:06:21",
-  "urlTrasCrear": "https://creditop.myvtex.com/admin/collections/143",
+  "case": "collection",
+  "recorded": "2026-11-07",
+  "name": "Jarvis 2026-11-07 18:06:21",
+  "urlAfterCreate": "https://creditop.myvtex.com/admin/collections/143",
   "id": 143,
-  "borrada": true,
-  "red": [
+  "deleted": true,
+  "network": [
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "brands",
-      "cuerpo": {
+      "operation": "brands",
+      "body": {
         "operationName": "brands",
         "variables": {
           "page": 1,
@@ -27,7 +27,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "brands": {
             "items": [
@@ -55,11 +55,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionBrands",
-      "cuerpo": {
+      "operation": "collectionBrands",
+      "body": {
         "operationName": "collectionBrands",
         "variables": {
           "collectionId": ""
@@ -74,18 +74,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collectionBrands": []
         }
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "createCollection",
-      "cuerpo": {
+      "operation": "createCollection",
+      "body": {
         "operationName": "createCollection",
         "variables": {
           "collection": {
@@ -108,7 +108,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "createCollection": {
             "id": "143",
@@ -127,11 +127,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collection",
-      "cuerpo": {
+      "operation": "collection",
+      "body": {
         "operationName": "collection",
         "variables": {
           "id": "143"
@@ -146,7 +146,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collection": {
             "id": "143",
@@ -167,11 +167,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "products",
-      "cuerpo": {
+      "operation": "products",
+      "body": {
         "operationName": "products",
         "variables": {
           "collectionId": "143",
@@ -191,14 +191,14 @@
         }
       },
       "status": 200,
-      "respuesta": "{\"data\":{\"products\":{\"items\":[{\"id\":\"1\",\"name\":\"Product example\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155395-55-55/image.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/product-example/p\",\"ref\":\"123433\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"1\",\"skuName\":\"SKU Example\",\"ref\":\"123456\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"2\",\"name\":\"Test\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155396-55-55/image.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/test/p\",\"ref\":\"12345\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"2\",\"skuName\":\"Test sku\",\"ref\":\"1234321\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"3\",\"name\":\"T-SHIRT SIZE UNIQUE\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155398-55-55/camisetaTNegra.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/shirt/p\",\"ref\":\"123456\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"3\",\"skuName\":\"SHIRT\",\"ref\":\"T-SHIRT\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"4\",\"name\":\"Bicicleta de Montaña Doble Suspensión Rin 29\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155399-55-55/bici-mtb29-az.webp\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/bicicleta-de-montana-doble-suspension-rin-29/p\",\"ref\":\"BICI-MTB29-AZ\",\"isInCollection\":false,\"isActive\":true,\"skus\":[{\"id\":\"4\",\"skuName\":\"Bicicleta de Montaña Doble Suspensión Rin 29\",\"ref\":\"BICI-MTB29-AZ\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"5\",\"name\":\"Bicicleta Urbana Negra con Parrilla\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/"
+      "response": "{\"data\":{\"products\":{\"items\":[{\"id\":\"1\",\"name\":\"Product example\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155395-55-55/image.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/product-example/p\",\"ref\":\"123433\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"1\",\"skuName\":\"SKU Example\",\"ref\":\"123456\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"2\",\"name\":\"Test\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155396-55-55/image.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/test/p\",\"ref\":\"12345\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"2\",\"skuName\":\"Test sku\",\"ref\":\"1234321\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"3\",\"name\":\"T-SHIRT SIZE UNIQUE\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155398-55-55/camisetaTNegra.png\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/shirt/p\",\"ref\":\"123456\",\"isInCollection\":false,\"isActive\":false,\"skus\":[{\"id\":\"3\",\"skuName\":\"SHIRT\",\"ref\":\"T-SHIRT\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"4\",\"name\":\"Bicicleta de Montaña Doble Suspensión Rin 29\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/155399-55-55/bici-mtb29-az.webp\",\"detailUrl\":\"https://portal.vtexcommercestable.com.br/bicicleta-de-montana-doble-suspension-rin-29/p\",\"ref\":\"BICI-MTB29-AZ\",\"isInCollection\":false,\"isActive\":true,\"skus\":[{\"id\":\"4\",\"skuName\":\"Bicicleta de Montaña Doble Suspensión Rin 29\",\"ref\":\"BICI-MTB29-AZ\",\"imageUrl\":\"lightSKU.ImageUrl\",\"isActive\":true,\"isSkuInCollection\":false,\"__typename\":\"SKUCollectionItem\"}],\"__typename\":\"CollectionProduct\"},{\"id\":\"5\",\"name\":\"Bicicleta Urbana Negra con Parrilla\",\"imageUrl\":\"https://creditop.vteximg.com.br/arquivos/ids/"
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "subcollections",
-      "cuerpo": {
+      "operation": "subcollections",
+      "body": {
         "operationName": "subcollections",
         "variables": {
           "collectionId": "143"
@@ -213,7 +213,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "subcollections": [
             {
@@ -230,11 +230,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionBrands",
-      "cuerpo": {
+      "operation": "collectionBrands",
+      "body": {
         "operationName": "collectionBrands",
         "variables": {
           "collectionId": "143"
@@ -249,18 +249,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collectionBrands": []
         }
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "productsOrder",
-      "cuerpo": {
+      "operation": "productsOrder",
+      "body": {
         "operationName": "productsOrder",
         "variables": {
           "collectionId": "143",
@@ -280,7 +280,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "productsOrder": {
             "items": [],
@@ -297,11 +297,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "totalProducts",
-      "cuerpo": {
+      "operation": "totalProducts",
+      "body": {
         "operationName": "totalProducts",
         "variables": {
           "id": "143"
@@ -316,7 +316,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collection": {
             "totalProducts": 0,
@@ -328,11 +328,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "totalProductsFromFilters",
-      "cuerpo": {
+      "operation": "totalProductsFromFilters",
+      "body": {
         "operationName": "totalProductsFromFilters",
         "variables": {
           "searchKey": "",
@@ -349,7 +349,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "productsOrder": {
             "paging": {
@@ -362,11 +362,11 @@
       }
     },
     {
-      "paso": "crear",
-      "metodo": "POST",
+      "step": "create",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "productsName",
-      "cuerpo": {
+      "operation": "productsName",
+      "body": {
         "operationName": "productsName",
         "variables": {
           "page": 1,
@@ -383,7 +383,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "products": {
             "items": [
@@ -451,11 +451,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "permission",
-      "cuerpo": {
+      "operation": "permission",
+      "body": {
         "operationName": "permission",
         "variables": {
           "resourceKey": "collections-write"
@@ -470,18 +470,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "canAccessResource": true
         }
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collections",
-      "cuerpo": {
+      "operation": "collections",
+      "body": {
         "operationName": "collections",
         "variables": {
           "page": 1,
@@ -499,7 +499,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "items": [
@@ -545,11 +545,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionsCounter",
-      "cuerpo": {
+      "operation": "collectionsCounter",
+      "body": {
         "operationName": "collectionsCounter",
         "variables": {},
         "extensions": {
@@ -562,7 +562,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "paging": {
@@ -576,11 +576,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionsNames",
-      "cuerpo": {
+      "operation": "collectionsNames",
+      "body": {
         "operationName": "collectionsNames",
         "variables": {
           "page": 1,
@@ -597,7 +597,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "items": [
@@ -625,11 +625,11 @@
       }
     },
     {
-      "paso": "buscar",
-      "metodo": "POST",
+      "step": "search",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collections",
-      "cuerpo": {
+      "operation": "collections",
+      "body": {
         "operationName": "collections",
         "variables": {
           "page": 1,
@@ -647,7 +647,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "items": [
@@ -679,11 +679,11 @@
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "deleteCollection",
-      "cuerpo": {
+      "operation": "deleteCollection",
+      "body": {
         "operationName": "deleteCollection",
         "variables": {
           "collectionId": "143"
@@ -698,18 +698,18 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "deleteCollection": "143"
         }
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionsNames",
-      "cuerpo": {
+      "operation": "collectionsNames",
+      "body": {
         "operationName": "collectionsNames",
         "variables": {
           "page": 1,
@@ -726,7 +726,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "items": [
@@ -749,11 +749,11 @@
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collectionsCounter",
-      "cuerpo": {
+      "operation": "collectionsCounter",
+      "body": {
         "operationName": "collectionsCounter",
         "variables": {},
         "extensions": {
@@ -766,7 +766,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "paging": {
@@ -780,11 +780,11 @@
       }
     },
     {
-      "paso": "borrar",
-      "metodo": "POST",
+      "step": "delete",
+      "method": "POST",
       "url": "https://creditop.myvtex.com/_v/private/graphql/v1",
-      "operacion": "collections",
-      "cuerpo": {
+      "operation": "collections",
+      "body": {
         "operationName": "collections",
         "variables": {
           "page": 1,
@@ -802,7 +802,7 @@
         }
       },
       "status": 200,
-      "respuesta": {
+      "response": {
         "data": {
           "collections": {
             "items": [],

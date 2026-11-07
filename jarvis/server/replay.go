@@ -155,7 +155,7 @@ func (r *Runner) LiveReplayStart(runID, mode string) error {
 	return r.startReplay(replaySource{goal: meta.Goal, start: meta.Start, device: meta.Device, run: runID}, steps, mode)
 }
 
-// LiveReplayFlow repite un flujo guardado (jarvis/flujos).
+// LiveReplayFlow repite un flujo guardado (jarvis/flows).
 func (r *Runner) LiveReplayFlow(app, id, mode string, values map[int]string) error {
 	fl, err := getFlow(app, id)
 	if err != nil {

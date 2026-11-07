@@ -85,18 +85,18 @@ func (a *Asker) Start(api, goal, url, device string, guide bool, steps int) erro
 		args = append(args, "--url", url)
 	}
 	if device != "" {
-		args = append(args, "--dispositivo", device)
+		args = append(args, "--device", device)
 	}
 	if guide {
-		args = append(args, "--guia")
+		args = append(args, "--guide")
 	}
 	if steps > 0 {
-		args = append(args, "--pasos", strconv.Itoa(steps))
+		args = append(args, "--steps", strconv.Itoa(steps))
 	}
 	args = append(args, goal)
 	cmd := exec.Command(navegadorBin(), args...)
-	// JARVIS_SESION: el ask le habla a SU pestaña, aunque la persona abra otras mientras trabaja.
-	cmd.Env = append(os.Environ(), "JARVIS_API="+api, "JARVIS_EVENTS=1", "JARVIS_SESION="+a.tab)
+	// JARVIS_SESSION: el ask le habla a SU pestaña, aunque la persona abra otras mientras trabaja.
+	cmd.Env = append(os.Environ(), "JARVIS_API="+api, "JARVIS_EVENTS=1", "JARVIS_SESSION="+a.tab, "JARVIS_SESION="+a.tab)
 	// Su propio grupo y sin terminal: frenarlo mata también al Claude Code que lanzó.
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
 	stdin, err := cmd.StdinPipe()

@@ -1,8 +1,8 @@
 {
   "app": "vtex",
-  "inicio": "https://creditop.myvtex.com/admin",
-  "barrido": "2026-11-07",
-  "armazon": [
+  "start": "https://creditop.myvtex.com/admin",
+  "swept": "2026-11-07",
+  "shell": [
     "GET copilot-chat-ui.vercel.app/messages/en.json ",
     "GET creditop.myvtex.com/admin ",
     "POST copilot-chat-ui.vercel.app/_vercel/insights/view ",
@@ -10,253 +10,253 @@
     "POST creditop.myvtex.com/api/sessions ",
     "POST creditop.myvtex.com/monitoring "
   ],
-  "pantallas": [
+  "screens": [
     {
-      "seccion": "Dashboards",
-      "nombre": "Overview",
+      "section": "Dashboards",
+      "name": "Overview",
       "url": "https://creditop.myvtex.com/admin",
-      "titulo": "Overview",
+      "title": "Overview",
       "iframes": [
         "creditop.myvtex.com/admin/app"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-conversion-rate",
+          "path": "/api/analytics/consumption/home-conversion-rate",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-currency-options-v2",
+          "path": "/api/analytics/consumption/home-currency-options-v2",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-metrics-summary-v2",
+          "path": "/api/analytics/consumption/home-metrics-summary-v2",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-orders-trend",
+          "path": "/api/analytics/consumption/home-orders-trend",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-recommendation",
+          "path": "/api/analytics/consumption/home-recommendation",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-sales-funnel",
+          "path": "/api/analytics/consumption/home-sales-funnel",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-top-products-v2",
+          "path": "/api/analytics/consumption/home-top-products-v2",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-top-viewed-products",
+          "path": "/api/analytics/consumption/home-top-viewed-products",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pub/products/search",
+          "path": "/api/catalog_system/pub/products/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/transactions-facets",
+          "path": "/api/payments/pvt/admin/transactions-facets",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/vtexid/pub/authenticated/user",
+          "path": "/api/vtexid/pub/authenticated/user",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Dashboards",
-      "nombre": "Sales Performance",
+      "section": "Dashboards",
+      "name": "Sales Performance",
       "url": "https://creditop.myvtex.com/admin/sales-performance",
-      "titulo": "Sales Performance",
+      "title": "Sales Performance",
       "iframes": [
         "creditop.myvtex.com/admin/app/sales-performance"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetDashboardDefaultData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetDashboardDefaultData",
           "n": 4
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "DefaultViewData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "DefaultViewData",
           "n": 3
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/home-currency-options-v2",
+          "path": "/api/analytics/consumption/home-currency-options-v2",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/sp-cards",
+          "path": "/api/analytics/consumption/sp-cards",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/sp-graphic",
+          "path": "/api/analytics/consumption/sp-graphic",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/analytics/consumption/sp-item-detail-table",
+          "path": "/api/analytics/consumption/sp-item-detail-table",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/vtexid/pub/authenticated/user",
+          "path": "/api/vtexid/pub/authenticated/user",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Orders",
-      "nombre": "All Orders",
+      "section": "Orders",
+      "name": "All Orders",
       "url": "https://creditop.myvtex.com/admin/orders",
-      "titulo": "All Orders",
+      "title": "All Orders",
       "iframes": [
         "creditop.myvtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "All Orders"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
+          "path": "/_v/private/graphql/v1",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "CurrentAdminUser",
+          "path": "/_v/private/graphql/v1",
+          "operation": "CurrentAdminUser",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "inspectUsers",
+          "path": "/_v/private/graphql/v1",
+          "operation": "inspectUsers",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ListTasks",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ListTasks",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetUserProfile",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetUserProfile",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetCompletedReports",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetCompletedReports",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetReportsInProgress",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetReportsInProgress",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetCurrenOrdersCount",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetCurrenOrdersCount",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "userPermissions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "userPermissions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetOrders",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetOrders",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetFacets",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetFacets",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getModificationsOnboardingUser",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getModificationsOnboardingUser",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "flags.vtex.com",
-          "ruta": "/features/",
+          "path": "/features/",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Orders",
-      "nombre": "Transactions",
+      "section": "Orders",
+      "name": "Transactions",
       "url": "https://creditop.myvtex.com/admin/pci-gateway#/transactions",
-      "titulo": "Transactions",
+      "title": "Transactions",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pci-gateway"
       ],
-      "encabezados": [
+      "headings": [
         "TODAY",
         "YESTERDAY",
         "THIS WEEK",
@@ -267,109 +267,109 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pub/products/search/",
+          "path": "/api/catalog_system/pub/products/search/",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/io/_v/private/graphql/v1",
-          "operacion": "InstalledApp",
+          "path": "/api/io/_v/private/graphql/v1",
+          "operation": "InstalledApp",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/merchants/connectors-templates",
+          "path": "/api/payments/pvt/admin/merchants/connectors-templates",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/transactions",
+          "path": "/api/payments/pvt/admin/transactions",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/transactions-facets",
+          "path": "/api/payments/pvt/admin/transactions-facets",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/affiliations/",
+          "path": "/api/payments/pvt/affiliations/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/merchantredirects",
+          "path": "/api/payments/pvt/merchantredirects",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pci-gateway-ui/v1.2.1/i18n/en-US.json",
+          "path": "/pci-gateway-ui/v1.2.1/i18n/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pci-gateway-ui/v1.2.1/i18n/es-AR.json",
+          "path": "/pci-gateway-ui/v1.2.1/i18n/es-AR.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "portal.vtexcommercestable.com.br",
-          "ruta": "/api/billing/company",
+          "path": "/api/billing/company",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Orders",
-      "nombre": "Bank Reconciliation",
+      "section": "Orders",
+      "name": "Bank Reconciliation",
       "url": "https://creditop.myvtex.com/admin/pci-gateway#/bank-conciliations",
-      "titulo": "Bank Reconciliation",
+      "title": "Bank Reconciliation",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pci-gateway"
       ],
-      "encabezados": [
+      "headings": [
         "History"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/transactions",
+          "path": "/api/payments/pvt/admin/transactions",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/transactions-facets",
+          "path": "/api/payments/pvt/admin/transactions-facets",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/file-conciliations",
+          "path": "/api/payments/pvt/file-conciliations",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Products and SKUs",
+      "section": "Catalog",
+      "name": "Products and SKUs",
       "url": "https://creditop.myvtex.com/admin/catalog-products",
-      "titulo": "Products and SKUs",
+      "title": "Products and SKUs",
       "iframes": [
         "catalog-facelift.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Import products and SKUs",
         "Export limit reached",
         "Price and Inventory",
@@ -383,188 +383,188 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/creditop/search/offers",
+          "path": "/api/creditop/search/offers",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/feature-flag",
+          "path": "/api/feature-flag",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/logger",
+          "path": "/api/logger",
           "n": 6
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/catalog/pvt/admin/product",
+          "path": "/api/proxy/catalog/pvt/admin/product",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/catalog/pvt/admin/product/export/image",
+          "path": "/api/proxy/catalog/pvt/admin/product/export/image",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/catalog/pvt/admin/product/import/Product/template",
+          "path": "/api/proxy/catalog/pvt/admin/product/import/Product/template",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/license-manager/user/profile",
+          "path": "/api/proxy/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Categories",
+      "section": "Catalog",
+      "name": "Categories",
       "url": "https://creditop.myvtex.com/admin/Site/Categories.aspx",
-      "titulo": "Categories",
+      "title": "Categories",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Categories.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Categories",
         "Category - Category Management"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Brands",
+      "section": "Catalog",
+      "name": "Brands",
       "url": "https://creditop.myvtex.com/admin/Site/Marca.aspx",
-      "titulo": "Brands",
+      "title": "Brands",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Marca.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Brands",
         "Brand - Brand Management"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Collections",
+      "section": "Catalog",
+      "name": "Collections",
       "url": "https://creditop.myvtex.com/admin/collections",
-      "titulo": "Collections",
+      "title": "Collections",
       "iframes": [
         "creditop.myvtex.com/admin/app/collections"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "permission",
+          "path": "/_v/private/graphql/v1",
+          "operation": "permission",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "collections",
+          "path": "/_v/private/graphql/v1",
+          "operation": "collections",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "collectionsCounter",
+          "path": "/_v/private/graphql/v1",
+          "operation": "collectionsCounter",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "collectionsNames",
+          "path": "/_v/private/graphql/v1",
+          "operation": "collectionsNames",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "List Types",
+      "section": "Catalog",
+      "name": "List Types",
       "url": "https://creditop.myvtex.com/admin/Site/GiftListType.aspx",
-      "titulo": "List Types",
+      "title": "List Types",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/GiftListType.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "List Types",
         "Lists - List Types"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Custom Product Attributes",
+      "section": "Catalog",
+      "name": "Custom Product Attributes",
       "url": "https://creditop.myvtex.com/admin/Site/Anexo.aspx",
-      "titulo": "Custom Product Attributes",
+      "title": "Custom Product Attributes",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Anexo.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Custom Product Attributes",
         "Administrator - Adding Attachments for Services and SKUs"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Reports",
+      "section": "Catalog",
+      "name": "Reports",
       "url": "https://creditop.myvtex.com/admin/Site/RelatorioIndexacao.aspx",
-      "titulo": "Reports",
+      "title": "Reports",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/RelatorioIndexacao.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Reports",
         "Indexed Products Report",
         "0,00%",
@@ -572,391 +572,391 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Import and Export",
+      "section": "Catalog",
+      "name": "Import and Export",
       "url": "https://creditop.myvtex.com/admin/import-export",
-      "titulo": "Import and Export",
+      "title": "Import and Export",
       "iframes": [
         "catalog-facelift.admin.vtex.com/import-export"
       ],
-      "encabezados": [
+      "headings": [
         "New import and export is available!"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/feature-flag",
+          "path": "/api/feature-flag",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/logger",
+          "path": "/api/logger",
           "n": 4
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/catalog/pvt/admin/product/export/image",
+          "path": "/api/proxy/catalog/pvt/admin/product/export/image",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/catalog/pvt/admin/product/import/Product/template",
+          "path": "/api/proxy/catalog/pvt/admin/product/import/Product/template",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/api/proxy/license-manager/user/profile",
+          "path": "/api/proxy/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "catalog-facelift.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Reviews",
+      "section": "Catalog",
+      "name": "Reviews",
       "url": "https://creditop.myvtex.com/admin/reviews-ratings/pending",
-      "titulo": "Reviews",
+      "title": "Reviews",
       "iframes": [
         "creditop.myvtex.com/admin/app/reviews-ratings/pending"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Reviews",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Reviews",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "VerifyMigration",
+          "path": "/_v/public/graphql/v1",
+          "operation": "VerifyMigration",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Suppliers",
+      "section": "Catalog",
+      "name": "Suppliers",
       "url": "https://creditop.myvtex.com/admin/Site/Fornecedor.aspx",
-      "titulo": "Suppliers",
+      "title": "Suppliers",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Fornecedor.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Providers",
         "Provider - Provider Management"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Price List",
+      "section": "Catalog",
+      "name": "Price List",
       "url": "https://creditop.myvtex.com/admin/pricing#/prices",
-      "titulo": "Price List",
+      "title": "Price List",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pricing/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/config",
+          "path": "/api/pricing/config",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/pvt/api-configuration",
+          "path": "/api/pricing/pvt/api-configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
+          "path": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Price Rules",
+      "section": "Catalog",
+      "name": "Price Rules",
       "url": "https://creditop.myvtex.com/admin/pricing#/trade-policies-rules",
-      "titulo": "Price Rules",
+      "title": "Price Rules",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pricing/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/config",
+          "path": "/api/pricing/config",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/pvt/api-configuration",
+          "path": "/api/pricing/pvt/api-configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
+          "path": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Catalog",
-      "nombre": "Inventory Management",
+      "section": "Catalog",
+      "name": "Inventory Management",
       "url": "https://creditop.myvtex.com/admin/inventory",
-      "titulo": "Inventory Management",
+      "title": "Inventory Management",
       "iframes": [
         "creditop.myvtex.com/admin/app/inventory"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "inventoryProducts",
+          "path": "/_v/private/graphql/v1",
+          "operation": "inventoryProducts",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "inventoryProductData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "inventoryProductData",
           "n": 10
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/license-manager/pvt/accounts/creditop",
+          "path": "/api/license-manager/pvt/accounts/creditop",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "flags.vtex.com",
-          "ruta": "/features/",
+          "path": "/features/",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Promotions",
-      "nombre": "Campaign Audience",
+      "section": "Promotions",
+      "name": "Campaign Audience",
       "url": "https://creditop.myvtex.com/admin/rnb#/campaigns",
-      "titulo": "Campaign Audience",
+      "title": "Campaign Audience",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/rnb/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/pvt/api-configuration",
+          "path": "/api/pricing/pvt/api-configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/rnb-ui/v1.111.4/i18n/countries/en-US.json",
+          "path": "/rnb-ui/v1.111.4/i18n/countries/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/rnb-ui/v1.111.4/i18n/en-US.json",
+          "path": "/rnb-ui/v1.111.4/i18n/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Promotions",
-      "nombre": "Gift Cards",
+      "section": "Promotions",
+      "name": "Gift Cards",
       "url": "https://creditop.myvtex.com/admin/Site/Vale.aspx",
-      "titulo": "Gift Cards",
+      "title": "Gift Cards",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Vale.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Gift Cards",
         "Gift Card - Gift Card Management"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Promotions",
-      "nombre": "Surcharges",
+      "section": "Promotions",
+      "name": "Surcharges",
       "url": "https://creditop.myvtex.com/admin/rnb#/taxes",
-      "titulo": "Surcharges",
+      "title": "Surcharges",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/rnb/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/pvt/api-configuration",
+          "path": "/api/pricing/pvt/api-configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/rnb-ui/v1.111.4/i18n/countries/en-US.json",
+          "path": "/rnb-ui/v1.111.4/i18n/countries/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/rnb-ui/v1.111.4/i18n/en-US.json",
+          "path": "/rnb-ui/v1.111.4/i18n/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Promotions",
-      "nombre": "Coupons",
+      "section": "Promotions",
+      "name": "Coupons",
       "url": "https://creditop.myvtex.com/admin/coupons",
-      "titulo": "Coupons",
+      "title": "Coupons",
       "iframes": [
         "creditop.myvtex.com/admin/app/coupons"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/license-manager/user/profile",
+          "path": "/api/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/rnb/pvt/benefits/calculatorconfiguration",
+          "path": "/api/rnb/pvt/benefits/calculatorconfiguration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/rnb/pvt/coupon/limit",
+          "path": "/api/rnb/pvt/coupon/limit",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/rnb/v2/pvt/coupon/",
+          "path": "/api/rnb/v2/pvt/coupon/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/sessions",
+          "path": "/api/sessions",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "flags.vtex.com",
-          "ruta": "/features",
+          "path": "/features",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Promotions",
-      "nombre": "Promotions",
+      "section": "Promotions",
+      "name": "Promotions",
       "url": "https://creditop.myvtex.com/admin/promotions",
-      "titulo": "Promotions",
+      "title": "Promotions",
       "iframes": [
         "admin-promotions.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Duplicate promotion"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-promotions.admin.vtex.com",
-          "ruta": "/_vercel/insights/view",
+          "path": "/_vercel/insights/view",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-promotions.admin.vtex.com",
-          "ruta": "/api/featurehub",
+          "path": "/api/featurehub",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-promotions.admin.vtex.com",
-          "ruta": "/api/proxy/catalog_system/pvt/saleschannel/list",
+          "path": "/api/proxy/catalog_system/pvt/saleschannel/list",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-promotions.admin.vtex.com",
-          "ruta": "/api/proxy/license-manager/user/profile",
+          "path": "/api/proxy/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-promotions.admin.vtex.com",
-          "ruta": "/api/proxy/rnb/pvt/benefits/calculatorconfiguration",
+          "path": "/api/proxy/rnb/pvt/benefits/calculatorconfiguration",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Site Editor",
+      "section": "Storefront",
+      "name": "Site Editor",
       "url": "https://creditop.myvtex.com/admin/cms/site-editor",
-      "titulo": "Site Editor",
+      "title": "Site Editor",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms/site-editor",
         "creditop.myvtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Blocks",
         "Elige tu bicicleta y págala a cuotas",
         "Guantes por pantalla Jarvis",
@@ -971,192 +971,192 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "core-services-prod.nizza.com",
-          "ruta": "/api/v1/accounts/creditop/public",
+          "path": "/api/v1/accounts/creditop/public",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "orderForm",
+          "path": "/_v/private/graphql/v1",
+          "operation": "orderForm",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Languages",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Languages",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TenantInfoQuery",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TenantInfoQuery",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "pwaData",
+          "path": "/_v/public/graphql/v1",
+          "operation": "pwaData",
           "n": 4
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "installedApp",
+          "path": "/_v/public/graphql/v1",
+          "operation": "installedApp",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/sessions",
+          "path": "/api/sessions",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "sp.vtex.com",
-          "ruta": "/event-api/v1/creditop/event",
+          "path": "/event-api/v1/creditop/event",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Headless CMS",
+      "section": "Storefront",
+      "name": "Headless CMS",
       "url": "https://creditop.myvtex.com/admin/headless-cms",
-      "titulo": "Headless CMS",
+      "title": "Headless CMS",
       "iframes": [
         "headless-cms-ui.vercel.admin.vtex.com/test-page"
       ],
-      "encabezados": [
+      "headings": [
         "Error while publishing",
         "Archive Project"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "flags.vtex.com",
-          "ruta": "/features",
+          "path": "/features",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/apps/default-urls",
+          "path": "/api/apps/default-urls",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/apps/settings",
+          "path": "/api/apps/settings",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/hcms/contentTypes/test-page",
+          "path": "/api/hcms/contentTypes/test-page",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/hcms/documents/%7B%22first%22:20,%22filters%22:%7B%22builderId%22:%7B%22value%22:%22test-page%22%7D%7D%7D",
+          "path": "/api/hcms/documents/%7B%22first%22:20,%22filters%22:%7B%22builderId%22:%7B%22value%22:%22test-page%22%7D%7D%7D",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/hcms/releases/publishingRelease",
+          "path": "/api/hcms/releases/publishingRelease",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/api/health/db",
+          "path": "/api/health/db",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/null",
+          "path": "/null",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Layout",
+      "section": "Storefront",
+      "name": "Layout",
       "url": "https://creditop.myvtex.com/admin/a",
-      "titulo": "Layout",
+      "title": "Layout",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/a"
       ],
-      "encabezados": [
+      "headings": [
         "Layout",
         "Front-end CMS (Content Management System)"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.vtexcommercestable.com.br",
-          "ruta": "/admin/a/PortalManagement/FolderContent",
+          "path": "/admin/a/PortalManagement/FolderContent",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "headless-cms-ui.vercel.admin.vtex.com",
-          "ruta": "/null",
+          "path": "/null",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Pages",
+      "section": "Storefront",
+      "name": "Pages",
       "url": "https://creditop.myvtex.com/admin/cms/pages",
-      "titulo": "Pages",
+      "title": "Pages",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms/pages"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TenantInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TenantInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Routes",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Routes",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Styles",
+      "section": "Storefront",
+      "name": "Styles",
       "url": "https://creditop.myvtex.com/admin/cms/styles",
-      "titulo": "Styles",
+      "title": "Styles",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms/styles",
         "creditop.myvtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Styles",
         "Elige tu bicicleta y págala a cuotas",
         "Guantes por pantalla Jarvis",
@@ -1171,442 +1171,442 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "core-services-prod.nizza.com",
-          "ruta": "/api/v1/accounts/creditop/public",
+          "path": "/api/v1/accounts/creditop/public",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/",
+          "path": "/",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "orderForm",
+          "path": "/_v/private/graphql/v1",
+          "operation": "orderForm",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Languages",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Languages",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ListStyles",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ListStyles",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "pwaData",
+          "path": "/_v/public/graphql/v1",
+          "operation": "pwaData",
           "n": 4
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "installedApp",
+          "path": "/_v/public/graphql/v1",
+          "operation": "installedApp",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/sessions",
+          "path": "/api/sessions",
           "n": 7
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "sp.vtex.com",
-          "ruta": "/event-api/v1/creditop/event",
+          "path": "/event-api/v1/creditop/event",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Redirects",
+      "section": "Storefront",
+      "name": "Redirects",
       "url": "https://creditop.myvtex.com/admin/cms/redirects",
-      "titulo": "Redirects",
+      "title": "Redirects",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms/redirects"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TenantInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TenantInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Redirects",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Redirects",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Banners",
+      "section": "Storefront",
+      "name": "Banners",
       "url": "https://creditop.myvtex.com/admin/search/v4/banners",
-      "titulo": "Banners",
+      "title": "Banners",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/v4/banners"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getBanners",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getBanners",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Media",
+      "section": "Storefront",
+      "name": "Media",
       "url": "https://creditop.myvtex.com/admin/new-cms/media-gallery",
-      "titulo": "Media",
+      "title": "Media",
       "iframes": [
         "creditop.myvtex.com/admin/app/new-cms/media-gallery"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
+          "path": "/_v/private/graphql/v1",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Explained Search",
+      "section": "Storefront",
+      "name": "Explained Search",
       "url": "https://creditop.myvtex.com/admin/search/explained-search",
-      "titulo": "Explained Search",
+      "title": "Explained Search",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/explained-search"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "topbarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "topbarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "locales",
+          "path": "/_v/private/graphql/v1",
+          "operation": "locales",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "searchExplained",
+          "path": "/_v/private/graphql/v1",
+          "operation": "searchExplained",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Merchandising Rules",
+      "section": "Storefront",
+      "name": "Merchandising Rules",
       "url": "https://creditop.myvtex.com/admin/search/v4/custom-results",
-      "titulo": "Merchandising Rules",
+      "title": "Merchandising Rules",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/v4/custom-results"
       ],
-      "encabezados": [
+      "headings": [
         "Create Rule"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "customResults",
+          "path": "/_v/private/graphql/v1",
+          "operation": "customResults",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "locales",
+          "path": "/_v/private/graphql/v1",
+          "operation": "locales",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Indexing History",
+      "section": "Storefront",
+      "name": "Indexing History",
       "url": "https://creditop.myvtex.com/admin/search/indexing-history",
-      "titulo": "Indexing History",
+      "title": "Indexing History",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/indexing-history"
       ],
-      "encabezados": [
+      "headings": [
         "Average indexing time",
         "Products in store",
         "Indexing status share"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "newIndexerEnabled",
+          "path": "/_v/private/graphql/v1",
+          "operation": "newIndexerEnabled",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "countProductsOnSearch",
+          "path": "/_v/private/graphql/v1",
+          "operation": "countProductsOnSearch",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "countProductsTakingLongToIndex",
+          "path": "/_v/private/graphql/v1",
+          "operation": "countProductsTakingLongToIndex",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getIndexingHistoryList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getIndexingHistoryList",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "indexingHistoryStatusShare",
+          "path": "/_v/private/graphql/v1",
+          "operation": "indexingHistoryStatusShare",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "indexingHistoryAverageIndexingTime",
+          "path": "/_v/private/graphql/v1",
+          "operation": "indexingHistoryAverageIndexingTime",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Relevance Rules",
+      "section": "Storefront",
+      "name": "Relevance Rules",
       "url": "https://creditop.myvtex.com/admin/search/relevance-settings",
-      "titulo": "Relevance Rules",
+      "title": "Relevance Rules",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/relevance-settings"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "topbarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "topbarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "dynamicRelevanceEnabled",
+          "path": "/_v/private/graphql/v1",
+          "operation": "dynamicRelevanceEnabled",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getBoostOptions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getBoostOptions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "dynamicRelevanceStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "dynamicRelevanceStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Analytics",
+      "section": "Storefront",
+      "name": "Analytics",
       "url": "https://creditop.myvtex.com/admin/search/report",
-      "titulo": "Analytics",
+      "title": "Analytics",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/report"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "topbarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "topbarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "latestReport",
+          "path": "/_v/private/graphql/v1",
+          "operation": "latestReport",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "locales",
+          "path": "/_v/private/graphql/v1",
+          "operation": "locales",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getReports",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getReports",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Redirects",
+      "section": "Storefront",
+      "name": "Redirects",
       "url": "https://creditop.myvtex.com/admin/search/v4/redirects",
-      "titulo": "Redirects",
+      "title": "Redirects",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/v4/redirects"
       ],
-      "encabezados": [
+      "headings": [
         "Import Redirects From a CSV File"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getRedirects",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getRedirects",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Synonyms",
+      "section": "Storefront",
+      "name": "Synonyms",
       "url": "https://creditop.myvtex.com/admin/search/v4/synonyms",
-      "titulo": "Synonyms",
+      "title": "Synonyms",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/v4/synonyms"
       ],
-      "encabezados": [
+      "headings": [
         "New Synonym",
         "Conflicting synonyms found",
         "Delete Item?",
@@ -1615,150 +1615,150 @@
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "topbarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "topbarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonyms",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonyms",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSavedSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSavedSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "locales",
+          "path": "/_v/private/graphql/v1",
+          "operation": "locales",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Delivery Promise",
+      "section": "Storefront",
+      "name": "Delivery Promise",
       "url": "https://creditop.myvtex.com/admin/delivery-promise",
-      "titulo": "Delivery Promise",
+      "title": "Delivery Promise",
       "iframes": [],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-delivery-promise.vercel.app",
-          "ruta": "/api/proxy/catalog/pvt/saleschannel/list",
+          "path": "/api/proxy/catalog/pvt/saleschannel/list",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-delivery-promise.vercel.app",
-          "ruta": "/api/proxy/delivery-promises-lifecycle/eligibility",
+          "path": "/api/proxy/delivery-promises-lifecycle/eligibility",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-delivery-promise.vercel.app",
-          "ruta": "/api/proxy/delivery-promises-lifecycle/provision",
+          "path": "/api/proxy/delivery-promises-lifecycle/provision",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Calendar",
+      "section": "Storefront",
+      "name": "Calendar",
       "url": "https://creditop.myvtex.com/admin/planner/calendar",
-      "titulo": "Calendar",
+      "title": "Calendar",
       "iframes": [
         "admin-planner.vercel.admin.vtex.com/planner/calendar"
       ],
-      "encabezados": [
+      "headings": [
         "Create New Release"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/proxy/license-manager/user/profile",
+          "path": "/api/proxy/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/releases/%7B%22status%22:[],%22startingFrom%22:%222026-11-01T05:00:00.000Z%22,%22startingUntil%22:%222026-12-01T05:00:00.000Z%22,%22tags%22:[%22NOT_PUBLISH_NOW%22,%22NOT_UNDO%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
+          "path": "/api/releases/%7B%22status%22:[],%22startingFrom%22:%222026-11-01T05:00:00.000Z%22,%22startingUntil%22:%222026-12-01T05:00:00.000Z%22,%22tags%22:[%22NOT_PUBLISH_NOW%22,%22NOT_UNDO%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/releases/%7B%22status%22:[%22SCHEDULED%22],%22tags%22:[%22NOT_PUBLISH_NOW%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
+          "path": "/api/releases/%7B%22status%22:[%22SCHEDULED%22],%22tags%22:[%22NOT_PUBLISH_NOW%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Releases",
+      "section": "Storefront",
+      "name": "Releases",
       "url": "https://creditop.myvtex.com/admin/planner/list",
-      "titulo": "Releases",
+      "title": "Releases",
       "iframes": [
         "admin-planner.vercel.admin.vtex.com/planner/list"
       ],
-      "encabezados": [
+      "headings": [
         "Create New Release"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/proxy/license-manager/user/profile",
+          "path": "/api/proxy/license-manager/user/profile",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/releases/%7B%22status%22:[],%22tags%22:[%22NOT_PUBLISH_NOW%22,%22NOT_UNDO%22],%22orderBy%22:%7B%22direction%22:%22DESC%22,%22field%22:%22LAST_MODIFIED%22%7D,%22first%22:10%7D",
+          "path": "/api/releases/%7B%22status%22:[],%22tags%22:[%22NOT_PUBLISH_NOW%22,%22NOT_UNDO%22],%22orderBy%22:%7B%22direction%22:%22DESC%22,%22field%22:%22LAST_MODIFIED%22%7D,%22first%22:10%7D",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-planner.vercel.admin.vtex.com",
-          "ruta": "/api/releases/%7B%22status%22:[%22SCHEDULED%22],%22tags%22:[%22NOT_PUBLISH_NOW%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
+          "path": "/api/releases/%7B%22status%22:[%22SCHEDULED%22],%22tags%22:[%22NOT_PUBLISH_NOW%22],%22orderBy%22:%7B%22direction%22:%22ASC%22,%22field%22:%22START_DATE%22%7D%7D",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Storefront",
-      "nombre": "Dashboard",
+      "section": "Storefront",
+      "name": "Dashboard",
       "url": "https://creditop.myvtex.com/admin/agentic-cx",
-      "titulo": "Dashboard",
+      "title": "Dashboard",
       "iframes": [
         "agentic-cx.admin.vtex.com/onboarding"
       ],
-      "encabezados": [
+      "headings": [
         "The full-stack Agentic Customer Experience Platform for retailers and brands",
         "Shopping Assistant",
         "WhatsApp Automations",
@@ -1769,52 +1769,52 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "agentic-cx.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/cx-account",
+          "path": "/api/proxy/myvtex/_v/cx-account",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "agentic-cx.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/cx-onboarding-status",
+          "path": "/api/proxy/myvtex/_v/cx-onboarding-status",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "agentic-cx.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/cx-orgs-by-user",
+          "path": "/api/proxy/myvtex/_v/cx-orgs-by-user",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "agentic-cx.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/api/tenant/tenants",
+          "path": "/api/proxy/myvtex/api/tenant/tenants",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "agentic-cx.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/api/vtexid/pub/authenticated/user",
+          "path": "/api/proxy/myvtex/api/vtexid/pub/authenticated/user",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "cdn.growthbook.io",
-          "ruta": "/api/features/sdk-uQZQnTVajQGCwol",
+          "path": "/api/features/sdk-uQZQnTVajQGCwol",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Shipping strategy",
+      "section": "Shipping",
+      "name": "Shipping strategy",
       "url": "https://creditop.myvtex.com/admin/shipping-strategy/beta",
-      "titulo": "Shipping strategy",
+      "title": "Shipping strategy",
       "iframes": [
         "admin-shipping-strategy.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "What's new inShipping Strategies",
         "Leave Feedback",
         "Delete Shipping Policy",
@@ -1822,202 +1822,202 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-shipping-strategy.admin.vtex.com",
-          "ruta": "/api/proxy/features",
+          "path": "/api/proxy/features",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-shipping-strategy.admin.vtex.com",
-          "ruta": "/api/proxy/logistics/agreements",
+          "path": "/api/proxy/logistics/agreements",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-shipping-strategy.admin.vtex.com",
-          "ruta": "/api/proxy/logistics/shipping-policies",
+          "path": "/api/proxy/logistics/shipping-policies",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-shipping-strategy.admin.vtex.com",
-          "ruta": "/api/proxy/logistics/shipping-policies/1",
+          "path": "/api/proxy/logistics/shipping-policies/1",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-shipping-strategy.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Delivery capacity",
+      "section": "Shipping",
+      "name": "Delivery capacity",
       "url": "https://creditop.myvtex.com/admin/shipping-strategy/delivery-capacity",
-      "titulo": "Delivery capacity",
+      "title": "Delivery capacity",
       "iframes": [
         "creditop.myvtex.com/admin/app/shipping-strategy/delivery-capacity"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "shippingPoliciesSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "shippingPoliciesSuggestions",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Pickup Points",
+      "section": "Shipping",
+      "name": "Pickup Points",
       "url": "https://creditop.myvtex.com/admin/pickup-points",
-      "titulo": "Pickup Points",
+      "title": "Pickup Points",
       "iframes": [
         "creditop.myvtex.com/admin/app/pickup-points"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetPickupPoints",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetPickupPoints",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetUploadStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetUploadStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Shipping Rates",
+      "section": "Shipping",
+      "name": "Shipping Rates",
       "url": "https://creditop.myvtex.com/admin/logistics#/freight-table-management",
-      "titulo": "Shipping Rates",
+      "title": "Shipping Rates",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/logistics/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/carriers",
+          "path": "/api/logistics/pvt/configuration/carriers",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Shipping Simulator",
+      "section": "Shipping",
+      "name": "Shipping Simulator",
       "url": "https://creditop.myvtex.com/admin/logistics#/freight-simulation",
-      "titulo": "Shipping Simulator",
+      "title": "Shipping Simulator",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/logistics/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration",
+          "path": "/api/logistics/pvt/configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/carriers/settings",
+          "path": "/api/logistics/pvt/configuration/carriers/settings",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/saleschannel",
+          "path": "/api/logistics/pvt/configuration/saleschannel",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Shipping",
-      "nombre": "Operational capacity",
+      "section": "Shipping",
+      "name": "Operational capacity",
       "url": "https://creditop.myvtex.com/admin/operational-capacity",
-      "titulo": "Operational capacity",
+      "title": "Operational capacity",
       "iframes": [
         "fulfillment-locations.admin.vtex.com/es"
       ],
-      "encabezados": [
+      "headings": [
         "Enable Module",
         "Send Feedback",
         "Activate"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/graphql",
-          "operacion": "AccountDetails",
+          "path": "/api/proxy/graphql",
+          "operation": "AccountDetails",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/graphql",
-          "operacion": "ProvisioningStatus",
+          "path": "/api/proxy/graphql",
+          "operation": "ProvisioningStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/graphql",
-          "operacion": "LocationsQuery",
+          "path": "/api/proxy/graphql",
+          "operation": "LocationsQuery",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/graphql",
-          "operacion": "TotalizerLocationsQuery",
+          "path": "/api/proxy/graphql",
+          "operation": "TotalizerLocationsQuery",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/graphql",
-          "operacion": "LocationsMetrics",
+          "path": "/api/proxy/graphql",
+          "operation": "LocationsMetrics",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/api/proxy/logistics/configuration",
+          "path": "/api/proxy/logistics/configuration",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "fulfillment-locations.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Store Profile",
+      "section": "Marketplace",
+      "name": "Store Profile",
       "url": "https://creditop.myvtex.com/admin/store-profile",
-      "titulo": "Store Profile",
+      "title": "Store Profile",
       "iframes": [
         "creditop.myvtex.com/admin/app/store-profile"
       ],
-      "encabezados": [
+      "headings": [
         "Store Profile",
         "Store Information",
         "Information about your store that will be visible on the \"Find Sellers\" and \"Mar",
@@ -2029,108 +2029,108 @@
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TopBarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TopBarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "myself",
+          "path": "/_v/private/graphql/v1",
+          "operation": "myself",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Filters",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Filters",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "AdminUi",
+          "path": "/_v/private/graphql/v1",
+          "operation": "AdminUi",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Catalog Mapping",
+      "section": "Marketplace",
+      "name": "Catalog Mapping",
       "url": "https://creditop.myvtex.com/admin/suggestion/config/catalog-mapping",
-      "titulo": "Catalog Mapping",
+      "title": "Catalog Mapping",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/suggestion/config/catalog-mapping"
       ],
-      "encabezados": [
+      "headings": [
         "Catalog Mapping",
         "There are no mappings"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pvt/seller/list",
+          "path": "/api/catalog_system/pvt/seller/list",
           "n": 3
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/suggestion/creditop/marketplace/catalogs",
+          "path": "/api/suggestion/creditop/marketplace/catalogs",
           "n": 3
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "SKU Bindings",
+      "section": "Marketplace",
+      "name": "SKU Bindings",
       "url": "https://creditop.myvtex.com/admin/sku-binding",
-      "titulo": "SKU Bindings",
+      "title": "SKU Bindings",
       "iframes": [
         "creditop.myvtex.com/admin/app/sku-binding"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/sku-binding/pvt/skuseller/admin",
+          "path": "/api/sku-binding/pvt/skuseller/admin",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Seller Invite",
+      "section": "Marketplace",
+      "name": "Seller Invite",
       "url": "https://creditop.myvtex.com/admin/seller-invite",
-      "titulo": "Seller Invite",
+      "title": "Seller Invite",
       "iframes": [
         "creditop.myvtex.com/admin/app/seller-invite"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Invitations",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Invitations",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Management",
+      "section": "Marketplace",
+      "name": "Management",
       "url": "https://creditop.myvtex.com/admin/sellers",
-      "titulo": "Management",
+      "title": "Management",
       "iframes": [
         "creditop.myvtex.com/admin/app/sellers"
       ],
-      "encabezados": [
+      "headings": [
         "Activate 0 sellers",
         "Pause 0 sellers",
         "Add to One or More Groups",
@@ -2140,44 +2140,44 @@
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Filter",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Filter",
           "n": 3
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "SearchSellers",
+          "path": "/_v/private/graphql/v1",
+          "operation": "SearchSellers",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Totalizers",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Totalizers",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "groups",
+          "path": "/_v/private/graphql/v1",
+          "operation": "groups",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Offer Quality",
+      "section": "Marketplace",
+      "name": "Offer Quality",
       "url": "https://creditop.myvtex.com/admin/offer-quality",
-      "titulo": "Offer Quality",
+      "title": "Offer Quality",
       "iframes": [
         "creditop.myvtex.com/admin/app/offer-quality"
       ],
-      "encabezados": [
+      "headings": [
         "Default requirements",
         "Activate Filters",
         "Deactivate Filters",
@@ -2185,93 +2185,93 @@
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Configuration",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Configuration",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "RequirementGroups",
+          "path": "/_v/private/graphql/v1",
+          "operation": "RequirementGroups",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "RequirementFormat",
+          "path": "/_v/private/graphql/v1",
+          "operation": "RequirementFormat",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Find Sellers",
+      "section": "Marketplace",
+      "name": "Find Sellers",
       "url": "https://creditop.myvtex.com/admin/find-sellers",
-      "titulo": "Find Sellers",
+      "title": "Find Sellers",
       "iframes": [
         "creditop.myvtex.com/admin/app/find-sellers"
       ],
-      "encabezados": [
+      "headings": [
         "Find Sellers"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TopBarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TopBarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "MyInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "MyInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Filters",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Filters",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ContactInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ContactInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ContactedList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ContactedList",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "AccountList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "AccountList",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Received SKUs",
+      "section": "Marketplace",
+      "name": "Received SKUs",
       "url": "https://creditop.myvtex.com/admin/received-offers",
-      "titulo": "Received SKUs",
+      "title": "Received SKUs",
       "iframes": [
         "admin-received-offers.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Switch to Previous Version",
         "Create new products",
         "Create Single Product",
@@ -2283,1091 +2283,1091 @@
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/private/graphql/v1",
-          "operacion": "StatusTotalizers",
+          "path": "/api/proxy/myvtex/_v/private/graphql/v1",
+          "operation": "StatusTotalizers",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/private/graphql/v1",
-          "operacion": "LoggedUser",
+          "path": "/api/proxy/myvtex/_v/private/graphql/v1",
+          "operation": "LoggedUser",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/private/graphql/v1",
-          "operacion": "Filters",
+          "path": "/api/proxy/myvtex/_v/private/graphql/v1",
+          "operation": "Filters",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/private/graphql/v1",
-          "operacion": "CategoryTree",
+          "path": "/api/proxy/myvtex/_v/private/graphql/v1",
+          "operation": "CategoryTree",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/_v/private/graphql/v1",
-          "operacion": "searchOffers",
+          "path": "/api/proxy/myvtex/_v/private/graphql/v1",
+          "operation": "searchOffers",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-received-offers.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Orders",
+      "section": "Marketplace",
+      "name": "Orders",
       "url": "https://creditop.myvtex.com/admin/bridge#/marketplace/order",
-      "titulo": "Orders",
+      "title": "Orders",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/bridge"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search",
+          "path": "/api/bridge/mb/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search/facets",
+          "path": "/api/bridge/mb/search/facets",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/bridge-ui/v0.4.109/i18n/en-US.json",
+          "path": "/bridge-ui/v0.4.109/i18n/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/bridge-ui/v0.4.109/i18n/es-AR.json",
+          "path": "/bridge-ui/v0.4.109/i18n/es-AR.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Products",
+      "section": "Marketplace",
+      "name": "Products",
       "url": "https://creditop.myvtex.com/admin/bridge#/marketplace/product",
-      "titulo": "Products",
+      "title": "Products",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/bridge"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search",
+          "path": "/api/bridge/mb/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search/facets",
+          "path": "/api/bridge/mb/search/facets",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Tracking",
+      "section": "Marketplace",
+      "name": "Tracking",
       "url": "https://creditop.myvtex.com/admin/bridge#/marketplace/tracking",
-      "titulo": "Tracking",
+      "title": "Tracking",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/bridge"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search",
+          "path": "/api/bridge/mb/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search/facets",
+          "path": "/api/bridge/mb/search/facets",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Price",
+      "section": "Marketplace",
+      "name": "Price",
       "url": "https://creditop.myvtex.com/admin/bridge#/marketplace/price",
-      "titulo": "Price",
+      "title": "Price",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/bridge"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search",
+          "path": "/api/bridge/mb/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search/facets",
+          "path": "/api/bridge/mb/search/facets",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Inventory",
+      "section": "Marketplace",
+      "name": "Inventory",
       "url": "https://creditop.myvtex.com/admin/bridge#/marketplace/stock",
-      "titulo": "Inventory",
+      "title": "Inventory",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/bridge"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search",
+          "path": "/api/bridge/mb/search",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/bridge/mb/search/facets",
+          "path": "/api/bridge/mb/search/facets",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Offer Status",
+      "section": "Marketplace",
+      "name": "Offer Status",
       "url": "https://creditop.myvtex.com/admin/offer-status",
-      "titulo": "Offer Status",
+      "title": "Offer Status",
       "iframes": [
         "creditop.myvtex.com/admin/app/offer-status"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "LoggedUser",
+          "path": "/_v/private/graphql/v1",
+          "operation": "LoggedUser",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TotalizerByType",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TotalizerByType",
           "n": 3
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Offers",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Offers",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Feeds",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Feeds",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TotalizerByStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TotalizerByStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Marketplace",
-      "nombre": "Marketplaces and Integrations",
+      "section": "Marketplace",
+      "name": "Marketplaces and Integrations",
       "url": "https://creditop.myvtex.com/admin/find-marketplaces",
-      "titulo": "Marketplaces and Integrations",
+      "title": "Marketplaces and Integrations",
       "iframes": [
         "creditop.myvtex.com/admin/app/find-marketplaces"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "TopBarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "TopBarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "MyInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "MyInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
+          "path": "/_v/private/graphql/v1",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "Filters",
+          "path": "/_v/private/graphql/v1",
+          "operation": "Filters",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ContactInfo",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ContactInfo",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "ContactedList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "ContactedList",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "MarketplaceList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "MarketplaceList",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Payment Provider Test Suite",
+      "section": "Apps",
+      "name": "Payment Provider Test Suite",
       "url": "https://creditop.myvtex.com/admin/test-suite/payment-provider",
-      "titulo": "Payment Provider Test Suite",
+      "title": "Payment Provider Test Suite",
       "iframes": [
         "creditop.myvtex.com/admin/app/test-suite/payment-provider"
       ],
-      "encabezados": [
+      "headings": [
         "Service information",
         "Payment method",
         "Test cases"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "MarketplaceList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "MarketplaceList",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Audit",
+      "section": "Apps",
+      "name": "Audit",
       "url": "https://creditop.myvtex.com/admin/ui/audit?tab=logs",
-      "titulo": "Overview",
+      "title": "Overview",
       "iframes": [
         "creditop.myvtex.com/admin/app/ui/audit"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "exportStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "exportStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "System Integrators",
+      "section": "Apps",
+      "name": "System Integrators",
       "url": "https://creditop.myvtex.com/admin/si-survey",
-      "titulo": "System Integrators",
+      "title": "System Integrators",
       "iframes": [
         "creditop.myvtex.com/admin/app/si-survey"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "SIList",
+          "path": "/_v/private/graphql/v1",
+          "operation": "SIList",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "SIRoles",
+          "path": "/_v/private/graphql/v1",
+          "operation": "SIRoles",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "SurveyConfig",
+          "path": "/_v/private/graphql/v1",
+          "operation": "SurveyConfig",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "StaleSurveys",
+          "path": "/_v/private/graphql/v1",
+          "operation": "StaleSurveys",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Satisfaction Survey",
+      "section": "Apps",
+      "name": "Satisfaction Survey",
       "url": "https://creditop.myvtex.com/admin/support-center",
-      "titulo": "Satisfaction Survey",
+      "title": "Satisfaction Survey",
       "iframes": [
         "creditop.myvtex.com/admin/app/support-center"
       ],
-      "encabezados": [
+      "headings": [
         "Help Center",
         "Community",
         "Developer Portal"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getTicketsQuery",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getTicketsQuery",
           "n": 3
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Events",
+      "section": "Apps",
+      "name": "Events",
       "url": "https://creditop.myvtex.com/admin/cms-livestreaming",
-      "titulo": "Events",
+      "title": "Events",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms-livestreaming"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetInfoAccount",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetInfoAccount",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "session",
+          "path": "/_v/private/graphql/v1",
+          "operation": "session",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "LivestreamingsGetKeys",
+          "path": "/_v/private/graphql/v1",
+          "operation": "LivestreamingsGetKeys",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getInfra",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getInfra",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Blocked Words",
+      "section": "Apps",
+      "name": "Blocked Words",
       "url": "https://creditop.myvtex.com/admin/rude-words",
-      "titulo": "Blocked Words",
+      "title": "Blocked Words",
       "iframes": [
         "creditop.myvtex.com/admin/app/rude-words"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetInfoAccount",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetInfoAccount",
           "n": 2
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "session",
+          "path": "/_v/private/graphql/v1",
+          "operation": "session",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetBadwords",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetBadwords",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Global Page",
+      "section": "Apps",
+      "name": "Global Page",
       "url": "https://creditop.myvtex.com/admin/livestreaming/global-page",
-      "titulo": "Global Page",
+      "title": "Global Page",
       "iframes": [
         "creditop.myvtex.com/admin/app/livestreaming/global-page"
       ],
-      "encabezados": [
+      "headings": [
         "Hello! Please choose a plan to continue:"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "session",
+          "path": "/_v/private/graphql/v1",
+          "operation": "session",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetInfoAccount",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetInfoAccount",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetCoreServiceAuthToken",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetCoreServiceAuthToken",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "Snack Size Videos",
+      "section": "Apps",
+      "name": "Snack Size Videos",
       "url": "https://creditop.myvtex.com/admin/livestreaming/recordings",
-      "titulo": "Snack Size Videos",
+      "title": "Snack Size Videos",
       "iframes": [
         "creditop.myvtex.com/admin/app/livestreaming/recordings"
       ],
-      "encabezados": [
+      "headings": [
         "Hello! Please choose a plan to continue:"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "core-services-prod.nizza.com",
-          "ruta": "/api/v1/accounts/creditop",
+          "path": "/api/v1/accounts/creditop",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "session",
+          "path": "/_v/private/graphql/v1",
+          "operation": "session",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetInfoAccount",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetInfoAccount",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetCoreServiceAuthToken",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetCoreServiceAuthToken",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "App Store",
+      "section": "Apps",
+      "name": "App Store",
       "url": "https://creditop.myvtex.com/admin/store",
-      "titulo": "App Store",
+      "title": "App Store",
       "iframes": [
         "creditop.myvtex.com/admin/app/store"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "StoreApps",
+          "path": "/_v/private/graphql/v1",
+          "operation": "StoreApps",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/public/graphql/v1",
-          "operacion": "AppStoreCategories",
+          "path": "/_v/public/graphql/v1",
+          "operation": "AppStoreCategories",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Apps",
-      "nombre": "My Apps",
+      "section": "Apps",
+      "name": "My Apps",
       "url": "https://creditop.myvtex.com/admin/apps",
-      "titulo": "My Apps",
+      "title": "My Apps",
       "iframes": [
         "creditop.myvtex.com/admin/app/apps"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "AccountApps",
+          "path": "/_v/private/graphql/v1",
+          "operation": "AccountApps",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Settings",
+      "section": "Store Settings",
+      "name": "Settings",
       "url": "https://creditop.myvtex.com/admin/pci-gateway#/rules",
-      "titulo": "Settings",
+      "title": "Settings",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pci-gateway"
       ],
-      "encabezados": [
+      "headings": [
         "CREDITOP ID: 1035"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pub/products/search/",
+          "path": "/api/catalog_system/pub/products/search/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pvt/commercialcondition/list",
+          "path": "/api/catalog_system/pvt/commercialcondition/list",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/catalog_system/pvt/saleschannel/list",
+          "path": "/api/catalog_system/pvt/saleschannel/list",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/io/_v/private/graphql/v1",
-          "operacion": "InstalledApp",
+          "path": "/api/io/_v/private/graphql/v1",
+          "operation": "InstalledApp",
           "n": 3
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/admin/merchants/connectors-templates",
+          "path": "/api/payments/pvt/admin/merchants/connectors-templates",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/affiliations/",
+          "path": "/api/payments/pvt/affiliations/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/merchantredirects",
+          "path": "/api/payments/pvt/merchantredirects",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/payment-systems/",
+          "path": "/api/payments/pvt/payment-systems/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/payments/pvt/rules/",
+          "path": "/api/payments/pvt/rules/",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pci-gateway-ui/v1.2.1/i18n/en-US.json",
+          "path": "/pci-gateway-ui/v1.2.1/i18n/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pci-gateway-ui/v1.2.1/i18n/es-AR.json",
+          "path": "/pci-gateway-ui/v1.2.1/i18n/es-AR.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "portal.vtexcommercestable.com.br",
-          "ruta": "/api/billing/company",
+          "path": "/api/billing/company",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Digital Wallets",
+      "section": "Store Settings",
+      "name": "Digital Wallets",
       "url": "https://creditop.myvtex.com/admin/payment/wallets",
-      "titulo": "Digital Wallets",
+      "title": "Digital Wallets",
       "iframes": [
         "creditop.myvtex.com/admin/app/payment/wallets"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/bff/admin-wallet-hub/action",
+          "path": "/_v/bff/admin-wallet-hub/action",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Providers",
+      "section": "Store Settings",
+      "name": "Providers",
       "url": "https://creditop.myvtex.com/admin/affiliations",
-      "titulo": "Providers",
+      "title": "Providers",
       "iframes": [
         "creditop.myvtex.com/admin/app/affiliations"
       ],
-      "encabezados": [
+      "headings": [
         "Select a provider"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/api/affiliation",
+          "path": "/_v/api/affiliation",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/api/affiliation/connector",
+          "path": "/_v/api/affiliation/connector",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Settings",
+      "section": "Store Settings",
+      "name": "Settings",
       "url": "https://creditop.myvtex.com/admin/checkout#/configurations",
-      "titulo": "Settings",
+      "title": "Settings",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/checkout/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/checkout/pvt/configuration/order",
+          "path": "/api/checkout/pvt/configuration/order",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/checkout/pvt/configuration/orderForm",
+          "path": "/api/checkout/pvt/configuration/orderForm",
           "n": 2
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/fulfillment/pvt/configuration/minimal-reservation-time",
+          "path": "/api/fulfillment/pvt/configuration/minimal-reservation-time",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/fulfillment/pvt/configuration/order-cancellation-grace-period",
+          "path": "/api/fulfillment/pvt/configuration/order-cancellation-grace-period",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/oms/configuration",
+          "path": "/api/oms/configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/oms/configuration/conversationmasktype",
+          "path": "/api/oms/configuration/conversationmasktype",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/oms-ui/2.61.2/i18n/en-US.json",
+          "path": "/oms-ui/2.61.2/i18n/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/oms-ui/2.61.2/i18n/es-AR.json",
+          "path": "/oms-ui/2.61.2/i18n/es-AR.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Order Authorization",
+      "section": "Store Settings",
+      "name": "Order Authorization",
       "url": "https://creditop.myvtex.com/admin/order-auth",
-      "titulo": "Order Authorization",
+      "title": "Order Authorization",
       "iframes": [
         "creditop.myvtex.com/admin/app/order-auth"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getDimensions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getDimensions",
           "n": 2
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Templates",
+      "section": "Store Settings",
+      "name": "Templates",
       "url": "https://creditop.myvtex.com/admin/message-center#/templates",
-      "titulo": "Templates",
+      "title": "Templates",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/message-center/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/mail-service/pvt/providers",
+          "path": "/api/mail-service/pvt/providers",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/template-render/pvt/applications/list",
+          "path": "/api/template-render/pvt/applications/list",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/template-render/pvt/templates/getlist",
+          "path": "/api/template-render/pvt/templates/getlist",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "vtex-versioned-us.s3.amazonaws.com",
-          "ruta": "/registry/1/tags.json",
+          "path": "/registry/1/tags.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Senders",
+      "section": "Store Settings",
+      "name": "Senders",
       "url": "https://creditop.myvtex.com/admin/message-center#/providers",
-      "titulo": "Senders",
+      "title": "Senders",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/message-center/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/mail-service/pvt/providers",
+          "path": "/api/mail-service/pvt/providers",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/template-render/pvt/applications/list",
+          "path": "/api/template-render/pvt/applications/list",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "vtex-versioned-us.s3.amazonaws.com",
-          "ruta": "/registry/1/tags.json",
+          "path": "/registry/1/tags.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Settings",
+      "section": "Store Settings",
+      "name": "Settings",
       "url": "https://creditop.myvtex.com/admin/logistics#/config",
-      "titulo": "Settings",
+      "title": "Settings",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/logistics/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration",
+          "path": "/api/logistics/pvt/configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/freightoverprice",
+          "path": "/api/logistics/pvt/configuration/freightoverprice",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/general/modals",
+          "path": "/api/logistics/pvt/configuration/general/modals",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/grouptime",
+          "path": "/api/logistics/pvt/configuration/grouptime",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/grouptime/5/simulation",
+          "path": "/api/logistics/pvt/configuration/grouptime/5/simulation",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/modals",
+          "path": "/api/logistics/pvt/configuration/modals",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Geolocation Shipping",
+      "section": "Store Settings",
+      "name": "Geolocation Shipping",
       "url": "https://creditop.myvtex.com/admin/logistics#/geolocation",
-      "titulo": "Geolocation Shipping",
+      "title": "Geolocation Shipping",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/logistics/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration",
+          "path": "/api/logistics/pvt/configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/carriers/settings",
+          "path": "/api/logistics/pvt/configuration/carriers/settings",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/saleschannel",
+          "path": "/api/logistics/pvt/configuration/saleschannel",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Holidays",
+      "section": "Store Settings",
+      "name": "Holidays",
       "url": "https://creditop.myvtex.com/admin/logistics#/holidays",
-      "titulo": "Holidays",
+      "title": "Holidays",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/logistics/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration",
+          "path": "/api/logistics/pvt/configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/carriers/settings",
+          "path": "/api/logistics/pvt/configuration/carriers/settings",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/logistics/pvt/configuration/saleschannel",
+          "path": "/api/logistics/pvt/configuration/saleschannel",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Commercial Conditions",
+      "section": "Store Settings",
+      "name": "Commercial Conditions",
       "url": "https://creditop.myvtex.com/admin/Site/SkuCondicaoComercial.aspx",
-      "titulo": "Commercial Conditions",
+      "title": "Commercial Conditions",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/SkuCondicaoComercial.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Commercial Conditions",
         "SKU Commercial Condition - SKU Commercial Condition Management"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Price Settings",
+      "section": "Store Settings",
+      "name": "Price Settings",
       "url": "https://creditop.myvtex.com/admin/prices/settings",
-      "titulo": "Price Settings",
+      "title": "Price Settings",
       "iframes": [
         "creditop.myvtex.com/admin/app/prices/settings"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetSellers",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetSellers",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetAccountData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetAccountData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetRules",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetRules",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GeneralSettings",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GeneralSettings",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Price Rounding Rules",
+      "section": "Store Settings",
+      "name": "Price Rounding Rules",
       "url": "https://creditop.myvtex.com/admin/pricing#/psychological-pricing/",
-      "titulo": "Price Rounding Rules",
+      "title": "Price Rounding Rules",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/pricing/"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/config",
+          "path": "/api/pricing/config",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/pricing/pvt/api-configuration",
+          "path": "/api/pricing/pvt/api-configuration",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
+          "path": "/pricing-vault-ui/v1.27.13/i18n/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Settings",
+      "section": "Store Settings",
+      "name": "Settings",
       "url": "https://creditop.myvtex.com/admin/Site/ConfigForm.aspx",
-      "titulo": "Settings",
+      "title": "Settings",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/ConfigForm.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Settings",
         "General Settings"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Master Data",
+      "section": "Store Settings",
+      "name": "Master Data",
       "url": "http://creditop.vtexcrm.com.br/",
-      "titulo": "VTEX - Master Data",
+      "title": "VTEX - Master Data",
       "iframes": [
         "www.google.com/recaptcha/api2/anchor"
       ],
-      "encabezados": [
+      "headings": [
         "Produtos",
         "Contas",
         "Lojas",
@@ -3381,305 +3381,305 @@
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.vtexcrm.com.br",
-          "ruta": "/api/crm/pvt/isauthenticated",
+          "path": "/api/crm/pvt/isauthenticated",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.vtexcrm.com.br",
-          "ruta": "/api/license-manager/site/pvt/newtopbar",
+          "path": "/api/license-manager/site/pvt/newtopbar",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.vtexcrm.com.br",
-          "ruta": "/api/vtexid/pub/authentication/start",
+          "path": "/api/vtexid/pub/authentication/start",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.vtexcrm.com.br",
-          "ruta": "/Home/UserId",
+          "path": "/Home/UserId",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "vtex-versioned-us.s3.amazonaws.com",
-          "ruta": "/registry/1/tags.json",
+          "path": "/registry/1/tags.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Checkout",
+      "section": "Store Settings",
+      "name": "Checkout",
       "url": "https://creditop.myvtex.com/admin/portal#/sites",
-      "titulo": "Checkout",
+      "title": "Checkout",
       "iframes": [
         "creditop.myvtex.com/admin/iframe/portal"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/portal/pvt/provisioning/status",
+          "path": "/api/portal/pvt/provisioning/status",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "creditop.myvtex.com",
-          "ruta": "/api/portal/pvt/sites",
+          "path": "/api/portal/pvt/sites",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/portal-ui/v1.21.0/i18n/en-US.json",
+          "path": "/portal-ui/v1.21.0/i18n/en-US.json",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/portal-ui/v1.21.0/i18n/es-AR.json",
+          "path": "/portal-ui/v1.21.0/i18n/es-AR.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Store",
+      "section": "Store Settings",
+      "name": "Store",
       "url": "https://creditop.myvtex.com/admin/cms/store",
-      "titulo": "Store",
+      "title": "Store",
       "iframes": [
         "creditop.myvtex.com/admin/app/cms/store"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "installedApp",
+          "path": "/_v/private/graphql/v1",
+          "operation": "installedApp",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "availableApp",
+          "path": "/_v/private/graphql/v1",
+          "operation": "availableApp",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Master Data usage",
+      "section": "Store Settings",
+      "name": "Master Data usage",
       "url": "https://creditop.myvtex.com/admin/master-data-usage",
-      "titulo": "Master Data usage",
+      "title": "Master Data usage",
       "iframes": [
         "admin-master-data-usage.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Master Data usage",
         "No entities found"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-master-data-usage.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/api/dataentities/consumption",
+          "path": "/api/proxy/myvtex/api/dataentities/consumption",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-master-data-usage.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "GraphQL IDE",
+      "section": "Store Settings",
+      "name": "GraphQL IDE",
       "url": "https://creditop.myvtex.com/admin/graphql-ide",
-      "titulo": "GraphQL IDE",
+      "title": "GraphQL IDE",
       "iframes": [
         "creditop.myvtex.com/admin/app/graphql-ide"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "GetApps",
+          "path": "/_v/private/graphql/v1",
+          "operation": "GetApps",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Sales channels",
+      "section": "Store Settings",
+      "name": "Sales channels",
       "url": "https://creditop.myvtex.com/admin/Site/Store.aspx",
-      "titulo": "Sales channels",
+      "title": "Sales channels",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Store.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "Sales Channels",
         "Sales channel"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "XML Integration",
+      "section": "Store Settings",
+      "name": "XML Integration",
       "url": "https://creditop.myvtex.com/admin/Site/Xml.aspx",
-      "titulo": "XML Integration",
+      "title": "XML Integration",
       "iframes": [
         "creditop.vtexcommercestable.com.br/admin/Site/Xml.aspx"
       ],
-      "encabezados": [
+      "headings": [
         "XML Integration",
         "Collections XML"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "io.vtex.com.br",
-          "ruta": "/i18n/v0.1.235/catalog/en-US.json",
+          "path": "/i18n/v0.1.235/catalog/en-US.json",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Integrations",
+      "section": "Store Settings",
+      "name": "Integrations",
       "url": "https://creditop.myvtex.com/admin/search/integration-settings",
-      "titulo": "Integrations",
+      "title": "Integrations",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/integration-settings"
       ],
-      "encabezados": [],
+      "headings": [],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Search Settings",
+      "section": "Store Settings",
+      "name": "Search Settings",
       "url": "https://creditop.myvtex.com/admin/search/v4/settings",
-      "titulo": "Search Settings",
+      "title": "Search Settings",
       "iframes": [
         "creditop.myvtex.com/admin/app/search/v4/settings"
       ],
-      "encabezados": [
+      "headings": [
         "Facet order",
         "New indexing"
       ],
       "apis": [
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSynonymSuggestions",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSynonymSuggestions",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getSettings",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getSettings",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "integrationStatus",
+          "path": "/_v/private/graphql/v1",
+          "operation": "integrationStatus",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "topbarData",
+          "path": "/_v/private/graphql/v1",
+          "operation": "topbarData",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "newIndexerEnabled",
+          "path": "/_v/private/graphql/v1",
+          "operation": "newIndexerEnabled",
           "n": 1
         },
         {
-          "metodo": "POST",
+          "method": "POST",
           "host": "creditop.myvtex.com",
-          "ruta": "/_v/private/graphql/v1",
-          "operacion": "getAttributes",
+          "path": "/_v/private/graphql/v1",
+          "operation": "getAttributes",
           "n": 1
         }
       ]
     },
     {
-      "seccion": "Store Settings",
-      "nombre": "Fraud Prevention",
+      "section": "Store Settings",
+      "name": "Fraud Prevention",
       "url": "https://creditop.myvtex.com/admin/fraud-prevention",
-      "titulo": "Fraud Prevention",
+      "title": "Fraud Prevention",
       "iframes": [
         "admin-fraud-prevention.admin.vtex.com/"
       ],
-      "encabezados": [
+      "headings": [
         "Fraud Prevention",
         "Deactivate blocking"
       ],
       "apis": [
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-fraud-prevention.admin.vtex.com",
-          "ruta": "/api/featureFlag/evaluate",
+          "path": "/api/featureFlag/evaluate",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-fraud-prevention.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/api/fraud-prevention/actions",
+          "path": "/api/proxy/myvtex/api/fraud-prevention/actions",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-fraud-prevention.admin.vtex.com",
-          "ruta": "/api/proxy/myvtex/api/fraud-prevention/bff/fraud-assessment",
+          "path": "/api/proxy/myvtex/api/fraud-prevention/bff/fraud-assessment",
           "n": 1
         },
         {
-          "metodo": "GET",
+          "method": "GET",
           "host": "admin-fraud-prevention.admin.vtex.com",
-          "ruta": "/messages/en.json",
+          "path": "/messages/en.json",
           "n": 1
         }
       ]
