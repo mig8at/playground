@@ -449,6 +449,18 @@
           "tipo": "campo",
           "texto": "Tax code",
           "localizador": "page.frameLocator('#raccoon-iframe').getByRole('textbox', { name: 'Tax code', exact: true })"
+        },
+        "save": {
+          "tipo": "botón",
+          "texto": "Save",
+          "localizador": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Save', exact: true })",
+          "condicional": "aparece recién cuando el formulario tiene cambios"
+        },
+        "discard": {
+          "tipo": "botón",
+          "texto": "Discard",
+          "localizador": "page.frameLocator('#raccoon-iframe').getByRole('button', { name: 'Discard', exact: true })",
+          "condicional": "aparece recién cuando el formulario tiene cambios"
         }
       }
     }

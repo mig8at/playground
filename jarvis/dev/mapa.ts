@@ -32,7 +32,7 @@ if (!cmd || !app) {
 
 type Loc = { kind: string; code: string; count?: number; works?: boolean };
 type Control = { kind: string; name: string; role: string; frame?: string; locators?: Loc[] };
-type Element = { tipo: string; texto: string; localizador: string; fragil?: true };
+type Element = { tipo: string; texto: string; localizador: string; fragil?: true; condicional?: string };
 type Screen = { url: string; titulo: string; guardado: string; elementos: Record<string, Element> };
 type Map = { app: string; pantallas: Record<string, Screen> };
 
@@ -104,7 +104,8 @@ if (cmd === 'guardar') {
         await new Promise((r) => setTimeout(r, 4000));
         const { controls } = await current();
         const codes = new Set(controls.flatMap((c) => (c.locators ?? []).filter((l) => (l.count ?? 1) === 1).map((l) => l.code)));
-        const missing = Object.entries(s.elementos).filter(([, e]) => !e.fragil && !codes.has(e.localizador));
+        // Los condicionales (un «Save» que aparece sólo con cambios) no están en la pantalla recién abierta: no se exigen.
+        const missing = Object.entries(s.elementos).filter(([, e]) => !e.fragil && !e.condicional && !codes.has(e.localizador));
         broken += missing.length;
         console.log(`  ${missing.length ? '✗' : '✓'} ${name}: ${Object.keys(s.elementos).length - missing.length}/${Object.keys(s.elementos).length} elementos${missing.length ? ' · faltan: ' + missing.map(([k]) => k).join(', ') : ''}`);
     }

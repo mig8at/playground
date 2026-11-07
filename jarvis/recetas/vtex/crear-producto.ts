@@ -7,7 +7,7 @@
 // Si ya existe un producto con la misma referencia (`--ref`, por defecto sacada del nombre), no crea otro: actualiza
 // su precio y su stock y lo dice. Imprime los ids, la URL en la tienda y la del admin.
 //
-// Parámetros: --nombre (obligatorio) · --precio (pesos, obligatorio) · --stock 10 · --ref TEXTO · --categoria 4 ·
+// Parámetros: --nombre (obligatorio) · --precio (pesos, obligatorio) · --stock 10 · --ref TEXTO · --producto ID (ya creado: sólo SKU, imagen, precio y stock) · --categoria 4 ·
 // --marca 2000001 · --descripcion TEXTO · --oculto (no se muestra en la tienda: sólo por URL o carrito) · --json
 //
 // ESCRIBE en el catálogo de la cuenta de pruebas `creditop` (es la de pruebas: cada comercio tiene su propia cuenta).
@@ -57,19 +57,25 @@ if (found) {
     say(`ya existía (ref ${ref}): producto ${productId}, SKU ${skuId} · actualizo precio y stock`);
 } else {
     created = true;
-    const product = await must('crear el producto', 'POST', `${catalog}/api/catalog/pvt/product`, {
-        Name: name,
-        CategoryId: Number(flag('categoria') ?? tProduct.CategoryId),
-        BrandId: Number(flag('marca') ?? tProduct.BrandId),
-        LinkId: slug,
-        RefId: ref,
-        IsVisible: !has('oculto'),
-        IsActive: true,
-        Description: flag('descripcion') || `${name}. Producto de prueba creado por Jarvis.`,
-        ShowWithoutStock: false,
-    });
-    productId = product.Id;
-    say(`producto ${productId} · «${name}» · ref ${ref}`);
+    if (flag('producto')) {
+        // `--producto <id>`: el producto ya existe (lo creó la receta por pantalla): sólo se le cuelga lo demás.
+        productId = Number(flag('producto'));
+        say(`producto ${productId} (ya creado) · le agrego SKU, imagen, precio y stock`);
+    } else {
+        const product = await must('crear el producto', 'POST', `${catalog}/api/catalog/pvt/product`, {
+            Name: name,
+            CategoryId: Number(flag('categoria') ?? tProduct.CategoryId),
+            BrandId: Number(flag('marca') ?? tProduct.BrandId),
+            LinkId: slug,
+            RefId: ref,
+            IsVisible: !has('oculto'),
+            IsActive: true,
+            Description: flag('descripcion') || `${name}. Producto de prueba creado por Jarvis.`,
+            ShowWithoutStock: false,
+        });
+        productId = product.Id;
+        say(`producto ${productId} · «${name}» · ref ${ref}`);
+    }
 
     const sku = await must('crear el SKU', 'POST', `${catalog}/api/catalog/pvt/stockkeepingunit`, {
         ProductId: productId,
