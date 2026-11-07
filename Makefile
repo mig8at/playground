@@ -332,11 +332,9 @@ tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compi
 
 
 # jarvis: Chromium por playwright-go (o tu Chrome, con la extensión Jarvis); el perfil (la sesión) de cada sitio vive en jarvis/.data.
-.PHONY: jarvis jarvis-evals
-jarvis: ## @dia abre Jarvis (:5202 · API :5203): flujos para usar herramientas complejas. Le decís qué querés hacer en una app y Claude lo hace en un Chromium real (automático: sólo frena antes de algo irreversible) o te enseña paso a paso; lo ves trabajar en vivo y queda como flujo JSON en jarvis/flujos (se repite sin Claude o se enseña) y como video. Levanta también las apps locales de práctica (jarvis/apps: Panel Andino en :5206). Con la extensión Jarvis (jarvis/extension) corre en tu Chrome: bin/jarvis empezar --chrome. Por consola: bin/jarvis ask "<meta>"
+.PHONY: jarvis
+jarvis: ## @dia abre Jarvis (:5202 · API :5203): manejar herramientas complejas (VTEX, admins) en TU Chrome con la extensión Jarvis (jarvis/extension). Le decís qué querés hacer y Claude lo hace (sólo frena antes de algo irreversible) o te enseña paso a paso; queda como flujo JSON en jarvis/flujos y como video. Levanta también las apps locales de práctica (jarvis/apps). Por consola: bin/jarvis
 	@cd jarvis && npm run dev
-jarvis-evals: ## @dia la suite de regresión de bin/jarvis ask: corre las metas de jarvis/evals/casos.json sobre las apps locales y compara cómo terminaron (LISTO, o CONFIRMAR antes de lo irreversible), lo que quedó guardado y si el script se repite. Necesita make jarvis arriba y la sesión de Claude Code (CLAUDE_CODE_OAUTH_TOKEN). ~US$ 1. SOLO=<caso> · SIN_INTERNET=1 · V=1
-	@bin/jarvis evals $(if $(SOLO),--solo $(SOLO)) $(if $(SIN_INTERNET),--sin-internet) $(if $(V),-v)
 .PHONY: jarvis-receta
 jarvis-receta: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea completa de una herramienta (VTEX, …) con parámetros, por su API cuando la tiene. Las recetas viven en jarvis/recetas/<app>/ y su catálogo en jarvis/recetas/README.md. APP=vtex RECETA=crear-producto ARGS='--nombre "Casco urbano" --precio 350000 --stock 20' [JSON=1]
 	@test -n "$(APP)" -a -n "$(RECETA)" || { echo "  ✗ APP=<app> RECETA=<receta> (ver jarvis/recetas/README.md)"; exit 2; }

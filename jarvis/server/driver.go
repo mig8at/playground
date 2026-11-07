@@ -25,7 +25,9 @@ func ensureDriver(say func(kind, format string, args ...any)) (*playwright.RunOp
 		return nil, err
 	}
 	dir := filepath.Join(cache, "ms-playwright-go", probe.Version)
-	opts := &playwright.RunOptions{DriverDirectory: dir, Browsers: []string{"chromium"}}
+	// Sin navegadores: Jarvis maneja el Chrome de la persona por el puente (chrome.go); desde el 2026-11-07 no lanza
+	// ningún Chromium propio, así que sólo hace falta el driver.
+	opts := &playwright.RunOptions{DriverDirectory: dir, SkipInstallBrowsers: true}
 
 	node, err := exec.LookPath("node")
 	if err != nil {

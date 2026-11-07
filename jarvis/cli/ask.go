@@ -74,10 +74,9 @@ func ask(args []string) error {
 	steps := fs.Int("pasos", 40, "cuántas acciones como mucho")
 	model := fs.String("modelo", "", "el modelo de Claude (por defecto, el de tu Claude Code)")
 	answer := fs.String("respuesta", "", "contestar sola a un NECESITO/CONFIRMAR con esto (sin preguntar)")
-	mobile := fs.Bool("movil", false, "en un teléfono (Pixel 7) en vez de escritorio")
 	guide := fs.Bool("guia", false, "enseñame: Claude no toca la página; marca qué hacer y la persona lo hace")
 	noFlow := fs.Bool("sin-flujo", false, "no guardar la corrida como flujo aunque termine en LISTO")
-	devFlag := fs.String("dispositivo", "", "movil o escritorio (lo usa la interfaz)")
+	_ = fs.String("dispositivo", "", "ya no se usa: Jarvis corre sólo en tu Chrome (lo mandaba la interfaz)")
 	fs.Usage = func() {
 		fmt.Fprintln(os.Stderr, `uso: bin/jarvis ask [--url URL] [--pasos 40] [--modelo M] [--respuesta R] "<meta>"`)
 		fs.PrintDefaults()
@@ -88,23 +87,11 @@ func ask(args []string) error {
 		fs.Usage()
 		os.Exit(2)
 	}
-	dev := parseDevice(*devFlag)
-	if *mobile {
-		dev = "mobile"
-	}
 	if *start != "" {
-		args := []string{*start}
-		if dev != "" {
-			args = append([]string{"--" + dev}, args...)
-		}
-		if err := open(args); err != nil {
+		if err := open([]string{*start}); err != nil {
 			return err
 		}
 		fmt.Println()
-	} else if dev != "" {
-		if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": dev}, nil); err != nil {
-			return err
-		}
 	}
 	outcome, err := runAsk(askOpts{goal: goal, steps: *steps, model: *model, answer: *answer, guide: *guide, out: os.Stdout})
 	if err != nil {
@@ -172,13 +159,6 @@ type askOutcome struct {
 // (Sin \b: en RE2 es sólo ASCII, y después de la «í» de «sí» no hay «límite de palabra».)
 var affirmative = regexp.MustCompile(`(?i)^\s*(s[ií]|dale|ok|okay|yes|confirmo|hacelo|hazlo|adelante|de una)([^\pL]|$)`)
 
-func normDev(d string) string {
-	if d == "mobile" {
-		return d
-	}
-	return "desktop"
-}
-
 func (o askOutcome) Final() string {
 	if len(o.Rounds) == 0 {
 		return ""
@@ -234,7 +214,7 @@ func runAsk(o askOpts) (askOutcome, error) {
 	if o.guide {
 		mode = "enseñame: NO tocás la página; marcás cada paso con point y la persona lo hace"
 	}
-	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: %s.\nMODO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, deviceName[normDev(st.Device)], mode, time.Now().Format("2006-01-02"))
+	prompt := fmt.Sprintf("META: %s\n\nLa sesión en vivo está en %s (%s).\nSITIO: %s.\nDISPOSITIVO: el Chrome de la persona.\nMODO: %s.\nHOY: %s.", o.goal, st.URL, st.Title, kind, mode, time.Now().Format("2006-01-02"))
 	base := []string{
 		"-p", "--output-format", "stream-json", "--verbose",
 		"--append-system-prompt", system,

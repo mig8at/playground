@@ -8,9 +8,6 @@ package main
  * JARVIS_SESION; sin él, la ÚLTIMA que se abrió. La interfaz elige cuál MIRA sin cambiar ese default: si no,
  * un clic de la persona mandaría los comandos de Claude a otra página.
  *
- * ⚠ Dos pestañas del MISMO sitio comparten el perfil de Chromium, y un perfil persistente no se abre dos veces
- * (Chromium lo bloquea): comparten su BrowserContext, cada una con su página (sharedContexts, abajo).
- *
  * LAS PESTAÑAS QUE CLAUDE DEJA SE CIERRAN SOLAS (Sweep, abajo). Una pestaña que abrió Claude (el CLI) y que nadie usa
  * hace un rato —ningún comando de Claude, ninguna acción de la persona, nadie mirándola en la interfaz— se cierra. Así
  * no se juntan diez páginas viejas de un día de trabajo. Las que abrió la persona no se tocan nunca. */
@@ -22,8 +19,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/playwright-community/playwright-go"
 )
 
 const tabHeader = "X-Jarvis-Tab"
@@ -277,90 +272,3 @@ func (t *Tabs) CloseAll() {
 	stopPlaywright()
 }
 
-// ── un BrowserContext por perfil, compartido entre las pestañas del mismo sitio ──
-
-type sharedContext struct {
-	bctx   playwright.BrowserContext
-	refs   int
-	device string
-	fresh  bool // nadie tomó todavía su primera página
-}
-
-var (
-	sharedMu       sync.Mutex
-	sharedContexts = map[string]*sharedContext{}
-)
-
-// acquireContext da una página propia en el contexto del perfil: lo abre con launch si nadie lo tiene, o agrega una
-// página al que ya está abierto. Dos pestañas del mismo perfil tienen que ir con el mismo dispositivo (el perfil
-// de un teléfono se fija al abrir). release cierra la página y, con la última, el contexto.
-func acquireContext(profile, device string, launch func() (playwright.BrowserContext, error)) (playwright.BrowserContext, playwright.Page, func(), error) {
-	sharedMu.Lock()
-	defer sharedMu.Unlock()
-	sc := sharedContexts[profile]
-	if sc != nil && sc.device != device {
-		return nil, nil, nil, fmt.Errorf("este sitio ya está abierto en otra pestaña como %s: dos pestañas del mismo sitio comparten el perfil y van con el mismo dispositivo", deviceName(sc.device))
-	}
-	if sc == nil {
-		bctx, err := launch()
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		sc = &sharedContext{bctx: bctx, device: device, fresh: true}
-		sharedContexts[profile] = sc
-	}
-	var page playwright.Page
-	if sc.fresh {
-		page = firstPage(sc.bctx)
-		sc.fresh = false
-	}
-	if page == nil {
-		p, err := sc.bctx.NewPage()
-		if err != nil {
-			if sc.refs == 0 {
-				_ = sc.bctx.Close()
-				delete(sharedContexts, profile)
-			}
-			return nil, nil, nil, err
-		}
-		page = p
-	}
-	sc.refs++
-	var once sync.Once
-	release := func() {
-		once.Do(func() {
-			sharedMu.Lock()
-			defer sharedMu.Unlock()
-			sc.refs--
-			if sc.refs <= 0 {
-				_ = sc.bctx.Close()
-				if sharedContexts[profile] == sc {
-					delete(sharedContexts, profile)
-				}
-				return
-			}
-			_ = page.Close()
-		})
-	}
-	return sc.bctx, page, release, nil
-}
-
-// contextShared dice cuántas pestañas usan el perfil (para no reabrir con otro dispositivo uno compartido).
-func contextShared(profile string) int {
-	sharedMu.Lock()
-	defer sharedMu.Unlock()
-	if sc := sharedContexts[profile]; sc != nil {
-		return sc.refs
-	}
-	return 0
-}
-
-func deviceName(d string) string {
-	if d == deviceMobile {
-		return "teléfono"
-	}
-	if d == deviceChrome {
-		return "tu Chrome"
-	}
-	return "escritorio"
-}

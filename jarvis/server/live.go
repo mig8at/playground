@@ -1,7 +1,7 @@
 package main
 
-/* La sesión EN VIVO: un Chromium sin ventana, con el perfil del sitio (o sea, con tu login), cuya pantalla se
- * transmite al editor por CDP (`Page.startScreencast`), como el celular del harness (harness/panel/devices.ts).
+/* La sesión EN VIVO: una pestaña del Chrome de la persona (con su login), manejada por el puente de la extensión,
+ * cuya pantalla se transmite al editor por CDP (`Page.startScreencast`), como el celular del harness (harness/panel/devices.ts).
  * Lo que se hace sobre el canvas —clic, teclas, rueda— vuelve por la API y se repite con el mouse y el teclado
  * de Playwright. Cada vez que la página navega o cambia, se vuelve a analizar: los elementos interactivos y sus
  * localizadores son los de la página tal como está AHORA.
@@ -30,31 +30,12 @@ import (
 	"github.com/playwright-community/playwright-go"
 )
 
-// La sesión en vivo corre en uno de dos dispositivos, de tamaño FIJO (el editor la escala para que entre): así
-// las fotos, el video de la corrida y el script salen siempre iguales, abra donde se abra la interfaz.
-//
-//	desktop   una pantalla de escritorio, 1440×900 a densidad 2 (por defecto): en una pantalla grande el editor
-//	          la amplía, y a densidad 1 el texto salía borroso
-//	mobile    un teléfono: el perfil Pixel 7 de Playwright (412×839, táctil, agente de Chrome en Android), para
-//	          que el sitio sirva su versión móvil de verdad y no sólo una ventana angosta
-const (
-	deviceDesktop = "desktop"
-	deviceMobile  = "mobile"
-	mobileProfile = "Pixel 7"
-)
-
+// La sesión en vivo corre SIEMPRE en el Chrome de la persona, con la extensión Jarvis (chrome.go). Hasta el
+// 2026-11-07 también podía correr en un Chromium propio (escritorio o teléfono); se sacó por decisión de Miguel: el
+// trabajo es en su Chrome, con su sesión. Un flujo viejo guardado con «desktop» o «mobile» se reproduce en Chrome.
 const liveW, liveH = 1440, 900
 
-// La densidad del escritorio: el screencast va a 2× (nítido) y las fotos de los pasos, en píxeles CSS, para que sus
-// coordenadas sigan siendo las de los clics.
-const desktopDPR = 2.0
-
-func normDevice(d string) string {
-	if d == deviceMobile || d == deviceChrome {
-		return d
-	}
-	return deviceDesktop
-}
+func normDevice(string) string { return deviceChrome }
 
 // Step es una acción hecha en la sesión, con la línea de Playwright que la reproduce.
 type Step struct {
@@ -170,9 +151,8 @@ type live struct {
 	tap    *tap
 	start  string
 	w, h   int
-	device string  // desktop · mobile
-	dpr    float64 // la densidad de la pantalla (2,6 en el teléfono): el screencast va a esa nitidez, con tope
-	clean  bool    // el perfil es temporal (cambiar de dispositivo arranca otro, vacío)
+	device string  // siempre chrome (se conserva en los flujos guardados)
+	dpr    float64 // la densidad de la pantalla: el screencast va a esa nitidez, con tope
 	// chromeTab: con el motor «chrome», el id de la pestaña de Chrome donde corre (0 si no se supo).
 	chromeTab int
 
@@ -258,10 +238,8 @@ func (r *Runner) liveSession() *live {
 	return r.live
 }
 
-// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), en ese dispositivo. Con clean, en un
-// perfil TEMPORAL que se borra al cerrar: sin el login ni lo guardado de corridas anteriores (lo usan las evals,
-// para que el script no dependa de un estado que dejó otra corrida).
-func (r *Runner) LiveStart(slug, start, device string, clean bool) error {
+// LiveStart abre la sesión en vivo en `start` (o en la entrada del sitio), en una pestaña del Chrome de la persona.
+func (r *Runner) LiveStart(slug, start string) error {
 	site, err := r.store.Site(slug)
 	if err != nil {
 		return err
@@ -276,7 +254,7 @@ func (r *Runner) LiveStart(slug, start, device string, clean bool) error {
 	ready := make(chan error, 1)
 	go func() {
 		defer r.end()
-		if err := r.runLive(ctx, site, start, normDevice(device), clean, ready); err != nil {
+		if err := r.runLive(ctx, site, start, ready); err != nil {
 			r.say("error", "en vivo: %v", err)
 			select {
 			case ready <- err:
@@ -292,86 +270,54 @@ func (r *Runner) LiveStart(slug, start, device string, clean bool) error {
 	}
 }
 
-func (r *Runner) runLive(ctx context.Context, site Site, start, device string, clean bool, ready chan<- error) error {
-	profile := r.store.ProfileDir(site.Slug)
-	if clean {
-		tmp, err := os.MkdirTemp("", "navegador-limpio-")
-		if err != nil {
-			return err
-		}
-		defer os.RemoveAll(tmp)
-		profile = tmp
+func (r *Runner) runLive(ctx context.Context, site Site, start string, ready chan<- error) error {
+	if !chromeBridge.connected() {
+		return errors.New("Jarvis no está conectado en Chrome: abrí Chrome con la extensión Jarvis (bin/jarvis chrome lo dice)")
 	}
 	pw, err := r.playwright()
 	if err != nil {
 		return err
 	}
-	opts := playwright.BrowserTypeLaunchPersistentContextOptions{
-		Headless: playwright.Bool(true),
-		Viewport: &playwright.Size{Width: liveW, Height: liveH},
-		Args:     []string{"--disable-blink-features=AutomationControlled"},
-	}
-	w, h, dpr := liveW, liveH, desktopDPR
-	opts.DeviceScaleFactor = playwright.Float(desktopDPR)
-	if device == deviceMobile {
-		d := pw.Devices[mobileProfile]
-		if d == nil || d.Viewport == nil {
-			return fmt.Errorf("playwright no trae el perfil %s", mobileProfile)
-		}
-		w, h, dpr = d.Viewport.Width, d.Viewport.Height, d.DeviceScaleFactor
-		opts.Viewport = &playwright.Size{Width: w, Height: h}
-		opts.UserAgent = playwright.String(d.UserAgent)
-		opts.DeviceScaleFactor = playwright.Float(d.DeviceScaleFactor)
-		opts.IsMobile = playwright.Bool(d.IsMobile)
-		opts.HasTouch = playwright.Bool(d.HasTouch)
-	}
+	device := deviceChrome
+	var w, h int
+	var dpr float64
 	var bctx playwright.BrowserContext
 	// Con el motor «chrome», la pestaña de esta sesión: se sabe más abajo (l.chromeTab) y el cierre la lee al final.
 	chromeOwnTab := new(int)
 	var page playwright.Page
 	var release func()
-	if device == deviceChrome {
-		// En el Chrome de la persona (chrome.go): una pestaña nueva suya, que se cierra al terminar la sesión.
-		if bctx, err = chromeContext(pw); err != nil {
-			return err
-		}
-		// Si la persona compartió una pestaña de este sitio, se trabaja en ésa y queda abierta al terminar (es suya);
-		// si no, una nueva, que se cierra.
-		done := chromeSessionStarted()
-		var sharedTab int
-		page, sharedTab = sharedChromePage(bctx, start)
-		if page != nil {
-			chromeTabInUse(sharedTab, true) // tomada ya, antes de que otra sesión que arranca a la vez la elija
-			release = func() { chromeTabInUse(sharedTab, false); done() }
-		} else {
-			if page, err = bctx.NewPage(); err != nil {
-				done()
-				return fmt.Errorf("abrir la pestaña en Chrome: %w", err)
-			}
-			release = func() { chromeTabInUse(*chromeOwnTab, false); _ = page.Close(); done() }
-		}
-		w, h, dpr = liveW, liveH, 1
-		if v, err := page.Evaluate("() => [innerWidth, innerHeight, devicePixelRatio]"); err == nil {
-			if a, ok := v.([]any); ok && len(a) == 3 {
-				fw, _ := toFloat(a[0])
-				fh, _ := toFloat(a[1])
-				fd, _ := toFloat(a[2])
-				if fw > 0 && fh > 0 {
-					w, h, dpr = int(fw), int(fh), fd
-				}
-			}
-		}
+	// En el Chrome de la persona (chrome.go): una pestaña nueva suya, que se cierra al terminar la sesión.
+	if bctx, err = chromeContext(pw); err != nil {
+		return err
+	}
+	// Si la persona compartió una pestaña de este sitio, se trabaja en ésa y queda abierta al terminar (es suya);
+	// si no, una nueva, que se cierra.
+	done := chromeSessionStarted()
+	var sharedTab int
+	page, sharedTab = sharedChromePage(bctx, start)
+	if page != nil {
+		chromeTabInUse(sharedTab, true) // tomada ya, antes de que otra sesión que arranca a la vez la elija
+		release = func() { chromeTabInUse(sharedTab, false); done() }
 	} else {
-		// El perfil se comparte con otra pestaña del mismo sitio si ya está abierto (tabs.go): cada una con su página.
-		bctx, page, release, err = acquireContext(profile, device, func() (playwright.BrowserContext, error) {
-			return pw.Chromium.LaunchPersistentContext(profile, opts)
-		})
-		if err != nil {
-			return err
+		if page, err = bctx.NewPage(); err != nil {
+			done()
+			return fmt.Errorf("abrir la pestaña en Chrome: %w", err)
+		}
+		release = func() { chromeTabInUse(*chromeOwnTab, false); _ = page.Close(); done() }
+	}
+	w, h, dpr = liveW, liveH, 1
+	if v, err := page.Evaluate("() => [innerWidth, innerHeight, devicePixelRatio]"); err == nil {
+		if a, ok := v.([]any); ok && len(a) == 3 {
+			fw, _ := toFloat(a[0])
+			fh, _ := toFloat(a[1])
+			fd, _ := toFloat(a[2])
+			if fw > 0 && fh > 0 {
+				w, h, dpr = int(fw), int(fh), fd
+			}
 		}
 	}
 	defer release()
-	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, clean: clean, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
+	l := &live{site: site, bctx: bctx, page: page, tap: &tap{}, start: start, w: w, h: h, device: device, dpr: dpr, subs: map[chan []byte]struct{}{}, dirty: make(chan struct{}, 1)}
 	l.tap.attach(page)
 	page.OnDialog(func(d playwright.Dialog) {
 		l.mu.Lock()
@@ -519,11 +465,7 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		l.mu.Unlock()
 	}()
 
-	if clean {
-		r.say("info", "en vivo en %s, con un perfil limpio (sin sesiones ni datos guardados)", start)
-	} else {
-		r.say("info", "en vivo en %s · lo que hagas en el editor (o con bin/jarvis) pasa en este navegador", start)
-	}
+	r.say("info", "en vivo en %s · lo que hagas en el editor (o con bin/jarvis) pasa en tu Chrome", start)
 	if _, err := page.Goto(start, playwright.PageGotoOptions{WaitUntil: playwright.WaitUntilStateDomcontentloaded, Timeout: playwright.Float(45000)}); err != nil {
 		r.say("warn", "no cargó %s: %v", start, firstLine(err.Error()))
 	}
@@ -1195,31 +1137,21 @@ func (r *Runner) LiveScript() string {
 	l.mu.Lock()
 	steps := append([]Step{}, l.steps...)
 	start := l.start
-	w, h, device := l.w, l.h, l.device
+	w, h := l.w, l.h
 	l.mu.Unlock()
 	var b strings.Builder
 	usesFS := false
 	for _, s := range steps {
 		usesFS = usesFS || s.UsesFS
 	}
-	if device == deviceMobile {
-		b.WriteString("import { test, expect, devices } from '@playwright/test'\n")
-	} else {
-		b.WriteString("import { test, expect } from '@playwright/test'\n")
-	}
+	b.WriteString("import { test, expect } from '@playwright/test'\n")
 	if usesFS {
 		b.WriteString("import fs from 'node:fs'\n")
 	}
 	b.WriteString("\n")
-	// En el teléfono, el perfil entero (agente, táctil, densidad): el sitio sirve otra página que en escritorio.
-	if device == deviceMobile {
-		fmt.Fprintf(&b, "test.use({ ...devices['%s'] })\n\n", mobileProfile)
-	}
 	fmt.Fprintf(&b, "test('%s', async ({ page }) => {\n", jsQuote("recorrido en "+l.site.Name))
 	// El tamaño con que se recorrió: la disposición (y algún localizador) depende de él.
-	if device != deviceMobile {
-		fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
-	}
+	fmt.Fprintf(&b, "  await page.setViewportSize({ width: %d, height: %d })\n", w, h)
 	if len(steps) == 0 || !strings.HasPrefix(steps[0].Code, "page.goto(") {
 		fmt.Fprintf(&b, "  await page.goto('%s')\n", jsQuote(start))
 	}
@@ -1263,27 +1195,13 @@ func (l *live) startScreencast() error {
 	return err
 }
 
-// LiveDevice cambia de dispositivo: el perfil de un teléfono (agente, táctil, densidad) sólo se fija al abrir
-// el navegador, así que se cierra la sesión y se abre otra en la misma página. Con un perfil limpio, lo que había
-// (un login) se pierde.
+// LiveDevice queda por compatibilidad del CLI y la API: sólo existe Chrome (el Chromium se sacó el 2026-11-07).
+// Para que un sitio se vea como en un teléfono, `bin/jarvis ua iphone` cambia el agente de la pestaña.
 func (r *Runner) LiveDevice(device string) error {
-	device = normDevice(device)
-	l := r.liveSession()
-	if l == nil {
-		return errors.New("no hay sesión en vivo")
-	}
-	if l.device == device {
+	if device == "" || device == deviceChrome {
 		return nil
 	}
-	if !l.clean && contextShared(r.store.ProfileDir(l.site.Slug)) > 1 {
-		return fmt.Errorf("este sitio está abierto en otra pestaña: cerrala antes de pasar a %s (comparten el perfil)", deviceName(device))
-	}
-	slug, url, clean := l.site.Slug, l.page.URL(), l.clean
-	r.Stop()
-	for i := 0; i < 100 && r.State(0).Busy; i++ {
-		time.Sleep(100 * time.Millisecond)
-	}
-	return r.LiveStart(slug, url, device, clean)
+	return errors.New("Jarvis corre sólo en tu Chrome (el Chromium se sacó el 2026-11-07): para verlo como teléfono, bin/jarvis ua iphone")
 }
 
 // LiveDialogPolicy decide cómo se contestan los próximos diálogos: aceptar (por defecto) o rechazar.

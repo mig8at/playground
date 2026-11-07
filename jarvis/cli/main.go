@@ -2,7 +2,7 @@
 // `make jarvis`): abrir un sitio, mirar qué hay para tocar, actuar sobre un elemento por su número y
 // verificar el resultado. Habla con la API (:5203), así que la interfaz tiene que estar levantada.
 //
-//	bin/jarvis open [--movil] <url>           abre la sesión en vivo en esa URL
+//	bin/jarvis open <url>                     abre la sesión en vivo en esa URL, en tu Chrome
 //	bin/jarvis look [--todo]                  la página actual: sus elementos numerados, con su localizador
 //	                                             (los enlaces del menú y el pie se resumen; --todo los muestra)
 //	bin/jarvis click <n> | dblclick <n> | hover <n> | fill <n> <valor> | check <n> | uncheck <n>
@@ -28,7 +28,6 @@
 //	bin/jarvis report [meta]                  el paso a paso con una foto por paso (md, html y script)
 //	bin/jarvis close                          cierra la sesión en vivo
 //	bin/jarvis ask [--url URL] "<meta>"       Claude maneja la sesión en vivo hasta cumplir la meta (ask.go)
-//	bin/jarvis evals [--solo X]               corre las metas de jarvis/evals/casos.json y compara (evals.go)
 //
 // Después de cada acción muestra la página como quedó. Los números valen para el ÚLTIMO `look`: si la página
 // cambió entre medio, la acción se niega en vez de tocar otro elemento.
@@ -94,7 +93,7 @@ func main() {
 	cmd, args := os.Args[1], os.Args[2:]
 	// En una sesión de Claude desde la conversación, cada comando aparece en el panel de la interfaz (si no hay
 	// sesión abierta, el servidor lo ignora). Dentro de ask no: sus eventos ya van por su propio canal.
-	inSession := cmd != "ask" && cmd != "evals" && cmd != "empezar" && cmd != "chrome" && cmd != "pienso" && cmd != "terminar" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
+	inSession := cmd != "ask" && cmd != "empezar" && cmd != "chrome" && cmd != "pienso" && cmd != "terminar" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
 	if inSession {
 		panelEvent("act", "jarvis "+shellLine(os.Args[1:]))
 	}
@@ -123,8 +122,6 @@ func main() {
 		}
 	case "ask":
 		err = ask(args)
-	case "evals":
-		err = evals(args)
 	case "open":
 		err = open(args)
 	case "device":
@@ -216,21 +213,20 @@ func main() {
 func usage() {
 	fmt.Fprintln(os.Stderr, `uso: bin/jarvis <comando>
   ua iphone|reset|'<agente>'   la pestaña se presenta con otro agente (en tu Chrome, para el wizard «como celular»); después, reload
-  open [--chromium|--movil] <url> (por defecto en tu Chrome, con Jarvis) · device [movil|escritorio|chrome] · look [--todo | --buscar texto] · close
+  open <url> (en tu Chrome, con Jarvis) · look [--todo | --buscar texto] · close
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
   scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--desde N | --buscar texto] · shot <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · cambios (lo que cambió en cada campo)
   chrome   ¿la extensión de Chrome está conectada? (con ella, empezar --chrome / open --chrome corren en tu Chrome)
-  empezar [--chromium|--movil] [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
-  pestanas [nueva [--movil] [url] | cerrar N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
+  empezar [--url U] '<meta>' · pienso '<texto>' · terminar 'LISTO: …'   una sesión de Claude desde la conversación, a la vista en el panel
+  pestanas [nueva [url] | cerrar N]   las pestañas abiertas (cada una, su sesión); nueva abre otra (con la página).
                         Cualquier comando: --sesion N (o JARVIS_SESION=N);
                         sin eso, la última que se abrió. empezar abre una nueva si en la actual ya trabaja otro Claude
   proyecto <id> '<nombre>' <url>   un proyecto con nombre propio para un sitio real (sus flujos van a jarvis/flujos/<id>)
   steps · script · report [meta] · reset
-  ask [--url URL] [--movil] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta
-  evals [--solo X] [--sin-internet] [-v]                 la suite de regresión de ask (jarvis/evals)`)
+  ask [--url URL] [--pasos 40] [--respuesta R] "<meta>"   Claude maneja la sesión hasta cumplir la meta`)
 	os.Exit(2)
 }
 
@@ -360,88 +356,63 @@ func lastVersion() int {
 // ── los comandos ──
 
 func open(args []string) error {
-	dev := ""
 	var rest []string
 	for _, a := range args {
-		if d := parseDevice(strings.TrimPrefix(a, "--")); strings.HasPrefix(a, "--") && d != "" {
-			dev = d
-		} else {
+		if err := engineFlag(a); err != nil {
+			return err
+		}
+		if a != "--chrome" {
 			rest = append(rest, a)
 		}
 	}
 	if len(rest) < 1 {
 		usage()
 	}
-	if dev == "" {
-		dev = defaultDevice()
-	}
-	if err := startLive(rest, false, dev); err != nil {
+	if err := startLive(rest); err != nil {
 		return err
 	}
 	return look(true)
 }
 
-// defaultDevice: dónde abre una sesión si no se pidió nada. En el Chrome de la persona (la extensión Jarvis), que
-// es donde trabaja; en el Chromium si JARVIS_MOTOR=chromium, o si Jarvis no está conectado en Chrome (Chrome
-// cerrado), y en ese caso se avisa. `ask` abre por acá; las evals no: van siempre al Chromium, con perfil limpio.
-func defaultDevice() string {
-	if strings.EqualFold(os.Getenv("JARVIS_MOTOR"), "chromium") {
-		return ""
+// engineFlag niega los flags del Chromium, que se sacó el 2026-11-07 (Jarvis corre sólo en el Chrome de la
+// persona); `--chrome` se acepta y no hace nada, para los comandos viejos.
+func engineFlag(a string) error {
+	switch a {
+	case "--chromium", "--movil", "--mobile":
+		return fmt.Errorf("%s ya no existe: Jarvis corre sólo en tu Chrome (para verlo como teléfono: bin/jarvis ua iphone)", a)
 	}
+	return nil
+}
+
+// chromeReady dice si la extensión Jarvis está conectada; si no, no hay dónde abrir nada.
+func chromeReady() error {
 	var st struct {
 		Connected bool `json:"connected"`
 	}
-	if err := call(http.MethodGet, "/api/chrome", nil, &st); err == nil && st.Connected {
-		return "chrome"
-	}
-	fmt.Fprintln(os.Stderr, "jarvis: Jarvis no está conectado en Chrome (¿Chrome cerrado o la extensión apagada?): abro en el Chromium")
-	return ""
-}
-
-// parseDevice acepta el nombre en castellano o en inglés; vacío si no es un dispositivo.
-func parseDevice(s string) string {
-	switch strings.ToLower(s) {
-	case "movil", "móvil", "mobile", "celular":
-		return "mobile"
-	case "escritorio", "desktop", "chromium":
-		return "desktop"
-	case "chrome":
-		return "chrome"
-	}
-	return ""
-}
-
-var deviceName = map[string]string{"mobile": "móvil (Pixel 7)", "desktop": "escritorio (1440×900)", "chrome": "tu Chrome (la extensión del navegador)"}
-
-// device dice en qué dispositivo está la sesión o la pasa al otro: se reabre en la misma página (el perfil de
-// un teléfono se fija al abrir el navegador).
-func device(args []string) error {
-	if len(args) == 0 {
-		var st liveState
-		if err := call(http.MethodGet, "/api/live/state", nil, &st); err != nil {
-			return err
-		}
-		if !st.Active {
-			return errors.New("no hay sesión en vivo")
-		}
-		fmt.Println(deviceName[st.Device])
-		return nil
-	}
-	d := parseDevice(args[0])
-	if d == "" {
-		return fmt.Errorf("dispositivo desconocido %q: movil o escritorio", args[0])
-	}
-	if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": d}, nil); err != nil {
+	if err := call(http.MethodGet, "/api/chrome", nil, &st); err != nil {
 		return err
 	}
-	fmt.Printf("ahora en %s\n\n", deviceName[d])
-	return look(true)
+	if !st.Connected {
+		return errors.New("Jarvis no está conectado en Chrome: abrí Chrome con la extensión Jarvis (o recargala en chrome://extensions)")
+	}
+	return nil
 }
 
-// startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, sin mostrar la página. Con clean
-// abre SIEMPRE una sesión nueva con un perfil limpio (la que hubiera se cierra): sin el login ni lo guardado
-// de corridas anteriores.
-func startLive(args []string, clean bool, dev string) error {
+// device queda por compatibilidad: Jarvis corre sólo en tu Chrome.
+func device(args []string) error {
+	if len(args) == 0 || strings.EqualFold(args[0], "chrome") {
+		fmt.Println("tu Chrome (la extensión Jarvis)")
+		return nil
+	}
+	return errors.New("Jarvis corre sólo en tu Chrome (el Chromium se sacó el 2026-11-07): para verlo como teléfono, bin/jarvis ua iphone")
+}
+
+// startLive deja la sesión en vivo abierta en el sitio (o la URL) pedido, en una pestaña de tu Chrome, sin mostrar
+// la página.
+func startLive(args []string) error {
+	if err := chromeReady(); err != nil {
+		return err
+	}
 	raw := args[0]
 	if !strings.Contains(raw, "://") {
 		raw = "https://" + raw
@@ -457,12 +428,7 @@ func startLive(args []string, clean bool, dev string) error {
 	// Si ya hay una sesión en vivo: del mismo sitio, se reusa y se navega; de otro, se cierra primero.
 	var st liveState
 	if err := call(http.MethodGet, "/api/live/state", nil, &st); err == nil && st.Active {
-		if su, _ := url.Parse(st.URL); su != nil && su.Host == u.Host && !clean {
-			if dev != "" && dev != st.Device {
-				if err := call(http.MethodPost, "/api/live/device", map[string]string{"device": dev}, nil); err != nil {
-					return err
-				}
-			}
+		if su, _ := url.Parse(st.URL); su != nil && su.Host == u.Host {
 			return call(http.MethodPost, "/api/live/nav", map[string]string{"action": "goto", "url": start}, nil)
 		}
 		if err := call(http.MethodPost, "/api/live/stop", nil, nil); err != nil {
@@ -477,14 +443,7 @@ func startLive(args []string, clean bool, dev string) error {
 			time.Sleep(200 * time.Millisecond)
 		}
 	}
-	q := "url=" + url.QueryEscape(start)
-	if clean {
-		q += "&clean=1"
-	}
-	if dev != "" {
-		q += "&device=" + dev
-	}
-	return call(http.MethodPost, "/api/live/start?"+q, nil, nil)
+	return call(http.MethodPost, "/api/live/start?url="+url.QueryEscape(start), nil, nil)
 }
 
 func look(fresh bool) error {
@@ -1091,18 +1050,12 @@ func shellLine(args []string) string {
 
 func begin(args []string) error {
 	start := ""
-	// Por defecto en el Chrome de la persona (defaultDevice); --chromium o --movil la abren en el Chromium.
-	dev := ""
-	for len(args) > 0 && (args[0] == "--url" || args[0] == "--chrome" || args[0] == "--chromium" || args[0] == "--movil") {
-		switch args[0] {
-		case "--chrome":
-			dev, args = "chrome", args[1:]
-			continue
-		case "--chromium":
-			dev, args = "desktop", args[1:]
-			continue
-		case "--movil":
-			dev, args = "mobile", args[1:]
+	for len(args) > 0 && (args[0] == "--url" || strings.HasPrefix(args[0], "--c") || args[0] == "--movil") {
+		if err := engineFlag(args[0]); err != nil {
+			return err
+		}
+		if args[0] == "--chrome" {
+			args = args[1:]
 			continue
 		}
 		if len(args) < 2 {
@@ -1132,11 +1085,8 @@ func begin(args []string) error {
 	pinTab()
 	// Los pasos de cero, ANTES de ir a la URL: la corrida (y el flujo) son de esta meta, con la ida incluida.
 	_ = call(http.MethodDelete, "/api/live/steps", nil, nil)
-	if start != "" && dev == "" {
-		dev = defaultDevice()
-	}
 	if start != "" {
-		if err := startLive([]string{start}, false, dev); err != nil {
+		if err := startLive([]string{start}); err != nil {
 			return err
 		}
 	}
@@ -1220,7 +1170,7 @@ func pinTab() {
 }
 
 func tabsCmd(args []string) error {
-	// nueva [--movil] [url]: abre una pestaña y, con url, la página en ella. Lo que sigue va con --sesion N.
+	// nueva [url]: abre una pestaña y, con url, la página en ella. Lo que sigue va con --sesion N.
 	if len(args) >= 1 && args[0] == "nueva" {
 		var nt struct{ ID string }
 		if err := call(http.MethodPost, "/api/tabs", nil, &nt); err != nil {

@@ -187,14 +187,14 @@ func (r *Runner) startReplay(src replaySource, steps []Step, mode string) error 
 	}
 	slug := site.Slug
 	l := r.liveSession()
-	if l == nil || l.site.Slug != slug || l.device != normDevice(meta.Device) {
+	if l == nil || l.site.Slug != slug {
 		if l != nil {
 			r.Stop()
 			for i := 0; i < 100 && r.State(0).Busy; i++ {
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
-		if err := r.LiveStart(slug, meta.Start, meta.Device, false); err != nil {
+		if err := r.LiveStart(slug, meta.Start); err != nil {
 			return err
 		}
 		if l = r.liveSession(); l == nil {

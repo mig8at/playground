@@ -1,13 +1,8 @@
-// Command navegador entra a una página con Chromium (playwright-go), te deja loguearte A MANO en una ventana
-// visible, y después la recorre sola con esa sesión: de cada página saca su estructura (encabezados, enlaces,
-// formularios y sus campos, botones, con qué framework está hecha), con qué backend habla (XHR/fetch) y qué
-// errores tira, más una captura. Todo queda en jarvis/.data/ (ver store.go).
+// Command jarvis es el servidor local de Jarvis: la API que usan la interfaz, el CLI (bin/jarvis) y Claude, y el
+// puente con la extensión Jarvis del Chrome de la persona (chrome.go), que es donde corre todo. Lo que guarda vive
+// en jarvis/.data/ (ver store.go).
 //
-//	go run ./jarvis/server -serve 127.0.0.1:5203                 la API de la interfaz (make jarvis)
-//	go run ./jarvis/server -add https://sitio.com                da de alta un sitio
-//	go run ./jarvis/server -browse <sitio>                       abre la ventana para loguearte y navegar
-//	go run ./jarvis/server -explore <sitio> [-max 300 -depth 0]  recorre sin ventana con la sesión guardada (0: sin límite de niveles)
-//	go run ./jarvis/server -sites                                lista los sitios, en JSON
+//	go run ./jarvis/server -serve 127.0.0.1:5203   la API (make jarvis); sirve también las apps de jarvis/apps
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 package main
@@ -158,7 +153,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		writeJSON(w, http.StatusOK, listAll())
 	})
 	// ── la sesión en vivo (live.go) ──
-	// POST /api/live/start?url=…&device=…&clean=1[&tab=new] · POST /api/live/stop. Con tab=new abre la página en
+	// POST /api/live/start?url=…[&tab=new] · POST /api/live/stop (siempre en el Chrome de la persona). Con tab=new abre la página en
 	// una pestaña nueva; si no, en la del pedido (o la última).
 	mux.HandleFunc("/api/live/start", func(w http.ResponseWriter, r *http.Request) {
 		var tab *Tab
@@ -179,8 +174,8 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		// Si ya hay una sesión: del mismo sitio (y el mismo perfil), se navega ahí; de otro, se cierra primero.
-		if st := runner.LiveState(false); st.Active && q.Get("clean") != "1" {
-			if st.Site == site.Slug && (q.Get("device") == "" || normDevice(q.Get("device")) == st.Device) {
+		if st := runner.LiveState(false); st.Active {
+			if st.Site == site.Slug {
 				if err := runner.LiveNav("goto", q.Get("url")); err != nil {
 					writeErr(w, http.StatusConflict, err)
 					return
@@ -193,7 +188,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				time.Sleep(100 * time.Millisecond)
 			}
 		}
-		if err := runner.LiveStart(site.Slug, q.Get("url"), q.Get("device"), q.Get("clean") == "1"); err != nil {
+		if err := runner.LiveStart(site.Slug, q.Get("url")); err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
 		}

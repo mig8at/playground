@@ -1,7 +1,6 @@
 package main
 
-/* El corredor: Playwright (playwright-go) y la sesión en vivo, una a la vez (un perfil de Chromium no se abre
- * dos veces). Acá están el turno, el registro que ve la interfaz, el análisis de una pantalla y lo que dice la
+/* El corredor: Playwright (playwright-go) y la sesión en vivo, una a la vez por pestaña. Acá están el turno, el registro que ve la interfaz, el análisis de una pantalla y lo que dice la
  * página entre dos análisis (sus errores de consola).
  *
  * ⚠ Los manejadores de eventos de playwright-go corren en el hilo que lee del driver: llamar desde ahí a algo
@@ -87,7 +86,7 @@ func (r *Runner) State(since int) State {
 	return st
 }
 
-// playwright arranca el driver la primera vez y, si faltan, baja el driver y Chromium (una sola vez, ~150 MB). Es
+// playwright arranca el driver la primera vez (lo arma desde npm si falta, una sola vez). Es
 // UNO para todas las pestañas: cada una abre su contexto sobre el mismo proceso.
 func (r *Runner) playwright() (*playwright.Playwright, error) {
 	sharedPWMu.Lock()
@@ -95,7 +94,7 @@ func (r *Runner) playwright() (*playwright.Playwright, error) {
 	if sharedPW != nil {
 		return sharedPW, nil
 	}
-	r.say("info", "preparando Playwright (la primera vez baja el driver y Chromium)…")
+	r.say("info", "preparando Playwright (la primera vez arma el driver)…")
 	opts, err := ensureDriver(r.say)
 	if err != nil {
 		return nil, err

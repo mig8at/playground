@@ -3,7 +3,7 @@ package main
 /* Lo que se guarda bajo jarvis/.data/ (gitignoreado: trae cookies de sesión y fotos):
  *
  *	sites.json            los sitios (uno por host) donde se abrió una sesión
- *	<sitio>/profile/      el perfil de Chromium: ahí quedan las cookies del login manual
+ *	<sitio>/profile/      el perfil del Chromium que se usaba hasta el 2026-11-07 (ya no se abre: el login es el de Chrome)
  *	corridas/<id>/        cada corrida: fotos de los pasos, pasos.json, run.json y su script (report.go)
  *
  * Los FLUJOS no van acá: son JSON versionados en jarvis/flujos/ (flows.go). */
@@ -21,7 +21,7 @@ import (
 	"time"
 )
 
-// Site es un host donde se abrió una sesión en vivo: su perfil de Chromium guarda el login.
+// Site es un host donde se abrió una sesión en vivo.
 type Site struct {
 	Slug    string    `json:"slug"`
 	Name    string    `json:"name"`

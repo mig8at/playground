@@ -121,9 +121,6 @@ function connect() {
   on('apps', (v) => { apps.value = v })
 }
 
-// El dispositivo con que se abre una app en vivo (Claude elige el suyo por la API).
-const device = ref(readPref('jarvis.device', 'desktop'))
-watch(device, (v) => savePref('jarvis.device', v))
 
 // ── Claude trabajando ──
 const askReply = ref('')
@@ -254,14 +251,7 @@ function onCanvasKey(e) {
 }
 async function liveNav(action, url = '') { liveError.value = ''; try { await api('/api/live/nav', { method: 'POST', body: JSON.stringify({ action, url }) }) } catch (e) { liveError.value = e.message } }
 async function liveStop() { try { await api('/api/live/stop', { method: 'POST' }) } catch (e) { liveError.value = e.message } }
-const switching = ref(false)
-async function setDevice(d) {
-  device.value = d
-  if (!isLive.value || liveState.value.device === d) return
-  switching.value = true
-  try { await api('/api/live/device', { method: 'POST', body: JSON.stringify({ device: d }) }) } catch (e) { liveError.value = e.message } finally { switching.value = false }
-}
-// Abrir cualquier página en vivo: cada host tiene su propio perfil de Chromium, que guarda el login que hagas.
+// Abrir cualquier página en vivo: en una pestaña de tu Chrome (la extensión Jarvis), con tu sesión.
 const urlInput = ref('')
 const opening = ref(false)
 async function openURL(raw) {
@@ -270,11 +260,11 @@ async function openURL(raw) {
   if (!/^https?:\/\//i.test(u)) u = (/^(localhost|127\.|\[::1\])/.test(u) ? 'http://' : 'https://') + u
   opening.value = true
   liveError.value = ''
-  try { await api(`/api/live/start?url=${encodeURIComponent(u)}&device=${device.value}`, { method: 'POST' }); urlInput.value = ''; go({ kind: 'live' }) } catch (e) { liveError.value = e.message } finally { opening.value = false }
+  try { await api(`/api/live/start?url=${encodeURIComponent(u)}`, { method: 'POST' }); urlInput.value = ''; go({ kind: 'live' }) } catch (e) { liveError.value = e.message } finally { opening.value = false }
 }
 async function openApp(a) {
   liveError.value = ''
-  try { await api(`/api/live/start?url=${encodeURIComponent(a.url)}&device=${device.value}`, { method: 'POST' }); go({ kind: 'live' }) } catch (e) { liveError.value = e.message }
+  try { await api(`/api/live/start?url=${encodeURIComponent(a.url)}`, { method: 'POST' }); go({ kind: 'live' }) } catch (e) { liveError.value = e.message }
 }
 // La guía de Claude (modo enseñame): «Hecho» / «No lo encuentro».
 const guideNote = ref('')
@@ -776,9 +766,7 @@ const status = computed(() => {
         </form>
       </template>
       <span v-else class="ellipsis">{{ status }}</span>
-      <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Dispositivo">
-        <button type="button" class="region-action" :aria-pressed="liveState.device !== 'mobile'" :disabled="switching" title="Escritorio" aria-label="Ver como escritorio" @click="setDevice('desktop')"><span class="ui-icon" data-icon="desktop" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="liveState.device === 'mobile'" :disabled="switching" title="Teléfono (Pixel 7): cambiar reabre la sesión en la misma página" aria-label="Ver como teléfono" @click="setDevice('mobile')"><span class="ui-icon" data-icon="phone" aria-hidden="true"></span></button>
+      <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Sesión en vivo">
         <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
       </div>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
@@ -874,9 +862,6 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .device-controls { margin-left: var(--space-2) }
 .sb-url + .device-controls { margin-left: auto }
 .nav-controls { flex: none; margin-right: var(--space-1) }
-/* Escritorio y teléfono: no están en el set compartido (tools/ui); se dibujan acá con el mismo formato (máscara SVG). */
-.ui-icon[data-icon="desktop"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2220%22%20height%3D%2214%22%20x%3D%222%22%20y%3D%223%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M8%2021h8%22%2F%3E%3Cpath%20d%3D%22M12%2017v4%22%2F%3E%3C%2Fsvg%3E") }
-.ui-icon[data-icon="phone"] { --ui-icon: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Crect%20width%3D%2214%22%20height%3D%2220%22%20x%3D%225%22%20y%3D%222%22%20rx%3D%222%22%2F%3E%3Cpath%20d%3D%22M12%2018h.01%22%2F%3E%3C%2Fsvg%3E") }
 .live-tabs .new-tab { align-self: center; margin-left: var(--space-1) }
 .follow-dot-btn { flex: none; display: grid; place-items: center; width: 22px; height: 22px; margin-left: var(--space-1); padding: 0; border: 0;
   border-radius: var(--radius-control); background: none; cursor: pointer }
