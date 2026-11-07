@@ -12,6 +12,17 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 
 ## Pendientes
 
+- [ ] En `creditop-dev-store`, sin código: teléfono de la dirección de envío en «Obligatorio» y la pantalla de pago con
+      el logo y los colores de Creditop; termina con una compra de qa que llega con `billing.phone`.
+- [ ] Armar la tienda simple de Shopify: un tema Liquid mínimo (portada con las bicicletas, producto, carrito)
+      versionado en el playground junto a `tienda-simple` y subido sin publicar con `shopify theme push`; termina
+      publicado en `creditop-dev-store` en lugar de `test-data`. El checkout no es parte del tema (ver bloque del
+      2026-11-06).
+- [ ] Decidir y armar el auto-onboarding de Shopify como una página propia de la app (nacimiento, expedición y
+      aceptación antes de pedir el payment-link); termina con una compra en `creditop-dev-store` que entra por
+      «validando» sin SMS.
+      Depende de: Miguel / Producto — si se hace, y con qué textos de aceptación.
+
 - [x] ~~La app atiende la sesión de pago y pide la URL a `payment-link`~~ — rama `payment-link` del repo `shopify`
       (23a7845, desde `develop` con `feature/init_project`, local, sin push): `/payments/session`, la configuración
       por tienda (hash + token cifrado, `paymentsAppConfigure`), la vuelta y el webhook. Probado con la app real en
