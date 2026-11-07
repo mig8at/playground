@@ -68,9 +68,9 @@ const oms = () => `https://${creds().account}.vtexcommercestable.com.br`;
 const payments = () => `https://${creds().account}.vtexpayments.com.br`;
 
 /** El medio de pago «Creditop» y el envío, de la simulación del carrito: no se queman ids que cambian con la cuenta. */
-async function simulate(sku: string) {
+async function simulate(sku: string, coupon?: string) {
     const r = await call('POST', `${store()}/api/checkout/pub/orderForms/simulation?sc=1`,
-        { items: [{ id: sku, quantity: 1, seller: '1' }], country: 'COL', postalCode: '110111' });
+        { items: [{ id: sku, quantity: 1, seller: '1' }], country: 'COL', postalCode: '110111', ...(coupon ? { marketingData: { coupon } } : {}) });
     if (r.status !== 200) throw new Error(`VTEX: la simulación del carrito dio ${r.status}`);
     const pay = (r.data.paymentData?.paymentSystems ?? []).find((p: any) => /creditop/i.test(p.name));
     if (!pay) throw new Error('VTEX: «Creditop» no aparece como medio de pago (¿alguien apagó la condición de pago?)');
@@ -101,10 +101,12 @@ async function pickSku(): Promise<string> {
 }
 
 /** Una compra con Creditop, como desde el checkout. Devuelve la URL a la que iría el comprador. */
-export async function placeVtexOrder(buyer: VtexBuyer, chosen?: string): Promise<VtexOrder> {
+/** `opts.coupon`: el pedido va con ese cupón (`marketingData.coupon`), y el precio que se paga es el que da la
+ *  simulación con el cupón puesto (el de la promoción que activa). */
+export async function placeVtexOrder(buyer: VtexBuyer, chosen?: string, opts: { coupon?: string } = {}): Promise<VtexOrder> {
     const t0 = Date.now();
     const sku = chosen ?? await pickSku();
-    const sim = await simulate(sku);
+    const sim = await simulate(sku, opts.coupon);
     const total = sim.price + sim.sla.price;
     const order = {
         items: [{ id: sku, quantity: 1, seller: '1', price: sim.price }],
@@ -115,6 +117,7 @@ export async function placeVtexOrder(buyer: VtexBuyer, chosen?: string): Promise
                 state: 'Bogotá, D.C.', country: 'COL', street: 'Calle 100', number: '10', neighborhood: 'Chicó' },
             logisticsInfo: [{ itemIndex: 0, selectedSla: sim.sla.id, price: sim.sla.price }] },
         paymentData: { payments: [{ paymentSystem: sim.paymentSystem, referenceValue: total, value: total, installments: 1 }] },
+        ...(opts.coupon ? { marketingData: { coupon: opts.coupon } } : {}),
     };
     // VTEX a veces no crea el pedido con un 500 que pide reintentar («ORD015.6 … Vuelve a intentarlo», visto el
     // 2026-11-05 con cuatro compras a la vez): se reintenta una vez, para no contarlo como una falla del conector.

@@ -133,7 +133,7 @@ else if (creditop.some((c) => c.estado === 'denied')) verdict = 'pago RECHAZADO 
 else verdict = `pago en «${transaction?.status ?? '?'}»`;
 
 const result = {
-    pedido: orderId, creado: order.creationDate, estado: order.status, estadoTexto: ORDER_STATUS[order.status] ?? order.statusDescription,
+    pedido: orderId, creado: order.creationDate, estado: order.status, estadoTexto: ORDER_STATUS[order.status] || order.statusDescription || order.status || 'sin estado en el OMS todavía',
     total: order.value / 100, items: (order.items ?? []).map((i: any) => ({ nombre: i.name, cantidad: i.quantity, precio: i.sellingPrice / 100 })),
     pago: payment ? { sistema: payment.paymentSystemName, conector: transaction?.pagos?.[0]?.connector, transaccion: tx.transactionId, estado: transaction?.status } : null,
     cancelacion: order.cancellationData?.Reason ?? null, veredicto: verdict, wizard, registro: steps,
