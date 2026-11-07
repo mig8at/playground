@@ -915,6 +915,16 @@ async function ecommerceEntry(br: { hash: string; com: string }, ref: string, te
      * (`pkg/vtex.ts`) con la identidad de este caso —su celular con bypass de OTP, su cédula y su nombre— y se entra por
      * la URL que devuelve el checkout (`/ecommerce/<hash>/checkout?ref=…`). El pedido lo crea el conector con
      * `payment-link`, así que la sucursal es la de la afiliación de VTEX, no la del caso: si no coinciden, se avisa. */
+    /* `--entry-url <url del wizard>`: EL PEDIDO YA EXISTE. Una compra hecha en otra tienda (Shopify, o a mano) ya mandó al
+     * comprador al wizard: se entra por ese link —el `checkout?ref=` o, si ya se abrió, el `/solicitar?erId=`— en vez de
+     * comprar. La sucursal es la del link; si el caso dice otra, se avisa. Sirve para un solo caso. */
+    if (arg('entry-url')) {
+        let u: URL;
+        try { u = new URL(arg('entry-url')); } catch { return { error: `--entry-url no es una URL: ${arg('entry-url')}` }; }
+        const hash = u.pathname.split('/')[2];
+        if (hash && hash !== br.hash) console.warn(`  ⚠ el link es de la sucursal ${hash}, no ${br.hash}: se usa la del link`);
+        return { path: u.pathname + u.search };
+    }
     if (arg('store') === 'vtex') {
         if (TARGET !== 'qa') return { error: `--store vtex sólo contra qa: la condición de pago de la tienda manda el pago a qa (este caso va contra ${TARGET})` };
         const { placeVtexOrder } = await import('../pkg/vtex.ts');

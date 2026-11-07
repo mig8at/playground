@@ -98,3 +98,18 @@ Cada caso se hace primero **por pantalla con la red grabada** (`recipes/recorder
   - El primer diagnóstico («las promociones creadas por API no aplican») era falso: se esperó 13 min, menos de lo que tardan.
 - **Una compra con descuento, del lado de CreditOp** (pedido 1674590500448, 2026-11-07): el **total** de la solicitud en qa (`ecommerce_requests.data.total`) llegó con el descuento ($315.005), pero la **lista de productos** llegó con el precio sin descuento ($350.000). **CreditOp usa el total, no los productos** (2026-11-07, medido y verificado): la compra con cupón llevada a 11 (`credit-outcome --code … --sku 10`, solicitud 504732) quedó con `amount` y `original_amount` = $315.005, el total con el descuento. En `main` de legacy-backend la solicitud nace del `total` del pedido (`OnboardingController`, `UserRequestService`), al elegir entidad se exige que `original_amount` sea ese total (`rejectAmountOutsideTheOrder`), y la columna `products` sólo se guarda y se reenvía: ningún cálculo la suma. El flujo payment-link no existe en legacy-application.
 - **Cancelar un pedido sin aprobar** no genera tarea manual: Creditop lo cancela solo (contesta 200 sin `cancel-manually`). El `cancel-manually` es de los aprobados.
+
+## Shopify (tienda de pruebas `creditop-dev-store`)
+
+Credenciales: la app «Jarvis · Admin API (pruebas)» del Dev Dashboard (organización CREDITOP), instalada sólo en
+`creditop-dev-store`, con `SHOPIFY_CLIENT_ID` y `SHOPIFY_CLIENT_SECRET` en `connectors/.env`: el token se pide con
+ellos y dura 24 h. Cliente: `shopify/api.ts`, que se niega a apuntar a `tienda-creditop`, la de producción.
+
+| receta | qué deja | parámetros |
+|---|---|---|
+| `store` | **sólo lectura**: la tienda, sus últimos productos y sus últimos pedidos con la pasarela y el estado de pago | `--last 10` · `--json` |
+| `credit-outcome` | **una compra en Shopify pagada con Creditop, llevada al desenlace de crédito por API, en ~1,5 min**: el checkout en tu Chrome (la BMX, el comprador sintético, Creditop, «Pay now») → Shopify manda al wizard de qa → el caminador por HTTP desde ese link (`walk-wizard.ts --entry-url`) → el simulador de qa en 11, 6 u 8 → lo que la app de Creditop aplicó en Shopify (`resolved`/`rejected`) y el pedido. Medido el 2026-11-07: aprobada en 88 s (pedido #1026 «Pagado»), negada en 79 s (`rejected`). Necesita la app de pagos prendida (`make chat` → Servers → Shopify) y la contraseña de la tienda puesta en tu Chrome. ESCRIBE en Shopify y en qa | `--outcome aprobada\|negada\|cancelada` · `--variant <id>` |
+
+- **Shopify protege los pedidos y los borradores** («protected customer data»): la Admin API los niega hasta que la app declara qué datos de clientes usa. Para una app instalada sólo en tiendas de desarrollo no hay revisión, pero antes hay que elegir su método de distribución, y eso **no se puede deshacer**. Mientras tanto, `store` falla en los pedidos y `credit-outcome` los lee del admin.
+- **Un pago rechazado no deja pedido**: el checkout vuelve a ofrecer pagar. Cómo terminó lo dice el registro de la app (`creditop.webhook.applied`, `next: 'rejected'`), no la lista de pedidos.
+- En el checkout de la tienda, Creditop aparece al lado del «Test Payment Gateway».
