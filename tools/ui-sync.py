@@ -6,7 +6,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 FILES = ('theme.css', 'workbench.css', 'workbench.js', 'RegionMenu.vue')
-DESTINATIONS = ('tablero/src', 'visor/src', 'radar/src', 'keyring/src', 'chat/src', 'ecommerce/src', 'jarvis/src', 'harness/panel')
+DESTINATIONS = ('tablero/src', 'visor/src', 'radar/src', 'keyring/src', 'chat/src', 'ecommerce/src', 'jarvis/src', 'jarvis/extension', 'harness/panel')
 # El panel del harness no tiene bundler: el renglón que aplica el tema antes de pintar (`THEME_BOOT` de
 # workbench.js) va escrito en su <head>, entre estos marcadores, y se rellena desde la fuente.
 THEME_BOOT_TARGETS = ('harness/panel/index.html',)
@@ -32,7 +32,8 @@ def sync(check=False):
     for name in FILES:
         source = (ROOT / 'tools/ui' / name).read_bytes()
         for directory in DESTINATIONS:
-            if name.endswith('.vue') and directory == 'harness/panel':
+            # Sin bundler (el harness, la extensión Jarvis): un .vue no se puede usar.
+            if name.endswith('.vue') and directory in ('harness/panel', 'jarvis/extension'):
                 continue
             if name == 'workbench.js' and directory == 'harness/panel':
                 # El servidor ya entrega index.html sin caché. Incrustar el módulo evita

@@ -29,8 +29,8 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css']
-WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css']
+THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css', 'jarvis/extension/theme.css']
+WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css', 'jarvis/extension/workbench.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
@@ -42,8 +42,9 @@ SHEETS = {
     'chat':     ['chat/src/style.css'],
     'ecommerce': ['ecommerce/src/style.css'],
     'jarvis': ['jarvis/src/style.css'],
+    'jarvis-extension': ['jarvis/extension/control.css'],
 }
-TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'radar': 'radar/src', 'keyring': 'keyring/src', 'chat': 'chat/src', 'ecommerce': 'ecommerce/src', 'jarvis': 'jarvis/src'}
+TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'radar': 'radar/src', 'keyring': 'keyring/src', 'chat': 'chat/src', 'ecommerce': 'ecommerce/src', 'jarvis': 'jarvis/src', 'jarvis-extension': 'jarvis/extension'}
 
 # ── color ────────────────────────────────────────────────────────────────────────────────────────
 def _lin(c): return c / 12.92 if c <= 0.04045 else ((c + 0.055) / 1.055) ** 2.4

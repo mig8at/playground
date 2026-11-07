@@ -4,37 +4,54 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Jarvis</title>
+  <link rel="stylesheet" href="theme.css">
+  <link rel="stylesheet" href="workbench.css">
   <link rel="stylesheet" href="control.css">
 </head>
 <body>
-  <header>
-    <h1>Jarvis</h1>
-    <span id="conn" class="pill">…</span>
-  </header>
+  <div class="workbench">
+    <!-- Lo que se elige: las sesiones que corren en este Chrome y tus pestañas, para compartirlas -->
+    <aside class="sidebar" aria-label="Sesiones y pestañas">
+      <section class="view open">
+        <div class="region-head"><span>Sesiones</span><span id="sessions-count" class="count">0</span></div>
+        <div id="sessions" class="region-body"></div>
+      </section>
+      <section class="view open">
+        <div class="region-head"><span>Tus pestañas</span><span id="tabs-count" class="count">0</span></div>
+        <div id="tabs" class="region-body"></div>
+      </section>
+    </aside>
 
-  <main>
-    <div class="left">
-    <section class="sessions-col">
-      <h2>Sesiones</h2>
-      <div id="sessions"></div>
-    </section>
-
-
-    <section class="tabs-col">
-      <h2>Tus pestañas</h2>
-      <p class="muted small">Claude sólo maneja las pestañas que compartís acá y las que abre él (en el grupo «Jarvis»). Si compartís una de un sitio, la sesión de ese sitio trabaja en ella y la deja abierta.</p>
-      <div id="tabs"></div>
-    </section>
-    </div>
-    <section class="flows-col">
-      <div class="row">
-        <h2>Flujos</h2>
-        <button id="reload" type="button" class="ghost">Actualizar</button>
+    <!-- La sesión elegida: sus pasos -->
+    <main class="editor">
+      <div class="region-head">
+        <span id="session-title">Jarvis</span>
+        <div class="region-actions">
+          <button id="go-tab" type="button" class="region-action" title="Ir a su pestaña" aria-label="Ir a su pestaña" hidden><span class="ui-icon" data-icon="external" aria-hidden="true"></span></button>
+        </div>
       </div>
-      <p id="flows-note" class="muted small"></p>
-      <div id="flows"></div>
-    </section>
-  </main>
+      <div id="session-sub" class="subband" hidden><span class="grow"></span><span class="count"></span></div>
+      <div id="steps" class="region-body"></div>
+    </main>
+
+    <!-- Los flujos guardados -->
+    <aside class="auxiliarybar" aria-label="Flujos">
+      <div class="region-head">
+        <span>Flujos</span>
+        <span id="flows-count" class="count">0</span>
+        <div class="region-actions">
+          <button id="reload" type="button" class="region-action" title="Actualizar" aria-label="Actualizar los flujos"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+        </div>
+      </div>
+      <div id="flows" class="region-body"></div>
+    </aside>
+
+    <footer class="statusbar">
+      <span id="conn">…</span>
+      <span id="flows-note" class="grow"></span>
+      <button id="theme" type="button" class="statusbar-item" title="Cambiar el tema" aria-label="Cambiar el tema"><span class="ui-icon" data-icon="theme" aria-hidden="true"></span></button>
+    </footer>
+  </div>
 
   <script src="control.js"></script>
 </body>

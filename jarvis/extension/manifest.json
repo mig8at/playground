@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Jarvis",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Claude trabaja a tu lado en este Chrome: maneja las pestañas que le compartís (y las que abre) por el navegador del playground (127.0.0.1:5203), y en la pestaña Jarvis ves sus sesiones y los flujos.",
   "minimum_chrome_version": "125",
   "permissions": ["debugger", "tabs", "tabGroups", "storage", "alarms"],
