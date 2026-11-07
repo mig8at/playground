@@ -1,8 +1,8 @@
-/* El puente entre este Chrome y el navegador del playground (navegador/server/chrome.go).
+/* Jarvis: el puente entre este Chrome y el navegador del playground (navegador/server/chrome.go).
  *
  * Se conecta a ws://127.0.0.1:5203/api/chrome/bridge y hace de manos: engancha el depurador (chrome.debugger) a
  * las pestañas PERMITIDAS y reenvía el protocolo de depuración en las dos direcciones. Permitidas son sólo dos
- * clases: las que la persona compartió desde el panel lateral y las que abrió el navegador. Cualquier pedido sobre
+ * clases: las que la persona compartió desde la pestaña Jarvis y las que abrió el navegador. Cualquier pedido sobre
  * otra pestaña se niega acá, aunque el servidor lo pida.
  *
  * Un service worker de MV3 se duerme a los 30 s sin actividad: el socket abierto con tráfico lo mantiene despierto
@@ -142,7 +142,15 @@ async function handle(method, params) {
       const [props] = params
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
+      await addToGroup(tab)
       return { id: tab.id }
+    }
+    case 'chrome.tabs.activate': {
+      // La trae al frente DENTRO de su ventana, sin robarle el foco a la ventana en la que esté trabajando la persona.
+      const [tabId] = params
+      guard(tabId)
+      await chrome.tabs.update(tabId, { active: true })
+      return {}
     }
     case 'chrome.tabs.remove': {
       const [tabId] = params
@@ -152,6 +160,27 @@ async function handle(method, params) {
     }
     default:
       throw new Error(`no sé hacer ${method}`)
+  }
+}
+
+// ── el grupo «Jarvis»: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──
+
+async function addToGroup(tab) {
+  try {
+    let { groupId } = await chrome.storage.session.get('groupId')
+    if (groupId !== undefined) {
+      try {
+        const g = await chrome.tabGroups.get(groupId)
+        if (g.windowId !== tab.windowId) groupId = undefined
+      } catch {
+        groupId = undefined // la persona lo cerró o lo desagrupó
+      }
+    }
+    groupId = await chrome.tabs.group(groupId !== undefined ? { tabIds: [tab.id], groupId } : { tabIds: [tab.id], createProperties: { windowId: tab.windowId } })
+    await chrome.tabGroups.update(groupId, { title: 'Jarvis', color: 'purple' })
+    await chrome.storage.session.set({ groupId })
+  } catch {
+    /* sin grupo la pestaña funciona igual */
   }
 }
 
@@ -172,7 +201,7 @@ chrome.tabs.onRemoved.addListener((tabId) => {
   setLists({ shared: lists.shared.filter((id) => id !== tabId), opened: lists.opened.filter((id) => id !== tabId) })
 })
 
-// ── el panel lateral ──
+// ── la pestaña Jarvis (control.html) ──
 
 async function statusPayload() {
   await loaded
@@ -180,7 +209,7 @@ async function statusPayload() {
 }
 
 async function broadcastStatus() {
-  chrome.runtime.sendMessage(await statusPayload()).catch(() => { /* el panel está cerrado */ })
+  chrome.runtime.sendMessage(await statusPayload()).catch(() => { /* la pestaña Jarvis está cerrada */ })
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
@@ -193,7 +222,17 @@ chrome.runtime.onMessage.addListener((msg, _sender, reply) => {
   return true
 })
 
-chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
+// El ícono abre la pestaña Jarvis, el centro de control (fijada a la izquierda), o la trae al frente si ya está.
+chrome.action.onClicked.addListener(async () => {
+  const url = chrome.runtime.getURL('control.html')
+  const [open] = await chrome.tabs.query({ url })
+  if (open) {
+    await chrome.tabs.update(open.id, { active: true })
+    await chrome.windows.update(open.windowId, { focused: true })
+    return
+  }
+  await chrome.tabs.create({ url, pinned: true, index: 0, active: true })
+})
 
 chrome.alarms.create('navegador-keepalive', { periodInMinutes: 1 })
 chrome.alarms.onAlarm.addListener((a) => { if (a.name === 'navegador-keepalive') connect() })

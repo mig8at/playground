@@ -159,6 +159,7 @@ type LiveState struct {
 	Dialogs   []string  `json:"dialogs"`        // los últimos diálogos del navegador y cómo se contestaron
 	ScrollY   float64   `json:"scrollY"`        // dónde está la pantalla: el look muestra primero lo que se ve
 	Dismiss   bool      `json:"dismissDialogs"` // la política: true rechaza los confirm, false los acepta
+	ChromeTab int       `json:"chromeTab,omitempty"` // con el motor «chrome», la pestaña de Chrome donde corre
 }
 
 type live struct {
@@ -172,6 +173,8 @@ type live struct {
 	device string  // desktop · mobile
 	dpr    float64 // la densidad de la pantalla (2,6 en el teléfono): el screencast va a esa nitidez, con tope
 	clean  bool    // el perfil es temporal (cambiar de dispositivo arranca otro, vacío)
+	// chromeTab: con el motor «chrome», el id de la pestaña de Chrome donde corre (0 si no se supo).
+	chromeTab int
 
 	mu        sync.Mutex
 	subs      map[chan []byte]struct{}
@@ -474,6 +477,23 @@ func (r *Runner) runLive(ctx context.Context, site Site, start, device string, c
 		l.broadcast(msg)
 	})
 	l.cdp = cdp
+	if device == deviceChrome {
+		// Qué pestaña de Chrome es (para el panel lateral de Jarvis), y cerrarla a mano termina la sesión.
+		if raw, err := cdp.Send("Target.getTargetInfo", nil); err == nil {
+			if m, ok := raw.(map[string]any); ok {
+				if info, ok := m["targetInfo"].(map[string]any); ok {
+					id, _ := info["targetId"].(string)
+					l.chromeTab = chromeBridge.tabForTarget(id)
+				}
+			}
+		}
+		page.OnClose(func(playwright.Page) {
+			if r.liveSession() == l {
+				r.say("info", "la pestaña de Chrome se cerró: termina la sesión")
+				r.Stop()
+			}
+		})
+	}
 	if err := l.startScreencast(); err != nil {
 		return fmt.Errorf("screencast: %w", err)
 	}
@@ -562,7 +582,7 @@ func (r *Runner) LiveState(fresh bool) LiveState {
 	return LiveState{
 		Tab: r.tab, Active: true, Site: l.site.Slug, URL: l.page.URL(), Title: title, Width: l.w, Height: l.h, Device: l.device, Guide: l.guide, Replay: l.replayCopy(), Popup: l.popupURL(),
 		Version: l.version, Analyzing: l.analyzing, Page: l.current, Steps: append([]Step{}, l.steps...),
-		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY,
+		Dialogs: append([]string{}, l.recentDialogs...), Dismiss: l.dismissDialogs, ScrollY: scrollY, ChromeTab: l.chromeTab,
 	}
 }
 
@@ -1581,4 +1601,14 @@ func withScheme(u string) string {
 		return "http://" + u
 	}
 	return "https://" + u
+}
+
+// focusChrome trae al frente, en Chrome, la pestaña de la sesión (sólo con el motor «chrome»). Además de seguir a
+// Claude, evita trabajar en una pestaña de fondo, donde Chrome frena el pintado y una captura puede no llegar.
+func (r *Runner) focusChrome() {
+	l := r.liveSession()
+	if l == nil || l.device != deviceChrome {
+		return
+	}
+	_ = l.page.BringToFront()
 }

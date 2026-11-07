@@ -1250,10 +1250,10 @@ func chromeStatus() error {
 		return err
 	}
 	if !st.Connected {
-		fmt.Println("la extensión de Chrome NO está conectada: cargala en chrome://extensions (navegador/extension, «Cargar descomprimida») y abrí su panel lateral")
+		fmt.Println("Jarvis NO está conectado: cargá la extensión en chrome://extensions (navegador/jarvis, «Cargar descomprimida») y tocá su ícono: la pestaña Jarvis tiene que decir «conectado»")
 		return nil
 	}
-	fmt.Printf("extensión conectada (versión %v) · %d pestaña(s) que se pueden manejar · %d enganchada(s)\n", st.Extension["version"], len(st.Shared), len(st.Attached))
+	fmt.Printf("Jarvis conectado (versión %v) · %d pestaña(s) que se pueden manejar · %d enganchada(s)\n", st.Extension["version"], len(st.Shared), len(st.Attached))
 	if st.Driving {
 		fmt.Println("hay una sesión en vivo corriendo en Chrome")
 	}

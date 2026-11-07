@@ -1,4 +1,4 @@
-// Un Chromium con la extensión del navegador cargada, en lugar del Chrome de la persona: para probar el puente
+// Un Chromium con Jarvis (la extensión) cargada, en lugar del Chrome de la persona: para probar el puente
 // (server/chrome.go) sin ella. Usa el playwright-core que ya armó el servidor (driver.go).
 //
 //   node navegador/dev/chrome-stand-in.cjs                       la extensión conectada a :5203
@@ -9,7 +9,7 @@ const os = require('os'), fs = require('fs'), path = require('path')
 const cache = path.join(os.homedir(), 'Library/Caches/ms-playwright-go')
 const version = fs.readdirSync(cache).filter((d) => fs.existsSync(path.join(cache, d, 'package'))).sort().pop()
 const { chromium } = require(path.join(cache, version, 'package'))
-const ext = process.argv[2] || path.join(__dirname, '..', 'extension')
+const ext = process.argv[2] || path.join(__dirname, '..', 'jarvis')
 ;(async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'nav-ext-'))
   const ctx = await chromium.launchPersistentContext(dir, {
@@ -30,7 +30,7 @@ const ext = process.argv[2] || path.join(__dirname, '..', 'extension')
     await new Promise(r => setTimeout(r, 500))
   }
   if (process.env.SHARE_URL) {
-    // Como si la persona abriera esa página y tocara «Compartir con el navegador» en el panel lateral.
+    // Como si la persona abriera esa página y tocara «Compartir» en la pestaña Jarvis.
     const p = await ctx.newPage()
     await p.goto(process.env.SHARE_URL)
     const id = await sw.evaluate(async (u) => (await chrome.tabs.query({})).find((t) => t.url.startsWith(u)).id, process.env.SHARE_URL)

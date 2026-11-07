@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Jarvis</title>
+  <link rel="stylesheet" href="control.css">
+</head>
+<body>
+  <header>
+    <h1>Jarvis</h1>
+    <span id="conn" class="pill">…</span>
+  </header>
+
+  <main>
+    <div class="left">
+    <section class="sessions-col">
+      <h2>Sesiones</h2>
+      <div id="sessions"></div>
+    </section>
+
+
+    <section class="tabs-col">
+      <h2>Tus pestañas</h2>
+      <p class="muted small">Claude sólo maneja las pestañas que compartís acá y las que abre él (en el grupo «Jarvis»). Si compartís una de un sitio, la sesión de ese sitio trabaja en ella y la deja abierta.</p>
+      <div id="tabs"></div>
+    </section>
+    </div>
+    <section class="flows-col">
+      <div class="row">
+        <h2>Flujos</h2>
+        <button id="reload" type="button" class="ghost">Actualizar</button>
+      </div>
+      <p id="flows-note" class="muted small"></p>
+      <div id="flows"></div>
+    </section>
+  </main>
+
+  <script src="control.js"></script>
+</body>
+</html>

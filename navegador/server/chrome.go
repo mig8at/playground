@@ -2,8 +2,8 @@ package main
 
 /* El motor «chrome»: la sesión en vivo corre en el Chrome de la persona, no en el Chromium de Playwright.
  *
- * La extensión del navegador (navegador/extension) vive en ese Chrome y se conecta a /api/chrome/bridge. Por ahí
- * pasa el protocolo de depuración (CDP) de las pestañas que la persona COMPARTE desde el panel lateral, o de las que
+ * La extensión Jarvis (navegador/jarvis) vive en ese Chrome y se conecta a /api/chrome/bridge. Por ahí
+ * pasa el protocolo de depuración (CDP) de las pestañas que la persona COMPARTE desde la pestaña Jarvis, o de las que
  * el navegador abre, con chrome.debugger. Del otro lado, /api/chrome/cdp le habla a Playwright como si fuera un
  * Chrome: contesta lo que es del navegador entero (versión, auto-attach, abrir y cerrar pestañas) y lo demás se lo
  * reenvía a la pestaña que corresponde. Así todo lo que ya hace la sesión en vivo (look, clic, pasos, flujos,
@@ -206,7 +206,7 @@ func (b *ChromeBridge) send(method string, params ...any) (<-chan extReply, erro
 	ext := b.ext
 	if ext == nil {
 		b.mu.Unlock()
-		return nil, errors.New("la extensión del navegador no está conectada: abrí Chrome con la extensión cargada")
+		return nil, errors.New("Jarvis (la extensión de Chrome) no está conectado")
 	}
 	b.lastID++
 	id := b.lastID
@@ -458,6 +458,15 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		b.mu.Unlock()
 		reply(map[string]string{"protocolVersion": "1.3", "product": "Chrome/Navegador-Bridge", "userAgent": ua}, nil)
 		return
+	case "Page.bringToFront":
+		// En Chrome: activar la pestaña en su ventana (chrome.tabs), sin robarle el foco a la ventana de la persona.
+		if t, err := b.debuggerTarget(m.Method, session); err == nil {
+			go func() {
+				_, err := b.call("chrome.tabs.activate", t["tabId"])
+				reply(map[string]any{}, err)
+			}()
+			return
+		}
 	case "Browser.setDownloadBehavior":
 		reply(map[string]any{}, nil)
 		return
@@ -626,6 +635,18 @@ func (b *ChromeBridge) detachTab(tabID int) {
 	b.toPlaywright(cdpMessage{Method: "Target.detachedFromTarget", Params: params})
 }
 
+// tabForTarget dice qué pestaña de Chrome tiene ese target (0 si ninguna enganchada).
+func (b *ChromeBridge) tabForTarget(targetID string) int {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	for id, t := range b.attached {
+		if t.targetInfo["targetId"] == targetID {
+			return id
+		}
+	}
+	return 0
+}
+
 // aliasFor da una sesión más para la pestaña de ese target (ver aliases).
 func (b *ChromeBridge) aliasFor(targetID string) (map[string]any, error) {
 	b.mu.Lock()
@@ -725,7 +746,7 @@ func (b *ChromeBridge) dropPlaywright() {
 // chromeContext conecta Playwright al Chrome de la persona (una vez; se reusa mientras siga conectado).
 func chromeContext(pw *playwright.Playwright) (playwright.BrowserContext, error) {
 	if !chromeBridge.connected() {
-		return nil, errors.New("la extensión del navegador no está conectada: abrí Chrome con la extensión cargada (navegador/extension) y mirá que el panel lateral diga «conectado»")
+		return nil, errors.New("Jarvis no está conectado: cargá la extensión en Chrome (navegador/jarvis) y mirá que la pestaña Jarvis (su ícono) diga «conectado»")
 	}
 	chromePW.mu.Lock()
 	defer chromePW.mu.Unlock()

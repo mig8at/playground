@@ -149,6 +149,10 @@ func (t *Tabs) pick(w http.ResponseWriter, r *http.Request) *Tab {
 	if fromCLI(r) || r.Method != http.MethodGet {
 		t.Touch(tab)
 	}
+	// «Siguiendo a Claude» en Chrome: la pestaña donde actúa pasa al frente (en su ventana).
+	if fromCLI(r) {
+		tab.Runner.focusChrome()
+	}
 	return tab
 }
 
@@ -239,6 +243,9 @@ type TabInfo struct {
 	// ByClaude: la abrió Claude; IdleSec: hace cuántos segundos nadie la usa (las de Claude se cierran solas).
 	ByClaude bool `json:"porClaude"`
 	IdleSec  int  `json:"sinUsoSeg"`
+	// Device y ChromeTab: dónde corre la sesión; con «chrome», en qué pestaña de Chrome (el panel de Jarvis va a ella).
+	Device    string `json:"device,omitempty"`
+	ChromeTab int    `json:"chromeTab,omitempty"`
 }
 
 func (t *Tabs) Info() []TabInfo {
@@ -256,7 +263,8 @@ func (t *Tabs) Info() []TabInfo {
 		st := tab.Runner.LiveState(false)
 		as := tab.Asker.State(-1)
 		out = append(out, TabInfo{ID: tab.ID, Site: st.Site, Title: st.Title, URL: st.URL, Active: st.Active,
-			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID]})
+			Goal: as.Goal, Busy: as.Running, Last: tab.ID == last, ByClaude: tab.ByClaude, IdleSec: idle[tab.ID],
+			Device: st.Device, ChromeTab: st.ChromeTab})
 	}
 	return out
 }
