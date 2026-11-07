@@ -53,18 +53,20 @@ let orderName = '';
     const { page, close } = await openChrome();
     try {
         await page.goto(`${STORE}/cart/${variant}:1`, { waitUntil: 'commit', timeout: 90_000 });
-        const email = page.getByRole('textbox', { name: 'Email or mobile phone number' });
+        // El checkout sale en el idioma de la tienda: español desde el 2026-11-07 (antes inglés). Se aceptan los dos.
+        const email = page.getByRole('textbox', { name: /^(Email or mobile phone number|Email o número de teléfono móvil)$/ });
         await email.waitFor({ timeout: 60_000 }).catch(() => { throw new Error('no llegó al checkout: ¿la contraseña de la tienda está puesta en este Chrome?'); });
         await email.fill('shopify-1650215200@creditop.com');
-        await page.getByRole('textbox', { name: 'First name (optional)' }).first().fill('CARLOS');
-        await page.getByRole('textbox', { name: 'Last name', exact: true }).first().fill('RUIZ');
-        await page.getByRole('combobox', { name: 'Address' }).first().fill('Calle 100 # 10-20').catch(async () => {
-            await page.getByRole('textbox', { name: 'Address', exact: true }).first().fill('Calle 100 # 10-20');
+        await page.getByRole('textbox', { name: /^(First name \(optional\)|Nombre \(opcional\))$/ }).first().fill('CARLOS');
+        await page.getByRole('textbox', { name: /^(Last name|Apellidos)$/ }).first().fill('RUIZ');
+        const address = /^(Address|Dirección)$/;
+        await page.getByRole('combobox', { name: address }).first().fill('Calle 100 # 10-20', { timeout: 5_000 }).catch(async () => {
+            await page.getByRole('textbox', { name: address }).first().fill('Calle 100 # 10-20');
         });
-        await page.getByRole('textbox', { name: 'City' }).first().fill('Bogotá');
+        await page.getByRole('textbox', { name: /^(City|Ciudad)$/ }).first().fill('Bogotá');
         await page.getByText('Creditop', { exact: true }).first().click();
         say(`checkout: comprador sintético y Creditop · ${secs()}`);
-        await page.getByRole('button', { name: /^Pay now/ }).click();
+        await page.getByRole('button', { name: /^(Pay now|Pagar ahora)/ }).click();
         await page.waitForURL(/originaciones-qa\.dev\.creditop\.com\/ecommerce\//, { timeout: 90_000 });
         wizard = page.url();
         say(`Shopify mandó al wizard de qa: ${wizard} · ${secs()}`);
