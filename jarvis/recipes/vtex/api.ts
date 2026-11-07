@@ -1,16 +1,16 @@
 // El cliente de la API de VTEX para las recetas de Jarvis. Las credenciales son las de la cuenta de pruebas `creditop`
-// (`harness/.env.vtex`: VTEX_ACCOUNT, VTEX_APP_KEY, VTEX_APP_TOKEN), leídas con el mismo lector del harness: no se
+// (`connectors/.env`: VTEX_ACCOUNT, VTEX_APP_KEY, VTEX_APP_TOKEN), leídas con el mismo lector del harness: no se
 // copian a ningún otro lado ni se imprimen.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..', '..');
-const { envFrom } = await import(path.join(ROOT, 'harness/pkg/env.ts'));
+const { credential } = await import(path.join(ROOT, 'harness/pkg/env.ts'));
 
-export const account = envFrom('vtex', 'VTEX_ACCOUNT') as string;
-const key = envFrom('vtex', 'VTEX_APP_KEY') as string;
-const token = envFrom('vtex', 'VTEX_APP_TOKEN') as string;
-if (!account || !key || !token) throw new Error('faltan VTEX_ACCOUNT, VTEX_APP_KEY o VTEX_APP_TOKEN en harness/.env.vtex');
+export const account = credential('VTEX_ACCOUNT', '.env.vtex') as string;
+const key = credential('VTEX_APP_KEY', '.env.vtex') as string;
+const token = credential('VTEX_APP_TOKEN', '.env.vtex') as string;
+if (!account || !key || !token) throw new Error('faltan VTEX_ACCOUNT, VTEX_APP_KEY o VTEX_APP_TOKEN en connectors/.env');
 
 export const hosts = {
     catalog: `https://${account}.vtexcommercestable.com.br`,

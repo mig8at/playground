@@ -34,6 +34,14 @@ const fileEnv: Record<string, string> = parseEnv(resolve(ROOT, `.env.${TARGET}`)
 
 /** Un `harness/.env.<nombre>` que no es de un ambiente (p. ej. `.env.vtex`, la llave de la cuenta VTEX de pruebas),
  *  con process.env ganando igual que en `env()`. */
+/** Una credencial COMPARTIDA (no de un ambiente) de un servicio: vive en `connectors/.env`, el lugar único de las
+ *  credenciales de cada servicio (CLAUDE.md, «Variables de entorno»). Prioridad: process.env > connectors/.env > el
+ *  archivo viejo de la herramienta (`legacy`, p. ej. `.env.vtex` del harness), que queda sólo para no romper una
+ *  máquina donde todavía no se movió. La llave de VTEX se movió el 2026-11-07. */
+export function credential(key: string, legacy = ''): string {
+    return process.env[key] ?? parseEnv(resolve(ROOT, '..', 'connectors', '.env'))[key] ?? (legacy ? parseEnv(resolve(ROOT, legacy))[key] : undefined) ?? '';
+}
+
 export function envFrom(name: string, key: string, fallback = ''): string {
     return process.env[key] ?? parseEnv(resolve(ROOT, `.env.${name}`))[key] ?? fallback;
 }

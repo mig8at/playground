@@ -15,6 +15,10 @@ import (
 var (
 	envOnce sync.Once
 	envFile = map[string]string{}
+	// Las credenciales compartidas de un servicio (la llave de VTEX) viven en `connectors/.env` desde el 2026-11-07:
+	// se leen ahí si no están en el proceso ni en el .env de la herramienta.
+	sharedOnce sync.Once
+	shared     = map[string]string{}
 )
 
 // appRoot es la raíz del proyecto (la carpeta que tiene server/ y src/).
@@ -23,8 +27,11 @@ func appRoot() string {
 	return filepath.Clean(filepath.Join(filepath.Dir(file), ".."))
 }
 
-func loadEnvFile() {
-	data, err := os.ReadFile(filepath.Join(appRoot(), ".env"))
+func loadEnvFile() { readEnvFile(filepath.Join(appRoot(), ".env"), envFile) }
+
+// readEnvFile lee un KEY=VALUE por línea en dst (sin interpolación: un .env nunca se ejecuta).
+func readEnvFile(path string, dst map[string]string) {
+	data, err := os.ReadFile(path)
 	if err != nil {
 		return
 	}
@@ -35,7 +42,7 @@ func loadEnvFile() {
 		}
 		k, v, ok := strings.Cut(strings.TrimPrefix(line, "export "), "=")
 		if ok {
-			envFile[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
+			dst[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
 		}
 	}
 }
@@ -46,7 +53,11 @@ func env(k string) string {
 	if v := os.Getenv(k); v != "" {
 		return v
 	}
-	return envFile[k]
+	if v := envFile[k]; v != "" {
+		return v
+	}
+	sharedOnce.Do(func() { readEnvFile(filepath.Join(appRoot(), "..", "connectors", ".env"), shared) })
+	return shared[k]
 }
 
 // envKey es el nombre de la clave de un ambiente: envKey("qa", "DB_HOST") = "QA_DB_HOST".

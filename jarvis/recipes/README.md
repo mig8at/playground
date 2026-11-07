@@ -19,7 +19,7 @@ Una receta:
 
 ## VTEX (cuenta de pruebas `creditop`)
 
-Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vtex/api.ts`.
+Credenciales: `connectors/.env` (`VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN`), con el lector del harness (`credential`). Cliente: `vtex/api.ts`. Las recetas que sólo usan la API corren en cualquier máquina que tenga ese archivo, también en la nube; las de pantalla y las que usan la sesión (sinónimos) necesitan tu Chrome con Jarvis.
 
 | receta | qué deja | parámetros |
 |---|---|---|

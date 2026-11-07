@@ -13,8 +13,9 @@
 // ESCRIBE en VTEX (pedidos reales de la cuenta de pruebas) y, a través del conector, en la base compartida de qa (el
 // pedido de `payment-link`), igual que una compra a mano.
 //
-// Credenciales: `harness/.env.vtex` (VTEX_ACCOUNT, VTEX_APP_KEY, VTEX_APP_TOKEN).
-import { envFrom } from './env.ts';
+// Credenciales: `connectors/.env` (VTEX_ACCOUNT, VTEX_APP_KEY, VTEX_APP_TOKEN; antes en `harness/.env.vtex`, que se lee si
+// todavía está).
+import { credential } from './env.ts';
 
 export type VtexBuyer = { tel: string; doc: string; firstName: string; lastName: string; email: string };
 
@@ -42,10 +43,10 @@ export type VtexState = {
 };
 
 function creds() {
-    const account = envFrom('vtex', 'VTEX_ACCOUNT');
-    const key = envFrom('vtex', 'VTEX_APP_KEY');
-    const token = envFrom('vtex', 'VTEX_APP_TOKEN');
-    if (!account || !key || !token) throw new Error('falta la llave de VTEX: VTEX_ACCOUNT, VTEX_APP_KEY y VTEX_APP_TOKEN en harness/.env.vtex');
+    const account = credential('VTEX_ACCOUNT', '.env.vtex');
+    const key = credential('VTEX_APP_KEY', '.env.vtex');
+    const token = credential('VTEX_APP_TOKEN', '.env.vtex');
+    if (!account || !key || !token) throw new Error('falta la llave de VTEX: VTEX_ACCOUNT, VTEX_APP_KEY y VTEX_APP_TOKEN en connectors/.env');
     return { account, key, token };
 }
 
@@ -85,7 +86,7 @@ async function simulate(sku: string, coupon?: string) {
    prueba se queda con su unidad (nadie lo factura ni lo cancela), y el 2026-11-05 la BMX de siempre (SKU 9) llegó a 1:
    de cuatro compras a la vez, tres dieron 400 al crear el pedido. */
 async function pickSku(): Promise<string> {
-    const fixed = envFrom('vtex', 'VTEX_TEST_SKU');
+    const fixed = credential('VTEX_TEST_SKU', '.env.vtex');
     if (fixed) return fixed;
     // VTEX_MAX_PRICE (pesos): sólo productos hasta ese precio. Lo usa el caso `rotativo`, que tiene que caber en el cupo
     // de la entidad: una compra de 2.400.005 contra un cupo de 1.500.000 pide de verdad una cuota inicial y es otro caso.

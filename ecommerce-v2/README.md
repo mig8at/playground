@@ -130,8 +130,8 @@ instaladas** abre lo mismo en el admin.
 | otro resultado ignorado | Creditop mandó un segundo resultado después de que VTEX canceló (`cannot advance from Cancelled`) |
 | nunca llegó al wizard | el pedido de Creditop no tiene solicitud, con la causa si se sabe |
 
-Sólo lee (OMS y la API de pagos de VTEX), sólo en `local` y `qa`, y necesita la llave de la cuenta en el `.env`:
-`VTEX_ACCOUNT`, `VTEX_APP_KEY` y `VTEX_APP_TOKEN` (pedísela a Miguel). Sin ella la sección lo dice y lo demás anda igual.
+Sólo lee (OMS y la API de pagos de VTEX), sólo en `local` y `qa`, y necesita la llave de la cuenta: `VTEX_ACCOUNT`, `VTEX_APP_KEY` y `VTEX_APP_TOKEN`, en `connectors/.env` (el lugar
+único de las credenciales; el `.env` propio, si las tiene, gana). Sin ella la sección lo dice y lo demás anda igual.
 Los mensajes de VTEX se recortan en el servidor: el cuerpo de cada llamada (el comprador) no llega al navegador.
 
 ## 5 · Repetir de cero
