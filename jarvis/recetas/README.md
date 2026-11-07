@@ -32,6 +32,7 @@ Credenciales: `harness/.env.vtex`, con el mismo lector del harness. Cliente: `vt
 | `cupon` | **caso reversible**: crea un cupón (sin promoción ligada: no descuenta nada) y lo **archiva**, que es la vuelta: en VTEX un cupón no se borra | `--codigo` · `--dejar` · `--archivar <código>` · `--json` |
 | `cupon-pantalla` | el mismo caso por el admin (Promotions › Coupons, el menú ⋮ de la fila → Archive), grabando la red | `--dejar` · `--solo-archivar <código jarvis…>` |
 | `pedido` | **sólo lectura · ¿qué pasó con este pedido?** El pedido (estado, total, ítems, motivo si se canceló), su pago en el gateway y el **registro del conector de Creditop** en castellano: cada pedido de autorización, qué contestó Creditop, a qué workspace de la app fue, el link del wizard al que mandó al cliente (para seguirlo con `make ecommerce`), la cancelación y quién la pidió. En hora de Colombia, como el admin. Sin datos del comprador | `<pedido>` (por defecto, el último) · `--ultimos N` · `--json` |
+| `pago-creditop` | **sólo lectura · ¿cómo está configurado Creditop como medio de pago?** Quién cobra hoy (la regla activa → su afiliación → el comercio y la sucursal de CreditOp, buscados por el hash en qa y en prod), todas las afiliaciones de Creditop con su versión del conector y su workspace, la versión de la app en cada workspace y avisos (regla a una afiliación «NO USAR», workspace sin la app, hash que no existe, sucursal inactiva). Cruza tres pantallas del admin: Providers, Settings de pagos y My Apps. ~5 s | `--json` |
 
 Ejemplo, medido el 2026-11-07 (producto 10, SKU 10; la simulación del carrito lo da disponible, a $350.000, con
 envío y con Creditop):
@@ -83,3 +84,8 @@ Cada caso se hace primero **por pantalla con la red grabada** (`recetas/red.ts`:
   - **El workspace de la app de Creditop que atiende cambia por pedido**: el del 5 de noviembre fue a `develop--creditop`, el del 7 a `master--creditop`. Mirarlo antes de concluir qué versión del conector respondió.
   - **Creditop no cancela sola**: a la cancelación contesta `cancel-manually`, y VTEX abre una tarea manual para una persona.
   - Las horas del registro vienen en UTC sin la «Z»; el admin las muestra en hora local.
+- **La configuración de pago de Creditop** (2026-11-07, contrastada con Providers y Payment Conditions del admin):
+  - Una **afiliación** es un comercio de CreditOp: su `appKey` es el hash de la sucursal, el mismo que aparece en el link del wizard (`/ecommerce/<hash>/checkout`). La **regla** (condición de pago) dice cuál cobra: hoy hay una sola, «Creditop qa».
+  - `isProduction` de la afiliación **no dice en qué ambiente está el comercio**: «Creditop-test» dice `true` y su hash existe sólo en qa. Por eso la receta busca en los dos.
+  - `make harness-vtex CASES=rotativo` cambia la regla por un rato y la devuelve: si un pedido de ese momento fue a otro comercio, es eso.
+  - El workspace `develop` se borró el 2026-11-06 (comentario de `harness/pkg/vtex.ts`): los pedidos de antes muestran `develop--creditop` en su registro, y los de después `master--creditop`.
