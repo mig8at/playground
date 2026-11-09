@@ -19,9 +19,8 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       la evidencia de punta a punta en la descripción.
 - [x] ~~Publicar e instalar la 5.1.0 en `master`~~ — 2026-11-06: vtex#25 mergeado (8757569), tag `v5.1.0`, publicada
       y desplegada a las 17:27 (Bogotá); instalada en `master` con el tema 0.2.0. El switch quedó apagado en `master`.
-- [ ] Correr `make harness-vtex TARGET=qa CASES=rotativo` cuando legacy-backend#1881 entre a `qa`; termina en verde
-      (las dos compras en `loan-approved` y VTEX Approved).
-      Depende de: Joel — revisión y merge de #1881.
+- [x] ~~Correr `make harness-vtex TARGET=qa CASES=rotativo` cuando legacy-backend#1881 entre a `qa`~~ — 2026-11-09:
+      #1881 mergeado y desplegado en `qa`; la compra rotativa llegó a `loan-approved`, solicitud 504766 en 11, VTEX Approved.
 - [x] ~~Ver el switch en el admin de la tienda~~ — 2026-11-06: Apps → Creditop BNPL en `master` muestra «Auto-onboarding
       con Creditop», apagado, debajo de «Ambiente de Creditop» (captura en `artifacts/2026-11-06-vtex/`).
 - [ ] Dejar lista la tienda de Mario para el auto-onboarding: el script del checkout, la app `creditop` en la
