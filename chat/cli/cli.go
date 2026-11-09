@@ -58,6 +58,76 @@ type Message struct {
 	Time    string `json:"time"`
 	Display string `json:"display,omitempty"`
 	Files   []File `json:"files,omitempty"` // los adjuntos que trae (se bajan con `playground get <id>`)
+	// Group: llegó por un grupo (`#id`). Via: lo mandó un agente delegado de From, no la persona. For: va para uno de
+	// TUS agentes (alguien escribió a `@vos/agente`).
+	Group *GroupRef `json:"group,omitempty"`
+	Via   *Via      `json:"via,omitempty"`
+	For   string    `json:"for,omitempty"`
+}
+
+// GroupRef es el grupo por el que llegó un mensaje.
+type GroupRef struct {
+	ID string `json:"id"`
+}
+
+// Via es el agente delegado que habló en nombre de su dueño.
+type Via struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+}
+
+// Group es un grupo del chat: sus miembros son correos de personas o `correo/agente`.
+type Group struct {
+	ID      string   `json:"id"`
+	Owner   string   `json:"owner"`
+	Members []string `json:"members"`
+	Created string   `json:"created,omitempty"`
+}
+
+// homeCall pide algo al home con la sesión del CLI (`playground curl`), y devuelve el error del home si lo hay.
+func homeCall(ctx context.Context, path string, payload any, into any) error {
+	args := []string{"curl", base() + path, "--json"}
+	var stdin []byte
+	if payload != nil {
+		stdin, _ = json.Marshal(payload)
+		args = []string{"curl", base() + path, "-d", "@-", "--json"}
+	}
+	out, err := run(ctx, stdin, args...)
+	var fail struct {
+		Error string `json:"error"`
+		Hint  string `json:"hint"`
+	}
+	_ = json.Unmarshal(out, &fail)
+	if fail.Error != "" {
+		if fail.Hint != "" {
+			return errors.New(fail.Error + ": " + fail.Hint)
+		}
+		return errors.New(fail.Error)
+	}
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(out, into)
+}
+
+// Groups son los grupos donde estás vos o uno de tus agentes. Un home anterior a los grupos contesta 404: lista vacía.
+func Groups(ctx context.Context) ([]Group, error) {
+	var body struct {
+		Groups []Group `json:"groups"`
+	}
+	if err := homeCall(ctx, "/api/chat/groups", nil, &body); err != nil {
+		return nil, err
+	}
+	return body.Groups, nil
+}
+
+// CreateGroup crea `#name` con vos adentro y esos miembros (`@persona` o `@persona/agente`).
+func CreateGroup(ctx context.Context, name string, members []string) (Group, error) {
+	var body struct {
+		Group Group `json:"group"`
+	}
+	err := homeCall(ctx, "/api/chat/groups", map[string]any{"name": name, "members": members}, &body)
+	return body.Group, err
 }
 
 // Status es el estado del proceso de `playground listen`.
@@ -310,6 +380,7 @@ func Send(ctx context.Context, to, text, re string, files ...string) (SendResult
 type Agent struct {
 	Name        string `json:"name"`
 	Description string `json:"description"`
+	Delegate    bool   `json:"delegate,omitempty"` // habla en nombre de su dueño y se le escribe; no contesta preguntas
 }
 
 // AgentOwner es una persona conectada con sus agentes.

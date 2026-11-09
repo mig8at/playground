@@ -303,6 +303,12 @@ const activeSubtitle = computed(() => {
   const p = chat.active?.person
   if (!p) return ''
   if (p.tool) return `del equipo · ${p.detail}`
+  // Un grupo: quiénes están (las personas por su nombre corto; un agente como «rambo de duncan»).
+  if (p.group) {
+    const members = (chat.groups.find((g) => `#${g.id}` === p.email)?.members || p.members || [])
+    const label = (m) => { const [email, agent] = m.split('/'); const who = email.split('@')[0]; return agent ? `${agent} de ${who}` : who }
+    return members.length ? `${members.length} miembros · ${members.map(label).join(', ')}` : 'grupo'
+  }
   if (p.agent) {
     const whose = activeOwnerIsMe.value ? 'tu agente' : `agente de ${firstName(p.owner)}`
     return [whose, p.detail].filter(Boolean).join(' · ')
@@ -321,6 +327,7 @@ const thread = computed(() => {
     const d = dayOf(m.time)
     if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }); prev = null }
     const cont = !!prev && prev.dir === m.dir && prev.kind === m.kind && m.kind !== 'asked'
+      && (prev.author?.email || '') === (m.author?.email || '') && (prev.via || '') === (m.via || '')
       && new Date(m.time) - new Date(prev.time) < GROUP_MS
     let quote = null
     if (m.re && !(chat.active.person.agent && m.re === prev?.sid)) {
@@ -394,10 +401,27 @@ async function submit() {
 /* ── LOS ADJUNTOS: se eligen con el botón del compositor (o se arrastran encima) y salen con el mensaje, hasta 25 MB
    cada uno. Sólo a personas: a un agente, canon o cuadrilla no se les mandan archivos. */
 const MAX_ATTACHMENT = 25 * 1024 * 1024
+// Crear un grupo desde el sidebar: el nombre y los miembros separados por coma o espacio.
+const newGroupOpen = ref(false)
+const newGroupName = ref('')
+const newGroupMembers = ref('')
+const newGroupError = ref('')
+async function submitNewGroup() {
+  newGroupError.value = ''
+  try {
+    const members = newGroupMembers.value.split(/[\s,]+/).map((s) => s.trim()).filter(Boolean)
+    const g = await chat.createGroup(newGroupName.value.trim(), members)
+    newGroupOpen.value = false
+    newGroupName.value = ''
+    newGroupMembers.value = ''
+    serverOpen.value = ''
+    chat.open({ email: `#${g.id}`, name: `#${g.id}`, group: true, members: g.members })
+  } catch (e) { newGroupError.value = e.message }
+}
 const attachments = ref([])
 const attachError = ref('')
 const fileInput = ref(null)
-const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.tool && !agentAnswers.value)
+const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.group && !chat.active.person.tool && !agentAnswers.value)
 function addFiles(list) {
   attachError.value = ''
   for (const f of list) {
@@ -654,6 +678,51 @@ const statusText = computed(() => {
       </div>
       </section>
 
+      <!-- Los grupos (`#ecommerce`): personas y agentes delegados en una misma conversación. Los reparte el home. -->
+      <section class="view wb-bloque bloque-grupos" :class="{ open: isViewOpen('groups') }">
+      <div class="region-head">
+        <button type="button" class="view-tog" :aria-expanded="isViewOpen('groups')" @click="toggleView('groups')">
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Grupos</span>
+        </button>
+        <div class="region-actions">
+          <button type="button" class="region-action" title="Nuevo grupo" aria-label="Nuevo grupo" @click="newGroupOpen = !newGroupOpen">
+            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div v-if="isViewOpen('groups')" class="region-body">
+        <form v-if="newGroupOpen" class="new-group" @submit.prevent="submitNewGroup">
+          <input v-model="newGroupName" class="input" placeholder="#ecommerce" aria-label="Nombre del grupo">
+          <input v-model="newGroupMembers" class="input" placeholder="@dani, @duncan.estrada/rambo" aria-label="Miembros">
+          <div class="new-group-actions">
+            <button type="submit" class="btn btn-sm" :disabled="!newGroupName.trim()">Crear</button>
+            <button type="button" class="btn btn-outline btn-sm" @click="newGroupOpen = false">Cancelar</button>
+          </div>
+          <p v-if="newGroupError" class="side-note bad">{{ newGroupError }}</p>
+        </form>
+        <p v-if="!chat.groupList.length && !newGroupOpen" class="side-note">
+          Sin grupos. Con <b>+</b> creás uno: personas (<code>@dani</code>) y agentes delegados (<code>@duncan/rambo</code>).
+        </p>
+        <ul v-if="chat.groupList.length" class="conversations">
+          <li v-for="g in chat.groupList" :key="g.person.email" class="conv-item">
+            <button type="button" class="conversation" :class="{ on: g.person.email === chat.activeKey }" @click="serverOpen = ''; chat.open(g.person)">
+              <span class="avatar group-avatar" aria-hidden="true">#</span>
+              <span class="conversation-main">
+                <span class="conversation-top">
+                  <b class="name">{{ g.person.name }}</b>
+                  <span class="when">{{ shortWhen(g.last?.time) }}</span>
+                </span>
+                <span class="conversation-bottom">
+                  <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? 'Vos' : (g.last.via || firstName(g.last.author))}: ${snippetOf(g.last)}` : `${(g.person.members || []).length} miembros` }}</span>
+                  <span v-if="g.unread" class="unread">{{ g.unread }}</span>
+                </span>
+              </span>
+            </button>
+          </li>
+        </ul>
+      </div>
+      </section>
+
       <!-- Los agentes del equipo: los de cada persona conectada (`playground agents`), los tuyos primero. -->
       <section class="view wb-bloque bloque-agentes" :class="{ open: isViewOpen('agents') }">
       <div class="region-head">
@@ -739,7 +808,7 @@ const statusText = computed(() => {
           <span class="head-who">
             <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe, tool: activeIsCanon }" aria-hidden="true">
               <img v-if="!activeIsAgent && photoOf(chat.active.person)" class="avatar-photo" :src="photoOf(chat.active.person)" alt="" referrerpolicy="no-referrer">
-              <template v-else>{{ activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}</template><i v-if="activeOnline" class="presence"></i>
+              <template v-else>{{ chat.active.person.group ? '#' : activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}</template><i v-if="activeOnline" class="presence"></i>
             </span>
             <span class="head-title">{{ activeTitle }}</span>
             <span class="count head-sub">{{ activeSubtitle }}</span>
@@ -886,6 +955,11 @@ const statusText = computed(() => {
             <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error' }">
+                <span v-if="item.author && !item.cont" class="author-label" :class="{ delegate: item.via }">
+                  <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(item.author) }}</template>
+                  <b v-else>{{ item.author.name }}</b>
+                </span>
+                <span v-if="item.forAgent && !item.cont" class="published-label">para tu agente {{ item.forAgent }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
                 <span v-if="item.cuadrilla" class="task-note-label">
@@ -1021,7 +1095,7 @@ const statusText = computed(() => {
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize" @paste="onPasteFiles"></textarea>
-            <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
+            <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent && !chat.active?.person.delegate ? 'Preguntar' : 'Mandar' }}</button>
           </div>
         </form>
       </template>
@@ -1296,6 +1370,12 @@ code { font-family: var(--font-mono); font-size: .92em }
 .day { align-self: center; margin: var(--space-3) 0 var(--space-1); padding: 2px 10px; border-radius: 999px; background: var(--muted);
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
 
+.author-label { display: block; font-size: var(--text-xs); color: var(--fg-2); margin-bottom: 2px }
+.author-label b { color: var(--fg-1) }
+.author-label.delegate b { color: var(--fg-1); font-style: italic }
+.group-avatar { font-weight: 700 }
+.new-group { display: flex; flex-direction: column; gap: 6px; padding: 6px var(--gutter, 12px) }
+.new-group-actions { display: flex; gap: 6px }
 .bubble-row { display: flex; align-items: center; gap: 6px }
 .bubble-row.out { flex-direction: row-reverse }
 .bubble-row.cont { margin-top: -5px }

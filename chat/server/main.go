@@ -111,6 +111,38 @@ func handler() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"online": online})
 	})
 
+	// Los grupos donde estás (GET) y crear uno (POST { name, members }).
+	mux.HandleFunc("GET /api/groups", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		groups, err := cli.Groups(ctx)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		if groups == nil {
+			groups = []cli.Group{}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"groups": groups})
+	})
+	mux.HandleFunc("POST /api/groups", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Name    string   `json:"name"`
+			Members []string `json:"members"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 16<<10)).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {name, members}"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		g, err := cli.CreateGroup(ctx, in.Name, in.Members)
+		if err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"group": g})
+	})
 	mux.HandleFunc("POST /api/send", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			To    string   `json:"to"`
