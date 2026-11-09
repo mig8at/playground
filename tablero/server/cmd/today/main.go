@@ -55,7 +55,7 @@ type task struct {
 	ID                                       int
 	Archived                                 bool
 	Branches                                 []string
-	Jira, Nodes, Knowledge                   []string
+	Jira, Nodes, Knowledge, Chat             []string
 	Body                                     string
 	Touch                                    time.Time // último cambio del archivo (git; hoy si está sucio)
 }
@@ -112,6 +112,9 @@ func readTaskFile(path string, touches map[string]string) task {
 				t.Jira = list(l)
 			case strings.HasPrefix(l, "knowledge:"):
 				t.Knowledge = list(l)
+			case strings.HasPrefix(l, "chat:"):
+				// Dónde se habla de la tarea en el chat del equipo: un grupo (`#ecommerce`) o personas (`duncan`).
+				t.Chat = list(l)
 			case strings.HasPrefix(l, "canon:"):
 				t.Nodes = list(l)
 			case strings.HasPrefix(l, "ramas:"):
@@ -669,7 +672,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
-			"knowledge": localContext,
+			"knowledge": localContext, "chat": t.Chat,
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
@@ -817,8 +820,25 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
 	}
 	printKnowledgeContext(localContext)
+	printChat(t.Chat)
 	fmt.Println()
 	return 0
+}
+
+// printChat: dónde se habla de la tarea en el chat del equipo (`chat:` del task.md) y cómo leerlo. Seguirlo en vivo
+// es sólo si Miguel lo pide (CLAUDE.md).
+func printChat(chat []string) {
+	if len(chat) == 0 {
+		return
+	}
+	quoted := make([]string, len(chat))
+	for i, c := range chat {
+		quoted[i] = "'" + c + "'"
+	}
+	who := strings.Join(quoted, " ")
+	fmt.Println("\n  ── El chat de la tarea ──")
+	fmt.Printf("  %s\n", strings.Join(chat, " · "))
+	fmt.Printf("  contexto: bin/chat history %s · en vivo (sólo si Miguel lo pide): bin/chat follow %s --theirs\n", quoted[0], who)
 }
 
 // fit parte un texto largo en renglones de a lo sumo `width` runas, sangrando los siguientes con

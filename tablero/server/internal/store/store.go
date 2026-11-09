@@ -304,6 +304,7 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 		// en el archivo son una lista YAML, que es lo legible
 		CanonTopics:     strings.Join(yamlList(fm["canon"]), ","),
 		KnowledgeTopics: strings.Join(yamlList(fm["knowledge"]), ","),
+		ChatThreads:     strings.Join(yamlList(fm["chat"]), ","),
 		BranchPatterns:  fm["ramas"],
 	}
 	if e.Stage == "" {
@@ -582,6 +583,9 @@ type Effort struct {
 	// entero como evidencia de una decisión puntual.
 	CanonTopics     string `json:"canon"`
 	KnowledgeTopics string `json:"knowledge"`
+	// Dónde se habla de la tarea en el chat del equipo: un grupo (`#ecommerce`) o personas (`duncan`), separados por
+	// coma. `make retomar` y `make agente` lo leen para dar el contexto con `bin/chat`.
+	ChatThreads string `json:"chat,omitempty"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no
 	// derivada: "evaluando" y "trabajando" se distinguen por decisión, no por si ya hay tarea.
@@ -849,6 +853,10 @@ func (s *Store) writeEffort(id int64) error {
 	fmt.Fprintf(&b, "knowledge: [%s]\n", strings.Join(yamlList(e.KnowledgeTopics), ", "))
 	fmt.Fprintf(&b, "canon: [%s]\n", strings.Join(yamlList(e.CanonTopics), ", "))
 	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(keys, ", "))
+	// Sólo si hay: la mayoría de las tareas no tiene un hilo propio en el chat.
+	if e.ChatThreads != "" {
+		fmt.Fprintf(&b, "chat: [%s]\n", strings.Join(yamlList(e.ChatThreads), ", "))
+	}
 	fmt.Fprintf(&b, "jira_title: %s\n", escapeYAML(e.JiraTitle))
 	// Sólo si hay patrón: una tarea que no toca código no debería cargar una clave vacía.
 	if e.BranchPatterns != "" {

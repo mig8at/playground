@@ -109,6 +109,7 @@ type taskView struct {
 			Title string `json:"title"`
 		} `json:"topics"`
 	} `json:"knowledge"`
+	Chat []string `json:"chat"`
 }
 
 func main() {
@@ -419,8 +420,13 @@ func shareAny(a, b []string) bool {
 // steps: el recorrido del frente «un agente saca una tarea solo», con la tarea ya puesta en cada comando.
 func steps(task taskView) []step {
 	id := fmt.Sprint(task.ID)
+	first := "make retomar N=" + id + " · make knowledge-search Q='…'"
+	if len(task.Chat) > 0 {
+		// Lo que se habló de la tarea en el chat del equipo también es contexto.
+		first += " · bin/chat history '" + task.Chat[0] + "'"
+	}
 	return []step{
-		{1, "¿qué pide, qué se hizo y qué se sabe?", "make retomar N=" + id + " · make knowledge-search Q='…'"},
+		{1, "¿qué pide, qué se hizo y qué se sabe?", first},
 		{2, "¿qué corrida dice «hecho», y contra qué ambiente?", "escribirla antes de tocar nada como S# en `## Specs` de la tarea, con su comando (el ambiente más chico)"},
 		{3, "¿una corrida ahora diría la verdad?", "make harness-doctor TARGET=local · make keyring · en remoto, make harness-env-drift TARGET=…"},
 		{4, "¿pasa, y cuánto?", "make harness-case|harness-listing|harness-walk-wizard TARGET=… JSON=1 · prod sólo lectura: bin/pg request timeline|events request|sql --target prod"},

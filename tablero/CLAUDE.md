@@ -210,6 +210,10 @@ no se escribe a mano. Se lee con `make pulso`. El pulso dice **cuándo**; la bit
 `knowledge:`. Acepta `lender-listing` o `lender-listing#ancla`. Lee `knowledge/<topic>/rules.md` y sus
 fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, sin cortar una regla.
 
+`chat:` dice dónde se habla de la tarea en el chat del equipo: un grupo o personas (`chat: ['#ecommerce', duncan]`;
+el `#` va entre comillas). `make retomar` y `make agente` lo muestran con `bin/chat history` para el contexto; seguirlo
+en vivo (`bin/chat follow … --theirs`) es sólo si Miguel lo pide.
+
 No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
 se puede comprobar en local, Canon es opcional. Las tareas históricas conservan `canon:`:
 `BRIEF=1` consulta su API, sólo cuando hace falta. No hay copia local de Canon.
