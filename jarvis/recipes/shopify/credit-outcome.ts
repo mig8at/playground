@@ -3,6 +3,8 @@
 //
 //   make jarvis-recipe APP=shopify RECIPE=credit-outcome                          aprobada: la solicitud en 11
 //   make jarvis-recipe APP=shopify RECIPE=credit-outcome ARGS='--outcome negada'  o cancelada
+//   make jarvis-recipe APP=shopify RECIPE=credit-outcome ARGS='--app dev'         con la app desplegada en dev
+//   (medido el 2026-11-09: pedido #1032 PAID, solicitud 504801 en 11, sin la vista previa de `shopify app dev`)
 //
 // 1. El checkout de `creditop-dev-store` en el Chrome de la persona (Jarvis): el carrito con la BMX (`--variant`), el
 //    comprador sintético del harness, «Creditop» como medio de pago y «Pay now». Shopify llama a la app de Creditop
@@ -41,10 +43,19 @@ const run = promisify(execFile);
 const t0 = Date.now();
 const secs = () => `${((Date.now() - t0) / 1000).toFixed(0)} s`;
 
-// ── 0 · ¿está la app de pagos? (el servidor del chat) ──
-const ready = await fetch('http://localhost:5184/api/servers').then((r) => r.json()).then((d: any) => d.servers?.find((s: any) => s.id === 'shopify')?.ready).catch(() => null);
-if (ready === false) { console.error('  ✗ la app de pagos de Shopify no está lista: make chat → Servers → «Shopify · app de pagos» → Levantar'); process.exit(2); }
-if (ready === null) say('⚠ no pude preguntarle al chat si la app de pagos está lista (¿make chat apagado?): sigo igual');
+// ── 0 · ¿está la app de pagos? ──
+// `--app dev`: la app desplegada en dev (la versión publicada de la app, sin la vista previa de `shopify app dev` en la
+// tienda). Sin el flag, la app local del túnel, que la levanta el servidor del chat.
+const DEV_APP = 'https://shopify-app.dev.creditop.com';
+if (flag('app') === 'dev') {
+    const code = await fetch(DEV_APP, { redirect: 'manual' }).then((r) => r.status).catch(() => 0);
+    if (code !== 200) { console.error(`  ✗ la app de pagos en dev no contesta (${DEV_APP} → ${code || 'sin respuesta'})`); process.exit(2); }
+    say(`la app de pagos: la de dev (${DEV_APP})`);
+} else {
+    const ready = await fetch('http://localhost:5184/api/servers').then((r) => r.json()).then((d: any) => d.servers?.find((s: any) => s.id === 'shopify')?.ready).catch(() => null);
+    if (ready === false) { console.error('  ✗ la app de pagos de Shopify no está lista: make chat → Servers → «Shopify · app de pagos» → Levantar (o --app dev, la desplegada)'); process.exit(2); }
+    if (ready === null) say('⚠ no pude preguntarle al chat si la app de pagos está lista (¿make chat apagado?): sigo igual');
+}
 
 // ── 1 · el checkout, en el Chrome de la persona ──
 let wizard = '';
@@ -106,6 +117,17 @@ let applied = '';
 let creditopSaid = '?';
 let how = 'aviso';
 const readApp = async () => {
+    // Con `--app dev` no hay un contenedor local que leer: lo que la app aplicó se ve en Shopify. Una aprobada crea el
+    // pedido pagado; una rechazada no crea nada, así que con la app de dev no se distingue de un aviso que no llegó.
+    if (flag('app') === 'dev') {
+        const { graphql } = await import('./api.ts');
+        const d = await graphql<any>(`{ orders(first: 5, sortKey: CREATED_AT, reverse: true) { nodes { createdAt paymentGatewayNames } } }`);
+        if (d.orders.nodes.some((x: any) => Date.parse(x.createdAt) >= t0 - 60_000 && x.paymentGatewayNames.some((g: string) => /creditop/i.test(g)))) {
+            applied = 'resolved';
+            how = 'pedido en Shopify';
+        }
+        return;
+    }
     const { stdout, stderr } = await run('docker', ['logs', '--since', `${Math.ceil((Date.now() - t0) / 1000) + 5}s`, 'shopify-app-app-qa-1'], { maxBuffer: 20 << 20 });
     const log = stdout + stderr;
     for (const [marker, kind] of [['creditop.webhook.applied', 'aviso'], ['creditop.reconcile.applied', 'conciliación']] as const) {
