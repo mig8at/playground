@@ -409,6 +409,21 @@ function addFiles(list) {
 }
 function onPickFiles(e) { addFiles([...e.target.files]); e.target.value = '' }
 function onDropFiles(e) { if (canAttach.value && e.dataTransfer?.files?.length) addFiles([...e.dataTransfer.files]) }
+/* Pegar del portapapeles (Cmd+V): si trae archivos —una captura de pantalla, una imagen copiada— se adjuntan como al
+   arrastrarlos; si es sólo texto, el pegado sigue normal. Una captura llega como «image.png»: se le pone la hora para
+   que dos no se llamen igual. */
+function onPasteFiles(e) {
+  if (!canAttach.value) return
+  const files = [...(e.clipboardData?.items || [])].filter((it) => it.kind === 'file').map((it) => it.getAsFile()).filter(Boolean)
+  if (!files.length) return
+  e.preventDefault()
+  const now = new Date()
+  const two = (n) => String(n).padStart(2, '0')
+  const stamp = `${now.getFullYear()}${two(now.getMonth() + 1)}${two(now.getDate())}-${two(now.getHours())}${two(now.getMinutes())}${two(now.getSeconds())}`
+  addFiles(files.map((f, i) => (/^image\.\w+$/i.test(f.name)
+    ? new File([f], `captura-${stamp}${files.length > 1 ? `-${i + 1}` : ''}.${f.name.split('.').pop()}`, { type: f.type })
+    : f)))
+}
 const sizeText = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`)
 const isPdf = (f) => /\.pdf$/i.test(f.name || '')
 /* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
@@ -1005,7 +1020,7 @@ const statusText = computed(() => {
             </template>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
-                      maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize"></textarea>
+                      maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize" @paste="onPasteFiles"></textarea>
             <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent ? 'Preguntar' : 'Mandar' }}</button>
           </div>
         </form>
