@@ -112,6 +112,14 @@ keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las m
 	@cd keyring && npm run dev
 ecommerce: ## @dia abre ecommerce (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa (la base compartida). ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en ecommerce/.backups/. Por consola: go run ./ecommerce/server -target qa -q <url|número>
 	@cd ecommerce && npm run dev
+.PHONY: captura
+captura: ## @dia captura de pantalla por ARRASTRE (Captura.app nativa, captura/main.swift): oscurece las pantallas, arrastrás y soltás; queda en captura/shots/, en el portapapeles y su ruta sale por stdout. Esc cancela (sale 1). [OUT=<carpeta>] [NO_CLIP=1]. La 1.ª vez macOS pide «Grabación de pantalla» para Captura (una sola vez, no por terminal)
+	@captura/build.sh
+	@r=$(CURDIR)/captura/.build/result.txt; : > $$r; \
+	 open -W -n captura/.build/Captura.app --args --out "$(abspath $(or $(OUT),captura/shots))" --result $$r $(if $(NO_CLIP),--no-clip); \
+	 l=$$(cat $$r); \
+	 case "$$l" in "ok "*) echo "$${l#ok }";; cancel) exit 1;; "") echo "  ✗ Captura se cerró sin resultado" >&2; exit 2;; *) echo "  ✗ $${l#error }" >&2; exit 2;; esac
+
 chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial queda en el navegador
 	@cd chat && npm run dev
 agents: ## @dia prende tus agentes del chat del playground (agents/*, cada uno su proceso: time :5186). Se declaran en ~/playground/team/agents.json y los anuncia `playground listen`; `playground agents check` dice si contestan
