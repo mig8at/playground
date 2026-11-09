@@ -1,0 +1,73 @@
+{
+  "nombre": "Cancelación de punta a punta en local: compra, wizard, la tienda cancela, el wizard lo muestra",
+  "meta": "Cancelación de punta a punta en local: compra, wizard, la tienda cancela, el wizard lo muestra",
+  "inicio": "http://localhost:8113/",
+  "dispositivo": "chrome",
+  "creado": "2026-11-09T11:11:01.491231-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-09_11-09-56",
+  "pasos": [
+    {
+      "accion": "select",
+      "objetivo": "Sucursal de la tienda (una tienda = una sucursal)",
+      "valor": "69364350",
+      "instruccion": "Elegí «69364350» en «Sucursal de la tienda (una tienda = una sucursal)»",
+      "porque": "Compra VTEX con la sucursal de Mario",
+      "dato": "Sucursal de la tienda (una tienda = una sucursal)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Sucursal de la tienda (una tienda = una sucursal)",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Sucursal de la tienda (una tienda = una sucursal)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Sucursal de la tienda (una tienda = una sucursal)', exact: true }).selectOption('69364350')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Pagar con CreditOp",
+      "instruccion": "Hacé clic en «Pagar con CreditOp»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Pagar con CreditOp",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Pagar con CreditOp', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Pagar con CreditOp', exact: true }).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Ir a CreditOp",
+      "valor": "Ir a CreditOp",
+      "instruccion": "Comprobá que se vea «Ir a CreditOp»",
+      "codigo": "expect(page.getByText('Ir a CreditOp').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Cancelar pedido (la tienda)",
+      "instruccion": "Hacé clic en «Cancelar pedido (la tienda)»",
+      "porque": "La tienda cancela el pedido: el conector 5.2.0 llama al endpoint nuevo del backend local",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Cancelar pedido (la tienda)",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Cancelar pedido (la tienda)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Cancelar pedido (la tienda)', exact: true }).click()"
+    }
+  ]
+}

@@ -6,7 +6,7 @@ created: "2026-11-09T10:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
 jira: []
-ramas: "vtex:ecommerce-cancel"
+ramas: "vtex:ecommerce-cancel, legacy-backend:ecommerce-cancelar-pedido, frontend-monorepo:ecommerce-cancelacion"
 jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde la tienda o desde el comprador"
 ---
 
@@ -25,9 +25,9 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
 - [ ] Pieza A · Shopify: la app manda `back_url` a payment-link apuntando a una ruta propia que rechaza la sesión
       (`CANCELLED_PAYMENT`) y devuelve al comprador al `cancel_url` de Shopify. No espera a Producto; termina con
       una compra en `creditop-dev-store` que se cancela desde el wizard y vuelve al checkout. (Va en la #103.)
-- [ ] Pieza B · wizard: el link «Volver a la tienda» (hoy sólo en el listado vacío, tarea #104) en todas las
-      pantallas de un pedido de tienda hasta antes de firmar. Termina con la regla acordada con Oscar en la pila.
-      Depende de: Oscar — en la #104 se descartó mostrarlo cuando hay opciones; Shopify lo exige (5.2.6).
+- [ ] Pieza B · wizard: «¿Prefieres pagar de otra forma? Volver a la tienda», discreto al final de cada pantalla de
+      tienda (menos el listado y la de aprobado). Oscar dio el visto bueno (2026-11-09). Hecho en la rama
+      `feat/ecommerce-cancelacion` de frontend-monorepo, sin push; termina con el PR mergeado.
 - [ ] Decidir si «Volver a la tienda» CANCELA la solicitud (la deja en 8 y la tienda se entera por el aviso) o sólo
       saca al comprador (la solicitud queda abierta hasta que venza). Termina con la regla en «Cómo se ataca».
       Depende de: Producto — si salir es arrepentirse.
@@ -37,13 +37,11 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
 - [ ] Decidir qué pasa si llega el webhook de una entidad sobre una solicitud ya en 8 (rt=0 o rt=1 que decidió afuera):
       se ignora y se registra, o se reabre. Termina con la regla escrita. Depende de: Producto — junto con el punto sin
       vuelta (es la misma pregunta abierta en la #102 sobre salir de un estado final por webhook).
-- [ ] Pieza C · backend: `POST /api/ecommerce/orders/{order_key}/cancel`, con las reglas de «Cómo se ataca». Termina
-      con 200 al cancelar, 409 con una solicitud en 11 sin tocarla (estado y `updated_at` iguales, sin aviso a la
-      tienda) y la misma respuesta al repetir, en qa con la sucursal de pruebas de VTEX. Depende de: los cinco
-      pendientes de decisión y la verificación del estado 8 de arriba.
-- [ ] Pieza D · wizard: al cancelar la tienda, el aviso por Pusher y la revisión al cargar cada pantalla de tienda
-      (`detail` y `by-user-request` tienen que devolver el estado de cancelación y el motivo; hoy no lo hacen). Termina
-      con la pantalla de cancelación visible sin recargar y al recargar. Depende de: la pieza C y el texto de Producto.
+- [ ] Pieza C · backend: `POST /api/ecommerce/orders/{orderKey}/cancel`. Hecho en la rama `feat/ecommerce-cancelar-pedido`
+      de legacy-backend (desde `qa`, sin push), con el punto sin vuelta provisional en 10 y el catálogo provisional
+      `store_cancelled · out_of_stock · expired · other`. Termina con el PR mergeado y las decisiones de Producto aplicadas.
+- [ ] Pieza D · wizard: la pantalla «La tienda canceló tu compra», por Pusher (canal `EcommerceRequest.{id}`) y al cargar
+      cada pantalla. Hecho en la misma rama de frontend-monorepo; el aviso en vivo no se probó (Pusher no está en local).
 - [ ] Pieza E · conector VTEX: su `cancel` llama a la pieza C antes de contestarle a VTEX y devuelve el
       `requestId`. Hecho en la rama `feat/ecommerce-cancel` (5.2.0, sin publicar ni push): 200 aprueba, 409
       `cancel-manually`, sin respuesta niega sin guardar, y un 404 (el endpoint todavía no existe) decide por el estado
