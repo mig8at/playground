@@ -6,7 +6,10 @@ cd "$(dirname "$0")/../.." || exit 0
 # Cada agente se compila y corre él mismo (no con `go run`, que al apagarlo deja vivo al binario): así apagar este
 # proceso apaga a los agentes que prendió.
 bin=$(mktemp -d)
-trap 'kill $pids 2>/dev/null; rm -rf "$bin"; exit 0' INT TERM
+# El `sleep` de la espera también se mata: si queda vivo, sigue con la salida de este proceso abierta y `concurrently`
+# espera a que se cierre (hasta una hora) antes de soltar la terminal. Por eso Ctrl-C no cortaba.
+trap 'kill $pids $sleeper 2>/dev/null; rm -rf "$bin"; exit 0' INT TERM
+sleeper=''
 pids=''
 for d in agents/*/; do
   name=$(basename "$d")
@@ -22,4 +25,4 @@ for d in agents/*/; do
   pids="$pids $!"
 done
 # `wait` y no `sleep` solo: con el sleep en primer plano, la trampa no corre hasta que termina.
-while :; do sleep 3600 & wait $!; done
+while :; do sleep 3600 & sleeper=$!; wait $sleeper; done
