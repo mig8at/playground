@@ -193,10 +193,10 @@ func (h *history) collect(ctx context.Context) ([]cli.Message, error) {
 
 // fetchImage baja una imagen recibida al caché del chat (como WhatsApp), una vez. Lo demás se baja con «Bajar».
 func (h *history) fetchImage(ctx context.Context, f cli.File) {
-	if f.ID == "" || f.Size > imageAutoMax || !imageName.MatchString(f.Name) || (f.Type != "" && !strings.HasPrefix(f.Type, "image/")) {
+	if h.adopt(f) {
 		return
 	}
-	if _, ok := h.savedFile(f.ID); ok {
+	if f.ID == "" || f.Size > imageAutoMax || !imageName.MatchString(f.Name) || (f.Type != "" && !strings.HasPrefix(f.Type, "image/")) {
 		return
 	}
 	dir, err := cacheDir()
@@ -230,36 +230,42 @@ func fetchImagesOf(messages []cli.Message) {
 }
 
 // adoptCached reconoce los adjuntos que ya están en el caché del chat (bajados antes de que existiera este
-// historial, o por otra vía), para no pedirlos otra vez: el home ya pudo haberlos borrado. Por su nombre y su sha256;
-// el mensaje no siempre trae la huella, y entonces por nombre y tamaño exacto.
+// historial, o por otra vía), para no pedirlos otra vez: el home ya pudo haberlos borrado.
 func (h *history) adoptCached() {
-	dir, err := cacheDir()
-	if err != nil {
-		return
-	}
 	for _, m := range h.all() {
 		for _, f := range m.Files {
-			if f.ID == "" {
-				continue
-			}
-			if _, ok := h.savedFile(f.ID); ok {
-				continue
-			}
-			p := filepath.Join(dir, filepath.Base(f.Name))
-			b, err := os.ReadFile(p)
-			if err != nil {
-				continue
-			}
-			sum := sha256.Sum256(b)
-			same := f.SHA256 != "" && hex.EncodeToString(sum[:]) == f.SHA256
-			if f.SHA256 == "" {
-				same = f.Size > 0 && int64(len(b)) == f.Size
-			}
-			if same {
-				h.rememberFile(f.ID, p)
-			}
+			h.adopt(f)
 		}
 	}
+}
+
+// adopt da por bajado un adjunto si su archivo ya está en el caché: por su sha256 y, como el mensaje no siempre trae
+// la huella, por nombre y tamaño exacto. Devuelve si quedó bajado.
+func (h *history) adopt(f cli.File) bool {
+	if f.ID == "" {
+		return false
+	}
+	if _, ok := h.savedFile(f.ID); ok {
+		return true
+	}
+	dir, err := cacheDir()
+	if err != nil {
+		return false
+	}
+	p := filepath.Join(dir, filepath.Base(f.Name))
+	b, err := os.ReadFile(p)
+	if err != nil {
+		return false
+	}
+	sum := sha256.Sum256(b)
+	same := f.SHA256 != "" && hex.EncodeToString(sum[:]) == f.SHA256
+	if f.SHA256 == "" {
+		same = f.Size > 0 && int64(len(b)) == f.Size
+	}
+	if same {
+		h.rememberFile(f.ID, p)
+	}
+	return same
 }
 
 // run recolecta cada `every` mientras viva el servidor.
