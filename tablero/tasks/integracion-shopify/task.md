@@ -5,13 +5,17 @@ stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
-jira: [CORE-801, CORE-689]
+jira: [CORE-801, CORE-689, CORE-932]
 jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
 ramas: core-801-shopify-payment-link, core-689-shopify-platform
 ---
 
 ## Pendientes
 
+- [ ] Desplegar la app de pagos (ECR, secreto, Postgres, servicio, ALB con dominio fijo y mTLS) y mergear
+      [shopify#23](https://github.com/Creditop-SAS/shopify/pull/23) (la app fuera del admin, el servidor detrás del
+      proxy y el nombre Creditop) antes. Termina con la app en su dominio y `npm run deploy` hecho.
+      Depende de: Dani — infra, en [CORE-932](jira:CORE-932)
 - [ ] Dar al comprador cómo cancelar y volver al checkout (requisito 5.2.6 de la App Store): la app manda `back_url`
       a payment-link y rechaza la sesión al volver. Es la pieza A del estándar de la tarea #112
       (`ecommerce-cancelacion-de-pedidos`); el link en todas las pantallas del wizard es su pieza B. Termina con una
