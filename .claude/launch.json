@@ -336,24 +336,46 @@
       }
     },
     {
-      "name": "navegador",
+      "name": "jarvis",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
         "dev"
       ],
-      "cwd": "navegador",
+      "cwd": "jarvis",
       "port": 5202
     },
     {
-      "name": "navegador-prueba",
+      "name": "jarvis-prueba",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
-        "(cd .. && NAVEGADOR_CLAUDE=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/claude-admin.py NAVEGADOR_DATA=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/nav-ui NAVEGADOR_FLUJOS=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/flujos NAVEGADOR_APPS_PORT_OFFSET=10 go run ./navegador/server -serve 127.0.0.1:5213) & NAVEGADOR_WEB=5212 NAVEGADOR_API=http://127.0.0.1:5213 npx vite"
+        "(cd .. && JARVIS_CLAUDE=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/claude-admin.py JARVIS_DATA=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/nav-ui JARVIS_FLUJOS=/tmp/claude-1000/-home-miguel-Workspace-Miguel-playground/ac30d045-87e1-464f-875f-0a24c8a1a0bc/scratchpad/flujos JARVIS_APPS_PORT_OFFSET=10 go run ./jarvis/server -serve 127.0.0.1:5213) & JARVIS_WEB=5212 JARVIS_API=http://127.0.0.1:5213 npx vite"
       ],
-      "cwd": "navegador",
+      "cwd": "jarvis",
       "port": 5212
+    },
+    {
+      "name": "ecommerce-v2",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "ecommerce-v2",
+      "port": 5186,
+      "autoPort": false
+    },
+    {
+      "name": "ecommerce-v2-alt",
+      "runtimeExecutable": "sh",
+      "runtimeArgs": [
+        "-c",
+        "(go run ./server -serve 127.0.0.1:5288) & ECOMMERCE_API=http://127.0.0.1:5288 exec npx vite --port 5289 --strictPort"
+      ],
+      "cwd": "ecommerce-v2",
+      "port": 5289,
+      "autoPort": false
     }
   ]
 }

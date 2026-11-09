@@ -1,0 +1,168 @@
+{
+  "nombre": "Elegir la distribución de la app «Jarvis · Admin API (pruebas)» (personalizada, sólo tiendas de CREDITOP)",
+  "meta": "Elegir la distribución de la app «Jarvis · Admin API (pruebas)» (personalizada, sólo tiendas de CREDITOP)",
+  "inicio": "https://partners.shopify.com/org/167881494/org_apps/444966731777/distribution",
+  "dispositivo": "chrome",
+  "creado": "2026-11-07T16:46:29.616935-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-07_16-42-37",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Distribución personalizada",
+      "instruccion": "Hacé clic en «Distribución personalizada»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Distribución personalizada",
+          "visible": true,
+          "code": "page.getByText('Distribución personalizada', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Distribución personalizada', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Seleccionar",
+      "instruccion": "Hacé clic en «Seleccionar»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Seleccionar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Seleccionar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Seleccionar', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Seleccionar distribución personalizada",
+      "instruccion": "Hacé clic en «Seleccionar distribución personalizada»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Seleccionar distribución personalizada",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Seleccionar distribución personalizada', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Seleccionar distribución personalizada', exact: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Dominio de la tienda",
+      "valor": "creditop-dev-store.myshopify.com",
+      "instruccion": "Escribí «creditop-dev-store.myshopify.com» en «Dominio de la tienda»",
+      "dato": "Dominio de la tienda",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Dominio de la tienda",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Dominio de la tienda', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Dominio de la tienda', exact: true }).fill('creditop-dev-store.myshopify.com')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Permitir instalación en varias tiendas para una organización de Shopify Plus",
+      "instruccion": "Hacé clic en «Permitir instalación en varias tiendas para una organización de Shopify Plus»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Permitir instalación en varias tiendas para una organización de Shopify Plus",
+          "visible": true,
+          "code": "page.getByText('Permitir instalación en varias tiendas para una organización de Shopify Plus', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Permitir instalación en varias tiendas para una organización de Shopify Plus', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Generar enlace",
+      "instruccion": "Hacé clic en «Generar enlace»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Generar enlace",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Generar enlace', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Generar enlace', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Generar enlace",
+      "instruccion": "Hacé clic en «Generar enlace»",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Generar enlace",
+          "exact": true,
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Generar enlace', exact: true }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Generar enlace', exact: true }).nth(1).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Solicitudes de acceso a la API",
+      "instruccion": "Hacé clic en «Solicitudes de acceso a la API»",
+      "porque": "Ahora la solicitud de datos protegidos de clientes",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Solicitudes de acceso a la API",
+          "visible": true,
+          "code": "page.getByText('Solicitudes de acceso a la API', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Solicitudes de acceso a la API', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "scroll-page",
+      "objetivo": "bajar la página",
+      "instruccion": "Bajá la página",
+      "codigo": "page.evaluate(() =\u003e window.scrollTo(0, document.body.scrollHeight))"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/444966731777/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/444966731777/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/444966731777/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/444966731777/settings')"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/444966731777/versions",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/444966731777/versions",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/444966731777/versions",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/444966731777/versions')"
+    }
+  ]
+}

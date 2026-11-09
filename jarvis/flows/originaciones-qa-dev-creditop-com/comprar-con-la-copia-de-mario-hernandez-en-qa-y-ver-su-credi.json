@@ -1,0 +1,206 @@
+{
+  "nombre": "Comprar con la copia de Mario Hernández en qa y ver su CreditopX en el listado",
+  "meta": "Comprar con la copia de Mario Hernández en qa y ver su CreditopX en el listado",
+  "inicio": "https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/checkout?ref=a8ae30f3-aaf8-4567-9245-a81267f6e608",
+  "dispositivo": "desktop",
+  "creado": "2026-11-06T13:46:31.69949-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-06_13-39-44",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "porque": "El celular viene del pedido: sigo al código",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "phone-submit",
+          "code": "page.getByTestId('phone-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('phone-submit').click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "otp",
+      "valor": "8239",
+      "instruccion": "Escribí «8239» en «otp»",
+      "dato": "otp",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-input",
+          "code": "page.getByTestId('otp-input')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-input').fill('8239')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Confirmar",
+      "instruccion": "Hacé clic en «Confirmar»",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-submit",
+          "code": "page.getByTestId('otp-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-submit').click()"
+    },
+    {
+      "accion": "check",
+      "objetivo": "C.C.",
+      "instruccion": "Marcá «C.C.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "radio",
+          "value": "C.C.",
+          "exact": true,
+          "code": "page.getByRole('radio', { name: 'C.C.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('radio', { name: 'C.C.', exact: true }).check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Siguiente",
+      "instruccion": "Hacé clic en «Siguiente»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Siguiente",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Siguiente', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Siguiente', exact: true }).click()"
+    },
+    {
+      "accion": "check",
+      "objetivo": "confirmIdentity",
+      "instruccion": "Marcá «confirmIdentity»",
+      "porque": "La fecha de expedición vino del pedido: sólo confirmo la identidad",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#confirmIdentity",
+          "code": "page.locator('#confirmIdentity')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('#confirmIdentity').check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Continuar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Continuar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Continuar', exact: true }).click()"
+    },
+    {
+      "accion": "press",
+      "objetivo": "Monto a solicitar",
+      "valor": "Enter",
+      "instruccion": "Apretá Enter en «Monto a solicitar»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Monto a solicitar",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Monto a solicitar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Monto a solicitar', exact: true }).press('Enter')"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/checkout?ref=46b2f57a-b447-4956-83cf-b681f01cc024",
+      "valor": "https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/checkout?ref=46b2f57a-b447-4956-83cf-b681f01cc024",
+      "instruccion": "Abrí https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/checkout?ref=46b2f57a-b447-4956-83cf-b681f01cc024",
+      "porque": "Pedido nuevo por 1.000.000, dentro de la línea de Mario",
+      "codigo": "page.goto('https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/checkout?ref=46b2f57a-b447-4956-83cf-b681f01cc024')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "phone-submit",
+          "code": "page.getByTestId('phone-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('phone-submit').click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "otp",
+      "valor": "8852",
+      "instruccion": "Escribí «8852» en «otp»",
+      "dato": "otp",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-input",
+          "code": "page.getByTestId('otp-input')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-input').fill('8852')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Confirmar",
+      "instruccion": "Hacé clic en «Confirmar»",
+      "ref": {
+        "loc": {
+          "kind": "testid",
+          "value": "otp-submit",
+          "code": "page.getByTestId('otp-submit')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByTestId('otp-submit').click()"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "porque": "Con los rangos del multiplicador cargados, recargo el listado",
+      "codigo": "page.reload()"
+    }
+  ]
+}

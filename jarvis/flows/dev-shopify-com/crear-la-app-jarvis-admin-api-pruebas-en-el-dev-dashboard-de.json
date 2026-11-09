@@ -1,0 +1,320 @@
+{
+  "nombre": "Crear la app «Jarvis · Admin API (pruebas)» en el Dev Dashboard de Shopify (organización CREDITOP)",
+  "meta": "Crear la app «Jarvis · Admin API (pruebas)» en el Dev Dashboard de Shopify (organización CREDITOP)",
+  "inicio": "https://dev.shopify.com/dashboard",
+  "dispositivo": "chrome",
+  "creado": "2026-11-07T15:51:35.828525-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-07_15-46-24",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Apps",
+      "instruccion": "Hacé clic en «Apps»",
+      "porque": "Voy a la lista de apps para crear una nueva",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Apps",
+          "exact": true,
+          "code": "page.getByRole('link', { name: 'Apps', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('link', { name: 'Apps', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Crear app",
+      "instruccion": "Hacé clic en «Crear app»",
+      "porque": "Creo la app nueva",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Crear app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Crear app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Crear app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Crear app de forma manual Usa el formulario del Dev Dashboard en su lugar",
+      "instruccion": "Hacé clic en «Crear app de forma manual Usa el formulario del Dev Dashboard en su lugar»",
+      "porque": "Elijo crearla con el formulario del Dev Dashboard (sin CLI)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Crear app de forma manual Usa el formulario del Dev Dashboard en su lugar",
+          "exact": true,
+          "code": "page.getByRole('link', { name: 'Crear app de forma manual Usa el formulario del Dev Dashboard en su lugar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('link', { name: 'Crear app de forma manual Usa el formulario del Dev Dashboard en su lugar', exact: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre de la app",
+      "valor": "Jarvis · Admin API (pruebas)",
+      "instruccion": "Escribí «Jarvis · Admin API (pruebas)» en «Nombre de la app»",
+      "porque": "Nombre, la URL por defecto (no es una app incrustada) y los permisos de Admin API para las recetas",
+      "dato": "Nombre de la app",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre de la app",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre de la app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre de la app', exact: true }).fill('Jarvis · Admin API (pruebas)')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre de la versión (opcional)",
+      "valor": "v1 · recetas de Jarvis",
+      "instruccion": "Escribí «v1 · recetas de Jarvis» en «Nombre de la versión (opcional)»",
+      "dato": "Nombre de la versión (opcional)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre de la versión (opcional)",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre de la versión (opcional)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre de la versión (opcional)', exact: true }).fill('v1 · recetas de Jarvis')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "URL de la app",
+      "valor": "https://shopify.dev/apps/default-app-home",
+      "instruccion": "Escribí «https://shopify.dev/apps/default-app-home» en «URL de la app»",
+      "dato": "URL de la app",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "URL de la app",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'URL de la app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'URL de la app', exact: true }).fill('https://shopify.dev/apps/default-app-home')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Alcances",
+      "valor": "read_products,write_products,read_orders,write_orders,read_draft_orders,write_draft_orders,read_discounts,write_discounts,read_inventory,write_inventory,read_publications,write_publications,read_locations",
+      "instruccion": "Escribí «read_products,write_products,read_orders,write_orders,read_draft_orders,write_draft_orders,read_discounts,write_discounts,read_inventory,write_inventory,read_publications,write_publications,read_locations» en «Alcances»",
+      "dato": "Alcances",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Alcances",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Alcances', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Alcances', exact: true }).fill('read_products,write_products,read_orders,write_orders,read_draft_orders,write_draft_orders,read_discounts,write_discounts,read_inventory,write_inventory,read_publications,write_publications,read_locations')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre de la versión (opcional)",
+      "valor": "v1-recetas-jarvis",
+      "instruccion": "Escribí «v1-recetas-jarvis» en «Nombre de la versión (opcional)»",
+      "dato": "Nombre de la versión (opcional)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre de la versión (opcional)",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre de la versión (opcional)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre de la versión (opcional)', exact: true }).fill('v1-recetas-jarvis')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Incrustar app en el panel de control de Shopify",
+      "instruccion": "Hacé clic en «Incrustar app en el panel de control de Shopify»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Incrustar app en el panel de control de Shopify",
+          "visible": true,
+          "code": "page.getByText('Incrustar app en el panel de control de Shopify', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Incrustar app en el panel de control de Shopify', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "scroll-page",
+      "objetivo": "bajar la página",
+      "instruccion": "Bajá la página",
+      "codigo": "page.evaluate(() =\u003e window.scrollTo(0, document.body.scrollHeight))"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Crear app",
+      "instruccion": "Hacé clic en «Crear app»",
+      "porque": "Creo la app (todavía no instala nada en ninguna tienda)",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Crear app",
+          "visible": true,
+          "code": "page.getByText('Crear app', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Crear app', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Descripción (opcional)",
+      "valor": "Admin API para las recetas de Jarvis (playground de Miguel) sobre creditop-dev-store. Sólo pruebas.",
+      "instruccion": "Escribí «Admin API para las recetas de Jarvis (playground de Miguel) sobre creditop-dev-store. Sólo pruebas.» en «Descripción (opcional)»",
+      "dato": "Descripción (opcional)",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Descripción (opcional)",
+          "visible": true,
+          "code": "page.getByText('Descripción (opcional)', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Descripción (opcional)', { exact: true }).filter({ visible: true }).fill('Admin API para las recetas de Jarvis (playground de Miguel) sobre creditop-dev-store. Sólo pruebas.')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Lanzar",
+      "instruccion": "Hacé clic en «Lanzar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Lanzar",
+          "visible": true,
+          "code": "page.getByText('Lanzar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Lanzar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Panel general",
+      "instruccion": "Hacé clic en «Panel general»",
+      "porque": "Voy al panel de la app para instalarla en la tienda de pruebas",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Panel general",
+          "visible": true,
+          "code": "page.getByText('Panel general', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Panel general', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Acciones para Jarvis · Admin API (pruebas)",
+      "instruccion": "Hacé clic en «Acciones para Jarvis · Admin API (pruebas)»",
+      "porque": "Abro el menú de la app para instalarla",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Acciones para Jarvis · Admin API (pruebas)",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Acciones para Jarvis · Admin API (pruebas)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Acciones para Jarvis · Admin API (pruebas)', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Instalar app",
+      "instruccion": "Hacé clic en «Instalar app»",
+      "porque": "Instalar app: abre el flujo OAuth para elegir la tienda",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "menuitem",
+          "value": "Instalar app",
+          "exact": true,
+          "code": "page.getByRole('menuitem', { name: 'Instalar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('menuitem', { name: 'Instalar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://admin.shopify.com/store/creditop-dev-store/oauth/install?client_id=609f634a503413b260eefb52b751cc7d",
+      "valor": "https://admin.shopify.com/store/creditop-dev-store/oauth/install?client_id=609f634a503413b260eefb52b751cc7d",
+      "instruccion": "Abrí https://admin.shopify.com/store/creditop-dev-store/oauth/install?client_id=609f634a503413b260eefb52b751cc7d",
+      "porque": "El enlace de instalación de la app en creditop-dev-store: muestra los permisos antes de instalar",
+      "codigo": "page.goto('https://admin.shopify.com/store/creditop-dev-store/oauth/install?client_id=609f634a503413b260eefb52b751cc7d')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Instalar",
+      "instruccion": "Hacé clic en «Instalar»",
+      "porque": "Instalo la app en creditop-dev-store (la tienda de desarrollo)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Instalar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Instalar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Instalar', exact: true }).click()"
+    }
+  ]
+}

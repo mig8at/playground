@@ -1,0 +1,851 @@
+{
+  "nombre": "Comprar en autoonb con el switch prendido y ver que Creditop no pide SMS",
+  "meta": "Comprar en autoonb con el switch prendido y ver que Creditop no pide SMS",
+  "inicio": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
+  "dispositivo": "desktop",
+  "creado": "2026-11-06T17:17:43.871828-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-06_16-19-07",
+  "pasos": [
+    {
+      "accion": "goto",
+      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/profile')"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Cambiar",
+      "instruccion": "Hacé clic en «Cambiar»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#edit-profile-data",
+          "code": "page.locator('#edit-profile-data')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('#edit-profile-data').click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Correo",
+      "valor": "auto-1093999930@creditop.com",
+      "instruccion": "Escribí «auto-1093999930@creditop.com» en «Correo»",
+      "dato": "Correo",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Correo",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Correo', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Correo', exact: true }).fill('auto-1093999930@creditop.com')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Cédula de Ciudadanía",
+      "valor": "1093999930",
+      "instruccion": "Escribí «1093999930» en «Cédula de Ciudadanía»",
+      "dato": "Cédula de Ciudadanía",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Cédula de Ciudadanía",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('1093999930')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Teléfono / Móvil",
+      "valor": "3139999302",
+      "instruccion": "Escribí «3139999302» en «Teléfono / Móvil»",
+      "dato": "Teléfono / Móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Teléfono / Móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3139999302')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre",
+      "valor": "LAURA",
+      "instruccion": "Escribí «LAURA» en «Nombre»",
+      "dato": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Apellidos",
+      "valor": "AUTO PRUEBA",
+      "instruccion": "Escribí «AUTO PRUEBA» en «Apellidos»",
+      "dato": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para la Entrega",
+      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ir para la Entrega",
+          "visible": true,
+          "code": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "uncheck",
+      "objetivo": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+      "instruccion": "Desmarcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+          "exact": true,
+          "code": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).uncheck()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de nacimiento",
+      "valor": "1990-01-01",
+      "instruccion": "Escribí «1990-01-01» en «Fecha de nacimiento»",
+      "dato": "Fecha de nacimiento",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de nacimiento",
+          "code": "page.getByLabel('Fecha de nacimiento', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de nacimiento', { exact: true }).fill('1990-01-01')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de expedición de la cédula",
+      "valor": "2010-01-01",
+      "instruccion": "Escribí «2010-01-01» en «Fecha de expedición de la cédula»",
+      "dato": "Fecha de expedición de la cédula",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de expedición de la cédula",
+          "code": "page.getByLabel('Fecha de expedición de la cédula', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de expedición de la cédula', { exact: true }).fill('2010-01-01')"
+    },
+    {
+      "accion": "check",
+      "objetivo": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+      "instruccion": "Marcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+          "exact": true,
+          "code": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Comprar ahora",
+      "instruccion": "Hacé clic en «Comprar ahora»",
+      "porque": "Comprar ahora con el switch prendido: Creditop no debería pedir el celular ni el código",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Comprar ahora",
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "valor": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1')"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/profile",
+      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/profile')"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "valor": "auto-1094000653@creditop.com",
+      "instruccion": "Escribí «auto-1094000653@creditop.com» en «Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.»",
+      "dato": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true }).fill('auto-1094000653@creditop.com')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Continuar",
+          "visible": true,
+          "code": "page.getByText('Continuar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre",
+      "valor": "LAURA",
+      "instruccion": "Escribí «LAURA» en «Nombre»",
+      "dato": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Apellidos",
+      "valor": "AUTO PRUEBA",
+      "instruccion": "Escribí «AUTO PRUEBA» en «Apellidos»",
+      "dato": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Cédula de Ciudadanía",
+      "valor": "1094000653",
+      "instruccion": "Escribí «1094000653» en «Cédula de Ciudadanía»",
+      "dato": "Cédula de Ciudadanía",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Cédula de Ciudadanía",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('1094000653')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Teléfono / Móvil",
+      "valor": "3140006533",
+      "instruccion": "Escribí «3140006533» en «Teléfono / Móvil»",
+      "dato": "Teléfono / Móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Teléfono / Móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3140006533')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para la Entrega",
+      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ir para la Entrega",
+          "visible": true,
+          "code": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Departamento",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Departamento»",
+      "dato": "Departamento",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Departamento",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Departamento', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Municipio",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Municipio»",
+      "dato": "Municipio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Municipio",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Municipio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Calle",
+      "valor": "Calle 100 # 10-20",
+      "instruccion": "Escribí «Calle 100 # 10-20» en «Calle»",
+      "dato": "Calle",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Calle",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Calle', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Calle', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Barrio",
+      "valor": "Chicó",
+      "instruccion": "Escribí «Chicó» en «Barrio»",
+      "dato": "Barrio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Barrio",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Barrio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Barrio', exact: true }).fill('Chicó')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para el pago",
+      "instruccion": "Hacé clic en «Ir para el pago»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ir para el pago",
+          "visible": true,
+          "code": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de nacimiento",
+      "valor": "1990-01-01",
+      "instruccion": "Escribí «1990-01-01» en «Fecha de nacimiento»",
+      "dato": "Fecha de nacimiento",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de nacimiento",
+          "code": "page.getByLabel('Fecha de nacimiento', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de nacimiento', { exact: true }).fill('1990-01-01')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de expedición de la cédula",
+      "valor": "2010-01-01",
+      "instruccion": "Escribí «2010-01-01» en «Fecha de expedición de la cédula»",
+      "dato": "Fecha de expedición de la cédula",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de expedición de la cédula",
+          "code": "page.getByLabel('Fecha de expedición de la cédula', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de expedición de la cédula', { exact: true }).fill('2010-01-01')"
+    },
+    {
+      "accion": "check",
+      "objetivo": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+      "instruccion": "Marcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+          "exact": true,
+          "code": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).check()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Comprar ahora",
+      "instruccion": "Hacé clic en «Comprar ahora»",
+      "porque": "Comprar con el switch prendido y el conector corregido: tiene que saltar celular y código",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Comprar ahora",
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "valor": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1')"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/payment')"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "valor": "auto-1094000653@creditop.com",
+      "instruccion": "Escribí «auto-1094000653@creditop.com» en «Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.»",
+      "dato": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true }).fill('auto-1094000653@creditop.com')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Continuar",
+      "instruccion": "Hacé clic en «Continuar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Continuar",
+          "visible": true,
+          "code": "page.getByText('Continuar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Nombre",
+      "valor": "LAURA",
+      "instruccion": "Escribí «LAURA» en «Nombre»",
+      "dato": "Nombre",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Nombre",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Nombre', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Apellidos",
+      "valor": "AUTO PRUEBA",
+      "instruccion": "Escribí «AUTO PRUEBA» en «Apellidos»",
+      "dato": "Apellidos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Apellidos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Cédula de Ciudadanía",
+      "valor": "1094000653",
+      "instruccion": "Escribí «1094000653» en «Cédula de Ciudadanía»",
+      "dato": "Cédula de Ciudadanía",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Cédula de Ciudadanía",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('1094000653')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Teléfono / Móvil",
+      "valor": "3140006533",
+      "instruccion": "Escribí «3140006533» en «Teléfono / Móvil»",
+      "dato": "Teléfono / Móvil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Teléfono / Móvil",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3140006533')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para la Entrega",
+      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ir para la Entrega",
+          "visible": true,
+          "code": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Departamento",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Departamento»",
+      "dato": "Departamento",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Departamento",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Departamento', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "select",
+      "objetivo": "Municipio",
+      "valor": "Bogotá, D.C.",
+      "instruccion": "Elegí «Bogotá, D.C.» en «Municipio»",
+      "dato": "Municipio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Municipio",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Municipio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Calle",
+      "valor": "Calle 100 # 10-20",
+      "instruccion": "Escribí «Calle 100 # 10-20» en «Calle»",
+      "dato": "Calle",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Calle",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Calle', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Calle', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Barrio",
+      "valor": "Chicó",
+      "instruccion": "Escribí «Chicó» en «Barrio»",
+      "dato": "Barrio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Barrio",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Barrio', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Barrio', exact: true }).fill('Chicó')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ir para el pago",
+      "instruccion": "Hacé clic en «Ir para el pago»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ir para el pago",
+          "visible": true,
+          "code": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de nacimiento",
+      "valor": "2012-03-03",
+      "instruccion": "Escribí «2012-03-03» en «Fecha de nacimiento»",
+      "dato": "Fecha de nacimiento",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de nacimiento",
+          "code": "page.getByLabel('Fecha de nacimiento', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de nacimiento', { exact: true }).fill('2012-03-03')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de expedición de la cédula",
+      "valor": "2010-01-01",
+      "instruccion": "Escribí «2010-01-01» en «Fecha de expedición de la cédula»",
+      "dato": "Fecha de expedición de la cédula",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de expedición de la cédula",
+          "code": "page.getByLabel('Fecha de expedición de la cédula', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de expedición de la cédula', { exact: true }).fill('2010-01-01')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.",
+      "valor": "1990-01-01",
+      "instruccion": "Escribí «1990-01-01» en «Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.»",
+      "dato": "Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.",
+          "code": "page.getByLabel('Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Fecha de nacimientoPara pagar con Creditop tenés que ser mayor de 18 años.', { exact: true }).fill('1990-01-01')"
+    },
+    {
+      "accion": "check",
+      "objetivo": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+      "instruccion": "Marcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+          "exact": true,
+          "code": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).check()"
+    }
+  ]
+}

@@ -1,0 +1,404 @@
+{
+  "nombre": "Desinstalar la app creditop_ecommerce de creditop-dev-store-plus y borrar las apps de prueba que no se usan en el Dev Dashboard (Miguel lo pidió)",
+  "meta": "Desinstalar la app creditop_ecommerce de creditop-dev-store-plus y borrar las apps de prueba que no se usan en el Dev Dashboard (Miguel lo pidió)",
+  "inicio": "https://admin.shopify.com/store/creditop-dev-store-plus/settings/apps",
+  "dispositivo": "chrome",
+  "creado": "2026-11-07T17:51:15.128385-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-07_17-45-55",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Más acciones para creditop_ecommerce",
+      "instruccion": "Hacé clic en «Más acciones para creditop_ecommerce»",
+      "porque": "Abro el menú de creditop_ecommerce para desinstalarla",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Más acciones para creditop_ecommerce",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Más acciones para creditop_ecommerce', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Más acciones para creditop_ecommerce', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Desinstalar",
+      "instruccion": "Hacé clic en «Desinstalar»",
+      "porque": "Desinstalar creditop_ecommerce: Miguel lo pidió (no se usa)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "menuitem",
+          "value": "Desinstalar",
+          "exact": true,
+          "code": "page.getByRole('menuitem', { name: 'Desinstalar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('menuitem', { name: 'Desinstalar', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Desinstalar",
+      "instruccion": "Hacé clic en «Desinstalar»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Desinstalar",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Desinstalar', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Desinstalar', exact: true }).click()"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/303041576961/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/303041576961/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/303041576961/settings",
+      "porque": "Busco la opción de borrar creditop_ecommerce en su configuración del Dev Dashboard",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/303041576961/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop_ecommerce (prueba vieja, ya desinstalada): Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Eliminar creditop_ecommerce de forma permanente?",
+          "code": "page.getByRole('dialog', { name: '¿Eliminar creditop_ecommerce de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Eliminar creditop_ecommerce de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop (303025815553), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar pyment_test_app (312353357825), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop_pyments (315909275649), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop_pyments (312349032449), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/312349032449/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop_pyments (312349032449), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Eliminar creditop_pyments de forma permanente?",
+          "code": "page.getByRole('dialog', { name: '¿Eliminar creditop_pyments de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Eliminar creditop_pyments de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/315909275649/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop_pyments (315909275649), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Eliminar creditop_pyments de forma permanente?",
+          "code": "page.getByRole('dialog', { name: '¿Eliminar creditop_pyments de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Eliminar creditop_pyments de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/312353357825/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar pyment_test_app (312353357825), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Eliminar pyment_test_app de forma permanente?",
+          "code": "page.getByRole('dialog', { name: '¿Eliminar pyment_test_app de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Eliminar pyment_test_app de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "valor": "https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "instruccion": "Abrí https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings",
+      "codigo": "page.goto('https://dev.shopify.com/dashboard/167881494/apps/303025815553/settings')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "porque": "Eliminar creditop (303025815553), prueba vieja que nunca se instaló: Miguel lo pidió",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Eliminar app",
+      "instruccion": "Hacé clic en «Eliminar app»",
+      "ref": {
+        "loc": {
+          "kind": "scoped",
+          "role": "button",
+          "value": "Eliminar app",
+          "exact": true,
+          "scopeRole": "dialog",
+          "scopeName": "¿Eliminar creditop de forma permanente?",
+          "code": "page.getByRole('dialog', { name: '¿Eliminar creditop de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('dialog', { name: '¿Eliminar creditop de forma permanente?' }).getByRole('button', { name: 'Eliminar app', exact: true }).click()"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://partners.shopify.com/4296643/apps",
+      "valor": "https://partners.shopify.com/4296643/apps",
+      "instruccion": "Abrí https://partners.shopify.com/4296643/apps",
+      "codigo": "page.goto('https://partners.shopify.com/4296643/apps')"
+    }
+  ]
+}

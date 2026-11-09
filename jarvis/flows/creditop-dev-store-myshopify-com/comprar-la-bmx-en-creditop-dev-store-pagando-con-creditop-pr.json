@@ -1,0 +1,141 @@
+{
+  "nombre": "Comprar la BMX en creditop-dev-store pagando con Creditop (prueba de punta a punta, comprador sintético)",
+  "meta": "Comprar la BMX en creditop-dev-store pagando con Creditop (prueba de punta a punta, comprador sintético)",
+  "inicio": "https://creditop-dev-store.myshopify.com/cart/58721841053999:1",
+  "dispositivo": "chrome",
+  "creado": "2026-11-07T16:19:15.281686-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-07_16-17-22",
+  "pasos": [
+    {
+      "accion": "fill",
+      "objetivo": "Email or mobile phone number",
+      "valor": "shopify-1650215200@creditop.com",
+      "instruccion": "Escribí «shopify-1650215200@creditop.com» en «Email or mobile phone number»",
+      "porque": "Comprador sintético (el del harness) y Creditop como medio de pago",
+      "dato": "Email or mobile phone number",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Email or mobile phone number",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Email or mobile phone number', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Email or mobile phone number', exact: true }).fill('shopify-1650215200@creditop.com')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "First name (optional)",
+      "valor": "CARLOS",
+      "instruccion": "Escribí «CARLOS» en «First name (optional)»",
+      "dato": "First name (optional)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "First name (optional)",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'First name (optional)', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'First name (optional)', exact: true }).fill('CARLOS')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Last name",
+      "valor": "RUIZ",
+      "instruccion": "Escribí «RUIZ» en «Last name»",
+      "dato": "Last name",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Last name",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Last name', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Last name', exact: true }).fill('RUIZ')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Address",
+      "valor": "Calle 100 # 10-20",
+      "instruccion": "Escribí «Calle 100 # 10-20» en «Address»",
+      "dato": "Address",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Address",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Address', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Address', exact: true }).fill('Calle 100 # 10-20')"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "City",
+      "valor": "Bogotá",
+      "instruccion": "Escribí «Bogotá» en «City»",
+      "dato": "City",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "City",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'City', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'City', exact: true }).fill('Bogotá')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Creditop",
+      "instruccion": "Hacé clic en «Creditop»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Creditop",
+          "visible": true,
+          "code": "page.getByText('Creditop', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Creditop', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Pay now $800,000.00",
+      "instruccion": "Hacé clic en «Pay now $800,000.00»",
+      "porque": "Pagar: Shopify llama a la app de Creditop, que tiene que mandar al wizard de qa",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Pay now $800,000.00",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Pay now $800,000.00', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Pay now $800,000.00', exact: true }).click()"
+    }
+  ]
+}
