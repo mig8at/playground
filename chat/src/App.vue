@@ -970,26 +970,29 @@ const statusText = computed(() => {
                   <b v-if="item.quote.who">{{ item.quote.who }}</b>
                   <span>{{ item.quote.text }}</span>
                 </span>
-                <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
-                <template v-else>
-                  <p v-if="item.summary" class="summary">{{ item.summary }}</p>
-                  <!-- Lo que contesta un agente viene con formato: Markdown seguro (escapa todo y entiende una lista corta). -->
-                  <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
-                  <p v-else class="text">{{ item.text }}</p>
-                </template>
-                <div v-if="imagesOf(item).length" class="media-grid" :class="{ single: imagesOf(item).length === 1 }">
-                  <figure v-for="f in imagesOf(item)" :key="f.id || f.name" class="media">
+                <!-- Las imágenes van arriba y el texto abajo, como un pie de foto (WhatsApp): hasta 4 en la grilla y la
+                     última con «+N» si hay más; 3 ponen la primera a lo ancho. -->
+                <div v-if="imagesOf(item).length" class="media-grid" :class="`n${Math.min(imagesOf(item).length, 4)}`">
+                  <figure v-for="(f, i) in imagesOf(item).slice(0, 4)" :key="f.id || f.name" class="media">
                     <button v-if="imageSrc(item, f)" type="button" class="media-open" :title="`Ver ${f.name}`" @click="openImage(item, f)">
                       <img :src="imageSrc(item, f)" :alt="f.name">
+                      <span v-if="i === 3 && imagesOf(item).length > 4" class="media-more">+{{ imagesOf(item).length - 4 }}</span>
                     </button>
                     <div v-else class="media-placeholder">
                       <span v-if="f.status === 'error' && f.error">{{ f.error }}</span>
                       <span v-else-if="item.dir === 'out'">{{ item.status === 'error' || f.status === 'error' ? `${f.name}: no salió` : f.status === 'subiendo' ? 'subiendo…' : f.name }}</span>
                       <span v-else>cargando…</span>
-                      <button v-if="item.dir === 'in' && f.status === 'error'" type="button" class="btn-link" @click="chat.getFile(item, f, { cache: true })">reintentar</button>
+                      <button v-if="item.dir === 'in' && f.status === 'error' && !f.gone" type="button" class="btn-link" @click="chat.getFile(item, f, { cache: true })">reintentar</button>
                     </div>
                   </figure>
                 </div>
+                <pre v-if="item.format === 'json'" class="text json">{{ item.text }}</pre>
+                <template v-else>
+                  <p v-if="item.summary" class="summary">{{ item.summary }}</p>
+                  <!-- Lo que contesta un agente viene con formato: Markdown seguro (escapa todo y entiende una lista corta). -->
+                  <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
+                  <p v-else-if="item.text" class="text">{{ item.text }}</p>
+                </template>
                 <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
                   <li v-for="f in othersOf(item)" :key="f.id || f.name" class="attachment">
                     <div class="attachment-row">
@@ -1496,13 +1499,18 @@ code { font-family: var(--font-mono); font-size: .92em }
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
   border-top: 1px solid var(--border) }
 /* Las imágenes: en grilla arriba de la burbuja, como WhatsApp; una sola ocupa todo el ancho. */
-.media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; width: 340px; max-width: 100%; margin: 2px 0 4px }
-.media-grid.single { grid-template-columns: minmax(0, 1fr) }
+.media-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 3px; width: 340px; max-width: 100%; margin: 2px 0 6px }
+.media-grid.n1 { grid-template-columns: minmax(0, 1fr) }
+.media-grid.n3 .media:first-child { grid-column: 1 / -1 }
+.media-grid.n3 .media:first-child .media-open img { aspect-ratio: 2 / 1 }
 .media { margin: 0; display: flex; flex-direction: column; gap: 2px; min-width: 0 }
 .media-open { display: block; padding: 0; border: 0; background: transparent; cursor: zoom-in; border-radius: 8px; overflow: hidden }
 .media-open:focus-visible { outline: 2px solid var(--ring) }
 .media-open img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover }
-.media-grid.single .media-open img { aspect-ratio: auto; max-height: 340px; object-fit: contain; background: var(--muted) }
+.media-grid.n1 .media-open img { aspect-ratio: auto; max-height: 340px; object-fit: contain; background: var(--muted) }
+.media-open { position: relative }
+.media-more { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgb(0 0 0 / .45); color: #fff; font-size: 26px; font-weight: 600 }
 .media-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 4 / 3;
   padding: 8px; border-radius: 8px; background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); text-align: center }
 .lightbox { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;

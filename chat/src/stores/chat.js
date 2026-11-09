@@ -708,7 +708,11 @@ export const useChatStore = defineStore('chat', () => {
       const s = await post(`/api/files/${encodeURIComponent(file.id)}/get${cache ? '?cache=1' : ''}`, {})
       Object.assign(file, { status: 'bajado', path: s.path, ...(cache ? { cached: true } : { savedPath: s.path }) })
     } catch (e) {
-      Object.assign(file, { status: 'error', error: e.message })
+      // El home borra un adjunto cuando lo baja quien lo recibe: si otra terminal o sesión tuya (`playground get`) lo
+      // bajó antes, acá ya no está, y reintentar no sirve.
+      const gone = /no existe o ya venci/.test(e.message)
+      Object.assign(file, { status: 'error', gone,
+        error: gone ? 'ya lo bajó otra terminal o sesión tuya (el playground lo borra al bajarlo), o venció' : e.message })
     }
   }
   // Guardar en Descargas una imagen que se bajó sola al caché: una copia, sin pisar nada.
