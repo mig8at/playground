@@ -325,7 +325,7 @@ type Saved struct {
 }
 
 // Get baja un adjunto con `playground get <id>`: el CLI lo guarda sin pisar nada y sin permiso de ejecución, en
-// `dir` si se da (una carpeta que existe) o en ~/Downloads, y el home lo borra si quien baja es quien lo recibió.
+// `dir` si se da (una carpeta que existe) o en ~/Downloads, El home lo guarda hasta que vence (antes lo borraba al bajarlo quien lo recibió).
 func Get(ctx context.Context, id, dir string) (Saved, error) {
 	args := []string{"get", id, "--json"}
 	if dir != "" {
