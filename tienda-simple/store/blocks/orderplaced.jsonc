@@ -1,0 +1,7 @@
+{
+  // Pedido realizado: la página a la que VTEX lleva al comprador después de pagar, y a la que vuelve desde
+  // CreditOp con «Volver a la tienda» (checkout/orderPlaced?og=…). Sin este bloque la ruta sale en blanco.
+  "store.orderplaced": {
+    "blocks": ["order-placed"]
+  }
+}
