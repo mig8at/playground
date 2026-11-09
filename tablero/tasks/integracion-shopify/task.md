@@ -12,6 +12,10 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 
 ## Pendientes
 
+- [ ] Dar al comprador cómo cancelar y volver al checkout (requisito 5.2.6 de la App Store): la app manda `back_url`
+      a payment-link y rechaza la sesión al volver. Es la pieza A del estándar de la tarea #112
+      (`ecommerce-cancelacion-de-pedidos`); el link en todas las pantallas del wizard es su pieza B. Termina con una
+      compra en `creditop-dev-store` cancelada desde el wizard que vuelve al checkout.
 - [ ] En `creditop-dev-store`, sin código: teléfono de la dirección de envío en «Obligatorio» y la pantalla de pago con
       el logo y los colores de Creditop; termina con una compra de qa que llega con `billing.phone`.
 - [ ] Armar la tienda simple de Shopify: un tema Liquid mínimo (portada con las bicicletas, producto, carrito)

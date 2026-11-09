@@ -108,10 +108,9 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
       `master` y `develop` a las 16:02; los cuatro desenlaces bien en qa.
 - [x] ~~Ver que la primera compra tras una hora sin compras no tarde ni dé `ProxyTimeout`~~ — 2026-11-05 17:50, con la
       5.0.3: aprobada en 1,3 s tras hora y media quieta; y el cobro al facturar quedó Finished.
-- [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: hoy no hay endpoint para cancelarla y el
-      comprador puede terminar el crédito de una venta que ya no existe (la 5.0.1 sólo destraba VTEX). Termina con la
-      regla escrita y, si se decide, el aviso del conector a Creditop. Depende de: Producto — junto con el vencimiento de
-      la referencia.
+- [ ] Qué hace Creditop cuando VTEX cancela un pedido cuya solicitud sigue viva: se resuelve con el estándar de la
+      tarea #112 (`ecommerce-cancelacion-de-pedidos`), igual para todas las tiendas. Del lado de VTEX es su pieza E (el
+      conector llama al endpoint de cancelar y devuelve el `requestId`). Termina cuando la #112 cierra esa pieza.
 - [ ] ¿Una solicitud puede salir de un estado final por el webhook de una entidad real? (Duncan lo vio sólo con el
       simulador, que lo permite a propósito). Termina reproducido —y entonces una guarda en legacy-backend— o descartado.
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
