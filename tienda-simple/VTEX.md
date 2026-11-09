@@ -40,6 +40,19 @@ El repo original del tema, con su historial, sigue en `~/Workspace/Work/creditop
 > del equipo de Duncan. Antes usaba «Creditop qa» (`ecf9342be`, «PRUEBA AUTO VTEX»); para volver, se cambia la afiliación
 > de la condición de pago. Compra de control: pedido 1675020500458-01, Approved.
 
+> **Ambientes del conector (verificado el 2026-11-09 en `infrastructure` `main`):** el setting `environment` del
+> conector elige el host. `develop` (desde la 5.1.3 se muestra «Pruebas · QA de Creditop») →
+> `api.dev.creditop.com/legacy-api`, y el API Gateway de desarrollo manda `ecommerce/payment-link` y `ecommerce/status`
+> al backend de la rama **qa** (`leg-qa.develop.internal`), no al de develop
+> (`environments/development/api-gateway/terragrunt.hcl:241-255`); el resto de `api.dev/legacy-api` sí va a develop.
+> `production` → `v2.api.creditop.com/legacy-api` → `legacy-backend.production.internal`. Por eso las compras de
+> esta tienda se prueban con el target `qa` del harness.
+>
+> **Versiones del conector:** 5.1.1 (ícono y textos de la ficha), 5.1.2 (documentación en español, captura, soporte en
+> creditop.com) y 5.1.3 (nombres de los ambientes) están publicadas; instalada en master sigue la 5.1.0 hasta correr
+> `vtex deploy creditop.creditop@5.1.3 && vtex install creditop.creditop@5.1.3`. Rama `feat/app-store-icon` del repo
+> `vtex`, sin push.
+
 ## El tema (`creditop.tienda-simple`)
 
 Tienda mínima: logo y carrito arriba, título, grilla de bicicletas, página de producto, pie de una línea. El checkout es
