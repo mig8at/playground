@@ -44,9 +44,9 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
       `qa` (2026-11-09), con el punto sin vuelta provisional en 10 y el catálogo provisional
       `store_cancelled · out_of_stock · expired · other`; no está en `main`. Termina con el cambio en `main` y su
       migración aplicada en producción (a mano, Oscar o Laura).
-- [ ] Pieza E · conector VTEX: subir la rama `feat/ecommerce-cancel` del repo `vtex` y abrir su PR a `main`. La 5.2.0
+- [ ] Pieza E · conector VTEX: mergear [vtex#26](https://github.com/Creditop-SAS/vtex/pull/26) (rama `feat/ecommerce-cancel`, subida el 2026-11-09). La 5.2.0
       (con las 5.1.1-5.1.4) está publicada e instalada en `master` de la cuenta `creditop` y Duncan la validó en qa,
-      pero esos commits sólo existen en esta máquina. Termina con el PR mergeado y el tag `v5.2.0`.
+      y su código ya está en GitHub. Termina con el PR mergeado y el tag `v5.2.0`.
 - [ ] Publicar en el API Gateway de PRODUCCIÓN la ruta `POST /legacy-api/ecommerce/orders/{order_key}/cancel` (desarrollo → el
       backend de qa, `leg-qa`; producción → `legacy-backend.production`), como `payment-link` y `status` en el repo
       `infrastructure`: [infrastructure#213](https://github.com/Creditop-SAS/infrastructure/pull/213). Sin ella el gateway
