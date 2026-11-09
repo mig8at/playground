@@ -13,10 +13,15 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
 
 ## Pendientes
 
-- [ ] Desplegar la app de pagos (ECR, secreto, Postgres, servicio, ALB con dominio fijo y mTLS) y mergear
-      [shopify#23](https://github.com/Creditop-SAS/shopify/pull/23) (la app fuera del admin, el servidor detrás del
-      proxy y el nombre Creditop) antes. Termina con la app en su dominio y `npm run deploy` hecho.
-      Depende de: Dani — infra, en [CORE-932](jira:CORE-932)
+- [ ] Desplegar la app de pagos en producción (ECR, secreto, Postgres, servicio, ALB con dominio fijo y mTLS). En dev
+      ya está: shopify#23, #24 y #26 mergeados a `develop`, la app en `shopify-app.dev.creditop.com` y la versión
+      `creditop-11` publicada apuntando ahí (2026-11-09), con la compra de control #1032 pagada. Termina con la app en
+      su dominio de producción. Depende de: Dani — infra, en [CORE-932](jira:CORE-932)
+- [ ] Commitear en `shopify` el uid publicado de la extensión de pago (`badac230…`): con el uid nuevo del repo Shopify
+      niega el deploy («Unpublishing payments app extensions … is not permitted»). Y decidir si la configuración
+      publicable queda con las URLs de dev en `develop` (hoy sólo en la copia local). Termina con el commit.
+- [ ] Recibir de Duncan las tres pruebas de `#shopify` (aprobada, negada y «Volver a la tienda») y revisarlas en
+      Shopify y en qa. Depende de: Miguel — pasarle a Duncan la contraseña de la tienda.
 - [ ] Dar al comprador cómo cancelar y volver al checkout (requisito 5.2.6 de la App Store): la app manda `back_url`
       a payment-link y rechaza la sesión al volver. Es la pieza A del estándar de la tarea #112
       (`ecommerce-cancelacion-de-pedidos`); el link en todas las pantallas del wizard es su pieza B. Termina con una

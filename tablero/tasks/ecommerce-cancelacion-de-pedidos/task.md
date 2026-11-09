@@ -26,9 +26,10 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
 - [ ] Pieza A · Shopify: la app manda `back_url` a payment-link apuntando a una ruta propia que rechaza la sesión
       (`CANCELLED_PAYMENT`) y devuelve al comprador al `cancel_url` de Shopify. No espera a Producto; termina con
       una compra en `creditop-dev-store` que se cancela desde el wizard y vuelve al checkout. (Va en la #103.)
-- [ ] Pieza B · wizard: «¿Prefieres pagar de otra forma? Volver a la tienda», discreto al final de cada pantalla de
-      tienda (menos el listado y la de aprobado). Oscar dio el visto bueno (2026-11-09). En
-      [frontend-monorepo#1368](https://github.com/Creditop-SAS/frontend-monorepo/pull/1368); termina con el PR mergeado.
+- [ ] Llevar a `main` las piezas B y D del wizard: «Volver a la tienda» discreto al final de cada pantalla de tienda
+      (menos el listado y la de aprobado) y la pantalla «La tienda canceló tu compra», por Pusher y al cargar.
+      [frontend-monorepo#1368](https://github.com/Creditop-SAS/frontend-monorepo/pull/1368) está mergeado a `qa`
+      (2026-11-09) y Duncan lo validó ahí, también el aviso en vivo; no está en `main`. Termina con el cambio en `main`.
 - [ ] Decidir si «Volver a la tienda» CANCELA la solicitud (la deja en 8 y la tienda se entera por el aviso) o sólo
       saca al comprador (la solicitud queda abierta hasta que venza). Termina con la regla en «Cómo se ataca».
       Depende de: Producto — si salir es arrepentirse.
@@ -38,20 +39,19 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
 - [ ] Decidir qué pasa si llega el webhook de una entidad sobre una solicitud ya en 8 (rt=0 o rt=1 que decidió afuera):
       se ignora y se registra, o se reabre. Termina con la regla escrita. Depende de: Producto — junto con el punto sin
       vuelta (es la misma pregunta abierta en la #102 sobre salir de un estado final por webhook).
-- [ ] Pieza C · backend: `POST /api/ecommerce/orders/{orderKey}/cancel`. En
-      [legacy-backend#1888](https://github.com/Creditop-SAS/legacy-backend/pull/1888) (hacia `qa`), con el punto sin vuelta provisional en 10 y el catálogo provisional
-      `store_cancelled · out_of_stock · expired · other`. Termina con el PR mergeado y las decisiones de Producto aplicadas.
-- [ ] Pieza D · wizard: la pantalla «La tienda canceló tu compra», por Pusher (canal `EcommerceRequest.{id}`) y al cargar
-      cada pantalla. En frontend-monorepo#1368; el aviso en vivo no se probó (Pusher no está en local).
-- [ ] Pieza E · conector VTEX: su `cancel` llama a la pieza C antes de contestarle a VTEX y devuelve el
-      `requestId`. Hecho en la rama `feat/ecommerce-cancel` (5.2.0, sin publicar ni push): 200 aprueba, 409
-      `cancel-manually`, sin respuesta niega sin guardar, y un 404 (el endpoint todavía no existe) decide por el estado
-      como la 5.1. Termina publicado cuando la pieza C esté en qa y la ruta en el gateway.
-- [ ] Publicar en el API Gateway la ruta `POST /legacy-api/ecommerce/orders/{order_key}/cancel` (desarrollo → el
+- [ ] Llevar a `main` la pieza C del backend (`POST /api/ecommerce/orders/{orderKey}/cancel`), con las decisiones de
+      Producto aplicadas: [legacy-backend#1888](https://github.com/Creditop-SAS/legacy-backend/pull/1888) está mergeado a
+      `qa` (2026-11-09), con el punto sin vuelta provisional en 10 y el catálogo provisional
+      `store_cancelled · out_of_stock · expired · other`; no está en `main`. Termina con el cambio en `main` y su
+      migración aplicada en producción (a mano, Oscar o Laura).
+- [ ] Pieza E · conector VTEX: subir la rama `feat/ecommerce-cancel` del repo `vtex` y abrir su PR a `main`. La 5.2.0
+      (con las 5.1.1-5.1.4) está publicada e instalada en `master` de la cuenta `creditop` y Duncan la validó en qa,
+      pero esos commits sólo existen en esta máquina. Termina con el PR mergeado y el tag `v5.2.0`.
+- [ ] Publicar en el API Gateway de PRODUCCIÓN la ruta `POST /legacy-api/ecommerce/orders/{order_key}/cancel` (desarrollo → el
       backend de qa, `leg-qa`; producción → `legacy-backend.production`), como `payment-link` y `status` en el repo
       `infrastructure`: [infrastructure#213](https://github.com/Creditop-SAS/infrastructure/pull/213). Sin ella el gateway
-      contesta 404 aunque el backend la tenga. Sólo desarrollo por ahora (pedido de Dani). Termina con el PR mergeado y aplicado. Depende de: Dani — infra,
-      en [CORE-932](jira:CORE-932) junto con la migración en la base de desarrollo
+      contesta 404 aunque el backend la tenga. Desarrollo hecho: #213 mergeado y aplicado el 2026-11-09 (la ruta responde 401
+      sin token). Falta producción, cuando la pieza C llegue a `main`. Depende de: Dani — infra, en [CORE-932](jira:CORE-932)
 - [ ] Pieza F · app de Shopify: `orders/cancelled` de un pedido pendiente llama a la pieza C. Antes, confirmar que
       una app de pagos puede suscribirse a ese webhook sin otra revisión de Shopify.
 
