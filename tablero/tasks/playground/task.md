@@ -11,6 +11,12 @@ jira_title: ""
 
 ## Con acción vigente
 
+- **El home del playground compartido pierde su buzón en cada despliegue** (los mensajes pendientes, el padrón y los
+  canales de avisos viven en una carpeta del contenedor). Los grupos del chat ya no: van en cuadrilla
+  (Creditop-SAS/playground#434).
+  - [ ] Darle al home un almacenamiento propio (Postgres, Mongo o S3, lo más simple) y un driver del buzón para él.
+    Termina con un despliegue del home que no pierde un mensaje pendiente. Depende de: Miguel — verlo con infra.
+
 - **Lecturas del admin y de la base, en el conector** (salen del mapa `knowledge/admin-panel`; sólo lectura,
   también prod; ya están `client state` y `experian check`):
   - [ ] `pg admin permissions --target T (--role R | --user <correo>)`: qué permisos tiene de verdad un rol o un
