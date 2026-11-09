@@ -6,7 +6,7 @@ created: "2026-11-09T10:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
 jira: []
-ramas: "vtex:ecommerce-cancel, legacy-backend:ecommerce-cancelar-pedido, frontend-monorepo:ecommerce-cancelacion"
+ramas: "vtex:ecommerce-cancel, legacy-backend:ecommerce-cancelar-pedido, frontend-monorepo:ecommerce-cancelacion, infrastructure:api-gateway-ecommerce-cancel"
 jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde la tienda o desde el comprador"
 ---
 
@@ -48,7 +48,8 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
       como la 5.1. Termina publicado cuando la pieza C esté en qa y la ruta en el gateway.
 - [ ] Publicar en el API Gateway la ruta `POST /legacy-api/ecommerce/orders/{order_key}/cancel` (desarrollo → el
       backend de qa, `leg-qa`; producción → `legacy-backend.production`), como `payment-link` y `status` en el repo
-      `infrastructure`. Sin ella el gateway contesta 404 aunque el backend la tenga. Depende de: Dani — infra
+      `infrastructure`: [infrastructure#213](https://github.com/Creditop-SAS/infrastructure/pull/213). Sin ella el gateway
+      contesta 404 aunque el backend la tenga. Termina con el PR mergeado y aplicado. Depende de: Dani — infra
 - [ ] Pieza F · app de Shopify: `orders/cancelled` de un pedido pendiente llama a la pieza C. Antes, confirmar que
       una app de pagos puede suscribirse a ese webhook sin otra revisión de Shopify.
 
