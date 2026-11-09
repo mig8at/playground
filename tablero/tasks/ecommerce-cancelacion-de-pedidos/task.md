@@ -6,6 +6,7 @@ created: "2026-11-09T10:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
 jira: []
+ramas: "vtex:ecommerce-cancel"
 jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde la tienda o desde el comprador"
 ---
 
@@ -43,8 +44,13 @@ jira_title: "Ecommerce: cancelar un pedido de tienda pagado con Creditop, desde 
 - [ ] Pieza D · wizard: al cancelar la tienda, el aviso por Pusher y la revisión al cargar cada pantalla de tienda
       (`detail` y `by-user-request` tienen que devolver el estado de cancelación y el motivo; hoy no lo hacen). Termina
       con la pantalla de cancelación visible sin recargar y al recargar. Depende de: la pieza C y el texto de Producto.
-- [ ] Pieza E · conector VTEX: su `cancel` llama a la pieza C antes de contestarle a VTEX, y devuelve el
-      `requestId` que manda VTEX (hoy `null`).
+- [ ] Pieza E · conector VTEX: su `cancel` llama a la pieza C antes de contestarle a VTEX y devuelve el
+      `requestId`. Hecho en la rama `feat/ecommerce-cancel` (5.2.0, sin publicar ni push): 200 aprueba, 409
+      `cancel-manually`, sin respuesta niega sin guardar, y un 404 (el endpoint todavía no existe) decide por el estado
+      como la 5.1. Termina publicado cuando la pieza C esté en qa y la ruta en el gateway.
+- [ ] Publicar en el API Gateway la ruta `POST /legacy-api/ecommerce/orders/{order_key}/cancel` (desarrollo → el
+      backend de qa, `leg-qa`; producción → `legacy-backend.production`), como `payment-link` y `status` en el repo
+      `infrastructure`. Sin ella el gateway contesta 404 aunque el backend la tenga. Depende de: Dani — infra
 - [ ] Pieza F · app de Shopify: `orders/cancelled` de un pedido pendiente llama a la pieza C. Antes, confirmar que
       una app de pagos puede suscribirse a ese webhook sin otra revisión de Shopify.
 
