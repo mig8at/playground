@@ -157,10 +157,14 @@
     if (error && complete()) error.hidden = true
   }
 
-  /* «Comprar ahora» no avanza con Creditop elegido y algún dato sin completar: se dice qué falta. */
+  /* «Comprar ahora» no avanza con Creditop elegido y algún dato sin completar: se dice qué falta.
+   * Sólo en el paso de pago: el checkout arma ese paso oculto desde el carrito, y el «Finalizar compra» del carrito
+   * (`#cart-to-orderform`) también lleva `.btn-place-order`; sin esta guarda el carrito quedaba sin avanzar. */
   document.addEventListener('click', function (e) {
+    if (location.hash.indexOf('#/payment') !== 0) return
     var button = e.target && e.target.closest && e.target.closest('#payment-data-submit, .payment-submit-wrap button, .btn-place-order')
-    if (enabled !== true || !button || !creditopGroup() || complete()) return
+    if (!button || button.id === 'cart-to-orderform') return
+    if (enabled !== true || !creditopGroup() || complete()) return
     e.preventDefault()
     e.stopPropagation()
     var error = document.getElementById('cr-ao-error')
