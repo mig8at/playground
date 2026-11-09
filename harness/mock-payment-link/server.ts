@@ -51,6 +51,16 @@ const STORE_BRANCHES = process.env.STORE_BRANCHES || '';
 const MODE = STORE_BRANCHES ? 'qa' : 'local';
 // Los plugins REALES corriendo en local (repo vtex: `yarn --cwd node local` · repo shopify: `npm run local`). Si
 // contestan, la tienda les manda a ellos; si no, usa los simulados de abajo.
+// Modo local con los plugins REALES: el payment-link de verdad pide el token Sanctum de ecommerce de la sucursal, que la
+// base guarda sólo como hash. STORE_TOKENS es un JSON privado {hash: token} (lo escribe el server «Ecommerce · local»
+// del chat con `ecommerce:issue-token`); con él, el AppToken que va al conector real es ese token y no la credencial.
+const STORE_TOKENS: Record<string, string> = (() => {
+    try { return process.env.STORE_TOKENS ? JSON.parse(readFileSync(process.env.STORE_TOKENS, 'utf8')) : {}; } catch { return {}; }
+})();
+const providerToken = (r: any): string => {
+    const hash = String(r.headers['x-provider-api-appkey'] || '');
+    return STORE_TOKENS[hash] || String(r.headers['x-provider-api-apptoken'] || '');
+};
 const VTEX_CONNECTOR_URL = (process.env.VTEX_CONNECTOR_URL || 'http://localhost:8114').replace(/\/$/, '');
 const SHOPIFY_APP_URL = (process.env.SHOPIFY_APP_LOCAL_URL || 'http://localhost:8115').replace(/\/$/, '');
 const CODE = String(statSync(new URL(import.meta.url)).mtimeMs);
@@ -134,7 +144,7 @@ function fromShopify(session: any, hash: string) {
             // Shopify no trae documento: lo pide Creditop. Una tienda que lo capture lo mandaría en un atributo del pedido.
         },
         products: [],
-        return_url: `${SELF}/return?platform=shopify&session=${encodeURIComponent(session.id)}`,
+        return_url: `${FROM_BACKEND.startsWith('https://') ? FROM_BACKEND : SELF}/return?platform=shopify&session=${encodeURIComponent(session.id)}`,
         webhook_url: `${FROM_BACKEND}/webhook/shopify`,
     };
 }
@@ -146,7 +156,7 @@ const server = createServer(async (r, res) => {
         if (r.method === 'GET' && p === '/health') return send(res, 200, { mock: 'payment-link', ok: true, codigo: CODE, payment_link_url: PAYMENT_LINK_URL, wizard: wizardBase() });
         if (r.method === 'GET' && (p === '/' || p === '/index.html')) return send(res, 200, readFileSync(STORE, 'utf8'), 'text/html');
         if (r.method === 'GET' && p === '/api/config') {
-            return send(res, 200, { mode: MODE, self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: MODE === 'qa' ? 'el de qa' : wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN),
+            return send(res, 200, { mode: MODE, self: SELF, from_backend: FROM_BACKEND, payment_link_url: PAYMENT_LINK_URL, wizard: MODE === 'qa' ? 'el de qa' : wizardBase(), real_token: Boolean(PAYMENT_LINK_TOKEN), branch_tokens: Object.keys(STORE_TOKENS),
                 plugins: { vtex: (await realVtex()) ? `real ${VTEX_CONNECTOR_URL}` : 'simulado', shopify: (await realShopify()) ? `real ${SHOPIFY_APP_URL}` : 'simulado' } });
         }
         if (r.method === 'GET' && p === '/api/events') return send(res, 200, events);
@@ -178,7 +188,7 @@ const server = createServer(async (r, res) => {
                 // El conector REAL: se le reenvía lo mismo que manda el gateway de VTEX a `POST /payments`.
                 const fw = await fetch(`${VTEX_CONNECTOR_URL}/payments`, { method: 'POST', body: JSON.stringify(req), headers: {
                     'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': String(r.headers['x-provider-api-appkey'] || ''),
-                    'X-PROVIDER-API-AppToken': String(r.headers['x-provider-api-apptoken'] || '') } });
+                    'X-PROVIDER-API-AppToken': providerToken(r) } });
                 const out = await fw.json();
                 log('vtex authorize (conector real)', 'vtex', { paymentId: req.paymentId, status: out.status });
                 return send(res, 200, { ...out, _plugin: `real ${VTEX_CONNECTOR_URL}`, _trace: apiCalls.get(String(req.paymentId)) ?? { url: PAYMENT_LINK_URL, note: 'la llamada no pasó por este mock' } });
@@ -223,10 +233,26 @@ const server = createServer(async (r, res) => {
                 requestId: `settle-${Date.now()}`, settleId: `settle-${Date.now()}`, value: req.value };
             const fw = await fetch(`${VTEX_CONNECTOR_URL}/payments/${encodeURIComponent(req.paymentId)}/settlements`, { method: 'POST', body: JSON.stringify(settlement), headers: {
                 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': String(r.headers['x-provider-api-appkey'] || ''),
-                'X-PROVIDER-API-AppToken': String(r.headers['x-provider-api-apptoken'] || '') } });
+                'X-PROVIDER-API-AppToken': providerToken(r) } });
             const out = await fw.json();
             log(`vtex settle ${out.settleId ? 'aprobado' : (out.code || 'negado')}`, 'vtex', { paymentId: req.paymentId, settleId: out.settleId, code: out.code, message: out.message });
             return send(res, 200, { request: settlement, response: out });
+        }
+
+        // 2a'' · la cancelación de VTEX: lo que el gateway le manda al conector cuando la tienda cancela el pedido (o vence
+        // `delayToCancel`). El conector real le avisa a Creditop por el endpoint único de cancelación (tarea #112) y, si
+        // todavía no existe, decide por el estado.
+        if (r.method === 'POST' && p === '/plugin/vtex/cancel') {
+            const req = await body(r);
+            if (!(await realVtex())) return send(res, 409, { error: 'la cancelación se prueba con el conector real (repo vtex: yarn --cwd node local)' });
+            const cancellation = { paymentId: req.paymentId, authorizationId: req.paymentId, transactionId: req.paymentId,
+                requestId: `CANCELED_ORDER-${Date.now()}`, value: req.value };
+            const fw = await fetch(`${VTEX_CONNECTOR_URL}/payments/${encodeURIComponent(req.paymentId)}/cancellations`, { method: 'POST', body: JSON.stringify(cancellation), headers: {
+                'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': String(r.headers['x-provider-api-appkey'] || ''),
+                'X-PROVIDER-API-AppToken': providerToken(r) } });
+            const out = await fw.json();
+            log(`vtex cancel ${out.cancellationId ? 'aprobada' : (out.code || 'negada')}`, 'vtex', { paymentId: req.paymentId, cancellationId: out.cancellationId, code: out.code, message: out.message });
+            return send(res, 200, { request: cancellation, response: out });
         }
 
         // 2b · la app de Shopify

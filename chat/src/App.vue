@@ -689,7 +689,7 @@ const statusText = computed(() => {
               <span class="avatar svc-tunnel" aria-hidden="true">{{ s.name[0] }}<i v-if="s.ready" class="presence"></i></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">{{ s.name }}</b><span class="owner">túnel · Cloudflare</span></span>
-                <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo · ' + s.tunnelUrl : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo' + (s.tunnelUrl ? ' · ' + s.tunnelUrl : '') : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
               </span>
             </button>
           </li>
@@ -1033,7 +1033,7 @@ const statusText = computed(() => {
     <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : openServer ? 'Para probar' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <ServiceSide v-if="openService" :service="openService" @close="setRoutesOpen(false)" />
-      <ServerShare v-else-if="openServer" :server="openServer" @close="setShareOpen(false)" />
+      <ServerShare v-else-if="openServer && openServer.shareable" :server="openServer" @close="setShareOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
           <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>

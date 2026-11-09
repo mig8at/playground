@@ -37,6 +37,7 @@ type serverCheck struct {
 	Name   string `json:"name"`
 	OK     bool   `json:"ok"`
 	Detail string `json:"detail"`
+	How    string `json:"how,omitempty"` // qué hace «Levantar» con esta pieza
 }
 
 type serverView struct {
@@ -49,6 +50,9 @@ type serverView struct {
 	Step      string        `json:"step,omitempty"`
 	Log       []string      `json:"log"`
 	Error     string        `json:"error,omitempty"`
+	DownLabel string        `json:"downLabel,omitempty"` // el botón de apagar; vacío, no hay
+	CanDown   bool          `json:"canDown"`
+	Shareable bool          `json:"shareable"` // se le pasa a otra persona (un túnel); uno local, no
 }
 
 // Lo que se recuerda entre arranques del chat: el túnel que se abrió y para qué dirección se subió la extensión.
@@ -202,7 +206,7 @@ func shopifyStatus() serverView {
 	m := readMemory()
 	view := serverView{ID: "shopify", Name: "Shopify · app de pagos", Log: []string{}}
 
-	app := serverCheck{Name: "Servidor de la app"}
+	app := serverCheck{Name: "Servidor de la app", How: "docker compose up -d en el repo shopify, si app-qa no contesta en :8121"}
 	switch {
 	case !fileExists(filepath.Join(repo, "docker", "docker-compose.yml")):
 		app.Detail = "no está el repo shopify en " + repo + " (SHOPIFY_REPO)"
@@ -212,7 +216,7 @@ func shopifyStatus() serverView {
 		app.Detail = "app-qa no contesta en :" + shopifyAppPort
 	}
 
-	tunnel := serverCheck{Name: "Túnel"}
+	tunnel := serverCheck{Name: "Túnel", How: "cloudflared hacia :8121; queda prendido aunque cierres el chat"}
 	live, external := "", false
 	if app.OK {
 		live, external = liveTunnel(m, repo)
@@ -230,7 +234,7 @@ func shopifyStatus() serverView {
 		tunnel.Detail = "apagado"
 	}
 
-	store := serverCheck{Name: "Tienda"}
+	store := serverCheck{Name: "Tienda", How: "usar-tunel.sh (el .toml local, la extensión y qa.json) y shopify app dev, que sube la extensión a la tienda"}
 	switch {
 	case live == "":
 		store.Detail = shopifyStore + " necesita el túnel"
@@ -244,6 +248,7 @@ func shopifyStatus() serverView {
 
 	view.Checks = []serverCheck{app, tunnel, store}
 	view.Ready = app.OK && tunnel.OK && store.OK
+	view.DownLabel, view.CanDown, view.Shareable = "Apagar túnel", view.TunnelURL != "", true
 
 	shopifySrv.mu.Lock()
 	view.Busy, view.Step, view.Error = shopifySrv.busy, shopifySrv.step, shopifySrv.err
@@ -256,14 +261,14 @@ func shopifyStatus() serverView {
 
 // Corre un comando y va mandando a la consola cada línea que imprime, mientras corre. La consola lo muestra con
 // su `$ comando` arriba.
-func runLogged(ctx context.Context, dir string, name string, args ...string) error {
+func (s *shopifyServer) run(ctx context.Context, dir string, env []string, name string, args ...string) error {
 	path, err := lookTool(name)
 	if err != nil {
 		return fmt.Errorf("no está %s en esta máquina", name)
 	}
-	shopifySrv.logf("$ %s %s", name, strings.Join(args, " "))
+	s.logf("$ %s %s", name, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, path, args...)
-	cmd.Dir, cmd.Env = dir, toolEnv()
+	cmd.Dir, cmd.Env = dir, append(toolEnv(), env...)
 	out, err := cmd.StdoutPipe()
 	if err != nil {
 		return err
@@ -272,19 +277,19 @@ func runLogged(ctx context.Context, dir string, name string, args ...string) err
 	if err := cmd.Start(); err != nil {
 		return err
 	}
-	streamLines(out)
+	s.streamLines(out)
 	return cmd.Wait()
 }
 
 // Cada línea a la consola, sin los códigos de color ni los marcos de las TUIs.
 var ansi = regexp.MustCompile(`\x1b\[[0-9;?]*[A-Za-z]`)
 
-func streamLines(r interface{ Read([]byte) (int, error) }) {
+func (s *shopifyServer) streamLines(r interface{ Read([]byte) (int, error) }) {
 	scanner := bufio.NewScanner(r)
 	scanner.Buffer(make([]byte, 64*1024), 1024*1024)
 	for scanner.Scan() {
 		if line := strings.TrimRight(ansi.ReplaceAllString(scanner.Text(), ""), " \r"); strings.TrimSpace(line) != "" {
-			shopifySrv.logf("  %s", line)
+			s.logf("  %s", line)
 		}
 	}
 }
@@ -455,7 +460,7 @@ func (s *shopifyServer) up() {
 	}
 	if !httpOK("http://localhost:"+shopifyAppPort+"/", 3*time.Second) {
 		s.setStep("Prendiendo la app (docker compose up -d)")
-		if err := runLogged(ctx, docker, "docker", "compose", "up", "-d"); err != nil {
+		if err := s.run(ctx, docker, nil, "docker", "compose", "up", "-d"); err != nil {
 			fail(fmt.Errorf("docker compose up falló: %w", err))
 			return
 		}
@@ -487,7 +492,7 @@ func (s *shopifyServer) up() {
 
 	if secretAppURL(repo) != url || extensionURL(repo) != url {
 		s.setStep("Apuntando la app al túnel (usar-tunel.sh)")
-		if err := runLogged(ctx, docker, "sh", "usar-tunel.sh", url, "--sin-dev"); err != nil {
+		if err := s.run(ctx, docker, nil, "sh", "usar-tunel.sh", url, "--sin-dev"); err != nil {
 			fail(fmt.Errorf("usar-tunel.sh falló: %w", err))
 			return
 		}
@@ -523,8 +528,9 @@ func (s *shopifyServer) down() {
 }
 
 func serverHandlers(mux *http.ServeMux) {
+	localHandlers(mux)
 	mux.HandleFunc("GET /api/servers", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"servers": []serverView{shopifyStatus()}})
+		writeJSON(w, http.StatusOK, map[string]any{"servers": []serverView{shopifyStatus(), localStatus()}})
 	})
 	mux.HandleFunc("POST /api/servers/shopify/up", func(w http.ResponseWriter, r *http.Request) {
 		shopifySrv.mu.Lock()

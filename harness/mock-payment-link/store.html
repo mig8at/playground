@@ -162,7 +162,8 @@ async function pay() {
         },
         callbackUrl: `${cfg.from_backend}/webhook/vtex`,
         // La API real exige https: en qa, la vuelta del comprador entra por el túnel a esta misma tienda.
-        returnUrl: `${cfg.mode === 'qa' ? cfg.from_backend : cfg.self}/return?platform=vtex&orderId=${ids.orderId}`,
+        // payment-link exige https en la vuelta: con un túnel (qa, o el local del chat), la vuelta va por él.
+        returnUrl: `${cfg.mode === 'qa' || cfg.from_backend.startsWith('https://') ? cfg.from_backend : cfg.self}/return?platform=vtex&orderId=${ids.orderId}`,
       };
       headers = { 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': b.hash, 'X-PROVIDER-API-AppToken': b.credential };
       endpoint = '/plugin/vtex/authorize';
@@ -196,7 +197,8 @@ async function pay() {
       (redirect
         ? `<div class="go"><a href="${redirect}" target="_blank" rel="noopener">Ir a CreditOp →</a><code>${redirect}</code></div>`
           + (platform === 'vtex' ? `<div class="mut">Cuando la solicitud quede aprobada y llegue el aviso (abajo), VTEX cobra el pago:</div>
-             <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button></div><div id="settleOut"></div>` : '')
+             <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button>
+             <button type="button" id="cancelOrder">Cancelar pedido (la tienda)</button></div><div id="settleOut"></div>` : '')
           + (trace.response?._mock_warnings ? `<div class="note warn">${trace.response._mock_warnings.join('<br>')}</div>` : '')
         : `<div class="note bad">No hubo URL: el plugin ${platform === 'vtex' ? 'responde deny a VTEX' : 'rechaza la sesión'}.</div>`);
     if (platform === 'vtex' && redirect) {
@@ -204,6 +206,7 @@ async function pay() {
       // Sobrevive a que el comprador se vaya a Creditop y vuelva: «Cobrar» sigue disponible al volver a la tienda.
       try { sessionStorage.setItem('lastVtex', JSON.stringify(lastVtex)); } catch {}
       $('settle').addEventListener('click', settle);
+      $('cancelOrder').addEventListener('click', cancelOrder);
     }
   } catch (e) {
     $('payNote').innerHTML = `<div class="note bad">${e.message}</div>`;
@@ -232,6 +235,26 @@ async function settle() {
   }
 }
 
+// La tienda cancela el pedido: VTEX le pide al conector la cancelación del pago.
+async function cancelOrder() {
+  if (!lastVtex) return;
+  $('cancelOrder').disabled = true;
+  try {
+    const r = await fetch('/plugin/vtex/cancel', { method: 'POST', body: JSON.stringify({ paymentId: lastVtex.paymentId, value: lastVtex.value }),
+      headers: { 'Content-Type': 'application/json', 'X-PROVIDER-API-AppKey': lastVtex.hash, 'X-PROVIDER-API-AppToken': lastVtex.token } });
+    const out = await r.json();
+    const res = out.response || {};
+    const verdict = res.cancellationId
+      ? `<div class="note ok">Cancelado: el conector aprobó la cancelación (${res.cancellationId}).</div>`
+      : `<div class="note bad">No se canceló: ${res.code || out.error || r.status} · ${res.message || ''}</div>`;
+    $('settleOut').innerHTML = step(5, 'VTEX → conector: cancel', { body: out.request }) + step(6, 'Conector → VTEX', res, r.status, true) + verdict;
+  } catch (e) {
+    $('settleOut').innerHTML = `<div class="note bad">${e.message}</div>`;
+  } finally {
+    $('cancelOrder').disabled = false;
+  }
+}
+
 async function poll() {
   try {
     const ev = await (await fetch('/api/events')).json();
@@ -253,8 +276,10 @@ async function poll() {
   try { lastVtex = JSON.parse(sessionStorage.getItem('lastVtex') || 'null'); } catch {}
   if (lastVtex && !$('settle')) {
     $('steps').innerHTML = `<div class="mut">Último pago con VTEX: <code>${lastVtex.paymentId}</code> (${money(Number(lastVtex.value))}, sucursal ${lastVtex.hash}).</div>
-      <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button></div><div id="settleOut"></div>`;
+      <div class="go"><button type="button" id="settle">Cobrar (settle de VTEX)</button>
+      <button type="button" id="cancelOrder">Cancelar pedido (la tienda)</button></div><div id="settleOut"></div>`;
     $('settle').addEventListener('click', settle);
+    $('cancelOrder').addEventListener('click', cancelOrder);
   }
   if (q.get('returned')) $('returned').innerHTML = `<div class="note ok">El comprador volvió a la tienda (${q.get('platform') || ''}).</div>`;
   if (q.get('cancel')) $('returned').innerHTML = `<div class="note warn">El comprador canceló y volvió al checkout.</div>`;

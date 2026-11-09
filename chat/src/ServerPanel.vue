@@ -24,11 +24,6 @@ async function act(path) {
   }
 }
 
-const STEPS = [
-  ['Servidor de la app', 'docker compose up -d en el repo shopify, si app-qa no contesta en :8121'],
-  ['Túnel', 'cloudflared hacia :8121; queda prendido aunque cierres el chat'],
-  ['Tienda', 'usar-tunel.sh (el .toml local, la extensión y qa.json) y shopify app dev, que sube la extensión a la tienda'],
-]
 </script>
 
 <template>
@@ -43,11 +38,11 @@ const STEPS = [
   </div>
   <div class="region-body server">
     <ul class="checks">
-      <li v-for="(c, i) in server.checks" :key="c.name">
+      <li v-for="c in server.checks" :key="c.name">
         <i class="dot" :data-state="c.ok ? 'ok' : server.busy ? 'busy' : 'off'" aria-hidden="true"></i>
         <span class="check-name">{{ c.name }}</span>
         <span class="check-detail" :title="c.detail">{{ c.detail }}</span>
-        <span class="check-how">{{ STEPS[i]?.[1] }}</span>
+        <span class="check-how">{{ c.how }}</span>
       </li>
     </ul>
 
@@ -55,7 +50,7 @@ const STEPS = [
       <button type="button" class="btn btn-sm" :disabled="server.busy || !!acting" @click="act('up')">
         {{ server.busy ? 'Levantando…' : server.ready ? 'Levantar lo que falte' : 'Levantar todo' }}
       </button>
-      <button type="button" class="btn btn-outline btn-sm" :disabled="server.busy || !!acting || !server.tunnelUrl" @click="act('down')">Apagar túnel</button>
+      <button v-if="server.downLabel" type="button" class="btn btn-outline btn-sm" :disabled="server.busy || !!acting || !server.canDown" @click="act('down')">{{ server.downLabel }}</button>
     </div>
     <p v-if="actionError || server.error" class="note bad">{{ actionError || server.error }}</p>
     <p v-else class="note">«Levantar» hace sólo lo que falta, en este orden. Lo que va corriendo se ve abajo, en la consola.</p>
