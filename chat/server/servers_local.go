@@ -138,13 +138,18 @@ func localPieces() []localPiece {
 			name: "Tienda demo", how: "bin/mock-payment-link start del harness, con el conector y la app locales", okText: "http://localhost:" + localStorePort + "/ (VTEX y Shopify, con los plugins reales)",
 			off: "apagada, o prendida contra otra cosa", ok: localStoreOK,
 			up: func(ctx context.Context) error {
+				// La dirección del túnel se lee ANTES de apagar la tienda: con la tienda apagada el túnel no contesta.
+				tunnel := localTunnelURL()
+				if tunnel == "" {
+					return errors.New("el túnel de la tienda no contesta")
+				}
 				// Corre con otra configuración (en modo qa, o sin el token o los plugins locales): se reinicia con ésta.
 				if httpOK("http://localhost:"+localStorePort+"/health", 2*time.Second) {
 					if err := localSrv.run(ctx, harness, nil, "sh", "bin/mock-payment-link", "stop"); err != nil {
 						return err
 					}
 				}
-				return localSrv.run(ctx, harness, []string{"MOCK_PAYMENT_LINK_PUBLIC=" + localTunnelURL(), "STORE_TOKENS=" + localTokensPath(), "SHOPIFY_APP_LOCAL_URL=http://localhost:" + localShopifyAppPort,
+				return localSrv.run(ctx, harness, []string{"MOCK_PAYMENT_LINK_PUBLIC=" + tunnel, "STORE_TOKENS=" + localTokensPath(), "SHOPIFY_APP_LOCAL_URL=http://localhost:" + localShopifyAppPort,
 					"VTEX_CONNECTOR_URL=http://localhost:" + localConnectorPort}, "sh", "bin/mock-payment-link", "start")
 			},
 		},
