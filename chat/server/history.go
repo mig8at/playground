@@ -21,6 +21,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -281,7 +282,50 @@ func (h *history) run(every time.Duration) {
 
 var chatHistory *history
 
+// conversationOf: con quién es un mensaje, como lo agrupa la interfaz: el grupo (`#id`), la persona que lo mandó o a
+// quién se mandó. Lo que dice un agente delegado (`via`) va en la conversación con su dueño.
+func conversationOf(m cli.Message) string {
+	if m.Group != nil && m.Group.ID != "" {
+		return "#" + strings.ToLower(m.Group.ID)
+	}
+	if m.Dir == "out" {
+		return strings.ToLower(strings.TrimSpace(m.To))
+	}
+	return strings.ToLower(strings.TrimSpace(m.From.Email))
+}
+
+// historyEntry: un mensaje del historial con su posición (para pedir sólo lo que vino después) y su conversación.
+type historyEntry struct {
+	Seq  int    `json:"seq"`
+	With string `json:"with"`
+	cli.Message
+}
+
 func historyHandlers(mux *http.ServeMux) {
+	// Todo el historial, en el orden en que llegó, con `seq` y `with`; `?after=N` trae sólo lo posterior. Lo usa
+	// bin/chat (history, follow, inbox, reply). Los adjuntos ya bajados van en `files` (id → archivo).
+	mux.HandleFunc("GET /api/history", func(w http.ResponseWriter, r *http.Request) {
+		if chatHistory == nil {
+			fail(w, http.StatusServiceUnavailable, errors.New("el chat no tiene dónde guardar el historial"))
+			return
+		}
+		after := -1
+		if v := r.URL.Query().Get("after"); v != "" {
+			if _, err := fmt.Sscan(v, &after); err != nil {
+				fail(w, http.StatusBadRequest, errors.New("after es un número"))
+				return
+			}
+		}
+		all := chatHistory.all()
+		out := make([]historyEntry, 0, len(all))
+		for i, m := range all {
+			if i > after {
+				out = append(out, historyEntry{Seq: i, With: conversationOf(m), Message: m})
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"messages": out, "last": len(all) - 1, "files": chatHistory.savedFiles()})
+	})
+
 	// La copia de las conversaciones de la interfaz: GET la devuelve ({} si no hay), PUT la reemplaza.
 	mux.HandleFunc("GET /api/conversations", func(w http.ResponseWriter, r *http.Request) {
 		if chatHistory == nil {

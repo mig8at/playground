@@ -181,6 +181,15 @@ func handler() http.Handler {
 			fail(w, http.StatusBadGateway, err)
 			return
 		}
+		// Lo mandado desde acá no pasa por el listen: se guarda en el historial para que la conversación quede entera.
+		if chatHistory != nil && result.ID != "" {
+			to := result.To
+			if to == "" {
+				to = in.To
+			}
+			_, _ = chatHistory.add([]cli.Message{{ID: result.ID, Dir: "out", To: to, Text: in.Text, Re: result.Re,
+				Time: time.Now().UTC().Format(time.RFC3339Nano)}})
+		}
 		writeJSON(w, http.StatusOK, result)
 	})
 

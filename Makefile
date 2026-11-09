@@ -120,7 +120,7 @@ captura: ## @dia captura de pantalla por ARRASTRE (Captura.app nativa, captura/m
 	 l=$$(cat $$r); \
 	 case "$$l" in "ok "*) echo "$${l#ok }";; cancel) exit 1;; "") echo "  ✗ Captura se cerró sin resultado" >&2; exit 2;; *) echo "  ✗ $${l#error }" >&2; exit 2;; esac
 
-chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial queda en el navegador
+chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial y las imágenes los guarda su servidor en disco, y `bin/chat` los lee desde la terminal
 	@cd chat && npm run dev
 agents: ## @dia prende tus agentes del chat del playground (agents/*, cada uno su proceso: time :5186). Se declaran en ~/playground/team/agents.json y los anuncia `playground listen`; `playground agents check` dice si contestan
 	@trap 'kill 0' INT TERM; for d in agents/*/; do go run ./$$d & done; wait
