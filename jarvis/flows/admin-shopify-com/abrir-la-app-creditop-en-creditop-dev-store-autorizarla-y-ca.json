@@ -1,0 +1,66 @@
+{
+  "nombre": "Abrir la app Creditop en creditop-dev-store, autorizarla y cargar la sucursal e4a51ff3f de qa con su token",
+  "meta": "Abrir la app Creditop en creditop-dev-store, autorizarla y cargar la sucursal e4a51ff3f de qa con su token",
+  "inicio": "https://admin.shopify.com/store/creditop-dev-store/settings/apps",
+  "dispositivo": "chrome",
+  "creado": "2026-11-09T17:48:12.718375-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-09_17-24-25",
+  "pasos": [
+    {
+      "accion": "goto",
+      "objetivo": "https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "valor": "https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "instruccion": "Abrí https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "porque": "Abro la app Creditop desde el admin: como no va embebida, Shopify la manda a su dominio de dev",
+      "codigo": "page.goto('https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca')"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://admin.shopify.com/store/creditop-dev-store/settings/apps?tab=installed",
+      "valor": "https://admin.shopify.com/store/creditop-dev-store/settings/apps?tab=installed",
+      "instruccion": "Abrí https://admin.shopify.com/store/creditop-dev-store/settings/apps?tab=installed",
+      "codigo": "page.goto('https://admin.shopify.com/store/creditop-dev-store/settings/apps?tab=installed')"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Creditop",
+      "valor": "Creditop",
+      "instruccion": "Comprobá que se vea «Creditop»",
+      "codigo": "expect(page.getByText('Creditop').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "goto",
+      "objetivo": "https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "valor": "https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "instruccion": "Abrí https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca",
+      "porque": "Abro la app de nuevo: ahora debe ir a su dominio de dev",
+      "codigo": "page.goto('https://admin.shopify.com/store/creditop-dev-store/apps/9bad40b96fc86cca4a4f5ae3e4f293ca')"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Creditop",
+      "valor": "Creditop",
+      "instruccion": "Comprobá que se vea «Creditop»",
+      "codigo": "expect(page.getByText('Creditop').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Código de la sucursal *",
+      "valor": "e4a51ff3f",
+      "instruccion": "Escribí «e4a51ff3f» en «Código de la sucursal *»",
+      "porque": "Escribo el código de la sucursal de pruebas de Shopify en qa",
+      "dato": "Código de la sucursal *",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Código de la sucursal *",
+          "code": "page.getByLabel('Código de la sucursal *', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByLabel('Código de la sucursal *', { exact: true }).fill('e4a51ff3f')"
+    }
+  ]
+}

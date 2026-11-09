@@ -1,0 +1,29 @@
+{
+  "nombre": "Ver en qué tiendas está instalada la app CREDITOP-ECOMMERCE-PAYMENTS, sin cambiar nada",
+  "meta": "Ver en qué tiendas está instalada la app CREDITOP-ECOMMERCE-PAYMENTS, sin cambiar nada",
+  "inicio": "https://dev.shopify.com/dashboard/167881494/apps/317076176897",
+  "dispositivo": "chrome",
+  "creado": "2026-11-09T17:21:21.217447-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-09_17-21-15",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Ver todas las instalaciones",
+      "instruccion": "Hacé clic en «Ver todas las instalaciones»",
+      "porque": "Abro la lista de instalaciones para saber qué tiendas toca el release",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "Ver todas las instalaciones",
+          "exact": true,
+          "code": "page.getByRole('link', { name: 'Ver todas las instalaciones', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('link', { name: 'Ver todas las instalaciones', exact: true }).click()"
+    }
+  ]
+}
