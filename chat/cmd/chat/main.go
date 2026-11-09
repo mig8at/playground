@@ -2,16 +2,11 @@
 // que espera y contesta). Habla con el servidor de `make chat` (:5185), que guarda el historial en disco y manda por el
 // CLI `playground`: no es otro cliente del chat.
 //
-//	bin/chat inbox                       las conversaciones, la más reciente primero (★ = te escribieron último)
-//	bin/chat history <quién> [-n 30]     la conversación con alguien o con un grupo (#demo), con los ids
-//	bin/chat follow <quién>… [--json]    cada mensaje nuevo de esas conversaciones, apenas llega (para un Monitor)
-//	bin/chat send <quién> <texto…>       manda un mensaje (--re <id> para contestar uno)
-//	bin/chat reply <quién> <texto…>      contesta el último mensaje que te mandó
+// Los comandos están en `usage`, al final. <who>: el correo, su parte antes de la @ (o el comienzo: `duncan`),
+// `@duncan`, o un grupo `#demo`. ⚠ send y reply salen a nombre de quien tiene la sesión del CLI.
 //
-// <quién>: el correo, su parte antes de la @ (o el comienzo: `duncan`), `@duncan`, o un grupo `#demo`.
-// ⚠ send y reply salen a nombre de quien tiene la sesión del CLI.
-//
-// CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
+// CONVENCIÓN: código, comandos, opciones y salida de la terminal en inglés; comentarios en español. Sólo las
+// interfaces gráficas van en español.
 package main
 
 import (
@@ -22,6 +17,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -82,7 +78,7 @@ func call(method, path string, body any, out any) error {
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return errors.New("no contesta el servidor del chat (" + base() + "): levantalo con `make chat`")
+		return errors.New("the chat server is not answering (" + base() + "): start it with `make chat-service` or `make chat`")
 	}
 	defer res.Body.Close()
 	data, _ := io.ReadAll(res.Body)
@@ -138,7 +134,7 @@ func resolve(who string, known []string) (string, error) {
 		return prefix[0], nil
 	}
 	if len(exact)+len(prefix) > 1 {
-		return "", fmt.Errorf("«%s» puede ser %s: escribí el correo", who, strings.Join(append(exact, prefix...), ", "))
+		return "", fmt.Errorf("%q is ambiguous (%s): use the email", who, strings.Join(append(exact, prefix...), ", "))
 	}
 	return w, nil
 }
@@ -169,32 +165,55 @@ func clock(t string) string {
 
 func speaker(m entry) string {
 	if m.Dir == "out" {
-		return "vos"
+		return "you"
 	}
 	name := m.From.Name
 	if name == "" {
 		name = strings.SplitN(m.From.Email, "@", 2)[0]
 	}
 	if m.Via != nil && m.Via.Name != "" {
-		return m.Via.Name + " (agente de " + strings.Fields(name + " ")[0] + ")"
+		return m.Via.Name + " (" + strings.Fields(name + " ")[0] + "'s agent)"
 	}
 	return name
 }
 
-func printEntry(m entry, files map[string]string) {
-	line := fmt.Sprintf("[%s] %s: %s", clock(m.Time), speaker(m), m.Text)
-	if m.With != "" && strings.HasPrefix(m.With, "#") {
-		line = fmt.Sprintf("[%s] %s · %s: %s", clock(m.Time), m.With, speaker(m), m.Text)
+var imageName = regexp.MustCompile(`(?i)\.(png|jpe?g|gif|webp)$`)
+
+// pendingImages: las imágenes del mensaje que el chat todavía no bajó (las baja solo, a los pocos segundos de llegar).
+func pendingImages(m entry, files map[string]string) bool {
+	for _, f := range m.Files {
+		if _, ok := files[f.ID]; !ok && imageName.MatchString(f.Name) {
+			return true
+		}
 	}
+	return false
+}
+
+// printEntry: una cabecera por mensaje y, si el texto tiene varias líneas, las siguientes sangradas con «│», para que
+// quien lea la salida no confunda una línea del cuerpo con otro mensaje.
+func printEntry(m entry, files map[string]string) {
+	lines := strings.Split(strings.TrimRight(m.Text, "\n"), "\n")
+	head := fmt.Sprintf("[%s] %s: %s", clock(m.Time), speaker(m), lines[0])
+	if m.With != "" && strings.HasPrefix(m.With, "#") {
+		head = fmt.Sprintf("[%s] %s · %s: %s", clock(m.Time), m.With, speaker(m), lines[0])
+	}
+	line := head
 	if m.ID != "" {
 		line += "  · id " + m.ID
 	}
 	if m.Re != "" {
-		line += " (contesta a " + m.Re + ")"
+		line += " (re " + m.Re + ")"
 	}
 	fmt.Println(line)
+	for _, l := range lines[1:] {
+		fmt.Println("    │ " + l)
+	}
 	for _, f := range m.Files {
-		where := "sin bajar: playground get " + f.ID
+		where := "not downloaded: playground get " + f.ID
+		if imageName.MatchString(f.Name) {
+			// Una imagen la baja el chat solo: `playground get` se la quitaría (el home la borra al entregarla).
+			where = "the chat is downloading it: bin/chat history " + m.With + " gives the path"
+		}
 		if p, ok := files[f.ID]; ok {
 			where = p
 		}
@@ -222,6 +241,17 @@ func flagValue(args []string, name string) (string, []string) {
 	return value, rest
 }
 
+// noUnknownFlags: lo que queda después de sacar las opciones conocidas no puede empezar con «-»; si no, `follow --algo`
+// se quedaría siguiendo a alguien llamado «--algo».
+func noUnknownFlags(rest []string) {
+	for _, a := range rest {
+		if strings.HasPrefix(a, "-") {
+			fmt.Fprintf(os.Stderr, "✗ unknown option %s\n\n%s\n", a, strings.TrimSpace(usage))
+			os.Exit(2)
+		}
+	}
+}
+
 func hasFlag(args []string, name string) (bool, []string) {
 	var rest []string
 	found := false
@@ -241,6 +271,16 @@ func main() {
 		return
 	}
 	cmd, args := os.Args[1], os.Args[2:]
+	if cmd == "help" || cmd == "-h" || cmd == "--help" {
+		fmt.Println(strings.TrimSpace(usage))
+		return
+	}
+	for _, a := range args {
+		if a == "-h" || a == "--help" {
+			fmt.Println(strings.TrimSpace(usage))
+			return
+		}
+	}
 	switch cmd {
 	case "inbox":
 		h, err := history(-1)
@@ -267,8 +307,9 @@ func main() {
 		}
 	case "history":
 		n, rest := flagValue(args, "-n")
+		noUnknownFlags(rest)
 		if len(rest) != 1 {
-			fail(errors.New("uso: bin/chat history <quién> [-n 30]"))
+			fail(errors.New("usage: bin/chat history <who> [-n 30]"))
 		}
 		limit := 30
 		if n != "" {
@@ -289,19 +330,21 @@ func main() {
 			}
 		}
 		if len(mine) == 0 {
-			fail(fmt.Errorf("no hay mensajes con %s en el historial", with))
+			fail(fmt.Errorf("no messages with %s in the history", with))
 		}
 		if limit > 0 && len(mine) > limit {
 			mine = mine[len(mine)-limit:]
 		}
-		fmt.Printf("— %s · %d mensaje(s) —\n", with, len(mine))
+		fmt.Printf("— %s · %d message(s) —\n", with, len(mine))
 		for _, m := range mine {
 			printEntry(m, h.Files)
 		}
 	case "follow":
 		asJSON, rest := hasFlag(args, "--json")
+		theirs, rest := hasFlag(rest, "--theirs")
+		noUnknownFlags(rest)
 		if len(rest) == 0 {
-			fail(errors.New("uso: bin/chat follow <quién>… [--json]"))
+			fail(errors.New("usage: bin/chat follow <who>… [--json] [--theirs]"))
 		}
 		h, err := history(-1)
 		if err != nil {
@@ -316,7 +359,7 @@ func main() {
 			want[with] = true
 		}
 		after, down := h.Last, false
-		fmt.Fprintf(os.Stderr, "siguiendo %s (Ctrl-C para terminar)\n", strings.Join(rest, ", "))
+		fmt.Fprintf(os.Stderr, "following %s (Ctrl-C to stop)\n", strings.Join(rest, ", "))
 		for {
 			time.Sleep(2 * time.Second)
 			next, err := history(after)
@@ -328,13 +371,39 @@ func main() {
 				continue
 			}
 			down = false
+			// Las imágenes que trae: el chat las baja a los pocos segundos. Se espera hasta 20 s para dar su ruta local.
+			for wait := 0; wait < 20; wait++ {
+				pending := false
+				for _, m := range next.Messages {
+					pending = pending || (want[m.With] && m.Dir != "out" && pendingImages(m, next.Files))
+				}
+				if !pending {
+					break
+				}
+				time.Sleep(time.Second)
+				if fresh, err := history(after); err == nil {
+					next.Files = fresh.Files
+				}
+			}
 			for _, m := range next.Messages {
 				after = m.Seq
-				if !want[m.With] {
+				if !want[m.With] || (theirs && m.Dir == "out") {
 					continue
 				}
 				if asJSON {
-					b, _ := json.Marshal(m)
+					// Una línea por mensaje, con quién lo escribió (`dir`, `from`) y la ruta de cada adjunto ya bajado.
+					type jsonFile struct {
+						file
+						Path string `json:"path,omitempty"`
+					}
+					out := struct {
+						entry
+						Files []jsonFile `json:"files,omitempty"`
+					}{entry: m}
+					for _, f := range m.Files {
+						out.Files = append(out.Files, jsonFile{file: f, Path: next.Files[f.ID]})
+					}
+					b, _ := json.Marshal(out)
 					fmt.Println(string(b))
 				} else {
 					printEntry(m, next.Files)
@@ -343,8 +412,11 @@ func main() {
 		}
 	case "send", "reply":
 		re, rest := flagValue(args, "--re")
+		if len(rest) > 0 {
+			noUnknownFlags(rest[:1])
+		}
 		if len(rest) < 2 {
-			fail(fmt.Errorf("uso: bin/chat %s <quién> <texto…>", cmd))
+			fail(fmt.Errorf("usage: bin/chat %s <who> <text…>", cmd))
 		}
 		h, err := history(-1)
 		if err != nil {
@@ -362,7 +434,7 @@ func main() {
 				}
 			}
 			if re == "" {
-				fail(fmt.Errorf("%s no te mandó nada que se pueda contestar: usá send", with))
+				fail(fmt.Errorf("%s has sent you nothing to reply to: use send", with))
 			}
 		}
 		var out struct {
@@ -373,11 +445,11 @@ func main() {
 		if err := call("POST", "/api/send", map[string]string{"to": with, "text": strings.Join(rest[1:], " "), "re": re}, &out); err != nil {
 			fail(err)
 		}
-		state := "entregado"
+		state := "delivered"
 		if out.Delivered == 0 {
-			state = "en el buzón (no está conectado)"
+			state = "queued (not connected)"
 		}
-		fmt.Printf("✓ a %s · %s · id %s\n", out.To, state, out.ID)
+		fmt.Printf("✓ to %s · %s · id %s\n", out.To, state, out.ID)
 	default:
 		fmt.Println(strings.TrimSpace(usage))
 		os.Exit(2)
@@ -385,11 +457,14 @@ func main() {
 }
 
 const usage = `
-bin/chat — el chat del equipo desde la terminal (servidor de make chat, :5185)
-  inbox                       las conversaciones, la más reciente primero (★ = te escribieron último)
-  history <quién> [-n 30]     la conversación con alguien o con un grupo (#demo), con los ids
-  follow <quién>… [--json]    cada mensaje nuevo de esas conversaciones, apenas llega (para un Monitor)
-  send <quién> <texto…>       manda un mensaje (--re <id> para contestar uno)
-  reply <quién> <texto…>      contesta el último mensaje que te mandó
-<quién>: el correo, su parte antes de la @ (o el comienzo: duncan), @duncan, o #grupo.
-⚠ send y reply salen a nombre de quien tiene la sesión del CLI.`
+bin/chat — the team chat from the terminal (the make chat server, :5185)
+  inbox                          conversations, most recent first (★ = they wrote last)
+  history <who> [-n 30]          the conversation with someone or a group (#demo), with message ids
+  follow <who>… [--json] [--theirs]
+                                 each new message in those conversations as it arrives (for a Monitor).
+                                 --json: one per line, with dir/from and each attachment's local path
+                                 --theirs: leave out your own messages
+  send <who> <text…> [--re <id>] send a message (--re replies to a given one)
+  reply <who> <text…>            reply to the last message they sent you
+<who>: the email, its part before the @ (or its start: duncan), @duncan, or #group.
+⚠ send and reply go out under the CLI session's name.`
