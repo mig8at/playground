@@ -747,18 +747,18 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   // Reintentar es mandar el mismo texto de nuevo: el que falló se va, para no dejar dos.
-  // Bajar un adjunto recibido: queda en Descargas. Se recuerda dónde, para mostrarlo.
+  // Bajar un adjunto recibido: queda en Descargas (y el home lo borra). Se recuerda dónde, para mostrarlo.
   async function getFile(item, file, { cache = false } = {}) {
     Object.assign(file, { status: 'bajando', error: '' })
     try {
       const s = await post(`/api/files/${encodeURIComponent(file.id)}/get${cache ? '?cache=1' : ''}`, {})
       Object.assign(file, { status: 'bajado', path: s.path, ...(cache ? { cached: true } : { savedPath: s.path }) })
     } catch (e) {
-      // Ya no está en el home: venció (7 días) o, con un home anterior al cambio que dejó de borrarlos al bajarlos, lo
-      // bajó antes otra terminal o sesión tuya (`playground get`). Reintentar no sirve.
+      // El home borra un adjunto cuando lo baja quien lo recibe: si otra terminal o sesión tuya (`playground get`) lo
+      // bajó antes, acá ya no está, y reintentar no sirve.
       const gone = /no existe o ya venci/.test(e.message)
       Object.assign(file, { status: 'error', gone,
-        error: gone ? 'ya no está en el playground: venció, o lo bajó antes otra terminal o sesión tuya' : e.message })
+        error: gone ? 'ya lo bajó otra terminal o sesión tuya (el playground lo borra al bajarlo), o venció' : e.message })
     }
   }
   // Guardar en Descargas una imagen que se bajó sola al caché: una copia, sin pisar nada.

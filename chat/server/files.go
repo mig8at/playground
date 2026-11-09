@@ -133,7 +133,7 @@ func registerFiles(mux *http.ServeMux) {
 		writeJSON(w, http.StatusOK, file)
 	})
 
-	// Bajar un adjunto que te mandaron: queda en ~/Downloads (el home lo guarda hasta que vence). Con ?cache=1 queda en el caché de
+	// Bajar un adjunto que te mandaron: queda en ~/Downloads (y el home lo borra). Con ?cache=1 queda en el caché de
 	// imágenes del chat: así se baja solo una imagen para mostrarla, sin llenar Descargas.
 	mux.HandleFunc("POST /api/files/{id}/get", func(w http.ResponseWriter, r *http.Request) {
 		// Ya bajado (lo bajó el recolector al llegar): se devuelve sin pedirlo otra vez.

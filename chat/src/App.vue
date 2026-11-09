@@ -1004,7 +1004,7 @@ const statusText = computed(() => {
                       </template>
                       <template v-else>
                         <button v-if="!f.status || f.status === 'error'" type="button" class="btn btn-outline btn-sm"
-                                title="Bajarlo a Descargas. No se abre solo" @click="chat.getFile(item, f)">Bajar</button>
+                                title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar</button>
                         <span v-else-if="f.status === 'bajando'" class="attachment-state">bajando…</span>
                         <template v-else-if="f.status === 'bajado'">
                           <a v-if="isPdf(f)" class="btn-link" :href="chat.fileUrl(f)" target="_blank" rel="noopener">ver</a>
