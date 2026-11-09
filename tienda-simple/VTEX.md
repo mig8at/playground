@@ -59,7 +59,12 @@ Tienda mínima: logo y carrito arriba, título, grilla de bicicletas, página de
 el de VTEX (no lo controla el tema), con estilo propio por `checkout-ui-custom`.
 
 Versiones publicadas: 0.1.0 (tema), 0.1.1 (estilo del checkout), 0.1.2 (franja del carrito vacío), 0.1.3 («Paga a cuotas
-con CreditOp» en vez de «Pago al contado»; candado del correo). Instalada: 0.1.3.
+con CreditOp» en vez de «Pago al contado»; candado del correo), 0.2.0 y 0.2.1 (bloque de auto-onboarding del checkout) y
+0.2.2 (la página de pedido realizado, `vtex.order-placed`: sin ella «Volver a la tienda» quedaba en blanco).
+Instalada: 0.2.2 (2026-11-09).
+
+- **La tienda entera pide el login del admin de VTEX** a quien no lo tiene (el inicio y `checkout/orderPlaced` redirigen
+  a `_v/segment/admin-login`; sólo `/checkout/` abre sin sesión). Las pruebas se hacen desde un navegador con esa sesión.
 
 ### Lo que costó (y se resolvió)
 
