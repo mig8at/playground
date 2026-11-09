@@ -1,9 +1,11 @@
 /* EL ESTADO DE CHAT — las conversaciones, quién está, los agentes del equipo y si estás escuchando.
  *
  * Lo que llega lo tiene `playground listen` (en memoria, los últimos cien) y lo que se manda sale por el
- * CLI: la API en Go sólo los acerca. Lo que el CLI NO guarda es el historial, y eso lo pone esta app: cada
- * conversación vive en el navegador (`localStorage`, `chat:conversations:v1`), así que sobrevive a una
- * recarga y a un `listen` reiniciado, y no sale de esta máquina. Borrar el almacenamiento del sitio la borra.
+ * CLI. El HISTORIAL lo guarda el servidor del chat en disco (server/history.go): todo lo que pasa por el listen,
+ * aunque esta ventana esté cerrada, y las imágenes que llegan, bajadas apenas llegan. Esta app arma las
+ * conversaciones con eso, las tiene en el navegador (`localStorage`, `chat:conversations:v1`) para arrancar rápido y
+ * le manda al servidor una copia (`/api/conversations`). Si el navegador no tiene nada (otro navegador, datos
+ * borrados, el almacenamiento lleno), arranca de esa copia. Nada sale de esta máquina.
  *
  * Cada mensaje trae el id que le puso el home (`sid`), y una respuesta trae `re`: el id del que contesta.
  * Con eso se cita el mensaje original y se contesta a uno en particular (`--re` del CLI).
@@ -141,8 +143,32 @@ export const useChatStore = defineStore('chat', () => {
   // Tu agente (`myAgent.js`): con él prendido, a lo que te llega le arma una propuesta de respuesta.
   const mine = useMyAgentStore()
 
+  // La copia en el servidor: si el navegador no tiene conversaciones, se arranca de ella. Hasta saberlo no se escribe
+  // nada allá, para no pisar la copia buena con un navegador vacío.
+  let serverCopyReady = false
+  let serverCopyTimer = null
+  const saveServerCopy = () => {
+    if (!serverCopyReady) return
+    clearTimeout(serverCopyTimer)
+    serverCopyTimer = setTimeout(() => {
+      fetch('/api/conversations', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(conversations.value) })
+        .catch(() => { /* el próximo cambio lo vuelve a intentar */ })
+    }, 2000)
+  }
+  async function loadServerCopy() {
+    try {
+      if (!Object.keys(conversations.value).length) {
+        const copy = await api('/api/conversations')
+        if (copy && typeof copy === 'object' && !Array.isArray(copy) && Object.keys(copy).length) conversations.value = dropJournal(copy)
+      }
+    } catch { /* sin copia: se arma con el historial del servidor */ }
+    serverCopyReady = true
+    saveServerCopy()
+  }
+
   watch(conversations, (value) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: vive mientras la pestaña */ }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: queda la copia del servidor */ }
+    saveServerCopy()
   }, { deep: true })
 
   const me = computed(() => state.value?.me || null)
@@ -344,7 +370,8 @@ export const useChatStore = defineStore('chat', () => {
                 ...(Array.isArray(m.files) && m.files.length ? { files: m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) } : {}) })
       if (pushed) {
         const item = c.messages.find((x) => x.id === id)
-        for (const f of item?.files || []) if (isImage(f) && f.size <= IMAGE_AUTO_MAX) getFile(item, f, { cache: true })
+        // Si el servidor ya la bajó (lo hace apenas llega), applySavedFiles la muestra; si no, se pide acá.
+        for (const f of item?.files || []) if (isImage(f) && f.size <= IMAGE_AUTO_MAX && !state.value?.files?.[f.id]) getFile(item, f, { cache: true })
       }
     }
     markActiveRead()
@@ -438,11 +465,30 @@ export const useChatStore = defineStore('chat', () => {
     if (latest > (c.readAt || '')) c.readAt = latest
   }
 
+  let absorbedCount = 0
+  // Las imágenes que el servidor ya bajó (id → archivo): se muestran sin volver a pedirlas.
+  function applySavedFiles(files) {
+    if (!files) return
+    for (const c of Object.values(conversations.value)) {
+      for (const m of c.messages || []) {
+        for (const f of m.files || []) {
+          const path = files[f.id]
+          if (path && (f.status !== 'bajado' || f.path !== path)) Object.assign(f, { status: 'bajado', path, cached: true, error: '', gone: false })
+        }
+      }
+    }
+  }
+
   async function loadState() {
     try {
       state.value = await api('/api/state')
       stateError.value = ''
-      absorb(state.value.messages)
+      // El servidor devuelve TODO el historial, en el orden en que lo guardó: sólo se procesa lo que no se vio.
+      const all = state.value.messages || []
+      if (all.length < absorbedCount) absorbedCount = 0
+      absorb(all.slice(absorbedCount))
+      absorbedCount = all.length
+      applySavedFiles(state.value.files)
       if (listenAfterLogin && state.value.session && !state.value.listening) { listenAfterLogin = false; startListening() }
       if (!state.value.login?.running && loginBusy.value) {
         loginBusy.value = false
@@ -778,7 +824,8 @@ export const useChatStore = defineStore('chat', () => {
       const st = state.value
       if (st && !st.session && !st.login?.running && !loginBusy.value) login()
     }
-    loadState().then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla(), loadOwnAgents()])).then(proposeReplies)
+    // Primero la copia del servidor (si el navegador está vacío), después el historial: así nada llega dos veces.
+    loadServerCopy().then(loadState).then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla(), loadOwnAgents()])).then(proposeReplies)
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)

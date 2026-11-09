@@ -1,8 +1,9 @@
 // Command server es la API de chat, el mini WhatsApp del chat de la terminal del playground compartido.
 //
 // No es otro cliente del chat: todo pasa por el CLI `playground` (paquete chat/cli). Lo que llegó lo tiene
-// `playground listen`; lo que se manda sale con la sesión de `playground login`. El historial de las
-// conversaciones lo guarda la interfaz, en el navegador: acá no se escribe nada en disco.
+// `playground listen`; lo que se manda sale con la sesión de `playground login`. El historial lo guarda este
+// servidor en disco (history.go): lo que pasa por el listen, aunque no haya ninguna ventana abierta, y una copia de
+// las conversaciones que arma la interfaz.
 //
 // Sólo escucha en 127.0.0.1: manda mensajes a nombre de quien está logueado en el CLI.
 //
@@ -59,7 +60,9 @@ type stateResponse struct {
 	Since     string        `json:"since,omitempty"`
 	Me        *cli.Person   `json:"me,omitempty"`
 	Messages  []cli.Message `json:"messages"`
-	Error     string        `json:"error,omitempty"`
+	// Files: los adjuntos que el chat ya bajó (id → archivo), para mostrarlos sin volver a pedirlos.
+	Files map[string]string `json:"files,omitempty"`
+	Error string            `json:"error,omitempty"`
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -87,15 +90,20 @@ func handler() http.Handler {
 		}
 		body.Session = cli.CurrentSession(ctx)
 		status, _ := cli.ListenStatus(ctx)
-		if status == nil {
-			writeJSON(w, http.StatusOK, body)
-			return
+		if status != nil {
+			body.Listening, body.Connected, body.Since, body.Me = true, status.Connected, status.Since, status.Me
+			if messages, err := cli.All(ctx); err != nil {
+				body.Error = err.Error()
+			} else {
+				body.Messages = messages
+			}
 		}
-		body.Listening, body.Connected, body.Since, body.Me = true, status.Connected, status.Since, status.Me
-		if messages, err := cli.All(ctx); err != nil {
-			body.Error = err.Error()
-		} else {
-			body.Messages = messages
+		// Lo guardado en disco, con lo que acaba de traer el listen: llega todo aunque el listen se haya reiniciado.
+		if chatHistory != nil {
+			if fresh, err := chatHistory.add(body.Messages); err == nil && len(fresh) > 0 {
+				go fetchImagesOf(fresh)
+			}
+			body.Messages, body.Files = chatHistory.all(), chatHistory.savedFiles()
 		}
 		writeJSON(w, http.StatusOK, body)
 	})
@@ -291,6 +299,7 @@ func handler() http.Handler {
 	serverHandlers(mux)
 	myAgentHandlers(mux)
 	safetyHandlers(mux)
+	historyHandlers(mux)
 	teamServiceHandlers(mux)
 	return mux
 }
@@ -302,6 +311,15 @@ func main() {
 	if err != nil || host != "127.0.0.1" {
 		fmt.Fprintln(os.Stderr, "chat: la API escucha sólo en 127.0.0.1 (manda mensajes a tu nombre)")
 		os.Exit(2)
+	}
+	if dir, err := historyDir(); err != nil {
+		fmt.Fprintln(os.Stderr, "chat: sin historial en disco:", err)
+	} else if h, err := openHistory(dir); err != nil {
+		fmt.Fprintln(os.Stderr, "chat: sin historial en disco:", err)
+	} else {
+		chatHistory = h
+		go h.run(5 * time.Second)
+		fmt.Printf("chat · historial en %s (%d mensajes)\n", dir, len(h.all()))
 	}
 	fmt.Printf("chat · API en http://%s\n", *addr)
 	srv := &http.Server{Addr: *addr, Handler: handler(), ReadHeaderTimeout: 5 * time.Second}

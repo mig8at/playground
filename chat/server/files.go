@@ -74,6 +74,11 @@ func insideAny(p string, dirs []string) bool {
 // savedPath devuelve el archivo de un adjunto bajado: el que se bajó en esta vuelta del server, o, después de
 // reiniciarlo, uno que la interfaz recuerda y que sigue dentro de Descargas o del caché de imágenes del chat.
 func savedPath(id, remembered string) (string, error) {
+	if chatHistory != nil {
+		if p, ok := chatHistory.savedFile(id); ok {
+			return p, nil
+		}
+	}
 	saved.Lock()
 	s, ok := saved.byID[id]
 	saved.Unlock()
@@ -131,6 +136,13 @@ func registerFiles(mux *http.ServeMux) {
 	// Bajar un adjunto que te mandaron: queda en ~/Downloads (el home lo guarda hasta que vence). Con ?cache=1 queda en el caché de
 	// imágenes del chat: así se baja solo una imagen para mostrarla, sin llenar Descargas.
 	mux.HandleFunc("POST /api/files/{id}/get", func(w http.ResponseWriter, r *http.Request) {
+		// Ya bajado (lo bajó el recolector al llegar): se devuelve sin pedirlo otra vez.
+		if r.URL.Query().Get("cache") == "1" && chatHistory != nil {
+			if p, ok := chatHistory.savedFile(r.PathValue("id")); ok {
+				writeJSON(w, http.StatusOK, cli.Saved{ID: r.PathValue("id"), Name: filepath.Base(p), Path: p})
+				return
+			}
+		}
 		ctx, cancel := context.WithTimeout(r.Context(), 3*time.Minute)
 		defer cancel()
 		dir := ""
@@ -150,6 +162,9 @@ func registerFiles(mux *http.ServeMux) {
 		saved.Lock()
 		saved.byID[r.PathValue("id")] = s
 		saved.Unlock()
+		if dir != "" && chatHistory != nil {
+			chatHistory.rememberFile(r.PathValue("id"), s.Path)
+		}
 		writeJSON(w, http.StatusOK, s)
 	})
 
