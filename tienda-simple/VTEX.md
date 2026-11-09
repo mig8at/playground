@@ -35,6 +35,11 @@ El repo original del tema, con su historial, sigue en `~/Workspace/Work/creditop
 - **Productos:** sólo las 6 bicicletas activas (las 3 de la plantilla ya estaban inactivas; el admin no deja borrarlas).
 - **Recorrido verificado:** tienda → checkout → «Comprar ahora» → wizard de CreditOp en `originaciones-qa` con `?ref=`.
 
+> **2026-11-09:** la condición de pago «Creditop qa» ahora usa la afiliación **«Mario Hernández (qa)»** (conector v5,
+> sucursal `1126106a`, «PRUEBA AUTO · Mario Hernández» en qa, ya en `auto_onboarding_allied_branches`), para las pruebas
+> del equipo de Duncan. Antes usaba «Creditop qa» (`ecf9342be`, «PRUEBA AUTO VTEX»); para volver, se cambia la afiliación
+> de la condición de pago. Compra de control: pedido 1675020500458-01, Approved.
+
 ## El tema (`creditop.tienda-simple`)
 
 Tienda mínima: logo y carrito arriba, título, grilla de bicicletas, página de producto, pie de una línea. El checkout es
