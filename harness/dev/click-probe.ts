@@ -9,9 +9,10 @@ const url = `https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/${ur}/
 const { page, close } = await openChrome();
 const t0 = Date.now(); const ms = () => Date.now() - t0;
 const posts: string[] = [];
-// BLOCK_POSTHOG=1: corta todo pedido a PostHog, como Brave Shields (lo único de terceros que carga el wizard).
+// BLOCK_POSTHOG=1: corta los pedidos a PostHog. Con BLOCK_POSTHOG_BRAVE=1, sólo lo que corta Brave Shields de verdad (medido
+// en el Brave de Duncan el 2026-11-10): el envío de eventos, el recorder y dead-clicks; config y /flags pasan.
 const blocked: string[] = [];
-if (process.env.BLOCK_POSTHOG === '1') await page.route(process.env.BLOCK_POSTHOG_PATHS === '1' ? /posthog/i : /posthog\.com/, (r: any) => { blocked.push(r.request().url().replace(/\?.*$/, '')); return r.abort('blockedbyclient'); });
+if (process.env.BLOCK_POSTHOG === '1') await page.route(process.env.BLOCK_POSTHOG_PATHS === '1' ? /posthog/i : process.env.BLOCK_POSTHOG_BRAVE === '1' ? /dead-clicks-autocapture|posthog-recorder|us\.i\.posthog\.com\/i\/v0\/e/ : /posthog\.com/, (r: any) => { blocked.push(r.request().url().replace(/\?.*$/, '')); return r.abort('blockedbyclient'); });
 page.on('request', (r: any) => { if (r.method() === 'POST' && /creditop\.com/.test(r.url())) posts.push(`${ms()}ms ${r.url().replace(/^https:\/\/[^/]+/, '')}`); });
 try {
   await page.goto(url, { waitUntil: 'commit', timeout: 60_000 });
@@ -31,9 +32,11 @@ try {
   const downOn = await at(x, y); const tDown = ms();
   await page.mouse.down(); await page.waitForTimeout(110);
   const upOn = await at(x, y); await page.mouse.up(); const tUp = ms();
-  await page.waitForTimeout(4000);
+  // Cuánto tarda en dejar el listado (hasta 30 s): un clic que se queda en «•••» no cuenta como que avanzó.
+  const tLeft = await page.waitForURL((u: URL) => !u.pathname.endsWith('/lenders'), { timeout: 30_000 }).then(() => ms()).catch(() => null);
+  await page.waitForTimeout(500);
   await sampler;
   const spinner = await btn.getAttribute('aria-busy', { timeout: 100 }).catch(() => null);
-  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
+  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, leftListingMs: tLeft === null ? null : tLeft - tUp, finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
   await page.screenshot({ path: `/tmp/probe-${ur}-${mode}.png` });
 } finally { await close(); }
