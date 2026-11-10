@@ -464,7 +464,7 @@ const kindOf = (f) => Object.entries(FILE_KINDS).find(([, exts]) => exts.include
 /* EL VISOR DE PDF, en la región de la derecha: se baja al caché del chat si hace falta (no a Descargas) y se lee al
    lado de la conversación. Mientras está abierto le gana al panel de tu agente; al cerrarlo, la derecha vuelve a ser
    lo que era. */
-const docView = ref(null)   // { item, f }
+const docView = ref(null)   // { kind: 'pdf' | 'image', item, f }
 const docLoading = ref('')
 async function openDoc(item, f) {
   if (f.status !== 'bajado') {
@@ -472,7 +472,7 @@ async function openDoc(item, f) {
     try { await chat.getFile(item, f, { cache: true }) } finally { docLoading.value = '' }
     if (f.status !== 'bajado') return
   }
-  docView.value = { item, f }
+  docView.value = { kind: 'pdf', item, f }
 }
 function closeDoc() { docView.value = null }
 /* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
@@ -484,7 +484,39 @@ const othersOf = (item) => (item.files || []).filter((f) => !imagesOf(item).incl
 const imageSrc = (item, f) => (item.dir === 'out' ? f.thumb || (f.status === 'bajado' ? chat.fileUrl(f) : '') : f.status === 'bajado' ? chat.fileUrl(f) : '')
 // La imagen en grande, al tocarla: Escape o un clic afuera la cierran.
 const lightbox = ref(null)   // { src, name }
-function openImage(item, f) { const src = imageSrc(item, f); if (src) lightbox.value = { src, name: f.name, item, f } }
+/* LA GALERÍA, en la región de la derecha: tocar una imagen la abre ahí, grande, con todas las de la conversación para
+   pasar con ‹ › o las flechas del teclado. «Ampliar» la lleva a pantalla completa (la vista de siempre). */
+function openImage(item, f) { if (imageSrc(item, f)) docView.value = { kind: 'image', item, f } }
+function zoomImage() {
+  const v = docView.value
+  const src = v && imageSrc(v.item, v.f)
+  if (src) lightbox.value = { src, name: v.f.name, item: v.item, f: v.f }
+}
+const galleryItems = computed(() => {
+  const out = []
+  for (const m of chat.active?.messages || []) for (const f of m.files || []) if (isImage(f) && imageSrc(m, f)) out.push({ item: m, f })
+  return out
+})
+const galleryIndex = computed(() => (docView.value?.kind === 'image' ? galleryItems.value.findIndex((g) => g.f === docView.value.f) : -1))
+function galleryGo(step) {
+  const list = galleryItems.value
+  if (!list.length || galleryIndex.value < 0) return
+  const next = list[(galleryIndex.value + step + list.length) % list.length]
+  docView.value = { kind: 'image', item: next.item, f: next.f }
+}
+const galleryWho = (item) => (item.dir === 'out' ? 'Vos' : item.author?.name || firstName(chat.active?.person))
+const galleryWhen = (iso) => { try { return new Date(iso).toLocaleString('es-CO', { timeZone: TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) } catch { return '' } }
+// Las flechas pasan de imagen y Esc cierra la galería, salvo mientras escribís.
+function onGalleryKey(e) {
+  if (docView.value?.kind !== 'image' || lightbox.value || /^(INPUT|TEXTAREA|SELECT)$/.test(e.target?.tagName || '') || e.target?.isContentEditable) return
+  if (e.key === 'ArrowLeft') { e.preventDefault(); galleryGo(-1) }
+  else if (e.key === 'ArrowRight') { e.preventDefault(); galleryGo(1) }
+  else if (e.key === 'Escape') closeDoc()
+}
+onMounted(() => window.addEventListener('keydown', onGalleryKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', onGalleryKey))
+// La miniatura de la actual, siempre a la vista en la tira.
+watch(() => docView.value?.f, async () => { await nextTick(); document.querySelector('.gallery-thumb.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }) })
 function onLightboxKey(e) { if (e.key === 'Escape') lightbox.value = null }
 watch(lightbox, (v) => (v ? window.addEventListener('keydown', onLightboxKey) : window.removeEventListener('keydown', onLightboxKey)))
 function onKeydown(e) {
@@ -1199,12 +1231,17 @@ const statusText = computed(() => {
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? 'Documento' : openService ? 'Rutas' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : openService ? 'Rutas' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <template v-if="docView">
         <div class="region-head">
-          <span class="doc-view-title" :title="docView.f.name">{{ docView.f.name }}</span>
+          <span class="doc-view-title" :title="docView.f.name">
+            <template v-if="docView.kind === 'image' && galleryItems.length > 1">{{ galleryIndex + 1 }} de {{ galleryItems.length }} · </template>{{ docView.f.name }}
+          </span>
           <div class="region-actions">
+            <button v-if="docView.kind === 'image'" type="button" class="region-action" title="Ampliar a pantalla completa" aria-label="Ampliar" @click="zoomImage">
+              <span class="ui-icon" data-icon="maximize" aria-hidden="true"></span>
+            </button>
             <button v-if="!docView.f.savedPath" type="button" class="region-action" title="Guardar una copia en Descargas"
                     aria-label="Guardar en Descargas" @click="chat.saveFile(docView.f)">
               <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
@@ -1212,12 +1249,29 @@ const statusText = computed(() => {
             <button v-else type="button" class="region-action" title="Mostrar en el Finder" aria-label="Mostrar en el Finder" @click="chat.revealFile(docView.f)">
               <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
             </button>
-            <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar el documento" @click="closeDoc">
+            <button type="button" class="region-action" title="Cerrar (Esc)" :aria-label="docView.kind === 'image' ? 'Cerrar la galería' : 'Cerrar el documento'" @click="closeDoc">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
             </button>
           </div>
         </div>
-        <PdfPages :key="docView.f.id" :src="chat.fileUrl(docView.f)" :name="docView.f.name" />
+        <PdfPages v-if="docView.kind === 'pdf'" :key="docView.f.id" :src="chat.fileUrl(docView.f)" :name="docView.f.name" />
+        <div v-else class="gallery">
+          <div class="gallery-stage">
+            <img :src="imageSrc(docView.item, docView.f)" :alt="docView.f.name" @dblclick="zoomImage">
+            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav prev" title="Anterior (←)" aria-label="Imagen anterior" @click="galleryGo(-1)">‹</button>
+            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav next" title="Siguiente (→)" aria-label="Imagen siguiente" @click="galleryGo(1)">›</button>
+          </div>
+          <div class="gallery-caption">
+            <span class="gallery-meta">{{ galleryWho(docView.item) }} · {{ galleryWhen(docView.item.time) }}</span>
+            <p v-if="docView.item.text" class="gallery-text">{{ docView.item.text }}</p>
+          </div>
+          <div v-if="galleryItems.length > 1" class="gallery-strip" role="list" aria-label="Imágenes de la conversación">
+            <button v-for="g in galleryItems" :key="g.f.id || g.f.name + g.item.id" type="button" role="listitem" class="gallery-thumb"
+                    :class="{ on: g.f === docView.f }" :title="g.f.name" @click="docView = { kind: 'image', item: g.item, f: g.f }">
+              <img :src="imageSrc(g.item, g.f)" :alt="g.f.name" loading="lazy">
+            </button>
+          </div>
+        </div>
       </template>
       <ServiceSide v-else-if="openService" :service="openService" @close="setRoutesOpen(false)" />
       <template v-else-if="activeOwnAgent">
@@ -1655,6 +1709,27 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
 .error .btn-link { margin-left: var(--space-2) }
 /* El visor de documentos en la región de la derecha. */
 .doc-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* La galería: la imagen ocupa lo que queda, el pie dice de quién y cuándo, y abajo la tira de miniaturas. */
+.gallery { flex: 1; min-height: 0; display: flex; flex-direction: column; background: color-mix(in oklab, var(--muted) 55%, var(--background)) }
+.gallery-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 14px }
+.gallery-stage img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; cursor: zoom-in;
+  box-shadow: 0 1px 2px color-mix(in oklab, var(--background) 55%, transparent), 0 6px 18px color-mix(in oklab, var(--background) 45%, transparent) }
+.gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%;
+  background: var(--popover); color: var(--popover-foreground); font-size: 20px; line-height: 1; cursor: pointer; opacity: .85 }
+.gallery-nav:hover { opacity: 1; background: var(--accent); color: var(--accent-foreground) }
+.gallery-nav:focus-visible { outline: 2px solid var(--ring); opacity: 1 }
+.gallery-nav.prev { left: 8px }
+.gallery-nav.next { right: 8px }
+.gallery-caption { flex: none; padding: 0 16px 10px; display: flex; flex-direction: column; gap: 2px }
+.gallery-meta { color: var(--fg-2); font-size: var(--text-xs) }
+.gallery-text { margin: 0; font-size: var(--text-sm); line-height: 1.35; max-height: 4.1em; overflow-y: auto; white-space: pre-wrap }
+.gallery-strip { flex: none; display: flex; gap: 6px; overflow-x: auto; padding: 8px 12px 12px; border-top: 1px solid var(--border) }
+.gallery-thumb { flex: none; width: 52px; height: 52px; padding: 0; border: 2px solid transparent; border-radius: 6px; overflow: hidden;
+  background: var(--muted); cursor: pointer; opacity: .65 }
+.gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block }
+.gallery-thumb:hover { opacity: 1 }
+.gallery-thumb.on { border-color: var(--primary); opacity: 1 }
+.gallery-thumb:focus-visible { outline: 2px solid var(--ring) }
 .attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
   border: 1px solid var(--border); border-radius: 999px }
