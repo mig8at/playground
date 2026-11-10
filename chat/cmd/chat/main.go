@@ -21,7 +21,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -318,6 +317,80 @@ func hasFlag(args []string, name string) (bool, []string) {
 	return found, rest
 }
 
+// printJSON: una salida para un agente (o jq): JSON en una línea.
+func printJSON(v any) {
+	b, _ := json.Marshal(v)
+	fmt.Println(string(b))
+}
+
+// withPaths: el mensaje con la ruta local de cada adjunto ya bajado, para --json.
+type jsonFile struct {
+	file
+	Path string `json:"path,omitempty"`
+}
+
+type jsonEntry struct {
+	entry
+	Files []jsonFile `json:"files,omitempty"`
+}
+
+func withPaths(m entry, files map[string]string) jsonEntry {
+	out := jsonEntry{entry: m}
+	for _, f := range m.Files {
+		out.Files = append(out.Files, jsonFile{file: f, Path: files[f.ID]})
+	}
+	return out
+}
+
+// parseWait: «5m», «90s» o un número de segundos.
+func parseWait(v string) (time.Duration, error) {
+	if v == "" {
+		return 0, nil
+	}
+	if n, err := strconv.Atoi(v); err == nil {
+		return time.Duration(n) * time.Second, nil
+	}
+	d, err := time.ParseDuration(v)
+	if err != nil || d <= 0 {
+		return 0, fmt.Errorf("--wait %q: use 90s, 5m or a number of seconds", v)
+	}
+	return d, nil
+}
+
+// waitFor espera, desde la posición `after` del historial, el primer mensaje que cumple `match`. Devuelve también los
+// adjuntos ya bajados. Sin nada al vencer `limit`, ok es false.
+func waitFor(after int, limit time.Duration, match func(entry) bool) (entry, map[string]string, bool) {
+	deadline := time.Now().Add(limit)
+	for time.Now().Before(deadline) {
+		time.Sleep(2 * time.Second)
+		next, err := history(after)
+		if err != nil {
+			continue
+		}
+		for _, m := range next.Messages {
+			after = m.Seq
+			if match(m) {
+				// Si trae imágenes, el chat las baja a los pocos segundos: se espera un poco para dar la ruta.
+				for i := 0; i < 15 && pendingImages(m, next.Files); i++ {
+					time.Sleep(time.Second)
+					if fresh, err := history(m.Seq - 1); err == nil {
+						next.Files = fresh.Files
+					}
+				}
+				return m, next.Files, true
+			}
+		}
+	}
+	return entry{}, nil, false
+}
+
+// markRead: la conversación queda leída hasta lo último que tiene (lo comparten la app y bin/chat).
+func markRead(with string) error {
+	return call("POST", "/api/reads", map[string]any{"key": with}, nil)
+}
+
+var slowClient = &http.Client{Timeout: 100 * time.Second}
+
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println(strings.TrimSpace(usage))
@@ -336,30 +409,192 @@ func main() {
 	}
 	switch cmd {
 	case "inbox":
+		unreadOnly, rest := hasFlag(args, "--unread")
+		asJSON, rest := hasFlag(rest, "--json")
+		noUnknownFlags(rest)
+		var box struct {
+			Conversations []struct {
+				Key      string `json:"key"`
+				Group    bool   `json:"group"`
+				Last     entry  `json:"last"`
+				Unread   int    `json:"unread"`
+				Mentions int    `json:"mentions"`
+			} `json:"conversations"`
+		}
+		path := "/api/inbox"
+		if unreadOnly {
+			path += "?unread=1"
+		}
+		if err := call("GET", path, nil, &box); err != nil {
+			fail(err)
+		}
+		if asJSON {
+			printJSON(box.Conversations)
+			return
+		}
+		if len(box.Conversations) == 0 && unreadOnly {
+			fmt.Println("nothing unread")
+		}
+		for _, c := range box.Conversations {
+			// ● n = sin leer · @n = te mencionaron · ★ = escribieron último (y ya lo leíste)
+			mark := "    "
+			switch {
+			case c.Mentions > 0:
+				mark = fmt.Sprintf("@%-3d", c.Mentions)
+			case c.Unread > 0:
+				mark = fmt.Sprintf("●%-3d", c.Unread)
+			case c.Last.Dir != "out":
+				mark = "★   "
+			}
+			text := strings.ReplaceAll(c.Last.Text, "\n", " ")
+			if r := []rune(text); len(r) > 70 {
+				text = string(r[:70]) + "…"
+			}
+			fmt.Printf("%s %-34s %-11s %s: %s\n", mark, c.Key, clock(c.Last.Time), speaker(c.Last), text)
+		}
+	case "mentions":
+		all, rest := hasFlag(args, "--all")
+		asJSON, rest := hasFlag(rest, "--json")
+		noUnknownFlags(rest)
+		var out struct {
+			Mentions []entry `json:"mentions"`
+			Me       string  `json:"me"`
+		}
+		path := "/api/mentions"
+		if all {
+			path += "?all=1"
+		}
+		if err := call("GET", path, nil, &out); err != nil {
+			fail(err)
+		}
+		if asJSON {
+			printJSON(out.Mentions)
+			return
+		}
+		if len(out.Mentions) == 0 {
+			fmt.Printf("no unread mentions of @%s\n", out.Me)
+			return
+		}
+		for _, m := range out.Mentions {
+			printEntry(m, nil)
+		}
+	case "read":
+		noUnknownFlags(args)
+		if len(args) == 0 {
+			fail(errors.New("usage: bin/chat read <who>…"))
+		}
 		h, err := history(-1)
 		if err != nil {
 			fail(err)
 		}
-		last := map[string]entry{}
-		for _, m := range h.Messages {
-			last[m.With] = m
+		for _, w := range args {
+			with, err := resolve(w, conversations(h))
+			if err != nil {
+				fail(err)
+			}
+			if err := markRead(with); err != nil {
+				fail(err)
+			}
+			fmt.Printf("✓ %s read\n", with)
 		}
-		keys := conversations(h)
-		sort.Slice(keys, func(i, j int) bool { return last[keys[i]].Time > last[keys[j]].Time })
-		for _, k := range keys {
-			m := last[k]
-			mark := " "
-			if m.Dir != "out" {
-				mark = "★"
+	case "who":
+		asJSON, rest := hasFlag(args, "--json")
+		noUnknownFlags(rest)
+		var online struct {
+			Online []person `json:"online"`
+		}
+		var groups struct {
+			Groups []struct {
+				ID      string   `json:"id"`
+				Owner   string   `json:"owner"`
+				Members []string `json:"members"`
+			} `json:"groups"`
+		}
+		if err := call("GET", "/api/online", nil, &online); err != nil {
+			fail(err)
+		}
+		if err := call("GET", "/api/groups", nil, &groups); err != nil {
+			fail(err)
+		}
+		on := map[string]bool{}
+		names := map[string]string{}
+		for _, p := range online.Online {
+			on[strings.ToLower(p.Email)] = true
+			names[strings.ToLower(p.Email)] = p.Name
+		}
+		if h, err := history(-1); err == nil {
+			for _, m := range h.Messages {
+				if m.From.Name != "" {
+					names[strings.ToLower(m.From.Email)] = m.From.Name
+				}
 			}
-			text := strings.ReplaceAll(m.Text, "\n", " ")
-			if r := []rune(text); len(r) > 70 {
-				text = string(r[:70]) + "…"
+		}
+		// Un miembro como lo nombra una mención: `@usuario` o `@usuario/agente`.
+		type member struct {
+			Handle string `json:"handle"`
+			Email  string `json:"email"`
+			Name   string `json:"name,omitempty"`
+			Agent  string `json:"agent,omitempty"`
+			Online bool   `json:"online"`
+		}
+		memberOf := func(raw string) member {
+			email, agent, _ := strings.Cut(strings.ToLower(raw), "/")
+			handle := strings.SplitN(email, "@", 2)[0]
+			if agent != "" {
+				handle += "/" + agent
 			}
-			fmt.Printf("%s %-34s %-11s %s: %s\n", mark, k, clock(m.Time), speaker(m), text)
+			return member{Handle: "@" + handle, Email: email, Name: names[email], Agent: agent, Online: on[email]}
+		}
+		if len(rest) == 1 {
+			id := strings.TrimPrefix(strings.ToLower(rest[0]), "#")
+			for _, g := range groups.Groups {
+				if strings.ToLower(g.ID) != id {
+					continue
+				}
+				var ms []member
+				for _, raw := range g.Members {
+					ms = append(ms, memberOf(raw))
+				}
+				if asJSON {
+					printJSON(map[string]any{"group": "#" + g.ID, "members": ms})
+					return
+				}
+				fmt.Printf("#%s · %d member(s) · mention with @handle, or @todos for everyone\n", g.ID, len(ms))
+				for _, m := range ms {
+					dot := " "
+					if m.Online {
+						dot = "●"
+					}
+					fmt.Printf("  %s %-32s %s\n", dot, m.Handle, m.Name)
+				}
+				return
+			}
+			fail(fmt.Errorf("you are not in #%s (bin/chat who lists your groups)", id))
+		}
+		if asJSON {
+			var people []member
+			for _, p := range online.Online {
+				people = append(people, memberOf(p.Email))
+			}
+			gs := []map[string]any{}
+			for _, g := range groups.Groups {
+				gs = append(gs, map[string]any{"group": "#" + g.ID, "members": len(g.Members)})
+			}
+			printJSON(map[string]any{"online": people, "groups": gs})
+			return
+		}
+		fmt.Println("online")
+		for _, p := range online.Online {
+			m := memberOf(p.Email)
+			fmt.Printf("  ● %-32s %s\n", m.Handle, m.Name)
+		}
+		fmt.Println("groups (bin/chat who #group lists its members)")
+		for _, g := range groups.Groups {
+			fmt.Printf("  #%-31s %d member(s)\n", g.ID, len(g.Members))
 		}
 	case "history":
 		n, rest := flagValue(args, "-n")
+		asJSON, rest := hasFlag(rest, "--json")
 		noUnknownFlags(rest)
 		if len(rest) != 1 {
 			fail(errors.New("usage: bin/chat history <who> [-n 30]"))
@@ -387,6 +622,14 @@ func main() {
 		}
 		if limit > 0 && len(mine) > limit {
 			mine = mine[len(mine)-limit:]
+		}
+		if asJSON {
+			out := make([]jsonEntry, 0, len(mine))
+			for _, m := range mine {
+				out = append(out, withPaths(m, h.Files))
+			}
+			printJSON(out)
+			return
 		}
 		fmt.Printf("— %s · %d message(s) —\n", with, len(mine))
 		for _, m := range mine {
@@ -445,19 +688,7 @@ func main() {
 				}
 				if asJSON {
 					// Una línea por mensaje, con quién lo escribió (`dir`, `from`) y la ruta de cada adjunto ya bajado.
-					type jsonFile struct {
-						file
-						Path string `json:"path,omitempty"`
-					}
-					out := struct {
-						entry
-						Files []jsonFile `json:"files,omitempty"`
-					}{entry: m}
-					for _, f := range m.Files {
-						out.Files = append(out.Files, jsonFile{file: f, Path: next.Files[f.ID]})
-					}
-					b, _ := json.Marshal(out)
-					fmt.Println(string(b))
+					printJSON(withPaths(m, next.Files))
 				} else {
 					printEntry(m, next.Files)
 				}
@@ -466,6 +697,16 @@ func main() {
 	case "send", "reply":
 		re, rest := flagValue(args, "--re")
 		files, rest := flagValues(rest, "--file")
+		as, rest := flagValue(rest, "--as")
+		waitArg, rest := flagValue(rest, "--wait")
+		asJSON, rest := hasFlag(rest, "--json")
+		if as == "" {
+			as = os.Getenv("CHAT_AS") // el agente que está usando esta terminal, para no repetirlo en cada envío
+		}
+		wait, err := parseWait(waitArg)
+		if err != nil {
+			fail(err)
+		}
 		if len(rest) > 0 {
 			noUnknownFlags(rest[:1])
 		}
@@ -506,14 +747,119 @@ func main() {
 			}
 			ids = append(ids, id)
 		}
-		if err := call("POST", "/api/send", map[string]any{"to": with, "text": strings.Join(rest[1:], " "), "re": re, "files": ids}, &out); err != nil {
+		if err := call("POST", "/api/send", map[string]any{"to": with, "text": strings.Join(rest[1:], " "), "re": re, "files": ids, "as": as}, &out); err != nil {
 			fail(err)
 		}
 		state := "delivered"
 		if out.Delivered == 0 {
 			state = "queued (not connected)"
 		}
-		fmt.Printf("✓ to %s · %s · id %s\n", out.To, state, out.ID)
+		who := ""
+		if as != "" {
+			who = " · as " + as
+		}
+		if !asJSON {
+			fmt.Printf("✓ to %s · %s%s · id %s\n", out.To, state, who, out.ID)
+		}
+		if wait == 0 {
+			if asJSON {
+				printJSON(map[string]any{"sent": out})
+			}
+			return
+		}
+		// --wait: la primera respuesta de esa conversación (de otro, no tuya), o nada al vencer el tiempo.
+		if !asJSON {
+			fmt.Fprintf(os.Stderr, "waiting up to %s for a reply…\n", wait)
+		}
+		reply, got, ok := waitFor(h.Last, wait, func(m entry) bool { return m.With == with && m.Dir != "out" })
+		if !ok {
+			if asJSON {
+				printJSON(map[string]any{"sent": out, "reply": nil})
+			} else {
+				fmt.Printf("… no reply within %s\n", wait)
+			}
+			os.Exit(3)
+		}
+		_ = markRead(with)
+		if asJSON {
+			printJSON(map[string]any{"sent": out, "reply": withPaths(reply, got)})
+			return
+		}
+		printEntry(reply, got)
+	case "ask":
+		waitArg, rest := flagValue(args, "--wait")
+		asJSON, rest := hasFlag(rest, "--json")
+		if len(rest) > 0 {
+			noUnknownFlags(rest[:1])
+		}
+		target := ""
+		if len(rest) > 0 {
+			target = strings.TrimPrefix(rest[0], "@")
+		}
+		owner, agent, ok := strings.Cut(target, "/")
+		if !ok || owner == "" || agent == "" || len(rest) < 2 {
+			fail(errors.New("usage: bin/chat ask <who>/<agent> <question…> [--wait 2m] [--json]"))
+		}
+		wait, err := parseWait(waitArg)
+		if err != nil {
+			fail(err)
+		}
+		h, err := history(-1)
+		if err != nil {
+			fail(err)
+		}
+		var res struct {
+			Answer  string `json:"answer"`
+			Pending bool   `json:"pending"`
+			ID      string `json:"id"`
+		}
+		body, _ := json.Marshal(map[string]any{"to": owner, "agent": agent, "text": strings.Join(rest[1:], " ")})
+		req, _ := http.NewRequest("POST", base()+"/api/ask", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := slowClient.Do(req)
+		if err != nil {
+			fail(errors.New("the chat server is not answering (" + base() + ")"))
+		}
+		data, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode >= 300 {
+			var e struct {
+				Error string `json:"error"`
+			}
+			_ = json.Unmarshal(data, &e)
+			fail(fmt.Errorf("ask: %s", e.Error))
+		}
+		_ = json.Unmarshal(data, &res)
+		if !res.Pending {
+			if asJSON {
+				printJSON(map[string]any{"id": res.ID, "answer": res.Answer})
+			} else {
+				fmt.Println(res.Answer)
+			}
+			return
+		}
+		if wait == 0 {
+			if asJSON {
+				printJSON(map[string]any{"id": res.ID, "pending": true})
+			} else {
+				fmt.Printf("… %s/%s is taking long: id %s (the answer arrives later; --wait 2m waits for it)\n", owner, agent, res.ID)
+			}
+			os.Exit(3)
+		}
+		answer, files, ok := waitFor(h.Last, wait, func(m entry) bool { return m.Re == res.ID && m.Dir != "out" })
+		if !ok {
+			if asJSON {
+				printJSON(map[string]any{"id": res.ID, "pending": true})
+			} else {
+				fmt.Printf("… no answer within %s (id %s)\n", wait, res.ID)
+			}
+			os.Exit(3)
+		}
+		if asJSON {
+			printJSON(map[string]any{"id": res.ID, "answer": answer.Text, "message": withPaths(answer, files)})
+			return
+		}
+		fmt.Println(answer.Text)
 	default:
 		fmt.Println(strings.TrimSpace(usage))
 		os.Exit(2)
@@ -521,16 +867,22 @@ func main() {
 }
 
 const usage = `
-bin/chat — the team chat from the terminal (the make chat server, :5185)
-  inbox                          conversations, most recent first (★ = they wrote last)
-  history <who> [-n 30]          the conversation with someone or a group (#demo), with message ids
-  follow <who>… [--json] [--theirs]
-                                 each new message in those conversations as it arrives (for a Monitor).
-                                 --json: one per line, with dir/from and each attachment's local path
-                                 --theirs: leave out your own messages
-  send <who> <text…> [--re <id>] [--file <path>]…
-                                 send a message (--re replies to a given one; --file attaches, also
-                                 several; it shows in the conversation like the ones you receive)
-  reply <who> <text…>            reply to the last message they sent you
-<who>: the email, its part before the @ (or its start: duncan), @duncan, or #group.
-⚠ send and reply go out under the CLI session's name.`
+bin/chat — the team chat from the terminal (the make chat server, :5185). Every command takes --json.
+ read
+  inbox [--unread]               conversations, most recent first (●n unread · @n mentions you · ★ they wrote last)
+  mentions [--all]               group messages that mention you or your agents (unread ones, unless --all)
+  history <who> [-n 30]          the conversation with someone or a group, with message ids
+  who [#group]                   who is online and your groups; with a group, its members as @handles
+  read <who>…                    mark as read (also happens when you send or reply there)
+ talk
+  send <who> <text…> [--re <id>] [--file <path>]… [--as <agent>] [--wait 5m]
+                                 send a message. --file attaches (several allowed). --as sends it as one of
+                                 your agents. --wait blocks until the first reply there and prints it
+                                 (exit 3 if nobody answers in time)
+  reply <who> <text…> [same options]   reply to the last message they sent you
+  ask <who>/<agent> <question…> [--wait 2m]   ask someone's agent; --wait also waits for a late answer
+ watch
+  follow <who>… [--theirs]       each new message as it arrives (for a Monitor); --theirs leaves out yours
+<who>: the email, its part before the @ (or its start: duncan), @duncan, or #group. In a group, mention
+with @handle (bin/chat who #group) or @todos.
+⚠ send and reply go out under the CLI session's name, unless --as (or CHAT_AS=<agent>) says which agent.`

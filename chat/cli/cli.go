@@ -419,7 +419,16 @@ func Get(ctx context.Context, id, dir string) (Saved, error) {
 //
 // `files`: los ids de los adjuntos ya subidos para esa persona (Upload); con adjuntos el texto puede ir vacío.
 func Send(ctx context.Context, to, text, re string, files ...string) (SendResult, error) {
+	return SendAs(ctx, to, text, re, "", files...)
+}
+
+// SendAs manda como uno de TUS agentes (`playground send --as`): el mensaje llega marcado como de ese agente y no
+// como tuyo. Con `as` vacío es Send.
+func SendAs(ctx context.Context, to, text, re, as string, files ...string) (SendResult, error) {
 	payload := map[string]any{"to": to, "text": text, "re": re}
+	if as = strings.ToLower(strings.TrimSpace(as)); as != "" {
+		payload["as"] = as
+	}
 	if len(files) > 0 {
 		payload["files"] = files
 	}

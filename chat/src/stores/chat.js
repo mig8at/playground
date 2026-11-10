@@ -119,6 +119,8 @@ async function api(path, options) {
 const post = (path, body) => api(path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
 
 export const useChatStore = defineStore('chat', () => {
+  // Lo leído según el servidor (server/reads.go): una conversación que aparece después toma su marca de acá.
+  const serverReads = {}
   // clave → { person: {email, name, github, agent?, owner?, agentName?, detail?}, messages: [...], readAt }
   // mensaje: { id, sid?, re?, dir: 'in'|'out', kind?: 'asked', agent?, text, time, status?, error? }
   const conversations = ref(dropJournal(readStored()))
@@ -198,7 +200,7 @@ export const useChatStore = defineStore('chat', () => {
 
   function ensure(person) {
     const key = isAgentKey(person.email) ? person.email : keyOf(person.email)
-    if (!conversations.value[key]) conversations.value[key] = { person: { ...person, email: key }, messages: [], readAt: '' }
+    if (!conversations.value[key]) conversations.value[key] = { person: { ...person, email: key }, messages: [], readAt: serverReads[key] || '' }
     else if (person.name) conversations.value[key].person = { ...conversations.value[key].person, ...person, email: key }
     return conversations.value[key]
   }
@@ -466,12 +468,31 @@ export const useChatStore = defineStore('chat', () => {
   }
   watch(() => mine.agent.mode, proposeReplies)
 
+  /* LO LEÍDO lo comparten la app y bin/chat por el servidor (server/reads.go): al mirar una conversación se le avisa,
+     y lo que marque un agente desde la terminal llega por el stream (`read`). Sólo avanza. */
+  function mergeRead(key, at) {
+    if (at && at > (serverReads[key] || '')) serverReads[key] = at
+    const c = conversations.value[key]
+    if (c && at && at > (c.readAt || '')) c.readAt = at
+  }
+  async function loadReads() {
+    let server
+    try { server = (await api('/api/reads')).reads || {} } catch { return /* queda lo del navegador */ }
+    for (const [k, at] of Object.entries(server)) mergeRead(k, at)
+    // Lo que este navegador ya tenía leído y el servidor no (lo de antes de que lo guardara él): se le pasa una vez.
+    for (const [k, c] of Object.entries(conversations.value)) {
+      if (c.readAt && c.readAt > (server[k] || '')) post('/api/reads', { key: k, at: c.readAt }).catch(() => {})
+    }
+  }
   // La conversación abierta se da por leída sólo si la pestaña está a la vista.
   function markActiveRead() {
     const c = active.value
     if (!c || document.visibilityState !== 'visible') return
     const latest = c.messages.at(-1)?.time || ''
-    if (latest > (c.readAt || '')) c.readAt = latest
+    if (latest > (c.readAt || '')) {
+      c.readAt = latest
+      post('/api/reads', { key: c.person.email, at: latest }).catch(() => { /* lo marca el navegador igual */ })
+    }
   }
 
   let absorbedCount = 0
@@ -881,6 +902,9 @@ export const useChatStore = defineStore('chat', () => {
         showNotice(k.kind === 'list' ? `Le pasaste a ${who} la lista de tu llavero` : `Le mandaste a ${who} las claves que pidió`)
       } catch { /* idem */ }
     })
+    source.addEventListener('read', (e) => {
+      try { const r = JSON.parse(e.data); mergeRead(r.key, r.at) } catch { /* lo trae loadReads */ }
+    })
     source.addEventListener('notify', (e) => {
       try { notices.push(JSON.parse(e.data)); noticeSeq.value++ } catch { /* un aviso roto: se pierde ése */ }
     })
@@ -889,6 +913,7 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   function start() {
+    loadReads()
     const tickCuadrilla = async () => {
       if (document.visibilityState === 'visible') await loadCuadrilla()
       cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)

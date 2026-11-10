@@ -207,6 +207,7 @@ func handler() http.Handler {
 			Text  string   `json:"text"`
 			Re    string   `json:"re"`
 			Files []string `json:"files"` // los ids de los adjuntos ya subidos (/api/upload)
+			As    string   `json:"as"`    // como uno de tus agentes (bin/chat --as): sale marcado como de él, no tuyo
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
 			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, text}"))
@@ -226,7 +227,7 @@ func handler() http.Handler {
 		}
 		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
 		defer cancel()
-		result, err := cli.Send(ctx, in.To, in.Text, strings.TrimSpace(in.Re), in.Files...)
+		result, err := cli.SendAs(ctx, in.To, in.Text, strings.TrimSpace(in.Re), in.As, in.Files...)
 		if err != nil {
 			fail(w, http.StatusBadGateway, err)
 			return
@@ -237,8 +238,14 @@ func handler() http.Handler {
 			if to == "" {
 				to = in.To
 			}
-			_, _ = chatHistory.add([]cli.Message{{ID: result.ID, Dir: "out", To: to, Text: in.Text, Re: result.Re,
-				Time: time.Now().UTC().Format(time.RFC3339Nano), Files: sentFilesOf(in.Files)}})
+			sent := cli.Message{ID: result.ID, Dir: "out", To: to, Text: in.Text, Re: result.Re,
+				Time: time.Now().UTC().Format(time.RFC3339Nano), Files: sentFilesOf(in.Files)}
+			if as := strings.TrimSpace(in.As); as != "" {
+				sent.Via = &cli.Via{Name: strings.ToLower(as)}
+			}
+			_, _ = chatHistory.add([]cli.Message{sent})
+			// Contestar es haber leído: la conversación queda leída hasta acá (la app y bin/chat ven lo mismo).
+			_, _, _ = markRead(conversationOf(sent), sent.Time)
 		}
 		writeJSON(w, http.StatusOK, result)
 	})
@@ -248,6 +255,7 @@ func handler() http.Handler {
 	registerEvents(mux)
 	registerKeyringSettings(mux)
 	registerNotify(mux)
+	registerReads(mux)
 
 	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
 	// la URL (por si el navegador no se abrió); el resultado se ve en /api/state.
