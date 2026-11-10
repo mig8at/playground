@@ -611,11 +611,6 @@ async function markDone(task) {
 const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')
 const taskStateLabel = (t) => (t.bloqueo ? `bloqueada · depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso')
 watch(() => chat.activeKey, () => { taskTarget.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
-// El llavero deja la clave cifrada en el mensaje: la revisás y la mandás vos.
-async function insertInDraft(text) {
-  draft.value = draft.value.trim() ? `${draft.value.trimEnd()}\n\n${text}` : text
-  await nextTick(); autosize(); composer.value?.focus()
-}
 function autosize() {
   const el = composer.value
   if (!el) return
@@ -1504,7 +1499,7 @@ const statusText = computed(() => {
           </button>
         </div>
       </nav>
-      <KeyringPanel @insert="insertInDraft" />
+      <KeyringPanel />
     </section>
 
     <footer class="statusbar">

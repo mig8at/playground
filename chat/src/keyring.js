@@ -39,10 +39,3 @@ export async function open(teamKey, sealed) {
 
 // Una llave del equipo nueva: 32 bytes al azar, en base64 sin «=» (una línea, sin espacios).
 export const newTeamKey = () => b64(crypto.getRandomValues(new Uint8Array(32))).replace(/=+$/, '')
-
-// El texto que va al chat: dice qué es, el cifrado, y cómo se abre (para una persona o un agente que no lo conoce).
-export function messageFor(name, sealed) {
-  return `Te envío la clave «${name}» cifrada con la llave del equipo:\n\n${sealed}\n\n` +
-    `Para descifrarla (con la llave del equipo en ${TEAM_KEY_FILE.replace('$HOME', '~')}):\n` +
-    `echo '${sealed}' | openssl enc -d -aes-256-cbc -pbkdf2 -iter ${ITER} -md sha256 -a -A -pass file:${TEAM_KEY_FILE}`
-}
