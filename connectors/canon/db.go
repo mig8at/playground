@@ -180,6 +180,11 @@ func redact(s, secret string) string {
 	return strings.ReplaceAll(s, url.QueryEscape(secret), "***")
 }
 
+// NewDB envuelve una conexión de Postgres YA ABIERTA de otro servicio del mismo conector (la base de la app de Shopify,
+// `connectors/shopifyapp`) para que use esta misma consulta de sólo lectura: la validación previa, la transacción READ
+// ONLY, el tope de filas y cómo salen los valores. Quien la abre pone `default_transaction_read_only=on` en la sesión.
+func NewDB(db *stdsql.DB, source string) *DB { return &DB{db: db, source: source} }
+
 // Source dice qué base contestó. Va en todo resultado citable.
 func (d *DB) Source() string { return d.source }
 

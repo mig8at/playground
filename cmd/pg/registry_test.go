@@ -129,6 +129,7 @@ func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
 	// comercio donde no se debe.
 	restricted := map[string]string{
 		"canon sql": "local,prod", "canon tables": "local,prod", "canon config": "local,prod",
+		"shopify sql": "dev", "shopify tables": "dev", "shopify config": "dev",
 		"advisor status": "local,dev,qa,staging",
 		"admin status":   "local,dev,staging", "admin allied-create": "local,dev,staging", "admin test-advisor": "local,dev,staging", "admin branch-lenders": "local,dev,staging", "admin client-disable": "local,dev,staging", "otp last": "local,dev,qa,staging",
 	}

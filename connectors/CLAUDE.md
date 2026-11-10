@@ -57,6 +57,19 @@ bin/pg drive read <URL|id> --out /ruta/              # PDF, xlsx, docx… se baj
 ⚠ Hay carpetas compartidas con credenciales de terceros (la de Finandina tiene dos archivos así): lo que se lee de
 Drive no se copia a tareas, `knowledge/` ni Canon sin mirar qué es.
 
+## La base de la app de pagos de Shopify: sólo lectura
+
+`shopifyapp/` lee el Postgres de la app de Shopify desplegada en dev (el RDS `microservices-development`): las tiendas
+configuradas (`CreditopShop`, con el token de la sucursal cifrado) y las sesiones de pago. Usa la misma consulta de sólo
+lectura que la base de canon (`canon.NewDB`). Claves `SHOPIFY_POSTGRES_*` en `connectors/.env.dev`, con un usuario de sólo
+lectura y contraseña, distinto del `shopify_user` de la app, que entra por IAM. Pide la VPN de dev.
+
+```sh
+bin/pg shopify config --target dev          # qué falta, sin abrir conexión
+bin/pg shopify tables --target dev
+bin/pg shopify sql --target dev --query 'SELECT shop, "branchHash", "updatedAt" FROM "CreditopShop"'
+```
+
 ## Dar de baja un cliente de prueba
 
 `pg admin client-disable --target local|dev|staging --document <cédula> [--apply]` hace lo mismo que la papelera de
