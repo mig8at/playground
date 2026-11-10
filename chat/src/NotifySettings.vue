@@ -28,7 +28,9 @@ const overrides = computed(() => Object.entries(s.value?.conversations || {})
 const viaText = computed(() => {
   const st = notify.status
   if (st.via === 'tab') return 'Ahora los muestra esta pestaña: tocarlos abre la conversación.'
-  const tool = st.macTool === 'terminal-notifier' ? 'terminal-notifier (tocarlo abre el chat)' : 'osascript (tocarlo no abre el chat)'
+  const tool = st.macTool === 'chat-notifier' ? '«Chat del playground» (tocarlo abre la conversación)'
+    : st.macTool === 'terminal-notifier' ? 'terminal-notifier (tocarlo abre el chat)'
+    : 'osascript (puede no verse: compilá el avisador con make chat-service A=refresh)'
   return `Ahora los muestra macOS con ${tool}, aunque la pestaña esté cerrada.`
 })
 const testing = ref(false)

@@ -330,18 +330,53 @@ var deliver = func(n notice) {
 	if events.notifiers() > 0 {
 		n.Delivery = "tab"
 		events.publish("notify", n)
+		log.Printf("aviso por la pestaña: %s", n.Title)
 		return
 	}
 	n.Delivery = "mac"
 	if err := macNotify(n); err != nil {
 		log.Printf("aviso de macOS: %v", err)
+		return
 	}
+	log.Printf("aviso por macOS (%s): %s", macTool(), n.Title)
 }
 
-// macNotify: con terminal-notifier (tocarlo abre el chat en esa conversación) o, si no está, con osascript.
+func macTool() string {
+	if notifierApp() != "" {
+		return "chat-notifier"
+	}
+	if _, err := exec.LookPath("terminal-notifier"); err == nil {
+		return "terminal-notifier"
+	}
+	return "osascript"
+}
+
+// notifierApp: el avisador propio («Chat del playground», scripts/notifier.sh), si está compilado.
+func notifierApp() string {
+	home, _ := os.UserHomeDir()
+	bin := filepath.Join(home, "Applications", "Chat del playground.app", "Contents", "MacOS", "ChatNotifier")
+	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
+		return bin
+	}
+	return ""
+}
+
+// macNotify: con el avisador propio (tiene su permiso de avisos y tocarlo abre la conversación); si no está, con
+// terminal-notifier; y si tampoco, con osascript, que desde el servicio NO se ve si «Editor de Scripts» no tiene
+// permiso de avisos (pasó el 2026-11-10: salía sin error y no aparecía nada).
 func macNotify(n notice) error {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
+	if bin := notifierApp(); bin != "" {
+		args := []string{"--title", n.Title, "--body", n.Body, "--url", chatURL(n.Key), "--group", "creditop-chat-" + n.Key}
+		if n.Sound {
+			args = append(args, "--sound")
+		}
+		if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil {
+			return fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
+	}
 	if bin, err := exec.LookPath("terminal-notifier"); err == nil {
 		args := []string{"-title", n.Title, "-message", n.Body, "-group", "creditop-chat-" + n.Key,
 			"-open", chatURL(n.Key)}
@@ -383,11 +418,7 @@ func notifyStatus() map[string]any {
 	if events.notifiers() > 0 {
 		via = "tab"
 	}
-	tool := "osascript"
-	if _, err := exec.LookPath("terminal-notifier"); err == nil {
-		tool = "terminal-notifier"
-	}
-	return map[string]any{"via": via, "macTool": tool, "tabs": events.count(), "tabsWithPermission": events.notifiers()}
+	return map[string]any{"via": via, "macTool": macTool(), "tabs": events.count(), "tabsWithPermission": events.notifiers()}
 }
 
 func registerNotify(mux *http.ServeMux) {

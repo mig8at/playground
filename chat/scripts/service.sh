@@ -20,6 +20,8 @@ domain="gui/$(id -u)"
 installed() { launchctl print "$domain/$label" >/dev/null 2>&1; }
 
 build() {
+  # El avisador de macOS (notifier/main.swift): sin él, los avisos con el chat cerrado pueden no verse.
+  sh "$chat/scripts/notifier.sh" || echo "⚠ el avisador no compiló: los avisos salen por osascript" >&2
   mkdir -p "$(dirname "$bin")"
   tmp="$bin.$$"
   (cd "$root" && go build -o "$tmp" ./chat/server) && mv -f "$tmp" "$bin"
@@ -27,7 +29,7 @@ build() {
 
 stale() {
   [ ! -x "$bin" ] && return 0
-  [ -n "$(find "$chat/server" "$chat/cli" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)" ]
+  [ -n "$(find "$chat/server" "$chat/cli" "$chat/notifier" \( -name '*.go' -o -name '*.swift' \) -newer "$bin" 2>/dev/null | head -n 1)" ]
 }
 
 # El PATH del servicio: launchd arranca con uno mínimo y el servidor llama a `playground` (node) y a `claude`.
