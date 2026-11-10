@@ -106,6 +106,7 @@ func runShopifyConfig(args []string) int {
 	}
 	return writeJSON(map[string]any{
 		"target": cfg.Target, "host": cfg.Host, "port": port, "database": cfg.Database, "user": cfg.User, "schema": cfg.Schema,
-		"sslmode": ssl, "hasCredentials": len(cfg.Missing()) == 0, "missing": cfg.Missing(), "file": file, "readOnly": true,
+		"sslmode": ssl, "awsProfile": cfg.AWSProfile, "iam": cfg.Password == "" && cfg.AWSProfile != "",
+		"hasCredentials": len(cfg.Missing()) == 0, "missing": cfg.Missing(), "file": file, "readOnly": true,
 	})
 }

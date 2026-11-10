@@ -19,6 +19,9 @@ func TestMissingAndTargets(t *testing.T) {
 	if got := (DBConfig{}).Missing(); len(got) != 4 {
 		t.Errorf("Missing() de una config vacía = %v", got)
 	}
+	if got := (DBConfig{Host: "h", Database: "d", User: "u", AWSProfile: "dev"}).Missing(); len(got) != 0 {
+		t.Errorf("Missing() de una config vacía = %v", got)
+	}
 	if ValidDBTarget("prod") || !ValidDBTarget("dev") {
 		t.Errorf("hoy sólo dev tiene base")
 	}
