@@ -152,6 +152,17 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"group": g})
 	})
+	// Salir de un grupo (y, si eras el único, borrarlo: el home borra los grupos vacíos).
+	mux.HandleFunc("POST /api/groups/{id}/leave", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		g, err := cli.LeaveGroup(ctx, r.PathValue("id"))
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"group": g, "deleted": g == nil})
+	})
 	mux.HandleFunc("POST /api/send", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
 			To    string   `json:"to"`

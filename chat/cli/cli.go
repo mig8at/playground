@@ -130,6 +130,16 @@ func CreateGroup(ctx context.Context, name string, members []string) (Group, err
 	return body.Group, err
 }
 
+// LeaveGroup te saca de `#id`. El home no tiene «borrar grupo»: un grupo que queda vacío se borra solo, así que si
+// eras el único, el grupo deja de existir; si no, sigue para los demás. Devuelve el grupo como quedó (nil si se borró).
+func LeaveGroup(ctx context.Context, id string) (*Group, error) {
+	var body struct {
+		Group *Group `json:"group"`
+	}
+	err := homeCall(ctx, "/api/chat/groups/"+url.PathEscape(strings.TrimPrefix(id, "#"))+"/leave", map[string]any{}, &body)
+	return body.Group, err
+}
+
 // Status es el estado del proceso de `playground listen`.
 type Status struct {
 	Since     string  `json:"since"`

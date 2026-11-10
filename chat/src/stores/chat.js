@@ -544,6 +544,14 @@ export const useChatStore = defineStore('chat', () => {
     await loadGroups()
     return r.group
   }
+  // Eliminar un grupo: salís en el home (si eras el único, el home lo borra) y se va de tu lista.
+  async function leaveGroup(key) {
+    const id = key.replace(/^#/, '')
+    const r = await post(`/api/groups/${encodeURIComponent(id)}/leave`, {})
+    removeConversation(key)
+    await loadGroups()
+    return r
+  }
   const groupList = computed(() => Object.values(conversations.value)
     .filter((c) => isGroupKey(c.person.email))
     .map(summarize)
@@ -849,7 +857,7 @@ export const useChatStore = defineStore('chat', () => {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
-    me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup,
+    me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

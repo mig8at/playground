@@ -44,6 +44,21 @@ const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
 function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
 // «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
+/* Eliminar un grupo: el home no borra grupos, pero borra uno que queda vacío. Si sos el único, desaparece; si hay más
+   gente, salís vos y sigue para ellos (por eso lo dice antes de hacerlo). */
+const groupDeleteError = ref('')
+async function deleteGroup(g) {
+  const others = (g.person.members || []).filter((m) => !chat.isMe({ email: String(m).split("/")[0] })).length
+  const msg = others
+    ? `¿Salir de ${g.person.name}? Sigue existiendo para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}: el chat no puede borrarlo para todos.`
+    : `¿Eliminar ${g.person.name}? Sos el único miembro: se borra para siempre.`
+  if (!window.confirm(msg)) return
+  groupDeleteError.value = ''
+  try {
+    if (chat.activeKey === g.person.email) chat.activeKey = ''
+    await chat.leaveGroup(g.person.email)
+  } catch (e) { groupDeleteError.value = `No se pudo: ${e.message}` }
+}
 function deleteConversation(c) {
   if (window.confirm(`¿Borrar la conversación con ${c.person.name || c.person.email}? Sólo se borra de este navegador.`)) chat.removeConversation(c.person.email)
 }
@@ -901,8 +916,11 @@ const statusText = computed(() => {
                 </span>
               </span>
             </button>
+            <button type="button" class="conv-del" title="Eliminar grupo" aria-label="Eliminar grupo"
+                    @click.stop="deleteGroup(g)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </li>
         </ul>
+        <p v-if="groupDeleteError" class="side-note bad">{{ groupDeleteError }}</p>
       </div>
       </section>
 
