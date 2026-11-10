@@ -992,8 +992,9 @@ onBeforeUnmount(() => {
           <div class="store-state-head">
             <i class="dot" :data-state="st.ready ? 'ok' : 'fail'" aria-hidden="true"></i>
             <h3>{{ STORE_NAMES[st.store] }}</h3>
-            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde ecommerce a las ${st.started}` : '' }}</span>
-            <button v-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
+            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.deployed ? ' · desplegada en dev, no se levanta nada' : st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde ecommerce a las ${st.started}` : '' }}</span>
+            <template v-if="st.deployed"></template>
+            <button v-else-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
             <button v-else-if="!st.external" type="button" class="btn btn-xs" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'start')">{{ storeBusy === st.store ? 'Levantando…' : 'Levantar' }}</button>
             <button v-if="st.log.length" type="button" class="btn-link small" @click="storeLogOpen = storeLogOpen === st.store ? '' : st.store">{{ storeLogOpen === st.store ? 'Ocultar salida' : 'Ver salida' }}</button>
           </div>

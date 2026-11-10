@@ -283,7 +283,7 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
-	// La tienda real de Shopify: si el servidor de la app y su túnel contestan (shopify.go).
+	// La tienda real de Shopify: si la tienda y la app de dev contestan (shopify.go).
 	registerShopify(mux)
 	// El lado de VTEX de un pedido y la lista de pedidos con incidencias (vtex.go). Sólo lee.
 	registerVtex(mux)

@@ -54,37 +54,19 @@ Para ver el pedido y su estado del lado de la tienda: el admin de VTEX (enlaces 
 ## 3b · Comprar en la tienda de Shopify
 
 La tienda de desarrollo, **creditop-dev-store** (enlaces en el bloque **Shopify** del sidebar: la tienda, sus pedidos y
-la pantalla de la app). Paga con la app de Creditop del repo `shopify`, que corre en Docker en la máquina de quien la
-está probando (`app-qa`, contra qa) y a la que Shopify llega por un túnel público. Shopify llama desde internet: el
-playground no sirve para esto, porque su balanceador sólo deja entrar la VPN.
+la pantalla de la app). Paga con la app de Creditop del repo `shopify`, **desplegada en dev**
+(`https://shopify-app.dev.creditop.com`, contra qa): la despliega la CI al mergear a `develop` y la versión publicada de
+la app apunta ahí. No hay nada que levantar en ninguna máquina.
 
-**Para comprar** sólo hace falta la contraseña de la tienda (te la da Miguel) y que el túnel de quien corre la app esté
-abierto. Se elige «Creditop» en el checkout, se hace la solicitud en el wizard de qa y, al aprobarse, el pedido queda
-pagado solo: el aviso de qa llega a la app por el túnel, y si no llegara, la app lo concilia en unos minutos.
+**Para comprar** sólo hace falta la contraseña de la tienda (te la da Miguel). Se elige «Creditop» en el checkout, se
+hace la solicitud en el wizard de qa y, al aprobarse, el pedido queda pagado solo: el aviso de qa llega a la app, y si
+no llegara, la app lo concilia en unos minutos. Con la solicitud negada o cancelada, Shopify no crea el pedido. Con
+«Volver a la tienda» a mitad del wizard, el comprador ve la confirmación de Shopify y el pedido queda **pendiente** de
+pago.
 
-**Para correr la app** (Miguel, o quien tenga el repo `shopify`):
-
-```bash
-cd ~/Desktop/CREDITOP/github/shopify/docker && docker compose up -d
-```
-
-```bash
-cloudflared tunnel --url http://localhost:8121
-```
-
-```bash
-cd ~/Desktop/CREDITOP/github/shopify/docker && ./usar-tunel.sh https://<lo-que-imprimió-cloudflared>
-```
-
-En la consola de abajo, pestaña **Conexiones**, se ve si está todo arriba (el punto de la pestaña lo resume; el botón
-lo vuelve a mirar):
-
-- **con el repo `shopify`** en `~/Desktop/CREDITOP/github/shopify` (o `SHOPIFY_REPO`): **Servidor de la app**
-  (contesta en `:8121`), **Túnel** (la dirección de la app contesta desde afuera) y **Extensión de pagos** (apunta a esa
-  misma dirección);
-- **sin el repo** (la app corre en la máquina de otra persona): **Tienda** (contesta) y **Túnel de la app**, si en el
-  `.env` está `SHOPIFY_TUNNEL_URL` con la dirección que te pasaron. El túnel rápido cambia de dirección cada vez que se
-  reabre: si sale en rojo, pedí la nueva.
+En la consola de abajo, pestaña **Conexiones**, se ve si la **Tienda** y la **App de pagos (dev)** contestan (el punto
+de la pestaña lo resume; el botón lo vuelve a mirar). Si al pagar la tienda manda a un `trycloudflare.com`, quedó una
+vista previa de `shopify app dev` en la tienda: avisale a Miguel.
 
 ## 4 · Mirar y cerrar la compra en ecommerce
 

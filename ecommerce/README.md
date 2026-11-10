@@ -39,9 +39,9 @@ fetchea y se vuelve a medir con el botón.
 
 ## 3 · Comprar
 
-En `ecommerce`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar y el botón
-**Levantar** corre en segundo plano lo de esta sección: `shopify app dev` (y apunta la extensión al túnel nuevo solo) y
-`vtex link` (sólo con la sesión en `creditop · develop`). **Parar** corta lo que levantó ecommerce, y cerrar `make ecommerce`
+En `ecommerce`, pestaña **Tiendas** de la consola de abajo, un semáforo dice si cada tienda está lista para comprar. En
+VTEX, el botón **Levantar** corre en segundo plano `vtex link` (sólo con la sesión en `creditop · develop`); Shopify no
+se levanta: su app vive desplegada en dev. **Parar** corta lo que levantó ecommerce, y cerrar `make ecommerce`
 lo corta también. El login de VTEX abre el navegador: va siempre a mano. Los comandos de abajo son lo que corre el
 botón (`ecommerce/server/stores.go`): si cambia uno, se cambian los dos.
 
@@ -49,16 +49,12 @@ Datos de la persona en las dos tiendas: celular `3016992677`, correo **`miguel-t
 `miguel@creditop.com`: es tu cuenta de administrador en qa y el registro dice «correo ya registrado»). El código
 OTP llega a Slack, canal `#qa-messages`.
 
-**Shopify** · tienda https://creditop-dev-store.myshopify.com. La app tiene que estar corriendo:
+**Shopify** · tienda https://creditop-dev-store.myshopify.com (con su contraseña). La app de pagos está desplegada en
+dev (`https://shopify-app.dev.creditop.com`, contra qa) y la versión publicada apunta ahí: no se levanta nada. Si al
+pagar la tienda manda a un `trycloudflare.com`, le quedó una vista previa de `shopify app dev`:
 
 ```bash
-cd ~/Desktop/CREDITOP/github/shopify && CREDITOP_LOCAL=1 CREDITOP_ENVIRONMENT=develop npx shopify app dev --config shopify.app.creditop-ecommerce-payments-local.toml --store creditop-dev-store.myshopify.com
-```
-
-El túnel cambia en cada arranque: con la URL `https://…trycloudflare.com` que imprime,
-
-```bash
-cd ~/Desktop/CREDITOP/github/shopify && npm run extension:url -- https://<túnel>
+cd ~/Desktop/CREDITOP/github/shopify && npx -y @shopify/cli@latest app dev clean --config shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com
 ```
 
 **VTEX** · tienda https://develop--creditop.myvtex.com (workspace de desarrollo de la cuenta de pruebas). Con sesión:
@@ -91,7 +87,8 @@ Va por el simulador del backend de qa, que le avisa a la tienda (un `UPDATE` a m
 solicitud**: la tienda no acepta un segundo resultado, así que después queda sólo **Volver a la tienda ↗**, que lleva
 a donde vuelve el comprador y ahí se ve en qué quedó la compra. El bloqueo se recuerda en el navegador.
 
-- Shopify: «Volver a la tienda» pasa por el túnel de `shopify app dev`; con la app apagada o reiniciada no abre.
+- Shopify: «Volver a la tienda» pasa por la app de dev (`payments/return`): sin resultado todavía, el pedido queda
+  **pendiente** de pago y el comprador ve la confirmación de Shopify.
 - VTEX: aprobada, el pedido queda 30 minutos en `window-to-cancel` y no cobra hasta facturarlo (`start-handling` +
   `invoice`; el comando está en `tablero/tasks/integracion-vtex/task.md`).
 

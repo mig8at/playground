@@ -1,15 +1,16 @@
 package main
 
-/* Las tiendas de prueba listas para comprar, desde la interfaz: un botón levanta lo que en la consola eran comandos
- * (`shopify app dev` + apuntar la extensión al túnel nuevo, y `vtex link`) y un semáforo dice si todo está al día.
+/* Las tiendas de prueba listas para comprar, desde la interfaz: un semáforo dice si todo está al día y, en VTEX, un
+ * botón levanta `vtex link`.
  *
- * Cada chequeo mide lo que importa para comprar, no si un proceso existe: en Shopify, que la extensión de pagos
- * apunte a un túnel que CONTESTA (un túnel viejo es el «There was an issue processing your payment»); en VTEX, que
- * la sesión sea de la cuenta creditop en el workspace de desarrollo y que el conector conteste en él.
+ * Cada chequeo mide lo que importa para comprar, no si un proceso existe. En Shopify, que la app de pagos desplegada
+ * en dev conteste: desde el 2026-11-09 la versión publicada de la app apunta ahí y no se levanta nada (antes era
+ * `shopify app dev` con un túnel de Cloudflare). En VTEX, que la sesión sea de la cuenta creditop en el workspace de
+ * desarrollo y que el conector conteste en él.
  *
  * Lo que levanta este servidor lo puede parar. Lo que corre en otra terminal se detecta y se respeta: no se mata ni
- * se levanta otro encima (dos `shopify app dev` se pisan la URL de la app). Los procesos van en su propio grupo y se
- * paran por ese grupo, nunca por un patrón. VTEX sólo se linkea en `develop`, el workspace de desarrollo de la cuenta de pruebas. */
+ * se levanta otro encima. Los procesos van en su propio grupo y se paran por ese grupo, nunca por un patrón. VTEX sólo
+ * se linkea en `develop`, el workspace de desarrollo de la cuenta de pruebas. */
 
 import (
 	"bufio"
@@ -32,15 +33,14 @@ const (
 	vtexAccount   = "creditop"
 	vtexWorkspace = "develop"
 	vtexManifest  = "https://develop--creditop.myvtex.com/_v/creditop.creditop/v5/manifest"
-	// La firma del proceso de cada tienda, para reconocerlo si lo levantó otra terminal (sólo se lee con pgrep).
-	shopifySignature = "shopify app dev --config shopify.app.creditop-ecommerce-payments-local.toml"
-	vtexSignature    = "vtex link"
-	logLines         = 200
+	// La app de pagos de Shopify, desplegada en dev (contra qa).
+	shopifyAppURL = "https://shopify-app.dev.creditop.com"
+	// La firma del proceso de VTEX, para reconocerlo si lo levantó otra terminal (sólo se lee con pgrep).
+	vtexSignature = "vtex link"
+	logLines      = 200
 )
 
 var (
-	tunnelRe     = regexp.MustCompile(`https://[a-z0-9-]+\.trycloudflare\.com`)
-	extensionRe  = regexp.MustCompile(`(?m)^payment_session_url = "(https://[^/"]+)`)
 	whoamiRe     = regexp.MustCompile(`Logged into (\S+) as \S+ at \S+ workspace (\S+)`)
 	ansiRe       = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
 	storeProcs   = map[string]*storeProc{}
@@ -53,9 +53,7 @@ type storeProc struct {
 	cmd     *exec.Cmd
 	started time.Time
 	lines   []string
-	tunnel  string
-	since   time.Time // cuándo apareció el túnel
-	linked  bool      // VTEX terminó de compilar lo que subió `vtex link` (la salida se recorta, el dato no)
+	linked  bool // VTEX terminó de compilar lo que subió `vtex link` (la salida se recorta, el dato no)
 	exited  string
 }
 
@@ -86,6 +84,7 @@ type StoreStatus struct {
 	Store    string   `json:"store"`
 	Ready    bool     `json:"ready"`
 	Checks   []Check  `json:"checks"`
+	Deployed bool     `json:"deployed"` // vive desplegada: no hay nada que levantar ni parar desde acá
 	Managed  bool     `json:"managed"`  // lo levantó ecommerce y lo puede parar
 	External bool     `json:"external"` // corre en otra terminal
 	Started  string   `json:"started,omitempty"`
@@ -96,22 +95,6 @@ type StoreStatus struct {
 func githubRepo(name string) string {
 	home, _ := os.UserHomeDir()
 	return filepath.Join(home, "Desktop", "CREDITOP", "github", name)
-}
-
-func shopifyExtensionFile() string {
-	return filepath.Join(githubRepo("shopify"), "extensions", "creditop-offsite", "shopify.extension.toml")
-}
-
-// extensionBase es el origen al que la extensión de pagos manda la sesión, o "" si no se pudo leer.
-func extensionBase() string {
-	raw, err := os.ReadFile(shopifyExtensionFile())
-	if err != nil {
-		return ""
-	}
-	if m := extensionRe.FindSubmatch(raw); m != nil {
-		return string(m[1])
-	}
-	return ""
 }
 
 // runningElsewhere dice si hay un proceso con esa firma que no es el de este servidor.
@@ -188,42 +171,9 @@ func StoreState(store string) (*StoreStatus, error) {
 	}
 	switch store {
 	case "shopify":
-		st.External = runningElsewhere(shopifySignature, p)
-		running := st.Managed || st.External
-		st.Checks = append(st.Checks, Check{Name: "La app de pagos corre", OK: running, Detail: map[bool]string{true: "shopify app dev", false: "apagada"}[running]})
-		base := extensionBase()
-		tunnel := ""
-		if p != nil && st.Managed {
-			p.mu.Lock()
-			tunnel = p.tunnel
-			p.mu.Unlock()
-		}
-		switch {
-		case base == "":
-			st.Checks = append(st.Checks, Check{Name: "La extensión apunta al túnel", Detail: "no se pudo leer la extensión"})
-		case st.Managed && tunnel == "":
-			st.Checks = append(st.Checks, Check{Name: "La extensión apunta al túnel", Detail: "esperando el túnel nuevo"})
-		case tunnel != "":
-			st.Checks = append(st.Checks, Check{Name: "La extensión apunta al túnel", OK: base == tunnel, Detail: strings.TrimPrefix(base, "https://")})
-		default:
-			// Levantada en otra terminal: el túnel no se conoce, así que vale que el de la extensión conteste.
-			st.Checks = append(st.Checks, Check{Name: "La extensión apunta al túnel", OK: running, Detail: strings.TrimPrefix(base, "https://")})
-		}
-		ok, detail := false, "sin URL"
-		if base != "" {
-			ok, detail = reachable(base + "/payments/session")
-		}
-		// Un túnel recién abierto da 530 unos segundos; si sigue así pasado un minuto, cloudflared no lo registró y no
-		// se arregla esperando (medido el 2026-10-28: el siguiente arranque contestó a los 25 s).
-		if !ok && p != nil && st.Managed && tunnel != "" && base == tunnel {
-			p.mu.Lock()
-			stuck := time.Since(p.since) > time.Minute
-			p.mu.Unlock()
-			if stuck {
-				detail += " · el túnel no conectó: Parar y Levantar de nuevo"
-			}
-		}
-		st.Checks = append(st.Checks, Check{Name: "El túnel de la extensión contesta", OK: ok && running, Detail: detail})
+		st.Deployed = true
+		ok, detail := reachable(shopifyAppURL + "/")
+		st.Checks = append(st.Checks, Check{Name: "La app de pagos contesta en dev", OK: ok, Detail: detail})
 	case "vtex":
 		account, workspace := vtexWhoami()
 		session := account == vtexAccount && workspace == vtexWorkspace
@@ -264,13 +214,7 @@ func StartStore(store string) error {
 	var cmd *exec.Cmd
 	switch store {
 	case "shopify":
-		if runningElsewhere(shopifySignature, nil) {
-			return fmt.Errorf("shopify app dev ya corre en otra terminal: cerralo ahí (Ctrl+C) para levantarlo desde acá")
-		}
-		cmd = exec.Command("npx", "--yes", "shopify", "app", "dev",
-			"--config", "shopify.app.creditop-ecommerce-payments-local.toml", "--store", "creditop-dev-store.myshopify.com")
-		cmd.Dir = githubRepo("shopify")
-		cmd.Env = append(os.Environ(), "CREDITOP_LOCAL=1", "CREDITOP_ENVIRONMENT=develop")
+		return fmt.Errorf("la app de Shopify vive desplegada en dev (%s): no hay nada que levantar", shopifyAppURL)
 	case "vtex":
 		if runningElsewhere(vtexSignature, nil) {
 			return fmt.Errorf("vtex link ya corre en otra terminal: cerralo ahí (Ctrl+C) para levantarlo desde acá")
@@ -313,7 +257,7 @@ func StartStore(store string) error {
 	return nil
 }
 
-// read guarda la salida y, en Shopify, apunta la extensión al túnel apenas aparece.
+// read guarda la salida y marca cuándo VTEX terminó de compilar lo linkeado.
 func (p *storeProc) read(store string, out io.Reader) {
 	sc := bufio.NewScanner(out)
 	sc.Buffer(make([]byte, 64*1024), 1024*1024)
@@ -328,21 +272,6 @@ func (p *storeProc) read(store string, out io.Reader) {
 			p.linked = true
 			p.mu.Unlock()
 		}
-		if store != "shopify" {
-			continue
-		}
-		if t := tunnelRe.FindString(line); t != "" {
-			p.mu.Lock()
-			fresh := p.tunnel != t
-			p.tunnel = t
-			if fresh {
-				p.since = time.Now()
-			}
-			p.mu.Unlock()
-			if fresh && extensionBase() != t {
-				p.pointExtension(t)
-			}
-		}
 	}
 	err := p.cmd.Wait()
 	p.mu.Lock()
@@ -351,17 +280,6 @@ func (p *storeProc) read(store string, out io.Reader) {
 		p.exited += " · " + err.Error()
 	}
 	p.mu.Unlock()
-}
-
-// pointExtension corre el script del repo que apunta la extensión de pagos al túnel.
-func (p *storeProc) pointExtension(tunnel string) {
-	cmd := exec.Command("npm", "run", "--silent", "extension:url", "--", tunnel)
-	cmd.Dir = githubRepo("shopify")
-	out, err := cmd.CombinedOutput()
-	p.log("ecommerce › " + strings.TrimSpace(string(out)))
-	if err != nil {
-		p.log("ecommerce › no se pudo apuntar la extensión: " + err.Error())
-	}
 }
 
 // StopStore para lo que levantó este servidor, por su grupo de procesos.

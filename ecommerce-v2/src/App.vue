@@ -207,8 +207,8 @@ const OUTCOMES = [
 ]
 // Las tiendas de prueba y dónde se ven sus pedidos. VTEX: la de master (la condición «Creditop qa» manda el pago al
 // conector v5 de develop); su admin pide un usuario en la cuenta creditop. Shopify: la tienda de desarrollo, que paga con
-// la app del repo shopify corriendo en Docker (`app-qa`, contra qa) detrás de un túnel público; `status` muestra si el
-// servidor y el túnel contestan (server/shopify.go), en la pestaña Conexiones de la consola.
+// la app del repo shopify desplegada en dev (contra qa); `status` muestra si la tienda y la app contestan
+// (server/shopify.go), en la pestaña Conexiones de la consola.
 const SHOPIFY_STORE = 'creditop-dev-store'
 const STORES = [
   { name: 'VTEX', links: [
@@ -228,7 +228,7 @@ const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.
 // El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
 watch(() => result.value, () => { storeView.value = null })
-// Si el servidor de la app de Shopify y su túnel contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
+// Si la tienda de Shopify y la app de dev contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
 // con su botón.
 const shopifyChecks = ref(null) // [{ name, ok, detail, url }]
 // Qué versión del conector VTEX corre en cada workspace (server/vtex_apps.go): master siempre una publicada; develop
