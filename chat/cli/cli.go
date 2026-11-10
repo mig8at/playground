@@ -140,6 +140,28 @@ func LeaveGroup(ctx context.Context, id string) (*Group, error) {
 	return body.Group, err
 }
 
+// DeleteGroup borra `#id` para todos. El home no lo ofrece, pero los grupos viven en cuadrilla y cuadrilla sí: sólo
+// para quien lo creó (a otro le contesta 403). Va directo a cuadrilla con la sesión del CLI; el home lee los grupos de
+// cuadrilla cada vez, así que deja de existir también en el chat.
+func DeleteGroup(ctx context.Context, id string) error {
+	out, err := run(ctx, nil, "cuadrilla", "/api/groups/"+url.PathEscape(strings.TrimPrefix(id, "#")), "-X", "DELETE", "--json")
+	var body struct {
+		Deleted string `json:"borrado"`
+		Error   string `json:"error"`
+	}
+	_ = json.Unmarshal(out, &body)
+	if body.Error != "" {
+		return errors.New(body.Error)
+	}
+	if err != nil {
+		return err
+	}
+	if body.Deleted == "" {
+		return errors.New("cuadrilla no confirmó el borrado")
+	}
+	return nil
+}
+
 // Status es el estado del proceso de `playground listen`.
 type Status struct {
 	Since     string  `json:"since"`

@@ -152,6 +152,44 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"group": g})
 	})
+	// Eliminar un grupo: si lo creaste vos, se borra para todos (en cuadrilla); si no, salís.
+	mux.HandleFunc("POST /api/groups/{id}/remove", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 20*time.Second)
+		defer cancel()
+		id := strings.TrimPrefix(r.PathValue("id"), "#")
+		groups, err := cli.Groups(ctx)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		session := cli.CurrentSession(ctx)
+		for _, g := range groups {
+			if g.ID != id {
+				continue
+			}
+			// Borrar para todos necesita la cuadrilla con grupos (commit e575b1e del compartido). Si la desplegada todavía no
+			// los tiene, contesta «esa ruta de la API no existe»: entonces se sale, como antes, y se dice.
+			if session != nil && strings.EqualFold(g.Owner, session.Email) {
+				err := cli.DeleteGroup(ctx, id)
+				if err == nil {
+					writeJSON(w, http.StatusOK, map[string]any{"deleted": true, "forAll": true})
+					return
+				}
+				if !strings.Contains(err.Error(), "ruta de la API no existe") {
+					fail(w, http.StatusBadGateway, err)
+					return
+				}
+			}
+			left, err := cli.LeaveGroup(ctx, id)
+			if err != nil {
+				fail(w, http.StatusBadGateway, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string]any{"deleted": left == nil, "left": true, "others": left != nil})
+			return
+		}
+		fail(w, http.StatusNotFound, fmt.Errorf("no estás en #%s", id))
+	})
 	// Salir de un grupo (y, si eras el único, borrarlo: el home borra los grupos vacíos).
 	mux.HandleFunc("POST /api/groups/{id}/leave", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

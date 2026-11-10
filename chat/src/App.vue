@@ -44,19 +44,24 @@ const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
 function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
 // «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
-/* Eliminar un grupo: el home no borra grupos, pero borra uno que queda vacío. Si sos el único, desaparece; si hay más
-   gente, salís vos y sigue para ellos (por eso lo dice antes de hacerlo). */
+/* Eliminar un grupo: si lo creaste vos, se borra para todos (cuadrilla, donde viven los grupos, deja borrarlo a quien
+   lo creó). Si lo creó otro, salís; y si quedás sin nadie, se borra solo. Lo dice antes de hacerlo. */
 const groupDeleteError = ref('')
 async function deleteGroup(g) {
   const others = (g.person.members || []).filter((m) => !chat.isMe({ email: String(m).split("/")[0] })).length
-  const msg = others
-    ? `¿Salir de ${g.person.name}? Sigue existiendo para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}: el chat no puede borrarlo para todos.`
-    : `¿Eliminar ${g.person.name}? Sos el único miembro: se borra para siempre.`
+  const mine = chat.isMe({ email: g.person.owner || '' })
+  const msg = mine || !others
+    ? (others
+      ? `¿Eliminar ${g.person.name}? Si el servidor del equipo ya permite borrarlo, se borra también para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}; si no, salís vos y sigue para ell${others === 1 ? 'e' : 'os'}. No se puede deshacer.`
+      : `¿Eliminar ${g.person.name}? Sos el único miembro: se borra para siempre.`)
+    : `¿Salir de ${g.person.name}? Lo creó ${g.person.owner}: sigue existiendo para ${others === 1 ? 'el otro miembro' : `los otros ${others}`}.`
   if (!window.confirm(msg)) return
   groupDeleteError.value = ''
   try {
     if (chat.activeKey === g.person.email) chat.activeKey = ''
-    await chat.leaveGroup(g.person.email)
+    const r = await chat.leaveGroup(g.person.email)
+    // Si era tuyo y quedó gente, es que todavía no se puede borrar para todos: saliste vos.
+    if (r?.others) groupDeleteError.value = `Saliste de ${g.person.name}, pero sigue para los demás: borrarlo para todos todavía no está disponible en el servidor del equipo.`
   } catch (e) { groupDeleteError.value = `No se pudo: ${e.message}` }
 }
 function deleteConversation(c) {
@@ -916,7 +921,8 @@ const statusText = computed(() => {
                 </span>
               </span>
             </button>
-            <button type="button" class="conv-del" title="Eliminar grupo" aria-label="Eliminar grupo"
+            <button type="button" class="conv-del" aria-label="Eliminar o salir del grupo"
+                    :title="chat.isMe({ email: g.person.owner || '' }) ? 'Eliminar grupo (para todos)' : 'Salir del grupo'"
                     @click.stop="deleteGroup(g)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </li>
         </ul>

@@ -536,7 +536,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       groups.value = (await api('/api/groups')).groups || []
       groupsError.value = ''
-      for (const g of groups.value) ensure({ email: `#${g.id}`, name: `#${g.id}`, group: true, members: g.members })
+      for (const g of groups.value) ensure({ email: `#${g.id}`, name: `#${g.id}`, group: true, members: g.members, owner: g.owner })
     } catch (e) { groupsError.value = e.message }
   }
   async function createGroup(name, members) {
@@ -544,10 +544,10 @@ export const useChatStore = defineStore('chat', () => {
     await loadGroups()
     return r.group
   }
-  // Eliminar un grupo: salís en el home (si eras el único, el home lo borra) y se va de tu lista.
+  // Eliminar un grupo: si lo creaste, se borra para todos; si no, salís (y si eras el único, se borra). Se va de tu lista.
   async function leaveGroup(key) {
     const id = key.replace(/^#/, '')
-    const r = await post(`/api/groups/${encodeURIComponent(id)}/leave`, {})
+    const r = await post(`/api/groups/${encodeURIComponent(id)}/remove`, {})
     removeConversation(key)
     await loadGroups()
     return r
