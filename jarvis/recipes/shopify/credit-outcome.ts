@@ -118,8 +118,22 @@ let applied = '';
 let creditopSaid = '?';
 let how = 'aviso';
 const readApp = async () => {
-    // Con la app de dev no hay un contenedor local que leer: lo que la app aplicó se ve en Shopify. Una aprobada crea el
-    // pedido pagado; una rechazada no crea nada, así que con la app de dev no se distingue de un aviso que no llegó.
+    // Con la app de dev no hay un contenedor local que leer (y sus logs no van a Loki). Una aprobada se ve en Shopify: el
+    // pedido pagado. Una negada o cancelada no crea pedido; lo que se mide es el aviso de qa a la app en Loki
+    // (`ecommerce_store_notified` con `store_status` 200 = la app lo aceptó). Que la app rechazó la sesión en Shopify
+    // NO se ve desde acá.
+    if (useDev && outcome !== 'aprobada') {
+        const erId = Number(new URL(wizard).searchParams.get('erId'));
+        const { stdout } = await run(path.join(ROOT, 'bin/pg'), ['logs', '--target', 'qa', '--since', '30m', '--query',
+            `{service_name=~".+"} |= "ecommerce_store_notified" |~ "\\"ecommerce_request_id\\":${erId}[,}]"`], { timeout: 90_000 }).catch(() => ({ stdout: '' }));
+        const code = /"store_status":(\d+)/.exec(stdout)?.[1];
+        if (code === '200') {
+            applied = 'rejected';
+            how = 'aviso de qa';
+            creditopSaid = /"status":"(\w+)"/.exec(stdout)?.[1] ?? '?';
+        } else if (code) say(`⚠ qa avisó a la app y contestó ${code}`);
+        return;
+    }
     if (useDev) {
         const { graphql } = await import('./api.ts');
         const d = await graphql<any>(`{ orders(first: 5, sortKey: CREATED_AT, reverse: true) { nodes { createdAt paymentGatewayNames } } }`);
@@ -158,13 +172,15 @@ if (await waitApp(60_000) && !applied) {
     say(`⚠ en un minuto el aviso de CreditOp no llegó a la app (pedido de la tienda ${erId}: processed = ${processed ?? '?'} en qa); espero la conciliación de la app (hasta 12 min) · ${secs()}`);
     await waitApp(12 * 60_000);
 }
-if (applied) say(`la app de Creditop (${how}): CreditOp dijo «${creditopSaid}» → en Shopify «${applied}» · ${secs()}`);
+if (applied) say(useDev && applied === 'rejected'
+    ? `qa le avisó a la app «${creditopSaid}» y la app lo aceptó (200); que rechazó la sesión en Shopify no se ve desde acá · ${secs()}`
+    : `la app de Creditop (${how}): CreditOp dijo «${creditopSaid}» → en Shopify «${applied}» · ${secs()}`);
 else {
     say(`✗ la app no aplicó nada: ni el aviso ni la conciliación · ${secs()}`);
     process.exit(1);
 }
 if (applied === 'rejected') {
-    say(`Shopify rechazó el pago: no crea pedido · solicitud ${walked.ur} en ${STATUS[outcome]} · ${secs()}`);
+    say(`${useDev ? 'sin pedido en Shopify (un rechazo no lo crea)' : 'Shopify rechazó el pago: no crea pedido'} · solicitud ${walked.ur} en ${STATUS[outcome]} · ${secs()}`);
     process.exit(outcome === 'aprobada' ? 1 : 0);
 }
 // El pedido, por la Admin API (la app «Jarvis · Admin API (pruebas)», con acceso a pedidos desde la distribución
