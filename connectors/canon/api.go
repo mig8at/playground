@@ -542,3 +542,39 @@ func (c *Client) Restructure(ctx context.Context, author, reason string, ops []j
 	err = c.callOn(ctx, patientClient(), http.MethodPost, "/api/restructure", body, key, map[string]string{"If-Match": etag}, &raw)
 	return raw, err
 }
+
+// Queue es la cola de lo que canon no pudo contestar y nadie revisó todavía (`GET /api/questions/queue`),
+// una página por vez: `before` es el `next` de la página anterior (0: la primera). Cada fila es la del panel
+// de canon, tal cual: trae la pregunta de una persona, así que se lee para diagnosticar y no se copia a
+// tareas ni PRs.
+func (c *Client) Queue(ctx context.Context, limit int, before int64) (rows []map[string]any, next int64, more bool, err error) {
+	path := fmt.Sprintf("/api/questions/queue?limit=%d", limit)
+	if before > 0 {
+		path += fmt.Sprintf("&before=%d", before)
+	}
+	var raw struct {
+		Questions []map[string]any `json:"questions"`
+		HasMore   bool             `json:"has_more"`
+		Next      int64            `json:"next"`
+	}
+	if err := c.call(ctx, http.MethodGet, path, nil, "", &raw); err != nil {
+		return nil, 0, false, err
+	}
+	return raw.Questions, raw.Next, raw.HasMore, nil
+}
+
+// ReviewDecisions son las decisiones que acepta `/api/questions/review`.
+var ReviewDecisions = []string{"falta_contenido", "problema_acceso", "sin_pasos", "fuera_alcance", "corregida"}
+
+// Review marca preguntas de la cola como revisadas, con su decisión y el porqué: salen de la cola y la
+// próxima ronda no las vuelve a clasificar. ⚠ ESCRIBE en la base de canon; el autor lo pone el servidor.
+func (c *Client) Review(ctx context.Context, ids []int64, decision, note, reference string) (map[string]any, error) {
+	key, err := WriteKey()
+	if err != nil {
+		return nil, err
+	}
+	var out map[string]any
+	err = c.call(ctx, http.MethodPost, "/api/questions/review",
+		map[string]any{"ids": ids, "decision": decision, "note": note, "reference": reference}, key, &out)
+	return out, err
+}

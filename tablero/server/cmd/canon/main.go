@@ -14,6 +14,8 @@
 //	restructure [-apply] -reason R <ops.json>  un lote de operaciones de estructura (temas, padres, intros, secciones):
 //	                                     sin -apply ensaya y muestra el diff; con -apply guarda UNA revisión. ESCRIBE
 //	eval [-days N] [-target T] [-json]   organización del corpus y código que se mueve sin área (ver eval.go)
+//	queue [-json]                        lo que canon no pudo contestar y nadie revisó (trae preguntas de personas: diagnóstico, no se copia)
+//	review -decision D -note N <id>…     saca preguntas de la cola con su porqué. Sin -apply sólo muestra. ESCRIBE
 //
 // El origen es CANON_URL —producción por defecto, que pide la VPN de prod—, el mismo del tablero. La
 // pieza es un JSON con las claves del borrador de canon; `text_file` en vez de `text` lee la prosa de
@@ -73,6 +75,10 @@ func main() {
 		err = restructure(ctx, client, args)
 	case "clones":
 		err = clones(ctx, client, args)
+	case "queue":
+		err = queue(ctx, client, args)
+	case "review":
+		err = review(ctx, client, args)
 	case "round":
 		err = round(ctx, client, args)
 	case "corpus":
@@ -321,6 +327,75 @@ func clones(ctx context.Context, client *canon.Client, args []string) error {
 			continue
 		}
 		fmt.Printf("  %-46s %s  %s\n", clone.Repo, clone.Commit, clone.State)
+	}
+	return nil
+}
+
+/* queue lee la cola entera de lo que canon no pudo contestar, página por página. Con -json, las filas tal
+ * cual las da canon; sin él, una línea por pregunta. Las preguntas son de personas: se leen para saber qué le
+ * falta al corpus, no se pegan en tareas ni PRs. */
+func queue(ctx context.Context, client *canon.Client, args []string) error {
+	flags := flag.NewFlagSet("queue", flag.ExitOnError)
+	asJSON := flags.Bool("json", false, "las filas tal cual, en JSON")
+	_ = flags.Parse(args)
+	var all []map[string]any
+	var before int64
+	for {
+		rows, next, more, err := client.Queue(ctx, 100, before)
+		if err != nil {
+			return err
+		}
+		all = append(all, rows...)
+		if !more || next == 0 {
+			break
+		}
+		before = next
+	}
+	if *asJSON {
+		return json.NewEncoder(os.Stdout).Encode(all)
+	}
+	fmt.Printf("  %d preguntas sin contestar y sin revisar\n", len(all))
+	for _, row := range all {
+		q, _ := row["question"].(string)
+		if q == "" {
+			q, _ = row["pregunta"].(string)
+		}
+		fmt.Printf("  #%v · %v · %s\n", row["id"], row["status"], strings.Join(strings.Fields(q), " "))
+	}
+	return nil
+}
+
+/* review saca preguntas de la cola: quedan marcadas como revisadas con una decisión y el porqué, y la próxima
+ * ronda no las vuelve a clasificar. Sin -apply sólo dice qué marcaría. */
+func review(ctx context.Context, client *canon.Client, args []string) error {
+	flags := flag.NewFlagSet("review", flag.ExitOnError)
+	decision := flags.String("decision", "", "una de: "+strings.Join(canon.ReviewDecisions, ", "))
+	note := flags.String("note", "", "por qué queda revisada (obligatoria)")
+	reference := flags.String("ref", "", "dónde quedó la respuesta, p. ej. tema/context#ancla")
+	apply := flags.Bool("apply", false, "marcar de verdad (escribe en la base de canon)")
+	_ = flags.Parse(args)
+	var ids []int64
+	for _, a := range flags.Args() {
+		var id int64
+		if _, err := fmt.Sscanf(a, "%d", &id); err != nil || id <= 0 {
+			return fmt.Errorf("«%s» no es un id de pregunta", a)
+		}
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 || *decision == "" || strings.TrimSpace(*note) == "" {
+		return fmt.Errorf("uso: review -decision D -note '…' [-ref tema/context#ancla] [-apply] <id>…")
+	}
+	if !*apply {
+		fmt.Printf("  marcaría %d preguntas como «%s»: %s (ensayo: con -apply se escriben)\n", len(ids), *decision, *note)
+		return nil
+	}
+	out, err := client.Review(ctx, ids, *decision, *note, *reference)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("  ✓ marcadas %v de %d · %v\n", out["marked"], len(ids), out["decision"])
+	if w, ok := out["warning"]; ok {
+		fmt.Printf("  ⚠ %v\n", w)
 	}
 	return nil
 }
