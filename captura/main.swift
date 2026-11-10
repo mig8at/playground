@@ -206,23 +206,51 @@ final class Picker {
     var dragging: (start: CGPoint, current: CGPoint)?
     var lastProbe = CGPoint(x: -1, y: -1)
     var lastProbeAt = Date.distantPast
-    var onCapture: ((CGRect) -> Void)?
+    /// El área elegida: un clic o un arrastre la FIJAN (no capturan); la captura sale del botón Copiar.
+    var selected: CGRect?
+    var mouse = CGPoint.zero
+    var pressingToolbar = false
+    var onCopy: ((CGRect) -> Void)?
 
     var hovered: Target? { chain.isEmpty ? nil : chain[min(level, chain.count - 1)] }
 
-    /// lo que se está mostrando: el arrastre si hay uno, si no lo señalado
+    /// lo que se está mostrando: el arrastre, si no lo elegido, si no lo señalado
     var shown: Target? {
         if let d = dragging {
             let r = CGRect(x: min(d.start.x, d.current.x), y: min(d.start.y, d.current.y),
                            width: abs(d.start.x - d.current.x), height: abs(d.start.y - d.current.y))
             return Target(rect: r, label: "\(Int(r.width)) × \(Int(r.height))")
         }
+        if let s = selected { return Target(rect: s, label: "\(Int(s.width)) × \(Int(s.height))") }
         return hovered.map { Target(rect: $0.rect, label: "\($0.label)  \(Int($0.rect.width)) × \(Int($0.rect.height))") }
     }
+
+    /// La barra con el botón Copiar, en top-left global: debajo del área, alineada a su derecha; si no
+    /// entra en la pantalla, adentro del área, abajo a la derecha.
+    var toolbar: CGRect? {
+        guard let s = selected, dragging == nil else { return nil }
+        let size = CGSize(width: 104, height: 34)
+        let screen = screenRectsTL.first { $0.intersects(s) } ?? screenRectsTL[0]
+        var r = CGRect(x: s.maxX - size.width, y: s.maxY + 8, width: size.width, height: size.height)
+        if r.maxY > screen.maxY - 4 { r.origin.y = s.maxY - size.height - 8 }
+        r.origin.x = max(screen.minX + 8, min(r.origin.x, screen.maxX - size.width - 8))
+        r.origin.y = max(screen.minY + 8, r.origin.y)
+        return r
+    }
+    var overToolbar: Bool { toolbar?.contains(mouse) ?? false }
 
     func redraw() { views.forEach { $0.needsDisplay = true } }
 
     func probe(_ p: CGPoint) {
+        if selected != nil {
+            // con un área elegida no se señala nada: el mouse va libre hasta el botón
+            let was = overToolbar
+            mouse = p
+            if was != overToolbar { redraw() }
+            (overToolbar ? NSCursor.pointingHand : NSCursor.arrow).set()
+            return
+        }
+        mouse = p
         // también con el mouse quieto cada 0,3 s: Electron arma su árbol DESPUÉS del primer pedido, y el
         // primer sondeo de una app recién despertada devuelve un solo nivel
         let moved = hypot(p.x - lastProbe.x, p.y - lastProbe.y) >= 1
@@ -241,25 +269,41 @@ final class Picker {
     }
 
     func scroll(_ dy: CGFloat) {
-        guard !chain.isEmpty, dy != 0 else { return }
+        guard selected == nil, !chain.isEmpty, dy != 0 else { return }
         level = max(0, min(chain.count - 1, level + (dy > 0 ? 1 : -1)))
         redraw()
     }
 
-    func down(_ p: CGPoint) { dragging = (p, p); redraw() }
-    func drag(_ p: CGPoint) { dragging?.current = p; redraw() }
+    func down(_ p: CGPoint) {
+        mouse = p
+        if toolbar?.contains(p) == true { pressingToolbar = true; redraw(); return }
+        // un clic fuera de la barra descarta lo elegido y empieza otra selección
+        if selected != nil { dlog("selección descartada"); selected = nil; lastProbeAt = .distantPast }
+        dragging = (p, p)
+        redraw()
+    }
+    func drag(_ p: CGPoint) { mouse = p; if !pressingToolbar { dragging?.current = p; redraw() } }
     func up(_ p: CGPoint) {
+        mouse = p
+        if pressingToolbar {
+            pressingToolbar = false
+            if let s = selected, toolbar?.contains(p) == true { dlog("copiar \(s)"); onCopy?(s) } else { redraw() }
+            return
+        }
         guard let d = dragging else { return }
         dragging = nil
         let moved = hypot(p.x - d.start.x, p.y - d.start.y)
         if moved >= 4 {
             let r = CGRect(x: min(d.start.x, p.x), y: min(d.start.y, p.y), width: abs(d.start.x - p.x), height: abs(d.start.y - p.y))
-            if r.width >= 3, r.height >= 3 { onCapture?(r); return }
+            if r.width >= 3, r.height >= 3 { selected = r }
         } else if let h = hovered {
-            onCapture?(h.rect); return
+            selected = h.rect
         }
+        if let s = selected { dlog("seleccionado \(s)") }
         redraw()
     }
+
+    func copySelected() { if let s = selected { dlog("copiar (teclado) \(s)"); onCopy?(s) } }
 }
 
 final class SelectionView: NSView {
@@ -285,30 +329,79 @@ final class SelectionView: NSView {
         while abs(acc) >= step { picker.scroll(acc > 0 ? 1 : -1); acc -= acc > 0 ? step : -step }
     }
     var acc: CGFloat = 0
-    override func keyDown(with e: NSEvent) { if e.keyCode == 53 { onCancel?() } } // Esc
+    override func keyDown(with e: NSEvent) {
+        switch e.keyCode {
+        case 53: onCancel?()                                            // Esc
+        case 36, 76: picker.copySelected()                              // Enter
+        case 8 where e.modifierFlags.contains(.command): picker.copySelected() // ⌘C
+        default: break
+        }
+    }
+
+    static let copyIcon: NSImage? = {
+        let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        return NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copiar")?.withSymbolConfiguration(cfg)
+    }()
 
     override func draw(_ dirty: NSRect) {
+        // Una capa casi invisible sobre TODO, también dentro del recuadro: macOS deja pasar los clics por
+        // donde una ventana transparente no pinta nada, y sin esto el recuadro era un hueco por el que el
+        // clic seleccionaba texto en la app de abajo.
+        NSColor.black.withAlphaComponent(0.01).setFill()
+        bounds.fill()
+
         let shown = picker.shown
         let local = shown.map { toLocal($0.rect, in: window!) }
         let path = NSBezierPath(rect: bounds)
         if let r = local { path.append(NSBezierPath(rect: r)); path.windingRule = .evenOdd }
         NSColor.black.withAlphaComponent(0.35).setFill()
         path.fill()
-        guard let r = local, let t = shown, r.intersects(bounds) else { return }
-        (picker.dragging == nil ? NSColor.systemBlue : NSColor.white).setStroke()
-        let border = NSBezierPath(rect: r.insetBy(dx: -1, dy: -1)); border.lineWidth = 2; border.stroke()
+        guard let r = local, let t = shown else { return }
+        if r.intersects(bounds) {
+            let color: NSColor = picker.dragging != nil ? .white : picker.selected != nil ? .systemBlue : NSColor.systemBlue.withAlphaComponent(0.75)
+            color.setStroke()
+            let border = NSBezierPath(rect: r.insetBy(dx: -1, dy: -1)); border.lineWidth = picker.selected != nil ? 2.5 : 2; border.stroke()
 
-        var label = t.label
-        if picker.dragging == nil, picker.chain.count > 1 { label += "   ↕ \(picker.level + 1)/\(picker.chain.count)" }
-        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white]
-        let text = label as NSString
-        let size = text.size(withAttributes: attrs)
-        var p = NSPoint(x: max(r.minX, 4), y: r.maxY + 6)
-        if p.y + size.height + 4 > bounds.maxY { p = NSPoint(x: max(r.minX, 4) + 6, y: r.maxY - size.height - 8) }
-        p.x = min(p.x, bounds.maxX - size.width - 8)
-        let bg = NSRect(x: p.x - 4, y: p.y - 2, width: size.width + 8, height: size.height + 4)
-        NSColor.black.withAlphaComponent(0.75).setFill(); NSBezierPath(roundedRect: bg, xRadius: 4, yRadius: 4).fill()
-        text.draw(at: p, withAttributes: attrs)
+            var label = t.label
+            if picker.dragging == nil, picker.selected == nil, picker.chain.count > 1 { label += "   ↕ \(picker.level + 1)/\(picker.chain.count)" }
+            let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium), .foregroundColor: NSColor.white]
+            let text = label as NSString
+            let size = text.size(withAttributes: attrs)
+            var p = NSPoint(x: max(r.minX, 4), y: r.maxY + 6)
+            if p.y + size.height + 4 > bounds.maxY { p = NSPoint(x: max(r.minX, 4) + 6, y: r.maxY - size.height - 8) }
+            p.x = min(p.x, bounds.maxX - size.width - 8)
+            let bg = NSRect(x: p.x - 4, y: p.y - 2, width: size.width + 8, height: size.height + 4)
+            NSColor.black.withAlphaComponent(0.75).setFill(); NSBezierPath(roundedRect: bg, xRadius: 4, yRadius: 4).fill()
+            text.draw(at: p, withAttributes: attrs)
+        }
+        if let tb = picker.toolbar { drawToolbar(toLocal(tb, in: window!)) }
+    }
+
+    func drawToolbar(_ r: NSRect) {
+        guard r.intersects(bounds) else { return }
+        NSColor(calibratedWhite: 0.12, alpha: 0.95).setFill()
+        NSBezierPath(roundedRect: r, xRadius: 8, yRadius: 8).fill()
+        NSColor(calibratedWhite: 1, alpha: 0.15).setStroke()
+        let edge = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 8, yRadius: 8); edge.lineWidth = 1; edge.stroke()
+        let button = r.insetBy(dx: 4, dy: 4)
+        if picker.overToolbar {
+            (picker.pressingToolbar ? NSColor.systemBlue : NSColor(calibratedWhite: 1, alpha: 0.14)).setFill()
+            NSBezierPath(roundedRect: button, xRadius: 5, yRadius: 5).fill()
+        }
+        let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
+        let text = "Copiar" as NSString
+        let ts = text.size(withAttributes: attrs)
+        let iconSize = NSSize(width: 16, height: 16)
+        let total = iconSize.width + 6 + ts.width
+        var x = button.midX - total / 2
+        if let icon = SelectionView.copyIcon {
+            let tinted = NSImage(size: icon.size, flipped: false) { rect in
+                icon.draw(in: rect); NSColor.white.set(); rect.fill(using: .sourceAtop); return true
+            }
+            tinted.draw(in: NSRect(x: x, y: button.midY - iconSize.height / 2, width: iconSize.width, height: iconSize.height))
+        }
+        x += iconSize.width + 6
+        text.draw(at: NSPoint(x: x, y: button.midY - ts.height / 2), withAttributes: attrs)
     }
 }
 
@@ -332,7 +425,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // sobre el elemento de sistema fija el tope de TODAS las consultas (el de fábrica es 6 s)
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.15)
 
-        picker.onCapture = { [weak self] r in self?.capture(r) }
+        picker.onCopy = { [weak self] r in self?.capture(r) }
         for screen in NSScreen.screens {
             let w = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
             w.level = .screenSaver
@@ -396,6 +489,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     dlog(String(format: "grilla (%.0f,%.0f): %d niveles · ", p.x, p.y, c.count)
                          + c.map { String(format: "%@ %.0f×%.0f", $0.label, $0.rect.width, $0.rect.height) }.joined(separator: " ⊂ "))
                 }}
+            }
+        }
+        // a los 2,5 s elige sola lo señalado, para que las fotos muestren también la barra con Copiar
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
+            if self.picker.selected == nil, let h = self.picker.hovered {
+                self.picker.selected = h.rect; self.picker.redraw(); dlog("debug: elijo lo señalado \(h.rect) · barra \(self.picker.toolbar.map { "\($0)" } ?? "-")")
             }
         }
         for i in 1...7 {
