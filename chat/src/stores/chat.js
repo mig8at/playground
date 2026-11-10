@@ -34,6 +34,8 @@ import { computed, ref, watch } from 'vue'
 
 const STORAGE_KEY = 'chat:conversations:v1'
 const POLL_STATE_MS = 2500
+// Con el stream en vivo abierto (/api/events), la consulta queda de respaldo: por si se cortó y no se notó.
+const POLL_STATE_LIVE_MS = 20_000
 const POLL_ONLINE_MS = 15000
 
 const keyOf = (email) => String(email || '').trim().toLowerCase()
@@ -830,6 +832,47 @@ export const useChatStore = defineStore('chat', () => {
   let stateTimer = null
   let onlineTimer = null
   let cuadrillaTimer = null
+
+  /* EN VIVO (server/realtime.go): un EventSource a /api/events. Lo que llega se absorbe enseguida, también con la
+     pestaña oculta (la consulta de respaldo sólo corre con la pestaña a la vista). `live` dice si está abierto;
+     `liveNotice` es el aviso corto de lo que hizo el servidor por su cuenta (el llavero que contestó solo). */
+  const live = ref(false)
+  const liveNotice = ref(null)   // { text, at }
+  let source = null
+  let noticeTimer = null
+  const incoming = []            // los «in» nuevos, para avisar (App.vue los lee con takeIncoming)
+  function showNotice(text) {
+    liveNotice.value = { text, at: Date.now() }
+    clearTimeout(noticeTimer)
+    noticeTimer = setTimeout(() => { liveNotice.value = null }, 8000)
+  }
+  function takeIncoming() { return incoming.splice(0) }
+  function openLive() {
+    if (typeof EventSource === 'undefined') return
+    source?.close()
+    source = new EventSource('/api/events')
+    source.addEventListener('hello', () => { live.value = true })
+    source.addEventListener('messages', (e) => {
+      try {
+        const fresh = JSON.parse(e.data) || []
+        absorb(fresh)
+        for (const m of fresh) if (m.dir === 'in' && !isJournal(m)) incoming.push(m)
+      } catch { /* un evento roto: lo trae la consulta de respaldo */ }
+    })
+    source.addEventListener('file', (e) => {
+      try { const f = JSON.parse(e.data); if (f?.id) applySavedFiles({ [f.id]: f.path }) } catch { /* idem */ }
+    })
+    source.addEventListener('keyring', (e) => {
+      try {
+        const k = JSON.parse(e.data)
+        const who = (k.name || k.to || '').split(/[\s@]/)[0]
+        showNotice(k.kind === 'list' ? `Le pasaste a ${who} la lista de tu llavero` : `Le mandaste a ${who} las claves que pidió`)
+      } catch { /* idem */ }
+    })
+    // EventSource reintenta solo; mientras tanto, la consulta vuelve a su ritmo normal.
+    source.onerror = () => { live.value = false }
+  }
+
   function start() {
     const tickCuadrilla = async () => {
       if (document.visibilityState === 'visible') await loadCuadrilla()
@@ -837,7 +880,7 @@ export const useChatStore = defineStore('chat', () => {
     }
     const tickState = async () => {
       if (document.visibilityState === 'visible') await loadState()
-      stateTimer = setTimeout(tickState, POLL_STATE_MS)
+      stateTimer = setTimeout(tickState, live.value ? POLL_STATE_LIVE_MS : POLL_STATE_MS)
     }
     const tickOnline = async () => {
       if (document.visibilityState === 'visible') await Promise.all([loadOnline(), loadTeamAgents()])
@@ -853,10 +896,12 @@ export const useChatStore = defineStore('chat', () => {
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
+    openLive()
     document.addEventListener('visibilitychange', markActiveRead)
   }
   function stop() {
     clearTimeout(stateTimer); clearTimeout(onlineTimer); clearTimeout(cuadrillaTimer)
+    source?.close(); source = null; live.value = false
     document.removeEventListener('visibilitychange', markActiveRead)
   }
 
@@ -865,6 +910,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
-    loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    live, liveNotice, takeIncoming, loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

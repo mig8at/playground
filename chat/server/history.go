@@ -126,6 +126,8 @@ func (h *history) add(messages []cli.Message) ([]cli.Message, error) {
 		}
 		h.order = append(h.order, m)
 	}
+	// En vivo: lo nuevo, a las ventanas abiertas (realtime.go).
+	events.publish("messages", fresh)
 	return fresh, nil
 }
 
@@ -155,6 +157,7 @@ func (h *history) rememberFile(id, path string) {
 	snapshot, _ := json.Marshal(h.files)
 	h.mu.Unlock()
 	_ = writeAtomic(filepath.Join(h.dir, "attachments.json"), snapshot)
+	events.publish("file", map[string]string{"id": id, "path": path})
 }
 
 func (h *history) savedFiles() map[string]string {

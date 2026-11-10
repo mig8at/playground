@@ -245,6 +245,7 @@ func handler() http.Handler {
 
 	registerFiles(mux)
 	registerKeyring(mux)
+	registerEvents(mux)
 	registerKeyringSettings(mux)
 
 	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
@@ -380,6 +381,7 @@ func main() {
 	} else {
 		chatHistory = h
 		go h.run(5 * time.Second)
+		go followListen()
 		fmt.Printf("chat · historial en %s (%d mensajes)\n", dir, len(h.all()))
 	}
 	fmt.Printf("chat · API en http://%s\n", *addr)

@@ -225,6 +225,41 @@ func run(ctx context.Context, stdin []byte, args ...string) ([]byte, error) {
 	return stdout.Bytes(), nil
 }
 
+// Follow corre `playground messages --follow --json` y llama a `each` con cada mensaje apenas llega al listen (y con
+// lo que se manda desde esta máquina). Termina cuando se apaga el listen, se corta ctx o el CLI falla; quien lo llama
+// lo vuelve a abrir.
+func Follow(ctx context.Context, each func(Message)) error {
+	path, err := Path()
+	if err != nil {
+		return err
+	}
+	cmd := exec.CommandContext(ctx, path, "messages", "--follow", "--json")
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	sc := bufio.NewScanner(out)
+	sc.Buffer(make([]byte, 0, 64<<10), 4<<20)
+	for sc.Scan() {
+		var m Message
+		if json.Unmarshal(sc.Bytes(), &m) == nil && m.Time != "" {
+			each(m)
+		}
+	}
+	if err := cmd.Wait(); err != nil {
+		if msg := bytes.TrimSpace(stderr.Bytes()); len(msg) > 0 {
+			return errors.New(strings.TrimPrefix(string(msg), "✗ "))
+		}
+		return err
+	}
+	return nil
+}
+
 // ListenStatus devuelve el estado de `playground listen`, o nil si no está escuchando.
 func ListenStatus(ctx context.Context) (*Status, error) {
 	if !Installed() {

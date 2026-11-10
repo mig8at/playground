@@ -780,6 +780,27 @@ function forgetActive() {
 
 // El título de la pestaña dice cuántos no leídos hay, como cualquier chat.
 watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'chat' }, { immediate: true })
+/* LOS AVISOS DEL SISTEMA: con el stream en vivo, un mensaje llega aunque la pestaña esté oculta; si no la estás
+   mirando (o es de otra conversación), aparece una notificación de macOS. Clic la trae y abre esa conversación. El
+   permiso lo pide el botón de la barra de abajo: el navegador sólo lo pide tras un clic. */
+const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+async function askNotifyPermission() {
+  try { notifyPermission.value = await Notification.requestPermission() } catch { /* sin permiso */ }
+}
+watch(() => chat.unreadTotal, () => {
+  for (const m of chat.takeIncoming()) {
+    if (notifyPermission.value !== 'granted') continue
+    const key = m.group?.id ? `#${String(m.group.id).toLowerCase()}` : String(m.from?.email || '').toLowerCase()
+    if (document.visibilityState === 'visible' && document.hasFocus() && chat.activeKey === key) continue
+    const who = m.via?.name ? `${m.from?.name || ''} · ${m.via.name}` : (m.from?.name || m.from?.email || 'alguien')
+    const where = m.group?.id ? ` en #${m.group.id}` : ''
+    const files = (m.files || []).map((f) => `📎 ${f.name}`).join(' · ')
+    try {
+      const n = new Notification(`${who}${where}`, { body: [String(m.text || ''), files].filter(Boolean).join('\n').slice(0, 240), tag: m.id || undefined })
+      n.onclick = () => { window.focus(); serverOpen.value = ''; const c = chat.conversations[key]; if (c) chat.open(c.person); n.close() }
+    } catch { /* el navegador no la dejó */ }
+  }
+})
 
 const themeToggle = ref(null)
 let themeBinding = null
@@ -802,6 +823,7 @@ onBeforeUnmount(() => {
 const listening = computed(() => chat.state?.listening)
 const statusText = computed(() => {
   const s = chat.state
+  if (chat.live && s?.listening) return 'en vivo'
   if (chat.stateError) return 'sin la API de chat'
   if (!s) return 'preguntando al CLI…'
   if (!s.installed) return 'falta el CLI playground'
@@ -1602,6 +1624,10 @@ const statusText = computed(() => {
           {{ (chat.me || chat.state.session).email }}</template>
       </span>
       <span v-if="chat.state?.since && listening" class="statusbar-item">desde las {{ clock(chat.state.since) }}</span>
+      <!-- Lo que hizo el servidor por su cuenta (el llavero que contestó solo), unos segundos. -->
+      <span v-if="chat.liveNotice" class="statusbar-item live-notice"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>{{ chat.liveNotice.text }}</span>
+      <button v-if="notifyPermission === 'default'" type="button" class="statusbar-item mode-toggle" title="Que te avise macOS cuando te escriben y no estás mirando el chat"
+              @click="askNotifyPermission">activar avisos</button>
       <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
         tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
       </span>
@@ -1967,6 +1993,8 @@ button.file-tile { cursor: zoom-in }
 .composer-attach { flex: none; width: var(--control-md); min-height: var(--control-md); padding: 0; border-radius: 50% }
 .replying { display: flex; align-items: center; gap: var(--space-2) }
 .replying .quote { flex: 1 }
+.live-notice { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-ink, var(--primary)) }
+.live-notice .ui-icon { width: 13px; height: 13px }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
 .key-menu-wrap { position: relative; flex: none }
 .key-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 20; width: 260px; display: flex; flex-direction: column; gap: 2px; padding: 8px;

@@ -214,7 +214,13 @@ func answerKeyring(fresh []cli.Message) {
 		cancel()
 		if err != nil {
 			log.Printf("llavero: no se pudo contestar a %s: %v", m.From.Email, err)
+			continue
 		}
+		kind := "keys"
+		if isList {
+			kind = "list"
+		}
+		events.publish("keyring", map[string]string{"to": m.From.Email, "name": m.From.Name, "kind": kind})
 	}
 }
 
