@@ -25,6 +25,14 @@ if (process.env.BLOCK_POSTHOG === '1') await page.route(process.env.BLOCK_POSTHO
 const pageErrors: string[] = [];
 page.on('pageerror', (e: any) => pageErrors.push(String(e).slice(0, 240)));
 page.on('request', (r: any) => { if (r.method() === 'POST' && /creditop\.com/.test(r.url())) posts.push(`${ms()}ms ${r.url().replace(/^https:\/\/[^/]+/, '')}`); });
+// Cuánto tarda cada pedido a nuestro dominio (desde que sale hasta que termina): dónde se va el tiempo después del clic.
+const timings: string[] = [];
+page.on('requestfinished', async (r: any) => {
+  if (!/creditop\.com/.test(r.url())) return;
+  const t = r.timing(); const started = ms() - Math.round(t.responseEnd >= 0 ? t.responseEnd : 0);
+  const res = await r.response().catch(() => null);
+  timings.push(`${started}ms +${Math.round(t.responseEnd)}ms ${r.method()} ${res?.status() ?? '?'} ${r.url().replace(/^https:\/\/[^/]+/, '').replace(/\?.*$/, '')}`);
+});
 try {
   await page.goto(url, { waitUntil: 'commit', timeout: 60_000 });
   const btn = page.getByRole('button', { name: /Validar Pre aprobado/i }).first();
@@ -48,6 +56,6 @@ try {
   await page.waitForTimeout(500);
   await sampler;
   const spinner = await btn.getAttribute('aria-busy', { timeout: 100 }).catch(() => null);
-  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, leftListingMs: tLeft === null ? null : tLeft - tUp, pageErrors, finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
+  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, leftListingMs: tLeft === null ? null : tLeft - tUp, pageErrors, afterClick: timings.filter((x) => parseInt(x) >= tDown - 50), finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
   await page.screenshot({ path: `/tmp/probe-${ur}-${mode}.png` });
 } finally { await close(); }
