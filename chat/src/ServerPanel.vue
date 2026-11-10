@@ -1,7 +1,6 @@
 <script setup>
-/* UN SERVER EN EL EDITOR: lo que hay que tener prendido en esta máquina para que otra persona pruebe contra ella
-   (server/servers.go). Cada pieza con su punto, y los botones. Lo que se le pasa a quien prueba va a la derecha
-   (ServerShare.vue) y la salida de cada comando, abajo, en la consola. */
+/* UN SERVER EN EL EDITOR: lo que hay que tener prendido en esta máquina para probar contra ella (server/servers.go y
+   servers_local.go). Cada pieza con su punto, y los botones; la salida de cada comando va abajo, en la consola. */
 import { ref } from 'vue'
 
 const props = defineProps({ server: { type: Object, required: true } })

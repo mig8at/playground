@@ -22,7 +22,6 @@ import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
 import { renderMarkdown } from './markdown.js'
-import ServerShare from './ServerShare.vue'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
 import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
@@ -118,10 +117,8 @@ const sidebarW = ref(readSize('chat.sidebar-w', 300))
 const viewportW = ref(window.innerWidth)
 const viewportH = ref(window.innerHeight)
 const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
-/* Con un server abierto, la derecha es «Para probar» (ServerShare) y abajo aparece su consola: la salida de cada
-   comando mientras corre. Las dos se cierran y se recuerdan aparte de tu agente. */
-const shareOpen = ref(readSize('chat.server-share-open', 1) !== 0)
-function setShareOpen(v) { shareOpen.value = v; saveSize('chat.server-share-open', v ? 1 : 0) }
+/* Con un server abierto no hay región derecha (lo que se le pasaba a otra persona era el túnel de Shopify, que se sacó
+   el 2026-11-09): abajo aparece su consola, la salida de cada comando mientras corre. */
 const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
 /* Un servicio: sus rutas a la derecha (se cierran y se recuerdan aparte) y su historial abajo, en la consola, que es la
@@ -142,7 +139,7 @@ const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([],
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
   if (openService.value) return routesOpen.value
-  if (serverOpen.value) return shareOpen.value
+  if (serverOpen.value) return false
   if (activeOwnAgent.value) return ownPanelOpen.value
   return agentOpen.value && !chat.activeKey
 })
@@ -179,15 +176,8 @@ function onConsoleScroll() {
    server/servers.go). «Todo» muestra la corrida entera. */
 const CONSOLE_TABS = [
   { id: 'all', label: 'Todo' },
-  { id: 'app', label: 'App' },
-  { id: 'tunnel', label: 'Túnel' },
-  { id: 'store', label: 'Tienda' },
 ]
-const PHASE_MARKS = [
-  [/^Prendiendo la app|^✓ la app contesta/, 'app'],
-  [/^Abriendo el túnel|^✓ túnel|^túnel apagado|^el túnel .* terminal|^no había túnel/, 'tunnel'],
-  [/^Apuntando la app|^Subiendo la extensión|^✓ listo/, 'store'],
-]
+const PHASE_MARKS = []
 const consoleTab = ref('all')
 const allConsoleLines = computed(() => {
   let phase = 'app'
@@ -216,7 +206,7 @@ const agentResize = {
   get: () => agentShown.value,
   set: (v) => {
     if (openService.value) routesOpen.value = !!v
-    else if (serverOpen.value) shareOpen.value = !!v
+    else if (serverOpen.value) { /* un server no tiene región derecha */ }
     else if (activeOwnAgent.value) ownPanelOpen.value = !!v
     else agentOpen.value = !!v
     if (v) agentW.value = v
@@ -772,7 +762,7 @@ const statusText = computed(() => {
             <button type="button" class="conversation" :class="{ on: serverOpen === s.id }" @click="serverOpen = serverOpen === s.id ? '' : s.id">
               <span class="avatar svc-tunnel" aria-hidden="true">{{ s.name[0] }}<i v-if="s.ready" class="presence"></i></span>
               <span class="conversation-main">
-                <span class="conversation-top"><b class="name">{{ s.name }}</b><span class="owner">túnel · Cloudflare</span></span>
+                <span class="conversation-top"><b class="name">{{ s.name }}</b><span class="owner">en esta máquina</span></span>
                 <span class="conversation-bottom"><span class="snippet">{{ s.busy ? s.step || 'levantando…' : s.ready ? 'listo' + (s.tunnelUrl ? ' · ' + s.tunnelUrl : '') : (s.checks.find((c) => !c.ok)?.name || '') + ': ' + (s.checks.find((c) => !c.ok)?.detail || '') }}</span></span>
               </span>
             </button>
@@ -1122,10 +1112,9 @@ const statusText = computed(() => {
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : openServer ? 'Para probar' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <ServiceSide v-if="openService" :service="openService" @close="setRoutesOpen(false)" />
-      <ServerShare v-else-if="openServer && openServer.shareable" :server="openServer" @close="setShareOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
           <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
@@ -1277,8 +1266,8 @@ const statusText = computed(() => {
                   :aria-label="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'" @click="setConsoleOpen(!panelShown)">
             <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
           </button>
-          <button type="button" class="region-action" :aria-pressed="!!agentShown" :title="openService ? 'Mostrar u ocultar las rutas' : 'Mostrar u ocultar «Para probar»'"
-                  :aria-label="openService ? 'Mostrar u ocultar las rutas' : 'Mostrar u ocultar «Para probar»'" @click="openService ? setRoutesOpen(!agentShown) : setShareOpen(!agentShown)">
+          <button v-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar las rutas"
+                  aria-label="Mostrar u ocultar las rutas" @click="setRoutesOpen(!agentShown)">
             <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
           </button>
         </template>
