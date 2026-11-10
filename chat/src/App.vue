@@ -24,6 +24,9 @@ import ServerPanel from './ServerPanel.vue'
 import PdfPages from './PdfPages.vue'
 import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
+import KeyCard from './KeyCard.vue'
+import { askMessage, keyMessage, parseKeyText } from './keyring.js'
+import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -405,6 +408,31 @@ watch(draft, (text) => {
 })
 const composer = ref(null)
 const threadEl = ref(null)
+/* LAS CLAVES EN LA CONVERSACIÓN: salen como texto (keyMessage / askMessage) y se pintan como tarjeta (KeyCard). */
+const keyMenuOpen = ref(false)
+const keyAskName = ref('')
+const keyInfoCache = new Map()
+function keyInfo(item) {
+  if (!item.text || !/^[🔒🔑]/u.test(item.text)) return null
+  if (!keyInfoCache.has(item.text)) keyInfoCache.set(item.text, parseKeyText(item.text))
+  return keyInfoCache.get(item.text)
+}
+async function toggleKeyMenu() {
+  keyMenuOpen.value = !keyMenuOpen.value
+  if (keyMenuOpen.value) await loadKeyring()
+}
+async function sendKey(k, re = '') {
+  keyMenuOpen.value = false
+  await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
+}
+async function askKey() {
+  const name = keyAskName.value.trim()
+  if (!name) return
+  keyMenuOpen.value = false
+  keyAskName.value = ''
+  await chat.send(askMessage(name), '', null, {}, [])
+}
+loadKeyring()
 async function submit() {
   if (agentAnswers.value) return
   const text = draft.value.trim()
@@ -454,6 +482,8 @@ const attachments = ref([])
 const attachError = ref('')
 const fileInput = ref(null)
 const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.group && !chat.active.person.tool && !agentAnswers.value)
+// Una clave es texto: va también a un grupo (no a un agente ni a una herramienta).
+const canSendKeys = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.tool && !agentAnswers.value)
 function addFiles(list) {
   attachError.value = ''
   for (const f of list) {
@@ -1138,6 +1168,11 @@ const statusText = computed(() => {
                   <p v-if="item.summary" class="summary">{{ item.summary }}</p>
                   <!-- Lo que contesta un agente viene con formato: Markdown seguro (escapa todo y entiende una lista corta). -->
                   <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
+                  <!-- Una clave (o un pedido de clave) se pinta como tarjeta; lo que venga después, como texto. -->
+                  <template v-else-if="keyInfo(item)">
+                    <KeyCard :info="keyInfo(item)" :mine="item.dir === 'out'" @send-key="(k) => sendKey(k, item.sid)" />
+                    <p v-if="keyInfo(item).rest" class="text">{{ keyInfo(item).rest }}</p>
+                  </template>
                   <p v-else-if="item.text" class="text">{{ item.text }}</p>
                 </template>
                 <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
@@ -1255,6 +1290,25 @@ const statusText = computed(() => {
                 <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
               </button>
             </template>
+            <!-- Las claves del llavero: mandar una de «Guardadas» o pedirla. -->
+            <div v-if="canSendKeys" class="key-menu-wrap">
+              <button type="button" class="btn btn-outline composer-attach" :aria-pressed="keyMenuOpen" title="Mandar o pedir una clave"
+                      aria-label="Mandar o pedir una clave" @click="toggleKeyMenu"><span aria-hidden="true">🔒</span></button>
+              <div v-if="keyMenuOpen" class="key-menu" role="menu">
+                <p class="key-menu-title">Mandar una clave</p>
+                <p v-if="!keyring.saved.length" class="key-menu-empty">No hay claves en «Guardadas» (consola → Llavero).</p>
+                <button v-for="k in keyring.saved" :key="k.name" type="button" class="key-menu-item" role="menuitem" @click="sendKey(k)">
+                  <span aria-hidden="true">🔒</span><span class="key-menu-name">{{ k.name }}</span>
+                </button>
+                <form class="key-menu-ask" @submit.prevent="askKey">
+                  <p class="key-menu-title">Pedir una clave</p>
+                  <div class="key-menu-row">
+                    <input v-model="keyAskName" class="input" type="text" placeholder="nombre" spellcheck="false" autocomplete="off">
+                    <button type="submit" class="btn" :disabled="!keyAskName.trim()">Pedir</button>
+                  </div>
+                </form>
+              </div>
+            </div>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize" @paste="onPasteFiles"></textarea>
@@ -1876,6 +1930,18 @@ button.file-tile { cursor: zoom-in }
 .replying { display: flex; align-items: center; gap: var(--space-2) }
 .replying .quote { flex: 1 }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
+.key-menu-wrap { position: relative; flex: none }
+.key-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 20; width: 260px; display: flex; flex-direction: column; gap: 2px; padding: 8px;
+  border: 1px solid var(--border); border-radius: 10px; background: var(--popover, var(--card)); box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 14%, transparent) }
+.key-menu-title { margin: 4px 6px; color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
+.key-menu-empty { margin: 2px 6px 6px; color: var(--fg-2); font-size: var(--text-xs) }
+.key-menu-item { display: flex; align-items: center; gap: 8px; padding: 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit;
+  text-align: left; cursor: pointer }
+.key-menu-item:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.key-menu-name { font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.key-menu-ask { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--hairline) }
+.key-menu-row { display: flex; gap: 6px; padding: 0 6px 4px }
+.key-menu-row .input { flex: 1; min-width: 0 }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 
