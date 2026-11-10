@@ -246,6 +246,19 @@ Ese secreto no está en `.env`: lo pasa `shopify app dev` y se lee con
 Para llevarlo a otra base (el `docker/` del repo shopify, por ejemplo) se descifra con esa llave y se vuelve a cifrar con la
 del destino, sin imprimirlo.
 
+**Con la app desplegada en dev (desde el 2026-11-09, lo de siempre):** no se levanta nada. La versión publicada de la app
+apunta a `https://shopify-app.dev.creditop.com`, que despliega sola la CI al mergear a `develop`, y `creditop-dev-store`
+ya tiene la sucursal `e4a51ff3f` y Creditop activo en Pagos. Se compra en la tienda (paso 4) o con:
+
+```sh
+make jarvis-recipe APP=shopify RECIPE=credit-outcome
+```
+Resultado: pedido #1032 PAID y solicitud 504801 en 11 (2026-11-09). Si la tienda manda a un `trycloudflare.com`, quedó
+una vista previa de `shopify app dev`: se quita con `npx -y @shopify/cli@latest app dev clean --config
+shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com`.
+
+**Con la app local y el túnel** (sólo para probar código sin desplegar; le gana a dev en la tienda mientras corre):
+
 1. **Levantar la app** (la rama de #22), en una terminal propia porque es interactiva:
    ```sh
    cd ~/Desktop/CREDITOP/github/shopify && CREDITOP_ENVIRONMENT=develop npx shopify app dev --config shopify.app.creditop-ecommerce-payments.toml --store creditop-dev-store.myshopify.com
