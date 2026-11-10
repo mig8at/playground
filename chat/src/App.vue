@@ -30,6 +30,7 @@ import { keyring, loadKeyring, setAutoShare } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import NotifySettings from './NotifySettings.vue'
+import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak } from './speech.js'
 import RegionMenu from './RegionMenu.vue'
 import { conversationMode, loadNotify, notify, reportView, setConversationMode } from './notifyStore.js'
 import ServicePanel from './ServicePanel.vue'
@@ -735,7 +736,7 @@ async function markDone(task) {
 }
 const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')
 const taskStateLabel = (t) => (t.bloqueo ? `bloqueada · depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso')
-watch(() => chat.activeKey, () => { taskTarget.value = null; mention.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
+watch(() => chat.activeKey, () => { taskTarget.value = null; mention.value = null; stopSpeech(); if (activeIsCuadrilla.value) chat.loadCuadrilla() })
 function autosize() {
   const el = composer.value
   if (!el) return
@@ -852,6 +853,7 @@ const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported'
 const PROFILE_TABS = [
   { id: 'agent', label: 'Mi agente' },
   { id: 'notify', label: 'Avisos', icon: 'bell' },
+  { id: 'voice', label: 'Voz', icon: 'play' },
   { id: 'keyring', label: 'Llavero', icon: 'key' },
   { id: 'connection', label: 'Conexión', icon: 'server' },
 ]
@@ -1253,6 +1255,9 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               </details>
               <span class="meta">{{ clock(n.time) }}</span>
             </div>
+            <button v-if="speech.supported && n.text && n.status !== 'pensando'" type="button" class="reply-action speak-action" :class="{ on: speech.speakingId === n.id }"
+                    :title="speech.speakingId === n.id ? 'Parar' : 'Escuchar'" :aria-label="speech.speakingId === n.id ? 'Parar la lectura' : 'Escuchar este mensaje'"
+                    @click="toggleSpeak(n.id, n.text)"><span class="ui-icon" :data-icon="speech.speakingId === n.id ? 'stop' : 'play'" aria-hidden="true"></span></button>
             <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </div>
           <div v-else class="bubble-row out">
@@ -1431,6 +1436,11 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                           title="Sacarlo de la conversación: no le llegó a nadie" @click="chat.discard(item.id)">borrar</button>
                 </p>
               </div>
+              <button v-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item)" type="button" class="reply-action speak-action"
+                      :class="{ on: speech.speakingId === item.id }" :title="speech.speakingId === item.id ? 'Parar' : 'Escuchar'"
+                      :aria-label="speech.speakingId === item.id ? 'Parar la lectura' : 'Escuchar este mensaje'" @click="toggleSpeak(item.id, item.text)">
+                <span class="ui-icon" :data-icon="speech.speakingId === item.id ? 'stop' : 'play'" aria-hidden="true"></span>
+              </button>
               <button v-if="canReply(item)" type="button" class="reply-action" title="Responder a este mensaje"
                       aria-label="Responder a este mensaje" @click="startReply(item)">
                 <span class="ui-icon" data-icon="comment" aria-hidden="true"></span>
@@ -1658,6 +1668,29 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <MyAgent v-if="agentShown && profileTab === 'agent'" class="region-body" />
       <div v-else-if="profileTab === 'notify'" class="region-body">
         <NotifySettings :permission="notifyPermission" :name-of="conversationName" @ask-permission="askNotifyPermission" />
+      </div>
+      <div v-else-if="profileTab === 'voice'" class="region-body profile-section">
+        <p v-if="!speech.supported" class="field-hint">Este navegador no lee en voz alta.</p>
+        <template v-else>
+          <label class="field">
+            <span class="label">Voz</span>
+            <select class="input" :value="speech.voice || defaultVoice()" @change="setVoice($event.target.value)">
+              <option v-for="v in speech.voices" :key="v.name" :value="v.name">{{ v.name }} · {{ v.lang }}</option>
+            </select>
+          </label>
+          <div class="field">
+            <span class="label">Velocidad</span>
+            <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Velocidad">
+              <button v-for="r in [0.85, 1, 1.2, 1.5]" :key="r" type="button" class="toggle" role="radio" :aria-checked="speech.rate === r"
+                      :aria-pressed="speech.rate === r" @click="setRate(r)">{{ r }}×</button>
+            </div>
+          </div>
+          <div class="notify-actions">
+            <button type="button" class="btn btn-outline btn-sm" @click="toggleSpeak('voice-test', `Hola ${firstName(chat.me || chat.state?.session || {})}, así suena tu chat.`)">
+              <span class="ui-icon" :data-icon="speech.speakingId === 'voice-test' ? 'stop' : 'play'" aria-hidden="true"></span>Probar</button>
+          </div>
+          <p class="field-hint">El ▶ de cada mensaje lo lee en voz alta. Lo lee tu Mac: no sale nada de la máquina.</p>
+        </template>
       </div>
       <div v-else-if="profileTab === 'keyring'" class="region-body profile-section">
         <label class="profile-row">
@@ -1899,6 +1932,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 .mode-toggle.off { opacity: .6 }
 .mode-avatar.off, .tab-avatar.off { filter: grayscale(1) }
 .btn-send { width: var(--control-md); padding: 0; flex: none }
+.speak-action.on { opacity: 1; color: var(--primary) }
+.notify-actions { display: flex; gap: var(--space-2) }
 /* El perfil: pestañas por icono en la cabecera y filas cortas (lo que es arriba, el detalle chico abajo). */
 .profile-head { gap: var(--space-2) }
 .profile-tabs { display: flex; align-items: center; gap: 2px; min-width: 0 }
