@@ -42,6 +42,13 @@ const maxConversationsSnapshot = 64 << 20
 
 var imageName = regexp.MustCompile(`(?i)\.(png|jpe?g|gif|webp)$`)
 
+// pdfName / pdfAutoMax: los PDF también se bajan solos al llegar (hasta el tope del home por adjunto), para leerlos en
+// la barra derecha sin pedirlos: el home borra un adjunto apenas alguien lo baja, y si lo bajaba otra terminal antes,
+// el chat ya no podía mostrarlo.
+var pdfName = regexp.MustCompile(`(?i)\.pdf$`)
+
+const pdfAutoMax = 25 << 20
+
 type history struct {
 	mu    sync.Mutex
 	dir   string
@@ -197,7 +204,9 @@ func (h *history) fetchImage(ctx context.Context, f cli.File) {
 	if h.adopt(f) {
 		return
 	}
-	if f.ID == "" || f.Size > imageAutoMax || !imageName.MatchString(f.Name) || (f.Type != "" && !strings.HasPrefix(f.Type, "image/")) {
+	image := f.Size <= imageAutoMax && imageName.MatchString(f.Name) && (f.Type == "" || strings.HasPrefix(f.Type, "image/"))
+	pdf := f.Size <= pdfAutoMax && pdfName.MatchString(f.Name) && (f.Type == "" || f.Type == "application/pdf")
+	if f.ID == "" || !(image || pdf) {
 		return
 	}
 	dir, err := cacheDir()
@@ -253,20 +262,35 @@ func (h *history) adopt(f cli.File) bool {
 	if err != nil {
 		return false
 	}
-	p := filepath.Join(dir, filepath.Base(f.Name))
+	if p := filepath.Join(dir, filepath.Base(f.Name)); sameFile(p, f, false) {
+		h.rememberFile(f.ID, p)
+		return true
+	}
+	// Ya bajado a Descargas por otra vía (otra terminal, `playground get`): se reconoce sólo si coincide byte a byte con
+	// la huella que manda el home; por nombre y tamaño no, porque Descargas es tuya y puede tener otro con el mismo nombre.
+	home, _ := os.UserHomeDir()
+	if p := filepath.Join(home, "Downloads", filepath.Base(f.Name)); sameFile(p, f, true) {
+		h.rememberFile(f.ID, p)
+		return true
+	}
+	return false
+}
+
+// sameFile: ¿el archivo en p es el adjunto f? Por su huella SHA-256 y, si el home no la mandó y no se exige, por tamaño.
+func sameFile(p string, f cli.File, needHash bool) bool {
+	info, err := os.Lstat(p)
+	if err != nil || !info.Mode().IsRegular() || (f.Size > 0 && info.Size() != f.Size) {
+		return false
+	}
+	if f.SHA256 == "" {
+		return !needHash && f.Size > 0
+	}
 	b, err := os.ReadFile(p)
 	if err != nil {
 		return false
 	}
 	sum := sha256.Sum256(b)
-	same := f.SHA256 != "" && hex.EncodeToString(sum[:]) == f.SHA256
-	if f.SHA256 == "" {
-		same = f.Size > 0 && int64(len(b)) == f.Size
-	}
-	if same {
-		h.rememberFile(f.ID, p)
-	}
-	return same
+	return hex.EncodeToString(sum[:]) == f.SHA256
 }
 
 // run recolecta cada `every` mientras viva el servidor.

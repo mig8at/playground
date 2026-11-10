@@ -378,7 +378,7 @@ export const useChatStore = defineStore('chat', () => {
       if (pushed) {
         const item = c.messages.find((x) => x.id === id)
         // Si el servidor ya la bajó (lo hace apenas llega), applySavedFiles la muestra; si no, se pide acá.
-        for (const f of item?.files || []) if (isImage(f) && f.size <= IMAGE_AUTO_MAX && !state.value?.files?.[f.id]) getFile(item, f, { cache: true })
+        for (const f of item?.files || []) if (((isImage(f) && f.size <= IMAGE_AUTO_MAX) || /\.pdf$/i.test(f.name || '')) && !state.value?.files?.[f.id]) getFile(item, f, { cache: true })
       }
     }
     markActiveRead()
@@ -480,7 +480,9 @@ export const useChatStore = defineStore('chat', () => {
       for (const m of c.messages || []) {
         for (const f of m.files || []) {
           const path = files[f.id]
-          if (path && (f.status !== 'bajado' || f.path !== path)) Object.assign(f, { status: 'bajado', path, cached: true, error: '', gone: false })
+          // Uno que el servidor reconoció en tus Descargas ya está guardado ahí: no se ofrece «Guardar en Descargas».
+          const inDownloads = /\/Downloads\//.test(path || '')
+          if (path && (f.status !== 'bajado' || f.path !== path)) Object.assign(f, { status: 'bajado', path, cached: !inDownloads, error: '', gone: false, ...(inDownloads ? { savedPath: path } : {}) })
         }
       }
     }
