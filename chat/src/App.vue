@@ -25,7 +25,7 @@ import PdfPages from './PdfPages.vue'
 import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
-import { askKeyringMessage, askKeysMessage, envMessage, keyMessage, parseKeyText } from './keyring.js'
+import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
@@ -428,32 +428,12 @@ watch(draft, (text) => {
 })
 const composer = ref(null)
 const threadEl = ref(null)
-/* LAS CLAVES EN LA CONVERSACIÓN: salen como texto (keyMessage / askMessage) y se pintan como tarjeta (KeyCard). */
-const keyMenuOpen = ref(false)
+/* LAS CLAVES EN LA CONVERSACIÓN: viajan como texto (`🔑 Pido tu llavero`, la lista, `🔑 Pido estas claves` y el bloque .env) y se pintan como tarjeta (KeyCard). */
 const keyInfoCache = new Map()
 function keyInfo(item) {
   if (!item.text || !/^[🔒🔑]/u.test(item.text)) return null
   if (!keyInfoCache.has(item.text)) keyInfoCache.set(item.text, parseKeyText(item.text))
   return keyInfoCache.get(item.text)
-}
-async function toggleKeyMenu() {
-  keyMenuOpen.value = !keyMenuOpen.value
-  if (keyMenuOpen.value) await loadKeyring()
-}
-// El menú se cierra con Escape o con un clic afuera.
-function closeKeyMenuOutside(e) {
-  if (!keyMenuOpen.value) return
-  if (e.type === 'keydown' ? e.key === 'Escape' : !e.target.closest?.('.key-menu-wrap')) keyMenuOpen.value = false
-}
-document.addEventListener('mousedown', closeKeyMenuOutside)
-document.addEventListener('keydown', closeKeyMenuOutside)
-async function sendKey(k, re = '') {
-  keyMenuOpen.value = false
-  await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
-}
-async function askKeyring() {
-  keyMenuOpen.value = false
-  await chat.send(askKeyringMessage(), '', null, {}, [])
 }
 async function askKeys(names, re) {
   await chat.send(askKeysMessage(names), re || '', null, {}, [])
@@ -516,8 +496,6 @@ const attachments = ref([])
 const attachError = ref('')
 const fileInput = ref(null)
 const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.group && !chat.active.person.tool && !agentAnswers.value)
-// Una clave es texto: va también a un grupo (no a un agente ni a una herramienta).
-const canSendKeys = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.tool && !agentAnswers.value)
 function addFiles(list) {
   attachError.value = ''
   for (const f of list) {
@@ -1043,11 +1021,6 @@ const statusText = computed(() => {
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
-            <button v-if="mediaContext" type="button" class="region-action" :aria-pressed="mediaOpen || !!docView"
-                    :title="mediaOpen ? 'Ocultar fotos y archivos' : 'Ver fotos y archivos de esta conversación'"
-                    :aria-label="mediaOpen ? 'Ocultar fotos y archivos' : 'Ver fotos y archivos'" @click="docView ? (closeDoc(), setMediaOpen(true)) : setMediaOpen(!mediaOpen)">
-              <span class="ui-icon" data-icon="image" aria-hidden="true"></span>
-            </button>
             <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
                     aria-label="Vaciar chat" @click="clearActive">
               <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
@@ -1351,24 +1324,6 @@ const statusText = computed(() => {
                 <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
               </button>
             </template>
-            <!-- Las claves del llavero: mandar una de «Guardadas» o pedirla. -->
-            <div v-if="canSendKeys" class="key-menu-wrap">
-              <button type="button" class="btn btn-outline composer-attach" :aria-pressed="keyMenuOpen" title="Mandar o pedir una clave"
-                      aria-label="Mandar o pedir una clave" @click="toggleKeyMenu"><span class="ui-icon" data-icon="key" aria-hidden="true"></span></button>
-              <div v-if="keyMenuOpen" class="key-menu" role="menu">
-                <template v-if="!chat.active.person.group">
-                  <button type="button" class="key-menu-item key-menu-main" role="menuitem" @click="askKeyring">
-                    <span class="ui-icon" data-icon="key" aria-hidden="true"></span><span>Pedir su llavero</span>
-                  </button>
-                  <p class="key-menu-note">Te llega la lista de sus claves y eliges cuáles pedir.</p>
-                </template>
-                <p class="key-menu-title">Mandar una clave</p>
-                <p v-if="!keyring.saved.length" class="key-menu-empty">No hay claves en «Guardadas» (consola → Llavero).</p>
-                <button v-for="k in keyring.saved" :key="k.name" type="button" class="key-menu-item" role="menuitem" @click="sendKey(k)">
-                  <span class="ui-icon" data-icon="lock" aria-hidden="true"></span><span class="key-menu-name">{{ k.name }}</span><span class="ui-icon key-menu-send" data-icon="send" aria-hidden="true"></span>
-                </button>
-              </div>
-            </div>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize" @paste="onPasteFiles"></textarea>
@@ -1998,21 +1953,6 @@ button.file-tile { cursor: zoom-in }
 .live-notice { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-ink, var(--primary)) }
 .live-notice .ui-icon { width: 13px; height: 13px }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
-.key-menu-wrap { position: relative; flex: none }
-.key-menu { position: absolute; left: 0; bottom: calc(100% + 6px); z-index: 20; width: 260px; display: flex; flex-direction: column; gap: 2px; padding: 8px;
-  border: 1px solid var(--border); border-radius: 10px; background: var(--popover, var(--card)); box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 14%, transparent) }
-.key-menu-title { margin: 4px 6px; color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
-.key-menu-empty { margin: 2px 6px 6px; color: var(--fg-2); font-size: var(--text-xs) }
-.key-menu-item { display: flex; align-items: center; gap: 8px; padding: 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit;
-  text-align: left; cursor: pointer }
-.key-menu-item:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.key-menu-item .ui-icon { color: var(--fg-2) }
-.key-menu-send { margin-left: auto; opacity: 0 }
-.key-menu-item:hover .key-menu-send { opacity: 1 }
-.key-menu-name { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.key-menu-main { font-weight: 600 }
-.key-menu-main .ui-icon { color: var(--primary-ink, var(--primary)) }
-.key-menu-note { margin: 0 6px 6px 30px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); color: var(--fg-2); font-size: var(--text-xs) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 
