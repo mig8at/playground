@@ -61,28 +61,6 @@
       "autoPort": false
     },
     {
-      "name": "ecommerce",
-      "runtimeExecutable": "npm",
-      "runtimeArgs": [
-        "run",
-        "dev"
-      ],
-      "cwd": "ecommerce",
-      "port": 5178,
-      "autoPort": false
-    },
-    {
-      "name": "ecommerce-alt",
-      "runtimeExecutable": "sh",
-      "runtimeArgs": [
-        "-c",
-        "(cd .. && exec go run ./ecommerce/server -serve 127.0.0.1:5279) & ECOMMERCE_API=http://127.0.0.1:5279 exec npx vite --port 5278 --strictPort"
-      ],
-      "cwd": "ecommerce",
-      "port": 5278,
-      "autoPort": false
-    },
-    {
       "name": "admin",
       "runtimeExecutable": "php",
       "runtimeArgs": [
@@ -356,24 +334,24 @@
       "port": 5212
     },
     {
-      "name": "ecommerce-v2",
+      "name": "ecommerce",
       "runtimeExecutable": "npm",
       "runtimeArgs": [
         "run",
         "dev"
       ],
-      "cwd": "ecommerce-v2",
-      "port": 5186,
+      "cwd": "ecommerce",
+      "port": 5178,
       "autoPort": false
     },
     {
-      "name": "ecommerce-v2-alt",
+      "name": "ecommerce-alt",
       "runtimeExecutable": "sh",
       "runtimeArgs": [
         "-c",
         "(go run ./server -serve 127.0.0.1:5288) & ECOMMERCE_API=http://127.0.0.1:5288 exec npx vite --port 5289 --strictPort"
       ],
-      "cwd": "ecommerce-v2",
+      "cwd": "ecommerce",
       "port": 5289,
       "autoPort": false
     }

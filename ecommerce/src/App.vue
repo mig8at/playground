@@ -15,8 +15,7 @@ import {
 import { TABLE_DOCS } from './table-docs.js'
 import { STORE_FLOWS } from './store-flows.js'
 import FlowDiagram from './FlowDiagram.vue'
-import { STORE_PENDING } from './store-pending.js'
-import PendingWorkflow from './PendingWorkflow.vue'
+import VtexReport from './VtexReport.vue'
 
 const DEFAULT_TARGET = 'qa'
 const TARGET_LABEL = { local: 'local · tu Docker', qa: 'qa · la base compartida de dev, qa y staging', prod: 'prod · sólo lectura, por Redash' }
@@ -206,42 +205,62 @@ const OUTCOMES = [
   { status: 6, label: 'Negar', name: 'Negada', store: 'failed: el comprador vuelve al checkout' },
   { status: 8, label: 'Cancelar', name: 'Cancelado', store: 'cancelled: el pedido se cancela' },
 ]
-// Las tiendas de prueba (sólo desarrollo: en VTEX el workspace develop) y sus admins.
+// Las tiendas de prueba y dónde se ven sus pedidos. VTEX: la de master (la condición «Creditop qa» manda el pago al
+// conector v5 de develop); su admin pide un usuario en la cuenta creditop. Shopify: la tienda de desarrollo, que paga con
+// la app del repo shopify desplegada en dev (contra qa); `status` muestra si la tienda y la app contestan
+// (server/shopify.go), en la pestaña Conexiones de la consola.
+const SHOPIFY_STORE = 'creditop-dev-store'
 const STORES = [
-  { name: 'Shopify', links: [
-    { label: 'Tienda', href: 'https://creditop-dev-store.myshopify.com' },
-    { label: 'Admin · pedidos', href: 'https://admin.shopify.com/store/creditop-dev-store/orders' },
-    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO Shopify», sucursal
-    // e4a51ff3f-fake, lápiz) y se cargan en la configuración de la app de pagos de la tienda.
-    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/362/ecommerce' },
-    { label: 'Admin · pagos (app Creditop)', href: 'https://admin.shopify.com/store/creditop-dev-store/settings/payments' },
-    // La app CREDITOP-ECOMMERCE-PAYMENTS en el Dev Dashboard (organización CREDITOP): sus versiones desplegadas y cuál
-    // está activa. `shopify app dev` no crea versiones: lo activo cambia sólo con `shopify app deploy`.
-    { label: 'Dev Dashboard · versiones de la app', href: 'https://dev.shopify.com/dashboard/167881494/apps/317076176897/versions' },
-  ] },
   { name: 'VTEX', links: [
-    { label: 'Tienda (develop)', href: 'https://develop--creditop.myvtex.com' },
+    { label: 'Tienda', href: 'https://creditop.myvtex.com' },
     { label: 'Admin · pedidos', href: 'https://creditop.myvtex.com/admin/orders' },
     { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
-    // Dónde se cambian el hash y el token: se emiten en el admin de Creditop (comercio «PRUEBA AUTO VTEX», sucursal
-    // ecf9342be-fake, lápiz) y se cargan en la afiliación «Creditop qa» (App key y App token).
-    { label: 'Creditop · hash y token', href: 'https://admin.dev.creditop.com/aliados/363/ecommerce' },
-    { label: 'Admin · afiliación (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
+    { label: 'Admin · apps instaladas', href: 'https://creditop.myvtex.com/admin/apps' },
   ] },
-  // Producción: `master`, con creditop.creditop 5.x y su ajuste en Producción, como lo tiene un comercio. Afiliaciones y
-  // condiciones de pago son de TODA la cuenta: la condición activa decide si una compra va a qa (develop) o a prod.
-  { name: 'VTEX · prod (master)', prod: true, links: [
-    { label: 'Tienda', href: 'https://creditop.myvtex.com' },
-    { label: 'Admin · afiliaciones (hash y token)', href: 'https://creditop.myvtex.com/admin/affiliations' },
-    { label: 'Admin · condiciones de pago', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/rules' },
-    { label: 'Admin · transacciones', href: 'https://creditop.myvtex.com/admin/pci-gateway/#/transactions' },
+  { name: 'Shopify', links: [
+    { label: 'Tienda', href: `https://${SHOPIFY_STORE}.myshopify.com` },
+    { label: 'Admin · pedidos', href: `https://admin.shopify.com/store/${SHOPIFY_STORE}/orders` },
+    { label: 'Admin · la app', href: `https://admin.shopify.com/store/${SHOPIFY_STORE}/apps/creditop-ecommerce-payments` },
   ] },
 ]
-// En prod sólo los enlaces de master; fuera de prod, las tiendas de desarrollo con su diagrama y sus pendientes.
+// En prod no se muestran las tiendas: son de desarrollo.
 const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
-// Lo que se ve de una tienda en el editor —su diagrama o sus pendientes—, o null. Buscar otra solicitud lo cierra.
-const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' | 'pending' }
+// El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
+const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
 watch(() => result.value, () => { storeView.value = null })
+// Si la tienda de Shopify y la app de dev contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
+// con su botón.
+const shopifyChecks = ref(null) // [{ name, ok, detail, url }]
+// Qué versión del conector VTEX corre en cada workspace (server/vtex_apps.go): master siempre una publicada; develop
+// una instalada o una linkeada desde la máquina de alguien. Se lee al abrir el bloque VTEX.
+const connector = ref(null) // { loading } | { data: { workspaces: [{ workspace, version, build, source, error }] } } | { error }
+async function loadConnector() {
+  if (readOnly.value) { connector.value = null; return }
+  connector.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/connector?target=${encodeURIComponent(target.value)}`)
+    const body = await res.json()
+    connector.value = res.ok ? { data: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    connector.value = { error: e.message }
+  }
+}
+const connectorMeta = (w) => w.error ? w.error : w.source === 'link' ? `${w.version} · linkeada` : `${w.version} · publicada`
+const connectorTitle = (w) => w.error ? w.error
+  : w.source === 'link' ? `Versión linkeada desde la máquina de alguien (${w.build}); la tienda de ${w.workspace} la usa hasta que se deslinkee`
+  : `Versión publicada e instalada en ${w.workspace}`
+const shopifyChecking = ref(false)
+async function checkShopify() {
+  if (shopifyChecking.value) return
+  shopifyChecking.value = true
+  try {
+    shopifyChecks.value = (await (await fetch('/api/shopify/status')).json()).checks
+  } catch {
+    shopifyChecks.value = [{ name: 'ecommerce', ok: false, detail: 'no se pudo consultar el estado' }]
+  } finally {
+    shopifyChecking.value = false
+  }
+}
 // Las vistas del sidebar, como en canon: cada una se pliega y una cerrada ocupa una fila. Lo abierto se recuerda en este
 // navegador; sin almacenamiento, arrancan Solicitudes y la primera tienda abiertas.
 const SIDEBAR_VIEWS_KEY = 'ecommerce.sidebar-views'
@@ -253,8 +272,55 @@ function toggleSidebarView(id) {
   sidebarViews.value = { ...sidebarViews.value, [id]: !isViewOpen(id) }
   try { localStorage.setItem(SIDEBAR_VIEWS_KEY, JSON.stringify(sidebarViews.value)) } catch { /* sólo no se recuerda */ }
 }
+// La versión del conector se lee al abrir el bloque VTEX y al cambiar de base.
+watch(() => [isViewOpen('VTEX'), target.value], ([open]) => { if (open) loadConnector() }, { immediate: true })
 const isStoreView = (store, kind) => storeView.value?.store === store && storeView.value?.kind === kind
-function toggleStoreView(store, kind) { storeView.value = isStoreView(store, kind) ? null : { store, kind } }
+function toggleStoreView(store, kind) {
+  storeView.value = isStoreView(store, kind) ? null : { store, kind }
+  if (storeView.value?.kind === 'incidents') loadIncidents()
+}
+
+// ── el lado de VTEX (server/vtex.go): el pedido y su transacción en la cuenta de pruebas, con lo que no cuadra. Sólo
+// local y qa; en prod no se pide ──
+const vtex = ref(null) // { loading, error, report } de la solicitud abierta
+let vtexSeq = 0
+async function loadVtex() {
+  const order = r.value?.order
+  if (readOnly.value || !r.value?.request || String(order?.ecommerce_id) !== '3') { vtex.value = null; return }
+  const mine = ++vtexSeq
+  vtex.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/order?target=${encodeURIComponent(target.value)}&request=${r.value.request.id}`)
+    const body = await res.json().catch(() => ({}))
+    if (mine !== vtexSeq) return
+    vtex.value = res.ok ? { report: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    if (mine === vtexSeq) vtex.value = { error: e.message }
+  }
+}
+watch(() => result.value, loadVtex)
+// La lista de pedidos VTEX con incidencias de los últimos días, en el editor. Cada fila se abre ahí mismo.
+const INCIDENT_DAYS = 7
+const incidents = ref(null) // { loading, error, data }
+async function loadIncidents() {
+  if (readOnly.value) { incidents.value = { error: 'En prod no se mira VTEX: la cuenta creditop es de pruebas.' }; return }
+  incidents.value = { loading: true }
+  try {
+    const res = await fetch(`/api/vtex/incidents?target=${encodeURIComponent(target.value)}&days=${INCIDENT_DAYS}`)
+    const body = await res.json().catch(() => ({}))
+    incidents.value = res.ok ? { data: body } : { error: body.error || `HTTP ${res.status}` }
+  } catch (e) {
+    incidents.value = { error: e.message }
+  }
+}
+const worstLevel = (fs) => (fs?.some((f) => f.level === 'fail') ? 'fail' : fs?.some((f) => f.level === 'warn') ? 'warn' : 'info')
+const openIncident = ref(null) // el ecommerce_request desplegado en la lista
+function openRequest(id) {
+  storeView.value = null
+  req.value = ''
+  draft.value = String(id)
+  if (query.value === String(id)) lookup(); else query.value = String(id)
+}
 // El wizard por ambiente, para volver a abrir la solicitud y ver en qué quedó.
 const WIZARD = { qa: 'https://originaciones-qa.dev.creditop.com', local: 'http://localhost:5174' }
 // Los enlaces de la solicitud abierta: a dónde vuelve el comprador (la tienda) y el wizard. Fijos en la barra, para
@@ -321,7 +387,7 @@ watch([() => result.value?.request?.id, target], ([id]) => { if (moved.value && 
 const isClient = (p) => String(p.user_profile_id) === '1'
 
 // ── el perfil de prueba (ecommerce/.profile.json): un botón le dicta a las centrales del ambiente que contesten
-// esa persona, antes de lanzar la compra. El dictado lo hace el harness ──
+// esa persona, antes de lanzar la compra. El dictado lo hace el servidor (lambda.go) ──
 const profile = ref(null)
 const profileLoad = ref(null) // { running, error, result }
 // Lo que se edita en el sidebar derecho; arranca con el perfil del archivo y «Volver a mis datos» lo repone.
@@ -403,7 +469,9 @@ function toggleTable(name) { tablePrefs.value = { ...tablePrefs.value, [name]: !
 function resetTables() { tablePrefs.value = {}; saveTablePrefs() }
 const visibleTables = computed(() => tables.value.filter((t) => isShown(t.table)))
 const hiddenCount = computed(() => tables.value.length - visibleTables.value.length)
-const panelTab = ref('states') // states · tables · table · stores
+const panelTab = ref('states') // states · tables · table · connections
+watch(panelTab, (tab) => { if (tab === 'connections') checkShopify() })
+const shopifyAllOk = computed(() => !!shopifyChecks.value?.length && shopifyChecks.value.every((c) => c.ok))
 // La tabla cuya descripción se ve en la consola (la última cuyo título se tocó).
 const docTable = ref(null)
 const docOf = computed(() => (docTable.value ? TABLE_DOCS[docTable.value] || null : null))
@@ -464,71 +532,11 @@ const copied = ref(false)
 async function copyQuery() {
   try { await navigator.clipboard.writeText(openQuery.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
-// El semáforo de las tiendas de prueba (`/api/stores`): se mide mientras la pestaña Tiendas está abierta. El botón
-// levanta en segundo plano lo que eran comandos de consola, y lo para si lo levantó ecommerce.
-const STORE_NAMES = { shopify: 'Shopify', vtex: 'VTEX' }
-const stores = ref([])
-const storesError = ref('')
-const storeBusy = ref('')
-const storeLogOpen = ref('')
-let storesTimer = null
-async function loadStores() {
-  try {
-    const res = await fetch('/api/stores')
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    stores.value = body
-    storesError.value = ''
-  } catch (e) { storesError.value = `No se pudo medir: ${e.message}` }
-}
-async function storeAction(store, action) {
-  storeBusy.value = store
-  try {
-    const res = await fetch(`/api/stores/${action}?store=${store}`, { method: 'POST' })
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    storesError.value = ''
-    if (action === 'start') storeLogOpen.value = store
-  } catch (e) { storesError.value = e.message } finally {
-    storeBusy.value = ''
-    loadStores()
-  }
-}
-// Al pasar a prod, lo que es sólo de desarrollo se cierra: la pestaña Tiendas y una vista de Shopify.
+// Al pasar a prod, lo que es sólo de desarrollo se cierra: el diagrama de una tienda.
 watch(readOnly, (ro) => {
   if (!ro) return
-  if (panelTab.value === 'stores') panelTab.value = 'states'
   if (storeView.value && !visibleStores.value.some((s) => (s.flow || s.name) === storeView.value.store)) storeView.value = null
 }, { immediate: true })
-watch(panelTab, (tab) => {
-  clearInterval(storesTimer)
-  storesTimer = null
-  if (tab !== 'stores') return
-  loadStores()
-  storesTimer = setInterval(loadStores, 5000)
-}, { immediate: true })
-onBeforeUnmount(() => clearInterval(storesTimer))
-// Las ramas de las tareas de cada tienda (`/api/branches`, la medición del tablero): en qué ambientes está cada una y su
-// PR, para saber cuándo se mergeó. Mide git al abrir la pestaña y con «Medir»; lee el último `git fetch` de cada repo.
-const BRANCH_ENVS = ['develop', 'qa', 'staging', 'main']
-const branches = ref(null)
-const branchesBusy = ref(false)
-const branchesError = ref('')
-async function loadBranches() {
-  branchesBusy.value = true
-  try {
-    const res = await fetch('/api/branches')
-    const body = await res.json()
-    if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    branches.value = body
-    branchesError.value = ''
-  } catch (e) { branchesError.value = `No se pudo medir: ${e.message}` } finally { branchesBusy.value = false }
-}
-// Lo que falta arriba: una rama está entregada cuando ya está en main o su PR se mergeó o cerró.
-function branchDelivered(b) { return b.in?.main || ['MERGED', 'CLOSED'].includes(b.pr?.state) }
-function sortedBranches(list) { return [...list].sort((a, b) => branchDelivered(a) - branchDelivered(b)) }
-const branchesPending = computed(() => (branches.value?.stores || []).reduce((n, s) => n + s.branches.filter((b) => !branchDelivered(b)).length, 0))
-watch(panelTab, (tab) => { if (tab === 'branches' && !branches.value && !branchesBusy.value) loadBranches() })
 // Otra solicitud u otro ambiente: la consulta abierta era de la anterior.
 watch([() => result.value?.request?.id, target], () => { openTable.value = null; openCell.value = null; if (panelTab.value === 'table') panelTab.value = 'states'; docTable.value = null })
 // Las fechas de alta y de cambio de cada fila son ruido para una prueba: no se muestran (la consulta las trae).
@@ -637,6 +645,7 @@ onMounted(async () => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  checkShopify()
   targetMenu = bindMenu(targetTrigger.value, {
     label: 'Contra qué base se busca', getItems: () => targetItems.value,
     onSelect: (id) => { target.value = id },
@@ -720,10 +729,17 @@ onBeforeUnmount(() => {
               title="Cómo se comunica una compra con legacy-backend y el wizard" @click="toggleStoreView(s.flow || s.name, 'diagram')">
               <span class="label">Diagrama</span><span class="row-meta">⇄</span>
             </button>
-            <button v-if="STORE_PENDING[s.flow || s.name]" type="button" class="row" :class="{ on: isStoreView(s.flow || s.name, 'pending') }" :aria-pressed="isStoreView(s.flow || s.name, 'pending')"
-              title="Qué está hecho y qué falta para salir a producción" @click="toggleStoreView(s.flow || s.name, 'pending')">
-              <span class="label">Pendientes</span><span class="row-meta">☰</span>
+            <button v-if="s.name === 'VTEX' && !readOnly" type="button" class="row" :class="{ on: isStoreView('VTEX', 'incidents') }" :aria-pressed="isStoreView('VTEX', 'incidents')"
+              :title="`Los pedidos VTEX de los últimos ${INCIDENT_DAYS} días que no cuadran: timeouts, cancelaciones trabadas, estados distintos`" @click="toggleStoreView('VTEX', 'incidents')">
+              <span class="label">Pedidos con incidencias</span><span class="row-meta">{{ incidents?.data ? incidents.data.orders.length : '' }}</span>
             </button>
+            <template v-if="s.name === 'VTEX' && !readOnly">
+              <p v-if="!connector || connector.loading" class="row muted"><span class="label">Conector · leyendo…</span></p>
+              <p v-else-if="connector.error" class="row muted" :title="connector.error"><span class="label">Conector · no se pudo leer</span></p>
+              <p v-for="w in connector?.data?.workspaces || []" v-else :key="w.workspace" class="row" :title="connectorTitle(w)">
+                <span class="label">Conector · {{ w.workspace }}</span><span class="row-meta" :class="{ warn: w.source === 'link' || w.error }">{{ connectorMeta(w) }}</span>
+              </p>
+            </template>
             <a v-for="l in s.links" :key="l.href" class="row" :href="l.href" target="_blank" rel="noopener" :title="l.href">
               <span class="label">{{ l.label }}</span><span class="row-meta">↗</span>
             </a>
@@ -731,9 +747,47 @@ onBeforeUnmount(() => {
         </section>
     </aside>
 
-    <main v-if="storeView" class="editor">
+    <main v-if="storeView?.kind === 'incidents'" class="editor">
       <div class="region-head">
-        <span>{{ (storeView.kind === 'diagram' ? STORE_FLOWS : STORE_PENDING)[storeView.store].title }}</span>
+        <span>VTEX · pedidos con incidencias</span>
+        <span v-if="incidents?.data" class="count">{{ incidents.data.orders.length }} de {{ incidents.data.checked }} pedidos · últimos {{ incidents.data.days }} días · {{ target }}</span>
+        <div class="region-actions">
+          <button type="button" class="region-action" :disabled="incidents?.loading" title="Volver a leer" aria-label="Volver a leer" @click="loadIncidents">
+            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+          </button>
+          <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="storeView = null">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </div>
+      <div class="region-body">
+        <p v-if="!incidents || incidents.loading" class="none">Leyendo los pedidos VTEX de {{ target }} y su lado en VTEX…</p>
+        <p v-else-if="incidents.error" class="none hot">{{ incidents.error }}</p>
+        <template v-else>
+          <p v-if="incidents.data.missing" class="none warn">VTEX: {{ incidents.data.missing }}. Sólo se ven los pedidos sin solicitud.</p>
+          <p v-if="!incidents.data.orders.length" class="none ok">Ningún pedido VTEX con incidencias en los últimos {{ incidents.data.days }} días.</p>
+          <table v-else class="table incidents">
+            <thead><tr><th>pedido</th><th>creado</th><th>solicitud</th><th>VTEX</th><th>authorize</th><th>incidencia</th></tr></thead>
+            <tbody>
+              <template v-for="o in incidents.data.orders" :key="o.ecommerceRequest">
+                <tr class="incident" :class="{ on: openIncident === o.ecommerceRequest }" @click="openIncident = openIncident === o.ecommerceRequest ? null : o.ecommerceRequest">
+                  <td><i class="dot" :data-state="worstLevel(o.findings)" aria-hidden="true"></i><code>{{ o.ecommerceRequest }}</code></td>
+                  <td>{{ o.createdAt }}</td>
+                  <td>{{ o.request ? `${o.request} · ${o.statusId}` : '—' }}</td>
+                  <td>{{ o.vtex?.txStatus || '—' }}</td>
+                  <td :class="{ hot: o.authLatency > 1.5 }">{{ o.authLatency == null ? '—' : `${o.authLatency.toFixed(1)} s` }}</td>
+                  <td class="what">{{ (o.findings || []).map((f) => f.text.split(':')[0]).join(' · ') || o.vtexError }}</td>
+                </tr>
+                <tr v-if="openIncident === o.ecommerceRequest" class="detail"><td colspan="6"><VtexReport :report="o" compact @open-request="openRequest" /></td></tr>
+              </template>
+            </tbody>
+          </table>
+        </template>
+      </div>
+    </main>
+    <main v-else-if="storeView" class="editor">
+      <div class="region-head">
+        <span>{{ STORE_FLOWS[storeView.store].title }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="storeView = null">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -741,8 +795,7 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="region-body">
-        <FlowDiagram v-if="storeView.kind === 'diagram'" :flow="STORE_FLOWS[storeView.store]" />
-        <PendingWorkflow v-else :plan="STORE_PENDING[storeView.store]" />
+        <FlowDiagram :flow="STORE_FLOWS[storeView.store]" />
       </div>
     </main>
     <main v-else class="editor">
@@ -799,6 +852,15 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <template v-else>
+          <section v-if="vtex">
+            <div class="region-head group"><span>VTEX</span>
+              <span v-if="vtex.report" class="count">{{ vtex.report.vtex?.txStatus || 'sin transacción' }}{{ vtex.report.findings?.length ? ` · ${vtex.report.findings.length} incidencias` : '' }}</span>
+              <button type="button" class="btn-link hidden-link" title="Volver a leer VTEX" @click="loadVtex">leer de nuevo</button>
+            </div>
+            <p v-if="vtex.loading" class="none">Leyendo el pedido en VTEX…</p>
+            <p v-else-if="vtex.error" class="none hot">{{ vtex.error }}</p>
+            <VtexReport v-else-if="vtex.report" :report="vtex.report" />
+          </section>
           <section>
             <div class="region-head group"><span>Tablas de esta solicitud</span><span class="count">{{ tables.length ? `${tablesTotal} filas en ${tables.length} tablas` : '' }}</span>
               <button v-if="hiddenCount" type="button" class="btn-link hidden-link" title="Elegir qué tablas se ven" @click="panelTab = 'tables'; panelOpen = true">{{ hiddenCount }} ocultas</button>
@@ -957,14 +1019,12 @@ onBeforeUnmount(() => {
         <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'tables' }" :aria-selected="panelTab === 'tables'" @click="panelTab = 'tables'">
           Tablas <span v-if="tables.length" class="count" :class="{ filtered: hiddenCount }">{{ visibleTables.length }} / {{ tables.length }}</span>
         </button>
-        <button v-if="!readOnly" type="button" role="tab" class="tab" :class="{ on: panelTab === 'stores' }" :aria-selected="panelTab === 'stores'" @click="panelTab = 'stores'">
-          Tiendas
+        <!-- Lo que tiene que estar arriba para que la tienda de Shopify pague. El punto dice si está todo. -->
+        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'connections' }" :aria-selected="panelTab === 'connections'" @click="panelTab = 'connections'">
+          Conexiones <i class="dot" :data-state="shopifyChecks ? (shopifyAllOk ? 'ok' : 'fail') : 'off'" aria-hidden="true"></i>
         </button>
-        <button type="button" role="tab" class="tab" :class="{ on: panelTab === 'branches' }" :aria-selected="panelTab === 'branches'" @click="panelTab = 'branches'">
-          Ramas <span v-if="branches" class="count" title="ramas por mergear">{{ branchesPending }}</span>
-        </button>
-        <div v-if="panelTab === 'branches'" class="region-actions">
-          <button type="button" class="region-action" :disabled="branchesBusy" title="Volver a medir las ramas (lee el último git fetch de cada repo)" aria-label="Medir las ramas" @click="loadBranches">
+        <div v-if="panelTab === 'connections'" class="region-actions">
+          <button type="button" class="region-action" :disabled="shopifyChecking" title="Volver a comprobar" aria-label="Volver a comprobar las conexiones" @click="checkShopify">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>
         </div>
@@ -974,7 +1034,15 @@ onBeforeUnmount(() => {
           </button>
         </div>
       </nav>
-      <div v-if="panelTab === 'table' && docTable" class="region-body table-doc">
+      <div v-if="panelTab === 'connections'" class="region-body">
+        <p v-if="!shopifyChecks" class="none">Comprobando…</p>
+        <div v-for="c in shopifyChecks || []" :key="c.name" class="log-line">
+          <i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>
+          <span class="status">Shopify · {{ c.name }}</span>
+          <span class="what" :title="c.detail">{{ c.detail }}<template v-if="c.url"> · <code>{{ c.url }}</code></template></span>
+        </div>
+      </div>
+      <div v-else-if="panelTab === 'table' && docTable" class="region-body table-doc">
         <template v-if="docOf">
           <h3>{{ docOf.title }} <code class="muted">{{ docTable }}</code></h3>
           <p>{{ docOf.what }}</p>
@@ -985,50 +1053,6 @@ onBeforeUnmount(() => {
           <h3><code>{{ docTable }}</code></h3>
           <p class="muted">Todavía no tiene descripción. Se agrega en <code>ecommerce/src/table-docs.js</code>.</p>
         </template>
-      </div>
-      <div v-else-if="panelTab === 'stores'" class="region-body store-commands">
-        <p v-if="storesError" class="hot">{{ storesError }}</p>
-        <section v-for="st in stores" :key="st.store" class="store-state">
-          <div class="store-state-head">
-            <i class="dot" :data-state="st.ready ? 'ok' : 'fail'" aria-hidden="true"></i>
-            <h3>{{ STORE_NAMES[st.store] }}</h3>
-            <span class="muted small">{{ st.ready ? 'lista para comprar' : 'falta algo' }}{{ st.deployed ? ' · desplegada en dev, no se levanta nada' : st.external ? ' · corre en otra terminal' : st.managed ? ` · levantada desde ecommerce a las ${st.started}` : '' }}</span>
-            <template v-if="st.deployed"></template>
-            <button v-else-if="st.managed" type="button" class="btn btn-xs btn-outline" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'stop')">Parar</button>
-            <button v-else-if="!st.external" type="button" class="btn btn-xs" :disabled="storeBusy === st.store" @click="storeAction(st.store, 'start')">{{ storeBusy === st.store ? 'Levantando…' : 'Levantar' }}</button>
-            <button v-if="st.log.length" type="button" class="btn-link small" @click="storeLogOpen = storeLogOpen === st.store ? '' : st.store">{{ storeLogOpen === st.store ? 'Ocultar salida' : 'Ver salida' }}</button>
-          </div>
-          <ul class="store-checks">
-            <li v-for="c in st.checks" :key="c.name"><i class="dot" :data-state="c.ok ? 'ok' : 'fail'" aria-hidden="true"></i>{{ c.name }} <span class="muted">· {{ c.detail }}</span></li>
-          </ul>
-          <p v-if="st.exited" class="muted small">El proceso terminó a las {{ st.exited }}.</p>
-          <pre v-if="storeLogOpen === st.store" class="store-log">{{ st.log.slice(-40).join('\n') }}</pre>
-        </section>
-        <p v-if="!stores.length && !storesError" class="muted">Midiendo…</p>
-      </div>
-      <div v-else-if="panelTab === 'branches'" class="region-body store-commands">
-        <p v-if="branchesError" class="hot">{{ branchesError }}</p>
-        <p v-if="branchesBusy" class="muted small">Midiendo las ramas…</p>
-        <p v-else-if="branches" class="muted small">Medido a las {{ branches.measuredAt.slice(11, 16) }}, con el último <code>git fetch</code> de cada repo.</p>
-        <section v-for="s in branches?.stores || []" :key="s.store" class="store-state">
-          <div class="store-state-head">
-            <h3>{{ s.store }}</h3>
-            <span class="muted small">tarea <code>{{ s.task }}</code> · <code>ramas: {{ s.pattern }}</code></span>
-          </div>
-          <p v-if="s.error" class="hot small">{{ s.error }}</p>
-          <p v-else-if="!s.branches.length" class="muted small">Ninguna rama coincide con el patrón.</p>
-          <ul class="branch-list">
-            <li v-for="b in sortedBranches(s.branches)" :key="b.repo + b.branch" :class="{ delivered: branchDelivered(b) }">
-              <i class="dot" :data-state="branchDelivered(b) ? 'ok' : 'fail'" aria-hidden="true"></i>
-              <span class="branch-name"><span class="muted">{{ b.repo }}</span> · <code>{{ b.branch }}</code></span>
-              <a v-if="b.pr" class="branch-pr" :href="b.pr.url" target="_blank" rel="noopener">#{{ b.pr.number }} {{ b.pr.state === 'OPEN' ? (b.pr.draft ? 'borrador' : 'abierto') : b.pr.state === 'MERGED' ? 'mergeado' : 'cerrado' }} → {{ b.pr.base }}</a>
-              <span v-else class="branch-pr muted">sin PR</span>
-              <span class="branch-envs">
-                <span v-for="env in BRANCH_ENVS" :key="env" class="branch-env" :class="{ on: b.in?.[env] }" :title="b.in?.[env] ? `ya está en ${env}` : `no está en ${env}`">{{ env }}</span>
-              </span>
-            </li>
-          </ul>
-        </section>
       </div>
       <div v-else-if="panelTab === 'tables'" class="region-body">
         <p v-if="!tables.length" class="none">Las tablas de la solicitud que se mira; las que se apagan acá no se muestran en el editor.</p>
@@ -1231,24 +1255,6 @@ code.wrap { word-break: break-all }
 .table-doc { padding: var(--space-2) var(--gutter) }
 .table-doc h3 { margin: 0 0 var(--space-1); font-size: var(--text-base); font-weight: 600 }
 .table-doc p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
-/* El semáforo de cada tienda: el punto, los chequeos y la salida del proceso. */
-.store-commands { padding: var(--space-2) var(--gutter) }
-.store-commands p { margin: 0 0 var(--space-1); max-width: 90ch; line-height: 1.5 }
-.store-state { margin-bottom: var(--space-3) }
-.store-state-head { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap }
-.store-state-head h3 { margin: 0; font-size: var(--text-base); font-weight: 600 }
-.store-checks { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
-.store-checks li { display: flex; align-items: center; gap: var(--space-2); padding: 2px 0 }
-.store-log { max-height: 220px; overflow: auto; margin: var(--space-1) 0 0; padding: var(--space-2); border-radius: var(--radius-sm); background: var(--muted); font-size: 11px; line-height: 1.45; white-space: pre-wrap; word-break: break-all }
-/* Las ramas de cada tienda: rama, PR y los ambientes donde ya está. Lo entregado va atenuado, al final. */
-.branch-list { margin: var(--space-1) 0 0; padding: 0; list-style: none; font-size: var(--text-sm) }
-.branch-list li { display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; padding: 3px 0 }
-.branch-list li.delivered { opacity: .55 }
-.branch-name { min-width: 0; overflow-wrap: anywhere }
-.branch-pr { font-size: 12px }
-.branch-envs { display: inline-flex; gap: 4px; margin-left: auto }
-.branch-env { padding: 0 6px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--muted-foreground); font-size: 11px }
-.branch-env.on { border-color: var(--ecommerce-ok); color: var(--ecommerce-ok) }
 /* El perfil de prueba en la barra: quién, el botón y una línea por central. */
 .profile { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-1); padding: var(--space-2) var(--gutter) var(--space-3) }
 .profile p { margin: 0 }
@@ -1258,4 +1264,12 @@ code.wrap { word-break: break-all }
 .warn { color: var(--ecommerce-warn) }
 .small { font-size: var(--text-sm) }
 .cell-action { width: 32px; text-align: right }
+/* Los pedidos VTEX con incidencias: una fila por pedido que se despliega con su detalle debajo. */
+.table.incidents tr.incident { cursor: pointer }
+.table.incidents tr.incident td { white-space: nowrap }
+.table.incidents tr.detail td { white-space: normal }
+.dot[data-state="warn"] { background: var(--ecommerce-warn) }
+.table.incidents tr.incident:hover td, .table.incidents tr.incident.on td { background: var(--hover) }
+.table.incidents td.what { max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2) }
+.table.incidents tr.detail > td { padding: 0 0 var(--space-3) }
 </style>

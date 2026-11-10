@@ -7,7 +7,7 @@ package main
  * cancelado). Un UPDATE cambia la base y la tienda nunca se entera.
  *
  * El simulador sólo acepta estados finales y solicitudes ligadas a un pedido de ecommerce, y se niega en
- * producción. La dirección es la API del harness (`E2E_API_BASE_URL` de harness/.env.<target>) sin `/api`; en
+ * producción. La dirección es la API del backend (`<T>_API_BASE_URL` del .env) sin `/api`; en
  * qa es interna: hace falta la VPN de dev. */
 
 import (
@@ -43,9 +43,9 @@ func SimulateStatus(target string, request, status int) (*StatusChange, error) {
 	if _, ok := FinalStatuses[status]; !ok {
 		return nil, fmt.Errorf("estado %d: el simulador sólo acepta 11, 6, 8 o 7", status)
 	}
-	base := strings.TrimSuffix(strings.TrimRight(harnessEnv(target)("E2E_API_BASE_URL"), "/"), "/api")
+	base := strings.TrimSuffix(strings.TrimRight(appEnv(target)("API_BASE_URL"), "/"), "/api")
 	if base == "" {
-		return nil, fmt.Errorf("falta E2E_API_BASE_URL en harness/.env.%s", target)
+		return nil, fmt.Errorf("falta %s en .env", envKey(target, "API_BASE_URL"))
 	}
 	url := base + "/simulator/aggregator-result"
 	body, _ := json.Marshal(map[string]int{"user_request_id": request, "status": status})
@@ -86,9 +86,9 @@ func SimulateStatus(target string, request, status int) (*StatusChange, error) {
 	return change, nil
 }
 
-// journalStatus deja constancia del cambio junto a los borrados, en ecommerce/.deletions.ndjson.
+// journalStatus deja constancia del cambio junto a los borrados, en .deletions.ndjson.
 func journalStatus(c *StatusChange) {
-	f, err := os.OpenFile(filepath.Join(repoRoot(), "ecommerce", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(appRoot(), ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}

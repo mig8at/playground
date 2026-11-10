@@ -2,16 +2,15 @@
 // usuario quedó pegada y con qué datos, y por qué estados pasó, contra local o qa. Lee siempre; borra una
 // solicitud de prueba sólo con `-delete -confirm` (ver delete.go, que lleva las guardas).
 //
-//	go run ./ecommerce/server -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
-//	go run ./ecommerce/server -serve 127.0.0.1:5179                                         la API de la interfaz
-//	go run ./ecommerce/server -target local -q 467513 -delete [-phone] [-free-users] [-rollback] -confirm 467513
+//	go run ./server        -target qa -q 3016992677                                      la búsqueda, en JSON (también la URL del wizard o el número)
+//	go run ./server        -serve 127.0.0.1:5179                                         la API de la interfaz
+//	go run ./server        -target local -q 467513 -delete [-phone] [-free-users] [-rollback] -confirm 467513
 //	                       sin -confirm sólo muestra el plan; con -rollback borra todo y lo deshace al final
 //
 // CONVENCIÓN: identificadores en inglés, comentarios y texto visible en español.
 package main
 
 import (
-	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -20,7 +19,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 )
 
 func main() {
@@ -31,7 +29,7 @@ func main() {
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
-	loadProfile := flag.Bool("load-profile", false, "le dicta a las centrales del ambiente el perfil de ecommerce/.profile.json")
+	loadProfile := flag.Bool("load-profile", false, "le dicta a las centrales del ambiente el perfil de .profile.json")
 	purge := flag.Int("purge-user", 0, "borra del todo a ese usuario (cliente dado de baja, sin solicitudes), con respaldo; con -rollback lo deshace")
 	disable := flag.Int("disable-user", 0, "da de baja a ese usuario (cliente, activo), con respaldo; con -rollback lo deshace")
 	freeUsers := flag.Bool("free-users", false, "con -delete: además da de baja a los usuarios del celular (con -phone) o al de la solicitud si era su última")
@@ -112,46 +110,6 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func handler() http.Handler {
 	mux := http.NewServeMux()
-	// GET /api/stores — el semáforo de las dos tiendas de prueba (ver stores.go). Sólo lee.
-	mux.HandleFunc("/api/stores", func(w http.ResponseWriter, r *http.Request) {
-		out := []*StoreStatus{}
-		for _, s := range []string{"shopify", "vtex"} {
-			st, err := StoreState(s)
-			if err != nil {
-				writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
-				return
-			}
-			out = append(out, st)
-		}
-		writeJSON(w, http.StatusOK, out)
-	})
-	// GET /api/branches — las ramas de las tareas de cada tienda y hasta dónde llegaron (ver branches.go). Mide git
-	// en el momento (unos segundos), así que la UI lo pide al abrir la pestaña y con «Medir».
-	mux.HandleFunc("/api/branches", func(w http.ResponseWriter, r *http.Request) {
-		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
-		defer cancel()
-		writeJSON(w, http.StatusOK, MeasureStoreBranches(ctx))
-	})
-	// POST /api/stores/start?store=shopify|vtex · /api/stores/stop?store=… — levanta o para lo que corre desde ecommerce.
-	for _, action := range []string{"start", "stop"} {
-		action := action
-		mux.HandleFunc("/api/stores/"+action, func(w http.ResponseWriter, r *http.Request) {
-			if r.Method != http.MethodPost {
-				writeJSON(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST"})
-				return
-			}
-			store := r.URL.Query().Get("store")
-			run := StartStore
-			if action == "stop" {
-				run = StopStore
-			}
-			if err := run(store); err != nil {
-				writeJSON(w, http.StatusConflict, map[string]string{"error": err.Error()})
-				return
-			}
-			writeJSON(w, http.StatusOK, map[string]string{"store": store, "action": action})
-		})
-	}
 	mux.HandleFunc("/api/targets", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, ReadTargets)
 	})
@@ -216,7 +174,7 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
-	// GET /api/profile — el perfil de prueba (ecommerce/.profile.json). POST /api/profile/load {target} — se lo dicta a
+	// GET /api/profile — el perfil de prueba (.profile.json). POST /api/profile/load {target} — se lo dicta a
 	// las centrales del ambiente, por el harness.
 	mux.HandleFunc("/api/profile", func(w http.ResponseWriter, r *http.Request) {
 		p, err := ReadProfile()
@@ -325,6 +283,10 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, res)
 	})
+	// La tienda real de Shopify: si la tienda y la app de dev contestan (shopify.go).
+	registerShopify(mux)
+	// El lado de VTEX de un pedido y la lista de pedidos con incidencias (vtex.go). Sólo lee.
+	registerVtex(mux)
 	return mux
 }
 
@@ -337,7 +299,6 @@ func serve(addr string) error {
 	if ip := net.ParseIP(host); host != "localhost" && (ip == nil || !ip.IsLoopback()) {
 		return fmt.Errorf("ecommerce sólo escucha en esta máquina (127.0.0.1 o localhost), no en %q", host)
 	}
-	stopStoresOnExit()
 	fmt.Fprintf(os.Stderr, "ecommerce · API en http://%s\n", addr)
 	return http.ListenAndServe(addr, handler())
 }

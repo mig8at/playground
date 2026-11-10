@@ -149,7 +149,7 @@ out();
 out(`→ ${verdict}`);
 if (wizard) {
     out(`  wizard: ${wizard}`);
-    out(`  del lado de CreditOp: make ecommerce, pegando ese link (o go run ./ecommerce/server -target qa -q '<link>')`);
+    out(`  del lado de CreditOp: make ecommerce, pegando ese link (o cd ecommerce && go run ./server -target qa -q '<link>')`);
 }
 out();
 out('registro del pago (lo más viejo arriba):');

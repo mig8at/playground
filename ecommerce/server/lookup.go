@@ -15,8 +15,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-
-	dbsql "creditop/playground/connectors/sql"
 )
 
 // Targets son los ambientes donde ecommerce lee Y escribe (borrar, dar de baja, simular un estado, dictar las centrales).
@@ -99,41 +97,36 @@ type Result struct {
 	Source string `json:"source"`
 	Input  Input  `json:"input"`
 	// Con celular, correo o cédula: las personas que coinciden, activas o dadas de baja, con o sin solicitudes.
-	People []dbsql.Row `json:"people"`
+	People []Row `json:"people"`
 	// Con búsqueda por celular: todas las solicitudes de los usuarios con ese número, de la más nueva a la
 	// más vieja. La que se muestra es la pedida o, si no se pidió una, la más nueva.
-	PhoneRequests []dbsql.Row `json:"phoneRequests"`
-	Request       dbsql.Row   `json:"request"`
-	Branch        dbsql.Row   `json:"branch"`
-	Order         dbsql.Row   `json:"order"`
-	OrderData     any         `json:"orderData"`
-	User          dbsql.Row   `json:"user"`
-	SamePhone     []dbsql.Row `json:"samePhone"`
-	Records       []dbsql.Row `json:"records"`
-	Requests      []dbsql.Row `json:"requests"`
-	Fields        []dbsql.Row `json:"fields"`
-	Warnings      []Warning   `json:"warnings"`
-	ReadAt        string      `json:"readAt"`
+	PhoneRequests []Row     `json:"phoneRequests"`
+	Request       Row       `json:"request"`
+	Branch        Row       `json:"branch"`
+	Order         Row       `json:"order"`
+	OrderData     any       `json:"orderData"`
+	User          Row       `json:"user"`
+	SamePhone     []Row     `json:"samePhone"`
+	Records       []Row     `json:"records"`
+	Requests      []Row     `json:"requests"`
+	Fields        []Row     `json:"fields"`
+	Warnings      []Warning `json:"warnings"`
+	ReadAt        string    `json:"readAt"`
 }
 
 // Una fuente por ambiente, abierta la primera vez y reusada: cada búsqueda son ocho consultas.
 var (
 	sourcesMu sync.Mutex
-	sources   = map[string]dbsql.Source{}
+	sources   = map[string]Source{}
 )
 
-func source(target string) (dbsql.Source, error) {
+func source(target string) (Source, error) {
 	sourcesMu.Lock()
 	defer sourcesMu.Unlock()
 	if s, ok := sources[target]; ok {
 		return s, nil
 	}
-	cfg, _, err := dbsql.LoadConfig(target)
-	if err != nil {
-		return nil, err
-	}
-	cfg.MaxOpen = 4
-	s, err := dbsql.Open(cfg)
+	s, err := openSource(target, 4)
 	if err != nil {
 		return nil, fmt.Errorf("base de %s: %w", target, err)
 	}
@@ -151,13 +144,13 @@ func forget(target string) {
 	}
 }
 
-func rows(src dbsql.Source, query string, args ...any) ([]dbsql.Row, error) {
-	if err := dbsql.ValidateReadOnly(query); err != nil {
+func rows(src Source, query string, args ...any) ([]Row, error) {
+	if err := ValidateReadOnly(query); err != nil {
 		return nil, err
 	}
 	out, err := src.Rows(query, args...)
 	if out == nil {
-		out = []dbsql.Row{} // una lista vacía, no null: la interfaz la recorre igual
+		out = []Row{} // una lista vacía, no null: la interfaz la recorre igual
 	}
 	for _, r := range out {
 		for k, v := range r {
@@ -170,7 +163,7 @@ func rows(src dbsql.Source, query string, args ...any) ([]dbsql.Row, error) {
 	return out, err
 }
 
-func first(src dbsql.Source, query string, args ...any) (dbsql.Row, error) {
+func first(src Source, query string, args ...any) (Row, error) {
 	out, err := rows(src, query, args...)
 	if err != nil || len(out) == 0 {
 		return nil, err
@@ -178,7 +171,7 @@ func first(src dbsql.Source, query string, args ...any) (dbsql.Row, error) {
 	return out[0], nil
 }
 
-func cell(r dbsql.Row, k string) string {
+func cell(r Row, k string) string {
 	if r == nil || r[k] == nil {
 		return ""
 	}
@@ -201,9 +194,9 @@ func Lookup(target string, in Input) (*Result, error) {
 	return res, err
 }
 
-func lookup(src dbsql.Source, target string, in Input) (*Result, error) {
-	res := &Result{Target: target, Source: src.Name(), Input: in, Warnings: []Warning{}, SamePhone: []dbsql.Row{},
-		Records: []dbsql.Row{}, Requests: []dbsql.Row{}, Fields: []dbsql.Row{}, PhoneRequests: []dbsql.Row{}, People: []dbsql.Row{},
+func lookup(src Source, target string, in Input) (*Result, error) {
+	res := &Result{Target: target, Source: src.Name(), Input: in, Warnings: []Warning{}, SamePhone: []Row{},
+		Records: []Row{}, Requests: []Row{}, Fields: []Row{}, PhoneRequests: []Row{}, People: []Row{},
 		ReadAt: time.Now().Format("2006-01-02 15:04:05")}
 	var err error
 

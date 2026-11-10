@@ -1,4 +1,4 @@
-module creditop/ecommerce-v2
+module creditop/ecommerce
 
 go 1.25.5
 

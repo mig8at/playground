@@ -15,7 +15,7 @@ export default defineConfig({
   server: {
     port: 5178,
     strictPort: true,
-    // ECOMMERCE_API deja levantar una segunda copia (ecommerce-alt) sin pisar la que ya corre.
+    // ECOMMERCE_API deja levantar una segunda copia sin pisar la que ya corre.
     proxy: { '/api': { target: process.env.ECOMMERCE_API || 'http://127.0.0.1:5179', changeOrigin: false } },
   },
 })

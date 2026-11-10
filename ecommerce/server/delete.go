@@ -3,18 +3,17 @@ package main
 /* Borrar de verdad una solicitud —o todas las de un celular— y todo lo que cuelga de ella, para que una
  * prueba empiece limpia.
  *
- * Es la ÚNICA escritura de ecommerce, y por eso no pasa por el conector de SQL (que es de sólo lectura): usa la
- * base del harness (`E2E_DB_*` de `harness/.env.<target>`), la misma excepción que ya tiene el harness para
- * sembrar.
+ * Es la ÚNICA escritura de ecommerce: abre su propia conexión con las claves `<T>_DB_*` del .env, aparte de la
+ * de lectura, que sólo acepta SELECT.
  *
  * DECISIÓN DE MIGUEL (2026-10-26): ecommerce borra CUALQUIER solicitud de local o de la base compartida, sin
  * I_KNOW_THIS_TOUCHES_SHARED_DEV y sin limitarse a las de prueba. Es la excepción a F-53, y sólo para esta
  * operación de este servidor. Lo que la hace segura vive acá, no en una variable:
  *
- *   · nunca prod: sólo local y qa (`Targets`), con las credenciales del harness de ese ambiente;
+ *   · nunca prod: sólo local y qa (`Targets`), con las credenciales de ese ambiente en el .env;
  *   · la confirmación (el número, o el celular) se vuelve a comprobar en el servidor, y el plan se rearma;
  *   · lo que no es de prueba (otro comercio, un usuario sin marca) no se bloquea pero AVISA, con el nombre;
- *   · un RESPALDO de cada fila antes de borrarla (y del usuario antes de su baja) en ecommerce/.backups/, para
+ *   · un RESPALDO de cada fila antes de borrarla (y del usuario antes de su baja) en .backups/, para
  *     poder reponerla;
  *   · un tope de solicitudes por borrado, nunca la baja de una cuenta que no es de cliente (asesor, admin), y
  *     todo en UNA transacción: si una tabla falla, no se borra nada.
@@ -42,15 +41,12 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-sql-driver/mysql"
-
-	dbsql "creditop/playground/connectors/sql"
 )
 
 // MaxDelete es el tope de solicitudes por borrado: un celular de prueba que acumuló más es un error de algo.
@@ -276,7 +272,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 
 // countTables cuenta, tabla por tabla, las filas que cuelgan de esas solicitudes (sin la solicitud misma).
 // Sólo lee: es lo que muestra el editor y la base del plan.
-func countTables(src dbsql.Source, ids []int, where func(table, list string) string) ([]TableCount, error) {
+func countTables(src Source, ids []int, where func(table, list string) string) ([]TableCount, error) {
 	tables, err := childTables(src)
 	if err != nil {
 		return nil, err
@@ -324,7 +320,7 @@ func RequestTables(target string, request int) ([]TableCount, error) {
 }
 
 // childTables son las tablas con `user_request_id` de ESTA base, y si tienen `id` de llave primaria.
-func childTables(src dbsql.Source) ([]childTable, error) {
+func childTables(src Source) ([]childTable, error) {
 	list, err := rows(src, `SELECT c.TABLE_NAME AS t, (SELECT COUNT(*) FROM information_schema.COLUMNS i
 			WHERE i.TABLE_SCHEMA = c.TABLE_SCHEMA AND i.TABLE_NAME = c.TABLE_NAME AND i.COLUMN_NAME = 'id' AND i.COLUMN_KEY = 'PRI') AS has_id
 		FROM information_schema.COLUMNS c JOIN information_schema.TABLES tb
@@ -379,12 +375,12 @@ func writeBlocked(target string) string {
 
 type dbConfig struct{ host, port, name, user, pass string }
 
-// writeConfig lee la base del harness: el proceso gana sobre `harness/.env.<target>`, como en harness/pkg/env.ts.
+// writeConfig lee la base de escritura del ambiente: las mismas claves `<T>_DB_*` del .env con que se lee.
 func writeConfig(target string) (dbConfig, error) {
-	get := harnessEnv(target)
-	c := dbConfig{get("E2E_DB_HOST"), get("E2E_DB_PORT"), get("E2E_DB_NAME"), get("E2E_DB_USER"), get("E2E_DB_PASS")}
+	get := appEnv(target)
+	c := dbConfig{get("DB_HOST"), get("DB_PORT"), get("DB_NAME"), get("DB_USER"), get("DB_PASS")}
 	if c.host == "" || c.name == "" || c.user == "" {
-		return c, fmt.Errorf("faltan E2E_DB_HOST, E2E_DB_NAME o E2E_DB_USER en harness/.env.%s: sin ellos no se escribe", target)
+		return c, fmt.Errorf("faltan %s, %s o %s en .env: sin ellos no se escribe", envKey(target, "DB_HOST"), envKey(target, "DB_NAME"), envKey(target, "DB_USER"))
 	}
 	if c.port == "" {
 		c.port = "3306"
@@ -392,36 +388,7 @@ func writeConfig(target string) (dbConfig, error) {
 	return c, nil
 }
 
-// harnessEnv lee una clave de harness/.env.<target>; el proceso gana sobre el archivo.
-func harnessEnv(target string) func(string) string {
-	file := filepath.Join(repoRoot(), "harness", ".env."+target)
-	vals := map[string]string{}
-	if data, err := os.ReadFile(file); err == nil {
-		for _, line := range strings.Split(string(data), "\n") {
-			line = strings.TrimSpace(line)
-			if line == "" || strings.HasPrefix(line, "#") {
-				continue
-			}
-			k, v, ok := strings.Cut(strings.TrimPrefix(line, "export "), "=")
-			if ok {
-				vals[strings.TrimSpace(k)] = strings.Trim(strings.TrimSpace(v), `"'`)
-			}
-		}
-	}
-	return func(k string) string {
-		if v := os.Getenv(k); v != "" {
-			return v
-		}
-		return vals[k]
-	}
-}
-
 func isLocalHost(h string) bool { return h == "127.0.0.1" || h == "localhost" || h == "::1" }
-
-func repoRoot() string {
-	_, file, _, _ := runtime.Caller(0)
-	return filepath.Clean(filepath.Join(filepath.Dir(file), "..", ".."))
-}
 
 // Delete borra lo que dice el plan. Vuelve a armarlo y a comprobar las guardas: no le cree al navegador.
 // Con rollback=true hace todo y deshace al final: así se prueba el camino entero sin borrar nada.
@@ -669,7 +636,7 @@ func disableUserTx(tx *stdsql.Tx, keep func(table, query string) error, id int, 
 	return n == 1, nil
 }
 
-// openWrite abre la base del harness de ese ambiente, la única con la que ecommerce escribe.
+// openWrite abre la base de ese ambiente, la única con la que ecommerce escribe.
 func openWrite(target string) (*stdsql.DB, error) {
 	cfg, err := writeConfig(target)
 	if err != nil {
@@ -752,7 +719,7 @@ func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted
 }
 
 // userTables son las tablas con `user_id` de ESTA base (menos users), como childTables con `user_request_id`.
-func userTables(src dbsql.Source) ([]childTable, error) {
+func userTables(src Source) ([]childTable, error) {
 	list, err := rows(src, `SELECT c.TABLE_NAME AS t, (SELECT COUNT(*) FROM information_schema.COLUMNS i
 			WHERE i.TABLE_SCHEMA = c.TABLE_SCHEMA AND i.TABLE_NAME = c.TABLE_NAME AND i.COLUMN_NAME = 'id' AND i.COLUMN_KEY = 'PRI') AS has_id
 		FROM information_schema.COLUMNS c JOIN information_schema.TABLES tb
@@ -860,10 +827,10 @@ func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, 
 	return out, nil
 }
 
-// writeBackup guarda en ecommerce/.backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
+// writeBackup guarda en .backups/ (fuera de git, sólo para vos) cada fila borrada o cambiada, por tabla,
 // tal como estaba. Con ellas se puede reponer lo borrado. Lleva datos personales: no se comparte.
 func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
-	dir := filepath.Join(repoRoot(), "ecommerce", ".backups")
+	dir := filepath.Join(appRoot(), ".backups")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
 	}
@@ -886,13 +853,13 @@ func writeBackup(d *Deleted, rows map[string][]map[string]any) (string, error) {
 	if err := os.WriteFile(file, data, 0o600); err != nil {
 		return "", err
 	}
-	rel, _ := filepath.Rel(repoRoot(), file)
+	rel, _ := filepath.Rel(appRoot(), file)
 	return rel, nil
 }
 
-// journal deja constancia de cada borrado en ecommerce/.deletions.ndjson (fuera de git): qué, dónde y cuánto.
+// journal deja constancia de cada borrado en .deletions.ndjson (fuera de git): qué, dónde y cuánto.
 func journal(d *Deleted) {
-	f, err := os.OpenFile(filepath.Join(repoRoot(), "ecommerce", ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	f, err := os.OpenFile(filepath.Join(appRoot(), ".deletions.ndjson"), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
 		return
 	}

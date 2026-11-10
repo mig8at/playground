@@ -201,7 +201,7 @@ atribuir a su sucursal y a su plataforma sin heurísticas:
 **La tienda VTEX de verdad, sin nadie en el checkout (verificado el 2026-11-05).** Compra en la tienda de pruebas por
 la API de Checkout con la identidad de cada caso, entra al wizard de qa por el `?ref=`, le da el desenlace y espera a
 VTEX. Pide la VPN de dev (simulador y base de qa) y la llave de `harness/.env.vtex`. La versión del conector que atendió
-sale en la primera línea; en ecommerce-v2 se ve en el bloque VTEX del sidebar.
+sale en la primera línea; en ecommerce se ve en el bloque VTEX del sidebar.
 
 ```sh
 make harness-vtex TARGET=qa                       # aprobada, negada, cancelada y tienda-cancela, en paralelo (~90 s)

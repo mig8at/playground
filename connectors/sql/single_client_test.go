@@ -17,7 +17,7 @@ func TestNoOtherSQLClientInTheRepo(t *testing.T) {
 		// Se creó como copia suelta a propósito (c7d840cc, 2026-11-03): sin connectors, harness ni bin/pg, con todo en
 		// su .env, para que funcione fuera del playground. Si vuelve a usar el conector, esta excepción deja de matchear
 		// y la prueba pide borrarla.
-		"ecommerce-v2/": "copia independiente del playground, decidida al crearla",
+		"ecommerce/": "copia independiente del playground, decidida al crearla (era ecommerce-v2 hasta el 2026-11-09)",
 	}
 	if offenders := repocheck.Offenders(t, client, allowed); len(offenders) > 0 {
 		t.Errorf("hay clientes SQL fuera de connectors/ (usá connectors/sql): %v", offenders)

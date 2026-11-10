@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"strings"
-
-	dbsql "creditop/playground/connectors/sql"
 )
 
 // secretColumns no se muestran nunca: la contraseña y los tokens del usuario no le sirven a una prueba.
@@ -17,11 +15,11 @@ const maxTableRows = 200
 
 // TableRows son las filas de UNA tabla que son de la solicitud, con las columnas en el orden de la base.
 type TableRows struct {
-	Table     string      `json:"table"`
-	Columns   []string    `json:"columns"`
-	Rows      []dbsql.Row `json:"rows"`
-	Truncated bool        `json:"truncated"`
-	Query     string      `json:"query"` // la consulta que trae estas filas, para correrla en otro lado
+	Table     string   `json:"table"`
+	Columns   []string `json:"columns"`
+	Rows      []Row    `json:"rows"`
+	Truncated bool     `json:"truncated"`
+	Query     string   `json:"query"` // la consulta que trae estas filas, para correrla en otro lado
 }
 
 // RequestTableRows lee las filas de la solicitud en una tabla: la misma tabla y el mismo filtro con que se
