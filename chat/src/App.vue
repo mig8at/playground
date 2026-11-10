@@ -16,12 +16,13 @@
  *
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useChatStore, isImage, IMAGE_AUTO_MAX } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
 import PdfPages from './PdfPages.vue'
+import PdfThumb from './PdfThumb.vue'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -506,13 +507,16 @@ const mediaDays = computed(() => {
     for (const f of m.files || []) {
       const d = dayOf(m.time)
       let day = days.at(-1)
-      if (!day || day.key !== d) { day = { key: d, label: dayLabel(m.time), images: [], docs: [] }; days.push(day) }
-      ;(isImage(f) ? day.images : day.docs).push({ item: m, f })
+      if (!day || day.key !== d) { day = { key: d, label: dayLabel(m.time), items: [] }; days.push(day) }
+      day.items.push({ item: m, f })   // fotos y archivos juntos, en el orden en que llegaron
     }
   }
   return days.reverse()   // lo más nuevo arriba
 })
-const mediaCount = computed(() => mediaDays.value.reduce((n, d) => n + d.images.length + d.docs.length, 0))
+const mediaCount = computed(() => mediaDays.value.reduce((n, d) => n + d.items.length, 0))
+// Un PDF cuya portada no se pudo dibujar queda con su tipo, sin volver a intentarlo.
+const thumbFailed = reactive(new Set())
+const pdfThumbOf = (e) => isPdf(e.f) && e.f.status === 'bajado' && !thumbFailed.has(e.f.id || e.f.name) ? chat.fileUrl(e.f) : ''
 function openMedia(entry) {
   if (isImage(entry.f)) { if (imageSrc(entry.item, entry.f)) openImage(entry.item, entry.f); return }
   if (isPdf(entry.f) && entry.f.id) openDoc(entry.item, entry.f)
@@ -1320,25 +1324,26 @@ const statusText = computed(() => {
           <p v-if="!mediaCount" class="side-note center">Todavía no hay fotos ni archivos en esta conversación.</p>
           <section v-for="d in mediaDays" :key="d.key" class="media-day">
             <h4 class="media-day-label">{{ d.label }}</h4>
-            <div v-if="d.images.length" class="media-tiles">
-              <button v-for="e in d.images" :key="e.f.id || e.f.name + e.item.id" type="button" class="media-tile"
-                      :title="`${e.f.name} · ${galleryWho(e.item)}`" @click="openMedia(e)">
-                <img v-if="imageSrc(e.item, e.f)" :src="imageSrc(e.item, e.f)" :alt="e.f.name" loading="lazy">
-                <span v-else class="media-tile-wait">{{ e.f.status === 'error' ? 'no está' : 'cargando…' }}</span>
-              </button>
-            </div>
-            <ul v-if="d.docs.length" class="media-docs">
-              <li v-for="e in d.docs" :key="e.f.id || e.f.name + e.item.id" class="attachment" :class="`kind-${kindOf(e.f)}`">
-                <component :is="isPdf(e.f) && e.f.id ? 'button' : 'div'" :type="isPdf(e.f) && e.f.id ? 'button' : undefined" class="doc-card"
-                           :title="isPdf(e.f) && e.f.id ? `Ver ${e.f.name}` : e.f.name" @click="openMedia(e)">
-                  <span class="doc-icon" aria-hidden="true">{{ extOf(e.f) }}</span>
-                  <span class="doc-main">
-                    <span class="doc-name">{{ e.f.name }}</span>
-                    <span class="doc-meta">{{ extOf(e.f) }} · {{ sizeText(e.f.size) }} · {{ galleryWho(e.item) }}</span>
+            <div class="media-tiles">
+              <template v-for="e in d.items" :key="e.f.id || e.f.name + e.item.id">
+                <button v-if="isImage(e.f)" type="button" class="media-tile"
+                        :title="`${e.f.name} · ${galleryWho(e.item)}`" @click="openMedia(e)">
+                  <img v-if="imageSrc(e.item, e.f)" :src="imageSrc(e.item, e.f)" :alt="e.f.name" loading="lazy">
+                  <span v-else class="media-tile-wait">{{ e.f.status === 'error' ? 'no está' : 'cargando…' }}</span>
+                </button>
+                <!-- Un archivo es un cuadro más: la portada si es un PDF, si no su tipo en grande; abajo, el nombre. -->
+                <component v-else :is="isPdf(e.f) && e.f.id ? 'button' : 'div'" :type="isPdf(e.f) && e.f.id ? 'button' : undefined"
+                           class="media-tile file-tile" :class="`kind-${kindOf(e.f)}`"
+                           :title="`${e.f.name} · ${sizeText(e.f.size)} · ${galleryWho(e.item)}`" @click="openMedia(e)">
+                  <PdfThumb v-if="pdfThumbOf(e)" :src="pdfThumbOf(e)" @fail="thumbFailed.add(e.f.id || e.f.name)" />
+                  <span v-else class="file-tile-ext" aria-hidden="true">{{ extOf(e.f) }}</span>
+                  <span class="file-tile-foot">
+                    <span class="file-tile-badge">{{ extOf(e.f) }}</span>
+                    <span class="file-tile-name">{{ e.f.name }}</span>
                   </span>
                 </component>
-              </li>
-            </ul>
+              </template>
+            </div>
           </section>
         </div>
       </template>
@@ -1799,8 +1804,23 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
 .media-tile:hover img { transform: scale(1.04) }
 .media-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px }
 .media-tile-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-2); font-size: var(--text-xs) }
-.media-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px }
-.media-docs .attachment { width: 100% }
+.file-tile { display: block; color: inherit; font: inherit; text-align: left; outline: 1px solid var(--hairline); outline-offset: -1px;
+  background: color-mix(in oklab, var(--kind, var(--fg-2)) 14%, var(--background)) }
+div.file-tile { cursor: default }
+button.file-tile { cursor: zoom-in }
+.file-tile.kind-pdf { --kind: var(--destructive) }
+.file-tile.kind-sheet { --kind: var(--chart-1) }
+.file-tile.kind-doc { --kind: var(--primary) }
+.file-tile.kind-zip { --kind: var(--chart-2) }
+.file-tile.kind-code { --kind: var(--chart-3) }
+.file-tile:has(.pdf-thumb) { background: var(--card) }
+.file-tile-ext { position: absolute; inset: 0 0 26px; display: grid; place-items: center; font-size: var(--text-sm); font-weight: 700;
+  letter-spacing: .04em; color: color-mix(in oklab, var(--kind, var(--fg-2)) 70%, var(--foreground)) }
+.file-tile-foot { position: absolute; left: 0; right: 0; bottom: 0; display: flex; align-items: center; gap: 4px; height: 26px; padding: 0 6px;
+  background: color-mix(in oklab, var(--background) 88%, transparent); border-top: 1px solid var(--hairline) }
+.file-tile-badge { flex: none; padding: 0 3px; border-radius: 3px; font-size: 9px; font-weight: 700; line-height: 14px;
+  background: color-mix(in oklab, var(--kind, var(--fg-2)) 22%, var(--background)); color: color-mix(in oklab, var(--kind, var(--fg-2)) 70%, var(--foreground)) }
+.file-tile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px }
 .doc-back .ui-icon { transform: rotate(180deg) }
 /* La galería: la imagen ocupa lo que queda, el pie dice de quién y cuándo, y abajo la tira de miniaturas. */
 .gallery { flex: 1; min-height: 0; display: flex; flex-direction: column; background: color-mix(in oklab, var(--muted) 55%, var(--background)) }
