@@ -550,7 +550,10 @@ def order_by_links(paths):
         info[p] = (f"{d['node']}#{anchor(d['section'])}", set(re.findall(r"\[\[([^\]]+)\]\]", text)))
     out, done = [], set()
     def visit(p, stack=()):
-        if p in done or p in stack:
+        if p in stack:  # dos secciones nuevas que se enlazan entre sí: ningún orden pasa el lint pieza por pieza
+            print(f"  ⚠ ciclo de enlaces entre piezas nuevas: {', '.join(os.path.basename(x) for x in stack + (p,))} — sacá uno de los dos enlaces")
+            return
+        if p in done:
             return
         for q in paths:
             if q != p and info[q][0] in info[p][1]:
