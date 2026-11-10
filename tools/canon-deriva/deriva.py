@@ -530,7 +530,7 @@ def step_piezas(args):
                  archivos={to_alias(t, r): sorted(set(v)) for r, v in rs.items()})
         path = os.path.join(out, f"v-{t}.json"); json.dump(p, open(path, "w"), ensure_ascii=False, indent=1); vs.append(path)
     # adiciones primero: una corrección que enlaza a su otra mitad falla si esa mitad todavía no existe
-    open(os.path.join(out, "LOTE.txt"), "w").write(" ".join(adds + cors + vs))
+    open(os.path.join(out, "LOTE.txt"), "w").write(" ".join(order_by_links(adds) + cors + vs))
     save(out, "APARTE.json", aparte)
     print(f"  {len(adds)} adiciones · {len(cors)} correcciones · {len(vs)} verificado · aparte: "
           f"{len(aparte['titulos'])} títulos, {len(aparte['objetivos_de_area'])} objetivos de área")
@@ -538,6 +538,27 @@ def step_piezas(args):
         print(f"  ⚠ {w}")
     big = len(adds) + len(cors) + len(vs)
     print(f"  → ensayo: CANON_TIMEOUT={max(5, big // 20 + 3)}m make canon-write DRY=1 PIECE=\"$(cat {out}/LOTE.txt)\"")
+
+
+def order_by_links(paths):
+    """Una adición que enlaza a otra del mismo lote va DESPUÉS: el lint valida pieza por pieza y un enlace a una
+    sección que todavía no entró lo rechaza (pasó con la del usuario temporal y la del link de continuación)."""
+    info = {}
+    for p in paths:
+        d = json.load(open(p))
+        text = open(os.path.join(os.path.dirname(p), d["text_file"])).read()
+        info[p] = (f"{d['node']}#{anchor(d['section'])}", set(re.findall(r"\[\[([^\]]+)\]\]", text)))
+    out, done = [], set()
+    def visit(p, stack=()):
+        if p in done or p in stack:
+            return
+        for q in paths:
+            if q != p and info[q][0] in info[p][1]:
+                visit(q, stack + (p,))
+        done.add(p); out.append(p)
+    for p in paths:
+        visit(p)
+    return out
 
 
 # ── movidos ─────────────────────────────────────────────────────────────────────────────────────────
