@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -53,8 +55,7 @@ func TestAnswerKeyring(t *testing.T) {
 	answerKeyring([]cli.Message{{ID: "4", Dir: "in", From: from, Time: "2020-01-01T00:00:00Z", Text: "🔑 Pido tu llavero"}})
 	want := []string{
 		"ana@creditop.com|1|🔑 Mi llavero (2)\n• a\n• b",
-		"ana@creditop.com|2|🔒 Clave «b» · encriptada con la llave del equipo\nU2FsdGVkX1BBB=",
-		"ana@creditop.com|2|🔑 No tengo en mi llavero: «z»",
+		"ana@creditop.com|2|🔒 Llavero · 1 clave encriptada con la llave del equipo\nB=U2FsdGVkX1BBB=\n# no está en el llavero: z",
 	}
 	if !reflect.DeepEqual(sent, want) {
 		t.Fatalf("got %q\nwant %q", sent, want)
@@ -63,7 +64,28 @@ func TestAnswerKeyring(t *testing.T) {
 	sp, _ := keyringSettingsPath()
 	_ = writePrivate(sp, []byte(`{"autoShare":false}`))
 	answerKeyring([]cli.Message{{ID: "5", Dir: "in", From: from, Time: now, Text: "🔑 Pido tu llavero"}})
-	if len(sent) != 3 {
-		t.Fatalf("con el compartir apagado contestó: %q", sent[3:])
+	if len(sent) != 2 {
+		t.Fatalf("con el compartir apagado contestó: %q", sent[2:])
+	}
+}
+
+func TestEnvBlocks(t *testing.T) {
+	if got := envName("shopify-admin.dev "); got != "SHOPIFY_ADMIN_DEV" {
+		t.Errorf("envName: %q", got)
+	}
+	var keys []savedKey
+	for i := 0; i < 60; i++ {
+		keys = append(keys, savedKey{Name: fmt.Sprintf("clave-%02d", i), Sealed: "U2FsdGVkX1" + strings.Repeat("A", 40)})
+	}
+	blocks := envBlocks(keys, nil)
+	total := 0
+	for _, b := range blocks {
+		if len([]rune(b)) > maxText {
+			t.Fatalf("un bloque pasa el tope: %d", len([]rune(b)))
+		}
+		total += strings.Count(b, "=U2Fs")
+	}
+	if len(blocks) < 2 || total != 60 {
+		t.Fatalf("bloques %d, claves %d", len(blocks), total)
 	}
 }

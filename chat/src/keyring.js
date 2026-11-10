@@ -46,25 +46,43 @@ export const newTeamKey = () => b64(crypto.getRandomValues(new Uint8Array(32))).
      🔑 Pido tu llavero                       → 🔑 Mi llavero (2)        (sólo los nombres)
                                                  • shopify-admin-dev
                                                  • vtex-key
-     🔑 Pido estas claves                     → 🔒 Clave «shopify-admin-dev» · encriptada con la llave del equipo
-     • shopify-admin-dev                         U2FsdGVkX1…              (una por mensaje)
+     🔑 Pido estas claves                     → 🔒 Llavero · 1 clave encriptada con la llave del equipo
+     • shopify-admin-dev                         SHOPIFY_ADMIN_DEV=U2FsdGVkX1…   (un bloque .env, encriptado)
 
    Lo que se escriba después de una línea en blanco es texto normal. */
 const KEY_RE = /^🔒 Clave «([^»\n]+)»[^\n]*\n(U2FsdGVkX1[A-Za-z0-9+/=]+)[ \t]*(?:\n\n([\s\S]*))?$/
+const ENV_RE = /^🔒 Llavero[^\n]*\n([\s\S]+)$/
 const ASK_KEYRING_RE = /^🔑 Pido tu llavero[^\n]*(?:\n\n([\s\S]*))?$/
 const LIST_RE = /^🔑 Mi llavero \((\d+)\)([\s\S]*)$/
 const ASK_KEYS_RE = /^🔑 Pido (?:estas claves|las claves|la clave)([\s\S]*)$/
 const bullets = (text) => [...text.matchAll(/^[•\-*] *(\S[^\n]*?)\s*$/gm)].map((m) => m[1])
 const quoted = (text) => [...text.matchAll(/«([^»\n]+)»/g)].map((m) => m[1])
 
-export const keyMessage = (name, sealed) => `🔒 Clave «${name}» · encriptada con la llave del equipo\n${sealed}`
+// El nombre como variable de entorno (shopify-admin-dev → SHOPIFY_ADMIN_DEV), igual que server/keyring_auto.go.
+export function envName(name) {
+  let n = String(name).trim().toUpperCase().replace(/[^A-Z0-9_]+/g, '_').replace(/^_+|_+$/g, '')
+  if (!n || /^[0-9]/.test(n)) n = `K_${n}`
+  return n
+}
+const plural = (n) => (n === 1 ? '' : 's')
+// Un bloque .env con las claves encriptadas (lo que se manda a mano; el servidor contesta igual).
+export const envMessage = (keys) =>
+  `🔒 Llavero · ${keys.length} clave${plural(keys.length)} encriptada${plural(keys.length)} con la llave del equipo\n` +
+  keys.map((k) => `${envName(k.name)}=${k.sealed}`).join('\n')
+export const keyMessage = (name, sealed) => envMessage([{ name, sealed }])
 export const askKeyringMessage = () => '🔑 Pido tu llavero'
 export const askKeysMessage = (names) => `🔑 Pido estas claves\n${names.map((n) => `• ${n}`).join('\n')}`
 
-// { kind: 'key', name, sealed, rest } · { kind: 'ask-keyring', rest } · { kind: 'list', names } · { kind: 'ask', names } · null
+// { kind: 'env', keys: [{ name, sealed }], notes } · { kind: 'key', name, sealed, rest } · { kind: 'ask-keyring', rest } · { kind: 'list', names } · { kind: 'ask', names } · null
 export function parseKeyText(text) {
   const t = (text || '').trim()
-  let m = t.match(KEY_RE)
+  let m = t.match(ENV_RE)
+  if (m) {
+    const keys = [...m[1].matchAll(/^([A-Za-z_][A-Za-z0-9_]*)=(U2FsdGVkX1[A-Za-z0-9+/=]+)\s*$/gm)].map((x) => ({ name: x[1], sealed: x[2] }))
+    const notes = [...m[1].matchAll(/^#\s*(.+)$/gm)].map((x) => x[1])
+    if (keys.length || notes.length) return { kind: 'env', keys, notes, rest: '' }
+  }
+  m = t.match(KEY_RE)
   if (m) return { kind: 'key', name: m[1], sealed: m[2], rest: m[3] || '' }
   m = t.match(ASK_KEYRING_RE)
   if (m) return { kind: 'ask-keyring', rest: m[1] || '' }

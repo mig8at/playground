@@ -3,9 +3,16 @@ package main
 // EL LLAVERO SE CONTESTA SOLO. Alguien del equipo (o su agente) te escribe por el chat, en una conversación directa:
 //
 //	🔑 Pido tu llavero              → contesta la LISTA de nombres de «Guardadas» (nunca los valores)
-//	🔑 Pido estas claves            → contesta cada una como «🔒 Clave «nombre» …» con su encriptado (el mismo que
-//	• nombre-1                        está guardado: va con la llave del equipo, que todos tienen)
+//	🔑 Pido estas claves            → contesta UN bloque .env con las pedidas, cada valor ENCRIPTADO (el mismo que
+//	• nombre-1                        está guardado: va con la llave del equipo, que todos tienen):
 //	• nombre-2
+//	                                    🔒 Llavero · 2 claves encriptadas con la llave del equipo
+//	                                    NOMBRE_1=U2FsdGVkX1…
+//	                                    NOMBRE_2=U2FsdGVkX1…
+//	                                    # no está en el llavero: nombre-3
+//
+// El bloque se lee y se pega como un .env; la interfaz lo desencripta a un .env de verdad, y sin la interfaz lo hace
+// openssl línea por línea.
 //
 // Lo hace este servidor, que corre aunque no haya ninguna ventana abierta. Sólo contesta mensajes directos (no de
 // grupos), recientes, y si «Compartir mi llavero» está prendido en la consola (por defecto, sí). Lo que va al
@@ -47,8 +54,49 @@ func keyringListText(names []string) string {
 	return b.String()
 }
 
-func keyText(name, sealed string) string {
-	return "🔒 Clave «" + name + "» · encriptada con la llave del equipo\n" + sealed
+var envUnsafe = regexp.MustCompile(`[^A-Za-z0-9_]+`)
+
+// envName: el nombre de la clave como variable de entorno (shopify-admin-dev → SHOPIFY_ADMIN_DEV).
+func envName(name string) string {
+	n := strings.Trim(envUnsafe.ReplaceAllString(strings.ToUpper(strings.TrimSpace(name)), "_"), "_")
+	if n == "" || (n[0] >= '0' && n[0] <= '9') {
+		n = "K_" + n
+	}
+	return n
+}
+
+// envBlocks: las claves como bloques .env (encriptados), partidos para no pasar el tope de un mensaje. Cada bloque
+// lleva su encabezado con cuántas claves trae; lo que falta va al final como comentario.
+func envBlocks(keys []savedKey, missing []string) []string {
+	lines := make([]string, 0, len(keys)+1)
+	for _, k := range keys {
+		lines = append(lines, envName(k.Name)+"="+k.Sealed)
+	}
+	if len(missing) > 0 {
+		lines = append(lines, "# no está en el llavero: "+strings.Join(missing, ", "))
+	}
+	var out []string
+	for len(lines) > 0 {
+		n, size, count := 0, 0, 0
+		for n < len(lines) && (n == 0 || size+len(lines[n])+1 <= maxText-120) {
+			size += len(lines[n]) + 1
+			if !strings.HasPrefix(lines[n], "#") {
+				count++
+			}
+			n++
+		}
+		head := fmt.Sprintf("🔒 Llavero · %d clave%s encriptada%s con la llave del equipo", count, plural(count), plural(count))
+		out = append(out, head+"\n"+strings.Join(lines[:n], "\n"))
+		lines = lines[n:]
+	}
+	return out
+}
+
+func plural(n int) string {
+	if n == 1 {
+		return ""
+	}
+	return "s"
 }
 
 // askedNames: los nombres de un «Pido estas claves» (en viñetas, o entre «» en la misma línea).
@@ -142,23 +190,25 @@ func answerKeyring(fresh []cli.Message) {
 			}
 			err = sendAndRecord(ctx, m.From.Email, keyringListText(names), m.ID)
 		} else {
+			// Se busca por el nombre tal cual o como variable de entorno (pedir SHOPIFY_ADMIN_DEV trae shopify-admin-dev).
 			byName := map[string]savedKey{}
 			for _, k := range keys {
 				byName[k.Name] = k
+				byName[envName(k.Name)] = k
 			}
+			var found []savedKey
 			var missing []string
 			for _, n := range askedNames(text) {
-				k, ok := byName[n]
-				if !ok {
-					missing = append(missing, "«"+n+"»")
-					continue
-				}
-				if err = sendAndRecord(ctx, m.From.Email, keyText(k.Name, k.Sealed), m.ID); err != nil {
-					break
+				if k, ok := byName[n]; ok {
+					found = append(found, k)
+				} else {
+					missing = append(missing, n)
 				}
 			}
-			if err == nil && len(missing) > 0 {
-				err = sendAndRecord(ctx, m.From.Email, "🔑 No tengo en mi llavero: "+strings.Join(missing, ", "), m.ID)
+			for _, block := range envBlocks(found, missing) {
+				if err = sendAndRecord(ctx, m.From.Email, block, m.ID); err != nil {
+					break
+				}
 			}
 		}
 		cancel()

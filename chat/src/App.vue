@@ -25,7 +25,7 @@ import PdfPages from './PdfPages.vue'
 import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
-import { askKeyringMessage, askKeysMessage, keyMessage, parseKeyText } from './keyring.js'
+import { askKeyringMessage, askKeysMessage, envMessage, keyMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
@@ -438,13 +438,11 @@ async function askKeyring() {
 async function askKeys(names, re) {
   await chat.send(askKeysMessage(names), re || '', null, {}, [])
 }
-// A mano (si «Compartir mi llavero» está apagado): las pedidas que tenés, una por mensaje.
+// A mano (si «Compartir mi llavero» está apagado): las pedidas que tenés, en un bloque .env.
 async function sendKeysByName(names, re) {
   await loadKeyring()
-  for (const n of names) {
-    const k = keyring.saved.find((x) => x.name === n)
-    if (k) await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
-  }
+  const keys = names.map((n) => keyring.saved.find((x) => x.name === n)).filter(Boolean)
+  if (keys.length) await chat.send(envMessage(keys), re || '', null, {}, [])
 }
 // Quién es el otro en una tarjeta: el que lo mandó en un grupo, o la persona de la conversación.
 const keyWho = (item) => firstName(item.dir === 'in' && item.from?.name ? item.from : chat.active.person)
