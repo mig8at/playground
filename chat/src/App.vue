@@ -145,6 +145,17 @@ async function copyServiceUrl() {
 const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) } catch { return '' } }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const mediaContext = computed(() => !!chat.active && !serverOpen.value && !activeIsAgent.value && !activeIsCanon.value && !activeIsCuadrilla.value)
+// Qué es el sidebar derecho en lo que está abierto (para el botón de la barra de abajo); vacío si no hay.
+const rightKind = computed(() => docView.value ? 'el documento' : openService.value ? 'las rutas' : serverOpen.value ? ''
+  : activeOwnAgent.value ? 'la ficha del agente' : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu agente' : '')
+function toggleRight() {
+  const open = !agentShown.value
+  if (docView.value) { closeDoc(); if (mediaContext.value) setMediaOpen(false); return }
+  if (openService.value) setRoutesOpen(open)
+  else if (activeOwnAgent.value) setOwnPanelOpen(open)
+  else if (mediaContext.value) setMediaOpen(open)
+  else if (!chat.activeKey) setAgentOpen(open)
+}
 const rightOpen = computed(() => {
   if (docView.value) return true
   if (openService.value) return routesOpen.value
@@ -1493,22 +1504,17 @@ const statusText = computed(() => {
                 aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <template v-if="openServer || openService">
-          <button type="button" class="region-action" :aria-pressed="!!panelShown" :title="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'"
-                  :aria-label="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'" @click="setConsoleOpen(!panelShown)">
-            <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
-          </button>
-          <button v-if="openService" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar las rutas"
-                  aria-label="Mostrar u ocultar las rutas" @click="setRoutesOpen(!agentShown)">
-            <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-          </button>
-        </template>
-        <button v-else-if="activeOwnAgent" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar la ficha del agente"
-                aria-label="Mostrar u ocultar la ficha del agente" @click="setOwnPanelOpen(!agentShown)">
-          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        <!-- La consola: hoy sólo la usan un server y un servicio; en lo demás queda a la vista, apagada, para que la
+             barra sea la misma en todas partes. -->
+        <button type="button" class="region-action" :aria-pressed="!!panelShown" :disabled="!(openServer || openService)"
+                :title="openService ? 'Mostrar u ocultar el historial' : openServer ? 'Mostrar u ocultar la consola' : 'La consola todavía no se usa acá'"
+                :aria-label="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'" @click="setConsoleOpen(!panelShown)">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
-        <button v-else-if="!chat.activeKey" type="button" class="region-action" :aria-pressed="!!agentShown" title="Mostrar u ocultar tu agente"
-                aria-label="Mostrar u ocultar tu agente" @click="setAgentOpen(!agentShown)">
+        <!-- El sidebar derecho: según lo que esté abierto son las rutas, la ficha del agente, fotos y archivos o tu agente. -->
+        <button type="button" class="region-action" :aria-pressed="!!agentShown" :disabled="!rightKind"
+                :title="rightKind ? `Mostrar u ocultar ${rightKind}` : 'Acá no hay sidebar derecho'"
+                :aria-label="`Mostrar u ocultar ${rightKind || 'el sidebar derecho'}`" @click="toggleRight">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>
