@@ -3,8 +3,8 @@
    servers_local.go). Cada pieza con su punto, y los botones; la salida de cada comando va abajo, en la consola. */
 import { ref } from 'vue'
 
-const props = defineProps({ server: { type: Object, required: true } })
-const emit = defineEmits(['changed', 'close'])
+const props = defineProps({ server: { type: Object, required: true }, back: Boolean })
+const emit = defineEmits(['changed', 'close', 'back'])
 
 const acting = ref('')
 const actionError = ref('')
@@ -27,7 +27,7 @@ async function act(path) {
 
 <template>
   <div class="region-head">
-    <span class="head-who"><span class="head-title">{{ server.name }}</span>
+    <span class="head-who"><button v-if="back" type="button" class="region-action narrow-back" title="Volver a las conversaciones" aria-label="Volver a las conversaciones" @click="emit('back')"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="head-title">{{ server.name }}</span>
       <span class="count head-sub">{{ server.busy ? server.step || 'trabajando…' : server.ready ? 'listo para probar' : 'falta prender algo' }}</span></span>
     <div class="region-actions">
       <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="emit('close')">
@@ -57,6 +57,7 @@ async function act(path) {
 </template>
 
 <style scoped>
+.narrow-back { flex: none; margin-inline-start: -6px; align-self: center }
 .head-who { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
 .server { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-4) var(--gutter); overflow: auto }
 .checks { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3) }

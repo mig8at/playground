@@ -9,8 +9,8 @@ import KeyValueTable from './KeyValueTable.vue'
 import { picked, remember } from './stores/service-history.js'
 import { headersFor, loadSchema, methodsFor, queryFor, schemaState } from './stores/service-schema.js'
 
-const props = defineProps({ service: { type: Object, required: true }, serving: Boolean })
-const emit = defineEmits(['changed', 'close'])
+const props = defineProps({ service: { type: Object, required: true }, serving: Boolean, back: Boolean })
+const emit = defineEmits(['changed', 'close', 'back'])
 
 // ── prender y apagar ──
 const busy = ref(false)
@@ -156,7 +156,7 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
 
 <template>
   <div class="region-head">
-    <span class="head-who"><span class="head-title">{{ service.name }}</span>
+    <span class="head-who"><button v-if="back" type="button" class="region-action narrow-back" title="Volver a las conversaciones" aria-label="Volver a las conversaciones" @click="emit('back')"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="head-title">{{ service.name }}</span>
       <span class="count head-sub">{{ service.on ? (service.listening && serving ? 'publicado' : 'prendiendo…') : 'apagado' }}</span></span>
     <div class="region-actions">
       <button type="button" class="switch" role="switch" :aria-checked="service.on" :disabled="busy" @click="toggle"
@@ -229,6 +229,7 @@ function onKeydown(e) { if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') send(
 </template>
 
 <style scoped>
+.narrow-back { flex: none; margin-inline-start: -6px; align-self: center }
 .head-who { display: flex; align-items: baseline; gap: var(--space-2); min-width: 0 }
 .service { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4); overflow: auto }
 code, pre, .code { font-family: var(--font-mono) }

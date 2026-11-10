@@ -158,7 +158,8 @@ function toggleConsole() { if (keyringContext.value) setKeyringOpen(!panelShown.
    enlaces y documentos» de WhatsApp): agrupados por día, las fotos en grilla y debajo los documentos. Tocar uno lo abre
    ahí mismo; «Volver» regresa a la lista. Se muestra u oculta desde la cabecera y se recuerda. */
 const mediaOpen = ref(readSize('chat.media-open', 1) !== 0)
-function setMediaOpen(v) { mediaOpen.value = v; saveSize('chat.media-open', v ? 1 : 0) }
+// En angosto, cerrarlo sólo vuelve al chat: no se guarda, para que en la pantalla ancha siga donde estaba.
+function setMediaOpen(v) { if (!v && narrow.value) { narrowRight.value = false; return } mediaOpen.value = v; saveSize('chat.media-open', v ? 1 : 0) }
 const routesOpen = ref(readSize('chat.service-routes-open', 1) !== 0)
 function setRoutesOpen(v) { routesOpen.value = v; saveSize('chat.service-routes-open', v ? 1 : 0) }
 const serviceHistory = computed(() => (openService.value ? historyFor(openService.value.alias) : []))
@@ -178,6 +179,12 @@ const mediaContext = computed(() => !!chat.active && !serverOpen.value && !activ
 const rightKind = computed(() => docView.value ? 'el documento' : openService.value ? 'las rutas' : serverOpen.value ? ''
   : activeOwnAgent.value ? 'la ficha del agente' : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu agente' : '')
 function toggleRight() {
+  if (narrow.value) {
+    if (narrowList.value) return
+    if (showingNarrowRight.value) { narrowRight.value = false; return }
+    narrowRight.value = true
+    if (rightOpen.value) return
+  }
   const open = !agentShown.value
   if (docView.value) { closeDoc(); if (mediaContext.value) setMediaOpen(false); return }
   if (openService.value) setRoutesOpen(open)
@@ -203,9 +210,13 @@ const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min
    la URL se arranca en la lista. */
 const narrow = computed(() => viewportW.value < cssSize('--sidebar-min', 240) + cssSize('--editor-min', 360))
 const narrowList = ref(!location.hash)
+/* La derecha (fotos y archivos, la ficha del agente) es una tercera pantalla: se abre con su botón de la barra de abajo
+   y se cierra con su ✕ o con el mismo botón. */
+const narrowRight = ref(false)
 const showingNarrowList = computed(() => narrow.value && narrowList.value)
-function onSidebarPick(e) { if (e.target.closest?.('.conversation')) narrowList.value = false }
-const agentShown = computed(() => (narrow.value ? 0 : fitted.value[0]))
+const showingNarrowRight = computed(() => narrow.value && !narrowList.value && narrowRight.value && rightOpen.value)
+function onSidebarPick(e) { if (e.target.closest?.('.conversation')) { narrowList.value = false; narrowRight.value = false } }
+const agentShown = computed(() => (narrow.value ? (showingNarrowRight.value ? viewportW.value : 0) : fitted.value[0]))
 const sidebarShown = computed(() => (narrow.value ? (narrowList.value ? viewportW.value : 0) : fitted.value[1]))
 const panelShown = computed(() => fitRegions(viewportH.value - 200, [
   { size: (serverOpen.value && consoleOpen.value) || (keyringContext.value && keyringOpen.value) ? consoleH.value : 0, min: cssSize('--panel-min', 124) },
@@ -817,10 +828,12 @@ const statusText = computed(() => {
   if (!s.listening) return 'no estás escuchando'
   return s.connected ? 'escuchando' : 'reconectando'
 })
+// Al final porque `rightOpen` lee regiones que se declaran más abajo (docView, el agente): cerrar la derecha en angosto vuelve al chat.
+watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
 </script>
 
 <template>
-  <div class="workbench" :class="{ 'narrow-list': showingNarrowList }" :style="layoutVars">
+  <div class="workbench" :class="{ narrow, 'narrow-list': showingNarrowList, 'narrow-right': showingNarrowRight }" :style="layoutVars">
     <aside v-show="sidebarShown" class="sidebar en-bloques" aria-label="Conversaciones" @click.capture="onSidebarPick">
       <!-- TRES VISTAS (`en-bloques` y `.view` de la base): tus conversaciones, los agentes del equipo y los servers. Cada
            una se pliega como en VS Code; con «Paneles», cada una es un panel sobre el lienzo, como en canon. -->
@@ -1010,10 +1023,10 @@ const statusText = computed(() => {
     </aside>
 
     <main v-if="openService" class="editor">
-      <ServicePanel :service="openService" :serving="teamServices.serving" @changed="loadServers" @close="serverOpen = ''" />
+      <ServicePanel :service="openService" :serving="teamServices.serving" :back="narrow" @changed="loadServers" @close="serverOpen = ''" @back="narrowList = true" />
     </main>
     <main v-else-if="openServer" class="editor">
-      <ServerPanel :server="openServer" @changed="loadServers" @close="serverOpen = ''" />
+      <ServerPanel :server="openServer" :back="narrow" @changed="loadServers" @close="serverOpen = ''" @back="narrowList = true" />
     </main>
 
     <main v-else class="editor">
@@ -1589,14 +1602,14 @@ const statusText = computed(() => {
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
         {{ statusText }}<template v-if="chat.me || chat.state?.session"> ·
           <img v-if="myPhoto" class="me-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer">
-          {{ (chat.me || chat.state.session).email }}</template>
+          <span class="wide-only">{{ (chat.me || chat.state.session).email }}</span></template>
       </span>
-      <span v-if="chat.state?.since && listening" class="statusbar-item">desde las {{ clock(chat.state.since) }}</span>
+      <span v-if="chat.state?.since && listening" class="statusbar-item wide-only">desde las {{ clock(chat.state.since) }}</span>
       <!-- Lo que hizo el servidor por su cuenta (el llavero que contestó solo), unos segundos. -->
       <span v-if="chat.liveNotice" class="statusbar-item live-notice"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>{{ chat.liveNotice.text }}</span>
       <button v-if="notifyPermission === 'default'" type="button" class="statusbar-item mode-toggle" title="Que te avise macOS cuando te escriben y no estás mirando el chat"
               @click="askNotifyPermission"><span class="ui-icon" data-icon="bell" aria-hidden="true"></span>activar avisos</button>
-      <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
+      <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item wide-only">
         tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
       </span>
       <!-- Quién contesta: vos o tu agente. Siempre a la vista, para que no quede prendido sin querer. -->
@@ -1618,7 +1631,7 @@ const statusText = computed(() => {
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
         <!-- El sidebar derecho: según lo que esté abierto son las rutas, la ficha del agente, fotos y archivos o tu agente. -->
-        <button type="button" class="region-action" :aria-pressed="!!agentShown" :disabled="!rightKind"
+        <button type="button" class="region-action" :aria-pressed="!!agentShown" :disabled="!rightKind || showingNarrowList"
                 :title="rightKind ? `Mostrar u ocultar ${rightKind}` : 'Acá no hay sidebar derecho'"
                 :aria-label="`Mostrar u ocultar ${rightKind || 'el sidebar derecho'}`" @click="toggleRight">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
@@ -1699,8 +1712,13 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* En angosto, la lista sola: ocupa todo el ancho y el chat, la consola y la derecha no se ven. */
 .workbench.narrow-list > .sidebar { width: auto; grid-column: 1 / -1 }
 .workbench.narrow-list > .editor, .workbench.narrow-list > .panel, .workbench.narrow-list > .auxiliarybar { display: none }
-.head-title { flex: none; font-weight: 600 }
-.head-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis }
+.workbench.narrow-right > .auxiliarybar { width: auto; grid-column: 1 / -1 }
+.workbench.narrow-right > .editor, .workbench.narrow-right > .panel { display: none }
+/* En angosto la barra de abajo deja sólo lo que cambia qué hacés: si estás en vivo, quién contesta y los botones. */
+.workbench.narrow .wide-only { display: none }
+/* Si no entra, ceden los dos; el estado («conectado · @usuario») cede más rápido que el nombre. */
+.head-title { flex: 0 1 auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
+.head-sub { flex: 0 4 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .notice { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 8px var(--gutter);
   border-bottom: 1px solid var(--border); background: var(--muted); color: var(--fg-2); font-size: var(--text-sm) }
 .thread { display: flex; flex-direction: column; gap: 8px; padding: var(--space-4) var(--space-6) }
