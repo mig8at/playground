@@ -32,9 +32,10 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, '..', '..', '..');
 const argv = process.argv.slice(2);
 const flag = (k: string) => { const i = argv.indexOf(`--${k}`); return i >= 0 ? argv[i + 1] : undefined; };
-const STATUS: Record<string, number> = { aprobada: 11, negada: 6, cancelada: 8 };
+// `volver`: el comprador toca «Volver a la tienda» en el wizard sin que el crédito tenga resultado (no hay simulador).
+const STATUS: Record<string, number> = { aprobada: 11, negada: 6, cancelada: 8, volver: -1 };
 const outcome = flag('outcome') || 'aprobada';
-if (!STATUS[outcome]) { console.error(`  ✗ --outcome ${outcome}: ${Object.keys(STATUS).join(', ')}`); process.exit(2); }
+if (!(outcome in STATUS)) { console.error(`  ✗ --outcome ${outcome}: ${Object.keys(STATUS).join(', ')}`); process.exit(2); }
 const variant = flag('variant') || '58721841053999'; // la BMX infantil, $800.000
 const STORE = 'https://creditop-dev-store.myshopify.com';
 const ADMIN = 'https://admin.shopify.com/store/creditop-dev-store';
@@ -96,6 +97,33 @@ await run('node', ['dev/walk-wizard.ts', '--flow', 'ecommerce', '--cases', `#${h
 const walked = JSON.parse(fs.readFileSync(resultFile, 'utf8'))[0];
 if (!walked?.ur) { console.error(`  ✗ el caminador no llegó a la solicitud: ${walked?.motivo ?? '?'}`); process.exit(1); }
 say(`solicitud ${walked.ur} (el caminador por HTTP) · ${secs()}`);
+
+// ── 2b · «Volver a la tienda» a mitad del wizard ──
+// El link del wizard lleva al `return_url` del pedido, que en Shopify es la ruta `payments/return/<sesión>` de la app:
+// sin resultado todavía, la app pone la sesión en PENDIENTE en Shopify y manda al comprador a la confirmación del pedido.
+// Se abre esa misma URL en el Chrome de la compra (es lo que hace el link) y se mira dónde cae y cómo quedó el pedido.
+if (outcome === 'volver') {
+    const erId = Number(new URL(wizard).searchParams.get('erId'));
+    const { stdout } = await run(path.join(ROOT, 'bin/pg'), ['sql', '--target', 'qa', '-json', '--query',
+        `SELECT return_url FROM ecommerce_requests WHERE id = ${erId}`], { timeout: 60_000 });
+    const back = JSON.parse(stdout).rows?.[0]?.return_url;
+    if (!back) { console.error(`  ✗ el pedido ${erId} no tiene return_url en qa: el wizard no muestra «Volver a la tienda»`); process.exit(1); }
+    say(`«Volver a la tienda» → ${back}`);
+    const { page, close } = await openChrome();
+    try {
+        await page.goto(back, { waitUntil: 'domcontentloaded', timeout: 90_000 });
+        await page.waitForURL(/myshopify\.com|shopify\.com/, { timeout: 60_000 }).catch(() => {});
+        await page.waitForTimeout(4_000);
+        say(`el comprador cae en: ${page.url()} · ${secs()}`);
+        say(`la página dice: ${(await page.locator('body').innerText()).replace(/\s+/g, ' ').slice(0, 220)}`);
+    } finally { await close(); }
+    const { graphql } = await import('./api.ts');
+    const d = await graphql<any>(`{ orders(first: 5, sortKey: CREATED_AT, reverse: true) { nodes { name createdAt displayFinancialStatus paymentGatewayNames } } }`);
+    const o = d.orders.nodes.find((x: any) => Date.parse(x.createdAt) >= t0 - 60_000 && x.paymentGatewayNames.some((g: string) => /creditop/i.test(g)));
+    say(o ? `Shopify: pedido ${o.name} · ${o.displayFinancialStatus} · ${secs()}` : `Shopify: sin pedido nuevo con Creditop · ${secs()}`);
+    say(`listo: solicitud ${walked.ur} sigue abierta (sin simulador) · ${secs()}`);
+    process.exit(0);
+}
 
 // ── 3 · el desenlace, por el simulador de qa ──
 const { env } = await import(path.join(ROOT, 'harness/pkg/env.ts'));
