@@ -18,14 +18,14 @@ jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 - [x] Mergear #367 — 6f10efbe, desplegado en dev; el recorte se validó en dev con usuarios reales (sólo lectura).
 - [x] Probar en dev con el permiso dado al Admin comercio 564 del 37 — ve a su cliente, 403 con el del 53;
   permiso quitado (bloque en la pila). La pantalla de dev no se recorrió con su sesión.
-- [ ] Mergear #366 a `main` y taguear; termina con el despliegue en prod.
-  Depende de: Oscar — aprobar #366.
+- [x] ~~Mergear #366 a `main` y taguear~~ — #366 mergeado a `main` el 2026-11-10 00:27 UTC; el recorte salió en
+  legacy-application v1.2.11 (PR #380 develop → main), despliegue a producción en success.
 - [ ] Dar el permiso a los Admin y Superadmin comercio de los comercios que diga Oscar, en cada ambiente;
   termina con la lista en la pila. ⚠ **En un ambiente, sólo después de que el recorte esté desplegado ahí**:
   sin el recorte, el permiso deja ver el perfil de cualquier cédula. El recorte (`alliedIdsOf` en
-  `ProfilingReviewController`) está en `develop` (#367), no en `staging` ni en `main` (medido el 2026-11-06), y
-  esta aplicación no tiene rama `qa`. En prod, sólo después de que termine el pendiente anterior.
-  Depende de: Oscar — qué comercios. Depende de: el despliegue de #366 en prod, para prod.
+  `ProfilingReviewController`) está en `develop` y en `main`/prod desde v1.2.11 (2026-11-09); falta en `staging`,
+  y esta aplicación no tiene rama `qa`. Prod ya puede recibir el permiso.
+  Depende de: Oscar — qué comercios.
 - [x] Quitar de la base compartida la columna `allieds.allow_risk_profile_view` y su registro en `migrations`
   — 2026-11-03, después del despliegue de #367.
 - [ ] Cerrar `legacy-application#171`: su contenido ya está en `main` por el merge de `develop`

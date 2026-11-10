@@ -17,10 +17,10 @@ ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper, authz
 - [x] Registrar el recurso `pdf_mapper` y sus 13 rutas en el autorizador — authz-policies#14 mergeado a `develop` el 2026-10-26 y «Release policies develop» en success.
 - [x] Probar la sección desplegada en el backoffice de desarrollo — Miguel la probó el 2026-10-26 con un Administrador y funciona.
 - [ ] Comprobar que un staff sin `pdf_mapper:view` cae en `/no-access`; termina cuando se ve con un usuario de otro rol en el backoffice de desarrollo.
-- [ ] Pasar authz-policies a `main` (el bucket de producción) junto con el gateway de prod; termina cuando `routes.json` de producción tiene las rutas de pdf-mapper.
+- [x] ~~Pasar authz-policies a `main` (el bucket de producción)~~ — entró por develop → main (#18); «Release policies» de `main` en success el 2026-10-30 (tag `policies-20261030-fb76cbf`); `routes.json` de `main` tiene las 13 rutas `pdf-mapper-service`. Medido el 2026-11-09.
 - [ ] Decidir qué roles además de Administrador llevan `pdf_mapper:view|edit|delete`, y si `pdf_mapper:delete` va a `protected_permissions`.
 - [ ] Abrir el PR de infra para producción, armado como #179: sólo dentro de `environments/prod` y sin tocar el módulo `internal-alb`; termina cuando el plan de prod muestra el target group, el registro del servicio en el lugar (no reemplazo) y las 13 rutas.
-- [ ] Llevar la sección de `lab` hacia `develop` y `main`; termina cuando el backoffice de producción la sirve.
+- [ ] Que el backoffice de producción sirva la sección: el código ya está en `main` y en prod desde frontend-monorepo v1.11.5 (y sigue en v1.11.7), pero sin las rutas del gateway de prod (el pendiente de infra de arriba) sus llamadas no llegan a `pdf-mapper-service`. Falta también en `develop` (sólo pasó por `lab` → `qa` → `main`). Termina cuando un Administrador abre un mapper en el backoffice de prod.
 - [ ] Retirar el PDF Mapper Studio aparte cuando la sección funcione en producción; termina cuando nadie lo usa para publicar.
 
 ## Objetivo

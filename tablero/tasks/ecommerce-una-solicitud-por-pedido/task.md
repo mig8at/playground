@@ -19,7 +19,11 @@ ramas: legacy-backend:una-solicitud-por-pedido
 - [x] ~~Probar lo mismo en `qa`~~ — 2026-10-27, Amoblar: 8006 → 504137 negada; 8007 → 504138 nueva; un segundo
       OTP sobre 8007 retoma la 504138.
 - [x] ~~Crear el issue de Jira~~ — [CORE-819](https://creditop.atlassian.net/browse/CORE-819), en CORE Sprint 21.
-- [ ] Decidir cómo llega a `main`: PR propio desde `main` o junto a otro de ecommerce. Termina con el PR abierto.
+- [x] ~~Decidir cómo llega a `main`~~ — llegó por qa → main sin PR propio; está en `main` y en prod
+      desde legacy-backend v0.6.39 (2026-10-30), que ya contiene la rama (`gh api …/compare/v0.6.39...53986c69c`:
+      behind). Medido el 2026-11-09 con `make tareas-ramas N=106`.
+- [ ] Verlo en prod: un pedido reintentado tras una negada abre una solicitud nueva y no reabre la anterior.
+      Termina con un caso real medido por la base de prod (sólo lectura).
 
 ## Objetivo
 

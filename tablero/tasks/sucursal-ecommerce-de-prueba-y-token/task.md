@@ -28,13 +28,17 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
 - [x] ~~Revisar y mergear [legacy-application#345](pr:application#345) y [legacy-backend#1806](pr:legacy-backend#1806)~~ —
       los dos mergeados el 2026-10-29.
 - [ ] Correr la migración de `is_test` en la base compartida de dev, qa y staging: la columna
-      `allied_branches.is_test` no existe ahí (medido el 2026-11-06). Termina con la columna y un comercio nuevo de
-      dev/qa con sus dos sucursales de prueba marcadas.
+      `allied_branches.is_test` sigue sin existir ahí (medido el 2026-11-09), aunque en prod ya corrió (batch 242,
+      30 sucursales marcadas). Termina con la columna y un comercio nuevo de dev/qa con sus dos sucursales de prueba
+      marcadas.
 - [x] ~~Mergear [legacy-application#348](pr:application#348) a `develop`~~ — mergeado y desplegado en dev el 2026-10-29 (20:19 UTC).
-- [ ] Mergear [legacy-application#349](pr:application#349) (→ `main`: todo lo de #345 y #348) y taguear para producción;
-      después, en el admin de prod, emitir el token versión 5 de la sucursal de prueba de Creditop para la prueba VTEX de
-      la tarea #102. La migración de `is_test` (legacy-backend, rama `feat/sucursal-ecommerce-de-prueba` → `main`) es
-      opcional: sin la columna todo funciona, sólo no se marca qué sucursal es de prueba.
+- [x] ~~Llevar #345 y #348 a producción~~ — entraron a `main` por develop → main y están en prod desde
+      legacy-application v1.2.10 (2026-11-04; siguen en v1.2.11); la parte de legacy-backend (#1806) está en prod
+      desde v0.6.45 o antes, y la migración de `is_test` corrió en prod (batch 242).
+- [ ] Cerrar [legacy-application#349](pr:application#349): sus 10 commits ya están en `main` por equivalencia de
+      parche (medido con `git cherry` el 2026-11-09). Termina con el PR cerrado y una nota de por qué.
+- [ ] En el admin de prod, emitir el token versión 5 de la sucursal de prueba de Creditop para la prueba VTEX de la
+      tarea #102. Termina con el token emitido y guardado donde la prueba lo lee.
 ## Objetivo
 
 Que probar un comercio por tienda no dependa de nadie con acceso al contenedor:

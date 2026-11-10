@@ -8,7 +8,7 @@ canon: []
 jira: [CORE-801, CORE-689, CORE-932]
 jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
 chat: ['#shopify', duncan]
-ramas: core-801-shopify-payment-link, core-689-shopify-platform
+ramas: shopify:core-801, core-689-shopify-platform
 ---
 
 ## Pendientes
@@ -101,8 +101,9 @@ ramas: core-801-shopify-payment-link, core-689-shopify-platform
       campos y un pedido de qa con `billing.phone`. El código está (hoy en el commit único del PR #22, 2b14e52, con
       tests); falta el pedido de qa: pide la app corriendo con `npm run dev` y una compra en `creditop-dev-store` con
       contacto por correo y celular en la dirección.
-- [ ] Revisar y mergear `Creditop-SAS/shopify#22` (la app, `feat/core-801-shopify-payment-link` → `develop`; reemplaza
-      al #21, cerrado al renombrar la rama). Termina mergeado. La plataforma 4 de legacy-backend ya no espera a
+- [x] ~~Revisar y mergear `Creditop-SAS/shopify#22`~~ — mergeado a `develop` el 2026-11-04; detrás, #23, #24, #26 y
+      #27 (también a `develop`, 2026-11-09). El repo `shopify` no tiene rama `qa`: `main` sigue en el commit inicial
+      hasta el despliegue de producción (pendiente de infra). La plataforma 4 de legacy-backend ya no espera a
       `Creditop-SAS/legacy-backend#1693`: entró a `main` por 51181aaf3 y está en prod desde v0.6.29 (`ecommerces` id 4 =
       Shopify). El #1693 quedó en conflicto con esa misma migración y sólo agregaría el `unguarded` de la siembra, que
       en prod no hizo falta porque el autoincremental ya daba 4.

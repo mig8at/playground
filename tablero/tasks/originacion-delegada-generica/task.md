@@ -12,11 +12,11 @@ ramas: originacion-delegada
 
 ## Pendientes
 
-- [ ] Antes de prender Materiales (214) en prod: alias `credifamilia-materiales` de pre-approvals-service en `main`
-  (hoy sólo en `develop`); los 8 `lender_transaction_statuses` del 214 (sólo los tiene el 24; se cargan con
-  `CredifamiliaConsumoSeeder`, a mano); las filas FNG del 214 (la siembra figura corrida y dejó 0); y las migraciones
-  de perfil y slug corridas con `APP_ENV=production` (con otro valor siembran el perfil sobre el 216, que en prod es
-  Keygo, y el 214 queda sin perfil). Termina con las cuatro cosas medidas en prod.
+- [ ] Antes de prender Materiales (214) en prod: cargar sus 8 `lender_transaction_statuses` (sólo los tiene el 24;
+  se cargan con `CredifamiliaConsumoSeeder`, a mano). Termina con las 8 filas del 214 medidas en prod. Lo demás
+  quedó el 2026-11-09: alias `credifamilia-materiales` en `main` de pre-approvals-service y desplegado (v0.1.22);
+  perfil del 214 (la migración lo había sembrado sobre el 216, Keygo; Laura lo pasó al 214) y sus 6 filas FNG
+  (la siembra había dejado 0; Laura las insertó). Medido por Redash, ver la pila.
 - [ ] Que el front sondee la preaprobación de Materiales como la de Salud: `fetchLenderPreApproval` sólo hace polling
   con `lender.id === 24`, y un `pending` de Credifamilia vía el alias deja la tarjeta de Materiales en error.
   Termina con una tarjeta de Materiales en qa que espera y resuelve. Depende de: front. **Visto en el front de qa
@@ -52,13 +52,18 @@ ramas: originacion-delegada
   comercio de `harness/merchant-specs/finandina.json` y la suite `harness/suites/finandina.json`, sobre la rama
   local `feat/finandina-originacion-delegada` de legacy-backend (519495056). Ya no espera a #107: falta correr
   la suite con este código y anotar el resultado.
-- [ ] Correr las migraciones `2026_10_30_120000` y `2026_10_30_120100` en cada ambiente ANTES o junto con el
-  despliegue: sin el perfil sembrado, Credifamilia deja de calcular el plan de pago. Termina con la fila de
-  la 24 y la de Materiales en `delegated_origination_profiles` de cada base (dev/qa/staging comparten una).
+- [x] ~~Correr las migraciones `2026_10_30_120000` y `2026_10_30_120100` en cada ambiente~~ — en prod, batch
+  245 (2026-11-10 00:43 UTC), junto con el despliegue de legacy-backend v0.6.46; `delegated_origination_profiles`
+  de prod tiene la 24 y la 214 tras la corrección de Laura.
 - [x] ~~Cambiar en el asistente la lista de ids por el riel~~ — frontend-monorepo 437048054; build en verde y
   la tarjeta de Credifamilia sigue mostrando el plan del backend.
 - [x] ~~Abrir un PR por repo contra `qa`~~ — legacy-backend#1815 y frontend-monorepo#1314.
-- [ ] Conseguir la revisión de los dos PRs y mergearlos a `qa`. Depende de: el equipo — la revisión.
+- [x] ~~Conseguir la revisión de los dos PRs y llevarlos a producción~~ — #1815 y #1314 mergeados a `qa` el
+  2026-11-03; en `main` y desplegados el 2026-11-09: legacy-backend v0.6.46 (PR #1894) y frontend-monorepo
+  v1.11.7 (PR #1374), los dos despliegues en success.
+- [ ] Ver a Credifamilia Salud (24) con tráfico real después del despliegue: solicitudes que pasan por el plan de
+  pago sin `CALCULATION_ERROR` ni errores de perfil en Loki prod. Termina con la medición de un día hábil. Joel
+  lo valida también por la pantalla.
 - [ ] Avisarle a Laura del renombre de `PaymentPlan/Credifamilia` → `PaymentPlan/DelegatedOrigination` antes de
   mergear: sus ramas abiertas sobre esos archivos van a tener conflictos. Termina con el aviso dado.
 - [ ] Al llegar a `main`, actualizar las fuentes de `knowledge/lender-response-types` a las rutas nuevas y correr
