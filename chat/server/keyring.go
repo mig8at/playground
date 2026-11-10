@@ -5,8 +5,8 @@ package main
 //
 //	echo '<cifrado>' | openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key
 //
-// El cifrado lo hace la interfaz (src/keyring.js); el servidor sólo guarda el llavero y la llave en disco, en esta
-// máquina y legibles sólo por su dueño. Lo que va en el llavero es para el equipo: lo privado no va acá.
+// El cifrado lo hace la interfaz (src/keyring.js) y no se guarda ninguna clave: el servidor sólo guarda la llave del
+// equipo en disco, en esta máquina y legible sólo por su dueño. Lo que se pasa así es para el equipo: lo privado no.
 
 import (
 	"encoding/json"
@@ -17,13 +17,6 @@ import (
 	"strings"
 	"sync"
 )
-
-type keyEntry struct {
-	Name    string `json:"name"`
-	Value   string `json:"value"`
-	Note    string `json:"note,omitempty"`
-	Updated string `json:"updated,omitempty"`
-}
 
 var keyringMu sync.Mutex
 
@@ -39,34 +32,17 @@ func teamKeyPath() (string, error) {
 	return filepath.Join(home, ".config", "creditop", "team-key"), nil
 }
 
-func keyringPath() (string, error) {
-	dir, err := historyDir()
+// readTeamKey: la primera línea del archivo (como la lee openssl con -pass file:), o vacío si no hay.
+func readTeamKey() string {
+	kp, err := teamKeyPath()
 	if err != nil {
-		return "", err
+		return ""
 	}
-	return filepath.Join(dir, "keyring.json"), nil
-}
-
-func readKeyring() ([]keyEntry, string, error) {
-	keys := []keyEntry{}
-	p, err := keyringPath()
+	b, err := os.ReadFile(kp)
 	if err != nil {
-		return nil, "", err
+		return ""
 	}
-	if b, err := os.ReadFile(p); err == nil {
-		if err := json.Unmarshal(b, &keys); err != nil {
-			return nil, "", err
-		}
-	} else if !errors.Is(err, os.ErrNotExist) {
-		return nil, "", err
-	}
-	team := ""
-	if kp, err := teamKeyPath(); err == nil {
-		if b, err := os.ReadFile(kp); err == nil {
-			team = strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
-		}
-	}
-	return keys, team, nil
+	return strings.TrimSpace(strings.SplitN(string(b), "\n", 2)[0])
 }
 
 func writePrivate(path string, data []byte) error {
@@ -84,37 +60,20 @@ func registerKeyring(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/keyring", func(w http.ResponseWriter, r *http.Request) {
 		keyringMu.Lock()
 		defer keyringMu.Unlock()
-		keys, team, err := readKeyring()
-		if err != nil {
-			fail(w, http.StatusInternalServerError, err)
-			return
-		}
 		kp, _ := teamKeyPath()
-		writeJSON(w, http.StatusOK, map[string]any{"keys": keys, "teamKey": team, "teamKeyPath": kp})
+		writeJSON(w, http.StatusOK, map[string]any{"teamKey": readTeamKey(), "teamKeyPath": kp})
 	})
-	// Guarda el llavero entero (lo arma la interfaz) y, si viene, la llave del equipo.
+	// Guarda la llave del equipo.
 	mux.HandleFunc("PUT /api/keyring", func(w http.ResponseWriter, r *http.Request) {
 		var in struct {
-			Keys    []keyEntry `json:"keys"`
-			TeamKey *string    `json:"teamKey"`
+			TeamKey *string `json:"teamKey"`
 		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 1<<20)).Decode(&in); err != nil {
-			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {keys, teamKey?}"))
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&in); err != nil || in.TeamKey == nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {teamKey}"))
 			return
 		}
 		keyringMu.Lock()
 		defer keyringMu.Unlock()
-		if in.Keys != nil {
-			b, _ := json.MarshalIndent(in.Keys, "", "  ")
-			p, err := keyringPath()
-			if err == nil {
-				err = writePrivate(p, b)
-			}
-			if err != nil {
-				fail(w, http.StatusInternalServerError, err)
-				return
-			}
-		}
 		if in.TeamKey != nil {
 			k := strings.TrimSpace(*in.TeamKey)
 			if k == "" || strings.ContainsAny(k, " \n\t") {
