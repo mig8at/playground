@@ -16,13 +16,10 @@
  *
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
-import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useChatStore, isImage, IMAGE_AUTO_MAX } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
-import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
-import PdfPages from './PdfPages.vue'
-import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
 import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
@@ -39,6 +36,12 @@ import { forget as forgetHistory, historyFor, pick as pickHistory } from './stor
 import {
   vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
+
+/* Lo pesado se baja sólo cuando se usa: el muñeco 3D de tu agente (three.js) al abrir su pestaña del perfil, y el
+   lector de PDF (pdf.js) al abrir un PDF o al mostrar su miniatura. Así abrir el chat no los carga. */
+const MyAgent = defineAsyncComponent(() => import('./MyAgent.vue'))
+const PdfPages = defineAsyncComponent(() => import('./PdfPages.vue'))
+const PdfThumb = defineAsyncComponent(() => import('./PdfThumb.vue'))
 
 const chat = useChatStore()
 const mine = useMyAgentStore()
@@ -154,6 +157,14 @@ function applyRoute() {
   // Una conversación con un agente que este navegador no tiene no se inventa: se abre desde «Agentes».
   else if (key && !key.startsWith('agent:')) chat.open({ email: key, name: key.split('@')[0] })
   else chat.activeKey = ''
+}
+/* Antes del primer pintado, lo que dice la URL: sin esto la app arranca un instante en «Mi chat», y con eso se baja
+   el muñeco 3D aunque se entre directo a una conversación. La ruta entera (abrir, marcar leído) se aplica al montar. */
+{
+  const { parts } = readHashRoute()
+  const key = routeKey()
+  if (parts[0] === 'server' && parts[1]) serverOpen.value = parts[1]
+  else if (key && chat.conversations[key]) chat.activeKey = key
 }
 // Lo que se mira va en la URL: la conversación (`#/c/<clave>`) o el server abierto (`#/server/<id>`).
 function writeRoute() {

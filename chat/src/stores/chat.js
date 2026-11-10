@@ -151,13 +151,19 @@ export const useChatStore = defineStore('chat', () => {
   // nada allá, para no pisar la copia buena con un navegador vacío.
   let serverCopyReady = false
   let serverCopyTimer = null
+  /* La copia pesa cientos de KB (trae las miniaturas), así que no se sube con cada cambio: se espera a que pasen 20 s
+     sin cambios, y no se sube si quedó igual a la última que se mandó. */
+  let lastServerCopy = ''
   const saveServerCopy = () => {
     if (!serverCopyReady) return
     clearTimeout(serverCopyTimer)
     serverCopyTimer = setTimeout(() => {
-      fetch('/api/conversations', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(conversations.value) })
+      const body = JSON.stringify(conversations.value)
+      if (body === lastServerCopy) return
+      fetch('/api/conversations', { method: 'PUT', headers: { 'content-type': 'application/json' }, body })
+        .then((r) => { if (r.ok) lastServerCopy = body })
         .catch(() => { /* el próximo cambio lo vuelve a intentar */ })
-    }, 2000)
+    }, 20_000)
   }
   async function loadServerCopy() {
     try {
@@ -170,8 +176,22 @@ export const useChatStore = defineStore('chat', () => {
     saveServerCopy()
   }
 
-  watch(conversations, (value) => {
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(value)) } catch { /* sin almacenamiento: queda la copia del servidor */ }
+  /* Guardar en el navegador serializa TODAS las conversaciones: con cada mensaje, cada «leído» y cada miniatura eso era
+     una escritura de cientos de KB. Los cambios se juntan (un segundo sin cambios) y se escribe una vez; al ocultar o
+     cerrar la pestaña se escribe enseguida, para no perder el último. */
+  let localCopyTimer = null
+  const saveLocalCopy = () => {
+    clearTimeout(localCopyTimer); localCopyTimer = null
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations.value)) } catch { /* sin almacenamiento: queda la copia del servidor */ }
+  }
+  const flushLocalCopy = () => { if (localCopyTimer) saveLocalCopy() }
+  if (typeof window !== 'undefined') {
+    window.addEventListener('pagehide', flushLocalCopy)
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushLocalCopy() })
+  }
+  watch(conversations, () => {
+    clearTimeout(localCopyTimer)
+    localCopyTimer = setTimeout(saveLocalCopy, 1000)
     saveServerCopy()
   }, { deep: true })
 
@@ -517,13 +537,16 @@ export const useChatStore = defineStore('chat', () => {
 
   async function loadState() {
     try {
-      state.value = await api('/api/state')
+      // Sólo lo nuevo: se le dice al servidor cuántos mensajes del historial ya se vieron (`after`) y devuelve los que
+      // siguen, con el total. Si el historial es más corto que lo visto (se vació), se vuelve a pedir entero.
+      let next = await api(`/api/state?after=${absorbedCount}`)
+      if ((next.total ?? 0) < absorbedCount) { absorbedCount = 0; next = await api('/api/state') }
+      const fresh = next.messages || []
+      // El estado guardado no carga con los mensajes: ya están repartidos en las conversaciones.
+      state.value = { ...next, messages: [] }
       stateError.value = ''
-      // El servidor devuelve TODO el historial, en el orden en que lo guardó: sólo se procesa lo que no se vio.
-      const all = state.value.messages || []
-      if (all.length < absorbedCount) absorbedCount = 0
-      absorb(all.slice(absorbedCount))
-      absorbedCount = all.length
+      absorb(fresh)
+      absorbedCount = next.total ?? absorbedCount + fresh.length
       applySavedFiles(state.value.files)
       if (listenAfterLogin && state.value.session && !state.value.listening) { listenAfterLogin = false; startListening() }
       if (!state.value.login?.running && loginBusy.value) {

@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -60,9 +61,56 @@ type stateResponse struct {
 	Since     string        `json:"since,omitempty"`
 	Me        *cli.Person   `json:"me,omitempty"`
 	Messages  []cli.Message `json:"messages"`
+	// Total: cuántos mensajes tiene el historial. Con `?after=N` Messages trae sólo los que siguen al N-ésimo, y la
+	// interfaz pide la próxima vez desde Total.
+	Total int `json:"total"`
 	// Files: los adjuntos que el chat ya bajó (id → archivo), para mostrarlos sin volver a pedirlos.
 	Files map[string]string `json:"files,omitempty"`
 	Error string            `json:"error,omitempty"`
+}
+
+/*
+Lo que /api/state le pregunta al CLI (la sesión y si `listen` está prendido) se guarda unos segundos: cada pregunta
+
+	lanza un proceso de node, y la interfaz consulta el estado seguido. Mientras no esté escuchando se vuelve a preguntar
+	enseguida, para que prender el listen se vea rápido; entrar o prender el listen desde la app lo invalida. Los mensajes
+	no pasan por acá: los junta el recolector (history.run) y el stream en vivo (followListen).
+*/
+type cliState struct {
+	mu        sync.Mutex
+	session   *cli.Session
+	sessionAt time.Time
+	status    *cli.Status
+	statusAt  time.Time
+}
+
+var cliCache = &cliState{}
+
+func (c *cliState) invalidate() {
+	c.mu.Lock()
+	c.sessionAt, c.statusAt = time.Time{}, time.Time{}
+	c.mu.Unlock()
+}
+
+func (c *cliState) read(ctx context.Context) (*cli.Session, *cli.Status) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	sessionTTL := 60 * time.Second
+	if c.session == nil {
+		sessionTTL = 2 * time.Second
+	}
+	if time.Since(c.sessionAt) > sessionTTL {
+		c.session, c.sessionAt = cli.CurrentSession(ctx), time.Now()
+	}
+	statusTTL := 15 * time.Second
+	if c.status == nil || !c.status.Connected {
+		statusTTL = 2 * time.Second
+	}
+	if time.Since(c.statusAt) > statusTTL {
+		c.status, _ = cli.ListenStatus(ctx)
+		c.statusAt = time.Now()
+	}
+	return c.session, c.status
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -88,23 +136,23 @@ func handler() http.Handler {
 			writeJSON(w, http.StatusOK, body)
 			return
 		}
-		body.Session = cli.CurrentSession(ctx)
-		status, _ := cli.ListenStatus(ctx)
+		// Mientras corre un login, la sesión puede cambiar en cualquier momento: no se usa lo guardado.
+		if body.Login.Running {
+			cliCache.invalidate()
+		}
+		var status *cli.Status
+		body.Session, status = cliCache.read(ctx)
 		if status != nil {
 			body.Listening, body.Connected, body.Since, body.Me = true, status.Connected, status.Since, status.Me
-			if messages, err := cli.All(ctx); err != nil {
-				body.Error = err.Error()
-			} else {
-				body.Messages = messages
-			}
 		}
-		// Lo guardado en disco, con lo que acaba de traer el listen: llega todo aunque el listen se haya reiniciado.
+		// El historial en disco (lo llenan el recolector y el stream en vivo). Con `?after=N`, sólo lo que sigue.
 		if chatHistory != nil {
-			if fresh, err := chatHistory.add(body.Messages); err == nil && len(fresh) > 0 {
-				go fetchImagesOf(fresh)
-				go answerKeyring(fresh)
+			all := chatHistory.all()
+			body.Total = len(all)
+			if after, err := strconv.Atoi(r.URL.Query().Get("after")); err == nil && after > 0 && after <= len(all) {
+				all = all[after:]
 			}
-			body.Messages, body.Files = chatHistory.all(), chatHistory.savedFiles()
+			body.Messages, body.Files = all, chatHistory.savedFiles()
 		}
 		writeJSON(w, http.StatusOK, body)
 	})
@@ -298,6 +346,7 @@ func handler() http.Handler {
 			fail(w, http.StatusBadGateway, err)
 			return
 		}
+		cliCache.invalidate() // que el estado diga «escuchando» en la próxima consulta
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
 	// Los agentes del equipo: los de cada persona conectada, que corren en su máquina.
