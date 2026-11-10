@@ -13,6 +13,10 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 
 ## Pendientes
 
+- [ ] Pedirle a Duncan (2026-11-10) que repita la compra VTEX en un perfil limpio de Chrome, tocando él «Validar Pre
+      aprobado», y que diga si en el primer clic vio el spinner. En un Chromium limpio y en el Chrome de Miguel el
+      primer clic anduvo 5 de 5 (pila, 2026-11-09); el de Duncan no manda ningún evento del navegador a PostHog.
+      Termina con la causa en su Chrome o con el defecto reproducido. Depende de: Duncan — la prueba a mano.
 - [x] ~~Enlazar el conector 5.1.0 (vtex#25) en `autoonb` y comprar con el switch prendido~~ — 2026-11-06: el checkout
       real saltó celular, código y formulario (solicitud 504704 al listado, sin OTP), tras corregir la ruta del switch y
       el `Proxy-Authorization` de la lectura del pedido (6b1cc44, local).
