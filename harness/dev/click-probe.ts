@@ -2,7 +2,8 @@
 // esperar a que la página se quede quieta. Sólo qa, sucursal de la copia de Mario (1126106a). ESCRIBE: el clic
 // selecciona la entidad. Uso: cd harness && node dev/click-probe.ts <solicitud en el listado> <immediate|settled>
 import { chromium } from 'playwright';
-const openChrome = async () => { const browser = await chromium.launch({ headless: process.env.HEADED !== '1' }); const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage(); return { page, close: () => browser.close() }; };
+// JARVIS=1: en el Chrome de la persona (la extensión Jarvis), con sus cookies; sin él, un Chromium limpio.
+const openChrome = process.env.JARVIS === '1' ? (await import('../../jarvis/recipes/recorder.ts')).openChrome : async () => { const browser = await chromium.launch({ headless: process.env.HEADED !== '1' }); const page = await (await browser.newContext({ viewport: { width: 1440, height: 900 } })).newPage(); return { page, close: () => browser.close() }; };
 const [ur, mode = 'immediate'] = process.argv.slice(2);
 const url = `https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/${ur}/lenders`;
 const { page, close } = await openChrome();
@@ -14,6 +15,8 @@ try {
   const btn = page.getByRole('button', { name: /Validar Pre aprobado/i }).first();
   await btn.waitFor({ state: 'visible', timeout: 90_000 });
   const tVisible = ms();
+  // como una persona: si el botón quedó fuera de la ventana, se baja hasta verlo
+  await btn.scrollIntoViewIfNeeded({ timeout: 2000 }).catch(() => {});
   // cómo se mueve el botón desde que aparece (cada 50 ms, 3 s)
   const track: string[] = []; let last = '';
   const sampler = (async () => { for (let i = 0; i < 60; i++) { const b = await btn.boundingBox({ timeout: 100 }).catch(() => null); const s = b ? `${Math.round(b.x)},${Math.round(b.y)} ${Math.round(b.width)}x${Math.round(b.height)}` : 'sin caja'; if (s !== last) { track.push(`${ms()}ms ${s}`); last = s; } await page.waitForTimeout(50); } })();
