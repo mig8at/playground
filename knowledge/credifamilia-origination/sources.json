@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Credifamilia: preaprobación, identidad y radicación",
   "summary": "Cuándo aprueba la preaprobación de Credifamilia, cómo cae la identidad de CrossCore o ADO a un respaldo, cómo y cuándo se radica por SOAP (después del estado 11, con el 422 por documentos faltantes) y que autorizar no exige identidad terminada: estados, idempotencia, los nueve documentos del PDF y los datos derivados de la ocupación.",
-  "reviewedAt": "2026-11-04T00:30:44+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "pre-approvals-service",
@@ -15,9 +15,9 @@
     },
     {
       "repo": "legacy-backend",
-      "path": "app/Services/PaymentPlan/Credifamilia/CredifamiliaPayloadBuilder.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "22623b5697c8b1d3ecbc8bab39553a20c546b26e",
+      "path": "app/Services/PaymentPlan/DelegatedOrigination/PaymentPlanPayloadBuilder.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d4e0cfa984cbbbfed948a837464e6549520ce1e3",
       "sections": [
         "la-preaprobacion-solo-aprueba-con-estado-3-y-aprobado"
       ]
@@ -70,8 +70,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "15f84de28feed47e298a7b16f8d9b6afcaeb147a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c60fd3239b7010bf7f57491413d463e2067adf58",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap"
       ]
@@ -98,8 +98,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/Pdf/CredifamiliaFormalizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f23e833aaf79ace277a5e2afdc55e3acff70e874",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9d1f654a429b77a5df89d5fcfab1993f501307b1",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap"
       ]
@@ -116,8 +116,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "autorizar-no-exige-que-la-identidad-haya-terminado"
@@ -126,8 +126,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4d4c0e353191281a6a79426b504dd72fe4cd9420",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "autorizar-no-exige-que-la-identidad-haya-terminado"
@@ -145,8 +145,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "autorizar-no-exige-que-la-identidad-haya-terminado"
@@ -165,8 +165,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4d77c3e9b697026cb1e8656097dc1a0f33351410",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "56ebb220c8fa46a57678c75e8d63677d90fc9dd5",
       "sections": [
         "autorizar-no-exige-que-la-identidad-haya-terminado"
       ]
@@ -174,8 +174,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Middleware/ValidateInitialFeePaid.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b62577140e2208badac93af0f6ca202f97fc6908",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3a340a8c86ccde8a8b969478bc39aea0552f2049",
       "sections": [
         "autorizar-no-exige-que-la-identidad-haya-terminado"
       ]
@@ -183,8 +183,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
       "sections": [
         "autorizar-no-exige-que-la-identidad-haya-terminado"
       ]
@@ -192,8 +192,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "abafef9adb06840a08dd2e68dec79358d08b6df4",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9db1ffdee59a04ff27cc5d8833985499c0fb68dd",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "que-datos-manda-la-radicacion"

@@ -27,8 +27,16 @@ que apagarlo al darla de alta.
 legacy-backend origina y application causa la cartera, y los dos convierten la tasa mensual del
 lender con `i_semanal = (1 + i_mensual)^(7/30) − 1`; application causa el interés diario como
 `i_semanal / 7`. En application, mensual y quincenal causan `i/30`; en legacy-backend la cuota
-quincenal se amortiza con la mitad de la tasa mensual. Las dos clases `CutoffCalendar` deben
-coincidir: si una cambiara la conversión, la cuota originada no cerraría con el interés causado.
+quincenal se amortiza con la mitad de la tasa mensual (`CutoffCalendar::periodicRate`). Las dos
+clases `CutoffCalendar` deben coincidir: si una cambiara la conversión, la cuota originada no
+cerraría con el interés causado.
+
+Application recalcula cuotas de créditos ya originados (reducir cuota en `CreditopXPaymentController`
+y cambio de plazo en `CreditopXRequestHistoryController`) con `CutoffCalendar::periodRate`: la menor
+entre la tasa de la línea y la del crédito (la del crédito en República Dominicana o sin línea),
+llevada al período con `dailyRate × daysToBill`, que da `r` en mensual, `r/2` en quincenal y la
+efectiva semanal. Es el espejo de `PaymentCalculationService::calculateRate` + `periodicRate` de
+legacy-backend y también tiene que coincidir con él.
 
 El contrato y el cronograma del Rent to Own de Motai no usan esta conversión: su builder convierte
 con `(1 + r)^(12/52) − 1` para los dos cortes semanales. El exponente 12/52 es menor que 7/30, así

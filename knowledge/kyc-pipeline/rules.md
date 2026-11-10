@@ -114,7 +114,6 @@ pipeline, en el grafo y en las actividades del servicio, y el backend sólo guar
 Un recorrido que llame directo al guardado v1 de datos personales corre la cascada vieja aunque el
 comercio esté en `kyc_pipeline_allieds`: lo que decide es qué endpoint se llama, no el setting.
 
-
 ## Cómo termina la corrida y qué ve el wizard
 
 La corrida termina `COMPLETED` si el último resultado es `OK`, `SKIPPED`, `NO_DATA`, `INVALID_DATA` o

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Alta y baja de comercios",
   "summary": "Las dos entradas de alta, sus efectos y diferencias, los hashes que se repiten, la clave del asesor de prueba y la baja y reactivación en la base.",
-  "reviewedAt": "2026-11-03T16:52:49Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -58,8 +58,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "d21ab0ef275891025cd2a823552d5ec6c0cac283",
-      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7da20a81759a1e037e675374290522303476b7e9",
       "sections": [
         "los-hashes-de-alta-se-repiten-dentro-del-mismo-segundo",
         "la-api-modular-es-otra-entrada",

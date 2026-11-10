@@ -50,24 +50,42 @@ escribe `limit_reached`.
 
 En `users_category_log`, `current_available_amount` guarda `MonthlyQuota::available` del perfil que
 eligió el motor: la bolsa, no el cupo de la persona. Los dos `LenderUserCategoryService` lo escriben
-así cuando un perfil coincide; si ninguno coincide, la fila va con perfil 0 y monto 0. El monto que se
-le ofrece al cliente se topa además con el máximo por cliente (`max_amount`) y la cuota inicial. El
-monolito nuevo lo agrega a `category_rules_acceptance` como `available_amount`; el viejo guarda ahí
-`available_from_lender`, `available_from_profile` y `max_amount`.
+así cuando un perfil coincide; si ninguno coincide, la fila va con perfil 0 y monto 0. En el monolito nuevo, el caso
+Magnocell con cédula de extranjería escribe `lender_users_category_id = 2` con monto 0 aunque asigna
+perfil.
+
+El monto que se le ofrece al cliente se topa además con el máximo por cliente (`max_amount`) y la
+cuota inicial. En el monolito nuevo también con el máximo de la línea de la entidad
+(`credit_line_by_lenders.max_amount`) y, si la entidad tiene tope mensual de desembolsos
+(`lender_requirements.monthly_disbursement_limit`), con lo que le queda de él en el mes; sin tope
+configurado no cuenta. Un perfil con `capacity_method = finandina_v1` no usa esa fórmula: el monto sale
+de `FinandinaAmountCalculator` (que también recibe lo que le queda a la entidad), sin cambiar lo que va
+a `current_available_amount`.
+
+El monolito nuevo agrega a `category_rules_acceptance` el monto como `available_amount` y, para un
+perfil Finandina, escalares `finandina_*` (SMMLV, versión de las reglas, tope que ató, capacidad,
+ingreso, tasa, plazo, reporte usado…); el viejo guarda ahí `available_from_lender`,
+`available_from_profile` y `max_amount`.
 
 El backoffice nuevo expone `current_available_amount` como `cupo` en cada corrida del perfilamiento y
 lo usa de respaldo para el cupo de la simulación cuando la tarjeta no trae monto
 (`ApplicationsService`). Un perfil recién reiniciado puede hacer parecer que una persona tiene un cupo
 del tamaño de la bolsa entera.
 
-## Un creditCard nulo en el reporte de Experian rompe la evaluación
+## Un creditCard nulo en el reporte de Experian rompe la evaluación del monolito viejo
 
-El reporte del buró se guarda en `RiskCentralUserData.data`, convertido a colección. En los dos
-`LenderUserCategoryService`, la validación de capacidad de endeudamiento recorre las tarjetas con
-`->has('creditCard')` antes de mirar si el perfil exige capacidad mínima. `has` es verdadero aunque la
-clave valga null, y el `foreach` sobre null lanza un error: la evaluación del perfil se corta sin
-escribir su fila en el log. Ese recorrido corre sólo para un perfil que ya pasó los demás criterios.
-Las otras dos lecturas de tarjetas sí toleran null: la de tarjetas mínimas (`isset`, rechaza el
+El reporte del buró se guarda en `RiskCentralUserData.data`, convertido a colección. En el monolito
+viejo (`app/Services/lenders/LenderUserCategoryService.php`), la validación de capacidad de
+endeudamiento recorre las tarjetas con `->has('creditCard')` antes de mirar si el perfil exige
+capacidad mínima. `has` es verdadero aunque la clave valga null, y el `foreach` sobre null lanza un
+error: la evaluación del perfil se corta sin escribir su fila en el log. Ese recorrido corre sólo para
+un perfil que ya pasó los demás criterios.
+
+El monolito nuevo (`Modules/Loans/App/Services/LenderUserCategoryService.php`) ya no falla ahí: recorre
+las tarjetas sólo si `creditCard` es iterable (`is_iterable(... ?? null)`), así que null, ausente o
+vacío no suman deuda a ignorar.
+
+Las otras dos lecturas de tarjetas toleran null en los dos: la de tarjetas mínimas (`isset`, rechaza el
 perfil cuando exige alguna) y, en el monolito nuevo, la de cupo disponible en tarjetas (`?? []`).
 
 ## El mandato no frena ninguna originación

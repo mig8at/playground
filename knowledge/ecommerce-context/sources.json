@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: entrada, contexto y monto",
   "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
-  "reviewedAt": "2026-11-04T00:59:43+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -37,8 +37,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/server/services/ecommerce-context.server.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "0807575869585430e70be0fcad101fa845cf1fc7",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "e0e9c3950f2d6a9112bf539293c854a08a73fea9",
       "sections": [
         "el-link-volver-a-la-tienda-prefiere-backurl",
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp"
@@ -47,8 +47,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "81073361016334fe3bb3e5ba1e2119f1b98f11ee",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
       "sections": [
         "el-link-volver-a-la-tienda-prefiere-backurl",
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
@@ -59,8 +59,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/EcommerceRequest.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "bea3b19932ffacdddd675c7d6f2e6c4d0c5397eb",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3987d02509d07ae61b12f4d65d0642657c77849e",
       "sections": [
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares",
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
@@ -78,8 +78,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
       "sections": [
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
       ]
@@ -96,8 +96,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "el-pedido-se-relee-por-id-antes-y-despues-del-otp",
         "el-contrato-se-deserializa-antes-de-validar-la-credencial"
@@ -134,8 +134,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
       "sections": [
         "el-vinculo-con-la-solicitud-vive-en-tres-lugares",
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"

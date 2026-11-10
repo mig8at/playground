@@ -11,26 +11,44 @@ cada llamada; no cubre el diseño interno de la app.
 
 La app no tiene backend propio: llama por el API Gateway (`v2.api.creditop.com` en producción,
 `api.dev.creditop.com` en dev) a legacy-backend (`/legacy-api/…`), y bajo `/customers/…` a
-merchant-api, pre-approvals-service, self-manager-api, financial-health-service,
-entitlement-service e identity-service. Pagar abre los portales web `aliados.` y `pagos.creditop.com`.
+merchant-api, pre-approvals-service, self-manager-api, financial-health-service y
+entitlement-service. identity-service no va bajo `/customers`: se llama en la raíz del gateway
+(`/api/v1/identity/…`, `dependency_injection.dart`), igual que las rutas push. Pagar abre los portales web `aliados.` y `pagos.creditop.com`.
 
-La app además registra el token de notificaciones del dispositivo en `/v1/devices/push-tokens`
-(alta al iniciar sesión, refresco y baja al salir), pero **ningún servicio implementa esa ruta** en
-`main`: messaging-service sólo expone el envío de notificaciones push desde el admin. Hasta que exista, el registro de
-dispositivos no llega a ningún lado.
+La app además sincroniza el token de notificaciones del dispositivo con `/v1/devices/push-tokens`
+(`POST` para registrar, `PATCH /{device_id}` cuando FCM rota el token, `DELETE /{device_id}` para la
+baja): registra al iniciar sesión, al arrancar, al conceder el permiso y al volver a primer plano, da
+de baja al salir, y antes de eliminar la cuenta revoca el registro y borra el token FCM local (sin que
+un fallo de esa revocación impida borrar la cuenta). La sesión de un usuario temporal no registra
+push hasta completar el registro.
 
-## Entrada: OTP por celular y registro en legacy
+El API Gateway (dev y producción) ya enruta esas tres rutas a messaging-service con el `x-user-id` del
+autorizador de clientes, y el `main` de messaging-service las implementa como alias de
+`/api/v1/push/devices` (`internal/infra/handlers/push/module.go`), además del envío de mensajes y
+correos y el de notificaciones push desde el admin (`/v1/backoffice/push/…`). El registro de
+dispositivos responde error sólo si la base de push no está disponible; la app lo tolera (el
+lifecycle no lanza, mide el resultado y reconcilia en el próximo disparador).
+
+## Entrada: OTP por celular y registro (legacy o MobileOnboardingV1)
 
 El cliente entra con su celular. La app intenta primero el inicio de sesión de Cognito (Custom Auth):
-si el usuario existe, Cognito manda el OTP. Si no existe, delega en legacy-backend,
-`/legacy-api/onboarding/mobile/send-otp-code` y `validate-otp-code`. Recuerda qué proveedor mandó
-cada OTP para validarlo contra el mismo.
+si el usuario existe, Cognito manda el OTP. Si no existe, decide el flag `ff_auth_cognito_signup` (de
+sesión, apagado por defecto; el flavor mock no lo lee y siempre sigue el camino nuevo):
 
-Al validar, `MOBA2009` (409) no es un error: significa que el usuario tiene que registrarse. El
-registro (`register-user`) pide documento (cédula o cédula de extranjería), nombres, apellidos,
-correo, fecha de expedición, ingreso, situación laboral y estrato, y legacy:
+- **apagado**: delega en legacy-backend, `/legacy-api/onboarding/mobile/send-otp-code` y
+  `validate-otp-code`. Recuerda qué proveedor mandó cada OTP para validarlo contra el mismo;
+- **prendido**: lo crea en Cognito con `signUp` (el PreSignUp del pool lo autoconfirma) y entra con el
+  OTP de Cognito; nunca deriva a legacy. La confirmación dispara el trigger PostConfirmation, que llama
+  a `POST /api/v1/mobile-onboarding/users/confirm-sign-up` de `MobileOnboardingV1` (no la llama la
+  app): enlaza el `sub` al usuario de ese país y número o crea uno temporal.
 
-- si el celular ya existe en Cognito, sólo autentica y devuelve `MOBA3001`, sin otro control;
+En el camino legacy, al validar, `MOBA2009` (409) no es un error: significa que el usuario tiene que
+registrarse. El registro (`register-user`) pide documento (cédula o cédula de extranjería), nombres,
+apellidos, correo, fecha de expedición, ingreso, situación laboral y estrato, y legacy:
+
+- si el celular ya existe en Cognito, primero exige una fila de `users` con ese celular (si no,
+  `MOBA3002`); después sólo autentica y devuelve `MOBA3001`, sin los controles de documento, correo
+  ni identidad;
 - si no, rechaza documento o correo ya asociados a otro usuario (`MOBA3004`, `MOBA3005`);
 - a un usuario temporal le guarda los datos personales, y el rechazo de esa validación de nombres,
   apellidos, documento o fecha de expedición vuelve como `MOBA3006`–`MOBA3010`;
@@ -39,9 +57,24 @@ correo, fecha de expedición, ingreso, situación laboral y estrato, y legacy:
 - consulta Experian si `experian_rules.get_data` está prendido en ese mismo setting.
 
 El mismo setting trae un usuario de prueba (`mock_rules`, si `enable` está en `true`) con teléfono y
-OTP fijos. Borrar la cuenta
-(`delete-user`) se niega con `MOBA4003` si el usuario tiene una solicitud en los estados de
-`active_credit_status_ids` o ya no está activo; si no, borra el usuario de Cognito y lo da de baja.
+OTP fijos. Borrar la cuenta (`delete-user`) se niega con `MOBA4003` si el usuario tiene una solicitud
+en los estados de `active_credit_status_ids` o ya no está activo; si no, borra el usuario de Cognito y
+lo da de baja.
+
+Con el flag, tras el OTP de Cognito la app acepta los términos
+(`/legacy-api/v1/mobile-onboarding/terms-and-conditions/accept`, sin esperar la respuesta) y consulta
+`users/is-temporal`: un temporal va al registro, que manda los mismos datos (`clientData`) a
+`users/update-info` (códigos `MOV16xxx`); si la consulta falla, la app descarta la sesión recién
+creada. `update-info` sólo escribe sobre un usuario temporal creado por el canal móvil
+(`users.mobile_created`) cuyo celular coincide con el del `x-user-id`, rechaza documento o correo de
+otro usuario, guarda los datos antes de consultar las centrales (un rechazo de identidad deja lo
+escrito) y, si una central valida la identidad, marca `users.onboarding_completed`; tiene un tope de
+intentos por hora (`mobile_onboarding_update_info_max_attempts_per_hour`). Borrar la cuenta va por
+`DELETE users` (`MOV14xxx`): se niega si el usuario está inactivo o tiene una solicitud en los estados
+configurados; si no, borra la cuenta del pool y da de baja lógica la fila de `users`.
+
+Sin el flag, el OTP de Cognito también pregunta `is-temporal` (con tope de tiempo y fallando abierto),
+para mandar al registro a quien quedó temporal con el flag prendido.
 
 ## Home: comercios, preaprobación y sin cupo
 
@@ -175,6 +208,13 @@ Además de la campaña hay dos de versión:
 - `ff_recommended_app_version` (de sesión): por debajo, un aviso descartable una vez por sesión.
 
 Vacíos no bloquean ni avisan, y el control de versión no se aplica en builds de debug ni mock salvo
-que el build lo fuerce. La app también
-trae el mecanismo para apagar un flujo entero (`ff_flow_<flujo>`, que manda sus rutas a «no
-disponible»), pero en `main-pro` no hay ningún flujo declarado.
+que el build lo fuerce.
+
+Y uno de autenticación, `ff_auth_cognito_signup` (de sesión, **apagado** por defecto): prendido, a quien
+no existe en el User Pool la app lo crea en Cognito con `signUp` y usa las APIs de `MobileOnboardingV1`
+(términos, `is-temporal`, `update-info`, `DELETE /users`); apagado, sigue el registro de siempre por
+legacy (ver la entrada por OTP). Lo resuelve un solo provider (`authCognitoSignupEnabled`). El flavor
+mock no lo lee: siempre corre el flujo nuevo.
+
+La app también trae el mecanismo para apagar un flujo entero (`ff_flow_<flujo>`, que manda sus rutas a
+«no disponible»), pero en `main-pro` no hay ningún flujo declarado (`appFlowKillSwitches` vacío).

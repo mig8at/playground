@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Negocio: cómo funciona CreditOp",
   "summary": "El mapa del negocio: quién es quién (cliente, comercio y sucursal, asesor, entidad, solicitud), los rieles por response_type, los cuatro canales de entrada, las etapas de una originación hasta Autorizada, qué pasa después según la entidad, qué sistema hace qué, y qué tema de esta biblioteca contesta cada pregunta.",
-  "reviewedAt": "2026-11-04T01:00:58Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -35,8 +35,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "d79f612f06d6575476ea891e05c319eea08de900",
       "sections": [
         "quien-presta-y-con-que-politica-los-rieles"
       ]
@@ -81,8 +81,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/UserRequestRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d9a90d0bd79ac538035b3419b23f1c1d091f883d",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "41a3ebb0fd9b881dba2f562e8b7f4b0bb748ab48",
       "sections": [
         "el-recorrido-de-una-solicitud"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "pre-approvals-service",
       "path": "internal/infra/handlers/preapprovals/handler.go",
-      "commit": "8bfbee92f31a2520c94e371971d469cb399dc7a2",
-      "blob": "fd514a6693fb422b8f9168ba7f3d7a00c978f34f",
+      "commit": "c70a470b2b07c4c10cb3dafdb1a62ea7c44f79c5",
+      "blob": "34eb1a32811de51747958fee88e2e7f231e20955",
       "sections": [
         "que-sistema-hace-que"
       ]
@@ -127,8 +127,8 @@
     {
       "repo": "merchant-api",
       "path": "internal/modules/merchant/module.go",
-      "commit": "58e5b28fe2d5546bee1437b1a95561e794fc241c",
-      "blob": "6e845364038c12d89f6c98e96ed2a321fc912112",
+      "commit": "d8f3a34315906b890fef84c89803fb76b4200a9a",
+      "blob": "a9f2421a1592aec18cb29a56debf819cfdbfe0e7",
       "sections": [
         "que-sistema-hace-que"
       ]
@@ -172,8 +172,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "quien-presta-y-con-que-politica-los-rieles",
         "el-recorrido-de-una-solicitud"
@@ -182,8 +182,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentDateService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d8138cb2bbecbf39b4529f4081d9846187736aa6",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6d85f6450f364231ec719da70a1095746e4cf247",
       "sections": [
         "quien-presta-y-con-que-politica-los-rieles"
       ]
@@ -210,8 +210,8 @@
     {
       "repo": "application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "300f20fd4ae4293e75380bc96b93b18785eb6c7f",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
       "sections": [
         "despues-de-originar"
       ]
@@ -246,8 +246,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/EcommerceRequest.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "bea3b19932ffacdddd675c7d6f2e6c4d0c5397eb",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3987d02509d07ae61b12f4d65d0642657c77849e",
       "sections": [
         "por-donde-entra-un-cliente"
       ]

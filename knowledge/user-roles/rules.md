@@ -22,11 +22,15 @@ del orden en que se crearon los roles.
 ## Tres formas de decidir qué puede hacer cada uno
 
 1. **Permisos de Spatie por rol** (`role_has_permissions`): habilitan módulos y acciones del admin
-   («ver solicitudes», «actualizar solicitud», «ver reportes»…). No viven en git: se cargan en la base.
+   («ver solicitudes», «actualizar solicitud», «ver reportes»…). La mayoría se carga en la base; algunos
+   permisos recientes los crea o asigna una migración de application.
 2. **Permisos por usuario** (`model_has_permissions`): se dan uno a uno. Al crear un usuario de
-   comercio asesor o superadmin, si el comercio tiene una entidad CreditopX, el alta le da los permisos
-   de los créditos CreditopX (`AlliedCorporateUserController`). Por eso dos usuarios del mismo perfil
-   pueden ver cosas distintas.
+   comercio asesor (4) o superadmin (6), si el comercio tiene una entidad CreditopX, el alta le da los
+   permisos de los créditos CreditopX (`AlliedCorporateUserController::store`), incluido
+   `reduce creditop x installments` (bajar el valor de las próximas cuotas). Al perfil Entidad
+   Comercio (13) el alta le da ese mismo permiso, salvo que el usuario sea de un comercio que trabaja
+   con SmartPay (`CreditopXPrincipalPaymentType::isSmartPayUser`). Por eso dos usuarios del mismo
+   perfil pueden ver cosas distintas.
 3. **Comparaciones con el número de perfil en el código** (`user_profile_id == 4`, `== 7`…). Deciden
    comportamiento sin pasar por permisos, y son muchas: la mayoría son del asesor (4). Un perfil nuevo
    o renumerado no hereda estas ramas.

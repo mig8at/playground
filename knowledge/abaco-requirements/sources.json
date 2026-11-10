@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Requisitos y consulta vigente de Ábaco",
   "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
-  "reviewedAt": "2026-11-03T16:28:33Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -64,8 +64,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "requisito-por-entidad",
         "salto-del-paso"
@@ -84,8 +84,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "63783c386ce3438d38928d8bb54efb169b6971a9",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "886cf549f2961cd497d5ba4ee061eea52a9887cc",
       "sections": [
         "donde-se-pide-el-paso"
       ]
@@ -93,8 +93,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
       "sections": [
         "donde-se-pide-el-paso"
       ]
@@ -160,8 +160,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
       "sections": [
         "cupo-sin-reporte-de-buro",
         "salto-del-paso"
@@ -170,8 +170,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "cupo-sin-reporte-de-buro"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditOp Mobile: la app del cliente final",
   "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación por lotes, canales de compra por sedes y el código de self-manager (que ignora el canal y vence en UTC), Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium; el regalo de premium por reglas versionadas, la identidad que identity-service no aprueba al volver, el registro de push sin backend, y la campaña de cero interés y la versión mínima por flags de Remote Config.",
-  "reviewedAt": "2026-11-04T01:03:28+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "creditop-mobile",
@@ -26,10 +26,10 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/infrastructure/auth/gateways/cognito_auth_gateway_impl.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "f651ae4ea1d60c85d9fbc192e0122e355e4c9a32",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "0477bd19e768b19143c4b486038961079ee6b08e",
       "sections": [
-        "entrada-otp-por-celular-y-registro-en-legacy"
+        "entrada-otp-por-celular-y-registro-legacy-o-mobileonboardingv1"
       ]
     },
     {
@@ -38,16 +38,16 @@
       "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
       "blob": "42f79ca7095eb1d4148dd4a5b42b226a5da413ef",
       "sections": [
-        "entrada-otp-por-celular-y-registro-en-legacy"
+        "entrada-otp-por-celular-y-registro-legacy-o-mobileonboardingv1"
       ]
     },
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
-        "entrada-otp-por-celular-y-registro-en-legacy"
+        "entrada-otp-por-celular-y-registro-legacy-o-mobileonboardingv1"
       ]
     },
     {
@@ -56,14 +56,14 @@
       "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
       "blob": "2cc3688440c9c5afa2554012559888753395c860",
       "sections": [
-        "entrada-otp-por-celular-y-registro-en-legacy"
+        "entrada-otp-por-celular-y-registro-legacy-o-mobileonboardingv1"
       ]
     },
     {
       "repo": "creditop-mobile",
       "path": "app/lib/infrastructure/home/datasources/merchants_datasource.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "3ab48225fabaea2ef825d1ea76c921bee8d6e689",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "2b97dd379894192d1b97bb1a71a119aa5be520e4",
       "sections": [
         "home-comercios-preaprobacion-y-sin-cupo"
       ]
@@ -233,8 +233,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/infrastructure/notifications/datasources/notifications_device_datasource.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "5dd7b2d03cd6e25d96e27f815b9243bf5cba8cec",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "90cfd42a05d80b82eeec284a93c190de74e1444d",
       "sections": [
         "con-que-servicios-habla"
       ]
@@ -314,8 +314,8 @@
     {
       "repo": "identity-service",
       "path": "internal/infra/handlers/identity/staff.go",
-      "commit": "36c3fc7523634c94032098a0790527dd63c38843",
-      "blob": "6b1fa0ea171df6cb6bec0103f66932756b240a57",
+      "commit": "e17e0e39199b4c1e24249c3f30e2ab9217c6e85f",
+      "blob": "9bf54fd7293ec4d63f1da7a21df477e44e2acfbd",
       "sections": [
         "identidad-con-ado-solo-para-premium"
       ]
@@ -335,7 +335,7 @@
       "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
       "blob": "5be471db1ace233824634df628ee15b16bfffc86",
       "sections": [
-        "entrada-otp-por-celular-y-registro-en-legacy"
+        "entrada-otp-por-celular-y-registro-legacy-o-mobileonboardingv1"
       ]
     },
     {
@@ -368,8 +368,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/router/app_router.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "3fa4d292a924279f0550729d15a4d9945307eb0c",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "ffc6326713ee476b60e02b0ab578fd0d553c858c",
       "sections": [
         "comprar-en-un-comercio-canal-y-codigo"
       ]
@@ -413,8 +413,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/feature_flags/feature_flags.gen.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "b79daa9ca99f398386a860a562eeaa9fd0748f43",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "b3532ef48cd656c4de06f5e8d87e50c9bcaf5e07",
       "sections": [
         "campana-de-cero-interes-y-flags-remotos"
       ]
@@ -422,8 +422,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/dependency_injection.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "472ab4bc62d0b7b40ca2e82b180255cd50eb4860",
+      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
+      "blob": "498e75c01f58828618ccdcb60f9af73dbcef7b17",
       "sections": [
         "campana-de-cero-interes-y-flags-remotos"
       ]

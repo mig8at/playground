@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-11-03T16:52:20Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -242,8 +242,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "7de4791a0bd3ac77187346f853644df19bf04e26",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "e97199d3b3809e44dc34fdd4a1f6b82d693e219e",
       "sections": [
         "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
@@ -251,8 +251,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "como-termina-la-corrida-y-que-ve-el-wizard"
       ]

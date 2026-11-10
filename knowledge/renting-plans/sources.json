@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Planes de renting y RTO",
   "summary": "Calculadora por entidad, planes y conteo de pagos, tarjeta y recálculo; límites entre listado, simulación y firma; montos que se guardan al autorizar con calculadora.",
-  "reviewedAt": "2026-11-04T01:01:37Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -94,8 +94,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "d79f612f06d6575476ea891e05c319eea08de900",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
       ]
@@ -130,8 +130,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "18cbf01a36d30982784bed97967205d51e2f5d36",
       "sections": [
         "tarjeta-y-seleccion-del-plan"
       ]
@@ -139,8 +139,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "082360218246a8a16f2c37e045aa22c4afb823a9",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "7351c10ab119e1bbcb08923dbf1da386e16b8ba0",
       "sections": [
         "recalculo-por-monto"
       ]
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/PaymentScheduleController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "205a67146e9ee053fb510b25cd776288e73cd12b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "4426b98707ba86690f244588535723a913b62a90",
       "sections": [
         "simulacion-y-documentos"
       ]
@@ -193,8 +193,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/payment-schedule.entity.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "6644f08c6b3fc5489f6d635aa2af3cabb114cf48",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "ec8fb655fafea63a03cff2a9a43639867cd6fdde",
       "sections": [
         "simulacion-y-documentos"
       ]
@@ -202,8 +202,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/payment-schedule.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "9ae56fdb33e8aab1c10065df563fbdd9d7108f02",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "0fa05f2859a80ae98cb462a3bb86b926a901bc93",
       "sections": [
         "simulacion-y-documentos"
       ]
@@ -238,8 +238,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "montos-que-se-guardan-al-autorizar"
       ]
@@ -247,8 +247,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
       "sections": [
         "montos-que-se-guardan-al-autorizar"
       ]

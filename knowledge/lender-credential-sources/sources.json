@@ -2,7 +2,7 @@
   "version": 1,
   "title": "De dónde sale cada credencial de una entidad",
   "summary": "Las dos tablas de credenciales (lender_allied_credentials y risk_central_credentials), el orden en que cada monolito busca la fila, qué integraciones leen certificados y cómo (y el desajuste de llaves y el log de contraseña de Credifamilia Consumo), la ausencia de control de vencimiento, la elección POS/PAY de Sistecrédito y cómo se genera el token de una tienda ecommerce.",
-  "reviewedAt": "2026-11-04T01:00:54+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -165,8 +165,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Actions/DecevalSoap.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b27543f7ee801d79d4ad5e82af71e8ed3f4e4596",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "44eeaedee0cc38af4c7e3cb988fe1cfce9b6ac1e",
       "sections": [
         "quien-usa-certificado-y-como-lo-lee",
         "credencial-de-central-la-entidad-primero-solo-en-legacy-backend"
@@ -229,8 +229,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
       "sections": [
         "sistecredito-tres-llaves-y-la-marca-pos",
         "credencial-de-entidad-sucursal-primero-comercio-despues"
@@ -239,8 +239,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/System/App/Http/Controllers/Admin/CredentialsController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d6d22f071002ea6faac8782e491bf3014195a66b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2be296499e3d8f0f3f7957cf690d71f1065c4a6a",
       "sections": [
         "lo-que-ofrecen-los-formularios-de-administracion"
       ]
@@ -248,8 +248,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/Admin/RiskCentralCredentialController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "94a5f240d7cb6b6a5e028dc52d5d7b3a70316497",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "467fd463c7298e6e7bbf466b55ebb46a03dd0e75",
       "sections": [
         "lo-que-ofrecen-los-formularios-de-administracion"
       ]
@@ -284,8 +284,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7da20a81759a1e037e675374290522303476b7e9",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -311,8 +311,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "81073361016334fe3bb3e5ba1e2119f1b98f11ee",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]
@@ -320,8 +320,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "el-token-de-una-tienda-ecommerce"
       ]

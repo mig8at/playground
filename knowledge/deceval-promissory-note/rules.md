@@ -58,7 +58,19 @@ fecha y hora de Bogotá; en application usa `now()` con la zona de la aplicació
 Del cliente se mandan correo, fechas de expedición y nacimiento si existen, tipo de documento (sólo CC→1 o
 CE→2), documento, celular como teléfono y como celular, nombres, y primer y segundo apellido partidos por
 el primer espacio de `surname`; el país de expedición va fijo en `CO`. Campos extra sólo entran por
-`options['girador']`, y el servicio de legacy-backend no pasa ninguno: sólo fija `numPagareEntidad`.
+`options['girador']`. En legacy-backend los arma `DecevalGiradorFields`,
+pero sólo para los lenders listados en el setting `deceval_girador_address`
+(`{"enabled_lender_ids": [...]}`, leído por `DecevalGiradorAddressSwitch`; sin la fila, o si no se
+puede leer, no van para nadie). `numPagareEntidad` no es del girador: viaja en `options['pagare']`.
+
+`DecevalGiradorFields` sólo manda lo que puede afirmar: la dirección de residencia (los mismos
+campos que `OnboardingPayloadBuilder::RESIDENCE_ADDRESS_FIELD_IDS`, cortada a 100 caracteres), el
+departamento y la ciudad de expedición y de domicilio como códigos DANE (con país de domicilio `CO`)
+y la nacionalidad `CO` sólo con CC. `DaneCodeResolver` traduce los nombres del formulario a
+`country_zones`/`country_cities` normalizados; un lugar que no resuelve no se manda y queda en el
+log `deceval.girador.place_unresolved`. `DecevalSoap` escribe como nodo de texto (escapando `&`) sólo lo
+que entra por las opciones, así que un `&` en una dirección llega escapado; los campos fijos del
+girador (correo, nombres, apellidos) siguen con `createElement($tag, $value)`, que no escapa.
 
 ## Reuso e idempotencia
 

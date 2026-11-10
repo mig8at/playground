@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, vista previa pública y su token, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-11-04T01:01:58+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bb44c4508cb6f1e5e106c3cecaec3ce959985fea",
       "sections": [
         "dos-motores-con-la-misma-cascada",
         "el-pago-minimo-va-en-cascada",
@@ -19,8 +19,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
       "sections": [
         "dos-motores-con-la-misma-cascada",
         "el-pago-minimo-va-en-cascada",
@@ -33,8 +33,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "de5974465bf51e3cc75f447071fc6a5a38275e11",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "0fd53fbfe91429b6cd0de8427464e8fc99b6ec7d",
       "sections": [
         "dos-motores-con-la-misma-cascada"
       ]
@@ -60,8 +60,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a5feb11ee44da7ed5b496054035e8a0687ab39cb",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "3527c04de0a5b7da19eac501805e0e69c897be38",
       "sections": [
         "un-cobro-de-pasarela-se-acredita-una-sola-vez"
       ]
@@ -288,8 +288,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
       "sections": [
         "wompi-intencion-y-webhook",
         "wompi-vista-previa-publica"
@@ -352,8 +352,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cf0fe77cceaa956629b77e49dc978adcb648c6c6",
       "sections": [
         "cuota-inicial"
       ]
@@ -361,8 +361,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "da178e3dfab20f1d5b6f249582affe43fb878a57",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "f96c7609eb21064751cf75591b11a43cc59b6ab5",
       "sections": [
         "un-cobro-de-pasarela-se-acredita-una-sola-vez"
       ]
@@ -370,8 +370,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "5e085b60333d06bae163438dd4256cc5296e5f4c",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "24653d6fbd2221b05bcf6940fe633c6e4ce9f4da",
       "sections": [
         "que-pasa-con-el-sobrante"
       ]
@@ -379,8 +379,8 @@
     {
       "repo": "application",
       "path": "app/Models/CreditopXRequestHistory.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "31dcb679ac2261278dcca831f43c2ce4b694391e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "53a9f81892c6fbf8c923f25e869d54d5dcf4df4a",
       "sections": [
         "que-pasa-con-el-sobrante"
       ]
@@ -406,8 +406,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
       "sections": [
         "dos-motores-con-la-misma-cascada"
       ]
@@ -415,8 +415,8 @@
     {
       "repo": "application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "300f20fd4ae4293e75380bc96b93b18785eb6c7f",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
       "sections": [
         "el-pago-minimo-va-en-cascada"
       ]

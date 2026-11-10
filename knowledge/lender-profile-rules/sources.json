@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfiles de una entidad: orden, criterios y bloqueos del cupo",
   "summary": "En legacy-backend: la primera regla activa por priority asigna la categoría, la capacidad se vuelve cupo por anualidad o por multiplicador, el otorgamiento especial se topa con max_amount, la continuidad laboral en escalones 0/3/6/12, la vigencia de la licencia sólo en la etapa extendida, cuándo se puede saltar Ábaco, el rechazo por riel 0/1 y por crédito vigente con la misma entidad, y el corte que se congela.",
-  "reviewedAt": "2026-11-03T14:26:50+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
       "sections": [
         "gana-la-primera-regla-que-se-cumple",
         "de-la-capacidad-mensual-al-cupo",
@@ -28,8 +28,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
       "sections": [
         "de-la-capacidad-mensual-al-cupo",
         "lo-que-niega-el-cupo-antes-de-mirar-perfiles"
@@ -65,8 +65,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "af218af50c736862f34062307fdf28c4decd8706",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cb45ea1a6b0ced1d8a7c2034ac7b4ec4b13629e6",
       "sections": [
         "la-periodicidad-de-corte-se-congela"
       ]
@@ -110,8 +110,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
       "sections": [
         "el-motor-de-legacy-application"
       ]

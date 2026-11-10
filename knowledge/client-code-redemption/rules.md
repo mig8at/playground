@@ -35,16 +35,31 @@ entidad del canje; `corporate_user_id` queda en `null`. Si no llegan importes po
 `amount` queda en cero y `original_amount` usa el importe resuelto. Plazo, cuota y tasa
 también nacen en cero: un canje exitoso no prueba que se haya seleccionado una oferta.
 
-Primero se crea la solicitud y después se consume el código. Si el consumo devuelve un estado
-HTTP distinto de 200, se intenta borrar la solicitud y se devuelve el error. Si el borrado
+Primero se crea la solicitud y después se consume el código. En legacy-backend, si el consumo
+devuelve un estado HTTP distinto de 200, se intenta borrar la solicitud y se devuelve el error. En
+application el corte es `success` (2xx sin `success:false`), y el registro con el comentario se
+inserta antes del consumo y se borra junto con la solicitud. Si el borrado
 falla se registra; no prometer una transacción atómica con el servicio externo.
 En legacy-backend el registro de estado se intenta sólo después del consumo y su fallo no
 invalida el canje. Su comentario es `CreditopXRequestHistory::CLIENT_CODE_RECORD_COMMENT` (mismo
 texto en los dos monolitos), y la fila CREACIÓN del crédito lo busca para marcar `is_app`
-(`appFlagFor`: en legacy-backend vía `CreditBenefitResolver::forNewCredit`, en application en
-`Admin/CreditopXRequestHistoryController`): sin ese registro el crédito canjeado nace sin la
-marca de app, que también entra en la elegibilidad del programa de beneficio
-(`requires_app_origin` en `CreditBenefitResolver`, espejado en los dos repos).
+(`appFlagFor`, espejado en los dos modelos `CreditopXRequestHistory`: en legacy-backend vía
+`CreditBenefitResolver::forNewCredit`, en application en
+`Admin/CreditopXRequestHistoryController::createFirstRegister`).
+
+`appFlagFor` da `1` en dos casos: la propia solicitud lleva ese registro, o el mismo usuario tiene
+en el mismo comercio otra solicitud con el registro, creada dentro de
+`APP_CODE_REDEMPTION_WINDOW_MINUTES` (120) antes que esta y sin fila en
+`creditop_x_requests_history` (el flujo del comercio terminó el crédito en otra solicitud). La
+entidad no importa: el crédito puede salir con otra entidad que la del código. En los dos casos la
+redención queda consumida en cuanto existe una fila `CREACIÓN` con `is_app = 1` de otra solicitud
+del mismo usuario y comercio creada después de ella: un código marca un solo crédito, y la propia
+solicitud canjeada nace sin la marca si otra compra ya la tomó. Sin ningún registro en la ventana,
+el crédito canjeado nace sin la marca de app.
+
+La marca entra en la elegibilidad del programa de beneficio (`requires_app_origin` en
+`CreditBenefitResolver`, espejado en los dos repos) y es la única vía por la que una utilización
+de cupo rotativo recibe programa (`CreditBenefitResolver::revolvingEligible`).
 
 ## El recorte del wizard depende de una marca de sesión
 

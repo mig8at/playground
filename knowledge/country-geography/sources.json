@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Catálogo geográfico y árbol de opciones",
   "summary": "Relaciones geográficas, selectores y validación de la ciudad de una sucursal, comodines, auditoría, árbol de form-service y límites de la migración de RD y Perú.",
-  "reviewedAt": "2026-11-03T15:48:29Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -157,8 +157,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]
@@ -184,8 +184,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7da20a81759a1e037e675374290522303476b7e9",
       "sections": [
         "selectores-y-validacion-al-guardar",
         "quien-escribe-la-ciudad-de-una-sucursal",
@@ -240,8 +240,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "6d171e392990eb74d46c374f7832157ad998a82a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "fdaa3e1a1ebcdd538dcef688a18261ad6d35da8b",
       "sections": [
         "el-comodin-todas-las-ciudades"
       ]

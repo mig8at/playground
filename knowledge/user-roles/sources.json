@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Roles de usuario: quién es quién y qué alcance tiene",
   "summary": "Los trece perfiles agrupados en cliente, comercio (asesor, admin y superadmin), entidad y Creditop; las tres formas en que el código decide qué puede hacer cada uno (permisos por rol, por usuario y comparaciones con el número de perfil) y el alcance que recorta cada controlador.",
-  "reviewedAt": "2026-11-04T11:40:27+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -26,8 +26,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "de913d190e641153dd385eca351938e473a62460",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "1a1f36be37e8a8aad697e1ee729b2ddfffb59c75",
       "sections": [
         "tres-formas-de-decidir-que-puede-hacer-cada-uno"
       ]
@@ -62,8 +62,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "tres-formas-de-decidir-que-puede-hacer-cada-uno",
         "el-alcance-de-cada-perfil-del-comercio"

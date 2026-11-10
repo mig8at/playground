@@ -66,10 +66,14 @@ igual que una por regla:
 
 - El listado v1 (`GET lenders/{user_request_id}` → `ListLenderController` →
   `LenderRetrievalService`) aplica a cada entidad CreditopX el plazo máximo, la inicial mínima, la
-  tasa y el monto disponible de la categoría. Sólo quita la entidad si no hay categoría o si el
-  monto disponible es menor que el mínimo de su línea.
+  tasa y el monto disponible de la categoría y, si la evaluación fue de una regla `finandina_v1`,
+  recorta los plazos a los que caben en la capacidad (`applyCapacityTermCap`). Por la categoría
+  sólo quita la entidad si no hay categoría o si el monto disponible es menor que el mínimo de su
+  línea. Aparte, antes de evaluar categorías, `LenderValidationService::validateRulesByLender` saca
+  las entidades `response_type` 2 cuyo cliente ya alcanzó `max_credits_per_client_month`.
 - El fondo de garantía (`GuaranteeService`) toma el FGA de la categoría.
-- La inicial (`InitialFeePolicyResolver`) toma la inicial mínima, el FGA y el monto disponible.
+- La inicial (`InitialFeePolicyResolver`) toma la inicial mínima, el FGA y el monto disponible,
+  evaluando la categoría con la solicitud.
 - El codeudor (`CosignerRequirementService`) toma `requires_cosigner`.
 
 La decisión de otorgamiento (`GrantingCategory`) registra `resolved_by = 'scoring'` para toda

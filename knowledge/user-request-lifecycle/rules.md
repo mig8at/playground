@@ -100,18 +100,26 @@ quedar en 8 con el comentario de la cascada y una de riel 0, intacta.
 
 ## La guarda de 11 y 8 vive en el grupo de rutas, no en la transición
 
-En legacy-backend, el grupo `api/loans/requests` lleva el middleware `validate.authorized.status`:
-si la ruta trae `user_request_id` (en la URL o en el cuerpo), responde 403 `CREDIT_ALREADY_DISBURSED`
-con la solicitud en 11 y 403 `CREDIT_CANCELLED` con la solicitud en 8. Así se protege
+En legacy-backend, el grupo `api/loans/requests` lleva los middlewares `onlyMobileValidation`,
+`validate.authorized.status` y `origination.flow`. `validate.authorized.status`: si la ruta trae
+`user_request_id` (en la URL o en el cuerpo), responde 403 `CREDIT_ALREADY_DISBURSED` con la
+solicitud en 11 y 403 `CREDIT_CANCELLED` con la solicitud en 8. Así se protege
 `promissory-note/validate/authorize`, la autorización estándar, cuyo controlador además rechaza el 11
-por su cuenta (`CREDIT_ALREADY_AUTHORIZED`). `LoanAuthorizationService` no mira el estado previo.
+por su cuenta (`CREDIT_ALREADY_AUTHORIZED`). `LoanAuthorizationService` no mira el estado previo: antes
+de numerar cortan el OTP validado (422), `OfferStillStandsGuard` (409 si el cupo de la entidad bajó
+desde la oferta o si el cliente ya llegó al tope de créditos del mes con ella; no compara cupo si
+`initial_fee` es mayor que 0, si no hay foto o si cambió el monto), la compuerta de codeudor con
+catálogo y, en rotativos, la fecha de pago y el plazo; con codeudor la autorización se difiere y
+vuelve sin llegar a 11.
 
 El subgrupo `device` (`POST api/loans/requests/device/{user_request_id}/disburse`) quita los tres
 middlewares del grupo, incluido `validate.authorized.status`. Ese endpoint sólo exige un IMEI
 registrado en `user_request_products`; si el comercio es SmartPay, `disburseImeiRequest` pone 11 sin
-mirar el estado previo, así que **puede devolver a 11 una solicitud Cancelada (8)**, y además corre la
-cascada sobre las hermanas. Si no es SmartPay, llama a `authorize()`, que exige un OTP validado pero
-tampoco mira el estado.
+mirar el estado previo ni pasar por `OfferStillStandsGuard`, así que **puede devolver a 11 una
+solicitud Cancelada (8)**, y además corre la cascada, que cancela sólo las solicitudes del mismo cliente y comercio con
+entidad tipo 2 que no estén en 11; `safeCancel` salta las que ya tienen fila `CREACIÓN`. Si no es SmartPay, llama a
+`authorize()`, que exige un OTP validado y aplica `OfferStillStandsGuard` (el controlador devuelve
+su 409), pero tampoco mira el estado.
 
 La gestión manual del comercio (abajo) tampoco mira el estado actual: con entidades de riel 0 o 1
 puede mover una solicitud que ya está en 11.
@@ -119,14 +127,22 @@ puede mover una solicitud que ya está en 11.
 ## Con originación delegada, 11 se confirma antes de radicar
 
 Para las entidades de `response_type = 4` (originación delegada; Credifamilia), `LoanAuthorizationService`
-confirma el 11 —con el histórico, la cuota inicial y la cascada— en su propia transacción y **después**
-radica en la entidad (`CredifamiliaFormalizationService`), en otra. Si la radicación falla, la
-excepción se traduce a 422, pero la solicitud ya quedó en 11; los efectos posteriores al commit
-(notificaciones, voucher, actualización del perfilamiento y cierre de la solicitud) no corren, y en la
-autorización estándar tampoco se avisa a la tienda de ecommerce. Lo mismo pasa al reanudar tras la
-firma del codeudor. Reintentar por la ruta del cliente ya no sirve, porque el middleware corta el 11;
-la radicación se vuelve a pedir por `POST api/loans/admin/user-requests/{id}/formalize-external-managed`,
-que sólo radica y no corre esos efectos.
+confirma el 11 —con el histórico y la cuota inicial; la cascada (`cancelOtherClientLoansIfOneDisbursed`) es
+sólo de `response_type` 2— en su propia transacción y **después**
+radica en la entidad, en otra. Qué radicación corre lo dice el perfil de la entidad
+(`delegated_origination_profiles.formalization`, resuelto por `DelegatedOriginationFormalizations`;
+Salud y Materiales usan `CredifamiliaFormalizationService`). Sin formalización configurada no se
+radica y sólo queda un log; una entidad del riel sin perfil lanza después del commit.
+
+Si la radicación falla, la solicitud ya quedó en 11. Una `FormalizationException` (documentos
+faltantes) se traduce a 422; otras fallas, como la unión del PDF, se propagan sin traducir. Las dos
+dejan en el log `external_managed_formalization_failed_after_authorization`, con el estado de la
+solicitud y el código de respuesta. Los efectos posteriores al commit (notificaciones, voucher,
+actualización del perfilamiento y cierre de la solicitud) no corren, y en la autorización estándar
+tampoco se avisa a la tienda de ecommerce. Lo mismo pasa al reanudar tras la firma del codeudor.
+Reintentar por la ruta del cliente ya no sirve, porque el middleware corta el 11; la radicación se
+vuelve a pedir por `POST api/loans/admin/user-requests/{id}/formalize-external-managed`, que sólo
+radica y no corre esos efectos.
 
 ## Un webhook tardío no saca a una solicitud de Autorizada
 

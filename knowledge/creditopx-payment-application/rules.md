@@ -56,10 +56,18 @@ nueva lleva `status` 3 y estado de crédito 3 (paz y salvo).
 
 ## Un cobro de pasarela se acredita una sola vez
 
-Si ya existe un registro con ese `payment_gateway_transaction_id`, `processPayment` sale sin efectos en
-los dos monolitos. En un cupo rotativo el chequeo lo hace el reparto
-(`CreditopXRevolvingCreditPaymentController`, en cada monolito) antes de llamar por cada utilización,
-porque todas comparten la transacción.
+Si ya existe un registro en `creditop_x_payment_register` con ese `payment_gateway_transaction_id`,
+`processPayment` sale sin efectos en los dos monolitos. Ese chequeo sólo corre en el camino directo
+(consumo, sin `revolving_credit_id`); en legacy-backend va antes del rechazo de `externally_serviced`,
+para que reintentar una transacción ya acreditada no lance.
+
+En un cupo rotativo el chequeo lo hace el reparto (`CreditopXRevolvingCreditPaymentController`, en
+cada monolito) antes de llamar por cada utilización, porque todas comparten la transacción y el
+reparto las llama pasando el id del pago del cupo, con lo que `processPayment` no vuelve a chequear.
+El reparto lo hace dentro de su transacción, después de bloquear la cabecera del cupo
+(`lockForUpdate`): dos entregas del mismo pago se serializan en ese bloqueo y la segunda ve el
+registro que dejó la primera. application además hace el mismo chequeo antes de abrir la
+transacción, como atajo.
 
 ## Wompi: intención y webhook
 
@@ -128,7 +136,16 @@ categoría (respuesta 2) o de cupo (3): el mayor entre el porcentaje de la categ
 exceso sobre el cupo disponible, ambos sobre `original_amount` más costos administrativos. Una entidad
 sin categorías no exige mínimo; en los demás casos vuelve a `ceil(min_initial_fee% × amount) × 100`
 centavos. Debe quedar algo por financiar. No se cobra con la solicitud en 6, 8, 12 o 24 ni con otra
-aprobada. Al aprobarse, los dos monolitos recalculan sobre `original_amount`: costos administrativos =
+aprobada.
+
+El cupo disponible de una entidad de cupo es `approved_limit − used_limit`, el mismo que el listado
+publica como `max_amount`. Al autorizar, el `final_amount` de la solicitud entra en `used_limit` y se
+abre su cadena en el histórico; mientras esa cadena esté viva, `availableRevolvingQuota` le devuelve
+su propio monto, así que volver a medir la solicitud autorizada no la cuenta como ya usada. En las de
+categoría, la evaluación se hace con la solicitud (`userRequestId`), para que su propia cuota en el
+histórico CreditopX no entre como deuda al reevaluar al cliente.
+
+Al aprobarse, los dos monolitos recalculan sobre `original_amount`: costos administrativos =
 (original − pagado) × porcentaje de la entidad en ese comercio, y `amount` = (original − pagado) +
 costos. legacy-backend, además, omite el recálculo si falta `original_amount` y registra el pago como
 tipo 7.

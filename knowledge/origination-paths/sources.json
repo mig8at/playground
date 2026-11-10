@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-04T11:30:05+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "9a44ef3b3383e53b3a09a781f9852cf957e7741d",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "2de7f5db8a5173c280ec46460432f0228206dd7e",
       "sections": [
         "canal-por-donde-entra-la-solicitud",
         "tramo-comun-hasta-el-listado"
@@ -17,8 +17,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/layouts/public-layout.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "97659b24696815065a9a34ce66773c9dc6ed2302",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "b8e69e7f58c03e5a7b9d82ec711cb4d1f287f672",
       "sections": [
         "canal-por-donde-entra-la-solicitud"
       ]
@@ -26,8 +26,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/utils/route-helpers.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "863b14dc30156a1ae4e4417ed238e0ae12f57bd7",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "34d11b0f5a8f15618aa6eb8e71a2e4270f3a4c8d",
       "sections": [
         "canal-por-donde-entra-la-solicitud"
       ]
@@ -90,8 +90,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "af218af50c736862f34062307fdf28c4decd8706",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cb45ea1a6b0ced1d8a7c2034ac7b4ec4b13629e6",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -108,8 +108,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "f65dbda90c2d1d54989b2907510b2c7a04943a64",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "e475974e6a7fc4b6a7429e7434c02216386e837c",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -126,8 +126,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Middleware/ValidateInitialFeePaid.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b62577140e2208badac93af0f6ca202f97fc6908",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3a340a8c86ccde8a8b969478bc39aea0552f2049",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -135,8 +135,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/first-payment-date.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "29f4eca246d0ce63105920c949e0af190476c46b",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "ff65045d947173366b82943782e99f23eb52b7fd",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -144,8 +144,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "desenlace-como-termina",
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
@@ -154,8 +154,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "20c9fc4087bf94dbff2fddd6f097d290d82e572a",
       "sections": [
         "desenlace-como-termina"
       ]
@@ -163,8 +163,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cf0fe77cceaa956629b77e49dc978adcb648c6c6",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -172,8 +172,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -226,8 +226,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio",
         "variaciones-y-ajustes"
@@ -236,8 +236,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Income/MonthlyIncomeResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d33a1c4f52f7b2e57b377515ef622c3b4592b815",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "e1c01e7b6ea42628c795626419954d9e320ab92d",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -272,8 +272,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "69321ed45358e3baa72cff2b04f4b951ebafac01",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1354f268877356d84a9da171da6321529c615e7c",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
@@ -290,8 +290,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/DocumentGeneration/Payload/OnboardingPayloadBuilder.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "076477f0a5b81c4a0b8d982fc5c915810e720e60",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3055f2cf956f8a8b05a65eff0abd0ececc8ddb10",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
@@ -308,8 +308,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/Pdf/CredifamiliaFormalizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f23e833aaf79ace277a5e2afdc55e3acff70e874",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9d1f654a429b77a5df89d5fcfab1993f501307b1",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
@@ -317,8 +317,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/CredifamiliaConsumo/CredifamiliaConsumoService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "15f84de28feed47e298a7b16f8d9b6afcaeb147a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c60fd3239b7010bf7f57491413d463e2067adf58",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]
@@ -326,8 +326,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/Credifamilia/Constants/CredifamiliaLenders.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "aa075b81106803280599170ebabf7fe23880a62c",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "994b0d2bd79381a09fe1922ef76d7d2c94a325e2",
       "sections": [
         "el-riel-4-paso-a-paso-que-es-del-riel-y-que-es-de-credifamilia"
       ]

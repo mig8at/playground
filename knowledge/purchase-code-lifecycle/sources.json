@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Código de compra y conciliación",
   "summary": "Emisión y reuso del PIN, disponibilidad y reloj del wizard; factura local, confirmación bancaria y límites de conciliación.",
-  "reviewedAt": "2026-11-04T00:59:23+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "entrada-y-emisor"
       ]
@@ -255,8 +255,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "9a44ef3b3383e53b3a09a781f9852cf957e7741d",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "2de7f5db8a5173c280ec46460432f0228206dd7e",
       "sections": [
         "entrada-y-emisor"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "OTP: origen, OTP del pagaré y bypass de QA",
   "summary": "Cómo legacy-backend clasifica cada OTP por origen en otps.source, genera y valida el OTP de 6 dígitos del pagaré por el servicio de OTP, deriva el resultado en el backoffice y cuándo el bypass de QA salta el envío.",
-  "reviewedAt": "2026-11-04T00:27:44+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -45,8 +45,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Auth/App/Services/AuthService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b0b500b4542b4653800cc6b232e40b8a97d4aab2",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a24e9d5a202dc6b32e2b653307c0bbf150693c3c",
       "sections": [
         "el-origen-queda-en-la-fila-del-otp"
       ]
@@ -157,8 +157,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4d4c0e353191281a6a79426b504dd72fe4cd9420",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
       "sections": [
         "el-otp-del-pagare-se-genera-en-el-servicio-de-otp"
       ]

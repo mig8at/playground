@@ -77,12 +77,22 @@ Las variaciones vigentes, con lo que las activa:
 | **Formulario adicional** | la entidad tiene un formulario dinámico después de elegirla o antes de firmar; la tabla central de ubicaciones manda y, sin filas para ese punto, se hereda de la configuración anterior | por entidad (`LenderFormPlacementResolver`) |
 | **Aprobación manual** | la entidad tiene `lender_requirements.manual_approval`: un asesor aprueba antes de seguir | por entidad |
 | **IMEI** | la entidad tiene la ruta `IMEI` (`lenders.path_id`): el equipo financiado es la garantía | por entidad (`ImeiValidationService`, `otp-validation.tsx`) |
+| **Cuotas congeladas** | la entidad tiene una vigencia en `creditop_x_lender_freeze_periods` que cubre la hora actual de Colombia y es mensual (`cutoff_type_id = 1`), no rotativa y no `externally_serviced`: el crédito nace con sus primeras N cuotas (hasta 12) congeladas | por entidad (`InstallmentFreeze`) |
 | **Codeudor** | la categoría del cliente en esa entidad tiene `requires_cosigner` | por cliente (`CosignerRequirementService`) |
 | **Cuota inicial** | sólo CreditopX (riel 2 y 3): la categoría que le toca al cliente en esa entidad tiene `min_initial_fee` (en el rotativo, el crédito rotativo publica el porcentaje) | por cliente (`InitialFeePolicyResolver`) |
 
 Por eso hay dos clases de variación: las **por entidad**, que se leen en la configuración y valen para
 toda solicitud con esa entidad, y las **por cliente**, que dependen de la categoría que le toca y sólo
 se saben al evaluarlo.
+
+Las cuotas congeladas no agregan pantallas, pero cambian lo que muestran: las opciones de primera fecha
+de pago se corren N meses (`PaymentDateService`), el plan de pagos lleva aparte las fechas de las
+cuotas congeladas en $0 (`frozen_schedule`) y el crédito guarda `frozen_installments` y
+`amortization_start_date` en `creditop_x_requests_history`, de lo que imprimieron los documentos y no
+de la configuración al desembolsar. Mientras no empiece a amortizar no se le cambia la fecha ni el
+plazo. Cada paso mira el flag en ese momento, así que si cambia con una solicitud a mitad de camino las
+fechas que vio el cliente pueden no coincidir con el plan. La misma regla vive en `InstallmentFreeze`
+de `legacy-application`, que causa el interés desde `amortization_start_date`: las dos cambian juntas.
 
 Ábaco es una variación que además **trae datos**. Es un proveedor externo que, con las credenciales
 que da el cliente, lee sus ingresos en plataformas como las de reparto o transporte: un ingreso
@@ -92,7 +102,8 @@ validación de identidad, sólo si la entidad lo pide. Lo que devuelve se usa de
 - **Ingreso:** `MonthlyIncomeResolver` evalúa las políticas con el ingreso formal (la primera central
   con monto: Ágil Data, Mareigua o Quanto) **más** el informal de Ábaco (campo 235). No recibe la
   entidad, así que el informal cuenta para toda entidad que evalúe a esa persona, no sólo para la que
-  pidió Ábaco.
+  pidió Ábaco. La excepción es un perfil con `income_sources` en su fila de reglas: ahí sólo cuenta la
+  primera de esas centrales con monto (`verifiedIncome`), sin Ábaco, Quanto ni el ingreso declarado.
 - **Criterios propios:** las categorías pueden exigir viajes al mes o antigüedad en la plataforma, y
   negar a quien no tiene esos datos (`GigCriteria`).
 
@@ -111,7 +122,9 @@ de reglas, y su firma tiene recorrido aparte ([firma del codeudor](knowledge:cos
 La cuota inicial es además la variación que depende del canal. `InitialFeePolicyResolver` es su única
 autoridad y sólo resuelve los tipos 2 y 3; con cualquier otro riel no hay cuota inicial. El porcentaje
 sale de la categoría del cliente, y el monto suma lo que fija el convenio del comercio con la entidad
-(`lenders_by_allieds`: gastos administrativos y fondo de garantía). Cómo se cobra depende del canal:
+(`lenders_by_allieds`: gastos administrativos y fondo de garantía). En el rotativo se mide contra el
+disponible del cupo; una vez autorizada, la compra ya está dentro de `used_limit` y el resolver le
+devuelve su propio monto para no pedirle una cuota que no se debía. Cómo se cobra depende del canal:
 
 - **Tienda:** el listado no ofrece el campo; si la entidad elegida exige cuota inicial y no hay pago
   aprobado, el backend frena la firma con `INITIAL_FEE_PAYMENT_REQUIRED` y el cliente paga por la
@@ -119,6 +132,13 @@ sale de la categoría del cliente, y el monto suma lo que fija el convenio del c
 - **Asesor:** el campo aparece en el listado sólo si el comercio lo tiene activado
   (`allieds.initial_fee`). La firma no espera un pago por pasarela: fuera de la tienda la cuota inicial
   la cobra el comercio.
+
+La cuota que exige la política puede no ser una que el cliente eligió: si el cupo bajó entre la oferta
+y la firma, el resolver toma la diferencia como cuota inicial. Para eso, al elegir la entidad se guarda
+la cuota que exigía la oferta (`OfferSnapshotRecorder`) y `OfferStillStandsGuard` la compara al armar y
+confirmar el plan, al generar los documentos, al validar el OTP y al autorizar. Si ahora pide más, o si cambió el monto de compra desde la foto
+(`original_amount` fuera de la tolerancia), responde 409 `OFFER_CHANGED` y el asistente vuelve al listado. En la tienda, `ValidateInitialFeePaid`
+corre esa compuerta antes de pedir el pago. Con `initial_fee` mayor que 0, o sin foto, no compara.
 
 ## Campos: qué pide el formulario en cada comercio
 
@@ -158,19 +178,20 @@ nueva del riel (Finandina) no hereda sola.
 |---|---|---|
 | **Preaprobación** | el asistente la pide por el `slug` de la entidad; decide el adaptador de `pre-approvals-service` con esa clave | del riel; el adaptador `credifamilia` es propio ([preaprobación](knowledge:credifamilia-origination)) |
 | **Identidad** | los proveedores salen de la configuración de la entidad, con respaldo en orden (Credifamilia usa CrossCore y Evidente) | del riel, por configuración ([validación de identidad](knowledge:identity-validation)) |
-| **Fecha de pago y plan** | opciones, fechas, cuotas y fianza | atado: los servicios de plan sólo atienden a las entidades de Credifamilia ([rieles](knowledge:lender-response-types)) |
+| **Fecha de pago y plan** | opciones, fechas, cuotas y fianza | del riel, por perfil: las rutas `payment-plan/{lender_slug}/…` atienden a cualquier entidad tipo 4 por su `slug` (`DelegatedOriginationLenders::findBySlug`; 404 si no es del riel) y lo que cambia entre entidades (fuente y tipo de fianza, 4x1000, días de pago, fuente de insumos) se lee de `delegated_origination_profiles` (`DelegatedOriginationLenderProfile`). Una entidad del riel sin fila de perfil hace fallar el cálculo. Sigue atado: la única fuente de insumos registrada es la preaprobación de Credifamilia (`DelegatedOriginationInputsSources`), `payment-plan/credifamilia/calculate` es sólo de Credifamilia, y sin entidad explícita el cálculo cae a Credifamilia Salud (`CredifamiliaLenders::engineLenderIdFor`) ([rieles](knowledge:lender-response-types)) |
 | **Formulario adicional** | un formulario dinámico antes de firmar; sus respuestas alimentan los PDF | del riel, por configuración (Credifamilia tiene el suyo) |
-| **Documentos** | `pdf-mapper` llena los PDF (vinculación, fondo de garantías, plan de pagos, reglamento, términos y autorización de desembolso) con los datos del cliente y las respuestas del formulario | atado: `CredifamiliaDocumentsBuilder`, con la configuración de la entidad de Credifamilia |
+| **Documentos** | `pdf-mapper` llena los PDF (vinculación, fondo de garantías, plan de pagos, reglamento, términos y autorización de desembolso) con los datos del cliente y las respuestas del formulario | atado: `CredifamiliaDocumentsBuilder`, elegido por `CredifamiliaLenders::supports` y con la configuración de la entidad de Credifamilia |
 | **Firma** | los documentos se firman con Netco | hay dos caminos: el fijo de Credifamilia y uno **configurable por entidad** (`netco_lender_settings` encendido, módulo SigningV1), que va antes |
 | **Pagaré** | desmaterializado en Deceval, con la credencial de la entidad | del riel, por configuración ([pagaré](knowledge:deceval-promissory-note)) |
 | **Autorización** | con el OTP de la firma, la solicitud pasa a estado 11 | del riel (de cualquier riel en casa) |
-| **Formalización** | se entrega el crédito a la entidad | atado: la autorización llama a `CredifamiliaFormalizationService` para todo tipo 4. Ese servicio reúne los documentos de Credifamilia en un PDF y sólo entonces pide a `LenderServiceFactory` el servicio de cierre de la entidad (`LenderFinalizationServiceInterface`; el de Credifamilia es la radicación SOAP) |
+| **Formalización** | se entrega el crédito a la entidad | por perfil: la autorización lee `delegated_origination_profiles.formalization` y la resuelve con `DelegatedOriginationFormalizations`; sin formalización configurada no se radica. La única registrada es `credifamilia_radication`: `CredifamiliaFormalizationService` reúne y valida los documentos de Credifamilia (`collect`), pide a `LenderServiceFactory` el servicio de cierre de la entidad (`LenderFinalizationServiceInterface`; el de Credifamilia es la radicación SOAP) para fallar rápido, recién entonces los une en un PDF (`mergeUrlsToBase64`) y llama a `finalize` |
 
 Lo que una entidad nueva del riel 4 necesita, entonces, cae en tres grupos. **Configuración**: el
-`slug`, los proveedores de identidad, el formulario, la credencial de Deceval y la firma configurable.
-**Código propio**: su adaptador de preaprobación y su entrega. **Generalizar lo atado**: el plan de
-pagos, los documentos y la elección de la formalización por entidad. Lo segundo y lo tercero es lo que
-empezó a resolver el perfil del riel (CORE-918), que todavía no está en `main`.
+`slug`, los proveedores de identidad, el formulario, la credencial de Deceval, la firma configurable y su
+fila en `delegated_origination_profiles` (fianza, 4x1000, días de pago, fuente de insumos y
+formalización). **Código propio**: su adaptador de preaprobación y, si no son las de Credifamilia, su
+fuente de insumos y su formalización, cada una registrada por clave. **Generalizar lo atado**: los
+documentos, que siguen siendo los de Credifamilia.
 
 ## Desenlace: cómo termina
 
@@ -179,9 +200,13 @@ Cada riel termina distinto:
 - **Riel 0**: la entidad decide en su sitio; Creditop no sella el resultado.
 - **Riel 1**: decide la integración de la entidad y lo informa.
 - **Riel 2 y 3**: se autoriza en la plataforma y la solicitud llega al estado 11.
-- **Riel 4**: se autoriza y, además, se **formaliza** ante la entidad. En `main`,
-  `LoanAuthorizationService` formaliza todo tipo 4 con `CredifamiliaFormalizationService`, la
-  radicación de Credifamilia: la formalización todavía no se elige por entidad.
+- **Riel 4**: se autoriza y, además, se **formaliza** ante la entidad. La formalización se elige por
+  entidad: `LoanAuthorizationService`, después de confirmar la autorización, lee
+  `delegated_origination_profiles.formalization` (`DelegatedOriginationLenderProfile`) y la resuelve con
+  `DelegatedOriginationFormalizations`. La única clave registrada es `credifamilia_radication`
+  (`CredifamiliaFormalizationService`, la radicación de Credifamilia). Sin formalización en el perfil no
+  se radica y queda en el log; una entidad tipo 4 sin fila de perfil hace fallar la formalización
+  (`InvalidArgumentException`).
 
 La **cobranza** es otro eje del desenlace: `lenders.externally_serviced` dice si el ciclo de vida del
 crédito lo gestiona Creditop o la entidad, independiente del riel.

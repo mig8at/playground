@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-04T00:30:30Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -70,8 +70,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/ecs-application/terragrunt.hcl",
-      "commit": "c276d1c181f695e9242ff057604543469336e511",
-      "blob": "418fd74277d1f16f431148e7a1637dbcc1e713e0",
+      "commit": "b2142d0c6e68bfac385912ff51de3c40a72d3861",
+      "blob": "5db7fdf507bfe3436486ab7e6317539c9aa43aca",
       "sections": [
         "la-noche-de-cartera-la-corre-loan-servicing"
       ]
@@ -88,8 +88,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "d63e7494387bb7bf22a2934837ffd1ee34ce804b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "70fd44de510b75fa1504f0846d6ba3a85675fdf9",
       "sections": [
         "la-noche-de-cartera-la-corre-loan-servicing",
         "saldo-total-y-gasto-de-cobranza"
@@ -116,8 +116,8 @@
     {
       "repo": "application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "300f20fd4ae4293e75380bc96b93b18785eb6c7f",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
       "sections": [
         "gasto-de-cobranza-por-dias-de-mora",
         "saldo-total-y-gasto-de-cobranza",
@@ -127,8 +127,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
       "sections": [
         "gasto-de-cobranza-por-dias-de-mora",
         "saldo-total-y-gasto-de-cobranza"
@@ -137,8 +137,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bb44c4508cb6f1e5e106c3cecaec3ce959985fea",
       "sections": [
         "saldo-total-y-gasto-de-cobranza"
       ]
@@ -146,8 +146,8 @@
     {
       "repo": "application",
       "path": "app/Actions/CreditopX/CondoneCreditBalances.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "76158e5f64e4960305b9239dc698d7d8b14f0ce8",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "fc0e5f1e552ef2b62a944024fb8bf4bf84b781c1",
       "sections": [
         "saldo-total-y-gasto-de-cobranza",
         "acciones-del-admin-sobre-la-cartera"
@@ -165,8 +165,8 @@
     {
       "repo": "application",
       "path": "app/Console/Commands/UpdateCreditopXRemoveOutstandingBalances.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "0ab3cd688dcfaccd54dd104072f67f48f5df297c",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "47965d59ef11771ac47b13e120c08826ee693caa",
       "sections": [
         "colilla-el-residuo-se-condona-en-el-corte",
         "saldo-total-y-gasto-de-cobranza"
@@ -184,8 +184,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
       "sections": [
         "cambio-de-fecha-de-pago",
         "acciones-del-admin-sobre-la-cartera",
@@ -196,8 +196,8 @@
     {
       "repo": "application",
       "path": "app/Actions/CreditopX/RefinanceCredit.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "293983d51103999c843cb2deb02b1847ce5b311d",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "96113fe89b99d4b5d2aba1c5e2cfb18015c8a1ff",
       "sections": [
         "acciones-del-admin-sobre-la-cartera",
         "saldo-total-y-gasto-de-cobranza"
@@ -224,8 +224,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CreditBenefitResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "04ca8f0fc83904e8fc885f62ae5b4fe71c0740fc",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dd371c71911f23f4717030b3a3e6a0b44cbeed28",
       "sections": [
         "subsidio-de-intereses-creditop"
       ]
@@ -233,8 +233,8 @@
     {
       "repo": "application",
       "path": "app/Services/CreditopX/Benefits/CreditBenefitResolver.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "4c7f3f2b74d731ee349c43d77350ebf2fdce48a2",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "a1aa466e99cb14cb67dc6c769fa83a98e85aa269",
       "sections": [
         "subsidio-de-intereses-creditop"
       ]
@@ -251,8 +251,8 @@
     {
       "repo": "application",
       "path": "app/Helpers/CutoffCalendar.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c72345f5483b7d6943156caf7e34f26c28388b8e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "49d94b641eb35a9ec72fdcc732d69ebec2ae8b7f",
       "sections": [
         "subsidio-de-intereses-creditop",
         "cambio-de-fecha-de-pago"

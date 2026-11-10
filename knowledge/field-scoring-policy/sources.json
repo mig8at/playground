@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Categoría por puntaje de respuestas",
   "summary": "Cuando ninguna regla de categoría aprueba, el backend modular suma puntos por respuestas del formulario (comparadas como texto exacto) y por capacidad de pago para elegir categoría; qué consumidores respetan o ignoran que sea un respaldo, y cómo el formulario dinámico convierte rangos de ingreso y gasto en montos.",
-  "reviewedAt": "2026-11-03T16:27:31Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
       "sections": [
         "cuando-se-usa-el-puntaje",
         "la-respuesta-se-compara-como-texto",
@@ -38,8 +38,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
       "sections": [
         "una-categoria-por-puntaje-no-siempre-aprueba"
       ]
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "donde-se-usa-sin-la-guarda"
       ]
@@ -65,8 +65,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/ListLenderController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "7de4791a0bd3ac77187346f853644df19bf04e26",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "e97199d3b3809e44dc34fdd4a1f6b82d693e219e",
       "sections": [
         "donde-se-usa-sin-la-guarda"
       ]
@@ -74,8 +74,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "donde-se-usa-sin-la-guarda"
       ]
@@ -92,8 +92,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cf0fe77cceaa956629b77e49dc978adcb648c6c6",
       "sections": [
         "donde-se-usa-sin-la-guarda"
       ]

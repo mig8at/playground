@@ -64,22 +64,39 @@ crédito y se descarga la liquidación del subsidio para conciliar con cada come
 `view creditop x requests`; sin `see all ctopx request` se ve sólo el buscador por cédula. Funnel,
 Gestión de cartera, Pagos y facturación y Cupos rotativos son vistas de la misma cartera.
 
+El listado muestra el botón «Reporte Créditos renting» sólo a quien lo puede bajar
+(`EntityReportCatalog::rentingReportFor`): el permiso `download entity reports` y, además, ser
+Administrador o estar vinculado a la entidad del reporte por su lender o su comercio (`allied_id` o
+`multiple_allieds`), buscados por slug. La descarga va por `reportes-entidad/{report}/descarga`.
+
+Una utilización de cupo rotativo (`revolving_credit_id` no nulo) no se gestiona desde su detalle: el
+servidor rechaza plazo, refinanciación, condonación, recuperación y anulación, y la vista lo avisa
+(`isRevolvingUtilization`). El envío y la validación del OTP de cambio de fecha y plazo exigen
+`update creditop x requests`, el mismo permiso que el cambio.
+
 ## El historial de un crédito CreditopX lleva dos estados
 
 En `creditop_x_requests_history`, `creditop_x_requests_status_id` es el estado del crédito, del catálogo
 `creditop_x_user_request_statuses`. El código nombra 1 al día, 2 en mora y 3 paz y salvo
-(`CreditopXUserRequestStatus` de legacy-backend), 4 cancelado (lo escribe la anulación), 6 producto
+(`CreditopXUserRequestStatus` de legacy-backend), 4 cancelado (lo escriben la anulación y la anulación de un cupo rotativo), 6 producto
 recuperado, 7 recuperado por fondo de garantías y 8 administrado externamente; el resto del catálogo
-vive en la base. `status` es el de la fila: 1 la vigente, 0 una reemplazada o desactivada, 5 una
-reversada por un pago revertido.
+vive en la base. `status` es el de la fila: 1 la vigente, 0 una reemplazada o desactivada, 2 una
+anulada (`ANNULLED_REGISTER_STATUS`), 5 una reversada por un pago revertido, 6 y 7 una fila de recuperación y 8 la de un crédito de
+entidad `externally_serviced` (en los dos monolitos).
 
-Anular desde este admin (`disable`, con `cancel creditop x requests`) pasa la solicitud a 8, deja la
-fila vigente en `status` 2 y estado 4, pone en 0 los días de mora y registra un `ANNULMENT` en
-`creditop_x_log`. La cancelación del monolito nuevo
-(`CreditopXRequestHistoryService::disableCreditopXRequest`) sólo pone la fila en `status` 0 y registra un
-`CANCELLATION`: no toca la solicitud ni el estado del crédito. Para saber si un crédito se anuló o
-canceló hay que mirar también `creditop_x_log`. Marcar recuperado (6 o 7) sólo se puede sobre la fila
-vigente: la replica con el mismo número en `status` y en el estado, y deja la anterior en 0.
+Anular desde este admin (`disable`, con `cancel creditop x requests`) rechaza primero las utilizaciones
+de cupo rotativo (`revolving_credit_id` no nulo: se gestionan desde el cupo). Dentro de la transacción
+bloquea la solicitud y la fila (`lockCurrentHistory`), que tiene que ser la más reciente del crédito sin
+contar las de `status` 0 y 5 (si no, pide recargar), rechaza un crédito ya anulado y uno cuya fila no
+está en `status` 1 (`manageRejection`). Si pasa, pone la solicitud en 8, deja esa fila en `status` 2 y
+estado 4, pone en 0 los días de mora y registra un `ANNULMENT` en `creditop_x_log`. Los rechazos vuelven
+como 422 con el mensaje a una petición JSON y como flash a una de Inertia.
+
+La cancelación del monolito nuevo (`CreditopXRequestHistoryService::disableCreditopXRequest`) sólo pone
+la fila en `status` 0 y registra un `CANCELLATION`: no toca la solicitud ni el estado del crédito. Para
+saber si un crédito se anuló o canceló hay que mirar también `creditop_x_log`. Marcar recuperado (6 o 7)
+sólo se puede sobre la fila vigente y nunca sobre una utilización de cupo rotativo: la replica con el
+mismo número en `status` y en el estado, y deja la anterior en 0.
 
 ## Facturación y recaudo suma por mes, no cuota por cuota
 
@@ -132,8 +149,20 @@ fue no las ve nadie más del comercio.
 «Centrales de riesgo» (`view risk centrals module`) guarda las credenciales de los burós, muestra
 cuántas consultas hizo cada comercio y tiene la consulta manual de Experian por cédula. ⚠ **Esa
 consulta manual no lee caché: dispara una consulta NUEVA y facturable** al buró, a nombre del comercio
-«Creditop», y deja un rastro en `logs`. «Validar usuario» (`can:view user validation module` en la
-ruta) muestra el perfil de riesgo completo de una cédula y también deja rastro de quién consultó.
+«Creditop», y deja un rastro en `logs`.
+
+«Validar usuario» (`can:view user validation module` en la ruta `validacion-usuario`) muestra el perfil
+de riesgo de una cédula (score de Datacrédito, Ágil Data, Mareigua, TusDatos, capacidad de
+endeudamiento) y deja rastro en `logs` de quién consultó, antes de cualquier recorte. Encima del
+permiso, `ProfilingReviewController::userValidation` aplica `RiskProfilePolicy`: el Administrador ve
+cualquier cliente; cualquier otro rol con el permiso sólo ve clientes con solicitudes en sus comercios
+(`allied_id` o `multiple_allieds`, vía `UserRequestPolicy::alliedIdsOf`) y recibe 403 si no. El corte
+va en el servidor, antes de armar el payload, porque Inertia manda los datos aunque la vista los
+oculte. Para quien no es Administrador, el historial de perfilamiento por comercio también se limita
+a sus comercios.
+
+El botón de consulta manual a Datacrédito dentro de «Validar usuario» sólo se muestra con
+`view risk centrals module` (`can_query_datacredito`), el mismo permiso que exige la consulta.
 
 ## Las bajas son lógicas
 

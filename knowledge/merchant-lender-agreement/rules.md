@@ -17,12 +17,16 @@ banco, cálculos de tesorería, `url_utm`, orden y autogestión. Si la entidad e
 - crea una fila de `lender_guarantee_criteria` con variable, condición y valor en `null` (por
   defecto pide pagaré), con clave `lender_id` y sin comercio;
 - da a los usuarios del comercio con perfil 4 o 6 los permisos `view creditop x requests` y
-  `view creditop x`; `application` agrega `register creditop x payments`;
+  `view creditop x`; `application` agrega `register creditop x payments` y
+  `reduce creditop x installments` (`CreditopXPrincipalPaymentType::grantReduceInstallment`, que no
+  hace nada si ese permiso no existe);
 - en `application`, fuerza `iva = 19`. La copia de `Partner` guarda el IVA que llegue.
 
 La fila de `lender_guarantee_criteria` se crea en cada `store` de una entidad CreditopX, aunque el
 `updateOrCreate` sólo haya actualizado un convenio que ya existía o la entidad ya tenga filas por
-otro comercio: la entidad acumula una fila por cada alta. Los que la leen toman
+otro comercio: la entidad acumula una fila por cada alta, hasta que un `update` o `destroy` de cualquier convenio
+de esa entidad borra todas sus filas de `lender_guarantee_criteria` (y `update` recrea una sola si
+viene `guarantee_fund_request`), en los dos monolitos. Los que la leen toman
 `where('lender_id', …)->first()` sin orden (`ConsentService` y `LenderGuaranteeCriteriaRepository`
 en `legacy-backend`; `Customer/ConsentController` y `Customer/GuaranteeController` en
 `application`), así que con varias filas no está definido cuál decide la garantía.
@@ -59,15 +63,18 @@ deja como estaba.
 
 ## Quitar un convenio
 
-`destroy`, igual en las dos copias y sin transacción:
+`destroy`, sin transacción en las dos copias, hace los mismos pasos salvo en los permisos:
 
 1. borra las habilitaciones de esa entidad en **todas las sucursales del comercio**
    (`lenders_by_allied_branches`);
 2. borra el convenio;
 3. borra todas las filas de `lender_guarantee_criteria` de la entidad, otra vez sin filtrar por
    comercio;
-4. si la entidad es CreditopX, revoca los permisos de CreditopX a los perfiles 4 y 6 del comercio,
-   aunque el comercio tenga otro convenio CreditopX.
+4. si la entidad es de `response_type` 2, revoca a los perfiles 4 y 6 del comercio `view creditop x requests` y
+   `view creditop x`, aunque el comercio tenga otro convenio CreditopX; `application` revoca además
+   `register creditop x payments` y `reduce creditop x installments`
+   (`CreditopXPrincipalPaymentType::revokeReduceInstallment`, si el permiso existe). Con un
+   rotativo (tipo 3) no revoca nada.
 
 No toca `payment_methods_by_lender`. Como no hay transacción, un fallo a mitad deja los pasos
 anteriores aplicados.

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfilamiento del cliente: probabilidades, pantallas y aprobación manual",
   "summary": "Qué es el perfilamiento (el perfil de riesgo de un cliente, no su rol): cómo se calcula la probabilidad de cada entidad al listar (demográfica, matriz y ML), las pantallas que lo muestran y quién las ve, y cómo funciona la aprobación manual entre los dos monolitos.",
-  "reviewedAt": "2026-11-04T11:43:48+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -16,8 +16,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "la-probabilidad-de-cada-entidad-se-calcula-al-listar"
       ]
@@ -44,8 +44,8 @@
     {
       "repo": "application",
       "path": "routes/admin.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "331696df154357eb6b9664a17491c8524a9a456b",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]
@@ -81,8 +81,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5ce329bb69e613a58f184dec9beda0156ef3c3a0",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "b213ff5a6dc70fcf50731b0bd9c9a65ce22fd99e",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]

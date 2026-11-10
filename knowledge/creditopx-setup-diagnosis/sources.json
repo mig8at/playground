@@ -2,13 +2,13 @@
   "version": 1,
   "title": "CreditopX: alta de una entidad y por qué no aparece",
   "summary": "Qué filas necesita una entidad CreditopX (plantilla de reglas y copias por sucursal, regla de datacrédito sin sucursal, perfiles por priority, proveedor de identidad order 1) y cómo leer hard_rules, la razón de available-quota, el rechazo de la autorización sin categoría y users_category_log para saber por qué un cliente no la vio, la vio sin cupo o no pudo autorizar.",
-  "reviewedAt": "2026-11-04T01:02:35+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderValidationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "9ba2496d9f3797c5f1ea5bb9347aa7bcb73bc231",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bb21da995f7ad0e80118c38bb001d5dbcaa97906",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-no-salio-en-el-listado"
@@ -17,8 +17,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderRuleEvaluator.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "82b7ec7b113b216b44ba1d90fbcd2f2ffd924e84",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cdf338b1094333be38fe046d94bd41f5f591459b",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica",
         "diagnostico-salio-sin-cupo"
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "53604368c1324954884f412d17d0ebe735c7aa80",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1c7e056f7ffc35f73b2068330d08c0c5d38e6b3b",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -109,8 +109,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "fc74cf4b77646b167e0cbcfa3a4b09452aa9c4c0",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "15e30e999b55874a2abf1c9f97bb2f346a2cd945",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Http/Controllers/LenderConfigController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "c7a96dac424099dcbf537c3742682cb07dcf4375",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a2cce08bf0cf028d479990cffe32d53ae5911c30",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -127,8 +127,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderPaymentMethodService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "82238338f3ee39675adf6d268470db93189d1efb",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "5b27eb779820b381dbeb986ff619bcccc0de0843",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -136,8 +136,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f35369005a7607e85c5ed6a1440a52a38c0f612c",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "20c9fc4087bf94dbff2fddd6f097d290d82e572a",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -201,8 +201,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderConfigService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "af218af50c736862f34062307fdf28c4decd8706",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cb45ea1a6b0ced1d8a7c2034ac7b4ec4b13629e6",
       "sections": [
         "identidad-y-nit"
       ]
@@ -210,8 +210,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "f227bf5942a49c5d03d34f7dd18a09607c1efd57",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "be6c99c8aa8d580c49de964e705e2b39937dddef",
       "sections": [
         "diagnostico-no-salio-en-el-listado"
       ]
@@ -231,8 +231,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/routes/api.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b51f912eef9e592e842d09e27cd9a4c7bffb7108",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
       "sections": [
         "dos-puertas-evaluan-la-misma-politica"
       ]
@@ -240,8 +240,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
       "sections": [
         "diagnostico-salio-sin-cupo",
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
@@ -259,8 +259,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LenderUserCategoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "24cd36736a87e88e1ff69ffe625cd4b3518bdc58",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2306b8f662645228d3973594e5edfb45e679a49f",
       "sections": [
         "diagnostico-salio-sin-cupo",
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza",
@@ -279,8 +279,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza",
         "leer-users-category-log"
@@ -289,8 +289,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
       ]
@@ -307,8 +307,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza"
       ]

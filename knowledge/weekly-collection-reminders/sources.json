@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
-  "reviewedAt": "2026-11-04T01:00:58Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CutoffCalendar.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6f29006ad046252e8aeaae68b10c2cca6bd6478b",
       "sections": [
         "los-dos-cortes-semanales",
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
@@ -26,8 +26,8 @@
     {
       "repo": "application",
       "path": "app/Helpers/CutoffCalendar.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c72345f5483b7d6943156caf7e34f26c28388b8e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "49d94b641eb35a9ec72fdcc732d69ebec2ae8b7f",
       "sections": [
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
       ]
@@ -151,8 +151,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "501a79b976b71a77543ce9efc9452e8d2f4e269e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bb44c4508cb6f1e5e106c3cecaec3ce959985fea",
       "sections": [
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo",
         "variables-de-los-mensajes"

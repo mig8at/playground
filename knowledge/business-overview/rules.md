@@ -105,10 +105,12 @@ el pago se reversa vuelve a Cancelado (ver `user-request-lifecycle`).
 - **Entidad externa**: desembolsa y cobra ella. CreditOp conserva la solicitud y su estado.
 - **CreditopX**: CreditOp administra la cartera. Cada noche loan-servicing agenda, por hora y dependencias, comandos
   de `application`: concilia pagos Wompi no aplicados, condona colillas, causa intereses (y ahí el
-  gasto de cobranza por días de mora), aplica pagos retenidos, actualiza los créditos rotativos,
-  aplica beneficios (subsidio de intereses de las primeras cuotas) y envía recordatorios. El cliente paga por Wompi (portal de pagos, app),
-  en caja del comercio, o por otros medios configurados por entidad. Los equipos financiados pueden
-  bloquearse por mora (IMEI).
+  gasto de cobranza por días de mora; un crédito con cuotas congeladas no causa interés hasta su
+  inicio de amortización), aplica pagos retenidos, actualiza los créditos rotativos,
+  aplica beneficios (subsidio de intereses de las primeras cuotas) y envía recordatorios. Si la
+  causación termina con error, no corren los pasos que dependen de ella. El cliente paga por Wompi
+  (portal de pagos, app), en caja del comercio, o por otros medios configurados por entidad. Los
+  equipos financiados pueden bloquearse por mora (IMEI).
 
 Detalle: `creditopx-payment-application`, `creditopx-portfolio-servicing`, `device-locking`.
 

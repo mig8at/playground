@@ -23,12 +23,13 @@ En legacy-backend, `POST api/onboarding/ecommerce-request/create/{partner_id}`
 (`Modules/Onboarding/routes/api.php:235`) no lleva middleware propio: el grupo del módulo sólo
 agrega `otel` y `auth.cognito` (`RouteServiceProvider.php:41-44`), y `ResolveCognitoUser` resuelve
 el actor sin rechazar la petición. `CreateEcommerceRequest::validate` sólo exige cadenas. El
-orquestador empieza por `unserializeCreateEcommerceRequest` (`EcommerceRequestService.php:418`,
-`:599-622`): decodifica de base64 `order`, `returnUrl`, `processUrl`, `config` y, si viene, `backUrl`,
-y los reconstruye con `unserialize()` sin la opción `allowed_classes` (`:640`, `:651`, `:660`, `:670`;
-`processUrl` sólo si contiene `"`). `products` pasa por `json_decode` y `token` sólo se decodifica.
-Recién después valida el total (`:420`), la sucursal (`:428`) y la credencial con
-`findValidCredential` (`:437`). La entrada del wizard (`checkout.tsx:164-179`) reenvía esos
+orquestador empieza por `unserializeCreateEcommerceRequest` (`EcommerceRequestService.php:439`,
+`:620-643`): decodifica de base64 `order`, `returnUrl`, `processUrl`, `config` y, si viene, `backUrl`,
+y los reconstruye con `unserialize()` sin la opción `allowed_classes` (`:661`, `:672`, `:681`, `:691`;
+`processUrl` sólo si contiene `"`). `products` pasa por `json_decode` y `token` sólo se decodifica. Dentro de la deserialización,
+`validateOrderData` ya exige `billing`, `total` y `order_key`.
+Recién después valida el total (`:441`), la sucursal (`:449`) y la credencial con
+`findValidCredential` (`:458`). La entrada del wizard (`checkout.tsx:164-179`) reenvía esos
 parámetros sin tocarlos a este endpoint.
 
 application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`,
@@ -46,19 +47,20 @@ reenvía `o`, `p`, `t`, `u`, `ps` y `config` al backend (`create/<hash>`) como `
 válido, orden y token. El backend valida el total positivo, la sucursal y su credencial, y
 devuelve `ecommerceRequestId`. Con `?ref=` (pedido creado por la tienda con `payment-link`) sólo
 envía esa referencia a `by-reference/<hash>`; el backend exige que sea de esa sucursal y abre el
-pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-337`). Las dos entradas siguen
+pedido ya guardado, sin crearlo (`EcommerceRequestService.php:294-345`). Las dos entradas siguen
 igual (`continueCheckout`, `checkout.tsx:184`): el redirect lleva `?erId=`; sólo usa `?amount=`
 como respaldo cuando la respuesta no contiene ese id.
 
 En la entrada por contrato el loader también reenvía `sig` y `ts` como `signature` y
 `signatureTimestamp` cuando vienen los dos (`checkout.tsx:52`). El backend verifica esa firma del
-comercio sobre el `o` recibido (`EcommerceRequestService.php:452`, `MerchantOrderSignatureService`)
+comercio sobre el `o` recibido (`EcommerceRequestService.php:473`, `MerchantOrderSignatureService`)
 y, si vale, marca el pedido y devuelve `merchantVerified` con un `verificationToken` de un solo
-uso. En la entrada por referencia el token sale sólo si la sucursal tiene auto-onboarding, el
-pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y la referencia está
-vigente y sin usar, que se gasta en ese momento; si falta algo el pedido se abre igual y el
-comprador sigue por OTP. Las dos devuelven `autoOnboarding` según el setting
-`auto_onboarding_allied_branches` (`{"hashes": [...]}`; ausente o con otra forma no habilita).
+uso. En la entrada por referencia el token sale sólo si el pedido no está cancelado, la sucursal
+tiene auto-onboarding, el pedido trae teléfono y aceptaciones (`termAccepted`, `policyAccepted`) y
+la referencia está vigente y sin usar, que se gasta en ese momento; si falta algo el pedido se abre
+igual y el comprador sigue por OTP. Un pedido que la tienda canceló no gasta la referencia ni da
+token. Las dos devuelven `autoOnboarding` según el setting `auto_onboarding_allied_branches`
+(`{"hashes": [...]}`; ausente o con otra forma no habilita).
 Con id de pedido y `autoOnboarding` verdadero, el redirect va a `/auto/<hash>/inicio?erId=` en vez
 de `solicitar` (`checkout.tsx:188-189`); sólo en ese camino el token se guarda en la cookie de
 sesión para entrar sin OTP. Un pedido verificado en una sucursal sin auto-onboarding sigue por
@@ -70,6 +72,13 @@ que se sigue releyendo por `erId`.
 fetch. Los POST pueden recuperar `erId` desde el Referer si no viene en su URL.
 Ante error HTTP, red o respuesta sin id devuelve `null`. Ese resultado no demuestra que la
 solicitud no tenga pedido: al depurar, contrastar el vínculo en backend.
+
+`detail`, `by-user-request` y `by-reference` devuelven además `cancellation` (`cancelledAt`,
+`reasonCode`, `reasonMessage`; `null` mientras el pedido siga vivo), que la tienda fija con
+`POST /api/ecommerce/orders/{orderKey}/cancel` (`cancelled_at`, `cancellation_reason` en
+`ecommerce_requests`). El wizard la relee en cada pantalla por `/api/ecommerce/order-state` (por
+solicitud si existe, si no por `erId`) y también la escucha en vivo por el canal
+`EcommerceRequest.{id}`; con ella tapa el flujo con «La tienda canceló tu compra».
 
 ## El vínculo con la solicitud vive en tres lugares
 
@@ -93,7 +102,7 @@ verificable exige revisar el pedido, no inventar un monto desde un dato del nave
 
 `OnboardingOrigin::resolve` recibe dos booleanos y mira el vínculo ecommerce antes que la
 autenticación; el vínculo lo calcula el llamador con `existsForUserRequest`
-(`UserRequestService.php:898-902`, `LenderListingService.php:748-750`).
+(`UserRequestService.php:904-908`, `LenderListingService.php:748-751`).
 Con pedido devuelve `ECOMMERCE` incluso si viaja sesión de asesor. Sólo sin pedido distingue
 `ADVISOR` y `SELF_SERVICE`. `isCustomerPresent` es falso únicamente para asesor;
 `locksAmount` es verdadero únicamente para ecommerce.
@@ -106,18 +115,25 @@ de todos los endpoints de escritura ni usar una sesión abierta para reclasifica
 
 ## El link «Volver a la tienda» prefiere backUrl
 
-`storeBackUrlOf` del wizard prefiere `backUrl` y cae en `returnUrl`; lee los dos del detalle del
-pedido (`buildEcommerceRequestDetailData`). El `backUrl` es a dónde vuelve el comprador si sale a pagar
-con otro medio, y viaja dentro del JSON del pedido en `data` como `back_url`:
+`storeBackUrlOf` del wizard (`ecommerce-context.server.ts`) prefiere `backUrl` y cae en `returnUrl`;
+lee los dos del detalle del pedido (`buildEcommerceRequestDetailData`). El `backUrl` es a dónde vuelve
+el comprador si sale a pagar con otro medio, y viaja dentro del JSON del pedido en `data` como
+`back_url`:
 
 - con la URL armada, el checkout manda `b` como `backUrl` en el create; `CreateEcommerceRequest` lo
   acepta opcional y el orquestador lo decodifica como la `returnUrl`, lo filtra con `storeUrlOrNull`
-  (`EcommerceRequestService.php:607-609`) y lo guarda en el pedido después de verificar la firma del
-  comercio, que sigue siendo sobre el `o` recibido (`:469-471`);
+  (`EcommerceRequestService.php:628-630`) y lo guarda en el pedido después de verificar la firma del
+  comercio, que sigue siendo sobre el `o` recibido (`:488-492`);
 - con `payment-link`, `back_url` debe ser una URL `https://` (`CreatePaymentLinkRequest.php:49`) y
   queda en el pedido sólo si llegó.
 
 El detalle y la respuesta del create devuelven `backUrl` sólo si es una URL absoluta `http` o `https`
-(`storeUrlOrNull`); vacía, sin protocolo o con otro esquema llega como `null`, y entonces el link del
-listado vacío lleva a la `returnUrl` de la tienda, que suele ser la confirmación del pedido. Los
-pedidos guardados antes de este cambio por la URL armada no tienen `back_url`.
+(`storeUrlOrNull`); vacía, sin protocolo o con otro esquema llega como `null`, y entonces el link
+lleva a la `returnUrl` de la tienda, que suele ser la confirmación del pedido. Los pedidos guardados
+antes de este cambio por la URL armada no tienen `back_url`.
+
+Ese destino lo usan el link del listado vacío (`available-lenders.tsx`) y la salida a la tienda de
+todo el flujo `/ecommerce/…` (`EcommerceStoreExit`, que lo pide a `/api/ecommerce/order-state` por
+solicitud o por `erId`): un link «¿Prefieres pagar de otra forma? Volver a la tienda» al pie de cada
+pantalla salvo el listado y la de crédito aprobado, y el botón de la pantalla que tapa el flujo cuando
+la tienda canceló el pedido.

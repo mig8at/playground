@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Oferta de CreditopX en la tarjeta: cupo, cuota inicial y cuota",
   "summary": "Cómo calcula el asistente la oferta de una entidad CreditopX o rotativa (CalculateLoanFinancialsUc): de dónde llegan cupo, FGA, tasa y porcentaje, la cuota inicial como el mayor entre excedente y política, qué pasa con la cuota escrita o sin campo al elegir y liquidar, el valor a financiar sin FGA, los plazos por categoría y tramo, y en qué difiere el plan de pagos del backend.",
-  "reviewedAt": "2026-11-04T01:01:11+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -20,8 +20,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/lib/domain/constants/lender.constants.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "eca36a6562511af23bd611bc0b9e3378f2a607d8",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "d79f612f06d6575476ea891e05c319eea08de900",
       "sections": [
         "cuando-se-resta-la-cuota-inicial",
         "valor-a-financiar-fga-y-cuota"
@@ -30,8 +30,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/lender-resolution.service.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "e0141f859f87a85fc9dda2cf49cbf2632f41cc50",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "18cbf01a36d30982784bed97967205d51e2f5d36",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta"
       ]
@@ -95,8 +95,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "082360218246a8a16f2c37e045aa22c4afb823a9",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "7351c10ab119e1bbcb08923dbf1da386e16b8ba0",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -104,8 +104,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "f5e1461f85f1b7bbae4ee7d1ac95255be15ace0f",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -131,8 +131,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "plazos-que-ofrece-la-tarjeta"
@@ -168,8 +168,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "cce703d991d2da707ad774e624c2e410a55a318a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c8f7e40de6997dee49af73ebd44378e248a15be7",
       "sections": [
         "de-donde-salen-los-numeros-de-la-tarjeta",
         "el-cupo-que-llega-como-available"
@@ -178,8 +178,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/UserRequestService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "59d9df68806a6a1db8dc35f55cc6a19fd66dfb6b",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -187,8 +187,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Middleware/ValidateInitialFeePaid.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b62577140e2208badac93af0f6ca202f97fc6908",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3a340a8c86ccde8a8b969478bc39aea0552f2049",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
         "el-backend-repite-la-regla-con-iva-fijo"
@@ -206,8 +206,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PromissoryNoteService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "6d171e392990eb74d46c374f7832157ad998a82a",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "fdaa3e1a1ebcdd538dcef688a18261ad6d35da8b",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -215,8 +215,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe"
       ]
@@ -224,8 +224,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/InitialFee/InitialFeePolicyResolver.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "150ca8188384ec420b7f2deec841e1ace86d88fc",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cf0fe77cceaa956629b77e49dc978adcb648c6c6",
       "sections": [
         "el-backend-repite-la-regla-con-iva-fijo"
       ]
@@ -233,8 +233,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "c2dfb16c21dc9188f0fb087387eb103f3ba4b06d",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "4198a1dd14935eb6e3db507f8b52b7ab61ccc7e0",
       "sections": [
         "la-cuota-inicial-escrita-y-la-que-no-se-escribe",
         "el-backend-repite-la-regla-con-iva-fijo"
@@ -243,8 +243,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CutoffCalendar.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "ed6fa4afbea819cc75885a42b6e5847dfc023b8f",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6f29006ad046252e8aeaae68b10c2cca6bd6478b",
       "sections": [
         "el-backend-repite-la-regla-con-iva-fijo"
       ]

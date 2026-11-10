@@ -33,9 +33,11 @@ modelo demográfico no se actualiza solo.
 | **Usuarios perfilamiento** (admin y comercio) | qué entidades se le mostraron a cada solicitud y con qué probabilidad; se puede descargar | recorta por rol en el servicio; la ruta no pide permiso |
 | **Pestaña Perfilamiento** de una solicitud | Datacrédito, ocupación, ingresos, continuidad laboral, la revisión de la política de riesgo y la capacidad de endeudamiento (pedidas a `legacy-backend`), el formulario dinámico y la última decisión manual | sólo si la entidad tiene aprobación manual y el usuario puede aprobar |
 | **Revisión de perfilamiento** | cuántas veces la entidad recomendada fue la que desembolsó, por comercio y entidad | el menú pide «ver centrales de riesgo»; la ruta no pide permiso |
-| **Validar usuario** | el perfil de riesgo completo de una cédula | permiso propio en la ruta; deja rastro |
+| **Validar usuario** | el perfil de riesgo de una cédula (Datacrédito, Ágil Data, Mareigua, TusDatos, capacidad de endeudamiento) y su historial por comercio | la ruta pide `view user validation module`; deja rastro. Quien no es Administrador sólo ve cédulas con solicitudes en sus comercios (`allied_id` o `multiple_allieds`, `RiskProfilePolicy::canViewClient`; si no, 403, después de dejar el rastro) y el historial por comercio se recorta a los suyos. El botón de consulta a Datacrédito sólo aparece con `view risk centrals module` (`can_query_datacredito`) |
 | **Validar perfil** y **Pruebas del modelo** | el resultado demográfico y la matriz de una solicitud; las entidades y reglas duras de una cédula con un modelo local | sin permiso en la ruta |
 | **Formulario de perfilamiento** (cliente, aplicación anterior) | ocupación, ingreso, estrato, central y estado civil antes del listado | ruta pública |
+
+El recorte de **Validar usuario** se hace en el controlador y no en la vista: Inertia manda el payload igual, así que ocultar en el front no alcanzaría.
 
 El lado del comercio en el asistente usa el puerto de `legacy-backend`
 (`/api/loans/customer/user-profiling`), que hoy recorta distinto que `legacy-application`: sólo

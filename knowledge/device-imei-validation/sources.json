@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
   "summary": "Paso del asesor a IMEI, registro y reintento, ruta de desembolso sin autenticación ni chequeo de estado, y polling del titular.",
-  "reviewedAt": "2026-11-03T16:53:26Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/imei/imei.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "9a0a9c04cd7cd85e4f27882e57d8ad84ccf6cae9",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "e0d71d22655ddc17ca37ef26c5fcaf747bcfb399",
       "sections": [
         "registro-del-equipo-desde-el-asesor",
         "reintento-despues-de-un-desembolso-fallido"
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/DeviceController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "d4aced89c87106c3302318f98228b8aa85ba406f",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7b798ba28bbe247c31b2039c69435782edd8eb68",
       "sections": [
         "registro-del-equipo-desde-el-asesor",
         "reintento-despues-de-un-desembolso-fallido",
@@ -84,8 +84,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/otp-validation.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "f65dbda90c2d1d54989b2907510b2c7a04943a64",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "e475974e6a7fc4b6a7429e7434c02216386e837c",
       "sections": [
         "espera-del-titular-y-senal-de-finalizacion"
       ]
@@ -141,8 +141,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "4d4c0e353191281a6a79426b504dd72fe4cd9420",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
       "sections": [
         "paso-del-asesor-al-formulario-de-imei",
         "ruta-de-desembolso-del-dispositivo"
@@ -151,8 +151,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/LoanAuthorizationService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "dd7b9e624d08d12802e4c80893a12d6650ecf6f1",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "dde00897fe8a52c937bca6b0b479079c8f08dd60",
       "sections": [
         "paso-del-asesor-al-formulario-de-imei",
         "ruta-de-desembolso-del-dispositivo"
@@ -161,8 +161,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/routes/api.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "6f4a52fc5ded27a1b21ac9c7c870cfa91a50f030",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "acb45f23efd1ead97fe980af117a823efd872ce7",
       "sections": [
         "ruta-de-desembolso-del-dispositivo",
         "paso-del-asesor-al-formulario-de-imei"
@@ -189,8 +189,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Http/Middleware/RedirectIdValidationIfDesktop.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "4d77c3e9b697026cb1e8656097dc1a0f33351410",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "56ebb220c8fa46a57678c75e8d63677d90fc9dd5",
       "sections": [
         "ruta-de-desembolso-del-dispositivo"
       ]
@@ -207,8 +207,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
       "sections": [
         "ruta-de-desembolso-del-dispositivo"
       ]

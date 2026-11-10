@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Convenio comercio–entidad y su habilitación en sucursales",
   "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, tope y cobranza, permisos CreditopX, subsidio), cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral, y cómo la sucursal ecommerce habilita por credencial sin mirar el convenio.",
-  "reviewedAt": "2026-11-03T16:27:46Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c938cc8e7dea9ade9b2e3ef7da993f030109ed94",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "74eacf879b86177281c54641fdf21e65c0de6978",
       "sections": [
         "crear-un-convenio",
         "editar-un-convenio-cambia-datos-de-otros-comercios",
@@ -18,8 +18,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "b46a2ccda623ab92d15d928cad8d5341ef0356b9",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6c179e64feac8794cae40ac2b4a082a6efd341df",
       "sections": [
         "crear-un-convenio",
         "editar-un-convenio-cambia-datos-de-otros-comercios",
@@ -102,8 +102,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "aeb7c50ddd1e854c80fc088591439cc64769ca20",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
       "sections": [
         "editar-un-convenio-cambia-datos-de-otros-comercios"
       ]
@@ -156,8 +156,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Services/AlliedManagementService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "12691defe028726550d2c0d772b0d994c6a2b4fe",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7da20a81759a1e037e675374290522303476b7e9",
       "sections": [
         "habilitar-entidades-al-guardar-la-sucursal",
         "habilitar-entidades-al-crear-una-sucursal-ecommerce"

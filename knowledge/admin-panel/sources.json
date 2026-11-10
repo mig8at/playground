@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n>; las escrituras sin permiso, las lecturas por id sin alcance de comercio, los listados sin recorte por rol y las rutas de desarrollo publicadas; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
-  "reviewedAt": "2026-11-04T00:30:09Z",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "application",
@@ -95,8 +95,8 @@
     {
       "repo": "application",
       "path": "routes/admin.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "331696df154357eb6b9664a17491c8524a9a456b",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios",
         "configuracion-comercios-entidades-y-reglas",
@@ -112,8 +112,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "6fbf34ddf7777929fdfaa9c5aa87bdf3108b5c72",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
       "sections": [
         "creditos-creditopx",
         "el-historial-de-un-credito-creditopx-lleva-dos-estados",
@@ -190,8 +190,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "5ce329bb69e613a58f184dec9beda0156ef3c3a0",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "b213ff5a6dc70fcf50731b0bd9c9a65ce22fd99e",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios",
         "listados-que-no-se-recortan-por-rol"
@@ -200,8 +200,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "de913d190e641153dd385eca351938e473a62460",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "1a1f36be37e8a8aad697e1ee729b2ddfffb59c75",
       "sections": [
         "escrituras-que-no-piden-permiso",
         "las-bajas-son-logicas"
@@ -247,8 +247,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "13ad4f4b84f6a96a8699e82639f8450ea6a1ac7e",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
       "sections": [
         "el-historial-de-un-credito-creditopx-lleva-dos-estados"
       ]
@@ -274,8 +274,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/CreditopXRequestHistoryController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a41f27d4af5619a7e918eaf3b8cad4a6692c028c",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "6f944d65e619cc47eef7f63a6b33ba5481c6f59c",
       "sections": [
         "el-comercio-ve-un-credito-por-cedula-y-sus-solicitudes-por-asesor"
       ]
@@ -292,8 +292,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "23d19f284adb4502f8b25665bc9fff00f640937e",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
       "sections": [
         "el-historial-de-un-credito-creditopx-lleva-dos-estados"
       ]

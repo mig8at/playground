@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pagaré en Deceval: ruteo, credencial y depuración",
   "summary": "Qué manda el pagaré de un lender a Deceval (promissory_types y catálogo de firma), cómo cada monolito elige al azar la credencial del depositante en crear y en firmar por separado, qué datos del girador se envían, cómo se reutiliza el título y dónde depurarlo (deceval_logs, logs, promissory_notes).",
-  "reviewedAt": "2026-11-04T00:29:30+00:00",
+  "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -25,8 +25,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "d1cf8f176f1d52de58b59da9468586db3443ff96",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
       "sections": [
         "que-manda-un-pagare-a-deceval"
       ]
@@ -43,8 +43,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/PromissoryNoteController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "69321ed45358e3baa72cff2b04f4b951ebafac01",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1354f268877356d84a9da171da6321529c615e7c",
       "sections": [
         "que-manda-un-pagare-a-deceval"
       ]
@@ -79,8 +79,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Actions/DecevalSoap.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b27543f7ee801d79d4ad5e82af71e8ed3f4e4596",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "44eeaedee0cc38af4c7e3cb988fe1cfce9b6ac1e",
       "sections": [
         "la-credencial-del-depositante",
         "las-cuatro-operaciones-y-los-datos-del-girador",
@@ -142,8 +142,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/PromissoryNote/DecevalPromissoryNoteService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "6ff31ce66c7b7a19b3f5a40f51ba2c9c06dc9524",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1032d42f78560cd446257a9f0547c451dd2f509f",
       "sections": [
         "la-credencial-del-depositante",
         "las-cuatro-operaciones-y-los-datos-del-girador",

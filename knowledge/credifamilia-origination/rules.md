@@ -39,10 +39,14 @@ sólo ACCEPT con R0201 valida.
 
 ## La radicación tiene dos pasos SOAP
 
-La radicación corre sólo para entidades con `response_type` 4, después de que la autorización ya
-quedó confirmada en estado 11 y en su propia transacción. La disparan la autorización con OTP del
-pagaré, la reanudación de una autorización diferida por codeudor y la ruta de administración
-`user-requests/{id}/formalize-external-managed`, que sirve para reintentarla.
+La radicación corre sólo para entidades con `response_type` 4 cuyo perfil
+(`delegated_origination_profiles.formalization`) nombra una formalización; Salud y Materiales
+nombran `credifamilia_radication`, que `DelegatedOriginationFormalizations` resuelve a
+`CredifamiliaFormalizationService`. Con la columna en null no se radica y sólo queda un log; una
+entidad del riel sin fila de perfil lanza `InvalidArgumentException`. Corre después de que la
+autorización ya quedó confirmada en estado 11 y en su propia transacción. La disparan la
+autorización con OTP del pagaré, la reanudación de una autorización diferida por codeudor y la ruta
+de administración `user-requests/{id}/formalize-external-managed`, que sirve para reintentarla.
 
 Primero `transaccionConsumo` registra el crédito. El código HTTP se guarda como estado de la
 transacción: 200 registrado, 409 duplicado, 400 inválido, y 500, una falla de transporte o
@@ -60,28 +64,44 @@ El PDF une nueve documentos obligatorios en este orden: formulario de vinculaci�
 datos, autorización de desembolso a terceros, reglamento, fianza (FGA), pagaré, cédula frontal,
 cédula reverso y plan de pagos. Los cinco primeros y el plan de pagos son la firma más reciente de
 cada tipo en `netco_signing_documents`; el pagaré, el último de `promissory_notes`; las caras de la
-cédula, `users.front_url` y `users.back_url`. Antes de reunirlos, si el usuario tiene un enrolamiento
-de ADO, se descargan sus imágenes y se guardan como esas dos URLs; sin enrolamiento de ADO no se
-tocan.
+cédula, `users.front_url` y `users.back_url`. Antes de reunirlos, y sólo si hay formalización
+configurada, `AdoIdDocumentService::persistForRequest` descarga las imágenes del enrolamiento de ADO,
+si el usuario lo tiene, y las guarda como esas dos URLs, fuera de la transacción de la radicación;
+sin enrolamiento de ADO no se tocan.
 
 Si falta uno, la formalización aborta sin radicar y la autorización responde HTTP 422 con «No se
 puede formalizar el crédito Credifamilia: faltan documentos obligatorios: …» y la lista de los
 faltantes. Si falla la unión del PDF también aborta sin radicar, pero el error no se traduce a 422.
-En los dos casos la solicitud ya está en estado 11, y no corren las notificaciones de autorización,
-el comprobante ni el cierre de la solicitud. Las rutas del pagaré responden 403 a una solicitud en
-estado 11, así que el cliente no puede reintentar desde el wizard.
+En los dos casos queda en el log `external_managed_formalization_failed_after_authorization`, con
+el estado de la solicitud y el código que recibirá quien llamó. La solicitud ya está en estado 11,
+y no corren las notificaciones de autorización, el comprobante ni el cierre de la solicitud. Las
+rutas que validan el OTP (`verify-otp`) y autorizan (`authorize`) responden 403
+`CREDIT_ALREADY_AUTHORIZED` a una solicitud en estado 11 (`GET promissory-note/validate/{id}` está
+excluida de ese middleware), así que el cliente no puede
+reintentar desde el wizard.
 
 ## Autorizar no exige que la identidad haya terminado
 
 Entre la selección de la entidad y el estado 11 nada consulta si la validación de identidad terminó
-ni si el usuario sigue siendo el temporal (`TEMPORAL USER`). La selección
-(`loan-application/update-user-request`) valida los montos y sólo asigna la entidad si la solicitud
-no está en estado 11 o 25. Las rutas del pagaré (plan de pagos, envío y verificación del OTP,
-autorizar) exigen un celular (desde escritorio responden con el enlace para continuar), que la
-solicitud no esté en estado 8 u 11 y que no quede una cuota inicial de ecommerce sin pagar;
-`authorize()` exige un OTP validado y aplica la compuerta de codeudor. Para Credifamilia, la primera barrera que depende de la identidad es la
-radicación: sin las imágenes de la cédula en `users.front_url` y `users.back_url`, falta la cédula y
-responde el 422 de arriba, con la solicitud ya autorizada.
+ni bloquea porque el usuario siga siendo el temporal (`TEMPORAL USER`). La selección
+(`loan-application/update-user-request`) valida los montos y actualiza la solicitud vigente sólo si
+no está en estado 11 o 25 y no tiene otra entidad (`lender_id` nulo o igual); si no, no rechaza:
+origina o reutiliza otra solicitud con la entidad elegida (`UserRequestService`). Las rutas del pagaré (plan de pagos, envío y verificación del OTP,
+autorizar) exigen un celular: desde escritorio `RedirectIdValidationIfDesktop` responde 403 con la
+URL del QR para continuar, y sólo manda el enlace por SMS si el usuario no es el temporal y la
+solicitud no es una venta en punto guiada por asesor (con `corporate_user_id`, sin
+`self_management` y sin pedido de ecommerce); es el único lugar de este recorrido donde se mira `TEMPORAL USER`, y no
+corta nada. Además exigen que la solicitud no esté en estado 8 u 11 y, en ecommerce, que no quede
+una cuota inicial sin pagar (`ValidateInitialFeePaid`, que con `initial_fee` en cero consulta la
+política de la categoría). El plan, los documentos, la verificación del OTP y `authorize()` aplican
+`OfferStillStandsGuard`: si el cupo bajó desde la oferta, o el cliente llegó al tope de créditos
+del mes con la entidad, responden 409. `authorize()` exige un OTP validado y aplica la compuerta de
+codeudor. Ninguna de esas barreras depende de la identidad.
+
+Para Credifamilia, la primera barrera que depende de la identidad es la radicación (que corre
+porque su perfil nombra la formalización `credifamilia_radication`): sin las imágenes de la cédula
+en `users.front_url` y `users.back_url`, falta la cédula y responde el 422 de arriba, con la
+solicitud ya autorizada.
 
 ## Qué datos manda la radicación
 
