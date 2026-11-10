@@ -887,7 +887,7 @@ const statusText = computed(() => {
               </span>
             </button>
             <button type="button" class="conv-del" title="Borrar conversación" aria-label="Borrar conversación"
-                    @click.stop="deleteConversation(c)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+                    @click.stop="deleteConversation(c)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </li>
           <li v-for="p in onlineWithoutChat" :key="p.email">
             <button type="button" class="conversation" @click="serverOpen = ''; chat.open(p)">
@@ -1050,11 +1050,11 @@ const statusText = computed(() => {
             </button>
             <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
                     aria-label="Vaciar chat" @click="clearActive">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+              <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
             </button>
             <button type="button" class="region-action" title="Borrar conversación: sale de la lista (sólo en este navegador)"
                     aria-label="Borrar conversación" @click="forgetActive">
-              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </div>
         </template>
@@ -1063,7 +1063,7 @@ const statusText = computed(() => {
           <div class="region-actions">
             <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
                     aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+              <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
             </button>
           </div>
         </template>
@@ -1120,10 +1120,10 @@ const statusText = computed(() => {
               </details>
               <span class="meta">{{ clock(n.time) }}</span>
             </div>
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
           </div>
           <div v-else class="bubble-row out">
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             <div class="bubble">
               <p class="text">{{ n.text }}</p>
               <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
@@ -1257,10 +1257,10 @@ const statusText = computed(() => {
                     </component>
                     <div v-if="item.dir === 'in' || f.status === 'bajado'" class="doc-actions">
                       <button v-if="item.dir === 'in' && (!f.status || f.status === 'error')" type="button" class="btn-link"
-                              title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar a Descargas</button>
+                              title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Bajar a Descargas</button>
                       <button v-else-if="f.status === 'bajado' && !f.savedPath && f.cached" type="button" class="btn-link"
-                              title="Guardar una copia en Descargas" @click="chat.saveFile(f)">Guardar en Descargas</button>
-                      <button v-if="f.savedPath" type="button" class="btn-link" title="Mostrar en el Finder (no lo abre)" @click="chat.revealFile(f)">Mostrar en el Finder</button>
+                              title="Guardar una copia en Descargas" @click="chat.saveFile(f)"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Guardar en Descargas</button>
+                      <button v-if="f.savedPath" type="button" class="btn-link" title="Mostrar en el Finder (no lo abre)" @click="chat.revealFile(f)"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span>Mostrar en el Finder</button>
                     </div>
                     <p v-if="f.error" class="error">{{ f.error }}</p>
                   </li>
@@ -1385,8 +1385,8 @@ const statusText = computed(() => {
         <span class="attachment-name">{{ lightbox.name }}</span>
         <template v-if="lightbox.item.dir === 'in'">
           <button v-if="!lightbox.f.savedPath" type="button" class="btn btn-outline btn-sm" title="Guardar una copia en Descargas"
-                  @click="chat.saveFile(lightbox.f)">Guardar en Descargas</button>
-          <button v-else type="button" class="btn-link" title="Mostrarla en el Finder (no la abre)" @click="chat.revealFile(lightbox.f)">en Descargas ↗</button>
+                  @click="chat.saveFile(lightbox.f)"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Guardar en Descargas</button>
+          <button v-else type="button" class="btn-link" title="Mostrarla en el Finder (no la abre)" @click="chat.revealFile(lightbox.f)"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span>Mostrar en el Finder</button>
         </template>
       </div>
       <p v-if="lightbox.f.error" class="error">{{ lightbox.f.error }}</p>
@@ -1401,7 +1401,7 @@ const statusText = computed(() => {
       <template v-if="docView">
         <div class="region-head">
           <button v-if="mediaContext && mediaOpen" type="button" class="region-action doc-back" title="Volver a fotos y archivos" aria-label="Volver a fotos y archivos" @click="closeDoc">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+            <span class="ui-icon" data-icon="back" aria-hidden="true"></span>
           </button>
           <span class="doc-view-title" :title="docView.f.name">
             <template v-if="docView.kind === 'image' && galleryItems.length > 1">{{ galleryIndex + 1 }} de {{ galleryItems.length }} · </template>{{ docView.f.name }}
@@ -1412,10 +1412,10 @@ const statusText = computed(() => {
             </button>
             <button v-if="!docView.f.savedPath" type="button" class="region-action" title="Guardar una copia en Descargas"
                     aria-label="Guardar en Descargas" @click="chat.saveFile(docView.f)">
-              <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
+              <span class="ui-icon" data-icon="download" aria-hidden="true"></span>
             </button>
             <button v-else type="button" class="region-action" title="Mostrar en el Finder" aria-label="Mostrar en el Finder" @click="chat.revealFile(docView.f)">
-              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+              <span class="ui-icon" data-icon="folder" aria-hidden="true"></span>
             </button>
             <button type="button" class="region-action" title="Cerrar (Esc)" :aria-label="docView.kind === 'image' ? 'Cerrar la galería' : 'Cerrar el documento'" @click="closeDoc">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -1426,8 +1426,8 @@ const statusText = computed(() => {
         <div v-else class="gallery">
           <div class="gallery-stage">
             <img :src="imageSrc(docView.item, docView.f)" :alt="docView.f.name" @dblclick="zoomImage">
-            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav prev" title="Anterior (←)" aria-label="Imagen anterior" @click="galleryGo(-1)">‹</button>
-            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav next" title="Siguiente (→)" aria-label="Imagen siguiente" @click="galleryGo(1)">›</button>
+            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav prev" title="Anterior (←)" aria-label="Imagen anterior" @click="galleryGo(-1)"><span class="ui-icon" data-icon="prev" aria-hidden="true"></span></button>
+            <button v-if="galleryItems.length > 1" type="button" class="gallery-nav next" title="Siguiente (→)" aria-label="Imagen siguiente" @click="galleryGo(1)"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span></button>
           </div>
           <div class="gallery-caption">
             <span class="gallery-meta">{{ galleryWho(docView.item) }} · {{ galleryWhen(docView.item.time) }}</span>
@@ -1533,7 +1533,7 @@ const statusText = computed(() => {
         <div class="region-actions">
           <button v-if="serviceTab === 'history' && serviceHistory.length" type="button" class="region-action" title="Vaciar el historial" aria-label="Vaciar el historial"
                   @click="forgetHistory(openService.alias)">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
           </button>
           <button ref="consoleMax" type="button" class="region-action"><span class="ui-icon" aria-hidden="true"></span></button>
           <button type="button" class="region-action" title="Ocultar la consola" aria-label="Ocultar la consola" @click="setConsoleOpen(false)">
@@ -1627,7 +1627,7 @@ const statusText = computed(() => {
       <!-- Lo que hizo el servidor por su cuenta (el llavero que contestó solo), unos segundos. -->
       <span v-if="chat.liveNotice" class="statusbar-item live-notice"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>{{ chat.liveNotice.text }}</span>
       <button v-if="notifyPermission === 'default'" type="button" class="statusbar-item mode-toggle" title="Que te avise macOS cuando te escriben y no estás mirando el chat"
-              @click="askNotifyPermission">activar avisos</button>
+              @click="askNotifyPermission"><span class="ui-icon" data-icon="bell" aria-hidden="true"></span>activar avisos</button>
       <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item">
         tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
       </span>
@@ -1965,14 +1965,13 @@ button.file-tile { cursor: zoom-in }
 .file-tile-badge { flex: none; padding: 0 3px; border-radius: 3px; font-size: 9px; font-weight: 700; line-height: 14px;
   background: color-mix(in oklab, var(--kind, var(--fg-2)) 22%, var(--background)); color: color-mix(in oklab, var(--kind, var(--fg-2)) 70%, var(--foreground)) }
 .file-tile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px }
-.doc-back .ui-icon { transform: rotate(180deg) }
 /* La galería: la imagen ocupa lo que queda, el pie dice de quién y cuándo, y abajo la tira de miniaturas. */
 .gallery { flex: 1; min-height: 0; display: flex; flex-direction: column; background: color-mix(in oklab, var(--muted) 55%, var(--background)) }
 .gallery-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 14px }
 .gallery-stage img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; cursor: zoom-in;
   box-shadow: 0 1px 2px color-mix(in oklab, var(--background) 55%, transparent), 0 6px 18px color-mix(in oklab, var(--background) 45%, transparent) }
 .gallery-nav { position: absolute; top: 50%; transform: translateY(-50%); width: 34px; height: 34px; border: 1px solid var(--border); border-radius: 50%;
-  background: var(--popover); color: var(--popover-foreground); font-size: 20px; line-height: 1; cursor: pointer; opacity: .85 }
+  background: var(--popover); color: var(--popover-foreground); display: grid; place-items: center; cursor: pointer; opacity: .85 }
 .gallery-nav:hover { opacity: 1; background: var(--accent); color: var(--accent-foreground) }
 .gallery-nav:focus-visible { outline: 2px solid var(--ring); opacity: 1 }
 .gallery-nav.prev { left: 8px }
@@ -1993,6 +1992,9 @@ button.file-tile { cursor: zoom-in }
 .composer-attach { flex: none; width: var(--control-md); min-height: var(--control-md); padding: 0; border-radius: 50% }
 .replying { display: flex; align-items: center; gap: var(--space-2) }
 .replying .quote { flex: 1 }
+/* Un botón de texto con su icono: el icono a la izquierda, un poco más chico que la letra. */
+.doc-actions .btn-link, .lightbox-bar .btn-link, .lightbox-bar .btn, .mode-toggle { display: inline-flex; align-items: center; gap: 5px }
+.doc-actions .btn-link .ui-icon, .lightbox-bar .btn-link .ui-icon, .lightbox-bar .btn .ui-icon, .mode-toggle .ui-icon { width: 14px; height: 14px }
 .live-notice { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-ink, var(--primary)) }
 .live-notice .ui-icon { width: 13px; height: 13px }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }

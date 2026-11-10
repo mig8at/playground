@@ -146,7 +146,7 @@ async function copy(text, tag) {
 
     <div class="key-actions">
       <template v-if="kind === 'env'">
-        <button v-if="info.keys.length" type="button" class="key-btn" @click="downloadEnv"><span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>Descargar .env</button>
+        <button v-if="info.keys.length" type="button" class="key-btn" @click="downloadEnv"><span class="ui-icon" data-icon="download" aria-hidden="true"></span>Descargar .env</button>
         <template v-if="!mine && info.keys.length">
           <span v-if="!envToSave.length" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>En tu llavero</span>
           <button v-else type="button" class="key-btn" :disabled="busy" @click="saveAll"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
