@@ -249,7 +249,13 @@ function dayLabel(iso) {
   const d = dayOf(iso)
   if (d === today) return 'Hoy'
   if (d === yesterday) return 'Ayer'
-  return new Date(iso).toLocaleDateString('es-CO', { timeZone: TZ, weekday: 'long', day: 'numeric', month: 'long' })
+  // Como WhatsApp: dentro de la última semana, sólo el día («martes»); antes, la fecha, con el año si no es este.
+  const date = new Date(iso)
+  const label = Date.now() - date < 6 * 864e5
+    ? date.toLocaleDateString('es-CO', { timeZone: TZ, weekday: 'long' })
+    : date.toLocaleDateString('es-CO', { timeZone: TZ, day: 'numeric', month: 'long',
+        ...(dayOf(iso).slice(0, 4) !== today.slice(0, 4) ? { year: 'numeric' } : {}) })
+  return label.charAt(0).toUpperCase() + label.slice(1)
 }
 const initials = (p) => (p?.name || p?.email || '?').split(/[^\p{L}]+/u).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')
 const handle = (p) => `@${(p?.email || '').split('@')[0]}`
@@ -312,11 +318,17 @@ const activeSubtitle = computed(() => {
 /* Los mensajes de la conversación abierta, con un separador por día. Los seguidos del mismo lado y a pocos
    minutos se agrupan (`cont`). Cada respuesta trae su cita, salvo la de un agente justo después de su pregunta. */
 const GROUP_MS = 3 * 60_000
+/* POR TANDAS, como WhatsApp: se pintan los últimos PAGE mensajes y, al llegar arriba, la tanda anterior, sin que la
+   vista salte. Una conversación larga abre al toque y lo viejo se trae cuando se pide. */
+const PAGE = 60
+const shown = ref(PAGE)
+const hiddenCount = computed(() => Math.max(0, (chat.active?.messages?.length || 0) - shown.value))
 const thread = computed(() => {
   const out = []
   let day = ''
   let prev = null
-  for (const m of chat.active?.messages || []) {
+  const all = chat.active?.messages || []
+  for (const m of all.slice(Math.max(0, all.length - shown.value))) {
     const d = dayOf(m.time)
     if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }); prev = null }
     const cont = !!prev && prev.dir === m.dir && prev.kind === m.kind && m.kind !== 'asked'
@@ -544,11 +556,45 @@ async function scrollNotesToEnd() {
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
 }
 watch(() => chat.activeKey, (key) => { if (!key) scrollNotesToEnd() })
-async function scrollToEnd() {
+const atBottom = ref(true)
+const unseen = ref(0)          // los que llegaron mientras mirabas más arriba
+let loadingOlder = false
+async function scrollToEnd(smooth = false) {
   await nextTick()
-  if (threadEl.value) threadEl.value.scrollTop = threadEl.value.scrollHeight
+  const el = threadEl.value
+  if (!el) return
+  el.scrollTo({ top: el.scrollHeight, behavior: smooth ? 'smooth' : 'auto' })
+  atBottom.value = true
+  unseen.value = 0
 }
-watch(() => [chat.activeKey, chat.active?.messages.length], scrollToEnd)
+async function loadOlder() {
+  const el = threadEl.value
+  if (!el || loadingOlder || !hiddenCount.value) return
+  loadingOlder = true
+  const before = el.scrollHeight - el.scrollTop
+  shown.value += PAGE
+  await nextTick()
+  el.scrollTop = el.scrollHeight - before   // la vista queda donde estaba
+  loadingOlder = false
+}
+function onThreadScroll() {
+  const el = threadEl.value
+  if (!el) return
+  atBottom.value = el.scrollHeight - el.scrollTop - el.clientHeight < 80
+  if (atBottom.value) unseen.value = 0
+  if (el.scrollTop < 120) loadOlder()
+}
+watch(() => chat.activeKey, () => { shown.value = PAGE; scrollToEnd() })
+// Al cargar la página con una conversación ya elegida no hay cambio de activeKey: se baja cuando aparece el hilo.
+watch(() => !!thread.value.length, (has) => { if (has) scrollToEnd() }, { immediate: true })
+// Una imagen o un PDF que termina de cargar empuja el contenido: si estabas abajo, se sigue abajo.
+function onMediaLoad() { if (atBottom.value) scrollToEnd() }
+watch(() => chat.active?.messages.length, (n, old) => {
+  const last = chat.active?.messages.at(-1)
+  // Lo que mandaste vos siempre lleva al final; lo que llega, sólo si ya estabas abajo.
+  if (atBottom.value || last?.dir === 'out') { shown.value += Math.max(0, (n || 0) - (old || 0)); scrollToEnd() }
+  else if (n > old) { shown.value += n - old; unseen.value += n - old }
+})
 watch(() => chat.activeKey, async (key) => {
   // El de la conversación que se abre (el de la anterior ya quedó guardado al escribirlo).
   draft.value = drafts[draftKey(key)] || ''
@@ -922,7 +968,7 @@ const statusText = computed(() => {
       </form>
 
       <template v-else>
-        <div ref="threadEl" class="region-body thread" aria-live="polite">
+        <div ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
           <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">
             <div class="tasks-head">
@@ -957,6 +1003,9 @@ const statusText = computed(() => {
             <template v-else-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
             <template v-else>Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</template>
           </p>
+          <button v-if="hiddenCount" type="button" class="older" @click="loadOlder">
+            {{ hiddenCount }} mensaje{{ hiddenCount === 1 ? '' : 's' }} anterior{{ hiddenCount === 1 ? '' : 'es' }} · subí o tocá para verlos
+          </button>
           <template v-for="item in thread" :key="item.id">
             <div v-if="item.kind === 'day'" class="day"><span>{{ item.label }}</span></div>
 
@@ -1070,6 +1119,12 @@ const statusText = computed(() => {
               </button>
             </div>
           </template>
+          <!-- Bajar al final, como WhatsApp: aparece al subir, y cuenta lo que llegó mientras mirabas arriba. -->
+          <button v-if="!atBottom && thread.length" type="button" class="to-bottom" :title="unseen ? `${unseen} nuevo${unseen === 1 ? '' : 's'}: bajar al final` : 'Bajar al final'"
+                  :aria-label="unseen ? `Bajar al final: ${unseen} mensaje${unseen === 1 ? '' : 's'} nuevo${unseen === 1 ? '' : 's'}` : 'Bajar al final'" @click="scrollToEnd(true)">
+            <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
+            <span v-if="unseen" class="to-bottom-count">{{ unseen > 99 ? '99+' : unseen }}</span>
+          </button>
         </div>
         <form class="composer" @submit.prevent="submit">
           <div v-if="agentAnswers" class="agent-answers">
@@ -1408,6 +1463,17 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* DESVIACIÓN DECLARADA de la base (superficies planas): el hilo de una conversación lleva un patrón tenue de fondo, como
    un chat. Sólo acá; scrollea con los mensajes (`local`). El patrón es un token del tema (--chat-wallpaper, style.css). */
 .thread { background-image: var(--chat-wallpaper); background-attachment: local; background-repeat: repeat }
+/* La tanda de arriba y el botón de bajar al final (WhatsApp). */
+.older { align-self: center; margin: 0 0 var(--space-2); padding: 3px 12px; border: 0; border-radius: 999px; background: var(--muted);
+  color: var(--fg-2); font: inherit; font-size: var(--text-xs); cursor: pointer }
+.older:hover { color: var(--foreground) }
+.to-bottom { position: sticky; bottom: 4px; align-self: flex-end; margin-top: auto; display: grid; place-items: center; width: 40px; height: 40px;
+  flex: none; border: 1px solid var(--border); border-radius: 50%; background: var(--popover); color: var(--popover-foreground);
+  box-shadow: 0 2px 8px color-mix(in oklab, var(--background) 60%, transparent); cursor: pointer; z-index: 2 }
+.to-bottom:hover { background: var(--accent); color: var(--accent-foreground) }
+.to-bottom:focus-visible { outline: 2px solid var(--ring) }
+.to-bottom-count { position: absolute; top: -6px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px;
+  background: var(--primary); color: var(--primary-foreground); font-size: 11px; font-weight: 700; line-height: 18px; text-align: center }
 .day { align-self: center; margin: var(--space-3) 0 var(--space-1); padding: 2px 10px; border-radius: 999px; background: var(--muted);
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
 
