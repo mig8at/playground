@@ -198,8 +198,15 @@ const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min
   { size: rightOpen.value ? agentW.value : 0, min: 320 },
   { size: sidebarOpen.value ? sidebarW.value : 0, min: cssSize('--sidebar-min', 240) },
 ]))
-const agentShown = computed(() => fitted.value[0])
-const sidebarShown = computed(() => fitted.value[1])
+/* ANGOSTO (un celular): si las conversaciones no entran al lado del chat, se ve una cosa por vez, como WhatsApp.
+   La lista ocupa todo; tocar una conversación la abre, y «Volver» en su cabecera regresa a la lista. Sin una ruta en
+   la URL se arranca en la lista. */
+const narrow = computed(() => viewportW.value < cssSize('--sidebar-min', 240) + cssSize('--editor-min', 360))
+const narrowList = ref(!location.hash)
+const showingNarrowList = computed(() => narrow.value && narrowList.value)
+function onSidebarPick(e) { if (e.target.closest?.('.conversation')) narrowList.value = false }
+const agentShown = computed(() => (narrow.value ? 0 : fitted.value[0]))
+const sidebarShown = computed(() => (narrow.value ? (narrowList.value ? viewportW.value : 0) : fitted.value[1]))
 const panelShown = computed(() => fitRegions(viewportH.value - 200, [
   { size: (serverOpen.value && consoleOpen.value) || (keyringContext.value && keyringOpen.value) ? consoleH.value : 0, min: cssSize('--panel-min', 124) },
 ])[0])
@@ -280,6 +287,7 @@ const sidebarResize = {
   commit: (v) => { saveSize('chat.sidebar-open', v ? 1 : 0); if (v) saveSize('chat.sidebar-w', sidebarW.value) },
 }
 function toggleSidebar() {
+  if (narrow.value) { narrowList.value = !narrowList.value; return }
   sidebarOpen.value = !sidebarOpen.value
   saveSize('chat.sidebar-open', sidebarOpen.value ? 1 : 0)
 }
@@ -812,8 +820,8 @@ const statusText = computed(() => {
 </script>
 
 <template>
-  <div class="workbench" :style="layoutVars">
-    <aside v-show="sidebarShown" class="sidebar en-bloques" aria-label="Conversaciones">
+  <div class="workbench" :class="{ 'narrow-list': showingNarrowList }" :style="layoutVars">
+    <aside v-show="sidebarShown" class="sidebar en-bloques" aria-label="Conversaciones" @click.capture="onSidebarPick">
       <!-- TRES VISTAS (`en-bloques` y `.view` de la base): tus conversaciones, los agentes del equipo y los servers. Cada
            una se pliega como en VS Code; con «Paneles», cada una es un panel sobre el lienzo, como en canon. -->
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
@@ -1013,6 +1021,10 @@ const statusText = computed(() => {
         <template v-if="chat.active">
           <!-- Un solo primer hijo: la base le da a ese el ancho que sobra y lo recorta con «…». -->
           <span class="head-who">
+            <button v-if="narrow" type="button" class="region-action narrow-back" title="Volver a las conversaciones"
+                    aria-label="Volver a las conversaciones" @click="narrowList = true">
+              <span class="ui-icon" data-icon="back" aria-hidden="true"></span>
+            </button>
             <span class="avatar small" :class="{ agent: activeIsAgent, mine: activeIsAgent && activeOwnerIsMe, tool: activeIsCanon }" aria-hidden="true">
               <img v-if="!activeIsAgent && photoOf(chat.active.person)" class="avatar-photo" :src="photoOf(chat.active.person)" alt="" referrerpolicy="no-referrer">
               <template v-else>{{ chat.active.person.group ? '#' : activeIsAgent ? (activeTitle || '?')[0].toUpperCase() : initials(chat.active.person) }}</template><i v-if="activeOnline" class="presence"></i>
@@ -1032,7 +1044,8 @@ const statusText = computed(() => {
           </div>
         </template>
         <template v-else>
-          <span class="head-who"><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
+          <span class="head-who"><button v-if="narrow" type="button" class="region-action narrow-back" title="Volver a las conversaciones"
+                    aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
                     aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
@@ -1682,6 +1695,10 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* ── el editor: la conversación ── */
 .editor { display: flex; flex-direction: column; min-height: 0 }
 .head-who { display: flex; align-items: center; gap: 10px; padding-block: 4px }
+.narrow-back { flex: none; margin-inline-start: -6px }
+/* En angosto, la lista sola: ocupa todo el ancho y el chat, la consola y la derecha no se ven. */
+.workbench.narrow-list > .sidebar { width: auto; grid-column: 1 / -1 }
+.workbench.narrow-list > .editor, .workbench.narrow-list > .panel, .workbench.narrow-list > .auxiliarybar { display: none }
 .head-title { flex: none; font-weight: 600 }
 .head-sub { min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .notice { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 8px var(--gutter);
