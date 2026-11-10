@@ -789,6 +789,9 @@ knowledge-read: ## @dia leer un tema o sección local. ID='lender-listing[#ancla
 	@go run ./cmd/knowledge read $(if $(JSON),--json) '$(ID)'
 knowledge-check: ## @dia contrastar fuentes con las refs de main disponibles en disco. Sin fetch; un cambio o fuente ilegible sale 1 [JSON=1]
 	@go run ./cmd/knowledge check $(if $(JSON),--json)
+knowledge-deriva: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
+	@test -n "$(PASO)" || { echo "falta PASO=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
+	@python3 tools/canon-deriva/knowledge.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(RUN),--run '$(RUN)')
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
 	@go test ./knowledge ./cmd/knowledge ./tablero/server/cmd/today ./tablero/server/cmd/tasks ./tablero/server/internal/hooks ./tablero/server/internal/layout ./tablero/server/internal/store ./tablero/server/cmd/web
 

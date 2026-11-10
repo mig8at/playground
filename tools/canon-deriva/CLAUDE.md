@@ -55,4 +55,15 @@ escribir es `canon-write` sin `DRY` o `APPLY=1`, y lo decide Miguel.
   monolitos, pisa el hash del otro. Hasta que se arregle en canon, después de escribir mirá la ronda: un
   archivo que aparece invertido es esto.
 
+## knowledge/: el mismo método, para la biblioteca local
+
+`make knowledge-deriva PASO=paquete|codigo|final|aplicar` (`knowledge.py`). knowledge/ es la biblioteca del día a
+día; canon es la del equipo. Sus fuentes guardan el commit exacto, así que no hay que buscar el blob en la historia.
+`paquete` hace fetch de TODOS los clones de trabajo antes de medir: `knowledge-check` no hace fetch, y un repo vecino
+atrasado 18 días hizo que un agente afirmara que una ruta no existía. Los prompts son `prompts/k-*.md`: el estilo de
+knowledge nombra clases, métodos y tablas. `aplicar` escribe `rules.md` y `sources.json` (commit y blob al día, sigue
+los renombres; `reemplazos.json` para un archivo borrado que otro reemplazó) y después van `make knowledge-check`
+y `make knowledge-test`. La verificación independiente de los textos reescritos es obligatoria: en la corrida del
+2026-11-10 encontró 6 contradicciones y unos 30 matices en 63 secciones.
+
 `python3 -m unittest tools/canon-deriva/test_deriva.py` prueba las trampas que se pueden probar sin red.
