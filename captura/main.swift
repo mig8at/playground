@@ -291,7 +291,9 @@ final class Picker {
     /// El área elegida: un clic o un arrastre la FIJAN (no capturan); la captura sale del botón Copiar.
     var selected: CGRect?
     var mouse = CGPoint.zero
-    enum ToolbarButton { case copy, undo, close }
+    enum ToolbarButton { case copy, mark, undo, close }
+    /// el botón ▢ Señalar: prendido, arrastrar adentro del área dibuja un recuadro con flecha
+    var markTool = false
     /// los recuadros con flecha que se dibujan adentro del área elegida
     var marks: [Mark] = []
     var marking: (start: CGPoint, current: CGPoint)?
@@ -309,7 +311,8 @@ final class Picker {
             return Target(rect: r, label: "\(Int(r.width)) × \(Int(r.height))")
         }
         if let s = selected {
-            let hint = marks.isEmpty ? "arrastrá adentro para marcar" : "\(marks.count) marca\(marks.count == 1 ? "" : "s") · ⌘Z deshace"
+            let hint = markTool ? "arrastrá encima para señalar" + (marks.isEmpty ? "" : " · \(marks.count) · ⌘Z deshace")
+                     : marks.isEmpty ? "▢ para señalar" : "\(marks.count) señalado\(marks.count == 1 ? "" : "s")"
             return Target(rect: s, label: "\(Int(s.width)) × \(Int(s.height)) · \(hint)")
         }
         return hovered.map { Target(rect: $0.rect, label: "\($0.label)  \(Int($0.rect.width)) × \(Int($0.rect.height))") }
@@ -319,7 +322,7 @@ final class Picker {
     /// entra en la pantalla, adentro del área, abajo a la derecha.
     var toolbar: CGRect? {
         guard let s = selected, dragging == nil else { return nil }
-        let size = CGSize(width: marks.isEmpty ? 140 : 172, height: 34)
+        let size = CGSize(width: marks.isEmpty ? 172 : 204, height: 34)
         let screen = screenRectsTL.first { $0.intersects(s) } ?? screenRectsTL[0]
         var r = CGRect(x: s.maxX - size.width, y: s.maxY + 8, width: size.width, height: size.height)
         if r.maxY > screen.maxY - 4 { r.origin.y = s.maxY - size.height - 8 }
@@ -327,11 +330,13 @@ final class Picker {
         r.origin.y = max(screen.minY + 8, r.origin.y)
         return r
     }
-    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: $0.width - (marks.isEmpty ? 40 : 72), height: $0.height - 8) } }
+    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: $0.width - (marks.isEmpty ? 72 : 104), height: $0.height - 8) } }
+    var markButton: CGRect? { toolbar.map { CGRect(x: $0.maxX - (marks.isEmpty ? 64 : 96), y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     var undoButton: CGRect? { marks.isEmpty ? nil : toolbar.map { CGRect(x: $0.maxX - 64, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     var closeButton: CGRect? { toolbar.map { CGRect(x: $0.maxX - 32, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     func button(at p: CGPoint) -> ToolbarButton? {
         if copyButton?.contains(p) == true { return .copy }
+        if markButton?.contains(p) == true { return .mark }
         if undoButton?.contains(p) == true { return .undo }
         if closeButton?.contains(p) == true { return .close }
         return nil
@@ -347,7 +352,7 @@ final class Picker {
             mouse = p
             if was != hoverButton { redraw() }
             if hoverButton != nil { NSCursor.pointingHand.set() }
-            else if selected?.contains(p) == true, toolbar?.contains(p) != true { NSCursor.crosshair.set() }
+            else if markTool, selected?.contains(p) == true, toolbar?.contains(p) != true { NSCursor.crosshair.set() }
             else { NSCursor.arrow.set() }
             return
         }
@@ -380,11 +385,11 @@ final class Picker {
         if let b = button(at: p) { pressing = b; redraw(); return }
         if toolbar?.contains(p) == true { return } // el borde de la barra, entre botones: nada
         if let s = selected {
-            // con un área elegida: un clic FUERA cancela la captura; adentro, arrastrar dibuja una marca
+            // con un área elegida: un clic FUERA cancela la captura; adentro, con ▢ prendido se señala y
+            // apagado empieza otra selección
             guard s.contains(p) else { dlog("clic fuera del área: cancelo"); onCancel?(); return }
-            marking = (p, p)
-            redraw()
-            return
+            if markTool { marking = (p, p); redraw(); return }
+            dlog("selección descartada"); selected = nil; marks = []; lastProbeAt = .distantPast
         }
         dragging = (p, p)
         redraw()
@@ -403,6 +408,7 @@ final class Picker {
         marking.map { CGRect(x: min($0.start.x, $0.current.x), y: min($0.start.y, $0.current.y),
                              width: abs($0.start.x - $0.current.x), height: abs($0.start.y - $0.current.y)) }
     }
+    func toggleMarkTool() { guard selected != nil else { return }; markTool.toggle(); dlog("señalar \(markTool ? "prendido" : "apagado")"); redraw() }
     func undo() { if !marks.isEmpty { marks.removeLast(); dlog("marca deshecha, quedan \(marks.count)"); redraw() } }
     func up(_ p: CGPoint) {
         mouse = p
@@ -411,6 +417,7 @@ final class Picker {
             // se dispara sólo si se suelta sobre el MISMO botón, como un botón de verdad
             switch (b, button(at: p), selected) {
             case (.copy, .copy, let s?): dlog("copiar \(s)"); onCopy?(s)
+            case (.mark, .mark, _): toggleMarkTool()
             case (.undo, .undo, _): undo()
             case (.close, .close, _): dlog("cerrar (X)"); onCancel?()
             default: redraw()
@@ -467,6 +474,7 @@ final class SelectionView: NSView {
         case 36, 76: picker.copySelected()                              // Enter
         case 8 where e.modifierFlags.contains(.command): picker.copySelected() // ⌘C
         case 6 where e.modifierFlags.contains(.command): picker.undo()         // ⌘Z
+        case 15 where !e.modifierFlags.contains(.command): picker.toggleMarkTool() // R
         default: break
         }
     }
@@ -474,6 +482,10 @@ final class SelectionView: NSView {
     static let closeIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         return NSImage(systemSymbolName: "xmark", accessibilityDescription: "Cerrar")?.withSymbolConfiguration(cfg)
+    }()
+    static let markIcon: NSImage? = {
+        let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .semibold)
+        return NSImage(systemSymbolName: "square.dashed", accessibilityDescription: "Señalar")?.withSymbolConfiguration(cfg)
     }()
     static let undoIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
@@ -532,13 +544,19 @@ final class SelectionView: NSView {
         guard let copyTL = picker.copyButton, let closeTL = picker.closeButton else { return }
         let copy = toLocal(copyTL, in: window!), close = toLocal(closeTL, in: window!)
         let undo = picker.undoButton.map { toLocal($0, in: window!) }
-        for (b, rect) in [(Picker.ToolbarButton.copy, copy), (.undo, undo ?? .zero), (.close, close)] where picker.hoverButton == b {
+        let mark = picker.markButton.map { toLocal($0, in: window!) } ?? .zero
+        // ▢ prendido queda en azul, como un botón apretado
+        if picker.markTool { NSColor.systemBlue.setFill(); NSBezierPath(roundedRect: mark, xRadius: 5, yRadius: 5).fill() }
+        for (b, rect) in [(Picker.ToolbarButton.copy, copy), (.mark, mark), (.undo, undo ?? .zero), (.close, close)]
+            where picker.hoverButton == b && !(b == .mark && picker.markTool) {
             (picker.pressing == b ? NSColor.systemBlue : NSColor(calibratedWhite: 1, alpha: 0.14)).setFill()
             NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
         }
         // separador entre Copiar y la X
         NSColor(calibratedWhite: 1, alpha: 0.18).setFill()
-        NSRect(x: (undo ?? close).minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
+        NSRect(x: mark.minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
+        let ms = NSSize(width: 15, height: 15)
+        SelectionView.white(SelectionView.markIcon)?.draw(in: NSRect(x: mark.midX - ms.width / 2, y: mark.midY - ms.height / 2, width: ms.width, height: ms.height))
         if let u = undo {
             let us = NSSize(width: 14, height: 14)
             SelectionView.white(SelectionView.undoIcon)?.draw(in: NSRect(x: u.midX - us.width / 2, y: u.midY - us.height / 2, width: us.width, height: us.height))
@@ -1087,7 +1105,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func startSelection() {
         selecting = true
         picker.chain = []; picker.level = 0; picker.selected = nil; picker.dragging = nil; picker.pressing = nil
-        picker.marks = []; picker.marking = nil
+        picker.marks = []; picker.marking = nil; picker.markTool = false
         picker.lastProbe = CGPoint(x: -1, y: -1); picker.lastProbeAt = .distantPast
         picker.views = []
         for screen in NSScreen.screens {
@@ -1200,6 +1218,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                     let b = CGRect(x: s.minX + s.width * fx, y: s.minY + s.height * fy, width: s.width * 0.28, height: s.height * 0.28)
                     self.picker.marks.append(makeMark(b, in: s))
                 }
+                self.picker.markTool = true
                 self.picker.redraw()
                 dlog("debug: 2 marcas en \(s)")
             }
