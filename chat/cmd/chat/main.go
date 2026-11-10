@@ -15,8 +15,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
+	"net/url"
 	"os"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -227,6 +230,56 @@ func fail(err error) {
 }
 
 // flagValue saca `--nombre valor` de los argumentos.
+// flagValues saca TODAS las apariciones de una opción con valor (`--file a --file b`).
+func flagValues(args []string, name string) ([]string, []string) {
+	var values, rest []string
+	for i := 0; i < len(args); i++ {
+		if args[i] == name && i+1 < len(args) {
+			values = append(values, args[i+1])
+			i++
+			continue
+		}
+		rest = append(rest, args[i])
+	}
+	return values, rest
+}
+
+// upload sube un archivo para `to` por el servidor del chat (/api/upload) y devuelve su id.
+func upload(to, path string) (string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	if info, err := f.Stat(); err != nil || !info.Mode().IsRegular() {
+		return "", errors.New("is not a regular file")
+	}
+	q := url.Values{"to": {to}, "name": {filepath.Base(path)}}
+	req, _ := http.NewRequest("POST", base()+"/api/upload?"+q.Encode(), f)
+	contentType := mime.TypeByExtension(strings.ToLower(filepath.Ext(path)))
+	if contentType == "" {
+		contentType = "application/octet-stream"
+	}
+	req.Header.Set("Content-Type", contentType)
+	res, err := (&http.Client{Timeout: 4 * time.Minute}).Do(req)
+	if err != nil {
+		return "", errors.New("the chat server is not answering (" + base() + ")")
+	}
+	defer res.Body.Close()
+	var out struct {
+		ID    string `json:"id"`
+		Error string `json:"error"`
+	}
+	_ = json.NewDecoder(res.Body).Decode(&out)
+	if res.StatusCode >= 300 || out.ID == "" {
+		if out.Error != "" {
+			return "", errors.New(out.Error)
+		}
+		return "", fmt.Errorf("upload: HTTP %d", res.StatusCode)
+	}
+	return out.ID, nil
+}
+
 func flagValue(args []string, name string) (string, []string) {
 	var rest []string
 	value := ""
@@ -412,11 +465,12 @@ func main() {
 		}
 	case "send", "reply":
 		re, rest := flagValue(args, "--re")
+		files, rest := flagValues(rest, "--file")
 		if len(rest) > 0 {
 			noUnknownFlags(rest[:1])
 		}
-		if len(rest) < 2 {
-			fail(fmt.Errorf("usage: bin/chat %s <who> <text…>", cmd))
+		if len(rest) < 2 && !(len(rest) == 1 && len(files) > 0) {
+			fail(fmt.Errorf("usage: bin/chat %s <who> <text…> [--file <path>]…", cmd))
 		}
 		h, err := history(-1)
 		if err != nil {
@@ -442,7 +496,17 @@ func main() {
 			To        string `json:"to"`
 			ID        string `json:"id"`
 		}
-		if err := call("POST", "/api/send", map[string]string{"to": with, "text": strings.Join(rest[1:], " "), "re": re}, &out); err != nil {
+		// Los adjuntos suben por el servidor del chat (no por `playground send --file`): así queda una copia en su caché
+		// y el mensaje enviado los muestra en la conversación, como los que llegan.
+		ids := []string{}
+		for _, path := range files {
+			id, err := upload(with, path)
+			if err != nil {
+				fail(fmt.Errorf("%s: %w", path, err))
+			}
+			ids = append(ids, id)
+		}
+		if err := call("POST", "/api/send", map[string]any{"to": with, "text": strings.Join(rest[1:], " "), "re": re, "files": ids}, &out); err != nil {
 			fail(err)
 		}
 		state := "delivered"
@@ -464,7 +528,9 @@ bin/chat — the team chat from the terminal (the make chat server, :5185)
                                  each new message in those conversations as it arrives (for a Monitor).
                                  --json: one per line, with dir/from and each attachment's local path
                                  --theirs: leave out your own messages
-  send <who> <text…> [--re <id>] send a message (--re replies to a given one)
+  send <who> <text…> [--re <id>] [--file <path>]…
+                                 send a message (--re replies to a given one; --file attaches, also
+                                 several; it shows in the conversation like the ones you receive)
   reply <who> <text…>            reply to the last message they sent you
 <who>: the email, its part before the @ (or its start: duncan), @duncan, or #group.
 ⚠ send and reply go out under the CLI session's name.`

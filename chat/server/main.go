@@ -188,7 +188,7 @@ func handler() http.Handler {
 				to = in.To
 			}
 			_, _ = chatHistory.add([]cli.Message{{ID: result.ID, Dir: "out", To: to, Text: in.Text, Re: result.Re,
-				Time: time.Now().UTC().Format(time.RFC3339Nano)}})
+				Time: time.Now().UTC().Format(time.RFC3339Nano), Files: sentFilesOf(in.Files)}})
 		}
 		writeJSON(w, http.StatusOK, result)
 	})

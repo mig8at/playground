@@ -130,6 +130,7 @@ func registerFiles(mux *http.ServeMux) {
 			fail(w, http.StatusBadGateway, err)
 			return
 		}
+		keepSent(file, tmp.Name())
 		writeJSON(w, http.StatusOK, file)
 	})
 
@@ -225,6 +226,58 @@ func registerFiles(mux *http.ServeMux) {
 }
 
 // copyUnique copia `src` a la carpeta `dir` con su nombre, agregando « (1)», « (2)»… si ya hay uno: nunca pisa nada.
+// LO QUE MANDÁS TAMBIÉN SE VE. El home no devuelve tus propios adjuntos (y `playground get` los borraría antes de que
+// los baje quien los recibe), así que lo que se sube desde acá se copia al caché del chat en el momento, con su nombre,
+// y queda anotado como los que llegan. `/api/send` le pone la ficha al mensaje enviado: así la conversación lo pinta
+// aunque el navegador no lo recuerde.
+var sentFiles = struct {
+	sync.Mutex
+	byID map[string]cli.File
+}{byID: map[string]cli.File{}}
+
+func keepSent(file cli.File, src string) {
+	if file.ID == "" {
+		return
+	}
+	sentFiles.Lock()
+	sentFiles.byID[file.ID] = file
+	sentFiles.Unlock()
+	dir, err := cacheDir()
+	if err != nil || chatHistory == nil {
+		return
+	}
+	if p, err := copyNamed(src, dir, file.Name); err == nil {
+		chatHistory.rememberFile(file.ID, p)
+	}
+}
+
+// sentFilesOf: las fichas de los adjuntos subidos desde acá, en el orden pedido; los que no se conocen se saltean.
+func sentFilesOf(ids []string) []cli.File {
+	sentFiles.Lock()
+	defer sentFiles.Unlock()
+	var out []cli.File
+	for _, id := range ids {
+		if f, ok := sentFiles.byID[id]; ok {
+			out = append(out, f)
+		}
+	}
+	return out
+}
+
+// copyNamed copia src a dir con el nombre `name` (sólo su base: nada de rutas), sin pisar uno que ya esté.
+func copyNamed(src, dir, name string) (string, error) {
+	name = filepath.Base(strings.TrimSpace(name))
+	if name == "" || name == "." || name == string(filepath.Separator) {
+		name = "adjunto"
+	}
+	staged := filepath.Join(filepath.Dir(src), name)
+	if err := os.Link(src, staged); err != nil {
+		return copyUnique(src, dir)
+	}
+	defer os.Remove(staged)
+	return copyUnique(staged, dir)
+}
+
 func copyUnique(src, dir string) (string, error) {
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err

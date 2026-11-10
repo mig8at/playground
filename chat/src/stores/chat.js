@@ -319,7 +319,14 @@ export const useChatStore = defineStore('chat', () => {
           push(c, { id: `cli|${sid}`, sid, dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'pending' })
         } else {
           const c = ensure({ email: m.to, name: m.to.split('@')[0] })
-          push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent' })
+          // Con sus adjuntos: el servidor guarda la ficha de lo que se subió desde él (bin/chat send --file) y una copia
+          // en su caché, que applySavedFiles muestra. Si el mensaje ya estaba sin ellos, se le agregan.
+          const files = Array.isArray(m.files) && m.files.length ? m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) : null
+          push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent', ...(files ? { files } : {}) })
+          if (files) {
+            const item = c.messages.find((x) => x.sid === sid)
+            if (item && !item.files?.length) item.files = files
+          }
         }
         continue
       }

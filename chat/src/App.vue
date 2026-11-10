@@ -444,7 +444,9 @@ const isPdf = (f) => /\.pdf$/i.test(f.name || '')
    15 MB no se baja sola: va con lo demás, con «Bajar». */
 const imagesOf = (item) => (item.files || []).filter((f) => isImage(f) && (item.dir === 'out' || f.size <= IMAGE_AUTO_MAX))
 const othersOf = (item) => (item.files || []).filter((f) => !imagesOf(item).includes(f))
-const imageSrc = (item, f) => (item.dir === 'out' ? f.thumb || '' : f.status === 'bajado' ? chat.fileUrl(f) : '')
+// Lo enviado: la miniatura que armó el navegador al mandarlo y, si no la tiene (lo mandó bin/chat, o la ventana se
+// cerró), la copia que guardó el servidor del chat en su caché.
+const imageSrc = (item, f) => (item.dir === 'out' ? f.thumb || (f.status === 'bajado' ? chat.fileUrl(f) : '') : f.status === 'bajado' ? chat.fileUrl(f) : '')
 // La imagen en grande, al tocarla: Escape o un clic afuera la cierran.
 const lightbox = ref(null)   // { src, name }
 function openImage(item, f) { const src = imageSrc(item, f); if (src) lightbox.value = { src, name: f.name, item, f } }
