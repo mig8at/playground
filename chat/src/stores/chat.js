@@ -839,24 +839,36 @@ export const useChatStore = defineStore('chat', () => {
   const live = ref(false)
   const liveNotice = ref(null)   // { text, at }
   let source = null
+  let lastBeat = 0
+  let watchdog = null
   let noticeTimer = null
-  const incoming = []            // los «in» nuevos, para avisar (App.vue los lee con takeIncoming)
+  // Los avisos que decidió el servidor para esta pestaña (server/notify.go): App.vue los muestra con takeNotices.
+  const notices = []
+  const noticeSeq = ref(0)
   function showNotice(text) {
     liveNotice.value = { text, at: Date.now() }
     clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => { liveNotice.value = null }, 8000)
   }
-  function takeIncoming() { return incoming.splice(0) }
+  function takeNotices() { return notices.splice(0) }
+  // Con permiso de avisos del navegador, el stream se abre con `?notify=1`: el servidor le pasa los avisos a esta pestaña.
+  const canNotify = () => typeof Notification !== 'undefined' && Notification.permission === 'granted'
   function openLive() {
     if (typeof EventSource === 'undefined') return
     source?.close()
-    source = new EventSource('/api/events')
+    source = new EventSource(canNotify() ? '/api/events?notify=1' : '/api/events')
+    // El servidor late cada 25 s (`ping`). Si pasa más de un minuto sin nada, el stream quedó muerto detrás del proxy
+    // (el servidor se reinició) y se vuelve a abrir: si no, el servidor no sabría que esta pestaña está.
+    lastBeat = Date.now()
+    const beat = () => { lastBeat = Date.now() }
+    for (const name of ['hello', 'ping', 'messages', 'file', 'keyring', 'notify']) source.addEventListener(name, beat)
+    clearInterval(watchdog)
+    watchdog = setInterval(() => { if (Date.now() - lastBeat > 65_000) { live.value = false; openLive() } }, 15_000)
     source.addEventListener('hello', () => { live.value = true })
     source.addEventListener('messages', (e) => {
       try {
         const fresh = JSON.parse(e.data) || []
         absorb(fresh)
-        for (const m of fresh) if (m.dir === 'in' && !isJournal(m)) incoming.push(m)
       } catch { /* un evento roto: lo trae la consulta de respaldo */ }
     })
     source.addEventListener('file', (e) => {
@@ -868,6 +880,9 @@ export const useChatStore = defineStore('chat', () => {
         const who = (k.name || k.to || '').split(/[\s@]/)[0]
         showNotice(k.kind === 'list' ? `Le pasaste a ${who} la lista de tu llavero` : `Le mandaste a ${who} las claves que pidió`)
       } catch { /* idem */ }
+    })
+    source.addEventListener('notify', (e) => {
+      try { notices.push(JSON.parse(e.data)); noticeSeq.value++ } catch { /* un aviso roto: se pierde ése */ }
     })
     // EventSource reintenta solo; mientras tanto, la consulta vuelve a su ritmo normal.
     source.onerror = () => { live.value = false }
@@ -901,7 +916,7 @@ export const useChatStore = defineStore('chat', () => {
   }
   function stop() {
     clearTimeout(stateTimer); clearTimeout(onlineTimer); clearTimeout(cuadrillaTimer)
-    source?.close(); source = null; live.value = false
+    source?.close(); source = null; live.value = false; clearInterval(watchdog)
     document.removeEventListener('visibilitychange', markActiveRead)
   }
 
@@ -910,6 +925,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
-    live, liveNotice, takeIncoming, loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

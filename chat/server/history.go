@@ -126,8 +126,10 @@ func (h *history) add(messages []cli.Message) ([]cli.Message, error) {
 		}
 		h.order = append(h.order, m)
 	}
-	// En vivo: lo nuevo, a las ventanas abiertas (realtime.go).
+	// En vivo: lo nuevo, a las ventanas abiertas (realtime.go), y los avisos que correspondan (notify.go). Pasa por acá
+	// todo lo que entra, venga del listen en vivo, de la consulta de respaldo o de lo que manda este servidor.
 	events.publish("messages", fresh)
+	go notifyFresh(fresh)
 	return fresh, nil
 }
 

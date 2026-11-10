@@ -247,6 +247,7 @@ func handler() http.Handler {
 	registerKeyring(mux)
 	registerEvents(mux)
 	registerKeyringSettings(mux)
+	registerNotify(mux)
 
 	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
 	// la URL (por si el navegador no se abrió); el resultado se ve en /api/state.

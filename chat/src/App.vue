@@ -29,6 +29,9 @@ import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
+import NotifySettings from './NotifySettings.vue'
+import RegionMenu from './RegionMenu.vue'
+import { conversationMode, loadNotify, notify, reportView, setConversationMode } from './notifyStore.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
 import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
@@ -84,18 +87,12 @@ function nameOfEmail(email) {
   const key = String(email || '').toLowerCase()
   return chat.conversations[key]?.person.name || chat.online.find((p) => String(p.email || '').toLowerCase() === key)?.name || key.split('@')[0]
 }
+// El nombre de una conversación por su clave (`#grupo` o un correo), para la lista de excepciones de los avisos.
+const conversationName = (key) => (String(key).startsWith('#') ? key : nameOfEmail(key))
 const mentionsMeIn = (text) => mentionsMe(text, myUser.value, myAgentNames.value)
 const textSegments = (text) => segments(text, knownHandles.value, myUser.value, myAgentNames.value)
 // Las menciones a vos que todavía no leíste en un grupo de la lista.
 const unreadMentions = (g) => (g.messages || []).filter((m) => m.dir === 'in' && m.time > (g.readAt || '') && mentionsMeIn(m.text)).length
-/* Qué avisa cada grupo: todo (lo de siempre) o sólo cuando te mencionan. Se recuerda por grupo en este navegador. */
-const GROUP_NOTIFY_KEY = 'chat.group-notify'
-const groupNotify = ref((() => { try { return JSON.parse(localStorage.getItem(GROUP_NOTIFY_KEY) || '{}') || {} } catch { return {} } })())
-const onlyMentions = (key) => groupNotify.value[key] === 'mentions'
-function toggleGroupNotify(key) {
-  groupNotify.value = { ...groupNotify.value, [key]: onlyMentions(key) ? 'all' : 'mentions' }
-  try { localStorage.setItem(GROUP_NOTIFY_KEY, JSON.stringify(groupNotify.value)) } catch { /* vale mientras la pestaña */ }
-}
 function openMyChat() { serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true) }
 /* LOS SERVERS (server/servers.go): lo que hay que tener prendido en esta máquina para que otra persona pruebe contra
    ella. Su estado se mira cada 15 s, y cada 2 s mientras se levanta; abierto, ocupa el editor. Abrir una
@@ -836,28 +833,62 @@ function forgetActive() {
 
 // El título de la pestaña dice cuántos no leídos hay, como cualquier chat.
 watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'chat' }, { immediate: true })
-/* LOS AVISOS DEL SISTEMA: con el stream en vivo, un mensaje llega aunque la pestaña esté oculta; si no la estás
-   mirando (o es de otra conversación), aparece una notificación de macOS. Clic la trae y abre esa conversación. El
-   permiso lo pide el botón de la barra de abajo: el navegador sólo lo pide tras un clic. */
+/* LOS AVISOS (server/notify.go): los decide el servidor con la configuración de «Avisos», también con la pestaña
+   cerrada. Si esta pestaña tiene permiso del navegador, el servidor se los pasa a ella (tocarlos abre la
+   conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de
+   ésa. El permiso se pide desde «Avisos»: el navegador sólo lo pide tras un clic. */
 const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+const notifyOpen = ref(false)
 async function askNotifyPermission() {
   try { notifyPermission.value = await Notification.requestPermission() } catch { /* sin permiso */ }
+  chat.reconnectLive()  // el stream se vuelve a abrir diciendo si esta pestaña puede mostrar avisos
+  setTimeout(loadNotify, 800)
 }
-watch(() => chat.unreadTotal, () => {
-  for (const m of chat.takeIncoming()) {
-    if (notifyPermission.value !== 'granted') continue
-    const key = m.group?.id ? `#${String(m.group.id).toLowerCase()}` : String(m.from?.email || '').toLowerCase()
-    if (document.visibilityState === 'visible' && document.hasFocus() && chat.activeKey === key) continue
-    const named = !!m.group?.id && mentionsMeIn(m.text)
-    if (m.group?.id && onlyMentions(key) && !named) continue
-    const who = m.via?.name ? `${m.from?.name || ''} · ${m.via.name}` : (m.from?.name || m.from?.email || 'alguien')
-    const where = m.group?.id ? `${named ? ' te mencionó' : ''} en #${m.group.id}` : ''
-    const files = (m.files || []).map((f) => `📎 ${f.name}`).join(' · ')
+function openNotify() { notifyOpen.value = true; loadNotify() }
+watch(() => chat.noticeSeq, () => {
+  for (const n of chat.takeNotices()) {
     try {
-      const n = new Notification(`${who}${where}`, { body: [String(m.text || ''), files].filter(Boolean).join('\n').slice(0, 240), tag: m.id || undefined })
-      n.onclick = () => { window.focus(); serverOpen.value = ''; const c = chat.conversations[key]; if (c) chat.open(c.person); n.close() }
+      const shown = new Notification(n.title, { body: n.body, tag: n.id || undefined, silent: !n.sound })
+      shown.onclick = () => {
+        window.focus(); serverOpen.value = ''
+        const c = n.key && chat.conversations[n.key]
+        if (c) { chat.open(c.person); narrowList.value = false }
+        shown.close()
+      }
     } catch { /* el navegador no la dejó */ }
   }
+})
+// Qué tenés al frente: la conversación abierta (o ninguna) y si la pestaña tiene el foco.
+const viewKey = computed(() => (serverOpen.value ? '' : chat.activeKey))
+const sendView = (opts) => reportView(viewKey.value, document.visibilityState === 'visible' && document.hasFocus(), opts)
+watch(viewKey, () => sendView())
+const onViewChange = () => sendView()
+const onPageHide = () => reportView('', false, { beacon: true })
+let viewTimer = null
+// El menú de la campana de una conversación: seguir su tipo, o una excepción.
+const NOTIFY_LABEL = { all: 'Todos', mentions: 'Sólo menciones', off: 'Ninguno' }
+const canNotifyConversation = computed(() => !!chat.active && !activeIsAgent.value && !chat.active.person.tool && !chat.isMe(chat.active.person))
+const activeNotifyMode = computed(() => conversationMode(chat.activeKey))
+const activeNotifyDefault = computed(() => (activeIsGroup.value ? notify.settings?.groups : notify.settings?.direct) || 'all')
+const notifyMenuItems = computed(() => {
+  const modes = activeIsGroup.value ? ['all', 'mentions', 'off'] : ['all', 'off']
+  return [
+    { id: '', label: `Como ${activeIsGroup.value ? 'los grupos' : 'los directos'} (${NOTIFY_LABEL[activeNotifyDefault.value].toLowerCase()})`, selected: !activeNotifyMode.value },
+    ...modes.map((m) => ({ id: m, label: m === 'off' ? 'Silenciar' : NOTIFY_LABEL[m], selected: activeNotifyMode.value === m })),
+    { separator: true },
+    { id: 'settings', label: 'Configurar avisos…', icon: 'bell' },
+  ]
+})
+function onNotifyMenu(id) {
+  if (id === 'settings') { openNotify(); return }
+  setConversationMode(chat.activeKey, id)
+}
+const notifyEffective = computed(() => activeNotifyMode.value || activeNotifyDefault.value)
+const notifyStatusText = computed(() => {
+  const st = notify.settings
+  if (!st) return 'avisos'
+  if (!st.enabled) return 'avisos apagados'
+  return 'avisos'
 })
 
 const themeToggle = ref(null)
@@ -869,6 +900,13 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('popstate', applyRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  loadNotify()
+  window.addEventListener('focus', onViewChange)
+  window.addEventListener('blur', onViewChange)
+  document.addEventListener('visibilitychange', onViewChange)
+  window.addEventListener('pagehide', onPageHide)
+  sendView({ force: true })
+  viewTimer = setInterval(() => sendView({ force: true }), 60_000)
 })
 onBeforeUnmount(() => {
   chat.stop()
@@ -876,6 +914,11 @@ onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('popstate', applyRoute)
   themeBinding?.destroy?.()
+  window.removeEventListener('focus', onViewChange)
+  window.removeEventListener('blur', onViewChange)
+  document.removeEventListener('visibilitychange', onViewChange)
+  window.removeEventListener('pagehide', onPageHide)
+  clearInterval(viewTimer)
 })
 
 const listening = computed(() => chat.state?.listening)
@@ -1108,12 +1151,10 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
-            <button v-if="activeIsGroup" type="button" class="region-action group-notify" :class="{ quiet: onlyMentions(chat.activeKey) }"
-                    :aria-pressed="!onlyMentions(chat.activeKey)"
-                    :title="onlyMentions(chat.activeKey) ? 'Te avisa sólo cuando te mencionan: tocá para que avise todo' : 'Te avisa cada mensaje: tocá para que avise sólo cuando te mencionan'"
-                    :aria-label="onlyMentions(chat.activeKey) ? 'Avisar todos los mensajes del grupo' : 'Avisar sólo las menciones'" @click="toggleGroupNotify(chat.activeKey)">
-              <span class="ui-icon" data-icon="bell" aria-hidden="true"></span>
-            </button>
+            <RegionMenu v-if="canNotifyConversation && notify.settings" icon="bell" :items="notifyMenuItems" :active="!!activeNotifyMode"
+                        :class="['group-notify', { quiet: notifyEffective !== 'all' || !notify.settings.enabled }]"
+                        :title="`Avisos de esta conversación: ${!notify.settings.enabled ? 'apagados' : NOTIFY_LABEL[notifyEffective].toLowerCase()}`"
+                        @select="onNotifyMenu" />
             <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
                     aria-label="Vaciar chat" @click="clearActive">
               <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
@@ -1676,6 +1717,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <KeyringPanel />
     </section>
 
+    <NotifySettings :open="notifyOpen" :permission="notifyPermission" :name-of="conversationName"
+                    @close="notifyOpen = false" @ask-permission="askNotifyPermission" />
     <footer class="statusbar">
       <span class="statusbar-item">
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
@@ -1686,8 +1729,9 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <span v-if="chat.state?.since && listening" class="statusbar-item wide-only">desde las {{ clock(chat.state.since) }}</span>
       <!-- Lo que hizo el servidor por su cuenta (el llavero que contestó solo), unos segundos. -->
       <span v-if="chat.liveNotice" class="statusbar-item live-notice"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>{{ chat.liveNotice.text }}</span>
-      <button v-if="notifyPermission === 'default'" type="button" class="statusbar-item mode-toggle" title="Que te avise macOS cuando te escriben y no estás mirando el chat"
-              @click="askNotifyPermission"><span class="ui-icon" data-icon="bell" aria-hidden="true"></span>activar avisos</button>
+      <button type="button" class="statusbar-item mode-toggle" :class="{ off: notify.settings && !notify.settings.enabled }"
+              title="Qué te avisa el chat, también con la pestaña cerrada" @click="openNotify">
+        <span class="ui-icon" data-icon="bell" aria-hidden="true"></span>{{ notifyStatusText }}</button>
       <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item wide-only">
         tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
       </span>
@@ -1803,6 +1847,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .mention-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); font-size: var(--text-sm) }
 /* La campana del grupo: atenuada cuando avisa sólo las menciones. */
 .group-notify.quiet { opacity: .5 }
+.mode-toggle.off { opacity: .6 }
 /* En angosto, la lista sola: ocupa todo el ancho y el chat, la consola y la derecha no se ven. */
 .workbench.narrow-list > .sidebar { width: auto; grid-column: 1 / -1 }
 .workbench.narrow-list > .editor, .workbench.narrow-list > .panel, .workbench.narrow-list > .auxiliarybar { display: none }
