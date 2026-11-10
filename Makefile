@@ -811,7 +811,7 @@ canon-read: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias
 canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
-canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe]
+canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe] · un lote de más de ~90 piezas no entra en 5 min: CANON_TIMEOUT=20m
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde el playground)' $(foreach p,$(PIECE),$(abspath $(p)))
 canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara cambiaron en main (contra los clones del servidor: si main avanzó, antes canon-clones SYNC=1). El servidor la cachea 10 min: FORCE=1 la vuelve a medir. Sale 1 si algo cambió

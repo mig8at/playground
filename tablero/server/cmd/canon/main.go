@@ -40,7 +40,7 @@ func main() {
 	if len(os.Args) < 2 {
 		usage()
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), commandTimeout())
 	defer cancel()
 	client := canon.FromEnv()
 	args := os.Args[2:]
@@ -654,4 +654,17 @@ func restructure(ctx context.Context, client *canon.Client, args []string) error
 		fmt.Println("  (ensayo: canon no guardó nada; con APPLY=1 se publica en una revisión)")
 	}
 	return nil
+}
+
+/* commandTimeout: lo que puede tardar el comando entero. Cinco minutos alcanzan para leer; un `write` de un
+ * lote grande no, porque el servidor valida el corpus completo con cada pieza (unos 3 s cada una), y un
+ * corte a mitad abandona el borrador. CANON_TIMEOUT (una duración de Go, p. ej. `20m`) lo alarga. */
+func commandTimeout() time.Duration {
+	if v := os.Getenv("CANON_TIMEOUT"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil && d > 0 {
+			return d
+		}
+		fmt.Fprintf(os.Stderr, "CANON_TIMEOUT=%q no es una duración: se usan 5m\n", v)
+	}
+	return 5 * time.Minute
 }
