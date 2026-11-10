@@ -1307,6 +1307,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 <span v-if="item.forAgent && !item.cont" class="published-label">para tu agente {{ item.forAgent }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
+                <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
+                <span v-if="item.asAgent && !item.cont" class="published-label">como {{ item.asAgent }}</span>
                 <span v-if="item.cuadrilla" class="task-note-label">
                   <template v-if="item.dir === 'in'"><b>{{ item.cuadrilla.autor }}</b> · </template>{{ NOTE_LABEL[item.cuadrilla.tipo] || item.cuadrilla.tipo }}
                   en «{{ item.cuadrilla.tarea }}»<template v-if="item.cuadrilla.dependeDe"> · depende de {{ item.cuadrilla.dependeDe }}</template>

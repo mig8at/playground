@@ -312,7 +312,10 @@ export const useChatStore = defineStore('chat', () => {
             : ensure({ email: agentKey(owner, agentName), name: agentName, agent: true, delegate: true, owner: { email: keyOf(owner) }, agentName })
           const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === m.text)
           if (own) { own.sid = sid; continue }
-          push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent' })
+          const pushed = push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent',
+                    ...(m.via?.name ? { asAgent: m.via.name } : {}) })
+          // Ya estaba (guardado antes en este navegador): se le completa con qué agente salió.
+          if (!pushed && m.via?.name) { const had = c.messages.find((x) => x.sid === sid); if (had && !had.asAgent) had.asAgent = m.via.name }
           continue
         }
         if (m.agent) {
@@ -326,7 +329,8 @@ export const useChatStore = defineStore('chat', () => {
           // Con sus adjuntos: el servidor guarda la ficha de lo que se subió desde él (bin/chat send --file) y una copia
           // en su caché, que applySavedFiles muestra. Si el mensaje ya estaba sin ellos, se le agregan.
           const files = Array.isArray(m.files) && m.files.length ? m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) : null
-          push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent', ...(files ? { files } : {}) })
+          push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent',
+                    ...(m.via?.name ? { asAgent: m.via.name } : {}), ...(files ? { files } : {}) })
           if (files) {
             const item = c.messages.find((x) => x.sid === sid)
             if (item && !item.files?.length) item.files = files
