@@ -28,6 +28,7 @@ import KeyCard from './KeyCard.vue'
 import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
+import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
 import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
@@ -69,6 +70,32 @@ function deleteConversation(c) {
 }
 // Tu @ en el chat del equipo: la parte del correo antes de la arroba, como te escriben (`playground send @miguel`).
 const myHandle = computed(() => { const e = chat.state?.session?.email || chat.me?.email || ''; return e ? `@${e.split('@')[0]}` : '' })
+
+/* ── MENCIONES EN LOS GRUPOS (mentions.js): `@usuario`, `@usuario/agente` o `@todos`, dentro del texto. Se autocompletan
+   al escribir, se resaltan y, la que te nombra, marca su burbuja, el grupo en la lista y su aviso. */
+const myUser = computed(() => myHandle.value.slice(1).toLowerCase())
+const myAgentNames = computed(() => chat.agentList.filter((a) => a.mine).map((a) => a.agentName))
+const activeIsGroup = computed(() => !!chat.active?.person.group)
+const membersOf = (person) => chat.groups.find((g) => `#${g.id}` === person?.email)?.members || person?.members || []
+const groupMembers = computed(() => (activeIsGroup.value ? membersOf(chat.active.person) : []))
+const knownHandles = computed(() => new Set(groupMembers.value.map(handleOf)))
+// El nombre de alguien por su correo: de su conversación o de quién está conectado; si no, su usuario.
+function nameOfEmail(email) {
+  const key = String(email || '').toLowerCase()
+  return chat.conversations[key]?.person.name || chat.online.find((p) => String(p.email || '').toLowerCase() === key)?.name || key.split('@')[0]
+}
+const mentionsMeIn = (text) => mentionsMe(text, myUser.value, myAgentNames.value)
+const textSegments = (text) => segments(text, knownHandles.value, myUser.value, myAgentNames.value)
+// Las menciones a vos que todavía no leíste en un grupo de la lista.
+const unreadMentions = (g) => (g.messages || []).filter((m) => m.dir === 'in' && m.time > (g.readAt || '') && mentionsMeIn(m.text)).length
+/* Qué avisa cada grupo: todo (lo de siempre) o sólo cuando te mencionan. Se recuerda por grupo en este navegador. */
+const GROUP_NOTIFY_KEY = 'chat.group-notify'
+const groupNotify = ref((() => { try { return JSON.parse(localStorage.getItem(GROUP_NOTIFY_KEY) || '{}') || {} } catch { return {} } })())
+const onlyMentions = (key) => groupNotify.value[key] === 'mentions'
+function toggleGroupNotify(key) {
+  groupNotify.value = { ...groupNotify.value, [key]: onlyMentions(key) ? 'all' : 'mentions' }
+  try { localStorage.setItem(GROUP_NOTIFY_KEY, JSON.stringify(groupNotify.value)) } catch { /* vale mientras la pestaña */ }
+}
 function openMyChat() { serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true) }
 /* LOS SERVERS (server/servers.go): lo que hay que tener prendido en esta máquina para que otra persona pruebe contra
    ella. Su estado se mira cada 15 s, y cada 2 s mientras se levanta; abierto, ocupa el editor. Abrir una
@@ -626,7 +653,39 @@ onBeforeUnmount(() => window.removeEventListener('keydown', onGalleryKey))
 watch(() => docView.value?.f, async () => { await nextTick(); document.querySelector('.gallery-thumb.on')?.scrollIntoView({ block: 'nearest', inline: 'center' }) })
 function onLightboxKey(e) { if (e.key === 'Escape') lightbox.value = null }
 watch(lightbox, (v) => (v ? window.addEventListener('keydown', onLightboxKey) : window.removeEventListener('keydown', onLightboxKey)))
+// El menú de @: lo que se escribió después de la @ y cuál está elegido. Sólo en grupos.
+const mention = ref(null)   // { start, query, index }
+const mentionOptions = computed(() => (mention.value ? candidates(groupMembers.value, mention.value.query, nameOfEmail, myUser.value) : []))
+function updateMention() {
+  const el = composer.value
+  if (!activeIsGroup.value || !el) { mention.value = null; return }
+  const q = activeQuery(draft.value, el.selectionStart ?? draft.value.length)
+  mention.value = q ? { ...q, index: mention.value?.query === q.query ? mention.value.index : 0 } : null
+}
+function onComposerInput() { autosize(); updateMention() }
+async function pickMention(option) {
+  const m = mention.value
+  const el = composer.value
+  if (!m || !option || !el) return
+  const end = el.selectionStart ?? draft.value.length
+  const insert = `@${option.handle} `
+  draft.value = draft.value.slice(0, m.start) + insert + draft.value.slice(end).replace(/^ /, '')
+  mention.value = null
+  await nextTick()
+  const caret = m.start + insert.length
+  el.focus(); el.setSelectionRange(caret, caret); autosize()
+}
 function onKeydown(e) {
+  if (mentionOptions.value.length) {
+    const n = mentionOptions.value.length
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault()
+      mention.value.index = (mention.value.index + (e.key === 'ArrowDown' ? 1 : n - 1)) % n
+      return
+    }
+    if ((e.key === 'Enter' || e.key === 'Tab') && !e.shiftKey && !e.isComposing) { e.preventDefault(); pickMention(mentionOptions.value[mention.value.index]); return }
+    if (e.key === 'Escape') { e.preventDefault(); mention.value = null; return }
+  }
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); submit() }
   if (e.key === 'Escape' && replyTo.value) { e.preventDefault(); replyTo.value = null }
   if (e.key === 'Escape' && taskTarget.value) { e.preventDefault(); taskTarget.value = null }
@@ -671,7 +730,7 @@ async function markDone(task) {
 }
 const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')
 const taskStateLabel = (t) => (t.bloqueo ? `bloqueada · depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso')
-watch(() => chat.activeKey, () => { taskTarget.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
+watch(() => chat.activeKey, () => { taskTarget.value = null; mention.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
 function autosize() {
   const el = composer.value
   if (!el) return
@@ -789,8 +848,10 @@ watch(() => chat.unreadTotal, () => {
     if (notifyPermission.value !== 'granted') continue
     const key = m.group?.id ? `#${String(m.group.id).toLowerCase()}` : String(m.from?.email || '').toLowerCase()
     if (document.visibilityState === 'visible' && document.hasFocus() && chat.activeKey === key) continue
+    const named = !!m.group?.id && mentionsMeIn(m.text)
+    if (m.group?.id && onlyMentions(key) && !named) continue
     const who = m.via?.name ? `${m.from?.name || ''} · ${m.via.name}` : (m.from?.name || m.from?.email || 'alguien')
-    const where = m.group?.id ? ` en #${m.group.id}` : ''
+    const where = m.group?.id ? `${named ? ' te mencionó' : ''} en #${m.group.id}` : ''
     const files = (m.files || []).map((f) => `📎 ${f.name}`).join(' · ')
     try {
       const n = new Notification(`${who}${where}`, { body: [String(m.text || ''), files].filter(Boolean).join('\n').slice(0, 240), tag: m.id || undefined })
@@ -938,6 +999,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 </span>
                 <span class="conversation-bottom">
                   <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? 'Vos' : (g.last.via || firstName(g.last.author))}: ${snippetOf(g.last)}` : `${(g.person.members || []).length} miembros` }}</span>
+                  <span v-if="unreadMentions(g)" class="unread at" :title="`Te mencionaron ${unreadMentions(g) === 1 ? 'una vez' : `${unreadMentions(g)} veces`}`">@</span>
                   <span v-if="g.unread" class="unread">{{ g.unread }}</span>
                 </span>
               </span>
@@ -1046,6 +1108,12 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
+            <button v-if="activeIsGroup" type="button" class="region-action group-notify" :class="{ quiet: onlyMentions(chat.activeKey) }"
+                    :aria-pressed="!onlyMentions(chat.activeKey)"
+                    :title="onlyMentions(chat.activeKey) ? 'Te avisa sólo cuando te mencionan: tocá para que avise todo' : 'Te avisa cada mensaje: tocá para que avise sólo cuando te mencionan'"
+                    :aria-label="onlyMentions(chat.activeKey) ? 'Avisar todos los mensajes del grupo' : 'Avisar sólo las menciones'" @click="toggleGroupNotify(chat.activeKey)">
+              <span class="ui-icon" data-icon="bell" aria-hidden="true"></span>
+            </button>
             <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
                     aria-label="Vaciar chat" @click="clearActive">
               <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
@@ -1190,7 +1258,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
 
             <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
-              <div class="bubble" :class="{ failed: item.status === 'error' }">
+              <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': activeIsGroup && item.dir === 'in' && mentionsMeIn(item.text) }">
                 <span v-if="item.author && !item.cont" class="author-label" :class="{ delegate: item.via }">
                   <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(item.author) }}</template>
                   <b v-else>{{ item.author.name }}</b>
@@ -1233,6 +1301,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                              @ask-keys="(names) => askKeys(names, item.sid)" @send-keys="(names) => sendKeysByName(names, item.sid)" />
                     <p v-if="keyInfo(item).rest" class="text">{{ keyInfo(item).rest }}</p>
                   </template>
+                  <p v-else-if="item.text && activeIsGroup" class="text"><template v-for="(seg, i) in textSegments(item.text)" :key="i"><span v-if="seg.mention" class="mention" :class="{ me: seg.me }">{{ seg.text }}</span><template v-else>{{ seg.text }}</template></template></p>
                   <p v-else-if="item.text" class="text">{{ item.text }}</p>
                 </template>
                 <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
@@ -1342,6 +1411,13 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             </li>
             <li v-if="attachError" class="error">{{ attachError }}</li>
           </ul>
+          <!-- A quién nombrar: los del grupo y @todos. ↑↓ elige, Enter o Tab lo pone, Esc cierra. -->
+          <ul v-if="mentionOptions.length" id="mention-menu" class="mention-menu" role="listbox" aria-label="Mencionar a">
+            <li v-for="(o, i) in mentionOptions" :id="`mention-${i}`" :key="o.handle" role="option" :aria-selected="i === mention.index"
+                class="mention-option" :class="{ on: i === mention.index }" @mousedown.prevent="pickMention(o)" @mouseenter="mention.index = i">
+              <span class="mention-handle">@{{ o.handle }}</span><span class="mention-label">{{ o.label }}</span>
+            </li>
+          </ul>
           <div class="composer-row" @dragover.prevent @drop.prevent="onDropFiles">
             <template v-if="canAttach">
               <input ref="fileInput" type="file" multiple class="sr-only" aria-hidden="true" tabindex="-1" @change="onPickFiles">
@@ -1352,7 +1428,10 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             </template>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
-                      maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="autosize" @paste="onPasteFiles"></textarea>
+                      maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="onComposerInput" @paste="onPasteFiles"
+                      @click="updateMention" @blur="mention = null" role="combobox" :aria-expanded="mentionOptions.length > 0"
+                      aria-autocomplete="list" :aria-controls="mentionOptions.length ? 'mention-menu' : undefined"
+                      :aria-activedescendant="mentionOptions.length ? `mention-${mention.index}` : undefined"></textarea>
             <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent && !chat.active?.person.delegate ? 'Preguntar' : 'Mandar' }}</button>
           </div>
         </form>
@@ -1709,6 +1788,21 @@ code { font-family: var(--font-mono); font-size: .92em }
 .editor { display: flex; flex-direction: column; min-height: 0 }
 .head-who { display: flex; align-items: center; gap: 10px; padding-block: 4px }
 .narrow-back { flex: none; margin-inline-start: -6px }
+/* Menciones: el nombre resaltado; el que te nombra, con el acento y su burbuja con una línea al costado. */
+.mention { padding: 0 2px; border-radius: 4px; color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); font-weight: 600 }
+.mention.me { color: var(--primary-foreground); background: var(--primary) }
+.bubble.mentions-me { box-shadow: inset 3px 0 0 var(--primary) }
+.unread.at { background: var(--primary); color: var(--primary-foreground) }
+.composer { position: relative }
+.mention-menu { position: absolute; z-index: 5; left: var(--space-6); right: var(--space-6); bottom: calc(100% - var(--space-2)); margin: 0; padding: 4px;
+  list-style: none; max-height: 260px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg, 10px);
+  background: var(--popover, var(--background)); box-shadow: 0 8px 24px rgb(0 0 0 / .25) }
+.mention-option { display: flex; align-items: baseline; gap: var(--space-2); padding: 6px 8px; border-radius: 6px; cursor: pointer; min-width: 0 }
+.mention-option.on { background: var(--hover) }
+.mention-handle { flex: none; font-weight: 600 }
+.mention-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); font-size: var(--text-sm) }
+/* La campana del grupo: atenuada cuando avisa sólo las menciones. */
+.group-notify.quiet { opacity: .5 }
 /* En angosto, la lista sola: ocupa todo el ancho y el chat, la consola y la derecha no se ven. */
 .workbench.narrow-list > .sidebar { width: auto; grid-column: 1 / -1 }
 .workbench.narrow-list > .editor, .workbench.narrow-list > .panel, .workbench.narrow-list > .auxiliarybar { display: none }
@@ -1716,9 +1810,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .workbench.narrow-right > .editor, .workbench.narrow-right > .panel { display: none }
 /* En angosto la barra de abajo deja sólo lo que cambia qué hacés: si estás en vivo, quién contesta y los botones. */
 .workbench.narrow .wide-only { display: none }
-/* Si no entra, ceden los dos; el estado («conectado · @usuario») cede más rápido que el nombre. */
+/* Si no entra, primero se recorta el estado («conectado · @usuario», los miembros de un grupo) y recién después el nombre. */
 .head-title { flex: 0 1 auto; min-width: 3em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
-.head-sub { flex: 0 4 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.head-sub { flex: 0 1000 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .notice { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: 8px var(--gutter);
   border-bottom: 1px solid var(--border); background: var(--muted); color: var(--fg-2); font-size: var(--text-sm) }
 .thread { display: flex; flex-direction: column; gap: 8px; padding: var(--space-4) var(--space-6) }
