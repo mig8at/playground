@@ -537,6 +537,9 @@ export const useChatStore = defineStore('chat', () => {
       groups.value = (await api('/api/groups')).groups || []
       groupsError.value = ''
       for (const g of groups.value) ensure({ email: `#${g.id}`, name: `#${g.id}`, group: true, members: g.members, owner: g.owner })
+      // Un grupo que el servidor ya no lista (lo borraron, o saliste desde otro lado) se va de la lista.
+      const live = new Set(groups.value.map((g) => `#${g.id}`))
+      for (const key of Object.keys(conversations.value)) if (isGroupKey(key) && !live.has(key)) removeConversation(key)
     } catch (e) { groupsError.value = e.message }
   }
   async function createGroup(name, members) {
@@ -547,7 +550,11 @@ export const useChatStore = defineStore('chat', () => {
   // Eliminar un grupo: si lo creaste, se borra para todos; si no, salís (y si eras el único, se borra). Se va de tu lista.
   async function leaveGroup(key) {
     const id = key.replace(/^#/, '')
-    const r = await post(`/api/groups/${encodeURIComponent(id)}/remove`, {})
+    let r = {}
+    try { r = await post(`/api/groups/${encodeURIComponent(id)}/remove`, {}) } catch (e) {
+      // Si ya no estás (lo borraron o saliste desde otro lado), sólo queda sacarlo de la lista.
+      if (!/no estás en/.test(e.message)) throw e
+    }
     removeConversation(key)
     await loadGroups()
     return r
