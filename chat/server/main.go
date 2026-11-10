@@ -102,6 +102,7 @@ func handler() http.Handler {
 		if chatHistory != nil {
 			if fresh, err := chatHistory.add(body.Messages); err == nil && len(fresh) > 0 {
 				go fetchImagesOf(fresh)
+				go answerKeyring(fresh)
 			}
 			body.Messages, body.Files = chatHistory.all(), chatHistory.savedFiles()
 		}
@@ -195,6 +196,7 @@ func handler() http.Handler {
 
 	registerFiles(mux)
 	registerKeyring(mux)
+	registerKeyringSettings(mux)
 
 	// Entrar al playground: lanza `playground login`, que abre el navegador de esta máquina. Vuelve enseguida con
 	// la URL (por si el navegador no se abrió); el resultado se ve en /api/state.

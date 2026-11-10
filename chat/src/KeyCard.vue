@@ -1,25 +1,63 @@
 <script setup>
-/* UNA CLAVE EN LA CONVERSACIÓN, como un archivo de WhatsApp: el candado a la izquierda, el nombre y qué es, y lo que se
-   puede hacer. Si llegó encriptada: «Desencriptar» la abre acá con la llave del equipo (y se copia); si es un pedido
-   y la tenés guardada: «Enviarla». */
+/* LAS CLAVES EN LA CONVERSACIÓN, como un archivo de WhatsApp: el icono a la izquierda, qué es, y lo que se puede hacer.
+   - «Pido tu llavero»: el pedido (lo contesta solo el servidor de quien lo recibe).
+   - «Mi llavero (n)»: la lista de nombres; quien la pidió marca las que quiere y «Pedir» (también se contesta solo).
+   - «Pido estas claves»: el pedido de unas en concreto.
+   - «Clave «x»»: una clave encriptada; se desencripta acá y se guarda en tu llavero con un clic. */
 import { computed, ref } from 'vue'
 import { open } from './keyring.js'
-import { keyring } from './keyringStore.js'
+import { keyring, loadKeyring } from './keyringStore.js'
 
-const props = defineProps({ info: { type: Object, required: true }, mine: { type: Boolean, default: false } })
-const emit = defineEmits(['send-key'])
+const props = defineProps({ info: { type: Object, required: true }, mine: { type: Boolean, default: false }, who: { type: String, default: '' } })
+const emit = defineEmits(['ask-keys', 'send-keys'])
 const value = ref('')
 const visible = ref(false)
 const error = ref('')
 const copied = ref('')
+const picked = ref(new Set())
+const busy = ref(false)
 
-const isAsk = computed(() => props.info.kind === 'ask')
-const have = computed(() => keyring.saved.find((k) => k.name === props.info.name))
+const kind = computed(() => props.info.kind)
+const savedNames = computed(() => new Set(keyring.saved.map((k) => k.name)))
+const alreadySaved = computed(() => keyring.saved.some((k) => k.name === props.info.name && k.sealed === props.info.sealed))
+const icon = computed(() => (kind.value === 'key' ? (value.value ? 'unlock' : 'lock') : 'key'))
+const title = computed(() => {
+  switch (kind.value) {
+    case 'ask-keyring': return props.mine ? `Pediste el llavero de ${props.who}` : `${props.who} pide tu llavero`
+    case 'list': return props.mine ? 'Tu llavero' : `Llavero de ${props.who}`
+    case 'ask': return props.mine ? `Pediste ${props.info.names.length === 1 ? 'una clave' : `${props.info.names.length} claves`}` : `${props.who} pide ${props.info.names.length === 1 ? 'una clave' : `${props.info.names.length} claves`}`
+    default: return props.info.name
+  }
+})
+const meta = computed(() => {
+  switch (kind.value) {
+    case 'ask-keyring': return props.mine ? 'Te llega la lista de sus claves (sólo los nombres)' : 'Se le contesta solo con los nombres'
+    case 'list': return `${props.info.names.length} clave${props.info.names.length === 1 ? '' : 's'} · sólo los nombres`
+    case 'ask': return props.mine ? 'Te llegan encriptadas' : 'Se le mandan solas, encriptadas'
+    default: return 'Clave encriptada · llave del equipo'
+  }
+})
+const toPick = computed(() => (props.info.names || []).filter((n) => !savedNames.value.has(n)))
 
+function toggle(n) {
+  const s = new Set(picked.value)
+  s.has(n) ? s.delete(n) : s.add(n)
+  picked.value = s
+}
 async function decrypt() {
   error.value = ''
   if (!keyring.teamKey) { error.value = 'Falta la llave del equipo (consola → Llavero).'; return }
-  try { value.value = await open(keyring.teamKey, props.info.sealed); visible.value = true } catch { error.value = 'No abre con tu llave del equipo.' }
+  try { value.value = await open(keyring.teamKey, props.info.sealed); visible.value = true } catch { error.value = 'No abre con tu llavero del equipo.' }
+}
+// Guardar en mi llavero: va el MISMO encriptado (todos tenemos la misma llave del equipo).
+async function save() {
+  busy.value = true
+  try {
+    const r = await fetch('/api/keyring/keys', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: props.info.name, sealed: props.info.sealed, updated: new Date().toISOString() }) })
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || r.statusText)
+    await loadKeyring()
+  } catch (e) { error.value = e.message } finally { busy.value = false }
 }
 async function copy(text, tag) {
   try { await navigator.clipboard.writeText(text); copied.value = tag; setTimeout(() => { if (copied.value === tag) copied.value = '' }, 1500) } catch { /* sin portapapeles */ }
@@ -27,16 +65,32 @@ async function copy(text, tag) {
 </script>
 
 <template>
-  <div class="key-card" :class="{ ask: isAsk }">
+  <div class="key-card" :class="`kind-${kind}`">
     <div class="key-head">
-      <span class="key-icon" aria-hidden="true"><span class="ui-icon" :data-icon="isAsk ? 'key' : value ? 'unlock' : 'lock'"></span></span>
+      <span class="key-icon" aria-hidden="true"><span class="ui-icon" :data-icon="icon"></span></span>
       <span class="key-main">
-        <span class="key-name">{{ info.name }}</span>
-        <span class="key-meta">{{ isAsk ? 'Pide esta clave' : 'Clave encriptada · llave del equipo' }}</span>
+        <span class="key-name" :class="{ mono: kind === 'key' }">{{ title }}</span>
+        <span class="key-meta">{{ meta }}</span>
       </span>
     </div>
 
-    <div v-if="!isAsk && value" class="key-value">
+    <!-- La lista de un llavero: quien la pidió marca las que quiere. Las que ya tenés, aparecen marcadas así. -->
+    <ul v-if="kind === 'list' && info.names.length" class="key-list">
+      <li v-for="n in info.names" :key="n">
+        <label v-if="!mine && !savedNames.has(n)" class="key-pick">
+          <input type="checkbox" :checked="picked.has(n)" @change="toggle(n)"><span class="mono">{{ n }}</span>
+        </label>
+        <span v-else class="key-pick" :class="{ have: savedNames.has(n) && !mine }">
+          <span class="ui-icon" :data-icon="savedNames.has(n) && !mine ? 'check' : 'lock'" aria-hidden="true"></span><span class="mono">{{ n }}</span>
+          <small v-if="savedNames.has(n) && !mine">ya la tenés</small>
+        </span>
+      </li>
+    </ul>
+    <ul v-else-if="kind === 'ask'" class="key-list">
+      <li v-for="n in info.names" :key="n"><span class="key-pick"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span><span class="mono">{{ n }}</span></span></li>
+    </ul>
+
+    <div v-if="kind === 'key' && value" class="key-value">
       <code>{{ visible ? value : '••••••••••' }}</code>
       <button type="button" class="region-action" :title="visible ? 'Ocultar' : 'Ver'" :aria-label="visible ? 'Ocultar' : 'Ver'" @click="visible = !visible">
         <span class="ui-icon" :data-icon="visible ? 'eye-off' : 'eye'" aria-hidden="true"></span>
@@ -48,15 +102,25 @@ async function copy(text, tag) {
     <p v-if="error" class="key-error">{{ error }}</p>
 
     <div class="key-actions">
-      <template v-if="!isAsk">
+      <template v-if="kind === 'key'">
         <button v-if="!value" type="button" class="key-btn" @click="decrypt"><span class="ui-icon" data-icon="unlock" aria-hidden="true"></span>Desencriptar</button>
-        <button type="button" class="key-btn" @click="copy(info.sealed, 's')"><span class="ui-icon" :data-icon="copied === 's' ? 'check' : 'copy'" aria-hidden="true"></span>{{ copied === 's' ? 'Copiado' : 'Copiar encriptado' }}</button>
+        <span v-if="alreadySaved" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>En tu llavero</span>
+        <button v-else type="button" class="key-btn" :disabled="busy" @click="save"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardar en mi llavero</button>
       </template>
-      <template v-else-if="!mine">
-        <button v-if="have" type="button" class="key-btn" @click="emit('send-key', have)"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Enviarla</button>
-        <span v-else class="key-meta">No la tenés en «Guardadas»</span>
+      <template v-else-if="kind === 'list' && !mine">
+        <span v-if="!toPick.length" class="key-meta key-wait"><span class="ui-icon" data-icon="check" aria-hidden="true"></span>{{ info.names.length ? 'Ya las tenés todas' : 'No tiene claves' }}</span>
+        <template v-else>
+          <button type="button" class="key-btn" @click="picked = new Set(picked.size === toPick.length ? [] : toPick)">{{ picked.size === toPick.length ? 'Ninguna' : 'Todas' }}</button>
+          <button type="button" class="key-btn" :disabled="!picked.size" @click="emit('ask-keys', [...picked]); picked = new Set()">
+            <span class="ui-icon" data-icon="send" aria-hidden="true"></span>Pedir {{ picked.size || '' }}
+          </button>
+        </template>
       </template>
-      <span v-else class="key-meta key-wait"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span>Esperando que te la pasen</span>
+      <template v-else-if="kind === 'ask' && !mine && !keyring.autoShare">
+        <button type="button" class="key-btn" @click="emit('send-keys', info.names)"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Enviarlas</button>
+      </template>
+      <span v-else-if="mine && kind !== 'list'" class="key-meta key-wait"><span class="ui-icon" data-icon="clock" aria-hidden="true"></span>Esperando respuesta</span>
+      <span v-else-if="!mine && kind !== 'list'" class="key-meta key-wait"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>Contestado solo</span>
     </div>
   </div>
 </template>
@@ -68,10 +132,18 @@ async function copy(text, tag) {
 .key-icon { flex: none; display: grid; place-items: center; width: 38px; height: 44px; border-radius: 6px;
   background: color-mix(in oklab, var(--primary) 18%, var(--background)); color: color-mix(in oklab, var(--primary) 75%, var(--foreground)) }
 .key-icon .ui-icon { width: 20px; height: 20px }
-.ask .key-icon { background: color-mix(in oklab, var(--chart-2) 22%, var(--background)); color: color-mix(in oklab, var(--chart-2) 70%, var(--foreground)) }
+.key-card:not(.kind-key) .key-icon { background: color-mix(in oklab, var(--chart-2) 22%, var(--background)); color: color-mix(in oklab, var(--chart-2) 70%, var(--foreground)) }
 .key-main { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
-.key-name { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.key-name { font-size: var(--text-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mono { font-family: var(--font-mono) }
 .key-meta { color: var(--fg-2); font-size: var(--text-xs) }
+.key-list { list-style: none; margin: 0 12px 8px; padding: 4px 0; border-radius: 6px; background: var(--background) }
+.key-pick { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: var(--text-sm) }
+label.key-pick { cursor: pointer }
+label.key-pick:hover { background: color-mix(in oklab, var(--foreground) 5%, transparent) }
+.key-pick .ui-icon { width: 14px; height: 14px; color: var(--fg-2) }
+.key-pick small { margin-left: auto; color: var(--fg-2); font-size: var(--text-xs) }
+.key-pick.have .mono { color: var(--fg-2) }
 .key-value { display: flex; align-items: center; gap: 2px; margin: 0 12px 6px; padding: 2px 2px 2px 10px; border-radius: 6px; background: var(--background) }
 .key-value code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-sm) }
 .key-error { margin: 0 12px 6px; color: var(--destructive-ink); font-size: var(--text-xs) }
@@ -79,7 +151,8 @@ async function copy(text, tag) {
 /* Una acción de la tarjeta: icono y texto, como los botones de un archivo en WhatsApp. */
 .key-btn { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: 0; border-radius: 6px; background: transparent;
   color: var(--primary-ink, var(--primary)); font: inherit; font-size: var(--text-sm); font-weight: 500; cursor: pointer }
-.key-btn:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.key-btn:hover:not(:disabled) { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
+.key-btn:disabled { opacity: .5; cursor: default }
 .key-btn:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
 .key-btn .ui-icon { width: 15px; height: 15px }
 .key-wait { display: inline-flex; align-items: center; gap: 6px; padding: 0 6px; height: 28px }

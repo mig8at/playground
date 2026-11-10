@@ -25,7 +25,7 @@ import PdfPages from './PdfPages.vue'
 import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
-import { askMessage, keyMessage, parseKeyText } from './keyring.js'
+import { askKeyringMessage, askKeysMessage, keyMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
@@ -410,7 +410,6 @@ const composer = ref(null)
 const threadEl = ref(null)
 /* LAS CLAVES EN LA CONVERSACIÓN: salen como texto (keyMessage / askMessage) y se pintan como tarjeta (KeyCard). */
 const keyMenuOpen = ref(false)
-const keyAskName = ref('')
 const keyInfoCache = new Map()
 function keyInfo(item) {
   if (!item.text || !/^[🔒🔑]/u.test(item.text)) return null
@@ -432,13 +431,23 @@ async function sendKey(k, re = '') {
   keyMenuOpen.value = false
   await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
 }
-async function askKey() {
-  const name = keyAskName.value.trim()
-  if (!name) return
+async function askKeyring() {
   keyMenuOpen.value = false
-  keyAskName.value = ''
-  await chat.send(askMessage(name), '', null, {}, [])
+  await chat.send(askKeyringMessage(), '', null, {}, [])
 }
+async function askKeys(names, re) {
+  await chat.send(askKeysMessage(names), re || '', null, {}, [])
+}
+// A mano (si «Compartir mi llavero» está apagado): las pedidas que tenés, una por mensaje.
+async function sendKeysByName(names, re) {
+  await loadKeyring()
+  for (const n of names) {
+    const k = keyring.saved.find((x) => x.name === n)
+    if (k) await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
+  }
+}
+// Quién es el otro en una tarjeta: el que lo mandó en un grupo, o la persona de la conversación.
+const keyWho = (item) => firstName(item.dir === 'in' && item.from?.name ? item.from : chat.active.person)
 loadKeyring()
 async function submit() {
   if (agentAnswers.value) return
@@ -1177,7 +1186,8 @@ const statusText = computed(() => {
                   <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
                   <!-- Una clave (o un pedido de clave) se pinta como tarjeta; lo que venga después, como texto. -->
                   <template v-else-if="keyInfo(item)">
-                    <KeyCard :info="keyInfo(item)" :mine="item.dir === 'out'" @send-key="(k) => sendKey(k, item.sid)" />
+                    <KeyCard :info="keyInfo(item)" :mine="item.dir === 'out'" :who="keyWho(item)"
+                             @ask-keys="(names) => askKeys(names, item.sid)" @send-keys="(names) => sendKeysByName(names, item.sid)" />
                     <p v-if="keyInfo(item).rest" class="text">{{ keyInfo(item).rest }}</p>
                   </template>
                   <p v-else-if="item.text" class="text">{{ item.text }}</p>
@@ -1302,18 +1312,17 @@ const statusText = computed(() => {
               <button type="button" class="btn btn-outline composer-attach" :aria-pressed="keyMenuOpen" title="Mandar o pedir una clave"
                       aria-label="Mandar o pedir una clave" @click="toggleKeyMenu"><span class="ui-icon" data-icon="key" aria-hidden="true"></span></button>
               <div v-if="keyMenuOpen" class="key-menu" role="menu">
+                <template v-if="!chat.active.person.group">
+                  <button type="button" class="key-menu-item key-menu-main" role="menuitem" @click="askKeyring">
+                    <span class="ui-icon" data-icon="key" aria-hidden="true"></span><span>Pedir su llavero</span>
+                  </button>
+                  <p class="key-menu-note">Te llega la lista de sus claves y eliges cuáles pedir.</p>
+                </template>
                 <p class="key-menu-title">Mandar una clave</p>
                 <p v-if="!keyring.saved.length" class="key-menu-empty">No hay claves en «Guardadas» (consola → Llavero).</p>
                 <button v-for="k in keyring.saved" :key="k.name" type="button" class="key-menu-item" role="menuitem" @click="sendKey(k)">
                   <span class="ui-icon" data-icon="lock" aria-hidden="true"></span><span class="key-menu-name">{{ k.name }}</span><span class="ui-icon key-menu-send" data-icon="send" aria-hidden="true"></span>
                 </button>
-                <form class="key-menu-ask" @submit.prevent="askKey">
-                  <p class="key-menu-title">Pedir una clave</p>
-                  <div class="key-menu-row">
-                    <input v-model="keyAskName" class="input" type="text" placeholder="nombre" spellcheck="false" autocomplete="off">
-                    <button type="submit" class="btn" :disabled="!keyAskName.trim()">Pedir</button>
-                  </div>
-                </form>
               </div>
             </div>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
@@ -1949,9 +1958,9 @@ button.file-tile { cursor: zoom-in }
 .key-menu-send { margin-left: auto; opacity: 0 }
 .key-menu-item:hover .key-menu-send { opacity: 1 }
 .key-menu-name { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.key-menu-ask { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--hairline) }
-.key-menu-row { display: flex; gap: 6px; padding: 0 6px 4px }
-.key-menu-row .input { flex: 1; min-width: 0 }
+.key-menu-main { font-weight: 600 }
+.key-menu-main .ui-icon { color: var(--primary-ink, var(--primary)) }
+.key-menu-note { margin: 0 6px 6px 30px; padding-bottom: 8px; border-bottom: 1px solid var(--hairline); color: var(--fg-2); font-size: var(--text-xs) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 

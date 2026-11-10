@@ -188,6 +188,7 @@ func (h *history) collect(ctx context.Context) ([]cli.Message, error) {
 	if err != nil {
 		return nil, err
 	}
+	go answerKeyring(fresh)
 	for _, m := range fresh {
 		if m.Dir == "out" {
 			continue

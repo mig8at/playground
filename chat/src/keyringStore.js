@@ -2,13 +2,20 @@
    del servidor del chat una vez y otra vez cuando hace falta (al abrir el menú de claves). */
 import { reactive } from 'vue'
 
-export const keyring = reactive({ teamKey: '', saved: [], loaded: false })
+export const keyring = reactive({ teamKey: '', saved: [], autoShare: true, loaded: false })
 
 export async function loadKeyring() {
   try {
-    const [k, s] = await Promise.all([fetch('/api/keyring').then((r) => r.json()), fetch('/api/keyring/keys').then((r) => r.json())])
+    const [k, s, c] = await Promise.all(['/api/keyring', '/api/keyring/keys', '/api/keyring/settings'].map((u) => fetch(u).then((r) => r.json())))
     keyring.teamKey = k.teamKey || ''
     keyring.saved = s.keys || []
+    keyring.autoShare = c.autoShare !== false
   } catch { /* sin servidor: queda lo que había */ }
   keyring.loaded = true
+}
+
+// Compartir mi llavero solo: el servidor contesta los pedidos de las conversaciones directas.
+export async function setAutoShare(on) {
+  const r = await fetch('/api/keyring/settings', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ autoShare: on }) })
+  if (r.ok) keyring.autoShare = on
 }

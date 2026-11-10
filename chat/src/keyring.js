@@ -40,27 +40,37 @@ export async function open(teamKey, sealed) {
 // Una llave del equipo nueva: 32 bytes al azar, en base64 sin «=» (una línea, sin espacios).
 export const newTeamKey = () => b64(crypto.getRandomValues(new Uint8Array(32))).replace(/=+$/, '')
 
-/* LA CLAVE COMO MENSAJE. Viaja como texto (la lee cualquiera: una persona, un agente, la terminal) y la interfaz la
-   pinta como una tarjeta, como un archivo:
+/* LAS CLAVES COMO MENSAJES. Viajan como texto (lo lee cualquiera: una persona, un agente, la terminal) y la interfaz
+   los pinta como tarjetas. El servidor del chat de quien recibe un pedido lo contesta solo (server/keyring_auto.go):
 
-     🔒 Clave «shopify-admin-dev» · encriptada con la llave del equipo
-     U2FsdGVkX1…
+     🔑 Pido tu llavero                       → 🔑 Mi llavero (2)        (sólo los nombres)
+                                                 • shopify-admin-dev
+                                                 • vtex-key
+     🔑 Pido estas claves                     → 🔒 Clave «shopify-admin-dev» · encriptada con la llave del equipo
+     • shopify-admin-dev                         U2FsdGVkX1…              (una por mensaje)
 
-   Y el pedido: «🔑 Pido la clave «nombre»», que se pinta con «Enviarla» si la tenés guardada. Lo que se escriba después
-   de una línea en blanco es texto normal. */
+   Lo que se escriba después de una línea en blanco es texto normal. */
 const KEY_RE = /^🔒 Clave «([^»\n]+)»[^\n]*\n(U2FsdGVkX1[A-Za-z0-9+/=]+)[ \t]*(?:\n\n([\s\S]*))?$/
-const ASK_RE = /^🔑 Pido la clave «([^»\n]+)»[^\n]*(?:\n\n([\s\S]*))?$/
+const ASK_KEYRING_RE = /^🔑 Pido tu llavero[^\n]*(?:\n\n([\s\S]*))?$/
+const LIST_RE = /^🔑 Mi llavero \((\d+)\)([\s\S]*)$/
+const ASK_KEYS_RE = /^🔑 Pido (?:estas claves|las claves|la clave)([\s\S]*)$/
+const bullets = (text) => [...text.matchAll(/^[•\-*] *(\S[^\n]*?)\s*$/gm)].map((m) => m[1])
+const quoted = (text) => [...text.matchAll(/«([^»\n]+)»/g)].map((m) => m[1])
 
-export const keyMessage = (name, sealed, extra = '') =>
-  `🔒 Clave «${name}» · encriptada con la llave del equipo\n${sealed}${extra.trim() ? `\n\n${extra.trim()}` : ''}`
-export const askMessage = (name, extra = '') => `🔑 Pido la clave «${name}»${extra.trim() ? `\n\n${extra.trim()}` : ''}`
+export const keyMessage = (name, sealed) => `🔒 Clave «${name}» · encriptada con la llave del equipo\n${sealed}`
+export const askKeyringMessage = () => '🔑 Pido tu llavero'
+export const askKeysMessage = (names) => `🔑 Pido estas claves\n${names.map((n) => `• ${n}`).join('\n')}`
 
-// { kind: 'key', name, sealed, rest } · { kind: 'ask', name, rest } · null
+// { kind: 'key', name, sealed, rest } · { kind: 'ask-keyring', rest } · { kind: 'list', names } · { kind: 'ask', names } · null
 export function parseKeyText(text) {
   const t = (text || '').trim()
   let m = t.match(KEY_RE)
   if (m) return { kind: 'key', name: m[1], sealed: m[2], rest: m[3] || '' }
-  m = t.match(ASK_RE)
-  if (m) return { kind: 'ask', name: m[1], rest: m[2] || '' }
+  m = t.match(ASK_KEYRING_RE)
+  if (m) return { kind: 'ask-keyring', rest: m[1] || '' }
+  m = t.match(LIST_RE)
+  if (m) return { kind: 'list', names: bullets(m[2]), rest: '' }
+  m = t.match(ASK_KEYS_RE)
+  if (m) { const names = [...new Set([...bullets(m[1]), ...quoted(m[1])])]; if (names.length) return { kind: 'ask', names, rest: '' } }
   return null
 }

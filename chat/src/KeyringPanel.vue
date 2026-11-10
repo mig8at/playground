@@ -4,6 +4,7 @@
    todos; se abre también con openssl). */
 import { computed, onMounted, ref } from 'vue'
 import { newTeamKey, open, seal } from './keyring.js'
+import { keyring, loadKeyring, setAutoShare } from './keyringStore.js'
 
 const teamKey = ref('')
 const teamKeyPath = ref('')
@@ -29,6 +30,7 @@ onMounted(async () => {
     teamKeyPath.value = (body.teamKeyPath || '').replace(/^\/Users\/[^/]+/, '~')
   } catch (e) { error.value = `No se pudo leer la llave del equipo: ${e.message}` }
   try { saved.value = (await (await fetch('/api/keyring/keys')).json()).keys || [] } catch { /* sin guardadas */ }
+  loadKeyring()
 })
 async function keysCall(path, options) {
   const r = await fetch(path, options)
@@ -85,6 +87,12 @@ async function copy(text, tag) {
         <button type="button" class="btn-link" @click="copy(teamKey, 'team')">{{ copied === 'team' ? 'copiada' : 'copiar' }}</button>
         <button type="button" class="btn-link" @click="changingKey = true">cambiar</button>
       </p>
+      <!-- Si está prendido, el servidor del chat contesta solo los pedidos de llavero de una conversación directa: la lista
+           de nombres, y las claves que le pidan, encriptadas. -->
+      <label class="keyring-auto">
+        <input type="checkbox" :checked="keyring.autoShare" @change="setAutoShare($event.target.checked)">
+        <span>Compartir mi llavero solo: quien me lo pida recibe los nombres y, si las pide, las claves encriptadas</span>
+      </label>
       <p v-if="error" class="keyring-error">{{ error }}</p>
 
       <div class="keyring-cards">
@@ -161,6 +169,7 @@ async function copy(text, tag) {
 .keyring-inner { display: flex; flex-direction: column; gap: var(--space-3); padding: 12px 16px 16px }
 .keyring-team { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0; color: var(--fg-2); font-size: var(--text-xs) }
 .keyring-team .keyring-input { flex: 1 1 200px; max-width: 360px }
+.keyring-auto { display: flex; align-items: center; gap: 8px; color: var(--fg-2); font-size: var(--text-xs); cursor: pointer }
 .keyring-error { margin: 0; color: var(--destructive-ink); font-size: var(--text-sm) }
 /* Dos tarjetas lado a lado (una debajo de la otra si no entran), con el mismo armado: campos, y abajo el resultado
    con su botón. */
