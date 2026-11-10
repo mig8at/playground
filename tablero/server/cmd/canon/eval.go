@@ -3,8 +3,8 @@ package main
 /* eval mide qué tan bien organizado está canon y qué parte del código no vigila, sin modelo y sin escribir
  * nada. Responde tres preguntas con datos:
  *
- *   1. ¿los temas están parejos? palabras, secciones y áreas por tema; los que rozan el tope (el lint
- *      rechaza un tema de más de 8000 palabras) y los que quedaron casi vacíos; las secciones que ningún
+ *   1. ¿los temas están parejos? palabras, secciones y áreas por tema; los que rozan el techo del lint
+ *      (leído de policy.go), los grandes que conviene partir por sujeto y los que quedaron casi vacíos; las secciones que ningún
  *      área vigila (pueden envejecer sin que la ronda avise); un mismo repo nombrado de dos formas.
  *   2. ¿qué código se mueve sin que canon lo mire? por módulo de cada repo: archivos en main, cuántos
  *      declara algún área y cuántos cambios de los últimos N días cayeron en archivos que nadie declara.
@@ -33,8 +33,27 @@ import (
 	"creditop/playground/connectors/repos"
 )
 
-// topicWordCap es el tope de palabras de un tema que impone el lint de canon.
-const topicWordCap = 8000
+/* bigTopicWords: un tema más largo que esto probablemente mezcla sujetos y conviene partirlo. Es un consejo,
+ * no frena nada: el techo que rechaza lo pone el lint (`topicWordCap`), y desde el PR #439 es una baranda alta. */
+const bigTopicWords = 8000
+
+// topicWordCap es el techo de palabras de un tema `context` que impone el lint de canon. Se lee de
+// tools/canon/internal/corpus/policy.go del repo compartido: una copia acá ya venció una vez (decía 8000
+// cuando el techo pasó a 50.000).
+var topicWordCap = func() int {
+	home, _ := os.UserHomeDir()
+	out, err := exec.Command("git", "-C", path.Join(home, "Desktop/CREDITOP/github/playground"), "show",
+		"origin/main:tools/canon/internal/corpus/policy.go").Output()
+	if err == nil {
+		if m := regexp.MustCompile(`"context":\s*\{(\d+),`).FindSubmatch(out); m != nil {
+			var n int
+			if _, err := fmt.Sscanf(string(m[1]), "%d", &n); err == nil && n > 0 {
+				return n
+			}
+		}
+	}
+	return 50000
+}()
 
 // thinTopicWords: por debajo de esto un tema es una portada, no un tema.
 const thinTopicWords = 400
@@ -381,13 +400,15 @@ func asInt(v any) int {
 func printReport(r evalReport) {
 	fmt.Println("  canon · evaluación de organización y cobertura (sin modelo, sólo lectura)")
 	var words, sections, orphans int
-	var full, thin []string
+	var full, big, thin []string
 	for _, t := range r.Topics {
 		words += t.Words
 		sections += t.Sections
 		orphans += len(t.Orphans)
 		if t.Words >= topicWordCap*85/100 {
 			full = append(full, fmt.Sprintf("%s (%d)", t.Topic, t.Words))
+		} else if t.Words >= bigTopicWords {
+			big = append(big, fmt.Sprintf("%s (%d)", t.Topic, t.Words))
 		}
 		if t.Words < thinTopicWords {
 			thin = append(thin, t.Topic)
@@ -401,7 +422,10 @@ func printReport(r evalReport) {
 		fmt.Printf("    %-22s %5d palabras  %3d secciones  %3d áreas  %3d sin área\n", t.Topic, t.Words, t.Sections, t.Areas, len(t.Orphans))
 	}
 	if len(full) > 0 {
-		fmt.Printf("  ⚠ cerca del tope de %d palabras (partir): %s\n", topicWordCap, strings.Join(full, ", "))
+		fmt.Printf("  ⚠ cerca del techo del lint, %d palabras (el lint lo va a rechazar): %s\n", topicWordCap, strings.Join(full, ", "))
+	}
+	if len(big) > 0 {
+		fmt.Printf("  · grandes, más de %d palabras (conviene partir por sujeto, no frena nada): %s\n", bigTopicWords, strings.Join(big, ", "))
 	}
 	if len(thin) > 0 {
 		fmt.Printf("  ⚠ casi vacíos, menos de %d palabras (llenar o fundir): %s\n", thinTopicWords, strings.Join(thin, ", "))
