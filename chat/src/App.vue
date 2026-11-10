@@ -73,7 +73,7 @@ async function loadServers() {
   } catch { /* el servidor del chat no contestó: se reintenta */ }
   serversTimer = setTimeout(loadServers, servers.value.some((s) => s.busy) ? 2000 : 15000)
 }
-watch(() => chat.activeKey, () => { serverOpen.value = '' })
+watch(() => chat.activeKey, () => { serverOpen.value = ''; docView.value = null })
 const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
    la tuya, de tu sesión. Sin foto, las iniciales de siempre. Se piden sin «referer»: así las sirve Google. */
@@ -138,6 +138,7 @@ async function copyServiceUrl() {
 const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) } catch { return '' } }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
 const rightOpen = computed(() => {
+  if (docView.value) return true
   if (openService.value) return routesOpen.value
   if (serverOpen.value) return false
   if (activeOwnAgent.value) return ownPanelOpen.value
@@ -205,6 +206,8 @@ const agentResize = {
   max: () => viewportW.value - cssSize('--editor-min', 360) - sidebarShown.value,
   get: () => agentShown.value,
   set: (v) => {
+    if (docView.value && !v) { closeDoc(); return }
+    if (docView.value) { if (v) agentW.value = v; return }
     if (openService.value) routesOpen.value = !!v
     else if (serverOpen.value) { /* un server no tiene región derecha */ }
     else if (activeOwnAgent.value) ownPanelOpen.value = !!v
@@ -440,6 +443,25 @@ function onPasteFiles(e) {
 }
 const sizeText = (n) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`)
 const isPdf = (f) => /\.pdf$/i.test(f.name || '')
+/* Cómo se ve un archivo que no es imagen, como en WhatsApp: un cuadrito con su tipo (PDF, XLS…) y un color por familia. */
+const extOf = (f) => ((f.name || '').match(/\.([a-z0-9]{1,5})$/i)?.[1] || 'archivo').toUpperCase()
+const FILE_KINDS = { pdf: ['PDF'], sheet: ['XLS', 'XLSX', 'CSV', 'NUMBERS'], doc: ['DOC', 'DOCX', 'TXT', 'MD', 'PAGES'],
+  zip: ['ZIP', 'RAR', '7Z', 'GZ', 'TAR'], code: ['JSON', 'JS', 'TS', 'GO', 'PHP', 'SQL', 'HTML', 'CSS', 'YML', 'YAML'] }
+const kindOf = (f) => Object.entries(FILE_KINDS).find(([, exts]) => exts.includes(extOf(f)))?.[0] || 'other'
+/* EL VISOR DE PDF, en la región de la derecha: se baja al caché del chat si hace falta (no a Descargas) y se lee al
+   lado de la conversación. Mientras está abierto le gana al panel de tu agente; al cerrarlo, la derecha vuelve a ser
+   lo que era. */
+const docView = ref(null)   // { item, f }
+const docLoading = ref('')
+async function openDoc(item, f) {
+  if (f.status !== 'bajado') {
+    docLoading.value = f.id || f.name
+    try { await chat.getFile(item, f, { cache: true }) } finally { docLoading.value = '' }
+    if (f.status !== 'bajado') return
+  }
+  docView.value = { item, f }
+}
+function closeDoc() { docView.value = null }
 /* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
    15 MB no se baja sola: va con lo demás, con «Bajar». */
 const imagesOf = (item) => (item.files || []).filter((f) => isImage(f) && (item.dir === 'out' || f.size <= IMAGE_AUTO_MAX))
@@ -986,23 +1008,30 @@ const statusText = computed(() => {
                   <p v-else-if="item.text" class="text">{{ item.text }}</p>
                 </template>
                 <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
-                  <li v-for="f in othersOf(item)" :key="f.id || f.name" class="attachment">
-                    <div class="attachment-row">
-                      <span class="attachment-name" :title="f.path || f.name">{{ f.name }}</span>
-                      <span class="attachment-size">{{ sizeText(f.size) }}</span>
-                      <template v-if="item.dir === 'out'">
-                        <span v-if="item.status === 'error' || f.status === 'error'" class="attachment-state">no salió</span>
-                        <span v-else-if="f.status === 'subiendo'" class="attachment-state">subiendo…</span>
-                      </template>
-                      <template v-else>
-                        <button v-if="!f.status || f.status === 'error'" type="button" class="btn btn-outline btn-sm"
-                                title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar</button>
-                        <span v-else-if="f.status === 'bajando'" class="attachment-state">bajando…</span>
-                        <template v-else-if="f.status === 'bajado'">
-                          <a v-if="isPdf(f)" class="btn-link" :href="chat.fileUrl(f)" target="_blank" rel="noopener">ver</a>
-                          <button type="button" class="btn-link" title="Mostrar en el Finder (no lo abre)" @click="chat.revealFile(f)">en Descargas</button>
-                        </template>
-                      </template>
+                  <!-- Como un documento de WhatsApp: el tipo a la izquierda, el nombre y su tamaño, y lo que se puede hacer.
+                       Un PDF se abre en la barra derecha. -->
+                  <li v-for="f in othersOf(item)" :key="f.id || f.name" class="attachment" :class="[`kind-${kindOf(f)}`, { openable: isPdf(f) && f.id }]">
+                    <component :is="isPdf(f) && f.id ? 'button' : 'div'" :type="isPdf(f) && f.id ? 'button' : undefined" class="doc-card"
+                               :title="isPdf(f) && f.id ? `Ver ${f.name} a la derecha` : f.path || f.name" @click="isPdf(f) && f.id && openDoc(item, f)">
+                      <span class="doc-icon" aria-hidden="true">{{ extOf(f) }}</span>
+                      <span class="doc-main">
+                        <span class="doc-name">{{ f.name }}</span>
+                        <span class="doc-meta">
+                          {{ extOf(f) }} · {{ sizeText(f.size) }}
+                          <template v-if="item.dir === 'out' && (item.status === 'error' || f.status === 'error')"> · no salió</template>
+                          <template v-else-if="f.status === 'subiendo'"> · subiendo…</template>
+                          <template v-else-if="f.status === 'bajando' || docLoading === (f.id || f.name)"> · bajando…</template>
+                          <template v-else-if="f.savedPath"> · en Descargas</template>
+                        </span>
+                      </span>
+                      <span v-if="isPdf(f) && f.id" class="doc-open">Ver</span>
+                    </component>
+                    <div v-if="item.dir === 'in' || f.status === 'bajado'" class="doc-actions">
+                      <button v-if="item.dir === 'in' && (!f.status || f.status === 'error')" type="button" class="btn-link"
+                              title="Bajarlo a Descargas: se borra del playground. No se abre solo" @click="chat.getFile(item, f)">Bajar a Descargas</button>
+                      <button v-else-if="f.status === 'bajado' && !f.savedPath && f.cached" type="button" class="btn-link"
+                              title="Guardar una copia en Descargas" @click="chat.saveFile(f)">Guardar en Descargas</button>
+                      <button v-if="f.savedPath" type="button" class="btn-link" title="Mostrar en el Finder (no lo abre)" @click="chat.revealFile(f)">Mostrar en el Finder</button>
                     </div>
                     <p v-if="f.error" class="error">{{ f.error }}</p>
                   </li>
@@ -1114,9 +1143,27 @@ const statusText = computed(() => {
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="openService ? 'Rutas' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? 'Documento' : openService ? 'Rutas' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
-      <ServiceSide v-if="openService" :service="openService" @close="setRoutesOpen(false)" />
+      <template v-if="docView">
+        <div class="region-head">
+          <span class="doc-view-title" :title="docView.f.name">{{ docView.f.name }}</span>
+          <div class="region-actions">
+            <button v-if="!docView.f.savedPath" type="button" class="region-action" title="Guardar una copia en Descargas"
+                    aria-label="Guardar en Descargas" @click="chat.saveFile(docView.f)">
+              <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
+            </button>
+            <button v-else type="button" class="region-action" title="Mostrar en el Finder" aria-label="Mostrar en el Finder" @click="chat.revealFile(docView.f)">
+              <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar el documento" @click="closeDoc">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <iframe class="doc-frame" :src="chat.fileUrl(docView.f)" :title="docView.f.name"></iframe>
+      </template>
+      <ServiceSide v-else-if="openService" :service="openService" @close="setRoutesOpen(false)" />
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
           <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
@@ -1365,8 +1412,8 @@ code { font-family: var(--font-mono); font-size: .92em }
   color: var(--fg-2); font-size: var(--text-xs); text-transform: capitalize }
 
 .author-label { display: block; font-size: var(--text-xs); color: var(--fg-2); margin-bottom: 2px }
-.author-label b { color: var(--fg-1) }
-.author-label.delegate b { color: var(--fg-1); font-style: italic }
+.author-label b { color: var(--foreground) }
+.author-label.delegate b { color: var(--foreground); font-style: italic }
 .group-avatar { font-weight: 700 }
 .new-group { display: flex; flex-direction: column; gap: 6px; padding: 6px var(--gutter, 12px) }
 .new-group-actions { display: flex; gap: 6px }
@@ -1501,7 +1548,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .media-grid.n1 .media-open img { aspect-ratio: auto; max-height: 340px; object-fit: contain; background: var(--muted) }
 .media-open { position: relative }
 .media-more { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
-  background: rgb(0 0 0 / .45); color: #fff; font-size: 26px; font-weight: 600 }
+  background: color-mix(in oklab, var(--background) 55%, transparent); color: var(--foreground); font-size: 26px; font-weight: 600 }
 .media-placeholder { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; aspect-ratio: 4 / 3;
   padding: 8px; border-radius: 8px; background: var(--muted); color: var(--fg-2); font-size: var(--text-xs); text-align: center }
 .lightbox { position: fixed; inset: 0; z-index: 50; display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1511,14 +1558,37 @@ code { font-family: var(--font-mono); font-size: .92em }
 .lightbox-bar { display: flex; align-items: center; gap: var(--space-3); font-size: var(--text-sm) }
 .lightbox-close { position: absolute; top: 12px; right: 12px }
 /* Los adjuntos: en la burbuja (bajar, ver, mostrar en Descargas) y, antes de mandar, como fichas sobre el compositor. */
-.attachments { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px }
-.attachment { display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 8px }
-.attachment-row { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
+.attachments { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px; width: 340px; max-width: 100% }
+/* La tarjeta de un documento (WhatsApp): una franja apenas más oscura que la burbuja, el tipo en un cuadrito de color. */
+.attachment { --kind: var(--fg-3); display: flex; flex-direction: column; gap: 2px; padding: 0; border-radius: 10px;
+  background: color-mix(in oklab, var(--foreground) 6%, transparent); overflow: hidden }
+.attachment.kind-pdf { --kind: var(--destructive) }
+.attachment.kind-sheet { --kind: var(--chart-1) }
+.attachment.kind-doc { --kind: var(--primary) }
+.attachment.kind-zip { --kind: var(--chart-2) }
+.attachment.kind-code { --kind: var(--chart-3) }
+.doc-card { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; padding: 8px 10px; border: 0; background: transparent;
+  color: inherit; font: inherit; text-align: left }
+button.doc-card { cursor: pointer }
+button.doc-card:hover { background: color-mix(in oklab, var(--foreground) 5%, transparent) }
+button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px }
+.doc-icon { flex: none; display: grid; place-items: center; width: 38px; height: 44px; border-radius: 6px;
+  background: color-mix(in oklab, var(--kind) 22%, var(--background)); color: color-mix(in oklab, var(--kind) 70%, var(--foreground));
+  font-size: 10px; font-weight: 700; letter-spacing: .02em; overflow: hidden; text-overflow: ellipsis }
+.doc-main { display: flex; flex-direction: column; gap: 2px; min-width: 0; flex: 1 }
+.doc-name { font-size: var(--text-sm); line-height: 1.3; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  word-break: break-word }
+.doc-meta { color: var(--fg-2); font-size: var(--text-xs) }
+.doc-open { flex: none; color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
+.doc-actions { display: flex; flex-wrap: wrap; gap: var(--space-3); padding: 0 10px 6px 58px }
+.doc-actions:empty { display: none }
+.attachment .error { margin: 0; padding: 0 10px 6px 58px }
 .attachment-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm) }
 .attachment-size, .attachment-state { flex: none; color: var(--fg-2); font-size: var(--text-xs) }
-.attachment-row .btn, .attachment-row .btn-link { flex: none; margin-left: auto }
-.attachment-row .btn-link + .btn-link { margin-left: var(--space-2) }
 .error .btn-link { margin-left: var(--space-2) }
+/* El visor de documentos en la región de la derecha. */
+.doc-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.doc-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--muted) }
 .attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
   border: 1px solid var(--border); border-radius: 999px }
