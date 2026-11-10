@@ -1610,7 +1610,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .bubble-row.out { flex-direction: row-reverse }
 .bubble-row.cont { margin-top: -5px }
 .bubble { max-width: min(560px, 78%); padding: 7px 10px 5px; border-radius: 12px; background: var(--bubble-theirs);
-  color: var(--foreground); display: flex; flex-direction: column; gap: 3px; min-width: 0 }
+  color: var(--foreground); display: flex; flex-direction: column; gap: 3px; min-width: 0;
+  /* La sombra de un píxel de WhatsApp: despega la burbuja del fondo en tema claro sin dibujarle un borde. */
+  box-shadow: 0 1px .5px var(--hairline) }
 .bubble-row.in:not(.cont) .bubble { border-top-left-radius: 4px }
 .bubble-row.out .bubble { background: var(--bubble-mine) }
 .bubble-row.out:not(.cont) .bubble { border-top-right-radius: 4px }
@@ -1750,7 +1752,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .attachments { list-style: none; margin: 4px 0 2px; padding: 0; display: flex; flex-direction: column; gap: 4px; width: 340px; max-width: 100% }
 /* La tarjeta de un documento (WhatsApp): una franja apenas más oscura que la burbuja, el tipo en un cuadrito de color. */
 .attachment { --kind: var(--fg-3); display: flex; flex-direction: column; gap: 2px; padding: 0; border-radius: 10px;
-  background: color-mix(in oklab, var(--foreground) 6%, transparent); overflow: hidden }
+  background: color-mix(in oklab, var(--foreground) 5%, transparent); border: 1px solid var(--hairline); overflow: hidden }
 .attachment.kind-pdf { --kind: var(--destructive) }
 .attachment.kind-sheet { --kind: var(--chart-1) }
 .attachment.kind-doc { --kind: var(--primary) }
@@ -1777,12 +1779,22 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
 .error .btn-link { margin-left: var(--space-2) }
 /* El visor de documentos en la región de la derecha. */
 .doc-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* EL DELINEADO: un filo de 1 px apenas visible alrededor de cada imagen y cada miniatura. Una captura casi blanca sobre
+   un fondo blanco se pierde (tema claro); con el filo, cada una es una pieza. Va con outline hacia adentro, que se pinta
+   ENCIMA de la imagen y no le cambia el tamaño. */
+.media-open img, .media-tile img, .gallery-thumb img, .gallery-stage img { outline: 1px solid var(--hairline); outline-offset: -1px }
+/* Las capturas se reconocen por arriba (su encabezado): el recorte cuadrado las toma desde ahí. */
+.media-tile img, .gallery-thumb img, .media-open img { object-position: top center }
 /* Fotos y archivos de la conversación: un bloque por día, la grilla de 3 y los documentos debajo. */
-.media-panel { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-3) var(--space-4) var(--space-6) }
+.media-panel { display: flex; flex-direction: column; gap: var(--space-4); padding: 0 var(--space-4) var(--space-6) }
 .media-day { display: flex; flex-direction: column; gap: 6px }
-.media-day-label { margin: 0; color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
-.media-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px }
-.media-tile { position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: var(--muted); cursor: zoom-in }
+.media-day + .media-day { padding-top: var(--space-2); border-top: 1px solid var(--hairline) }
+/* El día queda fijo arriba mientras se baja por sus fotos, como en la galería de WhatsApp. */
+.media-day-label { position: sticky; top: 0; z-index: 1; margin: 0 calc(-1 * var(--space-4)); padding: 8px var(--space-4) 6px;
+  background: var(--sidebar, var(--background)); color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
+.media-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px }
+.media-tile { position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 6px; overflow: hidden; background: var(--muted); cursor: zoom-in }
+.media-tile img { border-radius: inherit }
 .media-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .15s }
 .media-tile:hover img { transform: scale(1.04) }
 .media-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px }
