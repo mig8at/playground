@@ -209,8 +209,10 @@ final class Picker {
     /// El área elegida: un clic o un arrastre la FIJAN (no capturan); la captura sale del botón Copiar.
     var selected: CGRect?
     var mouse = CGPoint.zero
-    var pressingToolbar = false
+    enum ToolbarButton { case copy, close }
+    var pressing: ToolbarButton?
     var onCopy: ((CGRect) -> Void)?
+    var onCancel: (() -> Void)?
 
     var hovered: Target? { chain.isEmpty ? nil : chain[min(level, chain.count - 1)] }
 
@@ -225,11 +227,11 @@ final class Picker {
         return hovered.map { Target(rect: $0.rect, label: "\($0.label)  \(Int($0.rect.width)) × \(Int($0.rect.height))") }
     }
 
-    /// La barra con el botón Copiar, en top-left global: debajo del área, alineada a su derecha; si no
+    /// La barra con Copiar y la X, en top-left global: debajo del área, alineada a su derecha; si no
     /// entra en la pantalla, adentro del área, abajo a la derecha.
     var toolbar: CGRect? {
         guard let s = selected, dragging == nil else { return nil }
-        let size = CGSize(width: 104, height: 34)
+        let size = CGSize(width: 140, height: 34)
         let screen = screenRectsTL.first { $0.intersects(s) } ?? screenRectsTL[0]
         var r = CGRect(x: s.maxX - size.width, y: s.maxY + 8, width: size.width, height: size.height)
         if r.maxY > screen.maxY - 4 { r.origin.y = s.maxY - size.height - 8 }
@@ -237,17 +239,24 @@ final class Picker {
         r.origin.y = max(screen.minY + 8, r.origin.y)
         return r
     }
-    var overToolbar: Bool { toolbar?.contains(mouse) ?? false }
+    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: 100, height: $0.height - 8) } }
+    var closeButton: CGRect? { toolbar.map { CGRect(x: $0.maxX - 32, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
+    func button(at p: CGPoint) -> ToolbarButton? {
+        if copyButton?.contains(p) == true { return .copy }
+        if closeButton?.contains(p) == true { return .close }
+        return nil
+    }
+    var hoverButton: ToolbarButton? { button(at: mouse) }
 
     func redraw() { views.forEach { $0.needsDisplay = true } }
 
     func probe(_ p: CGPoint) {
         if selected != nil {
             // con un área elegida no se señala nada: el mouse va libre hasta el botón
-            let was = overToolbar
+            let was = hoverButton
             mouse = p
-            if was != overToolbar { redraw() }
-            (overToolbar ? NSCursor.pointingHand : NSCursor.arrow).set()
+            if was != hoverButton { redraw() }
+            (hoverButton != nil ? NSCursor.pointingHand : NSCursor.arrow).set()
             return
         }
         mouse = p
@@ -276,18 +285,27 @@ final class Picker {
 
     func down(_ p: CGPoint) {
         mouse = p
-        if toolbar?.contains(p) == true { pressingToolbar = true; redraw(); return }
-        // un clic fuera de la barra descarta lo elegido y empieza otra selección
-        if selected != nil { dlog("selección descartada"); selected = nil; lastProbeAt = .distantPast }
+        if let b = button(at: p) { pressing = b; redraw(); return }
+        if toolbar?.contains(p) == true { return } // el borde de la barra, entre botones: nada
+        if let s = selected {
+            // con un área elegida: un clic FUERA cancela la captura; adentro, empieza otra selección
+            guard s.contains(p) else { dlog("clic fuera del área: cancelo"); onCancel?(); return }
+            dlog("selección descartada"); selected = nil; lastProbeAt = .distantPast
+        }
         dragging = (p, p)
         redraw()
     }
-    func drag(_ p: CGPoint) { mouse = p; if !pressingToolbar { dragging?.current = p; redraw() } }
+    func drag(_ p: CGPoint) { mouse = p; if pressing == nil { dragging?.current = p; redraw() } }
     func up(_ p: CGPoint) {
         mouse = p
-        if pressingToolbar {
-            pressingToolbar = false
-            if let s = selected, toolbar?.contains(p) == true { dlog("copiar \(s)"); onCopy?(s) } else { redraw() }
+        if let b = pressing {
+            pressing = nil
+            // se dispara sólo si se suelta sobre el MISMO botón, como un botón de verdad
+            switch (b, button(at: p), selected) {
+            case (.copy, .copy, let s?): dlog("copiar \(s)"); onCopy?(s)
+            case (.close, .close, _): dlog("cerrar (X)"); onCancel?()
+            default: redraw()
+            }
             return
         }
         guard let d = dragging else { return }
@@ -338,6 +356,10 @@ final class SelectionView: NSView {
         }
     }
 
+    static let closeIcon: NSImage? = {
+        let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        return NSImage(systemSymbolName: "xmark", accessibilityDescription: "Cerrar")?.withSymbolConfiguration(cfg)
+    }()
     static let copyIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
         return NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: "Copiar")?.withSymbolConfiguration(cfg)
@@ -383,25 +405,34 @@ final class SelectionView: NSView {
         NSBezierPath(roundedRect: r, xRadius: 8, yRadius: 8).fill()
         NSColor(calibratedWhite: 1, alpha: 0.15).setStroke()
         let edge = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 8, yRadius: 8); edge.lineWidth = 1; edge.stroke()
-        let button = r.insetBy(dx: 4, dy: 4)
-        if picker.overToolbar {
-            (picker.pressingToolbar ? NSColor.systemBlue : NSColor(calibratedWhite: 1, alpha: 0.14)).setFill()
-            NSBezierPath(roundedRect: button, xRadius: 5, yRadius: 5).fill()
+        guard let copyTL = picker.copyButton, let closeTL = picker.closeButton else { return }
+        let copy = toLocal(copyTL, in: window!), close = toLocal(closeTL, in: window!)
+        for (b, rect) in [(Picker.ToolbarButton.copy, copy), (.close, close)] where picker.hoverButton == b {
+            (picker.pressing == b ? NSColor.systemBlue : NSColor(calibratedWhite: 1, alpha: 0.14)).setFill()
+            NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
         }
+        // separador entre Copiar y la X
+        NSColor(calibratedWhite: 1, alpha: 0.18).setFill()
+        NSRect(x: close.minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
+
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
         let text = "Copiar" as NSString
         let ts = text.size(withAttributes: attrs)
         let iconSize = NSSize(width: 16, height: 16)
-        let total = iconSize.width + 6 + ts.width
-        var x = button.midX - total / 2
-        if let icon = SelectionView.copyIcon {
-            let tinted = NSImage(size: icon.size, flipped: false) { rect in
-                icon.draw(in: rect); NSColor.white.set(); rect.fill(using: .sourceAtop); return true
-            }
-            tinted.draw(in: NSRect(x: x, y: button.midY - iconSize.height / 2, width: iconSize.width, height: iconSize.height))
-        }
+        var x = copy.midX - (iconSize.width + 6 + ts.width) / 2
+        SelectionView.white(SelectionView.copyIcon)?.draw(in: NSRect(x: x, y: copy.midY - iconSize.height / 2, width: iconSize.width, height: iconSize.height))
         x += iconSize.width + 6
-        text.draw(at: NSPoint(x: x, y: button.midY - ts.height / 2), withAttributes: attrs)
+        text.draw(at: NSPoint(x: x, y: copy.midY - ts.height / 2), withAttributes: attrs)
+        let xs = NSSize(width: 12, height: 12)
+        SelectionView.white(SelectionView.closeIcon)?.draw(in: NSRect(x: close.midX - xs.width / 2, y: close.midY - xs.height / 2, width: xs.width, height: xs.height))
+    }
+
+    /// Los SF Symbols vienen negros: se pintan de blanco para la barra oscura.
+    static func white(_ icon: NSImage?) -> NSImage? {
+        guard let icon else { return nil }
+        return NSImage(size: icon.size, flipped: false) { rect in
+            icon.draw(in: rect); NSColor.white.set(); rect.fill(using: .sourceAtop); return true
+        }
     }
 }
 
@@ -426,6 +457,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.15)
 
         picker.onCopy = { [weak self] r in self?.capture(r) }
+        picker.onCancel = { [weak self] in report("cancel"); self?.finish(code: 1) }
         for screen in NSScreen.screens {
             let w = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
             w.level = .screenSaver
