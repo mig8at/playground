@@ -23,6 +23,7 @@ import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
 import PdfPages from './PdfPages.vue'
 import PdfThumb from './PdfThumb.vue'
+import KeyringPanel from './KeyringPanel.vue'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -123,6 +124,11 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.va
    el 2026-11-09): abajo aparece su consola, la salida de cada comando mientras corre. */
 const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
+/* EL LLAVERO es la consola de una conversación (KeyringPanel.vue): se abre y se cierra aparte de la de los servers. */
+const keyringOpen = ref(readSize('chat.keyring-open', 0) !== 0)
+const keyringContext = computed(() => !!chat.activeKey && !serverOpen.value)
+function setKeyringOpen(v) { keyringOpen.value = v; saveSize('chat.keyring-open', v ? 1 : 0) }
+function toggleConsole() { if (keyringContext.value) setKeyringOpen(!panelShown.value); else setConsoleOpen(!panelShown.value) }
 /* Un servicio: sus rutas a la derecha (se cierran y se recuerdan aparte) y su historial abajo, en la consola, que es la
    misma de los servers. */
 /* FOTOS Y ARCHIVOS, por defecto en la derecha de cada conversación con una persona o un grupo (como «Archivos,
@@ -172,7 +178,7 @@ const fitted = computed(() => fitRegions(viewportW.value - cssSize('--editor-min
 const agentShown = computed(() => fitted.value[0])
 const sidebarShown = computed(() => fitted.value[1])
 const panelShown = computed(() => fitRegions(viewportH.value - 200, [
-  { size: serverOpen.value && consoleOpen.value ? consoleH.value : 0, min: cssSize('--panel-min', 124) },
+  { size: (serverOpen.value && consoleOpen.value) || (keyringContext.value && keyringOpen.value) ? consoleH.value : 0, min: cssSize('--panel-min', 124) },
 ])[0])
 const layoutVars = computed(() => ({
   '--sidebar-w': `${sidebarShown.value}px`, '--auxiliarybar-w': `${agentShown.value}px`, '--panel-h': `${panelShown.value}px`,
@@ -182,9 +188,9 @@ const consoleResize = {
   min: () => cssSize('--panel-min', 124),
   max: () => viewportH.value - 200,
   get: () => panelShown.value,
-  set: (v) => { if (!v) consoleOpen.value = false; else { consoleOpen.value = true; consoleH.value = v } },
+  set: (v) => { const open = keyringContext.value ? keyringOpen : consoleOpen; if (!v) open.value = false; else { open.value = true; consoleH.value = v } },
   reopen: () => consoleH.value,
-  commit: (v) => { saveSize('chat.server-console-open', v ? 1 : 0); if (v) saveSize('chat.server-console-h', consoleH.value) },
+  commit: (v) => { saveSize(keyringContext.value ? 'chat.keyring-open' : 'chat.server-console-open', v ? 1 : 0); if (v) saveSize('chat.server-console-h', consoleH.value) },
 }
 // La consola sigue a lo último que imprimió, salvo que hayas subido a leer algo.
 const consoleBody = ref(null)
@@ -605,6 +611,11 @@ async function markDone(task) {
 const taskState = (t) => (t.bloqueo ? 'bloqueada' : t.hecha ? 'hecha' : 'curso')
 const taskStateLabel = (t) => (t.bloqueo ? `bloqueada · depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso')
 watch(() => chat.activeKey, () => { taskTarget.value = null; if (activeIsCuadrilla.value) chat.loadCuadrilla() })
+// El llavero deja la clave cifrada en el mensaje: la revisás y la mandás vos.
+async function insertInDraft(text) {
+  draft.value = draft.value.trim() ? `${draft.value.trimEnd()}\n\n${text}` : text
+  await nextTick(); autosize(); composer.value?.focus()
+}
 function autosize() {
   const el = composer.value
   if (!el) return
@@ -1481,6 +1492,21 @@ const statusText = computed(() => {
       </div>
     </section>
 
+    <!-- ── el llavero: la consola de una conversación ─────────────── -->
+    <section v-else-if="keyringContext && panelShown" class="panel" aria-label="Llavero">
+      <div class="rsz rsz-edge-top" v-resize="consoleResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Consola">
+        <button type="button" role="tab" class="tab on" aria-selected="true">Llavero</button>
+        <div class="region-actions">
+          <button ref="consoleMax" type="button" class="region-action"><span class="ui-icon" aria-hidden="true"></span></button>
+          <button type="button" class="region-action" title="Ocultar el llavero" aria-label="Ocultar el llavero" @click="setKeyringOpen(false)">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+      <KeyringPanel @insert="insertInDraft" />
+    </section>
+
     <footer class="statusbar">
       <span class="statusbar-item">
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
@@ -1504,11 +1530,10 @@ const statusText = computed(() => {
                 aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <!-- La consola: hoy sólo la usan un server y un servicio; en lo demás queda a la vista, apagada, para que la
-             barra sea la misma en todas partes. -->
-        <button type="button" class="region-action" :aria-pressed="!!panelShown" :disabled="!(openServer || openService)"
-                :title="openService ? 'Mostrar u ocultar el historial' : openServer ? 'Mostrar u ocultar la consola' : 'La consola todavía no se usa acá'"
-                :aria-label="openService ? 'Mostrar u ocultar el historial' : 'Mostrar u ocultar la consola'" @click="setConsoleOpen(!panelShown)">
+        <!-- La consola: la de un server o un servicio y, en una conversación, el llavero. -->
+        <button type="button" class="region-action" :aria-pressed="!!panelShown" :disabled="!(openServer || openService || keyringContext)"
+                :title="openService ? 'Mostrar u ocultar el historial' : openServer ? 'Mostrar u ocultar la consola' : keyringContext ? 'Mostrar u ocultar el llavero' : 'Abrí una conversación para usar el llavero'"
+                :aria-label="openService ? 'Mostrar u ocultar el historial' : keyringContext ? 'Mostrar u ocultar el llavero' : 'Mostrar u ocultar la consola'" @click="toggleConsole">
           <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
         </button>
         <!-- El sidebar derecho: según lo que esté abierto son las rutas, la ficha del agente, fotos y archivos o tu agente. -->
