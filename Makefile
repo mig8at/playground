@@ -113,10 +113,11 @@ keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las m
 ecommerce: ## @dia abre ecommerce (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local, qa o prod (prod sólo lee); también cierra la compra (aprobada, negada, cancelada) y dicta las centrales. Es una copia suelta: su .env propio, sin connectors. ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en ecommerce/.backups/. Por consola: cd ecommerce && go run ./server -target qa -q <url|número>
 	@cd ecommerce && npm run dev
 .PHONY: captura
-captura: ## @dia captura de pantalla por ARRASTRE (Captura.app nativa, captura/main.swift): oscurece las pantallas, arrastrás y soltás; queda en captura/shots/, en el portapapeles y su ruta sale por stdout. Esc cancela (sale 1). [OUT=<carpeta>] [NO_CLIP=1]. La 1.ª vez macOS pide «Grabación de pantalla» para Captura (una sola vez, no por terminal)
+captura: ## @dia captura de pantalla (Captura.app nativa, captura/main.swift): oscurece las pantallas; pasás el mouse y CLIC captura lo iluminado (con Accesibilidad, la sección de la app y la RUEDA sube o baja de nivel; sin ella, la ventana), o ARRASTRÁS un rectángulo; queda en captura/shots/, en el portapapeles y su ruta sale por stdout. Esc cancela (sale 1). [OUT=<carpeta>] [NO_CLIP=1] [DEBUG=1 log + una foto de la pantalla por segundo durante 7 s, en captura/.build/debug-*]. La 1.ª vez macOS pide «Grabación de pantalla» para Captura (una sola vez, no por terminal)
 	@captura/build.sh
 	@r=$(CURDIR)/captura/.build/result.txt; : > $$r; \
-	 open -W -n captura/.build/Captura.app --args --out "$(abspath $(or $(OUT),captura/shots))" --result $$r $(if $(NO_CLIP),--no-clip); \
+	 $(if $(DEBUG),dbg=$(CURDIR)/captura/.build/debug-$$(date +%Y%m%d-%H%M%S); echo "  · debug: 7 fotos y el log en $$dbg (se cierra sola a los 8 s)" >&2;) \
+	 open -W -n captura/.build/Captura.app --args --out "$(abspath $(or $(OUT),captura/shots))" --result $$r $(if $(NO_CLIP),--no-clip) $(if $(DEBUG),--debug "$$dbg"); \
 	 l=$$(cat $$r); \
 	 case "$$l" in "ok "*) echo "$${l#ok }";; cancel) exit 1;; "") echo "  ✗ Captura se cerró sin resultado" >&2; exit 2;; *) echo "  ✗ $${l#error }" >&2; exit 2;; esac
 
