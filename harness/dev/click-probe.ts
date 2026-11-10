@@ -12,7 +12,18 @@ const posts: string[] = [];
 // BLOCK_POSTHOG=1: corta los pedidos a PostHog. Con BLOCK_POSTHOG_BRAVE=1, sólo lo que corta Brave Shields de verdad (medido
 // en el Brave de Duncan el 2026-11-10): el envío de eventos, el recorder y dead-clicks; config y /flags pasan.
 const blocked: string[] = [];
-if (process.env.BLOCK_POSTHOG === '1') await page.route(process.env.BLOCK_POSTHOG_PATHS === '1' ? /posthog/i : process.env.BLOCK_POSTHOG_BRAVE === '1' ? /dead-clicks-autocapture|posthog-recorder|us\.i\.posthog\.com\/i\/v0\/e/ : /posthog\.com/, (r: any) => { blocked.push(r.request().url().replace(/\?.*$/, '')); return r.abort('blockedbyclient'); });
+if (process.env.BLOCK_POSTHOG === '1') await page.route(process.env.BLOCK_POSTHOG_PATHS === '1' ? /posthog/i : process.env.BLOCK_POSTHOG_BRAVE === '1' ? /dead-clicks-autocapture|posthog-recorder|us\.i\.posthog\.com\/i\/v0\/e/ : /posthog\.com/, (r: any) => {
+  blocked.push(r.request().url().replace(/\?.*$/, ''));
+  // BLOCK_POSTHOG_AS: cómo lo corta. abort (por defecto) = falla de red; 503 = respuesta 503 vacía (lo que se ve en Brave);
+  // stub = un script vacío con 200 (como los reemplazos «noop» de los bloqueadores).
+  const as = process.env.BLOCK_POSTHOG_AS || 'abort';
+  if (as === '503') return r.fulfill({ status: 503, body: '' });
+  if (as === 'stub') return r.request().resourceType() === 'script' ? r.fulfill({ status: 200, contentType: 'application/javascript', body: '' }) : r.fulfill({ status: 503, body: '' });
+  return r.abort('blockedbyclient');
+});
+// Los errores de la página: un error dentro del clic corta el envío sin que se vea nada.
+const pageErrors: string[] = [];
+page.on('pageerror', (e: any) => pageErrors.push(String(e).slice(0, 240)));
 page.on('request', (r: any) => { if (r.method() === 'POST' && /creditop\.com/.test(r.url())) posts.push(`${ms()}ms ${r.url().replace(/^https:\/\/[^/]+/, '')}`); });
 try {
   await page.goto(url, { waitUntil: 'commit', timeout: 60_000 });
@@ -37,6 +48,6 @@ try {
   await page.waitForTimeout(500);
   await sampler;
   const spinner = await btn.getAttribute('aria-busy', { timeout: 100 }).catch(() => null);
-  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, leftListingMs: tLeft === null ? null : tLeft - tUp, finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
+  console.log(JSON.stringify({ ur, mode, url, tVisible, tDown, tUp, downOn, upOn, postsAfterClick: posts.filter((p) => parseInt(p) >= tDown), allPosts: posts, track, spinner, leftListingMs: tLeft === null ? null : tLeft - tUp, pageErrors, finalUrl: page.url(), blockedPosthog: [...new Set(blocked)] }, null, 1));
   await page.screenshot({ path: `/tmp/probe-${ur}-${mode}.png` });
 } finally { await close(); }
