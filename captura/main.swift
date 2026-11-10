@@ -202,6 +202,85 @@ func toGlobal(_ p: NSPoint, in w: NSWindow) -> CGPoint {
     CGPoint(x: w.frame.minX + p.x, y: mainHeight - (w.frame.minY + p.y))
 }
 
+// ── marcas ────────────────────────────────────────────────────────────────────────────────────────
+//
+// Con un área elegida, arrastrar ADENTRO dibuja un recuadro punteado con una flecha en una esquina. Al
+// copiar se pintan en la imagen, a la resolución real (las marcas viven en top-left global y se pasan a
+// cada lienzo con su `map`).
+
+/// Un recuadro punteado y su flecha, en top-left global.
+struct Mark { var box: CGRect; var tail: CGPoint; var tip: CGPoint }
+
+/// La flecha va a la esquina del recuadro que mira al centro del área (ahí suele haber lugar) y sale
+/// hacia ese centro; si el recuadro tapa el centro, entra en diagonal desde afuera de esa esquina.
+func makeMark(_ box: CGRect, in area: CGRect) -> Mark {
+    let center = CGPoint(x: area.midX, y: area.midY)
+    let corners = [CGPoint(x: box.minX, y: box.minY), CGPoint(x: box.maxX, y: box.minY),
+                   CGPoint(x: box.minX, y: box.maxY), CGPoint(x: box.maxX, y: box.maxY)]
+    let corner = corners.min { hypot($0.x - center.x, $0.y - center.y) < hypot($1.x - center.x, $1.y - center.y) }!
+    var dx = center.x - corner.x, dy = center.y - corner.y
+    if box.insetBy(dx: -1, dy: -1).contains(center) || hypot(dx, dy) < 1 {
+        dx = corner.x == box.minX ? -1 : 1; dy = corner.y == box.minY ? -1 : 1
+    }
+    let n = max(hypot(dx, dy), 0.001)
+    dx /= n; dy /= n
+    let tip = CGPoint(x: corner.x + dx * 5, y: corner.y + dy * 5)
+    let inner = area.insetBy(dx: 8, dy: 8)
+    let tail = CGPoint(x: min(max(corner.x + dx * 70, inner.minX), inner.maxX), y: min(max(corner.y + dy * 70, inner.minY), inner.maxY))
+    return Mark(box: box, tail: tail, tip: tip)
+}
+
+/// Dibuja una marca en el contexto actual. `map` lleva de top-left global al lienzo; `scale` agranda los
+/// trazos (1 en pantalla, la densidad de la pantalla en la imagen). Un halo blanco debajo la hace visible
+/// también sobre fondos rojos u oscuros.
+func drawMark(_ m: Mark, map: (CGPoint) -> CGPoint, scale: CGFloat, arrow: Bool = true) {
+    let a = map(CGPoint(x: m.box.minX, y: m.box.minY)), b = map(CGPoint(x: m.box.maxX, y: m.box.maxY))
+    let rect = NSRect(x: min(a.x, b.x), y: min(a.y, b.y), width: abs(a.x - b.x), height: abs(a.y - b.y))
+    for (color, extra) in [(NSColor.white.withAlphaComponent(0.9), CGFloat(2.5)), (NSColor.systemRed, 0)] {
+        color.setStroke(); color.setFill()
+        let box = NSBezierPath(rect: rect)
+        box.lineWidth = (3 + extra) * scale
+        var dash: [CGFloat] = [9 * scale, 6 * scale]
+        box.setLineDash(&dash, count: 2, phase: 0)
+        box.stroke()
+        guard arrow else { continue }
+        let t = map(m.tail), h = map(m.tip)
+        let ang = atan2(h.y - t.y, h.x - t.x)
+        let head = 15 * scale
+        let base = CGPoint(x: h.x - cos(ang) * head, y: h.y - sin(ang) * head)
+        let shaft = NSBezierPath()
+        shaft.move(to: t); shaft.line(to: base)
+        shaft.lineWidth = (3.5 + extra) * scale
+        shaft.lineCapStyle = .round
+        shaft.stroke()
+        let w = head * 0.6
+        let tri = NSBezierPath()
+        tri.move(to: h)
+        tri.line(to: CGPoint(x: base.x + cos(ang + .pi / 2) * w, y: base.y + sin(ang + .pi / 2) * w))
+        tri.line(to: CGPoint(x: base.x + cos(ang - .pi / 2) * w, y: base.y + sin(ang - .pi / 2) * w))
+        tri.close()
+        tri.fill()
+        if extra > 0 { tri.lineWidth = extra * scale; tri.lineJoinStyle = .round; tri.stroke() }
+    }
+}
+
+/// Pinta las marcas sobre el PNG de la captura (r: lo capturado, en top-left global).
+func paintMarks(_ marks: [Mark], onto file: String, area r: CGRect) {
+    guard !marks.isEmpty, let img = NSImage(contentsOfFile: file),
+          let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil),
+          let rep = NSBitmapImageRep(bitmapDataPlanes: nil, pixelsWide: cg.width, pixelsHigh: cg.height, bitsPerSample: 8,
+                                     samplesPerPixel: 4, hasAlpha: true, isPlanar: false, colorSpaceName: .deviceRGB,
+                                     bytesPerRow: 0, bitsPerPixel: 0),
+          let ctx = NSGraphicsContext(bitmapImageRep: rep) else { return }
+    let s = CGFloat(cg.width) / r.width
+    NSGraphicsContext.saveGraphicsState()
+    NSGraphicsContext.current = ctx
+    ctx.cgContext.draw(cg, in: CGRect(x: 0, y: 0, width: cg.width, height: cg.height))
+    for m in marks { drawMark(m, map: { CGPoint(x: ($0.x - r.minX) * s, y: (r.maxY - $0.y) * s) }, scale: s) }
+    NSGraphicsContext.restoreGraphicsState()
+    try? rep.representation(using: .png, properties: [:])?.write(to: URL(fileURLWithPath: file))
+}
+
 final class Picker {
     var views: [SelectionView] = []
     var chain: [Target] = []
@@ -212,7 +291,10 @@ final class Picker {
     /// El área elegida: un clic o un arrastre la FIJAN (no capturan); la captura sale del botón Copiar.
     var selected: CGRect?
     var mouse = CGPoint.zero
-    enum ToolbarButton { case copy, close }
+    enum ToolbarButton { case copy, undo, close }
+    /// los recuadros con flecha que se dibujan adentro del área elegida
+    var marks: [Mark] = []
+    var marking: (start: CGPoint, current: CGPoint)?
     var pressing: ToolbarButton?
     var onCopy: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
@@ -226,7 +308,10 @@ final class Picker {
                            width: abs(d.start.x - d.current.x), height: abs(d.start.y - d.current.y))
             return Target(rect: r, label: "\(Int(r.width)) × \(Int(r.height))")
         }
-        if let s = selected { return Target(rect: s, label: "\(Int(s.width)) × \(Int(s.height))") }
+        if let s = selected {
+            let hint = marks.isEmpty ? "arrastrá adentro para marcar" : "\(marks.count) marca\(marks.count == 1 ? "" : "s") · ⌘Z deshace"
+            return Target(rect: s, label: "\(Int(s.width)) × \(Int(s.height)) · \(hint)")
+        }
         return hovered.map { Target(rect: $0.rect, label: "\($0.label)  \(Int($0.rect.width)) × \(Int($0.rect.height))") }
     }
 
@@ -234,7 +319,7 @@ final class Picker {
     /// entra en la pantalla, adentro del área, abajo a la derecha.
     var toolbar: CGRect? {
         guard let s = selected, dragging == nil else { return nil }
-        let size = CGSize(width: 140, height: 34)
+        let size = CGSize(width: marks.isEmpty ? 140 : 172, height: 34)
         let screen = screenRectsTL.first { $0.intersects(s) } ?? screenRectsTL[0]
         var r = CGRect(x: s.maxX - size.width, y: s.maxY + 8, width: size.width, height: size.height)
         if r.maxY > screen.maxY - 4 { r.origin.y = s.maxY - size.height - 8 }
@@ -242,10 +327,12 @@ final class Picker {
         r.origin.y = max(screen.minY + 8, r.origin.y)
         return r
     }
-    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: $0.width - 40, height: $0.height - 8) } }
+    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: $0.width - (marks.isEmpty ? 40 : 72), height: $0.height - 8) } }
+    var undoButton: CGRect? { marks.isEmpty ? nil : toolbar.map { CGRect(x: $0.maxX - 64, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     var closeButton: CGRect? { toolbar.map { CGRect(x: $0.maxX - 32, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     func button(at p: CGPoint) -> ToolbarButton? {
         if copyButton?.contains(p) == true { return .copy }
+        if undoButton?.contains(p) == true { return .undo }
         if closeButton?.contains(p) == true { return .close }
         return nil
     }
@@ -259,7 +346,9 @@ final class Picker {
             let was = hoverButton
             mouse = p
             if was != hoverButton { redraw() }
-            (hoverButton != nil ? NSCursor.pointingHand : NSCursor.arrow).set()
+            if hoverButton != nil { NSCursor.pointingHand.set() }
+            else if selected?.contains(p) == true, toolbar?.contains(p) != true { NSCursor.crosshair.set() }
+            else { NSCursor.arrow.set() }
             return
         }
         mouse = p
@@ -291,14 +380,30 @@ final class Picker {
         if let b = button(at: p) { pressing = b; redraw(); return }
         if toolbar?.contains(p) == true { return } // el borde de la barra, entre botones: nada
         if let s = selected {
-            // con un área elegida: un clic FUERA cancela la captura; adentro, empieza otra selección
+            // con un área elegida: un clic FUERA cancela la captura; adentro, arrastrar dibuja una marca
             guard s.contains(p) else { dlog("clic fuera del área: cancelo"); onCancel?(); return }
-            dlog("selección descartada"); selected = nil; lastProbeAt = .distantPast
+            marking = (p, p)
+            redraw()
+            return
         }
         dragging = (p, p)
         redraw()
     }
-    func drag(_ p: CGPoint) { mouse = p; if pressing == nil { dragging?.current = p; redraw() } }
+    func drag(_ p: CGPoint) {
+        mouse = p
+        if marking != nil, let s = selected {
+            // la marca no se sale del área: afuera no se vería en la imagen
+            marking?.current = CGPoint(x: min(max(p.x, s.minX), s.maxX), y: min(max(p.y, s.minY), s.maxY))
+            redraw(); return
+        }
+        if pressing == nil { dragging?.current = p; redraw() }
+    }
+    /// el recuadro que se está dibujando
+    var markingBox: CGRect? {
+        marking.map { CGRect(x: min($0.start.x, $0.current.x), y: min($0.start.y, $0.current.y),
+                             width: abs($0.start.x - $0.current.x), height: abs($0.start.y - $0.current.y)) }
+    }
+    func undo() { if !marks.isEmpty { marks.removeLast(); dlog("marca deshecha, quedan \(marks.count)"); redraw() } }
     func up(_ p: CGPoint) {
         mouse = p
         if let b = pressing {
@@ -306,10 +411,16 @@ final class Picker {
             // se dispara sólo si se suelta sobre el MISMO botón, como un botón de verdad
             switch (b, button(at: p), selected) {
             case (.copy, .copy, let s?): dlog("copiar \(s)"); onCopy?(s)
+            case (.undo, .undo, _): undo()
             case (.close, .close, _): dlog("cerrar (X)"); onCancel?()
             default: redraw()
             }
             return
+        }
+        if marking != nil, let box = markingBox, let s = selected {
+            marking = nil
+            if box.width >= 6, box.height >= 6 { marks.append(makeMark(box, in: s)); dlog("marca \(box)") }
+            redraw(); return
         }
         guard let d = dragging else { return }
         dragging = nil
@@ -355,6 +466,7 @@ final class SelectionView: NSView {
         case 53: onCancel?()                                            // Esc
         case 36, 76: picker.copySelected()                              // Enter
         case 8 where e.modifierFlags.contains(.command): picker.copySelected() // ⌘C
+        case 6 where e.modifierFlags.contains(.command): picker.undo()         // ⌘Z
         default: break
         }
     }
@@ -362,6 +474,10 @@ final class SelectionView: NSView {
     static let closeIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         return NSImage(systemSymbolName: "xmark", accessibilityDescription: "Cerrar")?.withSymbolConfiguration(cfg)
+    }()
+    static let undoIcon: NSImage? = {
+        let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
+        return NSImage(systemSymbolName: "arrow.uturn.backward", accessibilityDescription: "Deshacer")?.withSymbolConfiguration(cfg)
     }()
     static let copyIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
@@ -399,6 +515,11 @@ final class SelectionView: NSView {
             NSColor.black.withAlphaComponent(0.75).setFill(); NSBezierPath(roundedRect: bg, xRadius: 4, yRadius: 4).fill()
             text.draw(at: p, withAttributes: attrs)
         }
+        // las marcas y la que se está dibujando (ésta sin flecha: la flecha se calcula al soltar)
+        let w = window!
+        let map: (CGPoint) -> CGPoint = { CGPoint(x: $0.x - w.frame.minX, y: (mainHeight - $0.y) - w.frame.minY) }
+        for m in picker.marks { drawMark(m, map: map, scale: 1) }
+        if let b = picker.markingBox { drawMark(Mark(box: b, tail: .zero, tip: .zero), map: map, scale: 1, arrow: false) }
         if let tb = picker.toolbar { drawToolbar(toLocal(tb, in: window!)) }
     }
 
@@ -410,13 +531,18 @@ final class SelectionView: NSView {
         let edge = NSBezierPath(roundedRect: r.insetBy(dx: 0.5, dy: 0.5), xRadius: 8, yRadius: 8); edge.lineWidth = 1; edge.stroke()
         guard let copyTL = picker.copyButton, let closeTL = picker.closeButton else { return }
         let copy = toLocal(copyTL, in: window!), close = toLocal(closeTL, in: window!)
-        for (b, rect) in [(Picker.ToolbarButton.copy, copy), (.close, close)] where picker.hoverButton == b {
+        let undo = picker.undoButton.map { toLocal($0, in: window!) }
+        for (b, rect) in [(Picker.ToolbarButton.copy, copy), (.undo, undo ?? .zero), (.close, close)] where picker.hoverButton == b {
             (picker.pressing == b ? NSColor.systemBlue : NSColor(calibratedWhite: 1, alpha: 0.14)).setFill()
             NSBezierPath(roundedRect: rect, xRadius: 5, yRadius: 5).fill()
         }
         // separador entre Copiar y la X
         NSColor(calibratedWhite: 1, alpha: 0.18).setFill()
-        NSRect(x: close.minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
+        NSRect(x: (undo ?? close).minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
+        if let u = undo {
+            let us = NSSize(width: 14, height: 14)
+            SelectionView.white(SelectionView.undoIcon)?.draw(in: NSRect(x: u.midX - us.width / 2, y: u.midY - us.height / 2, width: us.width, height: us.height))
+        }
 
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
         let text = "Copiar" as NSString
@@ -798,6 +924,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var panel: FloatingPanel?
     var selecting = false
     var spellSession: SpellSession?
+    /// la «T» del panel: normal apagada, en negrita mientras la ortografía espera una selección
+    var spellToggle: NSButton?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         // Una sola copia: Ctrl-C sobre `make captura` corta el `open`, no la app, y el 2026-11-10 se
@@ -874,7 +1002,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let stack = NSStackView(views: [
                 GripView(),
                 makePanelButton(symbol: "camera.viewfinder", tip: "Capturar (señalar o arrastrar)", target: self, action: #selector(onCaptureButton)),
-                makePanelButton(symbol: "textformat.abc", tip: "Ortografía: seleccioná un texto y corregilo", target: self, action: #selector(onSpellButton)),
+                makeSpellToggle(),
                 makePanelButton(symbol: "folder", tip: "Abrir la carpeta de capturas", target: self, action: #selector(onFolderButton)),
                 makePanelButton(symbol: "xmark", tip: "Cerrar el panel", target: self, action: #selector(onQuitButton)),
             ])
@@ -905,7 +1033,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel?.orderOut(nil) // que el panel no salga en la foto ni tape lo que se quiere señalar
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { self.startSelection() }
     }
+    func makeSpellToggle() -> NSButton {
+        let b = makePanelButton(symbol: "textformat", tip: "Ortografía: seleccioná un texto y corregilo (otra vez la T o Esc la apaga)",
+                                target: self, action: #selector(onSpellButton))
+        b.image = nil
+        spellToggle = b
+        setSpellToggle(active: false)
+        return b
+    }
+
+    func setSpellToggle(active: Bool) {
+        guard let b = spellToggle else { return }
+        let font = NSFont.systemFont(ofSize: active ? 18 : 17, weight: active ? .heavy : .regular)
+        let color = active ? NSColor.white : NSColor(calibratedWhite: 1, alpha: 0.8)
+        b.attributedTitle = NSAttributedString(string: "T", attributes: [.font: font, .foregroundColor: color])
+    }
+
     @objc func onSpellButton() {
+        // con la ortografía activa, la T la apaga (si no está corrigiendo)
+        if let s = spellSession { if !s.busy { s.finish(1, "cancel") }; return }
         guard !selecting else { return }
         dlog("panel: ortografía")
         startSpell()
@@ -916,8 +1062,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard spellSession == nil else { return }
         selecting = true
         let s = SpellSession()
+        setSpellToggle(active: true)
         s.onDone = { [weak self] code, result in
             self?.spellSession = nil
+            self?.setSpellToggle(active: false)
             self?.endSelection(code: code, result: result)
         }
         spellSession = s
@@ -939,6 +1087,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func startSelection() {
         selecting = true
         picker.chain = []; picker.level = 0; picker.selected = nil; picker.dragging = nil; picker.pressing = nil
+        picker.marks = []; picker.marking = nil
         picker.lastProbe = CGPoint(x: -1, y: -1); picker.lastProbeAt = .distantPast
         picker.views = []
         for screen in NSScreen.screens {
@@ -999,6 +1148,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let d = debugDir else { return }
         try? FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
         dlog("panel: pid \(ownPID) · frame=\(panel?.frame ?? .zero) · AX=\(AXIsProcessTrusted()) · pantalla=\(CGPreflightScreenCaptureAccess())")
+        // la T prendida entre 1,5 y 3,5 s: la foto 1 la muestra apagada y la 2 en negrita
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { self.startSpell() }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3.5) { self.spellSession?.finish(1, "cancel") }
         for i in 1...3 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
                 dlog("foto \(i): panel visible=\(self.panel?.isVisible ?? false) frame=\(self.panel?.frame ?? .zero)")
@@ -1040,6 +1192,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 self.picker.selected = h.rect; self.picker.redraw(); dlog("debug: elijo lo señalado \(h.rect) · barra \(self.picker.toolbar.map { "\($0)" } ?? "-")")
             }
         }
+        if CommandLine.arguments.contains("--debug-mark") {
+            // una marca arriba a la izquierda del área y otra abajo a la derecha; a los 5,5 s copia
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                guard let s = self.picker.selected else { return }
+                for (fx, fy) in [(0.08, 0.1), (0.62, 0.58)] {
+                    let b = CGRect(x: s.minX + s.width * fx, y: s.minY + s.height * fy, width: s.width * 0.28, height: s.height * 0.28)
+                    self.picker.marks.append(makeMark(b, in: s))
+                }
+                self.picker.redraw()
+                dlog("debug: 2 marcas en \(s)")
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 5.5) { self.picker.copySelected() }
+        }
         for i in 1...7 {
             DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
                 let m = NSEvent.mouseLocation
@@ -1057,6 +1222,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func capture(_ r: CGRect) {
         let x = Int(r.minX.rounded()), y = Int(r.minY.rounded())
         let wd = Int(r.width.rounded()), ht = Int(r.height.rounded())
+        let marks = picker.marks
+        let area = CGRect(x: x, y: y, width: wd, height: ht) // lo que screencapture fotografía de verdad
 
         windows.forEach { $0.orderOut(nil) }
         shutter?.play()
@@ -1074,6 +1241,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard p.terminationStatus == 0, FileManager.default.fileExists(atPath: file) else {
                 self.endSelection(code: 2, result: "error screencapture salió con \(p.terminationStatus): falta el permiso de Grabación de pantalla para Captura (Ajustes → Privacidad y seguridad)"); return
             }
+            paintMarks(marks, onto: file, area: area)
+            if !marks.isEmpty { dlog("captura: \(marks.count) marca(s) pintadas en la imagen") }
             if !noClipboard, let img = NSImage(contentsOfFile: file) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([img])
