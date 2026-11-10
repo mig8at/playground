@@ -2,7 +2,7 @@
 /* EL LLAVERO, en la consola de una conversación: encriptar una clave con la llave del equipo para pasarla por el chat,
    o desencriptar una que te mandaron. No guarda nada: sólo la llave del equipo, en esta máquina (la misma en la de
    todos; se abre también con openssl). */
-import { onMounted, ref } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { newTeamKey, open, seal } from './keyring.js'
 
 const teamKey = ref('')
@@ -17,6 +17,10 @@ const value = ref('')
 const sealed = ref('')
 const sealedIn = ref('')
 const opened = ref('')
+// Las guardadas: nombre y encriptado (el valor no se guarda); `shown` son las que se están viendo abiertas.
+const saved = ref([])
+const shown = ref({})
+const sortedSaved = computed(() => [...saved.value].sort((a, b) => (b.updated || '').localeCompare(a.updated || '')))
 
 onMounted(async () => {
   try {
@@ -24,7 +28,14 @@ onMounted(async () => {
     teamKey.value = body.teamKey || ''
     teamKeyPath.value = (body.teamKeyPath || '').replace(/^\/Users\/[^/]+/, '~')
   } catch (e) { error.value = `No se pudo leer la llave del equipo: ${e.message}` }
+  try { saved.value = (await (await fetch('/api/keyring/keys')).json()).keys || [] } catch { /* sin guardadas */ }
 })
+async function keysCall(path, options) {
+  const r = await fetch(path, options)
+  const body = await r.json().catch(() => ({}))
+  if (!r.ok) { error.value = body.error || r.statusText; return }
+  saved.value = body.keys || []
+}
 
 async function setTeamKey(k) {
   if (teamKey.value && k !== teamKey.value && !confirm('Lo que ya mandaste encriptado sólo se abre con la llave anterior. ¿Cambiarla?')) return
@@ -32,7 +43,21 @@ async function setTeamKey(k) {
   if (!r.ok) { error.value = (await r.json().catch(() => ({}))).error || r.statusText; return }
   teamKey.value = k; pastedKey.value = ''; changingKey.value = false; error.value = ''
 }
-async function encrypt() { sealed.value = await seal(teamKey.value, value.value) }
+// Encriptar también la guarda en la tabla (con el mismo nombre, la reemplaza).
+async function encrypt() {
+  sealed.value = await seal(teamKey.value, value.value)
+  const n = name.value.trim()
+  if (n) await keysCall('/api/keyring/keys', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: n, sealed: sealed.value, updated: new Date().toISOString() }) })
+}
+async function toggleShown(k) {
+  if (shown.value[k.name] != null) { const { [k.name]: _, ...rest } = shown.value; shown.value = rest; return }
+  try { shown.value = { ...shown.value, [k.name]: await open(teamKey.value, k.sealed) } } catch { shown.value = { ...shown.value, [k.name]: '✗ no abre con esta llave' } }
+}
+async function removeSaved(k) {
+  if (!confirm(`¿Borrar «${k.name}» de las guardadas?`)) return
+  await keysCall(`/api/keyring/keys/${encodeURIComponent(k.name)}`, { method: 'DELETE' })
+}
+const when = (iso) => { try { return new Date(iso).toLocaleString([], { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) } catch { return '' } }
 async function decrypt() {
   const m = sealedIn.value.match(/U2FsdGVkX1[A-Za-z0-9+/=]+/)
   if (!m) { opened.value = ''; error.value = 'No es un encriptado (empieza con U2FsdGVkX1).'; return }
@@ -99,6 +124,34 @@ async function copy(text, tag) {
           </div>
         </form>
       </div>
+
+      <!-- Las guardadas: cada vez que encriptás con nombre, queda acá (sólo encriptada). -->
+      <section class="keyring-saved">
+        <h4 class="keyring-title">Guardadas <span v-if="saved.length" class="count">{{ saved.length }}</span></h4>
+        <p v-if="!saved.length" class="keyring-empty">Todavía no hay. Al encriptar con un nombre, la clave queda acá, encriptada.</p>
+        <table v-else class="keyring-table">
+          <thead><tr><th class="c-name">Nombre</th><th class="c-sealed">Encriptado</th><th class="c-value">Valor</th><th class="c-when">Actualizada</th><th class="c-acts" aria-label="Acciones"></th></tr></thead>
+          <tbody>
+            <tr v-for="k in sortedSaved" :key="k.name">
+              <td class="name">{{ k.name }}</td>
+              <td class="c-sealed mono cut" :title="k.sealed">{{ k.sealed }}</td>
+              <td class="mono cut">{{ shown[k.name] != null ? shown[k.name] : '••••••' }}</td>
+              <td class="c-when when">{{ when(k.updated) }}</td>
+              <td class="acts">
+                <button type="button" class="region-action" :title="copied === `s:${k.name}` ? 'Copiado' : 'Copiar el encriptado'" aria-label="Copiar el encriptado" @click="copy(k.sealed, `s:${k.name}`)">
+                  <span class="ui-icon" :data-icon="copied === `s:${k.name}` ? 'check' : 'copy'" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="region-action" :disabled="!teamKey" :title="shown[k.name] != null ? 'Ocultar el valor' : 'Ver el valor'" aria-label="Ver el valor" @click="toggleShown(k)">
+                  <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
+                </button>
+                <button type="button" class="region-action" title="Borrar" aria-label="Borrar" @click="removeSaved(k)">
+                  <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
     </div>
   </div>
 </template>
@@ -127,4 +180,23 @@ async function copy(text, tag) {
 .keyring-output code { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-sm) }
 .keyring-output.is-blank code { font-family: inherit; color: var(--fg-2); font-size: var(--text-xs) }
 .keyring-result .btn { flex: none; min-width: 108px }
+.keyring-saved { display: flex; flex-direction: column; gap: 8px }
+.keyring-empty { margin: 0; color: var(--fg-2); font-size: var(--text-xs) }
+.keyring-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: var(--text-sm) }
+.keyring-table th { padding: 6px 8px; text-align: left; font-size: var(--text-xs); font-weight: 500; color: var(--fg-2); border-bottom: 1px solid var(--hairline) }
+.keyring-table td { padding: 4px 8px; border-bottom: 1px solid var(--hairline); vertical-align: middle }
+.keyring-table tbody tr:hover { background: color-mix(in oklab, var(--foreground) 4%, transparent) }
+.keyring-saved { container-type: inline-size }
+.keyring-table .c-name { width: 24% }
+.keyring-table .c-value { width: 20% }
+.keyring-table .c-when { width: 120px }
+.keyring-table .c-acts { width: 104px }
+/* En una consola angosta, lo que se puede pedir con un botón (copiar el encriptado) deja su columna. */
+@container (max-width: 560px) { .keyring-table .c-sealed, .keyring-table .c-when { display: none } .keyring-table .c-name { width: 45% } .keyring-table .c-value { width: auto } }
+.keyring-table .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.keyring-table .mono { font-family: var(--font-mono) }
+.keyring-table .cut { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.keyring-table .when { color: var(--fg-2); font-size: var(--text-xs); white-space: nowrap }
+.keyring-table .acts { text-align: right; white-space: nowrap }
+.keyring-table .acts .region-action { display: inline-flex }
 </style>

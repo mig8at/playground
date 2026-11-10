@@ -91,4 +91,100 @@ func registerKeyring(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
+
+	// LAS CLAVES GUARDADAS: sólo su nombre y su ENCRIPTADO (nunca el valor), en el directorio del historial del chat.
+	mux.HandleFunc("GET /api/keyring/keys", func(w http.ResponseWriter, r *http.Request) {
+		keyringMu.Lock()
+		defer keyringMu.Unlock()
+		keys, err := readSavedKeys()
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
+	})
+	// Una a la vez (guardar o reemplazar por nombre, y borrar): dos ventanas abiertas no se pisan la lista.
+	mux.HandleFunc("POST /api/keyring/keys", func(w http.ResponseWriter, r *http.Request) {
+		var in savedKey
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
+			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {name, sealed}"))
+			return
+		}
+		in.Name = strings.TrimSpace(in.Name)
+		if in.Name == "" || !strings.HasPrefix(in.Sealed, "U2FsdGVkX1") {
+			fail(w, http.StatusBadRequest, errors.New("va un nombre y la clave ENCRIPTADA"))
+			return
+		}
+		updateSavedKeys(w, func(keys []savedKey) []savedKey {
+			out := []savedKey{}
+			for _, k := range keys {
+				if k.Name != in.Name {
+					out = append(out, k)
+				}
+			}
+			return append(out, in)
+		})
+	})
+	mux.HandleFunc("DELETE /api/keyring/keys/{name}", func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		updateSavedKeys(w, func(keys []savedKey) []savedKey {
+			out := []savedKey{}
+			for _, k := range keys {
+				if k.Name != name {
+					out = append(out, k)
+				}
+			}
+			return out
+		})
+	})
+}
+
+type savedKey struct {
+	Name    string `json:"name"`
+	Sealed  string `json:"sealed"`
+	Updated string `json:"updated"`
+}
+
+func savedKeysPath() (string, error) {
+	dir, err := historyDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "keyring.json"), nil
+}
+
+func readSavedKeys() ([]savedKey, error) {
+	keys := []savedKey{}
+	p, err := savedKeysPath()
+	if err != nil {
+		return nil, err
+	}
+	b, err := os.ReadFile(p)
+	if errors.Is(err, os.ErrNotExist) {
+		return keys, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	return keys, json.Unmarshal(b, &keys)
+}
+
+// updateSavedKeys lee, cambia y escribe bajo el mismo candado, y contesta con la lista que quedó.
+func updateSavedKeys(w http.ResponseWriter, change func([]savedKey) []savedKey) {
+	keyringMu.Lock()
+	defer keyringMu.Unlock()
+	keys, err := readSavedKeys()
+	if err == nil {
+		keys = change(keys)
+		b, _ := json.MarshalIndent(keys, "", "  ")
+		var p string
+		if p, err = savedKeysPath(); err == nil {
+			err = writePrivate(p, b)
+		}
+	}
+	if err != nil {
+		fail(w, http.StatusInternalServerError, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"keys": keys})
 }
