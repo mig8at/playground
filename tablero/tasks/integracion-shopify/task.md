@@ -5,7 +5,7 @@ stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
-jira: [CORE-801, CORE-689, CORE-932]
+jira: [CORE-801, CORE-689, CORE-932, CORE-934]
 jira_title: "Integración Shopify: app de pagos con enlace de pago y pedidos atribuidos a la sucursal"
 chat: ['#shopify', duncan]
 ramas: shopify:core-801, core-689-shopify-platform
