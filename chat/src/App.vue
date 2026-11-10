@@ -21,6 +21,7 @@ import { useChatStore, isImage, IMAGE_AUTO_MAX } from './stores/chat.js'
 import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import MyAgent from './MyAgent.vue'
 import ServerPanel from './ServerPanel.vue'
+import PdfPages from './PdfPages.vue'
 import { renderMarkdown } from './markdown.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -1216,7 +1217,7 @@ const statusText = computed(() => {
             </button>
           </div>
         </div>
-        <iframe class="doc-frame" :src="chat.fileUrl(docView.f)" :title="docView.f.name"></iframe>
+        <PdfPages :key="docView.f.id" :src="chat.fileUrl(docView.f)" :name="docView.f.name" />
       </template>
       <ServiceSide v-else-if="openService" :service="openService" @close="setRoutesOpen(false)" />
       <template v-else-if="activeOwnAgent">
@@ -1654,7 +1655,6 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
 .error .btn-link { margin-left: var(--space-2) }
 /* El visor de documentos en la región de la derecha. */
 .doc-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.doc-frame { flex: 1; width: 100%; min-height: 0; border: 0; background: var(--muted) }
 .attach-list { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2) }
 .attach-chip { display: flex; align-items: center; gap: var(--space-2); max-width: 280px; padding: 2px 4px 2px 10px;
   border: 1px solid var(--border); border-radius: 999px }
