@@ -26,6 +26,7 @@
 
 import AppKit
 import ApplicationServices
+import Vision
 
 func arg(_ name: String) -> String? {
     let a = CommandLine.arguments
@@ -72,6 +73,9 @@ func report(_ line: String) {
 struct Target: Equatable {
     var rect: CGRect
     var label: String
+    /// el elemento de Accesibilidad (nil para la ventana entera o un arrastre): de él sale el texto
+    var element: AXUIElement? = nil
+    var pid: pid_t = 0
 }
 
 /// Las ventanas de nivel protector de pantalla o más arriba son velos (el nuestro, el de otra copia de
@@ -154,7 +158,7 @@ func wakeAccessibility(_ app: AXUIElement, pid: pid_t) {
 /// que está encima de todo; un elemento de aplicación limita la búsqueda a esa app.
 func chainUnder(_ p: CGPoint) -> [Target] {
     guard let win = windowUnder(p) else { return [] }
-    let windowTarget = Target(rect: win.rect, label: win.label)
+    let windowTarget = Target(rect: win.rect, label: win.label, pid: win.pid)
     guard AXIsProcessTrusted() else { return [windowTarget] }
     let app = AXUIElementCreateApplication(win.pid)
     AXUIElementSetMessagingTimeout(app, 0.15) // una app colgada no congela el velo
@@ -171,7 +175,7 @@ func chainUnder(_ p: CGPoint) -> [Target] {
         // y la rueda tiene que agrandar siempre
         if let r = axFrame(el)?.intersection(win.rect), !r.isNull, r.width >= 4, r.height >= 4,
            chain.last?.rect != r, chain.last.map({ r.insetBy(dx: -1, dy: -1).contains($0.rect) }) ?? true {
-            chain.append(Target(rect: r, label: axLabel(el)))
+            chain.append(Target(rect: r, label: axLabel(el), element: el, pid: win.pid))
         }
         if (axAttr(el, kAXRoleAttribute) as? String) == kAXWindowRole { break }
         guard let parent = axAttr(el, kAXParentAttribute) else { break }
@@ -210,6 +214,11 @@ final class Picker {
     var selected: CGRect?
     var mouse = CGPoint.zero
     enum ToolbarButton { case copy, close }
+    enum Mode { case capture, spell }
+    var mode = Mode.capture
+    /// lo elegido con su elemento (el modo ortografía lee el texto de ahí)
+    var selectedTarget: Target?
+    var onSpell: ((Target) -> Void)?
     var pressing: ToolbarButton?
     var onCopy: ((CGRect) -> Void)?
     var onCancel: (() -> Void)?
@@ -231,7 +240,7 @@ final class Picker {
     /// entra en la pantalla, adentro del área, abajo a la derecha.
     var toolbar: CGRect? {
         guard let s = selected, dragging == nil else { return nil }
-        let size = CGSize(width: 140, height: 34)
+        let size = CGSize(width: mode == .spell ? 214 : 140, height: 34)
         let screen = screenRectsTL.first { $0.intersects(s) } ?? screenRectsTL[0]
         var r = CGRect(x: s.maxX - size.width, y: s.maxY + 8, width: size.width, height: size.height)
         if r.maxY > screen.maxY - 4 { r.origin.y = s.maxY - size.height - 8 }
@@ -239,7 +248,7 @@ final class Picker {
         r.origin.y = max(screen.minY + 8, r.origin.y)
         return r
     }
-    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: 100, height: $0.height - 8) } }
+    var copyButton: CGRect? { toolbar.map { CGRect(x: $0.minX + 4, y: $0.minY + 4, width: $0.width - 40, height: $0.height - 8) } }
     var closeButton: CGRect? { toolbar.map { CGRect(x: $0.maxX - 32, y: $0.minY + 4, width: 28, height: $0.height - 8) } }
     func button(at p: CGPoint) -> ToolbarButton? {
         if copyButton?.contains(p) == true { return .copy }
@@ -290,7 +299,7 @@ final class Picker {
         if let s = selected {
             // con un área elegida: un clic FUERA cancela la captura; adentro, empieza otra selección
             guard s.contains(p) else { dlog("clic fuera del área: cancelo"); onCancel?(); return }
-            dlog("selección descartada"); selected = nil; lastProbeAt = .distantPast
+            dlog("selección descartada"); selected = nil; selectedTarget = nil; lastProbeAt = .distantPast
         }
         dragging = (p, p)
         redraw()
@@ -302,7 +311,7 @@ final class Picker {
             pressing = nil
             // se dispara sólo si se suelta sobre el MISMO botón, como un botón de verdad
             switch (b, button(at: p), selected) {
-            case (.copy, .copy, let s?): dlog("copiar \(s)"); onCopy?(s)
+            case (.copy, .copy, let s?): primary(s)
             case (.close, .close, _): dlog("cerrar (X)"); onCancel?()
             default: redraw()
             }
@@ -313,15 +322,21 @@ final class Picker {
         let moved = hypot(p.x - d.start.x, p.y - d.start.y)
         if moved >= 4 {
             let r = CGRect(x: min(d.start.x, p.x), y: min(d.start.y, p.y), width: abs(d.start.x - p.x), height: abs(d.start.y - p.y))
-            if r.width >= 3, r.height >= 3 { selected = r }
+            if r.width >= 3, r.height >= 3 { selected = r; selectedTarget = Target(rect: r, label: "", pid: hovered?.pid ?? 0) }
         } else if let h = hovered {
             selected = h.rect
+            selectedTarget = h
         }
         if let s = selected { dlog("seleccionado \(s)") }
         redraw()
     }
 
-    func copySelected() { if let s = selected { dlog("copiar (teclado) \(s)"); onCopy?(s) } }
+    func copySelected() { if let s = selected { primary(s) } }
+    /// el botón principal de la barra: Copiar, o Corregir ortografía en ese modo
+    func primary(_ s: CGRect) {
+        if mode == .spell { dlog("ortografía \(s)"); onSpell?(selectedTarget ?? Target(rect: s, label: "")) }
+        else { dlog("copiar \(s)"); onCopy?(s) }
+    }
 }
 
 final class SelectionView: NSView {
@@ -359,6 +374,10 @@ final class SelectionView: NSView {
     static let closeIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 12, weight: .semibold)
         return NSImage(systemSymbolName: "xmark", accessibilityDescription: "Cerrar")?.withSymbolConfiguration(cfg)
+    }()
+    static let spellIcon: NSImage? = {
+        let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
+        return NSImage(systemSymbolName: "textformat.abc", accessibilityDescription: "Ortografía")?.withSymbolConfiguration(cfg)
     }()
     static let copyIcon: NSImage? = {
         let cfg = NSImage.SymbolConfiguration(pointSize: 13, weight: .medium)
@@ -416,11 +435,12 @@ final class SelectionView: NSView {
         NSRect(x: close.minX - 4, y: r.minY + 8, width: 1, height: r.height - 16).fill()
 
         let attrs: [NSAttributedString.Key: Any] = [.font: NSFont.systemFont(ofSize: 13, weight: .medium), .foregroundColor: NSColor.white]
-        let text = "Copiar" as NSString
+        let spell = picker.mode == .spell
+        let text = (spell ? "Corregir ortografía" : "Copiar") as NSString
         let ts = text.size(withAttributes: attrs)
         let iconSize = NSSize(width: 16, height: 16)
         var x = copy.midX - (iconSize.width + 6 + ts.width) / 2
-        SelectionView.white(SelectionView.copyIcon)?.draw(in: NSRect(x: x, y: copy.midY - iconSize.height / 2, width: iconSize.width, height: iconSize.height))
+        SelectionView.white(spell ? SelectionView.spellIcon : SelectionView.copyIcon)?.draw(in: NSRect(x: x, y: copy.midY - iconSize.height / 2, width: iconSize.width, height: iconSize.height))
         x += iconSize.width + 6
         text.draw(at: NSPoint(x: x, y: copy.midY - ts.height / 2), withAttributes: attrs)
         let xs = NSSize(width: 12, height: 12)
@@ -434,6 +454,401 @@ final class SelectionView: NSView {
             icon.draw(in: rect); NSColor.white.set(); rect.fill(using: .sourceAtop); return true
         }
     }
+}
+
+// ── ortografía ────────────────────────────────────────────────────────────────────────────────────
+
+/// Dónde se guardan los errores para practicarlos: una línea JSON por error (--spell-log).
+let spellLog = arg("--spell-log") ?? (NSHomeDirectory() + "/Library/Application Support/Captura/errores.jsonl")
+let spellLanguage = "es"
+/// El modelo que revisa: el más barato de los que acepta Claude Code (--spell-model para otro).
+let spellModel = arg("--spell-model") ?? "haiku"
+
+/// El texto de un elemento: su valor si lo tiene; si no, el de sus hijos (un párrafo de Electron es un
+/// grupo de textos sueltos). Con tope de profundidad y largo: una ventana entera puede tener miles. La
+/// profundidad es honda a propósito: en una página web el texto queda a 15-25 niveles del recuadro.
+func axText(_ el: AXUIElement, depth: Int = 0, budget: inout Int) -> String {
+    guard depth <= 30, budget > 0 else { return "" }
+    if let v = axAttr(el, kAXValueAttribute) as? String, !v.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        budget -= v.count; return v
+    }
+    let role = axAttr(el, kAXRoleAttribute) as? String
+    if role == kAXStaticTextRole as String || role == kAXButtonRole as String || role == "AXLink",
+       let t = (axAttr(el, kAXTitleAttribute) as? String) ?? (axAttr(el, kAXDescriptionAttribute) as? String), !t.isEmpty {
+        budget -= t.count; return t
+    }
+    guard let kids = axAttr(el, kAXChildrenAttribute) as? [AXUIElement] else { return "" }
+    var parts: [String] = []
+    for k in kids where budget > 0 {
+        let t = axText(k, depth: depth + 1, budget: &budget)
+        if !t.isEmpty { parts.append(t) }
+    }
+    return parts.joined(separator: " ")
+}
+
+struct Misspelling {
+    var range: NSRange
+    var word: String
+    var guesses: [String]   // la primera es la elegida por defecto
+    var context: String
+    var rule: String?       // la explicación del modelo, si la dio
+}
+
+func contextAround(_ ns: NSString, _ r: NSRange) -> String {
+    let a = max(0, r.location - 50), b = min(ns.length, r.location + r.length + 50)
+    var ctx = ns.substring(with: NSRange(location: a, length: b - a)).replacingOccurrences(of: "\n", with: " ")
+    if a > 0 { ctx = "…" + ctx }
+    if b < ns.length { ctx += "…" }
+    return ctx
+}
+
+/// El texto de un recuadro de la pantalla, leído de una foto con Vision. Para lo que Accesibilidad no
+/// expone (el editor de VS Code o Antigravity, imágenes, muchas páginas: medido el 2026-11-10, el editor de
+/// Antigravity dio «AXGroup, 1 hijo, 0 textos»). La corrección de idioma va APAGADA: si no, el reconocedor
+/// arregla justo los errores que se buscan. Corre fuera del hilo principal.
+func ocrText(_ r: CGRect) -> String {
+    let file = (NSTemporaryDirectory() as NSString).appendingPathComponent("captura-ocr-\(UUID().uuidString).png")
+    defer { try? FileManager.default.removeItem(atPath: file) }
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+    p.arguments = ["-x", "-t", "png", "-R", "\(Int(r.minX)),\(Int(r.minY)),\(Int(r.width)),\(Int(r.height))", file]
+    guard (try? p.run()) != nil else { return "" }
+    p.waitUntilExit()
+    guard let img = NSImage(contentsOfFile: file), let cg = img.cgImage(forProposedRect: nil, context: nil, hints: nil) else { return "" }
+    let req = VNRecognizeTextRequest()
+    req.recognitionLevel = .accurate
+    req.usesLanguageCorrection = false
+    req.recognitionLanguages = ["es-ES", "en-US"]
+    try? VNImageRequestHandler(cgImage: cg).perform([req])
+    let lines = (req.results ?? []).compactMap { $0.topCandidates(1).first?.string }
+    return lines.joined(separator: "\n")
+}
+
+/// Las sugerencias del diccionario de macOS para una palabra (también se suman a las del modelo).
+func dictionaryGuesses(_ text: String, _ r: NSRange, tag: Int) -> [String] {
+    NSSpellChecker.shared.guesses(forWordRange: r, in: text, language: spellLanguage, inSpellDocumentWithTag: tag) ?? []
+}
+
+/// El respaldo: sólo el diccionario de macOS (no entiende contexto: «vamos ha revisar» no lo marca).
+func dictionaryMisspellings(_ text: String) -> [Misspelling] {
+    let sc = NSSpellChecker.shared
+    let tag = NSSpellChecker.uniqueSpellDocumentTag()
+    defer { sc.closeSpellDocument(withTag: tag) }
+    let ns = text as NSString
+    var out: [Misspelling] = []
+    var start = 0
+    while start < ns.length, out.count < 200 {
+        let r = sc.checkSpelling(of: text, startingAt: start, language: spellLanguage, wrap: false, inSpellDocumentWithTag: tag, wordCount: nil)
+        if r.location == NSNotFound || r.length == 0 { break }
+        out.append(Misspelling(range: r, word: ns.substring(with: r), guesses: Array(dictionaryGuesses(text, r, tag: tag).prefix(6)),
+                               context: contextAround(ns, r)))
+        start = r.location + r.length
+    }
+    return out
+}
+
+/// `claude` en esta máquina: los mismos lugares que mira el chat (chat/server/servers.go, lookTool).
+func claudePath() -> String? {
+    let home = NSHomeDirectory()
+    return ["/opt/homebrew/bin", "/usr/local/bin", home + "/.local/bin", home + "/.claude/local"]
+        .map { $0 + "/claude" }.first { FileManager.default.isExecutableFile(atPath: $0) }
+}
+
+let spellPrompt = """
+Sos un corrector de ortografía del español. Revisá SOLO ortografía: tildes, letras cambiadas, palabras mal \
+escritas y homófonos mal usados (ha/a, haber/a ver, hay/ahí/ay, echo/hecho…). No estilo, no puntuación, no \
+gramática. No marques nombres propios, marcas, términos técnicos, código ni palabras en otro idioma. \
+Devolvé SOLO un JSON, sin texto alrededor ni bloque de código: \
+{"errors":[{"word":"<la palabra tal cual aparece>","correction":"<la correcta>","rule":"<la regla en pocas palabras>"}]}. \
+Si no hay errores: {"errors":[]}.
+
+TEXTO:
+
+"""
+
+/// Revisa con Claude Code (`claude -p`), como el chat (chat/server/workday.go, claudeAsk): sin
+/// herramientas, sin MCP, sin ajustes de usuario ni de proyecto, en una carpeta vacía y sin guardar la
+/// sesión. ⚠ Gasta el límite del asiento del plan, como usar Claude Code. Devuelve nil si no pudo
+/// (no está claude, falló, tardó más de 60 s o no devolvió un JSON que se entienda) y el porqué.
+func modelMisspellings(_ text: String) -> (found: [Misspelling]?, why: String) {
+    guard let path = claudePath() else { return (nil, "no está `claude` (Claude Code) en esta máquina") }
+    let dir = (NSTemporaryDirectory() as NSString).appendingPathComponent("captura-spell-\(UUID().uuidString)")
+    try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(atPath: dir) }
+    let p = Process()
+    p.executableURL = URL(fileURLWithPath: path)
+    p.arguments = ["-p", "--model", spellModel, "--output-format", "text", "--tools", "", "--strict-mcp-config",
+                   "--restricted", "--no-session-persistence"]
+    p.currentDirectoryURL = URL(fileURLWithPath: dir)
+    // abierta con `open`, la app hereda un PATH mínimo: se le suman los lugares de siempre
+    var env = ProcessInfo.processInfo.environment
+    let home = NSHomeDirectory()
+    env["PATH"] = ["/opt/homebrew/bin", "/usr/local/bin", home + "/.local/bin", "/usr/bin", "/bin", "/usr/sbin", "/sbin", env["PATH"] ?? ""].joined(separator: ":")
+    p.environment = env
+    let input = Pipe(), output = Pipe(), errors = Pipe()
+    p.standardInput = input; p.standardOutput = output; p.standardError = errors
+    do { try p.run() } catch { return (nil, "no corrió claude: \(error.localizedDescription)") }
+    input.fileHandleForWriting.write((spellPrompt + String(text.prefix(4000))).data(using: .utf8)!)
+    input.fileHandleForWriting.closeFile()
+    let timer = DispatchWorkItem { if p.isRunning { p.terminate() } }
+    DispatchQueue.global().asyncAfter(deadline: .now() + 60, execute: timer)
+    let data = output.fileHandleForReading.readDataToEndOfFile()
+    p.waitUntilExit()
+    timer.cancel()
+    var raw = String(data: data, encoding: .utf8) ?? ""
+    guard p.terminationStatus == 0 else {
+        let e = String(data: errors.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        return (nil, "claude falló (\(p.terminationStatus)): \(String((e + raw).trimmingCharacters(in: .whitespacesAndNewlines).prefix(200)))")
+    }
+    // a veces lo envuelve en ```json … ``` aunque se le pida que no: se toma del primer { al último }
+    if let a = raw.firstIndex(of: "{"), let b = raw.lastIndex(of: "}") { raw = String(raw[a...b]) }
+    guard let obj = try? JSONSerialization.jsonObject(with: Data(raw.utf8)) as? [String: Any],
+          let errs = obj["errors"] as? [[String: Any]] else { return (nil, "claude no devolvió el JSON esperado") }
+
+    let ns = text as NSString
+    let tag = NSSpellChecker.uniqueSpellDocumentTag()
+    defer { NSSpellChecker.shared.closeSpellDocument(withTag: tag) }
+    var out: [Misspelling] = []
+    var from = 0
+    for e in errs {
+        guard let word = e["word"] as? String, !word.isEmpty else { continue }
+        // la palabra entera (no un pedazo de otra), primero desde donde quedó la anterior y si no desde el inicio
+        func find(_ start: Int) -> NSRange? {
+            var s = start
+            while s < ns.length {
+                let r = ns.range(of: word, options: [], range: NSRange(location: s, length: ns.length - s))
+                if r.location == NSNotFound { return nil }
+                let before = r.location > 0 ? ns.substring(with: NSRange(location: r.location - 1, length: 1)) : " "
+                let after = r.location + r.length < ns.length ? ns.substring(with: NSRange(location: r.location + r.length, length: 1)) : " "
+                if before.rangeOfCharacter(from: .letters) == nil, after.rangeOfCharacter(from: .letters) == nil { return r }
+                s = r.location + 1
+            }
+            return nil
+        }
+        guard let r = find(from) ?? find(0), !out.contains(where: { $0.range == r }) else { continue }
+        from = r.location + r.length
+        var guesses: [String] = []
+        if let c = e["correction"] as? String, !c.isEmpty, c != word { guesses.append(c) }
+        for g in dictionaryGuesses(text, r, tag: tag) where !guesses.contains(g) { guesses.append(g) }
+        out.append(Misspelling(range: r, word: word, guesses: Array(guesses.prefix(6)), context: contextAround(ns, r),
+                               rule: (e["rule"] as? String).flatMap { $0.isEmpty ? nil : $0 }))
+    }
+    out.sort { $0.range.location < $1.range.location }
+    return (out, "ok")
+}
+
+/// La ventana con los errores: cada uno con su casilla (marcada = es un error de verdad, se guarda) y un
+/// desplegable con las sugerencias. «Guardar y copiar corregido» guarda los marcados y deja en el
+/// portapapeles el texto con las correcciones elegidas. No se reemplaza nada en la otra app.
+final class SpellWindow: NSObject, NSWindowDelegate {
+    let window: NSPanel
+    let text: String
+    let app: String
+    var found: [Misspelling] = []
+    var source = ""
+    var checks: [NSButton] = []
+    var popups: [NSPopUpButton] = []
+    var onDone: ((String) -> Void)?
+    let near: CGRect
+    static let keep = "— dejar igual —"
+
+    init(text: String, app: String, near: CGRect) {
+        self.text = text; self.app = app; self.near = near
+        window = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 600, height: 120),
+                         styleMask: [.titled, .closable, .utilityWindow], backing: .buffered, defer: false)
+        super.init()
+        window.title = "Ortografía · \(app)"
+        window.level = .floating
+        window.isReleasedWhenClosed = false
+        // un NSPanel se esconde cuando la app pierde el foco: mientras el modelo revisa, uno sigue en otra
+        // app y la ventana desaparecía (medido el 2026-11-10: lista lista a los 8 s y sin ventana en la foto)
+        window.hidesOnDeactivate = false
+        window.delegate = self
+    }
+
+    func label(_ s: String, size: CGFloat = 13, weight: NSFont.Weight = .regular, color: NSColor = .labelColor) -> NSTextField {
+        let l = NSTextField(labelWithString: s)
+        l.font = .systemFont(ofSize: size, weight: weight)
+        l.textColor = color
+        l.lineBreakMode = .byTruncatingTail
+        return l
+    }
+
+    /// Primero «Revisando…»; el modelo trabaja en segundo plano y la ventana se rearma con lo que dé.
+    func start() {
+        let spinner = NSProgressIndicator()
+        spinner.style = .spinning
+        spinner.controlSize = .small
+        spinner.startAnimation(nil)
+        let row = NSStackView(views: [spinner, label("Revisando \(text.count) caracteres con \(spellModel)…", weight: .medium)])
+        row.orientation = .horizontal
+        row.spacing = 8
+        let cancel = NSButton(title: "Cancelar", target: self, action: #selector(onCancel))
+        cancel.keyEquivalent = "\u{1b}"
+        layout([row, bar([cancel])])
+        show()
+        let text = self.text
+        DispatchQueue.global(qos: .userInitiated).async {
+            let t0 = Date()
+            let (model, why) = modelMisspellings(text)
+            let found = model ?? dictionaryMisspellings(text)
+            let source = model != nil ? spellModel : "el diccionario de macOS (\(why))"
+            dlog(String(format: "ortografía: %d errores con %@ en %.1f s", found.count, source, Date().timeIntervalSince(t0)))
+            DispatchQueue.main.async {
+                guard !self.closed else { return }
+                self.found = found; self.source = source
+                self.buildResults()
+            }
+        }
+    }
+
+    func bar(_ buttons: [NSButton]) -> NSStackView {
+        let b = NSStackView(views: [NSView()] + buttons)
+        b.orientation = .horizontal
+        b.spacing = 8
+        return b
+    }
+
+    func layout(_ views: [NSView]) {
+        let root = NSStackView(views: views)
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 10
+        root.edgeInsets = NSEdgeInsets(top: 14, left: 16, bottom: 14, right: 16)
+        root.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView()
+        content.addSubview(root)
+        NSLayoutConstraint.activate([
+            root.leadingAnchor.constraint(equalTo: content.leadingAnchor), root.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            root.topAnchor.constraint(equalTo: content.topAnchor), root.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            root.widthAnchor.constraint(equalToConstant: 600),
+        ])
+        if let last = views.last { last.widthAnchor.constraint(equalTo: root.widthAnchor, constant: -32).isActive = true }
+        window.contentView = content
+        window.setContentSize(content.fittingSize)
+        place()
+    }
+
+    func buildResults() {
+        checks = []; popups = []
+        var views: [NSView] = []
+        let cancel = NSButton(title: found.isEmpty ? "Cerrar" : "Cancelar", target: self, action: #selector(onCancel))
+        cancel.keyEquivalent = "\u{1b}"
+        if found.isEmpty {
+            views.append(label("Sin errores de ortografía en el texto elegido.", weight: .medium))
+            views.append(label("\(text.count) caracteres revisados con \(source).", size: 11, color: .secondaryLabelColor))
+            views.append(bar([cancel]))
+            layout(views)
+            return
+        }
+        views.append(label("\(found.count) error\(found.count == 1 ? "" : "es") · revisado con \(source)", weight: .semibold))
+        views.append(label("Desmarcá lo que no sea un error. Lo marcado se guarda para practicar.", size: 11, color: .secondaryLabelColor))
+        let rows = NSStackView()
+        rows.orientation = .vertical
+        rows.alignment = .leading
+        rows.spacing = 10
+        for m in found {
+            let check = NSButton(checkboxWithTitle: m.word, target: nil, action: nil)
+            // con el modelo, todo lo que marcó es un error; con el diccionario, sin sugerencias suele ser un nombre
+            check.state = (m.rule != nil || !m.guesses.isEmpty) ? .on : .off
+            check.font = .systemFont(ofSize: 13, weight: .medium)
+            check.widthAnchor.constraint(equalToConstant: 140).isActive = true
+            let pop = NSPopUpButton(frame: .zero, pullsDown: false)
+            pop.addItems(withTitles: m.guesses + [SpellWindow.keep])
+            pop.widthAnchor.constraint(equalToConstant: 160).isActive = true
+            let line1 = NSStackView(views: [check, label("→", color: .secondaryLabelColor), pop])
+            line1.orientation = .horizontal
+            line1.spacing = 8
+            var detail = m.context
+            if let r = m.rule { detail = "según \(spellModel): \(r)  ·  \(m.context)" }
+            let ctx = label(detail, size: 11, color: .secondaryLabelColor)
+            ctx.toolTip = detail
+            ctx.widthAnchor.constraint(lessThanOrEqualToConstant: 560).isActive = true
+            let cell = NSStackView(views: [line1, ctx])
+            cell.orientation = .vertical
+            cell.alignment = .leading
+            cell.spacing = 2
+            rows.addArrangedSubview(cell)
+            checks.append(check); popups.append(pop)
+        }
+        let scroll = NSScrollView()
+        scroll.hasVerticalScroller = true
+        scroll.drawsBackground = false
+        scroll.documentView = rows
+        rows.translatesAutoresizingMaskIntoConstraints = false
+        NSLayoutConstraint.activate([
+            rows.leadingAnchor.constraint(equalTo: scroll.contentView.leadingAnchor),
+            rows.topAnchor.constraint(equalTo: scroll.contentView.topAnchor),
+            rows.widthAnchor.constraint(equalTo: scroll.contentView.widthAnchor),
+            scroll.widthAnchor.constraint(equalToConstant: 568),
+            scroll.heightAnchor.constraint(equalToConstant: min(CGFloat(found.count) * 50 + 4, 340)),
+        ])
+        views.append(scroll)
+        let save = NSButton(title: "Guardar y copiar corregido", target: self, action: #selector(onSave))
+        save.keyEquivalent = "\r"
+        views.append(bar([cancel, save]))
+        layout(views)
+    }
+
+    /// Debajo de lo elegido (o arriba si no entra), sin salirse de la pantalla.
+    func place() {
+        let cocoa = NSRect(x: near.minX, y: mainHeight - near.maxY, width: near.width, height: near.height)
+        let screen = NSScreen.screens.first { $0.frame.intersects(cocoa) } ?? NSScreen.screens[0]
+        let vf = screen.visibleFrame
+        let size = window.frame.size
+        var origin = NSPoint(x: cocoa.midX - size.width / 2, y: cocoa.minY - size.height - 12)
+        if origin.y < vf.minY + 8 { origin.y = cocoa.maxY + 12 }
+        origin.x = max(vf.minX + 8, min(origin.x, vf.maxX - size.width - 8))
+        origin.y = max(vf.minY + 8, min(origin.y, vf.maxY - size.height - 8))
+        window.setFrameOrigin(origin)
+    }
+
+    func show() {
+        NSApp.activate(ignoringOtherApps: true)
+        window.makeKeyAndOrderFront(nil)
+    }
+
+    @objc func onCancel() { close("cancel") }
+
+    @objc func onSave() {
+        var corrected = text as NSString
+        var saved = 0
+        let iso = ISO8601DateFormatter()
+        var lines = ""
+        // de atrás hacia adelante: reemplazar no corre los rangos de los que faltan
+        for (i, m) in found.enumerated().reversed() {
+            let choice = popups[i].titleOfSelectedItem ?? SpellWindow.keep
+            guard checks[i].state == .on else { continue }
+            if choice != SpellWindow.keep { corrected = corrected.replacingCharacters(in: m.range, with: choice) as NSString }
+            var entry: [String: Any] = ["at": iso.string(from: Date()), "word": m.word,
+                                        "correction": choice == SpellWindow.keep ? NSNull() : choice,
+                                        "suggestions": m.guesses, "context": m.context, "app": app,
+                                        "language": spellLanguage, "source": source]
+            if let r = m.rule { entry["rule"] = r }
+            if let d = try? JSONSerialization.data(withJSONObject: entry, options: [.sortedKeys]), let l = String(data: d, encoding: .utf8) {
+                lines = l + "\n" + lines; saved += 1
+            }
+        }
+        if saved > 0 {
+            let dir = (spellLog as NSString).deletingLastPathComponent
+            try? FileManager.default.createDirectory(atPath: dir, withIntermediateDirectories: true)
+            if let h = FileHandle(forWritingAtPath: spellLog) { h.seekToEndOfFile(); h.write(lines.data(using: .utf8)!); h.closeFile() }
+            else { try? lines.write(toFile: spellLog, atomically: true, encoding: .utf8) }
+        }
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(corrected as String, forType: .string)
+        dlog("ortografía: \(saved) guardados en \(spellLog)")
+        close("ok spell \(saved) \(spellLog)")
+    }
+
+    var closed = false
+    func close(_ result: String) {
+        guard !closed else { return }
+        closed = true
+        window.orderOut(nil)
+        onDone?(result)
+    }
+    func windowWillClose(_ n: Notification) { close("cancel") }
 }
 
 // ── el panel flotante ─────────────────────────────────────────────────────────────────────────────
@@ -492,6 +907,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var tick: Timer?
     var panel: FloatingPanel?
     var selecting = false
+    var spellWindow: SpellWindow?
 
     func applicationDidFinishLaunching(_ n: Notification) {
         // Una sola copia: Ctrl-C sobre `make captura` corta el `open`, no la app, y el 2026-11-10 se
@@ -512,6 +928,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         picker.onCopy = { [weak self] r in self?.capture(r) }
         picker.onCancel = { [weak self] in self?.endSelection(code: 1, result: "cancel") }
+        picker.onSpell = { [weak self] t in self?.spell(t) }
         if let parent = watchPID {
             Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
                 // kill(pid, 0) no manda nada: sólo pregunta si existe
@@ -522,8 +939,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             try? "\(ownPID)\n".write(toFile: panelPIDFile, atomically: true, encoding: .utf8)
             showPanel()
             if debugDir != nil { startPanelDebug() }
+        } else if let t = arg("--spell-text") {
+            // prueba de la ventana de ortografía sin señalar nada: el texto va por argumento
+            let m = NSScreen.screens[0].frame
+            windows = [OverlayWindow()] // spell() no corre: openSpellWindow directo
+            openSpellWindow(text: t, app: "prueba", near: CGRect(x: m.midX - 100, y: m.midY - 150, width: 200, height: 20))
+            if let d = debugDir {
+                try? FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
+                for (i, at) in [4.0, 9, 14].enumerated() {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + at) {
+                        let p = Process()
+                        p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                        p.arguments = ["-x", "-t", "jpg", (d as NSString).appendingPathComponent("foto_\(i + 1).jpg")]
+                        try? p.run()
+                    }
+                }
+                // --spell-autosave aprieta «Guardar y copiar corregido» sola, para probar el archivo y el portapapeles
+                let autosave = CommandLine.arguments.contains("--spell-autosave")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 15) { autosave ? self.spellWindow?.onSave() : self.spellWindow?.close("cancel") }
+            }
         } else {
-            startSelection()
+            startSelection(mode: CommandLine.arguments.contains("--spell") ? .spell : .capture)
         }
     }
 
@@ -553,6 +989,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             let stack = NSStackView(views: [
                 GripView(),
                 makePanelButton(symbol: "camera.viewfinder", tip: "Capturar (señalar o arrastrar)", target: self, action: #selector(onCaptureButton)),
+                makePanelButton(symbol: "textformat.abc", tip: "Ortografía: señalá un texto y revisalo", target: self, action: #selector(onSpellButton)),
                 makePanelButton(symbol: "folder", tip: "Abrir la carpeta de capturas", target: self, action: #selector(onFolderButton)),
                 makePanelButton(symbol: "xmark", tip: "Cerrar el panel", target: self, action: #selector(onQuitButton)),
             ])
@@ -583,6 +1020,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         panel?.orderOut(nil) // que el panel no salga en la foto ni tape lo que se quiere señalar
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { self.startSelection() }
     }
+    @objc func onSpellButton() {
+        guard !selecting else { return }
+        dlog("panel: ortografía")
+        panel?.orderOut(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { self.startSelection(mode: .spell) }
+    }
     @objc func onFolderButton() {
         try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
         NSWorkspace.shared.open(URL(fileURLWithPath: outDir))
@@ -596,9 +1039,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // ── el selector ──
 
-    func startSelection() {
+    func startSelection(mode: Picker.Mode = .capture) {
         selecting = true
-        picker.chain = []; picker.level = 0; picker.selected = nil; picker.dragging = nil; picker.pressing = nil
+        picker.mode = mode
+        picker.chain = []; picker.level = 0; picker.selected = nil; picker.selectedTarget = nil; picker.dragging = nil; picker.pressing = nil
         picker.lastProbe = CGPoint(x: -1, y: -1); picker.lastProbeAt = .distantPast
         picker.views = []
         for screen in NSScreen.screens {
@@ -640,15 +1084,68 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     /// Fin de una selección: sin panel, la app sale; con panel, se desarma el velo y el panel vuelve.
     func endSelection(code: Int32, result: String) {
+        teardownOverlay()
         guard panelMode else { report(result); finish(code: code); return }
         dlog("panel: fin de la selección (\(result))")
+        selecting = false
+        NSCursor.arrow.set()
+        showPanel()
+    }
+
+    /// Saca el velo sin terminar la selección (la ortografía sigue en su ventana).
+    func teardownOverlay() {
         tick?.invalidate(); tick = nil
         windows.forEach { $0.orderOut(nil); $0.close() }
         windows = []
         picker.views = []
-        selecting = false
-        NSCursor.arrow.set()
-        showPanel()
+    }
+
+    /// Lee el texto de lo elegido y abre la ventana de ortografía.
+    func spell(_ t: Target) {
+        // una revisión por vez: un clic y Enter (o el debug) seguidos abrían dos ventanas y dos llamadas
+        guard spellWindow == nil, !windows.isEmpty else { return }
+        teardownOverlay()
+        var budget = 6000
+        let text = t.element.map { axText($0, budget: &budget) }?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let app = NSRunningApplication(processIdentifier: t.pid)?.localizedName ?? "app"
+        dlog("ortografía: \(text.count) caracteres de \(app) en \(t.rect): «\(text.prefix(80))»")
+        if debugDir != nil, let el = t.element {
+            var maxDepth = 0, texts = 0, nodes = 0
+            func walk(_ e: AXUIElement, _ d: Int) {
+                nodes += 1; maxDepth = max(maxDepth, d)
+                if let v = axAttr(e, kAXValueAttribute) as? String, !v.isEmpty { texts += 1 }
+                if d < 40, nodes < 3000, let kids = axAttr(e, kAXChildrenAttribute) as? [AXUIElement] { kids.forEach { walk($0, d + 1) } }
+            }
+            walk(el, 0)
+            dlog("ortografía: rol=\(axAttr(el, kAXRoleAttribute) as? String ?? "?") hijos=\((axAttr(el, kAXChildrenAttribute) as? [AXUIElement])?.count ?? -1) nodos=\(nodes) profundidad=\(maxDepth) con texto=\(texts)")
+        }
+        if !text.isEmpty { openSpellWindow(text: text, app: app, near: t.rect); return }
+        // sin texto por Accesibilidad: se lee de la pantalla, después de que el compositor saque el velo
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+            DispatchQueue.global(qos: .userInitiated).async {
+                let t0 = Date()
+                let read = ocrText(t.rect).trimmingCharacters(in: .whitespacesAndNewlines)
+                dlog(String(format: "ortografía: leído de la pantalla en %.1f s, %d caracteres: «%@»", Date().timeIntervalSince(t0), read.count, String(read.prefix(80))))
+                DispatchQueue.main.async {
+                    guard !read.isEmpty else {
+                        NSSound.beep()
+                        self.endSelection(code: 2, result: "error no encontré texto en lo elegido, ni por Accesibilidad ni leyéndolo de la pantalla")
+                        return
+                    }
+                    self.openSpellWindow(text: read, app: app + " · leído de la pantalla", near: t.rect)
+                }
+            }
+        }
+    }
+
+    func openSpellWindow(text: String, app: String, near: CGRect) {
+        let w = SpellWindow(text: text, app: app, near: near)
+        w.onDone = { [weak self] r in
+            self?.spellWindow = nil
+            self?.endSelection(code: r.hasPrefix("ok") ? 0 : 1, result: r)
+        }
+        spellWindow = w
+        w.start()
     }
 
     func startPanelDebug() {
@@ -693,11 +1190,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // a los 2,5 s elige sola lo señalado, para que las fotos muestren también la barra con Copiar
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             if self.picker.selected == nil, let h = self.picker.hovered {
-                self.picker.selected = h.rect; self.picker.redraw(); dlog("debug: elijo lo señalado \(h.rect) · barra \(self.picker.toolbar.map { "\($0)" } ?? "-")")
+                self.picker.selected = h.rect; self.picker.selectedTarget = h; self.picker.redraw(); dlog("debug: elijo lo señalado \(h.rect) · barra \(self.picker.toolbar.map { "\($0)" } ?? "-")")
             }
         }
-        for i in 1...7 {
-            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
+        let spellRun = picker.mode == .spell
+        if spellRun {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { if let s = self.picker.selected { self.picker.primary(s) } }
+        }
+        let shots: [Double] = spellRun ? [1, 2.5, 5, 9, 13, 17, 21] : [1, 2, 3, 4, 5, 6, 7]
+        for (n, at) in shots.enumerated() {
+            let i = n + 1
+            DispatchQueue.main.asyncAfter(deadline: .now() + at) {
                 let m = NSEvent.mouseLocation
                 dlog("foto \(i): mouse cocoa=(\(Int(m.x)),\(Int(m.y))) · señalado=\(self.picker.hovered.map { "\($0.rect) \($0.label)" } ?? "nada") · niveles=\(self.picker.chain.count) · activa=\(NSApp.isActive)")
                 let p = Process()
@@ -706,7 +1209,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? p.run() // sin esperar: el velo tiene que seguir respondiendo mientras tanto
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.5) { self.endSelection(code: 1, result: "cancel") }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (spellRun ? 22.5 : 8.5)) {
+            self.spellWindow?.close("cancel")
+            if self.selecting || !panelMode { self.endSelection(code: 1, result: "cancel") }
+        }
     }
 
     /// r en top-left global, que es lo que espera screencapture -R
