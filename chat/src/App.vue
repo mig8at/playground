@@ -124,6 +124,11 @@ const consoleOpen = ref(readSize('chat.server-console-open', 1) !== 0)
 const consoleH = ref(readSize('chat.server-console-h', 240))
 /* Un servicio: sus rutas a la derecha (se cierran y se recuerdan aparte) y su historial abajo, en la consola, que es la
    misma de los servers. */
+/* FOTOS Y ARCHIVOS, por defecto en la derecha de cada conversación con una persona o un grupo (como «Archivos,
+   enlaces y documentos» de WhatsApp): agrupados por día, las fotos en grilla y debajo los documentos. Tocar uno lo abre
+   ahí mismo; «Volver» regresa a la lista. Se muestra u oculta desde la cabecera y se recuerda. */
+const mediaOpen = ref(readSize('chat.media-open', 1) !== 0)
+function setMediaOpen(v) { mediaOpen.value = v; saveSize('chat.media-open', v ? 1 : 0) }
 const routesOpen = ref(readSize('chat.service-routes-open', 1) !== 0)
 function setRoutesOpen(v) { routesOpen.value = v; saveSize('chat.service-routes-open', v ? 1 : 0) }
 const serviceHistory = computed(() => (openService.value ? historyFor(openService.value.alias) : []))
@@ -138,11 +143,13 @@ async function copyServiceUrl() {
 }
 const historyTime = (iso) => { try { return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }) } catch { return '' } }
 function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-console-open', v ? 1 : 0) }
+const mediaContext = computed(() => !!chat.active && !serverOpen.value && !activeIsAgent.value && !activeIsCanon.value && !activeIsCuadrilla.value)
 const rightOpen = computed(() => {
   if (docView.value) return true
   if (openService.value) return routesOpen.value
   if (serverOpen.value) return false
   if (activeOwnAgent.value) return ownPanelOpen.value
+  if (mediaContext.value) return mediaOpen.value
   return agentOpen.value && !chat.activeKey
 })
 // Si no entra todo, se pliega primero la derecha (tu agente) y después las conversaciones, como en VS Code.
@@ -207,8 +214,9 @@ const agentResize = {
   max: () => viewportW.value - cssSize('--editor-min', 360) - sidebarShown.value,
   get: () => agentShown.value,
   set: (v) => {
-    if (docView.value && !v) { closeDoc(); return }
+    if (docView.value && !v) { closeDoc(); if (mediaContext.value) setMediaOpen(false); return }
     if (docView.value) { if (v) agentW.value = v; return }
+    if (mediaContext.value) { setMediaOpen(!!v); if (v) agentW.value = v; return }
     if (openService.value) routesOpen.value = !!v
     else if (serverOpen.value) { /* un server no tiene región derecha */ }
     else if (activeOwnAgent.value) ownPanelOpen.value = !!v
@@ -491,6 +499,23 @@ function zoomImage() {
   const v = docView.value
   const src = v && imageSrc(v.item, v.f)
   if (src) lightbox.value = { src, name: v.f.name, item: v.item, f: v.f }
+}
+const mediaDays = computed(() => {
+  const days = []
+  for (const m of chat.active?.messages || []) {
+    for (const f of m.files || []) {
+      const d = dayOf(m.time)
+      let day = days.at(-1)
+      if (!day || day.key !== d) { day = { key: d, label: dayLabel(m.time), images: [], docs: [] }; days.push(day) }
+      ;(isImage(f) ? day.images : day.docs).push({ item: m, f })
+    }
+  }
+  return days.reverse()   // lo más nuevo arriba
+})
+const mediaCount = computed(() => mediaDays.value.reduce((n, d) => n + d.images.length + d.docs.length, 0))
+function openMedia(entry) {
+  if (isImage(entry.f)) { if (imageSrc(entry.item, entry.f)) openImage(entry.item, entry.f); return }
+  if (isPdf(entry.f) && entry.f.id) openDoc(entry.item, entry.f)
 }
 const galleryItems = computed(() => {
   const out = []
@@ -907,6 +932,11 @@ const statusText = computed(() => {
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
+            <button v-if="mediaContext" type="button" class="region-action" :aria-pressed="mediaOpen || !!docView"
+                    :title="mediaOpen ? 'Ocultar fotos y archivos' : 'Ver fotos y archivos de esta conversación'"
+                    :aria-label="mediaOpen ? 'Ocultar fotos y archivos' : 'Ver fotos y archivos'" @click="docView ? (closeDoc(), setMediaOpen(true)) : setMediaOpen(!mediaOpen)">
+              <span class="ui-icon" data-icon="image" aria-hidden="true"></span>
+            </button>
             <button type="button" class="region-action" title="Vaciar chat: borra los mensajes y la conversación queda"
                     aria-label="Vaciar chat" @click="clearActive">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -1231,10 +1261,13 @@ const statusText = computed(() => {
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : openService ? 'Rutas' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : mediaContext && !openService && !activeOwnAgent ? 'Fotos y archivos' : openService ? 'Rutas' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <template v-if="docView">
         <div class="region-head">
+          <button v-if="mediaContext && mediaOpen" type="button" class="region-action doc-back" title="Volver a fotos y archivos" aria-label="Volver a fotos y archivos" @click="closeDoc">
+            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
+          </button>
           <span class="doc-view-title" :title="docView.f.name">
             <template v-if="docView.kind === 'image' && galleryItems.length > 1">{{ galleryIndex + 1 }} de {{ galleryItems.length }} · </template>{{ docView.f.name }}
           </span>
@@ -1274,6 +1307,41 @@ const statusText = computed(() => {
         </div>
       </template>
       <ServiceSide v-else-if="openService" :service="openService" @close="setRoutesOpen(false)" />
+      <template v-else-if="mediaContext">
+        <div class="region-head">
+          <span>Fotos y archivos <small v-if="mediaCount" class="count">{{ mediaCount }}</small></span>
+          <div class="region-actions">
+            <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar fotos y archivos" @click="setMediaOpen(false)">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </div>
+        <div class="region-body media-panel">
+          <p v-if="!mediaCount" class="side-note center">Todavía no hay fotos ni archivos en esta conversación.</p>
+          <section v-for="d in mediaDays" :key="d.key" class="media-day">
+            <h4 class="media-day-label">{{ d.label }}</h4>
+            <div v-if="d.images.length" class="media-tiles">
+              <button v-for="e in d.images" :key="e.f.id || e.f.name + e.item.id" type="button" class="media-tile"
+                      :title="`${e.f.name} · ${galleryWho(e.item)}`" @click="openMedia(e)">
+                <img v-if="imageSrc(e.item, e.f)" :src="imageSrc(e.item, e.f)" :alt="e.f.name" loading="lazy">
+                <span v-else class="media-tile-wait">{{ e.f.status === 'error' ? 'no está' : 'cargando…' }}</span>
+              </button>
+            </div>
+            <ul v-if="d.docs.length" class="media-docs">
+              <li v-for="e in d.docs" :key="e.f.id || e.f.name + e.item.id" class="attachment" :class="`kind-${kindOf(e.f)}`">
+                <component :is="isPdf(e.f) && e.f.id ? 'button' : 'div'" :type="isPdf(e.f) && e.f.id ? 'button' : undefined" class="doc-card"
+                           :title="isPdf(e.f) && e.f.id ? `Ver ${e.f.name}` : e.f.name" @click="openMedia(e)">
+                  <span class="doc-icon" aria-hidden="true">{{ extOf(e.f) }}</span>
+                  <span class="doc-main">
+                    <span class="doc-name">{{ e.f.name }}</span>
+                    <span class="doc-meta">{{ extOf(e.f) }} · {{ sizeText(e.f.size) }} · {{ galleryWho(e.item) }}</span>
+                  </span>
+                </component>
+              </li>
+            </ul>
+          </section>
+        </div>
+      </template>
       <template v-else-if="activeOwnAgent">
         <div class="region-head">
           <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
@@ -1709,6 +1777,19 @@ button.doc-card:focus-visible { outline: 2px solid var(--ring); outline-offset: 
 .error .btn-link { margin-left: var(--space-2) }
 /* El visor de documentos en la región de la derecha. */
 .doc-view-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+/* Fotos y archivos de la conversación: un bloque por día, la grilla de 3 y los documentos debajo. */
+.media-panel { display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-3) var(--space-4) var(--space-6) }
+.media-day { display: flex; flex-direction: column; gap: 6px }
+.media-day-label { margin: 0; color: var(--fg-2); font-size: var(--text-xs); font-weight: 600 }
+.media-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px }
+.media-tile { position: relative; aspect-ratio: 1; padding: 0; border: 0; border-radius: 4px; overflow: hidden; background: var(--muted); cursor: zoom-in }
+.media-tile img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .15s }
+.media-tile:hover img { transform: scale(1.04) }
+.media-tile:focus-visible { outline: 2px solid var(--ring); outline-offset: 1px }
+.media-tile-wait { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-2); font-size: var(--text-xs) }
+.media-docs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px }
+.media-docs .attachment { width: 100% }
+.doc-back .ui-icon { transform: rotate(180deg) }
 /* La galería: la imagen ocupa lo que queda, el pie dice de quién y cuándo, y abajo la tira de miniaturas. */
 .gallery { flex: 1; min-height: 0; display: flex; flex-direction: column; background: color-mix(in oklab, var(--muted) 55%, var(--background)) }
 .gallery-stage { position: relative; flex: 1; min-height: 0; display: grid; place-items: center; padding: 14px }
