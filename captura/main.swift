@@ -35,6 +35,15 @@ func arg(_ name: String) -> String? {
 let outDir = arg("--out") ?? (NSHomeDirectory() + "/Pictures/captura")
 let resultFile = arg("--result")
 let noClipboard = CommandLine.arguments.contains("--no-clip")
+let noSound = CommandLine.arguments.contains("--no-sound")
+/// --watch <pid>: el proceso que la lanzó (la shell de `make`). Abierta con `open`, Captura no es hija de
+/// la terminal y Ctrl-C no le llega: corta el `open` y el velo quedaba prendido. Si ese pid muere, se cierra.
+let watchPID = arg("--watch").flatMap { pid_t($0) }
+
+// el mismo obturador que Cmd+Shift+4; si una versión de macOS lo mueve, la captura sigue en silencio
+let shutter: NSSound? = noSound ? nil : NSSound(contentsOfFile:
+    "/System/Library/Components/CoreAudio.component/Contents/SharedSupport/SystemSounds/system/Screen Capture.aif",
+    byReference: true)
 let ownPID = ProcessInfo.processInfo.processIdentifier
 
 // --debug <carpeta>: un log de lo que ve (permisos, ventanas, qué hay bajo el mouse) y una foto de la
@@ -356,6 +365,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             self?.picker.probe(CGPoint(x: m.x, y: mainHeight - m.y))
         }
         RunLoop.main.add(tick, forMode: .common)
+        if let parent = watchPID {
+            Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+                // kill(pid, 0) no manda nada: sólo pregunta si existe
+                if kill(parent, 0) != 0 && errno == ESRCH { dlog("murió el pid \(parent): me cierro"); report("cancel"); self?.finish(code: 1) }
+            }
+        }
         if debugDir != nil { startDebug() }
     }
 
@@ -402,6 +417,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let wd = Int(r.width.rounded()), ht = Int(r.height.rounded())
 
         windows.forEach { $0.orderOut(nil) }
+        shutter?.play()
         // un respiro para que el compositor saque el velo antes de fotografiar
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
             try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
@@ -427,7 +443,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
     }
 
-    func finish(code: Int32) { exit(code) }
+    /// Sale cuando el obturador terminó de sonar (exit lo cortaría a la mitad), con un tope de 1,5 s.
+    func finish(code: Int32) {
+        guard let s = shutter, s.isPlaying else { exit(code) }
+        let deadline = Date().addingTimeInterval(1.5)
+        Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+            if !s.isPlaying || Date() > deadline { exit(code) }
+        }
+    }
 }
 
 let app = NSApplication.shared
