@@ -1,24 +1,15 @@
 <script setup>
-/* LA CONFIGURACIÓN DE AVISOS (notifyStore.js → server/notify.go). Un diálogo: qué avisa cada tipo de conversación, las
-   excepciones por conversación, el horario de no molestar y por dónde sale el aviso ahora. Todo se guarda en el
-   servidor al tocarlo, y vale aunque la pestaña esté cerrada. */
-import { computed, ref, watch } from 'vue'
+/* LA CONFIGURACIÓN DE AVISOS (notifyStore.js → server/notify.go), como sección del perfil (Mi chat): qué avisa cada
+   tipo de conversación, las excepciones por conversación, el horario de no molestar y por dónde sale el aviso ahora.
+   Todo se guarda en el servidor al tocarlo, y vale aunque la pestaña esté cerrada. */
+import { computed, ref } from 'vue'
 import { notify, saveNotify, setConversationMode, testNotify } from './notifyStore.js'
 
 const props = defineProps({
-  open: Boolean,
   permission: { type: String, default: 'default' }, // el permiso de avisos del navegador
   nameOf: { type: Function, default: (k) => k },    // el nombre de una conversación por su clave
 })
-const emit = defineEmits(['close', 'ask-permission'])
-
-const dialog = ref(null)
-watch(() => props.open, (v) => {
-  const d = dialog.value
-  if (!d) return
-  if (v && !d.open) d.showModal()
-  if (!v && d.open) d.close()
-}, { flush: 'post' })
+const emit = defineEmits(['ask-permission'])
 
 const s = computed(() => notify.settings)
 const MODES = { all: 'Todos', mentions: 'Sólo menciones', off: 'Ninguno' }
@@ -27,28 +18,23 @@ const overrides = computed(() => Object.entries(s.value?.conversations || {})
   .sort((a, b) => a.name.localeCompare(b.name)))
 const viaText = computed(() => {
   const st = notify.status
-  if (st.via === 'tab') return 'Ahora los muestra esta pestaña: tocarlos abre la conversación.'
-  const tool = st.macTool === 'chat-notifier' ? '«Chat del playground» (tocarlo abre la conversación)'
-    : st.macTool === 'terminal-notifier' ? 'terminal-notifier (tocarlo abre el chat)'
-    : 'osascript (puede no verse: compilá el avisador con make chat-service A=refresh)'
-  return `Ahora los muestra macOS con ${tool}, aunque la pestaña esté cerrada.`
+  if (st.via === 'tab') return 'Salen por esta pestaña.'
+  if (st.macTool === 'chat-notifier') return 'Salen por «Chat del playground».'
+  if (st.macTool === 'terminal-notifier') return 'Salen por terminal-notifier.'
+  return 'Salen por osascript y pueden no verse: make chat-service A=refresh compila el avisador.'
 })
 const testing = ref(false)
 async function test(via) { testing.value = true; await testNotify(via); testing.value = false }
 </script>
 
 <template>
-  <dialog ref="dialog" class="notify-dialog" aria-labelledby="notify-title" @close="emit('close')" @click.self="emit('close')">
+  <div class="notify-panel">
     <div v-if="s" class="notify-body">
       <header class="notify-head">
-        <h2 id="notify-title">Avisos</h2>
+        <span class="label">Avisos, también con el chat cerrado</span>
         <button type="button" class="switch" role="switch" :aria-checked="s.enabled" aria-label="Avisos prendidos"
                 :title="s.enabled ? 'Apagar todos los avisos' : 'Prender los avisos'" @click="saveNotify({ enabled: !s.enabled })"></button>
-        <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="emit('close')">
-          <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-        </button>
       </header>
-      <p class="field-hint">Te llegan aunque el chat esté cerrado: los decide el servidor del chat, que corre como servicio del Mac.</p>
 
       <fieldset class="notify-group" :disabled="!s.enabled">
         <div class="notify-row">
@@ -92,7 +78,7 @@ async function test(via) { testing.value = true; await testNotify(via); testing.
 
       <fieldset class="notify-group" :disabled="!s.enabled">
         <span class="label">Por conversación</span>
-        <p v-if="!overrides.length" class="field-hint">Ninguna. Se cambian con la campana de cada conversación.</p>
+        <p v-if="!overrides.length" class="field-hint">Ninguna: la 🔔 de cada conversación las agrega.</p>
         <ul v-else class="notify-overrides">
           <li v-for="o in overrides" :key="o.key">
             <span class="override-name">{{ o.name }}</span>
@@ -106,10 +92,8 @@ async function test(via) { testing.value = true; await testNotify(via); testing.
       <footer class="notify-foot">
         <p class="field-hint">{{ viaText }}</p>
         <p v-if="permission === 'default'" class="field-hint">
-          Esta pestaña puede mostrarlos ella (tocarlos abre la conversación):
-          <button type="button" class="btn-link" @click="emit('ask-permission')">darle permiso</button>.
+          <button type="button" class="btn-link" @click="emit('ask-permission')">Que avise esta pestaña</button>
         </p>
-        <p v-else-if="permission === 'denied'" class="field-hint">El navegador no deja avisar a esta pestaña: los muestra macOS.</p>
         <div class="notify-actions">
           <button type="button" class="btn btn-outline btn-sm" :disabled="testing" @click="test('')">Probar un aviso</button>
           <button v-if="notify.status.via === 'tab'" type="button" class="btn btn-outline btn-sm" :disabled="testing" @click="test('mac')">Probar con la pestaña cerrada</button>
@@ -118,16 +102,13 @@ async function test(via) { testing.value = true; await testNotify(via); testing.
       </footer>
     </div>
     <p v-else class="notify-body field-hint">{{ notify.error || 'Cargando…' }}</p>
-  </dialog>
+  </div>
 </template>
 
 <style scoped>
-.notify-dialog { width: min(460px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--border);
-  border-radius: var(--radius-lg, 10px); background: var(--popover, var(--background)); color: var(--foreground) }
-.notify-dialog::backdrop { background: rgb(0 0 0 / .45) }
-.notify-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-6) }
-.notify-head { display: flex; align-items: center; gap: var(--space-3) }
-.notify-head h2 { flex: 1; margin: 0; font-size: var(--text-lg, 16px) }
+.notify-panel { min-width: 0 }
+.notify-body { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--gutter, var(--space-4)) }
+.notify-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3) }
 .notify-group { display: flex; flex-direction: column; gap: var(--space-2); margin: 0; padding: var(--space-3) 0 0; border: 0; border-top: 1px solid var(--border); min-width: 0 }
 .notify-group:disabled { opacity: .5 }
 .notify-row { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap }

@@ -26,7 +26,7 @@ import PdfThumb from './PdfThumb.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
 import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
-import { keyring, loadKeyring } from './keyringStore.js'
+import { keyring, loadKeyring, setAutoShare } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import NotifySettings from './NotifySettings.vue'
@@ -36,7 +36,7 @@ import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
 import { forget as forgetHistory, historyFor, pick as pickHistory } from './stores/service-history.js'
 import {
-  vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
+  vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
 const chat = useChatStore()
@@ -46,7 +46,8 @@ const mine = useMyAgentStore()
    pie, y recuerda si quedó cerrada y su ancho. */
 const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
-function setAgentOpen(v) { agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
+// En angosto, cerrarlo sólo vuelve al chat: no se guarda, para que en la pantalla ancha siga donde estaba.
+function setAgentOpen(v) { if (!v && narrow.value) { narrowRight.value = false; return } agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
 // «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
 /* Eliminar un grupo: si lo creaste vos, se borra para todos (cuadrilla, donde viven los grupos, deja borrarlo a quien
    lo creó). Si lo creó otro, salís; y si quedás sin nadie, se borra solo. Lo dice antes de hacerlo. */
@@ -201,7 +202,7 @@ function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-consol
 const mediaContext = computed(() => !!chat.active && !serverOpen.value && !activeIsAgent.value && !activeIsCanon.value && !activeIsCuadrilla.value)
 // Qué es el sidebar derecho en lo que está abierto (para el botón de la barra de abajo); vacío si no hay.
 const rightKind = computed(() => docView.value ? 'el documento' : openService.value ? 'las rutas' : serverOpen.value ? ''
-  : activeOwnAgent.value ? 'la ficha del agente' : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu agente' : '')
+  : activeOwnAgent.value ? 'la ficha del agente' : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu perfil' : '')
 function toggleRight() {
   if (narrow.value) {
     if (narrowList.value) return
@@ -353,12 +354,14 @@ function dayLabel(iso) {
 const initials = (p) => (p?.name || p?.email || '?').split(/[^\p{L}]+/u).filter(Boolean).slice(0, 2).map((w) => w[0].toUpperCase()).join('')
 const handle = (p) => `@${(p?.email || '').split('@')[0]}`
 const firstName = (p) => String(p?.name || p?.email || '').split(/[\s@]+/)[0]
-const snippetOf = (m) => {
+// La firma con la que un agente del equipo escribe por su dueño: «Rambo (agente de Duncan): …».
+const AGENT_SIGNATURE = /^(\S{1,24}) \(agente de ([^)]{1,40})\):\s*/u
+const snippetOf = (m, bare = false) => {
   if (!m) return ''
   if (m.kind === 'asked') return `le preguntó a tu ${m.agent}: ${m.text}`
   // Un mensaje con adjuntos y sin texto se ve por sus adjuntos.
-  const body = m.text || (m.files?.length ? m.files.map((f) => `📎 ${f.name}`).join(' · ') : '')
-  return `${m.dir === 'out' ? 'Vos: ' : ''}${body}`
+  const body = (m.text || '').replace(AGENT_SIGNATURE, '') || (m.files?.length ? m.files.map((f) => `📎 ${f.name}`).join(' · ') : '')
+  return `${m.dir === 'out' && !bare ? 'Vos: ' : ''}${body}`
 }
 const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > 120 ? `${x.slice(0, 119)}…` : x }
 
@@ -431,10 +434,15 @@ const thread = computed(() => {
     if (m.re && !(chat.active.person.agent && m.re === prev?.sid)) {
       const found = chat.findBySid(m.re)
       quote = found
-        ? { who: found.message.dir === 'out' ? 'Vos' : firstName(found.conversation.person.agent ? { name: found.conversation.person.agentName } : found.conversation.person), text: quoteText(found.message.text) }
+        ? { who: found.message.dir === 'out' ? 'Vos' : AGENT_SIGNATURE.exec(found.message.text || '')?.[1] || firstName(found.conversation.person.agent ? { name: found.conversation.person.agentName } : found.conversation.person),
+            text: quoteText(String(found.message.text || '').replace(AGENT_SIGNATURE, '')) }
         : { who: '', text: 'un mensaje que ya no está en este navegador' }
     }
-    out.push({ ...m, kind: m.kind || 'message', cont, quote })
+    // «Rambo (agente de Duncan): …» al principio del texto: lo escribió el agente de esa persona. Va como etiqueta y el
+    // texto queda limpio (los agentes del equipo firman así lo que mandan por su dueño).
+    const signed = m.dir === 'in' && !m.via && !activeIsAgent.value ? AGENT_SIGNATURE.exec(m.text || '') : null
+    const extra = signed ? { text: m.text.slice(signed[0].length), agentPrefix: `${signed[1]} · agente de ${signed[2]}` } : {}
+    out.push({ ...m, ...extra, kind: m.kind || 'message', cont, quote })
     prev = m
   }
   return out
@@ -798,6 +806,7 @@ watch(() => chat.activeKey, async (key) => {
   await nextTick(); autosize(); composer.value?.focus()
 })
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
+const sendLabel = computed(() => (activeIsCuadrilla.value ? 'Anotar' : activeIsAgent.value && !chat.active?.person.delegate ? 'Preguntar' : 'Mandar'))
 const placeholder = computed(() => {
   if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
   if (activeOwnAgent.value && !activeOwnAgent.value.on) return `${activeOwnAgent.value.name} está apagado: prendelo a la derecha para preguntarle`
@@ -838,13 +847,29 @@ watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'cha
    conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de
    ésa. El permiso se pide desde «Avisos»: el navegador sólo lo pide tras un clic. */
 const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
-const notifyOpen = ref(false)
+/* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — tu agente, los avisos, el llavero y
+   la conexión — en vez de tenerlo repartido en la barra de abajo y en diálogos. */
+const PROFILE_TABS = [
+  { id: 'agent', label: 'Mi agente' },
+  { id: 'notify', label: 'Avisos', icon: 'bell' },
+  { id: 'keyring', label: 'Llavero', icon: 'key' },
+  { id: 'connection', label: 'Conexión', icon: 'server' },
+]
+const profileTab = ref(readPref('chat.profile-tab', 'agent'))
+function setProfileTab(id) { profileTab.value = id; savePref('chat.profile-tab', id) }
+function openProfile(tab) {
+  serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true)
+  if (tab) setProfileTab(tab)
+  narrowList.value = false; narrowRight.value = true
+  if (tab === 'notify') loadNotify()
+}
+const myAgentsRunning = computed(() => chat.agentList.filter((a) => a.mine))
 async function askNotifyPermission() {
   try { notifyPermission.value = await Notification.requestPermission() } catch { /* sin permiso */ }
   chat.reconnectLive()  // el stream se vuelve a abrir diciendo si esta pestaña puede mostrar avisos
   setTimeout(loadNotify, 800)
 }
-function openNotify() { notifyOpen.value = true; loadNotify() }
+function openNotify() { openProfile('notify') }
 watch(() => chat.noticeSeq, () => {
   for (const n of chat.takeNotices()) {
     try {
@@ -1041,7 +1066,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   <span class="when">{{ shortWhen(g.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
-                  <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? 'Vos' : (g.last.via || firstName(g.last.author))}: ${snippetOf(g.last)}` : `${(g.person.members || []).length} miembros` }}</span>
+                  <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? (g.last.asAgent || 'Vos') : (g.last.via || AGENT_SIGNATURE.exec(g.last.text || '')?.[1] || firstName(g.last.author))}: ${snippetOf(g.last, true)}` : `${(g.person.members || []).length} miembros` }}</span>
                   <span v-if="unreadMentions(g)" class="unread at" :title="`Te mencionaron ${unreadMentions(g) === 1 ? 'una vez' : `${unreadMentions(g)} veces`}`">@</span>
                   <span v-if="g.unread" class="unread">{{ g.unread }}</span>
                 </span>
@@ -1167,7 +1192,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         </template>
         <template v-else>
           <span class="head-who"><button v-if="narrow" type="button" class="region-action narrow-back" title="Volver a las conversaciones"
-                    aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
+                    aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="avatar small" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
                     aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
@@ -1245,7 +1270,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <label class="sr-only" for="composer-text">Escribile a tu agente</label>
           <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                     maxlength="2000" :placeholder="`Escribile a ${agentLabel}`" @keydown="onKeydown" @input="autosize"></textarea>
-          <button type="submit" class="btn" :disabled="!draft.trim() || myAgentThinking">{{ myAgentThinking ? 'Pensando…' : 'Mandar' }}</button>
+          <button type="submit" class="btn btn-send" :disabled="!draft.trim() || myAgentThinking" :title="myAgentThinking ? 'Pensando…' : 'Mandar'"
+                  :aria-label="myAgentThinking ? 'Pensando…' : 'Mandar'"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
         </div>
       </form>
 
@@ -1304,6 +1330,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(item.author) }}</template>
                   <b v-else>{{ item.author.name }}</b>
                 </span>
+                <span v-if="item.agentPrefix && !item.cont" class="published-label agent-chip">{{ item.agentPrefix }}</span>
                 <span v-if="item.forAgent && !item.cont" class="published-label">para tu agente {{ item.forAgent }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
@@ -1475,7 +1502,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                       @click="updateMention" @blur="mention = null" role="combobox" :aria-expanded="mentionOptions.length > 0"
                       aria-autocomplete="list" :aria-controls="mentionOptions.length ? 'mention-menu' : undefined"
                       :aria-activedescendant="mentionOptions.length ? `mention-${mention.index}` : undefined"></textarea>
-            <button type="submit" class="btn" :disabled="!canSubmit">{{ activeIsCuadrilla ? 'Anotar' : activeIsAgent && !chat.active?.person.delegate ? 'Preguntar' : 'Mandar' }}</button>
+            <button type="submit" class="btn btn-send" :disabled="!canSubmit" :title="sendLabel" :aria-label="sendLabel"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
           </div>
         </form>
       </template>
@@ -1609,19 +1636,45 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         </div>
       </template>
       <template v-else>
-      <div class="region-head">
-        <span>Mi agente <small class="agent-state">{{ mine.agent.mode === 'agente' ? 'activo' : 'apagado' }}</small></span>
+      <div class="region-head profile-head">
+        <nav class="profile-tabs" role="tablist" aria-label="Tu perfil">
+          <button v-for="t in PROFILE_TABS" :key="t.id" type="button" role="tab" class="region-action profile-tab"
+                  :class="{ on: profileTab === t.id }" :aria-selected="profileTab === t.id" :title="t.label" :aria-label="t.label"
+                  @click="setProfileTab(t.id)">
+            <img v-if="t.id === 'agent' && mine.agent.avatar" class="tab-avatar" :class="{ off: mine.agent.mode !== 'agente' }" :src="mine.agent.avatar" alt="">
+            <span v-else class="ui-icon" :data-icon="t.icon || 'settings'" aria-hidden="true"></span>
+          </button>
+        </nav>
         <div class="region-actions">
-          <!-- Prenderlo o apagarlo: con el agente apagado contestás vos, y el muñeco queda en blanco y negro. -->
-          <button type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
+          <!-- Prender o apagar a tu agente: apagado contestás vos, y el muñeco queda en blanco y negro. -->
+          <button v-if="profileTab === 'agent'" type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
                   :title="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}: contestás vos` : `Prender a ${agentLabel}: contesta por vos`"
                   :aria-label="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}` : `Prender a ${agentLabel}`"></button>
-          <button type="button" class="region-action" title="Ocultar tu agente" aria-label="Ocultar tu agente" @click="setAgentOpen(false)">
+          <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar el perfil" @click="setAgentOpen(false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <MyAgent v-if="agentShown" class="region-body" />
+      <MyAgent v-if="agentShown && profileTab === 'agent'" class="region-body" />
+      <div v-else-if="profileTab === 'notify'" class="region-body">
+        <NotifySettings :permission="notifyPermission" :name-of="conversationName" @ask-permission="askNotifyPermission" />
+      </div>
+      <div v-else-if="profileTab === 'keyring'" class="region-body profile-section">
+        <label class="profile-row">
+          <span><b>Compartir solo</b><small>quien te lo pide recibe los nombres y, si las pide, las claves encriptadas</small></span>
+          <button type="button" class="switch" role="switch" :aria-checked="keyring.autoShare" aria-label="Compartir mi llavero solo"
+                  @click="setAutoShare(!keyring.autoShare)"></button>
+        </label>
+        <p class="profile-row"><span><b>{{ keyring.saved.length }}</b><small>{{ keyring.saved.length === 1 ? 'clave guardada' : 'claves guardadas' }}</small></span></p>
+        <p class="field-hint">Para pedirle el suyo a alguien: <code>🔑 Pido tu llavero</code> en su conversación. Encriptar y desencriptar, en la consola de cada conversación.</p>
+      </div>
+      <div v-else class="region-body profile-section">
+        <p class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
+          <small v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small></span></p>
+        <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
+        <p class="profile-row"><span><b>{{ myAgentsRunning.length ? myAgentsRunning.map((a) => a.agentName).join(', ') : 'ninguno' }}</b><small>tus agentes conectados (los demás los ven y les preguntan)</small></span></p>
+        <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat del playground' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
+      </div>
       </template>
     </aside>
 
@@ -1719,29 +1772,23 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <KeyringPanel />
     </section>
 
-    <NotifySettings :open="notifyOpen" :permission="notifyPermission" :name-of="conversationName"
-                    @close="notifyOpen = false" @ask-permission="askNotifyPermission" />
     <footer class="statusbar">
-      <span class="statusbar-item">
+      <!-- La barra deja sólo el estado, quién contesta y los avisos; el detalle está en tu perfil (Mi chat). -->
+      <button type="button" class="statusbar-item mode-toggle" :title="`${statusText}${chat.state?.since && listening ? ` desde las ${clock(chat.state.since)}` : ''} · ver la conexión`"
+              :aria-label="`Conexión: ${statusText}`" @click="openProfile('connection')">
         <i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i>
-        {{ statusText }}<template v-if="chat.me || chat.state?.session"> ·
-          <img v-if="myPhoto" class="me-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer">
-          <span class="wide-only">{{ (chat.me || chat.state.session).email }}</span></template>
-      </span>
-      <span v-if="chat.state?.since && listening" class="statusbar-item wide-only">desde las {{ clock(chat.state.since) }}</span>
+        <span v-if="!(listening && chat.state?.connected)">{{ statusText }}</span>
+      </button>
       <!-- Lo que hizo el servidor por su cuenta (el llavero que contestó solo), unos segundos. -->
       <span v-if="chat.liveNotice" class="statusbar-item live-notice"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>{{ chat.liveNotice.text }}</span>
-      <button type="button" class="statusbar-item mode-toggle" :class="{ off: notify.settings && !notify.settings.enabled }"
-              title="Qué te avisa el chat, también con la pestaña cerrada" @click="openNotify">
-        <span class="ui-icon" data-icon="bell" aria-hidden="true"></span>{{ notifyStatusText }}</button>
-      <span v-if="chat.agentList.some((a) => a.mine)" class="statusbar-item wide-only">
-        tus agentes: {{ chat.agentList.filter((a) => a.mine).map((a) => a.agentName).join(', ') }}
-      </span>
+      <button type="button" class="statusbar-item mode-toggle icon-only" :class="{ off: notify.settings && !notify.settings.enabled }"
+              :title="notify.settings && !notify.settings.enabled ? 'Avisos apagados' : 'Avisos'" :aria-label="notifyStatusText" @click="openNotify">
+        <span class="ui-icon" data-icon="bell" aria-hidden="true"></span></button>
       <!-- Quién contesta: vos o tu agente. Siempre a la vista, para que no quede prendido sin querer. -->
       <button type="button" class="statusbar-item mode-toggle" :class="{ on: mine.agent.mode === 'agente' }" @click="toggleMode"
               :title="mine.agent.mode === 'agente' ? `Contesta ${agentLabel}: tocá para contestar vos` : `Contestás vos: tocá para que conteste ${agentLabel}`">
-        <img v-if="mine.agent.avatar" class="mode-avatar" :src="mine.agent.avatar" alt="">
-        {{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contesto yo' }}
+        <img v-if="mine.agent.avatar" class="mode-avatar" :class="{ off: mine.agent.mode !== 'agente' }" :src="mine.agent.avatar" alt="">
+        <span :class="{ 'wide-only': mine.agent.mode !== 'agente' }">{{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contesto yo' }}</span>
       </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
@@ -1850,6 +1897,18 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* La campana del grupo: atenuada cuando avisa sólo las menciones. */
 .group-notify.quiet { opacity: .5 }
 .mode-toggle.off { opacity: .6 }
+.mode-avatar.off, .tab-avatar.off { filter: grayscale(1) }
+.btn-send { width: var(--control-md); padding: 0; flex: none }
+/* El perfil: pestañas por icono en la cabecera y filas cortas (lo que es arriba, el detalle chico abajo). */
+.profile-head { gap: var(--space-2) }
+.profile-tabs { display: flex; align-items: center; gap: 2px; min-width: 0 }
+.profile-tab.on { background: var(--hover); color: var(--foreground) }
+.tab-avatar { width: 18px; height: 18px; border-radius: 5px; object-fit: cover }
+.profile-section { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--gutter, var(--space-4)) }
+.profile-row { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3) }
+.profile-row > span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
+.profile-row b { display: flex; align-items: center; gap: 6px; font-weight: 600; overflow-wrap: anywhere }
+.profile-row small { color: var(--fg-2); font-size: var(--text-xs) }
 /* En angosto, la lista sola: ocupa todo el ancho y el chat, la consola y la derecha no se ven. */
 .workbench.narrow-list > .sidebar { width: auto; grid-column: 1 / -1 }
 .workbench.narrow-list > .editor, .workbench.narrow-list > .panel, .workbench.narrow-list > .auxiliarybar { display: none }
