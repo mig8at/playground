@@ -748,6 +748,10 @@ func main() {
 			ids = append(ids, id)
 		}
 		if err := call("POST", "/api/send", map[string]any{"to": with, "text": strings.Join(rest[1:], " "), "re": re, "files": ids, "as": as}, &out); err != nil {
+			// En un grupo, un agente sólo habla si es miembro: el home lo rechaza con «<agente> no está en #grupo».
+			if as != "" && strings.HasPrefix(with, "#") && strings.Contains(err.Error(), "no está en") {
+				err = fmt.Errorf("%v: add it first with `playground groups add %s @<you>/%s`", err, with, as)
+			}
 			fail(err)
 		}
 		state := "delivered"
