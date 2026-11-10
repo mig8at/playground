@@ -17,6 +17,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
+| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-deriva PASO=…` |
 
 ## `make` es la puerta única
 

@@ -795,7 +795,7 @@ knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de c
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-mapa canon-propose canon-write canon-round canon-clones canon-export canon-patch
+.PHONY: canon-search canon-read canon-route canon-mapa canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-deriva
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
@@ -823,6 +823,9 @@ canon-restructure: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya y muestra el 
 	@cd tablero/server && go run ./cmd/canon restructure $(if $(APPLY),-apply) -reason '$(REASON)' '$(abspath $(OPS))'
 canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
 	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
+canon-deriva: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GRUPOS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
+	@test -n "$(PASO)" || { echo "falta PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
+	@python3 tools/canon-deriva/deriva.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(APPLY),--apply) $(if $(RUN),--run '$(RUN)')
 canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
 	@test -n "$(DIR)" || { echo "falta DIR=<carpeta nueva>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon export -out '$(abspath $(DIR))'
