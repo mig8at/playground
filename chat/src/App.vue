@@ -421,6 +421,13 @@ async function toggleKeyMenu() {
   keyMenuOpen.value = !keyMenuOpen.value
   if (keyMenuOpen.value) await loadKeyring()
 }
+// El menú se cierra con Escape o con un clic afuera.
+function closeKeyMenuOutside(e) {
+  if (!keyMenuOpen.value) return
+  if (e.type === 'keydown' ? e.key === 'Escape' : !e.target.closest?.('.key-menu-wrap')) keyMenuOpen.value = false
+}
+document.addEventListener('mousedown', closeKeyMenuOutside)
+document.addEventListener('keydown', closeKeyMenuOutside)
 async function sendKey(k, re = '') {
   keyMenuOpen.value = false
   await chat.send(keyMessage(k.name, k.sealed), re || '', null, {}, [])
@@ -1287,18 +1294,18 @@ const statusText = computed(() => {
               <input ref="fileInput" type="file" multiple class="sr-only" aria-hidden="true" tabindex="-1" @change="onPickFiles">
               <button type="button" class="btn btn-outline composer-attach" title="Adjuntar archivos (hasta 25 MB cada uno; también se pueden arrastrar)"
                       aria-label="Adjuntar archivos" @click="fileInput?.click()">
-                <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+                <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
               </button>
             </template>
             <!-- Las claves del llavero: mandar una de «Guardadas» o pedirla. -->
             <div v-if="canSendKeys" class="key-menu-wrap">
               <button type="button" class="btn btn-outline composer-attach" :aria-pressed="keyMenuOpen" title="Mandar o pedir una clave"
-                      aria-label="Mandar o pedir una clave" @click="toggleKeyMenu"><span aria-hidden="true">🔒</span></button>
+                      aria-label="Mandar o pedir una clave" @click="toggleKeyMenu"><span class="ui-icon" data-icon="key" aria-hidden="true"></span></button>
               <div v-if="keyMenuOpen" class="key-menu" role="menu">
                 <p class="key-menu-title">Mandar una clave</p>
                 <p v-if="!keyring.saved.length" class="key-menu-empty">No hay claves en «Guardadas» (consola → Llavero).</p>
                 <button v-for="k in keyring.saved" :key="k.name" type="button" class="key-menu-item" role="menuitem" @click="sendKey(k)">
-                  <span aria-hidden="true">🔒</span><span class="key-menu-name">{{ k.name }}</span>
+                  <span class="ui-icon" data-icon="lock" aria-hidden="true"></span><span class="key-menu-name">{{ k.name }}</span><span class="ui-icon key-menu-send" data-icon="send" aria-hidden="true"></span>
                 </button>
                 <form class="key-menu-ask" @submit.prevent="askKey">
                   <p class="key-menu-title">Pedir una clave</p>
@@ -1938,7 +1945,10 @@ button.file-tile { cursor: zoom-in }
 .key-menu-item { display: flex; align-items: center; gap: 8px; padding: 6px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit;
   text-align: left; cursor: pointer }
 .key-menu-item:hover { background: color-mix(in oklab, var(--foreground) 6%, transparent) }
-.key-menu-name { font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.key-menu-item .ui-icon { color: var(--fg-2) }
+.key-menu-send { margin-left: auto; opacity: 0 }
+.key-menu-item:hover .key-menu-send { opacity: 1 }
+.key-menu-name { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .key-menu-ask { margin-top: 4px; padding-top: 4px; border-top: 1px solid var(--hairline) }
 .key-menu-row { display: flex; gap: 6px; padding: 0 6px 4px }
 .key-menu-row .input { flex: 1; min-width: 0 }

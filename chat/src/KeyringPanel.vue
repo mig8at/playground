@@ -80,7 +80,7 @@ async function copy(text, tag) {
         <button v-if="teamKey" type="button" class="btn-link" @click="changingKey = false">Cancelar</button>
       </div>
       <p v-else class="keyring-team">
-        <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
+        <span class="ui-icon" data-icon="shield" aria-hidden="true"></span>
         <span>Llave del equipo en <code>{{ teamKeyPath }}</code></span>
         <button type="button" class="btn-link" @click="copy(teamKey, 'team')">{{ copied === 'team' ? 'copiada' : 'copiar' }}</button>
         <button type="button" class="btn-link" @click="changingKey = true">cambiar</button>
@@ -89,7 +89,7 @@ async function copy(text, tag) {
 
       <div class="keyring-cards">
         <form class="keyring-card" @submit.prevent="encrypt">
-          <h4 class="keyring-title">Encriptar</h4>
+          <h4 class="keyring-title"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span>Encriptar</h4>
           <div class="keyring-fields">
             <label class="keyring-field"><span>Nombre</span>
               <input v-model="name" class="keyring-input" type="text" placeholder="shopify-admin-dev" spellcheck="false" autocomplete="off"></label>
@@ -108,7 +108,7 @@ async function copy(text, tag) {
         </form>
 
         <form class="keyring-card" @submit.prevent="decrypt">
-          <h4 class="keyring-title">Desencriptar</h4>
+          <h4 class="keyring-title"><span class="ui-icon" data-icon="unlock" aria-hidden="true"></span>Desencriptar</h4>
           <div class="keyring-fields">
             <label class="keyring-field"><span>Valor encriptado</span>
               <input v-model="sealedIn" class="keyring-input mono" type="text" placeholder="U2FsdGVkX1…" spellcheck="false" autocomplete="off" @input="opened = ''"></label>
@@ -127,7 +127,7 @@ async function copy(text, tag) {
 
       <!-- Las guardadas: cada vez que encriptás con nombre, queda acá (sólo encriptada). -->
       <section class="keyring-saved">
-        <h4 class="keyring-title">Guardadas <span v-if="saved.length" class="count">{{ saved.length }}</span></h4>
+        <h4 class="keyring-title"><span class="ui-icon" data-icon="key" aria-hidden="true"></span>Guardadas <span v-if="saved.length" class="count">{{ saved.length }}</span></h4>
         <p v-if="!saved.length" class="keyring-empty">Todavía no hay. Al encriptar con un nombre, la clave queda acá, encriptada.</p>
         <table v-else class="keyring-table">
           <thead><tr><th class="c-name">Nombre</th><th class="c-sealed">Encriptado</th><th class="c-value">Valor</th><th class="c-when">Actualizada</th><th class="c-acts" aria-label="Acciones"></th></tr></thead>
@@ -142,7 +142,7 @@ async function copy(text, tag) {
                   <span class="ui-icon" :data-icon="copied === `s:${k.name}` ? 'check' : 'copy'" aria-hidden="true"></span>
                 </button>
                 <button type="button" class="region-action" :disabled="!teamKey" :title="shown[k.name] != null ? 'Ocultar el valor' : 'Ver el valor'" aria-label="Ver el valor" @click="toggleShown(k)">
-                  <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
+                  <span class="ui-icon" :data-icon="shown[k.name] != null ? 'eye-off' : 'eye'" aria-hidden="true"></span>
                 </button>
                 <button type="button" class="region-action" title="Borrar" aria-label="Borrar" @click="removeSaved(k)">
                   <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -167,7 +167,8 @@ async function copy(text, tag) {
 .keyring-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px }
 .keyring-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--hairline); border-radius: 8px;
   background: var(--card) }
-.keyring-title { margin: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-2) }
+.keyring-title .ui-icon { width: 14px; height: 14px }
+.keyring-title { display: flex; align-items: center; gap: 6px; margin: 0; font-size: var(--text-xs); font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--fg-2) }
 .keyring-fields { display: flex; gap: 8px }
 .keyring-field { display: flex; flex-direction: column; gap: 4px; flex: 1 1 0; min-width: 0; font-size: var(--text-xs); color: var(--fg-2) }
 .keyring-input { height: 30px; min-width: 0; padding: 0 10px; border: 1px solid var(--border); border-radius: 6px;

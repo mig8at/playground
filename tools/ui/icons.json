@@ -44,6 +44,13 @@
     "merchant": "store",
     "stop": "square",
     "camera": "camera",
-    "restart": "rotate-ccw"
+    "restart": "rotate-ccw",
+    "lock": "lock",
+    "unlock": "lock-open",
+    "key": "key-round",
+    "eye-off": "eye-off",
+    "send": "send-horizontal",
+    "attach": "paperclip",
+    "shield": "shield-check"
   }
 }
