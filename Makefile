@@ -120,6 +120,12 @@ captura: ## @dia captura de pantalla (Captura.app nativa, captura/main.swift): o
 	 open -W -n captura/.build/Captura.app --args --out "$(abspath $(or $(OUT),captura/shots))" --result $$r --watch $$$$ $(if $(NO_CLIP),--no-clip) $(if $(NO_SOUND),--no-sound) $(if $(DEBUG),--debug "$$dbg"); \
 	 l=$$(cat $$r); \
 	 case "$$l" in "ok "*) echo "$${l#ok }";; cancel) exit 1;; "") echo "  ✗ Captura se cerró sin resultado" >&2; exit 2;; *) echo "  ✗ $${l#error }" >&2; exit 2;; esac
+.PHONY: captura-panel
+captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre encima, recuerda dónde lo dejaste): 📷 abre el selector de `make captura` y al terminar el panel vuelve · 📁 abre captura/shots/ · ✕ lo cierra. Se queda corriendo aunque cierres la terminal; un `make captura` suelto no lo cierra. [OUT=<carpeta>] [NO_CLIP=1] [NO_SOUND=1] [DEBUG=1 tres fotos de la pantalla con el panel]
+	@captura/build.sh
+	@$(if $(DEBUG),dbg=$(CURDIR)/captura/.build/debug-$$(date +%Y%m%d-%H%M%S); echo "  · debug: 3 fotos y el log en $$dbg" >&2;) \
+	 open -n captura/.build/Captura.app --args --panel --out "$(abspath $(or $(OUT),captura/shots))" $(if $(NO_CLIP),--no-clip) $(if $(NO_SOUND),--no-sound) $(if $(DEBUG),--debug "$$dbg") && \
+	 echo "  · panel de Captura abierto (✕ lo cierra)"
 
 chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial y las imágenes los guarda su servidor en disco, y `bin/chat` los lee desde la terminal
 	@cd chat && npm run dev

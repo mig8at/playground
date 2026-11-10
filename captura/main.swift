@@ -436,17 +436,71 @@ final class SelectionView: NSView {
     }
 }
 
+// ── el panel flotante ─────────────────────────────────────────────────────────────────────────────
+
+/// --panel: en vez de abrir el selector y salir, deja una ventanita flotante (siempre encima, se mueve
+/// arrastrándola, recuerda dónde quedó) con Capturar, Carpeta y ✕. Capturar esconde el panel, abre el
+/// selector de siempre y al terminar el panel vuelve.
+let panelMode = CommandLine.arguments.contains("--panel")
+/// El pid del panel que está corriendo: un `make captura` suelto no lo tiene que cerrar.
+let panelPIDFile = (NSTemporaryDirectory() as NSString).appendingPathComponent("captura-panel.pid")
+
+/// Un panel sin bordes no puede ser ventana clave; los botones igual andan con acceptsFirstMouse.
+final class FloatingPanel: NSPanel {
+    override var canBecomeKey: Bool { false }
+}
+
+/// La agarradera de la izquierda: arrastrarla mueve el panel (los botones se quedan con su clic).
+final class GripView: NSView {
+    override var mouseDownCanMoveWindow: Bool { true }
+    override var intrinsicContentSize: NSSize { NSSize(width: 14, height: 28) }
+    override func draw(_ dirty: NSRect) {
+        NSColor(calibratedWhite: 1, alpha: 0.45).setFill()
+        for row in 0..<3 { for col in 0..<2 {
+            let c = NSPoint(x: bounds.midX - 3 + CGFloat(col) * 6, y: bounds.midY - 6 + CGFloat(row) * 6)
+            NSBezierPath(ovalIn: NSRect(x: c.x - 1.25, y: c.y - 1.25, width: 2.5, height: 2.5)).fill()
+        }}
+    }
+}
+
+final class PanelButton: NSButton {
+    override func acceptsFirstMouse(for event: NSEvent?) -> Bool { true }
+    override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
+}
+
+func makePanelButton(symbol: String, tip: String, target: AnyObject, action: Selector) -> NSButton {
+    let b = PanelButton()
+    let cfg = NSImage.SymbolConfiguration(pointSize: 15, weight: .medium)
+    b.image = NSImage(systemSymbolName: symbol, accessibilityDescription: tip)?.withSymbolConfiguration(cfg)
+    b.isBordered = false
+    b.bezelStyle = .regularSquare
+    b.contentTintColor = .white
+    b.toolTip = tip
+    b.target = target
+    b.action = action
+    b.translatesAutoresizingMaskIntoConstraints = false
+    b.widthAnchor.constraint(equalToConstant: 32).isActive = true
+    b.heightAnchor.constraint(equalToConstant: 30).isActive = true
+    return b
+}
+
 // ── la app ────────────────────────────────────────────────────────────────────────────────────────
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
     var windows: [OverlayWindow] = []
     let picker = Picker()
+    var tick: Timer?
+    var panel: FloatingPanel?
+    var selecting = false
 
     func applicationDidFinishLaunching(_ n: Notification) {
         // Una sola copia: Ctrl-C sobre `make captura` corta el `open`, no la app, y el 2026-11-10 se
-        // juntaron 12 velos apilados. La nueva cierra a las anteriores.
+        // juntaron 12 velos apilados. La nueva cierra a las anteriores, salvo al panel que esté corriendo
+        // (un panel nuevo sí cierra al viejo).
+        let runningPanel = (try? String(contentsOfFile: panelPIDFile, encoding: .utf8)).flatMap { pid_t($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
         if let id = Bundle.main.bundleIdentifier {
             for other in NSRunningApplication.runningApplications(withBundleIdentifier: id) where other.processIdentifier != ownPID {
+                if !panelMode, other.processIdentifier == runningPanel { continue }
                 other.forceTerminate()
             }
         }
@@ -457,7 +511,96 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         AXUIElementSetMessagingTimeout(AXUIElementCreateSystemWide(), 0.15)
 
         picker.onCopy = { [weak self] r in self?.capture(r) }
-        picker.onCancel = { [weak self] in report("cancel"); self?.finish(code: 1) }
+        picker.onCancel = { [weak self] in self?.endSelection(code: 1, result: "cancel") }
+        if let parent = watchPID {
+            Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
+                // kill(pid, 0) no manda nada: sólo pregunta si existe
+                if kill(parent, 0) != 0 && errno == ESRCH { dlog("murió el pid \(parent): me cierro"); report("cancel"); self?.finish(code: 1) }
+            }
+        }
+        if panelMode {
+            try? "\(ownPID)\n".write(toFile: panelPIDFile, atomically: true, encoding: .utf8)
+            showPanel()
+            if debugDir != nil { startPanelDebug() }
+        } else {
+            startSelection()
+        }
+    }
+
+    // ── el panel ──
+
+    func showPanel() {
+        if panel == nil {
+            let p = FloatingPanel(contentRect: NSRect(x: 0, y: 0, width: 140, height: 44),
+                                  styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            p.level = .floating
+            p.isOpaque = false
+            p.backgroundColor = .clear
+            p.hasShadow = true
+            p.isMovableByWindowBackground = true
+            p.hidesOnDeactivate = false
+            p.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+            let bg = NSVisualEffectView()
+            bg.material = .hudWindow
+            bg.blendingMode = .behindWindow
+            bg.state = .active
+            bg.appearance = NSAppearance(named: .vibrantDark)
+            bg.wantsLayer = true
+            bg.layer?.cornerRadius = 12
+            bg.layer?.masksToBounds = true
+
+            let stack = NSStackView(views: [
+                GripView(),
+                makePanelButton(symbol: "camera.viewfinder", tip: "Capturar (señalar o arrastrar)", target: self, action: #selector(onCaptureButton)),
+                makePanelButton(symbol: "folder", tip: "Abrir la carpeta de capturas", target: self, action: #selector(onFolderButton)),
+                makePanelButton(symbol: "xmark", tip: "Cerrar el panel", target: self, action: #selector(onQuitButton)),
+            ])
+            stack.orientation = .horizontal
+            stack.spacing = 2
+            stack.edgeInsets = NSEdgeInsets(top: 7, left: 6, bottom: 7, right: 6)
+            stack.translatesAutoresizingMaskIntoConstraints = false
+            bg.addSubview(stack)
+            NSLayoutConstraint.activate([
+                stack.leadingAnchor.constraint(equalTo: bg.leadingAnchor), stack.trailingAnchor.constraint(equalTo: bg.trailingAnchor),
+                stack.topAnchor.constraint(equalTo: bg.topAnchor), stack.bottomAnchor.constraint(equalTo: bg.bottomAnchor),
+            ])
+            p.contentView = bg
+            p.setContentSize(stack.fittingSize)
+            // dónde quedó la última vez; la primera, arriba a la derecha de la pantalla principal
+            if !p.setFrameUsingName("CapturaPanel"), let s = NSScreen.main?.visibleFrame {
+                p.setFrameOrigin(NSPoint(x: s.maxX - p.frame.width - 24, y: s.maxY - p.frame.height - 24))
+            }
+            p.setFrameAutosaveName("CapturaPanel")
+            panel = p
+        }
+        panel?.orderFrontRegardless()
+    }
+
+    @objc func onCaptureButton() {
+        guard !selecting else { return }
+        dlog("panel: capturar")
+        panel?.orderOut(nil) // que el panel no salga en la foto ni tape lo que se quiere señalar
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { self.startSelection() }
+    }
+    @objc func onFolderButton() {
+        try? FileManager.default.createDirectory(atPath: outDir, withIntermediateDirectories: true)
+        NSWorkspace.shared.open(URL(fileURLWithPath: outDir))
+    }
+    @objc func onQuitButton() {
+        if (try? String(contentsOfFile: panelPIDFile, encoding: .utf8))?.trimmingCharacters(in: .whitespacesAndNewlines) == "\(ownPID)" {
+            try? FileManager.default.removeItem(atPath: panelPIDFile)
+        }
+        exit(0)
+    }
+
+    // ── el selector ──
+
+    func startSelection() {
+        selecting = true
+        picker.chain = []; picker.level = 0; picker.selected = nil; picker.dragging = nil; picker.pressing = nil
+        picker.lastProbe = CGPoint(x: -1, y: -1); picker.lastProbeAt = .distantPast
+        picker.views = []
         for screen in NSScreen.screens {
             let w = OverlayWindow(contentRect: screen.frame, styleMask: .borderless, backing: .buffered, defer: false)
             w.level = .screenSaver
@@ -465,9 +608,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             w.backgroundColor = .clear
             w.hasShadow = false
             w.acceptsMouseMovedEvents = true
+            w.isReleasedWhenClosed = false
             w.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary, .stationary]
             let v = SelectionView(frame: NSRect(origin: .zero, size: screen.frame.size), picker: picker)
-            v.onCancel = { [weak self] in report("cancel"); self?.finish(code: 1) }
+            v.onCancel = { [weak self] in self?.endSelection(code: 1, result: "cancel") }
             w.contentView = v
             w.setFrame(screen.frame, display: true)
             w.makeKeyAndOrderFront(nil)
@@ -485,18 +629,41 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         // activa, y abierta con `open` una app sin Dock no siempre queda activa (medido 2026-11-10: el
         // velo salía, el recuadro inicial también, y al mover el mouse no cambiaba nada). probe() ya
         // descarta los ticks en que el mouse no se movió.
-        let tick = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
+        let t = Timer(timeInterval: 1.0 / 60, repeats: true) { [weak self] _ in
             let m = NSEvent.mouseLocation // Cocoa global: origen abajo a la izquierda
             self?.picker.probe(CGPoint(x: m.x, y: mainHeight - m.y))
         }
-        RunLoop.main.add(tick, forMode: .common)
-        if let parent = watchPID {
-            Timer.scheduledTimer(withTimeInterval: 0.3, repeats: true) { [weak self] _ in
-                // kill(pid, 0) no manda nada: sólo pregunta si existe
-                if kill(parent, 0) != 0 && errno == ESRCH { dlog("murió el pid \(parent): me cierro"); report("cancel"); self?.finish(code: 1) }
+        RunLoop.main.add(t, forMode: .common)
+        tick = t
+        if debugDir != nil, !panelMode { startDebug() }
+    }
+
+    /// Fin de una selección: sin panel, la app sale; con panel, se desarma el velo y el panel vuelve.
+    func endSelection(code: Int32, result: String) {
+        guard panelMode else { report(result); finish(code: code); return }
+        dlog("panel: fin de la selección (\(result))")
+        tick?.invalidate(); tick = nil
+        windows.forEach { $0.orderOut(nil); $0.close() }
+        windows = []
+        picker.views = []
+        selecting = false
+        NSCursor.arrow.set()
+        showPanel()
+    }
+
+    func startPanelDebug() {
+        guard let d = debugDir else { return }
+        try? FileManager.default.createDirectory(atPath: d, withIntermediateDirectories: true)
+        dlog("panel: pid \(ownPID) · frame=\(panel?.frame ?? .zero) · AX=\(AXIsProcessTrusted()) · pantalla=\(CGPreflightScreenCaptureAccess())")
+        for i in 1...3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + Double(i)) {
+                dlog("foto \(i): panel visible=\(self.panel?.isVisible ?? false) frame=\(self.panel?.frame ?? .zero)")
+                let p = Process()
+                p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
+                p.arguments = ["-x", "-C", "-t", "jpg", (d as NSString).appendingPathComponent("foto_\(i).jpg")]
+                try? p.run()
             }
         }
-        if debugDir != nil { startDebug() }
     }
 
     func startDebug() {
@@ -539,7 +706,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 try? p.run() // sin esperar: el velo tiene que seguir respondiendo mientras tanto
             }
         }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 8.5) { report("cancel"); self.finish(code: 1) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8.5) { self.endSelection(code: 1, result: "cancel") }
     }
 
     /// r en top-left global, que es lo que espera screencapture -R
@@ -558,19 +725,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             p.executableURL = URL(fileURLWithPath: "/usr/sbin/screencapture")
             p.arguments = ["-x", "-t", "png", "-R", "\(x),\(y),\(wd),\(ht)", file]
             do { try p.run(); p.waitUntilExit() } catch {
-                report("error no corrió screencapture: \(error)")
-                self.finish(code: 2); return
+                self.endSelection(code: 2, result: "error no corrió screencapture: \(error)"); return
             }
             guard p.terminationStatus == 0, FileManager.default.fileExists(atPath: file) else {
-                report("error screencapture salió con \(p.terminationStatus): falta el permiso de Grabación de pantalla para Captura (Ajustes → Privacidad y seguridad)")
-                self.finish(code: 2); return
+                self.endSelection(code: 2, result: "error screencapture salió con \(p.terminationStatus): falta el permiso de Grabación de pantalla para Captura (Ajustes → Privacidad y seguridad)"); return
             }
             if !noClipboard, let img = NSImage(contentsOfFile: file) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.writeObjects([img])
             }
-            report("ok \(file)")
-            self.finish(code: 0)
+            self.endSelection(code: 0, result: "ok \(file)")
         }
     }
 
