@@ -104,7 +104,11 @@ func TestLoadConfigReadsTheConnectorsFile(t *testing.T) {
 // cada uno el suyo, y las reglas de qué ambiente no escribe sólo las sabía uno.
 func TestNoOtherPostHogClientInTheRepo(t *testing.T) {
 	client := regexp.MustCompile(`posthog\.com/api|/api/projects/|/query/`)
-	if offenders := repocheck.Offenders(t, client, nil); len(offenders) > 0 {
+	allowed := map[string]string{
+		// Jarvis declara SU PROPIA ruta `DELETE /api/projects/<app>` (borrar un proyecto de flujos): no le habla a PostHog.
+		"jarvis/server/main.go": "la ruta /api/projects/ es de Jarvis, no de PostHog",
+	}
+	if offenders := repocheck.Offenders(t, client, allowed); len(offenders) > 0 {
 		t.Errorf("hay clientes de PostHog fuera de connectors/ (usá connectors/events, o `bin/pg events` desde otro lenguaje): %v", offenders)
 	}
 }
