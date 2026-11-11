@@ -143,7 +143,10 @@ mapas literales, por AST) y los nombres de archivo y carpeta, y dice cuántos le
 fuente vacía es un error, no un verde. **Falla sólo con un nombre NUEVO**: los nombres en español que ya estaban son
 deuda conocida (`tools/naming-debt.txt`, «archivo nombre», sin la línea). Hasta el 2026-11-11 salía siempre en rojo
 (217 nombres) y un chequeo que siempre falla deja de mirarse. La deuda se paga renombrando y volviendo a congelar
-con `FREEZE=1`, para que sólo baje; congelar para tapar un nombre nuevo es saltarse el chequeo. `ALL=1` la muestra. `make tablero-naming-test` fija su lógica, incluido un nombre
+con `FREEZE=1`, para que sólo baje; congelar para tapar un nombre nuevo es saltarse el chequeo. `ALL=1` la muestra.
+Desde el mismo día revisa también las demás apps (`naming.Apps`: chat, Jarvis, ecommerce, Cockpit, Captura, llavero,
+radar, sala), sin lo que es dato (los flujos y mapas de Jarvis, el `testdata` de ecommerce); de su Swift y su Rust,
+sólo las rutas. `make tablero-naming-test` fija su lógica, incluido un nombre
 español inventado en cada lenguaje y una clave aceptada en un lugar que no queda aceptada en otro.
 
 ⚠ **La vara del inglés es la stdlib de Go y de Python, no el diccionario del sistema**, que trae inglés

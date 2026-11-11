@@ -339,7 +339,7 @@ jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterr
 # archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de
 # Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
 # conoce va a tablero/tools/naming-allow.txt, con su categoría.
-tablero-naming: ## @dia ¿el código del tablero, o el compartido (connectors, cmd, lib), nombra algo en español? identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. Falla sólo con un nombre NUEVO: los de antes son deuda conocida (tablero/tools/naming-debt.txt). ALL=1 muestra también la deuda · FREEZE=1 la vuelve a congelar (después de renombrar, para que baje) · WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
+tablero-naming: ## @dia ¿el código del playground nombra algo en español? el tablero, lo compartido (connectors, cmd, lib, tools), el harness, el visor y las apps (chat, jarvis, ecommerce, cockpit, captura, keyring, radar, sala). identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. Falla sólo con un nombre NUEVO: los de antes son deuda conocida (tablero/tools/naming-debt.txt). ALL=1 muestra también la deuda · FREEZE=1 la vuelve a congelar (después de renombrar, para que baje) · WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
 	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words) $(if $(ALL),-all) $(if $(FREEZE),-freeze) $(if $(CANON),-canon $(CANON))
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje

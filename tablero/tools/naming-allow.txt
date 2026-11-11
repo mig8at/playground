@@ -102,3 +102,15 @@ xsrf csrf utm urlutm lstart gitdir fks jerr dbctx kase lba
 miguel
 # capturar una pantalla (tools/ui-shot): `shoot`, `shot`
 shoot shot
+
+# ── 2026-11-11: al sumar chat, Jarvis, ecommerce, Cockpit, Captura, llavero, radar y sala ───────────────────────
+# productos, bibliotecas y servicios: GraphQL de Shopify, Playwright, Tauri, Laravel Sanctum, pdf.js y las llaves de VTEX
+graphql playwright tauri sanctum pdfjs appkey apptoken captcha
+# inglés que la stdlib casi no usa
+gallery rehearsal rehearse incident subagent staff lightbox corrector correctors affirmative adopt warehouse uncheck
+tally stopbar spoken screencast ripple regroup freeable employer draggable discounted debuggee dblclick promo
+# siglas y abreviaturas: dólares, devicePixelRatio, contextos (browser/request/tab), «un-base64», sugerencia,
+# integración, el HDC+ de Experian, cancelar, claves primarias y la frecuencia alta
+usd dpr bctx rctx tctx unb sug integ cplus rcancel pks hfreq
+# nombres propios: Duncan (en tests del chat) y el IVA, el impuesto colombiano
+duncan iva

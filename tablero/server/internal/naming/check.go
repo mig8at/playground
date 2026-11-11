@@ -222,6 +222,38 @@ func Harness(root string) Board {
 	}
 }
 
+/*
+Apps son las demás herramientas con interfaz: chat, Jarvis, ecommerce, Cockpit, Captura, el llavero, radar y la
+
+	sala. Hasta el 2026-11-11 ninguna tenía vara y un nombre en español entraba sin aviso. Una pasada por app, para que
+	el resumen diga qué leyó de cada una. Lo que es DATO y no código queda afuera a propósito: los flujos y mapas de
+	Jarvis (`flows/`, `maps/`: su nombre es el título de lo que se grabó) y el `testdata` de ecommerce. El Swift y el
+	Rust (Captura, el avisador del chat, la carcasa de Cockpit) no tienen extractor: de ellos se revisan sólo las rutas.
+*/
+func Apps(root string) []Board {
+	decls := filepath.Join(root, "tablero", "tools", "rename", "js", "decls.mjs")
+	app := func(name string, goRoots, js, paths []string) Board {
+		return Board{Name: name, Root: root, GoRoots: goRoots, JSONRoots: goRoots, JSGlobs: js, DeclsScript: decls, PathRoots: paths}
+	}
+	vue := func(dir string) []string {
+		return []string{dir + "/src/*.vue", dir + "/src/*.js", dir + "/vite.config.js", dir + "/index.html"}
+	}
+	return []Board{
+		app("chat", []string{"chat/server", "chat/cli", "chat/cmd"}, append(vue("chat"), "chat/src/stores/*.js"),
+			[]string{"chat/server/", "chat/src/", "chat/cli/", "chat/cmd/", "chat/scripts/", "chat/notifier/"}),
+		app("jarvis", []string{"jarvis/server", "jarvis/cli", "jarvis/docs"},
+			append(vue("jarvis"), "jarvis/server/*.js", "jarvis/extension/*.js", "jarvis/extension/*.html", "jarvis/recipes/*.ts",
+				"jarvis/recipes/*/*.ts", "jarvis/dev/*.ts", "jarvis/apps/*/*.js", "jarvis/apps/*/*.html"),
+			[]string{"jarvis/server/", "jarvis/cli/", "jarvis/docs/", "jarvis/src/", "jarvis/extension/", "jarvis/recipes/", "jarvis/dev/", "jarvis/apps/"}),
+		app("ecommerce", []string{"ecommerce/server"}, vue("ecommerce"), []string{"ecommerce/server/", "ecommerce/src/"}),
+		app("cockpit", nil, []string{"cockpit/shell/index.html"}, []string{"cockpit/shell/", "cockpit/src-tauri/src/", "cockpit/build.sh"}),
+		app("captura", nil, nil, []string{"captura/"}),
+		app("keyring", []string{"keyring/check", "keyring/server"}, vue("keyring"), []string{"keyring/check/", "keyring/server/", "keyring/src/"}),
+		app("radar", []string{"radar/scan", "radar/server"}, vue("radar"), []string{"radar/scan/", "radar/server/", "radar/src/"}),
+		app("sala", []string{"sala"}, []string{"sala/index.html"}, []string{"sala/"}),
+	}
+}
+
 // Finding es un nombre con palabras que no pasan como inglés.
 type Finding struct {
 	Where string   `json:"where"`

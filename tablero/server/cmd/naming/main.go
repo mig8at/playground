@@ -1,5 +1,5 @@
-// naming: ¿el código del tablero, o el compartido de la raíz (connectors, cmd, lib), nombra algo en
-// español? Sale 1 si sí. La vara y por qué no es el
+// naming: ¿el código del playground —el tablero, lo compartido de la raíz (connectors, cmd, lib, tools), el harness,
+// el visor y las apps (`naming.Apps`)— nombra algo en español que no esté en la deuda conocida? Sale 1 si sí. La vara y por qué no es el
 // diccionario del sistema: `internal/naming`.
 //
 //	naming                 los nombres que no pasan como inglés
@@ -70,6 +70,7 @@ func main() {
 	var findings []naming.Finding
 	var seen []string
 	boards := []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Harness(filepath.Dir(board)), naming.Visor(filepath.Dir(board))}
+	boards = append(boards, naming.Apps(filepath.Dir(board))...)
 	if *canon != "" {
 		boards = []naming.Board{naming.Canon(*canon, filepath.Dir(board))}
 	}
