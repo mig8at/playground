@@ -1,0 +1,56 @@
+{
+  "name": "Pasar la app Creditop (master) a ambiente Producción para la prueba de la sucursal 2584",
+  "meta": "Pasar la app Creditop (master) a ambiente Producción para la prueba de la sucursal 2584",
+  "start": "https://creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+  "device": "chrome",
+  "created": "2026-11-11T17:22:08.771031-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-11_17-20-17",
+  "steps": [
+    {
+      "action": "select",
+      "target": "Ambiente de Creditop",
+      "value": "production",
+      "instruction": "Elegí «production» en «Ambiente de Creditop»",
+      "why": "La regla ya cobra con la 2584 de producción: falta que la app de Creditop llame a producción y no a qa",
+      "param": "Ambiente de Creditop",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Ambiente de Creditop",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Ambiente de Creditop', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('combobox', { name: 'Ambiente de Creditop', exact: true }).selectOption('production')"
+    },
+    {
+      "action": "click",
+      "target": "SAVE",
+      "instruction": "Hacé clic en «SAVE»",
+      "why": "Guardar el cambio de ambiente",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "SAVE",
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' }).click()"
+    },
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+ "at": "2026-11-11T22:18:20.160Z",
+ "mario": {
+  "id": "facb0b0a-8ca8-4e7f-ab5a-a9440772cc24",
+  "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+  "name": "Mario Hernández (qa)",
+  "configuration": [
+   {
+    "name": "ApplicationAuthenticationLink",
+    "value": "//{hostname}/payment-provider/authenticate-app",
+    "valueKey": null
+   },
+   {
+    "name": "applicationId",
+    "value": "vtex",
+    "valueKey": null
+   },
+   {
+    "name": "requiresDocument",
+    "value": "false",
+    "valueKey": null
+   },
+   {
+    "name": "useAntifraud",
+    "value": "false",
+    "valueKey": null
+   },
+   {
+    "name": "useEarlySecurityCapture",
+    "value": "0",
+    "valueKey": null
+   },
+   {
+    "name": "configReturnRedirectUrl",
+    "value": "",
+    "valueKey": null
+   },
+   {
+    "name": "workspace",
+    "value": "master",
+    "valueKey": null
+   },
+   {
+    "name": "connectorName",
+    "value": "creditop-creditop-v5",
+    "valueKey": null
+   },
+   {
+    "name": "isProduction",
+    "value": "false",
+    "valueKey": null
+   },
+   {
+    "name": "appKey",
+    "value": "1126106a",
+    "valueKey": null
+   },
+   {
+    "name": "appToken",
+    "value": "**********",
+    "valueKey": null
+   }
+  ],
+  "isdelivered": true,
+  "isConfigured": true
+ },
+ "rule": {
+  "id": "e70cba25-7591-4e03-bbe1-66340493c864",
+  "name": "Creditop qa",
+  "salesChannels": [
+   {
+    "id": ":ALL:"
+   }
+  ],
+  "paymentSystem": {
+   "id": 1035,
+   "name": "Creditop",
+   "implementation": null
+  },
+  "connector": {
+   "implementation": "Vtex.PaymentGateway.Connectors.PaymentProvider.PaymentProviderConnector_creditop-creditop-v5",
+   "affiliationId": "facb0b0a-8ca8-4e7f-ab5a-a9440772cc24"
+  },
+  "issuer": {
+   "name": null
+  },
+  "antifraud": {
+   "implementation": null,
+   "affiliationId": null
+  },
+  "installmentOptions": null,
+  "isSelfAuthorized": null,
+  "requiresAuthentication": null,
+  "enabled": true,
+  "installmentsService": false,
+  "isDefault": null,
+  "beginDate": null,
+  "endDate": null,
+  "condition": null,
+  "multiMerchantList": null,
+  "country": null,
+  "dateIntervals": null,
+  "externalInterest": false,
+  "minimumValue": null,
+  "deadlines": [],
+  "cobrand": {
+   "name": null
+  },
+  "cardLevel": {
+   "name": null
+  },
+  "excludedBinsRanges": null
+ }
+}
