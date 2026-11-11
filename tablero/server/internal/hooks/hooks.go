@@ -66,6 +66,8 @@ func Run(name string, env Env) int {
 		return Closeout(env)
 	case "verify":
 		return Verify(env)
+	case "cockpit":
+		return Cockpit(env)
 	}
 	fmt.Fprintf(env.Stderr, "(hook desconocido: %q; no se bloquea)\n", name)
 	return 0

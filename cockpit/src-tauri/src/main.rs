@@ -10,6 +10,9 @@
 // - Los enlaces que abren ventana nueva (`target="_blank"`, de cualquier app) se abren en tu navegador.
 // - Cerrar la ventana la esconde: Cockpit sigue juntando el historial del chat y avisando. Volver: el ícono del Dock.
 // - Arranca sola al iniciar sesión (en la versión compilada con `make cockpit`).
+// - EL PUERTO DE CONTROL (127.0.0.1:5209, `control_server`): para que Claude maneje Cockpit por consola (`bin/cockpit`)
+//   y cuente lo que hace, que se ve en vivo en el panel «Claude» de la carcasa. Pide la llave que Cockpit deja al
+//   arrancar en ~/.config/creditop-cockpit/control.json (600; se borra al salir): una página web no la conoce.
 //
 // Todo corre desde la carpeta del playground (la que tenía este código al compilar) y con el PATH de tu shell. Los
 // registros: ~/Library/Logs/creditop-playground-chat.log (el chat) y ~/Library/Logs/cockpit-<app>.log (las demás).
@@ -27,7 +30,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 use tauri::webview::NewWindowResponse;
-use tauri::{Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{Emitter, Manager, RunEvent, State, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 use tauri_plugin_opener::OpenerExt;
 
 const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
@@ -187,6 +190,9 @@ impl Running {
         }
         false
     }
+    fn started(&self, id: &str) -> bool {
+        self.children.lock().unwrap().contains_key(id)
+    }
     fn stop_all(&self) {
         for (_, mut child) in self.children.lock().unwrap().drain() {
             let _ = Command::new("/bin/kill").args(["-TERM", &format!("-{}", child.id())]).status();
@@ -212,6 +218,120 @@ fn ensure_app(id: String, running: State<'_, Running>) -> bool {
     APPS.iter().find(|a| a.id == id).map(|a| running.ensure(a)).unwrap_or(false)
 }
 
+// La app al frente, que la carcasa avisa al cambiar: la lee `status` del puerto de control.
+#[derive(Default)]
+struct Current(Mutex<String>);
+
+#[tauri::command]
+fn set_current(id: String, current: State<'_, Current>) {
+    *current.0.lock().unwrap() = id;
+}
+
+// ── EL PUERTO DE CONTROL ────────────────────────────────────────────────────────────────────────────────────────
+const CONTROL_ADDR: &str = "127.0.0.1:5209";
+
+fn control_path() -> Option<PathBuf> {
+    Some(PathBuf::from(std::env::var("HOME").ok()?).join(".config/creditop-cockpit/control.json"))
+}
+
+// Una llave nueva en cada arranque: 32 caracteres hex de /dev/urandom.
+fn new_token() -> String {
+    use std::io::Read;
+    let mut buf = [0u8; 16];
+    if let Ok(mut f) = std::fs::File::open("/dev/urandom") {
+        let _ = f.read_exact(&mut buf);
+    }
+    buf.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn write_control(token: &str) {
+    let Some(path) = control_path() else { return };
+    if let Some(dir) = path.parent() {
+        let _ = std::fs::create_dir_all(dir);
+    }
+    let body = serde_json::json!({ "port": 5209, "token": token }).to_string();
+    use std::os::unix::fs::OpenOptionsExt;
+    if let Ok(mut f) = OpenOptions::new().create(true).write(true).truncate(true).mode(0o600).open(&path) {
+        use std::io::Write;
+        let _ = f.write_all(body.as_bytes());
+    }
+}
+
+fn remove_control() {
+    if let Some(path) = control_path() {
+        let _ = std::fs::remove_file(path);
+    }
+}
+
+fn json_response(status: u16, body: serde_json::Value) -> tiny_http::Response<std::io::Cursor<Vec<u8>>> {
+    tiny_http::Response::from_string(body.to_string())
+        .with_status_code(status)
+        .with_header("content-type: application/json".parse::<tiny_http::Header>().unwrap())
+}
+
+// Un texto para el panel: sin saltos raros y con tope, que el panel no es un log entero.
+fn clip(s: &str, max: usize) -> String {
+    let s: String = s.chars().filter(|c| !c.is_control() || *c == '\n').collect();
+    if s.chars().count() <= max { s } else { s.chars().take(max).collect::<String>() + "…" }
+}
+
+fn control_server(app: tauri::AppHandle, token: String) {
+    let Ok(server) = tiny_http::Server::http(CONTROL_ADDR) else { return };
+    for mut req in server.incoming_requests() {
+        let authorized = req.headers().iter().any(|h| h.field.equiv("x-cockpit-token") && h.value.as_str() == token);
+        if !authorized {
+            let _ = req.respond(json_response(401, serde_json::json!({ "error": "falta la llave de Cockpit" })));
+            continue;
+        }
+        let mut body = String::new();
+        let _ = std::io::Read::read_to_string(req.as_reader(), &mut body);
+        let input: serde_json::Value = serde_json::from_str(&body).unwrap_or(serde_json::Value::Null);
+        let text = |key: &str, max: usize| clip(input.get(key).and_then(|v| v.as_str()).unwrap_or(""), max);
+        let reply = match (req.method().as_str(), req.url()) {
+            ("GET", "/status") => {
+                let running = app.state::<Running>();
+                let apps: Vec<_> = APPS
+                    .iter()
+                    .map(|a| serde_json::json!({ "id": a.id, "name": a.name, "ready": ready(a), "started": running.started(a.id) }))
+                    .collect();
+                let current = app.state::<Current>().0.lock().unwrap().clone();
+                json_response(200, serde_json::json!({ "current": current, "apps": apps }))
+            }
+            ("POST", "/open") => {
+                let id = text("app", 40);
+                let route = text("route", 300);
+                if APPS.iter().any(|a| a.id == id) {
+                    show_main(&app);
+                    open_in_shell(&app, &id, &route);
+                    let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "open", "app": id, "text": route, "session": text("session", 40) }));
+                    json_response(200, serde_json::json!({ "ok": true }))
+                } else {
+                    let ids: Vec<_> = APPS.iter().map(|a| a.id).collect();
+                    json_response(404, serde_json::json!({ "error": format!("no hay app «{id}»: {}", ids.join(", ")) }))
+                }
+            }
+            ("POST", "/say") => {
+                let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "say", "text": text("text", 600), "session": text("session", 40) }));
+                json_response(200, serde_json::json!({ "ok": true }))
+            }
+            ("POST", "/activity") => {
+                let kind = text("kind", 10);
+                if !matches!(kind.as_str(), "start" | "end") {
+                    json_response(400, serde_json::json!({ "error": "kind: start o end" }))
+                } else {
+                    let _ = app.emit("cockpit-activity", serde_json::json!({
+                        "kind": kind, "id": text("id", 80), "session": text("session", 40), "tool": text("tool", 60),
+                        "text": text("text", 300), "ok": input.get("ok").and_then(|v| v.as_bool()),
+                    }));
+                    json_response(200, serde_json::json!({ "ok": true }))
+                }
+            }
+            _ => json_response(404, serde_json::json!({ "error": "rutas: GET /status · POST /open · /say · /activity" })),
+        };
+        let _ = req.respond(reply);
+    }
+}
+
 fn show_main(app: &tauri::AppHandle) {
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.show();
@@ -224,14 +344,17 @@ fn show_main(app: &tauri::AppHandle) {
 fn open_link(app: &tauri::AppHandle, url: &tauri::Url) {
     show_main(app);
     let Some(id) = url.host_str().and_then(|h| APPS.iter().find(|a| a.id == h)).map(|a| a.id) else { return };
-    let hash: String = url
-        .fragment()
-        .unwrap_or("")
+    let route = url.fragment().map(|h| format!("#{h}")).unwrap_or_default();
+    open_in_shell(app, id, &route);
+}
+
+// La carcasa a esa app y ruta (`#…` o `/…`). La ruta va filtrada: entra a un `eval`.
+fn open_in_shell(app: &tauri::AppHandle, id: &str, route: &str) {
+    let route: String = route
         .chars()
-        .filter(|c| c.is_ascii_alphanumeric() || "/@._%-+:".contains(*c))
+        .filter(|c| c.is_ascii_alphanumeric() || "#/@._%-+:?=&".contains(*c))
         .collect();
     if let Some(w) = app.get_webview_window("main") {
-        let route = if hash.is_empty() { String::new() } else { format!("#{hash}") };
         let _ = w.eval(format!("window.cockpitOpen && window.cockpitOpen('{id}', '{route}')"));
     }
 }
@@ -256,8 +379,16 @@ fn main() {
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .manage(running)
-        .invoke_handler(tauri::generate_handler![apps, ensure_app])
+        .manage(Current::default())
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current])
         .setup(|app| {
+            // El puerto de control, con una llave nueva en cada arranque.
+            let token = new_token();
+            write_control(&token);
+            {
+                let handle = app.handle().clone();
+                thread::spawn(move || control_server(handle, token));
+            }
             let handle = app.handle().clone();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Cockpit")
@@ -299,7 +430,10 @@ fn main() {
 
     app.run(move |handle, event| match event {
         RunEvent::Reopen { .. } => show_main(handle),
-        RunEvent::Exit => on_exit.stop_all(),
+        RunEvent::Exit => {
+            remove_control();
+            on_exit.stop_all();
+        }
         _ => {}
     });
 }

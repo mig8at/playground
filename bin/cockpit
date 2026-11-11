@@ -1,0 +1,18 @@
+#!/bin/sh
+# cockpit — manejar Cockpit por consola (cmd/cockpit): abrir una app en una ruta, ver cuáles están arriba y contar en su
+# panel «Claude» qué se está haciendo. Lo compila la primera vez y cada vez que cambia su código, a
+# ~/.cache/playground/cockpit (como bin/pg): `go run` costaría un segundo por llamada.
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/cockpit"
+stale=$(find "$root/cmd/cockpit" "$root/lib/cockpit" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./cmd/cockpit) >&2; then
+    rm -f "$tmp"
+    echo "cockpit: no compila cmd/cockpit" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+exec "$bin" "$@"

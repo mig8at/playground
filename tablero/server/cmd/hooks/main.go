@@ -13,7 +13,7 @@ import (
 
 func main() {
 	if len(os.Args) != 2 {
-		os.Stderr.WriteString("uso: hooks session-start|generated|destructive-tests|task-lint|closeout\n")
+		os.Stderr.WriteString("uso: hooks session-start|generated|destructive-tests|task-lint|closeout|cockpit\n")
 		os.Exit(0) // un hook mal llamado no puede frenar la sesión
 	}
 	root := os.Getenv("PLAYGROUND_ROOT")
