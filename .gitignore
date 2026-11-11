@@ -63,3 +63,6 @@ sala/.barridos/
 
 # navegador: perfiles de Chromium con sesiones abiertas, mapas y capturas — nunca commitear
 jarvis/.data/
+
+# ui-shot: las capturas que deja un agente (tools/ui-shot) — nunca commitear
+/tools/ui-shot/shots/

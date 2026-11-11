@@ -100,3 +100,5 @@ unmeasured redictate redictated tomb
 xsrf csrf utm urlutm lstart gitdir fks jerr dbctx kase lba
 # el nombre de Miguel, en el título de un test del freno de Cockpit
 miguel
+# capturar una pantalla (tools/ui-shot): `shoot`, `shot`
+shoot shot

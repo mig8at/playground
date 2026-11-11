@@ -79,15 +79,24 @@ una herramienta, corré su comando solo.
 ## Verificar una interfaz: Cockpit no es el navegador de la sesión
 
 Lo que Miguel ve es Cockpit (un WKWebView); lo que la sesión maneja es el navegador embebido, que NO es lo
-mismo. Lo que ya costó:
+mismo. **Para ver cómo quedó una interfaz, `make ui-shot`** (`tools/ui-shot`): la abre en un Chromium sin
+ventana, en la ruta, con tamaño y tema, hace los clics y deja un PNG, más los errores de consola y los pedidos
+fallidos. `COCKPIT=1` captura en cambio la ventana de Cockpit, lo que ve Miguel (con `APP=` la trae al frente
+en esa app: lo mueve a él también). No levanta servidores.
+
+    make ui-shot APP=tablero ROUTE='#/tareas/core-800?vista=artifacts' CLICK='.artifact-row:has-text("guia")'
+    make ui-shot APP=harness ROUTE=/local/motai/asesor THEME=light
+    make ui-shot APP=tablero ROUTE='#/tareas/core-800?vista=pendientes' SELECTOR='#task-views'
+    make ui-shot COCKPIT=1 APP=tablero
+
+Lo que ya costó, y por qué existe:
 
 - **Un iframe con `src` lo bloquea el navegador embebido** (`ERR_BLOCKED_BY_CLIENT`), también del mismo
   puerto; con `srcdoc` anda en los dos. Por eso la vista previa de Jira y el visor de artifacts del tablero
   van por `srcdoc`.
-- **Con el pane oculto las capturas salen viejas**: el DOM cambia y la imagen no. Leé el DOM, o capturá con
-  un Chromium sin ventana (el Playwright de `harness/node_modules`).
-- **Para ver lo que ve Miguel**, capturá la ventana de Cockpit: `screencapture -x -o -l <id de ventana>`,
-  eligiendo la ventana MÁS GRANDE de «Cockpit» (la primera puede ser un tooltip).
+- **Con el pane oculto las capturas salen viejas**: el DOM cambia y la imagen no. `ui-shot` no depende del pane.
+- **La ventana de Cockpit es la MÁS GRANDE de las suyas** (la primera puede ser un tooltip): así la elige
+  `tools/ui-shot/cockpit-window.swift`.
 - La ventana del pane suele medir menos de 1050 px, y ahí el tablero pliega su sidebar derecho: emulá 1440.
 
 ## Cambiarlo
