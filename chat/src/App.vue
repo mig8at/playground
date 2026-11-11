@@ -784,6 +784,26 @@ function autosize() {
 }
 const notesEl = ref(null)
 const myAgentThinking = computed(() => chat.notes.some((n) => n.status === 'pensando'))
+/* «MI CHAT» JUNTA DOS COSAS, en orden de hora: tus notas con tu agente local (las de este navegador) y lo que vos y tus
+   agentes se dicen entre ustedes por el chat (`bin/chat send <vos> … --as luigi`: la conversación con vos mismo). Lo
+   que dice uno de tus agentes va a la izquierda, con su muñequito de color; lo tuyo, a la derecha. */
+const myThread = computed(() => {
+  const self = chat.conversations[chat.meKey]?.messages || []
+  const items = [
+    ...chat.notes.map((n) => ({ kind: 'note', id: n.id, time: n.time, n })),
+    ...self.map((m) => ({ kind: 'self', id: `self|${m.id}`, time: m.time, m, agent: m.asAgent || m.via || '' })),
+  ].sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  // Seguidos del mismo que habla, a pocos minutos: una tanda (el muñequito y el nombre sólo en la primera).
+  let prev = null
+  for (const it of items) {
+    const who = it.kind === 'note' ? `nota:${it.n.from}` : it.agent ? `agente:${it.agent}` : 'yo'
+    it.cont = !!prev && prev.who === who && new Date(it.time) - new Date(prev.time) < GROUP_MS
+    it.who = who
+    prev = it
+  }
+  return items
+})
+const myLast = computed(() => myThread.value.at(-1) || null)
 const modelName = (id) => MODELS.find((m) => m.id === id)?.name || id
 // «leyó 2 archivos · corrió make tareas»: lo que hizo tu agente para contestar, en una línea.
 function stepsSummary(steps) {
@@ -800,6 +820,8 @@ async function scrollNotesToEnd() {
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
 }
 watch(() => chat.activeKey, (key) => { if (!key) scrollNotesToEnd() })
+// Lo que llega a «Mi chat» (una nota o un mensaje tuyo o de tus agentes) y la primera vez que se pinta: abajo de todo.
+watch(() => myThread.value.length, () => { if (!chat.activeKey) scrollNotesToEnd() }, { immediate: true })
 const atBottom = ref(true)
 const unseen = ref(0)          // los que llegaron mientras mirabas más arriba
 let loadingOlder = false
@@ -1027,7 +1049,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="avatar" :title="agentNames({ email: chat.meKey }) ? `Tus agentes: ${agentNames({ email: chat.meKey })}` : null"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><svg v-if="ringOf({ email: chat.meKey }).length" class="agent-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-for="s in ringOf({ email: chat.meKey })" :key="s.name" cx="21" cy="21" r="19.5" :stroke="s.color" :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset" transform="rotate(-90 21 21)"/></svg></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
-                <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? (chat.notes[chat.notes.length - 1].status === 'pensando' ? `${agentLabel} está pensando…` : chat.notes[chat.notes.length - 1].text) : `vos y ${agentLabel}` }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ !myLast ? `vos y ${agentLabel}` : myLast.kind === 'note' ? (myLast.n.status === 'pensando' ? `${agentLabel} está pensando…` : myLast.n.text) : `${myLast.agent || 'Vos'}: ${myLast.m.text}` }}</span></span>
               </span>
             </button>
           </li>
@@ -1270,11 +1292,29 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <!-- MI CHAT: tu conversación con tu agente. Le escribís y contesta él, con el modelo de su panel; no sale a nadie.
            Lo que te escribe cada persona está en su conversación. -->
       <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes" aria-live="polite">
-        <p v-if="!chat.notes.length" class="side-note center">
+        <p v-if="!myThread.length" class="side-note center">
           Escribile a {{ agentLabel }}: te contesta acá, con {{ modelName(mine.agent.model) }}. Puede leer tu playground —knowledge/, el
           tablero y las herramientas— y correr comandos que sólo consultan; nada que escriba, y no lee credenciales.
         </p>
-        <template v-for="n in chat.notes" :key="n.id">
+        <template v-for="it in myThread" :key="it.id">
+          <!-- Lo que vos y tus agentes se dicen por el chat: uno de tus agentes a la izquierda, con su color; vos a la derecha. -->
+          <div v-if="it.kind === 'self' && it.agent" class="bubble-row in with-avatar" :class="{ cont: it.cont }">
+            <span class="msg-avatar avatar small agent mine" :class="{ ghost: it.cont }" :title="`${it.agent} · tu agente`"
+                  :style="it.cont ? null : { background: agentColor(it.agent, chat.meKey), color: '#fff' }" aria-hidden="true">{{ it.cont ? '' : it.agent[0].toUpperCase() }}</span>
+            <div class="bubble">
+              <span v-if="!it.cont" class="author-label via"><b>{{ it.agent }}</b> · tu agente</span>
+              <p class="text">{{ it.m.text }}</p>
+              <span class="meta">{{ clock(it.time) }}</span>
+            </div>
+          </div>
+          <div v-else-if="it.kind === 'self'" class="bubble-row out" :class="{ cont: it.cont }">
+            <div class="bubble">
+              <span v-if="it.m.toAgent && !it.cont" class="published-label">para {{ it.m.toAgent }}</span>
+              <p class="text">{{ it.m.text }}</p>
+              <span class="meta">{{ clock(it.time) }}</span>
+            </div>
+          </div>
+          <template v-else><template v-for="n in [it.n]" :key="n.id">
           <div v-if="n.from === 'agente'" class="bubble-row in agent-row">
             <img v-if="mine.agent.avatar" class="agent-avatar" :src="mine.agent.avatar" alt="">
             <div class="bubble" :class="{ failed: n.status === 'error' }">
@@ -1305,6 +1345,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
             </div>
           </div>
+          </template></template>
         </template>
       </div>
 
