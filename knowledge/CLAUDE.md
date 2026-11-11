@@ -33,6 +33,12 @@ del mecanismo respaldado por código; el lector actual exige fuentes Git para lo
 
 ## Uso y cierre
 
+`make retomar` y `make agente` sugieren solos las secciones que respaldan los archivos de las ramas de
+la tarea y que su `knowledge:` no declara (el índice al revés de las fuentes, `touch.go`: sin red ni
+modelo, primero las más específicas). `make knowledge-touch F='repo:a..b'` contesta lo mismo para un
+rango de main: qué secciones releer después de un merge. La sugerencia es una pista: una sección entra
+a `knowledge:` cuando se leyó y sirve.
+
 Agregá `knowledge: [topic]` o `knowledge: [topic#ancla]` a las tareas que lo necesiten. Citá el archivo
 en los bloques con `[texto](repo:playground/knowledge/topic/rules.md#L1)` para fijarlo a su commit.
 Un tema ausente o que excede el presupuesto se avisa; no se reemplaza por una búsqueda parecida.

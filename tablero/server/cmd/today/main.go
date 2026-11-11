@@ -172,11 +172,13 @@ func openPendingItems(t task) (open []store.PendingItem, total int) {
 type branchSnap struct {
 	Repo   string          `json:"repo"`
 	Branch string          `json:"branch"`
+	Commit string          `json:"commit"`
 	In     map[string]bool `json:"in"`
 	PR     *struct {
-		Number int    `json:"number"`
-		State  string `json:"state"`
-		Base   string `json:"base"`
+		Number      int    `json:"number"`
+		State       string `json:"state"`
+		Base        string `json:"base"`
+		MergeCommit string `json:"mergeCommit"`
 	} `json:"pr"`
 }
 
@@ -661,6 +663,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		missing = append(missing, "bitácora: ninguna entrada apunta a esta tarea")
 	}
 	localContext := buildKnowledgeContext(t.Knowledge, layout.At(data).Knowledge())
+	suggested := suggestKnowledge(t.Knowledge, snap.Tasks[strconv.Itoa(t.ID)].Branches, layout.At(data).Knowledge())
 	var briefs []canonBrief
 	var briefsNotice string
 	if brief != "" {
@@ -672,7 +675,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
-			"knowledge": localContext, "chat": t.Chat,
+			"knowledge": localContext, "knowledgeSuggested": suggested, "chat": t.Chat,
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
@@ -820,6 +823,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
 	}
 	printKnowledgeContext(localContext)
+	printKnowledgeSuggested(suggested)
 	printChat(t.Chat)
 	fmt.Println()
 	return 0

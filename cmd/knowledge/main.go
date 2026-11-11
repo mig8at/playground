@@ -16,7 +16,7 @@ import (
 func main() { os.Exit(run(os.Args[1:])) }
 func run(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "uso: knowledge map|search|read|check [--json] [--root <repo>] <consulta|referencia>")
+		fmt.Fprintln(os.Stderr, "uso: knowledge map|search|read|check|touch [--json] [--root <repo>] <consulta|referencia|repo:ruta…|repo:a..b>")
 		return 2
 	}
 	fs := flag.NewFlagSet("knowledge", flag.ContinueOnError)
@@ -90,6 +90,42 @@ func run(args []string) int {
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
+		}
+	case "touch":
+		/* Las secciones que respaldan estos archivos. Cada argumento es `repo:ruta` (un archivo) o
+		 * `repo:a..b` (lo que cambió entre dos refs del clon: «¿qué releo después de este merge?»). */
+		client := repos.New(filepath.Join(*root, "tools"))
+		var files []knowledge.RepoFile
+		for _, arg := range fs.Args() {
+			repo, rest, ok := strings.Cut(arg, ":")
+			alias := knowledge.AliasOf(client, repo)
+			if !ok || alias == "" {
+				fmt.Fprintf(os.Stderr, "«%s» no es repo:ruta ni repo:a..b con un repo de tools/repos.json\n", arg)
+				return 2
+			}
+			if a, b, isRange := strings.Cut(rest, ".."); isRange {
+				for _, path := range knowledge.ChangedBetween(client.Citable()[alias], a, b) {
+					files = append(files, knowledge.RepoFile{Repo: alias, Path: path})
+				}
+				continue
+			}
+			files = append(files, knowledge.RepoFile{Repo: alias, Path: rest})
+		}
+		if len(files) == 0 {
+			fmt.Fprintln(os.Stderr, "faltan archivos: repo:ruta… o repo:a..b")
+			return 2
+		}
+		touched := l.Touched(files)
+		if *asJSON {
+			printJSON(touched)
+			return 0
+		}
+		fmt.Printf("%d archivo(s) · %d sección(es) los citan como fuente\n", len(files), len(touched))
+		for _, t := range touched {
+			fmt.Printf("  %s · %s\n      por: %s\n", t.ID, t.Title, strings.Join(t.Files, ", "))
+		}
+		if len(touched) == 0 {
+			fmt.Println("Ninguna sección cita esos archivos. No prueba que no haya contexto: probá make knowledge-search.")
 		}
 	default:
 		fmt.Fprintf(os.Stderr, "modo desconocido: %s\n", args[0])

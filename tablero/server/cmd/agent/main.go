@@ -109,6 +109,12 @@ type taskView struct {
 			Title string `json:"title"`
 		} `json:"topics"`
 	} `json:"knowledge"`
+	// Las secciones que tocan los archivos de sus ramas y `knowledge:` no declara (de `retomar`).
+	KnowledgeSuggested []struct {
+		ID    string   `json:"id"`
+		Title string   `json:"title"`
+		Files []string `json:"files"`
+	} `json:"knowledgeSuggested"`
 	Chat []string `json:"chat"`
 }
 
@@ -487,6 +493,13 @@ func printText(b brief, task taskView) {
 			suites = "se comprueba con " + strings.Join(k.Suites, ", ")
 		}
 		fmt.Printf("    %s · %s · %s\n", k.ID, state, suites)
+	}
+	if len(task.KnowledgeSuggested) > 0 {
+		fmt.Println("\n  CONOCIMIENTO que tocan sus ramas y la tarea no declara")
+		for _, k := range task.KnowledgeSuggested {
+			fmt.Printf("    %s · %s (%d archivo(s) de la tarea)\n", k.ID, k.Title, len(k.Files))
+		}
+		fmt.Println("    leelas: make knowledge-read ID=<referencia>")
 	}
 
 	if len(b.Environment) > 0 {

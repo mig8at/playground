@@ -787,6 +787,8 @@ knowledge-search: ## @dia buscar en el conocimiento LOCAL. Q='monto listado' [JS
 knowledge-read: ## @dia leer un tema o sección local. ID='lender-listing[#ancla]' [JSON=1]
 	@test -n "$(ID)" || { echo "falta ID='<tema[#ancla]>'"; exit 2; }
 	@go run ./cmd/knowledge read $(if $(JSON),--json) '$(ID)'
+knowledge-touch: ## @dia ¿qué secciones respaldan estos archivos? F='legacy-backend:ruta …' (archivos) o F='legacy-backend:origin/main~20..origin/main' (lo que cambió entre dos refs: qué releer tras un merge). Sin red [JSON=1]
+	@go run ./cmd/knowledge touch $(if $(JSON),--json) $(F)
 knowledge-check: ## @dia contrastar fuentes con las refs de main disponibles en disco. Sin fetch; un cambio o fuente ilegible sale 1 [JSON=1]
 	@go run ./cmd/knowledge check $(if $(JSON),--json)
 knowledge-deriva: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
