@@ -59,7 +59,7 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		in         map[string]any
 		app, route string
 	}{
-		{"Bash", bash("make harness-case TARGET=local CASES='pullman@score=700'"), "harness", ""},
+		{"Bash", bash("make harness-case TARGET=local CASES='pullman@score=700'"), "harness", "/local/pullman"},
 		{"Bash", bash("make tarea-bloque N=playground-local ARCHIVO=b.md"), "tablero", "#/tareas/playground-local"},
 		{"Bash", bash("make tarea-bloque N=96 ARCHIVO=b.md"), "tablero", ""},
 		{"Bash", bash("bin/pg tarea bloque --tarea integracion-vtex"), "tablero", "#/tareas/integracion-vtex"},
@@ -132,5 +132,22 @@ func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
 	}
 	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git status"}}`); code != 0 {
 		t.Errorf("sin freno, pasa: %d", code)
+	}
+}
+
+// Un caso del harness deja el panel en su ambiente, comercio y canal.
+func TestCockpitHarnessRouteFromTheCommand(t *testing.T) {
+	cases := map[string]string{
+		"make harness-case TARGET=local CASES='pullman@score=700'":                     "/local/pullman",
+		"make harness-walk-wizard TARGET=qa CASES='motai:173' FLOW=self-service":       "/qa/motai/autogestion",
+		"make harness-listing MERCHANT=alkosto TARGET=local":                           "/local/alkosto",
+		"make harness-case TARGET=local CASES='#82e8961e:24'":                          "",
+		"make harness-doctor TARGET=local":                                             "",
+		"make harness-walk-wizard TARGET=local CASES='pullman' FLOW=merchant ENGINE=x": "/local/pullman/asesor",
+	}
+	for cmd, want := range cases {
+		if app, got := cockpitTarget("Bash", map[string]any{"command": cmd}, ""); app != "harness" || got != want {
+			t.Errorf("%s: dio %q %q, quería harness %q", cmd, app, got, want)
+		}
 	}
 }

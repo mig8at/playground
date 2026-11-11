@@ -213,7 +213,7 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 		cmd := str(in, "command")
 		switch {
 		case regexp.MustCompile(`\bmake (harness-|panel\b)|\bbin/advisor\b|\bharness/(dev|bin)/`).MatchString(cmd):
-			return "harness", ""
+			return "harness", harnessRoute(cmd)
 		case regexp.MustCompile(`\bmake (tarea-|tareas|retomar|agente|cierre|bitacora|tablero)|\bbin/pg (tarea|tareas|cierre|bitacora)\b`).MatchString(cmd):
 			slug := ""
 			if m := taskArg.FindStringSubmatch(cmd); m != nil {
@@ -243,4 +243,33 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 		return "harness", ""
 	}
 	return "", ""
+}
+
+/*
+La ruta del panel del harness para un comando: `/<ambiente>/<comercio>/<canal>` (la entiende su `applyRoute`). El
+
+	ambiente sale de `TARGET=`; el comercio, de `MERCHANT=` o del primero de `CASES=` (por slug: un `#hash` no es una
+	ruta del panel); el canal, de `FLOW=`. Sin ambiente o sin comercio, sin ruta: el panel queda donde estaba.
+*/
+var (
+	harnessTargetArg   = regexp.MustCompile(`\bTARGET=['"]?(local|dev|qa|staging)\b`)
+	harnessMerchantArg = regexp.MustCompile(`\b(?:MERCHANT|CASES)=['"]?([a-z][a-z0-9-]*)`)
+	harnessFlowArg     = regexp.MustCompile(`\bFLOW=['"]?([a-z-]+)`)
+	harnessChannels    = map[string]string{"merchant": "asesor", "advisor": "asesor", "asesor": "asesor",
+		"self-service": "autogestion", "autogestion": "autogestion", "ecommerce": "ecommerce", "qr": "qr"}
+)
+
+func harnessRoute(cmd string) string {
+	target := harnessTargetArg.FindStringSubmatch(cmd)
+	merchant := harnessMerchantArg.FindStringSubmatch(cmd)
+	if target == nil || merchant == nil {
+		return ""
+	}
+	route := "/" + target[1] + "/" + merchant[1]
+	if flow := harnessFlowArg.FindStringSubmatch(cmd); flow != nil {
+		if channel, ok := harnessChannels[flow[1]]; ok {
+			route += "/" + channel
+		}
+	}
+	return route
 }
