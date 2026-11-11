@@ -60,7 +60,7 @@ Las rutas son las de cada app:
 | `harness` | `/<ambiente>/<comercio>/<canal>[?vista=comercio\|cliente\|buros]` | `/local/motai/asesor` |
 | `chat` | `#/c/<correo>` · `#/c/agent:<dueño>/<agente>` | |
 
-**El panel «Claude»** (el ícono de abajo de la barra) muestra en vivo cada herramienta que usa la sesión. No
+**El panel «Claude»** (el asterisco ✳ del pie de cada app, al lado del tema; lo agrega `tools/ui/workbench.js` sólo dentro de Cockpit) muestra en vivo cada herramienta que usa la sesión. No
 hay que hacer nada: el hook `cockpit` (`tablero/server/internal/hooks/cockpit.go`, en PreToolUse, PostToolUse
 y UserPromptSubmit) le pasa una línea por herramienta. Tres cosas que salen de ahí:
 
@@ -104,13 +104,13 @@ Lo que ya costó, y por qué existe:
 | pieza | dónde |
 |---|---|
 | qué apps hay, cómo se levantan, enlaces `cockpit://`, el puerto de control | `src-tauri/src/main.rs` |
-| la carcasa: la barra, los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make estilo-sync`) |
+| la carcasa: la barra, el engranaje de configuración (tema, seguir a Claude, abrir el panel con actividad), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make estilo-sync`) |
 | el cliente del puerto de control | `lib/cockpit/` · el CLI: `cmd/cockpit/` (`bin/cockpit`) |
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
 
 **La carcasa y las apps se hablan por `postMessage`.** La app manda `badge` (su numerito), `theme` (cambió el
-tema) y `open` (abrí otra app); la carcasa manda `route` (ir a una ruta), `visible` (si está a la vista: un
+tema), `open` (abrí otra app) y `claude` (su asterisco: abrí o cerrá el panel); la carcasa manda `route` (ir a una ruta), `claude` (el panel abierto y si hay actividad sin ver), `visible` (si está a la vista: un
 iframe escondido no se entera solo, y el chat marcaría leído) y `theme`. Cockpit tiene UN tema para todas.
 Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el navegador de Miguel.
 

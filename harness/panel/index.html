@@ -6586,6 +6586,31 @@ function themeFromCockpit(e) {
 }
 
 // El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
+/* EL PANEL «CLAUDE» DE COCKPIT, EN EL PIE: dentro de Cockpit, al lado del botón de tema, un asterisco abre y cierra el
+   panel donde se ve lo que hace Claude. Lo agrega esta base, así aparece en el pie de TODAS las herramientas sin que
+   cada una lo declare; fuera de Cockpit no existe. Cockpit contesta con el estado (`claude`: abierto, y si hay
+   actividad sin ver, que se marca con un punto). */
+function cockpitClaudeButton(themeButton) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.className = `${themeButton.className} cockpit-claude`.trim();
+  button.innerHTML = '<span class="ui-icon" data-icon="claude" aria-hidden="true"></span>';
+  button.setAttribute('aria-label', 'Lo que hace Claude');
+  button.setAttribute('aria-pressed', 'false');
+  button.title = 'Lo que hace Claude: abre o cierra el panel de Cockpit';
+  const click = () => { try { window.parent.postMessage({ cockpit: true, type: 'claude' }, '*'); } catch { /* sin Cockpit */ } };
+  const state = (e) => {
+    const d = e.data;
+    if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'claude') return;
+    button.setAttribute('aria-pressed', String(!!d.open));
+    button.classList.toggle('unseen', !!d.unseen && !d.open);
+  };
+  button.addEventListener('click', click);
+  addEventListener('message', state);
+  themeButton.before(button);
+  return () => { button.removeEventListener('click', click); removeEventListener('message', state); button.remove(); };
+}
+
 export function bindThemeToggle(button) {
   const icon = button.querySelector('.ui-icon') || button.appendChild(Object.assign(document.createElement('span'), { className: 'ui-icon' }));
   icon.setAttribute('aria-hidden', 'true');
@@ -6604,9 +6629,10 @@ export function bindThemeToggle(button) {
   button.addEventListener('click', click);
   addEventListener('ui-theme', paint);
   if (inFrame) addEventListener('message', themeFromCockpit);
+  const dropClaude = inFrame ? cockpitClaudeButton(button) : null;
   applyTheme(preferredTheme());
   paint();
-  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); } };
+  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); dropClaude?.(); } };
 }
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────

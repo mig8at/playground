@@ -54,10 +54,20 @@
   .waiting { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-2) }
   /* Una app que se cayó: el aviso la TAPA (el iframe muestra un error del navegador) hasta que vuelve. */
   .waiting.over { z-index: 1; background: var(--canvas); text-align: center; padding: 0 var(--space-6) }
-  /* El botón del panel «Claude», al pie de la barra, con un punto cuando hubo actividad que no viste. */
+  /* Al pie de la barra, el engranaje: las preferencias de Cockpit. El panel «Claude» se abre desde el pie de cada app
+     (el asterisco que agrega tools/ui/workbench.js). */
   nav .spacer { flex: 1 }
-  nav .activity-toggle { margin-bottom: 8px }
-  nav .activity-toggle .dot { position: absolute; right: 10px; top: 9px; width: 8px; height: 8px; border-radius: 50%; background: var(--primary) }
+  nav .settings-toggle { margin-bottom: 8px }
+  .settings-menu { position: fixed; left: 52px; bottom: 12px; z-index: 20; min-width: 260px; padding: 6px; border-radius: var(--radius-control, 6px);
+    background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); font-size: 12px }
+  .settings-menu[hidden] { display: none }
+  .settings-menu h2 { margin: 6px 8px 4px; font-size: 11px; font-weight: 600; color: var(--fg-2) }
+  .settings-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 4px;
+    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+  .settings-menu button:hover, .settings-menu button:focus-visible { background: var(--hover); outline: none }
+  .settings-menu button i { flex: none; width: 14px; font-style: normal; text-align: center }
+  .settings-menu button small { margin-left: auto; color: var(--fg-2) }
+  .settings-menu hr { margin: 6px 0; border: 0; border-top: 1px solid var(--border) }
   /* EL PANEL «CLAUDE»: lo que hace Claude en vivo, como un panel más sobre el lienzo. */
   aside { flex: none; width: 340px; display: flex; flex-direction: column; min-height: 0; margin: calc(var(--panels-gap) / 2);
     margin-left: 0; border: 1px solid var(--panel-border); border-radius: var(--panels-radius); background: var(--panel-surface);
@@ -105,6 +115,7 @@
 <body>
 <nav id="bar" aria-label="Aplicaciones"></nav>
 <main id="panels"></main>
+<div class="settings-menu" id="settingsMenu" role="menu" aria-label="Configuración de Cockpit" hidden></div>
 <aside id="activity" aria-label="Lo que hace Claude" hidden>
   <header><span>Claude</span><span class="grow"></span>
     <button type="button" id="followToggle" class="follow"><i aria-hidden="true"></i><span></span></button>
@@ -157,17 +168,18 @@ function render() {
   })
   const spacer = document.createElement('div')
   spacer.className = 'spacer'
-  const toggle = document.createElement('button')
-  toggle.type = 'button'
-  toggle.className = 'activity-toggle' + (activityOpen ? ' on' : '')
-  toggle.setAttribute('aria-label', 'Lo que hace Claude')
-  toggle.setAttribute('aria-pressed', String(activityOpen))
-  toggle.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l1.9 5.1 5.1 1.9-5.1 1.9L12 17.5l-1.9-5.1L5 10.5l5.1-1.9z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8z"/></svg>'
-    + (unseen && !activityOpen ? '<span class="dot" aria-hidden="true"></span>' : '')
-  toggle.addEventListener('click', () => setActivityOpen(!activityOpen, true))
-  toggle.addEventListener('mouseenter', () => showTip(toggle, 'Lo que hace Claude'))
-  toggle.addEventListener('mouseleave', hideTip)
-  bar.append(spacer, toggle)
+  const gear = document.createElement('button')
+  gear.type = 'button'
+  gear.className = 'settings-toggle' + (settingsOpen ? ' on' : '')
+  gear.setAttribute('aria-label', 'Configuración')
+  gear.setAttribute('aria-haspopup', 'menu')
+  gear.setAttribute('aria-expanded', String(settingsOpen))
+  gear.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>'
+  gear.addEventListener('click', (e) => { e.stopPropagation(); hideTip(); setSettingsOpen(!settingsOpen) })
+  gear.addEventListener('mouseenter', () => { if (!settingsOpen) showTip(gear, 'Configuración') })
+  gear.addEventListener('mouseleave', hideTip)
+  bar.append(spacer, gear)
+  tellClaude()
 }
 
 let tip = null
@@ -245,7 +257,7 @@ async function loadOnce(id) {
   f.title = app.name
   f.src = app.url
   f.hidden = current !== id
-  f.addEventListener('load', () => { tellTheme(f); tellVisibility(); deliverRoute(id) })
+  f.addEventListener('load', () => { tellTheme(f); tellVisibility(); tellClaude(); deliverRoute(id) })
   frames[id] = f
   panels.append(f)
 }
@@ -288,6 +300,11 @@ window.addEventListener('message', (e) => {
     window.cockpitOpen(d.app, typeof d.route === 'string' ? d.route : '')
     return
   }
+  // El asterisco del pie de una app: abre o cierra el panel «Claude» (workbench.js, `cockpitClaudeButton`).
+  if (d.type === 'claude') {
+    setActivityOpen(!activityOpen, true)
+    return
+  }
   if (d.type === 'badge') {
     badges[app.id] = Math.max(0, Number(d.count) || 0)
     render()
@@ -300,6 +317,12 @@ window.addEventListener('message', (e) => {
    (`say`, con `bin/cockpit say`), cada herramienta que usa (`start`/`end`, del hook `cockpit` de Claude Code) y cada vez
    que lleva Cockpit a una app (`open`). Se abre solo con actividad, salvo que lo hayas cerrado vos. */
 const ACTIVITY_KEY = 'cockpit.activity'
+// A cada app, si el panel está abierto y si hubo actividad sin ver: lo pinta su asterisco del pie.
+function tellClaude() {
+  for (const f of Object.values(frames)) {
+    try { f.contentWindow?.postMessage({ cockpit: true, type: 'claude', open: activityOpen, unseen }, new URL(f.src).origin) } catch { /* todavía cargando */ }
+  }
+}
 const activity = document.getElementById('activity')
 const feed = document.getElementById('feed')
 let activityOpen = pick(ACTIVITY_KEY, 'auto') === 'open'
@@ -312,6 +335,7 @@ function setActivityOpen(open, byHand = false) {
   if (open) unseen = false
   if (byHand) keep(ACTIVITY_KEY, open ? 'open' : 'closed')
   render()
+  if (settingsOpen) paintSettings()
 }
 document.getElementById('activityClose').addEventListener('click', () => setActivityOpen(false, true))
 document.getElementById('activityClear').addEventListener('click', () => {
@@ -396,6 +420,53 @@ function paintFollow() {
 }
 followToggle.addEventListener('click', () => { follow = !follow; keep(FOLLOW_KEY, follow ? 'on' : 'off'); paintFollow() })
 paintFollow()
+
+/* LA CONFIGURACIÓN (el engranaje de la barra): las preferencias de Cockpit en un solo lugar. No guarda nada nuevo: el
+   tema es el de todas las apps, «seguir a Claude» es el mismo punto del panel, y «abrir con actividad» es lo que ya
+   decide el panel cuando lo cerrás a mano (cockpit.activity: closed). */
+let settingsOpen = false
+const settingsMenu = document.getElementById('settingsMenu')
+const mark = (on) => `<i aria-hidden="true">${on ? '✓' : ''}</i>`
+function paintSettings() {
+  const theme = shellTheme()
+  const autoPanel = pick(ACTIVITY_KEY, 'auto') !== 'closed'
+  settingsMenu.innerHTML = `<h2>Tema</h2>
+    <button type="button" role="menuitemradio" aria-checked="${theme === 'light'}" data-act="light">${mark(theme === 'light')}Claro</button>
+    <button type="button" role="menuitemradio" aria-checked="${theme === 'dark'}" data-act="dark">${mark(theme === 'dark')}Oscuro</button>
+    <hr><h2>Claude</h2>
+    <button type="button" role="menuitemcheckbox" aria-checked="${follow}" data-act="follow">${mark(follow)}Seguir a Claude<small>salta a la app que usa</small></button>
+    <button type="button" role="menuitemcheckbox" aria-checked="${autoPanel}" data-act="auto">${mark(autoPanel)}Abrir el panel con actividad</button>
+    <button type="button" role="menuitem" data-act="panel">${mark(false)}${activityOpen ? 'Cerrar' : 'Abrir'} el panel de Claude<small>✳ en el pie</small></button>`
+}
+function setSettingsOpen(open) {
+  settingsOpen = open
+  if (open) paintSettings()
+  settingsMenu.hidden = !open
+  render()
+  if (open) settingsMenu.querySelector('button')?.focus()
+}
+settingsMenu.addEventListener('click', (e) => {
+  e.stopPropagation()
+  const act = e.target.closest('button')?.dataset.act
+  if (act === 'light' || act === 'dark') {
+    setShellTheme(act)
+    for (const f of Object.values(frames)) tellTheme(f)
+  } else if (act === 'follow') {
+    follow = !follow
+    keep(FOLLOW_KEY, follow ? 'on' : 'off')
+    paintFollow()
+  } else if (act === 'auto') {
+    keep(ACTIVITY_KEY, pick(ACTIVITY_KEY, 'auto') === 'closed' ? 'auto' : 'closed')
+  } else if (act === 'panel') {
+    setActivityOpen(!activityOpen, true)
+  } else return
+  paintSettings()
+  settingsMenu.querySelector(`[data-act="${act}"]`)?.focus()
+})
+document.addEventListener('click', () => { if (settingsOpen) setSettingsOpen(false) })
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && settingsOpen) setSettingsOpen(false) })
+window.addEventListener('blur', () => { if (settingsOpen) setSettingsOpen(false) })
+
 function followTo(app, route) {
   if (!follow || !apps.some((a) => a.id === app) || Date.now() - manualAt < 20_000) return
   const key = `${app}|${route || ''}`

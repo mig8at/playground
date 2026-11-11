@@ -57,6 +57,7 @@
     "back": "arrow-left",
     "prev": "chevron-left",
     "eraser": "eraser",
-    "bell": "bell"
+    "bell": "bell",
+    "claude": "asterisk"
   }
 }
