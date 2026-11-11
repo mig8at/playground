@@ -80,7 +80,7 @@ func call(method, path string, body any, out any) error {
 	}
 	res, err := client.Do(req)
 	if err != nil {
-		return errors.New("the chat server is not answering (" + base() + "): start it with `make chat-service` or `make chat`")
+		return errors.New("the chat server is not answering (" + base() + "): open the desktop app (`make chat-app`) or run `make chat`")
 	}
 	defer res.Body.Close()
 	data, _ := io.ReadAll(res.Body)

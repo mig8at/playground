@@ -127,10 +127,8 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 	 open -n captura/.build/Captura.app --args --panel --out "$(abspath $(or $(OUT),captura/shots))" --spell-log "$(CURDIR)/captura/ortografia/errores.jsonl" $(if $(NO_CLIP),--no-clip) $(if $(NO_SOUND),--no-sound) $(if $(DEBUG),--debug "$$dbg") && \
 	 echo "  · panel de Captura abierto (✕ lo cierra)"
 
-chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar. Usa el CLI `playground` (login y listen); el historial y las imágenes los guarda su servidor en disco, y `bin/chat` los lee desde la terminal
+chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de la app de escritorio (:5185) o, si está cerrada, uno con go run. Para usarlo: la app, `make chat-app`
 	@cd chat && npm run dev
-chat-service: ## @dia deja el servidor del chat como servicio del Mac (arranca con la sesión y junta el historial aunque make chat esté cerrado). A=status|uninstall|refresh
-	@cd chat && sh scripts/service.sh $(or $(A),install)
 
 chat-app: ## @dia compila la app de escritorio del chat (Tauri, chat/src-tauri), la instala en Aplicaciones y la abre: trae su servidor adentro (:5185), sigue en segundo plano al cerrar la ventana, arranca al iniciar sesión, avisos nativos y el globito del Dock. Necesita Rust (rustup)
 	@cd chat && npm run desktop && { osascript -e 'quit app id "com.creditop.playground.chat-app"' 2>/dev/null || true; sleep 1; rm -rf /Applications/Chat.app && ditto src-tauri/target/release/bundle/macos/Chat.app /Applications/Chat.app && open /Applications/Chat.app; }

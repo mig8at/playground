@@ -1,11 +1,9 @@
 /* LA APP DE ESCRITORIO (chat/src-tauri): la misma interfaz, abierta por Tauri en vez del navegador. Tauri deja
    `window.__TAURI__` (withGlobalTauri) y con eso, sólo ahí:
-   - los avisos NO salen de esta ventana: se le saca `Notification` y el servidor los manda por el avisador de macOS
-     («Chat del playground», scripts/notifier.sh), que al tocarlo abre la conversación en la app
-     (`creditop-chat://open/#/c/…`). El plugin de avisos de Tauri no mostraba nada en macOS (medido 2026-11-11);
    - el globito del Dock con los no leídos;
    - los enlaces a otros sitios se abren en tu navegador (en el WebView un `target="_blank"` no hace nada).
-   En el navegador todo esto no hace nada. */
+   Los avisos no salen de esta ventana: los muestra el servidor con el avisador de macOS (server/notify.go).
+   En el navegador (`make chat`, para desarrollar) todo esto no hace nada. */
 const tauri = typeof window !== 'undefined' ? window.__TAURI__ : undefined
 export const isDesktop = !!tauri
 
@@ -26,11 +24,9 @@ function openLinksOutside(opener) {
   }, true)
 }
 
-// Antes de montar la app: el chat le dice al servidor si esta ventana puede avisar al abrir el stream.
+// Antes de montar la app.
 export function setupDesktop() {
   if (!tauri) return Promise.resolve()
-  try { delete window.Notification } catch { /* sigue abajo */ }
-  if (typeof window.Notification !== 'undefined') window.Notification = undefined
   if (tauri.opener) openLinksOutside(tauri.opener)
   report(`arrancó · enlaces ${tauri.opener ? 'afuera' : 'sin opener'} · globito ${tauri.window ? 'sí' : 'no'}`)
   return Promise.resolve()

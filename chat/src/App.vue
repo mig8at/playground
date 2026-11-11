@@ -917,11 +917,9 @@ function forgetActive() {
 // El título de la pestaña dice cuántos no leídos hay, como cualquier chat.
 // …y en la app de escritorio, el globito del Dock.
 watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'chat'; setBadge(n) }, { immediate: true })
-/* LOS AVISOS (server/notify.go): los decide el servidor con la configuración de «Avisos», también con la pestaña
-   cerrada. Si esta pestaña tiene permiso del navegador, el servidor se los pasa a ella (tocarlos abre la
-   conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de
-   ésa. El permiso se pide desde «Avisos»: el navegador sólo lo pide tras un clic. */
-const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
+/* LOS AVISOS (server/notify.go): los decide el servidor con la configuración de «Avisos», también con la ventana
+   cerrada, y los muestra macOS (tocarlos abre la conversación en la app). La ventana le cuenta qué conversación tenés
+   al frente para no avisarte de ésa. */
 /* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — tus agentes, los avisos, la voz, el llavero y
    la conexión — en vez de tenerlo repartido en la barra de abajo y en diálogos. */
 const PROFILE_TABS = [
@@ -939,25 +937,7 @@ function openProfile(tab) {
   narrowList.value = false; narrowRight.value = true
   if (tab === 'notify') loadNotify()
 }
-async function askNotifyPermission() {
-  try { notifyPermission.value = await Notification.requestPermission() } catch { /* sin permiso */ }
-  chat.reconnectLive()  // el stream se vuelve a abrir diciendo si esta pestaña puede mostrar avisos
-  setTimeout(loadNotify, 800)
-}
 function openNotify() { openProfile('notify') }
-watch(() => chat.noticeSeq, () => {
-  for (const n of chat.takeNotices()) {
-    try {
-      const shown = new Notification(n.title, { body: n.body, tag: n.id || undefined, silent: !n.sound })
-      shown.onclick = () => {
-        window.focus(); serverOpen.value = ''
-        const c = n.key && chat.conversations[n.key]
-        if (c) { chat.open(c.person); narrowList.value = false }
-        shown.close()
-      }
-    } catch { /* el navegador no la dejó */ }
-  }
-})
 // Qué tenés al frente: la conversación abierta (o ninguna) y si la pestaña tiene el foco.
 const viewKey = computed(() => (serverOpen.value ? '' : chat.activeKey))
 const sendView = (opts) => reportView(viewKey.value, document.visibilityState === 'visible' && document.hasFocus(), opts)
@@ -1721,7 +1701,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <p v-if="removeAgentError" class="field-hint bad">{{ removeAgentError }}</p>
       </div>
       <div v-else-if="profileTab === 'notify'" class="region-body">
-        <NotifySettings :permission="notifyPermission" :name-of="conversationName" @ask-permission="askNotifyPermission" />
+        <NotifySettings :name-of="conversationName" />
       </div>
       <div v-else-if="profileTab === 'voice'" class="region-body profile-section">
         <p v-if="!speech.supported" class="field-hint">Este navegador no lee en voz alta.</p>

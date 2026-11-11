@@ -6,7 +6,7 @@ import { reactive } from 'vue'
 export const notify = reactive({
   settings: null,
   // Por dónde sale un aviso ahora: `tab` (esta pestaña, con permiso) o `mac` (osascript o terminal-notifier).
-  status: { via: 'mac', macTool: 'osascript', tabs: 0, tabsWithPermission: 0 },
+  status: { macTool: 'osascript' },
   error: '',
 })
 
@@ -60,8 +60,8 @@ async function migrateLegacy() {
   await saveNotify({ conversations })
 }
 
-export async function testNotify(via = '') {
-  try { notify.status = await call('POST', `/api/notify/test${via ? `?via=${via}` : ''}`); notify.error = '' } catch (e) { notify.error = e.message }
+export async function testNotify() {
+  try { notify.status = await call('POST', '/api/notify/test'); notify.error = '' } catch (e) { notify.error = e.message }
 }
 
 // Qué estás mirando: la conversación abierta y si la pestaña está al frente. Al cerrar, sale con sendBeacon.

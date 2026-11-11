@@ -5,11 +5,9 @@
   "scripts": {
     "dev": "concurrently -k -n server,web -c green,cyan \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "sh scripts/server.sh",
-    "service": "sh scripts/service.sh",
     "dev:web": "vite",
     "build": "vite build",
-    "desktop": "sh scripts/desktop.sh",
-    "desktop:dev": "tauri dev"
+    "desktop": "sh scripts/desktop.sh"
   },
   "dependencies": {
     "pdfjs-dist": "4.10.38",

@@ -1,17 +1,16 @@
 package main
 
-/* LOS AVISOS, DECIDIDOS POR EL SERVIDOR. El servidor corre como servicio del Mac (scripts/service.sh) y recibe cada
- * mensaje aunque la pestaña del chat esté cerrada, así que es él quien decide si un mensaje avisa, con la
+/* LOS AVISOS, DECIDIDOS POR EL SERVIDOR. El servidor corre dentro de la app de escritorio (chat/src-tauri) y recibe
+ * cada mensaje aunque su ventana esté cerrada, así que es él quien decide si un mensaje avisa, con la
  * configuración que elegís en la app (notify-settings.json, junto al historial):
  *
  *   - por tipo: los mensajes directos, los de grupos (todos, sólo cuando te mencionan, o ninguno) y los de agentes;
  *   - por conversación, por encima de su tipo (#shopify sólo menciones, alguien en silencio);
  *   - «no molestar» en un horario, salvo, si querés, cuando te mencionan.
  *
- * Y lo entrega por donde se pueda tocar: si hay una pestaña del chat abierta con permiso de avisos, ella muestra el
- * aviso (un evento `notify` del stream; tocarlo abre la conversación). Si no hay ninguna, lo muestra macOS con
- * terminal-notifier si está instalado (tocarlo abre el chat) o, si no, con osascript. Si estás mirando esa misma
- * conversación con la pestaña al frente, no avisa.
+ * Lo muestra macOS: con el avisador propio («Chat del playground», scripts/notifier.sh), que al tocarlo abre esa
+ * conversación en la app (`creditop-chat://open/#/c/…`); sin él, terminal-notifier u osascript. Si estás mirando esa
+ * misma conversación con la ventana al frente, no avisa.
  */
 
 import (
@@ -191,7 +190,6 @@ type notice struct {
 	ID       string `json:"id"`
 	Sound    bool   `json:"sound"`
 	Mention  bool   `json:"mention"`
-	Delivery string `json:"delivery"` // tab | mac
 }
 
 type me struct {
@@ -331,13 +329,6 @@ func notifyFresh(fresh []cli.Message) {
 
 // Las pruebas lo cambian para no mostrar nada.
 var deliver = func(n notice) {
-	if events.notifiers() > 0 {
-		n.Delivery = "tab"
-		events.publish("notify", n)
-		log.Printf("aviso por la pestaña: %s", n.Title)
-		return
-	}
-	n.Delivery = "mac"
 	if err := macNotify(n); err != nil {
 		log.Printf("aviso de macOS: %v", err)
 		return
@@ -399,11 +390,8 @@ func macNotify(n notice) error {
 // La interfaz de `make chat`; CHAT_UI_URL la cambia.
 func chatURL(key string) string {
 	base := os.Getenv("CHAT_UI_URL")
-	if base == "" && fileExists("/Applications/Chat.app") {
-		base = "creditop-chat://open/" // la app de escritorio (chat/src-tauri): abre la conversación ahí
-	}
 	if base == "" {
-		base = "http://localhost:5184/"
+		base = "creditop-chat://open/" // la app de escritorio (chat/src-tauri): abre la conversación ahí
 	}
 	if key == "" {
 		return base
@@ -419,13 +407,9 @@ func appleString(s string) string {
 	return `"` + s + `"`
 }
 
-// Quién avisa ahora: la pestaña (si hay una con permiso) o macOS; y con qué.
+// Con qué avisa macOS.
 func notifyStatus() map[string]any {
-	via := "mac"
-	if events.notifiers() > 0 {
-		via = "tab"
-	}
-	return map[string]any{"via": via, "macTool": macTool(), "tabs": events.count(), "tabsWithPermission": events.notifiers()}
+	return map[string]any{"macTool": macTool()}
 }
 
 func registerNotify(mux *http.ServeMux) {
@@ -458,18 +442,13 @@ func registerNotify(mux *http.ServeMux) {
 		viewMu.Unlock()
 		w.WriteHeader(http.StatusNoContent)
 	})
-	// Un aviso de prueba, por donde saldría uno de verdad (o por macOS, con ?via=mac).
+	// Un aviso de prueba, como saldría uno de verdad.
 	mux.HandleFunc("POST /api/notify/test", func(w http.ResponseWriter, r *http.Request) {
 		s := readNotifySettings()
 		n := notice{Title: "Chat del playground", Body: "Así te va a llegar un aviso.", Sound: s.Sound}
-		if r.URL.Query().Get("via") == "mac" {
-			n.Delivery = "mac"
-			if err := macNotify(n); err != nil {
-				fail(w, http.StatusInternalServerError, err)
-				return
-			}
-		} else {
-			deliver(n)
+		if err := macNotify(n); err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
 		}
 		writeJSON(w, http.StatusOK, notifyStatus())
 	})

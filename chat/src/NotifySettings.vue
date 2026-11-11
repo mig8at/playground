@@ -6,10 +6,8 @@ import { computed, ref } from 'vue'
 import { notify, saveNotify, setConversationMode, testNotify } from './notifyStore.js'
 
 const props = defineProps({
-  permission: { type: String, default: 'default' }, // el permiso de avisos del navegador
   nameOf: { type: Function, default: (k) => k },    // el nombre de una conversación por su clave
 })
-const emit = defineEmits(['ask-permission'])
 
 const s = computed(() => notify.settings)
 const MODES = { all: 'Todos', mentions: 'Sólo menciones', off: 'Ninguno' }
@@ -18,13 +16,12 @@ const overrides = computed(() => Object.entries(s.value?.conversations || {})
   .sort((a, b) => a.name.localeCompare(b.name)))
 const viaText = computed(() => {
   const st = notify.status
-  if (st.via === 'tab') return 'Salen por esta pestaña.'
   if (st.macTool === 'chat-notifier') return 'Salen por «Chat del playground».'
   if (st.macTool === 'terminal-notifier') return 'Salen por terminal-notifier.'
-  return 'Salen por osascript y pueden no verse: make chat-service A=refresh compila el avisador.'
+  return 'Salen por osascript y pueden no verse: make chat-app compila el avisador.'
 })
 const testing = ref(false)
-async function test(via) { testing.value = true; await testNotify(via); testing.value = false }
+async function test() { testing.value = true; await testNotify(); testing.value = false }
 </script>
 
 <template>
@@ -91,12 +88,8 @@ async function test(via) { testing.value = true; await testNotify(via); testing.
 
       <footer class="notify-foot">
         <p class="field-hint">{{ viaText }}</p>
-        <p v-if="permission === 'default'" class="field-hint">
-          <button type="button" class="btn-link" @click="emit('ask-permission')">Que avise esta pestaña</button>
-        </p>
         <div class="notify-actions">
-          <button type="button" class="btn btn-outline btn-sm" :disabled="testing" @click="test('')">Probar un aviso</button>
-          <button v-if="notify.status.via === 'tab'" type="button" class="btn btn-outline btn-sm" :disabled="testing" @click="test('mac')">Probar con la pestaña cerrada</button>
+          <button type="button" class="btn btn-outline btn-sm" :disabled="testing" @click="test">Probar un aviso</button>
         </div>
         <p v-if="notify.error" class="field-error">{{ notify.error }}</p>
       </footer>

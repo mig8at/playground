@@ -831,26 +831,20 @@ export const useChatStore = defineStore('chat', () => {
   let lastBeat = 0
   let watchdog = null
   let noticeTimer = null
-  // Los avisos que decidió el servidor para esta pestaña (server/notify.go): App.vue los muestra con takeNotices.
-  const notices = []
-  const noticeSeq = ref(0)
   function showNotice(text) {
     liveNotice.value = { text, at: Date.now() }
     clearTimeout(noticeTimer)
     noticeTimer = setTimeout(() => { liveNotice.value = null }, 8000)
   }
-  function takeNotices() { return notices.splice(0) }
-  // Con permiso de avisos del navegador, el stream se abre con `?notify=1`: el servidor le pasa los avisos a esta pestaña.
-  const canNotify = () => typeof Notification !== 'undefined' && Notification.permission === 'granted'
   function openLive() {
     if (typeof EventSource === 'undefined') return
     source?.close()
-    source = new EventSource(canNotify() ? '/api/events?notify=1' : '/api/events')
+    source = new EventSource('/api/events')
     // El servidor late cada 25 s (`ping`). Si pasa más de un minuto sin nada, el stream quedó muerto detrás del proxy
     // (el servidor se reinició) y se vuelve a abrir: si no, el servidor no sabría que esta pestaña está.
     lastBeat = Date.now()
     const beat = () => { lastBeat = Date.now() }
-    for (const name of ['hello', 'ping', 'messages', 'file', 'keyring', 'notify']) source.addEventListener(name, beat)
+    for (const name of ['hello', 'ping', 'messages', 'file', 'keyring']) source.addEventListener(name, beat)
     clearInterval(watchdog)
     watchdog = setInterval(() => { if (Date.now() - lastBeat > 65_000) { live.value = false; openLive() } }, 15_000)
     source.addEventListener('hello', () => { live.value = true })
@@ -872,9 +866,6 @@ export const useChatStore = defineStore('chat', () => {
     })
     source.addEventListener('read', (e) => {
       try { const r = JSON.parse(e.data); mergeRead(r.key, r.at) } catch { /* lo trae loadReads */ }
-    })
-    source.addEventListener('notify', (e) => {
-      try { notices.push(JSON.parse(e.data)); noticeSeq.value++ } catch { /* un aviso roto: se pierde ése */ }
     })
     // EventSource reintenta solo; mientras tanto, la consulta vuelve a su ritmo normal.
     source.onerror = () => { live.value = false }
@@ -920,6 +911,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, ensure, removeAgent, selfUnread,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
-    live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    live, liveNotice, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

@@ -22,13 +22,13 @@ import (
 	"creditop/playground/chat/cli"
 )
 
-// Cada ventana suscrita, y si puede mostrar avisos (abrió el stream con `?notify=1`: tiene el permiso del navegador).
+// Cada ventana suscrita al stream.
 type hub struct {
 	mu   sync.Mutex
-	subs map[chan []byte]bool
+	subs map[chan []byte]struct{}
 }
 
-var events = &hub{subs: map[chan []byte]bool{}}
+var events = &hub{subs: map[chan []byte]struct{}{}}
 
 // publish manda un evento a todas las ventanas abiertas. No espera a ninguna: a la que va atrasada se le pierde éste
 // (su próxima consulta de respaldo lo trae).
@@ -48,31 +48,19 @@ func (h *hub) publish(name string, data any) {
 	}
 }
 
-func (h *hub) subscribe(canNotify bool) chan []byte {
+func (h *hub) subscribe() chan []byte {
 	ch := make(chan []byte, 64)
 	h.mu.Lock()
-	h.subs[ch] = canNotify
+	h.subs[ch] = struct{}{}
 	h.mu.Unlock()
 	return ch
 }
 
-// count: cuántas ventanas tienen el stream abierto; notifiers: cuántas de ellas pueden mostrar avisos (notify.go).
+// count: cuántas ventanas tienen el stream abierto (notify.go: si no hay ninguna, no estás mirando nada).
 func (h *hub) count() int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return len(h.subs)
-}
-
-func (h *hub) notifiers() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	n := 0
-	for _, ok := range h.subs {
-		if ok {
-			n++
-		}
-	}
-	return n
 }
 
 func (h *hub) unsubscribe(ch chan []byte) {
@@ -91,7 +79,7 @@ func registerEvents(mux *http.ServeMux) {
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.Header().Set("Cache-Control", "no-store")
 		w.Header().Set("X-Accel-Buffering", "no")
-		ch := events.subscribe(r.URL.Query().Get("notify") == "1")
+		ch := events.subscribe()
 		defer events.unsubscribe(ch)
 		_, _ = fmt.Fprint(w, "retry: 3000\nevent: hello\ndata: {}\n\n")
 		flusher.Flush()
