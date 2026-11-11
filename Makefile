@@ -43,7 +43,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui ecommerce chat agents status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
+.PHONY: keyring keyring-ui ecommerce chat cockpit status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
@@ -127,11 +127,14 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 	 open -n captura/.build/Captura.app --args --panel --out "$(abspath $(or $(OUT),captura/shots))" --spell-log "$(CURDIR)/captura/ortografia/errores.jsonl" $(if $(NO_CLIP),--no-clip) $(if $(NO_SOUND),--no-sound) $(if $(DEBUG),--debug "$$dbg") && \
 	 echo "  · panel de Captura abierto (✕ lo cierra)"
 
-chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de la app de escritorio (:5185) o, si está cerrada, uno con go run. Para usarlo: la app, `make chat-app`
+chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de Cockpit (:5185) o, si está cerrado, uno con go run. Para usarlo: Cockpit, `make cockpit`
 	@cd chat && npm run dev
 
-chat-app: ## @dia compila la app de escritorio del chat (Tauri, chat/src-tauri), la instala en Aplicaciones y la abre: trae su servidor adentro (:5185), sigue en segundo plano al cerrar la ventana, arranca al iniciar sesión, avisos nativos y el globito del Dock. Necesita Rust (rustup)
-	@cd chat && npm run desktop && { osascript -e 'quit app id "com.creditop.playground.chat-app"' 2>/dev/null || true; sleep 1; rm -rf /Applications/Chat.app && ditto src-tauri/target/release/bundle/macos/Chat.app /Applications/Chat.app && open /Applications/Chat.app; }
+cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat y tablero). Trae adentro el servidor del chat, sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
+	@cd cockpit && npm run build && { \
+	  for id in com.creditop.playground.cockpit com.creditop.playground.chat-app; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
+	  rm -rf /Applications/Chat.app "$$HOME/Library/LaunchAgents/Chat.plist" /Applications/Cockpit.app; \
+	  ditto src-tauri/target/release/bundle/macos/Cockpit.app /Applications/Cockpit.app && open /Applications/Cockpit.app; }
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")

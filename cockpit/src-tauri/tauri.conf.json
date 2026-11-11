@@ -1,11 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Chat",
+  "productName": "Cockpit",
   "version": "0.1.0",
-  "identifier": "com.creditop.playground.chat-app",
+  "identifier": "com.creditop.playground.cockpit",
   "build": {
-    "frontendDist": "http://127.0.0.1:5185",
-    "devUrl": "http://127.0.0.1:5185"
+    "frontendDist": "../shell"
   },
   "app": {
     "withGlobalTauri": true,
@@ -19,7 +18,7 @@
     "targets": [
       "app"
     ],
-    "category": "SocialNetworking",
+    "category": "DeveloperTool",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
@@ -38,7 +37,7 @@
     "deep-link": {
       "desktop": {
         "schemes": [
-          "creditop-chat"
+          "cockpit"
         ]
       }
     }

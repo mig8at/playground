@@ -1,6 +1,6 @@
 package main
 
-/* LOS AVISOS, DECIDIDOS POR EL SERVIDOR. El servidor corre dentro de la app de escritorio (chat/src-tauri) y recibe
+/* LOS AVISOS, DECIDIDOS POR EL SERVIDOR. El servidor corre dentro de Cockpit (cockpit/, la app de escritorio) y recibe
  * cada mensaje aunque su ventana esté cerrada, así que es él quien decide si un mensaje avisa, con la
  * configuración que elegís en la app (notify-settings.json, junto al historial):
  *
@@ -9,7 +9,7 @@ package main
  *   - «no molestar» en un horario, salvo, si querés, cuando te mencionan.
  *
  * Lo muestra macOS: con el avisador propio («Chat del playground», scripts/notifier.sh), que al tocarlo abre esa
- * conversación en la app (`creditop-chat://open/#/c/…`); sin él, terminal-notifier u osascript. Si estás mirando esa
+ * conversación en Cockpit (`cockpit://chat/#/c/…`); sin él, terminal-notifier u osascript. Si estás mirando esa
  * misma conversación con la ventana al frente, no avisa.
  */
 
@@ -391,7 +391,7 @@ func macNotify(n notice) error {
 func chatURL(key string) string {
 	base := os.Getenv("CHAT_UI_URL")
 	if base == "" {
-		base = "creditop-chat://open/" // la app de escritorio (chat/src-tauri): abre la conversación ahí
+		base = "cockpit://chat/" // Cockpit (cockpit/): abre la conversación en el chat de la app
 	}
 	if key == "" {
 		return base

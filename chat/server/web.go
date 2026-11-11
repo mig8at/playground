@@ -2,8 +2,8 @@ package main
 
 // LA INTERFAZ DESDE ESTE SERVIDOR, y la guarda de quién le habla.
 //
-// Además de la API, el servidor sirve la interfaz ya compilada (`chat/dist`, `npm run build`): así la app de escritorio
-// (chat/src-tauri) abre http://127.0.0.1:5185 sin Vite. `make chat` sigue con Vite en :5184 y su proxy.
+// Además de la API, el servidor sirve la interfaz ya compilada (`chat/dist`, `npm run build`): así Cockpit (cockpit/,
+// la app de escritorio) abre http://127.0.0.1:5185 sin Vite. `make chat` sigue con Vite en :5184 y su proxy.
 //
 // ⚠ Esta API manda mensajes a tu nombre y escucha en 127.0.0.1, adonde también llega cualquier página que abras en el
 // navegador. Por eso:
@@ -22,11 +22,10 @@ import (
 	"strings"
 )
 
-// Los orígenes de la interfaz: Vite (`make chat`), este servidor y la app de escritorio.
+// Los orígenes de la interfaz: Vite (`make chat`) y este servidor (Cockpit la abre desde acá).
 var uiOrigins = map[string]bool{
 	"http://localhost:5184": true, "http://127.0.0.1:5184": true,
 	"http://localhost:5185": true, "http://127.0.0.1:5185": true,
-	"tauri://localhost": true, "http://tauri.localhost": true,
 }
 
 func localHost(hostport string) bool {

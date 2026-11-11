@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "La carcasa (cockpit/shell, local): el globito del Dock y lo de siempre. Las apps de cada panel son páginas de localhost en iframes y no llegan a Tauri.",
+  "windows": [
+    "main"
+  ],
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-badge-count",
+    "window-state:default"
+  ]
+}

@@ -18,7 +18,7 @@ const viaText = computed(() => {
   const st = notify.status
   if (st.macTool === 'chat-notifier') return 'Salen por «Chat del playground».'
   if (st.macTool === 'terminal-notifier') return 'Salen por terminal-notifier.'
-  return 'Salen por osascript y pueden no verse: make chat-app compila el avisador.'
+  return 'Salen por osascript y pueden no verse: make cockpit compila el avisador.'
 })
 const testing = ref(false)
 async function test() { testing.value = true; await testNotify(); testing.value = false }

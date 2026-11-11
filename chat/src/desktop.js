@@ -1,39 +1,44 @@
-/* LA APP DE ESCRITORIO (chat/src-tauri): la misma interfaz, abierta por Tauri en vez del navegador. Tauri deja
-   `window.__TAURI__` (withGlobalTauri) y con eso, sólo ahí:
-   - el globito del Dock con los no leídos;
-   - los enlaces a otros sitios se abren en tu navegador (en el WebView un `target="_blank"` no hace nada).
-   Los avisos no salen de esta ventana: los muestra el servidor con el avisador de macOS (server/notify.go).
+/* EL CHAT DENTRO DE COCKPIT (cockpit/): la misma interfaz, en un panel de la app de escritorio. Cockpit la abre con
+   `?cockpit=1` dentro de un iframe, y se hablan por postMessage:
+   - el chat le cuenta sus no leídos (`badge`): Cockpit los pone en su ícono de la barra y en el globito del Dock;
+   - Cockpit le manda una ruta (`route`) al tocar un aviso: el chat abre esa conversación;
+   - Cockpit le dice si está a la vista (`visible`): escondido detrás de otra app, el iframe se cree visible igual, así
+     que acá se corrige `document.visibilityState` (y se avisa con `visibilitychange`). Así no marca leído lo que no ves.
+   Los avisos no salen de esta ventana: los muestra el servidor con el avisador de macOS (server/notify.go). Los enlaces
+   que abren ventana nueva los manda Cockpit a tu navegador.
    En el navegador (`make chat`, para desarrollar) todo esto no hace nada. */
-const tauri = typeof window !== 'undefined' ? window.__TAURI__ : undefined
-export const isDesktop = !!tauri
+const inCockpit = typeof window !== 'undefined' && window.parent !== window
+  && new URLSearchParams(window.location.search).has('cockpit')
+export const isDesktop = inCockpit
+
+const toCockpit = (message) => window.parent.postMessage({ cockpit: true, ...message }, '*')
 
 // Al registro del servidor (~/Library/Logs/creditop-playground-chat.log, «app: …»): lo que pasa adentro de la ventana.
 export function report(text) {
-  if (!tauri) return
+  if (!inCockpit) return
   fetch('/api/desktop/log', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: String(text) }) }).catch(() => {})
-}
-
-function openLinksOutside(opener) {
-  document.addEventListener('click', (e) => {
-    const a = e.target instanceof Element ? e.target.closest('a[href]') : null
-    if (!a || e.defaultPrevented) return
-    const url = new URL(a.href, location.href)
-    if (url.origin === location.origin || !/^(https?|mailto):$/.test(url.protocol)) return
-    e.preventDefault()
-    opener.openUrl(url.href)
-  }, true)
 }
 
 // Antes de montar la app.
 export function setupDesktop() {
-  if (!tauri) return Promise.resolve()
-  if (tauri.opener) openLinksOutside(tauri.opener)
-  report(`arrancó · enlaces ${tauri.opener ? 'afuera' : 'sin opener'} · globito ${tauri.window ? 'sí' : 'no'}`)
+  if (!inCockpit) return Promise.resolve()
+  let visible = false // hasta que Cockpit diga que está a la vista: cargado de fondo, no marca leído
+  Object.defineProperty(document, 'visibilityState', { configurable: true, get: () => (visible ? 'visible' : 'hidden') })
+  Object.defineProperty(document, 'hidden', { configurable: true, get: () => !visible })
+  window.addEventListener('message', (e) => {
+    const d = e.data
+    if (e.source !== window.parent || !d || d.cockpit !== true) return
+    if (d.type === 'route' && typeof d.hash === 'string' && d.hash.startsWith('#/')) window.location.hash = d.hash
+    if (d.type === 'visible' && visible !== !!d.visible) {
+      visible = !!d.visible
+      document.dispatchEvent(new Event('visibilitychange'))
+    }
+  })
+  report('arrancó en Cockpit')
   return Promise.resolve()
 }
 
-// El globito del Dock: los no leídos, o nada.
+// El numerito: los no leídos.
 export function setBadge(count) {
-  if (!tauri?.window) return
-  tauri.window.getCurrentWindow().setBadgeCount(count > 0 ? count : undefined).catch((e) => report(`globito: ${e}`))
+  if (inCockpit) toCockpit({ type: 'badge', count })
 }

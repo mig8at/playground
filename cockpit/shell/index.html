@@ -1,0 +1,196 @@
+<!doctype html>
+<!--
+  COCKPIT: la carcasa. Una barra de aplicaciones a la izquierda (como la de VS Code) y, a la derecha, cada herramienta
+  del playground en su panel. Cada app es la interfaz de siempre (su propio servidor en localhost), abierta en un iframe
+  que queda vivo al cambiar de app: lo que estabas haciendo sigue ahí.
+
+  Qué apps hay y cómo se levantan lo dice la app de Rust (`apps`, src-tauri/src/main.rs); acá sólo el ícono de cada una.
+  Se hablan por postMessage (chat/src/desktop.js): la app manda `badge` (su numerito); la carcasa manda `route` (al tocar
+  un aviso) y `visible` (si la app está a la vista: un iframe escondido no se entera solo, y el chat marcaría leído). Los enlaces que abren ventana nueva los atrapa Rust y los abre en tu navegador.
+-->
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cockpit</title>
+<style>
+  :root {
+    --bg: #f4f4f6; --bar: #e9e9ee; --icon: #6b6b75; --icon-on: #18181b; --mark: #18181b; --badge: #2f6fed;
+    --badge-ink: #fff; --hint: #6b6b75; --tip-bg: #18181b; --tip-ink: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #141417; --bar: #1b1b1f; --icon: #85858f; --icon-on: #ececf1; --mark: #ececf1; --badge: #2f6fed;
+      --badge-ink: #fff; --hint: #85858f; --tip-bg: #ececf1; --tip-ink: #18181b; }
+  }
+  * { box-sizing: border-box }
+  html, body { margin: 0; height: 100%; background: var(--bg); font: 13px -apple-system, system-ui, sans-serif; overflow: hidden }
+  body { display: flex }
+  nav { flex: none; width: 48px; background: var(--bar); display: flex; flex-direction: column; align-items: center; gap: 4px;
+    padding-top: 8px; -webkit-user-select: none; user-select: none }
+  nav button { position: relative; width: 48px; height: 44px; border: 0; background: none; color: var(--icon); cursor: pointer;
+    display: grid; place-items: center }
+  nav button:hover, nav button.on { color: var(--icon-on) }
+  nav button.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--mark) }
+  nav button:focus-visible { outline: 1px solid var(--badge); outline-offset: -2px }
+  nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round }
+  .badge { position: absolute; right: 6px; bottom: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+    background: var(--badge); color: var(--badge-ink); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center }
+  .tip { position: fixed; left: 52px; padding: 4px 8px; border-radius: 4px; background: var(--tip-bg); color: var(--tip-ink);
+    font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 10 }
+  main { flex: 1; min-width: 0; position: relative }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg) }
+  iframe[hidden] { display: none }
+  .waiting { position: absolute; inset: 0; display: grid; place-items: center; color: var(--hint) }
+</style>
+</head>
+<body>
+<nav id="bar" aria-label="Aplicaciones"></nav>
+<main id="panels"></main>
+<script>
+// Los íconos de cada app (trazos de 24×24, como los de la barra de VS Code).
+const ICONS = {
+  chat: '<path d="M4 5.5h16v10H9l-5 4v-14z"/><path d="M8 9.5h8M8 12.5h5"/>',
+  tablero: '<rect x="3.5" y="4.5" width="17" height="15" rx="1.5"/><path d="M9.5 4.5v15M15 4.5v15"/><path d="M5.5 8h2M11.5 8h2M17 8h2M5.5 11h2M11.5 11h2"/>',
+}
+const FALLBACK = '<rect x="4" y="4" width="16" height="16" rx="3"/>'
+
+const tauri = window.__TAURI__
+const invoke = tauri.core.invoke
+const bar = document.getElementById('bar')
+const panels = document.getElementById('panels')
+const badges = {}       // id → número que mandó la app
+const frames = {}       // id → su iframe, creado la primera vez que se abre
+let apps = []
+let current = ''
+let pendingRoute = null // { id, hash }: un aviso que llegó antes de que la app cargara
+
+const pick = (key, fallback) => { try { return localStorage.getItem(key) || fallback } catch { return fallback } }
+const keep = (key, value) => { try { localStorage.setItem(key, value) } catch { /* no hace falta */ } }
+
+function render() {
+  bar.innerHTML = ''
+  apps.forEach((app, i) => {
+    const b = document.createElement('button')
+    b.type = 'button'
+    b.className = app.id === current ? 'on' : ''
+    b.setAttribute('aria-label', app.name)
+    b.setAttribute('aria-pressed', String(app.id === current))
+    b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[app.id] || FALLBACK}</svg>`
+    if (badges[app.id] > 0) b.insertAdjacentHTML('beforeend', `<span class="badge">${badges[app.id] > 99 ? '99+' : badges[app.id]}</span>`)
+    b.addEventListener('click', () => select(app.id))
+    b.addEventListener('mouseenter', () => showTip(b, `${app.name}  ⌘${i + 1}`))
+    b.addEventListener('mouseleave', hideTip)
+    bar.append(b)
+  })
+}
+
+let tip = null
+function showTip(el, text) {
+  hideTip()
+  tip = document.createElement('div')
+  tip.className = 'tip'
+  tip.textContent = text
+  tip.style.top = `${el.getBoundingClientRect().top + 12}px`
+  document.body.append(tip)
+}
+function hideTip() { tip?.remove(); tip = null }
+
+// Mostrar una app; la primera vez, además, se carga (`load`).
+function select(id) {
+  if (!apps.some((a) => a.id === id)) return Promise.resolve()
+  current = id
+  keep('cockpit.app', id)
+  render()
+  for (const [key, f] of Object.entries(frames)) f.hidden = key !== id
+  for (const w of panels.querySelectorAll('.waiting')) w.hidden = w.dataset.app !== id
+  if (frames[id]) frames[id].focus()
+  tellVisibility()
+  return load(id)
+}
+
+// A cada app: si está a la vista (la elegida y con la ventana de Cockpit visible).
+function tellVisibility() {
+  for (const [key, f] of Object.entries(frames)) {
+    const visible = key === current && document.visibilityState === 'visible'
+    f.contentWindow?.postMessage({ cockpit: true, type: 'visible', visible }, new URL(f.src).origin)
+  }
+}
+document.addEventListener('visibilitychange', tellVisibility)
+
+// Cargar una app: se levanta su servidor (Rust, `ensure_app`), se espera a que conteste y se crea su iframe, visible
+// sólo si es la que estás mirando. Una vez por app.
+const loading = {}
+function load(id) {
+  if (!loading[id]) loading[id] = loadOnce(id)
+  return loading[id]
+}
+async function loadOnce(id) {
+  const app = apps.find((a) => a.id === id)
+  const wait = document.createElement('div')
+  wait.className = 'waiting'
+  wait.dataset.app = id
+  wait.hidden = current !== id
+  wait.textContent = `Arrancando ${app.name}…`
+  panels.append(wait)
+  const start = Date.now()
+  while (!(await invoke('ensure_app', { id }).catch(() => false))) {
+    if (Date.now() - start > 90_000) {
+      wait.textContent = `${app.name} no arrancó: mirá ~/Library/Logs/cockpit-${id}.log`
+      delete loading[id]
+      return
+    }
+    await new Promise((r) => setTimeout(r, 700))
+  }
+  wait.remove()
+  const f = document.createElement('iframe')
+  f.title = app.name
+  f.src = app.url
+  f.hidden = current !== id
+  f.addEventListener('load', () => { tellVisibility(); deliverRoute(id) })
+  frames[id] = f
+  panels.append(f)
+}
+
+function deliverRoute(id) {
+  if (!pendingRoute || pendingRoute.id !== id || !frames[id]) return
+  frames[id].contentWindow.postMessage({ cockpit: true, type: 'route', hash: pendingRoute.hash }, new URL(frames[id].src).origin)
+  pendingRoute = null
+}
+
+// Lo llama Rust con un enlace cockpit://<app>/#/… (tocar un aviso): esa app al frente, en esa ruta.
+window.cockpitOpen = async (id, hash) => {
+  pendingRoute = hash ? { id, hash } : null
+  await select(id)
+  deliverRoute(id)
+}
+
+// Lo que cuentan las apps. Sólo se cree a la app de ese origen.
+window.addEventListener('message', (e) => {
+  const app = apps.find((a) => new URL(a.url).origin === e.origin)
+  const d = e.data
+  if (!app || !d || d.cockpit !== true) return
+  if (d.type === 'badge') {
+    badges[app.id] = Math.max(0, Number(d.count) || 0)
+    render()
+    const total = Object.values(badges).reduce((n, c) => n + c, 0)
+    tauri.window.getCurrentWindow().setBadgeCount(total > 0 ? total : undefined).catch(() => {})
+  }
+})
+
+// ⌘1, ⌘2…: cambiar de app (dentro de un iframe el atajo no llega acá; desde la barra, sí).
+window.addEventListener('keydown', (e) => {
+  if (!e.metaKey || e.altKey || e.ctrlKey) return
+  const app = apps[Number(e.key) - 1]
+  if (app) { e.preventDefault(); select(app.id) }
+})
+
+invoke('apps').then((list) => {
+  apps = list
+  const first = apps.some((a) => a.id === pick('cockpit.app', '')) ? pick('cockpit.app', '') : apps[0]?.id
+  if (first) select(first)
+  // El chat se carga siempre, aunque mires otra app: su numerito tiene que estar.
+  if (apps.some((a) => a.id === 'chat')) load('chat')
+})
+</script>
+</body>
+</html>
