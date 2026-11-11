@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="es">
+<!-- Con el estilo «Paneles» de la base (`workbench.css`), como el chat: cada región, un panel sobre el lienzo. -->
+<html lang="es" data-style="panels">
 
 <head>
   <meta charset="utf-8" />
@@ -145,6 +146,13 @@
     /* ⚠ `flex: 1 1 0` + `min-height: 0`: sin eso el editor no se achica por debajo de su contenido y
        el mapa empuja la cabecera fuera de la pantalla. */
     .editorbox > .editor { flex: 1 1 0; min-height: 0; overflow: auto; padding: var(--space-3); gap: var(--space-3) }
+    /* CON «PANELES» EL PANEL DEL CENTRO ES LA CAJA ENTERA —las pestañas de las corridas y el editor—, como una ventana
+       con pestañas. La regla compartida enmarca sólo `.editor` (es la región), y la caja quedaba como un rectángulo
+       gris sin curva sobre el lienzo, con las pestañas sueltas encima. */
+    :root[data-style="panels"] .editorbox {
+      margin: calc(var(--panels-gap) / 2); border-radius: var(--panels-radius); border: 1px solid var(--panel-border);
+      background: var(--panel-surface); --region-bg: var(--panel-surface); overflow: hidden }
+    :root[data-style="panels"] .shell > .editorbox > .editor { margin: 0; border: 0; border-radius: 0; background: none }
     /* ⚠ Las perillas y los botones de correr van JUNTOS: son los parámetros de la próxima corrida y
        el botón que la dispara. Y la banda ENVUELVE, no desborda: dentro de una región el ancho depende
        de los sidebars de al lado, y desbordando «Preparar + Lanzar» quedaba debajo del vecino. */
@@ -6549,10 +6557,23 @@ export function applyTheme(theme) {
   root.style.colorScheme = theme;
   try { dispatchEvent(new CustomEvent('ui-theme', { detail: { theme } })); } catch { /* sin eventos */ }
 }
+/* DENTRO DE COCKPIT (cockpit/, la app de escritorio) cada herramienta es un iframe con su propio origen, así que cada
+   una guardaría su tema: una quedaría clara y otra oscura. Por eso, ahí, elegir avisa a Cockpit (`theme`), que se lo
+   pasa a las demás; y lo que manda Cockpit se aplica y se guarda como si se hubiera elegido acá. Fuera de un iframe,
+   nada de esto corre. */
+const inFrame = (() => { try { return window.parent !== window; } catch { return true; } })();
 // Elegir es explícito: se guarda, y a partir de ahí el sistema ya no manda.
-export function setTheme(theme) {
+export function setTheme(theme, { fromCockpit = false } = {}) {
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* preferencia opcional */ }
   applyTheme(theme);
+  if (inFrame && !fromCockpit) {
+    try { window.parent.postMessage({ cockpit: true, type: 'theme', theme }, '*'); } catch { /* sin Cockpit */ }
+  }
+}
+function themeFromCockpit(e) {
+  const d = e.data;
+  if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'theme') return;
+  if ((d.theme === 'light' || d.theme === 'dark') && d.theme !== currentTheme()) setTheme(d.theme, { fromCockpit: true });
 }
 
 // El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
@@ -6573,9 +6594,10 @@ export function bindThemeToggle(button) {
   try { media = matchMedia('(prefers-color-scheme: dark)'); media.addEventListener('change', follow); } catch { media = null; }
   button.addEventListener('click', click);
   addEventListener('ui-theme', paint);
+  if (inFrame) addEventListener('message', themeFromCockpit);
   applyTheme(preferredTheme());
   paint();
-  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); } };
+  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); } };
 }
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────

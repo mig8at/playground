@@ -5,42 +5,43 @@
   que queda vivo al cambiar de app: lo que estabas haciendo sigue ahí.
 
   Qué apps hay y cómo se levantan lo dice la app de Rust (`apps`, src-tauri/src/main.rs); acá sólo el ícono de cada una.
-  Se hablan por postMessage (chat/src/desktop.js): la app manda `badge` (su numerito); la carcasa manda `route` (al tocar
-  un aviso) y `visible` (si la app está a la vista: un iframe escondido no se entera solo, y el chat marcaría leído). Los enlaces que abren ventana nueva los atrapa Rust y los abre en tu navegador.
+  Se hablan por postMessage (chat/src/desktop.js y tools/ui/workbench.js): la app manda `badge` (su numerito); la
+  carcasa manda `route` (al tocar un aviso) y `visible` (si la app está a la vista: un iframe escondido no se entera
+  solo, y el chat marcaría leído). Y `theme` va en los dos sentidos: Cockpit tiene UN tema para todas (cada iframe
+  tiene su origen y guardaría el suyo); cambiarlo en una app lo cambia en la barra y en las demás. Los enlaces que abren ventana nueva los atrapa Rust y los abre en tu navegador.
 -->
-<html lang="es">
+<html lang="es" data-style="panels">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit</title>
+<!-- EL TEMA ANTES DE PINTAR: el renglón es `THEME_BOOT` de tools/ui/workbench.js, y lo rellena `make estilo-sync`. -->
+<script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}/* </theme-boot> */</script>
+<!-- El mismo tema y taller que las apps (copias de tools/ui, `make estilo-sync`): la barra se apoya en el MISMO lienzo
+     que los paneles de cada app, y cambia con ellas de claro a oscuro. -->
+<link rel="stylesheet" href="theme.css">
+<link rel="stylesheet" href="workbench.css">
 <style>
-  :root {
-    --bg: #f4f4f6; --bar: #e9e9ee; --icon: #6b6b75; --icon-on: #18181b; --mark: #18181b; --badge: #2f6fed;
-    --badge-ink: #fff; --hint: #6b6b75; --tip-bg: #18181b; --tip-ink: #fff;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg: #141417; --bar: #1b1b1f; --icon: #85858f; --icon-on: #ececf1; --mark: #ececf1; --badge: #2f6fed;
-      --badge-ink: #fff; --hint: #85858f; --tip-bg: #ececf1; --tip-ink: #18181b; }
-  }
   * { box-sizing: border-box }
-  html, body { margin: 0; height: 100%; background: var(--bg); font: 13px -apple-system, system-ui, sans-serif; overflow: hidden }
-  body { display: flex }
-  nav { flex: none; width: 48px; background: var(--bar); display: flex; flex-direction: column; align-items: center; gap: 4px;
-    padding-top: 8px; -webkit-user-select: none; user-select: none }
-  nav button { position: relative; width: 48px; height: 44px; border: 0; background: none; color: var(--icon); cursor: pointer;
+  html, body { margin: 0; height: 100%; overflow: hidden }
+  body { display: flex; background: var(--canvas); font-family: var(--font-sans, system-ui), -apple-system, sans-serif; font-size: 13px }
+  /* La barra va sobre el lienzo, sin fondo propio: es el borde de la ventana, como el pie de cada app. */
+  nav { flex: none; width: 48px; display: flex; flex-direction: column; align-items: center; gap: 4px; padding-top: 8px;
+    -webkit-user-select: none; user-select: none }
+  nav button { position: relative; width: 48px; height: 44px; border: 0; background: none; color: var(--fg-3); cursor: pointer;
     display: grid; place-items: center }
-  nav button:hover, nav button.on { color: var(--icon-on) }
-  nav button.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--mark) }
-  nav button:focus-visible { outline: 1px solid var(--badge); outline-offset: -2px }
+  nav button:hover, nav button.on { color: var(--foreground) }
+  nav button.on::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; border-radius: 1px; background: var(--foreground) }
+  nav button:focus-visible { outline: 1px solid var(--ring); outline-offset: -2px }
   nav svg { width: 24px; height: 24px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round }
   .badge { position: absolute; right: 6px; bottom: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
-    background: var(--badge); color: var(--badge-ink); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center }
-  .tip { position: fixed; left: 52px; padding: 4px 8px; border-radius: 4px; background: var(--tip-bg); color: var(--tip-ink);
-    font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 10 }
+    background: var(--primary); color: var(--primary-foreground); font-size: 10px; font-weight: 600; line-height: 16px; text-align: center }
+  .tip { position: fixed; left: 52px; padding: 4px 8px; border-radius: 4px; background: var(--popover); color: var(--popover-foreground);
+    border: 1px solid var(--border); font-size: 12px; white-space: nowrap; pointer-events: none; z-index: 10 }
   main { flex: 1; min-width: 0; position: relative }
-  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--bg) }
+  iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: var(--canvas) }
   iframe[hidden] { display: none }
-  .waiting { position: absolute; inset: 0; display: grid; place-items: center; color: var(--hint) }
+  .waiting { position: absolute; inset: 0; display: grid; place-items: center; color: var(--fg-2) }
 </style>
 </head>
 <body>
@@ -112,6 +113,18 @@ function select(id) {
   return load(id)
 }
 
+// EL TEMA ÚNICO: el de la carcasa (guardado, o el del sistema) manda; cada app lo recibe al cargar.
+const THEME_KEY = 'ui.theme'
+const shellTheme = () => (document.documentElement.classList.contains('dark') ? 'dark' : 'light')
+function setShellTheme(theme) {
+  document.documentElement.classList.toggle('dark', theme === 'dark')
+  document.documentElement.style.colorScheme = theme
+  keep(THEME_KEY, theme)
+}
+function tellTheme(f) {
+  f.contentWindow?.postMessage({ cockpit: true, type: 'theme', theme: shellTheme() }, new URL(f.src).origin)
+}
+
 // A cada app: si está a la vista (la elegida y con la ventana de Cockpit visible).
 function tellVisibility() {
   for (const [key, f] of Object.entries(frames)) {
@@ -150,7 +163,7 @@ async function loadOnce(id) {
   f.title = app.name
   f.src = app.url
   f.hidden = current !== id
-  f.addEventListener('load', () => { tellVisibility(); deliverRoute(id) })
+  f.addEventListener('load', () => { tellTheme(f); tellVisibility(); deliverRoute(id) })
   frames[id] = f
   panels.append(f)
 }
@@ -173,6 +186,11 @@ window.addEventListener('message', (e) => {
   const app = apps.find((a) => new URL(a.url).origin === e.origin)
   const d = e.data
   if (!app || !d || d.cockpit !== true) return
+  if (d.type === 'theme' && (d.theme === 'light' || d.theme === 'dark')) {
+    setShellTheme(d.theme)
+    for (const f of Object.values(frames)) if (f.contentWindow !== e.source) tellTheme(f)
+    return
+  }
   if (d.type === 'badge') {
     badges[app.id] = Math.max(0, Number(d.count) || 0)
     render()

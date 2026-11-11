@@ -289,10 +289,23 @@ export function applyTheme(theme) {
   root.style.colorScheme = theme;
   try { dispatchEvent(new CustomEvent('ui-theme', { detail: { theme } })); } catch { /* sin eventos */ }
 }
+/* DENTRO DE COCKPIT (cockpit/, la app de escritorio) cada herramienta es un iframe con su propio origen, así que cada
+   una guardaría su tema: una quedaría clara y otra oscura. Por eso, ahí, elegir avisa a Cockpit (`theme`), que se lo
+   pasa a las demás; y lo que manda Cockpit se aplica y se guarda como si se hubiera elegido acá. Fuera de un iframe,
+   nada de esto corre. */
+const inFrame = (() => { try { return window.parent !== window; } catch { return true; } })();
 // Elegir es explícito: se guarda, y a partir de ahí el sistema ya no manda.
-export function setTheme(theme) {
+export function setTheme(theme, { fromCockpit = false } = {}) {
   try { localStorage.setItem(THEME_KEY, theme); } catch { /* preferencia opcional */ }
   applyTheme(theme);
+  if (inFrame && !fromCockpit) {
+    try { window.parent.postMessage({ cockpit: true, type: 'theme', theme }, '*'); } catch { /* sin Cockpit */ }
+  }
+}
+function themeFromCockpit(e) {
+  const d = e.data;
+  if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'theme') return;
+  if ((d.theme === 'light' || d.theme === 'dark') && d.theme !== currentTheme()) setTheme(d.theme, { fromCockpit: true });
 }
 
 // El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
@@ -313,9 +326,10 @@ export function bindThemeToggle(button) {
   try { media = matchMedia('(prefers-color-scheme: dark)'); media.addEventListener('change', follow); } catch { media = null; }
   button.addEventListener('click', click);
   addEventListener('ui-theme', paint);
+  if (inFrame) addEventListener('message', themeFromCockpit);
   applyTheme(preferredTheme());
   paint();
-  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); } };
+  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); } };
 }
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────

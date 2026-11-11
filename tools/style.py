@@ -29,8 +29,8 @@ mirarse.
 import hashlib, math, pathlib, re, sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css', 'jarvis/extension/theme.css']
-WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css', 'jarvis/extension/workbench.css']
+THEMES = ['harness/panel/theme.css', 'tablero/src/theme.css', 'visor/src/theme.css', 'radar/src/theme.css', 'keyring/src/theme.css', 'chat/src/theme.css', 'ecommerce/src/theme.css', 'jarvis/src/theme.css', 'jarvis/extension/theme.css', 'cockpit/shell/theme.css']
+WORKSHOPS = ['harness/panel/workbench.css', 'tablero/src/workbench.css', 'visor/src/workbench.css', 'radar/src/workbench.css', 'keyring/src/workbench.css', 'chat/src/workbench.css', 'ecommerce/src/workbench.css', 'jarvis/src/workbench.css', 'jarvis/extension/workbench.css', 'cockpit/shell/workbench.css']
 REGIONS = ['workbench', 'titlebar', 'banner', 'activitybar', 'sidebar', 'editor',
             'panel', 'auxiliarybar', 'statusbar', 'region-head', 'region-body']
 SHEETS = {
@@ -43,6 +43,8 @@ SHEETS = {
     'ecommerce': ['ecommerce/src/style.css'],
     'jarvis': ['jarvis/src/style.css'],
     'jarvis-extension': ['jarvis/extension/control.css'],
+    # La carcasa de Cockpit (la barra de apps): sin regiones propias, sobre el mismo lienzo que las apps.
+    'cockpit': ['cockpit/shell/index.html'],
 }
 TREES = {'tablero': 'tablero/src', 'visor': 'visor/src', 'radar': 'radar/src', 'keyring': 'keyring/src', 'chat': 'chat/src', 'ecommerce': 'ecommerce/src', 'jarvis': 'jarvis/src', 'jarvis-extension': 'jarvis/extension'}
 
@@ -154,8 +156,10 @@ def table_of(tool):
     #    los `--color-*`). Leyendo sólo `.dark` quedaban afuera y salían como no declarados.
     for block in re.findall(r'@theme[^{]*\{([^{}]*)\}', theme):
         table.update({k: v for k, v in declarations(block).items() if k.startswith('--')})
-    # y las MEDIDAS y la rampa de texto, que viven en el otro compartido
-    for block in re.findall(r':root\s*\{([^{}]*)\}', css_of(ROOT / WORKSHOPS[0])):
+    # y las MEDIDAS y la rampa de texto, que viven en el otro compartido. También las de un ESTILO
+    # (`:root[data-style="panels"]`, `:root.dark[data-style="panels"]`): el lienzo, el aire y el radio de los paneles.
+    # Leyendo sólo `:root {` salían como no declaradas en la hoja que las usa (el panel del harness, 2026-11-11).
+    for block in re.findall(r':root(?:[.\[][^\s{,]*)?\s*\{([^{}]*)\}', css_of(ROOT / WORKSHOPS[0])):
         table.update({k: v for k, v in declarations(block).items() if k.startswith('--')})
     for rel_path in SHEETS[tool]:
         for sel, body in re.findall(r'([^{}]+)\{([^{}]*)\}', css_of(ROOT / rel_path)):

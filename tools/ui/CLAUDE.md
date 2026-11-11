@@ -5,6 +5,20 @@ y por qué. El contrato de uso —regiones, medidas, componentes— es [`README.
 reglas y las trampas medidas que lo sostienen. Vivió en el `CLAUDE.md` raíz hasta el 2026-09-27: se mudó
 para que se lea al tocar estilos, no en cada sesión.
 
+## Todas van con «Paneles», y dentro de Cockpit con UN tema (2026-11-11)
+
+**Decisión de Miguel: el estilo de todas las herramientas es «Paneles»** (`data-style="panels"`, `workbench.css`): cada
+región, un panel redondeado sobre un lienzo más oscuro, con aire alrededor —como el chat—. Una herramienta nueva lo
+prende en su arranque (`document.documentElement.setAttribute('data-style', 'panels')`, o en el `<html>` si no tiene
+bundler). Lo que una herramienta envuelve en un contenedor propio (el `.editorbox` del harness, con sus pestañas de
+corridas encima del editor) se enmarca en SU hoja: la regla compartida sólo enmarca regiones.
+
+**Cockpit** (`cockpit/`, la app de escritorio que junta las herramientas en una barra) es una carcasa con su copia del
+tema (`cockpit/shell`, destino de `make estilo-sync` y del chequeo) y la barra apoyada en el mismo `--canvas`. Cada
+herramienta es ahí un iframe con su propio origen, así que guardaría su propio claro/oscuro: `workbench.js` le avisa a
+Cockpit cuando se elige un tema (`theme` por postMessage) y aplica el que Cockpit le manda. Fuera de un iframe, nada
+de eso corre.
+
 ## Las tres UIs comparten UN tema, y es un archivo
 
 ⚠ **Eran CUATRO hasta el 2026-09-21**, cuando se apagó la viz del árbol de `context/` (:5193). Las
