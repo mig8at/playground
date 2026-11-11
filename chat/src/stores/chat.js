@@ -93,6 +93,29 @@ function dropJournal(all) {
   }
   return all
 }
+/* LOS AGENTES HABLAN EN LA CONVERSACIÓN DE SU DUEÑO: un agente (`@duncan/rambo`) es una identidad de esa persona, no
+   alguien aparte. Lo que dijo un agente de Duncan, o lo que le escribiste a uno, va en la conversación con Duncan, cada
+   mensaje marcado: `via` (el agente que habló) o `toAgent` (al que le escribiste). Las conversaciones aparte que quedaron
+   guardadas de antes (`agent:correo/nombre`) se pasan acá al cargar. Canon y cuadrilla (`agent:canon`…) siguen aparte. */
+function mergeAgentConversations(all) {
+  for (const [key, c] of Object.entries(all)) {
+    const m = /^agent:([^/]+@[^/]+)\/(.+)$/.exec(key)
+    if (!m) continue
+    const [, owner, name] = m
+    const ownerName = c.person?.owner?.name || owner.split('@')[0]
+    const dest = all[owner] || (all[owner] = { person: { email: owner, name: ownerName }, messages: [], readAt: c.readAt || '' })
+    const have = new Set(dest.messages.map((x) => x.id))
+    for (const x of c.messages || []) {
+      if (have.has(x.id)) continue
+      dest.messages.push(x.dir === 'out' ? { ...x, toAgent: x.toAgent || name } : { ...x, via: x.via || name, author: x.author || { email: owner, name: ownerName } })
+    }
+    dest.messages.sort((a, b) => String(a.time).localeCompare(String(b.time)))
+    if ((c.readAt || '') > (dest.readAt || '')) dest.readAt = c.readAt
+    delete all[key]
+  }
+  return all
+}
+
 /* Un mensaje que mandaste, dos veces: el que puso esta app al mandarlo y el que trajo el historial antes de que el
    envío volviera con su id (pasaba con los mensajes a personas). Tienen el mismo `sid`: queda el primero, que es el
    tuyo y trae si se entregó. */
@@ -139,7 +162,7 @@ export const useChatStore = defineStore('chat', () => {
   const serverReads = {}
   // clave → { person: {email, name, github, agent?, owner?, agentName?, detail?}, messages: [...], readAt }
   // mensaje: { id, sid?, re?, dir: 'in'|'out', kind?: 'asked', agent?, text, time, status?, error? }
-  const conversations = ref(dropJournal(readStored()))
+  const conversations = ref(mergeAgentConversations(dropJournal(readStored())))
   const activeKey = ref('')
   const state = ref(null)        // la última respuesta de /api/state
   const stateError = ref('')
@@ -185,7 +208,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       if (!Object.keys(conversations.value).length) {
         const copy = await api('/api/conversations')
-        if (copy && typeof copy === 'object' && !Array.isArray(copy) && Object.keys(copy).length) conversations.value = dropJournal(copy)
+        if (copy && typeof copy === 'object' && !Array.isArray(copy) && Object.keys(copy).length) conversations.value = mergeAgentConversations(dropJournal(copy))
       }
     } catch { /* sin copia: se arma con el historial del servidor */ }
     serverCopyReady = true
@@ -266,25 +289,11 @@ export const useChatStore = defineStore('chat', () => {
         rows.push({ ...tool, tool: true, owner: null, mine: false, ...(c ? summarize(c) : { last: null, unread: 0 }) })
       }
     }
-    for (const p of teamAgents.value) {
-      for (const a of p.agents || []) {
-        const key = agentKey(p.email, a.name)
-        const c = conversations.value[key]
-        rows.push({ key, agentName: a.name, description: a.description, owner: p, mine: keyOf(p.email) === meKey.value,
-                    lastActive: a.lastActive || '', groups: a.groups || [],
-                    ...(c ? summarize(c) : { last: null, unread: 0 }) })
-      }
-    }
-    // Las conversaciones con agentes que el home ya no lista (vencieron o se borraron): siguen acá, al final.
-    for (const c of Object.values(conversations.value)) {
-      const key = c.person.email
-      if (!isAgentKey(key) || key === CANON.key || key === CUADRILLA.key || !c.person.owner?.email || rows.some((r) => r.key === key)) continue
-      rows.push({ key, agentName: c.person.agentName || c.person.name, description: c.person.detail || '', owner: c.person.owner,
-                  mine: keyOf(c.person.owner.email) === meKey.value, offline: true, ...summarize(c) })
-    }
     const rank = (r) => (r.tool ? 0 : r.offline ? 3 : r.mine ? 1 : 2)
     return rows.sort((x, y) => rank(x) - rank(y) || firstName(x.owner).localeCompare(firstName(y.owner)))
   })
+  // Los agentes de una persona (los que guarda el home): para la bolita de su muñequito y para nombrarlos.
+  const agentsOf = (email) => teamAgents.value.find((p) => keyOf(p.email) === keyOf(email))?.agents || []
   const active = computed(() => conversations.value[activeKey.value] || null)
   const unreadTotal = computed(() => list.value.reduce((n, c) => n + c.unread, 0) + agentList.value.reduce((n, a) => n + a.unread, 0)
     + groupList.value.reduce((n, g) => n + g.unread, 0))
@@ -321,25 +330,26 @@ export const useChatStore = defineStore('chat', () => {
       const sid = m.id || ''
       if (m.dir === 'out') {
         if (!m.to) continue
-        // A un grupo (`#id`) o a un agente de alguien (`correo/agente`): su conversación.
+        // A un grupo (`#id`): su conversación. A un agente de alguien (`correo/agente`): la conversación con su dueño,
+        // marcado para cuál de sus agentes.
         if (isGroupKey(m.to) || (m.to.includes('/') && !m.agent)) {
           const [owner, agentName] = m.to.split('/')
-          const c = isGroupKey(m.to) ? ensure({ email: m.to, name: m.to, group: true })
-            : ensure({ email: agentKey(owner, agentName), name: agentName, agent: true, owner: { email: keyOf(owner) }, agentName })
+          const toAgent = isGroupKey(m.to) ? null : agentName
+          const c = isGroupKey(m.to) ? ensure({ email: m.to, name: m.to, group: true }) : ensure({ email: keyOf(owner) })
           const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === m.text)
           if (own) { own.sid = sid; continue }
           const pushed = push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent',
-                    ...(m.via?.name ? { asAgent: m.via.name } : {}) })
+                    ...(m.via?.name ? { asAgent: m.via.name } : {}), ...(toAgent ? { toAgent } : {}) })
           // Ya estaba (guardado antes en este navegador): se le completa con qué agente salió.
           if (!pushed && m.via?.name) { const had = c.messages.find((x) => x.sid === sid); if (had && !had.asAgent) had.asAgent = m.via.name }
           continue
         }
         if (m.agent) {
-          const c = ensure({ email: agentKey(m.to, m.agent), name: m.agent, agent: true, owner: { email: keyOf(m.to) }, agentName: m.agent })
-          // La que mandó esta app puede llegar acá antes de que su pedido vuelva con el id: es la misma.
+          // Una pregunta de antes a un agente de alguien: en la conversación con su dueño.
+          const c = ensure({ email: keyOf(m.to) })
           const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === m.text)
           if (own) { own.sid = sid; continue }
-          push(c, { id: `cli|${sid}`, sid, dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'pending' })
+          push(c, { id: `cli|${sid}`, sid, dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent', toAgent: m.agent })
         } else {
           const c = ensure({ email: m.to, name: m.to.split('@')[0] })
           // La que mandó esta app puede llegar acá antes de que su pedido vuelva con el id: es la misma (sin esto
@@ -359,15 +369,12 @@ export const useChatStore = defineStore('chat', () => {
         continue
       }
       if (!m.from?.email) continue
-      if (m.kind === 'publish' && m.agent) {
-        const c = ensure({ email: agentKey(m.from.email, m.agent), name: m.agent, agent: true, owner: m.from, agentName: m.agent })
-        push(c, { id: sid || legacyId(m), sid, dir: 'in', kind: 'publish', agent: m.agent, text: String(m.text ?? ''), time: m.time,
-                  ...(m.queued ? { queued: true } : {}) })
-        continue
-      }
-      if (m.agent && m.re) {
-        const c = ensure({ email: agentKey(m.from.email, m.agent), name: m.agent, agent: true, owner: m.from, agentName: m.agent })
-        if (push(c, { id: sid || legacyId(m), sid, re: m.re, dir: 'in', text: String(m.text ?? ''), time: m.time, ...(m.queued ? { queued: true } : {}) })) {
+      const author = { email: keyOf(m.from.email), name: m.from.name || m.from.email }
+      // Lo que publicó o contestó un agente de antes: en la conversación con su dueño, como ese agente.
+      if ((m.kind === 'publish' || m.re) && m.agent) {
+        const c = ensure(m.from)
+        if (push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time, via: m.agent, author,
+                      ...(m.kind === 'publish' ? { kind: 'publish', agent: m.agent } : {}), ...(m.queued ? { queued: true } : {}) }) && m.re) {
           const asked = c.messages.find((x) => x.sid === m.re)
           if (asked) asked.status = 'answered'
         }
@@ -381,11 +388,11 @@ export const useChatStore = defineStore('chat', () => {
                   ...(m.for ? { forAgent: m.for } : {}), ...(m.queued ? { queued: true } : {}) })
         continue
       }
-      // De un agente de alguien (`--as`): su propia conversación, aparte de la de su dueño.
+      // De un agente de alguien (`--as`): en la conversación con su dueño, marcado con el agente que habló.
       if (m.via?.name) {
-        const c = ensure({ email: agentKey(m.from.email, m.via.name), name: m.via.name, agent: true, owner: m.from,
-                           agentName: m.via.name, detail: m.via.description || '' })
-        push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time, ...(m.queued ? { queued: true } : {}) })
+        const c = ensure(m.from)
+        push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time, via: m.via.name, author,
+                  ...(m.for ? { forAgent: m.for } : {}), ...(m.queued ? { queued: true } : {}) })
         continue
       }
       const c = ensure(m.from)
@@ -967,7 +974,7 @@ export const useChatStore = defineStore('chat', () => {
 
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
-    teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
+    teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,

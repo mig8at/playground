@@ -139,6 +139,17 @@ const photoOf = (p) => {
   return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
 }
 function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
+// Cuántos agentes tiene una persona (la bolita de su muñequito) y cuáles, para el título.
+const agentCount = (p) => chat.agentsOf(p?.email).length
+const agentNames = (p) => chat.agentsOf(p?.email).map((a) => a.name).join(', ')
+/* QUIÉN HABLA EN UN MENSAJE, como en un grupo de WhatsApp aunque el chat sea privado: la persona o uno de sus agentes
+   (`via`). Lo tuyo sólo se marca si salió como uno de tus agentes (`asAgent`). */
+function speakerOf(item) {
+  if (item.dir === 'out') return item.asAgent ? { agent: item.asAgent, mine: true, label: `${item.asAgent} · tu agente` } : null
+  const owner = item.author || chat.active?.person || {}
+  if (item.via) return { agent: item.via, mine: false, owner, label: `${item.via} · agente de ${firstName(owner)}` }
+  return { person: owner, label: owner.name || owner.email || '' }
+}
 
 // ── la ruta: #/c/<clave> es la conversación abierta (un correo, o `agent:<dueño>/<agente>`) ──
 function routeKey() {
@@ -425,6 +436,7 @@ const thread = computed(() => {
     if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }); prev = null }
     const cont = !!prev && prev.dir === m.dir && prev.kind === m.kind && m.kind !== 'asked'
       && (prev.author?.email || '') === (m.author?.email || '') && (prev.via || '') === (m.via || '')
+      && (prev.asAgent || '') === (m.asAgent || '') && (prev.toAgent || '') === (m.toAgent || '')
       && new Date(m.time) - new Date(prev.time) < GROUP_MS
     let quote = null
     if (m.re && !(chat.active.person.agent && m.re === prev?.sid)) {
@@ -997,7 +1009,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
           <li v-for="c in chat.list" :key="c.person.email" class="conv-item">
             <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="serverOpen = ''; chat.open(c.person)">
-              <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i></span>
+              <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i><b v-if="agentCount(c.person)" class="agent-count" :title="`Sus agentes: ${agentNames(c.person)}`">{{ agentCount(c.person) }}</b></span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ c.person.name || c.person.email }}</b>
@@ -1080,7 +1092,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <section class="view wb-bloque bloque-agentes" :class="{ open: isViewOpen('agents') }">
       <div class="region-head">
         <button type="button" class="view-tog" :aria-expanded="isViewOpen('agents')" @click="toggleView('agents')">
-          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Agentes</span>
+          <span class="ui-icon chev" data-icon="chevron" aria-hidden="true"></span><span>Del equipo</span>
         </button>
         <span class="count">{{ chat.agentList.length }}</span>
       </div>
@@ -1322,18 +1334,30 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             </div>
 
             <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
-            <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
+            <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont, 'with-avatar': !activeIsAgent }]">
+              <!-- Quién habla: su muñequito al empezar cada tanda (la persona, o uno de sus agentes); en las siguientes
+                   queda el lugar vacío para que las burbujas se alineen. -->
+              <span v-if="!activeIsAgent && speakerOf(item)" class="msg-avatar avatar small" :class="{ agent: speakerOf(item).agent, mine: speakerOf(item).mine, ghost: item.cont }"
+                    :title="speakerOf(item).label" aria-hidden="true">
+                <template v-if="!item.cont">
+                  <template v-if="speakerOf(item).agent">{{ speakerOf(item).agent[0].toUpperCase() }}</template>
+                  <img v-else-if="photoOf(speakerOf(item).person)" class="avatar-photo" :src="photoOf(speakerOf(item).person)" alt="" referrerpolicy="no-referrer">
+                  <template v-else>{{ initials(speakerOf(item).person) }}</template>
+                </template>
+              </span>
+              <span v-else-if="!activeIsAgent && item.dir === 'out'" class="msg-avatar avatar small ghost" aria-hidden="true"></span>
               <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': activeIsGroup && item.dir === 'in' && mentionsMeIn(item.text) }">
-                <span v-if="item.author && !item.cont" class="author-label" :class="{ via: item.via }">
-                  <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(item.author) }}</template>
-                  <b v-else>{{ item.author.name }}</b>
+                <span v-if="item.dir === 'in' && !item.cont && !activeIsAgent && speakerOf(item)" class="author-label" :class="{ via: item.via }">
+                  <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(speakerOf(item).owner) }}</template>
+                  <b v-else>{{ speakerOf(item).label }}</b>
                 </span>
+                <span v-if="item.toAgent && !item.cont" class="published-label">para {{ item.toAgent }}</span>
                 <span v-if="item.agentPrefix && !item.cont" class="published-label agent-chip">{{ item.agentPrefix }}</span>
                 <span v-if="item.forAgent && !item.cont" class="published-label">para tu agente {{ item.forAgent }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
                 <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
-                <span v-if="item.asAgent && !item.cont" class="published-label">como {{ item.asAgent }}</span>
+                <span v-if="item.asAgent && !item.cont" class="published-label agent-chip">{{ item.asAgent }} · tu agente</span>
                 <span v-if="item.cuadrilla" class="task-note-label">
                   <template v-if="item.dir === 'in'"><b>{{ item.cuadrilla.autor }}</b> · </template>{{ NOTE_LABEL[item.cuadrilla.tipo] || item.cuadrilla.tipo }}
                   en «{{ item.cuadrilla.tarea }}»<template v-if="item.cuadrilla.dependeDe"> · depende de {{ item.cuadrilla.dependeDe }}</template>
@@ -1947,6 +1971,14 @@ code { font-family: var(--font-mono); font-size: .92em }
 .new-group { display: flex; flex-direction: column; gap: 6px; padding: 6px var(--gutter, 12px) }
 .new-group-actions { display: flex; gap: 6px }
 .bubble-row { display: flex; align-items: center; gap: 6px }
+/* El muñequito de quién habla, arriba de la tanda; en las siguientes, el lugar vacío para alinear. */
+.bubble-row.with-avatar { align-items: flex-start }
+.msg-avatar { width: 26px; height: 26px; margin-top: 2px }
+.msg-avatar.ghost { visibility: hidden }
+/* La bolita con cuántos agentes tiene la persona, arriba a la derecha del muñequito. */
+.agent-count { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
+  display: grid; place-items: center; font-size: 10px; font-weight: 700; line-height: 1; font-style: normal;
+  background: var(--agent-mine-bg); color: var(--agent-mine-ink); box-shadow: 0 0 0 2px var(--background) }
 .bubble-row.out { flex-direction: row-reverse }
 .bubble-row.cont { margin-top: -5px }
 .bubble { max-width: min(560px, 78%); padding: 7px 10px 5px; border-radius: 12px; background: var(--bubble-theirs);
