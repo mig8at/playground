@@ -141,8 +141,8 @@ func (r *Runner) LiveReplayStart(runID, mode string) error {
 	if err != nil {
 		return err
 	}
-	meta, _ := data["corrida"].(RunMeta)
-	all, _ := data["pasos"].([]Step)
+	meta, _ := data["run"].(RunMeta)
+	all, _ := data["steps"].([]Step)
 	var steps []Step
 	for _, s := range all {
 		if replayable(s) {

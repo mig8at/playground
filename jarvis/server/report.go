@@ -1,6 +1,6 @@
 package main
 
-/* Una corrida guardada: en su carpeta quedan las fotos de cada paso (las deja recordStep), pasos.json y run.json
+/* Una corrida guardada: en su carpeta quedan las fotos de cada paso (las deja recordStep), steps.json y run.json
  * (lo que lee el reproductor de la interfaz) y script.spec.ts (el recorrido como prueba de Playwright). */
 
 import (
@@ -17,27 +17,27 @@ import (
 // ReportInfo es lo que acompaña al reporte cuando lo pide ask: la meta, cómo terminó y lo que costó.
 type ReportInfo struct {
 	Goal    string         `json:"meta"`
-	Result  string         `json:"resultado"`
-	Keyword string         `json:"palabra,omitempty"` // LISTO · NO PUDE · NECESITO · CONFIRMAR
-	Rounds  []string       `json:"vueltas,omitempty"`
+	Result  string         `json:"result"`
+	Keyword string         `json:"keyword,omitempty"` // LISTO · NO PUDE · NECESITO · CONFIRMAR
+	Rounds  []string       `json:"rounds,omitempty"`
 	Cost    float64        `json:"usd,omitempty"`
-	Turns   int            `json:"turnos,omitempty"`
+	Turns   int            `json:"turns,omitempty"`
 	Seconds float64        `json:"seg,omitempty"`
-	Model   string         `json:"modelo,omitempty"`
+	Model   string         `json:"model,omitempty"`
 	Tokens  map[string]int `json:"tokens,omitempty"`
-	Source  string         `json:"origen,omitempty"` // ask · evals · a mano
+	Source  string         `json:"source,omitempty"` // ask · evals · a mano
 }
 
 // RunMeta es el run.json de una corrida: lo que necesita la lista de corridas de la interfaz.
 type RunMeta struct {
 	ID      string    `json:"id"`
-	Site    string    `json:"sitio"`
-	Start   string    `json:"inicio"`
-	At      time.Time `json:"fecha"`
-	Steps   int       `json:"pasos"`
-	Failed  int       `json:"fallidos"`
-	Sources int       `json:"fuentes"`
-	Device  string    `json:"dispositivo,omitempty"`
+	Site    string    `json:"site"`
+	Start   string    `json:"start"`
+	At      time.Time `json:"at"`
+	Steps   int       `json:"steps"`
+	Failed  int       `json:"failed"`
+	Sources int       `json:"sources"`
+	Device  string    `json:"device,omitempty"`
 	ReportInfo
 }
 
@@ -57,7 +57,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 		return "", errors.New("la corrida no tiene pasos ni páginas consultadas todavía")
 	}
 	if dir == "" { // una investigación que sólo leyó: igual tiene su carpeta
-		dir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+		dir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
 		if err := os.MkdirAll(dir, 0o700); err != nil {
 			return "", err
 		}
@@ -90,7 +90,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 	if err := writeJSONFile(filepath.Join(dir, "run.json"), meta); err != nil {
 		return "", err
 	}
-	if err := writeJSONFile(filepath.Join(dir, "pasos.json"), map[string]any{"pasos": steps, "fuentes": sources}); err != nil {
+	if err := writeJSONFile(filepath.Join(dir, "steps.json"), map[string]any{"steps": steps, "sources": sources}); err != nil {
 		return "", err
 	}
 	hub.Publish("runs", r.store.Runs())
@@ -99,7 +99,7 @@ func (r *Runner) LiveReport(info ReportInfo) (string, error) {
 
 // Runs lista las corridas que tienen reporte, de la más nueva a la más vieja.
 func (s *Store) Runs() []RunMeta {
-	dirs, _ := filepath.Glob(filepath.Join(s.dir, "corridas", "*", "run.json"))
+	dirs, _ := filepath.Glob(filepath.Join(s.dir, "runs", "*", "run.json"))
 	out := []RunMeta{}
 	for _, p := range dirs {
 		b, err := os.ReadFile(p)
@@ -120,7 +120,7 @@ func (s *Store) Run(id string) (map[string]any, error) {
 	if strings.ContainsAny(id, "/\\") || strings.HasPrefix(id, ".") {
 		return nil, errors.New("corrida inválida")
 	}
-	dir := filepath.Join(s.dir, "corridas", id)
+	dir := filepath.Join(s.dir, "runs", id)
 	var meta RunMeta
 	b, err := os.ReadFile(filepath.Join(dir, "run.json"))
 	if err != nil {
@@ -128,12 +128,12 @@ func (s *Store) Run(id string) (map[string]any, error) {
 	}
 	_ = json.Unmarshal(b, &meta)
 	var detail struct {
-		Steps   []Step   `json:"pasos"`
-		Sources []Source `json:"fuentes"`
+		Steps   []Step   `json:"steps"`
+		Sources []Source `json:"sources"`
 	}
-	if b, err := os.ReadFile(filepath.Join(dir, "pasos.json")); err == nil {
+	if b, err := os.ReadFile(filepath.Join(dir, "steps.json")); err == nil {
 		_ = json.Unmarshal(b, &detail)
 	}
 	script, _ := os.ReadFile(filepath.Join(dir, "script.spec.ts"))
-	return map[string]any{"corrida": meta, "pasos": detail.Steps, "fuentes": detail.Sources, "script": string(script)}, nil
+	return map[string]any{"run": meta, "steps": detail.Steps, "sources": detail.Sources, "script": string(script)}, nil
 }

@@ -1,19 +1,19 @@
 {
-  "nombre": "Aprobar la solicitud de la compra VTEX desde ecommerce-v2",
+  "name": "Aprobar la solicitud de la compra VTEX desde ecommerce-v2",
   "meta": "Aprobar la solicitud de la compra VTEX desde ecommerce-v2",
-  "inicio": "http://localhost:5186/",
-  "dispositivo": "desktop",
-  "creado": "2026-11-06T12:55:32.013246-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-06_12-53-39",
-  "pasos": [
+  "start": "http://localhost:5186/",
+  "device": "desktop",
+  "created": "2026-11-06T12:55:32.013246-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-06_12-53-39",
+  "steps": [
     {
-      "accion": "fill",
-      "objetivo": "Celular, correo o cédula",
-      "valor": "",
-      "instruccion": "Escribí el celular, el correo o la cédula de la compra (lo hacés vos)",
-      "porque": "La solicitud de esta vez: cada compra trae la suya",
-      "dato": "Celular, correo o cédula",
+      "action": "fill",
+      "target": "Celular, correo o cédula",
+      "value": "",
+      "instruction": "Escribí el celular, el correo o la cédula de la compra (lo hacés vos)",
+      "why": "La solicitud de esta vez: cada compra trae la suya",
+      "param": "Celular, correo o cédula",
       "ref": {
         "loc": {
           "kind": "role",
@@ -25,13 +25,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Celular, correo o cédula', exact: true }).fill('')",
-      "pausa": true
+      "code": "page.getByRole('textbox', { name: 'Celular, correo o cédula', exact: true }).fill('')",
+      "pause": true
     },
     {
-      "accion": "click",
-      "objetivo": "Buscar en qa",
-      "instruccion": "Hacé clic en «Buscar en qa»",
+      "action": "click",
+      "target": "Buscar en qa",
+      "instruction": "Hacé clic en «Buscar en qa»",
       "ref": {
         "loc": {
           "kind": "role",
@@ -43,13 +43,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Buscar en qa', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Buscar en qa', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Aprobar",
-      "instruccion": "Hacé clic en «Aprobar»",
-      "porque": "Aprobar: el simulador del backend pasa la solicitud a 11 y el backend le avisa a VTEX",
+      "action": "click",
+      "target": "Aprobar",
+      "instruction": "Hacé clic en «Aprobar»",
+      "why": "Aprobar: el simulador del backend pasa la solicitud a 11 y el backend le avisa a VTEX",
       "ref": {
         "loc": {
           "kind": "role",
@@ -61,12 +61,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Aprobar', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Aprobar', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Aprobar",
-      "instruccion": "Hacé clic en «Aprobar»",
+      "action": "click",
+      "target": "Aprobar",
+      "instruction": "Hacé clic en «Aprobar»",
       "ref": {
         "loc": {
           "kind": "scoped",
@@ -80,7 +80,7 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('dialog', { name: '¿Pasar la solicitud 504666 a 11 · Autorizada?' }).getByRole('button', { name: 'Aprobar', exact: true }).click()"
+      "code": "page.getByRole('dialog', { name: '¿Pasar la solicitud 504666 a 11 · Autorizada?' }).getByRole('button', { name: 'Aprobar', exact: true }).click()"
     }
   ]
 }

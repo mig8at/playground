@@ -236,8 +236,8 @@ type TabInfo struct {
 	Busy   bool   `json:"busy"`           // su Claude está trabajando
 	Last   bool   `json:"last"`           // es la que atiende un pedido sin pestaña
 	// ByClaude: la abrió Claude; IdleSec: hace cuántos segundos nadie la usa (las de Claude se cierran solas).
-	ByClaude bool `json:"porClaude"`
-	IdleSec  int  `json:"sinUsoSeg"`
+	ByClaude bool `json:"byClaude"`
+	IdleSec  int  `json:"idleSec"`
 	// Device y ChromeTab: dónde corre la sesión; con «chrome», en qué pestaña de Chrome (el panel de Jarvis va a ella).
 	Device    string `json:"device,omitempty"`
 	ChromeTab int    `json:"chromeTab,omitempty"`

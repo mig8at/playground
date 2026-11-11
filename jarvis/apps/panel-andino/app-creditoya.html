@@ -28,24 +28,24 @@
 </div>
 <script>
   const KEY = 'panel.estado'
-  const leer = () => JSON.parse(localStorage.getItem(KEY) || '{}')
-  function pintar() {
-    const ok = !!leer().apps?.creditoya?.conectada
+  const read = () => JSON.parse(localStorage.getItem(KEY) || '{}')
+  function render() {
+    const ok = !!read().apps?.creditoya?.conectada
     const e = document.getElementById('estado')
     e.textContent = ok ? 'Conectada' : 'Sin conectar'
     e.className = 'estado ' + (ok ? 'si' : 'no')
     document.getElementById('conectar').textContent = ok ? 'Desconectar tienda' : 'Conectar tienda'
   }
   document.getElementById('conectar').onclick = () => {
-    const s = leer()
+    const s = read()
     if (!s.apps) return alert('Abrí primero el panel de la tienda.')
     const ok = !s.apps.creditoya?.conectada
     if (!confirm(ok ? '¿Conectar Tienda Andina con Crédito Ya?' : '¿Desconectar la tienda de Crédito Ya?')) return
     s.apps.creditoya = { conectada: ok }
     localStorage.setItem(KEY, JSON.stringify(s))
-    pintar()
+    render()
   }
-  pintar()
+  render()
 </script>
 </body>
 </html>

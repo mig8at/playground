@@ -1,19 +1,19 @@
 {
-  "nombre": "Cancelación de punta a punta en local: compra, wizard, la tienda cancela, el wizard lo muestra",
+  "name": "Cancelación de punta a punta en local: compra, wizard, la tienda cancela, el wizard lo muestra",
   "meta": "Cancelación de punta a punta en local: compra, wizard, la tienda cancela, el wizard lo muestra",
-  "inicio": "http://localhost:8113/",
-  "dispositivo": "chrome",
-  "creado": "2026-11-09T11:11:01.491231-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-09_11-09-56",
-  "pasos": [
+  "start": "http://localhost:8113/",
+  "device": "chrome",
+  "created": "2026-11-09T11:11:01.491231-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-09_11-09-56",
+  "steps": [
     {
-      "accion": "select",
-      "objetivo": "Sucursal de la tienda (una tienda = una sucursal)",
-      "valor": "69364350",
-      "instruccion": "Elegí «69364350» en «Sucursal de la tienda (una tienda = una sucursal)»",
-      "porque": "Compra VTEX con la sucursal de Mario",
-      "dato": "Sucursal de la tienda (una tienda = una sucursal)",
+      "action": "select",
+      "target": "Sucursal de la tienda (una tienda = una sucursal)",
+      "value": "69364350",
+      "instruction": "Elegí «69364350» en «Sucursal de la tienda (una tienda = una sucursal)»",
+      "why": "Compra VTEX con la sucursal de Mario",
+      "param": "Sucursal de la tienda (una tienda = una sucursal)",
       "ref": {
         "loc": {
           "kind": "role",
@@ -25,12 +25,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('combobox', { name: 'Sucursal de la tienda (una tienda = una sucursal)', exact: true }).selectOption('69364350')"
+      "code": "page.getByRole('combobox', { name: 'Sucursal de la tienda (una tienda = una sucursal)', exact: true }).selectOption('69364350')"
     },
     {
-      "accion": "click",
-      "objetivo": "Pagar con CreditOp",
-      "instruccion": "Hacé clic en «Pagar con CreditOp»",
+      "action": "click",
+      "target": "Pagar con CreditOp",
+      "instruction": "Hacé clic en «Pagar con CreditOp»",
       "ref": {
         "loc": {
           "kind": "role",
@@ -42,20 +42,20 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Pagar con CreditOp', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Pagar con CreditOp', exact: true }).click()"
     },
     {
-      "accion": "expect",
-      "objetivo": "Ir a CreditOp",
-      "valor": "Ir a CreditOp",
-      "instruccion": "Comprobá que se vea «Ir a CreditOp»",
-      "codigo": "expect(page.getByText('Ir a CreditOp').filter({ visible: true }).first()).toBeVisible()"
+      "action": "expect",
+      "target": "Ir a CreditOp",
+      "value": "Ir a CreditOp",
+      "instruction": "Comprobá que se vea «Ir a CreditOp»",
+      "code": "expect(page.getByText('Ir a CreditOp').filter({ visible: true }).first()).toBeVisible()"
     },
     {
-      "accion": "click",
-      "objetivo": "Cancelar pedido (la tienda)",
-      "instruccion": "Hacé clic en «Cancelar pedido (la tienda)»",
-      "porque": "La tienda cancela el pedido: el conector 5.2.0 llama al endpoint nuevo del backend local",
+      "action": "click",
+      "target": "Cancelar pedido (la tienda)",
+      "instruction": "Hacé clic en «Cancelar pedido (la tienda)»",
+      "why": "La tienda cancela el pedido: el conector 5.2.0 llama al endpoint nuevo del backend local",
       "ref": {
         "loc": {
           "kind": "role",
@@ -67,7 +67,7 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Cancelar pedido (la tienda)', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Cancelar pedido (la tienda)', exact: true }).click()"
     }
   ]
 }

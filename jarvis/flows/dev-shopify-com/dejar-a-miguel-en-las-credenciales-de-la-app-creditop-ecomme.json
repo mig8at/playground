@@ -1,16 +1,16 @@
 {
-  "nombre": "Dejar a Miguel en las credenciales de la app CREDITOP-ECOMMERCE-PAYMENTS para que copie el client secret (sin leerlo)",
+  "name": "Dejar a Miguel en las credenciales de la app CREDITOP-ECOMMERCE-PAYMENTS para que copie el client secret (sin leerlo)",
   "meta": "Dejar a Miguel en las credenciales de la app CREDITOP-ECOMMERCE-PAYMENTS para que copie el client secret (sin leerlo)",
-  "inicio": "https://dev.shopify.com/dashboard/167881494/apps",
-  "dispositivo": "chrome",
-  "creado": "2026-11-09T15:47:15.609503-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-09_15-46-58",
-  "pasos": [
+  "start": "https://dev.shopify.com/dashboard/167881494/apps",
+  "device": "chrome",
+  "created": "2026-11-09T15:47:15.609503-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-09_15-46-58",
+  "steps": [
     {
-      "accion": "click",
-      "objetivo": "CREDITOP-ECOMMERCE-PAYMENTS",
-      "instruccion": "Hacé clic en «CREDITOP-ECOMMERCE-PAYMENTS»",
+      "action": "click",
+      "target": "CREDITOP-ECOMMERCE-PAYMENTS",
+      "instruction": "Hacé clic en «CREDITOP-ECOMMERCE-PAYMENTS»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -21,7 +21,7 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('CREDITOP-ECOMMERCE-PAYMENTS', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('CREDITOP-ECOMMERCE-PAYMENTS', { exact: true }).filter({ visible: true }).click()"
     }
   ]
 }

@@ -1,0 +1,113 @@
+{
+  "name": "Crear una tarea y borrarla en la app de tareas, desde Chrome",
+  "meta": "Crear una tarea y borrarla en la app de tareas, desde Chrome",
+  "start": "/?reset",
+  "device": "chrome",
+  "created": "2026-11-07T07:56:57.040809-05:00",
+  "verified": "2026-11-07T07:58:45.201436-05:00",
+  "run": "2026-11-07_07-56-43",
+  "lastRun": "2026-11-07_07-58-31",
+  "steps": [
+    {
+      "action": "click",
+      "target": "Nueva tarea",
+      "instruction": "Hacé clic en «Nueva tarea»",
+      "why": "Abro el formulario de nueva tarea",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Nueva tarea",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Nueva tarea', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Nueva tarea', exact: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "Título",
+      "value": "Probar el navegador desde Chrome",
+      "instruction": "Escribí «Probar el navegador desde Chrome» en «Título»",
+      "why": "Escribo el título",
+      "param": "Título",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Título",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Título', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Título', exact: true }).fill('Probar el navegador desde Chrome')"
+    },
+    {
+      "action": "select",
+      "target": "Prioridad",
+      "value": "alta",
+      "instruction": "Elegí «alta» en «Prioridad»",
+      "why": "Prioridad alta",
+      "param": "Prioridad",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Prioridad",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Prioridad', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('combobox', { name: 'Prioridad', exact: true }).selectOption('alta')"
+    },
+    {
+      "action": "click",
+      "target": "Crear tarea",
+      "instruction": "Hacé clic en «Crear tarea»",
+      "why": "Creo la tarea",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Crear tarea",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Crear tarea', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Crear tarea', exact: true }).click()"
+    },
+    {
+      "action": "dialog",
+      "target": "confirm «¿Eliminar «Probar el navegador desde Chrome»? No se puede deshacer.» → aceptado",
+      "value": "accept",
+      "instruction": "Aceptá el aviso que aparece: confirm «¿Eliminar «Probar el navegador desde Chrome»? No se puede deshacer.» → aceptado",
+      "code": "page.once('dialog', (d) =\u003e d.accept())"
+    },
+    {
+      "action": "click",
+      "target": "Eliminar Probar el navegador desde Chrome",
+      "instruction": "Hacé clic en «Eliminar Probar el navegador desde Chrome»",
+      "why": "Borro la tarea que acabo de crear (pide confirmación)",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Eliminar Probar el navegador desde Chrome",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Eliminar Probar el navegador desde Chrome', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Eliminar Probar el navegador desde Chrome', exact: true }).click()"
+    }
+  ]
+}

@@ -191,9 +191,9 @@ func (t *tap) attach(p playwright.Page) {
 func (t *tap) drain() []string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	con := t.console
+	detached := t.console
 	t.console = nil
-	return con
+	return detached
 }
 
 // analyze describe la pantalla como está AHORA: título, lo interactivo con sus localizadores verificados (también

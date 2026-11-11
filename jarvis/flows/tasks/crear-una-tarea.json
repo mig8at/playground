@@ -1,0 +1,110 @@
+{
+  "name": "Crear una tarea",
+  "meta": "Crear una tarea",
+  "start": "/?reset",
+  "device": "desktop",
+  "created": "2026-11-05T18:23:25.3061442-05:00",
+  "steps": [
+    {
+      "action": "click",
+      "target": "Nueva tarea",
+      "instruction": "Hacé clic en «Nueva tarea»",
+      "why": "Las tareas nuevas se crean con «Nueva tarea», arriba a la derecha.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Nueva tarea",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Nueva tarea', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Nueva tarea', exact: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "Título",
+      "value": "Preparar la demo del navegador",
+      "instruction": "Escribí «Preparar la demo del navegador» en «Título»",
+      "why": "El título es lo único obligatorio.",
+      "param": "Título",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Título",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Título', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Título', exact: true }).fill('Preparar la demo del navegador')"
+    },
+    {
+      "action": "fill",
+      "target": "Fecha límite",
+      "value": "2026-11-20",
+      "instruction": "Escribí «2026-11-20» en «Fecha límite»",
+      "why": "La fecha límite ordena qué vence primero.",
+      "param": "Fecha límite",
+      "ref": {
+        "loc": {
+          "kind": "label",
+          "value": "Fecha límite",
+          "code": "page.getByLabel('Fecha límite', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByLabel('Fecha límite', { exact: true }).fill('2026-11-20')"
+    },
+    {
+      "action": "select",
+      "target": "Prioridad",
+      "value": "alta",
+      "instruction": "Elegí «alta» en «Prioridad»",
+      "why": "Prioridad alta: aparece resaltada en la lista.",
+      "param": "Prioridad",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "combobox",
+          "value": "Prioridad",
+          "exact": true,
+          "code": "page.getByRole('combobox', { name: 'Prioridad', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('combobox', { name: 'Prioridad', exact: true }).selectOption('alta')"
+    },
+    {
+      "action": "click",
+      "target": "Crear tarea",
+      "instruction": "Hacé clic en «Crear tarea»",
+      "why": "«Crear tarea» la guarda y cierra el formulario.",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Crear tarea",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Crear tarea', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Crear tarea', exact: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "Tarea creada",
+      "value": "Tarea creada",
+      "instruction": "Comprobá que se vea «Tarea creada»",
+      "code": "expect(page.getByText('Tarea creada').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

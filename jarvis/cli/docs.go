@@ -202,14 +202,6 @@ func printJSON(v any) error {
 	return enc.Encode(v)
 }
 
-// legacyRecipes: los nombres de las recetas de antes del 2026-11-07 (los mismos que JARVIS_OLD_RECIPES del Makefile).
-var legacyRecipes = map[string]string{
-	"crear-producto": "create-product", "crear-producto-pantalla": "create-product-screen", "coleccion": "collection",
-	"coleccion-pantalla": "collection-screen", "sinonimo": "synonym", "sinonimo-pantalla": "synonym-screen",
-	"cupon": "coupon", "cupon-pantalla": "coupon-screen", "pedido": "order", "pago-creditop": "creditop-payment",
-	"compra-con-descuento": "discount-purchase",
-}
-
 // recipeCmd corre una receta con node, con la entrada y la salida de esta terminal.
 func recipeCmd(args []string) error {
 	if len(args) < 2 {

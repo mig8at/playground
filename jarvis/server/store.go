@@ -4,7 +4,7 @@ package main
  *
  *	sites.json            los sitios (uno por host) donde se abrió una sesión
  *	<sitio>/profile/      el perfil del Chromium que se usaba hasta el 2026-11-07 (ya no se abre: el login es el de Chrome)
- *	corridas/<id>/        cada corrida: fotos de los pasos, pasos.json, run.json y su script (report.go)
+ *	runs/<id>/            cada corrida: fotos de los pasos, steps.json, run.json y su script (report.go)
  *
  * Los FLUJOS no van acá: son JSON versionados en jarvis/flows/ (flows.go). */
 

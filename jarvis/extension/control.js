@@ -122,7 +122,7 @@ async function refreshSessions() {
       const who = state.opened.includes(s.chromeTab) ? 'la abrió Claude' : 'compartida por vos'
       row.append(
         el('span', '', s.meta || s.title || s.url),
-        el('span', 'row-desc', `${s.busy ? 'Claude trabajando' : idleText(s.sinUsoSeg || 0)} · ${who} · ${s.title || s.url}`),
+        el('span', 'row-desc', `${s.busy ? 'Claude trabajando' : idleText(s.idleSec || 0)} · ${who} · ${s.title || s.url}`),
       )
       row.addEventListener('click', () => { selected = s.id; view = { kind: 'session' }; renderTools(); refreshSessions() })
       row.addEventListener('dblclick', () => goTo(s))
@@ -239,11 +239,11 @@ function renderFlows(flows, note) {
     nodes.push(head)
     for (const f of byApp[app]) {
       const row = el('div', 'row stacked')
-      const when = f.creado ? new Date(f.creado).toLocaleDateString('es-CO') : ''
-      row.title = f.meta || f.nombre
+      const when = f.created ? new Date(f.created).toLocaleDateString('es-CO') : ''
+      row.title = f.meta || f.name
       row.append(
-        el('span', '', f.nombre || f.id),
-        el('span', 'row-desc', `${f.pasos} paso(s)${f.datos ? ` · ${f.datos} dato(s)` : ''}${f.dispositivo === 'chrome' ? ' · Chrome' : ''} · ${when}`),
+        el('span', '', f.name || f.id),
+        el('span', 'row-desc', `${f.steps} paso(s)${f.params ? ` · ${f.params} dato(s)` : ''}${f.device === 'chrome' ? ' · Chrome' : ''} · ${when}`),
       )
       nodes.push(row)
     }
@@ -455,9 +455,9 @@ function renderToolFlows(t) {
   }
   $('steps').replaceChildren(el('p', 'doc-intro', 'Los flujos son recorridos grabados paso a paso: se reproducen o se enseñan. La documentación de cómo se hace cada tarea está en APIs y Pantallas.'), ...flows.map((f) => {
     const row = el('div', 'row stacked')
-    const when = f.creado ? new Date(f.creado).toLocaleDateString('es-CO') : ''
-    row.title = f.meta || f.nombre
-    row.append(el('span', '', f.nombre || f.id), el('span', 'row-desc', `${f.app} · ${f.pasos} paso(s) · ${when}`))
+    const when = f.created ? new Date(f.created).toLocaleDateString('es-CO') : ''
+    row.title = f.meta || f.name
+    row.append(el('span', '', f.name || f.id), el('span', 'row-desc', `${f.app} · ${f.steps} paso(s) · ${when}`))
     return row
   }))
 }

@@ -5,7 +5,7 @@
  * para donde tiene que actuar la persona (o en lo irreversible).
  *
  * Todo llega por UN stream en tiempo real (/api/events, server/events.go); los cuadros del navegador, por el suyo
- * (/api/live/frames). La ruta: #/ (en vivo), #/proyecto/<app> (su portada), #/flujo/<app>/<id>. */
+ * (/api/live/frames). La ruta: #/ (en vivo), #/project/<app> (su portada), #/flow/<app>/<id>. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute } from './workbench.js'
 import RunViewer from './RunViewer.vue'
@@ -25,14 +25,14 @@ async function api(path, opts = {}) {
 const view = ref({ kind: 'live' }) // live · run {id} · flow {app, id}
 function parseRoute() {
   const p = readHashRoute().parts
-  if (p[0] === 'flujo' && p[1] && p[2]) return { kind: 'flow', app: p[1], id: p[2] }
-  if (p[0] === 'proyecto' && p[1]) return { kind: 'project', app: p[1] }
+  if (p[0] === 'flow' && p[1] && p[2]) return { kind: 'flow', app: p[1], id: p[2] }
+  if (p[0] === 'project' && p[1]) return { kind: 'project', app: p[1] }
   return { kind: 'live' }
 }
 view.value = parseRoute()
 function go(v) {
   view.value = v
-  const parts = v.kind === 'flow' ? ['flujo', v.app, v.id] : v.kind === 'project' ? ['proyecto', v.app] : []
+  const parts = v.kind === 'flow' ? ['flow', v.app, v.id] : v.kind === 'project' ? ['project', v.app] : []
   setRoute(hashRoute(parts), { push: true })
 }
 const onHashChange = () => { view.value = parseRoute() }
@@ -109,7 +109,7 @@ function connect() {
   on('askstate', (st) => {
     const evs = askEventsBy.value
     if (st.total === 0) askEventsBy.value = { ...evs, [st.tab]: [] } // una meta nueva
-    if (st.eventos?.length && st.eventos.length === st.total) askEventsBy.value = { ...askEventsBy.value, [st.tab]: st.eventos } // al conectarse: todo
+    if (st.events?.length && st.events.length === st.total) askEventsBy.value = { ...askEventsBy.value, [st.tab]: st.events } // al conectarse: todo
     askStates.value = { ...askStates.value, [st.tab]: st }
   })
   on('ask', (ev) => {
@@ -284,31 +284,31 @@ async function loadView(v) {
   try {
     if (v.kind === 'flow') {
       flowData.value = await api(`/api/flows/${v.app}/${v.id}`)
-      const src = flowData.value.flujo.ultima_corrida || flowData.value.flujo.corrida
+      const src = flowData.value.flow.lastRun || flowData.value.flow.run
       flowVideo.value = src ? await api(`/api/runs/${encodeURIComponent(src)}`).catch(() => null) : null
     }
   } catch (e) { viewError.value = e.message }
 }
 watch(view, (v) => { flowData.value = flowVideo.value = null; if (v.kind === 'flow') auxTab.value = 'flow'; loadView(v) }, { immediate: true })
 // Lo que se edita de un flujo: el valor de cada dato y si el paso para para que lo haga la persona.
-const flowSteps = computed(() => flowData.value?.flujo.pasos || [])
-const flowParams = computed(() => flowSteps.value.map((s, i) => ({ ...s, i })).filter((s) => s.dato))
+const flowSteps = computed(() => flowData.value?.flow.steps || [])
+const flowParams = computed(() => flowSteps.value.map((s, i) => ({ ...s, i })).filter((s) => s.param))
 async function saveFlowStep(i, patch) {
-  const pasos = flowSteps.value.map((_, j) => (j === i ? patch : {}))
-  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ pasos }) }) } catch (e) { viewError.value = e.message }
+  const steps = flowSteps.value.map((_, j) => (j === i ? patch : {}))
+  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ steps }) }) } catch (e) { viewError.value = e.message }
 }
-async function renameFlow(nombre) {
-  nombre = nombre.trim()
-  if (!nombre || nombre === flowData.value.flujo.nombre) return
-  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ nombre }) }) } catch (e) { viewError.value = e.message }
+async function renameFlow(name) {
+  name = name.trim()
+  if (!name || name === flowData.value.flow.name) return
+  try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'PUT', body: JSON.stringify({ name }) }) } catch (e) { viewError.value = e.message }
 }
 function editStepText(i, el) {
   const t = el.innerText.trim()
-  if (t && t !== flowSteps.value[i].instruccion) saveFlowStep(i, { instruccion: t })
-  else el.innerText = flowSteps.value[i].instruccion || flowSteps.value[i].accion
+  if (t && t !== flowSteps.value[i].instruction) saveFlowStep(i, { instruction: t })
+  else el.innerText = flowSteps.value[i].instruction || flowSteps.value[i].action
 }
 function removeStep(i) {
-  if (confirm(`¿Sacar el paso ${i + 1} del flujo? «${flowSteps.value[i].instruccion || flowSteps.value[i].accion}»`)) saveFlowStep(i, { borrar: true })
+  if (confirm(`¿Sacar el paso ${i + 1} del flujo? «${flowSteps.value[i].instruction || flowSteps.value[i].action}»`)) saveFlowStep(i, { delete: true })
 }
 async function playFlow(m) {
   viewError.value = ''
@@ -316,7 +316,7 @@ async function playFlow(m) {
 }
 // Borrar lo que ya no hace falta (algo que sólo se quería entender): un flujo, o un proyecto entero.
 async function deleteFlowOf(f) {
-  if (!confirm(`¿Borrar el flujo «${f.nombre}»? Se borra su archivo de jarvis/flows.`)) return
+  if (!confirm(`¿Borrar el flujo «${f.name}»? Se borra su archivo de jarvis/flows.`)) return
   try {
     await api(`/api/flows/${f.app}/${f.id}`, { method: 'DELETE' })
     if (view.value.kind === 'flow' && view.value.app === f.app && view.value.id === f.id) go({ kind: 'project', app: f.app })
@@ -332,12 +332,12 @@ async function deleteProject(g) {
   } catch (e) { viewError.value = e.message }
 }
 async function deleteFlow() {
-  if (!confirm(`¿Eliminar el flujo «${flowData.value.flujo.nombre}»? Se borra su archivo de jarvis/flows.`)) return
+  if (!confirm(`¿Eliminar el flujo «${flowData.value.flow.name}»? Se borra su archivo de jarvis/flows.`)) return
   try { await api(`/api/flows/${view.value.app}/${view.value.id}`, { method: 'DELETE' }); go({ kind: 'live' }) } catch (e) { viewError.value = e.message }
 }
 
 // ── la barra lateral ──
-const appName = (id) => apps.value.find((a) => a.id === id)?.nombre || id
+const appName = (id) => apps.value.find((a) => a.id === id)?.name || id
 // Los proyectos: cada app del registro (aunque todavía no tenga flujos) y los sitios reales que ya tienen alguno.
 const flowGroups = computed(() => {
   const g = Object.fromEntries(apps.value.map((a) => [a.id, []]))
@@ -470,9 +470,9 @@ const status = computed(() => {
           <template v-if="isOpen(g.app)">
             <!-- sus flujos -->
             <div v-for="f in g.list" :key="f.id" class="tree-row leaf" role="treeitem" :class="{ on: view.kind === 'flow' && view.app === f.app && view.id === f.id }" :title="f.meta" @click="go({ kind: 'flow', app: f.app, id: f.id })">
-              <span class="leaf-mark" :class="{ ok: fmtDate(f.verificado) }" aria-hidden="true"></span>
-              <span class="node-name">{{ f.nombre }}</span>
-              <span class="node-flag">{{ f.pasos }}</span>
+              <span class="leaf-mark" :class="{ ok: fmtDate(f.verified) }" aria-hidden="true"></span>
+              <span class="node-name">{{ f.name }}</span>
+              <span class="node-flag">{{ f.steps }}</span>
               <span class="node-actions">
                 <button type="button" class="region-action" title="Reproducir: los campos se llenan solos, los botones los tocás vos" aria-label="Reproducir" @click.stop="playFlowOf(f, 'fill')"><span class="ui-icon" data-icon="play" aria-hidden="true"></span></button>
                 <button type="button" class="region-action" title="Borrar el flujo" aria-label="Borrar el flujo" @click.stop="deleteFlowOf(f)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
@@ -498,7 +498,7 @@ const status = computed(() => {
           <article class="flow">
             <header class="flow-head">
               <h1>{{ appName(project.id) }}</h1>
-              <p v-if="project.app" class="muted">{{ project.app.descripcion }}</p>
+              <p v-if="project.app" class="muted">{{ project.app.description }}</p>
               <div class="flow-actions">
                 <button v-if="project.app" type="button" class="btn btn-outline" @click="openApp(project.app)">Abrir en vivo</button>
                 <button v-if="project.flows.length || !project.app || project.app.real" type="button" class="btn btn-ghost" @click="deleteProject({ app: project.id, list: project.flows, url: project.app?.url, real: project.app?.real })">Borrar proyecto</button>
@@ -509,13 +509,13 @@ const status = computed(() => {
               <p v-if="!project.flows.length" class="muted">Todavía no tiene. Pedíselo a Claude en la conversación: lo que aprenda en {{ appName(project.id) }} queda acá.</p>
               <div class="project-flows">
                 <div v-for="f in project.flows" :key="f.id" class="pflow">
-                  <button type="button" class="pflow-shot" :title="`Abrir «${f.nombre}»`" @click="go({ kind: 'flow', app: f.app, id: f.id })">
-                    <img v-if="f.foto" :src="f.foto" alt="" loading="lazy" />
+                  <button type="button" class="pflow-shot" :title="`Abrir «${f.name}»`" @click="go({ kind: 'flow', app: f.app, id: f.id })">
+                    <img v-if="f.photo" :src="f.photo" alt="" loading="lazy" />
                     <span class="pflow-play" aria-hidden="true"><span class="ui-icon" data-icon="play"></span></span>
                   </button>
                   <div class="pflow-body">
-                    <button type="button" class="pflow-name" @click="go({ kind: 'flow', app: f.app, id: f.id })">{{ f.nombre }}</button>
-                    <span class="muted small">{{ f.pasos }} pasos<template v-if="f.datos"> · {{ f.datos }} datos</template> · {{ fmtDate(f.verificado) ? `verificado ${fmtDate(f.verificado)}` : `creado ${fmtDate(f.creado)}` }}</span>
+                    <button type="button" class="pflow-name" @click="go({ kind: 'flow', app: f.app, id: f.id })">{{ f.name }}</button>
+                    <span class="muted small">{{ f.steps }} pasos<template v-if="f.params"> · {{ f.params }} datos</template> · {{ fmtDate(f.verified) ? `verificado ${fmtDate(f.verified)}` : `creado ${fmtDate(f.created)}` }}</span>
                     <div class="flow-actions">
                       <button type="button" class="btn btn-sm" title="Llena los campos solo; los botones los tocás vos" @click="playFlowOf(f, 'fill')">Reproducir</button>
                     </div>
@@ -530,7 +530,7 @@ const status = computed(() => {
       <!-- un flujo: en el editor, sólo su video (su información y sus pasos van en el sidebar derecho) -->
       <template v-else-if="view.kind === 'flow'">
         <div class="region-head">
-          <span class="ellipsis">{{ flowData?.flujo.nombre || 'Flujo' }} · {{ appName(view.app) }}</span>
+          <span class="ellipsis">{{ flowData?.flow.name || 'Flujo' }} · {{ appName(view.app) }}</span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Volver al navegador en vivo" aria-label="Cerrar" @click="go({ kind: 'live' })"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
@@ -619,8 +619,8 @@ const status = computed(() => {
             <h2>Proyectos</h2>
             <div class="apps">
               <button v-for="a in apps" :key="a.id" type="button" class="card app-card" @click="openApp(a)">
-                <strong>{{ a.nombre }}</strong>
-                <span class="muted small">{{ a.descripcion }}</span>
+                <strong>{{ a.name }}</strong>
+                <span class="muted small">{{ a.description }}</span>
                 <span class="muted small">{{ flows.filter((f) => f.app === a.id).length }} flujos · abrir en vivo</span>
               </button>
             </div>
@@ -645,9 +645,9 @@ const status = computed(() => {
         <div class="region-body">
       <article class="flow side">
         <header class="flow-head">
-          <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flujo.nombre }}</h1>
-          <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flujo.dispositivo === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flujo.creado) }}
-            <template v-if="fmtDate(flowData.flujo.verificado)"> · verificado {{ fmtDate(flowData.flujo.verificado) }}</template></p>
+          <h1 class="editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiarle el nombre" @keydown.enter.prevent="$event.target.blur()" @blur="renameFlow($event.target.innerText)">{{ flowData.flow.name }}</h1>
+          <p class="muted">{{ flowSteps.length }} pasos<template v-if="flowData.flow.device === 'mobile'"> · móvil</template> · creado {{ fmtDate(flowData.flow.created) }}
+            <template v-if="fmtDate(flowData.flow.verified)"> · verificado {{ fmtDate(flowData.flow.verified) }}</template></p>
           <p class="muted small"><code>jarvis/flows/{{ flowData.app }}/{{ flowData.id }}.json</code></p>
           <div class="flow-actions">
             <button type="button" class="btn" title="Llena los campos solo con estos datos; en cada botón para y lo tocás vos" @click="playFlow('fill')">Reproducir</button>
@@ -658,25 +658,25 @@ const status = computed(() => {
           <h2>Datos del flujo</h2>
           <p class="muted small">Al reproducir se escriben solos y los botones los tocás vos. Cambialos acá; marcá «lo escribo yo» para que pare y lo escribas vos.</p>
           <div v-for="p in flowParams" :key="p.i" class="data-row">
-            <label :for="`dato-${p.i}`">{{ p.dato }}</label>
-            <input :id="`dato-${p.i}`" class="input input-sm" :value="p.valor" :disabled="p.pausa" @change="saveFlowStep(p.i, { valor: $event.target.value })" />
-            <label class="check"><input type="checkbox" :checked="p.pausa" @change="saveFlowStep(p.i, { pausa: $event.target.checked })" /> lo escribo yo</label>
+            <label :for="`dato-${p.i}`">{{ p.param }}</label>
+            <input :id="`dato-${p.i}`" class="input input-sm" :value="p.value" :disabled="p.pause" @change="saveFlowStep(p.i, { value: $event.target.value })" />
+            <label class="check"><input type="checkbox" :checked="p.pause" @change="saveFlowStep(p.i, { pause: $event.target.checked })" /> lo escribo yo</label>
           </div>
         </section>
 
         <section>
           <h2>Pasos</h2>
           <ol class="flow-steps">
-            <li v-for="(s, i) in flowSteps" :key="i" :class="{ stop: s.pausa }">
+            <li v-for="(s, i) in flowSteps" :key="i" :class="{ stop: s.pause }">
               <span class="flow-n">{{ i + 1 }}</span>
               <div class="flow-step-body">
-                <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruccion || s.accion }}</div>
-                <div v-if="s.porque" class="muted small">{{ s.porque }}</div>
+                <div class="flow-what editable" contenteditable="plaintext-only" spellcheck="false" title="Clic para cambiar el texto del paso" @keydown.enter.prevent="$event.target.blur()" @blur="editStepText(i, $event.target)">{{ s.instruction || s.action }}</div>
+                <div v-if="s.why" class="muted small">{{ s.why }}</div>
               </div>
-              <label v-if="!s.dato && !s.secreto && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.accion)" class="check small" title="Que pare acá y lo haga la persona">
-                <input type="checkbox" :checked="s.pausa" @change="saveFlowStep(i, { pausa: $event.target.checked })" /> lo hago yo
+              <label v-if="!s.param && !s.secret && ['click', 'dblclick', 'check', 'uncheck', 'select', 'press'].includes(s.action)" class="check small" title="Que pare acá y lo haga la persona">
+                <input type="checkbox" :checked="s.pause" @change="saveFlowStep(i, { pause: $event.target.checked })" /> lo hago yo
               </label>
-              <span v-else-if="s.secreto" class="muted small">lo escribe la persona</span>
+              <span v-else-if="s.secret" class="muted small">lo escribe la persona</span>
               <button type="button" class="region-action step-del" title="Sacar este paso del flujo" :aria-label="`Sacar el paso ${i + 1}`" @click="removeStep(i)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
             </li>
           </ol>
@@ -687,7 +687,7 @@ const status = computed(() => {
       <template v-else>
       <div class="region-head">
         <span>Claude</span>
-        <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : askState.externa ? 'desde la conversación' : 'trabajando…' }}</span>
+        <span v-if="askState.running" class="badge badge-xs" :class="askState.waiting ? 'kw-ask' : 'kw-none'">{{ askState.waiting ? 'espera tu respuesta' : askState.external ? 'desde la conversación' : 'trabajando…' }}</span>
         <div class="region-actions">
           <button v-if="askState.running" type="button" class="region-action" title="Frenar" aria-label="Frenar" @click="stopAsk"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
           <button v-else type="button" class="region-action" title="Limpiar" aria-label="Limpiar" @click="askEvents = []"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
@@ -722,7 +722,7 @@ const status = computed(() => {
           <button type="button" class="btn btn-ghost btn-sm" @click="answerAsk('')">Terminar sin contestar</button>
         </div>
         <p v-if="askError" class="err">{{ askError }}</p>
-        <p v-if="!askState.running && askState.salida" class="err">El proceso terminó: {{ askState.salida }}</p>
+        <p v-if="!askState.running && askState.exit" class="err">El proceso terminó: {{ askState.exit }}</p>
         <div v-if="!askState.running && askFlow" class="agent-done">
           <button v-if="askFlow" type="button" class="btn btn-sm" @click="go({ kind: 'flow', app: askFlow.split('/')[0], id: askFlow.split('/')[1] })">Abrir el flujo</button>
         </div>

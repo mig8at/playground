@@ -108,9 +108,15 @@ shoot shot
 graphql playwright tauri sanctum pdfjs appkey apptoken captcha
 # inglés que la stdlib casi no usa
 gallery rehearsal rehearse incident subagent staff lightbox corrector correctors affirmative adopt warehouse uncheck
-tally stopbar spoken screencast ripple regroup freeable employer draggable discounted debuggee dblclick promo
+tally stopbar spoken screencast ripple regroup freeable employer draggable discount discounted debuggee dblclick promo
 # siglas y abreviaturas: dólares, devicePixelRatio, contextos (browser/request/tab), «un-base64», sugerencia,
 # integración, el HDC+ de Experian, cancelar, claves primarias y la frecuencia alta
 usd dpr bctx rctx tctx unb sug integ cplus rcancel pks hfreq
 # nombres propios: Duncan (en tests del chat) y el IVA, el impuesto colombiano
 duncan iva
+
+# Jarvis: los comandos, opciones y recetas de antes del 2026-11-07, en castellano a propósito (las tareas y los flujos
+# guardan el comando exacto). Sólo en ese archivo; en cualquier otro lugar se escribe en inglés.
+json: jarvis/cli/legacy.go:map *
+# las marcas ficticias de las apps de práctica de Jarvis (jarvis/apps): Panel Andino y la pasarela CreditoYa
+andino creditoya

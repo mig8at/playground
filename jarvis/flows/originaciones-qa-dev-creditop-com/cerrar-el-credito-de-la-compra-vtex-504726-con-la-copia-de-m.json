@@ -1,24 +1,24 @@
 {
-  "nombre": "Cerrar el crédito de la compra VTEX (504726) con la copia de Mario",
+  "name": "Cerrar el crédito de la compra VTEX (504726) con la copia de Mario",
   "meta": "Cerrar el crédito de la compra VTEX (504726) con la copia de Mario",
-  "inicio": "https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/504726/confirmation",
-  "dispositivo": "chrome",
-  "creado": "2026-11-07T10:12:29.833319-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-07_10-04-39",
-  "pasos": [
+  "start": "https://originaciones-qa.dev.creditop.com/ecommerce/1126106a/504726/confirmation",
+  "device": "chrome",
+  "created": "2026-11-07T10:12:29.833319-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-07_10-04-39",
+  "steps": [
     {
-      "accion": "reload",
-      "objetivo": "recargar",
-      "instruccion": "Recargá la página",
-      "porque": "Me presento como celular: el wizard pide celular para la identidad",
-      "codigo": "page.reload()"
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "why": "Me presento como celular: el wizard pide celular para la identidad",
+      "code": "page.reload()"
     },
     {
-      "accion": "click",
-      "objetivo": "Continuar",
-      "instruccion": "Hacé clic en «Continuar»",
-      "porque": "Sigo: la identidad está aprobada a mano",
+      "action": "click",
+      "target": "Continuar",
+      "instruction": "Hacé clic en «Continuar»",
+      "why": "Sigo: la identidad está aprobada a mano",
       "ref": {
         "loc": {
           "kind": "role",
@@ -30,13 +30,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Continuar', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Continuar', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Confirmar",
-      "instruccion": "Hacé clic en «Confirmar»",
-      "porque": "Confirmo Mario Hernández por $800.005",
+      "action": "click",
+      "target": "Confirmar",
+      "instruction": "Hacé clic en «Confirmar»",
+      "why": "Confirmo Mario Hernández por $800.005",
       "ref": {
         "loc": {
           "kind": "role",
@@ -48,13 +48,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Confirmar', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Confirmar', exact: true }).click()"
     },
     {
-      "accion": "check",
-      "objetivo": "5 Dic 2026",
-      "instruccion": "Marcá «5 Dic 2026»",
-      "porque": "Primer pago el 5 de diciembre",
+      "action": "check",
+      "target": "5 Dic 2026",
+      "instruction": "Marcá «5 Dic 2026»",
+      "why": "Primer pago el 5 de diciembre",
       "ref": {
         "loc": {
           "kind": "role",
@@ -66,12 +66,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('radio', { name: '5 Dic 2026', exact: true }).check()"
+      "code": "page.getByRole('radio', { name: '5 Dic 2026', exact: true }).check()"
     },
     {
-      "accion": "click",
-      "objetivo": "Continuar",
-      "instruccion": "Hacé clic en «Continuar»",
+      "action": "click",
+      "target": "Continuar",
+      "instruction": "Hacé clic en «Continuar»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -82,13 +82,13 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "check",
-      "objetivo": "Seleccionar 6 cuotas",
-      "instruccion": "Marcá «Seleccionar 6 cuotas»",
-      "porque": "Plan de 6 cuotas",
+      "action": "check",
+      "target": "Seleccionar 6 cuotas",
+      "instruction": "Marcá «Seleccionar 6 cuotas»",
+      "why": "Plan de 6 cuotas",
       "ref": {
         "loc": {
           "kind": "role",
@@ -100,12 +100,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('radio', { name: 'Seleccionar 6 cuotas', exact: true }).check()"
+      "code": "page.getByRole('radio', { name: 'Seleccionar 6 cuotas', exact: true }).check()"
     },
     {
-      "accion": "click",
-      "objetivo": "Confirmar",
-      "instruccion": "Hacé clic en «Confirmar»",
+      "action": "click",
+      "target": "Confirmar",
+      "instruction": "Hacé clic en «Confirmar»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -116,13 +116,13 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Confirmar', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Confirmar', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Firmar",
-      "instruccion": "Hacé clic en «Firmar»",
-      "porque": "Firmo: el wizard pide el código de firma por SMS",
+      "action": "click",
+      "target": "Firmar",
+      "instruction": "Hacé clic en «Firmar»",
+      "why": "Firmo: el wizard pide el código de firma por SMS",
       "ref": {
         "loc": {
           "kind": "role",
@@ -134,13 +134,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Firmar', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Firmar', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Firmar",
-      "instruccion": "Hacé clic en «Firmar»",
-      "porque": "Firmo el documento",
+      "action": "click",
+      "target": "Firmar",
+      "instruction": "Hacé clic en «Firmar»",
+      "why": "Firmo el documento",
       "ref": {
         "loc": {
           "kind": "role",
@@ -152,7 +152,7 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Firmar', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Firmar', exact: true }).click()"
     }
   ]
 }

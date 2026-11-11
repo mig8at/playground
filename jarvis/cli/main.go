@@ -71,40 +71,6 @@ func envOr(k, d string) string {
 // tabID es la pestaña a la que le habla este comando (--session N o JARVIS_SESSION); vacía, la última que se abrió.
 var tabID = envOr("JARVIS_SESSION", os.Getenv("JARVIS_SESION"))
 
-// Los nombres de antes del 2026-11-07, en castellano, siguen andando: las tareas y los flujos guardan el comando
-// exacto con que se hizo algo. Se traducen al entrar y todo lo demás habla en inglés.
-var legacyCommands = map[string]string{
-	"empezar": "start", "pienso": "think", "terminar": "finish", "pestanas": "tabs", "pestañas": "tabs",
-	"proyecto": "project", "cambios": "changes",
-}
-var legacyFlags = map[string]string{
-	"--sesion": "--session", "--pestana": "--session", "--todo": "--all", "--buscar": "--search", "--desde": "--from",
-	"--pasos": "--steps", "-pasos": "--steps", "--modelo": "--model", "-modelo": "--model", "--respuesta": "--answer",
-	"-respuesta": "--answer", "--guia": "--guide", "-guia": "--guide", "--sin-flujo": "--no-flow", "-sin-flujo": "--no-flow",
-	"--dispositivo": "--device", "-dispositivo": "--device",
-}
-var legacySubcommands = map[string]string{"nueva": "new", "cerrar": "close"}
-
-func translateLegacy(argv []string) []string {
-	out := make([]string, len(argv))
-	for i, a := range argv {
-		out[i] = a
-		if i == 1 {
-			if n, ok := legacyCommands[a]; ok {
-				out[i] = n
-			}
-		} else if i == 2 && out[1] == "tabs" {
-			if n, ok := legacySubcommands[a]; ok {
-				out[i] = n
-			}
-		}
-		if n, ok := legacyFlags[a]; ok {
-			out[i] = n
-		}
-	}
-	return out
-}
-
 // takeTabFlag saca `--session N` de los argumentos, esté donde esté.
 func takeTabFlag(argv []string) []string {
 	out := argv[:0:0]
@@ -154,7 +120,7 @@ func main() {
 		if len(args) < 3 {
 			usage()
 		}
-		err = call(http.MethodPost, "/api/projects", map[string]string{"id": args[0], "nombre": args[1], "url": args[2]}, nil)
+		err = call(http.MethodPost, "/api/projects", map[string]string{"id": args[0], "name": args[1], "url": args[2]}, nil)
 		if err == nil {
 			fmt.Printf("proyecto «%s» (jarvis/flows/%s/): los flujos de %s quedan ahí\n", args[1], args[0], args[2])
 		}
@@ -947,7 +913,7 @@ func report(args []string) error {
 }
 
 func writeReport(goal, result string) (string, error) {
-	return writeReportInfo(map[string]any{"meta": goal, "resultado": result})
+	return writeReportInfo(map[string]any{"meta": goal, "result": result})
 }
 
 // writeReportInfo escribe el reporte con todo lo que se sepa de la corrida (palabra final, costo, modelo…).
@@ -1049,7 +1015,7 @@ func point(args []string) error {
 }
 
 func changes() error {
-	var list []struct{ Campo, Antes, Despues string }
+	var list []struct{ Field, Before, After string }
 	if err := call(http.MethodGet, "/api/live/changes", nil, &list); err != nil {
 		return err
 	}
@@ -1058,7 +1024,7 @@ func changes() error {
 		return nil
 	}
 	for _, c := range list {
-		fmt.Printf("  «%s»: %s → %s\n", c.Campo, quoteOrEmpty(c.Antes), quoteOrEmpty(c.Despues))
+		fmt.Printf("  «%s»: %s → %s\n", c.Field, quoteOrEmpty(c.Before), quoteOrEmpty(c.After))
 	}
 	return nil
 }
@@ -1073,7 +1039,7 @@ func quoteOrEmpty(s string) string {
 // ── una sesión de Claude desde la conversación, a la vista en el panel ──
 
 func panelEvent(kind, text string) error {
-	return call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "event", "k": kind, "t": text}, nil)
+	return call(http.MethodPost, "/api/ask/external", map[string]string{"action": "event", "k": kind, "t": text}, nil)
 }
 
 // shellLine es el comando como se escribió, con comillas simples donde hacen falta.
@@ -1130,7 +1096,7 @@ func begin(args []string) error {
 			return err
 		}
 	}
-	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "begin", "meta": goal}, nil); err != nil {
+	if err := call(http.MethodPost, "/api/ask/external", map[string]string{"action": "begin", "meta": goal}, nil); err != nil {
 		return err
 	}
 	fmt.Printf("sesión abierta en el panel, pestaña %s: %s\n", tabID, goal)
@@ -1152,9 +1118,9 @@ func finish(args []string) error {
 	var st struct{ Meta string }
 	_ = call(http.MethodGet, "/api/ask?desde=999999", nil, &st)
 	goal := st.Meta
-	defer call(http.MethodPost, "/api/ask/external", map[string]string{"accion": "end"}, nil)
+	defer call(http.MethodPost, "/api/ask/external", map[string]string{"action": "end"}, nil)
 	_ = panelEvent("result", result)
-	url, err := writeReportInfo(map[string]any{"meta": goal, "resultado": result, "palabra": keyword(result), "origen": "Claude desde la conversación"})
+	url, err := writeReportInfo(map[string]any{"meta": goal, "result": result, "keyword": keyword(result), "source": "Claude desde la conversación"})
 	if err != nil {
 		return err
 	}
@@ -1183,8 +1149,8 @@ type tabInfo struct {
 	Busy   bool   `json:"busy"`
 	Last   bool   `json:"last"`
 	// ByClaude: la abrió Claude; IdleSec: hace cuánto nadie la usa (las de Claude se cierran solas).
-	ByClaude bool `json:"porClaude"`
-	IdleSec  int  `json:"sinUsoSeg"`
+	ByClaude bool `json:"byClaude"`
+	IdleSec  int  `json:"idleSec"`
 }
 
 func listTabs() ([]tabInfo, error) {

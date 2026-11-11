@@ -53,15 +53,15 @@ type AskState struct {
 	Running  bool       `json:"running"`
 	Waiting  bool       `json:"waiting"`
 	Goal     string     `json:"meta"`
-	Started  time.Time  `json:"inicio"`
-	Exit     string     `json:"salida,omitempty"`
-	External bool       `json:"externa,omitempty"` // la maneja Claude desde la conversación
+	Started  time.Time  `json:"start"`
+	Exit     string     `json:"exit,omitempty"`
+	External bool       `json:"external,omitempty"` // la maneja Claude desde la conversación
 	Total    int        `json:"total"`
-	Events   []AskEvent `json:"eventos"`
+	Events   []AskEvent `json:"events"`
 }
 
 // navegadorBin es bin/jarvis del repo (o JARVIS_BIN).
-func navegadorBin() string {
+func jarvisBin() string {
 	if b := os.Getenv("JARVIS_BIN"); b != "" {
 		return b
 	}
@@ -94,7 +94,7 @@ func (a *Asker) Start(api, goal, url, device string, guide bool, steps int) erro
 		args = append(args, "--steps", strconv.Itoa(steps))
 	}
 	args = append(args, goal)
-	cmd := exec.Command(navegadorBin(), args...)
+	cmd := exec.Command(jarvisBin(), args...)
 	// JARVIS_SESSION: el ask le habla a SU pestaña, aunque la persona abra otras mientras trabaja.
 	cmd.Env = append(os.Environ(), "JARVIS_API="+api, "JARVIS_EVENTS=1", "JARVIS_SESSION="+a.tab, "JARVIS_SESION="+a.tab)
 	// Su propio grupo y sin terminal: frenarlo mata también al Claude Code que lanzó.

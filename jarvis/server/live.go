@@ -57,19 +57,19 @@ type Step struct {
 	Box    *Box   `json:"box,omitempty"`
 	View   *Box   `json:"view,omitempty"`
 	// En el modo guía, lo que se le pidió a la persona (el paso lo hizo ella, no Claude).
-	Guide  string  `json:"guia,omitempty"`
+	Guide  string  `json:"guide,omitempty"`
 	Manual bool    `json:"manual,omitempty"`
-	Change *Change `json:"cambio,omitempty"` // lo que cambió en el campo (antes → después), para mostrar antes de guardar
+	Change *Change `json:"change,omitempty"` // lo que cambió en el campo (antes → después), para mostrar antes de guardar
 	// Para repetir el paso sin Claude (replay.go): a qué elemento (el localizador, no la línea TS), qué acción y con
 	// qué valor (vacío en un secreto, que siempre escribe la persona).
 	Ref    *Ref   `json:"ref,omitempty"`
-	Action string `json:"accion,omitempty"`
-	Value  string `json:"valor,omitempty"`
-	Secret bool   `json:"secreto,omitempty"`
+	Action string `json:"action,omitempty"`
+	Value  string `json:"value,omitempty"`
+	Secret bool   `json:"secret,omitempty"`
 	// Para el video: dónde fue la interacción (px de la ventana View) y por qué (lo que Claude pensó antes).
-	Point *Box   `json:"punto,omitempty"`
-	Why   string `json:"porque,omitempty"`
-	Pause bool   `json:"pausa,omitempty"` // al repetir un flujo, este paso lo hace la persona
+	Point *Box   `json:"point,omitempty"`
+	Why   string `json:"why,omitempty"`
+	Pause bool   `json:"pause,omitempty"` // al repetir un flujo, este paso lo hace la persona
 }
 
 // elementBox es dónde está un elemento en la ventana y el tamaño de la ventana (nil si no se ve).
@@ -93,7 +93,7 @@ func (r *Runner) shotBefore(l *live, loc playwright.Locator, s *Step) {
 	l.mu.Lock()
 	n := len(l.steps) + 1
 	if l.runDir == "" {
-		l.runDir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+		l.runDir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
 	}
 	dir := l.runDir
 	l.mu.Unlock()
@@ -987,7 +987,7 @@ func (r *Runner) recordStep(l *live, s Step) {
 	l.mu.Lock()
 	n := len(l.steps) + 1
 	if l.runDir == "" {
-		l.runDir = filepath.Join(r.store.dir, "corridas", time.Now().Format("2006-01-02_15-04-05"))
+		l.runDir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
 	}
 	dir := l.runDir
 	l.mu.Unlock()

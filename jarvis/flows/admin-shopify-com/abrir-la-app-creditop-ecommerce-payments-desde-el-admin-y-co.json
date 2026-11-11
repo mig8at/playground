@@ -1,16 +1,16 @@
 {
-  "nombre": "Abrir la app CREDITOP-ECOMMERCE-PAYMENTS desde el admin y comprobar que la configuración abre fuera del admin, y que al guardar vuelve a los ajustes del medio de pago",
+  "name": "Abrir la app CREDITOP-ECOMMERCE-PAYMENTS desde el admin y comprobar que la configuración abre fuera del admin, y que al guardar vuelve a los ajustes del medio de pago",
   "meta": "Abrir la app CREDITOP-ECOMMERCE-PAYMENTS desde el admin y comprobar que la configuración abre fuera del admin, y que al guardar vuelve a los ajustes del medio de pago",
-  "inicio": "https://admin.shopify.com/store/creditop-dev-store/settings/apps",
-  "dispositivo": "chrome",
-  "creado": "2026-11-07T18:17:54.602037-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-07_18-11-56",
-  "pasos": [
+  "start": "https://admin.shopify.com/store/creditop-dev-store/settings/apps",
+  "device": "chrome",
+  "created": "2026-11-07T18:17:54.602037-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-07_18-11-56",
+  "steps": [
     {
-      "accion": "click",
-      "objetivo": "Más acciones para CREDITOP-ECOMMERCE-PAYMENTS",
-      "instruccion": "Hacé clic en «Más acciones para CREDITOP-ECOMMERCE-PAYMENTS»",
+      "action": "click",
+      "target": "Más acciones para CREDITOP-ECOMMERCE-PAYMENTS",
+      "instruction": "Hacé clic en «Más acciones para CREDITOP-ECOMMERCE-PAYMENTS»",
       "ref": {
         "loc": {
           "kind": "role",
@@ -22,13 +22,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Más acciones para CREDITOP-ECOMMERCE-PAYMENTS', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Más acciones para CREDITOP-ECOMMERCE-PAYMENTS', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Abrir app",
-      "instruccion": "Hacé clic en «Abrir app»",
-      "porque": "Abro la app: debería salir de admin.shopify.com a su propia página",
+      "action": "click",
+      "target": "Abrir app",
+      "instruction": "Hacé clic en «Abrir app»",
+      "why": "Abro la app: debería salir de admin.shopify.com a su propia página",
       "ref": {
         "loc": {
           "kind": "role",
@@ -40,20 +40,20 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('menuitem', { name: 'Abrir app', exact: true }).click()"
+      "code": "page.getByRole('menuitem', { name: 'Abrir app', exact: true }).click()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "valor": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "instruccion": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "codigo": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
+      "action": "goto",
+      "target": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "value": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "instruction": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "code": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
     },
     {
-      "accion": "click",
-      "objetivo": "Guardar cambios",
-      "instruccion": "Hacé clic en «Guardar cambios»",
-      "porque": "Guardar sin cambiar nada: debería llevarme a los ajustes de Creditop en el admin",
+      "action": "click",
+      "target": "Guardar cambios",
+      "instruction": "Hacé clic en «Guardar cambios»",
+      "why": "Guardar sin cambiar nada: debería llevarme a los ajustes de Creditop en el admin",
       "ref": {
         "loc": {
           "kind": "text",
@@ -64,20 +64,20 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "valor": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "instruccion": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "codigo": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
+      "action": "goto",
+      "target": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "value": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "instruction": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "code": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
     },
     {
-      "accion": "click",
-      "objetivo": "Guardar cambios",
-      "instruccion": "Hacé clic en «Guardar cambios»",
-      "porque": "Guardar otra vez, ahora con el servidor que confía en el proxy",
+      "action": "click",
+      "target": "Guardar cambios",
+      "instruction": "Hacé clic en «Guardar cambios»",
+      "why": "Guardar otra vez, ahora con el servidor que confía en el proxy",
       "ref": {
         "loc": {
           "kind": "text",
@@ -88,20 +88,20 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "valor": "https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "instruccion": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
-      "codigo": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
+      "action": "goto",
+      "target": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "value": "https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "instruction": "Abrí https://clay-epic-whats-moderator.trycloudflare.com/app",
+      "code": "page.goto('https://clay-epic-whats-moderator.trycloudflare.com/app')"
     },
     {
-      "accion": "click",
-      "objetivo": "Guardar cambios",
-      "instruccion": "Hacé clic en «Guardar cambios»",
-      "porque": "Guardar otra vez, ahora con el token renovado",
+      "action": "click",
+      "target": "Guardar cambios",
+      "instruction": "Hacé clic en «Guardar cambios»",
+      "why": "Guardar otra vez, ahora con el token renovado",
       "ref": {
         "loc": {
           "kind": "text",
@@ -112,7 +112,7 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Guardar cambios', { exact: true }).filter({ visible: true }).click()"
     }
   ]
 }

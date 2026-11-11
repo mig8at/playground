@@ -25,45 +25,45 @@ import (
 type Flow struct {
 	ID       string     `json:"-"`
 	App      string     `json:"-"`
-	Name     string     `json:"nombre"`
+	Name     string     `json:"name"`
 	Goal     string     `json:"meta"`
-	Start    string     `json:"inicio"`
-	Device   string     `json:"dispositivo,omitempty"`
-	Created  time.Time  `json:"creado"`
-	Verified time.Time  `json:"verificado,omitempty"`
-	Source   string     `json:"corrida,omitempty"`        // la corrida donde se grabó (su video, si está en .data)
-	LastRun  string     `json:"ultima_corrida,omitempty"` // la última repetición
-	Steps    []FlowStep `json:"pasos"`
+	Start    string     `json:"start"`
+	Device   string     `json:"device,omitempty"`
+	Created  time.Time  `json:"created"`
+	Verified time.Time  `json:"verified,omitempty"`
+	Source   string     `json:"run,omitempty"`        // la corrida donde se grabó (su video, si está en .data)
+	LastRun  string     `json:"lastRun,omitempty"` // la última repetición
+	Steps    []FlowStep `json:"steps"`
 }
 
 type FlowStep struct {
-	Action      string `json:"accion"`
-	Target      string `json:"objetivo,omitempty"`
-	Value       string `json:"valor,omitempty"`
-	Instruction string `json:"instruccion,omitempty"`
-	Why         string `json:"porque,omitempty"`
-	Secret      bool   `json:"secreto,omitempty"`
+	Action      string `json:"action"`
+	Target      string `json:"target,omitempty"`
+	Value       string `json:"value,omitempty"`
+	Instruction string `json:"instruction,omitempty"`
+	Why         string `json:"why,omitempty"`
+	Secret      bool   `json:"secret,omitempty"`
 	// Param: el paso escribe o elige un DATO (su nombre es el del campo); su valor es el de por defecto y se
 	// puede cambiar al reproducir. Pause: acá para y lo hace la persona, aunque el flujo corra automático.
-	Param string `json:"dato,omitempty"`
-	Pause bool   `json:"pausa,omitempty"`
+	Param string `json:"param,omitempty"`
+	Pause bool   `json:"pause,omitempty"`
 	Ref   *Ref   `json:"ref,omitempty"`
-	Code  string `json:"codigo,omitempty"` // la línea de Playwright, para leerla
+	Code  string `json:"code,omitempty"` // la línea de Playwright, para leerla
 }
 
 // FlowSummary es lo que lista la interfaz.
 type FlowSummary struct {
 	App      string    `json:"app"`
 	ID       string    `json:"id"`
-	Name     string    `json:"nombre"`
+	Name     string    `json:"name"`
 	Goal     string    `json:"meta"`
-	Steps    int       `json:"pasos"`
-	Created  time.Time `json:"creado"`
-	Verified time.Time `json:"verificado"`
-	Source   string    `json:"corrida"`
-	Device   string    `json:"dispositivo,omitempty"`
-	Params   int       `json:"datos"`
-	Photo    string    `json:"foto,omitempty"` // la última foto de su corrida (la tarjeta de la galería)
+	Steps    int       `json:"steps"`
+	Created  time.Time `json:"created"`
+	Verified time.Time `json:"verified"`
+	Source   string    `json:"run"`
+	Device   string    `json:"device,omitempty"`
+	Params   int       `json:"params"`
+	Photo    string    `json:"photo,omitempty"` // la última foto de su corrida (la tarjeta de la galería)
 }
 
 // envFirst devuelve la primera variable que esté puesta (la nueva y, después, su nombre de antes).
@@ -80,7 +80,7 @@ func flowsDir() string {
 	if d := envFirst("JARVIS_FLOWS", "JARVIS_FLUJOS"); d != "" {
 		return d
 	}
-	return filepath.Join(navegadorDir(), "flows")
+	return filepath.Join(jarvisDir(), "flows")
 }
 
 var flowIDJunk = regexp.MustCompile(`[^a-z0-9]+`)
@@ -101,7 +101,7 @@ func slugify(s string) string {
 		id = strings.Trim(id[:60], "-")
 	}
 	if id == "" {
-		id = "flujo"
+		id = "flow"
 	}
 	return id
 }
@@ -149,10 +149,10 @@ func listFlows() []FlowSummary {
 			if run == "" {
 				continue
 			}
-			shots, _ := filepath.Glob(filepath.Join(dataDir(), "corridas", run, "[0-9][0-9].png"))
+			shots, _ := filepath.Glob(filepath.Join(dataDir(), "runs", run, "[0-9][0-9].png"))
 			if len(shots) > 0 {
 				sort.Strings(shots)
-				sum.Photo = "/api/corridas/" + run + "/" + filepath.Base(shots[len(shots)-1])
+				sum.Photo = "/api/run-files/" + run + "/" + filepath.Base(shots[len(shots)-1])
 				break
 			}
 		}
@@ -221,8 +221,8 @@ func (s *Store) SaveFlow(runID, name string) (Flow, error) {
 	if err != nil {
 		return Flow{}, err
 	}
-	meta, _ := data["corrida"].(RunMeta)
-	all, _ := data["pasos"].([]Step)
+	meta, _ := data["run"].(RunMeta)
+	all, _ := data["steps"].([]Step)
 	fl := Flow{Name: strings.TrimSpace(name), Goal: meta.Goal, Start: meta.Start, Device: meta.Device, Created: time.Now(), Source: runID}
 	if fl.Name == "" {
 		fl.Name = meta.Goal
@@ -307,10 +307,10 @@ func flowSteps(fl Flow, values map[int]string) []Step {
 
 // FlowEdit es lo que la persona cambia de un paso: su dato, si para, su texto, o sacarlo.
 type FlowEdit struct {
-	Value       *string `json:"valor"`
-	Pause       *bool   `json:"pausa"`
-	Instruction *string `json:"instruccion"`
-	Delete      bool    `json:"borrar"`
+	Value       *string `json:"value"`
+	Pause       *bool   `json:"pause"`
+	Instruction *string `json:"instruction"`
+	Delete      bool    `json:"delete"`
 }
 
 // updateFlow guarda lo que la persona cambió en un flujo: el nombre y, por paso, su dato, si para, su texto o
@@ -385,7 +385,7 @@ func (s *Store) DeleteProject(app string) (int, int, error) {
 		if appFor(r.Start) != app {
 			continue
 		}
-		if err := os.RemoveAll(filepath.Join(s.dir, "corridas", r.ID)); err == nil {
+		if err := os.RemoveAll(filepath.Join(s.dir, "runs", r.ID)); err == nil {
 			runs++
 		}
 	}

@@ -1,17 +1,17 @@
 {
-  "nombre": "Comprar en la tienda de pruebas (workspace autoonb) pagando con Creditop y llenar los campos de auto-onboarding",
+  "name": "Comprar en la tienda de pruebas (workspace autoonb) pagando con Creditop y llenar los campos de auto-onboarding",
   "meta": "Comprar en la tienda de pruebas (workspace autoonb) pagando con Creditop y llenar los campos de auto-onboarding",
-  "inicio": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
-  "dispositivo": "desktop",
-  "creado": "2026-11-06T15:59:56.147709-05:00",
-  "verificado": "0001-01-01T00:00:00Z",
-  "corrida": "2026-11-06_15-54-29",
-  "pasos": [
+  "start": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
+  "device": "desktop",
+  "created": "2026-11-06T15:59:56.147709-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-06_15-54-29",
+  "steps": [
     {
-      "accion": "click",
-      "objetivo": "Finalizar compra",
-      "instruccion": "Hacé clic en «Finalizar compra»",
-      "porque": "Paso al checkout con la bicicleta de $800.000",
+      "action": "click",
+      "target": "Finalizar compra",
+      "instruction": "Hacé clic en «Finalizar compra»",
+      "why": "Paso al checkout con la bicicleta de $800.000",
       "ref": {
         "loc": {
           "kind": "role",
@@ -23,12 +23,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('link', { name: 'Finalizar compra', exact: true }).click()"
+      "code": "page.getByRole('link', { name: 'Finalizar compra', exact: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Finalizar compra",
-      "instruccion": "Hacé clic en «Finalizar compra»",
+      "action": "click",
+      "target": "Finalizar compra",
+      "instruction": "Hacé clic en «Finalizar compra»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -39,49 +39,49 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Finalizar compra', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Finalizar compra', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "expect",
-      "objetivo": "correo",
-      "valor": "correo",
-      "instruccion": "Comprobá que se vea «correo»",
-      "codigo": "expect(page.getByText('correo').filter({ visible: true }).first()).toBeVisible()"
+      "action": "expect",
+      "target": "correo",
+      "value": "correo",
+      "instruction": "Comprobá que se vea «correo»",
+      "code": "expect(page.getByText('correo').filter({ visible: true }).first()).toBeVisible()"
     },
     {
-      "accion": "reload",
-      "objetivo": "recargar",
-      "instruccion": "Recargá la página",
-      "codigo": "page.reload()"
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
     },
     {
-      "accion": "expect",
-      "objetivo": "Bicicleta",
-      "valor": "Bicicleta",
-      "instruccion": "Comprobá que se vea «Bicicleta»",
-      "codigo": "expect(page.getByText('Bicicleta').filter({ visible: true }).first()).toBeVisible()"
+      "action": "expect",
+      "target": "Bicicleta",
+      "value": "Bicicleta",
+      "instruction": "Comprobá que se vea «Bicicleta»",
+      "code": "expect(page.getByText('Bicicleta').filter({ visible: true }).first()).toBeVisible()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/email",
-      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/email",
-      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/email",
-      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/email')"
+      "action": "goto",
+      "target": "https://autoonb--creditop.myvtex.com/checkout/#/email",
+      "value": "https://autoonb--creditop.myvtex.com/checkout/#/email",
+      "instruction": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/email",
+      "code": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/email')"
     },
     {
-      "accion": "expect",
-      "objetivo": "Nombre",
-      "valor": "Nombre",
-      "instruccion": "Comprobá que se vea «Nombre»",
-      "porque": "Correo del comprador de prueba (documento 1093998469)",
-      "codigo": "expect(page.getByText('Nombre').filter({ visible: true }).first()).toBeVisible()"
+      "action": "expect",
+      "target": "Nombre",
+      "value": "Nombre",
+      "instruction": "Comprobá que se vea «Nombre»",
+      "why": "Correo del comprador de prueba (documento 1093998469)",
+      "code": "expect(page.getByText('Nombre').filter({ visible: true }).first()).toBeVisible()"
     },
     {
-      "accion": "fill",
-      "objetivo": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
-      "valor": "auto-1093998469@creditop.com",
-      "instruccion": "Escribí «auto-1093998469@creditop.com» en «Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.»",
-      "dato": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "action": "fill",
+      "target": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
+      "value": "auto-1093998469@creditop.com",
+      "instruction": "Escribí «auto-1093998469@creditop.com» en «Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.»",
+      "param": "Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.",
       "ref": {
         "loc": {
           "kind": "role",
@@ -93,12 +93,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true }).fill('auto-1093998469@creditop.com')"
+      "code": "page.getByRole('textbox', { name: 'Ingresa tu mail para continuar la compra. Rápido. Fácil. Seguro.', exact: true }).fill('auto-1093998469@creditop.com')"
     },
     {
-      "accion": "click",
-      "objetivo": "Continuar",
-      "instruccion": "Hacé clic en «Continuar»",
+      "action": "click",
+      "target": "Continuar",
+      "instruction": "Hacé clic en «Continuar»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -109,12 +109,12 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Continuar', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Ir para la Entrega",
-      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "action": "click",
+      "target": "Ir para la Entrega",
+      "instruction": "Hacé clic en «Ir para la Entrega»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -125,14 +125,14 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "fill",
-      "objetivo": "Nombre",
-      "valor": "LAURA",
-      "instruccion": "Escribí «LAURA» en «Nombre»",
-      "dato": "Nombre",
+      "action": "fill",
+      "target": "Nombre",
+      "value": "LAURA",
+      "instruction": "Escribí «LAURA» en «Nombre»",
+      "param": "Nombre",
       "ref": {
         "loc": {
           "kind": "role",
@@ -144,14 +144,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
+      "code": "page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('LAURA')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Apellidos",
-      "valor": "AUTO PRUEBA",
-      "instruccion": "Escribí «AUTO PRUEBA» en «Apellidos»",
-      "dato": "Apellidos",
+      "action": "fill",
+      "target": "Apellidos",
+      "value": "AUTO PRUEBA",
+      "instruction": "Escribí «AUTO PRUEBA» en «Apellidos»",
+      "param": "Apellidos",
       "ref": {
         "loc": {
           "kind": "role",
@@ -163,14 +163,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
+      "code": "page.getByRole('textbox', { name: 'Apellidos', exact: true }).fill('AUTO PRUEBA')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Cédula de Ciudadanía",
-      "valor": "1093998469",
-      "instruccion": "Escribí «1093998469» en «Cédula de Ciudadanía»",
-      "dato": "Cédula de Ciudadanía",
+      "action": "fill",
+      "target": "Cédula de Ciudadanía",
+      "value": "1093998469",
+      "instruction": "Escribí «1093998469» en «Cédula de Ciudadanía»",
+      "param": "Cédula de Ciudadanía",
       "ref": {
         "loc": {
           "kind": "role",
@@ -182,14 +182,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('1093998469')"
+      "code": "page.getByRole('textbox', { name: 'Cédula de Ciudadanía', exact: true }).fill('1093998469')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Teléfono / Móvil",
-      "valor": "3139984691",
-      "instruccion": "Escribí «3139984691» en «Teléfono / Móvil»",
-      "dato": "Teléfono / Móvil",
+      "action": "fill",
+      "target": "Teléfono / Móvil",
+      "value": "3139984691",
+      "instruction": "Escribí «3139984691» en «Teléfono / Móvil»",
+      "param": "Teléfono / Móvil",
       "ref": {
         "loc": {
           "kind": "role",
@@ -201,12 +201,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3139984691')"
+      "code": "page.getByRole('textbox', { name: 'Teléfono / Móvil', exact: true }).fill('3139984691')"
     },
     {
-      "accion": "click",
-      "objetivo": "Ir para la Entrega",
-      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "action": "click",
+      "target": "Ir para la Entrega",
+      "instruction": "Hacé clic en «Ir para la Entrega»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -217,12 +217,12 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Ir para la Entrega', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Ir para la Entrega",
-      "instruccion": "Hacé clic en «Ir para la Entrega»",
+      "action": "click",
+      "target": "Ir para la Entrega",
+      "instruction": "Hacé clic en «Ir para la Entrega»",
       "ref": {
         "loc": {
           "kind": "role",
@@ -234,14 +234,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Ir para la Entrega', exact: true }).click()"
+      "code": "page.getByRole('button', { name: 'Ir para la Entrega', exact: true }).click()"
     },
     {
-      "accion": "select",
-      "objetivo": "Departamento",
-      "valor": "Bogotá, D.C.",
-      "instruccion": "Elegí «Bogotá, D.C.» en «Departamento»",
-      "dato": "Departamento",
+      "action": "select",
+      "target": "Departamento",
+      "value": "Bogotá, D.C.",
+      "instruction": "Elegí «Bogotá, D.C.» en «Departamento»",
+      "param": "Departamento",
       "ref": {
         "loc": {
           "kind": "role",
@@ -253,14 +253,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
+      "code": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
     },
     {
-      "accion": "select",
-      "objetivo": "Municipio",
-      "valor": "Bogotá, D.C.",
-      "instruccion": "Elegí «Bogotá, D.C.» en «Municipio»",
-      "dato": "Municipio",
+      "action": "select",
+      "target": "Municipio",
+      "value": "Bogotá, D.C.",
+      "instruction": "Elegí «Bogotá, D.C.» en «Municipio»",
+      "param": "Municipio",
       "ref": {
         "loc": {
           "kind": "role",
@@ -272,14 +272,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
+      "code": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Calle",
-      "valor": "Calle 100 # 10-20",
-      "instruccion": "Escribí «Calle 100 # 10-20» en «Calle»",
-      "dato": "Calle",
+      "action": "fill",
+      "target": "Calle",
+      "value": "Calle 100 # 10-20",
+      "instruction": "Escribí «Calle 100 # 10-20» en «Calle»",
+      "param": "Calle",
       "ref": {
         "loc": {
           "kind": "role",
@@ -291,14 +291,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Calle', exact: true }).fill('Calle 100 # 10-20')"
+      "code": "page.getByRole('textbox', { name: 'Calle', exact: true }).fill('Calle 100 # 10-20')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Barrio",
-      "valor": "Chicó",
-      "instruccion": "Escribí «Chicó» en «Barrio»",
-      "dato": "Barrio",
+      "action": "fill",
+      "target": "Barrio",
+      "value": "Chicó",
+      "instruction": "Escribí «Chicó» en «Barrio»",
+      "param": "Barrio",
       "ref": {
         "loc": {
           "kind": "role",
@@ -310,12 +310,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('textbox', { name: 'Barrio', exact: true }).fill('Chicó')"
+      "code": "page.getByRole('textbox', { name: 'Barrio', exact: true }).fill('Chicó')"
     },
     {
-      "accion": "click",
-      "objetivo": "Ir para el pago",
-      "instruccion": "Hacé clic en «Ir para el pago»",
+      "action": "click",
+      "target": "Ir para el pago",
+      "instruction": "Hacé clic en «Ir para el pago»",
       "ref": {
         "loc": {
           "kind": "text",
@@ -326,13 +326,13 @@
           "works": false
         }
       },
-      "codigo": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true }).click()"
+      "code": "page.getByText('Ir para el pago', { exact: true }).filter({ visible: true }).click()"
     },
     {
-      "accion": "click",
-      "objetivo": "Comprar ahora",
-      "instruccion": "Hacé clic en «Comprar ahora»",
-      "porque": "Comprar ahora sin los datos de Creditop: tiene que frenar y decir qué falta",
+      "action": "click",
+      "target": "Comprar ahora",
+      "instruction": "Hacé clic en «Comprar ahora»",
+      "why": "Comprar ahora sin los datos de Creditop: tiene que frenar y decir qué falta",
       "ref": {
         "loc": {
           "kind": "nth",
@@ -344,14 +344,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+      "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
     },
     {
-      "accion": "fill",
-      "objetivo": "Fecha de nacimiento",
-      "valor": "1990-01-01",
-      "instruccion": "Escribí «1990-01-01» en «Fecha de nacimiento»",
-      "dato": "Fecha de nacimiento",
+      "action": "fill",
+      "target": "Fecha de nacimiento",
+      "value": "1990-01-01",
+      "instruction": "Escribí «1990-01-01» en «Fecha de nacimiento»",
+      "param": "Fecha de nacimiento",
       "ref": {
         "loc": {
           "kind": "label",
@@ -361,14 +361,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByLabel('Fecha de nacimiento', { exact: true }).fill('1990-01-01')"
+      "code": "page.getByLabel('Fecha de nacimiento', { exact: true }).fill('1990-01-01')"
     },
     {
-      "accion": "fill",
-      "objetivo": "Fecha de expedición de la cédula",
-      "valor": "2010-01-01",
-      "instruccion": "Escribí «2010-01-01» en «Fecha de expedición de la cédula»",
-      "dato": "Fecha de expedición de la cédula",
+      "action": "fill",
+      "target": "Fecha de expedición de la cédula",
+      "value": "2010-01-01",
+      "instruction": "Escribí «2010-01-01» en «Fecha de expedición de la cédula»",
+      "param": "Fecha de expedición de la cédula",
       "ref": {
         "loc": {
           "kind": "label",
@@ -378,12 +378,12 @@
           "works": true
         }
       },
-      "codigo": "page.getByLabel('Fecha de expedición de la cédula', { exact: true }).fill('2010-01-01')"
+      "code": "page.getByLabel('Fecha de expedición de la cédula', { exact: true }).fill('2010-01-01')"
     },
     {
-      "accion": "check",
-      "objetivo": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
-      "instruccion": "Marcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
+      "action": "check",
+      "target": "Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.",
+      "instruction": "Marcá «Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.»",
       "ref": {
         "loc": {
           "kind": "role",
@@ -395,13 +395,13 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).check()"
+      "code": "page.getByRole('checkbox', { name: 'Acepto los términos y condiciones y la política de tratamiento de datos de Creditop.', exact: true }).check()"
     },
     {
-      "accion": "click",
-      "objetivo": "Comprar ahora",
-      "instruccion": "Hacé clic en «Comprar ahora»",
-      "porque": "Con los datos completos, Comprar ahora: VTEX crea el pedido y manda a Creditop",
+      "action": "click",
+      "target": "Comprar ahora",
+      "instruction": "Hacé clic en «Comprar ahora»",
+      "why": "Con los datos completos, Comprar ahora: VTEX crea el pedido y manda a Creditop",
       "ref": {
         "loc": {
           "kind": "nth",
@@ -413,28 +413,28 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
+      "code": "page.getByRole('button', { name: 'Comprar ahora' }).nth(1).click()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
-      "valor": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
-      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
-      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1')"
+      "action": "goto",
+      "target": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
+      "value": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
+      "instruction": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1",
+      "code": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=9\u0026qty=1\u0026seller=1\u0026sc=1')"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/payment')"
+      "action": "goto",
+      "target": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "value": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "instruction": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "code": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/payment')"
     },
     {
-      "accion": "select",
-      "objetivo": "Departamento",
-      "valor": "Bogotá, D.C.",
-      "instruccion": "Elegí «Bogotá, D.C.» en «Departamento»",
-      "dato": "Departamento",
+      "action": "select",
+      "target": "Departamento",
+      "value": "Bogotá, D.C.",
+      "instruction": "Elegí «Bogotá, D.C.» en «Departamento»",
+      "param": "Departamento",
       "ref": {
         "loc": {
           "kind": "role",
@@ -446,14 +446,14 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
+      "code": "page.getByRole('combobox', { name: 'Departamento', exact: true }).selectOption('Bogotá, D.C.')"
     },
     {
-      "accion": "select",
-      "objetivo": "Municipio",
-      "valor": "Bogotá, D.C.",
-      "instruccion": "Elegí «Bogotá, D.C.» en «Municipio»",
-      "dato": "Municipio",
+      "action": "select",
+      "target": "Municipio",
+      "value": "Bogotá, D.C.",
+      "instruction": "Elegí «Bogotá, D.C.» en «Municipio»",
+      "param": "Municipio",
       "ref": {
         "loc": {
           "kind": "role",
@@ -465,19 +465,19 @@
           "works": true
         }
       },
-      "codigo": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
+      "code": "page.getByRole('combobox', { name: 'Municipio', exact: true }).selectOption('Bogotá, D.C.')"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
-      "valor": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
-      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
-      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1')"
+      "action": "goto",
+      "target": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "value": "https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "instruction": "Abrí https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1",
+      "code": "page.goto('https://autoonb--creditop.myvtex.com/checkout/cart/add?sku=8\u0026qty=1\u0026seller=1\u0026sc=1')"
     },
     {
-      "accion": "click",
-      "objetivo": "Eliminar",
-      "instruccion": "Hacé clic en «Eliminar»",
+      "action": "click",
+      "target": "Eliminar",
+      "instruction": "Hacé clic en «Eliminar»",
       "ref": {
         "loc": {
           "kind": "css",
@@ -487,14 +487,14 @@
           "works": true
         }
       },
-      "codigo": "page.locator('#item-remove-9').click()"
+      "code": "page.locator('#item-remove-9').click()"
     },
     {
-      "accion": "goto",
-      "objetivo": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "valor": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "instruccion": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/payment",
-      "codigo": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/payment')"
+      "action": "goto",
+      "target": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "value": "https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "instruction": "Abrí https://autoonb--creditop.myvtex.com/checkout/#/payment",
+      "code": "page.goto('https://autoonb--creditop.myvtex.com/checkout/#/payment')"
     }
   ]
 }

@@ -2,27 +2,27 @@
 /* Una corrida, como un video: un escenario de tamaño fijo (16:9) que pasa por las fotos de cada paso —la de ANTES
  * de actuar, con el elemento que se va a tocar marcado, y la de cómo quedó— con su leyenda, play/pausa, la barra
  * de pasos y la tira de cuadros abajo. Lee /api/runs/<id> (lo que deja report.go); las fotos se sirven desde
- * /api/corridas/<id>/. Una corrida vieja (sin foto de antes ni cuadro) se ve igual, sólo con las de después. */
+ * /api/run-files/<id>/. Una corrida vieja (sin foto de antes ni cuadro) se ve igual, sólo con las de después. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 const props = defineProps({ run: { type: Object, required: true }, replayable: { type: Boolean, default: true }, bare: { type: Boolean, default: false } })
 const emit = defineEmits(['replay'])
-const meta = computed(() => props.run.corrida || {})
-const steps = computed(() => props.run.pasos || [])
-const shot = (name) => `/api/corridas/${encodeURIComponent(meta.value.id)}/${encodeURIComponent(name)}`
+const meta = computed(() => props.run.run || {})
+const steps = computed(() => props.run.steps || [])
+const shot = (name) => `/api/run-files/${encodeURIComponent(meta.value.id)}/${encodeURIComponent(name)}`
 const fmtDate = (t) => (t ? new Date(t).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' }) : '')
 const kwClass = (k) => ({ LISTO: 'kw-ok', 'NO PUDE': 'kw-bad', NECESITO: 'kw-ask', CONFIRMAR: 'kw-ask' })[k] || 'kw-none'
 const usd = (n) => (n ? `US$ ${n.toFixed(2)}` : '')
 // El resultado sin la palabra clave adelante (ya va en la píldora) ni la negrita de Markdown.
-const result = computed(() => (meta.value.resultado || '')
+const result = computed(() => (meta.value.result || '')
   .replace(/^\s*[*_#>`]*\s*(LISTO|NO PUDE|NECESITO|CONFIRMAR)\s*:?[*_]*\s*/i, '')
   .replace(/(\*\*|__)(.+?)\1/g, '$2'))
 
 // ── los cuadros: por paso, el de antes (con el elemento marcado) y el de después ──
 const frames = computed(() => steps.value.flatMap((s, i) => {
   const out = []
-  if (s.before) out.push({ step: i, img: s.before, box: s.box, view: s.view, point: s.punto, phase: 'antes' })
-  if (s.shot) out.push({ step: i, img: s.shot, box: s.before ? null : s.box, view: s.view, point: s.punto, phase: s.before ? 'después' : '' })
+  if (s.before) out.push({ step: i, img: s.before, box: s.box, view: s.view, point: s.point, phase: 'antes' })
+  if (s.shot) out.push({ step: i, img: s.shot, box: s.before ? null : s.box, view: s.view, point: s.point, phase: s.before ? 'después' : '' })
   return out
 }))
 const cur = ref(0)
@@ -32,7 +32,7 @@ const step = computed(() => (frame.value ? steps.value[frame.value.step] : null)
 // Qué hace el paso, en palabras: sale del código de Playwright que quedó en el script.
 function describe(s) {
   if (!s) return ''
-  if (s.guia) return s.guia // en el modo guía, lo que se le pidió a la persona
+  if (s.guide) return s.guide // en el modo guía, lo que se le pidió a la persona
   const c = s.code || ''
   const t = s.target ? `«${s.target}»` : ''
   const arg = (c.match(/\.(?:fill|selectOption|press)\('((?:[^'\\]|\\.)*)'\)\s*$/) || [])[1]
@@ -79,7 +79,7 @@ const subtitle = computed(() => {
   const s = step.value
   if (!s) return null
   const what = describe(s)
-  const why = s.porque && s.porque !== what ? s.porque.replace(/(\*\*|__)(.+?)\1/g, '$2') : ''
+  const why = s.why && s.why !== what ? s.why.replace(/(\*\*|__)(.+?)\1/g, '$2') : ''
   return { what, why }
 })
 const spoken = computed(() => (subtitle.value ? [subtitle.value.what, subtitle.value.why].filter(Boolean).join('. ') : ''))
@@ -141,7 +141,7 @@ onMounted(() => {
 })
 onBeforeUnmount(() => { obs?.disconnect(); clearTimeout(timer); window.removeEventListener('keydown', onKey); window.speechSynthesis?.cancel() })
 // Se puede repetir si algún paso trae su localizador (o es moverse o comprobar): las corridas viejas no.
-const canReplay = computed(() => steps.value.some((s) => s.ok && (s.ref || ['goto', 'expect'].includes(s.accion))))
+const canReplay = computed(() => steps.value.some((s) => s.ok && (s.ref || ['goto', 'expect'].includes(s.action))))
 
 // Otra corrida: desde el principio, con las fotos precargadas para que el video no parpadee.
 watch(() => meta.value.id, () => {
@@ -163,15 +163,15 @@ watch(cur, async () => {
   <article class="run">
     <header v-if="!bare" class="run-head">
       <div class="run-title">
-        <span v-if="meta.palabra" class="badge kw" :class="kwClass(meta.palabra)">{{ meta.palabra }}</span>
+        <span v-if="meta.keyword" class="badge kw" :class="kwClass(meta.keyword)">{{ meta.keyword }}</span>
         <h1>{{ meta.meta || 'Corrida sin meta' }}</h1>
         <button v-if="canReplay && replayable" type="button" class="btn btn-sm replay-btn" title="Recorrerla de nuevo en la sesión en vivo, paso a paso: en cada uno elegís si lo hace la herramienta, lo hacés vos o lo saltás" @click="emit('replay')">Reproducir esta corrida</button>
       </div>
       <p class="muted small">
-        {{ meta.sitio }}<template v-if="meta.dispositivo === 'mobile'"> · móvil</template> · {{ fmtDate(meta.fecha) }} · {{ meta.pasos }} pasos<template v-if="meta.fallidos">, {{ meta.fallidos }} fallidos</template>
-        <template v-if="meta.usd"> · {{ usd(meta.usd) }}</template><template v-if="meta.turnos"> · {{ meta.turnos }} turnos</template>
-        <template v-if="meta.origen"> · {{ meta.origen }}</template>
-        <template v-if="(meta.vueltas || []).length > 1"> · vueltas: {{ meta.vueltas.join(' → ') }}</template>
+        {{ meta.site }}<template v-if="meta.device === 'mobile'"> · móvil</template> · {{ fmtDate(meta.at) }} · {{ meta.steps }} pasos<template v-if="meta.failed">, {{ meta.failed }} fallidos</template>
+        <template v-if="meta.usd"> · {{ usd(meta.usd) }}</template><template v-if="meta.turns"> · {{ meta.turns }} turnos</template>
+        <template v-if="meta.source"> · {{ meta.source }}</template>
+        <template v-if="(meta.rounds || []).length > 1"> · vueltas: {{ meta.rounds.join(' → ') }}</template>
       </p>
     </header>
 
@@ -212,7 +212,7 @@ watch(cur, async () => {
 
       <div v-if="step" class="caption" :class="{ bad: !step.ok }">
         <div class="caption-what"><span class="mark">{{ step.manual ? '👉' : step.ok ? '✓' : '✗' }}</span> {{ describe(step) }}<span v-if="step.manual" class="muted small"> · lo hizo la persona</span></div>
-        <div v-if="step.cambio" class="muted small">«{{ step.cambio.campo }}»: {{ step.cambio.antes || '(vacío)' }} → {{ step.cambio.despues || '(vacío)' }}</div>
+        <div v-if="step.change" class="muted small">«{{ step.change.field }}»: {{ step.change.before || '(vacío)' }} → {{ step.change.after || '(vacío)' }}</div>
         <div v-if="step.error" class="caption-err">{{ step.error }}</div>
         <div v-for="(d, j) in step.dialogs || []" :key="j" class="muted small">diálogo: {{ d }}</div>
         <div v-if="step.note" class="muted small">{{ step.note }}</div>

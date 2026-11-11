@@ -37,9 +37,9 @@ type GuideResult struct {
 
 // Change es lo que cambió en un campo con una acción: el antes y el después (tapados si es un secreto).
 type Change struct {
-	Field  string `json:"campo"`
-	Before string `json:"antes"`
-	After  string `json:"despues"`
+	Field  string `json:"field"`
+	Before string `json:"before"`
+	After  string `json:"after"`
 }
 
 // guideAnswer es lo que contesta la persona desde la interfaz: «Hecho» o «No lo encuentro» (con una nota).

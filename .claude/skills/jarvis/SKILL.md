@@ -55,8 +55,8 @@ con LISTO / NO PUDE / NECESITO / CONFIRMAR.
 
 ## Para practicar
 Las apps de `jarvis/apps/` (cada una con su `app.json`; `make jarvis` las levanta). Panel Andino
-(http://127.0.0.1:5206/?restaurar) es un admin de tienda ficticio, tratado como sitio REAL: medios de pago (con
-una app en iframe donde está el ID de pruebas), envíos, impuestos y usuarios. `?restaurar` lo deja como nuevo.
+(http://127.0.0.1:5206/?reset) es un admin de tienda ficticio, tratado como sitio REAL: medios de pago (con
+una app en iframe donde está el ID de pruebas), envíos, impuestos y usuarios. `?reset` lo deja como nuevo.
 
 ## Lo que ya se sabe que pasa
 - Un `confirm()`/`alert()` se acepta por defecto y se informa (`dialog dismiss` para rechazar).

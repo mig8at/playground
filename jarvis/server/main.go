@@ -641,7 +641,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 	// ── la documentación de cada herramienta (jarvis/docs: recetas, grabaciones, mapa y barrido) ──
 	// GET /api/docs — las herramientas, con lo que hay de cada una · GET /api/docs/<app> — todo lo de una.
 	// La pestaña Jarvis de la extensión la muestra; el CLI la arma solo, sin el servidor.
-	repo := filepath.Dir(navegadorDir())
+	repo := filepath.Dir(jarvisDir())
 	mux.HandleFunc("/api/docs", func(w http.ResponseWriter, r *http.Request) {
 		type summary struct {
 			ID       string   `json:"id"`
@@ -715,7 +715,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		case len(parts) == 3 && parts[2] == "replay" && r.Method == http.MethodPost:
 			var in struct {
 				Mode   string         `json:"mode"`
-				Values map[int]string `json:"valores"` // los datos que la persona cambió, por número de paso
+				Values map[int]string `json:"values"` // los datos que la persona cambió, por número de paso
 			}
 			_ = json.NewDecoder(r.Body).Decode(&in)
 			if err := runner.LiveReplayFlow(app, id, in.Mode, in.Values); err != nil {
@@ -725,8 +725,8 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			writeJSON(w, http.StatusOK, runner.LiveState(false))
 		case r.Method == http.MethodPut:
 			var in struct {
-				Name  string     `json:"nombre"`
-				Steps []FlowEdit `json:"pasos"`
+				Name  string     `json:"name"`
+				Steps []FlowEdit `json:"steps"`
 			}
 			if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 				writeErr(w, http.StatusBadRequest, err)
@@ -749,14 +749,14 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 				writeErr(w, http.StatusNotFound, err)
 				return
 			}
-			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "flujo": fl})
+			writeJSON(w, http.StatusOK, map[string]any{"app": fl.App, "id": fl.ID, "flow": fl})
 		}
 	})
 	// POST /api/projects {id, nombre, url} — un proyecto con nombre propio para un sitio real.
 	mux.HandleFunc("/api/projects", func(w http.ResponseWriter, r *http.Request) {
-		var in struct{ ID, Nombre, URL string }
+		var in struct{ ID, Name, URL string }
 		_ = json.NewDecoder(r.Body).Decode(&in)
-		if err := createProject(in.ID, in.Nombre, in.URL); err != nil {
+		if err := createProject(in.ID, in.Name, in.URL); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
@@ -773,7 +773,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			writeErr(w, http.StatusBadRequest, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]int{"flujos": flows, "corridas": runs})
+		writeJSON(w, http.StatusOK, map[string]int{"flows": flows, "runs": runs})
 	})
 	// GET /api/runs — las corridas con reporte (meta, palabra final, costo), las más nuevas primero.
 	// GET /api/runs/<id> — una corrida completa: pasos con sus fotos, fuentes y script.
@@ -804,9 +804,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		var in struct {
 			Goal   string `json:"meta"`
 			URL    string `json:"url"`
-			Steps  int    `json:"pasos"`
+			Steps  int    `json:"steps"`
 			Device string `json:"device"`
-			Mode   string `json:"modo"` // guide · do
+			Mode   string `json:"mode"` // guide · do
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			writeErr(w, http.StatusBadRequest, err)
@@ -842,7 +842,7 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		runner := tab.Runner
 		asker := tab.Asker
 		var in struct {
-			Action string `json:"accion"`
+			Action string `json:"action"`
 			Goal   string `json:"meta"`
 			Kind   string `json:"k"`
 			Text   string `json:"t"`
@@ -873,9 +873,9 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		asker.Stop()
 		writeJSON(w, http.StatusOK, ok)
 	})
-	// GET /api/corridas/<corrida>/<archivo> — el paso a paso de una corrida (sus fotos y el script).
-	corridas := http.StripPrefix("/api/corridas/", http.FileServer(http.Dir(filepath.Join(store.dir, "corridas"))))
-	mux.Handle("/api/corridas/", corridas)
+	// GET /api/run-files/<corrida>/<archivo> — el paso a paso de una corrida (sus fotos y el script).
+	runFiles := http.StripPrefix("/api/run-files/", http.FileServer(http.Dir(filepath.Join(store.dir, "runs"))))
+	mux.Handle("/api/run-files/", runFiles)
 	return mux
 }
 

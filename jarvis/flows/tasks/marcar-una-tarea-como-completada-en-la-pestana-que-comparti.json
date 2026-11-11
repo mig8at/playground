@@ -1,0 +1,29 @@
+{
+  "name": "Marcar una tarea como completada en la pestaña que compartí",
+  "meta": "Marcar una tarea como completada en la pestaña que compartí",
+  "start": "/",
+  "device": "chrome",
+  "created": "2026-11-07T08:00:06.496593-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-07_08-00-05",
+  "steps": [
+    {
+      "action": "check",
+      "target": "Completada: Llamar al proveedor",
+      "instruction": "Marcá «Completada: Llamar al proveedor»",
+      "why": "Marco «Llamar al proveedor» como completada",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Completada: Llamar al proveedor",
+          "exact": true,
+          "code": "page.getByRole('checkbox', { name: 'Completada: Llamar al proveedor', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('checkbox', { name: 'Completada: Llamar al proveedor', exact: true }).check()"
+    }
+  ]
+}

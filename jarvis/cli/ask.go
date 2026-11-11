@@ -315,10 +315,10 @@ type claudeResult struct {
 // tokenUsage son los tokens de una corrida: sin esto, un costo que se duplica no tiene explicación (¿más
 // texto, otro modelo, la caché fría?).
 type tokenUsage struct {
-	Input       int `json:"entrada"`
-	CacheRead   int `json:"cache_leida"`
-	CacheCreate int `json:"cache_escrita"`
-	Output      int `json:"salida"`
+	Input       int `json:"input"`
+	CacheRead   int `json:"cacheRead"`
+	CacheCreate int `json:"cacheCreate"`
+	Output      int `json:"output"`
 }
 
 func (t *tokenUsage) add(o tokenUsage) {
@@ -626,8 +626,8 @@ func askUser(prompt string) string {
 // reportInfo es lo que va al run.json de la corrida (la lista de corridas de la interfaz lo muestra).
 func (o askOutcome) reportInfo(goal, source string) map[string]any {
 	return map[string]any{
-		"meta": goal, "resultado": o.Text, "palabra": o.Final(), "vueltas": o.Rounds, "usd": o.Cost, "turnos": o.Turns,
-		"seg": o.Seconds, "modelo": o.Model, "origen": source,
-		"tokens": map[string]int{"entrada": o.Tokens.Input, "cache_leida": o.Tokens.CacheRead, "cache_escrita": o.Tokens.CacheCreate, "salida": o.Tokens.Output},
+		"meta": goal, "result": o.Text, "keyword": o.Final(), "rounds": o.Rounds, "usd": o.Cost, "turns": o.Turns,
+		"seg": o.Seconds, "model": o.Model, "source": source,
+		"tokens": map[string]int{"input": o.Tokens.Input, "cacheRead": o.Tokens.CacheRead, "cacheCreate": o.Tokens.CacheCreate, "output": o.Tokens.Output},
 	}
 }

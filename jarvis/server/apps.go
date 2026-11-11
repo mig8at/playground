@@ -1,7 +1,7 @@
 package main
 
-/* Las apps locales para practicar flujos: cada una vive en jarvis/apps/<id>/ con su app.json (nombre, puerto,
- * descripción) y la API la sirve en su puerto al arrancar. El navegador las trata como sitios REALES: lo
+/* Las apps locales para practicar flujos: cada una vive en jarvis/apps/<id>/ con su app.json (name, port,
+ * description, start) y la API la sirve en su puerto al arrancar. El navegador las trata como sitios REALES: lo
  * destructivo pide confirmación igual que en un panel de verdad. */
 
 import (
@@ -17,10 +17,10 @@ import (
 
 type App struct {
 	ID          string `json:"id"`
-	Name        string `json:"nombre"`
-	Port        int    `json:"puerto"`
-	Description string `json:"descripcion"`
-	Start       string `json:"inicio,omitempty"` // la ruta donde se arranca (por defecto, /)
+	Name        string `json:"name"`
+	Port        int    `json:"port"`
+	Description string `json:"description"`
+	Start       string `json:"start,omitempty"` // la ruta donde se arranca (por defecto, /)
 	URL         string `json:"url"`
 	Real        bool   `json:"real,omitempty"` // un proyecto con nombre propio de un sitio real (no una app de práctica)
 }
@@ -28,14 +28,14 @@ type App struct {
 func (a App) Addr() string { return fmt.Sprintf("127.0.0.1:%d", a.Port) }
 
 // navegadorDir es jarvis/, al lado de este archivo, corra desde donde corra.
-func navegadorDir() string {
+func jarvisDir() string {
 	_, file, _, _ := runtime.Caller(0)
 	return filepath.Dir(filepath.Dir(file))
 }
 
 // listApps lee el registro. JARVIS_APPS_PORT_OFFSET corre los puertos (la copia de prueba no choca con la tuya).
 func listApps() []App {
-	files, _ := filepath.Glob(filepath.Join(navegadorDir(), "apps", "*", "app.json"))
+	files, _ := filepath.Glob(filepath.Join(jarvisDir(), "apps", "*", "app.json"))
 	offset := 0
 	fmt.Sscan(os.Getenv("JARVIS_APPS_PORT_OFFSET"), &offset)
 	out := []App{}
@@ -63,9 +63,9 @@ func listApps() []App {
 // Project es un proyecto con nombre propio para sitios reales (VTEX, Grafana…): agrupa los flujos de uno o varios
 // hosts. Vive en jarvis/flows/<id>/project.json, al lado de sus flujos.
 type Project struct {
-	Name  string   `json:"nombre"`
+	Name  string   `json:"name"`
 	Hosts []string `json:"hosts"`
-	Start string   `json:"inicio"` // dónde se abre en vivo
+	Start string   `json:"start"` // dónde se abre en vivo
 }
 
 // listProjects son los proyectos con nombre propio (project.json; los de antes del 2026-11-07, proyecto.json), con su id.
