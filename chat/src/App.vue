@@ -181,6 +181,8 @@ function speakerOf(item) {
   if (item.dir === 'out') return item.asAgent ? { agent: item.asAgent, mine: true, label: `${item.asAgent} · tu agente` } : null
   const owner = item.author || chat.active?.person || {}
   if (item.via) return { agent: item.via, mine: false, owner, label: `${item.via} · agente de ${firstName(owner)}` }
+  // Firmado en el texto (`signatureOf`): habla el agente, como en un grupo; de quién es, al pasar el mouse.
+  if (item.signedAgent) return { agent: item.signedAgent, mine: false, owner, label: `${item.signedAgent} · ${item.signedRole}` }
   return { person: owner, label: owner.name || owner.email || '' }
 }
 
@@ -409,11 +411,22 @@ const handle = (p) => `@${(p?.email || '').split('@')[0]}`
 const firstName = (p) => String(p?.name || p?.email || '').split(/[\s@]+/)[0]
 // La firma con la que un agente del equipo escribe por su dueño: «Rambo (agente de Duncan): …».
 const AGENT_SIGNATURE = /^(\S{1,24}) \(agente de ([^)]{1,40})\):\s*/u
+// …o al final, como las respuestas automáticas: «… — Jairo, oficina de QA de Duncan (respuesta automática)».
+const AGENT_SIGNATURE_END = /\s*[—–]\s*(\p{Lu}\S{0,23}), ([^\n()]{3,60}?) \((respuesta automática)\)\s*$/u
+// Quién firma un mensaje que llegó a nombre de una persona: el agente, de quién es (para el hover) y el texto sin la firma.
+function signatureOf(text) {
+  const t = String(text || '')
+  const start = AGENT_SIGNATURE.exec(t)
+  if (start) return { agent: start[1], role: `agente de ${start[2]}`, body: t.slice(start[0].length) }
+  const end = AGENT_SIGNATURE_END.exec(t)
+  if (end && end.index > 0) return { agent: end[1], role: `${end[2]} (${end[3]})`, body: t.slice(0, end.index) }
+  return null
+}
 const snippetOf = (m, bare = false) => {
   if (!m) return ''
   if (m.kind === 'asked') return `le preguntó a tu ${m.agent}: ${m.text}`
   // Un mensaje con adjuntos y sin texto se ve por sus adjuntos.
-  const body = (m.text || '').replace(AGENT_SIGNATURE, '') || (m.files?.length ? m.files.map((f) => `📎 ${f.name}`).join(' · ') : '')
+  const body = (signatureOf(m.text)?.body ?? m.text ?? '') || (m.files?.length ? m.files.map((f) => `📎 ${f.name}`).join(' · ') : '')
   return `${m.dir === 'out' && !bare ? 'Vos: ' : ''}${body}`
 }
 const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > 120 ? `${x.slice(0, 119)}…` : x }
@@ -463,11 +476,16 @@ const thread = computed(() => {
   const out = []
   let day = ''
   let prev = null
+  let prevSigned = ''
   const all = chat.active?.messages || []
   for (const m of all.slice(Math.max(0, all.length - shown.value))) {
     const d = dayOf(m.time)
     if (d !== day) { day = d; out.push({ kind: 'day', id: `day-${d}`, label: dayLabel(m.time) }); prev = null }
+    // Firmado por un agente del equipo («Rambo (agente de Duncan): …», o la firma al final de una respuesta automática):
+    // habla el agente, con su avatar, y el texto queda limpio.
+    const signed = m.dir === 'in' && !m.via && !activeIsAgent.value ? signatureOf(m.text) : null
     const cont = !!prev && prev.dir === m.dir && prev.kind === m.kind && m.kind !== 'asked'
+      && prevSigned === (signed?.agent || '')
       && (prev.author?.email || '') === (m.author?.email || '') && (prev.via || '') === (m.via || '')
       && (prev.asAgent || '') === (m.asAgent || '') && (prev.toAgent || '') === (m.toAgent || '')
       && new Date(m.time) - new Date(prev.time) < GROUP_MS
@@ -475,16 +493,14 @@ const thread = computed(() => {
     if (m.re && !(chat.active.person.agent && m.re === prev?.sid)) {
       const found = chat.findBySid(m.re)
       quote = found
-        ? { who: found.message.dir === 'out' ? 'Vos' : AGENT_SIGNATURE.exec(found.message.text || '')?.[1] || firstName(found.conversation.person.agent ? { name: found.conversation.person.agentName } : found.conversation.person),
-            text: quoteText(String(found.message.text || '').replace(AGENT_SIGNATURE, '')) }
+        ? { who: found.message.dir === 'out' ? 'Vos' : signatureOf(found.message.text)?.agent || firstName(found.conversation.person.agent ? { name: found.conversation.person.agentName } : found.conversation.person),
+            text: quoteText(signatureOf(found.message.text)?.body ?? found.message.text) }
         : { who: '', text: 'un mensaje que ya no está en este navegador' }
     }
-    // «Rambo (agente de Duncan): …» al principio del texto: lo escribió el agente de esa persona. Va como etiqueta y el
-    // texto queda limpio (los agentes del equipo firman así lo que mandan por su dueño).
-    const signed = m.dir === 'in' && !m.via && !activeIsAgent.value ? AGENT_SIGNATURE.exec(m.text || '') : null
-    const extra = signed ? { text: m.text.slice(signed[0].length), agentPrefix: `${signed[1]} · agente de ${signed[2]}` } : {}
+    const extra = signed ? { text: signed.body, signedAgent: signed.agent, signedRole: signed.role } : {}
     out.push({ ...m, ...extra, kind: m.kind || 'message', cont, quote })
     prev = m
+    prevSigned = signed?.agent || ''
   }
   return out
 })
@@ -1121,7 +1137,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   <span class="when">{{ shortWhen(g.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
-                  <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? (g.last.asAgent || 'Vos') : (g.last.via || AGENT_SIGNATURE.exec(g.last.text || '')?.[1] || firstName(g.last.author))}: ${snippetOf(g.last, true)}` : `${(g.person.members || []).length} miembros` }}</span>
+                  <span class="snippet">{{ g.last ? `${g.last.dir === 'out' ? (g.last.asAgent || 'Vos') : (g.last.via || signatureOf(g.last.text)?.agent || firstName(g.last.author))}: ${snippetOf(g.last, true)}` : `${(g.person.members || []).length} miembros` }}</span>
                   <span v-if="unreadMentions(g)" class="unread at" :title="`Te mencionaron ${unreadMentions(g) === 1 ? 'una vez' : `${unreadMentions(g)} veces`}`">@</span>
                   <span v-if="g.unread" class="unread">{{ g.unread }}</span>
                 </span>
@@ -1383,11 +1399,12 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               </span>
               <span v-else-if="!activeIsAgent && item.dir === 'out'" class="msg-avatar avatar small ghost" aria-hidden="true"></span>
               <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': activeIsGroup && item.dir === 'in' && mentionsMeIn(item.text) }">
-                <span v-if="item.dir === 'in' && !item.cont && !activeIsAgent && speakerOf(item)" class="author-label" :class="{ via: item.via }">
-                  <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(speakerOf(item).owner) }}</template>
+                <!-- Un agente se nombra solo, como en un grupo; de quién es lo dice el hover (también en su avatar). -->
+                <span v-if="item.dir === 'in' && !item.cont && !activeIsAgent && speakerOf(item)" class="author-label"
+                      :class="{ via: speakerOf(item).agent }" :title="speakerOf(item).agent ? speakerOf(item).label : null">
+                  <b v-if="speakerOf(item).agent" :style="{ color: agentColor(speakerOf(item).agent, speakerOf(item).owner?.email) }">{{ speakerOf(item).agent }}</b>
                   <b v-else>{{ speakerOf(item).label }}</b>
                 </span>
-                <span v-if="item.agentPrefix && !item.cont" class="published-label agent-chip">{{ item.agentPrefix }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
                 <span v-if="item.asAgent && !item.cont" class="published-label agent-chip">{{ item.asAgent }} · tu agente</span>
