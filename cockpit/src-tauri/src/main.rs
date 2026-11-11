@@ -92,6 +92,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5178", "127.0.0.1:5179"],
         start: Start::Make("ecommerce"),
     },
+    AppDef {
+        // El conocimiento local (knowledge/), para leerlo: temas, fuentes y su vigencia contra main.
+        id: "knowledge",
+        name: "Knowledge",
+        url: "http://localhost:5210/",
+        ready: &["localhost:5210", "127.0.0.1:5211"],
+        start: Start::Make("knowledge-ui"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

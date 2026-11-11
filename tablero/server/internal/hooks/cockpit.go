@@ -220,6 +220,15 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 				slug = m[1]
 			}
 			return "tablero", taskRoute(slug)
+		case regexp.MustCompile(`\bmake knowledge-(read|search|map|check|ui)\b`).MatchString(cmd):
+			// Leer un tema lo abre en knowledge (`ID=tema#ancla`).
+			if m := regexp.MustCompile(`\bID=['"]?([a-z][a-z0-9-]*)(?:#([a-z0-9-]+))?`).FindStringSubmatch(cmd); m != nil {
+				if m[2] != "" {
+					return "knowledge", "#/" + m[1] + "/" + m[2]
+				}
+				return "knowledge", "#/" + m[1]
+			}
+			return "knowledge", ""
 		case regexp.MustCompile(`\bbin/jarvis\b|\bmake jarvis`).MatchString(cmd):
 			return "jarvis", ""
 		case regexp.MustCompile(`\bmake visor`).MatchString(cmd):

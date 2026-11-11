@@ -151,3 +151,16 @@ func TestCockpitHarnessRouteFromTheCommand(t *testing.T) {
 		}
 	}
 }
+
+// Leer un tema lo abre en knowledge, en su sección.
+func TestCockpitFollowsKnowledgeReads(t *testing.T) {
+	for cmd, want := range map[string]string{
+		"make knowledge-read ID='lender-listing#visibilidad'": "#/lender-listing/visibilidad",
+		"make knowledge-read ID=client-profiling":             "#/client-profiling",
+		"make knowledge-search Q='monto listado'":             "",
+	} {
+		if app, route := cockpitTarget("Bash", map[string]any{"command": cmd}, ""); app != "knowledge" || route != want {
+			t.Errorf("%s: dio %q %q, quería knowledge %q", cmd, app, route, want)
+		}
+	}
+}
