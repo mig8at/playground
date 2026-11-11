@@ -110,6 +110,8 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func handler() http.Handler {
 	mux := http.NewServeMux()
+	// La prueba en vivo: con un resultado en pantalla, avisa cuando la solicitud cambia (watch.go).
+	registerWatch(mux)
 	mux.HandleFunc("/api/targets", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, ReadTargets)
 	})

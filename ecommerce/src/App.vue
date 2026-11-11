@@ -49,25 +49,29 @@ const editorBody = ref(null)
 const error = ref('')
 const loading = ref(false)
 let seq = 0
-async function lookup() {
-  if (!query.value) { result.value = null; error.value = ''; return }
+// `quiet`: la vuelve a pedir el vivo (la solicitud cambió) — sin el «cargando», sin subir la vista y sin borrar lo que
+// se ve si falla.
+async function lookup({ quiet = false } = {}) {
+  if (!query.value) { result.value = null; error.value = ''; watchResult(null); return }
   const mine = ++seq
-  loading.value = true
-  error.value = ''
+  if (!quiet) { loading.value = true; error.value = '' }
   try {
     const res = await fetch(`/api/lookup?target=${encodeURIComponent(target.value)}&q=${encodeURIComponent(query.value)}&request=${encodeURIComponent(req.value)}`)
     const body = await res.json().catch(() => ({}))
     if (mine !== seq) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     result.value = body
+    watchResult(body)
+    if (quiet) return
     // El campo queda con lo que se buscó, limpio: el celular sin indicativo, el correo en minúsculas.
     const clean = body.input?.phone || body.input?.email || body.input?.document
     if (clean && draft.value !== clean) draft.value = clean
     // Otra solicitud se lee desde arriba: los avisos son lo primero.
     nextTick(() => { if (editorBody.value) editorBody.value.scrollTop = 0 })
   } catch (e) {
-    if (mine !== seq) return
+    if (mine !== seq || quiet) return
     result.value = null
+    watchResult(null)
     error.value = e.message === 'Failed to fetch'
       ? 'No contesta la API. ¿Está arriba? (make ecommerce levanta las dos partes)' : e.message
   } finally {
@@ -654,7 +658,27 @@ onMounted(async () => {
   readProfile()
   lookup()
 })
+/* EN VIVO (server/watch.go): con un resultado en pantalla, el servidor mira cada 3 s si la solicitud cambió de estado
+   o si esas personas tienen una solicitud nueva, y avisa; acá se vuelve a buscar en silencio. Sólo con base directa
+   (local, qa): en prod contesta `unsupported` y se busca a mano como antes. */
+const live = ref(false)
+let watcher = null
+let watchKey = ''
+function watchResult(r) {
+  const users = r ? [...new Set([...(r.people || []).map((p) => p.id), r.user?.id].filter(Boolean))] : []
+  const request = r?.request?.id || ''
+  const key = r && (request || users.length) ? `${r.target}|${request}|${users.join(',')}` : ''
+  if (key === watchKey) return
+  watcher?.close(); watcher = null; live.value = false; watchKey = key
+  if (!key || typeof EventSource === 'undefined') return
+  watcher = new EventSource(`/api/watch?target=${encodeURIComponent(r.target)}&request=${encodeURIComponent(request)}&users=${users.join(',')}`)
+  watcher.addEventListener('hello', () => { live.value = true })
+  watcher.addEventListener('changed', () => { lookup({ quiet: true }) })
+  // Sin vivo en este ambiente: se cierra, o EventSource reintentaría para siempre.
+  watcher.addEventListener('unsupported', () => { watcher?.close(); watcher = null; live.value = false })
+}
 onBeforeUnmount(() => {
+  watcher?.close()
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', onHashChange)
   themeBinding?.destroy?.()
@@ -1143,6 +1167,7 @@ onBeforeUnmount(() => {
       <span v-if="loading">leyendo…</span>
       <span v-else-if="r" :title="r.source">leído a las {{ r.readAt.slice(11, 16) }} · {{ r.source }}</span>
       <span class="muted">{{ readOnly ? 'sólo lee: en prod no se borra ni se pasa de estado' : 'lee siempre · borra sólo con confirmación' }}</span>
+      <span v-if="live" class="muted live-tag" title="La solicitud se actualiza sola mientras cambia (cada 3 s)"><i class="dot" data-state="ok" aria-hidden="true"></i>en vivo</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
@@ -1191,6 +1216,7 @@ code.wrap { word-break: break-all }
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
 .dot[data-state="ok"] { background: var(--ecommerce-ok) }
 .dot[data-state="fail"] { background: var(--ecommerce-fail) }
+.live-tag { display: inline-flex; align-items: center; gap: var(--space-1) }
 .row .dot { margin-right: var(--space-2) }
 /* La consola: hora, punto, estado y quién lo movió. La línea sin registro va atenuada y en cursiva. */
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
