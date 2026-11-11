@@ -209,7 +209,8 @@ func main() {
 	a.repos = repos.New(layout.At(dataDir).Tools())
 	a.branchesRoot = envDefault("TABLERO_RAMAS_ROOT", filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github"))
 
-	integrations := a.connectIntegrations()
+	// Validar Jira y Slack es sólo para el log: corre DESPUÉS de abrir el puerto. Antes iba primero y el tablero no
+	// contestaba hasta que respondían los dos (~1 s, hasta 8 s si uno se colgaba), en cada arranque.
 
 	port := envDefault("WEB_PORT", "8787")
 
@@ -825,7 +826,13 @@ func main() {
 		json.NewEncoder(w).Encode(res)
 	})
 
-	log.Printf("server on · http://localhost:%s · integraciones: %s", port, integrations)
+	log.Printf("server on · http://localhost:%s", port)
+	go func() { log.Printf("integraciones: %s", a.connectIntegrations()) }()
+	// La lista de repos citables (/api/config) le pregunta a git por cada clon, una vez por proceso: ~0,5 s que pagaba
+	// el PRIMER pedido de la interfaz. Se arma de fondo apenas arranca.
+	if a.repos != nil {
+		go func() { _, _ = a.repos.Web() }()
+	}
 	// ⚠ Sólo loopback: este server publica en Jira y Slack y no tiene autenticación. Escuchando en
 	// `:"+port` (todas las interfaces) cualquiera en la misma red podía llamarlo. `WEB_HOST=0.0.0.0` lo
 	// abre a propósito.

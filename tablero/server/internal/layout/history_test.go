@@ -211,3 +211,34 @@ func TestTheDocumentBeforeFollowsAnUncommittedMove(t *testing.T) {
 		t.Fatalf("tenía que seguir la mudanza sin commitear hasta data/a.md; ok=%v", ok)
 	}
 }
+
+// El historial completo se guarda por HEAD (memoria y data/cache): con el mismo HEAD, otra lectura —también de un
+// proceso nuevo, que sólo tiene el archivo— da lo mismo que el log; un commit nuevo lo invalida.
+func TestTheFullHistoryIsCachedByHeadAndACommitRefreshesIt(t *testing.T) {
+	r := newToyRepo(t)
+	if err := os.MkdirAll(filepath.Join(r.root, "tablero", "data", "cache"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.write("tablero/tasks/a/task.md", doc("A"))
+	r.commit("2026-01-01", "nace a")
+
+	if got := r.l.LastTouches()["a"]; got != "2026-01-01" {
+		t.Fatalf("a nació el 01; dio %q", got)
+	}
+	if _, err := os.Stat(filepath.Join(r.root, "tablero", "data", "cache", "tasks-history.json")); err != nil {
+		t.Fatalf("la caché no se escribió: %v", err)
+	}
+	// Un proceso nuevo: sin memoria, sólo el archivo.
+	historyMu.Lock()
+	historyMem = map[string]historyCache{}
+	historyMu.Unlock()
+	if got := r.l.LastTouches()["a"]; got != "2026-01-01" {
+		t.Errorf("desde el archivo, a sigue en el 01; dio %q", got)
+	}
+
+	r.write("tablero/tasks/a/task.md", doc("A")+"Un avance.\n")
+	r.commit("2026-01-05", "se trabaja en a")
+	if got := r.l.LastTouches()["a"]; got != "2026-01-05" {
+		t.Errorf("el commit nuevo cambia HEAD y la caché se rehace: a se tocó el 05; dio %q", got)
+	}
+}

@@ -458,11 +458,24 @@ func (c *Client) Web() (map[string]Web, error) {
 	}
 	c.once.Do(func() {
 		c.web = map[string]Web{}
+		// En PARALELO: son dos llamadas a git por repo, y una detrás de otra sumaban ~0,5 s que pagaba el primer pedido
+		// del tablero (medido el 2026-11-11).
+		var mu sync.Mutex
+		var wg sync.WaitGroup
 		for alias, root := range c.citable {
-			if _, err := os.Stat(root); err == nil {
-				c.web[alias] = webOf(root)
+			if _, err := os.Stat(root); err != nil {
+				continue
 			}
+			wg.Add(1)
+			go func(alias, root string) {
+				defer wg.Done()
+				w := webOf(root)
+				mu.Lock()
+				c.web[alias] = w
+				mu.Unlock()
+			}(alias, root)
 		}
+		wg.Wait()
 	})
 	return c.web, nil
 }

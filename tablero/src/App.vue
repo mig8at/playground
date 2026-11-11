@@ -592,7 +592,8 @@ function saveBootstrap() {
   });
 }
 
-async function loadLast4() {
+// `current`: el pedido del sprint actual cuando todavía está en vuelo (el arranque). Los otros sprints no lo esperan.
+async function loadLast4(current) {
   // Con cache las filas permanecen visibles mientras se revalidan; el indicador de carga sólo ocupa
   // el sitio de los datos cuando de verdad no existe todavía nada que mostrar.
   loadingWide.value = !bySprint.value.length;
@@ -601,7 +602,10 @@ async function loadLast4() {
     const res = await Promise.all(sprintTabs.value.map(async (s) => {
       // El sprint principal acaba de llegar por `/api/sprint`: volver a pedirlo acá duplicaba la
       // llamada más costosa de cada recarga.
-      if (s.id === sprint.value?.id) return { sprint: s, issues: issues.value };
+      if (s.id === sprint.value?.id || s.state === 'active') {
+        if (current) await current;
+        return { sprint: s, issues: issues.value };
+      }
       const previous = bySprint.value.find((sprintGroup) => sprintGroup.sprint?.id === s.id);
       try {
         const j = await (await fetch(`${SERVER}/api/sprint?board=${BOARD}&id=${s.id}`)).json();
@@ -1800,12 +1804,17 @@ async function updateStart() {
     // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
     // la restauración de la ruta como si fuera una navegación completa.
     const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches()]);
-    const [, sprintResult] = await Promise.allSettled([loadSprints(), loadSprint()]);
+    const sprintRequest = loadSprint();
+    const sprintsRequest = loadSprints();
+    // Los otros tres sprints se piden apenas llega la LISTA (~0,9 s), sin esperar al sprint actual, que es la llamada
+    // más lenta (~1,5 s): antes iban después y la carga completa eran dos tramos en fila (medido el 2026-11-11).
+    const last4 = sprintsRequest.then((ok) => (ok ? loadLast4(sprintRequest) : null));
+    const [, sprintResult] = await Promise.allSettled([sprintsRequest, sprintRequest]);
 
     // El sprint principal basta para restaurar la mayoría de rutas; los otros tres llegan después.
     routesReady = true;
     restoreRoute();
-    if (sprintResult.status === 'fulfilled' && sprintResult.value) await loadLast4();
+    if (sprintResult.status === 'fulfilled' && sprintResult.value) await last4;
 
     await locales;
     // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de bySprint.

@@ -13,11 +13,14 @@ package layout
 // escribió en la tarea.
 
 import (
+	"encoding/json"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -206,8 +209,76 @@ func (l Layout) LastTouches() map[string]string {
 	for _, c := range l.workingTree() {
 		touch(today, "", c)
 	}
-	l.logChanges(nil, touch)
+	for _, c := range l.fullLog() {
+		touch(c.Date, c.Sweep, change{status: c.Status, score: c.Score, from: c.From, path: c.Path})
+	}
 	return out
+}
+
+/*
+EL HISTORIAL COMPLETO NO CAMBIA MIENTRAS NO HAYA UN COMMIT. `LastTouches` lo recorre entero (`git log -M
+
+	--name-status` sobre las tareas: ~4.200 líneas, 0,46 s) y corre en cada arranque del tablero y en cada relectura de
+	un `.md` que cambió: era casi todo lo que tardaba en abrir el puerto (medido el 2026-11-11). Se guarda por HEAD, en
+	memoria y en `data/cache/tasks-history.json` (fuera de git): con el mismo HEAD se reusa; con otro, se vuelve a leer
+	una vez. Lo sin commitear no entra acá: `workingTree` lo sigue leyendo en vivo.
+*/
+type loggedChange struct {
+	Date   string `json:"date"`
+	Sweep  string `json:"sweep,omitempty"`
+	Status string `json:"status"`
+	Score  int    `json:"score,omitempty"`
+	From   string `json:"from,omitempty"`
+	Path   string `json:"path"`
+}
+
+type historyCache struct {
+	Head    string         `json:"head"`
+	Spec    string         `json:"spec"`
+	Changes []loggedChange `json:"changes"`
+}
+
+var (
+	historyMu  sync.Mutex
+	historyMem = map[string]historyCache{}
+)
+
+func (l Layout) fullLog() []loggedChange {
+	headOut, err := l.git("rev-parse", "HEAD")
+	head := strings.TrimSpace(headOut)
+	spec := strings.Join(l.pathspec(), " ")
+	key := l.root() + "|" + spec
+	path := filepath.Join(l.Data, "cache", "tasks-history.json")
+	if err == nil && head != "" {
+		historyMu.Lock()
+		cached, ok := historyMem[key]
+		historyMu.Unlock()
+		if ok && cached.Head == head {
+			return cached.Changes
+		}
+		var disk historyCache
+		if raw, err := os.ReadFile(path); err == nil && json.Unmarshal(raw, &disk) == nil && disk.Head == head && disk.Spec == spec {
+			historyMu.Lock()
+			historyMem[key] = disk
+			historyMu.Unlock()
+			return disk.Changes
+		}
+	}
+	var changes []loggedChange
+	l.logChanges(nil, func(date, sweep string, c change) {
+		changes = append(changes, loggedChange{Date: date, Sweep: sweep, Status: c.status, Score: c.score, From: c.from, Path: c.path})
+	})
+	// Un log vacío puede ser un git que falló: no se guarda, así la próxima vez se vuelve a intentar.
+	if err == nil && head != "" && len(changes) > 0 {
+		entry := historyCache{Head: head, Spec: spec, Changes: changes}
+		historyMu.Lock()
+		historyMem[key] = entry
+		historyMu.Unlock()
+		if raw, err := json.Marshal(entry); err == nil {
+			_ = os.WriteFile(path, raw, 0o644)
+		}
+	}
+	return changes
 }
 
 // TouchedOn: las tareas cuyo documento cambió en el día (una mudanza pura no cuenta), y aparte las que
