@@ -81,6 +81,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5193", "127.0.0.1:5194"],
         start: Start::Make("visor"),
     },
+    AppDef {
+        // ¿Qué le pasó a esta prueba de tienda? Por celular, URL del wizard o número de solicitud (local o qa).
+        id: "ecommerce",
+        name: "Ecommerce",
+        url: "http://localhost:5178/",
+        ready: &["localhost:5178", "127.0.0.1:5179"],
+        start: Start::Make("ecommerce"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
