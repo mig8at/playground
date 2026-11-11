@@ -65,6 +65,14 @@ const APPS: &[AppDef] = &[
         ready: &["127.0.0.1:5195"],
         start: Start::Make("panel"),
     },
+    AppDef {
+        id: "jarvis",
+        name: "Jarvis",
+        // Su Vite escucha sólo en IPv6: va con localhost, nunca 127.0.0.1 (jarvis/CLAUDE.md).
+        url: "http://localhost:5202/",
+        ready: &["localhost:5202", "127.0.0.1:5203"],
+        start: Start::Make("jarvis"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
