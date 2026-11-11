@@ -14,14 +14,19 @@ BOOT_START, BOOT_END = '/* <theme-boot> */', '/* </theme-boot> */'
 
 
 def theme_boot():
-    """El valor de `THEME_BOOT`, con `${THEME_KEY}` resuelto. Falla si aparece otra interpolación: copiarla
-    literal dejaría en el HTML un `${…}` que el navegador no entiende."""
+    """El valor de `THEME_BOOT`, con `${THEME_KEY}`, `${PALETTE_KEY}` y `${PALETTE_IDS}` (los ids de `PALETTES`, en
+    una sola lista) resueltos. Falla si aparece otra interpolación: copiarla literal dejaría en el HTML un `${…}` que el
+    navegador no entiende."""
     source = (ROOT / 'tools/ui/workbench.js').read_text()
     key = re.search(r"export const THEME_KEY = '([^']+)';", source)
+    palette_key = re.search(r"export const PALETTE_KEY = '([^']+)';", source)
+    palettes = re.search(r'export const PALETTES = \[(.*?)\];', source, re.S)
     boot = re.search(r'export const THEME_BOOT = `([^`]*)`;', source)
-    if not key or not boot:
-        raise SystemExit('tools/ui/workbench.js: no encontré THEME_KEY o THEME_BOOT')
-    value = boot.group(1).replace('${THEME_KEY}', key.group(1))
+    if not key or not boot or not palette_key or not palettes:
+        raise SystemExit('tools/ui/workbench.js: no encontré THEME_KEY, PALETTE_KEY, PALETTES o THEME_BOOT')
+    ids = re.findall(r"id: '([a-z-]+)'", palettes.group(1))
+    value = (boot.group(1).replace('${THEME_KEY}', key.group(1)).replace('${PALETTE_KEY}', palette_key.group(1))
+             .replace('${PALETTE_IDS}', '|'.join(ids)))
     if '${' in value:
         raise SystemExit('THEME_BOOT tiene una interpolación que ui-sync no sabe resolver')
     return value

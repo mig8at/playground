@@ -295,8 +295,8 @@ estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `
 	@node tools/ui-icons.mjs --check
 	@python3 tools/style.py
 
-estilo-contraste: ## @dia mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
-	@THEME="$(THEME)" SOLO="$(SOLO)" node tools/contrast.mjs
+estilo-contraste: ## @dia [THEME=light|dark] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
+	@THEME="$(THEME)" PALETTE="$(PALETTE)" SOLO="$(SOLO)" node tools/contrast.mjs
 
 estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
 	@python3 tools/style.py --tema $(if $(DE),$(DE))
@@ -345,7 +345,7 @@ tablero-naming: ## @dia ¿el código del playground nombra algo en español? el 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
 	@cd tablero/server && go test -count=1 ./internal/naming
 
-ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app del playground en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores
+ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app del playground en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores
 	@node tools/ui-shot/main.mjs
 
 tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos

@@ -109,9 +109,10 @@ Lo que ya costó, y por qué existe:
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
 
-**La carcasa y las apps se hablan por `postMessage`.** La app manda `badge` (su numerito), `theme` (cambió el
-tema), `open` (abrí otra app) y `claude` (su asterisco: abrí o cerrá el panel); la carcasa manda `route` (ir a una ruta), `claude` (el panel abierto y si hay actividad sin ver), `visible` (si está a la vista: un
-iframe escondido no se entera solo, y el chat marcaría leído) y `theme`. Cockpit tiene UN tema para todas.
+**La carcasa y las apps se hablan por `postMessage`.** La app manda `badge` (su numerito), `theme` y `palette` (cambió el
+tema o la paleta), `open` (abrí otra app) y `claude` (su asterisco: abrí o cerrá el panel); la carcasa manda `route` (ir a una ruta), `claude` (el panel abierto y si hay actividad sin ver), `visible` (si está a la vista: un
+iframe escondido no se entera solo, y el chat marcaría leído), `theme` y `palette`. Cockpit tiene UN tema y UNA paleta
+para todas (se eligen en el modal del engranaje, Apariencia).
 Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el navegador de Miguel.
 
 **El puerto de control** escucha en 127.0.0.1:5209 y pide la llave que Cockpit deja al arrancar en

@@ -9,7 +9,7 @@
   <!-- EL TEMA ANTES DE PINTAR: el renglón es el valor de `THEME_BOOT` de `tools/ui/workbench.js`, y lo
        escribe `make estilo-sync` entre los marcadores (el panel no tiene bundler que lo inyecte). No se
        edita a mano: `make estilo-check` avisa si se desvía de la fuente. -->
-  <script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}/* </theme-boot> */</script>
+  <script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('ui.palette');if(p&&p!=='default'&&/^(default|vintage|catppuccin|nord|monokaipro|ristretto)$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}/* </theme-boot> */</script>
   <!-- EL TEMA y LA BASE: los dos archivos compartidos, idénticos en las cuatro herramientas y
        repartidos por `make estilo-sync` (no se editan acá). El tema dice de qué COLOR es cada cosa;
        `workbench.css` dice QUÉ COSA ES y cuánto mide. ⚠ El panel no tiene bundler —`npm run dev` es
@@ -6545,7 +6545,22 @@ export function bindResize(handle, options) {
  * ⚠ Para no pintar un cuadro con el tema equivocado, la herramienta aplica el tema ANTES de que cargue
  * el módulo, con el renglón de `THEME_BOOT` en el <head>; `applyTheme` repite lo mismo después. */
 export const THEME_KEY = 'ui.theme';
-export const THEME_BOOT = `try{var t=localStorage.getItem('${THEME_KEY}');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}`;
+/* LA PALETA de color (traída del playground compartido el 2026-11-11): cada una es un bloque de `theme.css`
+ * (`:root[data-palette="…"]`, con su versión oscura) y elegirla es poner `data-palette` en el <html>. Sin el atributo,
+ * la base tal cual. Acá no hay cookie de dominio como en el compartido: se guarda en `ui.palette` y, dentro de Cockpit,
+ * la reparte Cockpit como el tema. */
+export const PALETTE_KEY = 'ui.palette';
+export const PALETTES = [
+  { id: 'default', label: 'Por defecto' },
+  { id: 'vintage', label: 'Vintage Paper' },
+  { id: 'catppuccin', label: 'Catppuccin' },
+  { id: 'nord', label: 'Nord' },
+  { id: 'monokaipro', label: 'Monokai Pro' },
+  { id: 'ristretto', label: 'Monokai Ristretto' },
+];
+const PALETTE_IDS = PALETTES.map((p) => p.id).join('|');
+// El tema y la paleta ANTES de pintar (lo inyecta cada herramienta en su <head>): sin esto, un parpadeo del color base.
+export const THEME_BOOT = `try{var t=localStorage.getItem('${THEME_KEY}');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('${PALETTE_KEY}');if(p&&p!=='default'&&/^(${PALETTE_IDS})$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}`;
 
 function storedTheme() {
   try { const t = localStorage.getItem(THEME_KEY); return t === 'light' || t === 'dark' ? t : null; }
@@ -6583,6 +6598,33 @@ function themeFromCockpit(e) {
   const d = e.data;
   if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'theme') return;
   if ((d.theme === 'light' || d.theme === 'dark') && d.theme !== currentTheme()) setTheme(d.theme, { fromCockpit: true });
+}
+
+/* ── LA PALETA ──────────────────────────────────────────────────────────────────────────────────── */
+const validPalette = (id) => (PALETTES.some((p) => p.id === id) ? id : null);
+export function chosenPalette() {
+  try { return validPalette(localStorage.getItem(PALETTE_KEY)) || 'default'; } catch { return 'default'; }
+}
+// Aplica una paleta y avisa con `ui-palette` (lo que pinta por su cuenta —un canvas— tiene que releer colores).
+export function applyPalette(id) {
+  const root = document.documentElement;
+  if (id && id !== 'default' && validPalette(id)) root.setAttribute('data-palette', id);
+  else root.removeAttribute('data-palette');
+  try { dispatchEvent(new CustomEvent('ui-palette', { detail: { palette: id } })); } catch { /* sin eventos */ }
+}
+// Elegir es explícito: se guarda y se aplica; dentro de Cockpit, además se le avisa para que la pase a las demás.
+export function setPalette(id, { fromCockpit = false } = {}) {
+  if (!validPalette(id)) return;
+  try { id === 'default' ? localStorage.removeItem(PALETTE_KEY) : localStorage.setItem(PALETTE_KEY, id); } catch { /* preferencia opcional */ }
+  applyPalette(id);
+  if (inFrame && !fromCockpit) {
+    try { window.parent.postMessage({ cockpit: true, type: 'palette', palette: id }, '*'); } catch { /* sin Cockpit */ }
+  }
+}
+function paletteFromCockpit(e) {
+  const d = e.data;
+  if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'palette') return;
+  if (validPalette(d.palette) && d.palette !== chosenPalette()) setPalette(d.palette, { fromCockpit: true });
 }
 
 // El botón del pie: el icono de contraste, fijo, y la etiqueta dice lo que hace el clic.
@@ -6629,10 +6671,12 @@ export function bindThemeToggle(button) {
   button.addEventListener('click', click);
   addEventListener('ui-theme', paint);
   if (inFrame) addEventListener('message', themeFromCockpit);
+  if (inFrame) addEventListener('message', paletteFromCockpit);
   const dropClaude = inFrame ? cockpitClaudeButton(button) : null;
   applyTheme(preferredTheme());
+  applyPalette(chosenPalette());
   paint();
-  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); dropClaude?.(); } };
+  return { destroy() { button.removeEventListener('click', click); removeEventListener('ui-theme', paint); media?.removeEventListener('change', follow); removeEventListener('message', themeFromCockpit); removeEventListener('message', paletteFromCockpit); dropClaude?.(); } };
 }
 
 /* ── LA CONSOLA MAXIMIZADA ──────────────────────────────────────────────────────────────────────

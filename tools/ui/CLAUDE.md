@@ -19,6 +19,14 @@ herramienta es ahí un iframe con su propio origen, así que guardaría su propi
 Cockpit cuando se elige un tema (`theme` por postMessage) y aplica el que Cockpit le manda. Fuera de un iframe, nada
 de eso corre.
 
+**Las paletas de color** (2026-11-11, traídas tal cual del playground compartido): seis —Por defecto, Vintage Paper,
+Catppuccin, Nord, Monokai Pro y Monokai Ristretto—, cada una un bloque `:root[data-palette="…"]` de `theme.css` con su
+versión oscura, que redefine sólo lo que la distingue (lienzo, texto, tarjeta, borde, acento) y el resto se deriva.
+`workbench.js` la guarda en `ui.palette` (`PALETTES`, `setPalette`) y `THEME_BOOT` la aplica antes de pintar. Se elige
+en Cockpit (Configuración → Apariencia) y Cockpit la reparte como el tema (`palette` por postMessage). Medidas con
+`make estilo-contraste THEME=… PALETTE=…`: las doce combinaciones pasan AA en el tablero y ecommerce. Para sumar una:
+su bloque en `theme.css`, su entrada en `PALETTES` y su muestra en el modal de `cockpit/shell`.
+
 ## Las tres UIs comparten UN tema, y es un archivo
 
 ⚠ **Eran CUATRO hasta el 2026-09-21**, cuando se apagó la viz del árbol de `context/` (:5193). Las

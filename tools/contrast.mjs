@@ -87,7 +87,7 @@ const onlyTool = process.env.SOLO || null;
 const belowThreshold = [];
 let unverified = 0;
 
-console.log(`\n  contraste de lo que SE PINTA · AA: 4,5:1 (texto grande, 3:1)${process.env.THEME ? ` · tema ${process.env.THEME}` : ''}`);
+console.log(`\n  contraste de lo que SE PINTA · AA: 4,5:1 (texto grande, 3:1)${process.env.THEME ? ` · tema ${process.env.THEME}` : ''}${process.env.PALETTE ? ` · paleta ${process.env.PALETTE}` : ''}`);
 console.log('  ⚠ audita lo que está CORRIENDO; no levanta servidores\n');
 
 const headless = await chromium.launch();
@@ -104,6 +104,8 @@ try {
     // `THEME=light|dark` fija el tema de la base (`ui.theme`) antes de cargar: la regla es que una
     // herramienta con botón de tema pase en los DOS. Las que fijan `.dark` en su HTML no cambian.
     if (process.env.THEME) await ctx.addInitScript((t) => { try { localStorage.setItem('ui.theme', t); } catch { /* sin almacenamiento */ } }, process.env.THEME);
+    // `PALETTE=nord|catppuccin|…` fija la paleta de color (`ui.palette`, los bloques `data-palette` de theme.css).
+    if (process.env.PALETTE) await ctx.addInitScript((p) => { try { localStorage.setItem('ui.palette', p); } catch { /* sin almacenamiento */ } }, process.env.PALETTE);
     const page = await ctx.newPage();
     let note = null;
     try {

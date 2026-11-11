@@ -105,6 +105,9 @@ async function shootHeadless(app, route) {
     const page = await browser.newPage({ viewport: { width, height }, colorScheme: theme, deviceScaleFactor: 1 });
     // El tema de las herramientas se guarda en `ui.theme` (tools/ui/workbench.js): sin esto, cada app abre con el suyo.
     await page.addInitScript((t) => { try { localStorage.setItem('ui.theme', t); } catch {} }, theme);
+    // La paleta de color (`ui.palette`, los bloques `data-palette` de theme.css): PALETTE=nord, catppuccin…
+    const palette = env('PALETTE');
+    if (palette) await page.addInitScript((p) => { try { localStorage.setItem('ui.palette', p); } catch {} }, palette);
     page.on('console', (m) => { if (m.type() === 'error') errors.push(`consola: ${m.text()}`); });
     page.on('pageerror', (e) => errors.push(`excepción: ${e.message}`));
     // ERR_ABORTED es un pedido que el navegador cancela él mismo (una navegación, el cierre): no es un error de la app.

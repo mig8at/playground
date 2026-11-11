@@ -16,7 +16,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit</title>
 <!-- EL TEMA ANTES DE PINTAR: el renglón es `THEME_BOOT` de tools/ui/workbench.js, y lo rellena `make estilo-sync`. -->
-<script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}/* </theme-boot> */</script>
+<script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('ui.palette');if(p&&p!=='default'&&/^(default|vintage|catppuccin|nord|monokaipro|ristretto)$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}/* </theme-boot> */</script>
 <!-- El mismo tema y taller que las apps (copias de tools/ui, `make estilo-sync`): la barra se apoya en el MISMO lienzo
      que los paneles de cada app, y cambia con ellas de claro a oscuro. -->
 <link rel="stylesheet" href="theme.css">
@@ -116,6 +116,44 @@
   .settings-row .state { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-2) }
   .settings-row .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
   .settings-row .state.up::before { background: var(--cockpit-ok) }
+  .settings-box.padded { padding: 16px }
+  /* LAS MUESTRAS de color (como `.paleta-muestra` de canon): cada círculo lleva dos colores FIJOS de su paleta —el
+     acento y el lienzo, en claro o en oscuro según su fila—, no var(--primary): con una paleta puesta, un círculo que
+     usara el token cambiaría con ella y dejaría de decir qué se elige. */
+  .palette-rows { display: flex; flex-direction: column; gap: 12px }
+  .palette-row { display: flex; align-items: center; gap: 12px }
+  .palette-row-name { flex: none; width: 56px; font-size: 12px; color: var(--fg-2) }
+  .palette-options { display: flex; flex-wrap: wrap; align-items: center; gap: 12px }
+  .palette-swatch { width: 28px; height: 28px; padding: 0; flex: none; cursor: pointer; border-radius: 999px;
+    border: 1px solid var(--border); background: var(--swatch, var(--muted)) }
+  .palette-swatch[data-mode="dark"] { background: var(--swatch-dark, var(--muted)) }
+  .palette-swatch:hover { border-color: var(--fg-3) }
+  .palette-swatch[aria-checked="true"] { box-shadow: 0 0 0 2px var(--background), 0 0 0 4px var(--foreground) }
+  .palette-swatch:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px }
+  .palette-swatch[data-palette-pick="default"] {
+    --swatch: linear-gradient(135deg, oklch(0.6716 0.1368 48.5130) 50%, oklch(1 0 0) 50%);
+    --swatch-dark: linear-gradient(135deg, oklch(0.7214 0.1337 49.9802) 50%, oklch(0.1797 0.0043 308.1928) 50%);
+  }
+  .palette-swatch[data-palette-pick="vintage"] {
+    --swatch: linear-gradient(135deg, hsl(30 36% 38%) 50%, hsl(39 35% 92%) 50%);
+    --swatch-dark: linear-gradient(135deg, hsl(30 33.7% 62.7%) 50%, hsl(25 15.4% 15.3%) 50%);
+  }
+  .palette-swatch[data-palette-pick="catppuccin"] {
+    --swatch: linear-gradient(135deg, #8839ef 50%, #eff1f5 50%);
+    --swatch-dark: linear-gradient(135deg, #cba6f7 50%, #1e1e2e 50%);
+  }
+  .palette-swatch[data-palette-pick="nord"] {
+    --swatch: linear-gradient(135deg, #4a6a94 50%, #eceff4 50%);
+    --swatch-dark: linear-gradient(135deg, #88c0d0 50%, #2e3440 50%);
+  }
+  .palette-swatch[data-palette-pick="monokaipro"] {
+    --swatch: linear-gradient(135deg, #c6305f 50%, #faf4f2 50%);
+    --swatch-dark: linear-gradient(135deg, #ff6188 50%, #2d2a2e 50%);
+  }
+  .palette-swatch[data-palette-pick="ristretto"] {
+    --swatch: linear-gradient(135deg, #bd3a63 50%, #f8efe7 50%);
+    --swatch-dark: linear-gradient(135deg, #fd6883 50%, #2c2525 50%);
+  }
   .settings-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--fg-2); line-height: 1.5 }
   /* EL PANEL «CLAUDE»: lo que hace Claude en vivo, como un panel más sobre el lienzo. */
   aside { flex: none; width: 340px; display: flex; flex-direction: column; min-height: 0; margin: calc(var(--panels-gap) / 2);
@@ -283,6 +321,23 @@ function setShellTheme(theme) {
   document.documentElement.style.colorScheme = theme
   keep(THEME_KEY, theme)
 }
+/* LA PALETA ÚNICA, como el tema: la de la carcasa manda y cada app la recibe al cargar (cada iframe tiene su origen y
+   guardaría la suya). Sus colores están en theme.css (`data-palette`) y el renglón de arranque la aplica antes de pintar. */
+const PALETTE_KEY = 'ui.palette'
+const PALETTES = [
+  { id: 'default', label: 'Por defecto' }, { id: 'vintage', label: 'Vintage Paper' }, { id: 'catppuccin', label: 'Catppuccin' },
+  { id: 'nord', label: 'Nord' }, { id: 'monokaipro', label: 'Monokai Pro' }, { id: 'ristretto', label: 'Monokai Ristretto' },
+]
+const shellPalette = () => document.documentElement.getAttribute('data-palette') || 'default'
+function setShellPalette(id) {
+  if (!PALETTES.some((p) => p.id === id)) return
+  if (id === 'default') document.documentElement.removeAttribute('data-palette')
+  else document.documentElement.setAttribute('data-palette', id)
+  keep(PALETTE_KEY, id)
+}
+function tellPalette(f) {
+  f.contentWindow?.postMessage({ cockpit: true, type: 'palette', palette: shellPalette() }, new URL(f.src).origin)
+}
 function tellTheme(f) {
   f.contentWindow?.postMessage({ cockpit: true, type: 'theme', theme: shellTheme() }, new URL(f.src).origin)
 }
@@ -327,7 +382,7 @@ async function loadOnce(id) {
   f.allow = 'microphone'
   f.src = app.url
   f.hidden = current !== id
-  f.addEventListener('load', () => { tellTheme(f); tellVisibility(); tellClaude(); deliverRoute(id) })
+  f.addEventListener('load', () => { tellTheme(f); tellPalette(f); tellVisibility(); tellClaude(); deliverRoute(id) })
   frames[id] = f
   panels.append(f)
 }
@@ -360,6 +415,12 @@ window.addEventListener('message', (e) => {
   const app = apps.find((a) => new URL(a.url).origin === e.origin)
   const d = e.data
   if (!app || !d || d.cockpit !== true) return
+  if (d.type === 'palette' && PALETTES.some((p) => p.id === d.palette)) {
+    setShellPalette(d.palette)
+    for (const f of Object.values(frames)) if (f.contentWindow !== e.source) tellPalette(f)
+    if (settingsOpen) paintSettings()
+    return
+  }
   if (d.type === 'theme' && (d.theme === 'light' || d.theme === 'dark')) {
     setShellTheme(d.theme)
     for (const f of Object.values(frames)) if (f.contentWindow !== e.source) tellTheme(f)
@@ -498,7 +559,7 @@ paintFollow()
 const settings = document.getElementById('settings')
 let settingsOpen = false
 const SECTIONS = [
-  { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'Cómo se ve Cockpit. Vale para todas sus apps.', keys: 'tema claro oscuro color' },
+  { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'El color y el modo, claro u oscuro. Vale para todas las apps de Cockpit.', keys: 'tema claro oscuro color paleta nord catppuccin monokai vintage' },
   { id: 'claude', t: 'Claude', icon: 'claude', d: 'Lo que hace Claude, en vivo, en el panel que abre el asterisco del pie de cada app.', keys: 'seguir panel actividad frenar asterisco' },
   { id: 'apps', t: 'Apps', icon: 'apps', d: 'Las herramientas de la barra: si están arriba, y reiniciar una para que tome un cambio.', keys: 'servidor puerto reiniciar arriba apagada' },
   { id: 'help', t: 'Cómo se usa', icon: 'help', d: 'Lo que hay en cada lugar de Cockpit.', keys: 'ayuda guía atajos barra pie' },
@@ -528,9 +589,16 @@ function paintSettings() {
   const blocks = document.getElementById('settingsBlocks')
   if (settingsSection === 'appearance') {
     const theme = shellTheme()
-    blocks.innerHTML = `<section><h3>Tema</h3><div class="options" role="radiogroup" aria-label="Tema">
-      ${option('light', theme === 'light', 'Claro', 'Fondo claro, para el día.')}
-      ${option('dark', theme === 'dark', 'Oscuro', 'Fondo oscuro, para descansar la vista.')}</div></section>`
+    const palette = shellPalette()
+    // Dos filas, la misma paleta en claro y en oscuro: se ve cómo queda en cada modo antes de elegir (como en canon).
+    const row = (mode, name) => `<div class="palette-row" data-mode="${mode}"><span class="palette-row-name">${name}</span>
+      <div class="palette-options" role="radiogroup" aria-label="Paleta de color, ${name.toLowerCase()}">${PALETTES.map((p) =>
+        `<button type="button" class="palette-swatch" role="radio" data-palette-pick="${p.id}" data-mode="${mode}"
+          aria-checked="${palette === p.id && theme === mode}" title="${esc(p.label)}" aria-label="${esc(p.label)}"></button>`).join('')}</div></div>`
+    const current = PALETTES.find((p) => p.id === palette)?.label || 'Por defecto'
+    blocks.innerHTML = `<section><h3>Color</h3><div class="settings-box padded"><div class="palette-rows">
+      ${row('light', 'Claro')}${row('dark', 'Oscuro')}</div></div>
+      <p>${esc(current)}, en modo ${theme === 'dark' ? 'oscuro' : 'claro'}. Vale para todas las apps de Cockpit.</p></section>`
   } else if (settingsSection === 'claude') {
     const auto = pick(ACTIVITY_KEY, 'auto') !== 'closed'
     blocks.innerHTML = `<section><h3>Seguir a Claude</h3><div class="options" role="radiogroup" aria-label="Seguir a Claude">
@@ -585,6 +653,15 @@ document.getElementById('settingsBlocks').addEventListener('click', async (e) =>
     b.textContent = 'Reiniciando…'
     try { await invoke('restart_app', { id: restartId }) } catch (err) { b.textContent = String(err).slice(0, 60); return }
     setTimeout(loadAppStates, 1500)
+    return
+  }
+  const pick = e.target.closest('[data-palette-pick]')
+  if (pick) {
+    setShellPalette(pick.dataset.palettePick)
+    setShellTheme(pick.dataset.mode)
+    for (const f of Object.values(frames)) { tellPalette(f); tellTheme(f) }
+    paintSettings()
+    document.querySelector(`#settingsBlocks [data-palette-pick="${pick.dataset.palettePick}"][data-mode="${pick.dataset.mode}"]`)?.focus()
     return
   }
   const act = e.target.closest('[data-act]')?.dataset.act
