@@ -738,6 +738,17 @@ async function goToBlock(id) {
   }
   document.getElementById(id)?.scrollIntoView({ block: 'start' });
 }
+// La pila de la tarea abierta, de nuevo y SIN vaciarla antes (un aviso del tiempo real: que no parpadee). Si mientras
+// tanto se abrió otra tarea, la respuesta vieja se descarta.
+async function refreshContext() {
+  const effort = active.value && effortFor(active.value.Key);
+  if (!effort) return;
+  const request = contextsRequest;
+  try {
+    const json = await (await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`)).json();
+    if (request === contextsRequest && !json.error) contexts.value = json.events || [];
+  } catch { /* el próximo aviso o la próxima apertura la traen */ }
+}
 async function loadContext() {
   const task = active.value;
   const request = ++contextsRequest;
@@ -1827,7 +1838,32 @@ onMounted(() => {
   // Con cache, la ruta y el editor aparecen en el primer frame. La revalidación no los desmonta.
   if (bootstrapCache) { routesReady = true; restoreRoute(); }
   void updateStart();
+  openLive();
 });
+
+/* EL TIEMPO REAL (server/cmd/web/events.go): lo que las sesiones escriben en disco —un bloque en la pila, el documento,
+   la bitácora, las ramas medidas, el pulso— llega por SSE y se recarga sólo eso, sin recargar la página. EventSource
+   reconecta solo si el server se reinicia. Lo de Jira no viene por acá. */
+let live = null;
+function openLive() {
+  if (typeof EventSource === 'undefined') return;
+  live?.close();
+  live = new EventSource(`${SERVER}/api/events`);
+  live.addEventListener('changed', onLiveChange);
+}
+function onLiveChange(event) {
+  let change;
+  try { change = JSON.parse(event.data); } catch { return; }
+  if (change.tasks?.length) {
+    void loadEfforts();
+    void loadTaskLocals();
+    if (active.value) void refreshContext();
+  }
+  if (change.entries) void loadEntries();
+  if (change.branches) void loadBranches();
+  if (change.pulse) void loadPulse();
+}
+onUnmounted(() => live?.close());
 
 const documentMenu = computed(() => [
   { id: 'copiar-todo', label: 'Copiar completo para retomar', icon: 'copy', disabled: !documentSections.value.length,

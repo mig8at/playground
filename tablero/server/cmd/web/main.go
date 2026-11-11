@@ -217,6 +217,8 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) { w.Write([]byte("ok")) })
 	mux.HandleFunc("/api/config", a.config)
+	// El tiempo real: lo que cambia en disco (tareas, bitácora, ramas, pulso) llega a la interfaz sin recargar (events.go).
+	registerEvents(mux, dataDir)
 	mux.HandleFunc("/api/canon/route", a.canonRoute)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,

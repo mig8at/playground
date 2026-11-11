@@ -13,5 +13,8 @@ const themeBoot = {
 // Puerto 5191 para no chocar con flow (:5190).
 export default defineConfig({
   plugins: [themeBoot, vue(), tailwindcss()],
-  server: { port: 5191 },
+  // ⚠ Las tareas y los datos NO se vigilan: un archivo que cambia ahí y no es código hacía que Vite (vía Tailwind)
+  // RECARGARA LA PÁGINA entera, y cada bloque que una sesión agregaba a una pila recargaba el tablero (medido el
+  // 2026-11-11). Lo que cambia ahí lo trae el tiempo real del server (`/api/events`), sin recargar.
+  server: { port: 5191, watch: { ignored: ['**/tasks/**', '**/data/**'] } },
 })
