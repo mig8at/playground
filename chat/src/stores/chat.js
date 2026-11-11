@@ -176,7 +176,7 @@ export const useChatStore = defineStore('chat', () => {
   // Los agentes del equipo (`playground agents`): [{ email, name, github, agents: [{ name, description }] }].
   const teamAgents = ref([])
   const teamAgentsError = ref('')
-  // Cuadrilla: el tablero ({ me, url, epicas }) y qué notas ya se mostraron.
+  // Cuadrilla: el tablero ({ me, url, epics }) y qué notas ya se mostraron.
   const cuadrilla = ref(null)
   const cuadrillaError = ref('')
   const cuadrillaSeen = readSeen()
@@ -675,7 +675,7 @@ export const useChatStore = defineStore('chat', () => {
     const b = cuadrilla.value
     if (!b?.me) return []
     const out = []
-    for (const e of b.epicas || []) {
+    for (const e of b.epics || []) {
       for (const t of e.tareas || []) {
         if (!sameLogin(t.responsable, b.me) && !(sameLogin(t.creada_por, b.me) && !t.responsable)) continue
         const notes = t.notas || []
@@ -693,7 +693,7 @@ export const useChatStore = defineStore('chat', () => {
   function absorbCuadrilla(board) {
     const seen = new Set(cuadrillaSeen.keys)
     const fresh = []
-    for (const e of board.epicas || []) {
+    for (const e of board.epics || []) {
       for (const t of e.tareas || []) {
         const mine = sameLogin(t.responsable, board.me) || sameLogin(t.creada_por, board.me)
         for (const n of t.notas || []) {

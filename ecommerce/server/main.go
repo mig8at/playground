@@ -25,7 +25,7 @@ func main() {
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	target := flag.String("target", "", "ambiente: "+strings.Join(ReadTargets, " · ")+" (prod, sólo leer)")
 	query := flag.String("q", "", "la URL del wizard o el número de la solicitud")
-	del := flag.Bool("delete", false, "borra la solicitud y lo que cuelga de ella (sin -confirm, sólo el plan)")
+	deleteRequested := flag.Bool("delete", false, "borra la solicitud y lo que cuelga de ella (sin -confirm, sólo el plan)")
 	phone := flag.Bool("phone", false, "con -delete: todas las solicitudes del celular de esa solicitud")
 	confirm := flag.String("confirm", "", "con -delete: el número de la solicitud (o el celular, con -phone)")
 	rollback := flag.Bool("rollback", false, "con -delete: hace todo dentro de la transacción y la deshace")
@@ -75,7 +75,7 @@ func main() {
 		os.Exit(2)
 	}
 	// Con celular, -delete actúa sobre su solicitud más nueva (la misma que muestra la búsqueda).
-	if *del && in.Who != "" {
+	if *deleteRequested && in.Who != "" {
 		res, err := Lookup(*target, in)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "ecommerce:", err)
@@ -85,9 +85,9 @@ func main() {
 	}
 	var out any
 	switch {
-	case *del && *confirm == "":
+	case *deleteRequested && *confirm == "":
 		out, err = BuildPlan(*target, in.Request, *phone, *freeUsers)
-	case *del:
+	case *deleteRequested:
 		out, err = Delete(*target, in.Request, *phone, *freeUsers, *confirm, *rollback)
 	default:
 		out, err = Lookup(*target, in)

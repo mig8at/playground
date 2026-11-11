@@ -120,36 +120,36 @@ const lines = computed(() => {
 // ── borrar: la ÚNICA escritura. Una ventana pregunta si de verdad; si era la última solicitud del usuario,
 // pregunta además si darlo de baja. El servidor arma el plan y vuelve a comprobar las guardas al borrar ──
 const dialog = ref(null)
-const del = ref(null) // { request, users, lastOf, plan, loading, error, running }
+const deletion = ref(null) // { request, users, lastOf, plan, loading, error, running }
 const deleted = ref(null) // el último borrado, para decirlo arriba del editor
 async function loadPlan() {
-  const d = del.value
+  const d = deletion.value
   if (!d) return
   d.loading = true; d.error = ''
   try {
     const res = await fetch(`/api/delete/plan?target=${encodeURIComponent(target.value)}&request=${d.request}&users=${d.users ? 1 : 0}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (del.value === d) { d.plan = body; d.lastOf = body.lastOf || d.lastOf }
+    if (deletion.value === d) { d.plan = body; d.lastOf = body.lastOf || d.lastOf }
   } catch (e) {
-    if (del.value === d) d.error = e.message
+    if (deletion.value === d) d.error = e.message
   } finally {
-    if (del.value === d) d.loading = false
+    if (deletion.value === d) d.loading = false
   }
 }
 function openDelete(id) {
-  del.value = { request: Number(id), users: false, lastOf: '', plan: null, loading: false, error: '', running: false }
+  deletion.value = { request: Number(id), users: false, lastOf: '', plan: null, loading: false, error: '', running: false }
   dialog.value?.showModal()
   loadPlan()
 }
 // Las filas que caen fuera de la solicitud misma y de la baja del usuario.
-const otherRows = computed(() => (del.value?.plan?.tables || [])
-  .filter((t) => t.table !== 'user_requests' && t.table !== 'users (baja)').reduce((n, t) => n + t.rows, 0))
-function closeDelete() { dialog.value?.close(); del.value = null }
-function toggleUsers() { if (del.value) { del.value.users = !del.value.users; loadPlan() } }
-const canDelete = computed(() => !!(del.value?.plan && !del.value.plan.blocked && !del.value.loading && !del.value.running))
+const otherRows = computed(() => (deletion.value?.plan?.tables || [])
+  .filter((t) => t.table !== 'user_requests' && t.table !== 'users (deactivated)').reduce((n, t) => n + t.rows, 0))
+function closeDelete() { dialog.value?.close(); deletion.value = null }
+function toggleUsers() { if (deletion.value) { deletion.value.users = !deletion.value.users; loadPlan() } }
+const canDelete = computed(() => !!(deletion.value?.plan && !deletion.value.plan.blocked && !deletion.value.loading && !deletion.value.running))
 async function runDelete() {
-  const d = del.value
+  const d = deletion.value
   if (!canDelete.value) return
   d.running = true; d.error = ''
   try {
@@ -175,15 +175,15 @@ async function runDelete() {
 // ── dar de baja a una persona sin pasar por una solicitud: la que no tiene ninguna y estorba (un correo, una
 // cédula o un celular tomados). Otra ventana, las mismas reglas en el servidor ──
 const userDialog = ref(null)
-const baja = ref(null) // { person, purge, running, error }
+const deactivation = ref(null) // { person, purge, running, error }
 // Activo: se da de baja (libera correo, celular y cédula). Ya dado de baja: se borra del todo.
-function openBaja(person) {
-  baja.value = { person, purge: String(person.status) !== '1', running: false, error: '' }
+function openDeactivation(person) {
+  deactivation.value = { person, purge: String(person.status) !== '1', running: false, error: '' }
   userDialog.value?.showModal()
 }
-function closeBaja() { userDialog.value?.close(); baja.value = null }
-async function runBaja() {
-  const b = baja.value
+function closeDeactivation() { userDialog.value?.close(); deactivation.value = null }
+async function runDeactivation() {
+  const b = deactivation.value
   if (!b || b.running) return
   b.running = true; b.error = ''
   try {
@@ -194,12 +194,12 @@ async function runBaja() {
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
     deleted.value = body
-    closeBaja()
+    closeDeactivation()
     lookup()
   } catch (e) {
     b.error = e.message
   } finally {
-    if (baja.value === b) b.running = false
+    if (deactivation.value === b) b.running = false
   }
 }
 // ── cambiar el estado de una solicitud que vino de una tienda, como si la entidad hubiera contestado. Va por el
@@ -719,7 +719,7 @@ onBeforeUnmount(() => {
               <span class="label">{{ p.name || `usuario ${p.id}` }} <span class="muted">· {{ String(p.status) === '1' ? p.profile : 'dado de baja' }}</span></span>
               <span class="row-meta">{{ p.requests }} sol.</span>
               <span v-if="isClient(p) && !readOnly" class="row-actions">
-                <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openBaja(p)">
+                <button type="button" class="region-action" :title="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" :aria-label="`${String(p.status) === '1' ? 'Dar de baja' : 'Borrar del todo'} a ${p.name}`" @click.stop="openDeactivation(p)">
                   <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
                 </button>
               </span>
@@ -1101,27 +1101,27 @@ onBeforeUnmount(() => {
       </div>
     </section>
 
-    <dialog ref="dialog" class="confirm-dialog" aria-labelledby="del-title" @close="del = null" @cancel="del = null">
-      <form v-if="del" method="dialog" @submit.prevent="runDelete">
-        <h2 id="del-title">¿Borrar la solicitud {{ del.request }}?</h2>
-        <p v-if="del.loading && !del.plan" class="muted">Contando lo que cuelga…</p>
-        <template v-if="del.plan">
+    <dialog ref="dialog" class="confirm-dialog" aria-labelledby="del-title" @close="deletion = null" @cancel="deletion = null">
+      <form v-if="deletion" method="dialog" @submit.prevent="runDelete">
+        <h2 id="del-title">¿Borrar la solicitud {{ deletion.request }}?</h2>
+        <p v-if="deletion.loading && !deletion.plan" class="muted">Contando lo que cuelga…</p>
+        <template v-if="deletion.plan">
           <p>Se eliminan la solicitud y sus <b>{{ otherRows }}</b> filas en otras tablas. No se puede deshacer.</p>
-          <p v-if="del.plan.requests[0]?.warning" class="warn">⚠ Ojo, {{ del.plan.requests[0].warning }}. Puede ser de otra persona del equipo.</p>
-          <label v-if="del.lastOf" class="checkbox-row">
-            <input type="checkbox" class="checkbox" :checked="del.users" :disabled="del.loading || del.running" @change="toggleUsers" />
-            <span>Es la última solicitud de <b>{{ del.lastOf }}</b>. ¿Borrar también al usuario? <span class="muted">(se da de baja, como en el admin, para empezar de cero)</span></span>
+          <p v-if="deletion.plan.requests[0]?.warning" class="warn">⚠ Ojo, {{ deletion.plan.requests[0].warning }}. Puede ser de otra persona del equipo.</p>
+          <label v-if="deletion.lastOf" class="checkbox-row">
+            <input type="checkbox" class="checkbox" :checked="deletion.users" :disabled="deletion.loading || deletion.running" @change="toggleUsers" />
+            <span>Es la última solicitud de <b>{{ deletion.lastOf }}</b>. ¿Borrar también al usuario? <span class="muted">(se da de baja, como en el admin, para empezar de cero)</span></span>
           </label>
-          <p v-if="del.users && del.plan.users.some((u) => u.protected)" class="hot">El usuario no se puede dar de baja: {{ del.plan.users.find((u) => u.protected).protected }}.</p>
-          <p v-if="del.users && del.plan.users.some((u) => u.warning)" class="warn">⚠ El usuario {{ del.plan.users.find((u) => u.warning).warning }}.</p>
+          <p v-if="deletion.users && deletion.plan.users.some((u) => u.protected)" class="hot">El usuario no se puede dar de baja: {{ deletion.plan.users.find((u) => u.protected).protected }}.</p>
+          <p v-if="deletion.users && deletion.plan.users.some((u) => u.warning)" class="warn">⚠ El usuario {{ deletion.plan.users.find((u) => u.warning).warning }}.</p>
           <p class="muted small">Antes de borrar se guarda una copia de cada fila en <code>ecommerce/.backups/</code>.</p>
-          <p v-if="del.plan.blocked" class="hot">{{ del.plan.blocked }}</p>
+          <p v-if="deletion.plan.blocked" class="hot">{{ deletion.plan.blocked }}</p>
         </template>
-        <p v-if="del.error" class="hot">{{ del.error }}</p>
+        <p v-if="deletion.error" class="hot">{{ deletion.error }}</p>
         <div class="confirm-actions">
           <button type="button" class="btn btn-sm btn-outline" @click="closeDelete">Cancelar</button>
           <button type="submit" class="btn btn-sm btn-danger" :disabled="!canDelete">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ del.running ? 'Borrando…' : 'Borrar' }}
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ deletion.running ? 'Borrando…' : 'Borrar' }}
           </button>
         </div>
       </form>
@@ -1140,19 +1140,19 @@ onBeforeUnmount(() => {
       </form>
     </dialog>
 
-    <dialog ref="userDialog" class="confirm-dialog" aria-labelledby="baja-title" @close="baja = null" @cancel="baja = null">
-      <form v-if="baja" method="dialog" @submit.prevent="runBaja">
-        <h2 id="baja-title">¿{{ baja.purge ? 'Borrar del todo' : 'Dar de baja' }} a {{ baja.person.name || `usuario ${baja.person.id}` }}?</h2>
-        <p v-if="baja.purge">Ya está dado de baja (<code>{{ baja.person.document_number }}</code>). Se borra su fila de <code>users</code> y las suyas de toda tabla con <code>user_id</code> (códigos OTP, términos aceptados…). No se puede deshacer; se guarda una copia antes.</p>
-        <p v-else>Queda como en la papelera del admin: dado de baja, la cédula pasa a <code>{{ baja.person.document_number }}-t…</code> y pierde el correo y el celular. Así quedan libres para registrarse de nuevo. Se guarda una copia antes.</p>
-        <p v-if="baja.purge && Number(baja.person.requests) > 0" class="hot">Tiene {{ baja.person.requests }} solicitudes: borralas antes, con la basura de cada una.</p>
-        <p class="muted small">{{ baja.person.email || 'sin correo' }} · {{ baja.person.cell_phone || 'sin celular' }} · {{ baja.person.requests }} solicitudes</p>
-        <p v-if="target !== 'local' && String(baja.person.is_test) !== '1'" class="warn">⚠ No está marcado de prueba: puede ser de otra persona del equipo.</p>
-        <p v-if="baja.error" class="hot">{{ baja.error }}</p>
+    <dialog ref="userDialog" class="confirm-dialog" aria-labelledby="baja-title" @close="deactivation = null" @cancel="deactivation = null">
+      <form v-if="deactivation" method="dialog" @submit.prevent="runDeactivation">
+        <h2 id="baja-title">¿{{ deactivation.purge ? 'Borrar del todo' : 'Dar de baja' }} a {{ deactivation.person.name || `usuario ${deactivation.person.id}` }}?</h2>
+        <p v-if="deactivation.purge">Ya está dado de baja (<code>{{ deactivation.person.document_number }}</code>). Se borra su fila de <code>users</code> y las suyas de toda tabla con <code>user_id</code> (códigos OTP, términos aceptados…). No se puede deshacer; se guarda una copia antes.</p>
+        <p v-else>Queda como en la papelera del admin: dado de baja, la cédula pasa a <code>{{ deactivation.person.document_number }}-t…</code> y pierde el correo y el celular. Así quedan libres para registrarse de nuevo. Se guarda una copia antes.</p>
+        <p v-if="deactivation.purge && Number(deactivation.person.requests) > 0" class="hot">Tiene {{ deactivation.person.requests }} solicitudes: borralas antes, con la basura de cada una.</p>
+        <p class="muted small">{{ deactivation.person.email || 'sin correo' }} · {{ deactivation.person.cell_phone || 'sin celular' }} · {{ deactivation.person.requests }} solicitudes</p>
+        <p v-if="target !== 'local' && String(deactivation.person.is_test) !== '1'" class="warn">⚠ No está marcado de prueba: puede ser de otra persona del equipo.</p>
+        <p v-if="deactivation.error" class="hot">{{ deactivation.error }}</p>
         <div class="confirm-actions">
-          <button type="button" class="btn btn-sm btn-outline" @click="closeBaja">Cancelar</button>
-          <button type="submit" class="btn btn-sm btn-danger" :disabled="baja.running || (baja.purge && Number(baja.person.requests) > 0)">
-            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ baja.running ? '…' : baja.purge ? 'Borrar del todo' : 'Dar de baja' }}
+          <button type="button" class="btn btn-sm btn-outline" @click="closeDeactivation">Cancelar</button>
+          <button type="submit" class="btn btn-sm btn-danger" :disabled="deactivation.running || (deactivation.purge && Number(deactivation.person.requests) > 0)">
+            <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>{{ deactivation.running ? '…' : deactivation.purge ? 'Borrar del todo' : 'Dar de baja' }}
           </button>
         </div>
       </form>

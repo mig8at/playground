@@ -30,7 +30,7 @@ func cuadrillaHandlers(mux *http.ServeMux) {
 			fail(w, http.StatusBadGateway, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"me": me, "url": cli.CuadrillaURL(), "epicas": epics})
+		writeJSON(w, http.StatusOK, map[string]any{"me": me, "url": cli.CuadrillaURL(), "epics": epics})
 	})
 
 	// Una nota en una tarea: un avance, un bloqueo (con de quién depende) o un desbloqueo.

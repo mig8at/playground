@@ -263,7 +263,7 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 	plan.Tables = append(plan.Tables, TableCount{"user_requests", len(eligible)})
 	plan.Total += len(eligible)
 	if n := len(plan.freeable()); n > 0 {
-		plan.Tables = append(plan.Tables, TableCount{"users (baja)", n})
+		plan.Tables = append(plan.Tables, TableCount{"users (deactivated)", n})
 		plan.Total += n
 	}
 	sort.SliceStable(plan.Tables, func(i, j int) bool { return plan.Tables[i].Rows > plan.Tables[j].Rows })
@@ -432,13 +432,13 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 	}()
 
 	backup, keep := newBackup(tx)
-	del := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
-	counts, exec, byID := del.counts, del.exec, del.byID
+	deleter := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
+	counts, exec, byID := deleter.counts, deleter.exec, deleter.byID
 
 	if err := byID("device_locks", deviceLocksWhere(list)); err != nil {
 		return nil, fmt.Errorf("device_locks: %w", err)
 	}
-	if err := del.purge(tables, func(t childTable) string { return childWhere(t.name, list) }); err != nil {
+	if err := deleter.purge(tables, func(t childTable) string { return childWhere(t.name, list) }); err != nil {
 		return nil, err
 	}
 	if err := keep("ecommerce_requests (original_user_request_id)", fmt.Sprintf("SELECT id, original_user_request_id FROM ecommerce_requests WHERE original_user_request_id IN (%s)", list)); err != nil {
@@ -461,7 +461,7 @@ func Delete(target string, request int, byPhone, freeUsers bool, confirm string,
 			return nil, err
 		}
 		if ok {
-			counts["users (baja)"]++
+			counts["users (deactivated)"]++
 			freed = append(freed, u.ID)
 		}
 	}
@@ -698,7 +698,7 @@ func DisableUser(target string, id int, confirm string, rollback bool) (*Deleted
 		}
 		return nil, err
 	}
-	out := &Deleted{Target: target, Requests: []int{}, Users: []int{id}, Tables: []TableCount{{"users (baja)", 1}}, Total: 1,
+	out := &Deleted{Target: target, Requests: []int{}, Users: []int{id}, Tables: []TableCount{{"users (deactivated)", 1}}, Total: 1,
 		RolledBack: rollback, At: time.Now().Format("2006-01-02 15:04:05")}
 	if out.Backup, err = writeBackup(out, backup); err != nil {
 		_ = tx.Rollback()
@@ -790,19 +790,19 @@ func PurgeUser(target string, id int, confirm string, rollback bool) (*Deleted, 
 		}
 	}()
 	backup, keep := newBackup(tx)
-	del := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
-	if err := del.purge(tables, func(childTable) string { return fmt.Sprintf("user_id = %d", id) }); err != nil {
+	deleter := &txDeleter{tx: tx, keep: keep, counts: map[string]int{}}
+	if err := deleter.purge(tables, func(childTable) string { return fmt.Sprintf("user_id = %d", id) }); err != nil {
 		return nil, err
 	}
 	if err := keep("users", fmt.Sprintf("SELECT * FROM users WHERE id = %d", id)); err != nil {
 		return nil, fmt.Errorf("respaldo del usuario: %w", err)
 	}
-	if err := del.exec("users", fmt.Sprintf("DELETE FROM users WHERE id = %d AND status = 0 AND user_profile_id = 1", id)); err != nil {
+	if err := deleter.exec("users", fmt.Sprintf("DELETE FROM users WHERE id = %d AND status = 0 AND user_profile_id = 1", id)); err != nil {
 		return nil, fmt.Errorf("users: %w", err)
 	}
 	out := &Deleted{Target: target, Requests: []int{}, Users: []int{id}, Tables: []TableCount{}, RolledBack: rollback,
 		At: time.Now().Format("2006-01-02 15:04:05")}
-	for t, n := range del.counts {
+	for t, n := range deleter.counts {
 		if n > 0 {
 			out.Tables = append(out.Tables, TableCount{t, n})
 			out.Total += n
