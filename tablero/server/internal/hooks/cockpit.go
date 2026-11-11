@@ -67,6 +67,54 @@ func Cockpit(env Env) int {
 	return 0
 }
 
+/*
+cockpitSection: el aviso del arranque — si Cockpit está abierto y qué apps ya tienen su servidor arriba. Existe para
+
+	que una sesión no levante un servidor que ya corre (dos `make tablero` chocan por el puerto) y sepa que lo que hace
+	se ve en vivo. Cerrado no es un error: las herramientas se levantan con su `make`.
+*/
+func cockpitSection(home string) string {
+	ctl, err := cockpit.Load(home)
+	if err != nil {
+		return formatCockpit(nil)
+	}
+	var st cockpit.Status
+	if ctl.Do("GET", "/status", nil, &st, 400*time.Millisecond) != nil {
+		return formatCockpit(nil)
+	}
+	return formatCockpit(&st)
+}
+
+func formatCockpit(st *cockpit.Status) string {
+	if st == nil {
+		return "  COCKPIT — cerrado (`make cockpit` lo abre): la app de escritorio donde Miguel ve las herramientas.\n" +
+			"    Las interfaces se levantan con su `make` (tablero · panel · jarvis · visor · ecommerce · knowledge-ui). Detalle: cockpit/CLAUDE.md"
+	}
+	var up, down []string
+	for _, a := range st.Apps {
+		if a.Ready {
+			up = append(up, a.ID)
+		} else {
+			down = append(down, a.ID)
+		}
+	}
+	list := func(ids []string) string {
+		if len(ids) == 0 {
+			return "ninguna"
+		}
+		return strings.Join(ids, " · ")
+	}
+	front := st.Current
+	if front == "" {
+		front = "ninguna"
+	}
+	return fmt.Sprintf("  COCKPIT — abierto, con %s al frente: Miguel ve en vivo cada herramienta que usás (panel «Claude»)\n"+
+		"    arriba: %s  ← su servidor YA corre: no levantes otro\n"+
+		"    apagadas: %s  ← se levantan al abrirlas en la barra, o con su `make`\n"+
+		"    `bin/cockpit open <app> [ruta]` lleva a Miguel a un lugar · `bin/cockpit say \"…\"` cuenta la intención. Detalle: cockpit/CLAUDE.md",
+		front, list(up), list(down))
+}
+
 // cockpitAlwaysAllowed: lo que pasa aunque esté frenado — `bin/cockpit` (contar que paró) y lo interno de la app
 // (la lista de tareas, cerrar el turno).
 func cockpitAlwaysAllowed(payload map[string]any) bool {

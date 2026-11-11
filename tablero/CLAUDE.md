@@ -153,7 +153,8 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
 - **Avances** (`data/entries/`): una entrada por tramo de trabajo, append-only, en la forma **acción
   realizada → resultado → validación**. Se escriben con `make bitacora-add TAREA=<id>` y una fuente de
   tiempo. La pila cuenta qué pasó; los avances, cuánto llevó.
-- **Artifacts** (`tasks/<slug>/artifacts/`): prototipos, consultas, notas. Un prototipo es **un HTML
+- **Artifacts** (`tasks/<slug>/artifacts/`): prototipos, consultas, notas. Se abren en la pestaña Artifacts del
+  tablero, al lado de la tarea (`bin/cockpit open tablero '#/tareas/<slug>?vista=artifacts'` se la muestra a Miguel). Un prototipo es **un HTML
   autocontenido, sin build**, **con la fecha visible adentro**, y **no gradúa a canon**: describe lo
   propuesto y muere con la tarea.
 - **`ramas:`** en el frontmatter declara sólo los PATRONES; dónde vive cada rama lo mide `make

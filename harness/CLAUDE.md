@@ -433,8 +433,9 @@ tampoco dispara con ninguno de los dos valores. *(Vivía en el `CLAUDE.md` raíz
   guiado es solo por terminal, y ahí el **comercio va primero**: `bin/advisor <comercio> auto`.
 - Si matás `bin/advisor` con `kill -9`, verificá que el wizard recuperó su `.env.local`: queda en
   `.env.local.asesor-bak` y solo lo restaura el `trap EXIT` (`bin/advisor:198-201`).
-- **No te quedes con el puerto del panel (:5195).** Si dejás una instancia tuya corriendo, el
-  `npm run dev` de Miguel no arranca. Ya pasó dos veces: levantalo solo si lo vas a usar, y bajalo.
+- **El panel (:5195) suele estar YA arriba**: lo levanta Cockpit cuando Miguel abre la app Harness
+  (`bin/cockpit status`). Si contesta, usá ése. Si lo levantás vos, bajalo al terminar: una instancia tuya
+  colgada deja a Miguel sin poder arrancar el suyo (ya pasó dos veces).
 - **El wizard local pide el monorepo instalado con `pnpm`**, no `npm` (skill `harness-local`).
 
 ## Qué deja esto en la tarea

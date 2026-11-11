@@ -14,7 +14,8 @@ npm install
 npm run dev
 ```
 
-Abre http://localhost:5178 (la API queda en :5179). Abajo a la izquierda, `Base: qa`, `local` o `prod`.
+Abre http://localhost:5178 (la API queda en :5179). Dentro del playground es `make ecommerce`, y la app
+Ecommerce de Cockpit lo levanta sola. Abajo a la izquierda, `Base: qa`, `local` o `prod`.
 
 `prod` **sólo lee**, por Redash: busca la solicitud y sus tablas, pero el servidor rechaza borrar, dar de baja, pasar de
 estado y dictar las centrales, y la interfaz no los ofrece. Es lento (cada consulta pasa por Redash: una búsqueda

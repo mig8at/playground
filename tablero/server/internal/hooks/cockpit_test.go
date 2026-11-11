@@ -164,3 +164,20 @@ func TestCockpitFollowsKnowledgeReads(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatCockpit(t *testing.T) {
+	closed := formatCockpit(nil)
+	if !strings.Contains(closed, "cerrado") || !strings.Contains(closed, "make cockpit") {
+		t.Fatalf("cerrado no dice cómo abrirlo: %q", closed)
+	}
+	var st cockpit.Status
+	if err := json.Unmarshal([]byte(`{"current":"tablero","apps":[{"id":"chat","ready":true},{"id":"tablero","ready":true},{"id":"harness","ready":false}]}`), &st); err != nil {
+		t.Fatal(err)
+	}
+	open := formatCockpit(&st)
+	for _, want := range []string{"con tablero al frente", "arriba: chat · tablero", "apagadas: harness"} {
+		if !strings.Contains(open, want) {
+			t.Fatalf("falta %q en:\n%s", want, open)
+		}
+	}
+}

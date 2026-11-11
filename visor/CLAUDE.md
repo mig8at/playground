@@ -1,6 +1,6 @@
 # visor — protocolo (un diseño de Figma, recorrido como lo recorrería el cliente)
 
-`make visor` (UI :5193 · API :5194). **La interfaz es para mirar** qué tan bien pasa Figma a HTML; **el
+`make visor` (UI :5193 · API :5194; en Cockpit es la app **Designer**). **La interfaz es para mirar** qué tan bien pasa Figma a HTML; **el
 modelo trabaja con comandos** (decisión de Miguel, 2026-09-25). Para cambiar el visor por dentro —la
 traducción a HTML, los controles, los tokens, la fidelidad, la ruta, la interfaz— cargá la skill
 **`visor-render`**.

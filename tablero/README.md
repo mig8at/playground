@@ -139,6 +139,9 @@ npm install
 npm run dev
 ```
 
+Desde la raíz es `make tablero`, y **en el día a día lo levanta Cockpit** la primera vez que se abre su app
+(`cockpit/CLAUDE.md`): si `:5191` ya contesta, no levantes otro.
+
 `npm run dev` levanta las dos cosas con `concurrently`:
 
 - **server** → `go run ./cmd/web` en `:8787`. Al arrancar valida credenciales e imprime
@@ -425,8 +428,10 @@ de la tarea, y la pestaña **Artifacts** lo lista entero. Un prototipo es un HTM
 `<slug>.html` aparece como «prototipo» y, cuando hay **más de una propuesta** —otro actor, otro camino—,
 `<slug>.<variante>.html` aparece con la variante como etiqueta. Verlas al lado es lo que permite decidir.
 
-Cada artifact se abre en una pestaña del navegador, servido por el propio server
-(`GET /artifacts/<slug>/<archivo>`).
+Cada artifact se abre **en la misma pestaña Artifacts**, al lado de la tarea: un HTML en un marco aislado,
+una nota Markdown renderizada, las consultas, scripts y JSON como texto, las imágenes tal cual. Arriba
+tiene volver a la lista, ensanchar las vistas (sin cambiar el ancho guardado) y abrirlo afuera. Sólo un
+enlace externo (`.url`) sale al navegador. Los sirve el propio server (`GET /artifacts/<slug>/<archivo>`).
 
 No hay nada que declarar: el vínculo es el nombre del archivo. Una convención de nombre no se
 desincroniza; una lista en el frontmatter que hay que mantener a mano, sí.

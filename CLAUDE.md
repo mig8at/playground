@@ -14,6 +14,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | una tarea del tablero, el cierre de sesión, Jira | [`tablero/CLAUDE.md`](tablero/CLAUDE.md) |
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
 | Jarvis (configurar paneles admin con guía o con confirmación, en tu Chrome con su extensión; recetas por API y por pantalla; `bin/jarvis`) | [`jarvis/CLAUDE.md`](jarvis/CLAUDE.md) |
+| Cockpit (la app de escritorio donde Miguel ve las herramientas: `bin/cockpit`, quién levanta cada servidor, agregar una app, reinstalar) | [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
@@ -34,6 +35,24 @@ contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`
 ⚠ **Antes de decir «no tengo acceso a eso», mirá el catálogo.** Loki, Redash, las cuatro bases de
 datos, PostHog, Confluence, Jira, Slack y Google Drive (`bin/pg drive`, tras `drive login`) ya están cableados y con credenciales. El error caro no es no
 tener la herramienta: es suponer que no está y contestar de memoria.
+
+### Cockpit: donde Miguel ve las herramientas, y lo que hacés
+
+Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor), ecommerce y
+knowledge— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
+en cualquier tarea:
+
+- **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el
+  harness, escribir en una tarea, leer un tema) trae su app al frente en esa ruta. `bin/cockpit say "…"` es para la
+  intención y las conclusiones; `bin/cockpit open <app> [ruta]`, para llevarlo a un lugar. Sin Cockpit abierto, nada
+  de esto bloquea.
+- **Antes de levantar un servidor, mirá si ya está arriba**: `bin/cockpit status`, o el aviso COCKPIT de este
+  arranque. Cockpit levanta cada app con su `make` la primera vez que Miguel la abre, y un segundo `make tablero`
+  choca por el puerto.
+- **Si Miguel toca «Frenar»**, la siguiente herramienta sale negada: contá en una línea dónde quedaste y esperá.
+
+Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuándo hay que reinstalar:
+[`cockpit/CLAUDE.md`](cockpit/CLAUDE.md).
 
 ### Qué herramienta según qué estás preguntando
 
@@ -59,7 +78,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 | **¿qué entidades le salen a ESTE comercio?** | `make harness-listing MERCHANT=…` (3 s, por API). El código y el conocimiento local explican el mecanismo; esto contesta el caso |
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
 | **¿esta regla excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
-| **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). `make panel` es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
+| **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). El panel (la app Harness de Cockpit, `make panel`) es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
 | **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **hablarle a alguien del equipo por la terminal** · ¿quién está conectado? | `playground online` · `playground send @jose.guzman "…"` (el CLI del playground compartido, con tu sesión; sin guardar nada). Visual: `make chat` (conversaciones y contestar, sobre el mismo CLI; su servidor guarda el historial y las imágenes en disco) y la vista Mensajes del tablero. Mandar un mensaje sale a nombre de Miguel: se confirma el texto antes. **Conversación en vivo, sólo si Miguel la pide** (no en toda sesión), con `bin/chat` sobre ese servidor (lo trae Cockpit, la app de escritorio, `make cockpit`, que arranca al iniciar sesión y sigue en segundo plano con la ventana cerrada; si :5185 no contesta, abrila): `history <who>` para el contexto (con las imágenes ya bajadas: no uses `playground get`, que le quita el adjunto al chat), un Monitor sobre `follow <who> --theirs` para cada respuesta (con `--json`, un mensaje por línea), y `reply`/`send` con el texto confirmado. Los adjuntos van con `bin/chat send <who> <texto> --file <ruta>` y no con `playground send --file`: así el chat guarda una copia y los muestra en la conversación. `bin/chat inbox --unread` dice qué falta leer y `bin/chat mentions` qué te nombra; `bin/chat who #grupo` da los `@usuario` para mencionar. Un agente habla **como agente** con `--as <agente>` (o `CHAT_AS`), no a nombre de Miguel: es una identidad de Miguel que nace la primera vez que habla y queda guardada (`playground agents` lista los de todos); en un grupo tiene que ser miembro (`playground groups add #g @miguel/<agente>`), y `send … --wait 5m` espera la respuesta en una sola llamada, sin Monitor (sale 3 si nadie contesta). Contestar marca leído; lo leído lo comparten la app y `bin/chat`. **Claves para el equipo: el llavero** (la consola de una conversación en `make chat`): nombre y valor, «Encriptar» da el encriptado para pegarlo en el mensaje, y «Desencriptar» abre uno recibido; lo encriptado con nombre queda en la tabla «Guardadas» (sólo encriptado, nunca el valor). En una conversación directa, escribir `🔑 Pido tu llavero` pide **su llavero**: el servidor del chat del otro contesta SOLO con los nombres (`🔑 Mi llavero (n)` y viñetas), elegís cuáles y «Pedir» manda `🔑 Pido estas claves`, que también se contesta solo con UN bloque `.env` de valores encriptados (`🔒 Llavero · n claves …` y debajo `NOMBRE=U2FsdGVkX1…`); su tarjeta trae «Guardar en mi llavero» y «Descargar .env» (desencriptado). Sin el chat, el bloque guardado en `bloque.txt` se vuelve `.env` con `grep '=U2FsdGVkX1' bloque.txt \| while read -r l; do printf '%s=%s\n' "${l%%=*}" "$(printf '%s' "${l#*=}" \| openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key)"; done > .env`. Contesta sólo mensajes directos y recientes, y si «Compartir mi llavero solo» está prendido en la consola (`chat/server/keyring_auto.go`) | openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key` y la pone en su `.env`, sin pegarla en claro en el chat. Lo privado no va al llavero |
@@ -197,7 +216,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 - ⚠ **`E2E_TARGET` por defecto es `dev`** (`harness/pkg/db.ts`). Para local, exportalo:
   `E2E_TARGET=local`. Y un `||=` de esa variable **no gana a un import estático** que ya resolvió el
   target (F-187).
-- El harness del wizard se maneja desde el **panel**: `cd harness && npm run dev`.
+- El harness del wizard se maneja desde el **panel**: la app Harness de Cockpit, o `make panel` (:5195).
 
 ## Trampas que ya costaron tiempo
 

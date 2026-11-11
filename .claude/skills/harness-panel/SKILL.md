@@ -13,8 +13,9 @@ va ahí y el panel lo consume — duplicar la lógica en la UI es como empiezan 
 va aparte, por consola. **No metas el modo rápido (`dev/sweep.ts`) en el panel** — ya se intentó y se
 revirtió: mezclarlos confunde para qué sirve cada uno.
 
-⚠ **No te quedes con el puerto :5195.** Si dejás una instancia tuya corriendo, el `npm run dev` de Miguel
-no arranca. Ya pasó dos veces. Levantalo solo si lo vas a usar, y bajalo.
+⚠ **El :5195 suele estar YA arriba**: lo levanta Cockpit cuando Miguel abre la app Harness (`bin/cockpit
+status`; `bin/cockpit open harness /<ambiente>/<comercio>/<canal>` lo lleva a un caso). Si contesta, usá ése. Si
+lo levantás vos, bajalo al terminar: una instancia tuya colgada deja a Miguel sin el suyo (ya pasó dos veces).
 
 ## La cáscara: cinco zonas fijas, y el contrato es el `id`
 

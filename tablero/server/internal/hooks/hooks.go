@@ -226,6 +226,8 @@ func SessionStart(env Env) int {
 	fmt.Fprintln(env.Stdout, knowledgeSection(env.Root))
 	fmt.Fprintln(env.Stdout)
 	fmt.Fprintln(env.Stdout, <-access)
+	fmt.Fprintln(env.Stdout)
+	fmt.Fprintln(env.Stdout, cockpitSection(env.Home))
 	return 0
 }
 
