@@ -795,6 +795,39 @@ const myThread = computed(() => {
   return items
 })
 const myLast = computed(() => myThread.value.at(-1) || null)
+/* TUS AGENTES (la pestaña «Agentes» del perfil): elegir uno deja en Mi chat sólo lo suyo —lo que dijo y lo que le
+   escribiste a él—; tocarlo de nuevo, o la ✕ de la cabecera, vuelve a todo. */
+const myAgents = computed(() => [...chat.agentsOf(chat.meKey)].sort((a, b) => String(b.lastActive || '').localeCompare(String(a.lastActive || ''))))
+const agentFilter = ref('')
+function toggleAgentFilter(name) {
+  agentFilter.value = agentFilter.value === name ? '' : name
+  if (chat.activeKey) openMyChat()
+  scrollNotesToEnd()
+}
+const shownThread = computed(() => {
+  const f = agentFilter.value
+  if (!f) return myThread.value
+  const mentioned = new RegExp(`(^|\\s)@${f}\\b`, 'i')
+  const kept = myThread.value.filter((it) => it.agent === f || (!it.agent && (it.m.toAgent === f || it.m.forAgent === f || mentioned.test(it.m.text || ''))))
+  // Las tandas se vuelven a armar: sin los de en medio, dos seguidos pueden quedar juntos o separarse.
+  return kept.map((it, i) => ({ ...it, cont: i > 0 && kept[i - 1].who === it.who && new Date(it.time) - new Date(kept[i - 1].time) < GROUP_MS }))
+})
+// Si el agente elegido se borra, el filtro se va con él.
+watch(myAgents, (list) => { if (agentFilter.value && !list.some((a) => a.name === agentFilter.value)) agentFilter.value = '' })
+const removeAgentError = ref('')
+async function removeAgent(name) {
+  if (!window.confirm(`¿Borrar a ${name}? Sale de tu lista (sus mensajes quedan). Si una sesión vuelve a hablar como ${name}, renace.`)) return
+  removeAgentError.value = ''
+  try { await chat.removeAgent(name) } catch (e) { removeAgentError.value = e.message }
+}
+// «hace 5 min», «hace 2 h», «hace 3 días»: cuándo habló por última vez.
+function ago(iso) {
+  const min = Math.max(0, Math.round((Date.now() - new Date(iso)) / 60_000))
+  if (min < 1) return 'recién'
+  if (min < 60) return `hace ${min} min`
+  if (min < 48 * 60) return `hace ${Math.round(min / 60)} h`
+  return `hace ${Math.round(min / 1440)} días`
+}
 async function scrollNotesToEnd() {
   await nextTick()
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
@@ -887,15 +920,16 @@ watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'cha
    conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de
    ésa. El permiso se pide desde «Avisos»: el navegador sólo lo pide tras un clic. */
 const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
-/* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — los avisos, la voz, el llavero y
+/* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — tus agentes, los avisos, la voz, el llavero y
    la conexión — en vez de tenerlo repartido en la barra de abajo y en diálogos. */
 const PROFILE_TABS = [
+  { id: 'agents', label: 'Tus agentes' },
   { id: 'notify', label: 'Avisos', icon: 'bell' },
   { id: 'voice', label: 'Voz', icon: 'play' },
   { id: 'keyring', label: 'Llavero', icon: 'key' },
   { id: 'connection', label: 'Conexión', icon: 'server' },
 ]
-const profileTab = ref(PROFILE_TABS.some((t) => t.id === readPref('chat.profile-tab', '')) ? readPref('chat.profile-tab', '') : 'notify')
+const profileTab = ref(PROFILE_TABS.some((t) => t.id === readPref('chat.profile-tab', '')) ? readPref('chat.profile-tab', '') : 'agents')
 function setProfileTab(id) { profileTab.value = id; savePref('chat.profile-tab', id) }
 function openProfile(tab) {
   serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true)
@@ -1231,7 +1265,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         </template>
         <template v-else>
           <span class="head-who"><button v-if="narrow" type="button" class="region-action narrow-back" title="Volver a las conversaciones"
-                    aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="avatar small" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
+                    aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="avatar small" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span><button v-if="agentFilter" type="button" class="agent-filter" :style="{ borderColor: agentColor(agentFilter, chat.meKey) }" :title="'Volver a todo Mi chat'" @click="agentFilter = ''">sólo {{ agentFilter }} <span class="ui-icon" data-icon="close" aria-hidden="true"></span></button></span>
           <div class="region-actions">
             <button type="button" class="region-action" title="Vaciar «Mi chat»"
                     aria-label="Vaciar «Mi chat»" :disabled="!myThread.length" @click="clearMyChat">
@@ -1269,11 +1303,12 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <!-- MI CHAT: vos y tus agentes. Lo que escribís acá te llega a vos; lo que te escribe cada persona está en su
            conversación. -->
       <div v-if="!chat.active" ref="notesEl" class="region-body thread" aria-live="polite">
-        <p v-if="!myThread.length" class="side-note center">
+        <p v-if="agentFilter && !shownThread.length" class="side-note center">Nada de {{ agentFilter }} en Mi chat todavía.</p>
+        <p v-else-if="!myThread.length" class="side-note center">
           Tu conversación con vos mismo y tus agentes: lo que escribís acá no sale a nadie más. Un agente te habla con
           <code>bin/chat send &lt;vos&gt; … --as luigi</code>.
         </p>
-        <template v-for="it in myThread" :key="it.id">
+        <template v-for="it in shownThread" :key="it.id">
           <!-- Lo que vos y tus agentes se dicen por el chat: uno de tus agentes a la izquierda, con su color; vos a la derecha. -->
           <div v-if="it.kind === 'self' && it.agent" class="bubble-row in with-avatar" :class="{ cont: it.cont }">
             <span class="msg-avatar avatar small agent mine" :class="{ ghost: it.cont }" :title="`${it.agent} · tu agente`"
@@ -1652,7 +1687,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <button v-for="t in PROFILE_TABS" :key="t.id" type="button" role="tab" class="region-action profile-tab"
                   :class="{ on: profileTab === t.id }" :aria-selected="profileTab === t.id" :title="t.label" :aria-label="t.label"
                   @click="setProfileTab(t.id)">
-            <span class="ui-icon" :data-icon="t.icon || 'settings'" aria-hidden="true"></span>
+            <svg v-if="t.id === 'agents'" class="tab-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-if="!myAgents.length" cx="21" cy="21" r="15" stroke="currentColor"/><circle v-for="r in ringOf({ email: chat.meKey })" :key="r.name" cx="21" cy="21" r="19.5" :stroke="r.color" :stroke-dasharray="r.dash" :stroke-dashoffset="r.offset" transform="rotate(-90 21 21) translate(21 21) scale(.77) translate(-21 -21)"/></svg>
+            <span v-else class="ui-icon" :data-icon="t.icon || 'settings'" aria-hidden="true"></span>
           </button>
         </nav>
         <div class="region-actions">
@@ -1661,7 +1697,28 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           </button>
         </div>
       </div>
-      <div v-if="profileTab === 'notify'" class="region-body">
+      <div v-if="profileTab === 'agents'" class="region-body profile-section">
+        <p v-if="!myAgents.length" class="field-hint">Todavía no tenés agentes. Nace uno la primera vez que una sesión habla
+          con su nombre: <code>bin/chat send &lt;vos&gt; "…" --as luigi</code>.</p>
+        <ul v-else class="my-agents">
+          <li v-for="a in myAgents" :key="a.name" class="my-agent" :class="{ on: agentFilter === a.name }">
+            <button type="button" class="my-agent-main" :aria-pressed="agentFilter === a.name"
+                    :title="agentFilter === a.name ? 'Volver a todo Mi chat' : `Ver en Mi chat sólo lo de ${a.name}`" @click="toggleAgentFilter(a.name)">
+              <span class="avatar small agent" :style="{ background: agentColor(a.name, chat.meKey), color: '#fff' }" aria-hidden="true">{{ a.name[0].toUpperCase() }}</span>
+              <span class="my-agent-text">
+                <span class="my-agent-top"><b>{{ a.name }}</b><small>{{ a.lastActive ? `habló ${ago(a.lastActive)}` : 'todavía no habló' }}</small></span>
+                <small v-if="a.description" class="my-agent-desc">{{ a.description }}</small>
+                <span v-if="a.groups?.length" class="my-agent-groups"><span v-for="g in a.groups" :key="g" class="my-agent-group">{{ g }}</span></span>
+              </span>
+            </button>
+            <button type="button" class="region-action my-agent-del" :title="`Borrar a ${a.name}`" :aria-label="`Borrar a ${a.name}`" @click="removeAgent(a.name)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </li>
+        </ul>
+        <p v-if="removeAgentError" class="field-hint bad">{{ removeAgentError }}</p>
+      </div>
+      <div v-else-if="profileTab === 'notify'" class="region-body">
         <NotifySettings :permission="notifyPermission" :name-of="conversationName" @ask-permission="askNotifyPermission" />
       </div>
       <div v-else-if="profileTab === 'voice'" class="region-body profile-section">
@@ -1700,7 +1757,6 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <p class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
           <small v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small></span></p>
         <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
-        <p class="profile-row"><span><b>{{ myAgentNames.length ? myAgentNames.join(', ') : 'ninguno' }}</b><small>tus agentes (nacen la primera vez que hablan con <code>--as</code>)</small></span></p>
         <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat del playground' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
       </div>
       </template>
@@ -1864,6 +1920,25 @@ code { font-family: var(--font-mono); font-size: .92em }
 .side-note { margin: 0; padding: var(--space-3) var(--gutter); color: var(--fg-2); font-size: var(--text-sm); line-height: 1.5 }
 .side-note.center { text-align: center; padding-top: var(--space-6) }
 .conv-item { position: relative }
+.tab-ring { width: 18px; height: 18px }
+.tab-ring circle { fill: none; stroke-width: 5; stroke-linecap: round }
+.my-agents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px }
+.my-agent { display: flex; align-items: center; gap: var(--space-1); border-radius: var(--radius-md, 8px) }
+.my-agent.on { background: color-mix(in oklab, var(--foreground) 8%, transparent) }
+.my-agent-main { flex: 1; min-width: 0; display: flex; align-items: flex-start; gap: var(--space-2); padding: var(--space-2);
+  border: 0; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer; border-radius: inherit }
+.my-agent-main:hover { background: color-mix(in oklab, var(--foreground) 5%, transparent) }
+.my-agent-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px }
+.my-agent-top { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-2) }
+.my-agent-top small, .my-agent-desc { color: var(--fg-2); font-size: var(--text-xs) }
+.my-agent-desc { overflow-wrap: anywhere }
+.my-agent-groups { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 2px }
+.my-agent-group { font-size: var(--text-xs); padding: 0 6px; border-radius: 999px; background: color-mix(in oklab, var(--foreground) 9%, transparent) }
+.my-agent-del { opacity: 0 }
+.my-agent:hover .my-agent-del, .my-agent-del:focus-visible { opacity: 1 }
+.agent-filter { display: inline-flex; align-items: center; gap: 4px; margin-left: var(--space-2); padding: 0 4px 0 8px; height: 20px;
+  border: 1.5px solid; border-radius: 999px; background: none; font: inherit; font-size: var(--text-xs); color: inherit; cursor: pointer }
+.agent-filter .ui-icon { width: 12px; height: 12px }
 .conv-del { position: absolute; top: 6px; right: 6px; width: var(--control-xs); height: var(--control-xs); padding: 0; border: 0;
   border-radius: var(--radius-control); background: var(--muted); color: var(--fg-2); display: grid; place-items: center;
   cursor: pointer; opacity: 0; transition: opacity .12s }

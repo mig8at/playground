@@ -480,6 +480,12 @@ func Agents(ctx context.Context) ([]AgentOwner, error) {
 	return people, nil
 }
 
+// RemoveAgent borra uno de tus agentes (`playground agents rm <agente>`). No lo saca de sus grupos.
+func RemoveAgent(ctx context.Context, name string) error {
+	_, err := run(ctx, nil, "agents", "rm", name)
+	return err
+}
+
 // CanonSource es una sección del corpus que cita canon, con su id para leerla (`playground canon read <id>`).
 type CanonSource struct {
 	Title string `json:"titulo"`

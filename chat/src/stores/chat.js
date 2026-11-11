@@ -499,6 +499,11 @@ export const useChatStore = defineStore('chat', () => {
     catch (e) { loginError.value = e.message; loginBusy.value = false }
   }
 
+  // Borrar uno de tus agentes: sale de la lista; si una sesión vuelve a hablar con su nombre, renace.
+  async function removeAgent(name) {
+    await post('/api/agents/remove', { name })
+    await loadTeamAgents()
+  }
   async function loadTeamAgents() {
     if (!state.value?.installed) return
     try {
@@ -903,7 +908,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, ensure,
+    removeConversation, clearMessages, isMe, ensure, removeAgent,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }

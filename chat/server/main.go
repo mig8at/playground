@@ -19,6 +19,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -361,6 +362,24 @@ func handler() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"people": people})
 	})
 
+	// Borrar uno de tus agentes (el panel «Agentes» de Mi chat). Si vuelve a hablar con `--as`, renace.
+	mux.HandleFunc("POST /api/agents/remove", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&in); err != nil || !agentNameRe.MatchString(in.Name) {
+			fail(w, http.StatusBadRequest, errors.New("falta el nombre del agente"))
+			return
+		}
+		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
+		defer cancel()
+		if err := cli.RemoveAgent(ctx, in.Name); err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+	})
+
 	// Preguntarle a canon, la herramienta del equipo (no el agente de una persona): siempre está, aunque no haya
 	// nadie conectado. Tarda unos segundos; la red del playground corta a los 60.
 	mux.HandleFunc("POST /api/canon", func(w http.ResponseWriter, r *http.Request) {
@@ -390,6 +409,9 @@ func handler() http.Handler {
 	teamServiceHandlers(mux)
 	return mux
 }
+
+// El nombre de un agente: minúsculas, números y guiones, hasta 24 (las reglas del home).
+var agentNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,23}$`)
 
 func main() {
 	addr := flag.String("serve", "127.0.0.1:5185", "dirección de la API (sólo 127.0.0.1)")
