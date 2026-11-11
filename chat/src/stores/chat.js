@@ -89,9 +89,25 @@ const isJournal = (m) => m?.agent === 'journal'
 function dropJournal(all) {
   for (const [key, c] of Object.entries(all)) {
     if (/\/journal$/.test(key)) { delete all[key]; continue }
-    if (Array.isArray(c?.messages)) c.messages = c.messages.filter((m) => !isJournal(m))
+    if (Array.isArray(c?.messages)) c.messages = dropDoubles(c.messages.filter((m) => !isJournal(m)))
   }
   return all
+}
+/* Un mensaje que mandaste, dos veces: el que puso esta app al mandarlo y el que trajo el historial antes de que el
+   envío volviera con su id (pasaba con los mensajes a personas). Tienen el mismo `sid`: queda el primero, que es el
+   tuyo y trae si se entregó. */
+function dropDoubles(messages) {
+  const seen = new Set()
+  const sent = messages.filter((m) => m?.dir === 'out' && m.sid)
+  const sentIds = new Set(sent.map((m) => m.sid))
+  return messages.filter((m) => {
+    // El recibido de un mensaje a vos mismo (mismo id del home que uno que mandaste): ya está como enviado.
+    if (m?.dir === 'in' && sentIds.has(m.sid || m.id)) return false
+    if (m?.dir !== 'out' || !m.sid) return true
+    if (seen.has(m.sid)) return false
+    seen.add(m.sid)
+    return true
+  })
 }
 
 /* LAS IMÁGENES, COMO EN WHATSAPP: una imagen que llega se baja sola para mostrarla (hasta 15 MB, sólo png, jpg, gif y
@@ -285,6 +301,9 @@ export const useChatStore = defineStore('chat', () => {
 
   function push(c, message) {
     if (c.messages.some((x) => x.id === message.id || (message.sid && x.sid === message.sid && x.dir === message.dir))) return false
+    // Lo que te mandaste a vos mismo te llega también como recibido, con el mismo id del home: se muestra una vez.
+    const homeId = message.sid || message.id
+    if (message.dir === 'in' && c.messages.some((x) => x.dir === 'out' && x.sid && x.sid === homeId)) return false
     c.messages.push(message)
     c.messages.sort((a, b) => a.time.localeCompare(b.time))
     return true
@@ -323,6 +342,10 @@ export const useChatStore = defineStore('chat', () => {
           push(c, { id: `cli|${sid}`, sid, dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'pending' })
         } else {
           const c = ensure({ email: m.to, name: m.to.split('@')[0] })
+          // La que mandó esta app puede llegar acá antes de que su pedido vuelva con el id: es la misma (sin esto
+          // quedaban dos: la tuya y la del historial).
+          const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === String(m.text ?? ''))
+          if (own) { own.sid = sid; continue }
           // Con sus adjuntos: el servidor guarda la ficha de lo que se subió desde él (bin/chat send --file) y una copia
           // en su caché, que applySavedFiles muestra. Si el mensaje ya estaba sin ellos, se le agregan.
           const files = Array.isArray(m.files) && m.files.length ? m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) : null
@@ -659,6 +682,14 @@ export const useChatStore = defineStore('chat', () => {
         Object.assign(stored().files[i], { id: up.id, status: 'subido' })
       }
       const r = await post('/api/send', { to, text: body, re: message.re || '', ...(ids.length ? { files: ids } : {}) })
+      /* El historial pudo traer este mismo mensaje antes que esta respuesta (como enviado, o como recibido si te lo
+         mandaste a vos mismo): queda uno solo, el tuyo, con su estado. */
+      if (r.id) {
+        for (let i = c.messages.length - 1; i >= 0; i--) {
+          const x = c.messages[i]
+          if (x.id !== message.id && (x.dir === 'out' ? x.sid === r.id : (x.sid || x.id) === r.id)) c.messages.splice(i, 1)
+        }
+      }
       Object.assign(stored(), { status: 'sent', delivered: r.delivered, sid: r.id || '' })
       unsentFiles.delete(message.id)
     } catch (e) {
