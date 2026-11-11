@@ -139,9 +139,42 @@ const photoOf = (p) => {
   return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
 }
 function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
-// Cuántos agentes tiene una persona (la bolita de su muñequito) y cuáles, para el título.
-const agentCount = (p) => chat.agentsOf(p?.email).length
+// Los agentes de una persona, por nombre: para el título de su muñequito.
 const agentNames = (p) => chat.agentsOf(p?.email).map((a) => a.name).join(', ')
+/* EL COLOR DE CADA AGENTE: sale de su nombre, así es siempre el mismo (en el borde del muñequito de su dueño y en su
+   propio muñequito dentro del chat). Colores que se leen sobre el tema claro y el oscuro. */
+const AGENT_COLORS = ['#e8735a', '#d99a2b', '#4fae6e', '#2fa3c4', '#5b7fe6', '#9a68dd', '#cf5aa8', '#3fb3a3']
+function baseColor(name) {
+  let h = 0
+  for (const ch of String(name || '')) h = (h * 31 + ch.codePointAt(0)) >>> 0
+  return h % AGENT_COLORS.length
+}
+/* Dentro de una persona, dos agentes no comparten color: en orden de nombre, el que choca toma el siguiente libre. Así
+   el color de su parte del borde y el de su muñequito en el chat son el mismo. */
+function agentColor(name, ownerEmail) {
+  const names = chat.agentsOf(ownerEmail).map((a) => a.name).sort()
+  if (!names.includes(name)) return AGENT_COLORS[baseColor(name)]
+  const used = new Set()
+  for (const n of names) {
+    let i = baseColor(n)
+    for (let k = 0; k < AGENT_COLORS.length && used.has(i); k++) i = (i + 1) % AGENT_COLORS.length
+    used.add(i)
+    if (n === name) return AGENT_COLORS[i]
+  }
+  return AGENT_COLORS[baseColor(name)]
+}
+/* EL BORDE PARTIDO: alrededor del muñequito, una parte por agente, cada una de su color (como las historias de
+   WhatsApp). Un círculo SVG por parte, con stroke-dasharray; con un solo agente, el borde entero. */
+const RING_R = 19.5
+const RING_C = 2 * Math.PI * RING_R
+function ringOf(p) {
+  const list = chat.agentsOf(p?.email)
+  const n = list.length
+  if (!n) return []
+  const gap = n > 1 ? 6 : 0
+  const seg = RING_C / n - gap
+  return list.map((a, i) => ({ name: a.name, color: agentColor(a.name, p?.email), dash: `${seg} ${RING_C - seg}`, offset: -i * (RING_C / n) }))
+}
 /* QUIÉN HABLA EN UN MENSAJE, como en un grupo de WhatsApp aunque el chat sea privado: la persona o uno de sus agentes
    (`via`). Lo tuyo sólo se marca si salió como uno de tus agentes (`asAgent`). */
 function speakerOf(item) {
@@ -991,7 +1024,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <ul class="conversations">
           <li>
             <button type="button" class="conversation" :class="{ on: !chat.activeKey && !serverOpen }" @click="openMyChat">
-              <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><b v-if="agentCount({ email: chat.meKey })" class="agent-count" :title="`Tus agentes: ${agentNames({ email: chat.meKey })}`">{{ agentCount({ email: chat.meKey }) }}</b></span>
+              <span class="avatar" :title="agentNames({ email: chat.meKey }) ? `Tus agentes: ${agentNames({ email: chat.meKey })}` : null"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><svg v-if="ringOf({ email: chat.meKey }).length" class="agent-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-for="s in ringOf({ email: chat.meKey })" :key="s.name" cx="21" cy="21" r="19.5" :stroke="s.color" :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset" transform="rotate(-90 21 21)"/></svg></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
                 <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? (chat.notes[chat.notes.length - 1].status === 'pensando' ? `${agentLabel} está pensando…` : chat.notes[chat.notes.length - 1].text) : `vos y ${agentLabel}` }}</span></span>
@@ -1009,7 +1042,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <ul v-if="chat.list.length || onlineWithoutChat.length" class="conversations">
           <li v-for="c in chat.list" :key="c.person.email" class="conv-item">
             <button type="button" class="conversation" :class="{ on: c.person.email === chat.activeKey }" @click="serverOpen = ''; chat.open(c.person)">
-              <span class="avatar" aria-hidden="true"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i><b v-if="agentCount(c.person)" class="agent-count" :title="`Sus agentes: ${agentNames(c.person)}`">{{ agentCount(c.person) }}</b></span>
+              <span class="avatar" :title="agentNames(c.person) ? `Sus agentes: ${agentNames(c.person)}` : null"><img v-if="photoOf(c.person)" class="avatar-photo" :src="photoOf(c.person)" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(c.person) }}</template><i v-if="c.online" class="presence"></i><svg v-if="ringOf(c.person).length" class="agent-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-for="s in ringOf(c.person)" :key="s.name" cx="21" cy="21" r="19.5" :stroke="s.color" :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset" transform="rotate(-90 21 21)"/></svg></span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ c.person.name || c.person.email }}</b>
@@ -1338,6 +1371,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <!-- Quién habla: su muñequito al empezar cada tanda (la persona, o uno de sus agentes); en las siguientes
                    queda el lugar vacío para que las burbujas se alineen. -->
               <span v-if="!activeIsAgent && speakerOf(item)" class="msg-avatar avatar small" :class="{ agent: speakerOf(item).agent, mine: speakerOf(item).mine, ghost: item.cont }"
+                    :style="speakerOf(item).agent && !item.cont ? { background: agentColor(speakerOf(item).agent, speakerOf(item).mine ? chat.meKey : speakerOf(item).owner?.email), color: '#fff' } : null"
                     :title="speakerOf(item).label" aria-hidden="true">
                 <template v-if="!item.cont">
                   <template v-if="speakerOf(item).agent">{{ speakerOf(item).agent[0].toUpperCase() }}</template>
@@ -1975,10 +2009,9 @@ code { font-family: var(--font-mono); font-size: .92em }
 .bubble-row.with-avatar { align-items: flex-start }
 .msg-avatar { width: 26px; height: 26px; margin-top: 2px }
 .msg-avatar.ghost { visibility: hidden }
-/* La bolita con cuántos agentes tiene la persona, arriba a la derecha del muñequito. */
-.agent-count { position: absolute; top: -4px; right: -6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px;
-  display: grid; place-items: center; font-size: 10px; font-weight: 700; line-height: 1; font-style: normal;
-  background: var(--agent-mine-bg); color: var(--agent-mine-ink); box-shadow: 0 0 0 2px var(--background) }
+/* El borde partido alrededor del muñequito: una parte de color por agente de la persona. */
+.agent-ring { position: absolute; inset: -4px; width: calc(100% + 8px); height: calc(100% + 8px); pointer-events: none; overflow: visible }
+.agent-ring circle { fill: none; stroke-width: 2.5; stroke-linecap: round }
 .bubble-row.out { flex-direction: row-reverse }
 .bubble-row.cont { margin-top: -5px }
 .bubble { max-width: min(560px, 78%); padding: 7px 10px 5px; border-radius: 12px; background: var(--bubble-theirs);
