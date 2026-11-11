@@ -1062,7 +1062,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="avatar" :title="agentNames({ email: chat.meKey }) ? `Tus agentes: ${agentNames({ email: chat.meKey })}` : null"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><svg v-if="ringOf({ email: chat.meKey }).length" class="agent-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-for="s in ringOf({ email: chat.meKey })" :key="s.name" cx="21" cy="21" r="19.5" :stroke="s.color" :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset" transform="rotate(-90 21 21)"/></svg></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
-                <span class="conversation-bottom"><span class="snippet">{{ !myLast ? 'vos y tus agentes' : `${myLast.agent || 'Vos'}: ${myLast.m.text}` }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ !myLast ? 'vos y tus agentes' : `${myLast.agent || 'Vos'}: ${myLast.m.text}` }}</span><span v-if="chat.selfUnread" class="unread">{{ chat.selfUnread }}</span></span>
               </span>
             </button>
           </li>

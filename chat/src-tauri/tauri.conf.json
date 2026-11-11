@@ -33,5 +33,14 @@
     "externalBin": [
       "binaries/chat-server"
     ]
+  },
+  "plugins": {
+    "deep-link": {
+      "desktop": {
+        "schemes": [
+          "creditop-chat"
+        ]
+      }
+    }
   }
 }

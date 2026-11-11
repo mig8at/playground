@@ -293,8 +293,11 @@ func handler() http.Handler {
 				sent.Via = &cli.Via{Name: strings.ToLower(as)}
 			}
 			_, _ = chatHistory.add([]cli.Message{sent})
-			// Contestar es haber leído: la conversación queda leída hasta acá (la app y bin/chat ven lo mismo).
-			_, _, _ = markRead(conversationOf(sent), sent.Time)
+			// Contestar es haber leído: la conversación queda leída hasta acá (la app y bin/chat ven lo mismo). Lo que
+			// manda uno de tus agentes (`--as`) no es que vos leíste: en «Mi chat» es lo que tenés que ver.
+			if sent.Via == nil {
+				_, _, _ = markRead(conversationOf(sent), sent.Time)
+			}
 		}
 		writeJSON(w, http.StatusOK, result)
 	})
@@ -406,6 +409,7 @@ func handler() http.Handler {
 	cuadrillaHandlers(mux)
 	serverHandlers(mux)
 	historyHandlers(mux)
+	desktopLogHandlers(mux)
 	teamServiceHandlers(mux)
 	return mux
 }

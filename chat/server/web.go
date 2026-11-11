@@ -13,6 +13,8 @@ package main
 //     Origin es un programa de esta máquina (bin/chat, curl), no una página.
 
 import (
+	"encoding/json"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -83,5 +85,22 @@ func withUI(api http.Handler, dir string) http.Handler {
 			w.Header().Set("Cache-Control", "no-cache")
 		}
 		files.ServeHTTP(w, r)
+	})
+}
+
+// Lo que cuenta la app de escritorio (src/desktop.js): qué trae y qué falló, al registro del servidor. Sin esto, un
+// error adentro de su ventana no se ve en ningún lado.
+func desktopLogHandlers(mux *http.ServeMux) {
+	mux.HandleFunc("POST /api/desktop/log", func(w http.ResponseWriter, r *http.Request) {
+		var in struct {
+			Text string `json:"text"`
+		}
+		_ = json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&in)
+		text := strings.ReplaceAll(in.Text, "\n", " ")
+		if len(text) > 500 {
+			text = text[:500]
+		}
+		log.Printf("app: %s", text)
+		w.WriteHeader(http.StatusNoContent)
 	})
 }

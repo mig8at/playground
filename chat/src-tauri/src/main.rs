@@ -1,7 +1,8 @@
 // La app de escritorio del chat. Trae ADENTRO el servidor del chat (Go, `chat-server`, al lado de este binario en
 // Contents/MacOS): lo arranca al abrir, lo vuelve a levantar si se cae y lo apaga al salir (⌘Q). La ventana es la
-// interfaz que sirve ese servidor en :5185; los avisos nativos, los enlaces al navegador y el globito del Dock los hace
-// la interfaz (src/desktop.js) con los plugins de abajo.
+// interfaz que sirve ese servidor en :5185; los enlaces al navegador y el globito del Dock los hace la interfaz
+// (src/desktop.js). Los avisos los muestra el avisador de macOS del servidor; tocarlos abre `creditop-chat://open/#/c/…`,
+// que trae la app al frente en esa conversación.
 //
 // - Si :5185 ya contesta (un `make chat` con `go run`, o el servicio viejo del Mac), usa ese y no arranca otro.
 // - Cerrar la ventana la esconde: la app sigue juntando el historial y avisando, como un chat. Volver: el ícono del Dock.
@@ -104,6 +105,21 @@ fn show_main(app: &tauri::AppHandle) {
     }
 }
 
+// Un enlace `creditop-chat://open/#/c/<conversación>`: la ventana al frente y la interfaz a esa ruta (escucha popstate).
+fn open_link(app: &tauri::AppHandle, url: &str) {
+    show_main(app);
+    let hash: String = url
+        .split_once('#')
+        .map(|(_, h)| h)
+        .unwrap_or("")
+        .chars()
+        .filter(|c| c.is_ascii_alphanumeric() || "/@._%-+:".contains(*c))
+        .collect();
+    if let (Some(w), false) = (app.get_webview_window("main"), hash.is_empty()) {
+        let _ = w.eval(format!("location.hash = '#{hash}'"));
+    }
+}
+
 fn main() {
     let server = Server::default();
     let path = user_path();
@@ -118,7 +134,7 @@ fn main() {
     }
 
     let app = tauri::Builder::default()
-        .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_deep_link::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
@@ -128,11 +144,31 @@ fn main() {
             while !listening() && start.elapsed() < Duration::from_secs(15) {
                 thread::sleep(Duration::from_millis(150));
             }
-            WebviewWindowBuilder::new(app, "main", WebviewUrl::External(format!("http://{ADDR}/").parse().unwrap()))
+            let url: tauri::Url = format!("http://{ADDR}/").parse().unwrap();
+            let window = WebviewWindowBuilder::new(app, "main", WebviewUrl::External(url.clone()))
                 .title("chat")
                 .inner_size(1280.0, 820.0)
                 .min_inner_size(380.0, 480.0)
                 .build()?;
+            // Si el servidor todavía no contestaba (macOS esperando el permiso de Escritorio), la ventana quedó en blanco:
+            // se recarga sola cuando conteste.
+            if !listening() {
+                thread::spawn(move || {
+                    while !listening() {
+                        thread::sleep(Duration::from_millis(500));
+                    }
+                    let _ = window.navigate(url);
+                });
+            }
+            {
+                use tauri_plugin_deep_link::DeepLinkExt;
+                let handle = app.handle().clone();
+                app.deep_link().on_open_url(move |event| {
+                    for url in event.urls() {
+                        open_link(&handle, url.as_str());
+                    }
+                });
+            }
             // Se reescribe en cada arranque: si movés la app (a Aplicaciones), el arranque apunta a donde está ahora.
             #[cfg(not(debug_assertions))]
             {

@@ -399,6 +399,9 @@ func macNotify(n notice) error {
 // La interfaz de `make chat`; CHAT_UI_URL la cambia.
 func chatURL(key string) string {
 	base := os.Getenv("CHAT_UI_URL")
+	if base == "" && fileExists("/Applications/Chat.app") {
+		base = "creditop-chat://open/" // la app de escritorio (chat/src-tauri): abre la conversación ahí
+	}
 	if base == "" {
 		base = "http://localhost:5184/"
 	}

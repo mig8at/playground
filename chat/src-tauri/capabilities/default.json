@@ -14,7 +14,6 @@
   "permissions": [
     "core:default",
     "core:window:allow-set-badge-count",
-    "notification:default",
     "opener:allow-open-url",
     "window-state:default"
   ]

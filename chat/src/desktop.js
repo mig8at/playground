@@ -1,30 +1,18 @@
 /* LA APP DE ESCRITORIO (chat/src-tauri): la misma interfaz, abierta por Tauri en vez del navegador. Tauri deja
    `window.__TAURI__` (withGlobalTauri) y con eso, sólo ahí:
-   - los avisos: el WebView de macOS no trae `Notification`, así que se pone uno que los manda por el aviso nativo.
-     El resto del chat no cambia: pide permiso, el servidor sabe que esta ventana puede avisar y le pasa los avisos;
+   - los avisos NO salen de esta ventana: se le saca `Notification` y el servidor los manda por el avisador de macOS
+     («Chat del playground», scripts/notifier.sh), que al tocarlo abre la conversación en la app
+     (`creditop-chat://open/#/c/…`). El plugin de avisos de Tauri no mostraba nada en macOS (medido 2026-11-11);
    - el globito del Dock con los no leídos;
    - los enlaces a otros sitios se abren en tu navegador (en el WebView un `target="_blank"` no hace nada).
    En el navegador todo esto no hace nada. */
 const tauri = typeof window !== 'undefined' ? window.__TAURI__ : undefined
 export const isDesktop = !!tauri
 
-// El Notification de la app: lo justo que usa el chat (permission, requestPermission, new Notification). Tocar el aviso
-// trae la app al frente (en macOS el plugin no avisa del clic, así que no abre la conversación).
-function installNotification(api) {
-  class DesktopNotification {
-    static permission = 'default'
-    static async requestPermission() {
-      DesktopNotification.permission = await api.requestPermission()
-      return DesktopNotification.permission
-    }
-    constructor(title, options = {}) {
-      this.onclick = null
-      api.sendNotification({ title, body: options.body || '' })
-    }
-    close() {}
-  }
-  window.Notification = DesktopNotification
-  return api.isPermissionGranted().then((granted) => { if (granted) DesktopNotification.permission = 'granted' })
+// Al registro del servidor (~/Library/Logs/creditop-playground-chat.log, «app: …»): lo que pasa adentro de la ventana.
+export function report(text) {
+  if (!tauri) return
+  fetch('/api/desktop/log', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: String(text) }) }).catch(() => {})
 }
 
 function openLinksOutside(opener) {
@@ -38,15 +26,18 @@ function openLinksOutside(opener) {
   }, true)
 }
 
-// Antes de montar la app: el permiso de avisos tiene que estar sabido cuando el chat abre el stream.
+// Antes de montar la app: el chat le dice al servidor si esta ventana puede avisar al abrir el stream.
 export function setupDesktop() {
   if (!tauri) return Promise.resolve()
+  try { delete window.Notification } catch { /* sigue abajo */ }
+  if (typeof window.Notification !== 'undefined') window.Notification = undefined
   if (tauri.opener) openLinksOutside(tauri.opener)
-  return tauri.notification ? installNotification(tauri.notification).catch(() => {}) : Promise.resolve()
+  report(`arrancó · enlaces ${tauri.opener ? 'afuera' : 'sin opener'} · globito ${tauri.window ? 'sí' : 'no'}`)
+  return Promise.resolve()
 }
 
 // El globito del Dock: los no leídos, o nada.
 export function setBadge(count) {
   if (!tauri?.window) return
-  tauri.window.getCurrentWindow().setBadgeCount(count > 0 ? count : undefined).catch(() => {})
+  tauri.window.getCurrentWindow().setBadgeCount(count > 0 ? count : undefined).catch((e) => report(`globito: ${e}`))
 }

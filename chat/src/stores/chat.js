@@ -292,7 +292,14 @@ export const useChatStore = defineStore('chat', () => {
   // Los agentes de una persona (los que guarda el home): para la bolita de su muñequito y para nombrarlos.
   const agentsOf = (email) => teamAgents.value.find((p) => keyOf(p.email) === keyOf(email))?.agents || []
   const active = computed(() => conversations.value[activeKey.value] || null)
-  const unreadTotal = computed(() => list.value.reduce((n, c) => n + c.unread, 0) + agentList.value.reduce((n, a) => n + a.unread, 0)
+  /* «Mi chat»: lo que te dijeron tus agentes desde la última vez que lo miraste. Desde otra máquina llega recibido y con
+     `via`; desde ésta queda como enviado por tu agente (`asAgent`, el recibido se descarta por repetido). Lo tuyo no cuenta. */
+  const selfUnread = computed(() => {
+    const c = conversations.value[meKey.value]
+    return c ? c.messages.filter((m) => (m.via || m.asAgent) && m.time > (c.readAt || '')).length : 0
+  })
+  let stopReadWatch = null
+  const unreadTotal = computed(() => selfUnread.value + list.value.reduce((n, c) => n + c.unread, 0) + agentList.value.reduce((n, a) => n + a.unread, 0)
     + groupList.value.reduce((n, g) => n + g.unread, 0))
 
   // Un mensaje por su id del home, en cualquier conversación: para citar el que se contesta.
@@ -446,8 +453,9 @@ export const useChatStore = defineStore('chat', () => {
     }
   }
   // La conversación abierta se da por leída sólo si la pestaña está a la vista.
+  // Sin conversación abierta estás en «Mi chat»: lo que te dijeron tus agentes también se marca leído.
   function markActiveRead() {
-    const c = active.value
+    const c = active.value || (activeKey.value ? null : conversations.value[meKey.value])
     if (!c || document.visibilityState !== 'visible') return
     const latest = c.messages.at(-1)?.time || ''
     if (latest > (c.readAt || '')) {
@@ -898,17 +906,19 @@ export const useChatStore = defineStore('chat', () => {
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
     openLive()
     document.addEventListener('visibilitychange', markActiveRead)
+    stopReadWatch = watch(activeKey, markActiveRead)
   }
   function stop() {
     clearTimeout(stateTimer); clearTimeout(onlineTimer); clearTimeout(cuadrillaTimer)
     source?.close(); source = null; live.value = false; clearInterval(watchdog)
     document.removeEventListener('visibilitychange', markActiveRead)
+    stopReadWatch?.()
   }
 
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, ensure, removeAgent,
+    removeConversation, clearMessages, isMe, ensure, removeAgent, selfUnread,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
