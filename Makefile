@@ -132,8 +132,8 @@ chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la te
 chat-service: ## @dia deja el servidor del chat como servicio del Mac (arranca con la sesión y junta el historial aunque make chat esté cerrado). A=status|uninstall|refresh
 	@cd chat && sh scripts/service.sh $(or $(A),install)
 
-chat-app: ## @dia compila la app de escritorio del chat (Tauri, chat/src-tauri) y la abre: trae su servidor adentro (:5185), sigue en segundo plano al cerrar la ventana, arranca al iniciar sesión, avisos nativos y el globito del Dock. Necesita Rust (rustup)
-	@cd chat && npm run desktop && (osascript -e 'quit app id "com.creditop.playground.chat-app"' 2>/dev/null; sleep 1; open src-tauri/target/release/bundle/macos/Chat.app)
+chat-app: ## @dia compila la app de escritorio del chat (Tauri, chat/src-tauri), la instala en Aplicaciones y la abre: trae su servidor adentro (:5185), sigue en segundo plano al cerrar la ventana, arranca al iniciar sesión, avisos nativos y el globito del Dock. Necesita Rust (rustup)
+	@cd chat && npm run desktop && { osascript -e 'quit app id "com.creditop.playground.chat-app"' 2>/dev/null || true; sleep 1; rm -rf /Applications/Chat.app && ditto src-tauri/target/release/bundle/macos/Chat.app /Applications/Chat.app && open /Applications/Chat.app; }
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
