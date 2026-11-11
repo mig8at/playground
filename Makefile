@@ -130,7 +130,7 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de Cockpit (:5185) o, si está cerrado, uno con go run. Para usarlo: Cockpit, `make cockpit`
 	@cd chat && npm run dev
 
-cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness y Jarvis). Trae adentro el servidor del chat, sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
+cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis y Designer, que es el visor). Trae adentro el servidor del chat, sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
 	@cd cockpit && npm run build && { \
 	  for id in com.creditop.playground.cockpit com.creditop.playground.chat-app; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
 	  rm -rf /Applications/Chat.app "$$HOME/Library/LaunchAgents/Chat.plist" /Applications/Cockpit.app; \

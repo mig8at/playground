@@ -73,6 +73,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5202", "127.0.0.1:5203"],
         start: Start::Make("jarvis"),
     },
+    AppDef {
+        // El visor (visor/): un diseño de Figma pantalla por pantalla, al lado de su HTML. En la barra, «Designer».
+        id: "designer",
+        name: "Designer",
+        url: "http://localhost:5193/",
+        ready: &["localhost:5193", "127.0.0.1:5194"],
+        start: Start::Make("visor"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
