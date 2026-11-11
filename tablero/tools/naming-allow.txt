@@ -131,3 +131,5 @@ json: chat/cli/cuadrilla.go fecha autor tipo texto depende_de codigo titulo resp
 json: ecommerce/server/lambda.go periodo fechaPago diasCotizados valorCotizacionObligatoria usuario codRespuesta observaciones codConsulta respuesta fechaVinculacion datosBasicos edad genero nombre tipoId viabilidad detalladoEmpleos
 # el id de una transacción de VTEX, en hexadecimal, en el nombre de un archivo de prueba
 path: ecommerce/server/testdata/tx-C9EB4CCBE833427692978EDE28379ADC.json
+# el engranaje de configuración de Cockpit
+gear

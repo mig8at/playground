@@ -26,6 +26,7 @@ import { activeQuery, candidates, handleOf, mentionsMe, segments } from './menti
 import NotifySettings from './NotifySettings.vue'
 import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak } from './speech.js'
 import RegionMenu from './RegionMenu.vue'
+import EmojiButton from './EmojiButton.vue'
 import { conversationMode, loadNotify, notify, reportView, setConversationMode } from './notifyStore.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -722,6 +723,18 @@ function updateMention() {
   mention.value = q ? { ...q, index: mention.value?.query === q.query ? mention.value.index : 0 } : null
 }
 function onComposerInput() { autosize(); updateMention() }
+// Un emoji del selector (EmojiButton): entra donde estaba el cursor, o reemplaza lo seleccionado, y el foco vuelve a la
+// caja para seguir escribiendo. Vacío (Esc): sólo vuelve el foco.
+async function insertEmoji(emoji) {
+  const el = composer.value
+  if (!el) return
+  const start = el.selectionStart ?? draft.value.length
+  const end = el.selectionEnd ?? start
+  if (emoji) draft.value = draft.value.slice(0, start) + emoji + draft.value.slice(end)
+  await nextTick()
+  const caret = start + (emoji ? emoji.length : 0)
+  el.focus(); el.setSelectionRange(caret, caret); autosize()
+}
 async function pickMention(option) {
   const m = mention.value
   const el = composer.value
@@ -1328,6 +1341,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
 
       <form v-if="!chat.active" class="composer" @submit.prevent="submit">
         <div class="composer-row">
+          <EmojiButton @pick="insertEmoji" />
           <label class="sr-only" for="composer-text">Escribite algo</label>
           <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                     maxlength="2000" placeholder="Escribite algo: lo ven vos y tus agentes" @keydown="onKeydown" @input="autosize"></textarea>
@@ -1568,6 +1582,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
               </button>
             </template>
+            <EmojiButton @pick="insertEmoji" />
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="onComposerInput" @paste="onPasteFiles"
