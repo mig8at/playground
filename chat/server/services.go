@@ -19,7 +19,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -423,4 +425,18 @@ func readSchema(ctx context.Context, base string) map[string]any {
 	out["schema"], out["schemaError"] = get("/openapi.json")
 	out["health"], out["healthError"] = get("/health")
 	return out
+}
+
+// portAnswers: si algo escucha en el host:puerto de esa URL (un servicio local prendido). Medio segundo de tope.
+func portAnswers(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	conn, err := net.DialTimeout("tcp", u.Host, 500*time.Millisecond)
+	if err != nil {
+		return false
+	}
+	conn.Close()
+	return true
 }

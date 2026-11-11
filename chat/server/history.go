@@ -313,7 +313,7 @@ func (h *history) run(every time.Duration) {
 var chatHistory *history
 
 // conversationOf: con quién es un mensaje, como lo agrupa la interfaz: el grupo (`#id`), la persona que lo mandó o a
-// quién se mandó. Lo que dice un agente delegado (`via`) va en la conversación con su dueño.
+// quién se mandó. Lo que dice un agente (`via`) va en la conversación con su dueño.
 func conversationOf(m cli.Message) string {
 	if m.Group != nil && m.Group.ID != "" {
 		return "#" + strings.ToLower(m.Group.ID)

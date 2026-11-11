@@ -349,7 +349,7 @@ func handler() http.Handler {
 		cliCache.invalidate() // que el estado diga «escuchando» en la próxima consulta
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
-	// Los agentes del equipo: los de cada persona conectada, que corren en su máquina.
+	// Los agentes del equipo: los de cada persona (identidades con las que hablan sus sesiones), aunque no esté.
 	mux.HandleFunc("GET /api/team-agents", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
 		defer cancel()
@@ -361,36 +361,6 @@ func handler() http.Handler {
 		writeJSON(w, http.StatusOK, map[string]any{"people": people})
 	})
 
-	// Preguntarle a un agente del equipo. El home espera la respuesta hasta 45 s; si no llegó, contesta
-	// `pending` con el id, y la respuesta llega después entre los mensajes (con `re` = ese id).
-	mux.HandleFunc("POST /api/ask", func(w http.ResponseWriter, r *http.Request) {
-		var in struct {
-			To    string `json:"to"`
-			Agent string `json:"agent"`
-			Text  string `json:"text"`
-		}
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&in); err != nil {
-			fail(w, http.StatusBadRequest, errors.New("el cuerpo va en JSON: {to, agent, text}"))
-			return
-		}
-		in.To, in.Agent, in.Text = strings.TrimSpace(in.To), strings.TrimSpace(in.Agent), strings.TrimSpace(in.Text)
-		if in.To == "" || in.Agent == "" || in.Text == "" {
-			fail(w, http.StatusBadRequest, errors.New("falta a quién, qué agente o la pregunta"))
-			return
-		}
-		if len([]rune(in.Text)) > maxText {
-			fail(w, http.StatusRequestEntityTooLarge, fmt.Errorf("la pregunta pasa de %d caracteres", maxText))
-			return
-		}
-		ctx, cancel := context.WithTimeout(r.Context(), 70*time.Second)
-		defer cancel()
-		result, err := cli.Ask(ctx, in.To, in.Agent, in.Text)
-		if err != nil {
-			fail(w, http.StatusBadGateway, err)
-			return
-		}
-		writeJSON(w, http.StatusOK, result)
-	})
 	// Preguntarle a canon, la herramienta del equipo (no el agente de una persona): siempre está, aunque no haya
 	// nadie conectado. Tarda unos segundos; la red del playground corta a los 60.
 	mux.HandleFunc("POST /api/canon", func(w http.ResponseWriter, r *http.Request) {
@@ -414,11 +384,9 @@ func handler() http.Handler {
 		}
 		writeJSON(w, http.StatusOK, answer)
 	})
-	agentHandlers(mux)
 	cuadrillaHandlers(mux)
 	serverHandlers(mux)
 	myAgentHandlers(mux)
-	safetyHandlers(mux)
 	historyHandlers(mux)
 	teamServiceHandlers(mux)
 	return mux

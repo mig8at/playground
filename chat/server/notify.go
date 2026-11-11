@@ -197,7 +197,7 @@ type notice struct {
 type me struct {
 	user   string // la parte del correo antes de la @
 	email  string
-	agents []string // tus agentes (agents.json), para `@vos/agente`
+	agents []string // tus agentes (los que guarda el home), para `@vos/agente`
 }
 
 // decide: si este mensaje avisa y con qué texto. Las reglas, en orden: apagado → tuyo o viejo → la conversación
@@ -289,9 +289,13 @@ func whoAmI(ctx context.Context) me {
 		w.email = strings.ToLower(s.Email)
 		w.user = strings.SplitN(w.email, "@", 2)[0]
 	}
-	if shape, err := readAgentsFile(); err == nil {
-		for _, a := range append(shape.Agents, shape.Off...) {
-			w.agents = append(w.agents, a.Name)
+	if people, err := cli.Agents(ctx); err == nil {
+		for _, p := range people {
+			if strings.EqualFold(p.Email, w.email) {
+				for _, a := range p.Agents {
+					w.agents = append(w.agents, a.Name)
+				}
+			}
 		}
 	}
 	if w.email != "" {

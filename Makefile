@@ -127,12 +127,10 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 	 open -n captura/.build/Captura.app --args --panel --out "$(abspath $(or $(OUT),captura/shots))" --spell-log "$(CURDIR)/captura/ortografia/errores.jsonl" $(if $(NO_CLIP),--no-clip) $(if $(NO_SOUND),--no-sound) $(if $(DEBUG),--debug "$$dbg") && \
 	 echo "  · panel de Captura abierto (✕ lo cierra)"
 
-chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar; prende también tus agentes (agents/*, los que no estén corriendo). Usa el CLI `playground` (login y listen); el historial y las imágenes los guarda su servidor en disco, y `bin/chat` los lee desde la terminal
+chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la terminal del playground compartido: conversaciones, quién está conectado y contestar. Usa el CLI `playground` (login y listen); el historial y las imágenes los guarda su servidor en disco, y `bin/chat` los lee desde la terminal
 	@cd chat && npm run dev
 chat-service: ## @dia deja el servidor del chat como servicio del Mac (arranca con la sesión y junta el historial aunque make chat esté cerrado). A=status|uninstall|refresh
 	@cd chat && sh scripts/service.sh $(or $(A),install)
-agents: ## @dia prende tus agentes del chat del playground (agents/*, cada uno su proceso: time :5186). Se declaran en ~/playground/team/agents.json y los anuncia `playground listen`; `playground agents check` dice si contestan
-	@trap 'kill 0' INT TERM; for d in agents/*/; do go run ./$$d & done; wait
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")

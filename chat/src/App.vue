@@ -214,7 +214,7 @@ function setConsoleOpen(v) { consoleOpen.value = v; saveSize('chat.server-consol
 const mediaContext = computed(() => !!chat.active && !serverOpen.value && !activeIsAgent.value && !activeIsCanon.value && !activeIsCuadrilla.value)
 // Qué es el sidebar derecho en lo que está abierto (para el botón de la barra de abajo); vacío si no hay.
 const rightKind = computed(() => docView.value ? 'el documento' : openService.value ? 'las rutas' : serverOpen.value ? ''
-  : activeOwnAgent.value ? 'la ficha del agente' : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu perfil' : '')
+  : mediaContext.value ? 'fotos y archivos' : !chat.activeKey ? 'tu perfil' : '')
 function toggleRight() {
   if (narrow.value) {
     if (narrowList.value) return
@@ -225,7 +225,6 @@ function toggleRight() {
   const open = !agentShown.value
   if (docView.value) { closeDoc(); if (mediaContext.value) setMediaOpen(false); return }
   if (openService.value) setRoutesOpen(open)
-  else if (activeOwnAgent.value) setOwnPanelOpen(open)
   else if (mediaContext.value) setMediaOpen(open)
   else if (!chat.activeKey) setAgentOpen(open)
 }
@@ -233,7 +232,6 @@ const rightOpen = computed(() => {
   if (docView.value) return true
   if (openService.value) return routesOpen.value
   if (serverOpen.value) return false
-  if (activeOwnAgent.value) return ownPanelOpen.value
   if (mediaContext.value) return mediaOpen.value
   return agentOpen.value && !chat.activeKey
 })
@@ -315,13 +313,12 @@ const agentResize = {
     if (mediaContext.value) { setMediaOpen(!!v); if (v) agentW.value = v; return }
     if (openService.value) routesOpen.value = !!v
     else if (serverOpen.value) { /* un server no tiene región derecha */ }
-    else if (activeOwnAgent.value) ownPanelOpen.value = !!v
     else agentOpen.value = !!v
     if (v) agentW.value = v
   },
   reopen: () => agentW.value,
   commit: (v) => {
-    saveSize(openService.value ? 'chat.service-routes-open' : serverOpen.value ? 'chat.server-share-open' : activeOwnAgent.value ? 'chat.own-agent-open' : 'chat.agente-open', v ? 1 : 0)
+    saveSize(openService.value ? 'chat.service-routes-open' : serverOpen.value ? 'chat.server-share-open' : 'chat.agente-open', v ? 1 : 0)
     if (v) saveSize('chat.agente-w', agentW.value)
   },
 }
@@ -381,19 +378,6 @@ const quoteText = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim()
 const activeIsAgent = computed(() => !!chat.active?.person.agent)
 const activeOwner = computed(() => chat.active?.person.owner || null)
 const activeOwnerIsMe = computed(() => (activeOwner.value?.email || '').toLowerCase() === chat.meKey)
-/* UNO DE TUS AGENTES LOCALES abierto (time, fact): a la derecha, su ficha con el interruptor. Apagado no le contesta a
-   nadie, ni al equipo ni a vos, y en la lista sale en gris. */
-const activeOwnAgent = computed(() => (activeIsAgent.value && activeOwnerIsMe.value
-  ? chat.ownAgents.find((a) => a.name === (chat.active.person.agentName || chat.active.person.name)) || null : null))
-const ownPanelOpen = ref(readSize('chat.own-agent-open', 1) !== 0)
-function setOwnPanelOpen(v) { ownPanelOpen.value = v; saveSize('chat.own-agent-open', v ? 1 : 0) }
-const ownBusy = ref(false)
-async function toggleOwnAgent() {
-  const a = activeOwnAgent.value
-  if (!a || ownBusy.value) return
-  ownBusy.value = true
-  try { await chat.setOwnAgent(a.name, !a.on) } finally { ownBusy.value = false }
-}
 const activeTitle = computed(() => {
   const p = chat.active?.person
   if (!p) return 'chat'
@@ -725,7 +709,6 @@ function startTask(task, kind) {
 const agentAnswers = computed(() => mine.agent.mode === 'agente' && !!chat.active && !chat.active.person.agent)
 const canSubmit = computed(() => {
   if (agentAnswers.value) return false
-  if (activeOwnAgent.value && !activeOwnAgent.value.on) return false
   if (!activeIsCuadrilla.value) return !!draft.value.trim() || (canAttach.value && attachments.value.length > 0)
   const t = taskTarget.value
   if (!t) return false
@@ -818,10 +801,9 @@ watch(() => chat.activeKey, async (key) => {
   await nextTick(); autosize(); composer.value?.focus()
 })
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
-const sendLabel = computed(() => (activeIsCuadrilla.value ? 'Anotar' : activeIsAgent.value && !chat.active?.person.delegate ? 'Preguntar' : 'Mandar'))
+const sendLabel = computed(() => (activeIsCuadrilla.value ? 'Anotar' : activeIsCanon.value ? 'Preguntar' : 'Mandar'))
 const placeholder = computed(() => {
   if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
-  if (activeOwnAgent.value && !activeOwnAgent.value.on) return `${activeOwnAgent.value.name} está apagado: prendelo a la derecha para preguntarle`
   if (activeIsCuadrilla.value) {
     const t = taskTarget.value
     if (!t) return 'Elegí una tarea de arriba para anotar en ella'
@@ -831,7 +813,7 @@ const placeholder = computed(() => {
   }
   if (!activeIsAgent.value) return 'Escribí un mensaje'
   if (activeIsCanon.value) return 'Preguntale a canon cómo funciona algo de CreditOp'
-  return activeOwnerIsMe.value ? `Preguntale a tu agente ${activeTitle.value}` : `Preguntale a ${activeTitle.value} de ${firstName(activeOwner.value)}`
+  return activeOwnerIsMe.value ? `Escribile a tu agente ${activeTitle.value}` : `Escribile a ${activeTitle.value}, agente de ${firstName(activeOwner.value)}`
 })
 
 // La pregunta que canon sugiere para seguir: un clic la hace.
@@ -1044,7 +1026,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       </div>
       </section>
 
-      <!-- Los grupos (`#ecommerce`): personas y agentes delegados en una misma conversación. Los reparte el home. -->
+      <!-- Los grupos (`#ecommerce`): personas y agentes en una misma conversación. Los reparte el home. -->
       <section class="view wb-bloque bloque-grupos" :class="{ open: isViewOpen('groups') }">
       <div class="region-head">
         <button type="button" class="view-tog" :aria-expanded="isViewOpen('groups')" @click="toggleView('groups')">
@@ -1067,7 +1049,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <p v-if="newGroupError" class="side-note bad">{{ newGroupError }}</p>
         </form>
         <p v-if="!chat.groupList.length && !newGroupOpen" class="side-note">
-          Sin grupos. Con <b>+</b> creás uno: personas (<code>@dani</code>) y agentes delegados (<code>@duncan/rambo</code>).
+          Sin grupos. Con <b>+</b> creás uno: personas (<code>@dani</code>) y agentes (<code>@miguel/luigi</code>).
         </p>
         <ul v-if="chat.groupList.length" class="conversations">
           <li v-for="g in chat.groupList" :key="g.person.email" class="conv-item">
@@ -1105,17 +1087,17 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <div v-if="isViewOpen('agents')" class="region-body">
         <p v-if="chat.teamAgentsError" class="side-note bad">{{ chat.teamAgentsError }}</p>
         <p v-else-if="!chat.agentList.length" class="side-note">
-          Nadie tiene agentes conectados ahora. Los tuyos los anuncia <code>playground listen</code>: los de
-          <code>~/playground/team/agents.json</code>.
+          Nadie tiene agentes todavía. Uno nace la primera vez que una sesión habla como él:
+          <code>bin/chat send … --as luigi</code>.
         </p>
         <ul v-else class="conversations">
           <li v-for="a in chat.agentList" :key="a.key">
-            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey, off: a.off }" @click="serverOpen = ''; chat.openAgent(a)">
+            <button type="button" class="conversation" :class="{ on: a.key === chat.activeKey }" @click="serverOpen = ''; chat.openAgent(a)">
               <span class="avatar agent" :class="{ mine: a.mine, tool: a.tool }" aria-hidden="true">{{ (a.agentName || '?')[0].toUpperCase() }}</span>
               <span class="conversation-main">
                 <span class="conversation-top">
                   <b class="name">{{ a.agentName }}</b>
-                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? (a.off ? 'tuyo · apagado' : 'tuyo') : firstName(a.owner) }}{{ a.offline ? ' · sin conexión' : '' }}</span>
+                  <span class="owner">{{ a.tool ? 'del equipo' : a.mine ? 'tuyo' : firstName(a.owner) }}</span>
                   <span class="when">{{ shortWhen(a.last?.time) }}</span>
                 </span>
                 <span class="conversation-bottom">
@@ -1324,7 +1306,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <p v-if="!thread.length" class="side-note center">
             <template v-if="activeIsCuadrilla">Acá llega lo que los demás anotan en tus tareas y los bloqueos que dependen de vos.</template>
             <template v-else-if="activeIsCanon">Preguntale cómo funciona algo de CreditOp: contesta con el corpus del equipo y cita de dónde. Cada pregunta va sola, sin las anteriores.</template>
-            <template v-else-if="activeIsAgent">Preguntale lo que quieras: contesta {{ activeOwnerIsMe ? 'desde tu máquina' : `desde la máquina de ${firstName(activeOwner)}` }}.</template>
+            <template v-else-if="activeIsAgent">Un agente es una identidad {{ activeOwnerIsMe ? 'tuya' : `de ${firstName(activeOwner)}` }}: lo que le escribís le llega a {{ activeOwnerIsMe ? 'vos' : firstName(activeOwner) }}, marcado para {{ activeTitle }}, y contesta la sesión que habla como él.</template>
             <template v-else>Todavía no hay mensajes con {{ chat.active.person.name || chat.active.person.email }}.</template>
           </p>
           <button v-if="hiddenCount" type="button" class="older" @click="loadOlder">
@@ -1342,7 +1324,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <!-- Lo que tu agente contestaría: no salió. «Mandar» lo manda a tu nombre; «Descartar» lo tira. -->
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont }]">
               <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': activeIsGroup && item.dir === 'in' && mentionsMeIn(item.text) }">
-                <span v-if="item.author && !item.cont" class="author-label" :class="{ delegate: item.via }">
+                <span v-if="item.author && !item.cont" class="author-label" :class="{ via: item.via }">
                   <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(item.author) }}</template>
                   <b v-else>{{ item.author.name }}</b>
                 </span>
@@ -1547,7 +1529,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : mediaContext && !openService && !activeOwnAgent ? 'Fotos y archivos' : openService ? 'Rutas' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : mediaContext && !openService ? 'Fotos y archivos' : openService ? 'Rutas' : 'Mi agente'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <template v-if="docView">
         <div class="region-head">
@@ -1627,33 +1609,6 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               </template>
             </div>
           </section>
-        </div>
-      </template>
-      <template v-else-if="activeOwnAgent">
-        <div class="region-head">
-          <span>{{ activeOwnAgent.name }} <small class="agent-state">{{ activeOwnAgent.on ? 'prendido' : 'apagado' }}</small></span>
-          <div class="region-actions">
-            <button type="button" class="switch" role="switch" :aria-checked="activeOwnAgent.on" :disabled="ownBusy" @click="toggleOwnAgent"
-                    :title="activeOwnAgent.on ? 'Apagar: deja de contestarle al equipo' : 'Prender: el equipo lo vuelve a ver'"
-                    :aria-label="activeOwnAgent.on ? `Apagar a ${activeOwnAgent.name}` : `Prender a ${activeOwnAgent.name}`"></button>
-            <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar" @click="setOwnPanelOpen(false)">
-              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-            </button>
-          </div>
-        </div>
-        <div class="region-body own-agent">
-          <p>{{ activeOwnAgent.description }}</p>
-          <dl>
-            <dt>Estado</dt>
-            <dd v-if="!activeOwnAgent.on">apagado: el equipo no lo ve y no contesta</dd>
-            <dd v-else-if="activeOwnAgent.listening">le contesta al equipo</dd>
-            <dd v-else>prendido, pero su puerto no contesta: <code>make chat</code> lo levanta</dd>
-            <dt>Dónde escucha</dt>
-            <dd><code>{{ activeOwnAgent.url }}</code>, sólo en esta máquina</dd>
-            <dt>Se declara en</dt>
-            <dd><code>~/playground/team/agents.json</code></dd>
-          </dl>
-          <p v-if="chat.ownAgentsError" class="bad">{{ chat.ownAgentsError }}</p>
         </div>
       </template>
       <template v-else>
@@ -1987,7 +1942,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 .author-label { display: block; font-size: var(--text-xs); color: var(--fg-2); margin-bottom: 2px }
 .author-label b { color: var(--foreground) }
-.author-label.delegate b { color: var(--foreground); font-style: italic }
+.author-label.via b { color: var(--foreground); font-style: italic }
 .group-avatar { font-weight: 700 }
 .new-group { display: flex; flex-direction: column; gap: 6px; padding: 6px var(--gutter, 12px) }
 .new-group-actions { display: flex; gap: 6px }
@@ -2082,8 +2037,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
 .note-del { align-self: center; opacity: 0 }
-.conversation.off .name, .conversation.off .owner, .conversation.off .snippet { color: var(--fg-3) }
-.conversation.off .avatar { filter: grayscale(1); color: var(--fg-3) }
 .own-agent { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-3) }
 .own-agent p { margin: 0 }
 .own-agent dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm) }

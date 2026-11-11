@@ -58,7 +58,7 @@ type Message struct {
 	Time    string `json:"time"`
 	Display string `json:"display,omitempty"`
 	Files   []File `json:"files,omitempty"` // los adjuntos que trae (se bajan con `playground get <id>`)
-	// Group: llegó por un grupo (`#id`). Via: lo mandó un agente delegado de From, no la persona. For: va para uno de
+	// Group: llegó por un grupo (`#id`). Via: lo mandó un agente de From, no la persona. For: va para uno de
 	// TUS agentes (alguien escribió a `@vos/agente`).
 	Group *GroupRef `json:"group,omitempty"`
 	Via   *Via      `json:"via,omitempty"`
@@ -70,7 +70,7 @@ type GroupRef struct {
 	ID string `json:"id"`
 }
 
-// Via es el agente delegado que habló en nombre de su dueño.
+// Via es el agente que habló en nombre de su dueño.
 type Via struct {
 	Name        string `json:"name"`
 	Description string `json:"description,omitempty"`
@@ -452,20 +452,22 @@ func SendAs(ctx context.Context, to, text, re, as string, files ...string) (Send
 	return result.SendResult, nil
 }
 
-// Agent es uno de los agentes que anuncia alguien con `playground listen`.
+// Agent es un agente de alguien: una identidad suya (`@miguel/luigi`) con la que habla una sesión. Nace la primera
+// vez que habla (`send --as`) y el home lo guarda.
 type Agent struct {
-	Name        string `json:"name"`
-	Description string `json:"description"`
-	Delegate    bool   `json:"delegate,omitempty"` // habla en nombre de su dueño y se le escribe; no contesta preguntas
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	LastActive  string   `json:"lastActive,omitempty"`
+	Groups      []string `json:"groups,omitempty"`
 }
 
-// AgentOwner es una persona conectada con sus agentes.
+// AgentOwner es una persona con sus agentes.
 type AgentOwner struct {
 	Person
 	Agents []Agent `json:"agents"`
 }
 
-// Agents devuelve quién tiene agentes conectados ahora y cuáles (`playground agents`).
+// Agents devuelve los agentes de todos, por persona, aunque su dueño no esté (`playground agents`).
 func Agents(ctx context.Context) ([]AgentOwner, error) {
 	out, err := run(ctx, nil, "agents", "--json")
 	if err != nil {
@@ -476,31 +478,6 @@ func Agents(ctx context.Context) ([]AgentOwner, error) {
 		return nil, errors.New("el CLI devolvió algo que no es la lista de agentes")
 	}
 	return people, nil
-}
-
-// AskResult es lo que contesta el agente: la respuesta, o Pending con el id si tardó más de lo que el home
-// espera (la respuesta llega después como mensaje, con Re = ese id).
-type AskResult struct {
-	Answer  string `json:"answer,omitempty"`
-	Pending bool   `json:"pending,omitempty"`
-	ID      string `json:"id"`
-	Agent   string `json:"agent,omitempty"`
-}
-
-// Ask le pregunta `text` al agente `agent` de `to` (`playground ask`).
-//
-// El texto va como UN argumento: el CLI sólo lo tomaría como opción si fuera, entero, una de ellas
-// (`--json`, `-d`…), y eso no es una pregunta.
-func Ask(ctx context.Context, to, agent, text string) (AskResult, error) {
-	out, err := run(ctx, nil, "ask", "@"+strings.TrimPrefix(to, "@"), agent, text, "--json")
-	if err != nil {
-		return AskResult{}, err
-	}
-	var result AskResult
-	if err := json.Unmarshal(out, &result); err != nil {
-		return AskResult{}, errors.New("el CLI devolvió algo que no es la respuesta del agente")
-	}
-	return result, nil
 }
 
 // CanonSource es una sección del corpus que cita canon, con su id para leerla (`playground canon read <id>`).

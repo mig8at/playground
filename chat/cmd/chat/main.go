@@ -790,80 +790,6 @@ func main() {
 			return
 		}
 		printEntry(reply, got)
-	case "ask":
-		waitArg, rest := flagValue(args, "--wait")
-		asJSON, rest := hasFlag(rest, "--json")
-		if len(rest) > 0 {
-			noUnknownFlags(rest[:1])
-		}
-		target := ""
-		if len(rest) > 0 {
-			target = strings.TrimPrefix(rest[0], "@")
-		}
-		owner, agent, ok := strings.Cut(target, "/")
-		if !ok || owner == "" || agent == "" || len(rest) < 2 {
-			fail(errors.New("usage: bin/chat ask <who>/<agent> <question…> [--wait 2m] [--json]"))
-		}
-		wait, err := parseWait(waitArg)
-		if err != nil {
-			fail(err)
-		}
-		h, err := history(-1)
-		if err != nil {
-			fail(err)
-		}
-		var res struct {
-			Answer  string `json:"answer"`
-			Pending bool   `json:"pending"`
-			ID      string `json:"id"`
-		}
-		body, _ := json.Marshal(map[string]any{"to": owner, "agent": agent, "text": strings.Join(rest[1:], " ")})
-		req, _ := http.NewRequest("POST", base()+"/api/ask", bytes.NewReader(body))
-		req.Header.Set("Content-Type", "application/json")
-		resp, err := slowClient.Do(req)
-		if err != nil {
-			fail(errors.New("the chat server is not answering (" + base() + ")"))
-		}
-		data, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
-		if resp.StatusCode >= 300 {
-			var e struct {
-				Error string `json:"error"`
-			}
-			_ = json.Unmarshal(data, &e)
-			fail(fmt.Errorf("ask: %s", e.Error))
-		}
-		_ = json.Unmarshal(data, &res)
-		if !res.Pending {
-			if asJSON {
-				printJSON(map[string]any{"id": res.ID, "answer": res.Answer})
-			} else {
-				fmt.Println(res.Answer)
-			}
-			return
-		}
-		if wait == 0 {
-			if asJSON {
-				printJSON(map[string]any{"id": res.ID, "pending": true})
-			} else {
-				fmt.Printf("… %s/%s is taking long: id %s (the answer arrives later; --wait 2m waits for it)\n", owner, agent, res.ID)
-			}
-			os.Exit(3)
-		}
-		answer, files, ok := waitFor(h.Last, wait, func(m entry) bool { return m.Re == res.ID && m.Dir != "out" })
-		if !ok {
-			if asJSON {
-				printJSON(map[string]any{"id": res.ID, "pending": true})
-			} else {
-				fmt.Printf("… no answer within %s (id %s)\n", wait, res.ID)
-			}
-			os.Exit(3)
-		}
-		if asJSON {
-			printJSON(map[string]any{"id": res.ID, "answer": answer.Text, "message": withPaths(answer, files)})
-			return
-		}
-		fmt.Println(answer.Text)
 	default:
 		fmt.Println(strings.TrimSpace(usage))
 		os.Exit(2)
@@ -884,7 +810,6 @@ bin/chat — the team chat from the terminal (the make chat server, :5185). Ever
                                  your agents. --wait blocks until the first reply there and prints it
                                  (exit 3 if nobody answers in time)
   reply <who> <text…> [same options]   reply to the last message they sent you
-  ask <who>/<agent> <question…> [--wait 2m]   ask someone's agent; --wait also waits for a late answer
  watch
   follow <who>… [--theirs]       each new message as it arrives (for a Monitor); --theirs leaves out yours
 <who>: the email, its part before the @ (or its start: duncan), @duncan, or #group. In a group, mention

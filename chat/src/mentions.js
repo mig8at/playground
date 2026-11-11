@@ -1,5 +1,5 @@
 /* MENCIONES EN LOS GRUPOS. Una mención es texto, como en `playground send`: `@usuario` (la parte del correo antes de
-   la @), `@usuario/agente` para el agente delegado de alguien, o `@todos`. El CLI no las conoce: viajan dentro del
+   la @), `@usuario/agente` para el agente de alguien, o `@todos`. El CLI no las conoce: viajan dentro del
    mensaje y es esta app la que las autocompleta al escribir, las resalta y avisa cuando te nombran. */
 
 export const EVERYONE = 'todos'

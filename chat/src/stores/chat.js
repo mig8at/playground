@@ -240,21 +240,8 @@ export const useChatStore = defineStore('chat', () => {
     .map(summarize)
     .sort((a, b) => (b.last?.time || '').localeCompare(a.last?.time || '')))
 
-  // Los agentes del equipo, uno por fila, con su conversación si ya hubo una: canon primero, después los tuyos.
-  /* TUS AGENTES LOCALES (server/safety.go): los de ~/playground/team/agents.json, prendidos o apagados. Apagado, uno
-     no se le anuncia al equipo, pero sigue en tu lista (en gris), para prenderlo de nuevo desde su conversación. */
-  const ownAgents = ref([])
-  const ownAgentsError = ref('')
-  async function loadOwnAgents() {
-    try { ownAgents.value = (await api('/api/safety')).agents || []; ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
-  }
-  async function setOwnAgent(name, on) {
-    try { await post(`/api/safety/agents/${encodeURIComponent(name)}`, { on }); ownAgentsError.value = '' } catch (e) { ownAgentsError.value = e.message }
-    await loadOwnAgents()
-    loadTeamAgents()
-  }
-  const ownAgentOf = (row) => (row?.mine ? ownAgents.value.find((a) => a.name === row.agentName) || null : null)
-
+  /* Los agentes, uno por fila, con su conversación si ya hubo una: canon y cuadrilla primero, después los tuyos y los
+     del equipo. Un agente es una identidad de alguien (`@miguel/luigi`): se le escribe un mensaje, no se le pregunta. */
   const agentList = computed(() => {
     const rows = []
     if (state.value?.installed) {
@@ -267,22 +254,12 @@ export const useChatStore = defineStore('chat', () => {
       for (const a of p.agents || []) {
         const key = agentKey(p.email, a.name)
         const c = conversations.value[key]
-        rows.push({ key, agentName: a.name, description: a.description, owner: p, mine: keyOf(p.email) === meKey.value, delegate: !!a.delegate,
+        rows.push({ key, agentName: a.name, description: a.description, owner: p, mine: keyOf(p.email) === meKey.value,
+                    lastActive: a.lastActive || '', groups: a.groups || [],
                     ...(c ? summarize(c) : { last: null, unread: 0 }) })
       }
     }
-    // Tus agentes locales que el equipo no ve (apagados, o sin `listen`): igual en tu lista, para prenderlos.
-    const meP = me.value || (state.value?.session?.email ? { email: state.value.session.email, name: state.value.session.name } : null)
-    if (meP) {
-      for (const a of ownAgents.value) {
-        const key = agentKey(meP.email, a.name)
-        const row = rows.find((r) => r.key === key)
-        if (row) { row.off = !a.on; continue }
-        const c = conversations.value[key]
-        rows.push({ key, agentName: a.name, description: a.description, owner: meP, mine: true, off: !a.on, ...(c ? summarize(c) : { last: null, unread: 0 }) })
-      }
-    }
-    // Las conversaciones con agentes cuyo dueño no está conectado (lo que publicaron sigue acá), al final.
+    // Las conversaciones con agentes que el home ya no lista (vencieron o se borraron): siguen acá, al final.
     for (const c of Object.values(conversations.value)) {
       const key = c.person.email
       if (!isAgentKey(key) || key === CANON.key || key === CUADRILLA.key || !c.person.owner?.email || rows.some((r) => r.key === key)) continue
@@ -325,11 +302,11 @@ export const useChatStore = defineStore('chat', () => {
       const sid = m.id || ''
       if (m.dir === 'out') {
         if (!m.to) continue
-        // A un grupo (`#id`) o a un agente delegado (`correo/agente`): su conversación.
+        // A un grupo (`#id`) o a un agente de alguien (`correo/agente`): su conversación.
         if (isGroupKey(m.to) || (m.to.includes('/') && !m.agent)) {
           const [owner, agentName] = m.to.split('/')
           const c = isGroupKey(m.to) ? ensure({ email: m.to, name: m.to, group: true })
-            : ensure({ email: agentKey(owner, agentName), name: agentName, agent: true, delegate: true, owner: { email: keyOf(owner) }, agentName })
+            : ensure({ email: agentKey(owner, agentName), name: agentName, agent: true, owner: { email: keyOf(owner) }, agentName })
           const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === m.text)
           if (own) { own.sid = sid; continue }
           const pushed = push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent',
@@ -373,7 +350,7 @@ export const useChatStore = defineStore('chat', () => {
         }
         continue
       }
-      // Por un grupo: a la conversación del grupo, con quién lo escribió (y si fue el agente delegado de alguien).
+      // Por un grupo: a la conversación del grupo, con quién lo escribió (y si fue el agente de alguien).
       if (m.group?.id) {
         const c = ensure({ email: `#${m.group.id}`, name: `#${m.group.id}`, group: true })
         push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time,
@@ -381,9 +358,9 @@ export const useChatStore = defineStore('chat', () => {
                   ...(m.for ? { forAgent: m.for } : {}), ...(m.queued ? { queued: true } : {}) })
         continue
       }
-      // De un agente delegado de alguien (`--as`): su propia conversación, aparte de la de su dueño.
+      // De un agente de alguien (`--as`): su propia conversación, aparte de la de su dueño.
       if (m.via?.name) {
-        const c = ensure({ email: agentKey(m.from.email, m.via.name), name: m.via.name, agent: true, delegate: true, owner: m.from,
+        const c = ensure({ email: agentKey(m.from.email, m.via.name), name: m.via.name, agent: true, owner: m.from,
                            agentName: m.via.name, detail: m.via.description || '' })
         push(c, { id: sid || legacyId(m), sid, re: m.re || '', dir: 'in', text: String(m.text ?? ''), time: m.time, ...(m.queued ? { queued: true } : {}) })
         continue
@@ -563,7 +540,6 @@ export const useChatStore = defineStore('chat', () => {
   }
 
   async function loadTeamAgents() {
-    loadOwnAgents()
     if (!state.value?.installed) return
     try {
       teamAgents.value = ((await api('/api/team-agents')).people || [])
@@ -574,7 +550,7 @@ export const useChatStore = defineStore('chat', () => {
 
   function openAgent(row) {
     open({ email: row.key, name: row.agentName, agent: true, owner: row.owner, agentName: row.agentName, detail: row.description,
-           ...(row.tool ? { tool: row.agentName } : {}), ...(row.delegate ? { delegate: true } : {}) })
+           ...(row.tool ? { tool: row.agentName } : {}) })
   }
 
   /* LOS GRUPOS (`#ecommerce`): los del home donde estás vos o un agente tuyo. Un home anterior a los grupos contesta
@@ -668,9 +644,10 @@ export const useChatStore = defineStore('chat', () => {
       if (isImage(f)) thumbnailOf(f).then((thumb) => { if (thumb && stored()?.files?.[i]) stored().files[i].thumb = thumb })
     }
     const stored = () => c.messages.find((m) => m.id === message.id)
-    if (c.person.agent && !c.person.delegate) return askAgent(c, body, stored)
-    // El destino: el grupo, el agente delegado (`correo/agente`) o la persona.
-    const to = c.person.delegate ? `${keyOf(c.person.owner?.email)}/${c.person.agentName}` : c.person.email
+    // A canon se le pregunta; las demás herramientas (cuadrilla) tienen su propio camino y no pasan por acá.
+    if (c.person.tool) return c.person.tool === 'canon' ? askCanon(c, body, stored) : undefined
+    // El destino: el grupo, el agente de alguien (`correo/agente`) o la persona.
+    const to = c.person.agent ? `${keyOf(c.person.owner?.email)}/${c.person.agentName}` : c.person.email
     try {
       const ids = []
       for (const [i, f] of attach.entries()) {
@@ -690,21 +667,6 @@ export const useChatStore = defineStore('chat', () => {
       // para que «reintentar» los vuelva a subir.
       for (const f of stored().files || []) if (f.status !== 'subido') f.status = 'error'
       if (attach.length) unsentFiles.set(message.id, attach)
-    }
-  }
-
-  /* Una pregunta a un agente del equipo sale con `playground ask`. Si contesta a tiempo, la respuesta entra
-     como mensaje recibido; si no, la pregunta queda «esperando» con su id y la respuesta llega después. */
-  async function askAgent(c, text, stored) {
-    if (c.person.tool === 'canon') return askCanon(c, text, stored)
-    try {
-      const r = await post('/api/ask', { to: c.person.owner?.email, agent: c.person.agentName, text })
-      if (r.pending) { Object.assign(stored(), { status: 'pending', sid: r.id }); return }
-      Object.assign(stored(), { status: 'answered', sid: r.id })
-      push(c, { id: `answer|${r.id}`, re: r.id, dir: 'in', text: r.answer, time: new Date().toISOString() })
-      markActiveRead()
-    } catch (e) {
-      Object.assign(stored(), { status: 'error', error: e.message })
     }
   }
 
@@ -959,7 +921,7 @@ export const useChatStore = defineStore('chat', () => {
       if (st && !st.session && !st.login?.running && !loginBusy.value) login()
     }
     // Primero la copia del servidor (si el navegador está vacío), después el historial: así nada llega dos veces.
-    loadServerCopy().then(loadState).then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla(), loadOwnAgents()])).then(proposeReplies)
+    loadServerCopy().then(loadState).then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
@@ -975,7 +937,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes, ownAgents, ownAgentsError, loadOwnAgents, setOwnAgent, ownAgentOf,
+    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
