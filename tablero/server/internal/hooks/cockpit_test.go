@@ -1,6 +1,20 @@
 package hooks
 
-import "testing"
+import (
+	"bytes"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"creditop/playground/lib/cockpit"
+)
 
 // Lo que el hook le manda al panel «Claude» de Cockpit: una línea por herramienta, emparejada antes y después.
 func TestCockpitActivitySummarizesEachTool(t *testing.T) {
@@ -61,5 +75,62 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		if app != c.app || route != c.route {
 			t.Errorf("%s %v: dio %q %q, quería %q %q", c.tool, c.in, app, route, c.app, c.route)
 		}
+	}
+}
+
+// Frenar desde Cockpit: con el freno puesto, una herramienta se niega (sale 2 y le dice a Claude por qué), bin/cockpit
+// pasa, y escribirle a Claude lo levanta.
+func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
+	stopped := true
+	var activities int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("x-cockpit-token") != "llave" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/stop":
+			if r.Method == http.MethodPost {
+				var in struct {
+					Stopped bool `json:"stopped"`
+				}
+				_ = json.NewDecoder(r.Body).Decode(&in)
+				stopped = in.Stopped
+			}
+			_ = json.NewEncoder(w).Encode(map[string]bool{"stopped": stopped})
+		case "/activity":
+			activities++
+		}
+	}))
+	defer srv.Close()
+	home := t.TempDir()
+	port := srv.Listener.Addr().(*net.TCPAddr).Port
+	if err := os.MkdirAll(filepath.Dir(cockpit.ControlPath(home)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(cockpit.ControlPath(home), []byte(fmt.Sprintf(`{"port":%d,"token":"llave"}`, port)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hook := func(payload string) (int, string) {
+		var stderr bytes.Buffer
+		code := Cockpit(Env{Home: home, Root: "/repo", Stdin: strings.NewReader(payload), Stdout: io.Discard, Stderr: &stderr})
+		return code, stderr.String()
+	}
+
+	code, msg := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"make harness-case TARGET=local"}}`)
+	if code != 2 || !strings.Contains(msg, "te frenó") {
+		t.Errorf("frenado, el comando se niega con el motivo: %d %q", code, msg)
+	}
+	if activities != 2 {
+		t.Errorf("el intento negado queda en el panel (empieza y falla): %d avisos", activities)
+	}
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"bin/cockpit say paré"}}`); code != 0 {
+		t.Errorf("bin/cockpit pasa aunque esté frenado: %d", code)
+	}
+	if code, _ := hook(`{"hook_event_name":"UserPromptSubmit","prompt":"seguí"}`); code != 0 || stopped {
+		t.Errorf("escribirle a Claude levanta el freno: %d %v", code, stopped)
+	}
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git status"}}`); code != 0 {
+		t.Errorf("sin freno, pasa: %d", code)
 	}
 }

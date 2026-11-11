@@ -222,6 +222,30 @@ fn ensure_app(id: String, running: State<'_, Running>) -> bool {
 #[derive(Default)]
 struct Current(Mutex<String>);
 
+// FRENAR: con el botón del panel «Claude», el hook `cockpit` niega cada herramienta que Claude intente usar (menos
+// `bin/cockpit`, para que pueda contar que paró). Se levanta con «Reanudar» o cuando Miguel le escribe a Claude
+// (hook en UserPromptSubmit). Lo que ya estaba corriendo termina: se corta lo siguiente, no un proceso a la mitad.
+#[derive(Default)]
+struct Stopped(Mutex<bool>);
+
+fn set_stop(app: &tauri::AppHandle, stopped: bool, by: &str) {
+    let changed = {
+        let state = app.state::<Stopped>();
+        let mut s = state.0.lock().unwrap();
+        let changed = *s != stopped;
+        *s = stopped;
+        changed
+    };
+    if changed {
+        let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "stop", "stopped": stopped, "text": by }));
+    }
+}
+
+#[tauri::command]
+fn set_stopped(stopped: bool, app: tauri::AppHandle) {
+    set_stop(&app, stopped, if stopped { "frenado desde Cockpit" } else { "reanudado desde Cockpit" });
+}
+
 #[tauri::command]
 fn set_current(id: String, current: State<'_, Current>) {
     *current.0.lock().unwrap() = id;
@@ -295,7 +319,18 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     .map(|a| serde_json::json!({ "id": a.id, "name": a.name, "ready": ready(a), "started": running.started(a.id) }))
                     .collect();
                 let current = app.state::<Current>().0.lock().unwrap().clone();
-                json_response(200, serde_json::json!({ "current": current, "apps": apps }))
+                let stopped = *app.state::<Stopped>().0.lock().unwrap();
+                json_response(200, serde_json::json!({ "current": current, "apps": apps, "stopped": stopped }))
+            }
+            ("GET", "/stop") => {
+                let stopped = *app.state::<Stopped>().0.lock().unwrap();
+                json_response(200, serde_json::json!({ "stopped": stopped }))
+            }
+            ("POST", "/stop") => {
+                let stopped = input.get("stopped").and_then(|v| v.as_bool()).unwrap_or(false);
+                let by = text("by", 80);
+                set_stop(&app, stopped, if by.is_empty() { if stopped { "frenado" } else { "reanudado" } } else { &by });
+                json_response(200, serde_json::json!({ "stopped": stopped }))
             }
             ("POST", "/open") => {
                 let id = text("app", 40);
@@ -331,7 +366,7 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     json_response(200, serde_json::json!({ "ok": true }))
                 }
             }
-            _ => json_response(404, serde_json::json!({ "error": "rutas: GET /status · POST /open · /say · /activity" })),
+            _ => json_response(404, serde_json::json!({ "error": "rutas: GET /status · /stop · POST /open · /say · /activity · /stop" })),
         };
         let _ = req.respond(reply);
     }
@@ -385,7 +420,8 @@ fn main() {
         .plugin(tauri_plugin_autostart::init(tauri_plugin_autostart::MacosLauncher::LaunchAgent, None))
         .manage(running)
         .manage(Current::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current])
+        .manage(Stopped::default())
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();

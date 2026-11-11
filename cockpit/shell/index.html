@@ -22,12 +22,15 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="workbench.css">
 <style>
-  /* Los colores de estado son de Cockpit (el tema no los trae): «terminó bien», en claro y en oscuro, los mismos del chat. */
+  /* Los colores de estado son de Cockpit (el tema no los trae, y su «destructivo» en oscuro es un gris verdoso): «terminó
+     bien» y «falló o frenado», en claro y en oscuro, los mismos del chat (presencia y mensaje que no salió). */
   :root {
     --cockpit-ok: #15803d;
+    --cockpit-stop: #dc2626;
   }
   :root.dark {
     --cockpit-ok: #4ade80;
+    --cockpit-stop: #f87171;
   }
   * { box-sizing: border-box }
   html, body { margin: 0; height: 100%; overflow: hidden }
@@ -76,13 +79,25 @@
   .act .state { flex: none; width: 8px; height: 8px; border-radius: 50%; align-self: center; background: var(--fg-3) }
   .act .state.run { background: var(--primary); animation: blink 1s ease-in-out infinite }
   .act .state.ok { background: var(--cockpit-ok) }
-  .act .state.fail { background: var(--destructive) }
+  .act .state.fail { background: var(--cockpit-stop) }
   .act.open { color: var(--fg-2) }
   @keyframes blink { 50% { opacity: .35 } }
   /* Seguir a Claude: el punto naranja sigue, gris queda quieto (como en Jarvis). */
   aside header .follow { width: auto; gap: 6px; padding: 0 var(--space-2); font-size: var(--text-xs); font-weight: 400; display: inline-flex; align-items: center }
   aside header .follow i { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
   aside header .follow.on i { background: var(--primary) }
+  /* Frenar: el botón se pinta en rojo mientras está frenado, y debajo de la cabecera queda el aviso (barra y tinte,
+     como un callout de la guía) con «Reanudar». */
+  aside header #stopToggle.on { background: var(--cockpit-stop); color: var(--background) }
+  .stopbar { flex: none; display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--gutter);
+    border-left: 3px solid var(--cockpit-stop); background: color-mix(in oklab, var(--cockpit-stop) 14%, transparent);
+    font-size: var(--text-sm); line-height: 1.4 }
+  .stopbar[hidden] { display: none }
+  .stopbar span { flex: 1 }
+  .stopbar button { flex: none; height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control);
+    background: var(--panel-surface); color: var(--foreground); font: inherit; font-size: var(--text-xs); cursor: pointer }
+  .stopbar button:hover { background: var(--hover) }
+  .act.stop { color: var(--fg-2); font-weight: 600 }
 </style>
 </head>
 <body>
@@ -91,9 +106,11 @@
 <aside id="activity" aria-label="Lo que hace Claude" hidden>
   <header><span>Claude</span><span class="grow"></span>
     <button type="button" id="followToggle" class="follow"><i aria-hidden="true"></i><span></span></button>
+    <button type="button" id="stopToggle" title="Frenar a Claude: no va a poder usar más herramientas" aria-label="Frenar a Claude"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
     <button type="button" id="activityClear" title="Vaciar" aria-label="Vaciar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5L18.5 7M9 7V4.5h6V7"/></svg></button>
     <button type="button" id="activityClose" title="Ocultar" aria-label="Ocultar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </header>
+  <div class="stopbar" id="stopbar" role="status" hidden><span>Claude está frenado: no puede usar herramientas hasta que lo reanudes o le escribas.</span><button type="button" id="resume">Reanudar</button></div>
   <div class="feed" id="feed" aria-live="polite"><p class="empty">Cuando una sesión de Claude use herramientas o <code>bin/cockpit</code>, lo vas a ver acá, en vivo.</p></div>
 </aside>
 <script>
@@ -308,8 +325,30 @@ function line(className, html) {
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 // Con más de una sesión mandando, cada línea dice de cuál es (los primeros caracteres de su id).
 const sess = (a) => (a.session ? sessions.add(a.session) : null, sessions.size > 1 && a.session ? `<span class="sess">${esc(a.session.slice(0, 4))}</span>` : '')
+/* FRENAR (Rust `set_stopped`, el hook `cockpit` niega las herramientas): el botón de la cabecera frena y reanuda; el
+   aviso de abajo dice que está frenado. Lo levanta también escribirle a Claude (el hook en UserPromptSubmit). */
+let stopped = false
+const stopToggle = document.getElementById('stopToggle')
+const stopbar = document.getElementById('stopbar')
+function paintStop() {
+  stopToggle.classList.toggle('on', stopped)
+  stopToggle.title = stopped ? 'Reanudar: Claude vuelve a poder usar herramientas' : 'Frenar a Claude: no va a poder usar más herramientas'
+  stopToggle.setAttribute('aria-label', stopped ? 'Reanudar a Claude' : 'Frenar a Claude')
+  stopToggle.setAttribute('aria-pressed', String(stopped))
+  stopbar.hidden = !stopped
+}
+stopToggle.addEventListener('click', () => invoke('set_stopped', { stopped: !stopped }).catch(() => {}))
+document.getElementById('resume').addEventListener('click', () => invoke('set_stopped', { stopped: false }).catch(() => {}))
+paintStop()
 function onActivity(a) {
   if (!a || !a.kind) return
+  if (a.kind === 'stop') {
+    stopped = !!a.stopped
+    paintStop()
+    line('stop', `<span>${stopped ? '■' : '▶'} ${esc(a.text)}</span><time>${clock()}</time>`)
+    if (stopped && !activityOpen) setActivityOpen(true)
+    return
+  }
   if (a.kind === 'say') line('say', `${sess(a)}<p>${esc(a.text)}</p><time>${clock()}</time>`)
   else if (a.kind === 'open') line('open', `${sess(a)}<span>→ ${esc(apps.find((x) => x.id === a.app)?.name || a.app)} ${esc(a.text)}</span><time>${clock()}</time>`)
   else if (a.kind === 'start') {

@@ -4,15 +4,20 @@ package hooks
 //
 // Le pasa a Cockpit (cockpit/, la app de escritorio) cada herramienta que usa Claude, para que Miguel vea en vivo, en
 // el panel «Claude», qué está haciendo: antes de usarla (`start`, con una línea que la resume) y al terminar (`end`).
-// Corre en PreToolUse y PostToolUse de TODAS las herramientas (`.claude/settings.json`).
+// Corre en PreToolUse y PostToolUse de TODAS las herramientas, y en UserPromptSubmit (`.claude/settings.json`).
 //
-// ⚠ No puede frenar ni demorar a Claude: si Cockpit no está abierto (no hay archivo de control) sale al instante; si
-// no contesta, corta a los 400 ms. Siempre sale 0.
+// FRENAR: si Miguel tocó «Frenar» en el panel, en PreToolUse NIEGA la herramienta (sale 2: Claude Code le muestra el
+// motivo a Claude) y la anota como ✗. Deja pasar sólo `bin/cockpit` (para que Claude cuente que paró) y las herramientas
+// internas de la app (cerrar el turno). Cuando Miguel le escribe a Claude (UserPromptSubmit), el freno se levanta.
+//
+// ⚠ Fuera de eso no puede demorar a Claude: si Cockpit no está abierto (no hay archivo de control) sale al instante; si
+// no contesta, corta a los 400 ms y deja pasar.
 
 import (
 	"crypto/sha1"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -30,12 +35,50 @@ func Cockpit(env Env) int {
 	if !ok {
 		return 0
 	}
+	const wait = 400 * time.Millisecond
+	switch str(payload, "hook_event_name") {
+	case "UserPromptSubmit":
+		_ = ctl.Do("POST", "/stop", map[string]any{"stopped": false, "by": "reanudado: le escribiste a Claude"}, nil, wait)
+		return 0
+	case "PreToolUse":
+		if cockpitAlwaysAllowed(payload) {
+			break
+		}
+		var st struct {
+			Stopped bool `json:"stopped"`
+		}
+		if ctl.Do("GET", "/stop", nil, &st, wait) == nil && st.Stopped {
+			if act, send := cockpitActivity(payload, env.Root); send {
+				_ = ctl.Do("POST", "/activity", act, nil, wait)
+				no := false
+				act.Kind, act.OK = "end", &no
+				_ = ctl.Do("POST", "/activity", act, nil, wait)
+			}
+			fmt.Fprintln(env.Stderr, "Miguel te frenó desde Cockpit: no uses más herramientas. Contale en una línea qué estabas "+
+				"haciendo y dónde quedó, y esperá su indicación (puede reanudar desde el panel de Cockpit o escribirte).")
+			return 2
+		}
+	}
 	act, send := cockpitActivity(payload, env.Root)
 	if !send {
 		return 0
 	}
-	_ = ctl.Do("POST", "/activity", act, nil, 400*time.Millisecond)
+	_ = ctl.Do("POST", "/activity", act, nil, wait)
 	return 0
+}
+
+// cockpitAlwaysAllowed: lo que pasa aunque esté frenado — `bin/cockpit` (contar que paró) y lo interno de la app
+// (la lista de tareas, cerrar el turno).
+func cockpitAlwaysAllowed(payload map[string]any) bool {
+	tool := str(payload, "tool_name")
+	if strings.HasPrefix(tool, "mcp__ccd_") || tool == "ToolSearch" || tool == "TodoWrite" {
+		return true
+	}
+	if tool == "Bash" {
+		cmd := strings.TrimSpace(str(toolInput(payload), "command"))
+		return strings.HasPrefix(cmd, "bin/cockpit ") || strings.Contains(cmd, "/bin/cockpit ")
+	}
+	return false
 }
 
 // cockpitActivity arma la línea del panel. `false`: no se manda (una herramienta interna de la app, o el propio
