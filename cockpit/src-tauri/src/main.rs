@@ -582,6 +582,12 @@ fn main() {
                 .title("Cockpit")
                 .inner_size(1320.0, 840.0)
                 .min_inner_size(420.0, 480.0)
+                // El micrófono, para dictar en el chat (Whisper corre en esta máquina): sí. La cámara y lo demás: no.
+                // macOS además pregunta una vez por el micrófono (NSMicrophoneUsageDescription, src-tauri/Info.plist).
+                .on_permission_request(|_, kind| match kind {
+                    tauri::webview::PermissionKind::Microphone => tauri::webview::PermissionResponse::Allow,
+                    _ => tauri::webview::PermissionResponse::Deny,
+                })
                 // Un enlace que abre ventana nueva, de cualquier app: a tu navegador.
                 .on_new_window(move |url, _| {
                     if matches!(url.scheme(), "http" | "https" | "mailto") {

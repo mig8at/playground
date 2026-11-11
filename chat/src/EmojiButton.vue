@@ -58,7 +58,7 @@ onBeforeUnmount(() => { close(); removeEventListener('ui-theme', paintTheme) })
 
 <template>
   <div ref="root" class="emoji-button">
-    <button type="button" class="btn btn-outline composer-attach" :aria-expanded="open" aria-haspopup="dialog"
+    <button type="button" class="emoji-trigger" :aria-expanded="open" aria-haspopup="dialog"
             title="Emojis" aria-label="Elegir un emoji" @click="toggle">
       <span class="ui-icon" data-icon="emoji" aria-hidden="true"></span>
     </button>
@@ -68,7 +68,13 @@ onBeforeUnmount(() => { close(); removeEventListener('ui-theme', paintTheme) })
 
 <style scoped>
 .emoji-button { position: relative; flex: none }
-.emoji-pop { position: absolute; bottom: calc(100% + 8px); left: 0; z-index: 30; border-radius: var(--radius-control);
+/* Adentro de la caja de texto, a la derecha, como en WhatsApp: sin borde, del color del texto secundario. */
+.emoji-trigger { display: grid; place-items: center; width: 28px; height: 28px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--fg-2); cursor: pointer }
+.emoji-trigger:hover, .emoji-trigger[aria-expanded="true"] { color: var(--foreground); background: var(--hover) }
+.emoji-trigger:focus-visible { outline: 1px solid var(--ring) }
+.emoji-trigger .ui-icon { width: 18px; height: 18px }
+.emoji-pop { position: absolute; bottom: calc(100% + 12px); right: -6px; z-index: 30; border-radius: var(--radius-control);
   border: 1px solid var(--border); overflow: hidden; box-shadow: var(--shadow-popover, none) }
 /* Los colores de la base dentro del selector (sus variables atraviesan el shadow DOM). */
 .emoji-pop :deep(emoji-picker) {

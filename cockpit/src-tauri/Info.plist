@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <!-- Tauri lo junta con el Info.plist de la app. Sin esta clave, macOS no deja usar el micrófono. -->
+  <key>NSMicrophoneUsageDescription</key>
+  <string>Cockpit usa el micrófono para dictar mensajes en el chat. El audio se transcribe en esta Mac, sin salir de ella.</string>
+</dict>
+</plist>

@@ -255,6 +255,8 @@ async function loadOnce(id) {
   wait.remove()
   const f = document.createElement('iframe')
   f.title = app.name
+  // El micrófono, para dictar (el chat); sin esto un iframe de otro origen no puede pedirlo.
+  f.allow = 'microphone'
   f.src = app.url
   f.hidden = current !== id
   f.addEventListener('load', () => { tellTheme(f); tellVisibility(); tellClaude(); deliverRoute(id) })

@@ -133,3 +133,5 @@ json: ecommerce/server/lambda.go periodo fechaPago diasCotizados valorCotizacion
 path: ecommerce/server/testdata/tx-C9EB4CCBE833427692978EDE28379ADC.json
 # el engranaje de configuración de Cockpit
 gear
+# el dictado del chat: Whisper (whisper.cpp), ffmpeg y transcribir
+whisper ffmpeg transcribe

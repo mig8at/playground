@@ -27,6 +27,7 @@ import NotifySettings from './NotifySettings.vue'
 import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak } from './speech.js'
 import RegionMenu from './RegionMenu.vue'
 import EmojiButton from './EmojiButton.vue'
+import DictationButton from './DictationButton.vue'
 import { conversationMode, loadNotify, notify, reportView, setConversationMode } from './notifyStore.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -725,6 +726,31 @@ function updateMention() {
 function onComposerInput() { autosize(); updateMention() }
 // Un emoji del selector (EmojiButton): entra donde estaba el cursor, o reemplaza lo seleccionado, y el foco vuelve a la
 // caja para seguir escribiendo. Vacío (Esc): sólo vuelve el foco.
+/* DICTAR (DictationButton): el micrófono ocupa el lugar de «mandar» cuando no hay nada para mandar, sólo si el
+   servidor dice que Whisper está listo (GET /api/dictate); mientras graba o transcribe se queda aunque haya texto. */
+const dictationReady = ref(false)
+const dictationState = ref({ phase: 'idle', seconds: 0, error: '' })
+fetch('/api/dictate').then((r) => r.json()).then((d) => { dictationReady.value = !!d.ready }).catch(() => {})
+const showDictation = (empty) => dictationReady.value && (empty || dictationState.value.phase !== 'idle')
+let dictationErrorTimer = 0
+function onDictationState(s) {
+  dictationState.value = { error: '', ...s }
+  clearTimeout(dictationErrorTimer)
+  if (s.error) dictationErrorTimer = setTimeout(() => { dictationState.value = { ...dictationState.value, error: '' } }, 6000)
+}
+const dictationNote = computed(() => {
+  const s = dictationState.value
+  if (s.error) return s.error
+  if (s.phase === 'recording') return `● Escuchando ${Math.floor(s.seconds / 60)}:${String(s.seconds % 60).padStart(2, '0')} · tocá ■ para terminar, Esc cancela`
+  if (s.phase === 'working') return 'Transcribiendo en tu máquina…'
+  return ''
+})
+// Un texto dictado entra como un emoji, con un espacio antes si lo anterior no termina en uno.
+function insertDictation(text) {
+  const el = composer.value
+  const start = el?.selectionStart ?? draft.value.length
+  insertEmoji(start > 0 && !/\s$/.test(draft.value.slice(0, start)) ? ` ${text}` : text)
+}
 async function insertEmoji(emoji) {
   const el = composer.value
   if (!el) return
@@ -1340,12 +1366,16 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       </div>
 
       <form v-if="!chat.active" class="composer" @submit.prevent="submit">
+        <p v-if="dictationNote" class="dictation-note" :class="{ error: dictationState.error }" role="status">{{ dictationNote }}</p>
         <div class="composer-row">
-          <EmojiButton @pick="insertEmoji" />
-          <label class="sr-only" for="composer-text">Escribite algo</label>
-          <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
-                    maxlength="2000" placeholder="Escribite algo: lo ven vos y tus agentes" @keydown="onKeydown" @input="autosize"></textarea>
-          <button type="submit" class="btn btn-send" :disabled="!draft.trim()" title="Mandar"
+          <div class="composer-field">
+            <label class="sr-only" for="composer-text">Escribite algo</label>
+            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
+                      maxlength="2000" placeholder="Escribite algo: lo ven vos y tus agentes" @keydown="onKeydown" @input="autosize"></textarea>
+            <EmojiButton class="composer-emoji" @pick="insertEmoji" />
+          </div>
+          <DictationButton v-if="showDictation(!draft.trim())" @text="insertDictation" @state="onDictationState" />
+          <button v-else type="submit" class="btn btn-send" :disabled="!draft.trim()" title="Mandar"
                   aria-label="Mandar"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
         </div>
       </form>
@@ -1574,6 +1604,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="mention-handle">@{{ o.handle }}</span><span class="mention-label">{{ o.label }}</span>
             </li>
           </ul>
+          <p v-if="dictationNote" class="dictation-note" :class="{ error: dictationState.error }" role="status">{{ dictationNote }}</p>
           <div class="composer-row" @dragover.prevent @drop.prevent="onDropFiles">
             <template v-if="canAttach">
               <input ref="fileInput" type="file" multiple class="sr-only" aria-hidden="true" tabindex="-1" @change="onPickFiles">
@@ -1582,14 +1613,17 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
               </button>
             </template>
-            <EmojiButton @pick="insertEmoji" />
+            <div class="composer-field">
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
             <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="onComposerInput" @paste="onPasteFiles"
                       @click="updateMention" @blur="mention = null" role="combobox" :aria-expanded="mentionOptions.length > 0"
                       aria-autocomplete="list" :aria-controls="mentionOptions.length ? 'mention-menu' : undefined"
                       :aria-activedescendant="mentionOptions.length ? `mention-${mention.index}` : undefined"></textarea>
-            <button type="submit" class="btn btn-send" :disabled="!canSubmit" :title="sendLabel" :aria-label="sendLabel"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
+            <EmojiButton class="composer-emoji" @pick="insertEmoji" />
+            </div>
+            <DictationButton v-if="showDictation(!canSubmit)" @text="insertDictation" @state="onDictationState" />
+            <button v-else type="submit" class="btn btn-send" :disabled="!canSubmit" :title="sendLabel" :aria-label="sendLabel"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
           </div>
         </form>
       </template>
@@ -2279,6 +2313,12 @@ button.file-tile { cursor: zoom-in }
 .live-notice { display: inline-flex; align-items: center; gap: 6px; color: var(--primary-ink, var(--primary)) }
 .live-notice .ui-icon { width: 13px; height: 13px }
 .composer-row { display: flex; align-items: flex-end; gap: var(--space-2) }
+/* La caja con el 😊 adentro, a la derecha (como WhatsApp): la caja deja lugar para el botón. */
+.composer-field { position: relative; flex: 1; min-width: 0; display: flex }
+.composer-field .composer-text { flex: 1; padding-right: 42px }
+.composer-emoji { position: absolute; right: 6px; bottom: 4px }
+.dictation-note { margin: 0; font-size: var(--text-sm); color: var(--fg-2) }
+.dictation-note.error { color: var(--send-fail) }
 .composer-text { height: auto; min-height: var(--control-md); max-height: 160px; padding-block: 7px; resize: none; line-height: 1.4;
   font: inherit; font-size: var(--text-body); border-radius: 18px; padding-inline: 14px }
 

@@ -135,5 +135,11 @@ cambio en tablero, harness, Jarvis, Designer o ecommerce.
 - ⚠ Reinstalar **apaga las apps que Cockpit había levantado** (no las que levantaste vos).
 - ⚠ Después de reinstalar, macOS puede volver a pedir permiso para la carpeta Escritorio, y hasta que Miguel
   lo acepta el servidor del chat queda colgado: no es el código.
+- **El micrófono** (dictar en el chat): Cockpit concede sólo el micrófono a sus apps (`on_permission_request`), los
+  iframes lo piden con `allow="microphone"`, y macOS pregunta una vez (`NSMicrophoneUsageDescription`, en
+  `src-tauri/Info.plist`, que Tauri junta con el de la app). La transcripción la hace el servidor del chat con Whisper
+  en esta máquina (`chat/server/dictation.go`): pide `brew install whisper-cpp` y el modelo en
+  `~/.cache/whisper/ggml-large-v3-turbo-q5_0.bin` (~550 MB, de huggingface.co/ggerganov/whisper.cpp); sin eso, el
+  micrófono no aparece.
 - Cerrar la ventana la esconde: Cockpit sigue juntando el historial del chat y avisando. Arranca sola al
   iniciar sesión.
