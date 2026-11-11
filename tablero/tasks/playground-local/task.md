@@ -100,6 +100,16 @@ jira_title: ""
   bitácora, como ODD no deja artefactos para lo trivial. Termina cuando `make cierre` distingue los dos casos y
   la regla queda en `tablero/CLAUDE.md`.
 
+- [ ] Vigía · saber qué estado es una falla: verificar en `main` (los dos monolitos) qué significan los estados de
+  `user_requests` que hoy se cuentan como «rechazo o error» (6 y 8, sin verificar) y cuáles son «se cayó a mitad».
+  Termina cuando la consulta de la fase 1 cita el archivo:línea de cada estado que usa.
+- [ ] Vigía · fase 1, una pasada por consola: `make sentinel` lee prod (sólo lectura, Redash) y dice por entidad y por
+  comercio, en la última hora contra la misma hora de los 7 días anteriores, volumen, fallas y si se salió de lo normal;
+  sale 1 si hay alerta. Termina cuando corre contra prod y da una tabla que Miguel reconoce como cierta.
+- [ ] Vigía · decidir con Miguel lo abierto del frente (qué vigilar, qué es «salirse», por dónde avisar). Termina cuando
+  el frente lo dice y no quedan preguntas.
+  Depende de: Miguel — las respuestas de «Preguntas para decidir».
+
 ## Alcance
 
 Lo transversal a las herramientas locales —`harness`, `tablero`, `trazador`, `visor` y las que
@@ -326,3 +336,41 @@ turno cueste un contexto entero; lo que sirvió de ella (que lo afirmado lo comp
   reactivación de un comercio, la espera del asesor y del titular en IMEI, un desembolso IMEI fallido, la guarda
   `ALLIED_DISABLED` del OTP v2 y la elección de camino del KYC (`OBV23000`/`OBV23001`/`OBV23003`). Termina cuando cada una corre con `make harness-suite` o queda descartada con su motivo.
 
+
+## Frente: vigía de producción — saber pronto si un cambio que subió está fallando
+
+**Objetivo.** Un lugar que consulte solo, cada pocos minutos, lo que pasa en producción por **entidad** y por
+**comercio**, y avise cuando algo se sale de lo normal; sobre todo en las horas siguientes a un despliegue, para que un
+cambio que rompe algo se vea en minutos y no cuando lo reporta un comercio. Es el OKR de Miguel («servicios saludables
+y monitoreados», alertas de salud) aplicado a la originación. Idea del 2026-11-11, para retomar al día siguiente.
+
+**Lo que ya existe y sirve (medido el 2026-11-11).**
+- *Producción se lee sin VPN*, por Redash (`bin/pg sql --target prod`, sólo lectura): en el último día, 1.109 solicitudes
+  por `user_request_status_id`, y por entidad con `user_requests.lender_id` → `lenders` (Addi 138, Bancolombia consumo 43,
+  Welli 41…). El comercio está en `allied_id` y la sucursal en `allied_branch_id`.
+- *Qué se desplegó y cuándo*: `make deploys` (repo, ambiente, versión, fecha y si falló); en dos días, 3 despliegues a
+  producción (`legacy-backend v0.6.46`, `legacy-application v1.2.11` y `v1.2.12`). Es el «antes y después».
+- *Lo que no está en la base*: errores en los logs por servicio (`bin/pg logs`, Loki de prod, con credenciales), errores
+  de pantalla que vio el cliente (`bin/pg events errors`, PostHog), y trabajos fallidos de la cola (`bin/pg jobs failed`).
+- *Avisar*: el chat ya manda avisos de macOS y un agente puede hablar como agente (`bin/chat … --as`); Slack, por `bin/pg
+  slack post` (escribe: sólo con confirmación).
+
+**Diseño propuesto (a decidir).** Nombre de trabajo: `sentinel` (centinela), en inglés como el resto del código.
+1. *Una pasada, por consola* (`make sentinel`): por entidad y por comercio, la última hora contra **la misma hora de los
+   7 días anteriores** —el volumen cambia mucho por hora y día, así que un umbral fijo mentiría—: cuántas solicitudes
+   entraron, cuántas fallaron, cuántas quedaron trabadas, y si se salió de su rango normal; más los errores de Loki por
+   servicio y los trabajos fallidos en la misma ventana. Marca los despliegues a producción de esa ventana. Sale 1 si
+   hay alerta. Sólo lectura.
+2. *Periódico y con avisos*: corre cada 10–15 min (un LaunchAgent como el pulso, o dentro de Cockpit) y, cuando algo se
+   sale, avisa por macOS y en el chat («Addi: 0 solicitudes en la última hora, normal 6–9 · desde el despliegue de
+   legacy-backend v0.6.46 de las 15:10»), con el enlace al tracer del equipo para mirar el caso. En las 2 horas después de
+   un despliegue a producción, más seguido y más sensible. Sin repetir el mismo aviso.
+3. *La vista*: una app en Cockpit con un semáforo por entidad y comercio, la curva del día contra lo normal y las marcas
+   de despliegue; un clic lleva a las solicitudes de esa hora.
+
+**Lo que NO entra.** Escribir en producción (nada: sólo lectura, como todo prod). Reemplazar las alertas de infraestructura
+del equipo (caídas de servidores, CPU): esto mira el negocio —¿siguen entrando y avanzando solicitudes?—, no la máquina.
+
+**Preguntas para decidir.** ¿Todas las entidades y comercios, o una lista de los que importan? ¿Qué es «falla» para cada
+señal (los estados, cuántos minutos sin avanzar es «trabada»)? ¿Qué tan sensible (muchas alertas falsas cansan y se
+ignoran)? ¿Por dónde avisar: macOS, el chat, un canal de Slack del equipo? ¿Vive en Cockpit o aparte?
