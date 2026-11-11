@@ -58,6 +58,13 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5191", "127.0.0.1:8787"],
         start: Start::Make("tablero"),
     },
+    AppDef {
+        id: "harness",
+        name: "Harness",
+        url: "http://localhost:5195/",
+        ready: &["127.0.0.1:5195"],
+        start: Start::Make("panel"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
