@@ -38,8 +38,8 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 
 ### Cockpit: donde Miguel ve las herramientas, y lo que hacés
 
-Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor) y
-ecommerce— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
+Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor),
+ecommerce y Sentinel— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
 en cualquier tarea:
 
 - **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el
@@ -78,6 +78,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **¿qué entidades le salen a ESTE comercio?** | `make harness-listing MERCHANT=…` (3 s, por API). El código y el conocimiento local explican el mecanismo; esto contesta el caso |
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
 | **¿esta regla excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
+| **¿algo que subió a producción está rompiendo la originación?** | Sentinel (`make sentinel`, o su app en Cockpit): por entidad y comercio, la última hora contra la misma hora de los 7 días anteriores, la curva del día y los despliegues a producción. Sólo lectura. Cómo decide: [`sentinel/CLAUDE.md`](sentinel/CLAUDE.md) |
 | **¿cómo se VE esta interfaz?** (después de tocar una UI) | `make ui-shot APP=<app> ROUTE='#/…' [CLICK='selector']`: la captura en un Chromium sin ventana más los errores de consola y los pedidos fallidos; `COCKPIT=1`, la ventana de Cockpit tal como la ve Miguel. No depende del navegador de la sesión ni levanta servidores |
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). El panel (la app Harness de Cockpit, `make panel`) es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
 | **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |

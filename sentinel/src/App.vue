@@ -1,0 +1,368 @@
+<script setup>
+/* SENTINEL: el vigía de producción. A la izquierda las entidades y los comercios con su semáforo (la última hora contra
+ * la misma hora de los 7 días anteriores); al centro el elegido —o toda la originación—, con su curva del día contra lo
+ * normal y las marcas de los despliegues a producción; a la derecha lo que pide atención, los despliegues y la cola.
+ *
+ * Sólo lee: la API (sentinel/server) consulta producción cada 5 minutos por Redash. La ruta es `#/lender/<id>`,
+ * `#/merchant/<id>` o vacía (toda la originación). */
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, setRoute } from './workbench.js'
+
+const data = ref(null)       // el Overview de la API
+const apiError = ref('')
+const running = ref(false)
+const query = ref('')
+const route = ref({ kind: 'all', id: 0 })
+
+async function load() {
+  try {
+    const res = await fetch('/api/overview')
+    const body = await res.json()
+    data.value = body.overview || data.value
+    apiError.value = body.error || ''
+    running.value = !!body.running
+  } catch {
+    apiError.value = 'No contesta la API. ¿Está arriba? (make sentinel levanta las dos partes)'
+  }
+}
+async function refresh() {
+  running.value = true
+  try { await fetch('/api/refresh', { method: 'POST' }) } catch { /* lo dice load */ }
+  setTimeout(load, 1500)
+}
+let timer = null
+
+// ── lo elegido ──
+const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold(s.name).includes(fold(query.value))) : list || [])
+// Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
+// mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
+const idle = (s) => s.median === 0 && s.now.total === 0
+const showIdle = ref({ lender: false, merchant: false })
+const lenders = computed(() => filtered(data.value?.lenders))
+const merchants = computed(() => filtered(data.value?.merchants))
+const selected = computed(() => {
+  const d = data.value
+  if (!d) return null
+  if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
+  if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
+  return d.all
+})
+const attention = computed(() => [...(data.value?.lenders || []), ...(data.value?.merchants || [])].filter((s) => s.state === 'alert' || s.state === 'warn'))
+const countOf = (list, state) => (list || []).filter((s) => s.state === state).length
+
+function readRoute() {
+  const { parts } = readHashRoute()
+  route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
+}
+function pick(s) {
+  if (!s || s.kind === 'all') setRoute([])
+  else setRoute([s.kind, String(s.id)])
+  readRoute()
+}
+const isOn = (s) => route.value.kind === s.kind && route.value.id === s.id
+
+// ── textos ──
+const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
+const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción' }
+const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }) : '')
+const dayClock = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '')
+const pct = (x) => `${Math.round((x || 0) * 100)} %`
+const fmt = (x) => (Number.isInteger(x) ? String(x) : (x || 0).toFixed(1))
+const repoShort = (r) => r.replace('legacy-', '')
+
+// ── la curva: hoy contra lo normal (mediana y rango de los 7 días anteriores), por hora ──
+const W = 720
+const H = 220
+const PAD = { l: 34, r: 12, t: 12, b: 24 }
+const chart = computed(() => {
+  const s = selected.value
+  if (!s?.normal) return null
+  const top = Math.max(4, ...s.normalHigh, ...(s.today || [])) * 1.1
+  const x = (h) => PAD.l + (h / 23) * (W - PAD.l - PAD.r)
+  const y = (v) => H - PAD.b - (v / top) * (H - PAD.t - PAD.b)
+  const band = s.normalHigh.map((v, h) => `${x(h)},${y(v)}`).concat(s.normalLow.map((v, h) => `${x(h)},${y(v)}`).reverse()).join(' ')
+  const median = s.normal.map((v, h) => `${x(h)},${y(v)}`).join(' ')
+  const today = (s.today || []).map((v, h) => `${x(h)},${y(v)}`).join(' ')
+  const last = (s.today || []).length - 1
+  const ticks = [0, Math.round(top / 2), Math.round(top)].map((v) => ({ v, y: y(v) }))
+  // Los despliegues de HOY, en su hora. Los de ayer se listan a la derecha.
+  const todayStr = new Date().toDateString()
+  const marks = (data.value?.deploys || []).filter((d) => new Date(d.at).toDateString() === todayStr).map((d) => {
+    const t = new Date(d.at)
+    return { ...d, x: x(t.getHours() + t.getMinutes() / 60) }
+  })
+  return { band, median, today, ticks, marks, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
+})
+
+// ── las regiones, con el contrato de la base ──
+const sidebarOpen = ref(readSize('sentinel.sidebar-open', 1) !== 0)
+const sidebarW = ref(readSize('sentinel.sidebar-w', 300))
+const auxOpen = ref(readSize('sentinel.aux-open', 1) !== 0)
+const auxW = ref(readSize('sentinel.aux-w', 320))
+const viewportW = ref(window.innerWidth)
+const onWindowResize = () => { viewportW.value = window.innerWidth }
+const shown = computed(() => {
+  const min = cssSize('--sidebar-min', 240)
+  const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
+    { size: auxOpen.value ? auxW.value : 0, min },
+    { size: sidebarOpen.value ? sidebarW.value : 0, min },
+  ])
+  return { sidebar, aux }
+})
+const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
+const sidebarResize = {
+  label: 'Ancho de la lista', sign: 1, defaultValue: 300,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - shown.value.aux - cssSize('--editor-min', 360),
+  get: () => shown.value.sidebar,
+  set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
+  reopen: () => sidebarW.value,
+  commit: (v) => { saveSize('sentinel.sidebar-open', v ? 1 : 0); if (v) saveSize('sentinel.sidebar-w', sidebarW.value) },
+}
+const auxResize = {
+  label: 'Ancho de las alertas', sign: -1, defaultValue: 320,
+  min: () => cssSize('--sidebar-min', 240),
+  max: () => viewportW.value - shown.value.sidebar - cssSize('--editor-min', 360),
+  get: () => shown.value.aux,
+  set: (v) => { if (!v) auxOpen.value = false; else { auxOpen.value = true; auxW.value = v } },
+  reopen: () => auxW.value,
+  commit: (v) => { saveSize('sentinel.aux-open', v ? 1 : 0); if (v) saveSize('sentinel.aux-w', auxW.value) },
+}
+function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('sentinel.sidebar-open', sidebarOpen.value ? 1 : 0) }
+function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('sentinel.aux-open', auxOpen.value ? 1 : 0) }
+
+const themeToggle = ref(null)
+let themeBinding = null
+onMounted(() => {
+  window.addEventListener('resize', onWindowResize)
+  window.addEventListener('hashchange', readRoute)
+  if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  readRoute()
+  load()
+  timer = setInterval(load, 30_000)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', onWindowResize)
+  window.removeEventListener('hashchange', readRoute)
+  clearInterval(timer)
+  themeBinding?.destroy?.()
+})
+</script>
+
+<template>
+  <div class="workbench" :style="layoutVars">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Entidades y comercios">
+      <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
+      <div class="region-head">
+        <span>Sentinel</span>
+        <span v-if="attention.length" class="count attention">{{ attention.length }} para mirar</span>
+      </div>
+      <div class="search">
+        <input v-model="query" class="input" type="search" placeholder="Buscar una entidad o un comercio…" aria-label="Buscar" />
+      </div>
+      <div class="region-body">
+        <button type="button" class="row subject" :class="{ on: route.kind === 'all' }" @click="pick(null)">
+          <i class="dot" :class="`is-${data?.all?.state}`" aria-hidden="true"></i>
+          <span class="subject-name">Toda la originación</span>
+          <small v-if="data?.all" class="subject-nums" title="en la última hora · lo normal a esta hora">{{ data.all.now.total }} · {{ fmt(data.all.median) }}</small>
+        </button>
+        <template v-for="group in [{ id: 'lender', title: 'Entidades', list: lenders }, { id: 'merchant', title: 'Comercios', list: merchants }]" :key="group.id">
+          <div class="region-head group">
+            <span>{{ group.title }}</span>
+            <span class="count">
+              <template v-if="countOf(group.list, 'alert')"><i class="dot is-alert" aria-hidden="true"></i>{{ countOf(group.list, 'alert') }} · </template>
+              <template v-if="countOf(group.list, 'warn')"><i class="dot is-warn" aria-hidden="true"></i>{{ countOf(group.list, 'warn') }} · </template>{{ group.list.length }}
+            </span>
+          </div>
+          <button v-for="s in group.list.filter((x) => !idle(x) || showIdle[group.id] || query.trim())" :key="`${s.kind}-${s.id}`" type="button" class="row subject" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }"
+                  :title="s.why" @click="pick(s)">
+            <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
+            <span class="subject-name">{{ s.name }}</span>
+            <small class="subject-nums" title="en la última hora · lo normal a esta hora">{{ s.now.total }} · {{ fmt(s.median) }}</small>
+          </button>
+          <button v-if="!query.trim() && group.list.some(idle)" type="button" class="row idle-toggle" @click="showIdle[group.id] = !showIdle[group.id]">
+            {{ showIdle[group.id] ? 'Ocultar' : 'Ver' }} {{ group.list.filter(idle).length }} sin movimiento a esta hora
+          </button>
+        </template>
+        <p v-if="!data && !apiError" class="none">Leyendo producción… la primera pasada tarda unos 20 segundos.</p>
+        <p v-if="apiError && !data" class="none">{{ apiError }}</p>
+      </div>
+    </aside>
+
+    <main class="editor">
+      <div class="region-head">
+        <span>{{ selected ? selected.name : 'Sentinel' }}</span>
+        <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · última hora {{ clock(data.windowFrom) }}–{{ clock(data.windowTo) }}</span>
+      </div>
+      <div class="region-body">
+        <div v-if="selected" class="view">
+          <p class="verdict" :class="`is-${selected.state}`">
+            <i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i>
+            <b>{{ STATE_LABEL[selected.state] }}</b> · {{ selected.why }}
+          </p>
+
+          <div class="cards">
+            <div class="card-num"><span class="card-label">Última hora</span><span class="card-value">{{ selected.now.total }}</span>
+              <span class="card-what">solicitudes que entraron</span></div>
+            <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
+              <span class="card-what">entre {{ selected.low }} y {{ selected.high }} a esta hora, los 7 días anteriores</span></div>
+            <div class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
+              <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo normal {{ pct(selected.deniedRateNormal) }}</span></div>
+          </div>
+
+          <section class="chart-box">
+            <div class="chart-head">
+              <h3>Hoy, hora por hora</h3>
+              <span class="legend"><i class="sw today" aria-hidden="true"></i>hoy <i class="sw normal" aria-hidden="true"></i>lo normal (mediana)
+                <i class="sw band" aria-hidden="true"></i>rango de los 7 días <i class="sw deploy" aria-hidden="true"></i>despliegue a producción</span>
+            </div>
+            <svg v-if="chart" class="chart" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="`Solicitudes por hora de ${selected.name}, hoy contra lo normal`">
+              <g class="grid">
+                <line v-for="t in chart.ticks" :key="t.v" :x1="PAD.l" :x2="W - PAD.r" :y1="t.y" :y2="t.y" />
+                <text v-for="t in chart.ticks" :key="`l${t.v}`" :x="PAD.l - 6" :y="t.y + 4" text-anchor="end">{{ t.v }}</text>
+                <text v-for="h in chart.hours" :key="`h${h.h}`" :x="h.x" :y="H - 6" text-anchor="middle">{{ h.h }}h</text>
+              </g>
+              <polygon class="band" :points="chart.band" />
+              <polyline class="median" :points="chart.median" />
+              <g v-for="m in chart.marks" :key="m.url" class="deploy-mark">
+                <line :x1="m.x" :x2="m.x" :y1="PAD.t" :y2="H - PAD.b" />
+                <text :x="m.x + 4" :y="PAD.t + 10">{{ repoShort(m.repo) }} {{ m.version }}</text>
+              </g>
+              <polyline class="today" :points="chart.today" />
+              <circle class="now" :cx="chart.lastX" :cy="chart.lastY" r="4"><title>hora en curso: todavía se está llenando</title></circle>
+            </svg>
+            <p class="chart-note">El último punto es la hora en curso: todavía se está llenando.</p>
+          </section>
+
+          <section v-if="selected.baseline?.length" class="days">
+            <h3>Esta misma hora, los días anteriores</h3>
+            <div class="day-bars">
+              <div v-for="(n, i) in selected.baseline" :key="i" class="day-bar" :title="`hace ${i + 1} día(s): ${n}`">
+                <span class="bar" :style="{ height: `${Math.max(4, (n / Math.max(1, selected.high, selected.now.total)) * 64)}px` }"></span>
+                <small>-{{ i + 1 }}d</small>
+              </div>
+              <div class="day-bar today" :title="`hoy: ${selected.now.total}`">
+                <span class="bar" :style="{ height: `${Math.max(4, (selected.now.total / Math.max(1, selected.high, selected.now.total)) * 64)}px` }"></span>
+                <small>hoy</small>
+              </div>
+            </div>
+          </section>
+        </div>
+        <div v-else class="empty-state">
+          <p class="empty-title">Sentinel</p>
+          <p>{{ apiError || 'Leyendo producción… la primera pasada tarda unos 20 segundos.' }}</p>
+        </div>
+      </div>
+    </main>
+
+    <aside v-show="shown.aux" class="auxiliarybar" aria-label="Alertas y despliegues">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span>Para mirar</span>
+        <span class="count">{{ attention.length }}</span>
+      </div>
+      <div class="region-body">
+        <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora.</p>
+        <button v-for="s in attention" :key="`a-${s.kind}-${s.id}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
+          <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
+          <small class="row-desc">{{ s.why }}</small>
+        </button>
+
+        <div class="region-head group"><span>Despliegues a producción</span><span class="count">{{ data?.deploys?.length || 0 }}</span></div>
+        <p v-if="data?.deploysNote" class="none">{{ data.deploysNote }}</p>
+        <p v-else-if="data && !data.deploys?.length" class="none">Ninguno en los últimos dos días.</p>
+        <a v-for="d in data?.deploys || []" :key="d.url" class="row stacked" :href="d.url" target="_blank" rel="noopener">
+          <span><i class="dot" :class="d.ok ? 'is-ok' : 'is-alert'" aria-hidden="true"></i>{{ repoShort(d.repo) }} <b>{{ d.version }}</b></span>
+          <small class="row-desc">{{ dayClock(d.at) }} · {{ d.title }}</small>
+        </a>
+
+        <div class="region-head group"><span>La cola</span></div>
+        <div v-if="data" class="row stacked static">
+          <span><i class="dot" :class="data.failedJobs.total > Math.max(2, data.failedJobsNormal * 3) ? 'is-warn' : 'is-ok'" aria-hidden="true"></i>
+            {{ data.failedJobs.total }} trabajo(s) fallido(s) en la última hora</span>
+          <small class="row-desc">lo normal a esta hora: {{ fmt(data.failedJobsNormal) }}</small>
+        </div>
+      </div>
+    </aside>
+
+    <footer class="statusbar">
+      <span v-if="data">{{ data.source }} · leído a las {{ clock(data.checkedAt) }} ({{ fmt(data.seconds) }} s) · se vuelve a leer cada 5 min</span>
+      <span v-else>{{ apiError || 'leyendo producción…' }}</span>
+      <span v-if="apiError && data" class="statusbar-item warn-text">{{ apiError }}</span>
+      <button type="button" class="statusbar-item linkish" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
+      <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
+        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar la lista" aria-label="Mostrar u ocultar la lista" @click="toggleSidebar">
+          <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
+        </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar las alertas" aria-label="Mostrar u ocultar las alertas" @click="toggleAux">
+          <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
+        </button>
+      </div>
+    </footer>
+  </div>
+</template>
+
+<style scoped>
+.search { padding: 0 var(--space-3) var(--space-2) }
+.search .input { width: 100%; box-sizing: border-box }
+.none { margin: 0; padding: var(--space-3); color: var(--fg-2); font-size: var(--text-sm) }
+.count.attention { color: var(--sentinel-warn) }
+.dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); margin-right: 6px; vertical-align: 1px }
+.dot.is-alert { background: var(--sentinel-alert) }
+.dot.is-warn { background: var(--sentinel-warn) }
+.dot.is-ok { background: var(--sentinel-ok) }
+.dot.is-quiet { background: color-mix(in oklab, var(--fg-3) 60%, transparent) }
+.subject { display: flex; align-items: center; gap: 2px }
+.subject-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.subject-nums { flex: none; color: var(--fg-3); font-variant-numeric: tabular-nums }
+.subject.is-quiet .subject-name { color: var(--fg-2) }
+.idle-toggle { color: var(--fg-3); font-size: var(--text-sm) }
+.idle-toggle:hover { color: var(--foreground) }
+
+.view { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6); max-width: 980px }
+.verdict { margin: 0; display: flex; align-items: center; gap: 4px; font-size: var(--text-body); color: var(--fg-2) }
+.verdict b { color: var(--foreground) }
+.verdict.is-alert b { color: var(--sentinel-alert) }
+.verdict.is-warn b { color: var(--sentinel-warn) }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3) }
+.card-num { display: flex; flex-direction: column; gap: 2px; padding: var(--space-3) var(--space-4); border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px); background: var(--card) }
+.card-label { font-size: var(--text-xs); font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
+.card-value { font-size: calc(var(--text-title) * 1.5); font-weight: 600; font-variant-numeric: tabular-nums }
+.card-what { font-size: var(--text-sm); color: var(--fg-2) }
+
+.chart-box, .days { display: flex; flex-direction: column; gap: var(--space-2) }
+.chart-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap }
+h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
+.legend { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; font-size: var(--text-xs); color: var(--fg-2) }
+.sw { display: inline-block; width: 14px; height: 3px; border-radius: 2px; margin-left: 6px }
+.sw.today { background: var(--primary) }
+.sw.normal { background: var(--fg-3) }
+.sw.band { height: 10px; background: color-mix(in oklab, var(--fg-3) 25%, transparent) }
+.sw.deploy { width: 2px; height: 10px; background: var(--sentinel-warn) }
+.chart { width: 100%; height: auto; border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); background: var(--card) }
+.chart .grid line { stroke: var(--border); stroke-width: 1 }
+.chart .grid text { fill: var(--fg-3); font-size: 10px }
+.chart .band { fill: color-mix(in oklab, var(--fg-3) 18%, transparent); stroke: none }
+.chart .median { fill: none; stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 4 4 }
+.chart .today { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round }
+.chart .now { fill: var(--card); stroke: var(--primary); stroke-width: 2 }
+.chart .deploy-mark line { stroke: var(--sentinel-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
+.chart .deploy-mark text { fill: var(--sentinel-warn); font-size: 10px }
+.chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
+.day-bars { display: flex; align-items: flex-end; gap: var(--space-3); height: 90px; padding: var(--space-2) 0 }
+.day-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-3) }
+.day-bar .bar { width: 28px; border-radius: 4px 4px 0 0; background: color-mix(in oklab, var(--fg-3) 35%, transparent) }
+.day-bar.today .bar { background: var(--primary) }
+.day-bar.today small { color: var(--foreground); font-weight: 600 }
+
+.attention-row .row-desc { white-space: normal }
+.row.static { cursor: default }
+.muted { color: var(--fg-3) }
+.linkish { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline }
+.linkish:disabled { cursor: default; text-decoration: none; color: var(--fg-3) }
+.empty-state { padding: var(--space-6) }
+.empty-title { margin: 0 0 var(--space-2); font-size: var(--text-title); font-weight: 600 }
+</style>

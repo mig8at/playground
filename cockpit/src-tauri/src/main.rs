@@ -92,6 +92,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5178", "127.0.0.1:5179"],
         start: Start::Make("ecommerce"),
     },
+    AppDef {
+        // El vigía de producción (sentinel/): por entidad y comercio, la última hora contra lo normal, y los despliegues.
+        id: "sentinel",
+        name: "Sentinel",
+        url: "http://localhost:5210/",
+        ready: &["localhost:5210", "127.0.0.1:5211"],
+        start: Start::Make("sentinel"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

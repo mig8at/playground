@@ -100,12 +100,14 @@ jira_title: ""
   bitácora, como ODD no deja artefactos para lo trivial. Termina cuando `make cierre` distingue los dos casos y
   la regla queda en `tablero/CLAUDE.md`.
 
-- [ ] Vigía · saber qué estado es una falla: verificar en `main` (los dos monolitos) qué significan los estados de
-  `user_requests` que hoy se cuentan como «rechazo o error» (6 y 8, sin verificar) y cuáles son «se cayó a mitad».
-  Termina cuando la consulta de la fase 1 cita el archivo:línea de cada estado que usa.
-- [ ] Vigía · fase 1, una pasada por consola: `make sentinel` lee prod (sólo lectura, Redash) y dice por entidad y por
-  comercio, en la última hora contra la misma hora de los 7 días anteriores, volumen, fallas y si se salió de lo normal;
-  sale 1 si hay alerta. Termina cuando corre contra prod y da una tabla que Miguel reconoce como cierta.
+- [x] Vigía · saber qué estado es una falla — 2026-11-11, por el catálogo de producción (`user_request_statuses`): 6 es
+  Negada y 8 Cancelado, decisiones y no fallas; los grupos (aprobadas, negadas) están en `sentinel/server/main.go`. No se
+  verificó en el código de los monolitos.
+- [ ] Vigía · fase 1 y la vista (prototipo hecho el 2026-11-11: `sentinel/`, app en Cockpit, lee prod cada 5 min): que
+  Miguel la mire y reconozca los números como ciertos. Termina cuando lo dice, o cuando corrige qué está mal.
+- [ ] Vigía · fase 2, avisar solo: cuando algo pasa a alerta, un aviso (macOS, chat o Slack, según decida Miguel), sin
+  repetir el mismo; más seguido en las 2 horas después de un despliegue a producción. Termina cuando una alerta real
+  llega sola y una que ya se avisó no se repite.
 - [ ] Vigía · decidir con Miguel lo abierto del frente (qué vigilar, qué es «salirse», por dónde avisar). Termina cuando
   el frente lo dice y no quedan preguntas.
   Depende de: Miguel — las respuestas de «Preguntas para decidir».
@@ -355,7 +357,7 @@ y monitoreados», alertas de salud) aplicado a la originación. Idea del 2026-11
 - *Avisar*: el chat ya manda avisos de macOS y un agente puede hablar como agente (`bin/chat … --as`); Slack, por `bin/pg
   slack post` (escribe: sólo con confirmación).
 
-**Diseño propuesto (a decidir).** Nombre de trabajo: `sentinel` (centinela), en inglés como el resto del código.
+**Prototipo (2026-11-11): `sentinel/`** —ver `sentinel/CLAUDE.md`— con las fases 1 y 3 armadas sobre datos reales; falta la 2. El diseño:
 1. *Una pasada, por consola* (`make sentinel`): por entidad y por comercio, la última hora contra **la misma hora de los
    7 días anteriores** —el volumen cambia mucho por hora y día, así que un umbral fijo mentiría—: cuántas solicitudes
    entraron, cuántas fallaron, cuántas quedaron trabadas, y si se salió de su rango normal; más los errores de Loki por

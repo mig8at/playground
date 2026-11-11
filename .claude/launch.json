@@ -354,6 +354,17 @@
       "cwd": "ecommerce",
       "port": 5289,
       "autoPort": false
+    },
+    {
+      "name": "sentinel",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "sentinel",
+      "port": 5210,
+      "autoPort": false
     }
   ]
 }

@@ -1,0 +1,28 @@
+/* EL VOCABULARIO VISUAL DE SENTINEL.
+ *
+ * Las mismas capas que las demás herramientas, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo acá: el
+ * estado de una entidad o un comercio contra lo normal, y la curva del día.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* El semáforo: en alerta (no entró nada), para mirar (se salió de lo normal), bien, y poco volumen para comparar.
+   Propios de Sentinel: el «destructivo» del tema en oscuro es un gris verdoso y no dice alerta. */
+:root {
+  --sentinel-alert: #dc2626;
+  --sentinel-warn: #b45309;
+  --sentinel-ok: #15803d;
+}
+.dark {
+  --sentinel-alert: #f87171;
+  --sentinel-warn: #fbbf24;
+  --sentinel-ok: #4ade80;
+}
+
+/* El contrato de la base: la página ocupa la ventana y no scrollea; scrollea cada región. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-base) }
+#app { height: 100% }

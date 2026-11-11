@@ -34,6 +34,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | `chat/` | El chat del equipo: interfaz, su servidor (va adentro de Cockpit) y `bin/chat`. |
 | [`jarvis/`](jarvis/CLAUDE.md) | Manejar paneles admin complejos en el Chrome de Miguel con su extensión, y dejarlos como recetas reproducibles. |
 | [`visor/`](visor/CLAUDE.md) | Un diseño de Figma pantalla por pantalla al lado de su HTML traducido. En Cockpit se llama **Designer**. |
+| [`sentinel/`](sentinel/CLAUDE.md) | El vigía de producción: si lo que entra por entidad y comercio se salió de lo normal, con los despliegues marcados. Sólo lectura. |
 | [`ecommerce/`](ecommerce/README.md) | Qué le pasó a una prueba de tienda, por celular, URL del wizard o número de solicitud. |
 | [`tienda-simple/`](tienda-simple/README.md) | La tienda VTEX de pruebas (tema y checkout). |
 | [`tools/`](tools/CLAUDE.md) | Lo transversal: el sistema de diseño que comparten las interfaces ([`tools/ui/`](tools/ui/README.md)) y sus chequeos. |

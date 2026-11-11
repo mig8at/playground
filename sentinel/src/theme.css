@@ -1,0 +1,313 @@
+/* Tema compartido de CreditOp.
+ *
+ * Fuente canónica: tema Darkmatter de ShadcnThemer, aportado por Miguel el 2026-09-19.
+ * Se cambia únicamente aquí y `make estilo-sync` distribuye la misma paleta, tipografía y radios
+ * a context, trazador, tablero y harness/panel.
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: oklch(1.0000 0 0);
+  --foreground: oklch(0.2101 0.0318 264.6645);
+  --card: oklch(1.0000 0 0);
+  --card-foreground: oklch(0.2101 0.0318 264.6645);
+  --popover: oklch(1.0000 0 0);
+  --popover-foreground: oklch(0.2101 0.0318 264.6645);
+  --primary: oklch(0.6716 0.1368 48.5130);
+  --primary-foreground: oklch(1.0000 0 0);
+  --secondary: oklch(0.5360 0.0398 196.0280);
+  --secondary-foreground: oklch(1.0000 0 0);
+  --muted: oklch(0.9670 0.0029 264.5419);
+  --muted-foreground: oklch(0.5510 0.0234 264.3637);
+  --accent: oklch(0.9491 0 0);
+  --accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --destructive: oklch(0.6368 0.2078 25.3313);
+  --border: oklch(0.9276 0.0058 264.5313);
+  --input: oklch(0.9276 0.0058 264.5313);
+  --ring: oklch(0.6716 0.1368 48.5130);
+  --chart-1: oklch(0.5940 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.6830 0 0);
+  --sidebar: oklch(0.9670 0.0029 264.5419);
+  --sidebar-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-primary: oklch(0.6716 0.1368 48.5130);
+  --sidebar-primary-foreground: oklch(1.0000 0 0);
+  --sidebar-accent: oklch(1.0000 0 0);
+  --sidebar-accent-foreground: oklch(0.2101 0.0318 264.6645);
+  --sidebar-border: oklch(0.9276 0.0058 264.5313);
+  --sidebar-ring: oklch(0.6716 0.1368 48.5130);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+}
+
+.dark {
+  --background: oklch(0.1797 0.0043 308.1928);
+  --foreground: oklch(0.8109 0 0);
+  --card: oklch(0.1822 0 0);
+  --card-foreground: oklch(0.8109 0 0);
+  --popover: oklch(0.1797 0.0043 308.1928);
+  --popover-foreground: oklch(0.8109 0 0);
+  --primary: oklch(0.7214 0.1337 49.9802);
+  --primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --secondary: oklch(0.5940 0.0443 196.0233);
+  --secondary-foreground: oklch(0.1797 0.0043 308.1928);
+  --muted: oklch(0.2520 0 0);
+  --muted-foreground: oklch(0.6268 0 0);
+  --accent: oklch(0.3211 0 0);
+  --accent-foreground: oklch(0.8109 0 0);
+  --destructive: oklch(0.5940 0.0443 196.0233);
+  --border: oklch(0.2520 0 0);
+  --input: oklch(0.2520 0 0);
+  --ring: oklch(0.7214 0.1337 49.9802);
+  --chart-1: oklch(0.5940 0.0443 196.0233);
+  --chart-2: oklch(0.7214 0.1337 49.9802);
+  --chart-3: oklch(0.8721 0.0864 68.5474);
+  --chart-4: oklch(0.6268 0 0);
+  --chart-5: oklch(0.6830 0 0);
+  --sidebar: oklch(0.1822 0 0);
+  --sidebar-foreground: oklch(0.8109 0 0);
+  --sidebar-primary: oklch(0.7214 0.1337 49.9802);
+  --sidebar-primary-foreground: oklch(0.1797 0.0043 308.1928);
+  --sidebar-accent: oklch(0.3211 0 0);
+  --sidebar-accent-foreground: oklch(0.8109 0 0);
+  --sidebar-border: oklch(0.2520 0 0);
+  --sidebar-ring: oklch(0.7214 0.1337 49.9802);
+  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+  --font-serif: ui-serif, Georgia, Cambria, "Times New Roman", Times, serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --radius: 0.625rem;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+  --font-serif: var(--font-serif);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ══ PALETAS ═══════════════════════════════════════════════════════════════════════════════════
+   Además del color por defecto (Darkmatter, arriba), la persona puede elegir otra paleta en Configuración →
+   Apariencia → Color (en Cockpit, el modal del engranaje; traído del playground compartido el 2026-11-11). Se pone como `data-palette` en el <html> (lo aplica `THEME_BOOT` antes de pintar) y
+   vale en todo el playground, igual que el tema claro u oscuro; sin el atributo es la base tal cual.
+
+   Una paleta redefine sólo lo que la distingue —lienzo, tinta, tarjeta, sidebar, borde, acento y el radio—
+   y el resto se deriva (bloque de abajo). La rampa de texto, el hover y las tintas de `workbench.css` se
+   recalculan solos. Las que traen `.dark` tienen otro valor en oscuro; esa regla es más específica y gana.
+   El rojo de error no cambia. Vienen del prototipo de la anatomía del workbench (los `data-preset`), sin
+   sombras: la base no tiene tokens de sombra.
+
+   Para agregar una: su bloque acá, su entrada en `PALETTES` de `workbench.js` y su círculo en
+   `.paleta-muestra` de `workbench.css`. */
+/* Lo que una paleta no dice se DERIVA de lo que sí dice, igual que la rampa de texto de `workbench.js`: un
+   solo lugar, y cada paleta sólo declara lo que la distingue. Va antes de los bloques para que una paleta
+   pueda pisar cualquiera. El tinte de `muted` y `accent` sale del texto contra el lienzo. */
+:root[data-palette] {
+  --card-foreground: var(--foreground);
+  --popover: var(--card);
+  --popover-foreground: var(--foreground);
+  --secondary-foreground: var(--primary-foreground);
+  --muted: var(--sidebar);
+  --muted-foreground: color-mix(in oklab, var(--foreground) 62%, var(--background));
+  --accent: color-mix(in oklab, var(--foreground) 8%, var(--background));
+  --accent-foreground: var(--foreground);
+  --input: var(--border);
+  --ring: var(--primary);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--card);
+  --sidebar-accent-foreground: var(--foreground);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--primary);
+}
+
+/* Vintage Paper */
+:root[data-palette="vintage"] {
+  --background: hsl(39 35% 92%);
+  --foreground: hsl(25 15% 18%);
+  --card: hsl(39 34% 95%);
+  --sidebar: hsl(38 26% 87%);
+  --border: hsl(34 20% 76%);
+  --primary: hsl(30 36% 38%);
+  --primary-ink: hsl(30 42% 32%);
+  --primary-foreground: hsl(39 35% 95%);
+  --secondary: hsl(28 24% 37%);
+  --secondary-foreground: hsl(39 35% 95%);
+  --fg-2: color-mix(in oklab, var(--foreground) 84%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 78%, var(--background));
+  --radius-control: 4px;
+  --radius-float: 6px;
+}
+:root[data-palette="vintage"].dark {
+  --background: hsl(25 15.4% 15.3%);
+  --foreground: hsl(39 34.5% 88.6%);
+  --card: hsl(26 14% 18.5%);
+  --sidebar: hsl(27.3 12.6% 17.1%);
+  --border: hsl(24.7 13% 25.7%);
+  --primary: hsl(30 33.7% 62.7%);
+  --primary-ink: hsl(30 33.7% 62.7%);
+  --primary-foreground: hsl(25 15% 14%);
+  --secondary: hsl(30 26% 58%);
+  --secondary-foreground: hsl(25 15% 12%);
+}
+
+/* Catppuccin */
+:root[data-palette="catppuccin"] {
+  --background: #eff1f5;
+  --foreground: #4c4f69;
+  --card: #e6e9ef;
+  --sidebar: #e6e9ef;
+  --border: #ccd0da;
+  --primary: #8839ef;
+  --primary-ink: #7528d8;
+  --primary-foreground: #eff1f5;
+  --secondary: #0d6f75;
+  --secondary-foreground: #eff1f5;
+  --fg-2: color-mix(in oklab, var(--foreground) 92%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 90%, var(--background));
+  --radius-control: 6px;
+  --radius-float: 10px;
+}
+:root[data-palette="catppuccin"].dark {
+  --background: #1e1e2e;
+  --foreground: #cdd6f4;
+  --card: #181825;
+  --sidebar: #181825;
+  --border: #313244;
+  --primary: #cba6f7;
+  --primary-ink: #cba6f7;
+  --primary-foreground: #11111b;
+  --secondary: #94e2d5;
+  --secondary-foreground: #11111b;
+}
+
+/* Nord */
+:root[data-palette="nord"] {
+  --background: #eceff4;
+  --foreground: #2e3440;
+  --card: #e5e9f0;
+  --sidebar: #e5e9f0;
+  --border: #d8dee9;
+  --primary: #4a6a94;
+  --primary-ink: #3f5d85;
+  --primary-foreground: #eceff4;
+  --secondary: #3a7071;
+  --secondary-foreground: #eceff4;
+  --fg-2: color-mix(in oklab, var(--foreground) 84%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 77%, var(--background));
+  --radius-control: 4px;
+  --radius-float: 8px;
+}
+:root[data-palette="nord"].dark {
+  --background: #2e3440;
+  --foreground: #eceff4;
+  --card: #3b4252;
+  --sidebar: #292e39;
+  --border: #434c5e;
+  --primary: #88c0d0;
+  --primary-ink: #88c0d0;
+  --primary-foreground: #2e3440;
+  --secondary: #8fbcbb;
+  --secondary-foreground: #2e3440;
+}
+
+/* Monokai Pro */
+:root[data-palette="monokaipro"] {
+  --background: #faf4f2;
+  --foreground: #29242a;
+  --card: #fefaf9;
+  --sidebar: #ede7e5;
+  --border: #d3cdcc;
+  --primary: #c6305f;
+  --primary-ink: #c6305f;
+  --primary-foreground: #ffffff;
+  --secondary: #137088;
+  --secondary-foreground: #ffffff;
+  --fg-2: color-mix(in oklab, var(--foreground) 84%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 78%, var(--background));
+  --radius-control: 4px;
+  --radius-float: 6px;
+}
+:root[data-palette="monokaipro"].dark {
+  --background: #2d2a2e;
+  --foreground: #fcfcfa;
+  --card: #221f22;
+  --sidebar: #221f22;
+  --border: #403e41;
+  --primary: #ff6188;
+  --primary-ink: #ff6188;
+  --primary-foreground: #2d2a2e;
+  --secondary: #78dce8;
+  --secondary-foreground: #2d2a2e;
+}
+
+/* Monokai Ristretto */
+:root[data-palette="ristretto"] {
+  --background: #f8efe7;
+  --foreground: #2c232e;
+  --card: #fdf7f3;
+  --sidebar: #eee5de;
+  --border: #d2c9c4;
+  --primary: #bd3a63;
+  --primary-ink: #bd3a63;
+  --primary-foreground: #ffffff;
+  --secondary: #1a7561;
+  --secondary-foreground: #ffffff;
+  --fg-2: color-mix(in oklab, var(--foreground) 84%, var(--background));
+  --fg-3: color-mix(in oklab, var(--foreground) 78%, var(--background));
+  --radius-control: 4px;
+  --radius-float: 6px;
+}
+:root[data-palette="ristretto"].dark {
+  --background: #2c2525;
+  --foreground: #fff1f3;
+  --card: #211c1c;
+  --sidebar: #211c1c;
+  --border: #403838;
+  --primary: #fd6883;
+  --primary-ink: #fd6883;
+  --primary-foreground: #2c2525;
+  --secondary: #85dacc;
+  --secondary-foreground: #2c2525;
+}

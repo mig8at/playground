@@ -18,6 +18,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `jarvis` | Jarvis | `jarvis/` | :5202 · :5203 | `make jarvis` |
 | `designer` | el visor de diseños de Figma | `visor/` | :5193 · :5194 | `make visor` |
 | `ecommerce` | qué le pasó a una prueba de tienda | `ecommerce/` | :5178 · :5179 | `make ecommerce` |
+| `sentinel` | el vigía de producción: entidades y comercios contra lo normal | `sentinel/` | :5210 · :5211 | `make sentinel` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 

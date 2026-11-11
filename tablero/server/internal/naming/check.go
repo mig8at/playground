@@ -251,6 +251,7 @@ func Apps(root string) []Board {
 		app("keyring", []string{"keyring/check", "keyring/server"}, vue("keyring"), []string{"keyring/check/", "keyring/server/", "keyring/src/"}),
 		app("radar", []string{"radar/scan", "radar/server"}, vue("radar"), []string{"radar/scan/", "radar/server/", "radar/src/"}),
 		app("sala", []string{"sala"}, []string{"sala/index.html"}, []string{"sala/"}),
+		app("sentinel", []string{"sentinel/server"}, vue("sentinel"), []string{"sentinel/server/", "sentinel/src/"}),
 	}
 }
 

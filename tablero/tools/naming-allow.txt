@@ -135,3 +135,5 @@ path: ecommerce/server/testdata/tx-C9EB4CCBE833427692978EDE28379ADC.json
 gear
 # el dictado del chat: Whisper (whisper.cpp), ffmpeg y transcribir
 whisper ffmpeg transcribe
+# Sentinel: lo que entra por hora
+hourly
