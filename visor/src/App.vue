@@ -152,11 +152,11 @@ const projectGroups = computed(() => {
   // «Abiertos en el visor». Adentro, en orden alfabético: es una lista para encontrar un flujo.
   const byFolder = new Map()
   for (const o of (library.value.opened || []).filter((x) => !inProjects.has(x.key))) {
-    const folder = o.folder || 'Abiertos en el visor'
+    const folder = o.folder || 'Abiertos en Designer'
     if (!byFolder.has(folder)) byFolder.set(folder, [])
     byFolder.get(folder).push({ key: o.key, name: o.name || o.key, when: fmtDay(o.opened_at) })
   }
-  for (const [folder, files] of [...byFolder].sort(([a], [b]) => (a === 'Abiertos en el visor') - (b === 'Abiertos en el visor') || a.localeCompare(b))) {
+  for (const [folder, files] of [...byFolder].sort(([a], [b]) => (a === 'Abiertos en Designer') - (b === 'Abiertos en Designer') || a.localeCompare(b))) {
     out.push({ id: 'folder-' + folder, name: folder, files: files.sort((x, y) => x.name.localeCompare(y.name, 'es')) })
   }
   return out
@@ -459,7 +459,7 @@ async function runSearch(key, q) {
     const text = await res.text()
     let body
     try { body = JSON.parse(text) } catch {
-      throw new Error(res.status === 404 ? 'el server del visor es de antes del buscador: reiniciá `make visor`' : `respuesta inesperada del server (HTTP ${res.status})`)
+      throw new Error(res.status === 404 ? 'el server de Designer es de antes del buscador: reiniciá `make visor`' : `respuesta inesperada del server (HTTP ${res.status})`)
     }
     if (q !== searchQ.value.trim() || key !== data.value?.key) return
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
@@ -1196,7 +1196,7 @@ onUnmounted(() => {
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ current ? (current.title || current.name) : 'Visor' }}</span>
+        <span>{{ current ? (current.title || current.name) : 'Designer' }}</span>
         <template v-if="current">
           <div class="region-actions">
             <button class="region-action" title="Volver (Retroceso)" aria-label="Volver" :disabled="!trail.length" @click="back">
