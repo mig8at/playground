@@ -13,10 +13,26 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 
 ## Pendientes
 
-- [ ] Pedirle a Duncan (2026-11-10) que repita la compra VTEX en un perfil limpio de Chrome, tocando él «Validar Pre
-      aprobado», y que diga si en el primer clic vio el spinner. En un Chromium limpio y en el Chrome de Miguel el
-      primer clic anduvo 5 de 5 (pila, 2026-11-09); el de Duncan no manda ningún evento del navegador a PostHog.
-      Termina con la causa en su Chrome o con el defecto reproducido. Depende de: Duncan — la prueba a mano.
+- [ ] Antes de la prueba de Duncan en producción, apagar «Auto-onboarding con Creditop» en la app de `master`
+      (hoy prendido): con él el checkout exige las fechas y el wizard salta el SMS y el formulario hasta «validando»,
+      o sea más allá del formulario de perfil y contra la validación de identidad real. Termina con el ajuste apagado
+      y un pedido de prueba que entra por celular → SMS. Depende de: Miguel — el sí para apagarlo.
+- [ ] Mandarle a Duncan (como Luigi) las tres capturas de cómo quedó la tienda en producción (en `artifacts/`,
+      `prod-2026-11-11-*`) y que pruebe en `creditop.myvtex.com`: comprar con Creditop, llegar a
+      `originaciones.creditop.com/ecommerce/84297564/…` y parar en el formulario de perfil, con sus propios datos.
+      Termina con su número de pedido, la hora y capturas. Depende de: Duncan — la prueba.
+- [ ] Devolver la tienda a qa al terminar la prueba: la regla «Creditop qa» a la afiliación de Mario
+      (`facb0b0a…`) y la app de `master` a QA (y el auto-onboarding como estaba). Termina con
+      `make jarvis-recipe APP=vtex RECIPE=creditop-payment` diciendo «Mario Hernández (qa)» y un pedido que cae en
+      `originaciones-qa`.
+- [ ] Definir qué van en «Customer Key/Secret» de la credencial VTEX de la sucursal 2584 (Creditop los manda como
+      `X-VTEX-API-AppKey/AppToken` al avisarle a VTEX el resultado; hoy sólo tiene el header de relleno
+      `x-creditop-prueba`). Termina con los valores puestos por «Editar» antes de la prueba con entidades.
+- [ ] Limpiar en el admin de producción la sucursal 2583 (punto de venta común creado por error, sin entidades ni
+      credencial) y corregir el nombre duplicado de la 2584 («Ecommerce-Ecommerce-VTEX prueba»).
+- [x] ~~Repetir la compra VTEX en un perfil limpio de Chrome, tocando a mano «Validar Pre aprobado»~~ — 2026-11-10:
+      no había defecto. Los clics que no avanzaban los hacía el agente de Duncan por coordenadas sobre una página con
+      zoom y caían fuera del botón; a mano, en Chrome invitado y en Brave, avanzó siempre al primer clic (pila).
 - [x] ~~Enlazar el conector 5.1.0 (vtex#25) en `autoonb` y comprar con el switch prendido~~ — 2026-11-06: el checkout
       real saltó celular, código y formulario (solicitud 504704 al listado, sin OTP), tras corregir la ruta del switch y
       el `Proxy-Authorization` de la lectura del pedido (6b1cc44, local).
