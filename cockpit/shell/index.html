@@ -22,6 +22,13 @@
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="workbench.css">
 <style>
+  /* Los colores de estado son de Cockpit (el tema no los trae): «terminó bien», en claro y en oscuro, los mismos del chat. */
+  :root {
+    --cockpit-ok: #15803d;
+  }
+  :root.dark {
+    --cockpit-ok: #4ade80;
+  }
   * { box-sizing: border-box }
   html, body { margin: 0; height: 100%; overflow: hidden }
   body { display: flex; background: var(--canvas); font-family: var(--font-sans, system-ui), -apple-system, sans-serif; font-size: 13px }
@@ -68,7 +75,7 @@
   .act.cmd .tool { flex: none; color: var(--fg-3); font-size: var(--text-xs) }
   .act .state { flex: none; width: 8px; height: 8px; border-radius: 50%; align-self: center; background: var(--fg-3) }
   .act .state.run { background: var(--primary); animation: blink 1s ease-in-out infinite }
-  .act .state.ok { background: var(--chart-2, var(--fg-2)) }
+  .act .state.ok { background: var(--cockpit-ok) }
   .act .state.fail { background: var(--destructive) }
   .act.open { color: var(--fg-2) }
   @keyframes blink { 50% { opacity: .35 } }
