@@ -236,8 +236,9 @@
     .map-view > .empty { flex: 1 1 auto; display: flex; align-items: center; justify-content: center }
 
     /* ═══ LOS DOS CELULARES ═══════════════════════════════════════════════════════════════════════
-       Asesor a la izquierda, cliente a la derecha. El tamaño lo pone el ALTO del editor, no el ancho: si los
-       teléfonos no entran a lo ancho, la zona scrollea de costado en vez de achicarlos. `safe center` los
+       Asesor a la izquierda, cliente a la derecha. El tamaño lo pone el ALTO del editor y, con los dos a la vista, también
+       el ANCHO: si no entran a lo ancho se achican (decisión de Miguel, 2026-11-11; antes la zona scrolleaba de costado y
+       el del cliente quedaba cortado contra el borde). Sólo por debajo de 240 px de alto vuelve a scrollear. `safe center` los
        centra cuando sobran y, cuando no entran, los alinea al principio: con `center` a secas el desborde se
        repartía a los dos lados y el de la izquierda quedaba cortado sin forma de scrollear hasta él. */
     .devices { flex: 1 1 auto; min-height: 0; container-type: size; display: flex; justify-content: safe center; align-items: flex-start; gap: var(--space-6);
@@ -270,6 +271,14 @@
       position: relative; box-sizing: border-box; height: var(--phone-h); width: calc((var(--phone-h) - 2 * var(--bezel)) * 412 / 892 + 2 * var(--bezel));
       border: var(--bezel) solid var(--muted); border-radius: calc(var(--phone-h) * .049); background: var(--card);
       box-shadow: 0 0 0 1px var(--border); overflow: hidden;
+    }
+    /* CON LOS DOS A LA VISTA, EL ANCHO TAMBIÉN MANDA: el alto que entra en la mitad de la zona, menos el aire entre los
+       dos, la columna de iconos y su separación. El ancho de un teléfono es ≈0,476 de su alto (la pantalla 412:892 más
+       la carcasa), así que el alto posible es ese ancho × 2,09 (un poco menos que 1/0,476, para no rozar el borde).
+       `100cqw` es el ancho de `.devices` sin su padding (es el contenedor), como `100cqh` arriba. */
+    .devices:has(> .device:not([hidden]) ~ .device:not([hidden])) .device-frame {
+      --phone-h: min(max(240px, 100cqh - 28px - var(--space-2) - 12px),
+                     max(240px, ((100cqw - var(--space-6)) / 2 - var(--device-rail) - var(--space-1)) * 2.09));
     }
     .device-notch { position: absolute; top: 0; left: 50%; translate: -50% 0; width: 34%; height: calc(var(--phone-h) * .024);
       background: var(--muted); border-radius: 0 0 calc(var(--phone-h) * .016) calc(var(--phone-h) * .016); z-index: 4 }
