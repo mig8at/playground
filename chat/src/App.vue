@@ -96,6 +96,13 @@ function nameOfEmail(email) {
 const conversationName = (key) => (String(key).startsWith('#') ? key : nameOfEmail(key))
 const mentionsMeIn = (text) => mentionsMe(text, myUser.value, myAgentNames.value)
 const textSegments = (text) => segments(text, knownHandles.value, myUser.value, myAgentNames.value)
+/* A QUIÉN VA, COMO EN WHATSAPP: lo escrito para un agente (`toAgent`, el tuyo para el de alguien; `forAgent`, el de
+   alguien para uno tuyo) empieza con la mención, «@luigi …», en vez de una etiqueta aparte. Si el texto ya la trae, no
+   se repite. */
+const mentionOf = (item) => {
+  const a = item?.toAgent || item?.forAgent || ''
+  return a && !String(item.text || '').trimStart().toLowerCase().startsWith(`@${a.toLowerCase()}`) ? `@${a}` : ''
+}
 // Las menciones a vos que todavía no leíste en un grupo de la lista.
 const unreadMentions = (g) => (g.messages || []).filter((m) => m.dir === 'in' && m.time > (g.readAt || '') && mentionsMeIn(m.text)).length
 function openMyChat() { serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true) }
@@ -1312,8 +1319,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           </div>
           <div v-else-if="it.kind === 'self'" class="bubble-row out" :class="{ cont: it.cont }">
             <div class="bubble">
-              <span v-if="it.m.toAgent && !it.cont" class="published-label">para {{ it.m.toAgent }}</span>
-              <p class="text">{{ it.m.text }}</p>
+              <p class="text"><template v-if="mentionOf(it.m)"><span class="mention">{{ mentionOf(it.m) }}</span>{{ ' ' }}</template>{{ it.m.text }}</p>
               <span class="meta">{{ clock(it.time) }}</span>
             </div>
           </div>
@@ -1429,9 +1435,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   <template v-if="item.via"><b>{{ item.via }}</b> · agente de {{ firstName(speakerOf(item).owner) }}</template>
                   <b v-else>{{ speakerOf(item).label }}</b>
                 </span>
-                <span v-if="item.toAgent && !item.cont" class="published-label">para {{ item.toAgent }}</span>
                 <span v-if="item.agentPrefix && !item.cont" class="published-label agent-chip">{{ item.agentPrefix }}</span>
-                <span v-if="item.forAgent && !item.cont" class="published-label">para tu agente {{ item.forAgent }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
                 <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
@@ -1472,7 +1476,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                     <p v-if="keyInfo(item).rest" class="text">{{ keyInfo(item).rest }}</p>
                   </template>
                   <p v-else-if="item.text && activeIsGroup" class="text"><template v-for="(seg, i) in textSegments(item.text)" :key="i"><span v-if="seg.mention" class="mention" :class="{ me: seg.me }">{{ seg.text }}</span><template v-else>{{ seg.text }}</template></template></p>
-                  <p v-else-if="item.text" class="text">{{ item.text }}</p>
+                  <p v-else-if="item.text" class="text"><template v-if="mentionOf(item)"><span class="mention" :class="{ me: !!item.forAgent }">{{ mentionOf(item) }}</span>{{ ' ' }}</template>{{ item.text }}</p>
                 </template>
                 <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
                   <!-- Como un documento de WhatsApp: el tipo a la izquierda, el nombre y su tamaño, y lo que se puede hacer.
