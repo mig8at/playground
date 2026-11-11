@@ -60,6 +60,8 @@
     "bell": "bell",
     "claude": "asterisk",
     "emoji": "smile",
-    "mic": "mic"
+    "mic": "mic",
+    "apps": "layout-grid",
+    "help": "book-open"
   }
 }

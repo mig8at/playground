@@ -104,7 +104,7 @@ Lo que ya costó, y por qué existe:
 | pieza | dónde |
 |---|---|
 | qué apps hay, cómo se levantan, enlaces `cockpit://`, el puerto de control | `src-tauri/src/main.rs` |
-| la carcasa: la barra, el engranaje de configuración (tema, seguir a Claude, abrir el panel con actividad), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make estilo-sync`) |
+| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make estilo-sync`) |
 | el cliente del puerto de control | `lib/cockpit/` · el CLI: `cmd/cockpit/` (`bin/cockpit`) |
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |

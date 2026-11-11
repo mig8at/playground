@@ -27,6 +27,9 @@
   :root {
     --cockpit-ok: #15803d;
     --cockpit-stop: #dc2626;
+    --settings-backdrop: rgb(0 0 0 / .45);
+    --settings-tint: color-mix(in oklab, var(--primary) 14%, transparent);
+    --settings-shadow: 0 1px 2px rgb(0 0 0 / .08), 0 12px 32px -12px rgb(0 0 0 / .3);
   }
   :root.dark {
     --cockpit-ok: #4ade80;
@@ -58,16 +61,62 @@
      (el asterisco que agrega tools/ui/workbench.js). */
   nav .spacer { flex: 1 }
   nav .settings-toggle { margin-bottom: 8px }
-  .settings-menu { position: fixed; left: 52px; bottom: 12px; z-index: 20; min-width: 260px; padding: 6px; border-radius: var(--radius-control, 6px);
-    background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); font-size: 12px }
-  .settings-menu[hidden] { display: none }
-  .settings-menu h2 { margin: 6px 8px 4px; font-size: 11px; font-weight: 600; color: var(--fg-2) }
-  .settings-menu button { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; border: 0; border-radius: 4px;
-    background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
-  .settings-menu button:hover, .settings-menu button:focus-visible { background: var(--hover); outline: none }
-  .settings-menu button i { flex: none; width: 14px; font-style: normal; text-align: center }
-  .settings-menu button small { margin-left: auto; color: var(--fg-2) }
-  .settings-menu hr { margin: 6px 0; border: 0; border-top: 1px solid var(--border) }
+  /* LA CONFIGURACIÓN: un modal como el de canon (tools/canon/src/components/Settings.vue del playground compartido).
+     Un <dialog> nativo abierto con showModal(): Escape cierra, el foco queda adentro y lo de atrás no se toca, con el
+     fondo desenfocado. A la izquierda el buscador y las secciones (la elegida, teñida); a la derecha la elegida, con su
+     título, una línea de qué es y sus bloques: un rótulo chico y una caja. `margin: auto` + `inset: 0` lo centra. */
+  .settings { position: fixed; inset: 0; margin: auto; width: min(880px, calc(100vw - 32px)); height: min(600px, calc(100dvh - 32px));
+    max-width: none; max-height: none; padding: 0; border: 1px solid var(--panel-border, var(--border)); border-radius: calc(var(--radius) + 10px);
+    background: var(--panel-surface, var(--background)); color: var(--foreground); box-shadow: var(--settings-shadow); overflow: hidden }
+  .settings::backdrop { background: var(--settings-backdrop); backdrop-filter: blur(4px) }
+  .settings-frame { display: grid; grid-template-columns: 220px minmax(0, 1fr); height: 100% }
+  .settings-nav { display: flex; flex-direction: column; gap: 2px; padding: 16px 8px; background: var(--canvas);
+    border-right: 1px solid var(--panel-border, var(--border)); overflow: auto }
+  .settings-search { position: relative; display: block; margin: 0 4px 12px }
+  .settings-search .ui-icon { position: absolute; left: 8px; top: 50%; transform: translateY(-50%); color: var(--fg-3) }
+  .settings-search .input { width: 100%; box-sizing: border-box; padding-left: 32px; background: var(--panel-surface, var(--background)) }
+  .settings-group { margin: 0; padding: 8px 12px 4px; font-size: 12px; color: var(--fg-3) }
+  .settings-none { margin: 0; padding: 8px 12px; font-size: 12px; color: var(--fg-3) }
+  .settings-nav .section { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 36px; padding: 0 12px; border: 0;
+    border-radius: calc(var(--radius) - 2px); background: none; color: var(--fg-2); font: inherit; text-align: left; cursor: pointer }
+  .settings-nav .section:hover { background: var(--hover); color: var(--foreground) }
+  .settings-nav .section .ui-icon { color: var(--fg-3) }
+  .settings-nav .section[aria-selected="true"] { background: var(--settings-tint); color: var(--foreground); font-weight: 600 }
+  .settings-nav .section[aria-selected="true"] .ui-icon { color: var(--primary) }
+  .settings-body { position: relative; padding: 32px 36px; overflow: auto }
+  .settings .settings-close { position: absolute; top: 12px; right: 12px }
+  .settings-head { margin-bottom: 24px }
+  .settings-title { margin: 0 0 4px; font-size: 20px; font-weight: 600; letter-spacing: -.02em }
+  .settings-what { margin: 0; color: var(--fg-2); font-size: 12px }
+  .settings-blocks { display: flex; flex-direction: column; gap: 24px; max-width: 72ch }
+  .settings-blocks > section { display: flex; flex-direction: column; gap: 8px }
+  .settings-blocks h3 { margin: 0; font-size: 11px; font-weight: 600; color: var(--fg-3); text-transform: uppercase; letter-spacing: .04em }
+  .settings-blocks p { margin: 0; line-height: 1.6; color: var(--fg-2) }
+  .settings-blocks p b, .settings-blocks li b { color: var(--foreground) }
+  .settings-blocks code { font-family: var(--font-mono); font-size: 12px }
+  /* Una opción: nombre, qué hace, y el ✓ si está elegida (como `.opcion` de canon). */
+  .options { display: flex; flex-direction: column; gap: 8px }
+  .option { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; align-items: center; width: 100%; padding: 12px 16px;
+    text-align: left; cursor: pointer; font: inherit; color: inherit; background: var(--card); border: 1px solid var(--border);
+    border-radius: calc(var(--radius) + 4px) }
+  .option:hover { background: var(--hover) }
+  .option:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px }
+  .option[aria-checked="true"] { border-color: var(--ring); box-shadow: 0 0 0 1px var(--ring) }
+  .option-name { font-weight: 600 }
+  .option-what { grid-column: 1; font-size: 12px; color: var(--fg-2) }
+  .option .ui-icon { grid-row: 1 / 3; grid-column: 2; visibility: hidden; color: var(--ring) }
+  .option[aria-checked="true"] .ui-icon { visibility: visible }
+  /* Una caja con filas: cada app con su estado y lo que se hace con ella. */
+  .settings-box { border: 1px solid var(--border); border-radius: calc(var(--radius) + 4px); background: var(--card); overflow: hidden }
+  .settings-row { display: flex; align-items: center; gap: 12px; padding: 10px 16px }
+  .settings-row + .settings-row { border-top: 1px solid var(--border) }
+  .settings-row-text { flex: 1; min-width: 0 }
+  .settings-row-name { display: block; font-weight: 600 }
+  .settings-row-what { display: block; font-size: 12px; color: var(--fg-2) }
+  .settings-row .state { flex: none; display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--fg-2) }
+  .settings-row .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
+  .settings-row .state.up::before { background: var(--cockpit-ok) }
+  .settings-steps { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 8px; color: var(--fg-2); line-height: 1.5 }
   /* EL PANEL «CLAUDE»: lo que hace Claude en vivo, como un panel más sobre el lienzo. */
   aside { flex: none; width: 340px; display: flex; flex-direction: column; min-height: 0; margin: calc(var(--panels-gap) / 2);
     margin-left: 0; border: 1px solid var(--panel-border); border-radius: var(--panels-radius); background: var(--panel-surface);
@@ -115,7 +164,26 @@
 <body>
 <nav id="bar" aria-label="Aplicaciones"></nav>
 <main id="panels"></main>
-<div class="settings-menu" id="settingsMenu" role="menu" aria-label="Configuración de Cockpit" hidden></div>
+<dialog class="settings" id="settings" aria-label="Configuración de Cockpit">
+  <div class="settings-frame">
+    <!-- No es un <nav>: el estilo de la barra de Cockpit (nav, 48 px) lo aplastaba. -->
+    <div class="settings-nav" role="navigation" aria-label="Secciones">
+      <label class="settings-search">
+        <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
+        <input id="settingsSearch" class="input" type="search" placeholder="Buscar" aria-label="Buscar en la configuración">
+      </label>
+      <p class="settings-group">Configuración</p>
+      <div id="settingsSections" role="tablist" aria-orientation="vertical"></div>
+    </div>
+    <div class="settings-body" id="settingsBody">
+      <button class="region-action settings-close" type="button" title="Cerrar" aria-label="Cerrar la configuración" id="settingsClose">
+        <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+      </button>
+      <header class="settings-head"><h2 class="settings-title" id="settingsTitle"></h2><p class="settings-what" id="settingsWhat"></p></header>
+      <div class="settings-blocks" id="settingsBlocks"></div>
+    </div>
+  </div>
+</dialog>
 <aside id="activity" aria-label="Lo que hace Claude" hidden>
   <header><span>Claude</span><span class="grow"></span>
     <button type="button" id="followToggle" class="follow"><i aria-hidden="true"></i><span></span></button>
@@ -172,10 +240,10 @@ function render() {
   gear.type = 'button'
   gear.className = 'settings-toggle' + (settingsOpen ? ' on' : '')
   gear.setAttribute('aria-label', 'Configuración')
-  gear.setAttribute('aria-haspopup', 'menu')
+  gear.setAttribute('aria-haspopup', 'dialog')
   gear.setAttribute('aria-expanded', String(settingsOpen))
   gear.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9.671 4.136a2.34 2.34 0 0 1 4.659 0 2.34 2.34 0 0 0 3.319 1.915 2.34 2.34 0 0 1 2.33 4.033 2.34 2.34 0 0 0 0 3.831 2.34 2.34 0 0 1-2.33 4.033 2.34 2.34 0 0 0-3.319 1.915 2.34 2.34 0 0 1-4.659 0 2.34 2.34 0 0 0-3.32-1.915 2.34 2.34 0 0 1-2.33-4.033 2.34 2.34 0 0 0 0-3.831A2.34 2.34 0 0 1 6.35 6.051a2.34 2.34 0 0 0 3.319-1.915"/><circle cx="12" cy="12" r="3"/></svg>'
-  gear.addEventListener('click', (e) => { e.stopPropagation(); hideTip(); setSettingsOpen(!settingsOpen) })
+  gear.addEventListener('click', () => { hideTip(); setSettingsOpen(!settingsOpen) })
   gear.addEventListener('mouseenter', () => { if (!settingsOpen) showTip(gear, 'Configuración') })
   gear.addEventListener('mouseleave', hideTip)
   bar.append(spacer, gear)
@@ -423,51 +491,117 @@ function paintFollow() {
 followToggle.addEventListener('click', () => { follow = !follow; keep(FOLLOW_KEY, follow ? 'on' : 'off'); paintFollow() })
 paintFollow()
 
-/* LA CONFIGURACIÓN (el engranaje de la barra): las preferencias de Cockpit en un solo lugar. No guarda nada nuevo: el
-   tema es el de todas las apps, «seguir a Claude» es el mismo punto del panel, y «abrir con actividad» es lo que ya
-   decide el panel cuando lo cerrás a mano (cockpit.activity: closed). */
+/* LA CONFIGURACIÓN (el engranaje de la barra): un modal como el de canon, con secciones a la izquierda y la elegida a
+   la derecha. No guarda nada nuevo: el tema es el de todas las apps, «seguir a Claude» es el mismo punto del panel, y
+   «cuándo se abre» es lo que ya decide el panel cuando lo cerrás a mano (cockpit.activity: closed). Las apps se leen de
+   Rust (`apps_state`) y se reinician con `restart_app`, lo mismo que `bin/cockpit restart`. */
+const settings = document.getElementById('settings')
 let settingsOpen = false
-const settingsMenu = document.getElementById('settingsMenu')
-const mark = (on) => `<i aria-hidden="true">${on ? '✓' : ''}</i>`
+const SECTIONS = [
+  { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'Cómo se ve Cockpit. Vale para todas sus apps.', keys: 'tema claro oscuro color' },
+  { id: 'claude', t: 'Claude', icon: 'claude', d: 'Lo que hace Claude, en vivo, en el panel que abre el asterisco del pie de cada app.', keys: 'seguir panel actividad frenar asterisco' },
+  { id: 'apps', t: 'Apps', icon: 'apps', d: 'Las herramientas de la barra: si están arriba, y reiniciar una para que tome un cambio.', keys: 'servidor puerto reiniciar arriba apagada' },
+  { id: 'help', t: 'Cómo se usa', icon: 'help', d: 'Lo que hay en cada lugar de Cockpit.', keys: 'ayuda guía atajos barra pie' },
+]
+let settingsSection = 'appearance'
+let settingsFilter = ''
+const option = (act, checked, name, what) => `<button type="button" class="option" role="radio" aria-checked="${checked}" data-act="${act}">
+  <span class="option-name">${esc(name)}</span><span class="option-what">${esc(what)}</span><span class="ui-icon" data-icon="check" aria-hidden="true"></span></button>`
+let appStates = []
+async function loadAppStates() {
+  appStates = await invoke('apps_state').catch(() => [])
+  if (settingsOpen && settingsSection === 'apps') paintSettings()
+}
+function paintSections() {
+  const q = settingsFilter.trim().toLowerCase()
+  const visible = q ? SECTIONS.filter((x) => `${x.t} ${x.keys}`.toLowerCase().includes(q)) : SECTIONS
+  if (visible.length && !visible.some((x) => x.id === settingsSection)) settingsSection = visible[0].id
+  document.getElementById('settingsSections').innerHTML = visible.map((x) =>
+    `<button type="button" class="section" role="tab" aria-selected="${x.id === settingsSection}" data-section="${x.id}"><span class="ui-icon" data-icon="${x.icon}" aria-hidden="true"></span><span>${esc(x.t)}</span></button>`).join('')
+    || `<p class="settings-none">Nada coincide con «${esc(settingsFilter)}».</p>`
+}
 function paintSettings() {
-  const theme = shellTheme()
-  const autoPanel = pick(ACTIVITY_KEY, 'auto') !== 'closed'
-  settingsMenu.innerHTML = `<h2>Tema</h2>
-    <button type="button" role="menuitemradio" aria-checked="${theme === 'light'}" data-act="light">${mark(theme === 'light')}Claro</button>
-    <button type="button" role="menuitemradio" aria-checked="${theme === 'dark'}" data-act="dark">${mark(theme === 'dark')}Oscuro</button>
-    <hr><h2>Claude</h2>
-    <button type="button" role="menuitemcheckbox" aria-checked="${follow}" data-act="follow">${mark(follow)}Seguir a Claude<small>salta a la app que usa</small></button>
-    <button type="button" role="menuitemcheckbox" aria-checked="${autoPanel}" data-act="auto">${mark(autoPanel)}Abrir el panel con actividad</button>
-    <button type="button" role="menuitem" data-act="panel">${mark(false)}${activityOpen ? 'Cerrar' : 'Abrir'} el panel de Claude<small>✳ en el pie</small></button>`
+  paintSections()
+  const s = SECTIONS.find((x) => x.id === settingsSection)
+  document.getElementById('settingsTitle').textContent = s.t
+  document.getElementById('settingsWhat').textContent = s.d
+  const blocks = document.getElementById('settingsBlocks')
+  if (settingsSection === 'appearance') {
+    const theme = shellTheme()
+    blocks.innerHTML = `<section><h3>Tema</h3><div class="options" role="radiogroup" aria-label="Tema">
+      ${option('light', theme === 'light', 'Claro', 'Fondo claro, para el día.')}
+      ${option('dark', theme === 'dark', 'Oscuro', 'Fondo oscuro, para descansar la vista.')}</div></section>`
+  } else if (settingsSection === 'claude') {
+    const auto = pick(ACTIVITY_KEY, 'auto') !== 'closed'
+    blocks.innerHTML = `<section><h3>Seguir a Claude</h3><div class="options" role="radiogroup" aria-label="Seguir a Claude">
+      ${option('follow-on', follow, 'Siguiendo', 'Cockpit salta a la app que Claude está usando (si elegís una a mano, se respeta 20 s).')}
+      ${option('follow-off', !follow, 'Quieto', 'Cockpit no cambia de app solo.')}</div></section>
+      <section><h3>El panel de Claude</h3><div class="options" role="radiogroup" aria-label="Cuándo se abre el panel">
+      ${option('auto-on', auto, 'Se abre solo con actividad', 'Cuando Claude usa una herramienta, el panel aparece.')}
+      ${option('auto-off', !auto, 'Sólo cuando lo abro', 'Queda cerrado; el asterisco del pie marca con un punto lo que no viste.')}</div></section>`
+  } else if (settingsSection === 'apps') {
+    blocks.innerHTML = `<section><h3>Las apps de la barra</h3><div class="settings-box">${apps.map((a) => {
+      const st = appStates.find((x) => x.id === a.id) || {}
+      const what = `${(st.ports || []).map((p) => ':' + p.split(':').pop()).join(' · ')}${st.started ? ' · la levantó Cockpit' : st.ready ? ' · la levantó una terminal' : ''}`
+      const canRestart = a.id !== 'chat' && st.ready
+      return `<div class="settings-row"><span class="settings-row-text"><span class="settings-row-name">${esc(a.name)}</span><span class="settings-row-what">${esc(what)}</span></span>
+        <span class="state ${st.ready ? 'up' : ''}">${st.ready ? 'arriba' : 'apagada'}</span>
+        ${canRestart ? `<button type="button" class="btn btn-outline btn-sm" data-restart="${a.id}">Reiniciar</button>` : ''}</div>`
+    }).join('')}</div><p>Reiniciar sirve para que una app tome un cambio en su servidor (Go no se recarga solo). El chat lo cuida Cockpit solo.</p></section>`
+  } else {
+    blocks.innerHTML = `<section><ol class="settings-steps">
+      <li><b>La barra</b>: cada herramienta en su panel; ⌘1, ⌘2… cambian de app. Lo que estabas haciendo sigue ahí.</li>
+      <li><b>El asterisco del pie</b>: abre o cierra el panel de Claude, con lo que hace en vivo. Ahí está «Frenar».</li>
+      <li><b>Una app que se cae</b> vuelve sola: Cockpit la levanta de nuevo en unos segundos.</li>
+      <li><b>Desde una sesión</b>: <code>bin/cockpit open &lt;app&gt; [ruta]</code>, <code>say</code>, <code>status</code> y <code>restart</code>.</li>
+    </ol><p>Cerrar la ventana la esconde: Cockpit sigue juntando el chat y avisando.</p></section>`
+  }
 }
 function setSettingsOpen(open) {
   settingsOpen = open
-  if (open) paintSettings()
-  settingsMenu.hidden = !open
   render()
-  if (open) settingsMenu.querySelector('button')?.focus()
+  if (open && !settings.open) {
+    settingsFilter = ''
+    document.getElementById('settingsSearch').value = ''
+    paintSettings()
+    settings.showModal()
+    loadAppStates()
+  } else if (!open && settings.open) settings.close()
 }
-settingsMenu.addEventListener('click', (e) => {
-  e.stopPropagation()
-  const act = e.target.closest('button')?.dataset.act
+settings.addEventListener('close', () => { if (settingsOpen) { settingsOpen = false; render() } })
+// Un clic en el fondo (fuera del marco) cierra, como en canon.
+settings.addEventListener('click', (e) => { if (e.target === settings) setSettingsOpen(false) })
+document.getElementById('settingsClose').addEventListener('click', () => setSettingsOpen(false))
+document.getElementById('settingsSearch').addEventListener('input', (e) => { settingsFilter = e.target.value; paintSettings() })
+document.getElementById('settingsSections').addEventListener('click', (e) => {
+  const id = e.target.closest('[data-section]')?.dataset.section
+  if (id) { settingsSection = id; paintSettings() }
+})
+document.getElementById('settingsBlocks').addEventListener('click', async (e) => {
+  const restartId = e.target.closest('[data-restart]')?.dataset.restart
+  if (restartId) {
+    const b = e.target.closest('button')
+    b.disabled = true
+    b.textContent = 'Reiniciando…'
+    try { await invoke('restart_app', { id: restartId }) } catch (err) { b.textContent = String(err).slice(0, 60); return }
+    setTimeout(loadAppStates, 1500)
+    return
+  }
+  const act = e.target.closest('[data-act]')?.dataset.act
+  if (!act) return
   if (act === 'light' || act === 'dark') {
     setShellTheme(act)
     for (const f of Object.values(frames)) tellTheme(f)
-  } else if (act === 'follow') {
-    follow = !follow
+  } else if (act === 'follow-on' || act === 'follow-off') {
+    follow = act === 'follow-on'
     keep(FOLLOW_KEY, follow ? 'on' : 'off')
     paintFollow()
-  } else if (act === 'auto') {
-    keep(ACTIVITY_KEY, pick(ACTIVITY_KEY, 'auto') === 'closed' ? 'auto' : 'closed')
-  } else if (act === 'panel') {
-    setActivityOpen(!activityOpen, true)
-  } else return
+  } else if (act === 'auto-on' || act === 'auto-off') {
+    keep(ACTIVITY_KEY, act === 'auto-on' ? 'auto' : 'closed')
+  }
   paintSettings()
-  settingsMenu.querySelector(`[data-act="${act}"]`)?.focus()
+  document.querySelector(`#settingsBlocks [data-act="${act}"]`)?.focus()
 })
-document.addEventListener('click', () => { if (settingsOpen) setSettingsOpen(false) })
-document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && settingsOpen) setSettingsOpen(false) })
-window.addEventListener('blur', () => { if (settingsOpen) setSettingsOpen(false) })
 
 function followTo(app, route) {
   if (!follow || !apps.some((a) => a.id === app) || Date.now() - manualAt < 20_000) return

@@ -344,6 +344,40 @@ fn runs_make(command: &str, target: &str) -> bool {
     })
 }
 
+// Para la configuración (el modal del engranaje): qué apps están arriba, y reiniciar una (lo mismo que
+// `bin/cockpit restart`, con sus mismas guardas).
+#[derive(Serialize)]
+struct AppState {
+    id: &'static str,
+    ready: bool,
+    started: bool,
+    ports: &'static [&'static str],
+}
+
+// Asíncronos y con el trabajo en otro hilo: un comando síncrono corre en el de la ventana, y reiniciar espera hasta
+// 10 s a que la app suelte el puerto (Cockpit quedaría congelado).
+#[tauri::command]
+async fn apps_state(app: tauri::AppHandle) -> Vec<AppState> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let running = app.state::<Running>();
+        APPS.iter()
+            .map(|a| AppState { id: a.id, ready: ready(a), started: running.started(a.id), ports: a.ready })
+            .collect()
+    })
+    .await
+    .unwrap_or_default()
+}
+
+#[tauri::command]
+async fn restart_app(id: String, app: tauri::AppHandle) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let def = APPS.iter().find(|a| a.id == id).ok_or_else(|| format!("no hay app «{id}»"))?;
+        restart(&app, def)
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 // La app al frente, que la carcasa avisa al cambiar: la lee `status` del puerto de control.
 #[derive(Default)]
 struct Current(Mutex<String>);
@@ -564,7 +598,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();
