@@ -25,11 +25,15 @@ build() {
   mkdir -p "$(dirname "$bin")"
   tmp="$bin.$$"
   (cd "$root" && go build -o "$tmp" ./chat/server) && mv -f "$tmp" "$bin"
+  # La interfaz compilada (chat/dist): la sirve el servidor en :5185 para la app de escritorio (chat/src-tauri).
+  (cd "$chat" && npm run build --silent >/dev/null) || echo "⚠ la interfaz no compiló: la app de escritorio queda con la anterior" >&2
 }
 
 stale() {
   [ ! -x "$bin" ] && return 0
-  [ -n "$(find "$chat/server" "$chat/cli" "$chat/notifier" \( -name '*.go' -o -name '*.swift' \) -newer "$bin" 2>/dev/null | head -n 1)" ]
+  [ -n "$(find "$chat/server" "$chat/cli" "$chat/notifier" \( -name '*.go' -o -name '*.swift' \) -newer "$bin" 2>/dev/null | head -n 1)" ] && return 0
+  # La interfaz: algo de src/ más nuevo que la compilada.
+  [ ! -f "$chat/dist/index.html" ] || [ -n "$(find "$chat/src" "$chat/index.html" -newer "$chat/dist/index.html" 2>/dev/null | head -n 1)" ]
 }
 
 # El PATH del servicio: launchd arranca con uno mínimo y el servidor llama a `playground` (node) y a `claude`.

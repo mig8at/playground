@@ -432,7 +432,11 @@ func main() {
 		fmt.Printf("chat · historial en %s (%d mensajes)\n", dir, len(h.all()))
 	}
 	fmt.Printf("chat · API en http://%s\n", *addr)
-	srv := &http.Server{Addr: *addr, Handler: handler(), ReadHeaderTimeout: 5 * time.Second}
+	ui := uiDir()
+	if ui != "" {
+		fmt.Printf("chat · interfaz en http://%s (%s)\n", *addr, ui)
+	}
+	srv := &http.Server{Addr: *addr, Handler: guard(withUI(handler(), ui)), ReadHeaderTimeout: 5 * time.Second}
 	if err := srv.ListenAndServe(); err != nil {
 		fmt.Fprintln(os.Stderr, "chat:", err)
 		os.Exit(1)

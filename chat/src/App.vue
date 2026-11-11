@@ -21,6 +21,7 @@ import KeyCard from './KeyCard.vue'
 import { askKeysMessage, envMessage, parseKeyText } from './keyring.js'
 import { keyring, loadKeyring, setAutoShare } from './keyringStore.js'
 import { renderMarkdown } from './markdown.js'
+import { setBadge } from './desktop.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import NotifySettings from './NotifySettings.vue'
 import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak } from './speech.js'
@@ -914,7 +915,8 @@ function forgetActive() {
 }
 
 // El título de la pestaña dice cuántos no leídos hay, como cualquier chat.
-watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'chat' }, { immediate: true })
+// …y en la app de escritorio, el globito del Dock.
+watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'chat'; setBadge(n) }, { immediate: true })
 /* LOS AVISOS (server/notify.go): los decide el servidor con la configuración de «Avisos», también con la pestaña
    cerrada. Si esta pestaña tiene permiso del navegador, el servidor se los pasa a ella (tocarlos abre la
    conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de

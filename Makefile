@@ -132,6 +132,9 @@ chat: ## @dia abre chat (:5184 · API :5185), un mini WhatsApp del chat de la te
 chat-service: ## @dia deja el servidor del chat como servicio del Mac (arranca con la sesión y junta el historial aunque make chat esté cerrado). A=status|uninstall|refresh
 	@cd chat && sh scripts/service.sh $(or $(A),install)
 
+chat-app: ## @dia compila la app de escritorio del chat (Tauri, chat/src-tauri) y la abre: una ventana sobre el servicio del Mac (:5185, `make chat-service`), con avisos nativos y el globito del Dock. Necesita Rust (rustup)
+	@cd chat && . "$$HOME/.cargo/env" && npm run desktop && open src-tauri/target/release/bundle/macos/Chat.app
+
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
 

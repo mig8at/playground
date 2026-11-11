@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "La interfaz del chat la sirve el servidor local (:5185): sólo esa dirección llega a los plugins.",
+  "windows": ["main"],
+  "remote": { "urls": ["http://127.0.0.1:5185/*", "http://localhost:5185/*"] },
+  "permissions": [
+    "core:default",
+    "core:window:allow-set-badge-count",
+    "notification:default",
+    "opener:allow-open-url",
+    "window-state:default"
+  ]
+}
