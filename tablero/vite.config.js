@@ -16,5 +16,8 @@ export default defineConfig({
   // ⚠ Las tareas y los datos NO se vigilan: un archivo que cambia ahí y no es código hacía que Vite (vía Tailwind)
   // RECARGARA LA PÁGINA entera, y cada bloque que una sesión agregaba a una pila recargaba el tablero (medido el
   // 2026-11-11). Lo que cambia ahí lo trae el tiempo real del server (`/api/events`), sin recargar.
-  server: { port: 5191, watch: { ignored: ['**/tasks/**', '**/data/**'] } },
+  // `/artifacts` va al server por el MISMO origen: el visor los abre en un iframe, y un iframe de otro puerto lo
+  // bloquea el navegador embebido.
+  server: { port: 5191, watch: { ignored: ['**/tasks/**', '**/data/**'] },
+    proxy: { '/artifacts': process.env.VITE_TABLERO_API || 'http://localhost:8787' } },
 })

@@ -19,7 +19,7 @@ import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import ChatMessages from './ChatMessages.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
-import { organizeDocument } from './task-document.js';
+import { organizeDocument, renderMarkdown } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
 import { parseBlockBody, blockRouteLinks, knowledgeCommand, knowledgeHref } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
@@ -465,11 +465,77 @@ const daysUntouched = (id) => {
 };
 // ARTIFACTS del esfuerzo: todo lo que hay en `tasks/<slug>/artifacts/`, que sirve el server en
 // `/artifacts/<slug>/<archivo>` —prototipos, SQL, notas—. Son varios porque una tarea suele tener más
-// de un actor o más de un camino, y verlos al lado es lo que permite decidir. Se abren en pestaña
-// aparte: son para mirarlos, no para vivir embebidos acá.
+// de un actor o más de un camino, y verlos al lado es lo que permite decidir. Se abren EN la pestaña
+// Artifacts, al lado de la tarea (`artifactViewer`); sólo los de afuera (`.url`) salen al navegador.
 const artifactsOf = (id) => efforts.value.find(e => e.id === id)?.artifacts || [];
 // un artefacto de afuera (`.url`) abre su URL; los demás, el archivo que sirve el server
-const openArtifact = (artifact) => window.open(artifact.url || `${SERVER}/artifacts/${artifact.file}`, '_blank', 'noopener');
+// En desarrollo, por el proxy de Vite (mismo origen: el iframe de otro puerto lo bloquea el navegador embebido).
+const ARTIFACTS_BASE = import.meta.env.DEV ? '' : SERVER;
+const artifactHref = (artifact) => artifact.url || `${ARTIFACTS_BASE}/artifacts/${artifact.file}`;
+const openArtifactOutside = (artifact) => window.open(artifactHref(artifact), '_blank', 'noopener');
+// Cómo se muestra adentro, por extensión: un HTML o PDF en un iframe aislado, una nota renderizada, una
+// imagen tal cual, y el resto (consultas, scripts, JSON) como texto.
+const TEXT_EXTENSIONS = new Set(['json', 'sql', 'py', 'sh', 'mjs', 'js', 'ts', 'txt', 'csv', 'yaml', 'yml', 'go', 'php', 'log', 'ndjson', 'jsonl']);
+function artifactKind(artifact) {
+  if (artifact.url) return 'external';
+  const ext = (/\.([a-z0-9]+)$/i.exec(artifact.file)?.[1] || '').toLowerCase();
+  if (ext === 'html' || ext === 'htm') return 'html';
+  if (ext === 'pdf') return 'frame';
+  if (ext === 'md' || ext === 'markdown') return 'markdown';
+  if (['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'].includes(ext)) return 'image';
+  if (TEXT_EXTENSIONS.has(ext)) return 'text';
+  return 'frame';
+}
+/* EL VISOR: el artifact elegido ocupa la pestaña, con una subbanda para volver a la lista, ensancharlo y
+   abrirlo afuera. Ensanchar sube el ancho de las vistas sólo mientras está abierto: no se guarda como
+   preferencia y vuelve al cerrar. Se cierra solo al cambiar de tarea o de pestaña. */
+const artifactViewer = ref(null); // { artifact, kind, html, text, error, loading }
+const artifactWide = ref(false);
+let artifactWidthBefore = 0;
+let artifactRequest = 0;
+async function openArtifact(artifact) {
+  const kind = artifactKind(artifact);
+  if (kind === 'external') { openArtifactOutside(artifact); return; }
+  const request = ++artifactRequest;
+  artifactViewer.value = { artifact, kind, html: '', text: '', error: '', loading: ['html', 'markdown', 'text'].includes(kind) };
+  if (!artifactViewer.value.loading) return;
+  try {
+    const response = await fetch(artifactHref(artifact), { cache: 'no-store' });
+    if (!response.ok) throw new Error(`el server contestó ${response.status}`);
+    const raw = await response.text();
+    if (request !== artifactRequest) return;
+    let text = raw;
+    if (/\.json$/i.test(artifact.file)) { try { text = JSON.stringify(JSON.parse(raw), null, 2); } catch { /* se muestra como vino */ } }
+    artifactViewer.value = { ...artifactViewer.value, loading: false,
+      html: kind === 'markdown' ? renderMarkdown(raw) : kind === 'html' ? withBase(raw, artifactHref(artifact)) : '',
+      text: kind === 'text' ? text : '' };
+  } catch (error) {
+    if (request !== artifactRequest) return;
+    artifactViewer.value = { ...artifactViewer.value, loading: false, error: String(error?.message || error) };
+  }
+}
+// Un prototipo va por `srcdoc` y no por `src`: un iframe que navega a otra URL lo bloquea el navegador embebido
+// (el de Jira ya iba así). El `<base>` mantiene sus rutas relativas —imágenes, otra página de la carpeta—.
+function withBase(html, href) {
+  const base = `<base href="${new URL(href, location.href).href.replace(/[^/]*$/, '')}">`;
+  return /<head[^>]*>/i.test(html) ? html.replace(/<head[^>]*>/i, (head) => head + base) : base + html;
+}
+function setArtifactWide(wide) {
+  if (wide === artifactWide.value) return;
+  artifactWide.value = wide;
+  if (wide) {
+    artifactWidthBefore = preferred['--auxiliarybar-w'];
+    preferred['--auxiliarybar-w'] = WIDTHS['--auxiliarybar-w'][1];
+  } else if (artifactWidthBefore) {
+    preferred['--auxiliarybar-w'] = artifactWidthBefore;
+  }
+  nextTick(applyWidths);
+}
+function closeArtifact() {
+  artifactRequest++;
+  artifactViewer.value = null;
+  setArtifactWide(false);
+}
 // los artifacts cuelgan del ESFUERZO, pero se piden desde la tarjeta de una TAREA: se resuelve el
 // esfuerzo por su clave, igual que los avances
 const taskArtifacts = (key) => artifactsOf(effortFor(key));
@@ -944,6 +1010,7 @@ async function toClipboard(txt) {
 
 // Cambiar de tarea limpia el estado: si no, la siguiente se abre mostrando un ✓ de la anterior.
 watch(() => active.value?.Key, () => {
+  closeArtifact();
   clearTimeout(copiedTimer); copied.value = ''; copiedWhich.value = '';
   foldedDays.value = new Set();
 });
@@ -1029,6 +1096,8 @@ function toggleBranchConsole() {
  * en el centro; Jira abre primero porque es la consulta secundaria más frecuente. */
 const activeAuxView = ref('jira');
 const auxOpen = (id) => activeAuxView.value === id;
+// Salir de Artifacts cierra el visor (y devuelve el ancho si se había ensanchado).
+watch(activeAuxView, (view) => { if (view !== 'artifacts') closeArtifact(); });
 // Elige la vista Y muestra la región. Desde el riel da lo mismo —si lo ves, la región está abierta—,
 // pero el avance de pendientes del encabezado vive afuera: con la región plegada (o una ventana de
 // ≤1050px, donde arranca plegada) cambiaba la pestaña de algo oculto y el clic no hacía nada visible.
@@ -2412,7 +2481,7 @@ function documentAction(id) {
       </nav>
       <template v-for="v in auxViews" :key="v.id">
         <section v-if="auxOpen(v.id)" class="region-body aux-vista aux-tab-panel"
-                 :class="{ 'jira-tab-panel': v.id === 'jira' }"
+                 :class="{ 'jira-tab-panel': v.id === 'jira', 'artifact-tab-panel': v.id === 'artifacts' && artifactViewer }"
                  role="tabpanel" :id="'aux-panel-' + v.id" :aria-labelledby="'aux-tab-' + v.id">
           <template v-if="v.id === 'jira'">
             <p v-if="active._local" class="nota">Esta tarea es local y todavía no está publicada en Jira.</p>
@@ -2448,13 +2517,37 @@ function documentAction(id) {
 
           </template>
           <template v-if="v.id === 'artifacts'">
-            <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Cada uno se abre en una pestaña nueva.</p>
+            <template v-if="artifactViewer">
+              <div class="artifact-bar">
+                <button type="button" class="btn btn-ghost btn-sm" @click="closeArtifact" title="Volver a la lista">← Artifacts</button>
+                <span class="artifact-bar-name" :title="artifactViewer.artifact.file.split('/').pop()">{{ artifactViewer.artifact.label }}</span>
+                <button type="button" class="btn btn-ghost btn-sm btn-icon" :aria-pressed="artifactWide"
+                        :title="artifactWide ? 'Volver al ancho de siempre' : 'Ensanchar las vistas'" @click="setArtifactWide(!artifactWide)">{{ artifactWide ? '⇥⇤' : '⇤⇥' }}</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="openArtifactOutside(artifactViewer.artifact)" title="Abrir en el navegador">↗</button>
+              </div>
+              <iframe v-if="artifactViewer.kind === 'html' && artifactViewer.html" class="artifact-frame" :srcdoc="artifactViewer.html"
+                      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals allow-downloads"
+                      referrerpolicy="no-referrer" :title="artifactViewer.artifact.label"></iframe>
+              <iframe v-else-if="artifactViewer.kind === 'frame'" class="artifact-frame" :src="artifactHref(artifactViewer.artifact)"
+                      sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals allow-downloads"
+                      referrerpolicy="no-referrer" :title="artifactViewer.artifact.label"></iframe>
+              <div v-else class="artifact-body">
+                <p v-if="artifactViewer.loading" class="nota">Leyendo {{ artifactViewer.artifact.file.split('/').pop() }}…</p>
+                <p v-else-if="artifactViewer.error" class="nota">No se pudo leer: {{ artifactViewer.error }}</p>
+                <img v-else-if="artifactViewer.kind === 'image'" class="artifact-image" :src="artifactHref(artifactViewer.artifact)" :alt="artifactViewer.artifact.label">
+                <div v-else-if="artifactViewer.kind === 'markdown'" class="desc md-body" v-html="artifactViewer.html"></div>
+                <pre v-else class="artifact-text"><code>{{ artifactViewer.text }}</code></pre>
+              </div>
+            </template>
+            <template v-else>
+            <p class="nota">Lo que produjo esta tarea: prototipos, consultas y notas. Se abren acá; los enlaces externos, en el navegador.</p>
             <button v-for="artifact in taskArtifacts(active.Key)" :key="artifact.file" class="artifact-row" @click="openArtifact(artifact)">
               <span class="badge badge-outline artifact-type">{{ artifactType(artifact) }}</span>
               <span class="artifact-txt"><b>{{ artifact.label }}</b><span class="artifact-file">{{ artifact.file.split('/').pop() }}</span></span>
-              <span class="artifact-open">Abrir ↗</span>
+              <span class="artifact-open">{{ artifact.url ? 'Abrir ↗' : 'Ver →' }}</span>
             </button>
             <p v-if="!taskArtifacts(active.Key).length" class="nota">Esta tarea todavía no tiene artifacts.</p>
+            </template>
           </template>
         </section>
       </template>
@@ -2757,6 +2850,19 @@ function documentAction(id) {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; margin-top: 2px }
 .artifact-open { color: var(--mut); font-size: var(--text-sm) }
 .artifact-row:hover .artifact-open { color: var(--acc) }
+/* El visor ocupa la pestaña a sangre, como la vista previa de Jira: subbanda arriba y el artifact abajo. */
+.artifact-tab-panel { padding: 0; overflow: hidden }
+.artifact-bar { display: flex; align-items: center; gap: var(--space-1); flex: none; min-height: var(--region-head-h);
+  padding: 0 var(--space-2); border-bottom: 1px solid var(--line); font-size: var(--text-sm) }
+.artifact-bar-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
+.artifact-bar-name::first-letter { text-transform: uppercase }
+.artifact-frame { display: block; flex: 1; min-height: 0; width: 100%; border: 0; background: var(--background) }
+.artifact-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-4) }
+.artifact-image { display: block; max-width: 100%; height: auto }
+/* Una nota suelta sí trae `# título` (el documento de la tarea no): del tamaño del título de la base. */
+.artifact-body .md-body :deep(h1) { margin: 0 0 var(--space-3); font-size: var(--text-title); line-height: 1.3 }
+.artifact-body .md-body :deep(h1 code) { font-size: inherit }
+.artifact-text { margin: 0; font: var(--text-sm)/1.5 var(--mono); white-space: pre; tab-size: 2; color: var(--txt) }
 /* handoff a QA: la ÚNICA acción del tablero que escribe en Jira y manda un mensaje, así que el envío
    pasa por una previsualización editable. `.qa-go` es el botón de confirmar dentro del panel, que se
    abre al mover la tarea hacia Testing desde el menú de estados. */

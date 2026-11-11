@@ -44,6 +44,12 @@ function render(tokens, links) {
   return marked.parser(copy, { gfm: true, renderer });
 }
 
+// Un Markdown suelto (la nota de un artifact) con el mismo renderer que el documento de la tarea.
+export function renderMarkdown(text) {
+  const tokens = marked.lexer(text || '', { gfm: true });
+  return render(tokens, tokens.links);
+}
+
 // La retoma arriba y el Registro al final son de los documentos de antes de la pila (2026-09-23): las
 // tareas abiertas ya no los tienen, y la única que conserva una «Bitácora» es una archivada (#67), que
 // no se migra; se sigue leyendo en ese orden.

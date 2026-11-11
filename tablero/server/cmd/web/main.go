@@ -232,6 +232,8 @@ func main() {
 			http.NotFound(w, r)
 			return
 		}
+		// El visor del tablero lee las notas y consultas como texto (md, sql, json…) desde su propio origen.
+		w.Header().Set("access-control-allow-origin", "*")
 		http.ServeFile(w, r, filepath.Join(tasks.ArtifactsPath(slug), name))
 	})
 
