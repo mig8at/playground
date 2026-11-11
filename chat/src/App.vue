@@ -788,7 +788,10 @@ const myAgentThinking = computed(() => chat.notes.some((n) => n.status === 'pens
    agentes se dicen entre ustedes por el chat (`bin/chat send <vos> … --as luigi`: la conversación con vos mismo). Lo
    que dice uno de tus agentes va a la izquierda, con su muñequito de color; lo tuyo, a la derecha. */
 const myThread = computed(() => {
-  const self = chat.conversations[chat.meKey]?.messages || []
+  // Cada mensaje una vez, por su id del home: si quedaron el enviado y el recibido (te lo mandaste a vos), el enviado.
+  const all = chat.conversations[chat.meKey]?.messages || []
+  const sentIds = new Set(all.filter((m) => m.dir === 'out' && m.sid).map((m) => m.sid))
+  const self = all.filter((m) => !(m.dir === 'in' && sentIds.has(m.sid || m.id)))
   const items = [
     ...chat.notes.map((n) => ({ kind: 'note', id: n.id, time: n.time, n })),
     ...self.map((m) => ({ kind: 'self', id: `self|${m.id}`, time: m.time, m, agent: m.asAgent || m.via || '' })),

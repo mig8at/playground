@@ -310,9 +310,11 @@ export const useChatStore = defineStore('chat', () => {
 
   function push(c, message) {
     if (c.messages.some((x) => x.id === message.id || (message.sid && x.sid === message.sid && x.dir === message.dir))) return false
-    // Lo que te mandaste a vos mismo te llega también como recibido, con el mismo id del home: se muestra una vez.
+    /* Lo que te mandaste a vos mismo existe dos veces, enviado y recibido, con el mismo id del home; y el recibido puede
+       llegar ANTES que el enviado (así quedan en el historial). Se muestra una vez, el enviado, en cualquier orden. */
     const homeId = message.sid || message.id
     if (message.dir === 'in' && c.messages.some((x) => x.dir === 'out' && x.sid && x.sid === homeId)) return false
+    if (message.dir === 'out' && message.sid) c.messages = c.messages.filter((x) => !(x.dir === 'in' && (x.sid || x.id) === message.sid))
     c.messages.push(message)
     c.messages.sort((a, b) => a.time.localeCompare(b.time))
     return true
