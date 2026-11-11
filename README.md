@@ -16,8 +16,8 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 - **La puerta única es `make`**: sin argumentos lista todo lo que se puede correr, agrupado por para
   qué sirve. No hace falta recordar en qué carpeta vive cada script.
 - **Las interfaces se miran en Cockpit** (`make cockpit` la instala en Aplicaciones): una app de escritorio
-  con una barra como la de VS Code y, adentro, chat, tablero, el panel del harness, Jarvis, Designer,
-  ecommerce y knowledge. Levanta cada una la primera vez que la abrís y muestra en vivo lo que hace
+  con una barra como la de VS Code y, adentro, chat, tablero, el panel del harness, Jarvis, Designer y
+  ecommerce. Levanta cada una la primera vez que la abrís y muestra en vivo lo que hace
   Claude. Cada herramienta sigue abriendo sola en el navegador con su `make`.
 - Los dev servers y sus puertos viven en [`.claude/launch.json`](.claude/launch.json) — esa es la
   fuente; si un puerto choca, ahí se ve contra qué.
@@ -35,7 +35,6 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | [`jarvis/`](jarvis/CLAUDE.md) | Manejar paneles admin complejos en el Chrome de Miguel con su extensión, y dejarlos como recetas reproducibles. |
 | [`visor/`](visor/CLAUDE.md) | Un diseño de Figma pantalla por pantalla al lado de su HTML traducido. En Cockpit se llama **Designer**. |
 | [`ecommerce/`](ecommerce/README.md) | Qué le pasó a una prueba de tienda, por celular, URL del wizard o número de solicitud. |
-| `knowledge-ui/` | La app para LEER `knowledge/`: temas, fuentes y si cambiaron en `main`. |
 | [`tienda-simple/`](tienda-simple/README.md) | La tienda VTEX de pruebas (tema y checkout). |
 | [`tools/`](tools/CLAUDE.md) | Lo transversal: el sistema de diseño que comparten las interfaces ([`tools/ui/`](tools/ui/README.md)) y sus chequeos. |
 | `keyring/` · `radar/` · `sala/` | A qué hay acceso ahora y cuándo vence · el uso real de las herramientas · agentes en paralelo sobre `knowledge/`. |
@@ -48,7 +47,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Consultar conocimiento de negocio/producto que no se puede comprobar en local | Canon, opcional: `make canon-search Q=…` y `make canon-read IDS=…` |
 | «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/traps/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | la app Harness de Cockpit, o `make panel` → el panel maneja el wizard real |
-| Ver las tareas, el chat o un tema de `knowledge/` | Cockpit (`make cockpit`), o `make tablero` · `make knowledge-ui` |
+| Ver las tareas o el chat | Cockpit (`make cockpit`), o `make tablero` |
 | Investigar una solicitud rota | en prod, el tracer del equipo (`tools/tracer` del playground compartido); fuera de prod, `make harness-loki UREQ=… TARGET=…` y `make harness-posthog UREQ=… TARGET=…` |
 
 **El trabajo diario arranca en local:** `make retomar N=…` reúne la tarea y sus referencias

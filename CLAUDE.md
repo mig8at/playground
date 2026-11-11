@@ -38,8 +38,8 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 
 ### Cockpit: donde Miguel ve las herramientas, y lo que hacés
 
-Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor), ecommerce y
-knowledge— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
+Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor) y
+ecommerce— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
 en cualquier tarea:
 
 - **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el
@@ -58,7 +58,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 
 | Tu pregunta | Con qué se contesta |
 |---|---|
-| **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local (para mirarlo: la app Knowledge de Cockpit, `make knowledge-ui`, con sus fuentes y si cambiaron en main). Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
+| **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
 | **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…` (o, con la sesión de Miguel y sin llave, `playground canon search|read|topics|ask`). Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
 | **arranco una tarea como agente** | `make agente N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make tarea-verify N=…` |
 | **¿el plan de la tarea se sostiene sin mí?** (antes de tocar un repo real) | el subagente **`goldfish`**: le pasás SÓLO la ruta del `task.md`; lo lee sin la conversación ni este archivo y devuelve supuestos sin escribir, criterios que no se pueden volver `S#` y afirmaciones para `main-verifier`, cada una con su línea. Revisa el documento, no el código |

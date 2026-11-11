@@ -3,10 +3,6 @@
 Archivos editables y versionados para trabajar con las herramientas de Miguel. Los nombres de archivos
 y carpetas van en inglés; las explicaciones quedan en español. No necesita servidor, VPN ni Canon.
 
-Para LEERLO con sus fuentes al lado está la app Knowledge de Cockpit (`make knowledge-ui`, :5210): temas,
-secciones, cada fuente en el commit revisado, si cambió en `main` y qué tareas lo citan. Sólo lee; se
-edita acá, en los archivos.
-
 Cada tema tiene dos piezas:
 
 ```text

@@ -18,7 +18,6 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `jarvis` | Jarvis | `jarvis/` | :5202 · :5203 | `make jarvis` |
 | `designer` | el visor de diseños de Figma | `visor/` | :5193 · :5194 | `make visor` |
 | `ecommerce` | qué le pasó a una prueba de tienda | `ecommerce/` | :5178 · :5179 | `make ecommerce` |
-| `knowledge` | el conocimiento local, para leerlo | `knowledge-ui/` | :5210 · :5211 | `make knowledge-ui` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 
@@ -56,7 +55,6 @@ Las rutas son las de cada app:
 |---|---|---|
 | `tablero` | `#/tareas/<slug o clave>[?vista=pendientes\|artifacts]` | `'#/tareas/core-800?vista=artifacts'` |
 | `harness` | `/<ambiente>/<comercio>/<canal>[?vista=comercio\|cliente\|buros]` | `/local/motai/asesor` |
-| `knowledge` | `#/<tema>[/<sección>]` | `'#/lender-listing'` |
 | `chat` | `#/c/<correo>` · `#/c/agent:<dueño>/<agente>` | |
 
 **El panel «Claude»** (el ícono de abajo de la barra) muestra en vivo cada herramienta que usa la sesión. No
@@ -65,7 +63,7 @@ y UserPromptSubmit) le pasa una línea por herramienta. Tres cosas que salen de 
 
 - **Seguir a Claude**: USAR una herramienta trae su app al frente, en su ruta — `make harness-case
   TARGET=local MERCHANT=motai` lleva el panel a ese comercio; escribir en `tablero/tasks/<slug>/` abre esa
-  tarea; `make knowledge-read ID=tema` abre el tema. Editar el CÓDIGO de una herramienta no mueve nada. Qué
+  tarea. Editar el CÓDIGO de una herramienta no mueve nada. Qué
   comando lleva a qué app lo decide `cockpitTarget`.
 - **`say` es para lo que los comandos no dicen**: qué vas a hacer y qué concluiste. No narres cada paso.
 - **Frenar**: si Miguel toca «Frenar», el hook niega la siguiente herramienta (sale 2) hasta que reanude o te
@@ -120,7 +118,7 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 
 **Reinstalar: `make cockpit`** compila el chat (servidor y interfaz) y la carcasa, cierra Cockpit, lo copia a
 Aplicaciones y lo abre. Tarda unos minutos. Hace falta cuando cambia `cockpit/` o `chat/`; **no** para un
-cambio en tablero, harness, Jarvis, Designer, ecommerce o knowledge.
+cambio en tablero, harness, Jarvis, Designer o ecommerce.
 
 - ⚠ Reinstalar **apaga las apps que Cockpit había levantado** (no las que levantaste vos).
 - ⚠ Después de reinstalar, macOS puede volver a pedir permiso para la carpeta Escritorio, y hasta que Miguel

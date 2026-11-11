@@ -43,7 +43,7 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui knowledge-ui ecommerce chat cockpit status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
+.PHONY: keyring keyring-ui ecommerce chat cockpit status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
 	@$(MAKE) --no-print-directory trampas
 	@echo ""
@@ -781,8 +781,6 @@ confluence: ## @har el POR QUÉ del negocio, que el código no tiene (sólo lect
 
 # ── KNOWLEDGE ───────────────────────────────────────────────────────────────────────────────────
 .PHONY: knowledge-map knowledge-search knowledge-read knowledge-check knowledge-test
-knowledge-ui: ## @dia abre knowledge, la app visual del conocimiento local (:5210 · API :5211): los temas para LEER, con sus fuentes en el commit revisado, si cambiaron en main y qué tareas los citan. También está en Cockpit
-	@cd knowledge-ui && npm run dev
 
 knowledge-map: ## @dia los temas de conocimiento LOCAL, editable y versionado en knowledge/. Sin red [JSON=1]
 	@go run ./cmd/knowledge map $(if $(JSON),--json)
