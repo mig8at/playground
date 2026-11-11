@@ -7,7 +7,8 @@ en frío entienda cómo funciona el sistema real y pueda actuar en minutos, en v
 grepeando repos enormes.
 
 Este README orienta a humanos. **El contrato operativo del repo es [`CLAUDE.md`](CLAUDE.md)** (el
-ciclo tarea→contexto local→prueba→cierre, las reglas de git y de entornos); los números vivos (cuántos
+ciclo tarea→contexto local→prueba→cierre, las reglas de git y de entornos; cada `AGENTS.md` es un enlace
+al `CLAUDE.md` de su carpeta, para los agentes que leen ese nombre: se edita el `CLAUDE.md`. `knowledge/` no lo lleva: no admite enlaces); los números vivos (cuántos
 nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 
 ## Cómo se usa
