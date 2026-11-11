@@ -140,7 +140,10 @@ canon, la API de cuadrilla, Jira, el frontmatter— y cada una está aceptada co
 **`make tablero-naming` lo verifica** y sale 1 ante un nombre nuevo que no es inglés. Revisa los
 identificadores declarados en Go, Vue/JS y Python, las claves JSON que emite el server (etiquetas y
 mapas literales, por AST) y los nombres de archivo y carpeta, y dice cuántos leyó de cada fuente: una
-fuente vacía es un error, no un verde. `make tablero-naming-test` fija su lógica, incluido un nombre
+fuente vacía es un error, no un verde. **Falla sólo con un nombre NUEVO**: los nombres en español que ya estaban son
+deuda conocida (`tools/naming-debt.txt`, «archivo nombre», sin la línea). Hasta el 2026-11-11 salía siempre en rojo
+(217 nombres) y un chequeo que siempre falla deja de mirarse. La deuda se paga renombrando y volviendo a congelar
+con `FREEZE=1`, para que sólo baje; congelar para tapar un nombre nuevo es saltarse el chequeo. `ALL=1` la muestra. `make tablero-naming-test` fija su lógica, incluido un nombre
 español inventado en cada lenguaje y una clave aceptada en un lugar que no queda aceptada en otro.
 
 ⚠ **La vara del inglés es la stdlib de Go y de Python, no el diccionario del sistema**, que trae inglés

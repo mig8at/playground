@@ -225,3 +225,36 @@ func TestAnEmptyExtractorIsAnErrorNotAPass(t *testing.T) {
 		t.Errorf("sin Go que leer tenía que fallar nombrando la fuente; dio %v", err)
 	}
 }
+
+// La deuda conocida no falla; un nombre nuevo sí, aunque esté en un archivo de la deuda o la misma palabra en otro
+// archivo. Lo que ya no aparece se avisa. La línea no cuenta: editar el archivo no invalida la entrada.
+func TestDebtFailsOnlyOnNewNames(t *testing.T) {
+	debt := Debt{"harness/dev/x.ts comercio": true, "server/a.go motivo": true}
+	findings := []Finding{
+		{Where: "harness/dev/x.ts:12", Name: "comercio"},
+		{Where: "harness/dev/x.ts:40", Name: "comercio"},
+		{Where: "harness/dev/x.ts:41", Name: "sucursal"},
+		{Where: "harness/dev/y.ts:3", Name: "comercio"},
+	}
+	fresh, known, paid := SplitDebt(findings, debt)
+	if len(known) != 2 {
+		t.Errorf("la deuda conocida: %d, quería 2", len(known))
+	}
+	if len(fresh) != 2 || fresh[0].Name != "sucursal" || fresh[1].Where != "harness/dev/y.ts:3" {
+		t.Errorf("lo nuevo: %+v", fresh)
+	}
+	if len(paid) != 1 || paid[0] != "server/a.go motivo" {
+		t.Errorf("lo pagado: %v", paid)
+	}
+}
+
+func TestDebtRoundTrip(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "debt.txt")
+	if n, err := WriteDebt(path, []Finding{{Where: "a.go:3", Name: "caso"}, {Where: "a.go:9", Name: "caso"}}); err != nil || n != 1 {
+		t.Fatalf("WriteDebt: %d %v", n, err)
+	}
+	debt, err := LoadDebt(path)
+	if err != nil || !debt["a.go caso"] || len(debt) != 1 {
+		t.Fatalf("LoadDebt: %v %v", debt, err)
+	}
+}

@@ -4,6 +4,8 @@
 //
 //	naming                 los nombres que no pasan como inglés
 //	naming -words          sólo las palabras desconocidas y cuántos nombres las usan, para curar la lista
+//	naming -freeze         congela los nombres en español de ahora como deuda conocida (tools/naming-debt.txt)
+//	naming -all            muestra también la deuda conocida, no sólo lo nuevo
 //	naming -json           los hallazgos en JSON
 //	naming -decls <dir>    cada identificador declarado en el Go de ese árbol (archivo:línea:col, nombre, clase)
 //	naming -json-keys <dir>  cada clave JSON de ese árbol (archivo:línea, clase, contexto, clave)
@@ -31,6 +33,8 @@ func main() {
 	jsonKeys := flag.String("json-keys", "", "lista las claves JSON de ese árbol y sale")
 	canon := flag.String("canon", "", "la raíz del repo compartido: revisa SÓLO canon (tools/canon), que vive allá")
 	cache := flag.String("cache", "", "dónde guardar la tabla de frecuencias (por defecto data/cache/naming-baseline.json)")
+	freeze := flag.Bool("freeze", false, "congela los nombres en español de ahora como deuda conocida")
+	all := flag.Bool("all", false, "muestra también la deuda conocida")
 	flag.Parse()
 
 	switch {
@@ -77,6 +81,33 @@ func main() {
 		findings = append(findings, found...)
 		seen = append(seen, b.Name+": "+naming.Seen(counts))
 	}
+	// La deuda conocida (no aplica a canon, que vive en otro repo): falla sólo lo nuevo.
+	debtPath := filepath.Join(board, "tools", "naming-debt.txt")
+	if *freeze && *canon == "" {
+		n, err := naming.WriteDebt(debtPath, findings)
+		if err != nil {
+			fail(err)
+		}
+		fmt.Printf("  deuda congelada: %d nombre(s) en tablero/tools/naming-debt.txt\n", n)
+		return
+	}
+	var known []naming.Finding
+	var paid []string
+	if *canon == "" && !*all && !*words {
+		debt, err := naming.LoadDebt(debtPath)
+		if err != nil {
+			fail(err)
+		}
+		findings, known, paid = naming.SplitDebt(findings, debt)
+	}
+	debtNote := ""
+	if len(known) > 0 {
+		debtNote = fmt.Sprintf("\n      deuda conocida: %d nombre(s) en español de antes (tablero/tools/naming-debt.txt; ALL=1 los lista)", len(known))
+	}
+	if len(paid) > 0 {
+		debtNote += fmt.Sprintf("\n  ▲ %d de la deuda ya no aparecen (renombrados o borrados): FREEZE=1 los saca de la lista", len(paid))
+	}
+
 	switch {
 	case *asJSON:
 		if findings == nil {
@@ -91,9 +122,9 @@ func main() {
 			fmt.Printf("%s %3d  %s\n", pad(w.Word, 22), len(w.Names), strings.Join(firstUnique(w.Names, 6), ", "))
 		}
 	case len(findings) == 0:
-		fmt.Printf("  ✓ nombres en inglés\n      %s\n", strings.Join(seen, "\n      "))
+		fmt.Printf("  ✓ nombres en inglés: ninguno nuevo en español\n      %s%s\n", strings.Join(seen, "\n      "), debtNote)
 	default:
-		fmt.Printf("  ✗ %d nombre(s) con palabras que no son inglés, de\n      %s\n\n", len(findings), strings.Join(seen, "\n      "))
+		fmt.Printf("  ✗ %d nombre(s) NUEVOS con palabras que no son inglés, de\n      %s%s\n\n", len(findings), strings.Join(seen, "\n      "), debtNote)
 		for _, f := range findings {
 			fmt.Printf("    %s %s %s\n", pad(f.Where, 52), pad(f.Name, 34), strings.Join(f.Words, ", "))
 		}

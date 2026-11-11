@@ -87,3 +87,16 @@ origination
 formalization
 formalizations
 stratum
+
+# ── 2026-11-11: lo que el chequeo marcaba sin ser español (el rojo de siempre tapaba los nombres nuevos) ──
+# productos y herramientas: tiendas, navegadores remotos y el producto HDC+ de Experian
+shopify shopifyapp selenium webdriver novnc jarvis pnpm inertia hdcplus whatsapp oms
+# inglés que la stdlib casi no usa
+symptom industry industries affiliation sku doctor adhoc campaigns cashier continuity coupon earnings enroll fieldsets
+financing geography gig invitation narrate portfolio promissory redemption revive settlement slugify subline touchable
+unmeasured redictate redictated tomb
+# siglas y abreviaturas técnicas: tokens de formularios, campañas, el campo de `ps`, `.git` de un worktree, claves foráneas,
+# el error de un json.Unmarshal, el contexto de base, `case` (palabra reservada) y `lenders_by_allieds`
+xsrf csrf utm urlutm lstart gitdir fks jerr dbctx kase lba
+# el nombre de Miguel, en el título de un test del freno de Cockpit
+miguel
