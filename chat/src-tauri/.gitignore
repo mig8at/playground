@@ -1,4 +1,5 @@
 /target
 /gen/schemas
+/binaries
 # El global trae `Icon?` (los Icon\r de macOS) y en un disco sin mayúsculas también tapa esta carpeta.
 !/icons

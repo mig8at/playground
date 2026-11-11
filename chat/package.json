@@ -8,7 +8,7 @@
     "service": "sh scripts/service.sh",
     "dev:web": "vite",
     "build": "vite build",
-    "desktop": "tauri build --bundles app",
+    "desktop": "sh scripts/desktop.sh",
     "desktop:dev": "tauri dev"
   },
   "dependencies": {
