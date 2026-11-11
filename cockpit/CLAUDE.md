@@ -32,11 +32,13 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
   levantaste vos en una terminal lo muestra Cockpit, y lo que levantó Cockpit ya te sirve a vos.
 - ⚠ **Antes de levantar un servidor, mirá si ya está arriba** (`bin/cockpit status`, o el aviso COCKPIT del
   arranque de la sesión). Dos `make tablero` chocan por el puerto.
-- ⚠ **Cockpit no relanza una app que murió después de cargarla.** Medido el 2026-11-11: se mató el tablero
-  que había levantado Cockpit (para que tomara un cambio en Go) y `bin/cockpit open tablero` no lo volvió a
-  levantar; hubo que correr `make tablero` aparte. Para reiniciar una app: matá su `concurrently` o su
-  `make` **por pid** (nunca `pkill` con patrón, ni por puerto sin `-sTCP:LISTEN`) y levantala con su `make`,
-  o reabrí Cockpit.
+- **Una app que se cae vuelve sola.** Cockpit vigila cada 5 s las apps que se abrieron (`watchdog`): si una deja
+  de contestar la tapa con un aviso y, tras 3 revisiones seguidas, la levanta de nuevo con su `make` y la
+  recarga. Medido el 2026-11-11: el tablero, apagado a la fuerza, volvió en 16 s. Espera esas revisiones a
+  propósito: un servidor que se reinicia solo (Vite al cambiar su config) deja el puerto un par de segundos.
+- **Para que una app tome un cambio en su servidor Go: `bin/cockpit restart <app>`.** Apaga la de Cockpit, o la
+  de una terminal sólo si el líder de su grupo de procesos es el `make` de esa app; si no, lo dice y no toca
+  nada. No mates servidores a mano: nunca `pkill` con patrón, ni por puerto sin `-sTCP:LISTEN`.
 - Lo que corre es el **código del working tree**: un cambio en el Vue de una app se ve al guardar (Vite); un
   cambio en su servidor Go pide reiniciar esa app. Sólo el chat y la carcasa piden reinstalar (abajo).
 
@@ -46,6 +48,7 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
     bin/cockpit status [--json]        qué apps hay, cuáles están arriba y cuál está al frente
     bin/cockpit open <app> [ruta]      trae una app al frente, en una ruta
+    bin/cockpit restart <app>          la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga
     bin/cockpit say "<texto>"          cuenta en el panel «Claude» la intención o una conclusión
     bin/cockpit apps                   los ids
 
@@ -67,7 +70,7 @@ y UserPromptSubmit) le pasa una línea por herramienta. Tres cosas que salen de 
   comando lleva a qué app lo decide `cockpitTarget`.
 - **`say` es para lo que los comandos no dicen**: qué vas a hacer y qué concluiste. No narres cada paso.
 - **Frenar**: si Miguel toca «Frenar», el hook niega la siguiente herramienta (sale 2) hasta que reanude o te
-  escriba. Pasan sólo `bin/cockpit` y las herramientas internas de la app. Si te frena: contá en una línea
+  escriba. Pasan sólo `bin/cockpit say|status|apps` y las herramientas internas de la app (`open` y `restart` hacen algo: no pasan). Si te frena: contá en una línea
   dónde quedaste y esperá.
 
 ⚠ En un comando compuesto, un `bin/cockpit open` pisa el «seguir» de lo demás: si querés que Cockpit siga a

@@ -123,11 +123,14 @@ func cockpitAlwaysAllowed(payload map[string]any) bool {
 		return true
 	}
 	if tool == "Bash" {
+		// Sólo contar y mirar: `restart` u `open` hacen algo, y frenado no se hace nada.
 		cmd := strings.TrimSpace(str(toolInput(payload), "command"))
-		return strings.HasPrefix(cmd, "bin/cockpit ") || strings.Contains(cmd, "/bin/cockpit ")
+		return cockpitTalk.MatchString(cmd)
 	}
 	return false
 }
+
+var cockpitTalk = regexp.MustCompile(`^(?:\S*/)?bin/cockpit (?:say|status|apps|help)\b`)
 
 // cockpitActivity arma la línea del panel. `false`: no se manda (una herramienta interna de la app, o el propio
 // `bin/cockpit`, que ya se ve como mensaje).

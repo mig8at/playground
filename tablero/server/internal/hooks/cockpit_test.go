@@ -127,6 +127,9 @@ func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
 	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"bin/cockpit say paré"}}`); code != 0 {
 		t.Errorf("bin/cockpit pasa aunque esté frenado: %d", code)
 	}
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"bin/cockpit restart tablero"}}`); code != 2 {
+		t.Errorf("bin/cockpit restart hace algo: frenado no pasa (salió %d)", code)
+	}
 	if code, _ := hook(`{"hook_event_name":"UserPromptSubmit","prompt":"seguí"}`); code != 0 || stopped {
 		t.Errorf("escribirle a Claude levanta el freno: %d %v", code, stopped)
 	}

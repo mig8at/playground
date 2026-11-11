@@ -173,6 +173,9 @@ fn spawn(app: &AppDef, path: &str) -> Option<Child> {
 struct Running {
     children: Arc<Mutex<HashMap<&'static str, Child>>>,
     path: Arc<String>,
+    // LAS APPS QUE SE VIGILAN: las que se abrieron alguna vez (`ensure_app`), con cuántas revisiones seguidas lleva
+    // cada una sin contestar. Ver `watchdog`.
+    watched: Arc<Mutex<HashMap<&'static str, u32>>>,
 }
 
 impl Running {
@@ -192,6 +195,20 @@ impl Running {
     }
     fn started(&self, id: &str) -> bool {
         self.children.lock().unwrap().contains_key(id)
+    }
+    // ¿Está vivo el proceso que levantó Cockpit para esta app? (Si no lo levantó Cockpit, no.)
+    fn alive(&self, id: &str) -> bool {
+        matches!(self.children.lock().unwrap().get_mut(id).map(|c| c.try_wait()), Some(Ok(None)))
+    }
+    fn watch(&self, id: &'static str) {
+        self.watched.lock().unwrap().entry(id).or_insert(0);
+    }
+    // Apaga lo que levantó Cockpit para esta app (todo su grupo). `false`: no era suya.
+    fn kill(&self, id: &str) -> bool {
+        let Some(mut child) = self.children.lock().unwrap().remove(id) else { return false };
+        let _ = Command::new("/bin/kill").args(["-TERM", &format!("-{}", child.id())]).status();
+        let _ = child.wait();
+        true
     }
     fn stop_all(&self) {
         for (_, mut child) in self.children.lock().unwrap().drain() {
@@ -215,7 +232,116 @@ fn apps() -> Vec<AppInfo> {
 
 #[tauri::command]
 fn ensure_app(id: String, running: State<'_, Running>) -> bool {
-    APPS.iter().find(|a| a.id == id).map(|a| running.ensure(a)).unwrap_or(false)
+    let Some(app) = APPS.iter().find(|a| a.id == id) else { return false };
+    running.watch(app.id);
+    running.ensure(app)
+}
+
+/* EL VIGILANTE: cada 5 s revisa las apps que se abrieron. Si una deja de contestar, la carcasa la tapa con un aviso
+   (`cockpit-app` down) y, tras DOWN_CHECKS revisiones seguidas, Cockpit la vuelve a levantar con su `make`; cuando
+   contesta de nuevo, la carcasa la recarga (`cockpit-app` up).
+
+   Por qué hace falta: la carcasa levantaba cada app UNA vez, al abrirla. Si después se caía (o se la mataba para tomar
+   un cambio en su servidor Go), quedaba muerta hasta reabrir Cockpit (pasó el 2026-11-11 con el tablero).
+
+   Por qué espera varias revisiones: un servidor que se reinicia solo (Vite al cambiar su config) deja el puerto un
+   par de segundos sin contestar, y relanzar ahí uno que no es de Cockpit levantaría un segundo `make` que choca por
+   el puerto. Si el proceso de Cockpit sigue vivo (está arrancando), `ensure` no lanza otro. */
+const DOWN_CHECKS: u32 = 3;
+
+fn watchdog(app: tauri::AppHandle, running: Running) {
+    loop {
+        thread::sleep(Duration::from_secs(5));
+        let ids: Vec<&'static str> = running.watched.lock().unwrap().keys().copied().collect();
+        for id in ids {
+            let Some(def) = APPS.iter().find(|a| a.id == id) else { continue };
+            // El chat tiene su propio cuidado (abajo, en `main`): acá sólo se avisa a la carcasa.
+            let up = ready(def);
+            let downs = {
+                let mut watched = running.watched.lock().unwrap();
+                let n = watched.entry(id).or_insert(0);
+                let before = *n;
+                *n = if up { 0 } else { before + 1 };
+                (before, *n)
+            };
+            match downs {
+                (before, 0) if before > 0 => {
+                    let _ = app.emit("cockpit-app", serde_json::json!({ "id": id, "state": "up" }));
+                }
+                (0, 1) => {
+                    let _ = app.emit("cockpit-app", serde_json::json!({ "id": id, "state": "down" }));
+                }
+                (_, n) if n >= DOWN_CHECKS && !matches!(def.start, Start::Sidecar) && !running.alive(id) => {
+                    let _ = app.emit("cockpit-app", serde_json::json!({ "id": id, "state": "restarting" }));
+                    running.ensure(def);
+                }
+                _ => {}
+            }
+        }
+    }
+}
+
+/* REINICIAR UNA APP (`bin/cockpit restart <app>`): para que tome un cambio en su servidor (Go no se recarga solo).
+   Si la levantó Cockpit, apaga su grupo de procesos. Si la levantó otro, sólo la apaga cuando el líder de su grupo es
+   el `make <target>` de esa app (una sesión que corrió `make tablero`): el grupo de procesos que escucha en su puerto,
+   nunca un patrón ni «lo que esté en el puerto». Después la vuelve a levantar Cockpit. */
+fn restart(app: &tauri::AppHandle, def: &'static AppDef) -> Result<String, String> {
+    let running = app.state::<Running>();
+    running.watch(def.id);
+    let mut how = "estaba apagada";
+    if matches!(def.start, Start::Sidecar) {
+        return Err("el chat lo cuida Cockpit solo: si se cae, lo vuelve a levantar".into());
+    }
+    if running.kill(def.id) {
+        how = "la había levantado Cockpit";
+    } else if ready(def) {
+        let Start::Make(target) = def.start else { unreachable!() };
+        let group = owner_group(def).ok_or_else(|| format!("no encontré quién escucha en {}", def.ready.join(" · ")))?;
+        let leader = Command::new("/bin/ps")
+            .args(["-o", "command=", "-p", &group.to_string()])
+            .output()
+            .map(|o| String::from_utf8_lossy(&o.stdout).into_owned())
+            .unwrap_or_default();
+        if !runs_make(&leader, target) {
+            return Err(format!(
+                "{} la levantó otro proceso (grupo {group}, no es `make {target}`): apagala vos y Cockpit la vuelve a levantar",
+                def.name
+            ));
+        }
+        let _ = Command::new("/bin/kill").args(["-TERM", &format!("-{group}")]).status();
+        how = "la había levantado una terminal";
+    }
+    let _ = app.emit("cockpit-app", serde_json::json!({ "id": def.id, "state": "restarting" }));
+    // Se espera a que suelte el puerto, para no ver «ya contesta» con el servidor viejo.
+    for _ in 0..50 {
+        if !def.ready.iter().any(|hp| answers(hp)) {
+            break;
+        }
+        thread::sleep(Duration::from_millis(200));
+    }
+    running.watched.lock().unwrap().insert(def.id, 1);
+    running.ensure(def);
+    Ok(format!("{}: {how}; arrancando de nuevo", def.name))
+}
+
+// El grupo de procesos de quien escucha en el primer puerto de la app (sólo LISTEN: un cliente conectado no cuenta).
+fn owner_group(def: &AppDef) -> Option<i32> {
+    let port = def.ready.first()?.rsplit(':').next()?;
+    let out = Command::new("/usr/sbin/lsof").args(["-nP", &format!("-iTCP:{port}"), "-sTCP:LISTEN", "-t"]).output().ok()?;
+    let pid = String::from_utf8_lossy(&out.stdout).lines().next()?.trim().to_string();
+    let out = Command::new("/bin/ps").args(["-o", "pgid=", "-p", &pid]).output().ok()?;
+    String::from_utf8_lossy(&out.stdout).trim().parse().ok()
+}
+
+// ¿El comando del líder corre `make <target>`? `make tablero` sí; `make tablero-db` o `make tableros` no.
+fn runs_make(command: &str, target: &str) -> bool {
+    let needle = format!("make {target}");
+    command.match_indices(&needle).any(|(i, _)| {
+        let before = command[..i].chars().last();
+        let after = command[i + needle.len()..].chars().next();
+        !matches!(before, Some(c) if c.is_alphanumeric() || c == '-' || c == '_')
+            && !matches!(after, Some(c) if c.is_alphanumeric() || c == '-' || c == '_')
+    })
 }
 
 // La app al frente, que la carcasa avisa al cambiar: la lee `status` del puerto de control.
@@ -345,6 +471,22 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     json_response(404, serde_json::json!({ "error": format!("no hay app «{id}»: {}", ids.join(", ")) }))
                 }
             }
+            ("POST", "/restart") => {
+                let id = text("app", 40);
+                match APPS.iter().find(|a| a.id == id) {
+                    None => {
+                        let ids: Vec<_> = APPS.iter().map(|a| a.id).collect();
+                        json_response(404, serde_json::json!({ "error": format!("no hay app «{id}»: {}", ids.join(", ")) }))
+                    }
+                    Some(def) => match restart(&app, def) {
+                        Ok(text) => {
+                            let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "say", "text": format!("↻ {text}"), "session": "" }));
+                            json_response(200, serde_json::json!({ "ok": true, "text": text }))
+                        }
+                        Err(e) => json_response(409, serde_json::json!({ "error": e })),
+                    },
+                }
+            }
             ("POST", "/say") => {
                 let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "say", "text": text("text", 600), "session": text("session", 40) }));
                 json_response(200, serde_json::json!({ "ok": true }))
@@ -366,7 +508,7 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     json_response(200, serde_json::json!({ "ok": true }))
                 }
             }
-            _ => json_response(404, serde_json::json!({ "error": "rutas: GET /status · /stop · POST /open · /say · /activity · /stop" })),
+            _ => json_response(404, serde_json::json!({ "error": "rutas: GET /status · /stop · POST /open · /restart · /say · /activity · /stop" })),
         };
         let _ = req.respond(reply);
     }
@@ -400,7 +542,7 @@ fn open_in_shell(app: &tauri::AppHandle, id: &str, route: &str) {
 }
 
 fn main() {
-    let running = Running { children: Arc::default(), path: Arc::new(user_path()) };
+    let running = Running { children: Arc::default(), path: Arc::new(user_path()), watched: Arc::default() };
     // El chat, ya: aunque no lo abras, junta el historial y avisa. Si se cae, se vuelve a levantar.
     let chat = &APPS[0];
     running.ensure(chat);
@@ -412,6 +554,7 @@ fn main() {
         });
     }
     let on_exit = running.clone();
+    let watching = running.clone();
 
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_deep_link::init())
@@ -429,6 +572,10 @@ fn main() {
             {
                 let handle = app.handle().clone();
                 thread::spawn(move || control_server(handle, token));
+            }
+            {
+                let handle = app.handle().clone();
+                thread::spawn(move || watchdog(handle, watching));
             }
             let handle = app.handle().clone();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
@@ -477,4 +624,18 @@ fn main() {
         }
         _ => {}
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::runs_make;
+
+    #[test]
+    fn runs_make_only_matches_the_exact_target() {
+        assert!(runs_make("/usr/bin/make tablero", "tablero"));
+        assert!(runs_make("/bin/zsh -c eval 'make tablero' < /dev/null", "tablero"));
+        assert!(!runs_make("/usr/bin/make tablero-db SQL=x", "tablero"));
+        assert!(!runs_make("/usr/bin/make tableros", "tablero"));
+        assert!(!runs_make("node vite", "tablero"));
+    }
 }
