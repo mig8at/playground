@@ -991,7 +991,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <ul class="conversations">
           <li>
             <button type="button" class="conversation" :class="{ on: !chat.activeKey && !serverOpen }" @click="openMyChat">
-              <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span>
+              <span class="avatar" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><b v-if="agentCount({ email: chat.meKey })" class="agent-count" :title="`Tus agentes: ${agentNames({ email: chat.meKey })}`">{{ agentCount({ email: chat.meKey }) }}</b></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
                 <span class="conversation-bottom"><span class="snippet">{{ chat.notes.length ? (chat.notes[chat.notes.length - 1].status === 'pensando' ? `${agentLabel} está pensando…` : chat.notes[chat.notes.length - 1].text) : `vos y ${agentLabel}` }}</span></span>
