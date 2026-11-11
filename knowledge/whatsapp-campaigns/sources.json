@@ -1,0 +1,431 @@
+{
+  "version": 1,
+  "title": "Campañas de WhatsApp del backoffice",
+  "summary": "Cómo se crea una campaña (la pantalla limpia el CSV, el servidor no; crear y lanzar son dos pasos, crear no es atómico), cómo la envía messaging-service con Temporal de a un destinatario, por qué relanzar sólo manda pendientes y dónde puede repetirse un envío, cómo se deduce el estado, qué frena el lanzamiento y qué datos personales quedan en logs.",
+  "reviewedAt": "2026-11-11T13:35:23+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Http/Requests/CreateCampaignRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2caa53f1aac8c35eeb4937be511b93b6033fda72",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Services/CreateCampaignService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7a441247b66ab2a8e06c894011f54cbeae29a745",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene",
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CommonsV1/App/Utils/CsvUtils.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "874167158e7c980b5bd1f364e1eb0fdd92303bbe",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Providers/RouteServiceProvider.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d64a0fd7085029f01dcbeab16d1b51b049524b3a",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/routes/api.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "47721e6adbdae974b291e2a5f92f807098cbb8f0",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Repositories/CampaignRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a689f987ed758343935639ecdbabd9ad5f960a97",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Repositories/RawCampaignFilesRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2216d44ce95a2e3ffee5e94c7ca5dd9380f7424c",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Repositories/CampaignQueuesRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9837f43094192ae5671797d535cd0978277a912f",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Entities/CampaignEntitie.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bc9582b2c553ab29c7cc104e1b3488a26ad7e2fe",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Constants/CampaignQueueItemStatus.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "5a7d3d368ec0fc157b7012b5777fda00d5fc9f1d",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Services/StartCampaignService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "2bd036b1113dd55582cb1d69a627ed15229fca99",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-frena-el-lanzamiento",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Http/Clients/MessagingClient.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d4cb4d86dad61658e9739fa38ef2e6d5064529b1",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Services/GetCampaignQueueDetailService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "0ba7d80594d2b29a02455fc84d83fcc315463375",
+      "sections": [
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Commands/CreateCampaignCommand.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "188830507c4b1ffd1a3c7e431b8b3f90faeee7e6",
+      "sections": [
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/App/Http/Controllers/CreateCampaignController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "ad00bb009279e8de032524687f91846516f0614b",
+      "sections": [
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CampaignV1/TECHNICAL_DEBT.md",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d174bf1ce422b8ddcb81a0e8df52aa2a977bac53",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/core/domain/campaign_queue.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "2f24212d20dd1268b06b25076b9cd4edeb2b24fa",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/core/usecases/campaign/send_campaign.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "d05e7dde34db8b23ad7c9a08f6e372441620cf67",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "relanzar-solo-manda-pendientes-salvo-el-item-que-no-llego-a-escribirse",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/core/usecases/campaign/start_campaign_send.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "50c0d25106bcac6263713298025f39ea9040895d",
+      "sections": [
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/handlers/campaign/http_handler.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "f7e2e7a016f349a6f82efd97b0a3328f4bac6482",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/storage/s3/repositories/campaign_queue_repository.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "13fd8e56e73036eec1c8ba1b6bfd04619a0cfeea",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/temporal/campaignsend/activities.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "9bde0ed2b4662eaec02e5fc123478cf39cd557df",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/temporal/campaignsend/workflow.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "6efa3dc10dddfe306a41a9410cc2335c8f7df71b",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/temporal/campaignsend/starter.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "0d99f97cff6a4f28d6ec670232252c9433646a77",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "relanzar-solo-manda-pendientes-salvo-el-item-que-no-llego-a-escribirse",
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/temporal/campaignsend/worker.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "562304718aecc29109a938f73c62baa0600ee753",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/temporal/campaignsend/module.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "b0c8c71d5386c48c3917ff3e2eeb56b1fc14b144",
+      "sections": [
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "cmd/http-server/main.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "43bcca1392ac5d3ee2b5025c350db3fa3e721465",
+      "sections": [
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/core/usecases/messaging/send_message.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "a36813f4fcb49380a6a04fd729c975e47fe0cb7f",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola",
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/core/domain/qa_delivery.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "237baad44360cedecbb295c44082c42e22cc29e5",
+      "sections": [
+        "messaging-service-envia-la-cola-de-a-un-destinatario"
+      ]
+    },
+    {
+      "repo": "messaging-service",
+      "path": "internal/infra/clients/twilio_client.go",
+      "commit": "4590ac42809ca2d821c45d1e00c31521a315f70f",
+      "blob": "416ed87e19d0bda8545ddc867012a015db979847",
+      "sections": [
+        "que-queda-en-los-logs"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/domain/recipients.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "e7885f42ef5fd36cda9e7d05090e597b1c26c9fe",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/domain/format.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "375fae10075d890debafe879f3586fa89bdec4a9",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/domain/template.schema.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "4e2307c48ea6177bb12f103e93fc8d93c6d3ffd7",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/components/wizard/TemplateCard.tsx",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "10f1d3743717aff49edaae64020de9c9c5649d70",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/components/wizard/WhatsAppCampaignWizard.tsx",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "3e4af46484ee7357806f622987e6b7a25a8388f8",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/application/test-message.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "721afe2423780d76c34278cb56bd8f5c15d2d196",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/application/campaigns.use-cases.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "1664c3edf68312519942145287ad04d233eecbd9",
+      "sections": [
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/lib/domain/campaign.schema.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "70b0af91c10b580e27b64a535eeee45ecb0552c4",
+      "sections": [
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola",
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "modules/backoffice/communications/src/components/shared/useLiveProgress.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "2cc10cca45a9375e5f606cfda124909b00deb79d",
+      "sections": [
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/services/communications/communications.server.ts",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "58865cb893507f2e7f23afbadc534b52e7158f1a",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene",
+        "que-frena-el-lanzamiento"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/routes/communications.messages.new.tsx",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "ba59b550d27bfef6dd1602aacf2c672b845714c8",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene",
+        "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/backoffice/app/routes/communications.messages.detail.tsx",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "bccc632fe604b0a86b9a9f4f37a110da08f17bbf",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene",
+        "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/routes/backoffice.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "15e30e999b55874a2abf1c9f97bb2f346a2cd945",
+      "sections": [
+        "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CommonsV1/App/Utils/TracingUtils.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "68ae8ffb6a7604cf2e8a4fb904b7157516d7be89",
+      "sections": [
+        "que-queda-en-los-logs"
+      ]
+    }
+  ]
+}

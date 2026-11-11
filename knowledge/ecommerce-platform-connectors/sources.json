@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "title": "Conectores de plataforma: VTEX y Shopify",
+  "summary": "Conector de VTEX: credenciales por afiliación, ambiente por configuración, enlace por payment-link, desenlace por consulta de estado, y settle/cancel/refund; el de Shopify no está en main.",
+  "reviewedAt": "2026-11-11T13:33:47+00:00",
+  "sources": [
+    {
+      "repo": "vtex",
+      "path": "node/connector.ts",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "a81c69702251c28b8bf47891dd0c9446d68d8717",
+      "sections": [
+        "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada",
+        "el-ambiente-sale-de-la-configuracion-de-la-app-y-una-lectura-fallida-niega-el-pago",
+        "authorize-pide-el-enlace-a-payment-link-y-responde-redirect",
+        "el-auto-onboarding-de-vtex-lee-el-pedido-del-oms-y-nunca-frena-el-pago",
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso",
+        "settle-cancel-y-refund-en-vtex-deciden-por-el-estado-y-por-el-codigo-http-de-creditop",
+        "en-main-del-repo-shopify-solo-hay-un-readme-y-la-comparacion-con-shopify-no-se-puede-sostener"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "node/creditop.ts",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "7f9b218459b11e4de3e2359c56e222c9399abd5b",
+      "sections": [
+        "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada",
+        "el-ambiente-sale-de-la-configuracion-de-la-app-y-una-lectura-fallida-niega-el-pago",
+        "authorize-pide-el-enlace-a-payment-link-y-responde-redirect",
+        "el-auto-onboarding-de-vtex-lee-el-pedido-del-oms-y-nunca-frena-el-pago",
+        "settle-cancel-y-refund-en-vtex-deciden-por-el-estado-y-por-el-codigo-http-de-creditop"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "manifest.json",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "b2ff990c2e2c39bd1fade40ce866078d0a25bc30",
+      "sections": [
+        "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada",
+        "el-ambiente-sale-de-la-configuracion-de-la-app-y-una-lectura-fallida-niega-el-pago",
+        "el-auto-onboarding-de-vtex-lee-el-pedido-del-oms-y-nunca-frena-el-pago"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "node/service.json",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "25eef094168fe0481c6c931f18337912a28112db",
+      "sections": [
+        "el-auto-onboarding-de-vtex-lee-el-pedido-del-oms-y-nunca-frena-el-pago",
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "node/index.ts",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "ee716604a7bdf94953cec5cccbf029a4f0bb05a1",
+      "sections": [
+        "el-auto-onboarding-de-vtex-lee-el-pedido-del-oms-y-nunca-frena-el-pago",
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "node/flow.ts",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "c061c396b211587bdbc47820824c4643fc2590c1",
+      "sections": [
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "node/testSuite.ts",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "fc75d4ceae0adb91aab436b54120f511bfcd37bb",
+      "sections": [
+        "authorize-pide-el-enlace-a-payment-link-y-responde-redirect"
+      ]
+    },
+    {
+      "repo": "vtex",
+      "path": "docs/README.md",
+      "commit": "01add0fc04a66b923d99c754e8efdf60271e792d",
+      "blob": "e9aa2a011fbbb0506c4bbbe08d88b3a3a5849fcb",
+      "sections": [
+        "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/VtexNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "04cfaef465f24da57bc21d44d03e4eea96d0ee41",
+      "sections": [
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/webhooks.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a66362d542eaf7daf42d9fd3ad95c7caa94ba7aa",
+      "sections": [
+        "en-vtex-la-afiliacion-trae-el-hash-y-el-token-de-la-sucursal-en-cada-llamada",
+        "settle-cancel-y-refund-en-vtex-deciden-por-el-estado-y-por-el-codigo-http-de-creditop"
+      ]
+    },
+    {
+      "repo": "shopify",
+      "path": "README.md",
+      "commit": "4db9419c28cf4887e8e4e01dba477b2f17d52394",
+      "blob": "d26d3e88eb2837be1f870b34b76a73d56ae167ac",
+      "sections": [
+        "en-main-del-repo-shopify-solo-hay-un-readme-y-la-comparacion-con-shopify-no-se-puede-sostener"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Observers/UserRequestObserver.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "733ad39d3e0a26dc78be4800641d8c8a8313d634",
+      "sections": [
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
+      "sections": [
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/ecommerce.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "fa96dcdbc6373d81f23ab42f6a43cefd390307b9",
+      "sections": [
+        "en-vtex-el-desenlace-se-toma-del-estado-del-pedido-no-del-cuerpo-del-aviso",
+        "en-main-del-repo-shopify-solo-hay-un-readme-y-la-comparacion-con-shopify-no-se-puede-sostener"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/ShopifyNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "288d64bd1b244a6999361331833490c01644feb1",
+      "sections": [
+        "en-main-del-repo-shopify-solo-hay-un-readme-y-la-comparacion-con-shopify-no-se-puede-sostener"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2026_10_19_120000_seed_shopify_ecommerce.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6836720efcd85d4c1cafe6c6aa2648ec67d0338f",
+      "sections": [
+        "en-main-del-repo-shopify-solo-hay-un-readme-y-la-comparacion-con-shopify-no-se-puede-sostener"
+      ]
+    }
+  ]
+}

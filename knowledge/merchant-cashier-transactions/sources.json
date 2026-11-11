@@ -1,0 +1,313 @@
+{
+  "version": 1,
+  "title": "Transacciones de caja del comercio",
+  "summary": "API servidor a servidor de la caja del comercio (MerchantTransactionsV1): token del aliado, códigos de caja del servicio de códigos, consulta y confirmación, cancelaciones, entidad sin llamar y simulación con su perilla.",
+  "reviewedAt": "2026-11-11T13:36:00Z",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/routes/api.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "fd9f25bbe1f1810717e42de9ea2ca5fc197af0da",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad",
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Providers/RouteServiceProvider.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "54a27e09b0213b7d115135a04a5c760def4a408d",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Providers/MerchantTransactionsV1ServiceProvider.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "31dfb0a0160f6c6dc1abdc819ab1a3834f099bff",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad",
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Middleware/EnsureMerchantTransactionsToken.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bf2dc42f36fb645b46b610bed1acd931e889e8e7",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Console/Commands/IssueMerchantTransactionsTokenCommand.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "0a9bf952f517a81553e84548aa5da4eaa1f22ca1",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/Allied.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "887ae38f1bea247f0d78128bd3d91385c189a2f4",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/Commons/Support/MerchantContractResponse.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cfc6cd521d61591f6b75de6f8c5d79464c149cff",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/ARCHITECTURE_EXCEPTIONS.md",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "33e97ad369a1331882ecbedb74be5ae61f16c84e",
+      "sections": [
+        "el-token-es-del-comercio-y-lleva-una-sola-habilidad",
+        "que-escribe-confirmar-en-cada-resultado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Constants/TransactionLifecycle.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d2a95e4da220e72916db21ba40968833805c48cd",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main",
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "que-escribe-confirmar-en-cada-resultado",
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion",
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Clients/TransactionCodeClient.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "301cd1c110362af02fd8e8215ce012b65e8f70b7",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main",
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/services.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "885cd59dc8581496fbc0d64e5bc53046f644c2a2",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Requests/GetTransactionRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "79e732dbed95ffa30de6e39b5319a9a392d6146d",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Requests/ConfirmTransactionRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1d5b26329068debdedf76b34c4283e5b612ba20b",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main",
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Requests/CreateCancellationRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "34e3eef667e75f3156143755fef4b2c64f37dbe7",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main",
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Services/GetTransactionService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "23905825eb1f23589778cdc7a61549d08c6d6b6a",
+      "sections": [
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Services/ConfirmTransactionService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "25ce9db3492eeb579f01d96e1ac3cd0534e52620",
+      "sections": [
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "que-escribe-confirmar-en-cada-resultado",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Constants/ConfirmTransactionServiceConstants.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6bc616139e8651c7b0bc8b1831982b2f39a8acaf",
+      "sections": [
+        "que-escribe-confirmar-en-cada-resultado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Repositories/MerchantTransactionRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7f7d88b7c7722b287b75753e879afe7b13b8a8b4",
+      "sections": [
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "que-escribe-confirmar-en-cada-resultado",
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion",
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Domain/TransactionData.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "28a82483ff1af6b462c9630f0fb7f0739c7abab5",
+      "sections": [
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "que-escribe-confirmar-en-cada-resultado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/VoucherService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "f6eb052d48da2238aea73b25fee30eac92ca1592",
+      "sections": [
+        "que-escribe-confirmar-en-cada-resultado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/RequestCompletionService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "4a104f9702bbff91e91cb89746fe71b3364f64cd",
+      "sections": [
+        "que-escribe-confirmar-en-cada-resultado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Services/CreateCancellationService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "898992a2af6eca3b6733c8a8d7d024a5267b0e8a",
+      "sections": [
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Constants/CreateCancellationServiceConstants.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "82d2ac9148d3787f4e644f9f9c21850fe1588e56",
+      "sections": [
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Services/ProcessCancellationService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "26f15b3acf09ee138fcf65f694b9b8914cec4f81",
+      "sections": [
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Jobs/ProcessCancellationJob.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "acc4014ab7651234c0ffb7993bca3aa162c21c29",
+      "sections": [
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/TECHNICAL_DEBT.md",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "695c0ea8d11ea615c579bb580127a9e38788d55c",
+      "sections": [
+        "consultar-no-gasta-el-codigo-y-confirmar-lo-consume-antes-de-escribir",
+        "cancelar-exige-una-compra-completada-y-se-aplica-despues-de-responder",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Services/SimulateTransactionService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "918b189c519411a3a8e937b93907953bac133cf3",
+      "sections": [
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Http/Requests/SimulateTransactionRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d9ac4dd65823ef9ff6bf78d15b5f7016495c85fd",
+      "sections": [
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/App/Constants/SimulateTransactionServiceConstants.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b85d28a5d44a2e1db0295977477856a9b1af7b86",
+      "sections": [
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MerchantTransactionsV1/config/config.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b95568a05233213f4edb876d3c0be4fd22af64b8",
+      "sections": [
+        "la-simulacion-escribe-filas-reales-y-su-perilla-depende-de-app-env"
+      ]
+    },
+    {
+      "repo": "self-manager-api",
+      "path": "openapi.yaml",
+      "commit": "f1d8002e1d88d6628f7a1172e5b704e15015beb6",
+      "blob": "10eda5b532500ae57660f55f2390a059e9a79511",
+      "sections": [
+        "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main",
+        "ninguna-entidad-se-llama-y-solo-la-simulacion-crea-la-transaccion"
+      ]
+    }
+  ]
+}

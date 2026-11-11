@@ -1,0 +1,428 @@
+{
+  "version": 1,
+  "title": "Ecommerce: la API de la tienda contra Creditop",
+  "summary": "Enlace de pago, consulta de estado y cancelación con el token de sucursal; el aviso a la tienda en los dos monolitos y qué solicitud cuenta por pedido.",
+  "reviewedAt": "2026-11-11T13:35:27+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/webhooks.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a66362d542eaf7daf42d9fd3ad95c7caa94ba7aa",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Middleware/EnsureEcommerceToken.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "a6d39777e42d233c4ae4b1f6e3c7d2657458a1cb",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Console/Commands/EcommerceIssueTokenCommand.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "cd85d47d00093ffc61747896422ce9be1f6673a6",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/EcommerceTokenIssuer.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "e6b7fd62e9ab3d6ef73db8aaa38cd9b71b43797c",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "86b90ed9bdfdb38a8a59b6fb593a93cddb673739",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/EcommercePaymentLinkController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3df8c0664366b781529f65bb0f23beae41cf233e",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Requests/CreatePaymentLinkRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "08914a5ccb0192b41bb204edb30d31a6c5ffc65a",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/EcommercePaymentLinkService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1d84d85444f6f8f9cf43cb871e5a214d8595b840",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409",
+        "la-referencia-vence-para-entrar-sin-otp-no-para-abrir-el-pedido"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/EcommerceRequestRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "ff4ff8864ee211f24192bab95cb1f6373414cd5c",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409",
+        "la-referencia-vence-para-entrar-sin-otp-no-para-abrir-el-pedido",
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending",
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/EcommerceRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3987d02509d07ae61b12f4d65d0642657c77849e",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "config/ecommerce.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "fa96dcdbc6373d81f23ab42f6a43cefd390307b9",
+      "sections": [
+        "la-referencia-vence-para-entrar-sin-otp-no-para-abrir-el-pedido",
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/EcommerceRequestService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "bd5d3871f73e567e5d4d4edcd21656b5ea1af897",
+      "sections": [
+        "la-referencia-vence-para-entrar-sin-otp-no-para-abrir-el-pedido",
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/EcommerceOrderStatusController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "3740a046183729cb830ad5ae5e350576ad85127d",
+      "sections": [
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/EcommerceOrderStatusService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "4ef0105277c9957b7a6cb7055553671f11eb7f18",
+      "sections": [
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending",
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/seeders/WoocommerceStatusesTableSeeder.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b31ebdd9a4e81ece5845b53f7f2e5a8558d9a2ab",
+      "sections": [
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/EcommerceOrderCancelController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b61b6df0913701990a76bba8c6f5498f9da58e96",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/EcommerceOrderCancelService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6d22ccbdb933c0765076ac931bd067ec034aa490",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir",
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Events/EcommerceOrderCancelled.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "badd00a14dc08dc12c27a1eb5758c7d1892ef919",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/UserRequest.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7f20bdcc26b03bc553307da35247d0632ca7143e",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir",
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "frontend-monorepo",
+      "path": "apps/loan-request-wizard/app/components/ecommerce-store-exit.tsx",
+      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
+      "blob": "a10cad8844d94f747e83030245d2a7455ed5f0c5",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Observers/UserRequestObserver.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "733ad39d3e0a26dc78be4800641d8c8a8313d634",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Services/Lenders/Nequi/NequiUserRequestSealer.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "7ae251cd2b0c18f228e61db76b3941db2efb59e1",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/EcommerceNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "11cf1de217532791fa3ca2e7a6056941281ca321",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/SelfDevelopmentNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "abae06c7304d68f8d87033da5aca4de59742c653",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/WooCommerceNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "e258bc0b3483669e25bad92d5e2060100cbd208c",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/ShopifyNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "288d64bd1b244a6999361331833490c01644feb1",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/Ecommerce/VtexNotifier.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "04cfaef465f24da57bc21d44d03e4eea96d0ee41",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/EcommerceRequestController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "ec7f884440252fdd57bfea79720f3a7612cff97c",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/routes/api.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "9fe1053db4e661eadc0e6478d19d239ea7e311a1",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "routes/api.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "a4a6183ea2472ed707df8b138b2a82138d793bc8",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409",
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending",
+        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Api/EcommerceController.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "f3fee466991c25ee45aff44f3dc2491c968ada18",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409",
+        "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Requests/Api/Ecommerce/EcommerceRequest.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "ae03ed9517c2fff310af7fc693999e01daca4ba7",
+      "sections": [
+        "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/WoocommerceController.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir",
+        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso",
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "routes/customer.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "b6eb566da0824d4fa671f9dd4ea1c09412b35e2b",
+      "sections": [
+        "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "180ffce3d92f8041a663f5ac0bbda1a53d695f0b",
+      "sections": [
+        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Api/EcommerceReplayController.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "97025c7ccb81dd6e569af401bd0ba770abc02417",
+      "sections": [
+        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Console/Kernel.php",
+      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
+      "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
+      "sections": [
+        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/UserRequestService.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b4e7c44655a2eeace45dd4fc56eff134da23ebdd",
+      "sections": [
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Repositories/UserRequestRepository.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "b83bbe39b083fd192804e8d34ed6f89118e0b9e0",
+      "sections": [
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/Allied/TestAdvisorProvisioner.php",
+      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
+      "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
+      "sections": [
+        "el-token-de-la-sucursal-con-la-abilidad-ecommerce-abre-las-tres-rutas"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Http/Controllers/ValidateOtpController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "d91dd8faec8c1c40c1a235e0b906d4be15e3b255",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace",
+        "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Controllers/Api/BancolombiaController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "74a225d6bfcf97f948ae2dff8f2d289f734e40b5",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Risk/App/Http/Controllers/Api/SistecreditoController.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "1de06b566a05a831bfd9c30a26e3c7df3f43952b",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Providers/RouteServiceProvider.php",
+      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
+      "blob": "c3c05e5b43405b823e995882b5d090ebfcbf8cc9",
+      "sections": [
+        "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
+      ]
+    }
+  ]
+}
