@@ -1148,11 +1148,11 @@ onBeforeUnmount(() => {
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar los estados" aria-label="Mostrar u ocultar los estados" @click="togglePanel">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+        </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar el panel derecho" aria-label="Mostrar u ocultar el panel derecho" @click="toggleAux">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
-        </button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Mostrar u ocultar los estados" aria-label="Mostrar u ocultar los estados" @click="togglePanel">
-          <span class="ui-icon" data-icon="bottom" aria-hidden="true"></span>
         </button>
       </div>
     </footer>

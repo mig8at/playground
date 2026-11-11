@@ -2015,6 +2015,8 @@ function documentAction(id) {
                   @click="closeTab(t.Key)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </div>
       </nav>
+      <!-- Sin tareas abiertas, la misma banda de 40 con lo que se ve: toda columna arranca con su banda (tools/ui). -->
+      <div v-else class="region-head"><span>Mi sprint</span></div>
       <p v-if="loading" class="msg">Cargando el sprint…</p>
       <p v-else-if="error" class="msg bad">{{ error }}</p>
       <TaskEditor v-else-if="active" :key="active.Key"
@@ -2663,14 +2665,14 @@ function documentAction(id) {
 /* ⚠ Misma corrección que en el panel del trazador: una sección no necesita fondo propio, marco Y
    radio para decir que es una pieza. Lo dice su ENCABEZADO, que ahora sale a sangre contra el padding
    del editor (`margin: 0 -24px`) y se lee como una banda de lado a lado en vez de como otra tarjeta. */
-.card { padding: 0 0 18px; margin-bottom: 20px }
-/* Sobre `.region-head.group` de `workbench.css`, que ya trae la forma (11px, mayúsculas, apagado), el
+.card { padding: 0 0 var(--space-4); margin-bottom: var(--space-6) }
+/* Sobre `.region-head.group` de `workbench.css`, que ya trae la forma (12px, mayúscula inicial, apagado) y los 32 de alto, el
    color y el pegado. Acá sólo van las dos desviaciones: sale A SANGRE contra los 24px del editor —una
    banda de lado a lado se lee como encabezado, una barra con aire a los costados como otra tarjeta— y
    lleva borde arriba, porque estas secciones se apilan sin lista de por medio. */
-.card .region-head.group { margin: 0 -24px 14px; padding: 8px 24px; width: auto;
+.card .region-head.group { margin: 0 calc(-1 * var(--space-6)) var(--space-3); padding: var(--space-1) var(--space-6); width: auto;
   border-top: 1px solid var(--line) }
-.card .region-head.group .gh { display: flex; align-items: center; gap: 9px; min-width: 0 }
+.card .region-head.group .gh { display: flex; align-items: center; gap: var(--space-2); min-width: 0 }
 /* La aclaración al lado del título vuelve a minúsculas: es prosa, no un rótulo. */
 .card .region-head.group .mut { color: var(--mut); font-weight: 400; text-transform: none; letter-spacing: 0 }
 

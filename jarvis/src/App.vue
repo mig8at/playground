@@ -769,18 +769,18 @@ const status = computed(() => {
       <div v-if="isLive && view.kind === 'live'" class="layout-controls device-controls" role="group" aria-label="Sesión en vivo">
         <button type="button" class="region-action" title="Cerrar la sesión en vivo" aria-label="Cerrar la sesión en vivo" @click="liveStop"><span class="ui-icon" data-icon="stop" aria-hidden="true"></span></button>
       </div>
-      <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
-        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('jarvis.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('jarvis.panel-open', panelOpen)"><span class="ui-icon" data-icon="bottom" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('jarvis.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
-      </div>
-      <!-- Seguir a Claude: un punto al final del pie. Naranja sigue, gris quieto; el clic alterna y el tooltip explica. -->
+      <!-- Seguir a Claude: un punto antes del tema y las regiones (ésos van al final del pie, como en todas las herramientas). Naranja sigue, gris quieto; el clic alterna y el tooltip explica. -->
       <button type="button" class="follow-dot-btn" :class="{ on: followClaude }" :aria-pressed="followClaude"
         :title="followClaude ? 'Siguiendo a Claude: la vista salta a la pestaña donde trabaja (si elegís una a mano, se respeta 20 s). Clic para quedarte quieto' : 'Quieto: la vista no cambia de pestaña sola. Clic para seguir a Claude'"
         :aria-label="followClaude ? 'Siguiendo a Claude (clic para quedarte quieto)' : 'Quieto (clic para seguir a Claude)'" @click="followClaude = !followClaude">
         <span class="follow-dot" aria-hidden="true"></span>
       </button>
+      <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
+        <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Proyectos y flujos" aria-label="Mostrar u ocultar la barra lateral" @click="toggle('jarvis.sidebar-open', sidebarOpen)"><span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.panel" title="Pasos y script" aria-label="Mostrar u ocultar los pasos" @click="toggle('jarvis.panel-open', panelOpen)"><span class="ui-icon" data-icon="console" aria-hidden="true"></span></button>
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" :disabled="!agentShown && !flowOpen" title="El flujo o Claude trabajando" aria-label="Mostrar u ocultar el panel de Claude" @click="toggle('jarvis.aux-open', auxOpen)"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></button>
+      </div>
     </footer>
   </div>
 </template>

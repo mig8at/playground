@@ -1958,7 +1958,8 @@ code { font-family: var(--font-mono); font-size: .92em }
 
 /* ── el editor: la conversación ── */
 .editor { display: flex; flex-direction: column; min-height: 0 }
-.head-who { display: flex; align-items: center; gap: 10px; padding-block: 4px }
+/* Sin aire propio: la banda ya trae el suyo, y con los dos la banda del editor medía 43 en vez de 40 (2026-11-11). */
+.head-who { display: flex; align-items: center; gap: var(--space-2) }
 .narrow-back { flex: none; margin-inline-start: -6px }
 /* Menciones: el nombre resaltado; el que te nombra, con el acento y su burbuja con una línea al costado. */
 .mention { padding: 0 2px; border-radius: 4px; color: var(--primary); background: color-mix(in oklab, var(--primary) 12%, transparent); font-weight: 600 }

@@ -300,6 +300,9 @@
    sabés en cuál estás. Sin borde abajo: con uno, cinco grupos dibujan cinco rayas y la lista se ve
    como una tabla. */
 .region-head.group, .view > .region-head { min-height: var(--view-head-h) }
+/* La banda de una VISTA mide 32 con su línea: con el aire de 4 de la banda de 40, un botón de 24 la llevaba a 33 (4 + 24
+   + 4 + la línea), medido en el chat y en ecommerce el 2026-11-11. Sin aire vertical, el botón queda centrado igual. */
+.view > .region-head { padding-block: 0 }
 .region-head.group {
   position: sticky; top: 0; z-index: 1;
   background: var(--region-bg, var(--background));
