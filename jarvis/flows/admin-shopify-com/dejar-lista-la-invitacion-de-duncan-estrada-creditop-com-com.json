@@ -1,0 +1,194 @@
+{
+  "nombre": "Dejar lista la invitación de duncan.estrada@creditop.com como usuario de creditop-dev-store, con permiso de pedidos, sin enviarla",
+  "meta": "Dejar lista la invitación de duncan.estrada@creditop.com como usuario de creditop-dev-store, con permiso de pedidos, sin enviarla",
+  "inicio": "https://admin.shopify.com/store/creditop-dev-store/settings/account",
+  "dispositivo": "chrome",
+  "creado": "2026-11-10T09:54:54.360019-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-10_09-49-51",
+  "pasos": [
+    {
+      "accion": "click",
+      "objetivo": "Agregar usuarios",
+      "instruccion": "Hacé clic en «Agregar usuarios»",
+      "porque": "Abro «Agregar usuarios» para armar la invitación de Duncan",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Agregar usuarios",
+          "visible": true,
+          "code": "page.getByText('Agregar usuarios', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Agregar usuarios', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "fill",
+      "objetivo": "Correos electrónicos",
+      "valor": "duncan.estrada@creditop.com",
+      "instruccion": "Escribí «duncan.estrada@creditop.com» en «Correos electrónicos»",
+      "porque": "Escribo el correo de Duncan; todavía no se envía nada",
+      "dato": "Correos electrónicos",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Correos electrónicos",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Correos electrónicos', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('textbox', { name: 'Correos electrónicos', exact: true }).fill('duncan.estrada@creditop.com')"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Asignar",
+      "instruccion": "Hacé clic en «Asignar»",
+      "porque": "Abro «Asignar» para elegir el rol y la tienda",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Asignar",
+          "visible": true,
+          "code": "page.getByText('Asignar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Asignar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Atención al cliente",
+      "instruccion": "Hacé clic en «Atención al cliente»",
+      "porque": "Elijo «Atención al cliente»: el rol más acotado que ve los pedidos",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Atención al cliente",
+          "visible": true,
+          "code": "page.getByText('Atención al cliente', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Atención al cliente', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Usuarios",
+      "valor": "Usuarios",
+      "instruccion": "Comprobá que se vea «Usuarios»",
+      "porque": "Cambio las tiendas del rol: sólo creditop-dev-store",
+      "codigo": "expect(page.getByText('Usuarios').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "duncan.estrada@creditop.com",
+      "instruccion": "Hacé clic en «duncan.estrada@creditop.com»",
+      "porque": "Abro el usuario de Duncan para ver a qué tiendas quedó asignado",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "duncan.estrada@creditop.com",
+          "visible": true,
+          "code": "page.getByText('duncan.estrada@creditop.com', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('duncan.estrada@creditop.com', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Más acciones",
+      "instruccion": "Hacé clic en «Más acciones»",
+      "porque": "Abro el menú del rol para cambiar sus tiendas",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Más acciones",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Más acciones', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Más acciones', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Editar acceso a la tienda",
+      "instruccion": "Hacé clic en «Editar acceso a la tienda»",
+      "porque": "Edito el acceso: sólo creditop-dev-store",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "menuitem",
+          "value": "Editar acceso a la tienda",
+          "exact": true,
+          "code": "page.getByRole('menuitem', { name: 'Editar acceso a la tienda', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('menuitem', { name: 'Editar acceso a la tienda', exact: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "TIENDA_CREDITOP_produccion",
+      "instruccion": "Hacé clic en «TIENDA_CREDITOP_produccion»",
+      "porque": "Saco la tienda de producción del rol",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "TIENDA_CREDITOP_produccion",
+          "visible": true,
+          "code": "page.getByText('TIENDA_CREDITOP_produccion', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('TIENDA_CREDITOP_produccion', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "creditop_dev_store_plus",
+      "instruccion": "Hacé clic en «creditop_dev_store_plus»",
+      "porque": "Saco también la de desarrollo plus",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "creditop_dev_store_plus",
+          "visible": true,
+          "code": "page.getByText('creditop_dev_store_plus', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('creditop_dev_store_plus', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Listo",
+      "instruccion": "Hacé clic en «Listo»",
+      "porque": "Cierro la ventana con «Listo»; el Guardar lo toca Miguel",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Listo",
+          "visible": true,
+          "code": "page.getByText('Listo', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Listo', { exact: true }).filter({ visible: true }).click()"
+    }
+  ]
+}

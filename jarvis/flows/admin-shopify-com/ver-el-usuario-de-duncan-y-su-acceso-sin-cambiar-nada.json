@@ -1,0 +1,18 @@
+{
+  "nombre": "Ver el usuario de Duncan y su acceso, sin cambiar nada",
+  "meta": "Ver el usuario de Duncan y su acceso, sin cambiar nada",
+  "inicio": "https://admin.shopify.com/store/creditop-dev-store/settings/organization-account/292815030",
+  "dispositivo": "chrome",
+  "creado": "2026-11-10T09:57:51.541507-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-10_09-57-32",
+  "pasos": [
+    {
+      "accion": "expect",
+      "objetivo": "Atención al cliente",
+      "valor": "Atención al cliente",
+      "instruccion": "Comprobá que se vea «Atención al cliente»",
+      "codigo": "expect(page.getByText('Atención al cliente').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

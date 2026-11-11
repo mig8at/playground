@@ -1,0 +1,290 @@
+{
+  "nombre": "Dejar a miguel@creditop.com con el rol más alto disponible",
+  "meta": "Dejar a miguel@creditop.com con el rol más alto disponible",
+  "inicio": "https://admin.shopify.com/store/creditop-dev-store/settings/organization-account/292815030",
+  "dispositivo": "chrome",
+  "creado": "2026-11-10T10:03:15.144197-05:00",
+  "verificado": "0001-01-01T00:00:00Z",
+  "corrida": "2026-11-10_09-59-10",
+  "pasos": [
+    {
+      "accion": "goto",
+      "objetivo": "https://admin.shopify.com/store/creditop-dev-store/settings/organization-account",
+      "valor": "https://admin.shopify.com/store/creditop-dev-store/settings/organization-account",
+      "instruccion": "Abrí https://admin.shopify.com/store/creditop-dev-store/settings/organization-account",
+      "codigo": "page.goto('https://admin.shopify.com/store/creditop-dev-store/settings/organization-account')"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "miguel@creditop.com",
+      "valor": "miguel@creditop.com",
+      "instruccion": "Comprobá que se vea «miguel@creditop.com»",
+      "codigo": "expect(page.getByText('miguel@creditop.com').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "miguel@creditop.com",
+      "instruccion": "Hacé clic en «miguel@creditop.com»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "miguel@creditop.com",
+          "visible": true,
+          "code": "page.getByText('miguel@creditop.com', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('miguel@creditop.com', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Roles",
+      "valor": "Roles",
+      "instruccion": "Comprobá que se vea «Roles»",
+      "codigo": "expect(page.getByText('Roles').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Asignar",
+      "instruccion": "Hacé clic en «Asignar»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Asignar",
+          "visible": true,
+          "code": "page.getByText('Asignar', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Asignar', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Administrador de la organizaciónEl administrador de la organización tiene acceso total a todas las c",
+      "instruccion": "Hacé clic en «Administrador de la organizaciónEl administrador de la organización tiene acceso total a todas las c»",
+      "porque": "Asigno «Administrador de la organización», el rol más alto que se puede dar",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#settings-loading-container \u003e s-internal-page \u003e s-popover \u003e ul \u003e li:nth-of-type(3) \u003e div \u003e ul \u003e li:nth-of-type(2) \u003e button",
+          "code": "page.locator('#settings-loading-container \u003e s-internal-page \u003e s-popover \u003e ul \u003e li:nth-of-type(3) \u003e div \u003e ul \u003e li:nth-of-type(2) \u003e button')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.locator('#settings-loading-container \u003e s-internal-page \u003e s-popover \u003e ul \u003e li:nth-of-type(3) \u003e div \u003e ul \u003e li:nth-of-type(2) \u003e button').click()"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Roles",
+      "valor": "Roles",
+      "instruccion": "Comprobá que se vea «Roles»",
+      "codigo": "expect(page.getByText('Roles').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Más acciones",
+      "instruccion": "Hacé clic en «Más acciones»",
+      "porque": "Abro el menú del rol de tienda (el segundo)",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Más acciones",
+          "exact": true,
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Editar acceso a la tienda",
+      "instruccion": "Hacé clic en «Editar acceso a la tienda»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Editar acceso a la tienda",
+          "visible": true,
+          "code": "page.getByText('Editar acceso a la tienda', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Editar acceso a la tienda', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Todas las tiendas actuales y futuras",
+      "instruccion": "Hacé clic en «Todas las tiendas actuales y futuras»",
+      "porque": "Prendo «Todas las tiendas actuales y futuras»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Todas las tiendas actuales y futuras",
+          "visible": true,
+          "code": "page.getByText('Todas las tiendas actuales y futuras', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Todas las tiendas actuales y futuras', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Listo",
+      "instruccion": "Hacé clic en «Listo»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Listo",
+          "visible": true,
+          "code": "page.getByText('Listo', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Listo', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "reload",
+      "objetivo": "recargar",
+      "instruccion": "Recargá la página",
+      "codigo": "page.reload()"
+    },
+    {
+      "accion": "expect",
+      "objetivo": "Roles",
+      "valor": "Roles",
+      "instruccion": "Comprobá que se vea «Roles»",
+      "codigo": "expect(page.getByText('Roles').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Más acciones",
+      "instruccion": "Hacé clic en «Más acciones»",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Más acciones",
+          "exact": true,
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Ver tiendas",
+      "instruccion": "Hacé clic en «Ver tiendas»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Ver tiendas",
+          "visible": true,
+          "code": "page.getByText('Ver tiendas', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Ver tiendas', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Listo",
+      "instruccion": "Hacé clic en «Listo»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Listo",
+          "visible": true,
+          "code": "page.getByText('Listo', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Listo', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Más acciones",
+      "instruccion": "Hacé clic en «Más acciones»",
+      "ref": {
+        "loc": {
+          "kind": "nth",
+          "role": "button",
+          "value": "Más acciones",
+          "exact": true,
+          "nth": 1,
+          "code": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1)",
+          "count": 1,
+          "works": true
+        }
+      },
+      "codigo": "page.getByRole('button', { name: 'Más acciones', exact: true }).nth(1).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Editar acceso a la tienda",
+      "instruccion": "Hacé clic en «Editar acceso a la tienda»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Editar acceso a la tienda",
+          "visible": true,
+          "code": "page.getByText('Editar acceso a la tienda', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Editar acceso a la tienda', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Todas las tiendas actuales y futuras",
+      "instruccion": "Hacé clic en «Todas las tiendas actuales y futuras»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Todas las tiendas actuales y futuras",
+          "visible": true,
+          "code": "page.getByText('Todas las tiendas actuales y futuras', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Todas las tiendas actuales y futuras', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "accion": "click",
+      "objetivo": "Listo",
+      "instruccion": "Hacé clic en «Listo»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Listo",
+          "visible": true,
+          "code": "page.getByText('Listo', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "codigo": "page.getByText('Listo', { exact: true }).filter({ visible: true }).click()"
+    }
+  ]
+}
