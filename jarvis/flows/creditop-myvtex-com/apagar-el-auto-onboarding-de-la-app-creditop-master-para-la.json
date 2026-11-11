@@ -1,0 +1,54 @@
+{
+  "name": "Apagar el auto-onboarding de la app Creditop (master) para la prueba en producción",
+  "meta": "Apagar el auto-onboarding de la app Creditop (master) para la prueba en producción",
+  "start": "https://creditop.myvtex.com/admin/apps/creditop.creditop@5.2.0/setup",
+  "device": "chrome",
+  "created": "2026-11-11T17:36:04.362033-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-11_17-35-24",
+  "steps": [
+    {
+      "action": "uncheck",
+      "target": "Auto-onboarding con Creditop",
+      "instruction": "Desmarcá «Auto-onboarding con Creditop»",
+      "why": "Apagar el auto-onboarding: así la prueba en producción va por celular y SMS y se puede parar en el formulario de perfil",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "checkbox",
+          "value": "Auto-onboarding con Creditop",
+          "exact": true,
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Auto-onboarding con Creditop', exact: true })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('checkbox', { name: 'Auto-onboarding con Creditop', exact: true }).uncheck()"
+    },
+    {
+      "action": "click",
+      "target": "SAVE",
+      "instruction": "Hacé clic en «SAVE»",
+      "why": "Guardar",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "SAVE",
+          "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' })",
+          "count": 1,
+          "works": true
+        },
+        "frame": "iframe[title=\"IO iframe container\"]"
+      },
+      "code": "page.frameLocator('iframe[title=\"IO iframe container\"]').getByRole('button', { name: 'SAVE' }).click()"
+    },
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    }
+  ]
+}

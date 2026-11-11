@@ -13,16 +13,17 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 
 ## Pendientes
 
-- [ ] Antes de la prueba de Duncan en producción, apagar «Auto-onboarding con Creditop» en la app de `master`
-      (hoy prendido): con él el checkout exige las fechas y el wizard salta el SMS y el formulario hasta «validando»,
-      o sea más allá del formulario de perfil y contra la validación de identidad real. Termina con el ajuste apagado
-      y un pedido de prueba que entra por celular → SMS. Depende de: Miguel — el sí para apagarlo.
+- [x] ~~Apagar «Auto-onboarding con Creditop» en la app de `master` antes de la prueba en producción~~ — 2026-11-11,
+      con Jarvis: apagado y guardado (sigue apagado al recargar; el ambiente sigue en Producción). Con él prendido el
+      wizard saltaba el SMS y el formulario hasta «validando», más allá del formulario de perfil.
 - [ ] Mandarle a Duncan (como Luigi) las tres capturas de cómo quedó la tienda en producción (en `artifacts/`,
       `prod-2026-11-11-*`) y que pruebe en `creditop.myvtex.com`: comprar con Creditop, llegar a
       `originaciones.creditop.com/ecommerce/84297564/…` y parar en el formulario de perfil, con sus propios datos.
-      Termina con su número de pedido, la hora y capturas. Depende de: Duncan — la prueba.
+      El auto-onboarding está apagado: la compra entra por celular → SMS → formulario. Si Duncan no conoce cómo funciona
+      el auto-onboarding, explicárselo en detalle. Termina con su número de pedido, la hora y capturas.
+      Depende de: Duncan — la prueba.
 - [ ] Devolver la tienda a qa al terminar la prueba: la regla «Creditop qa» a la afiliación de Mario
-      (`facb0b0a…`) y la app de `master` a QA (y el auto-onboarding como estaba). Termina con
+      (`facb0b0a…`) y la app de `master` a QA, con el auto-onboarding otra vez prendido (estaba prendido). Termina con
       `make jarvis-recipe APP=vtex RECIPE=creditop-payment` diciendo «Mario Hernández (qa)» y un pedido que cae en
       `originaciones-qa`.
 - [ ] Definir qué van en «Customer Key/Secret» de la credencial VTEX de la sucursal 2584 (Creditop los manda como
