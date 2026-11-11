@@ -45,16 +45,6 @@
   --svc-playground-ink: #ffffff;
   --svc-tunnel-bg: #c2410c;
   --svc-tunnel-ink: #ffffff;
-  /* La oficina 3D (src/office, fuera de la interfaz por ahora). */
-  --office-bg: #1c1c21;
-  --office-glow: #34343c;
-  --office-chip: rgb(255 255 255 / .86);
-  --office-chip-hover: #ffffff;
-  --office-chip-ink: #252256;
-  --office-accent: #4c39ff;
-  --office-accent-ink: #ffffff;
-  --office-hint: rgb(255 255 255 / .75);
-  --office-shadow: rgb(0 0 0 / .18);
 }
 .dark {
   --bubble-mine: color-mix(in oklab, var(--primary) 30%, var(--background));
@@ -64,12 +54,6 @@
   --presence-on: #4ade80;
   --send-fail: #f87171;
   --task-blocked: #fbbf24;
-  --office-bg: #131316;
-  --office-glow: #26262c;
-  --office-chip: rgb(24 30 48 / .86);
-  --office-chip-hover: #252e48;
-  --office-chip-ink: #e8ecf6;
-  --office-shadow: rgb(0 0 0 / .4);
 }
 
 /* La página no scrollea: scrollea cada región (el contrato de `.workbench`). La letra es la de la base. */

@@ -440,3 +440,17 @@ func portAnswers(raw string) bool {
 	conn.Close()
 	return true
 }
+
+// La raíz del playground: PLAYGROUND_ROOT, o la carpeta desde la que corre el chat (`make chat` corre desde ahí).
+func playgroundRoot() (string, error) {
+	dir := os.Getenv("PLAYGROUND_ROOT")
+	if dir == "" {
+		dir, _ = os.Getwd()
+	}
+	for d := dir; d != "/" && d != "."; d = filepath.Dir(d) {
+		if fileExists(filepath.Join(d, "knowledge")) && fileExists(filepath.Join(d, "tablero")) && fileExists(filepath.Join(d, "CLAUDE.md")) {
+			return d, nil
+		}
+	}
+	return "", fmt.Errorf("no encuentro el playground desde %s (PLAYGROUND_ROOT)", dir)
+}

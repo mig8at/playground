@@ -386,7 +386,6 @@ func handler() http.Handler {
 	})
 	cuadrillaHandlers(mux)
 	serverHandlers(mux)
-	myAgentHandlers(mux)
 	historyHandlers(mux)
 	teamServiceHandlers(mux)
 	return mux

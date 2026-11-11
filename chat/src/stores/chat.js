@@ -29,7 +29,6 @@
  * ⚠ El texto de un mensaje lo escribió otra persona: se guarda y se pinta como texto, nunca se interpreta.
  */
 import { defineStore } from 'pinia'
-import { RULES, useMyAgentStore } from './myAgent.js'
 import { computed, ref, watch } from 'vue'
 
 const STORAGE_KEY = 'chat:conversations:v1'
@@ -183,8 +182,6 @@ export const useChatStore = defineStore('chat', () => {
   const cuadrillaSeen = readSeen()
   const deleted = readDeleted()
   const self = ref(readSelf())
-  // Tu agente (`myAgent.js`): con él prendido, a lo que te llega le arma una propuesta de respuesta.
-  const mine = useMyAgentStore()
 
   // La copia en el servidor: si el navegador no tiene conversaciones, se arranca de ella. Hasta saberlo no se escribe
   // nada allá, para no pisar la copia buena con un navegador vacío.
@@ -267,7 +264,7 @@ export const useChatStore = defineStore('chat', () => {
   // Lo no leído: lo que llegó después de la última vez que se miró. Que alguien le pregunte a tu agente no
   // cuenta: tu listen ya le contestó.
   const summarize = (c) => {
-    // Una propuesta de tu agente no salió: no es el último mensaje de la conversación.
+    // Las propuestas del agente de antes nunca salieron: no cuentan.
     const visible = c.messages.filter((m) => m.kind !== 'propuesta')
     const last = visible.at(-1) || null
     const unread = visible.filter((m) => m.dir === 'in' && m.kind !== 'asked' && m.time > (c.readAt || '')).length
@@ -419,76 +416,8 @@ export const useChatStore = defineStore('chat', () => {
       }
     }
     markActiveRead()
-    proposeReplies()
   }
 
-  /* LAS RESPUESTAS DE TU AGENTE. Con «contestás vos» no hace nada. Con el agente prendido, a lo que te escribe una
-     persona DESPUÉS de prenderlo le contesta solo, a tu nombre y como respuesta a ese mensaje (`auto: true`).
-     Contesta UNA vez por conversación hasta que vos vuelvas a escribir ahí: a una ráfaga de mensajes va una sola
-     respuesta, y si del otro lado también contesta un agente, no se arma un ida y vuelta sin fin. */
-  // Tu nombre, para que el agente diga de quién es: del listen si está prendido, si no de la sesión.
-  const ownerName = () => me.value?.name || state.value?.session?.name || me.value?.email || state.value?.session?.email || ''
-  const autoReplying = new Set()
-  function proposeReplies() {
-    // Las propuestas de antes (cuando el agente proponía y vos mandabas) ya no se usan: fuera.
-    for (const c of Object.values(conversations.value)) {
-      if (c.messages.some((m) => m.kind === 'propuesta')) c.messages = c.messages.filter((m) => m.kind !== 'propuesta')
-    }
-    const a = mine.agent
-    if (a.mode !== 'agente' || !a.modeSince) return
-    // Con tu nombre y tus tareas, o no se arma: una respuesta sin eso diría «mi persona» y nada de lo que hacés.
-    if (!state.value || (!cuadrilla.value && !cuadrillaError.value)) return
-    for (const c of Object.values(conversations.value)) {
-      if (isAgentKey(c.person.email) || isGroupKey(c.person.email) || isMe(c.person) || autoReplying.has(c.person.email)) continue
-      const lastOut = c.messages.reduce((idx, m, i) => (m.dir === 'out' ? i : idx), -1)
-      if (lastOut >= 0 && c.messages[lastOut].auto) continue
-      const pending = c.messages.slice(lastOut + 1).filter((m) => m.dir === 'in' && !m.kind && m.time > a.modeSince)
-      const m = pending[pending.length - 1]
-      if (!m) continue
-      autoReplying.add(c.person.email)
-      const text = mine.draftReply({ from: c.person.name || c.person.email, text: m.text, tasks: myTasks.value, owner: ownerName() })
-      send(text, m.sid || '', c, { auto: true }).finally(() => autoReplying.delete(c.person.email))
-    }
-  }
-  /* «MI CHAT»: tu conversación con tu agente. Le escribís y contesta él, con el modelo que elegiste en su panel
-     (`POST /api/my-agent/ask`, que redacta con Claude Code en esta máquina). Sólo están ustedes dos y vive en este
-     navegador; lo que te escribe cada persona está en su conversación. Cada mensaje lleva `from`: «yo» o «agente»
-     (los de antes, que eran notas, son tuyos). */
-  const NOTES_KEY = 'chat:notas:v1'
-  const notes = ref((() => { try { const v = JSON.parse(localStorage.getItem(NOTES_KEY) || '[]'); return Array.isArray(v) ? v : [] } catch { return [] } })())
-  // Una respuesta que quedó «pensando» al cerrar la pestaña no va a llegar.
-  for (const n of notes.value) if (n.status === 'pensando') Object.assign(n, { status: 'error', text: 'No llegó a contestar: se cerró la pestaña.' })
-  const saveNotes = () => { try { localStorage.setItem(NOTES_KEY, JSON.stringify(notes.value)) } catch { /* vale mientras la pestaña */ } }
-  const newNote = (from, text, extra = {}) => ({ id: `nota|${Date.now()}|${Math.random().toString(36).slice(2, 8)}`, from, text, time: new Date().toISOString(), ...extra })
-  async function askMyAgent(text) {
-    const body = String(text || '').trim()
-    if (!body) return
-    const history = notes.value.filter((n) => n.status !== 'error' && n.status !== 'pensando').map((n) => ({ from: n.from || 'yo', text: n.text }))
-    notes.value.push(newNote('yo', body))
-    const reply = newNote('agente', '', { status: 'pensando', model: mine.agent.model })
-    notes.value.push(reply)
-    saveNotes()
-    const stored = () => notes.value.find((n) => n.id === reply.id)
-    try {
-      const tasks = (myTasks.value || []).map((t) => ({ titulo: t.titulo, estado: t.bloqueo ? `bloqueada: depende de ${t.bloqueo.depende_de}` : t.hecha ? 'hecha' : 'en curso' }))
-      const { id } = await post('/api/my-agent/ask', { model: mine.agent.model, name: mine.agent.name, owner: ownerName(), rules: RULES, tasks, history, text: body })
-      // Los pasos llegan mientras trabaja: se piden cada segundo hasta que contesta.
-      for (;;) {
-        await new Promise((r) => setTimeout(r, 1000))
-        const job = await api(`/api/my-agent/jobs/${id}`)
-        Object.assign(stored() || {}, { steps: job.steps || [] })
-        if (!job.done) continue
-        if (job.error) throw new Error(job.error)
-        Object.assign(stored() || {}, { text: job.text, status: '' })
-        break
-      }
-    } catch (e) {
-      Object.assign(stored() || {}, { text: e.message, status: 'error' })
-    }
-    saveNotes()
-  }
-  function removeNote(id) { notes.value = notes.value.filter((n) => n.id !== id); saveNotes() }
-  function clearNotes() { notes.value = []; saveNotes() }
   // «Vaciar chat», como en WhatsApp: se van los mensajes y la conversación queda; lo ya recibido no vuelve.
   function clearMessages(key) {
     const c = conversations.value[key]
@@ -499,7 +428,6 @@ export const useChatStore = defineStore('chat', () => {
     c.messages = []
     c.readAt = last || c.readAt
   }
-  watch(() => mine.agent.mode, proposeReplies)
 
   /* LO LEÍDO lo comparten la app y bin/chat por el servidor (server/reads.go): al mirar una conversación se le avisa,
      y lo que marque un agente desde la terminal llega por el stream (`read`). Sólo avanza. */
@@ -654,11 +582,10 @@ export const useChatStore = defineStore('chat', () => {
     const c = ensure(person)
     activeKey.value = c.person.email
     markActiveRead()
-    proposeReplies()
   }
 
   // `re`: el id del home del mensaje que se contesta (sólo en conversaciones con personas).
-  // `extra`: marcas del mensaje (`auto`: lo contestó tu agente solo).
+  // `extra`: marcas del mensaje.
   // `files`: los archivos que se adjuntan (File del navegador). Se suben uno por uno antes del mensaje; con adjuntos el
   // texto puede ir vacío. Sólo a personas: a un agente no se le mandan archivos.
   async function send(text, re = '', conversation = null, extra = {}, files = []) {
@@ -788,7 +715,6 @@ export const useChatStore = defineStore('chat', () => {
       cuadrillaError.value = ''
       absorbCuadrilla(board)
     } catch (e) { cuadrillaError.value = e.message }
-    proposeReplies()
   }
 
   /* Escribir en una tarea: `kind` es avance, bloqueo (con `owner`, de quién depende) o desbloqueo. Lo escrito queda
@@ -961,7 +887,7 @@ export const useChatStore = defineStore('chat', () => {
       if (st && !st.session && !st.login?.running && !loginBusy.value) login()
     }
     // Primero la copia del servidor (si el navegador está vacío), después el historial: así nada llega dos veces.
-    loadServerCopy().then(loadState).then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()])).then(proposeReplies)
+    loadServerCopy().then(loadState).then(autoLogin).then(() => Promise.all([loadOnline(), loadTeamAgents(), loadCuadrilla()]))
     cuadrillaTimer = setTimeout(tickCuadrilla, POLL_CUADRILLA_MS)
     stateTimer = setTimeout(tickState, POLL_STATE_MS)
     onlineTimer = setTimeout(tickOnline, POLL_ONLINE_MS)
@@ -977,7 +903,7 @@ export const useChatStore = defineStore('chat', () => {
   return {
     conversations, activeKey, state, stateError, online, onlineError, listenBusy, listenError, loginBusy, loginError, login,
     teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
-    removeConversation, clearMessages, isMe, proposeReplies, ownerName, notes, askMyAgent, removeNote, clearNotes,
+    removeConversation, clearMessages, isMe, ensure,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
     live, liveNotice, takeNotices, noticeSeq, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }

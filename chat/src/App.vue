@@ -11,14 +11,10 @@
  * guarda el store en el navegador. La conversación abierta vive en la URL (`#/c/<clave>`); el ancho del
  * sidebar, en el navegador.
  *
- * La oficina 3D y el creador de personajes (`src/office/`) quedaron fuera de la interfaz: el código sigue
- * ahí, pero no se carga ni tiene ruta.
- *
  * ⚠ Mandar sale a nombre de quien está logueado en el CLI. El texto ajeno se pinta como texto.
  */
 import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue'
 import { useChatStore, isImage, IMAGE_AUTO_MAX } from './stores/chat.js'
-import { MODELS, useMyAgentStore } from './stores/myAgent.js'
 import ServerPanel from './ServerPanel.vue'
 import KeyringPanel from './KeyringPanel.vue'
 import KeyCard from './KeyCard.vue'
@@ -37,22 +33,20 @@ import {
   vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute,
 } from './workbench.js'
 
-/* Lo pesado se baja sólo cuando se usa: el muñeco 3D de tu agente (three.js) al abrir su pestaña del perfil, y el
-   lector de PDF (pdf.js) al abrir un PDF o al mostrar su miniatura. Así abrir el chat no los carga. */
-const MyAgent = defineAsyncComponent(() => import('./MyAgent.vue'))
+/* Lo pesado se baja sólo cuando se usa: el lector de PDF (pdf.js) al abrir un PDF o al mostrar su miniatura. Así
+   abrir el chat no lo carga. */
 const PdfPages = defineAsyncComponent(() => import('./PdfPages.vue'))
 const PdfThumb = defineAsyncComponent(() => import('./PdfThumb.vue'))
 
 const chat = useChatStore()
-const mine = useMyAgentStore()
-/* Vos y tu agente son lo mismo: en «Mi chat», la región de la DERECHA (`auxiliarybar`) es tu agente —cómo se ve, qué
-   modelo usa, quién contesta—, al lado de tu bandeja. En otra conversación no está. Se cierra con su ✕ o el botón del
+/* En «Mi chat», la región de la DERECHA (`auxiliarybar`) es tu perfil —avisos, voz, llavero y conexión—, al lado de
+   tu bandeja. En otra conversación no está. Se cierra con su ✕ o el botón del
    pie, y recuerda si quedó cerrada y su ancho. */
 const agentOpen = ref(readSize('chat.agente-open', 1) !== 0)
 const agentW = ref(readSize('chat.agente-w', 380))
 // En angosto, cerrarlo sólo vuelve al chat: no se guarda, para que en la pantalla ancha siga donde estaba.
 function setAgentOpen(v) { if (!v && narrow.value) { narrowRight.value = false; return } agentOpen.value = v; saveSize('chat.agente-open', v ? 1 : 0) }
-// «Mi chat»: tu bandeja en el editor y tu agente a la derecha.
+// «Mi chat»: tu bandeja en el editor y tu perfil a la derecha.
 /* Eliminar un grupo: si lo creaste vos, se borra para todos (cuadrilla, donde viven los grupos, deja borrarlo a quien
    lo creó). Si lo creó otro, salís; y si quedás sin nadie, se borra solo. Lo dice antes de hacerlo. */
 const groupDeleteError = ref('')
@@ -82,7 +76,7 @@ const myHandle = computed(() => { const e = chat.state?.session?.email || chat.m
 /* ── MENCIONES EN LOS GRUPOS (mentions.js): `@usuario`, `@usuario/agente` o `@todos`, dentro del texto. Se autocompletan
    al escribir, se resaltan y, la que te nombra, marca su burbuja, el grupo en la lista y su aviso. */
 const myUser = computed(() => myHandle.value.slice(1).toLowerCase())
-const myAgentNames = computed(() => chat.agentList.filter((a) => a.mine).map((a) => a.agentName))
+const myAgentNames = computed(() => chat.agentsOf(chat.meKey).map((a) => a.name))
 const activeIsGroup = computed(() => !!chat.active?.person.group)
 const membersOf = (person) => chat.groups.find((g) => `#${g.id}` === person?.email)?.members || person?.members || []
 const groupMembers = computed(() => (activeIsGroup.value ? membersOf(chat.active.person) : []))
@@ -136,7 +130,6 @@ async function loadServers() {
   serversTimer = setTimeout(loadServers, servers.value.some((s) => s.busy) ? 2000 : 15000)
 }
 watch(() => chat.activeKey, () => { serverOpen.value = ''; docView.value = null })
-const agentLabel = computed(() => mine.agent.name || 'Mi agente')
 /* LAS FOTOS DE GOOGLE: la de cada persona viene con ella (el home la manda en quién está conectado y en cada mensaje);
    la tuya, de tu sesión. Sin foto, las iniciales de siempre. Se piden sin «referer»: así las sirve Google. */
 const myPhoto = computed(() => chat.state?.session?.picture || '')
@@ -145,7 +138,6 @@ const photoOf = (p) => {
   if (email && email === chat.meKey) return myPhoto.value
   return p?.picture || chat.online.find((o) => String(o.email || '').toLowerCase() === email)?.picture || ''
 }
-function toggleMode() { mine.setMode(mine.agent.mode === 'agente' ? 'yo' : 'agente') }
 // Los agentes de una persona, por nombre: para el título de su muñequito.
 const agentNames = (p) => chat.agentsOf(p?.email).map((a) => a.name).join(', ')
 /* EL COLOR DE CADA AGENTE: sale de su nombre, así es siempre el mismo (en el borde del muñequito de su dueño y en su
@@ -209,8 +201,8 @@ function applyRoute() {
   else if (key && !key.startsWith('agent:')) chat.open({ email: key, name: key.split('@')[0] })
   else chat.activeKey = ''
 }
-/* Antes del primer pintado, lo que dice la URL: sin esto la app arranca un instante en «Mi chat», y con eso se baja
-   el muñeco 3D aunque se entre directo a una conversación. La ruta entera (abrir, marcar leído) se aplica al montar. */
+/* Antes del primer pintado, lo que dice la URL: sin esto la app arranca un instante en «Mi chat» aunque se entre
+   directo a una conversación. La ruta entera (abrir, marcar leído) se aplica al montar. */
 {
   const { parts } = readHashRoute()
   const key = routeKey()
@@ -504,7 +496,7 @@ const onlineWithoutChat = computed(() => chat.online.filter((p) => {
 
 // ── responder a un mensaje: «Responder» en la burbuja, y el campo muestra a qué se contesta ──
 const replyTo = ref(null)
-const canReply = (item) => !activeIsAgent.value && !agentAnswers.value && item.kind === 'message' && !!item.sid
+const canReply = (item) => !activeIsAgent.value && item.kind === 'message' && !!item.sid
 function startReply(item) {
   replyTo.value = { sid: item.sid, who: item.dir === 'out' ? 'Vos' : firstName(chat.active.person), text: quoteText(item.text) }
   composer.value?.focus()
@@ -547,16 +539,13 @@ async function sendKeysByName(names, re) {
 const keyWho = (item) => firstName(item.dir === 'in' && item.from?.name ? item.from : chat.active.person)
 loadKeyring()
 async function submit() {
-  if (agentAnswers.value) return
   const text = draft.value.trim()
-  // En «Mi chat» le escribís a tu agente: contesta él y no sale a nadie.
+  // En «Mi chat» te escribís a vos mismo: lo leen tus agentes (`bin/chat history <vos>`), no sale a nadie más.
   if (!chat.active) {
-    if (!text || myAgentThinking.value) return
+    if (!text) return
     draft.value = ''
     await nextTick(); autosize()
-    const asked = chat.askMyAgent(text)
-    scrollNotesToEnd()
-    await asked
+    await chat.send(text, '', chat.ensure({ email: chat.meKey, name: (chat.me || chat.state?.session)?.name || '' }))
     scrollNotesToEnd()
     return
   }
@@ -594,7 +583,7 @@ async function submitNewGroup() {
 const attachments = ref([])
 const attachError = ref('')
 const fileInput = ref(null)
-const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.group && !chat.active.person.tool && !agentAnswers.value)
+const canAttach = computed(() => !!chat.active && !chat.active.person.agent && !chat.active.person.group && !chat.active.person.tool)
 function addFiles(list) {
   attachError.value = ''
   for (const f of list) {
@@ -756,11 +745,7 @@ function startTask(task, kind) {
   blockOwner.value = ''
   composer.value?.focus()
 }
-/* Con tu agente prendido, en tus conversaciones con personas contesta él: el campo se apaga hasta que lo apagues. Con
-   canon, cuadrilla y los agentes del equipo seguís escribiendo: ahí preguntás vos. */
-const agentAnswers = computed(() => mine.agent.mode === 'agente' && !!chat.active && !chat.active.person.agent)
 const canSubmit = computed(() => {
-  if (agentAnswers.value) return false
   if (!activeIsCuadrilla.value) return !!draft.value.trim() || (canAttach.value && attachments.value.length > 0)
   const t = taskTarget.value
   if (!t) return false
@@ -790,23 +775,19 @@ function autosize() {
   el.style.height = `${Math.min(el.scrollHeight, 160)}px`
 }
 const notesEl = ref(null)
-const myAgentThinking = computed(() => chat.notes.some((n) => n.status === 'pensando'))
-/* «MI CHAT» JUNTA DOS COSAS, en orden de hora: tus notas con tu agente local (las de este navegador) y lo que vos y tus
-   agentes se dicen entre ustedes por el chat (`bin/chat send <vos> … --as luigi`: la conversación con vos mismo). Lo
+/* «MI CHAT»: lo que vos y tus agentes se dicen entre ustedes por el chat (`bin/chat send <vos> … --as luigi`: la
+   conversación con vos mismo). Lo
    que dice uno de tus agentes va a la izquierda, con su muñequito de color; lo tuyo, a la derecha. */
 const myThread = computed(() => {
   // Cada mensaje una vez, por su id del home: si quedaron el enviado y el recibido (te lo mandaste a vos), el enviado.
   const all = chat.conversations[chat.meKey]?.messages || []
   const sentIds = new Set(all.filter((m) => m.dir === 'out' && m.sid).map((m) => m.sid))
   const self = all.filter((m) => !(m.dir === 'in' && sentIds.has(m.sid || m.id)))
-  const items = [
-    ...chat.notes.map((n) => ({ kind: 'note', id: n.id, time: n.time, n })),
-    ...self.map((m) => ({ kind: 'self', id: `self|${m.id}`, time: m.time, m, agent: m.asAgent || m.via || '' })),
-  ].sort((a, b) => String(a.time).localeCompare(String(b.time)))
+  const items = self.map((m) => ({ kind: 'self', id: `self|${m.id}`, time: m.time, m, agent: m.asAgent || m.via || '' })).sort((a, b) => String(a.time).localeCompare(String(b.time)))
   // Seguidos del mismo que habla, a pocos minutos: una tanda (el muñequito y el nombre sólo en la primera).
   let prev = null
   for (const it of items) {
-    const who = it.kind === 'note' ? `nota:${it.n.from}` : it.agent ? `agente:${it.agent}` : 'yo'
+    const who = it.agent ? `agente:${it.agent}` : 'yo'
     it.cont = !!prev && prev.who === who && new Date(it.time) - new Date(prev.time) < GROUP_MS
     it.who = who
     prev = it
@@ -814,23 +795,12 @@ const myThread = computed(() => {
   return items
 })
 const myLast = computed(() => myThread.value.at(-1) || null)
-const modelName = (id) => MODELS.find((m) => m.id === id)?.name || id
-// «leyó 2 archivos · corrió make tareas»: lo que hizo tu agente para contestar, en una línea.
-function stepsSummary(steps) {
-  const count = (tool) => steps.filter((s) => s.tool === tool).length
-  const parts = []
-  if (count('leyó')) parts.push(`leyó ${count('leyó')} ${count('leyó') === 1 ? 'archivo' : 'archivos'}`)
-  if (count('buscó') + count('listó')) parts.push(`buscó ${count('buscó') + count('listó')} ${count('buscó') + count('listó') === 1 ? 'vez' : 'veces'}`)
-  const ran = steps.filter((s) => s.tool === 'corrió').map((s) => s.detail.split(' ').slice(0, 2).join(' '))
-  if (ran.length) parts.push(`corrió ${[...new Set(ran)].join(', ')}`)
-  return parts.join(' · ') || `${steps.length} pasos`
-}
 async function scrollNotesToEnd() {
   await nextTick()
   if (notesEl.value) notesEl.value.scrollTop = notesEl.value.scrollHeight
 }
 watch(() => chat.activeKey, (key) => { if (!key) scrollNotesToEnd() })
-// Lo que llega a «Mi chat» (una nota o un mensaje tuyo o de tus agentes) y la primera vez que se pinta: abajo de todo.
+// Lo que llega a «Mi chat» (un mensaje tuyo o de tus agentes) y la primera vez que se pinta: abajo de todo.
 watch(() => myThread.value.length, () => { if (!chat.activeKey) scrollNotesToEnd() }, { immediate: true })
 const atBottom = ref(true)
 const unseen = ref(0)          // los que llegaron mientras mirabas más arriba
@@ -880,7 +850,6 @@ watch(() => chat.activeKey, async (key) => {
 const activeIsCanon = computed(() => chat.active?.person.tool === 'canon')
 const sendLabel = computed(() => (activeIsCuadrilla.value ? 'Anotar' : activeIsCanon.value ? 'Preguntar' : 'Mandar'))
 const placeholder = computed(() => {
-  if (agentAnswers.value) return `Contesta ${agentLabel.value}: apagalo para escribir vos`
   if (activeIsCuadrilla.value) {
     const t = taskTarget.value
     if (!t) return 'Elegí una tarea de arriba para anotar en ella'
@@ -902,8 +871,8 @@ function clearActive() {
   const c = chat.active
   if (c && window.confirm(`¿Vaciar la conversación con ${c.person.name || c.person.email}? Se borran sus mensajes de este navegador.`)) chat.clearMessages(c.person.email)
 }
-function clearNotes() {
-  if (window.confirm('¿Vaciar tu conversación con tu agente? Sólo está en este navegador: no se puede recuperar.')) chat.clearNotes()
+function clearMyChat() {
+  if (window.confirm('¿Vaciar «Mi chat»? Se borran sus mensajes de este navegador.')) chat.clearMessages(chat.meKey)
 }
 // Borrar la conversación, igual que su ✕ del sidebar: sale de la lista y lo ya recibido no vuelve (forget sola la sacaba
 // de la lista, pero `listen` la traía de nuevo con todos sus mensajes).
@@ -918,16 +887,15 @@ watch(() => chat.unreadTotal, (n) => { document.title = n ? `(${n}) chat` : 'cha
    conversación); si no, los muestra macOS. La pestaña le cuenta qué conversación tenés al frente para no avisarte de
    ésa. El permiso se pide desde «Avisos»: el navegador sólo lo pide tras un clic. */
 const notifyPermission = ref(typeof Notification === 'undefined' ? 'unsupported' : Notification.permission)
-/* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — tu agente, los avisos, el llavero y
+/* EL PERFIL: el panel derecho de «Mi chat». Junta lo tuyo en secciones por icono — los avisos, la voz, el llavero y
    la conexión — en vez de tenerlo repartido en la barra de abajo y en diálogos. */
 const PROFILE_TABS = [
-  { id: 'agent', label: 'Mi agente' },
   { id: 'notify', label: 'Avisos', icon: 'bell' },
   { id: 'voice', label: 'Voz', icon: 'play' },
   { id: 'keyring', label: 'Llavero', icon: 'key' },
   { id: 'connection', label: 'Conexión', icon: 'server' },
 ]
-const profileTab = ref(readPref('chat.profile-tab', 'agent'))
+const profileTab = ref(PROFILE_TABS.some((t) => t.id === readPref('chat.profile-tab', '')) ? readPref('chat.profile-tab', '') : 'notify')
 function setProfileTab(id) { profileTab.value = id; savePref('chat.profile-tab', id) }
 function openProfile(tab) {
   serverOpen.value = ''; chat.activeKey = ''; setAgentOpen(true)
@@ -935,7 +903,6 @@ function openProfile(tab) {
   narrowList.value = false; narrowRight.value = true
   if (tab === 'notify') loadNotify()
 }
-const myAgentsRunning = computed(() => chat.agentList.filter((a) => a.mine))
 async function askNotifyPermission() {
   try { notifyPermission.value = await Notification.requestPermission() } catch { /* sin permiso */ }
   chat.reconnectLive()  // el stream se vuelve a abrir diciendo si esta pestaña puede mostrar avisos
@@ -1059,7 +1026,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="avatar" :title="agentNames({ email: chat.meKey }) ? `Tus agentes: ${agentNames({ email: chat.meKey })}` : null"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template><svg v-if="ringOf({ email: chat.meKey }).length" class="agent-ring" viewBox="0 0 42 42" aria-hidden="true"><circle v-for="s in ringOf({ email: chat.meKey })" :key="s.name" cx="21" cy="21" r="19.5" :stroke="s.color" :stroke-dasharray="s.dash" :stroke-dashoffset="s.offset" transform="rotate(-90 21 21)"/></svg></span>
               <span class="conversation-main">
                 <span class="conversation-top"><b class="name">Mi chat</b></span>
-                <span class="conversation-bottom"><span class="snippet">{{ !myLast ? `vos y ${agentLabel}` : myLast.kind === 'note' ? (myLast.n.status === 'pensando' ? `${agentLabel} está pensando…` : myLast.n.text) : `${myLast.agent || 'Vos'}: ${myLast.m.text}` }}</span></span>
+                <span class="conversation-bottom"><span class="snippet">{{ !myLast ? 'vos y tus agentes' : `${myLast.agent || 'Vos'}: ${myLast.m.text}` }}</span></span>
               </span>
             </button>
           </li>
@@ -1266,8 +1233,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <span class="head-who"><button v-if="narrow" type="button" class="region-action narrow-back" title="Volver a las conversaciones"
                     aria-label="Volver a las conversaciones" @click="narrowList = true"><span class="ui-icon" data-icon="back" aria-hidden="true"></span></button><span class="avatar small" aria-hidden="true"><img v-if="myPhoto" class="avatar-photo" :src="myPhoto" alt="" referrerpolicy="no-referrer"><template v-else>{{ initials(chat.me || chat.state?.session) }}</template></span><span class="head-title">Mi chat</span><span v-if="myHandle" class="count head-sub">{{ myHandle }}</span></span>
           <div class="region-actions">
-            <button type="button" class="region-action" title="Vaciar tu conversación con tu agente"
-                    aria-label="Vaciar tu conversación con tu agente" :disabled="!chat.notes.length" @click="clearNotes">
+            <button type="button" class="region-action" title="Vaciar «Mi chat»"
+                    aria-label="Vaciar «Mi chat»" :disabled="!myThread.length" @click="clearMyChat">
               <span class="ui-icon" data-icon="eraser" aria-hidden="true"></span>
             </button>
           </div>
@@ -1299,12 +1266,12 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <span v-if="chat.listenError" class="bad">{{ chat.listenError }}</span>
       </div>
 
-      <!-- MI CHAT: tu conversación con tu agente. Le escribís y contesta él, con el modelo de su panel; no sale a nadie.
-           Lo que te escribe cada persona está en su conversación. -->
-      <div v-if="!chat.active" ref="notesEl" class="region-body thread my-notes" aria-live="polite">
+      <!-- MI CHAT: vos y tus agentes. Lo que escribís acá te llega a vos; lo que te escribe cada persona está en su
+           conversación. -->
+      <div v-if="!chat.active" ref="notesEl" class="region-body thread" aria-live="polite">
         <p v-if="!myThread.length" class="side-note center">
-          Escribile a {{ agentLabel }}: te contesta acá, con {{ modelName(mine.agent.model) }}. Puede leer tu playground —knowledge/, el
-          tablero y las herramientas— y correr comandos que sólo consultan; nada que escriba, y no lee credenciales.
+          Tu conversación con vos mismo y tus agentes: lo que escribís acá no sale a nadie más. Un agente te habla con
+          <code>bin/chat send &lt;vos&gt; … --as luigi</code>.
         </p>
         <template v-for="it in myThread" :key="it.id">
           <!-- Lo que vos y tus agentes se dicen por el chat: uno de tus agentes a la izquierda, con su color; vos a la derecha. -->
@@ -1323,48 +1290,16 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               <span class="meta">{{ clock(it.time) }}</span>
             </div>
           </div>
-          <template v-else><template v-for="n in [it.n]" :key="n.id">
-          <div v-if="n.from === 'agente'" class="bubble-row in agent-row">
-            <img v-if="mine.agent.avatar" class="agent-avatar" :src="mine.agent.avatar" alt="">
-            <div class="bubble" :class="{ failed: n.status === 'error' }">
-              <span class="published-label">{{ agentLabel }}<template v-if="n.model"> · {{ modelName(n.model) }}</template></span>
-              <template v-if="n.status === 'pensando'">
-                <p class="text thinking">{{ n.steps?.length ? 'trabajando…' : 'pensando…' }}</p>
-                <ul v-if="n.steps?.length" class="live-steps">
-                  <li v-for="(st, i) in n.steps" :key="i"><b>{{ st.tool }}</b> <code>{{ st.detail }}</code></li>
-                </ul>
-              </template>
-              <p v-else-if="n.status === 'error'" class="text">{{ n.text }}</p>
-              <div v-else class="text md" v-html="renderMarkdown(n.text)"></div>
-              <details v-if="n.steps?.length && n.status !== 'pensando'" class="agent-steps">
-                <summary>{{ stepsSummary(n.steps) }}</summary>
-                <ul><li v-for="(st, i) in n.steps" :key="i"><b>{{ st.tool }}</b> <code>{{ st.detail }}</code></li></ul>
-              </details>
-              <span class="meta">{{ clock(n.time) }}</span>
-            </div>
-            <button v-if="speech.supported && n.text && n.status !== 'pensando'" type="button" class="reply-action speak-action" :class="{ on: speech.speakingId === n.id }"
-                    :title="speech.speakingId === n.id ? 'Parar' : 'Escuchar'" :aria-label="speech.speakingId === n.id ? 'Parar la lectura' : 'Escuchar este mensaje'"
-                    @click="toggleSpeak(n.id, n.text)"><span class="ui-icon" :data-icon="speech.speakingId === n.id ? 'stop' : 'play'" aria-hidden="true"></span></button>
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
-          </div>
-          <div v-else class="bubble-row out">
-            <button type="button" class="conv-del note-del" title="Borrar este mensaje" aria-label="Borrar este mensaje" @click="chat.removeNote(n.id)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
-            <div class="bubble">
-              <p class="text">{{ n.text }}</p>
-              <span class="meta">{{ shortWhen(n.time) === clock(n.time) ? clock(n.time) : `${shortWhen(n.time)} · ${clock(n.time)}` }}</span>
-            </div>
-          </div>
-          </template></template>
         </template>
       </div>
 
       <form v-if="!chat.active" class="composer" @submit.prevent="submit">
         <div class="composer-row">
-          <label class="sr-only" for="composer-text">Escribile a tu agente</label>
+          <label class="sr-only" for="composer-text">Escribite algo</label>
           <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
-                    maxlength="2000" :placeholder="`Escribile a ${agentLabel}`" @keydown="onKeydown" @input="autosize"></textarea>
-          <button type="submit" class="btn btn-send" :disabled="!draft.trim() || myAgentThinking" :title="myAgentThinking ? 'Pensando…' : 'Mandar'"
-                  :aria-label="myAgentThinking ? 'Pensando…' : 'Mandar'"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
+                    maxlength="2000" placeholder="Escribite algo: lo ven vos y tus agentes" @keydown="onKeydown" @input="autosize"></textarea>
+          <button type="submit" class="btn btn-send" :disabled="!draft.trim()" title="Mandar"
+                  aria-label="Mandar"><span class="ui-icon" data-icon="send" aria-hidden="true"></span></button>
         </div>
       </form>
 
@@ -1437,7 +1372,6 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 </span>
                 <span v-if="item.agentPrefix && !item.cont" class="published-label agent-chip">{{ item.agentPrefix }}</span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
-                <span v-if="item.auto && !item.cont" class="published-label">contestó {{ agentLabel }}</span>
                 <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
                 <span v-if="item.asAgent && !item.cont" class="published-label agent-chip">{{ item.asAgent }} · tu agente</span>
                 <span v-if="item.cuadrilla" class="task-note-label">
@@ -1554,11 +1488,6 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           </button>
         </div>
         <form class="composer" @submit.prevent="submit">
-          <div v-if="agentAnswers" class="agent-answers">
-            <img v-if="mine.agent.avatar" :src="mine.agent.avatar" alt="">
-            <span>En esta conversación contesta <b>{{ agentLabel }}</b>: sus respuestas te quedan listas para mandar.</span>
-            <button type="button" class="btn btn-outline btn-sm" @click="mine.setMode('yo')">Contesto yo</button>
-          </div>
           <div v-if="activeIsCuadrilla && taskTarget" class="replying">
             <span class="quote">
               <b>{{ KIND_LABEL[taskTarget.kind] }}</b>
@@ -1606,7 +1535,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
               </button>
             </template>
             <label class="sr-only" for="composer-text">{{ placeholder }}</label>
-            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1" :disabled="agentAnswers"
+            <textarea id="composer-text" ref="composer" v-model="draft" class="input composer-text" rows="1"
                       maxlength="2000" :placeholder="placeholder" @keydown="onKeydown" @input="onComposerInput" @paste="onPasteFiles"
                       @click="updateMention" @blur="mention = null" role="combobox" :aria-expanded="mentionOptions.length > 0"
                       aria-autocomplete="list" :aria-controls="mentionOptions.length ? 'mention-menu' : undefined"
@@ -1635,7 +1564,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
     </div>
 
     <!-- ── tu agente: la región de la derecha ─────────────────────────────────────────── -->
-    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : mediaContext && !openService ? 'Fotos y archivos' : openService ? 'Rutas' : 'Mi agente'">
+    <aside v-show="agentShown" class="auxiliarybar" :aria-label="docView ? (docView.kind === 'image' ? 'Galería' : 'Documento') : mediaContext && !openService ? 'Fotos y archivos' : openService ? 'Rutas' : 'Tu perfil'">
       <div class="rsz rsz-edge-left" v-resize="agentResize"></div>
       <template v-if="docView">
         <div class="region-head">
@@ -1723,22 +1652,16 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <button v-for="t in PROFILE_TABS" :key="t.id" type="button" role="tab" class="region-action profile-tab"
                   :class="{ on: profileTab === t.id }" :aria-selected="profileTab === t.id" :title="t.label" :aria-label="t.label"
                   @click="setProfileTab(t.id)">
-            <img v-if="t.id === 'agent' && mine.agent.avatar" class="tab-avatar" :class="{ off: mine.agent.mode !== 'agente' }" :src="mine.agent.avatar" alt="">
-            <span v-else class="ui-icon" :data-icon="t.icon || 'settings'" aria-hidden="true"></span>
+            <span class="ui-icon" :data-icon="t.icon || 'settings'" aria-hidden="true"></span>
           </button>
         </nav>
         <div class="region-actions">
-          <!-- Prender o apagar a tu agente: apagado contestás vos, y el muñeco queda en blanco y negro. -->
-          <button v-if="profileTab === 'agent'" type="button" class="switch" role="switch" :aria-checked="mine.agent.mode === 'agente'" @click="toggleMode"
-                  :title="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}: contestás vos` : `Prender a ${agentLabel}: contesta por vos`"
-                  :aria-label="mine.agent.mode === 'agente' ? `Apagar a ${agentLabel}` : `Prender a ${agentLabel}`"></button>
           <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar el perfil" @click="setAgentOpen(false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <MyAgent v-if="agentShown && profileTab === 'agent'" class="region-body" />
-      <div v-else-if="profileTab === 'notify'" class="region-body">
+      <div v-if="profileTab === 'notify'" class="region-body">
         <NotifySettings :permission="notifyPermission" :name-of="conversationName" @ask-permission="askNotifyPermission" />
       </div>
       <div v-else-if="profileTab === 'voice'" class="region-body profile-section">
@@ -1777,7 +1700,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <p class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
           <small v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small></span></p>
         <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
-        <p class="profile-row"><span><b>{{ myAgentsRunning.length ? myAgentsRunning.map((a) => a.agentName).join(', ') : 'ninguno' }}</b><small>tus agentes conectados (los demás los ven y les preguntan)</small></span></p>
+        <p class="profile-row"><span><b>{{ myAgentNames.length ? myAgentNames.join(', ') : 'ninguno' }}</b><small>tus agentes (nacen la primera vez que hablan con <code>--as</code>)</small></span></p>
         <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat del playground' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
       </div>
       </template>
@@ -1889,12 +1812,6 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       <button type="button" class="statusbar-item mode-toggle icon-only" :class="{ off: notify.settings && !notify.settings.enabled }"
               :title="notify.settings && !notify.settings.enabled ? 'Avisos apagados' : 'Avisos'" :aria-label="notifyStatusText" @click="openNotify">
         <span class="ui-icon" data-icon="bell" aria-hidden="true"></span></button>
-      <!-- Quién contesta: vos o tu agente. Siempre a la vista, para que no quede prendido sin querer. -->
-      <button type="button" class="statusbar-item mode-toggle" :class="{ on: mine.agent.mode === 'agente' }" @click="toggleMode"
-              :title="mine.agent.mode === 'agente' ? `Contesta ${agentLabel}: tocá para contestar vos` : `Contestás vos: tocá para que conteste ${agentLabel}`">
-        <img v-if="mine.agent.avatar" class="mode-avatar" :class="{ off: mine.agent.mode !== 'agente' }" :src="mine.agent.avatar" alt="">
-        <span :class="{ 'wide-only': mine.agent.mode !== 'agente' }">{{ mine.agent.mode === 'agente' ? `contesta ${agentLabel}` : 'contesto yo' }}</span>
-      </button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!sidebarShown" title="Mostrar u ocultar las conversaciones"
@@ -2002,7 +1919,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 /* La campana del grupo: atenuada cuando avisa sólo las menciones. */
 .group-notify.quiet { opacity: .5 }
 .mode-toggle.off { opacity: .6 }
-.mode-avatar.off, .tab-avatar.off { filter: grayscale(1) }
 .btn-send { width: var(--control-md); padding: 0; flex: none }
 .speak-action.on { opacity: 1; color: var(--primary) }
 .notify-actions { display: flex; gap: var(--space-2) }
@@ -2010,7 +1926,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 .profile-head { gap: var(--space-2) }
 .profile-tabs { display: flex; align-items: center; gap: 2px; min-width: 0 }
 .profile-tab.on { background: var(--hover); color: var(--foreground) }
-.tab-avatar { width: 18px; height: 18px; border-radius: 5px; object-fit: cover }
 .profile-section { display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--gutter, var(--space-4)) }
 .profile-row { margin: 0; display: flex; align-items: center; justify-content: space-between; gap: var(--space-3) }
 .profile-row > span { display: flex; flex-direction: column; gap: 2px; min-width: 0 }
@@ -2082,20 +1997,11 @@ code { font-family: var(--font-mono); font-size: .92em }
 .avatar-photo { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; display: block }
 .me-photo { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; vertical-align: -3px }
 
-/* MI AGENTE: su avatar es la foto del muñeco. */
-.avatar-img { object-fit: cover; background: var(--office-bg); border-radius: 8px }
 /* Los dos bloques del costado: las conversaciones se llevan el alto que sobra; los agentes, lo suyo y no más de la
    mitad. Cada uno scrollea su cuerpo. */
 
 .mode-toggle { border: 0; background: none; font: inherit; color: inherit; cursor: pointer; display: inline-flex; align-items: center; gap: 6px }
-.mode-toggle.on { color: var(--office-accent); font-weight: 600 }
-.mode-avatar { width: 16px; height: 16px; border-radius: 4px; object-fit: cover; background: var(--office-bg) }
-/* Apagado, tu agente se ve en blanco y negro donde aparezca. */
-.mode-toggle:not(.on) .mode-avatar { filter: grayscale(1) }
 .agent-state { font-weight: 400; color: var(--fg-2); margin-left: 4px }
-.agent-answers { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2) }
-.agent-answers img { width: 22px; height: 22px; border-radius: 6px; object-fit: cover; flex: none }
-.agent-answers span { flex: 1; min-width: 0 }
 
 /* CUADRILLA: tus tareas arriba del hilo, con su estado en un punto y sus acciones; y la etiqueta de cada nota. */
 .tasks { display: flex; flex-direction: column; gap: var(--space-2); padding-bottom: var(--space-3); margin-bottom: var(--space-2);
@@ -2149,16 +2055,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 .asked-text { font-size: var(--text-sm); overflow-wrap: anywhere }
 
 /* Lo que publicó un agente al que estás anotado: una burbuja ajena con su etiqueta arriba. */
-.note-del { align-self: center; opacity: 0 }
-.own-agent { padding: var(--space-4) var(--gutter); display: flex; flex-direction: column; gap: var(--space-3) }
-.own-agent p { margin: 0 }
-.own-agent dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: var(--space-1) var(--space-3); font-size: var(--text-sm) }
-.own-agent dt { color: var(--fg-2) }
-.own-agent dd { margin: 0; word-break: break-word }
-.own-agent .btn { align-self: flex-start }
-.agent-row { gap: var(--space-2); align-items: flex-end }
-.agent-avatar { flex: none; width: 28px; height: 28px; border-radius: 8px; object-fit: cover; background: var(--office-bg) }
-.thinking { color: var(--fg-2); font-style: italic }
 /* Markdown de un agente: los mismos espacios de la burbuja, sin el pre-wrap del texto plano. */
 .text.md { white-space: normal }
 .text.md :is(p, ul, ol, pre) { margin: 0 0 var(--space-2) }
@@ -2167,13 +2063,6 @@ code { font-family: var(--font-mono); font-size: .92em }
 .text.md code { font-family: var(--font-mono); font-size: .92em }
 .text.md pre { font-family: var(--font-mono); font-size: var(--text-sm); white-space: pre-wrap; overflow-x: auto }
 .text.md strong { font-weight: 600 }
-.agent-steps { margin-top: var(--space-2); font-size: var(--text-xs); color: var(--fg-2) }
-.live-steps { margin: var(--space-1) 0 0; padding-left: var(--space-4); font-size: var(--text-xs); color: var(--fg-2) }
-.live-steps code { font-family: var(--font-mono); word-break: break-all }
-.agent-steps summary { cursor: pointer }
-.agent-steps ul { margin: var(--space-1) 0 0; padding-left: var(--space-4) }
-.agent-steps code { font-family: var(--font-mono); word-break: break-all }
-.bubble-row:hover .note-del { opacity: 1 }
 .published-label { font-size: var(--text-xs); font-weight: 600; color: var(--quote-rule) }
 
 .composer { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-6);
