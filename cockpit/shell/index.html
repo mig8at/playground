@@ -79,6 +79,10 @@
   .act .state.fail { background: var(--destructive) }
   .act.open { color: var(--fg-2) }
   @keyframes blink { 50% { opacity: .35 } }
+  /* Seguir a Claude: el punto naranja sigue, gris queda quieto (como en Jarvis). */
+  aside header .follow { width: auto; gap: 6px; padding: 0 var(--space-2); font-size: var(--text-xs); font-weight: 400; display: inline-flex; align-items: center }
+  aside header .follow i { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
+  aside header .follow.on i { background: var(--primary) }
 </style>
 </head>
 <body>
@@ -86,6 +90,7 @@
 <main id="panels"></main>
 <aside id="activity" aria-label="Lo que hace Claude" hidden>
   <header><span>Claude</span><span class="grow"></span>
+    <button type="button" id="followToggle" class="follow"><i aria-hidden="true"></i><span></span></button>
     <button type="button" id="activityClear" title="Vaciar" aria-label="Vaciar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5L18.5 7M9 7V4.5h6V7"/></svg></button>
     <button type="button" id="activityClose" title="Ocultar" aria-label="Ocultar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </header>
@@ -126,7 +131,7 @@ function render() {
     b.setAttribute('aria-pressed', String(app.id === current))
     b.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[app.id] || FALLBACK}</svg>`
     if (badges[app.id] > 0) b.insertAdjacentHTML('beforeend', `<span class="badge">${badges[app.id] > 99 ? '99+' : badges[app.id]}</span>`)
-    b.addEventListener('click', () => select(app.id))
+    b.addEventListener('click', () => { manualAt = Date.now(); select(app.id) })
     b.addEventListener('mouseenter', () => showTip(b, `${app.name}  ⌘${i + 1}`))
     b.addEventListener('mouseleave', hideTip)
     bar.append(b)
@@ -328,13 +333,41 @@ function onActivity(a) {
   else if (!activityOpen) { unseen = true; render() }
 }
 activity.hidden = !activityOpen
-tauri.event.listen('cockpit-activity', (e) => onActivity(e.payload))
+/* SEGUIR A CLAUDE: cuando Claude usa una herramienta que es de una app (el hook dice cuál y en qué ruta: correr el
+   harness, escribir en una tarea, manejar Jarvis), Cockpit salta ahí. Si elegiste una app a mano, se respeta 20 s. */
+const FOLLOW_KEY = 'cockpit.follow'
+let follow = pick(FOLLOW_KEY, 'on') !== 'off'
+let manualAt = 0
+let lastFollow = ''
+const followToggle = document.getElementById('followToggle')
+function paintFollow() {
+  followToggle.classList.toggle('on', follow)
+  followToggle.querySelector('span').textContent = follow ? 'siguiendo' : 'quieto'
+  followToggle.title = follow
+    ? 'Siguiendo a Claude: Cockpit salta a la app que está usando (si elegís una a mano, se respeta 20 s). Clic para quedarte quieto'
+    : 'Quieto: Cockpit no cambia de app solo. Clic para seguir a Claude'
+  followToggle.setAttribute('aria-pressed', String(follow))
+}
+followToggle.addEventListener('click', () => { follow = !follow; keep(FOLLOW_KEY, follow ? 'on' : 'off'); paintFollow() })
+paintFollow()
+function followTo(app, route) {
+  if (!follow || !apps.some((a) => a.id === app) || Date.now() - manualAt < 20_000) return
+  const key = `${app}|${route || ''}`
+  if (app === current && (!route || key === lastFollow)) return
+  lastFollow = key
+  pendingRoute = route ? { id: app, hash: route } : null
+  select(app).then(() => deliverRoute(app))
+}
+tauri.event.listen('cockpit-activity', (e) => {
+  onActivity(e.payload)
+  if (e.payload?.kind === 'start' && e.payload.app) followTo(e.payload.app, e.payload.route)
+})
 
 // ⌘1, ⌘2…: cambiar de app (dentro de un iframe el atajo no llega acá; desde la barra, sí).
 window.addEventListener('keydown', (e) => {
   if (!e.metaKey || e.altKey || e.ctrlKey) return
   const app = apps[Number(e.key) - 1]
-  if (app) { e.preventDefault(); select(app.id) }
+  if (app) { e.preventDefault(); manualAt = Date.now(); select(app.id) }
 })
 
 invoke('apps').then((list) => {

@@ -14,6 +14,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -60,6 +61,7 @@ func cockpitActivity(payload map[string]any, root string) (cockpit.Activity, boo
 	switch str(payload, "hook_event_name") {
 	case "PreToolUse":
 		act.Kind = "start"
+		act.App, act.Route = cockpitTarget(tool, in, root)
 	case "PostToolUse":
 		act.Kind = "end"
 		okay := !toolFailed(payload)
@@ -142,4 +144,60 @@ func toolSummary(tool string, in map[string]any, root string) string {
 		}
 	}
 	return ""
+}
+
+/*
+SEGUIR A CLAUDE: a qué app de Cockpit corresponde una herramienta, y en qué ruta. Sólo el USO de una herramienta la
+
+	trae al frente —correr el harness, escribir en una tarea, manejar Jarvis—; editar el código de una herramienta es
+	trabajar en ella, no usarla, y no mueve nada. Vacío: no corresponde a ninguna.
+*/
+var (
+	taskArg     = regexp.MustCompile(`(?:\bN=|--tarea[= ]|\bTAREA=)['"]?([a-z0-9][a-z0-9-]*)`)
+	taskDocPath = regexp.MustCompile(`(?:^|/)tablero/tasks/([a-z0-9][a-z0-9-]*)/`)
+)
+
+func cockpitTarget(tool string, in map[string]any, root string) (app, route string) {
+	taskRoute := func(slug string) string {
+		// Una tarea por número no tiene ruta: el tablero se abre en el sprint.
+		if slug == "" || regexp.MustCompile(`^[0-9]+$`).MatchString(slug) {
+			return ""
+		}
+		return "#/tareas/" + slug
+	}
+	switch tool {
+	case "Bash":
+		cmd := str(in, "command")
+		switch {
+		case regexp.MustCompile(`\bmake (harness-|panel\b)|\bbin/advisor\b|\bharness/(dev|bin)/`).MatchString(cmd):
+			return "harness", ""
+		case regexp.MustCompile(`\bmake (tarea-|tareas|retomar|agente|cierre|bitacora|tablero)|\bbin/pg (tarea|tareas|cierre|bitacora)\b`).MatchString(cmd):
+			slug := ""
+			if m := taskArg.FindStringSubmatch(cmd); m != nil {
+				slug = m[1]
+			}
+			return "tablero", taskRoute(slug)
+		case regexp.MustCompile(`\bbin/jarvis\b|\bmake jarvis`).MatchString(cmd):
+			return "jarvis", ""
+		case regexp.MustCompile(`\bmake visor`).MatchString(cmd):
+			return "designer", ""
+		case regexp.MustCompile(`\bmake ecommerce\b|\becommerce/server\b`).MatchString(cmd):
+			return "ecommerce", ""
+		case regexp.MustCompile(`\bbin/chat\b|\bplayground (send|online|history)\b`).MatchString(cmd):
+			return "chat", ""
+		}
+	case "Edit", "Write":
+		// El documento o la pila de una tarea: es escribir EN el tablero.
+		if m := taskDocPath.FindStringSubmatch(str(in, "file_path")); m != nil {
+			return "tablero", taskRoute(m[1])
+		}
+	}
+	short := shortTool(tool)
+	switch {
+	case short == "tarea_bloque" || short == "tarea_pila" || short == "bitacora_add" || short == "tareas" || short == "cierre":
+		return "tablero", taskRoute(str(in, "tarea"))
+	case strings.HasPrefix(short, "harness"):
+		return "harness", ""
+	}
+	return "", ""
 }

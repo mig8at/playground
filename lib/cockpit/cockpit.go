@@ -102,4 +102,7 @@ type Activity struct {
 	Text    string `json:"text"`
 	OK      *bool  `json:"ok,omitempty"`
 	App     string `json:"app,omitempty"`
+	// Route: dónde, dentro de App (`#/tareas/<slug>`). App y Route, en un `start`, son a dónde «seguir a Claude» lleva
+	// a Cockpit (hook `cockpit`, `cockpitTarget`).
+	Route string `json:"route,omitempty"`
 }

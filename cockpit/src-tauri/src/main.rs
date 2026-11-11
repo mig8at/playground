@@ -319,9 +319,14 @@ fn control_server(app: tauri::AppHandle, token: String) {
                 if !matches!(kind.as_str(), "start" | "end") {
                     json_response(400, serde_json::json!({ "error": "kind: start o end" }))
                 } else {
+                    // A dónde «seguir a Claude» llevaría (sólo una app conocida, y la ruta con los caracteres de una ruta).
+                    let target = text("app", 40);
+                    let target = if APPS.iter().any(|a| a.id == target) { target } else { String::new() };
+                    let route: String = text("route", 300).chars().filter(|c| c.is_ascii_alphanumeric() || "#/@._%-+:?=&".contains(*c)).collect();
                     let _ = app.emit("cockpit-activity", serde_json::json!({
                         "kind": kind, "id": text("id", 80), "session": text("session", 40), "tool": text("tool", 60),
                         "text": text("text", 300), "ok": input.get("ok").and_then(|v| v.as_bool()),
+                        "app": target, "route": route,
                     }));
                     json_response(200, serde_json::json!({ "ok": true }))
                 }

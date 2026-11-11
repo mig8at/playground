@@ -36,3 +36,30 @@ func TestCockpitActivitySummarizesEachTool(t *testing.T) {
 		t.Errorf("mcp: el nombre corto y su consulta: %+v", act)
 	}
 }
+
+// Seguir a Claude: el USO de una herramienta la trae al frente; editar su código, no.
+func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
+	bash := func(cmd string) map[string]any { return map[string]any{"command": cmd} }
+	cases := []struct {
+		tool       string
+		in         map[string]any
+		app, route string
+	}{
+		{"Bash", bash("make harness-case TARGET=local CASES='pullman@score=700'"), "harness", ""},
+		{"Bash", bash("make tarea-bloque N=playground-local ARCHIVO=b.md"), "tablero", "#/tareas/playground-local"},
+		{"Bash", bash("make tarea-bloque N=96 ARCHIVO=b.md"), "tablero", ""},
+		{"Bash", bash("bin/pg tarea bloque --tarea integracion-vtex"), "tablero", "#/tareas/integracion-vtex"},
+		{"Bash", bash("bin/jarvis open http://localhost:5207/"), "jarvis", ""},
+		{"Bash", bash("bin/chat send miguel@creditop.com hola --as luigi"), "chat", ""},
+		{"Bash", bash("git status"), "", ""},
+		{"Edit", map[string]any{"file_path": "/repo/tablero/tasks/canon/task.md"}, "tablero", "#/tareas/canon"},
+		{"Edit", map[string]any{"file_path": "/repo/harness/panel/index.html"}, "", ""},
+		{"mcp__playground__tarea_bloque", map[string]any{"tarea": "harness"}, "tablero", "#/tareas/harness"},
+	}
+	for _, c := range cases {
+		app, route := cockpitTarget(c.tool, c.in, "/repo")
+		if app != c.app || route != c.route {
+			t.Errorf("%s %v: dio %q %q, quería %q %q", c.tool, c.in, app, route, c.app, c.route)
+		}
+	}
+}
