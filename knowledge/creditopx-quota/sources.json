@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cupo mensual y mandato de CreditopX",
   "summary": "Cupo mensual por perfil CreditopX: cálculo, carga, reinicio y backoffice; el cupo del log, el creditCard nulo del buró y el mandato de la entidad.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-11T14:57:37+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -65,8 +65,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
+      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
+      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada",
         "el-mandato-no-frena-ninguna-originacion"

@@ -131,18 +131,24 @@ suelen configurar un umbral menor, porque $5.000 sería una fracción grande de 
 El admin de legacy-application deja cambiar la fecha de pago de un crédito sólo si la fila es la
 vigente (`status = 1`; se bloquea junto con la solicitud y, si dejó de ser la más reciente, se
 rechaza), no es una utilización de cupo rotativo (la fecha la define el cupo), no tiene cuotas
-congeladas (`amortization_start_date` futura), su entidad no es de corte semanal (pago fijo:
-viernes, o martes en el semanal de martes) ni quincenal, y el pago mínimo pendiente es 0: primero se
-paga, después se cambia la fecha, porque el exigible quedaría colgado de un ciclo que no es el suyo.
+congeladas (`amortization_start_date` futura), su entidad no es de República Dominicana
+(`dominicanRepublicRejection`, por el `country_id` de la entidad: el OTP y los avisos del cambio
+salen con indicativo +57) ni de corte semanal (pago fijo: viernes, o martes en el semanal de
+martes), y el pago mínimo pendiente es 0: primero se paga, después se cambia la fecha, porque el
+exigible quedaría colgado de un ciclo que no es el suyo.
 
 Además, el crédito no puede tener otro cambio de fecha o de plazo en los últimos 6 meses en
 `creditop_x_changes_log` (cuenta también lo que escribe legacy-backend), la fecha elegida tiene que
 ser una de las que ofrece `getNextTwoCycles` y hace falta un OTP del cliente validado en la sesión
 hace no más de 5 minutos, pedido para ese crédito y ese tipo de cambio (`CreditChangeOtp`), que
-queda consumido. La ruta del comercio (`Customer\CreditopXRequestHistoryController`) usa el mismo
-`changePaymentDate` sin OTP. A diferencia de la app, Gestionar no exige
-`allow_payment_date_selection` de la entidad. Todo corre en una transacción: si algo falla no queda
-nada escrito.
+queda consumido. `getNextTwoCycles` ancla en la fecha de pago del crédito o en el primer día cuyo
+corte no pasó, la más tarde, y ofrece en mensual las dos siguientes entre el 5, el 16 y el 28; en
+quincenal, una sola: la siguiente entre el 5 y el 16, así que el cambio corre el pago una quincena;
+en semanal, ninguna. La ruta del comercio (`Customer\CreditopXRequestHistoryController`) usa el
+mismo `changePaymentDate` sin OTP. A diferencia de la app, Gestionar no exige
+`allow_payment_date_selection` de la entidad ni rechaza el corte quincenal (legacy-backend lo
+rechaza con `BIWEEKLY_CHANGES_NOT_ALLOWED` en `CreditChangeValidationService::canChangePaymentDate`).
+Todo corre en una transacción: si algo falla no queda nada escrito.
 
 ## Acciones del admin sobre la cartera
 
@@ -161,13 +167,22 @@ cupo. Ninguna toca los acumulados `paid_*`, porque no son pagos del cliente:
 - **Refinanciación:** sobrevive sólo el capital (que ya incluye el fondo de garantía) y, si quien la
   aplica lo decide, los seguros; se condonan intereses, mora, cobranza y el descuadre (total menos
   la suma de componentes, cobranza incluida). El plan nuevo es de cuota fija sobre ese capital a la
-  tasa del crédito (`user_requests.rate`), con un plazo que no se ata a los plazos de la entidad (de
-  1 a 120 cuotas). La primera cuota cae en un día de pago permitido para el corte de la entidad
-  (`CutoffCalendar::allowedPaymentDays`) que deje al menos 15 días de facturación: en mensual, el
-  día de ciclo del crédito o el siguiente permitido, nunca uno anterior; en quincenal, el 5 o el 16
-  que llegue primero. El corte de esa primera cuota es el que `CutoffCalendar` le parea. Se rechaza
-  un crédito sin capital (lo que le quede se resuelve con la condonación), uno de corte semanal y
-  uno con cuotas congeladas (`amortization_start_date` futura). Dentro de la transacción se
+  tasa del crédito (`user_requests.rate`, mensual vencida) llevada al período del corte
+  (`RefinanceCredit::periodRate`): en mensual la misma; en quincenal la de la quincena
+  (`CutoffCalendar::dailyRate` × `daysToBill`, la mitad de la mensual), la misma con la que la
+  originación calcula la cuota quincenal. La vista previa devuelve `rate` (mensual), `period_rate`,
+  `cutoff_type_id` y `periodicity`, y el log registra las dos tasas. El plazo, en cuotas del período,
+  no se ata a los plazos de la entidad (de 1 a 120 cuotas). La primera cuota cae en un día de pago
+  permitido para el corte de la entidad (`CutoffCalendar::allowedPaymentDays`) que deje al menos 15
+  días de facturación: en mensual, el día de ciclo del crédito o el siguiente permitido, nunca uno
+  anterior; en quincenal, el 5 o el 16 que llegue primero. El corte de esa primera cuota es el que
+  `CutoffCalendar` le parea. Se rechaza un crédito sin capital (lo que le quede se resuelve con la
+  condonación), y uno de corte semanal (los dos dentro de `RefinanceCredit::preview`, así que valen
+  para la vista previa y para la ejecución). En el controlador se rechaza además uno cuya entidad es de
+  República Dominicana (`dominicanRepublicRejection`, por el `country_id` de la entidad), en la
+  refinanciación y en la vista previa, y uno con cuotas congeladas (`amortization_start_date` futura,
+  `frozenInstallmentsRejection`) sólo al ejecutar: la vista previa de un crédito congelado devuelve el
+  plan sin error. Dentro de la transacción se
   bloquean la solicitud y la fila y, si la fila dejó de ser la vigente, se aborta. Deja
   `CONDONACIÓN POR REFINANCIACIÓN` y `REFINANCIACIÓN`; queda al día.
 - **Condonar y pasar a paz y salvo:** todos los saldos a 0 y estado 3, con el movimiento

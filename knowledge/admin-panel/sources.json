@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n>; las escrituras sin permiso, las lecturas por id sin alcance de comercio, los listados sin recorte por rol y las rutas de desarrollo publicadas; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-11T14:57:37+00:00",
   "sources": [
     {
       "repo": "application",
@@ -112,8 +112,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
+      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
+      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
       "sections": [
         "creditos-creditopx",
         "el-historial-de-un-credito-creditopx-lleva-dos-estados",

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cartera CreditopX: noche, cobranza, colilla y beneficios",
   "summary": "Qué le pasa a un crédito CreditopX sin que el cliente pague: la cadena nocturna que corre loan-servicing sobre los comandos de legacy-application, el gasto de cobranza por tramo de mora y qué caminos lo incluyen en el saldo total (y por qué la vista previa de la refinanciación lo cuenta dos veces), la colilla que se condona en el corte, cuándo se puede cambiar la fecha de pago, recuperación, condonación libre, refinanciación y paz y salvo desde el admin, y el subsidio de intereses Creditop.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-11T14:57:37+00:00",
   "sources": [
     {
       "repo": "application",
@@ -184,8 +184,8 @@
     {
       "repo": "application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "328670e0ce70aa977f2354642ded16e99c1fce6b",
+      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
+      "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
       "sections": [
         "cambio-de-fecha-de-pago",
         "acciones-del-admin-sobre-la-cartera",
@@ -196,8 +196,8 @@
     {
       "repo": "application",
       "path": "app/Actions/CreditopX/RefinanceCredit.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "96113fe89b99d4b5d2aba1c5e2cfb18015c8a1ff",
+      "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
+      "blob": "4bdabaebbb07365a5e613f1ed2bbd0790e81df3c",
       "sections": [
         "acciones-del-admin-sobre-la-cartera",
         "saldo-total-y-gasto-de-cobranza"
