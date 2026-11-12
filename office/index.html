@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="es" data-style="panels">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office</title>
+<!--
+  OFFICE — la sala donde se VE cómo trabajan las personas y sus agentes, en pixel art.
+  Por ahora es sólo la parte visual: lo que dicen sale de un guion de ejemplo (SCRIPT), no del chat real.
+  Una sala = una conversación del chat del equipo; cada participante, un muñeco en su escritorio.
+  Para cambiar quiénes están: CAST. Los sprites se dibujan en un lienzo de 256×144 que se escala en
+  múltiplos enteros (sin suavizado); los nombres, globos y la conversación van en HTML encima, para que
+  el texto se lea nítido.
+-->
+<style>
+  :root {
+    --canvas: #0e0f13; --card: #17181d; --line: #262833; --text: #e7e7ea; --dim: #8b8d98;
+    --accent: #f5a524; --ok: #3fb950;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text);
+    font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  .app { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; height: 100%; padding: 8px; }
+  .region { background: var(--card); border: 1px solid var(--line); border-radius: 10px; min-height: 0;
+    display: flex; flex-direction: column; overflow: hidden; }
+  .region > header { height: 40px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px;
+    border-bottom: 1px solid var(--line); font-size: 12px; }
+  .region > header .count { color: var(--dim); }
+  .stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
+  .scene { position: relative; }
+  .scene canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .overlay { position: absolute; inset: 0; pointer-events: none; }
+  .tag, .bubble { position: absolute; transform: translateX(-50%); white-space: nowrap;
+    font-family: "Silkscreen", ui-monospace, Menlo, monospace; }
+  .tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(10, 11, 15, .78); color: var(--text); }
+  .tag .who { opacity: .65; }
+  .bubble { bottom: auto; max-width: 220px; white-space: normal; text-align: left; font-size: 12px; line-height: 1.25;
+    background: #f4f1e8; color: #1b1b1f; padding: 5px 8px; border: 2px solid #1b1b1f; border-radius: 2px;
+    transform: translate(-50%, -100%); box-shadow: 3px 3px 0 rgba(0, 0, 0, .35); animation: pop .18s steps(3); }
+  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -4px; border: 4px solid transparent;
+    border-top-color: #1b1b1f; }
+  .bubble.think { background: #dfe7f5; font-style: italic; }
+  @keyframes pop { from { transform: translate(-50%, -100%) scale(.6); } to { transform: translate(-50%, -100%) scale(1); } }
+
+  .roster { list-style: none; margin: 0; padding: 8px; display: grid; gap: 2px; border-bottom: 1px solid var(--line); }
+  .roster li { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
+  .roster .swatch { width: 10px; height: 10px; border-radius: 2px; }
+  .roster .name small { color: var(--dim); margin-left: 4px; }
+  .roster .state { color: var(--dim); font-size: 12px; }
+  .roster .state.talking { color: var(--accent); }
+  .roster .state.typing { color: var(--ok); }
+  .log { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
+  .log .msg { display: grid; gap: 1px; }
+  .log .msg b { font-weight: 600; font-size: 12px; }
+  .log .msg time { color: var(--dim); font-size: 11px; margin-left: 6px; font-weight: 400; }
+  .log .msg span { color: var(--text); }
+  .statusbar { grid-column: 1 / -1; height: 30px; display: flex; align-items: center; gap: 16px; padding: 0 12px;
+    color: var(--dim); font-size: 12px; }
+  .statusbar button { all: unset; cursor: pointer; color: var(--text); }
+  .statusbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 820px) {
+    .app { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) minmax(200px, 40%) auto; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="app">
+  <section class="region" aria-label="La sala">
+    <header><span id="room-title">Sala</span><span class="count" id="room-count"></span></header>
+    <div class="stage" id="stage">
+      <div class="scene" id="scene">
+        <canvas id="cv" width="256" height="144" aria-label="La oficina en pixel art: cada persona y sus agentes en su escritorio"></canvas>
+        <div class="overlay" id="overlay"></div>
+      </div>
+    </div>
+  </section>
+  <aside class="region" aria-label="Quiénes están y qué dicen">
+    <header><span>En la sala</span><span class="count" id="who-count"></span></header>
+    <ul class="roster" id="roster"></ul>
+    <header><span>Conversación</span><span class="count">guion de ejemplo</span></header>
+    <div class="log" id="log" aria-live="polite"></div>
+  </aside>
+  <footer class="statusbar">
+    <span id="clock"></span>
+    <span>sólo visual: lo que dicen es un guion, no el chat real</span>
+    <span style="flex:1"></span>
+    <button type="button" id="pause" aria-pressed="false">pausar</button>
+  </footer>
+</div>
+
+<script>
+// ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
+// kind: 'human' | 'agent'. owner: de quién es el agente. Los agentes de Duncan van con nombre genérico
+// hasta saber cómo se llaman.
+const ROOM = { title: 'Sala · chat de Duncan' }
+const CAST = [
+  { id: 'duncan', name: 'Duncan', kind: 'human', row: 0, col: 1, hair: '#2b1d14', skin: '#c68a5e', shirt: '#3a6ea5' },
+  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', row: 0, col: 0, body: '#5b7fd1', light: '#9ff0ff' },
+  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', row: 0, col: 2, body: '#7d68c9', light: '#ffe29a' },
+  { id: 'miguel', name: 'Miguel', kind: 'human', row: 1, col: 1, hair: '#1a1410', skin: '#e0ac7e', shirt: '#2f8f5b' },
+  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', row: 1, col: 0, body: '#3ca66b', light: '#c6ffb0' },
+  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', row: 1, col: 2, body: '#d9a227', light: '#fff1a8' },
+]
+
+// ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
+// Lo que se dicen, en orden; vuelve a empezar al terminar. Entre línea y línea, cada uno teclea o piensa.
+const SCRIPT = [
+  ['duncan', '¿Alguien mira el 500 de preaprobación en qa?'],
+  ['miguel', 'Yo. Luigi, ¿me traés los logs de la última hora?'],
+  ['luigi', 'Van 14 errores, todos del mismo endpoint.'],
+  ['d-bot1', 'Ese endpoint cambió en el despliegue de ayer.'],
+  ['wario', 'Corro el caso en local para ver si se repite…'],
+  ['wario', 'Se repite: falta un campo en la respuesta.'],
+  ['duncan', 'Ok, lo arreglo yo. agente 2, armá la rama.'],
+  ['d-bot2', 'Rama lista. ¿Le paso el caso de prueba?'],
+  ['miguel', 'Sí, el de Pullman. Lo dejo en el chat.'],
+  ['luigi', 'Comprobado: con el arreglo pasa de punta a punta.'],
+  ['duncan', '🚀 Listo, lo subo a qa.'],
+]
+
+// ── EL LIENZO ────────────────────────────────────────────────────────────────────────────────────
+const W = 256, H = 144
+const cv = document.getElementById('cv'), g = cv.getContext('2d')
+g.imageSmoothingEnabled = false
+let scale = 3
+
+const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h) }
+
+// Un sprite es una lista de filas; cada letra es un color de la paleta, '.' es transparente.
+function sprite(rows, pal, x, y) {
+  rows.forEach((row, j) => { for (let i = 0; i < row.length; i++) { const c = pal[row[i]]; if (c) px(x + i, y + j, 1, 1, c) } })
+}
+const HUMAN = [
+  '...hhhhhh...',
+  '..hhhhhhhh..',
+  '.hhhhhhhhhh.',
+  '.hhssssssh..',
+  '.hssssssssh.',
+  '..sseessees.',
+  '..ssssssss..',
+  '..sssmmsss..',
+  '...ssssss...',
+  '....ssss....',
+  '..cccccccc..',
+  '.cccccccccc.',
+  'cccccwwccccc',
+  'cccccccccccc',
+]
+const AGENT = [
+  '.....a......',
+  '.....A......',
+  '..gggggggg..',
+  '.gddddddddg.',
+  '.gddddddddg.',
+  '.gdLLddLLdg.',
+  '.gddddddddg.',
+  '.gdddmmdddg.',
+  '..gggggggg..',
+  '....gggg....',
+  '..bbbbbbbb..',
+  '.bbbbbbbbbb.',
+  'bbbbbkkbbbbb',
+  'bbbbbbbbbbbb',
+]
+const shade = (hex, f) => {
+  const n = parseInt(hex.slice(1), 16)
+  const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)))
+  return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
+}
+
+// Dónde se sienta cada uno: dos filas de tres escritorios; la de atrás un poco más arriba.
+const DESK_X = [52, 128, 204]
+const DESK_Y = [82, 124]
+const seat = (p) => ({ x: DESK_X[p.col], y: DESK_Y[p.row] })
+
+// ── LA SALA ──────────────────────────────────────────────────────────────────────────────────────
+function room(t) {
+  // pared
+  px(0, 0, W, 50, '#2c2f3d'); px(0, 47, W, 3, '#22242f')
+  for (let x = 0; x < W; x += 16) px(x, 0, 1, 47, '#303344')
+  // ventana con nubes que pasan
+  px(12, 7, 44, 30, '#1d2030'); px(14, 9, 40, 26, '#6fa3d8')
+  const cx = 14 + ((t / 180) % 60) - 10
+  ;[[0, 5, 12], [5, 2, 7]].forEach(([dx, dy, w]) => { for (let i = 0; i < w; i++) { const xx = cx + dx + i; if (xx > 14 && xx < 54) px(xx, 14 + dy, 1, 3, '#eef4fb') } })
+  px(33, 9, 2, 26, '#1d2030'); px(14, 21, 40, 2, '#1d2030')
+  // la pantalla grande de la sala: la conversación como líneas de colores
+  px(82, 5, 92, 36, '#111218'); px(84, 7, 88, 32, '#0b1a1f')
+  shownLines.slice(-5).forEach((m, i, list) => {
+    const who = CAST.find((c) => c.id === m.who)
+    px(87, 10 + i * 6, 4, 3, who.kind === 'human' ? who.shirt : who.body)
+    px(94, 10 + i * 6, Math.min(74, 8 + m.text.length * 1.2), 3, i === list.length - 1 ? '#cfe9ef' : '#4d6b73')
+  })
+  px(124, 41, 8, 6, '#111218')
+  // reloj
+  px(190, 10, 14, 14, '#e9e3d3'); px(191, 11, 12, 12, '#f7f3e8')
+  const now = new Date(), a = (now.getMinutes() / 60) * Math.PI * 2, b = ((now.getHours() % 12) / 12) * Math.PI * 2
+  for (let r = 0; r < 5; r++) px(197 + Math.sin(a) * r, 17 - Math.cos(a) * r, 1, 1, '#22242f')
+  for (let r = 0; r < 4; r++) px(197 + Math.sin(b) * r, 17 - Math.cos(b) * r, 1, 1, '#b33a3a')
+  // cafetera y planta
+  px(226, 22, 16, 25, '#3a3d4c'); px(228, 26, 12, 7, '#191b22'); px(231, 37, 6, 6, '#f2eee4')
+  if (Math.floor(t / 400) % 2) px(233, 34, 1, 2, '#d8d8d8')
+  px(240, 38, 12, 9, '#8b5a3c'); px(238, 28, 6, 10, '#3c8f4a'); px(245, 24, 6, 14, '#2f7a3d'); px(242, 32, 6, 6, '#49a35a')
+  // piso en damero
+  for (let y = 50; y < H; y += 8) for (let x = 0; x < W; x += 8) px(x, y, 8, 8, ((x + y) / 8) % 2 ? '#4a3a2e' : '#54423a')
+  // alfombra de la sala
+  px(18, 54, 220, 88, 'rgba(120, 60, 50, .35)')
+}
+
+function desk(x, y) {
+  px(x - 20, y, 40, 4, '#a7774e'); px(x - 20, y + 4, 40, 2, '#7b5537')
+  px(x - 18, y + 6, 3, 14, '#6b4a30'); px(x + 15, y + 6, 3, 14, '#6b4a30')
+}
+
+// El portátil, visto desde el frente: la tapa tapa el pecho; su brillo le pinta la cara.
+function laptop(x, y, on) {
+  px(x - 8, y - 9, 16, 9, '#9aa0ad'); px(x - 7, y - 8, 14, 7, '#b9bfcb'); px(x - 1, y - 5, 2, 2, on ? '#e9f1ff' : '#8c919c')
+  px(x - 9, y - 1, 18, 1, '#6d7380')
+}
+
+function person(p, t) {
+  const { x, y } = seat(p)
+  const top = y - 26
+  const st = p.state
+  // se mece un pixel al hablar; al pensar, mira hacia arriba
+  const bob = st === 'talking' && Math.floor(t / 160) % 2 ? -1 : 0
+  if (p.kind === 'human') {
+    const blink = Math.floor((t + p.phase) / 120) % 33 === 0
+    sprite(HUMAN, { h: p.hair, s: p.skin, e: blink ? p.skin : '#1b1b1f', m: st === 'talking' && Math.floor(t / 120) % 2 ? '#7a2e2e' : shade(p.skin, .8), c: p.shirt, w: shade(p.shirt, 1.3) }, x - 6, top + bob)
+  } else {
+    const eye = st === 'thinking' ? (Math.floor(t / 200) % 2 ? p.light : '#1b1b1f') : p.light
+    const blink = Math.floor((t + p.phase) / 110) % 29 === 0
+    sprite(AGENT, { a: shade(p.body, .7), A: Math.floor(t / 300) % 2 ? p.light : shade(p.body, .7), g: shade(p.body, .7), d: '#1d2230', L: blink ? '#1d2230' : eye,
+      m: st === 'talking' && Math.floor(t / 120) % 2 ? p.light : '#3a4256', b: p.body, k: shade(p.body, 1.25) }, x - 6, top + bob)
+  }
+  // manos: teclean (se alternan) o descansan
+  const skin = p.kind === 'human' ? p.skin : shade(p.body, .7)
+  const typing = st === 'typing'
+  const l = typing && Math.floor((t + p.phase) / 90) % 2 ? -1 : 0
+  const r = typing && Math.floor((t + p.phase) / 90) % 2 ? 0 : -1
+  desk(x, y)
+  laptop(x, y, typing || st === 'talking')
+  px(x - 8, y - 1 + (typing ? l : 0), 3, 2, skin); px(x + 5, y - 1 + (typing ? r : 0), 3, 2, skin)
+  // taza de café al lado de algunos
+  if (p.kind === 'human') { px(x + 12, y - 4, 4, 4, '#f2eee4'); px(x + 16, y - 3, 1, 2, '#f2eee4') }
+}
+
+// ── QUIÉN HACE QUÉ ───────────────────────────────────────────────────────────────────────────────
+const people = CAST.map((c, i) => ({ ...c, state: 'typing', until: 0, phase: i * 37 }))
+const shownLines = []
+const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'lee' }
+let line = 0, nextLineAt = 1200, paused = false, clockT = 0
+
+function idleStates(t) {
+  for (const p of people) {
+    if (p.state === 'talking' || t < p.until) continue
+    const r = Math.random()
+    p.state = r < .55 ? 'typing' : r < .8 ? 'thinking' : 'idle'
+    p.until = t + 1500 + Math.random() * 3500
+  }
+}
+
+function say(t) {
+  const [who, text] = SCRIPT[line % SCRIPT.length]
+  line++
+  const p = people.find((x) => x.id === who)
+  p.state = 'talking'; p.until = t + 2600 + text.length * 35
+  shownLines.push({ who, text, at: new Date() })
+  if (shownLines.length > 40) shownLines.shift()
+  bubble(p, text)
+  logLine(p, text)
+  nextLineAt = t + 3400 + Math.random() * 2200
+  // el que va a hablar después se queda pensando un rato antes
+  const next = people.find((x) => x.id === SCRIPT[line % SCRIPT.length][0])
+  if (next !== p) { next.state = 'thinking'; next.until = nextLineAt }
+}
+
+// ── HTML ENCIMA DEL LIENZO ──────────────────────────────────────────────────────────────────────
+const overlay = document.getElementById('overlay')
+const tags = new Map(), bubbles = new Map()
+function place(el, x, y) { el.style.left = `${x * scale}px`; el.style.top = `${y * scale}px` }
+function buildTags() {
+  for (const p of people) {
+    const el = document.createElement('div')
+    el.className = 'tag'
+    el.innerHTML = p.owner ? `${p.name} <span class="who">· ${p.owner}</span>` : p.name
+    overlay.appendChild(el); tags.set(p.id, el)
+  }
+}
+function bubble(p, text) {
+  bubbles.get(p.id)?.remove()
+  const el = document.createElement('div')
+  el.className = 'bubble'
+  el.textContent = text
+  overlay.appendChild(el); bubbles.set(p.id, el)
+  el._until = performance.now() + 2600 + text.length * 35
+}
+function thinkBubble(p) {
+  if (bubbles.get(p.id)) return
+  const el = document.createElement('div')
+  el.className = 'bubble think'; el.textContent = '…'
+  overlay.appendChild(el); bubbles.set(p.id, el)
+  el._think = true
+}
+function layoutOverlay(now) {
+  for (const p of people) {
+    const { x, y } = seat(p)
+    place(tags.get(p.id), x, y + 8)
+    const b = bubbles.get(p.id)
+    if (b) {
+      const done = b._think ? p.state !== 'thinking' : now > b._until
+      if (done) { b.remove(); bubbles.delete(p.id); continue }
+      place(b, x, y - 30)
+      // que no se salga de la sala por los costados
+      const half = b.offsetWidth / 2, left = x * scale
+      b.style.left = `${Math.max(half + 4, Math.min(W * scale - half - 4, left))}px`
+    } else if (p.state === 'thinking' && p.id === SCRIPT[line % SCRIPT.length][0]) thinkBubble(p)
+  }
+}
+
+const roster = document.getElementById('roster'), log = document.getElementById('log')
+function drawRoster() {
+  roster.innerHTML = people.map((p) => `<li><span class="swatch" style="background:${p.kind === 'human' ? p.shirt : p.body}"></span>
+    <span class="name">${p.name}${p.owner ? `<small>agente de ${p.owner}</small>` : ''}</span>
+    <span class="state ${p.state}">${STATE_LABEL[p.state]}</span></li>`).join('')
+}
+const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+function logLine(p, text) {
+  const el = document.createElement('div')
+  el.className = 'msg'
+  el.innerHTML = `<b style="color:${p.kind === 'human' ? shade(p.shirt, 1.6) : shade(p.body, 1.35)}"></b><span></span>`
+  el.querySelector('b').textContent = p.owner ? `${p.name} (de ${p.owner})` : p.name
+  el.querySelector('b').insertAdjacentHTML('beforeend', `<time>${hhmm(new Date())}</time>`)
+  el.querySelector('span').textContent = text
+  log.appendChild(el)
+  while (log.children.length > 60) log.firstChild.remove()
+  log.scrollTop = log.scrollHeight
+}
+
+// ── TAMAÑO: el mayor múltiplo entero que entra ─────────────────────────────────────────────────
+const stage = document.getElementById('stage'), scene = document.getElementById('scene')
+function fit() {
+  const r = stage.getBoundingClientRect()
+  scale = Math.max(1, Math.floor(Math.min((r.width - 16) / W, (r.height - 16) / H)))
+  cv.style.width = `${W * scale}px`; cv.style.height = `${H * scale}px`
+  scene.style.width = `${W * scale}px`; scene.style.height = `${H * scale}px`
+}
+new ResizeObserver(fit).observe(stage)
+
+// ── EL BUCLE ─────────────────────────────────────────────────────────────────────────────────────
+let last = performance.now(), t = 0, rosterAt = 0
+function frame(now) {
+  const dt = now - last; last = now
+  if (!paused) {
+    t += dt
+    if (t > nextLineAt) say(t)
+    idleStates(t)
+  }
+  g.clearRect(0, 0, W, H)
+  room(t)
+  for (const p of [...people].sort((a, b) => a.row - b.row)) person(p, t)
+  layoutOverlay(now)
+  if (now - rosterAt > 250) { drawRoster(); rosterAt = now; document.getElementById('clock').textContent = hhmm(new Date()) }
+  requestAnimationFrame(frame)
+}
+
+document.getElementById('room-title').textContent = ROOM.title
+document.getElementById('room-count').textContent = `${CAST.filter((c) => c.kind === 'human').length} personas · ${CAST.filter((c) => c.kind === 'agent').length} agentes`
+document.getElementById('who-count').textContent = CAST.length
+document.getElementById('pause').addEventListener('click', (e) => {
+  paused = !paused
+  e.target.textContent = paused ? 'seguir' : 'pausar'
+  e.target.setAttribute('aria-pressed', String(paused))
+})
+buildTags(); fit(); requestAnimationFrame(frame)
+</script>
+</body>
+</html>
