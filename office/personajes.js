@@ -86,15 +86,17 @@ const HAIR = {
     front: `<path d="${M(pt(h, 176, 9))} ${arc(h, 176, 364, 9)} Q${h.cx + h.rx * .7} ${h.cy - h.ry * .7} ${h.cx + 4} ${h.cy - h.ry * .9} Q${h.cx - h.rx * .7} ${h.cy - h.ry * .7} ${pt(h, 176, 4).join(' ')}Z" fill="${c}"/>`,
   }),
   // rizos: bolitas sobre la línea del cráneo
-  curly: (h, c) => {
+  curly: (h, c, hatted) => {
     const puffs = (pad, r, from, to, step) => { let s = ''; for (let a = from; a <= to; a += step) { const [x, y] = pt(h, a, pad); s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>` } return s }
+    // con gorro, los rizos sólo asoman a los costados, por debajo del ala
+    if (hatted) return { back: puffs(10, 24, 150, 200, 16) + puffs(10, 24, 340, 390, 16), front: '' }
     return { back: puffs(14, 26, 160, 380, 20), front: puffs(4, 20, 200, 340, 20) + `<path d="${M(pt(h, 196, 4))} ${arc(h, 196, 344, 4)} Q${h.cx} ${h.cy - h.ry * .5} ${pt(h, 196, 4).join(' ')}Z" fill="${c}"/>` }
   },
   // moño alto y peinado tirante
-  bun: (h, c) => ({
+  bun: (h, c, hatted) => ({
     back: `<circle cx="${h.cx}" cy="${h.cy - h.ry - 22}" r="30" fill="${c}"/>`,
     front: `<path d="${M(pt(h, 182, 7))} ${arc(h, 182, 358, 7)} Q${h.cx + h.rx * .6} ${h.cy - h.ry * .62} ${h.cx} ${h.cy - h.ry * .72} Q${h.cx - h.rx * .6} ${h.cy - h.ry * .62} ${pt(h, 182, 4).join(' ')}Z" fill="${c}"/>
-      <path d="M${h.cx - 30} ${h.cy - h.ry - 30} q30 -14 60 0" stroke="${shade(c, 1.35)}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+      ${hatted ? '' : `<path d="M${h.cx - 30} ${h.cy - h.ry - 30} q30 -14 60 0" stroke="${shade(c, 1.35)}" stroke-width="5" fill="none" stroke-linecap="round"/>`}`,
   }),
   // rapado: casquete fino y oscuro
   buzz: (h, c) => ({ front: `<path d="${M(pt(h, 188, 4))} ${arc(h, 188, 352, 4)} Q${h.cx} ${h.cy - h.ry * .62} ${pt(h, 188, 2).join(' ')}Z" fill="${c}"/>` }),
@@ -105,59 +107,74 @@ const HAIR = {
   }),
 }
 
-// LOS GORROS: una capa aparte, encima del pelo, así cualquier peinado lleva cualquier gorro (por debajo se siguen
-// viendo patillas y melena). Se arman sobre la misma elipse de la cara. Todos lisos: sin letras ni marcas.
+// LOS GORROS: una capa aparte, encima del pelo, así cualquier peinado lleva cualquier gorro. Todos lisos: sin letras
+// ni marcas. Para que no floten, cada gorro se arma con dos medidas:
+//   · hp, cuánto abulta el peinado que tapa (HAIR_VOL): el gorro se apoya por fuera del pelo, no adentro de él;
+//   · la línea del gorro (hatLine): el borde de abajo, que va de una sien a la otra abrazando la frente, más bajo en
+//     el medio, como se ve una prenda redonda puesta en la cabeza.
+const HAIR_VOL = { side: 9, crop: 30, bob: 16, long: 18, curly: 26, bun: 8, buzz: 4, beanie: 14 }
+function hatLine(h, hp) {
+  const L = pt(h, 204, hp), R = pt(h, 336, hp), C = [h.cx, h.cy - h.ry * .3]
+  // un punto del borde, de t = 0 (sien izquierda) a 1 (sien derecha)
+  const at = (t) => [r1((1 - t) ** 2 * L[0] + 2 * t * (1 - t) * C[0] + t * t * R[0]), r1((1 - t) ** 2 * L[1] + 2 * t * (1 - t) * C[1] + t * t * R[1])]
+  // el mismo borde corrido dy (para el puño o la cinta), de derecha a izquierda
+  const back = (dy) => `Q${C[0]} ${r1(C[1] + dy)} ${L[0]} ${r1(L[1] + dy)}`
+  return { L, R, C, at, edge: `Q${C[0]} ${C[1]} ${L[0]} ${L[1]}`, back, top: h.cy - h.ry - hp }
+}
 const HATS = {
-  // gorro de lana con puño tejido y pompón
-  lana: (h, c) => {
-    const d = shade(c, .8), l = shade(c, 1.22), band = 26
-    const cuffTop = arc(h, 186, 354, 14), cuffBottom = arc(h, 354, 186, 12).replace(/L([\d.]+) ([\d.]+)/g, (m, x, y) => `L${x} ${r1(+y + band)}`)
+  // gorro de lana: la copa sigue la cabeza por fuera del pelo, el puño tejido abraza la frente, pompón arriba
+  lana: (h, c, hp) => {
+    const d = shade(c, .8), k = hatLine(h, hp), band = 24
+    const dome = `${M(k.L)} ${arc(h, 204, 336, hp + 2)} ${k.edge}Z`
+    const cuff = `M${k.L[0]} ${k.L[1] - band} Q${k.C[0]} ${k.C[1] - band} ${k.R[0]} ${k.R[1] - band} L${k.R[0]} ${k.R[1]} ${k.edge}Z`
     let ribs = ''
-    for (let a = 192; a <= 348; a += 9) { const [x, y] = pt(h, a, 13); ribs += `M${x} ${y + 4} v${band - 8} ` }
-    return `${cut(`<path d="${M(pt(h, 186, 14))} ${arc(h, 186, 354, 14)}Z" fill="${c}"/><circle cx="${h.cx}" cy="${h.cy - h.ry - 20}" r="19" fill="${l}"/>`)}
-      ${soft(`<path d="${M(pt(h, 186, 14))} ${cuffTop} L${pt(h, 354, 14)[0]} ${pt(h, 354, 14)[1] + band} ${cuffBottom}Z" fill="${d}"/>`)}
-      <path d="${ribs}" stroke="${shade(c, .66)}" stroke-width="3" stroke-linecap="round"/>`
+    for (let t = .05; t < .97; t += .075) { const [x, y] = k.at(t); ribs += `M${x} ${r1(y - band + 4)} v${band - 7} ` }
+    return `${cut(`<path d="${dome}" fill="${c}"/><circle cx="${h.cx}" cy="${k.top - 16}" r="19" fill="${shade(c, 1.22)}"/>`)}
+      ${soft(`<path d="${cuff}" fill="${d}"/>`)}
+      <path d="${ribs}" stroke="${shade(c, .64)}" stroke-width="3" stroke-linecap="round"/>`
   },
-  // chullo: lana con orejeras, cordones con borla y una franja en zigzag
-  chullo: (h, c) => {
-    const d = shade(c, .8), zig = [], flap = (side) => {
-      const [x, y] = pt(h, side < 0 ? 196 : 344, 12)
-      const bx = x + side * 6, by = h.cy + h.ry * .42
-      return `<path d="M${x - 20 * side} ${y - 4} Q${bx + 10 * side} ${y + 20} ${bx} ${by} Q${bx - 18 * side} ${by - 6} ${x - 34 * side} ${y + 6}Z" fill="${c}"/>
-        <path d="M${bx} ${by} q${-4 * side} 22 ${2 * side} 42" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="${bx + 2 * side}" cy="${by + 46}" r="8" fill="${d}"/>`
-    }
-    for (let a = 194, i = 0; a <= 346; a += 9, i++) zig.push(pt(h, a, i % 2 ? 2 : 12))
-    return `${cut(`${flap(-1)}${flap(1)}<path d="${M(pt(h, 184, 14))} ${arc(h, 184, 356, 14)}Z" fill="${c}"/><circle cx="${h.cx}" cy="${h.cy - h.ry - 20}" r="16" fill="${shade(c, 1.2)}"/>`)}
+  // chullo: como el de lana pero con orejeras que bajan de las sienes, cordones con borla y una franja en zigzag
+  chullo: (h, c, hp) => {
+    const d = shade(c, .78), k = hatLine(h, hp), low = h.cy + h.ry * .45
+    const flap = (P, side) => `<path d="M${P[0] + 28 * side} ${P[1] - 4} Q${P[0] - 4 * side} ${P[1] + 8} ${P[0] + 6 * side} ${low} Q${P[0] + 24 * side} ${low - 8} ${P[0] + 36 * side} ${P[1] + 20}Z" fill="${c}"/>
+      <path d="M${P[0] + 6 * side} ${low} q${-3 * side} 22 ${2 * side} 40" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="${P[0] + 8 * side}" cy="${low + 44}" r="8" fill="${d}"/>`
+    const zig = []
+    for (let a = 212, i = 0; a <= 328; a += 8, i++) zig.push(pt(h, a, hp - (i % 2 ? 16 : 4)))
+    return `${cut(`${flap(k.L, -1)}${flap(k.R, 1)}<path d="${M(k.L)} ${arc(h, 204, 336, hp + 2)} ${k.edge}Z" fill="${c}"/><circle cx="${h.cx}" cy="${k.top - 16}" r="16" fill="${shade(c, 1.2)}"/>`)}
       <path d="M${zig.map((q) => q.join(' ')).join(' L')}" stroke="#f1e4c7" stroke-width="6" fill="none" stroke-linejoin="round"/>
-      <path d="${M(pt(h, 186, 13))} ${arc(h, 186, 354, 13)}" stroke="${d}" stroke-width="6" fill="none"/>`
+      <path d="M${k.R[0]} ${k.R[1]} ${k.edge}" stroke="${d}" stroke-width="8" fill="none" stroke-linecap="round"/>`
   },
-  // cachucha de frente: copa en gajos, botón arriba y visera
-  cachucha: (h, c) => {
-    const d = shade(c, .74), l = shade(c, 1.2), base = h.cy - h.ry * .6
-    return `${cut(`<path d="${M(pt(h, 192, 12))} ${arc(h, 192, 348, 12)} L${h.cx + h.rx * .9} ${base} Q${h.cx} ${base - 12} ${h.cx - h.rx * .9} ${base}Z" fill="${c}"/>`)}
-      <path d="M${h.cx} ${h.cy - h.ry - 10} Q${h.cx - h.rx * .38} ${h.cy - h.ry * .9} ${h.cx - h.rx * .46} ${base - 4} M${h.cx} ${h.cy - h.ry - 10} Q${h.cx + h.rx * .38} ${h.cy - h.ry * .9} ${h.cx + h.rx * .46} ${base - 4}" stroke="${d}" stroke-width="3" fill="none"/>
-      <circle cx="${h.cx}" cy="${h.cy - h.ry - 10}" r="7" fill="${l}"/>
-      ${soft(`<path d="M${h.cx - h.rx * .82} ${base} Q${h.cx} ${base + 34} ${h.cx + h.rx * .82} ${base} Q${h.cx} ${base + 14} ${h.cx - h.rx * .82} ${base}Z" fill="${d}"/>`)}`
+  // cachucha: la copa en gajos se apoya en la línea del gorro y la visera sale del medio de ese borde
+  cachucha: (h, c, hp) => {
+    const d = shade(c, .74), l = shade(c, 1.2), k = hatLine(h, hp - 2), [vx0, vy0] = k.at(.16), [vx1, vy1] = k.at(.84), [mx, my] = k.at(.5)
+    return `${cut(`<path d="${M(k.L)} ${arc(h, 204, 336, hp)} ${k.edge}Z" fill="${c}"/>`)}
+      <path d="M${h.cx} ${k.top} Q${h.cx - h.rx * .4} ${k.top + 30} ${k.at(.28).join(' ')} M${h.cx} ${k.top} Q${h.cx + h.rx * .4} ${k.top + 30} ${k.at(.72).join(' ')}" stroke="${d}" stroke-width="3" fill="none"/>
+      <circle cx="${h.cx}" cy="${k.top + 2}" r="7" fill="${l}"/>
+      ${soft(`<path d="M${vx0} ${vy0} Q${mx} ${my + 40} ${vx1} ${vy1} Q${mx} ${my + 6} ${vx0} ${vy0}Z" fill="${d}"/>`)}`
   },
-  // cachucha al revés: la visera asoma por detrás de la cabeza y adelante se ve el broche
-  reves: (h, c) => {
-    const d = shade(c, .74), base = h.cy - h.ry * .6
-    return `${cut(`<path d="M${h.cx - 46} ${h.cy - h.ry - 2} Q${h.cx} ${h.cy - h.ry - 40} ${h.cx + 46} ${h.cy - h.ry - 2}Z" fill="${d}"/>`)}
-      ${cut(`<path d="${M(pt(h, 192, 12))} ${arc(h, 192, 348, 12)} L${h.cx + h.rx * .9} ${base} Q${h.cx} ${base - 12} ${h.cx - h.rx * .9} ${base}Z" fill="${c}"/>`)}
-      <path d="M${h.cx - 20} ${base - 6} a20 15 0 0 1 40 0Z" fill="${d}"/><path d="M${h.cx - 26} ${base - 18} h52" stroke="${shade(c, 1.2)}" stroke-width="4" stroke-linecap="round"/>`
+  // cachucha al revés: la visera asoma detrás de la coronilla y adelante, sobre la frente, se ve el broche
+  reves: (h, c, hp) => {
+    const d = shade(c, .74), k = hatLine(h, hp - 2), [mx, my] = k.at(.5)
+    return `${cut(`<path d="M${h.cx - 50} ${k.top + 14} Q${h.cx} ${k.top - 30} ${h.cx + 50} ${k.top + 14}Z" fill="${d}"/>`)}
+      ${cut(`<path d="${M(k.L)} ${arc(h, 204, 336, hp)} ${k.edge}Z" fill="${c}"/>`)}
+      <path d="M${mx - 20} ${my - 1} a20 16 0 0 1 40 0Z" fill="${d}"/><path d="M${mx - 26} ${my - 22} h52" stroke="${shade(c, 1.2)}" stroke-width="4" stroke-linecap="round"/>`
   },
-  // sombrero de pescador: copa baja y ala ancha que cae un poco
-  pescador: (h, c) => {
-    const d = shade(c, .78), l = shade(c, 1.15), top = h.cy - h.ry - 22, base = h.cy - h.ry * .52
-    return `${cut(`<path d="M${h.cx - h.rx * .8} ${base} L${h.cx - h.rx * .62} ${top + 8} Q${h.cx} ${top - 8} ${h.cx + h.rx * .62} ${top + 8} L${h.cx + h.rx * .8} ${base}Z" fill="${c}"/>`)}
-      <path d="M${h.cx - h.rx * .76} ${base - 16} L${h.cx + h.rx * .76} ${base - 16}" stroke="${d}" stroke-width="9"/>
-      ${cut(`<path d="M${h.cx - h.rx * 1.18} ${base + 10} Q${h.cx} ${base - 22} ${h.cx + h.rx * 1.18} ${base + 10} Q${h.cx + h.rx * .9} ${base + 26} ${h.cx} ${base + 18} Q${h.cx - h.rx * .9} ${base + 26} ${h.cx - h.rx * 1.18} ${base + 10}Z" fill="${l}"/>`)}`
+  // pescador: la copa nace de la línea del gorro y el ala la rodea, cayendo un poco más adelante que a los costados
+  pescador: (h, c, hp) => {
+    const d = shade(c, .78), l = shade(c, 1.15), k = hatLine(h, hp)
+    const top = k.top - 10, w = h.rx + hp
+    const crown = `M${k.L[0] + 8} ${k.L[1]} L${h.cx - w * .72} ${top + 12} Q${h.cx} ${top - 6} ${h.cx + w * .72} ${top + 12} L${k.R[0] - 8} ${k.R[1]} ${k.edge}Z`
+    const brimL = [k.L[0] - 30, k.L[1] + 10], brimR = [k.R[0] + 30, k.R[1] + 10], [mx, my] = k.at(.5)
+    return `${cut(`<path d="${crown}" fill="${c}"/>`)}
+      <path d="M${k.L[0] + 4} ${k.L[1] - 14} Q${k.C[0]} ${k.C[1] - 14} ${k.R[0] - 4} ${k.R[1] - 14}" stroke="${d}" stroke-width="9" fill="none"/>
+      ${cut(`<path d="M${brimL[0]} ${brimL[1]} Q${h.cx} ${k.C[1] - 34} ${brimR[0]} ${brimR[1]} Q${brimR[0] - 26} ${brimR[1] + 22} ${mx} ${my + 16} Q${brimL[0] + 26} ${brimL[1] + 22} ${brimL[0]} ${brimL[1]}Z" fill="${l}"/>`)}`
   },
-  // boina ladeada, con su cabito arriba
-  boina: (h, c) => {
-    const d = shade(c, .76), cy = h.cy - h.ry * .74
-    return `<g transform="rotate(-9 ${h.cx} ${cy})">${cut(`<rect x="${h.cx + 14}" y="${cy - h.ry * .5 - 12}" width="8" height="14" rx="4" fill="${d}"/><ellipse cx="${h.cx + 12}" cy="${cy}" rx="${h.rx * 1.1}" ry="${h.ry * .44}" fill="${c}"/>`)}
-      <path d="M${h.cx - h.rx * .82} ${cy + h.ry * .2} Q${h.cx + 10} ${cy + h.ry * .48} ${h.cx + h.rx * .98} ${cy + h.ry * .14}" stroke="${d}" stroke-width="8" fill="none" stroke-linecap="round"/></g>`
+  // boina: un disco blando que se apoya en la línea del gorro y se infla hacia un costado, con su cabito arriba
+  boina: (h, c, hp) => {
+    const d = shade(c, .76), k = hatLine(h, hp - 4), top = k.top
+    const body = `M${k.L[0]} ${k.L[1]} C${k.L[0] - 34} ${k.L[1] - 44} ${h.cx - h.rx * .7} ${top - 24} ${h.cx + 10} ${top - 18} C${h.cx + h.rx + hp + 46} ${top - 12} ${k.R[0] + 40} ${k.R[1] - 30} ${k.R[0]} ${k.R[1]} ${k.edge}Z`
+    return `${cut(`<rect x="${h.cx + 4}" y="${top - 34}" width="8" height="16" rx="4" fill="${d}"/><path d="${body}" fill="${c}"/>`)}
+      <path d="M${k.L[0] + 2} ${k.L[1] - 4} Q${k.C[0]} ${k.C[1] - 4} ${k.R[0] - 2} ${k.R[1] - 4}" stroke="${d}" stroke-width="8" fill="none" stroke-linecap="round"/>`
   },
 }
 
@@ -238,7 +255,7 @@ function person(p) {
   const s = p.skin, sh = shade(s, .86)
   const [rx, ry] = { round: [92, 88], wide: [100, 84], tall: [86, 94], soft: [94, 90] }[p.face || 'round']
   const h = { ...HEAD, rx, ry }
-  const hair = HAIR[p.hair](h, p.hairColor)
+  const hair = HAIR[p.hair](h, p.hairColor, !!p.hat)
   const has = (x) => p.extras?.includes(x)
   // el pelo largo cae detrás de los hombros: va antes que la chaqueta (y se balancea con la cabeza)
   const behind = p.hair === 'long'
@@ -253,7 +270,7 @@ function person(p) {
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
     ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
     ${cut(hair.front)}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f') : ''}
+    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 10) + 4) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
   </g>`
