@@ -75,6 +75,10 @@
 @keyframes jaw { from { transform: translateY(-8px); } to { transform: translateY(4px) rotate(1deg); } }
 @keyframes bill { from { transform: translateY(1px); } to { transform: translateY(-3px); } }
 @keyframes inside { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
+/* el pico grande del tucán: la parte de arriba se recoge hacia la base (como si levantara el pico) y deja ver la
+   boca y la parte de abajo */
+.tile.talking .beak-top.big { animation: bigbill .24s ease-in-out infinite alternate; }
+@keyframes bigbill { from { transform: scaleY(1); } to { transform: scaleY(.74); } }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }

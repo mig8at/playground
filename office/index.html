@@ -150,6 +150,11 @@ const CAST = [
   { id: 'rita', name: 'Rita', guest: true, kind: 'human', species: 'rana', skin: '#7fbf5a', eye: 28, shirt: '#5e3b6b', accent: '#f1e4c7', scene: 'waves' },
   { id: 'pingo', name: 'Pingo', guest: true, kind: 'human', species: 'pinguino', skin: '#22283a', eye: 24, hat: 'lana', hatColor: '#c5381f', shirt: '#4f8b8a', accent: '#f1e4c7', scene: 'ocean' },
   { id: 'ulises', name: 'Ulises', guest: true, kind: 'human', species: 'buho', skin: '#8a5a3c', eye: 28, extras: ['glasses'], glassesRound: true, shirt: '#24406b', accent: '#f08c3d', scene: 'clouds' },
+  { id: 'tuki', name: 'Tuki', guest: true, kind: 'human', species: 'tucan', skin: '#1d1f24', eye: 24, shirt: '#f2c14e', accent: '#13323a', scene: 'garden' },
+  { id: 'paco', name: 'Paco', guest: true, kind: 'human', species: 'loro', skin: '#5ea06b', eye: 24, shirt: '#c5381f', accent: '#f1e4c7', scene: 'sun' },
+  { id: 'calma', name: 'Calma', guest: true, kind: 'human', species: 'perezoso', skin: '#a8805a', eye: 22, lids: true, shirt: '#4f8b8a', accent: '#f1e4c7', scene: 'hills' },
+  { id: 'chiguiro', name: 'Chigüiro', guest: true, kind: 'human', species: 'capibara', skin: '#a8703f', shirt: '#9b8ec7', accent: '#f2c14e', hat: 'pescador', hatColor: '#8db3a9', scene: 'waves' },
+  { id: 'yagua', name: 'Yagua', guest: true, kind: 'human', species: 'jaguar', skin: '#e3a33c', eye: 25, shirt: '#13323a', accent: '#f08c3d', scene: 'dusk' },
 ].map((c) => ({ ...c, agent: c.kind === 'agent' }))
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -172,8 +177,8 @@ const SCRIPT = [
 // Los personajes que se armaron en el editor (editor.html) entran en lugar de los invitados de ejemplo.
 const custom = loadCustom().slice(0, 3)
 const cast = [...CAST.filter((c) => !c.guest), ...custom, ...CAST.filter((c) => c.guest).slice(custom.length)]
-// la grilla se acomoda: tres columnas hasta nueve recuadros, cuatro hasta dieciséis, cinco más allá
-document.getElementById('grid').style.gridTemplateColumns = `repeat(${cast.length <= 9 ? 3 : cast.length <= 16 ? 4 : 5}, minmax(0, 1fr))`
+// la grilla se acomoda: tres columnas hasta nueve recuadros, cuatro hasta dieciséis, cinco hasta veinticinco, seis más allá
+document.getElementById('grid').style.gridTemplateColumns = `repeat(${cast.length <= 9 ? 3 : cast.length <= 16 ? 4 : cast.length <= 25 ? 5 : 6}, minmax(0, 1fr))`
 const grid = document.getElementById('grid')
 const people = cast.map((c) => ({ ...c, state: 'typing', until: 0 }))
 for (const [i, p] of people.entries()) {

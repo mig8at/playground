@@ -235,6 +235,18 @@ const NOSES = {
 // mueve como una mandíbula (personajes.css: .beak-jaw baja, .beak-top sube apenas, .beak-inside se abre desde arriba),
 // no con el estirón de la boca de las personas, que en un pico se veía falso.
 function beak(cx, y, c, w = 74) {
+  // pico de tucán (w > 100): grande, cae por delante del mentón, con la punta roja y una arista oscura
+  if (w > 100) {
+    const tip = '#c5381f', low = (dy) => `<path d="M${cx - 22} ${y + 18 + dy} Q${cx - 26} ${y + 58 + dy} ${cx + 2} ${y + 78 + dy} Q${cx + 8} ${y + 56 + dy} ${cx + 20} ${y + 20 + dy}Z" fill="${shade(c, .82)}"/>`
+    const top = `<path d="M${cx - 36} ${y - 16} Q${cx} ${y - 30} ${cx + 36} ${y - 16} Q${cx + 40} ${y + 30} ${cx + 8} ${y + 76} Q${cx - 2} ${y + 84} ${cx - 8} ${y + 72} Q${cx - 34} ${y + 30} ${cx - 36} ${y - 16}Z" fill="${c}"/>
+      <path d="M${cx - 2} ${y + 60} Q${cx + 6} ${y + 74} ${cx + 8} ${y + 76} Q${cx - 2} ${y + 84} ${cx - 8} ${y + 72} Q${cx - 6} ${y + 64} ${cx - 2} ${y + 60}Z" fill="${tip}"/>
+      <path d="M${cx - 30} ${y - 14} Q${cx} ${y - 24} ${cx + 30} ${y - 14}" stroke="#2a2523" stroke-width="5" fill="none" stroke-linecap="round"/>
+      <path d="M${cx + 4} ${y - 8} Q${cx + 14} ${y + 30} ${cx + 4} ${y + 62}" stroke="${shade(c, 1.15)}" stroke-width="5" fill="none" stroke-linecap="round"/>`
+    return `<g class="m-smile">${soft(low(0) + top)}</g>
+      <g class="m-talk"><g class="beak-inside"><ellipse cx="${cx - 2}" cy="${y + 58}" rx="16" ry="22" fill="#6e1f12"/></g><g class="beak-jaw">${soft(low(10))}</g><g class="beak-top big">${soft(top)}</g></g>
+      <g class="m-think"><g transform="rotate(-6 ${cx} ${y})">${soft(low(0) + top)}</g></g>
+      <g class="m-flat">${soft(low(-2) + top)}</g>`
+  }
   // pico chico (búho): un ganchito que apunta hacia abajo, y abajo una puntita que se abre al hablar
   if (w < 30) {
     const d = shade(c, .75)
@@ -305,7 +317,7 @@ function torso(p) {
 
 // LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: una clave de
 // SPECIES (mico, pato, gorila, oso, panda, koala, mapache, cerdito, oveja, león, gato, zorro, perro, conejo, ratón,
-// rana, pingüino, búho)
+// rana, pingüino, búho, tucán, loro, perezoso, capibara, jaguar)
 // (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
 // piezas que comparten los animales
 const ANIMAL = {
@@ -433,6 +445,49 @@ const SPECIES = {
         <path d="M${h.cx - 30} ${h.cy + 44} q30 22 60 0 M${h.cx - 22} ${h.cy + 58} q22 16 44 0" stroke="${shade(fur, .75)}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
       nose: 'none', brow: shade(fur, .5), mouth: '#3a2015', beak: '#e3a33c', beakW: 22 }
   },
+  // tucán: cabeza negra, babero amarillo en la garganta, anillo azul alrededor de los ojos y el pico grande
+  tucan: (p, h) => {
+    const ink = p.skin
+    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      mask: `<path d="M${h.cx - 70} ${h.cy + 20} Q${h.cx} ${h.cy - 6} ${h.cx + 70} ${h.cy + 20} Q${h.cx + 56} ${h.cy + h.ry} ${h.cx} ${h.cy + h.ry + 4} Q${h.cx - 56} ${h.cy + h.ry} ${h.cx - 70} ${h.cy + 20}Z" fill="#f6e7b0"/>
+        <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/>`,
+      nose: 'none', brow: '#4a4d55', mouth: '#2a2523', beak: p.beak || '#f08c3d', beakW: 120 }
+  },
+  // loro: verde, mejillas amarillas, anillo claro en los ojos y pico en ganchito color hueso
+  loro: (p, h) => {
+    const feather = p.skin
+    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
+      mask: `<ellipse cx="${h.cx - 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/><ellipse cx="${h.cx + 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/>
+        <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/>`,
+      top: `<path d="M${h.cx - 10} ${h.cy - h.ry + 6} q-8 -28 10 -40 q-2 20 10 26 q4 -18 22 -20 q-12 14 -10 34Z" fill="#c5381f"/>`,
+      nose: 'none', brow: shade(feather, .55), mouth: '#2a2523', beak: '#ecdcc0', beakW: 28 }
+  },
+  // perezoso: pelaje café claro, máscara crema ovalada, franjas oscuras que bajan desde los ojos, sonrisa tranquila
+  perezoso: (p, h) => {
+    const fur = p.skin, cream = '#efe0c4', band = '#4a3326'
+    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: `<ellipse cx="${h.cx}" cy="${h.cy + 8}" rx="${h.rx - 16}" ry="${h.ry - 18}" fill="${cream}"/>
+        <path d="M${h.cx - 24} ${h.cy - 18} Q${h.cx - 50} ${h.cy - 22} ${h.cx - 74} ${h.cy + 4} Q${h.cx - 66} ${h.cy + 18} ${h.cx - 52} ${h.cy + 14} Q${h.cx - 38} ${h.cy + 2} ${h.cx - 20} ${h.cy + 4}Z" fill="${band}"/>
+        <path d="M${h.cx + 24} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 22} ${h.cx + 74} ${h.cy + 4} Q${h.cx + 66} ${h.cy + 18} ${h.cx + 52} ${h.cy + 14} Q${h.cx + 38} ${h.cy + 2} ${h.cx + 20} ${h.cy + 4}Z" fill="${band}"/>`,
+      top: `<path d="M${h.cx - 30} ${h.cy - h.ry + 10} q14 -22 30 -10 q14 -16 30 6" stroke="${shade(fur, .8)}" stroke-width="6" fill="none" stroke-linecap="round"/>`,
+      nose: 'dot', noseColor: '#3a2a24', brow: shade(fur, .6), mouth: '#5a2a1a' }
+  },
+  // capibara: cabeza más cuadrada y alargada, orejitas arriba, hocico ancho con las fosas arriba, ojos chicos
+  capibara: (p, h) => {
+    const fur = p.skin, d = shade(fur, .8)
+    return { back: ANIMAL.roundEars(h, 16, d, shade(fur, .65), 236),
+      head: `<rect x="${h.cx - h.rx + 4}" y="${h.cy - h.ry + 4}" width="${(h.rx - 4) * 2}" height="${(h.ry - 4) * 2 + 10}" rx="62" fill="${fur}"/>`,
+      mask: `<rect x="${h.cx - 56}" y="${h.cy + 16}" width="112" height="${h.ry - 4}" rx="40" fill="${shade(fur, .9)}"/>`,
+      nose: 'nostrils', noseColor: shade(fur, .5), brow: shade(fur, .55), mouth: '#3a2015', eye: 20 }
+  },
+  // jaguar: dorado con rosetas, orejas redondas de dorso oscuro, hocico blanco, nariz rosada y bigotes
+  jaguar: (p, h) => {
+    const fur = p.skin, spot = '#3a2a24'
+    const rosette = (x, y, r) => [0, 72, 144, 216, 288].map((a) => `<circle cx="${(x + r * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(y + r * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="3.5" fill="${spot}"/>`).join('')
+    return { back: ANIMAL.roundEars(h, 22, spot, fur, 228), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: `${rosette(h.cx - 50, h.cy - 52, 10)}${rosette(h.cx + 46, h.cy - 56, 9)}${rosette(h.cx, h.cy - 70, 8)}${rosette(h.cx - 74, h.cy + 18, 8)}${rosette(h.cx + 74, h.cy + 20, 8)}${ANIMAL.muzzle(h, '#f6efe2', 44, 30)}`,
+      front: ANIMAL.whiskers(h), nose: 'cat', noseColor: '#c9706a', brow: shade(fur, .5), mouth: '#5a2a1a' }
+  },
   leon: (p, h) => {
     const fur = p.skin, mane = p.mask || shade(fur, .62)
     return { back: ANIMAL.puffs(h, 22, 36, 0, 350, 22, mane) + ANIMAL.roundEars(h, 22, fur, shade(fur, 1.25), 226), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
@@ -489,7 +544,7 @@ function creature(p) {
     ${a.front ? soft(a.front) : ''}
     ${a.top && !p.hat ? cut(a.top) : ''}
     <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/>
-    ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth })}
+    ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth })}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
@@ -565,13 +620,14 @@ function saveCustom(list) { try { localStorage.setItem('office:custom', JSON.str
 // El catálogo del editor: cada opción es una pieza que person() ya sabe dibujar. Agregar una (un peinado, una
 // nariz) es sumarla en su objeto de arriba y nombrarla acá.
 const OPCIONES = {
-  species: { '': 'Persona', mico: 'Mico', pato: 'Pato', gorila: 'Gorila', oso: 'Oso de anteojos', panda: 'Panda', koala: 'Koala', mapache: 'Mapache', cerdito: 'Cerdito', oveja: 'Oveja', leon: 'León', gato: 'Gato', zorro: 'Zorro', perro: 'Perro', conejo: 'Conejo', raton: 'Ratón', rana: 'Rana', pinguino: 'Pingüino', buho: 'Búho' },
+  species: { '': 'Persona', mico: 'Mico', pato: 'Pato', gorila: 'Gorila', oso: 'Oso de anteojos', panda: 'Panda', koala: 'Koala', mapache: 'Mapache', cerdito: 'Cerdito', oveja: 'Oveja', leon: 'León', gato: 'Gato', zorro: 'Zorro', perro: 'Perro', conejo: 'Conejo', raton: 'Ratón', rana: 'Rana', pinguino: 'Pingüino', buho: 'Búho', tucan: 'Tucán', loro: 'Loro', perezoso: 'Perezoso', capibara: 'Capibara', jaguar: 'Jaguar' },
   // el color de la piel, del pelaje o de las plumas, según la especie
   skinBy: { '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'], gorila: ['#4e2e1f', '#3a2116', '#6b4128', '#3b3f45', '#5a5f66'],
     oso: ['#2e2622', '#4a3326', '#6b4a33'], panda: ['#f4efe6', '#e8e2d6'], koala: ['#9aa0a6', '#7f868e', '#b8bcc2'], mapache: ['#8a8f96', '#6f747b', '#a3a8ae'],
     cerdito: ['#f2a7a0', '#eebcb0', '#d98f86'], oveja: ['#fbf6ea', '#e9dff2', '#ddd0bc'], leon: ['#e3a33c', '#d18b2e', '#efbf5c'],
     gato: ['#f0a85a', '#9aa0a6', '#3a3a40', '#f4efe6'], zorro: ['#e5692a', '#c9561f', '#d98a4a'], perro: ['#d9b48a', '#a8703f', '#f4efe6', '#6b4a33'], conejo: ['#f1e4c7', '#c9a27a', '#e7d8cf'],
-    raton: ['#a3a8ae', '#c9c2b4', '#8a8f96'], rana: ['#7fbf5a', '#5ea06b', '#a6c95a'], pinguino: ['#22283a', '#2e3a52', '#1d1f24'], buho: ['#8a5a3c', '#6b4a33', '#a8805a'] },
+    raton: ['#a3a8ae', '#c9c2b4', '#8a8f96'], rana: ['#7fbf5a', '#5ea06b', '#a6c95a'], pinguino: ['#22283a', '#2e3a52', '#1d1f24'], buho: ['#8a5a3c', '#6b4a33', '#a8805a'],
+    tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c'] },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
   hair: { side: 'Raya al lado', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
