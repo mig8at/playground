@@ -16,6 +16,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Jarvis (configurar paneles admin con guía o con confirmación, en tu Chrome con su extensión; recetas por API y por pantalla; `bin/jarvis`) | [`jarvis/CLAUDE.md`](jarvis/CLAUDE.md) |
 | Cockpit (la app de escritorio donde Miguel ve las herramientas: `bin/cockpit`, quién levanta cada servidor, agregar una app, reinstalar) | [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
+| Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
 | poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-deriva PASO=…` |

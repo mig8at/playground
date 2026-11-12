@@ -71,3 +71,6 @@ jarvis/.data/
 /sentinel/.data/
 /sentinel/bin/
 /chat/bin/
+
+# Office: los personajes que genera el CLI (office/cli/personaje.mjs)
+office/generados/

@@ -371,6 +371,12 @@ sentinel-signal: ## @dia Sentinel por consola: UNA señal hora por hora, hoy con
 sentinel-deploy: ## @dia Sentinel por consola: ¿se DAÑÓ algo después de un despliegue a producción? REPO=legacy-backend [VERSION=v0.6.46] [HORAS=2]: las horas de después contra las de antes y contra lo normal de esa franja. JSON=1
 	@bin/sentinel deploy $(REPO) $(VERSION) --hours $(or $(HORAS),2) $(if $(JSON),--json)
 
+office: ## @dia abre Office (:5220), la llamada en papel cortado donde se ven las personas y sus agentes, y su editor de personajes (/editor.html). Servidor sin caché
+	@python3 office/serve.py $(or $(PORT),5220)
+
+office-character: ## @dia genera un personaje de Office por consola: un JSON con su configuración y sus animaciones, y un SVG animado por gesto (escucha, teclea, piensa, habla). ESPECIE=gato NOMBRE=Miso [DUENO=Miguel] [AZAR=1 SEMILLA=7] [SET='hat=lana hatColor=#c5381f'] [SALIDA=dir] [JSON=1]; OPCIONES=1 lista lo que se puede elegir. Queda en office/generados/<nombre>/
+	@node office/cli/personaje.mjs $(if $(OPCIONES),--opciones) $(if $(ESPECIE),--especie $(ESPECIE)) $(if $(NOMBRE),--nombre '$(NOMBRE)') $(if $(DUENO),--dueno '$(DUENO)') $(if $(AZAR),--azar) $(if $(SEMILLA),--semilla $(SEMILLA)) $(foreach kv,$(SET),--set '$(kv)') $(if $(SALIDA),--salida $(SALIDA)) $(if $(JSON),--json)
+
 sentinel-install: ## @dia deja la API de Sentinel corriendo DE FONDO (LaunchAgent: arranca con la sesión, mide aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
 	@mkdir -p sentinel/bin && go build -o sentinel/bin/sentinel ./sentinel/server && sentinel/bin/sentinel -install
 

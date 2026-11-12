@@ -370,11 +370,8 @@
       "name": "office",
       "runtimeExecutable": "python3",
       "runtimeArgs": [
-        "-m",
-        "http.server",
-        "5220",
-        "--bind",
-        "127.0.0.1"
+        "serve.py",
+        "5220"
       ],
       "cwd": "office",
       "port": 5220
