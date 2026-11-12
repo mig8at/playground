@@ -110,9 +110,11 @@ adelante depende de las respuestas de la fase 0.
   (como `DocumentTypesService::resolver` junta los tipos de documento); si ninguna, la de config. Guarda el
   `credential_id` en el request, como ADO, y deja en el log la sucursal, las entidades con cuenta y la elegida.
   Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
-- [ ] Llevar a qa las credenciales de Mareigua por entidad: [#1922](https://github.com/Creditop-SAS/legacy-backend/pull/1922)
-  contra `qa`. Termina con el PR mergeado y una consulta en qa con la cuenta de una entidad cargada. Depende de:
-  revisión del equipo.
+- [x] Llevar a qa las credenciales de Mareigua por entidad: [#1922](https://github.com/Creditop-SAS/legacy-backend/pull/1922)
+  (mergeado el 2026-11-12) y probado en qa: cada sucursal consultó con la cuenta esperada.
+- [ ] Limpiar de la base compartida lo creado para la prueba de qa: comercios 365, 366 y 367 («PRUEBA AUTO
+  Mareigua»), entidades 218 y 219, credenciales de Mareigua 12 y 13 y sus asignaciones. Termina con esas filas
+  borradas o con la decisión de dejarlas como datos de prueba.
 - [ ] Revisar el commit local `a666569d4` (insumos del riel 4 desde la configuración de la entidad) contra lo que
   Abel ya mergeó de Finandina (CRED-519: #1809, #1844, #1834). Termina con el commit subido en el PR de la tarea o
   descartado con su motivo.
