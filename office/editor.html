@@ -6,7 +6,7 @@
 <title>Office · personajes</title>
 <!--
   OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPCIONES, en personajes.js):
-  especie (persona, mico, pato o gorila), piel o pelaje, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
+  especie (persona o uno de los animales), piel o pelaje, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
   mismo recuadro de la llamada, con los mismos gestos (escucha, teclea, piensa, habla), así que lo que se ve acá es
   lo que se ve allá. También se elige el gorro, que va encima de cualquier peinado. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
   también se puede copiar como JSON (una entrada de CAST) o bajar como SVG.
@@ -165,7 +165,7 @@ document.querySelectorAll('[data-swatches]').forEach((row) => {
 function drawSkinRow() {
   const sp = cur.species || ''
   const colors = OPCIONES.skinBy[sp] || OPCIONES.skin
-  document.getElementById('skin-label').textContent = sp === 'pato' ? 'Plumas' : sp ? 'Pelaje' : 'Piel'
+  document.getElementById('skin-label').textContent = sp === 'pato' ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp ? 'Pelaje' : 'Piel'
   document.getElementById('skin-row').innerHTML = colors.map((c) => `<button type="button" class="swatch" data-key="skin" data-val="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')
   document.querySelectorAll('[data-human]').forEach((el) => { el.hidden = !!sp })
 }

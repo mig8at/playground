@@ -134,6 +134,14 @@ const CAST = [
   { id: 'ana', nose: 'button', eye: 27, teeth: 'grin', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hat: 'boina', hatColor: '#9b8ec7', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'garden' },
   { id: 'toto', name: 'Toto', guest: true, kind: 'human', species: 'mico', skin: '#7a4e2d', eye: 27, shirt: '#13323a', accent: '#f08c3d', hat: 'chullo', hatColor: '#c5381f', scene: 'ocean' },
   { id: 'lupe', name: 'Lupe', guest: true, kind: 'human', species: 'pato', skin: '#f2c14e', eye: 25, extras: ['glasses'], lashes: true, shirt: '#8db3a9', accent: '#c5381f', scene: 'candy' },
+  // los animales, para tenerlos a la vista mientras se diseñan
+  { id: 'tito', name: 'Tito', guest: true, kind: 'human', species: 'oso', skin: '#2e2622', eye: 25, shirt: '#e5592a', accent: '#13323a', scene: 'hills' },
+  { id: 'bambu', name: 'Bambú', guest: true, kind: 'human', species: 'panda', skin: '#f4efe6', eye: 24, shirt: '#2b6670', accent: '#f1e4c7', scene: 'garden' },
+  { id: 'kala', name: 'Kala', guest: true, kind: 'human', species: 'koala', skin: '#9aa0a6', eye: 26, shirt: '#c5381f', accent: '#f1e4c7', hat: 'lana', hatColor: '#f2c14e', scene: 'waves' },
+  { id: 'rufo', name: 'Rufo', guest: true, kind: 'human', species: 'mapache', skin: '#8a8f96', eye: 25, shirt: '#5e3b6b', accent: '#f08c3d', scene: 'dusk' },
+  { id: 'rosi', name: 'Rosi', guest: true, kind: 'human', species: 'cerdito', skin: '#f2a7a0', eye: 26, lashes: true, shirt: '#24406b', accent: '#f2c14e', scene: 'candy' },
+  { id: 'nube', name: 'Nube', guest: true, kind: 'human', species: 'oveja', skin: '#fbf6ea', eye: 24, extras: ['glasses'], glassesRound: true, shirt: '#4f8b8a', accent: '#f1e4c7', scene: 'clouds' },
+  { id: 'rugo', name: 'Rugo', guest: true, kind: 'human', species: 'leon', skin: '#e3a33c', eye: 25, shirt: '#13323a', accent: '#f08c3d', scene: 'sunset' },
 ].map((c) => ({ ...c, agent: c.kind === 'agent' }))
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -156,6 +164,8 @@ const SCRIPT = [
 // Los personajes que se armaron en el editor (editor.html) entran en lugar de los invitados de ejemplo.
 const custom = loadCustom().slice(0, 3)
 const cast = [...CAST.filter((c) => !c.guest), ...custom, ...CAST.filter((c) => c.guest).slice(custom.length)]
+// la grilla se acomoda: tres columnas hasta nueve recuadros, cuatro hasta dieciséis, cinco más allá
+document.getElementById('grid').style.gridTemplateColumns = `repeat(${cast.length <= 9 ? 3 : cast.length <= 16 ? 4 : 5}, minmax(0, 1fr))`
 const grid = document.getElementById('grid')
 const people = cast.map((c) => ({ ...c, state: 'typing', until: 0 }))
 for (const [i, p] of people.entries()) {
@@ -219,7 +229,7 @@ setInterval(() => {
 }, 100)
 
 document.getElementById('room-title').textContent = ROOM.title
-document.getElementById('room-count').textContent = `${CAST.filter((c) => c.kind === 'human').length} personas · ${CAST.filter((c) => c.kind === 'agent').length} agentes`
+document.getElementById('room-count').textContent = `${people.length} en la llamada · ${people.filter((c) => c.kind === 'agent').length} agentes`
 document.getElementById('who-count').textContent = CAST.length
 document.getElementById('pause').addEventListener('click', (e) => {
   paused = !paused
