@@ -56,7 +56,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 </template>
 
 <style scoped>
-.call { position: relative; overflow: hidden; background: #0b0c0e; display: grid; place-items: center; padding: 12px; }
+/* el fondo es el del tema (el mismo del editor): sigue el claro, el oscuro y la paleta que se elija en Cockpit */
+.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px; }
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
 .call-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px;
   width: calc(var(--cols) * var(--tile) + (var(--cols) - 1) * 10px); max-width: 100%; }
