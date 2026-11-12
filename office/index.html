@@ -5,113 +5,188 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Office</title>
 <!--
-  OFFICE — la sala donde se VE cómo trabajan las personas y sus agentes, en pixel art.
+  OFFICE — la llamada donde se VE cómo trabajan las personas y sus agentes: una grilla como la de una
+  videollamada, ilustrada en papel cortado (capas de papel con sombra, texturizadas).
   Por ahora es sólo la parte visual: lo que dicen sale de un guion de ejemplo (SCRIPT), no del chat real.
-  Una sala = una conversación del chat del equipo; cada participante, un muñeco en su escritorio.
-  Para cambiar quiénes están y dónde se sientan: CAST. La oficina es isométrica: pisos, paredes y muebles son
-  de PtDesigns (CC0; cada carpeta de assets/ lleva el LICENSE de su pack); los personajes los dibuja este
-  archivo, en el estilo de los muebles. Tiene la mesa redonda donde trabajan, la cocina con su comedor, el
-  rincón del café y una sala de estar. El lienzo va a la escala de los muebles (256 px por baldosa, las
-  baldosas de 128 al doble) y se achica para entrar; la rueda acerca y arrastrar mueve. Los nombres, globos
-  y la conversación van en HTML encima, para que el texto se lea nítido.
+  Una llamada = una conversación del chat del equipo; cada participante, un recuadro. Para cambiar quiénes
+  están: CAST. Todo se dibuja con SVG en este archivo, sin imágenes: se abre directo o servido.
 -->
 <style>
   :root {
-    --canvas: #0e0f13; --card: #17181d; --line: #262833; --text: #e7e7ea; --dim: #8b8d98;
-    --accent: #f5a524; --ok: #3fb950;
+    /* la paleta del papel */
+    --ink: #13323a; --teal-deep: #1d4a54; --teal: #2b6670; --teal-soft: #4f8b8a; --sage: #8db3a9;
+    --cream: #f1e4c7; --cream-dim: #d9c9a6; --red: #c5381f; --red-deep: #962b19; --orange: #e5592a; --amber: #f08c3d;
+    --text: #f6ecd6; --dim: #b9cdc6;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
-  html, body { margin: 0; height: 100%; background: var(--canvas); color: var(--text);
-    font: 13px/1.4 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
-  .app { display: grid; grid-template-columns: minmax(0, 1fr) 300px; grid-template-rows: minmax(0, 1fr) auto; gap: 8px; height: 100%; padding: 8px; }
-  .region { background: var(--card); border: 1px solid var(--line); border-radius: 10px; min-height: 0;
-    display: flex; flex-direction: column; overflow: hidden; }
-  .region > header { height: 40px; flex: none; display: flex; align-items: center; gap: 8px; padding: 0 12px;
-    border-bottom: 1px solid var(--line); font-size: 12px; }
-  .region > header .count { color: var(--dim); }
-  .stage { flex: 1; min-height: 0; position: relative; overflow: hidden; cursor: grab; touch-action: none; }
-  .stage.dragging { cursor: grabbing; }
-  .scene { position: absolute; }
-  .scene canvas { display: block; }
-  .overlay { position: absolute; inset: 0; pointer-events: none; }
-  .tag, .bubble { position: absolute; transform: translateX(-50%); white-space: nowrap;
-    font-family: "Silkscreen", ui-monospace, Menlo, monospace; }
-  .tag { transform: translate(-50%, -100%); font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(10, 11, 15, .78); color: var(--text); }
-  .tag .who { opacity: .65; }
-  .bubble { bottom: auto; max-width: 220px; white-space: normal; text-align: left; font-size: 12px; line-height: 1.25;
-    background: #f4f1e8; color: #1b1b1f; padding: 5px 8px; border: 2px solid #1b1b1f; border-radius: 2px;
-    transform: translate(-50%, -100%); box-shadow: 3px 3px 0 rgba(0, 0, 0, .35); animation: pop .18s steps(3); }
-  .bubble::after { content: ""; position: absolute; left: 50%; bottom: -8px; margin-left: -4px; border: 4px solid transparent;
-    border-top-color: #1b1b1f; }
-  .bubble.think { background: #dfe7f5; font-style: italic; }
-  @keyframes pop { from { transform: translate(-50%, -100%) scale(.6); } to { transform: translate(-50%, -100%) scale(1); } }
+  html, body { margin: 0; height: 100%; }
+  body { background: var(--teal-deep); color: var(--text); overflow: hidden;
+    font: 14px/1.4 "Nunito", ui-rounded, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
 
-  .roster { list-style: none; margin: 0; padding: 8px; display: grid; gap: 2px; border-bottom: 1px solid var(--line); }
-  .roster li { display: grid; grid-template-columns: 12px 1fr auto; align-items: center; gap: 8px; padding: 4px 6px; border-radius: 6px; }
-  .roster .swatch { width: 10px; height: 10px; border-radius: 2px; }
-  .roster .name small { color: var(--dim); margin-left: 4px; }
-  .roster .state { color: var(--dim); font-size: 12px; }
-  .roster .state.talking { color: var(--accent); }
-  .roster .state.typing { color: var(--ok); }
-  .log { flex: 1; min-height: 0; overflow: auto; padding: 8px 12px; display: flex; flex-direction: column; gap: 8px; }
-  .log .msg { display: grid; gap: 1px; }
-  .log .msg b { font-weight: 600; font-size: 12px; }
-  .log .msg time { color: var(--dim); font-size: 11px; margin-left: 6px; font-weight: 400; }
-  .log .msg span { color: var(--text); }
-  .statusbar { grid-column: 1 / -1; height: 30px; display: flex; align-items: center; gap: 16px; padding: 0 12px;
-    color: var(--dim); font-size: 12px; }
-  .statusbar button { all: unset; cursor: pointer; color: var(--text); }
-  .statusbar button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  @media (max-width: 820px) {
-    .app { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) minmax(200px, 40%) auto; }
+  /* La textura del papel, encima de todo: ruido suave que se multiplica con los colores. */
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .22; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+  /* El fondo de la página: olas de papel abajo y nubes arriba. */
+  .backdrop { position: fixed; inset: 0; z-index: 0; }
+  .backdrop svg { width: 100%; height: 100%; display: block; }
+
+  .app { position: relative; z-index: 1; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 320px;
+    grid-template-rows: 56px minmax(0, 1fr) 84px; gap: 0 16px; padding: 0 16px; }
+  .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+  .topbar h1 { flex: none; white-space: nowrap; margin: 0; font-size: 16px; font-weight: 800; letter-spacing: .01em; }
+  .topbar .meta { color: var(--dim); font-size: 13px; }
+  .chip { flex: none; background: var(--cream); color: var(--ink); border-radius: 999px; padding: 3px 10px; font-size: 12px; font-weight: 800;
+    box-shadow: 0 2px 0 var(--cream-dim), 0 4px 8px rgba(0, 0, 0, .25); }
+
+  /* La grilla de la llamada. */
+  .grid { min-height: 0; display: grid; gap: 14px; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: minmax(0, 1fr); }
+  .tile { position: relative; border-radius: 22px; overflow: hidden; min-height: 0;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, .18), 0 10px 22px rgba(0, 0, 0, .35); transition: box-shadow .2s, transform .2s; }
+  .tile svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  .tile.talking { box-shadow: 0 0 0 4px var(--cream), 0 0 0 8px var(--orange), 0 12px 26px rgba(0, 0, 0, .4); transform: translateY(-2px); }
+  .cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .38)) drop-shadow(0 1px 0 rgba(10, 25, 30, .25)); }
+  .cut-soft { filter: drop-shadow(0 2px 1.5px rgba(10, 25, 30, .3)); }
+
+  /* El nombre, abajo a la izquierda, en una tira de papel; el estado arriba a la derecha. */
+  .nameplate { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 8px; z-index: 2;
+    background: var(--cream); color: var(--ink); padding: 5px 12px 5px 8px; border-radius: 10px; font-weight: 800; font-size: 13px;
+    box-shadow: 0 2px 0 var(--cream-dim), 0 4px 10px rgba(0, 0, 0, .3); }
+  .nameplate small { font-weight: 700; color: var(--teal); }
+  .mic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--teal); }
+  .mic svg { position: static; width: 12px; height: 12px; }
+  .tile.muted .mic { background: var(--red); }
+  .state { position: absolute; right: 12px; top: 12px; z-index: 2; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px;
+    background: rgba(19, 50, 58, .72); color: var(--text); }
+  .state.talking { background: var(--orange); color: var(--cream); }
+  /* las barras de audio del que habla */
+  .bars { display: none; gap: 2px; align-items: flex-end; height: 12px; }
+  .tile.talking .bars { display: inline-flex; }
+  .bars i { width: 3px; background: var(--orange); border-radius: 2px; animation: bar .5s ease-in-out infinite alternate; }
+  .bars i:nth-child(2) { animation-delay: .15s; } .bars i:nth-child(3) { animation-delay: .3s; }
+  @keyframes bar { from { height: 3px; } to { height: 12px; } }
+
+  /* el globo de «está pensando» */
+  .think { position: absolute; top: 16%; right: 14%; z-index: 2; background: var(--cream); color: var(--ink); font-weight: 900;
+    padding: 0 12px 6px; border-radius: 18px; font-size: 22px; letter-spacing: 2px; box-shadow: 0 3px 0 var(--cream-dim), 0 6px 12px rgba(0, 0, 0, .3);
+    opacity: 0; transform: translateY(6px) scale(.9); transition: opacity .25s, transform .25s; }
+  .tile.thinking .think { opacity: 1; transform: none; }
+
+  /* La boca del que habla, el parpadeo y el teclear, animados con CSS sobre el SVG. */
+  .mouth { transform-box: fill-box; transform-origin: center; }
+  .tile.talking .mouth { animation: talk .22s ease-in-out infinite alternate; }
+  @keyframes talk { from { transform: scaleY(.35); } to { transform: scaleY(1.25); } }
+  .eyes { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
+  @keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
+  .avatar { transform-box: fill-box; transform-origin: 50% 100%; }
+  .tile.talking .avatar { animation: nod .9s ease-in-out infinite; }
+  @keyframes nod { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-1deg); } }
+  .tile.typing .hands { animation: type .18s steps(2) infinite; }
+  @keyframes type { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+  .glow { animation: glow 1.6s ease-in-out infinite alternate; }
+  @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
+  .paused * { animation-play-state: paused !important; }
+
+  /* Los subtítulos: lo que dice el que habla, en una tira de papel sobre la grilla. */
+  .captions { position: absolute; left: calc((100% - 336px) / 2); bottom: 96px; transform: translateX(-50%); z-index: 3; max-width: min(720px, 60%);
+    background: var(--ink); color: var(--cream); padding: 10px 16px; border-radius: 14px; font-size: 16px; font-weight: 700;
+    box-shadow: 0 3px 0 rgba(0, 0, 0, .3), 0 10px 20px rgba(0, 0, 0, .35); opacity: 0; transition: opacity .25s; pointer-events: none; }
+  .captions.on { opacity: 1; }
+  .captions b { color: var(--amber); margin-right: 6px; }
+
+  /* El costado: la gente y la conversación, como el panel de chat de la llamada. */
+  .side { min-height: 0; display: flex; flex-direction: column; background: var(--cream); color: var(--ink); border-radius: 22px; overflow: hidden;
+    box-shadow: 0 3px 0 var(--cream-dim), 0 10px 22px rgba(0, 0, 0, .35); }
+  .side header { padding: 14px 16px 10px; font-weight: 900; font-size: 15px; display: flex; justify-content: space-between; align-items: baseline; }
+  .side header span { font-weight: 700; font-size: 12px; color: var(--teal); }
+  .people { list-style: none; margin: 0; padding: 0 10px 10px; display: grid; gap: 2px; border-bottom: 2px dashed var(--cream-dim); }
+  .people li { display: grid; grid-template-columns: 22px 1fr auto; gap: 8px; align-items: center; padding: 4px 6px; border-radius: 10px; font-weight: 700; font-size: 13px; }
+  .people li.talking { background: #f7d9b5; }
+  .people .dot { width: 22px; height: 22px; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .2); }
+  .people small { color: var(--teal); font-weight: 700; }
+  .people .st { font-size: 12px; color: var(--teal); }
+  .people li.talking .st { color: var(--red-deep); }
+  .log { flex: 1; min-height: 0; overflow: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; }
+  .msg b { font-weight: 900; font-size: 13px; }
+  .msg time { color: var(--teal); font-size: 11px; margin-left: 6px; font-weight: 700; }
+  .msg p { margin: 2px 0 0; font-size: 14px; }
+
+  /* La barra de controles, abajo al centro: botones redondos de papel. */
+  .controls { grid-column: 1 / -1; display: flex; align-items: center; justify-content: center; gap: 14px; position: relative; }
+  .controls .clock { position: absolute; left: 0; font-weight: 800; color: var(--cream); }
+  .btn { all: unset; cursor: pointer; width: 48px; height: 48px; border-radius: 50%; display: grid; place-items: center;
+    background: var(--teal); color: var(--cream); box-shadow: 0 3px 0 var(--ink), 0 6px 14px rgba(0, 0, 0, .35); transition: transform .1s; }
+  .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--ink), 0 3px 8px rgba(0, 0, 0, .35); }
+  .btn:focus-visible { outline: 3px solid var(--amber); outline-offset: 3px; }
+  .btn svg { width: 22px; height: 22px; }
+  .btn.leave { width: 72px; border-radius: 24px; background: var(--red); box-shadow: 0 3px 0 var(--red-deep), 0 6px 14px rgba(0, 0, 0, .35); }
+  .btn[aria-pressed="true"] { background: var(--amber); color: var(--ink); box-shadow: 0 3px 0 #b8632a, 0 6px 14px rgba(0, 0, 0, .35); }
+
+  @media (max-width: 1000px) {
+    body { overflow: auto; }
+    .app { height: auto; grid-template-columns: 1fr; grid-template-rows: 56px auto 320px 84px; gap: 14px 0; }
+    .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 200px; }
+    .captions { left: 50%; }
   }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Silkscreen&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="app">
-  <section class="region" aria-label="La sala">
-    <header><span id="room-title">Sala</span><span class="count" id="room-count"></span></header>
-    <div class="stage" id="stage">
-      <div class="scene" id="scene">
-        <canvas id="cv" aria-label="La oficina en pixel art: las personas y sus agentes alrededor de una mesa redonda"></canvas>
-        <div class="overlay" id="overlay"></div>
-      </div>
-    </div>
-  </section>
-  <aside class="region" aria-label="Quiénes están y qué dicen">
-    <header><span>En la sala</span><span class="count" id="who-count"></span></header>
-    <ul class="roster" id="roster"></ul>
-    <header><span>Conversación</span><span class="count">guion de ejemplo</span></header>
+<div class="backdrop" aria-hidden="true">
+  <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
+    <rect width="1600" height="1000" fill="#2b6670"/>
+    <g class="cut"><circle cx="1290" cy="230" r="190" fill="#962b19"/><circle cx="1290" cy="230" r="150" fill="#c5381f"/><circle cx="1290" cy="230" r="110" fill="#e5592a"/><circle cx="1290" cy="230" r="70" fill="#f08c3d"/></g>
+    <g class="cut"><path d="M-40 600 q60-90 150-60 q40-80 140-40 q80-40 120 40 q90 0 90 80 H-40Z" fill="#f1e4c7"/></g>
+    <g class="cut"><path d="M980 420 q40-70 120-50 q50-70 130-20 q80-20 100 60 q70 10 60 70 H980Z" fill="#1d4a54"/></g>
+    <g class="cut"><path d="M1180 470 q50-60 120-30 q50-50 110 0 q70 0 70 60 H1180Z" fill="#f1e4c7"/></g>
+    <g class="cut"><path d="M0 760 C200 680 330 820 520 760 S860 640 1040 720 S1380 820 1600 700 V1000 H0Z" fill="#962b19"/></g>
+    <g class="cut"><path d="M0 820 C220 760 380 880 600 820 S900 720 1120 800 S1420 880 1600 790 V1000 H0Z" fill="#c5381f"/></g>
+    <g class="cut"><path d="M0 890 C260 840 420 940 680 890 S1000 820 1240 880 S1480 930 1600 870 V1000 H0Z" fill="#e5592a"/></g>
+  </svg>
+</div>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <h1 id="room-title">Sala</h1>
+    <span class="chip" id="room-count"></span>
+    <span class="meta">sólo visual: lo que dicen es un guion, no el chat real</span>
+  </header>
+  <main class="grid" id="grid" aria-label="Los participantes de la llamada"></main>
+  <aside class="side" aria-label="Quiénes están y qué dicen">
+    <header>Personas <span id="who-count"></span></header>
+    <ul class="people" id="people"></ul>
+    <header>Chat de la llamada <span>guion de ejemplo</span></header>
     <div class="log" id="log" aria-live="polite"></div>
   </aside>
-  <footer class="statusbar">
-    <span id="clock"></span>
-    <span>sólo visual: lo que dicen es un guion, no el chat real</span>
-    <span style="flex:1"></span>
-    <button type="button" id="zoom-out" aria-label="Alejar">−</button>
-    <span id="zoom-level">100 %</span>
-    <button type="button" id="zoom-in" aria-label="Acercar">+</button>
-    <button type="button" id="zoom-fit">ver todo</button>
-    <button type="button" id="pause" aria-pressed="false">pausar</button>
+  <footer class="controls">
+    <span class="clock" id="clock"></span>
+    <button type="button" class="btn" id="cc" aria-pressed="true" title="Subtítulos" aria-label="Subtítulos">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="M10 10.5a2 2 0 1 0 0 3M16 10.5a2 2 0 1 0 0 3"/></svg>
+    </button>
+    <button type="button" class="btn" id="pause" aria-pressed="false" title="Pausar" aria-label="Pausar">
+      <svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1.5"/><rect x="14" y="5" width="4" height="14" rx="1.5"/></svg>
+    </button>
+    <button type="button" class="btn leave" title="Salir (sólo visual)" aria-label="Salir (sólo visual)">
+      <svg viewBox="0 0 24 24" fill="currentColor"><path d="M3 13.5c5-4.5 13-4.5 18 0l-2.5 2.5-3-1.5v-2.5c-2.3-.7-4.7-.7-7 0V14.5l-3 1.5z"/></svg>
+    </button>
   </footer>
+  <div class="captions" id="captions" aria-live="off"></div>
 </div>
 
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// kind: 'human' | 'agent'. owner: de quién es el agente. seat: el ángulo (grados, en el plano del piso) de su
-// silla alrededor de la mesa redonda; 225 es el fondo, 135 la izquierda y 315 la derecha. Los agentes de Duncan
-// van con nombre genérico hasta saber cómo se llaman.
+// kind: 'human' | 'agent'. owner: de quién es el agente. scene: el paisaje de papel de su recuadro.
+// Los agentes de Duncan van con nombre genérico hasta saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
-  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', seat: 135, body: '#4f74c9', light: '#9ff0ff' },
-  { id: 'duncan', name: 'Duncan', kind: 'human', seat: 171, hair: '#5a3a22', hairLight: '#7a5434', skin: '#c68a5e', shirt: '#3a6ea5', beard: '#4a2f1c' },
-  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', seat: 207, body: '#7d68c9', light: '#ffe29a' },
-  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', seat: 243, body: '#3ca66b', light: '#c6ffb0' },
-  { id: 'miguel', name: 'Miguel', kind: 'human', seat: 279, hair: '#1f1712', hairLight: '#3a2c22', skin: '#e0ac7e', shirt: '#2f8f5b' },
-  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', seat: 315, body: '#d9a227', light: '#fff1a8' },
+  { id: 'duncan', name: 'Duncan', kind: 'human', hair: '#5a3a22', skin: '#c68a5e', shirt: '#2b6670', beard: '#4a2f1c', style: 'short', scene: 'sunset' },
+  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', body: '#4f8b8a', light: '#f08c3d', scene: 'clouds' },
+  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', body: '#c5381f', light: '#f1e4c7', scene: 'hills' },
+  { id: 'miguel', name: 'Miguel', kind: 'human', hair: '#1f1712', skin: '#e0ac7e', shirt: '#e5592a', style: 'swoop', scene: 'sun' },
+  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', body: '#8db3a9', light: '#c5381f', scene: 'waves' },
+  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', body: '#f08c3d', light: '#8db3a9', scene: 'dusk' },
 ]
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -127,452 +202,173 @@ const SCRIPT = [
   ['d-bot2', 'Rama lista. ¿Le paso el caso de prueba?'],
   ['miguel', 'Sí, el de Pullman. Lo dejo en el chat.'],
   ['luigi', 'Comprobado: con el arreglo pasa de punta a punta.'],
-  ['duncan', '🚀 Listo, lo subo a qa. ¿Café?'],
+  ['duncan', '🚀 Listo, lo subo a qa.'],
 ]
 
-// ── LA GEOMETRÍA ISOMÉTRICA ──────────────────────────────────────────────────────────────────────
-// La fórmula es la del README de Cozy Shops Foundations, al doble: la esquina de arriba de la celda (u, v)
-// cae en (OX + 128(u − v), OY + 64(u + v)); una baldosa ocupa 264×392 y su origen está en (132, 260).
-// Los muebles de Household van a su escala (256 px por baldosa, 100 px por metro de alto); los de Cozy Shops no
-// están calibrados entre sí y cada uno lleva su factor.
-const U = 10, V = 8
-const W = 128 * (U + V) + 40, H = 290 + 64 * (U + V) + 60, OX = 128 * V + 20, OY = 290
-const cv = document.getElementById('cv'), g = cv.getContext('2d')
-cv.width = W; cv.height = H
-const iso = (u, v) => ({ x: OX + 128 * (u - v), y: OY + 64 * (u + v) })
-
-const TILES = ['floor_timber_clean', 'floor_timber_aged', 'floor_timber_stained', 'floor_tile_clean', 'floor_tile_aged', 'wall_primary_u', 'wall_primary_v',
-  'wall_window_u', 'wall_doorway_v', 'door_closed_v', 'corner_pilaster', 'foundation_edge_u', 'foundation_edge_v']
-// Los muebles: carpeta/archivo, el pivote (el punto que apoya en el piso, de su manifest.json) y su escala.
-const PROPS = {
-  tv: ['props/07_widescreen_television', 63, 113], clock: ['props/15_round_wall_clock', 26, 49], floorLamp: ['props/13_brass_floor_lamp', 42, 208],
-  plant: ['props/18_potted_monstera', 62, 123], deskLamp: ['props/14_adjustable_desk_lamp', 27, 65], radio: ['props/24_portable_radio', 23, 45],
-  fridge: ['kitchen/01_refrigerator_top_freezer', 86, 258], oven: ['kitchen/02_electric_oven_cooktop', 56, 118], microwave: ['kitchen/03_countertop_microwave', 44, 71],
-  sink: ['kitchen/05_sink_base_cabinet', 81, 169], drawers: ['kitchen/06_drawer_base_cabinet', 56, 117], cupboard: ['kitchen/08_wall_cupboard', 59, 105],
-  diningTable: ['kitchen/11_dining_table', 106, 175], chair: ['kitchen/12_dining_chair', 47, 125], jug: ['kitchen/23_water_jug', 21, 41],
-  fruit: ['kitchen/24_fruit_bowl', 35, 53], plates: ['kitchen/21_dinner_plate_stack', 27, 39],
-  sofa: ['living/01_three_seat_sofa', 132, 193], coffeeTable: ['living/05_low_coffee_table', 88, 123], bookcase: ['living/08_low_bookcase', 70, 143],
-  coatRack: ['living/24_freestanding_coat_rack', 47, 233], endTable: ['living/06_square_end_table', 42, 104],
-  counter: ['cafe/01_cafe_counter', 109, 208, .62], espresso: ['cafe/02_espresso_machine', 101, 211, .3], roundTable: ['cafe/04_round_cafe_table', 90, 191],
-  tree: ['cafe/24_small_potted_tree', 86, 233, .7], mug: ['cafe/09_ceramic_mug', 83, 153, .11], cake: ['cafe/12_cake_stand', 99, 210, .22],
-}
-const img = {}
-const load = (key, src) => new Promise((ok) => { const i = new Image(); i.onload = () => { img[key] = i; ok() }; i.onerror = () => ok(); i.src = src })
-
-function tile(name, u, v) {
-  const i = img[name]; if (!i) return
-  const p = iso(u, v)
-  g.drawImage(i, p.x - 132, p.y - 260, 264, 392)
-}
-// Un mueble apoyado en el punto (u, v) del piso (no hace falta que sea entero); lift lo sube (colgado de la pared o
-// encima de una mesa) y flip lo da vuelta (mira hacia la derecha en vez de hacia la izquierda).
-function prop(name, u, v, lift = 0, flip = false) {
-  const [file, cx, cy, k = 1] = PROPS[name]; const i = img[file]; if (!i) return
-  const p = iso(u, v)
-  const x = Math.round(p.x - cx * k), y = Math.round(p.y - cy * k - lift)
-  if (!flip) { g.drawImage(i, x, y, i.width * k, i.height * k); return }
-  g.save(); g.translate(Math.round(p.x), 0); g.scale(-1, 1); g.drawImage(i, -cx * k, y, i.width * k, i.height * k); g.restore()
+// ── LOS PAISAJES DE PAPEL ────────────────────────────────────────────────────────────────────────
+// Cada recuadro es una escena de capas recortadas (viewBox 400×300), con la paleta de papel: verde azulado,
+// crema, rojo y naranja. Cada capa lleva su sombra (.cut), y eso es lo que la hace papel.
+const P = { ink: '#13323a', deep: '#1d4a54', teal: '#2b6670', soft: '#4f8b8a', sage: '#8db3a9', cream: '#f1e4c7', red: '#c5381f', redDeep: '#962b19', orange: '#e5592a', amber: '#f08c3d' }
+const cloud = (x, y, s, fill) => `<g class="cut"><path transform="translate(${x} ${y}) scale(${s})" d="M0 40 q4-26 30-22 q10-24 38-16 q22-14 40 8 q26-2 28 30 Z" fill="${fill}"/></g>`
+const sun = (x, y, r, rings) => `<g class="cut">${rings.map((c, i) => `<circle cx="${x}" cy="${y}" r="${r * (1 - i * .22)}" fill="${c}"/>`).join('')}</g>`
+const wave = (y, amp, fill, phase = 0) => `<g class="cut"><path d="M-10 ${y} C${60 + phase} ${y - amp} ${130 + phase} ${y + amp} 200 ${y} S${340 - phase} ${y - amp} 410 ${y + 4} V310 H-10Z" fill="${fill}"/></g>`
+const SCENES = {
+  sunset: () => `<rect width="400" height="300" fill="${P.teal}"/>${sun(320, 80, 70, [P.redDeep, P.red, P.orange, P.amber])}${cloud(10, 40, 1.1, P.cream)}${cloud(270, 130, .9, P.deep)}${wave(230, 26, P.redDeep)}${wave(255, 22, P.red, 30)}${wave(282, 16, P.orange, 10)}`,
+  clouds: () => `<rect width="400" height="300" fill="${P.soft}"/>${cloud(-20, 10, 1.6, P.deep)}${cloud(260, 40, 1.2, P.cream)}${cloud(-30, 150, 1.4, P.teal)}${wave(250, 20, P.deep)}${wave(276, 14, P.ink, 40)}`,
+  hills: () => `<rect width="400" height="300" fill="${P.cream}"/>${sun(70, 80, 48, [P.amber, P.orange])}${cloud(270, 30, 1, P.sage)}${wave(215, 30, P.sage)}${wave(245, 24, P.soft, 40)}${wave(275, 16, P.teal, 10)}`,
+  sun: () => `<rect width="400" height="300" fill="${P.deep}"/>${sun(330, 70, 80, [P.redDeep, P.red, P.orange, P.amber])}${cloud(0, 60, 1.2, P.teal)}${cloud(270, 150, 1, P.cream)}${wave(240, 24, P.red)}${wave(270, 18, P.orange, 30)}`,
+  waves: () => `<rect width="400" height="300" fill="${P.teal}"/>${cloud(260, 20, 1.3, P.cream)}${cloud(-10, 90, 1, P.soft)}${wave(200, 26, P.deep)}${wave(232, 22, P.soft, 30)}${wave(262, 18, P.sage, 10)}${wave(286, 12, P.cream, 40)}`,
+  dusk: () => `<rect width="400" height="300" fill="${P.redDeep}"/>${sun(70, 90, 60, [P.red, P.orange, P.amber])}${cloud(250, 40, 1.2, P.deep)}${cloud(280, 130, .8, P.cream)}${wave(235, 26, P.ink)}${wave(265, 18, P.deep, 30)}`,
 }
 
-// ── LA MESA REDONDA ──────────────────────────────────────────────────────────────────────────────
-// La mesita de café de Cozy Shops, agrandada para seis: la tabla (filas 0–123 del sprite, con el florero) va
-// entera a TK; el pie (123–190) se aplasta, porque a la escala de una mesa grande quedaría de metro y medio.
-// La tabla está a TABLE_TOP del piso: un punto (u, v) de su superficie se ve en iso(u, v) subido TABLE_TOP.
-const TABLE = { u: 3.6, v: 3.7, r: .93 }
-const TK = 2.1, TABLE_TOP = 70
-function roundTable() {
-  const i = img['cafe/04_round_cafe_table']; if (!i) return
-  const c = iso(TABLE.u, TABLE.v)
-  // el pie, asomando debajo del borde
-  g.drawImage(i, 50, 123, 80, 68, c.x - 80 * 1.6 / 2, c.y + 4, 80 * 1.6, 68 * .62)
-  // la tabla: el centro de la elipse (89.5, 81) del sprite cae en el centro de la mesa, a la altura de la tabla. Se
-  // dibuja desde la fila 40 (sin las flores, que a este tamaño serían de un metro) y el pie del florero se tapa
-  // con madera de más abajo de la misma tabla.
-  const at = (sx, sy, sw, sh) => g.drawImage(i, sx, sy, sw, sh, c.x + (sx - 89.5) * TK, c.y - TABLE_TOP + (sy - 81) * TK, sw * TK, sh * TK)
-  at(0, 40, 180, 84)
-  g.drawImage(i, 62, 78, 58, 20, c.x + (62 - 89.5) * TK, c.y - TABLE_TOP + (46 - 81) * TK, 58 * TK, 20 * TK)
-}
-// Lo que hay sobre la mesa: tazas delante de algunos.
-const TABLE_ITEMS = [['mug', 'duncan'], ['mug', 'miguel'], ['mug', 'd-bot2'], ['cake', null], ['fruit', 'center']]
-
-// ── LOS PERSONAJES ───────────────────────────────────────────────────────────────────────────────
-// Dibujados para que encajen con los muebles: contorno oscuro, luz desde la izquierda y sombra a la derecha,
-// tres tonos por material. Un sprite es una lista de filas; cada letra es un color, '.' es transparente.
-// Miran hacia abajo a la izquierda; los de la izquierda de la mesa se dan vuelta para mirarla.
-const PX = 3.4
-const HUMAN = [
-  '......oooooooo......',
-  '....ooHHHHHHHHoo....',
-  '...oHHhhhHHHHHHHo...',
-  '..oHHhhHHHHHHHHHHo..',
-  '..oHHHHHHHHHHHHHHo..',
-  '..oHHSSSSSSSSHHHHo..',
-  '..oHSSSSSSSSSSsHHo..',
-  '.oSHSSESSSSESSsHso..',
-  '.osSSSESSSSESSssso..',
-  '..oSSSSSSSSSSSsso...',
-  '..oSSSSSmmmSSSsso...',
-  '...oSSSSSSSSSsso....',
-  '....oossssssoo......',
-  '......oSSSso........',
-  '...oooKSSSSKooo.....',
-  '..oCCCKKKKKKCCCCo...',
-  '.olCCCCCCCCCCCCcco..',
-  '.olCCCCCCCCCCCCcco..',
-  'olCCCCCCCCCCCCCccco.',
-  'olCCCCCCCCCCCCCccco.',
-  'olCCCCCCCCCCCCCccco.',
-  'olCCCCCCCCCCCCCccco.',
-]
-const AGENT = [
-  '.........oo.........',
-  '........oAAo........',
-  '.........oo.........',
-  '.....oooooooooo.....',
-  '....oGGGGGGGGGGo....',
-  '...oGlGGGGGGGGGgo...',
-  '...oGDDDDDDDDDDgo...',
-  '...oGDLLDDDDLLDgo...',
-  '...oGDLLDDDDLLDgo...',
-  '...oGDDDDmmDDDDgo...',
-  '...oGGGGGGGGGGggo...',
-  '....oggggggggggo....',
-  '.....oooooooooo.....',
-  '........oNNo........',
-  '...oooooNNNNooooo...',
-  '..oBBBBBBBBBBBBbbo..',
-  '.olBBBBBBkkBBBBbbbo.',
-  '.olBBBBBkkkkBBBbbbo.',
-  'olBBBBBBBkkBBBBbbbbo',
-  'olBBBBBBBBBBBBBbbbbo',
-  'olBBBBBBBBBBBBBbbbbo',
-  'olBBBBBBBBBBBBBbbbbo',
-]
-const SPRITE_W = 20, SPRITE_H = 22
+// ── LAS PERSONAS Y LOS AGENTES, EN PAPEL ─────────────────────────────────────────────────────────
+// Cada pieza es una capa con sombra: hombros, cuello, cara, pelo, orejas. Los ojos parpadean (.eyes), la boca
+// se mueve al hablar (.mouth) y las manos teclean sobre el portátil (.hands).
 const shade = (hex, f) => {
   const n = parseInt(hex.slice(1), 16)
   const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)))
   return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
 }
-function sprite(rows, pal, x, y, flip) {
-  rows.forEach((row, j) => {
-    for (let i = 0; i < SPRITE_W; i++) {
-      const c = pal[row[i]]; if (!c) continue
-      const col = flip ? SPRITE_W - 1 - i : i
-      g.fillStyle = typeof c === 'function' ? c(j) : c
-      g.fillRect(Math.round(x + col * PX), Math.round(y + j * PX), Math.ceil(PX), Math.ceil(PX))
-    }
-  })
+const HAIR = {
+  short: (c) => `<path d="M150 124 q-6-58 50-62 q56 2 52 60 q-10-26-50-28 q-40 0-52 30Z" fill="${c}"/>`,
+  swoop: (c) => `<path d="M146 130 q-8-66 56-70 q60 4 50 66 q-6-16-20-22 q-40 8-70-6 q-10 14-16 32Z" fill="${c}"/>`,
+}
+function laptop(p) {
+  // el portátil, de frente: se ve la tapa, con el logo que brilla mientras se usa
+  return `<g class="cut"><path d="M118 304 L132 240 H268 L282 304Z" fill="${P.cream}"/>
+    <circle class="glow" cx="200" cy="270" r="9" fill="${p.kind === 'agent' ? p.light : P.amber}"/></g>`
+}
+function hands(skin) {
+  return `<g class="hands"><g class="cut-soft"><ellipse cx="140" cy="294" rx="22" ry="12" fill="${skin}"/><ellipse cx="260" cy="294" rx="22" ry="12" fill="${skin}"/></g></g>`
+}
+function human(p) {
+  const s = p.skin, sh = shade(s, .85)
+  return `<g class="avatar">
+    <g class="cut"><path d="M80 304 q6-86 120-90 q114 4 120 90Z" fill="${p.shirt}"/></g>
+    <g class="cut-soft"><path d="M168 218 l32 34 l32-34 q-30-10-64 0Z" fill="${P.cream}"/></g>
+    <g class="cut"><rect x="182" y="186" width="36" height="40" rx="10" fill="${sh}"/></g>
+    <g class="cut"><circle cx="146" cy="146" r="12" fill="${sh}"/><circle cx="254" cy="146" r="12" fill="${sh}"/></g>
+    <g class="cut"><ellipse cx="200" cy="144" rx="52" ry="60" fill="${s}"/></g>
+    ${p.beard ? `<g class="cut-soft"><path d="M150 152 q4 54 50 56 q46-2 50-56 q-8 22-22 26 q-28 8-56 0 q-14-4-22-26Z" fill="${p.beard}"/></g>` : ''}
+    <g class="cut">${HAIR[p.style || 'short'](p.hair)}</g>
+    <g class="eyes"><ellipse cx="180" cy="144" rx="6" ry="8" fill="${P.ink}"/><ellipse cx="220" cy="144" rx="6" ry="8" fill="${P.ink}"/></g>
+    <ellipse cx="166" cy="164" rx="9" ry="5" fill="${P.orange}" opacity=".35"/><ellipse cx="234" cy="164" rx="9" ry="5" fill="${P.orange}" opacity=".35"/>
+    <ellipse class="mouth" cx="200" cy="${p.beard ? 180 : 176}" rx="12" ry="6" fill="${p.beard ? P.cream : P.redDeep}"/>
+  </g>${laptop(p)}${hands(s)}`
+}
+function agent(p) {
+  const b = p.body
+  return `<g class="avatar">
+    <g class="cut"><path d="M86 304 q8-82 114-86 q106 4 114 86Z" fill="${b}"/></g>
+    <g class="cut-soft"><circle cx="200" cy="262" r="16" fill="${P.cream}"/><circle class="glow" cx="200" cy="262" r="8" fill="${p.light}"/></g>
+    <g class="cut"><rect x="184" y="194" width="32" height="30" rx="6" fill="${shade(b, .7)}"/></g>
+    <g class="cut"><path d="M200 86 V60" stroke="${P.ink}" stroke-width="6" stroke-linecap="round"/><circle class="glow" cx="200" cy="54" r="11" fill="${p.light}"/></g>
+    <g class="cut"><rect x="132" y="132" width="20" height="36" rx="8" fill="${shade(b, .75)}"/><rect x="248" y="132" width="20" height="36" rx="8" fill="${shade(b, .75)}"/></g>
+    <g class="cut"><rect x="142" y="84" width="116" height="118" rx="34" fill="${P.cream}"/></g>
+    <g class="cut-soft"><rect x="156" y="110" width="88" height="62" rx="22" fill="${P.ink}"/></g>
+    <g class="eyes"><circle cx="182" cy="138" r="9" fill="${p.light}"/><circle cx="218" cy="138" r="9" fill="${p.light}"/></g>
+    <rect class="mouth" x="186" y="156" width="28" height="7" rx="3.5" fill="${p.light}"/>
+  </g>${laptop(p)}${hands(P.cream)}`
 }
 
-// La silla de cada uno, en su ángulo alrededor de la mesa.
-const SEAT_R = 1.4
-function seatOf(p) {
-  const a = (p.seat * Math.PI) / 180
-  const du = Math.cos(a), dv = Math.sin(a)
-  const s = { u: TABLE.u + du * SEAT_R, v: TABLE.v + dv * SEAT_R, du, dv }
-  s.flip = iso(s.u, s.v).x < iso(TABLE.u, TABLE.v).x - 4 // a la izquierda de la mesa: mira a la derecha
-  return s
+// ── LA GRILLA ────────────────────────────────────────────────────────────────────────────────────
+const grid = document.getElementById('grid')
+const people = CAST.map((c) => ({ ...c, state: 'typing', until: 0 }))
+const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'escucha' }
+const MIC = '<svg viewBox="0 0 24 24" fill="#f1e4c7"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M6 11a6 6 0 0 0 12 0" stroke="#f1e4c7" stroke-width="2" fill="none"/><rect x="11" y="17" width="2" height="4"/></svg>'
+for (const [i, p] of people.entries()) {
+  const el = document.createElement('section')
+  el.className = 'tile'
+  el.setAttribute('aria-label', p.owner ? `${p.name}, agente de ${p.owner}` : p.name)
+  el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${SCENES[p.scene]()}
+      <g transform="translate(36 55) scale(.82)">${p.kind === 'human' ? human(p) : agent(p)}</g></svg>
+    <div class="think" aria-hidden="true">···</div>
+    <span class="state"></span>
+    <div class="nameplate"><span class="mic">${MIC}</span>${p.name}${p.owner ? ` <small>· ${p.owner}</small>` : ''}<span class="bars"><i></i><i></i><i></i></span></div>`
+  // que no parpadeen todos a la vez
+  el.querySelector('.eyes').style.animationDelay = `${-i * 1.7}s`
+  p.el = el
+  grid.appendChild(el)
 }
-const SIT = 52 // a qué altura del piso queda la base del sprite (la cintura, que tapa la mesa)
-function head(p) { const s = seatOf(p), q = iso(s.u, s.v); return { x: q.x, y: q.y - SIT - SPRITE_H * PX } }
-
-function person(p, t) {
-  const s = seatOf(p), q = iso(s.u, s.v)
-  const st = p.state
-  const bob = st === 'talking' && Math.floor(t / 160) % 2 ? -PX : 0
-  const x = q.x - (SPRITE_W * PX) / 2, y = q.y - SIT - SPRITE_H * PX + bob
-  const out = '#2a1d1a'
-  if (p.kind === 'human') {
-    const blink = Math.floor((t + p.phase) / 120) % 33 === 0
-    const beardRow = (j) => (p.beard && j >= 9 && j <= 11 ? p.beard : null)
-    sprite(HUMAN, {
-      o: out, H: p.hair, h: p.hairLight,
-      S: (j) => beardRow(j) || p.skin, s: (j) => beardRow(j) || shade(p.skin, .82),
-      E: blink ? p.skin : '#1b1b1f', m: st === 'talking' && Math.floor(t / 120) % 2 ? '#7a2e2e' : shade(p.skin, .7),
-      C: p.shirt, c: shade(p.shirt, .72), l: shade(p.shirt, 1.25), K: '#f1ede4',
-    }, x, y, s.flip)
-  } else {
-    const eye = st === 'thinking' ? (Math.floor(t / 200) % 2 ? p.light : '#1d2230') : p.light
-    const blink = Math.floor((t + p.phase) / 110) % 29 === 0
-    sprite(AGENT, {
-      o: out, A: Math.floor(t / 300) % 2 ? p.light : shade(p.body, .7),
-      G: '#c9ced8', g: '#8d94a3', l: '#f2f4f8', D: '#1d2230', L: blink ? '#1d2230' : eye,
-      m: st === 'talking' && Math.floor(t / 120) % 2 ? p.light : '#3a4256', N: '#6d7380',
-      B: p.body, b: shade(p.body, .72), k: shade(p.body, 1.3),
-    }, x, y, s.flip)
-  }
-}
-
-// Las manos, sobre la tabla y hacia el centro: teclean (se alternan) o descansan.
-function hands(p, t) {
-  const s = seatOf(p)
-  const hu = s.u - s.du * .42, hv = s.v - s.dv * .42
-  const q = iso(hu, hv)
-  const skin = p.kind === 'human' ? p.skin : '#c9ced8'
-  const alt = Math.floor((t + p.phase) / 90) % 2
-  const typing = p.state === 'typing'
-  for (const side of [-1, 1]) {
-    const up = typing && (side < 0) === !!alt ? 4 : 0
-    const x = q.x + side * 13 - 6, y = q.y - TABLE_TOP - 5 - up
-    g.fillStyle = '#2a1d1a'; g.fillRect(x - 1, y - 1, 13, 9)
-    g.fillStyle = skin; g.fillRect(x, y, 11, 7)
-  }
-  // el portátil de cada uno, abierto hacia él: se ve la tapa de atrás, con su logo que se prende al usarlo
-  const l = iso(s.u - s.du * .6, s.v - s.dv * .6)
-  const lx = l.x - 17, ly = l.y - TABLE_TOP - 26
-  g.fillStyle = '#2a1d1a'; g.fillRect(lx - 2, ly - 2, 38, 30)
-  g.fillStyle = '#b9bfcb'; g.fillRect(lx, ly, 34, 22)
-  g.fillStyle = '#d7dce5'; g.fillRect(lx, ly, 34, 4)
-  g.fillStyle = '#8d94a3'; g.fillRect(lx, ly + 22, 34, 4)
-  const on = p.state === 'typing' || p.state === 'talking'
-  g.fillStyle = on ? (p.light || '#e9f1ff') : '#8d94a3'; g.fillRect(lx + 14, ly + 8, 6, 6)
-  // y su pantalla le ilumina la cara
-  if (on) { const h = head(p); g.fillStyle = 'rgba(190, 225, 255, .10)'; g.fillRect(h.x - 30, h.y + 6, 60, 52) }
-}
-
-// ── LA OFICINA ───────────────────────────────────────────────────────────────────────────────────
-// La cocina y el comedor van sobre baldosas; el resto, madera.
-const KITCHEN = (u, v) => u >= 6 && v <= 3
-const FLOOR = (u, v) => KITCHEN(u, v) ? ((u + v) % 3 ? 'floor_tile_clean' : 'floor_tile_aged')
-  : ['floor_timber_clean', 'floor_timber_aged', 'floor_timber_clean', 'floor_timber_stained'][(u * 7 + v * 3) % 4]
-function roomBack() {
-  for (let d = 0; d < U + V; d++) for (let u = 0; u < U; u++) { const v = d - u; if (v >= 0 && v < V) tile(FLOOR(u, v), u, v) }
-  for (let k = 0; k < U; k++) tile(k === 1 || k === 4 || k === 8 ? 'wall_window_u' : 'wall_primary_u', k, 0)
-  for (let k = 0; k < V; k++) tile(k === 5 ? 'wall_doorway_v' : 'wall_primary_v', 0, k)
-  tile('door_closed_v', 0, 5)
-  tile('corner_pilaster', 0, 0)
-  // colgado de la pared de atrás: la tele de la sala, el reloj y las alacenas de la cocina
-  prop('tv', 3.05, 0.08, 120)
-  prop('clock', 5.7, 0.06, 175)
-  prop('cupboard', 7.55, 0.12, 150)
-  prop('cupboard', 8.45, 0.12, 150)
-}
-function roomFront() {
-  for (let k = 0; k < U; k++) tile('foundation_edge_u', k, V)
-  for (let k = 0; k < V; k++) tile('foundation_edge_v', U, k)
-}
-// Lo que se para en el piso, de atrás hacia adelante se ordena solo: [mueble, u, v, lift, flip, encima…].
-const DECOR = [
-  ['plant', .6, .6], ['bookcase', 1.6, .45], ['bookcase', 2.5, .45], ['plant', 5.5, .55], ['deskLamp', 2.3, .3, 120], ['radio', 1.55, .3, 120],
-  // la cocina, contra la pared de atrás
-  ['fridge', 6.55, .5], ['sink', 7.55, .5], ['drawers', 8.45, .5], ['microwave', 8.45, .4, 88], ['oven', 9.35, .5],
-  // el comedor
-  ['chair', 7.6, 1.55], ['chair', 8.5, 1.55], ['diningTable', 8.1, 2.3], ['chair', 7.15, 2.45, 0, true],
-  ['fruit', 7.95, 2.15, 74], ['jug', 8.4, 2.05, 74], ['plates', 8.55, 2.45, 74],
-  // el rincón del café
-  ['counter', 9.2, 4.3], ['espresso', 9.25, 4.15, 92], ['mug', 9.05, 4.55, 92],
-  // la sala de estar, junto a la puerta
-  ['coatRack', .45, 4.45], ['sofa', .8, 6.5, 0, true], ['coffeeTable', 1.75, 6.55], ['endTable', .6, 7.45], ['floorLamp', .55, 5.6],
-  ['tree', 9.4, 7.2], ['plant', 5.6, 7.3],
-]
 
 // ── QUIÉN HACE QUÉ ───────────────────────────────────────────────────────────────────────────────
-const people = CAST.map((c, i) => ({ ...c, state: 'typing', until: 0, phase: i * 37 }))
-const shownLines = []
-const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'lee' }
-let line = 0, nextLineAt = 1200, paused = false
-
-function idleStates(t) {
+let line = 0, nextLineAt = 1000, paused = false, t = 0
+function setState(p, st) {
+  p.state = st
+  p.el.classList.toggle('talking', st === 'talking')
+  p.el.classList.toggle('thinking', st === 'thinking')
+  p.el.classList.toggle('typing', st === 'typing')
+  p.el.classList.toggle('muted', st !== 'talking')
+  const badge = p.el.querySelector('.state')
+  badge.textContent = STATE_LABEL[st]; badge.className = `state ${st}`
+}
+function idleStates() {
+  const nextWho = SCRIPT[line % SCRIPT.length][0]
   for (const p of people) {
-    if (t < p.until) continue // incluido el que habla: termina cuando vence su turno
+    if (t < p.until) continue
+    // el que va a hablar después se queda pensando antes
+    if (p.id === nextWho) { setState(p, 'thinking'); p.until = nextLineAt; continue }
     const r = Math.random()
-    p.state = r < .55 ? 'typing' : r < .8 ? 'thinking' : 'idle'
+    setState(p, r < .55 ? 'typing' : r < .75 ? 'thinking' : 'idle')
     p.until = t + 1500 + Math.random() * 3500
   }
 }
-
-function say(t) {
+const captions = document.getElementById('captions'), log = document.getElementById('log')
+const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
+let captionsOn = true, captionUntil = 0
+function say() {
   const [who, text] = SCRIPT[line % SCRIPT.length]
   line++
   const p = people.find((x) => x.id === who)
-  p.state = 'talking'; p.until = t + 2600 + text.length * 35
-  shownLines.push({ who, text, at: new Date() })
-  if (shownLines.length > 40) shownLines.shift()
-  bubble(p, text)
-  logLine(p, text)
-  nextLineAt = t + 3400 + Math.random() * 2200
-  // el que va a hablar después se queda pensando un rato antes
-  const next = people.find((x) => x.id === SCRIPT[line % SCRIPT.length][0])
-  if (next !== p) { next.state = 'thinking'; next.until = nextLineAt }
-}
-
-// La conversación en la pantalla de la tele: rayitas de colores sobre el plano inclinado de la pared.
-function tvLines() {
-  const p = iso(3.05, 0.08)
-  const x0 = p.x - 44, y0 = p.y - 120 - 92
-  shownLines.slice(-4).forEach((m, i, list) => {
-    const who = CAST.find((c) => c.id === m.who)
-    const len = Math.min(64, 14 + m.text.length * 1.1)
-    g.fillStyle = who.kind === 'human' ? who.shirt : who.body
-    for (let k = 0; k < 6; k += 2) g.fillRect(x0 + k, y0 + i * 12 + k / 2, 2, 4)
-    g.fillStyle = i === list.length - 1 ? 'rgba(235, 248, 255, .95)' : 'rgba(210, 230, 255, .55)'
-    for (let k = 10; k < len; k += 2) g.fillRect(x0 + k, y0 + i * 12 + k / 2, 2, 3)
-  })
-}
-
-// ── HTML ENCIMA DEL LIENZO ──────────────────────────────────────────────────────────────────────
-let scale = 1
-const overlay = document.getElementById('overlay')
-const tags = new Map(), bubbles = new Map()
-function place(el, x, y) { el.style.left = `${x * scale}px`; el.style.top = `${y * scale}px` }
-function buildTags() {
-  for (const p of people) {
-    const el = document.createElement('div')
-    el.className = 'tag'
-    el.textContent = p.name
-    overlay.appendChild(el); tags.set(p.id, el)
-  }
-}
-function bubble(p, text) {
-  bubbles.get(p.id)?.remove()
-  const el = document.createElement('div')
-  el.className = 'bubble'
-  el.textContent = text
-  overlay.appendChild(el); bubbles.set(p.id, el)
-  const h = head(p); place(el, h.x, h.y - 6 - 30 / scale)
-  el._until = performance.now() + 2600 + text.length * 35
-}
-function thinkBubble(p) {
-  if (bubbles.get(p.id)) return
-  const el = document.createElement('div')
-  el.className = 'bubble think'; el.textContent = '…'
-  overlay.appendChild(el); bubbles.set(p.id, el)
-  el._think = true
-}
-function layoutOverlay(now) {
-  for (const p of people) {
-    const h = head(p)
-    place(tags.get(p.id), h.x, h.y - 6)
-    const b = bubbles.get(p.id)
-    if (b) {
-      const done = b._think ? p.state !== 'thinking' : now > b._until
-      if (done) { b.remove(); bubbles.delete(p.id); continue }
-      place(b, h.x, h.y - 6 - 30 / scale)
-    } else if (p.state === 'thinking' && p.id === SCRIPT[line % SCRIPT.length][0]) {
-      thinkBubble(p)
-      place(bubbles.get(p.id), h.x, h.y - 6 - 30 / scale) // ya en su lugar: si no, asoma un cuadro en la esquina
-    }
-  }
-}
-
-const roster = document.getElementById('roster'), log = document.getElementById('log')
-function drawRoster() {
-  roster.innerHTML = people.map((p) => `<li><span class="swatch" style="background:${p.kind === 'human' ? p.shirt : p.body}"></span>
-    <span class="name">${p.name}${p.owner ? `<small>agente de ${p.owner}</small>` : ''}</span>
-    <span class="state ${p.state}">${STATE_LABEL[p.state]}</span></li>`).join('')
-}
-const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-function logLine(p, text) {
+  setState(p, 'talking'); p.until = t + 2600 + text.length * 40
+  captions.innerHTML = '<b></b><span></span>'
+  captions.querySelector('b').textContent = p.name
+  captions.querySelector('span').textContent = text
+  captions.classList.toggle('on', captionsOn); captionUntil = p.until
   const el = document.createElement('div')
   el.className = 'msg'
-  el.innerHTML = `<b style="color:${p.kind === 'human' ? shade(p.shirt, 1.6) : shade(p.body, 1.35)}"></b><span></span>`
+  el.innerHTML = `<b style="color:${p.kind === 'human' ? shade(p.shirt, .8) : shade(p.body, .75)}"></b><time>${hhmm(new Date())}</time><p></p>`
   el.querySelector('b').textContent = p.owner ? `${p.name} (de ${p.owner})` : p.name
-  el.querySelector('b').insertAdjacentHTML('beforeend', `<time>${hhmm(new Date())}</time>`)
-  el.querySelector('span').textContent = text
+  el.querySelector('p').textContent = text
   log.appendChild(el)
   while (log.children.length > 60) log.firstChild.remove()
   log.scrollTop = log.scrollHeight
+  nextLineAt = t + 3600 + Math.random() * 2200
 }
 
-// ── TAMAÑO, ZOOM Y ARRASTRE ─────────────────────────────────────────────────────────────────────
-// La oficina entera entra al abrir; la rueda (o + y −) acerca hacia el puntero y arrastrar la mueve.
-const stage = document.getElementById('stage'), scene = document.getElementById('scene')
-const view = { z: 1, x: 0, y: 0 }
-let fitScale = 1
-let opened = false // al abrir, la vista arranca acercada a la mesa
-function apply() {
-  const r = stage.getBoundingClientRect()
-  scale = fitScale * view.z
-  const w = W * scale, h = H * scale
-  // con zoom 1 queda centrada; con más, no deja ver más allá de los bordes
-  const minX = Math.min(0, r.width - w), minY = Math.min(0, r.height - h)
-  if (view.z <= 1) { view.x = (r.width - w) / 2; view.y = (r.height - h) / 2 } else {
-    view.x = Math.max(minX, Math.min(0, view.x)); view.y = Math.max(minY, Math.min(0, view.y))
-  }
-  cv.style.width = `${w}px`; cv.style.height = `${h}px`
-  scene.style.width = `${w}px`; scene.style.height = `${h}px`
-  scene.style.left = `${view.x}px`; scene.style.top = `${view.y}px`
-  document.getElementById('zoom-level').textContent = `${Math.round(view.z * 100)} %`
+const listEl = document.getElementById('people')
+function drawPeople() {
+  listEl.innerHTML = people.map((p) => `<li class="${p.state}"><span class="dot" style="background:${p.kind === 'human' ? p.shirt : p.body}"></span>
+    <span>${p.name}${p.owner ? ` <small>agente de ${p.owner}</small>` : ''}</span><span class="st">${STATE_LABEL[p.state]}</span></li>`).join('')
 }
-function fit() {
-  const r = stage.getBoundingClientRect()
-  fitScale = Math.min((r.width - 16) / W, (r.height - 16) / H)
-  if (!opened && r.width > 0) {
-    opened = true
-    view.z = 1.9
-    const c = iso(TABLE.u, TABLE.v), s = fitScale * view.z
-    view.x = r.width / 2 - (c.x + 250) * s; view.y = r.height / 2 - (c.y - 140) * s
-  }
-  apply()
-}
-function zoomAt(z, cx, cy) {
-  const nz = Math.max(1, Math.min(4, z))
-  const k = nz / view.z
-  view.x = cx - (cx - view.x) * k; view.y = cy - (cy - view.y) * k; view.z = nz
-  apply()
-}
-new ResizeObserver(fit).observe(stage)
-stage.addEventListener('wheel', (e) => {
-  e.preventDefault()
-  const r = stage.getBoundingClientRect()
-  zoomAt(view.z * Math.exp(-e.deltaY * .0015), e.clientX - r.left, e.clientY - r.top)
-}, { passive: false })
-let drag = null
-stage.addEventListener('pointerdown', (e) => { drag = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y }; stage.setPointerCapture(e.pointerId); stage.classList.add('dragging') })
-stage.addEventListener('pointermove', (e) => { if (!drag) return; view.x = drag.vx + e.clientX - drag.x; view.y = drag.vy + e.clientY - drag.y; apply() })
-stage.addEventListener('pointerup', () => { drag = null; stage.classList.remove('dragging') })
-const centerZoom = (f) => { const r = stage.getBoundingClientRect(); zoomAt(view.z * f, r.width / 2, r.height / 2) }
-document.getElementById('zoom-in').addEventListener('click', () => centerZoom(1.25))
-document.getElementById('zoom-out').addEventListener('click', () => centerZoom(.8))
-document.getElementById('zoom-fit').addEventListener('click', () => { view.z = 1; apply() })
 
-// ── EL BUCLE ─────────────────────────────────────────────────────────────────────────────────────
-let last = performance.now(), t = 0, rosterAt = 0
-function frame(now) {
-  const dt = now - last; last = now
+// El reloj de la llamada: pasos de 100 ms, pausable. Con la pestaña oculta el navegador lo frena, y está bien.
+setInterval(() => {
   if (!paused) {
-    t += dt
-    if (t > nextLineAt) say(t)
-    idleStates(t)
+    t += 100
+    if (t > nextLineAt) say()
+    idleStates()
+    if (t > captionUntil) captions.classList.remove('on')
   }
-  g.clearRect(0, 0, W, H)
-  roomBack()
-  tvLines()
-  // todo lo que se para en el piso, de atrás hacia adelante (por u + v). La mesa redonda va después de quienes se
-  // sientan detrás y a los costados, y antes de sus manos y lo que hay encima.
-  const tableDepth = TABLE.u + TABLE.v + .3
-  const things = [
-    ...DECOR.map(([name, u, v, lift = 0, flip = false]) => ({ depth: u + v + (lift ? .01 : 0), draw: () => prop(name, u, v, lift, flip) })),
-    ...people.map((p) => { const s = seatOf(p); return { depth: Math.min(s.u + s.v, tableDepth - .1), draw: () => { prop('chair', s.u + s.du * .12, s.v + s.dv * .12, 0, s.flip); person(p, t) } } }),
-    { depth: tableDepth, draw: () => {
-      roundTable()
-      for (const p of people) hands(p, t)
-      for (const [name, who] of TABLE_ITEMS) {
-        if (!who) { prop(name, TABLE.u - .05, TABLE.v - .05, TABLE_TOP); continue }
-        if (who === 'center') { prop(name, TABLE.u + .3, TABLE.v + .25, TABLE_TOP); continue }
-        const s = seatOf(people.find((x) => x.id === who))
-        prop(name, s.u - s.du * .6 + s.dv * .25, s.v - s.dv * .6 - s.du * .25, TABLE_TOP)
-      }
-    } },
-  ]
-  things.sort((a, b) => a.depth - b.depth).forEach((x) => x.draw())
-  roomFront()
-  layoutOverlay(now)
-  if (now - rosterAt > 250) { drawRoster(); rosterAt = now; document.getElementById('clock').textContent = hhmm(new Date()) }
-  requestAnimationFrame(frame)
-}
+  drawPeople()
+  document.getElementById('clock').textContent = hhmm(new Date())
+}, 100)
 
 document.getElementById('room-title').textContent = ROOM.title
 document.getElementById('room-count').textContent = `${CAST.filter((c) => c.kind === 'human').length} personas · ${CAST.filter((c) => c.kind === 'agent').length} agentes`
 document.getElementById('who-count').textContent = CAST.length
 document.getElementById('pause').addEventListener('click', (e) => {
   paused = !paused
-  e.target.textContent = paused ? 'seguir' : 'pausar'
-  e.target.setAttribute('aria-pressed', String(paused))
+  const b = e.currentTarget
+  b.setAttribute('aria-pressed', String(paused)); b.title = paused ? 'Seguir' : 'Pausar'; b.setAttribute('aria-label', b.title)
+  document.getElementById('app').classList.toggle('paused', paused)
 })
-Promise.all([...TILES.map((n) => load(n, `assets/tiles/${n}.png`)), ...Object.values(PROPS).map(([f]) => load(f, `assets/${f}.png`))])
-  .then(() => { buildTags(); fit(); requestAnimationFrame(frame) })
+document.getElementById('cc').addEventListener('click', (e) => {
+  captionsOn = !captionsOn
+  e.currentTarget.setAttribute('aria-pressed', String(captionsOn))
+  if (!captionsOn) captions.classList.remove('on')
+})
+people.forEach((p) => setState(p, 'typing'))
 </script>
 </body>
 </html>
