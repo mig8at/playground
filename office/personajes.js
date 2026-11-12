@@ -217,14 +217,20 @@ const NOSES = {
   button: (cx, cy, c) => `<circle cx="${cx}" cy="${cy + 22}" r="11" fill="${c}"/>`,
   hook: (cx, cy, c) => `<path d="M${cx - 4} ${cy - 6} q30 18 18 42 q-10 8 -24 2 q10 -6 6 -12 q-12 -20 0 -32Z" fill="${c}"/>`,
 }
-// El pico del pato: la parte de arriba fija y la de abajo que baja al hablar (dentro de .mouth, como la boca).
+// El pico del pato: ancho y plano, como una paleta redondeada que sobresale de la cara (no la puntita de un pollo).
+// La parte de arriba queda fija, con las fosas y la comisura que sonríe; la de abajo, más angosta, baja al hablar
+// (dentro de .mouth, como la boca de las personas).
 function beak(cx, y, c) {
-  const d = shade(c, .8), upper = `<path d="M${cx - 40} ${y + 4} Q${cx} ${y - 18} ${cx + 40} ${y + 4} Q${cx + 34} ${y + 18} ${cx} ${y + 18} Q${cx - 34} ${y + 18} ${cx - 40} ${y + 4}Z" fill="${c}"/><ellipse cx="${cx - 9}" cy="${y + 2}" rx="4" ry="3" fill="${d}"/><ellipse cx="${cx + 9}" cy="${y + 2}" rx="4" ry="3" fill="${d}"/>`
-  const lower = (dy) => `<path d="M${cx - 30} ${y + 14 + dy} Q${cx} ${y + 34 + dy} ${cx + 30} ${y + 14 + dy} Q${cx} ${y + 22 + dy} ${cx - 30} ${y + 14 + dy}Z" fill="${d}"/>`
+  const d = shade(c, .78), l = shade(c, 1.12), w = 74
+  const upper = `<path d="M${cx - w} ${y + 6} C${cx - w - 6} ${y - 18} ${cx - 30} ${y - 24} ${cx} ${y - 22} C${cx + 30} ${y - 24} ${cx + w + 6} ${y - 18} ${cx + w} ${y + 6} C${cx + w - 6} ${y + 24} ${cx + 30} ${y + 26} ${cx} ${y + 24} C${cx - 30} ${y + 26} ${cx - w + 6} ${y + 24} ${cx - w} ${y + 6}Z" fill="${c}"/>
+    <path d="M${cx - 44} ${y - 12} Q${cx} ${y - 22} ${cx + 44} ${y - 12}" stroke="${l}" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <ellipse cx="${cx - 14}" cy="${y - 6}" rx="5" ry="3" fill="${d}"/><ellipse cx="${cx + 14}" cy="${y - 6}" rx="5" ry="3" fill="${d}"/>
+    <path d="M${cx - w + 8} ${y + 8} Q${cx} ${y + 22} ${cx + w - 8} ${y + 8}" stroke="${d}" stroke-width="3.5" fill="none" stroke-linecap="round"/>`
+  const lower = (dy) => `<path d="M${cx - w + 14} ${y + 14 + dy} C${cx - w + 10} ${y + 34 + dy} ${cx - 24} ${y + 40 + dy} ${cx} ${y + 40 + dy} C${cx + 24} ${y + 40 + dy} ${cx + w - 10} ${y + 34 + dy} ${cx + w - 14} ${y + 14 + dy}Z" fill="${d}"/>`
   return `<g class="m-smile">${soft(lower(0) + upper)}</g>
-    <g class="m-talk">${soft(`<ellipse cx="${cx}" cy="${y + 24}" rx="24" ry="12" fill="#6e1f12"/>`)}<g class="mouth">${soft(lower(10))}</g>${soft(upper)}</g>
-    <g class="m-think"><g transform="rotate(-8 ${cx} ${y})">${soft(lower(-2) + upper)}</g></g>
-    <g class="m-flat">${soft(lower(-3) + upper)}</g>`
+    <g class="m-talk">${soft(`<ellipse cx="${cx}" cy="${y + 28}" rx="${w - 22}" ry="18" fill="#6e1f12"/><ellipse cx="${cx}" cy="${y + 38}" rx="22" ry="7" fill="#e5592a"/>`)}<g class="mouth">${soft(lower(12))}</g>${soft(upper)}</g>
+    <g class="m-think"><g transform="rotate(-7 ${cx} ${y})">${soft(lower(-2) + upper)}</g></g>
+    <g class="m-flat">${soft(lower(-4) + upper)}</g>`
 }
 function face(h, f) {
   const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
