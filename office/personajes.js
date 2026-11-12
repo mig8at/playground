@@ -211,6 +211,8 @@ const EXTRAS = {
 const NOSES = {
   none: () => '',
   // mico: dos fosas en el hocico
+  // gorila: ancha y plana, con dos fosas grandes
+  flat: (cx, cy, c) => `<path d="M${cx - 26} ${cy + 26} Q${cx - 24} ${cy + 4} ${cx} ${cy + 4} Q${cx + 24} ${cy + 4} ${cx + 26} ${cy + 26} Q${cx} ${cy + 36} ${cx - 26} ${cy + 26}Z" fill="${c}"/><ellipse cx="${cx - 11}" cy="${cy + 24}" rx="8" ry="6" fill="#1d1a19"/><ellipse cx="${cx + 11}" cy="${cy + 24}" rx="8" ry="6" fill="#1d1a19"/>`,
   nostrils: (cx, cy, c) => `<ellipse cx="${cx - 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/><ellipse cx="${cx + 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/>`,
   bulb: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 22}" rx="20" ry="17" fill="${c}"/><ellipse cx="${cx - 6}" cy="${cy + 17}" rx="5" ry="4" fill="#fbf4e4" opacity=".55"/>`,
   long: (cx, cy, c) => `<path d="M${cx - 6} ${cy - 4} q-6 30 -14 40 q14 10 30 0 q-6 -16 -10 -40Z" fill="${c}"/>`,
@@ -281,7 +283,8 @@ function torso(p) {
   </g>`
 }
 
-// LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: 'mico' | 'pato'
+// LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: 'mico' | 'pato' |
+// 'gorila'
 // (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
 const SPECIES = {
   mico: (p, h) => {
@@ -294,6 +297,20 @@ const SPECIES = {
       mask: `<ellipse cx="${h.cx - 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx + 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx}" cy="${h.cy + 42}" rx="60" ry="40" fill="${mask}"/>`,
       top: `<path d="M${h.cx - 18} ${h.cy - h.ry + 6} q-4 -26 14 -30 q-8 16 6 22 q2 -20 20 -20 q-10 14 0 28Z" fill="${d}"/>`,
       nose: 'nostrils', noseColor: shade(fur, .6), brow: shade(fur, .6), mouth: '#6e1f12',
+    }
+  },
+  // gorila: cabeza con la cresta alta, cara de cuero oscura con la ceja ósea marcada, orejas pequeñas pegadas
+  gorila: (p, h) => {
+    const fur = p.skin, face = p.mask || '#5d524f', d = shade(fur, .78)
+    return {
+      back: `<ellipse cx="${h.cx - h.rx + 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/><ellipse cx="${h.cx + h.rx - 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/>`,
+      // la cabeza es la elipse con una cresta que sube por arriba
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/><path d="M${h.cx - h.rx * .55} ${h.cy - h.ry * .7} Q${h.cx} ${h.cy - h.ry - 46} ${h.cx + h.rx * .55} ${h.cy - h.ry * .7}Z" fill="${fur}"/>`,
+      // la cara: un escudo ancho de cuero que toma los ojos y el hocico; encima, la ceja ósea
+      mask: `<path d="M${h.cx - 70} ${h.cy - 30} Q${h.cx} ${h.cy - 52} ${h.cx + 70} ${h.cy - 30} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 50} ${h.cy + 66} Q${h.cx} ${h.cy + 86} ${h.cx - 50} ${h.cy + 66} Q${h.cx - 84} ${h.cy + 30} ${h.cx - 70} ${h.cy - 30}Z" fill="${face}"/>
+        <path d="M${h.cx - 74} ${h.cy - 26} Q${h.cx - 38} ${h.cy - 54} ${h.cx} ${h.cy - 34} Q${h.cx + 38} ${h.cy - 54} ${h.cx + 74} ${h.cy - 26} Q${h.cx + 40} ${h.cy - 38} ${h.cx} ${h.cy - 24} Q${h.cx - 40} ${h.cy - 38} ${h.cx - 74} ${h.cy - 26}Z" fill="${shade(face, .8)}"/>`,
+      top: `<path d="M${h.cx - 18} ${h.cy - h.ry + 2} q16 -14 34 -4" stroke="${shade(fur, 1.3)}" stroke-width="5" fill="none" stroke-linecap="round"/>`,
+      nose: 'flat', noseColor: shade(face, .82), brow: '#2a2523', mouth: '#2a2523',
     }
   },
   pato: (p, h) => {
@@ -394,9 +411,9 @@ function saveCustom(list) { try { localStorage.setItem('office:custom', JSON.str
 // El catálogo del editor: cada opción es una pieza que person() ya sabe dibujar. Agregar una (un peinado, una
 // nariz) es sumarla en su objeto de arriba y nombrarla acá.
 const OPCIONES = {
-  species: { '': 'Persona', mico: 'Mico', pato: 'Pato' },
+  species: { '': 'Persona', mico: 'Mico', pato: 'Pato', gorila: 'Gorila' },
   // el color de la piel, del pelaje o de las plumas, según la especie
-  skinBy: { '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'] },
+  skinBy: { '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'], gorila: ['#3b3f45', '#2a2d33', '#5a5f66', '#7a7f86', '#4a3a32'] },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
   hair: { side: 'Raya al lado', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
