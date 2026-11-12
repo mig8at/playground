@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personajes de Office · ejemplo</title>
+<!-- Ejemplo del paquete: arma tu personaje, prueba sus gestos y copia su JSON. Todo sale de office-personajes.js. -->
+<style>
+  :root { color-scheme: dark; --ink: #13323a; --cream: #f1e4c7; --teal: #2b6670; --orange: #e5592a; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #0b0c0e; color: #f6ecd6; font: 14px/1.4 ui-rounded, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 18px; padding: 18px; max-width: 1200px; margin: 0 auto; }
+  h1 { font-size: 18px; margin: 0 0 12px; }
+  .preview office-personaje { width: 100%; }
+  .gestos { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 12px; }
+  .gestos figure { margin: 0; } .gestos office-personaje { width: 100%; border-radius: 12px; }
+  .gestos figcaption { font-size: 12px; color: #b9cdc6; padding-top: 4px; }
+  .panel { background: var(--cream); color: var(--ink); border-radius: 18px; padding: 14px 16px; display: grid; gap: 10px; align-content: start; }
+  label { display: grid; gap: 4px; font-size: 12px; font-weight: 800; }
+  select, input[type=text], textarea { font: inherit; padding: 6px 8px; border-radius: 8px; border: 2px solid #d9c9a6; background: #fbf6ea; color: var(--ink); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .checks { display: flex; flex-wrap: wrap; gap: 8px; font-size: 13px; font-weight: 700; }
+  .checks label { display: flex; gap: 4px; align-items: center; }
+  textarea { min-height: 120px; font-family: ui-monospace, Menlo, monospace; font-size: 12px; }
+  .buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+  button { font: inherit; font-weight: 800; border: 0; border-radius: 10px; padding: 8px 12px; background: var(--teal); color: var(--cream); cursor: pointer; }
+  button.primary { background: var(--orange); }
+  button:focus-visible, select:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #f08c3d; outline-offset: 2px; }
+  @media (max-width: 860px) { main { grid-template-columns: 1fr; } .gestos { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<main>
+  <section>
+    <h1>Tu personaje</h1>
+    <div class="preview"><office-personaje id="grande" gesto="habla"></office-personaje></div>
+    <div class="gestos" id="gestos"></div>
+  </section>
+  <aside class="panel" id="panel" aria-label="Piezas del personaje">
+    <label>Nombre <input type="text" data-k="name" maxlength="18"></label>
+    <div class="row">
+      <label>Especie <select data-k="species" data-o="species"></select></label>
+      <label>Fondo <select data-k="scene" data-o="scene"></select></label>
+    </div>
+    <div class="row">
+      <label>Cara <select data-k="face" data-o="face"></select></label>
+      <label>Nariz <select data-k="nose" data-o="nose"></select></label>
+    </div>
+    <div class="row">
+      <label>Peinado <select data-k="hair" data-o="hair"></select></label>
+      <label>Barba <select data-k="beardStyle" data-o="beardStyle"></select></label>
+    </div>
+    <div class="row">
+      <label>Gorro <select data-k="hat" data-o="hat"></select></label>
+      <label>Dientes <select data-k="teeth" data-o="teeth"></select></label>
+    </div>
+    <div class="row">
+      <label>Piel o pelaje <input type="color" data-k="skin"></label>
+      <label>Pelo <input type="color" data-k="hairColor"></label>
+    </div>
+    <div class="row">
+      <label>Chaqueta <input type="color" data-k="shirt"></label>
+      <label>Gorro (color) <input type="color" data-k="hatColor"></label>
+    </div>
+    <label>Ojos <input type="range" min="18" max="32" data-k="eye"></label>
+    <div class="checks" id="extras"></div>
+    <div class="buttons"><button type="button" class="primary" id="azar">Al azar</button><button type="button" id="copiar">Copiar JSON</button></div>
+    <label>JSON (pegá uno y se carga) <textarea id="json" spellcheck="false"></textarea></label>
+  </aside>
+</main>
+<script type="module">
+import { OPCIONES, alAzar } from './office-personajes.js'
+
+// el punto de partida: todas las piezas a la vista, así cada selector muestra lo que tiene el personaje
+const DEFAULTS = { name: 'Nuevo', species: '', face: 'round', nose: 'button', teeth: 'grin', hair: 'side', hairColor: '#4a2f1c', beardStyle: '', hat: '', hatColor: '#c5381f', skin: '#e0ac7e', shirt: '#2b6670', eye: 25, extras: [], scene: 'sunset' }
+let config = { ...DEFAULTS }
+const grande = document.getElementById('grande')
+const gestos = document.getElementById('gestos')
+gestos.innerHTML = ['escucha', 'teclea', 'piensa', 'habla'].map((g) => `<figure><office-personaje gesto="${g}"></office-personaje><figcaption>${g}</figcaption></figure>`).join('')
+
+// los selectores y casillas salen del catálogo del paquete
+document.querySelectorAll('select[data-o]').forEach((sel) => {
+  sel.innerHTML = Object.entries(OPCIONES[sel.dataset.o]).map(([v, l]) => `<option value="${v}">${l}</option>`).join('')
+})
+const looks = { ...OPCIONES.extras, ...OPCIONES.looks }
+document.getElementById('extras').innerHTML = Object.entries(looks).map(([v, l]) => `<label><input type="checkbox" data-x="${v}"> ${l}</label>`).join('')
+
+function draw() {
+  grande.config = config
+  gestos.querySelectorAll('office-personaje').forEach((el) => { el.config = config })
+  document.querySelectorAll('[data-k]').forEach((el) => { if (document.activeElement !== el) el.value = config[el.dataset.k] ?? '' })
+  document.querySelectorAll('[data-x]').forEach((el) => { el.checked = OPCIONES.extras[el.dataset.x] ? (config.extras || []).includes(el.dataset.x) : !!config[el.dataset.x] })
+  const json = document.getElementById('json')
+  if (document.activeElement !== json) json.value = JSON.stringify(config, null, 2)
+}
+document.getElementById('panel').addEventListener('input', (e) => {
+  const el = e.target
+  if (el.dataset.k) config = { ...config, [el.dataset.k]: el.type === 'range' ? Number(el.value) : el.value }
+  if (el.dataset.k === 'species') { const skins = OPCIONES.skinBy[el.value]; if (skins) config.skin = skins[0] }
+  if (el.dataset.x) {
+    const x = el.dataset.x
+    if (OPCIONES.extras[x]) config = { ...config, extras: el.checked ? [...(config.extras || []), x] : (config.extras || []).filter((y) => y !== x) }
+    else config = { ...config, [x]: el.checked }
+  }
+  // un JSON pegado se completa con lo de siempre, así cada selector muestra algo
+  if (el.id === 'json') { try { const j = JSON.parse(el.value); config = { ...DEFAULTS, ...(j.species && !j.skin && OPCIONES.skinBy[j.species] ? { skin: OPCIONES.skinBy[j.species][0] } : {}), ...j } } catch { return } }
+  draw()
+})
+document.getElementById('azar').addEventListener('click', () => { config = { ...DEFAULTS, ...alAzar({ name: config.name }) }; draw() })
+document.getElementById('copiar').addEventListener('click', async () => {
+  const text = JSON.stringify(config)
+  try { await navigator.clipboard.writeText(text) } catch { prompt('Copiá el JSON:', text) }
+})
+draw()
+</script>
+</body>
+</html>

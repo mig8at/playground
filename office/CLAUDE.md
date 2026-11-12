@@ -8,6 +8,7 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
 | la llamada | `index.html` | `make office` → http://localhost:5220 |
 | el editor de personajes | `editor.html` | http://localhost:5220/editor.html (botón «Editar personajes») |
 | el CLI de personajes | `cli/personaje.mjs` | `make office-character ESPECIE=gato NOMBRE=Miso` (`OPCIONES=1` lista todo) |
+| el paquete para compartir | `paquete/` → `paquete/dist/` | `make office-package`; se comparte la carpeta `dist/` (un JS, ejemplo, README) |
 | el dibujo, compartido por los tres | `personajes.js` · `personajes.css` | — |
 | hojas de referencia de Gemini (no se calcan) | `generacion/` | `node office/generacion/hoja.mjs <personaje> <salida.jpg>` |
 
@@ -44,3 +45,14 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
 `config` es la entrada de `CAST`. `states` trae, por gesto, el SVG animado y la boca que se ve. `animations` lista
 qué pieza se anima (`part`), con qué `@keyframes`, cuánto dura y en qué gestos; `poses`, lo que se acomoda sin
 animarse (pupilas, cejas). Cada SVG trae su CSS: cambiar el gesto es cambiar la clase del `<svg>` raíz.
+
+## El paquete para compartir (`paquete/`)
+
+`make office-package` arma `paquete/dist/office-personajes.js`: un solo archivo con el dibujo (`personajes.js` tal cual,
+encerrado en su alcance), el estilo y el logo, más el componente `<office-personaje config='…' gesto="habla">` (shadow
+DOM, no toca el CSS de la página) y las funciones `dibujar`, `svg`, `alAzar`, `personaje` y `OPCIONES`. En Node sólo
+están `svg` y `alAzar` (no hay `HTMLElement`). Junto a él quedan `ejemplo.html` (armar el tuyo y copiar su JSON),
+`README.md` y un `package.json` que lo declara módulo ES. `dist/` se versiona porque es lo que se comparte: después de
+tocar `personajes.js` o `personajes.css`, volvé a correr `make office-package`. `personajes.js` no toca la página
+cuando está empacado (la constante `OFFICE_PAQUETE`).
+
