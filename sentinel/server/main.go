@@ -59,6 +59,8 @@ type Subject struct {
 	Why           string   `json:"why"`
 	// Shift: si el nivel diario cambió y se quedó (×2 o la mitad, la última semana contra las anteriores).
 	Shift *Shift `json:"shift,omitempty"`
+	// Silence (sólo `logs:`): desde cuándo el servicio no escribe, si pasa del silencio más largo de la historia.
+	Silence *Silence `json:"silence,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
 	// (una solicitud se aprueba o se niega horas después), así que compararla con días ya asentados engaña.
 	DeniedRate float64 `json:"deniedRate"`
@@ -409,6 +411,7 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Why += fmt.Sprintf(" · empezó hace menos de %d min: se confirma si sigue", (e.rules.Sustain-1)*e.rules.StepMinutes)
 	}
 	subj.Shift = e.shift(sig, now)
+	subj.Silence = ev.Silence
 	// La curva del día y lo normal por hora, de los días comparables.
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
 	comp := comparable(now, e.rules.BaselineDays, e.have)

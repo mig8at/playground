@@ -131,3 +131,35 @@ func TestQuietDoesNotCloseAnEpisode(t *testing.T) {
 		t.Fatalf("avisó %d veces: %+v", len(n.notices), n.notices)
 	}
 }
+
+// Un servicio que escribía todos los días de 8 a 20 y se calla: «callado» cuando pasa del silencio más largo (la noche,
+// 12 h), alerta al doble; y sigue en alerta aunque a esa hora lo normal sea «poco volumen».
+func TestSilenceBeyondTheLongestIsAnAlert(t *testing.T) {
+	now := time.Date(2026, 11, 12, 22, 0, 0, 0, bogota)
+	se := &series{map[string]*[bucketsPerDay]int{}, map[string]*[bucketsPerDay]int{}, map[string]*[bucketsPerDay]int{}}
+	have := map[string]bool{}
+	for d := 28; d >= 0; d-- {
+		day := now.AddDate(0, 0, -d)
+		date := day.Format("2006-01-02")
+		have[date] = true
+		arr := &[bucketsPerDay]int{}
+		if d >= 2 { // escribe hasta anteayer; ayer y hoy, nada
+			for b := 8 * 12; b < 20*12; b++ {
+				arr[b] = 50
+			}
+		}
+		se.total[date] = arr
+	}
+	e := evaluator{rules: defaultRules(), data: map[Signal]*series{"logs:x": se}, have: have, ceils: map[string]float64{}}
+	sil := e.silence(se, now)
+	if sil == nil || sil.Longest != 12*60 || sil.Level != levelAlert {
+		t.Fatalf("silencio: %+v", sil)
+	}
+	if ev := e.eval("logs:x", now); ev.Level != levelAlert || ev.Silence == nil {
+		t.Fatalf("a las 22 (sin tráfico normal): nivel %d, %s", ev.Level, ev.Why)
+	}
+	// Una noche normal (callado desde las 20, son las 23): no es silencio.
+	if sil := e.silence(se, now.AddDate(0, 0, -5).Add(time.Hour)); sil != nil {
+		t.Fatalf("una noche cualquiera: %+v", sil)
+	}
+}

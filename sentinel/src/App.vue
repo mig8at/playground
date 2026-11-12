@@ -143,6 +143,7 @@ const apps = computed(() => data.value?.apps || [])
 const isService = (s) => s?.kind === 'service' || s?.kind === 'logs'
 const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.name)
 const releaseOf = (s) => apps.value.find((a) => a.service === serviceOf(s))?.release
+const silentFor = (m) => (m >= 2880 ? `${Math.floor(m / 1440)} días` : m >= 120 ? `${Math.floor(m / 60)} h` : `${m} min`)
 const compact = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n))
 const ago = (iso) => {
   const h = Math.round((Date.now() - new Date(iso)) / 3600000)
@@ -359,6 +360,7 @@ onBeforeUnmount(() => {
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
           <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar.</p>
+          <p v-if="selected.silence" class="note">Callado desde el {{ dayClock(selected.silence.since) }}: {{ silentFor(selected.silence.minutes) }} sin escribir una línea, más que el silencio más largo de las semanas anteriores ({{ silentFor(selected.silence.longest) }}). Se marca hasta que vuelva a escribir, aunque la estadística de la hora ya lo tome por normal.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
 
           <div class="cards">
@@ -530,6 +532,9 @@ onBeforeUnmount(() => {
               <template v-if="a.release">desplegado {{ ago(a.release.at) }}<template v-if="!a.release.ok"> · FALLÓ<template v-if="a.release.lastOk">, sigue {{ a.release.lastOk.version }}</template></template></template>
               <template v-else>sin despliegues a producción en GitHub</template>
             </small>
+            <small v-if="a.lines?.silence" class="app-silent" :title="a.lines.silence.why">
+              callado desde el {{ dayClock(a.lines.silence.since) }} · {{ silentFor(a.lines.silence.minutes) }}
+            </small>
             <div class="app-metrics">
               <button v-if="a.errors" type="button" class="metric" :title="a.errors.why" @click="pick(a.errors)">
                 <span class="metric-label"><i class="dot" :class="`is-${a.errors.state}`" aria-hidden="true"></i>errores</span>
@@ -684,6 +689,8 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .app-version:hover { text-decoration: underline }
 .app-version.failed { background: color-mix(in oklab, var(--sentinel-alert) 25%, var(--muted)) }
 .app-when { color: var(--fg-3); font-size: var(--text-xs) }
+.app-silent { align-self: flex-start; margin-top: 2px; padding: 1px 6px; border-radius: var(--radius-control); font-size: var(--text-xs);
+  color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 22%, transparent) }
 .app-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-1) }
 .metric { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; padding: 4px 6px; border: 0;
   border-radius: var(--radius-control); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }

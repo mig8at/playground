@@ -223,7 +223,8 @@ const (
 )
 
 type Eval struct {
-	Minutes int // la ventana que se miró: WindowMinutes, o una de FollowedWindows
+	Minutes int      // la ventana que se miró: WindowMinutes, o una de FollowedWindows
+	Silence *Silence // sólo `logs:`: desde cuándo no escribe, si es más que el silencio más largo de la historia
 	Now     int
 	Samples []float64
 	Dates   []string
@@ -370,6 +371,19 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 			ev.Why = fmt.Sprintf("escribió %d líneas en %s; %s", ev.Now, span(ev.Minutes), normal)
 		}
 	}
+	// Un servicio callado más tiempo que nunca en las semanas guardadas: alerta, diga lo que diga la estadística de la
+	// hora. Sin esto, un silencio que dura pasa a ser «lo normal» en dos semanas y deja de verse.
+	if kindOf(sig) == "logs" && !over.Ignore {
+		if sil := e.silence(se, t); sil != nil {
+			ev.Silence = sil
+			if sil.Level > ev.Level {
+				ev.Level = sil.Level
+			}
+			if sil.Level >= levelWarn {
+				ev.Why = sil.Why
+			}
+		}
+	}
 	if factor != 1 && ev.Level >= levelOK {
 		ev.Why += " · más sensible: hubo un despliegue a producción hace menos de " + fmtNum(e.rules.AfterDeployHours) + " h"
 	}
@@ -398,6 +412,67 @@ func fmtNum(x float64) string {
 		return fmt.Sprintf("%d", int(x))
 	}
 	return fmt.Sprintf("%.1f", x)
+}
+
+// ── el silencio de un servicio ─────────────────────────────────────────────────────────────────────────────────
+
+// Silence: desde cuándo un servicio no escribe una línea, contra el silencio más largo de la historia guardada.
+type Silence struct {
+	Since   string `json:"since"`   // la última línea que escribió (el final de su bloque de 5 minutos), RFC3339
+	Minutes int    `json:"minutes"` // cuánto lleva callado
+	Longest int    `json:"longest"` // el silencio más largo antes de éste, en minutos
+	Level   int    `json:"-"`
+	Why     string `json:"why"`
+}
+
+// silenceMin: por debajo, un silencio no se marca (un servicio chico tiene huecos de minutos todo el tiempo).
+const silenceMin = 60
+
+// silence: el silencio en curso de una serie, si lo hay y pasa del más largo de la historia (warn) o del doble (alert).
+// Los días sin guardar cortan la cuenta: no se sabe qué pasó ahí.
+func (e evaluator) silence(se *series, t time.Time) *Silence {
+	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -e.rules.HistoryDays)
+	longest, run, last := 0, 0, time.Time{}
+	wrote := false
+	for b := start; b.Before(t); b = b.Add(5 * time.Minute) {
+		date := b.Format("2006-01-02")
+		if !e.have[date] {
+			run = 0
+			continue
+		}
+		n := 0
+		if arr := se.total[date]; arr != nil {
+			n = arr[bucketOf(b)]
+		}
+		if n > 0 {
+			if wrote && run > longest {
+				longest = run
+			}
+			run, last, wrote = 0, b.Add(5*time.Minute), true
+			continue
+		}
+		run += 5
+	}
+	if !wrote || run < silenceMin || run <= longest {
+		return nil
+	}
+	sil := &Silence{Since: last.Format(time.RFC3339), Minutes: run, Longest: longest, Level: levelWarn}
+	if run >= 2*max(longest, silenceMin) {
+		sil.Level = levelAlert
+	}
+	sil.Why = fmt.Sprintf("no escribe una línea desde el %s (%s); en las semanas anteriores, el silencio más largo fue de %s",
+		last.Format("02/01 15:04"), fmtDuration(run), fmtDuration(longest))
+	return sil
+}
+
+func fmtDuration(minutes int) string {
+	switch {
+	case minutes >= 48*60:
+		return fmt.Sprintf("%d días", minutes/(24*60))
+	case minutes >= 120:
+		return fmt.Sprintf("%d h", minutes/60)
+	}
+	return fmt.Sprintf("%d min", minutes)
 }
 
 // ── el cambio de nivel ─────────────────────────────────────────────────────────────────────────────────────────

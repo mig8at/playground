@@ -52,8 +52,13 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   y nombra el último que salió bien. El repo de cada servicio sale de su nombre, con excepciones en `serviceRepos`.
 - **La señal de vida avisa sólo si el servicio casi deja de escribir** (`liveness`: 10 % de lo normal, con lo normal
   ≥ 20 líneas por hora), no cuando baja el tráfico. Así salió, el 2026-11-12, que customer-profiling-service y
-  kyc-gateway-service no escriben nada desde el 11 y el 10 de noviembre. ⚠ Un silencio que dura deja de verse: en dos
-  semanas pasa a ser lo normal.
+  kyc-gateway-service no escriben nada desde el 11 y el 10 de noviembre.
+- **«Callado desde…»** (`silence`, en `stats.go`): si un servicio lleva sin escribir una línea más que el silencio más
+  largo de las semanas guardadas (y más de una hora), es «para mirar»; el doble, alerta. Va por encima de la
+  estadística de la hora, así un silencio que dura no pasa a ser «lo normal» en dos semanas; la tarjeta lo marca hasta
+  que vuelve a escribir. Las noches de un servicio que sólo trabaja de día cuentan como su silencio normal.
+- **«Poco volumen» no cierra un episodio** (`alerts.go`): sólo lo cierra volver a lo normal. Un servicio callado pasaba
+  a «poco volumen» de noche, se cerraba y avisaba otra vez cada mañana.
 - **Errores: hace falta un mínimo** (`errors.minNow`, 10 por hora). Un servicio que casi nunca tiene errores daba alerta
   con 5.
 - **Errores por entidad** (`lerr:<id>`): los errores en los logs que nombran a una entidad. Sólo dos fuentes la nombran:
