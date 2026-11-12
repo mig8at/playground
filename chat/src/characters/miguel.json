@@ -1,6 +1,12 @@
 {
   "name": "Miguel",
   "handle": "miguel",
+  "voice": {
+    "name": "Eddy",
+    "lang": "es-MX",
+    "pitch": 1,
+    "rate": 1.05
+  },
   "character": {
     "face": "largo",
     "hair": "recogido",

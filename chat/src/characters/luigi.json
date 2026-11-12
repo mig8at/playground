@@ -2,6 +2,12 @@
   "name": "Luigi",
   "owner": "miguel",
   "agent": "luigi",
+  "voice": {
+    "name": "Rocko",
+    "lang": "es-MX",
+    "pitch": 1.25,
+    "rate": 1.1
+  },
   "character": {
     "species": "panda",
     "eye": 25,

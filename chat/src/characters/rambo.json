@@ -2,6 +2,12 @@
   "name": "Rambo",
   "owner": "duncan.estrada",
   "agent": "rambo",
+  "voice": {
+    "name": "Reed",
+    "lang": "es-ES",
+    "pitch": 0.6,
+    "rate": 0.92
+  },
   "character": {
     "species": "oso",
     "eye": 25,

@@ -4,6 +4,9 @@
 //   { "name": "Duncan", "handle": "duncan.estrada", "character": { ...piezas del personaje } }        una persona
 //   { "name": "Rambo", "owner": "duncan.estrada", "agent": "rambo", "character": { ... } }            un agente
 //
+// Opcional: "voice": { "name": "Eddy", "lang": "es-MX", "pitch": 1, "rate": 1 }, la voz con que habla en la videollamada
+// (una de las de macOS: `say -v '?' | grep es_`; el tono y la velocidad la vuelven propia).
+//
 // handle y owner son el usuario del chat (lo que va antes de @creditop.com). Las piezas de character son las del editor
 // de Office (forma de cara, peinado, barba, especie…); lo que falte toma su valor por defecto. El dibujo y los gestos
 // están en office-characters.js (el paquete de Office), que se regenera con

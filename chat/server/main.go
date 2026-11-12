@@ -304,6 +304,7 @@ func handler() http.Handler {
 
 	registerFiles(mux)
 	registerDictation(mux)
+	registerVoice(mux)
 	registerKeyring(mux)
 	registerEvents(mux)
 	registerKeyringSettings(mux)

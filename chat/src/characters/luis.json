@@ -2,6 +2,12 @@
   "name": "Luis",
   "owner": "duncan.estrada",
   "agent": "luis",
+  "voice": {
+    "name": "Eddy",
+    "lang": "es-ES",
+    "pitch": 1.45,
+    "rate": 1.05
+  },
   "character": {
     "species": "buho",
     "eye": 27,

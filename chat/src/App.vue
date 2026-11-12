@@ -1403,7 +1403,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       </form>
 
       <template v-else>
-        <CallView v-if="callOpen" :cast="callCast" />
+        <CallView v-if="callOpen" :cast="callCast" :messages="chat.active?.messages || []" :me="chat.meKey" :peer="chat.activeKey" />
         <div v-show="!callOpen" ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
           <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">
