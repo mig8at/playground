@@ -30,6 +30,33 @@ adelante depende de las respuestas de la fase 0.
   campos y notas: `artifacts/finandina-matriz-requisitos.md`, y el resumen con la comparación con Credifamilia
   y el plan en `artifacts/finandina-analisis-documentos.html`.
 
+### Lo nuestro: del monto al listado (Loan Origination)
+
+Del listado en adelante (política, capacidad, plan, documentos, entrega a Finandina) es del motor de CreditopX y
+de quien lo lleve. Lo que pasa antes del listado y queda por hacer es esto, más las casillas de credenciales de la
+fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
+
+- [ ] Experian del onboarding con la cuenta de la sucursal, igual que Mareigua: en el flujo viejo (el único que
+  usa prod: `kyc_pipeline_allieds` vacío) la consulta pasa por `Experian.php:73` con `findForUserRequest` sin
+  entidad, así que nunca ve la cuenta de una entidad de la sucursal. Como las llaves de Finandina son del HC2, si
+  la sucursal tiene una entidad con cuenta HC2 la consulta va por ese cliente. Termina con la misma prueba de
+  Mareigua (local y qa). Depende de: el cliente HC2 (fase 5) y que Oscar confirme para Experian las mismas reglas
+  que para Mareigua (cuenta de la sucursal; reutilizar la guardada; pasado el plazo, la cuenta vigente).
+- [ ] Decidir si en las sucursales de Finandina se consulta Mareigua siempre: hoy la cascada sólo llega a
+  Mareigua si Ágil Data no trae datos, y la política de Finandina pide de Mareigua la antigüedad y el riesgo del
+  empleador. Termina con la decisión escrita y, si es «siempre», con su pendiente de código. Depende de: Oscar y
+  producto.
+- [ ] Llevar al pipeline de KYC nuevo (customer-profiling-service, clientes de RiskV2) la cuenta de la sucursal,
+  si los comercios de Finandina van a ir por él. Hoy `MareiguaClient` y `ExperianAciertaClient` leen sólo config;
+  prod no tiene comercios en el pipeline y qa tiene 91, 196 y 237. Termina con la decisión de si hace falta.
+  Depende de: en qué flujo arrancan los comercios de Finandina.
+- [ ] Dejar a la 149 sólo con cédula: hoy tiene `document_types = ["CC","CE"]` en qa y en prod, y la política
+  pide persona natural con cédula. Los tipos de la sucursal son la unión de sus entidades, así que esto no le
+  quita CE a las demás. Termina con la 149 en `["CC"]` y una prueba de que una CE no le llega a Finandina.
+- [ ] Cargar en prod la cuenta real de Mareigua de Finandina y comprobar que el proveedor real la acepta (qa
+  contesta con el mock). Termina con una consulta real con la cuenta de Finandina y su `credential_id`
+  guardado. Depende de: Finandina — la cuenta de producción; y quien cargue en el admin de prod.
+
 ### Fase 0 · Decisiones de producto (bloquean las fases 3 a 5)
 
 - [ ] Mandar la ronda 1 de preguntas (las que bloquean empezar): qué documento manda (PRD de enero o política
@@ -130,8 +157,6 @@ adelante depende de las respuestas de la fase 0.
 - [ ] Revisar el consentimiento del onboarding en las sucursales donde la consulta sale con la cuenta de
   Finandina, antes de elegir entidad: el formulario la pone como responsable de los datos (PRD-72). Depende de:
   producto.
-- [ ] Que la consulta nueva de Experian lea la credencial que elige el resolvedor (RKV2TD024). Para Finandina
-  además hace falta el cliente HC2 (siguiente casilla).
 - [ ] Integrar la consulta de Experian de Finandina: sus llaves de prueba son del servicio SOAP HC2
   (`DHServicePlus`, `consultarHC2`, producto 64, usuario = NIT y clave corta), que ningún repo implementa; el
   Experian de Creditop es el REST con OAuth. Termina con una consulta HC2 en el ambiente demo de Experian
