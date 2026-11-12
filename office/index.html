@@ -73,17 +73,37 @@
     opacity: 0; transform: translateY(6px) scale(.9); transition: opacity .25s, transform .25s; }
   .tile.thinking .think { opacity: 1; transform: none; }
 
-  /* La boca del que habla, el parpadeo y el teclear, animados con CSS sobre el SVG. */
-  .mouth { transform-box: fill-box; transform-origin: center; }
-  .tile.talking .mouth { animation: talk .22s ease-in-out infinite alternate; }
-  @keyframes talk { from { transform: scaleY(.35); } to { transform: scaleY(1.25); } }
-  .eyes { transform-box: fill-box; transform-origin: center; animation: blink 5s infinite; }
-  @keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.1); } }
-  .avatar { transform-box: fill-box; transform-origin: 50% 100%; }
-  .tile.talking .avatar { animation: nod .9s ease-in-out infinite; }
-  @keyframes nod { 0%, 100% { transform: translateY(0) rotate(0); } 50% { transform: translateY(-3px) rotate(-1deg); } }
-  .tile.typing .hands { animation: type .18s steps(2) infinite; }
-  @keyframes type { from { transform: translateY(0); } to { transform: translateY(-4px); } }
+  /* LA ANIMACIÓN DE RECORTES: poco y suave. La cabeza y el cuerpo se balancean por separado desde el cuello; lo
+     que cambia con el estado son las cejas, adónde miran las pupilas y cuál de las cuatro bocas se ve. */
+  .avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth, .hands { transform-box: view-box; }
+  .body { transform-origin: 200px 300px; animation: sway 4.6s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
+  .head { transform-origin: 200px 236px; animation: bob 3.4s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
+  @keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
+  @keyframes bob { from { transform: rotate(-2deg) translateY(0); } to { transform: rotate(2deg) translateY(-2px); } }
+  .tile.talking .head { animation: nod .7s ease-in-out infinite alternate; }
+  @keyframes nod { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(2deg) translateY(-5px); } }
+  .eyes { transform-origin: 200px 150px; animation: blink 5s infinite; animation-delay: var(--d, 0s); }
+  @keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.08); } }
+  .pupils { transition: transform .25s steps(2); }
+  .tile.idle .pupils { animation: look 7s steps(1) infinite; animation-delay: var(--d, 0s); }
+  @keyframes look { 0%, 100% { transform: none; } 35% { transform: translate(-6px, 1px); } 65% { transform: translate(6px, 0); } }
+  .tile.typing .pupils { transform: translate(0, 7px); }
+  .tile.thinking .pupils { transform: translate(7px, -8px); }
+  .brow-l, .brow-r { transition: transform .25s steps(2); }
+  .brow-l { transform-origin: 160px 120px; } .brow-r { transform-origin: 240px 120px; }
+  .tile.talking .brow-l, .tile.talking .brow-r { transform: translateY(-6px); }
+  .tile.thinking .brow-r { transform: translateY(-10px) rotate(-12deg); }
+  .tile.thinking .brow-l { transform: translateY(2px) rotate(6deg); }
+  .tile.typing .brow-l { transform: translateY(3px) rotate(10deg); }
+  .tile.typing .brow-r { transform: translateY(3px) rotate(-10deg); }
+  .m-talk, .m-think, .m-flat { display: none; }
+  .tile.talking .m-smile, .tile.thinking .m-smile, .tile.typing .m-smile { display: none; }
+  .tile.talking .m-talk, .tile.thinking .m-think, .tile.typing .m-flat { display: inline; }
+  .mouth { transform-origin: 200px 200px; animation: talk .24s steps(2) infinite alternate; }
+  @keyframes talk { from { transform: scaleY(.45); } to { transform: scaleY(1.15); } }
+  .hands { transform: translateY(30px); transition: transform .2s; }
+  .tile.typing .hands { transform: translateY(0); animation: type .2s steps(2) infinite alternate; }
+  @keyframes type { from { transform: translateY(0); } to { transform: translateY(-5px); } }
   .glow { animation: glow 1.6s ease-in-out infinite alternate; }
   @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
   .paused * { animation-play-state: paused !important; }
@@ -177,16 +197,20 @@
 
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// kind: 'human' | 'agent'. owner: de quién es el agente. scene: el paisaje de papel de su recuadro.
-// Los agentes de Duncan van con nombre genérico hasta saber cómo se llaman.
+// kind: 'human' | 'agent'. owner: de quién es el agente. scene: el paisaje de papel de su recuadro. Todos los
+// personajes son originales. Ana, Leo y Sofi son invitados de ejemplo, para que se vea la variedad: no son del
+// chat real. Los agentes de Duncan van con nombre genérico hasta saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
-  { id: 'duncan', name: 'Duncan', kind: 'human', hair: '#5a3a22', skin: '#c68a5e', shirt: '#2b6670', beard: '#4a2f1c', style: 'short', scene: 'sunset' },
-  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', body: '#4f8b8a', light: '#f08c3d', scene: 'clouds' },
-  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', body: '#c5381f', light: '#f1e4c7', scene: 'hills' },
-  { id: 'miguel', name: 'Miguel', kind: 'human', hair: '#1f1712', skin: '#e0ac7e', shirt: '#e5592a', style: 'swoop', scene: 'sun' },
-  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', body: '#8db3a9', light: '#c5381f', scene: 'waves' },
-  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', body: '#f08c3d', light: '#8db3a9', scene: 'dusk' },
+  { id: 'duncan', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'spiky', hairColor: '#5a3a22', shirt: '#2b6670', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
+  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', robot: 'tv', shell: '#f1e4c7', body: '#4f8b8a', light: '#f08c3d', scene: 'clouds' },
+  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', robot: 'dome', shell: '#8db3a9', body: '#c5381f', light: '#f1e4c7', scene: 'hills' },
+  { id: 'miguel', name: 'Miguel', kind: 'human', skin: '#e0ac7e', hair: 'swoop', hairColor: '#1f1712', shirt: '#e5592a', accent: '#13323a', scene: 'sun' },
+  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', robot: 'can', shell: '#4f8b8a', body: '#1d4a54', light: '#f08c3d', scene: 'waves' },
+  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', robot: 'blob', shell: '#f08c3d', body: '#c5381f', light: '#f1e4c7', scene: 'dusk' },
+  { id: 'ana', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', extras: ['headphones'], gear: '#c5381f', face: 'round', scene: 'waves' },
+  { id: 'leo', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'beanie', hairColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', extras: ['freckles'], face: 'tall', scene: 'hills' },
+  { id: 'sofi', name: 'Sofi', guest: true, kind: 'human', skin: '#d99c74', hair: 'bun', hairColor: '#4a2f1c', shirt: '#8db3a9', accent: '#c5381f', extras: ['glasses'], face: 'round', scene: 'sunset' },
 ]
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -221,54 +245,107 @@ const SCENES = {
   dusk: () => `<rect width="400" height="300" fill="${P.redDeep}"/>${sun(70, 90, 60, [P.red, P.orange, P.amber])}${cloud(250, 40, 1.2, P.deep)}${cloud(280, 130, .8, P.cream)}${wave(235, 26, P.ink)}${wave(265, 18, P.deep, 30)}`,
 }
 
-// ── LAS PERSONAS Y LOS AGENTES, EN PAPEL ─────────────────────────────────────────────────────────
-// Cada pieza es una capa con sombra: hombros, cuello, cara, pelo, orejas. Los ojos parpadean (.eyes), la boca
-// se mueve al hablar (.mouth) y las manos teclean sobre el portátil (.hands).
+// ── LOS PERSONAJES, EN PAPEL ─────────────────────────────────────────────────────────────────────
+// Caricaturas originales del torso para arriba: cabeza grande, hombros chicos. Cada pieza es una capa con sombra.
+// La cara es la misma maquinaria para personas y agentes: ojos con pupila (.pupils), cejas (.brow-l / .brow-r) y
+// cuatro bocas (.m-smile, .m-talk, .m-think, .m-flat); el CSS elige cuál se ve y adónde miran según el estado
+// del recuadro. La cabeza (.head) y el cuerpo (.body) se balancean por separado, poquito, como un títere de
+// recortes: nada de mover la cámara.
 const shade = (hex, f) => {
   const n = parseInt(hex.slice(1), 16)
   const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)))
   return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
 }
+const cut = (inner) => `<g class="cut">${inner}</g>`
+const soft = (inner) => `<g class="cut-soft">${inner}</g>`
+
+// La cara: f trae los colores de ojos, pupila, cejas y boca, y dónde van (cx, eyeY, gap, eye = tamaño).
+function face(f) {
+  const { cx = 200, eyeY = 150, gap = 36, eye = 22, white, pupil, brow, mouth, mouthY = 196, tongue } = f
+  const L = cx - gap, R = cx + gap
+  return `
+    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="${white}"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="${white}"/>`)}
+      <g class="pupils"><circle cx="${L + 2}" cy="${eyeY + 3}" r="${eye * .45}" fill="${pupil}"/><circle cx="${R - 2}" cy="${eyeY + 3}" r="${eye * .45}" fill="${pupil}"/>
+        <circle cx="${L + 5}" cy="${eyeY - 1}" r="${eye * .14}" fill="#f6ecd6"/><circle cx="${R + 1}" cy="${eyeY - 1}" r="${eye * .14}" fill="#f6ecd6"/></g></g>
+    <g class="brow-l">${soft(`<path d="M${L - 20} ${eyeY - eye - 8} q20 -14 38 -2 l-3 7 q-16 -9 -32 2Z" fill="${brow}"/>`)}</g>
+    <g class="brow-r">${soft(`<path d="M${R + 20} ${eyeY - eye - 8} q-20 -14 -38 -2 l3 7 q16 -9 32 2Z" fill="${brow}"/>`)}</g>
+    <g class="m-smile">${soft(`<path d="M${cx - 24} ${mouthY - 4} q24 26 48 0 q-24 12 -48 0Z" fill="${mouth}"/>`)}</g>
+    <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 2}" rx="17" ry="14" fill="${mouth}"/><ellipse cx="${cx}" cy="${mouthY + 9}" rx="10" ry="5" fill="${tongue || '#e5592a'}"/>`)}</g></g>
+    <g class="m-think">${soft(`<path d="M${cx - 14} ${mouthY + 2} q8 -8 16 0 q8 8 16 -2 l2 5 q-10 10 -19 1 q-7 -6 -13 1Z" fill="${mouth}"/>`)}</g>
+    <g class="m-flat">${soft(`<rect x="${cx - 13}" y="${mouthY}" width="26" height="6" rx="3" fill="${mouth}"/>`)}</g>`
+}
+
+// El pelo: lo de atrás (va antes que la cabeza) y lo de adelante (va encima).
 const HAIR = {
-  short: (c) => `<path d="M150 124 q-6-58 50-62 q56 2 52 60 q-10-26-50-28 q-40 0-52 30Z" fill="${c}"/>`,
-  swoop: (c) => `<path d="M146 130 q-8-66 56-70 q60 4 50 66 q-6-16-20-22 q-40 8-70-6 q-10 14-16 32Z" fill="${c}"/>`,
+  spiky: { front: (c) => `<path d="M104 140 q-6-64 40-84 l-6 -22 l28 16 l10 -26 l20 22 l20 -28 l12 30 l30 -18 l-6 30 q42 22 44 80 q-30-40-96-44 q-66 4-96 44Z" fill="${c}"/>` },
+  swoop: { front: (c) => `<path d="M104 146 q-10-92 96-94 q96 2 96 86 q-14-30-40-40 q-60 26-130 2 q-14 20-22 46Z" fill="${c}"/>` },
+  bob: { back: (c) => `<path d="M90 160 q-8-112 110-112 q118 0 110 112 l0 70 q-20 10-40 0 l0-80 h-140 l0 80 q-20 10-40 0Z" fill="${c}"/>`,
+    front: (c) => `<path d="M106 128 q0-70 94-72 q94 2 94 72 q-40-10-60-28 q-20 20-68 22 q-40 0-60 6Z" fill="${c}"/>` },
+  curly: { back: (c) => [[120, 92, 34], [160, 66, 36], [208, 58, 38], [254, 72, 36], [290, 108, 32], [104, 136, 28], [300, 150, 28]].map(([x, y, r]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>`).join(''),
+    front: (c) => `<path d="M118 120 q20-40 82-42 q62 2 82 42 q-30-14-52-6 q-30-16-60 0 q-26-8-52 6Z" fill="${c}"/>` },
+  bun: { back: (c) => `<circle cx="200" cy="42" r="30" fill="${c}"/>`,
+    front: (c) => `<path d="M108 136 q-2-82 92-84 q94 2 92 84 q-30-46-92-48 q-62 2-92 48Z" fill="${c}"/>` },
+  beanie: { front: (c) => `<path d="M100 128 q4-86 100-88 q96 2 100 88Z" fill="${c}"/><rect x="94" y="114" width="212" height="28" rx="14" fill="${shade(c, .78)}"/><circle cx="200" cy="38" r="16" fill="${shade(c, 1.25)}"/>` },
 }
-function laptop(p) {
-  // el portátil, de frente: se ve la tapa, con el logo que brilla mientras se usa
-  return `<g class="cut"><path d="M118 304 L132 240 H268 L282 304Z" fill="${P.cream}"/>
-    <circle class="glow" cx="200" cy="270" r="9" fill="${p.kind === 'agent' ? p.light : P.amber}"/></g>`
+
+// Lo que se pone encima: lentes, audífonos, barba, pecas.
+const EXTRAS = {
+  glasses: () => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="7"><rect x="136" y="124" width="56" height="50" rx="18"/><rect x="208" y="124" width="56" height="50" rx="18"/><path d="M192 146 h16"/></g>`,
+  headphones: (c) => `<g class="cut"><path d="M92 156 q0-118 108-118 q108 0 108 118" fill="none" stroke="${c}" stroke-width="14" stroke-linecap="round"/><rect x="74" y="140" width="34" height="58" rx="14" fill="${c}"/><rect x="292" y="140" width="34" height="58" rx="14" fill="${c}"/></g>`,
+  beard: (c) => `<g class="cut-soft"><path d="M118 168 q6 82 82 84 q76-2 82-84 q-10 30-34 34 q-48 14-96 0 q-24-4-34-34Z" fill="${c}"/></g>`,
+  freckles: () => [[146, 186], [156, 194], [166, 186], [234, 186], [244, 194], [254, 186]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="3" fill="#962b19" opacity=".55"/>`).join(''),
 }
-function hands(skin) {
-  return `<g class="hands"><g class="cut-soft"><ellipse cx="140" cy="294" rx="22" ry="12" fill="${skin}"/><ellipse cx="260" cy="294" rx="22" ry="12" fill="${skin}"/></g></g>`
+
+function torso(shirt, accent) {
+  return `<g class="body">
+    ${cut(`<path d="M74 304 q8-78 126-80 q118 2 126 80Z" fill="${shirt}"/>`)}
+    ${soft(`<path d="M160 228 q40 30 80 0 q-6 22-40 26 q-34-4-40-26Z" fill="${accent}"/>`)}
+  </g>`
 }
+// las manos aparecen abajo, tecleando, sólo mientras teclea
+const handsAt = (c) => `<g class="hands">${soft(`<ellipse cx="146" cy="300" rx="26" ry="16" fill="${c}"/><ellipse cx="254" cy="300" rx="26" ry="16" fill="${c}"/>`)}</g>`
+
 function human(p) {
-  const s = p.skin, sh = shade(s, .85)
-  return `<g class="avatar">
-    <g class="cut"><path d="M80 304 q6-86 120-90 q114 4 120 90Z" fill="${p.shirt}"/></g>
-    <g class="cut-soft"><path d="M168 218 l32 34 l32-34 q-30-10-64 0Z" fill="${P.cream}"/></g>
-    <g class="cut"><rect x="182" y="186" width="36" height="40" rx="10" fill="${sh}"/></g>
-    <g class="cut"><circle cx="146" cy="146" r="12" fill="${sh}"/><circle cx="254" cy="146" r="12" fill="${sh}"/></g>
-    <g class="cut"><ellipse cx="200" cy="144" rx="52" ry="60" fill="${s}"/></g>
-    ${p.beard ? `<g class="cut-soft"><path d="M150 152 q4 54 50 56 q46-2 50-56 q-8 22-22 26 q-28 8-56 0 q-14-4-22-26Z" fill="${p.beard}"/></g>` : ''}
-    <g class="cut">${HAIR[p.style || 'short'](p.hair)}</g>
-    <g class="eyes"><ellipse cx="180" cy="144" rx="6" ry="8" fill="${P.ink}"/><ellipse cx="220" cy="144" rx="6" ry="8" fill="${P.ink}"/></g>
-    <ellipse cx="166" cy="164" rx="9" ry="5" fill="${P.orange}" opacity=".35"/><ellipse cx="234" cy="164" rx="9" ry="5" fill="${P.orange}" opacity=".35"/>
-    <ellipse class="mouth" cx="200" cy="${p.beard ? 180 : 176}" rx="12" ry="6" fill="${p.beard ? P.cream : P.redDeep}"/>
-  </g>${laptop(p)}${hands(s)}`
+  const s = p.skin, sh = shade(s, .86)
+  const hair = HAIR[p.hair]
+  const head = { round: [96, 88], wide: [104, 84], tall: [90, 96] }[p.face || 'round']
+  return `${torso(p.shirt, p.accent || '#f1e4c7')}
+  <g class="head">
+    ${cut(`<rect x="182" y="196" width="36" height="40" rx="12" fill="${sh}"/>`)}
+    ${hair.back ? cut(hair.back(p.hairColor)) : ''}
+    ${cut(`<circle cx="${200 - head[0] - 2}" cy="160" r="18" fill="${sh}"/><circle cx="${200 + head[0] + 2}" cy="160" r="18" fill="${sh}"/>`)}
+    ${cut(`<ellipse cx="200" cy="146" rx="${head[0]}" ry="${head[1]}" fill="${s}"/>`)}
+    <ellipse cx="140" cy="182" rx="15" ry="9" fill="#e5592a" opacity=".35"/><ellipse cx="260" cy="182" rx="15" ry="9" fill="#e5592a" opacity=".35"/>
+    ${p.extras?.includes('freckles') ? EXTRAS.freckles() : ''}
+    ${p.extras?.includes('beard') ? EXTRAS.beard(p.hairColor) : ''}
+    ${soft(`<path d="M196 160 q-10 16 2 20 q10 2 10-6" fill="${sh}"/>`)}
+    ${face({ white: '#fbf4e4', pupil: '#13323a', brow: shade(p.hairColor, .9), mouth: p.extras?.includes('beard') ? '#f1e4c7' : '#962b19', mouthY: 206, tongue: '#e5592a' })}
+    ${cut(hair.front(p.hairColor))}
+    ${p.extras?.includes('glasses') ? EXTRAS.glasses() : ''}
+    ${p.extras?.includes('headphones') ? EXTRAS.headphones(p.gear || '#13323a') : ''}
+  </g>${handsAt(s)}`
+}
+
+// Los agentes: cuatro formas de robot, con la misma cara en colores de pantalla.
+const BOTS = {
+  tv: (p) => `${cut(`<rect x="196" y="22" width="8" height="34" rx="4" fill="#13323a"/><circle cx="200" cy="22" r="12" fill="${p.light}" class="glow"/>`)}
+    ${cut(`<rect x="96" y="54" width="208" height="176" rx="44" fill="${p.shell}"/>`)}${soft(`<rect x="116" y="76" width="168" height="136" rx="34" fill="#13323a"/>`)}`,
+  dome: (p) => `${cut(`<path d="M92 196 q0-152 108-152 q108 0 108 152Z" fill="${p.shell}"/>`)}${soft(`<path d="M112 192 q0-128 88-128 q88 0 88 128Z" fill="#13323a"/>`)}
+    ${cut(`<rect x="84" y="186" width="232" height="34" rx="17" fill="${shade(p.shell, .8)}"/>`)}`,
+  can: (p) => `${cut(`<path d="M104 60 l-24 -30 M296 60 l24 -30" stroke="#13323a" stroke-width="8" stroke-linecap="round"/><circle cx="78" cy="28" r="11" fill="${p.light}" class="glow"/><circle cx="322" cy="28" r="11" fill="${p.light}" class="glow"/>`)}
+    ${cut(`<rect x="100" y="50" width="200" height="182" rx="30" fill="${p.shell}"/><rect x="100" y="50" width="200" height="26" rx="13" fill="${shade(p.shell, .8)}"/>`)}${soft(`<rect x="120" y="94" width="160" height="122" rx="26" fill="#13323a"/>`)}`,
+  blob: (p) => `${cut(`<path d="M96 230 q-10-190 104-190 q114 0 104 190 q-18-14-34 0 q-18-14-36 0 q-18-14-34 0 q-18-14-36 0 q-18-14-34 0Z" fill="${p.shell}"/>`)}`,
 }
 function agent(p) {
-  const b = p.body
-  return `<g class="avatar">
-    <g class="cut"><path d="M86 304 q8-82 114-86 q106 4 114 86Z" fill="${b}"/></g>
-    <g class="cut-soft"><circle cx="200" cy="262" r="16" fill="${P.cream}"/><circle class="glow" cx="200" cy="262" r="8" fill="${p.light}"/></g>
-    <g class="cut"><rect x="184" y="194" width="32" height="30" rx="6" fill="${shade(b, .7)}"/></g>
-    <g class="cut"><path d="M200 86 V60" stroke="${P.ink}" stroke-width="6" stroke-linecap="round"/><circle class="glow" cx="200" cy="54" r="11" fill="${p.light}"/></g>
-    <g class="cut"><rect x="132" y="132" width="20" height="36" rx="8" fill="${shade(b, .75)}"/><rect x="248" y="132" width="20" height="36" rx="8" fill="${shade(b, .75)}"/></g>
-    <g class="cut"><rect x="142" y="84" width="116" height="118" rx="34" fill="${P.cream}"/></g>
-    <g class="cut-soft"><rect x="156" y="110" width="88" height="62" rx="22" fill="${P.ink}"/></g>
-    <g class="eyes"><circle cx="182" cy="138" r="9" fill="${p.light}"/><circle cx="218" cy="138" r="9" fill="${p.light}"/></g>
-    <rect class="mouth" x="186" y="156" width="28" height="7" rx="3.5" fill="${p.light}"/>
-  </g>${laptop(p)}${hands(P.cream)}`
+  const onScreen = p.robot !== 'blob'
+  return `${torso(p.body, p.light)}
+  <g class="head">
+    ${cut(`<rect x="180" y="200" width="40" height="40" rx="10" fill="${shade(p.body, .7)}"/>`)}
+    ${BOTS[p.robot](p)}
+    ${face(onScreen
+    ? { white: p.light, pupil: '#13323a', brow: p.light, mouth: p.light, eyeY: 146, eye: 20, mouthY: 184, tongue: '#13323a' }
+    : { white: '#fbf4e4', pupil: '#13323a', brow: shade(p.shell, .6), mouth: '#13323a', eyeY: 140, eye: 24, mouthY: 186, tongue: '#e5592a' })}
+  </g>${handsAt(p.shell)}`
 }
 
 // ── LA GRILLA ────────────────────────────────────────────────────────────────────────────────────
@@ -279,14 +356,14 @@ const MIC = '<svg viewBox="0 0 24 24" fill="#f1e4c7"><rect x="9" y="3" width="6"
 for (const [i, p] of people.entries()) {
   const el = document.createElement('section')
   el.className = 'tile'
-  el.setAttribute('aria-label', p.owner ? `${p.name}, agente de ${p.owner}` : p.name)
+  el.setAttribute('aria-label', p.owner ? `${p.name}, agente de ${p.owner}` : p.guest ? `${p.name}, invitado de ejemplo` : p.name)
   el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${SCENES[p.scene]()}
-      <g transform="translate(36 55) scale(.82)">${p.kind === 'human' ? human(p) : agent(p)}</g></svg>
+      <g transform="translate(46 70) scale(.77)"><g class="avatar">${p.kind === 'human' ? human(p) : agent(p)}</g></g></svg>
     <div class="think" aria-hidden="true">···</div>
     <span class="state"></span>
-    <div class="nameplate"><span class="mic">${MIC}</span>${p.name}${p.owner ? ` <small>· ${p.owner}</small>` : ''}<span class="bars"><i></i><i></i><i></i></span></div>`
+    <div class="nameplate"><span class="mic">${MIC}</span>${p.name}${p.owner ? ` <small>· ${p.owner}</small>` : p.guest ? ' <small>· invitado</small>' : ''}<span class="bars"><i></i><i></i><i></i></span></div>`
   // que no parpadeen todos a la vez
-  el.querySelector('.eyes').style.animationDelay = `${-i * 1.7}s`
+  el.style.setProperty('--d', `${-i * 1.7}s`)
   p.el = el
   grid.appendChild(el)
 }
@@ -339,7 +416,7 @@ function say() {
 const listEl = document.getElementById('people')
 function drawPeople() {
   listEl.innerHTML = people.map((p) => `<li class="${p.state}"><span class="dot" style="background:${p.kind === 'human' ? p.shirt : p.body}"></span>
-    <span>${p.name}${p.owner ? ` <small>agente de ${p.owner}</small>` : ''}</span><span class="st">${STATE_LABEL[p.state]}</span></li>`).join('')
+    <span>${p.name}${p.owner ? ` <small>agente de ${p.owner}</small>` : p.guest ? ' <small>invitado de ejemplo</small>' : ''}</span><span class="st">${STATE_LABEL[p.state]}</span></li>`).join('')
 }
 
 // El reloj de la llamada: pasos de 100 ms, pausable. Con la pestaña oculta el navegador lo frena, y está bien.
