@@ -377,8 +377,8 @@ office: ## @dia abre Office (:5220), la llamada en papel cortado donde se ven la
 office-character: ## @dia genera un personaje de Office por consola: un JSON con su configuración y sus animaciones, y un SVG animado por gesto (escucha, teclea, piensa, habla). ESPECIE=gato NOMBRE=Miso [DUENO=Miguel] [AZAR=1 SEMILLA=7] [SET='hat=lana hatColor=#c5381f'] [SALIDA=dir] [JSON=1]; OPCIONES=1 lista lo que se puede elegir. Queda en office/generados/<nombre>/
 	@node office/cli/personaje.mjs $(if $(OPCIONES),--opciones) $(if $(ESPECIE),--especie $(ESPECIE)) $(if $(NOMBRE),--nombre '$(NOMBRE)') $(if $(DUENO),--dueno '$(DUENO)') $(if $(AZAR),--azar) $(if $(SEMILLA),--semilla $(SEMILLA)) $(foreach kv,$(SET),--set '$(kv)') $(if $(SALIDA),--salida $(SALIDA)) $(if $(JSON),--json)
 
-office-package: ## @dia arma el paquete para compartir los personajes de Office: office/paquete/dist/ con office-personajes.js (un solo archivo: dibujo, estilo, logo y el componente <office-personaje>), ejemplo.html (armar el tuyo y copiar su JSON) y README.md. DESTINO=<carpeta> además lo publica ahí (el compartido: tools/home/public/personajes)
-	@node office/paquete/build.mjs $(if $(DESTINO),--destino $(DESTINO))
+office-package: ## @dia arma el paquete para compartir los personajes de Office: office/paquete/dist/ con office-personajes.js (un solo archivo: dibujo, estilo, logo y el componente <office-personaje>), ejemplo.html (armar el tuyo y copiar su JSON) y README.md. DESTINO=<carpeta> además lo publica ahí; JS=<archivo> deja sólo el JS (el chat: JS=chat/src/characters/office-characters.js)
+	@node office/paquete/build.mjs $(if $(DESTINO),--destino $(DESTINO)) $(if $(JS),--js $(JS))
 
 sentinel-install: ## @dia deja la API de Sentinel corriendo DE FONDO (LaunchAgent: arranca con la sesión, mide aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
 	@mkdir -p sentinel/bin && go build -o sentinel/bin/sentinel ./sentinel/server && sentinel/bin/sentinel -install

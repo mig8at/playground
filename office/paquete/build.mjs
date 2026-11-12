@@ -4,6 +4,7 @@
 // unas pocas funciones. Copia también la página de ejemplo y el README.
 //
 //   node office/paquete/build.mjs                     (o make office-package)
+//   node office/paquete/build.mjs --js <archivo>      además deja sólo el JS ahí (el chat lo usa así)
 //   node office/paquete/build.mjs --destino <carpeta>  además lo publica ahí con el editor como index.html (así va
 //                                                     al playground compartido: tools/home/public/personajes)
 //
@@ -124,4 +125,14 @@ if (i > 0) {
   copyFileSync(join(dist, 'ejemplo.html'), join(destino, 'index.html'))
   copyFileSync(join(dist, 'README.md'), join(destino, 'README.md'))
   console.log(`✔ publicado en ${destino}: office-personajes.js · index.html · README.md`)
+}
+
+// Sólo el JS, en un archivo dado (lo usa el chat: chat/src/characters/office-characters.js).
+const j = process.argv.indexOf('--js')
+if (j > 0) {
+  const file = process.argv[j + 1]
+  if (!file) { console.error('✗ --js necesita un archivo'); process.exit(2) }
+  mkdirSync(dirname(file), { recursive: true })
+  copyFileSync(join(dist, 'office-personajes.js'), file)
+  console.log(`✔ ${file}`)
 }

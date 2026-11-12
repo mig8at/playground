@@ -1,0 +1,17 @@
+{
+  "name": "Miguel",
+  "handle": "miguel",
+  "character": {
+    "face": "largo",
+    "hair": "recogido",
+    "hairColor": "#3b2a20",
+    "skin": "#d9a47c",
+    "nose": "long",
+    "eye": 22,
+    "teeth": "grin",
+    "beardStyle": "chivera",
+    "shirt": "#e5592a",
+    "accent": "#c4a8ab",
+    "scene": "sun"
+  }
+}

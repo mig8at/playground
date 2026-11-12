@@ -1,0 +1,12 @@
+{
+  "name": "Wario",
+  "owner": "miguel",
+  "agent": "wario",
+  "character": {
+    "species": "zorro",
+    "eye": 24,
+    "shirt": "#24406b",
+    "accent": "#f2c14e",
+    "scene": "hills"
+  }
+}

@@ -11,7 +11,7 @@ const themeBoot = {
 
 // :5184 la interfaz y :5185 la API (Go). El proxy deja la app en un solo origen.
 export default defineConfig({
-  plugins: [themeBoot, vue(), tailwindcss()],
+  plugins: [themeBoot, vue({ template: { compilerOptions: { isCustomElement: (tag) => tag.startsWith('office-') } } }), tailwindcss()],
   server: {
     port: 5184,
     strictPort: true,

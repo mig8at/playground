@@ -28,6 +28,8 @@ import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpea
 import RegionMenu from './RegionMenu.vue'
 import EmojiButton from './EmojiButton.vue'
 import DictationButton from './DictationButton.vue'
+import CallView from './CallView.vue'
+import { cast as callCastOf } from './characters/index.js'
 import { conversationMode, loadNotify, notify, reportView, setConversationMode } from './notifyStore.js'
 import ServicePanel from './ServicePanel.vue'
 import ServiceSide from './ServiceSide.vue'
@@ -449,6 +451,20 @@ const activeOnline = computed(() => {
   if (p.tool) return false
   return chat.onlineKeys.has((p.agent ? p.owner?.email : p.email || '').toLowerCase())
 })
+/* LA VIDEOLLAMADA: los de esta conversación como personajes (CallView, con los de ./personajes). Se abre con el botón de
+   la cámara del encabezado y queda abierta sólo en la conversación donde se abrió. Por ahora es sólo visual. */
+const callCast = computed(() => {
+  const p = chat.active?.person
+  if (!p || p.tool) return []
+  const members = p.group ? (chat.groups.find((g) => `#${g.id}` === p.email)?.members || p.members || []) : []
+  const keys = [chat.meKey, ...(p.group ? members : p.agent ? [p.owner?.email] : [p.email])].filter(Boolean)
+  return callCastOf(keys)
+})
+// la videollamada tiene sentido si además de vos hay alguien con personaje en la conversación
+const callAvailable = computed(() => callCast.value.some((c) => c.handle && c.handle.toLowerCase() !== (chat.meKey || '').split('@')[0]))
+const callKey = ref('')
+const callOpen = computed(() => callAvailable.value && !!callKey.value && callKey.value === chat.activeKey)
+const toggleCall = () => { callKey.value = callOpen.value ? '' : chat.activeKey }
 const activeSubtitle = computed(() => {
   const p = chat.active?.person
   if (!p) return ''
@@ -1286,6 +1302,10 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <span class="count head-sub">{{ activeSubtitle }}</span>
           </span>
           <div class="region-actions">
+            <button v-if="callAvailable" type="button" class="region-action" :aria-pressed="callOpen"
+                    :title="callOpen ? 'Volver al chat' : 'Videollamada: ver a los de esta conversación'" :aria-label="callOpen ? 'Volver al chat' : 'Videollamada'" @click="toggleCall">
+              <svg class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+            </button>
             <RegionMenu v-if="canNotifyConversation && notify.settings" icon="bell" :items="notifyMenuItems" :active="!!activeNotifyMode"
                         :class="['group-notify', { quiet: notifyEffective !== 'all' || !notify.settings.enabled }]"
                         :title="`Avisos de esta conversación: ${!notify.settings.enabled ? 'apagados' : NOTIFY_LABEL[notifyEffective].toLowerCase()}`"
@@ -1381,7 +1401,8 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       </form>
 
       <template v-else>
-        <div ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
+        <CallView v-if="callOpen" :cast="callCast" />
+        <div v-show="!callOpen" ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
           <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">
             <div class="tasks-head">

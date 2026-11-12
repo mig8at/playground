@@ -57,3 +57,12 @@ carpeta `dist/`): se regenera con `make office-package` justo antes de compartir
 `personajes.js` o `personajes.css`. `personajes.js` no toca la página
 cuando está empacado (la constante `OFFICE_PAQUETE`).
 
+## En el chat: la videollamada
+
+El chat (`chat/`) usa estos personajes: en una conversación donde alguien más tiene personaje, el botón de la cámara del
+encabezado cambia el hilo por la videollamada (`chat/src/CallView.vue`), con las personas de la conversación y sus
+agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `chat/src/characters/`, un JSON por personaje
+(`{ name, handle | owner + agent, character }`): para sumar uno se deja su JSON ahí. El dibujo es una copia del paquete,
+`chat/src/characters/office-characters.js`, que se regenera con `make office-package JS=chat/src/characters/office-characters.js`.
+Para verlo en Cockpit hay que recompilar el chat (`make chat-install`, o `make cockpit`).
+

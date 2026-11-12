@@ -1,0 +1,17 @@
+{
+  "name": "Duncan",
+  "handle": "duncan.estrada",
+  "character": {
+    "face": "soft",
+    "hair": "short",
+    "hairColor": "#1f1712",
+    "skin": "#d9a27e",
+    "nose": "long",
+    "eye": 21,
+    "teeth": "",
+    "beardStyle": "corta",
+    "shirt": "#2b6670",
+    "accent": "#1d1f24",
+    "scene": "sunset"
+  }
+}

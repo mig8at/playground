@@ -1,0 +1,12 @@
+{
+  "name": "Luigi",
+  "owner": "miguel",
+  "agent": "luigi",
+  "character": {
+    "species": "panda",
+    "eye": 25,
+    "shirt": "#4f8b8a",
+    "accent": "#f1e4c7",
+    "scene": "garden"
+  }
+}

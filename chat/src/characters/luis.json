@@ -1,0 +1,16 @@
+{
+  "name": "Luis",
+  "owner": "duncan.estrada",
+  "agent": "luis",
+  "character": {
+    "species": "buho",
+    "eye": 27,
+    "extras": [
+      "glasses"
+    ],
+    "glassesRound": true,
+    "shirt": "#5e3b6b",
+    "accent": "#f08c3d",
+    "scene": "clouds"
+  }
+}
