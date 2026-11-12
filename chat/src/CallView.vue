@@ -59,7 +59,9 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
 .call-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px;
   width: calc(var(--cols) * var(--tile) + (var(--cols) - 1) * 10px); max-width: 100%; }
-.call-tile { position: relative; margin: 0; width: var(--tile); aspect-ratio: 4 / 3; border-radius: 14px; overflow: hidden;
+/* el alto va explícito, no con aspect-ratio: en WebKit (la ventana de Cockpit) el recuadro quedaba de 0 de alto porque
+   su único hijo pide height: 100% */
+.call-tile { position: relative; margin: 0; width: var(--tile); height: calc(var(--tile) * 3 / 4); border-radius: 14px; overflow: hidden;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
 .call-tile office-personaje { display: block; width: 100%; height: 100%; border-radius: 14px; }
 .call-name { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; gap: 6px; align-items: baseline;
