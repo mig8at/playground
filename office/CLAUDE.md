@@ -54,11 +54,6 @@ DOM, no toca el CSS de la página) y las funciones `dibujar`, `svg`, `alAzar`, `
 están `svg` y `alAzar` (no hay `HTMLElement`). Junto a él quedan `ejemplo.html` (armar el tuyo y copiar su JSON),
 `README.md` y un `package.json` que lo declara módulo ES. `dist/` no se versiona (el `.gitignore` del repo ignora toda
 carpeta `dist/`): se regenera con `make office-package` justo antes de compartirlo, y así nunca queda atrás de
-`personajes.js` o `personajes.css`.
-
-**Publicado en el playground compartido** como página estática del home, `/personajes/` (PR
-Creditop-SAS/playground#446): `make office-package DESTINO=~/Desktop/CREDITOP/github/playground/tools/home/public/personajes`
-escribe ahí el JS, el editor como `index.html` y el README. Sale con el despliegue del home: sin herramienta ni workflow
-nuevos. Para actualizarlo, se regenera ahí en una rama y va en un PR. `personajes.js` no toca la página
+`personajes.js` o `personajes.css`. `personajes.js` no toca la página
 cuando está empacado (la constante `OFFICE_PAQUETE`).
 
