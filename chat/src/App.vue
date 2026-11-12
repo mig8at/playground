@@ -1304,7 +1304,9 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
           <div class="region-actions">
             <button v-if="callAvailable" type="button" class="region-action" :aria-pressed="callOpen"
                     :title="callOpen ? 'Volver al chat' : 'Videollamada: ver a los de esta conversación'" :aria-label="callOpen ? 'Volver al chat' : 'Videollamada'" @click="toggleCall">
-              <svg class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
+              <!-- el ícono dice adónde lleva: la cámara abre la videollamada; el globo de chat vuelve a los mensajes -->
+              <svg v-if="callOpen" class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"/></svg>
+              <svg v-else class="call-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 11"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg>
             </button>
             <RegionMenu v-if="canNotifyConversation && notify.settings" icon="bell" :items="notifyMenuItems" :active="!!activeNotifyMode"
                         :class="['group-notify', { quiet: notifyEffective !== 'all' || !notify.settings.enabled }]"
