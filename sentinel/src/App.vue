@@ -44,27 +44,38 @@ const merchants = computed(() => filtered(data.value?.merchants))
 const selected = computed(() => {
   const d = data.value
   if (!d) return null
+  if (route.value.kind === 'service') return d.services?.find((s) => s.name === route.value.name) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
 })
-const attention = computed(() => [...(data.value?.lenders || []), ...(data.value?.merchants || [])].filter((s) => s.state === 'alert' || s.state === 'warn'))
+const attention = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+  .filter((s) => s.state === 'alert' || s.state === 'warn'))
 const countOf = (list, state) => (list || []).filter((s) => s.state === state).length
 
 function readRoute() {
   const { parts } = readHashRoute()
-  route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
+  if (parts[0] === 'service' && parts[1]) route.value = { kind: 'service', id: 0, name: decodeURIComponent(parts[1]) }
+  else route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 function pick(s) {
   if (!s || s.kind === 'all') setRoute([])
+  else if (s.kind === 'service') setRoute(['service', s.name])
   else setRoute([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && route.value.id === s.id
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'service' ? route.value.name === s.name : route.value.id === s.id)
+
+// El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
+const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
+const ago = (iso) => {
+  const h = Math.round((Date.now() - new Date(iso)) / 3600000)
+  return h < 1 ? 'hace menos de una hora' : h < 48 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`
+}
 
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
-const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción' }
+const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs' }
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const dayClock = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const pct = (x) => `${Math.round((x || 0) * 100)} %`
@@ -167,6 +178,14 @@ onBeforeUnmount(() => {
           <span class="subject-name">Toda la originación</span>
           <small v-if="data?.all" class="subject-nums" title="en la última hora · lo normal a esta hora">{{ data.all.now.total }} · {{ fmt(data.all.median) }}</small>
         </button>
+        <div class="region-head group"><span>Errores en los logs</span><span class="count">{{ data?.services?.length || 0 }}</span></div>
+        <p v-if="data?.logsNote" class="none">{{ data.logsNote }}</p>
+        <button v-for="s in data?.services || []" :key="`service-${s.name}`" type="button" class="row subject" :class="{ on: isOn(s) }"
+                :title="s.why" @click="pick(s)">
+          <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
+          <span class="subject-name">{{ s.name }}</span>
+          <small class="subject-nums" title="errores en la última hora · lo normal a esta hora">{{ s.now.total }} · {{ fmt(s.median) }}</small>
+        </button>
         <template v-for="group in [{ id: 'lender', title: 'Entidades', list: lenders }, { id: 'merchant', title: 'Comercios', list: merchants }]" :key="group.id">
           <div class="region-head group">
             <span>{{ group.title }}</span>
@@ -204,10 +223,16 @@ onBeforeUnmount(() => {
 
           <div class="cards">
             <div class="card-num"><span class="card-label">Última hora</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">solicitudes que entraron</span></div>
+              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">entre {{ selected.low }} y {{ selected.high }} a esta hora, los 7 días anteriores</span></div>
-            <div class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
+            <div v-if="selected.kind === 'service'" class="card-num"><span class="card-label">Último despliegue a producción</span>
+              <template v-if="lastDeployOf(selected.name)">
+                <span class="card-value">{{ lastDeployOf(selected.name).version }}</span>
+                <span class="card-what">{{ ago(lastDeployOf(selected.name).at) }} · {{ dayClock(lastDeployOf(selected.name).at) }}</span>
+              </template>
+              <span v-else class="card-what">ninguno en los últimos dos días</span></div>
+            <div v-else class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
               <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo normal {{ pct(selected.deniedRateNormal) }}</span></div>
           </div>
 
@@ -217,7 +242,7 @@ onBeforeUnmount(() => {
               <span class="legend"><i class="sw today" aria-hidden="true"></i>hoy <i class="sw normal" aria-hidden="true"></i>lo normal (mediana)
                 <i class="sw band" aria-hidden="true"></i>rango de los 7 días <i class="sw deploy" aria-hidden="true"></i>despliegue a producción</span>
             </div>
-            <svg v-if="chart" class="chart" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="`Solicitudes por hora de ${selected.name}, hoy contra lo normal`">
+            <svg v-if="chart" class="chart" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="`${selected.kind === 'service' ? 'Errores' : 'Solicitudes'} por hora de ${selected.name}, hoy contra lo normal`">
               <g class="grid">
                 <line v-for="t in chart.ticks" :key="t.v" :x1="PAD.l" :x2="W - PAD.r" :y1="t.y" :y2="t.y" />
                 <text v-for="t in chart.ticks" :key="`l${t.v}`" :x="PAD.l - 6" :y="t.y + 4" text-anchor="end">{{ t.v }}</text>

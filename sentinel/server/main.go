@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -26,6 +27,7 @@ import (
 	"sync"
 	"time"
 
+	connlogs "creditop/playground/connectors/logs"
 	connsql "creditop/playground/connectors/sql"
 )
 
@@ -87,15 +89,19 @@ type Deploy struct {
 
 // Overview es una pasada entera.
 type Overview struct {
-	CheckedAt   string    `json:"checkedAt"`
-	WindowFrom  string    `json:"windowFrom"`
-	WindowTo    string    `json:"windowTo"`
-	Source      string    `json:"source"`
-	All         Subject   `json:"all"`
-	Lenders     []Subject `json:"lenders"`
-	Merchants   []Subject `json:"merchants"`
-	FailedJobs  Window    `json:"failedJobs"` // Total: en la última hora; Approved: lo normal (mediana) — reusa la forma
-	FailedNorm  float64   `json:"failedJobsNormal"`
+	CheckedAt  string    `json:"checkedAt"`
+	WindowFrom string    `json:"windowFrom"`
+	WindowTo   string    `json:"windowTo"`
+	Source     string    `json:"source"`
+	All        Subject   `json:"all"`
+	Lenders    []Subject `json:"lenders"`
+	Merchants  []Subject `json:"merchants"`
+	FailedJobs Window    `json:"failedJobs"` // Total: en la última hora; Approved: lo normal (mediana) — reusa la forma
+	FailedNorm float64   `json:"failedJobsNormal"`
+	// Services: los errores de los logs de producción (Loki) por servicio, contra lo normal. LogsNote dice por qué
+	// faltan, si faltan: Loki es una señal más, y sin ella la pasada sigue.
+	Services    []Subject `json:"services"`
+	LogsNote    string    `json:"logsNote,omitempty"`
 	Deploys     []Deploy  `json:"deploys"`
 	DeploysNote string    `json:"deploysNote,omitempty"`
 	Seconds     float64   `json:"seconds"`
@@ -258,6 +264,93 @@ func (r reader) failedJobs(now time.Time) (int, float64, error) {
 	return num(rows[0]["d0"]), median(past), nil
 }
 
+// ── los errores de los logs (Loki de producción) ────────────────────────────────────────────────────────────
+
+// Las líneas de nivel error de producción, por servicio. El filtro de ambiente va explícito aunque hoy esa instancia
+// sólo tenga `production` (medido el 2026-11-11: legacy-backend y legacy-application).
+const errorsLogQL = `sum by (service_name) (count_over_time({environment="production", level="error"} [1h]))`
+
+// logErrors: por servicio, los errores de la última hora en cada uno de los 8 días (hoy y la misma hora de los 7
+// anteriores) y, por hora del día, la curva de los 8 días.
+func logErrors(now time.Time) (map[string]map[string]Window, map[string]map[string][24]int, error) {
+	cfg, _, err := connlogs.LoadConfig("prod")
+	if err != nil {
+		return nil, nil, err
+	}
+	cl := connlogs.New(cfg, 60*time.Second)
+	windows := map[string]map[string]Window{}
+	for d := 0; d <= 7; d++ {
+		at := now.AddDate(0, 0, -d)
+		res, err := cl.Query(errorsLogQL, at.Add(-time.Hour), at, 100, "backward")
+		if err != nil {
+			return nil, nil, err
+		}
+		for _, sr := range res.Series {
+			name := sr.Labels["service_name"]
+			if windows[name] == nil {
+				windows[name] = map[string]Window{}
+			}
+			windows[name][at.Format("2006-01-02")] = Window{Total: int(sr.Value)}
+		}
+	}
+	// La curva: un punto por hora (cada uno cuenta la hora que termina ahí), desde las 01:00 de hace 7 días.
+	start := time.Date(now.Year(), now.Month(), now.Day(), 1, 0, 0, 0, bogota).AddDate(0, 0, -7)
+	status, body, err := cl.API("query_range", url.Values{
+		"query": {errorsLogQL}, "start": {fmt.Sprint(start.UnixNano())}, "end": {fmt.Sprint(now.UnixNano())}, "step": {"3600"},
+	})
+	if err != nil {
+		return nil, nil, err
+	}
+	if status != http.StatusOK {
+		return nil, nil, fmt.Errorf("Loki contestó %d: %s", status, connlogs.Explain(status, body))
+	}
+	var out struct {
+		Data struct {
+			Result []struct {
+				Metric map[string]string `json:"metric"`
+				Values [][2]any          `json:"values"`
+			} `json:"result"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &out); err != nil {
+		return nil, nil, fmt.Errorf("la curva de Loki no se pudo leer: %w", err)
+	}
+	hourly := map[string]map[string][24]int{}
+	for _, series := range out.Data.Result {
+		name := series.Metric["service_name"]
+		if hourly[name] == nil {
+			hourly[name] = map[string][24]int{}
+		}
+		for _, v := range series.Values {
+			ts, _ := v[0].(float64)
+			n, _ := strconv.ParseFloat(fmt.Sprint(v[1]), 64)
+			// El punto de las HH:00 cuenta la hora anterior: va a esa hora (y el de las 00:00, a las 23 del día de antes).
+			t := time.Unix(int64(ts), 0).In(bogota).Add(-time.Minute)
+			day := t.Format("2006-01-02")
+			arr := hourly[name][day]
+			arr[t.Hour()] = int(n)
+			hourly[name][day] = arr
+		}
+	}
+	// La hora en curso, que el rango no trae entera: lo que va desde las HH:00 hasta ahora.
+	if mins := now.Minute(); mins > 0 {
+		partial := strings.Replace(errorsLogQL, "[1h]", fmt.Sprintf("[%dm]", mins), 1)
+		if res, err := cl.Query(partial, now.Add(-time.Duration(mins)*time.Minute), now, 100, "backward"); err == nil {
+			day := now.Format("2006-01-02")
+			for _, sr := range res.Series {
+				name := sr.Labels["service_name"]
+				if hourly[name] == nil {
+					hourly[name] = map[string][24]int{}
+				}
+				arr := hourly[name][day]
+				arr[now.Hour()] = int(sr.Value)
+				hourly[name][day] = arr
+			}
+		}
+	}
+	return windows, hourly, nil
+}
+
 // ── lo normal y el veredicto ───────────────────────────────────────────────────────────────────────────────────
 
 func median(xs []int) float64 {
@@ -305,6 +398,27 @@ func judge(s *Subject) {
 	}
 }
 
+/*
+judgeErrors es el veredicto de los errores de un servicio: acá lo malo es que SUBAN.
+
+  - quiet: lo normal es menos de 5 por hora; no hay con qué comparar.
+  - alert: el triple de lo normal o más, y 20 o más por encima del máximo de los 7 días anteriores.
+  - warn:  por encima del máximo de los 7 días, y al menos una vez y media lo normal.
+*/
+func judgeErrors(s *Subject) {
+	n, m := float64(s.Now.Total), s.Median
+	switch {
+	case m < 5:
+		s.State, s.Why = "quiet", fmt.Sprintf("%d errores; pocos de costumbre para comparar (normal %s por hora)", s.Now.Total, fmtNum(m))
+	case n >= 3*m && s.Now.Total >= s.High+20:
+		s.State, s.Why = "alert", fmt.Sprintf("%d errores en la última hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
+	case s.Now.Total > s.High && n >= 1.5*m:
+		s.State, s.Why = "warn", fmt.Sprintf("%d errores, más que cualquier día anterior a esta hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
+	default:
+		s.State, s.Why = "ok", fmt.Sprintf("%d errores en la última hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
+	}
+}
+
 func fmtNum(x float64) string {
 	if x == float64(int(x)) {
 		return strconv.Itoa(int(x))
@@ -348,7 +462,11 @@ func build(kind string, id int, name string, now time.Time, windows map[string]W
 		s.NormLo = append(s.NormLo, lo)
 		s.NormHi = append(s.NormHi, hi)
 	}
-	judge(&s)
+	if kind == "service" {
+		judgeErrors(&s)
+	} else {
+		judge(&s)
+	}
 	return s
 }
 
@@ -474,6 +592,14 @@ func check(root string) (*Overview, error) {
 		} else {
 			o.Merchants = list
 		}
+	}
+	if windows, hourly, err := logErrors(now); err != nil {
+		o.LogsNote = "sin los errores de Loki: " + err.Error()
+	} else {
+		for name, byDay := range hourly {
+			o.Services = append(o.Services, build("service", 0, name, now, windows[name], byDay))
+		}
+		sort.Slice(o.Services, func(i, j int) bool { return o.Services[i].Name < o.Services[j].Name })
 	}
 	if o.FailedJobs.Total, o.FailedNorm, err = r.failedJobs(now); err != nil {
 		return nil, err
