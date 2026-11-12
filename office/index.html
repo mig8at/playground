@@ -16,21 +16,18 @@
     /* la paleta del papel */
     --ink: #13323a; --teal-deep: #1d4a54; --teal: #2b6670; --teal-soft: #4f8b8a; --sage: #8db3a9;
     --cream: #f1e4c7; --cream-dim: #d9c9a6; --red: #c5381f; --red-deep: #962b19; --orange: #e5592a; --amber: #f08c3d;
-    --text: #f6ecd6; --dim: #b9cdc6;
+    --text: #f6ecd6; --dim: #9aa3a6;
     color-scheme: dark;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; height: 100%; }
-  body { background: var(--teal-deep); color: var(--text); overflow: hidden;
+  body { background: #0b0c0e; color: var(--text); overflow: hidden;
     font: 14px/1.4 "Nunito", ui-rounded, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
 
   /* La textura del papel, encima de todo: ruido suave que se multiplica con los colores. */
   body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .22; mix-blend-mode: multiply;
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
 
-  /* El fondo de la página: olas de papel abajo y nubes arriba. */
-  .backdrop { position: fixed; inset: 0; z-index: 0; }
-  .backdrop svg { width: 100%; height: 100%; display: block; }
 
   .app { position: relative; z-index: 1; height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 320px;
     grid-template-rows: 56px minmax(0, 1fr) 84px; gap: 0 16px; padding: 0 16px; }
@@ -154,18 +151,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="backdrop" aria-hidden="true">
-  <svg viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice">
-    <rect width="1600" height="1000" fill="#2b6670"/>
-    <g class="cut"><circle cx="1290" cy="230" r="190" fill="#962b19"/><circle cx="1290" cy="230" r="150" fill="#c5381f"/><circle cx="1290" cy="230" r="110" fill="#e5592a"/><circle cx="1290" cy="230" r="70" fill="#f08c3d"/></g>
-    <g class="cut"><path d="M-40 600 q60-90 150-60 q40-80 140-40 q80-40 120 40 q90 0 90 80 H-40Z" fill="#f1e4c7"/></g>
-    <g class="cut"><path d="M980 420 q40-70 120-50 q50-70 130-20 q80-20 100 60 q70 10 60 70 H980Z" fill="#1d4a54"/></g>
-    <g class="cut"><path d="M1180 470 q50-60 120-30 q50-50 110 0 q70 0 70 60 H1180Z" fill="#f1e4c7"/></g>
-    <g class="cut"><path d="M0 760 C200 680 330 820 520 760 S860 640 1040 720 S1380 820 1600 700 V1000 H0Z" fill="#962b19"/></g>
-    <g class="cut"><path d="M0 820 C220 760 380 880 600 820 S900 720 1120 800 S1420 880 1600 790 V1000 H0Z" fill="#c5381f"/></g>
-    <g class="cut"><path d="M0 890 C260 840 420 940 680 890 S1000 820 1240 880 S1480 930 1600 870 V1000 H0Z" fill="#e5592a"/></g>
-  </svg>
-</div>
+
 
 <div class="app" id="app">
   <header class="topbar">
@@ -204,15 +190,15 @@
 // saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
-  { id: 'duncan', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'crop', hairColor: '#5a3a22', shirt: '#2b6670', accent: '#f1e4c7', neck: 'collar', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
-  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hairColor: '#1f1712', shirt: '#f08c3d', neck: 'turtle', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
-  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', skin: '#f2c9a3', hair: 'curly', hairColor: '#8a4b2a', shirt: '#c5381f', accent: '#f1e4c7', neck: 'hoodie', extras: ['headphones'], gear: '#13323a', face: 'round', scene: 'hills' },
-  { id: 'miguel', name: 'Miguel', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#1f1712', shirt: '#e5592a', accent: '#13323a', neck: 'crew', face: 'round', scene: 'sun' },
-  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', skin: '#f0c49b', hair: 'long', hairColor: '#962b19', shirt: '#8db3a9', accent: '#f1e4c7', neck: 'cardigan', extras: ['freckles'], lashes: true, face: 'soft', scene: 'waves' },
-  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', skin: '#a8703f', hair: 'buzz', hairColor: '#23171a', shirt: '#1d4a54', accent: '#f08c3d', neck: 'crew', extras: ['glasses'], glassesRound: true, face: 'tall', scene: 'dusk' },
-  { id: 'ana', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', neck: 'crew', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'waves' },
-  { id: 'leo', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'beanie', hairColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', neck: 'hoodie', extras: ['freckles'], face: 'tall', scene: 'hills' },
-  { id: 'sofi', name: 'Sofi', guest: true, kind: 'human', skin: '#d99c74', hair: 'bun', hairColor: '#4a2f1c', shirt: '#8db3a9', accent: '#c5381f', neck: 'collar', extras: ['glasses'], lashes: true, face: 'round', scene: 'sunset' },
+  { id: 'duncan', nose: 'bulb', eye: 22, teeth: 'grin', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'crop', hairColor: '#5a3a22', shirt: '#2b6670', accent: '#f1e4c7', neck: 'collar', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
+  { id: 'd-bot1', nose: 'button', eye: 28, name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hairColor: '#1f1712', shirt: '#f08c3d', neck: 'turtle', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
+  { id: 'd-bot2', nose: 'long', eye: 24, teeth: 'buck', name: 'agente 2', owner: 'Duncan', kind: 'agent', skin: '#f2c9a3', hair: 'curly', hairColor: '#8a4b2a', shirt: '#c5381f', accent: '#f1e4c7', neck: 'hoodie', extras: ['headphones'], gear: '#13323a', face: 'round', scene: 'hills' },
+  { id: 'miguel', nose: 'hook', eye: 26, teeth: 'grin', name: 'Miguel', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#1f1712', shirt: '#e5592a', accent: '#13323a', neck: 'crew', face: 'round', scene: 'sun' },
+  { id: 'luigi', nose: 'button', eye: 30, name: 'Luigi', owner: 'Miguel', kind: 'agent', skin: '#f0c49b', hair: 'long', hairColor: '#962b19', shirt: '#8db3a9', accent: '#f1e4c7', neck: 'cardigan', extras: ['freckles'], lashes: true, face: 'soft', scene: 'waves' },
+  { id: 'wario', nose: 'bulb', eye: 20, lids: true, teeth: 'buck', name: 'Wario', owner: 'Miguel', kind: 'agent', skin: '#a8703f', hair: 'buzz', hairColor: '#23171a', shirt: '#1d4a54', accent: '#f08c3d', neck: 'crew', extras: ['glasses'], glassesRound: true, face: 'tall', scene: 'dusk' },
+  { id: 'ana', nose: 'button', eye: 27, teeth: 'grin', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', neck: 'crew', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'garden' },
+  { id: 'leo', nose: 'long', eye: 25, teeth: 'buck', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'beanie', hairColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', neck: 'hoodie', extras: ['freckles'], face: 'tall', scene: 'ocean' },
+  { id: 'sofi', nose: 'hook', eye: 24, name: 'Sofi', guest: true, kind: 'human', skin: '#d99c74', hair: 'bun', hairColor: '#4a2f1c', shirt: '#8db3a9', accent: '#c5381f', neck: 'collar', extras: ['glasses'], lashes: true, face: 'round', scene: 'candy' },
 ].map((c) => ({ ...c, agent: c.kind === 'agent' }))
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -234,17 +220,25 @@ const SCRIPT = [
 // ── LOS PAISAJES DE PAPEL ────────────────────────────────────────────────────────────────────────
 // Cada recuadro es una escena de capas recortadas (viewBox 400×300), con la paleta de papel: verde azulado,
 // crema, rojo y naranja. Cada capa lleva su sombra (.cut), y eso es lo que la hace papel.
-const P = { ink: '#13323a', deep: '#1d4a54', teal: '#2b6670', soft: '#4f8b8a', sage: '#8db3a9', cream: '#f1e4c7', red: '#c5381f', redDeep: '#962b19', orange: '#e5592a', amber: '#f08c3d' }
+const P = { ink: '#13323a', deep: '#1d4a54', teal: '#2b6670', soft: '#4f8b8a', sage: '#8db3a9', cream: '#f1e4c7', red: '#c5381f', redDeep: '#962b19', orange: '#e5592a', amber: '#f08c3d',
+  yellow: '#f2c14e', pink: '#ee8f8f', rose: '#d9667a', lilac: '#9b8ec7', plum: '#5e3b6b', sky: '#78b4d0', navy: '#24406b', grass: '#7fae6a', forest: '#3f6f4a' }
 const cloud = (x, y, s, fill) => `<g class="cut"><path transform="translate(${x} ${y}) scale(${s})" d="M0 40 q4-26 30-22 q10-24 38-16 q22-14 40 8 q26-2 28 30 Z" fill="${fill}"/></g>`
 const sun = (x, y, r, rings) => `<g class="cut">${rings.map((c, i) => `<circle cx="${x}" cy="${y}" r="${r * (1 - i * .22)}" fill="${c}"/>`).join('')}</g>`
 const wave = (y, amp, fill, phase = 0) => `<g class="cut"><path d="M-10 ${y} C${60 + phase} ${y - amp} ${130 + phase} ${y + amp} 200 ${y} S${340 - phase} ${y - amp} 410 ${y + 4} V310 H-10Z" fill="${fill}"/></g>`
+// rayos de sol: cuñas alternadas desde un centro
+const rays = (x, y, n, c1, c2) => `<g>${Array.from({ length: n }, (_, i) => { const a0 = (i / n) * Math.PI * 2, a1 = ((i + .5) / n) * Math.PI * 2; return `<path d="M${x} ${y} L${x + 600 * Math.cos(a0)} ${y + 600 * Math.sin(a0)} L${x + 600 * Math.cos(a1)} ${y + 600 * Math.sin(a1)}Z" fill="${i % 2 ? c1 : c2}"/>` }).join('')}</g>`
+const stars = (fill, pts) => `<g class="cut-soft">${pts.map(([x, y, r]) => `<path d="M${x} ${y - r} l${r * .3} ${r * .7} l${r * .7} ${r * .3} l${-r * .7} ${r * .3} l${-r * .3} ${r * .7} l${-r * .3} ${-r * .7} l${-r * .7} ${-r * .3} l${r * .7} ${-r * .3}Z" fill="${fill}"/>`).join('')}</g>`
+const confetti = (cols, n, seed) => { let s = '', k = seed; for (let i = 0; i < n; i++) { k = (k * 9301 + 49297) % 233280; const x = (k / 233280) * 400; k = (k * 9301 + 49297) % 233280; const y = (k / 233280) * 170; s += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${3 + (i % 3) * 2}" fill="${cols[i % cols.length]}"/>` } return `<g class="cut-soft">${s}</g>` }
 const SCENES = {
-  sunset: () => `<rect width="400" height="300" fill="${P.teal}"/>${sun(320, 80, 70, [P.redDeep, P.red, P.orange, P.amber])}${cloud(10, 40, 1.1, P.cream)}${cloud(270, 130, .9, P.deep)}${wave(230, 26, P.redDeep)}${wave(255, 22, P.red, 30)}${wave(282, 16, P.orange, 10)}`,
-  clouds: () => `<rect width="400" height="300" fill="${P.soft}"/>${cloud(-20, 10, 1.6, P.deep)}${cloud(260, 40, 1.2, P.cream)}${cloud(-30, 150, 1.4, P.teal)}${wave(250, 20, P.deep)}${wave(276, 14, P.ink, 40)}`,
-  hills: () => `<rect width="400" height="300" fill="${P.cream}"/>${sun(70, 80, 48, [P.amber, P.orange])}${cloud(270, 30, 1, P.sage)}${wave(215, 30, P.sage)}${wave(245, 24, P.soft, 40)}${wave(275, 16, P.teal, 10)}`,
-  sun: () => `<rect width="400" height="300" fill="${P.deep}"/>${sun(330, 70, 80, [P.redDeep, P.red, P.orange, P.amber])}${cloud(0, 60, 1.2, P.teal)}${cloud(270, 150, 1, P.cream)}${wave(240, 24, P.red)}${wave(270, 18, P.orange, 30)}`,
-  waves: () => `<rect width="400" height="300" fill="${P.teal}"/>${cloud(260, 20, 1.3, P.cream)}${cloud(-10, 90, 1, P.soft)}${wave(200, 26, P.deep)}${wave(232, 22, P.soft, 30)}${wave(262, 18, P.sage, 10)}${wave(286, 12, P.cream, 40)}`,
-  dusk: () => `<rect width="400" height="300" fill="${P.redDeep}"/>${sun(70, 90, 60, [P.red, P.orange, P.amber])}${cloud(250, 40, 1.2, P.deep)}${cloud(280, 130, .8, P.cream)}${wave(235, 26, P.ink)}${wave(265, 18, P.deep, 30)}`,
+  sunset: () => `<rect width="400" height="300" fill="${P.amber}"/>${rays(320, 70, 16, P.yellow, P.amber)}${sun(320, 70, 66, [P.redDeep, P.red, P.orange, P.yellow])}${cloud(10, 40, 1.1, P.cream)}${cloud(250, 140, .9, P.pink)}${wave(228, 26, P.plum)}${wave(254, 22, P.rose, 30)}${wave(282, 16, P.red, 10)}`,
+  clouds: () => `<rect width="400" height="300" fill="${P.sky}"/>${cloud(-20, 10, 1.6, P.cream)}${cloud(260, 40, 1.2, P.pink)}${cloud(-30, 140, 1.4, P.lilac)}${stars(P.yellow, [[330, 150, 12], [70, 120, 9], [290, 30, 8]])}${wave(248, 22, P.navy)}${wave(276, 14, P.deep, 40)}`,
+  hills: () => `<rect width="400" height="300" fill="${P.yellow}"/>${rays(70, 80, 14, P.cream, P.yellow)}${sun(70, 80, 46, [P.orange, P.amber])}${cloud(270, 30, 1, P.cream)}${wave(212, 30, P.grass)}${wave(242, 24, P.forest, 40)}${wave(274, 16, P.teal, 10)}`,
+  sun: () => `<rect width="400" height="300" fill="${P.lilac}"/>${confetti([P.yellow, P.pink, P.cream, P.sky], 16, 7)}${sun(330, 70, 76, [P.plum, P.rose, P.pink, P.yellow])}${cloud(0, 60, 1.2, P.cream)}${wave(238, 24, P.navy)}${wave(268, 18, P.rose, 30)}`,
+  waves: () => `<rect width="400" height="300" fill="${P.teal}"/>${stars(P.cream, [[60, 40, 10], [340, 120, 8], [180, 24, 7]])}${cloud(260, 20, 1.3, P.pink)}${cloud(-10, 90, 1, P.sky)}${wave(198, 26, P.navy)}${wave(230, 22, P.sky, 30)}${wave(260, 18, P.sage, 10)}${wave(286, 12, P.yellow, 40)}`,
+  dusk: () => `<rect width="400" height="300" fill="${P.plum}"/>${stars(P.yellow, [[300, 40, 11], [360, 110, 7], [210, 70, 6], [150, 30, 8]])}${sun(70, 90, 56, [P.rose, P.pink, P.cream])}${cloud(250, 120, .9, P.lilac)}${wave(232, 26, P.navy)}${wave(262, 18, P.rose, 30)}${wave(288, 12, P.amber, 10)}`,
+  garden: () => `<rect width="400" height="300" fill="${P.pink}"/>${confetti([P.cream, P.yellow, P.rose], 14, 3)}${sun(320, 80, 52, [P.amber, P.yellow])}${cloud(20, 30, 1.1, P.cream)}${wave(220, 28, P.grass)}${wave(252, 20, P.forest, 30)}${wave(280, 14, P.yellow, 10)}`,
+  ocean: () => `<rect width="400" height="300" fill="${P.navy}"/>${rays(200, 320, 18, P.navy, P.deep)}${sun(90, 70, 44, [P.cream, P.yellow])}${stars(P.cream, [[300, 50, 9], [350, 140, 6], [240, 110, 7]])}${wave(226, 24, P.sky)}${wave(254, 20, P.teal, 30)}${wave(280, 14, P.sage, 10)}`,
+  candy: () => `<rect width="400" height="300" fill="${P.sage}"/>${rays(200, 100, 20, P.sage, P.cream)}${cloud(10, 100, 1.2, P.pink)}${cloud(270, 40, 1.1, P.lilac)}${wave(232, 24, P.rose)}${wave(262, 18, P.orange, 30)}${wave(286, 12, P.plum, 10)}`,
 }
 
 // ── LOS PERSONAJES, EN PAPEL ─────────────────────────────────────────────────────────────────────
@@ -322,22 +316,35 @@ const EXTRAS = {
   freckles: (p, h) => [[-52, 36], [-42, 44], [-32, 36], [32, 36], [42, 44], [52, 36]].map(([x, y]) => `<circle cx="${h.cx + x}" cy="${h.cy + y}" r="3" fill="#962b19" opacity=".5"/>`).join(''),
 }
 
-// La cara: ojos, cejas y las cuatro bocas.
+// La cara: ojos, cejas, nariz y las cuatro bocas. Es una caricatura: ojos grandes con pupila chica (más cómicos),
+// cejas gruesas, narices de varias formas y, a quien le toca, dientes salidos.
+//   f.eye: tamaño de ojo · f.nose: 'bulb' | 'long' | 'button' | 'hook' · f.teeth: 'buck' | 'grin' · f.lids: párpado caído
+const NOSES = {
+  bulb: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 22}" rx="20" ry="17" fill="${c}"/><ellipse cx="${cx - 6}" cy="${cy + 17}" rx="5" ry="4" fill="#fbf4e4" opacity=".55"/>`,
+  long: (cx, cy, c) => `<path d="M${cx - 6} ${cy - 4} q-6 30 -14 40 q14 10 30 0 q-6 -16 -10 -40Z" fill="${c}"/>`,
+  button: (cx, cy, c) => `<circle cx="${cx}" cy="${cy + 22}" r="11" fill="${c}"/>`,
+  hook: (cx, cy, c) => `<path d="M${cx - 4} ${cy - 6} q30 18 18 42 q-10 8 -24 2 q10 -6 6 -12 q-12 -20 0 -32Z" fill="${c}"/>`,
+}
 function face(h, f) {
-  const { cx, cy } = h, eyeY = cy + 2, gap = h.rx * .4, eye = 19, mouthY = cy + h.ry * .52
-  const L = cx - gap, R = cx + gap
-  const lash = f.lashes ? `<path d="M${L - 16} ${eyeY - 12} l-8 -6 M${R + 16} ${eyeY - 12} l8 -6" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
+  const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
+  const L = cx - gap, R = cx + gap, pr = eye * .36
+  const lash = f.lashes ? `<path d="M${L - eye * .8} ${eyeY - eye * .6} l-10 -8 M${L - eye * .5} ${eyeY - eye * .85} l-6 -10 M${R + eye * .8} ${eyeY - eye * .6} l10 -8 M${R + eye * .5} ${eyeY - eye * .85} l6 -10" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
+  const lids = f.lids ? `<path d="M${L - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z M${R - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z" fill="${f.nose}"/>` : ''
+  const teethTop = f.teeth === 'buck'
+    ? `<rect x="${cx - 12}" y="${mouthY - 6}" width="11" height="15" rx="3" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY - 6}" width="11" height="15" rx="3" fill="#fbf4e4"/>`
+    : f.teeth === 'grin' ? `<path d="M${cx - 26} ${mouthY - 5} h52 q-2 9 -8 13 h-36 q-6 -4 -8 -13Z" fill="#fbf4e4"/>` : ''
   return `
-    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .88}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .88}" ry="${eye}" fill="#fbf4e4"/>`)}${lash}
-      <g class="pupils"><circle cx="${L + 2}" cy="${eyeY + 3}" r="${eye * .5}" fill="#13323a"/><circle cx="${R - 2}" cy="${eyeY + 3}" r="${eye * .5}" fill="#13323a"/>
-        <circle cx="${L + 5}" cy="${eyeY - 1}" r="3" fill="#f6ecd6"/><circle cx="${R + 1}" cy="${eyeY - 1}" r="3" fill="#f6ecd6"/></g></g>
-    <g class="brow-l">${soft(`<path d="M${L - 18} ${eyeY - eye - 9} q18 -12 34 -2 l-3 6 q-14 -8 -28 2Z" fill="${f.brow}"/>`)}</g>
-    <g class="brow-r">${soft(`<path d="M${R + 18} ${eyeY - eye - 9} q-18 -12 -34 -2 l3 6 q14 -8 28 2Z" fill="${f.brow}"/>`)}</g>
-    ${soft(`<path d="M${cx - 4} ${cy + 12} q-9 15 3 18 q9 1 9 -6" fill="${f.nose}"/>`)}
-    <g class="m-smile">${soft(`<path d="M${cx - 22} ${mouthY - 4} q22 24 44 0 q-22 11 -44 0Z" fill="${f.mouth}"/>`)}</g>
-    <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 2}" rx="15" ry="13" fill="#962b19"/><ellipse cx="${cx}" cy="${mouthY + 8}" rx="9" ry="5" fill="#e5592a"/>`)}</g></g>
-    <g class="m-think">${soft(`<path d="M${cx - 13} ${mouthY + 2} q7 -7 14 0 q8 7 14 -2 l2 5 q-9 9 -17 1 q-7 -5 -12 1Z" fill="${f.mouth}"/>`)}</g>
-    <g class="m-flat">${soft(`<rect x="${cx - 12}" y="${mouthY}" width="24" height="6" rx="3" fill="${f.mouth}"/>`)}</g>`
+    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye * 1.06}" fill="#fbf4e4"/>`)}
+      <g class="pupils"><circle cx="${L + 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/><circle cx="${R - 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/>
+        <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/></g>
+      ${lids}${lash}</g>
+    <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="m-smile">${soft(`<path d="M${cx - 30} ${mouthY - 6} q30 34 60 0 q-30 14 -60 0Z" fill="#962b19"/>`)}${teethTop}</g>
+    <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}${teethTop}</g></g>
+    <g class="m-think">${soft(`<path d="M${cx - 16} ${mouthY + 4} q9 -9 18 0 q9 9 18 -3 l2 6 q-11 11 -21 1 q-8 -6 -15 2Z" fill="${f.mouth}"/>`)}</g>
+    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 7}" y="${mouthY + 4}" width="7" height="9" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 4}" width="7" height="9" rx="2" fill="#fbf4e4"/>` : ''}</g>
+    ${soft(NOSES[f.noseShape || 'button'](cx, cy, f.noseColor))}`
 }
 
 // El torso: hombros, cuello de la prenda y, en los agentes, el prendedor de chispa.
@@ -374,7 +381,7 @@ function person(p) {
     <ellipse cx="${h.cx - rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/><ellipse cx="${h.cx + rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
-    ${face(h, { brow: shade(p.hairColor, .85), nose: sh, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
+    ${face(h, { brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
     ${cut(hair.front)}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
