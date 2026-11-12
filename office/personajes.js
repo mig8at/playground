@@ -209,10 +209,22 @@ const EXTRAS = {
 // cejas gruesas, narices de varias formas y, a quien le toca, dientes salidos.
 //   f.eye: tamaño de ojo · f.nose: 'bulb' | 'long' | 'button' | 'hook' · f.teeth: 'buck' | 'grin' · f.lids: párpado caído
 const NOSES = {
+  none: () => '',
+  // mico: dos fosas en el hocico
+  nostrils: (cx, cy, c) => `<ellipse cx="${cx - 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/><ellipse cx="${cx + 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/>`,
   bulb: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 22}" rx="20" ry="17" fill="${c}"/><ellipse cx="${cx - 6}" cy="${cy + 17}" rx="5" ry="4" fill="#fbf4e4" opacity=".55"/>`,
   long: (cx, cy, c) => `<path d="M${cx - 6} ${cy - 4} q-6 30 -14 40 q14 10 30 0 q-6 -16 -10 -40Z" fill="${c}"/>`,
   button: (cx, cy, c) => `<circle cx="${cx}" cy="${cy + 22}" r="11" fill="${c}"/>`,
   hook: (cx, cy, c) => `<path d="M${cx - 4} ${cy - 6} q30 18 18 42 q-10 8 -24 2 q10 -6 6 -12 q-12 -20 0 -32Z" fill="${c}"/>`,
+}
+// El pico del pato: la parte de arriba fija y la de abajo que baja al hablar (dentro de .mouth, como la boca).
+function beak(cx, y, c) {
+  const d = shade(c, .8), upper = `<path d="M${cx - 40} ${y + 4} Q${cx} ${y - 18} ${cx + 40} ${y + 4} Q${cx + 34} ${y + 18} ${cx} ${y + 18} Q${cx - 34} ${y + 18} ${cx - 40} ${y + 4}Z" fill="${c}"/><ellipse cx="${cx - 9}" cy="${y + 2}" rx="4" ry="3" fill="${d}"/><ellipse cx="${cx + 9}" cy="${y + 2}" rx="4" ry="3" fill="${d}"/>`
+  const lower = (dy) => `<path d="M${cx - 30} ${y + 14 + dy} Q${cx} ${y + 34 + dy} ${cx + 30} ${y + 14 + dy} Q${cx} ${y + 22 + dy} ${cx - 30} ${y + 14 + dy}Z" fill="${d}"/>`
+  return `<g class="m-smile">${soft(lower(0) + upper)}</g>
+    <g class="m-talk">${soft(`<ellipse cx="${cx}" cy="${y + 24}" rx="24" ry="12" fill="#6e1f12"/>`)}<g class="mouth">${soft(lower(10))}</g>${soft(upper)}</g>
+    <g class="m-think"><g transform="rotate(-8 ${cx} ${y})">${soft(lower(-2) + upper)}</g></g>
+    <g class="m-flat">${soft(lower(-3) + upper)}</g>`
 }
 function face(h, f) {
   const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
@@ -236,10 +248,10 @@ function face(h, f) {
     <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
     <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
     ${clips}
-    <g class="m-smile">${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
+    ${f.beak ? beak(cx, mouthY - 8, f.beak) : `<g class="m-smile">${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
     <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
     <g class="m-think">${soft(`<path d="M${cx - 16} ${mouthY + 4} q9 -9 18 0 q9 9 18 -3 l2 6 q-11 11 -21 1 q-8 -6 -15 2Z" fill="${f.mouth}"/>`)}</g>
-    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>
+    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>`}
     ${soft(NOSES[f.noseShape || 'button'](cx, cy, f.noseColor))}`
 }
 
@@ -261,7 +273,51 @@ function torso(p) {
   </g>`
 }
 
+// LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: 'mico' | 'pato'
+// (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
+const SPECIES = {
+  mico: (p, h) => {
+    const fur = p.skin, mask = p.mask || '#ecc9a0', d = shade(fur, .8)
+    return {
+      back: `<circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/>
+        <circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/>`,
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      // la máscara clara: dos lóbulos alrededor de los ojos y el hocico
+      mask: `<ellipse cx="${h.cx - 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx + 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx}" cy="${h.cy + 42}" rx="60" ry="40" fill="${mask}"/>`,
+      top: `<path d="M${h.cx - 18} ${h.cy - h.ry + 6} q-4 -26 14 -30 q-8 16 6 22 q2 -20 20 -20 q-10 14 0 28Z" fill="${d}"/>`,
+      nose: 'nostrils', noseColor: shade(fur, .6), brow: shade(fur, .6), mouth: '#6e1f12',
+    }
+  },
+  pato: (p, h) => {
+    const feather = p.skin, d = shade(feather, .85)
+    return {
+      back: '',
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
+      mask: '',
+      // un copete de tres plumas
+      top: `<path d="M${h.cx - 6} ${h.cy - h.ry + 4} q-20 -20 -8 -36 q4 18 14 22 q-2 -24 16 -34 q-2 22 6 30 q8 -14 22 -12 q-14 12 -16 30Z" fill="${d}"/>`,
+      nose: 'none', brow: shade(feather, .55), mouth: '#6e1f12', beak: p.beak || '#f08c3d',
+    }
+  },
+}
+function creature(p) {
+  const h = { ...HEAD, rx: 94, ry: 88 }, a = SPECIES[p.species](p, h)
+  const has = (x) => p.extras?.includes(x)
+  return `${torso(p)}
+  <g class="head">
+    ${a.back ? cut(a.back) : ''}
+    ${cut(a.head)}
+    ${a.mask ? soft(a.mask) : ''}
+    ${a.top && !p.hat ? cut(a.top) : ''}
+    <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/>
+    ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak })}
+    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
+    ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
+    ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
+  </g>`
+}
 function person(p) {
+  if (p.species && SPECIES[p.species]) return creature(p)
   const s = p.skin, sh = shade(s, .86)
   const [rx, ry] = { round: [92, 88], wide: [100, 84], tall: [86, 94], soft: [94, 90] }[p.face || 'round']
   const h = { ...HEAD, rx, ry }
@@ -330,6 +386,9 @@ function saveCustom(list) { try { localStorage.setItem('office:custom', JSON.str
 // El catálogo del editor: cada opción es una pieza que person() ya sabe dibujar. Agregar una (un peinado, una
 // nariz) es sumarla en su objeto de arriba y nombrarla acá.
 const OPCIONES = {
+  species: { '': 'Persona', mico: 'Mico', pato: 'Pato' },
+  // el color de la piel, del pelaje o de las plumas, según la especie
+  skinBy: { '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'] },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
   hair: { side: 'Raya al lado', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],

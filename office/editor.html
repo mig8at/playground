@@ -6,7 +6,7 @@
 <title>Office · personajes</title>
 <!--
   OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPCIONES, en personajes.js):
-  piel, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
+  especie (persona, mico o pato), piel o pelaje, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
   mismo recuadro de la llamada, con los mismos gestos (escucha, teclea, piensa, habla), así que lo que se ve acá es
   lo que se ve allá. También se elige el gorro, que va encima de cualquier peinado. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
   también se puede copiar como JSON (una entrada de CAST) o bajar como SVG.
@@ -62,6 +62,7 @@
   .actions button { all: unset; cursor: pointer; text-align: center; padding: 9px 10px; border-radius: 12px; font-weight: 900; background: var(--teal); color: var(--cream); box-shadow: 0 3px 0 var(--ink); }
   .actions .primary { background: var(--orange); box-shadow: 0 3px 0 var(--red-deep); }
   .actions .danger { background: #e7d8b6; color: var(--red-deep); box-shadow: 0 3px 0 var(--cream-dim); }
+  [data-human][hidden] { display: none; }
   .toast { grid-column: 1 / -1; min-height: 18px; font-size: 12px; font-weight: 800; color: var(--teal-deep); }
 
   @media (max-width: 900px) {
@@ -90,15 +91,16 @@
     <div class="field"><label for="owner">Agente de (vacío si es una persona)</label><input type="text" id="owner" maxlength="18" autocomplete="off"></div>
 
     <h2>Cara</h2>
-    <div class="field"><label>Piel</label><div class="row" data-swatches="skin"></div></div>
-    <div class="field"><label>Forma</label><div class="row" data-options="face"></div></div>
+    <div class="field"><label>Especie</label><div class="row" data-options="species"></div></div>
+    <div class="field"><label id="skin-label">Piel</label><div class="row" id="skin-row"></div></div>
+    <div class="field" data-human><label>Forma</label><div class="row" data-options="face"></div></div>
     <div class="field"><label for="eye">Ojos <span id="eye-size"></span></label><input type="range" id="eye" min="18" max="32" step="1"></div>
-    <div class="field"><label>Nariz</label><div class="row" data-options="nose"></div></div>
-    <div class="field"><label>Dientes</label><div class="row" data-options="teeth"></div></div>
+    <div class="field" data-human><label>Nariz</label><div class="row" data-options="nose"></div></div>
+    <div class="field" data-human><label>Dientes</label><div class="row" data-options="teeth"></div></div>
 
-    <h2>Pelo</h2>
-    <div class="field"><label>Peinado</label><div class="row" data-options="hair"></div></div>
-    <div class="field"><label>Color</label><div class="row" data-swatches="hairColor"></div></div>
+    <h2 data-human>Pelo</h2>
+    <div class="field" data-human><label>Peinado</label><div class="row" data-options="hair"></div></div>
+    <div class="field" data-human><label>Color</label><div class="row" data-swatches="hairColor"></div></div>
 
     <h2>Gorro</h2>
     <div class="field"><div class="row" data-options="hat"></div></div>
@@ -128,7 +130,7 @@
 <script src="personajes.js"></script>
 <script>
 // ── EL PERSONAJE QUE SE EDITA ────────────────────────────────────────────────────────────────────
-const START = { name: 'Nuevo', owner: '', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
+const START = { name: 'Nuevo', owner: '', kind: 'human', species: '', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
   extras: [], hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
 let saved = loadCustom()
 let cur = { ...START, id: newId() }
@@ -160,6 +162,13 @@ document.querySelectorAll('[data-swatches]').forEach((row) => {
   const key = row.dataset.swatches
   row.innerHTML = OPCIONES[key].map((c) => `<button type="button" class="swatch" data-key="${key}" data-val="${c}" style="background:${c}" aria-label="${key} ${c}"></button>`).join('')
 })
+function drawSkinRow() {
+  const sp = cur.species || ''
+  const colors = OPCIONES.skinBy[sp] || OPCIONES.skin
+  document.getElementById('skin-label').textContent = sp === 'mico' ? 'Pelaje' : sp === 'pato' ? 'Plumas' : 'Piel'
+  document.getElementById('skin-row').innerHTML = colors.map((c) => `<button type="button" class="swatch" data-key="skin" data-val="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')
+  document.querySelectorAll('[data-human]').forEach((el) => { el.hidden = !!sp })
+}
 document.querySelectorAll('[data-options]').forEach((row) => {
   const key = row.dataset.options
   row.innerHTML = Object.entries(OPCIONES[key]).map(([v, l]) => `<button type="button" class="opt" data-key="${key}" data-val="${v}">${l}</button>`).join('')
@@ -170,7 +179,8 @@ document.getElementById('extras').innerHTML = [
 ].join('')
 document.querySelector('.panel').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return
-  if (b.dataset.key) { cur[b.dataset.key] = b.dataset.val; draw() }
+  if (b.dataset.key === 'species') { cur.species = b.dataset.val; cur.skin = (OPCIONES.skinBy[cur.species] || OPCIONES.skin)[cur.species ? 0 : 3]; drawSkinRow(); draw() }
+  else if (b.dataset.key) { cur[b.dataset.key] = b.dataset.val; draw() }
   else if (b.dataset.extra) { const x = b.dataset.extra; cur.extras = cur.extras.includes(x) ? cur.extras.filter((y) => y !== x) : [...cur.extras, x]; draw() }
   else if (b.dataset.look) { cur[b.dataset.look] = !cur[b.dataset.look]; draw() }
 })
@@ -199,7 +209,7 @@ function drawSaved() {
     b.type = 'button'; b.className = 'card'; b.setAttribute('aria-current', String(p.id === cur.id)); b.title = `Editar a ${p.name}`
     b.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${(SCENES[p.scene] || SCENES.sunset)()}<g transform="translate(46 54) scale(.77)">${person(normalize(p))}</g></svg><span></span>`
     b.querySelector('span').textContent = p.name
-    b.addEventListener('click', () => { cur = { ...START, ...p }; draw(); drawSaved(); toast(`Editando a ${p.name}.`) })
+    b.addEventListener('click', () => { cur = { ...START, ...p }; drawSkinRow(); draw(); drawSaved(); toast(`Editando a ${p.name}.`) })
     box.appendChild(b)
   }
 }
@@ -216,8 +226,8 @@ document.getElementById('delete').addEventListener('click', () => {
   saved = saved.filter((p) => p.id !== cur.id); saveCustom(saved)
   cur = { ...START, id: newId() }; draw(); drawSaved(); toast('Borrado.')
 })
-document.getElementById('random').addEventListener('click', () => { cur = randomPerson(cur); draw() })
-document.getElementById('new').addEventListener('click', () => { cur = { ...START, id: newId() }; draw(); drawSaved() })
+document.getElementById('random').addEventListener('click', () => { cur = randomPerson(cur); if (cur.species) cur.skin = OPCIONES.skinBy[cur.species][Math.floor(Math.random() * OPCIONES.skinBy[cur.species].length)]; draw() })
+document.getElementById('new').addEventListener('click', () => { cur = { ...START, id: newId() }; drawSkinRow(); draw(); drawSaved() })
 document.getElementById('copy').addEventListener('click', async () => {
   const { id, name, owner, kind, ...rest } = normalize(cur)
   const json = JSON.stringify({ id, name, ...(owner ? { owner } : {}), kind, ...rest })
@@ -236,7 +246,7 @@ document.getElementById('svg').addEventListener('click', () => {
   toast('SVG bajado.')
 })
 
-draw(); drawSaved()
+drawSkinRow(); draw(); drawSaved()
 </script>
 </body>
 </html>

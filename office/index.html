@@ -118,9 +118,11 @@
 <script src="personajes.js"></script>
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// Todos son personas, dibujadas a mano y originales. kind: 'human' | 'agent' (el agente lleva owner, de quién es). hair: el peinado (HAIR), hat: el gorro (HATS) y hatColor, face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el paisaje de su recuadro. Ana, Leo y Sofi son invitados
-// de ejemplo, para que se vea la variedad: no son del chat real. Los agentes de Duncan van con nombre genérico hasta
-// saber cómo se llaman.
+// Todos son originales y dibujados a mano. kind: 'human' | 'agent' (el agente lleva owner, de quién es).
+// species: '' (persona), 'mico' o 'pato'; skin es la piel, el pelaje o las plumas. hair: el peinado (HAIR), hat: el
+// gorro (HATS) y hatColor, face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el
+// paisaje de su recuadro. Ana, Toto (un mico) y Lupe (una pata) son invitados de ejemplo, para que se vea la
+// variedad: no son del chat real. Los agentes de Duncan van con nombre genérico hasta saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
   { id: 'duncan', nose: 'bulb', eye: 22, teeth: 'grin', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'crop', hairColor: '#5a3a22', shirt: '#2b6670', accent: '#f1e4c7', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
@@ -130,8 +132,8 @@ const CAST = [
   { id: 'luigi', nose: 'button', eye: 30, name: 'Luigi', owner: 'Miguel', kind: 'agent', skin: '#f0c49b', hair: 'long', hairColor: '#962b19', shirt: '#8db3a9', accent: '#f1e4c7', extras: ['freckles'], lashes: true, face: 'soft', scene: 'waves' },
   { id: 'wario', nose: 'bulb', eye: 20, lids: true, teeth: 'buck', name: 'Wario', owner: 'Miguel', kind: 'agent', skin: '#a8703f', hair: 'buzz', hairColor: '#23171a', shirt: '#1d4a54', accent: '#f08c3d', extras: ['glasses'], glassesRound: true, face: 'tall', scene: 'dusk' },
   { id: 'ana', nose: 'button', eye: 27, teeth: 'grin', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hat: 'boina', hatColor: '#9b8ec7', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'garden' },
-  { id: 'leo', nose: 'long', eye: 25, teeth: 'buck', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'crop', hairColor: '#8a4b2a', hat: 'chullo', hatColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', extras: ['freckles'], face: 'tall', scene: 'ocean' },
-  { id: 'sofi', nose: 'hook', eye: 24, name: 'Sofi', guest: true, kind: 'human', skin: '#d99c74', hair: 'bun', hairColor: '#4a2f1c', shirt: '#8db3a9', accent: '#c5381f', extras: ['glasses'], lashes: true, face: 'round', scene: 'candy' },
+  { id: 'toto', name: 'Toto', guest: true, kind: 'human', species: 'mico', skin: '#7a4e2d', eye: 27, shirt: '#13323a', accent: '#f08c3d', hat: 'chullo', hatColor: '#c5381f', scene: 'ocean' },
+  { id: 'lupe', name: 'Lupe', guest: true, kind: 'human', species: 'pato', skin: '#f2c14e', eye: 25, extras: ['glasses'], lashes: true, shirt: '#8db3a9', accent: '#c5381f', scene: 'candy' },
 ].map((c) => ({ ...c, agent: c.kind === 'agent' }))
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
