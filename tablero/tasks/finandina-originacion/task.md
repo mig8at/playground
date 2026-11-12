@@ -112,9 +112,10 @@ adelante depende de las respuestas de la fase 0.
   Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
 - [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
   entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
-- [x] Decidir si una consulta de Mareigua del último mes hecha con otra cuenta se reutiliza: no, se vuelve a
-  consultar con la cuenta de la sucursal (decisión de Miguel del 2026-11-12; el PRD no lo dice, es inferencia de
-  «llaves de Finandina»).
+- [ ] Decidir si una consulta de Mareigua del último mes hecha con la cuenta de Creditop se reutiliza en una
+  sucursal de Finandina o se fuerza la reconsulta con su cuenta. El código hoy reconsulta; el PRD no lo dice.
+  Miguel se lo preguntó a Oscar por Slack el 2026-11-12. Si es reutilizar, se quita la comparación de cuentas en
+  la acción de Mareigua. Depende de: Oscar.
 - [ ] Confirmar CUÁNDO se consulta con las llaves de Finandina: el PRD («10. Flujo funcional») y el diagrama la
   ponen después de que el cliente elige Finandina, y el código la hace antes, en toda sucursal donde está
   asignada (lo hablado con Finandina, sin escrito). Termina con la respuesta por escrito. Depende de: producto o
