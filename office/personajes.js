@@ -113,22 +113,23 @@ const HAIR = {
 //   · la línea del gorro (hatLine): el borde de abajo, que va de una sien a la otra abrazando la frente, más bajo en
 //     el medio, como se ve una prenda redonda puesta en la cabeza.
 const HAIR_VOL = { curly: 22, long: 12, bob: 12 } // el resto, aplastado bajo el gorro: 6
-// los peinados cortos, bajo un gorro, se reducen a las patillas que asoman en las sienes
+// los peinados cortos quedan enteros debajo del gorro: no asoma nada (una patilla suelta se veía como un recorte)
 const SHORT_HAIR = ['side', 'crop', 'buzz', 'bun', 'beanie']
-const sideburns = (h, c) => `<path d="${M(pt(h, 214, 1))} ${arc(h, 214, 182, 7)} L${pt(h, 176, 0).join(' ')}Z M${pt(h, 326, 1).join(' ')} ${arc(h, 326, 358, 7)} L${pt(h, 364, 0).join(' ')}Z" fill="${c}"/>`
 function hatLine(h, hp) {
-  const L = pt(h, 204, hp), R = pt(h, 336, hp), C = [h.cx, h.cy - h.ry * .3]
+  const L = pt(h, 200, hp), R = pt(h, 340, hp), C = [h.cx, h.cy - h.ry * .3]
   // un punto del borde, de t = 0 (sien izquierda) a 1 (sien derecha)
   const at = (t) => [r1((1 - t) ** 2 * L[0] + 2 * t * (1 - t) * C[0] + t * t * R[0]), r1((1 - t) ** 2 * L[1] + 2 * t * (1 - t) * C[1] + t * t * R[1])]
   // el mismo borde corrido dy (para el puño o la cinta), de derecha a izquierda
   const back = (dy) => `Q${C[0]} ${r1(C[1] + dy)} ${L[0]} ${r1(L[1] + dy)}`
-  return { L, R, C, at, edge: `Q${C[0]} ${C[1]} ${L[0]} ${L[1]}`, back, top: h.cy - h.ry - hp }
+  // la esquina de cada costado: del arco de la copa baja redondeada hasta el borde
+  const corner = (P, side) => `Q${r1(P[0] + 4 * side)} ${r1(P[1] - 10)} ${P[0]} ${P[1]}`
+  return { L, R, C, at, edge: `${corner(R, 1)} Q${C[0]} ${C[1]} ${L[0]} ${L[1]}`, back, top: h.cy - h.ry - hp }
 }
 const HATS = {
   // gorro de lana: la copa sigue la cabeza por fuera del pelo, el puño tejido abraza la frente, pompón arriba
   lana: (h, c, hp) => {
     const d = shade(c, .8), k = hatLine(h, hp), band = 24
-    const dome = `${M(k.L)} ${arc(h, 204, 336, hp + 2)} ${k.edge}Z`
+    const dome = `${M(k.L)} ${arc(h, 200, 340, hp + 2)} ${k.edge}Z`
     const cuff = `M${k.L[0]} ${k.L[1] - band} Q${k.C[0]} ${k.C[1] - band} ${k.R[0]} ${k.R[1] - band} L${k.R[0]} ${k.R[1]} ${k.edge}Z`
     let ribs = ''
     for (let t = .05; t < .97; t += .075) { const [x, y] = k.at(t); ribs += `M${x} ${r1(y - band + 4)} v${band - 7} ` }
@@ -156,7 +157,7 @@ const HATS = {
   // cachucha: la copa en gajos se apoya en la línea del gorro y la visera sale del medio de ese borde
   cachucha: (h, c, hp) => {
     const d = shade(c, .74), l = shade(c, 1.2), k = hatLine(h, hp - 2), [vx0, vy0] = k.at(.16), [vx1, vy1] = k.at(.84), [mx, my] = k.at(.5)
-    return `${cut(`<path d="${M(k.L)} ${arc(h, 204, 336, hp)} ${k.edge}Z" fill="${c}"/>`)}
+    return `${cut(`<path d="${M(k.L)} ${arc(h, 200, 340, hp)} ${k.edge}Z" fill="${c}"/>`)}
       <path d="M${h.cx} ${k.top} Q${h.cx - h.rx * .4} ${k.top + 30} ${k.at(.28).join(' ')} M${h.cx} ${k.top} Q${h.cx + h.rx * .4} ${k.top + 30} ${k.at(.72).join(' ')}" stroke="${d}" stroke-width="3" fill="none"/>
       <circle cx="${h.cx}" cy="${k.top + 2}" r="7" fill="${l}"/>
       ${soft(`<path d="M${vx0} ${vy0} Q${mx} ${my + 40} ${vx1} ${vy1} Q${mx} ${my + 6} ${vx0} ${vy0}Z" fill="${d}"/>`)}`
@@ -165,7 +166,7 @@ const HATS = {
   reves: (h, c, hp) => {
     const d = shade(c, .74), k = hatLine(h, hp - 2), [mx, my] = k.at(.5)
     return `${cut(`<path d="M${h.cx - 50} ${k.top + 14} Q${h.cx} ${k.top - 30} ${h.cx + 50} ${k.top + 14}Z" fill="${d}"/>`)}
-      ${cut(`<path d="${M(k.L)} ${arc(h, 204, 336, hp)} ${k.edge}Z" fill="${c}"/>`)}
+      ${cut(`<path d="${M(k.L)} ${arc(h, 200, 340, hp)} ${k.edge}Z" fill="${c}"/>`)}
       <path d="M${mx - 20} ${my - 1} a20 16 0 0 1 40 0Z" fill="${d}"/><path d="M${mx - 26} ${my - 22} h52" stroke="${shade(c, 1.2)}" stroke-width="4" stroke-linecap="round"/>`
   },
   // pescador: la copa nace de la línea del gorro y el ala la rodea, cayendo un poco más adelante que a los costados
@@ -278,7 +279,7 @@ function person(p) {
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
     ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
-    ${cut(p.hat && SHORT_HAIR.includes(p.hair) ? sideburns(h, p.hairColor) : hair.front)}
+    ${p.hat && SHORT_HAIR.includes(p.hair) ? '' : cut(hair.front)}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
