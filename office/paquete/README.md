@@ -4,8 +4,8 @@ Personajes en papel cortado (personas y 20 animales), con la chaqueta de CreditO
 **escucha, teclea, piensa y habla**. Todo viene en un solo archivo, `office-personajes.js`: el dibujo, el estilo y
 el logo. No usa librerías ni framework.
 
-Un personaje es un **JSON** chico (nombre, especie, forma de cara, peinado, barba, gorro, colores…). Lo armás en
-`ejemplo.html` y lo copiás con «Copiar JSON».
+Un personaje es un **JSON** chico (nombre, especie, forma de cara, peinado, barba, gorro, colores…). Lo armás en la
+página del editor (`index.html` en el playground, `ejemplo.html` en el paquete) y lo copiás con «Copiar JSON».
 
 ## Mostrar un personaje
 

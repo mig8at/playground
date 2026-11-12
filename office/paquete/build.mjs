@@ -3,7 +3,9 @@
 // (office/personajes.js), el estilo (office/personajes.css) y el logo adentro, más el componente <office-personaje> y
 // unas pocas funciones. Copia también la página de ejemplo y el README.
 //
-//   node office/paquete/build.mjs        (o make office-package)
+//   node office/paquete/build.mjs                     (o make office-package)
+//   node office/paquete/build.mjs --destino <carpeta>  además lo publica ahí con el editor como index.html (así va
+//                                                     al playground compartido: tools/home/public/personajes)
 //
 // La fuente de verdad sigue siendo office/: el paquete se regenera, no se edita a mano.
 import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
@@ -111,3 +113,15 @@ copyFileSync(join(here, 'README.md'), join(dist, 'README.md'))
 // para que Node y los bundlers lo traten como módulo ES (y por si algún día se publica)
 writeFileSync(join(dist, 'package.json'), JSON.stringify({ name: 'office-personajes', version: '1.0.0', private: true, type: 'module', main: 'office-personajes.js', exports: './office-personajes.js' }, null, 2) + '\n')
 console.log(`✔ ${join('office/paquete/dist', 'office-personajes.js')} (${Math.round(out.length / 1024)} KB) · ejemplo.html · README.md · package.json`)
+
+// Publicarlo en otra carpeta (el playground compartido): el JS, el editor como index.html y el README.
+const i = process.argv.indexOf('--destino')
+if (i > 0) {
+  const destino = process.argv[i + 1]
+  if (!destino) { console.error('✗ --destino necesita una carpeta'); process.exit(2) }
+  mkdirSync(destino, { recursive: true })
+  copyFileSync(join(dist, 'office-personajes.js'), join(destino, 'office-personajes.js'))
+  copyFileSync(join(dist, 'ejemplo.html'), join(destino, 'index.html'))
+  copyFileSync(join(dist, 'README.md'), join(destino, 'README.md'))
+  console.log(`✔ publicado en ${destino}: office-personajes.js · index.html · README.md`)
+}
