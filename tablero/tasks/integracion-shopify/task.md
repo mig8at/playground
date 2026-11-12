@@ -22,8 +22,10 @@ ramas: shopify:core-801, core-689-shopify-platform
       Shopify niega el deploy («Unpublishing payments app extensions … is not permitted»).
 - [ ] Decidir si la configuración publicable de `develop` queda con las URLs de dev o con las de relleno que el script
       de deploy reemplaza (hoy las de dev están sólo en la copia local). Termina con la decisión escrita acá.
-- [ ] Recibir de Duncan las tres pruebas de `#shopify` (aprobada, negada y «Volver a la tienda») y revisarlas en
-      Shopify y en qa. Depende de: Miguel — pasarle a Duncan la contraseña de la tienda.
+- [x] ~~Recibir de Duncan las tres pruebas de `#shopify` (aprobada, negada y «Volver a la tienda»)~~ — 2026-11-10 en
+      qa, revisadas en el admin: #1034 Pagado (504844), la negada sin pedido (504845) y #1035 Pendiente (504847). Duncan
+      tiene acceso al admin de `creditop-dev-store` con el rol «Atención al cliente». La prueba en prod espera la infra de
+      Dani y el visto bueno de Oscar, que pidió parar las pruebas en prod el 2026-11-12.
 - [ ] Dar al comprador cómo cancelar y volver al checkout (requisito 5.2.6 de la App Store): la app manda `back_url`
       a payment-link y rechaza la sesión al volver. Es la pieza A del estándar de la tarea #112
       (`ecommerce-cancelacion-de-pedidos`); el link en todas las pantallas del wizard es su pieza B. Termina con una
