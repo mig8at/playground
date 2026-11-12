@@ -168,6 +168,9 @@ func (s *sentinel) fetchSteps(from, to time.Time) error {
 	if err == nil {
 		err = wizardEvents(cl, from, to, ph)
 	}
+	if err == nil {
+		err = frontErrors(cl, from, to, ph)
+	}
 	if err != nil {
 		s.stepsNote = "sin las pantallas del wizard (PostHog): " + err.Error()
 		return nil
@@ -342,6 +345,13 @@ func (s *sentinel) pass() (*Overview, error) {
 	}
 	if time.Since(s.deploysAt) > 30*time.Minute {
 		if list, err := deploys(s.root, 8); err == nil {
+			// El front no se ve en los workflows de GitHub: sus versiones salen de PostHog (steps.go).
+			if cl, err := phClient(); err == nil {
+				if front, err := frontReleases(cl, 8); err == nil {
+					list = append(list, front...)
+					sort.Slice(list, func(i, j int) bool { return list[i].At > list[j].At })
+				}
+			}
 			s.deployList, s.deploysAt = list, time.Now()
 		}
 	}
@@ -395,7 +405,7 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			if subj.ID != 0 {
 				o.Merchants = append(o.Merchants, subj)
 			}
-		case "service", "queue":
+		case "service", "queue", "jserr":
 			o.Services = append(o.Services, subj)
 		case "logs":
 			o.Liveness = append(o.Liveness, subj)
@@ -443,6 +453,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = "Trabajos fallidos de la cola"
 	case "logs":
 		subj.Name = key + " · líneas"
+	case "jserr":
+		subj.Name = s.subjectName(sig)
 	case "step":
 		subj.Name = s.subjectName(sig)
 		if _, m := stepParts(sig); m != "" {

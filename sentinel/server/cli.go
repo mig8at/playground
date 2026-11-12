@@ -489,16 +489,19 @@ type Change struct {
 }
 
 type DeployReport struct {
-	Freshness  string   `json:"freshness"`
-	Repo       string   `json:"repo"`
-	Release    Release  `json:"release"`
-	From       string   `json:"from"`
-	To         string   `json:"to"`
-	Complete   bool     `json:"complete"` // ya pasaron las horas pedidas
-	Hours      float64  `json:"hours"`
-	Worse      []Change `json:"worse"`
-	Checked    int      `json:"checked"` // cuántas señales se compararon
-	Comparable int      `json:"comparable"`
+	Freshness string   `json:"freshness"`
+	Repo      string   `json:"repo"`
+	Release   Release  `json:"release"`
+	From      string   `json:"from"`
+	To        string   `json:"to"`
+	Complete  bool     `json:"complete"` // ya pasaron las horas pedidas
+	Hours     float64  `json:"hours"`
+	Worse     []Change `json:"worse"`
+	Checked   int      `json:"checked"` // cuántas señales se compararon
+	// NewErrors: los mensajes de error del front que aparecen después y no en los 7 días de antes.
+	NewErrors     []NewError `json:"newErrors,omitempty"`
+	NewErrorsNote string     `json:"newErrorsNote,omitempty"`
+	Comparable    int        `json:"comparable"`
 }
 
 func (c *cli) deploy(repo, version string, hours float64) (*DeployReport, error) {
@@ -591,6 +594,11 @@ func (c *cli) deploy(repo, version string, hours float64) (*DeployReport, error)
 		}
 	}
 	sort.Slice(r.Worse, func(i, j int) bool { return r.Worse[i].score > r.Worse[j].score })
+	if cl, err := phClient(); err == nil {
+		if r.NewErrors, err = newFrontErrors(cl, at, to, 7); err != nil {
+			r.NewErrorsNote = "no se pudieron leer los errores del front: " + err.Error()
+		}
+	}
 	return r, nil
 }
 
@@ -609,20 +617,56 @@ func (r *DeployReport) Text() string {
 		fmt.Fprintf(&b, "⚠ Todavía no pasaron las %s horas: es lo que va.\n", fmtNum(r.Hours))
 	}
 	b.WriteString("\n")
+	newErrors := func() {
+		if len(r.NewErrors) > 0 {
+			fmt.Fprintf(&b, "\nErrores del front NUEVOS (no aparecieron en los 7 días de antes):\n")
+			for _, x := range r.NewErrors {
+				fmt.Fprintf(&b, "  ✗ %d × %s\n", x.After, x.Message)
+			}
+		}
+		if r.NewErrorsNote != "" {
+			fmt.Fprintf(&b, "\n⚠ %s\n", r.NewErrorsNote)
+		}
+	}
 	if len(r.Worse) == 0 {
-		fmt.Fprintf(&b, "No se ve nada peor: de %d señales (solicitudes por entidad y comercio, errores y vida de cada servicio, errores por entidad), ninguna empeoró contra antes y contra lo normal.\n", r.Checked)
+		fmt.Fprintf(&b, "No se ve nada peor: de %d señales (solicitudes, errores y vida de cada servicio, errores por entidad, pantallas del wizard), ninguna empeoró contra antes y contra lo normal.\n", r.Checked)
+		newErrors()
 		return b.String()
 	}
 	fmt.Fprintf(&b, "Empeoró (%d de %d señales):\n", len(r.Worse), r.Checked)
 	for _, ch := range r.Worse {
 		fmt.Fprintf(&b, "  ✗ %s — %s\n", ch.Name, ch.Why)
 	}
+	newErrors()
 	b.WriteString("\nOjo: que algo empeore después no prueba que lo causó el despliegue. Mirá la señal (bin/sentinel signal …) y sus logs.\n")
 	return b.String()
 }
 
 // findRelease: un despliegue a producción de un repo en GitHub: el de esa versión, o el último que salió bien.
 func findRelease(repo, version string) (*Release, error) {
+	// El front: lo que se vio en producción en PostHog (no hay un workflow de GitHub que lo despliegue a la vista).
+	if repo == "frontend-monorepo" {
+		cl, err := phClient()
+		if err != nil {
+			return nil, err
+		}
+		list, err := frontReleases(cl, 60)
+		if err != nil {
+			return nil, err
+		}
+		var seen []string
+		for i := len(list) - 1; i >= 0; i-- {
+			d := list[i]
+			seen = append(seen, d.Version)
+			if version == "" || d.Version == version || strings.Contains(d.Title, version) {
+				return &Release{Version: d.Version, At: d.At, OK: true, URL: d.URL, Title: d.Title}, nil
+			}
+		}
+		if len(seen) == 0 {
+			return nil, fmt.Errorf("en PostHog no hay versiones del front vistas en producción (antes de la v1.11.7 los errores no la traían)")
+		}
+		return nil, fmt.Errorf("no vi %s en producción; las vistas: %s", version, strings.Join(seen, ", "))
+	}
 	out, err := exec.Command("gh", "run", "list", "--repo", "Creditop-SAS/"+repo, "--limit", "200",
 		"--json", "workflowName,headBranch,conclusion,status,createdAt,url,displayTitle").Output()
 	if err != nil {
@@ -674,6 +718,8 @@ func (s *sentinel) subjectName(sig Signal) string {
 		return "Trabajos fallidos de la cola"
 	case "logs":
 		return key + " · líneas"
+	case "jserr":
+		return "Errores del front (JavaScript)"
 	case "step":
 		id, m := stepParts(sig)
 		label := id

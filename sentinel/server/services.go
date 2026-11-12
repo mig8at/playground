@@ -125,6 +125,13 @@ func (s *sentinel) loadReleases() {
 		}()
 	}
 	wg.Wait()
+	// El front: su versión sale de PostHog, no de un workflow de GitHub (steps.go).
+	if cl, err := phClient(); err == nil {
+		if front, err := frontReleases(cl, 30); err == nil && len(front) > 0 {
+			last := front[len(front)-1]
+			got["frontend-monorepo"] = Release{Version: last.Version, At: last.At, OK: true, URL: last.URL, Title: last.Title}
+		}
+	}
 	relMu.Lock()
 	s.releases = got
 	relMu.Unlock()
@@ -172,8 +179,11 @@ func (s *sentinel) apps(o *Overview) []App {
 	}
 	// Copias, no punteros a la lista: la lista se ordena después y el puntero quedaba señalando a otra señal.
 	for _, x := range o.Services {
-		if x.Kind == "service" {
+		switch x.Kind {
+		case "service":
 			get(x.Name).Errors = &x
+		case "jserr": // el front no escribe en Loki: su tarjeta es sus errores de JavaScript
+			get("frontend-monorepo").Errors = &x
 		}
 	}
 	for _, x := range o.Liveness {

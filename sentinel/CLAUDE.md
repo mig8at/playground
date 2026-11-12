@@ -97,9 +97,15 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 
 - ⚠ **`toDateTime('…')` en HogQL se lee en la hora del PROYECTO (Bogotá), no en UTC**: sin `'UTC'` explícito, cada
   pasada pedía 5 horas en el futuro, recibía nada y borraba lo guardado. `phVersion` 2 lo recargó.
-- `app_version` no sirve para atribuir un despliegue del front: siempre dice «1.0.0». Y frontend-monorepo no tiene un
-  workflow de GitHub con «prod» en el nombre: `bin/sentinel deploy frontend-monorepo` no lo encuentra todavía.
-- Los `$exception` del front (unos 455 al día) no se leen todavía: llegan sin `$exception_message`.
+- **La versión del front sale de PostHog, no de GitHub.** `app_version` siempre dice «1.0.0», y el último «Deploy Loan
+  Request Wizard Production» de GitHub es la v1.11.4 (2026-10-30) mientras en producción corre la v1.11.7: el front se
+  despliega por un camino que no se ve en los workflows. Lo que sí llega es `$exception_release` (el commit con que se
+  construyó y se subieron los source maps): cada commit nuevo visto en producción es un despliegue, a la hora en que
+  aparece por primera vez, y se traduce a su tag (`frontReleases`). Antes de la v1.11.7 los errores no traían versión.
+  Entra en la lista de despliegues, en la tarjeta `frontend-monorepo` y en `bin/sentinel deploy frontend-monorepo`.
+- **Los errores de JavaScript del front** (`jserr:front`, unos 455 por día): cuántos contra lo normal, como los de un
+  servicio. El mensaje está en `$exception_values` (`$exception_message` llega vacío). `bin/sentinel deploy` lista
+  además los mensajes NUEVOS: los que aparecen después del despliegue y no en los 7 días de antes.
 - La semana del 2026-11-05 al 12, las pantallas sumaron 7 avisos de alerta (3 del wizard entero, 4 de Pullman).
 
 ## Cómo avisa (`server/alerts.go`)

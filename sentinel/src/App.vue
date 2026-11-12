@@ -111,6 +111,7 @@ const selected = computed(() => {
   if (!d) return null
   if (route.value.kind === 'queue') return d.services?.find((s) => s.kind === 'queue') || d.all
   if (route.value.kind === 'service') return d.services?.find((s) => s.name === route.value.name) || d.all
+  if (route.value.kind === 'jserr') return d.services?.find((s) => s.signal === `jserr:${route.value.name}`) || d.all
   if (route.value.kind === 'step') return d.steps?.find((s) => s.signal === `step:${route.value.name}`) || d.all
   if (route.value.kind === 'lerr') return d.lenderErrors?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
@@ -124,7 +125,7 @@ const attention = computed(() => [...(data.value?.services || []), ...(data.valu
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 function pick(s) {
@@ -133,17 +134,18 @@ function pick(s) {
   else if (s.kind === 'service') setRoute(['service', s.name])
   else if (s.kind === 'logs') setRoute(['logs', s.signal.slice(5)])
   else if (s.kind === 'step') setRoute(['step', s.signal.slice(5)])
+  else if (s.kind === 'jserr') setRoute(['jserr', s.signal.slice(6)])
   else setRoute([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
 // Los servicios en producción (las tarjetas): su versión sale del último despliegue a producción en GitHub.
 const apps = computed(() => data.value?.apps || [])
-const isService = (s) => s?.kind === 'service' || s?.kind === 'logs'
-const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.name)
+const isService = (s) => s?.kind === 'service' || s?.kind === 'logs' || s?.kind === 'jserr'
+const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.kind === 'jserr' ? 'frontend-monorepo' : s.name)
 const releaseOf = (s) => apps.value.find((a) => a.service === serviceOf(s))?.release
 const silentFor = (m) => (m >= 2880 ? `${Math.floor(m / 1440)} días` : m >= 120 ? `${Math.floor(m / 60)} h` : `${m} min`)
 const compact = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n))
@@ -155,15 +157,15 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
-const KIND_LABEL = { step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
+const TABLE_KIND = { jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const KIND_LABEL = { jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
 // Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
   if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') setRoute([kind, key])
-  else if (kind === 'service' || kind === 'logs' || kind === 'step') setRoute([kind, String(sig).slice(kind.length + 1)])
+  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr') setRoute([kind, String(sig).slice(kind.length + 1)])
   else if (kind === 'queue') setRoute(['queue'])
   else setRoute([])
   readRoute()
@@ -177,7 +179,7 @@ function windowRange(s) {
   const from = new Date(new Date(data.value.windowTo) - (s.windowMinutes || 60) * 60000).toISOString()
   return hours(s) >= 24 ? `${dayClock(from)} – ${dayClock(data.value.windowTo)}` : `${clock(from)}–${clock(data.value.windowTo)}`
 }
-const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr'
+const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr' || s?.kind === 'jserr'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
 const shiftText = (s) => s?.shift && `Cambio de nivel: ×${fmt(s.shift.ratio)} por día (de ${fmt(s.shift.before)} a ${fmt(s.shift.after)}), la última semana contra las anteriores. Ya cuenta como lo normal; si nadie lo explicó, vale la pena mirarlo.`
@@ -376,7 +378,7 @@ onBeforeUnmount(() => {
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>

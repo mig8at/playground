@@ -16,6 +16,7 @@ package main
 import (
 	"fmt"
 	"math"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -38,9 +39,9 @@ var wizardSteps = []Step{
 }
 
 // phVersion: como logsVersion, para la historia de PostHog.
-const phVersion = 2 // 2: con la zona explícita (la 1 dejó huecos)
+const phVersion = 3 // 2: con la zona explícita (la 1 dejó huecos) · 3: los errores del front (`jserr:`)
 
-var stepKinds = []string{"step"}
+var stepKinds = []string{"step", "jserr"}
 
 func stepByID(id string) *Step {
 	for i := range wizardSteps {
@@ -260,4 +261,112 @@ func pctText(x float64) string {
 		return "—"
 	}
 	return fmt.Sprintf("%d %%", int(math.Round(x*100)))
+}
+
+// ── el front en producción: sus errores y su versión ─────────────────────────────────────────────────────────────
+
+// Los errores de JavaScript del front (`$exception`), en todo el front: la señal `jserr:front`. Llegan unos 455 por
+// día (medido el 2026-11-12); el mensaje está en `$exception_values` (no en `$exception_message`, que viene vacío).
+func frontErrors(cl *connevents.Client, from, to time.Time, f Fresh) error {
+	q := fmt.Sprintf(`SELECT toStartOfFiveMinutes(toTimeZone(timestamp, 'America/Bogota')) AS b, count() AS n
+FROM events WHERE event = '$exception' AND timestamp >= toDateTime('%s', 'UTC') AND timestamp < toDateTime('%s', 'UTC')
+GROUP BY b LIMIT 100000`, from.UTC().Format(stamp), to.UTC().Format(stamp))
+	cols, rows, err := cl.HogQL(q)
+	if err != nil {
+		return err
+	}
+	at := map[string]int{}
+	for i, c := range cols {
+		at[c] = i
+	}
+	for _, row := range rows {
+		bt, err := time.Parse(time.RFC3339, str(row[at["b"]]))
+		if err != nil {
+			continue
+		}
+		bt = bt.In(bogota)
+		f.add(bt.Format("2006-01-02"), "jserr:front", "total", bucketOf(bt), num(row[at["n"]]))
+	}
+	return nil
+}
+
+// frontReleases: cada versión del front que se vio en producción, con la primera vez que apareció. Sale de
+// `$exception_release` (el commit con que se construyó y se subieron los source maps): el front NO se despliega por un
+// workflow de GitHub que se vea (el último «Deploy Loan Request Wizard Production» es la v1.11.4 del 2026-10-30, y en
+// producción corre la v1.11.7). El commit se traduce a su tag. Antes de la v1.11.7 los errores no traían versión.
+func frontReleases(cl *connevents.Client, days int) ([]Deploy, error) {
+	q := fmt.Sprintf(`SELECT JSONExtractString(toString(properties.$exception_release), 'version') AS v, min(timestamp) AS first
+FROM events WHERE event = '$exception' AND timestamp > now() - INTERVAL %d DAY
+  AND JSONExtractString(toString(properties.$exception_release), 'project') = 'frontend-monorepo'
+GROUP BY v ORDER BY first`, days)
+	cols, rows, err := cl.HogQL(q)
+	if err != nil {
+		return nil, err
+	}
+	at := map[string]int{}
+	for i, c := range cols {
+		at[c] = i
+	}
+	tags := frontTags()
+	var out []Deploy
+	for _, row := range rows {
+		sha := str(row[at["v"]])
+		t, err := time.Parse(time.RFC3339, str(row[at["first"]]))
+		if sha == "" || err != nil {
+			continue
+		}
+		version, url := sha[:min(8, len(sha))], "https://github.com/Creditop-SAS/frontend-monorepo/commit/"+sha
+		if tag := tags[sha]; tag != "" {
+			version, url = tag, "https://github.com/Creditop-SAS/frontend-monorepo/releases/tag/"+tag
+		}
+		out = append(out, Deploy{Repo: "frontend-monorepo", Version: version, At: t.In(bogota).Format(time.RFC3339), OK: true, URL: url,
+			Title: "primera vez vista en producción (PostHog, commit " + sha[:min(8, len(sha))] + ")"})
+	}
+	return out, nil
+}
+
+// frontTags: el tag de cada commit del front (los últimos 100).
+func frontTags() map[string]string {
+	out := map[string]string{}
+	raw, err := exec.Command("gh", "api", "repos/Creditop-SAS/frontend-monorepo/tags?per_page=100", "-q", `.[] | [.commit.sha, .name] | @tsv`).Output()
+	if err != nil {
+		return out
+	}
+	for _, line := range strings.Split(strings.TrimSpace(string(raw)), "\n") {
+		if sha, tag, ok := strings.Cut(line, "\t"); ok {
+			if _, seen := out[sha]; !seen {
+				out[sha] = tag
+			}
+		}
+	}
+	return out
+}
+
+// NewError: un mensaje de error del front que aparece después de un despliegue y no en los días de antes.
+type NewError struct {
+	Message string `json:"message"`
+	After   int    `json:"after"`
+}
+
+// newFrontErrors: los mensajes de `$exception` de [from, to) que no aparecieron en los `before` días anteriores.
+func newFrontErrors(cl *connevents.Client, from, to time.Time, before int) ([]NewError, error) {
+	q := fmt.Sprintf(`SELECT substring(toString(properties.$exception_values), 1, 200) AS m,
+  countIf(timestamp >= toDateTime('%[1]s', 'UTC') AND timestamp < toDateTime('%[2]s', 'UTC')) AS after,
+  countIf(timestamp < toDateTime('%[1]s', 'UTC')) AS prior
+FROM events WHERE event = '$exception' AND timestamp >= toDateTime('%[1]s', 'UTC') - INTERVAL %[3]d DAY AND timestamp < toDateTime('%[2]s', 'UTC')
+GROUP BY m HAVING prior = 0 AND after >= 3 ORDER BY after DESC LIMIT 15`, from.UTC().Format(stamp), to.UTC().Format(stamp), before)
+	cols, rows, err := cl.HogQL(q)
+	if err != nil {
+		return nil, err
+	}
+	at := map[string]int{}
+	for i, c := range cols {
+		at[c] = i
+	}
+	var out []NewError
+	for _, row := range rows {
+		m := strings.TrimSuffix(strings.TrimPrefix(str(row[at["m"]]), `["`), `"]`)
+		out = append(out, NewError{Message: m, After: num(row[at["after"]])})
+	}
+	return out, nil
 }
