@@ -110,6 +110,12 @@ adelante depende de las respuestas de la fase 0.
   (como `DocumentTypesService::resolver` junta los tipos de documento); si ninguna, la de config. Guarda el
   `credential_id` en el request, como ADO, y deja en el log la sucursal, las entidades con cuenta y la elegida.
   Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
+- [ ] Llevar a qa las credenciales de Mareigua por entidad: [#1922](https://github.com/Creditop-SAS/legacy-backend/pull/1922)
+  contra `qa`. Termina con el PR mergeado y una consulta en qa con la cuenta de una entidad cargada. Depende de:
+  revisión del equipo.
+- [ ] Revisar el commit local `a666569d4` (insumos del riel 4 desde la configuración de la entidad) contra lo que
+  Abel ya mergeó de Finandina (CRED-519: #1809, #1844, #1834). Termina con el commit subido en el PR de la tarea o
+  descartado con su motivo.
 - [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
   entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
 - [x] Decidir si una consulta de Mareigua del último mes hecha con la cuenta de Creditop se reutiliza en una
