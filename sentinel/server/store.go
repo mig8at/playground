@@ -194,6 +194,20 @@ func (s *store) complete(date string) bool {
 	return err == nil && !through.Before(end)
 }
 
+// reach: hasta dónde llegó lo pedido (el Through más nuevo). Una pasada pide desde ahí: si el Mac durmió o la VPN se
+// cayó, el hueco se llena en la pasada siguiente y no queda un día marcado completo con horas vacías adentro.
+func (s *store) reach() time.Time {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	var out time.Time
+	for _, d := range s.days {
+		if t, err := time.Parse(time.RFC3339, d.Through); err == nil && t.After(out) {
+			out = t
+		}
+	}
+	return out
+}
+
 func (s *store) dates() []string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

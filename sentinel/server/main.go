@@ -5,6 +5,7 @@
 //	go run ./sentinel/server -serve 127.0.0.1:5211     la API (`make sentinel` la levanta con la interfaz)
 //	go run ./sentinel/server -once                    carga lo que falte, una pasada, y el resumen
 //	go run ./sentinel/server -backtest 7              cuántas veces habrían sonado las reglas en los últimos 7 días
+//	make sentinel-install                             la deja corriendo de fondo (LaunchAgent): mide aunque nada esté abierto
 //
 // Sólo escucha en 127.0.0.1 y sólo LEE producción: cada consulta pasa por la guarda de sólo lectura del conector.
 package main
@@ -14,6 +15,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -96,6 +98,7 @@ type sentinel struct {
 	err             string
 	running         bool
 	loading         string
+	fromDisk        bool // la vista de arranque salió de last.json
 	lenderNames     map[int]string
 	merchantNames   map[int]string
 	namesAt         time.Time
@@ -210,7 +213,11 @@ func (s *sentinel) pass() (*Overview, error) {
 	if err := s.backfill(r, rules, now); err != nil {
 		return nil, err
 	}
-	if err := s.fetchRange(r, now.Add(-3*time.Hour).Truncate(5*time.Minute), now); err != nil {
+	from := now.Add(-3 * time.Hour)
+	if reach := s.store.reach(); !reach.IsZero() && reach.Before(from) {
+		from = reach // un hueco (el Mac dormido, la VPN caída): se pide entero
+	}
+	if err := s.fetchRange(r, from.Truncate(5*time.Minute), now); err != nil {
 		return nil, err
 	}
 	if time.Since(s.namesAt) > time.Hour || s.lenderNames == nil {
@@ -379,12 +386,53 @@ func (s *sentinel) run() {
 		return
 	}
 	s.last, s.err = o, ""
+	s.saveLast(o)
+}
+
+// sentinelAt: ¿en esa dirección contesta una API de Sentinel?
+func sentinelAt(addr string) bool {
+	res, err := (&http.Client{Timeout: 3 * time.Second}).Get("http://" + addr + "/api/overview")
+	if err != nil {
+		return false
+	}
+	res.Body.Close()
+	return res.StatusCode == http.StatusOK
+}
+
+// La última vista se guarda en disco: al abrir, la interfaz muestra eso mismo de entrada y no espera la primera pasada.
+func (s *sentinel) lastPath() string { return filepath.Join(s.store.dir, "last.json") }
+
+func (s *sentinel) saveLast(o *Overview) {
+	raw, err := json.Marshal(o)
+	if err != nil {
+		return
+	}
+	tmp := s.lastPath() + ".tmp"
+	if os.WriteFile(tmp, raw, 0o644) == nil {
+		_ = os.Rename(tmp, s.lastPath())
+	}
+}
+
+func (s *sentinel) loadLast() {
+	raw, err := os.ReadFile(s.lastPath())
+	if err != nil {
+		return
+	}
+	var o Overview
+	if json.Unmarshal(raw, &o) == nil && o.CheckedAt != "" {
+		s.mu.Lock()
+		s.last, s.fromDisk = &o, true
+		s.deployList = o.Deploys
+		s.mu.Unlock()
+	}
 }
 
 func (s *sentinel) view() map[string]any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return map[string]any{"overview": s.last, "error": s.err, "running": s.running, "loading": s.loading}
+	// stale: lo que se ve es lo guardado de la última vez, y la pasada de ahora todavía no terminó.
+	return map[string]any{"overview": s.last, "error": s.err, "running": s.running, "loading": s.loading,
+		"stale": s.fromDisk && s.last != nil && s.running}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -398,6 +446,9 @@ func main() {
 	serve := flag.String("serve", "127.0.0.1:5211", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", 5*time.Minute, "cada cuánto pide lo que falta")
 	once := flag.Bool("once", false, "carga lo que falte, hace una pasada y muestra el resumen")
+	install := flag.Bool("install", false, "la deja corriendo de fondo como LaunchAgent (desde el binario compilado)")
+	uninstall := flag.Bool("uninstall", false, "saca el LaunchAgent (lo guardado se queda)")
+	status := flag.Bool("status", false, "¿el LaunchAgent está cargado, y hasta dónde llegó lo guardado?")
 	backtest := flag.Int("backtest", 0, "cuántas veces habrían sonado las reglas en los últimos N días, y sale")
 	flag.Parse()
 	root, err := os.Getwd()
@@ -412,6 +463,17 @@ func main() {
 		log.Fatal(err)
 	}
 	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st}
+	switch {
+	case *install:
+		exitOn(installAgent(root, *serve))
+		return
+	case *uninstall:
+		exitOn(uninstallAgent())
+		return
+	case *status:
+		agentStatus(st)
+		return
+	}
 
 	if *once || *backtest > 0 {
 		o, err := s.pass()
@@ -428,6 +490,21 @@ func main() {
 	if !strings.HasPrefix(*serve, "127.0.0.1:") {
 		log.Fatal("sentinel: la API escucha sólo en 127.0.0.1")
 	}
+	ln, err := net.Listen("tcp", *serve)
+	if err != nil && sentinelAt(*serve) {
+		// El puerto ya lo tiene otra API de Sentinel (la de fondo, o la que levantó Cockpit con `make sentinel`): se usa
+		// ésa, y este proceso espera a que se suelte para tomar el relevo. Así ni `make sentinel` se cae por el puerto ni
+		// la de fondo queda muda cuando se cierra la otra.
+		log.Printf("sentinel: la API ya corre en %s; espero a que se suelte para tomar el relevo", *serve)
+		for err != nil {
+			time.Sleep(15 * time.Second)
+			ln, err = net.Listen("tcp", *serve)
+		}
+	}
+	if err != nil {
+		log.Fatal(err)
+	}
+	s.loadLast()
 	go func() {
 		for {
 			s.run()
@@ -454,7 +531,7 @@ func main() {
 		writeJSON(w, http.StatusOK, map[string]any{"days": days, "episodes": s.evaluator(rules).backtest(days, time.Now().In(bogota))})
 	})
 	log.Printf("sentinel: API en http://%s · pide lo que falta cada %s · historia: %s", *serve, *every, st)
-	log.Fatal((&http.Server{Addr: *serve, Handler: mux, ReadHeaderTimeout: 5 * time.Second}).ListenAndServe())
+	log.Fatal((&http.Server{Handler: mux, ReadHeaderTimeout: 5 * time.Second}).Serve(ln))
 }
 
 func printSummary(o *Overview) {

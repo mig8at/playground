@@ -13,6 +13,7 @@ const data = ref(null)       // el Overview de la API
 const apiError = ref('')
 const running = ref(false)
 const loading = ref('')      // la carga inicial de la historia, mientras corre
+const stale = ref(false)     // lo que se ve es lo guardado de la última vez; la lectura de ahora sigue
 const query = ref('')
 const route = ref({ kind: 'all', id: 0 })
 
@@ -24,6 +25,7 @@ async function load() {
     apiError.value = body.error || ''
     running.value = !!body.running
     loading.value = body.loading || ''
+    stale.value = !!body.stale
   } catch {
     apiError.value = 'No contesta la API. ¿Está arriba? (make sentinel levanta las dos partes)'
   }
@@ -322,6 +324,7 @@ onBeforeUnmount(() => {
       <span v-else>{{ apiError || 'leyendo producción…' }}</span>
       <span v-if="apiError && data" class="statusbar-item warn-text">{{ apiError }}</span>
       <span v-if="loading && data" class="statusbar-item">{{ loading }}</span>
+      <span v-else-if="stale" class="statusbar-item">lo guardado de las {{ clock(data.checkedAt) }}; leyendo lo de ahora…</span>
       <button type="button" class="statusbar-item linkish" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>

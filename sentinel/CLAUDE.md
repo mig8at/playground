@@ -20,6 +20,21 @@ en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar 
 - **Cada pasada (5 min) vuelve a pedir sólo las últimas 3 horas** y las reemplaza: una solicitud cambia de estado
   horas después de entrar, y reemplazar (no sumar) evita contar dos veces.
 
+## De fondo: mide aunque nada esté abierto
+
+`make sentinel-install` deja la API corriendo como **LaunchAgent** de macOS (`com.creditop.sentinel`, `server/agent.go`):
+arranca con la sesión, se vuelve a levantar si se cae y mide cada 5 minutos aunque Cockpit esté cerrado. Corre el
+binario compilado `sentinel/bin/sentinel` (fuera de git): **después de cambiar el servidor, `make sentinel-install` de
+nuevo**. `make sentinel-status` dice si está vivo y hasta dónde llegó lo guardado; `make sentinel-uninstall` lo saca.
+Su salida queda en `~/Library/Logs/sentinel.log`.
+
+- **Dos APIs no se pisan.** Si el puerto 5211 ya lo tiene otra de Sentinel (la de Cockpit, por `make sentinel`), la que
+  llega después espera y toma el relevo cuando se suelta. Sólo la que escucha lee producción y escribe lo guardado.
+- **Sin huecos.** Cada pasada pide desde donde llegó lo guardado (`reach`), no sólo las últimas 3 horas: el Mac dormido
+  o la VPN de producción caída dejan un hueco que la pasada siguiente llena entero.
+- **Al abrir hay datos de entrada.** La última vista se guarda en `sentinel/.data/last.json`; al arrancar la API la
+  sirve marcada `stale` («lo guardado de las HH:MM; leyendo lo de ahora…») hasta que termina la primera pasada.
+
 ## Cómo decide (`server/stats.go`)
 
 - **Lo normal es la misma hora en los días comparables**: hábiles con hábiles, fines de semana con fines de semana,
@@ -61,6 +76,7 @@ en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar 
 | la lectura de producción (Redash y Loki) | `server/fetch.go` (usa `connectors/sql`, con su guarda de sólo lectura, y `connectors/logs`) |
 | lo normal, el veredicto, el cambio de nivel y el backtest | `server/stats.go` |
 | la carga, las pasadas y la API | `server/main.go` |
+| el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
 | la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
 
