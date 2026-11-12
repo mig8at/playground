@@ -165,7 +165,7 @@ document.querySelectorAll('[data-swatches]').forEach((row) => {
 function drawSkinRow() {
   const sp = cur.species || ''
   const colors = OPCIONES.skinBy[sp] || OPCIONES.skin
-  document.getElementById('skin-label').textContent = sp === 'pato' ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp ? 'Pelaje' : 'Piel'
+  document.getElementById('skin-label').textContent = ['pato', 'pinguino', 'buho'].includes(sp) ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp === 'rana' ? 'Piel' : sp ? 'Pelaje' : 'Piel'
   document.getElementById('skin-row').innerHTML = colors.map((c) => `<button type="button" class="swatch" data-key="skin" data-val="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')
   document.querySelectorAll('[data-human]').forEach((el) => { el.hidden = !!sp })
 }
