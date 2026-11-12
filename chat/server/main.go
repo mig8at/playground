@@ -420,11 +420,31 @@ var agentNameRe = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,23}$`)
 
 func main() {
 	addr := flag.String("serve", "127.0.0.1:5185", "dirección de la API (sólo 127.0.0.1)")
+	install := flag.Bool("install", false, "deja este servidor corriendo de fondo como LaunchAgent (desde el binario compilado)")
+	uninstall := flag.Bool("uninstall", false, "saca el LaunchAgent (el historial se queda)")
+	status := flag.Bool("status", false, "¿corre de fondo?")
 	flag.Parse()
 	host, _, err := net.SplitHostPort(*addr)
 	if err != nil || host != "127.0.0.1" {
 		fmt.Fprintln(os.Stderr, "chat: la API escucha sólo en 127.0.0.1 (manda mensajes a tu nombre)")
 		os.Exit(2)
+	}
+	if *install || *uninstall || *status {
+		os.Exit(agentCommand(*addr, *install, *uninstall))
+	}
+	// EL PUERTO PRIMERO, y después el historial: si ya hay otro servidor del chat (el de fondo, o el que trae Cockpit),
+	// éste espera y toma el relevo cuando se suelta. Así nunca hay dos escuchando y escribiendo el mismo historial.
+	ln, err := net.Listen("tcp", *addr)
+	if err != nil && chatAt(*addr) {
+		fmt.Printf("chat · ya hay un servidor del chat en %s: espero a que se suelte para tomar el relevo\n", *addr)
+		for err != nil {
+			time.Sleep(15 * time.Second)
+			ln, err = net.Listen("tcp", *addr)
+		}
+	}
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "chat:", err)
+		os.Exit(1)
 	}
 	if dir, err := historyDir(); err != nil {
 		fmt.Fprintln(os.Stderr, "chat: sin historial en disco:", err)
@@ -441,8 +461,8 @@ func main() {
 	if ui != "" {
 		fmt.Printf("chat · interfaz en http://%s (%s)\n", *addr, ui)
 	}
-	srv := &http.Server{Addr: *addr, Handler: guard(withUI(handler(), ui)), ReadHeaderTimeout: 5 * time.Second}
-	if err := srv.ListenAndServe(); err != nil {
+	srv := &http.Server{Handler: guard(withUI(handler(), ui)), ReadHeaderTimeout: 5 * time.Second}
+	if err := srv.Serve(ln); err != nil {
 		fmt.Fprintln(os.Stderr, "chat:", err)
 		os.Exit(1)
 	}

@@ -26,7 +26,7 @@ use std::path::PathBuf;
 use std::process::{Child, Command};
 use std::sync::{Arc, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use serde::Serialize;
 use tauri::webview::NewWindowResponse;
@@ -184,13 +184,36 @@ struct Running {
     // LAS APPS QUE SE VIGILAN: las que se abrieron alguna vez (`ensure_app`), con cuántas revisiones seguidas lleva
     // cada una sin contestar. Ver `watchdog`.
     watched: Arc<Mutex<HashMap<&'static str, u32>>>,
+    // Desde cuándo el chat no contesta (ver `chat_agent_installed`).
+    sidecar_down: Arc<Mutex<Option<Instant>>>,
+}
+
+/* EL CHAT DE FONDO (`make chat-install`): si su LaunchAgent está instalado, el servidor del chat lo cuida launchd y
+   sigue aunque Cockpit se cierre. Cockpit entonces NO levanta el suyo al arrancar (si lo hiciera, ganaría el puerto y
+   el de fondo quedaría esperando); sólo lo levanta de respaldo si el chat no contesta durante SIDECAR_GRACE. */
+const SIDECAR_GRACE: Duration = Duration::from_secs(30);
+
+fn chat_agent_installed() -> bool {
+    std::env::var("HOME")
+        .map(|h| PathBuf::from(h).join("Library/LaunchAgents/com.creditop.playground.chat.plist").exists())
+        .unwrap_or(false)
 }
 
 impl Running {
     // ¿Está lista? Si no y no hay nada arrancando, la arranca. La carcasa pregunta hasta que diga que sí.
     fn ensure(&self, app: &AppDef) -> bool {
         if ready(app) {
+            if matches!(app.start, Start::Sidecar) {
+                *self.sidecar_down.lock().unwrap() = None;
+            }
             return true;
+        }
+        if matches!(app.start, Start::Sidecar) && chat_agent_installed() {
+            let mut since = self.sidecar_down.lock().unwrap();
+            let first = *since.get_or_insert_with(Instant::now);
+            if first.elapsed() < SIDECAR_GRACE {
+                return false; // lo levanta launchd: se le da tiempo
+            }
         }
         let mut children = self.children.lock().unwrap();
         let alive = matches!(children.get_mut(app.id).map(|c| c.try_wait()), Some(Ok(None)));
@@ -584,7 +607,7 @@ fn open_in_shell(app: &tauri::AppHandle, id: &str, route: &str) {
 }
 
 fn main() {
-    let running = Running { children: Arc::default(), path: Arc::new(user_path()), watched: Arc::default() };
+    let running = Running { children: Arc::default(), path: Arc::new(user_path()), watched: Arc::default(), sidecar_down: Arc::default() };
     // El chat, ya: aunque no lo abras, junta el historial y avisa. Si se cae, se vuelve a levantar.
     let chat = &APPS[0];
     running.ensure(chat);

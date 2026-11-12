@@ -12,7 +12,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 
 | id (`bin/cockpit open <id>`) | qué es | carpeta | puerto · API | la levanta |
 |---|---|---|---|---|
-| `chat` | el chat del equipo | `chat/` | :5185 | Cockpit, adentro (Go, `chat-server`) |
+| `chat` | el chat del equipo | `chat/` | :5185 | de fondo (`make chat-install`); si no está instalado, Cockpit, adentro (Go, `chat-server`) |
 | `tablero` | las tareas y el sprint | `tablero/` | :5191 · :8787 | `make tablero` |
 | `harness` | el panel del harness | `harness/panel/` | :5195 | `make panel` |
 | `jarvis` | Jarvis | `jarvis/` | :5202 · :5203 | `make jarvis` |
@@ -24,8 +24,15 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
 ## Quién levanta cada servidor (esto decide qué hacés antes de arrancar uno)
 
-- **El chat viene adentro**: su servidor arranca con Cockpit, se vuelve a levantar si se cae y se apaga al
-  salir. `make chat` es sólo para desarrollar su interfaz.
+- **El chat corre de fondo** (`make chat-install`, desde el 2026-11-12): un LaunchAgent (`com.creditop.playground.chat`,
+  binario `chat/bin/chat-server`) que junta el historial, avisa y contesta el llavero aunque Cockpit esté cerrado del
+  todo o reinstalándose. Con él instalado Cockpit NO levanta el suyo; sólo de respaldo si el chat no contesta 30 s
+  (`chat_agent_installed`, `SIDECAR_GRACE`). Sin él, el servidor viene adentro como antes: arranca con Cockpit, se
+  vuelve a levantar si se cae y se apaga al salir. `make chat-status` · `make chat-uninstall`. `make chat` es sólo para
+  desarrollar su interfaz.
+- **Sentinel también corre de fondo** (`make sentinel-install`); los dos con `lib/launchagent`.
+- **Dos servidores de la misma app no se pisan**: el chat y Sentinel, si su puerto ya lo tiene otro de los suyos,
+  esperan y toman el relevo cuando se suelta. Sólo el que escucha escribe el historial o lo guardado.
 - **Las demás se levantan la primera vez que Miguel las abre** en la barra, con su `make <app>`, y se apagan
   al salir de Cockpit (todo su grupo de procesos). Su salida queda en `~/Library/Logs/cockpit-<id>.log`
   (el chat: `creditop-playground-chat.log`).
@@ -131,12 +138,13 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 6. La fila de la tabla de arriba, y el id en la fila de `bin/cockpit` del `CLAUDE.md` raíz.
 
 **Reinstalar: `make cockpit`** compila el chat (servidor y interfaz) y la carcasa, cierra Cockpit, lo copia a
-Aplicaciones y lo abre. Tarda unos minutos. Hace falta cuando cambia `cockpit/` o `chat/`; **no** para un
+Aplicaciones y lo abre; si el chat corre de fondo, también lo recompila y lo recarga (`make chat-install`). Tarda unos minutos. Hace falta cuando cambia `cockpit/` o `chat/`; **no** para un
 cambio en tablero, harness, Jarvis, Designer o ecommerce.
 
 - ⚠ Reinstalar **apaga las apps que Cockpit había levantado** (no las que levantaste vos).
 - ⚠ Después de reinstalar, macOS puede volver a pedir permiso para la carpeta Escritorio, y hasta que Miguel
-  lo acepta el servidor del chat queda colgado: no es el código.
+  lo acepta el servidor del chat queda colgado: no es el código. Lo mismo con los de fondo (`chat-server`,
+  `sentinel`) al instalarlos: el proceso vive y su log no dice nada hasta que se toca «Permitir».
 - **El micrófono** (dictar en el chat): Cockpit concede sólo el micrófono a sus apps (`on_permission_request`), los
   iframes lo piden con `allow="microphone"`, y macOS pregunta una vez (`NSMicrophoneUsageDescription`, en
   `src-tauri/Info.plist`, que Tauri junta con el de la app). La transcripción la hace el servidor del chat con Whisper

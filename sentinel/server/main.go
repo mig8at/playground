@@ -465,13 +465,13 @@ func main() {
 	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st}
 	switch {
 	case *install:
-		exitOn(installAgent(root, *serve))
+		exitOn(agent(root, *serve).Install())
 		return
 	case *uninstall:
-		exitOn(uninstallAgent())
+		exitOn(agent(root, *serve).Uninstall())
 		return
 	case *status:
-		agentStatus(st)
+		agentStatus(agent(root, *serve), st)
 		return
 	}
 

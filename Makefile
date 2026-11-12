@@ -130,11 +130,21 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de Cockpit (:5185) o, si está cerrado, uno con go run. Para usarlo: Cockpit, `make cockpit`
 	@cd chat && npm run dev
 
-cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis, Designer —el visor—, ecommerce y knowledge). Trae adentro el servidor del chat, sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
+cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis, Designer —el visor—, ecommerce y knowledge). Trae adentro el servidor del chat (de respaldo si corre de fondo, `make chat-install`, que también recompila), sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
 	@cd cockpit && npm run build && { \
 	  for id in com.creditop.playground.cockpit com.creditop.playground.chat-app; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
 	  rm -rf /Applications/Chat.app "$$HOME/Library/LaunchAgents/Chat.plist" /Applications/Cockpit.app; \
 	  ditto src-tauri/target/release/bundle/macos/Cockpit.app /Applications/Cockpit.app && open /Applications/Cockpit.app; }
+	@if [ -f "$$HOME/Library/LaunchAgents/com.creditop.playground.chat.plist" ]; then $(MAKE) --no-print-directory chat-install; fi
+
+chat-install: ## @dia deja el servidor del chat corriendo DE FONDO (LaunchAgent): junta el historial, avisa y contesta el llavero aunque Cockpit esté cerrado del todo. Cockpit usa ése. `make cockpit` lo recompila solo
+	@mkdir -p chat/bin && go build -o chat/bin/chat-server ./chat/server && chat/bin/chat-server -install
+
+chat-status: ## @dia ¿el servidor del chat corre de fondo?
+	@go run ./chat/server -status
+
+chat-uninstall: ## @dia saca el servidor del chat de fondo (vuelve a traerlo Cockpit; el historial se queda)
+	@go run ./chat/server -uninstall
 
 anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
@@ -310,7 +320,7 @@ estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 #
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
-.PHONY: sentinel-install sentinel-status sentinel-uninstall
+.PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
 .PHONY: pulso pulso-install pulso-status pulso-uninstall
 pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
