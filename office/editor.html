@@ -8,7 +8,7 @@
   OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPCIONES, en personajes.js):
   piel, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
   mismo recuadro de la llamada, con los mismos gestos (escucha, teclea, piensa, habla), así que lo que se ve acá es
-  lo que se ve allá. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
+  lo que se ve allá. También se elige el gorro, que va encima de cualquier peinado. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
   también se puede copiar como JSON (una entrada de CAST) o bajar como SVG.
 -->
 <link rel="stylesheet" href="personajes.css">
@@ -100,6 +100,10 @@
     <div class="field"><label>Peinado</label><div class="row" data-options="hair"></div></div>
     <div class="field"><label>Color</label><div class="row" data-swatches="hairColor"></div></div>
 
+    <h2>Gorro</h2>
+    <div class="field"><div class="row" data-options="hat"></div></div>
+    <div class="field"><label>Color del gorro</label><div class="row" data-swatches="hatColor"></div></div>
+
     <h2>Detalles</h2>
     <div class="row" id="extras"></div>
     <div class="field" style="margin-top:8px"><label>Color de audífonos y aretes</label><div class="row" data-swatches="gear"></div></div>
@@ -125,7 +129,7 @@
 <script>
 // ── EL PERSONAJE QUE SE EDITA ────────────────────────────────────────────────────────────────────
 const START = { name: 'Nuevo', owner: '', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
-  extras: [], lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
+  extras: [], hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
 let saved = loadCustom()
 let cur = { ...START, id: newId() }
 let gesture = 'idle'

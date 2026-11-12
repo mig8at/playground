@@ -118,19 +118,19 @@
 <script src="personajes.js"></script>
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// Todos son personas, dibujadas a mano y originales. kind: 'human' | 'agent' (el agente lleva owner, de quién es). hair: el peinado (HAIR), face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el paisaje de su recuadro. Ana, Leo y Sofi son invitados
+// Todos son personas, dibujadas a mano y originales. kind: 'human' | 'agent' (el agente lleva owner, de quién es). hair: el peinado (HAIR), hat: el gorro (HATS) y hatColor, face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el paisaje de su recuadro. Ana, Leo y Sofi son invitados
 // de ejemplo, para que se vea la variedad: no son del chat real. Los agentes de Duncan van con nombre genérico hasta
 // saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
   { id: 'duncan', nose: 'bulb', eye: 22, teeth: 'grin', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'crop', hairColor: '#5a3a22', shirt: '#2b6670', accent: '#f1e4c7', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
-  { id: 'd-bot1', nose: 'button', eye: 28, name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hairColor: '#1f1712', shirt: '#f08c3d', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
+  { id: 'd-bot1', nose: 'button', eye: 28, name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hat: 'pescador', hatColor: '#f2c14e', hairColor: '#1f1712', shirt: '#f08c3d', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
   { id: 'd-bot2', nose: 'long', eye: 24, teeth: 'buck', name: 'agente 2', owner: 'Duncan', kind: 'agent', skin: '#f2c9a3', hair: 'curly', hairColor: '#8a4b2a', shirt: '#c5381f', accent: '#f1e4c7', extras: ['headphones'], gear: '#13323a', face: 'round', scene: 'hills' },
   { id: 'miguel', nose: 'hook', eye: 26, teeth: 'grin', name: 'Miguel', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#1f1712', shirt: '#e5592a', accent: '#13323a', face: 'round', scene: 'sun' },
   { id: 'luigi', nose: 'button', eye: 30, name: 'Luigi', owner: 'Miguel', kind: 'agent', skin: '#f0c49b', hair: 'long', hairColor: '#962b19', shirt: '#8db3a9', accent: '#f1e4c7', extras: ['freckles'], lashes: true, face: 'soft', scene: 'waves' },
   { id: 'wario', nose: 'bulb', eye: 20, lids: true, teeth: 'buck', name: 'Wario', owner: 'Miguel', kind: 'agent', skin: '#a8703f', hair: 'buzz', hairColor: '#23171a', shirt: '#1d4a54', accent: '#f08c3d', extras: ['glasses'], glassesRound: true, face: 'tall', scene: 'dusk' },
-  { id: 'ana', nose: 'button', eye: 27, teeth: 'grin', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'garden' },
-  { id: 'leo', nose: 'long', eye: 25, teeth: 'buck', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'beanie', hairColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', extras: ['freckles'], face: 'tall', scene: 'ocean' },
+  { id: 'ana', nose: 'button', eye: 27, teeth: 'grin', name: 'Ana', guest: true, kind: 'human', skin: '#8a5a3c', hair: 'curly', hat: 'boina', hatColor: '#9b8ec7', hairColor: '#23171a', shirt: '#f08c3d', accent: '#13323a', extras: ['earrings'], gear: '#f1e4c7', lashes: true, face: 'round', scene: 'garden' },
+  { id: 'leo', nose: 'long', eye: 25, teeth: 'buck', name: 'Leo', guest: true, kind: 'human', skin: '#f0c49b', hair: 'crop', hairColor: '#8a4b2a', hat: 'chullo', hatColor: '#c5381f', shirt: '#13323a', accent: '#f08c3d', extras: ['freckles'], face: 'tall', scene: 'ocean' },
   { id: 'sofi', nose: 'hook', eye: 24, name: 'Sofi', guest: true, kind: 'human', skin: '#d99c74', hair: 'bun', hairColor: '#4a2f1c', shirt: '#8db3a9', accent: '#c5381f', extras: ['glasses'], lashes: true, face: 'round', scene: 'candy' },
 ].map((c) => ({ ...c, agent: c.kind === 'agent' }))
 

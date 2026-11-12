@@ -105,6 +105,62 @@ const HAIR = {
   }),
 }
 
+// LOS GORROS: una capa aparte, encima del pelo, así cualquier peinado lleva cualquier gorro (por debajo se siguen
+// viendo patillas y melena). Se arman sobre la misma elipse de la cara. Todos lisos: sin letras ni marcas.
+const HATS = {
+  // gorro de lana con puño tejido y pompón
+  lana: (h, c) => {
+    const d = shade(c, .8), l = shade(c, 1.22), band = 26
+    const cuffTop = arc(h, 186, 354, 14), cuffBottom = arc(h, 354, 186, 12).replace(/L([\d.]+) ([\d.]+)/g, (m, x, y) => `L${x} ${r1(+y + band)}`)
+    let ribs = ''
+    for (let a = 192; a <= 348; a += 9) { const [x, y] = pt(h, a, 13); ribs += `M${x} ${y + 4} v${band - 8} ` }
+    return `${cut(`<path d="${M(pt(h, 186, 14))} ${arc(h, 186, 354, 14)}Z" fill="${c}"/><circle cx="${h.cx}" cy="${h.cy - h.ry - 20}" r="19" fill="${l}"/>`)}
+      ${soft(`<path d="${M(pt(h, 186, 14))} ${cuffTop} L${pt(h, 354, 14)[0]} ${pt(h, 354, 14)[1] + band} ${cuffBottom}Z" fill="${d}"/>`)}
+      <path d="${ribs}" stroke="${shade(c, .66)}" stroke-width="3" stroke-linecap="round"/>`
+  },
+  // chullo: lana con orejeras, cordones con borla y una franja en zigzag
+  chullo: (h, c) => {
+    const d = shade(c, .8), zig = [], flap = (side) => {
+      const [x, y] = pt(h, side < 0 ? 196 : 344, 12)
+      const bx = x + side * 6, by = h.cy + h.ry * .42
+      return `<path d="M${x - 20 * side} ${y - 4} Q${bx + 10 * side} ${y + 20} ${bx} ${by} Q${bx - 18 * side} ${by - 6} ${x - 34 * side} ${y + 6}Z" fill="${c}"/>
+        <path d="M${bx} ${by} q${-4 * side} 22 ${2 * side} 42" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="${bx + 2 * side}" cy="${by + 46}" r="8" fill="${d}"/>`
+    }
+    for (let a = 194, i = 0; a <= 346; a += 9, i++) zig.push(pt(h, a, i % 2 ? 2 : 12))
+    return `${cut(`${flap(-1)}${flap(1)}<path d="${M(pt(h, 184, 14))} ${arc(h, 184, 356, 14)}Z" fill="${c}"/><circle cx="${h.cx}" cy="${h.cy - h.ry - 20}" r="16" fill="${shade(c, 1.2)}"/>`)}
+      <path d="M${zig.map((q) => q.join(' ')).join(' L')}" stroke="#f1e4c7" stroke-width="6" fill="none" stroke-linejoin="round"/>
+      <path d="${M(pt(h, 186, 13))} ${arc(h, 186, 354, 13)}" stroke="${d}" stroke-width="6" fill="none"/>`
+  },
+  // cachucha de frente: copa en gajos, botón arriba y visera
+  cachucha: (h, c) => {
+    const d = shade(c, .74), l = shade(c, 1.2), base = h.cy - h.ry * .6
+    return `${cut(`<path d="${M(pt(h, 192, 12))} ${arc(h, 192, 348, 12)} L${h.cx + h.rx * .9} ${base} Q${h.cx} ${base - 12} ${h.cx - h.rx * .9} ${base}Z" fill="${c}"/>`)}
+      <path d="M${h.cx} ${h.cy - h.ry - 10} Q${h.cx - h.rx * .38} ${h.cy - h.ry * .9} ${h.cx - h.rx * .46} ${base - 4} M${h.cx} ${h.cy - h.ry - 10} Q${h.cx + h.rx * .38} ${h.cy - h.ry * .9} ${h.cx + h.rx * .46} ${base - 4}" stroke="${d}" stroke-width="3" fill="none"/>
+      <circle cx="${h.cx}" cy="${h.cy - h.ry - 10}" r="7" fill="${l}"/>
+      ${soft(`<path d="M${h.cx - h.rx * .82} ${base} Q${h.cx} ${base + 34} ${h.cx + h.rx * .82} ${base} Q${h.cx} ${base + 14} ${h.cx - h.rx * .82} ${base}Z" fill="${d}"/>`)}`
+  },
+  // cachucha al revés: la visera asoma por detrás de la cabeza y adelante se ve el broche
+  reves: (h, c) => {
+    const d = shade(c, .74), base = h.cy - h.ry * .6
+    return `${cut(`<path d="M${h.cx - 46} ${h.cy - h.ry - 2} Q${h.cx} ${h.cy - h.ry - 40} ${h.cx + 46} ${h.cy - h.ry - 2}Z" fill="${d}"/>`)}
+      ${cut(`<path d="${M(pt(h, 192, 12))} ${arc(h, 192, 348, 12)} L${h.cx + h.rx * .9} ${base} Q${h.cx} ${base - 12} ${h.cx - h.rx * .9} ${base}Z" fill="${c}"/>`)}
+      <path d="M${h.cx - 20} ${base - 6} a20 15 0 0 1 40 0Z" fill="${d}"/><path d="M${h.cx - 26} ${base - 18} h52" stroke="${shade(c, 1.2)}" stroke-width="4" stroke-linecap="round"/>`
+  },
+  // sombrero de pescador: copa baja y ala ancha que cae un poco
+  pescador: (h, c) => {
+    const d = shade(c, .78), l = shade(c, 1.15), top = h.cy - h.ry - 22, base = h.cy - h.ry * .52
+    return `${cut(`<path d="M${h.cx - h.rx * .8} ${base} L${h.cx - h.rx * .62} ${top + 8} Q${h.cx} ${top - 8} ${h.cx + h.rx * .62} ${top + 8} L${h.cx + h.rx * .8} ${base}Z" fill="${c}"/>`)}
+      <path d="M${h.cx - h.rx * .76} ${base - 16} L${h.cx + h.rx * .76} ${base - 16}" stroke="${d}" stroke-width="9"/>
+      ${cut(`<path d="M${h.cx - h.rx * 1.18} ${base + 10} Q${h.cx} ${base - 22} ${h.cx + h.rx * 1.18} ${base + 10} Q${h.cx + h.rx * .9} ${base + 26} ${h.cx} ${base + 18} Q${h.cx - h.rx * .9} ${base + 26} ${h.cx - h.rx * 1.18} ${base + 10}Z" fill="${l}"/>`)}`
+  },
+  // boina ladeada, con su cabito arriba
+  boina: (h, c) => {
+    const d = shade(c, .76), cy = h.cy - h.ry * .74
+    return `<g transform="rotate(-9 ${h.cx} ${cy})">${cut(`<rect x="${h.cx + 14}" y="${cy - h.ry * .5 - 12}" width="8" height="14" rx="4" fill="${d}"/><ellipse cx="${h.cx + 12}" cy="${cy}" rx="${h.rx * 1.1}" ry="${h.ry * .44}" fill="${c}"/>`)}
+      <path d="M${h.cx - h.rx * .82} ${cy + h.ry * .2} Q${h.cx + 10} ${cy + h.ry * .48} ${h.cx + h.rx * .98} ${cy + h.ry * .14}" stroke="${d}" stroke-width="8" fill="none" stroke-linecap="round"/></g>`
+  },
+}
+
 // Lo que se pone encima: lentes, audífonos, aretes, barba, pecas.
 const EXTRAS = {
   glasses: (p, h) => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><path d="M${h.cx - 10} ${h.cy - 2} h20"/></g>`,
@@ -188,7 +244,7 @@ function person(p) {
   const behind = p.hair === 'long'
   return `${behind ? `<g class="head">${cut(hair.back)}</g>` : ''}${torso(p)}
   <g class="head">
-    ${hair.back && !behind ? cut(hair.back) : ''}
+    ${hair.back && !behind && !(p.hat && p.hair === 'bun') ? cut(hair.back) : ''}
     ${cut(`<ellipse cx="${h.cx - rx + 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/><ellipse cx="${h.cx + rx - 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/>`)}
     ${has('earrings') ? EXTRAS.earrings(p, h) : ''}
     ${cut(`<ellipse cx="${h.cx}" cy="${h.cy}" rx="${rx}" ry="${ry}" fill="${s}"/>`)}
@@ -197,6 +253,7 @@ function person(p) {
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
     ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
     ${cut(hair.front)}
+    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f') : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
   </g>`
@@ -253,6 +310,8 @@ const OPCIONES = {
   nose: { button: 'Botón', bulb: 'Bola', long: 'Larga', hook: 'Ganchuda' },
   teeth: { '': 'Sin dientes', grin: 'Sonrisa con dientes', buck: 'Dientes salidos' },
   extras: { glasses: 'Lentes', headphones: 'Audífonos', earrings: 'Aretes', beard: 'Barba', freckles: 'Pecas' },
+  hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina' },
+  hatColor: ['#c5381f', '#e5592a', '#f2c14e', '#2b6670', '#13323a', '#8db3a9', '#9b8ec7', '#5e3b6b', '#f1e4c7', '#24406b'],
   looks: { lashes: 'Pestañas', lids: 'Párpado caído', glassesRound: 'Lentes redondos' },
   gear: ['#13323a', '#c5381f', '#f08c3d', '#f1e4c7', '#2b6670', '#9b8ec7'],
   shirt: ['#2b6670', '#1d4a54', '#13323a', '#4f8b8a', '#8db3a9', '#e5592a', '#f08c3d', '#c5381f', '#962b19', '#9b8ec7', '#5e3b6b', '#24406b'],
@@ -268,7 +327,7 @@ function randomPerson(base = {}) {
     ...base,
     skin: pick(OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
     nose: pick(keys(OPCIONES.nose)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
-    extras, lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
+    extras, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
     shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: pick(keys(OPCIONES.scene)),
   }
 }
