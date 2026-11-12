@@ -105,7 +105,7 @@ adelante depende de las respuestas de la fase 0.
 
 ### Fase 5 · Credenciales y salida a qa
 
-- [ ] Consultar Mareigua en el onboarding con la cuenta que elige la sucursal (lo pidió Oscar el 2026-11-12):
+- [x] Consultar Mareigua en el onboarding con la cuenta que elige la sucursal (lo pidió Oscar el 2026-11-12):
   un resolvedor por central que toma la entidad de la solicitud, después la credencial del comercio o la
   sucursal, después **la primera entidad activa de la sucursal con credencial de esa central** (orden fijo por
   id, como `DocumentTypesService::resolver` junta los tipos de documento) y por último config. Mareigua lo usa
