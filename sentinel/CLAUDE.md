@@ -15,6 +15,23 @@ producción** (su versión, sus errores y su señal de vida), los avisos y los d
 `make sentinel ONCE=1` carga lo que falte, hace una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
 en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**.
 
+## La consola: `bin/sentinel` (o `make sentinel-now|day|signal|deploy`)
+
+Lee lo guardado en `sentinel/.data` y vuelve a evaluar con las reglas de hoy: **no necesita la API arriba** (si lo
+guardado está viejo, lo dice primero). Todos aceptan `--json` para un agente. Es lo del día a día y lo que se le pasa a
+un agente para que resuma.
+
+| comando | contesta |
+|---|---|
+| `bin/sentinel now` | cómo está producción ahora: lo que pide atención, lo que se sigue y cada servicio con su versión |
+| `bin/sentinel day [AAAA-MM-DD]` | el día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora (con el porqué de su peor momento), los despliegues y los avisos |
+| `bin/sentinel signal <señal\|nombre>` | una señal hora por hora, hoy contra lo normal; de una entidad, también sus errores en los logs |
+| `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
+
+**La trazabilidad del día** queda escrita en `sentinel/.data/days/<día>.md` (lo mismo que `bin/sentinel day`): la API
+la reescribe cada 30 minutos y, al cambiar de día, deja cerrado el de ayer. Los conteos de 5 minutos (`<día>.json`)
+son la fuente: el resumen se puede volver a armar para cualquier día guardado.
+
 ## Cómo guarda
 
 - **Un archivo por día** en `sentinel/.data/<día>.json` (fuera de git), con los conteos de cada señal por bloque de 5

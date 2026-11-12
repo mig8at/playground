@@ -1,0 +1,23 @@
+#!/bin/sh
+# sentinel — la consola de Sentinel, el vigía de producción (sentinel/server/cli.go): cómo está producción ahora, el
+# resumen de un día, una señal hora por hora y si se dañó algo después de un despliegue. Lee lo guardado en
+# sentinel/.data (no necesita la API arriba). Lo compila la primera vez y cada vez que cambia su código, a
+# ~/.cache/playground/sentinel (como bin/pg).
+#
+#   bin/sentinel now                       bin/sentinel signal credifamilia
+#   bin/sentinel day [2026-11-12]          bin/sentinel deploy legacy-backend [v0.6.46] [--hours 2]
+#   … --json para un agente
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/sentinel"
+stale=$(find "$root/sentinel/server" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./sentinel/server) >&2; then
+    rm -f "$tmp"
+    echo "sentinel: no compila sentinel/server" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+cd "$root" && PLAYGROUND_ROOT="$root" exec "$bin" "$@"

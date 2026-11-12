@@ -112,6 +112,7 @@ type sentinel struct {
 	follow          *following
 	releases        map[string]Release // el último despliegue a producción por repo (services.go)
 	releasesAt      time.Time
+	daysAt          time.Time // el último resumen del día escrito
 	lenderNames     map[int]string
 	lenderSlugs     map[string]int // el slug de cada entidad → su id (los errores de preapprovals la nombran así)
 	merchantNames   map[int]string
@@ -281,6 +282,7 @@ func (s *sentinel) pass() (*Overview, error) {
 			return nil, err
 		}
 		s.namesAt = time.Now()
+		s.saveNames()
 	}
 	if err := s.backfill(r, rules, now); err != nil {
 		return nil, err
@@ -473,6 +475,30 @@ func (s *sentinel) run() {
 	}
 	s.last, s.err = o, ""
 	s.saveLast(o)
+	if time.Since(s.daysAt) > 30*time.Minute {
+		s.daysAt = time.Now()
+		go s.writeDays(o.Rules)
+	}
+}
+
+// writeDays: el resumen legible de hoy, y el de ayer cerrado, en `.data/days/<día>.md` (lo mismo que `bin/sentinel
+// day`). Es la trazabilidad para leer sin consola: queda un archivo por día aunque nadie lo pida.
+func (s *sentinel) writeDays(rules Rules) {
+	reach := s.store.reach()
+	if reach.IsZero() {
+		return
+	}
+	c := &cli{s: s, e: s.evaluator(rules), rules: rules, reach: reach.In(bogota)}
+	today := c.reach.Format("2006-01-02")
+	for _, date := range []string{c.reach.AddDate(0, 0, -1).Format("2006-01-02"), today} {
+		path := filepath.Join(s.store.dir, "days", date+".md")
+		if raw, err := os.ReadFile(path); err == nil && date != today && strings.Contains(string(raw), "(el día entero)") {
+			continue // ayer ya quedó escrito entero
+		}
+		if d, err := c.day(date); err == nil {
+			_ = c.saveDay(d)
+		}
+	}
 }
 
 // sentinelAt: ¿en esa dirección contesta una API de Sentinel?
@@ -529,6 +555,16 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 }
 
 func main() {
+	// La consola (cli.go): `sentinel now|day|signal|deploy …`. Va antes de los flags del servidor.
+	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
+		root, err := os.Getwd()
+		if err == nil {
+			if r := os.Getenv("PLAYGROUND_ROOT"); r != "" {
+				root = r
+			}
+		}
+		os.Exit(runCLI(root, os.Args[1:]))
+	}
 	serve := flag.String("serve", "127.0.0.1:5211", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", 5*time.Minute, "cada cuánto pide lo que falta")
 	once := flag.Bool("once", false, "carga lo que falte, hace una pasada y muestra el resumen")

@@ -359,6 +359,18 @@ tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas
 sentinel: ## @dia abre Sentinel, el vigía de producción (:5210 · API :5211): por entidad, comercio, errores de los logs y la cola, la última hora contra la misma hora de los días comparables (4 semanas guardadas, se pide sólo lo que falta), la curva del día y los despliegues a producción. SÓLO LECTURA (Redash y Loki). ONCE=1 hace una pasada por consola y sale
 	@$(if $(ONCE),go run ./sentinel/server -once,cd sentinel && npm run dev)
 
+sentinel-now: ## @dia Sentinel por consola: cómo está producción AHORA (lo que pide atención, lo que seguís, los servicios con su versión). Lee lo guardado, sin la API. JSON=1 para un agente
+	@bin/sentinel now $(if $(JSON),--json)
+
+sentinel-day: ## @dia Sentinel por consola: el resumen de un DÍA (cuánto entró contra lo normal, qué se salió y cuándo, despliegues, avisos). DIA=AAAA-MM-DD (hoy por defecto); queda escrito en sentinel/.data/days/. JSON=1
+	@bin/sentinel day $(DIA) $(if $(JSON),--json)
+
+sentinel-signal: ## @dia Sentinel por consola: UNA señal hora por hora, hoy contra lo normal (y los errores de una entidad). S='credifamilia' o S=merchant:94. JSON=1
+	@bin/sentinel signal $(S) $(if $(JSON),--json)
+
+sentinel-deploy: ## @dia Sentinel por consola: ¿se DAÑÓ algo después de un despliegue a producción? REPO=legacy-backend [VERSION=v0.6.46] [HORAS=2]: las horas de después contra las de antes y contra lo normal de esa franja. JSON=1
+	@bin/sentinel deploy $(REPO) $(VERSION) --hours $(or $(HORAS),2) $(if $(JSON),--json)
+
 sentinel-install: ## @dia deja la API de Sentinel corriendo DE FONDO (LaunchAgent: arranca con la sesión, mide aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
 	@mkdir -p sentinel/bin && go build -o sentinel/bin/sentinel ./sentinel/server && sentinel/bin/sentinel -install
 

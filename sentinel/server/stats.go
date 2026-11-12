@@ -432,7 +432,7 @@ const silenceMin = 60
 // Los días sin guardar cortan la cuenta: no se sabe qué pasó ahí.
 func (e evaluator) silence(se *series, t time.Time) *Silence {
 	start := time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -e.rules.HistoryDays)
-	longest, run, last := 0, 0, time.Time{}
+	longest, run, last, first := 0, 0, time.Time{}, time.Time{}
 	wrote := false
 	for b := start; b.Before(t); b = b.Add(5 * time.Minute) {
 		date := b.Format("2006-01-02")
@@ -448,12 +448,17 @@ func (e evaluator) silence(se *series, t time.Time) *Silence {
 			if wrote && run > longest {
 				longest = run
 			}
+			if !wrote {
+				first = b
+			}
 			run, last, wrote = 0, b.Add(5*time.Minute), true
 			continue
 		}
 		run += 5
 	}
-	if !wrote || run < silenceMin || run <= longest {
+	// Con menos de una semana escribiendo no se sabe cuál es su silencio normal (messaging-service empezó a mandar
+	// logs el 2026-11-10 y su primera noche ya parecía un silencio).
+	if !wrote || run < silenceMin || run <= longest || last.Sub(first) < 7*24*time.Hour {
 		return nil
 	}
 	sil := &Silence{Since: last.Format(time.RFC3339), Minutes: run, Longest: longest, Level: levelWarn}

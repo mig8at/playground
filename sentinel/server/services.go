@@ -9,7 +9,9 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -126,6 +128,27 @@ func (s *sentinel) loadReleases() {
 	relMu.Lock()
 	s.releases = got
 	relMu.Unlock()
+	// Quedan en `releases.json`, para la consola sin la API.
+	if raw, err := json.Marshal(got); err == nil {
+		path := filepath.Join(s.store.dir, "releases.json")
+		if os.WriteFile(path+".tmp", raw, 0o644) == nil {
+			_ = os.Rename(path+".tmp", path)
+		}
+	}
+}
+
+// loadSavedReleases: las versiones de la última vez que se pidieron a GitHub.
+func (s *sentinel) loadSavedReleases() {
+	raw, err := os.ReadFile(filepath.Join(s.store.dir, "releases.json"))
+	if err != nil {
+		return
+	}
+	var got map[string]Release
+	if json.Unmarshal(raw, &got) == nil {
+		relMu.Lock()
+		s.releases = got
+		relMu.Unlock()
+	}
 }
 
 // apps: una tarjeta por servicio que aparece en los logs de producción, la peor arriba y después la desplegada más
