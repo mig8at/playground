@@ -101,6 +101,7 @@ type sentinel struct {
 	loading         string
 	fromDisk        bool      // la vista de arranque salió de last.json
 	notifier        *notifier // sólo en la API que escucha: la pasada por consola no avisa
+	follow          *following
 	lenderNames     map[int]string
 	merchantNames   map[int]string
 	namesAt         time.Time
@@ -441,7 +442,7 @@ func (s *sentinel) view() map[string]any {
 	defer s.mu.Unlock()
 	// stale: lo que se ve es lo guardado de la última vez, y la pasada de ahora todavía no terminó.
 	return map[string]any{"overview": s.last, "error": s.err, "running": s.running, "loading": s.loading,
-		"stale": s.fromDisk && s.last != nil && s.running}
+		"stale": s.fromDisk && s.last != nil && s.running, "following": s.follow.all()}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -472,7 +473,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st}
+	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st, follow: openFollowing(st.dir)}
 	rulesPath = s.rulesPath
 	switch {
 	case *notifyTest:
@@ -520,6 +521,7 @@ func main() {
 	}
 	s.loadLast()
 	s.notifier = openNotifier(st.dir)
+	s.notifier.follows = s.follow.has
 	go func() {
 		for {
 			s.run()
@@ -528,6 +530,29 @@ func main() {
 	}()
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, s.view()) })
+	// Lo que se sigue (following.go): POST {"signal":"merchant:12"} agrega, DELETE ?signal=merchant:12 saca. Los dos
+	// contestan la vista entera, con la lista nueva.
+	mux.HandleFunc("POST /api/following", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Signal Signal `json:"signal"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "falta {\"signal\": \"merchant:<id>\"}"})
+			return
+		}
+		if err := s.follow.add(body.Signal); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, s.view())
+	})
+	mux.HandleFunc("DELETE /api/following", func(w http.ResponseWriter, r *http.Request) {
+		if err := s.follow.remove(Signal(r.URL.Query().Get("signal"))); err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, s.view())
+	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		go s.run()
 		writeJSON(w, http.StatusOK, s.view())
@@ -602,13 +627,13 @@ func printBacktest(s *sentinel, days int) {
 	for _, sig := range sigs {
 		fmt.Printf("  %-26s %3d alertas · %3d para mirar\n", sig, bySignal[sig][0], bySignal[sig][1])
 	}
-	notices := replayNotices(s.evaluator(rules), days, time.Now().In(bogota))
+	notices := replayNotices(s.evaluator(rules), days, time.Now().In(bogota), s.follow.has)
 	byLevel := map[string]int{}
 	for _, x := range notices {
 		byLevel[x.Level]++
 	}
-	fmt.Printf("los avisos que habrían salido (notify.level=%s): %d de alerta, %d de «para mirar», %d de «volvió a lo normal»\n",
-		rules.Notify.Level, byLevel["alert"], byLevel["warn"], byLevel["recovered"])
+	fmt.Printf("los avisos que habrían salido (notify.level=%s, comercios=%s, %d seguidos): %d de alerta, %d de «para mirar», %d de «volvió a lo normal»\n",
+		rules.Notify.Level, rules.Notify.Merchants, len(s.follow.all()), byLevel["alert"], byLevel["warn"], byLevel["recovered"])
 	for _, x := range notices {
 		fmt.Printf("  aviso %s  %-9s %-26s\n", x.At[:16], x.Level, x.Signal)
 	}

@@ -30,6 +30,9 @@ type NotifyRules struct {
 	ClearMinutes int    `json:"clearMinutes"` // cuánto tiempo normal cierra un episodio
 	StaleMinutes int    `json:"staleMinutes"` // cuánto tiempo sin poder leer producción se avisa
 	Recovered    bool   `json:"recovered"`    // avisar también cuando un episodio avisado se cierra
+	// Merchants: de qué comercios se avisa. «following» (por defecto): sólo de los que se siguen (following.go); «all»:
+	// de todos. Entidades, servicios y la cola avisan siempre.
+	Merchants string `json:"merchants"`
 }
 
 // Notice es un aviso mandado.
@@ -60,6 +63,14 @@ type notifier struct {
 	StaleNotified bool   `json:"staleNotified"`
 	notices       []Notice
 	dry           bool // la prueba contra la historia: no manda ni escribe nada
+	// follows dice si un comercio se sigue; sin él (nil), se avisa de todos.
+	follows func(Signal) bool
+}
+
+// silenced: un comercio que no se sigue no avisa. Su episodio se lleva igual (se ve en «Para mirar»): si se empieza a
+// seguir en medio de uno, avisa en la próxima pasada.
+func (n *notifier) silenced(sig Signal, rules NotifyRules) bool {
+	return rules.Merchants != "all" && n.follows != nil && strings.HasPrefix(string(sig), "merchant:") && !n.follows(sig)
 }
 
 func openNotifier(dir string) *notifier {
@@ -138,7 +149,7 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 				ep.Level = subj.State
 			}
 			// Se avisa al llegar al umbral, y otra vez sólo si empeora (de «para mirar» avisado a alerta).
-			if lvl >= threshold && lvl > rank(ep.Notified) {
+			if lvl >= threshold && lvl > rank(ep.Notified) && !n.silenced(subj.Signal, rules) {
 				ep.Notified = subj.State
 				title := "Sentinel · " + map[string]string{"alert": "alerta", "warn": "para mirar"}[subj.State]
 				n.send(Notice{Signal: subj.Signal, Name: subj.Name, Level: subj.State, Text: subj.Why}, now, title, lvl == levelAlert)
@@ -267,8 +278,8 @@ func macNotice(title, body, route string, sound bool) error {
 
 // replayNotices: qué avisos habrían salido en los últimos `days` días, con una pasada cada `stepMinutes`. No manda nada:
 // es la vara antes de cambiar `notify` en rules.json.
-func replayNotices(e evaluator, days int, now time.Time) []Notice {
-	n := &notifier{dry: true, Episodes: map[Signal]*episode{}}
+func replayNotices(e evaluator, days int, now time.Time, follows func(Signal) bool) []Notice {
+	n := &notifier{dry: true, Episodes: map[Signal]*episode{}, follows: follows}
 	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -days)
 	step := time.Duration(e.rules.StepMinutes) * time.Minute
 	for t := start; t.Before(now); t = t.Add(step) {

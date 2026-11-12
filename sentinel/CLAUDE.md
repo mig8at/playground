@@ -6,8 +6,12 @@ producción (sólo lectura: Redash y Loki) en bloques de 5 minutos y dice, por *
 muestra la curva del día contra lo normal, con los **despliegues a producción** marcados. Es el frente «vigía de
 producción» de `playground-local` (#96).
 
-`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. `make sentinel ONCE=1` carga lo que falte, hace
-una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
+`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. **La interfaz**: a la izquierda, toda la
+originación y lo que se SIGUE (comercios o entidades que se agregan a mano desde el buscador, cada uno con su curva chica
+de hoy); al centro, el elegido; abajo, en la consola, la tabla de TODAS las señales (pestañas Errores · Entidades ·
+Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, los avisos y los despliegues.
+
+`make sentinel ONCE=1` carga lo que falte, hace una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
 en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**.
 
 ## Cómo guarda
@@ -46,6 +50,11 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **Si no puede leer producción 30 min** (la VPN caída), avisa una vez «Sentinel no está mirando», y otra cuando vuelve.
 - El estado vive en `sentinel/.data/alerts.json` (un reinicio no repite avisos) y cada aviso queda en `notices.jsonl`;
   la interfaz muestra los últimos en «Avisos». Sólo avisa la API que escucha: `-once` y `-backtest` no.
+- **De los comercios avisa sólo los que se SIGUEN** (`notify.merchants`: `following` por defecto, `all` para todos).
+  Son más de cien y casi todos chicos. Entidades, servicios y la cola avisan siempre. El episodio de un comercio que no
+  se sigue se lleva igual (aparece en «Para mirar»), y si se lo empieza a seguir en medio, avisa en la pasada siguiente.
+  Lo que se sigue vive en el servidor, `sentinel/.data/following.json` (`server/following.go`; `POST /api/following
+  {"signal":"merchant:94"}`, `DELETE /api/following?signal=…`), no en el navegador: por eso decide los avisos de fondo.
 - Se ajusta en `rules.json`, bajo `notify`: `level` (`alert` por defecto, `warn` para avisar también «para mirar»,
   `off`), `clearMinutes`, `staleMinutes`, `recovered`. **El `-backtest` dice qué avisos habrían salido**: la semana del
   2026-11-05 al 11, 3 de alerta y 3 de «volvió a lo normal». `-notify-test` manda uno de prueba.
@@ -91,12 +100,15 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 | la lectura de producción (Redash y Loki) | `server/fetch.go` (usa `connectors/sql`, con su guarda de sólo lectura, y `connectors/logs`) |
 | lo normal, el veredicto, el cambio de nivel y el backtest | `server/stats.go` |
 | la carga, las pasadas y la API | `server/main.go` |
+| lo que se sigue (y de qué comercios avisa) | `server/following.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
 | la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
 
 ## Lo que falta
 
-Los errores de pantalla que vio el cliente (PostHog), por pantalla. Avisar por otro canal (Slack, el chat del equipo)
+Los errores de pantalla que vio el cliente (PostHog), por pantalla. Para un comercio chico que se sigue (Pullman, ~2,5
+solicitudes por hora), la ventana de una hora queda en «poco volumen» casi siempre: una vista por día, o una ventana más
+larga para los seguidos, lo haría comparable. Avisar por otro canal (Slack, el chat del equipo)
 si los avisos de macOS no alcanzan. Las decisiones
 abiertas (qué vigilar, qué tan sensible, por dónde avisar) están en el frente de #96.

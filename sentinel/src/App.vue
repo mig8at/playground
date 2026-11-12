@@ -1,13 +1,14 @@
 <script setup>
-/* SENTINEL: el vigía de producción. A la izquierda los errores (logs y cola), las entidades y los comercios con su
- * semáforo (la última hora contra la misma hora de los días comparables); al centro el elegido —o toda la originación—,
- * con su curva del día contra lo normal y las marcas de los despliegues a producción; a la derecha lo que pide atención
- * y los despliegues.
+/* SENTINEL: el vigía de producción. A la izquierda toda la originación y LO QUE SE SIGUE (comercios o entidades que se
+ * agregan a mano, cada uno con su curva chica de hoy); al centro el elegido, con su curva del día contra lo normal y las
+ * marcas de los despliegues a producción; abajo, en la consola, la tabla con TODAS las señales (errores, entidades y
+ * comercios: la última hora contra la misma hora de los días comparables); a la derecha lo que pide atención, los avisos
+ * y los despliegues. Lo que se sigue vive en el servidor (following.go): decide además de qué comercios avisa macOS.
  *
  * Sólo lee: la API (sentinel/server) guarda cuatro semanas en disco y cada 5 minutos pide sólo lo que falta. La ruta es
  * `#/lender/<id>`, `#/merchant/<id>`, `#/service/<nombre>`, `#/queue` o vacía (toda la originación). */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, setRoute } from './workbench.js'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { vResize, readSize, saveSize, fitRegions, cssSize, regionSize, reopenSize, bindThemeToggle, bindPanelMaximize, readHashRoute, setRoute } from './workbench.js'
 
 const data = ref(null)       // el Overview de la API
 const apiError = ref('')
@@ -15,6 +16,7 @@ const running = ref(false)
 const loading = ref('')      // la carga inicial de la historia, mientras corre
 const stale = ref(false)     // lo que se ve es lo guardado de la última vez; la lectura de ahora sigue
 const query = ref('')
+const following = ref([])   // las señales que se siguen («merchant:94»), en el orden en que se agregaron
 const route = ref({ kind: 'all', id: 0 })
 
 async function load() {
@@ -26,6 +28,7 @@ async function load() {
     running.value = !!body.running
     loading.value = body.loading || ''
     stale.value = !!body.stale
+    following.value = body.following || []
   } catch {
     apiError.value = 'No contesta la API. ¿Está arriba? (make sentinel levanta las dos partes)'
   }
@@ -43,9 +46,63 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const showIdle = ref({ lender: false, merchant: false })
-const lenders = computed(() => filtered(data.value?.lenders))
-const merchants = computed(() => filtered(data.value?.merchants))
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
+const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
+const isFollowed = (s) => following.value.includes(s.signal)
+const canFollow = (s) => s.kind === 'lender' || s.kind === 'merchant'
+// Lo que propone el buscador del sidebar: comercios y entidades que todavía no se siguen, primero los que se mueven.
+const suggestions = computed(() => {
+  if (!query.value.trim()) return []
+  return filtered([...(data.value?.merchants || []), ...(data.value?.lenders || [])])
+    .filter((s) => !isFollowed(s)).sort((a, b) => b.now.total + b.median - (a.now.total + a.median)).slice(0, 8)
+})
+async function setFollow(s, on) {
+  try {
+    const res = await fetch(on ? '/api/following' : `/api/following?signal=${encodeURIComponent(s.signal)}`,
+      on ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ signal: s.signal }) } : { method: 'DELETE' })
+    const body = await res.json()
+    if (body.error) { apiError.value = body.error; return }
+    following.value = body.following || []
+    if (on) query.value = ''
+  } catch { apiError.value = 'No contesta la API: no se pudo cambiar lo que se sigue.' }
+}
+// La curva chica de una fila: hoy (hasta la hora en curso) contra la mediana, en una caja de 72×22.
+function spark(s) {
+  if (!s?.normal?.length) return null
+  const top = Math.max(1, ...s.normal, ...(s.today || []))
+  const x = (h) => 1 + (h / 23) * 70
+  const y = (v) => 21 - (v / top) * 19
+  return { normal: s.normal.map((v, h) => `${x(h)},${y(v)}`).join(' '), today: (s.today || []).map((v, h) => `${x(h)},${y(v)}`).join(' ') }
+}
+
+// ── la tabla de la consola: todas las señales ──
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const tableKind = ref('all')
+const tableQuery = ref('')
+const showIdle = ref(false)
+const sortBy = ref({ key: 'state', dir: 1 })
+const SEVERITY = { alert: 0, warn: 1, ok: 2, quiet: 3 }
+const ofKind = (s, k) => k === 'all' || (k === 'errors' ? isErrors(s) : s.kind === k)
+const kindCount = (k) => everything.value.filter((s) => ofKind(s, k) && (showIdle.value || !idle(s))).length
+const SORTS = {
+  state: (s) => [SEVERITY[s.state] ?? 9, -Math.abs(s.z || 0)],
+  name: (s) => [fold(s.name)],
+  kind: (s) => [s.kind, fold(s.name)],
+  now: (s) => [-s.now.total],
+  median: (s) => [-s.median],
+  z: (s) => [-Math.abs(s.z || 0)],
+}
+const cmp = (a, b) => { for (let i = 0; i < a.length; i++) { if (a[i] < b[i]) return -1; if (a[i] > b[i]) return 1 } return 0 }
+const tableRows = computed(() => {
+  const q = fold(tableQuery.value.trim())
+  const key = SORTS[sortBy.value.key] || SORTS.state
+  return everything.value
+    .filter((s) => ofKind(s, tableKind.value) && (showIdle.value || q || !idle(s)) && (!q || fold(s.name).includes(q)))
+    .sort((a, b) => sortBy.value.dir * cmp(key(a), key(b)))
+})
+function sortOn(key) { sortBy.value = sortBy.value.key === key ? { key, dir: -sortBy.value.dir } : { key, dir: 1 } }
+const ariaSort = (key) => (sortBy.value.key === key ? (sortBy.value.dir > 0 ? 'ascending' : 'descending') : 'none')
 const selected = computed(() => {
   const d = data.value
   if (!d) return null
@@ -57,7 +114,6 @@ const selected = computed(() => {
 })
 const attention = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter((s) => s.state === 'alert' || s.state === 'warn'))
-const countOf = (list, state) => (list || []).filter((s) => s.state === state).length
 
 function readRoute() {
   const { parts } = readHashRoute()
@@ -83,6 +139,8 @@ const ago = (iso) => {
 
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
+// En la tabla, corto: es una columna.
+const TABLE_KIND = { lender: 'Entidad', merchant: 'Comercio', service: 'Logs', queue: 'Cola', all: 'Producción' }
 const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
@@ -136,7 +194,7 @@ const sidebarW = ref(readSize('sentinel.sidebar-w', 300))
 const auxOpen = ref(readSize('sentinel.aux-open', 1) !== 0)
 const auxW = ref(readSize('sentinel.aux-w', 320))
 const viewportW = ref(window.innerWidth)
-const onWindowResize = () => { viewportW.value = window.innerWidth }
+const onWindowResize = () => { viewportW.value = window.innerWidth; viewportH.value = window.innerHeight }
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
@@ -164,6 +222,28 @@ const auxResize = {
   reopen: () => auxW.value,
   commit: (v) => { saveSize('sentinel.aux-open', v ? 1 : 0); if (v) saveSize('sentinel.aux-w', auxW.value) },
 }
+// La consola: la tabla de todas las señales, debajo del editor. Mínimo o nada en alto, como en el tablero.
+const viewportH = ref(window.innerHeight)
+const panelOpen = ref(readSize('sentinel.panel-open', 1) !== 0)
+const panelH = ref(readSize('sentinel.panel-h', 300))
+const panelMax = () => Math.max(cssSize('--panel-min', 124), viewportH.value - 260)
+const panelShown = computed(() => (panelOpen.value ? regionSize(panelH.value, cssSize('--panel-min', 124), panelMax()) : 0))
+const panelResize = {
+  label: 'Alto de la tabla de señales', axis: 'y', sign: -1, defaultValue: 300,
+  min: () => cssSize('--panel-min', 124), max: panelMax,
+  get: () => panelShown.value,
+  set: (v) => { if (!v) panelOpen.value = false; else { panelOpen.value = true; panelH.value = v } },
+  reopen: () => panelH.value,
+  commit: (v) => { saveSize('sentinel.panel-open', v ? 1 : 0); if (v) saveSize('sentinel.panel-h', panelH.value) },
+}
+function togglePanel() {
+  if (panelShown.value) { panelOpen.value = false } else { panelH.value = reopenSize(panelH.value, cssSize('--panel-min', 124), panelMax(), 300); panelOpen.value = true }
+  saveSize('sentinel.panel-open', panelOpen.value ? 1 : 0)
+}
+const panelMaxButton = ref(null)
+let panelMaxBinding = null
+watch(panelMaxButton, (el) => { panelMaxBinding?.destroy?.(); panelMaxBinding = el ? bindPanelMaximize(el) : null })
+
 function toggleSidebar() { sidebarOpen.value = !shown.value.sidebar; saveSize('sentinel.sidebar-open', sidebarOpen.value ? 1 : 0) }
 function toggleAux() { auxOpen.value = !shown.value.aux; saveSize('sentinel.aux-open', auxOpen.value ? 1 : 0) }
 
@@ -182,52 +262,55 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', readRoute)
   clearInterval(timer)
   themeBinding?.destroy?.()
+  panelMaxBinding?.destroy?.()
 })
 </script>
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Entidades y comercios">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Lo que se sigue">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
         <span>Sentinel</span>
         <span v-if="attention.length" class="count attention">{{ attention.length }} para mirar</span>
       </div>
       <div class="search">
-        <input v-model="query" class="input" type="search" placeholder="Buscar una entidad o un comercio…" aria-label="Buscar" />
+        <input v-model="query" class="input" type="search" placeholder="Seguir un comercio o una entidad…" aria-label="Buscar un comercio o una entidad para seguir" />
       </div>
       <div class="region-body">
+        <template v-if="query.trim()">
+          <div class="region-head group"><span>Para seguir</span><span class="count">{{ suggestions.length }}</span></div>
+          <p v-if="data && !suggestions.length" class="none">Nada con «{{ query }}» que no sigas ya.</p>
+          <div v-for="s in suggestions" :key="`q-${s.signal}`" class="row subject suggestion">
+            <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
+              <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
+              <span class="subject-name">{{ s.name }}</span>
+              <small class="subject-kind">{{ KIND_LABEL[s.kind].toLowerCase() }}</small>
+            </button>
+            <button type="button" class="region-action" :title="`Seguir ${s.name}`" :aria-label="`Seguir ${s.name}`" @click="setFollow(s, true)">
+              <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+            </button>
+          </div>
+        </template>
         <button type="button" class="row subject" :class="{ on: route.kind === 'all' }" @click="pick(null)">
           <i class="dot" :class="`is-${data?.all?.state}`" aria-hidden="true"></i>
           <span class="subject-name">Toda la originación</span>
+          <svg v-if="spark(data?.all)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(data.all).normal" /><polyline class="spark-today" :points="spark(data.all).today" /></svg>
           <small v-if="data?.all" class="subject-nums" title="en la última hora · lo normal a esta hora">{{ data.all.now.total }} · {{ fmt(data.all.median) }}</small>
         </button>
-        <div class="region-head group"><span>Errores</span><span class="count">{{ data?.services?.length || 0 }}</span></div>
-        <p v-if="data?.logsNote" class="none">{{ data.logsNote }}</p>
-        <button v-for="s in data?.services || []" :key="s.signal" type="button" class="row subject" :class="{ on: isOn(s) }"
-                :title="s.why" @click="pick(s)">
-          <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
-          <span class="subject-name">{{ s.name }}</span>
-          <small class="subject-nums" title="errores en la última hora · lo normal a esta hora">{{ s.now.total }} · {{ fmt(s.median) }}</small>
-        </button>
-        <template v-for="group in [{ id: 'lender', title: 'Entidades', list: lenders }, { id: 'merchant', title: 'Comercios', list: merchants }]" :key="group.id">
-          <div class="region-head group">
-            <span>{{ group.title }}</span>
-            <span class="count">
-              <template v-if="countOf(group.list, 'alert')"><i class="dot is-alert" aria-hidden="true"></i>{{ countOf(group.list, 'alert') }} · </template>
-              <template v-if="countOf(group.list, 'warn')"><i class="dot is-warn" aria-hidden="true"></i>{{ countOf(group.list, 'warn') }} · </template>{{ group.list.length }}
-            </span>
-          </div>
-          <button v-for="s in group.list.filter((x) => !idle(x) || showIdle[group.id] || query.trim())" :key="`${s.kind}-${s.id}`" type="button" class="row subject" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }"
-                  :title="s.why" @click="pick(s)">
+        <div class="region-head group"><span>Siguiendo</span><span class="count">{{ followed.length }}</span></div>
+        <p v-if="data && !followed.length" class="none">Todavía no seguís ninguno. Buscá un comercio o una entidad arriba y tocá + para seguirlo: de los comercios, sólo los que seguís avisan por macOS.</p>
+        <div v-for="s in followed" :key="`f-${s.signal}`" class="row subject followed" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }">
+          <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
             <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
             <span class="subject-name">{{ s.name }}</span>
+            <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
             <small class="subject-nums" title="en la última hora · lo normal a esta hora">{{ s.now.total }} · {{ fmt(s.median) }}</small>
           </button>
-          <button v-if="!query.trim() && group.list.some(idle)" type="button" class="row idle-toggle" @click="showIdle[group.id] = !showIdle[group.id]">
-            {{ showIdle[group.id] ? 'Ocultar' : 'Ver' }} {{ group.list.filter(idle).length }} sin movimiento a esta hora
+          <button type="button" class="region-action unfollow" :title="`Dejar de seguir ${s.name}`" :aria-label="`Dejar de seguir ${s.name}`" @click="setFollow(s, false)">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
-        </template>
+        </div>
         <p v-if="!data && !apiError" class="none">{{ loading || 'Leyendo producción…' }}</p>
         <p v-if="apiError && !data" class="none">{{ apiError }}</p>
       </div>
@@ -308,6 +391,62 @@ onBeforeUnmount(() => {
       </div>
     </main>
 
+    <section v-if="panelShown" class="panel signals-panel" :style="{ height: `${panelShown}px` }" aria-label="Todas las señales">
+      <div class="rsz rsz-edge-top" data-rsz="panel" v-resize="panelResize"></div>
+      <nav class="tabs" role="tablist" aria-label="Qué señales">
+        <button v-for="t in KIND_TABS" :key="t.id" type="button" role="tab" class="tab" :aria-selected="tableKind === t.id" @click="tableKind = t.id">
+          <span>{{ t.label }}</span><span class="count">{{ kindCount(t.id) }}</span>
+        </button>
+        <div class="region-actions">
+          <input v-model="tableQuery" class="input table-search" type="search" placeholder="Filtrar…" aria-label="Filtrar la tabla" />
+          <label class="idle-check" title="Las que a esta hora no tienen movimiento: lo normal es 0 y hoy tampoco entró nada">
+            <input v-model="showIdle" type="checkbox" /> sin movimiento
+          </label>
+          <button ref="panelMaxButton" type="button" class="region-action"></button>
+          <button type="button" class="region-action" title="Cerrar la tabla" aria-label="Cerrar la tabla" @click="togglePanel">
+            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+          </button>
+        </div>
+      </nav>
+      <div class="region-body table-wrap">
+        <table class="table signals">
+          <thead>
+            <tr>
+              <th :aria-sort="ariaSort('state')"><button type="button" class="th-sort" @click="sortOn('state')">Estado</button></th>
+              <th :aria-sort="ariaSort('name')"><button type="button" class="th-sort" @click="sortOn('name')">Señal</button></th>
+              <th :aria-sort="ariaSort('kind')"><button type="button" class="th-sort" @click="sortOn('kind')">Tipo</button></th>
+              <th class="num" :aria-sort="ariaSort('now')"><button type="button" class="th-sort" @click="sortOn('now')">Última hora</button></th>
+              <th class="num" :aria-sort="ariaSort('median')"><button type="button" class="th-sort" @click="sortOn('median')">Lo normal</button></th>
+              <th class="num">Casi siempre</th>
+              <th class="num" :aria-sort="ariaSort('z')"><button type="button" class="th-sort" @click="sortOn('z')">z</button></th>
+              <th class="num">Aprob. · neg.</th>
+              <th class="follow-col"><span class="sr-only">Seguir</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="s in tableRows" :key="`t-${s.signal}`" :class="{ on: isOn(s) }" :title="s.why" @click="pick(s)">
+              <td><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ STATE_LABEL[s.state] }}</td>
+              <td class="name-cell">{{ s.name }}</td>
+              <td class="muted">{{ TABLE_KIND[s.kind] }}</td>
+              <td class="num">{{ s.now.total }}</td>
+              <td class="num">{{ fmt(s.median) }}</td>
+              <td class="num muted">{{ s.low }}–{{ s.high }}</td>
+              <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>
+              <td class="num muted">{{ isErrors(s) ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
+              <td class="follow-col">
+                <button v-if="canFollow(s)" type="button" class="region-action" :class="{ following: isFollowed(s) }"
+                        :aria-pressed="isFollowed(s)" :title="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`"
+                        :aria-label="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`" @click.stop="setFollow(s, !isFollowed(s))">
+                  <span class="ui-icon" :data-icon="isFollowed(s) ? 'check' : 'plus'" aria-hidden="true"></span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <p v-if="data && !tableRows.length" class="none">Nada con ese filtro.</p>
+      </div>
+    </section>
+
     <aside v-show="shown.aux" class="auxiliarybar" aria-label="Alertas y despliegues">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
@@ -349,6 +488,9 @@ onBeforeUnmount(() => {
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar la lista" aria-label="Mostrar u ocultar la lista" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
+        <button type="button" class="region-action" :aria-pressed="!!panelShown" title="Mostrar u ocultar la tabla de señales" aria-label="Mostrar u ocultar la tabla de señales" @click="togglePanel">
+          <span class="ui-icon" data-icon="console" aria-hidden="true"></span>
+        </button>
         <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar las alertas" aria-label="Mostrar u ocultar las alertas" @click="toggleAux">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
@@ -371,8 +513,31 @@ onBeforeUnmount(() => {
 .subject-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .subject-nums { flex: none; color: var(--fg-3); font-variant-numeric: tabular-nums }
 .subject.is-quiet .subject-name { color: var(--fg-2) }
-.idle-toggle { color: var(--fg-3); font-size: var(--text-sm) }
-.idle-toggle:hover { color: var(--foreground) }
+.subject-kind { flex: none; color: var(--fg-3); font-size: var(--text-xs) }
+/* Una fila que se sigue: abrirla es la fila entera; dejar de seguirla, la ✕ que aparece al pasar. */
+.followed, .suggestion { padding-right: var(--space-1) }
+.subject-open { display: flex; flex: 1; min-width: 0; align-items: center; gap: 6px; padding: 0; border: 0; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.followed .unfollow { visibility: hidden }
+.followed:hover .unfollow, .followed:focus-within .unfollow { visibility: visible }
+.spark { flex: none; width: 72px; height: 22px }
+.spark-normal { fill: none; stroke: var(--fg-3); stroke-width: 1; stroke-dasharray: 2 2 }
+.spark-today { fill: none; stroke: var(--primary); stroke-width: 1.5; stroke-linejoin: round }
+
+.signals-panel { display: flex; flex-direction: column }
+.table-wrap { flex: 1; min-height: 0; overflow: auto }
+.table-search { width: 160px; height: var(--control-xs) }
+.idle-check { display: inline-flex; align-items: center; gap: 4px; padding: 0 var(--space-2); font-size: var(--text-sm); color: var(--fg-2); white-space: nowrap }
+.signals thead th { position: sticky; top: 0; z-index: 1; background: var(--region-bg, var(--background)) }
+.signals th, .signals td { white-space: nowrap }
+.signals tbody tr { cursor: pointer }
+.signals tbody tr:hover td { background: var(--hover) }
+.signals .name-cell { max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.th-sort { padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer }
+th[aria-sort="ascending"] .th-sort::after { content: ' ↑' }
+th[aria-sort="descending"] .th-sort::after { content: ' ↓' }
+.follow-col { width: 36px; text-align: right }
+.region-action.following { color: var(--primary) }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0) }
 
 .view { display: flex; flex-direction: column; gap: var(--space-6); padding: var(--space-6); max-width: 980px }
 .verdict { margin: 0; display: flex; align-items: center; gap: 4px; font-size: var(--text-body); color: var(--fg-2) }
