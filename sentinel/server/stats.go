@@ -110,7 +110,10 @@ func loadRules(path string) (Rules, error) {
 func kindOf(sig Signal) string { return sig[:strings.IndexByte(sig, ':')] }
 
 // errorKind: en estas señales lo malo es que SUBAN; en las demás (también `logs:`, la señal de vida), que caigan.
-func errorKind(sig Signal) bool { k := kindOf(sig); return k == "service" || k == "queue" }
+func errorKind(sig Signal) bool {
+	k := kindOf(sig)
+	return k == "service" || k == "queue" || k == "lerr"
+}
 
 // ── las series en memoria, densas, para no recorrer mapas en cada cuenta ───────────────────────────────────────
 

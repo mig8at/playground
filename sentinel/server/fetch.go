@@ -168,6 +168,23 @@ FROM failed_jobs WHERE failed_at >= '%s' AND failed_at < '%s' GROUP BY 1, 2, 3`,
 	return nil
 }
 
+// slugs: el slug de cada entidad (normalizado con slugKey) → su id.
+func (r reader) slugs() (map[string]int, error) {
+	rows, err := r.rows("SELECT id, slug FROM lenders WHERE slug IS NOT NULL")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string]int{}
+	for _, row := range rows {
+		if k := slugKey(str(row["slug"])); k != "" {
+			if _, dup := out[k]; !dup { // dos con el mismo slug: gana el primero (el id más bajo)
+				out[k] = num(row["id"])
+			}
+		}
+	}
+	return out, nil
+}
+
 func (r reader) names(table string) (map[int]string, error) {
 	rows, err := r.rows(fmt.Sprintf("SELECT id, name FROM %s", table))
 	if err != nil {
@@ -191,23 +208,79 @@ func (r reader) names(table string) (map[int]string, error) {
 const (
 	errorsLogQL = `sum by (service_name) (count_over_time({service_name=~".+"} | detected_level="error" [5m]))`
 	linesLogQL  = `sum by (service_name) (count_over_time({service_name=~".+"} [5m]))`
+	// Los errores de UNA ENTIDAD (`lerr:<id>`), de las dos fuentes que la nombran: preapprovals-service la manda como
+	// metadato `lender_name` (el slug de `lenders`: «credifamilia», «creditop_x»), y legacy-backend en el JSON de la
+	// línea, `context.lender_id`. Medido el 2026-11-12, 7 días: ~1.000 y ~1.800 errores con entidad. Ningún otro servicio
+	// la nombra, y el comercio casi nunca (90 en 7 días): no hay errores por comercio.
+	lenderNameErrorsLogQL = `sum by (lender_name) (count_over_time({service_name=~".+"} | detected_level="error" | lender_name!="" [5m]))`
+	lenderIDErrorsLogQL   = `sum by (context_lender_id) (count_over_time({service_name="legacy-backend"} | detected_level="error" | json | context_lender_id!="" [5m]))`
 )
 
 // logsVersion: cambia cuando cambia lo que se lee de Loki; un día guardado con una versión anterior se vuelve a pedir
-// (sólo Loki) para que la historia de lo nuevo no arranque vacía.
-const logsVersion = 2
+// (sólo Loki, y sólo lo que esa versión no tenía) para que la historia de lo nuevo no arranque vacía.
+//
+//	2: errores y líneas de todos los servicios (`service:`, `logs:`)
+//	3: errores por entidad (`lerr:`)
+const logsVersion = 3
 
-// logErrors: los errores y las líneas de [from, to) por servicio, por bloque.
-func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh) error {
-	if err := lokiSeries(cl, errorsLogQL, "service:", from, to, f); err != nil {
-		return err
+// logKindsSince: las clases de señal que agregó cada versión después de `since`. Se reemplazan sólo ésas: pasar una
+// clase que no se pidió la dejaría en cero.
+func logKindsSince(since int) []string {
+	var kinds []string
+	if since < 2 {
+		kinds = append(kinds, "service", "logs")
 	}
-	return lokiSeries(cl, linesLogQL, "logs:", from, to, f)
+	if since < 3 {
+		kinds = append(kinds, "lerr")
+	}
+	return kinds
+}
+
+// logErrors: lo de Loki de [from, to), por bloque, desde la versión `since` (0: todo).
+func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slugs map[string]int) error {
+	byService := func(prefix string) func(map[string]string) Signal {
+		return func(m map[string]string) Signal { return prefix + m["service_name"] }
+	}
+	if since < 2 {
+		if err := lokiSeries(cl, errorsLogQL, byService("service:"), from, to, f); err != nil {
+			return err
+		}
+		if err := lokiSeries(cl, linesLogQL, byService("logs:"), from, to, f); err != nil {
+			return err
+		}
+	}
+	if since < 3 {
+		bySlug := func(m map[string]string) Signal {
+			if id := slugs[slugKey(m["lender_name"])]; id > 0 {
+				return fmt.Sprintf("lerr:%d", id)
+			}
+			return "" // un nombre que no está en `lenders`: no se puede atribuir
+		}
+		if err := lokiSeries(cl, lenderNameErrorsLogQL, bySlug, from, to, f); err != nil {
+			return err
+		}
+		byID := func(m map[string]string) Signal {
+			if id, err := strconv.Atoi(m["context_lender_id"]); err == nil && id > 0 {
+				return fmt.Sprintf("lerr:%d", id)
+			}
+			return ""
+		}
+		if err := lokiSeries(cl, lenderIDErrorsLogQL, byID, from, to, f); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// slugKey: el slug de una entidad sin la diferencia entre guion y guion bajo («creditop_x» en preapprovals,
+// «creditop-x» en `lenders`).
+func slugKey(s string) string {
+	return strings.ReplaceAll(strings.ToLower(strings.TrimSpace(s)), "-", "_")
 }
 
 // lokiSeries: una consulta de conteo por servicio. Cada punto de Loki cuenta los 5 minutos que terminan en él: va al
 // bloque que empieza 5 minutos antes.
-func lokiSeries(cl *connlogs.Client, query, prefix string, from, to time.Time, f Fresh) error {
+func lokiSeries(cl *connlogs.Client, query string, signalOf func(map[string]string) Signal, from, to time.Time, f Fresh) error {
 	status, body, err := cl.API("query_range", url.Values{
 		"query": {query}, "start": {fmt.Sprint(from.Add(5 * time.Minute).UnixNano())}, "end": {fmt.Sprint(to.UnixNano())}, "step": {"300"},
 	})
@@ -229,7 +302,10 @@ func lokiSeries(cl *connlogs.Client, query, prefix string, from, to time.Time, f
 		return fmt.Errorf("la respuesta de Loki no se pudo leer: %w", err)
 	}
 	for _, series := range out.Data.Result {
-		sig := prefix + series.Metric["service_name"]
+		sig := signalOf(series.Metric)
+		if sig == "" {
+			continue
+		}
 		for _, v := range series.Values {
 			ts, _ := v[0].(float64)
 			n, _ := strconv.ParseFloat(fmt.Sprint(v[1]), 64)

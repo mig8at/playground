@@ -84,13 +84,15 @@ type Overview struct {
 	Merchants  []Subject `json:"merchants"`
 	Services   []Subject `json:"services"` // los errores de Loki y la cola
 	Liveness   []Subject `json:"liveness"` // todas las líneas de Loki por servicio: si deja de escribir, se cayó
-	Apps       []App     `json:"apps"`     // los servicios en producción: su versión, sus errores y su señal de vida
-	LogsNote   string    `json:"logsNote,omitempty"`
-	Deploys    []Deploy  `json:"deploys"`
-	History    History   `json:"history"`
-	Rules      Rules     `json:"rules"`
-	Seconds    float64   `json:"seconds"`
-	Notices    []Notice  `json:"notices"` // los últimos avisos mandados
+	// LenderErrors: los errores en los logs que nombran a una entidad (preapprovals-service y legacy-backend).
+	LenderErrors []Subject `json:"lenderErrors"`
+	Apps         []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
+	LogsNote     string    `json:"logsNote,omitempty"`
+	Deploys      []Deploy  `json:"deploys"`
+	History      History   `json:"history"`
+	Rules        Rules     `json:"rules"`
+	Seconds      float64   `json:"seconds"`
+	Notices      []Notice  `json:"notices"` // los últimos avisos mandados
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -109,6 +111,7 @@ type sentinel struct {
 	releases        map[string]Release // el último despliegue a producción por repo (services.go)
 	releasesAt      time.Time
 	lenderNames     map[int]string
+	lenderSlugs     map[string]int // el slug de cada entidad → su id (los errores de preapprovals la nombran así)
 	merchantNames   map[int]string
 	namesAt         time.Time
 	deployList      []Deploy
@@ -118,7 +121,7 @@ type sentinel struct {
 
 var (
 	requestKinds = []string{"all", "lender", "merchant", "queue"}
-	logKinds     = []string{"service", "logs"}
+	logKinds     = logKindsSince(0)
 )
 
 // fetchRange pide [from, to) a las dos fuentes y lo guarda, día por día.
@@ -136,7 +139,7 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 	logs := Fresh{}
 	cl, err := lokiClient()
 	if err == nil {
-		err = logErrors(cl, from, to, logs)
+		err = logErrors(cl, from, to, logs, 0, s.lenderSlugs)
 	}
 	if err != nil {
 		s.logsNote = "sin los errores de Loki: " + err.Error()
@@ -146,17 +149,18 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 	return s.putRange(from, to, logs, logKinds)
 }
 
-// refetchLogs: vuelve a pedir SÓLO Loki para [from, to) y marca esos días con la versión de lectura de hoy.
-func (s *sentinel) refetchLogs(from, to time.Time) error {
+// refetchLogs: vuelve a pedir SÓLO lo de Loki que la versión `since` no tenía, para [from, to), y marca esos días con
+// la versión de lectura de hoy.
+func (s *sentinel) refetchLogs(from, to time.Time, since int) error {
 	cl, err := lokiClient()
 	if err != nil {
 		return err
 	}
 	logs := Fresh{}
-	if err := logErrors(cl, from, to, logs); err != nil {
+	if err := logErrors(cl, from, to, logs, since, s.lenderSlugs); err != nil {
 		return err
 	}
-	if err := s.putRange(from, to, logs, logKinds); err != nil {
+	if err := s.putRange(from, to, logs, logKindsSince(since)); err != nil {
 		return err
 	}
 	for day := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, bogota); day.Before(to); day = day.AddDate(0, 0, 1) {
@@ -218,10 +222,12 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 	// Los días guardados con una lectura de Loki anterior (logsVersion): se vuelve a pedir sólo Loki. Si Loki no
 	// contesta, queda para la próxima pasada.
 	var stale []time.Time
+	since := map[time.Time]int{}
 	for d := rules.HistoryDays; d >= 0; d-- {
 		day := today.AddDate(0, 0, -d)
 		if x := s.store.day(day.Format("2006-01-02")); x != nil && x.Logs < logsVersion {
 			stale = append(stale, day)
+			since[day] = x.Logs
 		}
 	}
 	for i, day := range stale {
@@ -230,7 +236,7 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 		if to.After(now) {
 			to = now
 		}
-		if err := s.refetchLogs(day, to); err != nil {
+		if err := s.refetchLogs(day, to, since[day]); err != nil {
 			s.logsNote = "sin la historia nueva de Loki: " + err.Error()
 			break
 		}
@@ -261,6 +267,19 @@ func (s *sentinel) pass() (*Overview, error) {
 		return nil, err
 	}
 	defer r.src.Close()
+	// Los nombres van antes que la carga: los errores por entidad de preapprovals se atribuyen por el slug.
+	if time.Since(s.namesAt) > time.Hour || s.lenderNames == nil {
+		if s.lenderNames, err = r.names("lenders"); err != nil {
+			return nil, err
+		}
+		if s.merchantNames, err = r.names("allieds"); err != nil {
+			return nil, err
+		}
+		if s.lenderSlugs, err = r.slugs(); err != nil {
+			return nil, err
+		}
+		s.namesAt = time.Now()
+	}
 	if err := s.backfill(r, rules, now); err != nil {
 		return nil, err
 	}
@@ -270,15 +289,6 @@ func (s *sentinel) pass() (*Overview, error) {
 	}
 	if err := s.fetchRange(r, from.Truncate(5*time.Minute), now); err != nil {
 		return nil, err
-	}
-	if time.Since(s.namesAt) > time.Hour || s.lenderNames == nil {
-		if s.lenderNames, err = r.names("lenders"); err != nil {
-			return nil, err
-		}
-		if s.merchantNames, err = r.names("allieds"); err != nil {
-			return nil, err
-		}
-		s.namesAt = time.Now()
 	}
 	if time.Since(s.deploysAt) > 30*time.Minute {
 		if list, err := deploys(s.root, 8); err == nil {
@@ -339,10 +349,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.Services = append(o.Services, subj)
 		case "logs":
 			o.Liveness = append(o.Liveness, subj)
+		case "lerr":
+			o.LenderErrors = append(o.LenderErrors, subj)
 		}
 	}
 	o.Apps = s.apps(o)
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors} {
 		sortSubjects(*list)
 	}
 	return o
@@ -371,6 +383,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = "Toda la originación"
 	case "lender":
 		subj.Name = nameOr(s.lenderNames, id)
+	case "lerr":
+		subj.Name = nameOr(s.lenderNames, id) + " · errores"
 	case "merchant":
 		subj.Name = nameOr(s.merchantNames, id)
 	case "queue":

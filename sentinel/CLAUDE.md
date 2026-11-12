@@ -56,6 +56,11 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   semanas pasa a ser lo normal.
 - **Errores: hace falta un mínimo** (`errors.minNow`, 10 por hora). Un servicio que casi nunca tiene errores daba alerta
   con 5.
+- **Errores por entidad** (`lerr:<id>`): los errores en los logs que nombran a una entidad. Sólo dos fuentes la nombran:
+  preapprovals-service, como metadato `lender_name` (el `slug` de `lenders`, con guion bajo: «creditop_x» es
+  `creditop-x`), y legacy-backend, en el JSON de la línea (`context.lender_id`). En 7 días (medido el 2026-11-12), ~1.000
+  y ~1.800 errores con entidad, de unos 35.000. No hay errores por comercio: casi ninguna línea lo nombra (90 en 7
+  días). En la vista de una entidad van debajo de sus solicitudes, con su curva; en el sidebar, un «N err».
 - **`logsVersion`** (`fetch.go`): cuando cambia lo que se lee de Loki, los días guardados con la versión anterior se
   vuelven a pedir (sólo Loki). El paso de 2 a 18 servicios recargó 29 días en ~11 minutos, una vez.
 

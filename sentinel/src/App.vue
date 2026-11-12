@@ -46,7 +46,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -111,19 +111,20 @@ const selected = computed(() => {
   if (!d) return null
   if (route.value.kind === 'queue') return d.services?.find((s) => s.kind === 'queue') || d.all
   if (route.value.kind === 'service') return d.services?.find((s) => s.name === route.value.name) || d.all
+  if (route.value.kind === 'lerr') return d.lenderErrors?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
 })
-const attention = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+const attention = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter((s) => s.state === 'alert' || s.state === 'warn'))
 
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
   else if ((parts[0] === 'service' || parts[0] === 'logs') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
-  else route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
+  else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 function pick(s) {
   if (!s || s.kind === 'all') setRoute([])
@@ -151,14 +152,14 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
-const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
+const TABLE_KIND = { lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const KIND_LABEL = { lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
 // Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
-  if (kind === 'lender' || kind === 'merchant') setRoute([kind, key])
+  if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') setRoute([kind, key])
   else if (kind === 'service' || kind === 'logs') setRoute([kind, key])
   else if (kind === 'queue') setRoute(['queue'])
   else setRoute([])
@@ -173,7 +174,7 @@ function windowRange(s) {
   const from = new Date(new Date(data.value.windowTo) - (s.windowMinutes || 60) * 60000).toISOString()
   return hours(s) >= 24 ? `${dayClock(from)} – ${dayClock(data.value.windowTo)}` : `${clock(from)}–${clock(data.value.windowTo)}`
 }
-const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue'
+const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
 const shiftText = (s) => s?.shift && `Cambio de nivel: ×${fmt(s.shift.ratio)} por día (de ${fmt(s.shift.before)} a ${fmt(s.shift.after)}), la última semana contra las anteriores. Ya cuenta como lo normal; si nadie lo explicó, vale la pena mirarlo.`
@@ -188,8 +189,9 @@ const repoShort = (r) => r.replace('legacy-', '')
 const W = 720
 const H = 220
 const PAD = { l: 34, r: 12, t: 12, b: 24 }
-const chart = computed(() => {
-  const s = selected.value
+const chart = computed(() => chartFor(selected.value))
+// La curva de una señal: la del centro, y la de los errores de una entidad debajo de sus solicitudes.
+function chartFor(s) {
   if (!s?.normal) return null
   const top = Math.max(4, ...s.normalHigh, ...(s.today || [])) * 1.1
   const x = (h) => PAD.l + (h / 23) * (W - PAD.l - PAD.r)
@@ -206,7 +208,11 @@ const chart = computed(() => {
     return { ...d, x: x(t.getHours() + t.getMinutes() / 60) }
   })
   return { band, median, today, ticks, marks, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
-})
+}
+// Los errores en los logs que nombran a la entidad elegida (preapprovals-service y legacy-backend).
+const lenderErrors = computed(() => (selected.value?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === selected.value.id) : null))
+const lenderErrorsOf = (s) => (s?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === s.id) : null)
+const errChart = computed(() => chartFor(lenderErrors.value))
 
 // ── las regiones, con el contrato de la base ──
 const sidebarOpen = ref(readSize('sentinel.sidebar-open', 1) !== 0)
@@ -327,6 +333,7 @@ onBeforeUnmount(() => {
               <span class="subject-name">{{ s.name }}</span>
               <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
               <small class="subject-nums" :title="`${spanLabel(s).toLowerCase()} · lo normal en esa ventana`">{{ s.now.total }} · {{ fmt(s.median) }}</small>
+              <small v-if="lenderErrorsOf(s)?.now.total" class="err-badge" :class="`is-${lenderErrorsOf(s).state}`" :title="`errores en los logs: ${lenderErrorsOf(s).why}`">{{ lenderErrorsOf(s).now.total }} err</small>
             </button>
             <button type="button" class="region-action unfollow" :title="`Dejar de seguir ${s.name}`" :aria-label="`Dejar de seguir ${s.name}`" @click="setFollow(s, false)">
               <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -356,7 +363,7 @@ onBeforeUnmount(() => {
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>
@@ -405,6 +412,32 @@ onBeforeUnmount(() => {
                 <small>hoy</small>
               </div>
             </div>
+          </section>
+
+          <section v-if="selected.kind === 'lender'" class="chart-box lender-errors">
+            <div class="chart-head">
+              <h3>Errores en los logs que la nombran</h3>
+              <button v-if="lenderErrors" type="button" class="linkish small" @click="pick(lenderErrors)">abrir como señal</button>
+            </div>
+            <template v-if="lenderErrors">
+              <p class="verdict" :class="`is-${lenderErrors.state}`">
+                <i class="dot" :class="`is-${lenderErrors.state}`" aria-hidden="true"></i>
+                <b>{{ STATE_LABEL[lenderErrors.state] }}</b> · {{ lenderErrors.why }}
+              </p>
+              <svg v-if="errChart" class="chart chart-small" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="`Errores por hora de ${selected.name}, hoy contra lo normal`">
+                <g class="grid">
+                  <line v-for="t in errChart.ticks" :key="t.v" :x1="PAD.l" :x2="W - PAD.r" :y1="t.y" :y2="t.y" />
+                  <text v-for="t in errChart.ticks" :key="`l${t.v}`" :x="PAD.l - 6" :y="t.y + 4" text-anchor="end">{{ t.v }}</text>
+                  <text v-for="h in errChart.hours" :key="`h${h.h}`" :x="h.x" :y="H - 6" text-anchor="middle">{{ h.h }}h</text>
+                </g>
+                <polygon class="band" :points="errChart.band" />
+                <polyline class="median" :points="errChart.median" />
+                <polyline class="today errors" :points="errChart.today" />
+                <circle class="now errors" :cx="errChart.lastX" :cy="errChart.lastY" r="4" />
+              </svg>
+            </template>
+            <p class="chart-note">Cuentan los errores de preapprovals-service (que nombra la entidad en cada línea) y los de legacy-backend que traen su id;
+              los demás servicios no la nombran.<template v-if="!lenderErrors"> En cuatro semanas, ninguno nombra a {{ selected.name }}.</template></p>
           </section>
         </div>
         <div v-else class="empty-state">
@@ -573,6 +606,9 @@ onBeforeUnmount(() => {
 .followed .unfollow { visibility: hidden }
 .followed:hover .unfollow, .followed:focus-within .unfollow { visibility: visible }
 .spark { flex: none; width: 72px; height: 22px }
+.err-badge { flex: none; padding: 0 5px; border-radius: 999px; font-size: var(--text-xs); color: var(--fg-2);
+  background: color-mix(in oklab, var(--sentinel-alert) 14%, transparent) }
+.err-badge.is-warn, .err-badge.is-alert { color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 35%, transparent) }
 .spark-normal { fill: none; stroke: var(--fg-3); stroke-width: 1; stroke-dasharray: 2 2 }
 .spark-today { fill: none; stroke: var(--primary); stroke-width: 1.5; stroke-linejoin: round }
 
@@ -620,6 +656,9 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .chart .median { fill: none; stroke: var(--fg-3); stroke-width: 1.5; stroke-dasharray: 4 4 }
 .chart .today { fill: none; stroke: var(--primary); stroke-width: 2.5; stroke-linejoin: round }
 .chart .now { fill: var(--card); stroke: var(--primary); stroke-width: 2 }
+.chart .today.errors, .chart .now.errors { stroke: var(--sentinel-alert) }
+.chart-small { max-height: 180px }
+.linkish.small { font-size: var(--text-xs); color: var(--fg-2) }
 .chart .deploy-mark line { stroke: var(--sentinel-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
 .chart .deploy-mark text { fill: var(--sentinel-warn); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }

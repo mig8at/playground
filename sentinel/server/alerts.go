@@ -135,6 +135,7 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 	all = append(all, o.Lenders...)
 	all = append(all, o.Merchants...)
 	all = append(all, o.Liveness...)
+	all = append(all, o.LenderErrors...)
 	seen := map[Signal]bool{}
 	for _, subj := range all {
 		seen[subj.Signal] = true
@@ -158,6 +159,12 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 			continue
 		}
 		if ep == nil {
+			continue
+		}
+		// «Poco volumen» no cierra un episodio: no dice que volvió a lo normal, sólo que a esta hora no hay con qué
+		// comparar. Un servicio callado pasaba a «poco volumen» de noche, el episodio se cerraba y a la mañana avisaba
+		// otra vez (4 avisos por día por servicio).
+		if subj.State == "quiet" {
 			continue
 		}
 		if ep.NormalFrom == "" {

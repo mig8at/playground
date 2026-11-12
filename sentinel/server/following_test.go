@@ -112,3 +112,22 @@ func TestAppsKeepTheirOwnSignals(t *testing.T) {
 		}
 	}
 }
+
+// Un episodio abierto no se cierra por pasar a «poco volumen»: sólo lo normal lo cierra.
+func TestQuietDoesNotCloseAnEpisode(t *testing.T) {
+	rules := defaultRules()
+	n := &notifier{dry: true, Episodes: map[Signal]*episode{}}
+	at := time.Now()
+	see := func(state string) {
+		n.observe(&Overview{Rules: rules, Liveness: []Subject{{Signal: "logs:x", Kind: "logs", Name: "x", State: state}}}, at)
+		at = at.Add(10 * time.Minute)
+	}
+	see("alert")
+	for i := 0; i < 12; i++ { // dos horas de noche en «poco volumen»
+		see("quiet")
+	}
+	see("alert")
+	if len(n.notices) != 1 {
+		t.Fatalf("avisó %d veces: %+v", len(n.notices), n.notices)
+	}
+}
