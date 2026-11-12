@@ -105,6 +105,10 @@ jira_title: ""
   verificó en el código de los monolitos.
 - [ ] Vigía · fase 1 y la vista (prototipo hecho el 2026-11-11: `sentinel/`, app en Cockpit, lee prod cada 5 min): que
   Miguel la mire y reconozca los números como ciertos. Termina cuando lo dice, o cuando corrige qué está mal.
+- [x] Vigía · los errores de Loki por servicio contra lo normal (2026-11-11): `legacy-backend` y `legacy-application`,
+  con su curva y su último despliegue a producción.
+- [ ] Vigía · los errores de pantalla de PostHog por pantalla contra lo normal. Termina cuando una pantalla que se dispara
+  sube a «para mirar» con su nombre.
 - [ ] Vigía · fase 2, avisar solo: cuando algo pasa a alerta, un aviso (macOS, chat o Slack, según decida Miguel), sin
   repetir el mismo; más seguido en las 2 horas después de un despliegue a producción. Termina cuando una alerta real
   llega sola y una que ya se avisó no se repite.

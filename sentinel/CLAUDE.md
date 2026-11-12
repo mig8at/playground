@@ -2,8 +2,8 @@
 
 **Para qué existe:** saber pronto si algo que subió a producción está rompiendo la originación. Cada 5 minutos lee
 producción (sólo lectura, por Redash) y dice, por **entidad** y por **comercio**, si lo que entró en la última hora se
-salió de lo normal; muestra la curva del día contra lo normal, con los **despliegues a producción** marcados, y los
-trabajos fallidos de la cola. Es el frente «vigía de producción» de `playground-local` (#96).
+salió de lo normal; lo mismo con los **errores de los logs** de producción por servicio (Loki); muestra la curva del
+día contra lo normal, con los **despliegues a producción** marcados, y los trabajos fallidos de la cola. Es el frente «vigía de producción» de `playground-local` (#96).
 
 `make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. `make sentinel ONCE=1` hace una pasada por consola
 en JSON y sale.
@@ -19,6 +19,11 @@ en JSON y sale.
 - **Poco volumen** (gris): lo normal es menos de 3 por hora; no hay con qué comparar. Las que tienen 0 de costumbre y 0
   hoy van plegadas al final («sin movimiento a esta hora»).
 
+- **Los errores de los logs** (Loki, `legacy-backend` y `legacy-application`): ahí lo malo es que SUBAN. Para mirar si
+  pasan el máximo de los 7 días y son al menos una vez y media lo normal; alerta si son el triple o más y 20 por encima
+  del máximo. Poco volumen si lo normal es menos de 5. Cada servicio muestra su último despliegue a producción (los
+  servicios se llaman como sus repos).
+
 Pocas reglas a propósito: muchas alertas falsas cansan y se ignoran. Antes de agregar una, mirá cuántas veces habría
 sonado en los días anteriores.
 
@@ -30,6 +35,9 @@ sonado en los días anteriores.
   como `float64` daba todo en 0, sin error.
 - **Negada no es falla**: los estados 6 (Negada) y 8 (Cancelado) son decisiones, no errores (`user_request_statuses`
   de producción). Los grupos de estados están en `server/main.go` (`approvedStates`, `deniedStates`).
+- **Loki**: un conteo instantáneo (`count_over_time`) pide un `limit` positivo aunque no devuelva líneas («limit must be a
+  positive value»); y el rango por hora no trae la hora en curso, que se cuenta aparte desde las HH:00. Si Loki no
+  contesta, la pasada sigue sin esa señal y lo dice (`logsNote`).
 - **Una pasada tarda ~20 s** (Redash): por eso corre de fondo cada 5 min y la interfaz lee lo último.
 
 ## Cómo está construido
@@ -37,11 +45,12 @@ sonado en los días anteriores.
 | pieza | dónde |
 |---|---|
 | la lectura de producción, lo normal y el veredicto | `server/main.go` (usa `connectors/sql`, con su guarda de sólo lectura) |
+| los errores de los logs por servicio | `server/main.go` (`logErrors`, con `connectors/logs`) |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
 | la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
 
 ## Lo que falta
 
 Avisar solo (macOS, el chat o Slack) cuando algo pasa a alerta, sin repetir el mismo aviso; más seguido y más sensible
-en las 2 horas después de un despliegue; los errores de los logs de producción (Loki) por servicio. Las decisiones
+en las 2 horas después de un despliegue; los errores de pantalla que vio el cliente (PostHog), por pantalla. Las decisiones
 abiertas (qué vigilar, qué tan sensible, por dónde avisar) están en el frente de #96.
