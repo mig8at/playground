@@ -86,6 +86,7 @@ type Overview struct {
 	History    History   `json:"history"`
 	Rules      Rules     `json:"rules"`
 	Seconds    float64   `json:"seconds"`
+	Notices    []Notice  `json:"notices"` // los últimos avisos mandados
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -98,7 +99,8 @@ type sentinel struct {
 	err             string
 	running         bool
 	loading         string
-	fromDisk        bool // la vista de arranque salió de last.json
+	fromDisk        bool      // la vista de arranque salió de last.json
+	notifier        *notifier // sólo en la API que escucha: la pasada por consola no avisa
 	lenderNames     map[int]string
 	merchantNames   map[int]string
 	namesAt         time.Time
@@ -383,7 +385,14 @@ func (s *sentinel) run() {
 	if err != nil {
 		s.err = err.Error()
 		log.Printf("sentinel: %v", err)
+		if s.notifier != nil {
+			s.notifier.failed(err, time.Now())
+		}
 		return
+	}
+	if s.notifier != nil {
+		s.notifier.observe(o, time.Now())
+		o.Notices = s.notifier.recent(20)
 	}
 	s.last, s.err = o, ""
 	s.saveLast(o)
@@ -446,6 +455,7 @@ func main() {
 	serve := flag.String("serve", "127.0.0.1:5211", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", 5*time.Minute, "cada cuánto pide lo que falta")
 	once := flag.Bool("once", false, "carga lo que falte, hace una pasada y muestra el resumen")
+	notifyTest := flag.Bool("notify-test", false, "manda un aviso de prueba de macOS y sale")
 	install := flag.Bool("install", false, "la deja corriendo de fondo como LaunchAgent (desde el binario compilado)")
 	uninstall := flag.Bool("uninstall", false, "saca el LaunchAgent (lo guardado se queda)")
 	status := flag.Bool("status", false, "¿el LaunchAgent está cargado, y hasta dónde llegó lo guardado?")
@@ -463,7 +473,11 @@ func main() {
 		log.Fatal(err)
 	}
 	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st}
+	rulesPath = s.rulesPath
 	switch {
+	case *notifyTest:
+		exitOn(macNotice("Sentinel · prueba", "Así llega un aviso de Sentinel. Tocalo y abre Sentinel.", "", false))
+		return
 	case *install:
 		exitOn(agent(root, *serve).Install())
 		return
@@ -505,6 +519,7 @@ func main() {
 		log.Fatal(err)
 	}
 	s.loadLast()
+	s.notifier = openNotifier(st.dir)
 	go func() {
 		for {
 			s.run()
@@ -586,6 +601,16 @@ func printBacktest(s *sentinel, days int) {
 	})
 	for _, sig := range sigs {
 		fmt.Printf("  %-26s %3d alertas · %3d para mirar\n", sig, bySignal[sig][0], bySignal[sig][1])
+	}
+	notices := replayNotices(s.evaluator(rules), days, time.Now().In(bogota))
+	byLevel := map[string]int{}
+	for _, x := range notices {
+		byLevel[x.Level]++
+	}
+	fmt.Printf("los avisos que habrían salido (notify.level=%s): %d de alerta, %d de «para mirar», %d de «volvió a lo normal»\n",
+		rules.Notify.Level, byLevel["alert"], byLevel["warn"], byLevel["recovered"])
+	for _, x := range notices {
+		fmt.Printf("  aviso %s  %-9s %-26s\n", x.At[:16], x.Level, x.Signal)
 	}
 	fmt.Println("las alertas:")
 	for _, e := range eps {

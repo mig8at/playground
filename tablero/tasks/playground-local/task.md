@@ -113,9 +113,9 @@ jira_title: ""
   prueban contra la historia (`-backtest`): la última semana, 3 alertas y 15 «para mirar».
 - [ ] Vigía · los errores de pantalla de PostHog por pantalla contra lo normal. Termina cuando una pantalla que se dispara
   sube a «para mirar» con su nombre.
-- [ ] Vigía · fase 2, avisar solo: cuando algo pasa a alerta, un aviso (macOS, chat o Slack, según decida Miguel), sin
-  repetir el mismo; más seguido en las 2 horas después de un despliegue a producción. Termina cuando una alerta real
-  llega sola y una que ya se avisó no se repite.
+- [ ] Vigía · fase 2, avisar solo (hecho el 2026-11-12: aviso de macOS por episodio, corriendo de fondo; contra la
+  semana anterior habría dado 3 alertas y 3 «volvió a lo normal»). Termina cuando una alerta real llega sola y una que
+  ya se avisó no se repite; si macOS no alcanza, decidir otro canal con Miguel.
 - [ ] Vigía · decidir con Miguel lo abierto del frente (qué vigilar, qué es «salirse», por dónde avisar). Termina cuando
   el frente lo dice y no quedan preguntas.
   Depende de: Miguel — las respuestas de «Preguntas para decidir».

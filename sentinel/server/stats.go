@@ -59,6 +59,7 @@ type Rules struct {
 	AfterDeployHours  float64             `json:"afterDeployHours"`
 	AfterDeployFactor float64             `json:"afterDeployFactor"`
 	Signals           map[Signal]Override `json:"signals"`
+	Notify            NotifyRules         `json:"notify"`
 }
 
 func defaultRules() Rules {
@@ -67,6 +68,7 @@ func defaultRules() Rules {
 		Volume:           Thresholds{MinMedian: 3, WarnZ: -2.5, AlertZ: -3.5, Ratio: 0.6},
 		Errors:           Thresholds{MinMedian: 3, WarnZ: 3, AlertZ: 4.5, Ratio: 1.5, Ceiling: 0.99, CeilingAlert: 2},
 		AfterDeployHours: 2, AfterDeployFactor: 0.75,
+		Notify:  NotifyRules{Level: "alert", ClearMinutes: 30, StaleMinutes: 30, Recovered: true},
 		Signals: map[Signal]Override{},
 	}
 }

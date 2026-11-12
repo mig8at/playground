@@ -84,6 +84,17 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola' }
+const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
+const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
+// Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
+function pickSignal(sig) {
+  const [kind, key] = String(sig).split(':')
+  if (kind === 'lender' || kind === 'merchant') setRoute([kind, key])
+  else if (kind === 'service') setRoute(['service', key])
+  else if (kind === 'queue') setRoute(['queue'])
+  else setRoute([])
+  readRoute()
+}
 const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
@@ -308,6 +319,13 @@ onBeforeUnmount(() => {
         <button v-for="s in attention" :key="`a-${s.signal}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
           <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
           <small class="row-desc">{{ s.why }}</small>
+        </button>
+
+        <div class="region-head group"><span>Avisos</span><span class="count">{{ data?.notices?.length || 0 }}</span></div>
+        <p v-if="data && !data.notices?.length" class="none">Ninguno todavía. Avisa macOS cuando algo pasa a alerta, una vez por episodio, y cuando vuelve.</p>
+        <button v-for="n in data?.notices || []" :key="`${n.at}-${n.signal}`" type="button" class="row stacked" :title="n.text" @click="pickSignal(n.signal)">
+          <span><i class="dot" :class="`is-${NOTICE_DOT[n.level]}`" aria-hidden="true"></i>{{ NOTICE_LABEL[n.level] }} · {{ n.name }}</span>
+          <small class="row-desc">{{ dayClock(n.at) }}{{ n.sent ? '' : ' · no salió' }} · {{ n.text }}</small>
         </button>
 
         <div class="region-head group"><span>Despliegues a producción</span><span class="count">{{ data?.deploys?.length || 0 }}</span></div>

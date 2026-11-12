@@ -35,6 +35,21 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **Al abrir hay datos de entrada.** La última vista se guarda en `sentinel/.data/last.json`; al arrancar la API la
   sirve marcada `stale` («lo guardado de las HH:MM; leyendo lo de ahora…») hasta que termina la primera pasada.
 
+## Cómo avisa (`server/alerts.go`)
+
+- **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
+  sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por el avisador del chat («Chat del
+  playground», que ya tiene permiso de avisos); sin él, por osascript.
+- **Uno por episodio.** El episodio sigue abierto hasta que la señal pasa `clearMinutes` (30) en lo normal: una que va y
+  viene entre alerta y «para mirar» no avisa cada 5 minutos. Avisa otra vez sólo si empeora. Al cerrarse, «volvió a lo
+  normal», sin sonido.
+- **Si no puede leer producción 30 min** (la VPN caída), avisa una vez «Sentinel no está mirando», y otra cuando vuelve.
+- El estado vive en `sentinel/.data/alerts.json` (un reinicio no repite avisos) y cada aviso queda en `notices.jsonl`;
+  la interfaz muestra los últimos en «Avisos». Sólo avisa la API que escucha: `-once` y `-backtest` no.
+- Se ajusta en `rules.json`, bajo `notify`: `level` (`alert` por defecto, `warn` para avisar también «para mirar»,
+  `off`), `clearMinutes`, `staleMinutes`, `recovered`. **El `-backtest` dice qué avisos habrían salido**: la semana del
+  2026-11-05 al 11, 3 de alerta y 3 de «volvió a lo normal». `-notify-test` manda uno de prueba.
+
 ## Cómo decide (`server/stats.go`)
 
 - **Lo normal es la misma hora en los días comparables**: hábiles con hábiles, fines de semana con fines de semana,
@@ -82,6 +97,6 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 
 ## Lo que falta
 
-Avisar solo (macOS, el chat o Slack) cuando algo pasa a alerta, sin repetir el mismo aviso (un estado por señal); los
-errores de pantalla que vio el cliente (PostHog), por pantalla. Las decisiones
+Los errores de pantalla que vio el cliente (PostHog), por pantalla. Avisar por otro canal (Slack, el chat del equipo)
+si los avisos de macOS no alcanzan. Las decisiones
 abiertas (qué vigilar, qué tan sensible, por dónde avisar) están en el frente de #96.
