@@ -2754,7 +2754,12 @@ function documentAction(id) {
    ancho de LECTURA (no el del contenedor): una línea de 120 caracteres no se lee, y el editor puede
    ser muy ancho. ⚠ Se llamaba `.sprint-view` y la usaban las DOS ramas: un nombre que dice «sprint»
    sobre la vista del import hace que hasta un chequeo escrito a propósito conteste mal. */
-.editor-view { padding: 22px 24px 40px }
+.editor-view { --editor-view-top: 22px; padding: var(--editor-view-top) 24px 40px }
+/* Los encabezados de sección del home (Mi jornada, Hoy) son sticky (`.region-head.group`, workbench.css). Con el
+   `top: 0` de la base se pegaban a 22px del borde —el padding de arriba de este cuerpo— y por ese hueco se veían
+   pasar las tarjetas (visto el 2026-11-12). El mismo arreglo que `.context-day`: el top negativo de ese padding, y
+   1px más por el borde que cae en medio de un píxel. */
+.editor-view .card > .region-head.group { top: calc(-1px - var(--editor-view-top)) }
 .editor-view > * { max-width: 1100px }
 
 .task-context-timeline { max-width: 780px; padding: 2px 0 20px }
