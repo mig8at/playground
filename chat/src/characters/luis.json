@@ -3,12 +3,12 @@
   "owner": "duncan.estrada",
   "agent": "luis",
   "voice": {
-    "name": "Eddy",
+    "name": "Shelley",
     "lang": "es-ES",
-    "pitch": 1.45,
-    "rate": 1.05,
+    "pitch": 1.2,
+    "rate": 1,
     "gemini": {
-      "voice": "Zubenelgenubi",
+      "voice": "Autonoe",
       "pitch": 1.12
     }
   },

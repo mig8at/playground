@@ -79,6 +79,13 @@
    boca y la parte de abajo */
 .tile.talking .beak-top.big { animation: bigbill .24s ease-in-out infinite alternate; }
 @keyframes bigbill { from { transform: scaleY(1); } to { transform: scaleY(.74); } }
+/* LA BOCA MOVIDA DESDE AFUERA (lipsync): quien reproduce un audio pone --boca de 0 (cerrada) a 1 (abierta) cuadro a
+   cuadro con el volumen, y la boca sigue eso en vez de su vaivén fijo. La cabeza sigue asintiendo. */
+.tile.talking.lipsync .mouth { animation: none; transform: scaleY(calc(.3 + var(--boca, .5) * .95)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-jaw { animation: none; transform: translateY(calc(-8px + var(--boca, .5) * 12px)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--boca, .5) * .75)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--boca, .5) * -3px)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--boca, .5) * .26)); transition: transform 50ms linear; }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }

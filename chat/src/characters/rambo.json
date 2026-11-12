@@ -3,13 +3,13 @@
   "owner": "duncan.estrada",
   "agent": "rambo",
   "voice": {
-    "name": "Reed",
-    "lang": "es-ES",
-    "pitch": 0.6,
-    "rate": 0.92,
+    "name": "Grandma",
+    "lang": "es-MX",
+    "pitch": 0.82,
+    "rate": 0.95,
     "gemini": {
-      "voice": "Charon",
-      "pitch": 0.86
+      "voice": "Gacrux",
+      "pitch": 0.9
     }
   },
   "character": {

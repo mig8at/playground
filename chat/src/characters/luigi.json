@@ -3,13 +3,13 @@
   "owner": "miguel",
   "agent": "luigi",
   "voice": {
-    "name": "Rocko",
+    "name": "Flo",
     "lang": "es-MX",
-    "pitch": 1.25,
-    "rate": 1.1,
+    "pitch": 1.18,
+    "rate": 1.05,
     "gemini": {
-      "voice": "Puck",
-      "pitch": 1.06
+      "voice": "Laomedeia",
+      "pitch": 1.1
     }
   },
   "character": {

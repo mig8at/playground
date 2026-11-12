@@ -3,13 +3,13 @@
   "owner": "miguel",
   "agent": "wario",
   "voice": {
-    "name": "Grandpa",
+    "name": "Sandy",
     "lang": "es-MX",
-    "pitch": 0.85,
-    "rate": 1,
+    "pitch": 1.05,
+    "rate": 1.05,
     "gemini": {
-      "voice": "Algenib",
-      "pitch": 0.95
+      "voice": "Zephyr",
+      "pitch": 1.03
     }
   },
   "character": {

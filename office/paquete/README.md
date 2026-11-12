@@ -20,6 +20,8 @@ página del editor (`index.html` en el playground, `ejemplo.html` en el paquete)
 
 - `gesto`: `escucha` · `teclea` · `piensa` · `habla` (se puede cambiar en cualquier momento).
 - `fondo="false"`: sin el paisaje de papel, sólo el personaje.
+- `boca="0.6"` (con `gesto="habla"`): la boca la movés vos, de 0 (cerrada) a 1 (abierta), por ejemplo con el volumen de
+  un audio cuadro a cuadro. Sin el atributo, la boca hace su vaivén propio.
 - El tamaño lo pone tu CSS (`width`); guarda la proporción 4:3.
 
 ## Desde JavaScript

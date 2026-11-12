@@ -61,10 +61,12 @@ export const OPCIONES = P.OPCIONES
 
 // ── EL COMPONENTE ────────────────────────────────────────────────────────────────────────────────
 // <office-personaje config='{"name":"Ana","hair":"curly"}' gesto="habla" fondo="false"></office-personaje>
+// boca="0.7": la boca la mueve quien lo usa (de 0 cerrada a 1 abierta, p. ej. con el volumen de un audio); sin el
+// atributo, la boca hace su vaivén propio.
 // Su estilo vive en su propio shadow DOM: no toca ni lo toca el CSS de la página. Sólo existe en el navegador: en Node
 // (un servidor que genere avatares) se usan svg() y alAzar().
 export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class extends HTMLElement {
-  static observedAttributes = ['config', 'gesto', 'fondo']
+  static observedAttributes = ['config', 'gesto', 'fondo', 'boca']
   #config = {}
   constructor() { super(); this.attachShadow({ mode: 'open' }) }
   get config() { return this.#config }
@@ -73,13 +75,23 @@ export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class
   set gesto(v) { this.setAttribute('gesto', v) }
   attributeChangedCallback(name, _, value) {
     if (name === 'config') { try { this.#config = JSON.parse(value || '{}') } catch { this.#config = {} } }
-    if (name === 'gesto' && this.shadowRoot.querySelector('svg')) { this.shadowRoot.querySelector('svg').setAttribute('class', \`tile \${GESTOS[value] || 'idle'}\`); return }
+    // svg.tile y no el primer svg: antes va el del logo (escondido), y cambiarle la clase a ése no mueve nada
+    const svg = this.shadowRoot.querySelector('svg.tile')
+    if (name === 'gesto' && svg) { svg.setAttribute('class', \`tile \${GESTOS[value] || 'idle'}\`); this.#mouth(svg); return }
+    if (name === 'boca' && svg) { this.#mouth(svg); return }
     this.render()
+  }
+  // la boca movida desde afuera: la clase lipsync y la apertura en --boca
+  #mouth(svg) {
+    const v = this.getAttribute('boca')
+    svg.classList.toggle('lipsync', v !== null)
+    if (v !== null) svg.style.setProperty('--boca', String(Math.max(0, Math.min(1, Number(v) || 0))))
   }
   connectedCallback() { this.render() }
   render() {
     if (!this.isConnected) return
     this.shadowRoot.innerHTML = \`<style>:host{display:inline-block;width:240px;aspect-ratio:4/3;border-radius:18px;overflow:hidden}svg.tile{width:100%;height:100%;display:block}\${CSS}</style>\${P.LOGO_SVG}\${svg(this.#config, { gesto: this.gesto, fondo: this.getAttribute('fondo') !== 'false' })}\`
+    this.#mouth(this.shadowRoot.querySelector('svg.tile'))
   }
 }
 if (OfficePersonaje && typeof customElements !== 'undefined' && !customElements.get('office-personaje')) customElements.define('office-personaje', OfficePersonaje)

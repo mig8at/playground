@@ -4,8 +4,10 @@
    (POST /api/voice) y acá se reproducen.
    No se usa la síntesis del navegador porque dentro de Cockpit (WebKit) sólo trae Mónica y Paulina.
 
-   LA BOCA SIGUE LA VOZ: el audio pasa por un analizador (WebAudio) y, cuadro a cuadro, `voice.open` dice si en ese
-   momento suena algo; la videollamada abre la boca del personaje en las sílabas y la cierra en las pausas.
+   LA BOCA SIGUE LA VOZ: el audio pasa por un analizador (WebAudio) y, cuadro a cuadro, `voice.level` dice cuánto suena
+   (0 a 1); la videollamada se lo pasa al personaje (atributo `boca`), que abre la boca en esa medida: grande en las
+   vocales fuertes, cerrada en las pausas. No se alterna el gesto: eso reiniciaba la animación y la boca no llegaba a
+   abrirse.
 
    EL TONO: `say` no cambia el tono de estas voces, así que se reproduce más rápido (agudo: el búho) o más lento (grave:
    el oso) sin conservar el tono, y la velocidad se compensa al generar para que el ritmo quede como pide el JSON.
@@ -20,7 +22,8 @@ export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
   speaker: '',   // la clave del personaje que habla
   line: '',      // la frase que está diciendo
-  open: false,   // si en este instante suena (la boca abierta)
+  busy: false,   // si hay algo sonando o en fila
+  level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
   error: '',
   engine: readPref('chat.call-engine', 'gemini'),   // 'gemini' o 'local'
   geminiReady: false,                               // si el servidor tiene la llave de Gemini
@@ -66,22 +69,20 @@ function listen(audio) {
   } catch { analyser = null }
 }
 
-// Cuadro a cuadro: ¿suena? Con un poco de inercia, para que la boca no tiemble.
-let held = 0
+// Cuadro a cuadro: cuánto suena. Sube rápido y baja un poco más lento, para que la boca no tiemble.
 function track() {
   cancelAnimationFrame(raf)
   const tick = () => {
-    if (!current) { voice.open = false; return }
+    if (!current) { voice.level = 0; return }
+    let target = 0.6 // sin analizador, media boca todo el rato
     if (analyser) {
       analyser.getByteTimeDomainData(samples)
       let sum = 0
       for (const s of samples) sum += (s - 128) * (s - 128)
-      const level = Math.sqrt(sum / samples.length) / 128
-      if (level > 0.06) held = 4
-      voice.open = held-- > 0
-    } else {
-      voice.open = !current.paused // sin analizador, la boca habla todo el rato
+      const rms = Math.sqrt(sum / samples.length) / 128
+      target = Math.min(1, Math.max(0, (rms - 0.02) * 5))
     }
+    voice.level = +(target > voice.level ? voice.level * 0.3 + target * 0.7 : voice.level * 0.65 + target * 0.35).toFixed(2)
     raf = requestAnimationFrame(tick)
   }
   raf = requestAnimationFrame(tick)
@@ -106,7 +107,7 @@ async function render(item) {
 
 async function next() {
   const item = queue.shift()
-  if (!item) { busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.open = false; return }
+  if (!item) { busy = false; voice.busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.level = 0; return }
   busy = true
   try {
     // ya se venía generando desde que llegó el mensaje: acá sólo se espera lo que falte
@@ -122,7 +123,7 @@ async function next() {
     const done = () => {
       URL.revokeObjectURL(url)
       if (current !== audio) return
-      current = null; voice.line = ''; voice.open = false
+      current = null; voice.line = ''; voice.level = 0
       // un respiro entre frases, y uno más largo al cambiar de turno
       setTimeout(next, item.last ? 380 : 120)
     }
@@ -152,6 +153,7 @@ export function say(speaker, text, v) {
     item.audio.catch(() => {})
     queue.push(item)
   })
+  voice.busy = true
   if (!busy) next()
 }
 
@@ -161,5 +163,5 @@ export function hush() {
   queue.length = 0
   if (current) { current.pause(); current.onended = null; current = null }
   cancelAnimationFrame(raf)
-  busy = false; voice.speaker = ''; voice.line = ''; voice.open = false
+  busy = false; voice.busy = false; voice.speaker = ''; voice.line = ''; voice.level = 0
 }

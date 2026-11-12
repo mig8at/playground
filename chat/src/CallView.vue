@@ -8,19 +8,16 @@
    ancha van en una fila, en una alta se apilan, y siempre quedan centrados, sin estirarse ni cortarse. La última fila,
    si está incompleta, también se centra.
 
-   LAS VOCES (callVoice.js): con la voz prendida, cada mensaje nuevo de la conversación lo dice quien lo escribió, con
-   la voz de su JSON, y su personaje mueve la boca mientras suena; abajo sale la frase. «Repetir» vuelve a decir los
-   últimos mensajes y un clic en un recuadro hace que ese personaje salude. Todo es local: voces de macOS generadas por
-   el servidor del chat en esta máquina, y la boca se abre cuando suena (el volumen real del audio). */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+   LAS VOCES (callVoice.js): «Reproducir demo» pone a hablar a los de la llamada con una conversación inventada
+   (callDemo.js), cada uno con la voz de su JSON; quien habla abre la boca con el volumen real del audio y abajo sale
+   la frase. Un clic en un recuadro hace que ese personaje salude. Por ahora NO se leen los mensajes del chat. */
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { hush, say, setEngine, voice } from './callVoice.js'
-import { readPref, savePref } from './workbench.js'
+import { demoLines } from './callDemo.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
-  messages: { type: Array, default: () => [] },   // los de la conversación abierta
   me: { type: String, default: '' },              // mi correo
-  peer: { type: String, default: '' },            // el correo (o la clave) de la conversación
 })
 const ASPECT = 4 / 3, GAP = 10, PAD = 12
 const box = ref(null)
@@ -55,37 +52,26 @@ const compact = computed(() => layout.value.w < 220)
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
 const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const byKey = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), c])))
-// el personaje que escribió un mensaje: la persona, o su agente si habló por él
-function speakerOf(m) {
-  const person = m.dir === 'out' ? userOf(props.me) : userOf(m.author?.email || props.peer)
-  const agent = String(m.via || '').toLowerCase()
-  return byKey.value[agent ? `${person}/${agent}` : person] || null
-}
-function speak(m) {
-  const c = speakerOf(m)
-  if (c && m.text) say(keyOf(c), m.text, c.voice)
-}
-
-const voiceOn = ref(readPref('chat.call-voice', true))
-function toggleVoice() {
-  voiceOn.value = !voiceOn.value
-  savePref('chat.call-voice', voiceOn.value)
-  if (!voiceOn.value) hush()
-}
-// lo que llega mientras la videollamada está abierta se dice (lo de antes, no: para eso está «Repetir»)
-watch(() => props.messages.length, (n, old) => {
-  if (!voiceOn.value || !(n > old)) return
-  for (const m of props.messages.slice(old).slice(-3)) speak(m)
+// los papeles del demo: vos, la otra persona y los agentes de cada uno
+const roles = computed(() => {
+  const me = userOf(props.me)
+  const meChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() === me)
+  const peerChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() !== me)
+  const agentsOf = (p) => (p ? props.cast.filter((c) => c.owner && c.owner.toLowerCase() === p.handle.toLowerCase()) : [])
+  const [me1, me2] = agentsOf(meChar), [peer1, peer2] = agentsOf(peerChar)
+  return { me: meChar, peer: peerChar, me1, me2, peer1, peer2 }
 })
-function replay() {
-  hush()
-  for (const m of props.messages.filter((x) => speakerOf(x) && x.text).slice(-4)) speak(m)
+function playDemo() {
+  if (voice.busy) { hush(); return }
+  for (const { who, text } of demoLines(roles.value)) say(keyOf(who), text, who.voice)
 }
 function greet(c) {
   hush()
   say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, c.voice)
 }
 const speaking = computed(() => (voice.line ? voice.speaker : ''))
+// la apertura de la boca de quien habla (con dos decimales: el atributo cambia sólo cuando cambia de verdad)
+const mouth = (c) => (speaking.value === keyOf(c) ? voice.level.toFixed(2) : null)
 const caption = computed(() => (voice.line ? { name: byKey.value[voice.speaker]?.name || '', line: voice.line } : null))
 
 const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0]}` : '')
@@ -98,26 +84,21 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       <figure v-for="c in cast" :key="keyOf(c)" class="call-tile" :class="{ speaking: speaking === keyOf(c) }"
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
         <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })"
-                          :gesto="speaking === keyOf(c) && voice.open ? 'habla' : 'escucha'" />
+                          :gesto="speaking === keyOf(c) ? 'habla' : 'escucha'" :boca="mouth(c)" />
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
     </div>
     <div v-if="voice.supported" class="call-controls">
-      <button type="button" :aria-pressed="voiceOn" :title="voiceOn ? 'Silenciar las voces' : 'Que hablen los mensajes'" @click="toggleVoice">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" />
-          <path v-if="voiceOn" d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" />
-          <path v-else d="M16 9l5 6M21 9l-5 6" fill="none" /></svg>
-        {{ voiceOn ? 'Voz' : 'Sin voz' }}
-      </button>
       <button v-if="voice.geminiReady" type="button" class="engine" :title="voice.engine === 'gemini'
                 ? 'Voces de Gemini: el texto va a Google (~US$0,0012 por mensaje). Clic: voces locales de macOS'
                 : 'Voces locales de macOS: gratis, nada sale de la máquina. Clic: voces de Gemini'"
               @click="setEngine(voice.engine === 'gemini' ? 'local' : 'gemini')">
         {{ voice.engine === 'gemini' ? 'Gemini' : 'Local' }}
       </button>
-      <button type="button" title="Decir otra vez los últimos mensajes" @click="replay">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" /></svg>
-        Repetir
+      <button type="button" class="demo" :aria-pressed="voice.busy" :title="voice.busy ? 'Parar' : 'Una conversación inventada, para oír las voces y ver las bocas'" @click="playDemo">
+        <svg v-if="!voice.busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v12H7z" /></svg>
+        {{ voice.busy ? 'Parar' : 'Reproducir demo' }}
       </button>
     </div>
     <p v-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
