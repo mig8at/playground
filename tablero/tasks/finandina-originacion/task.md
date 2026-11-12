@@ -113,7 +113,12 @@ adelante depende de las respuestas de la fase 0.
 - [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
   entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
 - [x] Decidir si una consulta de Mareigua del último mes hecha con otra cuenta se reutiliza: no, se vuelve a
-  consultar con la cuenta de la sucursal (decisión de Miguel del 2026-11-12, por PRD-11, 43 y 80).
+  consultar con la cuenta de la sucursal (decisión de Miguel del 2026-11-12; el PRD no lo dice, es inferencia de
+  «llaves de Finandina»).
+- [ ] Confirmar CUÁNDO se consulta con las llaves de Finandina: el PRD («10. Flujo funcional») y el diagrama la
+  ponen después de que el cliente elige Finandina, y el código la hace antes, en toda sucursal donde está
+  asignada (lo hablado con Finandina, sin escrito). Termina con la respuesta por escrito. Depende de: producto o
+  Finandina.
 - [ ] Revisar el consentimiento del onboarding en las sucursales donde la consulta sale con la cuenta de
   Finandina, antes de elegir entidad: el formulario la pone como responsable de los datos (PRD-72). Depende de:
   producto.
