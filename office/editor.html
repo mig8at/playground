@@ -145,7 +145,8 @@ function draw() {
 
 const GESTURES = [['idle', 'Escucha'], ['typing', 'Teclea'], ['thinking', 'Piensa'], ['talking', 'Habla']]
 const gest = document.getElementById('gestures')
-gest.innerHTML = GESTURES.map(([k, l]) => `<button type="button" class="chipbtn" data-g="${k}">${l}</button>`).join('')
+gest.innerHTML = GESTURES.map(([k, l]) => `<button type="button" class="chipbtn" data-g="${k}">${l}</button>`).join('') + '<button type="button" class="chipbtn" data-paper-toggle>Papel</button>'
+setPaper(paperOn())
 gest.addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; gesture = b.dataset.g; setTileState(tileEl, gesture); syncControls() })
 
 // ── LOS CONTROLES ────────────────────────────────────────────────────────────────────────────────

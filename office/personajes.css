@@ -70,3 +70,14 @@
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }
 
+
+/* LA TEXTURA DE PAPEL: fibras y grano encima de cada recuadro, multiplicadas con los colores. Se prende y se apaga
+   con la clase .paper en el <html> (botón «Papel»; la preferencia queda en localStorage, office:paper). */
+.tile::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .25s;
+  mix-blend-mode: multiply;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .5  0 0 0 0 .42  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .4  0 0 0 0 .35  0 0 0 .8 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>"); }
+.paper .tile::after { opacity: .5; }
+/* con papel, los bordes de cada capa se ven un poco más gruesos, como cartulina */
+.paper .cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .42)) drop-shadow(0 1px 0 rgba(10, 25, 30, .3)) drop-shadow(0 -1px 0 rgba(255, 250, 235, .18)); }

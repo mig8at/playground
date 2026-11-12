@@ -51,7 +51,7 @@ const r1 = (n) => Math.round(n * 10) / 10
 const HEAD = { cx: 200, cy: 146 }
 const pt = (h, deg, pad = 0) => { const a = (deg * Math.PI) / 180; return [r1(h.cx + (h.rx + pad) * Math.cos(a)), r1(h.cy + (h.ry + pad) * Math.sin(a))] }
 // un arco sobre la elipse, de a0 a a1 grados (sentido horario en pantalla), como «L x y L x y…»
-const arc = (h, a0, a1, pad = 0, step = 6) => { const out = []; for (let a = a0; a1 > a0 ? a <= a1 : a >= a1; a += a1 > a0 ? step : -step) out.push(pt(h, a, pad)); out.push(pt(h, a1, pad)); return out.map(([x, y]) => `L${x} ${y}`).join(' ') }
+const arc = (h, a0, a1, pad = 0, step = 4) => { const out = []; for (let a = a0; a1 > a0 ? a <= a1 : a >= a1; a += a1 > a0 ? step : -step) out.push(pt(h, a, pad)); out.push(pt(h, a1, pad)); return out.map(([x, y]) => `L${x} ${y}`).join(' ') }
 const M = ([x, y]) => `M${x} ${y}`
 
 // LOS PEINADOS. back va detrás de la cabeza (la melena que cae a los costados), front encima de la frente.
@@ -64,8 +64,16 @@ const HAIR = {
   }),
   // corto texturado: casquete con puntas suaves en el borde
   crop: (h, c) => {
-    const tips = [200, 218, 236, 254, 272, 290, 308, 326, 344].map((a, i) => { const o = pt(h, a, 26 + (i % 2) * 8), m = pt(h, a + 9, 6); return `L${o.join(' ')} L${m.join(' ')}` }).join(' ')
-    return { front: `<path d="${M(pt(h, 180, 6))} ${tips} ${arc(h, 352, 360, 6)} Q${h.cx + h.rx * .5} ${h.cy - h.ry * .45} ${h.cx} ${h.cy - h.ry * .5} Q${h.cx - h.rx * .5} ${h.cy - h.ry * .45} ${pt(h, 180, 4).join(' ')}Z" fill="${c}"/>` }
+    // mechones: de un punto de la elipse al siguiente con una curva que se abulta hacia afuera, alternando el bulto
+    const from = 188, to = 352, n = 8, step = (to - from) / n
+    let tufts = ''
+    for (let i = 0; i < n; i++) {
+      const a = from + i * step
+      const ctrl = pt(h, a + step / 2, 22 + (i % 2) * 7), end = pt(h, a + step, 7)
+      tufts += ` Q${ctrl.join(' ')} ${end.join(' ')}`
+    }
+    return { front: `<path d="${M(pt(h, from, 7))}${tufts} Q${h.cx + h.rx * .55} ${h.cy - h.ry * .42} ${h.cx + 8} ${h.cy - h.ry * .52} Q${h.cx - h.rx * .3} ${h.cy - h.ry * .62} ${h.cx - h.rx * .55} ${h.cy - h.ry * .46} Q${h.cx - h.rx * .82} ${h.cy - h.ry * .38} ${pt(h, from, 4).join(' ')}Z" fill="${c}"/>
+      <path d="M${h.cx - 18} ${h.cy - h.ry - 4} q12 -10 30 -4 M${h.cx + 24} ${h.cy - h.ry + 6} q12 -6 22 2" stroke="${shade(c, 1.35)}" stroke-width="5" fill="none" stroke-linecap="round"/>` }
   },
   // melena recta con flequillo hasta las cejas
   bob: (h, c) => ({
@@ -102,7 +110,15 @@ const EXTRAS = {
   glasses: (p, h) => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><path d="M${h.cx - 10} ${h.cy - 2} h20"/></g>`,
   headphones: (p, h) => `<g class="cut"><path d="${M(pt(h, 180, 20))} ${arc(h, 180, 360, 20)}" fill="none" stroke="${p.gear}" stroke-width="13" stroke-linecap="round"/><rect x="${h.cx - h.rx - 22}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/><rect x="${h.cx + h.rx - 8}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/></g>`,
   earrings: (p, h) => `<g class="cut-soft"><circle cx="${h.cx - h.rx - 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/><circle cx="${h.cx + h.rx + 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/></g>`,
-  beard: (p, h) => `<g class="cut-soft"><path d="${M(pt(h, 170, 2))} ${arc(h, 170, 10, 2)} Q${h.cx + h.rx * .55} ${h.cy + h.ry * .35} ${h.cx + 22} ${h.cy + h.ry * .42} Q${h.cx} ${h.cy + h.ry * .34} ${h.cx - 22} ${h.cy + h.ry * .42} Q${h.cx - h.rx * .55} ${h.cy + h.ry * .35} ${pt(h, 170, 2).join(' ')}Z" fill="${p.hairColor}"/></g>`,
+  beard: (p, h) => {
+    const c = p.hairColor, chin = h.cy + h.ry + 12
+    // de la patilla izquierda, por el contorno de la cara, a la derecha; abajo cierra en ondas suaves hacia el mentón
+    const jaw = `${M(pt(h, 196, 3))} ${arc(h, 196, 164, 3)} Q${h.cx - h.rx * .6} ${chin - 6} ${h.cx - 26} ${chin} Q${h.cx - 13} ${chin + 8} ${h.cx} ${chin + 4} Q${h.cx + 13} ${chin + 8} ${h.cx + 26} ${chin} Q${h.cx + h.rx * .6} ${chin - 6} ${pt(h, 16, 3).join(' ')} ${arc(h, 16, -16, 3)}`
+    // por dentro: deja libres las mejillas y la boca
+    const inner = `L${h.cx + h.rx - 14} ${h.cy - 4} Q${h.cx + h.rx * .62} ${h.cy + h.ry * .3} ${h.cx + 30} ${h.cy + h.ry * .46} Q${h.cx} ${h.cy + h.ry * .36} ${h.cx - 30} ${h.cy + h.ry * .46} Q${h.cx - h.rx * .62} ${h.cy + h.ry * .3} ${h.cx - h.rx + 14} ${h.cy - 4}Z`
+    return `<g class="cut-soft"><path d="${jaw} ${inner}" fill="${c}"/>
+      <path d="M${h.cx - 34} ${h.cy + h.ry * .44} q16 -16 34 -6 q18 -10 34 6 q-16 8 -34 2 q-18 6 -34 -2Z" fill="${c}"/></g>`
+  },
   freckles: (p, h) => [[-52, 36], [-42, 44], [-32, 36], [32, 36], [42, 44], [52, 36]].map(([x, y]) => `<circle cx="${h.cx + x}" cy="${h.cy + y}" r="3" fill="#962b19" opacity=".5"/>`).join(''),
 }
 
@@ -256,3 +272,15 @@ function randomPerson(base = {}) {
     shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: pick(keys(OPCIONES.scene)),
   }
 }
+
+// ── LA TEXTURA DE PAPEL ──────────────────────────────────────────────────────────────────────────
+// Prendida por defecto; el botón «Papel» (data-paper-toggle) la alterna y la preferencia queda en este navegador.
+function paperOn() { try { return localStorage.getItem('office:paper') !== 'off' } catch { return true } }
+function setPaper(on) {
+  document.documentElement.classList.toggle('paper', on)
+  try { localStorage.setItem('office:paper', on ? 'on' : 'off') } catch { /* sin guardar, igual se aplica */ }
+  document.querySelectorAll('[data-paper-toggle]').forEach((b) => b.setAttribute('aria-pressed', String(on)))
+}
+document.addEventListener('click', (e) => { if (e.target.closest('[data-paper-toggle]')) setPaper(!document.documentElement.classList.contains('paper')) })
+document.addEventListener('DOMContentLoaded', () => setPaper(paperOn()))
+setPaper(paperOn())
