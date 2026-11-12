@@ -64,5 +64,6 @@ encabezado cambia el hilo por la videollamada (`chat/src/CallView.vue`), con las
 agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `chat/src/characters/`, un JSON por personaje
 (`{ name, handle | owner + agent, character }`): para sumar uno se deja su JSON ahí. El dibujo es una copia del paquete,
 `chat/src/characters/office-characters.js`, que se regenera con `make office-package JS=chat/src/characters/office-characters.js`.
-Para verlo en Cockpit hay que recompilar el chat (`make chat-install`, o `make cockpit`).
+Para verlo en Cockpit basta compilar la interfaz (`cd chat && npm run build`): el servidor del chat sirve `chat/dist`
+desde el disco, así que no hace falta reinstalarlo; se recarga la vista del chat y listo.
 
