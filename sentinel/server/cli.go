@@ -535,6 +535,38 @@ func (c *cli) deploy(repo, version string, hours float64) (*DeployReport, error)
 		ref := math.Max(ch.Normal, float64(ch.Before))
 		label := fmt.Sprintf("%s en las %s después; antes %d, lo normal en esa franja %s", "%d", fmtDuration(minutes), ch.Before, fmtNum(ch.Normal))
 		switch k := kindOf(sig); {
+		case k == "step": // una pantalla del wizard: que caiga la conversión, o que suban los fallos
+			rate := func(to time.Time) (float64, int, float64) {
+				v, d, f := window(se.approved, to, minutes), window(se.total, to, minutes), window(se.denied, to, minutes)
+				r, fr := -1.0, 0.0
+				if v > 0 {
+					r = math.Min(1, float64(d)/float64(v))
+				}
+				if d > 0 {
+					fr = float64(f) / float64(d)
+				}
+				return r, v, fr
+			}
+			ra, va, fa := rate(to)
+			rb, _, fb := rate(at)
+			var rn, fn []float64
+			for _, past := range comp {
+				if r, v, f := rate(past); v >= 10 {
+					rn = append(rn, r)
+					fn = append(fn, f)
+				}
+			}
+			normRate, normFail := median(rn), median(fn)
+			fails := window(se.denied, to, minutes)
+			switch {
+			case va >= stepMinViews && normRate > 0 && ra >= 0 && ra <= 0.6*normRate && (rb < 0 || ra <= 0.75*rb):
+				ch.score = normRate / math.Max(ra, 0.01)
+				ch.Why = fmt.Sprintf("la enviaron %s de los que la vieron (%d) en las %s después; antes %s, lo normal %s",
+					pctText(ra), va, fmtDuration(minutes), pctText(rb), pctText(normRate))
+			case fails >= stepMinFails && fa >= 2*math.Max(normFail, 0.01) && fa >= 1.5*math.Max(fb, 0.01):
+				ch.score = fa / math.Max(normFail, 0.01)
+				ch.Why = fmt.Sprintf("fallaron %s (%d) en las %s después; antes %s, lo normal %s", pctText(fa), fails, fmtDuration(minutes), pctText(fb), pctText(normFail))
+			}
 		case errorKind(sig): // errores: que suban, con piso
 			if ch.After >= max(c.rules.Errors.MinNow, 10)*int(math.Max(1, float64(minutes)/60)) && float64(ch.After) >= 1.5*math.Max(ref, 1) {
 				ch.score = float64(ch.After) / math.Max(ref, 1)
@@ -642,6 +674,17 @@ func (s *sentinel) subjectName(sig Signal) string {
 		return "Trabajos fallidos de la cola"
 	case "logs":
 		return key + " · líneas"
+	case "step":
+		id, m := stepParts(sig)
+		label := id
+		if st := stepByID(id); st != nil {
+			label = st.Label
+		}
+		if m == "" {
+			return "Pantalla · " + label
+		}
+		mid, _ := strconv.Atoi(m)
+		return nameOr(s.merchantNames, mid) + " · " + label
 	}
 	return key
 }

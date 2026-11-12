@@ -70,7 +70,17 @@ type notifier struct {
 // silenced: un comercio que no se sigue no avisa. Su episodio se lleva igual (se ve en «Para mirar»): si se empieza a
 // seguir en medio de uno, avisa en la próxima pasada.
 func (n *notifier) silenced(sig Signal, rules NotifyRules) bool {
-	return rules.Merchants != "all" && n.follows != nil && strings.HasPrefix(string(sig), "merchant:") && !n.follows(sig)
+	if rules.Merchants == "all" || n.follows == nil {
+		return false
+	}
+	if strings.HasPrefix(sig, "merchant:") {
+		return !n.follows(sig)
+	}
+	// Las pantallas de un comercio (`step:otp@94`) avisan como el comercio: sólo si se sigue.
+	if _, m, ok := strings.Cut(sig, "@"); ok && strings.HasPrefix(sig, "step:") {
+		return !n.follows("merchant:" + m)
+	}
+	return false
 }
 
 func openNotifier(dir string) *notifier {
@@ -136,6 +146,7 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 	all = append(all, o.Merchants...)
 	all = append(all, o.Liveness...)
 	all = append(all, o.LenderErrors...)
+	all = append(all, o.Steps...)
 	seen := map[Signal]bool{}
 	for _, subj := range all {
 		seen[subj.Signal] = true

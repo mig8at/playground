@@ -33,6 +33,8 @@ type Day struct {
 	Through string `json:"through"`
 	// Logs: con qué versión de la lectura de Loki se guardó (logsVersion, en fetch.go). Menor: se vuelve a pedir.
 	Logs int `json:"logs,omitempty"`
+	// Ph: con qué versión de la lectura de PostHog (phVersion, en steps.go). Menor: se vuelve a pedir.
+	Ph int `json:"ph,omitempty"`
 }
 
 const bucketsPerDay = 288
@@ -225,13 +227,21 @@ func (s *store) String() string { return fmt.Sprintf("%d días en %s", len(s.day
 
 // markLogs: el día ya tiene la lectura de Loki de la versión v.
 func (s *store) markLogs(date string, v int) {
+	s.mark(date, func(d *Day) bool { ok := d.Logs < v; d.Logs = max(d.Logs, v); return ok })
+}
+
+// markPh: el día ya tiene la lectura de PostHog de la versión v.
+func (s *store) markPh(date string, v int) {
+	s.mark(date, func(d *Day) bool { ok := d.Ph < v; d.Ph = max(d.Ph, v); return ok })
+}
+
+func (s *store) mark(date string, set func(*Day) bool) {
 	s.mu.Lock()
 	d := s.days[date]
-	if d == nil || d.Logs >= v {
+	if d == nil || !set(d) {
 		s.mu.Unlock()
 		return
 	}
-	d.Logs = v
 	raw, err := json.Marshal(d)
 	s.mu.Unlock()
 	if err != nil {

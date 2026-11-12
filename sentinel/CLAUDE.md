@@ -86,6 +86,22 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **`logsVersion`** (`fetch.go`): cuando cambia lo que se lee de Loki, los días guardados con la versión anterior se
   vuelven a pedir (sólo Loki). El paso de 2 a 18 servicios recargó 29 días en ~11 minutos, una vez.
 
+## Las pantallas del wizard (`server/steps.go`, PostHog)
+
+Lo que el backend no ve: si un despliegue del front rompe una pantalla, simplemente no llegan pedidos. Por paso
+(`step:otp`, `step:amount`, `step:registration`, `step:offer`, `step:amount-update`) y por comercio (`step:otp@94`):
+**la conversión** (de los que VIERON la pantalla, cuántos la ENVIARON) y **la tasa de fallo** del resultado
+(`success = false`), contra la mediana de los días comparables a esa hora, con una prueba binomial (alerta: z ≤ −4,5 y
+la conversión ≤ 60 % de lo normal; fallos: z ≥ 4,5, ≥ 10 fallos y el doble de lo normal). Pide 20 vistas para hablar; un
+comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los comercios que se siguen.
+
+- ⚠ **`toDateTime('…')` en HogQL se lee en la hora del PROYECTO (Bogotá), no en UTC**: sin `'UTC'` explícito, cada
+  pasada pedía 5 horas en el futuro, recibía nada y borraba lo guardado. `phVersion` 2 lo recargó.
+- `app_version` no sirve para atribuir un despliegue del front: siempre dice «1.0.0». Y frontend-monorepo no tiene un
+  workflow de GitHub con «prod» en el nombre: `bin/sentinel deploy frontend-monorepo` no lo encuentra todavía.
+- Los `$exception` del front (unos 455 al día) no se leen todavía: llegan sin `$exception_message`.
+- La semana del 2026-11-05 al 12, las pantallas sumaron 7 avisos de alerta (3 del wizard entero, 4 de Pullman).
+
 ## Cómo avisa (`server/alerts.go`)
 
 - **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
@@ -156,6 +172,7 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 | lo normal, el veredicto, el cambio de nivel y el backtest | `server/stats.go` |
 | la carga, las pasadas y la API | `server/main.go` |
 | lo que se sigue (y de qué comercios avisa) | `server/following.go` |
+| las pantallas del wizard (PostHog) | `server/steps.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |

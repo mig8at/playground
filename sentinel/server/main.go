@@ -61,6 +61,8 @@ type Subject struct {
 	Shift *Shift `json:"shift,omitempty"`
 	// Silence (sólo `logs:`): desde cuándo el servicio no escribe, si pasa del silencio más largo de la historia.
 	Silence *Silence `json:"silence,omitempty"`
+	// Step (sólo `step:`): la conversión y los fallos de la pantalla en la ventana.
+	Step *StepEval `json:"step,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
 	// (una solicitud se aprueba o se niega horas después), así que compararla con días ya asentados engaña.
 	DeniedRate float64 `json:"deniedRate"`
@@ -88,13 +90,16 @@ type Overview struct {
 	Liveness   []Subject `json:"liveness"` // todas las líneas de Loki por servicio: si deja de escribir, se cayó
 	// LenderErrors: los errores en los logs que nombran a una entidad (preapprovals-service y legacy-backend).
 	LenderErrors []Subject `json:"lenderErrors"`
-	Apps         []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
-	LogsNote     string    `json:"logsNote,omitempty"`
-	Deploys      []Deploy  `json:"deploys"`
-	History      History   `json:"history"`
-	Rules        Rules     `json:"rules"`
-	Seconds      float64   `json:"seconds"`
-	Notices      []Notice  `json:"notices"` // los últimos avisos mandados
+	// Steps: las pantallas del wizard (PostHog), en todo el wizard (`step:otp`) y por comercio (`step:otp@94`).
+	Steps     []Subject `json:"steps"`
+	StepsNote string    `json:"stepsNote,omitempty"`
+	Apps      []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
+	LogsNote  string    `json:"logsNote,omitempty"`
+	Deploys   []Deploy  `json:"deploys"`
+	History   History   `json:"history"`
+	Rules     Rules     `json:"rules"`
+	Seconds   float64   `json:"seconds"`
+	Notices   []Notice  `json:"notices"` // los últimos avisos mandados
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -120,6 +125,7 @@ type sentinel struct {
 	deployList      []Deploy
 	deploysAt       time.Time
 	logsNote        string
+	stepsNote       string
 }
 
 var (
@@ -149,7 +155,25 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 		return nil // Loki es una señal más: sin ella, la pasada sigue
 	}
 	s.logsNote = ""
-	return s.putRange(from, to, logs, logKinds)
+	if err := s.putRange(from, to, logs, logKinds); err != nil {
+		return err
+	}
+	return s.fetchSteps(from, to)
+}
+
+// fetchSteps: las pantallas del wizard de [from, to) (PostHog). Como Loki, es una señal más: sin ella, la pasada sigue.
+func (s *sentinel) fetchSteps(from, to time.Time) error {
+	ph := Fresh{}
+	cl, err := phClient()
+	if err == nil {
+		err = wizardEvents(cl, from, to, ph)
+	}
+	if err != nil {
+		s.stepsNote = "sin las pantallas del wizard (PostHog): " + err.Error()
+		return nil
+	}
+	s.stepsNote = ""
+	return s.putRange(from, to, ph, stepKinds)
 }
 
 // refetchLogs: vuelve a pedir SÓLO lo de Loki que la versión `since` no tenía, para [from, to), y marca esos días con
@@ -214,6 +238,9 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 		if s.logsNote == "" {
 			s.store.markLogs(day.Format("2006-01-02"), logsVersion)
 		}
+		if s.stepsNote == "" {
+			s.store.markPh(day.Format("2006-01-02"), phVersion)
+		}
 	}
 	if s.store.day(today.Format("2006-01-02")) == nil {
 		s.setLoading("cargando hoy")
@@ -243,6 +270,25 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 			s.logsNote = "sin la historia nueva de Loki: " + err.Error()
 			break
 		}
+	}
+	// Lo mismo con PostHog: los días sin las pantallas del wizard se piden (sólo PostHog).
+	var noSteps []time.Time
+	for d := rules.HistoryDays; d >= 0; d-- {
+		day := today.AddDate(0, 0, -d)
+		if x := s.store.day(day.Format("2006-01-02")); x != nil && x.Ph < phVersion {
+			noSteps = append(noSteps, day)
+		}
+	}
+	for i, day := range noSteps {
+		s.setLoading(fmt.Sprintf("leyendo las pantallas del wizard (PostHog): %d de %d días (%s)", i+1, len(noSteps), day.Format("2006-01-02")))
+		to := day.AddDate(0, 0, 1)
+		if to.After(now) {
+			to = now
+		}
+		if err := s.fetchSteps(day, to); err != nil || s.stepsNote != "" {
+			break
+		}
+		s.store.markPh(day.Format("2006-01-02"), phVersion)
 	}
 	s.setLoading("")
 	return nil
@@ -331,7 +377,7 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 	dates := s.store.dates()
 	o := &Overview{
 		CheckedAt: now.Format(time.RFC3339), WindowFrom: now.Add(-time.Duration(rules.WindowMinutes) * time.Minute).Format(time.RFC3339),
-		WindowTo: now.Format(time.RFC3339), Deploys: s.deployList, Rules: rules, LogsNote: s.logsNote,
+		WindowTo: now.Format(time.RFC3339), Deploys: s.deployList, Rules: rules, LogsNote: s.logsNote, StepsNote: s.stepsNote,
 	}
 	if len(dates) > 0 {
 		o.History = History{Days: len(dates), From: dates[0]}
@@ -355,10 +401,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.Liveness = append(o.Liveness, subj)
 		case "lerr":
 			o.LenderErrors = append(o.LenderErrors, subj)
+		case "step":
+			o.Steps = append(o.Steps, subj)
 		}
 	}
 	o.Apps = s.apps(o)
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps} {
 		sortSubjects(*list)
 	}
 	return o
@@ -395,6 +443,11 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = "Trabajos fallidos de la cola"
 	case "logs":
 		subj.Name = key + " · líneas"
+	case "step":
+		subj.Name = s.subjectName(sig)
+		if _, m := stepParts(sig); m != "" {
+			subj.ID, _ = strconv.Atoi(m)
+		}
 	}
 	ev, level := e.sustained(sig, now)
 	se := e.data[sig]
@@ -414,6 +467,7 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 	}
 	subj.Shift = e.shift(sig, now)
 	subj.Silence = ev.Silence
+	subj.Step = ev.Step
 	// La curva del día y lo normal por hora, de los días comparables.
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
 	comp := comparable(now, e.rules.BaselineDays, e.have)
