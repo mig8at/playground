@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es" data-style="panels">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Office · personajes</title>
+<!--
+  OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPCIONES, en personajes.js):
+  piel, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
+  mismo recuadro de la llamada, con los mismos gestos (escucha, teclea, piensa, habla), así que lo que se ve acá es
+  lo que se ve allá. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
+  también se puede copiar como JSON (una entrada de CAST) o bajar como SVG.
+-->
+<link rel="stylesheet" href="personajes.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: #0b0c0e; color: var(--text); font: 14px/1.4 "Nunito", ui-rounded, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif; }
+  body::after { content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 50; opacity: .22; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .45  0 0 0 0 .4  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+  .app { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) 380px; grid-template-rows: 56px minmax(0, 1fr); gap: 0 16px; padding: 0 16px 16px; }
+  .topbar { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px; }
+  .topbar h1 { margin: 0; font-size: 16px; font-weight: 800; }
+  .topbar .meta { color: var(--dim); font-size: 13px; }
+  .topbar a { margin-left: auto; color: var(--cream); font-weight: 800; text-decoration: none; padding: 6px 14px; border-radius: 999px; background: var(--teal); box-shadow: 0 3px 0 var(--ink); }
+  .topbar a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
+
+  /* La vista previa: el mismo recuadro de la llamada, grande, y debajo los gestos y los guardados. */
+  .stage { min-height: 0; display: flex; flex-direction: column; gap: 14px; }
+  .preview { position: relative; flex: 1; min-height: 240px; display: grid; place-items: center; }
+  .preview .tile { width: min(100%, calc((100vh - 260px) * 4 / 3)); aspect-ratio: 4 / 3; }
+  .gestures { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .chipbtn { all: unset; cursor: pointer; padding: 7px 16px; border-radius: 999px; font-weight: 800; background: var(--teal-deep); color: var(--cream);
+    box-shadow: 0 3px 0 var(--ink); }
+  .chipbtn[aria-pressed="true"] { background: var(--amber); color: var(--ink); box-shadow: 0 3px 0 #b8632a; }
+  .saved { display: flex; gap: 10px; align-items: center; min-height: 64px; overflow-x: auto; padding: 4px 2px 8px; }
+  .saved .label { color: var(--dim); font-size: 12px; white-space: nowrap; }
+  .card { position: relative; flex: none; width: 104px; height: 78px; border-radius: 12px; overflow: hidden; cursor: pointer; border: 0; padding: 0; background: none;
+    box-shadow: 0 2px 0 rgba(0, 0, 0, .3); }
+  .card svg { width: 100%; height: 100%; display: block; }
+  .card[aria-current="true"] { box-shadow: 0 0 0 3px var(--cream), 0 0 0 6px var(--orange); }
+  .card span { position: absolute; left: 6px; bottom: 5px; background: var(--cream); color: var(--ink); font-size: 11px; font-weight: 800; padding: 0 6px; border-radius: 6px; }
+
+  /* El panel de piezas, en papel crema. */
+  .panel { min-height: 0; overflow: auto; background: var(--cream); color: var(--ink); border-radius: 22px; padding: 6px 18px 18px;
+    box-shadow: 0 3px 0 var(--cream-dim), 0 10px 22px rgba(0, 0, 0, .35); }
+  .panel h2 { font-size: 13px; font-weight: 900; margin: 16px 0 8px; text-transform: none; color: var(--teal-deep); }
+  .row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+  .field { display: grid; gap: 4px; margin-bottom: 8px; }
+  .field label { font-size: 12px; font-weight: 800; color: var(--teal); }
+  .panel input[type="text"] { font: inherit; font-weight: 700; padding: 7px 10px; border-radius: 10px; border: 2px solid var(--cream-dim); background: #fbf6ea; color: var(--ink); }
+  .panel input[type="range"] { width: 100%; accent-color: var(--orange); }
+  .swatch { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 50%; box-shadow: inset 0 -3px 0 rgba(0, 0, 0, .2), 0 1px 0 rgba(0, 0, 0, .15); }
+  .swatch[aria-pressed="true"] { box-shadow: 0 0 0 3px var(--cream), 0 0 0 5px var(--ink); }
+  .opt { all: unset; cursor: pointer; padding: 5px 11px; border-radius: 999px; font-size: 13px; font-weight: 800; background: #e7d8b6; color: var(--ink); }
+  .opt[aria-pressed="true"] { background: var(--teal); color: var(--cream); }
+  .actions { position: sticky; bottom: -18px; margin: 18px -18px -18px; padding: 12px 18px 18px; background: var(--cream); display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+    border-top: 2px dashed var(--cream-dim); }
+  .actions button { all: unset; cursor: pointer; text-align: center; padding: 9px 10px; border-radius: 12px; font-weight: 900; background: var(--teal); color: var(--cream); box-shadow: 0 3px 0 var(--ink); }
+  .actions .primary { background: var(--orange); box-shadow: 0 3px 0 var(--red-deep); }
+  .actions .danger { background: #e7d8b6; color: var(--red-deep); box-shadow: 0 3px 0 var(--cream-dim); }
+  .toast { grid-column: 1 / -1; min-height: 18px; font-size: 12px; font-weight: 800; color: var(--teal-deep); }
+
+  @media (max-width: 900px) {
+    .app { height: auto; grid-template-columns: 1fr; grid-template-rows: 56px auto auto; gap: 14px 0; }
+    .preview .tile { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <h1>Office · personajes</h1>
+    <span class="meta">armá uno a tu gusto: tiene los mismos gestos que todos los de la llamada</span>
+    <a href="index.html">Volver a la llamada</a>
+  </header>
+
+  <section class="stage" aria-label="Vista previa">
+    <div class="preview" id="preview"></div>
+    <div class="gestures" role="group" aria-label="Probar un gesto" id="gestures"></div>
+    <div class="saved" id="saved" aria-label="Personajes guardados"></div>
+  </section>
+
+  <aside class="panel" aria-label="Piezas del personaje">
+    <h2>Quién es</h2>
+    <div class="field"><label for="name">Nombre</label><input type="text" id="name" maxlength="18" autocomplete="off"></div>
+    <div class="field"><label for="owner">Agente de (vacío si es una persona)</label><input type="text" id="owner" maxlength="18" autocomplete="off"></div>
+
+    <h2>Cara</h2>
+    <div class="field"><label>Piel</label><div class="row" data-swatches="skin"></div></div>
+    <div class="field"><label>Forma</label><div class="row" data-options="face"></div></div>
+    <div class="field"><label for="eye">Ojos <span id="eye-size"></span></label><input type="range" id="eye" min="18" max="32" step="1"></div>
+    <div class="field"><label>Nariz</label><div class="row" data-options="nose"></div></div>
+    <div class="field"><label>Dientes</label><div class="row" data-options="teeth"></div></div>
+
+    <h2>Pelo</h2>
+    <div class="field"><label>Peinado</label><div class="row" data-options="hair"></div></div>
+    <div class="field"><label>Color</label><div class="row" data-swatches="hairColor"></div></div>
+
+    <h2>Detalles</h2>
+    <div class="row" id="extras"></div>
+    <div class="field" style="margin-top:8px"><label>Color de audífonos y aretes</label><div class="row" data-swatches="gear"></div></div>
+
+    <h2>Ropa y fondo</h2>
+    <div class="field"><label>Chaqueta</label><div class="row" data-swatches="shirt"></div></div>
+    <div class="field"><label>Camiseta</label><div class="row" data-swatches="accent"></div></div>
+    <div class="field"><label>Fondo</label><div class="row" data-options="scene"></div></div>
+
+    <div class="actions">
+      <button type="button" class="primary" id="save">Guardar en la llamada</button>
+      <button type="button" id="random">Al azar</button>
+      <button type="button" id="new">Nuevo</button>
+      <button type="button" id="copy">Copiar JSON</button>
+      <button type="button" id="svg">Bajar SVG</button>
+      <button type="button" class="danger" id="delete">Borrar</button>
+    </div>
+  </aside>
+  <div class="toast" id="toast" role="status"></div>
+</div>
+
+<script src="personajes.js"></script>
+<script>
+// ── EL PERSONAJE QUE SE EDITA ────────────────────────────────────────────────────────────────────
+const START = { name: 'Nuevo', owner: '', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
+  extras: [], lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
+let saved = loadCustom()
+let cur = { ...START, id: newId() }
+let gesture = 'idle'
+function newId() { return `p-${Date.now().toString(36)}` }
+// el agente se marca por tener dueño: así la llamada lo muestra como «agente de …»
+const normalize = (p) => ({ ...p, kind: p.owner ? 'agent' : 'human', agent: !!p.owner })
+
+// ── LA VISTA PREVIA ──────────────────────────────────────────────────────────────────────────────
+const preview = document.getElementById('preview')
+const tileEl = tile(normalize(cur))
+preview.appendChild(tileEl)
+function draw() {
+  renderTile(tileEl, normalize(cur))
+  setTileState(tileEl, gesture)
+  syncControls()
+}
+
+const GESTURES = [['idle', 'Escucha'], ['typing', 'Teclea'], ['thinking', 'Piensa'], ['talking', 'Habla']]
+const gest = document.getElementById('gestures')
+gest.innerHTML = GESTURES.map(([k, l]) => `<button type="button" class="chipbtn" data-g="${k}">${l}</button>`).join('')
+gest.addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); if (!b) return; gesture = b.dataset.g; setTileState(tileEl, gesture); syncControls() })
+
+// ── LOS CONTROLES ────────────────────────────────────────────────────────────────────────────────
+// Se arman del catálogo: muestras de color (data-swatches) y opciones (data-options). Cada clic cambia una pieza y
+// repinta la vista previa.
+document.querySelectorAll('[data-swatches]').forEach((row) => {
+  const key = row.dataset.swatches
+  row.innerHTML = OPCIONES[key].map((c) => `<button type="button" class="swatch" data-key="${key}" data-val="${c}" style="background:${c}" aria-label="${key} ${c}"></button>`).join('')
+})
+document.querySelectorAll('[data-options]').forEach((row) => {
+  const key = row.dataset.options
+  row.innerHTML = Object.entries(OPCIONES[key]).map(([v, l]) => `<button type="button" class="opt" data-key="${key}" data-val="${v}">${l}</button>`).join('')
+})
+document.getElementById('extras').innerHTML = [
+  ...Object.entries(OPCIONES.extras).map(([v, l]) => `<button type="button" class="opt" data-extra="${v}">${l}</button>`),
+  ...Object.entries(OPCIONES.looks).map(([v, l]) => `<button type="button" class="opt" data-look="${v}">${l}</button>`),
+].join('')
+document.querySelector('.panel').addEventListener('click', (e) => {
+  const b = e.target.closest('button'); if (!b) return
+  if (b.dataset.key) { cur[b.dataset.key] = b.dataset.val; draw() }
+  else if (b.dataset.extra) { const x = b.dataset.extra; cur.extras = cur.extras.includes(x) ? cur.extras.filter((y) => y !== x) : [...cur.extras, x]; draw() }
+  else if (b.dataset.look) { cur[b.dataset.look] = !cur[b.dataset.look]; draw() }
+})
+const nameIn = document.getElementById('name'), ownerIn = document.getElementById('owner'), eyeIn = document.getElementById('eye')
+nameIn.addEventListener('input', () => { cur.name = nameIn.value.trim() || 'Sin nombre'; draw() })
+ownerIn.addEventListener('input', () => { cur.owner = ownerIn.value.trim(); draw() })
+eyeIn.addEventListener('input', () => { cur.eye = Number(eyeIn.value); draw() })
+
+function syncControls() {
+  document.querySelectorAll('[data-key]').forEach((b) => b.setAttribute('aria-pressed', String(String(cur[b.dataset.key] ?? '') === b.dataset.val)))
+  document.querySelectorAll('[data-extra]').forEach((b) => b.setAttribute('aria-pressed', String(cur.extras.includes(b.dataset.extra))))
+  document.querySelectorAll('[data-look]').forEach((b) => b.setAttribute('aria-pressed', String(!!cur[b.dataset.look])))
+  gest.querySelectorAll('[data-g]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.g === gesture)))
+  if (document.activeElement !== nameIn) nameIn.value = cur.name
+  if (document.activeElement !== ownerIn) ownerIn.value = cur.owner || ''
+  eyeIn.value = cur.eye; document.getElementById('eye-size').textContent = `· ${cur.eye}`
+}
+
+// ── GUARDAR, COPIAR, BAJAR ───────────────────────────────────────────────────────────────────────
+const toast = (t) => { document.getElementById('toast').textContent = t }
+function drawSaved() {
+  const box = document.getElementById('saved')
+  box.innerHTML = '<span class="label">Guardados<br>(los 3 primeros entran a la llamada)</span>'
+  for (const p of saved) {
+    const b = document.createElement('button')
+    b.type = 'button'; b.className = 'card'; b.setAttribute('aria-current', String(p.id === cur.id)); b.title = `Editar a ${p.name}`
+    b.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${(SCENES[p.scene] || SCENES.sunset)()}<g transform="translate(46 54) scale(.77)">${person(normalize(p))}</g></svg><span></span>`
+    b.querySelector('span').textContent = p.name
+    b.addEventListener('click', () => { cur = { ...START, ...p }; draw(); drawSaved(); toast(`Editando a ${p.name}.`) })
+    box.appendChild(b)
+  }
+}
+document.getElementById('save').addEventListener('click', () => {
+  const i = saved.findIndex((p) => p.id === cur.id)
+  const entry = { ...normalize(cur) }
+  if (i >= 0) saved[i] = entry; else saved.push(entry)
+  toast(saveCustom(saved) ? `${cur.name} quedó guardado${saved.indexOf(entry) < 3 ? ' y entra a la llamada' : ' (en la llamada entran sólo los 3 primeros)'}.` : 'Este navegador no deja guardar: copiá el JSON.')
+  drawSaved()
+})
+document.getElementById('delete').addEventListener('click', () => {
+  if (!saved.some((p) => p.id === cur.id)) { toast('Este personaje no está guardado.'); return }
+  if (!confirm(`¿Borrar a ${cur.name} de los guardados de este navegador?`)) return
+  saved = saved.filter((p) => p.id !== cur.id); saveCustom(saved)
+  cur = { ...START, id: newId() }; draw(); drawSaved(); toast('Borrado.')
+})
+document.getElementById('random').addEventListener('click', () => { cur = randomPerson(cur); draw() })
+document.getElementById('new').addEventListener('click', () => { cur = { ...START, id: newId() }; draw(); drawSaved() })
+document.getElementById('copy').addEventListener('click', async () => {
+  const { id, name, owner, kind, ...rest } = normalize(cur)
+  const json = JSON.stringify({ id, name, ...(owner ? { owner } : {}), kind, ...rest })
+  try { await navigator.clipboard.writeText(json); toast('JSON copiado: es una entrada de CAST.') } catch { prompt('Copiá el JSON:', json) }
+})
+// El SVG suelto lleva el logo, las sombras de papel y sólo la boca sonriente, para que se vea igual fuera de acá.
+document.getElementById('svg').addEventListener('click', () => {
+  const p = normalize(cur)
+  const logo = document.querySelector('svg symbol#creditop-logo-mono').outerHTML
+  const style = '.cut{filter:drop-shadow(0 3px 2px rgba(10,25,30,.38))}.cut-soft{filter:drop-shadow(0 2px 1.5px rgba(10,25,30,.3))}.m-talk,.m-think,.m-flat{display:none}'
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><style>${style}</style><defs>${logo}</defs>${(SCENES[p.scene] || SCENES.sunset)()}<g transform="translate(46 54) scale(.77)">${person(p)}</g></svg>`
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
+  a.download = `${(p.name || 'personaje').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.svg`
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  toast('SVG bajado.')
+})
+
+draw(); drawSaved()
+</script>
+</body>
+</html>
