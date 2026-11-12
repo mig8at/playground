@@ -7,7 +7,7 @@ knowledge: [lender-response-types, credifamilia-origination, credifamilia-financ
 canon: [entidad/context]
 jira: [CORE-918]
 jira_title: "Originación delegada: riel 4 para cualquier entidad"
-ramas: originacion-delegada
+ramas: feat/originacion-delegada
 ---
 
 ## Pendientes
