@@ -7,7 +7,7 @@ knowledge: [lender-response-types, lender-credential-sources, lender-listing, fi
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
 jira: [CORE-845]
 jira_title: "Finandina: originación completa en Creditop"
-ramas: legacy-backend:finandina-originacion
+ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad
 ---
 
 ## Pendientes
