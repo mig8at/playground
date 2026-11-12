@@ -105,13 +105,24 @@ async function render(item) {
   return { url: await post({ voice: await voiceName(item.voice), text: item.text, rate: (item.voice?.rate ?? 1) / pitch }), pitch }
 }
 
+// Se generan de a dos frases por adelantado, no todas: mientras suena una, la siguiente ya está lista, sin pasarse del
+// límite de Gemini (10 pedidos por minuto por modelo).
+const AHEAD = 2
+function start(item) {
+  if (!item.audio) { item.audio = render(item); item.audio.catch(() => {}) }
+  return item.audio
+}
+function prefetch() { queue.slice(0, AHEAD).forEach(start) }
+
 async function next() {
   const item = queue.shift()
   if (!item) { busy = false; voice.busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.level = 0; return }
   busy = true
   try {
     // ya se venía generando desde que llegó el mensaje: acá sólo se espera lo que falte
-    const { url, pitch } = await item.audio
+    const pending = start(item)
+    prefetch()
+    const { url, pitch } = await pending
     if (item.gen !== generation) { URL.revokeObjectURL(url); return } // se calló mientras se generaba
     const audio = new Audio(url)
     audio.preservesPitch = false
@@ -147,12 +158,9 @@ export function say(speaker, text, v) {
   const kept = parts.slice(0, 4)
   if (parts.length > kept.length) kept.push('Y sigue en el chat.')
   kept.forEach((t, i) => {
-    const item = { speaker, text: t, voice: v, last: i === kept.length - 1, gen: generation }
-    // cada frase se empieza a generar ya, en paralelo: mientras suena una, la siguiente está lista
-    item.audio = render(item)
-    item.audio.catch(() => {})
-    queue.push(item)
+    queue.push({ speaker, text: t, voice: v, last: i === kept.length - 1, gen: generation })
   })
+  prefetch()
   voice.busy = true
   if (!busy) next()
 }

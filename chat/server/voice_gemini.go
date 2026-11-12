@@ -9,6 +9,12 @@ package main
 // 3.8 (Flash y Flash Lite), en español o en inglés, y no aceptan systemInstruction (medido 2026-11-12): el carácter
 // de cada personaje sale de la voz elegida y, en la interfaz, de un toque de tono al reproducir.
 //
+// CUOTA (nivel 1 de la API, 2026-11-12): cada modelo de voz tiene 10 pedidos POR MINUTO y 100 POR DÍA, y cada frase es
+// un pedido. Por eso: la frase se pide primero a 3.8 Flash Lite y, si se le acabó el cupo, a 3.8 Flash y a 2.5 Flash
+// (cada uno con el suyo); el servidor recuerda hasta cuándo está agotado cada modelo (el retryDelay del 429: segundos
+// si es por minuto, horas si es por día) y no lo vuelve a llamar en ese lapso; la caché es por voz y texto, no por
+// modelo; y la interfaz pide de a dos frases, no todas de golpe.
+//
 // La llave es la del conector: GEMINI_API_KEY del proceso, o la de connectors/.env del playground.
 
 import (
@@ -27,10 +33,29 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
-const geminiVoiceModel = "gemini-3.8-flash-lite-tts"
+// en orden: el primero que tenga cupo
+var geminiVoiceModels = []string{"gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts", "gemini-2.5-flash-preview-tts"}
+
+var (
+	geminiMu      sync.Mutex
+	geminiBlocked = map[string]time.Time{} // modelo → hasta cuándo se le acabó el cupo
+)
+
+// errGeminiQuota: todos los modelos agotaron su cupo; la interfaz lo dice corto y sigue con la voz local.
+type errGeminiQuota struct{ until time.Time }
+
+func (e errGeminiQuota) Error() string {
+	wait := time.Until(e.until)
+	if wait < 2*time.Minute {
+		return "Gemini llegó a su límite por minuto (10 frases por modelo); sigue con la voz local un momento."
+	}
+	return fmt.Sprintf("Gemini llegó a su límite de hoy (100 frases por modelo); vuelve en ~%s. Sigue con la voz local.",
+		wait.Round(time.Hour).String())
+}
 
 func geminiKey() string {
 	if k := os.Getenv("GEMINI_API_KEY"); k != "" {
@@ -84,33 +109,42 @@ func synthesizeGemini(ctx context.Context, voice, text string) (string, error) {
 		voice = "Puck"
 	}
 	prompt := text
-	sum := sha256.Sum256([]byte(fmt.Sprintf("gemini2|%s|%s|%s", geminiVoiceModel, voice, prompt)))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("gemini3|%s|%s", voice, prompt)))
 	dir := voiceCacheDir()
 	file := filepath.Join(dir, "g-"+hex.EncodeToString(sum[:12])+".wav")
 	if _, err := os.Stat(file); err == nil {
 		return file, nil
 	}
-	body, _ := json.Marshal(map[string]any{
-		"contents": []any{map[string]any{"parts": []any{map[string]any{"text": prompt}}}},
-		"generationConfig": map[string]any{
-			"responseModalities": []string{"AUDIO"},
-			"speechConfig":       map[string]any{"voiceConfig": map[string]any{"prebuiltVoiceConfig": map[string]any{"voiceName": voice}}},
-		},
-	})
-	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
-	defer cancel()
-	req, _ := http.NewRequestWithContext(ctx, http.MethodPost,
-		"https://generativelanguage.googleapis.com/v1beta/models/"+geminiVoiceModel+":generateContent", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("x-goog-api-key", key)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return "", err
+	var raw []byte
+	var last error
+	soonest := time.Time{}
+	for _, model := range geminiVoiceModels {
+		geminiMu.Lock()
+		until := geminiBlocked[model]
+		geminiMu.Unlock()
+		if time.Now().Before(until) {
+			if soonest.IsZero() || until.Before(soonest) {
+				soonest = until
+			}
+			continue
+		}
+		raw, last = geminiRequest(ctx, key, model, voice, prompt)
+		if retry, ok := last.(errRetryAfter); ok {
+			geminiMu.Lock()
+			geminiBlocked[model] = time.Now().Add(retry.after)
+			geminiMu.Unlock()
+			if t := time.Now().Add(retry.after); soonest.IsZero() || t.Before(soonest) {
+				soonest = t
+			}
+			continue
+		}
+		break
 	}
-	defer res.Body.Close()
-	raw, _ := io.ReadAll(io.LimitReader(res.Body, 32<<20))
-	if res.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("gemini %d: %s", res.StatusCode, strings.TrimSpace(string(raw[:min(len(raw), 200)])))
+	if raw == nil {
+		if last == nil || errors.As(last, new(errRetryAfter)) {
+			return "", errGeminiQuota{soonest}
+		}
+		return "", last
 	}
 	var out struct {
 		Candidates []struct {
@@ -144,4 +178,58 @@ func synthesizeGemini(ctx context.Context, voice, text string) (string, error) {
 		}
 	}
 	return "", errors.New("gemini no devolvió audio")
+}
+
+// errRetryAfter: Google dijo 429 (cupo agotado) y cuánto esperar.
+type errRetryAfter struct{ after time.Duration }
+
+func (e errRetryAfter) Error() string { return fmt.Sprintf("gemini 429: reintentar en %s", e.after) }
+
+// geminiRequest pide el audio a un modelo y devuelve la respuesta cruda (JSON).
+func geminiRequest(ctx context.Context, key, model, voice, prompt string) ([]byte, error) {
+	body, _ := json.Marshal(map[string]any{
+		"contents": []any{map[string]any{"parts": []any{map[string]any{"text": prompt}}}},
+		"generationConfig": map[string]any{
+			"responseModalities": []string{"AUDIO"},
+			"speechConfig":       map[string]any{"voiceConfig": map[string]any{"prebuiltVoiceConfig": map[string]any{"voiceName": voice}}},
+		},
+	})
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
+	req, _ := http.NewRequestWithContext(ctx, http.MethodPost,
+		"https://generativelanguage.googleapis.com/v1beta/models/"+model+":generateContent", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("x-goog-api-key", key)
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer res.Body.Close()
+	raw, _ := io.ReadAll(io.LimitReader(res.Body, 32<<20))
+	if res.StatusCode == http.StatusTooManyRequests {
+		return nil, errRetryAfter{retryDelay(raw)}
+	}
+	if res.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("gemini %d: %s", res.StatusCode, strings.TrimSpace(string(raw[:min(len(raw), 200)])))
+	}
+	return raw, nil
+}
+
+// retryDelay lee cuánto esperar del detalle del 429 («29005s»); si no viene, un minuto.
+func retryDelay(raw []byte) time.Duration {
+	var e struct {
+		Error struct {
+			Details []struct {
+				RetryDelay string `json:"retryDelay"`
+			} `json:"details"`
+		} `json:"error"`
+	}
+	if json.Unmarshal(raw, &e) == nil {
+		for _, d := range e.Error.Details {
+			if t, err := time.ParseDuration(d.RetryDelay); err == nil && t > 0 {
+				return t
+			}
+		}
+	}
+	return time.Minute
 }
