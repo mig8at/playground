@@ -2322,61 +2322,53 @@ function documentAction(id) {
       </div>
 
       <div v-else-if="!isOpen('jira')" class="region-body editor-view">
-        <section v-if="agendaData.rows.length" class="agenda" aria-labelledby="agenda-title">
-          <div class="agenda-head">
-            <h2 id="agenda-title">Hoy</h2>
-            <span class="agenda-sum">{{ todayLive.length }} en movimiento<template v-if="waitingTotal"> · {{ waitingTotal }} esperando a alguien</template><template v-if="todayDormant.length"> · {{ todayDormant.length }} dormidas</template></span>
-          </div>
-          <div class="agenda-cols">
-            <div class="agenda-col">
-              <h3 class="agenda-k">En movimiento</h3>
-              <button v-for="row in shownLive" :key="row.id" type="button" class="agenda-row"
-                      :disabled="!agendaTask(row)" :title="agendaTask(row) ? 'Abrir la tarea' : 'No está en el sprint ni entre las locales: make retomar N=' + row.id"
-                      @click="openAgendaRow(row)">
-                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
-                <span v-if="row.lastBlock" class="agenda-last">{{ row.lastBlock }} <span class="agenda-when">· {{ agoText(row.lastBlockDays) }}</span></span>
-                <span class="agenda-meta">
-                  <span v-if="row.delivery">{{ row.delivery }}</span>
-                  <span v-if="row.pending">{{ row.pending }} pendiente{{ row.pending === 1 ? '' : 's' }}</span>
-                  <span v-if="row.waitingFor?.length" class="agenda-waits">{{ row.waitingFor.length }} esperando</span>
-                </span>
-              </button>
-              <button v-if="todayLive.length > LIVE_SHOWN" type="button" class="agenda-more" @click="showAllLive = !showAllLive">
-                {{ showAllLive ? 'Ver menos' : `Ver las otras ${todayLive.length - LIVE_SHOWN}` }}
-              </button>
-              <p v-if="!todayLive.length" class="agenda-none">Ninguna tarea tocada en los últimos {{ agendaData.dormantDays }} días.</p>
+        <section class="card">
+          <!-- `region-head group` de `workbench.css`: la misma barra que los grupos del árbol, en vez de
+               un `<h2>` con su propia banda. Y el encabezado ES el botón —antes era un `<button>`
+               ADENTRO de un `<h2>`, o sea dos elementos para una sola cosa. -->
+          <button type="button" class="region-head group section-toggle" :aria-expanded="journeyOpen"
+                  aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
+            <span class="gh"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span> Mi jornada
+              <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span></span>
+          </button>
+          <div id="journey-content" v-show="journeyOpen">
+          <p class="nota" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
+            «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
+            <code>make pulso-install</code>.</p>
+          <p class="nota" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
+          <!-- `gridEl` es lo que mide el ResizeObserver: de su ancho sale cuántos días entran. -->
+          <div class="jm" ref="gridEl" :style="gridVars">
+            <div class="jband">
+              <div v-for="t in spans" :key="t.name" class="jspan" :class="{ sel: t.id === sprint?.id }"
+                :style="spanStyle(t)" :title="t.id === sprint?.id ? `${t.name} · el que estás viendo` : t.name">{{ t.name }}</div>
             </div>
-            <div v-if="waitingByWho.length" class="agenda-col">
-              <h3 class="agenda-k">Esperando a…</h3>
-              <div v-for="g in shownWho" :key="g.who" class="agenda-who">
-                <div class="agenda-who-head"><b>{{ g.who }}</b> <span class="agenda-count">{{ g.items.length }}</span></div>
-                <button v-for="(w, i) in (expandedWho[g.who] ? g.items : g.items.slice(0, WAIT_SHOWN))" :key="i" type="button"
-                        class="agenda-wait" :disabled="!agendaTask(w.row)" :title="w.why ? `Se le pide: ${w.why}` : 'Ver los pendientes de la tarea'"
-                        @click="openAgendaRow(w.row, 'pendientes')">
-                  <span class="agenda-what">{{ waitWhat(w.what) }}</span>
-                  <span class="agenda-when">#{{ w.row.id }} {{ w.row.title }}</span>
-                </button>
-                <button v-if="g.items.length > WAIT_SHOWN" type="button" class="agenda-more"
-                        @click="expandedWho[g.who] = !expandedWho[g.who]">
-                  {{ expandedWho[g.who] ? 'Ver menos' : `Ver ${g.items.length - WAIT_SHOWN} más` }}
-                </button>
-              </div>
-              <button v-if="waitingByWho.length > WHO_SHOWN" type="button" class="agenda-more" @click="showAllWho = !showAllWho">
-                {{ showAllWho ? 'Ver menos' : `Ver las otras ${waitingByWho.length - WHO_SHOWN} personas o equipos` }}
-              </button>
+            <!-- `gapTop` en 12p y 2p: parte la jornada en mañana | almuerzo | tarde -->
+            <div v-for="h in HOURS" :key="h" class="jrow"
+              :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
+              <span class="jhl">{{ hourLabel(h) }}</span>
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell"
+                :class="[codeClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
+                :title="cellTitle(d, h)"></span>
+            </div>
+            <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
+            <div class="jrow jtot">
+              <span class="jhl"></span>
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
+                :class="{ spStart: startCols.has(i), spEnd: endCols.has(i) }" :title="dayTitle(d.iso)">{{ hoursShort(dayMin(d.iso)) }}</span>
+            </div>
+            <div class="jrow jaxis">
+              <span class="jhl"></span>
+              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
+                :class="{ weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }">{{ d.num }}</span>
             </div>
           </div>
-          <div v-if="todayDormant.length" class="agenda-dormant">
-            <button type="button" class="agenda-more" :aria-expanded="showDormant" @click="showDormant = !showDormant">
-              {{ showDormant ? 'Ocultar' : 'Ver' }} las {{ todayDormant.length }} dormidas ({{ agendaData.dormantDays }} días o más sin tocar)
-            </button>
-            <div v-if="showDormant" class="agenda-dormant-list">
-              <button v-for="row in todayDormant" :key="row.id" type="button" class="agenda-row compact" :disabled="!agendaTask(row)"
-                      @click="openAgendaRow(row)">
-                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
-                <span class="agenda-when">{{ row.daysUntouched }} d sin tocar<template v-if="row.suggestArchive"> · archivar, o anotar por qué espera</template></span>
-              </button>
-            </div>
+          <div class="legend">
+            <span>0</span>
+            <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'c' + n"></i>
+            <span>{{ pulse.slotsPerHour }} tramos de {{ slotMin }}′</span>
+            <i class="n0"></i><span>sin registro</span>
+            <span class="note">se llena con los tramos en que hubo cambios en los repos de la compañía — no con lo que uno cree que trabajó</span>
+          </div>
           </div>
         </section>
         <div class="stats">
@@ -2427,53 +2419,63 @@ function documentAction(id) {
           </template>
           <span v-if="withoutPoints.length" class="pd-i pd-bad"><b>sin estimar:</b> {{ withoutPoints.join(' · ') }}</span>
         </p>
-        <section class="card">
-          <!-- `region-head group` de `workbench.css`: la misma barra que los grupos del árbol, en vez de
-               un `<h2>` con su propia banda. Y el encabezado ES el botón —antes era un `<button>`
-               ADENTRO de un `<h2>`, o sea dos elementos para una sola cosa. -->
-          <button type="button" class="region-head group section-toggle" :aria-expanded="journeyOpen"
-                  aria-controls="journey-content" @click="journeyOpen = !journeyOpen">
-            <span class="gh"><span class="ui-icon" data-icon="chevron" aria-hidden="true"></span> Mi jornada
-              <span class="mut">· últimos {{ days }} días{{ rangeMin ? ` · ${minHhmm(rangeMin)}` : '' }}</span></span>
-          </button>
-          <div id="journey-content" v-show="journeyOpen">
-          <p class="nota" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
-            «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
-            <code>make pulso-install</code>.</p>
-          <p class="nota" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
-          <!-- `gridEl` es lo que mide el ResizeObserver: de su ancho sale cuántos días entran. -->
-          <div class="jm" ref="gridEl" :style="gridVars">
-            <div class="jband">
-              <div v-for="t in spans" :key="t.name" class="jspan" :class="{ sel: t.id === sprint?.id }"
-                :style="spanStyle(t)" :title="t.id === sprint?.id ? `${t.name} · el que estás viendo` : t.name">{{ t.name }}</div>
+        <section v-if="agendaData.rows.length" class="card agenda" aria-label="Hoy">
+          <div class="region-head group"><span class="gh">Hoy
+            <span class="mut">· {{ todayLive.length }} en movimiento<template v-if="waitingTotal"> · {{ waitingTotal }} esperando a alguien</template><template v-if="todayDormant.length"> · {{ todayDormant.length }} dormidas</template></span></span></div>
+          <div class="agenda-cols">
+            <div class="agenda-col">
+              <h3 class="agenda-k">En movimiento</h3>
+              <div class="agenda-grid">
+              <button v-for="row in shownLive" :key="row.id" type="button" class="agenda-row"
+                      :disabled="!agendaTask(row)" :title="agendaTask(row) ? 'Abrir la tarea' : 'No está en el sprint ni entre las locales: make retomar N=' + row.id"
+                      @click="openAgendaRow(row)">
+                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
+                <span v-if="row.lastBlock" class="agenda-last">{{ row.lastBlock }} <span class="agenda-when">· {{ agoText(row.lastBlockDays) }}</span></span>
+                <span class="agenda-meta">
+                  <span v-if="row.delivery">{{ row.delivery }}</span>
+                  <span v-if="row.pending">{{ row.pending }} pendiente{{ row.pending === 1 ? '' : 's' }}</span>
+                  <span v-if="row.waitingFor?.length" class="agenda-waits">{{ row.waitingFor.length }} esperando</span>
+                </span>
+              </button>
+              </div>
+              <button v-if="todayLive.length > LIVE_SHOWN" type="button" class="agenda-more" @click="showAllLive = !showAllLive">
+                {{ showAllLive ? 'Ver menos' : `Ver las otras ${todayLive.length - LIVE_SHOWN}` }}
+              </button>
+              <p v-if="!todayLive.length" class="agenda-none">Ninguna tarea tocada en los últimos {{ agendaData.dormantDays }} días.</p>
             </div>
-            <!-- `gapTop` en 12p y 2p: parte la jornada en mañana | almuerzo | tarde -->
-            <div v-for="h in HOURS" :key="h" class="jrow"
-              :class="{ lunch: LUNCH.has(h), gapTop: h === 12 || h === 14 }">
-              <span class="jhl">{{ hourLabel(h) }}</span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell"
-                :class="[codeClass(d.iso, h), { weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }]"
-                :title="cellTitle(d, h)"></span>
-            </div>
-            <!-- las filas de totales y de fechas repiten los mismos márgenes: si no, se desalinean -->
-            <div class="jrow jtot">
-              <span class="jhl"></span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
-                :class="{ spStart: startCols.has(i), spEnd: endCols.has(i) }" :title="dayTitle(d.iso)">{{ hoursShort(dayMin(d.iso)) }}</span>
-            </div>
-            <div class="jrow jaxis">
-              <span class="jhl"></span>
-              <span v-for="(d, i) in dayCols" :key="d.iso" class="cell num"
-                :class="{ weekend: d.weekend, spStart: startCols.has(i), spEnd: endCols.has(i) }">{{ d.num }}</span>
+            <div v-if="waitingByWho.length" class="agenda-col">
+              <h3 class="agenda-k">Esperando a…</h3>
+              <div class="agenda-grid">
+              <div v-for="g in shownWho" :key="g.who" class="agenda-who">
+                <div class="agenda-who-head"><b>{{ g.who }}</b> <span class="agenda-count">{{ g.items.length }}</span></div>
+                <button v-for="(w, i) in (expandedWho[g.who] ? g.items : g.items.slice(0, WAIT_SHOWN))" :key="i" type="button"
+                        class="agenda-wait" :disabled="!agendaTask(w.row)" :title="w.why ? `Se le pide: ${w.why}` : 'Ver los pendientes de la tarea'"
+                        @click="openAgendaRow(w.row, 'pendientes')">
+                  <span class="agenda-what">{{ waitWhat(w.what) }}</span>
+                  <span class="agenda-when">#{{ w.row.id }} {{ w.row.title }}</span>
+                </button>
+                <button v-if="g.items.length > WAIT_SHOWN" type="button" class="agenda-more"
+                        @click="expandedWho[g.who] = !expandedWho[g.who]">
+                  {{ expandedWho[g.who] ? 'Ver menos' : `Ver ${g.items.length - WAIT_SHOWN} más` }}
+                </button>
+              </div>
+              </div>
+              <button v-if="waitingByWho.length > WHO_SHOWN" type="button" class="agenda-more" @click="showAllWho = !showAllWho">
+                {{ showAllWho ? 'Ver menos' : `Ver las otras ${waitingByWho.length - WHO_SHOWN} personas o equipos` }}
+              </button>
             </div>
           </div>
-          <div class="legend">
-            <span>0</span>
-            <i v-for="n in [0, 1, 2, 3, 4]" :key="n" :class="'c' + n"></i>
-            <span>{{ pulse.slotsPerHour }} tramos de {{ slotMin }}′</span>
-            <i class="n0"></i><span>sin registro</span>
-            <span class="note">se llena con los tramos en que hubo cambios en los repos de la compañía — no con lo que uno cree que trabajó</span>
-          </div>
+          <div v-if="todayDormant.length" class="agenda-dormant">
+            <button type="button" class="agenda-more" :aria-expanded="showDormant" @click="showDormant = !showDormant">
+              {{ showDormant ? 'Ocultar' : 'Ver' }} las {{ todayDormant.length }} dormidas ({{ agendaData.dormantDays }} días o más sin tocar)
+            </button>
+            <div v-if="showDormant" class="agenda-dormant-list">
+              <button v-for="row in todayDormant" :key="row.id" type="button" class="agenda-row compact" :disabled="!agendaTask(row)"
+                      @click="openAgendaRow(row)">
+                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
+                <span class="agenda-when">{{ row.daysUntouched }} d sin tocar<template v-if="row.suggestArchive"> · archivar, o anotar por qué espera</template></span>
+              </button>
+            </div>
           </div>
         </section>
       </div>
@@ -2887,37 +2889,42 @@ function documentAction(id) {
    afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
    `overflow: hidden` para que las esquinas recortaran lo de adentro. Queda una banda, cerrada abajo
    por una línea. */
-/* LA AGENDA DE HOY: arriba del home, dos columnas (en movimiento · esperando a…) que se apilan en angosto. */
-.agenda { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; container-type: inline-size;
-  width: 100%; box-sizing: border-box } /* con contención de ancho, sin esto la sección mide 0 (su ancho ya no sale del contenido) */
-/* El corte lo decide el ancho del EDITOR, no el de la ventana: con los dos sidebars abiertos queda angosto aunque la
-   ventana sea grande. */
-@container (max-width: 640px) { .agenda .agenda-cols { grid-template-columns: minmax(0, 1fr) } }
-.agenda-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px }
-.agenda-head h2 { margin: 0; font-size: var(--text-base); font-weight: 600 }
-.agenda-sum { font-size: var(--text-sm); color: var(--mut) }
-.agenda-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px }
-.agenda-k { margin: 0 0 6px; font-size: var(--text-xs); font-weight: 600; color: var(--mut) }
-.agenda-row, .agenda-wait { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: 0;
-  background: none; color: inherit; font: inherit; padding: 7px 8px; border-radius: var(--radius-sm); cursor: pointer }
-.agenda-row:hover:not(:disabled), .agenda-wait:hover:not(:disabled) { background: var(--muted) }
-.agenda-row:disabled, .agenda-wait:disabled { cursor: default }
-.agenda-title { font-size: var(--text-base); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.agenda-id { color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 400 }
-.agenda-last { font-size: var(--text-sm); color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
-.agenda-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--text-xs); color: var(--mut) }
+/* LA AGENDA DE HOY, abajo del sprint: dos bloques apilados (en movimiento · esperando a…), cada uno una grilla de
+   tarjetas que se acomoda sola al ancho. Una tarjeta por tarea y una por persona o equipo. */
+.agenda { container-type: inline-size; width: 100%; box-sizing: border-box } /* con contención de ancho, sin esto mide 0 */
+.agenda-cols { display: flex; flex-direction: column; gap: 18px }
+.agenda-k { margin: 0 0 8px; font-size: var(--text-xs); font-weight: 600; color: var(--mut) }
+.agenda-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px }
+.agenda-row, .agenda-who { display: flex; flex-direction: column; gap: 4px; min-width: 0; box-sizing: border-box;
+  text-align: left; color: inherit; font: inherit; padding: 12px 14px; border: 1px solid var(--line);
+  border-radius: var(--radius-md); background: var(--panel2) }
+.agenda-row { cursor: pointer; border-left: 3px solid var(--primary) }
+.agenda-row:hover:not(:disabled) { border-color: var(--primary) }
+.agenda-row:disabled { cursor: default; border-left-color: var(--line) }
+.agenda-wait { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: 0; background: none;
+  color: inherit; font: inherit; padding: 6px 8px; margin: 0 -8px; border-radius: var(--radius-sm); cursor: pointer }
+.agenda-wait:hover:not(:disabled) { background: var(--muted) }
+.agenda-wait:disabled { cursor: default }
+.agenda-title { font-size: var(--text-base); font-weight: 600; display: -webkit-box; -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical; overflow: hidden }
+.agenda-id { color: var(--primary); font-variant-numeric: tabular-nums; font-weight: 600 }
+.agenda-last { font-size: var(--text-sm); color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden }
+.agenda-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: auto; padding-top: 4px; font-size: var(--text-xs); color: var(--mut) }
 .agenda-waits { color: var(--bad) }
 .agenda-when { font-size: var(--text-xs); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.agenda-who { margin-bottom: 8px }
-.agenda-who-head { display: flex; align-items: baseline; gap: 6px; padding: 0 8px; font-size: var(--text-sm) }
-.agenda-count { color: var(--mut); font-variant-numeric: tabular-nums }
-.agenda-wait { padding: 4px 8px }
+.agenda-who-head { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-size: var(--text-base) }
+.agenda-count { min-width: 22px; padding: 0 6px; border-radius: 999px; text-align: center; font-size: var(--text-xs); font-weight: 600;
+  color: var(--primary-foreground); background: var(--primary); font-variant-numeric: tabular-nums }
 .agenda-what { font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
-.agenda-more { border: 0; background: none; color: var(--mut); font: inherit; font-size: var(--text-xs); padding: 2px 8px; cursor: pointer }
+.agenda-more { align-self: flex-start; border: 0; background: none; color: var(--mut); font: inherit; font-size: var(--text-xs);
+  padding: 6px 0 0; cursor: pointer }
 .agenda-more:hover { color: var(--foreground) }
-.agenda-dormant { margin-top: 8px }
-.agenda-row.compact { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 8px }
-.agenda-none { margin: 0; padding: 4px 8px; font-size: var(--text-sm); color: var(--mut) }
+.agenda-dormant { margin-top: 14px }
+.agenda-dormant-list { display: flex; flex-direction: column; gap: 2px; margin-top: 6px }
+.agenda-row.compact { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 6px 10px;
+  border-left-width: 1px; background: none }
+.agenda-row.compact .agenda-title { font-weight: 500; -webkit-line-clamp: 1 }
+.agenda-none { margin: 0; font-size: var(--text-sm); color: var(--mut) }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 16px;
   border-bottom: 1px solid var(--line) }
 .stat { background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
@@ -3054,15 +3061,16 @@ function documentAction(id) {
 .cell.weekend.n0 { opacity: .45 }
 .cell:hover { outline: 2px solid var(--acc); outline-offset: 1px }
 .n0 { background: repeating-linear-gradient(-45deg, var(--sel) 0 3px, transparent 3px 6px), var(--panel2) }
-/* PULSO (fuente «código»): usa una segunda escala gris. No mide lo mismo que los avances,
-   pero conservar una sola familia visual evita que el color compita con el contenido.
+/* PULSO (fuente «código»): la escala va en el color del TEMA (`--primary`, que sigue a la paleta elegida en Cockpit),
+   de tenue a lleno. Hasta el 2026-11-12 era gris, para no competir con el contenido; ahora la grilla va arriba del
+   home y el color es lo que la hace legible de un vistazo.
    `c0` es LISO, no rayado: es "el agente miró y no había nada", que es un dato; el rayado (`n0`) queda
    reservado para "no hubo registro". Esa distinción es la única que el pulso puede hacer y los avances no. */
 .c0 { background: var(--panel2) }
-.c1 { background: color-mix(in oklab, var(--mut) 22%, var(--panel2)) }
-.c2 { background: color-mix(in oklab, var(--mut) 42%, var(--panel2)) }
-.c3 { background: color-mix(in oklab, var(--mut) 66%, var(--panel2)) }
-.c4 { background: var(--mut) }
+.c1 { background: color-mix(in oklab, var(--primary) 25%, var(--panel2)) }
+.c2 { background: color-mix(in oklab, var(--primary) 50%, var(--panel2)) }
+.c3 { background: color-mix(in oklab, var(--primary) 75%, var(--panel2)) }
+.c4 { background: var(--primary) }
 /* frontera de sprint: un MARGEN, no una línea. El aire extra antes de la primera columna del sprint y
    después de la última separa los bloques sin sumarle tinta a la grilla. Va en las tres clases de fila
    (horas, totales, fechas) para que las columnas no se desalineen. */
