@@ -23,6 +23,7 @@ import (
 	"creditop/playground/connectors/guard"
 	"creditop/playground/connectors/repos"
 	"creditop/playground/connectors/slack"
+	"creditop/playground/tablero/server/internal/agenda"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
 	"creditop/playground/tablero/server/internal/pulse"
@@ -797,6 +798,21 @@ func main() {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]any{"events": events})
+	})
+
+	// LA AGENDA DE HOY, la misma de `make hoy` (internal/agenda): por tarea, su último bloque, lo que espera a alguien
+	// y su entrega, más la fecha de la medición de ramas. El home la pone arriba: es lo que dice qué sigue.
+	mux.HandleFunc("/api/today", func(w http.ResponseWriter, r *http.Request) {
+		cors(w)
+		if r.Method == http.MethodOptions {
+			return
+		}
+		lay := layout.At(dataDir)
+		snap := agenda.ReadSnap(dataDir)
+		json.NewEncoder(w).Encode(map[string]any{
+			"rows": agenda.Build(dataDir, agenda.LoadTasks(lay), snap, ""), "branchesMeasuredAt": snap.MeasuredAt,
+			"dormantDays": agenda.DormantDays,
+		})
 	})
 
 	// El PULSO: cuándo toqué los repos de la compañía, en tramos de 5 minutos. Lo escribe el agente

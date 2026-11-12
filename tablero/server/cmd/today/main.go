@@ -29,7 +29,6 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	"math"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -39,192 +38,38 @@ import (
 	"time"
 
 	"creditop/playground/connectors/canon"
+	agendapkg "creditop/playground/tablero/server/internal/agenda"
 	"creditop/playground/tablero/server/internal/env"
 	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/store"
 	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
+// La agenda vive en internal/agenda (la comparte el home del tablero); acá, los nombres de siempre.
 const (
-	dormantDays = 14
-	archiveDays = 30
+	dormantDays = agendapkg.DormantDays
+	archiveDays = agendapkg.ArchiveDays
 )
 
-type task struct {
-	Slug, Title, Stage, Class, Created, Path string
-	ID                                       int
-	Archived                                 bool
-	Branches                                 []string
-	Jira, Nodes, Knowledge, Chat             []string
-	Body                                     string
-	Touch                                    time.Time // último cambio del archivo (git; hoy si está sucio)
-}
+type (
+	task         = agendapkg.Task
+	row          = agendapkg.Row
+	branchSnap   = agendapkg.BranchSnap
+	branchesSnap = agendapkg.BranchesSnap
+)
 
 var (
-	reCitation       = regexp.MustCompile(`^["']|["']$`)
-	reList           = regexp.MustCompile(`\[(.*?)\]`)
-	rePublic         = regexp.MustCompile(`(?m)^##\s+Tarea \(publicable\)\s*$`)
+	readTaskFile     = agendapkg.ReadTask
+	requiresBranches = agendapkg.RequiresBranches
+	openPendingItems = agendapkg.OpenPending
+	readSnap         = agendapkg.ReadSnap
+	delivery         = agendapkg.Delivery
+	plain            = agendapkg.Plain
+	truncate         = agendapkg.Truncate
+	daysSince        = agendapkg.DaysSince
+
 	reSectionHeading = regexp.MustCompile(`(?m)^#{2,4}\s+(.*)$`)
 	reDateInTitle    = regexp.MustCompile(`20\d\d-\d\d-\d\d`)
 )
-
-func value(l string) string {
-	_, v, _ := strings.Cut(l, ":")
-	return reCitation.ReplaceAllString(strings.TrimSpace(v), "")
-}
-
-func list(l string) []string {
-	m := reList.FindStringSubmatch(l)
-	if m == nil {
-		return nil
-	}
-	var out []string
-	for _, x := range strings.Split(m[1], ",") {
-		if x = reCitation.ReplaceAllString(strings.TrimSpace(x), ""); x != "" {
-			out = append(out, x)
-		}
-	}
-	return out
-}
-
-func readTaskFile(path string, touches map[string]string) task {
-	b, _ := os.ReadFile(path)
-	t := task{Slug: layout.SlugOf(path), Path: path}
-	parts := strings.SplitN(string(b), "---", 3)
-	if len(parts) == 3 {
-		t.Body = parts[2]
-		for _, l := range strings.Split(parts[1], "\n") {
-			switch {
-			case strings.HasPrefix(l, "id:"):
-				t.ID, _ = strconv.Atoi(value(l))
-			case strings.HasPrefix(l, "title:"):
-				t.Title = value(l)
-			case strings.HasPrefix(l, "stage:"):
-				t.Stage = value(l)
-			case strings.HasPrefix(l, "clase:"):
-				t.Class = value(l)
-			case strings.HasPrefix(l, "created:"):
-				t.Created = value(l)
-			case strings.HasPrefix(l, "archived:"):
-				v := value(l)
-				t.Archived = v != "" && v != "false" && v != "null"
-			case strings.HasPrefix(l, "jira:"):
-				t.Jira = list(l)
-			case strings.HasPrefix(l, "knowledge:"):
-				t.Knowledge = list(l)
-			case strings.HasPrefix(l, "chat:"):
-				// Dónde se habla de la tarea en el chat del equipo: un grupo (`#ecommerce`) o personas (`duncan`).
-				t.Chat = list(l)
-			case strings.HasPrefix(l, "canon:"):
-				t.Nodes = list(l)
-			case strings.HasPrefix(l, "ramas:"):
-				for _, p := range strings.Split(value(l), ",") {
-					if p = strings.TrimSpace(p); p != "" {
-						t.Branches = append(t.Branches, p)
-					}
-				}
-			}
-		}
-	} else {
-		t.Body = string(b)
-	}
-	if t.Stage == "" {
-		t.Stage = "evaluation"
-	}
-	// El último toque sale de git siguiendo las mudanzas (hoy si está cambiada sin commitear): mover la
-	// tarea de carpeta no la despierta. Ver layout.LastTouches.
-	if d := touches[t.Slug]; d != "" {
-		t.Touch, _ = time.ParseInLocation("2006-01-02", d, time.Local)
-	} else if fi, err := os.Stat(path); err == nil {
-		t.Touch = fi.ModTime()
-	}
-	return t
-}
-
-func (t task) days() int { return int(time.Since(t.Touch).Hours() / 24) }
-
-func requiresBranches(t task) bool {
-	// Los contenedores locales agrupan mejoras sucesivas y pueden no tener una rama activa. Una tarea
-	// de producto en work sí debe declarar por dónde se entrega.
-	return t.Stage == "work" && t.Class != "proyecto"
-}
-
-// private: el cuerpo hasta la publicable — los pendientes se buscan sólo ahí, como hace el store.
-func (t task) private() string {
-	if loc := rePublic.FindStringIndex(t.Body); loc != nil {
-		return t.Body[:loc[0]]
-	}
-	return t.Body
-}
-
-func openPendingItems(t task) (open []store.PendingItem, total int) {
-	for _, p := range store.Pending(t.private()) {
-		total++
-		if !p.Done {
-			open = append(open, p)
-		}
-	}
-	return
-}
-
-// ── el snapshot de ramas: la entrega ──
-
-type branchSnap struct {
-	Repo   string          `json:"repo"`
-	Branch string          `json:"branch"`
-	Commit string          `json:"commit"`
-	In     map[string]bool `json:"in"`
-	PR     *struct {
-		Number      int    `json:"number"`
-		State       string `json:"state"`
-		Base        string `json:"base"`
-		MergeCommit string `json:"mergeCommit"`
-	} `json:"pr"`
-}
-
-type branchesSnap struct {
-	MeasuredAt string `json:"measuredAt"`
-	Tasks      map[string]struct {
-		Branches []branchSnap `json:"branches"`
-	} `json:"tasks"`
-	Incomplete []string `json:"incomplete"`
-}
-
-func readSnap(data string) branchesSnap {
-	var s branchesSnap
-	b, err := os.ReadFile(filepath.Join(data, "cache", "ramas.json"))
-	if err == nil {
-		_ = json.Unmarshal(b, &s)
-	}
-	return s
-}
-
-// delivery resume las ramas de una tarea en una línea: «4 ramas · 2 en main · 1 PR abierto → qa».
-func delivery(s branchesSnap, id int) string {
-	t, ok := s.Tasks[strconv.Itoa(id)]
-	if !ok || len(t.Branches) == 0 {
-		return ""
-	}
-	inMain, open := 0, map[string]int{}
-	for _, r := range t.Branches {
-		if r.In["main"] {
-			inMain++
-		}
-		if r.PR != nil && r.PR.State == "OPEN" {
-			open[r.PR.Base]++
-		}
-	}
-	out := fmt.Sprintf("%d rama(s) · %d en main", len(t.Branches), inMain)
-	if len(open) > 0 {
-		var parts []string
-		for base, n := range open {
-			parts = append(parts, fmt.Sprintf("%d PR abierto(s) → %s", n, base))
-		}
-		sort.Strings(parts)
-		out += " · " + strings.Join(parts, ", ")
-	}
-	return out
-}
 
 // ── la bitácora ──
 
@@ -249,20 +94,6 @@ func worklogOf(data string, id int) []entry {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Day > out[j].Day })
 	return out
-}
-
-// plain saca el énfasis de Markdown para la consola: un `**` a mitad de un renglón truncado se lee como
-// ruido, no como negrita.
-func plain(s string) string {
-	return strings.NewReplacer("**", "", "__", "", "`", "").Replace(s)
-}
-
-func truncate(s string, n int) string {
-	s = strings.Join(strings.Fields(s), " ")
-	if len([]rune(s)) <= n {
-		return s
-	}
-	return string([]rune(s)[:n-1]) + "…"
 }
 
 func main() {
@@ -295,36 +126,6 @@ func main() {
 	os.Exit(agenda(data, tasks, snap, *stage, *asJSON))
 }
 
-type row struct {
-	ID           int      `json:"id"`
-	Slug         string   `json:"slug"`
-	Title        string   `json:"title"`
-	Stage        string   `json:"stage"`
-	Class        string   `json:"class"`
-	Days         int      `json:"daysUntouched"`
-	LastBlock    string   `json:"lastBlock"`
-	BlockDays    int      `json:"lastBlockDays"` // -1 si la pila está vacía
-	Delivery     string   `json:"delivery"`
-	Waiting      []string `json:"waiting"` // pendientes abiertos que dependen de alguien
-	Pending      int      `json:"pending"`
-	Dormant      bool     `json:"dormant"`
-	SuggestClose bool     `json:"suggestArchive"`
-}
-
-// daysSince: días de CALENDARIO desde una fecha RFC3339 —el bloque de anoche es «ayer» aunque no hayan
-// pasado 24 horas—, o -1 si no se puede leer. Es la misma cuenta que `days()` hace con el documento, que
-// arranca a la medianoche de su último commit.
-func daysSince(at string) int {
-	when, err := time.Parse(time.RFC3339, at)
-	if err != nil {
-		return -1
-	}
-	y, m, d := when.In(time.Local).Date()
-	ty, tm, td := time.Now().Date()
-	then, today := time.Date(y, m, d, 0, 0, 0, 0, time.Local), time.Date(ty, tm, td, 0, 0, 0, 0, time.Local)
-	return int(math.Round(today.Sub(then).Hours() / 24))
-}
-
 // ago dice cuándo, en la forma corta de la agenda.
 func ago(days int) string {
 	switch days {
@@ -337,40 +138,7 @@ func ago(days int) string {
 }
 
 func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON bool) int {
-	var rows []row
-	for _, t := range tasks {
-		if t.Archived || (stage != "" && t.Stage != stage) {
-			continue
-		}
-		f := row{ID: t.ID, Slug: t.Slug, Title: t.Title, Stage: t.Stage, Class: t.Class, Days: t.days(),
-			BlockDays: -1, Delivery: delivery(snap, t.ID)}
-		// El último bloque dice dónde quedó la tarea; y si es más reciente que el documento, la tarea se
-		// tocó entonces.
-		if events, err := taskcontext.Read(data, t.Slug); err == nil && len(events) > 0 {
-			f.LastBlock, f.BlockDays = events[0].Title, daysSince(events[0].At)
-			if f.BlockDays >= 0 && f.BlockDays < f.Days {
-				f.Days = f.BlockDays
-			}
-		}
-		ab, _ := openPendingItems(t)
-		f.Pending = len(ab)
-		// Lo que espera a alguien: el pendiente con su «Depende de:». Es lo que reemplazó a la pregunta
-		// vencida, que salía de las anotaciones PREGUNTA del documento y no se cerraba nunca.
-		for _, p := range ab {
-			if p.WaitingOn != "" {
-				f.Waiting = append(f.Waiting, fmt.Sprintf("%s · %s", truncate(plain(p.WaitingOn), 60), truncate(plain(p.What), 70)))
-			}
-		}
-		f.Dormant = f.Days >= dormantDays
-		f.SuggestClose = f.Days >= archiveDays
-		rows = append(rows, f)
-	}
-	sort.Slice(rows, func(i, j int) bool {
-		if rows[i].Days != rows[j].Days {
-			return rows[i].Days < rows[j].Days
-		}
-		return rows[i].ID > rows[j].ID
-	})
+	rows := agendapkg.Build(data, tasks, snap, stage)
 	if asJSON {
 		_ = json.NewEncoder(os.Stdout).Encode(rows)
 		return 0
@@ -503,7 +271,7 @@ func showAnatomy(data string, tasks []task, ref string) int {
 		if events, err := taskcontext.Read(data, t.Slug); err == nil {
 			f.blocks = len(events)
 		}
-		for _, m := range reSectionHeading.FindAllStringSubmatch(t.private(), -1) {
+		for _, m := range reSectionHeading.FindAllStringSubmatch(t.Private(), -1) {
 			f.secs++
 			if reDateInTitle.MatchString(m[1]) {
 				f.dated++
@@ -672,7 +440,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 
 	if asJSON {
 		output := map[string]any{
-			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.days(),
+			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.Days(),
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
 			"knowledge": localContext, "knowledgeSuggested": suggested, "chat": t.Chat,
@@ -684,7 +452,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		return 0
 	}
 
-	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.days(), strings.SplitN(t.Created+"T", "T", 2)[0])
+	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.Days(), strings.SplitN(t.Created+"T", "T", 2)[0])
 	if len(t.Jira) > 0 || len(t.Nodes) > 0 {
 		fmt.Printf("  jira: %s · referencias de Canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodes, ", "))
 	}

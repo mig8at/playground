@@ -1549,6 +1549,53 @@ const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (N
 // DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que estimar minutos desde
 // git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que tuvieron cambios — el
 // total del día es tramos × 5', que sí es una medición.
+// ── LA AGENDA DE HOY: la misma de `make hoy` (/api/today, internal/agenda). Arriba del home porque es lo que
+// dice qué sigue: dónde quedó cada tarea en movimiento y a quién se le está esperando algo. Los contenedores
+// locales (clase proyecto) no entran en movimiento ni dormidas, como en la consola; lo que esperan sí cuenta.
+const agendaData = ref({ rows: [], branchesMeasuredAt: '', dormantDays: 14 });
+async function loadToday() {
+  try {
+    const j = await (await fetch(`${SERVER}/api/today`)).json();
+    if (!j.error && Array.isArray(j.rows)) agendaData.value = j;
+  } catch { /* server caído: la agenda no se muestra, el resto del home sí */ }
+}
+const todayLive = computed(() => agendaData.value.rows.filter((r) => r.class !== 'proyecto' && !r.dormant));
+const todayDormant = computed(() => agendaData.value.rows.filter((r) => r.class !== 'proyecto' && r.dormant));
+// Lo que espera a alguien, por persona o equipo: así se ve a quién escribirle y cuánto le debe a uno.
+const waitingByWho = computed(() => {
+  const groups = new Map();
+  for (const row of agendaData.value.rows) {
+    for (const w of row.waitingFor || []) {
+      const key = w.who.toLowerCase().replace(/[.\s]+$/, '');
+      if (!groups.has(key)) groups.set(key, { who: w.who.replace(/[.\s]+$/, ''), items: [] });
+      groups.get(key).items.push({ ...w, row });
+    }
+  }
+  return [...groups.values()].sort((a, b) => b.items.length - a.items.length || a.who.localeCompare(b.who));
+});
+const waitingTotal = computed(() => waitingByWho.value.reduce((n, g) => n + g.items.length, 0));
+const showDormant = ref(false);
+const showAllLive = ref(false);
+const LIVE_SHOWN = 6;
+const shownLive = computed(() => (showAllLive.value ? todayLive.value : todayLive.value.slice(0, LIVE_SHOWN)));
+// La casilla dice qué se hace y, después, cuándo termina («…; termina cuando …»): en la agenda va sólo lo primero.
+const waitWhat = (text) => text.split(/[.;]\s+[Tt]ermina (?:cuando|con)\b/)[0];
+const expandedWho = ref({});
+const WAIT_SHOWN = 2;
+const WHO_SHOWN = 5;
+const showAllWho = ref(false);
+const shownWho = computed(() => (showAllWho.value ? waitingByWho.value : waitingByWho.value.slice(0, WHO_SHOWN)));
+const agoText = (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : `hace ${days} d`);
+// La fila de la agenda trae el id de la tarea; la interfaz la conoce por su `_effortId`. Una que no está en el sprint
+// ni entre las locales no se puede abrir desde acá (se retoma con `make retomar`).
+const agendaTask = (row) => tasksForRoute().find((t) => (t._effortId || effortFor(t.Key)) === row.id);
+function openAgendaRow(row, view) {
+  const task = agendaTask(row);
+  if (!task) return;
+  openTask(task);
+  if (view) activeAuxView.value = view;
+}
+
 const pulse = ref({ hours: [], installed: false, lastTick: null, slotsPerHour: 12, slotMinutes: 5 });
 
 // Se pide DAYS_MAX y no `days`, aunque hoy se vean menos: así agrandar la ventana no dispara una llamada
@@ -1883,7 +1930,7 @@ async function updateStart() {
     // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
     // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
     // la restauración de la ruta como si fuera una navegación completa.
-    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches()]);
+    const locales = Promise.allSettled([loadEfforts(), loadTaskLocals(), loadConfig(), loadPulse(), loadBranches(), loadToday()]);
     const sprintRequest = loadSprint();
     const sprintsRequest = loadSprints();
     // Los otros tres sprints se piden apenas llega la LISTA (~0,9 s), sin esperar al sprint actual, que es la llamada
@@ -2275,6 +2322,63 @@ function documentAction(id) {
       </div>
 
       <div v-else-if="!isOpen('jira')" class="region-body editor-view">
+        <section v-if="agendaData.rows.length" class="agenda" aria-labelledby="agenda-title">
+          <div class="agenda-head">
+            <h2 id="agenda-title">Hoy</h2>
+            <span class="agenda-sum">{{ todayLive.length }} en movimiento<template v-if="waitingTotal"> · {{ waitingTotal }} esperando a alguien</template><template v-if="todayDormant.length"> · {{ todayDormant.length }} dormidas</template></span>
+          </div>
+          <div class="agenda-cols">
+            <div class="agenda-col">
+              <h3 class="agenda-k">En movimiento</h3>
+              <button v-for="row in shownLive" :key="row.id" type="button" class="agenda-row"
+                      :disabled="!agendaTask(row)" :title="agendaTask(row) ? 'Abrir la tarea' : 'No está en el sprint ni entre las locales: make retomar N=' + row.id"
+                      @click="openAgendaRow(row)">
+                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
+                <span v-if="row.lastBlock" class="agenda-last">{{ row.lastBlock }} <span class="agenda-when">· {{ agoText(row.lastBlockDays) }}</span></span>
+                <span class="agenda-meta">
+                  <span v-if="row.delivery">{{ row.delivery }}</span>
+                  <span v-if="row.pending">{{ row.pending }} pendiente{{ row.pending === 1 ? '' : 's' }}</span>
+                  <span v-if="row.waitingFor?.length" class="agenda-waits">{{ row.waitingFor.length }} esperando</span>
+                </span>
+              </button>
+              <button v-if="todayLive.length > LIVE_SHOWN" type="button" class="agenda-more" @click="showAllLive = !showAllLive">
+                {{ showAllLive ? 'Ver menos' : `Ver las otras ${todayLive.length - LIVE_SHOWN}` }}
+              </button>
+              <p v-if="!todayLive.length" class="agenda-none">Ninguna tarea tocada en los últimos {{ agendaData.dormantDays }} días.</p>
+            </div>
+            <div v-if="waitingByWho.length" class="agenda-col">
+              <h3 class="agenda-k">Esperando a…</h3>
+              <div v-for="g in shownWho" :key="g.who" class="agenda-who">
+                <div class="agenda-who-head"><b>{{ g.who }}</b> <span class="agenda-count">{{ g.items.length }}</span></div>
+                <button v-for="(w, i) in (expandedWho[g.who] ? g.items : g.items.slice(0, WAIT_SHOWN))" :key="i" type="button"
+                        class="agenda-wait" :disabled="!agendaTask(w.row)" :title="w.why ? `Se le pide: ${w.why}` : 'Ver los pendientes de la tarea'"
+                        @click="openAgendaRow(w.row, 'pendientes')">
+                  <span class="agenda-what">{{ waitWhat(w.what) }}</span>
+                  <span class="agenda-when">#{{ w.row.id }} {{ w.row.title }}</span>
+                </button>
+                <button v-if="g.items.length > WAIT_SHOWN" type="button" class="agenda-more"
+                        @click="expandedWho[g.who] = !expandedWho[g.who]">
+                  {{ expandedWho[g.who] ? 'Ver menos' : `Ver ${g.items.length - WAIT_SHOWN} más` }}
+                </button>
+              </div>
+              <button v-if="waitingByWho.length > WHO_SHOWN" type="button" class="agenda-more" @click="showAllWho = !showAllWho">
+                {{ showAllWho ? 'Ver menos' : `Ver las otras ${waitingByWho.length - WHO_SHOWN} personas o equipos` }}
+              </button>
+            </div>
+          </div>
+          <div v-if="todayDormant.length" class="agenda-dormant">
+            <button type="button" class="agenda-more" :aria-expanded="showDormant" @click="showDormant = !showDormant">
+              {{ showDormant ? 'Ocultar' : 'Ver' }} las {{ todayDormant.length }} dormidas ({{ agendaData.dormantDays }} días o más sin tocar)
+            </button>
+            <div v-if="showDormant" class="agenda-dormant-list">
+              <button v-for="row in todayDormant" :key="row.id" type="button" class="agenda-row compact" :disabled="!agendaTask(row)"
+                      @click="openAgendaRow(row)">
+                <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
+                <span class="agenda-when">{{ row.daysUntouched }} d sin tocar<template v-if="row.suggestArchive"> · archivar, o anotar por qué espera</template></span>
+              </button>
+            </div>
+          </div>
+        </section>
         <div class="stats">
           <div class="stat">
             <div class="k">Tareas</div>
@@ -2783,6 +2887,37 @@ function documentAction(id) {
    afuera con su radio era una segunda forma de decir «esto es un bloque», y encima obligaba a
    `overflow: hidden` para que las esquinas recortaran lo de adentro. Queda una banda, cerrada abajo
    por una línea. */
+/* LA AGENDA DE HOY: arriba del home, dos columnas (en movimiento · esperando a…) que se apilan en angosto. */
+.agenda { padding: 14px 16px 16px; border-bottom: 1px solid var(--line); margin-bottom: 16px; container-type: inline-size;
+  width: 100%; box-sizing: border-box } /* con contención de ancho, sin esto la sección mide 0 (su ancho ya no sale del contenido) */
+/* El corte lo decide el ancho del EDITOR, no el de la ventana: con los dos sidebars abiertos queda angosto aunque la
+   ventana sea grande. */
+@container (max-width: 640px) { .agenda .agenda-cols { grid-template-columns: minmax(0, 1fr) } }
+.agenda-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 10px }
+.agenda-head h2 { margin: 0; font-size: var(--text-base); font-weight: 600 }
+.agenda-sum { font-size: var(--text-sm); color: var(--mut) }
+.agenda-cols { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 20px }
+.agenda-k { margin: 0 0 6px; font-size: var(--text-xs); font-weight: 600; color: var(--mut) }
+.agenda-row, .agenda-wait { display: flex; flex-direction: column; gap: 2px; width: 100%; text-align: left; border: 0;
+  background: none; color: inherit; font: inherit; padding: 7px 8px; border-radius: var(--radius-sm); cursor: pointer }
+.agenda-row:hover:not(:disabled), .agenda-wait:hover:not(:disabled) { background: var(--muted) }
+.agenda-row:disabled, .agenda-wait:disabled { cursor: default }
+.agenda-title { font-size: var(--text-base); font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.agenda-id { color: var(--faint); font-variant-numeric: tabular-nums; font-weight: 400 }
+.agenda-last { font-size: var(--text-sm); color: var(--fg-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.agenda-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: var(--text-xs); color: var(--mut) }
+.agenda-waits { color: var(--bad) }
+.agenda-when { font-size: var(--text-xs); color: var(--mut); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.agenda-who { margin-bottom: 8px }
+.agenda-who-head { display: flex; align-items: baseline; gap: 6px; padding: 0 8px; font-size: var(--text-sm) }
+.agenda-count { color: var(--mut); font-variant-numeric: tabular-nums }
+.agenda-wait { padding: 4px 8px }
+.agenda-what { font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden }
+.agenda-more { border: 0; background: none; color: var(--mut); font: inherit; font-size: var(--text-xs); padding: 2px 8px; cursor: pointer }
+.agenda-more:hover { color: var(--foreground) }
+.agenda-dormant { margin-top: 8px }
+.agenda-row.compact { flex-direction: row; align-items: baseline; justify-content: space-between; gap: 12px; padding: 4px 8px }
+.agenda-none { margin: 0; padding: 4px 8px; font-size: var(--text-sm); color: var(--mut) }
 .stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; margin-bottom: 16px;
   border-bottom: 1px solid var(--line) }
 .stat { background: var(--card); border: 0; border-right: 1px solid var(--line); padding: 12px 16px }
