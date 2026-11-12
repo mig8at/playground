@@ -8,7 +8,7 @@
  * Sólo lee: la API (sentinel/server) guarda cuatro semanas en disco y cada 5 minutos pide sólo lo que falta. La ruta es
  * `#/lender/<id>`, `#/merchant/<id>`, `#/service/<nombre>`, `#/queue` o vacía (toda la originación). */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, regionSize, reopenSize, bindThemeToggle, bindPanelMaximize, readHashRoute, setRoute } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, cssSize, regionSize, reopenSize, bindThemeToggle, bindPanelMaximize, readHashRoute, hashRoute, setRoute } from './workbench.js'
 
 const data = ref(null)       // el Overview de la API
 const apiError = ref('')
@@ -128,14 +128,17 @@ function readRoute() {
   else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
+// Ir a una señal: `setRoute` recibe una URL, no las partes; con la lista escribía `/merchant,94` en la ruta y el
+// editor, que lee el hash, volvía a «Toda la originación». Entra al historial: atrás vuelve a lo anterior.
+const go = (parts) => setRoute(location.pathname.replace(/[^/]*$/, '') + hashRoute(parts), { push: true })
 function pick(s) {
-  if (!s || s.kind === 'all') setRoute([])
-  else if (s.kind === 'queue') setRoute(['queue'])
-  else if (s.kind === 'service') setRoute(['service', s.name])
-  else if (s.kind === 'logs') setRoute(['logs', s.signal.slice(5)])
-  else if (s.kind === 'step') setRoute(['step', s.signal.slice(5)])
-  else if (s.kind === 'jserr') setRoute(['jserr', s.signal.slice(6)])
-  else setRoute([s.kind, String(s.id)])
+  if (!s || s.kind === 'all') go([])
+  else if (s.kind === 'queue') go(['queue'])
+  else if (s.kind === 'service') go(['service', s.name])
+  else if (s.kind === 'logs') go(['logs', s.signal.slice(5)])
+  else if (s.kind === 'step') go(['step', s.signal.slice(5)])
+  else if (s.kind === 'jserr') go(['jserr', s.signal.slice(6)])
+  else go([s.kind, String(s.id)])
   readRoute()
 }
 const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
@@ -164,10 +167,10 @@ const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn
 // Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
-  if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') setRoute([kind, key])
-  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr') setRoute([kind, String(sig).slice(kind.length + 1)])
-  else if (kind === 'queue') setRoute(['queue'])
-  else setRoute([])
+  if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') go([kind, key])
+  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr') go([kind, String(sig).slice(kind.length + 1)])
+  else if (kind === 'queue') go(['queue'])
+  else go([])
   readRoute()
 }
 // La ventana que mira una señal: una hora, o más para lo que se sigue y es chico (FollowedWindows en el servidor).
@@ -292,6 +295,7 @@ let themeBinding = null
 onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', readRoute)
+  window.addEventListener('popstate', readRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   readRoute()
   load()
@@ -300,6 +304,7 @@ onMounted(() => {
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
+  window.removeEventListener('popstate', readRoute)
   clearInterval(timer)
   themeBinding?.destroy?.()
   panelMaxBinding?.destroy?.()
