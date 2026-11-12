@@ -1,0 +1,165 @@
+{
+  "name": "Pedir el reembolso total del pedido #1036 (pagado con Creditop) en creditop-dev-store y ver que la app de pagos lo rechace con su mensaje",
+  "meta": "Pedir el reembolso total del pedido #1036 (pagado con Creditop) en creditop-dev-store y ver que la app de pagos lo rechace con su mensaje",
+  "start": "https://admin.shopify.com/store/creditop-dev-store/orders?query=1036",
+  "device": "chrome",
+  "created": "2026-11-12T08:37:00.429413-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-12_08-33-00",
+  "steps": [
+    {
+      "action": "click",
+      "target": "#1036",
+      "instruction": "Hacé clic en «#1036»",
+      "why": "Abro el pedido #1036, el que se pagó con Creditop",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "link",
+          "value": "#1036",
+          "exact": true,
+          "code": "page.getByRole('link', { name: '#1036', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('link', { name: '#1036', exact: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "Pagado",
+      "value": "Pagado",
+      "instruction": "Comprobá que se vea «Pagado»",
+      "code": "expect(page.getByText('Pagado').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "expect",
+      "target": "Reembols",
+      "value": "Reembols",
+      "instruction": "Comprobá que se vea «Reembols»",
+      "why": "Entro a Reembolsar: es el botón del encabezado del pedido",
+      "code": "expect(page.getByText('Reembols').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "goto",
+      "target": "https://admin.shopify.com/store/creditop-dev-store/orders/7589488689455/refund",
+      "value": "https://admin.shopify.com/store/creditop-dev-store/orders/7589488689455/refund",
+      "instruction": "Abrí https://admin.shopify.com/store/creditop-dev-store/orders/7589488689455/refund",
+      "why": "Voy directo a la pantalla de reembolso del pedido",
+      "code": "page.goto('https://admin.shopify.com/store/creditop-dev-store/orders/7589488689455/refund')"
+    },
+    {
+      "action": "expect",
+      "target": "Reembolsar",
+      "value": "Reembolsar",
+      "instruction": "Comprobá que se vea «Reembolsar»",
+      "code": "expect(page.getByText('Reembolsar').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "fill",
+      "target": "Cantidad / 1",
+      "value": "1",
+      "instruction": "Escribí «1» en «Cantidad / 1»",
+      "why": "Marco la única bicicleta: así el reembolso es por los 800.000",
+      "param": "Cantidad / 1",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "spinbutton",
+          "value": "Cantidad / 1",
+          "exact": true,
+          "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('spinbutton', { name: 'Cantidad / 1', exact: true }).fill('1')"
+    },
+    {
+      "action": "fill",
+      "target": "motivo",
+      "value": "Prueba de reembolso por mTLS (8443); la app lo rechaza",
+      "instruction": "Escribí «Prueba de reembolso por mTLS (8443); la app lo rechaza» en «motivo»",
+      "why": "Escribo el motivo: es la prueba del reembolso por mTLS",
+      "param": "motivo",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "motivo",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'motivo', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'motivo', exact: true }).fill('Prueba de reembolso por mTLS (8443); la app lo rechaza')"
+    },
+    {
+      "action": "click",
+      "target": "una vez finalizado el reembolso",
+      "instruction": "Hacé clic en «una vez finalizado el reembolso»",
+      "why": "Desmarco el aviso al cliente: es una compra de prueba",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "una vez finalizado el reembolso",
+          "visible": true,
+          "loose": true,
+          "code": "page.getByText('una vez finalizado el reembolso').filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('una vez finalizado el reembolso').filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Reembolsar 800.000,00 $",
+      "instruction": "Hacé clic en «Reembolsar 800.000,00 $»",
+      "why": "Pido el reembolso: Shopify llama a la app por el 8443 y la app lo rechaza",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Reembolsar 800.000,00 $",
+          "visible": true,
+          "code": "page.getByText('Reembolsar 800.000,00 $', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Reembolsar 800.000,00 $', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "reload",
+      "target": "recargar",
+      "instruction": "Recargá la página",
+      "code": "page.reload()"
+    },
+    {
+      "action": "click",
+      "target": "No se pudo reembolsar 800.000,00 $ COP.",
+      "instruction": "Hacé clic en «No se pudo reembolsar 800.000,00 $ COP.»",
+      "why": "Abro el evento del reembolso fallido para ver el motivo que dejó la app",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "No se pudo reembolsar 800.000,00 $ COP.",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'No se pudo reembolsar 800.000,00 $ COP.', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'No se pudo reembolsar 800.000,00 $ COP.', exact: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "se gestionan con Creditop",
+      "value": "se gestionan con Creditop",
+      "instruction": "Comprobá que se vea «se gestionan con Creditop»",
+      "code": "expect(page.getByText('se gestionan con Creditop').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

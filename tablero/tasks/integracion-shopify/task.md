@@ -76,14 +76,9 @@ ramas: shopify:core-801, core-689-shopify-platform
       app la pueden instalar todos los planes y sólo puede tener UNA extensión de pago. Retomar ese hilo, no empezar
       otro. Termina con la respuesta escrita acá.
       Depende de: María Fernanda / Manuela — el hilo con Shopify, que quedó sin respuesta desde el 2026-04-01.
-- [ ] Desplegar la app (`shopify app deploy`) cuando exista el host de qa, no antes: hoy la configuración publicable
-      apunta a `api.2272.canary.creditop.com`, que no resuelve, y lo activo en Shopify sigue siendo la versión 7 de Juan
-      (2026-03-03). Antes: avisarle a Juan (las versiones son suyas) y pasar las URLs al dominio de qa
-      (`npm run extension:url`). Al desplegar, aceptar que se borren las extensiones que no están en el código. Termina
-      con una versión nueva activa, con una sola extensión de pago (en
-      https://dev.shopify.com/dashboard/167881494/apps/317076176897/versions), y una compra en `creditop-dev-store` sin
-      `shopify app dev`.
-      Depende de: Dani — el host de qa.
+- [x] ~~Desplegar la app (`shopify app deploy`) contra un host fijo de pruebas~~ — activa `creditop-12` (2026-11-11),
+      desde `develop`: la app en `shopify-app.dev.creditop.com` y la sesión de pago y el reembolso en `:8443` con mTLS
+      (modo verify, sólo la CA de Shopify). Los cuatro desenlaces y el reembolso rechazado pasan por ahí.
 - [x] ~~Probar contra el `payment-link` de verdad~~ — #1682 mergeado a `qa` el 2026-10-19; todo el recorrido en qa
       (aprobado, pendiente, negado, reembolso rechazado y la plataforma 4) corrió contra él.
 - [x] ~~Agregar Shopify al catálogo `ecommerces` (id 4) y poder marcar una credencial con `ecommerce_type_id=4`~~ —
@@ -117,9 +112,12 @@ ramas: shopify:core-801, core-689-shopify-platform
       y el monto, y operaciones cancela o ajusta el crédito aparte. Producto decide si la tienda puede mostrar
       «reembolsado» antes de que se cancele el crédito y quién devuelve la plata (¿el comercio a la entidad?).
       Depende de: Producto. Termina con la regla escrita acá y la app aprobando y avisando.
-- [ ] Alojar la app con URL fija (QA y después producción): en pausa hasta que Shopify apruebe a Creditop como Payments
-      Partner; el plan y las variables están en `artifacts/creditop-para-shopify.html`. Ojo: desde el cambio a Postgres,
-      `shopify app dev` en local necesita `DATABASE_URL`.
+- [ ] Renovar las CRL de Shopify en el trust store del ALB (las de la intermedia y la raíz, en PEM, cada semana) y
+      avisar si falla. Termina con la revocación cargada en dev y en prod y el job corriendo.
+      Depende de: Dani — un módulo de infra que las renueve.
+- [ ] Cerrar `/payments/session` y `/payments/refund` en el 443 con una regla explícita de respuesta fija (hoy se
+      cierran porque ninguna regla las manda a la app). Termina con la regla en dev y en prod.
+      Depende de: Dani — infra.
 - [ ] Que el backend de qa llegue a `playground.creditop.com`, para que el aviso de fin de solicitud le llegue solo al host
       que se sirve por el playground (`/s/shopify.app.miguel.com`). Hoy el balanceador `alb-internal-tools` (cuenta de
       producción, grupo `sg-000e5f43000d3c97d`) sólo deja entrar 3 IPs en el 443 —las de la VPN— y qa sale por otra: el
