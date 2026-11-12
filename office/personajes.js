@@ -93,6 +93,19 @@ const HAIR = {
     return { front: `<path d="${M(pt(h, from, 7))}${tufts} Q${h.cx + h.rx * .55} ${h.cy - h.ry * .42} ${h.cx + 8} ${h.cy - h.ry * .52} Q${h.cx - h.rx * .3} ${h.cy - h.ry * .62} ${h.cx - h.rx * .55} ${h.cy - h.ry * .46} Q${h.cx - h.rx * .82} ${h.cy - h.ry * .38} ${pt(h, from, 4).join(' ')}Z" fill="${c}"/>
       <path d="M${h.cx - 18} ${h.cy - h.ry - 4} q12 -10 30 -4 M${h.cx + 24} ${h.cy - h.ry + 6} q12 -6 22 2" stroke="${shade(c, 1.35)}" stroke-width="5" fill="none" stroke-linecap="round"/>` }
   },
+  // recogido: pelo largo peinado hacia atrás (la cola no se ve de frente), raya al medio y dos mechones sueltos que
+  // caen por los costados de la frente hasta las mejillas
+  recogido: (h, c) => {
+    const l = shade(c, 1.3)
+    const strand = (s) => `<path d="M${h.cx + s * 10} ${h.cy - h.ry * .74} Q${h.cx + s * h.rx * .62} ${h.cy - h.ry * .66} ${h.cx + s * h.rx * .8} ${h.cy - h.ry * .1} Q${h.cx + s * h.rx * .86} ${h.cy + h.ry * .26} ${h.cx + s * h.rx * .74} ${h.cy + h.ry * .36} Q${h.cx + s * h.rx * .72} ${h.cy - h.ry * .04} ${h.cx + s * h.rx * .5} ${h.cy - h.ry * .5} Q${h.cx + s * h.rx * .28} ${h.cy - h.ry * .66} ${h.cx + s * 10} ${h.cy - h.ry * .74}Z" fill="${c}"/>`
+    return {
+      back: `<ellipse cx="${h.cx + h.rx * .5}" cy="${h.cy - h.ry * .5}" rx="22" ry="18" fill="${shade(c, .85)}"/>`,
+      front: `<path d="${M(pt(h, 182, 6))} ${arc(h, 182, 358, 7)} Q${h.cx + h.rx * .7} ${h.cy - h.ry * .66} ${h.cx} ${h.cy - h.ry * .78} Q${h.cx - h.rx * .7} ${h.cy - h.ry * .66} ${pt(h, 182, 4).join(' ')}Z" fill="${c}"/>
+        ${strand(-1)}${strand(1)}
+        <path d="M${h.cx} ${h.cy - h.ry - 6} Q${h.cx + 2} ${h.cy - h.ry * .9} ${h.cx} ${h.cy - h.ry * .78}" stroke="${shade(c, .7)}" stroke-width="3" fill="none"/>
+        <path d="M${h.cx - 40} ${h.cy - h.ry + 4} q16 -10 30 -6 M${h.cx + 14} ${h.cy - h.ry + 2} q16 -6 30 2" stroke="${l}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
+    }
+  },
   // corto clásico: casquete pegado a la cabeza, más bajo a los costados (rebajado) y la línea de la frente pareja,
   // apenas entrada en las sienes
   short: (h, c) => {
@@ -138,7 +151,7 @@ const HAIR = {
 //   · hp, cuánto abulta el peinado que tapa (HAIR_VOL): el gorro se apoya por fuera del pelo, no adentro de él;
 //   · la línea del gorro (hatLine): el borde de abajo, que va de una sien a la otra abrazando la frente, más bajo en
 //     el medio, como se ve una prenda redonda puesta en la cabeza.
-const HAIR_VOL = { curly: 22, long: 12, bob: 12 } // el resto, aplastado bajo el gorro: 6
+const HAIR_VOL = { curly: 22, long: 12, bob: 12, recogido: 8 } // el resto, aplastado bajo el gorro: 6
 // los peinados cortos quedan enteros debajo del gorro: no asoma nada (una patilla suelta se veía como un recorte)
 const SHORT_HAIR = ['side', 'crop', 'short', 'buzz', 'bun', 'beanie']
 function hatLine(h, hp) {
@@ -669,7 +682,7 @@ const OPCIONES = {
     raton: ['#a3a8ae', '#c9c2b4', '#8a8f96'], rana: ['#7fbf5a', '#5ea06b', '#a6c95a'], pinguino: ['#22283a', '#2e3a52', '#1d1f24'], buho: ['#8a5a3c', '#6b4a33', '#a8805a'],
     tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c'] },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
-  hair: { side: 'Raya al lado', short: 'Corto clásico', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
+  hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
   face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón' },
   beardStyle: { '': 'Sin barba', corta: 'Corta', tupida: 'Tupida', delgada: 'Delgada', chivera: 'Chivera', candado: 'Candado', bigote: 'Solo bigote' },
