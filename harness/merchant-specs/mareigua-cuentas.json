@@ -1,0 +1,14 @@
+{
+  "nombre": "Mareigua Cuentas Pruebas",
+  "slug": "mareigua-cuentas-pruebas",
+  "porque": "Comercio LOCAL para probar con qué cuenta de Mareigua se consulta en el onboarding (tarea 107): las entidades «Entidad Prueba 1» y «Entidad Prueba 2» tienen cada una su credencial de Mareigua, y cada sucursal combina entidades distintas. Sólo el comercio y sus sucursales: las dos entidades y sus credenciales se arman aparte, porque esta siembra BORRA y vuelve a crear las entidades que declara.",
+  "pais": 47,
+  "molde_comercio": 158,
+  "comercio": {},
+  "sucursales": [
+    { "nombre": "Dos con cuenta", "ciudad": 149 },
+    { "nombre": "Sólo la 2", "ciudad": 149 },
+    { "nombre": "Sin cuenta", "ciudad": 149 }
+  ],
+  "entidades": []
+}
