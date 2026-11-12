@@ -41,20 +41,22 @@ type Sample struct {
 
 // Subject es una señal con su última hora, lo normal, el veredicto y la curva del día.
 type Subject struct {
-	Signal  Signal   `json:"signal"`
-	Kind    string   `json:"kind"` // all · lender · merchant · service · queue
-	ID      int      `json:"id"`
-	Name    string   `json:"name"`
-	Now     Window   `json:"now"`
-	Median  float64  `json:"median"`
-	Low     int      `json:"low"`  // percentil 10 de los días comparables
-	High    int      `json:"high"` // percentil 90
-	Spread  float64  `json:"spread"`
-	Z       float64  `json:"z"`
-	Samples []Sample `json:"samples"`
-	State   string   `json:"state"` // alert · warn · ok · quiet (sostenido)
-	Raw     string   `json:"raw"`   // el nivel de ahora, sin sostener
-	Why     string   `json:"why"`
+	Signal Signal `json:"signal"`
+	Kind   string `json:"kind"` // all · lender · merchant · service · queue
+	ID     int    `json:"id"`
+	Name   string `json:"name"`
+	// WindowMinutes: cuánto mira hacia atrás `now` (y lo normal): una hora, o más para lo que se sigue y es chico.
+	WindowMinutes int      `json:"windowMinutes"`
+	Now           Window   `json:"now"`
+	Median        float64  `json:"median"`
+	Low           int      `json:"low"`  // percentil 10 de los días comparables
+	High          int      `json:"high"` // percentil 90
+	Spread        float64  `json:"spread"`
+	Z             float64  `json:"z"`
+	Samples       []Sample `json:"samples"`
+	State         string   `json:"state"` // alert · warn · ok · quiet (sostenido)
+	Raw           string   `json:"raw"`   // el nivel de ahora, sin sostener
+	Why           string   `json:"why"`
 	// Shift: si el nivel diario cambió y se quedó (×2 o la mitad, la última semana contra las anteriores).
 	Shift *Shift `json:"shift,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
@@ -256,7 +258,7 @@ func (s *sentinel) evaluator(rules Rules) evaluator {
 			deployTimes = append(deployTimes, t)
 		}
 	}
-	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, ceils: map[string]float64{}}
+	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, ceils: map[string]float64{}, follows: s.follow.has}
 }
 
 func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
@@ -322,7 +324,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 	}
 	ev, level := e.sustained(sig, now)
 	se := e.data[sig]
-	subj.Now = Window{Total: ev.Now, Approved: window(se.approved, now, e.rules.WindowMinutes), Denied: window(se.denied, now, e.rules.WindowMinutes)}
+	subj.WindowMinutes = ev.Minutes
+	subj.Now = Window{Total: ev.Now, Approved: window(se.approved, now, ev.Minutes), Denied: window(se.denied, now, ev.Minutes)}
 	if done := subj.Now.Approved + subj.Now.Denied; done > 0 {
 		subj.DeniedRate = float64(subj.Now.Denied) / float64(done)
 	}

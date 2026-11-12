@@ -60,6 +60,11 @@ type Rules struct {
 	AfterDeployFactor float64             `json:"afterDeployFactor"`
 	Signals           map[Signal]Override `json:"signals"`
 	Notify            NotifyRules         `json:"notify"`
+	// FollowedWindows: las ventanas más largas (minutos) para el VOLUMEN de lo que se sigue (following.go) cuando en una
+	// hora no alcanza para comparar. Un comercio chico (Pullman, ~2,5 por hora) quedaba siempre en «poco volumen» y no
+	// podía alertar nunca; se usa la primera de estas ventanas en la que lo normal llega a `minMedian`. Sólo para lo que
+	// se sigue: lo demás sigue mirando una hora, y el backtest de todo lo otro no cambia.
+	FollowedWindows []int `json:"followedWindows"`
 }
 
 func defaultRules() Rules {
@@ -68,8 +73,9 @@ func defaultRules() Rules {
 		Volume:           Thresholds{MinMedian: 3, WarnZ: -2.5, AlertZ: -3.5, Ratio: 0.6},
 		Errors:           Thresholds{MinMedian: 3, WarnZ: 3, AlertZ: 4.5, Ratio: 1.5, Ceiling: 0.99, CeilingAlert: 2},
 		AfterDeployHours: 2, AfterDeployFactor: 0.75,
-		Notify:  NotifyRules{Level: "alert", ClearMinutes: 30, StaleMinutes: 30, Recovered: true, Merchants: "following"},
-		Signals: map[Signal]Override{},
+		Notify:          NotifyRules{Level: "alert", ClearMinutes: 30, StaleMinutes: 30, Recovered: true, Merchants: "following"},
+		Signals:         map[Signal]Override{},
+		FollowedWindows: []int{180, 360},
 	}
 }
 
@@ -205,6 +211,7 @@ const (
 )
 
 type Eval struct {
+	Minutes int // la ventana que se miró: WindowMinutes, o una de FollowedWindows
 	Now     int
 	Samples []float64
 	Dates   []string
@@ -221,6 +228,18 @@ type evaluator struct {
 	have    map[string]bool
 	deploys []time.Time        // a producción
 	ceils   map[string]float64 // el techo de los errores por señal y día, calculado una vez
+	follows func(Signal) bool  // lo que se sigue: puede mirar una ventana más larga (FollowedWindows)
+}
+
+// span: la ventana en palabras, para los porqués.
+func span(minutes int) string {
+	if minutes == 60 {
+		return "la última hora"
+	}
+	if minutes%60 == 0 {
+		return fmt.Sprintf("las últimas %d horas", minutes/60)
+	}
+	return fmt.Sprintf("los últimos %d minutos", minutes)
 }
 
 // ceiling: el cuantil q de las ventanas de una hora, cada 10 minutos, de TODO el día, en los días comparables.
@@ -259,15 +278,6 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 		ev.Level, ev.Why = levelQuiet, "sin datos"
 		return ev
 	}
-	minutes := e.rules.WindowMinutes
-	ev.Now = window(se.total, t, minutes)
-	for _, past := range comparable(t, e.rules.BaselineDays, e.have) {
-		ev.Samples = append(ev.Samples, float64(window(se.total, past, minutes)))
-		ev.Dates = append(ev.Dates, past.Format("2006-01-02"))
-	}
-	ev.Median = median(ev.Samples)
-	ev.Spread = spread(ev.Samples, ev.Median)
-	ev.Z = (float64(ev.Now) - ev.Median) / ev.Spread
 	th := e.rules.Volume
 	if errorKind(sig) {
 		th = e.rules.Errors
@@ -276,6 +286,30 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	if over.MinMedian != nil {
 		th.MinMedian = *over.MinMedian
 	}
+	measure := func(minutes int) {
+		ev.Minutes, ev.Samples, ev.Dates = minutes, nil, nil
+		ev.Now = window(se.total, t, minutes)
+		for _, past := range comparable(t, e.rules.BaselineDays, e.have) {
+			ev.Samples = append(ev.Samples, float64(window(se.total, past, minutes)))
+			ev.Dates = append(ev.Dates, past.Format("2006-01-02"))
+		}
+		ev.Median = median(ev.Samples)
+	}
+	measure(e.rules.WindowMinutes)
+	// Lo que se sigue y no alcanza en una hora mira más tiempo hacia atrás: la primera ventana en la que lo normal llega
+	// al mínimo. Si ninguna alcanza, se queda con la más larga (y dice «poco volumen» con ese número).
+	if !errorKind(sig) && e.follows != nil && e.follows(sig) && ev.Median < th.MinMedian {
+		for _, m := range e.rules.FollowedWindows {
+			if m > ev.Minutes {
+				measure(m)
+				if ev.Median >= th.MinMedian {
+					break
+				}
+			}
+		}
+	}
+	ev.Spread = spread(ev.Samples, ev.Median)
+	ev.Z = (float64(ev.Now) - ev.Median) / ev.Spread
 	factor := 1.0
 	if e.afterDeploy(t) {
 		factor = e.rules.AfterDeployFactor
@@ -287,7 +321,7 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	case len(ev.Samples) < e.rules.MinSamples:
 		ev.Level, ev.Why = levelQuiet, fmt.Sprintf("poca historia para comparar (%d días)", len(ev.Samples))
 	case ev.Median < th.MinMedian && !(errorKind(sig) && float64(ev.Now) >= th.Ratio*math.Max(ev.Median, 1)*3):
-		ev.Level, ev.Why = levelQuiet, fmt.Sprintf("%d; poco volumen para comparar (%s)", ev.Now, normal)
+		ev.Level, ev.Why = levelQuiet, fmt.Sprintf("%d en %s; poco volumen para comparar (%s)", ev.Now, span(ev.Minutes), normal)
 	case errorKind(sig):
 		up := float64(ev.Now) >= th.Ratio*math.Max(ev.Median, 1)
 		ceil := 0.0
@@ -317,7 +351,7 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 		default:
 			ev.Level = levelOK
 		}
-		ev.Why = fmt.Sprintf("entraron %d en la última hora; %s", ev.Now, normal)
+		ev.Why = fmt.Sprintf("entraron %d en %s; %s", ev.Now, span(ev.Minutes), normal)
 	}
 	if factor != 1 && ev.Level >= levelOK {
 		ev.Why += " · más sensible: hubo un despliegue a producción hace menos de " + fmtNum(e.rules.AfterDeployHours) + " h"

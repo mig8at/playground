@@ -153,6 +153,10 @@ function pickSignal(sig) {
   else setRoute([])
   readRoute()
 }
+// La ventana que mira una señal: una hora, o más para lo que se sigue y es chico (FollowedWindows en el servidor).
+const hours = (s) => Math.round((s?.windowMinutes || 60) / 60)
+const spanLabel = (s) => (hours(s) === 1 ? 'Última hora' : `Últimas ${hours(s)} horas`)
+const spanShort = (s) => (hours(s) === 1 ? '' : ` (${hours(s)} h)`)
 const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
@@ -305,7 +309,7 @@ onBeforeUnmount(() => {
             <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
             <span class="subject-name">{{ s.name }}</span>
             <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
-            <small class="subject-nums" title="en la última hora · lo normal a esta hora">{{ s.now.total }} · {{ fmt(s.median) }}</small>
+            <small class="subject-nums" :title="`${spanLabel(s).toLowerCase()} · lo normal en esa ventana`">{{ s.now.total }} · {{ fmt(s.median) }}</small>
           </button>
           <button type="button" class="region-action unfollow" :title="`Dejar de seguir ${s.name}`" :aria-label="`Dejar de seguir ${s.name}`" @click="setFollow(s, false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
@@ -319,7 +323,7 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span>{{ selected ? selected.name : 'Sentinel' }}</span>
-        <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · última hora {{ clock(data.windowFrom) }}–{{ clock(data.windowTo) }}</span>
+        <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · {{ spanLabel(selected).toLowerCase() }} {{ clock(new Date(new Date(data.windowTo) - (selected.windowMinutes || 60) * 60000).toISOString()) }}–{{ clock(data.windowTo) }}</span>
       </div>
       <div class="region-body">
         <div v-if="selected" class="view">
@@ -329,13 +333,14 @@ onBeforeUnmount(() => {
           </p>
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
+          <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
 
           <div class="cards">
-            <div class="card-num"><span class="card-label">Última hora</span><span class="card-value">{{ selected.now.total }}</span>
+            <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
               <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
-              <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} a esta hora, en {{ selected.samples?.length || 0 }} días comparables</span></div>
+              <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="selected.kind === 'service'" class="card-num"><span class="card-label">Último despliegue a producción</span>
               <template v-if="lastDeployOf(selected.name)">
                 <span class="card-value">{{ lastDeployOf(selected.name).version }}</span>
@@ -371,7 +376,7 @@ onBeforeUnmount(() => {
           </section>
 
           <section v-if="selected.samples?.length" class="days">
-            <h3>Esta misma hora, los días comparables</h3>
+            <h3>{{ hours(selected) === 1 ? 'Esta misma hora' : `Estas mismas ${hours(selected)} horas` }}, los días comparables</h3>
             <div class="day-bars">
               <div v-for="x in [...selected.samples].reverse()" :key="x.date" class="day-bar" :title="`${x.date}: ${x.n}`">
                 <span class="bar" :style="{ height: `${Math.max(4, (x.n / dayBarMax) * 64)}px` }"></span>
@@ -428,7 +433,7 @@ onBeforeUnmount(() => {
               <td><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ STATE_LABEL[s.state] }}</td>
               <td class="name-cell">{{ s.name }}</td>
               <td class="muted">{{ TABLE_KIND[s.kind] }}</td>
-              <td class="num">{{ s.now.total }}</td>
+              <td class="num">{{ s.now.total }}<small v-if="hours(s) > 1" class="muted">{{ spanShort(s) }}</small></td>
               <td class="num">{{ fmt(s.median) }}</td>
               <td class="num muted">{{ s.low }}–{{ s.high }}</td>
               <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>

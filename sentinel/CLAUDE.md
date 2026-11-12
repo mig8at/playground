@@ -75,6 +75,10 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **Cambio de nivel** (`shift`): la mediana diaria de la última semana contra la de los días 8–28 atrás. Si se movió ×2
   o a la mitad, se muestra como nota, no como alerta: ya pasó a ser lo normal. Por esto `baselineDays` es 14 y no 28:
   con 28, un cambio que se queda mezcla dos regímenes y la dispersión se infla.
+- **Lo que se sigue y es chico mira más tiempo** (`followedWindows`, 180 y 360 min): si en una hora lo normal no llega a
+  `minMedian`, se usa la primera ventana más larga en la que sí, y la interfaz lo dice («últimas 3 horas»). Pullman
+  (~2,5 por hora) quedaba siempre en «poco volumen» y no podía alertar; con 3 horas se compara (lo normal 4,5 a media
+  mañana). Sólo para el volumen de lo que se sigue: lo demás sigue en una hora y su backtest no cambia.
 - **Las negadas** se muestran pero no alertan: lo de hoy todavía no terminó de avanzar y se compara con días asentados.
 - Todo se puede ajustar sin tocar código en `sentinel/rules.json` (opcional; lo que no dice queda por defecto), con
   `signals` para ignorar una señal o subirle el mínimo. Antes de cambiar algo, corré el `-backtest`.
@@ -107,8 +111,6 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 
 ## Lo que falta
 
-Los errores de pantalla que vio el cliente (PostHog), por pantalla. Para un comercio chico que se sigue (Pullman, ~2,5
-solicitudes por hora), la ventana de una hora queda en «poco volumen» casi siempre: una vista por día, o una ventana más
-larga para los seguidos, lo haría comparable. Avisar por otro canal (Slack, el chat del equipo)
+Los errores de pantalla que vio el cliente (PostHog), por pantalla. Avisar por otro canal (Slack, el chat del equipo)
 si los avisos de macOS no alcanzan. Las decisiones
 abiertas (qué vigilar, qué tan sensible, por dónde avisar) están en el frente de #96.

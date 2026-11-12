@@ -58,3 +58,41 @@ func TestMerchantNoticesOnlyWhenFollowed(t *testing.T) {
 		t.Fatalf("con merchants=all avisan todos: %+v", all.notices)
 	}
 }
+
+// Un comercio chico que se sigue mira 3 horas (o 6) si en una no alcanza; el mismo sin seguir sigue en «poco volumen».
+func TestFollowedSmallMerchantUsesLongerWindow(t *testing.T) {
+	now := time.Date(2026, 11, 12, 15, 0, 0, 0, bogota) // jueves
+	se := &series{map[string]*[bucketsPerDay]int{}, map[string]*[bucketsPerDay]int{}, map[string]*[bucketsPerDay]int{}}
+	have := map[string]bool{}
+	// Los días hábiles anteriores: una solicitud cada 30 minutos entre las 9 y las 18 (2 por hora); hoy, ninguna.
+	for d := 1; d <= 14; d++ {
+		day := now.AddDate(0, 0, -d)
+		if weekend(day) {
+			continue
+		}
+		date := day.Format("2006-01-02")
+		have[date] = true
+		arr := &[bucketsPerDay]int{}
+		for b := 9 * 12; b < 18*12; b += 6 {
+			arr[b] = 1
+		}
+		se.total[date] = arr
+	}
+	have[now.Format("2006-01-02")] = true
+	followed := map[Signal]bool{}
+	e := evaluator{rules: defaultRules(), data: map[Signal]*series{"merchant:94": se}, have: have, ceils: map[string]float64{},
+		follows: func(s Signal) bool { return followed[s] }}
+
+	if ev := e.eval("merchant:94", now); ev.Minutes != 60 || ev.Level != levelQuiet {
+		t.Fatalf("sin seguir: %d min, nivel %d (%s)", ev.Minutes, ev.Level, ev.Why)
+	}
+	followed["merchant:94"] = true
+	ev := e.eval("merchant:94", now)
+	// Ya se compara (no es «poco volumen»); que alerte lo decide la estadística: 0 contra 6 en 3 horas es z −2,45.
+	if ev.Minutes != 180 || ev.Median != 6 || ev.Level == levelQuiet {
+		t.Fatalf("seguido: %d min, mediana %v, nivel %d (%s)", ev.Minutes, ev.Median, ev.Level, ev.Why)
+	}
+	if want := "entraron 0 en las últimas 3 horas"; len(ev.Why) < len(want) || ev.Why[:len(want)] != want {
+		t.Fatalf("el porqué: %s", ev.Why)
+	}
+}
