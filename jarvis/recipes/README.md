@@ -87,8 +87,8 @@ Cada caso se hace primero **por pantalla con la red grabada** (`recipes/recorder
   - **Creditop no cancela sola**: a la cancelación contesta `cancel-manually`, y VTEX abre una tarea manual para una persona.
   - Las horas del registro vienen en UTC sin la «Z»; el admin las muestra en hora local.
 - **La configuración de pago de Creditop** (2026-11-07, contrastada con Providers y Payment Conditions del admin):
-  - Una **afiliación** es un comercio de CreditOp: su `appKey` es el hash de la sucursal, el mismo que aparece en el link del wizard (`/ecommerce/<hash>/checkout`). La **regla** (condición de pago) dice cuál cobra: hoy hay una sola, «Creditop qa».
-  - `isProduction` de la afiliación **no dice en qué ambiente está el comercio**: «Creditop-test» dice `true` y su hash existe sólo en qa. Por eso la receta busca en los dos.
+  - Una **afiliación** es un comercio de CreditOp: su `appKey` es el hash de la sucursal, el mismo que aparece en el link del wizard (`/ecommerce/<hash>/checkout`). La **regla** (condición de pago) dice cuál cobra: hoy hay una sola, «Creditop», que apunta a «Creditop · producción» (workspace `master`, prod). Las de qa, «Creditop · pruebas» y «Creditop · pruebas Mario», van al workspace `pruebas`, cuya app está en QA (2026-11-12).
+  - `isProduction` de la afiliación **no dice en qué ambiente está el comercio**: lo decide la configuración de la app en el workspace de la afiliación. «[NO USAR] Creditop-test (v4)» dice `true` y su hash existe sólo en qa. Por eso la receta busca en los dos.
   - `make harness-vtex CASES=rotativo` cambia la regla por un rato y la devuelve: si un pedido de ese momento fue a otro comercio, es eso.
   - El workspace `develop` se borró el 2026-11-06 (comentario de `harness/pkg/vtex.ts`): los pedidos de antes muestran `develop--creditop` en su registro, y los de después `master--creditop`.
 - **Las promociones** (2026-11-07, contra el esquema oficial `vtex/openapi-schemas` «Promotions & Taxes API» y medido):

@@ -6,9 +6,11 @@
 // {grupo}`, que dispara el authorize del conector y devuelve la URL a la que mandaría al comprador (el wizard con
 // `?ref=`). Sin autenticar, la API niega el pedido (`CHK003 Aceso bloqueado`): va con la llave de la cuenta.
 //
-// QUÉ CONECTOR ATIENDE lo decide la condición de pago activa, no esta API: hoy «Creditop qa» → afiliación v5 del
-// workspace `master` (el `develop` se borró el 2026-11-06), cuya configuración manda a qa. Por eso sólo tiene sentido
-// con TARGET=qa.
+// QUÉ CONECTOR ATIENDE lo decide la condición de pago activa, no esta API. Desde el 2026-11-12 la condición «Creditop»
+// apunta a «Creditop · producción» (workspace `master`, app en Producción, sucursal 84297564 de prod): una compra sin
+// cambiar la condición crea una solicitud REAL en prod. Las afiliaciones de qa son «Creditop · pruebas» (ecf9342be) y
+// «Creditop · pruebas Mario» (1126106a), en el workspace `pruebas`, cuya app está en QA: para correr contra qa hay que
+// apuntar la condición a una de ellas mientras dura (`withAffiliationFor`).
 //
 // ESCRIBE en VTEX (pedidos reales de la cuenta de pruebas) y, a través del conector, en la base compartida de qa (el
 // pedido de `payment-link`), igual que una compra a mano.
