@@ -72,7 +72,7 @@
 .tile.talking .beak-jaw { animation: jaw .24s ease-in-out infinite alternate; }
 .tile.talking .beak-top { animation: bill .24s ease-in-out infinite alternate; }
 .tile.talking .beak-inside { animation: inside .24s ease-in-out infinite alternate; }
-@keyframes jaw { from { transform: translateY(-9px); } to { transform: translateY(7px) rotate(1.5deg); } }
+@keyframes jaw { from { transform: translateY(-8px); } to { transform: translateY(4px) rotate(1deg); } }
 @keyframes bill { from { transform: translateY(1px); } to { transform: translateY(-3px); } }
 @keyframes inside { from { transform: scaleY(.25); } to { transform: scaleY(1); } }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
