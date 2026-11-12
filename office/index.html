@@ -191,8 +191,8 @@
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
   { id: 'duncan', nose: 'bulb', eye: 22, teeth: 'grin', name: 'Duncan', kind: 'human', skin: '#c68a5e', hair: 'crop', hairColor: '#5a3a22', shirt: '#2b6670', accent: '#f1e4c7', neck: 'collar', extras: ['beard', 'glasses'], face: 'wide', scene: 'sunset' },
-  { id: 'd-bot1', nose: 'button', eye: 28, name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hairColor: '#1f1712', shirt: '#f08c3d', neck: 'turtle', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
-  { id: 'd-bot2', nose: 'long', eye: 24, teeth: 'buck', name: 'agente 2', owner: 'Duncan', kind: 'agent', skin: '#f2c9a3', hair: 'curly', hairColor: '#8a4b2a', shirt: '#c5381f', accent: '#f1e4c7', neck: 'hoodie', extras: ['headphones'], gear: '#13323a', face: 'round', scene: 'hills' },
+  { id: 'd-bot1', initial: '1', nose: 'button', eye: 28, name: 'agente 1', owner: 'Duncan', kind: 'agent', skin: '#e9b98f', hair: 'bob', hairColor: '#1f1712', shirt: '#f08c3d', neck: 'turtle', extras: ['earrings'], gear: '#c5381f', lashes: true, face: 'soft', scene: 'clouds' },
+  { id: 'd-bot2', initial: '2', nose: 'long', eye: 24, teeth: 'buck', name: 'agente 2', owner: 'Duncan', kind: 'agent', skin: '#f2c9a3', hair: 'curly', hairColor: '#8a4b2a', shirt: '#c5381f', accent: '#f1e4c7', neck: 'hoodie', extras: ['headphones'], gear: '#13323a', face: 'round', scene: 'hills' },
   { id: 'miguel', nose: 'hook', eye: 26, teeth: 'grin', name: 'Miguel', kind: 'human', skin: '#e0ac7e', hair: 'side', hairColor: '#1f1712', shirt: '#e5592a', accent: '#13323a', neck: 'crew', face: 'round', scene: 'sun' },
   { id: 'luigi', nose: 'button', eye: 30, name: 'Luigi', owner: 'Miguel', kind: 'agent', skin: '#f0c49b', hair: 'long', hairColor: '#962b19', shirt: '#8db3a9', accent: '#f1e4c7', neck: 'cardigan', extras: ['freckles'], lashes: true, face: 'soft', scene: 'waves' },
   { id: 'wario', nose: 'bulb', eye: 20, lids: true, teeth: 'buck', name: 'Wario', owner: 'Miguel', kind: 'agent', skin: '#a8703f', hair: 'buzz', hairColor: '#23171a', shirt: '#1d4a54', accent: '#f08c3d', neck: 'crew', extras: ['glasses'], glassesRound: true, face: 'tall', scene: 'dusk' },
@@ -330,9 +330,15 @@ function face(h, f) {
   const L = cx - gap, R = cx + gap, pr = eye * .36
   const lash = f.lashes ? `<path d="M${L - eye * .8} ${eyeY - eye * .6} l-10 -8 M${L - eye * .5} ${eyeY - eye * .85} l-6 -10 M${R + eye * .8} ${eyeY - eye * .6} l10 -8 M${R + eye * .5} ${eyeY - eye * .85} l6 -10" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
   const lids = f.lids ? `<path d="M${L - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z M${R - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z" fill="${f.nose}"/>` : ''
-  const teethTop = f.teeth === 'buck'
-    ? `<rect x="${cx - 12}" y="${mouthY - 6}" width="11" height="15" rx="3" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY - 6}" width="11" height="15" rx="3" fill="#fbf4e4"/>`
-    : f.teeth === 'grin' ? `<path d="M${cx - 26} ${mouthY - 5} h52 q-2 9 -8 13 h-36 q-6 -4 -8 -13Z" fill="#fbf4e4"/>` : ''
+  // Los dientes se recortan con la misma forma de la boca (clipPath por recuadro): cuelgan del labio de arriba y
+  // nunca asoman por encima. Los salidos son dos paletas un poco más largas que bajan desde ese borde.
+  const smileD = `M${cx - 30} ${mouthY - 6} q30 34 60 0 q-30 14 -60 0Z`
+  const id = f.id, upper = mouthY + 1 // el labio de arriba de la sonrisa, en el centro
+  const teethSmile = f.teeth === 'buck' ? `<rect x="${cx - 11}" y="${upper - 6}" width="10" height="15" rx="3" fill="#fbf4e4"/><rect x="${cx + 1}" y="${upper - 6}" width="10" height="15" rx="3" fill="#fbf4e4"/>`
+    : f.teeth === 'grin' ? `<rect x="${cx - 30}" y="${mouthY - 8}" width="60" height="16" fill="#fbf4e4"/>` : ''
+  const teethTalk = f.teeth === 'buck' ? `<rect x="${cx - 10}" y="${mouthY - 14}" width="9" height="15" rx="3" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY - 14}" width="9" height="15" rx="3" fill="#fbf4e4"/>`
+    : f.teeth === 'grin' ? `<rect x="${cx - 20}" y="${mouthY - 14}" width="40" height="9" fill="#fbf4e4"/>` : ''
+  const clips = `<defs><clipPath id="ms-${id}"><path d="${smileD}"/></clipPath><clipPath id="mt-${id}"><ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17"/></clipPath></defs>`
   return `
     <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye * 1.06}" fill="#fbf4e4"/>`)}
       <g class="pupils"><circle cx="${L + 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/><circle cx="${R - 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/>
@@ -340,17 +346,20 @@ function face(h, f) {
       ${lids}${lash}</g>
     <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
     <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
-    <g class="m-smile">${soft(`<path d="M${cx - 30} ${mouthY - 6} q30 34 60 0 q-30 14 -60 0Z" fill="#962b19"/>`)}${teethTop}</g>
-    <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}${teethTop}</g></g>
+    ${clips}
+    <g class="m-smile">${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
+    <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
     <g class="m-think">${soft(`<path d="M${cx - 16} ${mouthY + 4} q9 -9 18 0 q9 9 18 -3 l2 6 q-11 11 -21 1 q-8 -6 -15 2Z" fill="${f.mouth}"/>`)}</g>
-    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 7}" y="${mouthY + 4}" width="7" height="9" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 4}" width="7" height="9" rx="2" fill="#fbf4e4"/>` : ''}</g>
+    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>
     ${soft(NOSES[f.noseShape || 'button'](cx, cy, f.noseColor))}`
 }
 
 // El torso: hombros, cuello de la prenda y, en los agentes, el prendedor de chispa.
 const NECKS = {
   crew: (p) => soft(`<path d="M162 236 q38 26 76 0 q-4 18 -38 22 q-34 -4 -38 -22Z" fill="${p.accent}"/>`),
-  collar: (p) => soft(`<path d="M158 232 l42 30 l-26 14Z M242 232 l-42 30 l26 14Z" fill="${p.accent}"/>`),
+  collar: (p) => `<path d="M178 230 L200 266 L222 230Z" fill="${shade(p.skin, .86)}"/>
+    <path d="M200 266 V306" stroke="${shade(p.shirt, .78)}" stroke-width="6"/><circle cx="200" cy="280" r="3.5" fill="${p.accent}"/><circle cx="200" cy="296" r="3.5" fill="${p.accent}"/>
+    ${soft(`<path d="M178 228 L200 266 L176 272 Q162 252 166 232Z M222 228 L200 266 L224 272 Q238 252 234 232Z" fill="${p.accent}"/>`)}`,
   hoodie: (p) => soft(`<path d="M150 232 q50 40 100 0 q4 16 -8 22 q-42 24 -84 0 q-12 -6 -8 -22Z" fill="${shade(p.shirt, .8)}"/><path d="M186 254 v26 M214 254 v26" stroke="${p.accent}" stroke-width="5" stroke-linecap="round"/>`),
   turtle: (p) => soft(`<rect x="172" y="226" width="56" height="26" rx="10" fill="${shade(p.shirt, .85)}"/>`),
   cardigan: (p) => soft(`<path d="M168 234 l32 70 l32 -70 q-32 22 -64 0Z" fill="${p.accent}"/><circle cx="200" cy="282" r="4" fill="${shade(p.shirt, .7)}"/>`),
@@ -359,7 +368,9 @@ function torso(p) {
   return `<g class="body">
     ${cut(`<path d="M72 306 q6-74 128-78 q122 4 128 78Z" fill="${p.shirt}"/>`)}
     ${NECKS[p.neck || 'crew'](p)}
-    ${p.agent ? soft(`<circle cx="268" cy="270" r="15" fill="#f1e4c7"/><path d="M268 258 l3.5 8.5 l8.5 3.5 l-8.5 3.5 l-3.5 8.5 l-3.5 -8.5 l-8.5 -3.5 l8.5 -3.5Z" fill="#e5592a"/>`) : ''}
+    ${soft(`<circle cx="256" cy="262" r="19" fill="${p.patch || '#f1e4c7'}"/><circle cx="256" cy="262" r="14" fill="none" stroke="${shade(p.shirt, .75)}" stroke-width="2" stroke-dasharray="3 3"/>`)}
+    <text x="256" y="271" text-anchor="middle" font-family="Nunito, ui-rounded, sans-serif" font-weight="900" font-size="24" fill="${shade(p.shirt, .7)}">${p.initial || p.name[0].toUpperCase()}</text>
+    ${p.agent ? soft(`<circle cx="292" cy="284" r="11" fill="#f1e4c7"/><path d="M292 276 l2.5 5.5 l5.5 2.5 l-5.5 2.5 l-2.5 5.5 l-2.5 -5.5 l-5.5 -2.5 l5.5 -2.5Z" fill="#e5592a"/>`) : ''}
   </g>`
 }
 // las manos aparecen abajo, tecleando, sólo mientras teclea
@@ -381,7 +392,7 @@ function person(p) {
     <ellipse cx="${h.cx - rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/><ellipse cx="${h.cx + rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
-    ${face(h, { brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
+    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
     ${cut(hair.front)}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
