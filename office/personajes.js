@@ -150,7 +150,10 @@ function torso(p) {
   const j = p.shirt, jd = shade(j, .78), jl = shade(j, 1.18)
   return `<g class="body">
     ${cut(`<path d="M72 306 q6-74 128-78 q122 4 128 78 L336 420 L64 420Z" fill="${j}"/>`)}
-    <path d="M180 230 L200 268 L220 230Z" fill="${p.accent || '#f1e4c7'}"/>
+    <path d="M172 228 L200 270 L228 228Z" fill="${p.accent || '#f1e4c7'}"/>
+    <path d="M181 190 h38 v52 q-19 12 -38 0Z" fill="${shade(p.skin, .86)}"/>
+    <path d="M181 190 h38 v18 q-19 10 -38 0Z" fill="${shade(p.skin, .74)}"/>
+    <path d="M178 240 q22 16 44 0" stroke="${shade(p.accent || '#f1e4c7', .8)}" stroke-width="6" fill="none" stroke-linecap="round"/>
     <path d="M84 420 V306 q6 -40 30 -58 M316 420 V306 q-6 -40 -30 -58" stroke="${jd}" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M200 268 V420" stroke="${jd}" stroke-width="7"/><path d="M200 268 V420" stroke="${jl}" stroke-width="2" stroke-dasharray="3 3"/>
     ${soft(`<rect x="195" y="270" width="10" height="16" rx="3" fill="${jl}"/>`)}
@@ -169,7 +172,6 @@ function person(p) {
   const behind = p.hair === 'long'
   return `${behind ? `<g class="head">${cut(hair.back)}</g>` : ''}${torso(p)}
   <g class="head">
-    ${cut(`<rect x="180" y="${h.cy + ry - 30}" width="40" height="46" rx="14" fill="${sh}"/>`)}
     ${hair.back && !behind ? cut(hair.back) : ''}
     ${cut(`<ellipse cx="${h.cx - rx + 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/><ellipse cx="${h.cx + rx - 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/>`)}
     ${has('earrings') ? EXTRAS.earrings(p, h) : ''}
