@@ -44,6 +44,8 @@ const shade = (hex, f) => {
   const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)))
   return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
 }
+// mezcla dos colores: t = 0 es el primero, 1 el segundo
+const mix = (a, b, t) => { const p = (h) => [16, 8, 0].map((s) => (parseInt(h.slice(1), 16) >> s) & 255); const [x, y] = [p(a), p(b)]; return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})` }
 const cut = (inner) => `<g class="cut">${inner}</g>`
 const soft = (inner) => `<g class="cut-soft">${inner}</g>`
 const r1 = (n) => Math.round(n * 10) / 10
@@ -76,6 +78,14 @@ const HAIR = {
     }
     return { front: `<path d="${M(pt(h, from, 7))}${tufts} Q${h.cx + h.rx * .55} ${h.cy - h.ry * .42} ${h.cx + 8} ${h.cy - h.ry * .52} Q${h.cx - h.rx * .3} ${h.cy - h.ry * .62} ${h.cx - h.rx * .55} ${h.cy - h.ry * .46} Q${h.cx - h.rx * .82} ${h.cy - h.ry * .38} ${pt(h, from, 4).join(' ')}Z" fill="${c}"/>
       <path d="M${h.cx - 18} ${h.cy - h.ry - 4} q12 -10 30 -4 M${h.cx + 24} ${h.cy - h.ry + 6} q12 -6 22 2" stroke="${shade(c, 1.35)}" stroke-width="5" fill="none" stroke-linecap="round"/>` }
+  },
+  // corto clásico: casquete pegado a la cabeza, más bajo a los costados (rebajado) y la línea de la frente pareja,
+  // apenas entrada en las sienes
+  short: (h, c) => {
+    const side = shade(c, 1.12)
+    return { front: `<path d="${M(pt(h, 184, 5))} ${arc(h, 184, 356, 9)} L${pt(h, 356, 3).join(' ')} Q${h.cx + h.rx * .86} ${h.cy - h.ry * .3} ${h.cx + h.rx * .7} ${h.cy - h.ry * .52} Q${h.cx + h.rx * .5} ${h.cy - h.ry * .58} ${h.cx} ${h.cy - h.ry * .6} Q${h.cx - h.rx * .5} ${h.cy - h.ry * .58} ${h.cx - h.rx * .7} ${h.cy - h.ry * .52} Q${h.cx - h.rx * .86} ${h.cy - h.ry * .3} ${pt(h, 184, 3).join(' ')}Z" fill="${c}"/>
+      <path d="M${pt(h, 186, 4).join(' ')} Q${h.cx - h.rx * .98} ${h.cy - h.ry * .5} ${h.cx - h.rx * .9} ${h.cy - h.ry * .62} M${pt(h, 354, 4).join(' ')} Q${h.cx + h.rx * .98} ${h.cy - h.ry * .5} ${h.cx + h.rx * .9} ${h.cy - h.ry * .62}" stroke="${side}" stroke-width="6" fill="none" stroke-linecap="round" opacity=".5"/>
+      <path d="M${h.cx - 30} ${h.cy - h.ry - 2} q22 -12 52 -4" stroke="${shade(c, 1.4)}" stroke-width="5" fill="none" stroke-linecap="round"/>` }
   },
   // melena recta con flequillo hasta las cejas
   bob: (h, c) => ({
@@ -116,7 +126,7 @@ const HAIR = {
 //     el medio, como se ve una prenda redonda puesta en la cabeza.
 const HAIR_VOL = { curly: 22, long: 12, bob: 12 } // el resto, aplastado bajo el gorro: 6
 // los peinados cortos quedan enteros debajo del gorro: no asoma nada (una patilla suelta se veía como un recorte)
-const SHORT_HAIR = ['side', 'crop', 'buzz', 'bun', 'beanie']
+const SHORT_HAIR = ['side', 'crop', 'short', 'buzz', 'bun', 'beanie']
 function hatLine(h, hp) {
   const L = pt(h, 200, hp), R = pt(h, 340, hp), C = [h.cx, h.cy - h.ry * .3]
   // un punto del borde, de t = 0 (sien izquierda) a 1 (sien derecha)
@@ -196,14 +206,15 @@ const EXTRAS = {
   headphones: (p, h) => `<g class="cut"><path d="${M(pt(h, 180, 20))} ${arc(h, 180, 360, 20)}" fill="none" stroke="${p.gear}" stroke-width="13" stroke-linecap="round"/><rect x="${h.cx - h.rx - 22}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/><rect x="${h.cx + h.rx - 8}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/></g>`,
   earrings: (p, h) => `<g class="cut-soft"><circle cx="${h.cx - h.rx - 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/><circle cx="${h.cx + h.rx + 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/></g>`,
   beard: (p, h) => {
-    const c = p.hairColor, chin = h.cy + h.ry + 12
-    // de la patilla izquierda, por el contorno de la cara, a la derecha; abajo cierra en ondas suaves hacia el mentón
-    const jaw = `${M(pt(h, 196, 3))} ${arc(h, 196, 164, 3)} Q${h.cx - h.rx * .6} ${chin - 6} ${h.cx - 26} ${chin} Q${h.cx - 13} ${chin + 8} ${h.cx} ${chin + 4} Q${h.cx + 13} ${chin + 8} ${h.cx + 26} ${chin} Q${h.cx + h.rx * .6} ${chin - 6} ${pt(h, 16, 3).join(' ')} ${arc(h, 16, -16, 3)}`
-    // por dentro: deja libres las mejillas y la boca
-    const inner = `L${h.cx + h.rx - 14} ${h.cy - 4} Q${h.cx + h.rx * .62} ${h.cy + h.ry * .3} ${h.cx + 30} ${h.cy + h.ry * .46} Q${h.cx} ${h.cy + h.ry * .36} ${h.cx - 30} ${h.cy + h.ry * .46} Q${h.cx - h.rx * .62} ${h.cy + h.ry * .3} ${h.cx - h.rx + 14} ${h.cy - 4}Z`
+    // barba corta y recortada: una franja que sigue la mandíbula desde las patillas, el mentón y el bigote; las
+    // mejillas quedan libres. Un tono apenas más claro que el pelo, como de barba corta.
+    const c = mix(p.hairColor, p.skin, .28), chin = h.cy + h.ry + 10
+    const jaw = `${M(pt(h, 194, 2))} ${arc(h, 194, 166, 2)} Q${h.cx - h.rx * .62} ${chin - 4} ${h.cx - 24} ${chin} Q${h.cx} ${chin + 6} ${h.cx + 24} ${chin} Q${h.cx + h.rx * .62} ${chin - 4} ${pt(h, 14, 2).join(' ')} ${arc(h, 14, -14, 2)}`
+    const inner = `L${h.cx + h.rx - 12} ${h.cy + 4} Q${h.cx + h.rx * .84} ${h.cy + h.ry * .6} ${h.cx + 32} ${h.cy + h.ry * .68} Q${h.cx} ${h.cy + h.ry * .6} ${h.cx - 32} ${h.cy + h.ry * .68} Q${h.cx - h.rx * .84} ${h.cy + h.ry * .6} ${h.cx - h.rx + 12} ${h.cy + 4}Z`
     return `<g class="cut-soft"><path d="${jaw} ${inner}" fill="${c}"/>
-      <path d="M${h.cx - 34} ${h.cy + h.ry * .44} q16 -16 34 -6 q18 -10 34 6 q-16 8 -34 2 q-18 6 -34 -2Z" fill="${c}"/></g>`
+      <path d="M${h.cx - 30} ${h.cy + h.ry * .47} q14 -11 30 -5 q16 -6 30 5 q-15 6 -30 1 q-15 5 -30 -1Z" fill="${c}"/></g>`
   },
+
   freckles: (p, h) => [[-52, 36], [-42, 44], [-32, 36], [32, 36], [42, 44], [52, 36]].map(([x, y]) => `<circle cx="${h.cx + x}" cy="${h.cy + y}" r="3" fill="#962b19" opacity=".5"/>`).join(''),
 }
 
@@ -631,7 +642,7 @@ const OPCIONES = {
     raton: ['#a3a8ae', '#c9c2b4', '#8a8f96'], rana: ['#7fbf5a', '#5ea06b', '#a6c95a'], pinguino: ['#22283a', '#2e3a52', '#1d1f24'], buho: ['#8a5a3c', '#6b4a33', '#a8805a'],
     tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c'] },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
-  hair: { side: 'Raya al lado', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
+  hair: { side: 'Raya al lado', short: 'Corto clásico', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
   face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada' },
   nose: { button: 'Botón', bulb: 'Bola', long: 'Larga', hook: 'Ganchuda' },
