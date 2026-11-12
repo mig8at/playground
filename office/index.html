@@ -184,8 +184,7 @@
 
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// Todos son personas, dibujadas a mano y originales. kind: 'human' | 'agent' (el agente lleva su prendedor de
-// chispa y owner, de quién es). hair: el peinado (HAIR), face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el paisaje de su recuadro. Ana, Leo y Sofi son invitados
+// Todos son personas, dibujadas a mano y originales. kind: 'human' | 'agent' (el agente lleva owner, de quién es). hair: el peinado (HAIR), face: la forma de la cara, extras: lentes, audífonos, aretes, barba, pecas. scene: el paisaje de su recuadro. Ana, Leo y Sofi son invitados
 // de ejemplo, para que se vea la variedad: no son del chat real. Los agentes de Duncan van con nombre genérico hasta
 // saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
@@ -242,8 +241,8 @@ const SCENES = {
 }
 
 // ── LOS PERSONAJES, EN PAPEL ─────────────────────────────────────────────────────────────────────
-// Caricaturas originales del torso para arriba: cabeza grande, hombros chicos. Todos son personas; los agentes
-// llevan un prendedor de chispa en el pecho. Cada pieza es una capa con sombra.
+// Caricaturas originales del torso para arriba: cabeza grande, hombros chicos. Todos son personas, con la
+// chaqueta del equipo; a los agentes los distingue su placa («agente de …»). Cada pieza es una capa con sombra.
 // La cara es la misma maquinaria para todos: ojos con pupila (.pupils), cejas (.brow-l / .brow-r) y cuatro bocas
 // (.m-smile, .m-talk, .m-think, .m-flat); el CSS elige cuál se ve y adónde miran según el estado del recuadro. La
 // cabeza (.head) y el cuerpo (.body) se balancean por separado, poquito, como un títere de recortes.
@@ -355,8 +354,7 @@ function face(h, f) {
 }
 
 // El torso: la chaqueta del equipo, igual para todos en el color de cada uno. Tiene cuello de solapas, cremallera,
-// la camiseta asomando en la V, el logo de CreditOp bordado en el pecho (se balancea con el cuerpo) y, en los
-// agentes, el prendedor de chispa.
+// la camiseta asomando en la V y el logo de CreditOp bordado en el pecho (se balancea con el cuerpo).
 // el hilo del bordado: crema sobre una chaqueta oscura, tinta sobre una clara
 const thread = (hex) => { const n = parseInt(hex.slice(1), 16); const l = .299 * (n >> 16) + .587 * ((n >> 8) & 255) + .114 * (n & 255); return l < 150 ? '#f6f1e6' : '#13323a' }
 function torso(p) {
@@ -368,8 +366,7 @@ function torso(p) {
     <path d="M200 268 V420" stroke="${jd}" stroke-width="7"/><path d="M200 268 V420" stroke="${jl}" stroke-width="2" stroke-dasharray="3 3"/>
     ${soft(`<rect x="195" y="270" width="10" height="16" rx="3" fill="${jl}"/>`)}
     ${soft(`<path d="M176 226 L200 268 L172 276 Q154 254 160 230Z M224 226 L200 268 L228 276 Q246 254 240 230Z" fill="${jd}"/>`)}
-    <use href="#creditop-logo-mono" x="220" y="258" width="78" height="10" style="color:${thread(j)}"/>
-    ${p.agent ? soft(`<circle cx="257" cy="292" r="10" fill="#f1e4c7"/><path d="M257 285 l2.3 5 l5 2.3 l-5 2.3 l-2.3 5 l-2.3 -5 l-5 -2.3 l5 -2.3Z" fill="#e5592a"/>`) : ''}
+    <use href="#creditop-logo-mono" x="218" y="285" width="78" height="10" style="color:${thread(j)}"/>
   </g>`
 }
 
