@@ -112,7 +112,10 @@ const HAIR = {
 //   · hp, cuánto abulta el peinado que tapa (HAIR_VOL): el gorro se apoya por fuera del pelo, no adentro de él;
 //   · la línea del gorro (hatLine): el borde de abajo, que va de una sien a la otra abrazando la frente, más bajo en
 //     el medio, como se ve una prenda redonda puesta en la cabeza.
-const HAIR_VOL = { side: 9, crop: 30, bob: 16, long: 18, curly: 26, bun: 8, buzz: 4, beanie: 14 }
+const HAIR_VOL = { curly: 22, long: 12, bob: 12 } // el resto, aplastado bajo el gorro: 6
+// los peinados cortos, bajo un gorro, se reducen a las patillas que asoman en las sienes
+const SHORT_HAIR = ['side', 'crop', 'buzz', 'bun', 'beanie']
+const sideburns = (h, c) => `<path d="${M(pt(h, 214, 1))} ${arc(h, 214, 182, 7)} L${pt(h, 176, 0).join(' ')}Z M${pt(h, 326, 1).join(' ')} ${arc(h, 326, 358, 7)} L${pt(h, 364, 0).join(' ')}Z" fill="${c}"/>`
 function hatLine(h, hp) {
   const L = pt(h, 204, hp), R = pt(h, 336, hp), C = [h.cx, h.cy - h.ry * .3]
   // un punto del borde, de t = 0 (sien izquierda) a 1 (sien derecha)
@@ -133,15 +136,21 @@ const HATS = {
       ${soft(`<path d="${cuff}" fill="${d}"/>`)}
       <path d="${ribs}" stroke="${shade(c, .64)}" stroke-width="3" stroke-linecap="round"/>`
   },
-  // chullo: como el de lana pero con orejeras que bajan de las sienes, cordones con borla y una franja en zigzag
+  // chullo: ceñido como el de lana, con orejeras que cuelgan del borde del gorro y tapan las orejas (lengüetas
+  // redondeadas), cordones con borla, una franja en zigzag y pompón
   chullo: (h, c, hp) => {
-    const d = shade(c, .78), k = hatLine(h, hp), low = h.cy + h.ry * .45
-    const flap = (P, side) => `<path d="M${P[0] + 28 * side} ${P[1] - 4} Q${P[0] - 4 * side} ${P[1] + 8} ${P[0] + 6 * side} ${low} Q${P[0] + 24 * side} ${low - 8} ${P[0] + 36 * side} ${P[1] + 20}Z" fill="${c}"/>
-      <path d="M${P[0] + 6 * side} ${low} q${-3 * side} 22 ${2 * side} 40" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="${P[0] + 8 * side}" cy="${low + 44}" r="8" fill="${d}"/>`
+    const d = shade(c, .78), k = hatLine(h, hp)
+    const ear = h.cy + h.ry * .42 // hasta dónde baja la orejera: un poco más abajo de la oreja
+    const flap = (side) => {
+      const outer = pt(h, side < 0 ? 190 : 350, hp + 2), inner = k.at(side < 0 ? .1 : .9)
+      const tipX = (outer[0] + inner[0]) / 2 - 4 * side
+      return `<path d="M${outer[0]} ${outer[1]} Q${outer[0] - 6 * side} ${ear - 30} ${tipX} ${ear} Q${inner[0] + 10 * side} ${ear - 26} ${inner[0]} ${inner[1]}Z" fill="${c}"/>
+        <path d="M${tipX} ${ear} q${-2 * side} 18 ${2 * side} 34" stroke="${d}" stroke-width="5" fill="none" stroke-linecap="round"/><circle cx="${tipX + 2 * side}" cy="${ear + 38}" r="8" fill="${d}"/>`
+    }
     const zig = []
-    for (let a = 212, i = 0; a <= 328; a += 8, i++) zig.push(pt(h, a, hp - (i % 2 ? 16 : 4)))
-    return `${cut(`${flap(k.L, -1)}${flap(k.R, 1)}<path d="${M(k.L)} ${arc(h, 204, 336, hp + 2)} ${k.edge}Z" fill="${c}"/><circle cx="${h.cx}" cy="${k.top - 16}" r="16" fill="${shade(c, 1.2)}"/>`)}
-      <path d="M${zig.map((q) => q.join(' ')).join(' L')}" stroke="#f1e4c7" stroke-width="6" fill="none" stroke-linejoin="round"/>
+    for (let a = 214, i = 0; a <= 326; a += 7, i++) zig.push(pt(h, a, hp - (i % 2 ? 22 : 10)))
+    return `${cut(`${flap(-1)}${flap(1)}<path d="${M(pt(h, 190, hp + 2))} ${arc(h, 190, 350, hp + 2)} L${k.R[0]} ${k.R[1]} ${k.edge}Z" fill="${c}"/><circle cx="${h.cx}" cy="${k.top - 14}" r="15" fill="${shade(c, 1.2)}"/>`)}
+      <path d="M${zig.map((q) => q.join(' ')).join(' L')}" stroke="#f1e4c7" stroke-width="6" fill="none" stroke-linejoin="round" stroke-linecap="round"/>
       <path d="M${k.R[0]} ${k.R[1]} ${k.edge}" stroke="${d}" stroke-width="8" fill="none" stroke-linecap="round"/>`
   },
   // cachucha: la copa en gajos se apoya en la línea del gorro y la visera sale del medio de ese borde
@@ -269,8 +278,8 @@ function person(p) {
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${has('beard') ? EXTRAS.beard(p, h) : ''}
     ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
-    ${cut(hair.front)}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 10) + 4) : ''}
+    ${cut(p.hat && SHORT_HAIR.includes(p.hair) ? sideburns(h, p.hairColor) : hair.front)}
+    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
   </g>`
