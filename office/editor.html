@@ -97,6 +97,7 @@
     <div class="field"><label for="eye">Ojos <span id="eye-size"></span></label><input type="range" id="eye" min="18" max="32" step="1"></div>
     <div class="field" data-human><label>Nariz</label><div class="row" data-options="nose"></div></div>
     <div class="field" data-human><label>Dientes</label><div class="row" data-options="teeth"></div></div>
+    <div class="field" data-human><label>Barba</label><div class="row" data-options="beardStyle"></div></div>
 
     <h2 data-human>Pelo</h2>
     <div class="field" data-human><label>Peinado</label><div class="row" data-options="hair"></div></div>
@@ -131,7 +132,7 @@
 <script>
 // ── EL PERSONAJE QUE SE EDITA ────────────────────────────────────────────────────────────────────
 const START = { name: 'Nuevo', owner: '', kind: 'human', species: '', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
-  extras: [], hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
+  extras: [], beardStyle: '', hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
 let saved = loadCustom()
 let cur = { ...START, id: newId() }
 let gesture = 'idle'

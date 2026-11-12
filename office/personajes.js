@@ -53,7 +53,21 @@ const r1 = (n) => Math.round(n * 10) / 10
 // LA GEOMETRÍA DE LA CABEZA. El pelo se arma sobre la misma elipse de la cara (agrandada un poco), así abraza el
 // contorno en vez de flotar encima: pt() da un punto de la elipse por ángulo (270° es arriba, 180° la izquierda).
 const HEAD = { cx: 200, cy: 146 }
-const pt = (h, deg, pad = 0) => { const a = (deg * Math.PI) / 180; return [r1(h.cx + (h.rx + pad) * Math.cos(a)), r1(h.cy + (h.ry + pad) * Math.sin(a))] }
+// La cara puede no ser una elipse: h.n la hace más cuadrada (2 es elipse) y h.rxB le da otro ancho a la mitad de abajo
+// (la mandíbula). El pelo, los gorros y la barba usan este mismo pt(), así se acomodan solos a cualquier forma.
+const pt = (h, deg, pad = 0) => {
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), e = 2 / (h.n || 2)
+  const rx = s > 0 && h.rxB ? h.rxB : h.rx
+  return [r1(h.cx + (rx + pad) * Math.sign(c) * Math.abs(c) ** e), r1(h.cy + (h.ry + pad) * Math.sign(s) * Math.abs(s) ** e)]
+}
+// el contorno de la cara, como trazado
+const headPath = (h, pad = 0) => { let d = ''; for (let a = 0; a < 360; a += 4) { const [x, y] = pt(h, a, pad); d += `${d ? 'L' : 'M'}${x} ${y} ` } return `${d}Z` }
+// las formas de cara: ancho arriba, alto, y opcionalmente cuadratura (n) y ancho de mandíbula (rxB)
+const FACES = {
+  round: { rx: 92, ry: 88 }, soft: { rx: 94, ry: 90 }, wide: { rx: 100, ry: 84 }, tall: { rx: 86, ry: 94 },
+  largo: { rx: 80, ry: 102 }, achatada: { rx: 106, ry: 76 }, cuadrada: { rx: 90, ry: 90, n: 3.4 },
+  mandibula: { rx: 84, ry: 92, rxB: 100, n: 2.6 }, corazon: { rx: 100, ry: 92, rxB: 72, n: 2.2 },
+}
 // un arco sobre la elipse, de a0 a a1 grados (sentido horario en pantalla), como «L x y L x y…»
 const arc = (h, a0, a1, pad = 0, step = 4) => { const out = []; for (let a = a0; a1 > a0 ? a <= a1 : a >= a1; a += a1 > a0 ? step : -step) out.push(pt(h, a, pad)); out.push(pt(h, a1, pad)); return out.map(([x, y]) => `L${x} ${y}`).join(' ') }
 const M = ([x, y]) => `M${x} ${y}`
@@ -205,15 +219,27 @@ const EXTRAS = {
   glasses: (p, h) => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><path d="M${h.cx - 10} ${h.cy - 2} h20"/></g>`,
   headphones: (p, h) => `<g class="cut"><path d="${M(pt(h, 180, 20))} ${arc(h, 180, 360, 20)}" fill="none" stroke="${p.gear}" stroke-width="13" stroke-linecap="round"/><rect x="${h.cx - h.rx - 22}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/><rect x="${h.cx + h.rx - 8}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/></g>`,
   earrings: (p, h) => `<g class="cut-soft"><circle cx="${h.cx - h.rx - 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/><circle cx="${h.cx + h.rx + 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/></g>`,
-  beard: (p, h) => {
-    // barba corta y recortada: una franja que sigue la mandíbula desde las patillas, el mentón y el bigote; las
-    // mejillas quedan libres. Un tono apenas más claro que el pelo, como de barba corta.
-    const c = mix(p.hairColor, p.skin, .28), chin = h.cy + h.ry + 10
-    const jaw = `${M(pt(h, 194, 2))} ${arc(h, 194, 166, 2)} Q${h.cx - h.rx * .62} ${chin - 4} ${h.cx - 24} ${chin} Q${h.cx} ${chin + 6} ${h.cx + 24} ${chin} Q${h.cx + h.rx * .62} ${chin - 4} ${pt(h, 14, 2).join(' ')} ${arc(h, 14, -14, 2)}`
-    const inner = `L${h.cx + h.rx - 12} ${h.cy + 4} Q${h.cx + h.rx * .84} ${h.cy + h.ry * .6} ${h.cx + 32} ${h.cy + h.ry * .68} Q${h.cx} ${h.cy + h.ry * .6} ${h.cx - 32} ${h.cy + h.ry * .68} Q${h.cx - h.rx * .84} ${h.cy + h.ry * .6} ${h.cx - h.rx + 12} ${h.cy + 4}Z`
-    return `<g class="cut-soft"><path d="${jaw} ${inner}" fill="${c}"/>
-      <path d="M${h.cx - 30} ${h.cy + h.ry * .47} q14 -11 30 -5 q16 -6 30 5 q-15 6 -30 1 q-15 5 -30 -1Z" fill="${c}"/></g>`
+  // LAS BARBAS: todas del tono de una barba corta (el color del pelo mezclado con la piel) y armadas sobre la forma de
+  // la cara. corta: franja por la mandíbula y bigote · tupida: también las mejillas · delgada: una línea fina por el
+  // borde de la mandíbula · chivera: bigote y barba sólo en el mentón · candado: bigote unido a la chivera alrededor de
+  // la boca · bigote: sólo el bigote
+  beard: (p, h, style = 'corta') => {
+    const c = mix(p.hairColor, p.skin, style === 'tupida' ? .12 : .28), mouthY = h.cy + h.ry * .56, chin = h.cy + h.ry + 10, cx = h.cx
+    const rxB = h.rxB || h.rx
+    const mustache = (w = 30, t = 0) => `<path d="M${cx - w} ${mouthY - 12 - t} q${w * .47} ${-11 - t} ${w} ${-5} q${w * .53} ${-6} ${w} ${5 + t} q${-w * .5} ${6 + t} ${-w} ${1} q${-w * .5} ${5 + t} ${-w} ${-1}Z" fill="${c}"/>`
+    const jaw = `${M(pt(h, 194, 2))} ${arc(h, 194, 166, 2)} Q${cx - rxB * .62} ${chin - 4} ${cx - 24} ${chin} Q${cx} ${chin + 6} ${cx + 24} ${chin} Q${cx + rxB * .62} ${chin - 4} ${pt(h, 14, 2).join(' ')} ${arc(h, 14, -14, 2)}`
+    const cheeks = (y1, y2) => `L${pt(h, -14, -12).join(' ')} Q${cx + rxB * .84} ${h.cy + h.ry * y1} ${cx + 32} ${h.cy + h.ry * y2} Q${cx} ${h.cy + h.ry * (y2 - .08)} ${cx - 32} ${h.cy + h.ry * y2} Q${cx - rxB * .84} ${h.cy + h.ry * y1} ${pt(h, 194, -12).join(' ')}Z`
+    const shapes = {
+      corta: `<path d="${jaw} ${cheeks(.6, .68)}" fill="${c}"/>${mustache()}`,
+      tupida: `<path d="${jaw} ${cheeks(.3, .5)}" fill="${c}"/>${mustache(32, 2)}`,
+      delgada: `<path d="${jaw} L${pt(h, -14, -8).join(' ')} ${arc(h, -14, 14, -8)} Q${cx + rxB * .58} ${chin - 14} ${cx} ${chin - 6} Q${cx - rxB * .58} ${chin - 14} ${pt(h, 166, -8).join(' ')} ${arc(h, 166, 194, -8)}Z" fill="${c}"/>`,
+      chivera: `${mustache(26)}<path d="M${cx - 20} ${mouthY + 14} Q${cx - 24} ${chin - 4} ${cx} ${chin + 4} Q${cx + 24} ${chin - 4} ${cx + 20} ${mouthY + 14} Q${cx} ${mouthY + 22} ${cx - 20} ${mouthY + 14}Z" fill="${c}"/>`,
+      candado: `<path fill-rule="evenodd" d="M${cx - 38} ${mouthY - 12} Q${cx - 46} ${chin - 6} ${cx} ${chin + 4} Q${cx + 46} ${chin - 6} ${cx + 38} ${mouthY - 12} Q${cx} ${mouthY - 26} ${cx - 38} ${mouthY - 12}Z M${cx - 27} ${mouthY - 2} Q${cx} ${mouthY + 24} ${cx + 27} ${mouthY - 2} Q${cx} ${mouthY - 8} ${cx - 27} ${mouthY - 2}Z" fill="${c}"/>`,
+      bigote: mustache(34, 3),
+    }
+    return `<g class="cut-soft">${shapes[style] || shapes.corta}</g>`
   },
+
 
   freckles: (p, h) => [[-52, 36], [-42, 44], [-32, 36], [32, 36], [42, 44], [52, 36]].map(([x, y]) => `<circle cx="${h.cx + x}" cy="${h.cy + y}" r="3" fill="#962b19" opacity=".5"/>`).join(''),
 }
@@ -566,22 +592,23 @@ function creature(p) {
 function person(p) {
   if (p.species && SPECIES[p.species]) return creature(p)
   const s = p.skin, sh = shade(s, .86)
-  const [rx, ry] = { round: [92, 88], wide: [100, 84], tall: [86, 94], soft: [94, 90] }[p.face || 'round']
-  const h = { ...HEAD, rx, ry }
+  const h = { ...HEAD, ...(FACES[p.face] || FACES.round) }, rx = h.rx
   const hair = HAIR[p.hair](h, p.hairColor, !!p.hat)
   const has = (x) => p.extras?.includes(x)
+  // la barba: un estilo (beardStyle); los personajes viejos con «beard» en extras llevan la corta
+  const beardStyle = p.beardStyle !== undefined ? p.beardStyle : has('beard') ? 'corta' : ''
   // el pelo largo cae detrás de los hombros: va antes que la chaqueta (y se balancea con la cabeza)
   const behind = p.hair === 'long'
   return `${behind ? `<g class="head">${cut(hair.back)}</g>` : ''}${torso(p)}
   <g class="head">
     ${hair.back && !behind && !(p.hat && p.hair === 'bun') ? cut(hair.back) : ''}
-    ${cut(`<ellipse cx="${h.cx - rx + 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/><ellipse cx="${h.cx + rx - 2}" cy="${h.cy + 10}" rx="15" ry="19" fill="${sh}"/>`)}
+    ${cut([pt(h, 174, -2), pt(h, 6, -2)].map(([x, y]) => `<ellipse cx="${x}" cy="${y + 4}" rx="15" ry="19" fill="${sh}"/>`).join(''))}
     ${has('earrings') ? EXTRAS.earrings(p, h) : ''}
-    ${cut(`<ellipse cx="${h.cx}" cy="${h.cy}" rx="${rx}" ry="${ry}" fill="${s}"/>`)}
+    ${cut(`<path d="${headPath(h)}" fill="${s}"/>`)}
     <ellipse cx="${h.cx - rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/><ellipse cx="${h.cx + rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
-    ${has('beard') ? EXTRAS.beard(p, h) : ''}
-    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: has('beard') ? '#f1e4c7' : '#962b19', lashes: p.lashes })}
+    ${beardStyle ? EXTRAS.beard(p, h, beardStyle) : ''}
+    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: '#962b19', lashes: p.lashes })}
     ${p.hat && SHORT_HAIR.includes(p.hair) ? '' : cut(hair.front)}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
@@ -644,10 +671,11 @@ const OPCIONES = {
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
   hair: { side: 'Raya al lado', short: 'Corto clásico', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
-  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada' },
+  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón' },
+  beardStyle: { '': 'Sin barba', corta: 'Corta', tupida: 'Tupida', delgada: 'Delgada', chivera: 'Chivera', candado: 'Candado', bigote: 'Solo bigote' },
   nose: { button: 'Botón', bulb: 'Bola', long: 'Larga', hook: 'Ganchuda' },
   teeth: { '': 'Sin dientes', grin: 'Sonrisa con dientes', buck: 'Dientes salidos' },
-  extras: { glasses: 'Lentes', headphones: 'Audífonos', earrings: 'Aretes', beard: 'Barba', freckles: 'Pecas' },
+  extras: { glasses: 'Lentes', headphones: 'Audífonos', earrings: 'Aretes', freckles: 'Pecas' },
   hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina' },
   hatColor: ['#c5381f', '#e5592a', '#f2c14e', '#2b6670', '#13323a', '#8db3a9', '#9b8ec7', '#5e3b6b', '#f1e4c7', '#24406b'],
   looks: { lashes: 'Pestañas', lids: 'Párpado caído', glassesRound: 'Lentes redondos' },
@@ -661,11 +689,12 @@ function randomPerson(base = {}) {
   const pick = (a) => a[Math.floor(Math.random() * a.length)]
   const keys = (o) => Object.keys(o)
   const extras = keys(OPCIONES.extras).filter(() => Math.random() < .28)
+  const beardStyle = Math.random() < .3 ? pick(keys(OPCIONES.beardStyle).filter(Boolean)) : ''
   return {
     ...base,
     skin: pick(OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
     nose: pick(keys(OPCIONES.nose)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
-    extras, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
+    extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
     shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: pick(keys(OPCIONES.scene)),
   }
 }
