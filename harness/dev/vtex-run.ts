@@ -16,8 +16,11 @@
  *                     aprobada por el conector (la 5.0.0 la negaba y quedaba en Cancelling)
  *
  * ESCRIBE: pedidos reales en la cuenta VTEX de pruebas y, por el conector y el wizard, pedidos, usuarios y solicitudes en
- * la base compartida de qa (igual que una compra a mano). La sucursal la fija la afiliación de VTEX que usa la condición de
- * pago activa (`activeBranchHash`): hoy `ecf9342be`, o la de la copia de Mario si alguien apuntó la condición ahí.
+ * la base compartida de qa (igual que una compra a mano). La condición de pago de la tienda apunta a PRODUCCIÓN
+ * («Creditop · producción», workspace master, desde el 2026-11-12): mientras se compra, se apunta a la afiliación de
+ * pruebas de la sucursal del caso (`--branch`, por defecto `ecf9342be`, «Creditop · pruebas», workspace `pruebas`, app en
+ * QA) y se devuelve al terminar, también con Ctrl-C (`withAffiliationFor`). Una afiliación del workspace master no se
+ * acepta: compraría en producción.
  * Salida: 0 todos bien · 1 alguno mal · 2 no se pudo correr.
  */
 import { execFileSync } from 'node:child_process';
@@ -25,13 +28,13 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { env, TARGET } from '../pkg/env.ts';
-import { activeBranchHash, cancelVtexOrder, connectorVersions, readVtex, waitVtex, withAffiliationFor, type VtexState } from '../pkg/vtex.ts';
+import { affiliationFor, cancelVtexOrder, connectorVersions, readVtex, waitVtex, withAffiliationFor, type VtexState } from '../pkg/vtex.ts';
 import { one, close } from '../pkg/db.ts';
 
 const arg = (n: string, d = '') => { const i = process.argv.indexOf(`--${n}`); return i > 0 && process.argv[i + 1] && !process.argv[i + 1].startsWith('--') ? process.argv[i + 1] : d; };
-// La sucursal la decide la afiliación de la condición de pago activa; --branch la fuerza (y si no coincide, el caminador avisa).
-const active = arg('branch') ? null : await activeBranchHash();
-const BRANCH = arg('branch') || active!.hash;
+// La sucursal de qa a la que van las compras: la de una afiliación del workspace `pruebas`. La condición de pago se apunta
+// a ella sólo mientras se compra (las compras ya hechas siguen con su afiliación: el desenlace y el cobro no la miran).
+const BRANCH = arg('branch', 'ecf9342be');
 const JSON_OUT = process.env.JSON === '1';
 const out = (s: string) => (JSON_OUT ? process.stderr : process.stdout).write(s + '\n');
 
@@ -55,27 +58,32 @@ const names = (arg('cases') || DEFAULT_CASES.join(',')).split(',').map((s) => s.
 const unknown = names.filter((n) => !CASES[n]);
 if (unknown.length) { console.error(`✗ casos desconocidos: ${unknown.join(', ')} · los que hay: ${Object.keys(CASES).join(', ')}`); process.exit(2); }
 
-// La versión del conector que atiende (el de `master`, adonde apunta la afiliación) es parte del resultado: sin ella no se
-// sabe qué se midió.
-const versions = await connectorVersions().catch((e) => { out(`  ⚠ no se pudo leer la versión del conector: ${e.message}`); return []; });
-const serving = versions.find((v) => v.workspace === 'master');
+// La afiliación de la sucursal y su workspace: el de `master` llama a producción y se rechaza antes de comprar nada.
+const affiliation = await affiliationFor(BRANCH).catch((e) => { console.error(`✗ ${e.message}`); process.exit(2); });
+if (affiliation.workspace === 'master') { console.error(`✗ la afiliación «${affiliation.name}» (${BRANCH}) es del workspace master, que llama a PRODUCCIÓN: usá una del workspace «pruebas»`); process.exit(2); }
+// La versión del conector que atiende (el del workspace de la afiliación) es parte del resultado: sin ella no se sabe qué
+// se midió.
+const versions = await connectorVersions(['master', affiliation.workspace]).catch((e) => { out(`  ⚠ no se pudo leer la versión del conector: ${e.message}`); return []; });
+const serving = versions.find((v) => v.workspace === affiliation.workspace) ?? versions.find((v) => v.workspace === 'master');
 out(`  conector: ${versions.map((v) => `${v.workspace} ${v.version} (${v.source === 'link' ? 'linkeada' : v.source === 'installation' ? 'publicada' : v.source})`).join(' · ')}`);
 const batch = names.filter((n) => n !== 'rotativo');
-out(`  ${batch.length} compra(s) en la tienda VTEX → qa, sucursal ${BRANCH}${active ? ` (afiliación «${active.affiliation}» de la condición «${active.rule}»)` : ''}: ${batch.join(', ') || '—'}${names.includes('rotativo') ? ` · y el rotativo por la sucursal ${REVOLVING_BRANCH} (entidad ${REVOLVING_LENDER})` : ''}\n`);
+out(`  ${batch.length} compra(s) en la tienda VTEX → qa, sucursal ${BRANCH} (afiliación «${affiliation.name}», workspace ${affiliation.workspace}): ${batch.join(', ') || '—'}${names.includes('rotativo') ? ` · y el rotativo por la sucursal ${REVOLVING_BRANCH} (entidad ${REVOLVING_LENDER})` : ''}\n`);
 
 // ── 1 · las compras y el wizard, en paralelo, por el caminador ──
 const dir = mkdtempSync(join(tmpdir(), 'vtex-run-'));
 const resultFile = join(dir, 'walk.json');
 const t0 = Date.now();
-if (batch.length) try {
-    const walk = execFileSync(process.execPath, ['dev/walk-wizard.ts', '--flow', 'ecommerce', '--store', 'vtex', '--parallel',
-        '--cases', batch.map(() => `#${BRANCH}`).join(';'), '--result-file', resultFile],
-        { encoding: 'utf8', env: { ...process.env, E2E_TARGET: 'qa' }, timeout: 15 * 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
-    if (process.env.VERBOSE === '1') out(walk);
-} catch (e: any) {
-    // El caminador sale ≠ 0 si un caso no llegó al listado; igual se sigue con los que sí.
-    if (process.env.VERBOSE === '1') out(String(e.stdout ?? '') + String(e.stderr ?? ''));
-}
+if (batch.length) await withAffiliationFor(BRANCH, async () => {
+    try {
+        const walk = execFileSync(process.execPath, ['dev/walk-wizard.ts', '--flow', 'ecommerce', '--store', 'vtex', '--parallel',
+            '--cases', batch.map(() => `#${BRANCH}`).join(';'), '--result-file', resultFile],
+            { encoding: 'utf8', env: { ...process.env, E2E_TARGET: 'qa' }, timeout: 15 * 60_000, stdio: ['ignore', 'pipe', 'pipe'] });
+        if (process.env.VERBOSE === '1') out(walk);
+    } catch (e: any) {
+        // El caminador sale ≠ 0 si un caso no llegó al listado; igual se sigue con los que sí.
+        if (process.env.VERBOSE === '1') out(String(e.stdout ?? '') + String(e.stderr ?? ''));
+    }
+});
 let walked: any[] = [];
 if (batch.length) try { walked = JSON.parse(readFileSync(resultFile, 'utf8')); } catch { console.error('✗ el caminador no dejó resultados: corré con VERBOSE=1 para ver por qué'); process.exit(2); }
 
@@ -172,6 +180,6 @@ for (const o of outcomes) {
     for (const n of o.notes) out(`      ${n}`);
 }
 const okCount = outcomes.filter((o) => o.ok).length;
-out(`\n  ${okCount}/${outcomes.length} bien · ${((Date.now() - t0) / 1000).toFixed(0)}s · conector master ${serving?.version ?? '?'}`);
+out(`\n  ${okCount}/${outcomes.length} bien · ${((Date.now() - t0) / 1000).toFixed(0)}s · conector ${serving?.workspace ?? '?'} ${serving?.version ?? '?'}`);
 if (JSON_OUT) process.stdout.write(JSON.stringify({ schema: 'harness.vtex/v1', target: TARGET, branch: BRANCH, connector: versions, ok: okCount === outcomes.length, cases: outcomes }) + '\n');
 process.exit(okCount === outcomes.length ? 0 : 1);

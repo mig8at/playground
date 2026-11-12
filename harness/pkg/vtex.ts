@@ -9,8 +9,8 @@
 // QUÉ CONECTOR ATIENDE lo decide la condición de pago activa, no esta API. Desde el 2026-11-12 la condición «Creditop»
 // apunta a «Creditop · producción» (workspace `master`, app en Producción, sucursal 84297564 de prod): una compra sin
 // cambiar la condición crea una solicitud REAL en prod. Las afiliaciones de qa son «Creditop · pruebas» (ecf9342be) y
-// «Creditop · pruebas Mario» (1126106a), en el workspace `pruebas`, cuya app está en QA: para correr contra qa hay que
-// apuntar la condición a una de ellas mientras dura (`withAffiliationFor`).
+// «Creditop · pruebas Mario» (1126106a), en el workspace `pruebas`, cuya app está en QA: `dev/vtex-run.ts` apunta la
+// condición a una de ellas mientras compra (`withAffiliationFor`, que rechaza una afiliación de `master`).
 //
 // ESCRIBE en VTEX (pedidos reales de la cuenta de pruebas) y, a través del conector, en la base compartida de qa (el
 // pedido de `payment-link`), igual que una compra a mano.
@@ -204,20 +204,19 @@ export async function waitVtex(orderId: string, done: (s: VtexState) => boolean,
  *  CreditOp a la que irán las compras), y la DEVUELVE a la que tenía al terminar: también si `fn` falla o si cortan el
  *  proceso con Ctrl-C. Mientras dura, TODAS las compras de la tienda de pruebas van a esa sucursal (las de otras
  *  personas también): por eso se usa sólo para el caso que lo necesita y se deja como estaba enseguida.
- *  Nació para el rotativo de la copia de Mario en qa (afiliación «Mario Hernández (qa)», sucursal 1126106a). */
+ *  Nació para el rotativo de la copia de Mario en qa («Creditop · pruebas Mario», sucursal 1126106a); desde el
+ *  2026-11-12 toda la tanda de `dev/vtex-run.ts` compra así, porque la condición queda en producción. Se niega a
+ *  apuntarla a una afiliación del workspace `master` (Producción). */
 export async function withAffiliationFor<T>(hash: string, fn: () => Promise<T>): Promise<T> {
     const { account } = creds();
     const pay = `https://${account}.vtexpayments.com.br/api/pvt`;
     const rules = await call('GET', `${pay}/rules`);
     const rule = (rules.data ?? []).find((r: any) => r.enabled && /creditop/i.test(r.connector?.implementation ?? ''));
     if (!rule) throw new Error('VTEX: no hay una condición de pago activa con el conector Creditop');
-    const list = await call('GET', `${pay}/affiliations`);
-    let target: any = null;
-    for (const a of (list.data ?? []).filter((x: any) => /creditop/i.test(x.implementation ?? ''))) {
-        const conf = a.configuration ?? (await call('GET', `${pay}/affiliations/${a.id}`)).data?.configuration ?? [];
-        if (conf.some((c: any) => c.name === 'appKey' && c.value === hash)) { target = a; break; }
+    const target = await affiliationFor(hash);
+    if (target.workspace === 'master') {
+        throw new Error(`VTEX: la afiliación «${target.name}» (App key ${hash}) es del workspace master, cuya app llama a PRODUCCIÓN: las compras de prueba van por una del workspace «pruebas»`);
     }
-    if (!target) throw new Error(`VTEX: ninguna afiliación de Creditop tiene App key ${hash}`);
     const original: string = rule.connector.affiliationId;
     if (original === target.id) return fn();
 
@@ -247,6 +246,21 @@ export async function withAffiliationFor<T>(hash: string, fn: () => Promise<T>):
         process.off('SIGTERM', onSignal);
         await restore();
     }
+}
+
+/** La afiliación de Creditop cuyo App key es `hash`, con el workspace al que llama. El workspace decide el ambiente de
+ *  Creditop (la app guarda su configuración por workspace): desde el 2026-11-12, `master` es Producción y `pruebas`, QA. */
+export async function affiliationFor(hash: string): Promise<{ id: string; name: string; workspace: string }> {
+    const { account } = creds();
+    const pay = `https://${account}.vtexpayments.com.br/api/pvt`;
+    const list = await call('GET', `${pay}/affiliations`);
+    for (const a of (list.data ?? []).filter((x: any) => /creditop/i.test(x.implementation ?? ''))) {
+        const conf = a.configuration ?? (await call('GET', `${pay}/affiliations/${a.id}`)).data?.configuration ?? [];
+        if (conf.some((c: any) => c.name === 'appKey' && c.value === hash)) {
+            return { id: a.id, name: a.name, workspace: conf.find((c: any) => c.name === 'workspace')?.value ?? '' };
+        }
+    }
+    throw new Error(`VTEX: ninguna afiliación de Creditop tiene App key ${hash}`);
 }
 
 /** La sucursal de CreditOp a la que va hoy una compra de la tienda: el App key de la afiliación que usa la condición de
