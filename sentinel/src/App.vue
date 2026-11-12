@@ -49,6 +49,9 @@ const idle = (s) => s.median === 0 && s.now.total === 0
 const everything = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
+// Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
+const followedGroups = computed(() => [{ kind: 'lender', title: 'Entidades que sigo' }, { kind: 'merchant', title: 'Comercios que sigo' }]
+  .map((g) => ({ ...g, list: followed.value.filter((s) => s.kind === g.kind) })).filter((g) => g.list.length))
 const isFollowed = (s) => following.value.includes(s.signal)
 const canFollow = (s) => s.kind === 'lender' || s.kind === 'merchant'
 // Lo que propone el buscador del sidebar: comercios y entidades que todavía no se siguen, primero los que se mueven.
@@ -155,8 +158,13 @@ function pickSignal(sig) {
 }
 // La ventana que mira una señal: una hora, o más para lo que se sigue y es chico (FollowedWindows en el servidor).
 const hours = (s) => Math.round((s?.windowMinutes || 60) / 60)
-const spanLabel = (s) => (hours(s) === 1 ? 'Última hora' : `Últimas ${hours(s)} horas`)
+const spanLabel = (s) => (hours(s) === 1 ? 'Última hora' : `Últimas ${hours(s)} horas`) // 24 h: un día móvil, no «hoy»
 const spanShort = (s) => (hours(s) === 1 ? '' : ` (${hours(s)} h)`)
+// Desde cuándo hasta cuándo mira: con 24 horas, la hora sola se repite («10:54–10:54»), así que va con el día.
+function windowRange(s) {
+  const from = new Date(new Date(data.value.windowTo) - (s.windowMinutes || 60) * 60000).toISOString()
+  return hours(s) >= 24 ? `${dayClock(from)} – ${dayClock(data.value.windowTo)}` : `${clock(from)}–${clock(data.value.windowTo)}`
+}
 const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
@@ -302,19 +310,21 @@ onBeforeUnmount(() => {
           <svg v-if="spark(data?.all)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(data.all).normal" /><polyline class="spark-today" :points="spark(data.all).today" /></svg>
           <small v-if="data?.all" class="subject-nums" title="en la última hora · lo normal a esta hora">{{ data.all.now.total }} · {{ fmt(data.all.median) }}</small>
         </button>
-        <div class="region-head group"><span>Siguiendo</span><span class="count">{{ followed.length }}</span></div>
         <p v-if="data && !followed.length" class="none">Todavía no seguís ninguno. Buscá un comercio o una entidad arriba y tocá + para seguirlo: de los comercios, sólo los que seguís avisan por macOS.</p>
-        <div v-for="s in followed" :key="`f-${s.signal}`" class="row subject followed" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }">
-          <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
-            <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
-            <span class="subject-name">{{ s.name }}</span>
-            <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
-            <small class="subject-nums" :title="`${spanLabel(s).toLowerCase()} · lo normal en esa ventana`">{{ s.now.total }} · {{ fmt(s.median) }}</small>
-          </button>
-          <button type="button" class="region-action unfollow" :title="`Dejar de seguir ${s.name}`" :aria-label="`Dejar de seguir ${s.name}`" @click="setFollow(s, false)">
-            <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
-          </button>
-        </div>
+        <template v-for="group in followedGroups" :key="group.kind">
+          <div class="region-head group"><span>{{ group.title }}</span><span class="count">{{ group.list.length }}</span></div>
+          <div v-for="s in group.list" :key="`f-${s.signal}`" class="row subject followed" :class="{ on: isOn(s), 'is-quiet': s.state === 'quiet' }">
+            <button type="button" class="subject-open" :title="s.why" @click="pick(s)">
+              <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
+              <span class="subject-name">{{ s.name }}</span>
+              <svg v-if="spark(s)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(s).normal" /><polyline class="spark-today" :points="spark(s).today" /></svg>
+              <small class="subject-nums" :title="`${spanLabel(s).toLowerCase()} · lo normal en esa ventana`">{{ s.now.total }} · {{ fmt(s.median) }}</small>
+            </button>
+            <button type="button" class="region-action unfollow" :title="`Dejar de seguir ${s.name}`" :aria-label="`Dejar de seguir ${s.name}`" @click="setFollow(s, false)">
+              <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
+            </button>
+          </div>
+        </template>
         <p v-if="!data && !apiError" class="none">{{ loading || 'Leyendo producción…' }}</p>
         <p v-if="apiError && !data" class="none">{{ apiError }}</p>
       </div>
@@ -323,7 +333,7 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span>{{ selected ? selected.name : 'Sentinel' }}</span>
-        <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · {{ spanLabel(selected).toLowerCase() }} {{ clock(new Date(new Date(data.windowTo) - (selected.windowMinutes || 60) * 60000).toISOString()) }}–{{ clock(data.windowTo) }}</span>
+        <span v-if="selected" class="count">{{ KIND_LABEL[selected.kind] }} · {{ spanLabel(selected).toLowerCase() }} {{ windowRange(selected) }}</span>
       </div>
       <div class="region-body">
         <div v-if="selected" class="view">

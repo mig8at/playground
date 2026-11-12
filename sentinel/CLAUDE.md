@@ -7,8 +7,8 @@ muestra la curva del día contra lo normal, con los **despliegues a producción*
 producción» de `playground-local` (#96).
 
 `make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. **La interfaz**: a la izquierda, toda la
-originación y lo que se SIGUE (comercios o entidades que se agregan a mano desde el buscador, cada uno con su curva chica
-de hoy); al centro, el elegido; abajo, en la consola, la tabla de TODAS las señales (pestañas Errores · Entidades ·
+originación y lo que se SIGUE, en dos secciones —entidades y comercios—, que se agregan a mano desde el buscador, cada
+uno con su curva chica de hoy; al centro, el elegido; abajo, en la consola, la tabla de TODAS las señales (pestañas Errores · Entidades ·
 Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, los avisos y los despliegues.
 
 `make sentinel ONCE=1` carga lo que falte, hace una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
@@ -75,10 +75,12 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **Cambio de nivel** (`shift`): la mediana diaria de la última semana contra la de los días 8–28 atrás. Si se movió ×2
   o a la mitad, se muestra como nota, no como alerta: ya pasó a ser lo normal. Por esto `baselineDays` es 14 y no 28:
   con 28, un cambio que se queda mezcla dos regímenes y la dispersión se infla.
-- **Lo que se sigue y es chico mira más tiempo** (`followedWindows`, 180 y 360 min): si en una hora lo normal no llega a
+- **Lo que se sigue y es chico mira más tiempo** (`followedWindows`: 180, 360 y 1440 min): si en una hora lo normal no llega a
   `minMedian`, se usa la primera ventana más larga en la que sí, y la interfaz lo dice («últimas 3 horas»). Pullman
   (~2,5 por hora) quedaba siempre en «poco volumen» y no podía alertar; con 3 horas se compara (lo normal 4,5 a media
-  mañana). Sólo para el volumen de lo que se sigue: lo demás sigue en una hora y su backtest no cambia.
+  mañana). La de 24 horas MÓVILES es para lo muy chico: Credifamilia entra ~9 por día y en 6 horas lo normal es 2. Ojo:
+  con tan poco, la dispersión es ancha (casi siempre entre 1 y 14 por día) y ni un día en cero llega a alerta; ahí sirve
+  la curva, no el aviso. Sólo para el volumen de lo que se sigue: lo demás sigue en una hora y su backtest no cambia.
 - **Las negadas** se muestran pero no alertan: lo de hoy todavía no terminó de avanzar y se compara con días asentados.
 - Todo se puede ajustar sin tocar código en `sentinel/rules.json` (opcional; lo que no dice queda por defecto), con
   `signals` para ignorar una señal o subirle el mínimo. Antes de cambiar algo, corré el `-backtest`.

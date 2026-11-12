@@ -63,7 +63,8 @@ type Rules struct {
 	// FollowedWindows: las ventanas más largas (minutos) para el VOLUMEN de lo que se sigue (following.go) cuando en una
 	// hora no alcanza para comparar. Un comercio chico (Pullman, ~2,5 por hora) quedaba siempre en «poco volumen» y no
 	// podía alertar nunca; se usa la primera de estas ventanas en la que lo normal llega a `minMedian`. Sólo para lo que
-	// se sigue: lo demás sigue mirando una hora, y el backtest de todo lo otro no cambia.
+	// se sigue: lo demás sigue mirando una hora, y el backtest de todo lo otro no cambia. La última, 24 horas MÓVILES,
+	// es para lo muy chico: Credifamilia entra ~7 por día y en 6 horas lo normal es 2; un día entero sin nada sí se ve.
 	FollowedWindows []int `json:"followedWindows"`
 }
 
@@ -75,7 +76,7 @@ func defaultRules() Rules {
 		AfterDeployHours: 2, AfterDeployFactor: 0.75,
 		Notify:          NotifyRules{Level: "alert", ClearMinutes: 30, StaleMinutes: 30, Recovered: true, Merchants: "following"},
 		Signals:         map[Signal]Override{},
-		FollowedWindows: []int{180, 360},
+		FollowedWindows: []int{180, 360, 1440},
 	}
 }
 
