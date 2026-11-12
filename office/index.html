@@ -8,9 +8,10 @@
   OFFICE — la sala donde se VE cómo trabajan las personas y sus agentes, en pixel art.
   Por ahora es sólo la parte visual: lo que dicen sale de un guion de ejemplo (SCRIPT), no del chat real.
   Una sala = una conversación del chat del equipo; cada participante, un muñeco en su escritorio.
-  Para cambiar quiénes están: CAST. Los sprites se dibujan en un lienzo de 256×144 que se escala en
-  múltiplos enteros (sin suavizado); los nombres, globos y la conversación van en HTML encima, para que
-  el texto se lea nítido.
+  Para cambiar quiénes están: CAST. La sala es isométrica: pisos, paredes y muebles son de PtDesigns
+  (CC0, assets/tiles y assets/props, con su LICENSE); los muñecos los dibuja este archivo. El lienzo va a
+  la escala de los muebles (256 px por baldosa, las baldosas de 128 al doble) y se achica para entrar;
+  los nombres, globos y la conversación van en HTML encima, para que el texto se lea nítido.
 -->
 <style>
   :root {
@@ -29,11 +30,11 @@
   .region > header .count { color: var(--dim); }
   .stage { flex: 1; min-height: 0; display: grid; place-items: center; position: relative; }
   .scene { position: relative; }
-  .scene canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .scene canvas { display: block; }
   .overlay { position: absolute; inset: 0; pointer-events: none; }
   .tag, .bubble { position: absolute; transform: translateX(-50%); white-space: nowrap;
     font-family: "Silkscreen", ui-monospace, Menlo, monospace; }
-  .tag { font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(10, 11, 15, .78); color: var(--text); }
+  .tag { transform: translate(-50%, -100%); font-size: 11px; padding: 1px 6px; border-radius: 3px; background: rgba(10, 11, 15, .78); color: var(--text); }
   .tag .who { opacity: .65; }
   .bubble { bottom: auto; max-width: 220px; white-space: normal; text-align: left; font-size: 12px; line-height: 1.25;
     background: #f4f1e8; color: #1b1b1f; padding: 5px 8px; border: 2px solid #1b1b1f; border-radius: 2px;
@@ -72,7 +73,7 @@
     <header><span id="room-title">Sala</span><span class="count" id="room-count"></span></header>
     <div class="stage" id="stage">
       <div class="scene" id="scene">
-        <canvas id="cv" width="256" height="144" aria-label="La oficina en pixel art: cada persona y sus agentes en su escritorio"></canvas>
+        <canvas id="cv" width="1576" height="1118" aria-label="La oficina en pixel art: cada persona y sus agentes en su escritorio"></canvas>
         <div class="overlay" id="overlay"></div>
       </div>
     </div>
@@ -93,16 +94,16 @@
 
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
-// kind: 'human' | 'agent'. owner: de quién es el agente. Los agentes de Duncan van con nombre genérico
-// hasta saber cómo se llaman.
+// kind: 'human' | 'agent'. owner: de quién es el agente. desk: la celda (u, v) de su escritorio. Los agentes
+// de Duncan van con nombre genérico hasta saber cómo se llaman.
 const ROOM = { title: 'Sala · chat de Duncan' }
 const CAST = [
-  { id: 'duncan', name: 'Duncan', kind: 'human', row: 0, col: 1, hair: '#2b1d14', skin: '#c68a5e', shirt: '#3a6ea5' },
-  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', row: 0, col: 0, body: '#5b7fd1', light: '#9ff0ff' },
-  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', row: 0, col: 2, body: '#7d68c9', light: '#ffe29a' },
-  { id: 'miguel', name: 'Miguel', kind: 'human', row: 1, col: 1, hair: '#1a1410', skin: '#e0ac7e', shirt: '#2f8f5b' },
-  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', row: 1, col: 0, body: '#3ca66b', light: '#c6ffb0' },
-  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', row: 1, col: 2, body: '#d9a227', light: '#fff1a8' },
+  { id: 'd-bot1', name: 'agente 1', owner: 'Duncan', kind: 'agent', desk: [1, 1], body: '#5b7fd1', light: '#9ff0ff' },
+  { id: 'duncan', name: 'Duncan', kind: 'human', desk: [3, 1], hair: '#2b1d14', skin: '#c68a5e', shirt: '#3a6ea5' },
+  { id: 'd-bot2', name: 'agente 2', owner: 'Duncan', kind: 'agent', desk: [5, 1], body: '#7d68c9', light: '#ffe29a' },
+  { id: 'luigi', name: 'Luigi', owner: 'Miguel', kind: 'agent', desk: [1, 3], body: '#3ca66b', light: '#c6ffb0' },
+  { id: 'miguel', name: 'Miguel', kind: 'human', desk: [3, 3], hair: '#1a1410', skin: '#e0ac7e', shirt: '#2f8f5b' },
+  { id: 'wario', name: 'Wario', owner: 'Miguel', kind: 'agent', desk: [5, 3], body: '#d9a227', light: '#fff1a8' },
 ]
 
 // ── EL GUION ─────────────────────────────────────────────────────────────────────────────────────
@@ -121,17 +122,45 @@ const SCRIPT = [
   ['duncan', '🚀 Listo, lo subo a qa.'],
 ]
 
-// ── EL LIENZO ────────────────────────────────────────────────────────────────────────────────────
-const W = 256, H = 144
+// ── LA GEOMETRÍA ISOMÉTRICA ──────────────────────────────────────────────────────────────────────
+// La fórmula es la del README de Cozy Shops Foundations, al doble: la esquina de arriba de la celda (u, v)
+// cae en (OX + 128(u − v), OY + 64(u + v)); una baldosa ocupa 264×392 y su origen está en (132, 260).
+const U = 7, V = 5
+const W = 1576, H = 1118, OX = 128 * V + 20, OY = 290
 const cv = document.getElementById('cv'), g = cv.getContext('2d')
-g.imageSmoothingEnabled = false
-let scale = 3
+const iso = (u, v) => ({ x: OX + 128 * (u - v), y: OY + 64 * (u + v) })
 
-const px = (x, y, w, h, c) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), w, h) }
+const TILES = ['floor_timber_clean', 'floor_timber_aged', 'floor_timber_stained', 'wall_primary_u', 'wall_primary_v', 'wall_window_u',
+  'wall_doorway_v', 'door_closed_v', 'corner_pilaster', 'foundation_edge_u', 'foundation_edge_v']
+// Los muebles: su archivo y el pivote (el punto que apoya en el piso), de su manifest.json.
+const PROPS = {
+  desk: ['01_computer_desk', 86, 142], chair: ['02_swivel_office_chair', 62, 165], keyboard: ['06_keyboard_mouse_set', 30, 36],
+  tv: ['07_widescreen_television', 63, 113], router: ['10_wireless_router', 23, 41], fan: ['12_tabletop_fan', 30, 61],
+  floorLamp: ['13_brass_floor_lamp', 42, 208], deskLamp: ['14_adjustable_desk_lamp', 27, 65], clock: ['15_round_wall_clock', 26, 49],
+  alarm: ['16_twin_bell_alarm_clock', 17, 35], plant: ['18_potted_monstera', 62, 123], headphones: ['21_headphones_on_stand', 23, 46],
+  phone: ['22_smartphone_charging_dock', 17, 35], radio: ['24_portable_radio', 23, 45],
+}
+const img = {}
+const load = (key, src) => new Promise((ok) => { const i = new Image(); i.onload = () => { img[key] = i; ok() }; i.onerror = () => ok(); i.src = src })
 
-// Un sprite es una lista de filas; cada letra es un color de la paleta, '.' es transparente.
+function tile(name, u, v) {
+  const i = img[name]; if (!i) return
+  const p = iso(u, v)
+  g.drawImage(i, p.x - 132, p.y - 260, 264, 392)
+}
+// Un mueble apoyado en el punto (u, v) del piso (no hace falta que sea entero); lift lo sube (colgado de la pared o
+// encima de una mesa).
+function prop(name, u, v, lift = 0) {
+  const [file, cx, cy] = PROPS[name]; const i = img[file]; if (!i) return
+  const p = iso(u, v)
+  g.drawImage(i, Math.round(p.x - cx), Math.round(p.y - cy - lift))
+}
+
+// ── LOS MUÑECOS ──────────────────────────────────────────────────────────────────────────────────
+// Un sprite es una lista de filas; cada letra es un color de la paleta, '.' es transparente. Van a 4 px por pixel.
+const PX = 4
 function sprite(rows, pal, x, y) {
-  rows.forEach((row, j) => { for (let i = 0; i < row.length; i++) { const c = pal[row[i]]; if (c) px(x + i, y + j, 1, 1, c) } })
+  rows.forEach((row, j) => { for (let i = 0; i < row.length; i++) { const c = pal[row[i]]; if (c) { g.fillStyle = c; g.fillRect(x + i * PX, y + j * PX, PX, PX) } } })
 }
 const HUMAN = [
   '...hhhhhh...',
@@ -147,6 +176,7 @@ const HUMAN = [
   '..cccccccc..',
   '.cccccccccc.',
   'cccccwwccccc',
+  'cccccccccccc',
   'cccccccccccc',
 ]
 const AGENT = [
@@ -164,6 +194,7 @@ const AGENT = [
   '.bbbbbbbbbb.',
   'bbbbbkkbbbbb',
   'bbbbbbbbbbbb',
+  'bbbbbbbbbbbb',
 ]
 const shade = (hex, f) => {
   const n = parseInt(hex.slice(1), 16)
@@ -171,91 +202,99 @@ const shade = (hex, f) => {
   return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
 }
 
-// Dónde se sienta cada uno: dos filas de tres escritorios; la de atrás un poco más arriba.
-const DESK_X = [52, 128, 204]
-const DESK_Y = [82, 124]
-const seat = (p) => ({ x: DESK_X[p.col], y: DESK_Y[p.row] })
-
-// ── LA SALA ──────────────────────────────────────────────────────────────────────────────────────
-function room(t) {
-  // pared
-  px(0, 0, W, 50, '#2c2f3d'); px(0, 47, W, 3, '#22242f')
-  for (let x = 0; x < W; x += 16) px(x, 0, 1, 47, '#303344')
-  // ventana con nubes que pasan
-  px(12, 7, 44, 30, '#1d2030'); px(14, 9, 40, 26, '#6fa3d8')
-  const cx = 14 + ((t / 180) % 60) - 10
-  ;[[0, 5, 12], [5, 2, 7]].forEach(([dx, dy, w]) => { for (let i = 0; i < w; i++) { const xx = cx + dx + i; if (xx > 14 && xx < 54) px(xx, 14 + dy, 1, 3, '#eef4fb') } })
-  px(33, 9, 2, 26, '#1d2030'); px(14, 21, 40, 2, '#1d2030')
-  // la pantalla grande de la sala: la conversación como líneas de colores
-  px(82, 5, 92, 36, '#111218'); px(84, 7, 88, 32, '#0b1a1f')
-  shownLines.slice(-5).forEach((m, i, list) => {
-    const who = CAST.find((c) => c.id === m.who)
-    px(87, 10 + i * 6, 4, 3, who.kind === 'human' ? who.shirt : who.body)
-    px(94, 10 + i * 6, Math.min(74, 8 + m.text.length * 1.2), 3, i === list.length - 1 ? '#cfe9ef' : '#4d6b73')
-  })
-  px(124, 41, 8, 6, '#111218')
-  // reloj
-  px(190, 10, 14, 14, '#e9e3d3'); px(191, 11, 12, 12, '#f7f3e8')
-  const now = new Date(), a = (now.getMinutes() / 60) * Math.PI * 2, b = ((now.getHours() % 12) / 12) * Math.PI * 2
-  for (let r = 0; r < 5; r++) px(197 + Math.sin(a) * r, 17 - Math.cos(a) * r, 1, 1, '#22242f')
-  for (let r = 0; r < 4; r++) px(197 + Math.sin(b) * r, 17 - Math.cos(b) * r, 1, 1, '#b33a3a')
-  // cafetera y planta
-  px(226, 22, 16, 25, '#3a3d4c'); px(228, 26, 12, 7, '#191b22'); px(231, 37, 6, 6, '#f2eee4')
-  if (Math.floor(t / 400) % 2) px(233, 34, 1, 2, '#d8d8d8')
-  px(240, 38, 12, 9, '#8b5a3c'); px(238, 28, 6, 10, '#3c8f4a'); px(245, 24, 6, 14, '#2f7a3d'); px(242, 32, 6, 6, '#49a35a')
-  // piso en damero
-  for (let y = 50; y < H; y += 8) for (let x = 0; x < W; x += 8) px(x, y, 8, 8, ((x + y) / 8) % 2 ? '#4a3a2e' : '#54423a')
-  // alfombra de la sala
-  px(18, 54, 220, 88, 'rgba(120, 60, 50, .35)')
-}
-
-function desk(x, y) {
-  px(x - 20, y, 40, 4, '#a7774e'); px(x - 20, y + 4, 40, 2, '#7b5537')
-  px(x - 18, y + 6, 3, 14, '#6b4a30'); px(x + 15, y + 6, 3, 14, '#6b4a30')
-}
-
-// El portátil, visto desde el frente: la tapa tapa el pecho; su brillo le pinta la cara.
-function laptop(x, y, on) {
-  px(x - 8, y - 9, 16, 9, '#9aa0ad'); px(x - 7, y - 8, 14, 7, '#b9bfcb'); px(x - 1, y - 5, 2, 2, on ? '#e9f1ff' : '#8c919c')
-  px(x - 9, y - 1, 18, 1, '#6d7380')
-}
+// Dónde va cada cosa de un puesto: el escritorio en el centro de su celda, la silla y la persona detrás
+// (hacia arriba en la pantalla), mirando hacia acá.
+const DESK_TOP = 72 // a qué altura del piso queda la tabla del escritorio, en pixeles de la escena
+const seat = (p) => { const [u, v] = p.desk; return { du: u + .5, dv: v + .5, su: u + .2, sv: v + .1 } }
+function head(p) { const s = seat(p); const q = iso(s.su, s.sv); return { x: q.x, y: q.y - 150 } }
 
 function person(p, t) {
-  const { x, y } = seat(p)
-  const top = y - 26
+  const s = seat(p)
+  const q = iso(s.su, s.sv)
   const st = p.state
-  // se mece un pixel al hablar; al pensar, mira hacia arriba
-  const bob = st === 'talking' && Math.floor(t / 160) % 2 ? -1 : 0
+  const bob = st === 'talking' && Math.floor(t / 160) % 2 ? -PX : 0
+  const x = q.x - 6 * PX, y = q.y - 150 + bob
   if (p.kind === 'human') {
     const blink = Math.floor((t + p.phase) / 120) % 33 === 0
-    sprite(HUMAN, { h: p.hair, s: p.skin, e: blink ? p.skin : '#1b1b1f', m: st === 'talking' && Math.floor(t / 120) % 2 ? '#7a2e2e' : shade(p.skin, .8), c: p.shirt, w: shade(p.shirt, 1.3) }, x - 6, top + bob)
+    sprite(HUMAN, { h: p.hair, s: p.skin, e: blink ? p.skin : '#1b1b1f', m: st === 'talking' && Math.floor(t / 120) % 2 ? '#7a2e2e' : shade(p.skin, .8), c: p.shirt, w: shade(p.shirt, 1.3) }, x, y)
   } else {
     const eye = st === 'thinking' ? (Math.floor(t / 200) % 2 ? p.light : '#1b1b1f') : p.light
     const blink = Math.floor((t + p.phase) / 110) % 29 === 0
     sprite(AGENT, { a: shade(p.body, .7), A: Math.floor(t / 300) % 2 ? p.light : shade(p.body, .7), g: shade(p.body, .7), d: '#1d2230', L: blink ? '#1d2230' : eye,
-      m: st === 'talking' && Math.floor(t / 120) % 2 ? p.light : '#3a4256', b: p.body, k: shade(p.body, 1.25) }, x - 6, top + bob)
+      m: st === 'talking' && Math.floor(t / 120) % 2 ? p.light : '#3a4256', b: p.body, k: shade(p.body, 1.25) }, x, y)
   }
-  // manos: teclean (se alternan) o descansan
+}
+
+// Las manos van encima de la tabla: teclean (se alternan) o descansan.
+function hands(p, t) {
+  const s = seat(p)
+  const q = iso(s.du - .12, s.dv - .12)
   const skin = p.kind === 'human' ? p.skin : shade(p.body, .7)
-  const typing = st === 'typing'
-  const l = typing && Math.floor((t + p.phase) / 90) % 2 ? -1 : 0
-  const r = typing && Math.floor((t + p.phase) / 90) % 2 ? 0 : -1
-  desk(x, y)
-  laptop(x, y, typing || st === 'talking')
-  px(x - 8, y - 1 + (typing ? l : 0), 3, 2, skin); px(x + 5, y - 1 + (typing ? r : 0), 3, 2, skin)
-  // taza de café al lado de algunos
-  if (p.kind === 'human') { px(x + 12, y - 4, 4, 4, '#f2eee4'); px(x + 16, y - 3, 1, 2, '#f2eee4') }
+  const typing = p.state === 'typing'
+  const alt = Math.floor((t + p.phase) / 90) % 2
+  const y = q.y - DESK_TOP - 6
+  g.fillStyle = skin
+  g.fillRect(q.x - 22, y - (typing && alt ? 4 : 0), 10, 7)
+  g.fillRect(q.x + 12, y - (typing && !alt ? 4 : 0), 10, 7)
+}
+
+// Lo que tiene cada uno en su escritorio, para que no sean seis iguales.
+const DESK_ITEMS = {
+  duncan: [['deskLamp', -.25, .15], ['alarm', .3, -.05]], miguel: [['deskLamp', -.25, .15], ['phone', .3, -.05]],
+  'd-bot1': [['router', .3, -.05]], 'd-bot2': [['headphones', .3, -.05]], luigi: [['radio', .3, -.05]], wario: [['fan', .3, -.08]],
+}
+function station(p, t) {
+  const s = seat(p)
+  prop('chair', s.su + .02, s.sv + .02)
+  person(p, t)
+  prop('desk', s.du, s.dv)
+  prop('keyboard', s.du - .08, s.dv - .08, DESK_TOP)
+  for (const [name, du, dv] of DESK_ITEMS[p.id] || []) prop(name, s.du + du, s.dv + dv, DESK_TOP)
+  hands(p, t)
+}
+
+// ── LA SALA ──────────────────────────────────────────────────────────────────────────────────────
+const FLOOR_VARIANT = (u, v) => ['floor_timber_clean', 'floor_timber_aged', 'floor_timber_clean', 'floor_timber_stained'][(u * 7 + v * 3) % 4]
+function roomBack() {
+  for (let d = 0; d < U + V; d++) for (let u = 0; u < U; u++) { const v = d - u; if (v >= 0 && v < V) tile(FLOOR_VARIANT(u, v), u, v) }
+  for (let k = 0; k < U; k++) tile(k === 1 || k === 5 ? 'wall_window_u' : 'wall_primary_u', k, 0)
+  for (let k = 0; k < V; k++) tile(k === 2 ? 'wall_doorway_v' : 'wall_primary_v', 0, k)
+  tile('door_closed_v', 0, 2)
+  tile('corner_pilaster', 0, 0)
+  // la tele de la sala, colgada de la pared de atrás, y el reloj
+  prop('tv', 3.1, 0.08, 120)
+  prop('clock', 4.3, 0.06, 175)
+}
+function roomFront() {
+  for (let k = 0; k < U; k++) tile('foundation_edge_u', k, V)
+  for (let k = 0; k < V; k++) tile('foundation_edge_v', U, k)
+}
+// Lo que se para en el piso, además de los puestos: plantas y lámparas.
+const DECOR = [['plant', .6, .6], ['plant', 6.4, .6], ['floorLamp', .5, 4.4], ['plant', 6.4, 4.3]]
+
+// La conversación en la pantalla de la tele: rayitas de colores sobre el plano inclinado de la pared.
+function tvLines() {
+  const p = iso(3.1, 0.08)
+  const x0 = p.x - 44, y0 = p.y - 120 - 92
+  shownLines.slice(-4).forEach((m, i, list) => {
+    const who = CAST.find((c) => c.id === m.who)
+    const len = Math.min(64, 14 + m.text.length * 1.1)
+    g.fillStyle = who.kind === 'human' ? who.shirt : who.body
+    for (let k = 0; k < 6; k += 2) g.fillRect(x0 + k, y0 + i * 12 + k / 2, 2, 4)
+    g.fillStyle = i === list.length - 1 ? 'rgba(235, 248, 255, .95)' : 'rgba(210, 230, 255, .55)'
+    for (let k = 10; k < len; k += 2) g.fillRect(x0 + k, y0 + i * 12 + k / 2, 2, 3)
+  })
 }
 
 // ── QUIÉN HACE QUÉ ───────────────────────────────────────────────────────────────────────────────
 const people = CAST.map((c, i) => ({ ...c, state: 'typing', until: 0, phase: i * 37 }))
 const shownLines = []
 const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'lee' }
-let line = 0, nextLineAt = 1200, paused = false, clockT = 0
+let line = 0, nextLineAt = 1200, paused = false
 
 function idleStates(t) {
   for (const p of people) {
-    if (p.state === 'talking' || t < p.until) continue
+    if (t < p.until) continue // incluido el que habla: termina cuando vence su turno
     const r = Math.random()
     p.state = r < .55 ? 'typing' : r < .8 ? 'thinking' : 'idle'
     p.until = t + 1500 + Math.random() * 3500
@@ -278,6 +317,7 @@ function say(t) {
 }
 
 // ── HTML ENCIMA DEL LIENZO ──────────────────────────────────────────────────────────────────────
+let scale = 1
 const overlay = document.getElementById('overlay')
 const tags = new Map(), bubbles = new Map()
 function place(el, x, y) { el.style.left = `${x * scale}px`; el.style.top = `${y * scale}px` }
@@ -306,15 +346,15 @@ function thinkBubble(p) {
 }
 function layoutOverlay(now) {
   for (const p of people) {
-    const { x, y } = seat(p)
-    place(tags.get(p.id), x, y + 8)
+    const h = head(p)
+    place(tags.get(p.id), h.x, h.y - 6)
     const b = bubbles.get(p.id)
     if (b) {
       const done = b._think ? p.state !== 'thinking' : now > b._until
       if (done) { b.remove(); bubbles.delete(p.id); continue }
-      place(b, x, y - 30)
+      place(b, h.x, h.y - 6 - 30 / scale)
       // que no se salga de la sala por los costados
-      const half = b.offsetWidth / 2, left = x * scale
+      const half = b.offsetWidth / 2, left = h.x * scale
       b.style.left = `${Math.max(half + 4, Math.min(W * scale - half - 4, left))}px`
     } else if (p.state === 'thinking' && p.id === SCRIPT[line % SCRIPT.length][0]) thinkBubble(p)
   }
@@ -339,11 +379,11 @@ function logLine(p, text) {
   log.scrollTop = log.scrollHeight
 }
 
-// ── TAMAÑO: el mayor múltiplo entero que entra ─────────────────────────────────────────────────
+// ── TAMAÑO: la escena entera, achicada para entrar ─────────────────────────────────────────────
 const stage = document.getElementById('stage'), scene = document.getElementById('scene')
 function fit() {
   const r = stage.getBoundingClientRect()
-  scale = Math.max(1, Math.floor(Math.min((r.width - 16) / W, (r.height - 16) / H)))
+  scale = Math.min((r.width - 16) / W, (r.height - 16) / H)
   cv.style.width = `${W * scale}px`; cv.style.height = `${H * scale}px`
   scene.style.width = `${W * scale}px`; scene.style.height = `${H * scale}px`
 }
@@ -359,8 +399,13 @@ function frame(now) {
     idleStates(t)
   }
   g.clearRect(0, 0, W, H)
-  room(t)
-  for (const p of [...people].sort((a, b) => a.row - b.row)) person(p, t)
+  roomBack()
+  tvLines()
+  // todo lo que se para en el piso, de atrás hacia adelante (por u + v)
+  const things = [...DECOR.map(([name, u, v]) => ({ depth: u + v, draw: () => prop(name, u, v) })),
+    ...people.map((p) => ({ depth: p.desk[0] + p.desk[1] + 1, draw: () => station(p, t) }))]
+  things.sort((a, b) => a.depth - b.depth).forEach((x) => x.draw())
+  roomFront()
   layoutOverlay(now)
   if (now - rosterAt > 250) { drawRoster(); rosterAt = now; document.getElementById('clock').textContent = hhmm(new Date()) }
   requestAnimationFrame(frame)
@@ -374,7 +419,8 @@ document.getElementById('pause').addEventListener('click', (e) => {
   e.target.textContent = paused ? 'seguir' : 'pausar'
   e.target.setAttribute('aria-pressed', String(paused))
 })
-buildTags(); fit(); requestAnimationFrame(frame)
+Promise.all([...TILES.map((n) => load(n, `assets/tiles/${n}.png`)), ...Object.values(PROPS).map(([f]) => load(f, `assets/props/${f}.png`))])
+  .then(() => { buildTags(); fit(); requestAnimationFrame(frame) })
 </script>
 </body>
 </html>

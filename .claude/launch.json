@@ -365,6 +365,19 @@
       "cwd": "sentinel",
       "port": 5210,
       "autoPort": false
+    },
+    {
+      "name": "office",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": [
+        "-m",
+        "http.server",
+        "5220",
+        "--bind",
+        "127.0.0.1"
+      ],
+      "cwd": "office",
+      "port": 5220
     }
   ]
 }
