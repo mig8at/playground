@@ -112,8 +112,8 @@ adelante depende de las respuestas de la fase 0.
   Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
 - [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
   entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
-- [ ] Confirmar que una consulta de Mareigua del último mes hecha con otra cuenta NO se reutiliza (así quedó en
-  el código). Depende de: Oscar.
+- [x] Decidir si una consulta de Mareigua del último mes hecha con otra cuenta se reutiliza: no, se vuelve a
+  consultar con la cuenta de la sucursal (decisión de Miguel del 2026-11-12, por PRD-11, 43 y 80).
 - [ ] Revisar el consentimiento del onboarding en las sucursales donde la consulta sale con la cuenta de
   Finandina, antes de elegir entidad: el formulario la pone como responsable de los datos (PRD-72). Depende de:
   producto.
