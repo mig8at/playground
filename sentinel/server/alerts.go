@@ -134,6 +134,7 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 	all := append([]Subject{o.All}, o.Services...)
 	all = append(all, o.Lenders...)
 	all = append(all, o.Merchants...)
+	all = append(all, o.Liveness...)
 	seen := map[Signal]bool{}
 	for _, subj := range all {
 		seen[subj.Signal] = true

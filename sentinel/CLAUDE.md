@@ -9,7 +9,8 @@ producción» de `playground-local` (#96).
 `make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. **La interfaz**: a la izquierda, toda la
 originación y lo que se SIGUE, en dos secciones —entidades y comercios—, que se agregan a mano desde el buscador, cada
 uno con su curva chica de hoy; al centro, el elegido; abajo, en la consola, la tabla de TODAS las señales (pestañas Errores · Entidades ·
-Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, los avisos y los despliegues.
+Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, **una tarjeta por servicio en
+producción** (su versión, sus errores y su señal de vida), los avisos y los despliegues.
 
 `make sentinel ONCE=1` carga lo que falte, hace una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
 en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**.
@@ -39,6 +40,25 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **Al abrir hay datos de entrada.** La última vista se guarda en `sentinel/.data/last.json`; al arrancar la API la
   sirve marcada `stale` («lo guardado de las HH:MM; leyendo lo de ahora…») hasta que termina la primera pasada.
 
+## Los servicios en producción (`server/services.go`)
+
+- **Todo servicio que escribe en el Loki de producción** (18 el 2026-11-12) tiene dos señales: `service:<s>`, sus
+  líneas de error, y `logs:<s>`, TODAS sus líneas (la señal de vida). ⚠ El nivel se lee de `detected_level`, no de la
+  etiqueta `level`: `level` y `environment` sólo los ponen los dos monolitos; los servicios en Go mandan por
+  OpenTelemetry. Con `level` se veían 2 servicios de 18 (`server/fetch.go`).
+- **La versión** es el tag del último despliegue a producción en GitHub (`gh run list` del repo, un workflow con «prod»
+  en el nombre), cada 30 minutos. Es lo que se DESPLEGÓ, no lo que corre: eso lo sabe ECS, con credenciales de AWS de
+  producción. El `service_version` de Loki no sirve (casi todos dicen «1.0.0»). Si el último falló, la tarjeta lo dice
+  y nombra el último que salió bien. El repo de cada servicio sale de su nombre, con excepciones en `serviceRepos`.
+- **La señal de vida avisa sólo si el servicio casi deja de escribir** (`liveness`: 10 % de lo normal, con lo normal
+  ≥ 20 líneas por hora), no cuando baja el tráfico. Así salió, el 2026-11-12, que customer-profiling-service y
+  kyc-gateway-service no escriben nada desde el 11 y el 10 de noviembre. ⚠ Un silencio que dura deja de verse: en dos
+  semanas pasa a ser lo normal.
+- **Errores: hace falta un mínimo** (`errors.minNow`, 10 por hora). Un servicio que casi nunca tiene errores daba alerta
+  con 5.
+- **`logsVersion`** (`fetch.go`): cuando cambia lo que se lee de Loki, los días guardados con la versión anterior se
+  vuelven a pedir (sólo Loki). El paso de 2 a 18 servicios recargó 29 días en ~11 minutos, una vez.
+
 ## Cómo avisa (`server/alerts.go`)
 
 - **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
@@ -57,7 +77,9 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   {"signal":"merchant:94"}`, `DELETE /api/following?signal=…`), no en el navegador: por eso decide los avisos de fondo.
 - Se ajusta en `rules.json`, bajo `notify`: `level` (`alert` por defecto, `warn` para avisar también «para mirar»,
   `off`), `clearMinutes`, `staleMinutes`, `recovered`. **El `-backtest` dice qué avisos habrían salido**: la semana del
-  2026-11-05 al 11, 3 de alerta y 3 de «volvió a lo normal». `-notify-test` manda uno de prueba.
+  2026-11-05 al 11, con 2 servicios, 3 de alerta y 3 de «volvió a lo normal»; con los 18 servicios y su señal de vida
+  (del 2026-11-05 al 12), 15 de alerta: las ráfagas de legacy-application, los errores nuevos de customer-service y
+  messaging-service tras sus despliegues del 9 y 10, y los dos servicios que se callaron. `-notify-test` manda uno de prueba.
 
 ## Cómo decide (`server/stats.go`)
 
@@ -107,6 +129,7 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 | lo normal, el veredicto, el cambio de nivel y el backtest | `server/stats.go` |
 | la carga, las pasadas y la API | `server/main.go` |
 | lo que se sigue (y de qué comercios avisa) | `server/following.go` |
+| los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
 | la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |

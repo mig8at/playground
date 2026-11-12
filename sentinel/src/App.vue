@@ -46,7 +46,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -80,7 +80,7 @@ function spark(s) {
 }
 
 // ── la tabla de la consola: todas las señales ──
-const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
 const tableKind = ref('all')
 const tableQuery = ref('')
 const showIdle = ref(false)
@@ -111,30 +111,38 @@ const selected = computed(() => {
   if (!d) return null
   if (route.value.kind === 'queue') return d.services?.find((s) => s.kind === 'queue') || d.all
   if (route.value.kind === 'service') return d.services?.find((s) => s.name === route.value.name) || d.all
+  if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
 })
-const attention = computed(() => [...(data.value?.services || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+const attention = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter((s) => s.state === 'alert' || s.state === 'warn'))
 
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if (parts[0] === 'service' && parts[1]) route.value = { kind: 'service', id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 function pick(s) {
   if (!s || s.kind === 'all') setRoute([])
   else if (s.kind === 'queue') setRoute(['queue'])
   else if (s.kind === 'service') setRoute(['service', s.name])
+  else if (s.kind === 'logs') setRoute(['logs', s.signal.slice(5)])
   else setRoute([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' ? `logs:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
+// Los servicios en producción (las tarjetas): su versión sale del último despliegue a producción en GitHub.
+const apps = computed(() => data.value?.apps || [])
+const isService = (s) => s?.kind === 'service' || s?.kind === 'logs'
+const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.name)
+const releaseOf = (s) => apps.value.find((a) => a.service === serviceOf(s))?.release
+const compact = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n))
 const ago = (iso) => {
   const h = Math.round((Date.now() - new Date(iso)) / 3600000)
   return h < 1 ? 'hace menos de una hora' : h < 48 ? `hace ${h} h` : `hace ${Math.round(h / 24)} días`
@@ -143,15 +151,15 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { lender: 'Entidad', merchant: 'Comercio', service: 'Logs', queue: 'Cola', all: 'Producción' }
-const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola' }
+const TABLE_KIND = { lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
 // Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
   if (kind === 'lender' || kind === 'merchant') setRoute([kind, key])
-  else if (kind === 'service') setRoute(['service', key])
+  else if (kind === 'service' || kind === 'logs') setRoute([kind, key])
   else if (kind === 'queue') setRoute(['queue'])
   else setRoute([])
   readRoute()
@@ -348,15 +356,15 @@ onBeforeUnmount(() => {
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
-            <div v-if="selected.kind === 'service'" class="card-num"><span class="card-label">Último despliegue a producción</span>
-              <template v-if="lastDeployOf(selected.name)">
-                <span class="card-value">{{ lastDeployOf(selected.name).version }}</span>
-                <span class="card-what">{{ ago(lastDeployOf(selected.name).at) }} · {{ dayClock(lastDeployOf(selected.name).at) }}</span>
+            <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>
+              <template v-if="releaseOf(selected)">
+                <span class="card-value">{{ releaseOf(selected).version }}</span>
+                <span class="card-what">{{ ago(releaseOf(selected).at) }} · {{ dayClock(releaseOf(selected).at) }}{{ releaseOf(selected).ok ? '' : ' · ese despliegue FALLÓ' }}</span>
               </template>
-              <span v-else class="card-what">ninguno en los últimos días</span></div>
+              <span v-else class="card-what">sin despliegues a producción en GitHub</span></div>
             <div v-else-if="!isErrors(selected)" class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
               <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo de hoy todavía avanza</span></div>
           </div>
@@ -447,7 +455,7 @@ onBeforeUnmount(() => {
               <td class="num">{{ fmt(s.median) }}</td>
               <td class="num muted">{{ s.low }}–{{ s.high }}</td>
               <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>
-              <td class="num muted">{{ isErrors(s) ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
+              <td class="num muted">{{ isErrors(s) || s.kind === 'logs' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
               <td class="follow-col">
                 <button v-if="canFollow(s)" type="button" class="region-action" :class="{ following: isFollowed(s) }"
                         :aria-pressed="isFollowed(s)" :title="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`"
@@ -474,6 +482,36 @@ onBeforeUnmount(() => {
           <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
           <small class="row-desc">{{ s.why }}</small>
         </button>
+
+        <div class="region-head group"><span>Servicios en producción</span><span class="count">{{ apps.length }}</span></div>
+        <p v-if="data && !apps.length" class="none">Todavía sin servicios: se leen de los logs de producción.</p>
+        <div class="app-cards">
+          <div v-for="a in apps" :key="a.service" class="app-card" :class="[`is-${a.state}`, { on: (a.errors && isOn(a.errors)) || (a.lines && isOn(a.lines)) }]">
+            <div class="app-head">
+              <i class="dot" :class="`is-${a.state}`" aria-hidden="true"></i>
+              <span class="app-name" :title="a.repo && a.repo !== a.service ? `repo ${a.repo}` : a.service">{{ a.service }}</span>
+              <a v-if="a.release" class="app-version" :class="{ failed: !a.release.ok }" :href="a.release.url" target="_blank" rel="noopener"
+                 :title="`${a.release.title} · ${dayClock(a.release.at)}`">{{ a.release.version }}</a>
+            </div>
+            <small class="app-when">
+              <template v-if="a.release">desplegado {{ ago(a.release.at) }}<template v-if="!a.release.ok"> · FALLÓ<template v-if="a.release.lastOk">, sigue {{ a.release.lastOk.version }}</template></template></template>
+              <template v-else>sin despliegues a producción en GitHub</template>
+            </small>
+            <div class="app-metrics">
+              <button v-if="a.errors" type="button" class="metric" :title="a.errors.why" @click="pick(a.errors)">
+                <span class="metric-label"><i class="dot" :class="`is-${a.errors.state}`" aria-hidden="true"></i>errores</span>
+                <span class="metric-nums"><b>{{ compact(a.errors.now.total) }}</b> · {{ compact(a.errors.median) }}</span>
+                <svg v-if="spark(a.errors)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(a.errors).normal" /><polyline class="spark-today" :points="spark(a.errors).today" /></svg>
+              </button>
+              <span v-else class="metric metric-none"><span class="metric-label">errores</span><span class="metric-nums"><b>0</b> en 4 semanas</span></span>
+              <button v-if="a.lines" type="button" class="metric" :title="a.lines.why" @click="pick(a.lines)">
+                <span class="metric-label"><i class="dot" :class="`is-${a.lines.state}`" aria-hidden="true"></i>líneas</span>
+                <span class="metric-nums"><b>{{ compact(a.lines.now.total) }}</b> · {{ compact(a.lines.median) }}</span>
+                <svg v-if="spark(a.lines)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(a.lines).normal" /><polyline class="spark-today" :points="spark(a.lines).today" /></svg>
+              </button>
+            </div>
+          </div>
+        </div>
 
         <div class="region-head group"><span>Avisos</span><span class="count">{{ data?.notices?.length || 0 }}</span></div>
         <p v-if="data && !data.notices?.length" class="none">Ninguno todavía. Avisa macOS cuando algo pasa a alerta, una vez por episodio, y cuando vuelve.</p>
@@ -592,6 +630,31 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .day-bar.today small { color: var(--foreground); font-weight: 600 }
 
 .attention-row .row-desc { white-space: normal }
+/* Las tarjetas de los servicios: nombre y versión arriba, cuándo se desplegó, y las dos señales (errores y líneas)
+   con su número de la última hora contra lo normal y su curva de hoy. Un clic en una señal la abre al centro. */
+.app-cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-3) }
+.app-card { display: flex; flex-direction: column; gap: 2px; padding: var(--space-2) var(--space-3); border: 1px solid var(--border);
+  border-radius: calc(var(--radius) + 4px); background: var(--card) }
+.app-card.is-alert { border-color: color-mix(in oklab, var(--sentinel-alert) 60%, var(--border)) }
+.app-card.is-warn { border-color: color-mix(in oklab, var(--sentinel-warn) 60%, var(--border)) }
+.app-card.on { box-shadow: inset 2px 0 0 var(--primary) }
+.app-head { display: flex; align-items: center; gap: 2px; min-width: 0 }
+.app-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600 }
+.app-version { flex: none; padding: 0 6px; border-radius: 999px; background: var(--muted); color: var(--foreground);
+  font-size: var(--text-xs); font-variant-numeric: tabular-nums; text-decoration: none }
+.app-version:hover { text-decoration: underline }
+.app-version.failed { background: color-mix(in oklab, var(--sentinel-alert) 25%, var(--muted)) }
+.app-when { color: var(--fg-3); font-size: var(--text-xs) }
+.app-metrics { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-2); margin-top: var(--space-1) }
+.metric { display: flex; flex-direction: column; align-items: flex-start; gap: 0; min-width: 0; padding: 4px 6px; border: 0;
+  border-radius: var(--radius-control); background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.metric:hover { background: var(--hover) }
+.metric-none { cursor: default }
+.metric-none:hover { background: none }
+.metric-label { display: flex; align-items: center; color: var(--fg-3); font-size: var(--text-xs) }
+.metric-nums { font-size: var(--text-sm); color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap }
+.metric-nums b { color: var(--foreground) }
+.metric .spark { width: 100%; height: 18px }
 .note { margin: calc(var(--space-3) * -1) 0 0; font-size: var(--text-sm); color: var(--fg-2) }
 .muted { color: var(--fg-3) }
 .linkish { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline }

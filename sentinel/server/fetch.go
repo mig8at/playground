@@ -182,15 +182,34 @@ func (r reader) names(table string) (map[int]string, error) {
 
 // ── Loki ───────────────────────────────────────────────────────────────────────────────────────────────────────
 
-// Las líneas de nivel error de producción, por servicio, en ventanas de 5 minutos. El filtro de ambiente va explícito
-// aunque hoy esa instancia sólo tenga `production` (medido el 2026-11-11: legacy-backend y legacy-application).
-const errorsLogQL = `sum by (service_name) (count_over_time({environment="production", level="error"} [5m]))`
+// Lo que se lee de Loki, por servicio y en ventanas de 5 minutos: las líneas de nivel error (`service:<servicio>`) y
+// TODAS las líneas (`logs:<servicio>`, la señal de vida: un servicio que deja de escribir probablemente se cayó).
+//
+// ⚠ El nivel va por `detected_level`, no por la etiqueta `level`: `level` (y `environment`) sólo las ponen los dos
+// monolitos; los servicios en Go mandan por OpenTelemetry y su nivel llega como metadato (medido el 2026-11-12: con
+// `level` se veían 2 servicios de 18). La instancia de Loki de producción sólo tiene producción.
+const (
+	errorsLogQL = `sum by (service_name) (count_over_time({service_name=~".+"} | detected_level="error" [5m]))`
+	linesLogQL  = `sum by (service_name) (count_over_time({service_name=~".+"} [5m]))`
+)
 
-// logErrors: los errores de [from, to) por servicio, por bloque. Cada punto de Loki cuenta los 5 minutos que terminan
-// en él: va al bloque que empieza 5 minutos antes.
+// logsVersion: cambia cuando cambia lo que se lee de Loki; un día guardado con una versión anterior se vuelve a pedir
+// (sólo Loki) para que la historia de lo nuevo no arranque vacía.
+const logsVersion = 2
+
+// logErrors: los errores y las líneas de [from, to) por servicio, por bloque.
 func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh) error {
+	if err := lokiSeries(cl, errorsLogQL, "service:", from, to, f); err != nil {
+		return err
+	}
+	return lokiSeries(cl, linesLogQL, "logs:", from, to, f)
+}
+
+// lokiSeries: una consulta de conteo por servicio. Cada punto de Loki cuenta los 5 minutos que terminan en él: va al
+// bloque que empieza 5 minutos antes.
+func lokiSeries(cl *connlogs.Client, query, prefix string, from, to time.Time, f Fresh) error {
 	status, body, err := cl.API("query_range", url.Values{
-		"query": {errorsLogQL}, "start": {fmt.Sprint(from.Add(5 * time.Minute).UnixNano())}, "end": {fmt.Sprint(to.UnixNano())}, "step": {"300"},
+		"query": {query}, "start": {fmt.Sprint(from.Add(5 * time.Minute).UnixNano())}, "end": {fmt.Sprint(to.UnixNano())}, "step": {"300"},
 	})
 	if err != nil {
 		return err
@@ -210,7 +229,7 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh) error {
 		return fmt.Errorf("la respuesta de Loki no se pudo leer: %w", err)
 	}
 	for _, series := range out.Data.Result {
-		sig := "service:" + series.Metric["service_name"]
+		sig := prefix + series.Metric["service_name"]
 		for _, v := range series.Values {
 			ts, _ := v[0].(float64)
 			n, _ := strconv.ParseFloat(fmt.Sprint(v[1]), 64)

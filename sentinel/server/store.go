@@ -31,6 +31,8 @@ type Day struct {
 	Signals map[Signal]*Counts `json:"signals"`
 	// Through: hasta cuándo se pidió (RFC3339). Un día pasado pedido entero tiene Through en su medianoche siguiente.
 	Through string `json:"through"`
+	// Logs: con qué versión de la lectura de Loki se guardó (logsVersion, en fetch.go). Menor: se vuelve a pedir.
+	Logs int `json:"logs,omitempty"`
 }
 
 const bucketsPerDay = 288
@@ -220,3 +222,23 @@ func (s *store) dates() []string {
 }
 
 func (s *store) String() string { return fmt.Sprintf("%d días en %s", len(s.days), s.dir) }
+
+// markLogs: el día ya tiene la lectura de Loki de la versión v.
+func (s *store) markLogs(date string, v int) {
+	s.mu.Lock()
+	d := s.days[date]
+	if d == nil || d.Logs >= v {
+		s.mu.Unlock()
+		return
+	}
+	d.Logs = v
+	raw, err := json.Marshal(d)
+	s.mu.Unlock()
+	if err != nil {
+		return
+	}
+	tmp := filepath.Join(s.dir, date+".json.tmp")
+	if os.WriteFile(tmp, raw, 0o644) == nil {
+		_ = os.Rename(tmp, filepath.Join(s.dir, date+".json"))
+	}
+}

@@ -36,6 +36,9 @@ type Thresholds struct {
 	// CeilingAlert veces el techo.
 	Ceiling      float64 `json:"ceiling,omitempty"`
 	CeilingAlert float64 `json:"ceilingAlert,omitempty"`
+	// MinNow (sólo errores): por debajo de esta cantidad en la ventana no se avisa, sea cual sea lo normal. Un servicio
+	// que casi nunca tiene errores (lo normal, 0) daba alerta con 5: la semana del 2026-11-05 al 12, 20 de 23 avisos.
+	MinNow int `json:"minNow,omitempty"`
 }
 
 type Override struct {
@@ -50,12 +53,16 @@ type Rules struct {
 	// BaselineDays: cuántos días atrás cuentan para lo normal. Menos que la historia A PROPÓSITO: un cambio que se queda
 	// (los errores de legacy-backend ×6 desde el 2026-10-30) pasa a ser lo normal en una semana, y no avisa para siempre.
 	// Ese cambio, en vez de alerta, se muestra como «cambio de nivel» (shift).
-	BaselineDays      int                 `json:"baselineDays"`
-	MinSamples        int                 `json:"minSamples"`
-	Sustain           int                 `json:"sustain"`
-	StepMinutes       int                 `json:"stepMinutes"`
-	Volume            Thresholds          `json:"volume"`
-	Errors            Thresholds          `json:"errors"`
+	BaselineDays int        `json:"baselineDays"`
+	MinSamples   int        `json:"minSamples"`
+	Sustain      int        `json:"sustain"`
+	StepMinutes  int        `json:"stepMinutes"`
+	Volume       Thresholds `json:"volume"`
+	Errors       Thresholds `json:"errors"`
+	// Liveness: la señal de vida de un servicio (`logs:`, todas sus líneas). Avisa sólo si casi deja de escribir
+	// (ratio 0,1: un 10 % de lo normal), no cuando baja el tráfico: con las reglas del volumen, los bajones de la noche
+	// de los servicios chicos daban 15 alertas por semana.
+	Liveness          Thresholds          `json:"liveness"`
 	AfterDeployHours  float64             `json:"afterDeployHours"`
 	AfterDeployFactor float64             `json:"afterDeployFactor"`
 	Signals           map[Signal]Override `json:"signals"`
@@ -72,7 +79,8 @@ func defaultRules() Rules {
 	return Rules{
 		WindowMinutes: 60, HistoryDays: 28, BaselineDays: 14, MinSamples: 4, Sustain: 3, StepMinutes: 10,
 		Volume:           Thresholds{MinMedian: 3, WarnZ: -2.5, AlertZ: -3.5, Ratio: 0.6},
-		Errors:           Thresholds{MinMedian: 3, WarnZ: 3, AlertZ: 4.5, Ratio: 1.5, Ceiling: 0.99, CeilingAlert: 2},
+		Errors:           Thresholds{MinMedian: 3, WarnZ: 3, AlertZ: 4.5, Ratio: 1.5, Ceiling: 0.99, CeilingAlert: 2, MinNow: 10},
+		Liveness:         Thresholds{MinMedian: 20, WarnZ: -2.5, AlertZ: -3.5, Ratio: 0.1},
 		AfterDeployHours: 2, AfterDeployFactor: 0.75,
 		Notify:          NotifyRules{Level: "alert", ClearMinutes: 30, StaleMinutes: 30, Recovered: true, Merchants: "following"},
 		Signals:         map[Signal]Override{},
@@ -101,7 +109,7 @@ func loadRules(path string) (Rules, error) {
 
 func kindOf(sig Signal) string { return sig[:strings.IndexByte(sig, ':')] }
 
-// errorKind: en estas señales lo malo es que SUBAN; en las demás, que caigan.
+// errorKind: en estas señales lo malo es que SUBAN; en las demás (también `logs:`, la señal de vida), que caigan.
 func errorKind(sig Signal) bool { k := kindOf(sig); return k == "service" || k == "queue" }
 
 // ── las series en memoria, densas, para no recorrer mapas en cada cuenta ───────────────────────────────────────
@@ -282,6 +290,8 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	th := e.rules.Volume
 	if errorKind(sig) {
 		th = e.rules.Errors
+	} else if kindOf(sig) == "logs" {
+		th = e.rules.Liveness
 	}
 	over := e.rules.Signals[sig]
 	if over.MinMedian != nil {
@@ -324,7 +334,7 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	case ev.Median < th.MinMedian && !(errorKind(sig) && float64(ev.Now) >= th.Ratio*math.Max(ev.Median, 1)*3):
 		ev.Level, ev.Why = levelQuiet, fmt.Sprintf("%d en %s; poco volumen para comparar (%s)", ev.Now, span(ev.Minutes), normal)
 	case errorKind(sig):
-		up := float64(ev.Now) >= th.Ratio*math.Max(ev.Median, 1)
+		up := float64(ev.Now) >= th.Ratio*math.Max(ev.Median, 1) && ev.Now >= th.MinNow
 		ceil := 0.0
 		if th.Ceiling > 0 {
 			ceil = e.ceiling(sig, se, t, th.Ceiling) * factor
@@ -353,6 +363,9 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 			ev.Level = levelOK
 		}
 		ev.Why = fmt.Sprintf("entraron %d en %s; %s", ev.Now, span(ev.Minutes), normal)
+		if kindOf(sig) == "logs" {
+			ev.Why = fmt.Sprintf("escribió %d líneas en %s; %s", ev.Now, span(ev.Minutes), normal)
+		}
 	}
 	if factor != 1 && ev.Level >= levelOK {
 		ev.Why += " · más sensible: hubo un despliegue a producción hace menos de " + fmtNum(e.rules.AfterDeployHours) + " h"

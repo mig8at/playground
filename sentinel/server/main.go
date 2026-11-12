@@ -83,6 +83,8 @@ type Overview struct {
 	Lenders    []Subject `json:"lenders"`
 	Merchants  []Subject `json:"merchants"`
 	Services   []Subject `json:"services"` // los errores de Loki y la cola
+	Liveness   []Subject `json:"liveness"` // todas las líneas de Loki por servicio: si deja de escribir, se cayó
+	Apps       []App     `json:"apps"`     // los servicios en producción: su versión, sus errores y su señal de vida
 	LogsNote   string    `json:"logsNote,omitempty"`
 	Deploys    []Deploy  `json:"deploys"`
 	History    History   `json:"history"`
@@ -104,6 +106,8 @@ type sentinel struct {
 	fromDisk        bool      // la vista de arranque salió de last.json
 	notifier        *notifier // sólo en la API que escucha: la pasada por consola no avisa
 	follow          *following
+	releases        map[string]Release // el último despliegue a producción por repo (services.go)
+	releasesAt      time.Time
 	lenderNames     map[int]string
 	merchantNames   map[int]string
 	namesAt         time.Time
@@ -114,7 +118,7 @@ type sentinel struct {
 
 var (
 	requestKinds = []string{"all", "lender", "merchant", "queue"}
-	logKinds     = []string{"service"}
+	logKinds     = []string{"service", "logs"}
 )
 
 // fetchRange pide [from, to) a las dos fuentes y lo guarda, día por día.
@@ -140,6 +144,25 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 	}
 	s.logsNote = ""
 	return s.putRange(from, to, logs, logKinds)
+}
+
+// refetchLogs: vuelve a pedir SÓLO Loki para [from, to) y marca esos días con la versión de lectura de hoy.
+func (s *sentinel) refetchLogs(from, to time.Time) error {
+	cl, err := lokiClient()
+	if err != nil {
+		return err
+	}
+	logs := Fresh{}
+	if err := logErrors(cl, from, to, logs); err != nil {
+		return err
+	}
+	if err := s.putRange(from, to, logs, logKinds); err != nil {
+		return err
+	}
+	for day := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, bogota); day.Before(to); day = day.AddDate(0, 0, 1) {
+		s.store.markLogs(day.Format("2006-01-02"), logsVersion)
+	}
+	return nil
 }
 
 // putRange guarda lo que llegó, día por día, reemplazando los bloques de [from, to) de esas clases.
@@ -181,12 +204,35 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 			s.setLoading("")
 			return fmt.Errorf("la carga de %s: %w", day.Format("2006-01-02"), err)
 		}
+		if s.logsNote == "" {
+			s.store.markLogs(day.Format("2006-01-02"), logsVersion)
+		}
 	}
 	if s.store.day(today.Format("2006-01-02")) == nil {
 		s.setLoading("cargando hoy")
 		if err := s.fetchRange(r, today, now); err != nil {
 			s.setLoading("")
 			return err
+		}
+	}
+	// Los días guardados con una lectura de Loki anterior (logsVersion): se vuelve a pedir sólo Loki. Si Loki no
+	// contesta, queda para la próxima pasada.
+	var stale []time.Time
+	for d := rules.HistoryDays; d >= 0; d-- {
+		day := today.AddDate(0, 0, -d)
+		if x := s.store.day(day.Format("2006-01-02")); x != nil && x.Logs < logsVersion {
+			stale = append(stale, day)
+		}
+	}
+	for i, day := range stale {
+		s.setLoading(fmt.Sprintf("leyendo los logs de todos los servicios: %d de %d días (%s)", i+1, len(stale), day.Format("2006-01-02")))
+		to := day.AddDate(0, 0, 1)
+		if to.After(now) {
+			to = now
+		}
+		if err := s.refetchLogs(day, to); err != nil {
+			s.logsNote = "sin la historia nueva de Loki: " + err.Error()
+			break
 		}
 	}
 	s.setLoading("")
@@ -239,6 +285,11 @@ func (s *sentinel) pass() (*Overview, error) {
 			s.deployList, s.deploysAt = list, time.Now()
 		}
 	}
+	// Las versiones de los servicios (GitHub, un repo por servicio, en paralelo: unos segundos), cada 30 minutos.
+	if time.Since(s.releasesAt) > 30*time.Minute {
+		s.loadReleases()
+		s.releasesAt = time.Now()
+	}
 	o := s.overview(rules, now)
 	o.Source = "prod · " + r.src.Name()
 	o.Seconds = time.Since(started).Seconds()
@@ -286,9 +337,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			}
 		case "service", "queue":
 			o.Services = append(o.Services, subj)
+		case "logs":
+			o.Liveness = append(o.Liveness, subj)
 		}
 	}
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services} {
+	o.Apps = s.apps(o)
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness} {
 		sortSubjects(*list)
 	}
 	return o
@@ -321,6 +375,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = nameOr(s.merchantNames, id)
 	case "queue":
 		subj.Name = "Trabajos fallidos de la cola"
+	case "logs":
+		subj.Name = key + " · líneas"
 	}
 	ev, level := e.sustained(sig, now)
 	se := e.data[sig]

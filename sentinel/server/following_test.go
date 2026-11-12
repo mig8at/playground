@@ -96,3 +96,19 @@ func TestFollowedSmallMerchantUsesLongerWindow(t *testing.T) {
 		t.Fatalf("el porqué: %s", ev.Why)
 	}
 }
+
+// Cada tarjeta lleva SUS señales aunque la lista de servicios se ordene después (pasó: quedaban cruzadas).
+func TestAppsKeepTheirOwnSignals(t *testing.T) {
+	o := &Overview{
+		Services: []Subject{{Signal: "service:b", Kind: "service", Name: "b", Median: 1}, {Signal: "service:a", Kind: "service", Name: "a", Median: 9}},
+		Liveness: []Subject{{Signal: "logs:a", Kind: "logs", Name: "a · líneas", Median: 900}, {Signal: "logs:b", Kind: "logs", Name: "b · líneas", Median: 100}},
+	}
+	apps := (&sentinel{}).apps(o)
+	sortSubjects(o.Services)
+	sortSubjects(o.Liveness)
+	for _, a := range apps {
+		if a.Errors.Signal != "service:"+a.Service || a.Lines.Signal != "logs:"+a.Service {
+			t.Fatalf("%s lleva %s y %s", a.Service, a.Errors.Signal, a.Lines.Signal)
+		}
+	}
+}
