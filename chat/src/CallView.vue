@@ -44,12 +44,10 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 <template>
   <div ref="box" class="region-body call" aria-label="Videollamada">
     <div class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
-      <figure v-for="c in cast" :key="c.handle || `${c.owner}/${c.agent}`" class="call-tile">
+      <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
+      <figure v-for="c in cast" :key="c.handle || `${c.owner}/${c.agent}`" class="call-tile" :title="label(c) ? `${c.name} · ${label(c)}` : c.name">
         <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })" gesto="escucha" />
-        <figcaption class="call-name">
-          <b>{{ c.name }}</b>
-          <span v-if="label(c)">{{ label(c) }}</span>
-        </figcaption>
+        <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
     </div>
   </div>
@@ -68,7 +66,5 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   padding: 3px 9px; border-radius: 8px; background: #f1e4c7; color: #13323a; font-size: 12px; box-shadow: 0 2px 0 #d9c9a6;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .call-name b { font-weight: 800; }
-.call-name span { color: #2b6670; font-weight: 700; overflow: hidden; text-overflow: ellipsis; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }
-.compact .call-name span { display: none; }
 </style>
