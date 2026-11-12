@@ -105,17 +105,15 @@ adelante depende de las respuestas de la fase 0.
 
 ### Fase 5 · Credenciales y salida a qa
 
-- [x] Consultar Mareigua en el onboarding con la cuenta que elige la sucursal (lo pidió Oscar el 2026-11-12):
-  un resolvedor por central que toma la entidad de la solicitud, después la credencial del comercio o la
-  sucursal, después **la primera entidad activa de la sucursal con credencial de esa central** (orden fijo por
-  id, como `DocumentTypesService::resolver` junta los tipos de documento) y por último config. Mareigua lo usa
-  en los dos caminos del monolito modular que tienen solicitud, y guarda el `credential_id` en el request como
-  ADO. Termina con dos casos en local: la sucursal «Finandina Pruebas» consulta con la cuenta de la 149 y una
-  sucursal sin Finandina con la de Creditop. Fuera: mobile (su comando no trae sucursal), application y el
-  Experian HC2.
-- [ ] Decidir dos bordes del resolvedor: si la cuenta propia del comercio o la sucursal gana sobre la de la
-  entidad (propuesta: sí), y si una consulta de Mareigua del último mes hecha con otra cuenta se reutiliza
-  (propuesta: no; sólo con la misma cuenta). Depende de: Oscar.
+- [x] Consultar Mareigua en el onboarding con la cuenta de una entidad de la sucursal (lo pidió Oscar el
+  2026-11-12): si alguna entidad activa de la sucursal tiene credencial de Mareigua, **la primera por id**
+  (como `DocumentTypesService::resolver` junta los tipos de documento); si ninguna, la de config. Guarda el
+  `credential_id` en el request, como ADO, y deja en el log la sucursal, las entidades con cuenta y la elegida.
+  Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
+- [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
+  entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
+- [ ] Confirmar que una consulta de Mareigua del último mes hecha con otra cuenta NO se reutiliza (así quedó en
+  el código). Depende de: Oscar.
 - [ ] Revisar el consentimiento del onboarding en las sucursales donde la consulta sale con la cuenta de
   Finandina, antes de elegir entidad: el formulario la pone como responsable de los datos (PRD-72). Depende de:
   producto.
