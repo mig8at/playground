@@ -52,7 +52,8 @@ animarse (pupilas, cejas). Cada SVG trae su CSS: cambiar el gesto es cambiar la 
 encerrado en su alcance), el estilo y el logo, más el componente `<office-personaje config='…' gesto="habla">` (shadow
 DOM, no toca el CSS de la página) y las funciones `dibujar`, `svg`, `alAzar`, `personaje` y `OPCIONES`. En Node sólo
 están `svg` y `alAzar` (no hay `HTMLElement`). Junto a él quedan `ejemplo.html` (armar el tuyo y copiar su JSON),
-`README.md` y un `package.json` que lo declara módulo ES. `dist/` se versiona porque es lo que se comparte: después de
-tocar `personajes.js` o `personajes.css`, volvé a correr `make office-package`. `personajes.js` no toca la página
+`README.md` y un `package.json` que lo declara módulo ES. `dist/` no se versiona (el `.gitignore` del repo ignora toda
+carpeta `dist/`): se regenera con `make office-package` justo antes de compartirlo, y así nunca queda atrás de
+`personajes.js` o `personajes.css`. `personajes.js` no toca la página
 cuando está empacado (la constante `OFFICE_PAQUETE`).
 
