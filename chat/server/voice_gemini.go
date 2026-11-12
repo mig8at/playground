@@ -84,7 +84,7 @@ func synthesizeGemini(ctx context.Context, voice, text string) (string, error) {
 		voice = "Puck"
 	}
 	prompt := text
-	sum := sha256.Sum256([]byte(fmt.Sprintf("gemini|%s|%s|%s", geminiVoiceModel, voice, prompt)))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("gemini2|%s|%s|%s", geminiVoiceModel, voice, prompt)))
 	dir := voiceCacheDir()
 	file := filepath.Join(dir, "g-"+hex.EncodeToString(sum[:12])+".wav")
 	if _, err := os.Stat(file); err == nil {
@@ -137,7 +137,7 @@ func synthesizeGemini(ctx context.Context, voice, text string) (string, error) {
 				return "", err
 			}
 			tmp := file + ".tmp"
-			if err := os.WriteFile(tmp, wavFromPCM(pcm, 24000), 0o644); err != nil {
+			if err := os.WriteFile(tmp, wavFromPCM(cleanSpeech(pcm, 24000), 24000), 0o644); err != nil {
 				return "", err
 			}
 			return file, os.Rename(tmp, file)
