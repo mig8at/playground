@@ -6,7 +6,11 @@
     "name": "Reed",
     "lang": "es-ES",
     "pitch": 0.6,
-    "rate": 0.92
+    "rate": 0.92,
+    "gemini": {
+      "voice": "Charon",
+      "pitch": 0.86
+    }
   },
   "character": {
     "species": "oso",

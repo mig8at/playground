@@ -64,6 +64,13 @@ encabezado cambia el hilo por la videollamada (`chat/src/CallView.vue`), con las
 agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `chat/src/characters/`, un JSON por personaje
 (`{ name, handle | owner + agent, character }`): para sumar uno se deja su JSON ahí. El dibujo es una copia del paquete,
 `chat/src/characters/office-characters.js`, que se regenera con `make office-package JS=chat/src/characters/office-characters.js`.
+**Las voces** (`chat/src/callVoice.js`, servidor `chat/server/voice.go` y `voice_gemini.go`): cada mensaje lo dice
+quien lo escribió y la boca se abre con el volumen real del audio. Dos motores, elegidos en la videollamada: Gemini
+(`gemini-3.8-flash-lite-tts`, ~3 s la primera vez, ~US$0,0012 por mensaje de 8 s; el texto va a Google) y Local
+(`say` de macOS, gratis, nada sale). Cada frase se guarda una vez. ⚠ A Gemini va SÓLO el texto: una instrucción de
+estilo la leen en voz alta los modelos 3.8 y no aceptan `systemInstruction`. Cambiar el servidor pide `make chat-install`
+(y aceptar el permiso de Escritorio de macOS rápido: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
+
 Para verlo en Cockpit basta compilar la interfaz (`cd chat && npm run build`): el servidor del chat sirve `chat/dist`
 desde el disco, así que no hace falta reinstalarlo; se recarga la vista del chat y listo.
 

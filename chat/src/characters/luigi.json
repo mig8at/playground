@@ -6,7 +6,11 @@
     "name": "Rocko",
     "lang": "es-MX",
     "pitch": 1.25,
-    "rate": 1.1
+    "rate": 1.1,
+    "gemini": {
+      "voice": "Puck",
+      "pitch": 1.06
+    }
   },
   "character": {
     "species": "panda",

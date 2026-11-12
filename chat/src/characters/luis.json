@@ -6,7 +6,11 @@
     "name": "Eddy",
     "lang": "es-ES",
     "pitch": 1.45,
-    "rate": 1.05
+    "rate": 1.05,
+    "gemini": {
+      "voice": "Zubenelgenubi",
+      "pitch": 1.12
+    }
   },
   "character": {
     "species": "buho",

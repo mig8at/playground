@@ -5,7 +5,10 @@
     "name": "Reed",
     "lang": "es-MX",
     "pitch": 0.95,
-    "rate": 1
+    "rate": 1,
+    "gemini": {
+      "voice": "Orus"
+    }
   },
   "character": {
     "face": "soft",

@@ -1,5 +1,7 @@
-/* LAS VOCES DE LA VIDEOLLAMADA: cada personaje dice sus mensajes con una voz de macOS, con su tono y su velocidad.
-   Nada sale de la máquina: el servidor del chat (en tu Mac) la genera con `say` (POST /api/voice) y acá se reproduce.
+/* LAS VOCES DE LA VIDEOLLAMADA: cada personaje dice sus mensajes con su voz. Hay dos motores, y se elige en la
+   videollamada: GEMINI (gemini-3.8-flash-lite-tts: la voz de `voice.gemini` del JSON y, si lo trae, su tono; el texto va a Google)
+   y LOCAL (las voces de macOS con `say`: nada sale de la máquina). Los dos los genera el servidor del chat
+   (POST /api/voice) y acá se reproducen.
    No se usa la síntesis del navegador porque dentro de Cockpit (WebKit) sólo trae Mónica y Paulina.
 
    LA BOCA SIGUE LA VOZ: el audio pasa por un analizador (WebAudio) y, cuadro a cuadro, `voice.open` dice si en ese
@@ -12,6 +14,7 @@
    qué está diciendo (el subtítulo). */
 import { reactive } from 'vue'
 import { forSpeech } from './speech.js'
+import { readPref, savePref } from './workbench.js'
 
 export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
@@ -19,7 +22,13 @@ export const voice = reactive({
   line: '',      // la frase que está diciendo
   open: false,   // si en este instante suena (la boca abierta)
   error: '',
+  engine: readPref('chat.call-engine', 'gemini'),   // 'gemini' o 'local'
+  geminiReady: false,                               // si el servidor tiene la llave de Gemini
 })
+fetch('/api/voice').then((r) => r.json()).then((d) => { voice.geminiReady = !!d.gemini }).catch(() => {})
+
+/** Gemini (en la nube de Google, ~0,6 s y ~US$0,0012 por mensaje) o las voces de macOS (gratis, nada sale). */
+export function setEngine(engine) { voice.engine = engine; voice.error = ''; savePref('chat.call-engine', engine) }
 
 const queue = []
 let busy = false
@@ -78,18 +87,30 @@ function track() {
   raf = requestAnimationFrame(tick)
 }
 
+// El audio de una frase, como URL lista para reproducir, y con qué tono se reproduce. Con Gemini el tono lo pone la
+// voz y su estilo; con las locales, la velocidad de reproducción. Si Gemini falla, esa frase sale con la voz local.
+async function render(item) {
+  const post = (body) => fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    .then(async (res) => {
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
+      return URL.createObjectURL(await res.blob())
+    })
+  const g = item.voice?.gemini
+  if (voice.engine === 'gemini' && voice.geminiReady && g) {
+    try { return { url: await post({ engine: 'gemini', voice: g.voice, text: item.text }), pitch: g.pitch ?? 1 } }
+    catch (e) { voice.error = `Gemini: ${e.message || e} (sigue con la voz local)` }
+  }
+  const pitch = item.voice?.pitch ?? 1
+  return { url: await post({ voice: await voiceName(item.voice), text: item.text, rate: (item.voice?.rate ?? 1) / pitch }), pitch }
+}
+
 async function next() {
   const item = queue.shift()
   if (!item) { busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.open = false; return }
   busy = true
-  const pitch = item.voice?.pitch ?? 1
   try {
-    const res = await fetch('/api/voice', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ voice: await voiceName(item.voice), text: item.text, rate: (item.voice?.rate ?? 1) / pitch }),
-    })
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
-    const url = URL.createObjectURL(await res.blob())
+    // ya se venía generando desde que llegó el mensaje: acá sólo se espera lo que falte
+    const { url, pitch } = await item.audio
     if (item.gen !== generation) { URL.revokeObjectURL(url); return } // se calló mientras se generaba
     const audio = new Audio(url)
     audio.preservesPitch = false
@@ -97,7 +118,7 @@ async function next() {
     audio.playbackRate = pitch
     current = audio
     listen(audio)
-    voice.speaker = item.speaker; voice.line = item.text; voice.error = ''
+    voice.speaker = item.speaker; voice.line = item.text
     const done = () => {
       URL.revokeObjectURL(url)
       if (current !== audio) return
@@ -124,7 +145,13 @@ export function say(speaker, text, v) {
   // un mensaje largo se recorta: la videollamada lo dice, no lo lee entero
   const kept = parts.slice(0, 4)
   if (parts.length > kept.length) kept.push('Y sigue en el chat.')
-  kept.forEach((t, i) => queue.push({ speaker, text: t, voice: v, last: i === kept.length - 1, gen: generation }))
+  kept.forEach((t, i) => {
+    const item = { speaker, text: t, voice: v, last: i === kept.length - 1, gen: generation }
+    // cada frase se empieza a generar ya, en paralelo: mientras suena una, la siguiente está lista
+    item.audio = render(item)
+    item.audio.catch(() => {})
+    queue.push(item)
+  })
   if (!busy) next()
 }
 

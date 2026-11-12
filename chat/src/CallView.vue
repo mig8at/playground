@@ -13,7 +13,7 @@
    últimos mensajes y un clic en un recuadro hace que ese personaje salude. Todo es local: voces de macOS generadas por
    el servidor del chat en esta máquina, y la boca se abre cuando suena (el volumen real del audio). */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { hush, say, voice } from './callVoice.js'
+import { hush, say, setEngine, voice } from './callVoice.js'
 import { readPref, savePref } from './workbench.js'
 
 const props = defineProps({
@@ -109,12 +109,18 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
           <path v-else d="M16 9l5 6M21 9l-5 6" fill="none" /></svg>
         {{ voiceOn ? 'Voz' : 'Sin voz' }}
       </button>
+      <button v-if="voice.geminiReady" type="button" class="engine" :title="voice.engine === 'gemini'
+                ? 'Voces de Gemini: el texto va a Google (~US$0,0012 por mensaje). Clic: voces locales de macOS'
+                : 'Voces locales de macOS: gratis, nada sale de la máquina. Clic: voces de Gemini'"
+              @click="setEngine(voice.engine === 'gemini' ? 'local' : 'gemini')">
+        {{ voice.engine === 'gemini' ? 'Gemini' : 'Local' }}
+      </button>
       <button type="button" title="Decir otra vez los últimos mensajes" @click="replay">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" fill="none" /></svg>
         Repetir
       </button>
     </div>
-    <p v-if="voice.error && !caption" class="call-caption">No pude generar la voz: {{ voice.error }}</p>
+    <p v-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
     <p v-if="caption" class="call-caption" aria-live="polite"><b>{{ caption.name }}</b> {{ caption.line }}</p>
   </div>
 </template>

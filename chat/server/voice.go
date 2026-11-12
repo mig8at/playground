@@ -7,6 +7,8 @@ package main
 //
 //	GET  /api/voice          las voces en español de esta máquina
 //	POST /api/voice          {"voice": "Eddy (Español (México))", "text": "…", "rate": 1} → audio/wav
+//	                         {"engine": "gemini", "voice": "Puck", "text": "…"} → la de
+//	                         Gemini (voice_gemini.go)
 //
 // Cada frase se guarda una vez (en la caché del usuario, por voz, velocidad y texto): repetir no vuelve a generarla.
 
@@ -94,13 +96,14 @@ func synthesize(voice, text string, rate float64) (string, error) {
 
 func registerVoice(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"voices": spanishVoices()})
+		writeJSON(w, http.StatusOK, map[string]any{"voices": spanishVoices(), "gemini": geminiKey() != ""})
 	})
 	mux.HandleFunc("POST /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
-			Voice string  `json:"voice"`
-			Text  string  `json:"text"`
-			Rate  float64 `json:"rate"`
+			Engine string  `json:"engine"`
+			Voice  string  `json:"voice"`
+			Text   string  `json:"text"`
+			Rate   float64 `json:"rate"`
 		}
 		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&req); err != nil {
 			fail(w, http.StatusBadRequest, err)
@@ -111,7 +114,13 @@ func registerVoice(mux *http.ServeMux) {
 			fail(w, http.StatusBadRequest, errors.New("el texto va vacío o es demasiado largo"))
 			return
 		}
-		file, err := synthesize(req.Voice, text, req.Rate)
+		var file string
+		var err error
+		if req.Engine == "gemini" {
+			file, err = synthesizeGemini(r.Context(), req.Voice, text)
+		} else {
+			file, err = synthesize(req.Voice, text, req.Rate)
+		}
 		if err != nil {
 			fail(w, http.StatusUnprocessableEntity, err)
 			return

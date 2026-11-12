@@ -5,7 +5,10 @@
     "name": "Eddy",
     "lang": "es-MX",
     "pitch": 1,
-    "rate": 1.05
+    "rate": 1.05,
+    "gemini": {
+      "voice": "Iapetus"
+    }
   },
   "character": {
     "face": "largo",
