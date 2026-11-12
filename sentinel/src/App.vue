@@ -1,16 +1,18 @@
 <script setup>
-/* SENTINEL: el vigía de producción. A la izquierda las entidades y los comercios con su semáforo (la última hora contra
- * la misma hora de los 7 días anteriores); al centro el elegido —o toda la originación—, con su curva del día contra lo
- * normal y las marcas de los despliegues a producción; a la derecha lo que pide atención, los despliegues y la cola.
+/* SENTINEL: el vigía de producción. A la izquierda los errores (logs y cola), las entidades y los comercios con su
+ * semáforo (la última hora contra la misma hora de los días comparables); al centro el elegido —o toda la originación—,
+ * con su curva del día contra lo normal y las marcas de los despliegues a producción; a la derecha lo que pide atención
+ * y los despliegues.
  *
- * Sólo lee: la API (sentinel/server) consulta producción cada 5 minutos por Redash. La ruta es `#/lender/<id>`,
- * `#/merchant/<id>` o vacía (toda la originación). */
+ * Sólo lee: la API (sentinel/server) guarda cuatro semanas en disco y cada 5 minutos pide sólo lo que falta. La ruta es
+ * `#/lender/<id>`, `#/merchant/<id>`, `#/service/<nombre>`, `#/queue` o vacía (toda la originación). */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, setRoute } from './workbench.js'
 
 const data = ref(null)       // el Overview de la API
 const apiError = ref('')
 const running = ref(false)
+const loading = ref('')      // la carga inicial de la historia, mientras corre
 const query = ref('')
 const route = ref({ kind: 'all', id: 0 })
 
@@ -21,6 +23,7 @@ async function load() {
     data.value = body.overview || data.value
     apiError.value = body.error || ''
     running.value = !!body.running
+    loading.value = body.loading || ''
   } catch {
     apiError.value = 'No contesta la API. ¿Está arriba? (make sentinel levanta las dos partes)'
   }
@@ -44,6 +47,7 @@ const merchants = computed(() => filtered(data.value?.merchants))
 const selected = computed(() => {
   const d = data.value
   if (!d) return null
+  if (route.value.kind === 'queue') return d.services?.find((s) => s.kind === 'queue') || d.all
   if (route.value.kind === 'service') return d.services?.find((s) => s.name === route.value.name) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
@@ -55,16 +59,18 @@ const countOf = (list, state) => (list || []).filter((s) => s.state === state).l
 
 function readRoute() {
   const { parts } = readHashRoute()
-  if (parts[0] === 'service' && parts[1]) route.value = { kind: 'service', id: 0, name: decodeURIComponent(parts[1]) }
+  if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
+  else if (parts[0] === 'service' && parts[1]) route.value = { kind: 'service', id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 function pick(s) {
   if (!s || s.kind === 'all') setRoute([])
+  else if (s.kind === 'queue') setRoute(['queue'])
   else if (s.kind === 'service') setRoute(['service', s.name])
   else setRoute([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'service' ? route.value.name === s.name : route.value.id === s.id)
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
@@ -75,7 +81,12 @@ const ago = (iso) => {
 
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
-const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs' }
+const KIND_LABEL = { lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola' }
+const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue'
+const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
+// El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
+const shiftText = (s) => s?.shift && `Cambio de nivel: ×${fmt(s.shift.ratio)} por día (de ${fmt(s.shift.before)} a ${fmt(s.shift.after)}), la última semana contra las anteriores. Ya cuenta como lo normal; si nadie lo explicó, vale la pena mirarlo.`
+const dayBarMax = computed(() => Math.max(1, selected.value?.now?.total || 0, ...(selected.value?.samples || []).map((x) => x.n)))
 const clock = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const dayClock = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { weekday: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : '')
 const pct = (x) => `${Math.round((x || 0) * 100)} %`
@@ -178,9 +189,9 @@ onBeforeUnmount(() => {
           <span class="subject-name">Toda la originación</span>
           <small v-if="data?.all" class="subject-nums" title="en la última hora · lo normal a esta hora">{{ data.all.now.total }} · {{ fmt(data.all.median) }}</small>
         </button>
-        <div class="region-head group"><span>Errores en los logs</span><span class="count">{{ data?.services?.length || 0 }}</span></div>
+        <div class="region-head group"><span>Errores</span><span class="count">{{ data?.services?.length || 0 }}</span></div>
         <p v-if="data?.logsNote" class="none">{{ data.logsNote }}</p>
-        <button v-for="s in data?.services || []" :key="`service-${s.name}`" type="button" class="row subject" :class="{ on: isOn(s) }"
+        <button v-for="s in data?.services || []" :key="s.signal" type="button" class="row subject" :class="{ on: isOn(s) }"
                 :title="s.why" @click="pick(s)">
           <i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>
           <span class="subject-name">{{ s.name }}</span>
@@ -204,7 +215,7 @@ onBeforeUnmount(() => {
             {{ showIdle[group.id] ? 'Ocultar' : 'Ver' }} {{ group.list.filter(idle).length }} sin movimiento a esta hora
           </button>
         </template>
-        <p v-if="!data && !apiError" class="none">Leyendo producción… la primera pasada tarda unos 20 segundos.</p>
+        <p v-if="!data && !apiError" class="none">{{ loading || 'Leyendo producción…' }}</p>
         <p v-if="apiError && !data" class="none">{{ apiError }}</p>
       </div>
     </aside>
@@ -220,27 +231,30 @@ onBeforeUnmount(() => {
             <i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i>
             <b>{{ STATE_LABEL[selected.state] }}</b> · {{ selected.why }}
           </p>
+          <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
+            Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
+          <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
 
           <div class="cards">
             <div class="card-num"><span class="card-label">Última hora</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
-              <span class="card-what">entre {{ selected.low }} y {{ selected.high }} a esta hora, los 7 días anteriores</span></div>
+              <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} a esta hora, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="selected.kind === 'service'" class="card-num"><span class="card-label">Último despliegue a producción</span>
               <template v-if="lastDeployOf(selected.name)">
                 <span class="card-value">{{ lastDeployOf(selected.name).version }}</span>
                 <span class="card-what">{{ ago(lastDeployOf(selected.name).at) }} · {{ dayClock(lastDeployOf(selected.name).at) }}</span>
               </template>
-              <span v-else class="card-what">ninguno en los últimos dos días</span></div>
-            <div v-else class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
-              <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo normal {{ pct(selected.deniedRateNormal) }}</span></div>
+              <span v-else class="card-what">ninguno en los últimos días</span></div>
+            <div v-else-if="!isErrors(selected)" class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
+              <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo de hoy todavía avanza</span></div>
           </div>
 
           <section class="chart-box">
             <div class="chart-head">
               <h3>Hoy, hora por hora</h3>
               <span class="legend"><i class="sw today" aria-hidden="true"></i>hoy <i class="sw normal" aria-hidden="true"></i>lo normal (mediana)
-                <i class="sw band" aria-hidden="true"></i>rango de los 7 días <i class="sw deploy" aria-hidden="true"></i>despliegue a producción</span>
+                <i class="sw band" aria-hidden="true"></i>casi siempre (días comparables) <i class="sw deploy" aria-hidden="true"></i>despliegue a producción</span>
             </div>
             <svg v-if="chart" class="chart" :viewBox="`0 0 ${W} ${H}`" role="img" :aria-label="`${selected.kind === 'service' ? 'Errores' : 'Solicitudes'} por hora de ${selected.name}, hoy contra lo normal`">
               <g class="grid">
@@ -260,15 +274,15 @@ onBeforeUnmount(() => {
             <p class="chart-note">El último punto es la hora en curso: todavía se está llenando.</p>
           </section>
 
-          <section v-if="selected.baseline?.length" class="days">
-            <h3>Esta misma hora, los días anteriores</h3>
+          <section v-if="selected.samples?.length" class="days">
+            <h3>Esta misma hora, los días comparables</h3>
             <div class="day-bars">
-              <div v-for="(n, i) in selected.baseline" :key="i" class="day-bar" :title="`hace ${i + 1} día(s): ${n}`">
-                <span class="bar" :style="{ height: `${Math.max(4, (n / Math.max(1, selected.high, selected.now.total)) * 64)}px` }"></span>
-                <small>-{{ i + 1 }}d</small>
+              <div v-for="x in [...selected.samples].reverse()" :key="x.date" class="day-bar" :title="`${x.date}: ${x.n}`">
+                <span class="bar" :style="{ height: `${Math.max(4, (x.n / dayBarMax) * 64)}px` }"></span>
+                <small>{{ shortDate(x.date) }}</small>
               </div>
               <div class="day-bar today" :title="`hoy: ${selected.now.total}`">
-                <span class="bar" :style="{ height: `${Math.max(4, (selected.now.total / Math.max(1, selected.high, selected.now.total)) * 64)}px` }"></span>
+                <span class="bar" :style="{ height: `${Math.max(4, (selected.now.total / dayBarMax) * 64)}px` }"></span>
                 <small>hoy</small>
               </div>
             </div>
@@ -276,7 +290,7 @@ onBeforeUnmount(() => {
         </div>
         <div v-else class="empty-state">
           <p class="empty-title">Sentinel</p>
-          <p>{{ apiError || 'Leyendo producción… la primera pasada tarda unos 20 segundos.' }}</p>
+          <p>{{ apiError || loading || 'Leyendo producción…' }}</p>
         </div>
       </div>
     </main>
@@ -289,32 +303,25 @@ onBeforeUnmount(() => {
       </div>
       <div class="region-body">
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora.</p>
-        <button v-for="s in attention" :key="`a-${s.kind}-${s.id}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
+        <button v-for="s in attention" :key="`a-${s.signal}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
           <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
           <small class="row-desc">{{ s.why }}</small>
         </button>
 
         <div class="region-head group"><span>Despliegues a producción</span><span class="count">{{ data?.deploys?.length || 0 }}</span></div>
-        <p v-if="data?.deploysNote" class="none">{{ data.deploysNote }}</p>
-        <p v-else-if="data && !data.deploys?.length" class="none">Ninguno en los últimos dos días.</p>
+        <p v-if="data && !data.deploys?.length" class="none">Ninguno en los últimos días.</p>
         <a v-for="d in data?.deploys || []" :key="d.url" class="row stacked" :href="d.url" target="_blank" rel="noopener">
           <span><i class="dot" :class="d.ok ? 'is-ok' : 'is-alert'" aria-hidden="true"></i>{{ repoShort(d.repo) }} <b>{{ d.version }}</b></span>
           <small class="row-desc">{{ dayClock(d.at) }} · {{ d.title }}</small>
         </a>
-
-        <div class="region-head group"><span>La cola</span></div>
-        <div v-if="data" class="row stacked static">
-          <span><i class="dot" :class="data.failedJobs.total > Math.max(2, data.failedJobsNormal * 3) ? 'is-warn' : 'is-ok'" aria-hidden="true"></i>
-            {{ data.failedJobs.total }} trabajo(s) fallido(s) en la última hora</span>
-          <small class="row-desc">lo normal a esta hora: {{ fmt(data.failedJobsNormal) }}</small>
-        </div>
       </div>
     </aside>
 
     <footer class="statusbar">
-      <span v-if="data">{{ data.source }} · leído a las {{ clock(data.checkedAt) }} ({{ fmt(data.seconds) }} s) · se vuelve a leer cada 5 min</span>
+      <span v-if="data">{{ data.source }} · leído a las {{ clock(data.checkedAt) }} ({{ fmt(data.seconds) }} s) · {{ data.history.days }} días guardados desde el {{ data.history.from }}</span>
       <span v-else>{{ apiError || 'leyendo producción…' }}</span>
       <span v-if="apiError && data" class="statusbar-item warn-text">{{ apiError }}</span>
+      <span v-if="loading && data" class="statusbar-item">{{ loading }}</span>
       <button type="button" class="statusbar-item linkish" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
@@ -384,7 +391,7 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .day-bar.today small { color: var(--foreground); font-weight: 600 }
 
 .attention-row .row-desc { white-space: normal }
-.row.static { cursor: default }
+.note { margin: calc(var(--space-3) * -1) 0 0; font-size: var(--text-sm); color: var(--fg-2) }
 .muted { color: var(--fg-3) }
 .linkish { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline }
 .linkish:disabled { cursor: default; text-decoration: none; color: var(--fg-3) }

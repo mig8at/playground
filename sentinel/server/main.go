@@ -1,14 +1,12 @@
-// sentinel es la API del vigía de producción: cada pocos minutos lee producción (SÓLO LECTURA, por Redash, con el
-// conector de siempre) y dice, por entidad y por comercio, si lo que entra y avanza se salió de lo normal. Lo normal
-// es la MISMA hora de los 7 días anteriores: el volumen cambia mucho por hora y por día, y un umbral fijo mentiría.
-// Además, los trabajos fallidos de la cola y los despliegues a producción, que son el «antes y después».
+// sentinel es la API del vigía de producción. Guarda la historia de producción en bloques de 5 minutos (sentinel/.data,
+// fuera de git: la carga inicial de 4 semanas se pide una vez), cada pocos minutos pide sólo lo que falta, y dice por
+// entidad, comercio, servicio y cola si la última hora se salió de lo normal de los días comparables (stats.go).
 //
-//	go run ./sentinel/server -serve 127.0.0.1:5211      (desde la raíz del playground; `make sentinel` lo hace)
+//	go run ./sentinel/server -serve 127.0.0.1:5211     la API (`make sentinel` la levanta con la interfaz)
+//	go run ./sentinel/server -once                    carga lo que falte, una pasada, y el resumen
+//	go run ./sentinel/server -backtest 7              cuántas veces habrían sonado las reglas en los últimos 7 días
 //
-// ⚠ LAS HORAS: en producción `created_at` está en hora de Bogotá y `NOW()` de la base en UTC (medido el 2026-11-11).
-// Por eso las ventanas se arman ACÁ, en hora de Bogotá, y van a la consulta como fechas literales; nunca con `NOW()`.
-//
-// Sólo escucha en 127.0.0.1. Nada de esto escribe: cada consulta pasa por la guarda de sólo lectura del conector.
+// Sólo escucha en 127.0.0.1 y sólo LEE producción: cada consulta pasa por la guarda de sólo lectura del conector.
 package main
 
 import (
@@ -17,77 +15,61 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
-
-	connlogs "creditop/playground/connectors/logs"
-	connsql "creditop/playground/connectors/sql"
 )
-
-// Los estados de `user_requests` (`user_request_statuses` de producción, leída el 2026-11-11), en tres grupos. Negar
-// no es fallar —la entidad decidió—, pero una negación que se dispara de golpe después de un despliegue sí es una señal.
-const (
-	approvedStates = "5,11,13,14,15,16,20,25,26,27,28,30" // desembolsada, autorizada…, aprobada, facturación, paz y salvo
-	deniedStates   = "6,12,24"                            // negada, autorización negada, rechazada por identidad
-)
-
-var bogota = func() *time.Location {
-	loc, err := time.LoadLocation("America/Bogota")
-	if err != nil {
-		return time.FixedZone("COT", -5*3600)
-	}
-	return loc
-}()
 
 // ── lo que contesta la API ─────────────────────────────────────────────────────────────────────────────────────
 
-// Window son los números de una ventana (la última hora, o la misma hora de un día anterior).
 type Window struct {
 	Total    int `json:"total"`
 	Approved int `json:"approved"`
 	Denied   int `json:"denied"`
 }
 
-// Subject es una entidad o un comercio, con su última hora, lo normal y la curva del día.
+type Sample struct {
+	Date string `json:"date"`
+	N    int    `json:"n"`
+}
+
+// Subject es una señal con su última hora, lo normal, el veredicto y la curva del día.
 type Subject struct {
-	Kind     string  `json:"kind"` // lender · merchant · all
-	ID       int     `json:"id"`
-	Name     string  `json:"name"`
-	Now      Window  `json:"now"`
-	Baseline []int   `json:"baseline"` // el total de esa misma hora en cada uno de los 7 días anteriores
-	Median   float64 `json:"median"`
-	Low      int     `json:"low"`
-	High     int     `json:"high"`
-	// DeniedRate y su normal: la proporción de negadas sobre lo que terminó (aprobadas + negadas).
-	DeniedRate       float64 `json:"deniedRate"`
-	DeniedRateNormal float64 `json:"deniedRateNormal"`
-	State            string  `json:"state"` // alert · warn · ok · quiet
-	Why              string  `json:"why"`
-	// Today y Normal: por hora del día (0–23); Normal es la mediana de los 7 días anteriores a esa hora.
+	Signal  Signal   `json:"signal"`
+	Kind    string   `json:"kind"` // all · lender · merchant · service · queue
+	ID      int      `json:"id"`
+	Name    string   `json:"name"`
+	Now     Window   `json:"now"`
+	Median  float64  `json:"median"`
+	Low     int      `json:"low"`  // percentil 10 de los días comparables
+	High    int      `json:"high"` // percentil 90
+	Spread  float64  `json:"spread"`
+	Z       float64  `json:"z"`
+	Samples []Sample `json:"samples"`
+	State   string   `json:"state"` // alert · warn · ok · quiet (sostenido)
+	Raw     string   `json:"raw"`   // el nivel de ahora, sin sostener
+	Why     string   `json:"why"`
+	// Shift: si el nivel diario cambió y se quedó (×2 o la mitad, la última semana contra las anteriores).
+	Shift *Shift `json:"shift,omitempty"`
+	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
+	// (una solicitud se aprueba o se niega horas después), así que compararla con días ya asentados engaña.
+	DeniedRate float64 `json:"deniedRate"`
+	// Por hora del día (0–23): hoy hasta ahora, y la mediana y los percentiles 10 y 90 de los días comparables.
 	Today  []int     `json:"today"`
 	Normal []float64 `json:"normal"`
-	NormLo []int     `json:"normalLow"`
-	NormHi []int     `json:"normalHigh"`
+	NormLo []float64 `json:"normalLow"`
+	NormHi []float64 `json:"normalHigh"`
 }
 
-// Deploy es un despliegue a producción (de `make deploys`).
-type Deploy struct {
-	Repo    string `json:"repo"`
-	Version string `json:"version"`
-	Title   string `json:"title"`
-	At      string `json:"at"` // hora de Bogotá, RFC3339
-	OK      bool   `json:"ok"`
-	URL     string `json:"url"`
+type History struct {
+	Days int    `json:"days"`
+	From string `json:"from"`
 }
 
-// Overview es una pasada entera.
 type Overview struct {
 	CheckedAt  string    `json:"checkedAt"`
 	WindowFrom string    `json:"windowFrom"`
@@ -96,531 +78,290 @@ type Overview struct {
 	All        Subject   `json:"all"`
 	Lenders    []Subject `json:"lenders"`
 	Merchants  []Subject `json:"merchants"`
-	FailedJobs Window    `json:"failedJobs"` // Total: en la última hora; Approved: lo normal (mediana) — reusa la forma
-	FailedNorm float64   `json:"failedJobsNormal"`
-	// Services: los errores de los logs de producción (Loki) por servicio, contra lo normal. LogsNote dice por qué
-	// faltan, si faltan: Loki es una señal más, y sin ella la pasada sigue.
-	Services    []Subject `json:"services"`
-	LogsNote    string    `json:"logsNote,omitempty"`
-	Deploys     []Deploy  `json:"deploys"`
-	DeploysNote string    `json:"deploysNote,omitempty"`
-	Seconds     float64   `json:"seconds"`
+	Services   []Subject `json:"services"` // los errores de Loki y la cola
+	LogsNote   string    `json:"logsNote,omitempty"`
+	Deploys    []Deploy  `json:"deploys"`
+	History    History   `json:"history"`
+	Rules      Rules     `json:"rules"`
+	Seconds    float64   `json:"seconds"`
 }
 
-// ── la lectura de producción ───────────────────────────────────────────────────────────────────────────────────
+// ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
 
-type reader struct{ src connsql.Source }
-
-func (r reader) rows(q string) ([]connsql.Row, error) {
-	if err := connsql.ValidateReadOnly(q); err != nil {
-		return nil, err
-	}
-	rows, err := r.src.Rows(q)
-	if os.Getenv("SENTINEL_DEBUG") != "" {
-		log.Printf("debug: %d filas, err=%v · %.120s", len(rows), err, strings.Join(strings.Fields(q), " "))
-	}
-	return rows, err
+type sentinel struct {
+	root, rulesPath string
+	store           *store
+	mu              sync.Mutex
+	last            *Overview
+	err             string
+	running         bool
+	loading         string
+	lenderNames     map[int]string
+	merchantNames   map[int]string
+	namesAt         time.Time
+	deployList      []Deploy
+	deploysAt       time.Time
+	logsNote        string
 }
 
-// num lee un número de una fila. Redash los manda como `json.Number` (el conector usa `UseNumber`, para no perder
-// precisión): sin ese caso, todo daba 0.
-func num(v any) int {
-	switch x := v.(type) {
-	case json.Number:
-		n, _ := x.Float64()
-		return int(n)
-	case float64:
-		return int(x)
-	case int64:
-		return int(x)
-	case int:
-		return x
-	case string:
-		n, _ := strconv.ParseFloat(x, 64)
-		return int(n)
-	case []byte:
-		n, _ := strconv.ParseFloat(string(x), 64)
-		return int(n)
-	}
-	return 0
-}
+var (
+	requestKinds = []string{"all", "lender", "merchant", "queue"}
+	logKinds     = []string{"service"}
+)
 
-func str(v any) string {
-	switch x := v.(type) {
-	case string:
-		return x
-	case []byte:
-		return string(x)
-	case nil:
-		return ""
+// fetchRange pide [from, to) a las dos fuentes y lo guarda, día por día.
+func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
+	fresh := Fresh{}
+	if err := r.requests(from, to, fresh); err != nil {
+		return err
 	}
-	return fmt.Sprint(v)
-}
-
-const stamp = "2006-01-02 15:04:05"
-
-// windowCounts: por `column` (lender_id o allied_id) y por día, lo que entró en la franja horaria [from, to) de cada
-// uno de los 8 días (hoy y los 7 anteriores). La franja se compara por hora del día, así que cruzar la medianoche se
-// parte en dos.
-func (r reader) windowCounts(column string, now time.Time) (map[int]map[string]Window, error) {
-	from := now.Add(-time.Hour)
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -7)
-	fromT, toT := from.Format("15:04:05"), now.Format("15:04:05")
-	slot := fmt.Sprintf("TIME(ur.created_at) >= '%s' AND TIME(ur.created_at) < '%s'", fromT, toT)
-	if fromT > toT { // la última hora cruzó la medianoche
-		slot = fmt.Sprintf("(TIME(ur.created_at) >= '%s' OR TIME(ur.created_at) < '%s')", fromT, toT)
+	if err := r.failedJobs(from, to, fresh); err != nil {
+		return err
 	}
-	// El día de la franja: si cruzó la medianoche, lo de antes de las 00:00 cuenta para el día siguiente.
-	day := "DATE(ur.created_at)"
-	if fromT > toT {
-		day = fmt.Sprintf("DATE(ur.created_at + INTERVAL %d SECOND)", 24*3600-secondsOfDay(from))
+	if err := s.putRange(from, to, fresh, requestKinds); err != nil {
+		return err
 	}
-	q := fmt.Sprintf(`SELECT ur.%[1]s AS id, %[2]s AS d, COUNT(*) AS n,
-  SUM(ur.user_request_status_id IN (%[3]s)) AS approved, SUM(ur.user_request_status_id IN (%[4]s)) AS denied
-FROM user_requests ur
-WHERE ur.created_at >= '%[5]s' AND ur.created_at < '%[6]s' AND %[7]s
-GROUP BY 1, 2`, column, day, approvedStates, deniedStates, start.Format(stamp), now.Format(stamp), slot)
-	rows, err := r.rows(q)
+	logs := Fresh{}
+	cl, err := lokiClient()
+	if err == nil {
+		err = logErrors(cl, from, to, logs)
+	}
 	if err != nil {
-		return nil, err
+		s.logsNote = "sin los errores de Loki: " + err.Error()
+		return nil // Loki es una señal más: sin ella, la pasada sigue
 	}
-	out := map[int]map[string]Window{}
-	for _, row := range rows {
-		id := num(row["id"])
-		if out[id] == nil {
-			out[id] = map[string]Window{}
-		}
-		d := str(row["d"])
-		if len(d) > 10 {
-			d = d[:10]
-		}
-		out[id][d] = Window{Total: num(row["n"]), Approved: num(row["approved"]), Denied: num(row["denied"])}
-	}
-	return out, nil
+	s.logsNote = ""
+	return s.putRange(from, to, logs, logKinds)
 }
 
-func secondsOfDay(t time.Time) int { return t.Hour()*3600 + t.Minute()*60 + t.Second() }
-
-// hourlyCounts: por `column` y por día y hora, lo que entró desde hace 7 días: la curva del día y su normal.
-func (r reader) hourlyCounts(column string, now time.Time) (map[int]map[string][24]int, error) {
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -7)
-	q := fmt.Sprintf(`SELECT ur.%s AS id, DATE(ur.created_at) AS d, HOUR(ur.created_at) AS h, COUNT(*) AS n
-FROM user_requests ur WHERE ur.created_at >= '%s' AND ur.created_at < '%s' GROUP BY 1, 2, 3`,
-		column, start.Format(stamp), now.Format(stamp))
-	rows, err := r.rows(q)
-	if err != nil {
-		return nil, err
-	}
-	out := map[int]map[string][24]int{}
-	for _, row := range rows {
-		id := num(row["id"])
-		if out[id] == nil {
-			out[id] = map[string][24]int{}
+// putRange guarda lo que llegó, día por día, reemplazando los bloques de [from, to) de esas clases.
+func (s *sentinel) putRange(from, to time.Time, fresh Fresh, kinds []string) error {
+	for day := time.Date(from.Year(), from.Month(), from.Day(), 0, 0, 0, 0, bogota); day.Before(to); day = day.AddDate(0, 0, 1) {
+		date := day.Format("2006-01-02")
+		next := day.AddDate(0, 0, 1)
+		lo, hi := 0, bucketsPerDay
+		if from.After(day) {
+			lo = bucketOf(from)
 		}
-		d := str(row["d"])
-		if len(d) > 10 {
-			d = d[:10]
-		}
-		h := num(row["h"])
-		if h < 0 || h > 23 {
-			continue
-		}
-		arr := out[id][d]
-		arr[h] = num(row["n"])
-		out[id][d] = arr
-	}
-	return out, nil
-}
-
-func (r reader) names(table string) (map[int]string, error) {
-	rows, err := r.rows(fmt.Sprintf("SELECT id, name FROM %s", table))
-	if err != nil {
-		return nil, err
-	}
-	out := map[int]string{}
-	for _, row := range rows {
-		out[num(row["id"])] = str(row["name"])
-	}
-	return out, nil
-}
-
-// failedJobs: los trabajos fallidos de la cola en la última hora, y su mediana en esa misma hora de los 7 días
-// anteriores. Una sola consulta: una columna por día.
-func (r reader) failedJobs(now time.Time) (int, float64, error) {
-	var cols []string
-	for d := 0; d <= 7; d++ {
-		to := now.AddDate(0, 0, -d)
-		cols = append(cols, fmt.Sprintf("SUM(failed_at >= '%s' AND failed_at < '%s') AS d%d", to.Add(-time.Hour).Format(stamp), to.Format(stamp), d))
-	}
-	rows, err := r.rows(fmt.Sprintf("SELECT %s FROM failed_jobs WHERE failed_at >= '%s'", strings.Join(cols, ", "),
-		now.AddDate(0, 0, -7).Add(-time.Hour).Format(stamp)))
-	if err != nil || len(rows) == 0 {
-		return 0, 0, err
-	}
-	var past []int
-	for d := 1; d <= 7; d++ {
-		past = append(past, num(rows[0][fmt.Sprintf("d%d", d)]))
-	}
-	return num(rows[0]["d0"]), median(past), nil
-}
-
-// ── los errores de los logs (Loki de producción) ────────────────────────────────────────────────────────────
-
-// Las líneas de nivel error de producción, por servicio. El filtro de ambiente va explícito aunque hoy esa instancia
-// sólo tenga `production` (medido el 2026-11-11: legacy-backend y legacy-application).
-const errorsLogQL = `sum by (service_name) (count_over_time({environment="production", level="error"} [1h]))`
-
-// logErrors: por servicio, los errores de la última hora en cada uno de los 8 días (hoy y la misma hora de los 7
-// anteriores) y, por hora del día, la curva de los 8 días.
-func logErrors(now time.Time) (map[string]map[string]Window, map[string]map[string][24]int, error) {
-	cfg, _, err := connlogs.LoadConfig("prod")
-	if err != nil {
-		return nil, nil, err
-	}
-	cl := connlogs.New(cfg, 60*time.Second)
-	windows := map[string]map[string]Window{}
-	for d := 0; d <= 7; d++ {
-		at := now.AddDate(0, 0, -d)
-		res, err := cl.Query(errorsLogQL, at.Add(-time.Hour), at, 100, "backward")
-		if err != nil {
-			return nil, nil, err
-		}
-		for _, sr := range res.Series {
-			name := sr.Labels["service_name"]
-			if windows[name] == nil {
-				windows[name] = map[string]Window{}
-			}
-			windows[name][at.Format("2006-01-02")] = Window{Total: int(sr.Value)}
-		}
-	}
-	// La curva: un punto por hora (cada uno cuenta la hora que termina ahí), desde las 01:00 de hace 7 días.
-	start := time.Date(now.Year(), now.Month(), now.Day(), 1, 0, 0, 0, bogota).AddDate(0, 0, -7)
-	status, body, err := cl.API("query_range", url.Values{
-		"query": {errorsLogQL}, "start": {fmt.Sprint(start.UnixNano())}, "end": {fmt.Sprint(now.UnixNano())}, "step": {"3600"},
-	})
-	if err != nil {
-		return nil, nil, err
-	}
-	if status != http.StatusOK {
-		return nil, nil, fmt.Errorf("Loki contestó %d: %s", status, connlogs.Explain(status, body))
-	}
-	var out struct {
-		Data struct {
-			Result []struct {
-				Metric map[string]string `json:"metric"`
-				Values [][2]any          `json:"values"`
-			} `json:"result"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &out); err != nil {
-		return nil, nil, fmt.Errorf("la curva de Loki no se pudo leer: %w", err)
-	}
-	hourly := map[string]map[string][24]int{}
-	for _, series := range out.Data.Result {
-		name := series.Metric["service_name"]
-		if hourly[name] == nil {
-			hourly[name] = map[string][24]int{}
-		}
-		for _, v := range series.Values {
-			ts, _ := v[0].(float64)
-			n, _ := strconv.ParseFloat(fmt.Sprint(v[1]), 64)
-			// El punto de las HH:00 cuenta la hora anterior: va a esa hora (y el de las 00:00, a las 23 del día de antes).
-			t := time.Unix(int64(ts), 0).In(bogota).Add(-time.Minute)
-			day := t.Format("2006-01-02")
-			arr := hourly[name][day]
-			arr[t.Hour()] = int(n)
-			hourly[name][day] = arr
-		}
-	}
-	// La hora en curso, que el rango no trae entera: lo que va desde las HH:00 hasta ahora.
-	if mins := now.Minute(); mins > 0 {
-		partial := strings.Replace(errorsLogQL, "[1h]", fmt.Sprintf("[%dm]", mins), 1)
-		if res, err := cl.Query(partial, now.Add(-time.Duration(mins)*time.Minute), now, 100, "backward"); err == nil {
-			day := now.Format("2006-01-02")
-			for _, sr := range res.Series {
-				name := sr.Labels["service_name"]
-				if hourly[name] == nil {
-					hourly[name] = map[string][24]int{}
-				}
-				arr := hourly[name][day]
-				arr[now.Hour()] = int(sr.Value)
-				hourly[name][day] = arr
+		if to.Before(next) {
+			hi = bucketOf(to)
+			if to.Minute()%5 != 0 || to.Second() != 0 {
+				hi++ // el bloque en curso también se reemplaza
 			}
 		}
+		through := minTime(to, next)
+		if err := s.store.put(date, lo, hi, fresh[date], through, kinds); err != nil {
+			return err
+		}
 	}
-	return windows, hourly, nil
+	return nil
 }
 
-// ── lo normal y el veredicto ───────────────────────────────────────────────────────────────────────────────────
-
-func median(xs []int) float64 {
-	if len(xs) == 0 {
-		return 0
+// backfill pide entero cada día de la historia que no esté completo (la primera vez, las 4 semanas: un par de minutos).
+func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
+	var missing []time.Time
+	for d := rules.HistoryDays; d >= 1; d-- {
+		day := today.AddDate(0, 0, -d)
+		if !s.store.complete(day.Format("2006-01-02")) {
+			missing = append(missing, day)
+		}
 	}
-	s := append([]int(nil), xs...)
-	sort.Ints(s)
-	if len(s)%2 == 1 {
-		return float64(s[len(s)/2])
+	for i, day := range missing {
+		s.setLoading(fmt.Sprintf("cargando la historia: %d de %d días (%s)", i+1, len(missing), day.Format("2006-01-02")))
+		if err := s.fetchRange(r, day, day.AddDate(0, 0, 1)); err != nil {
+			s.setLoading("")
+			return fmt.Errorf("la carga de %s: %w", day.Format("2006-01-02"), err)
+		}
 	}
-	return float64(s[len(s)/2-1]+s[len(s)/2]) / 2
+	if s.store.day(today.Format("2006-01-02")) == nil {
+		s.setLoading("cargando hoy")
+		if err := s.fetchRange(r, today, now); err != nil {
+			s.setLoading("")
+			return err
+		}
+	}
+	s.setLoading("")
+	return nil
 }
 
-func rate(denied, approved int) float64 {
-	if denied+approved == 0 {
-		return 0
-	}
-	return float64(denied) / float64(denied+approved)
-}
-
-/*
-judge decide el estado de una ventana contra su normal. Las reglas son pocas a propósito: muchas alertas falsas
-
-	cansan y se ignoran.
-	- quiet: lo normal es menos de 3 por hora; no hay con qué comparar.
-	- alert: en la última hora no entró NADA, y en cada uno de los 7 días anteriores a esa hora entró al menos una (con
-	  lo normal en 3 o más). Si algún día anterior también entró 0, que hoy entre 0 es posible: no es alerta (medido el
-	  2026-11-11: un comercio con «normal 3, entre 0 y 7» daba una alerta falsa).
-	- warn:  entró menos del 40 % de lo normal (con lo normal en 5 o más), o la proporción de negadas subió más de
-	  30 puntos sobre lo normal con al menos 5 terminadas.
-*/
-func judge(s *Subject) {
-	switch {
-	case s.Median < 3:
-		s.State, s.Why = "quiet", fmt.Sprintf("poco volumen para comparar (normal %s por hora)", fmtNum(s.Median))
-	case s.Now.Total == 0 && s.Low >= 1:
-		s.State, s.Why = "alert", fmt.Sprintf("no entró ninguna en la última hora; lo normal es %s (entre %d y %d)", fmtNum(s.Median), s.Low, s.High)
-	case s.Median >= 5 && float64(s.Now.Total) < 0.4*s.Median:
-		s.State, s.Why = "warn", fmt.Sprintf("entraron %d; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(s.Median), s.Low, s.High)
-	case s.Now.Approved+s.Now.Denied >= 5 && s.DeniedRate > s.DeniedRateNormal+0.30:
-		s.State, s.Why = "warn", fmt.Sprintf("negadas %.0f %% de las terminadas; lo normal es %.0f %%", s.DeniedRate*100, s.DeniedRateNormal*100)
-	default:
-		s.State, s.Why = "ok", fmt.Sprintf("entraron %d; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(s.Median), s.Low, s.High)
+func (s *sentinel) setLoading(text string) {
+	s.mu.Lock()
+	s.loading = text
+	s.mu.Unlock()
+	if text != "" {
+		log.Printf("sentinel: %s", text)
 	}
 }
 
-/*
-judgeErrors es el veredicto de los errores de un servicio: acá lo malo es que SUBAN.
-
-  - quiet: lo normal es menos de 5 por hora; no hay con qué comparar.
-  - alert: el triple de lo normal o más, y 20 o más por encima del máximo de los 7 días anteriores.
-  - warn:  por encima del máximo de los 7 días, y al menos una vez y media lo normal.
-*/
-func judgeErrors(s *Subject) {
-	n, m := float64(s.Now.Total), s.Median
-	switch {
-	case m < 5:
-		s.State, s.Why = "quiet", fmt.Sprintf("%d errores; pocos de costumbre para comparar (normal %s por hora)", s.Now.Total, fmtNum(m))
-	case n >= 3*m && s.Now.Total >= s.High+20:
-		s.State, s.Why = "alert", fmt.Sprintf("%d errores en la última hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
-	case s.Now.Total > s.High && n >= 1.5*m:
-		s.State, s.Why = "warn", fmt.Sprintf("%d errores, más que cualquier día anterior a esta hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
-	default:
-		s.State, s.Why = "ok", fmt.Sprintf("%d errores en la última hora; lo normal es %s (entre %d y %d)", s.Now.Total, fmtNum(m), s.Low, s.High)
-	}
-}
-
-func fmtNum(x float64) string {
-	if x == float64(int(x)) {
-		return strconv.Itoa(int(x))
-	}
-	return strconv.FormatFloat(x, 'f', 1, 64)
-}
-
-// build arma un Subject con su ventana de hoy, sus 7 días anteriores y su curva.
-func build(kind string, id int, name string, now time.Time, windows map[string]Window, hourly map[string][24]int) Subject {
-	today := now.Format("2006-01-02")
-	s := Subject{Kind: kind, ID: id, Name: name, Now: windows[today]}
-	var deniedSum, approvedSum int
-	for d := 1; d <= 7; d++ {
-		w := windows[now.AddDate(0, 0, -d).Format("2006-01-02")]
-		s.Baseline = append(s.Baseline, w.Total)
-		deniedSum += w.Denied
-		approvedSum += w.Approved
-	}
-	s.Median = median(s.Baseline)
-	s.Low, s.High = s.Baseline[0], s.Baseline[0]
-	for _, n := range s.Baseline {
-		s.Low, s.High = min(s.Low, n), max(s.High, n)
-	}
-	s.DeniedRate = rate(s.Now.Denied, s.Now.Approved)
-	s.DeniedRateNormal = rate(deniedSum, approvedSum)
-	// La curva: hoy hasta la hora actual, y la mediana y el rango de los 7 días anteriores en cada hora.
-	todayArr := hourly[today]
-	for h := 0; h < 24; h++ {
-		if h <= now.Hour() {
-			s.Today = append(s.Today, todayArr[h])
-		}
-		var past []int
-		for d := 1; d <= 7; d++ {
-			past = append(past, hourly[now.AddDate(0, 0, -d).Format("2006-01-02")][h])
-		}
-		lo, hi := past[0], past[0]
-		for _, n := range past {
-			lo, hi = min(lo, n), max(hi, n)
-		}
-		s.Normal = append(s.Normal, median(past))
-		s.NormLo = append(s.NormLo, lo)
-		s.NormHi = append(s.NormHi, hi)
-	}
-	if kind == "service" {
-		judgeErrors(&s)
-	} else {
-		judge(&s)
-	}
-	return s
-}
-
-// subjects arma todos los de una columna, sin los que no tuvieron nada en los 8 días; los que piden atención, primero.
-func subjects(kind string, now time.Time, windows map[int]map[string]Window, hourly map[int]map[string][24]int, names map[int]string) []Subject {
-	var out []Subject
-	for id, byDay := range hourly {
-		if id == 0 {
-			continue // sin entidad o sin comercio todavía (la solicitud no llegó a elegir)
-		}
-		name := names[id]
-		if name == "" {
-			name = fmt.Sprintf("#%d", id)
-		}
-		out = append(out, build(kind, id, name, now, windows[id], byDay))
-	}
-	rank := map[string]int{"alert": 0, "warn": 1, "ok": 2, "quiet": 3}
-	sort.Slice(out, func(i, j int) bool {
-		if rank[out[i].State] != rank[out[j].State] {
-			return rank[out[i].State] < rank[out[j].State]
-		}
-		if out[i].Median != out[j].Median {
-			return out[i].Median > out[j].Median
-		}
-		return out[i].Name < out[j].Name
-	})
-	return out
-}
-
-// ── los despliegues a producción (lo que da `make deploys`) ───────────────────────────────────────────────────
-
-func deploys(root string) ([]Deploy, error) {
-	cmd := exec.Command("go", "run", "./tablero/server/cmd/deploys", "-json", "-dias", "2")
-	cmd.Dir = root
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("make deploys no contestó (¿gh autenticado?): %v", err)
-	}
-	var runs []struct {
-		Repo, Title, Created, URL, Environment, State, Branch string
-	}
-	if err := json.Unmarshal(out, &runs); err != nil {
-		return nil, err
-	}
-	var list []Deploy
-	for _, r := range runs {
-		if !strings.Contains(strings.ToLower(r.Environment), "produc") {
-			continue
-		}
-		t, err := time.Parse(time.RFC3339, r.Created)
-		if err != nil {
-			continue
-		}
-		list = append(list, Deploy{Repo: r.Repo, Version: r.Branch, Title: r.Title, At: t.In(bogota).Format(time.RFC3339), OK: r.State == "success", URL: r.URL})
-	}
-	sort.Slice(list, func(i, j int) bool { return list[i].At > list[j].At })
-	return list, nil
-}
-
-// ── la pasada y el servidor ────────────────────────────────────────────────────────────────────────────────────
-
-func check(root string) (*Overview, error) {
+// pass: lo que falte de la historia, las últimas 3 horas de nuevo, y el veredicto.
+func (s *sentinel) pass() (*Overview, error) {
 	started := time.Now()
-	cfg, _, err := connsql.LoadConfig("prod")
+	rules, err := loadRules(s.rulesPath)
 	if err != nil {
 		return nil, err
 	}
-	src, err := connsql.Open(cfg)
-	if err != nil {
-		return nil, err
-	}
-	defer src.Close()
-	r := reader{src}
 	now := time.Now().In(bogota).Truncate(time.Minute)
-
-	lenderNames, err := r.names("lenders")
+	r, err := openReader()
 	if err != nil {
 		return nil, err
 	}
-	merchantNames, err := r.names("allieds")
-	if err != nil {
+	defer r.src.Close()
+	if err := s.backfill(r, rules, now); err != nil {
 		return nil, err
 	}
-	o := &Overview{CheckedAt: now.Format(time.RFC3339), WindowFrom: now.Add(-time.Hour).Format(time.RFC3339), WindowTo: now.Format(time.RFC3339), Source: "prod · " + src.Name()}
-	for _, kind := range []struct{ name, column string }{{"lender", "lender_id"}, {"merchant", "allied_id"}} {
-		windows, err := r.windowCounts(kind.column, now)
-		if err != nil {
-			return nil, err
-		}
-		hourly, err := r.hourlyCounts(kind.column, now)
-		if err != nil {
-			return nil, err
-		}
-		names := lenderNames
-		if kind.name == "merchant" {
-			names = merchantNames
-		}
-		list := subjects(kind.name, now, windows, hourly, names)
-		if kind.name == "lender" {
-			o.Lenders = list
-			// Toda la originación: la suma de todo, con o sin entidad.
-			allWindows := map[string]Window{}
-			for _, byDay := range windows {
-				for d, w := range byDay {
-					a := allWindows[d]
-					a.Total += w.Total
-					a.Approved += w.Approved
-					a.Denied += w.Denied
-					allWindows[d] = a
-				}
-			}
-			allHourly := map[string][24]int{}
-			for _, byDay := range hourly {
-				for d, arr := range byDay {
-					a := allHourly[d]
-					for h := range arr {
-						a[h] += arr[h]
-					}
-					allHourly[d] = a
-				}
-			}
-			o.All = build("all", 0, "Toda la originación", now, allWindows, allHourly)
-		} else {
-			o.Merchants = list
-		}
-	}
-	if windows, hourly, err := logErrors(now); err != nil {
-		o.LogsNote = "sin los errores de Loki: " + err.Error()
-	} else {
-		for name, byDay := range hourly {
-			o.Services = append(o.Services, build("service", 0, name, now, windows[name], byDay))
-		}
-		sort.Slice(o.Services, func(i, j int) bool { return o.Services[i].Name < o.Services[j].Name })
-	}
-	if o.FailedJobs.Total, o.FailedNorm, err = r.failedJobs(now); err != nil {
+	if err := s.fetchRange(r, now.Add(-3*time.Hour).Truncate(5*time.Minute), now); err != nil {
 		return nil, err
 	}
-	if list, err := deploys(root); err != nil {
-		o.DeploysNote = err.Error()
-	} else {
-		o.Deploys = list
+	if time.Since(s.namesAt) > time.Hour || s.lenderNames == nil {
+		if s.lenderNames, err = r.names("lenders"); err != nil {
+			return nil, err
+		}
+		if s.merchantNames, err = r.names("allieds"); err != nil {
+			return nil, err
+		}
+		s.namesAt = time.Now()
 	}
+	if time.Since(s.deploysAt) > 30*time.Minute {
+		if list, err := deploys(s.root, 8); err == nil {
+			s.deployList, s.deploysAt = list, time.Now()
+		}
+	}
+	o := s.overview(rules, now)
+	o.Source = "prod · " + r.src.Name()
 	o.Seconds = time.Since(started).Seconds()
 	return o, nil
 }
 
-type state struct {
-	mu      sync.Mutex
-	last    *Overview
-	err     string
-	running bool
+// ── la vista general ───────────────────────────────────────────────────────────────────────────────────────────
+
+func (s *sentinel) evaluator(rules Rules) evaluator {
+	have := map[string]bool{}
+	for _, d := range s.store.dates() {
+		have[d] = true
+	}
+	var deployTimes []time.Time
+	for _, d := range s.deployList {
+		if t, err := time.Parse(time.RFC3339, d.At); err == nil {
+			deployTimes = append(deployTimes, t)
+		}
+	}
+	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, ceils: map[string]float64{}}
 }
 
-func (s *state) run(root string) {
+func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
+	e := s.evaluator(rules)
+	dates := s.store.dates()
+	o := &Overview{
+		CheckedAt: now.Format(time.RFC3339), WindowFrom: now.Add(-time.Duration(rules.WindowMinutes) * time.Minute).Format(time.RFC3339),
+		WindowTo: now.Format(time.RFC3339), Deploys: s.deployList, Rules: rules, LogsNote: s.logsNote,
+	}
+	if len(dates) > 0 {
+		o.History = History{Days: len(dates), From: dates[0]}
+	}
+	for sig := range e.data {
+		subj := s.subject(e, sig, now)
+		switch subj.Kind {
+		case "all":
+			o.All = subj
+		case "lender":
+			if subj.ID != 0 {
+				o.Lenders = append(o.Lenders, subj)
+			}
+		case "merchant":
+			if subj.ID != 0 {
+				o.Merchants = append(o.Merchants, subj)
+			}
+		case "service", "queue":
+			o.Services = append(o.Services, subj)
+		}
+	}
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services} {
+		sortSubjects(*list)
+	}
+	return o
+}
+
+func sortSubjects(list []Subject) {
+	rank := map[string]int{"alert": 0, "warn": 1, "ok": 2, "quiet": 3}
+	sort.Slice(list, func(i, j int) bool {
+		if rank[list[i].State] != rank[list[j].State] {
+			return rank[list[i].State] < rank[list[j].State]
+		}
+		if list[i].Median != list[j].Median {
+			return list[i].Median > list[j].Median
+		}
+		return list[i].Name < list[j].Name
+	})
+}
+
+func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
+	kind := kindOf(sig)
+	key := sig[len(kind)+1:]
+	id, _ := strconv.Atoi(key)
+	subj := Subject{Signal: sig, Kind: kind, ID: id, Name: key}
+	switch kind {
+	case "all":
+		subj.Name = "Toda la originación"
+	case "lender":
+		subj.Name = nameOr(s.lenderNames, id)
+	case "merchant":
+		subj.Name = nameOr(s.merchantNames, id)
+	case "queue":
+		subj.Name = "Trabajos fallidos de la cola"
+	}
+	ev, level := e.sustained(sig, now)
+	se := e.data[sig]
+	subj.Now = Window{Total: ev.Now, Approved: window(se.approved, now, e.rules.WindowMinutes), Denied: window(se.denied, now, e.rules.WindowMinutes)}
+	if done := subj.Now.Approved + subj.Now.Denied; done > 0 {
+		subj.DeniedRate = float64(subj.Now.Denied) / float64(done)
+	}
+	subj.Median, subj.Spread, subj.Z = ev.Median, ev.Spread, ev.Z
+	subj.Low, subj.High = int(quantile(ev.Samples, 0.1)), int(quantile(ev.Samples, 0.9)+0.5)
+	for i, n := range ev.Samples {
+		subj.Samples = append(subj.Samples, Sample{Date: ev.Dates[i], N: int(n)})
+	}
+	subj.State, subj.Raw, subj.Why = levelName(level), levelName(ev.Level), ev.Why
+	if ev.Level > level && level >= levelOK {
+		subj.Why += fmt.Sprintf(" · empezó hace menos de %d min: se confirma si sigue", (e.rules.Sustain-1)*e.rules.StepMinutes)
+	}
+	subj.Shift = e.shift(sig, now)
+	// La curva del día y lo normal por hora, de los días comparables.
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
+	comp := comparable(now, e.rules.BaselineDays, e.have)
+	for h := 0; h < 24; h++ {
+		if h <= now.Hour() {
+			subj.Today = append(subj.Today, window(se.total, minTime(today.Add(time.Duration(h+1)*time.Hour), now), 60))
+		}
+		var xs []float64
+		for _, past := range comp {
+			start := time.Date(past.Year(), past.Month(), past.Day(), 0, 0, 0, 0, bogota)
+			xs = append(xs, float64(window(se.total, start.Add(time.Duration(h+1)*time.Hour), 60)))
+		}
+		subj.Normal = append(subj.Normal, median(xs))
+		subj.NormLo = append(subj.NormLo, quantile(xs, 0.1))
+		subj.NormHi = append(subj.NormHi, quantile(xs, 0.9))
+	}
+	return subj
+}
+
+func minTime(a, b time.Time) time.Time {
+	if a.Before(b) {
+		return a
+	}
+	return b
+}
+
+func nameOr(names map[int]string, id int) string {
+	if n := names[id]; n != "" {
+		return n
+	}
+	return fmt.Sprintf("#%d", id)
+}
+
+// ── el servidor ────────────────────────────────────────────────────────────────────────────────────────────────
+
+func (s *sentinel) run() {
 	s.mu.Lock()
 	if s.running {
 		s.mu.Unlock()
@@ -628,7 +369,7 @@ func (s *state) run(root string) {
 	}
 	s.running = true
 	s.mu.Unlock()
-	o, err := check(root)
+	o, err := s.pass()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.running = false
@@ -640,10 +381,10 @@ func (s *state) run(root string) {
 	s.last, s.err = o, ""
 }
 
-func (s *state) view() map[string]any {
+func (s *sentinel) view() map[string]any {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return map[string]any{"overview": s.last, "error": s.err, "running": s.running}
+	return map[string]any{"overview": s.last, "error": s.err, "running": s.running, "loading": s.loading}
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -655,8 +396,9 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func main() {
 	serve := flag.String("serve", "127.0.0.1:5211", "dónde escucha la API (sólo 127.0.0.1)")
-	every := flag.Duration("every", 5*time.Minute, "cada cuánto lee producción")
-	once := flag.Bool("once", false, "una pasada por consola, en JSON, y sale")
+	every := flag.Duration("every", 5*time.Minute, "cada cuánto pide lo que falta")
+	once := flag.Bool("once", false, "carga lo que falte, hace una pasada y muestra el resumen")
+	backtest := flag.Int("backtest", 0, "cuántas veces habrían sonado las reglas en los últimos N días, y sale")
 	flag.Parse()
 	root, err := os.Getwd()
 	if err != nil {
@@ -665,32 +407,113 @@ func main() {
 	if _, err := os.Stat(filepath.Join(root, "connectors", "sql")); err != nil {
 		log.Fatalf("sentinel: corré desde la raíz del playground (no encuentro connectors/ en %s)", root)
 	}
-	if *once {
-		o, err := check(root)
+	st, err := openStore(filepath.Join(root, "sentinel", ".data"))
+	if err != nil {
+		log.Fatal(err)
+	}
+	s := &sentinel{root: root, rulesPath: filepath.Join(root, "sentinel", "rules.json"), store: st}
+
+	if *once || *backtest > 0 {
+		o, err := s.pass()
 		if err != nil {
 			log.Fatal(err)
 		}
-		enc := json.NewEncoder(os.Stdout)
-		enc.SetIndent("", "  ")
-		_ = enc.Encode(o)
+		if *backtest > 0 {
+			printBacktest(s, *backtest)
+		} else {
+			printSummary(o)
+		}
 		return
 	}
 	if !strings.HasPrefix(*serve, "127.0.0.1:") {
 		log.Fatal("sentinel: la API escucha sólo en 127.0.0.1")
 	}
-	st := &state{}
 	go func() {
 		for {
-			st.run(root)
+			s.run()
 			time.Sleep(*every)
 		}
 	}()
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, st.view()) })
+	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, s.view()) })
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
-		go st.run(root)
-		writeJSON(w, http.StatusOK, st.view())
+		go s.run()
+		writeJSON(w, http.StatusOK, s.view())
 	})
-	log.Printf("sentinel: API en http://%s · lee producción cada %s", *serve, *every)
+	// GET /api/backtest?days=7 — cuántas veces habrían sonado las reglas: para ajustarlas antes de prenderlas.
+	mux.HandleFunc("GET /api/backtest", func(w http.ResponseWriter, r *http.Request) {
+		days, _ := strconv.Atoi(r.URL.Query().Get("days"))
+		if days <= 0 || days > 27 {
+			days = 7
+		}
+		rules, err := loadRules(s.rulesPath)
+		if err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"days": days, "episodes": s.evaluator(rules).backtest(days, time.Now().In(bogota))})
+	})
+	log.Printf("sentinel: API en http://%s · pide lo que falta cada %s · historia: %s", *serve, *every, st)
 	log.Fatal((&http.Server{Addr: *serve, Handler: mux, ReadHeaderTimeout: 5 * time.Second}).ListenAndServe())
+}
+
+func printSummary(o *Overview) {
+	fmt.Printf("%s · %d días de historia desde %s · %.1f s\n", o.Source, o.History.Days, o.History.From, o.Seconds)
+	show := func(title string, list []Subject) {
+		fmt.Println(title)
+		for _, s := range list {
+			if s.State == "quiet" {
+				continue
+			}
+			fmt.Printf("  %-5s %-34.34s ahora %4d · normal %6s · z %+5.1f · %s\n", s.State, s.Name, s.Now.Total, fmtNum(s.Median), s.Z, s.Why)
+			if s.Shift != nil {
+				fmt.Printf("        cambio de nivel: ×%.1f por día (de %s a %s)\n", s.Shift.Ratio, fmtNum(s.Shift.Before), fmtNum(s.Shift.After))
+			}
+		}
+	}
+	show("Toda la originación", []Subject{o.All})
+	show("Errores", o.Services)
+	show("Entidades", o.Lenders)
+	show("Comercios", o.Merchants)
+	if o.LogsNote != "" {
+		fmt.Println(o.LogsNote)
+	}
+}
+
+func printBacktest(s *sentinel, days int) {
+	rules, err := loadRules(s.rulesPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	eps := s.evaluator(rules).backtest(days, time.Now().In(bogota))
+	alerts, warns := 0, 0
+	bySignal := map[Signal][2]int{}
+	for _, e := range eps {
+		c := bySignal[e.Signal]
+		if e.Level == "alert" {
+			alerts++
+			c[0]++
+		} else {
+			warns++
+			c[1]++
+		}
+		bySignal[e.Signal] = c
+	}
+	fmt.Printf("las reglas contra los últimos %d días: %d alertas y %d «para mirar»\n", days, alerts, warns)
+	sigs := make([]Signal, 0, len(bySignal))
+	for sig := range bySignal {
+		sigs = append(sigs, sig)
+	}
+	sort.Slice(sigs, func(i, j int) bool {
+		return bySignal[sigs[i]][0]*100+bySignal[sigs[i]][1] > bySignal[sigs[j]][0]*100+bySignal[sigs[j]][1]
+	})
+	for _, sig := range sigs {
+		fmt.Printf("  %-26s %3d alertas · %3d para mirar\n", sig, bySignal[sig][0], bySignal[sig][1])
+	}
+	fmt.Println("las alertas:")
+	for _, e := range eps {
+		if e.Level == "alert" {
+			fmt.Printf("  %s  %-26s %s\n", e.Start[:16], e.Signal, e.Why)
+		}
+	}
 }

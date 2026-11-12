@@ -1,31 +1,44 @@
 # sentinel — el vigía de producción
 
-**Para qué existe:** saber pronto si algo que subió a producción está rompiendo la originación. Cada 5 minutos lee
-producción (sólo lectura, por Redash) y dice, por **entidad** y por **comercio**, si lo que entró en la última hora se
-salió de lo normal; lo mismo con los **errores de los logs** de producción por servicio (Loki); muestra la curva del
-día contra lo normal, con los **despliegues a producción** marcados, y los trabajos fallidos de la cola. Es el frente «vigía de producción» de `playground-local` (#96).
+**Para qué existe:** saber pronto si algo que subió a producción está rompiendo la originación. Guarda cuatro semanas de
+producción (sólo lectura: Redash y Loki) en bloques de 5 minutos y dice, por **entidad**, por **comercio**, por
+**servicio** (errores de los logs) y para la **cola** (trabajos fallidos), si la última hora se salió de lo normal;
+muestra la curva del día contra lo normal, con los **despliegues a producción** marcados. Es el frente «vigía de
+producción» de `playground-local` (#96).
 
-`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. `make sentinel ONCE=1` hace una pasada por consola
-en JSON y sale.
+`make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. `make sentinel ONCE=1` carga lo que falte, hace
+una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
+en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**.
 
-## Cómo decide
+## Cómo guarda
 
-- **Lo normal es la MISMA hora de los 7 días anteriores**, no un umbral fijo: el volumen cambia mucho por hora y día
-  (de madrugada entran 2; a las 17, 140). Por cada uno: la mediana, el mínimo y el máximo.
-- **Alerta** (rojo): en la última hora no entró nada, y en cada uno de los 7 días anteriores a esa hora entró al menos
-  una (con lo normal en 3 o más). Si algún día también fue 0, que hoy sea 0 es posible: no avisa.
-- **Para mirar** (ámbar): entró menos del 40 % de lo normal (con lo normal en 5 o más), o las negadas subieron más de
-  30 puntos sobre lo normal (con al menos 5 terminadas).
-- **Poco volumen** (gris): lo normal es menos de 3 por hora; no hay con qué comparar. Las que tienen 0 de costumbre y 0
-  hoy van plegadas al final («sin movimiento a esta hora»).
+- **Un archivo por día** en `sentinel/.data/<día>.json` (fuera de git), con los conteos de cada señal por bloque de 5
+  minutos (`server/store.go`). Las señales: `all:production`, `lender:<id>`, `merchant:<id>`, `service:<servicio>`,
+  `queue:failed`.
+- **La carga inicial** pide entero cada día que falte de los últimos 28 (`historyDays`): la primera vez, 29 días en
+  ~125 s y ~700 KB. Después arranca en segundos.
+- **Cada pasada (5 min) vuelve a pedir sólo las últimas 3 horas** y las reemplaza: una solicitud cambia de estado
+  horas después de entrar, y reemplazar (no sumar) evita contar dos veces.
 
-- **Los errores de los logs** (Loki, `legacy-backend` y `legacy-application`): ahí lo malo es que SUBAN. Para mirar si
-  pasan el máximo de los 7 días y son al menos una vez y media lo normal; alerta si son el triple o más y 20 por encima
-  del máximo. Poco volumen si lo normal es menos de 5. Cada servicio muestra su último despliegue a producción (los
-  servicios se llaman como sus repos).
+## Cómo decide (`server/stats.go`)
 
-Pocas reglas a propósito: muchas alertas falsas cansan y se ignoran. Antes de agregar una, mirá cuántas veces habría
-sonado en los días anteriores.
+- **Lo normal es la misma hora en los días comparables**: hábiles con hábiles, fines de semana con fines de semana,
+  de los últimos 14 días (`baselineDays`). De ahí, la mediana y la dispersión robusta (MAD × 1,4826, con piso de
+  Poisson `√mediana`), y un z = (ahora − mediana) / dispersión.
+- **Volumen (solicitudes): lo malo es que CAIGA.** Para mirar con z ≤ −2,5; alerta con z ≤ −3,5; las dos además con
+  ahora ≤ 0,6 × lo normal. Con lo normal por debajo de 3, «poco volumen»: no avisa.
+- **Errores (logs y cola): lo malo es que SUBAN.** z ≥ 3 / 4,5 y ahora ≥ 1,5 × lo normal, **y además** por encima del
+  **techo**: el percentil 99 de TODAS las horas de los días comparables (para alerta, el doble). Los errores llegan en
+  ráfagas a cualquier hora; sin el techo, la última semana daba 37 alertas (28 de legacy-application), con él 3.
+- **Sostenido**: el estado que se muestra es el que duró 3 lecturas seguidas (una cada 10 min). Una alerta que recién
+  empieza se ve como «para mirar»; `raw` es el nivel del instante.
+- **Después de un despliegue a producción (2 h)** los umbrales se multiplican por 0,75: más sensible.
+- **Cambio de nivel** (`shift`): la mediana diaria de la última semana contra la de los días 8–28 atrás. Si se movió ×2
+  o a la mitad, se muestra como nota, no como alerta: ya pasó a ser lo normal. Por esto `baselineDays` es 14 y no 28:
+  con 28, un cambio que se queda mezcla dos regímenes y la dispersión se infla.
+- **Las negadas** se muestran pero no alertan: lo de hoy todavía no terminó de avanzar y se compara con días asentados.
+- Todo se puede ajustar sin tocar código en `sentinel/rules.json` (opcional; lo que no dice queda por defecto), con
+  `signals` para ignorar una señal o subirle el mínimo. Antes de cambiar algo, corré el `-backtest`.
 
 ## Lo que ya costó
 
@@ -34,23 +47,25 @@ sonado en los días anteriores.
 - **Los números de Redash llegan como `json.Number`** (el conector usa `UseNumber` para no perder precisión): leerlos
   como `float64` daba todo en 0, sin error.
 - **Negada no es falla**: los estados 6 (Negada) y 8 (Cancelado) son decisiones, no errores (`user_request_statuses`
-  de producción). Los grupos de estados están en `server/main.go` (`approvedStates`, `deniedStates`).
-- **Loki**: un conteo instantáneo (`count_over_time`) pide un `limit` positivo aunque no devuelva líneas («limit must be a
-  positive value»); y el rango por hora no trae la hora en curso, que se cuenta aparte desde las HH:00. Si Loki no
-  contesta, la pasada sigue sin esa señal y lo dice (`logsNote`).
-- **Una pasada tarda ~20 s** (Redash): por eso corre de fondo cada 5 min y la interfaz lee lo último.
+  de producción). Los grupos de estados están en `server/fetch.go` (`approvedStates`, `deniedStates`).
+- **Loki**: se pide con `query_range` y paso de 300 s; cada punto cuenta los 5 minutos que TERMINAN en él, así que va
+  al bloque que empieza 5 minutos antes. Si Loki no contesta, la pasada sigue sin esa señal y lo dice (`logsNote`).
+- **Lo normal de 28 días mezclaba regímenes**: los errores de legacy-backend están ×5 desde el 2026-10-30 (de 08–09 h,
+  sin despliegue de legacy-backend a producción entre el 27 y el 1); de ahí los 14 días y el cambio de nivel aparte.
 
 ## Cómo está construido
 
 | pieza | dónde |
 |---|---|
-| la lectura de producción, lo normal y el veredicto | `server/main.go` (usa `connectors/sql`, con su guarda de sólo lectura) |
-| los errores de los logs por servicio | `server/main.go` (`logErrors`, con `connectors/logs`) |
+| lo guardado, por día y bloque de 5 min | `server/store.go` |
+| la lectura de producción (Redash y Loki) | `server/fetch.go` (usa `connectors/sql`, con su guarda de sólo lectura, y `connectors/logs`) |
+| lo normal, el veredicto, el cambio de nivel y el backtest | `server/stats.go` |
+| la carga, las pasadas y la API | `server/main.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
 | la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
 
 ## Lo que falta
 
-Avisar solo (macOS, el chat o Slack) cuando algo pasa a alerta, sin repetir el mismo aviso; más seguido y más sensible
-en las 2 horas después de un despliegue; los errores de pantalla que vio el cliente (PostHog), por pantalla. Las decisiones
+Avisar solo (macOS, el chat o Slack) cuando algo pasa a alerta, sin repetir el mismo aviso (un estado por señal); los
+errores de pantalla que vio el cliente (PostHog), por pantalla. Las decisiones
 abiertas (qué vigilar, qué tan sensible, por dónde avisar) están en el frente de #96.

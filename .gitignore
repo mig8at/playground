@@ -66,3 +66,6 @@ jarvis/.data/
 
 # ui-shot: las capturas que deja un agente (tools/ui-shot) — nunca commitear
 /tools/ui-shot/shots/
+
+# sentinel: los conteos guardados por día (sentinel/.data) — se rearman desde producción, nunca commitear
+/sentinel/.data/

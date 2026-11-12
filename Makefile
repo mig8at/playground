@@ -345,7 +345,7 @@ tablero-naming: ## @dia ¿el código del playground nombra algo en español? el 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
 	@cd tablero/server && go test -count=1 ./internal/naming
 
-sentinel: ## @dia abre Sentinel, el vigía de producción (:5210 · API :5211): por entidad y comercio, la última hora contra la misma hora de los 7 días anteriores, la curva del día y los despliegues a producción. SÓLO LECTURA (prod por Redash), cada 5 min. ONCE=1 hace una pasada por consola en JSON y sale
+sentinel: ## @dia abre Sentinel, el vigía de producción (:5210 · API :5211): por entidad, comercio, errores de los logs y la cola, la última hora contra la misma hora de los días comparables (4 semanas guardadas, se pide sólo lo que falta), la curva del día y los despliegues a producción. SÓLO LECTURA (Redash y Loki). ONCE=1 hace una pasada por consola y sale
 	@$(if $(ONCE),go run ./sentinel/server -once,cd sentinel && npm run dev)
 
 ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app del playground en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores

@@ -101,12 +101,16 @@ jira_title: ""
   la regla queda en `tablero/CLAUDE.md`.
 
 - [x] Vigía · saber qué estado es una falla — 2026-11-11, por el catálogo de producción (`user_request_statuses`): 6 es
-  Negada y 8 Cancelado, decisiones y no fallas; los grupos (aprobadas, negadas) están en `sentinel/server/main.go`. No se
+  Negada y 8 Cancelado, decisiones y no fallas; los grupos (aprobadas, negadas) están en `sentinel/server/fetch.go`. No se
   verificó en el código de los monolitos.
 - [ ] Vigía · fase 1 y la vista (prototipo hecho el 2026-11-11: `sentinel/`, app en Cockpit, lee prod cada 5 min): que
   Miguel la mire y reconozca los números como ciertos. Termina cuando lo dice, o cuando corrige qué está mal.
 - [x] Vigía · los errores de Loki por servicio contra lo normal (2026-11-11): `legacy-backend` y `legacy-application`,
   con su curva y su último despliegue a producción.
+- [x] Vigía · guardar y comparar con estadística (2026-11-11): cuatro semanas en disco por bloques de 5 min, se pide
+  sólo lo que falta; lo normal son los días comparables (hábil/fin de semana) de las últimas 2 semanas, con mediana y
+  dispersión robusta, sostenido 3 lecturas, techo para los errores en ráfaga y el cambio de nivel aparte. Las reglas se
+  prueban contra la historia (`-backtest`): la última semana, 3 alertas y 15 «para mirar».
 - [ ] Vigía · los errores de pantalla de PostHog por pantalla contra lo normal. Termina cuando una pantalla que se dispara
   sube a «para mirar» con su nombre.
 - [ ] Vigía · fase 2, avisar solo: cuando algo pasa a alerta, un aviso (macOS, chat o Slack, según decida Miguel), sin
