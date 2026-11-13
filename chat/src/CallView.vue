@@ -354,29 +354,32 @@ const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
 const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa'
-  : aside(c) ? 'teclea' : ACTIVITY_GESTURE[activityOf(c)] || 'escucha')
+  : 'teclea') // los ojos, en el portátil
 
-// ── LO QUE HACEN MIENTRAS TANTO ─────────────────────────────────────────────────────────────────────────
-// Para que la oficina se sienta viva: cada tanto, uno que está quieto (no habla, no lo nombraron, no tiene nada en la
-// mano) hace algo por su cuenta unos segundos —toma café, trabaja en el portátil, atiende una llamada, se pone los
-// audífonos o se asombra— y vuelve a escuchar. De a uno, y si le hablan, lo deja.
-const ACTIVITIES = { cafe: 6000, trabaja: 7000, llamada: 6500, audifonos: 7000, asombro: 2600 }
-const ACTIVITY_GESTURE = { trabaja: 'teclea', llamada: 'habla', asombro: 'piensa' }
-const activity = ref(null) // { key, kind, until }
-const activityOf = (c) => (activity.value && activity.value.key === keyOf(c) && activity.value.until > now.value ? activity.value.kind : '')
-const isIdle = (c) => speaking.value !== keyOf(c) && !propOf(c) && !addressed.value.has(keyOf(c)) && !aside(c) && muted.value?.key !== keyOf(c)
+// ── EL PORTÁTIL Y LO QUE HACEN MIENTRAS TANTO ───────────────────────────────────────────────────────────
+// Todos tienen su portátil delante (abajo, a la altura del pecho) y la mirada puesta en él. Cada uno, por su cuenta y de
+// vez en cuando, lo cierra y se toma un tinto, y lo vuelve a abrir; o se pone los audífonos mientras trabaja. Si le
+// hablan (lo nombran), levanta la mirada; si le mandan algo, guarda el portátil para tener la hoja o la foto.
+const ACTIVITIES = { cafe: [8000, 12000], audifonos: [9000, 14000] } // cuánto dura cada una: entre [mín, máx] ms
+const activities = ref({}) // clave → { kind, until }
+const activityOf = (c) => { const a = activities.value[keyOf(c)]; return a && a.until > now.value ? a.kind : '' }
+const isIdle = (c) => speaking.value !== keyOf(c) && !propOf(c) && !addressed.value.has(keyOf(c)) && muted.value?.key !== keyOf(c)
 const activityTimer = setInterval(() => {
-  if (activity.value && activity.value.until > Date.now()) return
-  activity.value = null
-  if (Math.random() < 0.45) return // no siempre: que no parezca un reloj
-  const idle = props.cast.filter(isIdle)
-  if (!idle.length) return
-  const c = idle[Math.floor(Math.random() * idle.length)]
-  const kinds = Object.keys(ACTIVITIES)
-  const kind = kinds[Math.floor(Math.random() * kinds.length)]
-  activity.value = { key: keyOf(c), kind, until: Date.now() + ACTIVITIES[kind] }
-}, 5000)
+  const t = Date.now(), next = {}
+  for (const c of props.cast) {
+    const a = activities.value[keyOf(c)]
+    if (a && a.until > t) { next[keyOf(c)] = a; continue }
+    // cada 3 s, uno libre arranca algo con poca probabilidad: así cada quien va a su ritmo
+    if (!isIdle(c) || Math.random() > 0.1) continue
+    const kind = Math.random() < 0.5 ? 'cafe' : 'audifonos'
+    const [lo, hi] = ACTIVITIES[kind]
+    next[keyOf(c)] = { kind, until: t + lo + Math.random() * (hi - lo) }
+  }
+  activities.value = next
+}, 3000)
 onBeforeUnmount(() => clearInterval(activityTimer))
+// el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano
+const laptopOf = (c) => (propOf(c) ? '' : activityOf(c) === 'cafe' ? 'closed' : 'open')
 // con los audífonos puestos, el dibujo los trae (la pieza `headphones` del personaje)
 const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character,
   ...(activityOf(c) === 'audifonos' ? { extras: [...new Set([...(c.character?.extras || []), 'headphones'])] } : {}) })
@@ -447,36 +450,24 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
-        <!-- lo que hace mientras tanto (café, portátil, llamada, audífonos, asombro), en papel cortado -->
-        <svg v-if="activityOf(c) && activityOf(c) !== 'audifonos'" class="call-act" :class="activityOf(c)" viewBox="0 0 100 80" aria-hidden="true">
-          <template v-if="activityOf(c) === 'cafe'">
-            <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
-              <path d="M38 22 q-5 -7 0 -14 q5 -7 0 -14" /><path d="M52 22 q-5 -7 0 -14 q5 -7 0 -14" />
-            </g>
-            <rect x="26" y="30" width="40" height="42" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
-            <path d="M66 40 q14 0 14 12 q0 12 -14 12" fill="none" stroke="#f6ecd6" stroke-width="6" />
-            <rect x="26" y="30" width="40" height="42" rx="6" fill="#f6ecd6" />
-            <rect x="26" y="44" width="40" height="8" fill="#e5592a" />
-          </template>
-          <template v-else-if="activityOf(c) === 'trabaja'">
-            <path d="M14 70 L86 70 L80 22 L20 22 Z" fill="#13323a" opacity=".25" transform="translate(3 3)" />
-            <path d="M14 70 L86 70 L80 22 L20 22 Z" fill="#b9cdc6" />
-            <circle cx="50" cy="44" r="6" fill="#f6ecd6" />
-            <rect x="6" y="70" width="88" height="8" rx="2" fill="#8da39b" />
-          </template>
-          <template v-else-if="activityOf(c) === 'llamada'">
-            <g transform="rotate(-25 50 40)">
-              <rect x="38" y="6" width="26" height="62" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
-              <rect x="38" y="6" width="26" height="62" rx="6" fill="#24406b" />
-              <rect x="42" y="12" width="18" height="40" rx="2" fill="#78b4d0" />
-            </g>
-            <g class="rings" fill="none" stroke="#f2c14e" stroke-width="3" stroke-linecap="round"><path d="M76 18 q8 6 0 14" /><path d="M84 12 q14 12 0 26" /></g>
-          </template>
-          <template v-else-if="activityOf(c) === 'asombro'">
-            <circle cx="50" cy="40" r="26" fill="#13323a" opacity=".25" transform="translate(3 3)" />
-            <circle cx="50" cy="40" r="26" fill="#f2c14e" />
-            <rect x="46" y="22" width="8" height="24" rx="4" fill="#13323a" /><circle cx="50" cy="55" r="4.5" fill="#13323a" />
-          </template>
+        <!-- su portátil (plateado, sin marca) y, mientras toma tinto, la taza; en papel cortado -->
+        <svg v-if="laptopOf(c)" class="call-laptop" :class="laptopOf(c)" viewBox="0 0 100 60" aria-hidden="true">
+          <g class="lid">
+            <rect x="12" y="4" width="76" height="50" rx="4" fill="#13323a" opacity=".22" transform="translate(2 3)" />
+            <rect x="12" y="4" width="76" height="50" rx="4" fill="#c9ced3" />
+            <rect x="12" y="4" width="76" height="6" rx="3" fill="#dfe3e6" />
+            <circle cx="50" cy="29" r="5" fill="#e9ecee" />
+          </g>
+          <rect x="3" y="53" width="94" height="6" rx="2.5" fill="#9aa1a7" />
+        </svg>
+        <svg v-if="activityOf(c) === 'cafe' && !propOf(c)" class="call-mug" viewBox="0 0 100 80" aria-hidden="true">
+          <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
+            <path d="M38 22 q-5 -7 0 -14 q5 -7 0 -14" /><path d="M52 22 q-5 -7 0 -14 q5 -7 0 -14" />
+          </g>
+          <rect x="26" y="30" width="40" height="42" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+          <path d="M66 40 q14 0 14 12 q0 12 -14 12" fill="none" stroke="#f6ecd6" stroke-width="6" />
+          <rect x="26" y="30" width="40" height="42" rx="6" fill="#f6ecd6" />
+          <rect x="26" y="44" width="40" height="8" fill="#e5592a" />
         </svg>
         <span v-if="activityOf(c) === 'audifonos'" class="call-notes" aria-hidden="true">♪ ♫</span>
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
@@ -544,24 +535,21 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
 .call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
 .call-gender.busy { opacity: .6; }
-/* lo que hacen mientras tanto */
-.call-act { position: absolute; width: 24%; animation: act-in .35s ease-out; filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
-.call-act.cafe { left: 24%; bottom: 14%; width: 22%; } /* sobre el pecho, sin que la tape la placa del nombre */
-.call-act.trabaja { left: 50%; bottom: -3%; width: 40%; translate: -50% 0; }
-.call-act.llamada { left: 26%; top: 30%; width: 20%; }
-.call-act.asombro { left: 8%; top: 8%; width: 16%; animation: act-in .25s ease-out, act-jump .5s ease-in-out .25s 2 alternate; }
-.call-act.cafe .steam { animation: steam 1.6s ease-in-out infinite; }
-.call-act.llamada .rings { animation: ring .5s steps(2) infinite; }
+/* el portátil, abajo y al centro; al cerrarse, la tapa baja hasta la bisagra */
+/* bajo y no tan grande: la tapa llega justo debajo de la barbilla, así la boca (o el pico) se ve al hablar */
+.call-laptop { position: absolute; left: 50%; bottom: -7%; width: 37%; translate: -50% 0; pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
+.call-laptop .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }
+.call-laptop.closed .lid { transform: scaleY(.08); }
+/* el tinto, a un lado del portátil */
+.call-mug { position: absolute; left: 7%; bottom: 3%; width: 17%; animation: act-in .35s ease-out; filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
+.call-mug .steam { animation: steam 1.6s ease-in-out infinite; }
 .call-notes { position: absolute; right: 18%; top: 14%; font-size: calc(var(--tile) * .07); font-weight: 800; color: var(--primary, #e5592a);
   text-shadow: 0 1px 0 rgba(0,0,0,.25); animation: notes 1.4s ease-in-out infinite alternate; }
 @keyframes act-in { from { opacity: 0; translate: 0 30%; } to { opacity: 1; translate: 0 0; } }
-.call-act.trabaja { animation: act-in-c .35s ease-out; }
-@keyframes act-in-c { from { opacity: 0; translate: -50% 30%; } to { opacity: 1; translate: -50% 0; } }
-@keyframes act-jump { from { transform: translateY(0); } to { transform: translateY(-14%); } }
 @keyframes steam { 0% { transform: translateY(4px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-6px); opacity: 0; } }
-@keyframes ring { from { opacity: 1; } to { opacity: .2; } }
 @keyframes notes { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-8px) rotate(6deg); } }
-@media (prefers-reduced-motion: reduce) { .call-act, .call-act *, .call-notes { animation: none !important; } }
+@media (prefers-reduced-motion: reduce) { .call-mug, .call-mug *, .call-notes, .call-laptop .lid { animation: none !important; transition: none !important; } }
 /* entrar y salir: el que entra crece desde el centro, el que sale se achica, y los demás se acomodan en su lugar */
 .tile-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2, .9, .3, 1.2); }
 .tile-leave-active { transition: opacity .35s ease, transform .35s ease; position: absolute; }

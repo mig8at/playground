@@ -94,8 +94,10 @@ y saluda con ella. Volver al género de su JSON recupera esa voz si está libre.
 **Lo ya dicho no cambia de voz**: la primera vez que un mensaje suena queda anotada su voz (`voice-said.json`, por id
 del mensaje) y al repetirlo suena con ésa aunque después se le cambie la voz al personaje; el cambio vale de ahí en
 adelante. **La voz de tus agentes** también se elige en el perfil del chat (Agentes: un selector por agente; vacío =
-la de su personaje). **Mientras tanto**, cada tanto uno que está quieto hace algo unos segundos (café, portátil,
-llamada, audífonos —la pieza `headphones` del dibujo— o asombro), de a uno y sólo si nadie le habla.
+la de su personaje). **El portátil**: todos tienen el suyo delante (plateado, sin marca, bajo
+para que la boca se vea al hablar) y la mirada puesta en él; cada uno, a su ritmo, lo cierra para tomarse un tinto y lo
+vuelve a abrir, o se pone los audífonos (la pieza `headphones` del dibujo) mientras trabaja. Si lo nombran levanta la
+mirada; si le mandan algo, guarda el portátil para tener la hoja o la foto.
 **Entrar y salir**: con la llamada abierta en un grupo, los miembros se miran cada 4 s; el que entra aparece con su
 animación (la grilla se reacomoda sola, como en Meet), recibe voz si no tiene —la primera libre del GÉNERO CON MÁS VOCES
 LIBRES— y saluda; el que sale se va con la suya. Abajo, «X entró/salió de la llamada». Un agente sin JSON (uno recién
