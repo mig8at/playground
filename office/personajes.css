@@ -247,6 +247,14 @@
 /* el gato y el perezoso parpadean despacio: cierran y se quedan un momento */
 .sp-gato .eyes, .sp-perezoso .eyes, .sp-koala .eyes { animation-name: slowblink; }
 @keyframes slowblink { 0%, 80%, 100% { transform: scaleY(1); } 86%, 94% { transform: scaleY(.1); } }
+/* LAS REACCIONES, CADA UNO A SU TIEMPO. Una risa o una celebración les llega a varios a la vez, y la animación arranca
+   cuando se pone la clase: sin esto, toda la grilla se sacudía al mismo compás, como un coro mecánico. Cada personaje
+   arranca corrido (una fracción de su --d) y a su velocidad (--kh, --kb): el perezoso se ríe despacio, el ratón rápido. */
+.tile.act-laugh:not(.talking) .mouth, .tile.act-laugh .head, .tile.act-laugh .body { animation-duration: calc(.19s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .04); }
+.tile.act-celebrate .head { animation-duration: calc(.28s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .05); }
+.tile.act-celebrate .arm-l.open, .tile.act-celebrate .arm-r.open { animation-duration: calc(.28s * var(--kb, 1)); animation-delay: calc(var(--d, 0s) * .06); }
+.tile.act-wave .arm-r.open { animation-duration: calc(.34s * var(--kb, 1)); animation-delay: calc(var(--d, 0s) * .05); }
+.tile.act-wave .head { animation-duration: calc(.5s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .05); }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }
@@ -256,6 +264,10 @@
    gestos que no se animan (cejas, pupilas, qué boca se ve) siguen cambiando con el estado. */
 @media (prefers-reduced-motion: reduce) {
   .tile *:not(.mouth):not(.beak-jaw):not(.beak-top):not(.beak-inside) { animation: none !important; }
+  /* el confeti no cae: queda repartido y quieto (sin esto quedaba arriba, fuera del recuadro, y celebrar perdía la gracia) */
+  .tile.act-celebrate .bit { transform: translateY(var(--by, 200px)) rotate(calc(var(--br, 1) * 28deg)); }
+  /* la tapa del portátil y la mirada cambian de golpe, sin recorrido */
+  .lid, .pupils, .ear { transition: none !important; }
 }
 
 

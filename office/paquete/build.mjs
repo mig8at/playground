@@ -46,7 +46,7 @@ export function personaje(config = {}) {
 /** El SVG del personaje como texto. opciones: { gesto: 'escucha'|'teclea'|'piensa'|'habla', fondo: true|false } */
 export function svg(config, { gesto = 'escucha', fondo = true } = {}) {
   const p = personaje(config), st = GESTOS[gesto] || 'idle'
-  const scene = fondo ? (P.SCENES[p.scene] || P.SCENES.sunset)() : ''
+  const scene = fondo ? P.sceneOf(p) : ''
   return \`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" class="tile \${st}" style="--d:\${-(Math.random() * 5).toFixed(2)}s">\${scene}<g transform="translate(46 54) scale(.77)"><g class="avatar">\${P.person(p)}</g></g></svg>\`
 }
 

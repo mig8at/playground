@@ -58,17 +58,23 @@ const shelf = (x, y, w) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" 
 const frame = (x, y, w, h, inner) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${P.ink}"/></g><rect x="${x + 6}" y="${y + 6}" width="${w - 12}" height="${h - 12}" fill="${P.cream}"/>${inner}`
 // la pared: el color de arriba y el zócalo
 const wall = (top, base) => `<rect width="400" height="300" fill="${top}"/><rect y="236" width="400" height="64" fill="${base}"/><rect y="232" width="400" height="6" fill="${shade(base, .8)}"/>`
+// LA SILLA SE APARTA DE UNA CABEZA OSCURA. El respaldo es casi negro (así no parece parte de la chaqueta), pero detrás de
+// un pelaje o un pelo oscuro —el pingüino, el tucán, el oso de anteojos, el gorila— la cabeza se fundía con él: ahí la
+// silla se aclara. `p` es el personaje que se sienta (los cuartos lo reciben; sin él, la silla de siempre).
+// Sólo ante lo casi negro (el castaño se sigue viendo sobre el respaldo oscuro, y así queda la silla que se eligió).
+// En un animal el pelaje es toda la cabeza, así que el corte es un poco más alto que para el pelo de una persona.
+const chairFor = (p) => { const c = p && (p.species ? p.skin : p.hairColor); return /^#[0-9a-f]{6}$/i.test(c || '') && lum(c) < (p.species ? 60 : 46) ? '#7d8087' : CHAIR }
 const ROOMS = {
-  oficina: () => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
-    plant(352, 238, P.orange) + chair(),
-  estudio: () => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
-    shelf(300, 70, 86) + chair(),
-  noche: () => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
-    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(),
-  sala: () => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
-    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(),
-  reunion: () => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
-    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(),
+  oficina: (p) => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
+    plant(352, 238, P.orange) + chair(chairFor(p)),
+  estudio: (p) => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
+    shelf(300, 70, 86) + chair(chairFor(p)),
+  noche: (p) => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
+    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(chairFor(p)),
+  sala: (p) => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
+    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(chairFor(p)),
+  reunion: (p) => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
+    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(chairFor(p)),
 }
 const SCENES = {
   sunset: () => `<rect width="400" height="300" fill="${P.amber}"/>${rays(320, 70, 16, P.yellow, P.amber)}${sun(320, 70, 66, [P.redDeep, P.red, P.orange, P.yellow])}${cloud(10, 40, 1.1, P.cream)}${cloud(250, 140, .9, P.pink)}${wave(228, 26, P.plum)}${wave(254, 22, P.rose, 30)}${wave(282, 16, P.red, 10)}`,
@@ -94,6 +100,18 @@ const rgb = (c) => String(c).startsWith('rgb') ? c.match(/\d+/g).slice(0, 3).map
 const shade = (c, f) => `rgb(${rgb(c).map((v) => Math.max(0, Math.min(255, Math.round(v * f)))).join(',')})`
 // mezcla dos colores: t = 0 es el primero, 1 el segundo (admite #rrggbb y rgb(): shade devuelve rgb())
 const mix = (a, b, t) => { const [x, y] = [rgb(a), rgb(b)]; return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})` }
+// QUE EL ACCESORIO NO SE CONFUNDA CON EL PELO. Un gorro del mismo color que el pelo se funde con él (una cachucha verde
+// sobre rizos verdes era una sola mancha): si el color de la prenda queda muy cerca del de referencia, se corre —más
+// claro si era oscuro, más oscuro si era claro— hasta que se distingan. Devuelve hex, para que shade() lo siga usando.
+const rgbOf = (hex) => { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255] }
+const hexOf = (rgb) => `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`
+const lum = (hex) => { const [r, g, b] = rgbOf(hex); return .3 * r + .59 * g + .11 * b }
+function apart(c, ref, near = 120) {
+  if (!/^#[0-9a-f]{6}$/i.test(c || '') || !/^#[0-9a-f]{6}$/i.test(ref || '')) return c
+  const a = rgbOf(c), b = rgbOf(ref)
+  if (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) > near) return c
+  return lum(c) < 120 ? hexOf(a.map((v, i) => v + ([241, 228, 199][i] - v) * .42)) : hexOf(a.map((v) => v * .55))
+}
 const cut = (inner) => `<g class="cut">${inner}</g>`
 const soft = (inner) => `<g class="cut-soft">${inner}</g>`
 const r1 = (n) => Math.round(n * 10) / 10
@@ -104,17 +122,31 @@ const HEAD = { cx: 200, cy: 146 }
 // La cara puede no ser una elipse: h.n la hace más cuadrada (2 es elipse) y h.rxB le da otro ancho a la mitad de abajo
 // (la mandíbula). El pelo, los gorros y la barba usan este mismo pt(), así se acomodan solos a cualquier forma.
 const pt = (h, deg, pad = 0) => {
-  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), e = 2 / (h.n || 2)
-  const rx = s > 0 && h.rxB ? h.rxB : h.rx
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), below = s > 0
+  // nB: otra cuadratura para la mitad de abajo (menos de 2 afila el mentón). smooth: el ancho pasa del de arriba (rx) al
+  // de la mandíbula (rxB) de a poco al bajar, en vez de saltar en la línea de los ojos (ese salto deja un escalón).
+  const e = 2 / ((below && h.nB) || h.n || 2)
+  // taper: cuánto aguantan los cachetes antes de cerrarse hacia el mentón (más alto = cachetes más llenos). Sin él, la
+  // cara se angosta enseguida debajo de los ojos, que en un animal da hocico pero en una persona la deja demacrada.
+  const fall = h.taper ? s ** h.taper : Math.min(1, s * 1.7) ** .85
+  const rx = below && h.rxB ? (h.smooth ? h.rx + (h.rxB - h.rx) * fall : h.rxB) : h.rx
   return [r1(h.cx + (rx + pad) * Math.sign(c) * Math.abs(c) ** e), r1(h.cy + (h.ry + pad) * Math.sign(s) * Math.abs(s) ** e)]
 }
+// el medio ancho de la cara a `dy` por debajo del centro (para poner el rubor dentro de una mandíbula angosta)
+const halfWidthAt = (h, dy) => { let best = h.rx, gap = 1e9; for (let a = 0; a <= 90; a += 3) { const [x, y] = pt(h, a); if (Math.abs(y - h.cy - dy) < gap) { gap = Math.abs(y - h.cy - dy); best = x - h.cx } } return best }
 // el contorno de la cara, como trazado
 const headPath = (h, pad = 0) => { let d = ''; for (let a = 0; a < 360; a += 4) { const [x, y] = pt(h, a, pad); d += `${d ? 'L' : 'M'}${x} ${y} ` } return `${d}Z` }
 // las formas de cara: ancho arriba, alto, y opcionalmente cuadratura (n) y ancho de mandíbula (rxB)
 const FACES = {
   round: { rx: 92, ry: 88 }, soft: { rx: 94, ry: 90 }, wide: { rx: 100, ry: 84 }, tall: { rx: 86, ry: 94 },
   largo: { rx: 80, ry: 102 }, achatada: { rx: 106, ry: 76 }, cuadrada: { rx: 90, ry: 90, n: 3.4 },
-  mandibula: { rx: 84, ry: 92, rxB: 100, n: 2.6 }, corazon: { rx: 100, ry: 92, rxB: 72, n: 2.2 },
+  mandibula: { rx: 84, ry: 92, rxB: 100, n: 2.6, smooth: true }, corazon: { rx: 100, ry: 92, rxB: 72, n: 2.2, smooth: true, taper: 1.8 }, // smooth: sin el escalón que quedaba a la altura de los ojos
+  // con rasgo marcado (2026-11-13): el ancho baja de a poco hasta la mandíbula (smooth) y el mentón puede afilarse (nB)
+  // diamante: pómulos anchos, frente y mentón algo más angostos. triangular: frente ancha que baja a un mentón fino.
+  // Los dos con cachetes llenos (taper): con la mandíbula muy angosta y en punta se veían demacrados.
+  diamante: { rx: 95, ry: 92, rxB: 72, n: 1.85, nB: 2, smooth: true, taper: 1.7 }, triangular: { rx: 103, ry: 89, rxB: 68, n: 2.3, nB: 2.1, smooth: true, taper: 2.4 },
+  pera: { rx: 80, ry: 92, rxB: 102, n: 2.2, nB: 2.5, smooth: true }, ovalada: { rx: 78, ry: 100, n: 2.1 },
+  menton: { rx: 92, ry: 96, rxB: 78, n: 2.3, nB: 3.2, smooth: true },
 }
 // un arco sobre la elipse, de a0 a a1 grados (sentido horario en pantalla), como «L x y L x y…»
 const arc = (h, a0, a1, pad = 0, step = 4) => { const out = []; for (let a = a0; a1 > a0 ? a <= a1 : a >= a1; a += a1 > a0 ? step : -step) out.push(pt(h, a, pad)); out.push(pt(h, a1, pad)); return out.map(([x, y]) => `L${x} ${y}`).join(' ') }
@@ -266,6 +298,15 @@ const HATS = {
       <path d="M${k.L[0] + 4} ${k.L[1] - 14} Q${k.C[0]} ${k.C[1] - 14} ${k.R[0] - 4} ${k.R[1] - 14}" stroke="${d}" stroke-width="9" fill="none"/>
       ${cut(`<path d="M${brimL[0]} ${brimL[1]} Q${h.cx} ${k.C[1] - 34} ${brimR[0]} ${brimR[1]} Q${brimR[0] - 26} ${brimR[1] + 22} ${mx} ${my + 16} Q${brimL[0] + 26} ${brimL[1] + 22} ${brimL[0]} ${brimL[1]}Z" fill="${l}"/>`)}`
   },
+  // sombrero: copa redonda con cinta y un ala ancha y casi plana que sobresale bien a los costados
+  sombrero: (h, c, hp) => {
+    const d = shade(c, .62), l = shade(c, 1.14), k = hatLine(h, hp), top = k.top - 16, w = h.rx + hp
+    const crown = `M${k.L[0] + 12} ${k.L[1]} C${h.cx - w * .8} ${top + 26} ${h.cx - w * .46} ${top - 4} ${h.cx} ${top - 6} C${h.cx + w * .46} ${top - 4} ${h.cx + w * .8} ${top + 26} ${k.R[0] - 12} ${k.R[1]} ${k.edge}Z`
+    const bL = [k.L[0] - 52, k.L[1] + 6], bR = [k.R[0] + 52, k.R[1] + 6], [mx, my] = k.at(.5)
+    return `${cut(`<path d="${crown}" fill="${c}"/>`)}
+      <path d="M${k.L[0] + 10} ${k.L[1] - 12} Q${k.C[0]} ${k.C[1] - 12} ${k.R[0] - 10} ${k.R[1] - 12}" stroke="${d}" stroke-width="15" fill="none"/>
+      ${cut(`<path d="M${bL[0]} ${bL[1]} Q${h.cx} ${k.C[1] - 30} ${bR[0]} ${bR[1]} Q${bR[0] - 18} ${bR[1] + 16} ${mx} ${my + 12} Q${bL[0] + 18} ${bL[1] + 16} ${bL[0]} ${bL[1]}Z" fill="${l}"/>`)}`
+  },
   // boina: un disco blando que se apoya en la línea del gorro y se infla hacia un costado, con su cabito arriba
   boina: (h, c, hp) => {
     const d = shade(c, .76), k = hatLine(h, hp - 4), top = k.top
@@ -275,9 +316,33 @@ const HATS = {
   },
 }
 
+// EL REMATE DE TELA: lo que hace que un gorro se lea como prenda y no como otro peinado. Una costura punteada clara
+// (el pelo nunca la tiene) a la altura de cada gorro, y debajo del borde una sombra sobre la frente y el pelo.
+const HAT_SEAM = { lana: -30, chullo: -13, cachucha: -9, reves: -9, pescador: -25, boina: -13, sombrero: -30 }
+function hatTrim(h, hat, hp, c) {
+  const k = hatLine(h, hp), dy = HAT_SEAM[hat] ?? -9, stitch = lum(c) > 150 ? shade(c, .55) : '#f6ecd6'
+  return `<path d="M${k.L[0] + 4} ${k.L[1] + 5} Q${k.C[0]} ${k.C[1] + 6} ${k.R[0] - 4} ${k.R[1] + 5}" stroke="#13323a" stroke-width="6" fill="none" stroke-linecap="round" opacity=".22"/>
+    <path d="M${k.L[0] + 8} ${r1(k.L[1] + dy)} Q${k.C[0]} ${r1(k.C[1] + dy)} ${k.R[0] - 8} ${r1(k.R[1] + dy)}" stroke="${stitch}" stroke-width="2.6" stroke-dasharray="7 6" fill="none" stroke-linecap="round" opacity=".8"/>`
+}
+// el gorro puesto: del color pedido, corrido si se confunde con el pelo, con su remate
+const wearHat = (p, h, hp, against) => { if (!p.hat || !HATS[p.hat]) return ''; const c = apart(p.hatColor || '#c5381f', against); return HATS[p.hat](h, c, hp) + hatTrim(h, p.hat, hp, c) }
+
 // Lo que se pone encima: lentes, audífonos, aretes, barba, pecas.
 const EXTRAS = {
-  glasses: (p, h) => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><path d="M${h.cx - 10} ${h.cy - 2} h20"/></g>`,
+// las gafas: marco, un lente que brilla (un rectángulo vacío se leía como dibujo sobre la cara) y las patillas hasta la
+  // sien. El marco es oscuro, salvo sobre piel oscura, donde no se veía: ahí va claro. Las de sol llevan el lente lleno.
+  glasses: (p, h, sun = false) => {
+    const round = p.glassesRound ? 23 : 14, dark = lum(p.skin || '#e0ac7e') < 105
+    const frame = sun ? (dark ? '#f1e4c7' : '#13323a') : dark ? '#f1e4c7' : '#13323a'
+    const lens = (x) => `<rect x="${x}" y="${h.cy - 22}" width="54" height="46" rx="${round}" fill="${sun ? '#13323a' : '#dff0f4'}" opacity="${sun ? .94 : .15}"/><path d="M${x + 12} ${h.cy + 10} l16 -22 M${x + 26} ${h.cy + 12} l10 -14" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" opacity="${sun ? .32 : .4}"/>`
+    return `<g class="glasses">${lens(h.cx - 64)}${lens(h.cx + 10)}<g class="cut-soft" fill="none" stroke="${frame}" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${round}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${round}"/><path d="M${h.cx - 10} ${h.cy - 2} h20 M${h.cx - 64} ${h.cy - 6} L${r1(pt(h, 184)[0] + 2)} ${h.cy - 12} M${h.cx + 64} ${h.cy - 6} L${r1(pt(h, 356)[0] - 2)} ${h.cy - 12}" stroke-linecap="round"/></g></g>`
+  },
+  sunglasses: (p, h) => EXTRAS.glasses(p, h, true),
+  // diadema: una cinta lisa sobre el pelo, de sien a sien, con su brillo. Del color de los accesorios, corrido si se
+  // parece al pelo
+  headband: (p, h, vol) => { const c = apart(p.gear, p.hairColor); return `${cut(`<path d="${M(pt(h, 204, vol))} ${arc(h, 204, 336, vol)}" stroke="${c}" stroke-width="13" fill="none" stroke-linecap="round"/>`)}<path d="${M(pt(h, 232, vol + 3))} ${arc(h, 232, 300, vol + 3)}" stroke="${shade(c, 1.35)}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>` },
+  // lazo: dos alas y el nudo, arriba a un costado
+  bow: (p, h, vol) => { const c = apart(p.gear, p.hairColor), [x, y] = pt(h, 306, vol + 4); return cut(`<path d="M${x} ${y} l-30 -18 q-8 18 0 36Z M${x} ${y} l30 -18 q8 18 0 36Z" fill="${c}"/><rect x="${r1(x - 8)}" y="${r1(y - 10)}" width="16" height="20" rx="6" fill="${shade(c, .7)}"/>`) },
   headphones: (p, h) => `<g class="cut"><path d="${M(pt(h, 180, 20))} ${arc(h, 180, 360, 20)}" fill="none" stroke="${p.gear}" stroke-width="13" stroke-linecap="round"/><rect x="${h.cx - h.rx - 22}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/><rect x="${h.cx + h.rx - 8}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/></g>`,
   earrings: (p, h) => `<g class="cut-soft"><circle cx="${h.cx - h.rx - 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/><circle cx="${h.cx + h.rx + 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/></g>`,
   // LAS BARBAS: todas del tono de una barba corta (el color del pelo mezclado con la piel) y armadas sobre la forma de
@@ -368,9 +433,15 @@ function beak(cx, y, c, w = 74) {
     <g class="m-think"><g transform="rotate(-7 ${cx} ${y})">${soft(lower(-2) + upper)}</g></g>
     <g class="m-flat">${soft(lower(-4) + upper)}</g>`
 }
+// arco, grosor y largo extra de cada tipo de ceja
+const BROWS = { '': [18, 9, 0], thick: [16, 15, 3], thin: [17, 5, 0], arched: [30, 9, 0], straight: [5, 10, 2] }
 function face(h, f) {
   const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
-  const L = cx - gap, R = cx + gap, pr = eye * .43 // la pupila llena más el ojo: chica, la mirada quedaba fija y asustada
+  const L = cx - gap, R = cx + gap, pr = eye * (f.eyeShape === 'almond' ? .38 : .43) // la pupila llena más el ojo: chica, la mirada quedaba fija y asustada
+  // LAS CEJAS Y LA FORMA DEL OJO le dan carácter a la cara (2026-11-13): arco (ba), grosor (bt) y largo (bw) de la ceja;
+  // el ojo almendrado es más bajo y el grande, más alto. Sin elegir nada, quedan las de siempre.
+  const [ba, bt, bw] = BROWS[f.brows] || BROWS['']
+  const ery = eye * (f.eyeShape === 'almond' ? .72 : f.eyeShape === 'big' ? 1.14 : 1), by = r1(eyeY - ery - 6)
   const lash = f.lashes ? `<path d="M${L - eye * .8} ${eyeY - eye * .6} l-10 -8 M${L - eye * .5} ${eyeY - eye * .85} l-6 -10 M${R + eye * .8} ${eyeY - eye * .6} l10 -8 M${R + eye * .5} ${eyeY - eye * .85} l6 -10" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
   const lids = f.lids ? `<path d="M${L - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z M${R - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z" fill="${f.nose}"/>` : ''
   // Los dientes se recortan con la misma forma de la boca (clipPath por recuadro): cuelgan del labio de arriba y
@@ -385,14 +456,14 @@ function face(h, f) {
   // surco nariz-boca para animales con hocico (sólo cuando la boca está cerrada o sonriendo, para no cruzar la boca abierta)
   const ph = f.philtrum ? (to) => `<path d="M${cx} ${f.philtrum} V${r1(to)}" stroke="${f.mouth}" stroke-width="2.8" stroke-linecap="round" opacity=".85"/>` : () => ''
   return `
-    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye * 1.06}" fill="#fbf4e4"/>`)}
+    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${r1(eye * (f.eyeShape === 'almond' ? 1 : .9))}" ry="${r1(ery)}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${r1(eye * (f.eyeShape === 'almond' ? 1 : .9))}" ry="${r1(ery * 1.06)}" fill="#fbf4e4"/>`)}
       <g class="pupils"><circle cx="${L + 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/><circle cx="${R - 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/>
         <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/>
         <circle cx="${L + 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/><circle cx="${R - 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/></g>
       ${lids}${lash}</g>
     <g class="eyes-laugh" fill="none" stroke-linecap="round">${[L, R].map((x) => `<path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#fbf4e4" stroke-width="12"/><path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#13323a" stroke-width="6"/>`).join('')}</g>
-    <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
-    <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="brow-l">${soft(`<path d="M${L - 24 - bw} ${by} q${22 + bw} ${-ba} ${44 + bw * 2} ${r1(-ba * .22)} l-4 ${bt} q${-18 - bw} ${r1(-ba * .55)} ${-36 - bw * 2} 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="brow-r">${soft(`<path d="M${R + 24 + bw} ${by} q${-22 - bw} ${-ba} ${-44 - bw * 2} ${r1(-ba * .22)} l4 ${bt} q${18 + bw} ${r1(-ba * .55)} ${36 + bw * 2} 3Z" fill="${f.brow}"/>`)}</g>
     ${clips}
     ${f.beak ? beak(cx, mouthY - 8, f.beak, f.beakW) : `<g class="m-smile">${ph(mouthY + 1)}${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
     <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
@@ -417,7 +488,18 @@ function torso(p, neck, chest) {
     ${soft(`<rect x="195" y="270" width="10" height="16" rx="3" fill="${jl}"/>`)}
     ${soft(`<path d="M176 226 L200 268 L172 276 Q154 254 160 230Z M224 226 L200 268 L228 276 Q246 254 240 230Z" fill="${jd}"/>`)}
     ${soft(`<use href="#creditop-logo-mono" x="218" y="285" width="78" height="10" style="color:#ffffff"/>`)}
+    ${neckwear(p)}
   </g>`
+}
+// lo que va al cuello: bufanda (una vuelta con rayas y una punta que cuelga con flecos) o corbatín. Del color de los
+// accesorios, corrido si se parece a la chaqueta
+function neckwear(p) {
+  const has = (x) => p.extras?.includes(x), c = apart(p.gear || '#13323a', p.shirt), d = shade(c, .72), l = lum(c) > 150 ? shade(c, .6) : '#f1e4c7'
+  if (has('scarf')) return `${cut(`<path d="M148 250 h30 v62 h-30Z" fill="${d}"/><path d="M152 312 v12 M160 312 v12 M168 312 v12 M176 312 v12" stroke="${d}" stroke-width="4" stroke-linecap="round"/>`)}
+    ${cut(`<path d="M146 228 Q200 262 254 228 L262 252 Q200 292 138 252Z" fill="${c}"/>`)}
+    <path d="M166 247 l8 22 M192 256 l2 23 M218 254 l-4 23 M240 244 l-10 21 M152 286 h22 M152 300 h22" stroke="${l}" stroke-width="4" stroke-linecap="round" opacity=".85"/>`
+  if (has('bowtie')) return `${cut(`<path d="M200 246 l-30 -15 q-6 15 0 30Z M200 246 l30 -15 q6 15 0 30Z" fill="${c}"/>`)}${soft(`<rect x="192" y="236" width="16" height="20" rx="6" fill="${d}"/>`)}`
+  return ''
 }
 
 // LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: una clave de
@@ -467,13 +549,28 @@ const ANIMAL = {
     return `${base}<ellipse cx="${h.cx - px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/><ellipse cx="${h.cx + px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/>`
   },
 }
+// LA SILUETA DE CADA ESPECIE. Antes todos los animales compartían la misma elipse y se distinguían sólo por las orejas
+// y el color: en un recuadro chico el oso, el perro y el capibara eran la misma cabeza. Cada una es una forma de pt()
+// (ancho arriba, alto, ancho de mandíbula, cuadratura): las orejas, el hocico, los gorros y la cara se acomodan solos.
+const SPECIES_HEAD = {
+  oso: { rx: 102, ry: 86, n: 2.4 }, panda: { rx: 104, ry: 84, n: 2.3 }, koala: { rx: 106, ry: 80, n: 2.5 },
+  mapache: { rx: 102, ry: 84, rxB: 68, nB: 1.7, smooth: true }, cerdito: { rx: 98, ry: 90, n: 2.6 },
+  gato: { rx: 100, ry: 82, rxB: 76, nB: 1.8, smooth: true }, zorro: { rx: 102, ry: 88, rxB: 56, nB: 1.5, smooth: true },
+  perro: { rx: 84, ry: 96, rxB: 94, n: 2.3, nB: 2.6, smooth: true }, conejo: { rx: 80, ry: 92, rxB: 92, n: 2.2, smooth: true },
+  raton: { rx: 92, ry: 84, rxB: 58, nB: 1.5, smooth: true }, pinguino: { rx: 84, ry: 94, rxB: 98, n: 2.2, smooth: true },
+  buho: { rx: 100, ry: 86, n: 3 }, pato: { rx: 90, ry: 88, rxB: 100, smooth: true }, loro: { rx: 88, ry: 90, n: 2.2 },
+  tucan: { rx: 90, ry: 88, n: 2.3 }, perezoso: { rx: 100, ry: 82, n: 2.4 }, jaguar: { rx: 100, ry: 86, rxB: 86, n: 2.7, nB: 2.2, smooth: true },
+  leon: { rx: 90, ry: 92, rxB: 80, n: 2.6, nB: 2.1, smooth: true }, mico: { rx: 88, ry: 86, rxB: 72, nB: 1.9, smooth: true },
+  gorila: { rx: 88, ry: 90, rxB: 104, n: 2.5, nB: 2.6, smooth: true },
+}
+const speciesHead = (sp) => ({ ...HEAD, rx: 94, ry: 88, ...(SPECIES_HEAD[sp] || {}) })
 const SPECIES = {
   // oso de anteojos: pelaje casi negro, anteojos crema alrededor de los ojos que bajan al hocico
   oso: (p, h) => {
     const fur = p.skin, cream = '#ecd9b0', inner = mix(fur, '#a67c5e', .45)
     return {
       back: ANIMAL.roundEars(h, 27, fur, inner),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 44} ${h.cy - 46} C${h.cx - 18} ${h.cy - 46} ${h.cx - 8} ${h.cy - 28} ${h.cx} ${h.cy - 18} C${h.cx + 8} ${h.cy - 28} ${h.cx + 18} ${h.cy - 46} ${h.cx + 44} ${h.cy - 46} C${h.cx + 72} ${h.cy - 46} ${h.cx + 82} ${h.cy - 20} ${h.cx + 80} ${h.cy + 4} C${h.cx + 78} ${h.cy + 28} ${h.cx + 56} ${h.cy + 38} ${h.cx + 32} ${h.cy + 32} C${h.cx + 16} ${h.cy + 28} ${h.cx + 10} ${h.cy + 16} ${h.cx} ${h.cy + 16} C${h.cx - 10} ${h.cy + 16} ${h.cx - 16} ${h.cy + 28} ${h.cx - 32} ${h.cy + 32} C${h.cx - 56} ${h.cy + 38} ${h.cx - 78} ${h.cy + 28} ${h.cx - 80} ${h.cy + 4} C${h.cx - 82} ${h.cy - 20} ${h.cx - 72} ${h.cy - 46} ${h.cx - 44} ${h.cy - 46} Z" fill="${cream}"/>${ANIMAL.muzzle(h, '#f6e9cc', 46, 33)}`,
      
       chest: cream,
@@ -484,7 +581,7 @@ const SPECIES = {
   panda: (p, h) => {
     const fur = p.skin, ink = '#22232a'
     return {
-      back: ANIMAL.roundEars(h, 28, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ANIMAL.roundEars(h, 28, ink), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx - 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(24 ${h.cx - 36} ${h.cy})"/><ellipse cx="${h.cx + 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(-24 ${h.cx + 36} ${h.cy})"/>${ANIMAL.muzzle(h, mix(fur, '#fffdf7', .55), 42, 28)}`,
       nose: 'bear', noseColor: ink, brow: '#5a5b63', mouth: ink, philtrum: h.cy + 34,
     }
@@ -494,7 +591,7 @@ const SPECIES = {
     const fur = p.skin, inner = '#f1e4e0'
     const ear = (side) => { const [x, y] = pt(h, side < 0 ? 200 : 340, 0); return ANIMAL.puffs({ cx: x, cy: y, rx: 0, ry: 0 }, 30, 16, 0, 330, 30, fur) + `<circle cx="${x}" cy="${y}" r="38" fill="${fur}"/><circle cx="${x}" cy="${y + 2}" r="22" fill="${inner}"/>` }
     return {
-      back: ear(-1) + ear(1), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ear(-1) + ear(1), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .45), 40, 30),
       nose: 'koala', noseColor: '#2a2b30', brow: shade(fur, .55), mouth: '#2a2b30',
     }
@@ -503,7 +600,7 @@ const SPECIES = {
   mapache: (p, h) => {
     const fur = p.skin, ink = '#2a2b30', white = '#f4efe6'
     return {
-      back: ANIMAL.pointEars(h, fur, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ANIMAL.pointEars(h, fur, ink), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy - 40} Q${h.cx} ${h.cy - 66} ${h.cx + 70} ${h.cy - 40} Q${h.cx + 40} ${h.cy - 30} ${h.cx} ${h.cy - 34} Q${h.cx - 40} ${h.cy - 30} ${h.cx - 70} ${h.cy - 40}Z" fill="${white}"/>
         <path d="M${h.cx - 88} ${h.cy - 6} Q${h.cx - 50} ${h.cy - 40} ${h.cx} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 40} ${h.cx + 88} ${h.cy - 6} Q${h.cx + 60} ${h.cy + 32} ${h.cx} ${h.cy + 14} Q${h.cx - 60} ${h.cy + 32} ${h.cx - 88} ${h.cy - 6}Z" fill="${ink}"/>${ANIMAL.muzzle(h, white, 44, 30)}`,
       nose: 'dot', noseColor: ink, brow: white, mouth: ink, philtrum: h.cy + 29,
@@ -514,7 +611,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.pointEars(h, shade(fur, .9), shade(fur, .78), 18),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: '',
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`, mask: '',
       nose: 'snout', noseColor: mix(fur, '#fff5f3', .35), brow: shade(fur, .6), mouth: shade(fur, .45),
     }
   },
@@ -522,7 +619,8 @@ const SPECIES = {
   oveja: (p, h) => {
     const wool = p.skin, face = '#f3dcc2'
     const ears = [-1, 1].map((s) => `<ellipse cx="${h.cx + s * (h.rx + 10)}" cy="${h.cy + 4}" rx="30" ry="14" fill="${shade(face, .9)}" transform="rotate(${s * 18} ${h.cx + s * (h.rx + 10)} ${h.cy + 4})"/>`).join('')
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: ears + ANIMAL.puffs(h, 6, 30, 150, 390, 18, wool),
       head: `<ellipse cx="${h.cx}" cy="${h.cy + 6}" rx="${h.rx - 14}" ry="${h.ry - 8}" fill="${face}"/>`,
       mask: '', top: ANIMAL.puffs(h, -18, 24, 220, 320, 25, mix(wool, '#ffffff', .25)),
@@ -543,7 +641,7 @@ const SPECIES = {
     </g>`
     return {
       back: ANIMAL.pointEars(h, fur, '#f2b8b0'),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: tabby + ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 42, 27),
       front: ANIMAL.whiskers(h),
       nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -554,7 +652,7 @@ const SPECIES = {
     const fur = p.skin, white = '#f6efe2', tip = '#3a2a24'
     return {
       back: ANIMAL.pointEars(h, fur, tip),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 7} ${h.cy - 22} L${h.cx + 7} ${h.cy - 22} L${h.cx + 10} ${h.cy + 14} L${h.cx - 10} ${h.cy + 14} Z" fill="${shade(fur, .84)}" opacity=".45"/>
     <path d="M${h.cx - h.rx + 6} ${h.cy + 6} Q${h.cx - 50} ${h.cy - 10} ${h.cx} ${h.cy + 16} Q${h.cx + 50} ${h.cy - 10} ${h.cx + h.rx - 6} ${h.cy + 6} Q${h.cx + h.rx - 18} ${h.cy + h.ry - 4} ${h.cx} ${h.cy + h.ry} Q${h.cx - h.rx + 18} ${h.cy + h.ry - 4} ${h.cx - h.rx + 6} ${h.cy + 6}Z" fill="${white}"/>
     ${ANIMAL.muzzle(h, '#fbf7ee', 38, 25)}`,
@@ -566,7 +664,7 @@ const SPECIES = {
   perro: (p, h) => {
     const fur = p.skin, ear = p.mask || shade(fur, .7)
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx + 36}" cy="${h.cy - 6}" rx="32" ry="30" fill="${ear}"/>${ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 46, 32)}`,
       front: ANIMAL.floppyEars(h, ear),
       nose: 'bear', noseColor: '#22232a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 34,
@@ -577,7 +675,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.longEars(h, fur, '#f2b8b0'),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffdf7', .65), 43, 28),
       front: ANIMAL.whiskers(h, shade(fur, .5)),
      
@@ -589,7 +687,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.roundEars(h, 44, fur, '#f2b8b0', 214),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .6), 38, 25),
       front: ANIMAL.whiskers(h),
       nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -598,7 +696,8 @@ const SPECIES = {
   // rana: verde, cabeza ancha con dos lomas arriba donde van los ojos y barriga clara en la papada
   rana: (p, h) => {
     const skin = p.skin
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: `<circle cx="${h.cx - 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/><circle cx="${h.cx + 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/>`,
       head: `<ellipse cx="${h.cx}" cy="${h.cy + 4}" rx="${h.rx + 8}" ry="${h.ry - 6}" fill="${skin}"/>`,
       mask: `<ellipse cx="${h.cx}" cy="${h.cy + 52}" rx="62" ry="28" fill="${mix(skin, '#fffdf7', .45)}"/>`,
@@ -610,7 +709,7 @@ const SPECIES = {
   pinguino: (p, h) => {
     const ink = p.skin, white = '#f6f1e6'
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${ink}"/>`,
       mask: `<path d="M${h.cx} ${h.cy - 20} Q${h.cx - 30} ${h.cy - 64} ${h.cx - 66} ${h.cy - 30} Q${h.cx - 84} ${h.cy + 30} ${h.cx} ${h.cy + h.ry - 6} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 66} ${h.cy - 30} Q${h.cx + 30} ${h.cy - 64} ${h.cx} ${h.cy - 20}Z" fill="${white}"/>`,
       neck: white, nose: 'none', brow: '#545864', mouth: '#3a2015', beak: '#f08c3d', beakW: 34,
     }
@@ -620,7 +719,7 @@ const SPECIES = {
     const fur = p.skin, disc = mix(fur, '#fffaf0', .52)
     return {
       back: ANIMAL.pointEars(h, shade(fur, .8), null, -6),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<circle cx="${h.cx - 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/><circle cx="${h.cx + 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/>
         <path d="M${h.cx - 30} ${h.cy + 44} q30 22 60 0 M${h.cx - 22} ${h.cy + 58} q22 16 44 0" stroke="${shade(fur, .75)}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
       nose: 'none', brow: shade(fur, .5), mouth: '#3a2015', beak: '#e3a33c', beakW: 22,
@@ -630,7 +729,7 @@ const SPECIES = {
   tucan: (p, h) => {
     const ink = p.skin
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${ink}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy + 20} Q${h.cx} ${h.cy - 6} ${h.cx + 70} ${h.cy + 20} Q${h.cx + 56} ${h.cy + h.ry} ${h.cx} ${h.cy + h.ry + 4} Q${h.cx - 56} ${h.cy + h.ry} ${h.cx - 70} ${h.cy + 20}Z" fill="#f6e7b0"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/>`,
       nose: 'none', brow: '#5b606b', mouth: '#2a2523', beak: p.beak || '#f08c3d', beakW: 120,
@@ -640,7 +739,7 @@ const SPECIES = {
   loro: (p, h) => {
     const feather = p.skin
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${feather}"/>`,
       mask: `<ellipse cx="${h.cx - 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/><ellipse cx="${h.cx + 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/>`,
       top: `<path d="M${h.cx - 10} ${h.cy - h.ry + 6} q-8 -28 10 -40 q-2 20 10 26 q4 -18 22 -20 q-12 14 -10 34Z" fill="#c5381f"/>`,
@@ -651,7 +750,7 @@ const SPECIES = {
   perezoso: (p, h) => {
     const fur = p.skin, cream = '#efe0c4', band = '#4a3326'
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx}" cy="${h.cy + 8}" rx="${h.rx - 16}" ry="${h.ry - 18}" fill="${cream}"/>
         <path d="M${h.cx - 24} ${h.cy - 18} Q${h.cx - 50} ${h.cy - 22} ${h.cx - 74} ${h.cy + 4} Q${h.cx - 66} ${h.cy + 18} ${h.cx - 52} ${h.cy + 14} Q${h.cx - 38} ${h.cy + 2} ${h.cx - 20} ${h.cy + 4}Z" fill="${band}"/>
         <path d="M${h.cx + 24} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 22} ${h.cx + 74} ${h.cy + 4} Q${h.cx + 66} ${h.cy + 18} ${h.cx + 52} ${h.cy + 14} Q${h.cx + 38} ${h.cy + 2} ${h.cx + 20} ${h.cy + 4}Z" fill="${band}"/>`,
@@ -662,7 +761,8 @@ const SPECIES = {
   // capibara: cabeza más cuadrada y alargada, orejitas arriba, hocico ancho con las fosas arriba, ojos chicos
   capibara: (p, h) => {
     const fur = p.skin, d = shade(fur, .8)
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: ANIMAL.roundEars(h, 17, d, shade(fur, .65), 236),
       head: `<rect x="${h.cx - h.rx + 4}" y="${h.cy - h.ry + 4}" width="${(h.rx - 4) * 2}" height="${(h.ry - 4) * 2 + 10}" rx="62" fill="${fur}"/>`,
       mask: `<rect x="${h.cx - 56}" y="${h.cy + 16}" width="112" height="${h.ry - 4}" rx="40" fill="${shade(fur, .9)}"/>`,
@@ -682,7 +782,7 @@ const SPECIES = {
     <circle cx="${h.cx - 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/><circle cx="${h.cx + 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/>`
     return {
       back: ANIMAL.roundEars(h, 25, spot, fur, 226),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: bridge + spots + ANIMAL.muzzle(h, '#f1e5cf', 44, 30),
       front: ANIMAL.whiskers(h, spot),
       nose: 'cat', noseColor: '#c9706a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -692,7 +792,7 @@ const SPECIES = {
     const fur = p.skin, mane = p.mask || shade(fur, .62)
     return {
       back: ANIMAL.puffs(h, 22, 36, 0, 350, 22, mane) + ANIMAL.roundEars(h, 22, fur, mix(fur, '#fffaf0', .4), 226),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .5)),
       nose: 'bear', noseColor: '#7a3b2a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 34,
     }
@@ -702,7 +802,7 @@ const SPECIES = {
     return {
       back: `<circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/>
         <circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/>`,
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       // la máscara clara: dos lóbulos alrededor de los ojos y el hocico
       mask: `<ellipse cx="${h.cx - 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx + 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx}" cy="${h.cy + 42}" rx="60" ry="40" fill="${mask}"/>`,
       top: `<path d="M${h.cx - 18} ${h.cy - h.ry + 6} q-4 -26 14 -30 q-8 16 6 22 q2 -20 20 -20 q-10 14 0 28Z" fill="${d}"/>`,
@@ -717,7 +817,7 @@ const SPECIES = {
     return {
       back: `<ellipse cx="${h.cx - h.rx + 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/><ellipse cx="${h.cx + h.rx - 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/>`,
       // la cabeza es la elipse con una cresta que sube por arriba
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/><path d="M${h.cx - h.rx * .55} ${h.cy - h.ry * .7} Q${h.cx} ${h.cy - h.ry - 46} ${h.cx + h.rx * .55} ${h.cy - h.ry * .7}Z" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/><path d="M${h.cx - h.rx * .55} ${h.cy - h.ry * .7} Q${h.cx} ${h.cy - h.ry - 46} ${h.cx + h.rx * .55} ${h.cy - h.ry * .7}Z" fill="${fur}"/>`,
       // la cara: un escudo ancho de cuero que toma los ojos y el hocico; encima, la ceja ósea
       mask: `<path d="M${h.cx - 70} ${h.cy - 30} Q${h.cx} ${h.cy - 52} ${h.cx + 70} ${h.cy - 30} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 50} ${h.cy + 66} Q${h.cx} ${h.cy + 86} ${h.cx - 50} ${h.cy + 66} Q${h.cx - 84} ${h.cy + 30} ${h.cx - 70} ${h.cy - 30}Z" fill="${face}"/>
         <path d="M${h.cx - 74} ${h.cy - 26} Q${h.cx - 38} ${h.cy - 54} ${h.cx} ${h.cy - 34} Q${h.cx + 38} ${h.cy - 54} ${h.cx + 74} ${h.cy - 26} Q${h.cx + 40} ${h.cy - 38} ${h.cx} ${h.cy - 24} Q${h.cx - 40} ${h.cy - 38} ${h.cx - 74} ${h.cy - 26}Z" fill="${shade(face, .8)}"/>`,
@@ -728,7 +828,7 @@ const SPECIES = {
   pato: (p, h) => {
     const feather = p.skin, d = shade(feather, .85)
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`, mask: '',
+      back: '', head: `<path d="${headPath(h)}" fill="${feather}"/>`, mask: '',
       // un copete de tres plumas
       top: `<path d="M${h.cx - 6} ${h.cy - h.ry + 4} q-20 -20 -8 -36 q4 18 14 22 q-2 -24 16 -34 q-2 22 6 30 q8 -14 22 -12 q-14 12 -16 30Z" fill="${d}"/>`,
       nose: 'none', brow: shade(feather, .55), mouth: '#6e1f12', beak: p.beak || '#f08c3d',
@@ -736,20 +836,23 @@ const SPECIES = {
   },
 }
 function creature(p) {
-  const h = { ...HEAD, rx: 94, ry: 88 }, a = SPECIES[p.species](p, h)
+  const h = speciesHead(p.species), a = SPECIES[p.species](p, h)
+  // lo que se pinta sobre la cara (máscara, rubor) se recorta a la silueta: en una cabeza de mentón angosto se salía
+  const clip = a.ownHead ? '' : ` clip-path="url(#hd-${p.id})"`
   const has = (x) => p.extras?.includes(x)
   return `${torso(p, a.neck, a.chest)}
   <g class="head">
     ${a.back ? cut(a.back) : ''}
     ${cut(a.head)}
-    ${a.mask ? soft(a.mask) : ''}
+    <defs><clipPath id="hd-${p.id}"><path d="${headPath(h)}"/></clipPath></defs>
+    ${a.mask ? `<g${clip}>${soft(a.mask)}</g>` : ''}
     ${a.front ? soft(a.front) : ''}
     ${a.top && !p.hat ? cut(a.top) : ''}
-    <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/>
+    <g${clip}><ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/></g>
     ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth, philtrum: a.philtrum })}
     ${p.species === 'perro' ? `<g class="tongue">${soft(`<path d="M${h.cx - 11} ${h.cy + h.ry * .56 + 4} v16 q0 14 11 14 q11 0 11 -14 v-16Z" fill="#e8756a"/>`)}<path d="M${h.cx} ${h.cy + h.ry * .56 + 8} v18" stroke="#c5544a" stroke-width="3" stroke-linecap="round"/></g>` : ''}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
-    ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
+    ${wearHat(p, h, 8, p.skin)}
+    ${has('sunglasses') ? EXTRAS.sunglasses(p, h) : has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
@@ -759,6 +862,9 @@ function completePerson(p) {
   const q = { ...p }
   if (q.species && !SPECIES[q.species]) q.species = ''
   if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPCIONES.skinBy[q.species]?.[0]) || '#e0ac7e'
+  // el viejo peinado «gorro de lana» era un gorro guardado entre los peinados, del color del pelo: se confundía con él.
+  // Ahora es pelo corto con el gorro de lana de verdad (del color que tenía, si no eligió otro gorro)
+  if (q.hair === 'beanie') { q.hair = 'short'; if (!q.hat) { q.hat = 'lana'; q.hatColor = /^#[0-9a-f]{6}$/i.test(q.hairColor || '') ? q.hairColor : '#c5381f'; q.hairColor = '#4a2f1c' } }
   if (!HAIR[q.hair]) q.hair = 'short'
   for (const [k, v] of [['hairColor', '#4a2f1c'], ['shirt', '#2b6670'], ['gear', '#13323a'], ['accent', '#f1e4c7']]) if (!/^#[0-9a-f]{6}$/i.test(q[k] || '')) q[k] = v
   if (!NOSES[q.nose]) q.nose = 'button'
@@ -789,7 +895,7 @@ const SPECIES_TEMPO = { perezoso: 1.9, koala: 1.45, capibara: 1.35, panda: 1.25,
 // que en un recuadro chico no se leen. Son del color de la piel (o del pelaje) con el puño de la chaqueta.
 function personHands(p) {
   const s = p.skin, sd = shade(s, .78), j = p.shirt, jl = shade(j, 1.18), jd = shade(j, .78)
-  const h = p.species ? { ...HEAD, rx: 94, ry: 88 } : { ...HEAD, ...(FACES[p.face] || FACES.round) }
+  const h = p.species ? speciesHead(p.species) : { ...HEAD, ...(FACES[p.face] || FACES.round) }
   // la manga más clara que la chaqueta y con su puño oscuro: del mismo color se fundía con el pecho y la mano quedaba suelta
   const typing = (x, cls) => `<g class="hand-type ${cls}">${cut(`<path d="M${x - 26} 380 V304 q0 -8 8 -8 h36 q8 0 8 8 V380Z" fill="${jl}"/>`)}<rect x="${x - 26}" y="296" width="52" height="11" rx="5" fill="${jd}"/>${cut(`<ellipse cx="${x}" cy="282" rx="22" ry="17" fill="${s}"/>`)}<path d="M${x - 8} 284 v10 M${x} 286 v10 M${x + 8} 284 v10" stroke="${sd}" stroke-width="3" stroke-linecap="round"/></g>`
   // la mano toca la barbilla (la pisa apenas) y el antebrazo sube desde abajo, en diagonal
@@ -832,12 +938,22 @@ function personProps(p) {
   for (let i = 0; i < 18; i++) {
     n = (Math.imul(n, 1664525) + 1013904223) >>> 0
     const x = -40 + (i / 17) * 480, w = 8 + (n % 9), d = ((n >>> 8) % 1400) / 1000, t = 1.5 + ((n >>> 16) % 900) / 1000
-    bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1}"/>`
+    bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1};--by:${130 + ((n >>> 12) % 250)}px"/>`
   }
   // «!» de la sorpresa y «?» de la duda: arriba a un lado de la cabeza, en papel
   const marks = `<g class="mark mark-bang">${cut(`<path d="M330 30 v46" stroke="#f2c14e" stroke-width="13" stroke-linecap="round" fill="none"/><circle cx="330" cy="100" r="8" fill="#f2c14e"/>`)}</g>
     <g class="mark mark-q">${cut(`<path d="M310 58 q0 -24 21 -24 q21 0 21 19 q0 14 -19 21 v9" stroke="#f1e4c7" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="333" cy="104" r="7.5" fill="#f1e4c7"/>`)}</g>`
   return `${marks}${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
+}
+// EL RASGO DE CADA FORMA DE CARA, DIBUJADO. Diamante y triangular quedaron parecidas al rellenarles los cachetes (con la
+// mandíbula muy fina se veían demacradas): lo que las distingue va en sombra de papel, no en la silueta. Diamante lleva
+// los pómulos; triangular, la línea de la mandíbula que baja al mentón; mentón marcado, el pliegue del mentón.
+function faceMarks(p, h) {
+  const c = shade(p.skin, .84), line = (d, w = 5, o = .6) => `<path d="${d}" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round" opacity="${o}"/>`
+  if (p.face === 'diamante') return [-1, 1].map((k) => { const x = h.cx + k * (halfWidthAt(h, 12) - 12); return line(`M${r1(x)} ${h.cy + 6} q${-k * 12} 14 ${-k * 30} 20`, 6, .55) }).join('')
+  if (p.face === 'triangular') return [-1, 1].map((k) => { const a = k < 0 ? [152, 118] : [28, 62]; return line(`${M(pt(h, a[0], -9))} ${arc(h, a[0], a[1], -9)}`, 4.5, .5) }).join('')
+  if (p.face === 'menton') return line(`M${h.cx - 15} ${r1(h.cy + h.ry - 14)} q15 9 30 0`, 4.5, .55)
+  return ''
 }
 function person(p) {
   p = completePerson(p)
@@ -858,17 +974,22 @@ function personHuman(p) {
     ${cut([pt(h, 174, -2), pt(h, 6, -2)].map(([x, y]) => `<ellipse cx="${x}" cy="${y + 4}" rx="15" ry="19" fill="${sh}"/>`).join(''))}
     ${has('earrings') ? EXTRAS.earrings(p, h) : ''}
     ${cut(`<path d="${headPath(h)}" fill="${s}"/>`)}
-    <ellipse cx="${h.cx - rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/><ellipse cx="${h.cx + rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>
+    ${[-1, 1].map((k) => `<ellipse cx="${r1(h.cx + k * Math.min(rx * .6, halfWidthAt(h, 34) - 20))}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>`).join('')}
+    ${faceMarks(p, h)}
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${beardStyle ? EXTRAS.beard(p, h, beardStyle) : ''}
-    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: '#962b19', lashes: p.lashes })}
+    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: '#962b19', lashes: p.lashes, brows: p.brows, eyeShape: p.eyeShape })}
     ${p.hat && SHORT_HAIR.includes(p.hair) ? '' : cut(hair.front)}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
-    ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
+    ${wearHat(p, h, (HAIR_VOL[p.hair] ?? 6) + 4, p.hairColor)}
+    ${!p.hat && has('headband') ? EXTRAS.headband(p, h, (HAIR_VOL[p.hair] ?? 6) + 2) : ''}${!p.hat && has('bow') ? EXTRAS.bow(p, h, (HAIR_VOL[p.hair] ?? 6) + 2) : ''}
+    ${has('sunglasses') ? EXTRAS.sunglasses(p, h) : has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
 
+
+// el fondo de un personaje: su escena (o el atardecer), dibujada para él (la silla mira quién se sienta)
+const sceneOf = (p) => (SCENES[p.scene] || SCENES.sunset)(p)
 
 // ── EL RECUADRO ──────────────────────────────────────────────────────────────────────────────────
 const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'escucha' }
@@ -885,7 +1006,7 @@ function tile(p, i = 0) {
 // Pinta (o repinta, desde el editor) el recuadro de un personaje. El nombre va como texto: un nombre escrito en
 // el editor nunca se interpreta como HTML.
 function renderTile(el, p) {
-  el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${(SCENES[p.scene] || SCENES.sunset)()}
+  el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sceneOf(p)}
       <g transform="translate(46 54) scale(.77)"><g class="avatar">${person(p)}</g></g></svg>
     <div class="think" aria-hidden="true">···</div>
     <span class="state"></span>
@@ -948,14 +1069,18 @@ const OPCIONES = {
     tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c']
   },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
-  hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
+  hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado' }, // «beanie» ya no se ofrece: es el gorro de lana (completePerson lo convierte)
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
-  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón' },
+  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón',
+    diamante: 'Diamante', triangular: 'Triangular', pera: 'Pera', ovalada: 'Ovalada', menton: 'Mentón marcado' },
   beardStyle: { '': 'Sin barba', corta: 'Corta', tupida: 'Tupida', delgada: 'Delgada', chivera: 'Chivera', candado: 'Candado', bigote: 'Solo bigote' },
   nose: { button: 'Botón', bulb: 'Bola', long: 'Larga', hook: 'Ganchuda' },
+  brows: { '': 'Normales', thick: 'Gruesas', thin: 'Finas', arched: 'Arqueadas', straight: 'Rectas' },
+  eyeShape: { '': 'Redondos', almond: 'Almendrados', big: 'Grandes' },
   teeth: { '': 'Sin dientes', grin: 'Sonrisa con dientes', buck: 'Dientes salidos' },
-  extras: { glasses: 'Lentes', headphones: 'Audífonos', earrings: 'Aretes', freckles: 'Pecas' },
-  hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina' },
+  extras: { glasses: 'Lentes', sunglasses: 'Gafas de sol', headphones: 'Audífonos', earrings: 'Aretes', freckles: 'Pecas',
+    headband: 'Diadema', bow: 'Lazo', scarf: 'Bufanda', bowtie: 'Corbatín' },
+  hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina', sombrero: 'Sombrero' },
   hatColor: ['#c5381f', '#e5592a', '#f2c14e', '#2b6670', '#13323a', '#8db3a9', '#9b8ec7', '#5e3b6b', '#f1e4c7', '#24406b'],
   looks: { lashes: 'Pestañas', lids: 'Párpado caído', glassesRound: 'Lentes redondos' },
   gear: ['#13323a', '#c5381f', '#f08c3d', '#f1e4c7', '#2b6670', '#9b8ec7'],
@@ -970,12 +1095,15 @@ const OPCIONES = {
 function randomPerson(base = {}) {
   const pick = (a) => a[Math.floor(Math.random() * a.length)]
   const keys = (o) => Object.keys(o)
-  const extras = keys(OPCIONES.extras).filter(() => Math.random() < .28)
+  // con más accesorios en el catálogo, cada uno sale menos seguido; y los que no van juntos no salen juntos (dos gafas,
+  // bufanda con corbatín, diadema con lazo)
+  let extras = keys(OPCIONES.extras).filter(() => Math.random() < .17)
+  for (const [a, b] of [['glasses', 'sunglasses'], ['scarf', 'bowtie'], ['headband', 'bow']]) if (extras.includes(a) && extras.includes(b)) extras = extras.filter((x) => x !== b)
   const beardStyle = Math.random() < .3 ? pick(keys(OPCIONES.beardStyle).filter(Boolean)) : ''
   return {
     ...base,
     skin: pick((base.species && OPCIONES.skinBy[base.species]) || OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
-    nose: pick(keys(OPCIONES.nose)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
+    nose: pick(keys(OPCIONES.nose)), brows: pick(keys(OPCIONES.brows)), eyeShape: Math.random() < .6 ? '' : pick(keys(OPCIONES.eyeShape)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
     extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
     shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: Math.random() < .8 ? pick(keys(ROOMS)) : pick(keys(OPCIONES.scene)), // casi siempre un cuarto: un paisaje con el sol del tamaño de la cabeza compite con el personaje
   }
@@ -997,13 +1125,13 @@ if (typeof document !== 'undefined' && typeof OFFICE_PAQUETE === 'undefined') {
 
 // ── PARA NODE ────────────────────────────────────────────────────────────────────────────────────
 // El CLI (office/cli/personaje.mjs) carga este mismo archivo: lo que dibuja la llamada es lo que sale del CLI.
-if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES }
+if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES, sceneOf }
 
 return module.exports
 })()
 
 // ── EL PAQUETE ───────────────────────────────────────────────────────────────────────────────────
-const CSS = "/* OFFICE · los personajes en papel cortado: la paleta, el recuadro de la llamada y la animación de recortes.\n Lo usan la llamada (index.html) y el editor (editor.html); el dibujo está en personajes.js. */\n:root {\n  /* la paleta del papel */\n  --ink: #13323a; --teal-deep: #1d4a54; --teal: #2b6670; --teal-soft: #4f8b8a; --sage: #8db3a9;\n  --cream: #f1e4c7; --cream-dim: #d9c9a6; --red: #c5381f; --red-deep: #962b19; --orange: #e5592a; --amber: #f08c3d;\n  --text: #f6ecd6; --dim: #9aa3a6;\n  color-scheme: dark;\n}\n.tile { position: relative; border-radius: 22px; overflow: hidden; min-height: 0;\n  box-shadow: 0 3px 0 rgba(0, 0, 0, .18), 0 10px 22px rgba(0, 0, 0, .35); transition: box-shadow .2s, transform .2s; }\n.tile svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }\n.tile.talking { box-shadow: 0 0 0 4px var(--cream), 0 0 0 8px var(--orange), 0 12px 26px rgba(0, 0, 0, .4); transform: translateY(-2px); }\n.cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .38)) drop-shadow(0 1px 0 rgba(10, 25, 30, .25)); }\n.cut-soft { filter: drop-shadow(0 2px 1.5px rgba(10, 25, 30, .3)); }\n\n/* El nombre, arriba a la izquierda, en una tira de papel; el estado arriba a la derecha. Abajo quedó libre: ahí están\n   el portátil, las manos y la taza, que la tira tapaba. */\n.nameplate { position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 8px; z-index: 2;\n  background: var(--cream); color: var(--ink); padding: 5px 12px 5px 8px; border-radius: 10px; font-weight: 800; font-size: 13px;\n  box-shadow: 0 2px 0 var(--cream-dim), 0 4px 10px rgba(0, 0, 0, .3); }\n.nameplate small { font-weight: 700; color: var(--teal); }\n.mic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--teal); }\n.mic svg { position: static; width: 12px; height: 12px; }\n.tile.muted .mic { background: var(--red); }\n.state { position: absolute; right: 12px; top: 12px; z-index: 2; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px;\n  background: rgba(19, 50, 58, .72); color: var(--text); }\n.state.talking { background: var(--orange); color: var(--cream); }\n/* las barras de audio del que habla */\n.bars { display: none; gap: 2px; align-items: flex-end; height: 12px; }\n.tile.talking .bars { display: inline-flex; }\n.bars i { width: 3px; background: var(--orange); border-radius: 2px; animation: bar .5s ease-in-out infinite alternate; }\n.bars i:nth-child(2) { animation-delay: .15s; } .bars i:nth-child(3) { animation-delay: .3s; }\n@keyframes bar { from { height: 3px; } to { height: 12px; } }\n\n/* el globo de «está pensando» */\n.think { position: absolute; top: 16%; right: 14%; z-index: 2; background: var(--cream); color: var(--ink); font-weight: 900;\n  padding: 0 12px 6px; border-radius: 18px; font-size: 22px; letter-spacing: 2px; box-shadow: 0 3px 0 var(--cream-dim), 0 6px 12px rgba(0, 0, 0, .3);\n  opacity: 0; transform: translateY(6px) scale(.9); transition: opacity .25s, transform .25s; }\n.tile.thinking .think { opacity: 1; transform: none; }\n\n/* LA ANIMACIÓN DE RECORTES: poco y suave. La cabeza y el cuerpo se balancean por separado desde el cuello; lo\n   que cambia con el estado son las cejas, adónde miran las pupilas y cuál de las cuatro bocas se ve. */\n.avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth, .hand-l, .hand-r, .hand-chin { transform-box: view-box; }\n.body { transform-origin: 200px 300px; animation: sway 4.6s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }\n.head { transform-origin: 200px 236px; animation: bob 3.4s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }\n/* CADA UNO A SU RITMO: personajes.js le da a cada personaje sus factores (--kb cuerpo, --kh cabeza, --ke parpadeo, --kl\n   mirada) además de su arranque (--d). Las duraciones de arriba y de abajo son la base; acá se multiplican. Va aparte\n   del `animation:` para que el CLI siga leyendo de ahí la duración base. */\n.body { animation-duration: calc(4.6s * var(--kb, 1)); }\n.head { animation-duration: calc(3.4s * var(--kh, 1)); }\n@keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }\n@keyframes bob { from { transform: rotate(-2deg) translateY(0); } to { transform: rotate(2deg) translateY(-2px); } }\n.tile.talking .head { animation: nod .7s ease-in-out infinite alternate; }\n/* pensando, la cabeza se ladea hacia la mano; tecleando, baja un poco hacia lo que escribe */\n.tile.thinking .head { animation: ponder 3.8s ease-in-out infinite alternate; }\n@keyframes ponder { from { transform: rotate(3deg); } to { transform: rotate(6deg) translateY(-1px); } }\n.tile.typing .head { animation: peer 2.6s ease-in-out infinite alternate; }\n@keyframes peer { from { transform: rotate(-1deg) translateY(3px); } to { transform: rotate(1deg) translateY(5px); } }\n@keyframes nod { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(2deg) translateY(-5px); } }\n.eyes { transform-origin: 200px 150px; animation: blink 5s infinite; animation-delay: var(--d, 0s); }\n.eyes { animation-duration: calc(5s * var(--ke, 1)); }\n@keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.08); } }\n.pupils { transition: transform .25s steps(2); }\n.tile.idle .pupils { animation: look 7s steps(1) infinite; animation-delay: var(--d, 0s); }\n.tile.idle .pupils { animation-duration: calc(7s * var(--kl, 1)); }\n@keyframes look { 0%, 100% { transform: none; } 35% { transform: translate(-6px, 1px); } 65% { transform: translate(6px, 0); } }\n.tile.typing .pupils { transform: translate(0, 7px); }\n.tile.thinking .pupils { transform: translate(7px, -8px); }\n.brow-l, .brow-r { transition: transform .25s steps(2); }\n.brow-l { transform-origin: 160px 120px; } .brow-r { transform-origin: 240px 120px; }\n.tile.talking .brow-l, .tile.talking .brow-r { transform: translateY(-6px); }\n.tile.thinking .brow-r { transform: translateY(-10px) rotate(-12deg); }\n.tile.thinking .brow-l { transform: translateY(2px) rotate(6deg); }\n.tile.typing .brow-l { transform: translateY(3px) rotate(10deg); }\n.tile.typing .brow-r { transform: translateY(3px) rotate(-10deg); }\n.m-talk, .m-think, .m-flat { display: none; }\n.tile.talking .m-smile, .tile.thinking .m-smile, .tile.typing .m-smile { display: none; }\n.tile.talking .m-talk, .tile.thinking .m-think, .tile.typing .m-flat { display: inline; }\n/* LAS MANOS (personajes.js, personHands): tecleando asoman abajo y golpean alternadas; pensando, una sube a la barbilla */\n.hand-type, .hand-chin { display: none; }\n.tile.typing .hand-type, .tile.thinking .hand-chin { display: inline; }\n.tile.typing .hand-l { animation: tap .3s ease-in-out infinite alternate; }\n.tile.typing .hand-r { animation: tap .3s ease-in-out -.3s infinite alternate; }\n@keyframes tap { from { transform: translateY(0); } to { transform: translateY(-7px); } }\n.tile.thinking .hand-chin { animation: rub 3.8s ease-in-out infinite alternate; }\n@keyframes rub { from { transform: translateY(0); } to { transform: translateY(-2px); } }\n.mouth { transform-origin: 200px 200px; animation: talk .24s steps(2) infinite alternate; }\n@keyframes talk { from { transform: scaleY(.45); } to { transform: scaleY(1.15); } }\n/* el pico del pato habla como una mandíbula: la parte de abajo baja, la de arriba sube apenas y la boca se abre\n   desde arriba; mismo ritmo que la boca de las personas */\n.beak-jaw, .beak-top, .beak-inside { transform-box: fill-box; transform-origin: 50% 0%; }\n.tile.talking .beak-jaw { animation: jaw .24s ease-in-out infinite alternate; }\n.tile.talking .beak-top { animation: bill .24s ease-in-out infinite alternate; }\n.tile.talking .beak-inside { animation: inside .24s ease-in-out infinite alternate; }\n@keyframes jaw { from { transform: translateY(-8px); } to { transform: translateY(4px) rotate(1deg); } }\n@keyframes bill { from { transform: translateY(1px); } to { transform: translateY(-3px); } }\n@keyframes inside { from { transform: scaleY(.25); } to { transform: scaleY(1); } }\n/* el pico grande del tucán: la parte de arriba se recoge hacia la base (como si levantara el pico) y deja ver la\n   boca y la parte de abajo */\n.tile.talking .beak-top.big { animation: bigbill .24s ease-in-out infinite alternate; }\n@keyframes bigbill { from { transform: scaleY(1); } to { transform: scaleY(.74); } }\n/* LA BOCA MOVIDA DESDE AFUERA (lipsync): quien reproduce un audio pone --boca de 0 (cerrada) a 1 (abierta) cuadro a\n   cuadro con el volumen, y la boca sigue eso en vez de su vaivén fijo. La cabeza sigue asintiendo. */\n.tile.talking.lipsync .mouth { animation: none; transform: scaleY(calc(.3 + var(--boca, .5) * .95)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-jaw { animation: none; transform: translateY(calc(-8px + var(--boca, .5) * 12px)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--boca, .5) * .75)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--boca, .5) * -3px)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--boca, .5) * .26)); transition: transform 50ms linear; }\n/* LO QUE TIENEN A MANO (personajes.js, personProps): todo viene dibujado y escondido; se ve según las clases del\n   recuadro, que pone setTileActivity: has-laptop (tiene el portátil delante), lid-closed (cerrado) y act-coffee,\n   act-music, act-wave, act-thumb o act-celebrate. */\n.prop-laptop, .prop-mug, .prop-notes, .prop-confetti, .prop-headphones, .arm { display: none; }\n.lid, .sip, .arm, .note, .bit, .keys path, .prop-headphones { transform-box: view-box; }\n/* el portátil: la tapa se cierra hacia la bisagra; tecleando, saltan tres rayitas encima (las manos quedan detrás) */\n.tile.has-laptop .prop-laptop { display: inline; }\n.lid { transform-origin: 200px 318px; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }\n.tile.lid-closed .lid { transform: scaleY(.17); }\n.keys { display: none; fill: none; stroke: var(--cream); stroke-width: 4; stroke-linecap: round; }\n.tile.typing.has-laptop:not(.lid-closed) .keys { display: inline; }\n.keys path { animation: key .36s steps(2) infinite alternate; }\n.keys path:nth-child(2) { animation-delay: -.18s; } .keys path:nth-child(3) { animation-delay: -.09s; }\n@keyframes key { from { opacity: 0; transform: translateY(4px); } to { opacity: .9; transform: translateY(0); } }\n/* el tinto: la taza descansa abajo, sube a la boca, se inclina y vuelve; el vapor sólo mientras descansa */\n.tile.act-coffee .prop-mug { display: inline; }\n.sip { transform-origin: 152px 300px; animation: sip calc(5.5s * var(--kb, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }\n@keyframes sip { 0%, 42%, 100% { transform: translate(0, 0); } 56%, 76% { transform: translate(42px, -58px) rotate(14deg); } 90% { transform: translate(0, 0); } }\n.steam path { animation: steam 1.8s ease-in-out infinite; }\n.steam path:nth-child(2) { animation-delay: -.9s; }\n@keyframes steam { 0% { opacity: 0; transform: translateY(6px); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-8px); } }\n/* tomando tinto no teclea: se esconden las manos de teclear y la boca queda quieta */\n.tile.act-coffee .hand-type, .tile.act-coffee .hand-chin { display: none; }\n/* los audífonos: bajan a la cabeza, salen notas y la cabeza lleva el ritmo */\n.tile.act-music .prop-headphones { display: inline; animation: puton .5s cubic-bezier(.2, .9, .3, 1.3) both; }\n@keyframes puton { from { transform: translateY(-46px); opacity: 0; } to { transform: none; opacity: 1; } }\n.tile.act-music .prop-notes { display: inline; }\n.note { animation: note 2.4s ease-in-out infinite; }\n.note.n2 { animation-delay: -1.2s; }\n@keyframes note { 0% { opacity: 0; transform: translate(-10px, 14px) rotate(-8deg); } 30%, 60% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -22px) rotate(10deg); } }\n.tile.act-music.idle .head, .tile.act-music.typing .head { animation: groove .62s ease-in-out infinite alternate; }\n@keyframes groove { from { transform: rotate(-3deg) translateY(1px); } to { transform: rotate(3deg) translateY(-2px); } }\n/* los brazos: giran desde el hombro. Saluda con uno, da el visto bueno con el pulgar, celebra con los dos */\n.arm-l { transform-origin: 96px 330px; } .arm-r { transform-origin: 304px 330px; }\n.tile.act-wave .arm-r.open, .tile.act-thumb .arm-r.thumb, .tile.act-celebrate .arm.open { display: inline; }\n.tile.act-wave .arm-r.open { animation: wave .34s ease-in-out infinite alternate; }\n@keyframes wave { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }\n.tile.act-thumb .arm-r.thumb { animation: thumb .5s cubic-bezier(.2, .9, .3, 1.4) both, nudge 1s ease-in-out .5s infinite alternate; }\n@keyframes thumb { from { transform: translateY(70px); } to { transform: none; } }\n@keyframes nudge { from { transform: none; } to { transform: translateY(-5px); } }\n.tile.act-celebrate .arm-l.open { animation: cheer-l .28s ease-in-out infinite alternate; }\n.tile.act-celebrate .arm-r.open { animation: cheer-r .28s ease-in-out infinite alternate; }\n@keyframes cheer-l { from { transform: rotate(8deg) translateY(4px); } to { transform: rotate(-6deg) translateY(-8px); } }\n@keyframes cheer-r { from { transform: rotate(-8deg) translateY(4px); } to { transform: rotate(6deg) translateY(-8px); } }\n/* celebrando: salta la cabeza, las cejas arriba, la sonrisa aunque el gesto diga otra cosa, y llueve confeti */\n.tile.act-celebrate .head, .tile.act-wave .head { animation: hop .28s ease-in-out infinite alternate; }\n.tile.act-wave .head { animation-duration: .5s; }\n@keyframes hop { from { transform: translateY(2px) rotate(-2deg); } to { transform: translateY(-7px) rotate(2deg); } }\n.tile.act-celebrate .brow-l, .tile.act-celebrate .brow-r { transform: translateY(-8px); }\n.tile.act-celebrate:not(.talking) .m-think, .tile.act-celebrate:not(.talking) .m-flat { display: none; }\n.tile.act-celebrate:not(.talking) .m-smile { display: inline; }\n.tile.act-celebrate .hand-type, .tile.act-celebrate .hand-chin, .tile.act-wave .hand-chin, .tile.act-thumb .hand-chin { display: none; }\n.tile.act-celebrate .prop-confetti { display: inline; }\n.bit { animation: confetti var(--bt, 2s) linear var(--bd, 0s) infinite; }\n@keyframes confetti { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(440px) rotate(calc(var(--br, 1) * 540deg)); } }\n.bit { transform-origin: center; transform-box: fill-box; }\n/* LAS CARAS DE REACCIÓN (act-laugh, act-surprise, act-confused): se arman con lo que la cara ya tiene, más los ojos\n   de risa (dos arcos) y las marcas «!» y «?» que personajes.js deja dibujadas y escondidas. */\n.eyes-laugh, .mark { display: none; }\n.mark { transform-box: view-box; transform-origin: 330px 100px; }\n/* la risa: ojos en arco, boca abierta que salta, y cabeza y cuerpo que se sacuden */\n.tile.act-laugh .eyes { display: none; }\n.tile.act-laugh .eyes-laugh { display: inline; }\n.tile.act-laugh:not(.talking) .m-smile, .tile.act-laugh:not(.talking) .m-think, .tile.act-laugh:not(.talking) .m-flat { display: none; }\n.tile.act-laugh:not(.talking) .m-talk { display: inline; }\n.tile.act-laugh:not(.talking) .mouth { animation: haha .17s ease-in-out infinite alternate; }\n@keyframes haha { from { transform: scaleY(.7); } to { transform: scaleY(1.2); } }\n.tile.act-laugh:not(.talking) .beak-jaw { animation: jaw .17s ease-in-out infinite alternate; }\n.tile.act-laugh:not(.talking) .beak-top { animation: bill .17s ease-in-out infinite alternate; }\n.tile.act-laugh:not(.talking) .beak-inside { animation: inside .17s ease-in-out infinite alternate; }\n.tile.act-laugh .head { animation: giggle .17s ease-in-out infinite alternate; }\n@keyframes giggle { from { transform: translateY(1px) rotate(-1.5deg); } to { transform: translateY(-5px) rotate(1.5deg); } }\n.tile.act-laugh .body { animation: shake .17s ease-in-out infinite alternate; }\n@keyframes shake { from { transform: translateY(0); } to { transform: translateY(-3px); } }\n.tile.act-laugh .brow-l, .tile.act-laugh .brow-r { transform: translateY(-6px); }\n/* la sorpresa: un respingo, ojos más abiertos, cejas arriba, la boca en «o» y un «!» */\n.tile.act-surprise .eyes { animation: none; transform: scaleY(1.14); }\n.tile.act-surprise .brow-l, .tile.act-surprise .brow-r { transform: translateY(-14px); }\n.tile.act-surprise:not(.talking) .m-smile, .tile.act-surprise:not(.talking) .m-think, .tile.act-surprise:not(.talking) .m-flat { display: none; }\n.tile.act-surprise:not(.talking) .m-talk { display: inline; }\n.tile.act-surprise:not(.talking) .mouth { animation: none; transform: scale(.6, .82); }\n.tile.act-surprise .head { animation: startle .45s cubic-bezier(.2, .9, .3, 1.5) both; }\n@keyframes startle { from { transform: translateY(7px); } to { transform: translateY(-6px); } }\n.tile.act-surprise .mark-bang { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both; }\n@keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }\n/* la duda: una ceja arriba y la otra abajo, la boca torcida, la cabeza ladeada para el otro lado y un «?» que flota */\n.tile.act-confused .brow-r { transform: translateY(-11px) rotate(-12deg); }\n.tile.act-confused .brow-l { transform: translateY(4px) rotate(9deg); }\n.tile.act-confused .pupils { animation: none; transform: translate(5px, -6px); }\n.tile.act-confused:not(.talking) .m-smile, .tile.act-confused:not(.talking) .m-flat { display: none; }\n.tile.act-confused:not(.talking) .m-think { display: inline; }\n.tile.act-confused .head { animation: puzzled 2.2s ease-in-out infinite alternate; }\n@keyframes puzzled { from { transform: rotate(-5deg); } to { transform: rotate(-9deg) translateY(-1px); } }\n.tile.act-confused .mark-q { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both, floaty 1.3s ease-in-out .4s infinite alternate; }\n@keyframes floaty { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-7px) rotate(6deg); } }\n/* riendo, sorprendido o con la duda no teclea ni se toca la barbilla */\n.tile.act-laugh .hand-type, .tile.act-laugh .hand-chin, .tile.act-surprise .hand-type, .tile.act-surprise .hand-chin,\n.tile.act-confused .hand-type, .tile.act-confused .hand-chin { display: none; }\n\n/* ADÓNDE MIRA (setTileLook): las pupilas van hacia quien habla. --lx y --ly son la dirección, de -1 a 1. */\n.tile.looking:not(.talking) .pupils { animation: none; transform: translate(calc(var(--lx, 0) * 8px), calc(var(--ly, 0) * 6px)); transition: transform .4s ease; }\n\n/* CADA ESPECIE SE MUEVE A SU MANERA. El grupo del personaje lleva `sp-<especie>` y las orejas vienen sueltas (`ear\n   ear-l|r`, con su bisagra en línea). Lo demás —tempo de la especie— va en los factores --k* (personRhythm). */\n.ear, .tongue { transform-box: view-box; }\n/* orejas paradas o redondas: quietas, y cada tanto un tic (una primero, la otra después) */\n.sp-gato .ear, .sp-zorro .ear, .sp-mapache .ear, .sp-jaguar .ear, .sp-leon .ear, .sp-raton .ear, .sp-oso .ear, .sp-panda .ear,\n.sp-koala .ear, .sp-cerdito .ear, .sp-buho .ear, .sp-mico .ear, .sp-gorila .ear { animation: twitch-l calc(6.5s * var(--kl, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }\n.rhythm .ear-r { animation-name: twitch-r; animation-delay: calc(var(--d, 0s) - 2.6s); }\n@keyframes twitch-l { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(-11deg); } 95% { transform: rotate(6deg); } }\n@keyframes twitch-r { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(11deg); } 95% { transform: rotate(-6deg); } }\n/* atento a quien habla, las para un poco más */\n.tile.looking .sp-gato .ear-l, .tile.looking .sp-zorro .ear-l { transform: rotate(4deg); }\n.tile.looking .sp-gato .ear-r, .tile.looking .sp-zorro .ear-r { transform: rotate(-4deg); }\n/* el conejo: se mecen; pensando se le caen las dos, tecleando una sola, y celebrando saltan */\n.sp-conejo .ear { animation: ear-sway calc(3.6s * var(--kb, 1)) ease-in-out infinite alternate; animation-delay: var(--d, 0s); transition: transform .5s; }\n.sp-conejo .ear-r { animation-name: ear-sway; animation-direction: alternate-reverse; }\n@keyframes ear-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }\n.tile.thinking .sp-conejo .ear-l, .tile.act-confused .sp-conejo .ear-l { animation: none; transform: rotate(-38deg); }\n.tile.thinking .sp-conejo .ear-r, .tile.act-confused .sp-conejo .ear-r, .tile.typing .sp-conejo .ear-r { animation: none; transform: rotate(40deg); }\n.tile.act-celebrate .sp-conejo .ear, .tile.act-laugh .sp-conejo .ear, .tile.act-surprise .sp-conejo .ear { animation: ear-hop .2s ease-in-out infinite alternate; }\n@keyframes ear-hop { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }\n/* el perro: las orejas aletean cuando habla o se emociona, y saca la lengua */\n.tile.talking .sp-perro .ear-l, .tile.act-celebrate .sp-perro .ear-l, .tile.act-laugh .sp-perro .ear-l, .tile.act-wave .sp-perro .ear-l { animation: flap-l .28s ease-in-out infinite alternate; }\n.tile.talking .sp-perro .ear-r, .tile.act-celebrate .sp-perro .ear-r, .tile.act-laugh .sp-perro .ear-r, .tile.act-wave .sp-perro .ear-r { animation: flap-r .28s ease-in-out infinite alternate; }\n@keyframes flap-l { from { transform: rotate(2deg); } to { transform: rotate(13deg); } }\n@keyframes flap-r { from { transform: rotate(-2deg); } to { transform: rotate(-13deg); } }\n.tongue { display: none; transform-origin: 200px 199px; }\n.tile.act-celebrate:not(.talking) .sp-perro .tongue, .tile.act-laugh:not(.talking) .sp-perro .tongue, .tile.act-music:not(.talking) .sp-perro .tongue { display: inline; animation: pant .2s ease-in-out infinite alternate; }\n@keyframes pant { from { transform: scaleY(.78); } to { transform: scaleY(1.08); } }\n/* las aves mueven la cabeza a saltitos, no meciéndose; el búho, pensando, la gira despacio de lado */\n.sp-buho .head, .sp-loro .head, .sp-tucan .head, .sp-pato .head, .sp-pinguino .head { animation-timing-function: steps(3, jump-none); }\n.tile.thinking .sp-buho .head { animation: owl calc(4.6s * var(--kh, 1)) ease-in-out infinite; }\n@keyframes owl { 0%, 12%, 88%, 100% { transform: rotate(0); } 30%, 70% { transform: rotate(17deg) translateY(-2px); } }\n/* el pingüino se mece de lado a lado, más que los demás */\n.sp-pinguino .body { animation-name: waddle; }\n@keyframes waddle { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }\n/* el gato y el perezoso parpadean despacio: cierran y se quedan un momento */\n.sp-gato .eyes, .sp-perezoso .eyes, .sp-koala .eyes { animation-name: slowblink; }\n@keyframes slowblink { 0%, 80%, 100% { transform: scaleY(1); } 86%, 94% { transform: scaleY(.1); } }\n.glow { animation: glow 1.6s ease-in-out infinite alternate; }\n@keyframes glow { from { opacity: .55; } to { opacity: 1; } }\n.paused * { animation-play-state: paused !important; }\n/* MENOS MOVIMIENTO (prefers-reduced-motion): lo mismo que la pausa, quieto todo —el balanceo, el cabeceo, el parpadeo,\n   la mirada, las barras—, salvo la boca (y el pico) de quien habla, que es lo que dice quién tiene la palabra. Se\n   apaga (animation: none) en vez de pausar: pausado, un parpadeo podía quedar congelado con los ojos cerrados. Los\n   gestos que no se animan (cejas, pupilas, qué boca se ve) siguen cambiando con el estado. */\n@media (prefers-reduced-motion: reduce) {\n  .tile *:not(.mouth):not(.beak-jaw):not(.beak-top):not(.beak-inside) { animation: none !important; }\n}\n\n\n/* LA TEXTURA DE PAPEL: fibras y grano encima de cada recuadro, multiplicadas con los colores. Se prende y se apaga\n   con la clase .paper en el <html> (botón «Papel»; la preferencia queda en localStorage, office:paper). */\n.tile::after { content: \"\"; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .25s;\n  mix-blend-mode: multiply;\n  background-image:\n    url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .5  0 0 0 0 .42  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>\"),\n    url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .4  0 0 0 0 .35  0 0 0 .8 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>\"); }\n.paper .tile::after { opacity: .5; }\n/* con papel, los bordes de cada capa se ven un poco más gruesos, como cartulina */\n.paper .cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .42)) drop-shadow(0 1px 0 rgba(10, 25, 30, .3)) drop-shadow(0 -1px 0 rgba(255, 250, 235, .18)); }\n\nsvg.tile { box-shadow: none !important; transform: none !important; border-radius: inherit; }\n"
+const CSS = "/* OFFICE · los personajes en papel cortado: la paleta, el recuadro de la llamada y la animación de recortes.\n Lo usan la llamada (index.html) y el editor (editor.html); el dibujo está en personajes.js. */\n:root {\n  /* la paleta del papel */\n  --ink: #13323a; --teal-deep: #1d4a54; --teal: #2b6670; --teal-soft: #4f8b8a; --sage: #8db3a9;\n  --cream: #f1e4c7; --cream-dim: #d9c9a6; --red: #c5381f; --red-deep: #962b19; --orange: #e5592a; --amber: #f08c3d;\n  --text: #f6ecd6; --dim: #9aa3a6;\n  color-scheme: dark;\n}\n.tile { position: relative; border-radius: 22px; overflow: hidden; min-height: 0;\n  box-shadow: 0 3px 0 rgba(0, 0, 0, .18), 0 10px 22px rgba(0, 0, 0, .35); transition: box-shadow .2s, transform .2s; }\n.tile svg { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }\n.tile.talking { box-shadow: 0 0 0 4px var(--cream), 0 0 0 8px var(--orange), 0 12px 26px rgba(0, 0, 0, .4); transform: translateY(-2px); }\n.cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .38)) drop-shadow(0 1px 0 rgba(10, 25, 30, .25)); }\n.cut-soft { filter: drop-shadow(0 2px 1.5px rgba(10, 25, 30, .3)); }\n\n/* El nombre, arriba a la izquierda, en una tira de papel; el estado arriba a la derecha. Abajo quedó libre: ahí están\n   el portátil, las manos y la taza, que la tira tapaba. */\n.nameplate { position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 8px; z-index: 2;\n  background: var(--cream); color: var(--ink); padding: 5px 12px 5px 8px; border-radius: 10px; font-weight: 800; font-size: 13px;\n  box-shadow: 0 2px 0 var(--cream-dim), 0 4px 10px rgba(0, 0, 0, .3); }\n.nameplate small { font-weight: 700; color: var(--teal); }\n.mic { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--teal); }\n.mic svg { position: static; width: 12px; height: 12px; }\n.tile.muted .mic { background: var(--red); }\n.state { position: absolute; right: 12px; top: 12px; z-index: 2; font-size: 12px; font-weight: 800; padding: 3px 10px; border-radius: 999px;\n  background: rgba(19, 50, 58, .72); color: var(--text); }\n.state.talking { background: var(--orange); color: var(--cream); }\n/* las barras de audio del que habla */\n.bars { display: none; gap: 2px; align-items: flex-end; height: 12px; }\n.tile.talking .bars { display: inline-flex; }\n.bars i { width: 3px; background: var(--orange); border-radius: 2px; animation: bar .5s ease-in-out infinite alternate; }\n.bars i:nth-child(2) { animation-delay: .15s; } .bars i:nth-child(3) { animation-delay: .3s; }\n@keyframes bar { from { height: 3px; } to { height: 12px; } }\n\n/* el globo de «está pensando» */\n.think { position: absolute; top: 16%; right: 14%; z-index: 2; background: var(--cream); color: var(--ink); font-weight: 900;\n  padding: 0 12px 6px; border-radius: 18px; font-size: 22px; letter-spacing: 2px; box-shadow: 0 3px 0 var(--cream-dim), 0 6px 12px rgba(0, 0, 0, .3);\n  opacity: 0; transform: translateY(6px) scale(.9); transition: opacity .25s, transform .25s; }\n.tile.thinking .think { opacity: 1; transform: none; }\n\n/* LA ANIMACIÓN DE RECORTES: poco y suave. La cabeza y el cuerpo se balancean por separado desde el cuello; lo\n   que cambia con el estado son las cejas, adónde miran las pupilas y cuál de las cuatro bocas se ve. */\n.avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth, .hand-l, .hand-r, .hand-chin { transform-box: view-box; }\n.body { transform-origin: 200px 300px; animation: sway 4.6s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }\n.head { transform-origin: 200px 236px; animation: bob 3.4s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }\n/* CADA UNO A SU RITMO: personajes.js le da a cada personaje sus factores (--kb cuerpo, --kh cabeza, --ke parpadeo, --kl\n   mirada) además de su arranque (--d). Las duraciones de arriba y de abajo son la base; acá se multiplican. Va aparte\n   del `animation:` para que el CLI siga leyendo de ahí la duración base. */\n.body { animation-duration: calc(4.6s * var(--kb, 1)); }\n.head { animation-duration: calc(3.4s * var(--kh, 1)); }\n@keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }\n@keyframes bob { from { transform: rotate(-2deg) translateY(0); } to { transform: rotate(2deg) translateY(-2px); } }\n.tile.talking .head { animation: nod .7s ease-in-out infinite alternate; }\n/* pensando, la cabeza se ladea hacia la mano; tecleando, baja un poco hacia lo que escribe */\n.tile.thinking .head { animation: ponder 3.8s ease-in-out infinite alternate; }\n@keyframes ponder { from { transform: rotate(3deg); } to { transform: rotate(6deg) translateY(-1px); } }\n.tile.typing .head { animation: peer 2.6s ease-in-out infinite alternate; }\n@keyframes peer { from { transform: rotate(-1deg) translateY(3px); } to { transform: rotate(1deg) translateY(5px); } }\n@keyframes nod { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(2deg) translateY(-5px); } }\n.eyes { transform-origin: 200px 150px; animation: blink 5s infinite; animation-delay: var(--d, 0s); }\n.eyes { animation-duration: calc(5s * var(--ke, 1)); }\n@keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.08); } }\n.pupils { transition: transform .25s steps(2); }\n.tile.idle .pupils { animation: look 7s steps(1) infinite; animation-delay: var(--d, 0s); }\n.tile.idle .pupils { animation-duration: calc(7s * var(--kl, 1)); }\n@keyframes look { 0%, 100% { transform: none; } 35% { transform: translate(-6px, 1px); } 65% { transform: translate(6px, 0); } }\n.tile.typing .pupils { transform: translate(0, 7px); }\n.tile.thinking .pupils { transform: translate(7px, -8px); }\n.brow-l, .brow-r { transition: transform .25s steps(2); }\n.brow-l { transform-origin: 160px 120px; } .brow-r { transform-origin: 240px 120px; }\n.tile.talking .brow-l, .tile.talking .brow-r { transform: translateY(-6px); }\n.tile.thinking .brow-r { transform: translateY(-10px) rotate(-12deg); }\n.tile.thinking .brow-l { transform: translateY(2px) rotate(6deg); }\n.tile.typing .brow-l { transform: translateY(3px) rotate(10deg); }\n.tile.typing .brow-r { transform: translateY(3px) rotate(-10deg); }\n.m-talk, .m-think, .m-flat { display: none; }\n.tile.talking .m-smile, .tile.thinking .m-smile, .tile.typing .m-smile { display: none; }\n.tile.talking .m-talk, .tile.thinking .m-think, .tile.typing .m-flat { display: inline; }\n/* LAS MANOS (personajes.js, personHands): tecleando asoman abajo y golpean alternadas; pensando, una sube a la barbilla */\n.hand-type, .hand-chin { display: none; }\n.tile.typing .hand-type, .tile.thinking .hand-chin { display: inline; }\n.tile.typing .hand-l { animation: tap .3s ease-in-out infinite alternate; }\n.tile.typing .hand-r { animation: tap .3s ease-in-out -.3s infinite alternate; }\n@keyframes tap { from { transform: translateY(0); } to { transform: translateY(-7px); } }\n.tile.thinking .hand-chin { animation: rub 3.8s ease-in-out infinite alternate; }\n@keyframes rub { from { transform: translateY(0); } to { transform: translateY(-2px); } }\n.mouth { transform-origin: 200px 200px; animation: talk .24s steps(2) infinite alternate; }\n@keyframes talk { from { transform: scaleY(.45); } to { transform: scaleY(1.15); } }\n/* el pico del pato habla como una mandíbula: la parte de abajo baja, la de arriba sube apenas y la boca se abre\n   desde arriba; mismo ritmo que la boca de las personas */\n.beak-jaw, .beak-top, .beak-inside { transform-box: fill-box; transform-origin: 50% 0%; }\n.tile.talking .beak-jaw { animation: jaw .24s ease-in-out infinite alternate; }\n.tile.talking .beak-top { animation: bill .24s ease-in-out infinite alternate; }\n.tile.talking .beak-inside { animation: inside .24s ease-in-out infinite alternate; }\n@keyframes jaw { from { transform: translateY(-8px); } to { transform: translateY(4px) rotate(1deg); } }\n@keyframes bill { from { transform: translateY(1px); } to { transform: translateY(-3px); } }\n@keyframes inside { from { transform: scaleY(.25); } to { transform: scaleY(1); } }\n/* el pico grande del tucán: la parte de arriba se recoge hacia la base (como si levantara el pico) y deja ver la\n   boca y la parte de abajo */\n.tile.talking .beak-top.big { animation: bigbill .24s ease-in-out infinite alternate; }\n@keyframes bigbill { from { transform: scaleY(1); } to { transform: scaleY(.74); } }\n/* LA BOCA MOVIDA DESDE AFUERA (lipsync): quien reproduce un audio pone --boca de 0 (cerrada) a 1 (abierta) cuadro a\n   cuadro con el volumen, y la boca sigue eso en vez de su vaivén fijo. La cabeza sigue asintiendo. */\n.tile.talking.lipsync .mouth { animation: none; transform: scaleY(calc(.3 + var(--boca, .5) * .95)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-jaw { animation: none; transform: translateY(calc(-8px + var(--boca, .5) * 12px)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--boca, .5) * .75)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--boca, .5) * -3px)); transition: transform 50ms linear; }\n.tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--boca, .5) * .26)); transition: transform 50ms linear; }\n/* LO QUE TIENEN A MANO (personajes.js, personProps): todo viene dibujado y escondido; se ve según las clases del\n   recuadro, que pone setTileActivity: has-laptop (tiene el portátil delante), lid-closed (cerrado) y act-coffee,\n   act-music, act-wave, act-thumb o act-celebrate. */\n.prop-laptop, .prop-mug, .prop-notes, .prop-confetti, .prop-headphones, .arm { display: none; }\n.lid, .sip, .arm, .note, .bit, .keys path, .prop-headphones { transform-box: view-box; }\n/* el portátil: la tapa se cierra hacia la bisagra; tecleando, saltan tres rayitas encima (las manos quedan detrás) */\n.tile.has-laptop .prop-laptop { display: inline; }\n.lid { transform-origin: 200px 318px; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }\n.tile.lid-closed .lid { transform: scaleY(.17); }\n.keys { display: none; fill: none; stroke: var(--cream); stroke-width: 4; stroke-linecap: round; }\n.tile.typing.has-laptop:not(.lid-closed) .keys { display: inline; }\n.keys path { animation: key .36s steps(2) infinite alternate; }\n.keys path:nth-child(2) { animation-delay: -.18s; } .keys path:nth-child(3) { animation-delay: -.09s; }\n@keyframes key { from { opacity: 0; transform: translateY(4px); } to { opacity: .9; transform: translateY(0); } }\n/* el tinto: la taza descansa abajo, sube a la boca, se inclina y vuelve; el vapor sólo mientras descansa */\n.tile.act-coffee .prop-mug { display: inline; }\n.sip { transform-origin: 152px 300px; animation: sip calc(5.5s * var(--kb, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }\n@keyframes sip { 0%, 42%, 100% { transform: translate(0, 0); } 56%, 76% { transform: translate(42px, -58px) rotate(14deg); } 90% { transform: translate(0, 0); } }\n.steam path { animation: steam 1.8s ease-in-out infinite; }\n.steam path:nth-child(2) { animation-delay: -.9s; }\n@keyframes steam { 0% { opacity: 0; transform: translateY(6px); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-8px); } }\n/* tomando tinto no teclea: se esconden las manos de teclear y la boca queda quieta */\n.tile.act-coffee .hand-type, .tile.act-coffee .hand-chin { display: none; }\n/* los audífonos: bajan a la cabeza, salen notas y la cabeza lleva el ritmo */\n.tile.act-music .prop-headphones { display: inline; animation: puton .5s cubic-bezier(.2, .9, .3, 1.3) both; }\n@keyframes puton { from { transform: translateY(-46px); opacity: 0; } to { transform: none; opacity: 1; } }\n.tile.act-music .prop-notes { display: inline; }\n.note { animation: note 2.4s ease-in-out infinite; }\n.note.n2 { animation-delay: -1.2s; }\n@keyframes note { 0% { opacity: 0; transform: translate(-10px, 14px) rotate(-8deg); } 30%, 60% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -22px) rotate(10deg); } }\n.tile.act-music.idle .head, .tile.act-music.typing .head { animation: groove .62s ease-in-out infinite alternate; }\n@keyframes groove { from { transform: rotate(-3deg) translateY(1px); } to { transform: rotate(3deg) translateY(-2px); } }\n/* los brazos: giran desde el hombro. Saluda con uno, da el visto bueno con el pulgar, celebra con los dos */\n.arm-l { transform-origin: 96px 330px; } .arm-r { transform-origin: 304px 330px; }\n.tile.act-wave .arm-r.open, .tile.act-thumb .arm-r.thumb, .tile.act-celebrate .arm.open { display: inline; }\n.tile.act-wave .arm-r.open { animation: wave .34s ease-in-out infinite alternate; }\n@keyframes wave { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }\n.tile.act-thumb .arm-r.thumb { animation: thumb .5s cubic-bezier(.2, .9, .3, 1.4) both, nudge 1s ease-in-out .5s infinite alternate; }\n@keyframes thumb { from { transform: translateY(70px); } to { transform: none; } }\n@keyframes nudge { from { transform: none; } to { transform: translateY(-5px); } }\n.tile.act-celebrate .arm-l.open { animation: cheer-l .28s ease-in-out infinite alternate; }\n.tile.act-celebrate .arm-r.open { animation: cheer-r .28s ease-in-out infinite alternate; }\n@keyframes cheer-l { from { transform: rotate(8deg) translateY(4px); } to { transform: rotate(-6deg) translateY(-8px); } }\n@keyframes cheer-r { from { transform: rotate(-8deg) translateY(4px); } to { transform: rotate(6deg) translateY(-8px); } }\n/* celebrando: salta la cabeza, las cejas arriba, la sonrisa aunque el gesto diga otra cosa, y llueve confeti */\n.tile.act-celebrate .head, .tile.act-wave .head { animation: hop .28s ease-in-out infinite alternate; }\n.tile.act-wave .head { animation-duration: .5s; }\n@keyframes hop { from { transform: translateY(2px) rotate(-2deg); } to { transform: translateY(-7px) rotate(2deg); } }\n.tile.act-celebrate .brow-l, .tile.act-celebrate .brow-r { transform: translateY(-8px); }\n.tile.act-celebrate:not(.talking) .m-think, .tile.act-celebrate:not(.talking) .m-flat { display: none; }\n.tile.act-celebrate:not(.talking) .m-smile { display: inline; }\n.tile.act-celebrate .hand-type, .tile.act-celebrate .hand-chin, .tile.act-wave .hand-chin, .tile.act-thumb .hand-chin { display: none; }\n.tile.act-celebrate .prop-confetti { display: inline; }\n.bit { animation: confetti var(--bt, 2s) linear var(--bd, 0s) infinite; }\n@keyframes confetti { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(440px) rotate(calc(var(--br, 1) * 540deg)); } }\n.bit { transform-origin: center; transform-box: fill-box; }\n/* LAS CARAS DE REACCIÓN (act-laugh, act-surprise, act-confused): se arman con lo que la cara ya tiene, más los ojos\n   de risa (dos arcos) y las marcas «!» y «?» que personajes.js deja dibujadas y escondidas. */\n.eyes-laugh, .mark { display: none; }\n.mark { transform-box: view-box; transform-origin: 330px 100px; }\n/* la risa: ojos en arco, boca abierta que salta, y cabeza y cuerpo que se sacuden */\n.tile.act-laugh .eyes { display: none; }\n.tile.act-laugh .eyes-laugh { display: inline; }\n.tile.act-laugh:not(.talking) .m-smile, .tile.act-laugh:not(.talking) .m-think, .tile.act-laugh:not(.talking) .m-flat { display: none; }\n.tile.act-laugh:not(.talking) .m-talk { display: inline; }\n.tile.act-laugh:not(.talking) .mouth { animation: haha .17s ease-in-out infinite alternate; }\n@keyframes haha { from { transform: scaleY(.7); } to { transform: scaleY(1.2); } }\n.tile.act-laugh:not(.talking) .beak-jaw { animation: jaw .17s ease-in-out infinite alternate; }\n.tile.act-laugh:not(.talking) .beak-top { animation: bill .17s ease-in-out infinite alternate; }\n.tile.act-laugh:not(.talking) .beak-inside { animation: inside .17s ease-in-out infinite alternate; }\n.tile.act-laugh .head { animation: giggle .17s ease-in-out infinite alternate; }\n@keyframes giggle { from { transform: translateY(1px) rotate(-1.5deg); } to { transform: translateY(-5px) rotate(1.5deg); } }\n.tile.act-laugh .body { animation: shake .17s ease-in-out infinite alternate; }\n@keyframes shake { from { transform: translateY(0); } to { transform: translateY(-3px); } }\n.tile.act-laugh .brow-l, .tile.act-laugh .brow-r { transform: translateY(-6px); }\n/* la sorpresa: un respingo, ojos más abiertos, cejas arriba, la boca en «o» y un «!» */\n.tile.act-surprise .eyes { animation: none; transform: scaleY(1.14); }\n.tile.act-surprise .brow-l, .tile.act-surprise .brow-r { transform: translateY(-14px); }\n.tile.act-surprise:not(.talking) .m-smile, .tile.act-surprise:not(.talking) .m-think, .tile.act-surprise:not(.talking) .m-flat { display: none; }\n.tile.act-surprise:not(.talking) .m-talk { display: inline; }\n.tile.act-surprise:not(.talking) .mouth { animation: none; transform: scale(.6, .82); }\n.tile.act-surprise .head { animation: startle .45s cubic-bezier(.2, .9, .3, 1.5) both; }\n@keyframes startle { from { transform: translateY(7px); } to { transform: translateY(-6px); } }\n.tile.act-surprise .mark-bang { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both; }\n@keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }\n/* la duda: una ceja arriba y la otra abajo, la boca torcida, la cabeza ladeada para el otro lado y un «?» que flota */\n.tile.act-confused .brow-r { transform: translateY(-11px) rotate(-12deg); }\n.tile.act-confused .brow-l { transform: translateY(4px) rotate(9deg); }\n.tile.act-confused .pupils { animation: none; transform: translate(5px, -6px); }\n.tile.act-confused:not(.talking) .m-smile, .tile.act-confused:not(.talking) .m-flat { display: none; }\n.tile.act-confused:not(.talking) .m-think { display: inline; }\n.tile.act-confused .head { animation: puzzled 2.2s ease-in-out infinite alternate; }\n@keyframes puzzled { from { transform: rotate(-5deg); } to { transform: rotate(-9deg) translateY(-1px); } }\n.tile.act-confused .mark-q { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both, floaty 1.3s ease-in-out .4s infinite alternate; }\n@keyframes floaty { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-7px) rotate(6deg); } }\n/* riendo, sorprendido o con la duda no teclea ni se toca la barbilla */\n.tile.act-laugh .hand-type, .tile.act-laugh .hand-chin, .tile.act-surprise .hand-type, .tile.act-surprise .hand-chin,\n.tile.act-confused .hand-type, .tile.act-confused .hand-chin { display: none; }\n\n/* ADÓNDE MIRA (setTileLook): las pupilas van hacia quien habla. --lx y --ly son la dirección, de -1 a 1. */\n.tile.looking:not(.talking) .pupils { animation: none; transform: translate(calc(var(--lx, 0) * 8px), calc(var(--ly, 0) * 6px)); transition: transform .4s ease; }\n\n/* CADA ESPECIE SE MUEVE A SU MANERA. El grupo del personaje lleva `sp-<especie>` y las orejas vienen sueltas (`ear\n   ear-l|r`, con su bisagra en línea). Lo demás —tempo de la especie— va en los factores --k* (personRhythm). */\n.ear, .tongue { transform-box: view-box; }\n/* orejas paradas o redondas: quietas, y cada tanto un tic (una primero, la otra después) */\n.sp-gato .ear, .sp-zorro .ear, .sp-mapache .ear, .sp-jaguar .ear, .sp-leon .ear, .sp-raton .ear, .sp-oso .ear, .sp-panda .ear,\n.sp-koala .ear, .sp-cerdito .ear, .sp-buho .ear, .sp-mico .ear, .sp-gorila .ear { animation: twitch-l calc(6.5s * var(--kl, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }\n.rhythm .ear-r { animation-name: twitch-r; animation-delay: calc(var(--d, 0s) - 2.6s); }\n@keyframes twitch-l { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(-11deg); } 95% { transform: rotate(6deg); } }\n@keyframes twitch-r { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(11deg); } 95% { transform: rotate(-6deg); } }\n/* atento a quien habla, las para un poco más */\n.tile.looking .sp-gato .ear-l, .tile.looking .sp-zorro .ear-l { transform: rotate(4deg); }\n.tile.looking .sp-gato .ear-r, .tile.looking .sp-zorro .ear-r { transform: rotate(-4deg); }\n/* el conejo: se mecen; pensando se le caen las dos, tecleando una sola, y celebrando saltan */\n.sp-conejo .ear { animation: ear-sway calc(3.6s * var(--kb, 1)) ease-in-out infinite alternate; animation-delay: var(--d, 0s); transition: transform .5s; }\n.sp-conejo .ear-r { animation-name: ear-sway; animation-direction: alternate-reverse; }\n@keyframes ear-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }\n.tile.thinking .sp-conejo .ear-l, .tile.act-confused .sp-conejo .ear-l { animation: none; transform: rotate(-38deg); }\n.tile.thinking .sp-conejo .ear-r, .tile.act-confused .sp-conejo .ear-r, .tile.typing .sp-conejo .ear-r { animation: none; transform: rotate(40deg); }\n.tile.act-celebrate .sp-conejo .ear, .tile.act-laugh .sp-conejo .ear, .tile.act-surprise .sp-conejo .ear { animation: ear-hop .2s ease-in-out infinite alternate; }\n@keyframes ear-hop { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }\n/* el perro: las orejas aletean cuando habla o se emociona, y saca la lengua */\n.tile.talking .sp-perro .ear-l, .tile.act-celebrate .sp-perro .ear-l, .tile.act-laugh .sp-perro .ear-l, .tile.act-wave .sp-perro .ear-l { animation: flap-l .28s ease-in-out infinite alternate; }\n.tile.talking .sp-perro .ear-r, .tile.act-celebrate .sp-perro .ear-r, .tile.act-laugh .sp-perro .ear-r, .tile.act-wave .sp-perro .ear-r { animation: flap-r .28s ease-in-out infinite alternate; }\n@keyframes flap-l { from { transform: rotate(2deg); } to { transform: rotate(13deg); } }\n@keyframes flap-r { from { transform: rotate(-2deg); } to { transform: rotate(-13deg); } }\n.tongue { display: none; transform-origin: 200px 199px; }\n.tile.act-celebrate:not(.talking) .sp-perro .tongue, .tile.act-laugh:not(.talking) .sp-perro .tongue, .tile.act-music:not(.talking) .sp-perro .tongue { display: inline; animation: pant .2s ease-in-out infinite alternate; }\n@keyframes pant { from { transform: scaleY(.78); } to { transform: scaleY(1.08); } }\n/* las aves mueven la cabeza a saltitos, no meciéndose; el búho, pensando, la gira despacio de lado */\n.sp-buho .head, .sp-loro .head, .sp-tucan .head, .sp-pato .head, .sp-pinguino .head { animation-timing-function: steps(3, jump-none); }\n.tile.thinking .sp-buho .head { animation: owl calc(4.6s * var(--kh, 1)) ease-in-out infinite; }\n@keyframes owl { 0%, 12%, 88%, 100% { transform: rotate(0); } 30%, 70% { transform: rotate(17deg) translateY(-2px); } }\n/* el pingüino se mece de lado a lado, más que los demás */\n.sp-pinguino .body { animation-name: waddle; }\n@keyframes waddle { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }\n/* el gato y el perezoso parpadean despacio: cierran y se quedan un momento */\n.sp-gato .eyes, .sp-perezoso .eyes, .sp-koala .eyes { animation-name: slowblink; }\n@keyframes slowblink { 0%, 80%, 100% { transform: scaleY(1); } 86%, 94% { transform: scaleY(.1); } }\n/* LAS REACCIONES, CADA UNO A SU TIEMPO. Una risa o una celebración les llega a varios a la vez, y la animación arranca\n   cuando se pone la clase: sin esto, toda la grilla se sacudía al mismo compás, como un coro mecánico. Cada personaje\n   arranca corrido (una fracción de su --d) y a su velocidad (--kh, --kb): el perezoso se ríe despacio, el ratón rápido. */\n.tile.act-laugh:not(.talking) .mouth, .tile.act-laugh .head, .tile.act-laugh .body { animation-duration: calc(.19s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .04); }\n.tile.act-celebrate .head { animation-duration: calc(.28s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .05); }\n.tile.act-celebrate .arm-l.open, .tile.act-celebrate .arm-r.open { animation-duration: calc(.28s * var(--kb, 1)); animation-delay: calc(var(--d, 0s) * .06); }\n.tile.act-wave .arm-r.open { animation-duration: calc(.34s * var(--kb, 1)); animation-delay: calc(var(--d, 0s) * .05); }\n.tile.act-wave .head { animation-duration: calc(.5s * var(--kh, 1)); animation-delay: calc(var(--d, 0s) * .05); }\n.glow { animation: glow 1.6s ease-in-out infinite alternate; }\n@keyframes glow { from { opacity: .55; } to { opacity: 1; } }\n.paused * { animation-play-state: paused !important; }\n/* MENOS MOVIMIENTO (prefers-reduced-motion): lo mismo que la pausa, quieto todo —el balanceo, el cabeceo, el parpadeo,\n   la mirada, las barras—, salvo la boca (y el pico) de quien habla, que es lo que dice quién tiene la palabra. Se\n   apaga (animation: none) en vez de pausar: pausado, un parpadeo podía quedar congelado con los ojos cerrados. Los\n   gestos que no se animan (cejas, pupilas, qué boca se ve) siguen cambiando con el estado. */\n@media (prefers-reduced-motion: reduce) {\n  .tile *:not(.mouth):not(.beak-jaw):not(.beak-top):not(.beak-inside) { animation: none !important; }\n  /* el confeti no cae: queda repartido y quieto (sin esto quedaba arriba, fuera del recuadro, y celebrar perdía la gracia) */\n  .tile.act-celebrate .bit { transform: translateY(var(--by, 200px)) rotate(calc(var(--br, 1) * 28deg)); }\n  /* la tapa del portátil y la mirada cambian de golpe, sin recorrido */\n  .lid, .pupils, .ear { transition: none !important; }\n}\n\n\n/* LA TEXTURA DE PAPEL: fibras y grano encima de cada recuadro, multiplicadas con los colores. Se prende y se apaga\n   con la clase .paper en el <html> (botón «Papel»; la preferencia queda en localStorage, office:paper). */\n.tile::after { content: \"\"; position: absolute; inset: 0; z-index: 1; pointer-events: none; opacity: 0; transition: opacity .25s;\n  mix-blend-mode: multiply;\n  background-image:\n    url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .09' numOctaves='3' seed='7'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .5  0 0 0 0 .42  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>\"),\n    url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='3'/><feColorMatrix values='0 0 0 0 .45  0 0 0 0 .4  0 0 0 0 .35  0 0 0 .8 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>\"); }\n.paper .tile::after { opacity: .5; }\n/* con papel, los bordes de cada capa se ven un poco más gruesos, como cartulina */\n.paper .cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .42)) drop-shadow(0 1px 0 rgba(10, 25, 30, .3)) drop-shadow(0 -1px 0 rgba(255, 250, 235, .18)); }\n\nsvg.tile { box-shadow: none !important; transform: none !important; border-radius: inherit; }\n"
 
 // Los gestos, en castellano o con el nombre de la clase.
 const GESTOS = { escucha: 'idle', teclea: 'typing', piensa: 'thinking', habla: 'talking', idle: 'idle', typing: 'typing', thinking: 'thinking', talking: 'talking' }
@@ -1026,7 +1154,7 @@ export function personaje(config = {}) {
 /** El SVG del personaje como texto. opciones: { gesto: 'escucha'|'teclea'|'piensa'|'habla', fondo: true|false } */
 export function svg(config, { gesto = 'escucha', fondo = true } = {}) {
   const p = personaje(config), st = GESTOS[gesto] || 'idle'
-  const scene = fondo ? (P.SCENES[p.scene] || P.SCENES.sunset)() : ''
+  const scene = fondo ? P.sceneOf(p) : ''
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300" class="tile ${st}" style="--d:${-(Math.random() * 5).toFixed(2)}s">${scene}<g transform="translate(46 54) scale(.77)"><g class="avatar">${P.person(p)}</g></g></svg>`
 }
 

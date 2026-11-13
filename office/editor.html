@@ -98,6 +98,8 @@
     <div class="field" data-human><label>Forma</label><div class="row" data-options="face"></div></div>
     <div class="field"><label for="eye">Ojos <span id="eye-size"></span></label><input type="range" id="eye" min="18" max="32" step="1"></div>
     <div class="field" data-human><label>Nariz</label><div class="row" data-options="nose"></div></div>
+    <div class="field" data-human><label>Cejas</label><div class="row" data-options="brows"></div></div>
+    <div class="field" data-human><label>Ojos</label><div class="row" data-options="eyeShape"></div></div>
     <div class="field" data-human><label>Dientes</label><div class="row" data-options="teeth"></div></div>
     <div class="field" data-human><label>Barba</label><div class="row" data-options="beardStyle"></div></div>
 
@@ -260,7 +262,7 @@ function drawSaved() {
   for (const p of saved) {
     const b = document.createElement('button')
     b.type = 'button'; b.className = 'card'; b.setAttribute('aria-current', String(p.id === cur.id)); b.title = `Editar a ${p.name}`
-    b.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${(SCENES[p.scene] || SCENES.sunset)()}<g transform="translate(46 54) scale(.77)">${person(normalize(p))}</g></svg><span></span>`
+    b.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sceneOf(p)}<g transform="translate(46 54) scale(.77)">${person(normalize(p))}</g></svg><span></span>`
     b.querySelector('span').textContent = p.name
     b.addEventListener('click', () => { cur = { ...START, ...p }; drawSkinRow(); draw(); drawSaved(); toast(`Editando a ${p.name}.`) })
     box.appendChild(b)
@@ -299,7 +301,7 @@ document.getElementById('svg').addEventListener('click', () => {
   const p = normalize(cur)
   const logo = document.querySelector('svg symbol#creditop-logo-mono').outerHTML
   const style = '.cut{filter:drop-shadow(0 3px 2px rgba(10,25,30,.38))}.cut-soft{filter:drop-shadow(0 2px 1.5px rgba(10,25,30,.3))}.m-talk,.m-think,.m-flat{display:none}'
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><style>${style}</style><defs>${logo}</defs>${(SCENES[p.scene] || SCENES.sunset)()}<g transform="translate(46 54) scale(.77)">${person(p)}</g></svg>`
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><style>${style}</style><defs>${logo}</defs>${sceneOf(p)}<g transform="translate(46 54) scale(.77)">${person(p)}</g></svg>`
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }))
   a.download = `${(p.name || 'personaje').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.svg`

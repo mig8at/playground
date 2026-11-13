@@ -52,6 +52,31 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   pensar y le saltan al celebrar; al perro le aletean y saca la lengua; las aves mueven la cabeza a saltitos y el búho
   la gira de lado al pensar; el pingüino se mece más; el gato y el perezoso parpadean despacio. El tempo de la especie
   (`SPECIES_TEMPO`: el perezoso lento, el ratón rápido) multiplica el ritmo de cada uno.
+- **Cada cabeza con su forma** (2026-11-13). Los animales ya no comparten una elipse: `SPECIES_HEAD` le da a cada
+  especie su silueta (el zorro triangular, el ratón de hocico en punta, el perro alargado con papada, el gorila de
+  mandíbula ancha, el búho casi cuadrado…) y las orejas, el hocico, los gorros y la cara se acomodan solos porque
+  salen de `pt()`. La máscara y el rubor se recortan a la silueta. `pt()` acepta `nB` (otra cuadratura abajo: menos de
+  2 afila el mentón) y `smooth` (el ancho baja de a poco hasta la mandíbula `rxB`, sin escalón). Con `taper` los cachetes
+  aguantan llenos antes de cerrarse hacia el mentón: las caras de persona lo llevan, porque sin él una mandíbula angosta
+  se ve demacrada (en un animal, en cambio, eso da hocico). Las tres especies que
+  dibujan su propia cabeza (oveja, rana, capibara) llevan `ownHead`. Para las personas hay cinco formas más (`diamante`,
+  `triangular`, `pera`, `ovalada`, `menton`), cejas (`brows`: gruesas, finas, arqueadas, rectas) y forma de ojo
+  (`eyeShape`: almendrados, grandes); están en el editor y en «Al azar».
+- **Los accesorios no se confunden con el pelo** (2026-11-13). `wearHat` pone el gorro con su color corrido si queda muy
+  cerca del pelo (o del pelaje): `apart(color, referencia)` lo aclara u oscurece hasta que se distingan. `hatTrim` le
+  suma a todo gorro una costura punteada y una sombra bajo el borde, que es lo que lo hace leerse como prenda. Las gafas
+  llevan lente con brillo y patillas, y el marco va claro sobre piel oscura. Accesorios nuevos en `extras`: `sunglasses`,
+  `headband` (diadema), `bow` (lazo), `scarf` (bufanda) y `bowtie` (corbatín, los dos del cuello en `neckwear`, dentro
+  del torso: los animales también los usan); y el gorro `sombrero`. La diadema y el lazo no salen con gorro puesto. «Al
+  azar» no junta dos gafas, bufanda con corbatín ni diadema con lazo.
+- **Cierre del 2026-11-13.** La silla se aclara sólo detrás de una cabeza casi negra (`chairFor`: el pingüino, el tucán,
+  el oso de anteojos, el pelo negro), que se fundía con el respaldo; por eso las escenas reciben al personaje
+  (`sceneOf(p)`, que es lo que hay que llamar en vez de `SCENES[...]()`). El peinado `beanie` ya no se ofrece:
+  `completePerson` lo convierte en pelo corto con el gorro `lana`. `faceMarks` dibuja el rasgo de las caras que se
+  parecían (pómulos en `diamante`, línea de mandíbula en `triangular`, pliegue en `menton`). Las reacciones arrancan
+  corridas y a la velocidad de cada uno (una fracción de `--d`, y `--kh`/`--kb`): medido en la llamada, ocho riéndose
+  van de 167 a 355 ms por vaivén, cada uno en su fase. Con `prefers-reduced-motion` sólo se mueve la boca de quien
+  habla, el confeti queda repartido y quieto, y la tapa y la mirada cambian sin recorrido.
 - **Las piezas se arman sobre la elipse de la cara** (`pt`, `arc`): el pelo y los gorros abrazan la cabeza en vez de
   flotar. Los gorros son una capa aparte, apoyada según cuánto abulta el peinado (`HAIR_VOL`, `hatLine`).
 - **Los animales** (`SPECIES`) cambian la cabeza y conservan la cara animable y la chaqueta. Comparten piezas
