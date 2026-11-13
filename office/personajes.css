@@ -14,8 +14,9 @@
 .cut { filter: drop-shadow(0 3px 2px rgba(10, 25, 30, .38)) drop-shadow(0 1px 0 rgba(10, 25, 30, .25)); }
 .cut-soft { filter: drop-shadow(0 2px 1.5px rgba(10, 25, 30, .3)); }
 
-/* El nombre, abajo a la izquierda, en una tira de papel; el estado arriba a la derecha. */
-.nameplate { position: absolute; left: 12px; bottom: 12px; display: flex; align-items: center; gap: 8px; z-index: 2;
+/* El nombre, arriba a la izquierda, en una tira de papel; el estado arriba a la derecha. Abajo quedó libre: ahí están
+   el portátil, las manos y la taza, que la tira tapaba. */
+.nameplate { position: absolute; left: 10px; top: 10px; display: flex; align-items: center; gap: 8px; z-index: 2;
   background: var(--cream); color: var(--ink); padding: 5px 12px 5px 8px; border-radius: 10px; font-weight: 800; font-size: 13px;
   box-shadow: 0 2px 0 var(--cream-dim), 0 4px 10px rgba(0, 0, 0, .3); }
 .nameplate small { font-weight: 700; color: var(--teal); }
@@ -40,17 +41,29 @@
 
 /* LA ANIMACIÓN DE RECORTES: poco y suave. La cabeza y el cuerpo se balancean por separado desde el cuello; lo
    que cambia con el estado son las cejas, adónde miran las pupilas y cuál de las cuatro bocas se ve. */
-.avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth { transform-box: view-box; }
+.avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth, .hand-l, .hand-r, .hand-chin { transform-box: view-box; }
 .body { transform-origin: 200px 300px; animation: sway 4.6s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
 .head { transform-origin: 200px 236px; animation: bob 3.4s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
+/* CADA UNO A SU RITMO: personajes.js le da a cada personaje sus factores (--kb cuerpo, --kh cabeza, --ke parpadeo, --kl
+   mirada) además de su arranque (--d). Las duraciones de arriba y de abajo son la base; acá se multiplican. Va aparte
+   del `animation:` para que el CLI siga leyendo de ahí la duración base. */
+.body { animation-duration: calc(4.6s * var(--kb, 1)); }
+.head { animation-duration: calc(3.4s * var(--kh, 1)); }
 @keyframes sway { from { transform: rotate(-1.2deg); } to { transform: rotate(1.2deg); } }
 @keyframes bob { from { transform: rotate(-2deg) translateY(0); } to { transform: rotate(2deg) translateY(-2px); } }
 .tile.talking .head { animation: nod .7s ease-in-out infinite alternate; }
+/* pensando, la cabeza se ladea hacia la mano; tecleando, baja un poco hacia lo que escribe */
+.tile.thinking .head { animation: ponder 3.8s ease-in-out infinite alternate; }
+@keyframes ponder { from { transform: rotate(3deg); } to { transform: rotate(6deg) translateY(-1px); } }
+.tile.typing .head { animation: peer 2.6s ease-in-out infinite alternate; }
+@keyframes peer { from { transform: rotate(-1deg) translateY(3px); } to { transform: rotate(1deg) translateY(5px); } }
 @keyframes nod { from { transform: rotate(-3deg) translateY(0); } to { transform: rotate(2deg) translateY(-5px); } }
 .eyes { transform-origin: 200px 150px; animation: blink 5s infinite; animation-delay: var(--d, 0s); }
+.eyes { animation-duration: calc(5s * var(--ke, 1)); }
 @keyframes blink { 0%, 95%, 100% { transform: scaleY(1); } 97% { transform: scaleY(.08); } }
 .pupils { transition: transform .25s steps(2); }
 .tile.idle .pupils { animation: look 7s steps(1) infinite; animation-delay: var(--d, 0s); }
+.tile.idle .pupils { animation-duration: calc(7s * var(--kl, 1)); }
 @keyframes look { 0%, 100% { transform: none; } 35% { transform: translate(-6px, 1px); } 65% { transform: translate(6px, 0); } }
 .tile.typing .pupils { transform: translate(0, 7px); }
 .tile.thinking .pupils { transform: translate(7px, -8px); }
@@ -64,6 +77,14 @@
 .m-talk, .m-think, .m-flat { display: none; }
 .tile.talking .m-smile, .tile.thinking .m-smile, .tile.typing .m-smile { display: none; }
 .tile.talking .m-talk, .tile.thinking .m-think, .tile.typing .m-flat { display: inline; }
+/* LAS MANOS (personajes.js, personHands): tecleando asoman abajo y golpean alternadas; pensando, una sube a la barbilla */
+.hand-type, .hand-chin { display: none; }
+.tile.typing .hand-type, .tile.thinking .hand-chin { display: inline; }
+.tile.typing .hand-l { animation: tap .3s ease-in-out infinite alternate; }
+.tile.typing .hand-r { animation: tap .3s ease-in-out -.3s infinite alternate; }
+@keyframes tap { from { transform: translateY(0); } to { transform: translateY(-7px); } }
+.tile.thinking .hand-chin { animation: rub 3.8s ease-in-out infinite alternate; }
+@keyframes rub { from { transform: translateY(0); } to { transform: translateY(-2px); } }
 .mouth { transform-origin: 200px 200px; animation: talk .24s steps(2) infinite alternate; }
 @keyframes talk { from { transform: scaleY(.45); } to { transform: scaleY(1.15); } }
 /* el pico del pato habla como una mandíbula: la parte de abajo baja, la de arriba sube apenas y la boca se abre
@@ -86,6 +107,62 @@
 .tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--boca, .5) * .75)); transition: transform 50ms linear; }
 .tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--boca, .5) * -3px)); transition: transform 50ms linear; }
 .tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--boca, .5) * .26)); transition: transform 50ms linear; }
+/* LO QUE TIENEN A MANO (personajes.js, personProps): todo viene dibujado y escondido; se ve según las clases del
+   recuadro, que pone setTileActivity: has-laptop (tiene el portátil delante), lid-closed (cerrado) y act-coffee,
+   act-music, act-wave, act-thumb o act-celebrate. */
+.prop-laptop, .prop-mug, .prop-notes, .prop-confetti, .prop-headphones, .arm { display: none; }
+.lid, .sip, .arm, .note, .bit, .keys path, .prop-headphones { transform-box: view-box; }
+/* el portátil: la tapa se cierra hacia la bisagra; tecleando, saltan tres rayitas encima (las manos quedan detrás) */
+.tile.has-laptop .prop-laptop { display: inline; }
+.lid { transform-origin: 200px 318px; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }
+.tile.lid-closed .lid { transform: scaleY(.17); }
+.keys { display: none; fill: none; stroke: var(--cream); stroke-width: 4; stroke-linecap: round; }
+.tile.typing.has-laptop:not(.lid-closed) .keys { display: inline; }
+.keys path { animation: key .36s steps(2) infinite alternate; }
+.keys path:nth-child(2) { animation-delay: -.18s; } .keys path:nth-child(3) { animation-delay: -.09s; }
+@keyframes key { from { opacity: 0; transform: translateY(4px); } to { opacity: .9; transform: translateY(0); } }
+/* el tinto: la taza descansa abajo, sube a la boca, se inclina y vuelve; el vapor sólo mientras descansa */
+.tile.act-coffee .prop-mug { display: inline; }
+.sip { transform-origin: 152px 300px; animation: sip calc(5.5s * var(--kb, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }
+@keyframes sip { 0%, 42%, 100% { transform: translate(0, 0); } 56%, 76% { transform: translate(42px, -58px) rotate(14deg); } 90% { transform: translate(0, 0); } }
+.steam path { animation: steam 1.8s ease-in-out infinite; }
+.steam path:nth-child(2) { animation-delay: -.9s; }
+@keyframes steam { 0% { opacity: 0; transform: translateY(6px); } 40% { opacity: .85; } 100% { opacity: 0; transform: translateY(-8px); } }
+/* tomando tinto no teclea: se esconden las manos de teclear y la boca queda quieta */
+.tile.act-coffee .hand-type, .tile.act-coffee .hand-chin { display: none; }
+/* los audífonos: bajan a la cabeza, salen notas y la cabeza lleva el ritmo */
+.tile.act-music .prop-headphones { display: inline; animation: puton .5s cubic-bezier(.2, .9, .3, 1.3) both; }
+@keyframes puton { from { transform: translateY(-46px); opacity: 0; } to { transform: none; opacity: 1; } }
+.tile.act-music .prop-notes { display: inline; }
+.note { animation: note 2.4s ease-in-out infinite; }
+.note.n2 { animation-delay: -1.2s; }
+@keyframes note { 0% { opacity: 0; transform: translate(-10px, 14px) rotate(-8deg); } 30%, 60% { opacity: 1; } 100% { opacity: 0; transform: translate(12px, -22px) rotate(10deg); } }
+.tile.act-music.idle .head, .tile.act-music.typing .head { animation: groove .62s ease-in-out infinite alternate; }
+@keyframes groove { from { transform: rotate(-3deg) translateY(1px); } to { transform: rotate(3deg) translateY(-2px); } }
+/* los brazos: giran desde el hombro. Saluda con uno, da el visto bueno con el pulgar, celebra con los dos */
+.arm-l { transform-origin: 96px 330px; } .arm-r { transform-origin: 304px 330px; }
+.tile.act-wave .arm-r.open, .tile.act-thumb .arm-r.thumb, .tile.act-celebrate .arm.open { display: inline; }
+.tile.act-wave .arm-r.open { animation: wave .34s ease-in-out infinite alternate; }
+@keyframes wave { from { transform: rotate(-7deg); } to { transform: rotate(9deg); } }
+.tile.act-thumb .arm-r.thumb { animation: thumb .5s cubic-bezier(.2, .9, .3, 1.4) both, nudge 1s ease-in-out .5s infinite alternate; }
+@keyframes thumb { from { transform: translateY(70px); } to { transform: none; } }
+@keyframes nudge { from { transform: none; } to { transform: translateY(-5px); } }
+.tile.act-celebrate .arm-l.open { animation: cheer-l .28s ease-in-out infinite alternate; }
+.tile.act-celebrate .arm-r.open { animation: cheer-r .28s ease-in-out infinite alternate; }
+@keyframes cheer-l { from { transform: rotate(8deg) translateY(4px); } to { transform: rotate(-6deg) translateY(-8px); } }
+@keyframes cheer-r { from { transform: rotate(-8deg) translateY(4px); } to { transform: rotate(6deg) translateY(-8px); } }
+/* celebrando: salta la cabeza, las cejas arriba, la sonrisa aunque el gesto diga otra cosa, y llueve confeti */
+.tile.act-celebrate .head, .tile.act-wave .head { animation: hop .28s ease-in-out infinite alternate; }
+.tile.act-wave .head { animation-duration: .5s; }
+@keyframes hop { from { transform: translateY(2px) rotate(-2deg); } to { transform: translateY(-7px) rotate(2deg); } }
+.tile.act-celebrate .brow-l, .tile.act-celebrate .brow-r { transform: translateY(-8px); }
+.tile.act-celebrate:not(.talking) .m-think, .tile.act-celebrate:not(.talking) .m-flat { display: none; }
+.tile.act-celebrate:not(.talking) .m-smile { display: inline; }
+.tile.act-celebrate .hand-type, .tile.act-celebrate .hand-chin, .tile.act-wave .hand-chin, .tile.act-thumb .hand-chin { display: none; }
+.tile.act-celebrate .prop-confetti { display: inline; }
+.bit { animation: confetti var(--bt, 2s) linear var(--bd, 0s) infinite; }
+@keyframes confetti { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(440px) rotate(calc(var(--br, 1) * 540deg)); } }
+.bit { transform-origin: center; transform-box: fill-box; }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }

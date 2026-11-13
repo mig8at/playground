@@ -86,7 +86,7 @@ const STATES = { idle: 'escucha', typing: 'teclea', thinking: 'piensa', talking:
 const keyframes = {}
 for (const m of css.matchAll(/@keyframes\s+([\w-]+)\s*\{((?:[^{}]*\{[^{}]*\})*)\s*\}/g)) keyframes[m[1]] = m[2].replace(/\s+/g, ' ').trim()
 const PART = { body: 'cuerpo', head: 'cabeza', eyes: 'ojos (parpadeo)', pupils: 'pupilas', mouth: 'boca', 'beak-jaw': 'pico, parte de abajo', 'beak-top': 'pico, parte de arriba',
-  'beak-inside': 'boca dentro del pico', glow: 'luces', 'brow-l': 'ceja izquierda', 'brow-r': 'ceja derecha' }
+  'beak-inside': 'boca dentro del pico', glow: 'luces', 'brow-l': 'ceja izquierda', 'brow-r': 'ceja derecha', 'hand-l': 'mano izquierda (teclea)', 'hand-r': 'mano derecha (teclea)', 'hand-chin': 'mano en la barbilla (piensa)' }
 const animations = []
 const poses = []
 for (const m of css.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {

@@ -21,6 +21,26 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   `personajes.css` elige la boca que se ve, adónde miran las pupilas, cómo van las cejas y qué se anima. La cabeza y
   el cuerpo se balancean por separado, poquito, como títeres de recortes. El CLI lee ese CSS para escribir las
   animaciones del JSON: no hay una segunda lista que pueda desincronizarse.
+- **Cada personaje tiene su ritmo** (`personRhythm` en `personajes.js`, 2026-11-12): de su nombre y sus rasgos sale cuándo
+  arranca (`--d`) y qué tan rápido se mece, cabecea, parpadea y mira (`--kb`, `--kh`, `--ke`, `--kl`, que
+  `personajes.css` multiplica por la duración base). Va dentro del dibujo, así vale igual en la llamada, en el chat y
+  en el paquete; antes en el chat todos se movían y parpadeaban al compás.
+- **Las manos** (`personHands`) sólo se ven en dos gestos: tecleando asoman abajo y golpean alternadas; pensando, una sube a
+  la barbilla y la cabeza se ladea. Son del color de la piel o del pelaje, con la manga más clara y su puño.
+- **Lo que falta se completa** (`completePerson`): una especie, un peinado o una nariz que no existe, o un animal sin color
+  de pelaje, caen a un valor por defecto en vez de romper el recuadro.
+- **Lo que tienen a mano** (`personProps`, 2026-11-12): todos los personajes traen dibujados y escondidos su portátil
+  (tapa oscura y lisa, sin marca), la taza de tinto, los audífonos, los brazos y el confeti. Qué se ve lo deciden las
+  clases del recuadro, que pone `setTileActivity(el, actividad, portátil)`: `has-laptop`, `lid-closed` y
+  `act-coffee|music|wave|thumb|celebrate` (`ACTIVITIES`). Tomar tinto cierra la tapa; con audífonos salen notas y la
+  cabeza lleva el ritmo; celebrar levanta los dos brazos y llueve confeti. En la llamada (`index.html`, `activities` y
+  `react`) cada uno hace su pausa a su ritmo, el nombrado saluda y con una buena noticia unos celebran y otros dan el
+  visto bueno. En el componente del paquete son los atributos `actividad="cafe|musica|saluda|pulgar|celebra"` y
+  `portatil="abierto|cerrado"`, que es lo que usa la videollamada del chat (`CallView.vue`: `laptopOf`, `doingOf`): ya no
+  dibuja su propio portátil ni su taza encima, y al nombrado no le sale un 👋 sino que levanta la mano. En el chat,
+  además, una buena noticia en lo que se dice («listo», «quedó», 🎉…) hace que unos celebren y otros den el visto bueno.
+- **El nombre va arriba a la izquierda** del recuadro: abajo tapaba el portátil y las manos. En la grilla de la llamada
+  el letrero de estado no se muestra (lo dicen el gesto y la lista).
 - **Las piezas se arman sobre la elipse de la cara** (`pt`, `arc`): el pelo y los gorros abrazan la cabeza en vez de
   flotar. Los gorros son una capa aparte, apoyada según cuánto abulta el peinado (`HAIR_VOL`, `hatLine`).
 - **Los animales** (`SPECIES`) cambian la cabeza y conservan la cara animable y la chaqueta. Comparten piezas

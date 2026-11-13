@@ -75,6 +75,9 @@
     .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 200px; }
     .captions { left: 50%; }
   }
+/* en la grilla el letrero de estado no va: arriba está el nombre, y lo que hace cada uno ya lo dicen su gesto, lo que
+   tiene en la mano y la lista de la derecha */
+#grid .state { display: none; }
 </style>
 <link rel="stylesheet" href="personajes.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -180,9 +183,10 @@ const cast = [...CAST.filter((c) => !c.guest), ...custom, ...CAST.filter((c) => 
 // la grilla se acomoda: tres columnas hasta nueve recuadros, cuatro hasta dieciséis, cinco hasta veinticinco, seis más allá
 document.getElementById('grid').style.gridTemplateColumns = `repeat(${cast.length <= 9 ? 3 : cast.length <= 16 ? 4 : cast.length <= 25 ? 5 : 6}, minmax(0, 1fr))`
 const grid = document.getElementById('grid')
-const people = cast.map((c) => ({ ...c, state: 'typing', until: 0 }))
+const people = cast.map((c) => ({ ...c, state: 'typing', until: 0, act: '', actUntil: 0 }))
 for (const [i, p] of people.entries()) {
   p.el = tile(p, i)
+  setTileActivity(p.el, '', 'open') // todos tienen su portátil delante, abierto
   grid.appendChild(p.el)
 }
 
@@ -200,6 +204,38 @@ function idleStates() {
     p.until = t + 1500 + Math.random() * 3500
   }
 }
+// ── LO QUE HACEN MIENTRAS TANTO ──────────────────────────────────────────────────────────────────
+// Aparte del gesto, cada uno a su ritmo cierra el portátil para un tinto, se pone los audífonos, o reacciona a lo que
+// se dice: el nombrado saluda, y cuando algo sale bien unos celebran y otros dan el visto bueno. Lo dibuja
+// personajes.js (setTileActivity); acá sólo se decide quién, cuándo y por cuánto.
+function setActivity(p, act, ms) {
+  p.act = act; p.actUntil = act ? t + ms : 0
+  setTileActivity(p.el, act, 'open')
+  // tomando tinto o celebrando no se teclea: queda escuchando hasta que termine
+  if (act && act !== 'music' && p.state !== 'talking') { setState(p, 'idle'); p.until = Math.max(p.until, p.actUntil) }
+}
+function activities() {
+  const nextWho = SCRIPT[line % SCRIPT.length][0]
+  for (const p of people) {
+    if (p.act) { if (t >= p.actUntil) setActivity(p, '', 0); continue }
+    if (p.state === 'talking' || p.id === nextWho) continue
+    // en promedio, uno de cada siete está en algo: cada quien empieza una pausa más o menos cada minuto y medio
+    if (Math.random() < .0011) Math.random() < .55 ? setActivity(p, 'coffee', 9000 + Math.random() * 5000) : setActivity(p, 'music', 14000 + Math.random() * 12000)
+  }
+}
+const GOOD_NEWS = /listo|comprobado|pasa de punta|rama lista|🚀|🎉/i
+function react(speaker, text) {
+  const low = text.toLowerCase()
+  for (const p of people) {
+    if (p === speaker) continue
+    // al que nombran, saluda
+    if (new RegExp(`(^|[^\\p{L}])${p.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(low)) { setActivity(p, 'wave', 2600); continue }
+    if (!GOOD_NEWS.test(text) || p.act === 'coffee') continue
+    const r = Math.random()
+    if (r < .38) setActivity(p, 'celebrate', 2800 + Math.random() * 1600)
+    else if (r < .62) setActivity(p, 'thumb', 2400 + Math.random() * 1400)
+  }
+}
 const captions = document.getElementById('captions'), log = document.getElementById('log')
 const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
 let captionsOn = true, captionUntil = 0
@@ -207,7 +243,9 @@ function say() {
   const [who, text] = SCRIPT[line % SCRIPT.length]
   line++
   const p = people.find((x) => x.id === who)
+  if (p.act) setActivity(p, '', 0) // el que toma la palabra deja la taza
   setState(p, 'talking'); p.until = t + 2600 + text.length * 40
+  react(p, text)
   captions.innerHTML = '<b></b><span></span>'
   captions.querySelector('b').textContent = p.name
   captions.querySelector('span').textContent = text
@@ -240,10 +278,12 @@ for (const p of people) {
 }
 function drawPeople() {
   for (const p of people) {
-    if (p.shownState === p.state) continue
-    p.shownState = p.state
+    // hablando manda el gesto; si no, lo que está haciendo (toma tinto, celebra…)
+    const shown = p.state !== 'talking' && p.act ? p.act : p.state
+    if (p.shownState === shown) continue
+    p.shownState = shown
     p.row.className = p.state
-    p.rowSt.textContent = STATE_LABEL[p.state]
+    p.rowSt.textContent = ACTIVITIES[shown] || STATE_LABEL[p.state]
   }
 }
 
@@ -258,6 +298,7 @@ setInterval(() => {
     t += 100
     if (t > nextLineAt) say()
     idleStates()
+    activities()
     if (t > captionUntil) captions.classList.remove('on')
   }
   drawPeople()

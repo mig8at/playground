@@ -27,6 +27,8 @@ const CSS = ${JSON.stringify(css)}
 
 // Los gestos, en castellano o con el nombre de la clase.
 const GESTOS = { escucha: 'idle', teclea: 'typing', piensa: 'thinking', habla: 'talking', idle: 'idle', typing: 'typing', thinking: 'thinking', talking: 'talking' }
+// lo que hace mientras tanto, en español o con la clave del dibujo (ACTIVITIES en personajes.js); 'audifonos' es como lo llama el chat
+const ACTIVIDADES = { cafe: 'coffee', musica: 'music', audifonos: 'music', saluda: 'wave', pulgar: 'thumb', celebra: 'celebrate', coffee: 'coffee', music: 'music', wave: 'wave', thumb: 'thumb', celebrate: 'celebrate' }
 // Lo que lleva un personaje si su JSON no lo dice.
 const BASE = { name: 'Personaje', owner: '', species: '', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
   extras: [], beardStyle: '', hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
@@ -66,7 +68,7 @@ export const OPCIONES = P.OPCIONES
 // Su estilo vive en su propio shadow DOM: no toca ni lo toca el CSS de la página. Sólo existe en el navegador: en Node
 // (un servidor que genere avatares) se usan svg() y alAzar().
 export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class extends HTMLElement {
-  static observedAttributes = ['config', 'gesto', 'fondo', 'boca']
+  static observedAttributes = ['config', 'gesto', 'fondo', 'boca', 'actividad', 'portatil']
   #config = {}
   constructor() { super(); this.attachShadow({ mode: 'open' }) }
   get config() { return this.#config }
@@ -77,7 +79,8 @@ export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class
     if (name === 'config') { try { this.#config = JSON.parse(value || '{}') } catch { this.#config = {} } }
     // svg.tile y no el primer svg: antes va el del logo (escondido), y cambiarle la clase a ése no mueve nada
     const svg = this.shadowRoot.querySelector('svg.tile')
-    if (name === 'gesto' && svg) { svg.setAttribute('class', \`tile \${GESTOS[value] || 'idle'}\`); this.#mouth(svg); return }
+    if (name === 'gesto' && svg) { svg.setAttribute('class', \`tile \${GESTOS[value] || 'idle'}\`); this.#mouth(svg); this.#activity(svg); return }
+    if ((name === 'actividad' || name === 'portatil') && svg) { this.#activity(svg); return }
     if (name === 'boca' && svg) { this.#mouth(svg); return }
     this.render()
   }
@@ -87,11 +90,20 @@ export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class
     svg.classList.toggle('lipsync', v !== null)
     if (v !== null) svg.style.setProperty('--boca', String(Math.max(0, Math.min(1, Number(v) || 0))))
   }
+  // lo que hace mientras tanto: actividad="cafe|musica|saluda|pulgar|celebra" y portatil="abierto|cerrado" (sin el
+  // atributo, no tiene portátil). Son clases del recuadro, como el gesto: no se redibuja nada.
+  #activity(svg) {
+    const act = ACTIVIDADES[this.getAttribute('actividad')] || '', lap = this.getAttribute('portatil')
+    for (const k of Object.values(ACTIVIDADES)) svg.classList.toggle(\`act-\${k}\`, k === act)
+    svg.classList.toggle('has-laptop', lap !== null && lap !== 'no')
+    svg.classList.toggle('lid-closed', lap === 'cerrado' || act === 'coffee')
+  }
   connectedCallback() { this.render() }
   render() {
     if (!this.isConnected) return
     this.shadowRoot.innerHTML = \`<style>:host{display:inline-block;width:240px;aspect-ratio:4/3;border-radius:18px;overflow:hidden}svg.tile{width:100%;height:100%;display:block}\${CSS}</style>\${P.LOGO_SVG}\${svg(this.#config, { gesto: this.gesto, fondo: this.getAttribute('fondo') !== 'false' })}\`
     this.#mouth(this.shadowRoot.querySelector('svg.tile'))
+    this.#activity(this.shadowRoot.querySelector('svg.tile'))
   }
 }
 if (OfficePersonaje && typeof customElements !== 'undefined' && !customElements.get('office-personaje')) customElements.define('office-personaje', OfficePersonaje)

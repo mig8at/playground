@@ -363,7 +363,7 @@ function beak(cx, y, c, w = 74) {
 }
 function face(h, f) {
   const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
-  const L = cx - gap, R = cx + gap, pr = eye * .36
+  const L = cx - gap, R = cx + gap, pr = eye * .43 // la pupila llena más el ojo: chica, la mirada quedaba fija y asustada
   const lash = f.lashes ? `<path d="M${L - eye * .8} ${eyeY - eye * .6} l-10 -8 M${L - eye * .5} ${eyeY - eye * .85} l-6 -10 M${R + eye * .8} ${eyeY - eye * .6} l10 -8 M${R + eye * .5} ${eyeY - eye * .85} l6 -10" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
   const lids = f.lids ? `<path d="M${L - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z M${R - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z" fill="${f.nose}"/>` : ''
   // Los dientes se recortan con la misma forma de la boca (clipPath por recuadro): cuelgan del labio de arriba y
@@ -387,7 +387,7 @@ function face(h, f) {
     <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
     <g class="m-think">${soft(`<path d="M${cx - 16} ${mouthY + 4} q9 -9 18 0 q9 9 18 -3 l2 6 q-11 11 -21 1 q-8 -6 -15 2Z" fill="${f.mouth}"/>`)}</g>
     <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>`}
-    ${soft(NOSES[f.noseShape || 'button'](cx, cy, f.noseColor))}`
+    ${soft((NOSES[f.noseShape] || NOSES.button)(cx, cy, f.noseColor))}`
 }
 
 // El torso: la chaqueta del equipo, igual para todos en el color de cada uno. Tiene cuello de solapas, cremallera,
@@ -640,11 +640,94 @@ function creature(p) {
     ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth })}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
-    ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
+    ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
+// LO QUE FALTA SE COMPLETA: un personaje puede llegar de otra persona (el chat recibe su JSON) o a medio armar. Sin
+// esto, una nariz que no existe o un animal sin color de pelaje dejaban el recuadro con un error en vez de un muñeco.
+function completePerson(p) {
+  const q = { ...p }
+  if (q.species && !SPECIES[q.species]) q.species = ''
+  if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPCIONES.skinBy[q.species]?.[0]) || '#e0ac7e'
+  if (!HAIR[q.hair]) q.hair = 'short'
+  for (const [k, v] of [['hairColor', '#4a2f1c'], ['shirt', '#2b6670'], ['gear', '#13323a']]) if (!/^#[0-9a-f]{6}$/i.test(q[k] || '')) q[k] = v
+  if (!NOSES[q.nose]) q.nose = 'button'
+  if (!q.id) q.id = `p${personSeed(q)}` // los recortes de la boca usan ids: sin uno propio, dos personajes compartían el recorte
+  return q
+}
+// un número fijo por personaje (de su nombre y sus rasgos): el mismo personaje se mueve siempre igual
+function personSeed(p) {
+  const t = `${p.name || ''}|${p.owner || ''}|${p.species || ''}|${p.hair || ''}|${p.skin || ''}|${p.shirt || ''}`
+  let n = 2166136261
+  for (let i = 0; i < t.length; i++) n = Math.imul(n ^ t.charCodeAt(i), 16777619)
+  return n >>> 0
+}
+// EL RITMO DE CADA UNO: cuándo arranca (--d) y qué tan rápido se balancea, cabecea, parpadea y mira (--kb, --kh, --ke,
+// --kl; personajes.css multiplica sus duraciones por eso). Con el mismo ritmo para todos, una grilla entera se mecía y
+// parpadeaba al compás; en el chat, además, todos arrancaban a la vez.
+function personRhythm(p) {
+  let n = personSeed(p)
+  const next = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296 }
+  const k = (lo, hi) => (lo + next() * (hi - lo)).toFixed(2)
+  return `--d:${(-next() * 9).toFixed(2)}s;--kb:${k(.8, 1.3)};--kh:${k(.8, 1.3)};--ke:${k(.7, 1.5)};--kl:${k(.8, 1.4)}`
+}
+// LAS MANOS: sólo se ven en dos gestos (lo decide el CSS, como las bocas). Tecleando, las dos asoman abajo y golpean
+// alternadas; pensando, una sube a la barbilla. Antes «teclea» y «piensa» se distinguían sólo por la boca y las cejas,
+// que en un recuadro chico no se leen. Son del color de la piel (o del pelaje) con el puño de la chaqueta.
+function personHands(p) {
+  const s = p.skin, sd = shade(s, .78), j = p.shirt, jl = shade(j, 1.18), jd = shade(j, .78)
+  const h = p.species ? { ...HEAD, rx: 94, ry: 88 } : { ...HEAD, ...(FACES[p.face] || FACES.round) }
+  // la manga más clara que la chaqueta y con su puño oscuro: del mismo color se fundía con el pecho y la mano quedaba suelta
+  const typing = (x, cls) => `<g class="hand-type ${cls}">${cut(`<path d="M${x - 26} 380 V304 q0 -8 8 -8 h36 q8 0 8 8 V380Z" fill="${jl}"/>`)}<rect x="${x - 26}" y="296" width="52" height="11" rx="5" fill="${jd}"/>${cut(`<ellipse cx="${x}" cy="282" rx="22" ry="17" fill="${s}"/>`)}<path d="M${x - 8} 284 v10 M${x} 286 v10 M${x + 8} 284 v10" stroke="${sd}" stroke-width="3" stroke-linecap="round"/></g>`
+  // la mano toca la barbilla (la pisa apenas) y el antebrazo sube desde abajo, en diagonal
+  const cx = h.cx + 30, cy = h.cy + h.ry - 2
+  const chin = `<g class="hand-chin">${cut(`<path d="M${cx + 74} 384 L${cx + 16} ${cy + 36}" stroke="${jl}" stroke-width="42" stroke-linecap="round" fill="none"/>`)}<path d="M${cx + 30} ${cy + 52} L${cx + 14} ${cy + 34}" stroke="${jd}" stroke-width="44" fill="none"/>${cut(`<ellipse cx="${cx}" cy="${cy + 4}" rx="23" ry="20" fill="${s}"/><ellipse cx="${cx - 17}" cy="${cy - 10}" rx="8" ry="13" transform="rotate(-24 ${cx - 17} ${cy - 10})" fill="${s}"/>`)}<path d="M${cx - 4} ${cy - 8} q10 4 18 0 M${cx - 2} ${cy + 2} q10 4 18 0" stroke="${sd}" stroke-width="3" stroke-linecap="round" fill="none"/></g>`
+  return typing(142, 'hand-l') + typing(258, 'hand-r') + chin
+}
+// LO QUE TIENEN A MANO EN LA LLAMADA: el portátil, el tinto, los brazos para saludar o celebrar y el confeti. Todos los
+// personajes los traen dibujados y escondidos; qué se ve lo decide la clase del recuadro (setTileActivity y
+// personajes.css), igual que los gestos. Así cualquier personaje —persona o animal, de la llamada, del chat o del
+// paquete— puede abrir y cerrar su portátil, tomar café, ponerse los audífonos, saludar, dar el visto bueno o celebrar.
+function personProps(p) {
+  const s = p.skin, sd = shade(s, .78), j = p.shirt, jl = shade(j, 1.18), jd = shade(j, .78)
+  const DARK = '#1d3d47', DARKER = '#0f2830', LIT = '#2b5560'
+  // el portátil, visto desde atrás: tapa oscura y lisa (sin marca), ancha y baja para que se vea la boca al hablar. Al
+  // cerrarse, la tapa baja hasta la bisagra. Encima, tres rayitas que saltan cuando teclea (las manos quedan detrás).
+  const laptop = `<g class="prop-laptop">
+    <g class="keys"><path d="M166 236 v-9" /><path d="M200 234 v-11" /><path d="M234 236 v-9" /></g>
+    <g class="lid">${cut(`<rect x="100" y="242" width="200" height="78" rx="10" fill="${DARK}"/>`)}<rect x="100" y="242" width="200" height="9" rx="4.5" fill="${LIT}"/><circle cx="200" cy="282" r="7" fill="${LIT}"/></g>
+    ${cut(`<rect x="88" y="314" width="224" height="12" rx="5" fill="${DARKER}"/>`)}</g>`
+  // un brazo levantado a un lado de la cabeza: la manga sube desde el hombro y arriba va la mano, abierta o con el pulgar
+  const arm = (side, kind) => {
+    const k = side === 'l' ? -1 : 1, sx = 200 + k * 104, hx = 200 + k * 140, hy = 172
+    const palm = `${cut(`<ellipse cx="${hx}" cy="${hy}" rx="21" ry="23" fill="${s}"/>`)}<path d="M${hx - 9} ${hy - 20} v14 M${hx} ${hy - 23} v15 M${hx + 9} ${hy - 20} v14" stroke="${sd}" stroke-width="3" stroke-linecap="round"/>`
+    const thumb = `${cut(`<rect x="${hx - 9}" y="${hy - 40}" width="17" height="32" rx="8" fill="${s}"/><rect x="${hx - 20}" y="${hy - 18}" width="42" height="36" rx="13" fill="${s}"/>`)}<path d="M${hx - 12} ${hy - 6} h24 M${hx - 12} ${hy + 4} h24" stroke="${sd}" stroke-width="3" stroke-linecap="round"/>`
+    return `<g class="arm arm-${side} ${kind}">${cut(`<path d="M${sx} 330 L${hx - k * 4} ${hy + 34}" stroke="${jl}" stroke-width="40" stroke-linecap="round" fill="none"/>`)}<path d="M${hx - k * 7} ${hy + 48} L${hx - k * 3} ${hy + 30}" stroke="${jd}" stroke-width="42" fill="none"/>${kind === 'thumb' ? thumb : palm}</g>`
+  }
+  // el tinto: la mano sube la taza a la boca y la baja; el vapor sale mientras está abajo
+  const mug = `<g class="prop-mug"><g class="sip">
+    ${cut(`<path d="M112 392 L146 316" stroke="${jl}" stroke-width="40" stroke-linecap="round" fill="none"/>`)}<path d="M138 330 L148 310" stroke="${jd}" stroke-width="42" fill="none"/>
+    <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="4" stroke-linecap="round"><path d="M142 232 q-7 -9 0 -18 q7 -9 0 -18"/><path d="M162 232 q-7 -9 0 -18 q7 -9 0 -18"/></g>
+    ${cut(`<path d="M126 262 q-22 0 -22 18 q0 18 22 18" fill="none" stroke="#f1e4c7" stroke-width="8"/><rect x="124" y="240" width="56" height="62" rx="9" fill="#f1e4c7"/>`)}<rect x="124" y="262" width="56" height="12" fill="#e5592a"/>
+    ${cut(`<ellipse cx="156" cy="300" rx="24" ry="15" fill="${s}"/>`)}<path d="M146 296 v9 M156 298 v9 M166 296 v9" stroke="${sd}" stroke-width="3" stroke-linecap="round"/></g></g>`
+  // las notas de quien tiene los audífonos puestos
+  const note = (x, y, cls) => `<g class="note ${cls}"><ellipse cx="${x}" cy="${y}" rx="9" ry="7" fill="${p.gear}"/><path d="M${x + 8} ${y} v-30 l16 -5 v10 l-12 4" fill="none" stroke="${p.gear}" stroke-width="5" stroke-linejoin="round" stroke-linecap="round"/></g>`
+  const notes = `<g class="prop-notes">${note(322, 96, 'n1')}${note(352, 60, 'n2')}</g>`
+  // el confeti de celebrar: papelitos de la paleta que caen girando, cada uno con su demora y su velocidad
+  const cols = ['#f2c14e', '#e5592a', '#8db3a9', '#f1e4c7', '#9b8ec7', '#c5381f']
+  let n = personSeed(p), bits = ''
+  for (let i = 0; i < 18; i++) {
+    n = (Math.imul(n, 1664525) + 1013904223) >>> 0
+    const x = -40 + (i / 17) * 480, w = 8 + (n % 9), d = ((n >>> 8) % 1400) / 1000, t = 1.5 + ((n >>> 16) % 900) / 1000
+    bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1}"/>`
+  }
+  return `${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
+}
 function person(p) {
-  if (p.species && SPECIES[p.species]) return creature(p)
+  p = completePerson(p)
+  return `<g class="rhythm" style="${personRhythm(p)}">${p.species ? creature(p) : personHuman(p)}${personHands(p)}${personProps(p)}</g>`
+}
+function personHuman(p) {
   const s = p.skin, sh = shade(s, .86)
   const h = { ...HEAD, ...(FACES[p.face] || FACES.round) }, rx = h.rx
   const hair = HAIR[p.hair](h, p.hairColor, !!p.hat)
@@ -666,7 +749,7 @@ function person(p) {
     ${p.hat && SHORT_HAIR.includes(p.hair) ? '' : cut(hair.front)}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
-    ${has('headphones') ? EXTRAS.headphones(p, h) : ''}
+    ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
 
@@ -702,6 +785,15 @@ function setTileState(el, st) {
   el.classList.toggle('muted', st !== 'talking')
   const badge = el.querySelector('.state')
   badge.textContent = STATE_LABEL[st]; badge.className = `state ${st}`
+}
+
+// LO QUE HACE MIENTRAS TANTO (aparte del gesto): '' nada, o una clave de ACTIVITIES. laptop: 'open', 'closed' o '' (sin
+// portátil). Tomar café cierra la tapa solo: nadie toma tinto encima del teclado.
+const ACTIVITIES = { coffee: 'toma tinto', music: 'con audífonos', wave: 'saluda', thumb: 'de acuerdo', celebrate: 'celebra' }
+function setTileActivity(el, activity = '', laptop = 'open') {
+  for (const k of Object.keys(ACTIVITIES)) el.classList.toggle(`act-${k}`, k === activity)
+  el.classList.toggle('has-laptop', !!laptop)
+  el.classList.toggle('lid-closed', laptop === 'closed' || activity === 'coffee')
 }
 
 // ── LOS PERSONAJES GUARDADOS ─────────────────────────────────────────────────────────────────────
@@ -747,10 +839,10 @@ function randomPerson(base = {}) {
   const beardStyle = Math.random() < .3 ? pick(keys(OPCIONES.beardStyle).filter(Boolean)) : ''
   return {
     ...base,
-    skin: pick(OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
+    skin: pick((base.species && OPCIONES.skinBy[base.species]) || OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
     nose: pick(keys(OPCIONES.nose)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
     extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
-    shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: pick(keys(OPCIONES.scene)),
+    shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: Math.random() < .8 ? pick(keys(ROOMS)) : pick(keys(OPCIONES.scene)), // casi siempre un cuarto: un paisaje con el sol del tamaño de la cabeza compite con el personaje
   }
 }
 
@@ -770,4 +862,4 @@ if (typeof document !== 'undefined' && typeof OFFICE_PAQUETE === 'undefined') {
 
 // ── PARA NODE ────────────────────────────────────────────────────────────────────────────────────
 // El CLI (office/cli/personaje.mjs) carga este mismo archivo: lo que dibuja la llamada es lo que sale del CLI.
-if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL }
+if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES }

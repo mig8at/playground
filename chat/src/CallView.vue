@@ -39,6 +39,9 @@ const props = defineProps({
   me: { type: String, default: '' },              // mi correo
   peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
+// keyOf va ARRIBA DE TODO: los watch de «entrar y salir» la usan al crearse (su getter corre en el acto); definida más
+// abajo, la llamada no abría («Cannot access 'keyOf' before initialization»)
+const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const ASPECT = 4 / 3, GAP = 10, PAD = 12, BAR = 46 // BAR: el alto de la línea de tiempo, abajo
 const box = ref(null)
 const size = ref({ w: 0, h: 0 })
@@ -175,7 +178,6 @@ const genderTitle = (c) => {
 
 // ── quién habla ───────────────────────────────────────────────────────────────────────────────────
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
-const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const byKey = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), c])))
 // quién dijo un mensaje: lo que llega es de su autor (o de su agente, `via`); lo que sale es tuyo y sólo cuenta si lo
 // mandó uno de tus agentes (`asAgent`): lo que escribís vos no se lee
@@ -355,8 +357,8 @@ const now = ref(Date.now())
 const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
-const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa'
-  : 'teclea') // los ojos, en el portátil
+const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'escucha'
+  : activityOf(c) === 'cafe' || reactionOf(c) ? 'escucha' : 'teclea') // los ojos, en el portátil; con la taza o celebrando, arriba
 
 // ── EL PORTÁTIL Y LO QUE HACEN MIENTRAS TANTO ───────────────────────────────────────────────────────────
 // Todos tienen su portátil delante (abajo, a la altura del pecho) y la mirada puesta en él. Cada uno, por su cuenta y de
@@ -380,11 +382,36 @@ const activityTimer = setInterval(() => {
   activities.value = next
 }, 3000)
 onBeforeUnmount(() => clearInterval(activityTimer))
-// el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano
-const laptopOf = (c) => (propOf(c) ? '' : activityOf(c) === 'cafe' ? 'closed' : 'open')
-// con los audífonos puestos, el dibujo los trae (la pieza `headphones` del personaje)
-const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character,
-  ...(activityOf(c) === 'audifonos' ? { extras: [...new Set([...(c.character?.extras || []), 'headphones'])] } : {}) })
+// EL PORTÁTIL, LA TAZA, LOS AUDÍFONOS Y LOS BRAZOS LOS DIBUJA EL PERSONAJE (office/personajes.js, personProps): acá
+// sólo se le dice qué hace, con los atributos `portatil` y `actividad` del componente. Antes el chat dibujaba su propio
+// portátil y su taza encima del recuadro, y para los audífonos cambiaba la config, que redibujaba el personaje entero.
+// el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano (null quita el atributo)
+const laptopOf = (c) => (propOf(c) ? null : activityOf(c) === 'cafe' ? 'cerrado' : 'abierto')
+// lo que hace: el nombrado saluda; si no, su reacción a lo que se acaba de decir; si no, su pausa (tinto o audífonos)
+const doingOf = (c) => (propOf(c) || speaking.value === keyOf(c) ? null
+  : addressed.value.has(keyOf(c)) ? 'saluda' : reactionOf(c) || activityOf(c) || null)
+const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })
+// CUANDO ALGO SALE BIEN, SE NOTA: si lo que se está diciendo trae una buena noticia, de los que escuchan unos celebran
+// (brazos arriba y confeti) y otros dan el visto bueno, unos segundos. Una vez por frase.
+// (sin \b: no entiende las tildes, y «quedó» seguido de un espacio no le parecía fin de palabra)
+const GOOD_NEWS = /(?<![a-záéíóúñ])(listo|lista|comprobado|qued[oó]|pas[oó] tod[oa]|mergead[oa]|desplegad[oa]|resuelt[oa]|arreglad[oa])(?![a-záéíóúñ])|🎉|🚀|✅|🙌/i
+const reactions = ref({}) // clave → { kind, until }
+const reactionOf = (c) => { const r = reactions.value[keyOf(c)]; return r && r.until > now.value ? r.kind : '' }
+watch(() => voice.line, (line) => {
+  // «no quedó», «todavía no está listo»: una negación cerca no es para celebrar
+  if (!line || !GOOD_NEWS.test(line) || /(^|[^a-záéíóúñ])(no|ni|sin|falta)\s+(\S+\s+){0,2}(listo|lista|qued|pas[oó]|resuelt|arreglad|comprobad|mergead|desplegad)/i.test(line)) return
+  const t = Date.now(), next = {}
+  for (const c of props.cast) {
+    const k = keyOf(c)
+    if (k === voice.speaker || propOf(c) || activityOf(c) === 'cafe') continue
+    // en un mensaje dirigido, reaccionan los nombrados; los demás siguen en lo suyo
+    if (voice.addressed.length && !voice.addressed.includes(k)) continue
+    const r = Math.random()
+    if (r < .4) next[k] = { kind: 'celebra', until: t + 2800 + Math.random() * 1600 }
+    else if (r < .7) next[k] = { kind: 'pulgar', until: t + 2400 + Math.random() * 1400 }
+  }
+  reactions.value = next
+})
 // un mensaje dirigido a alguien (con @ o por su nombre al empezar) no es con los demás: siguen en lo suyo, tecleando, un
 // poco apagados. Con @todos, o sin nombrar a nadie, todos escuchan.
 const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) && speaking.value !== keyOf(c) && !propOf(c)
@@ -435,7 +462,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name"
               :aria-label="`${c.name}${label(c) ? `, ${label(c)}` : ''}: que salude`"
               @click="greet(c)" @keydown.enter.prevent="greet(c)" @keydown.space.prevent="greet(c)">
-        <office-personaje :config="configs[keyOf(c)]" :gesto="gestureOf(c)" aria-hidden="true" />
+        <office-personaje :config="configs[keyOf(c)]" :gesto="gestureOf(c)" :portatil="laptopOf(c)" :actividad="doingOf(c)" aria-hidden="true" />
         <!-- lo que muestra: una hoja, una foto o una hoja que corre, en papel cortado como los personajes -->
         <svg v-if="propOf(c)" class="call-prop" :class="propOf(c)" viewBox="0 0 100 80" aria-hidden="true">
           <template v-if="propOf(c) === 'image'">
@@ -475,26 +502,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
-        <!-- su portátil (oscuro, la tapa lisa) y, mientras toma tinto, la taza; en papel cortado -->
-        <svg v-if="laptopOf(c)" class="call-laptop" :class="laptopOf(c)" viewBox="0 0 100 60" aria-hidden="true">
-          <g class="lid">
-            <rect x="8" y="4" width="84" height="50" rx="4" fill="#000" opacity=".25" transform="translate(2 3)" />
-            <rect x="8" y="4" width="84" height="50" rx="4" fill="#1d3d47" />
-            <rect x="8" y="4" width="84" height="5" rx="2.5" fill="#2b5560" />
-          </g>
-          <rect x="1" y="53" width="98" height="6" rx="2.5" fill="#0f2830" />
-        </svg>
-        <svg v-if="activityOf(c) === 'cafe' && !propOf(c)" class="call-mug" viewBox="0 0 100 80" aria-hidden="true">
-          <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
-            <path d="M38 22 q-5 -7 0 -14 q5 -7 0 -14" /><path d="M52 22 q-5 -7 0 -14 q5 -7 0 -14" />
-          </g>
-          <rect x="26" y="30" width="40" height="42" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
-          <path d="M66 40 q14 0 14 12 q0 12 -14 12" fill="none" stroke="#f6ecd6" stroke-width="6" />
-          <rect x="26" y="30" width="40" height="42" rx="6" fill="#f6ecd6" />
-          <rect x="26" y="44" width="40" height="8" fill="#e5592a" />
-        </svg>
-        <span v-if="activityOf(c) === 'audifonos'" class="call-notes" aria-hidden="true">♪ ♫</span>
-        <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
         <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
         <!-- cambiar el género de la voz: aparece al pasar el mouse (o con el teclado) -->
@@ -562,22 +569,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
 .call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
 .call-gender.busy { opacity: .6; }
-/* el portátil, abajo y al centro; al cerrarse, la tapa baja hasta la bisagra */
-/* ancho y hundido: se ve la mitad de arriba de la tapa, justo debajo de la barbilla (la boca o el pico se ven al
-   hablar); oscuro, del tono de los audífonos */
-.call-laptop { position: absolute; left: 50%; bottom: -22%; width: 52%; translate: -50% 0; pointer-events: none;
-  filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
-.call-laptop .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }
-.call-laptop.closed .lid { transform: scaleY(.08); }
-/* el tinto, a un lado del portátil */
-.call-mug { position: absolute; left: 7%; bottom: 3%; width: 17%; animation: act-in .35s ease-out; filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
-.call-mug .steam { animation: steam 1.6s ease-in-out infinite; }
-.call-notes { position: absolute; right: 18%; top: 14%; font-size: calc(var(--tile) * .07); font-weight: 800; color: var(--primary, #e5592a);
-  text-shadow: 0 1px 0 rgba(0,0,0,.25); animation: notes 1.4s ease-in-out infinite alternate; }
-@keyframes act-in { from { opacity: 0; translate: 0 30%; } to { opacity: 1; translate: 0 0; } }
-@keyframes steam { 0% { transform: translateY(4px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-6px); opacity: 0; } }
-@keyframes notes { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-8px) rotate(6deg); } }
-@media (prefers-reduced-motion: reduce) { .call-mug, .call-mug *, .call-notes, .call-laptop .lid { animation: none !important; transition: none !important; } }
 /* entrar y salir: el que entra crece desde el centro, el que sale se achica, y los demás se acomodan en su lugar */
 .tile-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2, .9, .3, 1.2); }
 .tile-leave-active { transition: opacity .35s ease, transform .35s ease; position: absolute; }
@@ -587,12 +578,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @media (prefers-reduced-motion: reduce) { .tile-enter-active, .tile-leave-active, .tile-move { transition: none; } }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
-/* el nombrado saluda: la mano aparece con un saltito y se mece */
-.call-wave { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
-  animation: wave-in .25s ease-out, wave 1s ease-in-out .25s infinite alternate; transform-origin: 70% 80%; }
 @keyframes wave-in { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-@keyframes wave { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
-@media (prefers-reduced-motion: reduce) { .call-wave { animation: none; } }
 /* el objeto que muestra: sube desde abajo a la altura del pecho, corrido a un lado para no tapar la cara (la boca
    tiene que verse mientras habla), un poco ladeado, y se mece apenas */
 .call-prop { position: absolute; left: 68%; bottom: -2%; width: 28%; transform: translateX(-50%) rotate(-6deg);
