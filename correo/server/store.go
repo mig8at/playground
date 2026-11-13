@@ -161,9 +161,14 @@ func (s *store) known(watch string) map[string]gmail.Message {
 
 // update deja los correos de un seguimiento y devuelve los que hay que avisar: los que no avisaron nunca, si el
 // seguimiento ya estaba estrenado. En la primera lectura todo se da por avisado: no llueven cincuenta avisos viejos.
-func (s *store) update(watch string, msgs []gmail.Message, now time.Time) []gmail.Message {
+// `query` es la búsqueda con la que se leyó: si mientras tanto se cambió (o se sacó el seguimiento), no se guarda nada.
+// Sin esto, una lectura en curso volvía a dejar los correos de la búsqueda vieja (medido el 2026-11-13).
+func (s *store) update(watch, query string, msgs []gmail.Message, now time.Time) []gmail.Message {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if i := s.indexLocked(watch); i < 0 || s.st.Watches[i].Query != query {
+		return nil
+	}
 	sort.Slice(msgs, func(i, j int) bool { return msgs[i].Date.After(msgs[j].Date) })
 	if len(msgs) > keepPerWatch {
 		msgs = msgs[:keepPerWatch]

@@ -19,9 +19,9 @@ jira_title: ""
       correos de Shopify a la vista (captura de la ventana con `make ui-shot COCKPIT=1`).
 - [ ] Ver un aviso real: un correo nuevo de un remitente seguido que avisa en macOS y, al tocarlo, abre Correo en ese
       correo. Termina con el primero que llegue (la próxima respuesta del ticket 72090155 sirve).
-- [ ] Afinar las búsquedas para que avisen sólo lo que importa: hoy «VTEX» trae también los avisos de pedidos de la
-      tienda de pruebas (`ct.vtex.com.br`) y «Shopify» los de inicio de sesión y códigos (`mailer@shopify.com`).
-      Termina con las búsquedas que Miguel decida, cambiadas desde la app.
+- [x] ~~Afinar las búsquedas~~ — 2026-11-13: Shopify `from:support@shopify.com OR from:paymentspartners@shopify.com`
+      (sin los avisos de login y códigos de mailer@) y VTEX `from:vtex.com -from:ct.vtex.com.br` (sin los pedidos de la
+      tienda de pruebas).
 
 ## Objetivo
 

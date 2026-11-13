@@ -18,18 +18,18 @@ func TestTheFirstReadDoesNotNotifyAndLaterOnlyTheNewOnes(t *testing.T) {
 	}
 	now := time.Now()
 	// Estreno: dos correos viejos. No avisa ninguno y no cuentan como sin ver.
-	if fresh := s.update("shopify", []gmail.Message{msg("a", time.Hour), msg("b", 2*time.Hour)}, now); len(fresh) != 0 {
+	if fresh := s.update("shopify", "from:shopify.com", []gmail.Message{msg("a", time.Hour), msg("b", 2*time.Hour)}, now); len(fresh) != 0 {
 		t.Fatalf("el estreno avisó %d", len(fresh))
 	}
 	if _, unread := s.view(""); unread != 0 {
 		t.Fatalf("lo de antes de estrenar cuenta como sin ver: %d", unread)
 	}
 	// Llega uno: avisa ése solo, una vez.
-	fresh := s.update("shopify", []gmail.Message{msg("c", time.Minute), msg("a", time.Hour), msg("b", 2*time.Hour)}, now)
+	fresh := s.update("shopify", "from:shopify.com", []gmail.Message{msg("c", time.Minute), msg("a", time.Hour), msg("b", 2*time.Hour)}, now)
 	if len(fresh) != 1 || fresh[0].ID != "c" {
 		t.Fatalf("tenía que avisar sólo «c»: %+v", fresh)
 	}
-	if again := s.update("shopify", []gmail.Message{msg("c", time.Minute)}, now); len(again) != 0 {
+	if again := s.update("shopify", "from:shopify.com", []gmail.Message{msg("c", time.Minute)}, now); len(again) != 0 {
 		t.Fatal("avisó dos veces el mismo correo")
 	}
 	views, unread := s.view("miguel@creditop.com")
@@ -48,7 +48,7 @@ func TestTheFirstReadDoesNotNotifyAndLaterOnlyTheNewOnes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if fresh := s2.update("shopify", []gmail.Message{msg("c", time.Minute)}, now); len(fresh) != 0 {
+	if fresh := s2.update("shopify", "from:shopify.com", []gmail.Message{msg("c", time.Minute)}, now); len(fresh) != 0 {
 		t.Fatal("después de reiniciar volvió a avisar")
 	}
 }
@@ -68,12 +68,18 @@ func TestWatchesGetASlugAndChangingTheQueryStartsOver(t *testing.T) {
 	if _, err := s.addWatch(Watch{Name: "x"}); err == nil {
 		t.Fatal("sin búsqueda no se agrega")
 	}
-	s.update(w.ID, []gmail.Message{msg("z", time.Hour)}, time.Now())
+	s.update(w.ID, "from:support@shopify.com", []gmail.Message{msg("z", time.Hour)}, time.Now())
 	w.Query = "from:shopify.com subject:ticket"
 	if _, err := s.addWatch(w); err != nil {
 		t.Fatal(err)
 	}
-	if fresh := s.update(w.ID, []gmail.Message{msg("y", time.Minute)}, time.Now()); len(fresh) != 0 {
+	if fresh := s.update(w.ID, "from:support@shopify.com", []gmail.Message{msg("x", time.Minute)}, time.Now()); fresh != nil {
+		t.Fatal("una lectura con la búsqueda vieja, que terminó después del cambio, no guarda ni avisa")
+	}
+	if got := s.known(w.ID); len(got) != 0 {
+		t.Fatalf("quedaron los correos de la búsqueda vieja: %v", got)
+	}
+	if fresh := s.update(w.ID, w.Query, []gmail.Message{msg("y", time.Minute)}, time.Now()); len(fresh) != 0 {
 		t.Fatal("con otra búsqueda se vuelve a estrenar: no avisa lo que ya había")
 	}
 	if err := s.removeWatch(w.ID); err != nil || len(s.watches()) != 2 {

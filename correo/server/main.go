@@ -99,7 +99,7 @@ func (a *app) read(notify bool) error {
 			}
 			msgs = append(msgs, m)
 		}
-		for _, m := range a.store.update(w.ID, msgs, time.Now()) {
+		for _, m := range a.store.update(w.ID, w.Query, msgs, time.Now()) {
 			if notify {
 				if err := notice(w, m); err != nil {
 					log.Printf("correo: el aviso de %s no salió: %v", m.ID, err)
