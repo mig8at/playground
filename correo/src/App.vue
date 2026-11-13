@@ -148,25 +148,21 @@ function avatarTone(m) {
 const digest = ref(null)
 const digestError = ref('')
 const digestLoading = ref(false)
-const reply = ref('') // «qué responderle»: el borrador del desglose (si vale la pena responder), editable
+// La sugerencia de respuesta se lee, se copia y se contesta en Gmail (Miguel decidió no editarla acá, 2026-11-13).
 const copied = ref(false)
-let replyTouched = false // si Miguel lo editó, un desglose nuevo no se lo pisa
 async function copyReply() {
-  try { await navigator.clipboard.writeText(reply.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
+  try { await navigator.clipboard.writeText(digest.value?.draft || ''); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
 }
 let digestFor = ''
 async function loadDigest(thread, refresh = false) {
   if (!thread) { digest.value = null; return }
-  if (thread !== digestFor) { digest.value = null; reply.value = ''; replyTouched = false }
+  if (thread !== digestFor) digest.value = null
   digestFor = thread
   digestError.value = ''
   digestLoading.value = true
   try {
     const g = await api(`/api/digest/${encodeURIComponent(thread)}${refresh ? '?refresh=1' : ''}`)
-    if (digestFor === thread) {
-      digest.value = g
-      if (!replyTouched) reply.value = g.reply ? g.draft : ''
-    }
+    if (digestFor === thread) digest.value = g
   } catch (e) {
     if (digestFor === thread) digestError.value = e.message
   } finally {
@@ -416,16 +412,21 @@ onBeforeUnmount(() => {
           </ol>
           <section class="reply" :class="{ 'is-needed': digest.reply }">
             <div class="reply-head">
-              <span>Qué responderle</span>
-              <button v-if="reply" type="button" class="btn btn-outline btn-sm" @click="copyReply">{{ copied ? 'Copiado' : 'Copiar' }}</button>
+              <span>{{ digest.reply ? 'Sugerencia de respuesta' : 'Respuesta' }}</span>
+              <div class="region-actions">
+                <button v-if="digest.reply" type="button" class="btn btn-ghost btn-xs" @click="copyReply">{{ copied ? 'Copiado' : 'Copiar' }}</button>
+                <a class="btn btn-xs" :class="digest.reply ? '' : 'btn-outline'" :href="thread?.url || openedConv?.url" target="_blank" rel="noopener" title="Abrir la conversación en Gmail para contestar">Responder en Gmail</a>
+              </div>
             </div>
             <p class="reply-why"><b>{{ digest.reply ? 'Conviene responder:' : 'No hace falta responder:' }}</b> {{ digest.replyWhy }}</p>
-            <textarea v-model="reply" class="input" :rows="digest.reply ? 10 : 3" :placeholder="digest.reply ? '' : 'Si igual querés contestar, escribilo acá.'" @input="replyTouched = true"></textarea>
-            <p v-if="digest.reply" class="hint">Lo que está entre [corchetes] lo completás vos. Se copia y se pega en Gmail (↗): nada se envía desde acá.</p>
-            <details v-if="digest.reply && digest.draftEs" class="reply-es">
-              <summary>En español</summary>
-              <pre>{{ digest.draftEs }}</pre>
-            </details>
+            <template v-if="digest.reply">
+              <pre class="reply-draft">{{ digest.draft }}</pre>
+              <p class="hint">Lo que está entre [corchetes] lo completás vos al pegarlo en Gmail.</p>
+              <details v-if="digest.draftEs" class="reply-es">
+                <summary>En español</summary>
+                <pre>{{ digest.draftEs }}</pre>
+              </details>
+            </template>
           </section>
           <p v-if="digestLoading" class="hint">Revisando si la conversación cambió…</p>
         </div>

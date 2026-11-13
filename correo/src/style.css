@@ -100,9 +100,11 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .reply.is-needed { border-color: var(--correo-pending) }
 .reply-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);
   font-size: var(--text-xs); color: var(--fg-3) }
+.reply-head a.btn { text-decoration: none } /* un enlace con forma de botón: la base no le saca el subrayado */
 .reply-why { margin: 0; font-size: var(--text-sm); line-height: 1.5 }
 .reply.is-needed .reply-why b { color: var(--correo-pending) }
-.reply textarea { resize: vertical; font-family: var(--font-sans); font-size: var(--text-sm); line-height: 1.5 }
+.reply-draft { margin: 0; padding: var(--space-3); border-radius: var(--radius-control); background: var(--muted);
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-base); line-height: 1.6 }
 .reply-es summary { cursor: pointer; font-size: var(--text-xs); color: var(--fg-3) }
 .reply-es pre { margin: var(--space-2) 0 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans);
   font-size: var(--text-sm); line-height: 1.5; color: var(--fg-2) }
