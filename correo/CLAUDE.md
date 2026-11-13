@@ -39,7 +39,18 @@ con `from:vtex.com` la homologación no salía y la lista quedaba vacía, lo que
 
 Al abrir un correo, el panel derecho muestra su hilo entero digerido: un resumen, **en qué está**, **qué sigue** (qué
 te toca o qué se espera de ellos) y cada mensaje (ellos / vos) en puntos cortos, en español aunque venga en inglés.
-Abajo, «Qué responderle», un área de texto vacía por ahora: el lugar del borrador de respuesta que venga después.
+Abajo, **«Qué responderle»**: si conviene responder y por qué, y cuando sí, el borrador.
+
+- **Sólo propone respuesta si el último mensaje es de ellos y te piden algo** (un dato, una decisión, una confirmación,
+  un archivo) o te preguntan algo. No: si lo último es tuyo (eso lo fuerza el código, diga lo que diga el modelo), si
+  es un acuse o un aviso, o si sólo cabría un «gracias» (en Zendesk y en Shopify Support un «gracias» suelto reabre el
+  ticket). Decisión de Miguel, 2026-11-13.
+- **El borrador va en el idioma del hilo** (en inglés con VTEX y Shopify), firmado «Miguel», con **su traducción al
+  español** debajo; lo que no está en el hilo queda entre [corchetes] para completar. Se edita en el panel, se copia y se
+  pega en Gmail: **nada se envía desde acá**. Si lo editaste, un desglose nuevo no te lo pisa.
+- Un desglose guardado con una versión anterior (sin borrador, `version` < 2) se rearma solo al abrirlo.
+- `CORREO_LIVE=1 go test ./correo/server -run TestLive` lo prueba contra `claude -p` con un hilo inventado donde VTEX
+  pide dos cosas (unos 7 s).
 
 - **Lo arma Claude con `claude -p`** (Claude Code de consola, la sesión de Miguel; modelo `CORREO_CLAUDE_MODEL`, por
   defecto `sonnet`), desde una carpeta neutra, **sin herramientas ni MCP** (`--tools "" --strict-mcp-config`) y sin las

@@ -37,17 +37,27 @@ type Turn struct {
 
 // Digest es el desglose de un hilo.
 type Digest struct {
-	ThreadID string    `json:"threadId"`
-	Subject  string    `json:"subject"`
-	Count    int       `json:"count"`  // cuántos mensajes tenía el hilo al armarlo
-	LastID   string    `json:"lastId"` // el último mensaje al armarlo: si cambia, se rearma
-	Summary  string    `json:"summary"`
-	Status   string    `json:"status"` // en qué está la conversación
-	Next     string    `json:"next"`   // qué te toca (o qué se espera de ellos)
-	Turns    []Turn    `json:"turns"`
+	ThreadID string `json:"threadId"`
+	Subject  string `json:"subject"`
+	Count    int    `json:"count"`  // cuántos mensajes tenía el hilo al armarlo
+	LastID   string `json:"lastId"` // el último mensaje al armarlo: si cambia, se rearma
+	Summary  string `json:"summary"`
+	Status   string `json:"status"` // en qué está la conversación
+	Next     string `json:"next"`   // qué te toca (o qué se espera de ellos)
+	Turns    []Turn `json:"turns"`
+	// La respuesta: si vale la pena contestar (Reply) y por qué, y el borrador en el idioma del hilo con su traducción
+	// al español. Sin borrador cuando lo último es tuyo, es un acuse automático o sólo cabría un «gracias».
+	Reply    bool      `json:"reply"`
+	ReplyWhy string    `json:"replyWhy"`
+	Draft    string    `json:"draft,omitempty"`
+	DraftEs  string    `json:"draftEs,omitempty"`
 	Model    string    `json:"model"`
 	At       time.Time `json:"at"`
+	Version  int       `json:"version"` // digestVersion con que se armó: uno más viejo se rearma
 }
+
+// digestVersion sube cuando cambia lo que el desglose trae (2: el borrador de respuesta, 2026-11-13).
+const digestVersion = 2
 
 type digester struct {
 	dir   string
@@ -99,7 +109,7 @@ func (d *digester) get(c *gmail.Client, thread string, force bool) (Digest, erro
 		return Digest{}, errors.New("el hilo está vacío")
 	}
 	last := msgs[len(msgs)-1]
-	if g, ok := d.cached(thread); ok && !force && g.Count == len(msgs) && g.LastID == last.ID {
+	if g, ok := d.cached(thread); ok && !force && g.Count == len(msgs) && g.LastID == last.ID && g.Version >= digestVersion {
 		return g, nil
 	}
 	g, err := digest(thread, msgs, c.Email())
@@ -145,8 +155,13 @@ const digestInstructions = `Sos el asistente de Miguel Ochoa (Creditop, una fint
 - siguiente: qué le toca a Miguel, o qué se espera de la otra parte, en una frase. Si a Miguel no le toca nada, decilo.
 - mensajes: uno por cada mensaje del hilo, en el MISMO orden e índice que te paso, con 1 a 4 puntos cortos en español: lo que dice o pide ese mensaje, con los datos concretos (números de ticket, fechas, nombres, errores, pasos). Sin saludos ni firmas. Un acuse automático se resume en un punto.
 
+- responder: true SÓLO si el último mensaje del hilo es de ellos (no de Miguel) y pide algo a Miguel (un dato, una decisión, una confirmación, un archivo, una corrección) o le hace una pregunta. false si lo último es de Miguel (se espera a ellos), si es un acuse automático o un aviso sin pedido, o si lo único que cabría es agradecer: en tickets de soporte (Zendesk, Shopify Support) un «gracias» suelto reabre el ticket y no se manda.
+- por_que: una frase en español que explique por qué conviene responder o por qué no.
+- borrador: si responder es true, la respuesta lista para pegar, EN EL IDIOMA DEL HILO (si ellos escriben en inglés, en inglés), corta, cordial y concreta, firmada «Miguel». Contesta cada pedido o pregunta; donde falte un dato que no está en el hilo, dejá un marcador entre corchetes ([confirmar la URL], [adjuntar captura]) en vez de inventarlo. Si responder es false, cadena vacía.
+- borrador_es: la traducción al español del borrador (vacía si el borrador ya está en español o no hay borrador).
+
 No inventes nada que no esté en los mensajes. Contestá SÓLO con un objeto JSON, sin texto antes ni después ni bloque de código, con esta forma:
-{"resumen": "…", "estado": "…", "siguiente": "…", "mensajes": [{"indice": 0, "puntos": ["…", "…"]}]}`
+{"resumen": "…", "estado": "…", "siguiente": "…", "mensajes": [{"indice": 0, "puntos": ["…", "…"]}], "responder": false, "por_que": "…", "borrador": "", "borrador_es": ""}`
 
 func digest(thread string, msgs []gmail.Message, me string) (Digest, error) {
 	me = strings.ToLower(me)
@@ -175,6 +190,10 @@ func digest(thread string, msgs []gmail.Message, me string) (Digest, error) {
 			Indice int      `json:"indice"`
 			Puntos []string `json:"puntos"`
 		} `json:"mensajes"`
+		Responder  bool   `json:"responder"`
+		PorQue     string `json:"por_que"`
+		Borrador   string `json:"borrador"`
+		BorradorEs string `json:"borrador_es"`
 	}
 	if err := json.Unmarshal([]byte(jsonObject(raw)), &out); err != nil {
 		return Digest{}, fmt.Errorf("Claude no devolvió el desglose en JSON: %v", err)
@@ -189,11 +208,21 @@ func digest(thread string, msgs []gmail.Message, me string) (Digest, error) {
 			}
 		}
 	}
-	return Digest{
+	g := Digest{
 		ThreadID: thread, Subject: msgs[0].Subject, Count: len(msgs), LastID: msgs[len(msgs)-1].ID,
 		Summary: strings.TrimSpace(out.Resumen), Status: strings.TrimSpace(out.Estado), Next: strings.TrimSpace(out.Siguiente),
-		Turns: turns, Model: model, At: time.Now(),
-	}, nil
+		Turns: turns, Model: model, At: time.Now(), Version: digestVersion,
+		Reply: out.Responder && strings.TrimSpace(out.Borrador) != "", ReplyWhy: strings.TrimSpace(out.PorQue),
+		Draft: strings.TrimSpace(out.Borrador), DraftEs: strings.TrimSpace(out.BorradorEs),
+	}
+	// Lo último es tuyo: no hay nada que contestar, diga lo que diga el modelo.
+	if turns[len(turns)-1].Mine {
+		g.Reply, g.Draft, g.DraftEs = false, "", ""
+		if g.ReplyWhy == "" {
+			g.ReplyWhy = "Lo último del hilo es tuyo: se espera a ellos."
+		}
+	}
+	return g, nil
 }
 
 // jsonObject saca el objeto JSON de la respuesta, por si viene envuelto en un bloque de código o con texto alrededor.

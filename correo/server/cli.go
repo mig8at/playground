@@ -231,6 +231,14 @@ func runCLI(root string, args []string) int {
 					fmt.Printf("  · %s\n", p)
 				}
 			}
+			if g.Reply {
+				fmt.Printf("\nConviene responder: %s\n\n--- borrador ---\n%s\n", g.ReplyWhy, g.Draft)
+				if g.DraftEs != "" {
+					fmt.Printf("\n--- en español ---\n%s\n", g.DraftEs)
+				}
+			} else {
+				fmt.Printf("\nNo hace falta responder: %s\n", g.ReplyWhy)
+			}
 			fmt.Printf("\n(%s, %s)\n", g.Model, g.At.Format("2006-01-02 15:04"))
 		})
 

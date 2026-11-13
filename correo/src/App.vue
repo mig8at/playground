@@ -156,17 +156,25 @@ function avatarTone(m) {
 const digest = ref(null)
 const digestError = ref('')
 const digestLoading = ref(false)
-const reply = ref('') // «qué responderle»: por ahora lo escribe Miguel; más adelante, un borrador sugerido
+const reply = ref('') // «qué responderle»: el borrador del desglose (si vale la pena responder), editable
+const copied = ref(false)
+let replyTouched = false // si Miguel lo editó, un desglose nuevo no se lo pisa
+async function copyReply() {
+  try { await navigator.clipboard.writeText(reply.value); copied.value = true; setTimeout(() => { copied.value = false }, 1500) } catch { /* sin portapapeles */ }
+}
 let digestFor = ''
 async function loadDigest(thread, refresh = false) {
   if (!thread) { digest.value = null; return }
-  if (thread !== digestFor) { digest.value = null; reply.value = '' }
+  if (thread !== digestFor) { digest.value = null; reply.value = ''; replyTouched = false }
   digestFor = thread
   digestError.value = ''
   digestLoading.value = true
   try {
     const g = await api(`/api/digest/${encodeURIComponent(thread)}${refresh ? '?refresh=1' : ''}`)
-    if (digestFor === thread) digest.value = g
+    if (digestFor === thread) {
+      digest.value = g
+      if (!replyTouched) reply.value = g.reply ? g.draft : ''
+    }
   } catch (e) {
     if (digestFor === thread) digestError.value = e.message
   } finally {
@@ -404,10 +412,19 @@ onBeforeUnmount(() => {
               <ul><li v-for="(p, i) in t.points" :key="i">{{ p }}</li></ul>
             </li>
           </ol>
-          <label class="reply">
-            <span>Qué responderle</span>
-            <textarea v-model="reply" class="input" rows="5" placeholder="Por ahora vacío: acá va a ir un borrador de respuesta."></textarea>
-          </label>
+          <section class="reply" :class="{ 'is-needed': digest.reply }">
+            <div class="reply-head">
+              <span>Qué responderle</span>
+              <button v-if="reply" type="button" class="btn btn-outline btn-sm" @click="copyReply">{{ copied ? 'Copiado' : 'Copiar' }}</button>
+            </div>
+            <p class="reply-why"><b>{{ digest.reply ? 'Conviene responder:' : 'No hace falta responder:' }}</b> {{ digest.replyWhy }}</p>
+            <textarea v-model="reply" class="input" :rows="digest.reply ? 10 : 3" :placeholder="digest.reply ? '' : 'Si igual querés contestar, escribilo acá.'" @input="replyTouched = true"></textarea>
+            <p v-if="digest.reply" class="hint">Lo que está entre [corchetes] lo completás vos. Se copia y se pega en Gmail (↗): nada se envía desde acá.</p>
+            <details v-if="digest.reply && digest.draftEs" class="reply-es">
+              <summary>En español</summary>
+              <pre>{{ digest.draftEs }}</pre>
+            </details>
+          </section>
           <p v-if="digestLoading" class="hint">Revisando si la conversación cambió…</p>
         </div>
       </div>
