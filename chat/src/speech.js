@@ -10,8 +10,10 @@
    <dominio>», un bloque de código como «(bloque de código)». Y se lee por frases, en fila. */
 import { reactive } from 'vue'
 import { readPref, savePref } from './workbench.js'
+import { DEFAULT_MAX_WORDS, forSpeech, tooLong as tooLongFor } from './voiceText.js'
 
-export const DEFAULT_MAX_WORDS = 150
+export { DEFAULT_MAX_WORDS, forSpeech }
+
 export const MAX_WORDS_OPTIONS = [80, 150, 250, 400]
 
 export const speech = reactive({
@@ -39,20 +41,7 @@ export function setRate(rate) { speech.rate = rate; savePref('chat.voice-rate', 
 export function setMaxWords(n) { speech.maxWords = n; savePref('chat.voice-max-words', n) }
 
 /** ¿Es demasiado largo para mandarlo a la voz? (el tope de palabras del perfil) */
-export const tooLong = (text) => String(text || '').split(/\s+/).filter(Boolean).length > (speech.maxWords || DEFAULT_MAX_WORDS)
-
-// El texto como se escucha.
-export function forSpeech(text) {
-  return String(text || '')
-    .replace(/```[\s\S]*?```/g, ' (bloque de código) ')
-    .replace(/https?:\/\/([^/\s)]+)[^\s)]*/g, (_, host) => ` un enlace de ${host.replace(/^www\./, '')} `)
-    .replace(/`([^`]+)`/g, '$1')
-    .replace(/\*\*([^*]+)\*\*|\*([^*\n]+)\*|_([^_\n]+)_/g, (_, a, b, c) => a || b || c)
-    .replace(/^\s*[-*•]\s+/gm, '')
-    .replace(/^\s*#+\s*/gm, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+export const tooLong = (text) => tooLongFor(text, speech.maxWords)
 
 // Frases de hasta ~300 caracteres (el servidor acepta 600 por pedido).
 function chunks(text) {

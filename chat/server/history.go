@@ -130,6 +130,7 @@ func (h *history) add(messages []cli.Message) ([]cli.Message, error) {
 	// todo lo que entra, venga del listen en vivo, de la consulta de respaldo o de lo que manda este servidor.
 	events.publish("messages", fresh)
 	go notifyFresh(fresh)
+	go syncFresh(fresh) // las conversaciones sincronizadas pasan a voz lo que llega (voice_sync.go)
 	return fresh, nil
 }
 

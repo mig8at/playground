@@ -175,6 +175,17 @@ las voces (`sfx-<nombre>.mp3`). Suenan bajito: entrar/salir, la tapa del portát
 audífonos (en bucle mientras alguien los tenga), el pop de una mención, papel/obturador/llaves al recibir algo, y un
 murmullo de oficina opcional. Dos botones en la barra de tiempo: efectos (prendidos) y ambiente (apagado). La
 interfaz pide sólo por nombre; para cambiar un sonido, se cambia su descripción en el catálogo y se borra su archivo.
+**Sincronizar** (2026-11-13, el botón ⟳ de la barra de tiempo; `chat/server/voice_sync.go`): lo que se dice en una
+conversación queda en audio ANTES de abrir la llamada. Se elige cuánto hacia atrás (1.000, 3.000, 8.000 o 20.000
+caracteres de lo que se dice; el panel calcula cuántos mensajes y el techo de créditos) y el servidor pasa eso a voz y,
+de ahí en adelante, cada mensaje que entra al chat, con la llamada cerrada o abierta. Gira con cuántos faltan; al día,
+queda del color del directo; sin sincronizar, gris. La voz y el nombre de cada personaje los manda la llamada al
+sincronizar (y los renueva si cambian con ella abierta); lo sincronizado queda anotado como la voz de ese mensaje.
+⚠ **Las frases tienen que ser idénticas** a las que pide la llamada, o no las encuentra y las vuelve a pagar: la receta
+vive en `chat/src/voiceText.js` y su copia en Go, `chat/server/voice_text.go`; `go test ./server -run
+TestVoiceTextParity` (en `chat/`) las compara con node. Si se cambia una, se cambia la otra. Gasta del mismo tope
+diario; sin créditos o sin tope, se detiene y lo dice. Medido: 1.000 caracteres de #oficina = 17 mensajes, 800
+caracteres nuevos (~160 créditos); repetirlos después no gastó nada.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al

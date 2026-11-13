@@ -8,6 +8,7 @@ package main
 //	GET  /api/voice/voices   las voces: las mejores (personas), las de personaje (animales) y las de la cuenta
 //	GET  /api/voice/species  por especie, su voz de mujer y su voz de hombre (voice_top.go)
 //	POST /api/voice          {"voice": "Laura", "text": "…"} → audio/mpeg
+//	/api/voice/sync          sincronizar una conversación: lo dicho queda en audio antes de abrir la llamada (voice_sync.go)
 //
 // Cada frase se guarda una vez (junto al historial del chat, por modelo, voz y texto): repetirla no vuelve a cobrarse.
 
@@ -58,6 +59,7 @@ func voiceCacheDir() string {
 func registerVoice(mux *http.ServeMux) {
 	registerVoiceAssign(mux)
 	registerSfx(mux)
+	registerVoiceSync(mux)
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady(), "usedToday": readBudget().Chars, "dailyLimit": dailyVoiceLimit()})
 	})

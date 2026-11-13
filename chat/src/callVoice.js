@@ -11,7 +11,8 @@
    termine el primero. Mientras suena una frase, `voice.speaker` dice quién habla y `voice.line` qué está diciendo (el
    subtítulo). */
 import { reactive } from 'vue'
-import { forSpeech, voiceBlob } from './speech.js'
+import { voiceBlob } from './speech.js'
+import { MAX_SENTENCES, sentences } from './voiceText.js'
 
 export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
@@ -45,11 +46,6 @@ const queue = []
 let busy = false
 let current = null      // el <audio> que suena
 let ctx = null, analyser = null, samples = null, raf = 0
-
-// Frases cortas: así el subtítulo cambia con lo que se oye.
-function sentences(text) {
-  return (forSpeech(text).match(/[^.!?¿¡]+[.!?]*|[¿¡][^?!]+[?!]/g) || []).map((s) => s.trim()).filter(Boolean)
-}
 
 // El analizador se arma una vez, al primer audio (después de un clic: el navegador no deja antes).
 function listen(audio) {
@@ -152,7 +148,7 @@ let generation = 0
 const MAX_QUEUE = 24
 export function say(speaker, text, v, addressed = [], prop = '', holders = []) {
   if (!voice.supported || !voice.ready || !v?.name) return true
-  const kept = sentences(text).slice(0, 20)
+  const kept = sentences(text).slice(0, MAX_SENTENCES)
   if (queue.length + kept.length > MAX_QUEUE) return false
   kept.forEach((t, i) => {
     queue.push({ speaker, text: t, voice: v, addressed, prop, holders, first: i === 0, last: i === kept.length - 1, gen: generation })

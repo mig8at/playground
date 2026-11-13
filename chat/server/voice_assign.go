@@ -105,21 +105,30 @@ func registerVoiceSaid(mux *http.ServeMux) {
 			fail(w, http.StatusBadRequest, errors.New("falta el mensaje o la voz"))
 			return
 		}
-		saidMu.Lock()
-		defer saidMu.Unlock()
-		all := readSaid()
-		if _, ok := all[id]; !ok { // lo ya anotado no se pisa: la voz con que sonó primero es la que queda
-			all[id] = voice
-			raw, _ := json.Marshal(all)
-			if err := os.MkdirAll(voiceCacheDir(), 0o755); err != nil {
-				fail(w, http.StatusInternalServerError, err)
-				return
-			}
-			if err := os.WriteFile(saidFile(), raw, 0o644); err != nil {
-				fail(w, http.StatusInternalServerError, err)
-				return
-			}
+		got, err := rememberSaid(id, voice)
+		if err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"voice": all[id]})
+		writeJSON(w, http.StatusOK, map[string]any{"voice": got})
 	})
+}
+
+// rememberSaid anota la voz con que sonó (o se sincronizó) un mensaje, sólo la primera vez, y devuelve la que quedó.
+func rememberSaid(id, voice string) (string, error) {
+	saidMu.Lock()
+	defer saidMu.Unlock()
+	all := readSaid()
+	if had, ok := all[id]; ok {
+		return had, nil
+	}
+	all[id] = voice
+	raw, _ := json.Marshal(all)
+	if err := os.MkdirAll(voiceCacheDir(), 0o755); err != nil {
+		return "", err
+	}
+	if err := writeAtomic(saidFile(), raw); err != nil {
+		return "", err
+	}
+	return voice, nil
 }

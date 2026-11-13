@@ -30,6 +30,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'v
 import { hush, refreshVoice, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
+import { callLines, spokenNames } from './voiceText.js'
+import { speech } from './speech.js'
 import { characters } from './characters/index.js'
 import { assignVoice, voiceAssign } from './voiceAssign.js'
 import { loop as sfxLoop, play as sfxPlay, setAmbient, setSfx, sfx, stopLoops } from './sfx.js'
@@ -237,13 +239,7 @@ function addressedBy(text, speakerKey) {
 }
 // el texto como se dice: cada mención por el nombre del personaje («@miguel/luigi» → «Luigi»)
 function spoken(text) {
-  return String(text || '').replace(/(^|[^\w@./-])@([a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*)?)/gi, (all, pre, handle) => {
-    const h = handle.replace(/[._-]+$/, '').toLowerCase()
-    const tail = handle.slice(h.length)
-    if (h === EVERYONE) return `${pre}todos${tail}`
-    const name = byKey.value[h]?.name || h.split('/').pop().split('.')[0]
-    return `${pre}${name.charAt(0).toUpperCase()}${name.slice(1)}${tail}`
-  })
+  return spokenNames(text, Object.fromEntries(props.cast.map((c) => [keyOf(c), c.name])))
 }
 // SILENCIADO: un mensaje gigante (o uno que no entró en la fila) no se dice; quien lo mandó lleva un 🔇 unos segundos y
 // abajo sale el aviso. Así no se gasta ElevenLabs en un mamotreto y se sabe que llegó algo para leer en el chat.
@@ -279,6 +275,80 @@ function speakMessage(m) {
   if (!say(keyOf(c), spoken(text), voiceForMessage(m, c), to, prop, holders)) { mute(keyOf(c)); return false }
   return true
 }
+
+// ── SINCRONIZAR: lo que se dice en la conversación queda en audio aunque la llamada esté cerrada ──────────────────
+// El servidor (server/voice_sync.go) pasa a voz lo último hacia atrás —hasta un tope de caracteres, para no pagar la
+// historia entera— y, de ahí en adelante, cada mensaje que entra. Así repetir es inmediato y en vivo suena de una. Le
+// pasamos la voz de cada personaje (la sabe resolver esta vista: su JSON, lo cambiado, la de su especie) y su nombre
+// (las @menciones se dicen por el nombre). Las frases salen de la misma receta (voiceText.js) a los dos lados.
+const SYNC_CHARS = [1000, 3000, 8000, 20000]
+const CREDITS_PER_CHAR = 0.2 // eleven_flash_v2_5, medido el 2026-11-12
+const syncState = ref(null)  // lo que dice el servidor de esta conversación: { on, chars, pending, done, total, spent, error }
+const syncOpen = ref(false)  // el panel para elegir cuánto hacia atrás
+const syncChars = ref(SYNC_CHARS[1])
+const syncBusy = ref(false)
+function castVoices() {
+  const voices = {}, names = {}
+  for (const c of props.cast) {
+    const v = voiceName(c)
+    if (v) voices[keyOf(c)] = v
+    names[keyOf(c)] = c.name
+  }
+  return { voices, names }
+}
+function syncBody(extra = {}) {
+  return JSON.stringify({ conversation: props.peer, me: userOf(props.me), maxWords: speech.maxWords, ...castVoices(), ...extra })
+}
+async function loadSync() {
+  try {
+    const d = await (await fetch('/api/voice/sync')).json()
+    syncState.value = d.conversations?.[String(props.peer).toLowerCase()] || null
+  } catch { /* sin servidor: el botón queda como sin sincronizar */ }
+}
+async function startSync() {
+  syncBusy.value = true
+  try {
+    const res = await fetch('/api/voice/sync', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: syncBody({ chars: syncChars.value }) })
+    const d = await res.json()
+    if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`)
+    syncState.value = d.status
+    syncOpen.value = false
+  } catch (e) { syncState.value = { ...(syncState.value || {}), error: String(e.message || e) } } finally { syncBusy.value = false }
+}
+async function stopSync() {
+  await fetch(`/api/voice/sync?conversation=${encodeURIComponent(props.peer)}`, { method: 'DELETE' }).catch(() => {})
+  await loadSync()
+  syncOpen.value = false
+}
+// lo que se pagaría: las frases de lo último hasta el tope (la misma cuenta del servidor); lo ya guardado no se cobra
+const syncPreview = computed(() => {
+  const names = castVoices().names
+  let chars = 0, count = 0
+  for (const { m } of [...timeline.value].reverse()) {
+    const n = callLines(m, names, speech.maxWords).reduce((a, l) => a + l.length, 0)
+    if (!n) continue
+    if (chars + n > syncChars.value && count) break
+    chars += n; count++
+  }
+  return { count, credits: Math.round(chars * CREDITS_PER_CHAR) }
+})
+const syncLabel = computed(() => {
+  const s = syncState.value
+  if (!s?.on) return s?.error ? `Sincronización detenida: ${s.error}` : 'Sin sincronizar: la voz se genera al reproducir. Clic para sincronizar'
+  if (s.pending > 0) return `Sincronizando: ${s.done} de ${s.total} mensajes en audio`
+  return `Sincronizada: lo que llega se pasa a voz al momento${s.error ? ` (último aviso: ${s.error})` : ''}`
+})
+function onSyncEvent(e) {
+  if (String(e.detail?.conversation || '') === String(props.peer).toLowerCase()) syncState.value = e.detail.status
+}
+onMounted(() => { loadSync(); window.addEventListener('chat:voice-sync', onSyncEvent) })
+onBeforeUnmount(() => window.removeEventListener('chat:voice-sync', onSyncEvent))
+watch(() => props.peer, loadSync)
+// con la llamada abierta y la conversación sincronizada, si cambia una voz (un ♂/♀, alguien que entró) se le avisa
+watch(() => JSON.stringify(castVoices()), (now, before) => {
+  if (now === before || !syncState.value?.on) return
+  fetch('/api/voice/sync', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: syncBody() }).catch(() => {})
+})
 
 // ── LA LÍNEA DE TIEMPO, como un directo ─────────────────────────────────────────────────────────
 // Cada mensaje que la llamada puede decir es un punto. En vivo (lo normal) suena lo que va llegando; con un clic en un
@@ -623,6 +693,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span class="tl-head" :class="{ live: mode === 'live' && scrub < 0, dragging: scrub >= 0 }" :style="{ left: `${head}%` }"></span>
         <span v-if="headLabel" class="tl-tip" :style="{ left: `${Math.min(85, Math.max(15, head))}%` }">{{ headLabel }}</span>
       </div>
+      <!-- sincronizar: lo que se dice queda en audio aunque la llamada esté cerrada (server/voice_sync.go) -->
+      <button type="button" class="tl-btn tl-sync" :class="{ on: syncState?.on, working: syncState?.on && syncState.pending > 0, idle: !syncState?.on }"
+              :aria-expanded="syncOpen" :title="syncLabel" :aria-label="syncLabel" @click="syncOpen = !syncOpen">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="fill: none"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" /></svg>
+        <span v-if="syncState?.on && syncState.pending > 0" class="tl-badge">{{ syncState.pending }}</span>
+      </button>
       <!-- los efectos de sonido y el murmullo de la oficina (sfx.js) -->
       <button type="button" class="tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
               :aria-label="sfx.on ? 'Apagar los efectos de sonido' : 'Prender los efectos de sonido'" @click="setSfx(!sfx.on)">
@@ -635,6 +711,22 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       </button>
       <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
       <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
+    </div>
+    <div v-if="syncOpen" class="call-sync" role="dialog" aria-label="Sincronizar la voz">
+      <b>Sincronizar la voz</b>
+      <p>Pasa a voz lo último de la conversación y, de ahí en adelante, todo lo que llegue, aunque la llamada esté
+        cerrada. Al reproducir, ya está listo.</p>
+      <fieldset>
+        <legend>Hacia atrás, hasta</legend>
+        <label v-for="n in SYNC_CHARS" :key="n"><input v-model="syncChars" type="radio" :value="n" /> {{ n.toLocaleString('es-CO') }} caracteres</label>
+      </fieldset>
+      <p class="call-sync-cost">≈ {{ syncPreview.count }} mensajes · hasta {{ syncPreview.credits.toLocaleString('es-CO') }} créditos (lo ya guardado no se cobra)</p>
+      <p v-if="syncState?.error" class="call-sync-error">{{ syncState.error }}</p>
+      <div class="call-sync-actions">
+        <button v-if="syncState?.on" type="button" class="tl-text" @click="stopSync">Dejar de sincronizar</button>
+        <button type="button" class="tl-text" @click="syncOpen = false">Cancelar</button>
+        <button type="button" class="tl-text primary" :disabled="syncBusy" @click="startSync">{{ syncState?.on ? 'Sincronizar de nuevo' : 'Sincronizar' }}</button>
+      </div>
     </div>
     <p v-if="arrival && !caption" class="call-caption arrival">{{ arrival }}</p>
     <p v-else-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
@@ -728,6 +820,27 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
   text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground); color: var(--background);
   pointer-events: none; }
+/* sincronizar: apagado se ve gris; sincronizando gira y lleva cuántos faltan; al día, del color del directo */
+.tl-sync { position: relative; }
+.tl-sync.idle { opacity: .55; }
+.tl-sync.on { color: var(--primary); }
+.tl-sync.working svg { animation: tl-spin 1.2s linear infinite; }
+@keyframes tl-spin { to { transform: rotate(-360deg); } }
+.tl-badge { position: absolute; top: -3px; right: -4px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; font-size: 10px; font-weight: 800;
+  line-height: 15px; background: var(--primary); color: var(--primary-foreground); }
+.call-sync { position: absolute; right: 16px; bottom: 54px; width: min(340px, calc(100% - 32px)); padding: 12px 14px; border-radius: 12px; z-index: 5;
+  background: var(--popover); color: var(--popover-foreground); border: 1px solid var(--border); box-shadow: 0 6px 24px rgba(0,0,0,.25); font-size: 13px; }
+.call-sync p { margin: 6px 0; line-height: 1.35; }
+.call-sync fieldset { border: 0; margin: 8px 0; padding: 0; display: grid; gap: 4px; }
+.call-sync legend { font-weight: 700; margin-bottom: 4px; }
+.call-sync-cost { color: var(--muted-foreground); font-size: 12px; }
+.call-sync-error { color: var(--destructive); font-size: 12px; }
+.call-sync-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 8px; }
+.tl-text { border: 1px solid var(--border); background: transparent; color: var(--foreground); border-radius: 8px; padding: 5px 10px; font-size: 12.5px; cursor: pointer; }
+.tl-text:hover { background: var(--hover); }
+.tl-text.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); }
+.tl-text:disabled { opacity: .5; cursor: default; }
+@media (prefers-reduced-motion: reduce) { .tl-sync.working svg { animation: none; } }
 .tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary); white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
 .call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));

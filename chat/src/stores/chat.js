@@ -28,6 +28,7 @@
  *
  * ⚠ El texto de un mensaje lo escribió otra persona: se guarda y se pinta como texto, nunca se interpreta.
  */
+import { isImage } from '../voiceText.js'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 
@@ -135,7 +136,7 @@ function dropDoubles(messages) {
 /* LAS IMÁGENES, COMO EN WHATSAPP: una imagen que llega se baja sola para mostrarla (hasta 15 MB, sólo png, jpg, gif y
    webp), al caché del chat y no a Descargas; la que mandás se muestra con una miniatura hecha en el navegador. */
 export const IMAGE_AUTO_MAX = 15 * 1024 * 1024
-export const isImage = (f) => /\.(png|jpe?g|gif|webp)$/i.test(f?.name || '') && (!f?.type || f.type.startsWith('image/'))
+export { isImage }
 async function thumbnailOf(file) {
   try {
     const bitmap = await createImageBitmap(file)
@@ -859,7 +860,7 @@ export const useChatStore = defineStore('chat', () => {
     // (el servidor se reinició) y se vuelve a abrir: si no, el servidor no sabría que esta pestaña está.
     lastBeat = Date.now()
     const beat = () => { lastBeat = Date.now() }
-    for (const name of ['hello', 'ping', 'messages', 'file', 'keyring']) source.addEventListener(name, beat)
+    for (const name of ['hello', 'ping', 'messages', 'file', 'keyring', 'voice-sync']) source.addEventListener(name, beat)
     clearInterval(watchdog)
     watchdog = setInterval(() => { if (Date.now() - lastBeat > 65_000) { live.value = false; openLive() } }, 15_000)
     source.addEventListener('hello', () => { live.value = true })
@@ -878,6 +879,10 @@ export const useChatStore = defineStore('chat', () => {
         const who = (k.name || k.to || '').split(/[\s@]/)[0]
         showNotice(k.kind === 'list' ? `Le pasaste a ${who} la lista de tu llavero` : `Le mandaste a ${who} las claves que pidió`)
       } catch { /* idem */ }
+    })
+    // cómo va la sincronización de voz de una conversación (server/voice_sync.go): la escucha la videollamada
+    source.addEventListener('voice-sync', (e) => {
+      try { window.dispatchEvent(new CustomEvent('chat:voice-sync', { detail: JSON.parse(e.data) })) } catch { /* lo trae la consulta */ }
     })
     source.addEventListener('read', (e) => {
       try { const r = JSON.parse(e.data); mergeRead(r.key, r.at) } catch { /* lo trae loadReads */ }

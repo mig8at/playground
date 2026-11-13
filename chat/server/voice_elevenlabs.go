@@ -41,14 +41,28 @@ func synthesizeEleven(voice, text string) (string, error) {
 	if voice == "" {
 		return "", errors.New("falta la voz de ElevenLabs del personaje")
 	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("eleven|%s|%s|%s", cfg.Model, voice, text)))
 	dir := voiceCacheDir()
-	file := filepath.Join(dir, "e-"+hex.EncodeToString(sum[:12])+".mp3")
+	file := cacheFileFor(cfg, voice, text)
 	if _, err := os.Stat(file); err == nil {
 		return file, nil
 	}
 	// dos pedidos iguales a la vez (la llamada y el ▶ del mismo mensaje, dos ventanas) generan una sola vez
 	return voiceOnce(file, func() (string, error) { return generateEleven(cfg, voice, text, dir, file) })
+}
+
+// cacheFileFor: dónde queda (o quedaría) la frase `text` dicha por `voice` con el modelo de la configuración.
+func cacheFileFor(cfg elevenlabs.Config, voice, text string) string {
+	sum := sha256.Sum256([]byte(fmt.Sprintf("eleven|%s|%s|%s", cfg.Model, voice, text)))
+	return filepath.Join(voiceCacheDir(), "e-"+hex.EncodeToString(sum[:12])+".mp3")
+}
+
+// voiceCacheFile: lo mismo, con la configuración del conector (para mirar si ya está sin generarla).
+func voiceCacheFile(voice, text string) (string, error) {
+	cfg, err := elevenlabs.LoadConfig()
+	if err != nil {
+		return "", err
+	}
+	return cacheFileFor(cfg, voice, text), nil
 }
 
 // UNA FRASE SE GENERA UNA VEZ AUNQUE LA PIDAN DOS A LA VEZ: la caché en disco evita repetirla DESPUÉS de generada,
