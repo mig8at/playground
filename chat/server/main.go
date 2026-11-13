@@ -455,6 +455,7 @@ func main() {
 		chatHistory = h
 		go h.run(5 * time.Second)
 		go followListen()
+		go syncCatchUp() // la voz de las conversaciones sincronizadas: completa su último día (voice_sync.go)
 		fmt.Printf("chat · historial en %s (%d mensajes)\n", dir, len(h.all()))
 	}
 	fmt.Printf("chat · API en http://%s\n", *addr)

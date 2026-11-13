@@ -1,24 +1,29 @@
 package main
 
-// LA VIDEOLLAMADA SINCRONIZADA: lo que se dice en una conversación queda en audio ANTES de abrir la llamada. Al
-// sincronizar una conversación (el botón de la barra de la llamada), este servidor pasa a voz lo último que se dijo
-// —hacia atrás hasta un tope de caracteres, para no pagar la historia entera— y, de ahí en adelante, cada mensaje que
-// entra por el chat (aunque la llamada esté cerrada). Así, al abrir la llamada, repetir cualquier mensaje es inmediato
-// y no cuesta, y en vivo lo que llega suena de una.
+// LA VIDEOLLAMADA SIEMPRE EN AUDIO: lo que se dice en una conversación queda en voz antes de abrir la llamada, sin
+// botón. La primera vez que se abre la llamada de una conversación, la interfaz le pasa a este servidor la voz y el
+// nombre de cada personaje (es la que sabe resolverla: su JSON, lo que se le cambió, la de su especie) y desde ahí:
 //
-// QUÉ SE DICE y con qué voz: las frases salen de la misma receta que usa la llamada (voice_text.go, la copia de
-// chat/src/voiceText.js) y la voz de cada personaje la manda la interfaz al sincronizar (es la que sabe resolverla:
-// su JSON, lo que se le cambió, la de su especie). Lo que se sincroniza queda anotado como la voz con que sonó ese
-// mensaje (voice-said.json): la llamada lo repite con ésa y encuentra cada frase ya guardada.
+//   - EN VIVO: cada mensaje que entra al chat se pasa a voz al momento, con la llamada abierta o cerrada. Si el chat
+//     estuvo cerrado, lo que quedó en cola en el servidor del equipo entra al volver y se pasa a voz igual.
+//   - EL ÚLTIMO DÍA: al abrir la llamada y al arrancar este servidor, se completa el último día con mensajes (lo que
+//     falte; lo ya guardado no se paga). Los días de antes NO se pasan solos: una conversación de semanas no se paga
+//     entera por abrirla.
+//   - UN DÍA VIEJO, AL ESCUCHARLO: si en la línea de tiempo se vuelve a un día sin audio y se le da play, la llamada
+//     pide ese día desde ese mensaje (POST con `from`) y el servidor lo va bajando por delante de lo que suena, como
+//     un video que carga; al llegar al día siguiente, la llamada pide ése.
 //
-//	GET    /api/voice/sync                       {"conversations": {"#oficina": {estado}}}
-//	POST   /api/voice/sync  {conversation, chars, maxWords, me, voices, names}   sincroniza y queda en vivo
-//	PUT    /api/voice/sync  {conversation, maxWords, me, voices, names}         sólo renueva las voces (la llamada abierta)
-//	DELETE /api/voice/sync?conversation=#oficina                                deja de sincronizar
+// QUÉ SE DICE: las frases salen de la misma receta que usa la llamada (voice_text.go, la copia de
+// chat/src/voiceText.js), y cada mensaje sincronizado queda anotado con su voz (voice-said.json): la llamada lo repite
+// con ésa y encuentra cada frase ya guardada.
 //
-//	event: voice-sync  data: {conversation, estado}   cada avance (realtime.go)
+//	GET  /api/voice/sync?conversation=#oficina   {status, ready: [ids con todo su audio]}
+//	PUT  /api/voice/sync  {conversation, maxWords, me, voices, names}   la llamada se abrió (o cambió una voz): en vivo y el último día
+//	POST /api/voice/sync  {conversation, from, …}                       bajar el día de `from`, desde ese mensaje
 //
-// Gasta del mismo tope diario que la llamada (voice_budget.go); si se acaba, la sincronización se detiene y lo dice.
+//	event: voice-sync  data: {conversation, status}   cada avance (realtime.go)
+//
+// Gasta del mismo tope diario que la llamada (voice_budget.go); si se acaba, la fila se detiene y lo dice.
 
 import (
 	"encoding/json"
@@ -33,15 +38,9 @@ import (
 	"creditop/playground/chat/cli"
 )
 
-const (
-	defaultSyncChars = 3000
-	maxSyncChars     = 50000
-)
-
 // syncConversation: lo que se guarda por conversación (voice-sync.json).
 type syncConversation struct {
 	On       bool              `json:"on"`
-	Chars    int               `json:"chars"`    // el tope hacia atrás del último pedido
 	MaxWords int               `json:"maxWords"` // el tope de palabras del perfil: lo más largo no se dice
 	Me       string            `json:"me"`       // tu usuario: lo que mandan tus agentes sale como tuyo, con `via`
 	Voices   map[string]string `json:"voices"`   // personaje → voz
@@ -49,13 +48,11 @@ type syncConversation struct {
 	Since    string            `json:"since"`    // desde cuándo está en vivo
 }
 
-// syncStatus: cómo va, para la barra de la llamada.
+// syncStatus: cómo va (para la barra de la llamada).
 type syncStatus struct {
 	syncConversation
 	Pending int    `json:"pending"` // mensajes en fila
-	Done    int    `json:"done"`    // mensajes ya en audio (de esta tanda)
-	Total   int    `json:"total"`   // mensajes de esta tanda
-	Spent   int    `json:"spent"`   // caracteres pagados en esta tanda (lo ya guardado no cuenta)
+	Spent   int    `json:"spent"`   // caracteres pagados desde que arrancó el servidor (lo ya guardado no cuenta)
 	Error   string `json:"error,omitempty"`
 }
 
@@ -65,15 +62,16 @@ type syncJob struct {
 }
 
 var (
-	syncMu    sync.Mutex
-	syncState = map[string]*syncStatus{}
-	syncQueue = make(chan syncJob, 4096)
-	syncOnce  sync.Once
+	syncMu     sync.Mutex
+	syncState  = map[string]*syncStatus{}
+	syncQueued = map[string]bool{} // id de mensaje → ya está en la fila (no se pone dos veces)
+	syncQueue  = make(chan syncJob, 4096)
+	syncOnce   sync.Once
 )
 
 func syncFile() string { return filepath.Join(voiceCacheDir(), "voice-sync.json") }
 
-// loadSync trae lo guardado la primera vez (con syncMu tomado).
+// loadSync trae lo guardado la primera vez y arranca la fila (con syncMu tomado).
 func loadSync() {
 	syncOnce.Do(func() {
 		var saved map[string]syncConversation
@@ -119,10 +117,14 @@ func speakerKey(m cli.Message, me string) string {
 	return person
 }
 
-// jobFor: lo que hay que generar de un mensaje en una conversación sincronizada (ok=false: nada).
-func jobFor(conv string, c syncConversation, m cli.Message) (syncJob, bool) {
+// jobFor: lo que hay que generar de un mensaje (ok=false: nada que decir, o su personaje no tiene voz). La voz es la
+// anotada si ya sonó (lo dicho no cambia de voz) o la de su personaje.
+func jobFor(conv string, c syncConversation, m cli.Message, said map[string]string) (syncJob, bool) {
 	key := speakerKey(m, c.Me)
-	voice := c.Voices[key]
+	voice := said[m.ID]
+	if voice == "" {
+		voice = c.Voices[key]
+	}
 	if key == "" || voice == "" {
 		return syncJob{}, false
 	}
@@ -133,40 +135,126 @@ func jobFor(conv string, c syncConversation, m cli.Message) (syncJob, bool) {
 	return syncJob{conv: conv, id: m.ID, voice: voice, lines: lines}, true
 }
 
-// syncFresh: lo que acaba de entrar al historial, a la fila si su conversación está sincronizada.
-func syncFresh(fresh []cli.Message) {
-	syncMu.Lock()
-	loadSync()
-	var jobs []syncJob
-	for _, m := range fresh {
-		conv := conversationOf(m)
-		s := syncState[conv]
-		if s == nil || !s.On {
-			continue
-		}
-		if j, ok := jobFor(conv, s.syncConversation, m); ok {
-			s.Total++
-			s.Pending++
-			jobs = append(jobs, j)
+// ready: ¿están guardadas todas sus frases?
+func (j syncJob) ready() bool {
+	for _, l := range j.lines {
+		if !voiceCached(j.voice, l) {
+			return false
 		}
 	}
-	syncMu.Unlock()
+	return true
+}
+
+// dayOf: el día (hora local) de un mensaje, «2026-11-13».
+func dayOf(m cli.Message) string {
+	t, err := time.Parse(time.RFC3339Nano, m.Time)
+	if err != nil {
+		return ""
+	}
+	return t.Local().Format("2006-01-02")
+}
+
+// conversationMessages: los mensajes de una conversación, en orden.
+func conversationMessages(conv string) []cli.Message {
+	if chatHistory == nil {
+		return nil
+	}
+	var out []cli.Message
+	for _, m := range chatHistory.all() {
+		if conversationOf(m) == conv {
+			out = append(out, m)
+		}
+	}
+	return out
+}
+
+// pendingJobs: lo que falta en audio de los mensajes dados (en orden), sin lo que ya está en la fila.
+func pendingJobs(conv string, c syncConversation, messages []cli.Message) []syncJob {
+	said := readSaidLocked()
+	var out []syncJob
+	for _, m := range messages {
+		if j, ok := jobFor(conv, c, m, said); ok && !syncQueued[m.ID] && !j.ready() {
+			out = append(out, j)
+		}
+	}
+	return out
+}
+
+// lastDay: los mensajes del último día con mensajes de la conversación.
+func lastDay(all []cli.Message) []cli.Message {
+	if len(all) == 0 {
+		return nil
+	}
+	day, i := dayOf(all[len(all)-1]), len(all)
+	for i > 0 && dayOf(all[i-1]) == day {
+		i--
+	}
+	return all[i:]
+}
+
+// dayFrom: desde el mensaje `id` hasta el final de su día.
+func dayFrom(all []cli.Message, id string) []cli.Message {
+	for i, m := range all {
+		if m.ID != id {
+			continue
+		}
+		day, j := dayOf(m), i
+		for j < len(all) && dayOf(all[j]) == day {
+			j++
+		}
+		return all[i:j]
+	}
+	return nil
+}
+
+// queueJobs pone en la fila (con syncMu tomado) y avisa.
+func queueJobs(conv string, jobs []syncJob) {
+	s := syncState[conv]
 	for _, j := range jobs {
-		enqueueSync(j)
+		select {
+		case syncQueue <- j:
+			syncQueued[j.id] = true
+			if s != nil {
+				s.Pending++
+			}
+		default: // la fila está llena (algo en un bucle): éste se genera cuando la llamada lo pida
+			if s != nil {
+				s.Error = "demasiados mensajes en fila: algunos se generan al reproducirlos"
+			}
+		}
+	}
+	if len(jobs) > 0 {
+		go publishSync(conv)
 	}
 }
 
-func enqueueSync(j syncJob) {
-	select {
-	case syncQueue <- j:
-		publishSync(j.conv)
-	default: // la fila está llena (algo en un bucle): éste queda para cuando la llamada lo pida
-		syncMu.Lock()
-		if s := syncState[j.conv]; s != nil {
-			s.Pending--
-			s.Error = "demasiados mensajes en fila: algunos se generan al reproducirlos"
+// syncFresh: lo que acaba de entrar al historial, a la fila si su conversación está sincronizada.
+func syncFresh(fresh []cli.Message) {
+	syncMu.Lock()
+	defer syncMu.Unlock()
+	loadSync()
+	byConv := map[string][]cli.Message{}
+	for _, m := range fresh {
+		conv := conversationOf(m)
+		if s := syncState[conv]; s != nil && s.On {
+			byConv[conv] = append(byConv[conv], m)
 		}
-		syncMu.Unlock()
+	}
+	for conv, ms := range byConv {
+		queueJobs(conv, pendingJobs(conv, syncState[conv].syncConversation, ms))
+	}
+}
+
+// syncCatchUp: al arrancar, cada conversación sincronizada completa su último día (lo que llegó mientras tanto entra
+// por syncFresh; esto cubre lo que quedó a medias si el servidor se cerró en la mitad).
+func syncCatchUp() {
+	syncMu.Lock()
+	defer syncMu.Unlock()
+	loadSync()
+	for conv, s := range syncState {
+		if s.On {
+			queueJobs(conv, pendingJobs(conv, s.syncConversation, lastDay(conversationMessages(conv))))
+		}
 	}
 }
 
@@ -179,7 +267,6 @@ func syncWorker() {
 		syncMu.Unlock()
 		spent, err := 0, error(nil)
 		if on {
-			// la voz con que suena este mensaje: si ya sonó antes con otra, ésa (lo dicho no cambia de voz)
 			if v, e := rememberSaid(j.id, j.voice); e == nil && v != "" {
 				j.voice = v
 			}
@@ -194,22 +281,16 @@ func syncWorker() {
 			}
 		}
 		syncMu.Lock()
+		delete(syncQueued, j.id)
 		if s := syncState[j.conv]; s != nil {
-			s.Pending--
-			if s.Pending < 0 {
+			if s.Pending--; s.Pending < 0 {
 				s.Pending = 0
 			}
-			if on {
-				s.Done++
-				s.Spent += spent
-			}
+			s.Spent += spent
 			if err != nil {
 				s.Error = err.Error()
-				// sin créditos, sin llave o sin tope: no tiene sentido seguir quemando la fila
-				if strings.Contains(err.Error(), "tope") || strings.Contains(err.Error(), "créditos") || strings.Contains(err.Error(), "llave") {
-					s.On = false
-					saveSync()
-				}
+			} else if s.Pending == 0 {
+				s.Error = ""
 			}
 		}
 		syncMu.Unlock()
@@ -229,51 +310,36 @@ func voiceCached(voice, text string) bool {
 
 func publishSync(conv string) {
 	syncMu.Lock()
-	s := syncState[conv]
-	var copy syncStatus
-	if s != nil {
-		copy = *s
+	var status syncStatus
+	if s := syncState[conv]; s != nil {
+		status = *s
 	}
 	syncMu.Unlock()
-	events.publish("voice-sync", map[string]any{"conversation": conv, "status": copy})
+	events.publish("voice-sync", map[string]any{"conversation": conv, "status": status})
 }
 
-// backfill: lo último de la conversación, hacia atrás, hasta `chars` caracteres de lo que se dice. En orden.
-func backfill(conv string, c syncConversation, chars int) []syncJob {
-	if chatHistory == nil {
-		return nil
+// readyIDs: los mensajes de la conversación que ya tienen todo su audio (con syncMu tomado).
+func readyIDs(conv string, c syncConversation) []string {
+	said := readSaidLocked()
+	out := []string{}
+	for _, m := range conversationMessages(conv) {
+		if j, ok := jobFor(conv, c, m, said); ok && j.ready() {
+			out = append(out, m.ID)
+		}
 	}
-	all := chatHistory.all()
-	var picked []syncJob
-	total := 0
-	for i := len(all) - 1; i >= 0; i-- {
-		m := all[i]
-		if conversationOf(m) != conv {
-			continue
-		}
-		j, ok := jobFor(conv, c, m)
-		if !ok {
-			continue
-		}
-		n := 0
-		for _, l := range j.lines {
-			n += len([]rune(l))
-		}
-		if total+n > chars && len(picked) > 0 {
-			break
-		}
-		total += n
-		picked = append(picked, j)
-	}
-	for a, b := 0, len(picked)-1; a < b; a, b = a+1, b-1 {
-		picked[a], picked[b] = picked[b], picked[a]
-	}
-	return picked
+	return out
+}
+
+// readSaidLocked: las voces anotadas, con su candado.
+func readSaidLocked() map[string]string {
+	saidMu.Lock()
+	defer saidMu.Unlock()
+	return readSaid()
 }
 
 type syncRequest struct {
 	Conversation string            `json:"conversation"`
-	Chars        int               `json:"chars"`
+	From         string            `json:"from"`
 	MaxWords     int               `json:"maxWords"`
 	Me           string            `json:"me"`
 	Voices       map[string]string `json:"voices"`
@@ -292,77 +358,47 @@ func (r syncRequest) valid() error {
 
 func registerVoiceSync(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
+		conv := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("conversation")))
 		syncMu.Lock()
+		defer syncMu.Unlock()
 		loadSync()
-		out := map[string]syncStatus{}
-		for k, s := range syncState {
-			out[k] = *s
-		}
-		syncMu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{"conversations": out})
-	})
-	// sincronizar: guardar las voces, quedar en vivo y poner en fila lo último hacia atrás
-	mux.HandleFunc("POST /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
-		req, ok := decodeSync(w, r)
-		if !ok {
+		s := syncState[conv]
+		if s == nil {
+			writeJSON(w, http.StatusOK, map[string]any{"status": syncStatus{}, "ready": []string{}})
 			return
 		}
-		chars := req.Chars
-		if chars <= 0 {
-			chars = defaultSyncChars
-		}
-		if chars > maxSyncChars {
-			chars = maxSyncChars
-		}
-		syncMu.Lock()
-		loadSync()
-		s := upsertSync(req)
-		s.On, s.Chars, s.Since = true, chars, time.Now().UTC().Format(time.RFC3339)
-		s.Error, s.Done, s.Total, s.Pending, s.Spent = "", 0, 0, 0, 0
-		jobs := backfill(req.Conversation, s.syncConversation, chars)
-		s.Total, s.Pending = len(jobs), len(jobs)
-		saveSync()
-		status := *s
-		syncMu.Unlock()
-		go func() {
-			for _, j := range jobs {
-				enqueueSync(j)
-			}
-			publishSync(req.Conversation)
-		}()
-		writeJSON(w, http.StatusOK, map[string]any{"status": status})
+		writeJSON(w, http.StatusOK, map[string]any{"status": *s, "ready": readyIDs(conv, s.syncConversation)})
 	})
-	// las voces cambiaron con la llamada abierta (un ♂/♀, alguien que entró): sólo se renuevan, sin volver atrás
+	// la llamada se abrió (o cambió una voz): queda en vivo y completa el último día
 	mux.HandleFunc("PUT /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
 		req, ok := decodeSync(w, r)
 		if !ok {
 			return
 		}
 		syncMu.Lock()
+		defer syncMu.Unlock()
 		loadSync()
-		s := syncState[req.Conversation]
-		if s != nil {
-			upsertSync(req)
-			saveSync()
+		s := upsertSync(req)
+		if !s.On {
+			s.On, s.Since = true, time.Now().UTC().Format(time.RFC3339)
 		}
-		var status syncStatus
-		if s != nil {
-			status = *s
-		}
-		syncMu.Unlock()
-		writeJSON(w, http.StatusOK, map[string]any{"status": status})
+		saveSync()
+		queueJobs(req.Conversation, pendingJobs(req.Conversation, s.syncConversation, lastDay(conversationMessages(req.Conversation))))
+		writeJSON(w, http.StatusOK, map[string]any{"status": *s})
 	})
-	mux.HandleFunc("DELETE /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
-		conv := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("conversation")))
-		syncMu.Lock()
-		loadSync()
-		if s := syncState[conv]; s != nil {
-			s.On = false
-			saveSync()
+	// bajar un día viejo desde un mensaje (la línea de tiempo volvió atrás y le dio play)
+	mux.HandleFunc("POST /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
+		req, ok := decodeSync(w, r)
+		if !ok {
+			return
 		}
-		syncMu.Unlock()
-		publishSync(conv)
-		writeJSON(w, http.StatusOK, map[string]any{"ok": true})
+		syncMu.Lock()
+		defer syncMu.Unlock()
+		loadSync()
+		s := upsertSync(req)
+		jobs := pendingJobs(req.Conversation, s.syncConversation, dayFrom(conversationMessages(req.Conversation), req.From))
+		queueJobs(req.Conversation, jobs)
+		writeJSON(w, http.StatusOK, map[string]any{"status": *s, "queued": len(jobs)})
 	})
 }
 

@@ -24,37 +24,67 @@ func TestSpeakerKey(t *testing.T) {
 	}
 }
 
-// Hacia atrás hasta el tope de caracteres, en orden de llegada; sólo la conversación pedida y quien tiene voz.
-func TestBackfill(t *testing.T) {
-	chatHistory, _ = openHistory(t.TempDir())
-	luigi := &cli.Via{Name: "luigi"}
-	msgs := []cli.Message{
-		{ID: "1", Dir: "out", To: "#oficina", Via: luigi, Text: "Primero de todos, que ya no entra.", Time: "2026-11-13T10:00:00Z"},
-		{ID: "2", Dir: "out", To: "#otro", Via: luigi, Text: "De otra conversación.", Time: "2026-11-13T10:01:00Z"},
-		{ID: "3", Dir: "out", To: "#oficina", Text: "Lo mío no se dice.", Time: "2026-11-13T10:02:00Z"},
-		{ID: "4", Dir: "out", To: "#oficina", Via: &cli.Via{Name: "kira"}, Text: "Kira no tiene voz.", Time: "2026-11-13T10:03:00Z"},
-		{ID: "5", Dir: "out", To: "#oficina", Via: luigi, Text: "Segundo mensaje.", Time: "2026-11-13T10:04:00Z"},
-		{ID: "6", Dir: "out", To: "#oficina", Via: luigi, Text: "Tercero y último.", Time: "2026-11-13T10:05:00Z"},
+func ids(ms []cli.Message) []string {
+	var out []string
+	for _, m := range ms {
+		out = append(out, m.ID)
 	}
-	syncState = map[string]*syncStatus{} // que el historial nuevo no dispare la sincronización guardada
-	syncOnce.Do(func() {})
-	if _, err := chatHistory.add(msgs); err != nil {
-		t.Fatal(err)
+	return out
+}
+
+func equal(a []string, b ...string) bool {
+	if len(a) != len(b) {
+		return false
 	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// Por días (hora local): solo se completa el último; un día viejo se baja desde el mensaje donde se le dio play.
+func TestSyncDays(t *testing.T) {
+	ms := []cli.Message{
+		{ID: "a1", Time: "2026-11-10T15:00:00Z"},
+		{ID: "a2", Time: "2026-11-10T16:00:00Z"},
+		{ID: "b1", Time: "2026-11-11T15:00:00Z"},
+		{ID: "b2", Time: "2026-11-11T16:00:00Z"},
+		{ID: "b3", Time: "2026-11-11T17:00:00Z"},
+		{ID: "c1", Time: "2026-11-13T15:00:00Z"},
+		{ID: "c2", Time: "2026-11-13T16:00:00Z"},
+	}
+	if got := ids(lastDay(ms)); !equal(got, "c1", "c2") {
+		t.Errorf("lastDay = %v, quería [c1 c2]", got)
+	}
+	if got := ids(dayFrom(ms, "b2")); !equal(got, "b2", "b3") {
+		t.Errorf("dayFrom(b2) = %v, quería [b2 b3]", got)
+	}
+	if got := dayFrom(ms, "zz"); got != nil {
+		t.Errorf("dayFrom de uno que no existe = %v, quería nada", ids(got))
+	}
+	if lastDay(nil) != nil {
+		t.Error("lastDay de nada debería ser nada")
+	}
+}
+
+// Qué se pone en fila: sólo los que tienen voz y algo que decir, de la conversación pedida.
+func TestJobFor(t *testing.T) {
 	c := syncConversation{Me: "miguel", Voices: map[string]string{"miguel/luigi": "Brian Latino"}, MaxWords: 150}
-	jobs := backfill("#oficina", c, 40)
-	var ids []string
-	for _, j := range jobs {
-		ids = append(ids, j.id)
+	luigi := cli.Message{ID: "1", Dir: "out", To: "#oficina", Via: &cli.Via{Name: "luigi"}, Text: "Hola. Listo."}
+	if j, ok := jobFor("#oficina", c, luigi, nil); !ok || j.voice != "Brian Latino" || len(j.lines) != 2 {
+		t.Errorf("jobFor(luigi) = %+v, %v", j, ok)
 	}
-	if len(ids) != 2 || ids[0] != "5" || ids[1] != "6" {
-		t.Fatalf("backfill con tope 40 = %v, quería [5 6]", ids)
+	// la voz con que ya sonó gana: lo dicho no cambia de voz
+	if j, _ := jobFor("#oficina", c, luigi, map[string]string{"1": "Gaby"}); j.voice != "Gaby" {
+		t.Errorf("con voz anotada = %q, quería Gaby", j.voice)
 	}
-	if all := backfill("#oficina", c, 10000); len(all) != 3 {
-		t.Fatalf("sin tope = %d mensajes, quería 3 (1, 5 y 6)", len(all))
-	}
-	// el primero siempre entra aunque solo pase el tope: si no, una conversación de mensajes largos no sincroniza nada
-	if one := backfill("#oficina", c, 1); len(one) != 1 || one[0].id != "6" {
-		t.Fatalf("con tope 1 = %v, quería sólo el último", one)
+	mine := cli.Message{ID: "2", Dir: "out", To: "#oficina", Text: "Lo mío no se dice."}
+	stranger := cli.Message{ID: "3", Dir: "out", To: "#oficina", Via: &cli.Via{Name: "kira"}, Text: "Sin voz."}
+	for _, m := range []cli.Message{mine, stranger} {
+		if _, ok := jobFor("#oficina", c, m, nil); ok {
+			t.Errorf("jobFor(%s) no debería generar nada", m.ID)
+		}
 	}
 }
