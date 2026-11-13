@@ -697,8 +697,8 @@ function watchResult(r) {
   if (key === watchKey) return
   watcher?.close(); watcher = null; live.value = false; liveCut.value = ''; watchKey = key
   if (!key || typeof EventSource === 'undefined') return
-  const es = new EventSource(`/api/watch?target=${encodeURIComponent(r.target)}&request=${encodeURIComponent(request)}&users=${users.join(',')}`)
-  watcher = es
+  const source = new EventSource(`/api/watch?target=${encodeURIComponent(r.target)}&request=${encodeURIComponent(request)}&users=${users.join(',')}`)
+  watcher = source
   es.addEventListener('hello', () => {
     // Reconectó después de un corte: el servidor compara desde AHORA, así que lo que cambió mientras tanto se relee.
     const wasCut = !!liveCut.value

@@ -702,7 +702,7 @@ function personProps(p) {
   // cerrarse, la tapa baja hasta la bisagra. Encima, tres rayitas que saltan cuando teclea (las manos quedan detrás).
   const laptop = `<g class="prop-laptop">
     <g class="keys"><path d="M166 236 v-9" /><path d="M200 234 v-11" /><path d="M234 236 v-9" /></g>
-    <g class="lid">${cut(`<rect x="100" y="242" width="200" height="78" rx="10" fill="${DARK}"/>`)}<rect x="100" y="242" width="200" height="9" rx="4.5" fill="${LIT}"/><circle cx="200" cy="282" r="7" fill="${LIT}"/></g>
+    <g class="lid">${cut(`<rect x="100" y="242" width="200" height="78" rx="10" fill="${DARK}"/>`)}<rect x="100" y="242" width="200" height="9" rx="4.5" fill="${LIT}"/></g>
     ${cut(`<rect x="88" y="314" width="224" height="12" rx="5" fill="${DARKER}"/>`)}</g>`
   // un brazo levantado a un lado de la cabeza: la manga sube desde el hombro y arriba va la mano, abierta o con el pulgar
   const arm = (side, kind) => {
