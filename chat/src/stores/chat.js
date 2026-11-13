@@ -344,10 +344,16 @@ export const useChatStore = defineStore('chat', () => {
           const c = isGroupKey(m.to) ? ensure({ email: m.to, name: m.to, group: true }) : ensure({ email: keyOf(owner) })
           const own = c.messages.find((x) => x.dir === 'out' && !x.sid && x.status === 'sending' && x.text === m.text)
           if (own) { own.sid = sid; continue }
+          // con sus adjuntos (bin/chat send "#grupo" … --file): sin esto, en un grupo el adjunto no se veía
+          const files = Array.isArray(m.files) && m.files.length ? m.files.map((f) => ({ id: f.id, name: f.name, size: f.size, type: f.type })) : null
           const pushed = push(c, { id: `cli|${sid}`, sid, re: m.re || '', dir: 'out', text: String(m.text ?? ''), time: m.time, status: 'sent',
-                    ...(m.via?.name ? { asAgent: m.via.name } : {}), ...(toAgent ? { toAgent } : {}) })
-          // Ya estaba (guardado antes en este navegador): se le completa con qué agente salió.
-          if (!pushed && m.via?.name) { const had = c.messages.find((x) => x.sid === sid); if (had && !had.asAgent) had.asAgent = m.via.name }
+                    ...(m.via?.name ? { asAgent: m.via.name } : {}), ...(toAgent ? { toAgent } : {}), ...(files ? { files } : {}) })
+          // Ya estaba (guardado antes en este navegador): se le completa con qué agente salió y sus adjuntos.
+          if (!pushed) {
+            const had = c.messages.find((x) => x.sid === sid)
+            if (had && m.via?.name && !had.asAgent) had.asAgent = m.via.name
+            if (had && files && !had.files?.length) had.files = files
+          }
           continue
         }
         if (m.agent) {

@@ -16,10 +16,16 @@
 
    LAS MENCIONES: «hola @miguel/luigi» se dice «hola Luigi» (y @todos, «todos»), y mientras suena, los nombrados
    reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. Lo que escribís vos no suena, pero si nombrás
-   a alguien, también reacciona un momento: así se ve a quién le hablás. */
+   a alguien, también reacciona un momento: así se ve a quién le hablás.
+
+   SÓLO LO CONVERSADO (callSpeech.js): de un mensaje se dicen sus primeras frases; títulos, listas, tablas y código no
+   se leen, y un adjunto se anuncia en una frase. Mientras lo dice, el personaje muestra lo que trae —una hoja (un
+   documento), una foto (una imagen) o una hoja que corre (lo largo que quedó en el chat)— y después mira hacia abajo
+   unos segundos, leyéndolo. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { hush, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
+import { forCall } from './callSpeech.js'
 import { demoLines } from './callDemo.js'
 
 const props = defineProps({
@@ -103,10 +109,20 @@ watch(() => props.messages.length, (n, old) => {
   if (!(n > old)) return
   for (const m of props.messages.slice(old)) {
     const c = speakerOf(m)
-    if (c && m.text) say(keyOf(c), spoken(m.text), c.voice, addressedBy(m.text, keyOf(c)))
+    if (c && (m.text || m.files?.length)) {
+      const { text, prop } = forCall(m)
+      if (text) say(keyOf(c), spoken(text), c.voice, addressedBy(m.text, keyOf(c)), prop)
+    }
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
 })
+// lo que muestra cada uno ahora (una hoja, una foto): callVoice dice hasta cuándo; un reloj de medio segundo lo apaga
+const now = ref(Date.now())
+const clock = setInterval(() => { now.value = Date.now() }, 500)
+onBeforeUnmount(() => clearInterval(clock))
+const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
+const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa' : 'escucha')
+
 // los que reaccionan ahora: los nombrados por quien habla, o por vos hace un momento
 const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : []), ...nudged.value]))
 
@@ -143,7 +159,30 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
               :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)) }"
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
         <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })"
-                          :gesto="speaking === keyOf(c) ? 'habla' : addressed.has(keyOf(c)) ? 'piensa' : 'escucha'" :boca="mouth(c)" />
+                          :gesto="gestureOf(c)" :boca="mouth(c)" />
+        <!-- lo que muestra: una hoja, una foto o una hoja que corre, en papel cortado como los personajes -->
+        <svg v-if="propOf(c)" class="call-prop" :class="propOf(c)" viewBox="0 0 100 80" aria-hidden="true">
+          <template v-if="propOf(c) === 'image'">
+            <rect x="14" y="10" width="72" height="62" rx="3" fill="#13323a" opacity=".25" transform="translate(3 4)" />
+            <rect x="14" y="10" width="72" height="62" rx="3" fill="#fbf6ea" />
+            <rect x="20" y="16" width="60" height="42" fill="#8fc9d9" />
+            <circle cx="66" cy="27" r="6" fill="#f2c14e" />
+            <path d="M20 58 L20 46 Q34 34 46 44 Q58 36 80 46 L80 58 Z" fill="#4f8b8a" />
+            <path d="M20 58 L20 52 Q40 46 58 54 Q70 50 80 54 L80 58 Z" fill="#2b6670" />
+          </template>
+          <template v-else>
+            <rect x="22" y="6" width="56" height="70" rx="2" fill="#13323a" opacity=".25" transform="translate(3 4)" />
+            <path d="M22 6 H66 L78 18 V76 H22 Z" fill="#f6ecd6" />
+            <path d="M66 6 V18 H78 Z" fill="#d9c9a6" />
+            <rect x="30" y="16" width="26" height="5" rx="2" fill="#e5592a" />
+            <!-- los renglones van en su propia ventana: al correr no se salen de la hoja ni pisan el título -->
+            <svg x="0" y="25" width="100" height="48" viewBox="0 25 100 48">
+              <g class="lines">
+                <rect v-for="i in 9" :key="i" x="30" :y="22 + i * 7" :width="i % 3 === 0 ? 28 : 40" height="3" rx="1.5" fill="#2b6670" opacity=".7" />
+              </g>
+            </svg>
+          </template>
+        </svg>
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c))" class="call-wave" aria-hidden="true">👋</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
@@ -185,6 +224,17 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @keyframes wave-in { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes wave { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
 @media (prefers-reduced-motion: reduce) { .call-wave { animation: none; } }
+/* el objeto que muestra: sube desde abajo a la altura del pecho, corrido a un lado para no tapar la cara (la boca
+   tiene que verse mientras habla), un poco ladeado, y se mece apenas */
+.call-prop { position: absolute; left: 68%; bottom: -2%; width: 28%; transform: translateX(-50%) rotate(-6deg);
+  animation: prop-in .35s ease-out, prop-bob 2.4s ease-in-out .35s infinite alternate; filter: drop-shadow(0 2px 0 rgba(0,0,0,.15)); }
+.call-prop.image { transform: translateX(-50%) rotate(5deg); }
+@keyframes prop-in { from { translate: 0 60%; opacity: 0; } to { translate: 0 0; opacity: 1; } }
+@keyframes prop-bob { from { translate: 0 0; } to { translate: 0 -4%; } }
+/* lo largo que quedó en el chat: los renglones corren, como quien lo va leyendo */
+.call-prop.read .lines { animation: prop-read 3s linear infinite; }
+@keyframes prop-read { from { transform: translateY(0); } to { transform: translateY(-14px); } }
+@media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines { animation: none; } }
 .call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
 .call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
   padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;

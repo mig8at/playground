@@ -18,6 +18,8 @@ export const voice = reactive({
   speaker: '',   // la clave del personaje que habla
   line: '',      // la frase que está diciendo
   addressed: [], // a quiénes les habla el mensaje que suena (las claves de los que nombró con @)
+  props: {},     // lo que muestra cada personaje (clave → { kind: 'doc'|'image'|'read', until }): mientras dice el
+                 // mensaje que lo trae y unos segundos después
   busy: false,   // si hay algo sonando o en fila
   level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
   error: '',
@@ -104,10 +106,13 @@ async function next() {
     current = audio
     listen(audio)
     voice.speaker = item.speaker; voice.line = item.text; voice.addressed = item.addressed
+    if (item.prop && item.first) voice.props = { ...voice.props, [item.speaker]: { kind: item.prop, until: Infinity } }
     const done = () => {
       URL.revokeObjectURL(url)
       if (current !== audio) return
       current = null; voice.line = ''; voice.level = 0
+      // lo que mostraba se queda unos segundos más, como quien termina de mirarlo
+      if (item.prop && item.last && voice.props[item.speaker]) voice.props = { ...voice.props, [item.speaker]: { kind: item.prop, until: Date.now() + PROP_LINGER } }
       // un respiro entre frases, y uno más largo al cambiar de turno
       setTimeout(next, item.last ? 380 : 120)
     }
@@ -122,16 +127,16 @@ async function next() {
   }
 }
 
+const PROP_LINGER = 4000
 let generation = 0
-/** Que `speaker` diga `text` con su voz. Se suma a la fila. addressed: a quiénes les habla (reaccionan mientras suena). */
-export function say(speaker, text, v, addressed = []) {
+/** Que `speaker` diga `text` con su voz. Se suma a la fila. addressed: a quiénes les habla (reaccionan mientras suena);
+    prop: lo que muestra mientras ('doc', 'image', 'read'). Lo que se dice ya viene recortado (callSpeech.js); acá sólo
+    se pone un techo por si acaso. */
+export function say(speaker, text, v, addressed = [], prop = '') {
   if (!voice.supported || !voice.ready || !v?.name) return
-  const parts = sentences(text)
-  // un mensaje largo se recorta: la videollamada lo dice, no lo lee entero
-  const kept = parts.slice(0, 4)
-  if (parts.length > kept.length) kept.push('Y sigue en el chat.')
+  const kept = sentences(text).slice(0, 4)
   kept.forEach((t, i) => {
-    queue.push({ speaker, text: t, voice: v, addressed, last: i === kept.length - 1, gen: generation })
+    queue.push({ speaker, text: t, voice: v, addressed, prop, first: i === 0, last: i === kept.length - 1, gen: generation })
   })
   prefetch()
   voice.busy = true
@@ -144,5 +149,5 @@ export function hush() {
   queue.length = 0
   if (current) { current.pause(); current.onended = null; current = null }
   cancelAnimationFrame(raf)
-  busy = false; voice.busy = false; voice.speaker = ''; voice.line = ''; voice.level = 0; voice.addressed = []
+  busy = false; voice.busy = false; voice.speaker = ''; voice.line = ''; voice.level = 0; voice.addressed = []; voice.props = {}
 }
