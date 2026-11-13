@@ -12,12 +12,14 @@ jira_title: ""
 
 ## Pendientes
 
-- [ ] Entrar a Gmail una vez con `bin/pg gmail login` (la cuenta de Miguel, sólo lectura). Termina cuando
-      `bin/pg gmail me` contesta con la cuenta. Si Google dice que la Gmail API no está habilitada, se habilita en el
-      proyecto de Google Cloud del cliente OAuth de Drive.
-      Depende de: Miguel — el login lo hace una persona.
-- [ ] Dejarla de fondo con `make correo-install` y reinstalar Cockpit (`make cockpit`) para que aparezca en la barra.
-      Termina con un correo de prueba de un remitente seguido que avisa en macOS y abre Correo al tocarlo.
+- [x] ~~Entrar a Gmail con `bin/pg gmail login`~~ — 2026-11-13, como miguel@creditop.com, después de habilitar la Gmail
+      API en el proyecto del cliente OAuth de Drive (800366725259).
+- [x] ~~Dejarla de fondo con `make correo-install`~~ — 2026-11-13: `com.creditop.correo` activo.
+- [ ] Reinstalar Cockpit (`make cockpit`) para que Correo aparezca en la barra. Termina con un correo nuevo de un
+      remitente seguido que avisa en macOS y, al tocarlo, abre Correo en ese correo.
+- [ ] Afinar las búsquedas para que avisen sólo lo que importa: hoy «VTEX» trae también los avisos de pedidos de la
+      tienda de pruebas (`ct.vtex.com.br`) y «Shopify» los de inicio de sesión y códigos (`mailer@shopify.com`).
+      Termina con las búsquedas que Miguel decida, cambiadas desde la app.
 
 ## Objetivo
 
