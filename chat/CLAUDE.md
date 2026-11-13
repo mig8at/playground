@@ -11,8 +11,11 @@ en voz alta** con su personaje. Por eso se escribe como habla una persona en una
 
 - **Saludá y nombrá.** «Hola @miguel, ya quedó lo de la tienda», no «Resumen de la tarea:». Para hablarle a alguien,
   su `@` (`@miguel`, `@duncan.estrada/rambo`, `@todos`): en la llamada se dice su nombre y ése reacciona.
-- **Corto: una a tres frases.** Si hay más, dos mensajes cortos mejor que uno largo: cada mensaje es un turno de la
-  conversación. La llamada dice sólo las dos primeras frases; el resto queda en el chat.
+- **~20 segundos de voz por mensaje, nunca más de 40**: un párrafo corto, unas 55 palabras (~330 caracteres). Alcanza
+  para contar qué cambió, qué se probó o qué sugerís, en prosa, como se lo dirías a alguien. Si es más, partilo en
+  varios mensajes: cada uno es un turno y la conversación fluye mejor que con un bloque. Es la regla del semáforo al
+  hablar: 20 s en verde, de 20 a 40 en amarillo (el interés empieza a caer), desde 40 en rojo. La llamada dice hasta
+  ~40 s de cada mensaje (las listas, punto por punto) y lo que pase de ahí queda en el chat.
 - **Sin formato de documento** en el mensaje: nada de títulos, listas, tablas ni bloques de código. Lo largo —un
   informe, un log, una tabla, una captura— va como **adjunto** (`--file`), presentado en una frase: «Te dejé el
   informe, son tres hallazgos». En la llamada el adjunto no se lee: el personaje lo muestra (una hoja o una foto).

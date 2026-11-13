@@ -130,11 +130,11 @@ async function next() {
 const PROP_LINGER = 4000
 let generation = 0
 /** Que `speaker` diga `text` con su voz. Se suma a la fila. addressed: a quiénes les habla (reaccionan mientras suena);
-    prop: lo que muestra mientras ('doc', 'image', 'read'). Lo que se dice ya viene recortado (callSpeech.js); acá sólo
-    se pone un techo por si acaso. */
+    prop: lo que muestra mientras ('doc', 'image', 'read'). Lo que se dice ya viene recortado a ~40 s (callSpeech.js);
+    acá sólo se pone un techo por si acaso. */
 export function say(speaker, text, v, addressed = [], prop = '') {
   if (!voice.supported || !voice.ready || !v?.name) return
-  const kept = sentences(text).slice(0, 4)
+  const kept = sentences(text).slice(0, 20)
   kept.forEach((t, i) => {
     queue.push({ speaker, text: t, voice: v, addressed, prop, first: i === 0, last: i === kept.length - 1, gen: generation })
   })
