@@ -29,8 +29,9 @@ const api = "http://127.0.0.1:5225"
 const cliHelp = `correo — los correos de los remitentes que se siguen (Shopify, VTEX…), por consola. Sólo lee Gmail.
 
   bin/correo watches                         qué se sigue: nombre, búsqueda de Gmail y cuántos sin ver
-  bin/correo list [seguimiento] [--unread] [--n 10]
-                                             los correos de lo que se sigue (o de uno), con su enlace a Gmail
+  bin/correo list [seguimiento] [--unread | --pending] [--n 10]
+                                             los correos de lo que se sigue (o de uno), con su estado (● sin ver,
+                                             ◐ por responder, ✓ respondido) y su enlace a Gmail
   bin/correo latest <seguimiento>            el último que llegó de ese seguimiento y hace cuánto («¿contestó VTEX?»)
   bin/correo read <id>                       un correo entero (el id lo dan list y search)
   bin/correo search --q '<búsqueda de Gmail>' [--n 20]
@@ -47,6 +48,7 @@ func runCLI(root string, args []string) int {
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "en JSON")
 	unread := fs.Bool("unread", false, "sólo los sin ver")
+	pending := fs.Bool("pending", false, "sólo los por responder (vistos, y lo último del hilo es de ellos)")
 	n := fs.Int("n", 10, "cuántos como máximo")
 	q := fs.String("q", "", "la búsqueda, con la sintaxis de Gmail")
 	name := fs.String("name", "", "el nombre del seguimiento")
@@ -92,7 +94,7 @@ func runCLI(root string, args []string) int {
 		return out(o.Watches, func() {
 			fmt.Println(src)
 			for _, w := range o.Watches {
-				fmt.Printf("%-12s %-22s %3d sin ver · %s\n", w.ID, w.Name, w.Unread, w.Query)
+				fmt.Printf("%-12s %-12s %2d sin ver · %2d por responder · %2d esta semana · %s\n", w.ID, w.Name, w.Unread, w.Pending, w.Week, w.Query)
 			}
 		})
 
@@ -153,7 +155,7 @@ func runCLI(root string, args []string) int {
 		for _, w := range watches {
 			count := 0
 			for _, m := range w.Messages {
-				if (*unread && !m.Unread) || count >= *n {
+				if (*unread && m.Status != "unread") || (*pending && m.Status != "pending") || count >= *n {
 					continue
 				}
 				list = append(list, item{w.ID, m})
@@ -330,12 +332,21 @@ func findWatch(ws []WatchView, key string) (WatchView, bool) {
 	return WatchView{}, false
 }
 
+// printMessage: un correo con su estado. ● sin ver · ◐ por responder · ✓ respondido (y cuándo).
 func printMessage(m MessageView) {
-	mark := " "
-	if m.Unread {
-		mark = "●"
+	mark, status := " ", ""
+	switch m.Status {
+	case "unread":
+		mark, status = "●", "sin ver"
+	case "pending":
+		mark, status = "◐", "por responder"
+	case "replied":
+		mark, status = "✓", "respondido el "+m.RepliedAt.Format("2006-01-02 15:04")
 	}
-	fmt.Printf("%s %s  %s\n    %s\n    id %s · %s\n", mark, m.Date.Format("2006-01-02 15:04"), sender(m.From), m.Subject, m.ID, m.URL)
+	if status != "" {
+		status = " · " + status
+	}
+	fmt.Printf("%s %s  %s%s\n    %s\n    id %s · %s\n", mark, m.Date.Format("2006-01-02 15:04"), sender(m.From), status, m.Subject, m.ID, m.URL)
 }
 
 func ago(t time.Time) string {

@@ -50,7 +50,18 @@ function go(w, m = '') {
 
 const watches = computed(() => data.value?.watches || [])
 const current = computed(() => watches.value.find((w) => w.id === watchId.value) || watches.value[0] || null)
-const messages = computed(() => current.value?.messages || [])
+const allMessages = computed(() => current.value?.messages || [])
+// El filtro de la lista: todos, sin ver, por responder o respondidos. Se recuerda.
+const STATUS = { unread: 'Sin ver', pending: 'Por responder', replied: 'Respondido' }
+const filter = ref(localStorage.getItem('correo.filter') || 'all')
+watch(filter, (v) => { try { localStorage.setItem('correo.filter', v) } catch { /* sin almacenamiento */ } })
+const counts = computed(() => {
+  const c = { all: allMessages.value.length, unread: 0, pending: 0, replied: 0 }
+  for (const m of allMessages.value) c[m.status] = (c[m.status] || 0) + 1
+  return c
+})
+const openedStatus = computed(() => opened.value && allMessages.value.find((m) => m.id === opened.value.id))
+const messages = computed(() => (filter.value === 'all' ? allMessages.value : allMessages.value.filter((m) => m.status === filter.value)))
 
 // Abrir un correo: su cuerpo, y queda visto.
 watch([messageId, () => data.value?.checkedAt], async ([id], [before]) => {
@@ -59,7 +70,7 @@ watch([messageId, () => data.value?.checkedAt], async ([id], [before]) => {
   openError.value = ''
   try {
     opened.value = await api(`/api/messages/${encodeURIComponent(id)}`)
-    const listed = messages.value.find((m) => m.id === id)
+    const listed = allMessages.value.find((m) => m.id === id)
     if (!listed || listed.unread) take(await api('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: [id] }) }))
   } catch (e) { openError.value = e.message }
 }, { immediate: false })
@@ -167,9 +178,10 @@ onBeforeUnmount(() => {
         <span v-if="data?.unread" class="count">{{ data.unread }} sin ver</span>
       </div>
       <div class="region-body">
-        <button v-for="w in watches" :key="w.id" type="button" class="row stacked" :class="{ on: current?.id === w.id }" :title="w.query" @click="go(w.id)">
+        <button v-for="w in watches" :key="w.id" type="button" class="row" :class="{ on: current?.id === w.id }" :title="w.query" @click="go(w.id)">
           <span>{{ w.name }}</span>
-          <span class="row-meta">{{ w.unread || '' }}</span>
+          <b v-if="w.pending" class="pill is-pending" :title="`${w.pending} por responder`">{{ w.pending }}</b>
+          <b v-if="w.unread" class="pill is-unread" :title="`${w.unread} sin ver`">{{ w.unread }}</b>
         </button>
         <p v-if="data && !watches.length" class="none">Sin seguimientos. Agregá uno abajo.</p>
         <div class="region-head group">
@@ -199,13 +211,23 @@ onBeforeUnmount(() => {
           <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
         </button>
       </div>
+      <div v-if="current" class="summary">
+        <span><b>{{ current.week }}</b> esta semana · <b>{{ allMessages.length }}</b> en 60 días</span>
+        <div class="filters" role="group" aria-label="Filtrar por estado">
+          <button v-for="f in ['all', 'unread', 'pending', 'replied']" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
+            {{ f === 'all' ? 'Todos' : STATUS[f] }} <span class="chip-n">{{ counts[f] || 0 }}</span>
+          </button>
+        </div>
+      </div>
       <div class="region-body">
         <p v-if="data?.error" class="none warn-text">⚠ {{ data.error }}</p>
-        <p v-if="current && !messages.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
+        <p v-if="current && allMessages.length && !messages.length" class="none">Ninguno {{ STATUS[filter]?.toLowerCase() }}.</p>
+        <p v-if="current && !allMessages.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
         <button v-for="m in messages" :key="m.id" type="button" class="mail" :class="{ on: messageId === m.id, unread: m.unread }" @click="go(current.id, m.id)">
           <span class="mail-top">
-            <i v-if="m.unread" class="unread-dot" aria-label="sin ver"></i>
+            <i v-if="m.status === 'unread'" class="unread-dot" aria-label="sin ver"></i>
             <span class="mail-from">{{ senderName(m.from) }}</span>
+            <span class="status" :class="`is-${m.status}`" :title="m.status === 'replied' ? `respondiste el ${full(m.repliedAt)}` : STATUS[m.status]">{{ m.status === 'replied' ? `Respondido ${when(m.repliedAt)}` : STATUS[m.status] }}</span>
             <span class="mail-date">{{ when(m.date) }}</span>
           </span>
           <span class="mail-subject">{{ m.subject || '(sin asunto)' }}</span>
@@ -218,7 +240,7 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
         <span>{{ opened ? 'Correo' : 'Elegí un correo' }}</span>
-        <a v-if="opened" class="region-action" :href="messages.find((m) => m.id === opened.id)?.url || `https://mail.google.com/mail/#all/${opened.threadId}`" target="_blank" rel="noopener" title="Abrir el hilo en Gmail" aria-label="Abrir el hilo en Gmail">
+        <a v-if="opened" class="region-action" :href="allMessages.find((m) => m.id === opened.id)?.url || `https://mail.google.com/mail/#all/${opened.threadId}`" target="_blank" rel="noopener" title="Abrir el hilo en Gmail" aria-label="Abrir el hilo en Gmail">
           <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
         </a>
       </div>
@@ -231,6 +253,7 @@ onBeforeUnmount(() => {
             <span>Para: {{ opened.to }}</span>
             <span v-if="opened.cc">Cc: {{ opened.cc }}</span>
             <span>{{ full(opened.date) }}</span>
+            <span v-if="openedStatus" class="status" :class="`is-${openedStatus.status}`">{{ openedStatus.status === 'replied' ? `Respondiste el ${full(openedStatus.repliedAt)}` : (openedStatus.status === 'pending' ? 'Por responder: lo último del hilo es de ellos' : 'Sin ver') }}</span>
           </div>
           <pre class="reader-body">{{ opened.body || opened.snippet }}</pre>
         </article>

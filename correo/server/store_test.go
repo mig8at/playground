@@ -95,3 +95,39 @@ func TestThreadURLOpensTheAccountThatRead(t *testing.T) {
 		t.Fatal("el remitente del aviso")
 	}
 }
+
+func TestEachMailIsUnreadPendingOrRepliedByTheThread(t *testing.T) {
+	s, err := openStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := defaultWatches[1].Query
+	now := time.Now()
+	s.update("vtex", q, nil, now) // estreno vacío: desde acá avisa
+	old := gmail.Message{ID: "a", ThreadID: "t1", Date: now.Add(-48 * time.Hour)}
+	seen := gmail.Message{ID: "b", ThreadID: "t2", Date: now.Add(-3 * time.Hour)}
+	fresh := gmail.Message{ID: "c", ThreadID: "t3", Date: now.Add(-time.Hour)}
+	s.update("vtex", q, []gmail.Message{fresh, seen, old}, now)
+	_ = s.markRead([]string{"b"}, now)
+	// t1: Miguel contestó después (desde Gmail, sin abrirlo acá). t2 y t3: lo último es de ellos.
+	me := "miguel@creditop.com"
+	s.setThreads(map[string]Thread{
+		"t1": threadOf([]gmail.Message{{From: "VTEX <support@vtexhelp.zendesk.com>", Date: old.Date}, {From: "Miguel <" + me + ">", Date: old.Date.Add(time.Hour)}}, me),
+		"t2": threadOf([]gmail.Message{{From: "Miguel <" + me + ">", Date: seen.Date.Add(-time.Hour)}, {From: "VTEX", Date: seen.Date}}, me),
+		"t3": threadOf([]gmail.Message{{From: "VTEX", Date: fresh.Date}}, me),
+	})
+	views, unread := s.view(me)
+	got := map[string]string{}
+	for _, m := range views[1].Messages {
+		got[m.ID] = m.Status
+	}
+	if got["a"] != "replied" || got["b"] != "pending" || got["c"] != "unread" {
+		t.Fatalf("estados: %v", got)
+	}
+	if views[1].Unread != 1 || views[1].Pending != 1 || unread != 1 {
+		t.Fatalf("conteos: sin ver %d (total %d), por responder %d", views[1].Unread, unread, views[1].Pending)
+	}
+	if views[1].Week != 3 {
+		t.Fatalf("los tres llegaron esta semana: %d", views[1].Week)
+	}
+}

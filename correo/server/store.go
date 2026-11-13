@@ -34,6 +34,15 @@ type state struct {
 	Read     map[string]time.Time       `json:"read"`     // id del correo → cuándo se vio en la interfaz
 	Notified map[string]time.Time       `json:"notified"` // id del correo → cuándo avisó (o se dio por visto al estrenar)
 	Primed   map[string]bool            `json:"primed"`   // el seguimiento ya pasó su primera lectura: desde ahí avisa
+	Threads  map[string]Thread          `json:"threads"`  // id del hilo → quién escribió y cuándo
+}
+
+// Thread es lo que importa de un hilo para saber si se respondió: la última vez que escribiste vos y la última que
+// escribieron ellos. Se lee del hilo entero en Gmail (format=metadata), en cada lectura.
+type Thread struct {
+	LastMine   time.Time `json:"lastMine,omitempty"`
+	LastTheirs time.Time `json:"lastTheirs,omitempty"`
+	Count      int       `json:"count"`
 }
 
 type store struct {
@@ -77,6 +86,9 @@ func openStore(dir string) (*store, error) {
 	}
 	if s.st.Primed == nil {
 		s.st.Primed = map[string]bool{}
+	}
+	if s.st.Threads == nil {
+		s.st.Threads = map[string]Thread{}
 	}
 	return s, s.saveLocked()
 }
@@ -194,6 +206,32 @@ func (s *store) update(watch, query string, msgs []gmail.Message, now time.Time)
 	return fresh
 }
 
+// setThreads guarda el estado de los hilos leídos en esta pasada.
+func (s *store) setThreads(th map[string]Thread) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for id, t := range th {
+		s.st.Threads[id] = t
+	}
+	_ = s.saveLocked()
+}
+
+// threadOf resume un hilo: la última vez de cada lado. `me` es la cuenta de la sesión.
+func threadOf(msgs []gmail.Message, me string) Thread {
+	t := Thread{Count: len(msgs)}
+	me = strings.ToLower(me)
+	for _, m := range msgs {
+		if me != "" && strings.Contains(strings.ToLower(m.From), me) {
+			if m.Date.After(t.LastMine) {
+				t.LastMine = m.Date
+			}
+		} else if m.Date.After(t.LastTheirs) {
+			t.LastTheirs = m.Date
+		}
+	}
+	return t
+}
+
 func (s *store) markRead(ids []string, now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -207,14 +245,22 @@ func (s *store) markRead(ids []string, now time.Time) error {
 type WatchView struct {
 	Watch
 	Unread   int           `json:"unread"`
+	Pending  int           `json:"pending"` // vistos y sin responder
+	Week     int           `json:"week"`    // los que llegaron en los últimos 7 días
 	Messages []MessageView `json:"messages"`
 }
 
 // MessageView es un correo en la lista.
+//
+// Status: «unread» (no se abrió en la herramienta), «pending» (se vio y en el hilo no hay nada tuyo después) o
+// «replied» (hay una respuesta tuya posterior, RepliedAt). Responder cuenta aunque no se haya abierto acá: si contestaste
+// desde Gmail, está respondido.
 type MessageView struct {
 	gmail.Message
-	Unread bool   `json:"unread"`
-	URL    string `json:"url"` // el hilo en Gmail
+	Unread    bool      `json:"unread"`
+	Status    string    `json:"status"`
+	RepliedAt time.Time `json:"repliedAt,omitempty"`
+	URL       string    `json:"url"` // el hilo en Gmail
 }
 
 func (s *store) view(account string) ([]WatchView, int) {
@@ -224,11 +270,29 @@ func (s *store) view(account string) ([]WatchView, int) {
 	total := 0
 	for _, w := range s.st.Watches {
 		v := WatchView{Watch: w}
+		weekAgo := time.Now().AddDate(0, 0, -7)
 		for _, m := range s.st.Messages[w.ID] {
 			_, read := s.st.Read[m.ID]
 			mv := MessageView{Message: m, Unread: !read, URL: threadURL(account, m.ThreadID)}
-			if mv.Unread {
+			if t := s.st.Threads[m.ThreadID]; t.LastMine.After(m.Date) {
+				mv.RepliedAt = t.LastMine
+			}
+			switch {
+			case !mv.RepliedAt.IsZero():
+				mv.Status = "replied"
+			case mv.Unread:
+				mv.Status = "unread"
+			default:
+				mv.Status = "pending"
+			}
+			if mv.Unread && mv.Status != "replied" {
 				v.Unread++
+			}
+			if mv.Status == "pending" {
+				v.Pending++
+			}
+			if m.Date.After(weekAgo) {
+				v.Week++
 			}
 			v.Messages = append(v.Messages, mv)
 		}

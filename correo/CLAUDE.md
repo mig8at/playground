@@ -15,8 +15,8 @@ arriba (lee cada minuto) y si no, de lo guardado; `read` y `search` van directo 
 
 | comando | contesta |
 |---|---|
-| `bin/correo watches` | qué se sigue: id, nombre, búsqueda de Gmail y cuántos sin ver |
-| `bin/correo list [seguimiento] [--unread] [--n 10]` | los correos de lo que se sigue, con id y enlace al hilo en Gmail |
+| `bin/correo watches` | qué se sigue: id, nombre, búsqueda, cuántos sin ver, por responder y de esta semana |
+| `bin/correo list [seguimiento] [--unread \| --pending] [--n 10]` | los correos de lo que se sigue, con su estado, id y enlace al hilo en Gmail |
 | `bin/correo latest <seguimiento>` | el último de ellos, hace cuánto, y **quién escribió último en el hilo**: si fuiste vos, «se espera a ellos»; si fueron ellos, «te toca contestar» |
 | `bin/correo read <id>` | un correo entero |
 | `bin/correo search --q '<búsqueda de Gmail>'` | cualquier búsqueda, se siga o no |
@@ -33,6 +33,19 @@ con `from:vtex.com` la homologación no salía y la lista quedaba vacía, lo que
 Usa la sesión de **`bin/pg gmail login`** (`connectors/gmail`, permiso `gmail.readonly`, el mismo cliente OAuth que
 Drive): no puede mandar, borrar ni marcar nada en Gmail. «Visto» es de esta herramienta (`correo/.data/state.json`) y
 no cambia el leído de Gmail. Para contestar, el enlace ↗ abre el hilo en Gmail.
+
+## Sin ver, por responder, respondido
+
+Cada correo tiene uno de tres estados (`MessageView.Status`, en `server/store.go`):
+
+- **Sin ver**: no se abrió en la herramienta.
+- **Por responder**: se vio, y en su hilo no hay nada tuyo después.
+- **Respondido**: en el hilo hay un correo tuyo posterior (`RepliedAt`). Cuenta aunque se haya contestado desde Gmail
+  sin abrirlo acá.
+
+Para eso, cada lectura pide en Gmail el hilo entero de lo que se muestra (`format=metadata`, `connectors/gmail`
+`Thread`) y guarda la última vez que escribiste vos y la última que escribieron ellos (`state.json`, `threads`). Cada
+seguimiento cuenta sus sin ver, sus por responder y los de los últimos 7 días; la lista se filtra por estado.
 
 ## Cómo decide qué avisar
 

@@ -99,6 +99,19 @@ func (a *app) read(notify bool) error {
 			}
 			msgs = append(msgs, m)
 		}
+		// Los hilos de lo que se muestra: quién escribió último, para saber si se respondió.
+		threads := map[string]Thread{}
+		for _, m := range msgs {
+			if _, done := threads[m.ThreadID]; done {
+				continue
+			}
+			th, err := c.Thread(ctx, m.ThreadID)
+			if err != nil {
+				return fmt.Errorf("%s: %w", w.Name, err)
+			}
+			threads[m.ThreadID] = threadOf(th, c.Email())
+		}
+		a.store.setThreads(threads)
 		for _, m := range a.store.update(w.ID, w.Query, msgs, time.Now()) {
 			if notify {
 				if err := notice(w, m); err != nil {
