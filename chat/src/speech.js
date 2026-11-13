@@ -29,9 +29,9 @@ if (speech.supported) {
   fetch('/api/voice/voices').then((r) => r.json()).then((d) => { speech.voices = d.voices || [] }).catch(() => {})
 }
 
-// La que se usa si no elegiste: Lina (colombiana), si está; si no, la primera.
+// La que se usa si no elegiste: Cristina Campos, la voz en español más usada de ElevenLabs (chat/server/voice_top.go).
 export function defaultVoice() {
-  return (speech.voices.find((v) => v.name === 'Lina') || speech.voices[0])?.name || 'Lina'
+  return (speech.voices.find((v) => v.name === 'Cristina Campos') || speech.voices[0])?.name || 'Cristina Campos'
 }
 
 export function setVoice(name) { speech.voice = name; savePref('chat.voice-eleven', name || undefined) }

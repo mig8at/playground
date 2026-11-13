@@ -102,6 +102,9 @@ func generateEleven(cfg elevenlabs.Config, voice, text, dir, file string) (strin
 	}
 	id, known := elevenIDs[voice]
 	elevenMu.Unlock()
+	if top := topVoiceID(voice); top != "" { // una de las mejores (voice_top.go): va por su id, sin buscarla en la cuenta
+		id, known = top, true
+	}
 	cl := elevenlabs.New(cfg)
 	if !known {
 		if id, err = cl.VoiceID(voice); err != nil {
@@ -177,7 +180,7 @@ func elevenVoiceList() ([]map[string]string, error) {
 	file := filepath.Join(voiceCacheDir(), "voice-list.json")
 	var saved savedVoiceList
 	if raw, err := os.ReadFile(file); err == nil && json.Unmarshal(raw, &saved) == nil && time.Since(saved.Fetched) < voiceListTTL && len(saved.Voices) > 0 {
-		elevenList, elevenListAt = saved.Voices, saved.Fetched
+		elevenList, elevenListAt = withTopVoices(saved.Voices), saved.Fetched
 		return elevenList, nil
 	}
 	cfg, err := elevenlabs.LoadConfig()
@@ -187,7 +190,7 @@ func elevenVoiceList() ([]map[string]string, error) {
 	voices, err := elevenlabs.New(cfg).Voices()
 	if err != nil {
 		if len(saved.Voices) > 0 {
-			return saved.Voices, nil // sin red o sin cupo: la lista de ayer sirve
+			return withTopVoices(saved.Voices), nil // sin red o sin cupo: la lista de ayer sirve
 		}
 		return nil, elevenFriendly(err)
 	}
@@ -197,10 +200,26 @@ func elevenVoiceList() ([]map[string]string, error) {
 		name := strings.TrimSpace(strings.SplitN(v.Name, " - ", 2)[0])
 		out = append(out, map[string]string{"name": name, "gender": v.Labels["gender"], "accent": v.Labels["accent"], "description": v.Name})
 	}
-	elevenList, elevenListAt = out, time.Now()
+	elevenList, elevenListAt = withTopVoices(out), time.Now()
 	if raw, err := json.Marshal(savedVoiceList{Fetched: elevenListAt, Voices: out}); err == nil {
 		_ = os.MkdirAll(voiceCacheDir(), 0o755)
 		_ = os.WriteFile(file, raw, 0o644)
 	}
 	return out, nil
+}
+
+// withTopVoices: primero las mejores voces (voice_top.go, con su puesto en "top"), después las de la cuenta que no estén.
+func withTopVoices(account []map[string]string) []map[string]string {
+	out := make([]map[string]string, 0, len(topVoices)+len(account))
+	seen := map[string]bool{}
+	for i, v := range topVoices {
+		out = append(out, map[string]string{"name": v.Name, "gender": v.Gender, "accent": v.Accent, "description": v.Tone, "top": fmt.Sprint(i + 1)})
+		seen[v.Name] = true
+	}
+	for _, v := range account {
+		if !seen[v["name"]] {
+			out = append(out, v)
+		}
+	}
+	return out
 }

@@ -75,7 +75,8 @@ const compact = computed(() => layout.value.w < 220)
 // Cada personaje habla con la voz de su JSON, salvo que se le haya cambiado (voice-assign.json en el servidor, que vale
 // en el navegador y en Cockpit). Cambiar de género le da la PRIMERA VOZ LIBRE del otro: en la lista de voces de
 // ElevenLabs (guardada en el servidor), primero las colombianas, después las latinas y después las demás, por nombre;
-// libre = que no la use ningún personaje (de esta llamada o de otra). Si la del JSON es del género pedido y está libre,
+// libre = que no la use ningún personaje (de esta llamada o de otra). Primero van las mejores voces en español (el
+// ranking de uso de ElevenLabs, chat/server/voice_top.go). Si la del JSON es del género pedido y está libre,
 // vuelve a ésa.
 const voiceList = ref([])
 fetch('/api/voice/voices').then((r) => r.json()).then((d) => { voiceList.value = d.voices || [] }).catch(() => {})
@@ -120,7 +121,8 @@ function freeVoice(gender, c) {
   const used = usedVoices(c)
   const own = findVoice(c.voice?.name)?.name || c.voice?.name
   const candidates = voiceList.value.filter((v) => v.gender === gender)
-    .sort((a, b) => ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
+    // primero las mejores (su puesto en el ranking de ElevenLabs: voice_top.go), después por acento y nombre
+    .sort((a, b) => (Number(a.top) || 999) - (Number(b.top) || 999) || ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
   // la de su JSON primero, si es de ese género y nadie la usa
   if (own && candidates.some((v) => v.name === own) && !used.has(own)) return own
   return (candidates.find((v) => !used.has(v.name)) || candidates[0])?.name || ''
