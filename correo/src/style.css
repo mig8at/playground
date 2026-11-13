@@ -14,7 +14,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   font-family: var(--font-sans); font-size: var(--text-base) }
 #app { height: 100% }
 
-.workbench { grid-template-columns: 0 var(--sidebar-w, 240px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
 
 .mail { display: grid; gap: 2px; width: calc(100% - 2 * var(--space-1)); padding: var(--space-2); text-align: left;
   border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-sm) }
