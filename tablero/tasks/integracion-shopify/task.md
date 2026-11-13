@@ -78,10 +78,10 @@ ramas: shopify:core-801, core-689-shopify-platform
       `creditop-offsite` (el `uid` cambia: es otra app). La app actual (317076176897) es custom, no pasa por
       revisión y Shopify no la puede cambiar (Patrick, Shopify Support, 2026-11-13). Termina con la app pública
       instalada en `creditop-dev-store` y una compra de prueba que cierra.
-- [ ] Recibir de Shopify, por correo (Miguel en copia), el número de caso y la confirmación de que el acuerdo de
-      reparto de ingresos figura firmado para el Partner ID 4296643; termina con las dos respuestas escritas acá.
-      Sin el acuerdo firmado, Shopify rechaza la revisión.
-      Depende de: Shopify — el equipo al que Patrick escaló el caso el 2026-11-13.
+- [ ] Recibir de Shopify, en el ticket **72090155** de Shopify Support (support@shopify.com, Miguel en copia: se
+      comenta respondiendo el correo), la confirmación de que el acuerdo de reparto de ingresos figura firmado para el
+      Partner ID 4296643. Termina con la respuesta escrita acá. Sin el acuerdo firmado, Shopify rechaza la revisión.
+      Depende de: Shopify — Payments Partnerships, a quien Patrick escaló el caso el 2026-11-13.
 - [ ] Pedir la revisión de la app pública desde su página en el Partner Dashboard, con la versión apuntando a
       producción (no a `shopify-app.dev.creditop.com`). Termina con la app en revisión.
       Depende de: la copia pública y la confirmación del acuerdo.

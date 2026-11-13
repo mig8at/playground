@@ -142,6 +142,8 @@ I added miguel@creditop.com as a CC.
   pública. Hay que crear **una copia pública** con la CLI y mandar ESA a revisión. Los permisos de pagos de la cuenta
   Partner pasan solos a la app nueva («should carry over», según Patrick).
 - La revisión se pide desde la app pública nueva, en el Partner Dashboard.
-- **Miguel quedó en copia** (miguel@creditop.com). El número de caso llega por correo después del chat.
+- **Miguel quedó en copia** (miguel@creditop.com) del **ticket 72090155** de Shopify Support (correo de
+  support@shopify.com, 13:37 hora de Colombia, con la transcripción oficial). Para comentar, se responde ese correo.
+  Patrick cerró diciendo que la confirmación del acuerdo sigue por correo con Payments Partnerships.
 - **El acuerdo de reparto de ingresos no lo pudo validar**: lo escaló al equipo que puede, que contesta por correo.
 - Sin respuesta: qué hacer con la app custom actual.
