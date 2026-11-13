@@ -33,6 +33,7 @@ type Proposal struct {
 	PulseSlots int           `json:"pulseSlots"` // tramos de 5′ con cambios en el pulso dentro del lapso
 	Commits    []repoCommits `json:"commits"`
 	JarvisRuns []jarvisRun   `json:"jarvisRuns,omitempty"` // lo que se corrió con Jarvis en el lapso (jarvis.go)
+	Mail       []mailEvent   `json:"mail,omitempty"`       // los correos de `correo:` que llegaron o respondiste en el lapso (correo.go)
 	BlockTitle string        `json:"blockTitle"`
 	BlockBody  string        `json:"blockBody"`
 	BlockCmd   string        `json:"blockCmd"`
@@ -201,6 +202,7 @@ func propose(data string, t task, now time.Time, playground, reposDir string) (P
 	_, p.PulseSlots = pulseSince(data, since)
 	p.Commits = taskCommits(playground, reposDir, t, since)
 	p.JarvisRuns = jarvisRuns(playground, since, now)
+	p.Mail = mailEvents(playground, t.Mail, since, now)
 	if len(p.Commits) == 0 {
 		p.Notes = append(p.Notes, "no hay commits de la tarea en el lapso: si el trabajo fue correr o leer, el bloque nombra el comando y lo que dio")
 	}
@@ -220,6 +222,7 @@ func propose(data string, t task, now time.Time, playground, reposDir string) (P
 		body.WriteString("\n")
 	}
 	body.WriteString(jarvisSection(p.JarvisRuns))
+	body.WriteString(mailSection(t.Mail, p.Mail))
 	p.BlockBody = strings.TrimSpace(body.String())
 	p.BlockCmd = fmt.Sprintf("bin/pg tarea bloque --tarea %d --seco --titulo %s --cuerpo %s", t.ID, shellQuote(p.BlockTitle), shellQuote(p.BlockBody))
 	p.WorklogCmd = fmt.Sprintf("bin/pg bitacora add --tarea %d --lapso %s-%s --titulo %s --nota %s", t.ID, p.Since, p.Until,
@@ -245,6 +248,12 @@ func printProposal(p Proposal) {
 				line += " · flujo"
 			}
 			fmt.Println(line + "\n      " + r.URL)
+		}
+	}
+	if len(p.Mail) > 0 {
+		fmt.Println("\n  correo de la tarea en el lapso:")
+		for _, e := range p.Mail {
+			fmt.Printf("    %s %s · %s\n", e.At.Format("15:04"), e.What, e.Subject)
 		}
 	}
 	for _, n := range p.Notes {

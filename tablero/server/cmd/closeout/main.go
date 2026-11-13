@@ -62,6 +62,7 @@ type task struct {
 	Archived bool
 	Branches []string // los patrones de `ramas:`, ya partidos por coma
 	Jira     []string // las claves de `jira:`: el vínculo que pinta su documento en el tablero
+	Mail     []string // los seguimientos de Correo de `correo:` (correo.go)
 	Body     string
 	Path     string
 }
@@ -198,6 +199,12 @@ func readTaskFile(path string) (task, error) {
 			for _, p := range strings.Split(value(l), ",") {
 				if p = strings.TrimSpace(p); p != "" {
 					t.Branches = append(t.Branches, p)
+				}
+			}
+		case strings.HasPrefix(l, "correo:"):
+			for _, k := range strings.Split(strings.Trim(value(l), "[]"), ",") {
+				if k = strings.Trim(strings.TrimSpace(k), `"'`); k != "" {
+					t.Mail = append(t.Mail, k)
 				}
 			}
 		}

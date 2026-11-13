@@ -34,7 +34,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `nivel?` (`miguel`|`playground`|`creditop`) · `stage` (`evaluation`|`work`|`tasks`) ·
-  `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
+  `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?` · `chat[]?` · `correo[]?`. Archivar es poner `archived`,
   no mover el archivo. **`id: 0` no aparece en el tablero.**
 - **`recorrido:`** dice en qué camino de la plataforma cae la tarea, con los ids del catálogo del harness
   (`harness/journeys.json`, explicado en `knowledge/origination-paths`):
@@ -186,7 +186,8 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en el playground,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
-flujo), ya escritas en el cuerpo del bloque como `jarvis:<id>`. Jarvis no sabe de tareas ni escribe en el tablero
+flujo), ya escritas en el cuerpo del bloque como `jarvis:<id>`, y **el correo de la tarea** (`correo:`): lo que llegó de
+esos remitentes y lo que respondiste en el lapso, con el enlace a Gmail. Jarvis no sabe de tareas ni escribe en el tablero
 (decisión de Miguel, 2026-11-13): el cierre las lee, y como el lapso tampoco sabe de tareas, quien escribe el
 bloque saca las ajenas. No escribe nada: el título del bloque es la conclusión y la pone quien
 trabajó.
@@ -223,6 +224,11 @@ no se escribe a mano. Se lee con `make pulso`. El pulso dice **cuándo**; la bit
 `make tareas TODAS=1` → `make retomar N=<id>`: pila, documento y los temas locales declarados en
 `knowledge:`. Acepta `lender-listing` o `lender-listing#ancla`. Lee `knowledge/<topic>/rules.md` y sus
 fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, sin cortar una regla.
+
+`correo:` dice qué seguimientos de la herramienta Correo (`correo/`) son de la tarea (`correo: [vtex]`): `make retomar` y
+`make agente` lo muestran con `bin/correo latest <seguimiento>` (quién escribió último y si te toca), y `make cierre` pone
+en el bloque del día los correos de esos seguimientos que llegaron o que respondiste en el lapso, con el enlace a cada
+conversación en Gmail. Correo no escribe en el tablero: el cierre lee lo que guarda (`correo/.data/state.json`).
 
 `chat:` dice dónde se habla de la tarea en el chat del equipo: un grupo o personas (`chat: ['#ecommerce', duncan]`;
 el `#` va entre comillas). `make retomar` y `make agente` lo muestran con `bin/chat history` para el contexto; seguirlo

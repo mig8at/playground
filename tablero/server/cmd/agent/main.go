@@ -116,6 +116,7 @@ type taskView struct {
 		Files []string `json:"files"`
 	} `json:"knowledgeSuggested"`
 	Chat []string `json:"chat"`
+	Mail []string `json:"correo"`
 }
 
 func main() {
@@ -430,6 +431,10 @@ func steps(task taskView) []step {
 	if len(task.Chat) > 0 {
 		// Lo que se habló de la tarea en el chat del equipo también es contexto.
 		first += " · bin/chat history '" + task.Chat[0] + "'"
+	}
+	if len(task.Mail) > 0 {
+		// Y lo que se habló por correo (Correo sigue a esos remitentes): quién escribió último y si te toca.
+		first += " · bin/correo latest " + task.Mail[0]
 	}
 	return []step{
 		{1, "¿qué pide, qué se hizo y qué se sabe?", first},

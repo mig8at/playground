@@ -15,7 +15,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
 | Jarvis (configurar paneles admin con guía o con confirmación, en tu Chrome con su extensión; recetas por API y por pantalla; `bin/jarvis`) | [`jarvis/CLAUDE.md`](jarvis/CLAUDE.md) |
 | Cockpit (la app de escritorio donde Miguel ve las herramientas: `bin/cockpit`, quién levanta cada servidor, agregar una app, reinstalar) | [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
-| Correo (los correos de los remitentes que se siguen en Gmail, con aviso: `make correo`, `bin/pg gmail`) | [`correo/CLAUDE.md`](correo/CLAUDE.md) |
+| Correo (los correos de los remitentes que se siguen en Gmail, con aviso: `make correo`, `bin/correo`, `bin/pg gmail`; el `correo:` de una tarea) | [`correo/CLAUDE.md`](correo/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |

@@ -443,7 +443,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			"id": t.ID, "slug": t.Slug, "title": t.Title, "stage": t.Stage, "daysUntouched": t.Days(),
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
-			"knowledge": localContext, "knowledgeSuggested": suggested, "chat": t.Chat,
+			"knowledge": localContext, "knowledgeSuggested": suggested, "chat": t.Chat, "correo": t.Mail,
 		}
 		if brief != "" {
 			output["canon"], output["canonNotice"] = briefs, briefsNotice
@@ -593,6 +593,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	printKnowledgeContext(localContext)
 	printKnowledgeSuggested(suggested)
 	printChat(t.Chat)
+	printMail(t.Mail)
 	fmt.Println()
 	return 0
 }
@@ -611,6 +612,17 @@ func printChat(chat []string) {
 	fmt.Println("\n  ── El chat de la tarea ──")
 	fmt.Printf("  %s\n", strings.Join(chat, " · "))
 	fmt.Printf("  contexto: bin/chat history %s · en vivo (sólo si Miguel lo pide): bin/chat follow %s --theirs\n", quoted[0], who)
+}
+
+// printMail: los seguimientos de Correo de la tarea (`correo:` del task.md) y cómo consultarlos. Correo guarda lo de
+// esos remitentes y avisa; acá sólo se dice dónde mirar, como con el chat.
+func printMail(watches []string) {
+	if len(watches) == 0 {
+		return
+	}
+	fmt.Println("\n  ── El correo de la tarea ──")
+	fmt.Printf("  %s\n", strings.Join(watches, " · "))
+	fmt.Printf("  quién escribió último y si te toca: bin/correo latest %s · la conversación en español: bin/correo digest <id> · todo: bin/correo list %s\n", watches[0], watches[0])
 }
 
 // fit parte un texto largo en renglones de a lo sumo `width` runas, sangrando los siguientes con
