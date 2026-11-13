@@ -11,8 +11,9 @@
    LAS VOCES (callVoice.js, ElevenLabs): MIENTRAS LA VIDEOLLAMADA ESTÁ ABIERTA, cada mensaje que llega lo dice quien lo
    escribió (la persona, o su agente si habló por él), con la voz de su JSON; si llegan varios juntos, esperan su turno
    y no se pisan. Lo que escribís vos no se lee, y lo que llegó antes de abrir la llamada tampoco: así sólo se paga lo
-   que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. «Reproducir demo» pone a
-   hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude.
+   que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. Un clic en un recuadro hace
+   que ese personaje salude. (Hubo un «Reproducir demo» con una conversación inventada; se quitó cuando llegó la línea de
+   tiempo, que repite la conversación de verdad.)
 
    LAS MENCIONES: «hola @miguel/luigi» se dice «hola Luigi» (y @todos, «todos»), y mientras suena, los nombrados
    reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. También cuenta el nombre al empezar, sin @
@@ -29,7 +30,6 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { hush, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
-import { demoLines } from './callDemo.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -257,22 +257,8 @@ const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) 
 // los que reaccionan ahora: los nombrados por quien habla, o por vos hace un momento
 const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : []), ...nudged.value]))
 
-// los papeles del demo: vos, la otra persona y los agentes de cada uno
-const roles = computed(() => {
-  const me = userOf(props.me)
-  const meChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() === me)
-  const peerChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() !== me)
-  const agentsOf = (p) => (p ? props.cast.filter((c) => c.owner && c.owner.toLowerCase() === p.handle.toLowerCase()) : [])
-  const [me1, me2] = agentsOf(meChar), [peer1, peer2] = agentsOf(peerChar)
-  return { me: meChar, peer: peerChar, me1, me2, peer1, peer2 }
-})
-function playDemo() {
-  if (voice.busy) { hush(); return }
-  goLive()
-  for (const { who, text } of demoLines(roles.value)) say(keyOf(who), text, who.voice)
-}
 function greet(c) {
-  hush()
+  goLive()
   say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, c.voice)
 }
 const speaking = computed(() => (voice.line ? voice.speaker : ''))
@@ -335,13 +321,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
-    </div>
-    <div v-if="voice.supported" class="call-controls">
-      <button type="button" class="demo" :aria-pressed="voice.busy" :title="voice.busy ? 'Parar' : 'Una conversación inventada, para oír las voces y ver las bocas'" @click="playDemo">
-        <svg v-if="!voice.busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v12H7z" /></svg>
-        {{ voice.busy ? 'Parar' : 'Reproducir demo' }}
-      </button>
     </div>
     <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
       <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
@@ -423,11 +402,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
 .tl-track:focus-visible .tl-line { outline: 2px solid #f08c3d; outline-offset: 4px; }
-.tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px;
+.tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px;
   background: color-mix(in oklab, var(--foreground, #222) 18%, transparent); }
 .tl-fill { height: 100%; border-radius: 2px; background: #e5592a; }
 /* el cabezal: donde vas; en vivo, al final y rojo */
-.tl-head { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; pointer-events: none;
+/* centrado de verdad sobre la línea: el borde va por dentro (border-box) y se corre con translate, no con márgenes */
+.tl-head { position: absolute; top: 50%; width: 16px; height: 16px; box-sizing: border-box; translate: -50% -50%; border-radius: 50%; pointer-events: none;
   background: #fff; border: 3px solid #e5592a; box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
 .tl-head.dragging { transition: none; transform: scale(1.2); }
 .tl-head.live { border-color: #e5592a; background: #e5592a; }
@@ -435,12 +415,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: #13323a; color: #f6ecd6; pointer-events: none; }
 .tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #e5592a; white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
-.call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
-.call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
-  padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;
-  background: var(--background, #fff); color: var(--foreground, #222); }
-.call-controls button:hover { background: var(--hover, rgba(0,0,0,.06)); }
-.call-controls svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
   padding: 6px 12px; border-radius: 10px; background: rgba(19, 50, 58, .88); color: #f6ecd6; font-size: 13px; line-height: 1.35; text-align: center; }
 .call-caption b { color: #f2c14e; margin-right: 4px; }
