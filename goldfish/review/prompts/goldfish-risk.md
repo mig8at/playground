@@ -23,3 +23,6 @@ Cada hallazgo: un título corto, el detalle (qué viste, en qué condiciones fal
 línea (del diff o de `files/`), y su gravedad: «alta» si rompería algo en producción o expone datos, «media» si
 falla en un caso posible, «baja» si es un riesgo menor. Si no encontrás nada serio, devolvé pocos hallazgos o
 ninguno: no rellenes. No propongas el código corregido. Escribí en español.
+
+Mirá sólo lo que ESTE cambio hace o deja de hacer: no pidas mejoras del código que el diff no toca, ni refactors, ni
+estilo, ni lo que ya estaba así antes del cambio. Un hallazgo es algo que, si se publica así, confunde o rompe.

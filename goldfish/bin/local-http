@@ -1,0 +1,22 @@
+#!/bin/sh
+# local-http: un pedido HTTP SÓLO al ambiente local, para «Comprobar corriendo» de Goldfish. El agente no tiene curl
+# libre (podría pegarle a dev o a prod): tiene esto, que rechaza cualquier host que no sea localhost.
+#
+#   goldfish/bin/local-http GET  http://localhost/api/onboarding/…
+#   goldfish/bin/local-http POST http://localhost/api/… '{"a":1}'      (el cuerpo, JSON)
+#   goldfish/bin/local-http POST http://localhost/api/… @archivo.json
+#
+# Devuelve el código HTTP en la primera línea y el cuerpo después.
+set -eu
+[ $# -ge 2 ] || { echo "uso: local-http MÉTODO URL [cuerpo|@archivo]" >&2; exit 2; }
+method=$1 url=$2 body=${3:-}
+case "$url" in
+  http://localhost/*|http://localhost:[0-9]*|http://127.0.0.1/*|http://127.0.0.1:[0-9]*) ;;
+  *) echo "local-http: sólo localhost o 127.0.0.1 (recibí: $url)" >&2; exit 2 ;;
+esac
+case "$method" in GET|POST|PUT|PATCH|DELETE) ;; *) echo "local-http: método raro: $method" >&2; exit 2 ;; esac
+if [ -n "$body" ]; then
+  curl -sS -o /dev/stdout -w '\n%{http_code}\n' -X "$method" -H 'Content-Type: application/json' -H 'Accept: application/json' --data "$body" "$url"
+else
+  curl -sS -o /dev/stdout -w '\n%{http_code}\n' -X "$method" -H 'Accept: application/json' "$url"
+fi

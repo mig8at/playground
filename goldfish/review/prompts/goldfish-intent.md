@@ -22,3 +22,6 @@ Cada hallazgo: un título corto, el detalle (qué viste y por qué importa), el 
 o de `files/`), y su gravedad: «alta» si rompería algo o la propuesta dice algo falso, «media» si confunde o falta
 algo importante, «baja» si es de forma. Si no encontrás nada serio, devolvé pocos hallazgos o ninguno: no rellenes.
 No propongas el código corregido. Escribí en español.
+
+Mirá sólo lo que ESTE cambio hace o deja de hacer: no pidas mejoras del código que el diff no toca, ni refactors, ni
+estilo, ni lo que ya estaba así antes del cambio. Un hallazgo es algo que, si se publica así, confunde o rompe.

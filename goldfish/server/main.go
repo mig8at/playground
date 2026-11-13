@@ -5,6 +5,9 @@ package main
 //
 //	go run ./goldfish/server -list                         tus PRs abiertos y los externos, por repo
 //	go run ./goldfish/server -run -pr <url>                valida un PR y deja el informe
+//	go run ./goldfish/server -check -repo R [-branch B] [-base main] [-desc archivo.md] [-prove]
+//	                                                       el paso previo a publicar: valida la rama local (la que tiene
+//	                                                       el clon si no se dice) y escribe un resumen corto
 //	go run ./goldfish/server -serve 127.0.0.1:5217         la API de la app
 //
 //	GET    /api/prs[?refresh=1]          los bloques por repo (se pide a GitHub a lo sumo cada 3 min, salvo refresh)
@@ -43,6 +46,12 @@ func main() {
 	list := flag.Bool("list", false, "listar tus PRs abiertos y los externos")
 	run := flag.Bool("run", false, "validar un PR (con -pr)")
 	prURL := flag.String("pr", "", "la URL del PR")
+	check := flag.Bool("check", false, "antes del PR: validar una rama local (con -repo)")
+	repo := flag.String("repo", "", "el repo: la carpeta en ~/Desktop/CREDITOP/github o una ruta")
+	branch := flag.String("branch", "", "la rama (por defecto, la que tiene el clon)")
+	base := flag.String("base", "main", "contra qué rama se va a abrir el PR")
+	desc := flag.String("desc", "", "un Markdown con la descripción del PR que se va a abrir (la primera línea, el título)")
+	prove := flag.Bool("prove", false, "además, comprobar corriendo con el harness en local")
 	flag.Parse()
 	root, err := playgroundRoot()
 	if err != nil {
@@ -55,6 +64,12 @@ func main() {
 		listen(root, *serve)
 	case *list:
 		printBlocks(root)
+	case *check:
+		if *repo == "" {
+			fmt.Fprintln(os.Stderr, "goldfish: falta -repo")
+			os.Exit(2)
+		}
+		os.Exit(checkConsole(root, *repo, *branch, *base, *desc, *prove))
 	case *run:
 		if *prURL == "" {
 			fmt.Fprintln(os.Stderr, "goldfish: falta -pr <url>")
@@ -151,6 +166,63 @@ func runConsole(root, url string) int {
 	return 0
 }
 
+// checkConsole: el paso previo a publicar, para la sesión que trabaja en la rama. Imprime el avance por stderr y el
+// resumen por stdout. Sale 0 si terminó (aunque haya hallazgos: decidir es de la sesión y de Miguel), 1 si falló.
+func checkConsole(root, repo, branch, base, descFile string, prove bool) int {
+	ctx := context.Background()
+	clone := repo
+	if !filepath.IsAbs(clone) {
+		clone = filepath.Join(review.ReposDir(), repo)
+	}
+	if _, err := os.Stat(filepath.Join(clone, ".git")); err != nil {
+		fmt.Fprintf(os.Stderr, "goldfish: %s no es un clon de git\n", clone)
+		return 1
+	}
+	title, body := "", ""
+	if descFile != "" {
+		raw, err := os.ReadFile(descFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "goldfish:", err)
+			return 1
+		}
+		text := strings.TrimSpace(string(raw))
+		title, body, _ = strings.Cut(text, "\n")
+		title = strings.TrimSpace(strings.TrimLeft(title, "# "))
+		body = strings.TrimSpace(body)
+	}
+	r, err := review.NewLocalRun(ctx, root, clone, branch, base, title, body)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "goldfish:", err)
+		return 1
+	}
+	fmt.Fprintf(os.Stderr, "Goldfish · %s · %s → %s · %s\n", r.Repo, r.Branch, r.Base, r.ID)
+	progress := func() func(*review.Run) {
+		seen := map[string]string{}
+		return func(x *review.Run) {
+			_ = review.Save(root, x)
+			for _, s := range x.Stages {
+				if seen[s.ID] != s.Status {
+					seen[s.ID] = s.Status
+					note := ""
+					if s.Note != "" {
+						note = " · " + s.Note
+					}
+					fmt.Fprintf(os.Stderr, "  %-8s %s%s\n", s.Status, s.Label, note)
+				}
+			}
+		}
+	}
+	review.Execute(ctx, root, r, progress())
+	if r.Status == "done" && prove {
+		review.Prove(ctx, root, r, progress())
+	}
+	fmt.Print(review.Summary(r))
+	if r.Status != "done" {
+		return 1
+	}
+	return 0
+}
+
 // markInterrupted: lo que quedó «corriendo» de un proceso que ya no existe se cortó (una validación de la consola
 // que sigue viva no se toca).
 func markInterrupted(root string) {
@@ -242,21 +314,48 @@ func listen(root, addr string) {
 		}
 		writeJSON(w, http.StatusOK, map[string]bool{"removed": true})
 	})
+	// las validaciones, con su resumen: la app es el registro de lo que se validó (sobre todo desde la consola)
 	mux.HandleFunc("GET /api/runs", func(w http.ResponseWriter, r *http.Request) {
 		type summary struct {
-			ID       string  `json:"id"`
-			Key      string  `json:"key"` // owner/name#n
-			Status   string  `json:"status"`
-			Started  string  `json:"started"`
-			Findings int     `json:"findings"`
-			CostUSD  float64 `json:"costUsd"`
+			ID       string         `json:"id"`
+			Repo     string         `json:"repo"`
+			Slug     string         `json:"slug"`
+			Branch   string         `json:"branch"`
+			Base     string         `json:"base"`
+			Title    string         `json:"title"`
+			Local    bool           `json:"local"`  // antes del PR
+			PR       *review.PR     `json:"pr"`     // si fue un PR ya abierto
+			Status   string         `json:"status"` // running · done · failed
+			Started  string         `json:"started"`
+			Verdicts map[string]int `json:"verdicts"`
+			Proofs   map[string]int `json:"proofs"`
+			CostUSD  float64        `json:"costUsd"`
+			Task     *review.Task   `json:"task"`
 		}
 		out := []summary{}
 		for _, x := range review.List(root) {
-			if x.PR == nil || x.Slug == "" {
-				continue // las de antes de validar por PR (por rama local)
+			if x.Slug == "" {
+				continue // las del primer día, por rama local con el formato viejo
 			}
-			out = append(out, summary{x.ID, x.PR.Key(), x.Status, x.Started, len(x.Findings), x.CostUSD})
+			s := summary{ID: x.ID, Repo: x.Repo, Slug: x.Slug, Branch: x.Branch, Base: strings.TrimPrefix(x.Base, "origin/"),
+				Title: x.Proposal.Title, Local: x.Local || x.PR == nil, Status: x.Status, Started: x.Started,
+				Verdicts: map[string]int{}, Proofs: map[string]int{}, CostUSD: x.CostUSD, Task: x.Task}
+			if !s.Local {
+				s.PR = x.PR
+				if s.Title == "" {
+					s.Title = x.PR.Title
+				}
+			}
+			if s.Title == "" {
+				s.Title = x.Branch
+			}
+			for _, f := range x.Findings {
+				s.Verdicts[f.Verdict]++
+				if f.Proof != nil {
+					s.Proofs[f.Proof.Status]++
+				}
+			}
+			out = append(out, s)
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"runs": out})
 	})
@@ -270,7 +369,7 @@ func listen(root, addr string) {
 	})
 	mux.HandleFunc("GET /api/runs/{id}/report", func(w http.ResponseWriter, r *http.Request) {
 		x, err := review.Load(root, r.PathValue("id"))
-		if err != nil || x.PR == nil {
+		if err != nil || x.Slug == "" {
 			fail(w, http.StatusNotFound, errors.New("no existe esa validación"))
 			return
 		}
@@ -323,7 +422,7 @@ func listen(root, addr string) {
 	})
 	mux.HandleFunc("POST /api/runs/{id}/prove", func(w http.ResponseWriter, r *http.Request) {
 		x, err := review.Load(root, r.PathValue("id"))
-		if err != nil || x.PR == nil {
+		if err != nil || x.Slug == "" {
 			fail(w, http.StatusNotFound, errors.New("no existe esa validación"))
 			return
 		}

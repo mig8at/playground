@@ -7,21 +7,30 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 |---|---|
 | la app (Cockpit: **Goldfish**) | `make goldfish` → :5216 · API :5217 |
 | tus PRs abiertos y los externos | `make goldfish-list` |
-| validar un PR | `make goldfish-run PR=<url>`, o pegar la URL en la app |
+| **antes de publicar** (la rama local) | `make goldfish-check REPO=… DESC=<md> BASE=main [PROBAR=1]` (skill `goldfish`) |
+| validar un PR ya abierto | `make goldfish-run PR=<url>`, o pegar la URL en la app |
 | comprobar corriendo (harness en local, con el PR) | el botón «Comprobar corriendo» de una validación terminada |
 
-## Qué lista
+## El uso principal: el paso previo a publicar (consola)
 
-- **Un bloque por repo**: primero los principales (`legacy-backend`, `frontend-monorepo`, `legacy-application`, aunque
-  estén vacíos), después los demás. Adentro, **los PRs abiertos de Miguel**, con el título que les puso: una sola
-  `gh search prs --author=@me --state=open` en todo GitHub. Lo mergeado o cerrado no aparece.
-- **Los externos**: un PR de otra persona que Miguel pegó para validar queda en el bloque de su repo, marcado
-  «externo · autor», mientras siga abierto (`goldfish/.external.json`, fuera de git; al cerrarse o mergearse sale
-  solo). La × lo saca a mano.
-- **La base, en el pie** (como el ambiente en ecommerce): a qué rama apuntan los PRs que se ven, sólo las cuatro de los
-  ambientes —`main` (por defecto), `qa`, `develop`, `staging`—; los PRs contra otra rama no se listan. Queda en la URL
-  (`?base=qa`), y al pegar un PR salta a la suya. Un PR de un repo sin clon no trae base y no se lista.
-- Sin nada elegido, el editor es un **buscador** (estilo Google): se pega la URL de un PR y se valida enseguida.
+Mientras se trabaja en un PR, la sesión (el elephant: es la que tiene el contexto) escribe la descripción del PR que va
+a abrir y corre `make goldfish-check REPO=… DESC=<md> BASE=main [PROBAR=1]` sobre la rama local, todavía sin PR. El
+resumen (stdout) dice qué atender antes de publicar, qué mirar y qué quedó fuera de alcance; el avance va por stderr.
+Sale 0 aunque haya hallazgos: decidir es de la sesión y de Miguel. El skill `goldfish` lo explica para la sesión.
+
+**No es estricto, a propósito** (lo pidió Miguel, 2026-11-13): el objetivo es publicar con confianza, no perfeccionar.
+Los goldfish miran sólo lo que el cambio hace o deja de hacer, y el elephant tiene un veredicto más,
+**«fuera de alcance»**: cierto, pero ya estaba así en la base, es otra tarea o es una mejora que nadie pidió. Se anota en
+una línea y no se arregla en ese PR.
+
+## La app: el registro
+
+La app (Cockpit: **Goldfish**) sólo LEE: es el registro de lo que se validó, sobre todo desde la consola. A la
+izquierda, un bloque por repo (los principales siempre) con sus validaciones y el resumen de cada una (qué quedó para
+atender, qué para mirar, qué se comprobó corriendo); a la derecha, la elegida: pasos y costo, hallazgos con su veredicto
+y su evidencia, y la descripción revisada. En el pie, la base (`main` por defecto, `qa`, `develop`, `staging`), como el
+ambiente en ecommerce. No tiene botones que validen ni prueben (decisión de Miguel, 2026-11-13): eso lo hace la sesión.
+La API conserva `POST /api/runs` y `/api/runs/{id}/prove` por si se necesitan desde otra herramienta.
 
 ## El método, adaptado a un PR
 
@@ -55,6 +64,12 @@ El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revis
    - Siempre `TARGET=local` (`E2E_TARGET=local` ya va puesto); el agente no puede hacer checkout, commits ni pushes, ni
      `make fresh`/`make test`; la prueba por ruta va con permiso sólo para `sail artisan test` desde ese clon, y el hook
      `destructive-tests` sigue frenando la suite entera.
+   - **La API local, por `goldfish/bin/local-http`** (no hay `curl` libre: podría pegarle a dev o a prod): rechaza
+     todo host que no sea localhost. Sin él, los `curl` pedían aprobación según el orden de sus banderas y el agente no
+     podía probar nada de la API. Un comando compuesto se aprueba por partes: el `cd` también tiene que estar permitido.
+   - Medido el 2026-11-13 en `fix/ecommerce-back-url` (antes del PR): reprodujo en local los dos errores que habían
+     visto los goldfish (un `back_url` con «config» deja el detalle del pedido sin monto ni prefill; uno largo rechaza
+     el pedido con 422) y midió en prod que hoy ningún pedido lo pisaría. US$1,42, 114 s.
 
 **Miguel resuelve**: decide qué corregir o qué comentarle al autor. Goldfish no comenta en GitHub, no aprueba ni
 pushea: el elephant tiene negados `Edit`, `Write` y los `git` que escriben.

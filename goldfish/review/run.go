@@ -11,6 +11,7 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -36,12 +37,14 @@ var promptVerdict string
 // Run: una validación.
 type Run struct {
 	ID        string    `json:"id"`
-	Repo      string    `json:"repo"`    // la carpeta de su clon
-	Slug      string    `json:"slug"`    // owner/name
-	Branch    string    `json:"branch"`  // la rama del PR
-	Base      string    `json:"base"`    // contra qué se compara: origin/<base del PR>
-	HeadRef   string    `json:"headRef"` // dónde quedó el PR en el clon: refs/goldfish/pr-<n>
-	Head      string    `json:"head"`    // el commit validado
+	Repo      string    `json:"repo"`     // la carpeta de su clon
+	Slug      string    `json:"slug"`     // owner/name
+	Branch    string    `json:"branch"`   // la rama del PR
+	Base      string    `json:"base"`     // contra qué se compara: origin/<base del PR>
+	HeadRef   string    `json:"headRef"`  // dónde quedó el PR en el clon: refs/goldfish/pr-<n>
+	Local     bool      `json:"local"`    // una rama local, antes de su PR (el paso previo a publicar)
+	CloneDir  string    `json:"cloneDir"` // el clon, si no es el de ~/Desktop/CREDITOP/github
+	Head      string    `json:"head"`     // el commit validado
 	Task      *Task     `json:"task"`
 	PR        *PR       `json:"pr"`
 	Started   string    `json:"started"`
@@ -100,8 +103,8 @@ const (
 )
 
 var stageLabels = []Stage{
-	{ID: "package", Label: "Propuesta: el PR, su diff y lo que pide la tarea"},
-	{ID: "proposal", Label: "La descripción del PR"},
+	{ID: "package", Label: "Propuesta: el diff y lo que pide la tarea"},
+	{ID: "proposal", Label: "La descripción (la del PR, o la que se va a publicar)"},
 	{ID: "intent", Label: "Goldfish: ¿la propuesta y el cambio dicen lo mismo?"},
 	{ID: "risk", Label: "Goldfish: ¿qué puede salir mal?"},
 	{ID: "verdict", Label: "Elephant: veredicto y lo que se ve con contexto"},
@@ -123,6 +126,54 @@ func NewRun(p PR, clone string) *Run {
 		r.Stages = append(r.Stages, s)
 	}
 	return r
+}
+
+// NewLocalRun: la validación de una rama local ANTES de abrir su PR. La descripción la escribe quien trabaja en la rama
+// (la sesión que la hizo: es el elephant); si no la hay, se usan sus commits.
+func NewLocalRun(ctx context.Context, playground, clone, branch, base, title, body string) (*Run, error) {
+	url, _ := git(ctx, clone, "remote", "get-url", "origin")
+	slug := slugOfURL(url)
+	if slug == "" {
+		slug = filepath.Base(clone)
+	}
+	if branch == "" {
+		branch, _ = git(ctx, clone, "branch", "--show-current")
+	}
+	if branch == "" {
+		return nil, errors.New("el clon no está en una rama: decí cuál con -branch")
+	}
+	if base == "" {
+		base = "main"
+	}
+	now := time.Now()
+	r := &Run{
+		ID:   now.Format("20060102-150405") + "-" + safeName(filepath.Base(clone)+"-"+branch),
+		Repo: filepath.Base(clone), Slug: slug, Branch: branch, Base: "origin/" + base, HeadRef: "refs/heads/" + branch,
+		Local: true, CloneDir: clone, Task: LoadTasks(playground).ForBranch(filepath.Base(clone), branch),
+		Proposal: Proposal{Source: "local", Title: title, Body: body},
+		Started:  now.Format(time.RFC3339), Status: "running", PID: os.Getpid(),
+	}
+	for _, s := range stageLabels {
+		s.Status = "pending"
+		r.Stages = append(r.Stages, s)
+	}
+	return r, nil
+}
+
+// cloneDir: el clon de la validación.
+func (r *Run) cloneDir(ctx context.Context) string {
+	if r.CloneDir != "" {
+		return r.CloneDir
+	}
+	return CloneOf(ctx, r.Slug)
+}
+
+// label: cómo se nombra en los prompts y el informe.
+func (r *Run) label() string {
+	if r.Local || r.PR == nil {
+		return fmt.Sprintf("la rama `%s` (local, todavía sin PR)", r.Branch)
+	}
+	return fmt.Sprintf("el PR #%d (rama `%s`, en el clon como `%s`)", r.PR.Number, r.Branch, r.HeadRef)
 }
 
 var reUnsafe = regexp.MustCompile(`[^a-zA-Z0-9._-]+`)
@@ -154,7 +205,7 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 		r.Status, r.Error, r.Finished = "failed", err.Error(), time.Now().Format(time.RFC3339)
 		save(r)
 	}
-	repoDir := CloneOf(ctx, r.Slug)
+	repoDir := r.cloneDir(ctx)
 	if repoDir == "" {
 		fail("package", fmt.Errorf("no hay un clon de %s en %s: sin él no se puede leer el código", r.Slug, ReposDir()))
 		return
@@ -174,7 +225,7 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 
 	// 2 · la descripción: la del PR (si no trae, eso mismo es lo primero que va a ver un goldfish)
 	set("proposal", func(s *Stage) { s.Status = "running" })
-	p, err := prDescription(ctx, r)
+	p, err := prDescription(ctx, r, repoDir)
 	if err != nil {
 		fail("proposal", err)
 		return
@@ -321,7 +372,7 @@ func fill(tpl string, r *Run, repoDir, pkg string) string {
 		task = fmt.Sprintf("Es de la tarea `%s` (#%s, «%s»): `%s`. Leela entera; sus temas de `knowledge:` también.",
 			r.Task.Slug, r.Task.ID, r.Task.Title, r.Task.Path)
 	}
-	return strings.NewReplacer("{{BRANCH}}", fmt.Sprintf("%s (PR #%d, en el clon como `%s`)", r.Branch, r.PR.Number, r.HeadRef),
+	return strings.NewReplacer("{{BRANCH}}", r.label(),
 		"{{HEAD_REF}}", r.HeadRef, "{{REPO}}", r.Slug, "{{REPO_DIR}}", repoDir, "{{BASE}}", r.Base,
 		"{{PACKAGE}}", pkg, "{{TASK_LINE}}", task).Replace(tpl)
 }
@@ -333,9 +384,11 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 	}
 	// el PR y su base, al clon: sólo refs (refs/goldfish/pr-N y origin/<base>), sin tocar el árbol de trabajo
 	base := strings.TrimPrefix(r.Base, "origin/")
-	if _, err := git(ctx, repoDir, "fetch", "--no-tags", "--quiet", "origin",
-		fmt.Sprintf("+refs/pull/%d/head:%s", r.PR.Number, r.HeadRef),
-		fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", base, base)); err != nil {
+	refs := []string{fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", base, base)}
+	if !r.Local && r.PR != nil {
+		refs = append(refs, fmt.Sprintf("+refs/pull/%d/head:%s", r.PR.Number, r.HeadRef))
+	}
+	if _, err := git(ctx, repoDir, append([]string{"fetch", "--no-tags", "--quiet", "origin"}, refs...)...); err != nil {
 		return "", "", err
 	}
 	head, err := git(ctx, repoDir, "rev-parse", r.HeadRef)
@@ -391,8 +444,21 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 	return head, note, nil
 }
 
-// prDescription: el título y la descripción del PR, como están en GitHub ahora.
-func prDescription(ctx context.Context, r *Run) (Proposal, error) {
+// prDescription: el título y la descripción del PR, como están en GitHub ahora. Antes del PR (una rama local), la que
+// se pasó; si no se pasó ninguna, los commits de la rama (y eso mismo se lo dice a los revisores).
+func prDescription(ctx context.Context, r *Run, repoDir string) (Proposal, error) {
+	if r.Local || r.PR == nil {
+		p := r.Proposal
+		if strings.TrimSpace(p.Body) == "" {
+			log, _ := git(ctx, repoDir, "log", "--no-color", "--format=- %s", r.Base+".."+r.HeadRef)
+			p.Body = "(todavía no hay descripción del PR: éstos son los commits de la rama)\n\n" + log
+		}
+		if strings.TrimSpace(p.Title) == "" {
+			p.Title = r.Branch
+		}
+		p.Source = "local"
+		return p, nil
+	}
 	out, err := gh(ctx, "pr", "view", strconv.Itoa(r.PR.Number), "-R", r.Slug, "--json", "title,body")
 	if err != nil {
 		return Proposal{}, err
@@ -415,8 +481,12 @@ func orEmpty(s string) string {
 // Report: el informe de una validación, en Markdown.
 func Report(r *Run) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Goldfish · %s #%d · %s\n\n", r.Slug, r.PR.Number, r.PR.Title)
-	fmt.Fprintf(&b, "- PR: %s (de %s, rama `%s`)\n", r.PR.URL, r.PR.Author, r.Branch)
+	if r.PR != nil && !r.Local {
+		fmt.Fprintf(&b, "# Goldfish · %s #%d · %s\n\n", r.Slug, r.PR.Number, r.PR.Title)
+		fmt.Fprintf(&b, "- PR: %s (de %s, rama `%s`)\n", r.PR.URL, r.PR.Author, r.Branch)
+	} else {
+		fmt.Fprintf(&b, "# Goldfish · %s · %s (antes del PR)\n\n", r.Repo, r.Branch)
+	}
 	fmt.Fprintf(&b, "- Commit validado: `%s` contra `%s`\n", short(r.Head), r.Base)
 	fmt.Fprintf(&b, "- Corrida: %s → %s · costo equivalente: US$%.2f\n\n", r.Started, r.Finished, r.CostUSD)
 	counts := map[string]int{}
@@ -425,7 +495,7 @@ func Report(r *Run) string {
 	}
 	fmt.Fprintf(&b, "**%d hallazgos**: %d confirmados · %d plausibles · %d descartados · %d sin veredicto\n\n",
 		len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"], counts[""])
-	order := map[string]int{"confirmado": 0, "plausible": 1, "": 2, "descartado": 3}
+	order := map[string]int{"confirmado": 0, "plausible": 1, "": 2, "fuera de alcance": 3, "descartado": 4}
 	sev := map[string]int{"alta": 0, "media": 1, "baja": 2}
 	fs := append([]Finding(nil), r.Findings...)
 	sort.SliceStable(fs, func(i, j int) bool {
@@ -459,7 +529,7 @@ func Report(r *Run) string {
 			}
 		}
 	}
-	fmt.Fprintf(&b, "---\n\n## La descripción del PR que se revisó\n\n### %s\n\n%s\n", r.Proposal.Title, orEmpty(r.Proposal.Body))
+	fmt.Fprintf(&b, "---\n\n## La descripción que se revisó\n\n### %s\n\n%s\n", r.Proposal.Title, orEmpty(r.Proposal.Body))
 	return b.String()
 }
 
@@ -491,8 +561,12 @@ func attachToTask(ctx context.Context, playground string, r *Run, report string)
 		}
 	}
 	// sin la ruta del informe: la pila sólo acepta rutas citadas con su repo; está en los artifacts de la tarea
-	block := fmt.Sprintf("# Goldfish: PR #%d de %s (%s)\n\nRevisión en frío del PR en `%s` contra `%s`: %d hallazgos, %d confirmados, %d plausibles, %d descartados. El informe completo quedó en los artifacts de la tarea.\n",
-		r.PR.Number, filepath.Base(r.Slug), r.Branch, short(r.Head), r.Base, len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"])
+	what := fmt.Sprintf("PR #%d de %s", prNumber(r), filepath.Base(r.Slug))
+	if r.Local || r.PR == nil {
+		what = "antes del PR, " + filepath.Base(r.Slug)
+	}
+	block := fmt.Sprintf("# Goldfish: %s (%s)\n\nRevisión en frío en `%s` contra `%s`: %d hallazgos, %d confirmados, %d plausibles, %d descartados. El informe completo quedó en los artifacts de la tarea.\n",
+		what, r.Branch, short(r.Head), r.Base, len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"])
 	if len(top) > 0 {
 		block += "\nConfirmados:\n\n" + strings.Join(top, "\n") + "\n"
 	}
@@ -511,4 +585,101 @@ func (r *Run) Alive() bool {
 		return false
 	}
 	return syscall.Kill(r.PID, 0) == nil
+}
+
+func prNumber(r *Run) int {
+	if r.PR == nil {
+		return 0
+	}
+	return r.PR.Number
+}
+
+// Summary: lo que la sesión que trabaja en la rama necesita para decidir, corto: qué atender (dentro del alcance),
+// qué mirar, lo que corriendo se comprobó o se refutó, y lo demás en una línea.
+func Summary(r *Run) string {
+	var b strings.Builder
+	what := fmt.Sprintf("%s · %s → %s (antes del PR)", r.Repo, r.Branch, r.Base)
+	if r.PR != nil && !r.Local {
+		what = fmt.Sprintf("%s #%d · %s", r.Slug, r.PR.Number, r.PR.Title)
+	}
+	fmt.Fprintf(&b, "Goldfish · %s\n", what)
+	if r.Status != "done" {
+		fmt.Fprintf(&b, "✗ no terminó: %s\n", r.Error)
+		return b.String()
+	}
+	group := func(title string, keep func(Finding) bool) {
+		var fs []Finding
+		for _, f := range r.Findings {
+			if keep(f) {
+				fs = append(fs, f)
+			}
+		}
+		if len(fs) == 0 {
+			return
+		}
+		sev := map[string]int{"alta": 0, "media": 1, "baja": 2}
+		sort.SliceStable(fs, func(i, j int) bool { return sev[fs[i].Severity] < sev[fs[j].Severity] })
+		fmt.Fprintf(&b, "\n%s (%d)\n", title, len(fs))
+		for _, f := range fs {
+			loc := f.File
+			if f.Line > 0 {
+				loc = fmt.Sprintf("%s:%d", f.File, f.Line)
+			}
+			fmt.Fprintf(&b, "  [%s] %s", f.Severity, f.Title)
+			if loc != "" {
+				fmt.Fprintf(&b, " — %s", loc)
+			}
+			b.WriteString("\n")
+			if why := firstSentence(f.Reason); why != "" {
+				fmt.Fprintf(&b, "      %s\n", why)
+			}
+			if f.Proof != nil {
+				fmt.Fprintf(&b, "      corriendo: %s — %s\n", f.Proof.Status, firstSentence(f.Proof.Result))
+			}
+		}
+	}
+	group("Para atender antes de publicar", func(f Finding) bool { return f.Verdict == "confirmado" })
+	group("Para mirar (dependen de algo que no se ve leyendo)", func(f Finding) bool { return f.Verdict == "plausible" })
+	group("Sin veredicto", func(f Finding) bool { return f.Verdict == "" })
+	var out, gone []string
+	for _, f := range r.Findings {
+		switch f.Verdict {
+		case "fuera de alcance":
+			out = append(out, f.Title)
+		case "descartado":
+			gone = append(gone, f.Title)
+		}
+	}
+	if len(out) > 0 {
+		fmt.Fprintf(&b, "\nFuera de alcance, no es de este cambio (%d): %s\n", len(out), strings.Join(out, " · "))
+	}
+	if len(gone) > 0 {
+		fmt.Fprintf(&b, "Descartados (%d)\n", len(gone))
+	}
+	if !hasVerdict(r, "confirmado") && !hasVerdict(r, "plausible") {
+		b.WriteString("\n✓ Nada para atender: se puede publicar.\n")
+	}
+	fmt.Fprintf(&b, "\nCosto equivalente US$%.2f · informe: %s\n", r.CostUSD, r.Report)
+	return b.String()
+}
+
+func hasVerdict(r *Run, v string) bool {
+	for _, f := range r.Findings {
+		if f.Verdict == v {
+			return true
+		}
+	}
+	return false
+}
+
+// firstSentence: la primera frase (o los primeros 220 caracteres), para el resumen.
+func firstSentence(s string) string {
+	s = strings.Join(strings.Fields(s), " ")
+	if i := strings.Index(s, ". "); i > 0 && i < 220 {
+		return s[:i+1]
+	}
+	if r := []rune(s); len(r) > 220 {
+		return string(r[:220]) + "…"
+	}
+	return s
 }

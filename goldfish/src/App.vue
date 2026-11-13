@@ -1,134 +1,100 @@
 <script setup>
-/* goldfish · la interfaz. Validar un PR con Elephant-Goldfish (el método está en goldfish/review/prs.go): quien
- * propone no valida su propio trabajo.
+/* goldfish · la interfaz: el REGISTRO de lo que se validó con Elephant-Goldfish. Las validaciones las corre la sesión
+ * desde la consola (make goldfish-check, el paso previo a publicar; make goldfish-run PR=<url> para un PR abierto):
+ * acá sólo se leen. Nada de botones que validen o prueben.
  *
- * A la izquierda, un bloque por repo (primero los principales) con TUS PRs abiertos, con el título que les pusiste;
- * lo mergeado o cerrado se va solo. Un PR de otra persona que pegaste para validar queda en su repo, marcado
- * «externo», mientras siga abierto. A la derecha, sin nada elegido, un buscador: pegás la URL de un PR y se valida.
- * Con un PR elegido, sus datos, «Validar» y la validación: los pasos con su costo, los hallazgos con su veredicto y
- * la descripción que se revisó.
- *
- * Todo sale de la API en Go (goldfish/server): acá no se valida nada, se pinta. El PR y la validación elegidos viven
- * en la URL. */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+ * A la izquierda, un bloque por repo con sus validaciones (la más nueva arriba), cada una con su resumen: qué quedó para
+ * atender, qué para mirar, si se comprobó corriendo. A la derecha, la elegida: los pasos con su costo, los hallazgos con
+ * su veredicto y su evidencia, y la descripción que se revisó. En el pie, la base a la que apunta (main, qa, develop,
+ * staging). La validación y la base elegidas viven en la URL. */
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu, readHashRoute, hashRoute, setRoute } from './workbench.js'
 
 const VERDICTS = [
-  { id: 'confirmado', label: 'Confirmados', hint: 'ciertos: atenderlos' },
-  { id: 'plausible', label: 'Plausibles', hint: 'dependen de algo que no se comprueba leyendo' },
+  { id: 'confirmado', label: 'Para atender', hint: 'confirmados: de este cambio, antes de publicar' },
+  { id: 'plausible', label: 'Para mirar', hint: 'dependen de algo que no se ve leyendo' },
   { id: '', label: 'Sin veredicto', hint: 'el elephant no alcanzó a juzgarlos' },
+  { id: 'fuera de alcance', label: 'Fuera de alcance', hint: 'no son de este cambio: no se arreglan acá' },
   { id: 'descartado', label: 'Descartados', hint: 'no aplican, con su evidencia' },
 ]
 const FROM = { intent: 'goldfish · descripción vs cambio', risk: 'goldfish · riesgos', context: 'elephant · contexto' }
 const STAGE_MARK = { pending: '·', running: '…', done: '✓', failed: '✗', skipped: '–' }
+const PROOF_LABEL = { comprobado: 'comprobado corriendo', refutado: 'refutado corriendo', 'sin probar': 'sin probar' }
+const BASES = ['main', 'qa', 'develop', 'staging']
+const BASE_LABEL = { main: 'main · producción', qa: 'qa · lo que se prueba en qa', develop: 'develop · el dev compartido', staging: 'staging' }
+const MAIN_REPOS = ['legacy-backend', 'frontend-monorepo', 'legacy-application']
 
-async function getJSON(path, init) {
-  const res = await fetch(path, init)
+async function getJSON(path) {
+  const res = await fetch(path)
   const body = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
   return body
 }
-const postJSON = (path, body) => getJSON(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-// ── la ruta: #/?pr=<url del PR>&run=<id>&base=qa ──
-const route = readHashRoute()
-const prUrl = ref(route.params.get('pr') || '')
-const runId = ref(route.params.get('run') || '')
-// contra qué rama apuntan los PRs que se ven: main, qa, develop o staging (las cuatro de los ambientes)
-const BASES = ['main', 'qa', 'develop', 'staging']
+// ── la ruta: #/?run=<id>&base=qa ──
 const baseOf = (v) => (BASES.includes(v) ? v : 'main')
+const route = readHashRoute()
+const runId = ref(route.params.get('run') || '')
 const base = ref(baseOf(route.params.get('base')))
 function writeRoute(push) {
-  setRoute(hashRoute([], { pr: prUrl.value, run: runId.value, base: base.value }, { pr: '', run: '', base: 'main' }), { push })
+  setRoute(hashRoute([], { run: runId.value, base: base.value }, { run: '', base: 'main' }), { push })
 }
 function onHashChange() {
   const r = readHashRoute()
-  prUrl.value = r.params.get('pr') || ''
   runId.value = r.params.get('run') || ''
   base.value = baseOf(r.params.get('base'))
 }
 
-// ── los bloques ──
-const repos = ref([])
+// ── las validaciones ──
+const runs = ref([])
 const loading = ref(false)
 const loadError = ref('')
-const checkedAt = ref('')
-async function loadRepos(refresh = false) {
-  loading.value = true
-  loadError.value = ''
+let listTimer = 0
+async function loadRuns() {
+  clearTimeout(listTimer)
+  loading.value = !runs.value.length
   try {
-    repos.value = (await getJSON(`/api/prs${refresh ? '?refresh=1' : ''}`)).repos || []
-    checkedAt.value = new Date().toISOString()
+    runs.value = (await getJSON('/api/runs')).runs || []
+    loadError.value = ''
   } catch (e) { loadError.value = String(e.message || e) } finally { loading.value = false }
+  // si alguna sigue corriendo (la consola la está corriendo), se vuelve a mirar seguido
+  listTimer = setTimeout(loadRuns, runs.value.some((r) => r.status === 'running') ? 3000 : 30000)
 }
-const allPRs = computed(() => repos.value.flatMap((b) => b.prs || []))
-// LA BASE, en el pie (como el ambiente en ecommerce): a qué rama apuntan los PRs que se ven. Sólo las cuatro de los
-// ambientes; los PRs contra otra rama (una feature) no se listan.
-const BASE_LABEL = { main: 'main · producción', qa: 'qa · lo que se prueba en qa', develop: 'develop · el dev compartido', staging: 'staging' }
-const baseItems = computed(() => BASES.map((b) => ({ id: b, label: BASE_LABEL[b], selected: base.value === b })))
-const inBase = (p) => p.base === base.value
-const shownRepos = computed(() => repos.value.map((b) => ({ ...b, prs: (b.prs || []).filter(inBase) }))
-  .filter((b) => b.prs.length || ['legacy-backend', 'frontend-monorepo', 'legacy-application'].includes(b.name)))
-const shownCount = computed(() => allPRs.value.filter(inBase).length)
-watch(base, () => writeRoute(false))
-const baseTrigger = ref(null)
-let baseMenu = null
-watch(baseItems, () => baseMenu?.refresh(), { deep: true, flush: 'post' })
-const selected = computed(() => allPRs.value.find((p) => p.url === prUrl.value) || null)
-const blockOf = (p) => repos.value.find((b) => b.slug === p?.slug)
-const keyOf = (p) => `${p.slug}#${p.number}`
+const inBase = (r) => r.base === base.value
+const blocks = computed(() => {
+  const by = {}
+  for (const r of runs.value.filter(inBase)) (by[r.repo] ||= []).push(r)
+  const names = [...new Set([...MAIN_REPOS, ...Object.keys(by).sort()])]
+  return names.map((name) => ({ name, runs: (by[name] || []).sort((a, b) => b.started.localeCompare(a.started)) }))
+})
+const shownCount = computed(() => runs.value.filter(inBase).length)
 const collapsed = ref(new Set(JSON.parse(readStore('goldfish.collapsed') || '[]')))
 function readStore(k) { try { return localStorage.getItem(k) } catch { return null } }
-function toggleBlock(slug) {
+function toggleBlock(name) {
   const s = new Set(collapsed.value)
-  if (s.has(slug)) s.delete(slug); else s.add(slug)
+  if (s.has(name)) s.delete(name); else s.add(name)
   collapsed.value = s
   try { localStorage.setItem('goldfish.collapsed', JSON.stringify([...s])) } catch { /* sólo en esta pestaña */ }
 }
-function pick(p) {
-  prUrl.value = p.url; runId.value = p.lastRunId || ''
-  writeRoute(true)
+function pick(r) { runId.value = r.id; writeRoute(true) }
+// el resumen de una validación, en una línea
+function summaryOf(r) {
+  if (r.status === 'running') return 'corriendo en la consola…'
+  if (r.status === 'failed') return 'no terminó'
+  const v = r.verdicts || {}
+  const parts = []
+  if (v.confirmado) parts.push(`${v.confirmado} para atender`)
+  if (v.plausible) parts.push(`${v.plausible} para mirar`)
+  if (!parts.length) parts.push('nada para atender')
+  const p = r.proofs || {}
+  if (p.comprobado || p.refutado) parts.push(`corrido: ${[p.comprobado && `${p.comprobado} comprobados`, p.refutado && `${p.refutado} refutados`].filter(Boolean).join(', ')}`)
+  return parts.join(' · ')
 }
-function home() { prUrl.value = ''; runId.value = ''; writeRoute(true); nextTick(() => search.value?.focus()) }
-async function removeExternal(p) {
-  await fetch(`/api/prs?url=${encodeURIComponent(p.url)}`, { method: 'DELETE' }).catch(() => {})
-  if (prUrl.value === p.url) home()
-  loadRepos(true)
-}
+const stateOf = (r) => (r.status !== 'done' ? r.status : r.verdicts?.confirmado ? 'attend' : r.verdicts?.plausible ? 'look' : 'clear')
 
-// ── pegar un PR: se valida enseguida (si es de otro, queda como externo en su repo) ──
-const search = ref(null)
-const pasted = ref('')
-const pasteError = ref('')
-const starting = ref(false)
-async function validateUrl(url) {
-  url = String(url || '').trim()
-  if (!url) return
-  starting.value = true
-  pasteError.value = ''
-  try {
-    const d = await postJSON('/api/runs', { url })
-    const m = url.match(/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/)
-    await loadRepos(true)
-    const p = m && allPRs.value.find((x) => x.slug === m[1] && String(x.number) === m[2])
-    // el PR pegado se ve: la base salta a la suya
-    if (p?.base && BASES.includes(p.base)) base.value = p.base
-    prUrl.value = p?.url || url
-    runId.value = d.id
-    writeRoute(true)
-    pasted.value = ''
-    await loadRuns()
-  } catch (e) { pasteError.value = String(e.message || e) } finally { starting.value = false }
-}
-
-// ── las validaciones ──
-const runs = ref([])
+// ── la elegida ──
 const run = ref(null)
 const runError = ref('')
-async function loadRuns() {
-  try { runs.value = (await getJSON('/api/runs')).runs || [] } catch { /* la lista no es crítica */ }
-}
-const prRuns = computed(() => (selected.value ? runs.value.filter((r) => r.key === keyOf(selected.value)) : []))
 let pollTimer = 0
 async function loadRun() {
   clearTimeout(pollTimer)
@@ -138,14 +104,9 @@ async function loadRun() {
     runError.value = ''
   } catch (e) { run.value = null; runError.value = String(e.message || e) }
   if (run.value?.status === 'running' || run.value?.proving) pollTimer = setTimeout(loadRun, 2000)
-  else loadRuns()
 }
 watch(runId, loadRun)
-watch(prUrl, () => { if (!runId.value) run.value = null })
-async function stop() {
-  if (run.value?.status !== 'running' && !run.value?.proving) return
-  await fetch(`/api/runs/${encodeURIComponent(run.value.id)}/stop`, { method: 'POST' }).catch(() => {})
-}
+const listed = computed(() => runs.value.find((r) => r.id === runId.value) || null)
 const byVerdict = computed(() => {
   const fs = run.value?.findings || []
   const sev = { alta: 0, media: 1, baja: 2 }
@@ -153,23 +114,18 @@ const byVerdict = computed(() => {
     .filter((v) => v.items.length)
 })
 const proposalOpen = ref(false)
-// COMPROBAR CORRIENDO (goldfish/review/prove.go): el clon del repo se pone en el PR, un agente prueba con el harness en
-// local los hallazgos confirmados y plausibles, y el clon vuelve a su rama
-const testable = computed(() => (run.value?.findings || []).filter((f) => f.verdict === 'confirmado' || f.verdict === 'plausible').length)
-const proveError = ref('')
-async function prove() {
-  proveError.value = ''
-  try {
-    await postJSON(`/api/runs/${encodeURIComponent(run.value.id)}/prove`, {})
-    await loadRun()
-  } catch (e) { proveError.value = String(e.message || e) }
-}
-const PROOF_LABEL = { comprobado: 'comprobado corriendo', refutado: 'refutado corriendo', 'sin probar': 'sin probar' }
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 const fmtSecs = (ms) => (ms ? `${Math.round(ms / 1000)} s` : '')
 const usd = (n) => (n ? `US$${n.toFixed(2)}` : '')
 const loc = (f) => (f.file ? (f.line ? `${f.file}:${f.line}` : f.file) : '')
+
+// ── la base, en el pie (como el ambiente en ecommerce) ──
+const baseItems = computed(() => BASES.map((b) => ({ id: b, label: BASE_LABEL[b], selected: base.value === b })))
+watch(base, () => writeRoute(false))
+const baseTrigger = ref(null)
+let baseMenu = null
+watch(baseItems, () => baseMenu?.refresh(), { deep: true, flush: 'post' })
 
 // ── las regiones ──
 const sidebarOpen = ref(readSize('goldfish.sidebar-open', 1) !== 0)
@@ -184,7 +140,7 @@ const shown = computed(() => {
 })
 const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--panel-h': '0px' }))
 const sidebarResize = {
-  label: 'Ancho de la lista de PRs', sign: 1, defaultValue: 360,
+  label: 'Ancho de la lista de validaciones', sign: 1, defaultValue: 360,
   min: () => cssSize('--sidebar-min', 240),
   max: () => viewportW.value - cssSize('--editor-min', 360),
   get: () => shown.value.sidebar,
@@ -201,18 +157,17 @@ onMounted(() => {
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   baseMenu = bindMenu(baseTrigger.value, {
-    label: 'A qué rama apuntan los PRs que se ven', getItems: () => baseItems.value,
+    label: 'A qué rama apuntan las validaciones que se ven', getItems: () => baseItems.value,
     onSelect: (id) => { base.value = id },
   })
-  loadRepos()
   loadRuns()
   loadRun()
-  if (!prUrl.value) nextTick(() => search.value?.focus())
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', onHashChange)
   clearTimeout(pollTimer)
+  clearTimeout(listTimer)
   themeBinding?.destroy?.()
   baseMenu?.destroy()
 })
@@ -220,44 +175,33 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="PRs por repo">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Validaciones por repo">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
-        <span>PRs abiertos</span>
+        <span>Validaciones</span>
         <span class="count">{{ shownCount }}</span>
-        <div class="region-actions">
-          <button type="button" class="region-action" title="Validar otro PR (pegar su URL)" aria-label="Validar otro PR" @click="home">
-            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-          </button>
-          <button type="button" class="region-action" :disabled="loading" title="Volver a preguntarle a GitHub" aria-label="Volver a preguntarle a GitHub" @click="loadRepos(true)">
-            <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
-          </button>
-        </div>
       </div>
       <div class="region-body blocks">
         <p v-if="loadError" class="none hot">{{ loadError }}</p>
-        <p v-else-if="loading && !repos.length" class="none">Preguntándole a GitHub por tus PRs abiertos…</p>
-        <section v-for="b in shownRepos" :key="b.slug" class="block" :aria-label="b.name">
-          <button type="button" class="block-head" :aria-expanded="!collapsed.has(b.slug)" @click="toggleBlock(b.slug)">
-            <span class="ui-icon chevron" :class="{ open: !collapsed.has(b.slug) }" data-icon="chevron" aria-hidden="true"></span>
+        <p v-else-if="loading" class="none">Leyendo las validaciones…</p>
+        <section v-for="b in blocks" :key="b.name" class="block" :aria-label="b.name">
+          <button type="button" class="block-head" :aria-expanded="!collapsed.has(b.name)" @click="toggleBlock(b.name)">
+            <span class="ui-icon chevron" :class="{ open: !collapsed.has(b.name) }" data-icon="chevron" aria-hidden="true"></span>
             <span class="block-name">{{ b.name }}</span>
-            <span v-if="!b.clone" class="block-warn" title="No hay un clon de este repo: sus PRs no se pueden validar">sin clon</span>
-            <span class="count">{{ b.prs.length }}</span>
+            <span class="count">{{ b.runs.length }}</span>
           </button>
-          <ul v-if="!collapsed.has(b.slug)" class="prs">
-            <li v-if="!b.prs.length" class="empty-block">Sin PRs abiertos contra {{ base }}</li>
-            <li v-for="p in b.prs" :key="keyOf(p)">
-              <button type="button" class="pr" :class="{ on: selected && keyOf(selected) === keyOf(p) }" :title="p.title" @click="pick(p)">
-                <span class="pr-title">{{ p.title }}</span>
-                <span class="pr-meta">
-                  <span>#{{ p.number }}</span>
-                  <span v-if="p.external" class="tag external" :title="`De ${p.author}: lo pegaste para validarlo`">externo · {{ p.author }}</span>
-                  <span v-if="p.draft" class="tag">borrador</span>
-                  <span v-if="p.task" class="pr-task">{{ p.task.slug }}</span>
-                  <i v-if="p.lastRunId" class="dot done" title="Ya se validó" aria-label="Ya se validó"></i>
+          <ul v-if="!collapsed.has(b.name)" class="runs-list">
+            <li v-if="!b.runs.length" class="empty-block">Nada validado contra {{ base }}</li>
+            <li v-for="r in b.runs" :key="r.id">
+              <button type="button" class="item" :class="{ on: r.id === runId }" :title="r.title" @click="pick(r)">
+                <span class="item-title">{{ r.title }}</span>
+                <span class="item-meta">
+                  <span>{{ r.local ? 'antes del PR' : `PR #${r.pr?.number}` }}</span>
+                  <span v-if="r.pr && r.pr.external" class="tag external">{{ r.pr.author }}</span>
+                  <span>{{ fmtTime(r.started) }}</span>
                 </span>
+                <span class="item-summary" :data-state="stateOf(r)"><i class="dot" aria-hidden="true"></i>{{ summaryOf(r) }}</span>
               </button>
-              <button v-if="p.external" type="button" class="pr-remove" :title="`Sacar #${p.number} de la lista`" :aria-label="`Sacar #${p.number} de la lista`" @click="removeExternal(p)">×</button>
             </li>
           </ul>
         </section>
@@ -266,122 +210,92 @@ onBeforeUnmount(() => {
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ selected ? `#${selected.number} · ${blockOf(selected)?.name || selected.slug}` : 'Goldfish' }}</span>
-        <div v-if="selected" class="region-actions">
-          <button v-if="run?.status === 'running' || run?.proving" type="button" class="action" @click="stop">Frenar</button>
-          <button v-else type="button" class="action primary" :disabled="starting || !blockOf(selected)?.clone" @click="validateUrl(selected.url)">{{ prRuns.length ? 'Validar de nuevo' : 'Validar' }}</button>
-        </div>
+        <span>{{ run ? run.proposal?.title || run.branch : 'Goldfish' }}</span>
+        <span v-if="run" class="count">{{ run.repo }}</span>
       </div>
       <div class="region-body">
-        <!-- sin nada elegido: el buscador, como el de Google -->
-        <div v-if="!selected && !run" class="search-home">
-          <div class="brand" aria-hidden="true">Goldfish</div>
-          <form class="search" @submit.prevent="validateUrl(pasted)">
-            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input ref="search" v-model="pasted" type="url" inputmode="url" autocomplete="off" spellcheck="false"
-                   placeholder="Pegá la URL de un PR de GitHub" aria-label="URL del PR a validar" @paste="(e) => nextTick(() => validateUrl(pasted))" />
-          </form>
-          <div class="search-actions">
-            <button type="button" class="action primary" :disabled="starting || !pasted.trim()" @click="validateUrl(pasted)">{{ starting ? 'Arrancando…' : 'Validar PR' }}</button>
+        <div v-if="!run && !runError" class="empty">
+          <div class="empty-head">
+            <div class="empty-title">El registro de lo que se validó</div>
+            <div class="empty-desc">
+              Antes de publicar un PR, la sesión que trabaja en la rama lo pasa por Goldfish desde la consola: dos
+              <b>goldfish</b> lo revisan en frío (la descripción, el diff y lo que pide la tarea) y el <b>elephant</b>,
+              con tu contexto, le da veredicto a cada hallazgo, sin ser estricto. Acá queda lo que se hizo: elegí una
+              validación a la izquierda.
+              <pre class="cli">make goldfish-check REPO=legacy-backend DESC=pr.md BASE=main [PROBAR=1]
+make goldfish-run PR=https://github.com/…/pull/123</pre>
+            </div>
           </div>
-          <p v-if="pasteError" class="hot search-error">{{ pasteError }}</p>
-          <p class="search-desc">
-            Quien propone no valida su propio trabajo. Dos <b>goldfish</b> revisan el PR en frío (sólo su descripción,
-            su diff y lo que pide su tarea): si la descripción y el cambio dicen lo mismo, y qué puede salir mal. Después
-            el <b>elephant</b>, con todo tu contexto local, le da veredicto a cada hallazgo contra el código y suma lo
-            que sólo se ve con ese contexto. Un PR de otra persona queda en su repo como <b>externo</b>. No comenta en
-            GitHub ni aprueba.
-          </p>
         </div>
-        <template v-else>
-          <dl v-if="selected" class="facts">
-            <div><dt>PR</dt><dd><a :href="selected.url" target="_blank" rel="noopener">{{ selected.title }}</a></dd></div>
-            <div><dt>De</dt><dd>{{ selected.author }}<span v-if="selected.external" class="tag external">externo</span><span v-if="selected.draft" class="tag">borrador</span></dd></div>
-            <div v-if="selected.head"><dt>Rama</dt><dd><code>{{ selected.head }}</code> → <code>{{ selected.base }}</code></dd></div>
-            <div><dt>Tarea</dt><dd><template v-if="selected.task">{{ selected.task.title }} <span class="muted">· {{ selected.task.slug }}</span></template><span v-else class="muted">ninguna la declara en <code>ramas:</code></span></dd></div>
-            <div v-if="!blockOf(selected)?.clone"><dt></dt><dd class="hot">No hay un clon de {{ selected.slug }} en ~/Desktop/CREDITOP/github: sin él no se puede validar.</dd></div>
+        <p v-if="runError" class="none hot">{{ runError }}</p>
+
+        <template v-if="run">
+          <dl class="facts">
+            <div><dt>Rama</dt><dd><code>{{ run.branch }}</code> → <code>{{ run.base }}</code> <span class="muted">· commit {{ (run.head || '').slice(0, 10) }}</span></dd></div>
+            <div v-if="run.pr && !run.local"><dt>PR</dt><dd><a :href="run.pr.url" target="_blank" rel="noopener">#{{ run.pr.number }} · {{ run.pr.title }}</a> <span class="muted">· de {{ run.pr.author }}</span></dd></div>
+            <div v-else><dt>PR</dt><dd class="muted">todavía no: se validó antes de publicar</dd></div>
+            <div><dt>Tarea</dt><dd><template v-if="run.task">{{ run.task.title }} <span class="muted">· {{ run.task.slug }}</span></template><span v-else class="muted">ninguna la declara en <code>ramas:</code></span></dd></div>
+            <div><dt>Cuándo</dt><dd>{{ fmtTime(run.started) }} <span class="muted">· costo equivalente {{ usd(run.costUsd) || 'US$0.00' }}</span></dd></div>
           </dl>
 
-          <nav v-if="prRuns.length" class="tabs runs" aria-label="Validaciones de este PR">
-            <button v-for="r in prRuns" :key="r.id" type="button" class="tab" :class="{ on: r.id === runId }" @click="runId = r.id; writeRoute(false)">
-              {{ fmtTime(r.started) }}
-              <span class="count">{{ r.status === 'running' ? 'corriendo' : r.status === 'failed' ? 'falló' : `${r.findings} hallazgos` }}</span>
-            </button>
-          </nav>
-          <p v-if="runError" class="none hot">{{ runError }}</p>
+          <section class="stages" aria-label="Los pasos">
+            <div v-for="s in run.stages" :key="s.id" class="stage" :data-status="s.status">
+              <span class="mark" aria-hidden="true">{{ STAGE_MARK[s.status] }}</span>
+              <span class="stage-label">{{ s.label }}</span>
+              <span class="stage-note">{{ s.note }}</span>
+              <span class="stage-cost">{{ [fmtSecs(s.millis), usd(s.costUsd)].filter(Boolean).join(' · ') }}</span>
+            </div>
+            <p v-if="run.status === 'running' || run.proving" class="stage-total">Corriendo desde la consola…</p>
+            <p v-else-if="run.status === 'failed'" class="stage-total hot">No terminó: {{ run.error }}</p>
+            <p v-else-if="listed" class="stage-total" :data-state="stateOf(listed)">{{ summaryOf(listed) }}</p>
+          </section>
 
-          <template v-if="run">
-            <section class="stages" aria-label="Los pasos">
-              <div v-for="s in run.stages" :key="s.id" class="stage" :data-status="s.status">
-                <span class="mark" aria-hidden="true">{{ STAGE_MARK[s.status] }}</span>
-                <span class="stage-label">{{ s.label }}</span>
-                <span class="stage-note">{{ s.note }}</span>
-                <span class="stage-cost">{{ [fmtSecs(s.millis), usd(s.costUsd)].filter(Boolean).join(' · ') }}</span>
+          <section v-for="v in byVerdict" :key="v.id" class="verdict" :data-verdict="v.id || 'none'">
+            <div class="region-head group"><span>{{ v.label }}</span><span class="count">{{ v.items.length }}</span><span class="hint">{{ v.hint }}</span></div>
+            <article v-for="f in v.items" :key="f.n" class="finding">
+              <header>
+                <span class="sev" :data-sev="f.severity">{{ f.severity }}</span>
+                <b>{{ f.title }}</b>
+              </header>
+              <p class="where"><code v-if="loc(f)">{{ loc(f) }}</code> <span class="muted">{{ FROM[f.from] }}</span></p>
+              <p class="detail">{{ f.detail }}</p>
+              <p v-if="f.reason" class="reason">{{ f.reason }}</p>
+              <div v-if="f.proof" class="proof" :data-proof="f.proof.status">
+                <b>{{ PROOF_LABEL[f.proof.status] || f.proof.status }}</b> {{ f.proof.result }}
+                <pre v-if="f.proof.command">{{ f.proof.command }}</pre>
               </div>
-              <p class="stage-total">
-                <template v-if="run.status === 'running'">Corriendo… </template>
-                <template v-else-if="run.status === 'failed'"><span class="hot">Falló: {{ run.error }}</span> · </template>
-                costo equivalente {{ usd(run.costUsd) || 'US$0.00' }} (gasta del límite del plan de equipo)
-                <template v-if="run.artifact"> · quedó en la tarea</template>
-              </p>
-              <div v-if="run.status === 'done' && testable && !run.proving" class="prove">
-                <button type="button" class="action primary" @click="prove">Comprobar corriendo</button>
-                <span class="muted">Pone el clon de {{ blockOf(selected)?.name || run.slug }} en el PR, prueba con el harness en
-                  local los {{ testable }} hallazgos confirmados y plausibles, y lo devuelve a tu rama. Si el clon tiene
-                  cambios sin commit, no lo toca.</span>
-              </div>
-              <p v-if="run.proving" class="muted prove-note">Comprobando: el clon de {{ blockOf(selected)?.name || run.slug }} está en el PR hasta que termine.</p>
-              <p v-if="proveError" class="hot">{{ proveError }}</p>
-            </section>
+            </article>
+          </section>
+          <p v-if="run.status === 'done' && !run.findings?.length" class="none">Ningún hallazgo: los goldfish no encontraron nada serio.</p>
 
-            <section v-for="v in byVerdict" :key="v.id" class="verdict" :data-verdict="v.id || 'none'">
-              <div class="region-head group"><span>{{ v.label }}</span><span class="count">{{ v.items.length }}</span><span class="hint">{{ v.hint }}</span></div>
-              <article v-for="f in v.items" :key="f.n" class="finding">
-                <header>
-                  <span class="sev" :data-sev="f.severity">{{ f.severity }}</span>
-                  <b>{{ f.title }}</b>
-                </header>
-                <p class="where"><code v-if="loc(f)">{{ loc(f) }}</code> <span class="muted">{{ FROM[f.from] }}</span></p>
-                <p class="detail">{{ f.detail }}</p>
-                <p v-if="f.reason" class="reason">{{ f.reason }}</p>
-                <div v-if="f.proof" class="proof" :data-proof="f.proof.status">
-                  <b>{{ PROOF_LABEL[f.proof.status] || f.proof.status }}</b> {{ f.proof.result }}
-                  <pre v-if="f.proof.command">{{ f.proof.command }}</pre>
-                </div>
-              </article>
-            </section>
-            <p v-if="run.status === 'done' && !run.findings?.length" class="none">Ningún hallazgo: los goldfish no encontraron nada serio.</p>
-
-            <section v-if="run.proposal?.title" class="proposal">
-              <div class="region-head group">
-                <button type="button" class="toggle" @click="proposalOpen = !proposalOpen">
-                  <span class="ui-icon chevron" :class="{ open: proposalOpen }" data-icon="chevron" aria-hidden="true"></span>
-                  <span>La descripción que se revisó</span>
-                </button>
-              </div>
-              <div v-if="proposalOpen" class="proposal-body">
-                <h3>{{ run.proposal.title }}</h3>
-                <pre>{{ run.proposal.body || '(el PR no trae descripción)' }}</pre>
-              </div>
-            </section>
-          </template>
-          <p v-else-if="selected && !prRuns.length" class="none">Todavía no se validó. «Validar» corre tres agentes (unos minutos).</p>
+          <section v-if="run.proposal?.title" class="proposal">
+            <div class="region-head group">
+              <button type="button" class="toggle" @click="proposalOpen = !proposalOpen">
+                <span class="ui-icon chevron" :class="{ open: proposalOpen }" data-icon="chevron" aria-hidden="true"></span>
+                <span>La descripción que se revisó</span>
+              </button>
+            </div>
+            <div v-if="proposalOpen" class="proposal-body">
+              <h3>{{ run.proposal.title }}</h3>
+              <pre>{{ run.proposal.body || '(no traía descripción)' }}</pre>
+            </div>
+          </section>
         </template>
       </div>
     </main>
 
     <footer class="statusbar">
-      <!-- a qué rama apuntan los PRs que se ven, como el ambiente en el pie de ecommerce -->
-      <button ref="baseTrigger" type="button" class="statusbar-item base-pick" title="A qué rama apuntan los PRs que se ven">
+      <!-- a qué rama apuntan las validaciones que se ven, como el ambiente en el pie de ecommerce -->
+      <button ref="baseTrigger" type="button" class="statusbar-item base-pick" title="A qué rama apuntan las validaciones que se ven">
         <span class="ui-icon" data-icon="server" aria-hidden="true"></span>
         <span>Base: {{ base }}</span>
         <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
       </button>
-      <span v-if="loading">preguntándole a GitHub…</span>
-      <span v-else-if="checkedAt">{{ allPRs.filter((p) => inBase(p) && !p.external).length }} tuyos · {{ allPRs.filter((p) => inBase(p) && p.external).length }} externos contra {{ base }} · mirado a las {{ new Date(checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) }}</span>
+      <span>{{ shownCount }} validaciones contra {{ base }}</span>
+      <span v-if="runs.some((r) => r.status === 'running')" class="muted">· una corriendo en la consola</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los PRs" aria-label="Mostrar u ocultar los PRs" @click="toggleSidebar">
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las validaciones" aria-label="Mostrar u ocultar las validaciones" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
       </div>
@@ -390,7 +304,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
-/* Lo que la base no da. Bandas, pestañas, estado vacío y pie son de workbench.css. */
+/* Lo que la base no da. Bandas, estado vacío y pie son de workbench.css. */
 .theme-toggle { margin-right: var(--space-1) }
 .none { margin: 0; padding: var(--space-2) var(--gutter); color: var(--fg-3); font-size: var(--text-sm) }
 .hot { color: var(--verdict-confirmed) }
@@ -398,6 +312,8 @@ onBeforeUnmount(() => {
 code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .chevron { transition: transform .12s }
 .chevron.open { transform: rotate(90deg) }
+.cli { margin: var(--space-3) 0 0; padding: var(--space-2); border-radius: 6px; border: 1px solid var(--border); text-align: left;
+  font-family: var(--font-mono); font-size: var(--text-xs); white-space: pre-wrap; color: var(--fg-2) }
 /* los bloques: una tarjeta por repo */
 .blocks { padding: var(--space-2) }
 .block { border: 1px solid var(--border); border-radius: 10px; background: var(--card); margin-bottom: var(--space-2); overflow: hidden }
@@ -405,51 +321,32 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
   color: var(--foreground); font: inherit; font-weight: 600; cursor: pointer; text-align: left }
 .block-head:hover { background: var(--hover) }
 .block-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.block-warn { font-size: var(--text-xs); font-weight: 500; color: var(--verdict-plausible) }
-.prs { list-style: none; margin: 0; padding: 0 0 4px }
-.prs li { position: relative }
+.runs-list { list-style: none; margin: 0; padding: 0 0 4px }
 .empty-block { padding: 2px 10px 6px 30px; font-size: var(--text-sm); color: var(--fg-3) }
-.pr { width: 100%; display: block; padding: 6px 28px 6px 30px; border: 0; background: transparent; color: var(--foreground); font: inherit;
+.item { width: 100%; display: block; padding: 6px 10px 6px 30px; border: 0; background: transparent; color: var(--foreground); font: inherit;
   text-align: left; cursor: pointer; border-radius: 6px }
-.pr:hover { background: var(--hover) }
-.pr.on { background: var(--accent); color: var(--accent-foreground) }
-.pr-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3 }
-.pr-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--text-xs); color: var(--fg-3) }
-.pr.on .pr-meta { color: inherit; opacity: .85 }
-.pr-task { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px }
-.pr-remove { position: absolute; right: 6px; top: 6px; width: 20px; height: 20px; border: 0; border-radius: 4px; background: transparent;
-  color: var(--fg-3); cursor: pointer; font-size: 15px; line-height: 1; opacity: 0 }
-.prs li:hover .pr-remove, .pr-remove:focus-visible { opacity: 1 }
-.pr-remove:hover { background: var(--hover); color: var(--foreground) }
-.tag { display: inline-block; padding: 0 5px; border-radius: 4px; border: 1px solid var(--border); font-size: var(--text-xs); line-height: 16px; margin-left: 4px }
-.pr-meta .tag { margin-left: 0 }
+.item:hover { background: var(--hover) }
+.item.on { background: var(--accent); color: var(--accent-foreground) }
+.item-title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.3 }
+.item-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 2px; font-size: var(--text-xs); color: var(--fg-3) }
+.item.on .item-meta { color: inherit; opacity: .85 }
+/* el resumen: un punto del color de lo que quedó y la frase */
+.item-summary { display: flex; align-items: center; gap: 6px; margin-top: 3px; font-size: var(--text-xs); color: var(--fg-2) }
+.item.on .item-summary { color: inherit }
+.dot { flex: none; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--fg-3) }
+[data-state="attend"] .dot { background: var(--verdict-confirmed) }
+[data-state="look"] .dot { background: var(--verdict-plausible) }
+[data-state="clear"] .dot { background: var(--stage-done) }
+[data-state="running"] .dot { background: var(--primary) }
+[data-state="failed"] .dot { background: var(--verdict-confirmed) }
+.tag { display: inline-block; padding: 0 5px; border-radius: 4px; border: 1px solid var(--border); font-size: var(--text-xs); line-height: 16px }
 .tag.external { border-color: var(--verdict-plausible); color: var(--verdict-plausible) }
-.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50% }
-.dot.done { background: var(--stage-done) }
-/* el selector de la base, en el pie: no se encoge */
-.base-pick { flex: none }
-/* el buscador, como el de Google */
-.search-home { max-width: 640px; margin: 12vh auto 0; padding: 0 var(--gutter); display: flex; flex-direction: column; align-items: center; gap: var(--space-3) }
-.brand { font-size: 34px; font-weight: 700; letter-spacing: -.02em; color: var(--primary) }
-.search { width: 100%; display: flex; align-items: center; gap: var(--space-2); padding: 0 16px; height: 46px; border: 1px solid var(--border);
-  border-radius: 23px; background: var(--card) }
-.search:focus-within { box-shadow: 0 1px 8px rgba(0, 0, 0, .25); border-color: var(--ring) }
-.search input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--foreground); font: inherit; font-size: 15px }
-.search-actions { display: flex; gap: var(--space-2) }
-.search-error { margin: 0; font-size: var(--text-sm); text-align: center }
-.search-desc { margin: var(--space-2) 0 0; color: var(--fg-3); font-size: var(--text-sm); line-height: 1.5; text-align: center }
-/* los datos del PR */
+/* los datos */
 .facts { margin: 0; padding: var(--space-2) var(--gutter); display: grid; gap: 4px }
 .facts > div { display: grid; grid-template-columns: 70px 1fr; gap: var(--space-2) }
 .facts dt { color: var(--fg-3) }
 .facts dd { margin: 0; min-width: 0 }
 .facts a { color: var(--primary) }
-.runs { padding: 0 var(--gutter) }
-/* las acciones */
-.action { border: 1px solid var(--border); background: transparent; color: var(--foreground); border-radius: 6px; padding: 4px 12px; font: inherit; font-size: var(--text-sm); cursor: pointer }
-.action:hover { background: var(--hover) }
-.action.primary { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary) }
-.action:disabled { opacity: .5; cursor: default }
 /* los pasos */
 .stages { padding: var(--space-2) var(--gutter) }
 .stage { display: grid; grid-template-columns: 18px minmax(0, 1.2fr) minmax(0, 1fr) auto; gap: var(--space-2); align-items: baseline; min-height: 24px }
@@ -460,7 +357,9 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .stage[data-status="pending"] .stage-label { color: var(--fg-3) }
 .stage-note { color: var(--fg-3); font-size: var(--text-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .stage-cost { color: var(--fg-3); font-size: var(--text-sm); font-variant-numeric: tabular-nums }
-.stage-total { margin: var(--space-2) 0 0; color: var(--fg-2); font-size: var(--text-sm) }
+.stage-total { margin: var(--space-2) 0 0; color: var(--fg-2); font-size: var(--text-sm); font-weight: 600 }
+.stage-total[data-state="attend"] { color: var(--verdict-confirmed) }
+.stage-total[data-state="clear"] { color: var(--stage-done) }
 /* los hallazgos, por veredicto */
 .verdict .hint { margin-left: var(--space-2); color: var(--fg-3); font-weight: 400 }
 .verdict[data-verdict="confirmado"] > .region-head { color: var(--verdict-confirmed) }
@@ -471,14 +370,10 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .finding .where { font-size: var(--text-sm) }
 .finding .detail { white-space: pre-wrap }
 .finding .reason { color: var(--fg-2); font-size: var(--text-sm); border-left: 2px solid var(--border); padding-left: var(--space-2); white-space: pre-wrap }
-.verdict[data-verdict="descartado"] .finding b { color: var(--fg-2); font-weight: 500 }
+.verdict[data-verdict="descartado"] .finding b, .verdict[data-verdict="fuera de alcance"] .finding b { color: var(--fg-2); font-weight: 500 }
 .sev { flex: none; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .03em; color: var(--fg-3) }
 .sev[data-sev="alta"] { color: var(--verdict-confirmed); font-weight: 700 }
 .sev[data-sev="media"] { color: var(--verdict-plausible); font-weight: 600 }
-/* comprobar corriendo, y su evidencia en cada hallazgo */
-.prove { display: flex; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm) }
-.prove .action { flex: none }
-.prove-note { margin: var(--space-2) 0 0; font-size: var(--text-sm) }
 .proof { margin-top: 6px; padding: 6px var(--space-2); border-radius: 6px; border: 1px solid var(--border); font-size: var(--text-sm) }
 .proof[data-proof="comprobado"] b { color: var(--verdict-confirmed) }
 .proof[data-proof="refutado"] b { color: var(--stage-done) }
@@ -489,4 +384,5 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .proposal-body { padding: var(--space-2) var(--gutter) }
 .proposal-body h3 { margin: 0 0 var(--space-2); font-size: var(--text-base) }
 .proposal-body pre { margin: 0; white-space: pre-wrap; font: inherit; font-size: var(--text-sm); color: var(--fg-2) }
+.base-pick { flex: none }
 </style>

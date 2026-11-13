@@ -15,11 +15,11 @@ const schemaFindings = `{"type": "object", "additionalProperties": false, "requi
 const schemaVerdict = `{"type": "object", "additionalProperties": false, "required": ["verdicts", "extra"], "properties": {
 "verdicts": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["n", "verdict", "reason"], "properties": {
   "n": {"type": "integer", "description": "el número del hallazgo en findings.json"},
-  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado"]},
+  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado", "fuera de alcance"]},
   "reason": {"type": "string", "description": "por qué, con archivo:línea"}}}},
 "extra": {"type": "array", "items": {"type": "object", "additionalProperties": false,
   "required": ["title", "detail", "file", "line", "severity", "verdict", "reason"], "properties": {` + findingProps + `,
-  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado"]},
+  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado", "fuera de alcance"]},
   "reason": {"type": "string"}}}}}}`
 
 const schemaProve = `{"type": "object", "additionalProperties": false, "required": ["proofs"], "properties": {

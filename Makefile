@@ -110,7 +110,7 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
-.PHONY: goldfish goldfish-list goldfish-run
+.PHONY: goldfish goldfish-list goldfish-run goldfish-check
 goldfish: ## @dia abre goldfish (:5216 · API :5217): tus PRs abiertos por repo (y los de otros que pegaste, como «externos») y su validación Elephant-Goldfish: dos goldfish revisan el PR en frío y el elephant, con tu contexto local, le da veredicto a cada hallazgo contra el código. Pegás la URL de un PR y se valida. No comenta en GitHub ni aprueba. Cada validación corre 3 agentes con `claude -p` (gasta el asiento del plan)
 	@cd goldfish && npm run dev
 goldfish-list: ## @dia tus PRs abiertos por repo y los externos que pegaste, con su tarea del tablero. Sólo lee
@@ -118,6 +118,9 @@ goldfish-list: ## @dia tus PRs abiertos por repo y los externos que pegaste, con
 goldfish-run: ## @dia ⚠ valida un PR con Elephant-Goldfish (3 agentes con `claude -p`: unos minutos, gasta el asiento del plan). Trae el PR al clon (sólo refs), deja el informe en goldfish/.runs y, si su rama es de una tarea, en sus artifacts y un bloque en su pila. Si es de otro, queda como externo. PR=<url del PR>
 	@test -n "$(PR)" || { echo "falta PR=<url>  ·  ej: make goldfish-run PR=https://github.com/Creditop-SAS/legacy-backend/pull/1693  (los tuyos: make goldfish-list)"; exit 2; }
 	@go run ./goldfish/server -run -pr "$(PR)"
+goldfish-check: ## @dia el paso previo a publicar un PR: Goldfish sobre la rama local (la que tenga el clon), sin el PR todavía. Dos goldfish la revisan en frío y el elephant le da veredicto a cada hallazgo, sin ser estricto: sólo lo de este cambio; lo que no es de la tarea sale como «fuera de alcance». Escribe un resumen corto (qué atender, qué mirar). REPO=<carpeta o ruta> [RAMA=] [BASE=main] [DESC=<md con la descripción del PR: 1.ª línea, el título>] [PROBAR=1 además comprueba corriendo con el harness en local]
+	@test -n "$(REPO)" || { echo "falta REPO=  ·  ej: make goldfish-check REPO=legacy-backend DESC=/tmp/pr.md BASE=main"; exit 2; }
+	@go run ./goldfish/server -check -repo "$(REPO)" $(if $(RAMA),-branch "$(RAMA)") $(if $(BASE),-base "$(BASE)") $(if $(DESC),-desc "$(DESC)") $(if $(PROBAR),-prove)
 ecommerce: ## @dia abre ecommerce (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local, qa o prod (prod sólo lee); también cierra la compra (aprobada, negada, cancelada) y dicta las centrales. Es una copia suelta: su .env propio, sin connectors. ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en ecommerce/.backups/. Por consola: cd ecommerce && go run ./server -target qa -q <url|número>
 	@cd ecommerce && npm run dev
 .PHONY: captura

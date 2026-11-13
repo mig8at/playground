@@ -84,7 +84,7 @@ func Prove(ctx context.Context, playground string, r *Run, save Recorder) {
 		done("skipped", "no hay hallazgos confirmados ni plausibles para probar")
 		return
 	}
-	clone := CloneOf(ctx, r.Slug)
+	clone := r.cloneDir(ctx)
 	if clone == "" {
 		done("failed", "no hay un clon de "+r.Slug)
 		return
@@ -114,15 +114,21 @@ func Prove(ctx context.Context, playground string, r *Run, save Recorder) {
 	raw, _ := json.MarshalIndent(testable, "", "  ")
 	tfile := filepath.Join(dir, "package", "testable.json")
 	_ = os.WriteFile(tfile, raw, 0o644)
-	prompt := strings.NewReplacer("{{REPO}}", r.Slug, "{{REPO_DIR}}", clone, "{{PR}}", fmt.Sprintf("#%d", r.PR.Number),
+	prompt := strings.NewReplacer("{{REPO}}", r.Slug, "{{REPO_DIR}}", clone, "{{PR}}", r.label(),
 		"{{HEAD}}", r.Head, "{{PACKAGE}}", filepath.Join(dir, "package"), "{{TESTABLE}}", tfile).Replace(promptProve)
 	res, err := runAgent(ctx, agentSpec{
 		dir: playground, prompt: prompt, schema: schemaProve,
 		tools: []string{"Read", "Grep", "Glob", "Bash", "Agent", "Skill"},
 		// y la prueba del PR por su ruta, desde su clon (nunca la suite entera: el hook destructive-tests lo frena igual)
 		// (un comando compuesto se revisa por partes: el `cd` y el `sail` van por separado)
+		// y lo del playground también desde su raíz o por su ruta completa (`cd <playground> && make …`, `<playground>/bin/pg …`)
 		allowed: append(append([]string{}, proveAllowed...), "Bash(cd "+clone+")", "Bash(cd "+clone+":*)",
-			"Bash(./vendor/bin/sail artisan test:*)", "Bash("+clone+"/vendor/bin/sail artisan test:*)"),
+			"Bash(./vendor/bin/sail artisan test:*)", "Bash("+clone+"/vendor/bin/sail artisan test:*)",
+			"Bash(cd "+playground+")", "Bash(cd "+playground+":*)", "Bash(./bin/pg sql:*)", "Bash("+playground+"/bin/pg sql:*)",
+			"Bash("+playground+"/bin/pg logs:*)", "Bash("+playground+"/bin/pg request timeline:*)",
+			"Bash(make -C "+playground+" harness-:*)", "Bash(make -C "+playground+" tablero-db:*)",
+			// la API local, sólo por el ayudante que rechaza todo host que no sea localhost (curl libre podría ir a prod)
+			"Bash(goldfish/bin/local-http:*)", "Bash("+playground+"/goldfish/bin/local-http:*)"),
 		denied:  proveDenied,
 		addDirs: []string{clone, dir}, budgetUSD: 8, timeout: 45 * time.Minute,
 		env: []string{"E2E_TARGET=local"},
@@ -161,6 +167,10 @@ func Prove(ctx context.Context, playground string, r *Run, save Recorder) {
 
 // checkoutPR pone el clon en el commit del PR (detached) y devuelve cómo dejarlo como estaba.
 func checkoutPR(ctx context.Context, clone string, r *Run) (func() error, error) {
+	// si el clon ya está en ese commit (la rama local en la que se trabaja), no se mueve nada
+	if cur, _ := git(ctx, clone, "rev-parse", "HEAD"); cur != "" && cur == r.Head {
+		return func() error { return nil }, nil
+	}
 	dirty, err := git(ctx, clone, "status", "--porcelain", "--untracked-files=no")
 	if err != nil {
 		return nil, err
@@ -203,7 +213,8 @@ var (
 		"Bash(make harness-:*)", "Bash(make tablero-db:*)", "Bash(make knowledge-:*)", "Bash(bin/pg sql:*)",
 		"Bash(bin/pg logs:*)", "Bash(bin/pg request timeline:*)", "Bash(bin/pg client state:*)", "Bash(bin/pg events:*)",
 		"Bash(bin/pg jobs failed:*)", "Bash(bin/pg settings diff:*)", "Bash(git -C:*)", "Bash(git show:*)", "Bash(git log:*)",
-		"Bash(git diff:*)", "Bash(gh pr view:*)", "Bash(gh pr diff:*)", "Bash(curl -s http://127.0.0.1:*)", "Bash(curl -s http://localhost:*)", "Bash(docker ps:*)"}
+		"Bash(git diff:*)", "Bash(gh pr view:*)", "Bash(gh pr diff:*)", "Bash(curl -s http://127.0.0.1:*)", "Bash(curl -s http://localhost:*)", "Bash(curl -s http://localhost/:*)",
+		"Bash(curl -s http://127.0.0.1/:*)", "Bash(docker ps:*)"}
 	proveDenied = []string{"Edit", "Write", "NotebookEdit",
 		"Bash(git -C * checkout:*)", "Bash(git -C * commit:*)", "Bash(git -C * push:*)", "Bash(git -C * reset:*)",
 		"Bash(git -C * stash:*)", "Bash(git -C * merge:*)", "Bash(git -C * rebase:*)", "Bash(git checkout:*)",
@@ -213,7 +224,7 @@ var (
 // RestoreAfterCrash: si una comprobación se cortó con el clon todavía en el PR, lo devuelve a donde estaba.
 // Sólo si el clon sigue exactamente en el commit del PR, sin rama y sin cambios: si alguien ya lo movió, no se toca.
 func RestoreAfterCrash(ctx context.Context, r *Run) (string, error) {
-	clone := CloneOf(ctx, r.Slug)
+	clone := r.cloneDir(ctx)
 	if clone == "" || r.ProveFrom == "" || r.Head == "" {
 		return "", nil
 	}
