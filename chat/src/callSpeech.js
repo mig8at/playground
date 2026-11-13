@@ -4,8 +4,11 @@
    cierra con «el resto se los dejo en el chat» y el personaje se queda leyendo.
 
    POR QUÉ 40 s: la regla del semáforo para hablar (los primeros 20 s en verde, de 20 a 40 en amarillo —el interés
-   empieza a caer— y desde 40 en rojo). La guía pide ~20 s por mensaje; la llamada corta en el rojo. Un adjunto se anuncia en una frase
-   («les dejé un documento») y el personaje lo muestra (una hoja, una foto). El texto completo queda en el chat.
+   empieza a caer— y desde 40 en rojo). La guía pide ~55 palabras (~20 s) por mensaje; la llamada corta en el rojo.
+
+   UN ADJUNTO lo muestra el personaje (una hoja, una foto) y, si el mensaje no trae texto que lo presente, se anuncia en
+   una frase («les dejé un documento»). LOS MENSAJES DEL LLAVERO no se leen (son nombres de claves o valores
+   encriptados): se anuncian. El texto completo queda siempre en el chat.
 
    La guía de cómo escribir para que esto casi no haga falta está en chat/CLAUDE.md §«Cómo habla un agente». */
 import { isImage } from './stores/chat.js'
@@ -23,6 +26,9 @@ const LIST_ITEM = /^\s*([-*•]|\d+[.)])\s+/
  */
 export function forCall(message) {
   const raw = String(message?.text || '')
+  // el llavero no se lee: son nombres de claves o valores encriptados (U2FsdGVkX1…); se anuncia y se muestra una hoja
+  const keyring = keyringLine(raw)
+  if (keyring) return { text: keyring, prop: 'doc' }
   let dropped = false
   // los bloques de código, enteros
   let text = raw.replace(/```[\s\S]*?```/g, () => { dropped = true; return '\n' })
@@ -50,7 +56,8 @@ export function forCall(message) {
   const files = Array.isArray(message?.files) ? message.files : []
   const images = files.filter((f) => isImage(f)).length
   const docs = files.length - images
-  if (files.length) said.push(attachmentLine(images, docs))
+  // el adjunto se anuncia sólo si el mensaje no dice nada: si trae texto, ahí ya se presentó («te dejé las notas…»)
+  if (files.length && !said.length) said.push(attachmentLine(images, docs))
   else if (dropped && !said.length) said.push('Les dejé algo para leer en el chat.')
 
   const prop = images ? 'image' : docs ? 'doc' : dropped ? 'read' : ''
@@ -61,4 +68,13 @@ function attachmentLine(images, docs) {
   if (images && docs) return 'Les dejé unos archivos.'
   if (images) return images === 1 ? 'Les dejé una imagen.' : `Les dejé ${images} imágenes.`
   return docs === 1 ? 'Les dejé un documento.' : `Les dejé ${docs} documentos.`
+}
+
+// Los mensajes del llavero (chat/server/keyring_auto.go): el pedido, la lista de nombres y el bloque encriptado.
+function keyringLine(text) {
+  const t = text.trimStart()
+  if (/^🔑\s*Pido/.test(t)) return 'Les pedí unas claves del llavero.'
+  if (/^🔑\s*Mi llavero/.test(t)) return 'Les mostré qué claves tengo en el llavero.'
+  if (/^🔒/.test(t) || /=U2FsdGVkX1/.test(t)) return 'Les mandé unas claves del llavero, encriptadas.'
+  return ''
 }
