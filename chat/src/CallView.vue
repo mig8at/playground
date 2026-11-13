@@ -450,15 +450,16 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
-        <!-- su portátil (plateado, sin marca) y, mientras toma tinto, la taza; en papel cortado -->
+        <!-- su portátil (oscuro, con la E de CreditOp) y, mientras toma tinto, la taza; en papel cortado -->
         <svg v-if="laptopOf(c)" class="call-laptop" :class="laptopOf(c)" viewBox="0 0 100 60" aria-hidden="true">
           <g class="lid">
-            <rect x="12" y="4" width="76" height="50" rx="4" fill="#13323a" opacity=".22" transform="translate(2 3)" />
-            <rect x="12" y="4" width="76" height="50" rx="4" fill="#c9ced3" />
-            <rect x="12" y="4" width="76" height="6" rx="3" fill="#dfe3e6" />
-            <circle cx="50" cy="29" r="5" fill="#e9ecee" />
+            <rect x="8" y="4" width="84" height="50" rx="4" fill="#000" opacity=".25" transform="translate(2 3)" />
+            <rect x="8" y="4" width="84" height="50" rx="4" fill="#1d3d47" />
+            <rect x="8" y="4" width="84" height="5" rx="2.5" fill="#2b5560" />
+            <!-- la E de CreditOp (sus tres barras verdes), en lugar de una marca ajena -->
+            <g fill="#05d587"><rect x="44" y="16" width="12" height="3" rx="1.5" /><rect x="44" y="21" width="8" height="3" rx="1.5" /><rect x="44" y="26" width="14" height="3" rx="1.5" /></g>
           </g>
-          <rect x="3" y="53" width="94" height="6" rx="2.5" fill="#9aa1a7" />
+          <rect x="1" y="53" width="98" height="6" rx="2.5" fill="#0f2830" />
         </svg>
         <svg v-if="activityOf(c) === 'cafe' && !propOf(c)" class="call-mug" viewBox="0 0 100 80" aria-hidden="true">
           <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
@@ -536,8 +537,9 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
 .call-gender.busy { opacity: .6; }
 /* el portátil, abajo y al centro; al cerrarse, la tapa baja hasta la bisagra */
-/* bajo y no tan grande: la tapa llega justo debajo de la barbilla, así la boca (o el pico) se ve al hablar */
-.call-laptop { position: absolute; left: 50%; bottom: -7%; width: 37%; translate: -50% 0; pointer-events: none;
+/* ancho y hundido: se ve la mitad de arriba de la tapa, justo debajo de la barbilla (la boca o el pico se ven al
+   hablar); oscuro, del tono de los audífonos */
+.call-laptop { position: absolute; left: 50%; bottom: -22%; width: 52%; translate: -50% 0; pointer-events: none;
   filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
 .call-laptop .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }
 .call-laptop.closed .lid { transform: scaleY(.08); }
