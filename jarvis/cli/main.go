@@ -23,7 +23,7 @@
 //	bin/jarvis start [--url U] '<meta>'       abre una sesión de Claude desde la conversación: el panel de la interfaz
 //	              think '<texto>'               muestra cada comando, lo que piensa (think) y cómo terminó (finish,
 //	              finish 'LISTO: …'             que guarda la corrida y, con LISTO, el flujo)
-//	bin/jarvis shot <archivo.png>             guarda lo que se ve ahora
+//	bin/jarvis shot [--full] <archivo.png>    guarda lo que se ve ahora (--full: toda la página, bajando el scroll)
 //	bin/jarvis steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/jarvis report [meta]                  el paso a paso con una foto por paso (md, html y script)
 //	bin/jarvis close                          cierra la sesión en vivo
@@ -225,7 +225,7 @@ func usage() {
   click <n> · dblclick <n> · hover <n> · fill <n> <valor> · check <n> · uncheck <n> · select <n> <valor>
   press <n> <tecla> · upload <n> <archivo> · drag <n> <destino> · dialog accept|dismiss
   (<n> es el número del último look, o un texto visible entre comillas: click "Revisar el informe")
-  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--from N | --search texto] · shot <archivo.png>
+  scroll [n] · goto <url> · back · reload · text [buscar] · wait <texto> [s] · value <n> [esperado] · download <n|texto|url> · read [--from N | --search texto] · shot [--full] <archivo.png>
   point <n> '<instrucción>' (modo guía: marca y espera a la persona) · changes (lo que cambió en cada campo)
   docs [<herramienta> [apis|screens|cases|overview]] [--json]   lo que Jarvis sabe de cada herramienta (sin servidor)
   recipe <herramienta> <receta> [args]   corre una receta (bin/jarvis docs <herramienta> las lista)
@@ -909,11 +909,26 @@ func value(args []string) error {
 }
 
 func shot(args []string) error {
+	// --full: toda la página, bajando el elemento que se desplaza (la página o un panel, como en Gmail).
+	full := false
+	var rest []string
+	for _, a := range args {
+		if a == "--full" || a == "--completa" {
+			full = true
+			continue
+		}
+		rest = append(rest, a)
+	}
+	args = rest
 	if len(args) < 1 {
 		usage()
 	}
+	url := api + "/api/live/shot"
+	if full {
+		url += "?full=1"
+	}
 	// La foto es binaria y no pasa por call: el encabezado de la pestaña va a mano (sin él, sacaba la de la última).
-	req, _ := http.NewRequest(http.MethodGet, api+"/api/live/shot", nil)
+	req, _ := http.NewRequest(http.MethodGet, url, nil)
 	req.Header.Set("X-Jarvis-Client", "cli")
 	if tabID != "" {
 		req.Header.Set("X-Jarvis-Tab", tabID)

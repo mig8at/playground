@@ -365,14 +365,18 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 		}
 		writeJSON(w, http.StatusOK, map[string]string{"text": text})
 	})
-	// GET /api/live/shot — lo que se ve ahora, en PNG.
+	// GET /api/live/shot — lo que se ve ahora, en PNG. Con ?full=1, todo lo que se desplaza (fullshot.go).
 	mux.HandleFunc("/api/live/shot", func(w http.ResponseWriter, r *http.Request) {
 		tab := tabs.pick(w, r)
 		if tab == nil {
 			return
 		}
 		runner := tab.Runner
-		png, err := runner.LiveShot()
+		take := runner.LiveShot
+		if r.URL.Query().Get("full") == "1" {
+			take = runner.LiveShotFull
+		}
+		png, err := take()
 		if err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return
