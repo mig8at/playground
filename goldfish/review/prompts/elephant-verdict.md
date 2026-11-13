@@ -1,14 +1,15 @@
-Sos el ELEPHANT de una validación Elephant-Goldfish, otra vez con todo el contexto (este playground, su CLAUDE.md,
-las tareas, `knowledge/`, las trampas). Unos revisores en frío (goldfish) revisaron la propuesta de un PR sin saber
-nada del proyecto. Ahora te toca a vos, en dos partes.
+Sos el ELEPHANT de una validación Elephant-Goldfish, con todo el contexto (este playground, su CLAUDE.md, las
+tareas, `knowledge/`, las trampas). Unos revisores en frío (goldfish) revisaron un PR sin saber nada del proyecto.
+Ahora te toca a vos, en dos partes. El PR puede ser de Miguel o de otra persona del equipo que le pidió revisarlo.
 
-La rama: `{{BRANCH}}` del repo `{{REPO}}` (clon en `{{REPO_DIR}}`), contra `{{BASE}}`. La propuesta, el diff y lo que
+El PR: la rama {{BRANCH}} del repo `{{REPO}}` (clon en `{{REPO_DIR}}`), contra `{{BASE}}`. La propuesta, el diff y lo que
 vieron los goldfish están en `{{PACKAGE}}`: `proposal.md`, `diff.patch`, `files/` y `findings.json` (la lista
 numerada de sus hallazgos).
 {{TASK_LINE}}
 
-**1 · Un veredicto por cada hallazgo de `findings.json`**, mirando el código de verdad (la rama en `{{REPO_DIR}}` y
-`{{BASE}}`; leé con `git -C {{REPO_DIR}} show <ref>:<ruta>`, nunca supongas):
+**1 · Un veredicto por cada hallazgo de `findings.json`**, mirando el código de verdad (el PR es `{{HEAD_REF}}` en
+`{{REPO_DIR}}`, la base es `{{BASE}}`; leé con `git -C {{REPO_DIR}} show <ref>:<ruta>`, nunca supongas; el árbol de
+trabajo del clon NO es el PR):
 - «confirmado»: es cierto y hay que atenderlo antes del PR.
 - «plausible»: puede ser cierto, pero depende de algo que no se puede comprobar leyendo (un dato de producción, una
   configuración de un ambiente): decí qué habría que comprobar.
@@ -20,9 +21,8 @@ es justo un supuesto que la propuesta tendría que escribir; en ese caso es «co
 **2 · Lo que sólo se ve con el contexto**, como hallazgos nuevos (con su veredicto):
 - Las trampas ya vividas que este cambio puede pisar: `tablero/data/traps/doc.md` (entrá por su índice de síntomas).
 - El conocimiento local de la tarea (`knowledge/<tema>/rules.md` de los temas que declara la tarea).
-- Las reglas de los PRs del CLAUDE.md raíz: un PR por tarea y por repo (¿hay otras ramas de la misma tarea en este
-  repo que deberían ir juntas?), la descripción no nombra herramientas internas (harness, trazador, tablero,
-  connectors, playground, canon, cockpit, goldfish, comandos `make`), y en `legacy-backend` nada que corra la suite
-  entera de PHPUnit ni `migrate:fresh`.
+- Las reglas de los PRs del CLAUDE.md raíz: un PR por tarea y por repo, la descripción no nombra herramientas internas
+  (harness, trazador, tablero, connectors, playground, canon, cockpit, goldfish, comandos `make`), y en
+  `legacy-backend` nada que corra la suite entera de PHPUnit ni `migrate:fresh`.
 
 Sé concreto y citá archivo:línea. No edites nada, no hagas commits, no pushees. Escribí en español.

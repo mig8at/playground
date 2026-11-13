@@ -12,11 +12,6 @@ const schemaFindings = `{"type": "object", "additionalProperties": false, "requi
 "findings": {"type": "array", "items": {"type": "object", "additionalProperties": false,
   "required": ["title", "detail", "file", "line", "severity"], "properties": {` + findingProps + `}}}}}`
 
-const schemaProposal = `{"type": "object", "additionalProperties": false, "required": ["title", "body", "claims"], "properties": {
-"title": {"type": "string"},
-"body": {"type": "string", "description": "la descripción del PR, en Markdown"},
-"claims": {"type": "array", "items": {"type": "string"}, "description": "las afirmaciones técnicas que dependen del código"}}}`
-
 const schemaVerdict = `{"type": "object", "additionalProperties": false, "required": ["verdicts", "extra"], "properties": {
 "verdicts": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["n", "verdict", "reason"], "properties": {
   "n": {"type": "integer", "description": "el número del hallazgo en findings.json"},

@@ -1,20 +1,23 @@
 package main
 
-// GOLDFISH: validar una rama de un repo real antes de abrir su PR (el método está en goldfish/review). La API de la
-// app (127.0.0.1:5217) y la consola:
+// GOLDFISH: validar un PR con Elephant-Goldfish (el método está en goldfish/review). La API de la app
+// (127.0.0.1:5217) y la consola:
 //
-//	go run ./goldfish/server -list                         las ramas por subir, con su PR y su tarea
-//	go run ./goldfish/server -run -repo R -branch B        valida una rama y deja el informe
+//	go run ./goldfish/server -list                         tus PRs abiertos y los externos, por repo
+//	go run ./goldfish/server -run -pr <url>                valida un PR y deja el informe
 //	go run ./goldfish/server -serve 127.0.0.1:5217         la API de la app
 //
-//	GET  /api/branches[?refresh=1]     las ramas por subir (se recalcula a lo sumo cada 3 min, salvo refresh)
-//	GET  /api/runs                     las validaciones, de la más nueva a la más vieja
-//	GET  /api/runs/{id}                una, con sus pasos y hallazgos (la interfaz la pregunta mientras corre)
-//	GET  /api/runs/{id}/report         su informe en Markdown
-//	POST /api/runs  {repo, branch}     valida una rama (una a la vez por rama)
-//	POST /api/runs/{id}/stop           la frena
+//	GET    /api/prs[?refresh=1]          los bloques por repo (se pide a GitHub a lo sumo cada 3 min, salvo refresh)
+//	POST   /api/prs  {url}               un PR pegado: si es de otro, queda como externo; devuelve el PR
+//	DELETE /api/prs?url=<url>            saca un externo de la lista
+//	GET    /api/runs                     las validaciones, de la más nueva a la más vieja
+//	GET    /api/runs/{id}                una, con sus pasos y hallazgos (la interfaz la pregunta mientras corre)
+//	GET    /api/runs/{id}/report         su informe en Markdown
+//	POST   /api/runs  {url}              valida un PR (uno a la vez por PR)
+//	POST   /api/runs/{id}/stop           la frena
 //
-// Sólo escucha en 127.0.0.1 y sólo lee los repos: no abre PRs ni pushea.
+// Sólo escucha en 127.0.0.1. De los repos sólo trae el PR y su base al clon (refs, sin tocar el árbol de trabajo):
+// no comenta en GitHub, no aprueba ni pushea.
 
 import (
 	"context"
@@ -35,10 +38,9 @@ import (
 
 func main() {
 	serve := flag.String("serve", "", "levantar la API en esta dirección (127.0.0.1:5217)")
-	list := flag.Bool("list", false, "listar las ramas por subir")
-	run := flag.Bool("run", false, "validar una rama (con -repo y -branch)")
-	repo := flag.String("repo", "", "el repo (la carpeta en ~/Desktop/CREDITOP/github)")
-	branch := flag.String("branch", "", "la rama")
+	list := flag.Bool("list", false, "listar tus PRs abiertos y los externos")
+	run := flag.Bool("run", false, "validar un PR (con -pr)")
+	prURL := flag.String("pr", "", "la URL del PR")
 	flag.Parse()
 	root, err := playgroundRoot()
 	if err != nil {
@@ -50,13 +52,13 @@ func main() {
 		markInterrupted(root)
 		listen(root, *serve)
 	case *list:
-		printBranches(root)
+		printBlocks(root)
 	case *run:
-		if *repo == "" || *branch == "" {
-			fmt.Fprintln(os.Stderr, "goldfish: faltan -repo y -branch")
+		if *prURL == "" {
+			fmt.Fprintln(os.Stderr, "goldfish: falta -pr <url>")
 			os.Exit(2)
 		}
-		os.Exit(runConsole(root, *repo, *branch))
+		os.Exit(runConsole(root, *prURL))
 	default:
 		flag.Usage()
 		os.Exit(2)
@@ -78,38 +80,50 @@ func playgroundRoot() (string, error) {
 	}
 }
 
-func printBranches(root string) {
-	bs, err := review.Pending(context.Background(), root, true)
+func printBlocks(root string) {
+	bs, err := review.Blocks(context.Background(), root, true)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "goldfish:", err)
 		os.Exit(1)
 	}
-	if len(bs) == 0 {
-		fmt.Printf("No hay ramas con commits por delante de main en los últimos %d días.\n", review.RecentDays)
-		return
-	}
 	for _, b := range bs {
-		pr := "sin PR"
-		if b.PR != nil {
-			pr = fmt.Sprintf("PR #%d %s", b.PR.Number, strings.ToLower(b.PR.State))
+		fmt.Printf("%s (%d)\n", b.Name, len(b.PRs))
+		for _, p := range b.PRs {
+			extra := ""
+			if p.External {
+				extra = " · externo, de " + p.Author
+			}
+			if p.Task != nil {
+				extra += " · tarea " + p.Task.Slug
+			}
+			fmt.Printf("  #%-5d %s%s\n         %s\n", p.Number, p.Title, extra, p.URL)
 		}
-		task := ""
-		if b.Task != nil {
-			task = " · tarea " + b.Task.Slug
-		}
-		fmt.Printf("%-24s %-48s +%-3d %s%s\n", b.Repo, b.Name, b.Ahead, pr, task)
 	}
 }
 
-func runConsole(root, repo, branch string) int {
+func startRun(ctx context.Context, root, url string) (*review.Run, error) {
+	p, err := review.AddByURL(ctx, root, url)
+	if err != nil {
+		return nil, err
+	}
+	if p.State != "OPEN" {
+		return nil, fmt.Errorf("el PR #%d está %s: sólo se validan los abiertos", p.Number, strings.ToLower(p.State))
+	}
+	clone := review.CloneOf(ctx, p.Slug)
+	if clone == "" {
+		return nil, fmt.Errorf("no hay un clon de %s en %s: sin él no se puede leer el código", p.Slug, review.ReposDir())
+	}
+	return review.NewRun(p, clone), nil
+}
+
+func runConsole(root, url string) int {
 	ctx := context.Background()
-	b, err := review.FindBranch(ctx, root, repo, branch)
+	r, err := startRun(ctx, root, url)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "goldfish:", err)
 		return 1
 	}
-	r := review.NewRun(b)
-	fmt.Printf("Goldfish · %s (%s) · %s\n", branch, repo, r.ID)
+	fmt.Printf("Goldfish · %s #%d · %s · %s\n", r.Slug, r.PR.Number, r.PR.Title, r.ID)
 	seen := map[string]string{}
 	review.Execute(ctx, root, r, func(x *review.Run) {
 		_ = review.Save(root, x)
@@ -149,7 +163,7 @@ func markInterrupted(root string) {
 var (
 	runsMu  sync.Mutex
 	running = map[string]context.CancelFunc{} // id → cómo frenarla
-	byRef   = map[string]string{}             // repo+rama → la que corre
+	byPR    = map[string]string{}             // owner/name#n → la que corre
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -163,27 +177,66 @@ func fail(w http.ResponseWriter, status int, err error) {
 	writeJSON(w, status, map[string]string{"error": err.Error()})
 }
 
+func decodeURL(w http.ResponseWriter, r *http.Request) (string, bool) {
+	var req struct{ URL string }
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		fail(w, http.StatusBadRequest, err)
+		return "", false
+	}
+	return strings.TrimSpace(req.URL), true
+}
+
 func listen(root, addr string) {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /api/branches", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET /api/prs", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 90*time.Second)
 		defer cancel()
-		bs, err := review.Pending(ctx, root, r.URL.Query().Get("refresh") == "1")
+		bs, err := review.Blocks(ctx, root, r.URL.Query().Get("refresh") == "1")
 		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"repos": bs, "me": review.Me(ctx)})
+	})
+	mux.HandleFunc("POST /api/prs", func(w http.ResponseWriter, r *http.Request) {
+		url, ok := decodeURL(w, r)
+		if !ok {
+			return
+		}
+		p, err := review.AddByURL(r.Context(), root, url)
+		if err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, p)
+	})
+	mux.HandleFunc("DELETE /api/prs", func(w http.ResponseWriter, r *http.Request) {
+		slug, n, err := review.ParsePRURL(r.URL.Query().Get("url"))
+		if err != nil {
+			fail(w, http.StatusBadRequest, err)
+			return
+		}
+		if err := review.RemoveExternal(root, slug, n); err != nil {
 			fail(w, http.StatusInternalServerError, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"branches": bs, "reposDir": review.ReposDir(), "recentDays": review.RecentDays})
+		writeJSON(w, http.StatusOK, map[string]bool{"removed": true})
 	})
 	mux.HandleFunc("GET /api/runs", func(w http.ResponseWriter, r *http.Request) {
 		type summary struct {
-			ID, Repo, Branch, Status, Started, Finished string
-			Findings                                    int
-			CostUSD                                     float64
+			ID       string  `json:"id"`
+			Key      string  `json:"key"` // owner/name#n
+			Status   string  `json:"status"`
+			Started  string  `json:"started"`
+			Findings int     `json:"findings"`
+			CostUSD  float64 `json:"costUsd"`
 		}
 		out := []summary{}
 		for _, x := range review.List(root) {
-			out = append(out, summary{x.ID, x.Repo, x.Branch, x.Status, x.Started, x.Finished, len(x.Findings), x.CostUSD})
+			if x.PR == nil || x.Slug == "" {
+				continue // las de antes de validar por PR (por rama local)
+			}
+			out = append(out, summary{x.ID, x.PR.Key(), x.Status, x.Started, len(x.Findings), x.CostUSD})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"runs": out})
 	})
@@ -197,7 +250,7 @@ func listen(root, addr string) {
 	})
 	mux.HandleFunc("GET /api/runs/{id}/report", func(w http.ResponseWriter, r *http.Request) {
 		x, err := review.Load(root, r.PathValue("id"))
-		if err != nil {
+		if err != nil || x.PR == nil {
 			fail(w, http.StatusNotFound, errors.New("no existe esa validación"))
 			return
 		}
@@ -205,35 +258,38 @@ func listen(root, addr string) {
 		_, _ = w.Write([]byte(review.Report(x)))
 	})
 	mux.HandleFunc("POST /api/runs", func(w http.ResponseWriter, r *http.Request) {
-		var req struct{ Repo, Branch string }
-		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4<<10)).Decode(&req); err != nil {
+		url, ok := decodeURL(w, r)
+		if !ok {
+			return
+		}
+		slug, n, err := review.ParsePRURL(url)
+		if err != nil {
 			fail(w, http.StatusBadRequest, err)
 			return
 		}
-		key := req.Repo + "\x00" + req.Branch
+		key := fmt.Sprintf("%s#%d", slug, n)
 		runsMu.Lock()
-		if id, ok := byRef[key]; ok {
+		if id, ok := byPR[key]; ok {
 			runsMu.Unlock()
 			writeJSON(w, http.StatusOK, map[string]string{"id": id, "note": "ya se está validando"})
 			return
 		}
 		runsMu.Unlock()
-		b, err := review.FindBranch(r.Context(), root, req.Repo, req.Branch)
+		x, err := startRun(r.Context(), root, url)
 		if err != nil {
-			fail(w, http.StatusNotFound, err)
+			fail(w, http.StatusBadRequest, err)
 			return
 		}
-		x := review.NewRun(b)
 		_ = review.Save(root, x)
 		ctx, cancel := context.WithCancel(context.Background())
 		runsMu.Lock()
-		running[x.ID], byRef[key] = cancel, x.ID
+		running[x.ID], byPR[key] = cancel, x.ID
 		runsMu.Unlock()
 		go func() {
 			defer func() {
 				runsMu.Lock()
 				delete(running, x.ID)
-				delete(byRef, key)
+				delete(byPR, key)
 				runsMu.Unlock()
 				cancel()
 			}()

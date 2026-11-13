@@ -19,7 +19,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `designer` | el visor de diseños de Figma | `visor/` | :5193 · :5194 | `make visor` |
 | `ecommerce` | qué le pasó a una prueba de tienda | `ecommerce/` | :5178 · :5179 | `make ecommerce` |
 | `sentinel` | el vigía de producción: entidades y comercios contra lo normal | `sentinel/` | :5210 · :5211 | `make sentinel`; su API también de fondo (`make sentinel-install`, ver `sentinel/CLAUDE.md`) |
-| `goldfish` | validar una rama antes de su PR (Elephant-Goldfish) | `goldfish/` | :5216 · :5217 | `make goldfish` |
+| `goldfish` | tus PRs abiertos por repo y su validación Elephant-Goldfish (también de los PRs de otros) | `goldfish/` | :5216 · :5217 | `make goldfish` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 

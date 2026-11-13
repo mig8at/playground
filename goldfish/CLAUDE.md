@@ -1,51 +1,57 @@
-# goldfish — validar una rama antes de abrir su PR (Elephant-Goldfish)
+# goldfish — validar un PR con Elephant-Goldfish
 
-Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish-model) a las ramas de los repos
-reales (`~/Desktop/CREDITOP/github/`). **Quien propone no valida su propio trabajo.** Nació el 2026-11-13.
+Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish-model) a los PRs de los repos reales.
+**Quien propone no valida su propio trabajo.** Nació el 2026-11-13.
 
 | qué | cómo |
 |---|---|
 | la app (Cockpit: **Goldfish**) | `make goldfish` → :5216 · API :5217 |
-| las ramas por subir | `make goldfish-list` |
-| validar una rama | `make goldfish-run REPO=<carpeta> RAMA=<rama>`, o «Validar» en la app |
+| tus PRs abiertos y los externos | `make goldfish-list` |
+| validar un PR | `make goldfish-run PR=<url>`, o pegar la URL en la app |
+
+## Qué lista
+
+- **Un bloque por repo**: primero los principales (`legacy-backend`, `frontend-monorepo`, `legacy-application`, aunque
+  estén vacíos), después los demás. Adentro, **los PRs abiertos de Miguel**, con el título que les puso: una sola
+  `gh search prs --author=@me --state=open` en todo GitHub. Lo mergeado o cerrado no aparece.
+- **Los externos**: un PR de otra persona que Miguel pegó para validar queda en el bloque de su repo, marcado
+  «externo · autor», mientras siga abierto (`goldfish/.external.json`, fuera de git; al cerrarse o mergearse sale
+  solo). La × lo saca a mano.
+- Sin nada elegido, el editor es un **buscador** (estilo Google): se pega la URL de un PR y se valida enseguida.
 
 ## El método, adaptado a un PR
 
-El repo de Google revisa DOCUMENTOS de diseño antes de construir. Acá se revisa una rama lista para PR:
+El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revisa un PR:
 
-1. **La propuesta** (Go, sin agente): una carpeta con el diff contra `origin/main` (`git diff base...rama`; se corta en
-   400 KB), los commits, los archivos tocados tal como quedan en la rama y, si la rama es de una tarea (`ramas:` de su
-   `task.md`), lo que la tarea pide: sólo `Objetivo`, `Specs`, `Criterios`, `Tarea (publicable)` y `En una línea`.
-2. **Elephant**: la descripción del PR. Si la rama ya tiene un PR abierto, la de GitHub; si no, la redacta un agente
-   desde la raíz del playground (con su CLAUDE.md, la tarea y `knowledge/`), con las reglas de los PRs: sin nombrar
-   herramientas internas.
-3. **Dos goldfish, en paralelo y en frío**: `claude -p --restricted --strict-mcp-config` desde la carpeta de la
-   propuesta, con sólo `Read`, `Grep` y `Glob`. No hay CLAUDE.md en ningún padre de esa carpeta ni configuración que
-   cargar: saben únicamente lo que la propuesta dice. Uno mira **si la propuesta y el cambio dicen lo mismo**
-   (`prompts/goldfish-intent.md`), el otro **qué puede salir mal** (`prompts/goldfish-risk.md`).
-4. **Elephant otra vez**: el veredicto de cada hallazgo contra el código real (confirmado · plausible · descartado,
-   con archivo:línea; puede pedirle a `main-verifier`), y lo que sólo se ve con el playground: las trampas, el
-   conocimiento de la tarea, un PR por tarea y por repo, la descripción sin herramientas internas, nada de la suite
-   entera de PHPUnit (`prompts/elephant-verdict.md`).
-5. **Informe**: `goldfish/.runs/<id>/report.md` (fuera de git, con `package/`, que es EXACTAMENTE lo que vieron los
-   goldfish). Si la rama es de una tarea, una copia en sus `artifacts/goldfish-<id>.md` y un bloque corto en su pila.
+1. **La propuesta** (Go, sin agente): el PR y su base se traen al clon local SÓLO como refs
+   (`refs/goldfish/pr-<n>` y `origin/<base>`, sin tocar el árbol de trabajo ni la rama en la que esté el clon). Una
+   carpeta con su título y descripción, el diff (`git diff base...pr`, cortado en 400 KB), los commits, los archivos
+   tocados como quedan y, si la rama es de una tarea (`ramas:` de su `task.md`), lo que la tarea pide: sólo
+   `Objetivo`, `Specs`, `Criterios`, `Tarea (publicable)` y `En una línea`.
+2. **Dos goldfish, en paralelo y en frío**: `claude -p --restricted --strict-mcp-config` desde esa carpeta, con sólo
+   `Read`, `Grep` y `Glob`. No hay CLAUDE.md en ningún padre ni configuración que cargar: saben únicamente lo que el
+   PR dice. Uno mira **si la descripción y el cambio dicen lo mismo** (`prompts/goldfish-intent.md`), el otro **qué
+   puede salir mal** (`prompts/goldfish-risk.md`).
+3. **Elephant**, desde la raíz del playground: el veredicto de cada hallazgo contra el código real (confirmado ·
+   plausible · descartado, con archivo:línea; puede pedirle a `main-verifier`) y lo que sólo se ve con el playground:
+   las trampas, el conocimiento de la tarea, las reglas de los PRs (`prompts/elephant-verdict.md`).
+4. **Informe**: `goldfish/.runs/<id>/report.md` (fuera de git, con `package/`, que es EXACTAMENTE lo que vieron los
+   goldfish). Si la rama es de una tarea, una copia en sus `artifacts/` y un bloque corto en su pila.
 
-**Miguel resuelve**: decide qué corregir. Goldfish no abre PRs, no pushea y no edita los repos: los agentes del
-elephant tienen negados `Edit`, `Write` y los `git` que escriben.
+**Miguel resuelve**: decide qué corregir o qué comentarle al autor. Goldfish no comenta en GitHub, no aprueba ni
+pushea: el elephant tiene negados `Edit`, `Write` y los `git` que escriben.
 
 ## Lo que hay que saber antes de tocarlo
 
-- **Qué ramas lista**: las locales con commits que `origin/main` (la rama por defecto) no tiene, tocadas en los últimos
-  45 días, sin las largas (`main`, `develop`, `qa`, `staging`). Su PR sale de `gh pr list --author @me`, una vez por
-  repo. Primero las que no tienen PR, después las de PR abierto y, plegadas, las ya mergeadas o cerradas (una rama
-  mergeada por squash sigue «por delante»).
-- **Dos clones del mismo repo** (`legacy-backend` y `legacy-backend-finandina`, los del playground compartido) traen la
-  misma rama: queda una, la del clon que se llama como el repo. ⚠ Los remotos usan alias de `~/.ssh/config`
-  (`git@github.com-mig:…`): `reRemote` los acepta; sin eso no había PRs ni deduplicación.
+- **El clon de cada repo** sale de `~/Desktop/CREDITOP/github/*` por su remoto. Si hay dos (`legacy-backend` y
+  `legacy-backend-finandina`), el que se llama como el repo. ⚠ Los remotos usan alias de `~/.ssh/config`
+  (`git@github.com-mig:…`): `reRemote` los acepta; sin eso no había clon para ningún repo. Un repo sin clon se lista
+  («sin clon») pero no se valida.
 - **Las respuestas de los agentes van con `--json-schema`** (`review/schemas.go`): se leen sin adivinar.
-- **Cuesta**: cuatro corridas de `claude -p` por validación, del límite del plan de equipo. Cada paso muestra su costo
-  equivalente en dólares de la API. Medido el 2026-11-13 (una rama de 3 archivos): la descripción ~US$1,3, cada
-  goldfish ~US$0,25, y el veredicto es el más caro.
+- **Cuesta**: tres corridas de `claude -p` por validación, del límite del plan de equipo; cada paso muestra su costo
+  equivalente en dólares de la API. Medido el 2026-11-13: un PR externo de un archivo (+14) costó US$2,36 (cada
+  goldfish ~US$0,08; el veredicto, US$2,19 en 93 s). Encontró que el PR duplicaba otro ya mergeado en qa y main.
 - **Una validación «corriendo» guarda su proceso** (`pid`): al arrancar, el servidor marca cortadas sólo las de un
-  proceso muerto. Antes marcaba también las que corrían en la consola.
+  proceso muerto.
+- Las validaciones del primer día, por rama local y sin PR, quedan en `.runs/` pero ya no se listan.
 - Identificadores en inglés; prompts y comentarios en español.

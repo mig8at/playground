@@ -63,17 +63,21 @@ func List(playground string) []*Run {
 	return out
 }
 
-// withLastRuns: a cada rama, su última validación.
-func withLastRuns(playground string, bs []Branch) []Branch {
+// withLastRuns: a cada PR, su última validación.
+func withLastRuns(playground string, bs []RepoBlock) []RepoBlock {
 	last := map[string]string{}
 	for _, r := range List(playground) {
-		k := r.Repo + "\x00" + r.Branch
-		if _, ok := last[k]; !ok {
+		if r.PR == nil || r.Slug == "" {
+			continue
+		}
+		if k := r.PR.Key(); last[k] == "" {
 			last[k] = r.ID
 		}
 	}
 	for i := range bs {
-		bs[i].LastRunID = last[bs[i].Repo+"\x00"+bs[i].Name]
+		for j := range bs[i].PRs {
+			bs[i].PRs[j].LastRunID = last[bs[i].PRs[j].Key()]
+		}
 	}
 	return bs
 }

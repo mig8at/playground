@@ -1,7 +1,8 @@
 package review
 
-// UNA VALIDACIÓN, de punta a punta: la propuesta (elephant) → dos revisores en frío en paralelo (goldfish) → el
-// veredicto de cada hallazgo y lo que sólo se ve con contexto (elephant) → el informe. Todo queda en
+// UNA VALIDACIÓN, de punta a punta: la propuesta (el PR: su descripción, su diff y lo que pide su tarea) → dos
+// revisores en frío en paralelo (goldfish) → el veredicto de cada hallazgo y lo que sólo se ve con contexto
+// (elephant) → el informe. Todo queda en
 // goldfish/.runs/<id>/ (fuera de git): run.json, el informe y la carpeta `package/`, que es EXACTAMENTE lo que vieron
 // los goldfish. Si la rama es de una tarea, el informe se copia a sus artifacts y un bloque corto va a su pila.
 
@@ -10,21 +11,18 @@ import (
 	"context"
 	_ "embed"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 	"time"
 )
-
-//go:embed prompts/elephant-proposal.md
-var promptProposal string
 
 //go:embed prompts/goldfish-intent.md
 var promptIntent string
@@ -38,10 +36,12 @@ var promptVerdict string
 // Run: una validación.
 type Run struct {
 	ID       string    `json:"id"`
-	Repo     string    `json:"repo"`
-	Branch   string    `json:"branch"`
-	Base     string    `json:"base"`
-	Head     string    `json:"head"` // el commit validado
+	Repo     string    `json:"repo"`    // la carpeta de su clon
+	Slug     string    `json:"slug"`    // owner/name
+	Branch   string    `json:"branch"`  // la rama del PR
+	Base     string    `json:"base"`    // contra qué se compara: origin/<base del PR>
+	HeadRef  string    `json:"headRef"` // dónde quedó el PR en el clon: refs/goldfish/pr-<n>
+	Head     string    `json:"head"`    // el commit validado
 	Task     *Task     `json:"task"`
 	PR       *PR       `json:"pr"`
 	Started  string    `json:"started"`
@@ -69,7 +69,7 @@ type Stage struct {
 
 // Proposal: lo que se va a presentar como PR.
 type Proposal struct {
-	Source string   `json:"source"` // pr (la descripción del PR que ya existe) · elephant (la redactó)
+	Source string   `json:"source"` // pr: la descripción del PR
 	Title  string   `json:"title"`
 	Body   string   `json:"body"`
 	Claims []string `json:"claims"`
@@ -97,20 +97,22 @@ const (
 )
 
 var stageLabels = []Stage{
-	{ID: "package", Label: "Propuesta: el diff y lo que pide la tarea"},
-	{ID: "proposal", Label: "Elephant: la descripción del PR"},
+	{ID: "package", Label: "Propuesta: el PR, su diff y lo que pide la tarea"},
+	{ID: "proposal", Label: "La descripción del PR"},
 	{ID: "intent", Label: "Goldfish: ¿la propuesta y el cambio dicen lo mismo?"},
 	{ID: "risk", Label: "Goldfish: ¿qué puede salir mal?"},
 	{ID: "verdict", Label: "Elephant: veredicto y lo que se ve con contexto"},
 	{ID: "report", Label: "Informe"},
 }
 
-// NewRun: una validación lista para correr (sin empezar).
-func NewRun(b Branch) *Run {
+// NewRun: la validación de un PR, lista para correr (sin empezar).
+func NewRun(p PR, clone string) *Run {
 	now := time.Now()
+	pr := p
 	r := &Run{
-		ID:   now.Format("20060102-150405") + "-" + safeName(b.Repo+"-"+b.Name),
-		Repo: b.Repo, Branch: b.Name, Base: b.Base, Task: b.Task, PR: b.PR,
+		ID:   now.Format("20060102-150405") + "-" + safeName(filepath.Base(p.Slug)+"-"+strconv.Itoa(p.Number)),
+		Repo: filepath.Base(clone), Slug: p.Slug, Branch: p.Head, Base: "origin/" + p.Base,
+		HeadRef: fmt.Sprintf("refs/goldfish/pr-%d", p.Number), Task: p.Task, PR: &pr,
 		Started: now.Format(time.RFC3339), Status: "running", PID: os.Getpid(),
 	}
 	for _, s := range stageLabels {
@@ -149,7 +151,11 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 		r.Status, r.Error, r.Finished = "failed", err.Error(), time.Now().Format(time.RFC3339)
 		save(r)
 	}
-	repoDir := filepath.Join(ReposDir(), r.Repo)
+	repoDir := CloneOf(ctx, r.Slug)
+	if repoDir == "" {
+		fail("package", fmt.Errorf("no hay un clon de %s en %s: sin él no se puede leer el código", r.Slug, ReposDir()))
+		return
+	}
 	dir := filepath.Join(RunsDir(playground), r.ID)
 	pkg := filepath.Join(dir, "package")
 
@@ -163,34 +169,20 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 	r.Head = head
 	set("package", func(s *Stage) { s.Status, s.Note = "done", note })
 
-	// 2 · la descripción: la del PR si ya existe; si no, la redacta el elephant con todo el contexto
+	// 2 · la descripción: la del PR (si no trae, eso mismo es lo primero que va a ver un goldfish)
 	set("proposal", func(s *Stage) { s.Status = "running" })
-	if p, ok := existingPR(ctx, r); ok {
-		r.Proposal = p
-		set("proposal", func(s *Stage) {
-			s.Status, s.Note = "skipped", fmt.Sprintf("se usa la descripción del PR #%d", r.PR.Number)
-		})
-	} else {
-		res, err := runAgent(ctx, agentSpec{
-			dir: playground, prompt: fill(promptProposal, r, repoDir, pkg), schema: schemaProposal,
-			tools: elephantTools, allowed: elephantAllowed, denied: elephantDenied,
-			addDirs: []string{repoDir, pkg}, budgetUSD: 1.5, timeout: 12 * time.Minute,
-		})
-		set("proposal", func(s *Stage) { s.CostUSD, s.Millis = res.CostUSD, res.Millis })
-		if err != nil {
-			fail("proposal", err)
-			return
-		}
-		var p Proposal
-		if err := json.Unmarshal(res.Output, &p); err != nil || strings.TrimSpace(p.Body) == "" {
-			fail("proposal", errors.New("el elephant no devolvió una descripción"))
-			return
-		}
-		p.Source = "elephant"
-		r.Proposal = p
-		set("proposal", func(s *Stage) { s.Status = "done" })
+	p, err := prDescription(ctx, r)
+	if err != nil {
+		fail("proposal", err)
+		return
 	}
-	if err := os.WriteFile(filepath.Join(pkg, "proposal.md"), []byte("# "+r.Proposal.Title+"\n\n"+r.Proposal.Body+"\n"), 0o644); err != nil {
+	r.Proposal = p
+	note = ""
+	if strings.TrimSpace(p.Body) == "" {
+		note = "el PR no trae descripción"
+	}
+	set("proposal", func(s *Stage) { s.Status, s.Note = "done", note })
+	if err := os.WriteFile(filepath.Join(pkg, "proposal.md"), []byte("# "+r.Proposal.Title+"\n\n"+orEmpty(r.Proposal.Body)+"\n"), 0o644); err != nil {
 		fail("proposal", err)
 		return
 	}
@@ -326,7 +318,8 @@ func fill(tpl string, r *Run, repoDir, pkg string) string {
 		task = fmt.Sprintf("Es de la tarea `%s` (#%s, «%s»): `%s`. Leela entera; sus temas de `knowledge:` también.",
 			r.Task.Slug, r.Task.ID, r.Task.Title, r.Task.Path)
 	}
-	return strings.NewReplacer("{{BRANCH}}", r.Branch, "{{REPO}}", r.Repo, "{{REPO_DIR}}", repoDir, "{{BASE}}", r.Base,
+	return strings.NewReplacer("{{BRANCH}}", fmt.Sprintf("%s (PR #%d, en el clon como `%s`)", r.Branch, r.PR.Number, r.HeadRef),
+		"{{HEAD_REF}}", r.HeadRef, "{{REPO}}", r.Slug, "{{REPO_DIR}}", repoDir, "{{BASE}}", r.Base,
 		"{{PACKAGE}}", pkg, "{{TASK_LINE}}", task).Replace(tpl)
 }
 
@@ -335,11 +328,18 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 	if err := os.MkdirAll(filepath.Join(pkg, "files"), 0o755); err != nil {
 		return "", "", err
 	}
-	head, err := git(ctx, repoDir, "rev-parse", r.Branch)
+	// el PR y su base, al clon: sólo refs (refs/goldfish/pr-N y origin/<base>), sin tocar el árbol de trabajo
+	base := strings.TrimPrefix(r.Base, "origin/")
+	if _, err := git(ctx, repoDir, "fetch", "--no-tags", "--quiet", "origin",
+		fmt.Sprintf("+refs/pull/%d/head:%s", r.PR.Number, r.HeadRef),
+		fmt.Sprintf("+refs/heads/%s:refs/remotes/origin/%s", base, base)); err != nil {
+		return "", "", err
+	}
+	head, err := git(ctx, repoDir, "rev-parse", r.HeadRef)
 	if err != nil {
 		return "", "", err
 	}
-	rng := r.Base + "..." + r.Branch
+	rng := r.Base + "..." + r.HeadRef
 	diff, err := git(ctx, repoDir, "diff", "--no-color", rng)
 	if err != nil {
 		return "", "", err
@@ -349,7 +349,7 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 		diff = diff[:maxDiff] + "\n\n[… el diff sigue: se cortó en 400 KB; los archivos completos están en files/]\n"
 		cut = " (diff cortado en 400 KB)"
 	}
-	commits, _ := git(ctx, repoDir, "log", "--no-color", "--format=%h %ad %s%n%b", "--date=short", r.Base+".."+r.Branch)
+	commits, _ := git(ctx, repoDir, "log", "--no-color", "--format=%h %ad %s%n%b", "--date=short", r.Base+".."+r.HeadRef)
 	names, err := git(ctx, repoDir, "diff", "--name-only", "--diff-filter=d", rng)
 	if err != nil {
 		return "", "", err
@@ -366,7 +366,7 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 		if name == "" {
 			continue
 		}
-		raw, err := exec.CommandContext(ctx, "git", "-C", repoDir, "show", r.Branch+":"+name).Output()
+		raw, err := exec.CommandContext(ctx, "git", "-C", repoDir, "show", r.HeadRef+":"+name).Output()
 		if err != nil || len(raw) > maxFile || bytes.IndexByte(raw, 0) >= 0 {
 			skipped++
 			continue
@@ -388,32 +388,33 @@ func buildPackage(ctx context.Context, repoDir string, r *Run, pkg string) (stri
 	return head, note, nil
 }
 
-// existingPR: la descripción del PR si la rama ya tiene uno abierto.
-func existingPR(ctx context.Context, r *Run) (Proposal, bool) {
-	if r.PR == nil || r.PR.State != "OPEN" {
-		return Proposal{}, false
-	}
-	slug := slugOf(ctx, filepath.Join(ReposDir(), r.Repo))
-	out, err := exec.CommandContext(ctx, "gh", "pr", "view", fmt.Sprint(r.PR.Number), "-R", slug, "--json", "title,body").Output()
+// prDescription: el título y la descripción del PR, como están en GitHub ahora.
+func prDescription(ctx context.Context, r *Run) (Proposal, error) {
+	out, err := gh(ctx, "pr", "view", strconv.Itoa(r.PR.Number), "-R", r.Slug, "--json", "title,body")
 	if err != nil {
-		return Proposal{}, false
+		return Proposal{}, err
 	}
 	var p Proposal
-	if json.Unmarshal(out, &p) != nil || strings.TrimSpace(p.Body) == "" {
-		return Proposal{}, false
+	if err := json.Unmarshal(out, &p); err != nil {
+		return Proposal{}, err
 	}
 	p.Source = "pr"
-	return p, true
+	return p, nil
+}
+
+func orEmpty(s string) string {
+	if strings.TrimSpace(s) == "" {
+		return "(el PR no trae descripción)"
+	}
+	return s
 }
 
 // Report: el informe de una validación, en Markdown.
 func Report(r *Run) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "# Goldfish · %s (%s)\n\n", r.Branch, r.Repo)
+	fmt.Fprintf(&b, "# Goldfish · %s #%d · %s\n\n", r.Slug, r.PR.Number, r.PR.Title)
+	fmt.Fprintf(&b, "- PR: %s (de %s, rama `%s`)\n", r.PR.URL, r.PR.Author, r.Branch)
 	fmt.Fprintf(&b, "- Commit validado: `%s` contra `%s`\n", short(r.Head), r.Base)
-	if r.PR != nil {
-		fmt.Fprintf(&b, "- PR: #%d (%s) %s\n", r.PR.Number, r.PR.State, r.PR.URL)
-	}
 	fmt.Fprintf(&b, "- Corrida: %s → %s · costo equivalente: US$%.2f\n\n", r.Started, r.Finished, r.CostUSD)
 	counts := map[string]int{}
 	for _, f := range r.Findings {
@@ -449,7 +450,7 @@ func Report(r *Run) string {
 			fmt.Fprintf(&b, "> Veredicto: %s\n\n", strings.TrimSpace(f.Reason))
 		}
 	}
-	fmt.Fprintf(&b, "---\n\n## La propuesta que se revisó (%s)\n\n### %s\n\n%s\n", map[string]string{"pr": "la del PR", "elephant": "redactada por el elephant"}[r.Proposal.Source], r.Proposal.Title, r.Proposal.Body)
+	fmt.Fprintf(&b, "---\n\n## La descripción del PR que se revisó\n\n### %s\n\n%s\n", r.Proposal.Title, orEmpty(r.Proposal.Body))
 	return b.String()
 }
 
@@ -481,8 +482,8 @@ func attachToTask(ctx context.Context, playground string, r *Run, report string)
 		}
 	}
 	// sin la ruta del informe: la pila sólo acepta rutas citadas con su repo; está en los artifacts de la tarea
-	block := fmt.Sprintf("# Goldfish antes del PR: %s (%s)\n\nRevisión en frío de la rama en `%s` contra `%s`: %d hallazgos, %d confirmados, %d plausibles, %d descartados. El informe completo quedó en los artifacts de la tarea.\n",
-		r.Branch, r.Repo, short(r.Head), r.Base, len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"])
+	block := fmt.Sprintf("# Goldfish: PR #%d de %s (%s)\n\nRevisión en frío del PR en `%s` contra `%s`: %d hallazgos, %d confirmados, %d plausibles, %d descartados. El informe completo quedó en los artifacts de la tarea.\n",
+		r.PR.Number, filepath.Base(r.Slug), r.Branch, short(r.Head), r.Base, len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"])
 	if len(top) > 0 {
 		block += "\nConfirmados:\n\n" + strings.Join(top, "\n") + "\n"
 	}
