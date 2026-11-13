@@ -50,12 +50,7 @@ function go(w, m = '') {
 const watches = computed(() => data.value?.watches || [])
 const current = computed(() => watches.value.find((w) => w.id === watchId.value) || watches.value[0] || null)
 const allMessages = computed(() => current.value?.messages || [])
-// El filtro de la lista: todos, sin ver, por responder o respondidos. Se recuerda.
 const STATUS = { unread: 'Sin ver', pending: 'Por responder', replied: 'Respondido', noreply: 'No hace falta' }
-const filter = ref(localStorage.getItem('correo.filter') || 'all')
-watch(filter, (v) => { try { localStorage.setItem('correo.filter', v) } catch { /* sin almacenamiento */ } })
-// Al cambiar de seguimiento, el filtro vuelve a «Todos»: si no, uno heredado («Por responder») mostraba la lista vacía.
-watch(watchId, (now, before) => { if (before !== undefined && now !== before) filter.value = 'all' })
 const READER_STATUS = {
   unread: () => 'Sin ver',
   pending: () => 'Por responder: lo último del hilo es de ellos',
@@ -76,16 +71,13 @@ const conversations = computed(() => {
     const last = c.msgs[0]
     const names = [...new Set(c.msgs.map((m) => senderName(m.from)))]
     const status = c.msgs.some((m) => m.status === 'unread') ? 'unread' : last.status
-    return { threadId: c.threadId, url: c.url, subject: last.subject, snippet: last.snippet, date: last.date, names,
+    // Quiénes están en la conversación: ellos y vos, si respondiste (el círculo de la fila).
+    // ⚠ Go manda «sin respuesta» como 0001-01-01 (time.Time no se omite): una cadena, o sea verdadera.
+    const people = c.msgs.some((m) => isSet(m.repliedAt)) ? [...names, 'vos'] : names
+    return { threadId: c.threadId, url: c.url, subject: last.subject, snippet: last.snippet, date: last.date, names, people,
       count: c.msgs.length, status, repliedAt: last.repliedAt, lastId: last.id, ids: c.msgs.map((m) => m.id) }
   }).sort((a, b) => new Date(b.date) - new Date(a.date))
 })
-const counts = computed(() => {
-  const c = { all: conversations.value.length, unread: 0, pending: 0, replied: 0, noreply: 0 }
-  for (const x of conversations.value) c[x.status] = (c[x.status] || 0) + 1
-  return c
-})
-const shownConversations = computed(() => (filter.value === 'all' ? conversations.value : conversations.value.filter((c) => c.status === filter.value)))
 
 // LA CONVERSACIÓN ABIERTA: la ruta trae el id de un correo (el aviso) o de un hilo.
 const openThreadId = computed(() => {
@@ -211,6 +203,7 @@ async function removeWatch(w) {
   try { take(await api(`/api/watches?id=${encodeURIComponent(w.id)}`, { method: 'DELETE' })); go(watches.value[0]?.id || '') } catch (e) { apiError.value = e.message }
 }
 
+const isSet = (iso) => !!iso && new Date(iso).getFullYear() > 2000
 const pad = (n) => String(n).padStart(2, '0')
 function when(iso) {
   const d = new Date(iso)
@@ -350,8 +343,7 @@ onBeforeUnmount(() => {
       <!-- Las conversaciones del seguimiento elegido. -->
       <template v-else>
         <div class="region-head">
-          <span class="head-title">{{ current?.name || 'Correo' }}</span>
-          <span v-if="current" class="count">{{ current.query }}</span>
+          <span class="head-title" :title="current?.query">{{ current?.name || 'Correo' }}</span>
           <button v-if="current?.unread" type="button" class="region-action" title="Marcar todo como visto" aria-label="Marcar todo como visto" @click="markAll">
             <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
           </button>
@@ -359,28 +351,22 @@ onBeforeUnmount(() => {
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
         </div>
-        <div v-if="current" class="summary">
-          <span><b>{{ conversations.length }}</b> conversaciones · <b>{{ current.week }}</b> correos esta semana · <b>{{ allMessages.length }}</b> en 60 días</span>
-          <div class="filters" role="group" aria-label="Filtrar por estado">
-            <button v-for="f in ['all', 'unread', 'pending', 'replied', 'noreply']" v-show="f !== 'noreply' || counts.noreply" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
-              {{ f === 'all' ? 'Todas' : STATUS[f] }} <span class="chip-n">{{ counts[f] || 0 }}</span>
-            </button>
-          </div>
-        </div>
         <div class="region-body">
           <p v-if="data?.error" class="none warn-text">⚠ {{ data.error }}</p>
-          <p v-if="conversations.length && !shownConversations.length" class="none">Ninguna {{ STATUS[filter]?.toLowerCase() }}.</p>
           <p v-if="current && !conversations.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
-          <button v-for="c in shownConversations" :key="c.threadId" type="button" class="mail" :class="{ unread: c.status === 'unread' }" @click="go(current.id, c.threadId)">
-            <span class="mail-top">
-              <i v-if="c.status === 'unread'" class="unread-dot" aria-label="sin ver"></i>
-              <span class="mail-from">{{ c.names.join(', ') }}<span v-if="c.count > 1" class="mail-count"> · {{ c.count }}</span></span>
-              <span class="mail-date">{{ when(c.date) }}</span>
-            </span>
-            <span class="mail-subject">{{ c.subject || '(sin asunto)' }}</span>
-            <span class="mail-bottom">
-              <span class="status" :class="`is-${c.status}`" :title="c.status === 'replied' ? `respondiste el ${full(c.repliedAt)}` : STATUS[c.status]">{{ c.status === 'replied' ? `Respondido ${when(c.repliedAt)}` : STATUS[c.status] }}</span>
-              <span class="mail-snippet">{{ c.snippet }}</span>
+          <button v-for="c in conversations" :key="c.threadId" type="button" class="conv" :class="{ unread: c.status === 'unread' }" @click="go(current.id, c.threadId)">
+            <span class="people" :title="c.people.join(', ')">{{ c.people.length }}</span>
+            <span class="conv-main">
+              <span class="conv-top">
+                <span class="conv-from">{{ c.names.join(', ') }}</span>
+                <span class="conv-time">
+                  <i v-if="c.status === 'unread'" class="unread-dot" aria-label="sin ver"></i>
+                  <template v-if="c.status === 'replied'"><span class="replied-at" :title="`Respondiste el ${full(c.repliedAt)}`">{{ when(c.repliedAt) }}</span> / </template>
+                  <span :class="{ 'is-pending': c.status === 'pending' }" :title="c.status === 'pending' ? 'Por responder' : `Llegó el ${full(c.date)}`">{{ when(c.date) }}</span>
+                </span>
+              </span>
+              <span class="conv-subject">{{ c.subject || '(sin asunto)' }}</span>
+              <span class="conv-snippet">{{ c.snippet }}</span>
             </span>
           </button>
         </div>

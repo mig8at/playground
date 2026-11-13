@@ -5,8 +5,11 @@ homologación de VTEX). Se le dice qué remitentes seguir y avisa por macOS cuan
 Cockpit esté cerrado. Es la tarea `correo` (#130, nivel miguel).
 
 `make correo` (UI :5224 · API :5225) o la app Correo de Cockpit. A la izquierda, SÓLO los **seguimientos** (un nombre y
-una búsqueda de Gmail). Al centro, las **conversaciones** del elegido, una por hilo, como chats (con quién, cuántos
-mensajes, cuándo fue el último y su estado), con filtros; al tocar una, la **conversación entera** en el mismo centro
+una búsqueda de Gmail). Al centro, las **conversaciones** del elegido, una por hilo, como chats: un círculo con cuántas
+personas están (vos incluido; los nombres al pasar el mouse), quién, el asunto y el comienzo, y a la derecha la hora del
+último de ellos con la tuya antes si respondiste («14:02 / 13:37»; al pasar el mouse, «Respondiste el…»). Sin ver: un
+punto; por responder: la hora en ámbar. Sin filtros ni contadores (Miguel, 2026-11-13: son pocos y cargaban la vista).
+Al tocar una, la **conversación entera** en el mismo centro
 (ellos y vos, en orden) y **←** en la barra para volver. Como Gmail, cada mensaje queda **colapsado en una línea**
 (bolita con la inicial —un color fijo por persona, el tuyo el acento—, nombre, el comienzo de lo que escribió y la
 fecha) salvo el último y los sin ver; tocarla lo despliega, y el botón de la barra despliega o colapsa todos. En los
