@@ -11,7 +11,7 @@
  * Todo sale de la API en Go (goldfish/server): acá no se valida nada, se pinta. El PR y la validación elegidos viven
  * en la URL. */
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, readHashRoute, hashRoute, setRoute } from './workbench.js'
+import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu, readHashRoute, hashRoute, setRoute } from './workbench.js'
 
 const VERDICTS = [
   { id: 'confirmado', label: 'Confirmados', hint: 'ciertos: atenderlos' },
@@ -30,17 +30,19 @@ async function getJSON(path, init) {
 }
 const postJSON = (path, body) => getJSON(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 
-// ── la ruta: #/?pr=<url del PR>&run=<id> ──
+// ── la ruta: #/?pr=<url del PR>&run=<id>&base=qa ──
 const route = readHashRoute()
 const prUrl = ref(route.params.get('pr') || '')
 const runId = ref(route.params.get('run') || '')
+const base = ref(route.params.get('base') || 'all') // contra qué rama apuntan los PRs que se ven: all, main, qa…
 function writeRoute(push) {
-  setRoute(hashRoute([], { pr: prUrl.value, run: runId.value }, { pr: '', run: '' }), { push })
+  setRoute(hashRoute([], { pr: prUrl.value, run: runId.value, base: base.value }, { pr: '', run: '', base: 'all' }), { push })
 }
 function onHashChange() {
   const r = readHashRoute()
   prUrl.value = r.params.get('pr') || ''
   runId.value = r.params.get('run') || ''
+  base.value = r.params.get('base') || 'all'
 }
 
 // ── los bloques ──
@@ -57,6 +59,25 @@ async function loadRepos(refresh = false) {
   } catch (e) { loadError.value = String(e.message || e) } finally { loading.value = false }
 }
 const allPRs = computed(() => repos.value.flatMap((b) => b.prs || []))
+// LA BASE, en el pie (como el ambiente en ecommerce y el harness): a qué rama apuntan los PRs que se ven. Las opciones
+// salen de los PRs que hay; primero main y qa. Un PR sin base conocida (su repo no tiene clon) sólo sale en «todas».
+const BASE_ORDER = ['main', 'qa', 'develop', 'staging']
+const bases = computed(() => {
+  const count = {}
+  for (const p of allPRs.value) if (p.base) count[p.base] = (count[p.base] || 0) + 1
+  const names = Object.keys(count).sort((a, b) => ((BASE_ORDER.indexOf(a) + 1 || 99) - (BASE_ORDER.indexOf(b) + 1 || 99)) || a.localeCompare(b))
+  return names.map((n) => ({ id: n, count: count[n] }))
+})
+const baseItems = computed(() => [{ id: 'all', label: `Todas las bases · ${allPRs.value.length}`, selected: base.value === 'all' },
+  ...bases.value.map((b) => ({ id: b.id, label: `→ ${b.id} · ${b.count}`, selected: base.value === b.id }))])
+const inBase = (p) => base.value === 'all' || p.base === base.value
+const shownRepos = computed(() => repos.value.map((b) => ({ ...b, prs: (b.prs || []).filter(inBase) }))
+  .filter((b) => b.prs.length || base.value === 'all' || ['legacy-backend', 'frontend-monorepo', 'legacy-application'].includes(b.name)))
+const shownCount = computed(() => allPRs.value.filter(inBase).length)
+watch(base, () => writeRoute(false))
+const baseTrigger = ref(null)
+let baseMenu = null
+watch(baseItems, () => baseMenu?.refresh(), { deep: true, flush: 'post' })
 const selected = computed(() => allPRs.value.find((p) => p.url === prUrl.value) || null)
 const blockOf = (p) => repos.value.find((b) => b.slug === p?.slug)
 const keyOf = (p) => `${p.slug}#${p.number}`
@@ -181,6 +202,10 @@ onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
+  baseMenu = bindMenu(baseTrigger.value, {
+    label: 'A qué rama apuntan los PRs que se ven', getItems: () => baseItems.value,
+    onSelect: (id) => { base.value = id },
+  })
   loadRepos()
   loadRuns()
   loadRun()
@@ -191,6 +216,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', onHashChange)
   clearTimeout(pollTimer)
   themeBinding?.destroy?.()
+  baseMenu?.destroy()
 })
 </script>
 
@@ -200,7 +226,7 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
         <span>PRs abiertos</span>
-        <span class="count">{{ allPRs.length }}</span>
+        <span class="count" :class="{ filtered: base !== 'all' }">{{ base === 'all' ? allPRs.length : `${shownCount} / ${allPRs.length}` }}</span>
         <div class="region-actions">
           <button type="button" class="region-action" title="Validar otro PR (pegar su URL)" aria-label="Validar otro PR" @click="home">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
@@ -213,7 +239,7 @@ onBeforeUnmount(() => {
       <div class="region-body blocks">
         <p v-if="loadError" class="none hot">{{ loadError }}</p>
         <p v-else-if="loading && !repos.length" class="none">Preguntándole a GitHub por tus PRs abiertos…</p>
-        <section v-for="b in repos" :key="b.slug" class="block" :aria-label="b.name">
+        <section v-for="b in shownRepos" :key="b.slug" class="block" :aria-label="b.name">
           <button type="button" class="block-head" :aria-expanded="!collapsed.has(b.slug)" @click="toggleBlock(b.slug)">
             <span class="ui-icon chevron" :class="{ open: !collapsed.has(b.slug) }" data-icon="chevron" aria-hidden="true"></span>
             <span class="block-name">{{ b.name }}</span>
@@ -221,12 +247,13 @@ onBeforeUnmount(() => {
             <span class="count">{{ b.prs.length }}</span>
           </button>
           <ul v-if="!collapsed.has(b.slug)" class="prs">
-            <li v-if="!b.prs.length" class="empty-block">Sin PRs abiertos</li>
+            <li v-if="!b.prs.length" class="empty-block">{{ base === 'all' ? 'Sin PRs abiertos' : `Sin PRs abiertos contra ${base}` }}</li>
             <li v-for="p in b.prs" :key="keyOf(p)">
               <button type="button" class="pr" :class="{ on: selected && keyOf(selected) === keyOf(p) }" :title="p.title" @click="pick(p)">
                 <span class="pr-title">{{ p.title }}</span>
                 <span class="pr-meta">
                   <span>#{{ p.number }}</span>
+                  <span v-if="base === 'all' && p.base" class="pr-base" :data-base="p.base">→ {{ p.base }}</span>
                   <span v-if="p.external" class="tag external" :title="`De ${p.author}: lo pegaste para validarlo`">externo · {{ p.author }}</span>
                   <span v-if="p.draft" class="tag">borrador</span>
                   <span v-if="p.task" class="pr-task">{{ p.task.slug }}</span>
@@ -347,6 +374,12 @@ onBeforeUnmount(() => {
     </main>
 
     <footer class="statusbar">
+      <!-- a qué rama apuntan los PRs que se ven, como el ambiente en el pie de ecommerce -->
+      <button ref="baseTrigger" type="button" class="statusbar-item base-pick" title="A qué rama apuntan los PRs que se ven">
+        <span class="ui-icon" data-icon="compare" aria-hidden="true"></span>
+        <span>Base: {{ base === 'all' ? 'todas' : base }}</span>
+        <span class="ui-icon" data-icon="down" aria-hidden="true"></span>
+      </button>
       <span v-if="loading">preguntándole a GitHub…</span>
       <span v-else-if="checkedAt">{{ allPRs.filter((p) => !p.external).length }} tuyos · {{ allPRs.filter((p) => p.external).length }} externos · mirado a las {{ new Date(checkedAt).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
@@ -396,6 +429,12 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .tag.external { border-color: var(--verdict-plausible); color: var(--verdict-plausible) }
 .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50% }
 .dot.done { background: var(--stage-done) }
+/* la base de cada PR, y el selector del pie */
+.pr-base { font-family: var(--font-mono) }
+.pr-base[data-base="main"] { color: var(--verdict-confirmed) }
+.pr-base[data-base="qa"] { color: var(--verdict-plausible) }
+.pr.on .pr-base { color: inherit }
+.base-pick { flex: none }
 /* el buscador, como el de Google */
 .search-home { max-width: 640px; margin: 12vh auto 0; padding: 0 var(--gutter); display: flex; flex-direction: column; align-items: center; gap: var(--space-3) }
 .brand { font-size: 34px; font-weight: 700; letter-spacing: -.02em; color: var(--primary) }
