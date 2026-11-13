@@ -51,17 +51,23 @@ const shelf = (x, y, w) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" 
 const frame = (x, y, w, h, inner) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${P.ink}"/></g><rect x="${x + 6}" y="${y + 6}" width="${w - 12}" height="${h - 12}" fill="${P.cream}"/>${inner}`
 // la pared: el color de arriba y el zócalo
 const wall = (top, base) => `<rect width="400" height="300" fill="${top}"/><rect y="236" width="400" height="64" fill="${base}"/><rect y="232" width="400" height="6" fill="${shade(base, .8)}"/>`
+// LA SILLA SE APARTA DE UNA CABEZA OSCURA. El respaldo es casi negro (así no parece parte de la chaqueta), pero detrás de
+// un pelaje o un pelo oscuro —el pingüino, el tucán, el oso de anteojos, el gorila— la cabeza se fundía con él: ahí la
+// silla se aclara. `p` es el personaje que se sienta (los cuartos lo reciben; sin él, la silla de siempre).
+// Sólo ante lo casi negro (el castaño se sigue viendo sobre el respaldo oscuro, y así queda la silla que se eligió).
+// En un animal el pelaje es toda la cabeza, así que el corte es un poco más alto que para el pelo de una persona.
+const chairFor = (p) => { const c = p && (p.species ? p.skin : p.hairColor); return /^#[0-9a-f]{6}$/i.test(c || '') && lum(c) < (p.species ? 60 : 46) ? '#7d8087' : CHAIR }
 const ROOMS = {
-  oficina: () => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
-    plant(352, 238, P.orange) + chair(),
-  estudio: () => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
-    shelf(300, 70, 86) + chair(),
-  noche: () => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
-    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(),
-  sala: () => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
-    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(),
-  reunion: () => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
-    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(),
+  oficina: (p) => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
+    plant(352, 238, P.orange) + chair(chairFor(p)),
+  estudio: (p) => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
+    shelf(300, 70, 86) + chair(chairFor(p)),
+  noche: (p) => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
+    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(chairFor(p)),
+  sala: (p) => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
+    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(chairFor(p)),
+  reunion: (p) => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
+    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(chairFor(p)),
 }
 const SCENES = {
   sunset: () => `<rect width="400" height="300" fill="${P.amber}"/>${rays(320, 70, 16, P.yellow, P.amber)}${sun(320, 70, 66, [P.redDeep, P.red, P.orange, P.yellow])}${cloud(10, 40, 1.1, P.cream)}${cloud(250, 140, .9, P.pink)}${wave(228, 26, P.plum)}${wave(254, 22, P.rose, 30)}${wave(282, 16, P.red, 10)}`,
@@ -87,6 +93,18 @@ const rgb = (c) => String(c).startsWith('rgb') ? c.match(/\d+/g).slice(0, 3).map
 const shade = (c, f) => `rgb(${rgb(c).map((v) => Math.max(0, Math.min(255, Math.round(v * f)))).join(',')})`
 // mezcla dos colores: t = 0 es el primero, 1 el segundo (admite #rrggbb y rgb(): shade devuelve rgb())
 const mix = (a, b, t) => { const [x, y] = [rgb(a), rgb(b)]; return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})` }
+// QUE EL ACCESORIO NO SE CONFUNDA CON EL PELO. Un gorro del mismo color que el pelo se funde con él (una cachucha verde
+// sobre rizos verdes era una sola mancha): si el color de la prenda queda muy cerca del de referencia, se corre —más
+// claro si era oscuro, más oscuro si era claro— hasta que se distingan. Devuelve hex, para que shade() lo siga usando.
+const rgbOf = (hex) => { const n = parseInt(hex.slice(1), 16); return [n >> 16, (n >> 8) & 255, n & 255] }
+const hexOf = (rgb) => `#${rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('')}`
+const lum = (hex) => { const [r, g, b] = rgbOf(hex); return .3 * r + .59 * g + .11 * b }
+function apart(c, ref, near = 120) {
+  if (!/^#[0-9a-f]{6}$/i.test(c || '') || !/^#[0-9a-f]{6}$/i.test(ref || '')) return c
+  const a = rgbOf(c), b = rgbOf(ref)
+  if (Math.abs(a[0] - b[0]) + Math.abs(a[1] - b[1]) + Math.abs(a[2] - b[2]) > near) return c
+  return lum(c) < 120 ? hexOf(a.map((v, i) => v + ([241, 228, 199][i] - v) * .42)) : hexOf(a.map((v) => v * .55))
+}
 const cut = (inner) => `<g class="cut">${inner}</g>`
 const soft = (inner) => `<g class="cut-soft">${inner}</g>`
 const r1 = (n) => Math.round(n * 10) / 10
@@ -97,17 +115,31 @@ const HEAD = { cx: 200, cy: 146 }
 // La cara puede no ser una elipse: h.n la hace más cuadrada (2 es elipse) y h.rxB le da otro ancho a la mitad de abajo
 // (la mandíbula). El pelo, los gorros y la barba usan este mismo pt(), así se acomodan solos a cualquier forma.
 const pt = (h, deg, pad = 0) => {
-  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), e = 2 / (h.n || 2)
-  const rx = s > 0 && h.rxB ? h.rxB : h.rx
+  const a = (deg * Math.PI) / 180, c = Math.cos(a), s = Math.sin(a), below = s > 0
+  // nB: otra cuadratura para la mitad de abajo (menos de 2 afila el mentón). smooth: el ancho pasa del de arriba (rx) al
+  // de la mandíbula (rxB) de a poco al bajar, en vez de saltar en la línea de los ojos (ese salto deja un escalón).
+  const e = 2 / ((below && h.nB) || h.n || 2)
+  // taper: cuánto aguantan los cachetes antes de cerrarse hacia el mentón (más alto = cachetes más llenos). Sin él, la
+  // cara se angosta enseguida debajo de los ojos, que en un animal da hocico pero en una persona la deja demacrada.
+  const fall = h.taper ? s ** h.taper : Math.min(1, s * 1.7) ** .85
+  const rx = below && h.rxB ? (h.smooth ? h.rx + (h.rxB - h.rx) * fall : h.rxB) : h.rx
   return [r1(h.cx + (rx + pad) * Math.sign(c) * Math.abs(c) ** e), r1(h.cy + (h.ry + pad) * Math.sign(s) * Math.abs(s) ** e)]
 }
+// el medio ancho de la cara a `dy` por debajo del centro (para poner el rubor dentro de una mandíbula angosta)
+const halfWidthAt = (h, dy) => { let best = h.rx, gap = 1e9; for (let a = 0; a <= 90; a += 3) { const [x, y] = pt(h, a); if (Math.abs(y - h.cy - dy) < gap) { gap = Math.abs(y - h.cy - dy); best = x - h.cx } } return best }
 // el contorno de la cara, como trazado
 const headPath = (h, pad = 0) => { let d = ''; for (let a = 0; a < 360; a += 4) { const [x, y] = pt(h, a, pad); d += `${d ? 'L' : 'M'}${x} ${y} ` } return `${d}Z` }
 // las formas de cara: ancho arriba, alto, y opcionalmente cuadratura (n) y ancho de mandíbula (rxB)
 const FACES = {
   round: { rx: 92, ry: 88 }, soft: { rx: 94, ry: 90 }, wide: { rx: 100, ry: 84 }, tall: { rx: 86, ry: 94 },
   largo: { rx: 80, ry: 102 }, achatada: { rx: 106, ry: 76 }, cuadrada: { rx: 90, ry: 90, n: 3.4 },
-  mandibula: { rx: 84, ry: 92, rxB: 100, n: 2.6 }, corazon: { rx: 100, ry: 92, rxB: 72, n: 2.2 },
+  mandibula: { rx: 84, ry: 92, rxB: 100, n: 2.6, smooth: true }, corazon: { rx: 100, ry: 92, rxB: 72, n: 2.2, smooth: true, taper: 1.8 }, // smooth: sin el escalón que quedaba a la altura de los ojos
+  // con rasgo marcado (2026-11-13): el ancho baja de a poco hasta la mandíbula (smooth) y el mentón puede afilarse (nB)
+  // diamante: pómulos anchos, frente y mentón algo más angostos. triangular: frente ancha que baja a un mentón fino.
+  // Los dos con cachetes llenos (taper): con la mandíbula muy angosta y en punta se veían demacrados.
+  diamante: { rx: 95, ry: 92, rxB: 72, n: 1.85, nB: 2, smooth: true, taper: 1.7 }, triangular: { rx: 103, ry: 89, rxB: 68, n: 2.3, nB: 2.1, smooth: true, taper: 2.4 },
+  pera: { rx: 80, ry: 92, rxB: 102, n: 2.2, nB: 2.5, smooth: true }, ovalada: { rx: 78, ry: 100, n: 2.1 },
+  menton: { rx: 92, ry: 96, rxB: 78, n: 2.3, nB: 3.2, smooth: true },
 }
 // un arco sobre la elipse, de a0 a a1 grados (sentido horario en pantalla), como «L x y L x y…»
 const arc = (h, a0, a1, pad = 0, step = 4) => { const out = []; for (let a = a0; a1 > a0 ? a <= a1 : a >= a1; a += a1 > a0 ? step : -step) out.push(pt(h, a, pad)); out.push(pt(h, a1, pad)); return out.map(([x, y]) => `L${x} ${y}`).join(' ') }
@@ -259,6 +291,15 @@ const HATS = {
       <path d="M${k.L[0] + 4} ${k.L[1] - 14} Q${k.C[0]} ${k.C[1] - 14} ${k.R[0] - 4} ${k.R[1] - 14}" stroke="${d}" stroke-width="9" fill="none"/>
       ${cut(`<path d="M${brimL[0]} ${brimL[1]} Q${h.cx} ${k.C[1] - 34} ${brimR[0]} ${brimR[1]} Q${brimR[0] - 26} ${brimR[1] + 22} ${mx} ${my + 16} Q${brimL[0] + 26} ${brimL[1] + 22} ${brimL[0]} ${brimL[1]}Z" fill="${l}"/>`)}`
   },
+  // sombrero: copa redonda con cinta y un ala ancha y casi plana que sobresale bien a los costados
+  sombrero: (h, c, hp) => {
+    const d = shade(c, .62), l = shade(c, 1.14), k = hatLine(h, hp), top = k.top - 16, w = h.rx + hp
+    const crown = `M${k.L[0] + 12} ${k.L[1]} C${h.cx - w * .8} ${top + 26} ${h.cx - w * .46} ${top - 4} ${h.cx} ${top - 6} C${h.cx + w * .46} ${top - 4} ${h.cx + w * .8} ${top + 26} ${k.R[0] - 12} ${k.R[1]} ${k.edge}Z`
+    const bL = [k.L[0] - 52, k.L[1] + 6], bR = [k.R[0] + 52, k.R[1] + 6], [mx, my] = k.at(.5)
+    return `${cut(`<path d="${crown}" fill="${c}"/>`)}
+      <path d="M${k.L[0] + 10} ${k.L[1] - 12} Q${k.C[0]} ${k.C[1] - 12} ${k.R[0] - 10} ${k.R[1] - 12}" stroke="${d}" stroke-width="15" fill="none"/>
+      ${cut(`<path d="M${bL[0]} ${bL[1]} Q${h.cx} ${k.C[1] - 30} ${bR[0]} ${bR[1]} Q${bR[0] - 18} ${bR[1] + 16} ${mx} ${my + 12} Q${bL[0] + 18} ${bL[1] + 16} ${bL[0]} ${bL[1]}Z" fill="${l}"/>`)}`
+  },
   // boina: un disco blando que se apoya en la línea del gorro y se infla hacia un costado, con su cabito arriba
   boina: (h, c, hp) => {
     const d = shade(c, .76), k = hatLine(h, hp - 4), top = k.top
@@ -268,9 +309,33 @@ const HATS = {
   },
 }
 
+// EL REMATE DE TELA: lo que hace que un gorro se lea como prenda y no como otro peinado. Una costura punteada clara
+// (el pelo nunca la tiene) a la altura de cada gorro, y debajo del borde una sombra sobre la frente y el pelo.
+const HAT_SEAM = { lana: -30, chullo: -13, cachucha: -9, reves: -9, pescador: -25, boina: -13, sombrero: -30 }
+function hatTrim(h, hat, hp, c) {
+  const k = hatLine(h, hp), dy = HAT_SEAM[hat] ?? -9, stitch = lum(c) > 150 ? shade(c, .55) : '#f6ecd6'
+  return `<path d="M${k.L[0] + 4} ${k.L[1] + 5} Q${k.C[0]} ${k.C[1] + 6} ${k.R[0] - 4} ${k.R[1] + 5}" stroke="#13323a" stroke-width="6" fill="none" stroke-linecap="round" opacity=".22"/>
+    <path d="M${k.L[0] + 8} ${r1(k.L[1] + dy)} Q${k.C[0]} ${r1(k.C[1] + dy)} ${k.R[0] - 8} ${r1(k.R[1] + dy)}" stroke="${stitch}" stroke-width="2.6" stroke-dasharray="7 6" fill="none" stroke-linecap="round" opacity=".8"/>`
+}
+// el gorro puesto: del color pedido, corrido si se confunde con el pelo, con su remate
+const wearHat = (p, h, hp, against) => { if (!p.hat || !HATS[p.hat]) return ''; const c = apart(p.hatColor || '#c5381f', against); return HATS[p.hat](h, c, hp) + hatTrim(h, p.hat, hp, c) }
+
 // Lo que se pone encima: lentes, audífonos, aretes, barba, pecas.
 const EXTRAS = {
-  glasses: (p, h) => `<g class="cut-soft" fill="none" stroke="#13323a" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${p.glassesRound ? 23 : 14}"/><path d="M${h.cx - 10} ${h.cy - 2} h20"/></g>`,
+// las gafas: marco, un lente que brilla (un rectángulo vacío se leía como dibujo sobre la cara) y las patillas hasta la
+  // sien. El marco es oscuro, salvo sobre piel oscura, donde no se veía: ahí va claro. Las de sol llevan el lente lleno.
+  glasses: (p, h, sun = false) => {
+    const round = p.glassesRound ? 23 : 14, dark = lum(p.skin || '#e0ac7e') < 105
+    const frame = sun ? (dark ? '#f1e4c7' : '#13323a') : dark ? '#f1e4c7' : '#13323a'
+    const lens = (x) => `<rect x="${x}" y="${h.cy - 22}" width="54" height="46" rx="${round}" fill="${sun ? '#13323a' : '#dff0f4'}" opacity="${sun ? .94 : .15}"/><path d="M${x + 12} ${h.cy + 10} l16 -22 M${x + 26} ${h.cy + 12} l10 -14" stroke="#ffffff" stroke-width="3.5" stroke-linecap="round" opacity="${sun ? .32 : .4}"/>`
+    return `<g class="glasses">${lens(h.cx - 64)}${lens(h.cx + 10)}<g class="cut-soft" fill="none" stroke="${frame}" stroke-width="6"><rect x="${h.cx - 64}" y="${h.cy - 22}" width="54" height="46" rx="${round}"/><rect x="${h.cx + 10}" y="${h.cy - 22}" width="54" height="46" rx="${round}"/><path d="M${h.cx - 10} ${h.cy - 2} h20 M${h.cx - 64} ${h.cy - 6} L${r1(pt(h, 184)[0] + 2)} ${h.cy - 12} M${h.cx + 64} ${h.cy - 6} L${r1(pt(h, 356)[0] - 2)} ${h.cy - 12}" stroke-linecap="round"/></g></g>`
+  },
+  sunglasses: (p, h) => EXTRAS.glasses(p, h, true),
+  // diadema: una cinta lisa sobre el pelo, de sien a sien, con su brillo. Del color de los accesorios, corrido si se
+  // parece al pelo
+  headband: (p, h, vol) => { const c = apart(p.gear, p.hairColor); return `${cut(`<path d="${M(pt(h, 204, vol))} ${arc(h, 204, 336, vol)}" stroke="${c}" stroke-width="13" fill="none" stroke-linecap="round"/>`)}<path d="${M(pt(h, 232, vol + 3))} ${arc(h, 232, 300, vol + 3)}" stroke="${shade(c, 1.35)}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".8"/>` },
+  // lazo: dos alas y el nudo, arriba a un costado
+  bow: (p, h, vol) => { const c = apart(p.gear, p.hairColor), [x, y] = pt(h, 306, vol + 4); return cut(`<path d="M${x} ${y} l-30 -18 q-8 18 0 36Z M${x} ${y} l30 -18 q8 18 0 36Z" fill="${c}"/><rect x="${r1(x - 8)}" y="${r1(y - 10)}" width="16" height="20" rx="6" fill="${shade(c, .7)}"/>`) },
   headphones: (p, h) => `<g class="cut"><path d="${M(pt(h, 180, 20))} ${arc(h, 180, 360, 20)}" fill="none" stroke="${p.gear}" stroke-width="13" stroke-linecap="round"/><rect x="${h.cx - h.rx - 22}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/><rect x="${h.cx + h.rx - 8}" y="${h.cy - 14}" width="30" height="54" rx="13" fill="${p.gear}"/></g>`,
   earrings: (p, h) => `<g class="cut-soft"><circle cx="${h.cx - h.rx - 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/><circle cx="${h.cx + h.rx + 2}" cy="${h.cy + 34}" r="9" fill="none" stroke="${p.gear}" stroke-width="5"/></g>`,
   // LAS BARBAS: todas del tono de una barba corta (el color del pelo mezclado con la piel) y armadas sobre la forma de
@@ -361,9 +426,15 @@ function beak(cx, y, c, w = 74) {
     <g class="m-think"><g transform="rotate(-7 ${cx} ${y})">${soft(lower(-2) + upper)}</g></g>
     <g class="m-flat">${soft(lower(-4) + upper)}</g>`
 }
+// arco, grosor y largo extra de cada tipo de ceja
+const BROWS = { '': [18, 9, 0], thick: [16, 15, 3], thin: [17, 5, 0], arched: [30, 9, 0], straight: [5, 10, 2] }
 function face(h, f) {
   const { cx, cy } = h, eyeY = cy - 2, gap = h.rx * .42, eye = f.eye || 25, mouthY = cy + h.ry * .56
-  const L = cx - gap, R = cx + gap, pr = eye * .43 // la pupila llena más el ojo: chica, la mirada quedaba fija y asustada
+  const L = cx - gap, R = cx + gap, pr = eye * (f.eyeShape === 'almond' ? .38 : .43) // la pupila llena más el ojo: chica, la mirada quedaba fija y asustada
+  // LAS CEJAS Y LA FORMA DEL OJO le dan carácter a la cara (2026-11-13): arco (ba), grosor (bt) y largo (bw) de la ceja;
+  // el ojo almendrado es más bajo y el grande, más alto. Sin elegir nada, quedan las de siempre.
+  const [ba, bt, bw] = BROWS[f.brows] || BROWS['']
+  const ery = eye * (f.eyeShape === 'almond' ? .72 : f.eyeShape === 'big' ? 1.14 : 1), by = r1(eyeY - ery - 6)
   const lash = f.lashes ? `<path d="M${L - eye * .8} ${eyeY - eye * .6} l-10 -8 M${L - eye * .5} ${eyeY - eye * .85} l-6 -10 M${R + eye * .8} ${eyeY - eye * .6} l10 -8 M${R + eye * .5} ${eyeY - eye * .85} l6 -10" stroke="#13323a" stroke-width="4" stroke-linecap="round"/>` : ''
   const lids = f.lids ? `<path d="M${L - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z M${R - eye} ${eyeY - 2} a${eye} ${eye} 0 0 1 ${eye * 2} 0Z" fill="${f.nose}"/>` : ''
   // Los dientes se recortan con la misma forma de la boca (clipPath por recuadro): cuelgan del labio de arriba y
@@ -378,13 +449,14 @@ function face(h, f) {
   // surco nariz-boca para animales con hocico (sólo cuando la boca está cerrada o sonriendo, para no cruzar la boca abierta)
   const ph = f.philtrum ? (to) => `<path d="M${cx} ${f.philtrum} V${r1(to)}" stroke="${f.mouth}" stroke-width="2.8" stroke-linecap="round" opacity=".85"/>` : () => ''
   return `
-    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye * 1.06}" fill="#fbf4e4"/>`)}
+    <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${r1(eye * (f.eyeShape === 'almond' ? 1 : .9))}" ry="${r1(ery)}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${r1(eye * (f.eyeShape === 'almond' ? 1 : .9))}" ry="${r1(ery * 1.06)}" fill="#fbf4e4"/>`)}
       <g class="pupils"><circle cx="${L + 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/><circle cx="${R - 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/>
         <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/>
         <circle cx="${L + 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/><circle cx="${R - 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/></g>
       ${lids}${lash}</g>
-    <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
-    <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="eyes-laugh" fill="none" stroke-linecap="round">${[L, R].map((x) => `<path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#fbf4e4" stroke-width="12"/><path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#13323a" stroke-width="6"/>`).join('')}</g>
+    <g class="brow-l">${soft(`<path d="M${L - 24 - bw} ${by} q${22 + bw} ${-ba} ${44 + bw * 2} ${r1(-ba * .22)} l-4 ${bt} q${-18 - bw} ${r1(-ba * .55)} ${-36 - bw * 2} 3Z" fill="${f.brow}"/>`)}</g>
+    <g class="brow-r">${soft(`<path d="M${R + 24 + bw} ${by} q${-22 - bw} ${-ba} ${-44 - bw * 2} ${r1(-ba * .22)} l4 ${bt} q${18 + bw} ${r1(-ba * .55)} ${36 + bw * 2} 3Z" fill="${f.brow}"/>`)}</g>
     ${clips}
     ${f.beak ? beak(cx, mouthY - 8, f.beak, f.beakW) : `<g class="m-smile">${ph(mouthY + 1)}${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
     <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
@@ -409,7 +481,18 @@ function torso(p, neck, chest) {
     ${soft(`<rect x="195" y="270" width="10" height="16" rx="3" fill="${jl}"/>`)}
     ${soft(`<path d="M176 226 L200 268 L172 276 Q154 254 160 230Z M224 226 L200 268 L228 276 Q246 254 240 230Z" fill="${jd}"/>`)}
     ${soft(`<use href="#creditop-logo-mono" x="218" y="285" width="78" height="10" style="color:#ffffff"/>`)}
+    ${neckwear(p)}
   </g>`
+}
+// lo que va al cuello: bufanda (una vuelta con rayas y una punta que cuelga con flecos) o corbatín. Del color de los
+// accesorios, corrido si se parece a la chaqueta
+function neckwear(p) {
+  const has = (x) => p.extras?.includes(x), c = apart(p.gear || '#13323a', p.shirt), d = shade(c, .72), l = lum(c) > 150 ? shade(c, .6) : '#f1e4c7'
+  if (has('scarf')) return `${cut(`<path d="M148 250 h30 v62 h-30Z" fill="${d}"/><path d="M152 312 v12 M160 312 v12 M168 312 v12 M176 312 v12" stroke="${d}" stroke-width="4" stroke-linecap="round"/>`)}
+    ${cut(`<path d="M146 228 Q200 262 254 228 L262 252 Q200 292 138 252Z" fill="${c}"/>`)}
+    <path d="M166 247 l8 22 M192 256 l2 23 M218 254 l-4 23 M240 244 l-10 21 M152 286 h22 M152 300 h22" stroke="${l}" stroke-width="4" stroke-linecap="round" opacity=".85"/>`
+  if (has('bowtie')) return `${cut(`<path d="M200 246 l-30 -15 q-6 15 0 30Z M200 246 l30 -15 q6 15 0 30Z" fill="${c}"/>`)}${soft(`<rect x="192" y="236" width="16" height="20" rx="6" fill="${d}"/>`)}`
+  return ''
 }
 
 // LOS ANIMALES: misma chaqueta y misma cara animable que las personas; cambia la cabeza. p.species: una clave de
@@ -417,16 +500,19 @@ function torso(p, neck, chest) {
 // rana, pingüino, búho, tucán, loro, perezoso, capibara, jaguar)
 // (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
 // piezas que comparten los animales
+// cada oreja va en su grupo (`ear ear-l|r`) con la bisagra donde se une a la cabeza: personajes.css la mueve según la
+// especie (el tic del gato, las del conejo que se caen al pensar, las del perro que aletean)
+const ear = (right, ox, oy, inner) => `<g class="ear ear-${right ? 'r' : 'l'}" style="transform-origin:${r1(ox)}px ${r1(oy)}px">${inner}</g>`
 const ANIMAL = {
   // orejas redondas arriba a los costados (oso, panda, koala, león, ratón)
-  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y]) => {
+  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y], i) => {
     const ir = r1(r * .56), sh = inner ? `<path d="M${r1(x - ir * .88)} ${r1(y + ir * .32)} A${ir} ${ir} 0 0 0 ${r1(x + ir * .88)} ${r1(y + ir * .32)} A${ir} ${r1(ir * .68)} 0 0 1 ${r1(x - ir * .88)} ${r1(y + ir * .32)} Z" fill="${shade(inner, .78)}"/>` : ''
-    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${r1(y + 1.5)}" r="${ir}" fill="${inner}"/>${sh}` : ''}`
+    return ear(i, x, y + r * .7, `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${r1(y + 1.5)}" r="${ir}" fill="${inner}"/>${sh}` : ''}`)
   }).join(''),
   // orejas en punta (mapache, cerdito si caen)
   pointEars: (h, c, inner, drop = 0) => [-1, 1].map((side) => {
     const [x, y] = pt(h, side < 0 ? 228 : 312, -6), tip = [x + side * 14, y - 46 + drop], base = 26
-    return `<path d="M${x - base} ${y + 8} L${tip[0]} ${tip[1]} L${x + base} ${y + 8}Z" fill="${c}" stroke="${c}" stroke-width="10" stroke-linejoin="round"/>${inner ? `<path d="M${x - base * .5} ${y + 4} L${tip[0]} ${tip[1] + 16} L${x + base * .5} ${y + 4}Z" fill="${inner}" stroke="${inner}" stroke-width="5" stroke-linejoin="round"/>` : ''}`
+    return ear(side > 0, x, y + 8, `<path d="M${x - base} ${y + 8} L${tip[0]} ${tip[1]} L${x + base} ${y + 8}Z" fill="${c}" stroke="${c}" stroke-width="10" stroke-linejoin="round"/>${inner ? `<path d="M${x - base * .5} ${y + 4} L${tip[0]} ${tip[1] + 16} L${x + base * .5} ${y + 4}Z" fill="${inner}" stroke="${inner}" stroke-width="5" stroke-linejoin="round"/>` : ''}`)
   }).join(''),
   // bolitas alrededor de la cabeza (melena, lana)
   puffs: (h, pad, r, from, to, step, c) => { let s = ''; for (let a = from; a <= to; a += step) { const [x, y] = pt(h, a, pad); s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>` } return s },
@@ -437,16 +523,16 @@ const ANIMAL = {
     return dots + hairs
   }).join(''),
   // orejas caídas a los costados (perro)
-  floppyEars: (h, c) => [-1, 1].map((s) => `<path d="M${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22} Q${h.cx + s * (h.rx + 30)} ${h.cy - 40} ${h.cx + s * (h.rx + 14)} ${h.cy + 50} Q${h.cx + s * (h.rx - 4)} ${h.cy + 70} ${h.cx + s * (h.rx - 18)} ${h.cy + 34} Q${h.cx + s * (h.rx - 34)} ${h.cy - 20} ${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22}Z" fill="${c}"/>`).join(''),
+  floppyEars: (h, c) => [-1, 1].map((s) => ear(s > 0, h.cx + s * (h.rx - 24), h.cy - h.ry + 22, `<path d="M${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22} Q${h.cx + s * (h.rx + 30)} ${h.cy - 40} ${h.cx + s * (h.rx + 14)} ${h.cy + 50} Q${h.cx + s * (h.rx - 4)} ${h.cy + 70} ${h.cx + s * (h.rx - 18)} ${h.cy + 34} Q${h.cx + s * (h.rx - 34)} ${h.cy - 20} ${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22}Z" fill="${c}"/>`)).join(''),
   // orejas largas hacia arriba (conejo)
   longEars: (h, c, inner) => [-1, 1].map((s) => {
     const x = h.cx + s * 34, y = h.cy - h.ry + 14, ang = s < 0 ? -9 : 13
     const tipX = s < 0 ? 0 : 4, tipY = s < 0 ? -94 : -90
-    return `<g transform="translate(${x} ${y}) rotate(${ang})">
+    return ear(s > 0, x, y, `<g transform="translate(${x} ${y}) rotate(${ang})">
   <path d="M-15 8 C-22 -28 -24 -76 ${tipX} ${tipY} C24 -76 22 -28 15 8 Z" fill="${c}"/>
   <path d="M-8 2 C-13 -24 -14 -64 ${r1(tipX * .75)} ${tipY + 16} C14 -64 13 -24 8 2 Z" fill="${inner}"/>
   <path d="M-8 2 C-12 -22 -13 -58 -1 ${tipY + 20} C-6 -52 -5 -22 0 2 Z" fill="${shade(inner, .86)}"/>
-  </g>`
+  </g>`)
   }).join(''),
   // hocico claro abajo
   muzzle: (h, c, rx = 48, ry = 34, pads = true) => {
@@ -456,13 +542,31 @@ const ANIMAL = {
     return `${base}<ellipse cx="${h.cx - px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/><ellipse cx="${h.cx + px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/>`
   },
 }
+// LA SILUETA DE CADA ESPECIE. Antes todos los animales compartían la misma elipse y se distinguían sólo por las orejas
+// y el color: en un recuadro chico el oso, el perro y el capibara eran la misma cabeza. Cada una es una forma de pt()
+// (ancho arriba, alto, ancho de mandíbula, cuadratura): las orejas, el hocico, los gorros y la cara se acomodan solos.
+// Los de mentón fino (zorro, ratón, mapache, gato, mico, león, jaguar) llevan `taper`, como las caras de persona: con la
+// cara cerrándose apenas debajo de los ojos y el mentón en punta se veían demacrados. Conservan el mentón más angosto que
+// la frente —siguen siendo ellos—, pero con los cachetes llenos.
+const SPECIES_HEAD = {
+  oso: { rx: 102, ry: 86, n: 2.4 }, panda: { rx: 104, ry: 84, n: 2.3 }, koala: { rx: 106, ry: 80, n: 2.5 },
+  mapache: { rx: 102, ry: 84, rxB: 80, nB: 2, smooth: true, taper: 1.9 }, cerdito: { rx: 98, ry: 90, n: 2.6 },
+  gato: { rx: 100, ry: 82, rxB: 84, nB: 2.1, smooth: true, taper: 1.8 }, zorro: { rx: 102, ry: 88, rxB: 70, nB: 1.9, smooth: true, taper: 2.1 },
+  perro: { rx: 84, ry: 96, rxB: 94, n: 2.3, nB: 2.6, smooth: true }, conejo: { rx: 80, ry: 92, rxB: 92, n: 2.2, smooth: true },
+  raton: { rx: 92, ry: 84, rxB: 72, nB: 1.9, smooth: true, taper: 1.9 }, pinguino: { rx: 84, ry: 94, rxB: 98, n: 2.2, smooth: true },
+  buho: { rx: 100, ry: 86, n: 3 }, pato: { rx: 90, ry: 88, rxB: 100, smooth: true }, loro: { rx: 88, ry: 90, n: 2.2 },
+  tucan: { rx: 90, ry: 88, n: 2.3 }, perezoso: { rx: 100, ry: 82, n: 2.4 }, jaguar: { rx: 100, ry: 86, rxB: 88, n: 2.7, nB: 2.3, smooth: true, taper: 1.7 },
+  leon: { rx: 90, ry: 92, rxB: 84, n: 2.6, nB: 2.2, smooth: true, taper: 1.7 }, mico: { rx: 88, ry: 86, rxB: 80, nB: 2.1, smooth: true, taper: 1.8 },
+  gorila: { rx: 88, ry: 90, rxB: 104, n: 2.5, nB: 2.6, smooth: true },
+}
+const speciesHead = (sp) => ({ ...HEAD, rx: 94, ry: 88, ...(SPECIES_HEAD[sp] || {}) })
 const SPECIES = {
   // oso de anteojos: pelaje casi negro, anteojos crema alrededor de los ojos que bajan al hocico
   oso: (p, h) => {
     const fur = p.skin, cream = '#ecd9b0', inner = mix(fur, '#a67c5e', .45)
     return {
       back: ANIMAL.roundEars(h, 27, fur, inner),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 44} ${h.cy - 46} C${h.cx - 18} ${h.cy - 46} ${h.cx - 8} ${h.cy - 28} ${h.cx} ${h.cy - 18} C${h.cx + 8} ${h.cy - 28} ${h.cx + 18} ${h.cy - 46} ${h.cx + 44} ${h.cy - 46} C${h.cx + 72} ${h.cy - 46} ${h.cx + 82} ${h.cy - 20} ${h.cx + 80} ${h.cy + 4} C${h.cx + 78} ${h.cy + 28} ${h.cx + 56} ${h.cy + 38} ${h.cx + 32} ${h.cy + 32} C${h.cx + 16} ${h.cy + 28} ${h.cx + 10} ${h.cy + 16} ${h.cx} ${h.cy + 16} C${h.cx - 10} ${h.cy + 16} ${h.cx - 16} ${h.cy + 28} ${h.cx - 32} ${h.cy + 32} C${h.cx - 56} ${h.cy + 38} ${h.cx - 78} ${h.cy + 28} ${h.cx - 80} ${h.cy + 4} C${h.cx - 82} ${h.cy - 20} ${h.cx - 72} ${h.cy - 46} ${h.cx - 44} ${h.cy - 46} Z" fill="${cream}"/>${ANIMAL.muzzle(h, '#f6e9cc', 46, 33)}`,
      
       chest: cream,
@@ -473,7 +577,7 @@ const SPECIES = {
   panda: (p, h) => {
     const fur = p.skin, ink = '#22232a'
     return {
-      back: ANIMAL.roundEars(h, 28, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ANIMAL.roundEars(h, 28, ink), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx - 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(24 ${h.cx - 36} ${h.cy})"/><ellipse cx="${h.cx + 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(-24 ${h.cx + 36} ${h.cy})"/>${ANIMAL.muzzle(h, mix(fur, '#fffdf7', .55), 42, 28)}`,
       nose: 'bear', noseColor: ink, brow: '#5a5b63', mouth: ink, philtrum: h.cy + 34,
     }
@@ -483,7 +587,7 @@ const SPECIES = {
     const fur = p.skin, inner = '#f1e4e0'
     const ear = (side) => { const [x, y] = pt(h, side < 0 ? 200 : 340, 0); return ANIMAL.puffs({ cx: x, cy: y, rx: 0, ry: 0 }, 30, 16, 0, 330, 30, fur) + `<circle cx="${x}" cy="${y}" r="38" fill="${fur}"/><circle cx="${x}" cy="${y + 2}" r="22" fill="${inner}"/>` }
     return {
-      back: ear(-1) + ear(1), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ear(-1) + ear(1), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .45), 40, 30),
       nose: 'koala', noseColor: '#2a2b30', brow: shade(fur, .55), mouth: '#2a2b30',
     }
@@ -492,7 +596,7 @@ const SPECIES = {
   mapache: (p, h) => {
     const fur = p.skin, ink = '#2a2b30', white = '#f4efe6'
     return {
-      back: ANIMAL.pointEars(h, fur, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: ANIMAL.pointEars(h, fur, ink), head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy - 40} Q${h.cx} ${h.cy - 66} ${h.cx + 70} ${h.cy - 40} Q${h.cx + 40} ${h.cy - 30} ${h.cx} ${h.cy - 34} Q${h.cx - 40} ${h.cy - 30} ${h.cx - 70} ${h.cy - 40}Z" fill="${white}"/>
         <path d="M${h.cx - 88} ${h.cy - 6} Q${h.cx - 50} ${h.cy - 40} ${h.cx} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 40} ${h.cx + 88} ${h.cy - 6} Q${h.cx + 60} ${h.cy + 32} ${h.cx} ${h.cy + 14} Q${h.cx - 60} ${h.cy + 32} ${h.cx - 88} ${h.cy - 6}Z" fill="${ink}"/>${ANIMAL.muzzle(h, white, 44, 30)}`,
       nose: 'dot', noseColor: ink, brow: white, mouth: ink, philtrum: h.cy + 29,
@@ -503,7 +607,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.pointEars(h, shade(fur, .9), shade(fur, .78), 18),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: '',
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`, mask: '',
       nose: 'snout', noseColor: mix(fur, '#fff5f3', .35), brow: shade(fur, .6), mouth: shade(fur, .45),
     }
   },
@@ -511,7 +615,8 @@ const SPECIES = {
   oveja: (p, h) => {
     const wool = p.skin, face = '#f3dcc2'
     const ears = [-1, 1].map((s) => `<ellipse cx="${h.cx + s * (h.rx + 10)}" cy="${h.cy + 4}" rx="30" ry="14" fill="${shade(face, .9)}" transform="rotate(${s * 18} ${h.cx + s * (h.rx + 10)} ${h.cy + 4})"/>`).join('')
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: ears + ANIMAL.puffs(h, 6, 30, 150, 390, 18, wool),
       head: `<ellipse cx="${h.cx}" cy="${h.cy + 6}" rx="${h.rx - 14}" ry="${h.ry - 8}" fill="${face}"/>`,
       mask: '', top: ANIMAL.puffs(h, -18, 24, 220, 320, 25, mix(wool, '#ffffff', .25)),
@@ -532,7 +637,7 @@ const SPECIES = {
     </g>`
     return {
       back: ANIMAL.pointEars(h, fur, '#f2b8b0'),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: tabby + ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 42, 27),
       front: ANIMAL.whiskers(h),
       nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -543,7 +648,7 @@ const SPECIES = {
     const fur = p.skin, white = '#f6efe2', tip = '#3a2a24'
     return {
       back: ANIMAL.pointEars(h, fur, tip),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 7} ${h.cy - 22} L${h.cx + 7} ${h.cy - 22} L${h.cx + 10} ${h.cy + 14} L${h.cx - 10} ${h.cy + 14} Z" fill="${shade(fur, .84)}" opacity=".45"/>
     <path d="M${h.cx - h.rx + 6} ${h.cy + 6} Q${h.cx - 50} ${h.cy - 10} ${h.cx} ${h.cy + 16} Q${h.cx + 50} ${h.cy - 10} ${h.cx + h.rx - 6} ${h.cy + 6} Q${h.cx + h.rx - 18} ${h.cy + h.ry - 4} ${h.cx} ${h.cy + h.ry} Q${h.cx - h.rx + 18} ${h.cy + h.ry - 4} ${h.cx - h.rx + 6} ${h.cy + 6}Z" fill="${white}"/>
     ${ANIMAL.muzzle(h, '#fbf7ee', 38, 25)}`,
@@ -555,7 +660,7 @@ const SPECIES = {
   perro: (p, h) => {
     const fur = p.skin, ear = p.mask || shade(fur, .7)
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx + 36}" cy="${h.cy - 6}" rx="32" ry="30" fill="${ear}"/>${ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 46, 32)}`,
       front: ANIMAL.floppyEars(h, ear),
       nose: 'bear', noseColor: '#22232a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 34,
@@ -566,7 +671,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.longEars(h, fur, '#f2b8b0'),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffdf7', .65), 43, 28),
       front: ANIMAL.whiskers(h, shade(fur, .5)),
      
@@ -578,7 +683,7 @@ const SPECIES = {
     const fur = p.skin
     return {
       back: ANIMAL.roundEars(h, 44, fur, '#f2b8b0', 214),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .6), 38, 25),
       front: ANIMAL.whiskers(h),
       nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -587,7 +692,8 @@ const SPECIES = {
   // rana: verde, cabeza ancha con dos lomas arriba donde van los ojos y barriga clara en la papada
   rana: (p, h) => {
     const skin = p.skin
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: `<circle cx="${h.cx - 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/><circle cx="${h.cx + 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/>`,
       head: `<ellipse cx="${h.cx}" cy="${h.cy + 4}" rx="${h.rx + 8}" ry="${h.ry - 6}" fill="${skin}"/>`,
       mask: `<ellipse cx="${h.cx}" cy="${h.cy + 52}" rx="62" ry="28" fill="${mix(skin, '#fffdf7', .45)}"/>`,
@@ -599,7 +705,7 @@ const SPECIES = {
   pinguino: (p, h) => {
     const ink = p.skin, white = '#f6f1e6'
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${ink}"/>`,
       mask: `<path d="M${h.cx} ${h.cy - 20} Q${h.cx - 30} ${h.cy - 64} ${h.cx - 66} ${h.cy - 30} Q${h.cx - 84} ${h.cy + 30} ${h.cx} ${h.cy + h.ry - 6} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 66} ${h.cy - 30} Q${h.cx + 30} ${h.cy - 64} ${h.cx} ${h.cy - 20}Z" fill="${white}"/>`,
       neck: white, nose: 'none', brow: '#545864', mouth: '#3a2015', beak: '#f08c3d', beakW: 34,
     }
@@ -609,7 +715,7 @@ const SPECIES = {
     const fur = p.skin, disc = mix(fur, '#fffaf0', .52)
     return {
       back: ANIMAL.pointEars(h, shade(fur, .8), null, -6),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<circle cx="${h.cx - 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/><circle cx="${h.cx + 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/>
         <path d="M${h.cx - 30} ${h.cy + 44} q30 22 60 0 M${h.cx - 22} ${h.cy + 58} q22 16 44 0" stroke="${shade(fur, .75)}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
       nose: 'none', brow: shade(fur, .5), mouth: '#3a2015', beak: '#e3a33c', beakW: 22,
@@ -619,7 +725,7 @@ const SPECIES = {
   tucan: (p, h) => {
     const ink = p.skin
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${ink}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy + 20} Q${h.cx} ${h.cy - 6} ${h.cx + 70} ${h.cy + 20} Q${h.cx + 56} ${h.cy + h.ry} ${h.cx} ${h.cy + h.ry + 4} Q${h.cx - 56} ${h.cy + h.ry} ${h.cx - 70} ${h.cy + 20}Z" fill="#f6e7b0"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/>`,
       nose: 'none', brow: '#5b606b', mouth: '#2a2523', beak: p.beak || '#f08c3d', beakW: 120,
@@ -629,7 +735,7 @@ const SPECIES = {
   loro: (p, h) => {
     const feather = p.skin
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${feather}"/>`,
       mask: `<ellipse cx="${h.cx - 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/><ellipse cx="${h.cx + 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/>`,
       top: `<path d="M${h.cx - 10} ${h.cy - h.ry + 6} q-8 -28 10 -40 q-2 20 10 26 q4 -18 22 -20 q-12 14 -10 34Z" fill="#c5381f"/>`,
@@ -640,7 +746,7 @@ const SPECIES = {
   perezoso: (p, h) => {
     const fur = p.skin, cream = '#efe0c4', band = '#4a3326'
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      back: '', head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx}" cy="${h.cy + 8}" rx="${h.rx - 16}" ry="${h.ry - 18}" fill="${cream}"/>
         <path d="M${h.cx - 24} ${h.cy - 18} Q${h.cx - 50} ${h.cy - 22} ${h.cx - 74} ${h.cy + 4} Q${h.cx - 66} ${h.cy + 18} ${h.cx - 52} ${h.cy + 14} Q${h.cx - 38} ${h.cy + 2} ${h.cx - 20} ${h.cy + 4}Z" fill="${band}"/>
         <path d="M${h.cx + 24} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 22} ${h.cx + 74} ${h.cy + 4} Q${h.cx + 66} ${h.cy + 18} ${h.cx + 52} ${h.cy + 14} Q${h.cx + 38} ${h.cy + 2} ${h.cx + 20} ${h.cy + 4}Z" fill="${band}"/>`,
@@ -651,7 +757,8 @@ const SPECIES = {
   // capibara: cabeza más cuadrada y alargada, orejitas arriba, hocico ancho con las fosas arriba, ojos chicos
   capibara: (p, h) => {
     const fur = p.skin, d = shade(fur, .8)
-    return {
+    return { ownHead: true, // dibuja su propia cabeza (no la silueta de pt): lo de encima no se recorta
+     
       back: ANIMAL.roundEars(h, 17, d, shade(fur, .65), 236),
       head: `<rect x="${h.cx - h.rx + 4}" y="${h.cy - h.ry + 4}" width="${(h.rx - 4) * 2}" height="${(h.ry - 4) * 2 + 10}" rx="62" fill="${fur}"/>`,
       mask: `<rect x="${h.cx - 56}" y="${h.cy + 16}" width="112" height="${h.ry - 4}" rx="40" fill="${shade(fur, .9)}"/>`,
@@ -671,7 +778,7 @@ const SPECIES = {
     <circle cx="${h.cx - 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/><circle cx="${h.cx + 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/>`
     return {
       back: ANIMAL.roundEars(h, 25, spot, fur, 226),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: bridge + spots + ANIMAL.muzzle(h, '#f1e5cf', 44, 30),
       front: ANIMAL.whiskers(h, spot),
       nose: 'cat', noseColor: '#c9706a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 25,
@@ -681,7 +788,7 @@ const SPECIES = {
     const fur = p.skin, mane = p.mask || shade(fur, .62)
     return {
       back: ANIMAL.puffs(h, 22, 36, 0, 350, 22, mane) + ANIMAL.roundEars(h, 22, fur, mix(fur, '#fffaf0', .4), 226),
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .5)),
       nose: 'bear', noseColor: '#7a3b2a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 34,
     }
@@ -691,7 +798,7 @@ const SPECIES = {
     return {
       back: `<circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="32" fill="${fur}"/>
         <circle cx="${h.cx - h.rx - 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/><circle cx="${h.cx + h.rx + 4}" cy="${h.cy + 4}" r="19" fill="${mask}"/>`,
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/>`,
       // la máscara clara: dos lóbulos alrededor de los ojos y el hocico
       mask: `<ellipse cx="${h.cx - 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx + 32}" cy="${h.cy - 4}" rx="38" ry="40" fill="${mask}"/><ellipse cx="${h.cx}" cy="${h.cy + 42}" rx="60" ry="40" fill="${mask}"/>`,
       top: `<path d="M${h.cx - 18} ${h.cy - h.ry + 6} q-4 -26 14 -30 q-8 16 6 22 q2 -20 20 -20 q-10 14 0 28Z" fill="${d}"/>`,
@@ -706,7 +813,7 @@ const SPECIES = {
     return {
       back: `<ellipse cx="${h.cx - h.rx + 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/><ellipse cx="${h.cx + h.rx - 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/>`,
       // la cabeza es la elipse con una cresta que sube por arriba
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/><path d="M${h.cx - h.rx * .55} ${h.cy - h.ry * .7} Q${h.cx} ${h.cy - h.ry - 46} ${h.cx + h.rx * .55} ${h.cy - h.ry * .7}Z" fill="${fur}"/>`,
+      head: `<path d="${headPath(h)}" fill="${fur}"/><path d="M${h.cx - h.rx * .55} ${h.cy - h.ry * .7} Q${h.cx} ${h.cy - h.ry - 46} ${h.cx + h.rx * .55} ${h.cy - h.ry * .7}Z" fill="${fur}"/>`,
       // la cara: un escudo ancho de cuero que toma los ojos y el hocico; encima, la ceja ósea
       mask: `<path d="M${h.cx - 70} ${h.cy - 30} Q${h.cx} ${h.cy - 52} ${h.cx + 70} ${h.cy - 30} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 50} ${h.cy + 66} Q${h.cx} ${h.cy + 86} ${h.cx - 50} ${h.cy + 66} Q${h.cx - 84} ${h.cy + 30} ${h.cx - 70} ${h.cy - 30}Z" fill="${face}"/>
         <path d="M${h.cx - 74} ${h.cy - 26} Q${h.cx - 38} ${h.cy - 54} ${h.cx} ${h.cy - 34} Q${h.cx + 38} ${h.cy - 54} ${h.cx + 74} ${h.cy - 26} Q${h.cx + 40} ${h.cy - 38} ${h.cx} ${h.cy - 24} Q${h.cx - 40} ${h.cy - 38} ${h.cx - 74} ${h.cy - 26}Z" fill="${shade(face, .8)}"/>`,
@@ -717,7 +824,7 @@ const SPECIES = {
   pato: (p, h) => {
     const feather = p.skin, d = shade(feather, .85)
     return {
-      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`, mask: '',
+      back: '', head: `<path d="${headPath(h)}" fill="${feather}"/>`, mask: '',
       // un copete de tres plumas
       top: `<path d="M${h.cx - 6} ${h.cy - h.ry + 4} q-20 -20 -8 -36 q4 18 14 22 q-2 -24 16 -34 q-2 22 6 30 q8 -14 22 -12 q-14 12 -16 30Z" fill="${d}"/>`,
       nose: 'none', brow: shade(feather, .55), mouth: '#6e1f12', beak: p.beak || '#f08c3d',
@@ -725,19 +832,23 @@ const SPECIES = {
   },
 }
 function creature(p) {
-  const h = { ...HEAD, rx: 94, ry: 88 }, a = SPECIES[p.species](p, h)
+  const h = speciesHead(p.species), a = SPECIES[p.species](p, h)
+  // lo que se pinta sobre la cara (máscara, rubor) se recorta a la silueta: en una cabeza de mentón angosto se salía
+  const clip = a.ownHead ? '' : ` clip-path="url(#hd-${p.id})"`
   const has = (x) => p.extras?.includes(x)
   return `${torso(p, a.neck, a.chest)}
   <g class="head">
     ${a.back ? cut(a.back) : ''}
     ${cut(a.head)}
-    ${a.mask ? soft(a.mask) : ''}
+    <defs><clipPath id="hd-${p.id}"><path d="${headPath(h)}"/></clipPath></defs>
+    ${a.mask ? `<g${clip}>${soft(a.mask)}</g>` : ''}
     ${a.front ? soft(a.front) : ''}
     ${a.top && !p.hat ? cut(a.top) : ''}
-    <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/>
+    <g${clip}><ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/></g>
     ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth, philtrum: a.philtrum })}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
-    ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
+    ${p.species === 'perro' ? `<g class="tongue">${soft(`<path d="M${h.cx - 11} ${h.cy + h.ry * .56 + 4} v16 q0 14 11 14 q11 0 11 -14 v-16Z" fill="#e8756a"/>`)}<path d="M${h.cx} ${h.cy + h.ry * .56 + 8} v18" stroke="#c5544a" stroke-width="3" stroke-linecap="round"/></g>` : ''}
+    ${wearHat(p, h, 8, p.skin)}
+    ${has('sunglasses') ? EXTRAS.sunglasses(p, h) : has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
@@ -747,6 +858,9 @@ function completePerson(p) {
   const q = { ...p }
   if (q.species && !SPECIES[q.species]) q.species = ''
   if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPCIONES.skinBy[q.species]?.[0]) || '#e0ac7e'
+  // el viejo peinado «gorro de lana» era un gorro guardado entre los peinados, del color del pelo: se confundía con él.
+  // Ahora es pelo corto con el gorro de lana de verdad (del color que tenía, si no eligió otro gorro)
+  if (q.hair === 'beanie') { q.hair = 'short'; if (!q.hat) { q.hat = 'lana'; q.hatColor = /^#[0-9a-f]{6}$/i.test(q.hairColor || '') ? q.hairColor : '#c5381f'; q.hairColor = '#4a2f1c' } }
   if (!HAIR[q.hair]) q.hair = 'short'
   for (const [k, v] of [['hairColor', '#4a2f1c'], ['shirt', '#2b6670'], ['gear', '#13323a'], ['accent', '#f1e4c7']]) if (!/^#[0-9a-f]{6}$/i.test(q[k] || '')) q[k] = v
   if (!NOSES[q.nose]) q.nose = 'button'
@@ -766,15 +880,18 @@ function personSeed(p) {
 function personRhythm(p) {
   let n = personSeed(p)
   const next = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296 }
-  const k = (lo, hi) => (lo + next() * (hi - lo)).toFixed(2)
+  // el tempo de la especie multiplica el de cada uno: el perezoso hace todo despacio, el ratón y el conejo, rápido
+  const tempo = SPECIES_TEMPO[p.species] || 1
+  const k = (lo, hi) => ((lo + next() * (hi - lo)) * tempo).toFixed(2)
   return `--d:${(-next() * 9).toFixed(2)}s;--kb:${k(.8, 1.3)};--kh:${k(.8, 1.3)};--ke:${k(.7, 1.5)};--kl:${k(.8, 1.4)}`
 }
+const SPECIES_TEMPO = { perezoso: 1.9, koala: 1.45, capibara: 1.35, panda: 1.25, oso: 1.2, gorila: 1.15, raton: .68, conejo: .76, mico: .8, loro: .82, zorro: .9 }
 // LAS MANOS: sólo se ven en dos gestos (lo decide el CSS, como las bocas). Tecleando, las dos asoman abajo y golpean
 // alternadas; pensando, una sube a la barbilla. Antes «teclea» y «piensa» se distinguían sólo por la boca y las cejas,
 // que en un recuadro chico no se leen. Son del color de la piel (o del pelaje) con el puño de la chaqueta.
 function personHands(p) {
   const s = p.skin, sd = shade(s, .78), j = p.shirt, jl = shade(j, 1.18), jd = shade(j, .78)
-  const h = p.species ? { ...HEAD, rx: 94, ry: 88 } : { ...HEAD, ...(FACES[p.face] || FACES.round) }
+  const h = p.species ? speciesHead(p.species) : { ...HEAD, ...(FACES[p.face] || FACES.round) }
   // la manga más clara que la chaqueta y con su puño oscuro: del mismo color se fundía con el pecho y la mano quedaba suelta
   const typing = (x, cls) => `<g class="hand-type ${cls}">${cut(`<path d="M${x - 26} 380 V304 q0 -8 8 -8 h36 q8 0 8 8 V380Z" fill="${jl}"/>`)}<rect x="${x - 26}" y="296" width="52" height="11" rx="5" fill="${jd}"/>${cut(`<ellipse cx="${x}" cy="282" rx="22" ry="17" fill="${s}"/>`)}<path d="M${x - 8} 284 v10 M${x} 286 v10 M${x + 8} 284 v10" stroke="${sd}" stroke-width="3" stroke-linecap="round"/></g>`
   // la mano toca la barbilla (la pisa apenas) y el antebrazo sube desde abajo, en diagonal
@@ -817,13 +934,26 @@ function personProps(p) {
   for (let i = 0; i < 18; i++) {
     n = (Math.imul(n, 1664525) + 1013904223) >>> 0
     const x = -40 + (i / 17) * 480, w = 8 + (n % 9), d = ((n >>> 8) % 1400) / 1000, t = 1.5 + ((n >>> 16) % 900) / 1000
-    bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1}"/>`
+    bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1};--by:${130 + ((n >>> 12) % 250)}px"/>`
   }
-  return `${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
+  // «!» de la sorpresa y «?» de la duda: arriba a un lado de la cabeza, en papel
+  const marks = `<g class="mark mark-bang">${cut(`<path d="M330 30 v46" stroke="#f2c14e" stroke-width="13" stroke-linecap="round" fill="none"/><circle cx="330" cy="100" r="8" fill="#f2c14e"/>`)}</g>
+    <g class="mark mark-q">${cut(`<path d="M310 58 q0 -24 21 -24 q21 0 21 19 q0 14 -19 21 v9" stroke="#f1e4c7" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="333" cy="104" r="7.5" fill="#f1e4c7"/>`)}</g>`
+  return `${marks}${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
+}
+// EL RASGO DE CADA FORMA DE CARA, DIBUJADO. Diamante y triangular quedaron parecidas al rellenarles los cachetes (con la
+// mandíbula muy fina se veían demacradas): lo que las distingue va en sombra de papel, no en la silueta. Diamante lleva
+// los pómulos; triangular, la línea de la mandíbula que baja al mentón; mentón marcado, el pliegue del mentón.
+function faceMarks(p, h) {
+  const c = shade(p.skin, .84), line = (d, w = 5, o = .6) => `<path d="${d}" stroke="${c}" stroke-width="${w}" fill="none" stroke-linecap="round" opacity="${o}"/>`
+  if (p.face === 'diamante') return [-1, 1].map((k) => { const x = h.cx + k * (halfWidthAt(h, 12) - 12); return line(`M${r1(x)} ${h.cy + 6} q${-k * 12} 14 ${-k * 30} 20`, 6, .55) }).join('')
+  if (p.face === 'triangular') return [-1, 1].map((k) => { const a = k < 0 ? [152, 118] : [28, 62]; return line(`${M(pt(h, a[0], -9))} ${arc(h, a[0], a[1], -9)}`, 4.5, .5) }).join('')
+  if (p.face === 'menton') return line(`M${h.cx - 15} ${r1(h.cy + h.ry - 14)} q15 9 30 0`, 4.5, .55)
+  return ''
 }
 function person(p) {
   p = completePerson(p)
-  return `<g class="rhythm" style="${personRhythm(p)}">${p.species ? creature(p) : personHuman(p)}${personHands(p)}${personProps(p)}</g>`
+  return `<g class="rhythm sp-${p.species || 'persona'}" style="${personRhythm(p)}">${p.species ? creature(p) : personHuman(p)}${personHands(p)}${personProps(p)}</g>`
 }
 function personHuman(p) {
   const s = p.skin, sh = shade(s, .86)
@@ -840,17 +970,22 @@ function personHuman(p) {
     ${cut([pt(h, 174, -2), pt(h, 6, -2)].map(([x, y]) => `<ellipse cx="${x}" cy="${y + 4}" rx="15" ry="19" fill="${sh}"/>`).join(''))}
     ${has('earrings') ? EXTRAS.earrings(p, h) : ''}
     ${cut(`<path d="${headPath(h)}" fill="${s}"/>`)}
-    <ellipse cx="${h.cx - rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/><ellipse cx="${h.cx + rx * .6}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>
+    ${[-1, 1].map((k) => `<ellipse cx="${r1(h.cx + k * Math.min(rx * .6, halfWidthAt(h, 34) - 20))}" cy="${h.cy + 34}" rx="14" ry="8" fill="#e5592a" opacity=".32"/>`).join('')}
+    ${faceMarks(p, h)}
     ${has('freckles') ? EXTRAS.freckles(p, h) : ''}
     ${beardStyle ? EXTRAS.beard(p, h, beardStyle) : ''}
-    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: '#962b19', lashes: p.lashes })}
+    ${face(h, { id: p.id, brow: shade(p.hairColor, .8), nose: s, noseColor: shade(s, .8), noseShape: p.nose, eye: p.eye, teeth: p.teeth, lids: p.lids, mouth: '#962b19', lashes: p.lashes, brows: p.brows, eyeShape: p.eyeShape })}
     ${p.hat && SHORT_HAIR.includes(p.hair) ? '' : cut(hair.front)}
-    ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', (HAIR_VOL[p.hair] ?? 6) + 4) : ''}
-    ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
+    ${wearHat(p, h, (HAIR_VOL[p.hair] ?? 6) + 4, p.hairColor)}
+    ${!p.hat && has('headband') ? EXTRAS.headband(p, h, (HAIR_VOL[p.hair] ?? 6) + 2) : ''}${!p.hat && has('bow') ? EXTRAS.bow(p, h, (HAIR_VOL[p.hair] ?? 6) + 2) : ''}
+    ${has('sunglasses') ? EXTRAS.sunglasses(p, h) : has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
   </g>`
 }
 
+
+// el fondo de un personaje: su escena (o el atardecer), dibujada para él (la silla mira quién se sienta)
+const sceneOf = (p) => (SCENES[p.scene] || SCENES.sunset)(p)
 
 // ── EL RECUADRO ──────────────────────────────────────────────────────────────────────────────────
 const STATE_LABEL = { typing: 'teclea', thinking: 'piensa', talking: 'habla', idle: 'escucha' }
@@ -867,7 +1002,7 @@ function tile(p, i = 0) {
 // Pinta (o repinta, desde el editor) el recuadro de un personaje. El nombre va como texto: un nombre escrito en
 // el editor nunca se interpreta como HTML.
 function renderTile(el, p) {
-  el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${(SCENES[p.scene] || SCENES.sunset)()}
+  el.innerHTML = `<svg viewBox="0 0 400 300" preserveAspectRatio="xMidYMax slice" aria-hidden="true">${sceneOf(p)}
       <g transform="translate(46 54) scale(.77)"><g class="avatar">${person(p)}</g></g></svg>
     <div class="think" aria-hidden="true">···</div>
     <span class="state"></span>
@@ -887,11 +1022,26 @@ function setTileState(el, st) {
 
 // LO QUE HACE MIENTRAS TANTO (aparte del gesto): '' nada, o una clave de ACTIVITIES. laptop: 'open', 'closed' o '' (sin
 // portátil). Tomar café cierra la tapa solo: nadie toma tinto encima del teclado.
-const ACTIVITIES = { coffee: 'toma tinto', music: 'con audífonos', wave: 'saluda', thumb: 'de acuerdo', celebrate: 'celebra' }
+const ACTIVITIES = { coffee: 'toma tinto', music: 'con audífonos', wave: 'saluda', thumb: 'de acuerdo', celebrate: 'celebra',
+  laugh: 'se ríe', surprise: 'se sorprende', confused: 'no entiende' }
 function setTileActivity(el, activity = '', laptop = 'open') {
   for (const k of Object.keys(ACTIVITIES)) el.classList.toggle(`act-${k}`, k === activity)
   el.classList.toggle('has-laptop', !!laptop)
   el.classList.toggle('lid-closed', laptop === 'closed' || activity === 'coffee')
+}
+
+// ADÓNDE MIRA: hacia quien habla. dx, dy van de -1 a 1 (la dirección desde este recuadro hasta el del que habla);
+// sin argumentos, vuelve a mirar por su cuenta. No vale mientras habla él.
+function setTileLook(el, dx, dy) {
+  const on = Number.isFinite(dx) && Number.isFinite(dy)
+  el.classList.toggle('looking', on)
+  if (on) { el.style.setProperty('--lx', dx.toFixed(2)); el.style.setProperty('--ly', dy.toFixed(2)) }
+}
+// la dirección de un recuadro a otro, como la espera setTileLook (un vector de largo 1; al lado es todo x, arriba todo y)
+function lookVector(from, to) {
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect()
+  const x = (b.left + b.width / 2) - (a.left + a.width / 2), y = (b.top + b.height / 2) - (a.top + a.height / 2), d = Math.hypot(x, y)
+  return d < 1 ? null : [x / d, y / d]
 }
 
 // ── LOS PERSONAJES GUARDADOS ─────────────────────────────────────────────────────────────────────
@@ -915,14 +1065,18 @@ const OPCIONES = {
     tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c']
   },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
-  hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
+  hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado' }, // «beanie» ya no se ofrece: es el gorro de lana (completePerson lo convierte)
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
-  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón' },
+  face: { round: 'Redonda', soft: 'Suave', wide: 'Ancha', tall: 'Alargada', largo: 'Larga', achatada: 'Achatada', cuadrada: 'Cuadrada', mandibula: 'Mandíbula ancha', corazon: 'Corazón',
+    diamante: 'Diamante', triangular: 'Triangular', pera: 'Pera', ovalada: 'Ovalada', menton: 'Mentón marcado' },
   beardStyle: { '': 'Sin barba', corta: 'Corta', tupida: 'Tupida', delgada: 'Delgada', chivera: 'Chivera', candado: 'Candado', bigote: 'Solo bigote' },
   nose: { button: 'Botón', bulb: 'Bola', long: 'Larga', hook: 'Ganchuda' },
+  brows: { '': 'Normales', thick: 'Gruesas', thin: 'Finas', arched: 'Arqueadas', straight: 'Rectas' },
+  eyeShape: { '': 'Redondos', almond: 'Almendrados', big: 'Grandes' },
   teeth: { '': 'Sin dientes', grin: 'Sonrisa con dientes', buck: 'Dientes salidos' },
-  extras: { glasses: 'Lentes', headphones: 'Audífonos', earrings: 'Aretes', freckles: 'Pecas' },
-  hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina' },
+  extras: { glasses: 'Lentes', sunglasses: 'Gafas de sol', headphones: 'Audífonos', earrings: 'Aretes', freckles: 'Pecas',
+    headband: 'Diadema', bow: 'Lazo', scarf: 'Bufanda', bowtie: 'Corbatín' },
+  hat: { '': 'Sin gorro', lana: 'Gorro de lana', chullo: 'Chullo con orejeras', cachucha: 'Cachucha', reves: 'Cachucha al revés', pescador: 'Pescador', boina: 'Boina', sombrero: 'Sombrero' },
   hatColor: ['#c5381f', '#e5592a', '#f2c14e', '#2b6670', '#13323a', '#8db3a9', '#9b8ec7', '#5e3b6b', '#f1e4c7', '#24406b'],
   looks: { lashes: 'Pestañas', lids: 'Párpado caído', glassesRound: 'Lentes redondos' },
   gear: ['#13323a', '#c5381f', '#f08c3d', '#f1e4c7', '#2b6670', '#9b8ec7'],
@@ -937,12 +1091,15 @@ const OPCIONES = {
 function randomPerson(base = {}) {
   const pick = (a) => a[Math.floor(Math.random() * a.length)]
   const keys = (o) => Object.keys(o)
-  const extras = keys(OPCIONES.extras).filter(() => Math.random() < .28)
+  // con más accesorios en el catálogo, cada uno sale menos seguido; y los que no van juntos no salen juntos (dos gafas,
+  // bufanda con corbatín, diadema con lazo)
+  let extras = keys(OPCIONES.extras).filter(() => Math.random() < .17)
+  for (const [a, b] of [['glasses', 'sunglasses'], ['scarf', 'bowtie'], ['headband', 'bow']]) if (extras.includes(a) && extras.includes(b)) extras = extras.filter((x) => x !== b)
   const beardStyle = Math.random() < .3 ? pick(keys(OPCIONES.beardStyle).filter(Boolean)) : ''
   return {
     ...base,
     skin: pick((base.species && OPCIONES.skinBy[base.species]) || OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
-    nose: pick(keys(OPCIONES.nose)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
+    nose: pick(keys(OPCIONES.nose)), brows: pick(keys(OPCIONES.brows)), eyeShape: Math.random() < .6 ? '' : pick(keys(OPCIONES.eyeShape)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
     extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
     shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: Math.random() < .8 ? pick(keys(ROOMS)) : pick(keys(OPCIONES.scene)), // casi siempre un cuarto: un paisaje con el sol del tamaño de la cabeza compite con el personaje
   }
@@ -964,4 +1121,4 @@ if (typeof document !== 'undefined' && typeof OFFICE_PAQUETE === 'undefined') {
 
 // ── PARA NODE ────────────────────────────────────────────────────────────────────────────────────
 // El CLI (office/cli/personaje.mjs) carga este mismo archivo: lo que dibuja la llamada es lo que sale del CLI.
-if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES }
+if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES, sceneOf }
