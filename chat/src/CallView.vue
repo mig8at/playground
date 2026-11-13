@@ -279,7 +279,7 @@ function speakMessage(m) {
 // ── LA VOZ YA LISTA: lo que se dice en la conversación queda en audio aunque la llamada esté cerrada ──────────────
 // Sin botón (server/voice_sync.go): al abrir la llamada se le pasa al servidor la voz y el nombre de cada personaje (los
 // sabe resolver esta vista: su JSON, lo cambiado, la de su especie) y desde ahí él pasa a voz cada mensaje que entra y
-// completa el último día con mensajes. Los días de antes quedan sin audio hasta escucharlos: si en la línea de tiempo
+// completa hoy y ayer. De anteayer para atrás queda sin audio (en gris en la línea) hasta escucharlo: si en la línea de tiempo
 // se vuelve a un mensaje sin audio y suena, se le pide al servidor ese día desde ahí, y lo va bajando por delante de lo
 // que suena; al pasar al día siguiente se pide ése. Las frases salen de la misma receta (voiceText.js) a los dos lados.
 const syncState = ref(null)       // { on, pending, spent, error } de esta conversación
@@ -304,7 +304,7 @@ async function loadReady() {
     readyIds.value = new Set(d.ready || [])
   } catch { /* sin servidor: la barra no marca qué falta */ }
 }
-// la llamada se abrió (o cambió una voz, o el tope de palabras): en vivo y el último día
+// la llamada se abrió (o cambió una voz, o el tope de palabras): en vivo, hoy y ayer
 function pushVoices() {
   if (!props.peer || !Object.keys(castVoices().voices).length) return
   fetch('/api/voice/sync', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: syncBody() })
@@ -396,7 +396,7 @@ const shown = computed(() => timeline.value.slice(windowStart.value))
 // n mensajes y, al final, el directo: el mensaje k está en k/n y el directo en 100%
 const pos = (k) => (shown.value.length ? (k / shown.value.length) * 100 : 100)
 // LOS DÍAS en la línea: una raya donde empieza cada uno, con su fecha. Y lo que todavía no tiene audio (los días viejos
-// que nadie escuchó) va rayado: al darle play desde ahí se baja.
+// que nadie escuchó) va en gris: al darle play desde ahí se baja.
 const dayLabel = (m) => new Date(m.time).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' })
 const dayMarks = computed(() => shown.value.flatMap(({ m }, k) => (k && msgDay(m) !== msgDay(shown.value[k - 1].m) ? [{ at: pos(k), label: dayLabel(m) }] : [])))
 const missing = computed(() => {
@@ -818,9 +818,9 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @keyframes tl-spin { to { transform: rotate(-360deg); } }
 .tl-badge { position: absolute; top: -5px; right: -6px; min-width: 15px; height: 15px; padding: 0 3px; border-radius: 8px; font-size: 10px; font-weight: 800;
   line-height: 15px; text-align: center; background: var(--primary); color: var(--primary-foreground); }
-/* lo que no tiene audio todavía: rayado sobre la línea */
-.tl-missing { position: absolute; top: -1px; bottom: -1px; border-radius: 2px; pointer-events: none;
-  background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--foreground) 45%, transparent) 0 3px, transparent 3px 6px); }
+/* lo que no tiene audio (de anteayer para atrás, sin escuchar): la línea en gris, también si ya pasó el cabezal */
+.tl-missing { position: absolute; inset: 0 auto; border-radius: 2px; pointer-events: none;
+  background: color-mix(in oklab, var(--muted-foreground) 45%, var(--background)); }
 /* dónde empieza cada día: una raya y la fecha arriba */
 .tl-day { position: absolute; top: 50%; width: 2px; height: 14px; translate: -50% -50%; border-radius: 1px; pointer-events: none;
   background: color-mix(in oklab, var(--foreground) 55%, transparent); }

@@ -6,9 +6,9 @@ package main
 //
 //   - EN VIVO: cada mensaje que entra al chat se pasa a voz al momento, con la llamada abierta o cerrada. Si el chat
 //     estuvo cerrado, lo que quedó en cola en el servidor del equipo entra al volver y se pasa a voz igual.
-//   - EL ÚLTIMO DÍA: al abrir la llamada y al arrancar este servidor, se completa el último día con mensajes (lo que
-//     falte; lo ya guardado no se paga). Los días de antes NO se pasan solos: una conversación de semanas no se paga
-//     entera por abrirla.
+//   - HOY Y AYER: al abrir la llamada y al arrancar este servidor, se completa lo de hoy y lo de ayer (lo que falte; lo
+//     ya guardado no se paga). De anteayer para atrás NO se pasa solo: una conversación de semanas no se paga entera
+//     por abrirla, y en la línea de tiempo se ve en gris.
 //   - UN DÍA VIEJO, AL ESCUCHARLO: si en la línea de tiempo se vuelve a un día sin audio y se le da play, la llamada
 //     pide ese día desde ese mensaje (POST con `from`) y el servidor lo va bajando por delante de lo que suena, como
 //     un video que carga; al llegar al día siguiente, la llamada pide ése.
@@ -18,7 +18,7 @@ package main
 // con ésa y encuentra cada frase ya guardada.
 //
 //	GET  /api/voice/sync?conversation=#oficina   {status, ready: [ids con todo su audio]}
-//	PUT  /api/voice/sync  {conversation, maxWords, me, voices, names}   la llamada se abrió (o cambió una voz): en vivo y el último día
+//	PUT  /api/voice/sync  {conversation, maxWords, me, voices, names}   la llamada se abrió (o cambió una voz): en vivo, hoy y ayer
 //	POST /api/voice/sync  {conversation, from, …}                       bajar el día de `from`, desde ese mensaje
 //
 //	event: voice-sync  data: {conversation, status}   cada avance (realtime.go)
@@ -180,13 +180,12 @@ func pendingJobs(conv string, c syncConversation, messages []cli.Message) []sync
 	return out
 }
 
-// lastDay: los mensajes del último día con mensajes de la conversación.
-func lastDay(all []cli.Message) []cli.Message {
-	if len(all) == 0 {
-		return nil
-	}
-	day, i := dayOf(all[len(all)-1]), len(all)
-	for i > 0 && dayOf(all[i-1]) == day {
+// recentDays: los mensajes de hoy y de ayer (hora local). Lo de anteayer para atrás no se pasa solo: queda para cuando
+// se escuche (dayFrom).
+func recentDays(all []cli.Message, now time.Time) []cli.Message {
+	from := now.Local().AddDate(0, 0, -1).Format("2006-01-02")
+	i := len(all)
+	for i > 0 && dayOf(all[i-1]) >= from {
 		i--
 	}
 	return all[i:]
@@ -245,7 +244,7 @@ func syncFresh(fresh []cli.Message) {
 	}
 }
 
-// syncCatchUp: al arrancar, cada conversación sincronizada completa su último día (lo que llegó mientras tanto entra
+// syncCatchUp: al arrancar, cada conversación sincronizada completa hoy y ayer (lo que llegó mientras tanto entra
 // por syncFresh; esto cubre lo que quedó a medias si el servidor se cerró en la mitad).
 func syncCatchUp() {
 	syncMu.Lock()
@@ -253,7 +252,7 @@ func syncCatchUp() {
 	loadSync()
 	for conv, s := range syncState {
 		if s.On {
-			queueJobs(conv, pendingJobs(conv, s.syncConversation, lastDay(conversationMessages(conv))))
+			queueJobs(conv, pendingJobs(conv, s.syncConversation, recentDays(conversationMessages(conv), time.Now())))
 		}
 	}
 }
@@ -369,7 +368,7 @@ func registerVoiceSync(mux *http.ServeMux) {
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"status": *s, "ready": readyIDs(conv, s.syncConversation)})
 	})
-	// la llamada se abrió (o cambió una voz): queda en vivo y completa el último día
+	// la llamada se abrió (o cambió una voz): queda en vivo y completa hoy y ayer
 	mux.HandleFunc("PUT /api/voice/sync", func(w http.ResponseWriter, r *http.Request) {
 		req, ok := decodeSync(w, r)
 		if !ok {
@@ -383,7 +382,7 @@ func registerVoiceSync(mux *http.ServeMux) {
 			s.On, s.Since = true, time.Now().UTC().Format(time.RFC3339)
 		}
 		saveSync()
-		queueJobs(req.Conversation, pendingJobs(req.Conversation, s.syncConversation, lastDay(conversationMessages(req.Conversation))))
+		queueJobs(req.Conversation, pendingJobs(req.Conversation, s.syncConversation, recentDays(conversationMessages(req.Conversation), time.Now())))
 		writeJSON(w, http.StatusOK, map[string]any{"status": *s})
 	})
 	// bajar un día viejo desde un mensaje (la línea de tiempo volvió atrás y le dio play)

@@ -178,14 +178,16 @@ interfaz pide sólo por nombre; para cambiar un sonido, se cambia su descripció
 **La voz ya lista, sin botón** (2026-11-13, `chat/server/voice_sync.go`): lo que se dice en una conversación queda en
 audio antes de abrir la llamada. Al abrirla, la llamada le pasa al servidor la voz y el nombre de cada personaje y,
 desde ahí, el servidor pasa a voz cada mensaje que entra al chat (con la llamada abierta o cerrada; lo que quedó en cola
-mientras el chat estaba cerrado entra al volver y se pasa igual) y completa **el último día con mensajes**, también al
-arrancar. Los días de antes NO se pasan solos: en la línea de tiempo cada día empieza con una raya y su fecha, y lo que
-no tiene audio va rayado; al darle play desde ahí, la llamada pide ese día desde ese mensaje y el servidor lo baja por
+mientras el chat estaba cerrado entra al volver y se pasa igual) y completa **lo de hoy y lo de ayer**, también al
+arrancar. De anteayer para atrás NO se pasa solo: en la línea de tiempo cada día empieza con una raya y su fecha, y lo
+que no tiene audio va en gris; al darle play desde ahí, la llamada pide ese día desde ese mensaje y el servidor lo baja por
 delante de lo que suena (al pasar al día siguiente, pide ése). Mientras prepara, gira un ícono con cuántos faltan.
 ⚠ **Las frases tienen que ser idénticas** a las que pide la llamada, o no las encuentra y las vuelve a pagar: la receta
 vive en `chat/src/voiceText.js` y su copia en Go, `chat/server/voice_text.go`; `go test ./server -run
 TestVoiceTextParity` (en `chat/`) las compara con node. Si se cambia una, se cambia la otra. Gasta del mismo tope
 diario. Medido el 2026-11-13 en #oficina: cinco mensajes de agentes sonaron entre 0,5 y 2,6 s después de enviarlos.
+⚠ Una conversación se sincroniza desde la primera vez que se abre su llamada, y abrirla paga hoy y ayer de una vez: la
+de Duncan (mensajes largos) fueron 42 mensajes y ~14.700 caracteres (~2.950 créditos), casi todo el tope del día.
 ⚠ «Vaciar chat» es de cada ventana (el navegador y Cockpit guardan aparte) y no toca el historial del servidor.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los

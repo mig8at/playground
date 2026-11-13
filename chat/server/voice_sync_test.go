@@ -2,6 +2,7 @@ package main
 
 import (
 	"testing"
+	"time"
 
 	"creditop/playground/chat/cli"
 )
@@ -44,7 +45,7 @@ func equal(a []string, b ...string) bool {
 	return true
 }
 
-// Por días (hora local): solo se completa el último; un día viejo se baja desde el mensaje donde se le dio play.
+// Por días (hora local): solos, hoy y ayer; un día viejo se baja desde el mensaje donde se le dio play.
 func TestSyncDays(t *testing.T) {
 	ms := []cli.Message{
 		{ID: "a1", Time: "2026-11-10T15:00:00Z"},
@@ -55,8 +56,15 @@ func TestSyncDays(t *testing.T) {
 		{ID: "c1", Time: "2026-11-13T15:00:00Z"},
 		{ID: "c2", Time: "2026-11-13T16:00:00Z"},
 	}
-	if got := ids(lastDay(ms)); !equal(got, "c1", "c2") {
-		t.Errorf("lastDay = %v, quería [c1 c2]", got)
+	now := time.Date(2026, 11, 13, 12, 0, 0, 0, time.Local)
+	if got := ids(recentDays(ms, now)); !equal(got, "c1", "c2") {
+		t.Errorf("recentDays (hoy 13, ayer sin mensajes) = %v, quería [c1 c2]", got)
+	}
+	if got := ids(recentDays(ms, now.AddDate(0, 0, -1))); !equal(got, "b1", "b2", "b3", "c1", "c2") {
+		t.Errorf("recentDays (hoy 12: ayer 11) = %v, quería [b1 b2 b3 c1 c2]", got)
+	}
+	if got := recentDays(ms, now.AddDate(0, 0, 10)); len(got) != 0 {
+		t.Errorf("recentDays sin nada de hoy ni de ayer = %v, quería nada", ids(got))
 	}
 	if got := ids(dayFrom(ms, "b2")); !equal(got, "b2", "b3") {
 		t.Errorf("dayFrom(b2) = %v, quería [b2 b3]", got)
@@ -64,8 +72,8 @@ func TestSyncDays(t *testing.T) {
 	if got := dayFrom(ms, "zz"); got != nil {
 		t.Errorf("dayFrom de uno que no existe = %v, quería nada", ids(got))
 	}
-	if lastDay(nil) != nil {
-		t.Error("lastDay de nada debería ser nada")
+	if len(recentDays(nil, now)) != 0 {
+		t.Error("recentDays de nada debería ser nada")
 	}
 }
 
