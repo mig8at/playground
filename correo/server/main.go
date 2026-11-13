@@ -317,6 +317,22 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, a.overview(*every))
 	})
+	// POST /api/noreply {"ids":[…]} marca «no hace falta responder» (un acuse automático); con "undo":true lo saca.
+	mux.HandleFunc("POST /api/noreply", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			IDs  []string `json:"ids"`
+			Undo bool     `json:"undo"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 64<<10)).Decode(&body); err != nil || len(body.IDs) == 0 {
+			fail(w, http.StatusBadRequest, fmt.Errorf("falta {\"ids\": [\"<id del correo>\"]}"))
+			return
+		}
+		if err := a.store.markNoReply(body.IDs, body.Undo, time.Now()); err != nil {
+			fail(w, http.StatusInternalServerError, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, a.overview(*every))
+	})
 	// POST /api/watches {"name":"Shopify","query":"from:shopify.com"} agrega (con "id", cambia); DELETE ?id= saca.
 	mux.HandleFunc("POST /api/watches", func(w http.ResponseWriter, r *http.Request) {
 		var body Watch

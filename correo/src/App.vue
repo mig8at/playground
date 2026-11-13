@@ -52,14 +52,20 @@ const watches = computed(() => data.value?.watches || [])
 const current = computed(() => watches.value.find((w) => w.id === watchId.value) || watches.value[0] || null)
 const allMessages = computed(() => current.value?.messages || [])
 // El filtro de la lista: todos, sin ver, por responder o respondidos. Se recuerda.
-const STATUS = { unread: 'Sin ver', pending: 'Por responder', replied: 'Respondido' }
+const STATUS = { unread: 'Sin ver', pending: 'Por responder', replied: 'Respondido', noreply: 'No hace falta' }
 const filter = ref(localStorage.getItem('correo.filter') || 'all')
 watch(filter, (v) => { try { localStorage.setItem('correo.filter', v) } catch { /* sin almacenamiento */ } })
 const counts = computed(() => {
-  const c = { all: allMessages.value.length, unread: 0, pending: 0, replied: 0 }
+  const c = { all: allMessages.value.length, unread: 0, pending: 0, replied: 0, noreply: 0 }
   for (const m of allMessages.value) c[m.status] = (c[m.status] || 0) + 1
   return c
 })
+const READER_STATUS = {
+  unread: () => 'Sin ver',
+  pending: () => 'Por responder: lo último del hilo es de ellos',
+  replied: (m) => `Respondiste el ${full(m.repliedAt)}`,
+  noreply: () => 'No hace falta responder',
+}
 const openedStatus = computed(() => opened.value && allMessages.value.find((m) => m.id === opened.value.id))
 const messages = computed(() => (filter.value === 'all' ? allMessages.value : allMessages.value.filter((m) => m.status === filter.value)))
 
@@ -75,6 +81,10 @@ watch([messageId, () => data.value?.checkedAt], async ([id], [before]) => {
   } catch (e) { openError.value = e.message }
 }, { immediate: false })
 
+// «No hace falta responder»: un acuse automático o un aviso deja de figurar como por responder (y queda visto).
+async function noReply(id, undo = false) {
+  try { take(await api('/api/noreply', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: [id], undo }) })) } catch (e) { apiError.value = e.message }
+}
 async function markAll() {
   if (!current.value) return
   try { take(await api('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ watch: current.value.id }) })) } catch (e) { apiError.value = e.message }
@@ -214,7 +224,7 @@ onBeforeUnmount(() => {
       <div v-if="current" class="summary">
         <span><b>{{ current.week }}</b> esta semana · <b>{{ allMessages.length }}</b> en 60 días</span>
         <div class="filters" role="group" aria-label="Filtrar por estado">
-          <button v-for="f in ['all', 'unread', 'pending', 'replied']" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
+          <button v-for="f in ['all', 'unread', 'pending', 'replied', 'noreply']" v-show="f !== 'noreply' || counts.noreply" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
             {{ f === 'all' ? 'Todos' : STATUS[f] }} <span class="chip-n">{{ counts[f] || 0 }}</span>
           </button>
         </div>
@@ -253,7 +263,11 @@ onBeforeUnmount(() => {
             <span>Para: {{ opened.to }}</span>
             <span v-if="opened.cc">Cc: {{ opened.cc }}</span>
             <span>{{ full(opened.date) }}</span>
-            <span v-if="openedStatus" class="status" :class="`is-${openedStatus.status}`">{{ openedStatus.status === 'replied' ? `Respondiste el ${full(openedStatus.repliedAt)}` : (openedStatus.status === 'pending' ? 'Por responder: lo último del hilo es de ellos' : 'Sin ver') }}</span>
+            <span v-if="openedStatus" class="reader-status">
+              <span class="status" :class="`is-${openedStatus.status}`">{{ READER_STATUS[openedStatus.status]?.(openedStatus) }}</span>
+              <button v-if="openedStatus.status === 'pending' || openedStatus.status === 'unread'" type="button" class="btn btn-outline btn-sm" title="Un acuse automático o un aviso: deja de contar como por responder" @click="noReply(openedStatus.id)">No hace falta responder</button>
+              <button v-else-if="openedStatus.status === 'noreply'" type="button" class="btn btn-outline btn-sm" @click="noReply(openedStatus.id, true)">Volver a por responder</button>
+            </span>
           </div>
           <pre class="reader-body">{{ opened.body || opened.snippet }}</pre>
         </article>

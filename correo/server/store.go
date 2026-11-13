@@ -35,6 +35,7 @@ type state struct {
 	Notified map[string]time.Time       `json:"notified"` // id del correo → cuándo avisó (o se dio por visto al estrenar)
 	Primed   map[string]bool            `json:"primed"`   // el seguimiento ya pasó su primera lectura: desde ahí avisa
 	Threads  map[string]Thread          `json:"threads"`  // id del hilo → quién escribió y cuándo
+	NoReply  map[string]time.Time       `json:"noReply"`  // id del correo → cuándo se marcó «no hace falta responder»
 }
 
 // Thread es lo que importa de un hilo para saber si se respondió: la última vez que escribiste vos y la última que
@@ -89,6 +90,9 @@ func openStore(dir string) (*store, error) {
 	}
 	if s.st.Threads == nil {
 		s.st.Threads = map[string]Thread{}
+	}
+	if s.st.NoReply == nil {
+		s.st.NoReply = map[string]time.Time{}
 	}
 	return s, s.saveLocked()
 }
@@ -232,6 +236,22 @@ func threadOf(msgs []gmail.Message, me string) Thread {
 	return t
 }
 
+// markNoReply marca (o, con undo, desmarca) correos que no hace falta responder: un acuse automático («Ticket
+// received»), un aviso. Marcarlo también lo da por visto.
+func (s *store) markNoReply(ids []string, undo bool, now time.Time) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, id := range ids {
+		if undo {
+			delete(s.st.NoReply, id)
+			continue
+		}
+		s.st.NoReply[id] = now
+		s.st.Read[id] = now
+	}
+	return s.saveLocked()
+}
+
 func (s *store) markRead(ids []string, now time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -252,9 +272,9 @@ type WatchView struct {
 
 // MessageView es un correo en la lista.
 //
-// Status: «unread» (no se abrió en la herramienta), «pending» (se vio y en el hilo no hay nada tuyo después) o
-// «replied» (hay una respuesta tuya posterior, RepliedAt). Responder cuenta aunque no se haya abierto acá: si contestaste
-// desde Gmail, está respondido.
+// Status: «unread» (no se abrió en la herramienta), «pending» (se vio y en el hilo no hay nada tuyo después),
+// «replied» (hay una respuesta tuya posterior, RepliedAt) o «noreply» (se marcó que no hace falta responder: un acuse
+// automático). Responder cuenta aunque no se haya abierto acá: si contestaste desde Gmail, está respondido.
 type MessageView struct {
 	gmail.Message
 	Unread    bool      `json:"unread"`
@@ -277,15 +297,18 @@ func (s *store) view(account string) ([]WatchView, int) {
 			if t := s.st.Threads[m.ThreadID]; t.LastMine.After(m.Date) {
 				mv.RepliedAt = t.LastMine
 			}
+			_, noReply := s.st.NoReply[m.ID]
 			switch {
 			case !mv.RepliedAt.IsZero():
 				mv.Status = "replied"
+			case noReply:
+				mv.Status = "noreply"
 			case mv.Unread:
 				mv.Status = "unread"
 			default:
 				mv.Status = "pending"
 			}
-			if mv.Unread && mv.Status != "replied" {
+			if mv.Status == "unread" {
 				v.Unread++
 			}
 			if mv.Status == "pending" {

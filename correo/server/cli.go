@@ -22,7 +22,7 @@ import (
 )
 
 var cliCommands = map[string]bool{"list": true, "watches": true, "latest": true, "read": true, "search": true,
-	"follow": true, "unfollow": true, "refresh": true, "help": true}
+	"follow": true, "unfollow": true, "refresh": true, "noreply": true, "help": true}
 
 const api = "http://127.0.0.1:5225"
 
@@ -39,6 +39,7 @@ const cliHelp = `correo — los correos de los remitentes que se siguen (Shopify
   bin/correo follow --name 'Soporte VTEX' --query 'from:support@vtexhelp.zendesk.com'
                                              seguir otro; con el nombre de uno que ya se sigue, le cambia la búsqueda
   bin/correo unfollow <seguimiento>          dejar de seguir (Gmail no se toca)
+  bin/correo noreply <id> [--undo]           «no hace falta responder» (un acuse automático); --undo lo devuelve
   bin/correo refresh                         que lo de fondo lea ya
 
   --json en cualquiera, para un agente. El seguimiento es su id (shopify, vtex…) o su nombre.`
@@ -51,6 +52,7 @@ func runCLI(root string, args []string) int {
 	pending := fs.Bool("pending", false, "sólo los por responder (vistos, y lo último del hilo es de ellos)")
 	n := fs.Int("n", 10, "cuántos como máximo")
 	q := fs.String("q", "", "la búsqueda, con la sintaxis de Gmail")
+	undo := fs.Bool("undo", false, "deshacer (noreply)")
 	name := fs.String("name", "", "el nombre del seguimiento")
 	query := fs.String("query", "", "la búsqueda de Gmail del seguimiento")
 	// Los posicionales pueden ir antes o después de las banderas.
@@ -283,6 +285,31 @@ func runCLI(root string, args []string) int {
 		fmt.Printf("ya no se sigue «%s»\n", w.Name)
 		return 0
 
+	case "noreply":
+		if arg == "" {
+			return fail("falta el id del correo (lo da `bin/correo list`)")
+		}
+		body := map[string]any{"ids": pos, "undo": *undo}
+		if apiUp() {
+			if err := postJSON("/api/noreply", body); err != nil {
+				return fail("%v", err)
+			}
+		} else {
+			st, err := openStore(filepath.Join(root, "correo", ".data"))
+			if err != nil {
+				return fail("%v", err)
+			}
+			if err := st.markNoReply(pos, *undo, time.Now()); err != nil {
+				return fail("%v", err)
+			}
+		}
+		if *undo {
+			fmt.Println("vuelve a contar como por responder")
+		} else {
+			fmt.Println("listo: no hace falta responder")
+		}
+		return 0
+
 	case "refresh":
 		if !apiUp() {
 			return fail("no corre: `make correo-install` lo deja de fondo")
@@ -332,7 +359,7 @@ func findWatch(ws []WatchView, key string) (WatchView, bool) {
 	return WatchView{}, false
 }
 
-// printMessage: un correo con su estado. ● sin ver · ◐ por responder · ✓ respondido (y cuándo).
+// printMessage: un correo con su estado. ● sin ver · ◐ por responder · ✓ respondido (y cuándo) · – no hace falta.
 func printMessage(m MessageView) {
 	mark, status := " ", ""
 	switch m.Status {
@@ -342,6 +369,8 @@ func printMessage(m MessageView) {
 		mark, status = "◐", "por responder"
 	case "replied":
 		mark, status = "✓", "respondido el "+m.RepliedAt.Format("2006-01-02 15:04")
+	case "noreply":
+		mark, status = "–", "no hace falta responder"
 	}
 	if status != "" {
 		status = " · " + status

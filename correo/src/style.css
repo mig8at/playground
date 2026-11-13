@@ -55,8 +55,9 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .status.is-unread { color: var(--primary-ink) }
 .status.is-pending { color: var(--correo-pending) }
 .status.is-replied { color: var(--correo-replied) }
+.status.is-noreply { color: var(--fg-3) }
 .mail.on .status { color: var(--accent-foreground) }
-.reader-meta .status { justify-self: start; margin-top: var(--space-1) }
+.reader-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-1) }
 
 .pill { flex: none; min-width: 18px; font-weight: 500; padding: 0 5px; border-radius: 999px; font-size: var(--text-xs); text-align: center;
   font-variant-numeric: tabular-nums; border: 1px solid currentColor }

@@ -21,6 +21,7 @@ arriba (lee cada minuto) y si no, de lo guardado; `read` y `search` van directo 
 | `bin/correo read <id>` | un correo entero |
 | `bin/correo search --q '<búsqueda de Gmail>'` | cualquier búsqueda, se siga o no |
 | `bin/correo follow --name … --query …` · `unfollow <seguimiento>` | seguir otro; con el nombre de uno que ya se sigue, le cambia la búsqueda |
+| `bin/correo noreply <id> [--undo]` | «no hace falta responder»: un acuse automático deja de figurar como por responder |
 | `bin/correo refresh` | que lo de fondo lea ya |
 
 **Los seguimientos de hoy** (2026-11-13): `shopify` (`from:support@shopify.com OR from:paymentspartners@shopify.com`, el
@@ -42,6 +43,9 @@ Cada correo tiene uno de tres estados (`MessageView.Status`, en `server/store.go
 - **Por responder**: se vio, y en su hilo no hay nada tuyo después.
 - **Respondido**: en el hilo hay un correo tuyo posterior (`RepliedAt`). Cuenta aunque se haya contestado desde Gmail
   sin abrirlo acá.
+- **No hace falta responder**: se marcó a mano (botón en el correo abierto, o `bin/correo noreply <id>`). Es para los
+  acuses automáticos («Ticket #1484435 received»), que si no quedan para siempre por responder. No se adivina por el
+  asunto: lo decide Miguel. Una respuesta tuya posterior gana igual (pasa a respondido).
 
 Para eso, cada lectura pide en Gmail el hilo entero de lo que se muestra (`format=metadata`, `connectors/gmail`
 `Thread`) y guarda la última vez que escribiste vos y la última que escribieron ellos (`state.json`, `threads`). Cada

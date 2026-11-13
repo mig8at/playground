@@ -131,3 +131,32 @@ func TestEachMailIsUnreadPendingOrRepliedByTheThread(t *testing.T) {
 		t.Fatalf("los tres llegaron esta semana: %d", views[1].Week)
 	}
 }
+
+func TestAnAutomaticAckCanBeMarkedAsNoReplyAndBack(t *testing.T) {
+	s, err := openStore(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	q := defaultWatches[1].Query
+	now := time.Now()
+	s.update("vtex", q, nil, now)
+	ack := gmail.Message{ID: "ack", ThreadID: "t", Subject: "[VTEX] Ticket #1 received", Date: now.Add(-time.Hour)}
+	s.update("vtex", q, []gmail.Message{ack}, now)
+	status := func() (string, int, int) {
+		v, _ := s.view("")
+		return v[1].Messages[0].Status, v[1].Unread, v[1].Pending
+	}
+	if st, u, _ := status(); st != "unread" || u != 1 {
+		t.Fatalf("recién llegado: %s, %d sin ver", st, u)
+	}
+	if err := s.markNoReply([]string{"ack"}, false, now); err != nil {
+		t.Fatal(err)
+	}
+	if st, u, p := status(); st != "noreply" || u != 0 || p != 0 {
+		t.Fatalf("marcado: %s, %d sin ver, %d por responder", st, u, p)
+	}
+	_ = s.markNoReply([]string{"ack"}, true, now)
+	if st, _, p := status(); st != "pending" || p != 1 {
+		t.Fatalf("desmarcado vuelve a por responder (ya visto): %s, %d", st, p)
+	}
+}
