@@ -106,14 +106,29 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .region-head > .back-action:first-child { flex: none; margin-right: var(--space-1) } /* la base estira el primero */
 .mail-count { color: var(--fg-3); font-weight: 400 }
 
-/* La conversación abierta: cada mensaje en orden, los tuyos con el acento. */
+/* La conversación abierta: como Gmail, cada mensaje colapsado en una línea (bolita con la inicial, nombre, el comienzo
+   del texto y la fecha) salvo el último y los sin ver; los tuyos con el acento. */
 .conv-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
   border-bottom: 1px solid var(--border) }
-.thread { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-3); list-style: none }
-.msg { padding: var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border); border-left: 3px solid var(--fg-3) }
-.msg.mine { border-left-color: var(--primary); background: color-mix(in oklab, var(--primary) 6%, transparent) }
-.msg-head { display: flex; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2);
-  font-size: var(--text-xs); color: var(--fg-3) }
-.msg-head b { color: var(--foreground); font-weight: 600; font-size: var(--text-sm) }
-.msg-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-sm);
-  line-height: 1.55 }
+.thread { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: var(--space-2) var(--space-3) var(--space-3); list-style: none }
+.msg { min-width: 0; border-bottom: 1px solid var(--border) } /* sin esto, el ítem crece con el texto y la fecha se va */
+.msg:last-child { border-bottom: 0 }
+.msg-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: var(--space-2) var(--space-1);
+  border: 0; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  border-radius: var(--radius-sm) }
+.msg-head:hover { background: var(--hover) }
+.msg-name { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-sm); font-weight: 600 }
+.msg:not(.collapsed) .msg-name { flex: 1; max-width: none }
+.msg-snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--text-sm); color: var(--fg-3) }
+.msg-date { flex: none; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.msg-body { margin: 0 0 var(--space-3); padding: 0 var(--space-1) 0 calc(28px + var(--space-2) + var(--space-1));
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-sm); line-height: 1.55 }
+.avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
+  font-size: var(--text-sm); font-weight: 600; color: var(--background); background: var(--fg-3) }
+.avatar.is-me { background: var(--primary); color: var(--primary-foreground) }
+.avatar.is-t1 { background: var(--chart-1) }
+.avatar.is-t2 { background: var(--chart-3) }
+.avatar.is-t3 { background: var(--chart-4) }
+.avatar.is-t4 { background: var(--chart-5) }

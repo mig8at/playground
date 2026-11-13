@@ -6,7 +6,7 @@
  *
  * Sólo lee: «visto» es de esta herramienta, no toca Gmail. La ruta es `#/w/<seguimiento>[/<id de correo o de hilo>]`:
  * el aviso al tocarlo trae el id del correo (Cockpit lleva el iframe a esa ruta) y abre su conversación. */
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle } from './workbench.js'
 
 const data = ref(null)
@@ -103,16 +103,8 @@ async function loadThread(id) {
   threadLoading.value = !thread.value || thread.value.threadId !== id
   try {
     const t = await api(`/api/thread/${encodeURIComponent(id)}`)
-    if (openThreadId.value === id) {
-      const fresh = !thread.value || thread.value.threadId !== id
-      thread.value = t
-      // Como en un chat: al abrir, a la vista el último mensaje.
-      if (fresh) nextTick(() => requestAnimationFrame(() => {
-        const last = document.querySelector('.thread > .msg:last-child')
-        const body = last?.closest('.region-body')
-        if (last && body) body.scrollTop = last.offsetTop - body.offsetTop - 8
-      }))
-    }
+    // Sin saltar al último: con los anteriores colapsados en una línea, el último ya queda a la vista.
+    if (openThreadId.value === id) thread.value = t
     // Abrirla la da por vista.
     const unseen = (openedConv.value?.ids || []).filter((x) => allMessages.value.find((m) => m.id === x)?.unread)
     if (unseen.length) take(await api('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: unseen }) }))
@@ -121,6 +113,43 @@ async function loadThread(id) {
 // Se vuelve a pedir si cambia la conversación o si le llegó otro mensaje.
 watch(() => [openThreadId.value, openedConv.value?.count], ([id]) => loadThread(id))
 function back() { go(current.value?.id || '') }
+
+// COLAPSADOS, COMO GMAIL: en la conversación abierta, cada mensaje es una línea (bolita con la inicial, nombre, el
+// comienzo del texto y la fecha) salvo el último y los sin ver; tocarla lo despliega. `expanded` guarda los que se
+// abrieron o cerraron a mano en esta conversación; `allOpen` los despliega todos.
+const expanded = ref({})
+const allOpen = ref(false)
+watch(openThreadId, () => { expanded.value = {}; allOpen.value = false })
+function isOpen(m, i) {
+  if (allOpen.value) return true
+  if (m.id in expanded.value) return expanded.value[m.id]
+  const unseen = allMessages.value.find((x) => x.id === m.id)?.unread
+  return i === thread.value.messages.length - 1 || !!unseen
+}
+function toggle(m, i) { expanded.value = { ...expanded.value, [m.id]: !isOpen(m, i) } }
+function toggleAll() { allOpen.value = !allOpen.value; expanded.value = {} }
+// La vista previa de un mensaje colapsado: lo que escribió la persona. Los avisos de Zendesk (el soporte de VTEX)
+// arrancan todos con «Hello… Your request #… has been updated…» y una raya: se toma lo que sigue a la raya, sin la
+// línea de «Nombre, fecha».
+function preview(m) {
+  const body = (m.body || '').replace(/\r\n/g, '\n') // Gmail manda \r\n
+  const parts = body.split(/\n[ \t]*-{10,}[ \t]*\n/)
+  if (parts.length > 1) {
+    const lines = parts.slice(1).join('\n').split('\n').map((l) => l.trim()).filter(Boolean)
+    if (lines.length > 1 && /\d{4}/.test(lines[0]) && lines[0].length < 80) lines.shift()
+    const text = lines.join(' ')
+    if (text) return text
+  }
+  return m.snippet || body.replace(/\s+/g, ' ')
+}
+function initial(name) { return (name || '?').replace(/^[^\p{L}\p{N}]+/u, '').charAt(0).toUpperCase() || '?' }
+// Un color por persona, siempre el mismo (de la paleta del tema, sin --chart-2, que es el acento); el tuyo es el acento.
+function avatarTone(m) {
+  if (m.mine) return 'me'
+  let h = 0
+  for (const ch of (senderName(m.from) || '')) h = (h * 31 + ch.codePointAt(0)) >>> 0
+  return `t${(h % 4) + 1}`
+}
 
 // EL DESGLOSE del hilo abierto, en español (el servidor lo arma con `claude -p` y lo guarda por hilo: la segunda vez
 // sale al instante; se rearma solo si llegó un mensaje nuevo).
@@ -281,6 +310,9 @@ onBeforeUnmount(() => {
             <span class="ui-icon" data-icon="back" aria-hidden="true"></span>
           </button>
           <span class="head-title">{{ openedConv?.subject || thread?.messages?.[0]?.subject || 'Conversación' }}</span>
+          <button v-if="thread?.messages?.length > 1" type="button" class="region-action" :aria-pressed="allOpen" :title="allOpen ? 'Colapsar los mensajes' : 'Desplegar todos los mensajes'" :aria-label="allOpen ? 'Colapsar los mensajes' : 'Desplegar todos los mensajes'" @click="toggleAll">
+            <span class="ui-icon" :data-icon="allOpen ? 'collapse' : 'maximize'" aria-hidden="true"></span>
+          </button>
           <a v-if="thread?.url || openedConv?.url" class="region-action" :href="thread?.url || openedConv?.url" target="_blank" rel="noopener" title="Abrir el hilo en Gmail para contestar" aria-label="Abrir el hilo en Gmail">
             <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
           </a>
@@ -294,12 +326,14 @@ onBeforeUnmount(() => {
           <p v-if="openError" class="none warn-text">⚠ {{ openError }}</p>
           <p v-if="threadLoading" class="none">Abriendo la conversación…</p>
           <ol v-if="thread" class="thread">
-            <li v-for="m in thread.messages" :key="m.id" class="msg" :class="{ mine: m.mine }">
-              <div class="msg-head">
-                <b>{{ m.mine ? 'Vos' : senderName(m.from) }}</b>
-                <span>{{ full(m.date) }}</span>
-              </div>
-              <pre class="msg-body">{{ m.body }}</pre>
+            <li v-for="(m, i) in thread.messages" :key="m.id" class="msg" :class="{ mine: m.mine, collapsed: !isOpen(m, i) }">
+              <button type="button" class="msg-head" :aria-expanded="isOpen(m, i)" :title="isOpen(m, i) ? 'Colapsar' : 'Desplegar'" @click="toggle(m, i)">
+                <span class="avatar" :class="`is-${avatarTone(m)}`" aria-hidden="true">{{ initial(senderName(m.from)) }}</span>
+                <b class="msg-name">{{ m.mine ? `${senderName(m.from)} (vos)` : senderName(m.from) }}</b>
+                <span v-if="!isOpen(m, i)" class="msg-snippet">{{ preview(m) }}</span>
+                <span class="msg-date">{{ isOpen(m, i) ? full(m.date) : when(m.date) }}</span>
+              </button>
+              <pre v-if="isOpen(m, i)" class="msg-body">{{ m.body }}</pre>
             </li>
           </ol>
         </div>

@@ -7,7 +7,10 @@ Cockpit esté cerrado. Es la tarea `correo` (#130, nivel miguel).
 `make correo` (UI :5224 · API :5225) o la app Correo de Cockpit. A la izquierda, SÓLO los **seguimientos** (un nombre y
 una búsqueda de Gmail). Al centro, las **conversaciones** del elegido, una por hilo, como chats (con quién, cuántos
 mensajes, cuándo fue el último y su estado), con filtros; al tocar una, la **conversación entera** en el mismo centro
-(ellos y vos, en orden, abierta en el último mensaje) y **←** en la barra para volver. A la derecha, **la
+(ellos y vos, en orden) y **←** en la barra para volver. Como Gmail, cada mensaje queda **colapsado en una línea**
+(bolita con la inicial —un color fijo por persona, el tuyo el acento—, nombre, el comienzo de lo que escribió y la
+fecha) salvo el último y los sin ver; tocarla lo despliega, y el botón de la barra despliega o colapsa todos. En los
+avisos de Zendesk (el soporte de VTEX) la vista previa salta el encabezado repetido («Your request # has been updated»). A la derecha, **la
 conversación desglosada en español** (abajo). `make correo ONCE=1` lee una vez por consola.
 
 ## La consola: `bin/correo` (para Miguel y para un agente)
