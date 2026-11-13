@@ -118,7 +118,7 @@ const svgFor = (st) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400
 <style><![CDATA[${css}
 /* fuera de la llamada: el recuadro es este SVG */ svg.tile { box-shadow: none; transform: none; }]]></style>
 <defs>${symbols}</defs>
-${(P.SCENES[p.scene] || P.SCENES.sunset)()}
+${P.sceneOf(p)}
 <g transform="translate(46 54) scale(.77)"><g class="avatar">${P.person(p)}</g></g>
 </svg>
 `
