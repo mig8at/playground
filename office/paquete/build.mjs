@@ -28,7 +28,7 @@ const CSS = ${JSON.stringify(css)}
 // Los gestos, en castellano o con el nombre de la clase.
 const GESTOS = { escucha: 'idle', teclea: 'typing', piensa: 'thinking', habla: 'talking', idle: 'idle', typing: 'typing', thinking: 'thinking', talking: 'talking' }
 // lo que hace mientras tanto, en español o con la clave del dibujo (ACTIVITIES en personajes.js); 'audifonos' es como lo llama el chat
-const ACTIVIDADES = { cafe: 'coffee', musica: 'music', audifonos: 'music', saluda: 'wave', pulgar: 'thumb', celebra: 'celebrate', coffee: 'coffee', music: 'music', wave: 'wave', thumb: 'thumb', celebrate: 'celebrate' }
+const ACTIVIDADES = { cafe: 'coffee', musica: 'music', audifonos: 'music', saluda: 'wave', pulgar: 'thumb', celebra: 'celebrate', rie: 'laugh', sorpresa: 'surprise', duda: 'confused', laugh: 'laugh', surprise: 'surprise', confused: 'confused', coffee: 'coffee', music: 'music', wave: 'wave', thumb: 'thumb', celebrate: 'celebrate' }
 // Lo que lleva un personaje si su JSON no lo dice.
 const BASE = { name: 'Personaje', owner: '', species: '', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
   extras: [], beardStyle: '', hat: '', hatColor: '#c5381f', lashes: false, lids: false, glassesRound: false, gear: '#13323a', shirt: '#2b6670', accent: '#f1e4c7', scene: 'sunset' }
@@ -68,7 +68,7 @@ export const OPCIONES = P.OPCIONES
 // Su estilo vive en su propio shadow DOM: no toca ni lo toca el CSS de la página. Sólo existe en el navegador: en Node
 // (un servidor que genere avatares) se usan svg() y alAzar().
 export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class extends HTMLElement {
-  static observedAttributes = ['config', 'gesto', 'fondo', 'boca', 'actividad', 'portatil']
+  static observedAttributes = ['config', 'gesto', 'fondo', 'boca', 'actividad', 'portatil', 'mira']
   #config = {}
   constructor() { super(); this.attachShadow({ mode: 'open' }) }
   get config() { return this.#config }
@@ -80,7 +80,7 @@ export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class
     // svg.tile y no el primer svg: antes va el del logo (escondido), y cambiarle la clase a ése no mueve nada
     const svg = this.shadowRoot.querySelector('svg.tile')
     if (name === 'gesto' && svg) { svg.setAttribute('class', \`tile \${GESTOS[value] || 'idle'}\`); this.#mouth(svg); this.#activity(svg); return }
-    if ((name === 'actividad' || name === 'portatil') && svg) { this.#activity(svg); return }
+    if ((name === 'actividad' || name === 'portatil' || name === 'mira') && svg) { this.#activity(svg); return }
     if (name === 'boca' && svg) { this.#mouth(svg); return }
     this.render()
   }
@@ -97,6 +97,10 @@ export const OfficePersonaje = typeof HTMLElement === 'undefined' ? null : class
     for (const k of Object.values(ACTIVIDADES)) svg.classList.toggle(\`act-\${k}\`, k === act)
     svg.classList.toggle('has-laptop', lap !== null && lap !== 'no')
     svg.classList.toggle('lid-closed', lap === 'cerrado' || act === 'coffee')
+    // mira="dx,dy": adónde mira (la dirección hacia quien habla, de -1 a 1); sin el atributo, mira por su cuenta
+    const [lx, ly] = (this.getAttribute('mira') || '').split(',').map(Number), look = Number.isFinite(lx) && Number.isFinite(ly)
+    svg.classList.toggle('looking', look)
+    if (look) { svg.style.setProperty('--lx', String(lx)); svg.style.setProperty('--ly', String(ly)) }
   }
   connectedCallback() { this.render() }
   render() {

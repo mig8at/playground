@@ -50,6 +50,7 @@ const measure = () => { const el = box.value; if (el) size.value = { w: el.clien
 onMounted(() => {
   observer = new ResizeObserver(measure)
   observer.observe(box.value)
+  measure() // ya, sin esperar al primer cuadro: en una ventana que no se está pintando (de fondo) ese cuadro no llega y la grilla quedaba en 0
   requestAnimationFrame(measure)
   // ¿hay voz ahora? (la llave o el tope del día pueden haber cambiado desde que cargó la página): el chip «sin voz»
   refreshVoice()
@@ -425,18 +426,33 @@ const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner 
 const GOOD_NEWS = /(?<![a-záéíóúñ])(listo|lista|comprobado|qued[oó]|pas[oó] tod[oa]|mergead[oa]|desplegad[oa]|resuelt[oa]|arreglad[oa])(?![a-záéíóúñ])|🎉|🚀|✅|🙌/i
 const reactions = ref({}) // clave → { kind, until }
 const reactionOf = (c) => { const r = reactions.value[keyOf(c)]; return r && r.until > now.value ? r.kind : '' }
-watch(() => voice.line, (line) => {
+// lo gracioso hace reír, lo raro deja con la duda y un susto sorprende: la cara de cada reacción la dibuja el personaje
+const FUNNY = /(?<![a-záéíóúñ])(ja(ja)+|je(je)+|ji(ji)+)(?![a-záéíóúñ])|😂|🤣|😄|😆/i
+const ODD = /¿c[oó]mo as[ií]|no entiendo|no me cuadra|qu[eé] raro|qu[eé] extraño|🤔/i
+const ALARM = /(?<![a-záéíóúñ])(uy|ups|se cay[oó]|se rompi[oó]|en serio)(?![a-záéíóúñ])|😮|😱|🤯|\?!|!\?/i
+// qué reacción pide una frase: [cuál, a qué parte de los que escuchan, cuánto dura] o null. Varias por frase, por sorteo.
+function reactionsTo(line) {
+  if (FUNNY.test(line)) return [['rie', .7, 2200, 1600]]
+  if (ODD.test(line)) return [['duda', .45, 2600, 1600]]
+  if (ALARM.test(line)) return [['sorpresa', .45, 1800, 1200]]
   // «no quedó», «todavía no está listo»: una negación cerca no es para celebrar
-  if (!line || !GOOD_NEWS.test(line) || /(^|[^a-záéíóúñ])(no|ni|sin|falta)\s+(\S+\s+){0,2}(listo|lista|qued|pas[oó]|resuelt|arreglad|comprobad|mergead|desplegad)/i.test(line)) return
+  if (GOOD_NEWS.test(line) && !/(^|[^a-záéíóúñ])(no|ni|sin|falta)\s+(\S+\s+){0,2}(listo|lista|qued|pas[oó]|resuelt|arreglad|comprobad|mergead|desplegad)/i.test(line)) return [['celebra', .4, 2800, 1600], ['pulgar', .3, 2400, 1400]]
+  return null
+}
+watch(() => voice.line, (line) => {
+  const kinds = line && reactionsTo(line)
+  if (!kinds) return
   const t = Date.now(), next = {}
   for (const c of props.cast) {
     const k = keyOf(c)
     if (k === voice.speaker || propOf(c) || activityOf(c) === 'cafe') continue
     // en un mensaje dirigido, reaccionan los nombrados; los demás siguen en lo suyo
     if (voice.addressed.length && !voice.addressed.includes(k)) continue
-    const r = Math.random()
-    if (r < .4) next[k] = { kind: 'celebra', until: t + 2800 + Math.random() * 1600 }
-    else if (r < .7) next[k] = { kind: 'pulgar', until: t + 2400 + Math.random() * 1400 }
+    let r = Math.random()
+    for (const [kind, share, base, extra] of kinds) {
+      if (r < share) { next[k] = { kind, until: t + base + Math.random() * extra }; break }
+      r -= share
+    }
   }
   reactions.value = next
 })
@@ -501,6 +517,25 @@ watchEffect(() => {
   if (value !== mouthValue) { mouthValue = value; mouthEl.setAttribute('boca', value) }
 }, { flush: 'post' })
 onBeforeUnmount(clearMouth)
+/* LOS OJOS, HACIA QUIEN HABLA: mientras alguien tiene la palabra, las pupilas de los demás van hacia su recuadro (el
+   atributo `mira` del personaje: la dirección, de -1 a 1). Depende de dónde quedó cada recuadro en la grilla, así que
+   se mide en el DOM después del render, igual que la boca. Los que siguen en lo suyo (un mensaje dirigido a otro) no miran. */
+watchEffect(() => {
+  const key = speaking.value
+  void layout.value; void props.cast.length // si la grilla se reacomoda, se vuelve a medir
+  const tiles = [...(box.value?.querySelectorAll('.call-tile') || [])]
+  const target = key ? tiles.find((el) => el.dataset.key === key) : null // sin nadie hablando key es '', no null
+  const to = target ? target.getBoundingClientRect() : null
+  for (const el of tiles) {
+    const who = el.querySelector('office-personaje')
+    if (!who) continue
+    const c = byKey.value[el.dataset.key]
+    if (!to || el === target || !c || aside(c)) { who.removeAttribute('mira'); continue }
+    const from = el.getBoundingClientRect()
+    const x = (to.left + to.width / 2) - (from.left + from.width / 2), y = (to.top + to.height / 2) - (from.top + from.height / 2), d = Math.hypot(x, y)
+    d < 1 ? who.removeAttribute('mira') : who.setAttribute('mira', `${(x / d).toFixed(2)},${(y / d).toFixed(2)}`)
+  }
+}, { flush: 'post' })
 // el JSON de cada personaje se arma una vez por elenco, no en cada render
 const configs = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), configOf(c)])))
 const caption = computed(() => (voice.line ? { name: byKey.value[voice.speaker]?.name || '', line: voice.line } : null))

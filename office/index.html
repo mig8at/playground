@@ -169,6 +169,8 @@ const SCRIPT = [
   ['d-bot1', 'Ese endpoint cambió en el despliegue de ayer.'],
   ['wario', 'Corro el caso en local para ver si se repite…'],
   ['wario', 'Se repite: falta un campo en la respuesta.'],
+  ['luigi', '¿Cómo así? Si ayer pasaba sin problema.'],
+  ['wario', 'Jajaja, era un campo mal escrito: «docuemnt».'],
   ['duncan', 'Ok, lo arreglo yo. agente 2, armá la rama.'],
   ['d-bot2', 'Rama lista. ¿Le paso el caso de prueba?'],
   ['miguel', 'Sí, el de Pullman. Lo dejo en el chat.'],
@@ -224,13 +226,20 @@ function activities() {
   }
 }
 const GOOD_NEWS = /listo|comprobado|pasa de punta|rama lista|🚀|🎉/i
+const FUNNY = /ja(ja)+|je(je)+|😂|🤣|😄/i, ODD = /¿c[oó]mo as[ií]|no entiendo|qu[eé] raro|🤔/i, ALARM = /\b500\b|se repite|se cay[oó]|😮|😱|\?!/i
 function react(speaker, text) {
   const low = text.toLowerCase()
   for (const p of people) {
     if (p === speaker) continue
     // al que nombran, saluda
     if (new RegExp(`(^|[^\\p{L}])${p.name.toLowerCase().replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^\\p{L}])`, 'u').test(low)) { setActivity(p, 'wave', 2600); continue }
-    if (!GOOD_NEWS.test(text) || p.act === 'coffee') continue
+    if (p.act === 'coffee') continue
+    const r0 = Math.random()
+    // lo gracioso hace reír a casi todos; lo raro deja a unos con la duda; un susto sorprende a unos cuantos
+    if (FUNNY.test(text)) { if (r0 < .7) setActivity(p, 'laugh', 2200 + Math.random() * 1600); continue }
+    if (ODD.test(text)) { if (r0 < .45) setActivity(p, 'confused', 2600 + Math.random() * 1600); continue }
+    if (ALARM.test(text)) { if (r0 < .4) setActivity(p, 'surprise', 1800 + Math.random() * 1200); continue }
+    if (!GOOD_NEWS.test(text)) continue
     const r = Math.random()
     if (r < .38) setActivity(p, 'celebrate', 2800 + Math.random() * 1600)
     else if (r < .62) setActivity(p, 'thumb', 2400 + Math.random() * 1400)
@@ -238,7 +247,7 @@ function react(speaker, text) {
 }
 const captions = document.getElementById('captions'), log = document.getElementById('log')
 const hhmm = (d) => d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' })
-let captionsOn = true, captionUntil = 0
+let captionsOn = true, captionUntil = 0, looking = false
 function say() {
   const [who, text] = SCRIPT[line % SCRIPT.length]
   line++
@@ -246,6 +255,9 @@ function say() {
   if (p.act) setActivity(p, '', 0) // el que toma la palabra deja la taza
   setState(p, 'talking'); p.until = t + 2600 + text.length * 40
   react(p, text)
+  // los ojos de los demás, hacia su recuadro
+  for (const q of people) { const v = q === p ? null : lookVector(q.el, p.el); v ? setTileLook(q.el, v[0], v[1]) : setTileLook(q.el) }
+  looking = true
   captions.innerHTML = '<b></b><span></span>'
   captions.querySelector('b').textContent = p.name
   captions.querySelector('span').textContent = text
@@ -300,6 +312,7 @@ setInterval(() => {
     idleStates()
     activities()
     if (t > captionUntil) captions.classList.remove('on')
+    if (looking && t > captionUntil) { looking = false; for (const q of people) setTileLook(q.el) }
   }
   drawPeople()
   drawClock()

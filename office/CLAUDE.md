@@ -41,6 +41,17 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   además, una buena noticia en lo que se dice («listo», «quedó», 🎉…) hace que unos celebren y otros den el visto bueno.
 - **El nombre va arriba a la izquierda** del recuadro: abajo tapaba el portátil y las manos. En la grilla de la llamada
   el letrero de estado no se muestra (lo dicen el gesto y la lista).
+- **Caras de reacción** (2026-11-13): tres actividades más en `ACTIVITIES`, `laugh` (ojos en arco, boca que salta, se
+  sacude), `surprise` (respingo, ojos más abiertos, boca en «o» y un «!») y `confused` (una ceja arriba, boca torcida,
+  cabeza ladeada y un «?» que flota). En el componente: `actividad="rie|sorpresa|duda"`. La llamada y el chat las
+  disparan por lo que se dice (un «jajaja», un «¿cómo así?», un «uy, se cayó»).
+- **Los ojos van hacia quien habla** (`setTileLook(el, dx, dy)` y `lookVector`; en el componente, `mira="dx,dy"`): la
+  dirección sale de dónde quedó cada recuadro en la grilla. Sin argumentos vuelve a mirar por su cuenta.
+- **Cada especie se mueve a su manera**: el grupo del personaje lleva `sp-<especie>` y las orejas van sueltas (`ear
+  ear-l|r`, con su bisagra). El gato, el zorro y los de oreja redonda tienen un tic cada tanto; al conejo se le caen al
+  pensar y le saltan al celebrar; al perro le aletean y saca la lengua; las aves mueven la cabeza a saltitos y el búho
+  la gira de lado al pensar; el pingüino se mece más; el gato y el perezoso parpadean despacio. El tempo de la especie
+  (`SPECIES_TEMPO`: el perezoso lento, el ratón rápido) multiplica el ritmo de cada uno.
 - **Las piezas se arman sobre la elipse de la cara** (`pt`, `arc`): el pelo y los gorros abrazan la cabeza en vez de
   flotar. Los gorros son una capa aparte, apoyada según cuánto abulta el peinado (`HAIR_VOL`, `hatLine`).
 - **Los animales** (`SPECIES`) cambian la cabeza y conservan la cara animable y la chaqueta. Comparten piezas

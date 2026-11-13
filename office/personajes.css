@@ -163,6 +163,90 @@
 .bit { animation: confetti var(--bt, 2s) linear var(--bd, 0s) infinite; }
 @keyframes confetti { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(440px) rotate(calc(var(--br, 1) * 540deg)); } }
 .bit { transform-origin: center; transform-box: fill-box; }
+/* LAS CARAS DE REACCIÓN (act-laugh, act-surprise, act-confused): se arman con lo que la cara ya tiene, más los ojos
+   de risa (dos arcos) y las marcas «!» y «?» que personajes.js deja dibujadas y escondidas. */
+.eyes-laugh, .mark { display: none; }
+.mark { transform-box: view-box; transform-origin: 330px 100px; }
+/* la risa: ojos en arco, boca abierta que salta, y cabeza y cuerpo que se sacuden */
+.tile.act-laugh .eyes { display: none; }
+.tile.act-laugh .eyes-laugh { display: inline; }
+.tile.act-laugh:not(.talking) .m-smile, .tile.act-laugh:not(.talking) .m-think, .tile.act-laugh:not(.talking) .m-flat { display: none; }
+.tile.act-laugh:not(.talking) .m-talk { display: inline; }
+.tile.act-laugh:not(.talking) .mouth { animation: haha .17s ease-in-out infinite alternate; }
+@keyframes haha { from { transform: scaleY(.7); } to { transform: scaleY(1.2); } }
+.tile.act-laugh:not(.talking) .beak-jaw { animation: jaw .17s ease-in-out infinite alternate; }
+.tile.act-laugh:not(.talking) .beak-top { animation: bill .17s ease-in-out infinite alternate; }
+.tile.act-laugh:not(.talking) .beak-inside { animation: inside .17s ease-in-out infinite alternate; }
+.tile.act-laugh .head { animation: giggle .17s ease-in-out infinite alternate; }
+@keyframes giggle { from { transform: translateY(1px) rotate(-1.5deg); } to { transform: translateY(-5px) rotate(1.5deg); } }
+.tile.act-laugh .body { animation: shake .17s ease-in-out infinite alternate; }
+@keyframes shake { from { transform: translateY(0); } to { transform: translateY(-3px); } }
+.tile.act-laugh .brow-l, .tile.act-laugh .brow-r { transform: translateY(-6px); }
+/* la sorpresa: un respingo, ojos más abiertos, cejas arriba, la boca en «o» y un «!» */
+.tile.act-surprise .eyes { animation: none; transform: scaleY(1.14); }
+.tile.act-surprise .brow-l, .tile.act-surprise .brow-r { transform: translateY(-14px); }
+.tile.act-surprise:not(.talking) .m-smile, .tile.act-surprise:not(.talking) .m-think, .tile.act-surprise:not(.talking) .m-flat { display: none; }
+.tile.act-surprise:not(.talking) .m-talk { display: inline; }
+.tile.act-surprise:not(.talking) .mouth { animation: none; transform: scale(.6, .82); }
+.tile.act-surprise .head { animation: startle .45s cubic-bezier(.2, .9, .3, 1.5) both; }
+@keyframes startle { from { transform: translateY(7px); } to { transform: translateY(-6px); } }
+.tile.act-surprise .mark-bang { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both; }
+@keyframes pop { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+/* la duda: una ceja arriba y la otra abajo, la boca torcida, la cabeza ladeada para el otro lado y un «?» que flota */
+.tile.act-confused .brow-r { transform: translateY(-11px) rotate(-12deg); }
+.tile.act-confused .brow-l { transform: translateY(4px) rotate(9deg); }
+.tile.act-confused .pupils { animation: none; transform: translate(5px, -6px); }
+.tile.act-confused:not(.talking) .m-smile, .tile.act-confused:not(.talking) .m-flat { display: none; }
+.tile.act-confused:not(.talking) .m-think { display: inline; }
+.tile.act-confused .head { animation: puzzled 2.2s ease-in-out infinite alternate; }
+@keyframes puzzled { from { transform: rotate(-5deg); } to { transform: rotate(-9deg) translateY(-1px); } }
+.tile.act-confused .mark-q { display: inline; animation: pop .4s cubic-bezier(.2, .9, .3, 1.6) both, floaty 1.3s ease-in-out .4s infinite alternate; }
+@keyframes floaty { from { transform: translateY(0) rotate(-4deg); } to { transform: translateY(-7px) rotate(6deg); } }
+/* riendo, sorprendido o con la duda no teclea ni se toca la barbilla */
+.tile.act-laugh .hand-type, .tile.act-laugh .hand-chin, .tile.act-surprise .hand-type, .tile.act-surprise .hand-chin,
+.tile.act-confused .hand-type, .tile.act-confused .hand-chin { display: none; }
+
+/* ADÓNDE MIRA (setTileLook): las pupilas van hacia quien habla. --lx y --ly son la dirección, de -1 a 1. */
+.tile.looking:not(.talking) .pupils { animation: none; transform: translate(calc(var(--lx, 0) * 8px), calc(var(--ly, 0) * 6px)); transition: transform .4s ease; }
+
+/* CADA ESPECIE SE MUEVE A SU MANERA. El grupo del personaje lleva `sp-<especie>` y las orejas vienen sueltas (`ear
+   ear-l|r`, con su bisagra en línea). Lo demás —tempo de la especie— va en los factores --k* (personRhythm). */
+.ear, .tongue { transform-box: view-box; }
+/* orejas paradas o redondas: quietas, y cada tanto un tic (una primero, la otra después) */
+.sp-gato .ear, .sp-zorro .ear, .sp-mapache .ear, .sp-jaguar .ear, .sp-leon .ear, .sp-raton .ear, .sp-oso .ear, .sp-panda .ear,
+.sp-koala .ear, .sp-cerdito .ear, .sp-buho .ear, .sp-mico .ear, .sp-gorila .ear { animation: twitch-l calc(6.5s * var(--kl, 1)) ease-in-out infinite; animation-delay: var(--d, 0s); }
+.rhythm .ear-r { animation-name: twitch-r; animation-delay: calc(var(--d, 0s) - 2.6s); }
+@keyframes twitch-l { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(-11deg); } 95% { transform: rotate(6deg); } }
+@keyframes twitch-r { 0%, 86%, 100% { transform: none; } 90% { transform: rotate(11deg); } 95% { transform: rotate(-6deg); } }
+/* atento a quien habla, las para un poco más */
+.tile.looking .sp-gato .ear-l, .tile.looking .sp-zorro .ear-l { transform: rotate(4deg); }
+.tile.looking .sp-gato .ear-r, .tile.looking .sp-zorro .ear-r { transform: rotate(-4deg); }
+/* el conejo: se mecen; pensando se le caen las dos, tecleando una sola, y celebrando saltan */
+.sp-conejo .ear { animation: ear-sway calc(3.6s * var(--kb, 1)) ease-in-out infinite alternate; animation-delay: var(--d, 0s); transition: transform .5s; }
+.sp-conejo .ear-r { animation-name: ear-sway; animation-direction: alternate-reverse; }
+@keyframes ear-sway { from { transform: rotate(-4deg); } to { transform: rotate(4deg); } }
+.tile.thinking .sp-conejo .ear-l, .tile.act-confused .sp-conejo .ear-l { animation: none; transform: rotate(-38deg); }
+.tile.thinking .sp-conejo .ear-r, .tile.act-confused .sp-conejo .ear-r, .tile.typing .sp-conejo .ear-r { animation: none; transform: rotate(40deg); }
+.tile.act-celebrate .sp-conejo .ear, .tile.act-laugh .sp-conejo .ear, .tile.act-surprise .sp-conejo .ear { animation: ear-hop .2s ease-in-out infinite alternate; }
+@keyframes ear-hop { from { transform: rotate(-7deg); } to { transform: rotate(7deg); } }
+/* el perro: las orejas aletean cuando habla o se emociona, y saca la lengua */
+.tile.talking .sp-perro .ear-l, .tile.act-celebrate .sp-perro .ear-l, .tile.act-laugh .sp-perro .ear-l, .tile.act-wave .sp-perro .ear-l { animation: flap-l .28s ease-in-out infinite alternate; }
+.tile.talking .sp-perro .ear-r, .tile.act-celebrate .sp-perro .ear-r, .tile.act-laugh .sp-perro .ear-r, .tile.act-wave .sp-perro .ear-r { animation: flap-r .28s ease-in-out infinite alternate; }
+@keyframes flap-l { from { transform: rotate(2deg); } to { transform: rotate(13deg); } }
+@keyframes flap-r { from { transform: rotate(-2deg); } to { transform: rotate(-13deg); } }
+.tongue { display: none; transform-origin: 200px 199px; }
+.tile.act-celebrate:not(.talking) .sp-perro .tongue, .tile.act-laugh:not(.talking) .sp-perro .tongue, .tile.act-music:not(.talking) .sp-perro .tongue { display: inline; animation: pant .2s ease-in-out infinite alternate; }
+@keyframes pant { from { transform: scaleY(.78); } to { transform: scaleY(1.08); } }
+/* las aves mueven la cabeza a saltitos, no meciéndose; el búho, pensando, la gira despacio de lado */
+.sp-buho .head, .sp-loro .head, .sp-tucan .head, .sp-pato .head, .sp-pinguino .head { animation-timing-function: steps(3, jump-none); }
+.tile.thinking .sp-buho .head { animation: owl calc(4.6s * var(--kh, 1)) ease-in-out infinite; }
+@keyframes owl { 0%, 12%, 88%, 100% { transform: rotate(0); } 30%, 70% { transform: rotate(17deg) translateY(-2px); } }
+/* el pingüino se mece de lado a lado, más que los demás */
+.sp-pinguino .body { animation-name: waddle; }
+@keyframes waddle { from { transform: rotate(-3deg); } to { transform: rotate(3deg); } }
+/* el gato y el perezoso parpadean despacio: cierran y se quedan un momento */
+.sp-gato .eyes, .sp-perezoso .eyes, .sp-koala .eyes { animation-name: slowblink; }
+@keyframes slowblink { 0%, 80%, 100% { transform: scaleY(1); } 86%, 94% { transform: scaleY(.1); } }
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }

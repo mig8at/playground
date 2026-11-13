@@ -383,6 +383,7 @@ function face(h, f) {
         <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/>
         <circle cx="${L + 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/><circle cx="${R - 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/></g>
       ${lids}${lash}</g>
+    <g class="eyes-laugh" fill="none" stroke-linecap="round">${[L, R].map((x) => `<path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#fbf4e4" stroke-width="12"/><path d="M${r1(x - eye * .78)} ${eyeY + 7} q${r1(eye * .78)} ${r1(-eye * 1.15)} ${r1(eye * 1.56)} 0" stroke="#13323a" stroke-width="6"/>`).join('')}</g>
     <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
     <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
     ${clips}
@@ -417,16 +418,19 @@ function torso(p, neck, chest) {
 // rana, pingüino, búho, tucán, loro, perezoso, capibara, jaguar)
 // (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
 // piezas que comparten los animales
+// cada oreja va en su grupo (`ear ear-l|r`) con la bisagra donde se une a la cabeza: personajes.css la mueve según la
+// especie (el tic del gato, las del conejo que se caen al pensar, las del perro que aletean)
+const ear = (right, ox, oy, inner) => `<g class="ear ear-${right ? 'r' : 'l'}" style="transform-origin:${r1(ox)}px ${r1(oy)}px">${inner}</g>`
 const ANIMAL = {
   // orejas redondas arriba a los costados (oso, panda, koala, león, ratón)
-  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y]) => {
+  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y], i) => {
     const ir = r1(r * .56), sh = inner ? `<path d="M${r1(x - ir * .88)} ${r1(y + ir * .32)} A${ir} ${ir} 0 0 0 ${r1(x + ir * .88)} ${r1(y + ir * .32)} A${ir} ${r1(ir * .68)} 0 0 1 ${r1(x - ir * .88)} ${r1(y + ir * .32)} Z" fill="${shade(inner, .78)}"/>` : ''
-    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${r1(y + 1.5)}" r="${ir}" fill="${inner}"/>${sh}` : ''}`
+    return ear(i, x, y + r * .7, `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${r1(y + 1.5)}" r="${ir}" fill="${inner}"/>${sh}` : ''}`)
   }).join(''),
   // orejas en punta (mapache, cerdito si caen)
   pointEars: (h, c, inner, drop = 0) => [-1, 1].map((side) => {
     const [x, y] = pt(h, side < 0 ? 228 : 312, -6), tip = [x + side * 14, y - 46 + drop], base = 26
-    return `<path d="M${x - base} ${y + 8} L${tip[0]} ${tip[1]} L${x + base} ${y + 8}Z" fill="${c}" stroke="${c}" stroke-width="10" stroke-linejoin="round"/>${inner ? `<path d="M${x - base * .5} ${y + 4} L${tip[0]} ${tip[1] + 16} L${x + base * .5} ${y + 4}Z" fill="${inner}" stroke="${inner}" stroke-width="5" stroke-linejoin="round"/>` : ''}`
+    return ear(side > 0, x, y + 8, `<path d="M${x - base} ${y + 8} L${tip[0]} ${tip[1]} L${x + base} ${y + 8}Z" fill="${c}" stroke="${c}" stroke-width="10" stroke-linejoin="round"/>${inner ? `<path d="M${x - base * .5} ${y + 4} L${tip[0]} ${tip[1] + 16} L${x + base * .5} ${y + 4}Z" fill="${inner}" stroke="${inner}" stroke-width="5" stroke-linejoin="round"/>` : ''}`)
   }).join(''),
   // bolitas alrededor de la cabeza (melena, lana)
   puffs: (h, pad, r, from, to, step, c) => { let s = ''; for (let a = from; a <= to; a += step) { const [x, y] = pt(h, a, pad); s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>` } return s },
@@ -437,16 +441,16 @@ const ANIMAL = {
     return dots + hairs
   }).join(''),
   // orejas caídas a los costados (perro)
-  floppyEars: (h, c) => [-1, 1].map((s) => `<path d="M${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22} Q${h.cx + s * (h.rx + 30)} ${h.cy - 40} ${h.cx + s * (h.rx + 14)} ${h.cy + 50} Q${h.cx + s * (h.rx - 4)} ${h.cy + 70} ${h.cx + s * (h.rx - 18)} ${h.cy + 34} Q${h.cx + s * (h.rx - 34)} ${h.cy - 20} ${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22}Z" fill="${c}"/>`).join(''),
+  floppyEars: (h, c) => [-1, 1].map((s) => ear(s > 0, h.cx + s * (h.rx - 24), h.cy - h.ry + 22, `<path d="M${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22} Q${h.cx + s * (h.rx + 30)} ${h.cy - 40} ${h.cx + s * (h.rx + 14)} ${h.cy + 50} Q${h.cx + s * (h.rx - 4)} ${h.cy + 70} ${h.cx + s * (h.rx - 18)} ${h.cy + 34} Q${h.cx + s * (h.rx - 34)} ${h.cy - 20} ${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22}Z" fill="${c}"/>`)).join(''),
   // orejas largas hacia arriba (conejo)
   longEars: (h, c, inner) => [-1, 1].map((s) => {
     const x = h.cx + s * 34, y = h.cy - h.ry + 14, ang = s < 0 ? -9 : 13
     const tipX = s < 0 ? 0 : 4, tipY = s < 0 ? -94 : -90
-    return `<g transform="translate(${x} ${y}) rotate(${ang})">
+    return ear(s > 0, x, y, `<g transform="translate(${x} ${y}) rotate(${ang})">
   <path d="M-15 8 C-22 -28 -24 -76 ${tipX} ${tipY} C24 -76 22 -28 15 8 Z" fill="${c}"/>
   <path d="M-8 2 C-13 -24 -14 -64 ${r1(tipX * .75)} ${tipY + 16} C14 -64 13 -24 8 2 Z" fill="${inner}"/>
   <path d="M-8 2 C-12 -22 -13 -58 -1 ${tipY + 20} C-6 -52 -5 -22 0 2 Z" fill="${shade(inner, .86)}"/>
-  </g>`
+  </g>`)
   }).join(''),
   // hocico claro abajo
   muzzle: (h, c, rx = 48, ry = 34, pads = true) => {
@@ -736,6 +740,7 @@ function creature(p) {
     ${a.top && !p.hat ? cut(a.top) : ''}
     <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/>
     ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth, philtrum: a.philtrum })}
+    ${p.species === 'perro' ? `<g class="tongue">${soft(`<path d="M${h.cx - 11} ${h.cy + h.ry * .56 + 4} v16 q0 14 11 14 q11 0 11 -14 v-16Z" fill="#e8756a"/>`)}<path d="M${h.cx} ${h.cy + h.ry * .56 + 8} v18" stroke="#c5544a" stroke-width="3" stroke-linecap="round"/></g>` : ''}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
@@ -766,9 +771,12 @@ function personSeed(p) {
 function personRhythm(p) {
   let n = personSeed(p)
   const next = () => { n = (Math.imul(n, 1664525) + 1013904223) >>> 0; return n / 4294967296 }
-  const k = (lo, hi) => (lo + next() * (hi - lo)).toFixed(2)
+  // el tempo de la especie multiplica el de cada uno: el perezoso hace todo despacio, el ratón y el conejo, rápido
+  const tempo = SPECIES_TEMPO[p.species] || 1
+  const k = (lo, hi) => ((lo + next() * (hi - lo)) * tempo).toFixed(2)
   return `--d:${(-next() * 9).toFixed(2)}s;--kb:${k(.8, 1.3)};--kh:${k(.8, 1.3)};--ke:${k(.7, 1.5)};--kl:${k(.8, 1.4)}`
 }
+const SPECIES_TEMPO = { perezoso: 1.9, koala: 1.45, capibara: 1.35, panda: 1.25, oso: 1.2, gorila: 1.15, raton: .68, conejo: .76, mico: .8, loro: .82, zorro: .9 }
 // LAS MANOS: sólo se ven en dos gestos (lo decide el CSS, como las bocas). Tecleando, las dos asoman abajo y golpean
 // alternadas; pensando, una sube a la barbilla. Antes «teclea» y «piensa» se distinguían sólo por la boca y las cejas,
 // que en un recuadro chico no se leen. Son del color de la piel (o del pelaje) con el puño de la chaqueta.
@@ -819,11 +827,14 @@ function personProps(p) {
     const x = -40 + (i / 17) * 480, w = 8 + (n % 9), d = ((n >>> 8) % 1400) / 1000, t = 1.5 + ((n >>> 16) % 900) / 1000
     bits += `<rect class="bit" x="${Math.round(x)}" y="-96" width="${w}" height="${w + 6}" rx="2" fill="${cols[i % cols.length]}" style="--bd:-${d}s;--bt:${t}s;--br:${(n >>> 4) % 2 ? 1 : -1}"/>`
   }
-  return `${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
+  // «!» de la sorpresa y «?» de la duda: arriba a un lado de la cabeza, en papel
+  const marks = `<g class="mark mark-bang">${cut(`<path d="M330 30 v46" stroke="#f2c14e" stroke-width="13" stroke-linecap="round" fill="none"/><circle cx="330" cy="100" r="8" fill="#f2c14e"/>`)}</g>
+    <g class="mark mark-q">${cut(`<path d="M310 58 q0 -24 21 -24 q21 0 21 19 q0 14 -19 21 v9" stroke="#f1e4c7" stroke-width="11" stroke-linecap="round" stroke-linejoin="round" fill="none"/><circle cx="333" cy="104" r="7.5" fill="#f1e4c7"/>`)}</g>`
+  return `${marks}${arm('l', 'open')}${arm('r', 'open')}${arm('r', 'thumb')}${laptop}${mug}${notes}<g class="prop-confetti">${bits}</g>`
 }
 function person(p) {
   p = completePerson(p)
-  return `<g class="rhythm" style="${personRhythm(p)}">${p.species ? creature(p) : personHuman(p)}${personHands(p)}${personProps(p)}</g>`
+  return `<g class="rhythm sp-${p.species || 'persona'}" style="${personRhythm(p)}">${p.species ? creature(p) : personHuman(p)}${personHands(p)}${personProps(p)}</g>`
 }
 function personHuman(p) {
   const s = p.skin, sh = shade(s, .86)
@@ -887,11 +898,26 @@ function setTileState(el, st) {
 
 // LO QUE HACE MIENTRAS TANTO (aparte del gesto): '' nada, o una clave de ACTIVITIES. laptop: 'open', 'closed' o '' (sin
 // portátil). Tomar café cierra la tapa solo: nadie toma tinto encima del teclado.
-const ACTIVITIES = { coffee: 'toma tinto', music: 'con audífonos', wave: 'saluda', thumb: 'de acuerdo', celebrate: 'celebra' }
+const ACTIVITIES = { coffee: 'toma tinto', music: 'con audífonos', wave: 'saluda', thumb: 'de acuerdo', celebrate: 'celebra',
+  laugh: 'se ríe', surprise: 'se sorprende', confused: 'no entiende' }
 function setTileActivity(el, activity = '', laptop = 'open') {
   for (const k of Object.keys(ACTIVITIES)) el.classList.toggle(`act-${k}`, k === activity)
   el.classList.toggle('has-laptop', !!laptop)
   el.classList.toggle('lid-closed', laptop === 'closed' || activity === 'coffee')
+}
+
+// ADÓNDE MIRA: hacia quien habla. dx, dy van de -1 a 1 (la dirección desde este recuadro hasta el del que habla);
+// sin argumentos, vuelve a mirar por su cuenta. No vale mientras habla él.
+function setTileLook(el, dx, dy) {
+  const on = Number.isFinite(dx) && Number.isFinite(dy)
+  el.classList.toggle('looking', on)
+  if (on) { el.style.setProperty('--lx', dx.toFixed(2)); el.style.setProperty('--ly', dy.toFixed(2)) }
+}
+// la dirección de un recuadro a otro, como la espera setTileLook (un vector de largo 1; al lado es todo x, arriba todo y)
+function lookVector(from, to) {
+  const a = from.getBoundingClientRect(), b = to.getBoundingClientRect()
+  const x = (b.left + b.width / 2) - (a.left + a.width / 2), y = (b.top + b.height / 2) - (a.top + a.height / 2), d = Math.hypot(x, y)
+  return d < 1 ? null : [x / d, y / d]
 }
 
 // ── LOS PERSONAJES GUARDADOS ─────────────────────────────────────────────────────────────────────
