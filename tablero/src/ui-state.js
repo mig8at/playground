@@ -14,8 +14,8 @@ export const TASK_GROUPS = [
   { id: 'terminada', title: 'Terminadas' },
   // Los dos niveles que no son de CreditOp (decisión de Miguel, 2026-11-13): sus tareas no tienen estado de Jira,
   // así que no van por estado sino en su propia vista, al final. Ver `nivel:` en tablero/CLAUDE.md.
-  { id: 'nivel-miguel', title: 'Miguel · mis herramientas' },
-  { id: 'nivel-playground', title: 'Playground compartido' },
+  { id: 'nivel-miguel', title: 'Mis herramientas' },
+  { id: 'nivel-playground', title: 'Playground' },
 ];
 
 export function groupTasks(tasks, bucket) {

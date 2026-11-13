@@ -17,7 +17,6 @@ import BlockText from './BlockText.vue';
 import CanonRoute from './CanonRoute.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
-import ChatMessages from './ChatMessages.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument, renderMarkdown } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
@@ -97,7 +96,7 @@ watch(sections, (open) => savePreference('open-groups', [...open].filter(id => G
 const isOpen = (id) => sections.value.has(id);
 // Las vistas que se leen EN EL EDITOR (no son grupos de tareas): «traer de Jira» y los mensajes. Sólo
 // una a la vez, porque el editor muestra una sola.
-const EDITOR_VIEWS = ['jira', 'chat'];
+const EDITOR_VIEWS = ['jira'];
 function toggleSection(id) {
   const n = new Set(sections.value);
   n.has(id) ? n.delete(id) : n.add(id);
@@ -108,57 +107,6 @@ function toggleSection(id) {
   if (EDITOR_VIEWS.includes(id) && n.has(id)) active.value = null;
 }
 
-// ── los mensajes del equipo ──────────────────────────────────────────────────────────────────────────
-// Los lee el server del CLI del playground compartido (`playground messages`), que los tiene mientras
-// `playground listen` corre. Se pregunta seguido con la vista abierta y de a ratos con ella cerrada,
-// para que el conteo de nuevos del acordeón se mueva solo. Cada pregunta corre el CLI dos veces
-// (estado y mensajes), por eso no más seguido, y nada con la pestaña del navegador oculta.
-// «Nuevo» es lo que llegó después de la última vez que abriste la vista (`tablero:chat-seen`); la
-// marca dura mientras la mirás y se apaga en la siguiente visita.
-const chat = ref(null);
-const chatError = ref('');
-const chatListenBusy = ref(false);
-const chatListenError = ref('');
-const chatSeen = ref(readPreference('chat-seen', ''));
-const chatVisitSeen = ref(chatSeen.value);
-const chatLatest = computed(() => (chat.value?.messages || []).reduce((t, m) => (m.time > t ? m.time : t), ''));
-const chatUnread = computed(() => (chat.value?.messages || []).filter(m => m.time && m.time > chatSeen.value).length);
-async function loadChat() {
-  try {
-    chat.value = await (await fetch(`${SERVER}/api/chat`)).json();
-    chatError.value = '';
-  } catch { chatError.value = 'no se pudo hablar con el server del tablero'; }
-  if (isOpen('chat') && chatLatest.value > chatSeen.value) {
-    chatSeen.value = chatLatest.value;
-    savePreference('chat-seen', chatSeen.value);
-  }
-}
-async function startListening() {
-  chatListenBusy.value = true; chatListenError.value = '';
-  try {
-    const j = await (await fetch(`${SERVER}/api/chat/listen`, { method: 'POST' })).json();
-    if (j.error) chatListenError.value = j.error;
-    await loadChat();
-  } catch { chatListenError.value = 'no se pudo hablar con el server del tablero'; }
-  finally { chatListenBusy.value = false; }
-}
-// Abrir o cerrar la vista cambia el ritmo: el temporizador pendiente se rearma con el nuevo.
-watch(() => isOpen('chat'), (open) => {
-  scheduleChat();
-  if (!open) return;
-  chatVisitSeen.value = chatSeen.value;
-  loadChat();
-});
-let chatTimer = null;
-function scheduleChat() {
-  clearTimeout(chatTimer);
-  chatTimer = setTimeout(async () => {
-    if (document.visibilityState === 'visible') await loadChat();
-    scheduleChat();
-  }, isOpen('chat') ? 4000 : 30000);
-}
-onMounted(() => { loadChat(); scheduleChat(); });
-onUnmounted(() => clearTimeout(chatTimer));
 const journeyOpen = ref(readPreference('journey-open', true) === true);
 watch(journeyOpen, value => savePreference('journey-open', value));
 /* ⚠ Acá vivían `collapsedGroups` y `toggleGroup`. Se fueron: cada grupo es ahora una VISTA del
@@ -1389,15 +1337,13 @@ const tasksForRoute = () => {
  *   #/tareas/core-543                   la tarea, con Jira (el default no se escribe)
  *   #/tareas/context?vista=pendientes   la tarea, con Pendientes (o `artifacts`)
  *   #/importar                          sin tarea, «Traer de Jira» en el editor
- *   #/mensajes                          sin tarea, los mensajes del equipo en el editor
  * Otra tarea u otra vista del editor entra al historial (push); otra pestaña lo reemplaza, porque
  * recorrer las tres caras de una tarea no es navegar. Los enlaces viejos `#/tareas/<slug>` son la
  * misma ruta sin parámetros, así que siguen abriendo. */
 const AUX_DEFAULT = 'jira';
 const IMPORT_ROUTE = 'importar';
-const CHAT_ROUTE = 'mensajes';
 // ruta ↔ vista del editor sin tarea
-const EDITOR_VIEW_ROUTES = { [IMPORT_ROUTE]: 'jira', [CHAT_ROUTE]: 'chat' };
+const EDITOR_VIEW_ROUTES = { [IMPORT_ROUTE]: 'jira' };
 const currentRoute = computed(() => {
   if (active.value) {
     return hashRoute(['tareas', taskSlug(active.value)], { vista: activeAuxView.value }, { vista: AUX_DEFAULT });
@@ -2306,23 +2252,6 @@ function documentAction(id) {
           </div>
       </section>
 
-      <!-- VISTA · mensajes del equipo (el chat de la terminal). Como «traer de Jira»: cerrada cuesta una
-           fila, con el conteo de lo nuevo, y abierta los muestra en el editor. -->
-      <section class="view" :class="{ open: isOpen('chat') }">
-        <div class="region-head">
-          <button type="button" class="view-tog" :aria-expanded="isOpen('chat')"
-                  @click="toggleSection('chat')">
-            <span class="ui-icon" data-icon="chevron" aria-hidden="true"></span>
-            <span>Mensajes</span>
-          </button>
-          <span v-if="chatUnread" class="count filtered" :title="`${chatUnread} sin leer`">{{ chatUnread }}</span>
-        </div>
-        <div v-if="isOpen('chat')" class="region-body sidebar-jira">
-          <p class="mut" v-if="chat && !chat.installed">Falta el CLI <code>playground</code>.</p>
-          <p class="mut" v-else-if="chat && !chat.listening">No estás escuchando: los mensajes no llegan.</p>
-          <p class="mut" v-else-if="chat">{{ chat.messages.length }} recibido{{ chat.messages.length === 1 ? '' : 's' }} desde que prendiste <code>listen</code>. No se guardan.</p>
-        </div>
-      </section>
     </aside>
 
     <!-- El menú vive en `body`: el scroll del árbol recortaría cualquier elemento posicionado dentro
@@ -2381,8 +2310,8 @@ function documentAction(id) {
         @close="closeTab(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
-          <span v-else-if="active._level === 'miguel'" class="badge badge-outline status no-jira" title="tu playground personal: no va a Jira">Miguel</span>
-          <span v-else-if="active._level === 'playground'" class="badge badge-outline status no-jira" title="el playground compartido: por ahora sin Jira">Playground compartido</span>
+          <span v-else-if="active._level === 'miguel'" class="badge badge-outline status no-jira" title="tus herramientas: no van a Jira">Mis herramientas</span>
+          <span v-else-if="active._level === 'playground'" class="badge badge-outline status no-jira" title="el playground compartido de la compañía: por ahora sin Jira">Playground</span>
           <span v-else class="badge badge-outline status no-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
         <!-- El centro conserva el documento y las evidencias que explican cómo se lo trabajó. Los
@@ -2514,11 +2443,6 @@ function documentAction(id) {
       <!-- LA PESTAÑA DE BIENVENIDA: el sprint. Es lo que se ve al entrar y al soltar una tarea. -->
       <!-- ⚠ Sin tarea elegida manda LA VISTA ABIERTA: con «traer de Jira» abierta el editor lleva
            sus filas (que en el sidebar no entran), y si no, el sprint. -->
-      <div v-else-if="isOpen('chat')" class="region-body editor-view">
-        <ChatMessages :chat="chat" :error="chatError" :seen-at="chatVisitSeen"
-                      :listen-busy="chatListenBusy" :listen-error="chatListenError"
-                      @refresh="loadChat" @listen="startListening" />
-      </div>
 
       <div v-else-if="!isOpen('jira')" class="region-body editor-view">
         <section class="card">

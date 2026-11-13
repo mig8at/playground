@@ -28,7 +28,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   sobre una herramienta va en la suya, y lo que cruza varias, en el contenedor general de su nivel. Una tarea global
   de un repo lleva la historia y el desglose; lo técnico verificado sigue en `knowledge/` y se enlaza. El lint y
   `make tareas` validan el nivel: una de `miguel` con Jira es un error. En el tablero, las de `miguel` y
-  `playground` van en su propia vista al final; «CreditOp sin Jira» (el menú ⋯) prende las demás sin Jira.
+  `playground` van en su propia vista al final («Mis herramientas» y «Playground»); «CreditOp sin Jira» (el menú ⋯) prende las demás sin Jira.
   `context`, `trazador`, `workers` y `playground-local` están archivadas (lo de esta última, dentro de `miguel`).
 - **Los contenedores son `clase: proyecto`**: sin Jira ni sección publicable. Dentro, cada frente conserva
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
