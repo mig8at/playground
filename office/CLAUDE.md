@@ -108,7 +108,7 @@ Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir 
 guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **Las PERSONAS hablan con las MEJORES VOCES EN ESPAÑOL** (`chat/server/voice_top.go`): 10 de mujer y 10 de hombre, las
 más usadas del último año en la biblioteca de ElevenLabs (`/v1/shared-voices?language=es&sort=usage_character_count_1y`),
 sólo adultas, con acentos y tonos distintos; se usan por su id sin agregarlas a la cuenta. **Los ANIMALES, con la voz de
-su ESPECIE**: cada especie tiene una de mujer y una de hombre, voces de personaje (`characterVoices` y `speciesVoices`,
+su ESPECIE**: cada especie tiene una de mujer y una de hombre, voces de personaje FLUIDAS, medidas (tono medio y cuánto salta; las chillonas fuera) (`characterVoices` y `speciesVoices`,
 de `use_cases=characters_animation`); el ♂/♀ de un animal cambia entre esas dos, y dos animales de la misma especie
 suenan igual (repetir está bien). El JSON de un animal sólo dice su género (`"voice": {"gender": "female"}`). Van primero en la lista y al
 repartir una voz libre; el ▶ de cada mensaje arranca con Cristina Campos, la más usada. Para refrescar el ranking, se
