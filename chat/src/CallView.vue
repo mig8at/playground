@@ -27,7 +27,8 @@
    imagen), el llavero (claves) o una hoja que corre (lo largo que quedó en el chat) y miran hacia abajo, leyéndolo;
    unos segundos después lo guardan. */
 import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
-import { hush, refreshVoice, say, voice } from './callVoice.js'
+import { hush, lineProgress, refreshVoice, say, voice } from './callVoice.js'
+import { readPref, savePref } from './workbench.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
 import { spokenNames } from './voiceText.js'
@@ -43,6 +44,13 @@ const props = defineProps({
   peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
 const ASPECT = 4 / 3, GAP = 10, PAD = 12, BAR = 46 // BAR: el alto de la línea de tiempo, abajo
+// LOS SUBTÍTULOS: una franja angosta entre la grilla y la línea de tiempo (no encima de los recuadros), con la frase
+// por pedazos de pocas palabras que avanzan con el audio, como en una película. Se apagan con el botón CC de la barra
+// (preferencia de este navegador). Apagados, la franja no ocupa lugar y la grilla crece.
+const CAPTION = 30
+const captionsOn = ref(readPref('chat.call-captions', true))
+function setCaptions(on) { captionsOn.value = on; savePref('chat.call-captions', on) }
+const bottomSpace = computed(() => BAR + (captionsOn.value ? CAPTION : 0))
 const box = ref(null)
 const size = ref({ w: 0, h: 0 })
 let observer = null
@@ -61,7 +69,7 @@ onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer)
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
-  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - BAR // clientHeight incluye el relleno de abajo (PAD + BAR)
+  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - bottomSpace.value // clientHeight incluye el relleno de abajo
   if (!n || W <= 0 || H <= 0) return { cols: 1, w: 0 }
   let best = { cols: 1, w: 0 }
   for (let cols = 1; cols <= n; cols++) {
@@ -609,13 +617,40 @@ watchEffect(() => {
 }, { flush: 'post' })
 // el JSON de cada personaje se arma una vez por elenco, no en cada render
 const configs = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), configOf(c)])))
-const caption = computed(() => (voice.line ? { name: byKey.value[voice.speaker]?.name || '', line: voice.line } : null))
+// la frase en pedazos de hasta 7 palabras (cortando también en las comas), y cuál va según por dónde va el audio
+const MAX_CHUNK = 7
+function chunksOf(line) {
+  const out = []
+  for (const part of String(line || '').split(/(?<=[,;:])\s+/)) {
+    const words = part.split(/\s+/).filter(Boolean)
+    // en partes parejas: mejor 5 + 4 que 7 + 2
+    const n = Math.ceil(words.length / MAX_CHUNK), size = Math.ceil(words.length / n)
+    for (let i = 0; i < words.length; i += size) out.push(words.slice(i, i + size).join(' '))
+  }
+  return out
+}
+const chunks = computed(() => chunksOf(voice.line))
+const chunkAt = ref(0)
+let chunkTimer = 0
+watch(() => voice.line, (line) => {
+  clearInterval(chunkTimer); chunkAt.value = 0
+  if (!line) return
+  // cada pedazo, por la parte del audio que le toca según su largo (los largos duran más)
+  chunkTimer = setInterval(() => {
+    const p = lineProgress(), lens = chunks.value.map((c) => c.length + 1), total = lens.reduce((a, b) => a + b, 0)
+    let acc = 0, i = 0
+    while (i < lens.length - 1 && (acc + lens[i]) / total <= p) acc += lens[i++]
+    chunkAt.value = i
+  }, 120)
+})
+onBeforeUnmount(() => clearInterval(chunkTimer))
+const caption = computed(() => (voice.line && captionsOn.value ? { name: byKey.value[voice.speaker]?.name || '', line: chunks.value[chunkAt.value] || '' } : null))
 
 const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0]}` : '')
 </script>
 
 <template>
-  <div ref="box" class="region-body call" aria-label="Videollamada">
+  <div ref="box" class="region-body call" aria-label="Videollamada" :style="{ paddingBottom: `${PAD + bottomSpace}px`, '--call-bar': `${BAR}px` }">
     <TransitionGroup tag="div" name="tile" class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
       <!-- cada recuadro es un botón (saluda): se llega con Tab y se activa con Enter o espacio. data-key: por ahí
@@ -705,6 +740,10 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4" /></svg>
         <span v-if="syncState?.pending > 0" class="tl-badge">{{ syncState.pending }}</span>
       </span>
+      <!-- subtítulos: prendidos o apagados (preferencia de este navegador) -->
+      <button type="button" class="tl-btn tl-cc" :class="{ off: !captionsOn }" :aria-pressed="captionsOn"
+              :title="captionsOn ? 'Subtítulos: prendidos' : 'Subtítulos: apagados'"
+              :aria-label="captionsOn ? 'Apagar los subtítulos' : 'Prender los subtítulos'" @click="setCaptions(!captionsOn)">CC</button>
       <!-- los efectos de sonido y el murmullo de la oficina (sfx.js) -->
       <button type="button" class="tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
               :aria-label="sfx.on ? 'Apagar los efectos de sonido' : 'Prender los efectos de sonido'" @click="setSfx(!sfx.on)">
@@ -734,8 +773,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   --call-gold: #f2c14e;
   --call-text-shadow: rgba(0, 0, 0, .25);
 }
-.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px;
-  padding-bottom: calc(12px + 46px); } /* abajo, el lugar de la línea de tiempo (BAR): la grilla se centra en lo que queda */
+.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px; }
+/* abajo, el lugar de la línea de tiempo y de los subtítulos (bottomSpace): la grilla se centra en lo que queda */
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
 .call-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px;
   width: calc(var(--cols) * var(--tile) + (var(--cols) - 1) * 10px); max-width: 100%; }
@@ -829,8 +868,11 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @media (prefers-reduced-motion: reduce) { .tl-sync.working svg { animation: none; } }
 .tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary); white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
-.call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
-  padding: 6px 12px; border-radius: 10px; background: var(--call-ink); color: var(--call-cream); font-size: 13px; line-height: 1.35; text-align: center; }
-.call-caption b { color: var(--call-gold); margin-right: 4px; }
+/* la franja de los subtítulos: justo arriba de la línea de tiempo, una sola línea de texto sin cajón */
+.call-caption { position: absolute; left: 50%; bottom: calc(var(--call-bar) + 4px); transform: translateX(-50%); margin: 0;
+  max-width: calc(100% - 32px); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  padding: 2px 10px; border-radius: 6px; background: var(--call-ink); color: var(--call-cream); font-size: 13px; line-height: 1.5; text-align: center; }
+.call-caption b { color: var(--call-gold); margin-right: 6px; }
+.tl-cc { font-size: 10.5px; font-weight: 800; letter-spacing: .02em; border: 1.5px solid currentColor; width: 26px; height: 18px; border-radius: 4px; margin: 0 2px; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }
 </style>

@@ -159,6 +159,13 @@ export function say(speaker, text, v, addressed = [], prop = '', holders = []) {
   return true
 }
 
+/** Por dónde va la frase que suena (0 a 1), para los subtítulos por pedazos. No es reactivo a propósito (cambia en
+    cada cuadro): quien lo necesita lo lee con su propio reloj. */
+export function lineProgress() {
+  if (!current || !(current.duration > 0)) return 0
+  return Math.min(1, current.currentTime / current.duration)
+}
+
 /** Calla a todos y vacía la fila. */
 export function hush() {
   generation++

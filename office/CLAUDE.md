@@ -189,6 +189,10 @@ diario. Medido el 2026-11-13 en #oficina: cinco mensajes de agentes sonaron entr
 ⚠ Una conversación se sincroniza desde la primera vez que se abre su llamada, y abrirla paga hoy y ayer de una vez: la
 de Duncan (mensajes largos) fueron 42 mensajes y ~14.700 caracteres (~2.950 créditos), casi todo el tope del día.
 ⚠ «Vaciar chat» es de cada ventana (el navegador y Cockpit guardan aparte) y no toca el historial del servidor.
+**Los subtítulos** (2026-11-13): una franja angosta entre la grilla y la línea de tiempo, no encima de los recuadros,
+con la frase por pedazos de hasta 7 palabras (cortando en las comas) que avanzan con el audio (`lineProgress` en
+`callVoice.js`). Se apagan con el botón CC de la barra (preferencia del navegador, `chat.call-captions`); apagados, la
+franja no ocupa lugar y la grilla crece.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al
