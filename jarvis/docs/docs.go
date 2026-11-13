@@ -149,14 +149,14 @@ func Load(root, app string) (*App, error) {
 	files, _ := filepath.Glob(filepath.Join(root, "jarvis", "recipes", app, "*.ts"))
 	sort.Strings(files)
 	for _, f := range files {
-		if filepath.Base(f) == "api.ts" {
-			continue // el cliente, no una receta
-		}
 		src, err := os.ReadFile(f)
 		if err != nil {
 			return nil, err
 		}
 		r := parseRecipe(string(src))
+		if len(r.Usage) == 0 {
+			continue // sin `make jarvis-recipe …` es un módulo de apoyo (api.ts, partners.ts), no una receta
+		}
 		r.ID = strings.TrimSuffix(filepath.Base(f), ".ts")
 		r.File, _ = filepath.Rel(root, f)
 		a.Recipes = append(a.Recipes, r)
@@ -236,7 +236,8 @@ func parseRecipe(src string) Recipe {
 				w += " " + strings.TrimSpace(header[i])
 			}
 			r.Warnings = append(r.Warnings, strings.TrimSpace(strings.TrimPrefix(w, "⚠")))
-		case strings.Contains(t, "ESCRIBE"):
+		case strings.Contains(t, "ESCRIBE") && !(len(prose) == 0 && strings.HasPrefix(t, "ESCRIBE ·")):
+			// «ESCRIBE · …» en la primera línea es el título (como «SÓLO LECTURA · …»), no la línea de lo que escribe.
 			// «ESCRIBE en …» puede empezar en medio de una línea: lo de antes es prosa.
 			k := strings.Index(t, "ESCRIBE")
 			if k > 0 {
@@ -292,7 +293,8 @@ func parseRecipe(src string) Recipe {
 	switch {
 	case strings.Contains(src, "graphqlInPage("):
 		r.Mode = "session"
-	case strings.Contains(src, "openChrome(") || strings.Contains(src, "connectOverCDP("):
+	case strings.Contains(src, "openChrome(") || strings.Contains(src, "connectOverCDP(") || strings.Contains(src, "'bin/jarvis'"):
+		// bin/jarvis: la receta maneja la pestaña en vivo de Jarvis, o sea la pantalla.
 		r.Mode = "screen"
 	default:
 		r.Mode = "api"

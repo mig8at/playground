@@ -68,6 +68,7 @@ ni marcar nada. Lo usa la herramienta `correo/`, que vigila remitentes y avisa.
 bin/pg gmail login                                          # abre el navegador
 bin/pg gmail search --q 'from:support@shopify.com newer_than:7d'
 bin/pg gmail read <id>                                      # encabezados y texto
+bin/pg gmail thread <threadId> [--json]                     # los mensajes de un hilo, en orden
 ```
 
 ⚠ El correo es privado: lo que se lee no se pega en tareas ni PRs sin mirar qué es.

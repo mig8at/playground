@@ -431,6 +431,10 @@ jarvis-recipe: ## @dia ⚠ ESCRIBE: corre una RECETA de Jarvis, una tarea comple
 	@test -f jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts || { echo "  ✗ no existe jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts"; exit 2; }
 	@node jarvis/recipes/$(APP)/$(call jarvis_recipe,$(RECIPE)).ts $(ARGS) $(if $(JSON),--json)
 
+.PHONY: jarvis-recipe-from
+jarvis-recipe-from: ## @dia escribe el ESQUELETO de una receta de Jarvis a partir de un FLUJO (el registro de un día → cómo se hace siempre): cada paso con su localizador, lo escrito como parámetros. FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1]
+	@node jarvis/recipes/from-flow.ts --flow "$(FLOW)" --app "$(APP)" --name "$(NAME)" $(if $(FORCE),--force)
+
 # Los nombres de las recetas de antes del 2026-11-07 (en castellano) siguen andando: las tareas guardan el comando.
 JARVIS_OLD_RECIPES := crear-producto:create-product crear-producto-pantalla:create-product-screen coleccion:collection \
   coleccion-pantalla:collection-screen sinonimo:synonym sinonimo-pantalla:synonym-screen cupon:coupon cupon-pantalla:coupon-screen \

@@ -17,6 +17,25 @@ Una receta:
 - imprime los ids y las URLs de lo que dejó (tienda, carrito, admin), y con `--json` un solo objeto para otro
   programa.
 
+### De un flujo a una receta
+
+Un **flujo** (`jarvis/flows/<sitio>/`) es el registro de lo que se hizo UN día, con los datos de ese día. La **receta**
+es cómo se hace siempre: con parámetros y comprobando lo que pasa. El paso de uno a otro:
+
+    make jarvis-recipe-from FLOW=jarvis/flows/<sitio>/<id>.json APP=<herramienta> NAME=<receta> [FORCE=1]
+
+(`from-flow.ts`) escribe el **esqueleto** en `recipes/<herramienta>/<receta>.ts`: cada paso con su localizador ya
+verificado, lo que se escribió o eligió como parámetro (`--<campo>`, con el valor del flujo por defecto), cada
+espera como `waitFor`, un `goto` al inicio si el flujo no abre página, y la cabecera con ESCRIBE o «Sólo lectura»
+según si el flujo tocaba algo. Es un punto de partida, no la receta terminada: falta decir qué comprueba (lo que
+dice la pantalla al final), qué parte va mejor por API y los ⚠ del día. Nunca pisa una receta sin `FORCE=1`.
+
+La cabecera es la documentación (`bin/jarvis docs <app> apis`): el primer párrafo es el título (empieza con
+«SÓLO LECTURA ·», «ESCRIBE ·» o «RECETA ·»), cada `make jarvis-recipe …` es un uso, una línea con ESCRIBE dice qué
+escribe y cada ⚠ es un aviso. Un `.ts` sin línea de uso es un **módulo de apoyo** (`api.ts`, `shopify/partners.ts`)
+y no sale como receta. El camino se deduce del código: la llave (`api`), `graphqlInPage` (tu sesión) o `openChrome`
+/ `bin/jarvis` (la pantalla).
+
 ## VTEX (cuenta de pruebas `creditop`)
 
 Credenciales: `connectors/.env` (`VTEX_ACCOUNT`, `VTEX_APP_KEY`, `VTEX_APP_TOKEN`), con el lector del harness (`credential`). Cliente: `vtex/api.ts`. Las recetas que sólo usan la API corren en cualquier máquina que tenga ese archivo, también en la nube; las de pantalla y las que usan la sesión (sinónimos) necesitan tu Chrome con Jarvis.
@@ -109,8 +128,19 @@ ellos y dura 24 h. Cliente: `shopify/api.ts`, que se niega a apuntar a `tienda-c
 |---|---|---|
 | `store` | **sólo lectura**: la tienda, sus últimos productos y sus últimos pedidos con la pasarela y el estado de pago | `--last 10` · `--json` |
 | `credit-outcome` | **una compra en Shopify pagada con Creditop, llevada al desenlace de crédito por API, en ~1,5 min**: el checkout en tu Chrome (la BMX, el comprador sintético, Creditop, «Pay now») → Shopify manda al wizard de qa → el caminador por HTTP desde ese link (`walk-wizard.ts --entry-url`) → el simulador de qa en 11, 6 u 8 → lo que la app de Creditop aplicó en Shopify (`resolved`/`rejected`) y el pedido. Medido el 2026-11-07: aprobada en 88 s (pedido #1026 «Pagado»), negada en 79 s (`rejected`). Usa la app desplegada en dev (`shopify-app.dev.creditop.com`, la versión publicada) y necesita la contraseña de la tienda puesta en tu Chrome. Con la app de dev, la negada y la cancelada se miden por el aviso de qa en Loki (la app lo aceptó con 200), porque sus logs no están en Loki y un rechazo no crea pedido; `--outcome volver` toca «Volver a la tienda» a mitad del wizard (medido el 2026-11-09: pedido #1033 PENDING). Cada aprobada o «volver» descuenta una BMX del inventario: con 0, el checkout cae en «stock-problems» ESCRIBE en Shopify y en qa | `--outcome aprobada\|negada\|cancelada\|volver` · `--variant <id>` |
+| `payments-app-status` | **sólo lectura · ¿en qué estado están las apps de CreditOp en Shopify?** Por cada app de la organización Partner (4296643): distribución (personalizada, pública o sin elegir) y, si es de pagos, su estado (Development, Hidden, Generally Available). Por pantalla, en el Partner Dashboard con la sesión de tu Chrome. Medido el 2026-11-13: 3 apps | `--app <id>` · `--json` |
+| `payments-app-setup` | **sólo lectura · la guía de la app PÚBLICA de pagos y en qué paso está**: 1 creada con la CLI (el `.toml` de producción tiene `client_id`) · 2 distribución pública · 3 permisos de pagos y deploy (Partners la muestra como app de pagos: la versión que deja la CLI al crearla no cuenta) · 4 llaves en el secreto de producción (lo hace infra; no se comprueba) · 5 revisión (Hidden o Generally Available). Dice el siguiente paso con su comando | `--repo <carpeta>` · `--config shopify.app.production.toml` · `--app 447249776641` · `--json` |
+| `partner-support-chat` | **abre el chat de Shopify Support para partners y deja el mensaje escrito, SIN enviarlo**: Ayuda → «Chat with a human» → «Chat» (entra a la fila: un asesor se une en minutos) → «Type a message». La pestaña queda abierta: la persona toca Send y sigue la conversación. Así se abrió el ticket 72090155 (2026-11-13). Sólo `--dry` probado | `--message "…"` \| `--file <texto>` · `--dry` · `--json` |
 
 - **Shopify protege los pedidos y los borradores** («protected customer data»): la Admin API los negaba («not approved to access the Order object»). Se destrabó el 2026-11-07 eligiendo la **distribución personalizada** de la app en el Partner Dashboard (sólo `creditop-dev-store`; no se puede deshacer): con eso, según Shopify, una app personalizada tiene acceso a esos datos sin pedirlo aparte. Entrar al Partner Dashboard pidió una verificación anti-bots, que hizo Miguel.
 - **Un pago rechazado no deja pedido**: el checkout vuelve a ofrecer pagar. Cómo terminó lo dice el registro de la app (`creditop.webhook.applied`, `next: 'rejected'`), no la lista de pedidos.
 - En el checkout de la tienda, Creditop aparece al lado del «Test Payment Gateway».
 - **qa no siempre le avisa a la tienda** (2026-11-07): en 1 de 5 compras de Shopify la solicitud quedó en 11 y el pedido de la tienda con `processed = 0` en `ecommerce_requests`, sin que la app recibiera el aviso y sin rastro en los logs. `credit-outcome` espera un minuto y, si no llega, lo dice con ese dato. Sin causa medida.
+- **Partner Dashboard no tiene API para esto**: `shopify/partners.ts` lee la página de Distribución de cada app (en español o inglés, según la cuenta). La sesión es la del Chrome de la persona; hoy, la de Juan, dueño de la cuenta Partner.
+- **Una app de pagos con distribución personalizada nunca va a revisión** y queda en Development (sólo modo de prueba); la distribución no se cambia después. La de los comercios es una copia pública (`payments-app-setup`).
+
+## Gmail (la cuenta de tu Chrome)
+
+| receta | qué deja | parámetros |
+|---|---|---|
+| `thread-capture` | **sólo lectura · un hilo entero en capturas numeradas**, para dejar evidencia en los artifacts de una tarea: abre el hilo, despliega los mensajes colapsados (su comienzo lo da `bin/pg gmail thread <id> --json`: el «Expandir todo» de Gmail no es accesible) y saca `shot --full`. Medido el 2026-11-13: 10 páginas | `--thread <id o URL>` · `--out <carpeta>` · `--name <base>` · `--json` |
