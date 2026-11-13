@@ -85,9 +85,11 @@ no cuenta; `GET /api/voice` dice cuánto se usó). El tope de palabras se elige 
 defecto 150) y vale también para el ▶ de cada mensaje, que ahora lee con ElevenLabs (`chat/src/speech.js`, voz a
 elegir, por defecto Lina); un mensaje que lo pasa lleva un parlante tachado en vez del ▶. Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
-guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **La línea de tiempo** (abajo de la llamada, como un directo): un punto por mensaje (color de quien lo dijo; al pasar,
-quién, cuándo y cómo empieza); un clic reproduce desde ahí de corrido hasta alcanzar el directo, ⏮ desde el primero,
-⏯ pausa, «Volver al directo». Repetir no gasta: las frases quedan guardadas JUNTO AL HISTORIAL
+guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea con lo escuchado relleno, un
+cabezal donde vas y una marca por mensaje (color de quien lo dijo, parejas a lo largo: por hora real los huecos de horas
+apretarían todo). Se toca o arrastra en cualquier parte: el cabezal salta a la marca más cercana, arriba dice quién y
+cuándo, y al soltar suena de corrido hasta alcanzar el directo. ⏮ desde el primero, ⏯ pausa, ← y → con el teclado,
+«Volver al directo». Repetir no gasta: las frases quedan guardadas JUNTO AL HISTORIAL
 (`~/Library/Application Support/creditop-playground-chat/voice`, no en la caché de macOS, que se puede vaciar; la
 primera vez se mudó lo de la caché vieja). Cambiar el servidor pide `make chat-install` (y
 aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
