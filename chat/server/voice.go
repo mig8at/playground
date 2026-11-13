@@ -56,6 +56,7 @@ func voiceCacheDir() string {
 
 func registerVoice(mux *http.ServeMux) {
 	registerVoiceAssign(mux)
+	registerSfx(mux)
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady(), "usedToday": readBudget().Chars, "dailyLimit": dailyVoiceLimit()})
 	})

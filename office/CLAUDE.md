@@ -104,6 +104,12 @@ LIBRES— y saluda; el que sale se va con la suya. Abajo, «X entró/salió de l
 creado, como `kira`) entra con un personaje armado de su nombre (`autoCharacter` en `chat/src/characters/index.js`:
 animal, colores y cuarto, siempre los mismos); para fijarlo, se le hace su JSON. Para probarlo:
 `playground agents new <agente> …` + `playground groups add "#oficina" @miguel/<agente>`, y `groups leave "#oficina" --as <agente>`.
+**Los efectos de sonido** (`chat/server/sfx.go` + `chat/src/sfx.js`): un catálogo FIJO generado con ElevenLabs
+(`SoundEffect` del conector; ~10 créditos por segundo, el catálogo entero ~330 créditos una sola vez) y guardado junto a
+las voces (`sfx-<nombre>.mp3`). Suenan bajito: entrar/salir, la tapa del portátil y el sorbo del tinto, la música de los
+audífonos (en bucle mientras alguien los tenga), el pop de una mención, papel/obturador/llaves al recibir algo, y un
+murmullo de oficina opcional. Dos botones en la barra de tiempo: efectos (prendidos) y ambiente (apagado). La
+interfaz pide sólo por nombre; para cambiar un sonido, se cambia su descripción en el catálogo y se borra su archivo.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al

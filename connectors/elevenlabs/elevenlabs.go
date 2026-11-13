@@ -4,6 +4,9 @@
 // La llave (ELEVENLABS_API_KEY, en connectors/.env) se creó con permisos mínimos: Text to Speech, Voices (lectura) y
 // User (para leer el saldo). Con otra llave sin «User», Usage falla y lo demás sigue andando.
 //
+// Efectos de sonido (SoundEffect): la llave necesita además «Sound Effects». Cuestan ~10 créditos por segundo
+// (medido el 2026-11-12: 0,6 s → 6, 6 s → 60).
+//
 // COSTO: se cobra por carácter del texto. Con eleven_flash_v2_5 (el modelo por defecto) medio crédito por carácter; un
 // mensaje de 150 caracteres son ~75 créditos.
 package elevenlabs
@@ -197,4 +200,20 @@ func (c *Client) Speech(voiceID, text string) ([]byte, error) {
 	}
 	path := "/v1/text-to-speech/" + url.PathEscape(voiceID) + "?output_format=mp3_44100_64"
 	return c.do(http.MethodPost, path, map[string]any{"text": text, "model_id": c.Config.Model}, "audio/mpeg")
+}
+
+// SoundEffect genera un efecto de sonido a partir de una descripción (mejor en inglés) y devuelve el MP3. seconds va de
+// 0,5 a 30; loop pide que empalme consigo mismo (para un ambiente o una música de fondo).
+func (c *Client) SoundEffect(text string, seconds float64, loop bool) ([]byte, error) {
+	if strings.TrimSpace(text) == "" {
+		return nil, errors.New("falta la descripción del sonido")
+	}
+	if seconds < 0.5 || seconds > 30 {
+		return nil, fmt.Errorf("la duración va de 0,5 a 30 segundos (pediste %.1f)", seconds)
+	}
+	body := map[string]any{"text": text, "duration_seconds": seconds, "prompt_influence": 0.4}
+	if loop {
+		body["loop"] = true
+	}
+	return c.do(http.MethodPost, "/v1/sound-generation", body, "audio/mpeg")
 }

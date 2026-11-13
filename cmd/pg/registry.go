@@ -151,6 +151,8 @@ func init() {
 			Usage: "pg elevenlabs usage [--json]", run: runElevenUsage},
 		{Name: "elevenlabs voices", Summary: "las voces de ElevenLabs que la cuenta puede usar (nombre, id, género, acento)",
 			Usage: "pg elevenlabs voices [--gender female|male] [--json]", run: runElevenVoices},
+		{Name: "elevenlabs sfx", Summary: "genera un efecto de sonido con ElevenLabs a partir de una descripción y lo guarda en un MP3 (~10 créditos por segundo)",
+			Usage: "pg elevenlabs sfx --text '…' [--seconds 2] [--loop] --out archivo.mp3", run: runElevenSfx, NoTool: true},
 		{Name: "elevenlabs say", Summary: "convierte un texto en voz con ElevenLabs y lo guarda en un MP3 (gasta créditos)",
 			Usage: "pg elevenlabs say --voice <nombre|id> --text '…' --out archivo.mp3", run: runElevenSay, NoTool: true},
 		{Name: "gemini models", Summary: "los modelos de Gemini que la llave puede usar hoy (el configurado, marcado)",

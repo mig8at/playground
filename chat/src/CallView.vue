@@ -32,6 +32,7 @@ import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
 import { characters } from './characters/index.js'
 import { assignVoice, voiceAssign } from './voiceAssign.js'
+import { loop as sfxLoop, play as sfxPlay, setAmbient, setSfx, sfx, stopLoops } from './sfx.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -159,8 +160,8 @@ onMounted(async () => { for (const c of props.cast) await giveVoice(c) })
 watch(() => props.cast.map(keyOf).join(','), (current, before) => {
   if (before === undefined) return
   const was = new Set(before.split(',').filter(Boolean)), is = new Set(current.split(',').filter(Boolean))
-  for (const c of props.cast) if (!was.has(keyOf(c))) { announce(`${c.name} entró a la llamada.`); welcome(c) }
-  for (const k of was) if (!is.has(k)) announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`)
+  for (const c of props.cast) if (!was.has(keyOf(c))) { sfxPlay('join'); announce(`${c.name} entró a la llamada.`); welcome(c) }
+  for (const k of was) if (!is.has(k)) { sfxPlay('leave'); announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`) }
 })
 // los nombres de los que estaban, para decir quién salió cuando ya no está en la lista
 const leftNames = new Map()
@@ -380,6 +381,35 @@ const activityTimer = setInterval(() => {
 onBeforeUnmount(() => clearInterval(activityTimer))
 // el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano
 const laptopOf = (c) => (propOf(c) ? '' : activityOf(c) === 'cafe' ? 'closed' : 'open')
+
+// ── LOS EFECTOS DE SONIDO (sfx.js): lo que pasa en la llamada suena, bajito ─────────────────────────────
+// el portátil: al cerrarlo, el clic y enseguida el sorbo del tinto; al abrirlo, su clic
+watch(() => props.cast.map((c) => `${keyOf(c)}:${activityOf(c) === 'cafe' ? 'closed' : 'open'}`).join(','), (cur, before) => {
+  if (before === undefined) return
+  const prev = Object.fromEntries(before.split(',').map((x) => x.split(/:(?=[^:]*$)/)))
+  for (const [k, st] of cur.split(',').map((x) => x.split(/:(?=[^:]*$)/))) {
+    if (prev[k] === 'open' && st === 'closed') { sfxPlay('lid-close'); setTimeout(() => sfxPlay('sip'), 1300) }
+    if (prev[k] === 'closed' && st === 'open') sfxPlay('lid-open')
+  }
+})
+// la música de los audífonos, mientras alguien los tenga puestos; el murmullo de la oficina, si está prendido
+watch(() => props.cast.some((c) => activityOf(c) === 'audifonos'), (on) => sfxLoop('headphones', on), { immediate: true })
+watch(() => sfx.ambient && sfx.on, (on) => sfxLoop('ambient', on), { immediate: true })
+watch(() => sfx.on, (on) => { if (on) { sfxLoop('ambient', sfx.ambient); sfxLoop('headphones', props.cast.some((c) => activityOf(c) === 'audifonos')) } })
+onBeforeUnmount(stopLoops)
+// una mención: un pop cuando empieza el mensaje que nombra a alguien (o cuando nombrás vos)
+watch(() => voice.addressed, (list, old) => { if (list !== old && list?.length) sfxPlay('mention') })
+watch(() => nudged.value, (list) => { if (list.length) sfxPlay('mention') })
+// lo que reciben: papel, obturador o llaves, cuando aparece en la mano de alguien
+watch(() => Object.values(voice.props).map((p) => p.kind).sort().join(','), (cur, before) => {
+  const was = new Set(String(before || '').split(','))
+  for (const kind of new Set(cur.split(',').filter(Boolean))) {
+    if (was.has(kind)) continue
+    if (kind === 'doc') sfxPlay('paper')
+    if (kind === 'image') sfxPlay('photo')
+    if (kind === 'key') sfxPlay('keys')
+  }
+})
 // con los audífonos puestos, el dibujo los trae (la pieza `headphones` del personaje)
 const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character,
   ...(activityOf(c) === 'audifonos' ? { extras: [...new Set([...(c.character?.extras || []), 'headphones'])] } : {}) })
@@ -497,6 +527,16 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span class="tl-head" :class="{ live: mode === 'live' && scrub < 0, dragging: scrub >= 0 }" :style="{ left: `${head}%` }"></span>
         <span v-if="headLabel" class="tl-tip" :style="{ left: `${Math.min(85, Math.max(15, head))}%` }">{{ headLabel }}</span>
       </div>
+      <!-- los efectos de sonido y el murmullo de la oficina (sfx.js) -->
+      <button type="button" class="tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
+              :aria-label="sfx.on ? 'Apagar los efectos de sonido' : 'Prender los efectos de sonido'" @click="setSfx(!sfx.on)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M9 17.5a2.5 2.5 0 1 1-1.5-2.3V5l10-2v11.5a2.5 2.5 0 1 1-1.5-2.3V7.2L9 8.6z" /></svg>
+      </button>
+      <button type="button" class="tl-btn" :class="{ off: !sfx.ambient || !sfx.on }" :aria-pressed="sfx.ambient" :disabled="!sfx.on"
+              :title="sfx.ambient ? 'Ambiente de oficina: prendido' : 'Ambiente de oficina: apagado'"
+              :aria-label="sfx.ambient ? 'Apagar el ambiente de oficina' : 'Prender el ambiente de oficina'" @click="setAmbient(!sfx.ambient)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M4 21V8l8-5 8 5v13h-6v-6h-4v6zM8 11h2v2H8zm6 0h2v2h-2z" /></svg>
+      </button>
       <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
       <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
     </div>
@@ -587,6 +627,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   background: transparent; color: var(--foreground, #222); cursor: pointer; }
 .tl-btn:hover { background: var(--hover, rgba(0,0,0,.06)); }
 .tl-btn:disabled { opacity: .4; cursor: default; }
+.tl-btn.off { opacity: .45; }
 .tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
 .tl-track:focus-visible .tl-line { outline: 2px solid var(--ring, #f08c3d); outline-offset: 4px; }
