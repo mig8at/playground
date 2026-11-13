@@ -37,7 +37,7 @@ const props = defineProps({
   me: { type: String, default: '' },              // mi correo
   peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
-const ASPECT = 4 / 3, GAP = 10, PAD = 12
+const ASPECT = 4 / 3, GAP = 10, PAD = 12, BAR = 46 // BAR: el alto de la línea de tiempo, abajo
 const box = ref(null)
 const size = ref({ w: 0, h: 0 })
 let observer = null
@@ -53,7 +53,7 @@ onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer)
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
-  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2
+  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - BAR
   if (!n || W <= 0 || H <= 0) return { cols: 1, w: 0 }
   let best = { cols: 1, w: 0 }
   for (let cols = 1; cols <= n; cols++) {
@@ -128,21 +128,79 @@ function nudge(keys) {
   clearTimeout(nudgeTimer)
   nudgeTimer = setTimeout(() => { nudged.value = [] }, 3500)
 }
-// lo que llega con la llamada abierta se dice, en fila (callVoice espera a que termine el anterior)
+// Decir un mensaje: true si quedó sonando (o en fila); false si no hay nada que decir (silenciado, vacío, tuyo).
+function speakMessage(m) {
+  const c = speakerOf(m)
+  if (!c || !(m.text || m.files?.length)) return false
+  const { text, prop, muted: tooLong } = forCall(m)
+  if (tooLong) { mute(keyOf(c)); return false }
+  const to = addressedBy(m.text, keyOf(c))
+  // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
+  const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
+  if (!text) return false
+  if (!say(keyOf(c), spoken(text), c.voice, to, prop, holders)) { mute(keyOf(c)); return false }
+  return true
+}
+
+// ── LA LÍNEA DE TIEMPO, como un directo ─────────────────────────────────────────────────────────
+// Cada mensaje que la llamada puede decir es un punto. En vivo (lo normal) suena lo que va llegando; con un clic en un
+// punto (o ⏮, desde el primero) se vuelve atrás y se escucha de corrido, mensaje por mensaje, hasta alcanzar el
+// directo. Lo ya escuchado no se vuelve a pagar: el servidor guarda cada frase (voice.go).
+const timeline = computed(() => props.messages
+  .filter((m) => speakerOf(m) && (m.text || m.files?.length))
+  .map((m) => ({ m, c: speakerOf(m) })))
+const mode = ref('live')     // 'live' · 'replay' (reproduciendo desde atrás) · 'paused'
+const at = ref(-1)           // el punto que suena (índice en timeline), -1 si ninguno
+let advanceTimer = 0
+
+// reproducir desde el punto i, de corrido
+function replayFrom(i) {
+  hush(); clearTimeout(advanceTimer)
+  mode.value = 'replay'
+  playAt(i)
+}
+function playAt(i) {
+  if (i >= timeline.value.length) { mode.value = 'live'; at.value = -1; return } // alcanzó el directo
+  at.value = i
+  // uno sin voz (silenciado, sólo un adjunto sin texto…) se muestra un momento y se sigue
+  if (!speakMessage(timeline.value[i].m)) advanceTimer = setTimeout(() => { if (mode.value === 'replay' && at.value === i) playAt(i + 1) }, 1500)
+}
+// cuando termina de sonar un mensaje, en repetición sigue el siguiente
+watch(() => voice.busy, (busy) => {
+  if (!busy && mode.value === 'replay' && at.value >= 0) playAt(at.value + 1)
+  if (!busy && mode.value === 'live') at.value = -1
+})
+function togglePause() {
+  if (mode.value === 'paused') { replayFrom(Math.max(0, at.value)); return }
+  if (mode.value === 'replay') { mode.value = 'paused'; clearTimeout(advanceTimer); hush(); return }
+  // en vivo: pausar es quedarse en el último y no decir lo que llegue
+  mode.value = 'paused'; hush(); at.value = Math.max(0, timeline.value.length - 1)
+}
+function goLive() { hush(); clearTimeout(advanceTimer); mode.value = 'live'; at.value = -1 }
+onBeforeUnmount(() => clearTimeout(advanceTimer))
+
+// lo que llega con la llamada abierta: en vivo se dice, en fila (callVoice espera a que termine el anterior); en
+// repetición o en pausa espera su turno en la línea de tiempo
 watch(() => props.messages.length, (n, old) => {
   if (!(n > old)) return
   for (const m of props.messages.slice(old)) {
-    const c = speakerOf(m)
-    if (c && (m.text || m.files?.length)) {
-      const { text, prop, muted: tooLong } = forCall(m)
-      if (tooLong) { mute(keyOf(c)); continue }
-      const to = addressedBy(m.text, keyOf(c))
-      // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
-      const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
-      if (text && !say(keyOf(c), spoken(text), c.voice, to, prop, holders)) mute(keyOf(c))
+    if (speakerOf(m)) {
+      if (mode.value === 'live' && speakMessage(m)) at.value = timeline.value.findIndex((x) => x.m === m)
     }
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
+})
+// los puntos de la barra: los últimos 80, con quién y cuándo
+const TIMELINE_MAX = 80
+const dots = computed(() => {
+  const all = timeline.value, from = Math.max(0, all.length - TIMELINE_MAX)
+  return all.slice(from).map(({ m, c }, k) => {
+    const i = from + k
+    const time = m.time ? new Date(m.time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : ''
+    const words = String(m.text || '').split(/\s+/).filter(Boolean)
+    return { i, color: c.character?.shirt || '#2b6670', title: `${c.name}${time ? ` · ${time}` : ''} · ${words.slice(0, 8).join(' ')}${words.length > 8 ? '…' : ''}${!m.text ? '(adjunto)' : ''}`,
+      state: i === at.value ? 'now' : at.value >= 0 && i < at.value ? 'past' : mode.value === 'live' ? 'past' : 'next' }
+  })
 })
 // lo que muestra cada uno ahora (una hoja, una foto): callVoice dice hasta cuándo; un reloj de medio segundo lo apaga
 const now = ref(Date.now())
@@ -169,6 +227,7 @@ const roles = computed(() => {
 })
 function playDemo() {
   if (voice.busy) { hush(); return }
+  goLive()
   for (const { who, text } of demoLines(roles.value)) say(keyOf(who), text, who.voice)
 }
 function greet(c) {
@@ -243,6 +302,23 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         {{ voice.busy ? 'Parar' : 'Reproducir demo' }}
       </button>
     </div>
+    <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
+      <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
+              :disabled="!timeline.length" @click="replayFrom(Math.max(0, timeline.length - TIMELINE_MAX))">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5L9 12l10 7z" /></svg>
+      </button>
+      <button type="button" class="tl-btn" :title="mode === 'paused' ? 'Seguir' : 'Pausar'" :aria-label="mode === 'paused' ? 'Seguir' : 'Pausar'"
+              :disabled="!timeline.length" @click="togglePause">
+        <svg v-if="mode === 'paused'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
+      </button>
+      <div class="tl-track">
+        <button v-for="d in dots" :key="d.i" type="button" class="tl-dot" :class="d.state" :style="{ '--dot': d.color }"
+                :title="d.title" :aria-label="`Escuchar desde aquí: ${d.title}`" @click="replayFrom(d.i)"></button>
+      </div>
+      <span v-if="mode === 'live'" class="tl-live" title="Suena lo que va llegando">● En vivo</span>
+      <button v-else type="button" class="tl-golive" @click="goLive">Volver al directo</button>
+    </div>
     <p v-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
     <p v-else-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
     <p v-if="caption" class="call-caption" aria-live="polite"><b>{{ caption.name }}</b> {{ caption.line }}</p>
@@ -291,13 +367,35 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-prop.key .keyring { transform-origin: 34px 22px; animation: key-swing 1.6s ease-in-out infinite alternate; }
 @keyframes key-swing { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
 @media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines, .call-prop.key .keyring { animation: none; } }
+/* la línea de tiempo: abajo, como la de un directo */
+.call-timeline { position: absolute; left: 12px; right: 12px; bottom: 8px; height: 38px; display: flex; align-items: center; gap: 8px;
+  padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background, #fff) 85%, transparent);
+  border: 1px solid var(--border, rgba(0,0,0,.12)); }
+.tl-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--foreground, #222); cursor: pointer; }
+.tl-btn:hover { background: var(--hover, rgba(0,0,0,.06)); }
+.tl-btn:disabled { opacity: .4; cursor: default; }
+.tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.tl-track { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; justify-content: space-between; gap: 2px; position: relative;
+  overflow: hidden; padding: 0 4px; }
+.tl-track::before { content: ''; position: absolute; left: 0; right: 0; top: 50%; height: 2px; background: var(--border, rgba(0,0,0,.15)); }
+/* los puntos se achican (redondos) si no caben a su tamaño: nunca pisan los botones */
+.tl-dot { position: relative; width: 10px; min-width: 5px; aspect-ratio: 1; padding: 0; border-radius: 50%; border: 2px solid var(--dot);
+  background: var(--background, #fff); cursor: pointer; flex: 0 1 10px; transition: transform .15s; }
+.tl-dot.past { background: var(--dot); }
+.tl-dot.now { background: var(--dot); transform: scale(1.6); box-shadow: 0 0 0 3px color-mix(in oklab, var(--dot) 30%, transparent); }
+.tl-dot:hover { transform: scale(1.4); }
+.tl-dot:focus-visible, .tl-btn:focus-visible, .tl-golive:focus-visible { outline: 2px solid #f08c3d; outline-offset: 2px; }
+.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #e5592a; white-space: nowrap; }
+.tl-golive { flex: 0 0 auto; font: inherit; font-size: 12px; font-weight: 800; white-space: nowrap; padding: 4px 9px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border, rgba(0,0,0,.15)); background: var(--background, #fff); color: var(--foreground, #222); }
 .call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
 .call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
   padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;
   background: var(--background, #fff); color: var(--foreground, #222); }
 .call-controls button:hover { background: var(--hover, rgba(0,0,0,.06)); }
 .call-controls svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.call-caption { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
+.call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
   padding: 6px 12px; border-radius: 10px; background: rgba(19, 50, 58, .88); color: #f6ecd6; font-size: 13px; line-height: 1.35; text-align: center; }
 .call-caption b { color: #f2c14e; margin-right: 4px; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }
