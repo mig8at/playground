@@ -354,7 +354,19 @@ func find(p part, mime string) string {
 
 // Thread devuelve los mensajes de un hilo, en orden, sólo con sus encabezados.
 func (c *Client) Thread(ctx context.Context, id string) ([]Message, error) {
+	return c.thread(ctx, id, false)
+}
+
+// ThreadFull es Thread con el texto de cada mensaje.
+func (c *Client) ThreadFull(ctx context.Context, id string) ([]Message, error) {
+	return c.thread(ctx, id, true)
+}
+
+func (c *Client) thread(ctx context.Context, id string, body bool) ([]Message, error) {
 	v := url.Values{"format": {"metadata"}, "metadataHeaders": {"From", "To", "Cc", "Subject", "Date"}}
+	if body {
+		v = url.Values{"format": {"full"}}
+	}
 	var r struct {
 		Messages []rawMessage `json:"messages"`
 	}
@@ -363,7 +375,7 @@ func (c *Client) Thread(ctx context.Context, id string) ([]Message, error) {
 	}
 	out := make([]Message, 0, len(r.Messages))
 	for _, m := range r.Messages {
-		out = append(out, parse(m, false))
+		out = append(out, parse(m, body))
 	}
 	return out, nil
 }

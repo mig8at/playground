@@ -22,7 +22,7 @@ import (
 )
 
 var cliCommands = map[string]bool{"list": true, "watches": true, "latest": true, "read": true, "search": true,
-	"follow": true, "unfollow": true, "refresh": true, "noreply": true, "help": true}
+	"follow": true, "unfollow": true, "refresh": true, "noreply": true, "digest": true, "help": true}
 
 const api = "http://127.0.0.1:5225"
 
@@ -34,6 +34,9 @@ const cliHelp = `correo — los correos de los remitentes que se siguen (Shopify
                                              ◐ por responder, ✓ respondido) y su enlace a Gmail
   bin/correo latest <seguimiento>            el último que llegó de ese seguimiento y hace cuánto («¿contestó VTEX?»)
   bin/correo read <id>                       un correo entero (el id lo dan list y search)
+  bin/correo digest <id> [--refresh]         el hilo de ese correo desglosado EN ESPAÑOL: resumen, en qué está, qué te
+                                             toca y cada mensaje (ellos / vos) en puntos. Lo arma Gemini; se guarda por
+                                             hilo y se rearma sólo si llegó un mensaje nuevo
   bin/correo search --q '<búsqueda de Gmail>' [--n 20]
                                              cualquier búsqueda en Gmail, se siga o no
   bin/correo follow --name 'Soporte VTEX' --query 'from:support@vtexhelp.zendesk.com'
@@ -53,6 +56,7 @@ func runCLI(root string, args []string) int {
 	n := fs.Int("n", 10, "cuántos como máximo")
 	q := fs.String("q", "", "la búsqueda, con la sintaxis de Gmail")
 	undo := fs.Bool("undo", false, "deshacer (noreply)")
+	refresh := fs.Bool("refresh", false, "volver a armar el desglose aunque el hilo no haya cambiado")
 	name := fs.String("name", "", "el nombre del seguimiento")
 	query := fs.String("query", "", "la búsqueda de Gmail del seguimiento")
 	// Los posicionales pueden ir antes o después de las banderas.
@@ -197,6 +201,37 @@ func runCLI(root string, args []string) int {
 				fmt.Printf("Cc: %s\n", m.Cc)
 			}
 			fmt.Printf("Asunto: %s\nFecha: %s\nGmail: %s\n\n%s\n", m.Subject, m.Date.Format("2006-01-02 15:04"), threadURL(c.Email(), m.ThreadID), m.Body)
+		})
+
+	case "digest":
+		if arg == "" {
+			return fail("falta el id de un correo o de su hilo (lo da `bin/correo list`)")
+		}
+		c, err := gmail.Open()
+		if err != nil {
+			return fail("%v", err)
+		}
+		thread := arg
+		if m, err := c.Get(context.Background(), arg, false); err == nil && m.ThreadID != "" {
+			thread = m.ThreadID
+		}
+		g, err := newDigester(filepath.Join(root, "correo", ".data")).get(c, thread, *refresh)
+		if err != nil {
+			return fail("%v", err)
+		}
+		return out(g, func() {
+			fmt.Printf("%s\n\n%s\n\nEstado: %s\nSiguiente: %s\n", g.Subject, g.Summary, g.Status, g.Next)
+			for _, t := range g.Turns {
+				who := sender(t.From)
+				if t.Mine {
+					who = "Vos"
+				}
+				fmt.Printf("\n%s · %s\n", who, t.Date.Format("2006-01-02 15:04"))
+				for _, p := range t.Points {
+					fmt.Printf("  · %s\n", p)
+				}
+			}
+			fmt.Printf("\n(%s, %s)\n", g.Model, g.At.Format("2006-01-02 15:04"))
 		})
 
 	case "search":

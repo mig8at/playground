@@ -26,7 +26,8 @@ import (
 )
 
 type app struct {
-	store *store
+	store  *store
+	digest *digester
 
 	mu        sync.Mutex
 	client    *gmail.Client
@@ -165,6 +166,10 @@ func (a *app) message(id string) (gmail.Message, error) {
 	return m, nil
 }
 
+func ctxTimeout(d time.Duration) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.Background(), d)
+}
+
 func writeJSON(w http.ResponseWriter, code int, v any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Cache-Control", "no-store")
@@ -240,7 +245,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	a := &app{store: st, bodies: map[string]gmail.Message{}}
+	a := &app{store: st, digest: newDigester(filepath.Join(root, "correo", ".data")), bodies: map[string]gmail.Message{}}
 	if *once {
 		exitOn(a.pass(false))
 		o := a.overview(*every)
@@ -295,6 +300,21 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusOK, m)
+	})
+	// GET /api/digest/{hilo}[?refresh=1] — el desglose del hilo en español (digest.go): el guardado si el hilo no
+	// cambió; si no, lo arma Gemini (unos segundos).
+	mux.HandleFunc("GET /api/digest/{thread}", func(w http.ResponseWriter, r *http.Request) {
+		c, err := a.gmailClient()
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		g, err := a.digest.get(c, r.PathValue("thread"), r.URL.Query().Get("refresh") == "1")
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, g)
 	})
 	// POST /api/read {"ids":[…]} o {"watch":"shopify"} (todos los de ese seguimiento) o {"all":true}.
 	mux.HandleFunc("POST /api/read", func(w http.ResponseWriter, r *http.Request) {

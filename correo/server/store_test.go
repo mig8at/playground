@@ -160,3 +160,13 @@ func TestAnAutomaticAckCanBeMarkedAsNoReplyAndBack(t *testing.T) {
 		t.Fatalf("desmarcado vuelve a por responder (ya visto): %s, %d", st, p)
 	}
 }
+
+func TestTheQuotedPartOfAReplyIsNotSentAgain(t *testing.T) {
+	body := "Thanks, we will check.\n\nOn Wed, Nov 12, 2026 at 9:55 AM VTEX Support <support@vtexhelp.zendesk.com> wrote:\n> Hello Miguel\n> old text"
+	if got := cleanBody(body); got != "Thanks, we will check." {
+		t.Fatalf("%q", got)
+	}
+	if got := cleanBody("> sólo citado\nlo nuevo"); got != "lo nuevo" {
+		t.Fatalf("%q", got)
+	}
+}

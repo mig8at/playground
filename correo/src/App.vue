@@ -55,6 +55,8 @@ const allMessages = computed(() => current.value?.messages || [])
 const STATUS = { unread: 'Sin ver', pending: 'Por responder', replied: 'Respondido', noreply: 'No hace falta' }
 const filter = ref(localStorage.getItem('correo.filter') || 'all')
 watch(filter, (v) => { try { localStorage.setItem('correo.filter', v) } catch { /* sin almacenamiento */ } })
+// Al cambiar de seguimiento, el filtro vuelve a «Todos»: si no, uno heredado («Por responder») mostraba la lista vacía.
+watch(watchId, (now, before) => { if (before !== undefined && now !== before) filter.value = 'all' })
 const counts = computed(() => {
   const c = { all: allMessages.value.length, unread: 0, pending: 0, replied: 0, noreply: 0 }
   for (const m of allMessages.value) c[m.status] = (c[m.status] || 0) + 1
@@ -80,6 +82,33 @@ watch([messageId, () => data.value?.checkedAt], async ([id], [before]) => {
     if (!listed || listed.unread) take(await api('/api/read', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ ids: [id] }) }))
   } catch (e) { openError.value = e.message }
 }, { immediate: false })
+
+// EL DESGLOSE del hilo abierto, en español (el servidor lo arma con `claude -p` y lo guarda por hilo: la segunda vez
+// sale al instante; se rearma solo si llegó un mensaje nuevo).
+const digest = ref(null)
+const digestError = ref('')
+const digestLoading = ref(false)
+const reply = ref('') // «qué responderle»: por ahora lo escribe Miguel; más adelante, un borrador sugerido
+let digestFor = ''
+async function loadDigest(thread, refresh = false) {
+  if (!thread) { digest.value = null; return }
+  if (thread !== digestFor) { digest.value = null; reply.value = '' }
+  digestFor = thread
+  digestError.value = ''
+  digestLoading.value = true
+  try {
+    const g = await api(`/api/digest/${encodeURIComponent(thread)}${refresh ? '?refresh=1' : ''}`)
+    if (digestFor === thread) digest.value = g
+  } catch (e) {
+    if (digestFor === thread) digestError.value = e.message
+  } finally {
+    if (digestFor === thread) digestLoading.value = false
+  }
+}
+// Cuando cambia el correo abierto, o llega otro mensaje a su hilo (el servidor lo dice en la vista), se pide de nuevo:
+// el servidor devuelve lo guardado si el hilo no cambió.
+const threadSize = computed(() => allMessages.value.filter((m) => m.threadId === opened.value?.threadId).length)
+watch(() => [opened.value?.threadId, threadSize.value], ([thread]) => loadDigest(thread))
 
 // «No hace falta responder»: un acuse automático o un aviso deja de figurar como por responder (y queda visto).
 async function noReply(id, undo = false) {
@@ -123,9 +152,9 @@ function senderName(from) {
 // ── las regiones, con el contrato de la base ──
 const viewportW = ref(window.innerWidth)
 const sidebarOpen = ref(readSize('correo.sidebar-open', 1) !== 0)
-const sidebarW = ref(readSize('correo.sidebar-w', 260))
+const sidebarW = ref(readSize('correo.sidebar-w', 380))
 const auxOpen = ref(readSize('correo.aux-open', 1) !== 0)
-const auxW = ref(readSize('correo.aux-w', 520))
+const auxW = ref(readSize('correo.aux-w', 460))
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
@@ -136,7 +165,7 @@ const shown = computed(() => {
 })
 const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
 const sidebarResize = {
-  label: 'Ancho de los seguimientos', sign: 1, defaultValue: 260,
+  label: 'Ancho de la lista', sign: 1, defaultValue: 380,
   min: () => cssSize('--sidebar-min', 240), max: () => viewportW.value - shown.value.aux - cssSize('--editor-min', 360),
   get: () => shown.value.sidebar,
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
@@ -144,7 +173,7 @@ const sidebarResize = {
   commit: (v) => { saveSize('correo.sidebar-open', v ? 1 : 0); if (v) saveSize('correo.sidebar-w', sidebarW.value) },
 }
 const auxResize = {
-  label: 'Ancho del correo abierto', sign: -1, defaultValue: 520,
+  label: 'Ancho del desglose', sign: -1, defaultValue: 460,
   min: () => cssSize('--sidebar-min', 240), max: () => viewportW.value - shown.value.sidebar - cssSize('--editor-min', 360),
   get: () => shown.value.aux,
   set: (v) => { if (!v) auxOpen.value = false; else { auxOpen.value = true; auxW.value = v } },
@@ -181,25 +210,16 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="workbench" :style="layoutVars">
-    <aside v-show="shown.sidebar" class="sidebar" aria-label="Seguimientos">
+    <aside v-show="shown.sidebar" class="sidebar" aria-label="Seguimientos y correos">
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
         <span>Correo</span>
         <span v-if="data?.unread" class="count">{{ data.unread }} sin ver</span>
+        <button type="button" class="region-action" :aria-pressed="adding" title="Seguir otro remitente" aria-label="Seguir otro remitente" @click="adding = !adding">
+          <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+        </button>
       </div>
       <div class="region-body">
-        <button v-for="w in watches" :key="w.id" type="button" class="row" :class="{ on: current?.id === w.id }" :title="w.query" @click="go(w.id)">
-          <span>{{ w.name }}</span>
-          <b v-if="w.pending" class="pill is-pending" :title="`${w.pending} por responder`">{{ w.pending }}</b>
-          <b v-if="w.unread" class="pill is-unread" :title="`${w.unread} sin ver`">{{ w.unread }}</b>
-        </button>
-        <p v-if="data && !watches.length" class="none">Sin seguimientos. Agregá uno abajo.</p>
-        <div class="region-head group">
-          <span>Seguir otro remitente</span>
-          <button type="button" class="region-action" :aria-pressed="adding" title="Agregar un seguimiento" aria-label="Agregar un seguimiento" @click="adding = !adding">
-            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
-          </button>
-        </div>
         <form v-if="adding" class="add" @submit.prevent="addWatch">
           <input v-model="form.name" class="input" placeholder="Nombre (Soporte de Shopify)" aria-label="Nombre del seguimiento" />
           <input v-model="form.query" class="input" placeholder="from:support@shopify.com" aria-label="Búsqueda de Gmail" />
@@ -207,49 +227,53 @@ onBeforeUnmount(() => {
           <p v-if="formError" class="hint warn-text">{{ formError }}</p>
           <button type="submit" class="btn">Seguir</button>
         </form>
+        <button v-for="w in watches" :key="w.id" type="button" class="row" :class="{ on: current?.id === w.id }" :title="w.query" @click="go(w.id)">
+          <span>{{ w.name }}</span>
+          <b v-if="w.pending" class="pill is-pending" :title="`${w.pending} por responder`">{{ w.pending }}</b>
+          <b v-if="w.unread" class="pill is-unread" :title="`${w.unread} sin ver`">{{ w.unread }}</b>
+        </button>
+        <p v-if="data && !watches.length" class="none">Sin seguimientos: agregá uno con +.</p>
+
+        <template v-if="current">
+          <div class="region-head group">
+            <span>{{ current.name }}</span>
+            <button v-if="current.unread" type="button" class="region-action" title="Marcar todo como visto" aria-label="Marcar todo como visto" @click="markAll">
+              <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
+            </button>
+            <button type="button" class="region-action" title="Dejar de seguir" aria-label="Dejar de seguir" @click="removeWatch(current)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div class="summary">
+            <span><b>{{ current.week }}</b> esta semana · <b>{{ allMessages.length }}</b> en 60 días · <code>{{ current.query }}</code></span>
+            <div class="filters" role="group" aria-label="Filtrar por estado">
+              <button v-for="f in ['all', 'unread', 'pending', 'replied', 'noreply']" v-show="f !== 'noreply' || counts.noreply" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
+                {{ f === 'all' ? 'Todos' : STATUS[f] }} <span class="chip-n">{{ counts[f] || 0 }}</span>
+              </button>
+            </div>
+          </div>
+          <p v-if="data?.error" class="none warn-text">⚠ {{ data.error }}</p>
+          <p v-if="allMessages.length && !messages.length" class="none">Ninguno {{ STATUS[filter]?.toLowerCase() }}.</p>
+          <p v-if="!allMessages.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
+          <button v-for="m in messages" :key="m.id" type="button" class="mail" :class="{ on: messageId === m.id, unread: m.unread }" @click="go(current.id, m.id)">
+            <span class="mail-top">
+              <i v-if="m.status === 'unread'" class="unread-dot" aria-label="sin ver"></i>
+              <span class="mail-from">{{ senderName(m.from) }}</span>
+              <span class="mail-date">{{ when(m.date) }}</span>
+            </span>
+            <span class="mail-subject">{{ m.subject || '(sin asunto)' }}</span>
+            <span class="mail-bottom">
+              <span class="status" :class="`is-${m.status}`" :title="m.status === 'replied' ? `respondiste el ${full(m.repliedAt)}` : STATUS[m.status]">{{ m.status === 'replied' ? `Respondido ${when(m.repliedAt)}` : STATUS[m.status] }}</span>
+              <span class="mail-snippet">{{ m.snippet }}</span>
+            </span>
+          </button>
+        </template>
       </div>
     </aside>
 
     <main class="editor">
       <div class="region-head">
-        <span>{{ current?.name || 'Correo' }}</span>
-        <span v-if="current" class="count">{{ current.query }}</span>
-        <button v-if="current?.unread" type="button" class="region-action" title="Marcar todo como visto" aria-label="Marcar todo como visto" @click="markAll">
-          <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
-        </button>
-        <button v-if="current" type="button" class="region-action" title="Dejar de seguir" aria-label="Dejar de seguir" @click="removeWatch(current)">
-          <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-        </button>
-      </div>
-      <div v-if="current" class="summary">
-        <span><b>{{ current.week }}</b> esta semana · <b>{{ allMessages.length }}</b> en 60 días</span>
-        <div class="filters" role="group" aria-label="Filtrar por estado">
-          <button v-for="f in ['all', 'unread', 'pending', 'replied', 'noreply']" v-show="f !== 'noreply' || counts.noreply" :key="f" type="button" class="chip" :class="[`is-${f}`, { on: filter === f }]" :aria-pressed="filter === f" @click="filter = f">
-            {{ f === 'all' ? 'Todos' : STATUS[f] }} <span class="chip-n">{{ counts[f] || 0 }}</span>
-          </button>
-        </div>
-      </div>
-      <div class="region-body">
-        <p v-if="data?.error" class="none warn-text">⚠ {{ data.error }}</p>
-        <p v-if="current && allMessages.length && !messages.length" class="none">Ninguno {{ STATUS[filter]?.toLowerCase() }}.</p>
-        <p v-if="current && !allMessages.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
-        <button v-for="m in messages" :key="m.id" type="button" class="mail" :class="{ on: messageId === m.id, unread: m.unread }" @click="go(current.id, m.id)">
-          <span class="mail-top">
-            <i v-if="m.status === 'unread'" class="unread-dot" aria-label="sin ver"></i>
-            <span class="mail-from">{{ senderName(m.from) }}</span>
-            <span class="status" :class="`is-${m.status}`" :title="m.status === 'replied' ? `respondiste el ${full(m.repliedAt)}` : STATUS[m.status]">{{ m.status === 'replied' ? `Respondido ${when(m.repliedAt)}` : STATUS[m.status] }}</span>
-            <span class="mail-date">{{ when(m.date) }}</span>
-          </span>
-          <span class="mail-subject">{{ m.subject || '(sin asunto)' }}</span>
-          <span class="mail-snippet">{{ m.snippet }}</span>
-        </button>
-      </div>
-    </main>
-
-    <aside v-show="shown.aux" class="auxiliarybar" aria-label="El correo abierto">
-      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head">
-        <span>{{ opened ? 'Correo' : 'Elegí un correo' }}</span>
+        <span>{{ opened ? (opened.subject || '(sin asunto)') : 'Elegí un correo' }}</span>
         <a v-if="opened" class="region-action" :href="allMessages.find((m) => m.id === opened.id)?.url || `https://mail.google.com/mail/#all/${opened.threadId}`" target="_blank" rel="noopener" title="Abrir el hilo en Gmail" aria-label="Abrir el hilo en Gmail">
           <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
         </a>
@@ -257,7 +281,6 @@ onBeforeUnmount(() => {
       <div class="region-body">
         <p v-if="openError" class="none warn-text">⚠ {{ openError }}</p>
         <article v-if="opened" class="reader">
-          <h2>{{ opened.subject || '(sin asunto)' }}</h2>
           <div class="reader-meta">
             <span>De: {{ opened.from }}</span>
             <span>Para: {{ opened.to }}</span>
@@ -271,7 +294,41 @@ onBeforeUnmount(() => {
           </div>
           <pre class="reader-body">{{ opened.body || opened.snippet }}</pre>
         </article>
-        <p v-else-if="!openError" class="none">El correo que elijas se lee acá. Para contestar, abrilo en Gmail (↗).</p>
+        <p v-else-if="!openError" class="none">El correo que elijas a la izquierda se lee acá, tal como llegó. A la derecha, su hilo desglosado en español.</p>
+      </div>
+    </main>
+
+    <aside v-show="shown.aux" class="auxiliarybar" aria-label="El hilo desglosado">
+      <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
+      <div class="region-head">
+        <span>Desglose</span>
+        <span v-if="digest" class="count" :title="`armado con ${digest.model} el ${full(digest.at)}`">{{ digest.count }} mensajes</span>
+        <button v-if="opened" type="button" class="region-action" :disabled="digestLoading" title="Volver a armar el desglose" aria-label="Volver a armar el desglose" @click="loadDigest(opened.threadId, true)">
+          <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
+        </button>
+      </div>
+      <div class="region-body">
+        <p v-if="!opened" class="none">Al abrir un correo, su hilo entero se desglosa acá en español: el resumen, en qué está, qué te toca y cada mensaje (ellos / vos) en puntos.</p>
+        <p v-else-if="digestLoading && !digest" class="none">Armando el desglose con Claude… (unos 20 s la primera vez; después queda guardado)</p>
+        <p v-if="digestError" class="none warn-text">⚠ {{ digestError }}</p>
+        <div v-if="digest" class="digest">
+          <p class="digest-summary">{{ digest.summary }}</p>
+          <dl class="digest-state">
+            <dt>En qué está</dt><dd>{{ digest.status }}</dd>
+            <dt>Qué sigue</dt><dd>{{ digest.next }}</dd>
+          </dl>
+          <ol class="turns">
+            <li v-for="t in digest.turns" :key="t.id" class="turn" :class="{ mine: t.mine }">
+              <div class="turn-head"><b>{{ t.mine ? 'Vos' : senderName(t.from) }}</b><span>{{ full(t.date) }}</span></div>
+              <ul><li v-for="(p, i) in t.points" :key="i">{{ p }}</li></ul>
+            </li>
+          </ol>
+          <label class="reply">
+            <span>Qué responderle</span>
+            <textarea v-model="reply" class="input" rows="5" placeholder="Por ahora vacío: acá va a ir un borrador de respuesta."></textarea>
+          </label>
+          <p v-if="digestLoading" class="hint">Revisando si el hilo cambió…</p>
+        </div>
       </div>
     </aside>
 
@@ -282,10 +339,10 @@ onBeforeUnmount(() => {
       <button type="button" class="statusbar-item linkish" @click="refresh">leer ahora</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los seguimientos" aria-label="Mostrar u ocultar los seguimientos" @click="toggleSidebar">
+        <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar la lista" aria-label="Mostrar u ocultar la lista" @click="toggleSidebar">
           <span class="ui-icon" data-icon="sidebar" aria-hidden="true"></span>
         </button>
-        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar el correo abierto" aria-label="Mostrar u ocultar el correo abierto" @click="toggleAux">
+        <button type="button" class="region-action" :aria-pressed="!!shown.aux" title="Mostrar u ocultar el desglose" aria-label="Mostrar u ocultar el desglose" @click="toggleAux">
           <span class="ui-icon" data-icon="detail" aria-hidden="true"></span>
         </button>
       </div>

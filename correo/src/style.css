@@ -14,7 +14,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   font-family: var(--font-sans); font-size: var(--text-base) }
 #app { height: 100% }
 
-.workbench { grid-template-columns: 0 var(--sidebar-w, 260px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
+.workbench { grid-template-columns: 0 var(--sidebar-w, 380px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
 
 .mail { display: grid; gap: 2px; width: calc(100% - 2 * var(--space-1)); padding: var(--space-2); text-align: left;
   border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-sm) }
@@ -77,3 +77,27 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .chip.is-pending .chip-n { color: var(--correo-pending) }
 .chip.is-unread .chip-n { color: var(--primary-ink) }
 .chip.is-replied .chip-n { color: var(--correo-replied) }
+
+.mail-bottom { display: flex; gap: var(--space-2); align-items: center; min-width: 0 }
+.mail-bottom .mail-snippet { flex: 1; min-width: 0 }
+.summary code { font-size: var(--text-xs); color: var(--fg-3) }
+
+/* El desglose del hilo: el resumen, en qué está y qué sigue, y cada mensaje (ellos / vos) en puntos. */
+.digest { display: grid; gap: var(--space-3); padding: var(--space-3) }
+.digest-summary { margin: 0; font-size: var(--text-sm); line-height: 1.55 }
+.digest-state { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0;
+  font-size: var(--text-sm) }
+.digest-state dt { color: var(--fg-3); font-size: var(--text-xs); padding-top: 2px }
+.digest-state dd { margin: 0; line-height: 1.5 }
+.turns { display: grid; gap: var(--space-2); margin: 0; padding: 0; list-style: none }
+.turn { padding: var(--space-2) var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border);
+  border-left: 3px solid var(--fg-3) }
+.turn.mine { border-left-color: var(--primary) }
+.turn-head { display: flex; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-1);
+  font-size: var(--text-xs); color: var(--fg-3) }
+.turn-head b { color: var(--foreground); font-weight: 600 }
+.turn ul { margin: 0; padding-left: 1.1em; font-size: var(--text-sm); line-height: 1.5 }
+.turn li + li { margin-top: 2px }
+.reply { display: grid; gap: var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
+.reply textarea { resize: vertical; font-family: var(--font-sans); font-size: var(--text-sm) }
+.hint { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
