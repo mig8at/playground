@@ -34,8 +34,10 @@ const roomWindow = (x, y, w, h, inner) => `<g class="cut"><rect x="${x - 7}" y="
 const skyline = (x0, base, fill, lit) => [[0, 46], [26, 70], [48, 38], [70, 86], [100, 56], [124, 74], [150, 44]].map(([dx, hh], i) =>
   `<rect x="${x0 + dx}" y="${base - hh}" width="${22 + (i % 2) * 4}" height="${hh + 40}" fill="${fill}"/>` +
   (lit ? Array.from({ length: Math.floor(hh / 16) }, (_, k) => `<rect x="${x0 + dx + 6}" y="${base - hh + 8 + k * 16}" width="5" height="6" fill="${lit}"/><rect x="${x0 + dx + 13}" y="${base - hh + 8 + k * 16}" width="5" height="6" fill="${(k + i) % 3 ? lit : fill}"/>`).join('') : '')).join('')
-// el respaldo de la silla, detrás de los hombros (el personaje se dibuja encima)
-const chair = (fill) => `<g class="cut"><path d="M92 300 V196 Q92 160 128 156 H272 Q308 160 308 196 V300 Z" fill="${shade(fill, .82)}"/></g>` +
+// el respaldo de la silla, detrás de los hombros (el personaje se dibuja encima). Gris oscuro, casi negro, en todos
+// los cuartos: del color del cuarto se confundía con la chaqueta y parecía parte de la ropa (2026-11-13).
+const CHAIR = '#2a2c30'
+const chair = (fill = CHAIR) => `<g class="cut"><path d="M92 300 V196 Q92 160 128 156 H272 Q308 160 308 196 V300 Z" fill="${shade(fill, .82)}"/></g>` +
   `<path d="M112 300 V202 Q112 176 138 174 H262 Q288 176 288 202 V300 Z" fill="${fill}"/>`
 // una planta en su matera
 const plant = (x, y, pot) => `<g class="cut">${[[-18, -64, -30], [0, -78, 0], [18, -62, 28], [-6, -50, -12], [10, -48, 14]].map(([dx, dy, r]) =>
@@ -51,15 +53,15 @@ const frame = (x, y, w, h, inner) => `<g class="cut"><rect x="${x}" y="${y}" wid
 const wall = (top, base) => `<rect width="400" height="300" fill="${top}"/><rect y="236" width="400" height="64" fill="${base}"/><rect y="232" width="400" height="6" fill="${shade(base, .8)}"/>`
 const ROOMS = {
   oficina: () => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
-    plant(352, 238, P.orange) + chair(P.teal),
+    plant(352, 238, P.orange) + chair(),
   estudio: () => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
-    shelf(300, 70, 86) + chair(P.navy),
+    shelf(300, 70, 86) + chair(),
   noche: () => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
-    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(P.teal),
+    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(),
   sala: () => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
-    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(P.forest),
+    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(),
   reunion: () => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
-    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(P.red),
+    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(),
 }
 const SCENES = {
   sunset: () => `<rect width="400" height="300" fill="${P.amber}"/>${rays(320, 70, 16, P.yellow, P.amber)}${sun(320, 70, 66, [P.redDeep, P.red, P.orange, P.yellow])}${cloud(10, 40, 1.1, P.cream)}${cloud(250, 140, .9, P.pink)}${wave(228, 26, P.plum)}${wave(254, 22, P.rose, 30)}${wave(282, 16, P.red, 10)}`,
