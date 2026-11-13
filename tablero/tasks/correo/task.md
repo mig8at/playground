@@ -15,8 +15,10 @@ jira_title: ""
 - [x] ~~Entrar a Gmail con `bin/pg gmail login`~~ — 2026-11-13, como miguel@creditop.com, después de habilitar la Gmail
       API en el proyecto del cliente OAuth de Drive (800366725259).
 - [x] ~~Dejarla de fondo con `make correo-install`~~ — 2026-11-13: `com.creditop.correo` activo.
-- [ ] Reinstalar Cockpit (`make cockpit`) para que Correo aparezca en la barra. Termina con un correo nuevo de un
-      remitente seguido que avisa en macOS y, al tocarlo, abre Correo en ese correo.
+- [x] ~~Reinstalar Cockpit (`make cockpit`) para que Correo aparezca en la barra~~ — 2026-11-13: en la barra, con los
+      correos de Shopify a la vista (captura de la ventana con `make ui-shot COCKPIT=1`).
+- [ ] Ver un aviso real: un correo nuevo de un remitente seguido que avisa en macOS y, al tocarlo, abre Correo en ese
+      correo. Termina con el primero que llegue (la próxima respuesta del ticket 72090155 sirve).
 - [ ] Afinar las búsquedas para que avisen sólo lo que importa: hoy «VTEX» trae también los avisos de pedidos de la
       tienda de pruebas (`ct.vtex.com.br`) y «Shopify» los de inicio de sesión y códigos (`mailer@shopify.com`).
       Termina con las búsquedas que Miguel decida, cambiadas desde la app.
