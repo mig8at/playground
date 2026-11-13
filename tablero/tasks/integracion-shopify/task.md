@@ -72,12 +72,13 @@ ramas: shopify:core-801, core-689-shopify-platform
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
       Depende de: Infra — dónde se emitió el token y quién lo revoca.
-- [ ] Crear la copia PÚBLICA de la app de pagos con la CLI de Shopify (`shopify app config link` → «Create a new app»,
-      con la cuenta de Juan, en la organización CREDITOP), elegir «Distribución pública» en el Partner Dashboard,
-      apuntar las configuraciones del repo `shopify` a su `client_id` y desplegar ahí la única extensión
-      `creditop-offsite` (el `uid` cambia: es otra app). La app actual (317076176897) es custom, no pasa por
-      revisión y Shopify no la puede cambiar (Patrick, Shopify Support, 2026-11-13). Termina con la app pública
-      instalada en `creditop-dev-store` y una compra de prueba que cierra.
+- [ ] Desplegar la app PÚBLICA de producción «Creditop» (app 447249776641, `client_id` 1b511175…, ya creada y con
+      distribución pública el 2026-11-13; la 317076176897 queda como «Creditop QA»). El repo `shopify` ya tiene
+      `shopify.app.production.toml` y `npm run deploy:production` (rama local `feat/core-801-app-publica-produccion`,
+      sin push). Termina con la versión creada, las llaves de la app en el secreto `prod/shopify-app`, la app instalada
+      en `creditop-dev-store` y una compra de prueba que cierra.
+      Depende de: Shopify — habilitar los permisos de pagos para la app nueva (el deploy se rechaza por `scopes`),
+      pedido en el ticket 72090155; Dani — las llaves en el secreto de producción.
 - [ ] Recibir de Shopify, en el ticket **72090155** de Shopify Support (support@shopify.com, Miguel en copia: se
       comenta respondiendo el correo), la confirmación de que el acuerdo de reparto de ingresos figura firmado para el
       Partner ID 4296643. Termina con la respuesta escrita acá. Sin el acuerdo firmado, Shopify rechaza la revisión.
