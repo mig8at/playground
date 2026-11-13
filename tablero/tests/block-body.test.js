@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBlockBody, inlineParts, repoHref, visorHref, blockRouteLinks, knowledgeHref, knowledgeCommand } from '../src/block-body.js';
+import { parseBlockBody, inlineParts, repoHref, visorHref, jarvisHref, visorURL, blockRouteLinks, knowledgeHref, knowledgeCommand } from '../src/block-body.js';
 import { routeReference } from '../src/canon-routes.js';
 
 test('las rutas guardan variante y paso, conviven con las citas y se deduplican fuera del código', () => {
@@ -102,4 +102,12 @@ test('un tema de knowledge/ enlaza a su rules.md en el playground y dice cómo l
   // Sin la lista de repos no hay dirección: el enlace queda como texto, con su comando.
   assert.equal(knowledgeHref(part, {}), '');
   assert.equal(inlineParts('[mal](knowledge:Lender_Listing)')[0].kind, 'text');
+});
+
+test('una corrida de Jarvis (jarvis:) abre su video en la interfaz de Jarvis, también desde el documento', () => {
+  const [part] = inlineParts('[Ver el Dev Dashboard](jarvis:2026-11-13_12-40-53)');
+  assert.equal(part.kind, 'jarvis');
+  assert.equal(jarvisHref(part), 'http://localhost:5202/#/corrida/2026-11-13_12-40-53');
+  assert.equal(visorURL('jarvis:2026-11-13_12-40-53'), 'http://localhost:5202/#/corrida/2026-11-13_12-40-53');
+  assert.equal(inlineParts('[x](jarvis:ayer)')[0].kind, 'text', 'un id que no es de una corrida no es un enlace');
 });

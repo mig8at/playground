@@ -7,7 +7,7 @@
  * la app usa el hash para rutear, así que lleva a él con un botón.
  */
 import { computed } from 'vue';
-import { inlineParts, knowledgeCommand, knowledgeHref, repoHref, visorHref } from './block-body.js';
+import { inlineParts, knowledgeCommand, jarvisHref, knowledgeHref, repoHref, visorHref } from './block-body.js';
 
 const props = defineProps({
   text: { type: String, default: '' },
@@ -25,6 +25,7 @@ const hrefOf = (part) => {
   if (part.kind === 'jira') return props.jiraLink(part.key);
   if (part.kind === 'web') return part.url;
   if (part.kind === 'visor') return visorHref(part);
+  if (part.kind === 'jarvis') return jarvisHref(part);
   if (part.kind === 'knowledge') return knowledgeHref(part, props.repos);
   return '';
 };
@@ -35,12 +36,13 @@ const titleOf = (part) => {
   if (part.kind === 'canon-route') return `recorrido de Canon · ${part.ref}`;
   if (part.kind === 'knowledge') return `conocimiento local · ${knowledgeCommand(part)}`;
   if (part.kind === 'visor') return `visor · ${part.project}/${part.screen}${part.print ? ` · huella ${part.print}` : ' · sin huella: no se puede saber si cambió'}`;
+  if (part.kind === 'jarvis') return `corrida de Jarvis · ${part.run}`;
   return undefined;
 };
 </script>
 
 <template>
-  <template v-for="(part, index) in parts" :key="index"><code v-if="part.type === 'code'" class="inline-code">{{ part.value }}</code><strong v-else-if="part.type === 'strong'">{{ part.value }}</strong><button v-else-if="part.type === 'link' && part.kind === 'block'" type="button" class="ref ref-block" @click="emit('block', part.id)">{{ part.label }}</button><component :is="hrefOf(part) ? 'a' : 'span'" v-else-if="part.type === 'link'" class="ref" :class="'ref-' + part.kind" :href="hrefOf(part) || undefined" :title="titleOf(part)" :target="hrefOf(part) ? '_blank' : undefined" :rel="hrefOf(part) ? 'noopener' : undefined"><span v-if="part.kind === 'repo' || part.kind === 'pr'" class="ref-source">{{ part.repo }} · </span><span v-else-if="part.kind === 'visor'" class="ref-source">diseño · </span><span v-else-if="part.kind === 'knowledge'" class="ref-source">conocimiento · </span>{{ part.label }}</component><template v-else>{{ part.value }}</template></template>
+  <template v-for="(part, index) in parts" :key="index"><code v-if="part.type === 'code'" class="inline-code">{{ part.value }}</code><strong v-else-if="part.type === 'strong'">{{ part.value }}</strong><button v-else-if="part.type === 'link' && part.kind === 'block'" type="button" class="ref ref-block" @click="emit('block', part.id)">{{ part.label }}</button><component :is="hrefOf(part) ? 'a' : 'span'" v-else-if="part.type === 'link'" class="ref" :class="'ref-' + part.kind" :href="hrefOf(part) || undefined" :title="titleOf(part)" :target="hrefOf(part) ? '_blank' : undefined" :rel="hrefOf(part) ? 'noopener' : undefined"><span v-if="part.kind === 'repo' || part.kind === 'pr'" class="ref-source">{{ part.repo }} · </span><span v-else-if="part.kind === 'visor'" class="ref-source">diseño · </span><span v-else-if="part.kind === 'knowledge'" class="ref-source">conocimiento · </span><span v-else-if="part.kind === 'jarvis'" class="ref-source">Jarvis · </span>{{ part.label }}</component><template v-else>{{ part.value }}</template></template>
 </template>
 
 <style scoped>

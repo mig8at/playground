@@ -128,6 +128,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
 | una pantalla del diseño | `[Completa tu solicitud](visor:<clave>/<nodo>@<huella>)`, como lo da el visor | la forma (`make visor-enlaces` dice si cambió) |
+| una corrida de Jarvis | `[Ver el Dev Dashboard](jarvis:2026-11-13_12-40-53)`: el id de la corrida; se abre como video en su interfaz | la forma (las corridas viven fuera de git: no se comprueba que existan) |
 | una página | `[texto](https://…)` | nada |
 | una prueba | ` ```harness ` con el comando (los bloques viejos traen ` ```trazador `), y debajo `Resultado: …` | que el comando diga su `TARGET=` |
 | una consulta | ` ```sql prod ` con el `SELECT`, y debajo `Resultado: …` | ambiente presente y sólo lectura |
@@ -184,7 +185,10 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
 **`make cierre TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en el playground,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
-la base) y los dos comandos listos. No escribe nada: el título del bloque es la conclusión y la pone quien
+la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
+flujo), ya escritas en el cuerpo del bloque como `jarvis:<id>`. Jarvis no sabe de tareas ni escribe en el tablero
+(decisión de Miguel, 2026-11-13): el cierre las lee, y como el lapso tampoco sabe de tareas, quien escribe el
+bloque saca las ajenas. No escribe nada: el título del bloque es la conclusión y la pone quien
 trabajó.
 
 **`make cierre` lo chequea** (sale 1 si a una tarea tocada le falta una pieza) y el hook de `Stop`

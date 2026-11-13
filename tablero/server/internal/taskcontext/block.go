@@ -61,13 +61,18 @@ var (
 	// `http://localhost:5193/…`, por lo mismo que `repo:`: el enlace nombra QUÉ es, y dónde corre el visor
 	// lo decide quien lo abre.
 	visorTargetRe = regexp.MustCompile(`^visor:[A-Za-z0-9][A-Za-z0-9-]*/[0-9]+-[0-9]+(?:@[0-9a-f]{12})?$`)
-	fenceRe       = regexp.MustCompile("^```(\\S*)(?:[ \\t]+(\\S+))?[ \\t]*$")
-	fenceCloseRe  = regexp.MustCompile("^```[ \\t]*$")
-	resultRe      = regexp.MustCompile(`^Resultado:\s*\S`)
-	localPathRe   = regexp.MustCompile(`(?:^|[\s(\x60'"=])(?:/Users/|/home/|~/)`)
-	barePathRe    = regexp.MustCompile(`(?:^|[\s(\x60'"])((?:[\w.@-]+/)+[\w.-]+\.(?:php|go|ts|tsx|js|jsx|mjs|cjs|vue|py|md|json|ya?ml|sql|sh|css|html))(?:$|[\s)\x60'".,;:])`)
-	inlineCodeRe  = regexp.MustCompile("`[^`\\n]*`")
-	htmlTagRe     = regexp.MustCompile(`<[A-Za-z/!]`)
+	// Una corrida de Jarvis: `jarvis:<id>` (el id es la hora en que empezó, `2026-11-13_12-40-53`). Se abre en
+	// la interfaz de Jarvis como video, con sus pasos y fotos. Tipo propio por lo mismo que `visor:`: nombra
+	// QUÉ es; dónde corre Jarvis lo decide quien lo abre. No se comprueba que exista: las corridas viven fuera
+	// de git (`jarvis/.data/runs/`), y en otra máquina no están.
+	jarvisTargetRe = regexp.MustCompile(`^jarvis:[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}$`)
+	fenceRe        = regexp.MustCompile("^```(\\S*)(?:[ \\t]+(\\S+))?[ \\t]*$")
+	fenceCloseRe   = regexp.MustCompile("^```[ \\t]*$")
+	resultRe       = regexp.MustCompile(`^Resultado:\s*\S`)
+	localPathRe    = regexp.MustCompile(`(?:^|[\s(\x60'"=])(?:/Users/|/home/|~/)`)
+	barePathRe     = regexp.MustCompile(`(?:^|[\s(\x60'"])((?:[\w.@-]+/)+[\w.-]+\.(?:php|go|ts|tsx|js|jsx|mjs|cjs|vue|py|md|json|ya?ml|sql|sh|css|html))(?:$|[\s)\x60'".,;:])`)
+	inlineCodeRe   = regexp.MustCompile("`[^`\\n]*`")
+	htmlTagRe      = regexp.MustCompile(`<[A-Za-z/!]`)
 )
 
 // ParseBlockMarkdown lee un bloque como se escribe: la primera línea con texto es `# el título`; lo que
@@ -177,13 +182,13 @@ func checkLinks(prose string, pinned bool) error {
 			}
 		case canonTargetRe.MatchString(target), prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
 			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target),
-			knowledgeTargetRe.MatchString(target):
+			knowledgeTargetRe.MatchString(target), jarvisTargetRe.MatchString(target):
 		case repoTargetRe.MatchString(target):
 			if pinned && repoTargetRe.FindStringSubmatch(target)[2] == "" {
 				return fmt.Errorf("el enlace %s no está fijado a un commit", target)
 			}
 		default:
-			return fmt.Errorf("el enlace %q no tiene un tipo válido: knowledge:<tema>[#ancla] · canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · https://", target)
+			return fmt.Errorf("el enlace %q no tiene un tipo válido: knowledge:<tema>[#ancla] · canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · jarvis:<corrida> · https://", target)
 		}
 	}
 	return nil

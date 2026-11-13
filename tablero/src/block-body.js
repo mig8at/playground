@@ -109,8 +109,12 @@ const REPO = /^repo:([a-z0-9][a-z0-9-]*)(?:@([0-9a-f]{7,40}))?\/([^#\s]+?)(#L\d+
 const VISOR = /^visor:([A-Za-z0-9][A-Za-z0-9-]*)\/([0-9]+-[0-9]+)(?:@([0-9a-f]{12}))?$/;
 // Un tema del conocimiento local (`knowledge/`), o una de sus secciones: `knowledge:<tema>[#<ancla>]`.
 const KNOWLEDGE = /^knowledge:([a-z][a-z0-9]*(?:-[a-z0-9]+)*)(?:#([a-z0-9]+(?:-[a-z0-9]+)*))?$/;
+// Una corrida de Jarvis: `jarvis:<id>`, con el id que es la hora en que empezó (`2026-11-13_12-40-53`).
+const JARVIS = /^jarvis:(\d{4}-\d{2}-\d{2}_\d{2}-\d{2}-\d{2})$/;
 // Dónde corre el visor. Es local, como el tablero: el enlace lo abre la misma máquina.
 export const VISOR_ORIGIN = 'http://localhost:5193';
+// Dónde corre la interfaz de Jarvis, que muestra una corrida como video con sus pasos.
+export const JARVIS_ORIGIN = 'http://localhost:5202';
 
 export function parseTarget(target) {
   let m;
@@ -122,6 +126,7 @@ export function parseTarget(target) {
   if ((m = target.match(/^bloque:(blk_[\w.-]+)$/))) return { kind: 'block', id: m[1] };
   if ((m = target.match(KNOWLEDGE))) return { kind: 'knowledge', topic: m[1], anchor: m[2] || '' };
   if ((m = target.match(VISOR))) return { kind: 'visor', project: m[1], screen: m[2], print: m[3] || '' };
+  if ((m = target.match(JARVIS))) return { kind: 'jarvis', run: m[1] };
   if (/^https:\/\/\S+$/.test(target)) return { kind: 'web', url: target };
   return { kind: 'text' };
 }
@@ -162,9 +167,15 @@ export function visorHref(part) {
   return `${VISOR_ORIGIN}/${part.project}/${part.screen}${part.print ? `?huella=${part.print}` : ''}`;
 }
 
-// visor: en el documento de la tarea (Markdown), lo mismo que en un bloque.
+// La corrida de Jarvis, en su interfaz.
+export function jarvisHref(part) {
+  return `${JARVIS_ORIGIN}/#/corrida/${part.run}`;
+}
+
+// visor: y jarvis: en el documento de la tarea (Markdown), lo mismo que en un bloque.
 export function visorURL(target) {
   const p = parseTarget(target);
+  if (p.kind === 'jarvis') return jarvisHref(p);
   return p.kind === 'visor' ? visorHref(p) : '';
 }
 

@@ -90,6 +90,8 @@ func TestBlockRejectsWhatCannotBeCheckedLater(t *testing.T) {
 		{"html", "Quedó <b>así</b>.", "HTML"},
 		{"enlace sin tipo", "Ver [la guía](http://example.com).", "tipo válido"},
 		{"el visor por su puerto", "Ver [la pantalla](http://localhost:5193/credifamilia/381-1052).", "visor:<proyecto>/<pantalla>@<huella>"},
+		{"jarvis por su puerto", "Ver [la corrida](http://localhost:5202/#/corrida/2026-11-13_12-40-53).", "jarvis:<corrida>"},
+		{"jarvis con un id que no es", "Ver [la corrida](jarvis:ayer).", "tipo válido"},
 		{"visor con una huella que no es", "Ver [la pantalla](visor:credifamilia/381-1052@xyz).", "tipo válido"},
 		{"harness sin ambiente", "```harness\nmake harness-caso CASOS=x\n```\nResultado: pasó.", "TARGET="},
 		{"comando sin resultado", "```sh\nmake cierre\n```\n\nY después otra cosa.", "Resultado"},
@@ -116,6 +118,7 @@ func TestBlockAcceptsProseLinksAndCommandsWithTheirResult(t *testing.T) {
 		"```sql prod\nSELECT count(*) FROM user_requests\n```\nResultado: 560.727 filas.\n\n" +
 		"```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\n" +
 		"Resultado: salen 7 entidades.\n\n- Un ejemplo `<div>` entre comillas no es HTML.\n- [CORE-431](jira:CORE-431) · [PR](pr:legacy-backend#1140) · [doc](https://example.com/x.json)\n" +
+		"- Con Jarvis: [Ver el Dev Dashboard](jarvis:2026-11-13_12-40-53)\n" +
 		"- El diseño: [Completa tu solicitud](visor:credifamilia/381-1052@52065d0ce692) · [sin huella](visor:motai-renting/1176-2003) · [por ids](visor:7M01d0CZPzzJs0iZeKhwvf/381-1052@52065d0ce692)"
 	e, warnings, err := prepare(t, body)
 	if err != nil || len(warnings) > 0 {
