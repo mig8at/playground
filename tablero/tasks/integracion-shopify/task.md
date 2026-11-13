@@ -72,12 +72,25 @@ ramas: shopify:core-801, core-689-shopify-platform
       rama `payment-link` salió del árbol junto con la PII y los artefactos (`dist/`, logs, `dev.sqlite`,
       `shopify-app-info.json`), pero sigue en 2 commits de la historia.
       Depende de: Infra — dónde se emitió el token y quién lo revoca.
-- [ ] Confirmar con Shopify que la app offsite sirve para tiendas en Colombia con COP y en qué estado está hoy la cuenta
-      Partner 4296643. Ya se sabe, por el hilo con paymentspartners@shopify.com (bloque del 2026-11-02): Creditop fue
-      aprobado como Payments Partner (2025-06), el acuerdo de reparto se firmó (2026-01-21, según María Fernanda), la
-      app la pueden instalar todos los planes y sólo puede tener UNA extensión de pago. Retomar ese hilo, no empezar
-      otro. Termina con la respuesta escrita acá.
-      Depende de: María Fernanda / Manuela — el hilo con Shopify, que quedó sin respuesta desde el 2026-04-01.
+- [ ] Crear la copia PÚBLICA de la app de pagos con la CLI de Shopify (`shopify app config link` → «Create a new app»,
+      con la cuenta de Juan, en la organización CREDITOP), elegir «Distribución pública» en el Partner Dashboard,
+      apuntar las configuraciones del repo `shopify` a su `client_id` y desplegar ahí la única extensión
+      `creditop-offsite` (el `uid` cambia: es otra app). La app actual (317076176897) es custom, no pasa por
+      revisión y Shopify no la puede cambiar (Patrick, Shopify Support, 2026-11-13). Termina con la app pública
+      instalada en `creditop-dev-store` y una compra de prueba que cierra.
+- [ ] Recibir de Shopify, por correo (Miguel en copia), el número de caso y la confirmación de que el acuerdo de
+      reparto de ingresos figura firmado para el Partner ID 4296643; termina con las dos respuestas escritas acá.
+      Sin el acuerdo firmado, Shopify rechaza la revisión.
+      Depende de: Shopify — el equipo al que Patrick escaló el caso el 2026-11-13.
+- [ ] Pedir la revisión de la app pública desde su página en el Partner Dashboard, con la versión apuntando a
+      producción (no a `shopify-app.dev.creditop.com`). Termina con la app en revisión.
+      Depende de: la copia pública y la confirmación del acuerdo.
+- [ ] Decidir qué se hace con la app custom actual cuando la pública funcione (borrarla o dejarla para pruebas).
+      Shopify no lo contestó en el chat. Termina con la decisión escrita acá.
+- [ ] Confirmar con Shopify que la app offsite sirve para tiendas en Colombia con COP y cómo aplican la liquidación a
+      5 días y los reembolsos a un BNPL. Ya no por paymentspartners@shopify.com, que dejó de ser la vía de soporte: por
+      el caso de Shopify Support. Termina con la respuesta escrita acá.
+      Depende de: Shopify — el caso de Shopify Support del 2026-11-13.
 - [x] ~~Desplegar la app (`shopify app deploy`) contra un host fijo de pruebas~~ — activa `creditop-12` (2026-11-11),
       desde `develop`: la app en `shopify-app.dev.creditop.com` y la sesión de pago y el reembolso en `:8443` con mTLS
       (modo verify, sólo la CA de Shopify). Los cuatro desenlaces y el reembolso rechazado pasan por ahí.
