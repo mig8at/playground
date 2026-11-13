@@ -87,13 +87,11 @@ Object.assign(SCENES, ROOMS)
 // La cara es la misma maquinaria para todos: ojos con pupila (.pupils), cejas (.brow-l / .brow-r) y cuatro bocas
 // (.m-smile, .m-talk, .m-think, .m-flat); el CSS elige cuál se ve y adónde miran según el estado del recuadro. La
 // cabeza (.head) y el cuerpo (.body) se balancean por separado, poquito, como un títere de recortes.
-const shade = (hex, f) => {
-  const n = parseInt(hex.slice(1), 16)
-  const ch = (v) => Math.max(0, Math.min(255, Math.round(v * f)))
-  return `rgb(${ch(n >> 16)},${ch((n >> 8) & 255)},${ch(n & 255)})`
-}
-// mezcla dos colores: t = 0 es el primero, 1 el segundo
-const mix = (a, b, t) => { const p = (h) => [16, 8, 0].map((s) => (parseInt(h.slice(1), 16) >> s) & 255); const [x, y] = [p(a), p(b)]; return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})` }
+// los tres canales de un color, venga como #rrggbb o como rgb(r,g,b)
+const rgb = (c) => String(c).startsWith('rgb') ? c.match(/\d+/g).slice(0, 3).map(Number) : [16, 8, 0].map((s) => (parseInt(c.slice(1), 16) >> s) & 255)
+const shade = (c, f) => `rgb(${rgb(c).map((v) => Math.max(0, Math.min(255, Math.round(v * f)))).join(',')})`
+// mezcla dos colores: t = 0 es el primero, 1 el segundo (admite #rrggbb y rgb(): shade devuelve rgb())
+const mix = (a, b, t) => { const [x, y] = [rgb(a), rgb(b)]; return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})` }
 const cut = (inner) => `<g class="cut">${inner}</g>`
 const soft = (inner) => `<g class="cut-soft">${inner}</g>`
 const r1 = (n) => Math.round(n * 10) / 10
@@ -316,11 +314,11 @@ const NOSES = {
   // koala: grande y ovalada, vertical
   koala: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 22}" rx="17" ry="24" fill="${c}"/><ellipse cx="${cx - 5}" cy="${cy + 10}" rx="5" ry="4" fill="#fbf4e4" opacity=".45"/>`,
   // cerdito: trompa con dos fosas
-  snout: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 24}" rx="30" ry="21" fill="${c}"/><ellipse cx="${cx - 10}" cy="${cy + 24}" rx="5" ry="7" fill="${shade(c, .62)}"/><ellipse cx="${cx + 10}" cy="${cy + 24}" rx="5" ry="7" fill="${shade(c, .62)}"/>`,
+  snout: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 24}" rx="30" ry="21" fill="${c}"/><ellipse cx="${cx - 10}" cy="${cy + 24}" rx="5" ry="7" fill="${shade(c, .62)}"/><ellipse cx="${cx + 10}" cy="${cy + 24}" rx="5" ry="7" fill="${shade(c, .62)}"/><ellipse cx="${cx - 8}" cy="${cy + 12}" rx="7" ry="3" fill="#fbf4e4" opacity=".35"/>`,
   // mapache: botón negro chiquito
-  dot: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 20}" rx="12" ry="9" fill="${c}"/>`,
+  dot: (cx, cy, c) => `<ellipse cx="${cx}" cy="${cy + 20}" rx="12" ry="9" fill="${c}"/><ellipse cx="${cx - 3.5}" cy="${cy + 17.5}" rx="3.5" ry="2" fill="#fbf4e4" opacity=".45"/>`,
   // gato, conejo, ratón: triangulito invertido
-  cat: (cx, cy, c) => `<path d="M${cx - 10} ${cy + 14} Q${cx} ${cy + 10} ${cx + 10} ${cy + 14} Q${cx + 4} ${cy + 24} ${cx} ${cy + 25} Q${cx - 4} ${cy + 24} ${cx - 10} ${cy + 14}Z" fill="${c}"/>`,
+  cat: (cx, cy, c) => `<path d="M${cx - 10} ${cy + 14} Q${cx} ${cy + 10} ${cx + 10} ${cy + 14} Q${cx + 4} ${cy + 24} ${cx} ${cy + 25} Q${cx - 4} ${cy + 24} ${cx - 10} ${cy + 14}Z" fill="${c}"/><ellipse cx="${cx - 3.5}" cy="${cy + 15.5}" rx="3.2" ry="1.8" transform="rotate(-12 ${cx - 3.5} ${cy + 15.5})" fill="#fbf4e4" opacity=".6"/>`,
   // gorila: ancha y plana, con dos fosas grandes
   flat: (cx, cy, c) => `<path d="M${cx - 26} ${cy + 26} Q${cx - 24} ${cy + 4} ${cx} ${cy + 4} Q${cx + 24} ${cy + 4} ${cx + 26} ${cy + 26} Q${cx} ${cy + 36} ${cx - 26} ${cy + 26}Z" fill="${c}"/><ellipse cx="${cx - 11}" cy="${cy + 24}" rx="8" ry="6" fill="#1d1a19"/><ellipse cx="${cx + 11}" cy="${cy + 24}" rx="8" ry="6" fill="#1d1a19"/>`,
   nostrils: (cx, cy, c) => `<ellipse cx="${cx - 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/><ellipse cx="${cx + 9}" cy="${cy + 24}" rx="5" ry="4" fill="${c}"/>`,
@@ -382,30 +380,34 @@ function face(h, f) {
   const teethTalk = f.teeth === 'buck' ? `<rect x="${cx - 10}" y="${mouthY - 14}" width="9" height="15" rx="3" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY - 14}" width="9" height="15" rx="3" fill="#fbf4e4"/>`
     : f.teeth === 'grin' ? `<rect x="${cx - 20}" y="${mouthY - 14}" width="40" height="9" fill="#fbf4e4"/>` : ''
   const clips = `<defs><clipPath id="ms-${id}"><path d="${smileD}"/></clipPath><clipPath id="mt-${id}"><ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17"/></clipPath></defs>`
+  // surco nariz-boca para animales con hocico (sólo cuando la boca está cerrada o sonriendo, para no cruzar la boca abierta)
+  const ph = f.philtrum ? (to) => `<path d="M${cx} ${f.philtrum} V${r1(to)}" stroke="${f.mouth}" stroke-width="2.8" stroke-linecap="round" opacity=".85"/>` : () => ''
   return `
     <g class="eyes">${soft(`<ellipse cx="${L}" cy="${eyeY}" rx="${eye * .9}" ry="${eye}" fill="#fbf4e4"/><ellipse cx="${R}" cy="${eyeY}" rx="${eye * .9}" ry="${eye * 1.06}" fill="#fbf4e4"/>`)}
       <g class="pupils"><circle cx="${L + 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/><circle cx="${R - 3}" cy="${eyeY + 4}" r="${pr}" fill="#13323a"/>
-        <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/></g>
+        <circle cx="${L + 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/><circle cx="${R - 3 + pr * .4}" cy="${eyeY + 4 - pr * .4}" r="${pr * .32}" fill="#f6ecd6"/>
+        <circle cx="${L + 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/><circle cx="${R - 3 - pr * .36}" cy="${eyeY + 4 + pr * .38}" r="${r1(pr * .15)}" fill="#f6ecd6" opacity=".85"/></g>
       ${lids}${lash}</g>
     <g class="brow-l">${soft(`<path d="M${L - 24} ${eyeY - eye - 6} q22 -18 44 -4 l-4 9 q-18 -10 -36 3Z" fill="${f.brow}"/>`)}</g>
     <g class="brow-r">${soft(`<path d="M${R + 24} ${eyeY - eye - 6} q-22 -18 -44 -4 l4 9 q18 -10 36 3Z" fill="${f.brow}"/>`)}</g>
     ${clips}
-    ${f.beak ? beak(cx, mouthY - 8, f.beak, f.beakW) : `<g class="m-smile">${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
+    ${f.beak ? beak(cx, mouthY - 8, f.beak, f.beakW) : `<g class="m-smile">${ph(mouthY + 1)}${soft(`<path d="${smileD}" fill="#962b19"/>`)}<g clip-path="url(#ms-${id})">${teethSmile}</g></g>
     <g class="m-talk"><g class="mouth">${soft(`<ellipse cx="${cx}" cy="${mouthY + 4}" rx="20" ry="17" fill="#6e1f12"/><ellipse cx="${cx}" cy="${mouthY + 13}" rx="12" ry="6" fill="#e5592a"/>`)}<g clip-path="url(#mt-${id})">${teethTalk}</g></g></g>
     <g class="m-think">${soft(`<path d="M${cx - 16} ${mouthY + 4} q9 -9 18 0 q9 9 18 -3 l2 6 q-11 11 -21 1 q-8 -6 -15 2Z" fill="${f.mouth}"/>`)}</g>
-    <g class="m-flat">${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>`}
+    <g class="m-flat">${ph(mouthY - 1)}${soft(`<path d="M${cx - 16} ${mouthY + 2} q16 -6 32 2 l-1 6 q-15 -6 -30 0Z" fill="${f.mouth}"/>`)}${f.teeth === 'buck' ? `<rect x="${cx - 8}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/><rect x="${cx + 1}" y="${mouthY + 5}" width="7" height="8" rx="2" fill="#fbf4e4"/>` : ''}</g>`}
     ${soft((NOSES[f.noseShape] || NOSES.button)(cx, cy, f.noseColor))}`
 }
 
 // El torso: la chaqueta del equipo, igual para todos en el color de cada uno. Tiene cuello de solapas, cremallera,
 // la camiseta asomando en la V y el logo de CreditOp bordado en el pecho (se balancea con el cuerpo).
-function torso(p) {
-  const j = p.shirt, jd = shade(j, .78), jl = shade(j, 1.18)
+function torso(p, neck, chest) {
+  const j = p.shirt, jd = shade(j, .78), jl = shade(j, 1.18), nk = neck || p.skin
   return `<g class="body">
     ${cut(`<path d="M72 306 q6-74 128-78 q122 4 128 78 L336 420 L64 420Z" fill="${j}"/>`)}
     <path d="M172 228 L200 270 L228 228Z" fill="${p.accent || '#f1e4c7'}"/>
-    <path d="M181 190 h38 v52 q-19 12 -38 0Z" fill="${shade(p.skin, .86)}"/>
-    <path d="M181 190 h38 v18 q-19 10 -38 0Z" fill="${shade(p.skin, .74)}"/>
+    <path d="M181 190 h38 v52 q-19 12 -38 0Z" fill="${shade(nk, .86)}"/>
+    <path d="M181 190 h38 v20 Q200 224 181 210Z" fill="${shade(nk, .74)}"/>
+    ${chest ? `<path d="M183 228 Q200 245 217 228 L200 254 Z" fill="${chest}"/>` : ''}
     <path d="M178 240 q22 16 44 0" stroke="${shade(p.accent || '#f1e4c7', .8)}" stroke-width="6" fill="none" stroke-linecap="round"/>
     <path d="M84 420 V306 q6 -40 30 -58 M316 420 V306 q-6 -40 -30 -58" stroke="${jd}" stroke-width="4" fill="none" stroke-linecap="round"/>
     <path d="M200 268 V420" stroke="${jd}" stroke-width="7"/><path d="M200 268 V420" stroke="${jl}" stroke-width="2" stroke-dasharray="3 3"/>
@@ -422,7 +424,10 @@ function torso(p) {
 // piezas que comparten los animales
 const ANIMAL = {
   // orejas redondas arriba a los costados (oso, panda, koala, león, ratón)
-  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${y + 2}" r="${r * .55}" fill="${inner}"/>` : ''}`).join(''),
+  roundEars: (h, r, c, inner, deg = 222) => [pt(h, deg, -4), pt(h, 540 - deg, -4)].map(([x, y]) => {
+    const ir = r1(r * .56), sh = inner ? `<path d="M${r1(x - ir * .88)} ${r1(y + ir * .32)} A${ir} ${ir} 0 0 0 ${r1(x + ir * .88)} ${r1(y + ir * .32)} A${ir} ${r1(ir * .68)} 0 0 1 ${r1(x - ir * .88)} ${r1(y + ir * .32)} Z" fill="${shade(inner, .78)}"/>` : ''
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>${inner ? `<circle cx="${x}" cy="${r1(y + 1.5)}" r="${ir}" fill="${inner}"/>${sh}` : ''}`
+  }).join(''),
   // orejas en punta (mapache, cerdito si caen)
   pointEars: (h, c, inner, drop = 0) => [-1, 1].map((side) => {
     const [x, y] = pt(h, side < 0 ? 228 : 312, -6), tip = [x + side * 14, y - 46 + drop], base = 26
@@ -431,22 +436,42 @@ const ANIMAL = {
   // bolitas alrededor de la cabeza (melena, lana)
   puffs: (h, pad, r, from, to, step, c) => { let s = ''; for (let a = from; a <= to; a += step) { const [x, y] = pt(h, a, pad); s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${c}"/>` } return s },
   // bigotes: tres por lado, desde el hocico
-  whiskers: (h, c = '#3a2a24') => [-1, 1].map((s) => [-8, 2, 12].map((dy, i) => `<path d="M${h.cx + s * 30} ${h.cy + 34 + dy} q${s * 26} ${-4 + i * 4} ${s * 50} ${-8 + i * 8}" stroke="${c}" stroke-width="3" fill="none" stroke-linecap="round" opacity=".7"/>`).join('')).join(''),
+  whiskers: (h, c = '#3a2a24', follicles = true) => [-1, 1].map((s) => {
+    const dots = follicles ? [-6, 0, 6].map((dy, i) => `<circle cx="${h.cx + s * (24 + (i === 1 ? 2 : 0))}" cy="${h.cy + 39 + dy}" r="1.7" fill="${c}" opacity=".55"/>`).join('') : ''
+    const hairs = [-7, 0, 7].map((dy, i) => `<path d="M${h.cx + s * 31} ${h.cy + 39 + dy} q${s * 24} ${-4 + i * 4} ${s * 46} ${-7 + i * 8}" stroke="${c}" stroke-width="2.6" fill="none" stroke-linecap="round" opacity=".74"/>`).join('')
+    return dots + hairs
+  }).join(''),
   // orejas caídas a los costados (perro)
   floppyEars: (h, c) => [-1, 1].map((s) => `<path d="M${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22} Q${h.cx + s * (h.rx + 30)} ${h.cy - 40} ${h.cx + s * (h.rx + 14)} ${h.cy + 50} Q${h.cx + s * (h.rx - 4)} ${h.cy + 70} ${h.cx + s * (h.rx - 18)} ${h.cy + 34} Q${h.cx + s * (h.rx - 34)} ${h.cy - 20} ${h.cx + s * (h.rx - 24)} ${h.cy - h.ry + 22}Z" fill="${c}"/>`).join(''),
   // orejas largas hacia arriba (conejo)
-  longEars: (h, c, inner) => [-1, 1].map((s) => { const x = h.cx + s * 34, y = h.cy - h.ry + 14; return `<g transform="rotate(${s * 10} ${x} ${y})"><ellipse cx="${x}" cy="${y - 62}" rx="24" ry="70" fill="${c}"/><ellipse cx="${x}" cy="${y - 58}" rx="12" ry="54" fill="${inner}"/></g>` }).join(''),
+  longEars: (h, c, inner) => [-1, 1].map((s) => {
+    const x = h.cx + s * 34, y = h.cy - h.ry + 14, ang = s < 0 ? -9 : 13
+    const tipX = s < 0 ? 0 : 4, tipY = s < 0 ? -94 : -90
+    return `<g transform="translate(${x} ${y}) rotate(${ang})">
+  <path d="M-15 8 C-22 -28 -24 -76 ${tipX} ${tipY} C24 -76 22 -28 15 8 Z" fill="${c}"/>
+  <path d="M-8 2 C-13 -24 -14 -64 ${r1(tipX * .75)} ${tipY + 16} C14 -64 13 -24 8 2 Z" fill="${inner}"/>
+  <path d="M-8 2 C-12 -22 -13 -58 -1 ${tipY + 20} C-6 -52 -5 -22 0 2 Z" fill="${shade(inner, .86)}"/>
+  </g>`
+  }).join(''),
   // hocico claro abajo
-  muzzle: (h, c, rx = 48, ry = 34) => `<ellipse cx="${h.cx}" cy="${h.cy + 40}" rx="${rx}" ry="${ry}" fill="${c}"/>`,
+  muzzle: (h, c, rx = 48, ry = 34, pads = true) => {
+    const base = `<ellipse cx="${h.cx}" cy="${h.cy + 40}" rx="${rx}" ry="${ry}" fill="${c}"/>`
+    if (!pads) return base
+    const pad = mix(c, '#fffdf7', .52), px = r1(rx * .32), prx = r1(rx * .39), pry = r1(ry * .42)
+    return `${base}<ellipse cx="${h.cx - px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/><ellipse cx="${h.cx + px}" cy="${h.cy + 35}" rx="${prx}" ry="${pry}" fill="${pad}"/>`
+  },
 }
 const SPECIES = {
   // oso de anteojos: pelaje casi negro, anteojos crema alrededor de los ojos que bajan al hocico
   oso: (p, h) => {
-    const fur = p.skin, cream = '#ecd9b0'
+    const fur = p.skin, cream = '#ecd9b0', inner = mix(fur, '#a67c5e', .45)
     return {
-      back: ANIMAL.roundEars(h, 26, fur, shade(fur, 1.35)), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: `<path d="M${h.cx - 64} ${h.cy - 28} Q${h.cx - 36} ${h.cy - 50} ${h.cx - 12} ${h.cy - 26} Q${h.cx} ${h.cy - 14} ${h.cx + 12} ${h.cy - 26} Q${h.cx + 36} ${h.cy - 50} ${h.cx + 64} ${h.cy - 28} Q${h.cx + 70} ${h.cy + 4} ${h.cx + 44} ${h.cy + 20} L${h.cx + 40} ${h.cy + 24} Q${h.cx} ${h.cy + 4} ${h.cx - 40} ${h.cy + 24} L${h.cx - 44} ${h.cy + 20} Q${h.cx - 70} ${h.cy + 4} ${h.cx - 64} ${h.cy - 28}Z" fill="${cream}"/>${ANIMAL.muzzle(h, cream)}`,
-      nose: 'bear', noseColor: '#1d1a19', brow: shade(fur, .6), mouth: '#3a2015',
+      back: ANIMAL.roundEars(h, 27, fur, inner),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: `<path d="M${h.cx - 44} ${h.cy - 46} C${h.cx - 18} ${h.cy - 46} ${h.cx - 8} ${h.cy - 28} ${h.cx} ${h.cy - 18} C${h.cx + 8} ${h.cy - 28} ${h.cx + 18} ${h.cy - 46} ${h.cx + 44} ${h.cy - 46} C${h.cx + 72} ${h.cy - 46} ${h.cx + 82} ${h.cy - 20} ${h.cx + 80} ${h.cy + 4} C${h.cx + 78} ${h.cy + 28} ${h.cx + 56} ${h.cy + 38} ${h.cx + 32} ${h.cy + 32} C${h.cx + 16} ${h.cy + 28} ${h.cx + 10} ${h.cy + 16} ${h.cx} ${h.cy + 16} C${h.cx - 10} ${h.cy + 16} ${h.cx - 16} ${h.cy + 28} ${h.cx - 32} ${h.cy + 32} C${h.cx - 56} ${h.cy + 38} ${h.cx - 78} ${h.cy + 28} ${h.cx - 80} ${h.cy + 4} C${h.cx - 82} ${h.cy - 20} ${h.cx - 72} ${h.cy - 46} ${h.cx - 44} ${h.cy - 46} Z" fill="${cream}"/>${ANIMAL.muzzle(h, '#f6e9cc', 46, 33)}`,
+     
+      chest: cream,
+      nose: 'bear', noseColor: '#1d1a19', brow: '#594336', mouth: '#3a2015', philtrum: h.cy + 34,
     }
   },
   // panda: blanco con orejas y manchas de los ojos negras
@@ -454,16 +479,19 @@ const SPECIES = {
     const fur = p.skin, ink = '#22232a'
     return {
       back: ANIMAL.roundEars(h, 28, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: `<ellipse cx="${h.cx - 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(24 ${h.cx - 36} ${h.cy})"/><ellipse cx="${h.cx + 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(-24 ${h.cx + 36} ${h.cy})"/>`,
-      nose: 'bear', noseColor: ink, brow: '#5a5b63', mouth: ink,
+      mask: `<ellipse cx="${h.cx - 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(24 ${h.cx - 36} ${h.cy})"/><ellipse cx="${h.cx + 36}" cy="${h.cy}" rx="30" ry="36" fill="${ink}" transform="rotate(-24 ${h.cx + 36} ${h.cy})"/>${ANIMAL.muzzle(h, mix(fur, '#fffdf7', .55), 42, 28)}`,
+      nose: 'bear', noseColor: ink, brow: '#5a5b63', mouth: ink, philtrum: h.cy + 34,
     }
   },
   // koala: gris, orejas grandes y peludas, nariz grande ovalada
   koala: (p, h) => {
     const fur = p.skin, inner = '#f1e4e0'
     const ear = (side) => { const [x, y] = pt(h, side < 0 ? 200 : 340, 0); return ANIMAL.puffs({ cx: x, cy: y, rx: 0, ry: 0 }, 30, 16, 0, 330, 30, fur) + `<circle cx="${x}" cy="${y}" r="38" fill="${fur}"/><circle cx="${x}" cy="${y + 2}" r="22" fill="${inner}"/>` }
-    return { back: ear(-1) + ear(1), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: ANIMAL.muzzle(h, shade(fur, 1.18), 40, 30),
-      nose: 'koala', noseColor: '#2a2b30', brow: shade(fur, .55), mouth: '#2a2b30' }
+    return {
+      back: ear(-1) + ear(1), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .45), 40, 30),
+      nose: 'koala', noseColor: '#2a2b30', brow: shade(fur, .55), mouth: '#2a2b30',
+    }
   },
   // mapache: gris, orejas en punta, antifaz oscuro y cara blanca alrededor
   mapache: (p, h) => {
@@ -472,126 +500,196 @@ const SPECIES = {
       back: ANIMAL.pointEars(h, fur, ink), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy - 40} Q${h.cx} ${h.cy - 66} ${h.cx + 70} ${h.cy - 40} Q${h.cx + 40} ${h.cy - 30} ${h.cx} ${h.cy - 34} Q${h.cx - 40} ${h.cy - 30} ${h.cx - 70} ${h.cy - 40}Z" fill="${white}"/>
         <path d="M${h.cx - 88} ${h.cy - 6} Q${h.cx - 50} ${h.cy - 40} ${h.cx} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 40} ${h.cx + 88} ${h.cy - 6} Q${h.cx + 60} ${h.cy + 32} ${h.cx} ${h.cy + 14} Q${h.cx - 60} ${h.cy + 32} ${h.cx - 88} ${h.cy - 6}Z" fill="${ink}"/>${ANIMAL.muzzle(h, white, 44, 30)}`,
-      nose: 'dot', noseColor: ink, brow: white, mouth: ink,
+      nose: 'dot', noseColor: ink, brow: white, mouth: ink, philtrum: h.cy + 29,
     }
   },
   // cerdito: rosado, orejas en punta que caen hacia adelante, trompa
   cerdito: (p, h) => {
     const fur = p.skin
-    return { back: ANIMAL.pointEars(h, shade(fur, .9), shade(fur, .78), 18), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: '',
-      nose: 'snout', noseColor: shade(fur, 1.12), brow: shade(fur, .6), mouth: shade(fur, .45) }
+    return {
+      back: ANIMAL.pointEars(h, shade(fur, .9), shade(fur, .78), 18),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: '',
+      nose: 'snout', noseColor: mix(fur, '#fff5f3', .35), brow: shade(fur, .6), mouth: shade(fur, .45),
+    }
   },
   // oveja: cara crema rodeada de lana en bolitas, orejitas de lado
   oveja: (p, h) => {
     const wool = p.skin, face = '#f3dcc2'
     const ears = [-1, 1].map((s) => `<ellipse cx="${h.cx + s * (h.rx + 10)}" cy="${h.cy + 4}" rx="30" ry="14" fill="${shade(face, .9)}" transform="rotate(${s * 18} ${h.cx + s * (h.rx + 10)} ${h.cy + 4})"/>`).join('')
-    return { back: ears + ANIMAL.puffs(h, 6, 30, 150, 390, 18, wool), head: `<ellipse cx="${h.cx}" cy="${h.cy + 6}" rx="${h.rx - 14}" ry="${h.ry - 8}" fill="${face}"/>`,
-      mask: '', top: ANIMAL.puffs(h, -18, 24, 220, 320, 25, shade(wool, 1.04)),
-      nose: 'bear', noseColor: shade(face, .62), brow: shade(face, .5), mouth: '#6e3a2a' }
+    return {
+      back: ears + ANIMAL.puffs(h, 6, 30, 150, 390, 18, wool),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy + 6}" rx="${h.rx - 14}" ry="${h.ry - 8}" fill="${face}"/>`,
+      mask: '', top: ANIMAL.puffs(h, -18, 24, 220, 320, 25, mix(wool, '#ffffff', .25)),
+      neck: face, nose: 'bear', noseColor: shade(face, .62), brow: shade(face, .5), mouth: '#6e3a2a', philtrum: h.cy + 34,
+    }
   },
   // león: cara dorada con melena alrededor y orejas redondas
   // gato: orejas en punta con interior rosado, nariz en triangulito y bigotes
   gato: (p, h) => {
-    const fur = p.skin
-    return { back: ANIMAL.pointEars(h, fur, '#f2b8b0'), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: ANIMAL.muzzle(h, shade(fur, 1.2), 40, 26),
-      front: ANIMAL.whiskers(h), nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a' }
+    const fur = p.skin, stripe = shade(fur, .78)
+    const tabby = `<g fill="${stripe}">
+    <rect x="${h.cx - 3.5}" y="${h.cy - h.ry + 3}" width="7" height="23" rx="3.5"/>
+    <rect x="${h.cx - 20}" y="${h.cy - h.ry + 7}" width="6.5" height="19" rx="3.2" transform="rotate(-11 ${h.cx - 17} ${h.cy - h.ry + 16})"/>
+    <rect x="${h.cx + 13.5}" y="${h.cy - h.ry + 7}" width="6.5" height="19" rx="3.2" transform="rotate(11 ${h.cx + 17} ${h.cy - h.ry + 16})"/>
+    </g><g stroke="${stripe}" stroke-width="6" stroke-linecap="round" fill="none">
+    <path d="M${h.cx - h.rx + 5} ${h.cy - 16} q16 2 24 6"/><path d="M${h.cx - h.rx + 3} ${h.cy} q18 2 25 4"/>
+    <path d="M${h.cx + h.rx - 5} ${h.cy - 16} q-16 2 -24 6"/><path d="M${h.cx + h.rx - 3} ${h.cy} q-18 2 -25 4"/>
+    </g>`
+    return {
+      back: ANIMAL.pointEars(h, fur, '#f2b8b0'),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: tabby + ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 42, 27),
+      front: ANIMAL.whiskers(h),
+      nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
+    }
   },
   // zorro: naranja, orejas grandes con punta oscura, mejillas blancas que suben hasta los ojos
   zorro: (p, h) => {
     const fur = p.skin, white = '#f6efe2', tip = '#3a2a24'
-    return { back: ANIMAL.pointEars(h, fur, tip), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: `<path d="M${h.cx - h.rx + 6} ${h.cy + 6} Q${h.cx - 50} ${h.cy - 10} ${h.cx} ${h.cy + 16} Q${h.cx + 50} ${h.cy - 10} ${h.cx + h.rx - 6} ${h.cy + 6} Q${h.cx + h.rx - 18} ${h.cy + h.ry - 4} ${h.cx} ${h.cy + h.ry} Q${h.cx - h.rx + 18} ${h.cy + h.ry - 4} ${h.cx - h.rx + 6} ${h.cy + 6}Z" fill="${white}"/>`,
-      nose: 'dot', noseColor: tip, brow: shade(fur, .6), mouth: '#5a2a1a' }
+    return {
+      back: ANIMAL.pointEars(h, fur, tip),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: `<path d="M${h.cx - 7} ${h.cy - 22} L${h.cx + 7} ${h.cy - 22} L${h.cx + 10} ${h.cy + 14} L${h.cx - 10} ${h.cy + 14} Z" fill="${shade(fur, .84)}" opacity=".45"/>
+    <path d="M${h.cx - h.rx + 6} ${h.cy + 6} Q${h.cx - 50} ${h.cy - 10} ${h.cx} ${h.cy + 16} Q${h.cx + 50} ${h.cy - 10} ${h.cx + h.rx - 6} ${h.cy + 6} Q${h.cx + h.rx - 18} ${h.cy + h.ry - 4} ${h.cx} ${h.cy + h.ry} Q${h.cx - h.rx + 18} ${h.cy + h.ry - 4} ${h.cx - h.rx + 6} ${h.cy + 6}Z" fill="${white}"/>
+    ${ANIMAL.muzzle(h, '#fbf7ee', 38, 25)}`,
+     
+      neck: white, nose: 'dot', noseColor: tip, brow: shade(fur, .6), mouth: '#5a2a1a', philtrum: h.cy + 29,
+    }
   },
   // perro: orejas caídas, una mancha sobre un ojo, hocico claro y nariz grande
   perro: (p, h) => {
     const fur = p.skin, ear = p.mask || shade(fur, .7)
-    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: `<ellipse cx="${h.cx + 36}" cy="${h.cy - 6}" rx="32" ry="30" fill="${ear}"/>${ANIMAL.muzzle(h, shade(fur, 1.22), 46, 32)}`,
-      front: ANIMAL.floppyEars(h, ear), nose: 'bear', noseColor: '#22232a', brow: shade(fur, .5), mouth: '#5a2a1a' }
+    return {
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: `<ellipse cx="${h.cx + 36}" cy="${h.cy - 6}" rx="32" ry="30" fill="${ear}"/>${ANIMAL.muzzle(h, mix(fur, '#fffaf0', .55), 46, 32)}`,
+      front: ANIMAL.floppyEars(h, ear),
+      nose: 'bear', noseColor: '#22232a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 34,
+    }
   },
   // conejo: orejas largas con interior rosado, dientes salidos, nariz rosada y bigotes
   conejo: (p, h) => {
     const fur = p.skin
-    return { back: ANIMAL.longEars(h, fur, '#f2b8b0'), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: ANIMAL.muzzle(h, shade(fur, 1.12), 38, 26),
-      front: ANIMAL.whiskers(h, shade(fur, .5)), nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', teeth: 'buck' }
+    return {
+      back: ANIMAL.longEars(h, fur, '#f2b8b0'),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: ANIMAL.muzzle(h, mix(fur, '#fffdf7', .65), 43, 28),
+      front: ANIMAL.whiskers(h, shade(fur, .5)),
+     
+      nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', teeth: 'buck', philtrum: h.cy + 25,
+    }
   },
   // ratón: gris, orejas redondas enormes con interior rosado, nariz rosada y bigotes
   raton: (p, h) => {
     const fur = p.skin
-    return { back: ANIMAL.roundEars(h, 44, fur, '#f2b8b0', 214), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`, mask: ANIMAL.muzzle(h, shade(fur, 1.15), 36, 24),
-      front: ANIMAL.whiskers(h), nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a' }
+    return {
+      back: ANIMAL.roundEars(h, 44, fur, '#f2b8b0', 214),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .6), 38, 25),
+      front: ANIMAL.whiskers(h),
+      nose: 'cat', noseColor: '#e98a9a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 25,
+    }
   },
   // rana: verde, cabeza ancha con dos lomas arriba donde van los ojos y barriga clara en la papada
   rana: (p, h) => {
     const skin = p.skin
-    return { back: `<circle cx="${h.cx - 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/><circle cx="${h.cx + 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/>`,
-      head: `<ellipse cx="${h.cx}" cy="${h.cy + 4}" rx="${h.rx + 8}" ry="${h.ry - 6}" fill="${skin}"/>`, mask: `<ellipse cx="${h.cx}" cy="${h.cy + 52}" rx="62" ry="28" fill="${shade(skin, 1.3)}"/>`,
+    return {
+      back: `<circle cx="${h.cx - 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/><circle cx="${h.cx + 40}" cy="${h.cy - h.ry + 12}" r="34" fill="${skin}"/>`,
+      head: `<ellipse cx="${h.cx}" cy="${h.cy + 4}" rx="${h.rx + 8}" ry="${h.ry - 6}" fill="${skin}"/>`,
+      mask: `<ellipse cx="${h.cx}" cy="${h.cy + 52}" rx="62" ry="28" fill="${mix(skin, '#fffdf7', .45)}"/>`,
       front: `<circle cx="${h.cx - 52}" cy="${h.cy - 40}" r="5" fill="${shade(skin, .75)}"/><circle cx="${h.cx + 56}" cy="${h.cy - 34}" r="4" fill="${shade(skin, .75)}"/>`,
-      nose: 'none', brow: shade(skin, .5), mouth: '#3a2015' }
+      nose: 'none', brow: shade(skin, .5), mouth: '#3a2015',
+    }
   },
   // pingüino: cabeza oscura con la cara blanca en forma de corazón y un pico corto
   pinguino: (p, h) => {
-    const ink = p.skin
-    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
-      mask: `<path d="M${h.cx} ${h.cy - 20} Q${h.cx - 30} ${h.cy - 64} ${h.cx - 66} ${h.cy - 30} Q${h.cx - 84} ${h.cy + 30} ${h.cx} ${h.cy + h.ry - 6} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 66} ${h.cy - 30} Q${h.cx + 30} ${h.cy - 64} ${h.cx} ${h.cy - 20}Z" fill="#f6f1e6"/>`,
-      nose: 'none', brow: '#3a3d45', mouth: '#3a2015', beak: '#f08c3d', beakW: 34 }
+    const ink = p.skin, white = '#f6f1e6'
+    return {
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+      mask: `<path d="M${h.cx} ${h.cy - 20} Q${h.cx - 30} ${h.cy - 64} ${h.cx - 66} ${h.cy - 30} Q${h.cx - 84} ${h.cy + 30} ${h.cx} ${h.cy + h.ry - 6} Q${h.cx + 84} ${h.cy + 30} ${h.cx + 66} ${h.cy - 30} Q${h.cx + 30} ${h.cy - 64} ${h.cx} ${h.cy - 20}Z" fill="${white}"/>`,
+      neck: white, nose: 'none', brow: '#545864', mouth: '#3a2015', beak: '#f08c3d', beakW: 34,
+    }
   },
   // búho: café, discos claros alrededor de los ojos, penachos y un pico chiquito
   buho: (p, h) => {
-    const fur = p.skin, disc = shade(fur, 1.35)
-    return { back: ANIMAL.pointEars(h, shade(fur, .8), null, -6), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+    const fur = p.skin, disc = mix(fur, '#fffaf0', .52)
+    return {
+      back: ANIMAL.pointEars(h, shade(fur, .8), null, -6),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
       mask: `<circle cx="${h.cx - 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/><circle cx="${h.cx + 38}" cy="${h.cy - 2}" r="40" fill="${disc}"/>
         <path d="M${h.cx - 30} ${h.cy + 44} q30 22 60 0 M${h.cx - 22} ${h.cy + 58} q22 16 44 0" stroke="${shade(fur, .75)}" stroke-width="4" fill="none" stroke-linecap="round"/>`,
-      nose: 'none', brow: shade(fur, .5), mouth: '#3a2015', beak: '#e3a33c', beakW: 22 }
+      nose: 'none', brow: shade(fur, .5), mouth: '#3a2015', beak: '#e3a33c', beakW: 22,
+    }
   },
   // tucán: cabeza negra, babero amarillo en la garganta, anillo azul alrededor de los ojos y el pico grande
   tucan: (p, h) => {
     const ink = p.skin
-    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
+    return {
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${ink}"/>`,
       mask: `<path d="M${h.cx - 70} ${h.cy + 20} Q${h.cx} ${h.cy - 6} ${h.cx + 70} ${h.cy + 20} Q${h.cx + 56} ${h.cy + h.ry} ${h.cx} ${h.cy + h.ry + 4} Q${h.cx - 56} ${h.cy + h.ry} ${h.cx - 70} ${h.cy + 20}Z" fill="#f6e7b0"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="30" fill="#78b4d0"/>`,
-      nose: 'none', brow: '#4a4d55', mouth: '#2a2523', beak: p.beak || '#f08c3d', beakW: 120 }
+      nose: 'none', brow: '#5b606b', mouth: '#2a2523', beak: p.beak || '#f08c3d', beakW: 120,
+    }
   },
   // loro: verde, mejillas amarillas, anillo claro en los ojos y pico en ganchito color hueso
   loro: (p, h) => {
     const feather = p.skin
-    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
+    return {
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
       mask: `<ellipse cx="${h.cx - 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/><ellipse cx="${h.cx + 52}" cy="${h.cy + 26}" rx="30" ry="24" fill="#f2c14e"/>
         <circle cx="${h.cx - h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/><circle cx="${h.cx + h.rx * .42}" cy="${h.cy - 2}" r="28" fill="#f6efe2"/>`,
       top: `<path d="M${h.cx - 10} ${h.cy - h.ry + 6} q-8 -28 10 -40 q-2 20 10 26 q4 -18 22 -20 q-12 14 -10 34Z" fill="#c5381f"/>`,
-      nose: 'none', brow: shade(feather, .55), mouth: '#2a2523', beak: '#ecdcc0', beakW: 28 }
+      nose: 'none', brow: shade(feather, .55), mouth: '#2a2523', beak: '#ecdcc0', beakW: 28,
+    }
   },
   // perezoso: pelaje café claro, máscara crema ovalada, franjas oscuras que bajan desde los ojos, sonrisa tranquila
   perezoso: (p, h) => {
     const fur = p.skin, cream = '#efe0c4', band = '#4a3326'
-    return { back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+    return {
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
       mask: `<ellipse cx="${h.cx}" cy="${h.cy + 8}" rx="${h.rx - 16}" ry="${h.ry - 18}" fill="${cream}"/>
         <path d="M${h.cx - 24} ${h.cy - 18} Q${h.cx - 50} ${h.cy - 22} ${h.cx - 74} ${h.cy + 4} Q${h.cx - 66} ${h.cy + 18} ${h.cx - 52} ${h.cy + 14} Q${h.cx - 38} ${h.cy + 2} ${h.cx - 20} ${h.cy + 4}Z" fill="${band}"/>
         <path d="M${h.cx + 24} ${h.cy - 18} Q${h.cx + 50} ${h.cy - 22} ${h.cx + 74} ${h.cy + 4} Q${h.cx + 66} ${h.cy + 18} ${h.cx + 52} ${h.cy + 14} Q${h.cx + 38} ${h.cy + 2} ${h.cx + 20} ${h.cy + 4}Z" fill="${band}"/>`,
       top: `<path d="M${h.cx - 30} ${h.cy - h.ry + 10} q14 -22 30 -10 q14 -16 30 6" stroke="${shade(fur, .8)}" stroke-width="6" fill="none" stroke-linecap="round"/>`,
-      nose: 'dot', noseColor: '#3a2a24', brow: shade(fur, .6), mouth: '#5a2a1a' }
+      nose: 'dot', noseColor: '#3a2a24', brow: shade(fur, .6), mouth: '#5a2a1a', philtrum: h.cy + 29,
+    }
   },
   // capibara: cabeza más cuadrada y alargada, orejitas arriba, hocico ancho con las fosas arriba, ojos chicos
   capibara: (p, h) => {
     const fur = p.skin, d = shade(fur, .8)
-    return { back: ANIMAL.roundEars(h, 16, d, shade(fur, .65), 236),
+    return {
+      back: ANIMAL.roundEars(h, 17, d, shade(fur, .65), 236),
       head: `<rect x="${h.cx - h.rx + 4}" y="${h.cy - h.ry + 4}" width="${(h.rx - 4) * 2}" height="${(h.ry - 4) * 2 + 10}" rx="62" fill="${fur}"/>`,
       mask: `<rect x="${h.cx - 56}" y="${h.cy + 16}" width="112" height="${h.ry - 4}" rx="40" fill="${shade(fur, .9)}"/>`,
-      nose: 'nostrils', noseColor: shade(fur, .5), brow: shade(fur, .55), mouth: '#3a2015', eye: 20 }
+      nose: 'nostrils', noseColor: shade(fur, .5), brow: shade(fur, .55), mouth: '#3a2015', eye: 20,
+    }
   },
   // jaguar: dorado con rosetas, orejas redondas de dorso oscuro, hocico blanco, nariz rosada y bigotes
   jaguar: (p, h) => {
-    const fur = p.skin, spot = '#3a2a24'
-    const rosette = (x, y, r) => [0, 72, 144, 216, 288].map((a) => `<circle cx="${(x + r * Math.cos(a * Math.PI / 180)).toFixed(1)}" cy="${(y + r * Math.sin(a * Math.PI / 180)).toFixed(1)}" r="3.5" fill="${spot}"/>`).join('')
-    return { back: ANIMAL.roundEars(h, 22, spot, fur, 228), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: `${rosette(h.cx - 50, h.cy - 52, 10)}${rosette(h.cx + 46, h.cy - 56, 9)}${rosette(h.cx, h.cy - 70, 8)}${rosette(h.cx - 74, h.cy + 18, 8)}${rosette(h.cx + 74, h.cy + 20, 8)}${ANIMAL.muzzle(h, '#f6efe2', 44, 30)}`,
-      front: ANIMAL.whiskers(h), nose: 'cat', noseColor: '#c9706a', brow: shade(fur, .5), mouth: '#5a2a1a' }
+    const fur = p.skin, spot = '#3a2a24', core = shade(fur, .82)
+    const rosette = (x, y, r, dot = true) => `<circle cx="${x}" cy="${y}" r="${r1(r * .68)}" fill="${core}"/>
+    <path d="M${r1(x - r * .85)} ${r1(y - r * .35)} A${r} ${r} 0 0 1 ${r1(x + r * .55)} ${r1(y - r * .75)} M${r1(x + r * .85)} ${r1(y + r * .1)} A${r} ${r} 0 0 1 ${r1(x - r * .35)} ${r1(y + r * .88)} M${r1(x - r * .85)} ${r1(y + r * .45)} A${r} ${r} 0 0 1 ${r1(x - r * .78)} ${r1(y - r * .1)}" stroke="${spot}" stroke-width="${r1(Math.max(3.6, r * .42))}" fill="none" stroke-linecap="round"/>
+    ${dot ? `<circle cx="${x}" cy="${y}" r="2" fill="${spot}"/>` : ''}`
+    const bridge = `<path d="M${h.cx - 8} ${h.cy - 24} L${h.cx + 8} ${h.cy - 24} L${h.cx + 11} ${h.cy + 11} L${h.cx - 11} ${h.cy + 11} Z" fill="${core}" opacity=".45"/>`
+    const spots = `${rosette(h.cx, h.cy - 67, 8.5)}${rosette(h.cx - 50, h.cy - 57, 10.5)}${rosette(h.cx + 50, h.cy - 58, 10.5)}${rosette(h.cx - 81, h.cy - 13, 9, false)}${rosette(h.cx + 81, h.cy - 13, 9, false)}${rosette(h.cx - 73, h.cy + 43, 8.5)}${rosette(h.cx + 73, h.cy + 43, 8.5)}
+    <circle cx="${h.cx - 24}" cy="${h.cy - 70}" r="3.5" fill="${spot}"/><circle cx="${h.cx + 24}" cy="${h.cy - 70}" r="3.5" fill="${spot}"/>
+    <circle cx="${h.cx - 76}" cy="${h.cy - 37}" r="3.8" fill="${spot}"/><circle cx="${h.cx + 76}" cy="${h.cy - 37}" r="3.8" fill="${spot}"/>
+    <circle cx="${h.cx - 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/><circle cx="${h.cx + 59}" cy="${h.cy + 62}" r="3.5" fill="${spot}"/>`
+    return {
+      back: ANIMAL.roundEars(h, 25, spot, fur, 226),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: bridge + spots + ANIMAL.muzzle(h, '#f1e5cf', 44, 30),
+      front: ANIMAL.whiskers(h, spot),
+      nose: 'cat', noseColor: '#c9706a', brow: shade(fur, .5), mouth: '#5a2a1a', philtrum: h.cy + 25,
+    }
   },
   leon: (p, h) => {
     const fur = p.skin, mane = p.mask || shade(fur, .62)
-    return { back: ANIMAL.puffs(h, 22, 36, 0, 350, 22, mane) + ANIMAL.roundEars(h, 22, fur, shade(fur, 1.25), 226), head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
-      mask: ANIMAL.muzzle(h, shade(fur, 1.28)), nose: 'bear', noseColor: '#7a3b2a', brow: shade(fur, .55), mouth: '#5a2a1a' }
+    return {
+      back: ANIMAL.puffs(h, 22, 36, 0, 350, 22, mane) + ANIMAL.roundEars(h, 22, fur, mix(fur, '#fffaf0', .4), 226),
+      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${fur}"/>`,
+      mask: ANIMAL.muzzle(h, mix(fur, '#fffaf0', .5)),
+      nose: 'bear', noseColor: '#7a3b2a', brow: shade(fur, .55), mouth: '#5a2a1a', philtrum: h.cy + 34,
+    }
   },
   mico: (p, h) => {
     const fur = p.skin, mask = p.mask || '#ecc9a0', d = shade(fur, .8)
@@ -609,7 +707,7 @@ const SPECIES = {
   gorila: (p, h) => {
     // la cara: café claro cálido sobre un pelaje café; cuero oscuro sobre uno gris
     const fur = p.skin, n = parseInt(fur.slice(1), 16), warm = (n >> 16) > (n & 255) + 18
-    const face = p.mask || (warm ? '#a5704f' : '#5d524f'), d = shade(fur, .78)
+    const face = p.mask || (warm ? '#a5704f' : '#5d524f')
     return {
       back: `<ellipse cx="${h.cx - h.rx + 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/><ellipse cx="${h.cx + h.rx - 2}" cy="${h.cy + 6}" rx="16" ry="20" fill="${face}"/>`,
       // la cabeza es la elipse con una cresta que sube por arriba
@@ -624,9 +722,7 @@ const SPECIES = {
   pato: (p, h) => {
     const feather = p.skin, d = shade(feather, .85)
     return {
-      back: '',
-      head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`,
-      mask: '',
+      back: '', head: `<ellipse cx="${h.cx}" cy="${h.cy}" rx="${h.rx}" ry="${h.ry}" fill="${feather}"/>`, mask: '',
       // un copete de tres plumas
       top: `<path d="M${h.cx - 6} ${h.cy - h.ry + 4} q-20 -20 -8 -36 q4 18 14 22 q-2 -24 16 -34 q-2 22 6 30 q8 -14 22 -12 q-14 12 -16 30Z" fill="${d}"/>`,
       nose: 'none', brow: shade(feather, .55), mouth: '#6e1f12', beak: p.beak || '#f08c3d',
@@ -636,15 +732,15 @@ const SPECIES = {
 function creature(p) {
   const h = { ...HEAD, rx: 94, ry: 88 }, a = SPECIES[p.species](p, h)
   const has = (x) => p.extras?.includes(x)
-  return `${torso(p)}
+  return `${torso(p, a.neck, a.chest)}
   <g class="head">
     ${a.back ? cut(a.back) : ''}
     ${cut(a.head)}
     ${a.mask ? soft(a.mask) : ''}
     ${a.front ? soft(a.front) : ''}
     ${a.top && !p.hat ? cut(a.top) : ''}
-    <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".3"/>
-    ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth })}
+    <ellipse cx="${h.cx - h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/><ellipse cx="${h.cx + h.rx * .62}" cy="${h.cy + 30}" rx="14" ry="8" fill="#e5592a" opacity=".28"/>
+    ${face(h, { id: p.id, brow: a.brow, nose: p.skin, noseColor: a.noseColor || shade(p.skin, .7), noseShape: a.nose, eye: p.eye || a.eye || 26, lids: p.lids, mouth: a.mouth, lashes: p.lashes, beak: a.beak, beakW: a.beakW, teeth: a.teeth, philtrum: a.philtrum })}
     ${p.hat && HATS[p.hat] ? HATS[p.hat](h, p.hatColor || '#c5381f', 8) : ''}
     ${has('glasses') ? EXTRAS.glasses(p, h) : ''}
     ${has('headphones') ? EXTRAS.headphones(p, h) : `<g class="prop-headphones">${EXTRAS.headphones(p, h)}</g>`}
@@ -657,7 +753,7 @@ function completePerson(p) {
   if (q.species && !SPECIES[q.species]) q.species = ''
   if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPCIONES.skinBy[q.species]?.[0]) || '#e0ac7e'
   if (!HAIR[q.hair]) q.hair = 'short'
-  for (const [k, v] of [['hairColor', '#4a2f1c'], ['shirt', '#2b6670'], ['gear', '#13323a']]) if (!/^#[0-9a-f]{6}$/i.test(q[k] || '')) q[k] = v
+  for (const [k, v] of [['hairColor', '#4a2f1c'], ['shirt', '#2b6670'], ['gear', '#13323a'], ['accent', '#f1e4c7']]) if (!/^#[0-9a-f]{6}$/i.test(q[k] || '')) q[k] = v
   if (!NOSES[q.nose]) q.nose = 'button'
   if (!q.id) q.id = `p${personSeed(q)}` // los recortes de la boca usan ids: sin uno propio, dos personajes compartían el recorte
   return q
@@ -815,12 +911,14 @@ function saveCustom(list) { try { localStorage.setItem('office:custom', JSON.str
 const OPCIONES = {
   species: { '': 'Persona', mico: 'Mico', pato: 'Pato', gorila: 'Gorila', oso: 'Oso de anteojos', panda: 'Panda', koala: 'Koala', mapache: 'Mapache', cerdito: 'Cerdito', oveja: 'Oveja', leon: 'León', gato: 'Gato', zorro: 'Zorro', perro: 'Perro', conejo: 'Conejo', raton: 'Ratón', rana: 'Rana', pinguino: 'Pingüino', buho: 'Búho', tucan: 'Tucán', loro: 'Loro', perezoso: 'Perezoso', capibara: 'Capibara', jaguar: 'Jaguar' },
   // el color de la piel, del pelaje o de las plumas, según la especie
-  skinBy: { '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'], gorila: ['#4e2e1f', '#3a2116', '#6b4128', '#3b3f45', '#5a5f66'],
+  skinBy: {
+    '': null, mico: ['#7a4e2d', '#5e3b26', '#a8703f', '#3b2a20', '#9aa0a6'], pato: ['#f2c14e', '#f6f1e6', '#e3c07a', '#8db3a9', '#c98a3a'], gorila: ['#4e2e1f', '#3a2116', '#6b4128', '#3b3f45', '#5a5f66'],
     oso: ['#2e2622', '#4a3326', '#6b4a33'], panda: ['#f4efe6', '#e8e2d6'], koala: ['#9aa0a6', '#7f868e', '#b8bcc2'], mapache: ['#8a8f96', '#6f747b', '#a3a8ae'],
     cerdito: ['#f2a7a0', '#eebcb0', '#d98f86'], oveja: ['#fbf6ea', '#e9dff2', '#ddd0bc'], leon: ['#e3a33c', '#d18b2e', '#efbf5c'],
     gato: ['#f0a85a', '#9aa0a6', '#3a3a40', '#f4efe6'], zorro: ['#e5692a', '#c9561f', '#d98a4a'], perro: ['#d9b48a', '#a8703f', '#f4efe6', '#6b4a33'], conejo: ['#f1e4c7', '#c9a27a', '#e7d8cf'],
     raton: ['#a3a8ae', '#c9c2b4', '#8a8f96'], rana: ['#7fbf5a', '#5ea06b', '#a6c95a'], pinguino: ['#22283a', '#2e3a52', '#1d1f24'], buho: ['#8a5a3c', '#6b4a33', '#a8805a'],
-    tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c'] },
+    tucan: ['#1d1f24', '#2a2d33'], loro: ['#5ea06b', '#7fbf5a', '#3f8f5a'], perezoso: ['#a8805a', '#8a6a4c', '#c4a07a'], capibara: ['#a8703f', '#8a5a3c', '#c48a52'], jaguar: ['#e3a33c', '#d18b2e', '#efbf5c']
+  },
   skin: ['#f6d2b0', '#f0c49b', '#e9b98f', '#e0ac7e', '#d99c74', '#c68a5e', '#a8703f', '#8a5a3c', '#5e3b26'],
   hair: { side: 'Raya al lado', short: 'Corto clásico', recogido: 'Recogido', crop: 'Corto texturado', bob: 'Melena recta', long: 'Largo ondulado', curly: 'Rizos', bun: 'Moño', buzz: 'Rapado', beanie: 'Gorro de lana' },
   hairColor: ['#1f1712', '#23171a', '#4a2f1c', '#5a3a22', '#8a4b2a', '#962b19', '#c98a3a', '#e3c07a', '#9aa0a6', '#c5381f', '#2b6670', '#9b8ec7'],
@@ -835,8 +933,10 @@ const OPCIONES = {
   gear: ['#13323a', '#c5381f', '#f08c3d', '#f1e4c7', '#2b6670', '#9b8ec7'],
   shirt: ['#2b6670', '#1d4a54', '#13323a', '#4f8b8a', '#8db3a9', '#e5592a', '#f08c3d', '#c5381f', '#962b19', '#9b8ec7', '#5e3b6b', '#24406b'],
   accent: ['#f1e4c7', '#13323a', '#f08c3d', '#c5381f', '#8db3a9', '#f2c14e'],
-  scene: { oficina: 'Oficina', estudio: 'Estudio', noche: 'Oficina de noche', sala: 'Sala', reunion: 'Sala de reuniones',
-    sunset: 'Atardecer', clouds: 'Nubes', hills: 'Colinas', sun: 'Sol y confeti', waves: 'Olas', dusk: 'Noche', garden: 'Jardín', ocean: 'Mar de noche', candy: 'Menta' },
+  scene: {
+    oficina: 'Oficina', estudio: 'Estudio', noche: 'Oficina de noche', sala: 'Sala', reunion: 'Sala de reuniones',
+    sunset: 'Atardecer', clouds: 'Nubes', hills: 'Colinas', sun: 'Sol y confeti', waves: 'Olas', dusk: 'Noche', garden: 'Jardín', ocean: 'Mar de noche', candy: 'Menta'
+  },
 }
 // Un personaje al azar, armado sólo con lo del catálogo.
 function randomPerson(base = {}) {
