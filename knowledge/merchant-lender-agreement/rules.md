@@ -16,11 +16,19 @@ banco, cálculos de tesorería, `url_utm`, orden y autogestión. Si la entidad e
 
 - crea una fila de `lender_guarantee_criteria` con variable, condición y valor en `null` (por
   defecto pide pagaré), con clave `lender_id` y sin comercio;
-- da a los usuarios del comercio con perfil 4 o 6 los permisos `view creditop x requests` y
-  `view creditop x`; `application` agrega `register creditop x payments` y
-  `reduce creditop x installments` (`CreditopXPrincipalPaymentType::grantReduceInstallment`, que no
-  hace nada si ese permiso no existe);
+- en `Partner`, el controller da a los usuarios del comercio con perfil 4 o 6 los permisos
+  `view creditop x requests` y `view creditop x`;
 - en `application`, fuerza `iva = 19`. La copia de `Partner` guarda el IVA que llegue.
+
+En `application` los permisos no los toca el controller: los recalcula `LendersByAlliedObserver`
+con `CreditopXMerchantAccess`, después del commit, cuando se crea, se borra o cambia de
+`lender_id`/`allied_id` una fila de `lenders_by_allieds` de una entidad tipo 2 o 3 (Credifamilia
+queda afuera). Lo que corresponde sale de qué tipos tiene el comercio en `lenders_by_allieds`, sin
+mirar `status`: tipo 2 da `view creditop x` y `view creditop x requests` a los perfiles 4, 6 y 7, y
+los reportes a 6 y 7; tipo 3 da `register creditop x payments` y, a 6 y 7, los permisos del cupo
+rotativo. Quien registra pagos recibe además `reduce creditop x installments`, salvo los usuarios de
+SmartPay. No toca a los usuarios de prueba (`users.is_test`). Una edición que no cambia
+`lender_id` ni `allied_id` no dispara el recálculo.
 
 La fila de `lender_guarantee_criteria` se crea en cada `store` de una entidad CreditopX, aunque el
 `updateOrCreate` sólo haya actualizado un convenio que ya existía o la entidad ya tenga filas por
@@ -70,11 +78,11 @@ deja como estaba.
 2. borra el convenio;
 3. borra todas las filas de `lender_guarantee_criteria` de la entidad, otra vez sin filtrar por
    comercio;
-4. si la entidad es de `response_type` 2, revoca a los perfiles 4 y 6 del comercio `view creditop x requests` y
-   `view creditop x`, aunque el comercio tenga otro convenio CreditopX; `application` revoca además
-   `register creditop x payments` y `reduce creditop x installments`
-   (`CreditopXPrincipalPaymentType::revokeReduceInstallment`, si el permiso existe). Con un
-   rotativo (tipo 3) no revoca nada.
+4. en `Partner`, si la entidad es de `response_type` 2, revoca a los perfiles 4 y 6 del comercio
+   `view creditop x requests` y `view creditop x`, aunque el comercio tenga otro convenio CreditopX;
+   con un rotativo (tipo 3) no revoca nada. En `application` el borrado dispara el observer de la
+   sección «Crear un convenio», que revoca sólo lo que el comercio ya no justifica con los convenios
+   que le quedan.
 
 No toca `payment_methods_by_lender`. Como no hay transacción, un fallo a mitad deja los pasos
 anteriores aplicados.
@@ -110,3 +118,29 @@ habilitación no está cubierto acá.
 
 Diferencia entre copias: `application` guarda en la fila el `document_types` de la entidad;
 `Partner` la crea sin `document_types`.
+
+## El `status` de una habilitación casi nadie lo lee
+
+`lenders_by_allieds` y `lenders_by_allied_branches` tienen una columna `status` (booleana, por
+defecto `true`), pero en `main` quitar una entidad del comercio o de la sucursal **borra la fila**
+(secciones anteriores): ninguno de los dos admins escribe `status = 0`. «Habilitada» en `main`
+significa «la fila existe».
+
+Por eso casi ningún lector filtra por `status`:
+
+- el listado de entidades de `application` (`LenderRetrievalService`, también su camino de respaldo)
+  y los de `legacy-backend` (`Modules/Onboarding` `LenderRetrievalService` y `LenderListingService`,
+  y `OnboardingV2` al preguntar si la sucursal tiene una entidad de cierto `response_type`) toman
+  todas las filas de la sucursal; el convenio (`lenders_by_allieds`) tampoco se filtra;
+- los permisos CreditopX de `application` (`CreditopXMerchantAccess`) tampoco miran `status`, y su
+  observer sólo recalcula al crear, borrar o mover la fila, no al cambiar `status`;
+- sí filtran `status = 1` el simulador v1 de `application` (`Customer/SimulatorController::index`) y
+  `getActiveByAlliedBranchId` del repositorio de `LenderV1`;
+- el diagnóstico del backoffice (`Modules/Backoffice`, `ApplicationsService::apagadaEntities`)
+  muestra como «apagada» la fila con `status = 0` y da por hecho que no entró al perfilamiento.
+  Con los listados de `main` eso no es cierto: si una fila tiene `status = 0` (escrita por otra vía,
+  por ejemplo un admin desplegado desde una rama en una base compartida), el listado la ofrece igual.
+
+Al cambiar el apagado de «borrar» a «poner `status = 0`», cada lector de arriba que no filtra pasa a
+ofrecer entidades apagadas, en los dos monolitos: el cambio sólo es seguro si llega junto con el
+filtro en todos ellos.

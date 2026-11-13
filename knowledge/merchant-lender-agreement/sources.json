@@ -1,20 +1,9 @@
 {
   "version": 1,
   "title": "Convenio comercio–entidad y su habilitación en sucursales",
-  "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, tope y cobranza, permisos CreditopX, subsidio), cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral, y cómo la sucursal ecommerce habilita por credencial sin mirar el convenio.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "summary": "Qué escriben y borran crear, editar y quitar un convenio comercio–entidad en los dos admins (garantías y medios de pago por entidad, tope y cobranza, permisos CreditopX, subsidio), cómo guardar la sucursal recrea sus habilitaciones y exige convenio por efecto lateral, y cómo la sucursal ecommerce habilita por credencial sin mirar el convenio; y que «apagar» en main es borrar la fila: casi ningún listado mira el `status` de la habilitación.",
+  "reviewedAt": "2026-11-13T00:00:00+00:00",
   "sources": [
-    {
-      "repo": "application",
-      "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "74eacf879b86177281c54641fdf21e65c0de6978",
-      "sections": [
-        "crear-un-convenio",
-        "editar-un-convenio-cambia-datos-de-otros-comercios",
-        "quitar-un-convenio"
-      ]
-    },
     {
       "repo": "legacy-backend",
       "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
@@ -197,6 +186,139 @@
       "blob": "7d9a782d27afd58028de29e1cc7e12e213d8b87c",
       "sections": [
         "habilitar-entidades-al-crear-una-sucursal-ecommerce"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Services/lenders/LenderRetrievalService.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Customer/SimulatorController.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "112c3346747f8e0ef5f41a4fcf59719cd9d61b52",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderRetrievalService.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "3616a6d33fe56508e63b9ff85c93f508975c2648",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/lenders/LenderListingService.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "b5c813f1c70bc407b080d15a05c44ce3fdb0e681",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/OnboardingV2/App/Repositories/LenderByAlliedBranchRepository.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "bb20843b742f0470cc5794e5568564ce7e425603",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/LenderV1/App/Repositories/LendersByAlliedBranchRepository.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "3ee97e78aa987038799a4b72ce23842c04d9f4ba",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Backoffice/App/Services/ApplicationsService.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "7c7a42ab564ceae1b9bec83d231f15c0b40cfaad",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_07_17_171700_create_lenders_by_allied_branches_table.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "6335a0391480368bf8920f6b59655f667374640c",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2023_07_24_143425_create_lenders_by_allieds_table.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "51ffb585df37b1d728b8ed1dc43fc620d3f98f7b",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Http/Controllers/AlliedLenderController.php",
+      "commit": "bfd7b49c5788631c97968413a8df77768888b649",
+      "blob": "6c179e64feac8794cae40ac2b4a082a6efd341df",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
+      "sections": [
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "c84cea12eb74690396114c9e5a9bda8d0a1430c4",
+      "sections": [
+        "crear-un-convenio",
+        "editar-un-convenio-cambia-datos-de-otros-comercios",
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee",
+        "quitar-un-convenio"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Observers/LendersByAlliedObserver.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "a605cfdaa673244df10e89ed950f77295ae2b1b6",
+      "sections": [
+        "crear-un-convenio",
+        "quitar-un-convenio",
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
+      ]
+    },
+    {
+      "repo": "application",
+      "path": "app/Support/Users/CreditopXMerchantAccess.php",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "2eb73486b5e2ec19329c1f0741bc301f561d6976",
+      "sections": [
+        "crear-un-convenio",
+        "quitar-un-convenio",
+        "el-status-de-una-habilitacion-casi-nadie-lo-lee"
       ]
     }
   ]
