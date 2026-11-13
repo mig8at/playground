@@ -110,6 +110,13 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
+goldfish: ## @dia abre goldfish (:5216 · API :5217): las ramas de los repos reales que están por subir y, de cada una, su validación Elephant-Goldfish antes de abrir el PR: el elephant (con tu contexto local) arma la propuesta, dos goldfish la revisan en frío y el elephant le da veredicto a cada hallazgo contra el código. No abre PRs ni pushea. Cada validación corre 4 agentes con `claude -p` (gasta el asiento del plan)
+	@cd goldfish && npm run dev
+goldfish-list: ## @dia las ramas de los repos reales con commits por delante de main (últimos 45 días), con su PR y su tarea del tablero. Sólo lee
+	@go run ./goldfish/server -list
+goldfish-run: ## @dia ⚠ valida una rama antes de su PR (Elephant-Goldfish, 4 agentes con `claude -p`: unos minutos, gasta el asiento del plan). Deja el informe en goldfish/.runs y, si la rama es de una tarea, en sus artifacts y un bloque en su pila. REPO=<carpeta en ~/Desktop/CREDITOP/github> RAMA=<rama>
+	@test -n "$(REPO)" -a -n "$(RAMA)" || { echo "faltan REPO= y RAMA=  ·  ej: make goldfish-run REPO=legacy-backend RAMA=fix/x  (las ramas: make goldfish-list)"; exit 2; }
+	@go run ./goldfish/server -run -repo "$(REPO)" -branch "$(RAMA)"
 ecommerce: ## @dia abre ecommerce (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local, qa o prod (prod sólo lee); también cierra la compra (aprobada, negada, cancelada) y dicta las centrales. Es una copia suelta: su .env propio, sin connectors. ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en ecommerce/.backups/. Por consola: cd ecommerce && go run ./server -target qa -q <url|número>
 	@cd ecommerce && npm run dev
 .PHONY: captura

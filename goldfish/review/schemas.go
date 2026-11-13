@@ -1,0 +1,28 @@
+package review
+
+// Las respuestas de los agentes, como JSON Schema (claude -p --json-schema): así se leen sin adivinar.
+
+const findingProps = `"title": {"type": "string", "description": "corto, una línea"},
+"detail": {"type": "string", "description": "qué se vio, en qué condición falla o confunde y por qué importa"},
+"file": {"type": "string", "description": "la ruta en el repo, o vacío"},
+"line": {"type": "integer", "description": "la línea, o 0"},
+"severity": {"type": "string", "enum": ["alta", "media", "baja"]}`
+
+const schemaFindings = `{"type": "object", "additionalProperties": false, "required": ["findings"], "properties": {
+"findings": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+  "required": ["title", "detail", "file", "line", "severity"], "properties": {` + findingProps + `}}}}}`
+
+const schemaProposal = `{"type": "object", "additionalProperties": false, "required": ["title", "body", "claims"], "properties": {
+"title": {"type": "string"},
+"body": {"type": "string", "description": "la descripción del PR, en Markdown"},
+"claims": {"type": "array", "items": {"type": "string"}, "description": "las afirmaciones técnicas que dependen del código"}}}`
+
+const schemaVerdict = `{"type": "object", "additionalProperties": false, "required": ["verdicts", "extra"], "properties": {
+"verdicts": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["n", "verdict", "reason"], "properties": {
+  "n": {"type": "integer", "description": "el número del hallazgo en findings.json"},
+  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado"]},
+  "reason": {"type": "string", "description": "por qué, con archivo:línea"}}}},
+"extra": {"type": "array", "items": {"type": "object", "additionalProperties": false,
+  "required": ["title", "detail", "file", "line", "severity", "verdict", "reason"], "properties": {` + findingProps + `,
+  "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado"]},
+  "reason": {"type": "string"}}}}}}`

@@ -277,6 +277,8 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 			return "designer", ""
 		case regexp.MustCompile(`\bmake ecommerce\b|\becommerce/server\b`).MatchString(cmd):
 			return "ecommerce", ""
+		case regexp.MustCompile(`\bmake goldfish|\bgoldfish/server\b`).MatchString(cmd):
+			return "goldfish", ""
 		case regexp.MustCompile(`\bbin/chat\b|\bplayground (send|online|history)\b`).MatchString(cmd):
 			return "chat", ""
 		}

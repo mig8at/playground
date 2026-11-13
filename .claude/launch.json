@@ -224,6 +224,17 @@
       "autoPort": false
     },
     {
+      "name": "goldfish",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
+      "cwd": "goldfish",
+      "port": 5216,
+      "autoPort": false
+    },
+    {
       "name": "forecast",
       "runtimeExecutable": "sh",
       "runtimeArgs": [

@@ -100,6 +100,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5210", "127.0.0.1:5211"],
         start: Start::Make("sentinel"),
     },
+    AppDef {
+        // Goldfish (goldfish/): las ramas por subir de los repos reales y su validación Elephant-Goldfish antes del PR.
+        id: "goldfish",
+        name: "Goldfish",
+        url: "http://localhost:5216/",
+        ready: &["localhost:5216", "127.0.0.1:5217"],
+        start: Start::Make("goldfish"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
