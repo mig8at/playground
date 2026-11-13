@@ -69,7 +69,8 @@ agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `cha
 su voz de ElevenLabs (`voice` del JSON); varios a la vez esperan su turno y no se pisan; lo tuyo y lo que llegó antes de
 abrirla no se lee. La boca se abre con el volumen real del audio. Las menciones se dicen por el nombre («@miguel/luigi» →
 «Luigi», «@todos» → «todos») y los nombrados reaccionan mientras suena (recuadro marcado, miran arriba, 👋); si nombrás
-vos a alguien, ése reacciona unos segundos. De cada mensaje se dice sólo lo conversado (`chat/src/callSpeech.js`: hasta ~40 s,
+vos a alguien, ése reacciona unos segundos. También cuenta el nombre al empezar, sin @ («Luigi, te envío…»), y en un
+mensaje dirigido los demás siguen en lo suyo (teclean, un poco apagados). De cada mensaje se dice sólo lo conversado (`chat/src/callSpeech.js`: hasta ~40 s,
 ~650 caracteres; las listas punto por punto; sin títulos, tablas ni código); un adjunto lo tienen en la mano LOS QUE LO RECIBEN (los nombrados o, si no nombró a nadie,
 todos los demás): una hoja, una foto, el llavero (claves, que no se leen) o una hoja que corre (lo largo), mirándolo
 mientras quien lo mandó habla y unos segundos después. Cómo deben escribir los agentes: [`chat/CLAUDE.md`](../chat/CLAUDE.md). Cada frase se guarda una vez. Costo medido

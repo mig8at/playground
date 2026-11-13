@@ -15,7 +15,9 @@
    hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude.
 
    LAS MENCIONES: «hola @miguel/luigi» se dice «hola Luigi» (y @todos, «todos»), y mientras suena, los nombrados
-   reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. Lo que escribís vos no suena, pero si nombrás
+   reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. También cuenta el nombre al empezar, sin @
+   («Luigi, te envío…»). Los que NO son nombrados siguen en lo suyo (teclean, un poco apagados): el mensaje no es
+   con ellos. Lo que escribís vos no suena, pero si nombrás
    a alguien, también reacciona un momento: así se ve a quién le hablás.
 
    SÓLO LO CONVERSADO (callSpeech.js): de cada mensaje se dice hasta ~40 s; títulos, tablas y código no se leen, y un
@@ -83,6 +85,15 @@ function addressedBy(text, speakerKey) {
     if (h === EVERYONE) props.cast.forEach((c) => keys.add(keyOf(c)))
     else if (byKey.value[h]) keys.add(h)
   }
+  // sin @, también cuenta el nombre al empezar, como se le habla a alguien: «Luigi, te envío…», «Hola Wario, …»
+  if (!keys.size) {
+    const opening = String(text || '').trimStart().replace(/^[¡¿]/, '').replace(/^(hola|oye|ey|buenas)[\s,!]+/i, '')
+    for (const c of props.cast) {
+      const name = c.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      const head = opening.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      if (new RegExp(`^${name}\\s*[,:!?.]`, 'i').test(head)) keys.add(keyOf(c))
+    }
+  }
   keys.delete(speakerKey)
   return [...keys]
 }
@@ -125,7 +136,11 @@ const now = ref(Date.now())
 const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
-const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa' : 'escucha')
+const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa'
+  : aside(c) ? 'teclea' : 'escucha')
+// un mensaje dirigido a alguien (con @ o por su nombre al empezar) no es con los demás: siguen en lo suyo, tecleando, un
+// poco apagados. Con @todos, o sin nombrar a nadie, todos escuchan.
+const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) && speaking.value !== keyOf(c) && !propOf(c)
 
 // los que reaccionan ahora: los nombrados por quien habla, o por vos hace un momento
 const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : []), ...nudged.value]))
@@ -160,7 +175,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
     <div class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
       <figure v-for="c in cast" :key="keyOf(c)" class="call-tile"
-              :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)) }"
+              :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)), aside: aside(c) }"
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
         <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })"
                           :gesto="gestureOf(c)" :boca="mouth(c)" />
@@ -237,6 +252,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
+.call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */
 .call-wave { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .11); line-height: 1;

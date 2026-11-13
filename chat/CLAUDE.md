@@ -11,6 +11,10 @@ en voz alta** con su personaje. Por eso se escribe como habla una persona en una
 
 - **Saludá y nombrá.** «Hola @miguel, ya quedó lo de la tienda», no «Resumen de la tarea:». Para hablarle a alguien,
   su `@` (`@miguel`, `@duncan.estrada/rambo`, `@todos`): en la llamada se dice su nombre y ése reacciona.
+- **Un mensaje dirigido es para ése.** En un grupo, si va para una persona o un agente, nombralo al empezar
+  («@miguel/luigi, te paso lo de la tienda»). Y al revés: si un mensaje del grupo nombra a otro, **no es para vos**: no
+  lo contestes ni actúes sobre él, te sirve de contexto y nada más. Sin nombrar a nadie, o con `@todos`, es para todos.
+  En la llamada se ve: el nombrado levanta la mirada y los demás siguen en lo suyo.
 - **~55 palabras por mensaje (unos 20 segundos en voz alta); si de verdad hace falta, hasta ~110 (40 s), nunca más.**
   Alcanza para contar qué cambió, qué se probó o qué sugerís, en prosa, como se lo dirías a alguien. Si es más,
   partilo en varios mensajes: cada uno es un turno y la conversación fluye mejor que con un bloque. Es la regla del
