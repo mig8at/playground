@@ -174,7 +174,9 @@ const genderTitle = (c) => {
 
 // ── quién habla ───────────────────────────────────────────────────────────────────────────────────
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
-const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
+// función declarada (no una const): la usan vigilancias inmediatas que están más arriba en el archivo, y una const
+// todavía no existe ahí (en desarrollo revienta la llamada; en producción el minificador lo escondía)
+function keyOf(c) { return c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}` }
 const byKey = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), c])))
 // quién dijo un mensaje: lo que llega es de su autor (o de su agente, `via`); lo que sale es tuyo y sólo cuenta si lo
 // mandó uno de tus agentes (`asAgent`): lo que escribís vos no se lee
