@@ -12,9 +12,14 @@
    escribió (la persona, o su agente si habló por él), con la voz de su JSON; si llegan varios juntos, esperan su turno
    y no se pisan. Lo que escribís vos no se lee, y lo que llegó antes de abrir la llamada tampoco: así sólo se paga lo
    que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. «Reproducir demo» pone a
-   hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude. */
+   hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude.
+
+   LAS MENCIONES: «hola @miguel/luigi» se dice «hola Luigi» (y @todos, «todos»), y mientras suena, los nombrados
+   reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. Lo que escribís vos no suena, pero si nombrás
+   a alguien, también reacciona un momento: así se ve a quién le hablás. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { hush, say, voice } from './callVoice.js'
+import { EVERYONE, mentionsIn } from './mentions.js'
 import { demoLines } from './callDemo.js'
 
 const props = defineProps({
@@ -35,7 +40,7 @@ onMounted(() => {
   observer.observe(box.value)
   requestAnimationFrame(measure)
 })
-onBeforeUnmount(() => { observer?.disconnect(); hush() })
+onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer) })
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
@@ -64,14 +69,46 @@ function speakerOf(m) {
   const agent = String(m.via || '').toLowerCase()
   return byKey.value[agent ? `${person}/${agent}` : person] || null
 }
+// las menciones de un mensaje: a quiénes nombra (claves de la llamada; @todos son todos menos quien habla)
+function addressedBy(text, speakerKey) {
+  const keys = new Set()
+  for (const h of mentionsIn(text)) {
+    if (h === EVERYONE) props.cast.forEach((c) => keys.add(keyOf(c)))
+    else if (byKey.value[h]) keys.add(h)
+  }
+  keys.delete(speakerKey)
+  return [...keys]
+}
+// el texto como se dice: cada mención por el nombre del personaje («@miguel/luigi» → «Luigi»)
+function spoken(text) {
+  return String(text || '').replace(/(^|[^\w@./-])@([a-z0-9][a-z0-9._-]*(?:\/[a-z0-9][a-z0-9._-]*)?)/gi, (all, pre, handle) => {
+    const h = handle.replace(/[._-]+$/, '').toLowerCase()
+    const tail = handle.slice(h.length)
+    if (h === EVERYONE) return `${pre}todos${tail}`
+    const name = byKey.value[h]?.name || h.split('/').pop().split('.')[0]
+    return `${pre}${name.charAt(0).toUpperCase()}${name.slice(1)}${tail}`
+  })
+}
+// los que nombraste vos (tus mensajes no suenan): reaccionan unos segundos
+const nudged = ref([])
+let nudgeTimer = 0
+function nudge(keys) {
+  if (!keys.length) return
+  nudged.value = keys
+  clearTimeout(nudgeTimer)
+  nudgeTimer = setTimeout(() => { nudged.value = [] }, 3500)
+}
 // lo que llega con la llamada abierta se dice, en fila (callVoice espera a que termine el anterior)
 watch(() => props.messages.length, (n, old) => {
   if (!(n > old)) return
   for (const m of props.messages.slice(old)) {
     const c = speakerOf(m)
-    if (c && m.text) say(keyOf(c), m.text, c.voice)
+    if (c && m.text) say(keyOf(c), spoken(m.text), c.voice, addressedBy(m.text, keyOf(c)))
+    else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
 })
+// los que reaccionan ahora: los nombrados por quien habla, o por vos hace un momento
+const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : []), ...nudged.value]))
 
 // los papeles del demo: vos, la otra persona y los agentes de cada uno
 const roles = computed(() => {
@@ -102,10 +139,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   <div ref="box" class="region-body call" aria-label="Videollamada">
     <div class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
-      <figure v-for="c in cast" :key="keyOf(c)" class="call-tile" :class="{ speaking: speaking === keyOf(c) }"
+      <figure v-for="c in cast" :key="keyOf(c)" class="call-tile"
+              :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)) }"
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
         <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })"
-                          :gesto="speaking === keyOf(c) ? 'habla' : 'escucha'" :boca="mouth(c)" />
+                          :gesto="speaking === keyOf(c) ? 'habla' : addressed.has(keyOf(c)) ? 'piensa' : 'escucha'" :boca="mouth(c)" />
+        <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c))" class="call-wave" aria-hidden="true">👋</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
     </div>
@@ -139,6 +178,13 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
+.call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
+/* el nombrado saluda: la mano aparece con un saltito y se mece */
+.call-wave { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
+  animation: wave-in .25s ease-out, wave 1s ease-in-out .25s infinite alternate; transform-origin: 70% 80%; }
+@keyframes wave-in { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes wave { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
+@media (prefers-reduced-motion: reduce) { .call-wave { animation: none; } }
 .call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
 .call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
   padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;

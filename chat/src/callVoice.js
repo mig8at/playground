@@ -17,6 +17,7 @@ export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
   speaker: '',   // la clave del personaje que habla
   line: '',      // la frase que está diciendo
+  addressed: [], // a quiénes les habla el mensaje que suena (las claves de los que nombró con @)
   busy: false,   // si hay algo sonando o en fila
   level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
   error: '',
@@ -88,7 +89,7 @@ function prefetch() { queue.slice(0, AHEAD).forEach(start) }
 
 async function next() {
   const item = queue.shift()
-  if (!item) { busy = false; voice.busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.level = 0; return }
+  if (!item) { busy = false; voice.busy = false; current = null; voice.speaker = ''; voice.line = ''; voice.level = 0; voice.addressed = []; return }
   busy = true
   try {
     // ya se venía generando desde que llegó el mensaje: acá sólo se espera lo que falte
@@ -102,7 +103,7 @@ async function next() {
     audio.playbackRate = pitch
     current = audio
     listen(audio)
-    voice.speaker = item.speaker; voice.line = item.text
+    voice.speaker = item.speaker; voice.line = item.text; voice.addressed = item.addressed
     const done = () => {
       URL.revokeObjectURL(url)
       if (current !== audio) return
@@ -122,15 +123,15 @@ async function next() {
 }
 
 let generation = 0
-/** Que `speaker` diga `text` con su voz. Se suma a la fila. */
-export function say(speaker, text, v) {
+/** Que `speaker` diga `text` con su voz. Se suma a la fila. addressed: a quiénes les habla (reaccionan mientras suena). */
+export function say(speaker, text, v, addressed = []) {
   if (!voice.supported || !voice.ready || !v?.name) return
   const parts = sentences(text)
   // un mensaje largo se recorta: la videollamada lo dice, no lo lee entero
   const kept = parts.slice(0, 4)
   if (parts.length > kept.length) kept.push('Y sigue en el chat.')
   kept.forEach((t, i) => {
-    queue.push({ speaker, text: t, voice: v, last: i === kept.length - 1, gen: generation })
+    queue.push({ speaker, text: t, voice: v, addressed, last: i === kept.length - 1, gen: generation })
   })
   prefetch()
   voice.busy = true
@@ -143,5 +144,5 @@ export function hush() {
   queue.length = 0
   if (current) { current.pause(); current.onended = null; current = null }
   cancelAnimationFrame(raf)
-  busy = false; voice.busy = false; voice.speaker = ''; voice.line = ''; voice.level = 0
+  busy = false; voice.busy = false; voice.speaker = ''; voice.line = ''; voice.level = 0; voice.addressed = []
 }

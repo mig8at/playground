@@ -67,7 +67,9 @@ agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `cha
 **Las voces** (`chat/src/callVoice.js`, servidor `chat/server/voice.go` y `voice_elevenlabs.go`, por el conector
 `connectors/elevenlabs`): MIENTRAS LA VIDEOLLAMADA ESTÁ ABIERTA, cada mensaje que llega lo dice quien lo escribió, con
 su voz de ElevenLabs (`voice` del JSON); varios a la vez esperan su turno y no se pisan; lo tuyo y lo que llegó antes de
-abrirla no se lee. La boca se abre con el volumen real del audio. Cada frase se guarda una vez. Costo medido
+abrirla no se lee. La boca se abre con el volumen real del audio. Las menciones se dicen por el nombre («@miguel/luigi» →
+«Luigi», «@todos» → «todos») y los nombrados reaccionan mientras suena (recuadro marcado, miran arriba, 👋); si nombrás
+vos a alguien, ése reacciona unos segundos. Cada frase se guarda una vez. Costo medido
 (2026-11-12, `eleven_flash_v2_5`): ~0,2 créditos por carácter, ~30 por mensaje de 150 caracteres. Las voces de macOS y
 Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
