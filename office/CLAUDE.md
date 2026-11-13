@@ -74,8 +74,11 @@ mensaje dirigido los demás siguen en lo suyo (teclean, un poco apagados). De ca
 ~650 caracteres; las listas punto por punto; sin títulos, tablas ni código); un adjunto lo tienen en la mano LOS QUE LO RECIBEN (los nombrados o, si no nombró a nadie,
 todos los demás): una hoja, una foto, el llavero (claves, que no se leen) o una hoja que corre (lo largo), mirándolo
 mientras quien lo mandó habla y unos segundos después. Cómo deben escribir los agentes: [`chat/CLAUDE.md`](../chat/CLAUDE.md). Cada frase se guarda una vez. Costo medido
-(2026-11-12, `eleven_flash_v2_5`): ~0,2 créditos por carácter, ~30 por mensaje de 150 caracteres. Las voces de macOS y
-Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
+(2026-11-12, `eleven_flash_v2_5`): ~0,2 créditos por carácter, ~30 por mensaje de 150 caracteres. **Topes para no gastar de más**:
+cada mensaje se dice hasta ~40 s; uno de más de 150 palabras no se manda a la voz (se silencia: 🔇 sobre quien lo
+mandó y «mandó algo muy largo: quedó en el chat»); la fila de voces no pasa de 24 frases (lo que no entra, igual); y el
+servidor tiene un tope diario (`chat/server/voice_budget.go`, 20.000 caracteres, `CHAT_VOICE_DAILY_CHARS`; lo cacheado
+no cuenta; `GET /api/voice` dice cuánto se usó). Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
 guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. Cambiar el servidor pide `make chat-install` (y
 aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).

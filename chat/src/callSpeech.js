@@ -15,13 +15,16 @@ import { isImage } from './stores/chat.js'
 
 // ~40 s de voz: ElevenLabs (eleven_flash_v2_5) dice ~16,5 caracteres por segundo (medido el 2026-11-12: 369 en 22,4 s)
 const MAX_CHARS = 650
+// Un mensaje de más de esto (en palabras, contando todo: código, tablas, un log pegado) no se dice: se silencia y la
+// llamada lo avisa. Es el tope de la guía (~110 palabras, 40 s) con margen; protege la plata de ElevenLabs.
+export const MUTE_WORDS = 150
 
 // Lo que no es para el oído, línea por línea: títulos y tablas. Las listas se dicen (sin la viñeta).
 const DROPPED_LINE = /^\s*(#{1,6}\s|\|)/
 const LIST_ITEM = /^\s*([-*•]|\d+[.)])\s+/
 
 /**
- * Lo que la llamada hace con un mensaje: { text, prop }. text es lo que se dice (vacío: nada); prop, la animación del
+ * Lo que la llamada hace con un mensaje: { text, prop, muted? }. muted: era demasiado largo y no se dice. text es lo que se dice (vacío: nada); prop, la animación del
  * personaje: 'image' (una foto), 'doc' (una hoja), 'key' (el llavero) o 'read' (lee: quedó algo largo en el chat), o ''.
  */
 export function forCall(message) {
@@ -29,6 +32,8 @@ export function forCall(message) {
   // el llavero no se lee: son nombres de claves o valores encriptados (U2FsdGVkX1…); se anuncia y se muestra una hoja
   const keyring = keyringLine(raw)
   if (keyring) return { text: keyring, prop: 'key' }
+  // un mamotreto no se manda a la voz: se silencia (muted) y queda en el chat
+  if (raw.split(/\s+/).filter(Boolean).length > MUTE_WORDS) return { text: '', prop: 'read', muted: true }
   let dropped = false
   // los bloques de código, enteros
   let text = raw.replace(/```[\s\S]*?```/g, () => { dropped = true; return '\n' })

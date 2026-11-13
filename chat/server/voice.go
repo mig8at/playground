@@ -4,7 +4,7 @@ package main
 // motores más —las voces de macOS con `say` y Gemini— y se quitaron el 2026-11-12: ElevenLabs suena mejor, tiene
 // voces colombianas y entrega una frase en 0,35–0,7 s (Gemini, ~2,4 s y con un cupo de 10 pedidos por minuto).
 //
-//	GET  /api/voice          ¿hay llave de ElevenLabs?
+//	GET  /api/voice          ¿hay llave de ElevenLabs?, y cuánto del tope diario se usó (voice_budget.go)
 //	POST /api/voice          {"voice": "Laura", "text": "…"} → audio/mpeg
 //
 // Cada frase se guarda una vez (en la caché del usuario, por modelo, voz y texto): repetirla no vuelve a cobrarse.
@@ -30,7 +30,7 @@ func voiceCacheDir() string {
 
 func registerVoice(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady()})
+		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady(), "usedToday": readBudget().Chars, "dailyLimit": dailyVoiceLimit()})
 	})
 	mux.HandleFunc("POST /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

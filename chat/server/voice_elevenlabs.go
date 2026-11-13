@@ -62,8 +62,14 @@ func synthesizeEleven(voice, text string) (string, error) {
 		elevenIDs[voice] = id
 		elevenMu.Unlock()
 	}
+	// el tope diario (voice_budget.go): se reserva antes de pedir y se devuelve si ElevenLabs falla
+	n := len([]rune(text))
+	if err := spendVoice(n); err != nil {
+		return "", err
+	}
 	audio, err := cl.Speech(id, text)
 	if err != nil {
+		refundVoice(n)
 		return "", elevenFriendly(err)
 	}
 	if err := os.MkdirAll(dir, 0o755); err != nil {

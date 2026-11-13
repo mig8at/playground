@@ -49,7 +49,7 @@ onMounted(() => {
   observer.observe(box.value)
   requestAnimationFrame(measure)
 })
-onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer) })
+onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer); clearTimeout(muteTimer) })
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
@@ -107,6 +107,17 @@ function spoken(text) {
     return `${pre}${name.charAt(0).toUpperCase()}${name.slice(1)}${tail}`
   })
 }
+// SILENCIADO: un mensaje gigante (o uno que no entró en la fila) no se dice; quien lo mandó lleva un 🔇 unos segundos y
+// abajo sale el aviso. Así no se gasta ElevenLabs en un mamotreto y se sabe que llegó algo para leer en el chat.
+const muted = ref(null) // { key, until }
+let muteTimer = 0
+function mute(key) {
+  muted.value = { key, until: Date.now() + 6000 }
+  clearTimeout(muteTimer)
+  muteTimer = setTimeout(() => { muted.value = null }, 6000)
+}
+const mutedNote = computed(() => (muted.value ? `${byKey.value[muted.value.key]?.name || 'Alguien'} mandó algo muy largo: quedó en el chat.` : ''))
+
 // los que nombraste vos (tus mensajes no suenan): reaccionan unos segundos
 const nudged = ref([])
 let nudgeTimer = 0
@@ -122,11 +133,12 @@ watch(() => props.messages.length, (n, old) => {
   for (const m of props.messages.slice(old)) {
     const c = speakerOf(m)
     if (c && (m.text || m.files?.length)) {
-      const { text, prop } = forCall(m)
+      const { text, prop, muted: tooLong } = forCall(m)
+      if (tooLong) { mute(keyOf(c)); continue }
       const to = addressedBy(m.text, keyOf(c))
       // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
       const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
-      if (text) say(keyOf(c), spoken(text), c.voice, to, prop, holders)
+      if (text && !say(keyOf(c), spoken(text), c.voice, to, prop, holders)) mute(keyOf(c))
     }
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
@@ -219,6 +231,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
           </template>
         </svg>
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
+        <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
     </div>
@@ -229,7 +242,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         {{ voice.busy ? 'Parar' : 'Reproducir demo' }}
       </button>
     </div>
-    <p v-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
+    <p v-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
+    <p v-else-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
     <p v-if="caption" class="call-caption" aria-live="polite"><b>{{ caption.name }}</b> {{ caption.line }}</p>
   </div>
 </template>
@@ -252,6 +266,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
+.call-muted { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
+  padding: 4px 6px; border-radius: 10px; background: rgba(19, 50, 58, .8); animation: wave-in .25s ease-out; }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */

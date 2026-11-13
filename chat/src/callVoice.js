@@ -133,16 +133,21 @@ const holding = (item, until) => Object.fromEntries(item.holders.map((k) => [k, 
 let generation = 0
 /** Que `speaker` diga `text` con su voz. Se suma a la fila. addressed: a quiénes les habla (reaccionan mientras suena);
     prop: lo que se mandó ('doc', 'image', 'key', 'read'); holders: quiénes lo reciben y lo tienen en la mano
-    mientras. Lo que se dice ya viene recortado a ~40 s (callSpeech.js); acá sólo se pone un techo por si acaso. */
+    mientras. Lo que se dice ya viene recortado a ~40 s (callSpeech.js); acá sólo se pone un techo por si acaso.
+    Devuelve false si no entró en la fila (demasiados esperando): quien llama lo avisa como silenciado. */
+// Si llegan muchos juntos (un agente en un bucle), la fila no crece sin fin: lo que no entra se silencia.
+const MAX_QUEUE = 24
 export function say(speaker, text, v, addressed = [], prop = '', holders = []) {
-  if (!voice.supported || !voice.ready || !v?.name) return
+  if (!voice.supported || !voice.ready || !v?.name) return true
   const kept = sentences(text).slice(0, 20)
+  if (queue.length + kept.length > MAX_QUEUE) return false
   kept.forEach((t, i) => {
     queue.push({ speaker, text: t, voice: v, addressed, prop, holders, first: i === 0, last: i === kept.length - 1, gen: generation })
   })
   prefetch()
   voice.busy = true
   if (!busy) next()
+  return true
 }
 
 /** Calla a todos y vacía la fila. */
