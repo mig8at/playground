@@ -43,6 +43,7 @@ type agentSpec struct {
 	denied    []string // las que nunca
 	cold      bool     // en frío: --restricted y sin MCP
 	addDirs   []string // otras carpetas que puede leer
+	env       []string // variables de más para el agente
 	budgetUSD float64
 	timeout   time.Duration
 }
@@ -93,7 +94,7 @@ func runAgent(ctx context.Context, s agentSpec) (AgentResult, error) {
 	defer cancel()
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Dir = s.dir
-	cmd.Env = childEnv()
+	cmd.Env = append(childEnv(), s.env...)
 	var out, errb bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &errb
 	runErr := cmd.Run()

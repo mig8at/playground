@@ -35,26 +35,28 @@ var promptVerdict string
 
 // Run: una validación.
 type Run struct {
-	ID       string    `json:"id"`
-	Repo     string    `json:"repo"`    // la carpeta de su clon
-	Slug     string    `json:"slug"`    // owner/name
-	Branch   string    `json:"branch"`  // la rama del PR
-	Base     string    `json:"base"`    // contra qué se compara: origin/<base del PR>
-	HeadRef  string    `json:"headRef"` // dónde quedó el PR en el clon: refs/goldfish/pr-<n>
-	Head     string    `json:"head"`    // el commit validado
-	Task     *Task     `json:"task"`
-	PR       *PR       `json:"pr"`
-	Started  string    `json:"started"`
-	Finished string    `json:"finished"`
-	Status   string    `json:"status"` // running · done · failed
-	PID      int       `json:"pid"`    // el proceso que la corre (la consola o el servidor)
-	Error    string    `json:"error,omitempty"`
-	Stages   []Stage   `json:"stages"`
-	Proposal Proposal  `json:"proposal"`
-	Findings []Finding `json:"findings"`
-	CostUSD  float64   `json:"costUsd"`
-	Report   string    `json:"report"`   // el informe (Markdown)
-	Artifact string    `json:"artifact"` // su copia en la tarea, si tiene
+	ID        string    `json:"id"`
+	Repo      string    `json:"repo"`    // la carpeta de su clon
+	Slug      string    `json:"slug"`    // owner/name
+	Branch    string    `json:"branch"`  // la rama del PR
+	Base      string    `json:"base"`    // contra qué se compara: origin/<base del PR>
+	HeadRef   string    `json:"headRef"` // dónde quedó el PR en el clon: refs/goldfish/pr-<n>
+	Head      string    `json:"head"`    // el commit validado
+	Task      *Task     `json:"task"`
+	PR        *PR       `json:"pr"`
+	Started   string    `json:"started"`
+	Finished  string    `json:"finished"`
+	Status    string    `json:"status"` // running · done · failed
+	PID       int       `json:"pid"`    // el proceso que la corre (la consola o el servidor)
+	Error     string    `json:"error,omitempty"`
+	Stages    []Stage   `json:"stages"`
+	Proposal  Proposal  `json:"proposal"`
+	Findings  []Finding `json:"findings"`
+	CostUSD   float64   `json:"costUsd"`
+	Proving   bool      `json:"proving"`   // corre «Comprobar corriendo»
+	ProveFrom string    `json:"proveFrom"` // en qué estaba el clon antes (rama o commit), para devolverlo
+	Report    string    `json:"report"`    // el informe (Markdown)
+	Artifact  string    `json:"artifact"`  // su copia en la tarea, si tiene
 }
 
 // Stage: un paso, con lo que costó.
@@ -86,6 +88,7 @@ type Finding struct {
 	Severity string `json:"severity"` // alta · media · baja
 	Verdict  string `json:"verdict"`  // confirmado · plausible · descartado (vacío si el veredicto no llegó)
 	Reason   string `json:"reason"`
+	Proof    *Proof `json:"proof,omitempty"` // lo que dio correrlo (Comprobar corriendo)
 }
 
 // RunsDir: dónde quedan las validaciones.
@@ -448,6 +451,12 @@ func Report(r *Run) string {
 		fmt.Fprintf(&b, "%s\n\n%s\n\n", from[f.From], strings.TrimSpace(f.Detail))
 		if f.Reason != "" {
 			fmt.Fprintf(&b, "> Veredicto: %s\n\n", strings.TrimSpace(f.Reason))
+		}
+		if f.Proof != nil {
+			fmt.Fprintf(&b, "**Corriendo: %s.** %s\n\n", f.Proof.Status, strings.TrimSpace(f.Proof.Result))
+			if f.Proof.Command != "" {
+				fmt.Fprintf(&b, "```\n%s\n```\n\n", strings.TrimSpace(f.Proof.Command))
+			}
 		}
 	}
 	fmt.Fprintf(&b, "---\n\n## La descripción del PR que se revisó\n\n### %s\n\n%s\n", r.Proposal.Title, orEmpty(r.Proposal.Body))

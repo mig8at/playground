@@ -21,3 +21,10 @@ const schemaVerdict = `{"type": "object", "additionalProperties": false, "requir
   "required": ["title", "detail", "file", "line", "severity", "verdict", "reason"], "properties": {` + findingProps + `,
   "verdict": {"type": "string", "enum": ["confirmado", "plausible", "descartado"]},
   "reason": {"type": "string"}}}}}}`
+
+const schemaProve = `{"type": "object", "additionalProperties": false, "required": ["proofs"], "properties": {
+"proofs": {"type": "array", "items": {"type": "object", "additionalProperties": false, "required": ["n", "status", "command", "result"], "properties": {
+  "n": {"type": "integer", "description": "el número del hallazgo"},
+  "status": {"type": "string", "enum": ["comprobado", "refutado", "sin probar"]},
+  "command": {"type": "string", "description": "lo que se corrió, para repetirlo (vacío si no se corrió)"},
+  "result": {"type": "string", "description": "lo que dio, o por qué no se pudo probar"}}}}}}`

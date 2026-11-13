@@ -8,6 +8,7 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 | la app (Cockpit: **Goldfish**) | `make goldfish` → :5216 · API :5217 |
 | tus PRs abiertos y los externos | `make goldfish-list` |
 | validar un PR | `make goldfish-run PR=<url>`, o pegar la URL en la app |
+| comprobar corriendo (harness en local, con el PR) | el botón «Comprobar corriendo» de una validación terminada |
 
 ## Qué lista
 
@@ -37,6 +38,20 @@ El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revis
    las trampas, el conocimiento de la tarea, las reglas de los PRs (`prompts/elephant-verdict.md`).
 4. **Informe**: `goldfish/.runs/<id>/report.md` (fuera de git, con `package/`, que es EXACTAMENTE lo que vieron los
    goldfish). Si la rama es de una tarea, una copia en sus `artifacts/` y un bloque corto en su pila.
+
+5. **Comprobar corriendo** (a pedido, el botón de la validación terminada; `review/prove.go`): lo que se dijo leyendo,
+   se prueba corriendo. El clon del repo se pone en el commit del PR (detached), así el ambiente LOCAL corre el cambio
+   de verdad (sail monta la carpeta de legacy-backend; el wizard de :5174 sale de frontend-monorepo), y un agente con
+   el harness prueba los hallazgos confirmados y plausibles (`prompts/elephant-prove.md`): `harness-case`,
+   `harness-listing`, `harness-walk-wizard`, la base local, prod sólo lectura, y la prueba del PR por su ruta (sin
+   `RefreshDatabase`). Cada hallazgo queda «comprobado», «refutado» o «sin probar», con el comando y lo que dio.
+   - ⚠ **Mientras corre, el clon NO está en tu rama.** Al terminar —bien, mal o frenado— vuelve solo
+     (`checkoutPR` devuelve cómo; lo prueba `TestCheckoutPRRestores`). Si el servidor se cae en la mitad, al arrancar
+     lo devuelve (`RestoreAfterCrash`, con la rama guardada en `proveFrom`), sólo si sigue exactamente en el PR.
+   - Con cambios sin commit en el clon, no lo toca y no prueba. Un candado por clon: dos comprobaciones no se pisan.
+   - Siempre `TARGET=local` (`E2E_TARGET=local` ya va puesto); el agente no puede hacer checkout, commits ni pushes, ni
+     `make fresh`/`make test`; la prueba por ruta va con permiso sólo para `sail artisan test` desde ese clon, y el hook
+     `destructive-tests` sigue frenando la suite entera.
 
 **Miguel resuelve**: decide qué corregir o qué comentarle al autor. Goldfish no comenta en GitHub, no aprueba ni
 pushea: el elephant tiene negados `Edit`, `Write` y los `git` que escriben.

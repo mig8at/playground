@@ -14,7 +14,9 @@ package main
 //	GET    /api/runs/{id}                una, con sus pasos y hallazgos (la interfaz la pregunta mientras corre)
 //	GET    /api/runs/{id}/report         su informe en Markdown
 //	POST   /api/runs  {url}              valida un PR (uno a la vez por PR)
-//	POST   /api/runs/{id}/stop           la frena
+//	POST   /api/runs/{id}/prove          «Comprobar corriendo»: pone el clon en el PR, prueba con el harness en local
+//	                                     los hallazgos confirmados y plausibles, y lo devuelve a su rama
+//	POST   /api/runs/{id}/stop           la frena (también la comprobación)
 //
 // Sólo escucha en 127.0.0.1. De los repos sólo trae el PR y su base al clon (refs, sin tocar el árbol de trabajo):
 // no comenta en GitHub, no aprueba ni pushea.
@@ -155,6 +157,24 @@ func markInterrupted(root string) {
 	for _, r := range review.List(root) {
 		if r.Status == "running" && !r.Alive() {
 			r.Status, r.Error = "failed", "se cortó: el proceso que la corría se cerró"
+			_ = review.Save(root, r)
+		}
+		if r.Proving && !r.Alive() {
+			r.Proving = false
+			for i := range r.Stages {
+				if r.Stages[i].ID == review.ProveStage && r.Stages[i].Status == "running" {
+					note, err := review.RestoreAfterCrash(context.Background(), r)
+					switch {
+					case err != nil:
+						note = "se cortó y el clon NO volvió: " + err.Error()
+					case note != "":
+						note = "se cortó; " + note
+					default:
+						note = "se cortó"
+					}
+					r.Stages[i].Status, r.Stages[i].Note = "failed", note
+				}
+			}
 			_ = review.Save(root, r)
 		}
 	}
@@ -298,6 +318,38 @@ func listen(root, addr string) {
 				x.Status, x.Error = "failed", "frenada"
 				_ = review.Save(root, x)
 			}
+		}()
+		writeJSON(w, http.StatusAccepted, map[string]string{"id": x.ID})
+	})
+	mux.HandleFunc("POST /api/runs/{id}/prove", func(w http.ResponseWriter, r *http.Request) {
+		x, err := review.Load(root, r.PathValue("id"))
+		if err != nil || x.PR == nil {
+			fail(w, http.StatusNotFound, errors.New("no existe esa validación"))
+			return
+		}
+		runsMu.Lock()
+		if _, busy := running[x.ID]; busy {
+			runsMu.Unlock()
+			fail(w, http.StatusConflict, errors.New("esa validación todavía está corriendo"))
+			return
+		}
+		if x.Status != "done" {
+			runsMu.Unlock()
+			fail(w, http.StatusConflict, errors.New("sólo se comprueba una validación terminada"))
+			return
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		running[x.ID] = cancel
+		runsMu.Unlock()
+		x.PID = os.Getpid()
+		go func() {
+			defer func() {
+				runsMu.Lock()
+				delete(running, x.ID)
+				runsMu.Unlock()
+				cancel()
+			}()
+			review.Prove(ctx, root, x, func(y *review.Run) { _ = review.Save(root, y) })
 		}()
 		writeJSON(w, http.StatusAccepted, map[string]string{"id": x.ID})
 	})

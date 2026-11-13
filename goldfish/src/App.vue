@@ -118,13 +118,13 @@ async function loadRun() {
     run.value = await getJSON(`/api/runs/${encodeURIComponent(runId.value)}`)
     runError.value = ''
   } catch (e) { run.value = null; runError.value = String(e.message || e) }
-  if (run.value?.status === 'running') pollTimer = setTimeout(loadRun, 2000)
+  if (run.value?.status === 'running' || run.value?.proving) pollTimer = setTimeout(loadRun, 2000)
   else loadRuns()
 }
 watch(runId, loadRun)
 watch(prUrl, () => { if (!runId.value) run.value = null })
 async function stop() {
-  if (run.value?.status !== 'running') return
+  if (run.value?.status !== 'running' && !run.value?.proving) return
   await fetch(`/api/runs/${encodeURIComponent(run.value.id)}/stop`, { method: 'POST' }).catch(() => {})
 }
 const byVerdict = computed(() => {
@@ -134,6 +134,18 @@ const byVerdict = computed(() => {
     .filter((v) => v.items.length)
 })
 const proposalOpen = ref(false)
+// COMPROBAR CORRIENDO (goldfish/review/prove.go): el clon del repo se pone en el PR, un agente prueba con el harness en
+// local los hallazgos confirmados y plausibles, y el clon vuelve a su rama
+const testable = computed(() => (run.value?.findings || []).filter((f) => f.verdict === 'confirmado' || f.verdict === 'plausible').length)
+const proveError = ref('')
+async function prove() {
+  proveError.value = ''
+  try {
+    await postJSON(`/api/runs/${encodeURIComponent(run.value.id)}/prove`, {})
+    await loadRun()
+  } catch (e) { proveError.value = String(e.message || e) }
+}
+const PROOF_LABEL = { comprobado: 'comprobado corriendo', refutado: 'refutado corriendo', 'sin probar': 'sin probar' }
 
 const fmtTime = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '')
 const fmtSecs = (ms) => (ms ? `${Math.round(ms / 1000)} s` : '')
@@ -232,7 +244,7 @@ onBeforeUnmount(() => {
       <div class="region-head">
         <span>{{ selected ? `#${selected.number} · ${blockOf(selected)?.name || selected.slug}` : 'Goldfish' }}</span>
         <div v-if="selected" class="region-actions">
-          <button v-if="run?.status === 'running'" type="button" class="action" @click="stop">Frenar</button>
+          <button v-if="run?.status === 'running' || run?.proving" type="button" class="action" @click="stop">Frenar</button>
           <button v-else type="button" class="action primary" :disabled="starting || !blockOf(selected)?.clone" @click="validateUrl(selected.url)">{{ prRuns.length ? 'Validar de nuevo' : 'Validar' }}</button>
         </div>
       </div>
@@ -288,6 +300,14 @@ onBeforeUnmount(() => {
                 costo equivalente {{ usd(run.costUsd) || 'US$0.00' }} (gasta del límite del plan de equipo)
                 <template v-if="run.artifact"> · quedó en la tarea</template>
               </p>
+              <div v-if="run.status === 'done' && testable && !run.proving" class="prove">
+                <button type="button" class="action primary" @click="prove">Comprobar corriendo</button>
+                <span class="muted">Pone el clon de {{ blockOf(selected)?.name || run.slug }} en el PR, prueba con el harness en
+                  local los {{ testable }} hallazgos confirmados y plausibles, y lo devuelve a tu rama. Si el clon tiene
+                  cambios sin commit, no lo toca.</span>
+              </div>
+              <p v-if="run.proving" class="muted prove-note">Comprobando: el clon de {{ blockOf(selected)?.name || run.slug }} está en el PR hasta que termine.</p>
+              <p v-if="proveError" class="hot">{{ proveError }}</p>
             </section>
 
             <section v-for="v in byVerdict" :key="v.id" class="verdict" :data-verdict="v.id || 'none'">
@@ -300,6 +320,10 @@ onBeforeUnmount(() => {
                 <p class="where"><code v-if="loc(f)">{{ loc(f) }}</code> <span class="muted">{{ FROM[f.from] }}</span></p>
                 <p class="detail">{{ f.detail }}</p>
                 <p v-if="f.reason" class="reason">{{ f.reason }}</p>
+                <div v-if="f.proof" class="proof" :data-proof="f.proof.status">
+                  <b>{{ PROOF_LABEL[f.proof.status] || f.proof.status }}</b> {{ f.proof.result }}
+                  <pre v-if="f.proof.command">{{ f.proof.command }}</pre>
+                </div>
               </article>
             </section>
             <p v-if="run.status === 'done' && !run.findings?.length" class="none">Ningún hallazgo: los goldfish no encontraron nada serio.</p>
@@ -419,6 +443,15 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .sev { flex: none; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .03em; color: var(--fg-3) }
 .sev[data-sev="alta"] { color: var(--verdict-confirmed); font-weight: 700 }
 .sev[data-sev="media"] { color: var(--verdict-plausible); font-weight: 600 }
+/* comprobar corriendo, y su evidencia en cada hallazgo */
+.prove { display: flex; align-items: flex-start; gap: var(--space-2); margin-top: var(--space-2); font-size: var(--text-sm) }
+.prove .action { flex: none }
+.prove-note { margin: var(--space-2) 0 0; font-size: var(--text-sm) }
+.proof { margin-top: 6px; padding: 6px var(--space-2); border-radius: 6px; border: 1px solid var(--border); font-size: var(--text-sm) }
+.proof[data-proof="comprobado"] b { color: var(--verdict-confirmed) }
+.proof[data-proof="refutado"] b { color: var(--stage-done) }
+.proof[data-proof="sin probar"] b { color: var(--fg-3) }
+.proof pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
 /* la descripción revisada */
 .proposal .toggle { background: transparent; border: 0; color: inherit; font: inherit; display: flex; gap: var(--space-2); align-items: center; cursor: pointer; padding: 0 }
 .proposal-body { padding: var(--space-2) var(--gutter) }
