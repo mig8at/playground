@@ -18,10 +18,11 @@
    reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. Lo que escribís vos no suena, pero si nombrás
    a alguien, también reacciona un momento: así se ve a quién le hablás.
 
-   SÓLO LO CONVERSADO (callSpeech.js): de un mensaje se dicen sus primeras frases; títulos, listas, tablas y código no
-   se leen, y un adjunto se anuncia en una frase. Mientras lo dice, el personaje muestra lo que trae —una hoja (un
-   documento), una foto (una imagen) o una hoja que corre (lo largo que quedó en el chat)— y después mira hacia abajo
-   unos segundos, leyéndolo. */
+   SÓLO LO CONVERSADO (callSpeech.js): de cada mensaje se dice hasta ~40 s; títulos, tablas y código no se leen, y un
+   adjunto sin presentar se anuncia en una frase. LO QUE SE MANDA LO TIENEN LOS QUE LO RECIBEN: mientras quien lo mandó
+   habla, los nombrados (o todos los demás, si no nombró a nadie) sostienen una hoja (un documento), una foto (una
+   imagen), el llavero (claves) o una hoja que corre (lo largo que quedó en el chat) y miran hacia abajo, leyéndolo;
+   unos segundos después lo guardan. */
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { hush, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
@@ -111,7 +112,10 @@ watch(() => props.messages.length, (n, old) => {
     const c = speakerOf(m)
     if (c && (m.text || m.files?.length)) {
       const { text, prop } = forCall(m)
-      if (text) say(keyOf(c), spoken(text), c.voice, addressedBy(m.text, keyOf(c)), prop)
+      const to = addressedBy(m.text, keyOf(c))
+      // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
+      const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
+      if (text) say(keyOf(c), spoken(text), c.voice, to, prop, holders)
     }
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
@@ -170,6 +174,22 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             <path d="M20 58 L20 46 Q34 34 46 44 Q58 36 80 46 L80 58 Z" fill="#4f8b8a" />
             <path d="M20 58 L20 52 Q40 46 58 54 Q70 50 80 54 L80 58 Z" fill="#2b6670" />
           </template>
+          <!-- el llavero: un aro, una llave dorada y una etiqueta, colgando -->
+          <template v-else-if="propOf(c) === 'key'">
+            <g class="keyring">
+              <g opacity=".25" fill="#13323a" transform="translate(3 4)">
+                <circle cx="34" cy="22" r="11" /><circle cx="50" cy="44" r="13" /><rect x="58" y="40" width="30" height="8" rx="2" />
+              </g>
+              <circle cx="34" cy="22" r="10" fill="none" stroke="#b9cdc6" stroke-width="4" />
+              <path d="M26 30 L22 52 L36 56 L40 34 Z" fill="#f6ecd6" />
+              <circle cx="31" cy="38" r="2.5" fill="#e5592a" />
+              <circle cx="50" cy="44" r="13" fill="#f2c14e" />
+              <circle cx="50" cy="44" r="5" fill="#c59a2e" />
+              <rect x="58" y="40" width="30" height="8" rx="2" fill="#f2c14e" />
+              <rect x="74" y="48" width="5" height="8" fill="#f2c14e" /><rect x="82" y="48" width="5" height="11" fill="#f2c14e" />
+              <path d="M41 30 Q46 26 50 31" fill="none" stroke="#b9cdc6" stroke-width="4" />
+            </g>
+          </template>
           <template v-else>
             <rect x="22" y="6" width="56" height="70" rx="2" fill="#13323a" opacity=".25" transform="translate(3 4)" />
             <path d="M22 6 H66 L78 18 V76 H22 Z" fill="#f6ecd6" />
@@ -183,7 +203,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
-        <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c))" class="call-wave" aria-hidden="true">👋</span>
+        <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
       </figure>
     </div>
@@ -234,7 +254,10 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 /* lo largo que quedó en el chat: los renglones corren, como quien lo va leyendo */
 .call-prop.read .lines { animation: prop-read 3s linear infinite; }
 @keyframes prop-read { from { transform: translateY(0); } to { transform: translateY(-14px); } }
-@media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines { animation: none; } }
+/* el llavero cuelga y se balancea desde el aro */
+.call-prop.key .keyring { transform-origin: 34px 22px; animation: key-swing 1.6s ease-in-out infinite alternate; }
+@keyframes key-swing { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
+@media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines, .call-prop.key .keyring { animation: none; } }
 .call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
 .call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
   padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;

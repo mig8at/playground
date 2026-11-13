@@ -70,8 +70,9 @@ su voz de ElevenLabs (`voice` del JSON); varios a la vez esperan su turno y no s
 abrirla no se lee. La boca se abre con el volumen real del audio. Las menciones se dicen por el nombre («@miguel/luigi» →
 «Luigi», «@todos» → «todos») y los nombrados reaccionan mientras suena (recuadro marcado, miran arriba, 👋); si nombrás
 vos a alguien, ése reacciona unos segundos. De cada mensaje se dice sólo lo conversado (`chat/src/callSpeech.js`: hasta ~40 s,
-~650 caracteres; las listas punto por punto; sin títulos, tablas ni código); un adjunto se anuncia en una frase y el personaje muestra una hoja, una foto o una
-hoja que corre (lo largo), y después la lee unos segundos. Cómo deben escribir los agentes: [`chat/CLAUDE.md`](../chat/CLAUDE.md). Cada frase se guarda una vez. Costo medido
+~650 caracteres; las listas punto por punto; sin títulos, tablas ni código); un adjunto lo tienen en la mano LOS QUE LO RECIBEN (los nombrados o, si no nombró a nadie,
+todos los demás): una hoja, una foto, el llavero (claves, que no se leen) o una hoja que corre (lo largo), mirándolo
+mientras quien lo mandó habla y unos segundos después. Cómo deben escribir los agentes: [`chat/CLAUDE.md`](../chat/CLAUDE.md). Cada frase se guarda una vez. Costo medido
 (2026-11-12, `eleven_flash_v2_5`): ~0,2 créditos por carácter, ~30 por mensaje de 150 caracteres. Las voces de macOS y
 Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo

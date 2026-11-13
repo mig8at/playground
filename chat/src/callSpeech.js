@@ -22,13 +22,13 @@ const LIST_ITEM = /^\s*([-*•]|\d+[.)])\s+/
 
 /**
  * Lo que la llamada hace con un mensaje: { text, prop }. text es lo que se dice (vacío: nada); prop, la animación del
- * personaje: 'image' (muestra una foto), 'doc' (muestra una hoja) o 'read' (lee: quedó algo largo en el chat), o ''.
+ * personaje: 'image' (una foto), 'doc' (una hoja), 'key' (el llavero) o 'read' (lee: quedó algo largo en el chat), o ''.
  */
 export function forCall(message) {
   const raw = String(message?.text || '')
   // el llavero no se lee: son nombres de claves o valores encriptados (U2FsdGVkX1…); se anuncia y se muestra una hoja
   const keyring = keyringLine(raw)
-  if (keyring) return { text: keyring, prop: 'doc' }
+  if (keyring) return { text: keyring, prop: 'key' }
   let dropped = false
   // los bloques de código, enteros
   let text = raw.replace(/```[\s\S]*?```/g, () => { dropped = true; return '\n' })
