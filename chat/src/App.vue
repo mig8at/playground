@@ -469,6 +469,14 @@ const callAvailable = computed(() => callCast.value.some((c) => (c.handle && c.h
 const callKey = ref('')
 const callOpen = computed(() => callAvailable.value && !!callKey.value && callKey.value === chat.activeKey)
 const toggleCall = () => { callKey.value = callOpen.value ? '' : chat.activeKey }
+// Con la videollamada abierta en un grupo, los miembros se miran cada pocos segundos: así el que entra o sale aparece
+// (o se va) casi al momento, y no al próximo refresco de quién está conectado.
+let membersTimer = 0
+watch(() => callOpen.value && !!chat.active?.person?.group, (on) => {
+  clearInterval(membersTimer)
+  if (on) membersTimer = setInterval(() => { if (document.visibilityState === 'visible') chat.loadGroups() }, 4000)
+}, { immediate: true })
+onBeforeUnmount(() => clearInterval(membersTimer))
 const activeSubtitle = computed(() => {
   const p = chat.active?.person
   if (!p) return ''

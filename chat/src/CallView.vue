@@ -55,7 +55,7 @@ onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer)
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
-  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - BAR
+  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - BAR // clientHeight incluye el relleno de abajo (PAD + BAR)
   if (!n || W <= 0 || H <= 0) return { cols: 1, w: 0 }
   let best = { cols: 1, w: 0 }
   for (let cols = 1; cols <= n; cols++) {
@@ -99,9 +99,22 @@ const voiceOf = (c) => ({ ...(c.voice || {}), name: voiceName(c) })
 const findVoice = (name) => voiceList.value.find((v) => v.name === name) || voiceList.value.find((v) => name && v.name.startsWith(`${name} `))
 const genderOf = (c) => findVoice(voiceName(c))?.gender || ''
 const ACCENT_RANK = (a) => (/colomb/i.test(a) ? 0 : /latin|mexic|argentin|spanish|chile|peru|venezuel/i.test(a) ? 1 : 2)
+// las voces ocupadas (menos la de `c`), por su nombre en la lista: las de los personajes con archivo y todas las
+// asignadas (también las de agentes sin archivo). Así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia».
+function usedVoices(c) {
+  const names = [...characters.filter((x) => charKey(x) !== charKey(c)).map(voiceName),
+    ...Object.entries(voiceAssign.map).filter(([k]) => k !== charKey(c)).map(([, v]) => v)]
+  return new Set(names.filter(Boolean).map((n) => findVoice(n)?.name || n))
+}
+// el género con más voces libres (para un agente nuevo: que se repartan parejo)
+function roomierGender(c) {
+  const used = usedVoices(c)
+  const free = (g) => voiceList.value.filter((v) => v.gender === g && !used.has(v.name)).length
+  return free('female') >= free('male') ? 'female' : 'male'
+}
 function freeVoice(gender, c) {
   // las ocupadas, por su nombre en la lista (así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia»)
-  const used = new Set(characters.filter((x) => charKey(x) !== charKey(c)).map((x) => findVoice(voiceName(x))?.name || voiceName(x)))
+  const used = usedVoices(c)
   const own = findVoice(c.voice?.name)?.name || c.voice?.name
   const candidates = voiceList.value.filter((v) => v.gender === gender)
     .sort((a, b) => ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
@@ -121,6 +134,38 @@ async function switchGender(c) {
   } catch { /* sin servidor: se queda como estaba */ } finally { genderBusy.value = '' }
   greet(c) // que se oiga cómo quedó
 }
+// ── ENTRAR Y SALIR DE LA LLAMADA ────────────────────────────────────────────────────────────────────
+// Cuando alguien entra al grupo (o sale), su recuadro aparece (o se va) con su animación y la grilla se reacomoda sola,
+// como en una videollamada. El que entra, si no tiene voz (un agente nuevo), recibe la primera libre del género con más
+// voces libres, y saluda. Abajo sale el aviso. Lo que ya estaba al abrir la llamada no cuenta como entrar.
+const arrival = ref('') // el aviso de quién entró o salió
+let arrivalTimer = 0
+function announce(text) { arrival.value = text; clearTimeout(arrivalTimer); arrivalTimer = setTimeout(() => { arrival.value = '' }, 5000) }
+onBeforeUnmount(() => clearTimeout(arrivalTimer))
+// una voz para quien no tiene (un agente nuevo): la primera libre del género con más voces libres
+async function giveVoice(c) {
+  // sin la lista de voces todavía, se espera un poco (recién abierta la llamada)
+  for (let i = 0; i < 20 && !voiceList.value.length; i++) await new Promise((r) => setTimeout(r, 250))
+  if (voiceName(c) || !voiceList.value.length) return
+  const name = freeVoice(roomierGender(c), c)
+  if (name) { try { await assignVoice(charKey(c), name) } catch { /* sin servidor: queda sin voz */ } }
+}
+async function welcome(c) {
+  await giveVoice(c)
+  say(keyOf(c), `Hola a todos, soy ${c.name}. Acabo de entrar.`, voiceOf(c))
+}
+// al abrir la llamada, los que ya estaban y no tienen voz reciben una (sin saludar: no acaban de entrar)
+onMounted(async () => { for (const c of props.cast) await giveVoice(c) })
+watch(() => props.cast.map(keyOf).join(','), (current, before) => {
+  if (before === undefined) return
+  const was = new Set(before.split(',').filter(Boolean)), is = new Set(current.split(',').filter(Boolean))
+  for (const c of props.cast) if (!was.has(keyOf(c))) { announce(`${c.name} entró a la llamada.`); welcome(c) }
+  for (const k of was) if (!is.has(k)) announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`)
+})
+// los nombres de los que estaban, para decir quién salió cuando ya no está en la lista
+const leftNames = new Map()
+watch(() => props.cast, (list) => { for (const c of list) leftNames.set(keyOf(c), c.name) }, { immediate: true })
+
 const genderTitle = (c) => {
   const g = genderOf(c)
   return `${g === 'female' ? 'Voz de mujer' : g === 'male' ? 'Voz de hombre' : 'Voz'} (${voiceName(c)}). Clic: cambiar a voz de ${g === 'female' ? 'hombre' : 'mujer'}`
@@ -356,7 +401,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 
 <template>
   <div ref="box" class="region-body call" aria-label="Videollamada">
-    <div class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
+    <TransitionGroup tag="div" name="tile" class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
       <figure v-for="c in cast" :key="keyOf(c)" class="call-tile"
               :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)), aside: aside(c) }"
@@ -443,7 +488,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
           {{ genderOf(c) === 'female' ? '♀' : '♂' }}
         </button>
       </figure>
-    </div>
+    </TransitionGroup>
     <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
       <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
               :disabled="!timeline.length" @click="replayFrom(windowStart)">
@@ -465,7 +510,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
       <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
     </div>
-    <p v-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
+    <p v-if="arrival && !caption" class="call-caption arrival">{{ arrival }}</p>
+    <p v-else-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
     <p v-else-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
     <p v-if="caption" class="call-caption" aria-live="polite"><b>{{ caption.name }}</b> {{ caption.line }}</p>
   </div>
@@ -473,7 +519,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 
 <style scoped>
 /* el fondo es el del tema (el mismo del editor): sigue el claro, el oscuro y la paleta que se elija en Cockpit */
-.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px; }
+.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px;
+  padding-bottom: calc(12px + 46px); } /* abajo, el lugar de la línea de tiempo (BAR): la grilla se centra en lo que queda */
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
 .call-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px;
   width: calc(var(--cols) * var(--tile) + (var(--cols) - 1) * 10px); max-width: 100%; }
@@ -515,6 +562,13 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 @keyframes ring { from { opacity: 1; } to { opacity: .2; } }
 @keyframes notes { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-8px) rotate(6deg); } }
 @media (prefers-reduced-motion: reduce) { .call-act, .call-act *, .call-notes { animation: none !important; } }
+/* entrar y salir: el que entra crece desde el centro, el que sale se achica, y los demás se acomodan en su lugar */
+.tile-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2, .9, .3, 1.2); }
+.tile-leave-active { transition: opacity .35s ease, transform .35s ease; position: absolute; }
+.tile-enter-from { opacity: 0; transform: scale(.6); }
+.tile-leave-to { opacity: 0; transform: scale(.7); }
+.tile-move { transition: transform .45s ease; }
+@media (prefers-reduced-motion: reduce) { .tile-enter-active, .tile-leave-active, .tile-move { transition: none; } }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */

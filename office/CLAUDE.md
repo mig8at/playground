@@ -96,6 +96,12 @@ del mensaje) y al repetirlo suena con ésa aunque después se le cambie la voz a
 adelante. **La voz de tus agentes** también se elige en el perfil del chat (Agentes: un selector por agente; vacío =
 la de su personaje). **Mientras tanto**, cada tanto uno que está quieto hace algo unos segundos (café, portátil,
 llamada, audífonos —la pieza `headphones` del dibujo— o asombro), de a uno y sólo si nadie le habla.
+**Entrar y salir**: con la llamada abierta en un grupo, los miembros se miran cada 4 s; el que entra aparece con su
+animación (la grilla se reacomoda sola, como en Meet), recibe voz si no tiene —la primera libre del GÉNERO CON MÁS VOCES
+LIBRES— y saluda; el que sale se va con la suya. Abajo, «X entró/salió de la llamada». Un agente sin JSON (uno recién
+creado, como `kira`) entra con un personaje armado de su nombre (`autoCharacter` en `chat/src/characters/index.js`:
+animal, colores y cuarto, siempre los mismos); para fijarlo, se le hace su JSON. Para probarlo:
+`playground agents new <agente> …` + `playground groups add "#oficina" @miguel/<agente>`, y `groups leave "#oficina" --as <agente>`.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al
