@@ -545,15 +545,18 @@ const ANIMAL = {
 // LA SILUETA DE CADA ESPECIE. Antes todos los animales compartían la misma elipse y se distinguían sólo por las orejas
 // y el color: en un recuadro chico el oso, el perro y el capibara eran la misma cabeza. Cada una es una forma de pt()
 // (ancho arriba, alto, ancho de mandíbula, cuadratura): las orejas, el hocico, los gorros y la cara se acomodan solos.
+// Los de mentón fino (zorro, ratón, mapache, gato, mico, león, jaguar) llevan `taper`, como las caras de persona: con la
+// cara cerrándose apenas debajo de los ojos y el mentón en punta se veían demacrados. Conservan el mentón más angosto que
+// la frente —siguen siendo ellos—, pero con los cachetes llenos.
 const SPECIES_HEAD = {
   oso: { rx: 102, ry: 86, n: 2.4 }, panda: { rx: 104, ry: 84, n: 2.3 }, koala: { rx: 106, ry: 80, n: 2.5 },
-  mapache: { rx: 102, ry: 84, rxB: 68, nB: 1.7, smooth: true }, cerdito: { rx: 98, ry: 90, n: 2.6 },
-  gato: { rx: 100, ry: 82, rxB: 76, nB: 1.8, smooth: true }, zorro: { rx: 102, ry: 88, rxB: 56, nB: 1.5, smooth: true },
+  mapache: { rx: 102, ry: 84, rxB: 80, nB: 2, smooth: true, taper: 1.9 }, cerdito: { rx: 98, ry: 90, n: 2.6 },
+  gato: { rx: 100, ry: 82, rxB: 84, nB: 2.1, smooth: true, taper: 1.8 }, zorro: { rx: 102, ry: 88, rxB: 70, nB: 1.9, smooth: true, taper: 2.1 },
   perro: { rx: 84, ry: 96, rxB: 94, n: 2.3, nB: 2.6, smooth: true }, conejo: { rx: 80, ry: 92, rxB: 92, n: 2.2, smooth: true },
-  raton: { rx: 92, ry: 84, rxB: 58, nB: 1.5, smooth: true }, pinguino: { rx: 84, ry: 94, rxB: 98, n: 2.2, smooth: true },
+  raton: { rx: 92, ry: 84, rxB: 72, nB: 1.9, smooth: true, taper: 1.9 }, pinguino: { rx: 84, ry: 94, rxB: 98, n: 2.2, smooth: true },
   buho: { rx: 100, ry: 86, n: 3 }, pato: { rx: 90, ry: 88, rxB: 100, smooth: true }, loro: { rx: 88, ry: 90, n: 2.2 },
-  tucan: { rx: 90, ry: 88, n: 2.3 }, perezoso: { rx: 100, ry: 82, n: 2.4 }, jaguar: { rx: 100, ry: 86, rxB: 86, n: 2.7, nB: 2.2, smooth: true },
-  leon: { rx: 90, ry: 92, rxB: 80, n: 2.6, nB: 2.1, smooth: true }, mico: { rx: 88, ry: 86, rxB: 72, nB: 1.9, smooth: true },
+  tucan: { rx: 90, ry: 88, n: 2.3 }, perezoso: { rx: 100, ry: 82, n: 2.4 }, jaguar: { rx: 100, ry: 86, rxB: 88, n: 2.7, nB: 2.3, smooth: true, taper: 1.7 },
+  leon: { rx: 90, ry: 92, rxB: 84, n: 2.6, nB: 2.2, smooth: true, taper: 1.7 }, mico: { rx: 88, ry: 86, rxB: 80, nB: 2.1, smooth: true, taper: 1.8 },
   gorila: { rx: 88, ry: 90, rxB: 104, n: 2.5, nB: 2.6, smooth: true },
 }
 const speciesHead = (sp) => ({ ...HEAD, rx: 94, ry: 88, ...(SPECIES_HEAD[sp] || {}) })

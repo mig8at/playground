@@ -58,7 +58,8 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   salen de `pt()`. La máscara y el rubor se recortan a la silueta. `pt()` acepta `nB` (otra cuadratura abajo: menos de
   2 afila el mentón) y `smooth` (el ancho baja de a poco hasta la mandíbula `rxB`, sin escalón). Con `taper` los cachetes
   aguantan llenos antes de cerrarse hacia el mentón: las caras de persona lo llevan, porque sin él una mandíbula angosta
-  se ve demacrada (en un animal, en cambio, eso da hocico). Las tres especies que
+  se ve demacrada. Los animales de mentón fino (zorro, ratón, mapache, gato, mico, león, jaguar) también lo llevan:
+  sin él se veían igual de flacos. Las tres especies que
   dibujan su propia cabeza (oveja, rana, capibara) llevan `ownHead`. Para las personas hay cinco formas más (`diamante`,
   `triangular`, `pera`, `ovalada`, `menton`), cejas (`brows`: gruesas, finas, arqueadas, rectas) y forma de ojo
   (`eyeShape`: almendrados, grandes); están en el editor y en «Al azar».
