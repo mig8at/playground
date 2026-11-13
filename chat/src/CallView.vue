@@ -190,14 +190,16 @@ watch(() => props.messages.length, (n, old) => {
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
 })
-// LA BARRA, como la de un video en directo: una línea continua con lo ya escuchado relleno, un cabezal donde vas y una
-// marca por mensaje (del color de quien lo dijo). Las marcas van parejas a lo largo de la línea (una conversación tiene
-// huecos de horas: por hora real, todo quedaría apretado en una punta). Se toca o se arrastra en cualquier parte: el
-// cabezal salta a la marca más cercana, arriba se ve quién y cuándo, y al soltar suena desde ahí. Los últimos 80.
+// LA BARRA, como la de un video en directo: una línea limpia con lo ya escuchado relleno y un cabezal donde vas (sin
+// marcas: hacían ruido). Cada mensaje tiene su lugar parejo a lo largo de la línea (una conversación tiene huecos de
+// horas: por hora real, todo quedaría apretado en una punta) y al final está el directo. Se toca o se arrastra en
+// cualquier parte: el cabezal salta al mensaje más cercano, arriba se ve quién y cuándo, y al soltar suena desde ahí;
+// llevarlo hasta el final es volver al directo. Los últimos 80.
 const TIMELINE_MAX = 80
 const windowStart = computed(() => Math.max(0, timeline.value.length - TIMELINE_MAX))
 const shown = computed(() => timeline.value.slice(windowStart.value))
-const pos = (k) => (shown.value.length > 1 ? (k / (shown.value.length - 1)) * 100 : 100)
+// n mensajes y, al final, el directo: el mensaje k está en k/n y el directo en 100%
+const pos = (k) => (shown.value.length ? (k / shown.value.length) * 100 : 100)
 function describe(i) {
   const x = timeline.value[i]
   if (!x) return ''
@@ -205,21 +207,23 @@ function describe(i) {
   const words = String(x.m.text || '').split(/\s+/).filter(Boolean)
   return `${x.c.name}${time ? ` · ${time}` : ''} · ${words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : '(adjunto)'}`
 }
-const marks = computed(() => shown.value.map(({ c }, k) => ({ i: windowStart.value + k, left: pos(k), color: c.character?.shirt || '#2b6670' })))
 const scrub = ref(-1)        // la marca bajo el dedo mientras se arrastra (-1: no se está arrastrando)
 // dónde está el cabezal (0–100): arrastrando, la marca bajo el dedo; repitiendo, la que suena; en vivo, al final
 const head = computed(() => {
+  if (scrub.value === LIVE) return 100
   const i = scrub.value >= 0 ? scrub.value : mode.value !== 'live' && at.value >= 0 ? at.value : -1
   return i < 0 ? 100 : pos(i - windowStart.value)
 })
-const headLabel = computed(() => (scrub.value >= 0 ? describe(scrub.value) : ''))
+const LIVE = Infinity // la marca del directo, al final de la línea
+const headLabel = computed(() => (scrub.value === LIVE ? 'En vivo' : scrub.value >= 0 ? describe(scrub.value) : ''))
 const track = ref(null)
 // la marca más cercana a un punto de la línea
 function markAt(clientX) {
   const r = track.value.getBoundingClientRect(), n = shown.value.length
   if (!n) return -1
   const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
-  return windowStart.value + Math.round(f * (n - 1))
+  const k = Math.round(f * n)
+  return k >= n ? LIVE : windowStart.value + k // hasta el final de la línea es volver al directo
 }
 function scrubStart(e) {
   if (!shown.value.length) return
@@ -231,7 +235,7 @@ function scrubEnd() {
   if (scrub.value < 0) return
   const i = scrub.value
   scrub.value = -1
-  replayFrom(i)
+  if (i === LIVE) goLive(); else replayFrom(i)
 }
 // con el teclado: ← y → mueven de a un mensaje
 function scrubKey(e) {
@@ -347,20 +351,18 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       <button type="button" class="tl-btn" :title="mode === 'paused' ? 'Seguir' : 'Pausar'" :aria-label="mode === 'paused' ? 'Seguir' : 'Pausar'"
               :disabled="!timeline.length" @click="togglePause">
         <svg v-if="mode === 'paused'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 5h4v14H7zM13 5h4v14h-4z" /></svg>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
       </button>
-      <div ref="track" class="tl-track" role="slider" tabindex="0" aria-label="Línea de tiempo: ← y → para moverse por los mensajes"
-           :aria-valuemin="0" :aria-valuemax="Math.max(0, timeline.length - 1)" :aria-valuenow="mode !== 'live' && at >= 0 ? at : timeline.length - 1"
+      <div ref="track" class="tl-track" role="slider" tabindex="0" aria-label="Línea de tiempo: ← y → para moverse por los mensajes; al final, el directo"
+           :aria-valuemin="0" :aria-valuemax="timeline.length" :aria-valuenow="mode !== 'live' && at >= 0 ? at : timeline.length"
            :aria-valuetext="mode === 'live' ? 'En vivo' : describe(at)"
            @pointerdown="scrubStart" @pointermove="scrubMove" @pointerup="scrubEnd" @pointercancel="scrub = -1" @keydown="scrubKey">
         <div class="tl-line"><div class="tl-fill" :style="{ width: `${head}%` }"></div></div>
-        <span v-for="mk in marks" :key="mk.i" class="tl-mark" :class="{ heard: pos(mk.i - windowStart) <= head }"
-              :style="{ left: `${mk.left}%`, '--dot': mk.color }" :title="describe(mk.i)"></span>
         <span class="tl-head" :class="{ live: mode === 'live' && scrub < 0, dragging: scrub >= 0 }" :style="{ left: `${head}%` }"></span>
         <span v-if="headLabel" class="tl-tip" :style="{ left: `${Math.min(85, Math.max(15, head))}%` }">{{ headLabel }}</span>
       </div>
-      <span v-if="mode === 'live'" class="tl-live" title="Suena lo que va llegando">● En vivo</span>
-      <button v-else type="button" class="tl-golive" @click="goLive">Volver al directo</button>
+      <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
+      <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
     </div>
     <p v-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
     <p v-else-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
@@ -424,10 +426,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; margin-top: -2px; border-radius: 2px;
   background: color-mix(in oklab, var(--foreground, #222) 18%, transparent); }
 .tl-fill { height: 100%; border-radius: 2px; background: #e5592a; }
-/* una marca por mensaje, sobre la línea */
-.tl-mark { position: absolute; top: 50%; width: 8px; height: 8px; margin: -4px 0 0 -4px; border-radius: 50%; pointer-events: none;
-  background: var(--background, #fff); border: 2px solid var(--dot); box-sizing: border-box; }
-.tl-mark.heard { background: var(--dot); }
 /* el cabezal: donde vas; en vivo, al final y rojo */
 .tl-head { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; pointer-events: none;
   background: #fff; border: 3px solid #e5592a; box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
@@ -435,9 +433,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-head.live { border-color: #e5592a; background: #e5592a; }
 .tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
   text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: #13323a; color: #f6ecd6; pointer-events: none; }
-.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #e5592a; white-space: nowrap; }
-.tl-golive { flex: 0 0 auto; font: inherit; font-size: 12px; font-weight: 800; white-space: nowrap; padding: 4px 9px; border-radius: 8px; cursor: pointer;
-  border: 1px solid var(--border, rgba(0,0,0,.15)); background: var(--background, #fff); color: var(--foreground, #222); }
+.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #e5592a; white-space: nowrap; transition: opacity .2s; }
+.tl-live.off { opacity: .35; filter: grayscale(1); }
 .call-controls { position: absolute; top: 10px; right: 12px; display: flex; gap: 6px; }
 .call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
   padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;
