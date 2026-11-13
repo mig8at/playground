@@ -48,7 +48,7 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 	case "device_locks":
 		where = deviceLocksWhere(list)
 	default:
-		children, err := childTables(src)
+		children, err := cachedChildTables(target, src)
 		if err != nil {
 			return nil, err
 		}
@@ -69,17 +69,26 @@ func RequestTableRows(target string, request int, table string) (*TableRows, err
 	if !reTable.MatchString(table) {
 		return nil, fmt.Errorf("nombre de tabla inesperado %q", table)
 	}
-	cols, err := rows(src, fmt.Sprintf(`SELECT COLUMN_NAME AS c FROM information_schema.COLUMNS
+	// Las columnas de una tabla no cambian entre un pedido y el siguiente: caché por ambiente (schema_cache.go).
+	columns, err := cachedColumns(target, table, func() ([]string, error) {
+		cols, err := rows(src, fmt.Sprintf(`SELECT COLUMN_NAME AS c FROM information_schema.COLUMNS
 		WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '%s' ORDER BY ORDINAL_POSITION`, table))
+		if err != nil {
+			return nil, err
+		}
+		names := []string{}
+		for _, c := range cols {
+			if !secretColumns[table][cell(c, "c")] {
+				names = append(names, cell(c, "c"))
+			}
+		}
+		return names, nil
+	})
 	if err != nil {
 		return nil, fmt.Errorf("columnas de %s: %w", table, err)
 	}
-	out := &TableRows{Table: table, Columns: []string{}}
-	for _, c := range cols {
-		if !secretColumns[table][cell(c, "c")] {
-			out.Columns = append(out.Columns, cell(c, "c"))
-		}
-	}
+	// Copia: lo guardado no se comparte con quien arma la respuesta.
+	out := &TableRows{Table: table, Columns: append([]string{}, columns...)}
 	// Con columnas secretas se piden por nombre; si no, `*`, que es lo que se copia y se corre más fácil.
 	pick := "*"
 	if len(secretColumns[table]) > 0 {

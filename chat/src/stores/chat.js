@@ -216,9 +216,18 @@ export const useChatStore = defineStore('chat', () => {
      una escritura de cientos de KB. Los cambios se juntan (un segundo sin cambios) y se escribe una vez; al ocultar o
      cerrar la pestaña se escribe enseguida, para no perder el último. */
   let localCopyTimer = null
+  let localCopyFailed = false
   const saveLocalCopy = () => {
     clearTimeout(localCopyTimer); localCopyTimer = null
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations.value)) } catch { /* sin almacenamiento: queda la copia del servidor */ }
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(conversations.value))
+      localCopyFailed = false
+    } catch (e) {
+      // sin almacenamiento (o sin cupo: QuotaExceededError): queda la copia del servidor. Se avisa UNA vez por racha de
+      // fallos, en la consola: antes se tragaba en silencio y no había cómo saber por qué el navegador «olvidaba».
+      if (!localCopyFailed) console.warn('[chat] no se pudo guardar la copia de las conversaciones en este navegador (¿sin cupo en localStorage?); sigue la copia del servidor:', e?.name || e)
+      localCopyFailed = true
+    }
   }
   const flushLocalCopy = () => { if (localCopyTimer) saveLocalCopy() }
   if (typeof window !== 'undefined') {

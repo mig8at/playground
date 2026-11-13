@@ -52,7 +52,7 @@ let seq = 0
 // `quiet`: la vuelve a pedir el vivo (la solicitud cambió) — sin el «cargando», sin subir la vista y sin borrar lo que
 // se ve si falla.
 async function lookup({ quiet = false } = {}) {
-  if (!query.value) { result.value = null; error.value = ''; watchResult(null); return }
+  if (!query.value) { result.value = null; error.value = ''; storeView.value = null; watchResult(null); return }
   const mine = ++seq
   if (!quiet) { loading.value = true; error.value = '' }
   try {
@@ -63,6 +63,9 @@ async function lookup({ quiet = false } = {}) {
     result.value = body
     watchResult(body)
     if (quiet) return
+    // Buscar (o volver a leer a mano) cierra el diagrama o la lista de una tienda: se pidió ver la solicitud. Un
+    // refresco del vivo NO: antes cada cambio de estado de la prueba cerraba lo que se estaba mirando.
+    storeView.value = null
     // El campo queda con lo que se buscó, limpio: el celular sin indicativo, el correo en minúsculas.
     const clean = body.input?.phone || body.input?.email || body.input?.document
     if (clean && draft.value !== clean) draft.value = clean
@@ -71,6 +74,7 @@ async function lookup({ quiet = false } = {}) {
   } catch (e) {
     if (mine !== seq || quiet) return
     result.value = null
+    storeView.value = null
     watchResult(null)
     error.value = e.message === 'Failed to fetch'
       ? 'No contesta la API. ¿Está arriba? (make ecommerce levanta las dos partes)' : e.message
@@ -229,9 +233,9 @@ const STORES = [
 ]
 // En prod no se muestran las tiendas: son de desarrollo.
 const visibleStores = computed(() => STORES.filter((s) => !!s.prod === readOnly.value))
-// El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra.
+// El diagrama de una tienda en el editor, o null. Buscar otra solicitud lo cierra (en `lookup`, no con un watch del
+// resultado: el vivo también lo reemplaza, y no tiene por qué cerrar lo que se mira).
 const storeView = ref(null) // { store: 'VTEX', kind: 'diagram' }
-watch(() => result.value, () => { storeView.value = null })
 // Si la tienda de Shopify y la app de dev contestan: la pestaña Conexiones de la consola. Se mira al abrirla y
 // con su botón.
 const shopifyChecks = ref(null) // [{ name, ok, detail, url }]
@@ -288,11 +292,16 @@ function toggleStoreView(store, kind) {
 // local y qa; en prod no se pide ──
 const vtex = ref(null) // { loading, error, report } de la solicitud abierta
 let vtexSeq = 0
-async function loadVtex() {
+let vtexFor = '' // ambiente|solicitud del reporte que se ve
+// `keep`: la misma solicitud se volvió a leer (el vivo, un cambio de estado): el reporte que se ve se queda hasta que
+// llega el nuevo, sin pasar por «Leyendo el pedido en VTEX…». El botón «leer de nuevo» sí lo muestra.
+async function loadVtex(opts) {
   const order = r.value?.order
-  if (readOnly.value || !r.value?.request || String(order?.ecommerce_id) !== '3') { vtex.value = null; return }
+  if (readOnly.value || !r.value?.request || String(order?.ecommerce_id) !== '3') { vtex.value = null; vtexFor = ''; vtexSeq++; return }
   const mine = ++vtexSeq
-  vtex.value = { loading: true }
+  const key = `${target.value}|${r.value.request.id}`
+  if (!(opts?.keep === true && key === vtexFor && vtex.value?.report)) vtex.value = { loading: true }
+  vtexFor = key
   try {
     const res = await fetch(`/api/vtex/order?target=${encodeURIComponent(target.value)}&request=${r.value.request.id}`)
     const body = await res.json().catch(() => ({}))
@@ -302,7 +311,7 @@ async function loadVtex() {
     if (mine === vtexSeq) vtex.value = { error: e.message }
   }
 }
-watch(() => result.value, loadVtex)
+watch(() => result.value, () => loadVtex({ keep: true }))
 // La lista de pedidos VTEX con incidencias de los últimos días, en el editor. Cada fila se abre ahí mismo.
 const INCIDENT_DAYS = 7
 const incidents = ref(null) // { loading, error, data }
@@ -429,31 +438,46 @@ const tables = ref([])
 const tablesError = ref('')
 // Las filas de cada tabla, para pintarlas en el editor: tabla → { loading, error, data }.
 const tableRows = ref({})
+let tablesSeq = 0
+let tablesFor = '' // ambiente|solicitud de las tablas que se ven
+// Se releen después de CADA búsqueda, no sólo al cambiar de solicitud: el vivo, «Aprobar/Negar/Cancelar» y «Volver a
+// leer» rehacen la búsqueda con el mismo número, y la fila de `user_requests` seguía mostrando el estado anterior.
+// Si es la misma solicitud, lo que se ve se queda hasta que llega lo nuevo (sin «Contando…» ni «Leyendo…»).
 async function loadTables() {
-  tables.value = []; tablesError.value = ''; tableRows.value = {}
   const id = result.value?.request?.id
+  const key = id ? `${target.value}|${id}` : ''
+  const same = !!key && key === tablesFor
+  const mine = ++tablesSeq
+  tablesFor = key
+  if (!same) { tables.value = []; tablesError.value = ''; tableRows.value = {} }
   if (!id) return
   try {
     const res = await fetch(`/api/tables?target=${encodeURIComponent(target.value)}&request=${id}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (result.value?.request?.id === id) { tables.value = body; body.forEach((t) => loadRows(t.table, id)) }
+    if (mine !== tablesSeq) return
+    tables.value = body; tablesError.value = ''
+    // Una tabla que ya no tiene filas de la solicitud sale de lo guardado.
+    const names = new Set(body.map((t) => t.table))
+    tableRows.value = Object.fromEntries(Object.entries(tableRows.value).filter(([name]) => names.has(name)))
+    body.forEach((t) => loadRows(t.table, id, mine))
   } catch (e) {
-    tablesError.value = e.message
+    if (mine === tablesSeq) tablesError.value = e.message
   }
 }
-async function loadRows(name, id) {
-  tableRows.value = { ...tableRows.value, [name]: { loading: true, error: '', data: null } }
+async function loadRows(name, id, mine) {
+  // Con filas ya a la vista (un refresco de la misma solicitud) no se pasa por «Leyendo…».
+  if (!tableRows.value[name]?.data) tableRows.value = { ...tableRows.value, [name]: { loading: true, error: '', data: null } }
   try {
     const res = await fetch(`/api/table-rows?target=${encodeURIComponent(target.value)}&request=${id}&table=${encodeURIComponent(name)}`)
     const body = await res.json().catch(() => ({}))
     if (!res.ok) throw new Error(body.error || `HTTP ${res.status}`)
-    if (result.value?.request?.id === id) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: '', data: body } }
+    if (mine === tablesSeq) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: '', data: body } }
   } catch (e) {
-    if (result.value?.request?.id === id) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: e.message, data: null } }
+    if (mine === tablesSeq) tableRows.value = { ...tableRows.value, [name]: { loading: false, error: e.message, data: null } }
   }
 }
-watch(() => result.value?.request?.id, loadTables)
+watch(() => result.value, loadTables)
 const tablesTotal = computed(() => tables.value.reduce((n, t) => n + t.rows, 0))
 
 // ── qué tablas se ven en el editor. Por defecto todas menos las de logs y auditoría, que son ruido para una
@@ -501,15 +525,12 @@ function showCell(table, column, row, i) {
 // Sólo se abre la celda que no se ve entera (cortada con «…»): una que entra no tiene nada más que mostrar. Se mide
 // en el momento, porque depende del ancho de la ventana.
 const isTruncated = (el) => el.scrollWidth > el.clientWidth + 1
-// Va en el estado y no a mano en el elemento: Vue rearma la clase de la celda al re-pintar y borraría la marca.
-const truncatedCells = ref(new Set())
-const cellKey = (table, column, row, i) => `${table}|${column}|${row.id ?? row.audit_id ?? i}`
-function markTruncated(e, key) {
-  const cut = isTruncated(e.currentTarget)
-  if (cut === truncatedCells.value.has(key)) return
-  const next = new Set(truncatedCells.value)
-  if (cut) next.add(key); else next.delete(key)
-  truncatedCells.value = next
+// La marca va en un atributo del elemento (`data-cut`, y su `title`), no en el estado: con un Set reactivo, pasar el
+// mouse por una celda re-pintaba todas las tablas. Vue no la pisa porque la plantilla no enlaza ni ese atributo ni el
+// título; y como se vuelve a medir en cada `mouseenter`, una celda reusada con otro valor se corrige sola.
+function markTruncated(e) {
+  const el = e.currentTarget
+  if (isTruncated(el)) { el.dataset.cut = ''; el.title = 'Clic para ver el valor entero' } else { delete el.dataset.cut; el.removeAttribute('title') }
 }
 function onCellClick(e, table, column, row, i) {
   if (!isTruncated(e.currentTarget) && !isOpenCell(table, column, row, i)) return
@@ -645,7 +666,7 @@ function togglePanel() { panelOpen.value = !shown.value.panel; saveSize('ecommer
 
 const themeToggle = ref(null)
 let themeBinding = null
-onMounted(async () => {
+onMounted(() => {
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', onHashChange)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
@@ -654,7 +675,9 @@ onMounted(async () => {
     label: 'Contra qué base se busca', getItems: () => targetItems.value,
     onSelect: (id) => { target.value = id },
   })
-  try { targets.value = await (await fetch('/api/targets')).json() } catch { /* se quedan los de siempre */ }
+  // La lista de ambientes sólo alimenta el menú del pie: la búsqueda no la espera (usa el ambiente de la URL).
+  fetch('/api/targets').then((res) => res.json()).then((list) => { if (Array.isArray(list) && list.length) targets.value = list })
+    .catch(() => { /* se quedan los de siempre */ })
   readProfile()
   lookup()
 })
@@ -662,6 +685,9 @@ onMounted(async () => {
    o si esas personas tienen una solicitud nueva, y avisa; acá se vuelve a buscar en silencio. Sólo con base directa
    (local, qa): en prod contesta `unsupported` y se busca a mano como antes. */
 const live = ref(false)
+// El vivo se cortó: 'retry' (el navegador o el servidor siguen intentando) o 'closed' (ya nadie reintenta: hay que
+// volver a leer). Antes el pie seguía diciendo «en vivo» con la API caída o la base sin contestar.
+const liveCut = ref('')
 let watcher = null
 let watchKey = ''
 function watchResult(r) {
@@ -669,13 +695,29 @@ function watchResult(r) {
   const request = r?.request?.id || ''
   const key = r && (request || users.length) ? `${r.target}|${request}|${users.join(',')}` : ''
   if (key === watchKey) return
-  watcher?.close(); watcher = null; live.value = false; watchKey = key
+  watcher?.close(); watcher = null; live.value = false; liveCut.value = ''; watchKey = key
   if (!key || typeof EventSource === 'undefined') return
-  watcher = new EventSource(`/api/watch?target=${encodeURIComponent(r.target)}&request=${encodeURIComponent(request)}&users=${users.join(',')}`)
-  watcher.addEventListener('hello', () => { live.value = true })
-  watcher.addEventListener('changed', () => { lookup({ quiet: true }) })
+  const es = new EventSource(`/api/watch?target=${encodeURIComponent(r.target)}&request=${encodeURIComponent(request)}&users=${users.join(',')}`)
+  watcher = es
+  es.addEventListener('hello', () => {
+    // Reconectó después de un corte: el servidor compara desde AHORA, así que lo que cambió mientras tanto se relee.
+    const wasCut = !!liveCut.value
+    live.value = true; liveCut.value = ''
+    if (wasCut) lookup({ quiet: true })
+  })
+  es.addEventListener('changed', () => { lookup({ quiet: true }) })
+  // El servidor sigue conectado pero su consulta falla varias veces seguidas (la VPN, la base): `stale`; cuando vuelve
+  // a contestar, `fresh`.
+  es.addEventListener('stale', () => { if (watcher === es) liveCut.value = 'retry' })
+  es.addEventListener('fresh', () => { if (watcher === es) liveCut.value = '' })
   // Sin vivo en este ambiente: se cierra, o EventSource reintentaría para siempre.
-  watcher.addEventListener('unsupported', () => { watcher?.close(); watcher = null; live.value = false })
+  es.addEventListener('unsupported', () => { if (watcher === es) { es.close(); watcher = null; live.value = false; liveCut.value = '' } })
+  // Se cayó la conexión. Si EventSource reintenta solo (CONNECTING) se dice; si se rindió (CLOSED: la API contestó
+  // un error), se suelta la suscripción para que la próxima búsqueda la vuelva a abrir.
+  es.onerror = () => {
+    if (watcher !== es) return
+    if (es.readyState === EventSource.CLOSED) { watcher = null; watchKey = ''; live.value = false; liveCut.value = 'closed' } else liveCut.value = 'retry'
+  }
 }
 onBeforeUnmount(() => {
   watcher?.close()
@@ -907,9 +949,8 @@ onBeforeUnmount(() => {
                   <tbody>
                     <tr v-for="(row, i) in tableRows[t.table].data.rows" :key="row.id ?? i">
                       <td v-for="c in shownColumns(tableRows[t.table].data)" :key="c"
-                        :class="{ muted: row[c] === null, on: isOpenCell(t.table, c, row, i), truncated: truncatedCells.has(cellKey(t.table, c, row, i)) }"
-                        :title="truncatedCells.has(cellKey(t.table, c, row, i)) ? 'Clic para ver el valor entero' : null"
-                        @mouseenter="markTruncated($event, cellKey(t.table, c, row, i))" @click="onCellClick($event, t.table, c, row, i)">{{ cellText(row[c]) }}</td>
+                        :class="{ muted: row[c] === null, on: isOpenCell(t.table, c, row, i) }"
+                        @mouseenter="markTruncated" @click="onCellClick($event, t.table, c, row, i)">{{ cellText(row[c]) }}</td>
                     </tr>
                   </tbody>
                 </table>
@@ -1167,7 +1208,8 @@ onBeforeUnmount(() => {
       <span v-if="loading">leyendo…</span>
       <span v-else-if="r" :title="r.source">leído a las {{ r.readAt.slice(11, 16) }} · {{ r.source }}</span>
       <span class="muted">{{ readOnly ? 'sólo lee: en prod no se borra ni se pasa de estado' : 'lee siempre · borra sólo con confirmación' }}</span>
-      <span v-if="live" class="muted live-tag" title="La solicitud se actualiza sola mientras cambia (cada 3 s)"><i class="dot" data-state="ok" aria-hidden="true"></i>en vivo</span>
+      <span v-if="liveCut" class="live-tag warn" role="status" :title="liveCut === 'retry' ? 'El vivo no está pudiendo leer (la API o la base no contestan): lo que se ve puede estar viejo. Se sigue intentando.' : 'El vivo se cerró: lo que se ve puede estar viejo. «Volver a leer» lo abre de nuevo.'"><i class="dot" aria-hidden="true"></i>{{ liveCut === 'retry' ? 'vivo cortado · reintentando' : 'vivo cortado · volvé a leer' }}</span>
+      <span v-else-if="live" class="muted live-tag" title="La solicitud se actualiza sola mientras cambia (cada 3 s)"><i class="dot" data-state="ok" aria-hidden="true"></i>en vivo</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las búsquedas" aria-label="Mostrar u ocultar las búsquedas" @click="toggleSidebar">
@@ -1217,6 +1259,7 @@ code.wrap { word-break: break-all }
 .dot[data-state="ok"] { background: var(--ecommerce-ok) }
 .dot[data-state="fail"] { background: var(--ecommerce-fail) }
 .live-tag { display: inline-flex; align-items: center; gap: var(--space-1) }
+.live-tag.warn .dot { background: currentColor }
 .row .dot { margin-right: var(--space-2) }
 /* La consola: hora, punto, estado y quién lo movió. La línea sin registro va atenuada y en cursiva. */
 .log-line { display: flex; gap: var(--space-2); align-items: baseline }
@@ -1265,7 +1308,7 @@ code.wrap { word-break: break-all }
 .table.db th { font-family: var(--font-sans); font-weight: 600; background: var(--muted); color: var(--foreground) }
 .table.db tbody tr:hover td { background: var(--hover) }
 /* Una celda se toca para ver su valor entero a la derecha; la abierta queda marcada. */
-.table.db td.truncated { cursor: pointer }
+.table.db td[data-cut] { cursor: pointer }
 .table.db td.cell.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 0 0 0 1px var(--ring) }
 .cell-value.is-null { color: var(--fg-3) }
 /* La consulta, en el sidebar derecho: mono, que se corta en renglones y se puede seleccionar. */

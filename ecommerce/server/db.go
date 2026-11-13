@@ -186,7 +186,7 @@ func (s *redashSource) Rows(query string, args ...any) ([]Row, error) {
 
 	// Estados de Redash: 1 pendiente · 2 corriendo · 3 ok · 4 falló · 5 cancelado.
 	result := 0
-	for attempt := 0; attempt < 60 && result == 0; attempt++ {
+	for attempt := 0; attempt < redashPollAttempts && result == 0; attempt++ {
 		var state struct {
 			Job struct {
 				Status int    `json:"status"`
@@ -204,11 +204,11 @@ func (s *redashSource) Rows(query string, args ...any) ([]Row, error) {
 			return nil, fmt.Errorf("la consulta falló en Redash: %s", state.Job.Error)
 		}
 		if result == 0 {
-			time.Sleep(time.Second)
+			time.Sleep(redashPollDelay(attempt))
 		}
 	}
 	if result == 0 {
-		return nil, fmt.Errorf("Redash no terminó en 60 s: la cola está lenta o la consulta es muy grande")
+		return nil, fmt.Errorf("Redash no terminó en ~60 s: la cola está lenta o la consulta es muy grande")
 	}
 	var res struct {
 		QueryResult struct {
@@ -221,6 +221,23 @@ func (s *redashSource) Rows(query string, args ...any) ([]Row, error) {
 		return nil, err
 	}
 	return res.QueryResult.Data.Rows, nil
+}
+
+// redashPollAttempts: con la espera de redashPollDelay suman ~60 s, el mismo techo de antes.
+const redashPollAttempts = 62
+
+// redashPollDelay: cuánto se espera antes de volver a preguntar por el trabajo. Una consulta chica termina en
+// décimas de segundo, y con 1 s fijo cada lectura pagaba el segundo entero: empieza corto y sube hasta 1 s.
+func redashPollDelay(attempt int) time.Duration {
+	switch attempt {
+	case 0:
+		return 150 * time.Millisecond
+	case 1:
+		return 300 * time.Millisecond
+	case 2:
+		return 600 * time.Millisecond
+	}
+	return time.Second
 }
 
 func (s *redashSource) request(method, path string, body []byte, dest any) error {

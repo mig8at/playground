@@ -8,7 +8,10 @@ package main
 //   de AWS de producción. El `service_version` de Loki no sirve: casi todos los servicios dicen «1.0.0».
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,17 +64,20 @@ var relMu sync.Mutex
 
 // lastRelease: los últimos despliegues a producción de un repo, por `gh` (ya autenticado). Mira las últimas 100
 // corridas: un repo que no despliega hace meses puede no tener ninguna ahí.
-func lastRelease(repo string) *Release {
-	out, err := exec.Command("gh", "run", "list", "--repo", "Creditop-SAS/"+repo, "--limit", "100",
-		"--json", "workflowName,headBranch,conclusion,status,createdAt,url,displayTitle").Output()
+//
+// Devuelve el error aparte de «no hay ninguno»: sin él, `gh` sin autenticar o sin red se veía igual que un repo que
+// nunca desplegó.
+func lastRelease(repo string) (*Release, error) {
+	out, err := runTool(ghTimeout, "", "gh", "run", "list", "--repo", "Creditop-SAS/"+repo, "--limit", "100",
+		"--json", "workflowName,headBranch,conclusion,status,createdAt,url,displayTitle")
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	var runs []struct {
 		WorkflowName, HeadBranch, Conclusion, Status, CreatedAt, URL, DisplayTitle string
 	}
-	if json.Unmarshal(out, &runs) != nil {
-		return nil
+	if err := json.Unmarshal(out, &runs); err != nil {
+		return nil, err
 	}
 	var first *Release
 	for _, r := range runs {
@@ -86,27 +92,75 @@ func lastRelease(repo string) *Release {
 		if first == nil {
 			first = rel
 			if rel.OK {
-				return first
+				return first, nil
 			}
 			continue
 		}
 		if rel.OK {
 			first.LastOK = rel
-			return first
+			return first, nil
 		}
 	}
-	return first
+	return first, nil
 }
 
-// loadReleases: el último despliegue de cada repo de los servicios, en paralelo.
-func (s *sentinel) loadReleases() {
+// Los procesos de afuera (`gh`, `go run`) llevan PLAZO. Sin él, uno colgado (la red a medias, `gh` esperando una
+// credencial) detenía la pasada para siempre: el lazo es síncrono y no hay pasada siguiente.
+const (
+	ghTimeout = 30 * time.Second
+	// `go run ./tablero/server/cmd/deploys` compila antes de correr (lento con la caché fría) y adentro llama a `gh`
+	// por cada repo: le hace falta más que a un `gh` suelto.
+	deploysTimeout = 2 * time.Minute
+)
+
+// runTool corre un proceso con plazo y devuelve su salida. Al vencer el plazo lo mata; `WaitDelay` hace que además se
+// deje de esperar su salida: `go run` deja un hijo con la tubería abierta y, sin eso, `Output` seguiría esperando.
+func runTool(timeout time.Duration, dir, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, name, args...)
+	cmd.Dir = dir
+	cmd.WaitDelay = 2 * time.Second
+	out, err := cmd.Output()
+	if ctx.Err() == context.DeadlineExceeded {
+		return nil, fmt.Errorf("%s no contestó en %s", name, timeout)
+	}
+	if err != nil {
+		// Lo que el proceso dijo por stderr explica más que «exit status 1» (p. ej. «gh auth login»).
+		var exit *exec.ExitError
+		if errors.As(err, &exit) {
+			if line, _, _ := strings.Cut(strings.TrimSpace(string(exit.Stderr)), "\n"); line != "" {
+				return nil, fmt.Errorf("%s: %s", name, line)
+			}
+		}
+		return nil, fmt.Errorf("%s: %w", name, err)
+	}
+	return out, nil
+}
+
+// loadReleases: el último despliegue de cada repo de los servicios, en paralelo. Devuelve una nota si no se pudieron
+// leer (para la interfaz): sólo cuando fallaron TODOS, que es `gh` sin autenticar, sin red o colgado. Un repo suelto que
+// falla (un servicio sin repo con su nombre) es lo de siempre y no se avisa. Del que falla se conserva la versión que ya
+// se tenía: una lectura fallida no borra lo sabido.
+func (s *sentinel) loadReleases() string {
 	services := map[string]bool{}
 	for sig := range s.store.dense() {
 		if k := kindOf(sig); k == "logs" || k == "service" {
 			services[sig[len(k)+1:]] = true
 		}
 	}
+	relMu.Lock()
+	known := s.releases != nil
+	relMu.Unlock()
+	if !known { // la API recién arrancada: lo guardado de la última vez es lo que se conserva si `gh` falla
+		s.loadSavedReleases()
+	}
+	relMu.Lock()
+	prev := s.releases
+	relMu.Unlock()
 	got := map[string]Release{}
+	asked, failed := 0, 0
+	var firstErr error
 	var mu sync.Mutex
 	var wg sync.WaitGroup
 	for svc := range services {
@@ -114,23 +168,39 @@ func (s *sentinel) loadReleases() {
 		if repo == "" {
 			continue
 		}
+		asked++
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if rel := lastRelease(repo); rel != nil {
-				mu.Lock()
+			rel, err := lastRelease(repo)
+			mu.Lock()
+			defer mu.Unlock()
+			switch {
+			case err != nil:
+				failed++
+				if firstErr == nil {
+					firstErr = err
+				}
+				if old, ok := prev[repo]; ok {
+					got[repo] = old
+				}
+			case rel != nil:
 				got[repo] = *rel
-				mu.Unlock()
 			}
 		}()
 	}
 	wg.Wait()
 	// El front: su versión sale de PostHog, no de un workflow de GitHub (steps.go).
-	if cl, err := phClient(); err == nil {
-		if front, err := frontReleases(cl, 30); err == nil && len(front) > 0 {
-			last := front[len(front)-1]
-			got["frontend-monorepo"] = Release{Version: last.Version, At: last.At, OK: true, URL: last.URL, Title: last.Title}
-		}
+	var front []Deploy
+	cl, err := phClient()
+	if err == nil {
+		front, err = frontReleases(cl, 30)
+	}
+	if err == nil && len(front) > 0 {
+		last := front[len(front)-1]
+		got["frontend-monorepo"] = Release{Version: last.Version, At: last.At, OK: true, URL: last.URL, Title: last.Title}
+	} else if old, ok := prev["frontend-monorepo"]; ok && err != nil {
+		got["frontend-monorepo"] = old
 	}
 	relMu.Lock()
 	s.releases = got
@@ -142,6 +212,10 @@ func (s *sentinel) loadReleases() {
 			_ = os.Rename(path+".tmp", path)
 		}
 	}
+	if asked > 0 && failed == asked {
+		return fmt.Sprintf("no se pudo leer la versión de los servicios (%v): las tarjetas muestran la última que se supo", firstErr)
+	}
+	return ""
 }
 
 // loadSavedReleases: las versiones de la última vez que se pidieron a GitHub.

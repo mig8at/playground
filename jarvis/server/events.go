@@ -45,12 +45,26 @@ func (h *Hub) subscribe() (chan []byte, func()) {
 	return ch, func() { h.mu.Lock(); delete(h.subs, ch); h.mu.Unlock() }
 }
 
+// listening dice si hay alguien conectado al stream (una interfaz abierta, o un cliente de /api/events).
+func (h *Hub) listening() bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.subs) > 0
+}
+
 // watchLive publica el estado de cada pestaña cada vez que cambia algo que la interfaz muestra (lo compara cada
 // 250 ms: más simple y más robusto que avisar desde cada rincón de live.go), y la lista de pestañas cuando cambia.
+//
+// Sin nadie escuchando no compara nada: cada pestaña cuesta dos viajes a Playwright (título y scroll) por vuelta, y
+// por consola —sin interfaz abierta— eran ocho por segundo y por pestaña para publicarle a nadie. No se pierde nada:
+// quien se conecta recibe el estado completo (serveEvents), y la primera vuelta con alguien publica lo que cambió.
 func watchLive(tabs *Tabs) {
 	last := map[string]string{}
 	lastTabs := ""
 	for range time.Tick(250 * time.Millisecond) {
+		if !hub.listening() {
+			continue
+		}
 		seen := map[string]bool{}
 		for _, tab := range tabs.All() {
 			st := tab.Runner.LiveState(false)

@@ -117,6 +117,13 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
   viene entre alerta y «para mirar» no avisa cada 5 minutos. Avisa otra vez sólo si empeora. Al cerrarse, «volvió a lo
   normal», sin sonido.
 - **Si no puede leer producción 30 min** (la VPN caída), avisa una vez «Sentinel no está mirando», y otra cuando vuelve.
+- **Si una pasada se cuelga** (no devuelve nunca, así que tampoco falla), avisa el perro guardián (`watch`, en
+  `main.go`): más de 2× el intervalo sin avanzar da el mismo «Sentinel no está mirando», una vez. No corta la pasada:
+  avisa. Los procesos de afuera (`gh`, `go run` de los despliegues) llevan plazo (`runTool`, en `services.go`).
+- **En Linux** el aviso sale por `notify-send` si está en el PATH (alerta: urgencia crítica); no abre nada al tocarlo.
+- **Una fuente que no contesta se dice**: `logsNote` (Loki), `stepsNote` (PostHog) y `deploysNote` (los despliegues y
+  las versiones, `gh`) van en la vista y la interfaz los muestra sobre el grupo afectado y en el pie. Las tres fuentes
+  se leen a la vez; sólo Redash hace fallar la pasada (sin solicitudes, la última hora se leería como una caída).
 - El estado vive en `sentinel/.data/alerts.json` (un reinicio no repite avisos) y cada aviso queda en `notices.jsonl`;
   la interfaz muestra los últimos en «Avisos». Sólo avisa la API que escucha: `-once` y `-backtest` no.
 - **De los comercios avisa sólo los que se SIGUEN** (`notify.merchants`: `following` por defecto, `all` para todos).

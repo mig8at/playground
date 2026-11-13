@@ -491,6 +491,9 @@ const GROUP_MS = 3 * 60_000
    vista salte. Una conversación larga abre al toque y lo viejo se trae cuando se pide. */
 const PAGE = 60
 const shown = ref(PAGE)
+/* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
+   15 MB no se baja sola: va con lo demás, con «Bajar». (Se resuelve en `thread`, una vez por mensaje: item.ui.) */
+const imagesOf = (item) => (item.files || []).filter((f) => isImage(f) && (item.dir === 'out' || f.size <= IMAGE_AUTO_MAX))
 const hiddenCount = computed(() => Math.max(0, (chat.active?.messages?.length || 0) - shown.value))
 const thread = computed(() => {
   const out = []
@@ -518,7 +521,25 @@ const thread = computed(() => {
         : { who: '', text: 'un mensaje que ya no está en este navegador' }
     }
     const extra = signed ? { text: signed.body, signedAgent: signed.agent, signedRole: signed.role } : {}
-    out.push({ ...m, ...extra, kind: m.kind || 'message', cont, quote })
+    const item = { ...m, ...extra, kind: m.kind || 'message', cont, quote }
+    /* LO QUE LA BURBUJA NECESITA SE RESUELVE ACÁ, UNA VEZ (`item.ui`): quién habla, qué adjuntos son imágenes, si es
+       muy largo para la voz, sus menciones y su Markdown. Antes el template llamaba a esas funciones en cada render
+       (speakerOf, ~10 veces por mensaje), y cada tecla en el campo de escribir re-renderiza el hilo. Acá sólo se
+       recalcula cuando cambia algo de lo que dependen (los mensajes, el tope de palabras, los miembros del grupo). */
+    if (item.kind !== 'asked') {
+      const images = imagesOf(item)
+      const group = activeIsGroup.value
+      item.ui = {
+        who: speakerOf(item),
+        images,
+        others: (item.files || []).filter((f) => !images.includes(f)),
+        long: tooLong(item.text),
+        segs: item.text && group ? textSegments(item.text) : null,
+        html: activeIsAgent.value && item.dir === 'in' ? renderMarkdown(item.text) : '',
+        mentionsMe: group && item.dir === 'in' && mentionsMeIn(item.text),
+      }
+    }
+    out.push(item)
     prev = m
     prevSigned = signed?.agent || ''
   }
@@ -668,10 +689,6 @@ async function openDoc(item, f) {
   docView.value = { kind: 'pdf', item, f }
 }
 function closeDoc() { docView.value = null }
-/* En la burbuja, las imágenes van arriba en grilla (como WhatsApp) y lo demás abajo. Una imagen que llegó y pasa de
-   15 MB no se baja sola: va con lo demás, con «Bajar». */
-const imagesOf = (item) => (item.files || []).filter((f) => isImage(f) && (item.dir === 'out' || f.size <= IMAGE_AUTO_MAX))
-const othersOf = (item) => (item.files || []).filter((f) => !imagesOf(item).includes(f))
 // Lo enviado: la miniatura que armó el navegador al mandarlo y, si no la tiene (lo mandó bin/chat, o la ventana se
 // cerró), la copia que guardó el servidor del chat en su caché.
 const imageSrc = (item, f) => (item.dir === 'out' ? f.thumb || (f.status === 'bajado' ? chat.fileUrl(f) : '') : f.status === 'bajado' ? chat.fileUrl(f) : '')
@@ -912,6 +929,16 @@ watch(() => myThread.value.length, () => { if (!chat.activeKey) scrollNotesToEnd
 const atBottom = ref(true)
 const unseen = ref(0)          // los que llegaron mientras mirabas más arriba
 let loadingOlder = false
+/* EL HILO ES UN REGISTRO (role="log"): el lector de pantalla anuncia sólo lo que se agrega. Al cambiar de conversación
+   o traer la tanda anterior se agregan muchos mensajes de golpe que NO son nuevos: mientras tanto se marca ocupado
+   (aria-busy) para que no los lea todos. */
+const threadBusy = ref(false)
+let threadBusyTimer = 0
+function quietThread() {
+  threadBusy.value = true
+  clearTimeout(threadBusyTimer)
+  threadBusyTimer = setTimeout(() => { threadBusy.value = false }, 500)
+}
 async function scrollToEnd(smooth = false) {
   await nextTick()
   const el = threadEl.value
@@ -925,6 +952,7 @@ async function loadOlder() {
   if (!el || loadingOlder || !hiddenCount.value) return
   loadingOlder = true
   const before = el.scrollHeight - el.scrollTop
+  quietThread()
   shown.value += PAGE
   await nextTick()
   el.scrollTop = el.scrollHeight - before   // la vista queda donde estaba
@@ -937,7 +965,7 @@ function onThreadScroll() {
   if (atBottom.value) unseen.value = 0
   if (el.scrollTop < 120) loadOlder()
 }
-watch(() => chat.activeKey, () => { shown.value = PAGE; scrollToEnd() })
+watch(() => chat.activeKey, () => { quietThread(); shown.value = PAGE; scrollToEnd() })
 // Al cargar la página con una conversación ya elegida no hay cambio de activeKey: se baja cuando aparece el hilo.
 watch(() => !!thread.value.length, (has) => { if (has) scrollToEnd() }, { immediate: true })
 // Una imagen o un PDF que termina de cargar empuja el contenido: si estabas abajo, se sigue abajo.
@@ -1363,7 +1391,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
 
       <!-- MI CHAT: vos y tus agentes. Lo que escribís acá te llega a vos; lo que te escribe cada persona está en su
            conversación. -->
-      <div v-if="!chat.active" ref="notesEl" class="region-body thread" aria-live="polite">
+      <div v-if="!chat.active" ref="notesEl" class="region-body thread" role="log" aria-label="Mi chat" aria-relevant="additions">
         <p v-if="agentFilter && !shownThread.length" class="side-note center">Nada de {{ agentFilter }} en Mi chat todavía.</p>
         <p v-else-if="!myThread.length" class="side-note center">
           Tu conversación con vos mismo y tus agentes: lo que escribís acá no sale a nadie más. Un agente te habla con
@@ -1406,7 +1434,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
 
       <template v-else>
         <CallView v-if="callOpen" :cast="callCast" :messages="chat.active?.messages || []" :me="chat.meKey" :peer="chat.activeKey" />
-        <div v-show="!callOpen" ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
+        <div v-show="!callOpen" ref="threadEl" class="region-body thread" role="log" aria-label="Mensajes" aria-relevant="additions" :aria-busy="threadBusy" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
           <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">
             <div class="tasks-head">
@@ -1457,22 +1485,22 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
             <div v-else class="bubble-row" :class="[item.dir, { cont: item.cont, 'with-avatar': !activeIsAgent }]">
               <!-- Quién habla: su muñequito al empezar cada tanda (la persona, o uno de sus agentes); en las siguientes
                    queda el lugar vacío para que las burbujas se alineen. -->
-              <span v-if="!activeIsAgent && speakerOf(item)" class="msg-avatar avatar small" :class="{ agent: speakerOf(item).agent, mine: speakerOf(item).mine, ghost: item.cont }"
-                    :style="speakerOf(item).agent && !item.cont ? { background: agentColor(speakerOf(item).agent, speakerOf(item).mine ? chat.meKey : speakerOf(item).owner?.email), color: '#fff' } : null"
-                    :title="speakerOf(item).label" aria-hidden="true">
+              <span v-if="!activeIsAgent && item.ui.who" class="msg-avatar avatar small" :class="{ agent: item.ui.who.agent, mine: item.ui.who.mine, ghost: item.cont }"
+                    :style="item.ui.who.agent && !item.cont ? { background: agentColor(item.ui.who.agent, item.ui.who.mine ? chat.meKey : item.ui.who.owner?.email), color: '#fff' } : null"
+                    :title="item.ui.who.label" aria-hidden="true">
                 <template v-if="!item.cont">
-                  <template v-if="speakerOf(item).agent">{{ speakerOf(item).agent[0].toUpperCase() }}</template>
-                  <img v-else-if="photoOf(speakerOf(item).person)" class="avatar-photo" :src="photoOf(speakerOf(item).person)" alt="" referrerpolicy="no-referrer">
-                  <template v-else>{{ initials(speakerOf(item).person) }}</template>
+                  <template v-if="item.ui.who.agent">{{ item.ui.who.agent[0].toUpperCase() }}</template>
+                  <img v-else-if="photoOf(item.ui.who.person)" class="avatar-photo" :src="photoOf(item.ui.who.person)" alt="" referrerpolicy="no-referrer">
+                  <template v-else>{{ initials(item.ui.who.person) }}</template>
                 </template>
               </span>
               <span v-else-if="!activeIsAgent && item.dir === 'out'" class="msg-avatar avatar small ghost" aria-hidden="true"></span>
-              <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': activeIsGroup && item.dir === 'in' && mentionsMeIn(item.text) }">
+              <div class="bubble" :class="{ failed: item.status === 'error', 'mentions-me': item.ui.mentionsMe }">
                 <!-- Un agente se nombra solo, como en un grupo; de quién es lo dice el hover (también en su avatar). -->
-                <span v-if="item.dir === 'in' && !item.cont && !activeIsAgent && speakerOf(item)" class="author-label"
-                      :class="{ via: speakerOf(item).agent }" :title="speakerOf(item).agent ? speakerOf(item).label : null">
-                  <b v-if="speakerOf(item).agent" :style="{ color: agentColor(speakerOf(item).agent, speakerOf(item).owner?.email) }">{{ speakerOf(item).agent }}</b>
-                  <b v-else>{{ speakerOf(item).label }}</b>
+                <span v-if="item.dir === 'in' && !item.cont && !activeIsAgent && item.ui.who" class="author-label"
+                      :class="{ via: item.ui.who.agent }" :title="item.ui.who.agent ? item.ui.who.label : null">
+                  <b v-if="item.ui.who.agent" :style="{ color: agentColor(item.ui.who.agent, item.ui.who.owner?.email) }">{{ item.ui.who.agent }}</b>
+                  <b v-else>{{ item.ui.who.label }}</b>
                 </span>
                 <span v-if="item.kind === 'publish' && !item.cont" class="published-label">publicó</span>
                 <!-- Lo que mandó un agente tuyo desde la terminal (bin/chat --as): sale como él, no como vos. -->
@@ -1487,11 +1515,11 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 </span>
                 <!-- Las imágenes van arriba y el texto abajo, como un pie de foto (WhatsApp): hasta 4 en la grilla y la
                      última con «+N» si hay más; 3 ponen la primera a lo ancho. -->
-                <div v-if="imagesOf(item).length" class="media-grid" :class="`n${Math.min(imagesOf(item).length, 4)}`">
-                  <figure v-for="(f, i) in imagesOf(item).slice(0, 4)" :key="f.id || f.name" class="media">
+                <div v-if="item.ui.images.length" class="media-grid" :class="`n${Math.min(item.ui.images.length, 4)}`">
+                  <figure v-for="(f, i) in item.ui.images.slice(0, 4)" :key="f.id || f.name" class="media">
                     <button v-if="imageSrc(item, f)" type="button" class="media-open" :title="`Ver ${f.name}`" @click="openImage(item, f)">
                       <img :src="imageSrc(item, f)" :alt="f.name">
-                      <span v-if="i === 3 && imagesOf(item).length > 4" class="media-more">+{{ imagesOf(item).length - 4 }}</span>
+                      <span v-if="i === 3 && item.ui.images.length > 4" class="media-more">+{{ item.ui.images.length - 4 }}</span>
                     </button>
                     <div v-else class="media-placeholder">
                       <span v-if="f.status === 'error' && f.error">{{ f.error }}</span>
@@ -1505,20 +1533,20 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 <template v-else>
                   <p v-if="item.summary" class="summary">{{ item.summary }}</p>
                   <!-- Lo que contesta un agente viene con formato: Markdown seguro (escapa todo y entiende una lista corta). -->
-                  <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="renderMarkdown(item.text)"></div>
+                  <div v-if="activeIsAgent && item.dir === 'in'" class="text md" v-html="item.ui.html"></div>
                   <!-- Una clave (o un pedido de clave) se pinta como tarjeta; lo que venga después, como texto. -->
                   <template v-else-if="keyInfo(item)">
                     <KeyCard :info="keyInfo(item)" :mine="item.dir === 'out'" :who="keyWho(item)"
                              @ask-keys="(names) => askKeys(names, item.sid)" @send-keys="(names) => sendKeysByName(names, item.sid)" />
                     <p v-if="keyInfo(item).rest" class="text">{{ keyInfo(item).rest }}</p>
                   </template>
-                  <p v-else-if="item.text && activeIsGroup" class="text"><template v-for="(seg, i) in textSegments(item.text)" :key="i"><span v-if="seg.mention" class="mention" :class="{ me: seg.me }">{{ seg.text }}</span><template v-else>{{ seg.text }}</template></template></p>
+                  <p v-else-if="item.ui.segs" class="text"><template v-for="(seg, i) in item.ui.segs" :key="i"><span v-if="seg.mention" class="mention" :class="{ me: seg.me }">{{ seg.text }}</span><template v-else>{{ seg.text }}</template></template></p>
                   <p v-else-if="item.text" class="text"><template v-if="mentionOf(item)"><span class="mention" :class="{ me: !!item.forAgent }">{{ mentionOf(item) }}</span>{{ ' ' }}</template>{{ item.text }}</p>
                 </template>
-                <ul v-if="othersOf(item).length" class="attachments" aria-label="Adjuntos">
+                <ul v-if="item.ui.others.length" class="attachments" aria-label="Adjuntos">
                   <!-- Como un documento de WhatsApp: el tipo a la izquierda, el nombre y su tamaño, y lo que se puede hacer.
                        Un PDF se abre en la barra derecha. -->
-                  <li v-for="f in othersOf(item)" :key="f.id || f.name" class="attachment" :class="[`kind-${kindOf(f)}`, { openable: isPdf(f) && f.id }]">
+                  <li v-for="f in item.ui.others" :key="f.id || f.name" class="attachment" :class="[`kind-${kindOf(f)}`, { openable: isPdf(f) && f.id }]">
                     <component :is="isPdf(f) && f.id ? 'button' : 'div'" :type="isPdf(f) && f.id ? 'button' : undefined" class="doc-card"
                                :title="isPdf(f) && f.id ? `Ver ${f.name} a la derecha` : f.path || f.name" @click="isPdf(f) && f.id && openDoc(item, f)">
                       <span class="doc-icon" aria-hidden="true">{{ extOf(f) }}</span>
@@ -1571,9 +1599,11 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                   <button v-if="item.dir === 'out' && !item.cuadrilla" type="button" class="btn-link"
                           title="Sacarlo de la conversación: no le llegó a nadie" @click="chat.discard(item.id)">borrar</button>
                 </p>
+                <!-- el ▶ falló (sin créditos, sin llave, el audio no arrancó): se dice acá, junto al mensaje, y no sólo en el perfil -->
+                <p v-if="speech.errorId === item.id && speech.error" class="error" role="status">No se pudo leer en voz alta: {{ speech.error }}</p>
               </div>
               <!-- muy largo para la voz (el tope de palabras del perfil): no se lee, y se dice por qué -->
-              <span v-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item) && tooLong(item.text)" class="reply-action speak-muted"
+              <span v-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item) && item.ui.long" class="reply-action speak-muted"
                     :title="`Muy largo para leerlo en voz alta (más de ${speech.maxWords} palabras): no se gastan créditos en él`"
                     :aria-label="`Muy largo para leerlo en voz alta`">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16 9l5 6M21 9l-5 6" fill="none" /></svg>

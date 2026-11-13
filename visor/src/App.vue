@@ -693,8 +693,9 @@ const htmlURL = computed(() => (data.value && current.value ? `/api/html?key=${d
 // El reporte de la traducción: qué se tradujo y qué no. Se pide al cambiar de pantalla sólo si se está
 // mirando el HTML, para no traducir pantallas que nadie abre.
 // El reporte se pide en los tres modos: además de la traducción dice qué estilos del sistema de diseño usa
-// la pantalla, y eso sirve también mirando la imagen.
-watch([htmlURL, mode], async ([u]) => {
+// la pantalla, y eso sirve también mirando la imagen. No depende del modo: cambiar entre imagen, HTML y comparar
+// no lo vuelve a pedir (antes lo borraba y la paleta parpadeaba en cada cambio).
+watch(htmlURL, async (u) => {
   report.value = null
   if (!u) return
   try {
@@ -710,7 +711,7 @@ watch([htmlURL, mode], async ([u]) => {
 // ⚠ Hubo un mapa de calor y una lista de capas que difieren: se sacaron porque daban falsos positivos en
 // el suavizado de letras e íconos (Miguel, 2026-09-25).
 const fidelity = ref(null)
-const fidelityState = ref('') // '' · 'measuring' · 'none' (sin medir) · 'error'
+const fidelityState = ref('') // '' · 'reading' (leyendo la guardada) · 'measuring' · 'none' (sin medir) · 'error'
 const fidelityError = ref('')
 const fidelityURL = computed(() => (data.value && current.value ? `/api/fidelity?key=${data.value.key}&id=${encodeURIComponent(current.value.id)}` : ''))
 async function loadFidelity(u, { measure = false, fresh = false } = {}) {
@@ -729,7 +730,8 @@ async function loadFidelity(u, { measure = false, fresh = false } = {}) {
   }
 }
 watch(fidelityURL, (u) => {
-  fidelity.value = null; fidelityState.value = ''
+  // «Leyendo» no es «sin medir»: hasta que el server contesta no se sabe si hay una medida guardada.
+  fidelity.value = null; fidelityState.value = u ? 'reading' : ''
   if (u) loadFidelity(u)
 }, { immediate: true })
 const measureNow = () => { if (fidelityURL.value) loadFidelity(fidelityURL.value, { measure: true, fresh: Boolean(fidelity.value) }) }
@@ -1031,6 +1033,9 @@ watch(() => [current.value?.id, current.value?.w, current.value?.h], (now, befor
 
 function onKey(e) {
   if (e.target.closest('input, textarea')) return
+  // Con Ctrl o Cmd la tecla es del navegador (Ctrl+S, Ctrl+«-»/«+» del zoom de la página), no un atajo de acá. Con
+  // Alt, sólo Alt+← (volver).
+  if (e.ctrlKey || e.metaKey || (e.altKey && e.key !== 'ArrowLeft')) return
   if (e.key === 'ArrowRight') { step(1); e.preventDefault() }
   else if (e.key === 'ArrowLeft' && !e.altKey) { step(-1); e.preventDefault() }
   else if (e.key === 'Backspace' || (e.key === 'ArrowLeft' && e.altKey)) { back(); e.preventDefault() }
@@ -1065,10 +1070,20 @@ onMounted(async () => {
   observer = new ResizeObserver(onStageResize)
   if (stage.value) observer.observe(stage.value)
   window.addEventListener('keydown', onKey)
-  // La ruta nombra el proyecto, y el nombre sale de la biblioteca: se espera a que llegue.
-  await loadLibrary()
   const fromHash = readHash()
   const fromRoute = readRoute()
+  // Una ruta con la CLAVE del archivo (lo que escribe la barra: 15+ letras y dígitos, con mayúsculas —un nombre de
+  // proyecto va en minúsculas y con guiones—) no necesita la biblioteca para abrir: se piden las dos cosas a la vez.
+  const project = fromRoute?.project || ''
+  if (!fromHash && /^[A-Za-z0-9]{15,}$/.test(project) && /[A-Z]/.test(project) && /[a-z0-9]/.test(project)) {
+    const opening = openRoute(fromRoute)
+    await loadLibrary()
+    // Por si acaso era el nombre de un proyecto y no una clave: ahora que hay biblioteca, se abre por ella.
+    if (keyOfProject(project) !== project) { await opening; openRoute(fromRoute) }
+    return
+  }
+  // La ruta nombra el proyecto, y el nombre sale de la biblioteca: se espera a que llegue.
+  await loadLibrary()
   const last = readPref('visor.last', '')
   if (fromHash) load(fromHash.ref, fromHash.screen)
   else if (fromRoute) openRoute(fromRoute)
@@ -1334,6 +1349,7 @@ onUnmounted(() => {
               </div>
             </div>
             <p v-if="fidelityState === 'measuring'" class="hint">Midiendo…</p>
+            <p v-else-if="fidelityState === 'reading'" class="hint">Leyendo la medida guardada…</p>
             <p v-else-if="fidelityState === 'error'" class="hint">No se pudo medir: {{ fidelityError }}</p>
             <template v-else-if="fidelity">
               <div class="fidelity">

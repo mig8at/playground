@@ -907,8 +907,11 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 		return Step{}, fmt.Errorf("acción desconocida %q (click · dblclick · hover · fill · check · uncheck · select · press · scroll · upload · drag)", action)
 	}
 	// Un confirm() o alert() que dispara la acción llega un instante después: se espera un poco para registrarlo
-	// ANTES del paso, que es donde lo pone una prueba (page.once('dialog', …) antes del clic).
-	time.Sleep(250 * time.Millisecond)
+	// ANTES del paso, que es donde lo pone una prueba (page.once('dialog', …) antes del clic). Sólo después de lo
+	// que puede abrir uno (mayOpenDialog): escribir en un campo no paga ese cuarto de segundo.
+	if mayOpenDialog(action) {
+		time.Sleep(250 * time.Millisecond)
+	}
 	// Si la acción abrió una pestaña nueva o bajó un archivo, se espera a que termine (hasta 10 s).
 	for i := 0; i < 100; i++ {
 		l.mu.Lock()
@@ -927,12 +930,15 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 	downloads := l.downloads
 	l.downloads = nil
 	l.mu.Unlock()
+	// El paso y sus auxiliares (el diálogo, el selector de archivo, la descarga, la pestaña nueva) se registran
+	// juntos, en el orden en que los escribe una prueba, con UNA sola foto: todos pasaron en la misma acción.
+	var batch []Step
 	for _, d := range dialogs {
-		r.recordStep(l, Step{Code: d.code, Target: d.message, OK: true, Action: "dialog", Value: map[bool]string{true: "dismiss", false: "accept"}[strings.Contains(d.code, "dismiss")]})
+		batch = append(batch, Step{Code: d.code, Target: d.message, OK: true, Action: "dialog", Value: map[bool]string{true: "dismiss", false: "accept"}[strings.Contains(d.code, "dismiss")]})
 	}
 	// El archivo para un selector que abre el clic, como lo escribe Playwright: atendido ANTES del paso.
 	if chooser != "" && err == nil {
-		r.recordStep(l, Step{Code: fmt.Sprintf("page.once('filechooser', fc => fc.setFiles('%s'))", jsQuote(chooser)), Target: name, OK: true, Raw: true})
+		batch = append(batch, Step{Code: fmt.Sprintf("page.once('filechooser', fc => fc.setFiles('%s'))", jsQuote(chooser)), Target: name, OK: true, Raw: true})
 	}
 	// Una descarga va en el script como lo escribe Playwright: la espera ANTES del paso y el guardado después.
 	var after []Step
@@ -941,7 +947,7 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 		l.downloadSeq++
 		v := fmt.Sprintf("descarga%d", l.downloadSeq)
 		l.mu.Unlock()
-		r.recordStep(l, Step{Code: fmt.Sprintf("const %s = page.waitForEvent('download')", v), Target: d.name, OK: true, Raw: true})
+		batch = append(batch, Step{Code: fmt.Sprintf("const %s = page.waitForEvent('download')", v), Target: d.name, OK: true, Raw: true})
 		note := fmt.Sprintf("descargado: %s (%d bytes)", d.path, d.size)
 		if d.err != nil {
 			note = "no se pudo guardar la descarga: " + d.err.Error()
@@ -966,13 +972,9 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 	for _, d := range dialogs {
 		step.Dialogs = append(step.Dialogs, d.message)
 	}
-	r.recordStep(l, step)
-	for _, a := range after {
-		r.recordStep(l, a)
-	}
-	for _, p := range popups {
-		r.recordStep(l, p)
-	}
+	main := len(batch)
+	batch = append(append(append(batch, step), after...), popups...)
+	r.recordSteps(l, batch, main)
 	l.markDirty()
 	if err != nil {
 		return step, fmt.Errorf("%s sobre «%s»: %s", action, name, errText(err))
@@ -980,45 +982,76 @@ func (r *Runner) performAct(l *live, cur *Page, in LiveAct, target playwright.Lo
 	return step, nil
 }
 
-func (r *Runner) recordStep(l *live, s Step) {
-	s.At = time.Now()
-	s.URL = l.page.URL()
+// mayOpenDialog: las acciones después de las cuales vale esperar un alert/confirm. Un diálogo sale de un manejador
+// de clic, de teclado o de cambio (un select o una casilla con confirmación); escribir en un campo, pasar el mouse o
+// mover el scroll no lo abren. Si alguno lo hiciera, el diálogo se contesta igual y queda en los avisos de la sesión
+// (recentDialogs): lo único que se pierde es su línea en el script.
+func mayOpenDialog(action string) bool {
+	switch action {
+	case "fill", "hover", "scroll":
+		return false
+	}
+	return true
+}
+
+func (r *Runner) recordStep(l *live, s Step) { r.recordSteps(l, []Step{s}, 0) }
+
+// recordSteps registra, en orden, los pasos que salieron de UNA acción: el principal (steps[main]) y sus auxiliares
+// (el diálogo que disparó, el selector de archivo, la descarga, la pestaña nueva). Se saca una sola foto y la llevan
+// todos: antes cada auxiliar esperaba la carga, dormía 300 ms y sacaba la suya, de la misma página en el mismo
+// estado (todos se registran después de la acción). El formato no cambia: cada paso sigue con su `shot`; la foto se
+// llama por el número del paso principal (NN.png, o NN-fallo.png si falló) y los auxiliares apuntan a ésa.
+func (r *Runner) recordSteps(l *live, steps []Step, main int) {
+	if len(steps) == 0 {
+		return
+	}
+	if main < 0 || main >= len(steps) {
+		main = 0
+	}
+	at, url := time.Now(), l.page.URL()
 	// La foto de cómo quedó la página: la evidencia del paso a paso. Un fallo la lleva marcada.
 	l.mu.Lock()
-	n := len(l.steps) + 1
+	n := len(l.steps) + 1 + main
 	if l.runDir == "" {
 		l.runDir = filepath.Join(r.store.dir, "runs", time.Now().Format("2006-01-02_15-04-05"))
 	}
 	dir := l.runDir
 	l.mu.Unlock()
+	shot := ""
 	if err := os.MkdirAll(dir, 0o700); err == nil {
 		// Un instante para que la página termine de cargar: la foto es de cómo QUEDÓ, no del medio de la
 		// navegación (sin esto salían desplegables a medio cerrar y videos en negro). Con tope, para no trabar.
 		_ = l.page.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateLoad, Timeout: playwright.Float(3000)})
 		time.Sleep(300 * time.Millisecond)
 		name := fmt.Sprintf("%02d.png", n)
-		if !s.OK {
+		if !steps[main].OK {
 			name = fmt.Sprintf("%02d-fallo.png", n)
 		}
 		if _, err := l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleCss, Path: playwright.String(filepath.Join(dir, name)), Timeout: playwright.Float(5000)}); err == nil {
-			s.Shot = name
+			shot = name
 		}
 	}
 	// Es fuente donde se hizo algo (y lo que se leyó, en LiveRead); no cualquier página analizada de fondo, que
 	// puede ser de antes de un reset.
 	title, _ := l.page.Title()
 	l.mu.Lock()
-	if s.Why == "" && !s.Manual && s.Action != "dialog" && !s.Raw {
-		s.Why, l.pendingWhy = l.pendingWhy, ""
+	for i := range steps {
+		s := &steps[i]
+		s.At, s.URL, s.Shot = at, url, shot
+		if s.Why == "" && !s.Manual && s.Action != "dialog" && !s.Raw {
+			s.Why, l.pendingWhy = l.pendingWhy, ""
+		}
+		l.steps = append(l.steps, *s)
 	}
-	l.steps = append(l.steps, s)
-	l.noteSource(s.URL, title, "")
+	l.noteSource(url, title, "")
 	l.mu.Unlock()
-	mark := "ok"
-	if !s.OK {
-		mark = "warn"
+	for _, s := range steps {
+		mark := "ok"
+		if !s.OK {
+			mark = "warn"
+		}
+		r.say(mark, "paso · %s%s", s.Code, map[bool]string{true: "", false: " · " + s.Error}[s.OK])
 	}
-	r.say(mark, "paso · %s%s", s.Code, map[bool]string{true: "", false: " · " + s.Error}[s.OK])
 }
 
 // LiveExpect espera (con la espera de Playwright) a que un texto se vea en la página, y lo deja como aserción:

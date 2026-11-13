@@ -64,6 +64,8 @@
   .actions .danger { background: #e7d8b6; color: var(--red-deep); box-shadow: 0 3px 0 var(--cream-dim); }
   [data-human][hidden] { display: none; }
   .toast { grid-column: 1 / -1; min-height: 18px; font-size: 12px; font-weight: 800; color: var(--teal-deep); }
+  .toast .undo { all: unset; cursor: pointer; margin-left: 8px; padding: 1px 10px; border-radius: 999px; background: var(--cream); color: var(--ink); font-weight: 900; }
+  .toast .undo:focus-visible { outline: 3px solid var(--amber); outline-offset: 2px; }
 
   @media (max-width: 900px) {
     .app { height: auto; grid-template-columns: 1fr; grid-template-rows: 56px auto auto; gap: 14px 0; }
@@ -159,15 +161,41 @@ gest.addEventListener('click', (e) => { const b = e.target.closest('[data-g]'); 
 // ── LOS CONTROLES ────────────────────────────────────────────────────────────────────────────────
 // Se arman del catálogo: muestras de color (data-swatches) y opciones (data-options). Cada clic cambia una pieza y
 // repinta la vista previa.
+// CÓMO SE ANUNCIA UNA MUESTRA DE COLOR: «Chaqueta: verde oscuro (3 de 12)», no «shirt #1d4a54». El nombre del color
+// sale del tono, la saturación y la luz del hexadecimal (aproximado: alcanza para distinguirlas de oído), y la posición
+// desempata dos muestras parecidas. Va también como title, para quien pasa el mouse.
+const SWATCH_LABEL = { hairColor: 'Pelo', hatColor: 'Gorro', gear: 'Audífonos y aretes', shirt: 'Chaqueta', accent: 'Camiseta' }
+function colorName(hex) {
+  const n = parseInt(String(hex).replace('#', ''), 16)
+  const r = (n >> 16 & 255) / 255, g = (n >> 8 & 255) / 255, b = (n & 255) / 255
+  const max = Math.max(r, g, b), min = Math.min(r, g, b), l = (max + min) / 2, d = max - min
+  const sat = d === 0 ? 0 : d / (1 - Math.abs(2 * l - 1))
+  let h = 0
+  if (d) h = max === r ? ((g - b) / d + 6) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4
+  h *= 60
+  const tone = l > .72 ? ' claro' : l < .32 ? ' oscuro' : ''
+  if (sat < .14 || (l < .13 && sat < .35)) return l > .88 ? 'blanco' : l < .16 ? 'negro' : `gris${tone}`
+  // los tonos cálidos claros son los beiges (pieles claras, crema); apagados u oscuros, los cafés: no «naranja»
+  if (h >= 10 && h < 70 && l > .72) return 'beige'
+  if (h >= 10 && h < 50 && (sat < .65 || l < .42)) return `café${tone}`
+  const base = h < 12 || h >= 345 ? 'rojo' : h < 40 ? 'naranja' : h < 68 ? 'amarillo' : h < 160 ? 'verde' : h < 200 ? 'verde azulado'
+    : h < 245 ? 'azul' : h < 295 ? 'violeta' : 'rosa'
+  return `${base}${tone}`
+}
+const swatches = (key, label, colors) => colors.map((c, i) => {
+  const name = `${label}: ${colorName(c)} (${i + 1} de ${colors.length})`
+  return `<button type="button" class="swatch" data-key="${key}" data-val="${c}" style="background:${c}" aria-label="${name}" title="${name}"></button>`
+}).join('')
 document.querySelectorAll('[data-swatches]').forEach((row) => {
   const key = row.dataset.swatches
-  row.innerHTML = OPCIONES[key].map((c) => `<button type="button" class="swatch" data-key="${key}" data-val="${c}" style="background:${c}" aria-label="${key} ${c}"></button>`).join('')
+  row.innerHTML = swatches(key, SWATCH_LABEL[key] || key, OPCIONES[key])
 })
 function drawSkinRow() {
   const sp = cur.species || ''
   const colors = OPCIONES.skinBy[sp] || OPCIONES.skin
-  document.getElementById('skin-label').textContent = ['pato', 'pinguino', 'buho', 'tucan', 'loro'].includes(sp) ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp === 'rana' ? 'Piel' : sp ? 'Pelaje' : 'Piel'
-  document.getElementById('skin-row').innerHTML = colors.map((c) => `<button type="button" class="swatch" data-key="skin" data-val="${c}" style="background:${c}" aria-label="color ${c}"></button>`).join('')
+  const label = ['pato', 'pinguino', 'buho', 'tucan', 'loro'].includes(sp) ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp === 'rana' ? 'Piel' : sp ? 'Pelaje' : 'Piel'
+  document.getElementById('skin-label').textContent = label
+  document.getElementById('skin-row').innerHTML = swatches('skin', label, colors)
   document.querySelectorAll('[data-human]').forEach((el) => { el.hidden = !!sp })
 }
 document.querySelectorAll('[data-options]').forEach((row) => {
@@ -201,7 +229,31 @@ function syncControls() {
 }
 
 // ── GUARDAR, COPIAR, BAJAR ───────────────────────────────────────────────────────────────────────
-const toast = (t) => { document.getElementById('toast').textContent = t }
+// El aviso de abajo se borra solo a los unos segundos: antes quedaba para siempre («Borrado.» seguía ahí media hora
+// después). Un aviso nuevo reemplaza al anterior y a su «Deshacer».
+const toastEl = document.getElementById('toast')
+let toastTimer = 0
+function toast(t, ms = 6000) {
+  undoCur = null
+  toastEl.textContent = t
+  clearTimeout(toastTimer)
+  toastTimer = setTimeout(() => { toastEl.textContent = ''; undoCur = null }, ms)
+}
+// «Al azar» y «Nuevo» pisan lo que se estaba armando: se guarda el personaje anterior y el aviso ofrece «Deshacer»
+// mientras dure (un solo paso; cualquier otro aviso lo descarta).
+let undoCur = null
+function offerUndo(previous, text) {
+  toast(text, 12000)
+  undoCur = previous
+  const b = document.createElement('button')
+  b.type = 'button'; b.className = 'undo'; b.textContent = 'Deshacer'
+  b.addEventListener('click', () => {
+    if (!undoCur) return
+    cur = undoCur
+    drawSkinRow(); draw(); drawSaved(); toast(`Volvió ${cur.name}, como estaba.`)
+  })
+  toastEl.append(' ', b)
+}
 function drawSaved() {
   const box = document.getElementById('saved')
   box.innerHTML = '<span class="label">Guardados<br>(los 3 primeros entran a la llamada)</span>'
@@ -227,8 +279,16 @@ document.getElementById('delete').addEventListener('click', () => {
   saved = saved.filter((p) => p.id !== cur.id); saveCustom(saved)
   cur = { ...START, id: newId() }; draw(); drawSaved(); toast('Borrado.')
 })
-document.getElementById('random').addEventListener('click', () => { cur = randomPerson(cur); if (cur.species) cur.skin = OPCIONES.skinBy[cur.species][Math.floor(Math.random() * OPCIONES.skinBy[cur.species].length)]; draw() })
-document.getElementById('new').addEventListener('click', () => { cur = { ...START, id: newId() }; drawSkinRow(); draw(); drawSaved() })
+document.getElementById('random').addEventListener('click', () => {
+  const previous = { ...cur }
+  cur = randomPerson(cur); if (cur.species) cur.skin = OPCIONES.skinBy[cur.species][Math.floor(Math.random() * OPCIONES.skinBy[cur.species].length)]; draw()
+  offerUndo(previous, 'Piezas al azar.')
+})
+document.getElementById('new').addEventListener('click', () => {
+  const previous = { ...cur }
+  cur = { ...START, id: newId() }; drawSkinRow(); draw(); drawSaved()
+  offerUndo(previous, 'Personaje nuevo.')
+})
 document.getElementById('copy').addEventListener('click', async () => {
   const { id, name, owner, kind, ...rest } = normalize(cur)
   const json = JSON.stringify({ id, name, ...(owner ? { owner } : {}), kind, ...rest })

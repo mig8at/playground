@@ -62,6 +62,9 @@ func watchSignature(src Source, request string, users []any) (string, error) {
 	return strings.Join(parts, "|"), nil
 }
 
+// watchStaleAfter: cuántas consultas seguidas tienen que fallar para avisar que el vivo está cortado.
+const watchStaleAfter = 3
+
 func registerWatch(mux *http.ServeMux) {
 	mux.HandleFunc("/api/watch", func(w http.ResponseWriter, r *http.Request) {
 		flusher, ok := w.(http.Flusher)
@@ -109,6 +112,10 @@ func registerWatch(mux *http.ServeMux) {
 		tick := time.NewTicker(3 * time.Second)
 		defer tick.Stop()
 		beat := 0
+		// Fallas SEGUIDAS de la consulta: una sola no dice nada, pero varias son la VPN caída o la base que no
+		// contesta, y la interfaz seguía diciendo «en vivo». A la tercera (~9 s) se avisa `stale`; cuando vuelve a
+		// contestar, `fresh` (y `changed` si además cambió).
+		fails := 0
 		for {
 			select {
 			case <-r.Context().Done():
@@ -116,8 +123,16 @@ func registerWatch(mux *http.ServeMux) {
 			case <-tick.C:
 				sig, err := watchSignature(src, request, users)
 				if err != nil {
-					continue // una consulta que falló no es un cambio; la próxima vuelve a intentar
+					// Una consulta que falló no es un cambio; la próxima vuelve a intentar.
+					if fails++; fails == watchStaleAfter {
+						send("stale", map[string]string{"reason": err.Error()})
+					}
+					continue
 				}
+				if fails >= watchStaleAfter {
+					send("fresh", map[string]any{})
+				}
+				fails = 0
 				if sig != last {
 					last = sig
 					send("changed", map[string]any{})

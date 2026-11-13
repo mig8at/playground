@@ -30,6 +30,7 @@ import (
 	"context"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -50,20 +51,150 @@ import (
 func main() {
 	args := os.Args[1:]
 	if len(args) == 0 || args[0] == "help" || args[0] == "-h" || args[0] == "--help" {
+		if len(args) > 1 && args[1] != "--json" {
+			// `pg help sql` · `pg help jira`: sólo los comandos que empiezan así, en vez de la lista entera.
+			os.Exit(helpFor(strings.Join(args[1:], " ")))
+		}
 		os.Exit(help(len(args) > 1 && args[1] == "--json"))
 	}
 	name := args[0]
 	rest := args[1:]
 	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
 		if c, ok := find(name + " " + rest[0]); ok {
-			os.Exit(c.run(rest[1:]))
+			os.Exit(runCommand(c, rest[1:]))
 		}
 	}
 	if c, ok := find(name); ok {
-		os.Exit(c.run(rest))
+		os.Exit(runCommand(c, rest))
 	}
-	fmt.Fprintf(os.Stderr, "pg: no existe el comando %q (pg help)\n", strings.Join(args, " "))
+	// Un grupo sin su verbo (`pg jira`) lista los suyos; un nombre mal escrito sugiere el más parecido.
+	typed := name
+	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
+		typed += " " + rest[0]
+	}
+	if group := matching(name); len(group) > 0 {
+		fmt.Fprintf(os.Stderr, "pg: no existe el comando %q. Los de %q:\n", typed, name)
+		for _, c := range group {
+			fmt.Fprintf(os.Stderr, "  %s\n", c.Usage)
+		}
+	} else if near := nearest(typed); near != "" {
+		fmt.Fprintf(os.Stderr, "pg: no existe el comando %q. ¿Quisiste decir «pg %s»? (pg help)\n", typed, near)
+	} else {
+		fmt.Fprintf(os.Stderr, "pg: no existe el comando %q (pg help)\n", strings.Join(args, " "))
+	}
 	os.Exit(2)
+}
+
+// runCommand corre el comando, salvo que se le pida su ayuda: `--help` (o `-h`) muestra qué hace y cómo se usa y
+// sale con 0. Antes llegaba a `flag`, que imprimía las banderas y salía con 2, como si el pedido estuviera mal.
+func runCommand(c command, args []string) int {
+	for _, a := range args {
+		if a == "--" {
+			break
+		}
+		if a == "--help" || a == "-help" || a == "-h" {
+			printCommand(os.Stdout, c, len(c.Name))
+			for _, p := range c.Params {
+				flagName := "--" + p.Name
+				if p.Positional {
+					flagName = "<" + p.Name + ">"
+				}
+				extra := ""
+				if p.Required {
+					extra = " (obligatorio)"
+				}
+				fmt.Printf("    %-14s %s%s\n", flagName, p.Desc, extra)
+			}
+			return 0
+		}
+	}
+	return c.run(args)
+}
+
+func printCommand(w io.Writer, c command, width int) {
+	summary := c.Summary
+	if c.Write {
+		summary += "  ⚠ escribe: sin --apply sólo muestra"
+	}
+	fmt.Fprintf(w, "  %-*s %s\n  %-*s %s\n\n", width, c.Name, summary, width, "", c.Usage)
+}
+
+// matching: los comandos cuyo nombre es ese prefijo o empieza con él (`sql` → sql; `jira` → jira myself, jira
+// search…; `ji` → los de jira).
+func matching(prefix string) []command {
+	prefix = strings.ToLower(strings.TrimSpace(prefix))
+	var out []command
+	if prefix == "" {
+		return out
+	}
+	for _, c := range commands {
+		if strings.HasPrefix(c.Name, prefix) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// helpFor: la ayuda de los comandos que empiezan con `prefix`.
+func helpFor(prefix string) int {
+	list := matching(prefix)
+	if len(list) == 0 {
+		if near := nearest(prefix); near != "" {
+			return fail(2, "ningún comando empieza con %q. ¿Quisiste decir «pg help %s»?", prefix, near)
+		}
+		return fail(2, "ningún comando empieza con %q (pg help los lista todos)", prefix)
+	}
+	width := 0
+	for _, c := range list {
+		width = max(width, len(c.Name))
+	}
+	for _, c := range list {
+		printCommand(os.Stdout, c, width)
+	}
+	return 0
+}
+
+// nearest: el comando (o el grupo, su primera palabra) más parecido a lo que se escribió, o vacío si ninguno se
+// parece lo bastante. Tolera un par de letras cambiadas, no una palabra distinta.
+func nearest(typed string) string {
+	typed = strings.ToLower(strings.TrimSpace(typed))
+	best, bestDistance := "", 1<<30
+	consider := func(candidate string) {
+		if d := editDistance(typed, candidate); d < bestDistance {
+			best, bestDistance = candidate, d
+		}
+	}
+	for _, c := range commands {
+		consider(c.Name)
+		if group, _, ok := strings.Cut(c.Name, " "); ok {
+			consider(group)
+		}
+	}
+	if bestDistance > max(2, len([]rune(typed))/3) {
+		return ""
+	}
+	return best
+}
+
+// editDistance: cuántas letras hay que cambiar, agregar o quitar para ir de a hasta b (Levenshtein).
+func editDistance(a, b string) int {
+	x, y := []rune(a), []rune(b)
+	row := make([]int, len(y)+1)
+	for j := range row {
+		row[j] = j
+	}
+	for i := 1; i <= len(x); i++ {
+		prev := row[0]
+		row[0] = i
+		for j := 1; j <= len(y); j++ {
+			cost := 1
+			if x[i-1] == y[j-1] {
+				cost = 0
+			}
+			prev, row[j] = row[j], min(row[j]+1, row[j-1]+1, prev+cost)
+		}
+	}
+	return row[len(y)]
 }
 
 func find(name string) (command, bool) {
@@ -89,12 +220,9 @@ func help(asJSON bool) int {
 		width = max(width, len(c.Name))
 	}
 	for _, c := range commands {
-		summary := c.Summary
-		if c.Write {
-			summary += "  ⚠ escribe: sin --apply sólo muestra"
-		}
-		fmt.Printf("  %-*s %s\n  %-*s %s\n\n", width, c.Name, summary, width, "", c.Usage)
+		printCommand(os.Stdout, c, width)
 	}
+	fmt.Println("pg help <prefijo> muestra sólo esos (pg help sql · pg help jira); pg <comando> --help, uno con sus parámetros.")
 	return 0
 }
 
@@ -123,15 +251,22 @@ func runSQL(args []string) int {
 	if err := dbsql.ValidateReadOnly(*query); err != nil {
 		return fail(2, "consulta rechazada: %v", err)
 	}
-	cfg, _, err := dbsql.LoadConfig(*target)
+	cfg, file, err := dbsql.LoadConfig(*target)
 	if err != nil {
 		return fail(2, "%v", err)
 	}
-	rows, source, err := dbsql.Query(cfg, *query)
+	// Las columnas salen en el orden del SELECT, no alfabéticas (una fila es un mapa y lo pierde).
+	rows, columns, source, err := dbsql.QueryOrdered(cfg, *query)
 	if err != nil {
+		if errors.Is(err, dbsql.ErrNoSource) {
+			// El conector nombra las claves; acá se sabe además si el archivo está.
+			if file == "" {
+				return fail(1, "consulta en %s: %v — ese archivo NO existe (tampoco vienen del proceso)", *target, err)
+			}
+			return fail(1, "consulta en %s: %v — se leyó %s y no las trae", *target, err, file)
+		}
 		return fail(1, "consulta en %s: %v", *target, err)
 	}
-	columns := dbsql.Columns(rows)
 	if *block != "" {
 		t := *title
 		if t == "" {

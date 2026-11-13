@@ -4,6 +4,10 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Sala · barrido</title>
+<!-- El tema ANTES de pintar: el renglón `THEME_BOOT` de tools/ui/workbench.js, copiado (esta página no tiene bundler ni
+     carga workbench.js). Sin él la clase `.dark` no se ponía nunca y la sala quedaba siempre en claro. Sigue lo elegido
+     en `ui.theme` y, si no hay, el modo del sistema; la paleta, de `ui.palette`. Si cambia THEME_BOOT, se copia de nuevo. -->
+<script>try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('ui.palette');if(p&&p!=='default'&&/^(default|vintage|catppuccin|nord|monokaipro|ristretto)$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}</script>
 <link rel="stylesheet" href="/theme.css">
 <style>
   /* Todo color sale de theme.css (tools/ui): esta página no declara colores propios. */
@@ -35,7 +39,9 @@
   button:disabled { opacity: .5; cursor: default; }
   .hint { font-size: 11px; color: var(--muted-foreground); }
   .history { overflow-y: auto; padding: 6px; min-height: 0; }
-  .past { padding: 6px 8px; border-radius: var(--radius-md); cursor: pointer; }
+  /* Un barrido anterior es un <button> (se llega con el teclado): acá se le quita la piel de botón. */
+  .past { display: block; width: 100%; text-align: left; border: 0; background: none; color: inherit; padding: 6px 8px; border-radius: var(--radius-md); cursor: pointer; }
+  .past span { display: block; }
   .past:hover, .past.active { background: var(--sidebar-accent); color: var(--sidebar-accent-foreground); }
   .past .ts { font-family: var(--font-mono); font-size: 11px; }
   .past .what { font-size: 12px; }
@@ -45,6 +51,9 @@
   header { display: flex; gap: 14px; align-items: center; padding: 8px 14px; min-height: 40px; border-bottom: 1px solid var(--border); background: var(--card); }
   header .title { font-weight: 600; }
   header .meta { color: var(--muted-foreground); }
+  /* Sin conexión con el servidor: se dice en la cabecera y lo último que se supo queda en pantalla. */
+  header .conn { color: var(--destructive); font-weight: 600; }
+  header .conn:empty { display: none; }
   .phases { display: flex; gap: 6px; margin-left: auto; }
   .phase { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted-foreground); font-size: 12px; }
   .phase.now { border-color: var(--ring); color: var(--foreground); box-shadow: 0 0 0 1px var(--ring); }
@@ -113,6 +122,7 @@
       <button class="primary" id="start">Lanzar barrido</button>
       <button id="stop" disabled>Cortar</button>
     </div>
+    <div class="hint" id="why" role="status"></div>
     <div class="hint" id="cost"></div>
   </div>
   <div class="history"><h2 style="padding-left:6px">Barridos anteriores</h2><div id="history"></div></div>
@@ -122,7 +132,8 @@
   <header>
     <span class="title">Barrido</span>
     <span class="meta" id="meta"></span>
-    <div class="phases" id="phases"></div>
+    <span class="conn" id="conn" role="status"></span>
+    <div class="phases" id="phases" role="status" aria-label="Fase del barrido"></div>
   </header>
   <div class="lanes" id="lanes"></div>
   <div class="findings" id="fpanel">
@@ -136,18 +147,45 @@ const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 const code = (s) => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
 let viewing = null, filter = 'todos', lastState = null;
+let starting = false, stopping = false; // entre el clic y la respuesta: el botón queda ocupado y no se dispara dos veces
+
+// setHTML sólo toca el DOM si el HTML cambió. La página se repinta en cada sondeo: rehacer todo con innerHTML cada
+// segundo borraba la selección de texto (no se podía copiar un hallazgo) y movía cada log aunque no hubiera nada nuevo.
+const painted = new WeakMap();
+function setHTML(el, html) {
+  if (painted.get(el) === html) return false;
+  painted.set(el, html);
+  el.innerHTML = html;
+  return true;
+}
+const setText = (el, text) => { if (el.textContent !== text) el.textContent = text; };
 
 const mode = () => document.querySelector('#modes input:checked').value;
+// Cambiar de modo dos veces seguidas deja dos pedidos en vuelo (el de canon tarda: consulta la ronda): gana el
+// ÚLTIMO pedido, no el último en llegar. Una respuesta vieja se descarta.
+let topicsSeq = 0;
 async function loadTopics() {
+  const seq = ++topicsSeq;
   const canon = mode() === 'canon';
   $('ttitle').textContent = canon ? 'Temas de canon con deriva' : 'Temas de knowledge';
   $('thint').textContent = canon
     ? 'Los que la ronda marca con archivos cambiados en main, de más a menos. Cada agente arma piezas; las confirmadas se ensayan en canon sin publicar.'
     : 'De la revisión más vieja a la más nueva. Un agente por tema.';
   $('topics').innerHTML = '<div class="hint" style="padding:8px 12px">Cargando…</div>';
-  const r = await fetch('/api/topics' + (canon ? '?mode=canon' : ''));
-  if (!r.ok) { $('topics').innerHTML = `<div class="hint" style="padding:8px 12px">${esc(await r.text())}</div>`; $('tcount').textContent = ''; return; }
-  const topics = await r.json();
+  $('tcount').textContent = '';
+  updateCost();
+  const fail = (text) => { $('topics').innerHTML = `<div class="hint" style="padding:8px 12px">${esc(text)}</div>`; $('tcount').textContent = ''; updateCost(); };
+  let topics;
+  try {
+    const r = await fetch('/api/topics' + (canon ? '?mode=canon' : ''));
+    if (seq !== topicsSeq) return;
+    if (!r.ok) { const text = await r.text(); if (seq === topicsSeq) fail(text); return; }
+    topics = await r.json();
+  } catch {
+    if (seq === topicsSeq) fail('No se pudieron leer los temas: la sala no contesta. Cambiá de modo para reintentar.');
+    return;
+  }
+  if (seq !== topicsSeq) return;
   $('tcount').textContent = topics.length;
   $('topics').innerHTML = topics.map((t, i) => `
     <label class="topic" title="${esc(t.title)}">
@@ -165,7 +203,17 @@ function updateCost() {
     : mode() === 'canon'
       ? `Hasta US$${(n * (b + c)).toFixed(2)} eq. (${n} cadenas × (${b} + verificador ${c})), del límite del asiento.`
       : `Hasta US$${(n * b + c).toFixed(2)} eq. (${n} × ${b} + verificador ${c}), del límite del asiento.`;
-  $('start').disabled = n === 0 || n > 8 || Boolean(lastState && !lastState.ended);
+  const live = Boolean(lastState && !lastState.ended);
+  // Por qué no se puede lanzar, al lado del botón: un botón apagado sin motivo se lee como roto. El tope de 8 es el del
+  // servidor (/api/start): cada tema gasta del asiento.
+  const why = live ? 'Hay un barrido corriendo: se lanza otro cuando termine o se corte.'
+    : n === 0 ? 'Elegí al menos un tema para lanzar.'
+    : n > 8 ? `Hasta 8 temas por barrido (elegiste ${n}): cada uno gasta del asiento.` : '';
+  setText($('why'), why);
+  $('start').disabled = starting || Boolean(why);
+  setText($('start'), starting ? 'Lanzando…' : 'Lanzar barrido');
+  $('stop').disabled = !live || stopping;
+  setText($('stop'), stopping && live ? 'Cortando…' : 'Cortar');
 }
 $('topics').addEventListener('change', updateCost);
 $('modes').addEventListener('change', loadTopics);
@@ -174,24 +222,48 @@ $('modes').addEventListener('change', loadTopics);
 $('start').onclick = async () => {
   const body = { mode: mode(), topics: chosen(), budget: Number($('budget').value), checkBudget: Number($('check').value), mock: $('mock').checked };
   if (!body.mock && !confirm(`Lanzar ${body.topics.length} agente(s) reales: hasta US$${(body.mode === 'canon' ? body.topics.length * (body.budget + body.checkBudget) : body.topics.length * body.budget + body.checkBudget).toFixed(2)} eq. del asiento.`)) return;
-  const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) { alert(await r.text()); return; }
-  viewing = null; filter = 'todos';
-  poll();
+  if (starting) return;
+  // Ocupado hasta que el servidor contesta Y el sondeo vio el barrido: sin esto, un segundo clic lanzaba otro pedido.
+  starting = true; updateCost();
+  try {
+    const r = await fetch('/api/start', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) { alert(await r.text()); return; }
+    viewing = null; filter = 'todos';
+    await poll();
+    if (!(lastState && !lastState.ended)) await poll(); // el primero pudo ser uno que ya estaba en vuelo, de antes del clic
+    schedule();
+  } catch {
+    alert('No se pudo lanzar: la sala no contesta.');
+  } finally {
+    starting = false; updateCost();
+  }
 };
-$('stop').onclick = () => fetch('/api/stop', { method: 'POST' });
+$('stop').onclick = async () => {
+  if (stopping) return;
+  const real = lastState && !lastState.mock;
+  if (!confirm(`¿Cortar el barrido en curso? Los agentes se detienen donde estén${real ? ' y lo que ya gastaron no vuelve' : ''}.`)) return;
+  // «Cortando…» hasta que el sondeo vea el barrido terminado: los agentes tardan unos segundos en soltar.
+  stopping = true; updateCost();
+  try {
+    const r = await fetch('/api/stop', { method: 'POST' });
+    if (!r.ok) throw new Error(await r.text());
+  } catch {
+    stopping = false; updateCost();
+    alert('No se pudo cortar: la sala no contesta. El barrido sigue corriendo.');
+  }
+};
 
 const phaseName = { notas: 'Notas de archivos compartidos', 'integración': 'Integrador', 'en cadena': 'Cada tema en cadena: agente → verificador → ensayo', agentes: 'Agentes en paralelo', verificador: 'Verificador', ensayo: 'Ensayo en canon', terminado: 'Terminado', cortado: 'Cortado' };
 
 function render(s) {
   if (!s) {
-    $('meta').textContent = '';
-    $('phases').innerHTML = '';
-    $('lanes').innerHTML = `<div class="empty">
+    setText($('meta'), '');
+    setHTML($('phases'), '');
+    setHTML($('lanes'), `<div class="empty">
       Cada agente toma <b>un tema</b> de knowledge/ y trabaja solo, en paralelo con los otros, con todas las herramientas
       de lectura: el código de main de los dos monolitos, la base y los logs de prod en sólo lectura, el harness.
       No hablan entre ellos ni esperan turno. Cuando terminan todos, un <b>verificador</b> que no escribió nada
-      comprueba cada hallazgo.<br><br>Elegí temas a la izquierda y lanzá el barrido. Con «Simulado» se ve el recorrido sin gastar.</div>`;
+      comprueba cada hallazgo.<br><br>Elegí temas a la izquierda y lanzá el barrido. Con «Simulado» se ve el recorrido sin gastar.</div>`);
     $('fpanel').style.display = 'none';
     return;
   }
@@ -200,12 +272,12 @@ function render(s) {
   const secs = Math.max(0, Math.round(((s.ended ? new Date(s.ended) : new Date()) - new Date(s.started)) / 1000));
   const cost = [...(s.agents || []), ...(s.verifiers || []), ...(s.notes || []), ...(s.correctors || []), s.integrator, s.verifier].reduce((a, x) => a + (x?.cost || 0), 0);
   const clock = s.started && s.started !== s.ended ? ` · ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : '';
-  $('meta').textContent = `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`;
+  setText($('meta'), `${s.id}${s.mock ? ' · simulado' : ''}${clock} · US$${cost.toFixed(2)} eq.`);
   const order = s.verifiers?.length
     ? ['notas', 'en cadena', 'integración', s.phase === 'cortado' ? 'cortado' : 'terminado']
     : ['agentes', 'verificador', ...(s.mode === 'canon' ? ['ensayo'] : []), s.phase === 'cortado' ? 'cortado' : 'terminado'];
   const at = order.indexOf(s.phase);
-  $('phases').innerHTML = order.map((p, i) => `<span class="phase ${i < at ? 'done' : i === at ? 'now' : ''}">${i + 1}. ${phaseName[p]}</span>`).join('');
+  setHTML($('phases'), order.map((p, i) => `<span class="phase ${i < at ? 'done' : i === at ? 'now' : ''}">${i + 1}. ${phaseName[p]}</span>`).join(''));
 
   const lanes = [];
   (s.notes || []).forEach((a) => lanes.push({ ...a, isVerifier: true }));
@@ -216,7 +288,10 @@ function render(s) {
   if (s.verifier) lanes.push({ ...s.verifier, isVerifier: true });
   (s.correctors || []).forEach((a) => lanes.push({ ...a, isVerifier: true }));
   if (s.integrator) lanes.push({ ...s.integrator, isVerifier: true });
-  $('lanes').innerHTML = lanes.map((a) => {
+  // El log de cada carril sigue el final SÓLO si ya estaba al final (o es nuevo): si la persona subió a leer un paso,
+  // se queda donde estaba. Antes se forzaba al final cada segundo y no se podía leer hacia atrás.
+  const before = [...document.querySelectorAll('#lanes .lane .log')].map((el) => ({ top: el.scrollTop, end: el.scrollHeight - el.scrollTop - el.clientHeight < 12 }));
+  const lanesChanged = setHTML($('lanes'), lanes.map((a) => {
     const steps = a.steps || [];
     const log = steps.length
       ? steps.map((st, i) => `<div class="step ${st.kind} ${i === steps.length - 1 ? 'last' : ''}"><span class="at">${esc(st.at)}</span><span class="what">${esc(st.text)}</span></div>`).join('')
@@ -233,16 +308,16 @@ function render(s) {
       <div class="err">${esc(a.err || '')}</div>
       <div class="log">${log}</div>
     </div>`;
-  }).join('');
-  document.querySelectorAll('.lane .log').forEach((el) => { el.scrollTop = el.scrollHeight; });
+  }).join(''));
+  if (lanesChanged) document.querySelectorAll('#lanes .lane .log').forEach((el, i) => { el.scrollTop = !before[i] || before[i].end ? el.scrollHeight : before[i].top; });
 
   const fs = s.findings || [];
   const n = (v) => fs.filter((f) => (f.verdict || '') === v).length;
   const filters = [['todos', `Todos ${fs.length}`], ['✓', `✓ ${n('✓')}`], ['✗', `✗ ${n('✗')}`], ['—', `— ${n('—')}`], ['', `Sin veredicto ${n('')}`]];
-  $('filters').innerHTML = filters.map(([v, l]) => `<button data-v="${esc(v)}" class="${filter === v ? 'on' : ''}">${esc(l)}</button>`).join('');
-  $('fcount').textContent = live && s.phase === 'agentes' ? 'aparecen cuando terminan los agentes' : '';
+  setHTML($('filters'), filters.map(([v, l]) => `<button type="button" data-v="${esc(v)}" aria-pressed="${filter === v}" class="${filter === v ? 'on' : ''}">${esc(l)}</button>`).join(''));
+  setText($('fcount'), live && s.phase === 'agentes' ? 'aparecen cuando terminan los agentes' : '');
   const shown = fs.filter((f) => filter === 'todos' || (f.verdict || '') === filter);
-  $('flist').innerHTML = shown.length ? shown.map((f) => {
+  setHTML($('flist'), shown.length ? shown.map((f) => {
     const cls = f.verdict === '✓' ? 'ok' : f.verdict === '✗' ? 'bad' : '';
     const text = f.text.replace(/^HALLAZGO:\s*[^|]+\|\s*/, '');
     return `<div class="f ${cls}">
@@ -254,7 +329,7 @@ function render(s) {
       ${f.integration ? `<div class="check">integración: ${esc(f.integration)}</div>` : ''}
       ${f.piece ? `<div class="check"><code>${esc(f.piece)}</code></div>` : ''}
     </div>`;
-  }).join('') : `<div class="hint" style="padding:8px 0">${fs.length ? 'Nada con ese filtro.' : live ? 'Todavía no hay hallazgos.' : 'Este barrido no dejó hallazgos.'}</div>`;
+  }).join('') : `<div class="hint" style="padding:8px 0">${fs.length ? 'Nada con ese filtro.' : live ? 'Todavía no hay hallazgos.' : 'Este barrido no dejó hallazgos.'}</div>`);
 }
 $('filters').addEventListener('click', (e) => {
   const v = e.target?.dataset?.v;
@@ -264,18 +339,35 @@ $('filters').addEventListener('click', (e) => {
 });
 
 async function loadHistory() {
-  const list = await (await fetch('/api/history')).json();
-  $('history').innerHTML = list.length ? list.map((p) => `
-    <div class="past ${viewing?.id === p.id ? 'active' : ''}" data-id="${esc(p.id)}">
-      <div class="ts">${esc(p.id)}${p.mock ? ' · simulado' : ''}</div>
-      <div class="what">${esc(p.topics || '—')}</div>
-      <div class="nums">${p.findings} hallazgos · ${p.verified} ✓ · US$${(p.cost || 0).toFixed(2)}</div>
-    </div>`).join('') : '<div class="hint" style="padding:6px">Todavía no hay.</div>';
+  let list;
+  try {
+    const r = await fetch('/api/history');
+    if (!r.ok) throw new Error(await r.text());
+    list = await r.json();
+  } catch {
+    // La lista que había se queda; si no había ninguna, se dice. El próximo sondeo que vuelva la trae.
+    if (!$('history').children.length) setHTML($('history'), '<div class="hint" style="padding:6px">No se pudieron leer: la sala no contesta.</div>');
+    return;
+  }
+  setHTML($('history'), list.length ? list.map((p) => `
+    <button type="button" class="past ${viewing?.id === p.id ? 'active' : ''}" data-id="${esc(p.id)}" ${viewing?.id === p.id ? 'aria-current="true"' : ''}>
+      <span class="ts">${esc(p.id)}${p.mock ? ' · simulado' : ''}</span>
+      <span class="what">${esc(p.topics || '—')}</span>
+      <span class="nums">${p.findings} hallazgos · ${p.verified} ✓ · US$${(p.cost || 0).toFixed(2)}</span>
+    </button>`).join('') : '<div class="hint" style="padding:6px">Todavía no hay.</div>');
 }
 $('history').addEventListener('click', async (e) => {
   const el = e.target.closest('.past');
   if (!el) return;
-  const raw = await (await fetch('/api/history?id=' + encodeURIComponent(el.dataset.id))).json();
+  let raw;
+  try {
+    const r = await fetch('/api/history?id=' + encodeURIComponent(el.dataset.id));
+    if (!r.ok) throw new Error(await r.text());
+    raw = await r.json();
+  } catch {
+    alert(`No se pudo abrir el barrido ${el.dataset.id}: la sala no contesta o ya no está guardado.`);
+    return;
+  }
   if (!raw.agents?.length && raw.runs) raw.agents = raw.runs.map((r) => ({ ...r, status: 'listo', steps: [] })); // el primer barrido, antes de la página
   if (raw.verifier && !raw.verifier.status) raw.verifier.status = 'listo';
   const now = new Date().toISOString();
@@ -286,21 +378,47 @@ $('history').addEventListener('click', async (e) => {
   loadHistory();
 });
 
-let wasLive = false;
-async function poll() {
-  try { lastState = await (await fetch('/api/state')).json(); } catch { lastState = null; }
+// EL SONDEO. Cada segundo con un barrido en curso; cada 3 s en reposo (un barrido sólo arranca desde esta página, o
+// desde otra pestaña de la misma). Con la pestaña oculta no se sondea, y al volver se lee en el acto.
+let wasLive = false, offline = false, pollTimer = null, inflight = null;
+// Un sondeo a la vez: el clic de «Lanzar» y el temporizador pueden coincidir, y comparten el que esté en vuelo.
+function poll() {
+  inflight ||= readState().finally(() => { inflight = null; });
+  return inflight;
+}
+async function readState() {
+  try {
+    const r = await fetch('/api/state');
+    if (!r.ok) throw new Error(String(r.status));
+    lastState = await r.json();
+    if (offline) loadHistory(); // volvió: lo que terminó mientras tanto aparece en la lista
+    offline = false;
+  } catch {
+    // Sin conexión NO es «no hay barrido»: lo último que se supo queda en pantalla, y se dice. Antes se pintaba la
+    // bienvenida, como si el barrido en curso hubiera desaparecido.
+    offline = true;
+  }
+  setText($('conn'), offline ? 'sin conexión con la sala, reintentando…' : '');
   const live = Boolean(lastState && !lastState.ended);
-  $('stop').disabled = !live;
+  if (!live) stopping = false;
   updateCost();
   if (live) viewing = null;
   if (!viewing) render(lastState);
   if (wasLive && !live) loadHistory();
   wasLive = live;
 }
+function schedule() {
+  clearTimeout(pollTimer);
+  if (document.hidden) return;
+  pollTimer = setTimeout(async () => { await poll(); schedule(); }, wasLive ? 1000 : 3000);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) clearTimeout(pollTimer);
+  else poll().then(schedule);
+});
 loadTopics();
 loadHistory();
-poll();
-setInterval(poll, 1000);
+poll().then(schedule);
 </script>
 </body>
 </html>

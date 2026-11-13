@@ -142,9 +142,10 @@ export function inlineParts(text) {
 }
 
 // Sólo enlaces usados por la prosa del bloque: el material de ejemplo no activa recorridos.
-export function blockRouteLinks(body) {
+// `parts` deja pasar el cuerpo ya parseado, para no parsearlo dos veces por bloque.
+export function blockRouteLinks(body, parts = parseBlockBody(body)) {
   const found = new Map();
-  for (const part of parseBlockBody(body)) {
+  for (const part of parts) {
     const texts = part.type === 'paragraph' ? [part.text]
       : part.type === 'list' ? part.items
       : part.type === 'command' ? [part.result] : [];

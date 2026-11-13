@@ -9,7 +9,9 @@
 #   … --json para un agente
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/sentinel"
-stale=$(find "$root/sentinel/server" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+# El binario no es sólo sentinel/server: importa los conectores (sql, logs, events) y lib/launchagent. Un cambio ahí
+# también lo deja viejo, así que se miran las carpetas enteras, como hace bin/pg con connectors/.
+stale=$(find "$root/sentinel/server" "$root/connectors" "$root/lib" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   mkdir -p "$(dirname "$bin")" || exit 1
   tmp="$bin.$$"

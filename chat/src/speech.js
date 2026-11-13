@@ -22,6 +22,7 @@ export const speech = reactive({
   maxWords: readPref('chat.voice-max-words', DEFAULT_MAX_WORDS),
   speakingId: '',                                   // qué mensaje se está leyendo ahora
   error: '',                                        // lo último que no se pudo leer (y por qué)
+  errorId: '',                                      // en qué mensaje falló: el aviso sale junto a su ▶, no sólo en el perfil
 })
 
 if (speech.supported) {
@@ -76,37 +77,65 @@ export function stop() {
   speech.speakingId = ''
 }
 
-async function audioFor(text) {
-  const res = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ voice: speech.voice || defaultVoice(), text }) })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
-  return URL.createObjectURL(await res.blob())
+/* EL AUDIO YA PEDIDO SE GUARDA EN ESTA PESTAÑA: voz + texto → su MP3. Volver a darle ▶ a un mensaje (o repetir una
+   frase en la videollamada) no vuelve a pedirlo al servidor. Se guarda la promesa, así dos pedidos iguales a la vez
+   comparten uno solo; un pedido que falla no se guarda (se puede reintentar). Con tope: al pasarlo sale el más viejo
+   sin usar. Es un POST, que el navegador no cachea por su cuenta. */
+const AUDIO_CACHE_MAX = 80
+const audioCache = new Map() // `voz\ntexto` → Promise<Blob>
+/** El MP3 de `text` dicho por `voiceName`, del servidor del chat (POST /api/voice) o de lo ya pedido en esta pestaña. */
+export function voiceBlob(voiceName, text) {
+  const key = `${voiceName || ''}\n${text}`
+  const hit = audioCache.get(key)
+  if (hit) { audioCache.delete(key); audioCache.set(key, hit); return hit } // lo usado pasa al final: sale último
+  const pending = (async () => {
+    const res = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ voice: voiceName, text }) })
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
+    return res.blob()
+  })()
+  audioCache.set(key, pending)
+  pending.catch(() => { if (audioCache.get(key) === pending) audioCache.delete(key) })
+  while (audioCache.size > AUDIO_CACHE_MAX) audioCache.delete(audioCache.keys().next().value)
+  return pending
 }
+
+// La URL se arma del blob guardado para cada reproducción y se suelta al terminar: lo que queda en memoria es el blob.
+async function audioFor(text) {
+  return URL.createObjectURL(await voiceBlob(speech.voice || defaultVoice(), text))
+}
+// El aviso de que no se pudo leer `id`: queda junto a su ▶ (App.vue) hasta el próximo ▶.
+function failed(id, why) { speech.error = why; speech.errorId = id; speech.speakingId = '' }
 
 /* Leer el mensaje `id`. Si ya se está leyendo, lo para (el mismo botón hace las dos cosas). */
 export async function toggleSpeak(id, text) {
   if (!speech.supported) return
   if (speech.speakingId === id) { stop(); return }
   stop()
-  speech.error = ''
-  if (tooLong(text)) { speech.error = `Es muy largo para leerlo en voz alta (más de ${speech.maxWords} palabras).`; return }
+  speech.error = ''; speech.errorId = ''
+  if (tooLong(text)) { failed(id, `Es muy largo para leerlo en voz alta (más de ${speech.maxWords} palabras).`); return }
   const parts = chunks(forSpeech(text))
   if (!parts.length) return
   const mine = ++run
   speech.speakingId = id
   // la frase siguiente se pide mientras suena la actual
   let next = audioFor(parts[0])
+  next.catch(() => {}) // el fallo se atiende abajo, al esperarla: acá sólo se evita el aviso de promesa sin atender
   for (let i = 0; i < parts.length; i++) {
     let url
-    try { url = await next } catch (e) { if (mine === run) { speech.error = String(e.message || e); speech.speakingId = '' } return }
-    if (i + 1 < parts.length) next = audioFor(parts[i + 1])
+    try { url = await next } catch (e) { if (mine === run) failed(id, String(e.message || e)); return }
+    if (i + 1 < parts.length) { next = audioFor(parts[i + 1]); next.catch(() => {}) }
     if (mine !== run) { URL.revokeObjectURL(url); return }
     const audio = new Audio(url)
     audio.playbackRate = speech.rate // la velocidad sin cambiar el tono (preservesPitch queda como viene: activado)
     current = audio
-    await new Promise((done) => { audio.onended = done; audio.onerror = done; audio.play().catch(done) })
+    // si el audio no arranca o se corta (no por un «parar»: eso cambia `run`), se dice en vez de volver al ▶ callado
+    const played = await new Promise((done) => {
+      audio.onended = () => done(true); audio.onerror = () => done(false); audio.play().catch(() => done(false))
+    })
     URL.revokeObjectURL(url)
     if (mine !== run) return
+    if (!played) { current = null; failed(id, 'No se pudo reproducir el audio.'); return }
   }
   if (mine === run) { speech.speakingId = ''; current = null }
 }

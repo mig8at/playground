@@ -146,16 +146,43 @@ fn user_path() -> String {
     path
 }
 
-fn log_file(name: &str) -> Option<std::fs::File> {
-    let path = PathBuf::from(std::env::var("HOME").ok()?).join("Library/Logs").join(name);
-    OpenOptions::new().create(true).append(true).open(path).ok()
+// Dónde van los registros. En macOS, ~/Library/Logs (lo de siempre). En lo demás esa carpeta no existe, y sin
+// registro `spawn` no levantaba NINGUNA app, sin decir nada: ahí van a $XDG_STATE_HOME/cockpit (o
+// ~/.local/state/cockpit), que se crea si falta.
+fn log_dir() -> Option<PathBuf> {
+    let home = PathBuf::from(std::env::var("HOME").ok()?);
+    if cfg!(target_os = "macos") {
+        return Some(home.join("Library/Logs"));
+    }
+    let state = std::env::var("XDG_STATE_HOME").ok().filter(|v| !v.is_empty()).map(PathBuf::from);
+    Some(state.unwrap_or_else(|| home.join(".local/state")).join("cockpit"))
 }
 
+fn log_file(name: &str) -> Result<std::fs::File, String> {
+    let dir = log_dir().ok_or("no hay HOME: no sé dónde dejar el registro")?;
+    std::fs::create_dir_all(&dir).map_err(|e| format!("crear {}: {e}", dir.display()))?;
+    let path = dir.join(name);
+    OpenOptions::new().create(true).append(true).open(&path).map_err(|e| format!("abrir {}: {e}", path.display()))
+}
+
+// Un arranque que falla deja constancia en stderr (antes devolvía `None` callado, y la carcasa esperaba 90 s a
+// una app que nunca se había lanzado).
 fn spawn(app: &AppDef, path: &str) -> Option<Child> {
-    let root = std::fs::canonicalize(ROOT).ok()?;
+    match try_spawn(app, path) {
+        Ok(child) => Some(child),
+        Err(why) => {
+            eprintln!("cockpit: no pude levantar {}: {why}", app.id);
+            None
+        }
+    }
+}
+
+fn try_spawn(app: &AppDef, path: &str) -> Result<Child, String> {
+    let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz del playground ({ROOT}): {e}"))?;
     let (mut cmd, log) = match app.start {
         Start::Sidecar => {
-            let mut c = Command::new(std::env::current_exe().ok()?.with_file_name("chat-server"));
+            let exe = std::env::current_exe().map_err(|e| format!("mi propio ejecutable: {e}"))?;
+            let mut c = Command::new(exe.with_file_name("chat-server"));
             c.args(["-serve", "127.0.0.1:5185"]);
             (c, log_file("creditop-playground-chat.log")?)
         }
@@ -168,12 +195,12 @@ fn spawn(app: &AppDef, path: &str) -> Option<Child> {
     cmd.current_dir(&root)
         .env("PLAYGROUND_ROOT", &root)
         .env("PATH", path)
-        .stdout(log.try_clone().ok()?)
+        .stdout(log.try_clone().map_err(|e| format!("duplicar el registro: {e}"))?)
         .stderr(log)
         // Su propio grupo de procesos: al salir se apaga entero (make → npm → vite y go).
         .process_group(0)
         .spawn()
-        .ok()
+        .map_err(|e| format!("lanzar el proceso: {e}"))
 }
 
 // Los procesos que levantó Cockpit, por app (las que ya estaban corriendo no figuran: no son suyas).
@@ -186,6 +213,18 @@ struct Running {
     watched: Arc<Mutex<HashMap<&'static str, u32>>>,
     // Desde cuándo el chat no contesta (ver `chat_agent_installed`).
     sidecar_down: Arc<Mutex<Option<Instant>>>,
+    // Cuándo se lanzó cada app por última vez y cuántos lanzamientos seguidos lleva sin llegar a contestar. Ver
+    // `relaunch_wait`.
+    launches: Arc<Mutex<HashMap<&'static str, (Instant, u32)>>>,
+}
+
+/* LA ESPERA ANTES DE RELANZAR: si el `make <app>` muere enseguida (un puerto tomado, un error de compilación, falta
+   una dependencia), `ensure` lo relanzaba en CADA sondeo, y la carcasa sondea cada 700 ms durante 90 s: más de cien
+   `make` seguidos. Ahora, entre un lanzamiento y el siguiente de una app que todavía no contestó, se espera 5 s, y el
+   doble cada vez (10, 20, 40) hasta 60 s. La cuenta vuelve a cero cuando la app contesta, y un reinicio pedido
+   (`restart`) no espera. */
+fn relaunch_wait(failed: u32) -> Duration {
+    Duration::from_secs((5u64 << failed.saturating_sub(1).min(4)).min(60))
 }
 
 /* EL CHAT DE FONDO (`make chat-install`): si su LaunchAgent está instalado, el servidor del chat lo cuida launchd y
@@ -206,6 +245,7 @@ impl Running {
             if matches!(app.start, Start::Sidecar) {
                 *self.sidecar_down.lock().unwrap() = None;
             }
+            self.launches.lock().unwrap().remove(app.id);
             return true;
         }
         if matches!(app.start, Start::Sidecar) && chat_agent_installed() {
@@ -218,11 +258,25 @@ impl Running {
         let mut children = self.children.lock().unwrap();
         let alive = matches!(children.get_mut(app.id).map(|c| c.try_wait()), Some(Ok(None)));
         if !alive {
+            // Murió (o nunca arrancó) sin llegar a contestar: no se relanza antes de su espera (`relaunch_wait`).
+            let mut launches = self.launches.lock().unwrap();
+            let failed = match launches.get(app.id) {
+                Some((at, n)) if at.elapsed() < relaunch_wait(*n) => return false,
+                Some((_, n)) => *n,
+                None => 0,
+            };
+            // Cuenta también el lanzamiento que falla antes de existir (sin registro, sin ejecutable): si no,
+            // se reintentaría en cada sondeo igual.
+            launches.insert(app.id, (Instant::now(), failed + 1));
             if let Some(child) = spawn(app, &self.path) {
                 children.insert(app.id, child);
             }
         }
         false
+    }
+    // Olvida los intentos fallidos de una app: el próximo `ensure` la lanza sin esperar.
+    fn forget_launches(&self, id: &str) {
+        self.launches.lock().unwrap().remove(id);
     }
     fn started(&self, id: &str) -> bool {
         self.children.lock().unwrap().contains_key(id)
@@ -351,6 +405,7 @@ fn restart(app: &tauri::AppHandle, def: &'static AppDef) -> Result<String, Strin
         thread::sleep(Duration::from_millis(200));
     }
     running.watched.lock().unwrap().insert(def.id, 1);
+    running.forget_launches(def.id); // lo pidió alguien: no espera
     running.ensure(def);
     Ok(format!("{}: {how}; arrancando de nuevo", def.name))
 }
@@ -607,7 +662,7 @@ fn open_in_shell(app: &tauri::AppHandle, id: &str, route: &str) {
 }
 
 fn main() {
-    let running = Running { children: Arc::default(), path: Arc::new(user_path()), watched: Arc::default(), sidecar_down: Arc::default() };
+    let running = Running { children: Arc::default(), path: Arc::new(user_path()), watched: Arc::default(), sidecar_down: Arc::default(), launches: Arc::default() };
     // El chat, ya: aunque no lo abras, junta el historial y avisa. Si se cae, se vuelve a levantar.
     let chat = &APPS[0];
     running.ensure(chat);

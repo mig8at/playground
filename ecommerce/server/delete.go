@@ -252,7 +252,12 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 		return plan, nil
 	}
 
-	counts, err := countTables(src, eligible, childWhere)
+	// El plan de un borrado lee el esquema de la base CADA vez (sin la caché de las lecturas).
+	planTables, err := childTables(src)
+	if err != nil {
+		return nil, err
+	}
+	counts, err := countTables(src, planTables, eligible, childWhere)
 	if err != nil {
 		return nil, err
 	}
@@ -272,11 +277,8 @@ func BuildPlan(target string, request int, byPhone, freeUsers bool) (*Plan, erro
 
 // countTables cuenta, tabla por tabla, las filas que cuelgan de esas solicitudes (sin la solicitud misma).
 // Sólo lee: es lo que muestra el editor y la base del plan.
-func countTables(src Source, ids []int, where func(table, list string) string) ([]TableCount, error) {
-	tables, err := childTables(src)
-	if err != nil {
-		return nil, err
-	}
+// `tables` son las que cuelgan (childTables): quien llama decide si las lee de la base o de la caché.
+func countTables(src Source, tables []childTable, ids []int, where func(table, list string) string) ([]TableCount, error) {
 	list := intList(ids)
 	var parts []string
 	for _, t := range tables {
@@ -307,7 +309,12 @@ func RequestTables(target string, request int) ([]TableCount, error) {
 	if err != nil {
 		return nil, err
 	}
-	out, err := countTables(src, []int{request}, viewWhere)
+	// Mostrar es lectura: el esquema sale de la caché del ambiente (schema_cache.go).
+	children, err := cachedChildTables(target, src)
+	if err != nil {
+		return nil, err
+	}
+	out, err := countTables(src, children, []int{request}, viewWhere)
 	if err != nil {
 		return nil, err
 	}

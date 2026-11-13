@@ -95,18 +95,23 @@ func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCach
 		return fidelity{}, err
 	}
 	path := s.fidelityPath(key, version, id)
-	fidelityGate.Lock()
-	defer fidelityGate.Unlock()
+	// Lo guardado se lee ANTES del candado: con una medición en curso (hasta 3 min de Chromium) el pedido de la
+	// medida guardada de OTRA pantalla esperaba a que terminara, y la interfaz mostraba «Sin medir» mientras tanto.
 	if !fresh {
-		if b, err := os.ReadFile(path); err == nil {
-			var f fidelity
-			if json.Unmarshal(b, &f) == nil && f.Renderer == rendererPrint() && f.Method == fidelityMethod {
-				return f, nil
-			}
+		if f, ok := savedFidelity(path); ok {
+			return f, nil
 		}
 	}
 	if onlyCached {
 		return fidelity{}, errNotMeasured
+	}
+	fidelityGate.Lock()
+	defer fidelityGate.Unlock()
+	// Otra vez, ya con el candado: quien esperaba por la MISMA pantalla usa lo que acaba de medir el anterior.
+	if !fresh {
+		if f, ok := savedFidelity(path); ok {
+			return f, nil
+		}
 	}
 	m, err := s.measure(ctx, key, id, n.Box.Width, n.Box.Height)
 	if err != nil {
@@ -119,6 +124,20 @@ func (s *server) fidelityOf(ctx context.Context, key, id string, fresh, onlyCach
 		_ = os.Rename(path+".tmp", path)
 	}
 	return f, nil
+}
+
+// savedFidelity lee la medida guardada, si es de este ejecutable y de este método de medir. El archivo se escribe
+// con rename (atómico), así que leerlo sin el candado no ve una medida a medias.
+func savedFidelity(path string) (fidelity, bool) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return fidelity{}, false
+	}
+	var f fidelity
+	if json.Unmarshal(b, &f) != nil || f.Renderer != rendererPrint() || f.Method != fidelityMethod {
+		return fidelity{}, false
+	}
+	return f, true
 }
 
 // measureWithChromium corre fidelity.mjs contra la API de ESTE server, que es la que sirve el HTML y la

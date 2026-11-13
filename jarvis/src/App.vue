@@ -94,11 +94,25 @@ const askEvents = computed(() => askEventsBy.value[viewTab.value] || [])
 const flows = ref([])
 const apps = ref([])
 const connected = ref(false)
+// La lista de proyectos nace vacía y llega por el stream: «vacía» sólo quiere decir «no hay» después de la primera
+// entrega (loaded). Antes de eso se está conectando, o la API no contesta (offline): tres estados, tres textos.
+const loaded = ref(false)
+const offline = ref(false)
 let events = null
+let reconnectTimer = 0
 function connect() {
+  clearTimeout(reconnectTimer)
+  events?.close()
   events = new EventSource('/api/events')
-  events.onopen = () => { connected.value = true }
-  events.onerror = () => { connected.value = false } // EventSource se reconecta solo
+  const source = events
+  events.onopen = () => { connected.value = true; offline.value = false }
+  events.onerror = () => {
+    connected.value = false
+    offline.value = true
+    // EventSource se reconecta solo cuando se corta la conexión, pero NO cuando le contestan un error HTTP (el proxy
+    // de Vite devuelve uno con la API caída): queda cerrado para siempre y había que recargar la página.
+    if (source.readyState === EventSource.CLOSED && events === source) reconnectTimer = setTimeout(connect, 2000)
+  }
   const on = (kind, fn) => events.addEventListener(kind, (e) => { try { fn(JSON.parse(e.data)) } catch { /* evento roto */ } })
   on('tabs', onTabs)
   on('live', (st) => {
@@ -118,7 +132,7 @@ function connect() {
     if (ev.k === 'act' || ev.k === 'think') followTo(ev.tab)
   })
   on('flows', (v) => { flows.value = v; if (view.value.kind === 'flow') loadView(view.value) })
-  on('apps', (v) => { apps.value = v })
+  on('apps', (v) => { apps.value = v; loaded.value = true })
 }
 
 
@@ -158,16 +172,25 @@ const editorBody = ref(null)
 const editorBox = ref({ w: 0, h: 0 })
 let resizeObs = null
 let frames = null
+// Cada cuadro se decodifica aparte y sin orden garantizado (uno liviano puede terminar antes que el pesado que
+// llegó antes): llevan número, y el que termina tarde no se pinta sobre uno más nuevo. Reabrir el stream (otra
+// pestaña, otro dispositivo) sigue la misma cuenta, así que un cuadro del stream anterior tampoco pisa al nuevo.
+let frameSeq = 0
+let framePainted = 0
 function openFrames() {
   frames?.close()
   frames = new EventSource(`/api/live/frames?tab=${encodeURIComponent(viewTab.value)}`)
+  const source = frames
   frames.onmessage = (e) => {
     try {
       const msg = JSON.parse(e.data)
       const canvas = liveCanvas.value
       if (!canvas) return
+      const seq = ++frameSeq
       const img = new Image()
       img.onload = () => {
+        if (seq < framePainted || frames !== source) return
+        framePainted = seq
         if (canvas.width !== img.width || canvas.height !== img.height) { canvas.width = img.width; canvas.height = img.height }
         canvas.getContext('2d').drawImage(img, 0, 0)
       }
@@ -423,7 +446,7 @@ onMounted(() => {
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
 })
 onBeforeUnmount(() => {
-  events?.close(); frames?.close(); resizeObs?.disconnect(); themeBinding?.()
+  clearTimeout(reconnectTimer); events?.close(); frames?.close(); resizeObs?.disconnect(); themeBinding?.()
   window.removeEventListener('hashchange', onHashChange)
   window.removeEventListener('resize', onWindowResize)
 })
@@ -455,7 +478,11 @@ const status = computed(() => {
       </form>
       <div class="region-head"><span>Proyectos</span><span class="count">{{ flowGroups.length }}</span></div>
       <div class="region-body tree" role="tree" aria-label="Proyectos">
-        <p v-if="!flowGroups.length" class="none">No hay proyectos: las apps de jarvis/apps aparecen acá.</p>
+        <template v-if="!flowGroups.length">
+          <p v-if="offline && !connected" class="none" role="status">Sin conexión con la API de Jarvis. Levantala con <code>make jarvis</code>: se reconecta sola.</p>
+          <p v-else-if="!loaded" class="none" role="status">Conectando con la API…</p>
+          <p v-else class="none">No hay proyectos: las apps de jarvis/apps aparecen acá.</p>
+        </template>
         <template v-for="g in flowGroups" :key="g.app">
           <!-- la carpeta del proyecto: abrirla muestra su portada en el editor -->
           <div class="tree-row folder" role="treeitem" :aria-expanded="isOpen(g.app)" :class="{ on: view.kind === 'project' && view.app === g.app }" @click="openProject(g.app)">

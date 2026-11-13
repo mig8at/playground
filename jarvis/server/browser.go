@@ -230,9 +230,80 @@ func pageID(raw string) string {
 	return hex.EncodeToString(sum[:])[:12]
 }
 
+// settle espera a que la página esté quieta antes de analizarla. Es la ÚNICA puerta: para volver a lo de antes
+// (networkidle con tope de 6 s) alcanza con JARVIS_SETTLE=networkidle, o con dejar acá sólo settleNetworkIdle.
+//
+// Antes era sólo networkidle (6 s). En un panel que hace polling o tiene un pedido abierto para siempre (SSE,
+// long-poll) networkidle no llega NUNCA y cada análisis pagaba los 6 s enteros. Ahora gana la primera de dos señales:
+//   - networkidle, como antes: en una página que ya quedó en reposo contesta al instante (el camino rápido);
+//   - la quietud del DOM medida en la página (settleQuietJS): cargada, y settleQuietMs sin mutaciones ni recursos
+//     que terminen de bajar, con tope settleCapMs.
+//
+// ⚠ Lo que la quietud NO ve: un pedido lento todavía en vuelo que no mueve el DOM (un spinner por CSS). En una
+// navegación así, networkidle esperaba a que terminara y esto puede analizar antes; el análisis de fondo (liveLoop)
+// la vuelve a mirar cuando la página cambia.
+const (
+	settleQuietMs = 300
+	settleCapMs   = 2000
+)
+
 func settle(p playwright.Page) {
-	_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(6000)})
+	if os.Getenv("JARVIS_SETTLE") == "networkidle" {
+		settleNetworkIdle(p, 6000)
+		return
+	}
+	began := time.Now()
+	_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded, Timeout: playwright.Float(settleCapMs)})
+	// Las dos esperas corren a la par y cada una avisa por su canal (con lugar, para que la que pierde no quede
+	// trabada). La que pierde termina sola: las dos tienen tope.
+	idle, quiet := make(chan struct{}, 1), make(chan struct{}, 1)
+	go func() {
+		if settleNetworkIdle(p, settleCapMs) == nil {
+			idle <- struct{}{}
+		}
+	}()
+	go func() {
+		// Una navegación en el medio destruye el contexto y Evaluate falla al instante: eso NO es quietud. Se
+		// espera a la página nueva y se mide de nuevo, hasta el tope.
+		for time.Since(began) < settleCapMs*time.Millisecond {
+			if _, err := p.Evaluate(settleQuietJS, map[string]any{"quiet": settleQuietMs, "cap": settleCapMs}); err == nil {
+				quiet <- struct{}{}
+				return
+			}
+			time.Sleep(100 * time.Millisecond)
+			_ = p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateDomcontentloaded, Timeout: playwright.Float(settleCapMs)})
+		}
+	}()
+	// El tope de Go es un poco más largo que el de la página: en una pestaña de fondo Chrome frena los timers a 1 s,
+	// y un Evaluate sobre una página congelada no vuelve.
+	select {
+	case <-idle:
+	case <-quiet:
+	case <-time.After(time.Until(began.Add((settleCapMs + 1000) * time.Millisecond))):
+	}
 }
+
+func settleNetworkIdle(p playwright.Page, ms float64) error {
+	return p.WaitForLoadState(playwright.PageWaitForLoadStateOptions{State: playwright.LoadStateNetworkidle, Timeout: playwright.Float(ms)})
+}
+
+// settleQuietJS resuelve cuando el documento terminó de cargar y pasaron `quiet` ms sin que cambie el DOM ni termine
+// de bajar un recurso, o a los `cap` ms. No deja nada colgado en la página: desconecta sus observadores al resolver.
+const settleQuietJS = `({ quiet, cap }) => new Promise((resolve) => {
+  const began = performance.now()
+  let last = began
+  const touch = () => { last = performance.now() }
+  const mo = new MutationObserver(touch)
+  mo.observe(document.documentElement, { subtree: true, childList: true, attributes: true, characterData: true })
+  let po = null
+  try { po = new PerformanceObserver(touch); po.observe({ type: 'resource' }) } catch { po = null }
+  const timer = setInterval(() => {
+    const now = performance.now()
+    if (now - began < cap && (document.readyState !== 'complete' || now - last < quiet)) return
+    clearInterval(timer); mo.disconnect(); if (po) po.disconnect()
+    resolve(true)
+  }, 50)
+})`
 
 func firstPage(c playwright.BrowserContext) playwright.Page {
 	if ps := c.Pages(); len(ps) > 0 {

@@ -160,6 +160,8 @@
        con el tono destructivo y Lanzar como un ítem más del pie. */
     .statusbar > .env-item { color: var(--foreground); font-weight: 600 }
     .statusbar > .stop { color: var(--destructive-ink, var(--danger)) }
+    /* «panel sin respuesta»: un ítem del pie como los demás (sin banner global), con el tono de lo que falló. */
+    .statusbar > .lost-item { color: var(--destructive-ink, var(--danger)); cursor: default }
     .statusbar > .run-state:has(#activityTime:empty):not(:has(.run-dot.running)) { display: none }
     .statusbar > .go-item:not(:disabled) { color: var(--foreground) }
     /* LOS BURÓS: el disparador del acordeón lleva el margen del panel y el estado de la central a la derecha,
@@ -603,6 +605,7 @@
     .log-lines:empty::before { content: attr(data-vacio); display: block; padding: 0 var(--gutter);
       font-size: var(--text-sm); color: var(--fg-2) }
     .log-failed { color: var(--danger) }
+    .log-trimmed { color: var(--fg-2); font-style: italic }
     /* La vista de mocks: la tabla de la base con una fila por mock y, al elegir una, su salida debajo.
        La fila se elige con clic; las acciones son iconos de la base, a la derecha. */
     .mocks-table tbody tr { cursor: pointer }
@@ -677,7 +680,7 @@
                (`make harness-merchants A="add <comercio>"`), que escribe `harness/harness.json`. -->
           <div class="input-group merchant-search">
             <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-            <input aria-label="Filtrar comercios" id="merchantSearch" class="input" type="text" placeholder="Filtrá los comercios…" autocomplete="off" />
+            <input aria-label="Filtrar comercios" id="merchantSearch" class="input" type="text" placeholder="Filtrá los comercios…" title="Filtrar los comercios de la barra ( / lo enfoca)" autocomplete="off" />
             <button type="button" class="region-action" id="clearSearch" title="Limpiar el filtro" aria-label="Limpiar el filtro"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
           </div>
           <!-- El árbol es sólo el CATÁLOGO: elegir una entrada la abre. Sus entidades y la configuración del
@@ -1267,8 +1270,8 @@
            remoto de un editor. Al lado, la corrida automática: su estado, Detener y Lanzar. -->
       <button type="button" class="statusbar-item env-item" id="btnEnvironment" aria-haspopup="menu"><span class="ui-icon" data-icon="server" aria-hidden="true"></span><span id="valEnvironment">local</span><span class="ui-icon" data-icon="down" aria-hidden="true"></span></button>
       <span class="statusbar-item run-state"><span class="run-dot" id="runDot"></span><span class="run-time" id="activityTime"></span></span>
-      <button type="button" class="statusbar-item stop" id="stopBtn">Detener</button>
-      <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
+      <button type="button" class="statusbar-item stop" id="stopBtn" title="Detener la corrida (Ctrl/⌘+Mayús+Retroceso)">Detener</button>
+      <button type="button" class="statusbar-item go-item" id="go" disabled title="Preparar + Lanzar (Ctrl/⌘+Enter)" aria-label="Preparar + Lanzar"><span class="ui-icon" data-icon="play" aria-hidden="true"></span><span>Corrida</span></button>
       <!-- Sin el comercio, el canal ni el resumen del caso (2026-10-21): los dicen la pestaña y el sidebar derecho, y en el
            pie eran ruido. -->
       <span id="runSummary" role="status">Elegí un comercio primero.</span>
@@ -1282,6 +1285,7 @@
       <!-- Lo que hace que una corrida falle por algo que NO es el flujo: el panel con código viejo, el front local en otra
            rama, o el ambiente remoto desfasado de su rama (migraciones sin correr, rutas del mock que faltan). Sólo
            aparece cuando hay algo; el detalle se abre con un clic. -->
+      <span class="statusbar-item lost-item" id="panelLost" role="status" hidden><span class="status-dot bad" aria-hidden="true"></span><span id="panelLostText"></span></span>
       <button type="button" class="statusbar-item drift-item" id="btnDrift" aria-haspopup="dialog" hidden>
         <span class="status-dot bad" aria-hidden="true"></span><span id="driftText"></span>
       </button>
@@ -1797,12 +1801,51 @@
       setTimeout(() => { meta.textContent = was; }, 1800);
     }
 
+    // ── «PANEL SIN RESPUESTA», dicho UNA vez y en el pie ────────────────────────────────────────────────
+    // Cada consulta periódica se tragaba su error por separado (`catch { /* el panel no respondió */ }`): con el
+    // servidor del panel caído la pantalla quedaba igual, con datos viejos, y nada lo decía. Ahora las consultas
+    // periódicas piden por `panelFetch`, que anota si el servidor CONTESTÓ; al segundo fallo seguido aparece
+    // «panel sin respuesta desde hh:mm:ss» en el pie (un ítem, no un banner) y se va con la primera respuesta.
+    // ⚠ Cuenta sólo el fallo de RED (el `fetch` que rechaza): un 500 o un JSON que no parsea es el panel contestando.
+    let panelFails = 0, panelLostAt = 0;
+    function notePanel(answered) {
+      if (answered) {
+        panelFails = 0;
+        if (panelLostAt) { panelLostAt = 0; $('panelLost').hidden = true; }
+        return;
+      }
+      if (++panelFails < 2 || panelLostAt) return;   // un tropiezo suelto no se anuncia
+      panelLostAt = Date.now();
+      $('panelLostText').textContent = `panel sin respuesta desde ${new Date(panelLostAt).toLocaleTimeString('es-CO', { hour12: false })}`;
+      $('panelLost').title = 'El servidor del panel no contesta: lo que se ve puede estar viejo y los botones no van a hacer nada. '
+        + 'Revisá que siga corriendo (npm run dev en harness, o la app Harness de Cockpit). Se reintenta solo y este aviso se va cuando vuelva.';
+      $('panelLost').hidden = false;
+    }
+    async function panelFetch(url, opts) {
+      let r;
+      try { r = await fetch(url, opts); } catch (e) { notePanel(false); throw e; }
+      notePanel(true);
+      return r;
+    }
+
+    // ── Las consultas periódicas NO corren con la pestaña oculta ────────────────────────────────────────
+    // Carriles (3 s), notas de los celulares (3 s), VPN (10 s), sesiones (15 s) y versión (30 s) seguían preguntando
+    // con el panel en una pestaña de fondo: procesos y consultas para una pantalla que nadie mira. `pollVisible` las
+    // saltea mientras `document.hidden` y las dispara todas una vez al volver, para no mostrar lo de hace un rato.
+    // ⚠ El seguimiento de una corrida en curso (`startPoll`) NO va por acá: ése sigue aunque la pestaña esté oculta.
+    const pollsOnReturn = [];
+    function pollVisible(fn, ms) {
+      pollsOnReturn.push(fn);
+      return setInterval(() => { if (!document.hidden) fn(); }, ms);
+    }
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) for (const fn of pollsOnReturn) fn(); });
+
     async function favApi(body) {
       try {
         const r = await (await fetch('/api/fav', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })).json();
-        if (!r.ok) alert(r.msg || 'no se pudo guardar');
+        if (!r.ok) alert(r.msg || 'No se guardó el cambio del comercio y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).');
         return r;
-      } catch { alert('error de red'); return { ok: false }; }
+      } catch { alert('No se guardó el cambio del comercio: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.'); return { ok: false }; }
     }
 
     /** Renombrar EN LA FILA: el nombre se vuelve un campo; Enter (o salir) guarda, Escape cancela. */
@@ -1865,8 +1908,11 @@
     }
 
     // El buscador FILTRA la barra (y la de prod): se redibuja con lo que se escribe.
-    $('merchantSearch').oninput = () => { if (prodMode) renderProdList($('merchantSearch').value); else renderMerchants(); };
-    $('clearSearch').onclick = () => { $('merchantSearch').value = ''; $('merchantSearch').oninput(); $('merchantSearch').focus(); };
+    // Con ~80 ms de espera: redibujar la barra entera en cada tecla se sentía al escribir rápido. Limpiar va sin espera.
+    const filterMerchants = () => { if (prodMode) renderProdList($('merchantSearch').value); else renderMerchants(); };
+    let searchTimer = 0;
+    $('merchantSearch').oninput = () => { clearTimeout(searchTimer); searchTimer = setTimeout(filterMerchants, 80); };
+    $('clearSearch').onclick = () => { $('merchantSearch').value = ''; clearTimeout(searchTimer); filterMerchants(); $('merchantSearch').focus(); };
     $('merchantSearch').onkeydown = (ev) => { if (ev.key === 'Escape' && $('merchantSearch').value) { ev.preventDefault(); $('clearSearch').click(); } };
     loadRegistry();
 
@@ -2621,7 +2667,8 @@
     }
 
     /** Lanzar es un botón de icono: lo que hace lo dicen su título y su nombre accesible. */
-    function setGoLabel(text) { $('go').title = text; $('go').setAttribute('aria-label', text); }
+    // El atajo va en el tooltip sólo cuando el botón LANZA: en «Logueando…» o «Falta algo» no hay nada que disparar.
+    function setGoLabel(text) { $('go').title = text === 'Preparar + Lanzar' ? text + ' (Ctrl/⌘+Enter)' : text; $('go').setAttribute('aria-label', text); }
 
     function openHealth(anchor) {
       const m = menuBase('contextMenu');
@@ -2741,8 +2788,8 @@
           if (l) { l.lender_status = status ? 1 : 0; renderTrain(); }
           paintEntity(id);
         }
-        else alert((r && r.msg) || 'no se pudo togglear');
-      } catch { alert('error de red'); }
+        else alert((r && r.msg) || `No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id} en ${target} y el panel no dijo por qué. El detalle queda en la terminal donde corre el panel (npm run dev en harness).`);
+      } catch { alert(`No se pudo ${status ? 'prender' : 'apagar'} la entidad ${id}: el panel no respondió. Revisá que siga corriendo (npm run dev en harness) y volvé a intentarlo.`); }
     }
 
     // drag para reordenar lenders → guarda lenders_by_allieds.sort (se respeta en /lenders dentro de cada bucket de probabilidad).
@@ -3859,7 +3906,7 @@
     async function refreshDeviceNotes() {
       for (const [id, chip] of [['client', 'clientNote'], ['advisor', 'advisorNote']]) {
         try {
-          const st = await (await fetch(`/api/device/${D(id)}/state`)).json();
+          const st = await (await panelFetch(`/api/device/${D(id)}/state`)).json();
           $(chip).hidden = !(st.open && st.note);
           $(chip).title = st.note || '';
           const n = st.note || '';
@@ -3870,7 +3917,7 @@
       }
     }
     const deviceShown = (id) => !$(id + 'Vnc').hidden || !$(id + 'Live').hidden;
-    setInterval(() => { if (deviceShown('client') || deviceShown('advisor')) refreshDeviceNotes(); }, 3000);
+    pollVisible(() => { if (deviceShown('client') || deviceShown('advisor')) refreshDeviceNotes(); }, 3000);
     async function watchHandoff() {
       if (deviceShown('client')) return;
       try {
@@ -4075,16 +4122,27 @@
     const freeLane = () => LANES.find((l) => !laneBusy(l)) || null;
     const laneToShow = (t) => laneOfTab(t) || freeLane() || 'a';
     /** Qué carriles tiene el servidor y cuáles tienen algún celular abierto (`/api/lanes`). Cada 3 s, y al abrir o cerrar. */
-    async function pollLanes() {
+    // ⚠ El tick periódico NO redibuja si nada cambió: antes rehacía las pestañas (y a veces el escenario) cada 3 s con
+    // la misma respuesta. «Nada cambió» es la respuesta del servidor MÁS lo local que esos dibujos leen (carril a la
+    // vista, pestaña activa, dueños de carril, celulares abriendo). Igual se redibuja cada 10 ticks (~30 s) por si algo
+    // local quedó fuera de esa huella, y las llamadas directas (`claimDevices`, abrir o cerrar) redibujan siempre.
+    let lanesSeen = null, lanesQuietTicks = 0;
+    async function pollLanes(fromTimer = false) {
+      let raw = null;
       try {
-        const r = await (await fetch('/api/lanes')).json();
+        raw = await (await panelFetch('/api/lanes')).text();
+        const r = JSON.parse(raw);
         if (Array.isArray(r.lanes) && r.lanes.length) LANES = r.lanes;
         for (const l of LANES) { laneBusyNow[l] = !!r.open?.[l]; laneRequests[l] = r.requests?.[l] || null; laneLastUsed[l] = Number(r.lastUsed?.[l]) || 0; }
-      } catch { /* el panel no respondió: queda como estaba */ }
+      } catch { raw = null; /* el panel no respondió: queda como estaba */ }
+      let seen = null;
+      if (raw !== null) try { seen = [raw, phoneLane, tabsTarget, currentTab()?.id ?? '', devicesBusy(), $('tabBusy').hidden, JSON.stringify(laneOwners)].join('\u0001'); } catch { seen = null; }
+      if (fromTimer === true && seen !== null && seen === lanesSeen && ++lanesQuietTicks % 10) return;
+      lanesSeen = seen; lanesQuietTicks = 0;
       renderTabs();
       if (!$('tabBusy').hidden || (currentTab() && !isOwner(currentTab()))) renderStage();
     }
-    setInterval(pollLanes, 3000);
+    pollVisible(() => pollLanes(true), 3000);
     /** Cambia el carril de las pantallas: corta la transmisión del anterior y muestra lo que tenga el nuevo. */
     async function setPhoneLane(lane) {
       if (lane === phoneLane) return;
@@ -4976,9 +5034,16 @@
     }
 
     /** Lee las líneas de la corrida y marca el último paso reconocido. */
+    // ⚠ SÓLO SE LEEN LAS LÍNEAS NUEVAS. Esto corre en cada tick de la consola (2 s), y si la cola no traía una navegación
+    // reconocible recorría el arreglo ENTERO con dos regex por línea. Las líneas ya vistas no cambian (el arreglo sólo
+    // crece o se REEMPLAZA por otro al cambiar de corrida o de carril), así que se recuerda hasta dónde se leyó y qué
+    // paso salió; si cambian el arreglo o el índice de pasos (`steps.json` recién cargado), se vuelve a leer todo.
+    let followSeen = { lines: null, steps: null, upTo: 0, id: null };
     function followRunOnMap() {
+      const steps = flatSteps();
+      if (followSeen.lines !== logLines || followSeen.steps !== steps || followSeen.upTo > logLines.length) followSeen = { lines: logLines, steps, upTo: 0, id: null };
       // De atrás para adelante: la última navegación reconocida es dónde está parada la corrida.
-      for (let i = logLines.length - 1; i >= 0; i--) {
+      for (let i = logLines.length - 1; i >= followSeen.upTo; i--) {
         // ⚠ EL PANEL DECORA CADA LÍNEA DEL RUNNER CON «▸ », así que la línea real es
         //   `  ▸ 03 A /merchant/<hash>/<ureq>/personal-info   │ BD 1 «Creada»`
         // y no `03 A /…`. Anclar el número al principio no matcheaba NUNCA — lo destapó la primera
@@ -4995,9 +5060,12 @@
           || /^\s*\d{1,2}:\d{2}:\d{2} \[(?:cliente|asesor )\] (→) (\/\S+)/.exec(logLines[i]);
         if (!m) continue;
         const id = routeStep(m[2]);
-        if (id) { markStepOnMap(id); return id; }
+        if (id) { followSeen.id = id; break; }
       }
-      return null;
+      followSeen.upTo = logLines.length;
+      // Se vuelve a marcar aunque no haya nada nuevo: el mapa se redibuja (otro comercio, una entidad) y pierde la marca.
+      if (followSeen.id) markStepOnMap(followSeen.id);
+      return followSeen.id;
     }
 
     // La tarjeta «Actividad de la corrida» se quitó: repetía lo que ya dicen la consola (el mensaje
@@ -5366,6 +5434,7 @@
     // Antes se re-renderizaba todo el <pre> cada 2s: con una miniatura por línea 📸, eso recreaba todas las
     // <img> en cada tick. Guardar el array además permite el filtro (re-pinta desde memoria, sin ir al server).
     let logLines = [];      // todas las líneas recibidas, en orden
+    const LOG_DOM_MAX = 3000;   // cuántas se DIBUJAN como máximo (ver `trimLogDom`); el arreglo las guarda todas
     let logCursor = 0;       // cuántas ya pedimos al server
     let importantOnly = false;
     let runStamp = 0;
@@ -5423,8 +5492,33 @@
     // (`archivedLines`); 'none' = la pestaña todavía no corrió nada. La viva se sigue juntando igual mientras tanto.
     function repaintLog() {
       const frag = document.createDocumentFragment();
-      for (const l of (consoleShown ? archivedLines : logLines)) if (showsLine(l)) frag.appendChild(lineNodes(l));
+      const shown = (consoleShown ? archivedLines : logLines).filter(showsLine);
+      if (shown.length > LOG_DOM_MAX) frag.appendChild(logTrimNotice());
+      for (const l of shown.slice(-LOG_DOM_MAX)) frag.appendChild(lineNodes(l));
       $('log').replaceChildren(frag);
+    }
+
+    /* EL TOPE ES DEL DOM, NO DE LA CONSOLA. Una sesión larga con celulares abiertos deja decenas de miles de líneas y
+     * cada una era un nodo (más su miniatura): el scroll y cada repintado se arrastraban. Se DIBUJAN las últimas
+     * `LOG_DOM_MAX`; `logLines` sigue entero (de ahí leen el mapa y el filtro) y «copiar» pide el log completo al
+     * servidor (`/api/log`), así que no se pierde nada: sólo deja de estar en pantalla, y un renglón arriba lo dice. */
+    function logTrimNotice() {
+      const n = logLine(`… sólo se dibujan las últimas ${LOG_DOM_MAX} líneas; «copiar» lleva la consola completa`, 'log-trimmed');
+      n.id = 'logTrimmed';
+      return n;
+    }
+    function trimLogDom() {
+      const box = $('log');
+      let lines = box.querySelectorAll(':scope > .log-line:not(.log-trimmed)').length;
+      if (lines <= LOG_DOM_MAX) return;
+      let notice = $('logTrimmed');
+      if (!notice) { notice = logTrimNotice(); box.prepend(notice); }
+      while (lines > LOG_DOM_MAX && notice.nextElementSibling) {
+        if (notice.nextElementSibling.classList.contains('log-line')) lines--;
+        notice.nextElementSibling.remove();
+      }
+      // La miniatura de la última línea que se fue no queda huérfana arriba.
+      while (notice.nextElementSibling && !notice.nextElementSibling.classList.contains('log-line')) notice.nextElementSibling.remove();
     }
 
     // Agrega sólo las líneas nuevas. El caso normal de una corrida en curso.
@@ -5437,6 +5531,7 @@
         if (showsLine(l)) frag.appendChild(lineNodes(l));
       }
       $('log').appendChild(frag);
+      trimLogDom();
     }
 
     /* ── LA CONSOLA DEL SSR ──────────────────────────────────────────────────────────────────────
@@ -5617,7 +5712,7 @@
         if (pollBusy) return;
         pollBusy = true;
         try {
-        const j = await (await fetch(`/api/status?from=${logCursor}&lane=${phoneLane}`)).json();
+        const j = await (await panelFetch(`/api/status?from=${logCursor}&lane=${phoneLane}`)).json();
         noteConsole(j.consoleId);
         // `total` baja ⇒ el RUN_LOG se reescribió (corrida nueva): reset y pedimos todo de nuevo.
         if (typeof j.total === 'number' && j.total < logCursor) { logLines = []; logCursor = 0; repaintLog(); }
@@ -5800,10 +5895,10 @@
       }
     }
     async function checkVpn() {
-      try { applyVpn(await (await fetch('/api/vpn')).json()); } catch { /* el panel mismo no responde: no se toca nada */ }
+      try { applyVpn(await (await panelFetch('/api/vpn')).json()); } catch { /* el panel mismo no responde: no se toca nada (el pie lo avisa) */ }
     }
     checkVpn();
-    setInterval(checkVpn, 10000);
+    pollVisible(checkVpn, 10000);
 
     // ── DESFASES: lo que hace fallar una corrida sin ser del flujo ──────────────────────────────────────────────
     // Tres, y los tres ya costaron una tarde el 2026-10-08: el panel corriendo código de antes de un cambio, el front
@@ -5834,7 +5929,7 @@
       b.setAttribute('aria-label', b.title);
     }
     async function checkPanelVersion() {
-      try { drift.panel = await (await fetch('/api/panel-version')).json(); } catch { /* el panel no responde: se deja lo último */ }
+      try { drift.panel = await (await panelFetch('/api/panel-version')).json(); } catch { /* el panel no responde: se deja lo último (el pie lo avisa) */ }
       renderDrift();
     }
     async function checkEnvDrift(force = false) {
@@ -5859,8 +5954,8 @@
       placeAbove(m, $('btnDrift'));
     };
     checkPanelVersion();
-    setInterval(checkPanelVersion, 30_000);
-    setInterval(() => checkEnvDrift(), 5 * 60_000);
+    pollVisible(checkPanelVersion, 30_000);
+    pollVisible(() => checkEnvDrift(), 5 * 60_000);
 
     document.querySelectorAll('#targets .toggle').forEach(b => b.onclick = () => {
       target = b.dataset.t;
@@ -5963,8 +6058,11 @@
       catch { renderSdot(t, { status: 'unreachable', detail: 'no se pudo consultar el panel' }); return 'unreachable'; }
     }
     const lastAutoWarm = { dev: 0, local: 0 };
-    setInterval(async () => {
-      if (runRunning) return;                                    // durante una corrida, no toca los dots
+    let quietRound = false;   // una ronda a la vez: al volver a la pestaña se dispara otra y no deben pisarse
+    pollVisible(async () => {
+      if (runRunning || quietRound) return;                                    // durante una corrida, no toca los dots
+      quietRound = true;
+      try {
       for (const t of ['dev', 'local']) {                            // dev primero: local comparte su cache
         const s = sessionState[t];
         if (s === 'valid' || s === 'checking' || s === 'warming') continue;   // verde o en curso → nada
@@ -5974,6 +6072,7 @@
           await warmSession(t);
         }
       }
+      } finally { quietRound = false; }
     }, 15000);
 
     // switch del buró: Sintético (inyecta, salta consulta real) | Real (consulta buró real, sin inyección).
@@ -6084,6 +6183,27 @@
     $('income').addEventListener('input', scheduleCategories);
     document.querySelectorAll('#targets .toggle, #injectOptions button').forEach((b) => b.addEventListener('click', scheduleCategories));
     $('go').onclick = launch;    $('stopBtn').onclick = stop;
+
+    // ── ATAJOS: Lanzar, Detener y el buscador de comercios, sin soltar el teclado ───────────────────────
+    //   Ctrl/⌘+Enter → Lanzar · Ctrl/⌘+Mayús+Retroceso → Detener · «/» → el buscador de comercios
+    // Cada uno hace CLIC en su botón, así que valen las mismas compuertas (deshabilitado, oculto) y no hay un segundo
+    // camino para lanzar. ⚠ No disparan con el foco en un campo ni en el lienzo de un celular: ahí las teclas son del
+    // wizard (`makeDeviceTouchable` las manda al teléfono), y un Enter con Ctrl es de ese formulario. Tampoco dentro de
+    // un menú o diálogo abierto. Detener lleva tres teclas a propósito: corta una corrida y no se debe apretar sin querer.
+    document.addEventListener('keydown', (e) => {
+      if (e.defaultPrevented || e.repeat || e.isComposing) return;
+      const t = e.target instanceof Element ? e.target : null;
+      if (t && t.closest('input, textarea, select, [contenteditable]:not([contenteditable="false"]), canvas, [role="menu"], [role="dialog"]')) return;
+      const mod = (e.ctrlKey || e.metaKey) && !e.altKey;
+      const click = (id) => { const b = $(id); if (b && !b.disabled && b.offsetParent !== null) { e.preventDefault(); b.click(); } };
+      if (mod && !e.shiftKey && e.key === 'Enter') return click('go');
+      if (mod && e.shiftKey && e.key === 'Backspace') return click('stopBtn');
+      if (e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const box = $('merchantSearch');
+        if (!box || box.disabled || box.offsetParent === null) return;   // barra plegada o configuración bloqueada por la corrida
+        e.preventDefault(); box.focus(); box.select();
+      }
+    });
     // (el botón «Ver consola ↓» vivía en la tarjeta de actividad, que ya no existe: la consola
     //  es una zona fija del layout y siempre está a la vista)
     // Abre el detalle del estado de los servicios, con los comandos. (Antes hacía `scrollIntoView` sobre
