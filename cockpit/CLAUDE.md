@@ -20,6 +20,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `ecommerce` | qué le pasó a una prueba de tienda | `ecommerce/` | :5178 · :5179 | `make ecommerce` |
 | `sentinel` | el vigía de producción: entidades y comercios contra lo normal | `sentinel/` | :5210 · :5211 | `make sentinel`; su API también de fondo (`make sentinel-install`, ver `sentinel/CLAUDE.md`) |
 | `goldfish` | tus PRs abiertos por repo y su validación Elephant-Goldfish (también de los PRs de otros) | `goldfish/` | :5216 · :5217 | `make goldfish` |
+| `correo` | los correos de los remitentes que seguís en Gmail, con aviso de macOS | `correo/` | :5224 · :5225 | `make correo`; su API también de fondo (`make correo-install`, ver `correo/CLAUDE.md`) |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 
@@ -31,7 +32,7 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
   (`chat_agent_installed`, `SIDECAR_GRACE`). Sin él, el servidor viene adentro como antes: arranca con Cockpit, se
   vuelve a levantar si se cae y se apaga al salir. `make chat-status` · `make chat-uninstall`. `make chat` es sólo para
   desarrollar su interfaz.
-- **Sentinel también corre de fondo** (`make sentinel-install`); los dos con `lib/launchagent`.
+- **Sentinel y Correo también corren de fondo** (`make sentinel-install`, `make correo-install`); los tres con `lib/launchagent`.
 - **Dos servidores de la misma app no se pisan**: el chat y Sentinel, si su puerto ya lo tiene otro de los suyos,
   esperan y toman el relevo cuando se suelta. Sólo el que escucha escribe el historial o lo guardado.
 - **Las demás se levantan la primera vez que Miguel las abre** en la barra, con su `make <app>`, y se apagan

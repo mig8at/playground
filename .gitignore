@@ -70,6 +70,9 @@ jarvis/.data/
 # sentinel: los conteos guardados por día (sentinel/.data) — se rearman desde producción, nunca commitear
 /sentinel/.data/
 /sentinel/bin/
+# correo: lo que se vio y avisó de Gmail (correo/.data) y su binario de fondo — nunca commitear
+/correo/.data/
+/correo/bin/
 /chat/bin/
 
 # Office: los personajes que genera el CLI (office/cli/personaje.mjs)

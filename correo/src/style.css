@@ -1,0 +1,42 @@
+/* EL VOCABULARIO VISUAL DE CORREO.
+ *
+ * Las mismas capas que las demás herramientas, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo acá: el
+ * correo sin ver y el cuerpo de un correo.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* El contrato de la base: la página ocupa la ventana y no scrollea; scrollea cada región. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-base) }
+#app { height: 100% }
+
+.workbench { grid-template-columns: 0 var(--sidebar-w, 260px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
+
+.mail { display: grid; gap: 2px; width: calc(100% - 2 * var(--space-1)); padding: var(--space-2); text-align: left;
+  border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-sm) }
+.mail:hover { background: var(--hover) }
+.mail.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.mail-top { display: flex; gap: var(--space-2); align-items: baseline; min-width: 0 }
+.mail-from { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mail-date { flex: none; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.mail-subject { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mail-snippet { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.mail.on .mail-date, .mail.on .mail-snippet { color: var(--accent-foreground) }
+.mail.unread .mail-from, .mail.unread .mail-subject { font-weight: 600 }
+.unread-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--primary); align-self: center }
+
+.reader { padding: var(--space-3) var(--space-4) }
+.reader h2 { margin: 0 0 var(--space-2); font-size: var(--text-base); font-weight: 600 }
+.reader-meta { display: grid; gap: 2px; margin-bottom: var(--space-3); font-size: var(--text-xs); color: var(--fg-2) }
+.reader-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans);
+  font-size: var(--text-sm); line-height: 1.55 }
+
+.add { display: grid; gap: var(--space-2); padding: var(--space-2) var(--space-3) var(--space-3) }
+.add .hint { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
+.none { margin: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
+.warn-text { color: var(--destructive) }
+.linkish { border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; padding: 0 }

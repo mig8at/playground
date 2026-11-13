@@ -57,6 +57,21 @@ bin/pg drive read <URL|id> --out /ruta/              # PDF, xlsx, docx… se baj
 ⚠ Hay carpetas compartidas con credenciales de terceros (la de Finandina tiene dos archivos así): lo que se lee de
 Drive no se copia a tareas, `knowledge/` ni Canon sin mirar qué es.
 
+## Gmail: con la cuenta de quien entra, sólo lectura
+
+`gmail/` lee el correo con el permiso `gmail.readonly`, el MISMO cliente OAuth que Drive (`DRIVE_CLIENT_ID`,
+`DRIVE_CLIENT_SECRET`) y su baile de login (`drive.Authorize`); la sesión es aparte, en `connectors/.auth/gmail.json`
+(600). El proyecto de Google Cloud del cliente tiene que tener habilitada la **Gmail API**. No puede mandar, borrar
+ni marcar nada. Lo usa la herramienta `correo/`, que vigila remitentes y avisa.
+
+```sh
+bin/pg gmail login                                          # abre el navegador
+bin/pg gmail search --q 'from:support@shopify.com newer_than:7d'
+bin/pg gmail read <id>                                      # encabezados y texto
+```
+
+⚠ El correo es privado: lo que se lee no se pega en tareas ni PRs sin mirar qué es.
+
 ## La base de la app de pagos de Shopify: sólo lectura
 
 `shopifyapp/` lee el Postgres de la app de Shopify desplegada en dev (el RDS `microservices-development`): las tiendas

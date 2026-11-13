@@ -150,12 +150,57 @@ func refresh(ctx context.Context, hc *http.Client, oc OAuthClient, refreshToken 
 	return t, err
 }
 
+// Grant es lo que devuelve Authorize: los tokens y los permisos que la persona aceptó.
+type Grant struct {
+	RefreshToken string
+	AccessToken  string
+	ExpiresIn    int
+	Scope        string
+}
+
+// RefreshAccess cambia un refresh token por un access token nuevo (y cuántos segundos dura). Lo usan los conectores
+// que comparten este cliente OAuth con otro permiso (gmail/).
+func RefreshAccess(ctx context.Context, oc OAuthClient, refreshToken string) (string, int, error) {
+	t, err := postToken(ctx, &http.Client{Timeout: 30 * time.Second}, url.Values{
+		"client_id":     {oc.ID},
+		"client_secret": {oc.Secret},
+		"refresh_token": {refreshToken},
+		"grant_type":    {"refresh_token"},
+	})
+	return t.AccessToken, t.ExpiresIn, err
+}
+
 // Login hace el baile completo: levanta el loopback, le pasa a `open` la URL de consentimiento, espera
 // el código (hasta `wait`), lo cambia por tokens y guarda la sesión con el correo de la cuenta.
 func Login(ctx context.Context, oc OAuthClient, open func(authURL string), wait time.Duration) (Session, error) {
-	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	g, err := Authorize(ctx, oc, Scope, open, wait)
 	if err != nil {
 		return Session{}, err
+	}
+	if !strings.Contains(g.Scope, Scope) {
+		return Session{}, errors.New("no se aceptó el permiso de lectura de Drive: hay que marcarlo en la pantalla de Google")
+	}
+	s := Session{RefreshToken: g.RefreshToken, Scope: g.Scope, At: time.Now().UTC()}
+	c := New(oc, s)
+	c.access, c.expires = g.AccessToken, time.Now().Add(time.Duration(g.ExpiresIn)*time.Second)
+	u, err := c.Me(ctx)
+	if err != nil {
+		return Session{}, err
+	}
+	s.Email = u.Email
+	if _, err := SaveSession(s); err != nil {
+		return Session{}, err
+	}
+	return s, nil
+}
+
+// Authorize es el baile de OAuth sin guardar nada, para el permiso que se pida (`scope`, al que se suma `email`):
+// levanta el loopback, le pasa a `open` la URL de consentimiento, espera el código (hasta `wait`) y lo cambia por
+// tokens.
+func Authorize(ctx context.Context, oc OAuthClient, scope string, open func(authURL string), wait time.Duration) (Grant, error) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		return Grant{}, err
 	}
 	defer ln.Close()
 	redirect := fmt.Sprintf("http://127.0.0.1:%d/", ln.Addr().(*net.TCPAddr).Port)
@@ -166,7 +211,7 @@ func Login(ctx context.Context, oc OAuthClient, open func(authURL string), wait 
 		"client_id":             {oc.ID},
 		"redirect_uri":          {redirect},
 		"response_type":         {"code"},
-		"scope":                 {Scope + " email"},
+		"scope":                 {scope + " email"},
 		"access_type":           {"offline"},
 		"prompt":                {"consent"},
 		"state":                 {state},
@@ -213,12 +258,12 @@ func Login(ctx context.Context, oc OAuthClient, open func(authURL string), wait 
 	select {
 	case res = <-got:
 	case <-time.After(wait):
-		return Session{}, fmt.Errorf("pasaron %s sin respuesta del navegador", wait)
+		return Grant{}, fmt.Errorf("pasaron %s sin respuesta del navegador", wait)
 	case <-ctx.Done():
-		return Session{}, ctx.Err()
+		return Grant{}, ctx.Err()
 	}
 	if res.err != nil {
-		return Session{}, res.err
+		return Grant{}, res.err
 	}
 
 	hc := &http.Client{Timeout: 30 * time.Second}
@@ -231,26 +276,12 @@ func Login(ctx context.Context, oc OAuthClient, open func(authURL string), wait 
 		"grant_type":    {"authorization_code"},
 	})
 	if err != nil {
-		return Session{}, err
+		return Grant{}, err
 	}
 	if t.RefreshToken == "" {
-		return Session{}, errors.New("Google no devolvió refresh token: quitá el acceso en myaccount.google.com/permissions y volvé a entrar")
+		return Grant{}, errors.New("Google no devolvió refresh token: quitá el acceso en myaccount.google.com/permissions y volvé a entrar")
 	}
-	if !strings.Contains(t.Scope, Scope) {
-		return Session{}, errors.New("no se aceptó el permiso de lectura de Drive: hay que marcarlo en la pantalla de Google")
-	}
-	s := Session{RefreshToken: t.RefreshToken, Scope: t.Scope, At: time.Now().UTC()}
-	c := New(oc, s)
-	c.access, c.expires = t.AccessToken, time.Now().Add(time.Duration(t.ExpiresIn)*time.Second)
-	u, err := c.Me(ctx)
-	if err != nil {
-		return Session{}, err
-	}
-	s.Email = u.Email
-	if _, err := SaveSession(s); err != nil {
-		return Session{}, err
-	}
-	return s, nil
+	return Grant{RefreshToken: t.RefreshToken, AccessToken: t.AccessToken, ExpiresIn: t.ExpiresIn, Scope: t.Scope}, nil
 }
 
 func randomString(n int) string {

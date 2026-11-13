@@ -332,6 +332,7 @@ estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
+.PHONY: correo correo-install correo-status correo-uninstall
 .PHONY: pulso pulso-install pulso-status pulso-uninstall
 pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
@@ -399,6 +400,18 @@ sentinel-status: ## @dia ¿Sentinel corre de fondo, y hasta dónde llegó lo gua
 
 sentinel-uninstall: ## @dia saca Sentinel de fondo (lo guardado se queda)
 	@go run ./sentinel/server -uninstall
+
+correo: ## @dia abre Correo (:5224 · API :5225): los correos de los remitentes que seguís en Gmail (Shopify, VTEX…), con aviso de macOS cuando llega uno nuevo. SÓLO LECTURA (la sesión de `bin/pg gmail login`). ONCE=1 hace una lectura por consola y sale
+	@$(if $(ONCE),go run ./correo/server -once,cd correo && npm run dev)
+
+correo-install: ## @dia deja Correo mirando Gmail DE FONDO (LaunchAgent: avisa aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
+	@mkdir -p correo/bin && go build -o correo/bin/correo ./correo/server && correo/bin/correo -install
+
+correo-status: ## @dia ¿Correo corre de fondo?
+	@go run ./correo/server -status
+
+correo-uninstall: ## @dia saca Correo de fondo (lo guardado se queda)
+	@go run ./correo/server -uninstall
 
 ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app del playground en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores
 	@node tools/ui-shot/main.mjs

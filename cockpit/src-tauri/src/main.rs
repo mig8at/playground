@@ -108,6 +108,15 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5216", "127.0.0.1:5217"],
         start: Start::Make("goldfish"),
     },
+    AppDef {
+        // Correo (correo/): los correos de los remitentes que se siguen en Gmail, con aviso de macOS. Su API también corre
+        // de fondo (`make correo-install`): si ya contesta, Cockpit usa ésa.
+        id: "correo",
+        name: "Correo",
+        url: "http://localhost:5224/",
+        ready: &["localhost:5224", "127.0.0.1:5225"],
+        start: Start::Make("correo"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

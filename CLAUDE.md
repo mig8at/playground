@@ -15,6 +15,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
 | Jarvis (configurar paneles admin con guía o con confirmación, en tu Chrome con su extensión; recetas por API y por pantalla; `bin/jarvis`) | [`jarvis/CLAUDE.md`](jarvis/CLAUDE.md) |
 | Cockpit (la app de escritorio donde Miguel ve las herramientas: `bin/cockpit`, quién levanta cada servidor, agregar una app, reinstalar) | [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
+| Correo (los correos de los remitentes que se siguen en Gmail, con aviso: `make correo`, `bin/pg gmail`) | [`correo/CLAUDE.md`](correo/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
@@ -41,7 +42,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 ### Cockpit: donde Miguel ve las herramientas, y lo que hacés
 
 Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor),
-ecommerce y Sentinel— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
+ecommerce, Sentinel y Correo— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
 en cualquier tarea:
 
 - **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el
