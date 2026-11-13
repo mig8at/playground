@@ -11,7 +11,7 @@
 // de Office (forma de cara, peinado, barba, especie…); lo que falte toma su valor por defecto. El dibujo y los gestos
 // están en office-characters.js (el paquete de Office), que se regenera con
 // `make office-package JS=chat/src/characters/office-characters.js`.
-import './office-characters.js'
+import { OPCIONES } from './office-characters.js'
 
 const files = import.meta.glob('./*.json', { eager: true, import: 'default' })
 export const characters = Object.values(files)
@@ -33,7 +33,33 @@ export function cast(keys) {
   const present = new Set(persons.map((c) => c.handle.toLowerCase()))
   const isIn = (a) => (agents.size ? agents.has(`${a.owner.toLowerCase()}/${a.agent.toLowerCase()}`) : present.has(a.owner.toLowerCase()))
   const team = characters.filter((c) => c.owner && isIn(c))
+  // un agente del grupo que no tiene archivo (uno recién creado) entra igual, con un personaje armado de su nombre
+  const known = new Set(team.map((a) => `${a.owner.toLowerCase()}/${a.agent.toLowerCase()}`))
+  for (const k of agents) if (!known.has(k) && present.has(k.split('/')[0])) team.push(autoCharacter(...k.split('/')))
   // primero cada persona y después sus agentes, en el orden en que llegaron las personas; cada agente lleva el nombre
   // de su persona, para la placa («agente de Duncan»)
   return persons.flatMap((p) => [p, ...team.filter((a) => a.owner.toLowerCase() === p.handle.toLowerCase()).map((a) => ({ ...a, ownerName: p.name }))])
+}
+
+// EL PERSONAJE DE UN AGENTE SIN ARCHIVO: un animal, sus colores y un cuarto, sacados de su nombre (siempre los mismos
+// para el mismo agente, sin guardar nada). Sin voz: la videollamada le da la primera libre al verlo entrar. Para dejarlo
+// fijo o cambiarlo, se le hace su JSON en esta carpeta.
+const SHIRTS = ['#2b6670', '#24406b', '#c5381f', '#5e3b6b', '#3f6f4a', '#7a3f2a', '#4f8b8a', '#e5592a']
+const ACCENTS = ['#f1e4c7', '#f2c14e', '#f08c3d', '#ee8f8f', '#8db3a9']
+const ROOMS = ['oficina', 'estudio', 'noche', 'sala', 'reunion']
+function hashOf(text) {
+  let h = 2166136261
+  for (const ch of text) h = Math.imul(h ^ ch.codePointAt(0), 16777619)
+  return h >>> 0
+}
+export function autoCharacter(owner, agent) {
+  const h = hashOf(`${owner}/${agent}`) // sin signo, y se corre con >>> (con >> salían índices negativos)
+  const species = Object.keys(OPCIONES.species).filter(Boolean)
+  const kind = species[h % species.length]
+  const skins = OPCIONES.skinBy[kind] || []
+  return {
+    name: agent.charAt(0).toUpperCase() + agent.slice(1), owner, agent, auto: true,
+    character: { species: kind, skin: skins[(h >>> 5) % (skins.length || 1)], eye: 24, shirt: SHIRTS[(h >>> 9) % SHIRTS.length],
+      accent: ACCENTS[(h >>> 13) % ACCENTS.length], scene: ROOMS[(h >>> 17) % ROOMS.length] },
+  }
 }

@@ -8,7 +8,7 @@ package main
 //	GET  /api/voice/voices   las voces de la cuenta de ElevenLabs (para el ▶ de cada mensaje)
 //	POST /api/voice          {"voice": "Laura", "text": "…"} → audio/mpeg
 //
-// Cada frase se guarda una vez (en la caché del usuario, por modelo, voz y texto): repetirla no vuelve a cobrarse.
+// Cada frase se guarda una vez (junto al historial del chat, por modelo, voz y texto): repetirla no vuelve a cobrarse.
 
 import (
 	"encoding/json"
@@ -17,19 +17,45 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 const maxVoiceText = 600 // caracteres por frase: la videollamada manda frases cortas
 
+// voiceCacheDir: dónde quedan las frases ya generadas. Junto al historial del chat (Application Support), no en la
+// carpeta de cachés de macOS, que el sistema puede vaciar: una frase se paga una sola vez y queda para siempre, así la
+// línea de tiempo de la videollamada puede volver a sonar sin gastar. La primera vez trae lo que había en la caché vieja.
+var voiceMigrate sync.Once
+
 func voiceCacheDir() string {
-	base, err := os.UserCacheDir()
+	base, err := historyDir()
 	if err != nil {
 		base = os.TempDir()
 	}
-	return filepath.Join(base, "creditop-chat", "voice")
+	dir := filepath.Join(base, "voice")
+	voiceMigrate.Do(func() {
+		old, err := os.UserCacheDir()
+		if err != nil {
+			return
+		}
+		old = filepath.Join(old, "creditop-chat", "voice")
+		entries, err := os.ReadDir(old)
+		if err != nil {
+			return
+		}
+		_ = os.MkdirAll(dir, 0o755)
+		for _, e := range entries {
+			if !e.IsDir() {
+				_ = os.Rename(filepath.Join(old, e.Name()), filepath.Join(dir, e.Name()))
+			}
+		}
+		_ = os.Remove(old)
+	})
+	return dir
 }
 
 func registerVoice(mux *http.ServeMux) {
+	registerVoiceAssign(mux)
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady(), "usedToday": readBudget().Chars, "dailyLimit": dailyVoiceLimit()})
 	})

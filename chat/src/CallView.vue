@@ -11,8 +11,9 @@
    LAS VOCES (callVoice.js, ElevenLabs): MIENTRAS LA VIDEOLLAMADA ESTÁ ABIERTA, cada mensaje que llega lo dice quien lo
    escribió (la persona, o su agente si habló por él), con la voz de su JSON; si llegan varios juntos, esperan su turno
    y no se pisan. Lo que escribís vos no se lee, y lo que llegó antes de abrir la llamada tampoco: así sólo se paga lo
-   que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. «Reproducir demo» pone a
-   hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude.
+   que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. Un clic en un recuadro hace
+   que ese personaje salude. (Hubo un «Reproducir demo» con una conversación inventada; se quitó cuando llegó la línea de
+   tiempo, que repite la conversación de verdad.)
 
    LAS MENCIONES: «hola @miguel/luigi» se dice «hola Luigi» (y @todos, «todos»), y mientras suena, los nombrados
    reaccionan: su recuadro se marca, miran hacia arriba y aparece un 👋. También cuenta el nombre al empezar, sin @
@@ -29,7 +30,8 @@ import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'v
 import { hush, refreshVoice, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
-import { demoLines } from './callDemo.js'
+import { characters } from './characters/index.js'
+import { assignVoice, voiceAssign } from './voiceAssign.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -37,7 +39,7 @@ const props = defineProps({
   me: { type: String, default: '' },              // mi correo
   peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
-const ASPECT = 4 / 3, GAP = 10, PAD = 12
+const ASPECT = 4 / 3, GAP = 10, PAD = 12, BAR = 46 // BAR: el alto de la línea de tiempo, abajo
 const box = ref(null)
 const size = ref({ w: 0, h: 0 })
 let observer = null
@@ -55,7 +57,7 @@ onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer)
 
 // la mejor grilla: para cada número de columnas, el ancho de recuadro que entra en ancho y en alto; gana el más grande
 const layout = computed(() => {
-  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2
+  const n = props.cast.length, W = size.value.w - PAD * 2, H = size.value.h - PAD * 2 - BAR // clientHeight incluye el relleno de abajo (PAD + BAR)
   if (!n || W <= 0 || H <= 0) return { cols: 1, w: 0 }
   let best = { cols: 1, w: 0 }
   for (let cols = 1; cols <= n; cols++) {
@@ -67,6 +69,109 @@ const layout = computed(() => {
 })
 // en recuadros chicos la placa se achica, para no tapar la cara
 const compact = computed(() => layout.value.w < 220)
+
+// ── LA VOZ DE CADA UNO, y cambiarla de género (el ♂/♀ que aparece al pasar el mouse por su recuadro) ─────────
+// Cada personaje habla con la voz de su JSON, salvo que se le haya cambiado (voice-assign.json en el servidor, que vale
+// en el navegador y en Cockpit). Cambiar de género le da la PRIMERA VOZ LIBRE del otro: en la lista de voces de
+// ElevenLabs (guardada en el servidor), primero las colombianas, después las latinas y después las demás, por nombre;
+// libre = que no la use ningún personaje (de esta llamada o de otra). Si la del JSON es del género pedido y está libre,
+// vuelve a ésa.
+const voiceList = ref([])
+fetch('/api/voice/voices').then((r) => r.json()).then((d) => { voiceList.value = d.voices || [] }).catch(() => {})
+const assigned = computed(() => voiceAssign.map) // compartido con el perfil (voiceAssign.js)
+const charKey = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
+const voiceName = (c) => assigned.value[charKey(c)] || c.voice?.name || ''
+// la voz con que sonó cada mensaje (por su id): al repetirlo, ésa; lo nuevo, la de ahora (y queda anotada)
+const said = ref({})
+fetch('/api/voice/said').then((r) => r.json()).then((d) => { said.value = d.said || {} }).catch(() => {})
+const msgId = (m) => m.sid || m.id || ''
+function voiceForMessage(m, c) {
+  const id = msgId(m), had = id && said.value[id]
+  if (had) return { ...voiceOf(c), name: had }
+  const v = voiceOf(c)
+  if (id && v.name) {
+    said.value = { ...said.value, [id]: v.name }
+    fetch('/api/voice/said', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, voice: v.name }) }).catch(() => {})
+  }
+  return v
+}
+const voiceOf = (c) => ({ ...(c.voice || {}), name: voiceName(c) })
+// la voz de la lista que corresponde a un nombre: el JSON puede traer el nombre corto («Rogher Osorio») y la lista el
+// completo («Rogher Osorio Locutor Colombia»); cuentan como la misma
+const findVoice = (name) => voiceList.value.find((v) => v.name === name) || voiceList.value.find((v) => name && v.name.startsWith(`${name} `))
+const genderOf = (c) => findVoice(voiceName(c))?.gender || ''
+const ACCENT_RANK = (a) => (/colomb/i.test(a) ? 0 : /latin|mexic|argentin|spanish|chile|peru|venezuel/i.test(a) ? 1 : 2)
+// las voces ocupadas (menos la de `c`), por su nombre en la lista: las de los personajes con archivo y todas las
+// asignadas (también las de agentes sin archivo). Así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia».
+function usedVoices(c) {
+  const names = [...characters.filter((x) => charKey(x) !== charKey(c)).map(voiceName),
+    ...Object.entries(voiceAssign.map).filter(([k]) => k !== charKey(c)).map(([, v]) => v)]
+  return new Set(names.filter(Boolean).map((n) => findVoice(n)?.name || n))
+}
+// el género con más voces libres (para un agente nuevo: que se repartan parejo)
+function roomierGender(c) {
+  const used = usedVoices(c)
+  const free = (g) => voiceList.value.filter((v) => v.gender === g && !used.has(v.name)).length
+  return free('female') >= free('male') ? 'female' : 'male'
+}
+function freeVoice(gender, c) {
+  // las ocupadas, por su nombre en la lista (así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia»)
+  const used = usedVoices(c)
+  const own = findVoice(c.voice?.name)?.name || c.voice?.name
+  const candidates = voiceList.value.filter((v) => v.gender === gender)
+    .sort((a, b) => ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
+  // la de su JSON primero, si es de ese género y nadie la usa
+  if (own && candidates.some((v) => v.name === own) && !used.has(own)) return own
+  return (candidates.find((v) => !used.has(v.name)) || candidates[0])?.name || ''
+}
+const genderBusy = ref('')
+async function switchGender(c) {
+  const target = genderOf(c) === 'female' ? 'male' : 'female'
+  const name = freeVoice(target, c)
+  if (!name) return
+  genderBusy.value = charKey(c)
+  try {
+    // si queda la de su JSON, se borra la asignación (vuelve a lo de siempre)
+    await assignVoice(charKey(c), name === (findVoice(c.voice?.name)?.name || c.voice?.name) ? '' : name)
+  } catch { /* sin servidor: se queda como estaba */ } finally { genderBusy.value = '' }
+  greet(c) // que se oiga cómo quedó
+}
+// ── ENTRAR Y SALIR DE LA LLAMADA ────────────────────────────────────────────────────────────────────
+// Cuando alguien entra al grupo (o sale), su recuadro aparece (o se va) con su animación y la grilla se reacomoda sola,
+// como en una videollamada. El que entra, si no tiene voz (un agente nuevo), recibe la primera libre del género con más
+// voces libres, y saluda. Abajo sale el aviso. Lo que ya estaba al abrir la llamada no cuenta como entrar.
+const arrival = ref('') // el aviso de quién entró o salió
+let arrivalTimer = 0
+function announce(text) { arrival.value = text; clearTimeout(arrivalTimer); arrivalTimer = setTimeout(() => { arrival.value = '' }, 5000) }
+onBeforeUnmount(() => clearTimeout(arrivalTimer))
+// una voz para quien no tiene (un agente nuevo): la primera libre del género con más voces libres
+async function giveVoice(c) {
+  // sin la lista de voces todavía, se espera un poco (recién abierta la llamada)
+  for (let i = 0; i < 20 && !voiceList.value.length; i++) await new Promise((r) => setTimeout(r, 250))
+  if (voiceName(c) || !voiceList.value.length) return
+  const name = freeVoice(roomierGender(c), c)
+  if (name) { try { await assignVoice(charKey(c), name) } catch { /* sin servidor: queda sin voz */ } }
+}
+async function welcome(c) {
+  await giveVoice(c)
+  say(keyOf(c), `Hola a todos, soy ${c.name}. Acabo de entrar.`, voiceOf(c))
+}
+// al abrir la llamada, los que ya estaban y no tienen voz reciben una (sin saludar: no acaban de entrar)
+onMounted(async () => { for (const c of props.cast) await giveVoice(c) })
+watch(() => props.cast.map(keyOf).join(','), (current, before) => {
+  if (before === undefined) return
+  const was = new Set(before.split(',').filter(Boolean)), is = new Set(current.split(',').filter(Boolean))
+  for (const c of props.cast) if (!was.has(keyOf(c))) { announce(`${c.name} entró a la llamada.`); welcome(c) }
+  for (const k of was) if (!is.has(k)) announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`)
+})
+// los nombres de los que estaban, para decir quién salió cuando ya no está en la lista
+const leftNames = new Map()
+watch(() => props.cast, (list) => { for (const c of list) leftNames.set(keyOf(c), c.name) }, { immediate: true })
+
+const genderTitle = (c) => {
+  const g = genderOf(c)
+  return `${g === 'female' ? 'Voz de mujer' : g === 'male' ? 'Voz de hombre' : 'Voz'} (${voiceName(c)}). Clic: cambiar a voz de ${g === 'female' ? 'hombre' : 'mujer'}`
+}
 
 // ── quién habla ───────────────────────────────────────────────────────────────────────────────────
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
@@ -130,29 +235,156 @@ function nudge(keys) {
   clearTimeout(nudgeTimer)
   nudgeTimer = setTimeout(() => { nudged.value = [] }, 3500)
 }
-// lo que llega con la llamada abierta se dice, en fila (callVoice espera a que termine el anterior)
+// Decir un mensaje: true si quedó sonando (o en fila); false si no hay nada que decir (silenciado, vacío, tuyo).
+function speakMessage(m) {
+  const c = speakerOf(m)
+  if (!c || !(m.text || m.files?.length)) return false
+  const { text, prop, muted: tooLong } = forCall(m)
+  if (tooLong) { mute(keyOf(c)); return false }
+  const to = addressedBy(m.text, keyOf(c))
+  // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
+  const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
+  if (!text) return false
+  if (!say(keyOf(c), spoken(text), voiceForMessage(m, c), to, prop, holders)) { mute(keyOf(c)); return false }
+  return true
+}
+
+// ── LA LÍNEA DE TIEMPO, como un directo ─────────────────────────────────────────────────────────
+// Cada mensaje que la llamada puede decir es un punto. En vivo (lo normal) suena lo que va llegando; con un clic en un
+// punto (o ⏮, desde el primero) se vuelve atrás y se escucha de corrido, mensaje por mensaje, hasta alcanzar el
+// directo. Lo ya escuchado no se vuelve a pagar: el servidor guarda cada frase (voice.go).
+const timeline = computed(() => props.messages
+  .filter((m) => speakerOf(m) && (m.text || m.files?.length))
+  .map((m) => ({ m, c: speakerOf(m) })))
+const mode = ref('live')     // 'live' · 'replay' (reproduciendo desde atrás) · 'paused'
+const at = ref(-1)           // el punto que suena (índice en timeline), -1 si ninguno
+let advanceTimer = 0
+
+// reproducir desde el punto i, de corrido
+function replayFrom(i) {
+  hush(); clearTimeout(advanceTimer)
+  mode.value = 'replay'
+  playAt(i)
+}
+function playAt(i) {
+  if (i >= timeline.value.length) { mode.value = 'live'; at.value = -1; return } // alcanzó el directo
+  at.value = i
+  // uno sin voz (silenciado, sólo un adjunto sin texto…) se muestra un momento y se sigue
+  if (!speakMessage(timeline.value[i].m)) advanceTimer = setTimeout(() => { if (mode.value === 'replay' && at.value === i) playAt(i + 1) }, 1500)
+}
+// cuando termina de sonar un mensaje, en repetición sigue el siguiente
+watch(() => voice.busy, (busy) => {
+  if (!busy && mode.value === 'replay' && at.value >= 0) playAt(at.value + 1)
+  if (!busy && mode.value === 'live') at.value = -1
+})
+function togglePause() {
+  if (mode.value === 'paused') { replayFrom(Math.max(0, at.value)); return }
+  if (mode.value === 'replay') { mode.value = 'paused'; clearTimeout(advanceTimer); hush(); return }
+  // en vivo: pausar es quedarse en el último y no decir lo que llegue
+  mode.value = 'paused'; hush(); at.value = Math.max(0, timeline.value.length - 1)
+}
+function goLive() { hush(); clearTimeout(advanceTimer); mode.value = 'live'; at.value = -1 }
+onBeforeUnmount(() => clearTimeout(advanceTimer))
+
+// lo que llega con la llamada abierta: en vivo se dice, en fila (callVoice espera a que termine el anterior); en
+// repetición o en pausa espera su turno en la línea de tiempo
 watch(() => props.messages.length, (n, old) => {
   if (!(n > old)) return
   for (const m of props.messages.slice(old)) {
-    const c = speakerOf(m)
-    if (c && (m.text || m.files?.length)) {
-      const { text, prop, muted: tooLong } = forCall(m)
-      if (tooLong) { mute(keyOf(c)); continue }
-      const to = addressedBy(m.text, keyOf(c))
-      // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
-      const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
-      if (text && !say(keyOf(c), spoken(text), c.voice, to, prop, holders)) mute(keyOf(c))
+    if (speakerOf(m)) {
+      if (mode.value === 'live' && speakMessage(m)) at.value = timeline.value.findIndex((x) => x.m === m)
     }
     else if (m.dir === 'out' && m.text) nudge(addressedBy(m.text, userOf(props.me)))
   }
 })
+// LA BARRA, como la de un video en directo: una línea limpia con lo ya escuchado relleno y un cabezal donde vas (sin
+// marcas: hacían ruido). Cada mensaje tiene su lugar parejo a lo largo de la línea (una conversación tiene huecos de
+// horas: por hora real, todo quedaría apretado en una punta) y al final está el directo. Se toca o se arrastra en
+// cualquier parte: el cabezal salta al mensaje más cercano, arriba se ve quién y cuándo, y al soltar suena desde ahí;
+// llevarlo hasta el final es volver al directo. Los últimos 80.
+const TIMELINE_MAX = 80
+const windowStart = computed(() => Math.max(0, timeline.value.length - TIMELINE_MAX))
+const shown = computed(() => timeline.value.slice(windowStart.value))
+// n mensajes y, al final, el directo: el mensaje k está en k/n y el directo en 100%
+const pos = (k) => (shown.value.length ? (k / shown.value.length) * 100 : 100)
+function describe(i) {
+  const x = timeline.value[i]
+  if (!x) return ''
+  const time = x.m.time ? new Date(x.m.time).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' }) : ''
+  const words = String(x.m.text || '').split(/\s+/).filter(Boolean)
+  return `${x.c.name}${time ? ` · ${time}` : ''} · ${words.length ? words.slice(0, 8).join(' ') + (words.length > 8 ? '…' : '') : '(adjunto)'}`
+}
+const scrub = ref(-1)        // la marca bajo el dedo mientras se arrastra (-1: no se está arrastrando)
+// dónde está el cabezal (0–100): arrastrando, la marca bajo el dedo; repitiendo, la que suena; en vivo, al final
+const head = computed(() => {
+  if (scrub.value === LIVE) return 100
+  const i = scrub.value >= 0 ? scrub.value : mode.value !== 'live' && at.value >= 0 ? at.value : -1
+  return i < 0 ? 100 : pos(i - windowStart.value)
+})
+const LIVE = Infinity // la marca del directo, al final de la línea
+const headLabel = computed(() => (scrub.value === LIVE ? 'En vivo' : scrub.value >= 0 ? describe(scrub.value) : ''))
+const track = ref(null)
+// la marca más cercana a un punto de la línea
+function markAt(clientX) {
+  const r = track.value.getBoundingClientRect(), n = shown.value.length
+  if (!n) return -1
+  const f = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+  const k = Math.round(f * n)
+  return k >= n ? LIVE : windowStart.value + k // hasta el final de la línea es volver al directo
+}
+function scrubStart(e) {
+  if (!shown.value.length) return
+  try { e.currentTarget.setPointerCapture(e.pointerId) } catch { /* sin captura, el arrastre igual sigue mientras el dedo esté encima */ }
+  scrub.value = markAt(e.clientX)
+}
+function scrubMove(e) { if (scrub.value >= 0) scrub.value = markAt(e.clientX) }
+function scrubEnd() {
+  if (scrub.value < 0) return
+  const i = scrub.value
+  scrub.value = -1
+  if (i === LIVE) goLive(); else replayFrom(i)
+}
+// con el teclado: ← y → mueven de a un mensaje
+function scrubKey(e) {
+  const cur = mode.value !== 'live' && at.value >= 0 ? at.value : timeline.value.length
+  if (e.key === 'ArrowLeft') { e.preventDefault(); replayFrom(Math.max(windowStart.value, cur - 1)) }
+  if (e.key === 'ArrowRight') { e.preventDefault(); if (cur + 1 >= timeline.value.length) goLive(); else replayFrom(cur + 1) }
+}
 // lo que muestra cada uno ahora (una hoja, una foto): callVoice dice hasta cuándo; un reloj de medio segundo lo apaga
 const now = ref(Date.now())
 const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
 const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa'
-  : aside(c) ? 'teclea' : 'escucha')
+  : 'teclea') // los ojos, en el portátil
+
+// ── EL PORTÁTIL Y LO QUE HACEN MIENTRAS TANTO ───────────────────────────────────────────────────────────
+// Todos tienen su portátil delante (abajo, a la altura del pecho) y la mirada puesta en él. Cada uno, por su cuenta y de
+// vez en cuando, lo cierra y se toma un tinto, y lo vuelve a abrir; o se pone los audífonos mientras trabaja. Si le
+// hablan (lo nombran), levanta la mirada; si le mandan algo, guarda el portátil para tener la hoja o la foto.
+const ACTIVITIES = { cafe: [8000, 12000], audifonos: [9000, 14000] } // cuánto dura cada una: entre [mín, máx] ms
+const activities = ref({}) // clave → { kind, until }
+const activityOf = (c) => { const a = activities.value[keyOf(c)]; return a && a.until > now.value ? a.kind : '' }
+const isIdle = (c) => speaking.value !== keyOf(c) && !propOf(c) && !addressed.value.has(keyOf(c)) && muted.value?.key !== keyOf(c)
+const activityTimer = setInterval(() => {
+  const t = Date.now(), next = {}
+  for (const c of props.cast) {
+    const a = activities.value[keyOf(c)]
+    if (a && a.until > t) { next[keyOf(c)] = a; continue }
+    // cada 3 s, uno libre arranca algo con poca probabilidad: así cada quien va a su ritmo
+    if (!isIdle(c) || Math.random() > 0.1) continue
+    const kind = Math.random() < 0.5 ? 'cafe' : 'audifonos'
+    const [lo, hi] = ACTIVITIES[kind]
+    next[keyOf(c)] = { kind, until: t + lo + Math.random() * (hi - lo) }
+  }
+  activities.value = next
+}, 3000)
+onBeforeUnmount(() => clearInterval(activityTimer))
+// el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano
+const laptopOf = (c) => (propOf(c) ? '' : activityOf(c) === 'cafe' ? 'closed' : 'open')
+// con los audífonos puestos, el dibujo los trae (la pieza `headphones` del personaje)
+const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character,
+  ...(activityOf(c) === 'audifonos' ? { extras: [...new Set([...(c.character?.extras || []), 'headphones'])] } : {}) })
 // un mensaje dirigido a alguien (con @ o por su nombre al empezar) no es con los demás: siguen en lo suyo, tecleando, un
 // poco apagados. Con @todos, o sin nombrar a nadie, todos escuchan.
 const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) && speaking.value !== keyOf(c) && !propOf(c)
@@ -160,22 +392,9 @@ const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) 
 // los que reaccionan ahora: los nombrados por quien habla, o por vos hace un momento
 const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : []), ...nudged.value]))
 
-// los papeles del demo: vos, la otra persona y los agentes de cada uno
-const roles = computed(() => {
-  const me = userOf(props.me)
-  const meChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() === me)
-  const peerChar = props.cast.find((c) => c.handle && c.handle.toLowerCase() !== me)
-  const agentsOf = (p) => (p ? props.cast.filter((c) => c.owner && c.owner.toLowerCase() === p.handle.toLowerCase()) : [])
-  const [me1, me2] = agentsOf(meChar), [peer1, peer2] = agentsOf(peerChar)
-  return { me: meChar, peer: peerChar, me1, me2, peer1, peer2 }
-})
-function playDemo() {
-  if (voice.busy) { hush(); return }
-  for (const { who, text } of demoLines(roles.value)) say(keyOf(who), text, who.voice)
-}
 function greet(c) {
-  hush()
-  say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, c.voice)
+  goLive()
+  say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, voiceOf(c))
 }
 const speaking = computed(() => (voice.line ? voice.speaker : ''))
 /* LA BOCA VA POR FUERA DEL RENDER DE VUE: `voice.level` cambia en cada cuadro mientras alguien habla, y leerla en el
@@ -199,7 +418,7 @@ watchEffect(() => {
 }, { flush: 'post' })
 onBeforeUnmount(clearMouth)
 // el JSON de cada personaje se arma una vez por elenco, no en cada render
-const configs = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })])))
+const configs = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), configOf(c)])))
 const caption = computed(() => (voice.line ? { name: byKey.value[voice.speaker]?.name || '', line: voice.line } : null))
 
 const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0]}` : '')
@@ -207,7 +426,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 
 <template>
   <div ref="box" class="region-body call" aria-label="Videollamada">
-    <div class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
+    <TransitionGroup tag="div" name="tile" class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
       <!-- cada recuadro es un botón (saluda): se llega con Tab y se activa con Enter o espacio. data-key: por ahí
            encuentra el efecto de la boca al personaje de quien habla -->
@@ -256,21 +475,60 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
+        <!-- su portátil (oscuro, la tapa lisa) y, mientras toma tinto, la taza; en papel cortado -->
+        <svg v-if="laptopOf(c)" class="call-laptop" :class="laptopOf(c)" viewBox="0 0 100 60" aria-hidden="true">
+          <g class="lid">
+            <rect x="8" y="4" width="84" height="50" rx="4" fill="#000" opacity=".25" transform="translate(2 3)" />
+            <rect x="8" y="4" width="84" height="50" rx="4" fill="#1d3d47" />
+            <rect x="8" y="4" width="84" height="5" rx="2.5" fill="#2b5560" />
+          </g>
+          <rect x="1" y="53" width="98" height="6" rx="2.5" fill="#0f2830" />
+        </svg>
+        <svg v-if="activityOf(c) === 'cafe' && !propOf(c)" class="call-mug" viewBox="0 0 100 80" aria-hidden="true">
+          <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
+            <path d="M38 22 q-5 -7 0 -14 q5 -7 0 -14" /><path d="M52 22 q-5 -7 0 -14 q5 -7 0 -14" />
+          </g>
+          <rect x="26" y="30" width="40" height="42" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+          <path d="M66 40 q14 0 14 12 q0 12 -14 12" fill="none" stroke="#f6ecd6" stroke-width="6" />
+          <rect x="26" y="30" width="40" height="42" rx="6" fill="#f6ecd6" />
+          <rect x="26" y="44" width="40" height="8" fill="#e5592a" />
+        </svg>
+        <span v-if="activityOf(c) === 'audifonos'" class="call-notes" aria-hidden="true">♪ ♫</span>
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
         <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
+        <!-- cambiar el género de la voz: aparece al pasar el mouse (o con el teclado) -->
+        <button v-if="voiceList.length && genderOf(c)" type="button" class="call-gender" :class="{ busy: genderBusy === charKey(c) }"
+                :title="genderTitle(c)" :aria-label="genderTitle(c)" @click.stop="switchGender(c)">
+          {{ genderOf(c) === 'female' ? '♀' : '♂' }}
+        </button>
       </figure>
-    </div>
-    <div class="call-controls">
-      <!-- sin voz (sin llave, tope del día, servidor caído): se dice por qué, en vez de una llamada muda sin explicación -->
-      <span v-if="voice.why" class="call-novoice" role="status">🔇 sin voz: {{ voice.why }}</span>
-      <button v-if="voice.supported" type="button" class="demo" :aria-pressed="voice.busy" :title="voice.busy ? 'Parar' : 'Una conversación inventada, para oír las voces y ver las bocas'" @click="playDemo">
-        <svg v-if="!voice.busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
-        <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v12H7z" /></svg>
-        {{ voice.busy ? 'Parar' : 'Reproducir demo' }}
+    </TransitionGroup>
+    <!-- sin voz (sin llave, tope del día, servidor caído): se dice por qué, en vez de una llamada muda sin explicación -->
+    <span v-if="voice.why" class="call-novoice" role="status">🔇 sin voz: {{ voice.why }}</span>
+    <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
+      <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
+              :disabled="!timeline.length" @click="replayFrom(windowStart)">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 5v14M19 5L9 12l10 7z" /></svg>
       </button>
+      <button type="button" class="tl-btn" :title="mode === 'paused' ? 'Seguir' : 'Pausar'" :aria-label="mode === 'paused' ? 'Seguir' : 'Pausar'"
+              :disabled="!timeline.length" @click="togglePause">
+        <svg v-if="mode === 'paused'" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
+        <svg v-else viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M6 5h4v14H6zM14 5h4v14h-4z" /></svg>
+      </button>
+      <div ref="track" class="tl-track" role="slider" tabindex="0" aria-label="Línea de tiempo: ← y → para moverse por los mensajes; al final, el directo"
+           :aria-valuemin="0" :aria-valuemax="timeline.length" :aria-valuenow="mode !== 'live' && at >= 0 ? at : timeline.length"
+           :aria-valuetext="mode === 'live' ? 'En vivo' : describe(at)"
+           @pointerdown="scrubStart" @pointermove="scrubMove" @pointerup="scrubEnd" @pointercancel="scrub = -1" @keydown="scrubKey">
+        <div class="tl-line"><div class="tl-fill" :style="{ width: `${head}%` }"></div></div>
+        <span class="tl-head" :class="{ live: mode === 'live' && scrub < 0, dragging: scrub >= 0 }" :style="{ left: `${head}%` }"></span>
+        <span v-if="headLabel" class="tl-tip" :style="{ left: `${Math.min(85, Math.max(15, head))}%` }">{{ headLabel }}</span>
+      </div>
+      <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
+      <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
     </div>
-    <p v-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
+    <p v-if="arrival && !caption" class="call-caption arrival">{{ arrival }}</p>
+    <p v-else-if="mutedNote && !caption" class="call-caption muted">🔇 {{ mutedNote }}</p>
     <p v-else-if="voice.error && !caption" class="call-caption">{{ voice.error }}</p>
     <p v-if="caption" class="call-caption" aria-live="polite"><b>{{ caption.name }}</b> {{ caption.line }}</p>
   </div>
@@ -278,7 +536,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 
 <style scoped>
 /* el fondo es el del tema (el mismo del editor): sigue el claro, el oscuro y la paleta que se elija en Cockpit */
-.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px; }
+.call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px;
+  padding-bottom: calc(12px + 46px); } /* abajo, el lugar de la línea de tiempo (BAR): la grilla se centra en lo que queda */
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
 .call-grid { display: flex; flex-wrap: wrap; justify-content: center; align-content: center; gap: 10px;
   width: calc(var(--cols) * var(--tile) + (var(--cols) - 1) * 10px); max-width: 100%; }
@@ -295,12 +554,41 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
-.call-muted { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
+.call-muted { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
   padding: 4px 6px; border-radius: 10px; background: rgba(19, 50, 58, .8); animation: wave-in .25s ease-out; }
+.call-gender { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
+  font-size: 17px; font-weight: 800; line-height: 1; color: var(--primary-foreground, #fff); background: var(--primary, #e5592a);
+  box-shadow: 0 2px 6px rgba(0,0,0,.3); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; }
+.call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
+.call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
+.call-gender.busy { opacity: .6; }
+/* el portátil, abajo y al centro; al cerrarse, la tapa baja hasta la bisagra */
+/* ancho y hundido: se ve la mitad de arriba de la tapa, justo debajo de la barbilla (la boca o el pico se ven al
+   hablar); oscuro, del tono de los audífonos */
+.call-laptop { position: absolute; left: 50%; bottom: -22%; width: 52%; translate: -50% 0; pointer-events: none;
+  filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
+.call-laptop .lid { transform-box: fill-box; transform-origin: 50% 100%; transition: transform .6s cubic-bezier(.5, 0, .3, 1); }
+.call-laptop.closed .lid { transform: scaleY(.08); }
+/* el tinto, a un lado del portátil */
+.call-mug { position: absolute; left: 7%; bottom: 3%; width: 17%; animation: act-in .35s ease-out; filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
+.call-mug .steam { animation: steam 1.6s ease-in-out infinite; }
+.call-notes { position: absolute; right: 18%; top: 14%; font-size: calc(var(--tile) * .07); font-weight: 800; color: var(--primary, #e5592a);
+  text-shadow: 0 1px 0 rgba(0,0,0,.25); animation: notes 1.4s ease-in-out infinite alternate; }
+@keyframes act-in { from { opacity: 0; translate: 0 30%; } to { opacity: 1; translate: 0 0; } }
+@keyframes steam { 0% { transform: translateY(4px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-6px); opacity: 0; } }
+@keyframes notes { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-8px) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .call-mug, .call-mug *, .call-notes, .call-laptop .lid { animation: none !important; transition: none !important; } }
+/* entrar y salir: el que entra crece desde el centro, el que sale se achica, y los demás se acomodan en su lugar */
+.tile-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2, .9, .3, 1.2); }
+.tile-leave-active { transition: opacity .35s ease, transform .35s ease; position: absolute; }
+.tile-enter-from { opacity: 0; transform: scale(.6); }
+.tile-leave-to { opacity: 0; transform: scale(.7); }
+.tile-move { transition: transform .45s ease; }
+@media (prefers-reduced-motion: reduce) { .tile-enter-active, .tile-leave-active, .tile-move { transition: none; } }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */
-.call-wave { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
+.call-wave { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
   animation: wave-in .25s ease-out, wave 1s ease-in-out .25s infinite alternate; transform-origin: 70% 80%; }
 @keyframes wave-in { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes wave { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
@@ -319,15 +607,34 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-prop.key .keyring { transform-origin: 34px 22px; animation: key-swing 1.6s ease-in-out infinite alternate; }
 @keyframes key-swing { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
 @media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines, .call-prop.key .keyring { animation: none; } }
-.call-controls { position: absolute; top: 10px; right: 12px; max-width: calc(100% - 24px); display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
-.call-controls button { display: inline-flex; align-items: center; gap: 5px; font: inherit; font-size: 12px; font-weight: 700;
-  padding: 4px 9px; border-radius: 8px; border: 1px solid var(--border, rgba(0,0,0,.15)); cursor: pointer;
-  background: var(--background, #fff); color: var(--foreground, #222); }
-.call-controls button:hover { background: var(--hover, rgba(0,0,0,.06)); }
-.call-controls svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
-.call-novoice { display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 8px;
+.call-novoice { position: absolute; top: 10px; right: 12px; max-width: calc(100% - 24px); display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 8px;
   background: var(--card); color: var(--foreground); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
-.call-caption { position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
+/* la línea de tiempo: abajo, como la de un directo */
+.call-timeline { position: absolute; left: 12px; right: 12px; bottom: 8px; height: 38px; display: flex; align-items: center; gap: 8px;
+  padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background, #fff) 85%, transparent);
+  border: 1px solid var(--border, rgba(0,0,0,.12)); }
+.tl-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--foreground, #222); cursor: pointer; }
+.tl-btn:hover { background: var(--hover, rgba(0,0,0,.06)); }
+.tl-btn:disabled { opacity: .4; cursor: default; }
+.tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
+.tl-track:focus-visible .tl-line { outline: 2px solid var(--ring, #f08c3d); outline-offset: 4px; }
+.tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px;
+  background: color-mix(in oklab, var(--foreground, #222) 18%, transparent); }
+.tl-fill { height: 100%; border-radius: 2px; background: var(--primary, #e5592a); }
+/* el cabezal: donde vas; en vivo, al final y rojo */
+/* centrado de verdad sobre la línea: el borde va por dentro (border-box) y se corre con translate, no con márgenes */
+.tl-head { position: absolute; top: 50%; width: 16px; height: 16px; box-sizing: border-box; translate: -50% -50%; border-radius: 50%; pointer-events: none;
+  background: var(--background, #fff); border: 3px solid var(--primary, #e5592a); box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
+.tl-head.dragging { transition: none; transform: scale(1.2); }
+.tl-head.live { background: var(--primary, #e5592a); }
+.tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
+  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground, #13323a); color: var(--background, #f6ecd6);
+  pointer-events: none; }
+.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary, #e5592a); white-space: nowrap; transition: opacity .2s; }
+.tl-live.off { opacity: .35; filter: grayscale(1); }
+.call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
   padding: 6px 12px; border-radius: 10px; background: rgba(19, 50, 58, .88); color: #f6ecd6; font-size: 13px; line-height: 1.35; text-align: center; }
 .call-caption b { color: #f2c14e; margin-right: 4px; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }

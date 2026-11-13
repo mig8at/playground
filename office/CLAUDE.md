@@ -85,7 +85,32 @@ no cuenta; `GET /api/voice` dice cuánto se usó). El tope de palabras se elige 
 defecto 150) y vale también para el ▶ de cada mensaje, que ahora lee con ElevenLabs (`chat/src/speech.js`, voz a
 elegir, por defecto Lina); un mensaje que lo pasa lleva un parlante tachado en vez del ▶. Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
-guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. Cambiar el servidor pide `make chat-install` (y
+guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **Cambiar la voz de un personaje**: al pasar el mouse por su recuadro aparece ♂/♀ (arriba a la derecha); un clic le da
+la primera voz LIBRE del otro género —de la lista de ElevenLabs, guardada en el servidor (`voice-list.json`, se renueva
+una vez al día): primero colombianas, luego latinas, luego el resto, por nombre; libre = que no la use ningún personaje—
+y saluda con ella. Volver al género de su JSON recupera esa voz si está libre. Queda en `voice-assign.json` (servidor,
+`chat/server/voice_assign.go`): vale en el navegador y en Cockpit. ⚠ El JSON puede traer el nombre corto de una voz
+(«Rogher Osorio») y la lista el completo («Rogher Osorio Locutor Colombia»): cuentan como la misma.
+**Lo ya dicho no cambia de voz**: la primera vez que un mensaje suena queda anotada su voz (`voice-said.json`, por id
+del mensaje) y al repetirlo suena con ésa aunque después se le cambie la voz al personaje; el cambio vale de ahí en
+adelante. **La voz de tus agentes** también se elige en el perfil del chat (Agentes: un selector por agente; vacío =
+la de su personaje). **El portátil**: todos tienen el suyo delante (oscuro, del tono de los audífonos, la tapa lisa; ancho y hundido,
+se ve media tapa y la boca al hablar) y la mirada puesta en él; cada uno, a su ritmo, lo cierra para tomarse un tinto y lo
+vuelve a abrir, o se pone los audífonos (la pieza `headphones` del dibujo) mientras trabaja. Si lo nombran levanta la
+mirada; si le mandan algo, guarda el portátil para tener la hoja o la foto.
+**Entrar y salir**: con la llamada abierta en un grupo, los miembros se miran cada 4 s; el que entra aparece con su
+animación (la grilla se reacomoda sola, como en Meet), recibe voz si no tiene —la primera libre del GÉNERO CON MÁS VOCES
+LIBRES— y saluda; el que sale se va con la suya. Abajo, «X entró/salió de la llamada». Un agente sin JSON (uno recién
+creado, como `kira`) entra con un personaje armado de su nombre (`autoCharacter` en `chat/src/characters/index.js`:
+animal, colores y cuarto, siempre los mismos); para fijarlo, se le hace su JSON. Para probarlo:
+`playground agents new <agente> …` + `playground groups add "#oficina" @miguel/<agente>`, y `groups leave "#oficina" --as <agente>`.
+**La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
+y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
+huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al
+mensaje más cercano, arriba dice quién y cuándo, y al soltar suena de corrido; llevarlo hasta el final es volver al
+directo. ⏮ desde el primero, ⏯ pausa, ← y → con el teclado. Repetir no gasta: las frases quedan guardadas JUNTO AL HISTORIAL
+(`~/Library/Application Support/creditop-playground-chat/voice`, no en la caché de macOS, que se puede vaciar; la
+primera vez se mudó lo de la caché vieja). Cambiar el servidor pide `make chat-install` (y
 aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
 
 Para verlo en Cockpit basta compilar la interfaz (`cd chat && npm run build`): el servidor del chat sirve `chat/dist`

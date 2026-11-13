@@ -8,6 +8,7 @@ package main
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -152,16 +153,31 @@ func elevenFriendly(err error) error {
 	return errors.New(why)
 }
 
-// elevenVoiceList: las voces de la cuenta, para elegir la del ▶ de cada mensaje (se pide una vez por arranque).
+// elevenVoiceList: las voces de la cuenta (para el ▶ de cada mensaje y para cambiarle la voz a un personaje). Se guardan
+// en disco (voice-list.json, junto a las frases) y se piden a ElevenLabs a lo sumo una vez al día.
 var (
 	elevenListMu sync.Mutex
 	elevenList   []map[string]string
+	elevenListAt time.Time
 )
+
+const voiceListTTL = 24 * time.Hour
+
+type savedVoiceList struct {
+	Fetched time.Time           `json:"fetched"`
+	Voices  []map[string]string `json:"voices"`
+}
 
 func elevenVoiceList() ([]map[string]string, error) {
 	elevenListMu.Lock()
 	defer elevenListMu.Unlock()
-	if elevenList != nil {
+	if elevenList != nil && time.Since(elevenListAt) < voiceListTTL {
+		return elevenList, nil
+	}
+	file := filepath.Join(voiceCacheDir(), "voice-list.json")
+	var saved savedVoiceList
+	if raw, err := os.ReadFile(file); err == nil && json.Unmarshal(raw, &saved) == nil && time.Since(saved.Fetched) < voiceListTTL && len(saved.Voices) > 0 {
+		elevenList, elevenListAt = saved.Voices, saved.Fetched
 		return elevenList, nil
 	}
 	cfg, err := elevenlabs.LoadConfig()
@@ -170,6 +186,9 @@ func elevenVoiceList() ([]map[string]string, error) {
 	}
 	voices, err := elevenlabs.New(cfg).Voices()
 	if err != nil {
+		if len(saved.Voices) > 0 {
+			return saved.Voices, nil // sin red o sin cupo: la lista de ayer sirve
+		}
 		return nil, elevenFriendly(err)
 	}
 	out := make([]map[string]string, 0, len(voices))
@@ -178,6 +197,10 @@ func elevenVoiceList() ([]map[string]string, error) {
 		name := strings.TrimSpace(strings.SplitN(v.Name, " - ", 2)[0])
 		out = append(out, map[string]string{"name": name, "gender": v.Labels["gender"], "accent": v.Labels["accent"], "description": v.Name})
 	}
-	elevenList = out
+	elevenList, elevenListAt = out, time.Now()
+	if raw, err := json.Marshal(savedVoiceList{Fetched: elevenListAt, Voices: out}); err == nil {
+		_ = os.MkdirAll(voiceCacheDir(), 0o755)
+		_ = os.WriteFile(file, raw, 0o644)
+	}
 	return out, nil
 }
