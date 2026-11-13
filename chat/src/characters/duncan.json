@@ -2,16 +2,7 @@
   "name": "Duncan",
   "handle": "duncan.estrada",
   "voice": {
-    "name": "Reed",
-    "lang": "es-MX",
-    "pitch": 0.95,
-    "rate": 1,
-    "gemini": {
-      "voice": "Orus"
-    },
-    "elevenlabs": {
-      "voice": "Rogher Osorio"
-    }
+    "name": "Rogher Osorio"
   },
   "character": {
     "face": "soft",

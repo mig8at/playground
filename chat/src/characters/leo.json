@@ -1,0 +1,16 @@
+{
+  "name": "Leo",
+  "owner": "miguel",
+  "agent": "leo",
+  "voice": {
+    "name": "Sarah",
+    "pitch": 0.96
+  },
+  "character": {
+    "species": "leon",
+    "eye": 25,
+    "shirt": "#7a3f2a",
+    "accent": "#f2c14e",
+    "scene": "dusk"
+  }
+}

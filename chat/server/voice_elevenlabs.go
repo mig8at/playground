@@ -1,9 +1,9 @@
 package main
 
-// LA VOZ DE ELEVENLABS para la videollamada: POST /api/voice con "engine": "elevenlabs" y "voice" por nombre («Laura»)
+// LA VOZ DE ELEVENLABS para la videollamada: POST /api/voice con "voice" por nombre («Laura»)
 // o id. Va por el conector (connectors/elevenlabs: la llave vive sólo en connectors/.env) y vuelve en MP3, que se
 // guarda: una frase se paga una sola vez. Si se acaban los créditos o la llave no sirve, el servidor deja de llamar un
-// rato y la interfaz sigue con la voz local.
+// rato y la videollamada lo avisa (sin voz).
 
 import (
 	"crypto/sha256"
@@ -86,9 +86,9 @@ func elevenFriendly(err error) error {
 	var pause time.Duration
 	switch {
 	case e.Status == 401:
-		why, pause = "ElevenLabs no aceptó la llave (revisá ELEVENLABS_API_KEY y sus permisos). Sigue con la voz local.", 10*time.Minute
+		why, pause = "ElevenLabs no aceptó la llave (revisá ELEVENLABS_API_KEY y sus permisos).", 10*time.Minute
 	case e.Status == 429 || e.Status == 402:
-		why, pause = "ElevenLabs: sin créditos o demasiados pedidos a la vez. Sigue con la voz local.", time.Minute
+		why, pause = "ElevenLabs: sin créditos o demasiados pedidos a la vez.", time.Minute
 	default:
 		return err
 	}

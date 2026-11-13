@@ -3,18 +3,8 @@
   "owner": "miguel",
   "agent": "luigi",
   "voice": {
-    "name": "Flo",
-    "lang": "es-MX",
-    "pitch": 1.18,
-    "rate": 1.05,
-    "gemini": {
-      "voice": "Laomedeia",
-      "pitch": 1.1
-    },
-    "elevenlabs": {
-      "voice": "Anie",
-      "pitch": 1.04
-    }
+    "name": "Anie",
+    "pitch": 1.04
   },
   "character": {
     "species": "panda",

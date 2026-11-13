@@ -4,10 +4,8 @@
 //   { "name": "Duncan", "handle": "duncan.estrada", "character": { ...piezas del personaje } }        una persona
 //   { "name": "Rambo", "owner": "duncan.estrada", "agent": "rambo", "character": { ... } }            un agente
 //
-// Opcional: "voice": { "name": "Eddy", "lang": "es-MX", "pitch": 1, "rate": 1 }, la voz con que habla en la videollamada
-// (una de las de macOS: `say -v '?' | grep es_`; el tono y la velocidad la vuelven propia). Con
-// "gemini": { "voice": "Charon", "pitch": 0.86 } habla con esa voz de Gemini cuando la videollamada usa Gemini, y con
-// "elevenlabs": { "voice": "Laura" } (nombre o id: `bin/pg elevenlabs voices`) cuando usa ElevenLabs.
+// Opcional: "voice": { "name": "Laura", "pitch": 1.04 }, la voz de ElevenLabs con que habla en la videollamada
+// (nombre o id: `bin/pg elevenlabs voices`) y un toque de tono (más de 1, más agudo; menos, más grave).
 //
 // handle y owner son el usuario del chat (lo que va antes de @creditop.com). Las piezas de character son las del editor
 // de Office (forma de cara, peinado, barba, especie…); lo que falte toma su valor por defecto. El dibujo y los gestos
@@ -21,15 +19,21 @@ export const characters = Object.values(files)
 const userOf = (key) => String(key || '').toLowerCase().split('@')[0]
 
 /**
- * Quiénes salen en la videollamada de una conversación: las personas que están en ella (y vos) y, de cada una, sus
- * agentes. keys son los participantes como los guarda el chat («correo» o «correo/agente»).
+ * Quiénes salen en la videollamada de una conversación. keys son los participantes como los guarda el chat: «correo»
+ * (una persona) o «correo/agente» (un agente). En una conversación directa no vienen agentes y salen las personas con
+ * TODOS sus agentes; en un grupo vienen sus miembros exactos y salen ésos (un agente que no está en el grupo, no).
  */
 export function cast(keys) {
-  const users = new Set(keys.map((k) => userOf(String(k).split('/')[0])))
-  const people = characters.filter((c) => c.handle && users.has(c.handle.toLowerCase()))
-  const present = new Set(people.map((c) => c.handle.toLowerCase()))
-  const agents = characters.filter((c) => c.owner && present.has(c.owner.toLowerCase()))
-  // primero cada persona y después sus agentes, en el orden en que llegaron las personas
-  // cada agente lleva el nombre de su persona, para la placa («agente de Duncan»)
-  return people.flatMap((p) => [p, ...agents.filter((a) => a.owner.toLowerCase() === p.handle.toLowerCase()).map((a) => ({ ...a, ownerName: p.name }))])
+  const people = new Set(keys.filter((k) => !String(k).includes('/')).map(userOf))
+  const agents = new Set(keys.filter((k) => String(k).includes('/')).map((k) => {
+    const [who, agent] = String(k).split('/')
+    return `${userOf(who)}/${agent.toLowerCase()}`
+  }))
+  const persons = characters.filter((c) => c.handle && people.has(c.handle.toLowerCase()))
+  const present = new Set(persons.map((c) => c.handle.toLowerCase()))
+  const isIn = (a) => (agents.size ? agents.has(`${a.owner.toLowerCase()}/${a.agent.toLowerCase()}`) : present.has(a.owner.toLowerCase()))
+  const team = characters.filter((c) => c.owner && isIn(c))
+  // primero cada persona y después sus agentes, en el orden en que llegaron las personas; cada agente lleva el nombre
+  // de su persona, para la placa («agente de Duncan»)
+  return persons.flatMap((p) => [p, ...team.filter((a) => a.owner.toLowerCase() === p.handle.toLowerCase()).map((a) => ({ ...a, ownerName: p.name }))])
 }

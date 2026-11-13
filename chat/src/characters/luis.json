@@ -3,18 +3,8 @@
   "owner": "duncan.estrada",
   "agent": "luis",
   "voice": {
-    "name": "Shelley",
-    "lang": "es-ES",
-    "pitch": 1.2,
-    "rate": 1,
-    "gemini": {
-      "voice": "Autonoe",
-      "pitch": 1.12
-    },
-    "elevenlabs": {
-      "voice": "Jessica",
-      "pitch": 1.06
-    }
+    "name": "Jessica",
+    "pitch": 1.06
   },
   "character": {
     "species": "buho",

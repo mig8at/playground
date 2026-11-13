@@ -64,14 +64,15 @@ encabezado cambia el hilo por la videollamada (`chat/src/CallView.vue`), con las
 agentes. Por ahora es sólo visual: todos escuchan. Los personajes viven en `chat/src/characters/`, un JSON por personaje
 (`{ name, handle | owner + agent, character }`): para sumar uno se deja su JSON ahí. El dibujo es una copia del paquete,
 `chat/src/characters/office-characters.js`, que se regenera con `make office-package JS=chat/src/characters/office-characters.js`.
-**Las voces** (`chat/src/callVoice.js`, servidor `chat/server/voice.go` y `voice_gemini.go`): cada mensaje lo dice
-quien lo escribió y la boca se abre con el volumen real del audio. Tres motores, que el botón de la videollamada recorre (sólo
-los que tienen llave): Gemini (`gemini-3.8-flash-lite-tts`, ~3 s la primera vez, ~US$0,0012 por mensaje de 8 s; el texto
-va a Google; 10 pedidos por minuto y 100 por día por modelo, con respaldo en otros dos), ElevenLabs (por su conector,
-`connectors/elevenlabs`, `bin/pg elevenlabs usage|voices|say`; gasta créditos del plan) y Local (`say` de macOS, gratis,
-nada sale). Si el elegido falla, la frase sale con la voz local. Cada frase se guarda una vez. ⚠ A Gemini va SÓLO el texto: una instrucción de
-estilo la leen en voz alta los modelos 3.8 y no aceptan `systemInstruction`. Cambiar el servidor pide `make chat-install`
-(y aceptar el permiso de Escritorio de macOS rápido: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
+**Las voces** (`chat/src/callVoice.js`, servidor `chat/server/voice.go` y `voice_elevenlabs.go`, por el conector
+`connectors/elevenlabs`): MIENTRAS LA VIDEOLLAMADA ESTÁ ABIERTA, cada mensaje que llega lo dice quien lo escribió, con
+su voz de ElevenLabs (`voice` del JSON); varios a la vez esperan su turno y no se pisan; lo tuyo y lo que llegó antes de
+abrirla no se lee. La boca se abre con el volumen real del audio. Cada frase se guarda una vez. Costo medido
+(2026-11-12, `eleven_flash_v2_5`): ~0,2 créditos por carácter, ~30 por mensaje de 150 caracteres. Las voces de macOS y
+Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
+Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
+guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. Cambiar el servidor pide `make chat-install` (y
+aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
 
 Para verlo en Cockpit basta compilar la interfaz (`cd chat && npm run build`): el servidor del chat sirve `chat/dist`
 desde el disco, así que no hace falta reinstalarlo; se recarga la vista del chat y listo.

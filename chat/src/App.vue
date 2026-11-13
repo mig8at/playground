@@ -460,8 +460,10 @@ const callCast = computed(() => {
   const keys = [chat.meKey, ...(p.group ? members : p.agent ? [p.owner?.email] : [p.email])].filter(Boolean)
   return callCastOf(keys)
 })
-// la videollamada tiene sentido si además de vos hay alguien con personaje en la conversación
-const callAvailable = computed(() => callCast.value.some((c) => c.handle && c.handle.toLowerCase() !== (chat.meKey || '').split('@')[0]))
+// la videollamada tiene sentido si además de vos hay alguien con personaje: otra persona, o en un grupo un agente (en
+// «Mi chat» no, aunque tus agentes estén: no hay con quién hablar)
+const callAvailable = computed(() => callCast.value.some((c) => (c.handle && c.handle.toLowerCase() !== (chat.meKey || '').split('@')[0])
+  || (c.agent && chat.active?.person?.group)))
 const callKey = ref('')
 const callOpen = computed(() => callAvailable.value && !!callKey.value && callKey.value === chat.activeKey)
 const toggleCall = () => { callKey.value = callOpen.value ? '' : chat.activeKey }
@@ -1403,7 +1405,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
       </form>
 
       <template v-else>
-        <CallView v-if="callOpen" :cast="callCast" :me="chat.meKey" />
+        <CallView v-if="callOpen" :cast="callCast" :messages="chat.active?.messages || []" :me="chat.meKey" :peer="chat.activeKey" />
         <div v-show="!callOpen" ref="threadEl" class="region-body thread" aria-live="polite" @scroll.passive="onThreadScroll" @load.capture="onMediaLoad">
           <!-- TUS TAREAS de cuadrilla, arriba del hilo: cada una con lo que se puede hacer con ella. -->
           <section v-if="activeIsCuadrilla" class="tasks" aria-label="Tus tareas">

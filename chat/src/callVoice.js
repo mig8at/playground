@@ -1,22 +1,17 @@
-/* LAS VOCES DE LA VIDEOLLAMADA: cada personaje dice sus mensajes con su voz. Hay dos motores, y se elige en la
-   videollamada: GEMINI (gemini-3.8-flash-lite-tts: la voz de `voice.gemini` del JSON y, si lo trae, su tono; el texto va a Google)
-   y LOCAL (las voces de macOS con `say`: nada sale de la máquina). Los dos los genera el servidor del chat
-   (POST /api/voice) y acá se reproducen.
-   No se usa la síntesis del navegador porque dentro de Cockpit (WebKit) sólo trae Mónica y Paulina.
+/* LAS VOCES DE LA VIDEOLLAMADA: cada personaje dice sus frases con su voz de ElevenLabs (`voice` de su JSON: nombre
+   y, si lo trae, un toque de tono). Las genera el servidor del chat (POST /api/voice, por el conector) y acá se
+   reproducen. Las voces de macOS y Gemini se quitaron el 2026-11-12: si ElevenLabs falla, la frase no suena y se avisa.
 
    LA BOCA SIGUE LA VOZ: el audio pasa por un analizador (WebAudio) y, cuadro a cuadro, `voice.level` dice cuánto suena
    (0 a 1); la videollamada se lo pasa al personaje (atributo `boca`), que abre la boca en esa medida: grande en las
    vocales fuertes, cerrada en las pausas. No se alterna el gesto: eso reiniciaba la animación y la boca no llegaba a
    abrirse.
 
-   EL TONO: `say` no cambia el tono de estas voces, así que se reproduce más rápido (agudo: el búho) o más lento (grave:
-   el oso) sin conservar el tono, y la velocidad se compensa al generar para que el ritmo quede como pide el JSON.
-
-   Los mensajes se dicen de a uno, en fila. Mientras suena una frase, `voice.speaker` dice quién habla y `voice.line`
-   qué está diciendo (el subtítulo). */
+   EN FILA: los mensajes se dicen de a uno, en el orden en que llegan; si llegan dos juntos, el segundo espera a que
+   termine el primero. Mientras suena una frase, `voice.speaker` dice quién habla y `voice.line` qué está diciendo (el
+   subtítulo). */
 import { reactive } from 'vue'
 import { forSpeech } from './speech.js'
-import { readPref, savePref } from './workbench.js'
 
 export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
@@ -25,42 +20,14 @@ export const voice = reactive({
   busy: false,   // si hay algo sonando o en fila
   level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
   error: '',
-  engine: readPref('chat.call-engine', 'gemini'),   // 'gemini', 'elevenlabs' o 'local'
-  engines: ['local'],                               // los que el servidor puede usar (los que tienen llave)
+  ready: false,  // si el servidor tiene la llave de ElevenLabs
 })
-fetch('/api/voice').then((r) => r.json()).then((d) => {
-  voice.engines = [...(d.gemini ? ['gemini'] : []), ...(d.elevenlabs ? ['elevenlabs'] : []), 'local']
-}).catch(() => {})
-
-/** Los motores: Gemini (Google, ~US$0,0012 por mensaje), ElevenLabs (créditos del plan) o las voces de macOS (gratis,
-    nada sale de la máquina). */
-export const ENGINES = {
-  gemini: { label: 'Gemini', title: 'Voces de Gemini: el texto va a Google (~US$0,0012 por mensaje)' },
-  elevenlabs: { label: 'ElevenLabs', title: 'Voces de ElevenLabs: el texto va a ElevenLabs y gasta créditos del plan' },
-  local: { label: 'Local', title: 'Voces de macOS: gratis, nada sale de la máquina' },
-}
-export function setEngine(engine) { voice.engine = engine; voice.error = ''; savePref('chat.call-engine', engine) }
-/** El siguiente motor disponible (el botón los recorre). */
-export function nextEngine() {
-  const list = voice.engines
-  setEngine(list[(list.indexOf(voice.engine) + 1) % list.length])
-}
+fetch('/api/voice').then((r) => r.json()).then((d) => { voice.ready = !!d.elevenlabs }).catch(() => {})
 
 const queue = []
 let busy = false
 let current = null      // el <audio> que suena
 let ctx = null, analyser = null, samples = null, raf = 0
-
-// Las voces que tiene `say` en esta máquina; el JSON dice «Eddy» + «es-MX» y `say` la llama «Eddy (Español (México))».
-let systemVoices = null
-async function voiceName(v) {
-  if (!systemVoices) systemVoices = fetch('/api/voice').then((r) => r.json()).then((d) => d.voices || []).catch(() => [])
-  const all = await systemVoices
-  const region = { 'es-mx': 'México', 'es-es': 'España' }[String(v?.lang || 'es-MX').toLowerCase()]
-  const name = v?.name || 'Paulina'
-  return all.find((x) => x === `${name} (Español (${region}))`) || all.find((x) => x === name) || all.find((x) => x.startsWith(`${name} (`))
-    || all.find((x) => x === 'Paulina') || all[0] || ''
-}
 
 // Frases cortas: así el subtítulo cambia con lo que se oye.
 function sentences(text) {
@@ -101,26 +68,17 @@ function track() {
   raf = requestAnimationFrame(tick)
 }
 
-// El audio de una frase, como URL lista para reproducir, y con qué tono se reproduce. Con Gemini el tono lo pone la
-// voz y su estilo; con las locales, la velocidad de reproducción. Si Gemini falla, esa frase sale con la voz local.
+// El audio de una frase, como URL lista para reproducir, y con qué tono se reproduce (más rápido y agudo, o más lento
+// y grave, sin conservar el tono: el toque de caricatura de los animales).
 async function render(item) {
-  const post = (body) => fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    .then(async (res) => {
-      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
-      return URL.createObjectURL(await res.blob())
-    })
-  // Gemini o ElevenLabs, si el motor elegido está disponible y el personaje tiene voz ahí; si falla, la local
-  const cloud = voice.engines.includes(voice.engine) && voice.engine !== 'local' ? item.voice?.[voice.engine] : null
-  if (cloud) {
-    try { return { url: await post({ engine: voice.engine, voice: cloud.voice, text: item.text }), pitch: cloud.pitch ?? 1 } }
-    catch (e) { voice.error = String(e.message || e) }
-  }
-  const pitch = item.voice?.pitch ?? 1
-  return { url: await post({ voice: await voiceName(item.voice), text: item.text, rate: (item.voice?.rate ?? 1) / pitch }), pitch }
+  const res = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ voice: item.voice?.name, text: item.text }) })
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
+  return { url: URL.createObjectURL(await res.blob()), pitch: item.voice?.pitch ?? 1 }
 }
 
-// Se generan de a dos frases por adelantado, no todas: mientras suena una, la siguiente ya está lista, sin pasarse del
-// límite de Gemini (10 pedidos por minuto por modelo).
+// Se generan de a dos frases por adelantado, no todas: mientras suena una, la siguiente ya está lista, y si se calla la
+// llamada no quedan frases pagadas sin oír.
 const AHEAD = 2
 function start(item) {
   if (!item.audio) { item.audio = render(item); item.audio.catch(() => {}) }
@@ -166,7 +124,7 @@ async function next() {
 let generation = 0
 /** Que `speaker` diga `text` con su voz. Se suma a la fila. */
 export function say(speaker, text, v) {
-  if (!voice.supported) return
+  if (!voice.supported || !voice.ready || !v?.name) return
   const parts = sentences(text)
   // un mensaje largo se recorta: la videollamada lo dice, no lo lee entero
   const kept = parts.slice(0, 4)

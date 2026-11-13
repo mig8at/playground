@@ -8,16 +8,20 @@
    ancha van en una fila, en una alta se apilan, y siempre quedan centrados, sin estirarse ni cortarse. La última fila,
    si está incompleta, también se centra.
 
-   LAS VOCES (callVoice.js): «Reproducir demo» pone a hablar a los de la llamada con una conversación inventada
-   (callDemo.js), cada uno con la voz de su JSON; quien habla abre la boca con el volumen real del audio y abajo sale
-   la frase. Un clic en un recuadro hace que ese personaje salude. Por ahora NO se leen los mensajes del chat. */
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { ENGINES, hush, nextEngine, say, voice } from './callVoice.js'
+   LAS VOCES (callVoice.js, ElevenLabs): MIENTRAS LA VIDEOLLAMADA ESTÁ ABIERTA, cada mensaje que llega lo dice quien lo
+   escribió (la persona, o su agente si habló por él), con la voz de su JSON; si llegan varios juntos, esperan su turno
+   y no se pisan. Lo que escribís vos no se lee, y lo que llegó antes de abrir la llamada tampoco: así sólo se paga lo
+   que se oye. Quien habla abre la boca con el volumen real del audio y abajo sale la frase. «Reproducir demo» pone a
+   hablar a todos con una conversación inventada (callDemo.js) y un clic en un recuadro hace que ese personaje salude. */
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { hush, say, voice } from './callVoice.js'
 import { demoLines } from './callDemo.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
+  messages: { type: Array, default: () => [] },   // los de la conversación abierta
   me: { type: String, default: '' },              // mi correo
+  peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
 const ASPECT = 4 / 3, GAP = 10, PAD = 12
 const box = ref(null)
@@ -52,6 +56,23 @@ const compact = computed(() => layout.value.w < 220)
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
 const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const byKey = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), c])))
+// quién dijo un mensaje: lo que llega es de su autor (o de su agente, `via`); lo que sale es tuyo y sólo cuenta si lo
+// mandó uno de tus agentes (`asAgent`): lo que escribís vos no se lee
+function speakerOf(m) {
+  if (m.dir === 'out') return m.asAgent ? byKey.value[`${userOf(props.me)}/${m.asAgent.toLowerCase()}`] || null : null
+  const person = userOf(m.author?.email || props.peer)
+  const agent = String(m.via || '').toLowerCase()
+  return byKey.value[agent ? `${person}/${agent}` : person] || null
+}
+// lo que llega con la llamada abierta se dice, en fila (callVoice espera a que termine el anterior)
+watch(() => props.messages.length, (n, old) => {
+  if (!(n > old)) return
+  for (const m of props.messages.slice(old)) {
+    const c = speakerOf(m)
+    if (c && m.text) say(keyOf(c), m.text, c.voice)
+  }
+})
+
 // los papeles del demo: vos, la otra persona y los agentes de cada uno
 const roles = computed(() => {
   const me = userOf(props.me)
@@ -89,10 +110,6 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       </figure>
     </div>
     <div v-if="voice.supported" class="call-controls">
-      <button v-if="voice.engines.length > 1" type="button" class="engine"
-              :title="`${ENGINES[voice.engine]?.title || ''}. Clic: cambiar de voces`" @click="nextEngine">
-        {{ ENGINES[voice.engines.includes(voice.engine) ? voice.engine : 'local'].label }}
-      </button>
       <button type="button" class="demo" :aria-pressed="voice.busy" :title="voice.busy ? 'Parar' : 'Una conversación inventada, para oír las voces y ver las bocas'" @click="playDemo">
         <svg v-if="!voice.busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
         <svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="M7 6h10v12H7z" /></svg>

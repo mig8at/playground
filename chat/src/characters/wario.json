@@ -3,17 +3,7 @@
   "owner": "miguel",
   "agent": "wario",
   "voice": {
-    "name": "Sandy",
-    "lang": "es-MX",
-    "pitch": 1.05,
-    "rate": 1.05,
-    "gemini": {
-      "voice": "Zephyr",
-      "pitch": 1.03
-    },
-    "elevenlabs": {
-      "voice": "Laura"
-    }
+    "name": "Laura"
   },
   "character": {
     "species": "zorro",
