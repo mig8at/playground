@@ -3,8 +3,7 @@
   "owner": "duncan.estrada",
   "agent": "luis",
   "voice": {
-    "name": "Norah",
-    "pitch": 1.06
+    "gender": "female"
   },
   "character": {
     "species": "buho",

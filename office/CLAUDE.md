@@ -105,9 +105,12 @@ no cuenta; `GET /api/voice` dice cuánto se usó). El tope de palabras se elige 
 defecto 150) y vale también para el ▶ de cada mensaje, que ahora lee con ElevenLabs (`chat/src/speech.js`, voz a
 elegir, por defecto Lina); un mensaje que lo pasa lleva un parlante tachado en vez del ▶. Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
-guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **Las voces por defecto son las MEJORES EN ESPAÑOL** (`chat/server/voice_top.go`): 10 de mujer y 10 de hombre, las más
-usadas del último año en la biblioteca de ElevenLabs (`/v1/shared-voices?language=es&sort=usage_character_count_1y`),
-sólo adultas, con acentos y tonos distintos; se usan por su id sin agregarlas a la cuenta. Van primero en la lista y al
+guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **Las PERSONAS hablan con las MEJORES VOCES EN ESPAÑOL** (`chat/server/voice_top.go`): 10 de mujer y 10 de hombre, las
+más usadas del último año en la biblioteca de ElevenLabs (`/v1/shared-voices?language=es&sort=usage_character_count_1y`),
+sólo adultas, con acentos y tonos distintos; se usan por su id sin agregarlas a la cuenta. **Los ANIMALES, con la voz de
+su ESPECIE**: cada especie tiene una de mujer y una de hombre, voces de personaje (`characterVoices` y `speciesVoices`,
+de `use_cases=characters_animation`); el ♂/♀ de un animal cambia entre esas dos, y dos animales de la misma especie
+suenan igual (repetir está bien). El JSON de un animal sólo dice su género (`"voice": {"gender": "female"}`). Van primero en la lista y al
 repartir una voz libre; el ▶ de cada mensaje arranca con Cristina Campos, la más usada. Para refrescar el ranking, se
 repite esa consulta y se cambia la lista.
 **Cambiar la voz de un personaje**: al pasar el mouse por su recuadro aparece ♂/♀ (arriba a la derecha); un clic le da

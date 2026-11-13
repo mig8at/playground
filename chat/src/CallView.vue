@@ -74,7 +74,8 @@ const compact = computed(() => layout.value.w < 220)
 // ── LA VOZ DE CADA UNO, y cambiarla de género (el ♂/♀ que aparece al pasar el mouse por su recuadro) ─────────
 // Cada personaje habla con la voz de su JSON, salvo que se le haya cambiado (voice-assign.json en el servidor, que vale
 // en el navegador y en Cockpit). Cambiar de género le da la PRIMERA VOZ LIBRE del otro: en la lista de voces de
-// ElevenLabs (guardada en el servidor), primero las colombianas, después las latinas y después las demás, por nombre;
+// ElevenLabs (guardada en el servidor), primero las colombianas, después las latinas y después las demás, por nombre
+// (esto vale para PERSONAS; un animal cambia entre las dos voces de su especie);
 // libre = que no la use ningún personaje (de esta llamada o de otra). Primero van las mejores voces en español (el
 // ranking de uso de ElevenLabs, chat/server/voice_top.go). Si la del JSON es del género pedido y está libre,
 // vuelve a ésa.
@@ -82,7 +83,20 @@ const voiceList = ref([])
 fetch('/api/voice/voices').then((r) => r.json()).then((d) => { voiceList.value = d.voices || [] }).catch(() => {})
 const assigned = computed(() => voiceAssign.map) // compartido con el perfil (voiceAssign.js)
 const charKey = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
-const voiceName = (c) => assigned.value[charKey(c)] || c.voice?.name || ''
+// LOS ANIMALES HABLAN CON LA VOZ DE SU ESPECIE (chat/server/voice_top.go): cada especie tiene una de mujer y una de
+// hombre, voces de personaje; las 20 mejores quedan para las personas. Para un animal, lo asignado es su género
+// ('female' o 'male', lo cambia el ♂/♀) o, si se eligió en el perfil, una voz con nombre. Sin nada, mujer.
+const speciesVoices = ref({})
+fetch('/api/voice/species').then((r) => r.json()).then((d) => { speciesVoices.value = d.species || {} }).catch(() => {})
+const speciesOf = (c) => c.character?.species || ''
+const isAnimal = (c) => !!speciesVoices.value[speciesOf(c)]
+const GENDERS = ['female', 'male']
+const animalGender = (c) => (GENDERS.includes(assigned.value[charKey(c)]) ? assigned.value[charKey(c)] : c.voice?.gender || 'female')
+function voiceName(c) {
+  const a = assigned.value[charKey(c)]
+  if (isAnimal(c)) return a && !GENDERS.includes(a) ? a : speciesVoices.value[speciesOf(c)][animalGender(c) === 'male' ? 'male' : 'female']
+  return a || c.voice?.name || ''
+}
 // la voz con que sonó cada mensaje (por su id): al repetirlo, ésa; lo nuevo, la de ahora (y queda anotada)
 const said = ref({})
 fetch('/api/voice/said').then((r) => r.json()).then((d) => { said.value = d.said || {} }).catch(() => {})
@@ -101,26 +115,29 @@ const voiceOf = (c) => ({ ...(c.voice || {}), name: voiceName(c) })
 // la voz de la lista que corresponde a un nombre: el JSON puede traer el nombre corto («Rogher Osorio») y la lista el
 // completo («Rogher Osorio Locutor Colombia»); cuentan como la misma
 const findVoice = (name) => voiceList.value.find((v) => v.name === name) || voiceList.value.find((v) => name && v.name.startsWith(`${name} `))
-const genderOf = (c) => findVoice(voiceName(c))?.gender || ''
+const genderOf = (c) => (isAnimal(c) && !(assigned.value[charKey(c)] && !GENDERS.includes(assigned.value[charKey(c)]))
+  ? animalGender(c) : findVoice(voiceName(c))?.gender || '')
 const ACCENT_RANK = (a) => (/colomb/i.test(a) ? 0 : /latin|mexic|argentin|spanish|chile|peru|venezuel/i.test(a) ? 1 : 2)
 // las voces ocupadas (menos la de `c`), por su nombre en la lista: las de los personajes con archivo y todas las
 // asignadas (también las de agentes sin archivo). Así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia».
+// (Sólo cuentan las PERSONAS: los animales usan la voz de su especie y pueden repetir.)
 function usedVoices(c) {
-  const names = [...characters.filter((x) => charKey(x) !== charKey(c)).map(voiceName),
-    ...Object.entries(voiceAssign.map).filter(([k]) => k !== charKey(c)).map(([, v]) => v)]
+  const names = characters.filter((x) => charKey(x) !== charKey(c) && !isAnimal(x)).map(voiceName)
   return new Set(names.filter(Boolean).map((n) => findVoice(n)?.name || n))
 }
+// las voces para personas: las mejores (pool people) y las de la cuenta; nunca las de personaje (son de los animales)
+const peopleVoices = () => voiceList.value.filter((v) => v.pool !== 'character')
 // el género con más voces libres (para un agente nuevo: que se repartan parejo)
 function roomierGender(c) {
   const used = usedVoices(c)
-  const free = (g) => voiceList.value.filter((v) => v.gender === g && !used.has(v.name)).length
+  const free = (g) => peopleVoices().filter((v) => v.gender === g && !used.has(v.name)).length
   return free('female') >= free('male') ? 'female' : 'male'
 }
 function freeVoice(gender, c) {
   // las ocupadas, por su nombre en la lista (así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia»)
   const used = usedVoices(c)
   const own = findVoice(c.voice?.name)?.name || c.voice?.name
-  const candidates = voiceList.value.filter((v) => v.gender === gender)
+  const candidates = peopleVoices().filter((v) => v.gender === gender)
     // primero las mejores (su puesto en el ranking de ElevenLabs: voice_top.go), después por acento y nombre
     .sort((a, b) => (Number(a.top) || 999) - (Number(b.top) || 999) || ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
   // la de su JSON primero, si es de ese género y nadie la usa
@@ -130,6 +147,14 @@ function freeVoice(gender, c) {
 const genderBusy = ref('')
 async function switchGender(c) {
   const target = genderOf(c) === 'female' ? 'male' : 'female'
+  if (isAnimal(c)) {
+    // un animal pasa a la otra voz de su especie; si vuelve a la de siempre (su JSON, o mujer), se borra lo asignado
+    genderBusy.value = charKey(c)
+    try { await assignVoice(charKey(c), target === (c.voice?.gender || 'female') ? '' : target) } catch { /* se queda como estaba */ }
+    finally { genderBusy.value = '' }
+    greet(c)
+    return
+  }
   const name = freeVoice(target, c)
   if (!name) return
   genderBusy.value = charKey(c)
@@ -151,7 +176,7 @@ onBeforeUnmount(() => clearTimeout(arrivalTimer))
 async function giveVoice(c) {
   // sin la lista de voces todavía, se espera un poco (recién abierta la llamada)
   for (let i = 0; i < 20 && !voiceList.value.length; i++) await new Promise((r) => setTimeout(r, 250))
-  if (voiceName(c) || !voiceList.value.length) return
+  if (isAnimal(c) || voiceName(c) || !voiceList.value.length) return // un animal ya tiene la de su especie
   const name = freeVoice(roomierGender(c), c)
   if (name) { try { await assignVoice(charKey(c), name) } catch { /* sin servidor: queda sin voz */ } }
 }

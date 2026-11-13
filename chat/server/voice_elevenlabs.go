@@ -102,7 +102,7 @@ func generateEleven(cfg elevenlabs.Config, voice, text, dir, file string) (strin
 	}
 	id, known := elevenIDs[voice]
 	elevenMu.Unlock()
-	if top := topVoiceID(voice); top != "" { // una de las mejores (voice_top.go): va por su id, sin buscarla en la cuenta
+	if top := voiceIDByName(voice); top != "" { // de las listas de voice_top.go (personas o animales): va por su id
 		id, known = top, true
 	}
 	cl := elevenlabs.New(cfg)
@@ -213,7 +213,12 @@ func withTopVoices(account []map[string]string) []map[string]string {
 	out := make([]map[string]string, 0, len(topVoices)+len(account))
 	seen := map[string]bool{}
 	for i, v := range topVoices {
-		out = append(out, map[string]string{"name": v.Name, "gender": v.Gender, "accent": v.Accent, "description": v.Tone, "top": fmt.Sprint(i + 1)})
+		out = append(out, map[string]string{"name": v.Name, "gender": v.Gender, "accent": v.Accent, "description": v.Tone, "top": fmt.Sprint(i + 1), "pool": "people"})
+		seen[v.Name] = true
+	}
+	// las de los animales (no van para personas: la interfaz las elige por especie)
+	for _, v := range characterVoices {
+		out = append(out, map[string]string{"name": v.Name, "gender": v.Gender, "accent": v.Accent, "description": v.Tone, "pool": "character"})
 		seen[v.Name] = true
 	}
 	for _, v := range account {

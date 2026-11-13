@@ -920,7 +920,9 @@ const removeAgentError = ref('')
 const agentVoiceKey = (name) => `${myUser.value}/${String(name).toLowerCase()}`
 function agentVoice(name) {
   const own = callCharacters.find((c) => c.owner?.toLowerCase() === myUser.value && c.agent?.toLowerCase() === String(name).toLowerCase())
-  return voiceAssign.map[agentVoiceKey(name)] || own?.voice?.name || ''
+  // a un animal se le asigna su género ('female'/'male': habla con la voz de su especie); eso es «la de su personaje»
+  const a = voiceAssign.map[agentVoiceKey(name)]
+  return (a && a !== 'female' && a !== 'male' ? a : '') || own?.voice?.name || ''
 }
 const agentVoiceError = ref('')
 async function setAgentVoice(name, voice) {

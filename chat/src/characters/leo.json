@@ -3,8 +3,7 @@
   "owner": "miguel",
   "agent": "leo",
   "voice": {
-    "name": "Cristina Campos",
-    "pitch": 0.96
+    "gender": "female"
   },
   "character": {
     "species": "leon",

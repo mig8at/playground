@@ -3,8 +3,7 @@
   "owner": "miguel",
   "agent": "luigi",
   "voice": {
-    "name": "Andrea",
-    "pitch": 1.04
+    "gender": "female"
   },
   "character": {
     "species": "panda",

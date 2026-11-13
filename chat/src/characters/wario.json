@@ -3,7 +3,7 @@
   "owner": "miguel",
   "agent": "wario",
   "voice": {
-    "name": "Valeria"
+    "gender": "female"
   },
   "character": {
     "species": "zorro",

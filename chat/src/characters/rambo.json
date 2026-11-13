@@ -3,8 +3,7 @@
   "owner": "duncan.estrada",
   "agent": "rambo",
   "voice": {
-    "name": "Tatiana Martin",
-    "pitch": 0.9
+    "gender": "female"
   },
   "character": {
     "species": "oso",

@@ -5,7 +5,8 @@ package main
 // voces colombianas y entrega una frase en 0,35–0,7 s (Gemini, ~2,4 s y con un cupo de 10 pedidos por minuto).
 //
 //	GET  /api/voice          ¿hay llave de ElevenLabs?, y cuánto del tope diario se usó (voice_budget.go)
-//	GET  /api/voice/voices   las voces de la cuenta de ElevenLabs (para el ▶ de cada mensaje)
+//	GET  /api/voice/voices   las voces: las mejores (personas), las de personaje (animales) y las de la cuenta
+//	GET  /api/voice/species  por especie, su voz de mujer y su voz de hombre (voice_top.go)
 //	POST /api/voice          {"voice": "Laura", "text": "…"} → audio/mpeg
 //
 // Cada frase se guarda una vez (junto al historial del chat, por modelo, voz y texto): repetirla no vuelve a cobrarse.
@@ -67,6 +68,13 @@ func registerVoice(mux *http.ServeMux) {
 			return
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"voices": voices})
+	})
+	mux.HandleFunc("GET /api/voice/species", func(w http.ResponseWriter, r *http.Request) {
+		out := map[string]map[string]string{}
+		for sp, pair := range speciesVoices {
+			out[sp] = map[string]string{"female": pair[0], "male": pair[1]}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"species": out})
 	})
 	mux.HandleFunc("POST /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
