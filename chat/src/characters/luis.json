@@ -10,6 +10,10 @@
     "gemini": {
       "voice": "Autonoe",
       "pitch": 1.12
+    },
+    "elevenlabs": {
+      "voice": "Lily",
+      "pitch": 1.08
     }
   },
   "character": {

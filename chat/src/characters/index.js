@@ -6,7 +6,8 @@
 //
 // Opcional: "voice": { "name": "Eddy", "lang": "es-MX", "pitch": 1, "rate": 1 }, la voz con que habla en la videollamada
 // (una de las de macOS: `say -v '?' | grep es_`; el tono y la velocidad la vuelven propia). Con
-// "gemini": { "voice": "Charon", "pitch": 0.86 } habla con esa voz de Gemini cuando la videollamada usa Gemini.
+// "gemini": { "voice": "Charon", "pitch": 0.86 } habla con esa voz de Gemini cuando la videollamada usa Gemini, y con
+// "elevenlabs": { "voice": "Laura" } (nombre o id: `bin/pg elevenlabs voices`) cuando usa ElevenLabs.
 //
 // handle y owner son el usuario del chat (lo que va antes de @creditop.com). Las piezas de character son las del editor
 // de Office (forma de cara, peinado, barba, especie…); lo que falte toma su valor por defecto. El dibujo y los gestos

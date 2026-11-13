@@ -8,6 +8,9 @@
     "rate": 1,
     "gemini": {
       "voice": "Orus"
+    },
+    "elevenlabs": {
+      "voice": "Chris"
     }
   },
   "character": {

@@ -12,7 +12,7 @@
    (callDemo.js), cada uno con la voz de su JSON; quien habla abre la boca con el volumen real del audio y abajo sale
    la frase. Un clic en un recuadro hace que ese personaje salude. Por ahora NO se leen los mensajes del chat. */
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { hush, say, setEngine, voice } from './callVoice.js'
+import { ENGINES, hush, nextEngine, say, voice } from './callVoice.js'
 import { demoLines } from './callDemo.js'
 
 const props = defineProps({
@@ -89,11 +89,9 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       </figure>
     </div>
     <div v-if="voice.supported" class="call-controls">
-      <button v-if="voice.geminiReady" type="button" class="engine" :title="voice.engine === 'gemini'
-                ? 'Voces de Gemini: el texto va a Google (~US$0,0012 por mensaje). Clic: voces locales de macOS'
-                : 'Voces locales de macOS: gratis, nada sale de la máquina. Clic: voces de Gemini'"
-              @click="setEngine(voice.engine === 'gemini' ? 'local' : 'gemini')">
-        {{ voice.engine === 'gemini' ? 'Gemini' : 'Local' }}
+      <button v-if="voice.engines.length > 1" type="button" class="engine"
+              :title="`${ENGINES[voice.engine]?.title || ''}. Clic: cambiar de voces`" @click="nextEngine">
+        {{ ENGINES[voice.engines.includes(voice.engine) ? voice.engine : 'local'].label }}
       </button>
       <button type="button" class="demo" :aria-pressed="voice.busy" :title="voice.busy ? 'Parar' : 'Una conversación inventada, para oír las voces y ver las bocas'" @click="playDemo">
         <svg v-if="!voice.busy" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>

@@ -10,6 +10,8 @@
 //	pg logs raw --target T --path query_range --param k=v …    el cuerpo de Loki tal cual
 //	pg events config --target T                                qué PostHog atiende ese ambiente, sin secretos
 //	pg events hogql --target T --query 'SELECT …'              una consulta HogQL: columnas y filas en JSON
+//	pg elevenlabs usage | voices [--gender female]              el saldo y las voces de ElevenLabs
+//	pg elevenlabs say --voice <nombre|id> --text '…' --out f.mp3  un texto a voz (gasta créditos)
 //	pg gemini models                                           los modelos que la llave puede usar hoy
 //	pg gemini ask --prompt '…' [--system '…']                  una pregunta, sin herramientas
 //	pg confluence spaces | pages <clave> | read <id> | search <texto>   la documentación de negocio

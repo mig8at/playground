@@ -245,7 +245,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 | archivo | qué lleva |
 |---|---|
 | `connectors/.env.<target>` (`local` · `dev` · `qa` · `staging` · `prod`) | lo que depende del ambiente: la base (MySQL directo, o Redash en prod), Loki y PostHog |
-| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, un token para los dos), Slack, Jev, Twilio, Figma, el cliente OAuth de Drive y la llave de la cuenta VTEX de pruebas (`VTEX_*`, desde el 2026-11-07; antes en `harness/.env.vtex`) |
+| `connectors/.env` | lo que no: Gemini, Atlassian (Jira y Confluence, un token para los dos), Slack, Jev, Twilio, Figma, ElevenLabs (las voces de la videollamada del chat), el cliente OAuth de Drive y la llave de la cuenta VTEX de pruebas (`VTEX_*`, desde el 2026-11-07; antes en `harness/.env.vtex`) |
 | `<herramienta>/.env[.<target>]` | sólo las **perillas** de esa herramienta |
 
 Las claves de cada archivo son las de la tabla. **El proceso gana** sobre el archivo, y una variable vacía

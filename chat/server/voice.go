@@ -9,6 +9,8 @@ package main
 //	POST /api/voice          {"voice": "Eddy (Español (México))", "text": "…", "rate": 1} → audio/wav
 //	                         {"engine": "gemini", "voice": "Puck", "text": "…"} → la de
 //	                         Gemini (voice_gemini.go)
+//	                         {"engine": "elevenlabs", "voice": "Laura", "text": "…"} → la de ElevenLabs, en MP3
+//	                         (voice_elevenlabs.go)
 //
 // Cada frase se guarda una vez (en la caché del usuario, por voz, velocidad y texto): repetir no vuelve a generarla.
 
@@ -96,7 +98,7 @@ func synthesize(voice, text string, rate float64) (string, error) {
 
 func registerVoice(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
-		writeJSON(w, http.StatusOK, map[string]any{"voices": spanishVoices(), "gemini": geminiKey() != ""})
+		writeJSON(w, http.StatusOK, map[string]any{"voices": spanishVoices(), "gemini": geminiKey() != "", "elevenlabs": elevenReady()})
 	})
 	mux.HandleFunc("POST /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {
@@ -116,16 +118,23 @@ func registerVoice(mux *http.ServeMux) {
 		}
 		var file string
 		var err error
-		if req.Engine == "gemini" {
+		switch req.Engine {
+		case "gemini":
 			file, err = synthesizeGemini(r.Context(), req.Voice, text)
-		} else {
+		case "elevenlabs":
+			file, err = synthesizeEleven(req.Voice, text)
+		default:
 			file, err = synthesize(req.Voice, text, req.Rate)
 		}
 		if err != nil {
 			fail(w, http.StatusUnprocessableEntity, err)
 			return
 		}
-		w.Header().Set("Content-Type", "audio/wav")
+		if filepath.Ext(file) == ".mp3" {
+			w.Header().Set("Content-Type", "audio/mpeg")
+		} else {
+			w.Header().Set("Content-Type", "audio/wav")
+		}
 		w.Header().Set("Cache-Control", "private, max-age=86400")
 		http.ServeFile(w, r, file)
 	})

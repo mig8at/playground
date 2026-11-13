@@ -8,6 +8,9 @@
     "rate": 1.05,
     "gemini": {
       "voice": "Iapetus"
+    },
+    "elevenlabs": {
+      "voice": "Liam"
     }
   },
   "character": {

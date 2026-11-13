@@ -25,13 +25,26 @@ export const voice = reactive({
   busy: false,   // si hay algo sonando o en fila
   level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
   error: '',
-  engine: readPref('chat.call-engine', 'gemini'),   // 'gemini' o 'local'
-  geminiReady: false,                               // si el servidor tiene la llave de Gemini
+  engine: readPref('chat.call-engine', 'gemini'),   // 'gemini', 'elevenlabs' o 'local'
+  engines: ['local'],                               // los que el servidor puede usar (los que tienen llave)
 })
-fetch('/api/voice').then((r) => r.json()).then((d) => { voice.geminiReady = !!d.gemini }).catch(() => {})
+fetch('/api/voice').then((r) => r.json()).then((d) => {
+  voice.engines = [...(d.gemini ? ['gemini'] : []), ...(d.elevenlabs ? ['elevenlabs'] : []), 'local']
+}).catch(() => {})
 
-/** Gemini (en la nube de Google, ~0,6 s y ~US$0,0012 por mensaje) o las voces de macOS (gratis, nada sale). */
+/** Los motores: Gemini (Google, ~US$0,0012 por mensaje), ElevenLabs (créditos del plan) o las voces de macOS (gratis,
+    nada sale de la máquina). */
+export const ENGINES = {
+  gemini: { label: 'Gemini', title: 'Voces de Gemini: el texto va a Google (~US$0,0012 por mensaje)' },
+  elevenlabs: { label: 'ElevenLabs', title: 'Voces de ElevenLabs: el texto va a ElevenLabs y gasta créditos del plan' },
+  local: { label: 'Local', title: 'Voces de macOS: gratis, nada sale de la máquina' },
+}
 export function setEngine(engine) { voice.engine = engine; voice.error = ''; savePref('chat.call-engine', engine) }
+/** El siguiente motor disponible (el botón los recorre). */
+export function nextEngine() {
+  const list = voice.engines
+  setEngine(list[(list.indexOf(voice.engine) + 1) % list.length])
+}
 
 const queue = []
 let busy = false
@@ -96,10 +109,11 @@ async function render(item) {
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
       return URL.createObjectURL(await res.blob())
     })
-  const g = item.voice?.gemini
-  if (voice.engine === 'gemini' && voice.geminiReady && g) {
-    try { return { url: await post({ engine: 'gemini', voice: g.voice, text: item.text }), pitch: g.pitch ?? 1 } }
-    catch (e) { voice.error = `Gemini: ${e.message || e} (sigue con la voz local)` }
+  // Gemini o ElevenLabs, si el motor elegido está disponible y el personaje tiene voz ahí; si falla, la local
+  const cloud = voice.engines.includes(voice.engine) && voice.engine !== 'local' ? item.voice?.[voice.engine] : null
+  if (cloud) {
+    try { return { url: await post({ engine: voice.engine, voice: cloud.voice, text: item.text }), pitch: cloud.pitch ?? 1 } }
+    catch (e) { voice.error = String(e.message || e) }
   }
   const pitch = item.voice?.pitch ?? 1
   return { url: await post({ voice: await voiceName(item.voice), text: item.text, rate: (item.voice?.rate ?? 1) / pitch }), pitch }

@@ -10,6 +10,10 @@
     "gemini": {
       "voice": "Gacrux",
       "pitch": 0.9
+    },
+    "elevenlabs": {
+      "voice": "Matilda",
+      "pitch": 0.9
     }
   },
   "character": {

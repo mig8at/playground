@@ -10,6 +10,10 @@
     "gemini": {
       "voice": "Laomedeia",
       "pitch": 1.1
+    },
+    "elevenlabs": {
+      "voice": "Jessica",
+      "pitch": 1.06
     }
   },
   "character": {

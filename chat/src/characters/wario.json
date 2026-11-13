@@ -10,6 +10,9 @@
     "gemini": {
       "voice": "Zephyr",
       "pitch": 1.03
+    },
+    "elevenlabs": {
+      "voice": "Laura"
     }
   },
   "character": {
