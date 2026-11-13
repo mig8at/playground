@@ -450,17 +450,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
-        <!-- su portátil (oscuro, con una banana en la tapa) y, mientras toma tinto, la taza; en papel cortado -->
+        <!-- su portátil (oscuro, la tapa lisa) y, mientras toma tinto, la taza; en papel cortado -->
         <svg v-if="laptopOf(c)" class="call-laptop" :class="laptopOf(c)" viewBox="0 0 100 60" aria-hidden="true">
           <g class="lid">
             <rect x="8" y="4" width="84" height="50" rx="4" fill="#000" opacity=".25" transform="translate(2 3)" />
             <rect x="8" y="4" width="84" height="50" rx="4" fill="#1d3d47" />
             <rect x="8" y="4" width="84" height="5" rx="2.5" fill="#2b5560" />
-            <!-- una banana minimalista (diseño propio, en lugar de la marca del fabricante) -->
-            <g transform="translate(50 16) scale(1.2)"> <!-- en la mitad de la tapa que se ve -->
-              <path d="M-9 -7 C-11 4 -3 11 9 9 C12 8.5 13 6 11 5.5 C3 7 -4 2 -5 -7 Z" fill="#e9ecee" />
-              <path d="M-7 -7 L-8 -10.5" stroke="#e9ecee" stroke-width="2.4" stroke-linecap="round" />
-            </g>
           </g>
           <rect x="1" y="53" width="98" height="6" rx="2.5" fill="#0f2830" />
         </svg>

@@ -94,7 +94,7 @@ y saluda con ella. Volver al género de su JSON recupera esa voz si está libre.
 **Lo ya dicho no cambia de voz**: la primera vez que un mensaje suena queda anotada su voz (`voice-said.json`, por id
 del mensaje) y al repetirlo suena con ésa aunque después se le cambie la voz al personaje; el cambio vale de ahí en
 adelante. **La voz de tus agentes** también se elige en el perfil del chat (Agentes: un selector por agente; vacío =
-la de su personaje). **El portátil**: todos tienen el suyo delante (oscuro, del tono de los audífonos, con una banana minimalista en la tapa; ancho y hundido,
+la de su personaje). **El portátil**: todos tienen el suyo delante (oscuro, del tono de los audífonos, la tapa lisa; ancho y hundido,
 se ve media tapa y la boca al hablar) y la mirada puesta en él; cada uno, a su ritmo, lo cierra para tomarse un tinto y lo
 vuelve a abrir, o se pone los audífonos (la pieza `headphones` del dibujo) mientras trabaja. Si lo nombran levanta la
 mirada; si le mandan algo, guarda el portátil para tener la hoja o la foto.
