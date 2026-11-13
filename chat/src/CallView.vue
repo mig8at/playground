@@ -31,6 +31,7 @@ import { hush, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
 import { characters } from './characters/index.js'
+import { assignVoice, voiceAssign } from './voiceAssign.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -74,11 +75,24 @@ const compact = computed(() => layout.value.w < 220)
 // libre = que no la use ningún personaje (de esta llamada o de otra). Si la del JSON es del género pedido y está libre,
 // vuelve a ésa.
 const voiceList = ref([])
-const assigned = ref({})
 fetch('/api/voice/voices').then((r) => r.json()).then((d) => { voiceList.value = d.voices || [] }).catch(() => {})
-fetch('/api/voice/assign').then((r) => r.json()).then((d) => { assigned.value = d.assign || {} }).catch(() => {})
+const assigned = computed(() => voiceAssign.map) // compartido con el perfil (voiceAssign.js)
 const charKey = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const voiceName = (c) => assigned.value[charKey(c)] || c.voice?.name || ''
+// la voz con que sonó cada mensaje (por su id): al repetirlo, ésa; lo nuevo, la de ahora (y queda anotada)
+const said = ref({})
+fetch('/api/voice/said').then((r) => r.json()).then((d) => { said.value = d.said || {} }).catch(() => {})
+const msgId = (m) => m.sid || m.id || ''
+function voiceForMessage(m, c) {
+  const id = msgId(m), had = id && said.value[id]
+  if (had) return { ...voiceOf(c), name: had }
+  const v = voiceOf(c)
+  if (id && v.name) {
+    said.value = { ...said.value, [id]: v.name }
+    fetch('/api/voice/said', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id, voice: v.name }) }).catch(() => {})
+  }
+  return v
+}
 const voiceOf = (c) => ({ ...(c.voice || {}), name: voiceName(c) })
 // la voz de la lista que corresponde a un nombre: el JSON puede traer el nombre corto («Rogher Osorio») y la lista el
 // completo («Rogher Osorio Locutor Colombia»); cuentan como la misma
@@ -103,10 +117,8 @@ async function switchGender(c) {
   genderBusy.value = charKey(c)
   try {
     // si queda la de su JSON, se borra la asignación (vuelve a lo de siempre)
-    const res = await fetch('/api/voice/assign', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key: charKey(c), voice: name === (findVoice(c.voice?.name)?.name || c.voice?.name) ? '' : name }) })
-    if (res.ok) assigned.value = (await res.json()).assign || {}
-  } finally { genderBusy.value = '' }
+    await assignVoice(charKey(c), name === (findVoice(c.voice?.name)?.name || c.voice?.name) ? '' : name)
+  } catch { /* sin servidor: se queda como estaba */ } finally { genderBusy.value = '' }
   greet(c) // que se oiga cómo quedó
 }
 const genderTitle = (c) => {
@@ -186,7 +198,7 @@ function speakMessage(m) {
   // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
   const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
   if (!text) return false
-  if (!say(keyOf(c), spoken(text), voiceOf(c), to, prop, holders)) { mute(keyOf(c)); return false }
+  if (!say(keyOf(c), spoken(text), voiceForMessage(m, c), to, prop, holders)) { mute(keyOf(c)); return false }
   return true
 }
 
@@ -297,7 +309,32 @@ const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
 const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'piensa'
-  : aside(c) ? 'teclea' : 'escucha')
+  : aside(c) ? 'teclea' : ACTIVITY_GESTURE[activityOf(c)] || 'escucha')
+
+// ── LO QUE HACEN MIENTRAS TANTO ─────────────────────────────────────────────────────────────────────────
+// Para que la oficina se sienta viva: cada tanto, uno que está quieto (no habla, no lo nombraron, no tiene nada en la
+// mano) hace algo por su cuenta unos segundos —toma café, trabaja en el portátil, atiende una llamada, se pone los
+// audífonos o se asombra— y vuelve a escuchar. De a uno, y si le hablan, lo deja.
+const ACTIVITIES = { cafe: 6000, trabaja: 7000, llamada: 6500, audifonos: 7000, asombro: 2600 }
+const ACTIVITY_GESTURE = { trabaja: 'teclea', llamada: 'habla', asombro: 'piensa' }
+const activity = ref(null) // { key, kind, until }
+const activityOf = (c) => (activity.value && activity.value.key === keyOf(c) && activity.value.until > now.value ? activity.value.kind : '')
+const isIdle = (c) => speaking.value !== keyOf(c) && !propOf(c) && !addressed.value.has(keyOf(c)) && !aside(c) && muted.value?.key !== keyOf(c)
+const activityTimer = setInterval(() => {
+  if (activity.value && activity.value.until > Date.now()) return
+  activity.value = null
+  if (Math.random() < 0.45) return // no siempre: que no parezca un reloj
+  const idle = props.cast.filter(isIdle)
+  if (!idle.length) return
+  const c = idle[Math.floor(Math.random() * idle.length)]
+  const kinds = Object.keys(ACTIVITIES)
+  const kind = kinds[Math.floor(Math.random() * kinds.length)]
+  activity.value = { key: keyOf(c), kind, until: Date.now() + ACTIVITIES[kind] }
+}, 5000)
+onBeforeUnmount(() => clearInterval(activityTimer))
+// con los audífonos puestos, el dibujo los trae (la pieza `headphones` del personaje)
+const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character,
+  ...(activityOf(c) === 'audifonos' ? { extras: [...new Set([...(c.character?.extras || []), 'headphones'])] } : {}) })
 // un mensaje dirigido a alguien (con @ o por su nombre al empezar) no es con los demás: siguen en lo suyo, tecleando, un
 // poco apagados. Con @todos, o sin nombrar a nadie, todos escuchan.
 const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) && speaking.value !== keyOf(c) && !propOf(c)
@@ -324,7 +361,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
       <figure v-for="c in cast" :key="keyOf(c)" class="call-tile"
               :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)), aside: aside(c) }"
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
-        <office-personaje :config="JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })"
+        <office-personaje :config="configOf(c)"
                           :gesto="gestureOf(c)" :boca="mouth(c)" />
         <!-- lo que muestra: una hoja, una foto o una hoja que corre, en papel cortado como los personajes -->
         <svg v-if="propOf(c)" class="call-prop" :class="propOf(c)" viewBox="0 0 100 80" aria-hidden="true">
@@ -365,6 +402,38 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
             </svg>
           </template>
         </svg>
+        <!-- lo que hace mientras tanto (café, portátil, llamada, audífonos, asombro), en papel cortado -->
+        <svg v-if="activityOf(c) && activityOf(c) !== 'audifonos'" class="call-act" :class="activityOf(c)" viewBox="0 0 100 80" aria-hidden="true">
+          <template v-if="activityOf(c) === 'cafe'">
+            <g class="steam" fill="none" stroke="#f6ecd6" stroke-width="3" stroke-linecap="round" opacity=".8">
+              <path d="M38 22 q-5 -7 0 -14 q5 -7 0 -14" /><path d="M52 22 q-5 -7 0 -14 q5 -7 0 -14" />
+            </g>
+            <rect x="26" y="30" width="40" height="42" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+            <path d="M66 40 q14 0 14 12 q0 12 -14 12" fill="none" stroke="#f6ecd6" stroke-width="6" />
+            <rect x="26" y="30" width="40" height="42" rx="6" fill="#f6ecd6" />
+            <rect x="26" y="44" width="40" height="8" fill="#e5592a" />
+          </template>
+          <template v-else-if="activityOf(c) === 'trabaja'">
+            <path d="M14 70 L86 70 L80 22 L20 22 Z" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+            <path d="M14 70 L86 70 L80 22 L20 22 Z" fill="#b9cdc6" />
+            <circle cx="50" cy="44" r="6" fill="#f6ecd6" />
+            <rect x="6" y="70" width="88" height="8" rx="2" fill="#8da39b" />
+          </template>
+          <template v-else-if="activityOf(c) === 'llamada'">
+            <g transform="rotate(-25 50 40)">
+              <rect x="38" y="6" width="26" height="62" rx="6" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+              <rect x="38" y="6" width="26" height="62" rx="6" fill="#24406b" />
+              <rect x="42" y="12" width="18" height="40" rx="2" fill="#78b4d0" />
+            </g>
+            <g class="rings" fill="none" stroke="#f2c14e" stroke-width="3" stroke-linecap="round"><path d="M76 18 q8 6 0 14" /><path d="M84 12 q14 12 0 26" /></g>
+          </template>
+          <template v-else-if="activityOf(c) === 'asombro'">
+            <circle cx="50" cy="40" r="26" fill="#13323a" opacity=".25" transform="translate(3 3)" />
+            <circle cx="50" cy="40" r="26" fill="#f2c14e" />
+            <rect x="46" y="22" width="8" height="24" rx="4" fill="#13323a" /><circle cx="50" cy="55" r="4.5" fill="#13323a" />
+          </template>
+        </svg>
+        <span v-if="activityOf(c) === 'audifonos'" class="call-notes" aria-hidden="true">♪ ♫</span>
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
         <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
@@ -428,6 +497,24 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
 .call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
 .call-gender.busy { opacity: .6; }
+/* lo que hacen mientras tanto */
+.call-act { position: absolute; width: 24%; animation: act-in .35s ease-out; filter: drop-shadow(0 2px 0 rgba(0,0,0,.12)); }
+.call-act.cafe { left: 24%; bottom: 14%; width: 22%; } /* sobre el pecho, sin que la tape la placa del nombre */
+.call-act.trabaja { left: 50%; bottom: -3%; width: 40%; translate: -50% 0; }
+.call-act.llamada { left: 26%; top: 30%; width: 20%; }
+.call-act.asombro { left: 8%; top: 8%; width: 16%; animation: act-in .25s ease-out, act-jump .5s ease-in-out .25s 2 alternate; }
+.call-act.cafe .steam { animation: steam 1.6s ease-in-out infinite; }
+.call-act.llamada .rings { animation: ring .5s steps(2) infinite; }
+.call-notes { position: absolute; right: 18%; top: 14%; font-size: calc(var(--tile) * .07); font-weight: 800; color: var(--primary, #e5592a);
+  text-shadow: 0 1px 0 rgba(0,0,0,.25); animation: notes 1.4s ease-in-out infinite alternate; }
+@keyframes act-in { from { opacity: 0; translate: 0 30%; } to { opacity: 1; translate: 0 0; } }
+.call-act.trabaja { animation: act-in-c .35s ease-out; }
+@keyframes act-in-c { from { opacity: 0; translate: -50% 30%; } to { opacity: 1; translate: -50% 0; } }
+@keyframes act-jump { from { transform: translateY(0); } to { transform: translateY(-14%); } }
+@keyframes steam { 0% { transform: translateY(4px); opacity: 0; } 40% { opacity: .9; } 100% { transform: translateY(-6px); opacity: 0; } }
+@keyframes ring { from { opacity: 1; } to { opacity: .2; } }
+@keyframes notes { from { transform: translateY(0) rotate(-6deg); } to { transform: translateY(-8px) rotate(6deg); } }
+@media (prefers-reduced-motion: reduce) { .call-act, .call-act *, .call-notes { animation: none !important; } }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */

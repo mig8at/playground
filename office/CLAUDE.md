@@ -91,6 +91,11 @@ una vez al día): primero colombianas, luego latinas, luego el resto, por nombre
 y saluda con ella. Volver al género de su JSON recupera esa voz si está libre. Queda en `voice-assign.json` (servidor,
 `chat/server/voice_assign.go`): vale en el navegador y en Cockpit. ⚠ El JSON puede traer el nombre corto de una voz
 («Rogher Osorio») y la lista el completo («Rogher Osorio Locutor Colombia»): cuentan como la misma.
+**Lo ya dicho no cambia de voz**: la primera vez que un mensaje suena queda anotada su voz (`voice-said.json`, por id
+del mensaje) y al repetirlo suena con ésa aunque después se le cambie la voz al personaje; el cambio vale de ahí en
+adelante. **La voz de tus agentes** también se elige en el perfil del chat (Agentes: un selector por agente; vacío =
+la de su personaje). **Mientras tanto**, cada tanto uno que está quieto hace algo unos segundos (café, portátil,
+llamada, audífonos —la pieza `headphones` del dibujo— o asombro), de a uno y sólo si nadie le habla.
 **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al

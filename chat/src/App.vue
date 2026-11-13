@@ -24,6 +24,8 @@ import { renderMarkdown } from './markdown.js'
 import { setBadge } from './desktop.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import NotifySettings from './NotifySettings.vue'
+import { assignVoice, voiceAssign } from './voiceAssign.js'
+import { characters as callCharacters } from './characters/index.js'
 import { defaultVoice, MAX_WORDS_OPTIONS, setMaxWords, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak, tooLong } from './speech.js'
 import RegionMenu from './RegionMenu.vue'
 import EmojiButton from './EmojiButton.vue'
@@ -889,6 +891,17 @@ const shownThread = computed(() => {
 // Si el agente elegido se borra, el filtro se va con él.
 watch(myAgents, (list) => { if (agentFilter.value && !list.some((a) => a.name === agentFilter.value)) agentFilter.value = '' })
 const removeAgentError = ref('')
+// La voz de un agente tuyo en la videollamada y en el chat: la asignada, o la de su personaje (characters/*.json).
+const agentVoiceKey = (name) => `${myUser.value}/${String(name).toLowerCase()}`
+function agentVoice(name) {
+  const own = callCharacters.find((c) => c.owner?.toLowerCase() === myUser.value && c.agent?.toLowerCase() === String(name).toLowerCase())
+  return voiceAssign.map[agentVoiceKey(name)] || own?.voice?.name || ''
+}
+const agentVoiceError = ref('')
+async function setAgentVoice(name, voice) {
+  agentVoiceError.value = ''
+  try { await assignVoice(agentVoiceKey(name), voice) } catch (e) { agentVoiceError.value = `No pude cambiarle la voz a ${name}: ${e.message || e}` }
+}
 async function removeAgent(name) {
   if (!window.confirm(`¿Borrar a ${name}? Sale de tu lista (sus mensajes quedan). Si una sesión vuelve a hablar como ${name}, renace.`)) return
   removeAgentError.value = ''
@@ -1790,12 +1803,19 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                 <span v-if="a.groups?.length" class="my-agent-groups"><span v-for="g in a.groups" :key="g" class="my-agent-group">{{ g }}</span></span>
               </span>
             </button>
+            <!-- su voz de ElevenLabs (la de la videollamada); vacío: la de su personaje, o ninguna -->
+            <select class="input my-agent-voice" :value="agentVoice(a.name)" :title="`La voz de ${a.name}`" :aria-label="`La voz de ${a.name}`"
+                    @change="setAgentVoice(a.name, $event.target.value)">
+              <option value="">La de su personaje</option>
+              <option v-for="v in speech.voices" :key="v.name" :value="v.name">{{ v.name }}{{ v.gender ? ` · ${v.gender === 'female' ? 'mujer' : v.gender === 'male' ? 'hombre' : v.gender}` : '' }}</option>
+            </select>
             <button type="button" class="region-action my-agent-del" :title="`Borrar a ${a.name}`" :aria-label="`Borrar a ${a.name}`" @click="removeAgent(a.name)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </li>
         </ul>
         <p v-if="removeAgentError" class="field-hint bad">{{ removeAgentError }}</p>
+        <p v-if="agentVoiceError" class="field-hint bad">{{ agentVoiceError }}</p>
       </div>
       <div v-else-if="profileTab === 'notify'" class="region-body">
         <NotifySettings :name-of="conversationName" />
@@ -2010,6 +2030,7 @@ code { font-family: var(--font-mono); font-size: .92em }
 .conv-item { position: relative }
 .tab-ring { width: 18px; height: 18px }
 .tab-ring circle { fill: none; stroke-width: 5; stroke-linecap: round }
+.my-agent-voice { width: 104px; flex: 0 0 auto; font-size: 12px; padding: 3px 6px; }
 .my-agents { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px }
 .my-agent { display: flex; align-items: center; gap: var(--space-1); border-radius: var(--radius-md, 8px) }
 .my-agent.on { background: color-mix(in oklab, var(--foreground) 8%, transparent) }
