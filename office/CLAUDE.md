@@ -85,7 +85,13 @@ no cuenta; `GET /api/voice` dice cuánto se usó). El tope de palabras se elige 
 defecto 150) y vale también para el ▶ de cada mensaje, que ahora lee con ElevenLabs (`chat/src/speech.js`, voz a
 elegir, por defecto Lina); un mensaje que lo pasa lleva un parlante tachado en vez del ▶. Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
-guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
+guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. **Cambiar la voz de un personaje**: al pasar el mouse por su recuadro aparece ♂/♀ (arriba a la derecha); un clic le da
+la primera voz LIBRE del otro género —de la lista de ElevenLabs, guardada en el servidor (`voice-list.json`, se renueva
+una vez al día): primero colombianas, luego latinas, luego el resto, por nombre; libre = que no la use ningún personaje—
+y saluda con ella. Volver al género de su JSON recupera esa voz si está libre. Queda en `voice-assign.json` (servidor,
+`chat/server/voice_assign.go`): vale en el navegador y en Cockpit. ⚠ El JSON puede traer el nombre corto de una voz
+(«Rogher Osorio») y la lista el completo («Rogher Osorio Locutor Colombia»): cuentan como la misma.
+**La línea de tiempo** (abajo de la llamada, como la de un video en directo): una línea limpia con lo escuchado relleno
 y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar parejo a lo largo (por hora real los
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al
 mensaje más cercano, arriba dice quién y cuándo, y al soltar suena de corrido; llevarlo hasta el final es volver al

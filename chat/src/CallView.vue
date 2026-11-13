@@ -30,6 +30,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { hush, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
+import { characters } from './characters/index.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -65,6 +66,53 @@ const layout = computed(() => {
 })
 // en recuadros chicos la placa se achica, para no tapar la cara
 const compact = computed(() => layout.value.w < 220)
+
+// ── LA VOZ DE CADA UNO, y cambiarla de género (el ♂/♀ que aparece al pasar el mouse por su recuadro) ─────────
+// Cada personaje habla con la voz de su JSON, salvo que se le haya cambiado (voice-assign.json en el servidor, que vale
+// en el navegador y en Cockpit). Cambiar de género le da la PRIMERA VOZ LIBRE del otro: en la lista de voces de
+// ElevenLabs (guardada en el servidor), primero las colombianas, después las latinas y después las demás, por nombre;
+// libre = que no la use ningún personaje (de esta llamada o de otra). Si la del JSON es del género pedido y está libre,
+// vuelve a ésa.
+const voiceList = ref([])
+const assigned = ref({})
+fetch('/api/voice/voices').then((r) => r.json()).then((d) => { voiceList.value = d.voices || [] }).catch(() => {})
+fetch('/api/voice/assign').then((r) => r.json()).then((d) => { assigned.value = d.assign || {} }).catch(() => {})
+const charKey = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
+const voiceName = (c) => assigned.value[charKey(c)] || c.voice?.name || ''
+const voiceOf = (c) => ({ ...(c.voice || {}), name: voiceName(c) })
+// la voz de la lista que corresponde a un nombre: el JSON puede traer el nombre corto («Rogher Osorio») y la lista el
+// completo («Rogher Osorio Locutor Colombia»); cuentan como la misma
+const findVoice = (name) => voiceList.value.find((v) => v.name === name) || voiceList.value.find((v) => name && v.name.startsWith(`${name} `))
+const genderOf = (c) => findVoice(voiceName(c))?.gender || ''
+const ACCENT_RANK = (a) => (/colomb/i.test(a) ? 0 : /latin|mexic|argentin|spanish|chile|peru|venezuel/i.test(a) ? 1 : 2)
+function freeVoice(gender, c) {
+  // las ocupadas, por su nombre en la lista (así «Rogher Osorio» del JSON ocupa «Rogher Osorio Locutor Colombia»)
+  const used = new Set(characters.filter((x) => charKey(x) !== charKey(c)).map((x) => findVoice(voiceName(x))?.name || voiceName(x)))
+  const own = findVoice(c.voice?.name)?.name || c.voice?.name
+  const candidates = voiceList.value.filter((v) => v.gender === gender)
+    .sort((a, b) => ACCENT_RANK(a.accent) - ACCENT_RANK(b.accent) || a.name.localeCompare(b.name))
+  // la de su JSON primero, si es de ese género y nadie la usa
+  if (own && candidates.some((v) => v.name === own) && !used.has(own)) return own
+  return (candidates.find((v) => !used.has(v.name)) || candidates[0])?.name || ''
+}
+const genderBusy = ref('')
+async function switchGender(c) {
+  const target = genderOf(c) === 'female' ? 'male' : 'female'
+  const name = freeVoice(target, c)
+  if (!name) return
+  genderBusy.value = charKey(c)
+  try {
+    // si queda la de su JSON, se borra la asignación (vuelve a lo de siempre)
+    const res = await fetch('/api/voice/assign', { method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: charKey(c), voice: name === (findVoice(c.voice?.name)?.name || c.voice?.name) ? '' : name }) })
+    if (res.ok) assigned.value = (await res.json()).assign || {}
+  } finally { genderBusy.value = '' }
+  greet(c) // que se oiga cómo quedó
+}
+const genderTitle = (c) => {
+  const g = genderOf(c)
+  return `${g === 'female' ? 'Voz de mujer' : g === 'male' ? 'Voz de hombre' : 'Voz'} (${voiceName(c)}). Clic: cambiar a voz de ${g === 'female' ? 'hombre' : 'mujer'}`
+}
 
 // ── quién habla ───────────────────────────────────────────────────────────────────────────────────
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
@@ -138,7 +186,7 @@ function speakMessage(m) {
   // lo que se mandó lo tienen en la mano los que lo reciben: los nombrados o, si no nombró a nadie, todos los demás
   const holders = prop ? (to.length ? to : props.cast.map(keyOf).filter((k) => k !== keyOf(c))) : []
   if (!text) return false
-  if (!say(keyOf(c), spoken(text), c.voice, to, prop, holders)) { mute(keyOf(c)); return false }
+  if (!say(keyOf(c), spoken(text), voiceOf(c), to, prop, holders)) { mute(keyOf(c)); return false }
   return true
 }
 
@@ -259,7 +307,7 @@ const addressed = computed(() => new Set([...(voice.busy ? voice.addressed : [])
 
 function greet(c) {
   goLive()
-  say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, c.voice)
+  say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, voiceOf(c))
 }
 const speaking = computed(() => (voice.line ? voice.speaker : ''))
 // la apertura de la boca de quien habla (con dos decimales: el atributo cambia sólo cuando cambia de verdad)
@@ -320,6 +368,11 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span v-if="speaking !== keyOf(c) && addressed.has(keyOf(c)) && !propOf(c)" class="call-wave" aria-hidden="true">👋</span>
         <span v-if="muted?.key === keyOf(c)" class="call-muted" title="Mandó algo muy largo: no se leyó en voz alta">🔇</span>
         <figcaption class="call-name"><b>{{ c.name }}</b></figcaption>
+        <!-- cambiar el género de la voz: aparece al pasar el mouse (o con el teclado) -->
+        <button v-if="voiceList.length && genderOf(c)" type="button" class="call-gender" :class="{ busy: genderBusy === charKey(c) }"
+                :title="genderTitle(c)" :aria-label="genderTitle(c)" @click.stop="switchGender(c)">
+          {{ genderOf(c) === 'female' ? '♀' : '♂' }}
+        </button>
       </figure>
     </div>
     <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
@@ -367,12 +420,18 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
-.call-muted { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
+.call-muted { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
   padding: 4px 6px; border-radius: 10px; background: rgba(19, 50, 58, .8); animation: wave-in .25s ease-out; }
+.call-gender { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
+  font-size: 17px; font-weight: 800; line-height: 1; color: var(--primary-foreground, #fff); background: var(--primary, #e5592a);
+  box-shadow: 0 2px 6px rgba(0,0,0,.3); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; }
+.call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
+.call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
+.call-gender.busy { opacity: .6; }
 .call-tile.aside { filter: saturate(.7) brightness(.92); transition: filter .3s; }
 .call-tile.addressed { box-shadow: 0 0 0 3px #2b9c8f, 0 6px 18px rgba(0, 0, 0, .35); }
 /* el nombrado saluda: la mano aparece con un saltito y se mece */
-.call-wave { position: absolute; top: 8px; right: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
+.call-wave { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .11); line-height: 1;
   animation: wave-in .25s ease-out, wave 1s ease-in-out .25s infinite alternate; transform-origin: 70% 80%; }
 @keyframes wave-in { from { transform: scale(.2); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 @keyframes wave { from { transform: rotate(-14deg); } to { transform: rotate(16deg); } }
@@ -401,19 +460,20 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .tl-btn:disabled { opacity: .4; cursor: default; }
 .tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
-.tl-track:focus-visible .tl-line { outline: 2px solid #f08c3d; outline-offset: 4px; }
+.tl-track:focus-visible .tl-line { outline: 2px solid var(--ring, #f08c3d); outline-offset: 4px; }
 .tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px;
   background: color-mix(in oklab, var(--foreground, #222) 18%, transparent); }
-.tl-fill { height: 100%; border-radius: 2px; background: #e5592a; }
+.tl-fill { height: 100%; border-radius: 2px; background: var(--primary, #e5592a); }
 /* el cabezal: donde vas; en vivo, al final y rojo */
 /* centrado de verdad sobre la línea: el borde va por dentro (border-box) y se corre con translate, no con márgenes */
 .tl-head { position: absolute; top: 50%; width: 16px; height: 16px; box-sizing: border-box; translate: -50% -50%; border-radius: 50%; pointer-events: none;
-  background: #fff; border: 3px solid #e5592a; box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
+  background: var(--background, #fff); border: 3px solid var(--primary, #e5592a); box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
 .tl-head.dragging { transition: none; transform: scale(1.2); }
-.tl-head.live { border-color: #e5592a; background: #e5592a; }
+.tl-head.live { background: var(--primary, #e5592a); }
 .tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
-  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: #13323a; color: #f6ecd6; pointer-events: none; }
-.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: #e5592a; white-space: nowrap; transition: opacity .2s; }
+  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground, #13323a); color: var(--background, #f6ecd6);
+  pointer-events: none; }
+.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary, #e5592a); white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
 .call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
   padding: 6px 12px; border-radius: 10px; background: rgba(19, 50, 58, .88); color: #f6ecd6; font-size: 13px; line-height: 1.35; text-align: center; }
