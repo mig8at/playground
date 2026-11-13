@@ -372,11 +372,17 @@ func handler(store *Store, tabs *Tabs) http.Handler {
 			return
 		}
 		runner := tab.Runner
-		take := runner.LiveShot
 		if r.URL.Query().Get("full") == "1" {
-			take = runner.LiveShotFull
+			// Las páginas, en JSON (base64): el CLI las guarda numeradas (captura-01.png, -02…).
+			list, err := runner.LiveShotFull()
+			if err != nil {
+				writeErr(w, http.StatusConflict, err)
+				return
+			}
+			writeJSON(w, http.StatusOK, map[string][][]byte{"pages": list})
+			return
 		}
-		png, err := take()
+		png, err := runner.LiveShot()
 		if err != nil {
 			writeErr(w, http.StatusConflict, err)
 			return

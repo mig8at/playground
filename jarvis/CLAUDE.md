@@ -111,11 +111,13 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
   tu Chrome, y la página que abre otra pestaña no es un popup de ésta.
 
 - **`shot` sacaba sólo lo visible, y `fullPage` de Playwright no alcanza** (2026-11-13): en Gmail, y en muchos admin, lo
-  que se desplaza es un panel interno y el documento mide lo mismo que la ventana. `shot --full` (`server/fullshot.go`)
-  elige el elemento que de verdad se desplaza, lo baja de a una pantalla, recorta cada foto a su rectángulo y las pega
-  (tope 20 000 px). Lo que flota (`sticky`/`fixed`, como la barra de «Responder» de Gmail) se esconde mientras tanto:
-  si no, sale en cada foto y tapa el texto de abajo, que la foto siguiente ya no toma. Medido en un hilo de Gmail:
-  1132×19 560 px, de punta a punta.
+  que se desplaza es un panel interno y el documento mide lo mismo que la ventana. `shot --full captura.png`
+  (`server/fullshot.go`) elige el elemento que de verdad se desplaza, lo baja de a una pantalla y deja **una página por
+  pantalla**, numeradas (`captura-01.png`, `-02`…), a la resolución real de la pantalla (2x en retina), con 48 px
+  repetidos entre una y la siguiente para que ninguna línea quede partida sin verse entera. Tope: 20 000 px CSS. Lo que
+  flota (`sticky`/`fixed`, como la barra de «Responder» de Gmail) se esconde mientras tanto: si no, sale en cada foto y
+  tapa el texto de abajo. La primera versión pegaba todo en UNA tira (1132×19 560 px, a 1x): ilegible y borrosa
+  (Miguel la descartó el mismo día). Medido en un hilo de Gmail: 37 páginas de 2264×1158 px.
 - **«Timeout 10000ms exceeded» no decía nada**: el error de una acción suma la causa del registro de Playwright
   (`callLogWhy`: quién tapa el clic, no se ve, fuera de la pantalla).
 

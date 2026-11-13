@@ -17,11 +17,18 @@ import (
 // panel adentro (Gmail, un admin con barra lateral fija). El 2026-11-13 no se pudo capturar entero un correo de Gmail:
 // el scroll de la ventana no movía nada y `fullPage` de Playwright tampoco, porque el documento mide lo mismo que la
 // ventana. Acá se elige el elemento que de verdad se desplaza —el que más se ve entre los que tienen contenido
-// escondido, o la página—, se lo baja de a una pantalla, se recorta cada foto a su rectángulo y se pegan en una sola
-// imagen. Al terminar, el elemento vuelve a donde estaba.
+// escondido, o la página—, se lo baja de a una pantalla y cada foto, recortada a su rectángulo, es UNA PÁGINA
+// (`captura-01.png`, `-02`…). Al terminar, el elemento vuelve a donde estaba.
+//
+// Páginas y no una tira (Miguel, 2026-11-13): la primera versión pegaba todo en una imagen de 1132×19 560 px, que no se
+// puede leer, y a 1x se veía borrosa. Ahora cada página va a la resolución real de la pantalla (2x en retina) y entre
+// una y la siguiente se repiten `fullShotOverlap` px: una línea que el corte parte sale entera en alguna de las dos.
 
-// fullShotMaxHeight corta lo que se pega: una página infinita (un feed) no tiene fondo.
+// fullShotMaxHeight corta lo que se recorre: una página infinita (un feed) no tiene fondo.
 const fullShotMaxHeight = 20000
+
+// fullShotOverlap: cuánto (en px CSS) se repite arriba de cada página lo último de la anterior.
+const fullShotOverlap = 48
 
 // scroller es el elemento que se desplaza, medido en px CSS de la ventana.
 type scroller struct {
@@ -33,6 +40,7 @@ type scroller struct {
 	H            float64 `json:"h"`
 	ScrollHeight float64 `json:"scrollHeight"`
 	Top          float64 `json:"top"`
+	ViewportW    float64 `json:"vw"` // para pasar de px CSS a los de la foto (2x en retina)
 }
 
 // pickScrollerJS elige el elemento a recorrer y lo marca con data-jarvis-scroller. El rectángulo es la parte visible
@@ -43,7 +51,7 @@ const pickScrollerJS = `() => {
   const doc = document.scrollingElement || document.documentElement;
   if (doc.scrollHeight > vh + 4) {
     doc.setAttribute('data-jarvis-scroller', '');
-    return { found: true, document: true, x: 0, y: 0, w: vw, h: vh, scrollHeight: doc.scrollHeight, top: doc.scrollTop };
+    return { found: true, document: true, x: 0, y: 0, w: vw, h: vh, scrollHeight: doc.scrollHeight, top: doc.scrollTop, vw };
   }
   let best = null, bestArea = 0;
   for (const el of document.querySelectorAll('body *')) {
@@ -59,7 +67,7 @@ const pickScrollerJS = `() => {
   if (!best || bestArea < vw * vh * 0.15) return { found: false };
   best.el.setAttribute('data-jarvis-scroller', '');
   return { found: true, document: false, x: best.x, y: best.y, w: best.w, h: best.h,
-           scrollHeight: best.el.scrollHeight, top: best.el.scrollTop };
+           scrollHeight: best.el.scrollHeight, top: best.el.scrollTop, vw };
 }`
 
 // hideFloatingJS esconde lo que flota (sticky o fixed): una barra pegada al fondo de un panel (la de «Responder» de
@@ -96,9 +104,9 @@ const scrollToJS = `(top) => {
   return el.scrollTop;
 }`
 
-// LiveShotFull devuelve en PNG todo el contenido del elemento que se desplaza. Si nada se desplaza, es lo mismo que
-// LiveShot.
-func (r *Runner) LiveShotFull() ([]byte, error) {
+// LiveShotFull devuelve en PNG las páginas de todo el contenido del elemento que se desplaza. Si nada se desplaza, una
+// sola: lo que se ve.
+func (r *Runner) LiveShotFull() ([][]byte, error) {
 	l := r.liveSession()
 	if l == nil {
 		return nil, errors.New("no hay sesión en vivo")
@@ -112,10 +120,11 @@ func (r *Runner) LiveShotFull() ([]byte, error) {
 		_ = json.Unmarshal(b, &sc)
 	}
 	shoot := func() ([]byte, error) {
-		return l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleCss, Timeout: playwright.Float(10000)})
+		return l.page.Screenshot(playwright.PageScreenshotOptions{Scale: playwright.ScreenshotScaleDevice, Timeout: playwright.Float(10000)})
 	}
 	if !sc.Found {
-		return shoot()
+		one, err := shoot()
+		return [][]byte{one}, err
 	}
 	defer func() {
 		_, _ = l.page.Evaluate(restoreFloatingJS)
@@ -130,9 +139,13 @@ func (r *Runner) LiveShotFull() ([]byte, error) {
 	if !sc.Document {
 		_, _ = l.page.Evaluate(hideFloatingJS, true)
 	}
-	var pieces []piece
-	for want := 0.0; ; want += sc.H {
-		if sc.Document && len(pieces) == 1 {
+	step := sc.H - fullShotOverlap
+	if step < sc.H/2 {
+		step = sc.H / 2
+	}
+	var shots []piece
+	for want := 0.0; ; want += step {
+		if sc.Document && len(shots) == 1 {
 			_, _ = l.page.Evaluate(hideFloatingJS, false)
 		}
 		v, err := l.page.Evaluate(scrollToJS, want)
@@ -151,12 +164,12 @@ func (r *Runner) LiveShotFull() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		pieces = append(pieces, piece{png: shot, top: top})
+		shots = append(shots, piece{png: shot, top: top})
 		if top+sc.H >= total || top < want-1 { // llegó al fondo (o al tope de alto)
 			break
 		}
 	}
-	return stitch(pieces, sc, total)
+	return pages(shots, sc)
 }
 
 // piece es una foto de la ventana con el elemento bajado hasta `top`.
@@ -165,29 +178,39 @@ type piece struct {
 	top float64
 }
 
-// stitch recorta de cada foto el rectángulo del elemento y lo pega a la altura de su `top`. Lo que se pisa entre dos
-// fotos es el mismo contenido: gana la última.
-func stitch(pieces []piece, sc scroller, total float64) ([]byte, error) {
-	if len(pieces) == 0 {
+// pages recorta de cada foto el rectángulo del elemento: cada una es una página. La última, que el navegador frena
+// contra el fondo, repetiría casi entera la anterior: se recorta a lo nuevo (más el solape).
+func pages(shots []piece, sc scroller) ([][]byte, error) {
+	if len(shots) == 0 {
 		return nil, errors.New("no se sacó ninguna foto")
 	}
-	w, h := int(sc.W), int(total)
-	if last := pieces[len(pieces)-1]; int(last.top+sc.H) < h {
-		h = int(last.top + sc.H)
-	}
-	out := image.NewRGBA(image.Rect(0, 0, w, h))
-	for _, p := range pieces {
+	var out [][]byte
+	prevEnd := -1.0 // hasta dónde (px CSS del contenido) llegó la página anterior
+	for _, p := range shots {
 		img, err := png.Decode(bytes.NewReader(p.png))
 		if err != nil {
 			return nil, err
 		}
-		src := image.Rect(int(sc.X), int(sc.Y), int(sc.X)+w, int(sc.Y+sc.H))
-		dst := image.Rect(0, int(p.top), w, int(p.top)+src.Dy())
-		draw.Draw(out, dst, img, src.Min, draw.Src)
+		k := 1.0 // px de la foto por px CSS
+		if sc.ViewportW > 0 {
+			k = float64(img.Bounds().Dx()) / sc.ViewportW
+		}
+		from := 0.0 // desde dónde del rectángulo se toma (px CSS)
+		if prevEnd >= 0 && p.top+fullShotOverlap < prevEnd {
+			from = prevEnd - fullShotOverlap - p.top
+		}
+		src := image.Rect(int(sc.X*k), int((sc.Y+from)*k), int((sc.X+sc.W)*k), int((sc.Y+sc.H)*k)).Intersect(img.Bounds())
+		if src.Dy() <= 0 {
+			continue
+		}
+		page := image.NewRGBA(image.Rect(0, 0, src.Dx(), src.Dy()))
+		draw.Draw(page, page.Bounds(), img, src.Min, draw.Src)
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, page); err != nil {
+			return nil, err
+		}
+		out = append(out, buf.Bytes())
+		prevEnd = p.top + sc.H
 	}
-	var buf bytes.Buffer
-	if err := png.Encode(&buf, out); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
+	return out, nil
 }

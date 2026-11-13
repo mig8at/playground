@@ -23,7 +23,8 @@
 //	bin/jarvis start [--url U] '<meta>'       abre una sesión de Claude desde la conversación: el panel de la interfaz
 //	              think '<texto>'               muestra cada comando, lo que piensa (think) y cómo terminó (finish,
 //	              finish 'LISTO: …'             que guarda la corrida y, con LISTO, el flujo)
-//	bin/jarvis shot [--full] <archivo.png>    guarda lo que se ve ahora (--full: toda la página, bajando el scroll)
+//	bin/jarvis shot [--full] <archivo.png>    guarda lo que se ve ahora (--full: toda la página en páginas numeradas,
+//	                                           archivo-01.png, -02…, bajando el scroll)
 //	bin/jarvis steps | script | reset         los pasos hechos, como script de Playwright, o de cero
 //	bin/jarvis report [meta]                  el paso a paso con una foto por paso (md, html y script)
 //	bin/jarvis close                          cierra la sesión en vivo
@@ -908,6 +909,65 @@ func value(args []string) error {
 	return nil
 }
 
+// fullShot pide las páginas de toda la página y las guarda numeradas al lado del nombre pedido: «correo.png» deja
+// correo-01.png, correo-02.png… (una sola página queda con el nombre tal cual).
+func fullShot(name string) error {
+	req, _ := http.NewRequest(http.MethodGet, api+"/api/live/shot?full=1", nil)
+	req.Header.Set("X-Jarvis-Client", "cli")
+	if tabID != "" {
+		req.Header.Set("X-Jarvis-Tab", tabID)
+	}
+	res, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer res.Body.Close()
+	b, _ := io.ReadAll(res.Body)
+	if res.StatusCode != http.StatusOK {
+		return fmt.Errorf("HTTP %d: %s", res.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var out struct {
+		Pages [][]byte `json:"pages"`
+	}
+	if err := json.Unmarshal(b, &out); err != nil {
+		return err
+	}
+	names := pageNames(name, len(out.Pages))
+	for i, p := range out.Pages {
+		if err := os.WriteFile(names[i].path, p, 0o644); err != nil {
+			return err
+		}
+		fmt.Println(names[i].path)
+	}
+	return nil
+}
+
+type pageName struct {
+	n    int
+	path string
+}
+
+// pageNames: «carpeta/correo.png» con 3 páginas → correo-01.png, correo-02.png, correo-03.png.
+func pageNames(name string, count int) []pageName {
+	if count <= 1 {
+		return []pageName{{1, name}}
+	}
+	ext := filepath.Ext(name)
+	if ext == "" {
+		ext = ".png"
+	}
+	base := strings.TrimSuffix(name, filepath.Ext(name))
+	width := len(strconv.Itoa(count))
+	if width < 2 {
+		width = 2
+	}
+	out := make([]pageName, count)
+	for i := range out {
+		out[i] = pageName{i + 1, fmt.Sprintf("%s-%0*d%s", base, width, i+1, ext)}
+	}
+	return out
+}
+
 func shot(args []string) error {
 	// --full: toda la página, bajando el elemento que se desplaza (la página o un panel, como en Gmail).
 	full := false
@@ -925,7 +985,7 @@ func shot(args []string) error {
 	}
 	url := api + "/api/live/shot"
 	if full {
-		url += "?full=1"
+		return fullShot(args[0])
 	}
 	// La foto es binaria y no pasa por call: el encabezado de la pestaña va a mano (sin él, sacaba la de la última).
 	req, _ := http.NewRequest(http.MethodGet, url, nil)

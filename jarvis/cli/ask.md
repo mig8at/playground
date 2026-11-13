@@ -30,7 +30,8 @@ como un FLUJO que después se repite sin vos o se le enseña a otra persona: por
 - `{{NAV}} text ["<buscar>"]` · `goto <url>` · `back` · `reload` · `dialog accept|dismiss` (cómo contestar los
   próximos confirm(); por defecto, aceptar) · `download <n|url>` (un export, un reporte).
 - `{{NAV}} shot <archivo.png>` y después Read de ese archivo — para MIRAR cuando el texto no alcanza. `shot --full`
-  saca la página entera, bajando el scroll (también el de un panel interno, como el de un correo en Gmail). Guardalo en
+  saca la página entera en páginas numeradas (`archivo-01.png`, `-02`…), bajando el scroll (también el de un panel
+  interno, como el de un correo en Gmail). Guardalo en
   `{{DIR}}`.
 
 ## Cómo trabajar
