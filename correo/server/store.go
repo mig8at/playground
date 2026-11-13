@@ -42,10 +42,12 @@ type store struct {
 	st   state
 }
 
-// defaultWatches: con lo que arranca la primera vez. Los trámites de las tiendas: Shopify y VTEX.
+// defaultWatches: con lo que arranca la primera vez. Los trámites de las tiendas: Shopify y VTEX. Afinadas el
+// 2026-11-13: «from:shopify.com» traía los avisos de login y códigos (mailer@); el soporte de VTEX escribe desde
+// Zendesk (support@vtexhelp.zendesk.com), no desde vtex.com, y ct.vtex.com.br son los pedidos de la tienda de pruebas.
 var defaultWatches = []Watch{
-	{ID: "shopify", Name: "Shopify", Query: "from:shopify.com"},
-	{ID: "vtex", Name: "VTEX", Query: "from:vtex.com"},
+	{ID: "shopify", Name: "Shopify", Query: "from:support@shopify.com OR from:paymentspartners@shopify.com"},
+	{ID: "vtex", Name: "VTEX", Query: "{from:vtexhelp.zendesk.com from:vtex.com} -from:ct.vtex.com.br"},
 }
 
 func openStore(dir string) (*store, error) {

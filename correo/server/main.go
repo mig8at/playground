@@ -178,6 +178,14 @@ func correoAt(addr string) bool {
 }
 
 func main() {
+	// La consola (cli.go): `correo list|latest|read|search|…`. Va antes de los flags del servidor.
+	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
+		root := os.Getenv("PLAYGROUND_ROOT")
+		if root == "" {
+			root, _ = os.Getwd()
+		}
+		os.Exit(runCLI(root, os.Args[1:]))
+	}
 	serve := flag.String("serve", "127.0.0.1:5225", "dónde escucha la API (sólo 127.0.0.1)")
 	every := flag.Duration("every", time.Minute, "cada cuánto mira Gmail")
 	once := flag.Bool("once", false, "una lectura por consola, sin avisar, y sale")

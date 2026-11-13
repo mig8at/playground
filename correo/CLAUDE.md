@@ -8,6 +8,26 @@ Cockpit esté cerrado. Es la tarea `correo` (#130, nivel miguel).
 búsqueda de Gmail: `from:shopify.com`), con sus sin ver; al centro los correos del elegido (60 días, los 60 más
 nuevos); a la derecha el correo abierto, con el enlace al hilo en Gmail. `make correo ONCE=1` lee una vez por consola.
 
+## La consola: `bin/correo` (para Miguel y para un agente)
+
+Es lo que se usa para contestar «¿contestó VTEX?» sin abrir nada. Lo que se sigue sale de la API de fondo si está
+arriba (lee cada minuto) y si no, de lo guardado; `read` y `search` van directo a Gmail. Todo acepta `--json`.
+
+| comando | contesta |
+|---|---|
+| `bin/correo watches` | qué se sigue: id, nombre, búsqueda de Gmail y cuántos sin ver |
+| `bin/correo list [seguimiento] [--unread] [--n 10]` | los correos de lo que se sigue, con id y enlace al hilo en Gmail |
+| `bin/correo latest <seguimiento>` | el último de ellos, hace cuánto, y **quién escribió último en el hilo**: si fuiste vos, «se espera a ellos»; si fueron ellos, «te toca contestar» |
+| `bin/correo read <id>` | un correo entero |
+| `bin/correo search --q '<búsqueda de Gmail>'` | cualquier búsqueda, se siga o no |
+| `bin/correo follow --name … --query …` · `unfollow <seguimiento>` | seguir otro; con el nombre de uno que ya se sigue, le cambia la búsqueda |
+| `bin/correo refresh` | que lo de fondo lea ya |
+
+**Los seguimientos de hoy** (2026-11-13): `shopify` (`from:support@shopify.com OR from:paymentspartners@shopify.com`, el
+ticket 72090155) y `vtex` (`{from:vtexhelp.zendesk.com from:vtex.com} -from:ct.vtex.com.br`, el ticket #1484435 de la
+homologación). ⚠ **El soporte de VTEX escribe desde Zendesk** (`support@vtexhelp.zendesk.com`), no desde `vtex.com`:
+con `from:vtex.com` la homologación no salía y la lista quedaba vacía, lo que se lee igual que «no contestaron».
+
 ## Sólo lee
 
 Usa la sesión de **`bin/pg gmail login`** (`connectors/gmail`, permiso `gmail.readonly`, el mismo cliente OAuth que
@@ -40,4 +60,5 @@ Como Sentinel, dos APIs no se pisan: la que llega después espera el puerto y to
 | lo guardado: seguimientos, correos, visto y avisado | `server/store.go` (con test) |
 | las lecturas, la API y el LaunchAgent | `server/main.go` |
 | el aviso de macOS | `server/notify.go` |
+| la consola (`bin/correo`) | `server/cli.go` |
 | la interfaz | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |

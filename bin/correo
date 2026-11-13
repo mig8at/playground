@@ -1,0 +1,25 @@
+#!/bin/sh
+# correo — la consola de Correo (correo/server/cli.go): los correos de los remitentes que se siguen en Gmail (Shopify,
+# VTEX…), el último de uno («¿contestó VTEX?»), leer uno y buscar cualquiera. Sólo lee Gmail. Lo compila la primera
+# vez y cada vez que cambia su código, a ~/.cache/playground/correo (como bin/pg).
+#
+#   bin/correo watches                     bin/correo latest vtex
+#   bin/correo list [vtex] [--unread]      bin/correo read <id>
+#   bin/correo search --q 'from:support@vtexhelp.zendesk.com newer_than:7d'
+#   … --json para un agente · bin/correo help
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/correo"
+# El binario no es sólo correo/server: importa los conectores (gmail, drive) y lib/launchagent. Un cambio ahí
+# también lo deja viejo, así que se miran las carpetas enteras, como hace bin/pg con connectors/.
+stale=$(find "$root/correo/server" "$root/connectors" "$root/lib" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
+if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
+  mkdir -p "$(dirname "$bin")" || exit 1
+  tmp="$bin.$$"
+  if ! (cd "$root" && go build -o "$tmp" ./correo/server) >&2; then
+    rm -f "$tmp"
+    echo "correo: no compila correo/server" >&2
+    exit 1
+  fi
+  mv -f "$tmp" "$bin"
+fi
+cd "$root" && PLAYGROUND_ROOT="$root" exec "$bin" "$@"

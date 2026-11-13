@@ -352,6 +352,22 @@ func find(p part, mime string) string {
 	return ""
 }
 
+// Thread devuelve los mensajes de un hilo, en orden, sólo con sus encabezados.
+func (c *Client) Thread(ctx context.Context, id string) ([]Message, error) {
+	v := url.Values{"format": {"metadata"}, "metadataHeaders": {"From", "To", "Cc", "Subject", "Date"}}
+	var r struct {
+		Messages []rawMessage `json:"messages"`
+	}
+	if err := c.getJSON(ctx, "/threads/"+url.PathEscape(id), v, &r); err != nil {
+		return nil, err
+	}
+	out := make([]Message, 0, len(r.Messages))
+	for _, m := range r.Messages {
+		out = append(out, parse(m, false))
+	}
+	return out, nil
+}
+
 var (
 	blockTags = regexp.MustCompile(`(?i)<\s*(br|/p|/div|/tr|/li|/h[1-6])[^>]*>`)
 	dropTags  = regexp.MustCompile(`(?is)<(script|style|head)[^>]*>.*?</\s*(script|style|head)\s*>`)
