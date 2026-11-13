@@ -4,10 +4,11 @@
 homologación de VTEX). Se le dice qué remitentes seguir y avisa por macOS cuando llega algo nuevo de ellos, aunque
 Cockpit esté cerrado. Es la tarea `correo` (#130, nivel miguel).
 
-`make correo` (UI :5224 · API :5225) o la app Correo de Cockpit. A la izquierda los **seguimientos** (un nombre y una
-búsqueda de Gmail) y, debajo, los correos del elegido (60 días, los 60 más nuevos) con sus filtros; al centro el
-correo abierto tal como llegó, con el enlace al hilo en Gmail; a la derecha **el hilo desglosado en español** (abajo).
-`make correo ONCE=1` lee una vez por consola.
+`make correo` (UI :5224 · API :5225) o la app Correo de Cockpit. A la izquierda, SÓLO los **seguimientos** (un nombre y
+una búsqueda de Gmail). Al centro, las **conversaciones** del elegido, una por hilo, como chats (con quién, cuántos
+mensajes, cuándo fue el último y su estado), con filtros; al tocar una, la **conversación entera** en el mismo centro
+(ellos y vos, en orden, abierta en el último mensaje) y **←** en la barra para volver. A la derecha, **la
+conversación desglosada en español** (abajo). `make correo ONCE=1` lee una vez por consola.
 
 ## La consola: `bin/correo` (para Miguel y para un agente)
 

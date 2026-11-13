@@ -14,7 +14,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   font-family: var(--font-sans); font-size: var(--text-base) }
 #app { height: 100% }
 
-.workbench { grid-template-columns: 0 var(--sidebar-w, 380px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
+.workbench { grid-template-columns: 0 var(--sidebar-w, 260px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
 
 .mail { display: grid; gap: 2px; width: calc(100% - 2 * var(--space-1)); padding: var(--space-2); text-align: left;
   border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-sm) }
@@ -101,3 +101,19 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .reply { display: grid; gap: var(--space-1); font-size: var(--text-xs); color: var(--fg-3) }
 .reply textarea { resize: vertical; font-family: var(--font-sans); font-size: var(--text-sm) }
 .hint { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
+
+.head-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: left }
+.region-head > .back-action:first-child { flex: none; margin-right: var(--space-1) } /* la base estira el primero */
+.mail-count { color: var(--fg-3); font-weight: 400 }
+
+/* La conversación abierta: cada mensaje en orden, los tuyos con el acento. */
+.conv-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
+  border-bottom: 1px solid var(--border) }
+.thread { display: grid; gap: var(--space-3); margin: 0; padding: var(--space-3); list-style: none }
+.msg { padding: var(--space-3); border-radius: var(--radius-sm); border: 1px solid var(--border); border-left: 3px solid var(--fg-3) }
+.msg.mine { border-left-color: var(--primary); background: color-mix(in oklab, var(--primary) 6%, transparent) }
+.msg-head { display: flex; justify-content: space-between; gap: var(--space-2); margin-bottom: var(--space-2);
+  font-size: var(--text-xs); color: var(--fg-3) }
+.msg-head b { color: var(--foreground); font-weight: 600; font-size: var(--text-sm) }
+.msg-body { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-sm);
+  line-height: 1.55 }

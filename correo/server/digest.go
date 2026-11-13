@@ -122,12 +122,16 @@ var (
 // maxBody: lo que se manda de cada mensaje. Un hilo reenviado puede traer meses de historia adentro.
 const maxBody = 6000
 
-func cleanBody(s string) string {
+// cleanQuoted saca lo citado de una respuesta, sin cortar el largo: es lo que se muestra en la conversación.
+func cleanQuoted(s string) string {
 	if loc := quoteHeadRe.FindStringIndex(s); loc != nil {
 		s = s[:loc[0]]
 	}
-	s = quotedRe.ReplaceAllString(s, "")
-	s = strings.TrimSpace(s)
+	return quotedRe.ReplaceAllString(s, "")
+}
+
+func cleanBody(s string) string {
+	s = strings.TrimSpace(cleanQuoted(s))
 	if r := []rune(s); len(r) > maxBody {
 		s = string(r[:maxBody]) + "\n[… sigue]"
 	}

@@ -301,6 +301,41 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, m)
 	})
+	// GET /api/thread/{hilo} — la conversación entera, en orden: cada mensaje con su texto (sin lo citado de la
+	// respuesta anterior) y si lo escribiste vos.
+	mux.HandleFunc("GET /api/thread/{thread}", func(w http.ResponseWriter, r *http.Request) {
+		id := r.PathValue("thread")
+		if !threadIDRe.MatchString(id) {
+			fail(w, http.StatusBadRequest, fmt.Errorf("id de hilo inválido"))
+			return
+		}
+		c, err := a.gmailClient()
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		ctx, cancel := ctxTimeout(time.Minute)
+		defer cancel()
+		msgs, err := c.ThreadFull(ctx, id)
+		if err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		type turn struct {
+			gmail.Message
+			Mine bool `json:"mine"`
+		}
+		me := strings.ToLower(c.Email())
+		out := make([]turn, 0, len(msgs))
+		for _, m := range msgs {
+			m.Body = strings.TrimSpace(cleanQuoted(m.Body))
+			if m.Body == "" {
+				m.Body = m.Snippet
+			}
+			out = append(out, turn{Message: m, Mine: me != "" && strings.Contains(strings.ToLower(m.From), me)})
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"threadId": id, "url": threadURL(c.Email(), id), "messages": out})
+	})
 	// GET /api/digest/{hilo}[?refresh=1] — el desglose del hilo en español (digest.go): el guardado si el hilo no
 	// cambió; si no, lo arma Gemini (unos segundos).
 	mux.HandleFunc("GET /api/digest/{thread}", func(w http.ResponseWriter, r *http.Request) {
