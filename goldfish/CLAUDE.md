@@ -18,9 +18,9 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 - **Los externos**: un PR de otra persona que Miguel pegó para validar queda en el bloque de su repo, marcado
   «externo · autor», mientras siga abierto (`goldfish/.external.json`, fuera de git; al cerrarse o mergearse sale
   solo). La × lo saca a mano.
-- **La base, en el pie** (como el ambiente en ecommerce): a qué rama apuntan los PRs que se ven —todas, `main`, `qa`,
-  `develop`…—, con cuántos hay en cada una; queda en la URL (`?base=qa`). Un PR de un repo sin clon no trae base y
-  sólo sale en «todas».
+- **La base, en el pie** (como el ambiente en ecommerce): a qué rama apuntan los PRs que se ven, sólo las cuatro de los
+  ambientes —`main` (por defecto), `qa`, `develop`, `staging`—; los PRs contra otra rama no se listan. Queda en la URL
+  (`?base=qa`), y al pegar un PR salta a la suya. Un PR de un repo sin clon no trae base y no se lista.
 - Sin nada elegido, el editor es un **buscador** (estilo Google): se pega la URL de un PR y se valida enseguida.
 
 ## El método, adaptado a un PR
