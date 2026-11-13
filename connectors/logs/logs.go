@@ -22,6 +22,7 @@ package logs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -178,9 +179,24 @@ func (cl *Client) Get(path string, params url.Values) (int, []byte, error) {
 		return 0, nil, err
 	}
 	defer resp.Body.Close()
-	body, _ := io.ReadAll(io.LimitReader(resp.Body, 4<<20))
+	// Un byte de más dice si el cuerpo pasó del tope: cortado a secas era un JSON a medias, y el error que salía
+	// después («no se pudo leer») no decía por qué.
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, maxBody+1))
+	if len(body) > maxBody {
+		body = body[:maxBody]
+		// Sólo es un error si era una respuesta buena: la de un error igual se resume (Explain).
+		if resp.StatusCode == http.StatusOK {
+			return resp.StatusCode, body, ErrTruncated
+		}
+	}
 	return resp.StatusCode, body, nil
 }
+
+// maxBody es el tope del cuerpo que se lee de Loki.
+const maxBody = 4 << 20
+
+// ErrTruncated: Loki contestó más que el tope y la respuesta quedó cortada. No sirve a medias: se acota.
+var ErrTruncated = errors.New("la respuesta de Loki pasó de 4 MB y se cortó: acotá la ventana o bajá el límite (en pg: --since o --start/--end, y --limit)")
 
 // API pega a un endpoint de lectura de la API de Loki (`query_range`, `labels`, `label/<x>/values`…), sin
 // el prefijo: la ruta de la API se escribe una sola vez, acá.

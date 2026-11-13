@@ -41,6 +41,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -49,6 +50,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -202,8 +204,10 @@ func main() {
 		err = call(http.MethodDelete, "/api/live/steps", nil, nil)
 	case "close":
 		err = call(http.MethodPost, "/api/live/stop", nil, nil)
-	default:
+	case "help", "--help", "-h":
 		usage()
+	default:
+		unknownCommand(cmd)
 	}
 	if err != nil {
 		if inSession {
@@ -236,7 +240,55 @@ func usage() {
 	os.Exit(2)
 }
 
+// commands son los comandos que entiende main (los de antes, en castellano, se traducen al entrar: legacy.go). Sólo
+// sirve para sugerir uno cuando se escribe mal: el switch de main es el que manda.
+var commands = []string{"start", "chrome", "docs", "recipe", "tabs", "think", "finish", "project", "ask", "open", "device", "ua", "look",
+	"click", "dblclick", "hover", "check", "uncheck", "fill", "select", "press", "upload", "drag", "point", "changes", "dialog",
+	"scroll", "goto", "back", "forward", "reload", "text", "wait", "value", "download", "read", "shot", "steps", "script", "report",
+	"reset", "close", "help"}
+
+// suggest propone los comandos que empiezan con lo escrito, o de los que lo escrito es el comienzo («clic» → click,
+// «clicks» → click). Nada más fino: una sugerencia equivocada es peor que ninguna.
+func suggest(cmd string) []string {
+	out := []string{}
+	if len(cmd) < 2 {
+		return out
+	}
+	for _, c := range commands {
+		if strings.HasPrefix(c, cmd) || strings.HasPrefix(cmd, c) {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
+// unknownCommand dice CUÁL no se reconoció, en una línea: el uso entero (20 renglones) lo tapaba.
+func unknownCommand(cmd string) {
+	msg := fmt.Sprintf("jarvis: no conozco el comando «%s»", cmd)
+	if near := suggest(cmd); len(near) > 0 {
+		msg += " (¿quisiste decir " + strings.Join(near, " · ") + "?)"
+	}
+	fmt.Fprintln(os.Stderr, msg)
+	fmt.Fprintln(os.Stderr, `  lo más usado: open <url> · look · click <n> · fill <n> <valor> · press <n> <tecla> · text [buscar] · steps · close
+  todos los comandos: bin/jarvis help`)
+	os.Exit(2)
+}
+
 // ── la API ──
+
+// transportError explica por qué no hubo respuesta. No es lo mismo que la API esté caída a que tarde: una acción
+// larga (un clic que espera una descarga, un análisis pesado) pasa el tope del cliente con el servidor vivo, y decir
+// «¿está levantado?» ahí lleva a relanzarlo o a repetir una acción que todavía está corriendo.
+func transportError(err error, wait time.Duration) error {
+	var ne net.Error
+	switch {
+	case errors.Is(err, syscall.ECONNREFUSED):
+		return fmt.Errorf("la API no contesta en %s: ¿está levantado `make jarvis`? (%v)", api, err)
+	case errors.As(err, &ne) && ne.Timeout():
+		return fmt.Errorf("la API en %s no terminó de contestar en %.0f s. No la relances ni repitas el comando todavía: la acción puede seguir corriendo. Mirá `bin/jarvis steps` (lo que ya quedó hecho) y `bin/jarvis look` (%v)", api, wait.Seconds(), err)
+	}
+	return fmt.Errorf("no pude hablar con la API en %s: %v (¿está levantado `make jarvis`?)", api, err)
+}
 
 func call(method, path string, body, out any) error {
 	var rd io.Reader
@@ -252,12 +304,16 @@ func call(method, path string, body, out any) error {
 	if tabID != "" {
 		req.Header.Set("X-Jarvis-Tab", tabID)
 	}
-	res, err := (&http.Client{Timeout: 120 * time.Second}).Do(req)
+	const wait = 120 * time.Second
+	res, err := (&http.Client{Timeout: wait}).Do(req)
 	if err != nil {
-		return fmt.Errorf("la API no contesta en %s: ¿está levantado `make jarvis`? (%v)", api, err)
+		return transportError(err, wait)
 	}
 	defer res.Body.Close()
-	raw, _ := io.ReadAll(res.Body)
+	raw, readErr := io.ReadAll(res.Body)
+	if readErr != nil { // el tope también corta la lectura del cuerpo: sin esto salía como un JSON roto
+		return transportError(readErr, wait)
+	}
 	if res.StatusCode >= 300 {
 		var e struct{ Error string }
 		if json.Unmarshal(raw, &e) == nil && e.Error != "" {

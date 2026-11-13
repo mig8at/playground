@@ -3,6 +3,7 @@ package logs
 // No persiguen cobertura: cada una fija una conducta que ya dio, o podía dar, una respuesta equivocada.
 
 import (
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -95,5 +96,27 @@ func TestLoadConfigReadsTheConnectorsFile(t *testing.T) {
 	}
 	if c.URL != "https://logs-prod-036.grafana.net" || c.Env != "development|develop" || c.Service != "CreditopDev" || c.Missing() != "" {
 		t.Errorf("config = %+v", c)
+	}
+}
+
+// Una respuesta que pasa del tope no sale cortada y callada: el error dice que se truncó y qué acotar.
+func TestATruncatedBodyIsAnError(t *testing.T) {
+	big := true
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if big {
+			_, _ = w.Write([]byte(`{"data":{"resultType":"streams","result":[{"stream":{},"values":[["1","` + strings.Repeat("x", maxBody) + `"]]}]}}`))
+			return
+		}
+		_, _ = w.Write([]byte(`{"data":{"resultType":"streams","result":[]}}`))
+	}))
+	defer server.Close()
+	cl := New(Config{Target: "local", URL: server.URL}, 10*time.Second)
+	_, err := cl.Query(`{a="b"}`, time.Now().Add(-time.Hour), time.Now(), 10, "backward")
+	if !errors.Is(err, ErrTruncated) || !strings.Contains(err.Error(), "acotá la ventana") {
+		t.Errorf("err = %v", err)
+	}
+	big = false
+	if _, err := cl.Query(`{a="b"}`, time.Now().Add(-time.Hour), time.Now(), 10, "backward"); err != nil {
+		t.Errorf("una respuesta chica pasa: %v", err)
 	}
 }

@@ -29,8 +29,12 @@ const args = process.argv.slice(2);
 const JSON_OUT = args.includes('--json');
 const only = args.includes('--only') ? args[args.indexOf('--only') + 1] : '';
 const say = (...a: unknown[]) => (JSON_OUT ? console.error : console.log)(...a);
-const node = (script: string, extra: string[]) =>
-    spawnSync('node', [script, ...extra], { cwd: HARNESS, env: process.env, encoding: 'utf8', maxBuffer: 64 << 20 });
+// `live`: el stderr del hijo pasa directo a la terminal. Con `--json` el runner de casos escribe su texto en stderr y
+// deja en stdout sólo el informe, así que se ve cada caso mientras corre (antes una suite de minutos era un renglón
+// quieto hasta el final) y lo que se parsea sigue siendo el stdout capturado. Las suites siguen EN SERIE.
+const node = (script: string, extra: string[], live = false) =>
+    spawnSync('node', [script, ...extra], { cwd: HARNESS, env: process.env, encoding: 'utf8', maxBuffer: 64 << 20,
+        stdio: live ? ['ignore', 'pipe', 'inherit'] : 'pipe' });
 const lastJson = (out: string) => { try { return JSON.parse(out.trim().split('\n').pop() || 'null'); } catch { return null; } };
 
 if ((process.env.E2E_TARGET || '') !== 'local') {
@@ -71,13 +75,21 @@ const now: typeof previous = {};
 const started = new Date().toISOString();
 say(`\n  REGRESIÓN · ${suites.length} suite(s) contra local${skipped.length ? ` · ${skipped.length} salteada(s)` : ''}\n`);
 for (const f of suites) {
-    process.stderr.write(`  ▸ ${f} …`);
+    process.stderr.write(`  ▸ ${f} …\n`);
     const t0 = Date.now();
-    const report = lastJson(node('dev/case.ts', ['--suite', `suites/${f}`, '--json']).stdout ?? '');
+    const run = node('dev/case.ts', ['--suite', `suites/${f}`, '--json'], true);
+    const report = lastJson(run.stdout ?? '');
     const ok = !!report?.ok;
+    // Sin informe no hay desvíos que mostrar: va la cola de lo que el hijo dejó en stdout y cómo salió. Su stderr ya
+    // pasó por la terminal. Sin esto «sin informe JSON» no decía si fue un crash, un timeout o una salida a medias.
+    if (!report) {
+        const tail = (run.stdout ?? '').trimEnd().split('\n').slice(-15).map((l) => l.slice(0, 300)).join('\n');
+        const how = run.error ? `no arrancó: ${run.error.message}` : run.signal ? `lo cortó ${run.signal}` : `salió con código ${run.status}`;
+        process.stderr.write(`    ✗ ${f} no dejó informe JSON (${how})${tail ? `. Lo último que escribió en stdout:\n${tail.replace(/^/gm, '      │ ')}` : ', y no escribió nada en stdout'}\n`);
+    }
     now[f] = { ok, casos: report?.casos?.length ?? 0, cuando: started,
                desvios: report ? (report.sinVeredicto ? [report.detalle] : report.desvios ?? []) : ['sin informe JSON'] };
-    process.stderr.write(` ${ok ? '✓' : '✗'} ${Math.round((Date.now() - t0) / 1000)}s\n`);
+    process.stderr.write(`  ${ok ? '✓' : '✗'} ${f} · ${Math.round((Date.now() - t0) / 1000)}s\n`);
 }
 
 // 3 · Qué cambió. Lo nuevo y lo que se rompió van primero: es lo que hay que mirar.

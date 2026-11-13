@@ -47,6 +47,53 @@ func synthesizeEleven(voice, text string) (string, error) {
 	if _, err := os.Stat(file); err == nil {
 		return file, nil
 	}
+	// dos pedidos iguales a la vez (la llamada y el ▶ del mismo mensaje, dos ventanas) generan una sola vez
+	return voiceOnce(file, func() (string, error) { return generateEleven(cfg, voice, text, dir, file) })
+}
+
+// UNA FRASE SE GENERA UNA VEZ AUNQUE LA PIDAN DOS A LA VEZ: la caché en disco evita repetirla DESPUÉS de generada,
+// pero dos pedidos simultáneos de la misma frase no la encontraban todavía y pagaban los dos. voiceOnce deja pasar al
+// primero y hace esperar a los demás su mismo resultado (el candado es por archivo, o sea por modelo, voz y texto).
+type voiceCall struct {
+	done chan struct{}
+	file string
+	err  error
+}
+
+var (
+	voiceCallsMu sync.Mutex
+	voiceCalls   = map[string]*voiceCall{}
+)
+
+func voiceOnce(key string, generate func() (string, error)) (string, error) {
+	voiceCallsMu.Lock()
+	if c, ok := voiceCalls[key]; ok {
+		voiceCallsMu.Unlock()
+		<-c.done
+		return c.file, c.err
+	}
+	c := &voiceCall{done: make(chan struct{})}
+	voiceCalls[key] = c
+	voiceCallsMu.Unlock()
+	// con defer: aunque generate entre en pánico, los que esperan se liberan y el candado no queda tomado
+	defer func() {
+		voiceCallsMu.Lock()
+		delete(voiceCalls, key)
+		voiceCallsMu.Unlock()
+		close(c.done)
+	}()
+	c.err = errors.New("no se pudo generar la voz")
+	c.file, c.err = generate()
+	return c.file, c.err
+}
+
+// generateEleven pide la frase a ElevenLabs y la deja en `file`. Sólo se llama desde voiceOnce.
+func generateEleven(cfg elevenlabs.Config, voice, text, dir, file string) (string, error) {
+	// entre mirar el disco y tomar el candado, otro pedido igual pudo haber terminado: entonces ya está
+	if _, err := os.Stat(file); err == nil {
+		return file, nil
+	}
+	var err error
 	elevenMu.Lock()
 	if time.Now().Before(elevenBlocked) {
 		why := elevenWhy

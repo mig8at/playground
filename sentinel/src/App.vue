@@ -31,14 +31,32 @@ async function load() {
     following.value = body.following || []
   } catch {
     apiError.value = 'No contesta la API. ¿Está arriba? (make sentinel levanta las dos partes)'
+    running.value = false // sin API no hay pasada que seguir de cerca: el sondeo vuelve al ritmo lento
   }
+}
+// EL SONDEO. En reposo, cada 30 s (el servidor lee cada 5 min). Mientras el servidor dice que está leyendo o cargando
+// la historia, cada 2 s: antes «leer ahora» miraba una vez a los 1,5 s y el resultado aparecía hasta 30 s después de
+// terminar. Con la pestaña oculta no se sondea; al volver, se lee en el acto.
+const POLL_IDLE = 30_000
+const POLL_BUSY = 2_000
+let timer = null
+let busyUntil = 0 // tras «leer ahora», un rato de sondeo rápido aunque el servidor todavía no diga `running`
+function schedule() {
+  clearTimeout(timer)
+  if (document.hidden) return
+  const busy = running.value || !!loading.value || Date.now() < busyUntil
+  timer = setTimeout(async () => { await load(); schedule() }, busy ? POLL_BUSY : POLL_IDLE)
+}
+function onVisibility() {
+  if (document.hidden) clearTimeout(timer)
+  else load().then(schedule)
 }
 async function refresh() {
   running.value = true
+  busyUntil = Date.now() + 6000
   try { await fetch('/api/refresh', { method: 'POST' }) } catch { /* lo dice load */ }
-  setTimeout(load, 1500)
+  schedule()
 }
-let timer = null
 
 // ── lo elegido ──
 const fold = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
@@ -149,6 +167,12 @@ const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo ==
 const apps = computed(() => data.value?.apps || [])
 const isService = (s) => s?.kind === 'service' || s?.kind === 'logs' || s?.kind === 'jserr'
 const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.kind === 'jserr' ? 'frontend-monorepo' : s.name)
+// Una fuente que no contestó en la última pasada: la API sigue con lo que tiene y lo dice en una nota. Lo que se ve de
+// esa fuente es lo de la última lectura buena, así que se marca: un número viejo sin aviso se lee como «todo normal».
+// Los servicios salen de Loki; el front (sus errores de JavaScript) y las pantallas, de PostHog.
+const sourceNoteOf = (s) => (!s ? '' : s.kind === 'service' || s.kind === 'logs' || s.kind === 'lerr' ? data.value?.logsNote || '' : s.kind === 'jserr' || s.kind === 'step' ? data.value?.stepsNote || '' : '')
+const appNote = (a) => (a.service === 'frontend-monorepo' ? data.value?.stepsNote : data.value?.logsNote) || ''
+const sourceNotes = computed(() => [['sin Loki', data.value?.logsNote], ['sin PostHog', data.value?.stepsNote], ['sin despliegues', data.value?.deploysNote]].filter((x) => x[1]))
 const releaseOf = (s) => apps.value.find((a) => a.service === serviceOf(s))?.release
 const silentFor = (m) => (m >= 2880 ? `${Math.floor(m / 1440)} días` : m >= 120 ? `${Math.floor(m / 60)} h` : `${m} min`)
 const compact = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n))
@@ -298,14 +322,15 @@ onMounted(() => {
   window.addEventListener('popstate', readRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
   readRoute()
-  load()
-  timer = setInterval(load, 30_000)
+  document.addEventListener('visibilitychange', onVisibility)
+  load().then(schedule)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
   window.removeEventListener('popstate', readRoute)
-  clearInterval(timer)
+  document.removeEventListener('visibilitychange', onVisibility)
+  clearTimeout(timer)
   themeBinding?.destroy?.()
   panelMaxBinding?.destroy?.()
 })
@@ -375,6 +400,7 @@ onBeforeUnmount(() => {
             <i class="dot" :class="`is-${selected.state}`" aria-hidden="true"></i>
             <b>{{ STATE_LABEL[selected.state] }}</b> · {{ selected.why }}
           </p>
+          <p v-if="sourceNoteOf(selected)" class="source-note" role="status">⚠ {{ sourceNoteOf(selected) }}. Lo que se ve acá es lo de la última lectura que sí llegó.</p>
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
           <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar.</p>
@@ -558,9 +584,11 @@ onBeforeUnmount(() => {
         </button>
 
         <div class="region-head group"><span>Servicios en producción</span><span class="count">{{ apps.length }}</span></div>
+        <p v-if="data?.logsNote" class="source-note" role="status">⚠ {{ data.logsNote }}. Los errores y las líneas de las tarjetas son los de la última lectura que sí llegó.</p>
         <p v-if="data && !apps.length" class="none">Todavía sin servicios: se leen de los logs de producción.</p>
         <div class="app-cards">
-          <div v-for="a in apps" :key="a.service" class="app-card" :class="[`is-${a.state}`, { on: (a.errors && isOn(a.errors)) || (a.lines && isOn(a.lines)) }]">
+          <div v-for="a in apps" :key="a.service" class="app-card" :title="appNote(a) ? `Datos viejos: ${appNote(a)}` : null"
+               :class="[`is-${a.state}`, { on: (a.errors && isOn(a.errors)) || (a.lines && isOn(a.lines)), 'is-old': appNote(a) }]">
             <div class="app-head">
               <i class="dot" :class="`is-${a.state}`" aria-hidden="true"></i>
               <span class="app-name" :title="a.repo && a.repo !== a.service ? `repo ${a.repo}` : a.service">{{ a.service }}</span>
@@ -598,7 +626,8 @@ onBeforeUnmount(() => {
         </button>
 
         <div class="region-head group"><span>Despliegues a producción</span><span class="count">{{ data?.deploys?.length || 0 }}</span></div>
-        <p v-if="data && !data.deploys?.length" class="none">Ninguno en los últimos días.</p>
+        <p v-if="data?.deploysNote" class="source-note" role="status">⚠ {{ data.deploysNote }}</p>
+        <p v-if="data && !data.deploys?.length && !data.deploysNote" class="none">Ninguno en los últimos días.</p>
         <a v-for="d in data?.deploys || []" :key="d.url" class="row stacked" :href="d.url" target="_blank" rel="noopener">
           <span><i class="dot" :class="d.ok ? 'is-ok' : 'is-alert'" aria-hidden="true"></i>{{ repoShort(d.repo) }} <b>{{ d.version }}</b></span>
           <small class="row-desc">{{ dayClock(d.at) }} · {{ d.title }}</small>
@@ -610,6 +639,7 @@ onBeforeUnmount(() => {
       <span v-if="data">{{ data.source }} · leído a las {{ clock(data.checkedAt) }} ({{ fmt(data.seconds) }} s) · {{ data.history.days }} días guardados desde el {{ data.history.from }}</span>
       <span v-else>{{ apiError || 'leyendo producción…' }}</span>
       <span v-if="apiError && data" class="statusbar-item warn-text">{{ apiError }}</span>
+      <span v-for="n in sourceNotes" :key="n[0]" class="statusbar-item warn-text" :title="n[1]">⚠ {{ n[0] }}</span>
       <span v-if="loading && data" class="statusbar-item">{{ loading }}</span>
       <span v-else-if="stale" class="statusbar-item">lo guardado de las {{ clock(data.checkedAt) }}; leyendo lo de ahora…</span>
       <button type="button" class="statusbar-item linkish" :disabled="running" @click="refresh">{{ running ? 'leyendo…' : 'leer ahora' }}</button>
@@ -744,6 +774,16 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .metric-nums { font-size: var(--text-sm); color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap }
 .metric-nums b { color: var(--foreground) }
 .metric .spark { width: 100%; height: 18px }
+/* Una fuente que no contestó (Loki, PostHog, los despliegues): el aviso de la base —barra de color a la izquierda y un
+   tinte, cuadrado, sin marco— sobre el grupo al que le faltan datos. El texto del error puede ser largo: se parte. */
+.source-note { margin: 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--sentinel-warn);
+  background: color-mix(in oklab, var(--sentinel-warn) 12%, transparent); color: var(--foreground); font-size: var(--text-sm); overflow-wrap: anywhere }
+.auxiliarybar .source-note { margin: var(--space-1) var(--space-3) }
+.warn-text { color: var(--sentinel-warn) }
+/* Una tarjeta con datos viejos: borde punteado y los números atenuados (el nombre y la versión, que no salen de esa
+   fuente, quedan enteros). */
+.app-card.is-old { border-style: dashed }
+.app-card.is-old .app-metrics { opacity: .6 }
 .note { margin: calc(var(--space-3) * -1) 0 0; font-size: var(--text-sm); color: var(--fg-2) }
 .muted { color: var(--fg-3) }
 .linkish { border: 0; background: none; color: inherit; font: inherit; cursor: pointer; text-decoration: underline }

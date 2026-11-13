@@ -12,10 +12,10 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	connlogs "creditop/playground/connectors/logs"
@@ -65,6 +65,24 @@ func (f Fresh) add(date string, sig Signal, field string, b, n int) {
 		*m = map[int]int{}
 	}
 	(*m)[b] += n
+}
+
+// merge suma otra lectura a ésta. Suma (no reemplaza): dos consultas pueden contar para la misma señal, como los
+// errores de una entidad, que salen de dos fuentes.
+func (f Fresh) merge(other Fresh) {
+	for date, sigs := range other {
+		for sig, c := range sigs {
+			for b, n := range c.Total {
+				f.add(date, sig, "total", b, n)
+			}
+			for b, n := range c.Approved {
+				f.add(date, sig, "approved", b, n)
+			}
+			for b, n := range c.Denied {
+				f.add(date, sig, "denied", b, n)
+			}
+		}
+	}
 }
 
 // ── Redash ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -236,18 +254,20 @@ func logKindsSince(since int) []string {
 	return kinds
 }
 
-// logErrors: lo de Loki de [from, to), por bloque, desde la versión `since` (0: todo).
+// logErrors: lo de Loki de [from, to), por bloque, desde la versión `since` (0: todo). Las consultas van A LA VEZ
+// (son independientes y cada una tarda lo suyo), cada una a su propio `Fresh`; se juntan al final, en orden, así el
+// mapa compartido no se toca desde dos lados. Si una falla, falla la lectura entera, como antes.
 func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slugs map[string]int) error {
+	type job struct {
+		query    string
+		signalOf func(map[string]string) Signal
+	}
 	byService := func(prefix string) func(map[string]string) Signal {
 		return func(m map[string]string) Signal { return prefix + m["service_name"] }
 	}
+	var jobs []job
 	if since < 2 {
-		if err := lokiSeries(cl, errorsLogQL, byService("service:"), from, to, f); err != nil {
-			return err
-		}
-		if err := lokiSeries(cl, linesLogQL, byService("logs:"), from, to, f); err != nil {
-			return err
-		}
+		jobs = append(jobs, job{errorsLogQL, byService("service:")}, job{linesLogQL, byService("logs:")})
 	}
 	if since < 3 {
 		bySlug := func(m map[string]string) Signal {
@@ -256,18 +276,32 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 			}
 			return "" // un nombre que no está en `lenders`: no se puede atribuir
 		}
-		if err := lokiSeries(cl, lenderNameErrorsLogQL, bySlug, from, to, f); err != nil {
-			return err
-		}
 		byID := func(m map[string]string) Signal {
 			if id, err := strconv.Atoi(m["context_lender_id"]); err == nil && id > 0 {
 				return fmt.Sprintf("lerr:%d", id)
 			}
 			return ""
 		}
-		if err := lokiSeries(cl, lenderIDErrorsLogQL, byID, from, to, f); err != nil {
+		jobs = append(jobs, job{lenderNameErrorsLogQL, bySlug}, job{lenderIDErrorsLogQL, byID})
+	}
+	parts, errs := make([]Fresh, len(jobs)), make([]error, len(jobs))
+	var wg sync.WaitGroup
+	for i, j := range jobs {
+		parts[i] = Fresh{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs[i] = lokiSeries(cl, j.query, j.signalOf, from, to, parts[i])
+		}()
+	}
+	wg.Wait()
+	for _, err := range errs {
+		if err != nil {
 			return err
 		}
+	}
+	for _, part := range parts {
+		f.merge(part)
 	}
 	return nil
 }
@@ -337,9 +371,8 @@ type Deploy struct {
 }
 
 func deploys(root string, days int) ([]Deploy, error) {
-	cmd := exec.Command("go", "run", "./tablero/server/cmd/deploys", "-json", "-dias", strconv.Itoa(days))
-	cmd.Dir = root
-	out, err := cmd.Output()
+	// Con plazo (runTool, en services.go): un `go run` colgado detenía la pasada para siempre.
+	out, err := runTool(deploysTimeout, root, "go", "run", "./tablero/server/cmd/deploys", "-json", "-dias", strconv.Itoa(days))
 	if err != nil {
 		return nil, fmt.Errorf("make deploys no contestó (¿gh autenticado?): %v", err)
 	}

@@ -72,6 +72,8 @@ type server struct {
 	inflight map[string]chan struct{}   // una imagen que ya se está bajando
 	nodes    map[string][]byte          // clave+versión+nodo → el JSON crudo de una pantalla
 	variants map[string]variantSet      // clave+versión → las variantes de la casilla en el archivo
+	screens  screenMemo                 // las pantallas ya leídas y traducidas (memo.go), con su propio candado
+	mapReads mapFlights                 // un solo pedido a Figma por mapa a la vez (memo.go)
 	library  *libraryStore
 }
 
@@ -173,9 +175,15 @@ func (s *server) handleMap(w http.ResponseWriter, r *http.Request) {
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Minute)
 	defer cancel()
-	// Sin contar comentarios: la interfaz ya no los muestra (Miguel, 2026-09-25), y contarlos es un pedido
-	// más a Figma por cada mapa.
-	st, err = s.figma.Structure(ctx, ref.FileKey, node, false)
+	// Dos pedidos del mismo mapa a la vez bajan UNA vez de Figma: el segundo espera al primero (memo.go). La
+	// lectura lleva su propio tope y no el contexto del primer cliente: si ése se va, los demás igual reciben.
+	st, err = s.mapReads.do(ctx, k, func() (figma.Structure, error) {
+		ctx, cancel := context.WithTimeout(context.WithoutCancel(r.Context()), 2*time.Minute)
+		defer cancel()
+		// Sin contar comentarios: la interfaz ya no los muestra (Miguel, 2026-09-25), y contarlos es un pedido
+		// más a Figma por cada mapa.
+		return s.figma.Structure(ctx, ref.FileKey, node, false)
+	})
 	if err != nil {
 		fail(w, statusOf(err), "%v", err)
 		return

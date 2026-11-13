@@ -23,6 +23,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
+	"time"
 )
 
 //go:embed index.html
@@ -180,43 +182,84 @@ type pastSweep struct {
 	Mock     bool    `json:"mock"`
 }
 
+// historyCache: el resumen de cada barrido.json ya leído, con la fecha y el tamaño que tenía. Un barrido guardado no
+// cambia más, y cada archivo trae todos los pasos de todos los agentes: deserializarlos todos en cada pedido de la
+// lista (la página la pide al abrir, al terminar un barrido y al mirar uno anterior) crecía con cada barrido.
+var historyCache = struct {
+	sync.Mutex
+	byPath map[string]cachedSweep
+}{byPath: map[string]cachedSweep{}}
+
+type cachedSweep struct {
+	mod  time.Time
+	size int64
+	ok   bool // false: el archivo no se pudo leer como barrido (no se reintenta hasta que cambie)
+	p    pastSweep
+}
+
 // history: los barridos guardados, del más nuevo al más viejo.
 func history(root string) []pastSweep {
 	files, _ := filepath.Glob(filepath.Join(root, "sala", ".barridos", "*", "barrido.json"))
 	out := []pastSweep{}
+	historyCache.Lock()
+	defer historyCache.Unlock()
+	seen := map[string]bool{}
 	for _, f := range files {
-		raw, err := os.ReadFile(f)
+		st, err := os.Stat(f)
 		if err != nil {
 			continue
 		}
-		var b struct {
-			board
-			Runs []agent `json:"runs"` // el formato del primer barrido, antes de la página
+		seen[f] = true
+		c, hit := historyCache.byPath[f]
+		if !hit || !c.mod.Equal(st.ModTime()) || c.size != st.Size() {
+			c = cachedSweep{mod: st.ModTime(), size: st.Size()}
+			c.p, c.ok = summarize(f)
+			historyCache.byPath[f] = c
 		}
-		if json.Unmarshal(raw, &b) != nil {
-			continue
+		if c.ok {
+			out = append(out, c.p)
 		}
-		p := pastSweep{ID: filepath.Base(filepath.Dir(f)), Findings: len(b.Findings), Cost: b.Cost, Mock: b.Mock}
-		var topics []string
-		for _, a := range append(b.Agents, ptrs(b.Runs)...) {
-			topics = append(topics, a.Topic)
-			if b.Cost == 0 && len(b.Runs) > 0 {
-				p.Cost += a.Cost
-			}
+	}
+	for f := range historyCache.byPath {
+		if !seen[f] { // un barrido que se borró del disco
+			delete(historyCache.byPath, f)
 		}
-		if b.Cost == 0 && b.Verifier != nil {
-			p.Cost += b.Verifier.Cost
-		}
-		p.Topics = strings.Join(topics, ", ")
-		for _, fd := range b.Findings {
-			if fd.Verdict == "✓" {
-				p.Verified++
-			}
-		}
-		out = append(out, p)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].ID > out[j].ID })
 	return out
+}
+
+// summarize lee un barrido.json y lo resume en una fila de la lista.
+func summarize(f string) (pastSweep, bool) {
+	raw, err := os.ReadFile(f)
+	if err != nil {
+		return pastSweep{}, false
+	}
+	var b struct {
+		board
+		Runs []agent `json:"runs"` // el formato del primer barrido, antes de la página
+	}
+	if json.Unmarshal(raw, &b) != nil {
+		return pastSweep{}, false
+	}
+	p := pastSweep{ID: filepath.Base(filepath.Dir(f)), Findings: len(b.Findings), Cost: b.Cost, Mock: b.Mock}
+	var topics []string
+	for _, a := range append(b.Agents, ptrs(b.Runs)...) {
+		topics = append(topics, a.Topic)
+		if b.Cost == 0 && len(b.Runs) > 0 {
+			p.Cost += a.Cost
+		}
+	}
+	if b.Cost == 0 && b.Verifier != nil {
+		p.Cost += b.Verifier.Cost
+	}
+	p.Topics = strings.Join(topics, ", ")
+	for _, fd := range b.Findings {
+		if fd.Verdict == "✓" {
+			p.Verified++
+		}
+	}
+	return p, true
 }
 
 func ptrs(as []agent) []*agent {

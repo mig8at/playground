@@ -361,17 +361,31 @@ function load(id) {
 }
 async function loadOnce(id) {
   const app = apps.find((a) => a.id === id)
-  const wait = document.createElement('div')
-  wait.className = 'waiting'
-  wait.dataset.app = id
+  // El aviso de un intento anterior que falló se REUSA: antes cada reintento apilaba otro encima (el viejo quedaba
+  // debajo diciendo «no arrancó»). `:not(.over)`: el de «dejó de contestar» (el vigilante) es otro y no se toca.
+  let wait = panels.querySelector(`.waiting:not(.over)[data-app="${id}"]`)
+  if (!wait) {
+    wait = document.createElement('div')
+    wait.className = 'waiting'
+    wait.dataset.app = id
+    panels.append(wait)
+  }
   wait.hidden = current !== id
   wait.textContent = `Arrancando ${app.name}…`
-  panels.append(wait)
   const start = Date.now()
   while (!(await invoke('ensure_app', { id }).catch(() => false))) {
     if (Date.now() - start > 90_000) {
-      wait.textContent = `${app.name} no arrancó: mirá ~/Library/Logs/cockpit-${id}.log`
       delete loading[id]
+      // Falló: el aviso queda, con un botón para volver a intentar sin tener que cambiar de app y volver.
+      const retry = document.createElement('button')
+      retry.type = 'button'
+      retry.className = 'btn btn-outline btn-sm'
+      retry.textContent = 'Reintentar'
+      retry.addEventListener('click', () => load(id))
+      const box = document.createElement('div')
+      box.style.cssText = 'display: grid; gap: var(--space-3); justify-items: center; text-align: center'
+      box.append(`${app.name} no arrancó: mirá ~/Library/Logs/cockpit-${id}.log`, retry)
+      wait.replaceChildren(box)
       return
     }
     await new Promise((r) => setTimeout(r, 700))

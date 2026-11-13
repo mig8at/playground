@@ -19,6 +19,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -217,6 +218,25 @@ func (n *notifier) failed(err error, now time.Time) {
 	n.save()
 }
 
+// stuck: la pasada en curso lleva demasiado sin avanzar (el perro guardián de main.go). Es el mismo «Sentinel no está
+// mirando» que `failed`, pero sin esperar `staleMinutes`: una pasada colgada no devuelve nunca, así que nadie más va a
+// avisar, y el plazo (2× el intervalo) ya pasó. Una vez; cuando una pasada vuelve a terminar bien, `observe` avisa que
+// volvió y lo rearma.
+func (n *notifier) stuck(since, now time.Time) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if n.FailingSince == "" {
+		n.FailingSince = since.Format(time.RFC3339)
+	}
+	if n.StaleNotified {
+		return
+	}
+	n.StaleNotified = true
+	text := fmt.Sprintf("La pasada lleva %d min sin avanzar (¿una consulta o un proceso colgado?). Si no vuelve sola, reiniciá la API.", int(now.Sub(since).Minutes()))
+	n.send(Notice{Signal: "sentinel", Name: "Sentinel", Level: "stale", Text: text}, now, "Sentinel no está mirando", true)
+	n.save()
+}
+
 // send manda el aviso y lo anota. Con n.mu tomado.
 func (n *notifier) send(x Notice, now time.Time, title string, sound bool) {
 	x.At = now.Format(time.RFC3339)
@@ -270,8 +290,9 @@ var rulesPath string
 
 func loadRulesQuiet() (Rules, error) { return loadRules(rulesPath) }
 
-// macNotice: el aviso de macOS. Va por el avisador del chat («Chat del playground», que ya tiene permiso de avisos y
-// abre un enlace `cockpit://` al tocarlo: Cockpit trae Sentinel al frente en esa ruta); sin él, por osascript.
+// macNotice: el aviso del sistema. En macOS va por el avisador del chat («Chat del playground», que ya tiene permiso de
+// avisos y abre un enlace `cockpit://` al tocarlo: Cockpit trae Sentinel al frente en esa ruta); sin él, por osascript.
+// En Linux (sin osascript), por `notify-send` si está en el PATH: no abre nada al tocarlo, pero avisa.
 func macNotice(title, body, route string, sound bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
@@ -284,6 +305,22 @@ func macNotice(title, body, route string, sound bool) error {
 		}
 		if out, err := exec.CommandContext(ctx, bin, args...).CombinedOutput(); err != nil {
 			return fmt.Errorf("avisador: %v %s", err, strings.TrimSpace(string(out)))
+		}
+		return nil
+	}
+	if runtime.GOOS != "darwin" {
+		bin, err := exec.LookPath("notify-send")
+		if err != nil {
+			return fmt.Errorf("sin avisador en %s: no está notify-send en el PATH", runtime.GOOS)
+		}
+		// El sonido no depende de notify-send: en alerta va como urgencia crítica, que el escritorio no esconde sola.
+		// El «--» corta las opciones: un cuerpo que empieza con «-» no se lee como una.
+		urgency := "normal"
+		if sound {
+			urgency = "critical"
+		}
+		if out, err := exec.CommandContext(ctx, bin, "--app-name=Sentinel", "--urgency="+urgency, "--", title, body).CombinedOutput(); err != nil {
+			return fmt.Errorf("notify-send: %v %s", err, strings.TrimSpace(string(out)))
 		}
 		return nil
 	}

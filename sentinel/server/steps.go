@@ -16,7 +16,6 @@ package main
 import (
 	"fmt"
 	"math"
-	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -328,7 +327,7 @@ GROUP BY v ORDER BY first`, days)
 // frontTags: el tag de cada commit del front (los últimos 100).
 func frontTags() map[string]string {
 	out := map[string]string{}
-	raw, err := exec.Command("gh", "api", "repos/Creditop-SAS/frontend-monorepo/tags?per_page=100", "-q", `.[] | [.commit.sha, .name] | @tsv`).Output()
+	raw, err := runTool(ghTimeout, "", "gh", "api", "repos/Creditop-SAS/frontend-monorepo/tags?per_page=100", "-q", `.[] | [.commit.sha, .name] | @tsv`)
 	if err != nil {
 		return out
 	}

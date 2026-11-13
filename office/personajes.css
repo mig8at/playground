@@ -89,6 +89,13 @@
 .glow { animation: glow 1.6s ease-in-out infinite alternate; }
 @keyframes glow { from { opacity: .55; } to { opacity: 1; } }
 .paused * { animation-play-state: paused !important; }
+/* MENOS MOVIMIENTO (prefers-reduced-motion): lo mismo que la pausa, quieto todo —el balanceo, el cabeceo, el parpadeo,
+   la mirada, las barras—, salvo la boca (y el pico) de quien habla, que es lo que dice quién tiene la palabra. Se
+   apaga (animation: none) en vez de pausar: pausado, un parpadeo podía quedar congelado con los ojos cerrados. Los
+   gestos que no se animan (cejas, pupilas, qué boca se ve) siguen cambiando con el estado. */
+@media (prefers-reduced-motion: reduce) {
+  .tile *:not(.mouth):not(.beak-jaw):not(.beak-top):not(.beak-inside) { animation: none !important; }
+}
 
 
 /* LA TEXTURA DE PAPEL: fibras y grano encima de cada recuadro, multiplicadas con los colores. Se prende y se apaga

@@ -15,6 +15,7 @@ import { readFileSync, existsSync, writeFileSync, readdirSync, statSync, mkdirSy
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { MockSupervisor, MOCKS as MOCK_REGISTRY } from './mocks.ts';
+import { linesSince } from './log-lines.ts';
 import { advisorSession } from '../../connectors/advisor/session.ts';
 import { envData, type AutofillData } from '../pkg/autofill.ts';
 import { identityWithoutProviderNotice } from '../pkg/config.ts';
@@ -106,6 +107,46 @@ const BOOT = {
 };
 for (const f of codeFiles()) BOOT.mtimes.set(f, mtimeOf(f));
 const envDriftCache = new Map<string, { at: number; data: any }>();
+
+/** Lo que contesta `/api/panel-version`, guardado 30 s. Cada respuesta hace un `stat` de todo `panel/` y `pkg/` y lanza
+ *  cuatro procesos (dos `lsof` y dos `git`) para saber qué sirve :5174, y el pie la pide cada minuto por cada pestaña
+ *  abierta. Se guarda la PROMESA: dos pestañas que preguntan a la vez comparten la misma medición. Que el aviso de
+ *  «el código cambió» llegue hasta 30 s más tarde no cambia nada: el panel ya lleva minutos arriba cuando importa. */
+let panelVersionCache: { at: number; data: Promise<Record<string, unknown>> } | null = null;
+function panelVersion(): Promise<Record<string, unknown>> {
+    if (panelVersionCache && Date.now() - panelVersionCache.at < 30_000) return panelVersionCache.data;
+    const data = (async () => {
+        const changed = codeFiles().filter((f) => (BOOT.mtimes.get(f) ?? 0) < mtimeOf(f)).map((f) => f.replace(ROOT + '/', ''));
+        return { startedAt: BOOT.at, commit: BOOT.commit, changed, frontLocal: await frontLocal() };
+    })();
+    panelVersionCache = { at: Date.now(), data };
+    data.catch(() => { panelVersionCache = null; });   // una medición que falló no se queda guardada
+    return data;
+}
+
+/** El chequeo del mapa (`bin/steps-check.ts --json`: ¿existen los archivos de cada paso?), guardado mientras
+ *  `panel/steps.json` no cambie. Lo piden `/api/estado` (cada refresco del pie) y `/api/steps`, y cada vez arrancaba un
+ *  proceso de node para llegar a la misma respuesta. ⚠ Además de `steps.json` el chequeo mira archivos de los repos
+ *  (una rama distinta puede no tenerlos), así que la respuesta guardada vence a los 5 min aunque el mapa no cambie.
+ *  Un chequeo que no se pudo leer (`null`) no se guarda: se reintenta en la consulta siguiente. */
+let stepsCheckCache: { mtime: number; at: number; data: any } | null = null;
+let stepsCheckRunning: Promise<any> | null = null;
+function stepsCheck(): Promise<any> {
+    const mtime = mtimeOf(join(HERE, 'steps.json'));
+    if (stepsCheckCache && stepsCheckCache.mtime === mtime && Date.now() - stepsCheckCache.at < 5 * 60_000) return Promise.resolve(stepsCheckCache.data);
+    if (stepsCheckRunning) return stepsCheckRunning;
+    const running: Promise<any> = new Promise<any>((ok) => {
+        execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
+            let data: any = null;
+            try { data = JSON.parse(out); } catch { /* sin respuesta legible: null */ }
+            if (data !== null) stepsCheckCache = { mtime, at: Date.now(), data };
+            if (stepsCheckRunning === running) stepsCheckRunning = null;
+            ok(data);
+        });
+    });
+    stepsCheckRunning = running;
+    return running;
+}
 
 /** Qué sirve el wizard local (:5174): la carpeta, su rama y si trae el auto-onboarding. Sin wizard arriba, null. */
 async function frontLocal(): Promise<{ dir: string; branch: string; sha: string; autoOnboarding: boolean } | null> {
@@ -1692,18 +1733,8 @@ function tailLog(): string {
 // payload (tailLog ya recorta a 120 líneas y son ~7 KB): es porque el cliente pinta una MINIATURA por
 // cada línea 📸, y reconstruir ese DOM cada 2s recrea todas las <img>. Con cursor sólo se agrega lo nuevo.
 // `total` es el conteo absoluto: si baja, el RUN_LOG se reescribió (corrida nueva) → el cliente resetea.
-function linesSince(file: string, from: number): { total: number; from: number; lines: string[] } {
-    if (!existsSync(file)) return { total: 0, from: 0, lines: [] };
-    // Sólo líneas COMPLETAS. El archivo termina en '\n', así que partirlo deja un '' al final que antes contaba en el
-    // total: el cliente pedía «desde el total» y la PRIMERA línea de cada tanda nueva se perdía y en su lugar llegaba un
-    // renglón vacío. En una corrida casi no se notaba (las líneas llegan de a muchas); los celulares escriben de a UNA y
-    // se perdían todas: la excepción de PostHog quedó en el archivo y la consola mostraba un blanco (2026-10-09). Una
-    // línea a medio escribir (sin su '\n') tampoco se manda: llega entera en la consulta siguiente.
-    const all = readFileSync(file, 'utf8').replace(/\x1b\[[0-9;]*[A-Za-z]/g, '').split('\n').slice(0, -1);
-    const since = from > 0 && from <= all.length ? from : 0;
-    return { total: all.length, from: since, lines: all.slice(since) };
-}
-
+// ⚠ Lee sólo la COLA nueva del archivo, con un cursor por archivo, y manda sólo líneas COMPLETAS: `./log-lines.ts`
+// (ahí está el porqué de las dos cosas y su prueba, `node panel/log-lines.selftest.mjs`).
 const logSince = (from: number, lane: Lane = 'a') => linesSince(RUN_LOGS[lane], from);
 
 // log COMPLETO (sin recorte) para el botón "copiar consola". Incluye los errores del navegador: el spec los
@@ -1896,8 +1927,7 @@ const server = createServer(async (req, res) => {
     // ¿El panel corre el código de hoy? Si sus archivos cambiaron después de arrancar, lo que se ve NO es lo último
     // (pasó el 2026-10-08: el proceso era de las 14:43 y los bypasses de las 15:03 no estaban). Y qué sirve :5174.
     if (path === '/api/panel-version') {
-        const changed = codeFiles().filter((f) => (BOOT.mtimes.get(f) ?? 0) < mtimeOf(f)).map((f) => f.replace(ROOT + '/', ''));
-        return json(res, 200, { startedAt: BOOT.at, commit: BOOT.commit, changed, frontLocal: await frontLocal() });
+        return json(res, 200, await panelVersion());
     }
 
     if (path === '/api/estado') {
@@ -1980,7 +2010,10 @@ const server = createServer(async (req, res) => {
             req.on('timeout', () => { req.destroy(); ok(false); });
         });
         const s3 = s3Port();
-        const statuses = await Promise.all(MOCKS.map(async ([n, p, forValue]) => {
+        // Los sondeos de puertos, el chequeo del mapa y la solicitud de abajo no dependen uno del otro: arrancan juntos y
+        // se esperan al final (antes iban en fila y el pie esperaba la suma). Ninguna de las dos promesas rechaza.
+        const stepMapPending = stepsCheck();
+        const statusesPending = Promise.all(MOCKS.map(async ([n, p, forValue]) => {
             const up = await alive(p);
             const isS3 = forValue === 'documentos' && p === s3.puerto;
             const noBucket = isS3 && up && !(await bucketThere(p, s3.bucket));
@@ -2000,13 +2033,15 @@ const server = createServer(async (req, res) => {
         const laneQ = url.searchParams.get('lane');
         const askedLanes = laneQ === null ? LANES : LANES.includes(laneQ) ? [laneQ] : [];
         let lastOne: any = null;
+        let lenderRead = false;   // `lender-de` de esa solicitud ya se pidió acá: más abajo no se repite
         for (const dev of askedLanes.flatMap((l) => [inLane('client', l), inLane('advisor', l)])) {
             const st = deviceState(dev);
             const ur = st.open ? /\/(\d{5,})(?:\/|\?|$)/.exec(new URL(st.url || 'http://x/').pathname)?.[1] : undefined;
             if (!ur || (deviceTarget.get(dev) ?? 'local') !== 'local') continue;
             const l = await dbopsJson(['lender-de', ur], 'local');
             if (l && (l as any).estadoId != null) {
-                lastOne = { uReq: Number(ur), estado: (l as any).estado, estadoId: (l as any).estadoId, lender: (l as any).name, lenderId: (l as any).id, lenderRt: (l as any).rt, celular: dev };
+                lastOne = { uReq: Number(ur), estado: (l as any).estado, estadoId: (l as any).estadoId, lender: (l as any).name, lenderId: (l as any).id ?? null, lenderRt: (l as any).rt ?? null, celular: dev };
+                lenderRead = true;
                 break;
             }
         }
@@ -2028,23 +2063,21 @@ const server = createServer(async (req, res) => {
         // paquete nunca enviado a la entidad (F-168). `null` = esa entidad no radica por transacción.
         // El id y el `response_type` de la entidad: sin ellos la UI no sabe si esta corrida quedó
         // esperando un webhook ni cuál de las dos formas usar (rt=0 genérico vs rt=1 por entidad).
+        // ⚠ La del celular abierto ya trajo su entidad con el mismo `lender-de` (arriba): sólo se pide para la del volcado.
+        // Y la radicación es otra consulta de la misma solicitud: van las dos a la vez (son dos procesos de `dbops`).
         if (lastOne?.uReq) {
-            const l = await dbopsJson(['lender-de', String(lastOne.uReq)], 'local');
+            const [l, r] = await Promise.all([
+                lenderRead ? null : dbopsJson(['lender-de', String(lastOne.uReq)], 'local'),
+                dbopsJson(['radicacion', String(lastOne.uReq)], 'local'),
+            ]);
             if (l && typeof l === 'object') {
                 lastOne.lenderId = (l as any).id ?? null;
                 lastOne.lenderRt = (l as any).rt ?? null;
             }
-        }
-        if (lastOne?.uReq) {
-            const r = await dbopsJson(['radicacion', String(lastOne.uReq)], 'local');
             lastOne.radicacion = (r && typeof r === 'object' ? (r as any).estado : null) ?? null;
         }
 
-        const stepMap = await new Promise<any>((ok) => {
-            execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
-                try { ok(JSON.parse(out)); } catch { ok(null); }
-            });
-        });
+        const [statuses, stepMap] = await Promise.all([statusesPending, stepMapPending]);
 
         return json(res, 200, { docGen, mocks: statuses, ultima: lastOne, mapa: stepMap });
     }
@@ -2052,11 +2085,7 @@ const server = createServer(async (req, res) => {
     if (path === '/api/steps') {
         try {
             const stepMap = JSON.parse(readFileSync(join(HERE, 'steps.json'), 'utf8'));
-            const check = await new Promise<any>((ok) => {
-                execFile('node', ['bin/steps-check.ts', '--json'], { cwd: ROOT, timeout: 15000 }, (_e, out) => {
-                    try { ok(JSON.parse(out)); } catch { ok({ ok: null, rotas: [] }); }
-                });
-            });
+            const check = (await stepsCheck()) ?? { ok: null, rotas: [] };
             return json(res, 200, { ...stepMap, chequeo: check });
         } catch (e) {
             return json(res, 200, { tronco: [], ramales: {}, chequeo: { ok: false, rotas: [], error: String(e) } });

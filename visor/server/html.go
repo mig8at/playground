@@ -28,7 +28,8 @@ func (s *server) screenNode(ctx context.Context, key, id string) (render.Node, s
 	if err != nil {
 		return render.Node{}, version, err
 	}
-	n, err := render.Parse(raw)
+	// Leído una vez por JSON (memo.go): los varios pedidos de una misma pantalla no lo parsean cada uno.
+	n, err := s.parsedNode(key+"|"+version+"|"+id, raw)
 	return n, version, err
 }
 
@@ -91,7 +92,10 @@ func (s *server) fileTokens(key string) *figma.Tokens {
 
 // styleTokens: los tokens del archivo como los usa el traductor, por id de estilo.
 func (s *server) styleTokens(key string) map[string]render.StyleToken {
-	t := s.fileTokens(key)
+	return styleTokensOf(s.fileTokens(key))
+}
+
+func styleTokensOf(t *figma.Tokens) map[string]render.StyleToken {
 	if t == nil {
 		return nil
 	}
@@ -232,7 +236,7 @@ func (s *server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		fail(w, statusOf(err), "%v", err)
 		return
 	}
-	doc, rep := render.HTML(n, assets(key, s.fileVariants(key, version), s.styleTokens(key)))
+	doc, rep := s.renderScreen(key, version, id, n)
 	if r.URL.Query().Get("report") != "" {
 		writeJSON(w, 200, rep)
 		return

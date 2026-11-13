@@ -26,8 +26,8 @@
    habla, los nombrados (o todos los demás, si no nombró a nadie) sostienen una hoja (un documento), una foto (una
    imagen), el llavero (claves) o una hoja que corre (lo largo que quedó en el chat) y miran hacia abajo, leyéndolo;
    unos segundos después lo guardan. */
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
-import { hush, say, voice } from './callVoice.js'
+import { computed, onBeforeUnmount, onMounted, ref, watch, watchEffect } from 'vue'
+import { hush, refreshVoice, say, voice } from './callVoice.js'
 import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
 import { characters } from './characters/index.js'
@@ -51,6 +51,8 @@ onMounted(() => {
   observer = new ResizeObserver(measure)
   observer.observe(box.value)
   requestAnimationFrame(measure)
+  // ¿hay voz ahora? (la llave o el tope del día pueden haber cambiado desde que cargó la página): el chip «sin voz»
+  refreshVoice()
 })
 onBeforeUnmount(() => { observer?.disconnect(); hush(); clearTimeout(nudgeTimer); clearTimeout(muteTimer) })
 
@@ -427,8 +429,28 @@ function greet(c) {
   say(keyOf(c), c.agent ? `Hola, soy ${c.name}, el agente de ${c.ownerName || c.owner}.` : `Hola, soy ${c.name}.`, voiceOf(c))
 }
 const speaking = computed(() => (voice.line ? voice.speaker : ''))
-// la apertura de la boca de quien habla (con dos decimales: el atributo cambia sólo cuando cambia de verdad)
-const mouth = (c) => (speaking.value === keyOf(c) ? voice.level.toFixed(2) : null)
+/* LA BOCA VA POR FUERA DEL RENDER DE VUE: `voice.level` cambia en cada cuadro mientras alguien habla, y leerla en el
+   template re-evaluaba TODOS los recuadros 60 veces por segundo. Este efecto escribe el atributo `boca` sólo en el
+   personaje de quien habla (y sólo cuando el valor cambia de verdad, a dos decimales); al callarse o cambiar de turno
+   se lo quita, y el personaje vuelve a su vaivén propio. Corre después del render (`post`): el recuadro ya existe. */
+let mouthEl = null, mouthKey = '', mouthValue = ''
+function clearMouth() { mouthEl?.removeAttribute('boca'); mouthEl = null; mouthKey = ''; mouthValue = '' }
+watchEffect(() => {
+  const key = speaking.value, level = voice.level
+  if (key !== mouthKey || (mouthEl && !mouthEl.isConnected)) {
+    clearMouth()
+    mouthKey = key
+    if (key) for (const el of box.value?.querySelectorAll('.call-tile') || []) {
+      if (el.dataset.key === key) { mouthEl = el.querySelector('office-personaje'); break }
+    }
+  }
+  if (!mouthEl) return
+  const value = level.toFixed(2)
+  if (value !== mouthValue) { mouthValue = value; mouthEl.setAttribute('boca', value) }
+}, { flush: 'post' })
+onBeforeUnmount(clearMouth)
+// el JSON de cada personaje se arma una vez por elenco, no en cada render
+const configs = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), configOf(c)])))
 const caption = computed(() => (voice.line ? { name: byKey.value[voice.speaker]?.name || '', line: voice.line } : null))
 
 const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0]}` : '')
@@ -438,11 +460,14 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   <div ref="box" class="region-body call" aria-label="Videollamada">
     <TransitionGroup tag="div" name="tile" class="call-grid" :class="{ compact }" :style="{ '--tile': `${layout.w}px`, '--cols': layout.cols }">
       <!-- la placa lleva sólo el nombre; de quién es un agente se ve al pasar el mouse -->
-      <figure v-for="c in cast" :key="keyOf(c)" class="call-tile"
+      <!-- cada recuadro es un botón (saluda): se llega con Tab y se activa con Enter o espacio. data-key: por ahí
+           encuentra el efecto de la boca al personaje de quien habla -->
+      <figure v-for="c in cast" :key="keyOf(c)" class="call-tile" :data-key="keyOf(c)" role="button" tabindex="0"
               :class="{ speaking: speaking === keyOf(c), addressed: speaking !== keyOf(c) && addressed.has(keyOf(c)), aside: aside(c) }"
-              :title="label(c) ? `${c.name} · ${label(c)}` : c.name" @click="greet(c)">
-        <office-personaje :config="configOf(c)"
-                          :gesto="gestureOf(c)" :boca="mouth(c)" />
+              :title="label(c) ? `${c.name} · ${label(c)}` : c.name"
+              :aria-label="`${c.name}${label(c) ? `, ${label(c)}` : ''}: que salude`"
+              @click="greet(c)" @keydown.enter.prevent="greet(c)" @keydown.space.prevent="greet(c)">
+        <office-personaje :config="configs[keyOf(c)]" :gesto="gestureOf(c)" aria-hidden="true" />
         <!-- lo que muestra: una hoja, una foto o una hoja que corre, en papel cortado como los personajes -->
         <svg v-if="propOf(c)" class="call-prop" :class="propOf(c)" viewBox="0 0 100 80" aria-hidden="true">
           <template v-if="propOf(c) === 'image'">
@@ -511,6 +536,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         </button>
       </figure>
     </TransitionGroup>
+    <!-- sin voz (sin llave, tope del día, servidor caído): se dice por qué, en vez de una llamada muda sin explicación -->
+    <span v-if="voice.why" class="call-novoice" role="status">🔇 sin voz: {{ voice.why }}</span>
     <div class="call-timeline" role="group" aria-label="Línea de tiempo de la conversación">
       <button type="button" class="tl-btn" title="Desde el primer mensaje" aria-label="Escuchar desde el primer mensaje"
               :disabled="!timeline.length" @click="replayFrom(windowStart)">
@@ -566,6 +593,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .call-name b { font-weight: 800; }
 .call-tile { cursor: pointer; transition: box-shadow .15s; }
+.call-tile:focus-visible { outline: 3px solid var(--ring); outline-offset: 2px; }
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
 .call-muted { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
@@ -621,6 +649,8 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 .call-prop.key .keyring { transform-origin: 34px 22px; animation: key-swing 1.6s ease-in-out infinite alternate; }
 @keyframes key-swing { from { transform: rotate(-10deg); } to { transform: rotate(12deg); } }
 @media (prefers-reduced-motion: reduce) { .call-prop, .call-prop.read .lines, .call-prop.key .keyring { animation: none; } }
+.call-novoice { position: absolute; top: 10px; right: 12px; max-width: calc(100% - 24px); display: inline-flex; align-items: center; padding: 4px 9px; border-radius: 8px;
+  background: var(--card); color: var(--foreground); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
 /* la línea de tiempo: abajo, como la de un directo */
 .call-timeline { position: absolute; left: 12px; right: 12px; bottom: 8px; height: 38px; display: flex; align-items: center; gap: 8px;
   padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background, #fff) 85%, transparent);

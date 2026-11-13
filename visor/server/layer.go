@@ -119,7 +119,8 @@ func (s *server) layerDetail(ctx context.Context, key, id, layer string) (layerD
 	if n.Type == "TEXT" {
 		d.Text = n.Characters
 	}
-	doc, _ := render.HTML(screen, assets(key, s.fileVariants(key, version), tokens))
+	// La misma traducción que sirve /api/html, sin hacerla de nuevo por cada capa que se señala (memo.go).
+	doc, _ := s.renderScreen(key, version, id, screen)
 	d.HTML = htmlFragment(doc, n.ID)
 	return d, nil
 }

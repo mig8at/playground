@@ -45,6 +45,34 @@ const loading = ref(!bootstrapCache);
 const error = ref('');
 const jiraSyncing = ref(false);
 const syncError = ref('');
+// Cuándo fue la última sincronización BUENA con Jira (ms). Viaja en la caché de arranque para que una
+// recarga sin red siga diciendo de cuándo es lo que se ve; `null` es «nunca se supo».
+const lastSyncAt = ref(Number.isFinite(Date.parse(bootstrapCache?.syncedAt || '')) ? Date.parse(bootstrapCache.syncedAt) : null);
+let lastSyncAttempt = 0;
+// Un reloj grueso: los «hace N min» del pie se recalculan solos sin un temporizador por etiqueta.
+const clock = ref(Date.now());
+let clockTimer = null;
+onMounted(() => { clockTimer = setInterval(() => { clock.value = Date.now(); }, 30000); });
+onUnmounted(() => clearInterval(clockTimer));
+function markSynced() {
+  lastSyncAt.value = Date.now();
+  clock.value = lastSyncAt.value;
+  saveBootstrap();
+}
+const elapsedText = (from, now) => {
+  const minutes = Math.max(0, Math.round((now - from) / 60000));
+  if (minutes < 1) return 'recién';
+  if (minutes < 60) return `hace ${minutes} min`;
+  if (minutes < 1440) return `hace ${Math.floor(minutes / 60)} h`;
+  return `hace ${Math.floor(minutes / 1440)} d`;
+};
+const syncAgo = computed(() => (lastSyncAt.value ? elapsedText(lastSyncAt.value, clock.value) : ''));
+const syncTitle = computed(() => {
+  const last = lastSyncAt.value
+    ? `Última sincronización buena con Jira: ${new Date(lastSyncAt.value).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}.`
+    : 'Todavía no hubo una sincronización buena con Jira.';
+  return `${syncError.value ? `${syncError.value}\n` : ''}${last}\nClic para volver a intentar.`;
+});
 
 const sprint = ref(bootstrapCache?.sprint || null);
 const sprints = ref(bootstrapCache?.sprints || []); // los más recientes, del actual hacia atrás — los usan las bandas de la jornada
@@ -424,7 +452,21 @@ const groupedIssues = computed(() => groupTasks(visibleTasks.value, bucketOf));
 function withFilter(ts) {
   const q = normalizedSearch.value;
   const byState = hidden.value.size ? ts.filter(i => !hidden.value.has(bucketOf(i))) : ts;
-  return q ? byState.filter(i => withoutAccents(i.Summary).includes(q) || withoutAccents(i.Key).includes(q)) : byState;
+  return q ? byState.filter(i => matchesSearch(i, q)) : byState;
+}
+const matchesSearch = (i, q) => withoutAccents(i.Summary).includes(q) || withoutAccents(i.Key).includes(q);
+// Con «locales» apagado el buscador no las mira, y una local que no aparece se lee como «no existe».
+// No se las mezcla solas (el interruptor es una preferencia): se dice cuántas coinciden y se ofrece verlas.
+const hiddenLocalMatches = computed(() => {
+  const q = normalizedSearch.value;
+  if (!q || showLocals.value) return 0;
+  return allLocals.value.filter(i => !hidden.value.has(bucketOf(i)) && matchesSearch(i, q)).length;
+});
+// Enter en el buscador abre el primer resultado, en el orden en que se ven.
+const searchInput = ref(null);
+function openFirstResult() {
+  const first = normalizedSearch.value && groupedIssues.value.find(g => g.tasks.length)?.tasks[0];
+  if (first) openTask(first);
 }
 // Los conteos salen de la lista SIN filtrar: si salieran de la filtrada, un bucket destildado diría 0 y
 // dejaría de poder volver a tildarse con conocimiento de qué esconde.
@@ -655,6 +697,7 @@ function saveBootstrap() {
   writeBootstrapCache({
     sprint: sprint.value, sprints: sprints.value, issues: issues.value,
     bySprint: bySprint.value, site: site.value,
+    syncedAt: lastSyncAt.value ? new Date(lastSyncAt.value).toISOString() : '',
   });
 }
 
@@ -740,6 +783,24 @@ const contexts = ref([]);
 // bloques, y menos con los bloques de la tarea anterior.
 const contextsError = ref('');
 let contextsRequest = 0;
+// La primera lectura de una pila: «leyendo…» no es lo mismo que una tarea sin bloques.
+const contextsLoading = ref(false);
+// La última pila leída de cada tarea, en memoria y POR TAREA (el id del esfuerzo): volver a una pestaña la
+// pinta en el acto y la revalida detrás. ⚠ Nunca se pinta la de otra clave: es el bug del 2026-09-25 (la
+// pila de A bajo el título de B). Una respuesta tardía se guarda bajo SU tarea y no toca la pantalla.
+const contextCache = new Map();
+const CONTEXT_CACHE_MAX = 40;
+function cacheContext(effort, events) {
+  contextCache.delete(effort);
+  contextCache.set(effort, events);
+  if (contextCache.size > CONTEXT_CACHE_MAX) contextCache.delete(contextCache.keys().next().value);
+}
+// Una revalidación que trae lo mismo no reemplaza la lista: los bloques ya parseados no se rehacen.
+const sameEvents = (a, b) => a.length === b.length && a.every((event, i) =>
+  event.id === b[i].id && event.at === b[i].at && event.title === b[i].title && event.body === b[i].body);
+function showContext(events) {
+  if (!sameEvents(contexts.value, events)) contexts.value = events;
+}
 const contextDay = (event) => event.at.slice(0, 10);
 const contextAge = (day) => {
   const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -759,7 +820,11 @@ const contextGroups = computed(() => {
     grouped.get(day).push(event);
   }
   return [...grouped.entries()].sort(([a], [b]) => b.localeCompare(a)).map(([day, items]) => ({
-    day, label: contextDayLabel(day), items,
+    // El cuerpo se parsea UNA vez por lectura de la pila, no por bloque en cada render del editor.
+    day, label: contextDayLabel(day), items: items.map((event) => {
+      const parts = parseBlockBody(event.body);
+      return { id: event.id, title: event.title, parts, routes: blockRouteLinks(event.body, parts) };
+    }),
   }));
 });
 // Los días plegados de la línea de tiempo. Arrancan todos abiertos —lo que se lee es la historia de
@@ -812,31 +877,42 @@ async function refreshContext() {
   const request = contextsRequest;
   try {
     const json = await (await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`)).json();
-    if (request === contextsRequest && !json.error) contexts.value = json.events || [];
+    if (json.error) return;
+    cacheContext(effort, json.events || []);
+    if (request === contextsRequest) showContext(json.events || []);
   } catch { /* el próximo aviso o la próxima apertura la traen */ }
 }
 async function loadContext() {
   const task = active.value;
   const request = ++contextsRequest;
   const effort = task && effortFor(task.Key);
-  // ⚠ Se vacía ANTES de pedir: hasta el 2026-09-25 la pila de la tarea anterior seguía en pantalla
-  // mientras cargaba la nueva —y para siempre si la API contestaba `error`—, o sea la evidencia de A
-  // bajo el título de B.
-  contexts.value = [];
+  // ⚠ Se reemplaza ANTES de pedir, por lo último leído de ESTA tarea o por nada: hasta el 2026-09-25 la
+  // pila de la tarea anterior seguía en pantalla mientras cargaba la nueva —y para siempre si la API
+  // contestaba `error`—, o sea la evidencia de A bajo el título de B.
+  const cached = effort ? contextCache.get(effort) : null;
+  contexts.value = cached || [];
   contextsError.value = '';
+  contextsLoading.value = !!effort && !cached;
   if (!effort) return;
   try {
     const response = await fetch(`${SERVER}/api/task-context?effort=${encodeURIComponent(effort)}`);
     const json = await response.json();
+    // Una pila ilegible deja de ser «lo último bueno»: se muestra el error, no la copia.
+    if (json.error) contextCache.delete(effort);
+    else cacheContext(effort, json.events || []);
     if (request !== contextsRequest) return;
-    if (json.error) contextsError.value = json.error;
-    else contexts.value = json.events || [];
+    if (json.error) { contextsError.value = json.error; contexts.value = []; }
+    else showContext(json.events || []);
   } catch (e) {
     if (request === contextsRequest) contextsError.value = `no se pudo hablar con el server (${e.message})`;
+  } finally {
+    if (request === contextsRequest) contextsLoading.value = false;
   }
 }
 
-watch(() => [active.value?.Key, effortFor(active.value?.Key)], () => {
+// Se observa un texto y no un arreglo: un arreglo nuevo en cada evaluación disparaba una lectura cada vez
+// que se recargaban las capas locales, aunque la tarea y su esfuerzo fueran los mismos.
+watch(() => `${active.value?.Key || ''}|${effortFor(active.value?.Key)}`, () => {
   loadContext();
 }, { immediate: true });
 // La descripción completa de Jira se conserva en su riel de referencia. El centro sólo conserva lo
@@ -861,15 +937,29 @@ const pendingSections = computed(() => documentSections.value.filter(section => 
 // El tema de la base (botón del pie). La vista de Jira es un iframe aparte y no hereda los tokens:
 // se redibuja con la paleta del tema cuando cambia.
 const uiTheme = ref(currentTheme());
-const onThemeChange = (e) => { uiTheme.value = e.detail?.theme || currentTheme(); };
+// Los colores salen de los tokens YA resueltos del tablero, así que también siguen a la paleta; `themeTick`
+// obliga a releerlos cuando cambia el tema o la paleta (getComputedStyle no es reactivo).
+const themeTick = ref(0);
+const onThemeChange = (e) => { uiTheme.value = e.detail?.theme || currentTheme(); themeTick.value++; };
+const onPaletteChange = () => { themeTick.value++; };
+function previewTokens() {
+  const root = document.querySelector('.workbench') || document.documentElement;
+  const style = getComputedStyle(root);
+  const token = (name) => style.getPropertyValue(name).trim();
+  return { ink: token('--foreground'), link: token('--info'), line: token('--border'),
+    quote: token('--fg-3'), head: token('--fg-2') || token('--fg-3') };
+}
 const themeToggle = ref(null);
 let themeBinding = null;
 onMounted(() => {
   addEventListener('ui-theme', onThemeChange);
+  addEventListener('ui-palette', onPaletteChange);
+  // Al montar, los tokens ya se pueden leer: la primera vista previa no se queda con la paleta de respaldo.
+  themeTick.value++;
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value);
 });
-onUnmounted(() => { removeEventListener('ui-theme', onThemeChange); themeBinding?.destroy(); });
-const jiraDocument = computed(() => jiraPreview(active.value, uiTheme.value));
+onUnmounted(() => { removeEventListener('ui-theme', onThemeChange); removeEventListener('ui-palette', onPaletteChange); themeBinding?.destroy(); });
+const jiraDocument = computed(() => jiraPreview(active.value, uiTheme.value, themeTick.value ? previewTokens() : null));
 // Canon abre una referencia estable por URL. No ocupa una vista propia: una cita sólo aparece dentro
 // del trabajo que realmente la usó. Una tarea puede declarar un tema (`listado`) o, preferiblemente,
 // una sección exacta (`listado/context#por-donde-pasa-todo`).
@@ -1436,7 +1526,35 @@ const taskTabs = computed(() => {
 watch(auxViews, (views) => {
   if (!views.some((view) => view.id === activeAuxView.value)) activeAuxView.value = 'jira';
 });
-const closeOnEsc = (e) => { if (e.key === 'Escape' && taskMenu.value) closeTaskMenu(true); };
+// Los atajos globales. `/` y Ctrl/Cmd+K llevan al buscador; Escape cierra el menú de la fila y, sin menú,
+// la pestaña activa. ⚠ Escape sólo vale con el foco en el cuerpo, en el árbol o en la barra de pestañas:
+// adentro de la tarea ya lo atiende `TaskEditor`, y en un menú, un campo, la consola o las vistas es de ellos.
+const isEditable = (el) => !!el?.closest?.('input, textarea, select, [contenteditable=""], [contenteditable="true"]');
+async function focusSearch() {
+  if (!sidebarShown.value) toggleSidebar();
+  await nextTick();
+  await nextTick();
+  searchInput.value?.focus();
+  searchInput.value?.select();
+}
+const closeOnEsc = (e) => {
+  if (e.defaultPrevented || e.isComposing) return;
+  const target = e.target instanceof Element ? e.target : null;
+  if (e.key === 'Escape') {
+    if (taskMenu.value) { closeTaskMenu(true); return; }
+    if (!active.value || isEditable(target) || document.querySelector('.region-menu')) return;
+    if (target && target !== document.body && !target.closest('.tree-row, .editor-tabs')) return;
+    e.preventDefault();
+    closeTab(active.value.Key);
+    return;
+  }
+  const slash = e.key === '/' && !e.ctrlKey && !e.metaKey && !e.altKey;
+  const palette = e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey;
+  if ((slash || palette) && !isEditable(target) && !taskMenu.value) {
+    e.preventDefault();
+    void focusSearch();
+  }
+};
 const closeTaskMenuOutside = (e) => {
   if (taskMenu.value && !taskMenuEl.value?.contains(e.target) && !taskMenuOrigin?.contains(e.target)) closeTaskMenu();
 };
@@ -1926,6 +2044,7 @@ async function loadSprints() {
 async function updateStart() {
   jiraSyncing.value = true;
   syncError.value = '';
+  lastSyncAttempt = Date.now();
   try {
     // Todo lo local corre junto y todo lo remoto corre junto. Antes se esperaba sprints → esfuerzos →
     // pulso → sprint → avances → cuatro sprints: `fetch` era AJAX, pero la secuencia seguía bloqueando
@@ -1946,9 +2065,37 @@ async function updateStart() {
     await locales;
     // Una ruta local depende de efforts/task-locals, y una Jira antigua puede depender de bySprint.
     restoreRoute({ settle: true });
-    saveBootstrap();
+    // Buena es con el sprint Y la lista de sprints: `loadSprints` y `loadSprint` dejan su error en `syncError`.
+    if (sprintResult.status === 'fulfilled' && sprintResult.value && !syncError.value) markSynced();
+    else saveBootstrap();
   } finally { jiraSyncing.value = false; }
 }
+
+// Volver a preguntarle a Jira SIN rehacer el arranque: no restaura la ruta ni toca pestañas, sólo trae el
+// sprint y la ventana. La dispara el pie (clic) y volver a la pestaña del navegador después de un rato:
+// antes Jira se consultaba sólo al montar, y un tablero abierto toda la tarde mostraba estados de la mañana.
+const JIRA_STALE_MS = 10 * 60 * 1000;
+async function syncJira() {
+  if (jiraSyncing.value) return;
+  jiraSyncing.value = true;
+  syncError.value = '';
+  lastSyncAttempt = Date.now();
+  try {
+    const sprintRequest = loadSprint();
+    const listed = await loadSprints();
+    const loaded = await sprintRequest;
+    if (listed) await loadLast4();
+    if (loaded && listed && !syncError.value) markSynced();
+  } finally { jiraSyncing.value = false; }
+}
+// Se mide contra el último INTENTO y no contra el último acierto: con Jira caído no se reintenta en cada foco.
+function onVisibilityChange() {
+  if (document.visibilityState !== 'visible') return;
+  clock.value = Date.now();
+  if (!loading.value && Date.now() - lastSyncAttempt > JIRA_STALE_MS) void syncJira();
+}
+onMounted(() => document.addEventListener('visibilitychange', onVisibilityChange));
+onUnmounted(() => document.removeEventListener('visibilitychange', onVisibilityChange));
 
 onMounted(() => {
   // Con cache, la ruta y el editor aparecen en el primer frame. La revalidación no los desmonta.
@@ -1967,19 +2114,54 @@ function openLive() {
   live = new EventSource(`${SERVER}/api/events`);
   live.addEventListener('changed', onLiveChange);
 }
+// Los avisos se JUNTAN medio segundo antes de recargar: una sesión que escribe el documento, la pila y un
+// artifact manda varios seguidos, y cada uno recargaba todas las tareas. El temporizador no se rearma con
+// cada aviso (tope de espera fijo): una ráfaga larga no posterga la recarga indefinidamente.
+const LIVE_WAIT_MS = 500;
+let liveTimer = null;
+let livePending = null;
 function onLiveChange(event) {
   let change;
   try { change = JSON.parse(event.data); } catch { return; }
-  if (change.tasks?.length) {
+  livePending ||= { tasks: new Set(), entries: false, branches: false, pulse: false };
+  for (const slug of change.tasks || []) livePending.tasks.add(slug);
+  livePending.entries ||= !!change.entries;
+  livePending.branches ||= !!change.branches;
+  livePending.pulse ||= !!change.pulse;
+  liveTimer ||= setTimeout(applyLiveChanges, LIVE_WAIT_MS);
+}
+// El aviso nombra las tareas por la carpeta (slug) y la interfaz las conoce por el id del esfuerzo; el
+// cruce lo da la agenda, que trae los dos. Sin fila para la tarea abierta no se sabe, y entonces se relee.
+function touchesActive(slugs) {
+  const effort = effortFor(active.value?.Key);
+  const slug = agendaData.value.rows.find((row) => row.id === effort)?.slug;
+  return !slug || slugs.has(slug);
+}
+function applyLiveChanges() {
+  liveTimer = null;
+  const change = livePending;
+  livePending = null;
+  if (!change) return;
+  if (change.tasks.size) {
     void loadEfforts();
     void loadTaskLocals();
-    if (active.value) void refreshContext();
+    if (active.value && touchesActive(change.tasks)) void refreshContext();
   }
   if (change.entries) void loadEntries();
   if (change.branches) void loadBranches();
   if (change.pulse) void loadPulse();
+  // La agenda de Hoy sale de las tareas (último bloque, pendientes) y de las ramas medidas (entrega).
+  if (change.tasks.size || change.branches) refreshToday();
 }
-onUnmounted(() => live?.close());
+// La agenda se relee sólo con el home a la vista; si no, queda anotado y se relee al volver a él.
+const homeVisible = computed(() => !active.value && !EDITOR_VIEWS.some((id) => isOpen(id)));
+let todayStale = false;
+function refreshToday() {
+  if (homeVisible.value && document.visibilityState === 'visible') { todayStale = false; void loadToday(); }
+  else todayStale = true;
+}
+watch(homeVisible, (shown) => { if (shown && todayStale) refreshToday(); });
+onUnmounted(() => { live?.close(); clearTimeout(liveTimer); });
 
 const documentMenu = computed(() => [
   { id: 'copiar-todo', label: 'Copiar completo para retomar', icon: 'copy', disabled: !documentSections.value.length,
@@ -2031,8 +2213,9 @@ function documentAction(id) {
       <div class="filters" v-if="!loadingWide && totalTasks">
         <label class="search-field input-group" :class="{ act: !!normalizedSearch }">
           <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-          <input v-model="searchQuery" class="input" type="search" placeholder="buscar por título…"
-                 aria-label="Buscar tarea por título o clave">
+          <input ref="searchInput" v-model="searchQuery" class="input" type="search" placeholder="título o clave"
+                 aria-label="Buscar tarea por título o clave" title="Buscar por título o clave ( / )"
+                 @keydown.enter.prevent="openFirstResult">
           <button v-if="searchQuery" class="btn btn-ghost btn-icon btn-xs fx" type="button" title="limpiar" @click="searchQuery = ''" aria-label="Limpiar búsqueda"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
         </label>
       </div>
@@ -2042,6 +2225,11 @@ function documentAction(id) {
         Ninguna tarea coincide<span v-if="normalizedSearch"> con «<b>{{ searchQuery.trim() }}</b>»</span><span
           v-if="hidden.size"> entre los estados que dejaste visibles</span>.
         <button class="btn-link lnk" type="button" @click="searchQuery = ''; hidden.clear()">ver todas</button>
+      </p>
+
+      <p v-if="!loadingWide && hiddenLocalMatches" class="nota" role="status">
+        {{ hiddenLocalMatches }} {{ hiddenLocalMatches === 1 ? 'local coincide' : 'locales coinciden' }} ·
+        <button class="btn-link lnk" type="button" @click="showLocals = true">{{ hiddenLocalMatches === 1 ? 'mostrarla' : 'mostrarlas' }}</button>
       </p>
 
       <!-- UNA VISTA POR ESTADO. ⚠ Con búsqueda puesta se abren TODAS: buscar y que el resultado
@@ -2263,6 +2451,7 @@ function documentAction(id) {
           <div class="alert-desc">{{ contextsError }}</div>
           <button type="button" class="btn btn-outline btn-sm" @click="loadContext">Reintentar</button>
         </div>
+        <p v-if="contextsLoading && !contextGroups.length && !contextsError" class="nota context-loading" role="status">Leyendo la pila…</p>
         <section v-if="contextGroups.length" class="task-context-timeline" aria-label="Contexto de la tarea por fecha">
           <section v-for="group in contextGroups" :key="group.day" class="task-context-day">
             <!-- Un acordeón como el del sidebar: el día se PEGA arriba mientras se lee su contenido, el
@@ -2275,7 +2464,7 @@ function documentAction(id) {
             <div v-show="!foldedDays.has(group.day)" :id="'context-day-' + group.day" class="context-day-body">
             <article v-for="event in group.items" :key="event.id" :id="event.id" class="task-context-entry task-block">
               <h4 class="block-title"><BlockText :text="event.title" v-bind="blockLinks" /></h4>
-              <template v-for="(part, partIndex) in parseBlockBody(event.body)" :key="partIndex">
+              <template v-for="(part, partIndex) in event.parts" :key="partIndex">
                 <div v-if="part.type === 'command'" class="block-command">
                   <div class="block-command-label">{{ part.label }}</div>
                   <pre class="block-code"><code v-if="part.lang === 'sql'" class="language-sql" v-html="highlightSQL(part.code)"></code><template v-else>{{ part.code }}</template></pre>
@@ -2292,7 +2481,7 @@ function documentAction(id) {
                 </ul>
                 <p v-else><BlockText :text="part.text" v-bind="blockLinks" @block="goToBlock" /></p>
               </template>
-              <CanonRoute v-for="link in blockRouteLinks(event.body)" :key="link.ref" :reference="link.ref" :label="link.label" :server="SERVER"
+              <CanonRoute v-for="link in event.routes" :key="link.ref" :reference="link.ref" :label="link.label" :server="SERVER"
                           @resolved="(reference, url) => routeURLs[reference] = url" />
             </article>
             </div>
@@ -2625,11 +2814,14 @@ function documentAction(id) {
           <template v-if="v.id === 'artifacts'">
             <template v-if="artifactViewer">
               <div class="artifact-bar">
-                <button type="button" class="btn btn-ghost btn-sm" @click="closeArtifact" title="Volver a la lista">← Artifacts</button>
+                <button type="button" class="btn btn-ghost btn-sm" @click="closeArtifact" title="Volver a la lista"
+                        aria-label="Volver a la lista de artifacts"><span class="ui-icon" data-icon="back" aria-hidden="true"></span> Artifacts</button>
                 <span class="artifact-bar-name" :title="artifactViewer.artifact.file.split('/').pop()">{{ artifactViewer.artifact.label }}</span>
                 <button type="button" class="btn btn-ghost btn-sm btn-icon" :aria-pressed="artifactWide"
-                        :title="artifactWide ? 'Volver al ancho de siempre' : 'Ensanchar las vistas'" @click="setArtifactWide(!artifactWide)">{{ artifactWide ? '⇥⇤' : '⇤⇥' }}</button>
-                <button type="button" class="btn btn-ghost btn-sm" @click="openArtifactOutside(artifactViewer.artifact)" title="Abrir en el navegador">↗</button>
+                        :aria-label="artifactWide ? 'Volver al ancho de siempre' : 'Ensanchar las vistas'"
+                        :title="artifactWide ? 'Volver al ancho de siempre' : 'Ensanchar las vistas'" @click="setArtifactWide(!artifactWide)"><span class="ui-icon" :data-icon="artifactWide ? 'restore' : 'maximize'" aria-hidden="true"></span></button>
+                <button type="button" class="btn btn-ghost btn-sm btn-icon" @click="openArtifactOutside(artifactViewer.artifact)" title="Abrir en el navegador"
+                        aria-label="Abrir en el navegador"><span class="ui-icon" data-icon="external" aria-hidden="true"></span></button>
               </div>
               <iframe v-if="artifactViewer.kind === 'html' && artifactViewer.html" class="artifact-frame" :srcdoc="artifactViewer.html"
                       sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox allow-forms allow-modals allow-downloads"
@@ -2666,7 +2858,11 @@ function documentAction(id) {
         : `quedan ${sprintDays.remaining} d · ${sprintDays.pct}% consumido` }}</span>
       <span v-if="!loadingWide">{{ visible }} tarea{{ visible === 1 ? '' : 's' }} a la vista</span>
       <span v-if="jiraSyncing" class="sync-state" role="status">actualizando Jira…</span>
-      <span v-else-if="syncError" class="sync-state sync-error" :title="syncError">Jira sin actualizar</span>
+      <!-- El estado ES el botón de reintento: dice de cuándo es lo que se ve y, si falló, por qué. -->
+      <button v-else-if="syncError" type="button" class="sync-state sync-button sync-error" :title="syncTitle" @click="syncJira">
+        <span>Jira sin actualizar<template v-if="syncAgo"> ({{ syncAgo }})</template></span><span class="sync-detail">&nbsp;· {{ syncError }}</span>
+      </button>
+      <button v-else-if="syncAgo" type="button" class="sync-state sync-button" :title="syncTitle" @click="syncJira">Jira {{ syncAgo }}</button>
       <span v-if="active && !active._local" class="sb-act">{{ active.Key }}</span>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">
         <!-- El tema, antes de los botones de disposición y separado 8: los de disposición van al final
@@ -2779,6 +2975,9 @@ function documentAction(id) {
 .context-day > .ui-icon { flex: none }
 .context-day-body { padding-bottom: 6px }
 .task-context-entry + .task-context-entry { margin-top: 15px }
+/* «Leyendo la pila…» aparece con demora: una lectura local contesta en milisegundos y el aviso parpadeaba. */
+.context-loading { animation: context-loading-in 0.2s 0.25s both }
+@keyframes context-loading-in { from { opacity: 0 } to { opacity: 1 } }
 /* UN BLOQUE de la pila: título y descripción. La fecha no se pinta —sólo arma el acordeón— y no hay
    «siguiente paso»: lo que se decida después entra como otro bloque. El margen de arriba deja que un
    bloque citado quede debajo del día pegado y no tapado por él. */
@@ -2812,6 +3011,10 @@ function documentAction(id) {
 .sync-state { color: var(--mut); font-size: var(--text-xs) }
 .sync-error { color: var(--warn) }
 .sync-state + .sb-act { margin-left: 0 }
+/* El estado de Jira como botón: sin caja, con el alto del pie. El motivo del error se recorta; entero va en el title. */
+.sync-button { display: inline-flex; min-width: 0; padding: 0; border: 0; background: none; font-family: inherit; cursor: pointer }
+.sync-button:hover, .sync-button:focus-visible { text-decoration: underline }
+.sync-detail { max-width: 36ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .theme-toggle { margin-right: 6px }
 
 

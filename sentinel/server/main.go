@@ -96,10 +96,13 @@ type Overview struct {
 	Apps      []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
 	LogsNote  string    `json:"logsNote,omitempty"`
 	Deploys   []Deploy  `json:"deploys"`
-	History   History   `json:"history"`
-	Rules     Rules     `json:"rules"`
-	Seconds   float64   `json:"seconds"`
-	Notices   []Notice  `json:"notices"` // los últimos avisos mandados
+	// DeploysNote: la lista de despliegues o las versiones no se pudieron leer (gh, PostHog). Sin esto, una lectura
+	// fallida se veía igual que «ninguno en los últimos días».
+	DeploysNote string   `json:"deploysNote,omitempty"`
+	History     History  `json:"history"`
+	Rules       Rules    `json:"rules"`
+	Seconds     float64  `json:"seconds"`
+	Notices     []Notice `json:"notices"` // los últimos avisos mandados
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -126,6 +129,11 @@ type sentinel struct {
 	deploysAt       time.Time
 	logsNote        string
 	stepsNote       string
+	deploysNote     string // la lista de despliegues no se pudo leer (o le falta el front)
+	releasesNote    string // las versiones de los servicios no se pudieron leer (services.go)
+	// progressAt: la última vez que la pasada en curso dio señales de vida (al empezar y en cada paso de la carga). El
+	// perro guardián (watch) avisa si pasa demasiado sin moverse. Con mu tomado.
+	progressAt time.Time
 }
 
 var (
@@ -133,37 +141,59 @@ var (
 	logKinds     = logKindsSince(0)
 )
 
-// fetchRange pide [from, to) a las dos fuentes y lo guarda, día por día.
+// fetchRange pide [from, to) a las tres fuentes y lo guarda, día por día.
+//
+// Las tres se LEEN a la vez, cada una a su propio `Fresh` (nada compartido mientras corren), y se GUARDAN una detrás de
+// otra: `store.put` escribe un temporal por día y dos a la vez sobre el mismo día se pisarían. Loki y PostHog son una
+// señal más: si una no contesta, la pasada sigue sin ella y lo dice en su nota, y ya no impide leer la otra (antes, con
+// Loki caído, PostHog ni se pedía y su nota quedaba vieja).
+//
+// Redash es distinto, a propósito: si falla, la pasada FALLA y no se guarda nada de las otras dos. Evaluar sin las
+// solicitudes de la última hora se leería como una caída a cero (alertas falsas), y guardar sólo los logs correría
+// `reach`, con lo que el hueco de solicitudes no se volvería a pedir. La pasada siguiente pide todo desde `reach`.
 func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
-	fresh := Fresh{}
-	if err := r.requests(from, to, fresh); err != nil {
-		return err
-	}
-	if err := r.failedJobs(from, to, fresh); err != nil {
-		return err
+	fresh, logs, ph := Fresh{}, Fresh{}, Fresh{}
+	var reqErr, logsErr, phErr error
+	var wg sync.WaitGroup
+	wg.Add(3)
+	go func() {
+		defer wg.Done()
+		if reqErr = r.requests(from, to, fresh); reqErr == nil {
+			reqErr = r.failedJobs(from, to, fresh)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		cl, err := lokiClient()
+		if err == nil {
+			err = logErrors(cl, from, to, logs, 0, s.lenderSlugs)
+		}
+		logsErr = err
+	}()
+	go func() {
+		defer wg.Done()
+		phErr = readSteps(from, to, ph)
+	}()
+	wg.Wait()
+	if reqErr != nil {
+		return reqErr
 	}
 	if err := s.putRange(from, to, fresh, requestKinds); err != nil {
 		return err
 	}
-	logs := Fresh{}
-	cl, err := lokiClient()
-	if err == nil {
-		err = logErrors(cl, from, to, logs, 0, s.lenderSlugs)
+	if logsErr != nil {
+		s.logsNote = "sin los errores de Loki: " + logsErr.Error()
+	} else {
+		s.logsNote = ""
+		if err := s.putRange(from, to, logs, logKinds); err != nil {
+			return err
+		}
 	}
-	if err != nil {
-		s.logsNote = "sin los errores de Loki: " + err.Error()
-		return nil // Loki es una señal más: sin ella, la pasada sigue
-	}
-	s.logsNote = ""
-	if err := s.putRange(from, to, logs, logKinds); err != nil {
-		return err
-	}
-	return s.fetchSteps(from, to)
+	return s.putSteps(from, to, ph, phErr)
 }
 
-// fetchSteps: las pantallas del wizard de [from, to) (PostHog). Como Loki, es una señal más: sin ella, la pasada sigue.
-func (s *sentinel) fetchSteps(from, to time.Time) error {
-	ph := Fresh{}
+// readSteps: las pantallas del wizard y los errores del front de [from, to) (PostHog), sin guardar nada.
+func readSteps(from, to time.Time, ph Fresh) error {
 	cl, err := phClient()
 	if err == nil {
 		err = wizardEvents(cl, from, to, ph)
@@ -171,12 +201,23 @@ func (s *sentinel) fetchSteps(from, to time.Time) error {
 	if err == nil {
 		err = frontErrors(cl, from, to, ph)
 	}
+	return err
+}
+
+// putSteps guarda lo de PostHog, o deja dicho que no llegó. Como Loki, es una señal más: sin ella, la pasada sigue.
+func (s *sentinel) putSteps(from, to time.Time, ph Fresh, err error) error {
 	if err != nil {
 		s.stepsNote = "sin las pantallas del wizard (PostHog): " + err.Error()
 		return nil
 	}
 	s.stepsNote = ""
 	return s.putRange(from, to, ph, stepKinds)
+}
+
+// fetchSteps: sólo PostHog, para [from, to) (los días de la historia que no lo tienen).
+func (s *sentinel) fetchSteps(from, to time.Time) error {
+	ph := Fresh{}
+	return s.putSteps(from, to, ph, readSteps(from, to, ph))
 }
 
 // refetchLogs: vuelve a pedir SÓLO lo de Loki que la versión `since` no tenía, para [from, to), y marca esos días con
@@ -300,6 +341,7 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 func (s *sentinel) setLoading(text string) {
 	s.mu.Lock()
 	s.loading = text
+	s.progressAt = time.Now() // cada paso de la carga es una señal de vida para el perro guardián
 	s.mu.Unlock()
 	if text != "" {
 		log.Printf("sentinel: %s", text)
@@ -344,20 +386,34 @@ func (s *sentinel) pass() (*Overview, error) {
 		return nil, err
 	}
 	if time.Since(s.deploysAt) > 30*time.Minute {
-		if list, err := deploys(s.root, 8); err == nil {
+		// Si no se pudo leer, se DICE (deploysNote): una lectura fallida no es «ninguno en los últimos días». La lista
+		// anterior se queda, y se vuelve a intentar en la pasada siguiente (deploysAt no avanza).
+		list, err := deploys(s.root, 8)
+		if err != nil {
+			s.deploysNote = "no se pudieron leer los despliegues: " + err.Error()
+			if len(s.deployList) > 0 {
+				s.deploysNote += " · la lista es la de la última lectura"
+			}
+		} else {
+			s.deploysNote = ""
 			// El front no se ve en los workflows de GitHub: sus versiones salen de PostHog (steps.go).
-			if cl, err := phClient(); err == nil {
-				if front, err := frontReleases(cl, 8); err == nil {
-					list = append(list, front...)
-					sort.Slice(list, func(i, j int) bool { return list[i].At > list[j].At })
-				}
+			cl, err := phClient()
+			var front []Deploy
+			if err == nil {
+				front, err = frontReleases(cl, 8)
+			}
+			if err != nil {
+				s.deploysNote = "sin los despliegues del front (PostHog): " + err.Error()
+			} else {
+				list = append(list, front...)
+				sort.Slice(list, func(i, j int) bool { return list[i].At > list[j].At })
 			}
 			s.deployList, s.deploysAt = list, time.Now()
 		}
 	}
 	// Las versiones de los servicios (GitHub, un repo por servicio, en paralelo: unos segundos), cada 30 minutos.
 	if time.Since(s.releasesAt) > 30*time.Minute {
-		s.loadReleases()
+		s.releasesNote = s.loadReleases()
 		s.releasesAt = time.Now()
 	}
 	o := s.overview(rules, now)
@@ -388,6 +444,15 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 	o := &Overview{
 		CheckedAt: now.Format(time.RFC3339), WindowFrom: now.Add(-time.Duration(rules.WindowMinutes) * time.Minute).Format(time.RFC3339),
 		WindowTo: now.Format(time.RFC3339), Deploys: s.deployList, Rules: rules, LogsNote: s.logsNote, StepsNote: s.stepsNote,
+	}
+	for _, note := range []string{s.deploysNote, s.releasesNote} {
+		if note == "" {
+			continue
+		}
+		if o.DeploysNote != "" {
+			o.DeploysNote += " · "
+		}
+		o.DeploysNote += note
 	}
 	if len(dates) > 0 {
 		o.History = History{Days: len(dates), From: dates[0]}
@@ -522,6 +587,7 @@ func (s *sentinel) run() {
 		return
 	}
 	s.running = true
+	s.progressAt = time.Now()
 	s.mu.Unlock()
 	o, err := s.pass()
 	s.mu.Lock()
@@ -544,6 +610,47 @@ func (s *sentinel) run() {
 	if time.Since(s.daysAt) > 30*time.Minute {
 		s.daysAt = time.Now()
 		go s.writeDays(o.Rules)
+	}
+}
+
+// EL PERRO GUARDIÁN. El lazo llama a `run` de corrido: si una pasada se cuelga (una consulta que no vuelve, un proceso
+// que no termina), no hay pasada siguiente y `notifier.failed` nunca corre, porque sólo se llama cuando la pasada
+// DEVUELVE un error. Sentinel quedaba mudo sin decirlo. `watch` mira desde afuera, una vez por minuto: si la pasada en
+// curso lleva más de `limit` (2× el intervalo) sin dar señales de vida, avisa por el mismo camino que la VPN caída.
+// No la mata —no hay forma segura de cortar una pasada a medias—: avisa, y lo dice en la interfaz.
+
+// stuckFor: cuánto lleva la pasada en curso sin avanzar (0 si no hay ninguna corriendo).
+func (s *sentinel) stuckFor(now time.Time) time.Duration {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if !s.running || s.progressAt.IsZero() {
+		return 0
+	}
+	return now.Sub(s.progressAt)
+}
+
+// checkStuck: una mirada del perro guardián. Dice si encontró la pasada colgada.
+func (s *sentinel) checkStuck(now time.Time, limit time.Duration) bool {
+	d := s.stuckFor(now)
+	if d <= limit {
+		return false
+	}
+	s.mu.Lock()
+	s.err = fmt.Sprintf("La pasada lleva %d min sin avanzar: Sentinel no está leyendo producción. Si no vuelve sola, reiniciá la API.", int(d.Minutes()))
+	s.mu.Unlock()
+	if s.notifier != nil {
+		s.notifier.stuck(now.Add(-d), now)
+	}
+	return true
+}
+
+func (s *sentinel) watch(every time.Duration) {
+	// El piso de 2 min: con un `-every` muy corto, una pasada normal (Loki tiene 90 s para contestar) no es un cuelgue.
+	limit := max(2*every, 2*time.Minute)
+	for now := range time.Tick(time.Minute) {
+		if s.checkStuck(now, limit) {
+			log.Printf("sentinel: la pasada lleva más de %s sin avanzar", limit)
+		}
 	}
 }
 
@@ -706,6 +813,7 @@ func main() {
 			time.Sleep(*every)
 		}
 	}()
+	go s.watch(*every)
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/overview", func(w http.ResponseWriter, r *http.Request) { writeJSON(w, http.StatusOK, s.view()) })
 	// Lo que se sigue (following.go): POST {"signal":"merchant:12"} agrega, DELETE ?signal=merchant:12 saca. Los dos

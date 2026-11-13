@@ -4,13 +4,16 @@ package sql
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // Los casos que frenaba cada una de las dos guardas que había, juntos: si la unión perdiera uno, una
@@ -155,5 +158,89 @@ func TestLoadConfigReadsTheConnectorsFileAndTheProcessWins(t *testing.T) {
 	}
 	if _, _, err := LoadConfig("produccion"); err == nil {
 		t.Error("LoadConfig aceptó un ambiente inventado")
+	}
+}
+
+// Las columnas salen en el orden de la consulta, no alfabéticas; el alfabético queda de respaldo.
+func TestOrderedColumnsKeepTheOrderOfTheQuery(t *testing.T) {
+	rows := []Row{{"id": 1, "name": "a", "amount": 2}}
+	for _, c := range []struct {
+		why   string
+		order []string
+		rows  []Row
+		want  string
+	}{
+		{"el orden de la fuente manda", []string{"id", "name", "amount"}, rows, "id,name,amount"},
+		{"sin orden, alfabético como antes", nil, rows, "amount,id,name"},
+		{"una repetida va una vez", []string{"id", "id", "name", "amount"}, rows, "id,name,amount"},
+		{"la que la fuente no nombró va al final", []string{"name"}, rows, "name,amount,id"},
+		{"la que no está en las filas no se inventa", []string{"id", "fantasma", "name", "amount"}, rows, "id,name,amount"},
+		{"sin filas vale el orden de la fuente", []string{"id", "name"}, nil, "id,name"},
+	} {
+		if got := strings.Join(OrderedColumns(c.order, c.rows), ","); got != c.want {
+			t.Errorf("%s: %s, se esperaba %s", c.why, got, c.want)
+		}
+	}
+}
+
+// Redash dice el orden en `data.columns`, y QueryOrdered lo entrega.
+func TestRedashKeepsTheColumnOrder(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"query_result":{"data":{"columns":[{"name":"id"},{"name":"name"},{"name":"amount"}],"rows":[{"amount":5,"id":77,"name":"Prueba"}]}}}`))
+	}))
+	defer server.Close()
+	rows, columns, name, err := QueryOrdered(Config{Target: "prod", RedashURL: server.URL, RedashToken: "t"}, "SELECT id, name, amount FROM lenders")
+	if err != nil || len(rows) != 1 || name != "redash ds=1" {
+		t.Fatalf("rows=%v name=%s err=%v", rows, name, err)
+	}
+	if got := strings.Join(columns, ","); got != "id,name,amount" {
+		t.Errorf("columnas %s", got)
+	}
+	if _, _, _, err := QueryOrdered(Config{Target: "prod", RedashURL: server.URL, RedashToken: "t"}, "DELETE FROM lenders"); err == nil {
+		t.Error("QueryOrdered tiene que pasar por la guarda de sólo lectura")
+	}
+}
+
+// El sondeo de Redash empieza corto y no pasa de 1 s; el techo total sigue cerca de los 60 s.
+func TestRedashPollDelay(t *testing.T) {
+	want := []time.Duration{150 * time.Millisecond, 300 * time.Millisecond, 600 * time.Millisecond, time.Second, time.Second}
+	var total time.Duration
+	for i := 0; i < redashPollAttempts; i++ {
+		d := redashPollDelay(i)
+		if i < len(want) && d != want[i] {
+			t.Errorf("intento %d: %v, se esperaba %v", i, d, want[i])
+		}
+		if d > time.Second {
+			t.Errorf("intento %d: %v pasa del tope", i, d)
+		}
+		total += d
+	}
+	if total < 55*time.Second || total > 65*time.Second {
+		t.Errorf("el techo total cambió: %v", total)
+	}
+}
+
+// Sin fuente, el error nombra las claves y el archivo; un error de conexión lleva la pista de la VPN (o de Docker
+// en local) y cualquier otro pasa igual.
+func TestErrorsNameWhatToFix(t *testing.T) {
+	_, err := Open(Config{Target: "prod"})
+	if !errors.Is(err, ErrNoSource) {
+		t.Fatalf("err = %v", err)
+	}
+	for _, piece := range []string{"E2E_DB_HOST", "REDASH_URL", "REDASH_TOKEN", "connectors/.env.prod"} {
+		if !strings.Contains(err.Error(), piece) {
+			t.Errorf("el error no nombra %s: %v", piece, err)
+		}
+	}
+	dial := &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("i/o timeout")}
+	if got := connectError("dev", "h", dial).Error(); !strings.Contains(got, "¿la VPN de dev está conectada?") || !strings.Contains(got, "i/o timeout") {
+		t.Errorf("dev: %s", got)
+	}
+	if got := connectError("local", "h", errors.New("dial tcp 127.0.0.1:3306: connect: connection refused")).Error(); !strings.Contains(got, "Docker") || strings.Contains(got, "VPN") {
+		t.Errorf("local: %s", got)
+	}
+	plain := errors.New("Error 1045: Access denied")
+	if connectError("dev", "h", plain) != plain {
+		t.Error("un error que no es de conexión pasa sin tocar")
 	}
 }

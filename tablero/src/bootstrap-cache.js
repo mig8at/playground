@@ -27,6 +27,8 @@ export function writeBootstrapCache(snapshot, storage = globalThis.localStorage,
       issues: snapshot.issues || [],
       bySprint: snapshot.bySprint || [],
       site: snapshot.site || '',
+      // Cuándo fue la última sincronización buena con Jira; `savedAt` sólo dice cuándo se escribió la foto.
+      syncedAt: snapshot.syncedAt || '',
     }));
     return true;
   } catch { return false; }

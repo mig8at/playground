@@ -31,3 +31,13 @@ test('una caché vieja, incompleta o bloqueada nunca impide abrir el tablero', (
   assert.equal(readBootstrapCache(denied, now), null);
   assert.equal(writeBootstrapCache(snapshot, denied, now), false);
 });
+
+test('la foto conserva cuándo fue la última sincronización buena, aparte de cuándo se escribió', () => {
+  const values = new Map();
+  const storage = { getItem: key => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
+  const now = Date.parse('2026-09-19T21:00:00-05:00');
+  writeBootstrapCache({ ...snapshot, syncedAt: '2026-09-19T20:00:00.000Z' }, storage, now);
+  assert.equal(readBootstrapCache(storage, now)?.syncedAt, '2026-09-19T20:00:00.000Z');
+  writeBootstrapCache(snapshot, storage, now);
+  assert.equal(readBootstrapCache(storage, now)?.syncedAt, '');
+});

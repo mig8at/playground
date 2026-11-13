@@ -223,11 +223,34 @@ function say() {
   nextLineAt = t + 3600 + Math.random() * 2200
 }
 
+// La lista de personas se arma UNA vez (el nombre y el dueño como texto: los de un personaje del editor nunca se
+// interpretan como HTML) y después sólo se le cambia el estado al renglón de quien cambió. Antes se rehacía entera
+// (innerHTML) diez veces por segundo, también en pausa.
 const listEl = document.getElementById('people')
-function drawPeople() {
-  listEl.innerHTML = people.map((p) => `<li class="${p.state}"><span class="dot" style="background:${p.shirt}"></span>
-    <span>${p.name}${p.owner ? ` <small>agente de ${p.owner}</small>` : p.guest ? ' <small>invitado de ejemplo</small>' : ''}</span><span class="st">${STATE_LABEL[p.state]}</span></li>`).join('')
+for (const p of people) {
+  const li = document.createElement('li')
+  li.innerHTML = '<span class="dot"></span><span class="nm"></span><span class="st"></span>'
+  li.querySelector('.dot').style.background = p.shirt
+  const nm = li.querySelector('.nm')
+  nm.textContent = p.name
+  const note = p.owner ? `agente de ${p.owner}` : p.guest ? 'invitado de ejemplo' : ''
+  if (note) { const small = document.createElement('small'); small.textContent = note; nm.append(' ', small) }
+  p.row = li; p.rowSt = li.querySelector('.st'); p.shownState = ''
+  listEl.appendChild(li)
 }
+function drawPeople() {
+  for (const p of people) {
+    if (p.shownState === p.state) continue
+    p.shownState = p.state
+    p.row.className = p.state
+    p.rowSt.textContent = STATE_LABEL[p.state]
+  }
+}
+
+// La hora de abajo: se escribe sólo cuando cambia el minuto.
+const clockEl = document.getElementById('clock')
+let clockShown = ''
+function drawClock() { const now = hhmm(new Date()); if (now !== clockShown) { clockShown = now; clockEl.textContent = now } }
 
 // El reloj de la llamada: pasos de 100 ms, pausable. Con la pestaña oculta el navegador lo frena, y está bien.
 setInterval(() => {
@@ -238,12 +261,13 @@ setInterval(() => {
     if (t > captionUntil) captions.classList.remove('on')
   }
   drawPeople()
-  document.getElementById('clock').textContent = hhmm(new Date())
+  drawClock()
 }, 100)
 
 document.getElementById('room-title').textContent = ROOM.title
 document.getElementById('room-count').textContent = `${people.length} en la llamada · ${people.filter((c) => c.kind === 'agent').length} agentes`
-document.getElementById('who-count').textContent = CAST.length
+// los presentes (con los del editor en lugar de invitados), no el elenco de ejemplo entero
+document.getElementById('who-count').textContent = people.length
 document.getElementById('pause').addEventListener('click', (e) => {
   paused = !paused
   const b = e.currentTarget

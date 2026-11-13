@@ -10,6 +10,7 @@ shopify); eso no se ve desde acá. */
 
 import (
 	"net/http"
+	"sync"
 	"time"
 )
 
@@ -38,21 +39,30 @@ const (
 func shopifyStatus() []shopifyCheck {
 	client := &http.Client{Timeout: 8 * time.Second}
 
+	// Los dos pedidos van a la vez: en serie, con la tienda y la app caídas, la pestaña esperaba 16 s.
 	store := shopifyCheck{Name: "Tienda", URL: shopifyStoreURL}
-	if code, took, err := reach(client, shopifyStoreURL+"/"); err != nil {
-		store.Detail = "no contesta"
-	} else {
-		store.OK = code == http.StatusOK
-		store.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + "); se entra con la contraseña de la tienda"
-	}
-
 	app := shopifyCheck{Name: "App de pagos (dev)", URL: shopifyAppURL}
-	if code, took, err := reach(client, shopifyAppURL+"/"); err != nil {
-		app.Detail = "no contesta: la despliega la CI del repo shopify al mergear a develop"
-	} else {
-		app.OK = code == http.StatusOK
-		app.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + "), contra qa"
-	}
+	var wg sync.WaitGroup
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		if code, took, err := reach(client, shopifyStoreURL+"/"); err != nil {
+			store.Detail = "no contesta"
+		} else {
+			store.OK = code == http.StatusOK
+			store.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + "); se entra con la contraseña de la tienda"
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		if code, took, err := reach(client, shopifyAppURL+"/"); err != nil {
+			app.Detail = "no contesta: la despliega la CI del repo shopify al mergear a develop"
+		} else {
+			app.OK = code == http.StatusOK
+			app.Detail = "contesta " + http.StatusText(code) + " (" + took.String() + "), contra qa"
+		}
+	}()
+	wg.Wait()
 	return []shopifyCheck{store, app}
 }
 

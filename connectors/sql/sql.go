@@ -23,7 +23,9 @@ package sql
 
 import (
 	stdsql "database/sql"
+	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"regexp"
 	"sort"
@@ -91,11 +93,11 @@ func Open(c Config) (Source, error) {
 	}
 	if c.Host != "" {
 		// En orden y no en un mapa: con dos faltantes, el mensaje nombra siempre el mismo.
-		for _, field := range []struct{ label, value string }{
-			{"nombre de la base", c.Name}, {"usuario", c.User}, {"contraseña", c.Password},
+		for _, field := range []struct{ label, key, value string }{
+			{"nombre de la base", "E2E_DB_NAME", c.Name}, {"usuario", "E2E_DB_USER", c.User}, {"contraseña", "E2E_DB_PASS", c.Password},
 		} {
 			if field.value == "" {
-				return nil, fmt.Errorf("falta el %s para MySQL en %s", field.label, c.Target)
+				return nil, fmt.Errorf("falta el %s para MySQL en %s (%s, en connectors/.env.%s)", field.label, c.Target, field.key, c.Target)
 			}
 		}
 		port := c.Port
@@ -117,7 +119,7 @@ func Open(c Config) (Source, error) {
 		db.SetMaxOpenConns(maxOpen)
 		if err := db.Ping(); err != nil {
 			db.Close()
-			return nil, err
+			return nil, connectError(c.Target, c.Host, err)
 		}
 		return &mysqlSource{db: db, name: "mysql " + c.Host}, nil
 	}
@@ -136,10 +138,64 @@ func Open(c Config) (Source, error) {
 		}
 		return &redashSource{
 			zone: zone, base: strings.TrimRight(c.RedashURL, "/"), token: c.RedashToken, ds: ds,
-			http: &http.Client{Timeout: 90 * time.Second}, name: fmt.Sprintf("redash ds=%d", ds),
+			target: c.Target,
+			http:   &http.Client{Timeout: 90 * time.Second, Transport: redashTransport()}, name: fmt.Sprintf("redash ds=%d", ds),
 		}, nil
 	}
-	return nil, fmt.Errorf("no hay fuente para %s: configurá MySQL directo (host) o Redash (url y token)", c.Target)
+	// Como `logs` («falta LOKI_URL»): el mensaje nombra las claves y el archivo, no sólo «configurá».
+	return nil, fmt.Errorf("%w para %s: falta E2E_DB_HOST (MySQL directo, con E2E_DB_NAME, E2E_DB_USER y E2E_DB_PASS) "+
+		"o REDASH_URL y REDASH_TOKEN (Redash) en connectors/.env.%s", ErrNoSource, c.Target, c.Target)
+}
+
+// ErrNoSource: el ambiente no tiene ni MySQL ni Redash configurados. Quien llama puede reconocerlo con
+// `errors.Is` para decir además si el archivo de entorno existe (eso lo sabe LoadConfig, no Open).
+var ErrNoSource = errors.New("no hay fuente")
+
+// connectTimeout: cuánto se espera para ABRIR la conexión con Redash. Sin VPN el balanceador interno no contesta
+// y el pedido esperaba el tope entero del cliente (90 s, pensado para una consulta lenta, no para conectar).
+const connectTimeout = 5 * time.Second
+
+func redashTransport() http.RoundTripper {
+	base, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		return http.DefaultTransport
+	}
+	t := base.Clone()
+	t.DialContext = (&net.Dialer{Timeout: connectTimeout, KeepAlive: 30 * time.Second}).DialContext
+	return t
+}
+
+// isConnectError: ¿el error es de no haber llegado al servidor (venció el tiempo, lo rechazó, el nombre no
+// resuelve)? Es el síntoma de la VPN apagada, y crudo (`dial tcp …: i/o timeout`) no se parece a su causa.
+func isConnectError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var dns *net.DNSError
+	var op *net.OpError
+	var timeout net.Error
+	if errors.As(err, &dns) || (errors.As(err, &op) && op.Op == "dial") || (errors.As(err, &timeout) && timeout.Timeout()) {
+		return true
+	}
+	// El driver de MySQL a veces entrega el error ya como texto.
+	msg := err.Error()
+	for _, hint := range []string{"i/o timeout", "connection refused", "no such host", "network is unreachable", "no route to host"} {
+		if strings.Contains(msg, hint) {
+			return true
+		}
+	}
+	return false
+}
+
+// connectError le agrega al error de conexión la pista de qué revisar; cualquier otro error pasa igual.
+func connectError(target, host string, err error) error {
+	if !isConnectError(err) {
+		return err
+	}
+	if target == "local" {
+		return fmt.Errorf("no se pudo conectar a MySQL en %s: %w — ¿está arriba la base local (Docker)?", host, err)
+	}
+	return fmt.Errorf("no se pudo conectar a MySQL en %s: %w — ¿la VPN de %s está conectada?", host, err, target)
 }
 
 // Query es el camino corto de una sola consulta: valida, abre, corre y cierra.
@@ -172,6 +228,60 @@ func validArgs(args []any) error {
 		}
 	}
 	return nil
+}
+
+// OrderedSource es una Source que además dice en qué orden vinieron las columnas (el del SELECT). Las dos fuentes
+// de este paquete lo son; es una interfaz aparte para no cambiarle el contrato a quien implementa Source.
+type OrderedSource interface {
+	Source
+	RowsOrdered(query string, args ...any) ([]Row, []string, error)
+}
+
+// QueryOrdered es Query más las columnas en el orden de la consulta: una fila es un mapa y `Columns` sólo puede
+// ordenarlas alfabéticamente, así que `SELECT id, name, amount` salía como amount · id · name.
+func QueryOrdered(c Config, query string) ([]Row, []string, string, error) {
+	if err := ValidateReadOnly(query); err != nil {
+		return nil, nil, "", err
+	}
+	src, err := Open(c)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	defer src.Close()
+	if ordered, ok := src.(OrderedSource); ok {
+		rows, order, err := ordered.RowsOrdered(query)
+		return rows, OrderedColumns(order, rows), src.Name(), err
+	}
+	rows, err := src.Rows(query)
+	return rows, Columns(rows), src.Name(), err
+}
+
+// OrderedColumns devuelve las columnas de las filas en el orden que dio la fuente, sin repetir. El alfabético de
+// `Columns` es el respaldo: una columna que la fuente no nombró va al final, y una que nombró pero no está en las
+// filas (Redash renombra las repetidas) no se inventa. Sin filas, vale el orden de la fuente tal cual.
+func OrderedColumns(order []string, rows []Row) []string {
+	known := Columns(rows)
+	if len(order) == 0 {
+		return known
+	}
+	inRows := map[string]bool{}
+	for _, c := range known {
+		inRows[c] = true
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, c := range order {
+		if !seen[c] && (inRows[c] || len(rows) == 0) {
+			seen[c] = true
+			out = append(out, c)
+		}
+	}
+	for _, c := range known {
+		if !seen[c] {
+			out = append(out, c)
+		}
+	}
+	return out
 }
 
 // Columns ordena las claves de manera estable: una fila es un mapa, y sin esto dos salidas de la misma

@@ -11,7 +11,7 @@
    termine el primero. Mientras suena una frase, `voice.speaker` dice quién habla y `voice.line` qué está diciendo (el
    subtítulo). */
 import { reactive } from 'vue'
-import { forSpeech } from './speech.js'
+import { forSpeech, voiceBlob } from './speech.js'
 
 export const voice = reactive({
   supported: typeof window !== 'undefined' && typeof Audio !== 'undefined',
@@ -21,11 +21,25 @@ export const voice = reactive({
   props: {},     // lo que tiene en la mano cada personaje (clave → { kind: 'doc'|'image'|'key'|'read', until }): los
                  // que RECIBEN lo que se mandó, mientras quien lo mandó habla y unos segundos después
   busy: false,   // si hay algo sonando o en fila
-  level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena
-  error: '',
+  level: 0,      // cuánto abre la boca en este instante (0 a 1), del volumen de lo que suena. ⚠ Cambia en cada cuadro:
+                 // no se lee desde un template (re-renderizaría la llamada 60 veces por segundo); CallView la sigue
+                 // con un efecto que escribe sólo el atributo `boca` de quien habla
+  error: '',     // por qué no sonó la última frase; se limpia cuando la siguiente suena
   ready: false,  // si el servidor tiene la llave de ElevenLabs
+  why: '',       // por qué la llamada está sin voz (sin llave, tope del día, servidor caído): el chip de la llamada
 })
-fetch('/api/voice').then((r) => r.json()).then((d) => { voice.ready = !!d.elevenlabs }).catch(() => {})
+
+/** ¿Hay voz? Se pregunta al cargar y cada vez que se abre la videollamada: la llave o el tope del día pueden haber
+    cambiado desde entonces, y sin esto la llamada quedaba muda sin decir por qué. */
+export function refreshVoice() {
+  if (!voice.supported) { voice.why = 'este navegador no reproduce audio'; return Promise.resolve() }
+  return fetch('/api/voice').then((r) => (r.ok ? r.json() : Promise.reject(new Error(`HTTP ${r.status}`)))).then((d) => {
+    voice.ready = !!d.elevenlabs
+    voice.why = !voice.ready ? 'falta la llave de ElevenLabs'
+      : d.dailyLimit > 0 && d.usedToday >= d.dailyLimit ? 'se llegó al tope de voz de hoy' : ''
+  }).catch(() => { voice.ready = false; voice.why = 'el servidor del chat no contesta' })
+}
+refreshVoice()
 
 const queue = []
 let busy = false
@@ -74,10 +88,8 @@ function track() {
 // El audio de una frase, como URL lista para reproducir, y con qué tono se reproduce (más rápido y agudo, o más lento
 // y grave, sin conservar el tono: el toque de caricatura de los animales).
 async function render(item) {
-  const res = await fetch('/api/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ voice: item.voice?.name, text: item.text }) })
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`)
-  return { url: URL.createObjectURL(await res.blob()), pitch: item.voice?.pitch ?? 1 }
+  // el MP3 sale de lo ya pedido en esta pestaña si la frase se repite (speech.js: voiceBlob); la URL es de esta vez
+  return { url: URL.createObjectURL(await voiceBlob(item.voice?.name, item.text)), pitch: item.voice?.pitch ?? 1 }
 }
 
 // Se generan de a dos frases por adelantado, no todas: mientras suena una, la siguiente ya está lista, y si se calla la
@@ -119,6 +131,7 @@ async function next() {
     audio.onended = done
     audio.onerror = done
     await audio.play()
+    voice.error = '' // ésta sí sonó: el aviso de la que falló antes ya no va
     track()
   } catch (e) {
     if (item.gen !== generation) return
