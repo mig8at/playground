@@ -170,3 +170,18 @@ func TestTheQuotedPartOfAReplyIsNotSentAgain(t *testing.T) {
 		t.Fatalf("%q", got)
 	}
 }
+
+func TestTheNoticeSaysRepliedOnlyWhenYouHadWritten(t *testing.T) {
+	w := Watch{ID: "vtex", Name: "VTEX"}
+	now := time.Now()
+	m := gmail.Message{ID: "m", ThreadID: "t1", From: "\"Juan Alzate (VTEX)\" <support@vtexhelp.zendesk.com>", Date: now}
+	if got := noticeTitle(w, m, Thread{LastMine: now.Add(-time.Hour)}); got != "VTEX · Juan Alzate (VTEX) te contestó" {
+		t.Fatal(got)
+	}
+	if got := noticeTitle(w, m, Thread{}); got != "VTEX · Juan Alzate (VTEX) te escribió" {
+		t.Fatal(got)
+	}
+	if threadRoute("vtex", "t1") != "#/w/vtex/t1" {
+		t.Fatal("el aviso abre la conversación (el hilo)")
+	}
+}

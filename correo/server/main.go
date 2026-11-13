@@ -115,7 +115,7 @@ func (a *app) read(notify bool) error {
 		a.store.setThreads(threads)
 		for _, m := range a.store.update(w.ID, w.Query, msgs, time.Now()) {
 			if notify {
-				if err := notice(w, m); err != nil {
+				if err := notice(w, m, threads[m.ThreadID]); err != nil {
 					log.Printf("correo: el aviso de %s no salió: %v", m.ID, err)
 				}
 			}
@@ -228,7 +228,26 @@ func main() {
 	}
 	switch {
 	case *notifyTest:
-		exitOn(macNotice("Correo · prueba", "Así llega un aviso de un correo nuevo. Tocalo y abre Correo en Cockpit.", "", false))
+		// Apunta a la conversación más reciente que se sigue: tocarlo tiene que abrir Cockpit ahí.
+		title, body, route := "Correo · prueba", "Así llega un aviso de un correo nuevo. Tocalo y abre Correo en Cockpit.", ""
+		if st, err := openStore(filepath.Join(root, "correo", ".data")); err == nil {
+			views, _ := st.view("")
+			var best *MessageView
+			var watch string
+			for _, v := range views {
+				for i := range v.Messages {
+					if best == nil || v.Messages[i].Date.After(best.Date) {
+						best, watch = &v.Messages[i], v.ID
+					}
+				}
+			}
+			if best != nil {
+				title = "Correo · prueba: " + sender(best.From)
+				body, route = best.Subject, threadRoute(watch, best.ThreadID)
+			}
+		}
+		exitOn(macNotice(title, body, route, false))
+		fmt.Println("aviso de prueba →", "cockpit://correo/"+route)
 		return
 	case *install:
 		exitOn(agent(root, *serve).Install())

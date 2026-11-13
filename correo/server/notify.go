@@ -14,9 +14,23 @@ import (
 	"creditop/playground/connectors/gmail"
 )
 
-// notice: el aviso de un correo nuevo. Tocarlo abre Cockpit en Correo, en ese correo.
-func notice(w Watch, m gmail.Message) error {
-	return macNotice(w.Name+" · "+sender(m.From), m.Subject, "#/w/"+url.PathEscape(w.ID)+"/"+url.PathEscape(m.ID), true)
+// notice: el aviso de un correo nuevo. «te contestó» si en esa conversación ya habías escrito vos (`t`, el estado del
+// hilo), «te escribió» si es nueva. Tocarlo abre Cockpit en Correo, en ESA conversación (el hilo, con su desglose), y
+// los avisos de un mismo hilo se agrupan: uno nuevo reemplaza al anterior.
+func notice(w Watch, m gmail.Message, t Thread) error {
+	return macNotice(noticeTitle(w, m, t), m.Subject, threadRoute(w.ID, m.ThreadID), true)
+}
+
+func noticeTitle(w Watch, m gmail.Message, t Thread) string {
+	verb := "te escribió"
+	if !t.LastMine.IsZero() && t.LastMine.Before(m.Date) {
+		verb = "te contestó"
+	}
+	return w.Name + " · " + sender(m.From) + " " + verb
+}
+
+func threadRoute(watch, thread string) string {
+	return "#/w/" + url.PathEscape(watch) + "/" + url.PathEscape(thread)
 }
 
 // sender: el nombre del remitente tal como viene (lo de antes de «<…>»; el parser de direcciones tira lo que va entre
@@ -44,7 +58,11 @@ func macNotice(title, body, route string, sound bool) error {
 	home, _ := os.UserHomeDir()
 	bin := filepath.Join(home, "Applications", "Chat del playground.app", "Contents", "MacOS", "ChatNotifier")
 	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
-		args := []string{"--title", title, "--body", body, "--url", "cockpit://correo/" + route, "--group", "creditop-correo-" + route}
+		group := "creditop-correo"
+		if i := strings.LastIndex(route, "/"); i >= 0 && i < len(route)-1 {
+			group += "-" + route[i+1:] // uno por conversación
+		}
+		args := []string{"--title", title, "--body", body, "--url", "cockpit://correo/" + route, "--group", group}
 		if sound {
 			args = append(args, "--sound")
 		}

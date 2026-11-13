@@ -220,9 +220,9 @@ function senderName(from) {
 // ── las regiones, con el contrato de la base ──
 const viewportW = ref(window.innerWidth)
 const sidebarOpen = ref(readSize('correo.sidebar-open', 1) !== 0)
-const sidebarW = ref(readSize('correo.sidebar-w2', 260))
+const sidebarW = ref(readSize('correo.sidebar-w2', 240))
 const auxOpen = ref(readSize('correo.aux-open', 1) !== 0)
-const auxW = ref(readSize('correo.aux-w', 460))
+const auxW = ref(readSize('correo.aux-w', 380))
 const shown = computed(() => {
   const min = cssSize('--sidebar-min', 240)
   const [aux, sidebar] = fitRegions(viewportW.value - cssSize('--editor-min', 360), [
@@ -233,7 +233,7 @@ const shown = computed(() => {
 })
 const layoutVars = computed(() => ({ '--sidebar-w': `${shown.value.sidebar}px`, '--auxiliarybar-w': `${shown.value.aux}px` }))
 const sidebarResize = {
-  label: 'Ancho de los seguimientos', sign: 1, defaultValue: 260,
+  label: 'Ancho de los seguimientos', sign: 1, defaultValue: 240,
   min: () => cssSize('--sidebar-min', 240), max: () => viewportW.value - shown.value.aux - cssSize('--editor-min', 360),
   get: () => shown.value.sidebar,
   set: (v) => { if (!v) sidebarOpen.value = false; else { sidebarOpen.value = true; sidebarW.value = v } },
@@ -241,7 +241,7 @@ const sidebarResize = {
   commit: (v) => { saveSize('correo.sidebar-open', v ? 1 : 0); if (v) saveSize('correo.sidebar-w2', sidebarW.value) },
 }
 const auxResize = {
-  label: 'Ancho del desglose', sign: -1, defaultValue: 460,
+  label: 'Ancho del desglose', sign: -1, defaultValue: 380,
   min: () => cssSize('--sidebar-min', 240), max: () => viewportW.value - shown.value.sidebar - cssSize('--editor-min', 360),
   get: () => shown.value.aux,
   set: (v) => { if (!v) auxOpen.value = false; else { auxOpen.value = true; auxW.value = v } },
@@ -311,20 +311,22 @@ onBeforeUnmount(() => {
             <span class="ui-icon" data-icon="back" aria-hidden="true"></span>
           </button>
           <span class="head-title">{{ openedConv?.subject || thread?.messages?.[0]?.subject || 'Conversación' }}</span>
+          <div class="region-actions">
           <button v-if="thread?.messages?.length > 1" type="button" class="region-action" :aria-pressed="allOpen" :title="allOpen ? 'Colapsar los mensajes' : 'Desplegar todos los mensajes'" :aria-label="allOpen ? 'Colapsar los mensajes' : 'Desplegar todos los mensajes'" @click="toggleAll">
             <span class="ui-icon" :data-icon="allOpen ? 'collapse' : 'maximize'" aria-hidden="true"></span>
           </button>
           <a v-if="thread?.url || openedConv?.url" class="region-action" :href="thread?.url || openedConv?.url" target="_blank" rel="noopener" title="Abrir el hilo en Gmail para contestar" aria-label="Abrir el hilo en Gmail">
             <span class="ui-icon" data-icon="external" aria-hidden="true"></span>
           </a>
+          </div>
+        </div>
+        <div v-if="openedConv" class="subband">
+          <span class="grow"><i class="state-dot" :class="`is-${openedConv.status}`" aria-hidden="true"></i>{{ READER_STATUS[openedConv.status]?.(openedConv) }}</span>
+          <button v-if="openedConv.status === 'pending' || openedConv.status === 'unread'" type="button" class="btn btn-ghost btn-xs" title="Un acuse automático o un aviso: deja de contar como por responder" @click="noReply(openedConv.ids)">No hace falta responder</button>
+          <button v-else-if="openedConv.status === 'noreply'" type="button" class="btn btn-ghost btn-xs" @click="noReply(openedConv.ids, true)">Volver a por responder</button>
         </div>
         <div class="region-body">
-          <div v-if="openedConv" class="conv-status">
-            <span class="status" :class="`is-${openedConv.status}`">{{ READER_STATUS[openedConv.status]?.(openedConv) }}</span>
-            <button v-if="openedConv.status === 'pending' || openedConv.status === 'unread'" type="button" class="btn btn-outline btn-sm" title="Un acuse automático o un aviso: deja de contar como por responder" @click="noReply(openedConv.ids)">No hace falta responder</button>
-            <button v-else-if="openedConv.status === 'noreply'" type="button" class="btn btn-outline btn-sm" @click="noReply(openedConv.ids, true)">Volver a por responder</button>
-          </div>
-          <p v-if="openError" class="none warn-text">⚠ {{ openError }}</p>
+          <div v-if="openError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ openError }}</p></div></div>
           <p v-if="threadLoading" class="none">Abriendo la conversación…</p>
           <ol v-if="thread" class="thread">
             <li v-for="(m, i) in thread.messages" :key="m.id" class="msg" :class="{ mine: m.mine, collapsed: !isOpen(m, i) }">
@@ -344,16 +346,24 @@ onBeforeUnmount(() => {
       <template v-else>
         <div class="region-head">
           <span class="head-title" :title="current?.query">{{ current?.name || 'Correo' }}</span>
+          <div class="region-actions">
           <button v-if="current?.unread" type="button" class="region-action" title="Marcar todo como visto" aria-label="Marcar todo como visto" @click="markAll">
             <span class="ui-icon" data-icon="check" aria-hidden="true"></span>
           </button>
           <button v-if="current" type="button" class="region-action" title="Dejar de seguir" aria-label="Dejar de seguir" @click="removeWatch(current)">
             <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
           </button>
+          </div>
         </div>
         <div class="region-body">
-          <p v-if="data?.error" class="none warn-text">⚠ {{ data.error }}</p>
-          <p v-if="current && !conversations.length && !data?.error" class="none">Nada de los últimos 60 días. Cuando llegue algo, avisa macOS.</p>
+          <div v-if="data?.error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ data.error }}</p></div></div>
+          <div v-if="current && !conversations.length && !data?.error" class="empty">
+            <div class="empty-head">
+              <div class="empty-media"><span class="ui-icon" data-icon="bell" aria-hidden="true"></span></div>
+              <div class="empty-title">Nada en los últimos 60 días</div>
+              <div class="empty-desc">Cuando {{ current.name }} escriba, avisa macOS y la conversación aparece acá.</div>
+            </div>
+          </div>
           <button v-for="c in conversations" :key="c.threadId" type="button" class="conv" :class="{ unread: c.status === 'unread' }" @click="go(current.id, c.threadId)">
             <span class="people" :title="c.people.join(', ')">{{ c.people.length }}</span>
             <span class="conv-main">
@@ -383,9 +393,15 @@ onBeforeUnmount(() => {
         </button>
       </div>
       <div class="region-body">
-        <p v-if="!openThreadId" class="none">Al abrir una conversación, se desglosa acá en español: el resumen, en qué está, qué te toca y cada mensaje (ellos / vos) en puntos.</p>
+        <div v-if="!openThreadId" class="empty">
+          <div class="empty-head">
+            <div class="empty-media"><span class="ui-icon" data-icon="detail" aria-hidden="true"></span></div>
+            <div class="empty-title">Desglose</div>
+            <div class="empty-desc">Al abrir una conversación, acá queda en español: el resumen, en qué está, qué te toca y cada mensaje en puntos.</div>
+          </div>
+        </div>
         <p v-else-if="digestLoading && !digest" class="none">Armando el desglose con Claude… (unos 20 s la primera vez; después queda guardado)</p>
-        <p v-if="digestError" class="none warn-text">⚠ {{ digestError }}</p>
+        <div v-if="digestError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ digestError }}</p></div></div>
         <div v-if="digest && openThreadId" class="digest">
           <p class="digest-summary">{{ digest.summary }}</p>
           <dl class="digest-state">
@@ -420,7 +436,7 @@ onBeforeUnmount(() => {
       <span v-if="data">{{ data.account || 'sin sesión de Gmail' }} · {{ new Date(data.checkedAt).getFullYear() > 2000 ? `leído a las ${when(data.checkedAt)}` : 'leyendo Gmail…' }} · mira cada {{ data.every }}</span>
       <span v-else>{{ apiError || 'leyendo…' }}</span>
       <span v-if="apiError && data" class="statusbar-item warn-text">{{ apiError }}</span>
-      <button type="button" class="statusbar-item linkish" @click="refresh">leer ahora</button>
+      <button type="button" class="statusbar-item" title="Que lea Gmail ya (lee solo cada minuto)" @click="refresh">Leer ahora</button>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar los seguimientos" aria-label="Mostrar u ocultar los seguimientos" @click="toggleSidebar">

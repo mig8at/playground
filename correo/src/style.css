@@ -14,7 +14,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   font-family: var(--font-sans); font-size: var(--text-base) }
 #app { height: 100% }
 
-.workbench { grid-template-columns: 0 var(--sidebar-w, 260px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
+.workbench { grid-template-columns: 0 var(--sidebar-w, 240px) minmax(0, 1fr) var(--auxiliarybar-w, 0px) }
 
 .mail { display: grid; gap: 2px; width: calc(100% - 2 * var(--space-1)); padding: var(--space-2); text-align: left;
   border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-sm) }
@@ -39,7 +39,6 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .add .hint { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
 .none { margin: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
 .warn-text { color: var(--destructive) }
-.linkish { border: 0; background: transparent; color: inherit; cursor: pointer; text-decoration: underline; padding: 0 }
 
 /* Los tres estados de un correo: sin ver (el acento), por responder (lo último del hilo es de ellos) y respondido. */
 :root {
@@ -83,8 +82,8 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .summary code { font-size: var(--text-xs); color: var(--fg-3) }
 
 /* El desglose del hilo: el resumen, en qué está y qué sigue, y cada mensaje (ellos / vos) en puntos. */
-.digest { display: grid; gap: var(--space-3); padding: var(--space-3) }
-.digest-summary { margin: 0; font-size: var(--text-sm); line-height: 1.55 }
+.digest { display: grid; gap: var(--space-4); padding: var(--gutter) }
+.digest-summary { margin: 0; font-size: var(--text-base); line-height: 1.6 }
 .digest-state { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-3); margin: 0;
   font-size: var(--text-sm) }
 .digest-state dt { color: var(--fg-3); font-size: var(--text-xs); padding-top: 2px }
@@ -116,9 +115,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 
 /* La conversación abierta: como Gmail, cada mensaje colapsado en una línea (bolita con la inicial, nombre, el comienzo
    del texto y la fecha) salvo el último y los sin ver; los tuyos con el acento. */
-.conv-status { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-3);
-  border-bottom: 1px solid var(--border) }
-.thread { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: var(--space-2) var(--space-3) var(--space-3); list-style: none }
+.thread { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; margin: 0; padding: var(--space-2) var(--space-6) var(--space-6); list-style: none }
 .msg { min-width: 0; border-bottom: 1px solid var(--border) } /* sin esto, el ítem crece con el texto y la fecha se va */
 .msg:last-child { border-bottom: 0 }
 .msg-head { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-width: 0; padding: var(--space-2) var(--space-1);
@@ -126,13 +123,13 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   border-radius: var(--radius-sm) }
 .msg-head:hover { background: var(--hover) }
 .msg-name { flex: none; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--text-sm); font-weight: 600 }
+  font-size: var(--text-base); font-weight: 600 }
 .msg:not(.collapsed) .msg-name { flex: 1; max-width: none }
 .msg-snippet { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  font-size: var(--text-sm); color: var(--fg-3) }
+  font-size: var(--text-base); color: var(--fg-3) }
 .msg-date { flex: none; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
-.msg-body { margin: 0 0 var(--space-3); padding: 0 var(--space-1) 0 calc(28px + var(--space-2) + var(--space-1));
-  white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-sm); line-height: 1.55 }
+.msg-body { max-width: 72ch; margin: 0 0 var(--space-4); padding: 0 var(--space-1) 0 calc(28px + var(--space-2) + var(--space-1));
+  white-space: pre-wrap; overflow-wrap: anywhere; font-family: var(--font-sans); font-size: var(--text-body); line-height: 1.6 }
 .avatar { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 999px;
   font-size: var(--text-sm); font-weight: 600; color: var(--background); background: var(--fg-3) }
 .avatar.is-me { background: var(--primary); color: var(--primary-foreground) }
@@ -144,7 +141,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 /* Una conversación en la lista: el círculo con cuántas personas están, quién, el asunto y el comienzo; a la derecha la
    hora del último de ellos y, si respondiste, la tuya antes («14:02 / 13:37»). Por responder: la hora en ámbar. */
 .conv { display: flex; gap: var(--space-3); align-items: flex-start; width: calc(100% - 2 * var(--space-1));
-  margin: 0 var(--space-1); padding: var(--space-2) var(--space-2); border: 0; border-radius: var(--radius-sm);
+  margin: 0 var(--space-1); padding: var(--space-2) var(--gutter); border: 0; border-radius: var(--radius-control);
   background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer }
 .conv:hover { background: var(--hover) }
 .people { flex: none; display: grid; place-items: center; width: 28px; height: 28px; margin-top: 2px; border-radius: 999px;
@@ -152,12 +149,20 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
   font-variant-numeric: tabular-nums }
 .conv-main { flex: 1; min-width: 0; display: grid; gap: 1px }
 .conv-top { display: flex; gap: var(--space-2); align-items: baseline; min-width: 0 }
-.conv-from { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm) }
+.conv-from { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-base) }
 .conv-time { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-3);
   font-variant-numeric: tabular-nums }
 .conv-time .replied-at { color: var(--fg-2); cursor: help }
 .conv-time .is-pending { color: var(--correo-pending) }
 .conv-subject, .conv-snippet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
-.conv-subject { font-size: var(--text-sm) }
+.conv-subject { font-size: var(--text-base); color: var(--fg-2) }
 .conv-snippet { font-size: var(--text-xs); color: var(--fg-3) }
 .conv.unread .conv-from, .conv.unread .conv-subject { font-weight: 600 }
+
+/* El estado de la conversación abierta, en la subbanda: un punto de estado y la frase. */
+.state-dot { display: inline-block; width: 7px; height: 7px; margin-right: var(--space-2); border-radius: 999px;
+  vertical-align: middle; background: var(--fg-3) }
+.state-dot.is-unread { background: var(--primary) }
+.state-dot.is-pending { background: var(--correo-pending) }
+.state-dot.is-replied { background: var(--correo-replied) }
+.region-body > .alert { margin: 0 }

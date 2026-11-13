@@ -95,8 +95,12 @@ seguimiento cuenta sus sin ver, sus por responder y los de los últimos 7 días;
 - **Un aviso por correo, una vez** (`Notified`). Sobrevive a un reinicio.
 - **La primera lectura de un seguimiento no avisa** (`Primed`): lo que ya estaba se da por visto. Cambiar la búsqueda de
   un seguimiento lo vuelve a estrenar. Si no, agregar `from:vtex.com` mandaba decenas de avisos viejos.
-- El aviso sale por el avisador del chat («Chat del playground»), como el de Sentinel: tocarlo abre Cockpit en
-  `#/w/<seguimiento>/<correo>`. Sin él, por osascript. `go run ./correo/server -notify-test` manda uno de prueba.
+- **El aviso dice si te contestaron**: «VTEX · Juan Alzate (VTEX) te contestó» si en esa conversación ya habías escrito
+  vos, «… te escribió» si es nueva; el cuerpo es el asunto. Sale por el avisador del chat («Chat del playground»), como
+  el de Sentinel, y **tocarlo abre Cockpit en esa conversación** (`cockpit://correo/#/w/<seguimiento>/<hilo>`, con su
+  desglose). Los de un mismo hilo se agrupan: uno nuevo reemplaza al anterior. Sin el avisador, por osascript.
+  `correo/bin/correo -notify-test` manda uno de prueba que apunta a la conversación más reciente (2026-11-13: desde el
+  tablero, el enlace llevó a Correo en la homologación de VTEX).
 - El numerito de la barra de Cockpit son los sin ver (`badge`).
 
 ## De fondo
@@ -105,6 +109,13 @@ seguimiento cuenta sus sin ver, sus por responder y los de los últimos 7 días;
 git): arranca con la sesión y avisa aunque Cockpit esté cerrado. **Después de cambiar el servidor, `make
 correo-install` de nuevo.** `make correo-status` · `make correo-uninstall`. Su salida: `~/Library/Logs/correo.log`.
 Como Sentinel, dos APIs no se pisan: la que llega después espera el puerto y toma el relevo, así que no avisan dos.
+
+## La interfaz sigue la base (`tools/ui`)
+
+La conversación abierta lleva su estado en la **subbanda** (`.subband`, 32), los iconos de cada banda en
+`.region-actions`, los errores son `.alert.alert-destructive` (con el icono `alert`, no «⚠»), los estados vacíos son
+`.empty`, y el texto de los correos es prosa del editor: `--text-body` (14), interlineado 1,6, 72 caracteres de ancho y el
+margen de documento (24). Anchos por defecto: seguimientos 240, desglose 380.
 
 ## Cómo está construido
 
