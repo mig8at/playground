@@ -137,7 +137,11 @@ ramas: core-800-vtex-payment-link, vtex:core-800-vtex-5-0-1, vtex:core-800-vtex-
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
       resueltos antes): termina con VTEX aprobándola.
       Ticket [#1484435](https://support.vtex.com/hc/en-us/requests/1484435), completo (conector «Creditop» y
-      contacto) desde el 2026-11-12. Depende de: VTEX Payments — revisar y aprobar (hasta 30 días desde el MPA).
+      contacto) desde el 2026-11-12. VTEX ya aceptó la Test Suite 7/7 como evidencia, pero probó el manifest en
+      `v2.api.creditop.com/legacy-api` (la API de Creditop) en vez de la Service URL del conector
+      (`https://creditop.myvtex.com/_v/creditop.creditop/v5`, donde `/manifest` y `/payment-methods` dan 200): falta
+      contestarles con esa URL. Depende de: VTEX Payments — revisar y aprobar (30 días desde el MPA; están viendo si
+      el MPA que Creditop ya tiene sigue vigente).
 
 - [ ] Versión posterior · un aviso «Paga con Creditop» en la página del producto, antes del checkout, como el de Addi
       (texto con cuotas y un modal que explica cómo comprar). En VTEX sería un bloque del tema de la tienda. Termina
