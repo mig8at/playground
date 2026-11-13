@@ -110,6 +110,7 @@ keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primer
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
+.PHONY: goldfish goldfish-list goldfish-run
 goldfish: ## @dia abre goldfish (:5216 · API :5217): las ramas de los repos reales que están por subir y, de cada una, su validación Elephant-Goldfish antes de abrir el PR: el elephant (con tu contexto local) arma la propuesta, dos goldfish la revisan en frío y el elephant le da veredicto a cada hallazgo contra el código. No abre PRs ni pushea. Cada validación corre 4 agentes con `claude -p` (gasta el asiento del plan)
 	@cd goldfish && npm run dev
 goldfish-list: ## @dia las ramas de los repos reales con commits por delante de main (últimos 45 días), con su PR y su tarea del tablero. Sólo lee
