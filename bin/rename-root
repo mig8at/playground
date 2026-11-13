@@ -1,0 +1,150 @@
+#!/bin/bash
+# rename-root: CAMBIARLE EL NOMBRE A LA CARPETA DE ESTE REPO (~/Desktop/CREDITOP/<nombre>) sin romper lo que depende de
+# su ruta. Nació el 2026-11-13 para pasar de `playground` a `my-tools`.
+#
+#   bin/rename-root my-tools            muestra qué haría (no toca nada)
+#   bin/rename-root my-tools --apply    lo hace
+#
+# Qué depende de la ruta, y qué hace con cada cosa (en este orden):
+#   1. los servicios de fondo (chat, sentinel, pulso) arrancan desde la carpeta: se paran
+#   2. los archivos que escriben la ruta completa (los versionados, sin las pilas .jsonl, y los locales: .env,
+#      .claude/settings.local.json): se corrigen
+#   3. la carpeta se mueve
+#   4. Claude Code guarda la memoria y las sesiones de cada carpeta bajo su ruta (~/.claude/projects/<ruta con ->, y
+#      ~/.claude.json): se mudan, con una copia de ~/.claude.json
+#   5. los worktrees de git que apuntan a la carpeta vieja: `git worktree repair`
+#   6. se reinstalan los servicios y Cockpit (que tiene la ruta compilada) desde la carpeta nueva
+#
+# ⚠ Con Cockpit y las sesiones de Claude de esta carpeta CERRADAS: una sesión abierta seguiría escribiendo en la ruta
+# vieja. El script lo comprueba y no sigue si encuentra alguna. Al terminar, se abre Claude en la carpeta nueva.
+#
+# Para probarlo sin tocar lo real: CLAUDE_HOME=<carpeta> LAUNCH_DIR=<carpeta> SKIP_REINSTALL=1 SKIP_OPEN_CHECK=1, sobre
+# una copia (lo prueba bin/rename-root-test).
+set -euo pipefail
+
+usage() { echo "uso: bin/rename-root <nombre-nuevo> [--apply]" >&2; exit 2; }
+[ $# -ge 1 ] || usage
+NEW_NAME=$1
+APPLY=0
+[ "${2:-}" = "--apply" ] && APPLY=1
+case "$NEW_NAME" in */*|.*|"") echo "rename-root: el nombre va solo, sin barras: $NEW_NAME" >&2; exit 2 ;; esac
+
+OLD_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+PARENT=$(dirname "$OLD_ROOT")
+OLD_NAME=$(basename "$OLD_ROOT")
+NEW_ROOT="$PARENT/$NEW_NAME"
+CLAUDE_HOME=${CLAUDE_HOME:-$HOME}
+LAUNCH_DIR=${LAUNCH_DIR:-$HOME/Library/LaunchAgents}
+key() { printf '%s' "$1" | sed 's#[/._]#-#g'; }   # cómo nombra Claude Code la carpeta de un proyecto
+OLD_KEY=$(key "$OLD_ROOT")
+NEW_KEY=$(key "$NEW_ROOT")
+# la ruta vieja, sólo cuando es la carpeta entera (no `…/playground-equipo` ni `…/github/playground`)
+OLD_REL="${PARENT#"$HOME"/}/$OLD_NAME"
+NEW_REL="${PARENT#"$HOME"/}/$NEW_NAME"
+
+say() { printf '%s\n' "$*"; }
+step() { printf '\n· %s\n' "$*"; }
+
+[ "$OLD_NAME" != "$NEW_NAME" ] || { echo "rename-root: ya se llama $NEW_NAME" >&2; exit 2; }
+[ ! -e "$NEW_ROOT" ] || { echo "rename-root: ya existe $NEW_ROOT" >&2; exit 1; }
+
+say "Renombrar $OLD_ROOT → $NEW_ROOT $([ $APPLY = 1 ] && echo '(se aplica)' || echo '(sólo muestra: --apply para hacerlo)')"
+
+# ── 0 · nada abierto ────────────────────────────────────────────────────────────────────────────────────
+step "0 · Cockpit y las sesiones de Claude de esta carpeta, cerrados"
+busy=0
+if pgrep -x cockpit >/dev/null 2>&1 || pgrep -x Cockpit >/dev/null 2>&1; then say "  ✗ Cockpit está abierto: cerralo del todo (Cmd+Q)"; busy=1; fi
+for pid in $(pgrep -x claude 2>/dev/null || true); do
+  cwd=$(lsof -a -d cwd -p "$pid" -Fn 2>/dev/null | sed -n 's/^n//p' | head -1)
+  case "$cwd" in "$OLD_ROOT"|"$OLD_ROOT"/*) say "  ✗ una sesión de Claude (pid $pid) trabaja en $cwd: cerrala"; busy=1 ;; esac
+done
+[ $busy = 0 ] && say "  ✓ nada abierto"
+if [ $busy = 1 ] && [ $APPLY = 1 ] && [ "${SKIP_OPEN_CHECK:-}" != 1 ]; then echo "rename-root: cerrá lo de arriba y volvé a correrlo" >&2; exit 1; fi
+
+# ── 1 · los servicios de fondo ─────────────────────────────────────────────────────────────────────────
+step "1 · parar los servicios de fondo que arrancan desde la carpeta"
+plists=()
+for p in "$LAUNCH_DIR"/*.plist; do
+  [ -f "$p" ] && grep -q "$OLD_ROOT" "$p" && plists+=("$p")
+done
+for p in "${plists[@]:-}"; do
+  [ -n "$p" ] || continue
+  say "  $(basename "$p")"
+  [ $APPLY = 1 ] && launchctl bootout "gui/$(id -u)" "$p" 2>/dev/null || true
+done
+
+# ── 2 · los archivos que escriben la ruta ─────────────────────────────────────────────────────────────
+step "2 · corregir la ruta en los archivos que la escriben"
+files=()
+while IFS= read -r -d '' f; do files+=("$f"); done < <(git -C "$OLD_ROOT" grep -lz -I "$OLD_REL" -- ':!*.jsonl' 2>/dev/null || true)
+for f in .claude/settings.local.json $(cd "$OLD_ROOT" && ls -a connectors 2>/dev/null | sed -n 's#^\(\.env.*\)#connectors/\1#p'); do
+  [ -f "$OLD_ROOT/$f" ] && grep -q "$OLD_REL" "$OLD_ROOT/$f" && files+=("$f")
+done
+say "  ${#files[@]} archivos"
+for f in "${files[@]:-}"; do [ -n "$f" ] && say "    $f"; done
+if [ $APPLY = 1 ]; then
+  for f in "${files[@]:-}"; do
+    [ -n "$f" ] || continue
+    perl -pi -e "s#\Q$OLD_REL\E(?=[/\s\"'\`)\]:,;]|\$)#$NEW_REL#g" "$OLD_ROOT/$f"
+  done
+fi
+
+# ── 3 · la carpeta ────────────────────────────────────────────────────────────────────────────────────
+step "3 · mover la carpeta"
+say "  $OLD_ROOT → $NEW_ROOT"
+[ $APPLY = 1 ] && mv "$OLD_ROOT" "$NEW_ROOT"
+
+# ── 4 · Claude Code ──────────────────────────────────────────────────────────────────────────────────
+step "4 · la memoria y las sesiones de Claude Code"
+for d in "$CLAUDE_HOME"/.claude/projects/"$OLD_KEY" "$CLAUDE_HOME"/.claude/projects/"$OLD_KEY"-*; do
+  [ -d "$d" ] || continue
+  dest="$CLAUDE_HOME/.claude/projects/$NEW_KEY${d#"$CLAUDE_HOME/.claude/projects/$OLD_KEY"}"
+  say "  $(basename "$d") → $(basename "$dest")"
+  if [ $APPLY = 1 ]; then
+    if [ -e "$dest" ]; then say "    ⚠ ya existe: se deja la vieja"; continue; fi
+    mv "$d" "$dest"
+    # la memoria nombra la carpeta en su texto
+    [ -d "$dest/memory" ] && find "$dest/memory" -name '*.md' -exec perl -pi -e "s#\Q$OLD_REL\E(?=[/\s\"'\`)\]:,;]|\$)#$NEW_REL#g" {} +
+  fi
+done
+CJ="$CLAUDE_HOME/.claude.json"
+if [ -f "$CJ" ]; then
+  n=$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));print(sum(1 for k in d.get('projects',{}) if k==sys.argv[2] or k.startswith(sys.argv[2]+'/')))" "$CJ" "$OLD_ROOT")
+  say "  ~/.claude.json: $n proyecto(s)"
+  if [ $APPLY = 1 ] && [ "$n" != 0 ]; then
+    cp "$CJ" "$CJ.antes-de-rename-root"
+    python3 - "$CJ" "$OLD_ROOT" "$NEW_ROOT" <<'EOF'
+import json, sys
+path, old, new = sys.argv[1:]
+d = json.load(open(path))
+d["projects"] = {(new + k[len(old):] if k == old or k.startswith(old + "/") else k): v for k, v in d.get("projects", {}).items()}
+tmp = path + ".tmp"
+json.dump(d, open(tmp, "w"), indent=2, ensure_ascii=False)
+import os; os.replace(tmp, path)
+EOF
+    say "    (copia en $CJ.antes-de-rename-root)"
+  fi
+fi
+
+# ── 5 · los worktrees ────────────────────────────────────────────────────────────────────────────────
+step "5 · los worktrees de git"
+if [ $APPLY = 1 ]; then git -C "$NEW_ROOT" worktree repair >/dev/null 2>&1 || true; git -C "$NEW_ROOT" worktree prune; say "  reparados"; else say "  git worktree repair (al aplicar)"; fi
+
+# ── 6 · reinstalar ───────────────────────────────────────────────────────────────────────────────────
+step "6 · reinstalar los servicios y Cockpit desde la carpeta nueva"
+if [ $APPLY = 1 ] && [ "${SKIP_REINSTALL:-}" != 1 ]; then
+  cd "$NEW_ROOT"
+  make chat-install
+  (cd tablero && npm run --silent server:build && server/bin/pulse install)
+  make sentinel-install
+  make cockpit
+else
+  say "  make chat-install · pulso (tablero/server/bin/pulse install) · make sentinel-install · make cockpit"
+fi
+
+step "listo"
+if [ $APPLY = 1 ]; then
+  say "  Abrí Claude en $NEW_ROOT. Las sesiones viejas de la app apuntan a la carpeta que ya no existe: se empieza una nueva."
+else
+  say "  Nada se tocó. Para hacerlo: $OLD_ROOT/bin/rename-root $NEW_NAME --apply"
+fi

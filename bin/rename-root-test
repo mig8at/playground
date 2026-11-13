@@ -1,0 +1,37 @@
+#!/bin/bash
+# rename-root-test: prueba bin/rename-root sobre una carpeta falsa (un repo chico, un ~/.claude y LaunchAgents de
+# mentira). No toca nada real. Sale 0 si todo quedó en su lugar.
+set -euo pipefail
+here=$(cd "$(dirname "$0")" && pwd -P)
+T=$(mktemp -d); trap 'rm -rf "$T"' EXIT
+T=$(cd "$T" && pwd -P)
+old="$T/CREDITOP/playground"; new="$T/CREDITOP/my-tools"
+mkdir -p "$old/bin" "$old/.claude" "$T/home/.claude/projects" "$T/launch"
+cp "$here/rename-root" "$old/bin/"
+cd "$old" && git init -q -b main
+printf 'ruta: %s/tablero\notra: %s-equipo/x\n' "$old" "$old" > doc.md
+printf '{"x": "%s/harness"}\n' "$old" > .claude/settings.local.json
+printf '{"t":"%s"}\n' "$old" > pila.jsonl
+git add doc.md pila.jsonl && git -c user.email=t@t -c user.name=t commit -q -m uno
+key=$(printf '%s' "$old" | sed 's#[/._]#-#g'); newkey=$(printf '%s' "$new" | sed 's#[/._]#-#g')
+mkdir -p "$T/home/.claude/projects/$key/memory" "$T/home/.claude/projects/$key-harness"
+printf 'en %s/chat\n' "$old" > "$T/home/.claude/projects/$key/memory/m.md"
+printf '{"projects": {"%s": {"a": 1}, "%s/harness": {"b": 2}, "/otro": {}}}\n' "$old" "$old" > "$T/home/.claude.json"
+printf '<string>%s/bin/x</string>\n' "$old" > "$T/launch/com.prueba.plist"
+
+CLAUDE_HOME="$T/home" LAUNCH_DIR="$T/launch" SKIP_REINSTALL=1 SKIP_OPEN_CHECK=1 HOME="$T" \
+  "$old/bin/rename-root" my-tools --apply >/dev/null
+
+fail() { echo "✗ $*"; exit 1; }
+[ -d "$new" ] && [ ! -e "$old" ] || fail "la carpeta no se movió"
+grep -q "$new/tablero" "$new/doc.md" || fail "doc.md no cambió la ruta"
+grep -q "$old-equipo/x" "$new/doc.md" || fail "tocó una ruta que sólo empieza igual (…-equipo)"
+grep -q "$new/harness" "$new/.claude/settings.local.json" || fail "settings.local.json no cambió"
+grep -q "$old" "$new/pila.jsonl" || fail "tocó una pila .jsonl (es historia)"
+[ -d "$T/home/.claude/projects/$newkey/memory" ] || fail "la memoria de Claude no se mudó"
+[ -d "$T/home/.claude/projects/$newkey-harness" ] || fail "la subcarpeta de Claude no se mudó"
+grep -q "$new/chat" "$T/home/.claude/projects/$newkey/memory/m.md" || fail "la memoria no cambió la ruta"
+python3 -c "import json,sys;p=json.load(open(sys.argv[1]))['projects'];sys.exit(0 if sys.argv[2] in p and sys.argv[2]+'/harness' in p and '/otro' in p and sys.argv[3] not in p else 1)" "$T/home/.claude.json" "$new" "$old" || fail "~/.claude.json no quedó bien"
+[ -f "$T/home/.claude.json.antes-de-rename-root" ] || fail "no dejó la copia de ~/.claude.json"
+git -C "$new" status >/dev/null || fail "el repo no anda en la carpeta nueva"
+echo "✓ rename-root: carpeta, rutas, memoria, ~/.claude.json y repo en su lugar; la pila y la ruta parecida, intactas"
