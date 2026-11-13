@@ -1,6 +1,7 @@
 ---
 id: 100
 title: "Incidencias"
+nivel: creditop
 clase: proyecto
 stage: evaluation
 created: "2026-10-09T15:30:00-05:00"

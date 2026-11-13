@@ -357,6 +357,12 @@ func Closeout(env Env) int {
 			mines = append(mines, m)
 			continue
 		}
+		// o la sesión commiteó en esa herramienta («goldfish: …»): en el playground personal se trabaja en `main`,
+		// y el prefijo del commit es lo que dice de qué herramienta fue el trabajo.
+		if hasToolCommit(t.TouchedBy) && committed(pieces, t.Slug) {
+			mines = append(mines, m)
+			continue
+		}
 		// o la sesión trabajó en una rama que la tarea declara: ahí el trabajo existe aunque su archivo
 		// no se haya tocado — que es justamente lo que el cierre viene a reclamar.
 	branches:
@@ -413,4 +419,23 @@ func Closeout(env Env) int {
 	sb.WriteString("}")
 	fmt.Fprintln(env.Stdout, sb.String())
 	return 0
+}
+
+func hasToolCommit(touchedBy []string) bool {
+	for _, by := range touchedBy {
+		if strings.HasPrefix(by, "commits «") {
+			return true
+		}
+	}
+	return false
+}
+
+// committed: ¿esta sesión corrió un `git commit` cuyo mensaje empieza con «<herramienta>:»?
+func committed(pieces []piece, tool string) bool {
+	for _, p := range pieces {
+		if strings.Contains(p.input, "git commit") && (strings.Contains(p.input, `-m "`+tool+":") || strings.Contains(p.input, `-m '`+tool+":")) {
+			return true
+		}
+	}
+	return false
 }

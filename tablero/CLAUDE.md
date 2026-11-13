@@ -15,16 +15,25 @@ skills que se cargan cuando hacen falta:
 operativo: bitácora, pulso, cachés y las trampas del sistema. **Dónde vive cada cosa lo sabe un solo
 lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano en un comando.
 
-- ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Una tarea de producto o del equipo
-  es un archivo ligado a Jira; para trabajo local casi siempre hay que editar uno de los **nueve
-  contenedores permanentes**: `canon`, `context`, `harness`, `tablero`, `trazador`, `workers`,
-  `playground`, `playground-local` (#96: lo transversal a las herramientas) e `incidencias` (los defectos
-  de los sistemas de CreditOp hallados al verificar `main`, hasta que cada uno tenga su tarea con Jira).
-  `context` y `workers` quedan por su historia. El lint y `make tareas` validan esta lista.
+- ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Cada tarea es de uno de **tres niveles**
+  (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13), y el nivel decide si va a Jira:
+
+  | nivel | qué es | Jira | contenedor general · por herramienta o repo |
+  |---|---|---|---|
+  | `miguel` | el playground PERSONAL de Miguel (`mig8at/playground`): sus herramientas, no de la compañía | nunca | `miguel` (#90) · `chat`, `cockpit`, `goldfish`, `harness`, `tablero`, `office`, `jarvis`, `sentinel`, `herramienta-ecommerce`, `designer`, `radar`, `keyring`, `captura` |
+  | `playground` | el playground COMPARTIDO (`Creditop-SAS/playground`): de la compañía, se trabaja en local | por ahora no (las viejas con Jira lo conservan) | `playground` (#124) · `canon`, `cuadrilla`, `tracer`, `forecast` |
+  | `creditop` (default) | el trabajo de CreditOp | sí (lo que se evalúa puede vivir sin Jira todavía) | `incidencias` · globales por repo: `legacy-backend`, `frontend-monorepo`, `legacy-application`, y una tarea por trabajo con su Jira |
+
+  **Una herramienta nueva trae su tarea nueva** (`clase: proyecto`, `nivel: miguel` o `playground`); el trabajo
+  sobre una herramienta va en la suya, y lo que cruza varias, en el contenedor general de su nivel. Una tarea global
+  de un repo lleva la historia y el desglose; lo técnico verificado sigue en `knowledge/` y se enlaza. El lint y
+  `make tareas` validan el nivel: una de `miguel` con Jira es un error. En el tablero, las de `miguel` y
+  `playground` van en su propia vista al final; «CreditOp sin Jira» (el menú ⋯) prende las demás sin Jira.
+  `context`, `trazador`, `workers` y `playground-local` están archivadas (lo de esta última, dentro de `miguel`).
 - **Los contenedores son `clase: proyecto`**: sin Jira ni sección publicable. Dentro, cada frente conserva
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
-- **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `stage` (`evaluation`|`work`|`tasks`) ·
+- **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `nivel?` (`miguel`|`playground`|`creditop`) · `stage` (`evaluation`|`work`|`tasks`) ·
   `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?`. Archivar es poner `archived`,
   no mover el archivo. **`id: 0` no aparece en el tablero.**
 - **`recorrido:`** dice en qué camino de la plataforma cae la tarea, con los ids del catálogo del harness

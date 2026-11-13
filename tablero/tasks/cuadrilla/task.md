@@ -1,6 +1,7 @@
 ---
 id: 93
 title: "Cuadrilla"
+nivel: playground
 clase: proyecto
 ramas: cuadrilla/
 stage: work

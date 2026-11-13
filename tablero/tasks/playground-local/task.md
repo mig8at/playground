@@ -2,6 +2,8 @@
 id: 96
 title: "Playground local"
 clase: proyecto
+nivel: miguel
+archived: "2026-11-13T12:30:00-05:00"
 stage: work
 created: "2026-09-24T12:00:00-05:00"
 knowledge: [lender-listing]

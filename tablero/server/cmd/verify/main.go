@@ -17,7 +17,7 @@
 //
 // POR QUÉ EXISTE. Una tarea decía «hecho» con una casilla marcada, y el criterio vivía en la cabeza de quien la
 // cerró. Idea tomada de ODD (Organic Driven Development): cada spec cita lo que se pidió y lleva su comprobación,
-// así el veredicto se repite sin interpretar. Frente «un agente saca una tarea solo» de playground-local.
+// así el veredicto se repite sin interpretar. Frente «un agente saca una tarea solo» de `miguel` (antes playground-local).
 //
 // ⚠ CORRE LO QUE ESTÁ ESCRITO EN UN ARCHIVO, y por eso no hay shell: el comando se parte en palabras, no admite
 // `;`, `&&`, `|`, redirecciones ni `$(…)`, y sólo pasa si empieza por uno de los comandos de `allowed` (corridas

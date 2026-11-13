@@ -9,7 +9,7 @@
 // el índice de síntomas de las trampas, `harness-doctor`, `harness-knowledge LIST=1`) y un agente se
 // salteaba alguno. Las tres conclusiones falsas de esa sesión salieron de no mirar el ambiente o la fuente
 // antes de concluir. Esto no decide nada: junta lo que ya existe y lo deja a la vista. El recorrido vive en
-// `tablero/tasks/playground-local/task.md`, frente «un agente saca una tarea solo».
+// `tablero/tasks/miguel/task.md` (antes `playground-local`), frente «un agente saca una tarea solo».
 //
 // `-env` corre `harness-doctor` contra local (tarda: mira migraciones con artisan). Sin él no se toca el
 // ambiente. Sale 0 aunque haya avisos: el veredicto lo da el trabajo, no el arranque.

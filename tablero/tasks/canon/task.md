@@ -1,6 +1,7 @@
 ---
 id: 74
 title: "Canon"
+nivel: playground
 clase: proyecto
 stage: work
 created: "2026-09-07T08:30:00-05:00"

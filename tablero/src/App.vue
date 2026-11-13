@@ -312,6 +312,8 @@ const FILTERS = FILTER_ORDER.map((id) => ({ id, label: TASK_GROUPS.find((g) => g
 // El resto sale de `StatusCategory`, que es lo único que Jira garantiza en cualquier workflow.
 const blocked = (i) => /bloquead/i.test(i?.Status || '');
 const bucketOf = (i) => {
+  // las tareas de Miguel y del playground compartido van en su vista, no por estado (no tienen Jira)
+  if (i._level === 'miguel' || i._level === 'playground') return `nivel-${i._level}`;
   if (i.StatusCategory === 'done') return 'terminada';
   if (inTesting(i)) return 'pruebas';
   if (blocked(i)) return 'bloqueada';
@@ -340,9 +342,10 @@ const filtersMenu = computed(() => {
   // Las LOCALES son otro eje —las de arriba filtran por ESTADO, esto por ORIGEN—, así que van
   // separadas. Y arranca apagada: el tablero es el sprint primero.
   its.push({ separator: true });
-  its.push({ id: '_locales', label: 'locales', count: localCount.value, checked: showLocals.value,
+  // (las de Miguel y del playground compartido van siempre en su vista: esto es sólo lo de CreditOp sin Jira)
+  its.push({ id: '_locales', label: 'CreditOp sin Jira', count: localCount.value, checked: showLocals.value,
              disabled: !localCount.value,
-             title: showLocals.value ? 'ocultar las tareas locales' : 'mostrar también las locales (no están en Jira)' });
+             title: showLocals.value ? 'ocultar las tareas de CreditOp que todavía no tienen Jira' : 'mostrar también las tareas de CreditOp que todavía no tienen Jira' });
   // El ancho del sprint es otro eje más: se alterna y se toca poco, que es justo lo que va al menú.
   // Vivía en el titlebar, que ya no existe.
   its.push({ separator: true });
@@ -395,6 +398,9 @@ const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim()
 const showLocals = ref(readPreference('show-locals', false) === true);
 watch(showLocals, (value) => savePreference('show-locals', value));
 
+// LOS NIVELES: las tareas de Miguel (su playground personal) y del playground compartido van siempre, en su vista
+// al final del acordeón; «locales» prende y apaga sólo las de CreditOp que todavía no tienen Jira.
+const inOwnView = (e) => e.level === 'miguel' || e.level === 'playground';
 const allLocals = computed(() => {
   const linked = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
   return efforts.value
@@ -409,15 +415,17 @@ const allLocals = computed(() => {
       Points: 0,
       _local: true,
       _effortId: e.id,
+      _level: e.level || 'creditop',
     }));
 });
-const looseLocals = computed(() => showLocals.value ? allLocals.value : []);
+const levelTasks = computed(() => allLocals.value.filter(inOwnView));
+const looseLocals = computed(() => [...levelTasks.value, ...(showLocals.value ? allLocals.value.filter((i) => !inOwnView(i)) : [])]);
 
 // Cuántas locales hay, se estén viendo o no: una píldora sin número obliga a prenderla para descubrir
 // si tiene algo, que es exactamente lo que las otras casillas ya evitan.
 const localCount = computed(() => {
   const linked = new Set(Object.values(taskLocals.value).map(v => v?.effortId).filter(Boolean));
-  return efforts.value.filter(e => e.id && !linked.has(e.id) && !e.archived).length;
+  return efforts.value.filter(e => e.id && !linked.has(e.id) && !e.archived && !inOwnView(e)).length;
 });
 
 const visibleTasks = computed(() => {
@@ -460,7 +468,7 @@ const matchesSearch = (i, q) => withoutAccents(i.Summary).includes(q) || without
 const hiddenLocalMatches = computed(() => {
   const q = normalizedSearch.value;
   if (!q || showLocals.value) return 0;
-  return allLocals.value.filter(i => !hidden.value.has(bucketOf(i)) && matchesSearch(i, q)).length;
+  return allLocals.value.filter(i => !inOwnView(i) && !hidden.value.has(bucketOf(i)) && matchesSearch(i, q)).length;
 });
 // Enter en el buscador abre el primer resultado, en el orden en que se ven.
 const searchInput = ref(null);
@@ -2373,6 +2381,8 @@ function documentAction(id) {
         @close="closeTab(active.Key)">
         <template #meta>
           <span v-if="!active._local" class="badge badge-outline status" :class="statusClass(active.StatusCategory)">{{ active.Status }}</span>
+          <span v-else-if="active._level === 'miguel'" class="badge badge-outline status no-jira" title="tu playground personal: no va a Jira">Miguel</span>
+          <span v-else-if="active._level === 'playground'" class="badge badge-outline status no-jira" title="el playground compartido: por ahora sin Jira">Playground compartido</span>
           <span v-else class="badge badge-outline status no-jira" title="no sale a Jira hasta que se decida">sin publicar</span>
         </template>
         <!-- El centro conserva el documento y las evidencias que explican cómo se lo trabajó. Los

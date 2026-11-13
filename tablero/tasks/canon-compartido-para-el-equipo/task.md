@@ -1,6 +1,7 @@
 ---
 id: 67
 title: "Canon compartido: el conocimiento de negocio, publicado para el equipo y consultable por API"
+nivel: playground
 stage: work
 archived: "2026-09-07T08:10:00-05:00"
 created: "2026-08-25T12:00:00-05:00"

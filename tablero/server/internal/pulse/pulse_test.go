@@ -1,9 +1,11 @@
 package pulse
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -231,5 +233,30 @@ func TestAggregateSlotsPerHour(t *testing.T) {
 	}
 	if SlotsPerHour != 12 {
 		t.Errorf("SlotsPerHour=%d; la grilla de la jornada asume 12", SlotsPerHour)
+	}
+}
+
+// Cambiar de rama no es trabajar: el reflog de un `checkout` no da señal (sí el del commit).
+func TestReflogIgnoresCheckouts(t *testing.T) {
+	dir := t.TempDir()
+	run := func(args ...string) {
+		t.Helper()
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.email=t@t", "-c", "user.name=t"}, args...)...)
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v %s", args, err, out)
+		}
+	}
+	since := time.Now().Add(-time.Minute)
+	run("init", "-q", "-b", "main")
+	if err := os.WriteFile(filepath.Join(dir, "a"), []byte("1"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run("add", "a")
+	run("commit", "-q", "-m", "uno")
+	run("checkout", "-q", "-b", "otra")
+	run("checkout", "-q", "main")
+	sigs := reflogSignals(context.Background(), dir, "repo", "main", since)
+	if len(sigs) != 1 || !strings.HasPrefix(sigs[0].What, "commit") {
+		t.Fatalf("señales = %+v, quería sólo la del commit", sigs)
 	}
 }

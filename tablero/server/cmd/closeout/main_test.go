@@ -270,3 +270,29 @@ func TestGoneReason(t *testing.T) {
 		t.Fatalf("rama renombrada: %q", got)
 	}
 }
+
+// El prefijo de un commit del playground personal dice de qué herramienta fue el trabajo.
+func TestToolOfSubject(t *testing.T) {
+	tools := map[string]bool{"goldfish": true, "chat": true, "designer": true, "herramienta-ecommerce": true}
+	for subject, want := range map[string]string{
+		"goldfish: valida PRs":                 "goldfish",
+		"Chat: subtítulos":                     "chat",
+		"visor: la capa elegida":               "designer",
+		"ecommerce: el EventSource":            "herramienta-ecommerce",
+		"naming: claves":                       "",
+		"Merge origin/main: muñecos":           "",
+		"tras el PR 2: la tapa":                "",
+		"integracion-shopify: la app responde": "",
+	} {
+		if got := toolOfSubject(subject, tools); got != want {
+			t.Errorf("toolOfSubject(%q) = %q, quería %q", subject, got, want)
+		}
+	}
+}
+
+// Un clon sin rama (lo deja así una herramienta que lo puso en un commit para probarlo) no es trabajo de nadie.
+func TestDetachedHeadIsNotATaskBranch(t *testing.T) {
+	if !isBaseBranch("HEAD") {
+		t.Error("HEAD debería contar como base (sin dueño)")
+	}
+}

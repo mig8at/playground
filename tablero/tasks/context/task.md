@@ -1,6 +1,7 @@
 ---
 id: 89
 title: "Context"
+nivel: miguel
 clase: proyecto
 stage: work
 created: "2026-09-19T08:00:00-05:00"
@@ -8,6 +9,7 @@ canon: []
 ramas: canon/graduar-desde-context, canon/graduar-desde-context-2, canon/backoffice-readiness
 jira: []
 jira_title: ""
+archived: "2026-11-13T12:30:00-05:00"
 ---
 
 ## Frentes activos

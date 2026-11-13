@@ -1,6 +1,7 @@
 ---
 id: 92
 title: "Workers"
+nivel: miguel
 clase: proyecto
 stage: evaluation
 created: "2026-09-19T14:55:00-05:00"

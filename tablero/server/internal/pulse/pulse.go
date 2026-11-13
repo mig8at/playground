@@ -368,6 +368,12 @@ func reflogSignals(ctx context.Context, repo, name, branch string, since time.Ti
 		if when.Before(since) {
 			break
 		}
+		// CAMBIAR DE RAMA NO ES TRABAJAR: un `checkout` sin edición ni commit no es trabajo en esa rama. Contarlo
+		// volvía «tocada» a una tarea cuando una herramienta movía el clon para probar otra (Goldfish pone el clon en
+		// un PR y lo devuelve: el 2026-11-13 eso le reclamó el cierre a la #112, que nadie había trabajado).
+		if strings.HasPrefix(fields[1], "checkout: moving from ") {
+			continue
+		}
 		out = append(out, Signal{
 			Repo: name, Branch: branch, Why: "reflog", What: fields[1],
 			At: when.Local().Format(time.RFC3339),

@@ -58,6 +58,7 @@ type task struct {
 	Title    string
 	Stage    string
 	Class    string
+	Level    string // miguel · playground · creditop (el `nivel:`; vacío = creditop)
 	Archived bool
 	Branches []string // los patrones de `ramas:`, ya partidos por coma
 	Jira     []string // las claves de `jira:`: el vínculo que pinta su documento en el tablero
@@ -180,6 +181,8 @@ func readTaskFile(path string) (task, error) {
 			t.Title = value(l)
 		case strings.HasPrefix(l, "stage:"):
 			t.Stage = value(l)
+		case strings.HasPrefix(l, "nivel:"):
+			t.Level = value(l)
 		case strings.HasPrefix(l, "clase:"):
 			t.Class = value(l)
 		case strings.HasPrefix(l, "archived:"):
@@ -522,6 +525,12 @@ func main() {
 	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
 	reasons, branchWithTask := attributeWith(tasks, touched, live, named)
+	// LOS COMMITS DE UNA HERRAMIENTA, en el playground personal: se trabaja en `main` (que no cuenta como rama de
+	// nadie), así que la rama no dice de qué herramienta fue el trabajo. El prefijo del commit sí («goldfish: …»): esa
+	// herramienta tiene su tarea (nivel miguel), y es ahí donde va el cierre del día.
+	for slug, n := range toolCommits(playgroundRoot(data), *day, tasks) {
+		reasons[slug] = append(reasons[slug], fmt.Sprintf("commits «%s:» (%d)", slug, n))
+	}
 	// Un bloque fechado ese día también es trabajo en la tarea, aunque su documento no cambie: la pila es
 	// donde se documenta ahora. Cuenta la FECHA del bloque y no el archivo tocado, así que la migración que
 	// reescribió los 37 hitos viejos con sus fechas no volvió «tocadas» a sus 22 tareas. Y un bloque
@@ -666,7 +675,9 @@ func main() {
 // "repo/rama" (ver `dayBranches`).
 func isBaseBranch(branch string) bool {
 	switch branch {
-	case "main", "master", "develop", "qa", "staging":
+	// HEAD: un clon sin rama (detached) no es trabajo de ninguna tarea: lo deja así una herramienta que lo puso en
+	// un commit para probarlo (Goldfish) o una revisión; quien trabaja, trabaja en una rama.
+	case "main", "master", "develop", "qa", "staging", "HEAD":
 		return true
 	}
 	return false
@@ -802,4 +813,61 @@ func runProposal(data string, tasks []task, which string, asJSON, isToday bool) 
 	}
 	fmt.Fprintf(os.Stderr, "no hay una tarea %q\n", which)
 	return 2
+}
+
+// playgroundRoot: la raíz del playground personal (de `tablero/data` sube dos).
+func playgroundRoot(data string) string { return filepath.Dir(filepath.Dir(data)) }
+
+// toolAliases: el prefijo de commit de una herramienta cuando no se llama como su tarea.
+var toolAliases = map[string]string{"visor": "designer", "ecommerce": "herramienta-ecommerce"}
+
+// toolCommits: por tarea de herramienta (nivel miguel, viva), cuántos commits del día en el playground personal
+// empiezan con su nombre («chat: …», «goldfish: …»). Un commit con «Sin-avance:» (un barrido) no cuenta.
+func toolCommits(root, day string, tasks []task) map[string]int {
+	tools := map[string]bool{}
+	for _, t := range tasks {
+		if t.Level == "miguel" && !t.Archived {
+			tools[t.Slug] = true
+		}
+	}
+	out := map[string]int{}
+	if len(tools) == 0 {
+		return out
+	}
+	start, err := time.ParseInLocation("2006-01-02", day, time.Local)
+	if err != nil {
+		return out
+	}
+	cmd := exec.Command("git", "-C", root, "log", "--since="+start.Format(time.RFC3339),
+		"--until="+start.AddDate(0, 0, 1).Format(time.RFC3339), "--format=%s%x1f%b%x1e")
+	raw, err := cmd.Output()
+	if err != nil {
+		return out
+	}
+	for _, c := range strings.Split(string(raw), "\x1e") {
+		subject, body, _ := strings.Cut(strings.TrimSpace(c), "\x1f")
+		if strings.Contains(body, "Sin-avance:") {
+			continue
+		}
+		if slug := toolOfSubject(subject, tools); slug != "" {
+			out[slug]++
+		}
+	}
+	return out
+}
+
+// toolOfSubject: la tarea de herramienta que nombra el prefijo de un commit («goldfish: …», «visor: …»), o "".
+func toolOfSubject(subject string, tools map[string]bool) string {
+	prefix, _, ok := strings.Cut(subject, ":")
+	if !ok || strings.ContainsAny(prefix, " /") {
+		return ""
+	}
+	prefix = strings.ToLower(prefix)
+	if a, ok := toolAliases[prefix]; ok {
+		prefix = a
+	}
+	if tools[prefix] {
+		return prefix
+	}
+	return ""
 }

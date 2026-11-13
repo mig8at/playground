@@ -48,6 +48,7 @@ type Task struct {
 	Title     string   `json:"title"`
 	Stage     string   `json:"stage"`
 	Class     string   `json:"class,omitempty"` // tarea (default) | proyecto — ver store.Effort.Clase
+	Level     string   `json:"level"`           // miguel | playground | creditop (default) — ver levelOf
 	Archived  bool     `json:"archived"`
 	Jira      []string `json:"jira,omitempty"`
 	Nodes     []string `json:"canon,omitempty"`
@@ -101,21 +102,36 @@ type PublicationJSON struct {
 // `incidencias` junta los defectos de los sistemas de CreditOp hallados al verificar `main`, hasta que
 // cada uno tenga su tarea con Jira.
 // La lista se valida en el CLI y en el lint por archivo para que la limpieza no dependa de memoria.
-var canonicalLocals = map[string]bool{
-	"canon": true, "context": true, "harness": true, "playground": true, "playground-local": true,
-	"tablero": true, "trazador": true, "workers": true, "incidencias": true,
+// LOS TRES NIVELES (decisión de Miguel, 2026-11-13). Una tarea es de uno de tres mundos, y eso decide si va a Jira:
+//
+//	miguel      su playground personal (mig8at/playground): herramientas suyas para trabajar mejor en CreditOp, pero
+//	            no de la compañía. NUNCA va a Jira. Un contenedor general (`miguel`) y una tarea por herramienta.
+//	playground  el playground compartido (Creditop-SAS/playground): es de la compañía, pero por ahora sin Jira. Un
+//	            contenedor general (`playground`) y una tarea por herramienta de ese repo. Las que ya tenían Jira
+//	            (CORE-421, CORE-530) lo conservan.
+//	creditop    el trabajo de CreditOp: las tareas de Jira, las globales por repo (`legacy-backend`…) e
+//	            `incidencias`. Lo que todavía no tiene Jira (una idea en evaluación) puede vivir sin él.
+//
+// Se declara con `nivel:`; si falta, es `creditop`. Antes había una lista fija de nueve contenedores y toda tarea sin
+// Jira fuera de ella era un error: las herramientas nuevas (chat, cockpit, goldfish…) no tenían dónde ir.
+var levels = map[string]bool{"miguel": true, "playground": true, "creditop": true}
+
+func levelOf(t Task) string {
+	if t.Level == "" {
+		return "creditop"
+	}
+	return t.Level
 }
 
 func localProblem(t Task) string {
-	canonical := canonicalLocals[t.Slug]
-	if len(t.Jira) == 0 && !canonical {
-		return "las tareas locales sólo pueden ser canon, context, harness, incidencias, playground, playground-local, tablero, trazador o workers; agregá el frente al contenedor correspondiente"
+	if !levels[levelOf(t)] {
+		return fmt.Sprintf("nivel «%s» no existe: `miguel` (tu playground personal), `playground` (el compartido) o `creditop`", t.Level)
 	}
-	if canonical && len(t.Jira) > 0 {
-		return "un contenedor local canónico no puede vincularse a Jira; el trabajo publicado necesita su propia tarea"
+	if levelOf(t) == "miguel" && len(t.Jira) > 0 {
+		return "una tarea de `nivel: miguel` es de tu playground personal y no va a Jira: el trabajo publicado necesita su tarea de `creditop`"
 	}
-	if canonical && t.Class != "proyecto" {
-		return "un contenedor local canónico debe declarar `clase: proyecto`"
+	if t.Class == "proyecto" && len(t.Jira) > 0 {
+		return "un contenedor (`clase: proyecto`) no se vincula a Jira; el trabajo publicado necesita su propia tarea"
 	}
 	return ""
 }
@@ -242,6 +258,8 @@ func readTaskFile(path string) (Task, string, error) {
 			t.Stage = value(l)
 		case strings.HasPrefix(l, "clase:"):
 			t.Class = value(l)
+		case strings.HasPrefix(l, "nivel:"):
+			t.Level = value(l)
 		case strings.HasPrefix(l, "archived:"):
 			// El valor es la FECHA de archivado (así lo escribe el tablero y así lo lee el store:
 			// "" = viva). Acá decía `== "true"`, y como ningún archivo dice `true`, las 24 archivadas
@@ -263,6 +281,9 @@ func readTaskFile(path string) (Task, string, error) {
 			// indistinguible de una tarea que de verdad no declara nada.
 			t.OldNodes = list(l)
 		}
+	}
+	if t.Level == "" {
+		t.Level = "creditop"
 	}
 	return t, parts[2], nil
 }
@@ -807,6 +828,9 @@ func main() {
 		class := ""
 		if t.Class == "proyecto" {
 			class = " ·proyecto"
+		}
+		if lv := levelOf(t); lv != "creditop" {
+			class += " ·" + lv
 		}
 		fmt.Printf("  #%-3d %-10s%s %s%s\n", t.ID, t.Stage, class, t.Title, j)
 		fmt.Printf("       %s\n", t.Slug)

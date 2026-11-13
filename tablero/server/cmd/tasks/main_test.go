@@ -12,32 +12,36 @@ import (
 	"creditop/playground/tablero/server/internal/taskcontext"
 )
 
-func TestLocalProblemAcceptsOnlyCanonicalContainers(t *testing.T) {
+// Los tres niveles: una tarea de Miguel no va a Jira; una de CreditOp puede vivir sin Jira mientras se evalúa; un
+// contenedor nunca se vincula a Jira.
+func TestLocalProblemFollowsTheLevels(t *testing.T) {
 	tests := []struct {
 		name string
 		task Task
 		ok   bool
 	}{
-		{"contenedor", Task{Slug: "context", Class: "proyecto"}, true},
-		{"general", Task{Slug: "playground", Class: "proyecto"}, true},
-		{"jira", Task{Slug: "arreglo-producto", Jira: []string{"CORE-1"}}, true},
-		{"local-suelta", Task{Slug: "otra-mejora"}, false},
-		{"canonica-como-tarea", Task{Slug: "harness", Class: "tarea"}, false},
-		{"canonica-con-jira", Task{Slug: "tablero", Class: "proyecto", Jira: []string{"CORE-2"}}, false},
+		{"herramienta de miguel", Task{Slug: "chat", Class: "proyecto", Level: "miguel"}, true},
+		{"contenedor del compartido", Task{Slug: "playground", Class: "proyecto", Level: "playground"}, true},
+		{"compartido con jira", Task{Slug: "canon-compartido", Level: "playground", Jira: []string{"CORE-530"}}, true},
+		{"creditop con jira", Task{Slug: "arreglo-producto", Jira: []string{"CORE-1"}}, true},
+		{"creditop sin jira todavía", Task{Slug: "diccionario-de-campos"}, true},
+		{"miguel con jira", Task{Slug: "goldfish", Level: "miguel", Jira: []string{"CORE-2"}}, false},
+		{"contenedor con jira", Task{Slug: "tablero", Class: "proyecto", Level: "miguel", Jira: []string{"CORE-2"}}, false},
+		{"nivel inventado", Task{Slug: "x", Level: "personal"}, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			got := localProblem(test.task)
 			if (got == "") != test.ok {
-				t.Fatalf("problemaLocal() = %q, ok esperado %v", got, test.ok)
+				t.Fatalf("localProblem() = %q, ok esperado %v", got, test.ok)
 			}
 		})
 	}
 }
 
-func TestWarningsExplainWhereToConsolidateLooseLocal(t *testing.T) {
-	got := strings.Join(warnings([]Task{{ID: 93, Slug: "mejora-suelta", Stage: "work"}}), "\n")
-	if !strings.Contains(got, "agregá el frente al contenedor correspondiente") {
+func TestWarningsNameTheWrongLevel(t *testing.T) {
+	got := strings.Join(warnings([]Task{{ID: 93, Slug: "mejora", Stage: "work", Level: "miguel", Jira: []string{"CORE-9"}}}), "\n")
+	if !strings.Contains(got, "no va a Jira") {
 		t.Fatalf("aviso = %q", got)
 	}
 }

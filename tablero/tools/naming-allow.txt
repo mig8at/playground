@@ -72,7 +72,7 @@ json: connectors/canon/ objetivo secciones tablas fuentes citar sin_cubrir opera
 json: server/cmd/today/main.go:areaCanon objetivo secciones        # el brief de canon, reenviado tal cual en `retomar -json`
 json: server/cmd/cuadrilla/ rama ramas autor nota nombre           # la API de cuadrilla, en el repo compartido
 json: chat/server/voice_top.go leon panda zorro oso buho tucan loro rana pato mico conejo gorila jaguar gato perro cerdito raton capibara perezoso koala oveja pinguino mapache     # las claves de especie de Office (office/personajes.js, SPECIES): el contrato de otro módulo
-json: server/internal/store/store.go:index clase ramas             # claves del frontmatter: se escribe a mano y la fase 0 lo dejó en español
+json: server/internal/store/store.go:index clase nivel ramas       # claves del frontmatter: se escribe a mano y la fase 0 lo dejó en español
 json: server/internal/pulse/ del                                   # «deletions», pareja de `ins`; persistido en data/pulse
 json: server/cmd/branches/main.go:map *                            # palabras vacías para sugerir patrones de rama: dato, no clave
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave

@@ -47,6 +47,13 @@
             "tasks"
           ]
         },
+        "level": {
+          "enum": [
+            "miguel",
+            "playground",
+            "creditop"
+          ]
+        },
         "class": {
           "enum": [
             "tarea",

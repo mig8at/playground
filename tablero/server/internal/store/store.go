@@ -299,6 +299,7 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 		JiraDescription: desc,
 		Stage:           fm["stage"],
 		Class:           fm["clase"],
+		Level:           fm["nivel"],
 		CreatedAt:       fm["created"],
 		// el struct expone los temas como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
@@ -312,6 +313,9 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 	}
 	if e.Class == "" {
 		e.Class = "tarea"
+	}
+	if e.Level == "" {
+		e.Level = "creditop"
 	}
 	e.Artifacts = s.artifactsOf(slug)
 	// Del cuerpo PRIVADO: las casillas de la publicable son criterios de aceptación de QA, no pendientes.
@@ -593,7 +597,7 @@ type Effort struct {
 	// CLASE: qué es esto, que es otra pregunta que en qué etapa está.
 	//
 	//	"tarea"     (default) trabajo del día a día sobre CreditOp. Va, o irá, a Jira.
-	//	"proyecto"  uno de los siete contenedores locales canónicos. NO va a Jira nunca.
+	//	"proyecto"  un contenedor: el general de un nivel o el de una herramienta (ver Level). NO va a Jira nunca.
 	//
 	// Existe porque el tablero las trataba igual y no lo son: medido el 2026-09-15, 23 de las 40
 	// abiertas no tienen clave de Jira, y buena parte son proyectos propios (las herramientas del
@@ -601,7 +605,11 @@ type Effort struct {
 	// reclamaba las piezas del cierre como si alguien fuera a leerlas del otro lado. ⚠ No se deduce de
 	// si hay clave de Jira ni de qué repo toca: hay trabajo sobre las herramientas que SÍ se publicó
 	// (CORE-421). Es una decisión, y por eso se declara.
-	Class     string `json:"class,omitempty"`
+	Class string `json:"class,omitempty"`
+	// NIVEL: de qué mundo es (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13). «miguel»: su playground
+	// personal, nunca a Jira. «playground»: el compartido de la compañía, por ahora sin Jira. «creditop» (default):
+	// el trabajo de CreditOp. La UI agrupa por nivel y sólo ofrece Jira en creditop.
+	Level     string `json:"level"`
 	CreatedAt string `json:"createdAt"`
 	// TouchedAt: el último día que alguien tocó el archivo de la tarea (YYYY-MM-DD), según git. Es lo
 	// que separa una tarea viva de una dormida — la etapa no lo hace. Ver `layout/history.go`.
