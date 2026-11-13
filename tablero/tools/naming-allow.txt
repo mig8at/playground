@@ -146,4 +146,4 @@ whisper ffmpeg transcribe
 # Sentinel: lo que entra por hora
 hourly
 # inglés que la vara no conoce: `hush` (callar), `pitch` (tono) y `analyser` (AnalyserNode de WebAudio, en británico)
-hush pitch analyser
+hush pitch analyser daily roomier headphones

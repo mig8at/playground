@@ -84,3 +84,20 @@ func TestUsage(t *testing.T) {
 		t.Fatalf("Usage = %+v, %v", u, err)
 	}
 }
+
+func TestSoundEffect(t *testing.T) {
+	c := fake(t, func(w http.ResponseWriter, r *http.Request) {
+		var b map[string]any
+		_ = json.NewDecoder(r.Body).Decode(&b)
+		if r.URL.Path != "/v1/sound-generation" || b["text"] != "pop" || b["duration_seconds"] != 0.6 || b["loop"] != true {
+			t.Errorf("pedido inesperado: %s %v", r.URL.Path, b)
+		}
+		io.WriteString(w, "ID3sfx")
+	})
+	if audio, err := c.SoundEffect("pop", 0.6, true); err != nil || string(audio) != "ID3sfx" {
+		t.Fatalf("SoundEffect = %q, %v", audio, err)
+	}
+	if _, err := c.SoundEffect("pop", 40, false); err == nil {
+		t.Error("más de 30 s tiene que rechazarse antes de llamar")
+	}
+}

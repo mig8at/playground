@@ -32,6 +32,7 @@ import { EVERYONE, mentionsIn } from './mentions.js'
 import { forCall } from './callSpeech.js'
 import { characters } from './characters/index.js'
 import { assignVoice, voiceAssign } from './voiceAssign.js'
+import { loop as sfxLoop, play as sfxPlay, setAmbient, setSfx, sfx, stopLoops } from './sfx.js'
 
 const props = defineProps({
   cast: { type: Array, required: true },
@@ -39,9 +40,6 @@ const props = defineProps({
   me: { type: String, default: '' },              // mi correo
   peer: { type: String, default: '' },            // la clave de la conversación (correo o #grupo)
 })
-// keyOf va ARRIBA DE TODO: los watch de «entrar y salir» la usan al crearse (su getter corre en el acto); definida más
-// abajo, la llamada no abría («Cannot access 'keyOf' before initialization»)
-const keyOf = (c) => (c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}`)
 const ASPECT = 4 / 3, GAP = 10, PAD = 12, BAR = 46 // BAR: el alto de la línea de tiempo, abajo
 const box = ref(null)
 const size = ref({ w: 0, h: 0 })
@@ -164,8 +162,8 @@ onMounted(async () => { for (const c of props.cast) await giveVoice(c) })
 watch(() => props.cast.map(keyOf).join(','), (current, before) => {
   if (before === undefined) return
   const was = new Set(before.split(',').filter(Boolean)), is = new Set(current.split(',').filter(Boolean))
-  for (const c of props.cast) if (!was.has(keyOf(c))) { announce(`${c.name} entró a la llamada.`); welcome(c) }
-  for (const k of was) if (!is.has(k)) announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`)
+  for (const c of props.cast) if (!was.has(keyOf(c))) { sfxPlay('join'); announce(`${c.name} entró a la llamada.`); welcome(c) }
+  for (const k of was) if (!is.has(k)) { sfxPlay('leave'); announce(`${leftNames.get(k) || k.split('/').pop()} salió de la llamada.`) }
 })
 // los nombres de los que estaban, para decir quién salió cuando ya no está en la lista
 const leftNames = new Map()
@@ -178,6 +176,9 @@ const genderTitle = (c) => {
 
 // ── quién habla ───────────────────────────────────────────────────────────────────────────────────
 const userOf = (key) => String(key || '').toLowerCase().replace(/^agent:/, '').split('/')[0].split('@')[0]
+// función declarada (no una const): la usan vigilancias inmediatas que están más arriba en el archivo, y una const
+// todavía no existe ahí (en desarrollo revienta la llamada; en producción el minificador lo escondía)
+function keyOf(c) { return c.handle ? c.handle.toLowerCase() : `${c.owner.toLowerCase()}/${c.agent.toLowerCase()}` }
 const byKey = computed(() => Object.fromEntries(props.cast.map((c) => [keyOf(c), c])))
 // quién dijo un mensaje: lo que llega es de su autor (o de su agente, `via`); lo que sale es tuyo y sólo cuenta si lo
 // mandó uno de tus agentes (`asAgent`): lo que escribís vos no se lee
@@ -412,6 +413,35 @@ watch(() => voice.line, (line) => {
   }
   reactions.value = next
 })
+
+// ── LOS EFECTOS DE SONIDO (sfx.js): lo que pasa en la llamada suena, bajito ─────────────────────────────
+// el portátil: al cerrarlo, el clic y enseguida el sorbo del tinto; al abrirlo, su clic
+watch(() => props.cast.map((c) => `${keyOf(c)}:${activityOf(c) === 'cafe' ? 'closed' : 'open'}`).join(','), (cur, before) => {
+  if (before === undefined) return
+  const prev = Object.fromEntries(before.split(',').map((x) => x.split(/:(?=[^:]*$)/)))
+  for (const [k, st] of cur.split(',').map((x) => x.split(/:(?=[^:]*$)/))) {
+    if (prev[k] === 'open' && st === 'closed') { sfxPlay('lid-close'); setTimeout(() => sfxPlay('sip'), 1300) }
+    if (prev[k] === 'closed' && st === 'open') sfxPlay('lid-open')
+  }
+})
+// la música de los audífonos, mientras alguien los tenga puestos; el murmullo de la oficina, si está prendido
+watch(() => props.cast.some((c) => activityOf(c) === 'audifonos'), (on) => sfxLoop('headphones', on), { immediate: true })
+watch(() => sfx.ambient && sfx.on, (on) => sfxLoop('ambient', on), { immediate: true })
+watch(() => sfx.on, (on) => { if (on) { sfxLoop('ambient', sfx.ambient); sfxLoop('headphones', props.cast.some((c) => activityOf(c) === 'audifonos')) } })
+onBeforeUnmount(stopLoops)
+// una mención: un pop cuando empieza el mensaje que nombra a alguien (o cuando nombrás vos)
+watch(() => voice.addressed, (list, old) => { if (list !== old && list?.length) sfxPlay('mention') })
+watch(() => nudged.value, (list) => { if (list.length) sfxPlay('mention') })
+// lo que reciben: papel, obturador o llaves, cuando aparece en la mano de alguien
+watch(() => Object.values(voice.props).map((p) => p.kind).sort().join(','), (cur, before) => {
+  const was = new Set(String(before || '').split(','))
+  for (const kind of new Set(cur.split(',').filter(Boolean))) {
+    if (was.has(kind)) continue
+    if (kind === 'doc') sfxPlay('paper')
+    if (kind === 'image') sfxPlay('photo')
+    if (kind === 'key') sfxPlay('keys')
+  }
+})
 // un mensaje dirigido a alguien (con @ o por su nombre al empezar) no es con los demás: siguen en lo suyo, tecleando, un
 // poco apagados. Con @todos, o sin nombrar a nadie, todos escuchan.
 const aside = (c) => addressed.value.size > 0 && !addressed.value.has(keyOf(c)) && speaking.value !== keyOf(c) && !propOf(c)
@@ -531,6 +561,16 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
         <span class="tl-head" :class="{ live: mode === 'live' && scrub < 0, dragging: scrub >= 0 }" :style="{ left: `${head}%` }"></span>
         <span v-if="headLabel" class="tl-tip" :style="{ left: `${Math.min(85, Math.max(15, head))}%` }">{{ headLabel }}</span>
       </div>
+      <!-- los efectos de sonido y el murmullo de la oficina (sfx.js) -->
+      <button type="button" class="tl-btn" :class="{ off: !sfx.on }" :aria-pressed="sfx.on" :title="sfx.on ? 'Efectos de sonido: prendidos' : 'Efectos de sonido: apagados'"
+              :aria-label="sfx.on ? 'Apagar los efectos de sonido' : 'Prender los efectos de sonido'" @click="setSfx(!sfx.on)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M9 17.5a2.5 2.5 0 1 1-1.5-2.3V5l10-2v11.5a2.5 2.5 0 1 1-1.5-2.3V7.2L9 8.6z" /></svg>
+      </button>
+      <button type="button" class="tl-btn" :class="{ off: !sfx.ambient || !sfx.on }" :aria-pressed="sfx.ambient" :disabled="!sfx.on"
+              :title="sfx.ambient ? 'Ambiente de oficina: prendido' : 'Ambiente de oficina: apagado'"
+              :aria-label="sfx.ambient ? 'Apagar el ambiente de oficina' : 'Prender el ambiente de oficina'" @click="setAmbient(!sfx.ambient)">
+        <svg viewBox="0 0 24 24" aria-hidden="true" style="stroke: none"><path d="M4 21V8l8-5 8 5v13h-6v-6h-4v6zM8 11h2v2H8zm6 0h2v2h-2z" /></svg>
+      </button>
       <!-- en vivo, la etiqueta; para volver, el cabezal hasta el final de la línea -->
       <span class="tl-live" :class="{ off: mode !== 'live' }" :title="mode === 'live' ? 'Suena lo que va llegando' : 'Arrastrá hasta el final para volver al directo'">● En vivo</span>
     </div>
@@ -543,6 +583,13 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 
 <style scoped>
 /* el fondo es el del tema (el mismo del editor): sigue el claro, el oscuro y la paleta que se elija en Cockpit */
+/* los colores de papel de la llamada (placas, subtítulos): declarados acá, una sola palanca */
+.call {
+  --call-ink: rgba(19, 50, 58, .88);
+  --call-cream: #f6ecd6;
+  --call-gold: #f2c14e;
+  --call-text-shadow: rgba(0, 0, 0, .25);
+}
 .call { position: relative; overflow: hidden; background: var(--region-bg, var(--background)); display: grid; place-items: center; padding: 12px;
   padding-bottom: calc(12px + 46px); } /* abajo, el lugar de la línea de tiempo (BAR): la grilla se centra en lo que queda */
 /* filas centradas (también la última, si está incompleta): flex con ancho justo para las columnas elegidas */
@@ -562,12 +609,12 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
 /* quien habla se marca como en una videollamada: el borde del recuadro */
 .call-tile.speaking { box-shadow: 0 0 0 3px #f08c3d, 0 6px 18px rgba(0, 0, 0, .35); }
 .call-muted { position: absolute; top: 8px; left: 10px; font-size: calc(var(--tile) * .1); line-height: 1;
-  padding: 4px 6px; border-radius: 10px; background: rgba(19, 50, 58, .8); animation: wave-in .25s ease-out; }
+  padding: 4px 6px; border-radius: 10px; background: var(--call-ink); animation: wave-in .25s ease-out; }
 .call-gender { position: absolute; top: 8px; right: 8px; width: 30px; height: 30px; border-radius: 50%; border: 0; cursor: pointer;
-  font-size: 17px; font-weight: 800; line-height: 1; color: var(--primary-foreground, #fff); background: var(--primary, #e5592a);
+  font-size: 17px; font-weight: 800; line-height: 1; color: var(--primary-foreground); background: var(--primary);
   box-shadow: 0 2px 6px rgba(0,0,0,.3); opacity: 0; transform: scale(.85); transition: opacity .15s, transform .15s; }
 .call-tile:hover .call-gender, .call-gender:focus-visible { opacity: 1; transform: scale(1); }
-.call-gender:focus-visible { outline: 2px solid var(--ring, #f08c3d); outline-offset: 2px; }
+.call-gender:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .call-gender.busy { opacity: .6; }
 /* entrar y salir: el que entra crece desde el centro, el que sale se achica, y los demás se acomodan en su lugar */
 .tile-enter-active { transition: opacity .45s ease, transform .45s cubic-bezier(.2, .9, .3, 1.2); }
@@ -597,31 +644,32 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
   background: var(--card); color: var(--foreground); border: 1px solid var(--border); font-size: 12px; font-weight: 700; }
 /* la línea de tiempo: abajo, como la de un directo */
 .call-timeline { position: absolute; left: 12px; right: 12px; bottom: 8px; height: 38px; display: flex; align-items: center; gap: 8px;
-  padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background, #fff) 85%, transparent);
-  border: 1px solid var(--border, rgba(0,0,0,.12)); }
+  padding: 0 10px; border-radius: 12px; background: color-mix(in oklab, var(--background) 85%, transparent);
+  border: 1px solid var(--border); }
 .tl-btn { flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border: 0; border-radius: 8px;
-  background: transparent; color: var(--foreground, #222); cursor: pointer; }
-.tl-btn:hover { background: var(--hover, rgba(0,0,0,.06)); }
+  background: transparent; color: var(--foreground); cursor: pointer; }
+.tl-btn:hover { background: var(--hover); }
 .tl-btn:disabled { opacity: .4; cursor: default; }
+.tl-btn.off { opacity: .45; }
 .tl-btn svg { width: 16px; height: 16px; fill: currentColor; stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
 .tl-track { flex: 1; min-width: 0; height: 100%; position: relative; margin: 0 8px; cursor: pointer; touch-action: none; outline: none; }
-.tl-track:focus-visible .tl-line { outline: 2px solid var(--ring, #f08c3d); outline-offset: 4px; }
+.tl-track:focus-visible .tl-line { outline: 2px solid var(--ring); outline-offset: 4px; }
 .tl-line { position: absolute; left: 0; right: 0; top: 50%; height: 4px; translate: 0 -50%; border-radius: 2px;
-  background: color-mix(in oklab, var(--foreground, #222) 18%, transparent); }
-.tl-fill { height: 100%; border-radius: 2px; background: var(--primary, #e5592a); }
+  background: color-mix(in oklab, var(--foreground) 18%, transparent); }
+.tl-fill { height: 100%; border-radius: 2px; background: var(--primary); }
 /* el cabezal: donde vas; en vivo, al final y rojo */
 /* centrado de verdad sobre la línea: el borde va por dentro (border-box) y se corre con translate, no con márgenes */
 .tl-head { position: absolute; top: 50%; width: 16px; height: 16px; box-sizing: border-box; translate: -50% -50%; border-radius: 50%; pointer-events: none;
-  background: var(--background, #fff); border: 3px solid var(--primary, #e5592a); box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
+  background: var(--background); border: 3px solid var(--primary); box-shadow: 0 1px 4px rgba(0,0,0,.35); transition: left .2s ease; }
 .tl-head.dragging { transition: none; transform: scale(1.2); }
-.tl-head.live { background: var(--primary, #e5592a); }
+.tl-head.live { background: var(--primary); }
 .tl-tip { position: absolute; bottom: calc(100% + 6px); transform: translateX(-50%); white-space: nowrap; max-width: 320px; overflow: hidden;
-  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground, #13323a); color: var(--background, #f6ecd6);
+  text-overflow: ellipsis; padding: 4px 8px; border-radius: 6px; font-size: 12px; background: var(--foreground); color: var(--background);
   pointer-events: none; }
-.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary, #e5592a); white-space: nowrap; transition: opacity .2s; }
+.tl-live { flex: 0 0 auto; font-size: 12px; font-weight: 800; color: var(--primary); white-space: nowrap; transition: opacity .2s; }
 .tl-live.off { opacity: .35; filter: grayscale(1); }
 .call-caption { position: absolute; left: 50%; bottom: 58px; transform: translateX(-50%); margin: 0; max-width: min(640px, calc(100% - 32px));
-  padding: 6px 12px; border-radius: 10px; background: rgba(19, 50, 58, .88); color: #f6ecd6; font-size: 13px; line-height: 1.35; text-align: center; }
-.call-caption b { color: #f2c14e; margin-right: 4px; }
+  padding: 6px 12px; border-radius: 10px; background: var(--call-ink); color: var(--call-cream); font-size: 13px; line-height: 1.35; text-align: center; }
+.call-caption b { color: var(--call-gold); margin-right: 4px; }
 .compact .call-name { left: 5px; bottom: 5px; padding: 1px 6px; font-size: 10.5px; border-radius: 6px; }
 </style>

@@ -116,3 +116,31 @@ func runElevenSay(args []string) int {
 	fmt.Printf("✔ %s (%d KB) en %d ms · %d caracteres con %s\n", *out, len(audio)/1024, time.Since(start).Milliseconds(), len([]rune(*text)), cl.Config.Model)
 	return 0
 }
+
+func runElevenSfx(args []string) int {
+	fs := flag.NewFlagSet("elevenlabs sfx", flag.ContinueOnError)
+	text := fs.String("text", "", "qué suena (mejor en inglés)")
+	seconds := fs.Float64("seconds", 2, "duración, de 0,5 a 30")
+	loop := fs.Bool("loop", false, "que empalme consigo mismo")
+	out := fs.String("out", "", "el MP3 de salida")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if strings.TrimSpace(*text) == "" || *out == "" {
+		return fail(2, "faltan --text u --out")
+	}
+	cl, code := elevenClient()
+	if cl == nil {
+		return code
+	}
+	start := time.Now()
+	audio, err := cl.SoundEffect(*text, *seconds, *loop)
+	if err != nil {
+		return fail(1, "ElevenLabs: %v (la llave necesita el permiso «Sound Effects»)", err)
+	}
+	if err := os.WriteFile(*out, audio, 0o644); err != nil {
+		return fail(1, "%v", err)
+	}
+	fmt.Printf("✔ %s (%d KB) en %d ms · %.1f s (~%.0f créditos)\n", *out, len(audio)/1024, time.Since(start).Milliseconds(), *seconds, *seconds*10)
+	return 0
+}
