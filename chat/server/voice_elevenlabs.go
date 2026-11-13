@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -102,4 +103,34 @@ func elevenFriendly(err error) error {
 	elevenBlocked, elevenWhy = time.Now().Add(pause), why
 	elevenMu.Unlock()
 	return errors.New(why)
+}
+
+// elevenVoiceList: las voces de la cuenta, para elegir la del ▶ de cada mensaje (se pide una vez por arranque).
+var (
+	elevenListMu sync.Mutex
+	elevenList   []map[string]string
+)
+
+func elevenVoiceList() ([]map[string]string, error) {
+	elevenListMu.Lock()
+	defer elevenListMu.Unlock()
+	if elevenList != nil {
+		return elevenList, nil
+	}
+	cfg, err := elevenlabs.LoadConfig()
+	if err != nil {
+		return nil, err
+	}
+	voices, err := elevenlabs.New(cfg).Voices()
+	if err != nil {
+		return nil, elevenFriendly(err)
+	}
+	out := make([]map[string]string, 0, len(voices))
+	for _, v := range voices {
+		// el nombre corto («Laura»), que es el que se manda a /api/voice, y lo que la describe
+		name := strings.TrimSpace(strings.SplitN(v.Name, " - ", 2)[0])
+		out = append(out, map[string]string{"name": name, "gender": v.Labels["gender"], "accent": v.Labels["accent"], "description": v.Name})
+	}
+	elevenList = out
+	return out, nil
 }

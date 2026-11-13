@@ -22,6 +22,45 @@ const wave = (y, amp, fill, phase = 0) => `<g class="cut"><path d="M-10 ${y} C${
 const rays = (x, y, n, c1, c2) => `<g>${Array.from({ length: n }, (_, i) => { const a0 = (i / n) * Math.PI * 2, a1 = ((i + .5) / n) * Math.PI * 2; return `<path d="M${x} ${y} L${x + 600 * Math.cos(a0)} ${y + 600 * Math.sin(a0)} L${x + 600 * Math.cos(a1)} ${y + 600 * Math.sin(a1)}Z" fill="${i % 2 ? c1 : c2}"/>` }).join('')}</g>`
 const stars = (fill, pts) => `<g class="cut-soft">${pts.map(([x, y, r]) => `<path d="M${x} ${y - r} l${r * .3} ${r * .7} l${r * .7} ${r * .3} l${-r * .7} ${r * .3} l${-r * .3} ${r * .7} l${-r * .3} ${-r * .7} l${-r * .7} ${-r * .3} l${r * .7} ${-r * .3}Z" fill="${fill}"/>`).join('')}</g>`
 const confetti = (cols, n, seed) => { let s = '', k = seed; for (let i = 0; i < n; i++) { k = (k * 9301 + 49297) % 233280; const x = (k / 233280) * 400; k = (k * 9301 + 49297) % 233280; const y = (k / 233280) * 170; s += `<circle cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${3 + (i % 3) * 2}" fill="${cols[i % cols.length]}"/>` } return `<g class="cut-soft">${s}</g>` }
+// ── LAS HABITACIONES (2026-11-12): para el trabajo, el fondo es un cuarto y no un paisaje. Pared con zócalo, una
+// ventana con su vista (el paisaje queda adentro, recortado por el marco), algún mueble a un lado y el respaldo de la
+// silla detrás de los hombros. Todo en las mismas capas de papel.
+// una ventana: el marco crema con su sombra, la vista recortada adentro (inner, en coordenadas del cuarto) y el parteluz
+const roomWindow = (x, y, w, h, inner) => `<g class="cut"><rect x="${x - 7}" y="${y - 7}" width="${w + 14}" height="${h + 14}" rx="4" fill="${P.cream}"/></g>` +
+  `<svg x="${x}" y="${y}" width="${w}" height="${h}" viewBox="${x} ${y} ${w} ${h}">${inner}</svg>` +
+  `<g fill="${P.cream}"><rect x="${x + w / 2 - 3}" y="${y}" width="6" height="${h}"/><rect x="${x}" y="${y + h * .45 - 3}" width="${w}" height="6"/></g>` +
+  `<g class="cut-soft"><rect x="${x - 12}" y="${y + h + 4}" width="${w + 24}" height="8" rx="2" fill="${shade(P.cream, .9)}"/></g>`
+// edificios para la vista: alturas fijas (no al azar: el mismo cuarto se ve igual siempre), con ventanitas
+const skyline = (x0, base, fill, lit) => [[0, 46], [26, 70], [48, 38], [70, 86], [100, 56], [124, 74], [150, 44]].map(([dx, hh], i) =>
+  `<rect x="${x0 + dx}" y="${base - hh}" width="${22 + (i % 2) * 4}" height="${hh + 40}" fill="${fill}"/>` +
+  (lit ? Array.from({ length: Math.floor(hh / 16) }, (_, k) => `<rect x="${x0 + dx + 6}" y="${base - hh + 8 + k * 16}" width="5" height="6" fill="${lit}"/><rect x="${x0 + dx + 13}" y="${base - hh + 8 + k * 16}" width="5" height="6" fill="${(k + i) % 3 ? lit : fill}"/>`).join('') : '')).join('')
+// el respaldo de la silla, detrás de los hombros (el personaje se dibuja encima)
+const chair = (fill) => `<g class="cut"><path d="M92 300 V196 Q92 160 128 156 H272 Q308 160 308 196 V300 Z" fill="${shade(fill, .82)}"/></g>` +
+  `<path d="M112 300 V202 Q112 176 138 174 H262 Q288 176 288 202 V300 Z" fill="${fill}"/>`
+// una planta en su matera
+const plant = (x, y, pot) => `<g class="cut">${[[-18, -64, -30], [0, -78, 0], [18, -62, 28], [-6, -50, -12], [10, -48, 14]].map(([dx, dy, r]) =>
+  `<ellipse cx="${x + dx}" cy="${y + dy}" rx="11" ry="26" transform="rotate(${r} ${x + dx} ${y + dy})" fill="${r % 2 ? P.forest : P.grass}"/>`).join('')}</g>` +
+  `<g class="cut"><path d="M${x - 24} ${y - 26} H${x + 24} L${x + 18} ${y + 14} H${x - 18} Z" fill="${pot}"/></g>`
+// una biblioteca con libros de colores
+const shelf = (x, y, w) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" height="150" fill="${shade(P.amber, .55)}"/></g>` +
+  [0, 1, 2].map((row) => `<rect x="${x + 6}" y="${y + 8 + row * 48}" width="${w - 12}" height="40" fill="${shade(P.amber, .4)}"/>` +
+    [P.red, P.teal, P.yellow, P.cream, P.navy, P.rose].map((c, i) => `<rect x="${x + 10 + i * ((w - 20) / 6)}" y="${y + 14 + row * 48 + (i % 3) * 3}" width="${(w - 20) / 6 - 3}" height="${34 - (i % 3) * 3}" fill="${c}"/>`).join('')).join('')
+// un cuadro en la pared
+const frame = (x, y, w, h, inner) => `<g class="cut"><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="${P.ink}"/></g><rect x="${x + 6}" y="${y + 6}" width="${w - 12}" height="${h - 12}" fill="${P.cream}"/>${inner}`
+// la pared: el color de arriba y el zócalo
+const wall = (top, base) => `<rect width="400" height="300" fill="${top}"/><rect y="236" width="400" height="64" fill="${base}"/><rect y="232" width="400" height="6" fill="${shade(base, .8)}"/>`
+const ROOMS = {
+  oficina: () => wall('#cfe0d8', P.sage) + roomWindow(28, 36, 120, 110, `<rect x="28" y="36" width="120" height="110" fill="${P.sky}"/>${cloud(30, 46, .6, P.cream)}${skyline(28, 132, P.teal, P.cream)}`) +
+    plant(352, 238, P.orange) + chair(P.teal),
+  estudio: () => wall('#f3d9b8', '#d9a56f') + roomWindow(30, 34, 110, 104, `<rect x="30" y="34" width="110" height="104" fill="${P.amber}"/>${sun(110, 70, 28, [P.red, P.orange, P.yellow])}${wave(118, 10, P.plum)}${wave(128, 8, P.rose, 20)}`) +
+    shelf(300, 70, 86) + chair(P.navy),
+  noche: () => wall('#3b3a63', '#2a2848') + roomWindow(36, 34, 116, 106, `<rect x="36" y="34" width="116" height="106" fill="${P.navy}"/>${stars(P.cream, [[60, 52, 5], [128, 48, 4], [100, 66, 3]])}<circle cx="124" cy="62" r="13" fill="${P.cream}"/>${skyline(36, 128, '#1b2a44', P.yellow)}`) +
+    `<g class="cut"><rect x="348" y="96" width="8" height="140" fill="${P.ink}"/><path d="M326 98 L378 98 L366 62 L338 62 Z" fill="${P.yellow}"/></g><ellipse cx="352" cy="104" rx="44" ry="14" fill="${P.yellow}" opacity=".18"/>` + chair(P.teal),
+  sala: () => wall('#f6d3cf', P.rose) + roomWindow(36, 38, 108, 100, `<rect x="36" y="38" width="108" height="100" fill="${P.sky}"/>${sun(118, 64, 16, [P.yellow])}${wave(112, 12, P.grass)}${wave(124, 10, P.forest, 20)}`) +
+    frame(296, 52, 74, 58, `<circle cx="333" cy="81" r="14" fill="${P.orange}"/><path d="M302 104 L322 86 L338 98 L350 90 L364 104 Z" fill="${P.teal}"/>`) + plant(354, 240, P.cream) + chair(P.forest),
+  reunion: () => wall('#dfe3ea', '#aab4c4') + roomWindow(30, 36, 124, 108, `<rect x="30" y="36" width="124" height="108" fill="#a9d3e6"/>${skyline(30, 134, P.navy, '#a9d3e6')}`) +
+    `<g class="cut"><rect x="282" y="48" width="100" height="72" rx="3" fill="#fbf6ea"/></g><rect x="292" y="58" width="34" height="22" fill="${P.yellow}"/><rect x="332" y="58" width="34" height="22" fill="${P.pink}"/><rect x="292" y="86" width="34" height="22" fill="${P.sky}"/><path d="M336 96 h36 M336 102 h28" stroke="${P.teal}" stroke-width="3"/>` + chair(P.red),
+}
 const SCENES = {
   sunset: () => `<rect width="400" height="300" fill="${P.amber}"/>${rays(320, 70, 16, P.yellow, P.amber)}${sun(320, 70, 66, [P.redDeep, P.red, P.orange, P.yellow])}${cloud(10, 40, 1.1, P.cream)}${cloud(250, 140, .9, P.pink)}${wave(228, 26, P.plum)}${wave(254, 22, P.rose, 30)}${wave(282, 16, P.red, 10)}`,
   clouds: () => `<rect width="400" height="300" fill="${P.sky}"/>${cloud(-20, 10, 1.6, P.cream)}${cloud(260, 40, 1.2, P.pink)}${cloud(-30, 140, 1.4, P.lilac)}${stars(P.yellow, [[330, 150, 12], [70, 120, 9], [290, 30, 8]])}${wave(248, 22, P.navy)}${wave(276, 14, P.deep, 40)}`,
@@ -33,6 +72,7 @@ const SCENES = {
   ocean: () => `<rect width="400" height="300" fill="${P.navy}"/>${rays(200, 320, 18, P.navy, P.deep)}${sun(90, 70, 44, [P.cream, P.yellow])}${stars(P.cream, [[300, 50, 9], [350, 140, 6], [240, 110, 7]])}${wave(226, 24, P.sky)}${wave(254, 20, P.teal, 30)}${wave(280, 14, P.sage, 10)}`,
   candy: () => `<rect width="400" height="300" fill="${P.sage}"/>${rays(200, 100, 20, P.sage, P.cream)}${cloud(10, 100, 1.2, P.pink)}${cloud(270, 40, 1.1, P.lilac)}${wave(232, 24, P.rose)}${wave(262, 18, P.orange, 30)}${wave(286, 12, P.plum, 10)}`,
 }
+Object.assign(SCENES, ROOMS)
 
 // ── LOS PERSONAJES, EN PAPEL ─────────────────────────────────────────────────────────────────────
 // Caricaturas originales del torso para arriba: cabeza grande, hombros chicos. Todos son personas, con la
@@ -696,7 +736,8 @@ const OPCIONES = {
   gear: ['#13323a', '#c5381f', '#f08c3d', '#f1e4c7', '#2b6670', '#9b8ec7'],
   shirt: ['#2b6670', '#1d4a54', '#13323a', '#4f8b8a', '#8db3a9', '#e5592a', '#f08c3d', '#c5381f', '#962b19', '#9b8ec7', '#5e3b6b', '#24406b'],
   accent: ['#f1e4c7', '#13323a', '#f08c3d', '#c5381f', '#8db3a9', '#f2c14e'],
-  scene: { sunset: 'Atardecer', clouds: 'Nubes', hills: 'Colinas', sun: 'Sol y confeti', waves: 'Olas', dusk: 'Noche', garden: 'Jardín', ocean: 'Mar de noche', candy: 'Menta' },
+  scene: { oficina: 'Oficina', estudio: 'Estudio', noche: 'Oficina de noche', sala: 'Sala', reunion: 'Sala de reuniones',
+    sunset: 'Atardecer', clouds: 'Nubes', hills: 'Colinas', sun: 'Sol y confeti', waves: 'Olas', dusk: 'Noche', garden: 'Jardín', ocean: 'Mar de noche', candy: 'Menta' },
 }
 // Un personaje al azar, armado sólo con lo del catálogo.
 function randomPerson(base = {}) {

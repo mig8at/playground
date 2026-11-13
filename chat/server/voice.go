@@ -5,6 +5,7 @@ package main
 // voces colombianas y entrega una frase en 0,35–0,7 s (Gemini, ~2,4 s y con un cupo de 10 pedidos por minuto).
 //
 //	GET  /api/voice          ¿hay llave de ElevenLabs?, y cuánto del tope diario se usó (voice_budget.go)
+//	GET  /api/voice/voices   las voces de la cuenta de ElevenLabs (para el ▶ de cada mensaje)
 //	POST /api/voice          {"voice": "Laura", "text": "…"} → audio/mpeg
 //
 // Cada frase se guarda una vez (en la caché del usuario, por modelo, voz y texto): repetirla no vuelve a cobrarse.
@@ -31,6 +32,14 @@ func voiceCacheDir() string {
 func registerVoice(mux *http.ServeMux) {
 	mux.HandleFunc("GET /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]any{"elevenlabs": elevenReady(), "usedToday": readBudget().Chars, "dailyLimit": dailyVoiceLimit()})
+	})
+	mux.HandleFunc("GET /api/voice/voices", func(w http.ResponseWriter, r *http.Request) {
+		voices, err := elevenVoiceList()
+		if err != nil {
+			fail(w, http.StatusUnprocessableEntity, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"voices": voices})
 	})
 	mux.HandleFunc("POST /api/voice", func(w http.ResponseWriter, r *http.Request) {
 		var req struct {

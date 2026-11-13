@@ -63,3 +63,7 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 
 /* El ícono de la videollamada (encabezado de la conversación): un SVG suelto, del tamaño de los demás íconos. */
 .call-icon { width: 16px; height: 16px; display: block; }
+
+/* el ▶ de un mensaje demasiado largo para la voz: un parlante tachado, sin acción */
+.speak-muted { display: inline-flex; align-items: center; justify-content: center; opacity: .65; cursor: help; }
+.speak-muted svg { width: 15px; height: 15px; fill: currentColor; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }

@@ -25,6 +25,9 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   flotar. Los gorros son una capa aparte, apoyada según cuánto abulta el peinado (`HAIR_VOL`, `hatLine`).
 - **Los animales** (`SPECIES`) cambian la cabeza y conservan la cara animable y la chaqueta. Comparten piezas
   (`ANIMAL`: orejas, bigotes, melena, hocico) y narices (`NOSES`). El pico va aparte (`beak`) y habla como mandíbula.
+- **Los fondos son cuartos** (`ROOMS`, 2026-11-12: oficina, estudio, noche, sala, reunión): pared con zócalo, una ventana
+  con su vista recortada por el marco, un mueble a un lado y el respaldo de la silla detrás de los hombros. Los
+  paisajes de antes siguen en `SCENES` (el editor los ofrece), pero para el trabajo se usan los cuartos.
 - **Agregar una pieza** (un peinado, un gorro, una especie) es dibujarla una vez y nombrarla en `OPCIONES`: aparece
   sola en el editor, en el CLI y en «Al azar».
 
@@ -78,7 +81,9 @@ mientras quien lo mandó habla y unos segundos después. Cómo deben escribir lo
 cada mensaje se dice hasta ~40 s; uno de más de 150 palabras no se manda a la voz (se silencia: 🔇 sobre quien lo
 mandó y «mandó algo muy largo: quedó en el chat»); la fila de voces no pasa de 24 frases (lo que no entra, igual); y el
 servidor tiene un tope diario (`chat/server/voice_budget.go`, 20.000 caracteres, `CHAT_VOICE_DAILY_CHARS`; lo cacheado
-no cuenta; `GET /api/voice` dice cuánto se usó). Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
+no cuenta; `GET /api/voice` dice cuánto se usó). El tope de palabras se elige en el perfil del chat (Voz: 80, 150, 250 o 400; por
+defecto 150) y vale también para el ▶ de cada mensaje, que ahora lee con ElevenLabs (`chat/src/speech.js`, voz a
+elegir, por defecto Lina); un mensaje que lo pasa lleva un parlante tachado en vez del ▶. Las voces de macOS y Gemini se quitaron ese día. Funciona también en grupos (sólo salen sus miembros): `#oficina` es el de prueba, con Luigi,
 Wario y Leo. ⚠ Un agente que habla con `playground send --as` llega sin decir qué agente es (el historial no lo
 guarda) y no suena: para que suene, `bin/chat send … --as <agente>`. Cambiar el servidor pide `make chat-install` (y
 aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).

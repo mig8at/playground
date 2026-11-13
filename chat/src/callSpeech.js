@@ -12,12 +12,13 @@
 
    La guía de cómo escribir para que esto casi no haga falta está en chat/CLAUDE.md §«Cómo habla un agente». */
 import { isImage } from './stores/chat.js'
+import { tooLong } from './speech.js'
 
 // ~40 s de voz: ElevenLabs (eleven_flash_v2_5) dice ~16,5 caracteres por segundo (medido el 2026-11-12: 369 en 22,4 s)
 const MAX_CHARS = 650
-// Un mensaje de más de esto (en palabras, contando todo: código, tablas, un log pegado) no se dice: se silencia y la
-// llamada lo avisa. Es el tope de la guía (~110 palabras, 40 s) con margen; protege la plata de ElevenLabs.
-export const MUTE_WORDS = 150
+// Un mensaje de más palabras que el tope del perfil (Voz, por defecto 150; contando todo: código, tablas, un log pegado)
+// no se dice: se silencia y la llamada lo avisa. Es el tope de la guía (~110 palabras, 40 s) con margen; protege la
+// plata de ElevenLabs. Es el mismo tope del ▶ de cada mensaje (speech.js).
 
 // Lo que no es para el oído, línea por línea: títulos y tablas. Las listas se dicen (sin la viñeta).
 const DROPPED_LINE = /^\s*(#{1,6}\s|\|)/
@@ -33,7 +34,7 @@ export function forCall(message) {
   const keyring = keyringLine(raw)
   if (keyring) return { text: keyring, prop: 'key' }
   // un mamotreto no se manda a la voz: se silencia (muted) y queda en el chat
-  if (raw.split(/\s+/).filter(Boolean).length > MUTE_WORDS) return { text: '', prop: 'read', muted: true }
+  if (tooLong(raw)) return { text: '', prop: 'read', muted: true }
   let dropped = false
   // los bloques de código, enteros
   let text = raw.replace(/```[\s\S]*?```/g, () => { dropped = true; return '\n' })

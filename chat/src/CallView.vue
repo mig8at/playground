@@ -117,6 +117,7 @@ function mute(key) {
   muteTimer = setTimeout(() => { muted.value = null }, 6000)
 }
 const mutedNote = computed(() => (muted.value ? `${byKey.value[muted.value.key]?.name || 'Alguien'} mandó algo muy largo: quedó en el chat.` : ''))
+// (el tope de palabras es el del perfil, Voz: speech.js)
 
 // los que nombraste vos (tus mensajes no suenan): reaccionan unos segundos
 const nudged = ref([])

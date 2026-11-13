@@ -24,7 +24,7 @@ import { renderMarkdown } from './markdown.js'
 import { setBadge } from './desktop.js'
 import { activeQuery, candidates, handleOf, mentionsMe, segments } from './mentions.js'
 import NotifySettings from './NotifySettings.vue'
-import { defaultVoice, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak } from './speech.js'
+import { defaultVoice, MAX_WORDS_OPTIONS, setMaxWords, setRate, setVoice, speech, stop as stopSpeech, toggleSpeak, tooLong } from './speech.js'
 import RegionMenu from './RegionMenu.vue'
 import EmojiButton from './EmojiButton.vue'
 import DictationButton from './DictationButton.vue'
@@ -1572,7 +1572,13 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                           title="Sacarlo de la conversación: no le llegó a nadie" @click="chat.discard(item.id)">borrar</button>
                 </p>
               </div>
-              <button v-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item)" type="button" class="reply-action speak-action"
+              <!-- muy largo para la voz (el tope de palabras del perfil): no se lee, y se dice por qué -->
+              <span v-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item) && tooLong(item.text)" class="reply-action speak-muted"
+                    :title="`Muy largo para leerlo en voz alta (más de ${speech.maxWords} palabras): no se gastan créditos en él`"
+                    :aria-label="`Muy largo para leerlo en voz alta`">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16 9l5 6M21 9l-5 6" fill="none" /></svg>
+              </span>
+              <button v-else-if="speech.supported && item.text && item.format !== 'json' && !keyInfo(item)" type="button" class="reply-action speak-action"
                       :class="{ on: speech.speakingId === item.id }" :title="speech.speakingId === item.id ? 'Parar' : 'Escuchar'"
                       :aria-label="speech.speakingId === item.id ? 'Parar la lectura' : 'Escuchar este mensaje'" @click="toggleSpeak(item.id, item.text)">
                 <span class="ui-icon" :data-icon="speech.speakingId === item.id ? 'stop' : 'play'" aria-hidden="true"></span>
@@ -1795,12 +1801,12 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <NotifySettings :name-of="conversationName" />
       </div>
       <div v-else-if="profileTab === 'voice'" class="region-body profile-section">
-        <p v-if="!speech.supported" class="field-hint">Este navegador no lee en voz alta.</p>
+        <p v-if="!speech.supported" class="field-hint">Este navegador no reproduce audio.</p>
         <template v-else>
           <label class="field">
             <span class="label">Voz</span>
             <select class="input" :value="speech.voice || defaultVoice()" @change="setVoice($event.target.value)">
-              <option v-for="v in speech.voices" :key="v.name" :value="v.name">{{ v.name }} · {{ v.lang }}</option>
+              <option v-for="v in speech.voices" :key="v.name" :value="v.name">{{ v.name }}{{ v.accent ? ` · ${v.accent}` : '' }}{{ v.gender ? ` · ${v.gender === 'female' ? 'mujer' : v.gender === 'male' ? 'hombre' : v.gender}` : '' }}</option>
             </select>
           </label>
           <div class="field">
@@ -1810,11 +1816,20 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
                       :aria-pressed="speech.rate === r" @click="setRate(r)">{{ r }}×</button>
             </div>
           </div>
+          <div class="field">
+            <span class="label">Máximo de palabras</span>
+            <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Máximo de palabras">
+              <button v-for="n in MAX_WORDS_OPTIONS" :key="n" type="button" class="toggle" role="radio" :aria-checked="speech.maxWords === n"
+                      :aria-pressed="speech.maxWords === n" @click="setMaxWords(n)">{{ n }}</button>
+            </div>
+            <small class="field-hint">Un mensaje más largo no se lee en voz alta, ni con el ▶ ni en la videollamada: no se gastan créditos en él.</small>
+          </div>
           <div class="notify-actions">
             <button type="button" class="btn btn-outline btn-sm" @click="toggleSpeak('voice-test', `Hola ${firstName(chat.me || chat.state?.session || {})}, así suena tu chat.`)">
               <span class="ui-icon" :data-icon="speech.speakingId === 'voice-test' ? 'stop' : 'play'" aria-hidden="true"></span>Probar</button>
           </div>
-          <p class="field-hint">El ▶ de cada mensaje lo lee en voz alta. Lo lee tu Mac: no sale nada de la máquina.</p>
+          <p v-if="speech.error" class="field-hint bad">{{ speech.error }}</p>
+          <p class="field-hint">El ▶ de cada mensaje lo lee en voz alta con ElevenLabs, como la videollamada: el texto va a ElevenLabs y gasta créditos (lo ya escuchado no se vuelve a cobrar).</p>
         </template>
       </div>
       <div v-else-if="profileTab === 'keyring'" class="region-body profile-section">
