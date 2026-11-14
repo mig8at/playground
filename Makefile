@@ -149,7 +149,7 @@ cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abr
 	@if [ -f "$$HOME/Library/LaunchAgents/com.creditop.my-tools.chat.plist" ]; then $(MAKE) --no-print-directory chat-install; fi
 
 chat-install: ## @dia deja el servidor del chat corriendo DE FONDO (LaunchAgent): junta el historial, avisa y contesta el llavero aunque Cockpit esté cerrado del todo. Cockpit usa ése. `make cockpit` lo recompila solo
-	@mkdir -p chat/bin && go build -o chat/bin/chat-server ./chat/server && chat/bin/chat-server -install
+	@mkdir -p chat/bin && go build -o chat/bin/chat-server ./chat/server && bin/sign chat/bin/chat-server com.creditop.my-tools.chat-server && chat/bin/chat-server -install
 
 chat-status: ## @dia ¿el servidor del chat corre de fondo?
 	@go run ./chat/server -status
@@ -338,7 +338,7 @@ pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tr
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
 
 pulso-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
-	@cd tablero && npm run --silent server:build && server/bin/pulse seed && server/bin/pulse install
+	@cd tablero && npm run --silent server:build && ../bin/sign server/bin/pulse com.creditop.my-tools.pulso && server/bin/pulse seed && server/bin/pulse install
 
 pulso-status: ## @dia ¿el pulso está vivo? último tick y actividad de hoy
 	@cd tablero && server/bin/pulse status
@@ -393,7 +393,7 @@ office-package: ## @dia arma el paquete para compartir los personajes de Office:
 	@node office/paquete/build.mjs $(if $(DESTINO),--destino $(DESTINO)) $(if $(JS),--js $(JS))
 
 sentinel-install: ## @dia deja la API de Sentinel corriendo DE FONDO (LaunchAgent: arranca con la sesión, mide aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
-	@mkdir -p sentinel/bin && go build -o sentinel/bin/sentinel ./sentinel/server && sentinel/bin/sentinel -install
+	@mkdir -p sentinel/bin && go build -o sentinel/bin/sentinel ./sentinel/server && bin/sign sentinel/bin/sentinel com.creditop.my-tools.sentinel && sentinel/bin/sentinel -install
 
 sentinel-status: ## @dia ¿Sentinel corre de fondo, y hasta dónde llegó lo guardado?
 	@go run ./sentinel/server -status
@@ -405,7 +405,7 @@ correo: ## @dia abre Correo (:5224 · API :5225): los correos de los remitentes 
 	@$(if $(ONCE),go run ./correo/server -once,cd correo && npm run dev)
 
 correo-install: ## @dia deja Correo mirando Gmail DE FONDO (LaunchAgent: avisa aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
-	@mkdir -p correo/bin && go build -o correo/bin/correo ./correo/server && correo/bin/correo -install
+	@mkdir -p correo/bin && go build -o correo/bin/correo ./correo/server && bin/sign correo/bin/correo com.creditop.my-tools.correo && correo/bin/correo -install
 
 correo-status: ## @dia ¿Correo corre de fondo?
 	@go run ./correo/server -status

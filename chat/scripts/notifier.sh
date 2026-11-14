@@ -37,7 +37,8 @@ EOF
 tmp="$bin.$$"
 swiftc -O -o "$tmp" "$src" -framework AppKit -framework UserNotifications
 mv -f "$tmp" "$bin"
-codesign --force --sign - "$app" >/dev/null 2>&1 || true
+# Firma fija (bin/sign): el permiso de avisos queda atado a ella y no se pierde al recompilar.
+sh "$(dirname "$0")/../../bin/sign" "$app" com.creditop.my-tools.chat-notifier || codesign --force --sign - "$app" >/dev/null 2>&1 || true
 # Que LaunchServices la conozca: así un toque en el aviso la vuelve a abrir.
 /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -f "$app" >/dev/null 2>&1 || true
 echo "chat · avisador compilado: $app"

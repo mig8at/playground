@@ -1,0 +1,28 @@
+#!/bin/sh
+# sign <binario o .app> <identificador> — firma lo que compila my-tools con un certificado FIJO.
+#
+# POR QUÉ. macOS ata los permisos (acceso al Escritorio, avisos, Grabación de pantalla) a la firma. La de `go build`
+# y la de Tauri son ad hoc: cambian en cada compilación, así que para macOS cada recompilación es otra app y vuelve a
+# preguntar. Mientras nadie toca «Permitir», el servidor del chat queda colgado sin abrir su puerto y parece un error
+# del código (pasó el 2026-11-10, el 2026-11-11 y el 2026-11-14). Con un certificado fijo e identificador fijo, la
+# identidad sobrevive a la recompilación: se permite una vez y no vuelve a preguntar.
+#
+# El certificado es el autofirmado del llavero de inicio de sesión que creó Captura (conserva su nombre de antes del
+# renombre a my-tools; cambiarlo es recrearlo). macOS lo marca «no de confianza» y igual sirve para esto. Si no está
+# (otra Mac), firma ad hoc y avisa: funciona, pero macOS va a volver a pedir los permisos.
+#
+# Lo usan `make chat-install`, `sentinel-install`, `correo-install`, `pulso-install`, cockpit/build.sh y el avisador del chat.
+set -eu
+[ $# -eq 2 ] || { echo "uso: bin/sign <binario o .app> <identificador>" >&2; exit 2; }
+target=$1
+id=$2
+identity="Captura playground local"
+[ -e "$target" ] || { echo "sign: no existe $target" >&2; exit 1; }
+set -- --force --identifier "$id"
+case "$target" in *.app) set -- "$@" --deep ;; esac
+if security find-identity -p codesigning 2>/dev/null | grep -q "\"$identity\""; then
+  codesign "$@" --sign "$identity" "$target" 2>/dev/null
+else
+  echo "  ⚠ sign: no está el certificado «$identity»: firma ad hoc, macOS va a volver a pedir los permisos de $id" >&2
+  codesign "$@" --sign - "$target" 2>/dev/null
+fi
