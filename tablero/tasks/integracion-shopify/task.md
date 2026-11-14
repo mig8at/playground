@@ -14,6 +14,25 @@ correo: [shopify]
 
 ## Pendientes
 
+- [ ] Lograr que la app pública «Creditop» (447249776641) cobre con SU extensión de pago: hoy comparte el uid
+      `badac230…` con la anterior (custom, 317076176897) y Shopify le da la configuración de ésa (nombre y URL de
+      pago). Desplegarla con un uid propio lo niega Shopify (`creditop-4`, «Unpublishing payments app extensions … is
+      not permitted»). Termina con una compra en `creditop-dev-store` que dice «Creditop» y llega al servidor de la
+      pública. Depende de: Danny (Shopify Support) — ticket 72090155, se le escribió el 2026-11-13 19:57 pidiendo
+      reiniciar o desvincular la extensión de la pública.
+- [ ] Según lo que diga Shopify, reinstalar o borrar la app anterior (custom): quedó DESINSTALADA de `creditop-dev-store`
+      el 2026-11-13 para la prueba; mientras tanto no se prueba con ella (ni `credit-outcome`). Reinstalar es con el
+      enlace de su distribución personalizada en Partners y volver a cargarle sucursal y token. Danny había recomendado
+      conservarla hasta que la pública pase la revisión. Depende de: Danny (Shopify Support) — la misma respuesta.
+- [ ] Deshacer la prueba local de la pública cuando ya no sirva: `docker/llaves-app.sh --volver` (el contenedor de qa
+      volvió a las llaves de la anterior) y `npx shopify app dev clean --config shopify.app.production.toml` (saca la
+      vista previa de la tienda), en `shopify-produccion`. Termina con `docker/llaves-app.sh` diciendo client_id
+      `9bad40…`.
+- [ ] Cargar las llaves de la app pública (client_id `1b511175…`) en el secreto de producción `prod/shopify-app` y
+      reiniciar el servicio; termina con `payments-app-setup` marcando el paso 4. Depende de: Dani — infra, el lunes.
+- [ ] Mandar la app pública a revisión cuando cobre con su extensión y tenga las llaves en producción; termina con su
+      estado de pagos en Hidden (`make jarvis-recipe APP=shopify RECIPE=payments-app-status`).
+
 - [ ] Desplegar la app de pagos en producción (ECR, secreto, Postgres, servicio, ALB con dominio fijo y mTLS). En dev
       ya está: shopify#23, #24 y #26 mergeados a `develop`, la app en `shopify-app.dev.creditop.com` y la versión
       `creditop-11` publicada apuntando ahí (2026-11-09), con la compra de control #1032 pagada. Termina con la app en
