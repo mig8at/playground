@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 // ─── canon (la base) ───────────────────────────────────────────────────────────────────────────────

@@ -12,7 +12,7 @@ jira_title: ""
 
 ## Objetivo
 
-Radar: el uso real de las herramientas del playground. Una herramienta del playground personal de Miguel: no es de CreditOp y no va a Jira. Esta tarea junta la historia de sus cambios (la pila) y lo que queda abierto; cómo funciona está en su CLAUDE.md, que es lo que tiene que sobrevivir a cualquier reorganización de tareas.
+Radar: el uso real de las herramientas de my-tools. Una herramienta de my-tools, lo personal de Miguel: no es de CreditOp y no va a Jira. Esta tarea junta la historia de sus cambios (la pila) y lo que queda abierto; cómo funciona está en su CLAUDE.md, que es lo que tiene que sobrevivir a cualquier reorganización de tareas.
 
 ## Dónde se toca
 

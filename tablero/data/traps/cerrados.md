@@ -208,7 +208,7 @@ Las dos herramientas se retiran (ver el porqué abajo). Esto es lo que valía la
 
 **Lo único que se pierde a propósito: el `perfilador`.** Es el único ejercicio que **varía el perfil del usuario y asevera NO-oferta**; `sweep matrix` barre comercio × entidad con un perfil diseñado para pasar, así que nada afirma "este perfil no debería ser ofrecido". Su diseño valía: leía los umbrales **de la BD en runtime** (`MAX(lender_rules.value)` del field 87 para ingreso, `MIN(lender_users_category_rules.min_score)` para score), así que las expectativas no quedaban stale. Si alguna vez se quiere ese eje, va como un cuarto modo de `dev/sweep.ts` y esa es la receta.
 
-**Por qué se borran.** `backend-mcp`: **no era un MCP** (sin `.mcp.json`, `mcpServers` vacío), el binario estaba **10 días atrás de la fuente**, 7 de sus comandos ya estaban duplicados en `dbops`, y sus 22 diagnósticos respondían preguntas que el árbol de contexto ya documenta con más precisión. Además tenía la superficie destructiva más grande del playground con la guarda desarmada (F-53). `backend-e2e`: probaba el backend por API, que es lo que hoy hace `dev/sweep.ts` con veredicto contra BD y exit code. Ninguna de las dos tenía un commit sustantivo desde el seed del repo (13-07), y ambas costaron mantenimiento en el refactor de `env/` sin devolver nada.
+**Por qué se borran.** `backend-mcp`: **no era un MCP** (sin `.mcp.json`, `mcpServers` vacío), el binario estaba **10 días atrás de la fuente**, 7 de sus comandos ya estaban duplicados en `dbops`, y sus 22 diagnósticos respondían preguntas que el árbol de contexto ya documenta con más precisión. Además tenía la superficie destructiva más grande de my-tools con la guarda desarmada (F-53). `backend-e2e`: probaba el backend por API, que es lo que hoy hace `dev/sweep.ts` con veredicto contra BD y exit code. Ninguna de las dos tenía un commit sustantivo desde el seed del repo (13-07), y ambas costaron mantenimiento en el refactor de `env/` sin devolver nada.
 
 ### F-59 · `bin/advisor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script
 
@@ -313,7 +313,7 @@ Y con datos simulados de "otro ambiente" sobre el mismo comercio —orden invert
 
 **Lo que queda como diferencia legítima:** dev no tiene la columna `product`, así que ahí los CreditopX no se pueden separar por producto y van en un carril. No se disimula — se avisa. La diferencia es de **datos**, y el panel ahora lo dice en vez de cambiar de forma en silencio.
 
-**Regla que deja.** Un diagrama que se arma con datos del ambiente tiene que separar **estructura** (la lógica, estable) de **estado** (qué está prendido hoy, variable). Mezclarlos convierte una diferencia de configuración en una aparente diferencia de comportamiento — y eso manda a depurar el lugar equivocado. Vale para este mapa y para cualquier visualización del playground.
+**Regla que deja.** Un diagrama que se arma con datos del ambiente tiene que separar **estructura** (la lógica, estable) de **estado** (qué está prendido hoy, variable). Mezclarlos convierte una diferencia de configuración en una aparente diferencia de comportamiento — y eso manda a depurar el lugar equivocado. Vale para este mapa y para cualquier visualización de my-tools.
 
 ### F-65 · El sembrado headless registraba al cliente en el backend LOCAL aunque el target fuera dev
 
@@ -428,7 +428,7 @@ Por qué se cuelga el `goto`: `/lenders` **streamea** (`entry.server.tsx:59` →
 
 **Evidencia.** El `[diag Ábaco]` (lender_id/product/pideAbaco) en confirmación; las corridas que saltaban confirmation→first-payment sin `/abaco`; `guided.spec.ts` (goto directo a first-payment); `loan-confirmation.tsx:194-206` (redirect a /abaco en el action); `MotaiValidationService` (requirement por product); `pkg/close.ts:54` (default credipullman).
 
-**Arreglo (del harness, no del front).** `guided.spec.ts`: si el producto pide Ábaco, en vez del salto se clickea "Continuar" → `/abaco` y se AUTO-MANEJAN las pantallas gig (plataforma → credencial → Guardar → Continuar → OTP → verificar); el mock-abaco aprueba cualquier credencial/OTP (`/login` basta con success, `/results` da el fixture en local). `pkg/close.ts`: el safety-net usa el `lender_id` real del uReq (leído de la BD), sin default credipullman. Commits locales en playground.
+**Arreglo (del harness, no del front).** `guided.spec.ts`: si el producto pide Ábaco, en vez del salto se clickea "Continuar" → `/abaco` y se AUTO-MANEJAN las pantallas gig (plataforma → credencial → Guardar → Continuar → OTP → verificar); el mock-abaco aprueba cualquier credencial/OTP (`/login` basta con success, `/results` da el fixture en local). `pkg/close.ts`: el safety-net usa el `lender_id` real del uReq (leído de la BD), sin default credipullman. Commits locales en my-tools.
 
 **Estado: aplicado, type-check limpio. VERIFICADO que el guiado ENTRA a Ábaco (`/abaco → platforms → platform-otp-validation`) y cierra en Estado 11 (corrida uReq 464537, gig manejadas a mano). El AUTO-DRIVE de las pantallas gig (selectores uber/Guardar/Continuar/OTP) queda por confirmar en la próxima corrida hands-off.**
 

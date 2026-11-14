@@ -3,7 +3,7 @@ package slack
 import (
 	"errors"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // Config son los dos tokens de Slack. Son de dos identidades distintas y sirven para cosas distintas:

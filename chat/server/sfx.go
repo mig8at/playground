@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"creditop/playground/connectors/elevenlabs"
+	"creditop/my-tools/connectors/elevenlabs"
 )
 
 type sfxSpec struct {

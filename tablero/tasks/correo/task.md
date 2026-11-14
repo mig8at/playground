@@ -26,7 +26,7 @@ jira_title: ""
 ## Objetivo
 
 Correo: los correos de los remitentes que Miguel sigue (los trámites con Shopify y VTEX, para empezar), con aviso de
-macOS cuando llega uno nuevo, sin tener que estar mirando Gmail. Una herramienta del playground personal de Miguel: no
+macOS cuando llega uno nuevo, sin tener que estar mirando Gmail. Una herramienta de my-tools, lo personal de Miguel: no
 es de CreditOp y no va a Jira. Esta tarea junta la historia de sus cambios (la pila) y lo que queda abierto; cómo
 funciona está en su CLAUDE.md.
 

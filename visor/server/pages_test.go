@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // El buscador lee todas las páginas: una pantalla que no está en la de flujo se encuentra en la suya, con

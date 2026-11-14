@@ -8,7 +8,7 @@ package hooks
  * mensaje de otro commit) y el 2026-09-27 una sesión entera corrió con un archivo ajeno en el índice.
  * Estaba escrito como regla en la memoria; una regla que depende de acordarse se olvida.
  *
- * Por qué no un worktree por sesión: medido ese mismo día, el playground no anda desde un worktree
+ * Por qué no un worktree por sesión: medido ese mismo día, my-tools no anda desde un worktree
  * —los `.env`, la bitácora y las cachés están fuera de git—, y falla en silencio (`make bitacora` dice
  * «0 asientos»). Esto ataca el choque real sin cambiar cómo se trabaja.
  *
@@ -20,7 +20,7 @@ package hooks
  * Si de verdad el índice es tuyo, se mira con `git diff --cached --name-only` y se agrega
  * I_CHECKED_THE_INDEX=1 al comando.
  *
- * SÓLO DENTRO DEL PLAYGROUND: el índice compartido es el de este worktree. En otro repo (vtex, shopify,
+ * SÓLO DENTRO DE MY-TOOLS: el índice compartido es el de este worktree. En otro repo (vtex, shopify,
  * legacy-backend) cada sesión tiene el suyo, y frenar ahí sólo estorbaba: el 2026-10-20 bloqueó el squash de
  * un PR (`reset --soft` + `commit`). La carpeta se sigue por el `cwd` del hook, los `cd <carpeta>` del comando
  * y `git -C <carpeta>`; si no se puede saber (un `cd $repo`), se frena igual. */
@@ -30,7 +30,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"creditop/playground/lib/shell"
+	"creditop/my-tools/lib/shell"
 )
 
 // IndexOverride es lo que deja pasar un commit sin rutas cuando ya se miró el índice.
@@ -116,11 +116,11 @@ func isRedirect(tok string) bool {
 	return strings.HasPrefix(t, ">") || strings.HasPrefix(t, "<")
 }
 
-// IndexGuard es la decisión sobre un comando sin saber en qué carpeta corre: frena como si fuera el playground.
+// IndexGuard es la decisión sobre un comando sin saber en qué carpeta corre: frena como si fuera my-tools.
 func IndexGuard(cmd string) []string { return IndexGuardIn(cmd, "", "", "") }
 
-// IndexGuardIn es la decisión sabiendo la carpeta donde arranca el comando (`cwd`), la raíz del playground
-// (`root`) y el HOME (para `cd ~/…`): un git que corre fuera del playground no se frena.
+// IndexGuardIn es la decisión sabiendo la carpeta donde arranca el comando (`cwd`), la raíz de my-tools
+// (`root`) y el HOME (para `cd ~/…`): un git que corre fuera de my-tools no se frena.
 func IndexGuardIn(cmd, cwd, root, home string) []string {
 	if cmd == "" || !strings.Contains(cmd, "git") || strings.Contains(cmd, IndexOverride) {
 		return nil

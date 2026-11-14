@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // El 401 de Twilio nombra el permiso que falta, y es lo único que hace útil un inventario: si Why lo

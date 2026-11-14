@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func playground(t *testing.T, dotenv string) string {
+func myTools(t *testing.T, dotenv string) string {
 	t.Helper()
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "connectors", "env"), 0o755); err != nil {
@@ -19,14 +19,14 @@ func playground(t *testing.T, dotenv string) string {
 }
 
 // Un servidor MCP lo lanza Claude desde un directorio que no elegimos: si connectors/ no está subiendo
-// desde ahí, PLAYGROUND_ROOT lo encuentra. Y si sí está, gana el de donde se corre.
-func TestDirSearchesFromWhereItRunsThenPlaygroundRoot(t *testing.T) {
-	here := playground(t, "")
-	other := playground(t, "")
+// desde ahí, MY_TOOLS_ROOT lo encuentra. Y si sí está, gana el de donde se corre.
+func TestDirSearchesFromWhereItRunsThenMyToolsRoot(t *testing.T) {
+	here := myTools(t, "")
+	other := myTools(t, "")
 	t.Chdir(t.TempDir())
-	t.Setenv("PLAYGROUND_ROOT", other)
+	t.Setenv("MY_TOOLS_ROOT", other)
 	if got, err := Dir(); err != nil || got != filepath.Join(other, "connectors") {
-		t.Errorf("Dir() = %q, %v; quería el de PLAYGROUND_ROOT", got, err)
+		t.Errorf("Dir() = %q, %v; quería el de MY_TOOLS_ROOT", got, err)
 	}
 	t.Chdir(filepath.Join(here, "connectors", "env"))
 	real, _ := filepath.EvalSymlinks(filepath.Join(here, "connectors"))
@@ -37,7 +37,7 @@ func TestDirSearchesFromWhereItRunsThenPlaygroundRoot(t *testing.T) {
 
 // El proceso gana sobre el archivo, y un valor vacío en el proceso no tapa el del archivo.
 func TestTheProcessWinsAndAnEmptyValueDoesNotHideTheFile(t *testing.T) {
-	root := playground(t, "A=del-archivo\nB=\"con comillas\"\nexport C=exportada\n# D=comentada\n")
+	root := myTools(t, "A=del-archivo\nB=\"con comillas\"\nexport C=exportada\n# D=comentada\n")
 	t.Chdir(root)
 	t.Setenv("A", "")
 	v, err := LoadShared()

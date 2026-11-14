@@ -22,10 +22,10 @@ func TestTheProposalNamesTheJarvisRunsOfTheWindowWithTheirFlow(t *testing.T) {
 	t.Setenv("JARVIS_DATA", "")
 	t.Setenv("JARVIS_FLOWS", "")
 	t.Setenv("JARVIS_FLUJOS", "")
-	playground := t.TempDir()
+	myTools := t.TempDir()
 	now := time.Date(2026, 11, 13, 13, 0, 0, 0, time.Local)
 	since := now.Add(-time.Hour)
-	runs := filepath.Join(playground, "jarvis", ".data", "runs")
+	runs := filepath.Join(myTools, "jarvis", ".data", "runs")
 
 	// Antes del lapso: ya está contada en otra entrada de bitácora.
 	writeFile(t, filepath.Join(runs, "2026-11-13_11-00-00", "run.json"),
@@ -35,10 +35,10 @@ func TestTheProposalNamesTheJarvisRunsOfTheWindowWithTheirFlow(t *testing.T) {
 		`{"id":"2026-11-13_12-40-00","site":"partners.shopify.com","at":"`+now.Add(-20*time.Minute).Format(time.RFC3339Nano)+`","steps":10,"failed":1,"meta":"Ver cómo se pide [la revisión]","result":"NECESITO: Miguel decide la cuenta","keyword":"NECESITO"}`)
 	writeFile(t, filepath.Join(runs, "2026-11-13_12-10-00", "run.json"),
 		`{"id":"2026-11-13_12-10-00","site":"mail.google.com","at":"`+now.Add(-50*time.Minute).Format(time.RFC3339Nano)+`","steps":2,"meta":"Abrir el borrador","result":"LISTO: borrador abierto","keyword":"LISTO"}`)
-	writeFile(t, filepath.Join(playground, "jarvis", "flows", "mail-google-com", "abrir.json"),
+	writeFile(t, filepath.Join(myTools, "jarvis", "flows", "mail-google-com", "abrir.json"),
 		`{"name":"Abrir el borrador en Gmail","run":"2026-11-13_12-10-00","steps":[]}`)
 
-	got := jarvisRuns(playground, since, now)
+	got := jarvisRuns(myTools, since, now)
 	if len(got) != 2 || got[0].ID != "2026-11-13_12-10-00" || got[1].ID != "2026-11-13_12-40-00" {
 		t.Fatalf("corridas del lapso: %+v", got)
 	}

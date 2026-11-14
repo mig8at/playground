@@ -102,7 +102,7 @@ func ParseHistory(log string) History {
 	return h
 }
 
-// GitHistory lee la historia del Makefile del playground.
+// GitHistory lee la historia del Makefile de my-tools.
 func GitHistory(root string) History {
 	out, err := gitOutput(root, "log", "-p", "--reverse", "--format="+commitMark+"%cI", "--", "Makefile")
 	if err != nil {

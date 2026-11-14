@@ -1,4 +1,4 @@
-Sos el paso de ANÁLISIS CON CÓDIGO de una revisión de knowledge (la biblioteca técnica local de CreditOp, en `/Users/miguelochoa/Desktop/CREDITOP/playground/knowledge`) contra main.
+Sos el paso de ANÁLISIS CON CÓDIGO de una revisión de knowledge (la biblioteca técnica local de CreditOp, en `/Users/miguelochoa/Desktop/CREDITOP/my-tools/knowledge`) contra main.
 
 Leé ENTERO `{paquete}`. Cada ÍTEM es una sección de un `rules.md` que el triaje marcó `contradice` o `no_se_sabe`. Abajo de cada una, sus archivos con el comando exacto para ver el diff desde el commit con que se escribió (en el clon de trabajo; la ref es `origin/main`, o `origin/main-pro` en creditop-mobile). Descripciones de PR en el JSON que indica el paquete.
 

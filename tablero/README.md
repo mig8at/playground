@@ -39,7 +39,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 | Pieza | Qué es | Cómo se corre |
 |---|---|---|
 | `cmd/web` | API HTTP (`:8787`) que lee la UI: tareas, bitácora, sprint de Jira, pulso y artifacts | `npm run dev` |
-| `bin/pg` (raíz del playground) | Jira y Slack —y la base, Loki, PostHog, Confluence— por consola, y como **servidor MCP** (`bin/pg mcp`) | `bin/pg help` |
+| `bin/pg` (raíz de my-tools) | Jira y Slack —y la base, Loki, PostHog, Confluence— por consola, y como **servidor MCP** (`bin/pg mcp`) | `bin/pg help` |
 | `src/` (Vue) | tareas por estado de los últimos 4 sprints, evidencia, entrega y actividad | `npm run dev` → `:5191` |
 
 ## Usar el tablero
@@ -133,7 +133,7 @@ de una tarea nunca pasa, y ésa es justamente la frontera.
 ## Arranque rápido
 
 ```bash
-cd /Users/miguelochoa/Desktop/CREDITOP/playground/tablero
+cd /Users/miguelochoa/Desktop/CREDITOP/my-tools/tablero
 npm install
 # creá server/.env con las perillas (ver "Configuración"); la plantilla vieja: git show bda2b796:tablero/server/.env.example
 npm run dev
@@ -168,7 +168,7 @@ tools/
 │   ├── main.js  styles.css  theme.css  workbench.css
 │   └── TaskEditor.vue  RegionMenu.vue  ui-state.js  task-document.js
 └── server/
-    ├── .env                       (el go.mod es el de la raíz del playground: module creditop/playground)
+    ├── .env                       (el go.mod es el de la raíz de my-tools: module creditop/my-tools)
     ├── cmd/web/main.go        ← WS :8787, 5 mensajes entrantes + /health
     ├── cmd/issue-update/      ← one-off: edita summary/descripción de un issue
     ├── cmd/issue-transition/  ← one-off: mueve un issue de estado (transición)
@@ -180,7 +180,7 @@ tools/
 
 ## Jira y Slack como herramientas del agente
 
-Un solo servidor MCP, **`bin/pg mcp`** (en la raíz del playground), cuyas herramientas son los comandos
+Un solo servidor MCP, **`bin/pg mcp`** (en la raíz de my-tools), cuyas herramientas son los comandos
 de `pg`, derivados de la misma lista que su ayuda y el catálogo del hook de inicio. Reemplazó el
 2026-09-24 a `jira-mcp` y `slack-mcp`, que se mantenían a mano y no llegaban a la base, Loki, PostHog
 ni Confluence.
@@ -197,10 +197,10 @@ Las que escriben devuelven la vista previa si no llevan `apply: true`, y el text
 guard. Registrarlo:
 
 ```bash
-claude mcp add playground -- /Users/miguelochoa/Desktop/CREDITOP/playground/bin/pg mcp
+claude mcp add -s local my-tools -- /Users/miguelochoa/Desktop/CREDITOP/my-tools/bin/pg mcp
 ```
 
-Para quitarlo: `claude mcp remove playground`.
+Para quitarlo: `claude mcp remove my-tools`.
 
 ### Agregar una tool
 
@@ -235,7 +235,7 @@ ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 
 ## Es el hogar del TRABAJO (y `context` el del conocimiento)
 
-Desde el **2026-07-21** la partición es explícita: **`playground/context` responde "cómo *es* CreditOp"**
+Desde el **2026-07-21** la partición es explícita: **`context/` (de my-tools) responde "cómo *es* CreditOp"**
 (contextos + el mapa del código, markdown durable) y **este tablero responde "en qué se está
 *trabajando*"** (esfuerzos, tiempo, estado, Jira). El árbol de context ya **no lleva nodos-tarea**: los 4
 que tenía se migraron acá.
@@ -276,7 +276,7 @@ frontera. Por eso el detalle de archivos **no puede** vivir en las notas de avan
 
 La descripción de la tarea sigue la **plantilla orientada a QA** de
 [`docs/JIRA-TASK-TEMPLATE.md`](docs/JIRA-TASK-TEMPLATE.md): nivel negocio, enfocada en *cómo y
-dónde validar*. Todo lo que va a Jira pasa por el **guard** (nada de repos, rutas de archivo, el
+dónde validar*. Todo lo que va a Jira pasa por el **guard** (nada de repos, rutas de archivo, my-tools, el
 playground ni F-xx).
 
 | Acción | Cómo |
@@ -362,11 +362,10 @@ data/
 
 `tasks/` va al lado de `data/`: si `TABLERO_DATA` mueve una, la otra la acompaña.
 
-Los archivos locales siguen una lista cerrada: `canon`, `context`, `harness`, `tablero`, `trazador`,
-`workers` y `playground`. Cada herramienta acumula sus mejoras en su único contenedor; lo transversal
-o todavía sin Jira va a `playground`. Una tarea de producto nueva nace ligada a Jira o se mantiene
-como frente dentro de `playground` hasta que se decida. `make tareas` avisa y el lint falla si aparece
-otra tarea local.
+Cada herramienta acumula sus mejoras en su única tarea (`nivel: miguel` para las de my-tools,
+`playground` para las del playground compartido); lo transversal de my-tools va a `miguel` (#90). Una
+tarea de producto nueva nace ligada a Jira o se mantiene como frente dentro de `miguel` hasta que se
+decida. Los niveles y sus contenedores están en `CLAUDE.md`.
 
 La API tampoco acepta crear esfuerzos locales sueltos: una tarea de producto se importa desde Jira y
 una mejora interna se escribe en el contenedor ya existente.
@@ -385,7 +384,7 @@ normal informa si existe, si pasa el guard, si tiene receta de QA y cuántos byt
 
 **Por qué archivos y no una base:** para que el detalle técnico de una tarea se lea **sin levantar
 nada** —markdown que lee cualquiera— y para que los esfuerzos tengan **historia
-en git**. Una base devolvería el tablero al único rincón del playground que exige un server para leerse.
+en git**. Una base devolvería el tablero al único rincón de my-tools que exige un server para leerse.
 
 ### La tarea: una carpeta en `tasks/`, con la frontera del guard adentro de su documento
 
@@ -438,7 +437,7 @@ desincroniza; una lista en el frontmatter que hay que mantener a mano, sí.
 
 Lo sirve este server y no uno aparte a propósito — **un prototipo que necesita levantar su propio
 puerto deja de abrirse, y entonces no se mira.** Por eso también la regla de que sea *un* archivo sin
-build: si necesita `npm install`, no es un artefacto de una tarea, es una carpeta del playground con
+build: si necesita `npm install`, no es un artefacto de una tarea, es una carpeta de my-tools con
 su entrada en el `Makefile`.
 
 Dos cosas más, que son de higiene y no de mecánica:
@@ -639,7 +638,7 @@ de Jira, el server arranca igual y cada ruta de Jira lo dice. En `server/.env` q
 | `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
 | `PULSO_EMAILS` | mis identidades de commit, separadas por coma | las 3 de Miguel (ver `internal/pulse`) |
-| `PULSO_EXTRA` | repos FUERA de la raíz que también son jornada, como `nombre=/ruta` separados por coma. El nombre va explícito porque el último segmento puede chocar con uno de la raíz (`playground` vs `github/playground`) | vacío — el playground personal no cuenta hasta que se declara |
+| `PULSO_EXTRA` | repos FUERA de la raíz que también son jornada, como `nombre=/ruta` separados por coma. El nombre va explícito porque el último segmento puede chocar con uno de la raíz (antes del renombre, `playground` chocaba con `github/playground`) | vacío — my-tools no cuenta hasta que se declara |
 
 Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el server: `LoadDefaults` lo
 busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,
@@ -679,7 +678,7 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 - **Ninguno de los dos conectores está registrado hoy** — `claude mcp list` (2026-07-19) solo muestra los
   remotos de claude.ai. Hay que correr el `claude mcp add` de arriba antes de esperar que un modelo los use.
 - **`server/.env` tiene secretos reales** y está en `.gitignore` junto con `node_modules/`, `dist/` y
-  `server/bin/`. Convención del playground: **commit local, sin push.**
+  `server/bin/`. Convención de my-tools: **commit local, sin push.**
 
 ## Docs relacionados
 
@@ -687,5 +686,5 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 - [`server/README.md`](server/README.md) — instalar y probar los conectores MCP de Jira y Slack.
 - **canon** — el contexto curado de CreditOp, compartido con el equipo, en otro repo
   (`github/playground/tools/canon`). *(Acá apuntaba a `../context/`, que se apagó el 2026-09-21.)*
-- `playground/docs/` **ya no existe** (absorbido por `context/`, que a su vez graduó a canon): si algún doc
+- `docs/` de la raíz de my-tools **ya no existe** (absorbido por `context/`, que a su vez graduó a canon): si algún doc
   apunta ahí, es puntero roto.

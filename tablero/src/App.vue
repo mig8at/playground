@@ -7,7 +7,7 @@ import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, 
 // sale de /api/sprint (Jira Agile 1.0); los avances fechados, de /api/entries.
 //
 // LA REGLA QUE ATRAVIESA TODO: lo que se escribe acá termina en Jira, donde lo lee el equipo. Nunca
-// puede mencionar el playground, un hallazgo interno (F-xx), una ruta de archivo ni un nombre de repo.
+// puede mencionar my-tools, el playground, un hallazgo interno (F-xx), una ruta de archivo ni un nombre de repo.
 // Por eso el campo de nota tiene un GUARD que BLOQUEA el botón, en vez de solo advertir.
 //
 // CONVENCIÓN: identificadores y clases CSS en inglés; solo el texto visible y los comentarios en español.
@@ -346,7 +346,7 @@ const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim()
 const showLocals = ref(readPreference('show-locals', false) === true);
 watch(showLocals, (value) => savePreference('show-locals', value));
 
-// LOS NIVELES: las tareas de Miguel (su playground personal) y del playground compartido van siempre, en su vista
+// LOS NIVELES: las tareas de Miguel (my-tools, lo personal) y del playground compartido van siempre, en su vista
 // al final del acordeón; «locales» prende y apaga sólo las de CreditOp que todavía no tienen Jira.
 const inOwnView = (e) => e.level === 'miguel' || e.level === 'playground';
 const allLocals = computed(() => {

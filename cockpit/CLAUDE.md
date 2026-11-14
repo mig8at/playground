@@ -1,6 +1,6 @@
 # cockpit — la app de escritorio que junta las herramientas
 
-Cockpit (`/Applications/Cockpit.app`, Tauri) es **donde Miguel mira las herramientas del playground**: una
+Cockpit (`/Applications/Cockpit.app`, Tauri) es **donde Miguel mira las herramientas de my-tools**: una
 barra de aplicaciones a la izquierda, como la de VS Code, y a la derecha cada herramienta en su panel. No
 reemplaza a ninguna: cada app es la interfaz de siempre, servida por su propio servidor en localhost y
 abierta en un iframe que queda vivo al cambiar de app. Lo que sigue vale para USARLO desde una sesión y

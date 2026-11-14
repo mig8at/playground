@@ -12,7 +12,7 @@ set -uo pipefail
 APP=~/Desktop/CREDITOP/github/legacy-application
 BASE=http://admin.localhost:8000
 
-SES=$(~/Desktop/CREDITOP/playground/harness/bin/admin-session 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['value'])")
+SES=$(~/Desktop/CREDITOP/my-tools/harness/bin/admin-session 2>/dev/null | python3 -c "import sys,json;print(json.load(sys.stdin)['value'])")
 XSRF_Q=$(curl -s -D - -o /dev/null -b "creditopapplication_session=$SES" "$BASE/entidades" \
   | grep -i '^set-cookie: XSRF-TOKEN=' | head -1 | sed 's/.*XSRF-TOKEN=\([^;]*\).*/\1/')
 XSRF=$(python3 -c "import urllib.parse,sys;print(urllib.parse.unquote(sys.argv[1]))" "$XSRF_Q")

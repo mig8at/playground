@@ -22,7 +22,7 @@ func TestConnectionStringEncodesThePasswordAndCarriesSslmode(t *testing.T) {
 		t.Fatal("sslmode=require tiene que viajar: sin él la base corta la conexión")
 	}
 	// Y la base misma queda en sólo lectura desde la conexión.
-	if cfg.RuntimeParams["default_transaction_read_only"] != "on" || cfg.RuntimeParams["statement_timeout"] != "15000" || cfg.RuntimeParams["application_name"] != "playground-connectors" {
+	if cfg.RuntimeParams["default_transaction_read_only"] != "on" || cfg.RuntimeParams["statement_timeout"] != "15000" || cfg.RuntimeParams["application_name"] != "my-tools-connectors" {
 		t.Fatalf("parámetros de sesión: %v", cfg.RuntimeParams)
 	}
 	// Los valores por defecto: puerto, base y modo.

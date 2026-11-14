@@ -1,4 +1,4 @@
-/* La pestaña Jarvis: el centro de control, con el mismo workbench que las herramientas del playground (theme.css y
+/* La pestaña Jarvis: el centro de control, con el mismo workbench que las herramientas de my-tools (theme.css y
  * workbench.css, copias de tools/ui). A la izquierda las sesiones que corren en este Chrome (cada una es una pestaña
  * real, en el grupo «Jarvis») y tus pestañas para compartirlas; al medio los pasos de la sesión elegida; a la
  * derecha los flujos. Las demás pestañas quedan limpias.

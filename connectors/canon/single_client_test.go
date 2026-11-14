@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // canon lo lee todo el equipo: un segundo cliente con otro origen por defecto o sin la llave de escritura

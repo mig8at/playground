@@ -31,7 +31,7 @@ import (
 	"syscall"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 type teamService struct {
@@ -40,10 +40,10 @@ type teamService struct {
 	Description string `json:"description"`
 }
 
-// Los programas del playground que el chat sabe levantar, por alias. Un servicio sin programa (otro servidor tuyo) se
+// Los programas de my-tools que el chat sabe levantar, por alias. Un servicio sin programa (otro servidor tuyo) se
 // prende y se apaga igual, pero levantarlo es cosa tuya.
 type knownProgram struct {
-	Dir string // carpeta del programa, relativa al playground
+	Dir string // carpeta del programa, relativa a my-tools
 }
 
 var knownPrograms = map[string]knownProgram{
@@ -164,10 +164,10 @@ func logTail(name string, lines int) string {
 	return strings.Join(all, "\n")
 }
 
-// Un programa del playground: se compila a la caché y se corre desde ahí (no `go run`, que al apagarlo deja vivo al
+// Un programa de my-tools: se compila a la caché y se corre desde ahí (no `go run`, que al apagarlo deja vivo al
 // binario).
 func startProgram(alias string, prog knownProgram) error {
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return err
 	}
@@ -441,9 +441,9 @@ func portAnswers(raw string) bool {
 	return true
 }
 
-// La raíz del playground: PLAYGROUND_ROOT, o la carpeta desde la que corre el chat (`make chat` corre desde ahí).
-func playgroundRoot() (string, error) {
-	dir := os.Getenv("PLAYGROUND_ROOT")
+// La raíz de my-tools: MY_TOOLS_ROOT, o la carpeta desde la que corre el chat (`make chat` corre desde ahí).
+func myToolsRoot() (string, error) {
+	dir := os.Getenv("MY_TOOLS_ROOT")
 	if dir == "" {
 		dir, _ = os.Getwd()
 	}
@@ -452,5 +452,5 @@ func playgroundRoot() (string, error) {
 			return d, nil
 		}
 	}
-	return "", fmt.Errorf("no encuentro el playground desde %s (PLAYGROUND_ROOT)", dir)
+	return "", fmt.Errorf("no encuentro my-tools desde %s (MY_TOOLS_ROOT)", dir)
 }

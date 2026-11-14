@@ -1,9 +1,9 @@
 #!/bin/sh
 # chat — el chat del equipo desde la terminal (chat/cmd/chat): historial, seguir una conversación y contestar. Lo
-# compila la primera vez y cada vez que cambia su código, a ~/.cache/playground/chat, igual que bin/pg. Habla con el
+# compila la primera vez y cada vez que cambia su código, a ~/.cache/my-tools/chat, igual que bin/pg. Habla con el
 # servidor de `make chat` (:5185).
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
-bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/chat"
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/chat"
 stale=$(find "$root/chat/cmd/chat" -type f -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ]; then
   mkdir -p "$(dirname "$bin")" || exit 1

@@ -1,6 +1,6 @@
 # La base de las herramientas locales
 
-La base sobre la que se construye y se mejora cada herramienta local del playground: cómo se divide la pantalla, cuánto mide cada pieza y cómo se comporta. Es el punto de llegada. Una herramienta nueva arranca de acá, y una existente se acerca a esto cada vez que se la toca. Si una medida o una pieza no está acá, no se inventa en la herramienta: se trae a este documento.
+La base sobre la que se construye y se mejora cada herramienta local de my-tools: cómo se divide la pantalla, cuánto mide cada pieza y cómo se comporta. Es el punto de llegada. Una herramienta nueva arranca de acá, y una existente se acerca a esto cada vez que se la toca. Si una medida o una pieza no está acá, no se inventa en la herramienta: se trae a este documento.
 
 La misma base, dibujada en tamaño real y con sus cotas: [Anatomía del workbench](https://claude.ai/artifact/HAeuwXf3LCoQzYhTarn1Vz). El vocabulario de regiones es el de la [disposición de VS Code](https://code.visualstudio.com/docs/configure/custom-layout) y los componentes siguen a [shadcn/ui](https://ui.shadcn.com/docs/components/button), adaptados a Vue y HTML nativo.
 

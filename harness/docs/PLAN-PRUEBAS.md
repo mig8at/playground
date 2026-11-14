@@ -6,7 +6,7 @@
 
 # PLAN DE PRUEBAS — backlog harness (Playwright)
 
-> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `my-tools/docs/` (entonces `playground/docs/`), **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
 
 
 ## Premisa (corregida)
@@ -213,10 +213,10 @@ Los slugs `motai001`/`smartpay001`/`credifam001`/`qu4nt0001` eran placeholders d
 ---
 
 Archivos clave (rutas absolutas):
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/channel/steps.ts` (helpers de pasos)
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/lender/close.ts` (cierre + diagnóstico del muro)
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/merchant/seed.ts` (seeders, espejo de `mocks.go`)
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/e2e/triplet.ts` (composable a cerrar)
-- `/Users/miguelochoa/Desktop/CREDITOP/playground/harness/pkg/{config.ts,account-lock.ts,cognito.ts}` (config + Cognito/mutex)
-- Espejo backend: `/Users/miguelochoa/Desktop/CREDITOP/playground/backend-e2e/lender/{lender.go,closes.go}`,
-  `/Users/miguelochoa/Desktop/CREDITOP/playground/backend-e2e/pkg/mocks/mocks.go`
+- `/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/channel/steps.ts` (helpers de pasos)
+- `/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/lender/close.ts` (cierre + diagnóstico del muro)
+- `/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/merchant/seed.ts` (seeders, espejo de `mocks.go`)
+- `/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/e2e/triplet.ts` (composable a cerrar)
+- `/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/pkg/{config.ts,account-lock.ts,cognito.ts}` (config + Cognito/mutex)
+- Espejo backend: `/Users/miguelochoa/Desktop/CREDITOP/my-tools/backend-e2e/lender/{lender.go,closes.go}`,
+  `/Users/miguelochoa/Desktop/CREDITOP/my-tools/backend-e2e/pkg/mocks/mocks.go`

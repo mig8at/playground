@@ -1,4 +1,4 @@
-/* UI-SHOT: una captura de una interfaz del playground, para que un agente VEA lo que cambió sin depender del navegador
+/* UI-SHOT: una captura de una interfaz de my-tools, para que un agente VEA lo que cambió sin depender del navegador
  * embebido de la sesión (con el pane oculto, sus capturas salen viejas, y bloquea los iframes con `src`). Abre la app en
  * un Chromium sin ventana, en la ruta, con el tamaño y el tema pedidos, hace los clics, y deja un PNG; además dice qué
  * errores dejó la consola y qué pedidos fallaron, que es lo primero que hay que mirar antes de mirar la imagen.

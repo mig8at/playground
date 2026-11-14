@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/store"
+	"creditop/my-tools/tablero/server/internal/pulse"
+	"creditop/my-tools/tablero/server/internal/store"
 )
 
 // EL CIERRE EN UN PASO. `make cierre` decía QUÉ faltaba —el bloque, la bitácora— y dejaba al agente
@@ -112,16 +112,16 @@ type repoCommits struct {
 	Lines []string `json:"commits"` // "abc1234 asunto"
 }
 
-// taskCommits: los commits desde `since` que son de la tarea. En el playground, por el asunto —las
+// taskCommits: los commits desde `since` que son de la tarea. En my-tools, por el asunto —las
 // sesiones comparten el worktree, así que «todo lo de hoy» traería trabajo de otras tareas—: el que
 // empieza con el slug (`tablero: …`) o nombra la tarea (`tarea 84`). En los repos, los de las ramas que
 // declara `ramas:`.
-func taskCommits(playground, reposDir string, t task, since time.Time) []repoCommits {
+func taskCommits(myTools, reposDir string, t task, since time.Time) []repoCommits {
 	stamp := since.Format("2006-01-02 15:04")
 	out := []repoCommits{}
 	own := regexp.MustCompile(`^(?:` + regexp.QuoteMeta(t.Slug) + `:|.*\btarea (?:` + strconv.Itoa(t.ID) + `|` + regexp.QuoteMeta(t.Slug) + `)\b)`)
-	pg := repoCommits{Repo: "playground", Cmd: "git log --since=\"" + stamp + "\" --oneline main"}
-	for _, l := range strings.Split(gitOut(playground, "log", "--since="+stamp, "--format=%h %s", "main"), "\n") {
+	pg := repoCommits{Repo: "my-tools", Cmd: "git log --since=\"" + stamp + "\" --oneline main"}
+	for _, l := range strings.Split(gitOut(myTools, "log", "--since="+stamp, "--format=%h %s", "main"), "\n") {
 		if _, subject, ok := strings.Cut(l, " "); ok && own.MatchString(subject) {
 			pg.Lines = append(pg.Lines, l)
 		}
@@ -185,7 +185,7 @@ func taskCommits(playground, reposDir string, t task, since time.Time) []repoCom
 // shellQuote encierra en comillas simples para zsh y bash.
 func shellQuote(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
 
-func propose(data string, t task, now time.Time, playground, reposDir string) (Proposal, error) {
+func propose(data string, t task, now time.Time, myTools, reposDir string) (Proposal, error) {
 	p := Proposal{ID: t.ID, Slug: t.Slug, Until: now.Format("15:04")}
 	midnight := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
 	since, ok := lastWorklogEnd(data, now)
@@ -200,9 +200,9 @@ func propose(data string, t task, now time.Time, playground, reposDir string) (P
 	}
 	p.Since = since.Format("15:04")
 	_, p.PulseSlots = pulseSince(data, since)
-	p.Commits = taskCommits(playground, reposDir, t, since)
-	p.JarvisRuns = jarvisRuns(playground, since, now)
-	p.Mail = mailEvents(playground, t.Mail, since, now)
+	p.Commits = taskCommits(myTools, reposDir, t, since)
+	p.JarvisRuns = jarvisRuns(myTools, since, now)
+	p.Mail = mailEvents(myTools, t.Mail, since, now)
 	if len(p.Commits) == 0 {
 		p.Notes = append(p.Notes, "no hay commits de la tarea en el lapso: si el trabajo fue correr o leer, el bloque nombra el comando y lo que dio")
 	}

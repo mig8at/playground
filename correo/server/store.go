@@ -15,7 +15,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 // Watch es un seguimiento: un nombre y una búsqueda de Gmail («from:shopify.com»).

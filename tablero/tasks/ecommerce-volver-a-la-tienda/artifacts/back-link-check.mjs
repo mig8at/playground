@@ -1,9 +1,9 @@
 // uso: node back-link.mjs '<url de checkout>' → recorre checkout → OTP 0000 → listado y dice si sale «Volver a la tienda» y a dónde
 import { createRequire } from 'node:module';
-const require = createRequire('/Users/miguelochoa/Desktop/CREDITOP/playground/harness/package.json');
+const require = createRequire('/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/package.json');
 const { chromium } = require('@playwright/test');
 const url = process.argv[2];
-const { installAutofill } = await import('/Users/miguelochoa/Desktop/CREDITOP/playground/harness/pkg/autofill.ts');
+const { installAutofill } = await import('/Users/miguelochoa/Desktop/CREDITOP/my-tools/harness/pkg/autofill.ts');
 const browser = await chromium.launch();
 const context = await browser.newContext();
 await installAutofill(context);

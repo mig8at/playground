@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Quién dijo cada mensaje (la regla de speakerOf en CallView.vue): lo tuyo no se dice; lo de tus agentes sí.

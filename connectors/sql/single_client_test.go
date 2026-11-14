@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // Un cliente SQL fuera de `connectors/` es cómo empieza la deriva que este paquete vino a cerrar: hasta
@@ -15,9 +15,9 @@ func TestNoOtherSQLClientInTheRepo(t *testing.T) {
 	client := regexp.MustCompile(`(^|[^A-Za-z0-9_])sql\.Open\("|/api/query_results|/api/jobs/`)
 	allowed := map[string]string{
 		// Se creó como copia suelta a propósito (c7d840cc, 2026-11-03): sin connectors, harness ni bin/pg, con todo en
-		// su .env, para que funcione fuera del playground. Si vuelve a usar el conector, esta excepción deja de matchear
+		// su .env, para que funcione fuera de my-tools. Si vuelve a usar el conector, esta excepción deja de matchear
 		// y la prueba pide borrarla.
-		"ecommerce/": "copia independiente del playground, decidida al crearla (era ecommerce-v2 hasta el 2026-11-09)",
+		"ecommerce/": "copia independiente de my-tools, decidida al crearla (era ecommerce-v2 hasta el 2026-11-09)",
 	}
 	if offenders := repocheck.Offenders(t, client, allowed); len(offenders) > 0 {
 		t.Errorf("hay clientes SQL fuera de connectors/ (usá connectors/sql): %v", offenders)

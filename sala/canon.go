@@ -27,7 +27,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 // Las herramientas de un agente de canon: las del barrido más la lectura de canon.
@@ -47,7 +47,7 @@ var canonGuide string
 // El formato de salida es lo único que la guía no dice: es de la sala, no de canon.
 const canonFormat = `## Cómo entregás las piezas
 
-Ya estás en la raíz del playground: make y bin/pg van sin -C. Hoy es la fecha de «verified». Cada pieza va en un bloque de ` +
+Ya estás en la raíz de my-tools: make y bin/pg van sin -C. Hoy es la fecha de «verified». Cada pieza va en un bloque de ` +
 	"código con la etiqueta `pieza` y UN objeto JSON válido. Los repos van con el nombre que traen en la lista. Las tres formas:\n\n" +
 	"```pieza\n" + `{"node":"<tema>/context","operacion":"verificado","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"<la pregunta que contestan esas secciones>","archivos":{"<repo>":["<ruta>"]}}` + "\n```\n\n" +
 	"```pieza\n" + `{"node":"<tema>/context","section":"<título exacto de la sección>","kind":"correction|addition","source":"verified","verified":"<AAAA-MM-DD>","as_asked":"…","objetivo":"<la responsabilidad, una frase de negocio>","se_deduce_leyendo":"<lo que resuelven los archivos>","archivos":{"<repo>":["<ruta>"]},"tablas":["…"],"text":"<la prosa en markdown, sin el título>"}` + "\n```\n\n" +

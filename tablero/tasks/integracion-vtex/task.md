@@ -329,7 +329,7 @@ Las dos APIs de VTEX se llaman con `-H "VtexIdclientAutCookie: $(vtex local toke
    VTEX manda el settle al conector y la transacción queda `Finished`. Sin factura no cobra nunca.
 
 - La Test Suite se corre desde el admin con Service URL de arriba, AppKey `530aa4f7` y AppToken = el token de esa
-  sucursal (está cargado en la afiliación de VTEX; en el playground no hay copia).
+  sucursal (está cargado en la afiliación de VTEX; en my-tools no hay copia).
 - Sin cuenta VTEX: la tienda demo hace de VTEX completo, en local o contra qa (`make harness-store`, modo qa en
   harness/CLAUDE.md).
 

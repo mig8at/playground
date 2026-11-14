@@ -1,4 +1,4 @@
-// COCKPIT: las herramientas del playground en una sola app, con una barra de aplicaciones a la izquierda como la de VS
+// COCKPIT: las herramientas de my-tools en una sola app, con una barra de aplicaciones a la izquierda como la de VS
 // Code. La ventana es la carcasa (cockpit/shell/index.html): la barra y, a la derecha, cada app en su panel. Acá vive lo
 // que la carcasa no puede hacer sola:
 //
@@ -14,7 +14,7 @@
 //   y cuente lo que hace, que se ve en vivo en el panel «Claude» de la carcasa. Pide la llave que Cockpit deja al
 //   arrancar en ~/.config/creditop-cockpit/control.json (600; se borra al salir): una página web no la conoce.
 //
-// Todo corre desde la carpeta del playground (la que tenía este código al compilar) y con el PATH de tu shell. Los
+// Todo corre desde la carpeta de my-tools (la que tenía este código al compilar) y con el PATH de tu shell. Los
 // registros: ~/Library/Logs/creditop-playground-chat.log (el chat) y ~/Library/Logs/cockpit-<app>.log (las demás).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
@@ -38,7 +38,7 @@ const ROOT: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../..");
 enum Start {
     // El servidor del chat, que viene adentro de la app.
     Sidecar,
-    // `make <target>` desde la carpeta del playground.
+    // `make <target>` desde la carpeta de my-tools.
     Make(&'static str),
 }
 
@@ -195,7 +195,7 @@ fn spawn(app: &AppDef, path: &str) -> Option<Child> {
 }
 
 fn try_spawn(app: &AppDef, path: &str) -> Result<Child, String> {
-    let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz del playground ({ROOT}): {e}"))?;
+    let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
     let (mut cmd, log) = match app.start {
         Start::Sidecar => {
             let exe = std::env::current_exe().map_err(|e| format!("mi propio ejecutable: {e}"))?;
@@ -210,7 +210,7 @@ fn try_spawn(app: &AppDef, path: &str) -> Result<Child, String> {
         }
     };
     cmd.current_dir(&root)
-        .env("PLAYGROUND_ROOT", &root)
+        .env("MY_TOOLS_ROOT", &root)
         .env("PATH", path)
         .stdout(log.try_clone().map_err(|e| format!("duplicar el registro: {e}"))?)
         .stderr(log)

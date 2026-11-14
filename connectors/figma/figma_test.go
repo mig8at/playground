@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // La URL que se copia de Figma trae el nodo con guion y la API lo quiere con dos puntos: si esto se

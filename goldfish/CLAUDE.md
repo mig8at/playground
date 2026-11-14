@@ -45,8 +45,8 @@ El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revis
    `Read`, `Grep` y `Glob`. No hay CLAUDE.md en ningún padre ni configuración que cargar: saben únicamente lo que el
    PR dice. Uno mira **si la descripción y el cambio dicen lo mismo** (`prompts/goldfish-intent.md`), el otro **qué
    puede salir mal** (`prompts/goldfish-risk.md`).
-3. **Elephant**, desde la raíz del playground: el veredicto de cada hallazgo contra el código real (confirmado ·
-   plausible · descartado, con archivo:línea; puede pedirle a `main-verifier`) y lo que sólo se ve con el playground:
+3. **Elephant**, desde la raíz de my-tools: el veredicto de cada hallazgo contra el código real (confirmado ·
+   plausible · descartado, con archivo:línea; puede pedirle a `main-verifier`) y lo que sólo se ve con my-tools:
    las trampas, el conocimiento de la tarea, las reglas de los PRs (`prompts/elephant-verdict.md`).
 4. **Informe**: `goldfish/.runs/<id>/report.md` (fuera de git, con `package/`, que es EXACTAMENTE lo que vieron los
    goldfish). Si la rama es de una tarea, una copia en sus `artifacts/` y un bloque corto en su pila.

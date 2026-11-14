@@ -1,7 +1,7 @@
 // Command tareas es el CLI del tablero: su propio dominio, sin levantar el server ni abrir la UI.
 //
 // POR QUÉ EXISTE. El store ya había resuelto la mitad —pasó de SQLite a archivos justamente porque
-// «el tablero era el único rincón del playground que un modelo no puede leer sin levantar un
+// «el tablero era el único rincón de my-tools que un modelo no puede leer sin levantar un
 // server»— así que LEER una tarea ya funciona: es un `.md`. Lo que seguía atrás de la UI era todo lo
 // demás: preguntar EN QUÉ SE ESTÁ TRABAJANDO obligaba a parsear 38 frontmatters a mano cada vez, y
 // el GUARD —la regla de qué puede salir a Jira— sólo corría al publicar, cuando ya es tarde para
@@ -32,13 +32,13 @@ import (
 	"strconv"
 	"strings"
 
-	"creditop/playground/connectors/guard"
-	"creditop/playground/knowledge"
-	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/journeys"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/store"
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/connectors/guard"
+	"creditop/my-tools/knowledge"
+	"creditop/my-tools/tablero/server/internal/env"
+	"creditop/my-tools/tablero/server/internal/journeys"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/store"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 // Task es lo que se puede saber de un `.md` SIN abrirlo entero: su frontmatter.
@@ -98,13 +98,13 @@ type PublicationJSON struct {
 }
 
 // Las tareas LOCALES son contenedores permanentes, no un backlog paralelo a Jira. Una mejora de una
-// herramienta vuelve a su único archivo; lo transversal o todavía sin destino vive en playground.
+// herramienta vuelve a su único archivo; lo transversal o todavía sin destino vive en `miguel`.
 // `incidencias` junta los defectos de los sistemas de CreditOp hallados al verificar `main`, hasta que
 // cada uno tenga su tarea con Jira.
 // La lista se valida en el CLI y en el lint por archivo para que la limpieza no dependa de memoria.
 // LOS TRES NIVELES (decisión de Miguel, 2026-11-13). Una tarea es de uno de tres mundos, y eso decide si va a Jira:
 //
-//	miguel      su playground personal (mig8at/playground): herramientas suyas para trabajar mejor en CreditOp, pero
+//	miguel      my-tools, su repo personal (mig8at/playground en GitHub): herramientas suyas para trabajar mejor en CreditOp, pero
 //	            no de la compañía. NUNCA va a Jira. Un contenedor general (`miguel`) y una tarea por herramienta.
 //	playground  el playground compartido (Creditop-SAS/playground): es de la compañía, pero por ahora sin Jira. Un
 //	            contenedor general (`playground`) y una tarea por herramienta de ese repo. Las que ya tenían Jira
@@ -125,10 +125,10 @@ func levelOf(t Task) string {
 
 func localProblem(t Task) string {
 	if !levels[levelOf(t)] {
-		return fmt.Sprintf("nivel «%s» no existe: `miguel` (tu playground personal), `playground` (el compartido) o `creditop`", t.Level)
+		return fmt.Sprintf("nivel «%s» no existe: `miguel` (my-tools, lo tuyo), `playground` (el compartido) o `creditop`", t.Level)
 	}
 	if levelOf(t) == "miguel" && len(t.Jira) > 0 {
-		return "una tarea de `nivel: miguel` es de tu playground personal y no va a Jira: el trabajo publicado necesita su tarea de `creditop`"
+		return "una tarea de `nivel: miguel` es de my-tools, lo tuyo, y no va a Jira: el trabajo publicado necesita su tarea de `creditop`"
 	}
 	if t.Class == "proyecto" && len(t.Jira) > 0 {
 		return "un contenedor (`clase: proyecto`) no se vincula a Jira; el trabajo publicado necesita su propia tarea"

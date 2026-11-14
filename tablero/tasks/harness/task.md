@@ -107,7 +107,7 @@ make harness-session TARGET=local
 bin/pg advisor status --target local --json
 ```
 Resultado: login abre una ventana y guarda la cuenta elegida; los chequeos muestran validez sin cookies.
-El contrato y las pruebas están en [connectors](repo:playground/connectors/CLAUDE.md#L1).
+El contrato y las pruebas están en [connectors](repo:my-tools/connectors/CLAUDE.md#L1).
 
 ## Cómo se comprueba — y el material
 

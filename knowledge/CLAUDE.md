@@ -40,7 +40,7 @@ rango de main: qué secciones releer después de un merge. La sugerencia es una 
 a `knowledge:` cuando se leyó y sirve.
 
 Agregá `knowledge: [topic]` o `knowledge: [topic#ancla]` a las tareas que lo necesiten. Citá el archivo
-en los bloques con `[texto](repo:playground/knowledge/topic/rules.md#L1)` para fijarlo a su commit.
+en los bloques con `[texto](repo:my-tools/knowledge/topic/rules.md#L1)` para fijarlo a su commit.
 Un tema ausente o que excede el presupuesto se avisa; no se reemplaza por una búsqueda parecida.
 Los contratos de una herramienta se mantienen junto a ella, en su CLAUDE.md.
 

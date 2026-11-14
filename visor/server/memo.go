@@ -17,8 +17,8 @@ import (
 	"reflect"
 	"sync"
 
-	"creditop/playground/connectors/figma"
-	"creditop/playground/visor/render"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/visor/render"
 )
 
 // screenMemoMax: cuántas pantallas se guardan leídas. Recorrer un flujo es ir y volver entre vecinas.

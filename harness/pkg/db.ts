@@ -1,6 +1,6 @@
 // db.ts — acceso a MySQL para que harness sea autosuficiente (sin shellear a backend-mcp).
 // target = E2E_TARGET (default "dev"). Las credenciales (E2E_DB_HOST/PORT/NAME/USER/PASS + APP_KEY)
-// son HECHOS del entorno y viven COMPARTIDAS en `playground/env/<target>.env`, junto con backend-e2e y
+// son HECHOS del entorno y viven COMPARTIDAS en `my-tools/env/<target>.env` (borrada el 2026-07-22, ver env.ts), junto con backend-e2e y
 // backend-mcp. El `.env.<target>` propio de harness queda para sus perillas (Cognito, mocks…) y
 // PISA lo compartido si redefine una clave. Prioridad: process.env > .env.<target> > env/<target>.env.
 import mysql from 'mysql2/promise';

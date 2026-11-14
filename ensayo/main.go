@@ -1,4 +1,4 @@
-// ensayo: ¿un cambio al playground (un CLAUDE.md, una skill, un hook, una memoria) mejora lo que hace el
+// ensayo: ¿un cambio a my-tools (un CLAUDE.md, una skill, un hook, una memoria) mejora lo que hace el
 // modelo, o sólo lo cambia? Corre las preguntas fijas de preguntas.json con `claude -p`, las califica con
 // un juez que no es un modelo (el harness, la base, `git grep`) y compara dos tandas: la de antes del
 // cambio y la de después, en el mismo checkout.
@@ -27,14 +27,14 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/radar/scan"
+	"creditop/my-tools/radar/scan"
 )
 
 // Batch es una tanda: las corridas y lo que dijo cada juez.
 type Batch struct {
 	Name    string             `json:"name"`
 	Created time.Time          `json:"created"`
-	Commit  string             `json:"commit"` // el HEAD del playground cuando corrió: qué versión se midió
+	Commit  string             `json:"commit"` // el HEAD de my-tools cuando corrió: qué versión se midió
 	Prints  map[string]string  `json:"fingerprints"`
 	Judges  map[string]Verdict `json:"judges"`
 	Runs    []Run              `json:"runs"`
@@ -52,12 +52,12 @@ var allowed = []string{
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)",
 	"Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(head *)", "Bash(tail *)",
 	"Bash(go run ./cmd/repos *)",
-	// Las mismas lecturas por el MCP del playground (`bin/pg mcp`): un agente las prefiere a la consola, y
+	// Las mismas lecturas por el MCP de my-tools (`bin/pg mcp`): un agente las prefiere a la consola, y
 	// negarlas contaba como fricción del cambio medido (tanda «agente», 2026-11-02).
-	"mcp__playground__sql", "mcp__playground__request_timeline", "mcp__playground__client_state",
-	"mcp__playground__client_fields", "mcp__playground__experian_check", "mcp__playground__settings_diff",
-	"mcp__playground__jobs_failed", "mcp__playground__events_request", "mcp__playground__events_errors",
-	"mcp__playground__logs", "mcp__playground__tareas", "mcp__playground__tarea_pila",
+	"mcp__my-tools__sql", "mcp__my-tools__request_timeline", "mcp__my-tools__client_state",
+	"mcp__my-tools__client_fields", "mcp__my-tools__experian_check", "mcp__my-tools__settings_diff",
+	"mcp__my-tools__jobs_failed", "mcp__my-tools__events_request", "mcp__my-tools__events_errors",
+	"mcp__my-tools__logs", "mcp__my-tools__tareas", "mcp__my-tools__tarea_pila",
 }
 
 var denied = []string{
@@ -167,7 +167,7 @@ func tail(s string, n int) string {
 	return s
 }
 
-// ask corre una pregunta con `claude -p` en la raíz del playground.
+// ask corre una pregunta con `claude -p` en la raíz de my-tools.
 func ask(root string, q Question, budget float64) (Run, error) {
 	r := Run{Question: q.ID}
 	args := []string{"-p", q.Prompt, "--output-format", "json",

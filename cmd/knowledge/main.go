@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"creditop/playground/connectors/repos"
-	"creditop/playground/knowledge"
+	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/knowledge"
 )
 
 func main() { os.Exit(run(os.Args[1:])) }
@@ -21,7 +21,7 @@ func run(args []string) int {
 	}
 	fs := flag.NewFlagSet("knowledge", flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "salida JSON")
-	root := fs.String("root", ".", "raíz del playground")
+	root := fs.String("root", ".", "raíz de my-tools")
 	if err := fs.Parse(args[1:]); err != nil {
 		return 2
 	}

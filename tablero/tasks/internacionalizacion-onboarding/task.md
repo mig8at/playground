@@ -53,7 +53,7 @@ estorba, se cierra; no se mergea.
 | `frontend-monorepo` | `feature/pais-como-dato-onto-staging` | **`staging`** | ✅ **mergeada** (PR #834, 19/8 15:22, la apretó sanvipi-ctop) y desplegada a `loan-request-wizard-stg` |
 
 **Segunda tanda — «el país es configuración» (2026-08-24).** El frente local se consolidó en
-`playground.md`; acá queda el estado de las ramas para que esta tabla no mienta.
+`miguel` (#90); acá queda el estado de las ramas para que esta tabla no mienta.
 
 | repo | rama de trabajo | va contra | estado |
 |---|---|---|---|
@@ -117,7 +117,7 @@ rama equivocada y va a parecer que el cambio no funciona.
 | ~~`qa`~~ | **no** | el commit no está ahí y choca al portarlo (Motai) |
 
 📌 **Dato que falta:** la URL pública del servicio `loan-request-wizard-stg` no está escrita en ningún
-lado del playground —lo único documentado es `originaciones-qa.dev.creditop.com`, que es **qa**—. Hay
+lado de my-tools —lo único documentado es `originaciones-qa.dev.creditop.com`, que es **qa**—. Hay
 que averiguarla y anotarla acá, o probar con el wizard local contra dev, que ya funciona.
 
 ### El desorden, dicho sin adornos (retrospectiva del 19/8)
@@ -999,7 +999,7 @@ config de `DO` en `messaging-service` (**P2**).
   se reemplaza **antes** de mergear — no las dos.
 - **D3** Los mapas por proveedor (`provider_codes`) y quitar los default `'CC'` fail-open.
 
-### ETAPA 6 — validación y guardrail [código, playground]
+### ETAPA 6 — validación y guardrail [código, my-tools]
 - **V1** Eje `country` en el harness (comercio RD e2e; con el bloqueador F-21 documentado).
 - **V2** Guardrail CI: prohibir `=== 60`, `== 47`, `'+57'`, `es-CO`, `in:CC,CE,PEP` fuera de la capa
   de config — lo único que evitó la recaída en motai-v2.

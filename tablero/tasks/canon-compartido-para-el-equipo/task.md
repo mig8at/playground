@@ -61,7 +61,7 @@ perilla (`maxPasos`) y se mide de a una pregunta.
    el lint del canon los rechaza tal cual. Migrar = destilar lo que sobrevive a la regla
    **nombre-vs-dirección** (tablas/settings/estados sí; archivos/clases/funciones/endpoints no).
 2. **Sin F-xx en el compartido.** La trampa se cuenta completa (síntoma → causa → cómo se verificó);
-   el registro F-xx sigue siendo LA FUENTE, acá en el playground personal. La procedencia va en la
+   el registro F-xx sigue siendo LA FUENTE, acá en my-tools. La procedencia va en la
    sección obligatoria «Cómo lo sabemos».
 3. **`verified:` hereda la fecha del sello local.** 30 de 39 sellos son ≤2026-07-31: si el sello está
    viejo, re-verificar ANTES de migrar (`make context-diff NODE=x`), no después.
@@ -1060,8 +1060,8 @@ webhooks falso por un orden de magnitud** (26 rutas de avisos vs 24 crons de ser
 que divergen en efectos secundarios.
 
 ⚠ **El chequeo me atajó una afirmación vieja del CLAUDE.md:** «Modules/Backoffice existe sólo en main»
-**ya no es cierto** — está en develop. No entró al corpus. (Pendiente: corregir el CLAUDE.md del
-playground.)
+**ya no es cierto** — está en develop. No entró al corpus. (Pendiente: corregir el CLAUDE.md de
+my-tools.)
 
 Las aristas aparecieron solas otra vez: la compuerta del cutover ↔ las entradas del onboarding (via
 SimulatorController) y ↔ donde nace la solicitud (via UserRequestController).

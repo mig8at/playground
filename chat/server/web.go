@@ -52,12 +52,12 @@ func guard(next http.Handler) http.Handler {
 	})
 }
 
-// La carpeta de la interfaz compilada: CHAT_UI, o chat/dist del playground. Si no está, sólo la API.
+// La carpeta de la interfaz compilada: CHAT_UI, o chat/dist de my-tools. Si no está, sólo la API.
 func uiDir() string {
 	if dir := os.Getenv("CHAT_UI"); dir != "" {
 		return dir
 	}
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return ""
 	}

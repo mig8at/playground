@@ -40,8 +40,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"creditop/playground/lib/shell"
-	"creditop/playground/lib/text"
+	"creditop/my-tools/lib/shell"
+	"creditop/my-tools/lib/text"
 )
 
 const (

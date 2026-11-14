@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // La clave y el id terminan en una RUTA DE DISCO: cualquier cosa que no tenga su forma exacta se

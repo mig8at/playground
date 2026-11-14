@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 func msg(id string, ago time.Duration) gmail.Message {

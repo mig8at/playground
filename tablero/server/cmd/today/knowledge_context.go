@@ -3,11 +3,11 @@ package main
 import (
 	"path/filepath"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 	"fmt"
 	"strings"
 
-	"creditop/playground/knowledge"
+	"creditop/my-tools/knowledge"
 )
 
 const knowledgeContextBytes = 12000

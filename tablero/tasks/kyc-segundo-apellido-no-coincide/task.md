@@ -224,7 +224,7 @@ de asesor, header `X-Fake-Scenario: second-surname-mismatch`. Observar en la BD 
   `MareiguaHttpFake::notFound()`.
 
 **Paso 5 — el arreglo.** `=== null` en `TusDatosService.php:189`. Rama local
-`fix/kyc-second-surname-mismatch` desde `main`, **sin push** (convención del playground). Correr pasos
+`fix/kyc-second-surname-mismatch` desde `main`, **sin push** (convención de my-tools). Correr pasos
 3 y 4 en verde.
 
 **Paso 6 — sacar el match de nombres de `APP_ENV`.** `onboarding.drivers.name_match = strict|bypass`

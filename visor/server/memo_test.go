@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"testing"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // Dos pedidos simultáneos del mismo mapa leen una vez; el siguiente, ya terminado el primero, vuelve a leer.

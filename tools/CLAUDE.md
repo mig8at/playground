@@ -1,4 +1,4 @@
-# tools — cómo se complementan las herramientas del playground
+# tools — cómo se complementan las herramientas de my-tools
 
 Lo que sigue vale para DISEÑAR o CAMBIAR una herramienta (harness, tablero, visor, los conectores), no para usarla: cuál usar para cada pregunta está en el `CLAUDE.md` raíz. Vivió ahí hasta
 el 2026-09-27.

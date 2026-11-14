@@ -38,8 +38,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/specs"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/specs"
 )
 
 type result struct {
@@ -253,7 +253,7 @@ func runSpec(root string, s specs.Spec, quiet bool) result {
 	if s.Dir != "" {
 		dir = filepath.Join(root, s.Dir)
 		if rel, err := filepath.Rel(root, dir); err != nil || strings.HasPrefix(rel, "..") {
-			r.Refused = "dir: sale de la raíz del playground"
+			r.Refused = "dir: sale de la raíz de my-tools"
 			return r
 		}
 	}

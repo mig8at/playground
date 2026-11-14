@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/figma"
-	"creditop/playground/visor/render"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/visor/render"
 )
 
 // EL PAQUETE PARA EL MODELO: todo lo que un modelo necesita para pasar UNA pantalla a Vue o React, en

@@ -1,10 +1,10 @@
-// Package check es keyring, el llavero del playground: contesta, sin escribir nada, a qué tenemos acceso AHORA desde esta máquina y cuándo
+// Package check es keyring, el llavero de my-tools: contesta, sin escribir nada, a qué tenemos acceso AHORA desde esta máquina y cuándo
 // vence cada cosa: la VPN, AWS, las bases, Loki, PostHog, los servicios de connectors/ y las sesiones de
 // asesor del harness.
 //
 // POR QUÉ EXISTE. «No tengo acceso» y «no estoy en la VPN» se leen igual desde un curl que falla, y lo
 // caro es descubrirlo a mitad de una tarea (el 2026-09-28 un curl a dev murió por DNS sin VPN). Cada fila
-// hace UNA lectura barata con las mismas credenciales que usa el resto del playground —las de
+// hace UNA lectura barata con las mismas credenciales que usa el resto de my-tools —las de
 // connectors/, nunca una copia— y dice qué contestó, sin mostrar jamás un valor secreto: sólo si hay,
 // de quién es y cuándo vence.
 //

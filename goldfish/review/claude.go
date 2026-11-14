@@ -2,7 +2,7 @@ package review
 
 // LOS AGENTES: cada paso es una corrida de `claude -p` con su respuesta en JSON (--json-schema). Dos formas:
 //
-//   - CON CONTEXTO (elephant): desde la raíz del playground, con su CLAUDE.md, sus subagentes (main-verifier) y los
+//   - CON CONTEXTO (elephant): desde la raíz de my-tools, con su CLAUDE.md, sus subagentes (main-verifier) y los
 //     repos reales a la vista. Sólo lee: Read, Grep, Glob, git y los subagentes.
 //   - EN FRÍO (goldfish): desde la carpeta de la propuesta, en modo --restricted (sin los archivos de configuración,
 //     sin correr código, sin MCP, los archivos sólo de esa carpeta). No hay CLAUDE.md en ningún padre de esa carpeta:

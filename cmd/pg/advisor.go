@@ -6,7 +6,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // El conector de asesor usa el runtime Node/Playwright ya instalado para el navegador.

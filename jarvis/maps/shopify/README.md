@@ -71,7 +71,7 @@ Origen de cada parte:
 - La app de Creditop pide sólo `write_payment_gateways` y `write_payment_sessions` [código]: con su token **no** se leen pedidos ni productos por la Admin API.
 
 **Lo que esto significa para automatizar** (a diferencia de VTEX, donde una llave de la cuenta abre casi todo):
-- **No hay una llave de la tienda en el playground** [visto: no está en `connectors/`]. Para leer o crear pedidos o productos por API hace falta una app propia de la tienda de pruebas con scopes de Admin API, y crearla es un cambio de la cuenta: pide el OK de Miguel. Mientras tanto, lo de Shopify va **por pantalla**, o con la sesión de la persona en su Chrome, como los sinónimos de VTEX.
+- **No hay una llave de la tienda en my-tools** [visto: no está en `connectors/`]. Para leer o crear pedidos o productos por API hace falta una app propia de la tienda de pruebas con scopes de Admin API, y crearla es un cambio de la cuenta: pide el OK de Miguel. Mientras tanto, lo de Shopify va **por pantalla**, o con la sesión de la persona en su Chrome, como los sinónimos de VTEX.
 - La API del admin es GraphQL con **consultas guardadas por hash** [visto], igual que en VTEX. Para que un caso grabado sirva de receta, alcanza con su nombre de operación y su hash.
 
 ## Para los niveles siguientes

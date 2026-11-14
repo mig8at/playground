@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 func main() {

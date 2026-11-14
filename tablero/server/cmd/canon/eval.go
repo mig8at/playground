@@ -29,8 +29,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/repos"
 )
 
 /* bigTopicWords: un tema más largo que esto probablemente mezcla sujetos y conviene partirlo. Es un consejo,

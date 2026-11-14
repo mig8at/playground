@@ -60,7 +60,7 @@ func (f fakeRepos) Pin(alias, path, sha string) (string, error) {
 }
 
 func (f fakeRepos) Knows(alias string) bool {
-	return alias == "legacy-backend" || alias == "playground"
+	return alias == "legacy-backend" || alias == "my-tools"
 }
 
 var repos = fakeRepos{files: map[string]string{"legacy-backend/tests/CreatesApplication.php": "cfc577218f2d"}}
@@ -214,14 +214,14 @@ func TestBashFenceIsShell(t *testing.T) {
 type listedRepos struct{ fakeRepos }
 
 func (listedRepos) Citable() map[string]string {
-	return map[string]string{"legacy-backend": "", "playground": ""}
+	return map[string]string{"legacy-backend": "", "my-tools": ""}
 }
 
 func TestBlockLinksAPathThatLivesInOnlyOneRepo(t *testing.T) {
 	r := listedRepos{fakeRepos{files: map[string]string{
 		"legacy-backend/tests/CreatesApplication.php": "cfc577218f2d",
 		"legacy-backend/config/app.php":               "cfc577218f2d",
-		"playground/config/app.php":                   "aaaaaaaaaaaa",
+		"my-tools/config/app.php":                     "aaaaaaaaaaaa",
 	}}}
 	run := func(body string) (Event, []string, error) {
 		return PrepareBlock(context.Background(), "La guarda frena", body, "", BlockDeps{Files: r}, blockNow)
@@ -238,7 +238,7 @@ func TestBlockLinksAPathThatLivesInOnlyOneRepo(t *testing.T) {
 		t.Fatalf("no avisó lo que arregló: %v", warnings)
 	}
 
-	if _, _, err := run("Se tocó config/app.php."); err == nil || !strings.Contains(err.Error(), "está en legacy-backend y playground") {
+	if _, _, err := run("Se tocó config/app.php."); err == nil || !strings.Contains(err.Error(), "está en legacy-backend y my-tools") {
 		t.Fatalf("eligió repo en una ruta ambigua: %v", err)
 	}
 	if _, _, err := run("Se tocó app/Nada.php."); err == nil || !strings.Contains(err.Error(), "no está en main de ningún repo") {

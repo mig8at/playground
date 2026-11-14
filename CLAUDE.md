@@ -1,8 +1,15 @@
-# CREDITOP · playground
+# CREDITOP · my-tools
 
 Espacio propio de Miguel: organiza el conocimiento de **CreditOp** (fintech colombiana de originación
 de crédito) y agrupa las herramientas de prueba. Existe para que un modelo entienda **antes** de atacar
 una tarea.
+
+⚠ **«playground» es OTRO repo.** Este se llamó `playground` hasta el 2026-11-13 y se renombró a **`my-tools`**
+(`~/Desktop/CREDITOP/my-tools`; su remoto personal sigue siendo `mig8at/playground`) porque había dos con el mismo
+nombre. Desde entonces **playground** es SÓLO el compartido de la compañía: `Creditop-SAS/playground`, clonado en
+`~/Desktop/CREDITOP/github/playground`, con su CLI `playground`, canon y `*.playground.creditop.com`; en las tareas,
+el nivel `playground` y el alias citable `playground-equipo`. Una cita vieja a «playground local», a
+`~/Desktop/CREDITOP/playground` o a «el playground» fuera de git habla de **my-tools**: corregila al encontrarla.
 
 Este archivo lleva sólo lo que cambia una decisión en CUALQUIER tarea. Lo que sirve al tocar algo
 concreto vive al lado de ese algo, y se lee ahí:
@@ -41,7 +48,7 @@ tener la herramienta: es suponer que no está y contestar de memoria.
 
 ### Cockpit: donde Miguel ve las herramientas, y lo que hacés
 
-Las interfaces del playground —chat, tablero, el panel del harness, Jarvis, Designer (el visor),
+Las interfaces de my-tools —chat, tablero, el panel del harness, Jarvis, Designer (el visor),
 ecommerce, Sentinel y Correo— viven juntas en **Cockpit**, la app de escritorio de Miguel (`make cockpit` la instala). Cambia tres cosas
 en cualquier tarea:
 
@@ -200,7 +207,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 
 ## Git
 
-- **Este repo** (`playground`) se trabaja directamente sobre `main` y se commitea local. No crees ramas
+- **Este repo** (`my-tools`) se trabaja directamente sobre `main` y se commitea local. No crees ramas
   para sus mejoras. El push lo decide Miguel: no pushees por tu cuenta.
 - **Varias sesiones comparten este worktree y su índice de git**: se stagea y se commitea por RUTA
   (`git commit -m … -- <rutas>`, o `git add <rutas> && git commit …` en el mismo comando). El hook
@@ -214,7 +221,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
   misma tarea se revisan cinco veces y se mergean en cinco momentos, así que `main` pasa por estados que
   nadie probó (se decidió el 2026-09-14). La única división es **por repo**.
 - ⛔ **La descripción de un PR NO nombra las herramientas internas.** Nada de `harness`, `trazador`,
-  `tablero`, `connectors`, `playground` ni sus comandos `make`: lo leen personas que no tienen este repo.
+  `tablero`, `connectors`, `my-tools`, `playground` ni sus comandos `make`: lo leen personas que no tienen este repo.
   Va **qué se midió y qué dio** —ambiente, caso, números, antes y después— y las rutas del repo tocado.
   El comando que lo reproduce va en el archivo de la tarea.
 
@@ -235,7 +242,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
   2026-09-18, con histórico reconstruido: ~23% salió de `updated_at`).
 - ⚠ **Para buscar o contar en Loki, `bin/pg logs`**: dice la ventana que buscó, avisa si llegó al tope y un conteo
   (`--query 'sum(count_over_time({service_name="x", level="error"} [24h]))'`) da su número, también 0.
-- `playground/docs/` fue borrada de `main`. Una ruta `docs/X.md` citada es histórica:
+- `docs/` (de cuando este repo se llamaba `playground`) fue borrada de `main`. Una ruta `docs/X.md` citada es histórica:
   `git show 159906a:docs/<archivo>`.
 
 ## Dos reglas de honestidad

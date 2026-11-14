@@ -1,4 +1,4 @@
-// Package sql contesta «estas filas, en este ambiente», y es el ÚNICO lugar del playground que sabe
+// Package sql contesta «estas filas, en este ambiente», y es el ÚNICO lugar de my-tools que sabe
 // qué base atiende cada ambiente y cómo se le habla.
 //
 //	local · dev · qa · staging → MySQL directo
@@ -35,7 +35,7 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // Targets son los ambientes que existen, en el orden en que se nombran.

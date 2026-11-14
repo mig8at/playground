@@ -15,7 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 const (

@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-// toyRoot arma un playground de juguete con git: un archivo commiteado en `app/`.
+// toyRoot arma un my-tools de juguete con git: un archivo commiteado en `app/`.
 func toyRoot(t *testing.T) string {
 	t.Helper()
 	root := t.TempDir()

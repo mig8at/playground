@@ -13,11 +13,11 @@ import (
 	"os"
 	"time"
 
-	"creditop/playground/lib/launchagent"
+	"creditop/my-tools/lib/launchagent"
 )
 
 func chatAgent(addr string) (launchagent.Agent, error) {
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return launchagent.Agent{}, err
 	}

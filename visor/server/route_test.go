@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // Lo que Miguel pega llega en varias formas, y todas se entienden igual: la URL del visor con su capa y su

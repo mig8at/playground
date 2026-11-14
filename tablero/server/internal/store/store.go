@@ -2,13 +2,13 @@
 //
 // POR QUÉ ARCHIVOS. Eran 44 filas en SQLite con un WAL de 1,9 MB para 139 KB de datos, pero el tamaño no
 // es la razón: `tech_notes` —el detalle técnico de una tarea— sólo se podía leer POR API, así que el
-// tablero era el único rincón del playground que un modelo no puede leer sin levantar un server, mientras
+// tablero era el único rincón de my-tools que un modelo no puede leer sin levantar un server, mientras
 // una tarea es markdown que lee cualquiera. Y en archivos los esfuerzos tienen historia en git.
 //
 // UNA TAREA DE JIRA = UNA CARPETA, `tasks/<slug>/`, con su documento `task.md`, su pila de bloques
 // `context.jsonl` y sus `artifacts/` adentro (desde el 2026-09-23; antes era un `data/<tarea>.md` suelto
 // y lo demás se le unía por nombre — ver el paquete layout). El trabajo local se concentra en siete
-// contenedores permanentes (una herramienta por tarea y playground para lo transversal), validados por
+// contenedores permanentes (una herramienta por tarea y `miguel` para lo transversal), validados por
 // cmd/tasks. Así `ls tasks/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
 //	nombre de la carpeta    el slug de la tarea (renombrala a mano si querés: el id vive adentro)
@@ -63,7 +63,7 @@ import (
 	"time"
 	"unicode"
 
-	"creditop/playground/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/layout"
 )
 
 // Store guarda todo en memoria y escribe a disco en cada mutación. `dir` es la carpeta `data/` (lo
@@ -600,14 +600,14 @@ type Effort struct {
 	//	"proyecto"  un contenedor: el general de un nivel o el de una herramienta (ver Level). NO va a Jira nunca.
 	//
 	// Existe porque el tablero las trataba igual y no lo son: medido el 2026-09-15, 23 de las 40
-	// abiertas no tienen clave de Jira, y buena parte son proyectos propios (las herramientas del
-	// playground, el corpus técnico, el SDK) a los que el tablero les pedía sección publicable y les
+	// abiertas no tienen clave de Jira, y buena parte son proyectos propios (las herramientas de
+	// my-tools, el corpus técnico, el SDK) a los que el tablero les pedía sección publicable y les
 	// reclamaba las piezas del cierre como si alguien fuera a leerlas del otro lado. ⚠ No se deduce de
 	// si hay clave de Jira ni de qué repo toca: hay trabajo sobre las herramientas que SÍ se publicó
 	// (CORE-421). Es una decisión, y por eso se declara.
 	Class string `json:"class,omitempty"`
-	// NIVEL: de qué mundo es (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13). «miguel»: su playground
-	// personal, nunca a Jira. «playground»: el compartido de la compañía, por ahora sin Jira. «creditop» (default):
+	// NIVEL: de qué mundo es (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13). «miguel»: my-tools,
+	// lo personal, nunca a Jira. «playground»: el compartido de la compañía, por ahora sin Jira. «creditop» (default):
 	// el trabajo de CreditOp. La UI agrupa por nivel y sólo ofrece Jira en creditop.
 	Level     string `json:"level"`
 	CreatedAt string `json:"createdAt"`
@@ -628,7 +628,7 @@ type Effort struct {
 	// Lo segundo existe porque una tarea suele tener más de un actor o más de un camino posible, y
 	// verlos al lado es lo que permite decidir entre ellos.
 	// Un artefacto es UN html sin build; si necesita `npm install` no es un artefacto, es una carpeta
-	// del playground. Y NO gradúa a `context/`: describe lo que se acordó un día, no cómo funciona
+	// de my-tools. Y NO gradúa a `context/`: describe lo que se acordó un día, no cómo funciona
 	// CreditOp — muere con la tarea.
 	Artifacts []Artifact `json:"artifacts"`
 	// RAMAS: el PATRÓN de nombre de rama con el que se trabaja esta tarea (ej. `pais-como-dato`). Es lo

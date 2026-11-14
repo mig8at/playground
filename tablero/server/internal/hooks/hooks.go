@@ -1,4 +1,4 @@
-// Package hooks son los hooks de Claude Code del playground (`.claude/settings.json`): reglas que
+// Package hooks son los hooks de Claude Code de my-tools (`.claude/settings.json`): reglas que
 // estaban escritas como «acordate de correr X» y pasaron a ser automáticas, porque una regla que
 // depende de que alguien se acuerde se olvida, sobre todo cuando olvidarla NO ROMPE NADA.
 //
@@ -20,7 +20,7 @@
 package hooks
 
 import (
-	"creditop/playground/tablero/server/internal/ansi"
+	"creditop/my-tools/tablero/server/internal/ansi"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -32,14 +32,14 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/keyring/check"
-	"creditop/playground/knowledge"
-	"creditop/playground/lib/text"
+	"creditop/my-tools/keyring/check"
+	"creditop/my-tools/knowledge"
+	"creditop/my-tools/lib/text"
 )
 
 // Env es lo que un hook necesita saber de afuera.
 type Env struct {
-	Root   string // la raíz del playground
+	Root   string // la raíz de my-tools
 	Home   string
 	Stdin  io.Reader
 	Stdout io.Writer
@@ -93,7 +93,7 @@ func toolInput(payload map[string]any) map[string]any {
 
 // ── SessionStart ────────────────────────────────────────────────────────────────────────────────
 
-const header = `# Herramientas de este repo (playground) — inyectado al arrancar, no hace falta correr nada
+const header = `# Herramientas de este repo (my-tools) — inyectado al arrancar, no hace falta correr nada
 
 ` + "`make <comando>`" + ` desde %s es la puerta única. Antes de decir que NO podés
 acceder a algo (logs, base de datos, documentación de negocio), buscalo en esta lista: casi todo
@@ -190,7 +190,7 @@ func withoutColors(s string) string { return ansi.Strip(s) }
 
 /* SessionStart le dice al modelo qué herramientas tiene, sin que nadie se acuerde de correr `make`.
  *
- * EL PROBLEMA QUE RESUELVE: el playground ya tiene acceso a Loki, a Redash, a las cuatro bases de datos
+ * EL PROBLEMA QUE RESUELVE: my-tools ya tiene acceso a Loki, a Redash, a las cuatro bases de datos
  * y a Confluence — pero un modelo que no corre `make` no se entera, **decide que no puede** y contesta
  * suponiendo. Falla en silencio y hacia el lado peor: inventar en vez de mirar.
  *

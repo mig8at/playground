@@ -1,4 +1,4 @@
-// hooks corre un hook de Claude Code del playground: `hooks <nombre>`, con el evento en stdin. Qué hace
+// hooks corre un hook de Claude Code de my-tools: `hooks <nombre>`, con el evento en stdin. Qué hace
 // cada uno y por qué existe: `internal/hooks`. Lo llama `.claude/hooks/run`, que es lo que declara
 // `.claude/settings.json`.
 package main
@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"creditop/playground/tablero/server/internal/hooks"
+	"creditop/my-tools/tablero/server/internal/hooks"
 )
 
 func main() {
@@ -16,7 +16,7 @@ func main() {
 		os.Stderr.WriteString("uso: hooks session-start|generated|destructive-tests|task-lint|closeout|cockpit\n")
 		os.Exit(0) // un hook mal llamado no puede frenar la sesión
 	}
-	root := os.Getenv("PLAYGROUND_ROOT")
+	root := os.Getenv("MY_TOOLS_ROOT")
 	if root == "" {
 		exe, _ := os.Executable()
 		root = filepath.Dir(filepath.Dir(filepath.Dir(exe)))

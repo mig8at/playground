@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // maxText es el mismo tope que pone el home: más largo, lo rechaza igual.

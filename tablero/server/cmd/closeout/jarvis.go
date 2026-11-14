@@ -35,17 +35,17 @@ type jarvisRun struct {
 }
 
 // jarvisDirs: dónde guarda Jarvis sus corridas y sus flujos, con las mismas variables que su servidor.
-func jarvisDirs(playground string) (runs, flows string) {
+func jarvisDirs(myTools string) (runs, flows string) {
 	data := os.Getenv("JARVIS_DATA")
 	if data == "" {
-		data = filepath.Join(playground, "jarvis", ".data")
+		data = filepath.Join(myTools, "jarvis", ".data")
 	}
 	flows = os.Getenv("JARVIS_FLOWS")
 	if flows == "" {
 		flows = os.Getenv("JARVIS_FLUJOS")
 	}
 	if flows == "" {
-		flows = filepath.Join(playground, "jarvis", "flows")
+		flows = filepath.Join(myTools, "jarvis", "flows")
 	}
 	return filepath.Join(data, "runs"), flows
 }
@@ -71,8 +71,8 @@ func flowNames(dir string) map[string]string {
 }
 
 // jarvisRuns: las corridas que empezaron entre `since` y `until`, en orden.
-func jarvisRuns(playground string, since, until time.Time) []jarvisRun {
-	runsDir, flowsDir := jarvisDirs(playground)
+func jarvisRuns(myTools string, since, until time.Time) []jarvisRun {
+	runsDir, flowsDir := jarvisDirs(myTools)
 	entries, err := os.ReadDir(runsDir)
 	if err != nil {
 		return nil

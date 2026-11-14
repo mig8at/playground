@@ -1,7 +1,7 @@
 [package]
 name = "cockpit"
 version = "0.1.0"
-description = "Cockpit: las herramientas del playground en una app, con barra de aplicaciones"
+description = "Cockpit: las herramientas de my-tools en una app, con barra de aplicaciones"
 edition = "2021"
 
 [build-dependencies]

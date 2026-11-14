@@ -8,7 +8,7 @@
 # local (Vite) apunta a DEV; se reusa si está arriba (se reinicia solo si apuntaba a otro backend).
 set -euo pipefail
 
-E2E="${CFE_E2E:-$HOME/Desktop/CREDITOP/playground/harness}"
+E2E="${CFE_E2E:-$HOME/Desktop/CREDITOP/my-tools/harness}"
 # ⚠ `CFE_FRONT` tiene DOS sentidos históricos y colisionaban: abajo es el SWITCH de front
 # (`local|ambiente`, que es lo que manda el panel) y acá se usaba como la RUTA del monorepo. Con
 # `CFE_FRONT=local` la ruta quedaba en `local/apps/loan-request-wizard` → `cd: No such file or directory`,
@@ -29,7 +29,7 @@ TARGET="${CFE_TARGET:-dev}"   # dev por default; CFE_TARGET=local prueba el stac
 # bajo `set -euo pipefail` un grep sin match devuelve 1, pipefail lo propaga y el script MUERE mudo en la
 # asignación (F-59). El `|| true` acá es la red: si la clave no está, la variable queda vacía y decide el
 # fallback de cada caso, no la muerte del script.
-# `bin/advisor` se puede invocar desde `harness/` o desde la raíz `playground/`
+# `bin/advisor` se puede invocar desde `harness/` o desde la raíz `my-tools/`
 # (así lo llama el panel). `env-get.ts` busca .env.<target> desde cwd; si lo
 # ejecutábamos antes del `cd "$E2E"`, la corrida local no leía harness/.env.local,
 # caía al fallback de DEV y el wizard terminaba en legacy-backend.inertia-develop.

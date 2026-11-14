@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	connevents "creditop/playground/connectors/events"
+	connevents "creditop/my-tools/connectors/events"
 )
 
 // Step: un paso del wizard. View y Done arman la conversión; Result, la tasa de fallo (sobre los que enviaron).

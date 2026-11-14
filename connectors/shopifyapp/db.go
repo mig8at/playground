@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/env"
 )
 
 /* LA BASE DE LA APP DE PAGOS DE SHOPIFY, sólo para leer.
@@ -106,7 +106,7 @@ func (c DBConfig) ConnString() string {
 	q := url.Values{}
 	q.Set("sslmode", orDefault(c.SSLMode, "require")) // RDS: cifrada
 	q.Set("connect_timeout", "10")
-	q.Set("application_name", "playground-connectors")
+	q.Set("application_name", "my-tools-connectors")
 	q.Set("default_transaction_read_only", "on")
 	q.Set("statement_timeout", fmt.Sprint(canon.DefaultTimeoutMs))
 	q.Set("idle_in_transaction_session_timeout", "60000")

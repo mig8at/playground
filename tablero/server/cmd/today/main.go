@@ -37,11 +37,11 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	agendapkg "creditop/playground/tablero/server/internal/agenda"
-	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/connectors/canon"
+	agendapkg "creditop/my-tools/tablero/server/internal/agenda"
+	"creditop/my-tools/tablero/server/internal/env"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 // La agenda vive en internal/agenda (la comparte el home del tablero); acá, los nombres de siempre.
@@ -149,7 +149,7 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 	for _, f := range rows {
 		nWaiting += len(f.Waiting)
 		nPend += f.Pending
-		// LOS CONTENEDORES LOCALES VAN APARTE. Son seis herramientas y playground: no son el día a día
+		// LOS CONTENEDORES LOCALES VAN APARTE. Son las herramientas y `miguel`: no son el día a día
 		// comprometido en Jira y mezclarlos ahoga lo que alguien del equipo está esperando. Se listan
 		// igual, abajo y sin detalle: se retoman con `make retomar`.
 		if f.Class == "proyecto" {
@@ -186,7 +186,7 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 		}
 	}
 	if len(projects) > 0 {
-		fmt.Println("\n  CONTENEDORES LOCALES — una tarea por herramienta y playground para lo transversal. No van a Jira")
+		fmt.Println("\n  CONTENEDORES LOCALES — una tarea por herramienta y `miguel` para lo transversal. No van a Jira")
 		for _, f := range projects {
 			when := fmt.Sprintf("%d d", f.Days)
 			if f.Days == 0 {

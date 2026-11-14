@@ -31,7 +31,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // imageAutoMax: la misma cota que usa la interfaz para bajar sola una imagen (IMAGE_AUTO_MAX).

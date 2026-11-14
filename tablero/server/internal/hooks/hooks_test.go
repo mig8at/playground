@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/knowledge"
-	"creditop/playground/lib/shell"
+	"creditop/my-tools/knowledge"
+	"creditop/my-tools/lib/shell"
 )
 
 // toyRepo arma un HOME con `Desktop/CREDITOP/github/legacy-backend` y un test que arrastra el trait.
@@ -32,7 +32,7 @@ func toyRepo(t *testing.T) (home, lb string) {
 
 func TestTheGuard(t *testing.T) {
 	home, lb := toyRepo(t)
-	playground := filepath.Join(home, "Desktop", "CREDITOP", "playground")
+	myTools := filepath.Join(home, "Desktop", "CREDITOP", "my-tools")
 	worktree := filepath.Join(home, "legacy-backend-feature")
 	os.MkdirAll(filepath.Join(worktree, "tests", "Feature", "Only"), 0o755)
 	os.WriteFile(filepath.Join(worktree, "tests", "Feature", "Only", "OnlyTest.php"), []byte("<?php\nuse RefreshDatabase;\n"), 0o644)
@@ -40,18 +40,18 @@ func TestTheGuard(t *testing.T) {
 		name, cmd, cwd string
 		blocks         bool
 	}{
-		{"la suite sin ruta", "cd " + lb + " && ./vendor/bin/sail artisan test", playground, true},
+		{"la suite sin ruta", "cd " + lb + " && ./vendor/bin/sail artisan test", myTools, true},
 		{"recrear la base", "php artisan migrate:fresh --seed", lb, true},
 		{"make fresh", "make fresh", lb, true},
 		{"make test en el repo", "make test", lb, true},
-		{"make test en OTRO repo", "make test", playground, false},
-		{"una ruta limpia", "cd " + lb + " && sail artisan test tests/Unit", playground, false},
-		{"una carpeta con el trait", "cd " + lb + " && sail artisan test tests/Feature/Jobs", playground, true},
+		{"make test en OTRO repo", "make test", myTools, false},
+		{"una ruta limpia", "cd " + lb + " && sail artisan test tests/Unit", myTools, false},
+		{"una carpeta con el trait", "cd " + lb + " && sail artisan test tests/Feature/Jobs", myTools, true},
 		{"…a propósito", Override + " sail artisan test tests/Feature/Jobs", lb, false},
 		// nombrar no es ejecutar: el cuerpo del heredoc y el mensaje del commit no cuentan
-		{"el commit que dice make test", "git -C " + lb + " commit -m \"$(cat <<'EOF'\nmake test y migrate:fresh\nEOF\n)\"", playground, false},
+		{"el commit que dice make test", "git -C " + lb + " commit -m \"$(cat <<'EOF'\nmake test y migrate:fresh\nEOF\n)\"", myTools, false},
 		// ⚠ los dos huecos de la versión de Python
-		{"la raíz con ~", "cd ~/Desktop/CREDITOP/github/legacy-backend && sail artisan test tests/Feature/Jobs", playground, true},
+		{"la raíz con ~", "cd ~/Desktop/CREDITOP/github/legacy-backend && sail artisan test tests/Feature/Jobs", myTools, true},
 		{"la raíz relativa al cwd de la sesión", "cd legacy-backend && sail artisan test tests/Feature/Jobs", filepath.Dir(lb), true},
 		{"un worktree no apaga la guarda", "phpunit tests/Unit; sail artisan db:wipe", worktree, true},
 		{"la raíz es el worktree", "sail artisan test tests/Feature/Only", worktree, true},
@@ -182,7 +182,7 @@ func TestTheRealCatalogFitsTheContextBudget(t *testing.T) {
 	}
 	makefile, err := os.ReadFile(filepath.Join(root, "Makefile"))
 	if err != nil {
-		t.Fatalf("no encuentro el Makefile del playground: %v", err)
+		t.Fatalf("no encuentro el Makefile de my-tools: %v", err)
 	}
 	_, out, _, err := run(root, 20*time.Second, "make")
 	if err != nil {

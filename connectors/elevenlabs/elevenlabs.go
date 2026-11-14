@@ -1,4 +1,4 @@
-// Package elevenlabs es la conexión del playground con ElevenLabs: la llave, las voces, el saldo de créditos y el
+// Package elevenlabs es la conexión de my-tools con ElevenLabs: la llave, las voces, el saldo de créditos y el
 // texto a voz. Lo usan `pg elevenlabs …` y la videollamada del chat (chat/server/voice_elevenlabs.go).
 //
 // La llave (ELEVENLABS_API_KEY, en connectors/.env) se creó con permisos mínimos: Text to Speech, Voices (lectura) y
@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // API es la base de la API (una variable para que las pruebas la apunten a un servidor falso).

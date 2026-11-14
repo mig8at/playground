@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // La BIBLIOTECA del visor: los equipos y archivos de donde salen los proyectos de la barra. La API de

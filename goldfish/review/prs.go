@@ -5,7 +5,7 @@
 //     rama es de una tarea del tablero, lo que la tarea pide.
 //   - GOLDFISH, dos revisores en frío: reciben SÓLO la propuesta, en una carpeta aparte y sin las instrucciones del
 //     proyecto. Lo que quien lo escribió sabe y no dejó escrito es justo lo que tienen que encontrar.
-//   - ELEPHANT, con todo el contexto local (el playground: la tarea, knowledge/, las trampas): le da a cada hallazgo
+//   - ELEPHANT, con todo el contexto local (my-tools: la tarea, knowledge/, las trampas): le da a cada hallazgo
 //     su veredicto contra el código de verdad (confirmado, plausible o descartado) y suma lo que sólo se ve con ese
 //     contexto.
 //   - MIGUEL resuelve: decide qué corregir o qué comentar. Goldfish no comenta en GitHub, no aprueba ni pushea.
@@ -145,34 +145,34 @@ type externalPR struct {
 
 var extMu sync.Mutex
 
-func externalFile(playground string) string {
-	return filepath.Join(playground, "goldfish", ".external.json")
+func externalFile(myTools string) string {
+	return filepath.Join(myTools, "goldfish", ".external.json")
 }
 
-func readExternal(playground string) []externalPR {
+func readExternal(myTools string) []externalPR {
 	var out []externalPR
-	if raw, err := os.ReadFile(externalFile(playground)); err == nil {
+	if raw, err := os.ReadFile(externalFile(myTools)); err == nil {
 		_ = json.Unmarshal(raw, &out)
 	}
 	return out
 }
 
-func writeExternal(playground string, list []externalPR) error {
+func writeExternal(myTools string, list []externalPR) error {
 	raw, _ := json.MarshalIndent(list, "", "  ")
-	return os.WriteFile(externalFile(playground), raw, 0o644)
+	return os.WriteFile(externalFile(myTools), raw, 0o644)
 }
 
 // RemoveExternal: lo saca de la lista (sus validaciones quedan).
-func RemoveExternal(playground, slug string, number int) error {
+func RemoveExternal(myTools, slug string, number int) error {
 	extMu.Lock()
 	defer extMu.Unlock()
 	var keep []externalPR
-	for _, e := range readExternal(playground) {
+	for _, e := range readExternal(myTools) {
 		if e.Slug != slug || e.Number != number {
 			keep = append(keep, e)
 		}
 	}
-	return writeExternal(playground, keep)
+	return writeExternal(myTools, keep)
 }
 
 // ── un PR por su URL ──
@@ -205,7 +205,7 @@ func Me(ctx context.Context) string {
 }
 
 // View: un PR, leído de GitHub.
-func View(ctx context.Context, playground, slug string, number int) (PR, error) {
+func View(ctx context.Context, myTools, slug string, number int) (PR, error) {
 	out, err := gh(ctx, "pr", "view", strconv.Itoa(number), "-R", slug, "--json",
 		"number,url,title,state,author,headRefName,baseRefName,isDraft,updatedAt")
 	if err != nil {
@@ -229,31 +229,31 @@ func View(ctx context.Context, playground, slug string, number int) (PR, error) 
 		Head: v.Head, Base: v.Base, Draft: v.Draft, Updated: v.Updated}
 	p.External = p.Author != "" && p.Author != Me(ctx)
 	if clone := CloneOf(ctx, slug); clone != "" {
-		p.Task = LoadTasks(playground).ForBranch(filepath.Base(clone), p.Head)
+		p.Task = LoadTasks(myTools).ForBranch(filepath.Base(clone), p.Head)
 	}
 	return p, nil
 }
 
 // AddByURL: un PR pegado. Si es de otro, queda en la lista como externo (mientras siga abierto).
-func AddByURL(ctx context.Context, playground, url string) (PR, error) {
+func AddByURL(ctx context.Context, myTools, url string) (PR, error) {
 	slug, number, err := ParsePRURL(url)
 	if err != nil {
 		return PR{}, err
 	}
-	p, err := View(ctx, playground, slug, number)
+	p, err := View(ctx, myTools, slug, number)
 	if err != nil {
 		return PR{}, err
 	}
 	if p.External {
 		extMu.Lock()
-		list := readExternal(playground)
+		list := readExternal(myTools)
 		found := false
 		for _, e := range list {
 			found = found || (e.Slug == slug && e.Number == number)
 		}
 		if !found {
 			list = append(list, externalPR{Slug: slug, Number: number, Added: time.Now().Format(time.RFC3339)})
-			err = writeExternal(playground, list)
+			err = writeExternal(myTools, list)
 		}
 		extMu.Unlock()
 		if err != nil {
@@ -278,12 +278,12 @@ const CacheTTL = 3 * time.Minute
 func invalidate() { cacheMu.Lock(); cached = nil; cacheMu.Unlock() }
 
 // Blocks: los repos con los PRs abiertos de Miguel y los externos que pegó. Los repos principales siempre van, primero.
-func Blocks(ctx context.Context, playground string, refresh bool) ([]RepoBlock, error) {
+func Blocks(ctx context.Context, myTools string, refresh bool) ([]RepoBlock, error) {
 	cacheMu.Lock()
 	if !refresh && cached != nil && time.Since(cachedAt) < CacheTTL {
 		out := cloneBlocks(cached)
 		cacheMu.Unlock()
-		return withLastRuns(playground, out), nil
+		return withLastRuns(myTools, out), nil
 	}
 	cacheMu.Unlock()
 	// los míos: una sola búsqueda en todo GitHub
@@ -346,20 +346,20 @@ func Blocks(ctx context.Context, playground string, refresh bool) ([]RepoBlock, 
 	}
 	// los externos: cada uno por su lado; el que ya no está abierto sale de la lista
 	extMu.Lock()
-	ext := readExternal(playground)
+	ext := readExternal(myTools)
 	extMu.Unlock()
 	extPRs := make([]*PR, len(ext))
 	for i, e := range ext {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			if p, err := View(ctx, playground, e.Slug, e.Number); err == nil {
+			if p, err := View(ctx, myTools, e.Slug, e.Number); err == nil {
 				extPRs[i] = &p
 			}
 		}()
 	}
 	wg.Wait()
-	tasks := LoadTasks(playground)
+	tasks := LoadTasks(myTools)
 	for i := range prs {
 		if h, ok := heads[prs[i].Slug][prs[i].Number]; ok {
 			prs[i].Head, prs[i].Base = h[0], h[1]
@@ -380,13 +380,13 @@ func Blocks(ctx context.Context, playground string, refresh bool) ([]RepoBlock, 
 		}
 	}
 	for _, g := range gone {
-		_ = RemoveExternal(playground, g.Slug, g.Number)
+		_ = RemoveExternal(myTools, g.Slug, g.Number)
 	}
 	blocks := group(ctx, prs)
 	cacheMu.Lock()
 	cached, cachedAt = blocks, time.Now()
 	cacheMu.Unlock()
-	return withLastRuns(playground, cloneBlocks(blocks)), nil
+	return withLastRuns(myTools, cloneBlocks(blocks)), nil
 }
 
 func uniqueSlugs(prs []PR) []string {

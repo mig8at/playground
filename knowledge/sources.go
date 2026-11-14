@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 type SourceState struct {

@@ -18,8 +18,8 @@ import (
 	"sync"
 	"time"
 
-	connlogs "creditop/playground/connectors/logs"
-	connsql "creditop/playground/connectors/sql"
+	connlogs "creditop/my-tools/connectors/logs"
+	connsql "creditop/my-tools/connectors/sql"
 )
 
 // Los estados de `user_requests` (`user_request_statuses` de producción, leída el 2026-11-11), en dos grupos. Negar

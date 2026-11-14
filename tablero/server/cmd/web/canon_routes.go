@@ -5,7 +5,7 @@ import (
 	"errors"
 	"net/http"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 func (a *app) canonRoute(w http.ResponseWriter, r *http.Request) {

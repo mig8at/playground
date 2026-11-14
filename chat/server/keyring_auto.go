@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 var (

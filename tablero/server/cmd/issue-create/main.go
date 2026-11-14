@@ -36,9 +36,9 @@ import (
 	"os"
 	"strings"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/connectors/guard"
-	"creditop/playground/tablero/server/internal/env"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/connectors/guard"
+	"creditop/my-tools/tablero/server/internal/env"
 )
 
 func envDefault(k, def string) string {
@@ -112,7 +112,7 @@ func main() {
 	}
 	toSprint := in.Sprint == nil || *in.Sprint
 
-	// El MISMO guard que aplica la UI y el POST del server: lo que sale del playground no puede
+	// El MISMO guard que aplica la UI y el POST del server: lo que sale de my-tools no puede
 	// nombrar repos, rutas de archivo ni hallazgos internos. Un camino de publicación sin guard es un
 	// agujero en el control, y por consola es más fácil olvidarse que en un formulario.
 	if v := guard.Violations(in.Summary + "\n" + in.Description); len(v) > 0 {

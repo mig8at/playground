@@ -40,7 +40,7 @@ var cloneLocks sync.Map // carpeta del clon → *sync.Mutex
 const ProveStage = "prove"
 
 // Prove corre la comprobación sobre una validación ya terminada.
-func Prove(ctx context.Context, playground string, r *Run, save Recorder) {
+func Prove(ctx context.Context, myTools string, r *Run, save Recorder) {
 	var mu sync.Mutex
 	set := func(f func(*Stage)) {
 		mu.Lock()
@@ -110,25 +110,25 @@ func Prove(ctx context.Context, playground string, r *Run, save Recorder) {
 		}
 	}()
 
-	dir := filepath.Join(RunsDir(playground), r.ID)
+	dir := filepath.Join(RunsDir(myTools), r.ID)
 	raw, _ := json.MarshalIndent(testable, "", "  ")
 	tfile := filepath.Join(dir, "package", "testable.json")
 	_ = os.WriteFile(tfile, raw, 0o644)
 	prompt := strings.NewReplacer("{{REPO}}", r.Slug, "{{REPO_DIR}}", clone, "{{PR}}", r.label(),
 		"{{HEAD}}", r.Head, "{{PACKAGE}}", filepath.Join(dir, "package"), "{{TESTABLE}}", tfile).Replace(promptProve)
 	res, err := runAgent(ctx, agentSpec{
-		dir: playground, prompt: prompt, schema: schemaProve,
+		dir: myTools, prompt: prompt, schema: schemaProve,
 		tools: []string{"Read", "Grep", "Glob", "Bash", "Agent", "Skill"},
 		// y la prueba del PR por su ruta, desde su clon (nunca la suite entera: el hook destructive-tests lo frena igual)
 		// (un comando compuesto se revisa por partes: el `cd` y el `sail` van por separado)
-		// y lo del playground también desde su raíz o por su ruta completa (`cd <playground> && make …`, `<playground>/bin/pg …`)
+		// y lo de my-tools también desde su raíz o por su ruta completa (`cd <my-tools> && make …`, `<my-tools>/bin/pg …`)
 		allowed: append(append([]string{}, proveAllowed...), "Bash(cd "+clone+")", "Bash(cd "+clone+":*)",
 			"Bash(./vendor/bin/sail artisan test:*)", "Bash("+clone+"/vendor/bin/sail artisan test:*)",
-			"Bash(cd "+playground+")", "Bash(cd "+playground+":*)", "Bash(./bin/pg sql:*)", "Bash("+playground+"/bin/pg sql:*)",
-			"Bash("+playground+"/bin/pg logs:*)", "Bash("+playground+"/bin/pg request timeline:*)",
-			"Bash(make -C "+playground+" harness-:*)", "Bash(make -C "+playground+" tablero-db:*)",
+			"Bash(cd "+myTools+")", "Bash(cd "+myTools+":*)", "Bash(./bin/pg sql:*)", "Bash("+myTools+"/bin/pg sql:*)",
+			"Bash("+myTools+"/bin/pg logs:*)", "Bash("+myTools+"/bin/pg request timeline:*)",
+			"Bash(make -C "+myTools+" harness-:*)", "Bash(make -C "+myTools+" tablero-db:*)",
 			// la API local, sólo por el ayudante que rechaza todo host que no sea localhost (curl libre podría ir a prod)
-			"Bash(goldfish/bin/local-http:*)", "Bash("+playground+"/goldfish/bin/local-http:*)"),
+			"Bash(goldfish/bin/local-http:*)", "Bash("+myTools+"/goldfish/bin/local-http:*)"),
 		denied:  proveDenied,
 		addDirs: []string{clone, dir}, budgetUSD: 8, timeout: 45 * time.Minute,
 		env: []string{"E2E_TARGET=local"},

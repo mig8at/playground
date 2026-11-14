@@ -1,8 +1,8 @@
 #!/bin/sh
 # jarvis — el CLI de la sesión en vivo de Jarvis (jarvis/cli). Lo compila la primera vez y cada vez
-# que cambia su código, a ~/.cache/playground/jarvis, igual que bin/pg. Habla con la API de `make jarvis`.
+# que cambia su código, a ~/.cache/my-tools/jarvis, igual que bin/pg. Habla con la API de `make jarvis`.
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
-bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/jarvis"
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/jarvis"
 stale=$(find "$root/jarvis/cli" "$root/jarvis/docs" -type f -newer "$bin" 2>/dev/null | head -n 1)
 # go.mod también cuenta (como en bin/pg): un cambio de dependencia o de versión de Go no toca jarvis/cli.
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then

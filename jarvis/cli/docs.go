@@ -20,10 +20,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"creditop/playground/jarvis/docs"
+	"creditop/my-tools/jarvis/docs"
 )
 
-// repoRoot: la raíz del playground (bin/jarvis la pasa en JARVIS_ROOT; si no, se busca hacia arriba).
+// repoRoot: la raíz de my-tools (bin/jarvis la pasa en JARVIS_ROOT; si no, se busca hacia arriba).
 func repoRoot() (string, error) {
 	if r := os.Getenv("JARVIS_ROOT"); r != "" {
 		return r, nil
@@ -34,7 +34,7 @@ func repoRoot() (string, error) {
 			return d, nil
 		}
 		if filepath.Dir(d) == d {
-			return "", errors.New("no encuentro el playground (jarvis/recipes): corré desde adentro o con JARVIS_ROOT")
+			return "", errors.New("no encuentro my-tools (jarvis/recipes): corré desde adentro o con JARVIS_ROOT")
 		}
 	}
 }

@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 var cliCommands = map[string]bool{"list": true, "watches": true, "latest": true, "read": true, "search": true,

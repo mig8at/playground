@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // En las pruebas ningún aviso sale de verdad ni se le pregunta la sesión al CLI (history.add llama a notifyFresh).

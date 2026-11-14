@@ -14,7 +14,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 /* LEER Y DICTAR CANON DESDE LA CONSOLA. `References` y `Brief` son lo que el tablero necesita para una

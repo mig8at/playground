@@ -6532,7 +6532,7 @@ export function bindResize(handle, options) {
   let last = null;
   const number = (v) => Number(typeof v === 'function' ? v() : v);
   // ⚠ Plegar es lo normal; `collapsible: false` es la excepción y se declara. Antes era al revés, y
-  // la mitad de las regiones del playground no plegaba.
+  // la mitad de las regiones de my-tools no plegaba.
   const folds = () => o.collapsible !== false;
   // ⚠ El mínimo NO se achica para caber en el máximo: eso era lo que dejaba una columna de 160 con un
   // mínimo de 240. Si no entra el mínimo, la región se pliega.

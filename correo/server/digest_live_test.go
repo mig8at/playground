@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 // Corre de verdad contra `claude -p` (unos 20 s y centavos): sólo con CORREO_LIVE=1. Es la vara del borrador: con un

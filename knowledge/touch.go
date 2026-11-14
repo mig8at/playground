@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 /* ── EL ÍNDICE AL REVÉS: DE UN ARCHIVO A LAS SECCIONES QUE RESPALDA ────────────────────────────────

@@ -15,9 +15,9 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/store"
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/store"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 // Dormida: 14 días sin tocar; a los 30 la agenda sugiere archivar o anotar por qué espera.

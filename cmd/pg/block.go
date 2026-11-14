@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	dbsql "creditop/playground/connectors/sql"
+	dbsql "creditop/my-tools/connectors/sql"
 )
 
 // LA CONSULTA COMO EVIDENCIA DE UNA TAREA. Lo que hacía `make trazador-sql MD=1 BLOQUE=…`, que ahora vive acá: el
@@ -73,7 +73,7 @@ func sqlTableMD(columns []string, rows []dbsql.Row) string {
 // addTaskBlock agrega el bloque a la pila de la tarea por la puerta de siempre (`make tarea-bloque`), con el entorno
 // de make LIMPIO: un `N=` heredado por MAKEFLAGS mandaría el bloque a otra tarea sin decirlo.
 func addTaskBlock(task, title, body string) error {
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return err
 	}
@@ -98,10 +98,10 @@ func addTaskBlock(task, title, body string) error {
 	return nil
 }
 
-// playgroundRoot: la raíz del playground, buscando hacia arriba el módulo de Go con el tablero adentro. Buscaba
-// `tablero/server/go.mod`, que dejó de existir cuando el playground pasó a un solo módulo en la raíz (ddfb05db): desde
+// myToolsRoot: la raíz de my-tools, buscando hacia arriba el módulo de Go con el tablero adentro. Buscaba
+// `tablero/server/go.mod`, que dejó de existir cuando my-tools (entonces playground) pasó a un solo módulo en la raíz (ddfb05db): desde
 // ahí `pg sql --bloque` fallaba siempre con «no encontré la raíz del playground» (visto el 2026-10-20).
-func playgroundRoot() (string, error) {
+func myToolsRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -113,7 +113,7 @@ func playgroundRoot() (string, error) {
 			return d, nil
 		}
 		if filepath.Dir(d) == d {
-			return "", fmt.Errorf("no encontré la raíz del playground desde %s", dir)
+			return "", fmt.Errorf("no encontré la raíz de my-tools desde %s", dir)
 		}
 	}
 }

@@ -1,4 +1,4 @@
-// Package gemini es la conexión del playground con la API de Gemini: la llave, el modelo, las llamadas y
+// Package gemini es la conexión de my-tools con la API de Gemini: la llave, el modelo, las llamadas y
 // el bucle de function calling. No sabe nada de CreditOp a propósito: quien lo use le pasa sus
 // herramientas y su pregunta, y esto se encarga de la mecánica.
 //
@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // API es la base de la API de Gemini (una variable para que las pruebas la apunten a un servidor falso).

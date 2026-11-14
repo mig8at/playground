@@ -1,4 +1,4 @@
-// radar: cómo se usan de verdad las herramientas del playground, leído de las transcripciones de Claude
+// radar: cómo se usan de verdad las herramientas de my-tools, leído de las transcripciones de Claude
 // Code. Sólo lectura, sólo local y sin modelo: todo se deriva de las transcripciones, el Makefile (con sus
 // alias), las skills y `git log`.
 //
@@ -15,12 +15,12 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/radar/scan"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/radar/scan"
 )
 
-// playgroundRoot: subiendo desde donde se corre, la carpeta que tiene el Makefile y `radar/`.
-func playgroundRoot() (string, error) {
+// myToolsRoot: subiendo desde donde se corre, la carpeta que tiene el Makefile y `radar/`.
+func myToolsRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -33,7 +33,7 @@ func playgroundRoot() (string, error) {
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", fmt.Errorf("no encontré la raíz del playground subiendo desde %s", dir)
+			return "", fmt.Errorf("no encontré la raíz de my-tools subiendo desde %s", dir)
 		}
 		dir = parent
 	}
@@ -50,7 +50,7 @@ func main() {
 	projects := flag.String("projects", filepath.Join(os.Getenv("HOME"), ".claude", "projects"), "dónde guarda Claude Code las transcripciones")
 	flag.Parse()
 
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "radar:", err)
 		os.Exit(2)
@@ -109,7 +109,7 @@ func main() {
 		_ = enc.Encode(out)
 		return
 	}
-	fmt.Printf("radar · %s · últimos %d días · %d sesiones de este playground (%d leídas de nuevo)",
+	fmt.Printf("radar · %s · últimos %d días · %d sesiones de my-tools (%d leídas de nuevo)",
 		*view, *days, scan.CountSince(sessions, since), read)
 	if skipped > 0 {
 		fmt.Printf(" · sin %d corridas automáticas (-all las suma)", skipped)

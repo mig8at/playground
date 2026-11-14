@@ -12,14 +12,14 @@ import { execFile } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { PROD_FRONT } from './prod-advisor.ts';
 
-const PLAYGROUND = fileURLToPath(new URL('../../', import.meta.url));
-const PG = `${PLAYGROUND}bin/pg`;
+const MY_TOOLS = fileURLToPath(new URL('../../', import.meta.url));
+const PG = `${MY_TOOLS}bin/pg`;
 type Row = Record<string, any>;
 
 /** Una consulta de sólo lectura a prod; tira con la última línea del conector si falla. */
 function prodSql(query: string): Promise<Row[]> {
     return new Promise((ok, fail) => execFile(PG, ['sql', '--target', 'prod', '--json', '--query', query],
-        { cwd: PLAYGROUND, encoding: 'utf8', timeout: 90_000 }, (err, stdout, stderr) => {
+        { cwd: MY_TOOLS, encoding: 'utf8', timeout: 90_000 }, (err, stdout, stderr) => {
             if (err) return fail(new Error(String(stderr || stdout || err.message).trim().split('\n').filter(Boolean).pop()?.replace(/^pg:\s*/, '') || 'el conector falló'));
             try { ok(JSON.parse(stdout).rows ?? []); } catch { fail(new Error('el conector no devolvió JSON')); }
         }));

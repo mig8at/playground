@@ -1,4 +1,4 @@
-// cockpit maneja Cockpit (cockpit/, la app de escritorio del playground) por consola, para que Claude navegue las
+// cockpit maneja Cockpit (cockpit/, la app de escritorio de my-tools) por consola, para que Claude navegue las
 // herramientas y cuente lo que hace mientras Miguel lo ve en vivo en el panel «Claude». Lo llama `bin/cockpit`.
 //
 //	bin/cockpit status [--json]          qué apps hay, cuáles están arriba y cuál está al frente
@@ -18,7 +18,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/lib/cockpit"
+	"creditop/my-tools/lib/cockpit"
 )
 
 func main() {

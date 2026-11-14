@@ -27,10 +27,10 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/playground/lib/text"
-	"creditop/playground/tablero/server/internal/journeys"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/specs"
+	"creditop/my-tools/lib/text"
+	"creditop/my-tools/tablero/server/internal/journeys"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/specs"
 )
 
 const format = "tablero.agent-brief/v1"

@@ -21,7 +21,7 @@ import (
 
 // runTablero corre `go run <args>` en tablero/server con el texto en stdin y devuelve su código de salida.
 func runTablero(stdin string, args ...string) int {
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return fail(1, "%v", err)
 	}

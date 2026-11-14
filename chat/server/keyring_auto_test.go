@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 func TestAskedNames(t *testing.T) {

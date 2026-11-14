@@ -11,9 +11,9 @@ import (
 	"fmt"
 	"os"
 
-	"creditop/playground/connectors/repos"
-	"creditop/playground/tablero/server/internal/citations"
-	"creditop/playground/tablero/server/internal/layout"
+	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/tablero/server/internal/citations"
+	"creditop/my-tools/tablero/server/internal/layout"
 )
 
 func main() {

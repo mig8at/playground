@@ -1,4 +1,4 @@
-// Package logs contesta «estas líneas de log, en este ambiente», y es el ÚNICO lugar del playground que
+// Package logs contesta «estas líneas de log, en este ambiente», y es el ÚNICO lugar de my-tools que
 // sabe qué Loki atiende cada ambiente, cómo se autentica y con qué etiquetas se separa cada backend.
 //
 //	local                 → el Loki de esta máquina (`harness/bin/loki-local`): no pide credenciales
@@ -31,7 +31,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 	"strconv"
 )
 

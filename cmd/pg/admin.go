@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/admin"
+	"creditop/my-tools/connectors/admin"
 )
 
 // El admin de legacy-application por su conector (`connectors/admin`): la sesión, el token CSRF y las páginas de Inertia por

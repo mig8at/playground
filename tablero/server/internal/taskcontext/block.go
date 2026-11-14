@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	dbsql "creditop/playground/connectors/sql"
+	"creditop/my-tools/connectors/canon"
+	dbsql "creditop/my-tools/connectors/sql"
 )
 
 // BlockSchema es el formato de la pila desde el 2026-09-23: la tarea es una pila de BLOQUES de

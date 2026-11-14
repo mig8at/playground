@@ -1,5 +1,5 @@
 {
-  "_note": "La lista ÚNICA de repos del playground. La lee connectors/repos (Go), y cmd/repos la expone en JSON; por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz del playground. merchant-api se registra sólo como citable para revisar el saga local; no se comprobó su actividad en producción y no se incorpora al barrido de repos indexados. vtex, shopify e infrastructure se registran sólo como citables (los plugins de ecommerce y el gateway de la API), para que los bloques de las tareas puedan citarlos. creditop-mobile (la app Flutter) es citable para la biblioteca knowledge/; `branches` fija su rama de producción, `main-pro`, porque su `main` no se actualiza. loan-servicing (el worker de Temporal de la cadena nocturna de cartera) es citable para la biblioteca. identity-service y entitlement-service (identidad ADO y beneficios de la app móvil) y self-manager-api (códigos de autogestión) también, para la biblioteca. messaging-service (envío de campañas y push) es citable para la biblioteca.",
+  "_note": "La lista ÚNICA de repos de my-tools. La lee connectors/repos (Go), y cmd/repos la expone en JSON; por qué es una sola y el criterio para agregar un repo están en internal/repos. Las rutas con ~ salen del HOME; las relativas, de la raíz de my-tools. merchant-api se registra sólo como citable para revisar el saga local; no se comprobó su actividad en producción y no se incorpora al barrido de repos indexados. vtex, shopify e infrastructure se registran sólo como citables (los plugins de ecommerce y el gateway de la API), para que los bloques de las tareas puedan citarlos. creditop-mobile (la app Flutter) es citable para la biblioteca knowledge/; `branches` fija su rama de producción, `main-pro`, porque su `main` no se actualiza. loan-servicing (el worker de Temporal de la cadena nocturna de cartera) es citable para la biblioteca. identity-service y entitlement-service (identidad ADO y beneficios de la app móvil) y self-manager-api (códigos de autogestión) también, para la biblioteca. messaging-service (envío de campañas y push) es citable para la biblioteca.",
   "indexed": {
     "application": "~/Desktop/CREDITOP/github/legacy-application",
     "frontend-monorepo": "~/Desktop/CREDITOP/github/frontend-monorepo",
@@ -14,7 +14,7 @@
     "harness": "harness"
   },
   "citable_only": {
-    "playground": ".",
+    "my-tools": ".",
     "playground-equipo": "~/Desktop/CREDITOP/github/playground",
     "merchant-api": "~/Desktop/CREDITOP/github/merchant-api",
     "vtex": "~/Desktop/CREDITOP/github/vtex",

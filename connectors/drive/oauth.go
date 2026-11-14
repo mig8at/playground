@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // Los extremos de OAuth de Google.

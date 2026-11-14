@@ -9,7 +9,7 @@ nivel de negocio/funcional, **no** a nivel de código, enfocada en **cómo y dó
 > (`connectors/atlassian/jira.go` → `mdToADF`): `## encabezados`, `**negrita**`, `- viñetas`,
 > `- [ ] checklist` (checkboxes reales), `1.` numeradas y `[texto](url)` / URLs → links.
 
-> **Guard:** esto va a Jira. No mencionar repos, rutas de archivo, el playground ni
+> **Guard:** esto va a Jira. No mencionar repos, rutas de archivo, my-tools, el playground ni
 > hallazgos internos (F-xx). Lenguaje de negocio.
 
 ## Esqueleto (copiar y completar)

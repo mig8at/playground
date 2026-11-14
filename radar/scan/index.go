@@ -25,7 +25,7 @@ func gitOutput(dir string, args ...string) (string, error) {
 // clasificadas, y sin esto un arreglo del parser no se aplicaría a lo que ya estaba leído.
 const indexVersion = 8
 
-// CachePath es el índice de radar dentro del playground.
+// CachePath es el índice de radar dentro de my-tools.
 func CachePath(root string) string { return filepath.Join(root, "radar", ".cache", "sessions.json") }
 
 // cacheFile es el índice en disco.

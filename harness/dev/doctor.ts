@@ -38,8 +38,8 @@ type Check = { id: string; ok: boolean; frena: boolean; detalle: string; arreglo
 const checks: Check[] = [];
 const add = (c: Check) => checks.push(c);
 
-const PLAYGROUND = resolve(import.meta.dirname, '../..');
-const repos = JSON.parse(readFileSync(resolve(PLAYGROUND, 'tools/repos.json'), 'utf8'));
+const MY_TOOLS = resolve(import.meta.dirname, '../..');
+const repos = JSON.parse(readFileSync(resolve(MY_TOOLS, 'tools/repos.json'), 'utf8'));
 const repoPath = (alias: string) => String(repos.indexed?.[alias] ?? repos.citable_only?.[alias] ?? '').replace(/^~\//, homedir() + '/');
 const git = (dir: string, ...args: string[]) => {
     const r = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8', timeout: 15_000 });

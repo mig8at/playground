@@ -38,11 +38,11 @@ type correoState struct {
 }
 
 // correoStatePath: lo guardado por Correo (CORREO_DATA lo cambia, como JARVIS_DATA).
-func correoStatePath(playground string) string {
+func correoStatePath(myTools string) string {
 	if d := os.Getenv("CORREO_DATA"); d != "" {
 		return filepath.Join(d, "state.json")
 	}
-	return filepath.Join(playground, "correo", ".data", "state.json")
+	return filepath.Join(myTools, "correo", ".data", "state.json")
 }
 
 func mailSender(from string) string {
@@ -56,11 +56,11 @@ func mailSender(from string) string {
 
 // mailEvents: los correos de los seguimientos `watches` que llegaron entre `since` y `until`, y las respuestas de
 // Miguel en esos hilos dentro del mismo lapso. Sin seguimientos, o sin Correo, nada.
-func mailEvents(playground string, watches []string, since, until time.Time) []mailEvent {
+func mailEvents(myTools string, watches []string, since, until time.Time) []mailEvent {
 	if len(watches) == 0 {
 		return nil
 	}
-	b, err := os.ReadFile(correoStatePath(playground))
+	b, err := os.ReadFile(correoStatePath(myTools))
 	if err != nil {
 		return nil
 	}

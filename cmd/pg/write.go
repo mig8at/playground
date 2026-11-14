@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"creditop/playground/connectors/guard"
+	"creditop/my-tools/connectors/guard"
 )
 
 // Lo que comparten los comandos que escriben hacia afuera.
@@ -19,7 +19,7 @@ func applyFlag(fs *flag.FlagSet) *bool {
 	return fs.Bool("apply", false, "hacerlo de verdad; sin esto sólo muestra lo que haría")
 }
 
-// guarded frena el texto que no puede salir del playground —nombres de herramientas internas, rutas de
+// guarded frena el texto que no puede salir de my-tools —nombres de herramientas internas, rutas de
 // archivo, hallazgos— con las MISMAS reglas que la bitácora que sube a Jira. Devuelve 0 si pasa.
 func guarded(texts ...string) int {
 	var found []map[string]string

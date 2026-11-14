@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 func msg(id, dir, text string) cli.Message {

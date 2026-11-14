@@ -1,5 +1,5 @@
 // Package events contesta «qué VIO el cliente en el navegador, en este ambiente»: los eventos de PostHog.
-// Es el único lugar del playground que sabe qué proyecto y qué filtro atienden cada ambiente, y cuáles
+// Es el único lugar de my-tools que sabe qué proyecto y qué filtro atienden cada ambiente, y cuáles
 // no escriben nada.
 //
 //	local            → no escribe: `getServerPostHog()` devuelve null con APP_ENV=local
@@ -29,7 +29,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // Targets son los ambientes que existen.

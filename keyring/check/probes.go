@@ -13,17 +13,17 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/connectors/canon"
-	"creditop/playground/connectors/env"
-	"creditop/playground/connectors/events"
-	"creditop/playground/connectors/figma"
-	"creditop/playground/connectors/gemini"
-	"creditop/playground/connectors/jev"
-	"creditop/playground/connectors/logs"
-	"creditop/playground/connectors/slack"
-	sqlc "creditop/playground/connectors/sql"
-	"creditop/playground/connectors/twilio"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/env"
+	"creditop/my-tools/connectors/events"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/connectors/gemini"
+	"creditop/my-tools/connectors/jev"
+	"creditop/my-tools/connectors/logs"
+	"creditop/my-tools/connectors/slack"
+	sqlc "creditop/my-tools/connectors/sql"
+	"creditop/my-tools/connectors/twilio"
 )
 
 var targets = []string{"local", "dev", "qa", "staging", "prod"}

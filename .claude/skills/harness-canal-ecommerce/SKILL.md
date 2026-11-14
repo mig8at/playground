@@ -14,7 +14,7 @@ redirige al cliente al wizard. Sin asesor: el cliente aterriza ya redirigido.
 **El contrato vive en `pkg/ecommerce.ts`** (`contractForSpec`), reconciliado contra el plugin de
 WooCommerce que instala el comercio (`class-creditop-gateway.php:470-512`); el mapa de cada parámetro
 está en la cabecera de `pkg/checkout-b64.ts`. Para armar una URL a mano está el artefacto «contrato de
-checkout» de la tarea #95. La copia del plugin se borró del playground el 2026-09-24 y sigue en la
+checkout» de la tarea #95. La copia del plugin se borró de my-tools el 2026-09-24 y sigue en la
 historia: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
 
 ## El techo del canal: ya NO es el de F-54

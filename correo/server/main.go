@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/gmail"
-	"creditop/playground/lib/launchagent"
+	"creditop/my-tools/connectors/gmail"
+	"creditop/my-tools/lib/launchagent"
 )
 
 type app struct {
@@ -198,7 +198,7 @@ func correoAt(addr string) bool {
 func main() {
 	// La consola (cli.go): `correo list|latest|read|search|…`. Va antes de los flags del servidor.
 	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
-		root := os.Getenv("PLAYGROUND_ROOT")
+		root := os.Getenv("MY_TOOLS_ROOT")
 		if root == "" {
 			root, _ = os.Getwd()
 		}
@@ -218,7 +218,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "connectors", "gmail")); err != nil {
-		log.Fatalf("correo: corré desde la raíz del playground (no encuentro connectors/gmail en %s)", root)
+		log.Fatalf("correo: corré desde la raíz de my-tools (no encuentro connectors/gmail en %s)", root)
 	}
 	exitOn := func(err error) {
 		if err != nil {

@@ -31,7 +31,7 @@ jira_title: ""
       cierre salen iguales, salvo 188 comandos donde Go frena y Python no: los dos huecos que tenía la
       guarda (raíz con `~`/relativa; cwd en un worktree, que la hacía rendirse), cerrados con prueba.
       Ninguno al revés.
-- [ ] Terminar de pasar el Python del playground a Go (pedido de Miguel, 2026-09-23), cada pieza
+- [ ] Terminar de pasar el Python de my-tools a Go (pedido de Miguel, 2026-09-23), cada pieza
       borrada sólo después de salir idéntica contra la vieja: `tools/{confluence,estilo,ui-sync}.py` y `trazador/tools/huella.py` · `workers/` (~7.100 líneas, que es lo que mantiene vivo `tools/repos.py` y `tools/canon.py`) ·
       (`twilio/` pasó a `connectors/twilio` y `flow/` salió del repo a `~/Desktop/CREDITOP/temp/`, los dos el 2026-09-24). Termina cuando `git ls-files '*.py'` no
       devuelve nada fuera de lo que se decida conservar (hoy `jev_transport.py`, la conexión con Jev).

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // Config es a qué Atlassian hablarle. Jira y Confluence comparten sitio, cuenta y token: son el mismo

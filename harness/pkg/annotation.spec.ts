@@ -63,7 +63,7 @@ test.describe('el comando que se ofrece es pegable', () => {
 // que nació).
 test('la forma coincide con el regex REAL con que el tablero reconoce una anotación', () => {
       const source = join(homedir(),
-            'Desktop/CREDITOP/playground/tablero/server/internal/store/annotations.go');
+            'Desktop/CREDITOP/my-tools/tablero/server/internal/store/annotations.go');
       test.skip(!existsSync(source), `no está ${source}: el contrato queda SIN contrastar`);
 
       const go = readFileSync(source, 'utf8');

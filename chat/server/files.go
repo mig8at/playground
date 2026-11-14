@@ -22,7 +22,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // maxUpload es el tope del home por adjunto (CHAT_FILE_MAX_MB): más grande lo rechazaría igual.

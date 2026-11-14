@@ -9,8 +9,8 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/tablero/server/internal/pulse"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 func TestReadFrontmatterArchivedIsDateAndBranchesSplitByComma(t *testing.T) {
@@ -136,7 +136,7 @@ func TestABlockCountsOnTheDayItWasWritten(t *testing.T) {
 // y la misma, ocurrida también días antes, ya no es nueva y no se repite. Se escribe una transcripción en
 // una carpeta de proyectos falsa, con el nombre que Claude Code le da a una raíz inventada.
 func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
-	root := filepath.Join(t.TempDir(), "playground")
+	root := filepath.Join(t.TempDir(), "my-tools")
 	projects := t.TempDir()
 	dir := filepath.Join(projects, strings.ReplaceAll(root, "/", "-"))
 	if err := os.MkdirAll(dir, 0o755); err != nil {
@@ -271,7 +271,7 @@ func TestGoneReason(t *testing.T) {
 	}
 }
 
-// El prefijo de un commit del playground personal dice de qué herramienta fue el trabajo.
+// El prefijo de un commit de my-tools dice de qué herramienta fue el trabajo.
 func TestToolOfSubject(t *testing.T) {
 	tools := map[string]bool{"goldfish": true, "chat": true, "designer": true, "herramienta-ecommerce": true}
 	for subject, want := range map[string]string{

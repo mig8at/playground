@@ -7,10 +7,10 @@ import (
 	"io"
 	"os"
 
-	"creditop/playground/connectors/jev"
+	"creditop/my-tools/connectors/jev"
 )
 
-// `pg jev ask`: Jev como servicio para cualquier herramienta del playground. Lee el pedido (JSON) por la entrada estándar,
+// `pg jev ask`: Jev como servicio para cualquier herramienta de my-tools. Lee el pedido (JSON) por la entrada estándar,
 // lo manda por el cliente único (`connectors/jev`: sin redirecciones y sin el token ni el cuerpo en los errores) y escribe la
 // respuesta en la salida. Desde otro lenguaje se llama como proceso, igual que el resto de los conectores: así la URL y el
 // token viven en un solo lugar. El token sale de JEV_TOKEN o TYPESAFE_API_KEY (proceso, o connectors/.env).

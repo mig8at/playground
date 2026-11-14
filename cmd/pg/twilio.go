@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/twilio"
+	"creditop/my-tools/connectors/twilio"
 )
 
 // Twilio por su conector, y sólo lectura: lo que hacía `twilio/probe.py`. Crear un template o mandar un

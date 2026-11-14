@@ -13,11 +13,11 @@ import (
 	"os"
 	"path/filepath"
 
-	"creditop/playground/connectors/repos"
-	"creditop/playground/lib/text"
-	"creditop/playground/tablero/server/internal/citations"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/traps"
+	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/lib/text"
+	"creditop/my-tools/tablero/server/internal/citations"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/traps"
 )
 
 func main() {
@@ -25,13 +25,13 @@ func main() {
 	flag.Parse()
 
 	lay := layout.Find()
-	playground := filepath.Dir(lay.Tools())
+	root := filepath.Dir(lay.Tools())
 	doc, err := filepath.Abs(filepath.Join(lay.Data, "traps", "doc.md"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "✗", err)
 		os.Exit(1)
 	}
-	shown, err := filepath.Rel(playground, doc)
+	shown, err := filepath.Rel(root, doc)
 	if err != nil {
 		shown = doc
 	}

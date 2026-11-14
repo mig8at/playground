@@ -43,6 +43,7 @@ func TestGuardStillBlocksPreviousPatterns(t *testing.T) {
 	for _, s := range []string{
 		"El hallazgo es F-154.",
 		"Vive en el playground de Miguel.",
+		"Se midió con my-tools.",
 		"Se tocó legacy-backend y frontend-monorepo.",
 		"El archivo es app/routes.tsx.",
 		"<!-- Qué se logra. Una oración -->",

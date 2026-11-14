@@ -21,7 +21,7 @@ func goEnv(key string) (string, error) {
 }
 
 // pythonStdlib: dónde está la biblioteca estándar de Python y qué versión es. Se le pregunta al
-// intérprete porque es el único que lo sabe; la vara es su código, no el del playground.
+// intérprete porque es el único que lo sabe; la vara es su código, no el de my-tools.
 func pythonStdlib() (string, string, error) {
 	out, err := exec.Command("python3", "-c",
 		`import sys, sysconfig; print(sysconfig.get_paths()["stdlib"]); print(sys.version.split()[0])`).Output()
@@ -152,7 +152,7 @@ func Default(root string) Board {
 	}
 }
 
-// Shared es el código que usan todas las herramientas, en la raíz del playground: los conectores, el
+// Shared es el código que usan todas las herramientas, en la raíz de my-tools: los conectores, el
 // binario que los expone y las bibliotecas. Hasta el 2026-09-24 vivía adentro del tablero y lo cubría su
 // pasada; al mudarse quedó sin vara, y el conteo de Go del tablero bajó de 6.100 a 5.292 sin avisar.
 func Shared(root string) Board {
@@ -184,16 +184,16 @@ func Visor(root string) Board {
 }
 
 // Canon es canon (`tools/canon`), que vive en el repo COMPARTIDO del equipo y no en éste: su Go, su Vue/JS y sus scripts. `shared` es la raíz de ese repo;
-// `playground` la de éste, de donde salen los extractores de Vue/JS. Lo que se revisa es el código; el CORPUS (las secciones de prosa y los `map.json`)
+// `myTools` la de éste, de donde salen los extractores de Vue/JS. Lo que se revisa es el código; el CORPUS (las secciones de prosa y los `map.json`)
 // se queda en español, y su formato de datos —las claves de esos archivos— es un contrato con todo lo que lo lee, no un nombre de código.
-func Canon(shared, playground string) Board {
+func Canon(shared, myTools string) Board {
 	return Board{
 		Name:        "canon",
 		Root:        shared,
 		GoRoots:     []string{"tools/canon"},
 		JSGlobs:     []string{"tools/canon/src/*.vue", "tools/canon/src/*.js", "tools/canon/src/components/*.vue", "tools/canon/dev/*.mjs", "tools/canon/vite.config.js"},
 		PyGlobs:     []string{"tools/canon/dev/*.py"},
-		DeclsScript: filepath.Join(playground, "tablero", "tools", "rename", "js", "decls.mjs"),
+		DeclsScript: filepath.Join(myTools, "tablero", "tools", "rename", "js", "decls.mjs"),
 		// Sin `JSONRoots`: las claves JSON de canon son contrato con el navegador y con credibot, y se renombran en una pasada aparte
 		// que compara la forma de la API antes y después. Y sin `tools/canon/dev/` ni `testdata/` en las rutas: ahí viven los temas del
 		// corpus, que se escribe en español a propósito.

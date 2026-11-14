@@ -1,10 +1,10 @@
 #!/bin/sh
 # pg — la puerta a los conectores (cmd/pg). Lo compila la primera vez y cada vez que cambia su código, a
-# ~/.cache/playground/pg: `go run` en cada llamada costaría un segundo, y el harness lo llama
+# ~/.cache/my-tools/pg: `go run` en cada llamada costaría un segundo, y el harness lo llama
 # varias veces por corrida. Compila a un temporal y lo renombra, para que dos llamadas a la vez no pisen
 # un binario a medias.
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
-bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/pg"
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/pg"
 stale=$(find "$root/cmd/pg" "$root/connectors" -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
   mkdir -p "$(dirname "$bin")" || exit 1

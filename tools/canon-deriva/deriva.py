@@ -22,7 +22,7 @@ import argparse, collections, datetime, json, os, re, subprocess, sys, unicodeda
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PLAYGROUND = os.path.dirname(os.path.dirname(HERE))
+MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 WORK = os.path.expanduser(os.environ.get("CANON_DERIVA_DIR", "~/Desktop/CREDITOP/canon"))
 REPOS = os.path.join(WORK, "repos")
 REF = "refs/remotes/origin/main"
@@ -55,7 +55,7 @@ def canon_cli():
     """El comando `canon` del playground, compilado una vez por corrida (go run por cada búsqueda es lento)."""
     out = os.path.join(WORK, ".bin", "canon")
     os.makedirs(os.path.dirname(out), exist_ok=True)
-    sh(["go", "build", "-o", out, "./cmd/canon"], cwd=os.path.join(PLAYGROUND, "tablero", "server"))
+    sh(["go", "build", "-o", out, "./cmd/canon"], cwd=os.path.join(MY_TOOLS, "tablero", "server"))
     return out
 
 
@@ -589,7 +589,7 @@ def step_movidos(args):
             if new != raw:
                 open(p, "w").write(new); print(f"  {t}: {f['path'].split('/')[-1]} → {mv['to']} ({h})")
     reason = "Reapunta en el mapa los archivos que main movió"
-    cmd = ["make", "-C", PLAYGROUND, "canon-patch", f"DIR={dst}", f"REASON={reason}"] + (["APPLY=1"] if args.apply else [])
+    cmd = ["make", "-C", MY_TOOLS, "canon-patch", f"DIR={dst}", f"REASON={reason}"] + (["APPLY=1"] if args.apply else [])
     print(subprocess.run(cmd, capture_output=True, text=True).stdout[-1500:])
 
 

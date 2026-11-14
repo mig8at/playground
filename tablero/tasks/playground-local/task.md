@@ -1,6 +1,6 @@
 ---
 id: 96
-title: "Playground local"
+title: "my-tools (antes «Playground local»)"
 clase: proyecto
 nivel: miguel
 archived: "2026-11-13T12:30:00-05:00"
@@ -59,7 +59,7 @@ jira_title: ""
   `comment` ya están en la base); termina cuando ninguna pinta un ✕ ⧉ ▸ ⚠ o un emoji como icono.
 - [ ] Trazador: entrar a `.workbench` con `.auxiliarybar.overlay`, y `.sidebar-vacio` → `.empty`.
 - [ ] radar, fase 1 · consola: `make radar-uso`, `-friccion`, `-deriva` y `-sesion` sobre las transcripciones
-  de este playground, con `JSON=1`; termina cuando las cuatro corren con pruebas que fallan si se cuenta
+  de my-tools, con `JSON=1`; termina cuando las cuatro corren con pruebas que fallan si se cuenta
   un target como muerto sin mirar la fecha en que se sacó del Makefile, o si se ignoran sus alias.
 - [x] radar, fase 2 · interfaz en :5188 con `tools/ui` (sidebar con vistas y período, editor con la tabla,
   panel con la sesión); termina cuando `make estilo-check` y `make estilo-contraste` la cuentan verde.
@@ -94,7 +94,7 @@ jira_title: ""
 - [x] ODD · specs en las tareas de código (hecho el 2026-11-02, piloto en harness #86): una sección opcional `## Specs` en la plantilla, con `S#`, la cita textual
   de quien pidió (Miguel, producto, Jira) y la suite o comando que la comprueba. Idea tomada de Organic Driven
   Development de gentle-ai, que ya usa el equipo de la app (`creditop_mobile/odd/tasks/`). Termina cuando una tarea
-  real con código la usa y su bloque dice si ayudó a retomar. No se instala gentle-ai en el playground.
+  real con código la usa y su bloque dice si ayudó a retomar. No se instala gentle-ai en my-tools.
 - [x] ODD · veredicto por spec (hecho el 2026-11-02, `make tarea-verify`): `make tarea-verify N=…` (o `harness-knowledge` apuntado a una tarea) lee las `S#` de
   la tarea, corre lo que cada una cita y responde `S1 ✓ · S2 ✗`. Termina cuando la tarea piloto da su veredicto
   por spec. Depende de: la sección `## Specs`.
@@ -127,7 +127,7 @@ jira_title: ""
 Lo transversal a las herramientas locales —`harness`, `tablero`, `trazador`, `visor` y las que
 vengan—: cómo se ve, cómo se divide la pantalla, cómo se llama cada parte y qué contrato cumple una
 herramienta nueva para parecerse a las demás. Una mejora de una sola herramienta sigue yendo a su
-contenedor; lo que no es de herramientas (negocio, conectores, país) sigue en `playground` (#90).
+contenedor; lo que no es de herramientas (negocio, conectores, país) sigue en `miguel` (#90, antes «Playground»).
 
 La fuente de lo que ya existe es `tools/ui/` (`theme.css`, `workbench.css`, `workbench.js`,
 `RegionMenu.vue`) y `make estilo-check`, que lo verifica en las cuatro.
@@ -157,7 +157,7 @@ esqueleto, la tipografía (5 tamaños, 2 pesos), los espacios (4 · 8 · 12 · 1
 
 ## Frente: radar — el uso real de las herramientas
 
-**Objetivo.** Una herramienta que lee las transcripciones de Claude Code de ESTE playground y muestra
+**Objetivo.** Una herramienta que lee las transcripciones de Claude Code de my-tools y muestra
 cómo se usan de verdad las herramientas: uso, fricción (lo que pidió aprobación, lo que frenó un hook,
 lo que falló), deriva (lo documentado que nadie usa y lo usado que nadie documenta) y el recorrido de una
 sesión. Nace de haber encontrado a mano, en una tarde, el catálogo de `make` cortado, diez skills
@@ -172,7 +172,7 @@ fecha en que salió del Makefile. Para partir comandos se reusa lo de los hooks,
 un segundo modelo decidiendo por el primero, y sus «stores» una copia del catálogo que envejece. Medido
 el mismo día, con las skills visibles el ruteo nativo acertó 74 de 84 corridas sin falsos positivos.
 
-## Frente: ensayo con/sin — un cambio al playground se mide antes de quedarse
+## Frente: ensayo con/sin — un cambio a my-tools se mide antes de quedarse
 
 **Objetivo.** Que un cambio a lo que guía al modelo —un CLAUDE.md, una skill, un hook, una memoria, una
 trampa— se adopte sólo si, corriendo las mismas preguntas con y sin él, el resultado no empeora en
@@ -258,7 +258,7 @@ inventa una hora.
 ## Frente: un agente saca una tarea solo, antes de pasar a multiagente
 
 **Objetivo.** Que un agente, con una tarea del tablero y nada más, la lleve hasta un cierre comprobado usando
-las herramientas del playground, sin que Miguel tenga que corregirle el ambiente, la fuente o la conclusión.
+las herramientas de my-tools, sin que Miguel tenga que corregirle el ambiente, la fuente o la conclusión.
 Multiagente viene después: varios agentes sin verificación automática multiplican afirmaciones sin comprobar,
 y en la sesión del 2026-11-02 los errores no fueron de velocidad sino de verificación.
 

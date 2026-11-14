@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 func TestRequiresBranchesOnlyForProductWork(t *testing.T) {

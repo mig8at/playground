@@ -45,11 +45,11 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/radar/scan"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/store"
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/radar/scan"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/pulse"
+	"creditop/my-tools/tablero/server/internal/store"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 type task struct {
@@ -131,7 +131,7 @@ type FrictionNote struct {
 const frictionLookback = 30
 
 /* dayFriction: la fricción nueva del día, con el mismo código que `make radar-friccion` (radar/scan). Si no
- * hay transcripciones de este playground —otra máquina, TABLERO_DATA afuera del repo— no dice nada: el
+ * hay transcripciones de my-tools —otra máquina, TABLERO_DATA afuera del repo— no dice nada: el
  * cierre no puede depender de radar para lo que sí es suyo. */
 func dayFriction(root, projects, cachePath string, day time.Time) []FrictionNote {
 	dirs := scan.TranscriptDirs(projects, root)
@@ -532,10 +532,10 @@ func main() {
 	inf.WorklogMin, inf.WorklogN, inf.WithoutTaskMin = totalWorklog, nBit, withoutTask
 
 	reasons, branchWithTask := attributeWith(tasks, touched, live, named)
-	// LOS COMMITS DE UNA HERRAMIENTA, en el playground personal: se trabaja en `main` (que no cuenta como rama de
+	// LOS COMMITS DE UNA HERRAMIENTA, en my-tools: se trabaja en `main` (que no cuenta como rama de
 	// nadie), así que la rama no dice de qué herramienta fue el trabajo. El prefijo del commit sí («goldfish: …»): esa
 	// herramienta tiene su tarea (nivel miguel), y es ahí donde va el cierre del día.
-	for slug, n := range toolCommits(playgroundRoot(data), *day, tasks) {
+	for slug, n := range toolCommits(myToolsRoot(data), *day, tasks) {
 		reasons[slug] = append(reasons[slug], fmt.Sprintf("commits «%s:» (%d)", slug, n))
 	}
 	// Un bloque fechado ese día también es trabajo en la tarea, aunque su documento no cambie: la pila es
@@ -641,7 +641,7 @@ func main() {
 	}
 
 	if abs, err := filepath.Abs(data); err == nil {
-		root := filepath.Dir(filepath.Dir(abs)) // tablero/data → la raíz del playground
+		root := filepath.Dir(filepath.Dir(abs)) // tablero/data → la raíz de my-tools
 		dayT, _ := time.ParseInLocation("2006-01-02", *day, time.Local)
 		inf.Friction = dayFriction(root, filepath.Join(os.Getenv("HOME"), ".claude", "projects"), scan.CachePath(root), dayT)
 	}
@@ -822,13 +822,13 @@ func runProposal(data string, tasks []task, which string, asJSON, isToday bool) 
 	return 2
 }
 
-// playgroundRoot: la raíz del playground personal (de `tablero/data` sube dos).
-func playgroundRoot(data string) string { return filepath.Dir(filepath.Dir(data)) }
+// myToolsRoot: la raíz de my-tools (de `tablero/data` sube dos).
+func myToolsRoot(data string) string { return filepath.Dir(filepath.Dir(data)) }
 
 // toolAliases: el prefijo de commit de una herramienta cuando no se llama como su tarea.
 var toolAliases = map[string]string{"visor": "designer", "ecommerce": "herramienta-ecommerce"}
 
-// toolCommits: por tarea de herramienta (nivel miguel, viva), cuántos commits del día en el playground personal
+// toolCommits: por tarea de herramienta (nivel miguel, viva), cuántos commits del día en my-tools
 // empiezan con su nombre («chat: …», «goldfish: …»). Un commit con «Sin-avance:» (un barrido) no cuenta.
 func toolCommits(root, day string, tasks []task) map[string]int {
 	tools := map[string]bool{}

@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // La sesión se guarda en `connectors/.auth/sessions/admin-<ambiente>.json` (fuera de git, permisos 600): el formato es
@@ -44,7 +44,7 @@ type StoredSession struct {
 	Cookies   []StoredCookie `json:"cookies"`
 }
 
-func playgroundRoot() (string, error) {
+func myToolsRoot() (string, error) {
 	dir, err := env.Dir()
 	if err != nil {
 		return "", err
@@ -56,7 +56,7 @@ func sessionPath(target string) (string, error) {
 	if _, err := BaseFor(target); err != nil {
 		return "", err
 	}
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return "", err
 	}
@@ -77,7 +77,7 @@ func ReadSession(target string) (*StoredSession, error) {
 		}
 	}
 	if os.IsNotExist(err) {
-		root, rootErr := playgroundRoot()
+		root, rootErr := myToolsRoot()
 		if rootErr != nil {
 			return nil, rootErr
 		}
@@ -305,7 +305,7 @@ func LoginLocal(ctx context.Context) (*Client, *StoredSession, error) {
 	if err != nil {
 		return nil, nil, err
 	}
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		return nil, nil, err
 	}

@@ -7,7 +7,7 @@ un **panel visual** para las dos. Sin dependencias: Node, el Chromium de la cach
 ## Arranque
 
 ```bash
-cd playground/game/harness
+cd my-tools/game/harness
 npm run panel
 ```
 

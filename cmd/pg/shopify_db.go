@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/connectors/shopifyapp"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/shopifyapp"
 )
 
 // ─── la base de la app de pagos de Shopify ─────────────────────────────────────────────────────────────

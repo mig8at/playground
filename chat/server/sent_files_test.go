@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Lo que se sube queda en el caché con SU nombre (no el del temporal) y el mensaje enviado recupera su ficha.

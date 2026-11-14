@@ -1,14 +1,14 @@
 #!/bin/sh
-# run <hook> — corre un hook de Claude Code del playground. Los hooks son Go (tablero/server/cmd/hooks,
+# run <hook> — corre un hook de Claude Code de my-tools. Los hooks son Go (tablero/server/cmd/hooks,
 # con la lógica en internal/hooks); esto sólo los compila y les pasa el evento.
 #
-# Compila la primera vez y cada vez que cambia su código, a ~/.cache/playground/hooks: `go run` en cada
+# Compila la primera vez y cada vez que cambia su código, a ~/.cache/my-tools/hooks: `go run` en cada
 # llamada costaría un segundo por comando, y la guarda de tests destructivos corre ANTES de cada Bash.
 # Compila a un temporal y lo renombra: dos hooks que arrancan a la vez no pisan un binario a medias.
 # ⚠ Si no compila, sale 0: un hook roto no puede impedir trabajar.
 root=$(cd "$(dirname "$0")/../.." && pwd -P) || exit 0
 src="$root/tablero/server"
-bin="${XDG_CACHE_HOME:-$HOME/.cache}/playground/hooks"
+bin="${XDG_CACHE_HOME:-$HOME/.cache}/my-tools/hooks"
 stale=$(find "$src/cmd/hooks" "$src/internal/hooks" "$src/internal/shell" "$root/lib/text" "$root/keyring/check" \
   -name '*.go' -newer "$bin" 2>/dev/null | head -n 1)
 if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
@@ -22,4 +22,4 @@ if [ ! -x "$bin" ] || [ -n "$stale" ] || [ "$root/go.mod" -nt "$bin" ]; then
     exit 0
   fi
 fi
-PLAYGROUND_ROOT="$root" exec "$bin" "$@"
+MY_TOOLS_ROOT="$root" exec "$bin" "$@"

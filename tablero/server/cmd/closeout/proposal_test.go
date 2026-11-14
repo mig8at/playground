@@ -41,11 +41,11 @@ func TestTheProposalTakesOnlyTheTasksCommitsAndTimeNotYetLogged(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	playground := filepath.Join(t.TempDir(), "playground")
-	repo(t, playground)
-	git(t, playground, "commit", "-q", "--allow-empty", "-m", "tablero: el cierre propone")
-	git(t, playground, "commit", "-q", "--allow-empty", "-m", "canon: otra sesión, otra tarea")
-	git(t, playground, "commit", "-q", "--allow-empty", "-m", "pg: algo de la tarea 84")
+	myTools := filepath.Join(t.TempDir(), "my-tools")
+	repo(t, myTools)
+	git(t, myTools, "commit", "-q", "--allow-empty", "-m", "tablero: el cierre propone")
+	git(t, myTools, "commit", "-q", "--allow-empty", "-m", "canon: otra sesión, otra tarea")
+	git(t, myTools, "commit", "-q", "--allow-empty", "-m", "pg: algo de la tarea 84")
 
 	repos := t.TempDir()
 	vtex := filepath.Join(repos, "vtex")
@@ -59,7 +59,7 @@ func TestTheProposalTakesOnlyTheTasksCommitsAndTimeNotYetLogged(t *testing.T) {
 	git(t, other, "commit", "-q", "--allow-empty", "-m", "feat: la app")
 
 	tk := task{ID: 84, Slug: "tablero", Branches: []string{"vtex:payment-link"}}
-	p, err := propose(data, tk, now, playground, repos)
+	p, err := propose(data, tk, now, myTools, repos)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,7 +73,7 @@ func TestTheProposalTakesOnlyTheTasksCommitsAndTimeNotYetLogged(t *testing.T) {
 			got = append(got, rc.Repo+": "+subject)
 		}
 	}
-	want := "playground: pg: algo de la tarea 84 · playground: tablero: el cierre propone · vtex: feat: el conector"
+	want := "my-tools: pg: algo de la tarea 84 · my-tools: tablero: el cierre propone · vtex: feat: el conector"
 	if strings.Join(got, " · ") != want {
 		t.Fatalf("commits = %q\nquería     %q", strings.Join(got, " · "), want)
 	}

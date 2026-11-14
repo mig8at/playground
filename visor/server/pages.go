@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // TODAS LAS PÁGINAS de un archivo. La barra arranca en la de flujo (flowPage), pero un archivo trae más:

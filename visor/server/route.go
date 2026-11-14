@@ -13,8 +13,8 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/playground/connectors/figma"
-	"creditop/playground/visor/render"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/visor/render"
 )
 
 // LA PUERTA DEL MODELO: lo que Miguel pega es el ancla. El trabajo con un diseño no empieza con el modelo

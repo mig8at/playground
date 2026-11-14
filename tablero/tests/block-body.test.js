@@ -91,12 +91,12 @@ test('una pantalla del diseño (visor:) abre el visor en esa pantalla, con la hu
     'http://localhost:5193/7M01d0CZPzzJs0iZeKhwvf/381-1052?huella=52065d0ce692', 'por ids: la clave del archivo, con mayúsculas');
 });
 
-test('un tema de knowledge/ enlaza a su rules.md en el playground y dice cómo leerlo', () => {
+test('un tema de knowledge/ enlaza a su rules.md en my-tools y dice cómo leerlo', () => {
   const [part] = inlineParts('[el monto](knowledge:lender-listing#dos-puertas-en-el-backend-modular)');
   assert.equal(part.kind, 'knowledge');
   assert.equal(part.topic, 'lender-listing');
   assert.equal(part.anchor, 'dos-puertas-en-el-backend-modular');
-  const repos = { playground: { web: 'https://github.com/x/playground', prefix: '' } };
+  const repos = { 'my-tools': { web: 'https://github.com/x/playground', prefix: '' } };
   assert.equal(knowledgeHref(part, repos), 'https://github.com/x/playground/blob/main/knowledge/lender-listing/rules.md');
   assert.equal(knowledgeCommand(part), 'make knowledge-read ID=lender-listing#dos-puertas-en-el-backend-modular');
   // Sin la lista de repos no hay dirección: el enlace queda como texto, con su comando.

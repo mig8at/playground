@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/visor/render"
+	"creditop/my-tools/visor/render"
 )
 
 // El pedazo de HTML de una capa es su elemento con todo lo de adentro: los <div> anidados cuentan, un

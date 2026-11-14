@@ -18,19 +18,19 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/connectors/canon"
-	"creditop/playground/connectors/guard"
-	"creditop/playground/connectors/repos"
-	"creditop/playground/connectors/slack"
-	"creditop/playground/tablero/server/internal/agenda"
-	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/pulse"
-	"creditop/playground/tablero/server/internal/store"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/guard"
+	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/connectors/slack"
+	"creditop/my-tools/tablero/server/internal/agenda"
+	"creditop/my-tools/tablero/server/internal/env"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/pulse"
+	"creditop/my-tools/tablero/server/internal/store"
 )
 
-// ── guard: lo que se registra termina en Jira, y no puede filtrar el playground ─────────────────
+// ── guard: lo que se registra termina en Jira, y no puede filtrar my-tools ni el playground ─────────────────
 // Los patrones se movieron a `connectors/guard` para que sigan siendo UNA sola fuente ahora que
 // también los necesita `cmd/issue-create` (publicar por consola sin el guard sería un agujero en el
 // control, y copiarlos acá era la tercera copia que este comentario venía advirtiendo).

@@ -12,8 +12,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/figma"
-	"creditop/playground/visor/render"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/visor/render"
 )
 
 var (

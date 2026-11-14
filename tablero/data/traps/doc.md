@@ -21,7 +21,7 @@ donde el daño de un hallazgo desactualizado es que manda a alguien a perseguir 
 - ⚠ **La única cita que `context-refs` marca como «no existe» es un FALSO POSITIVO**, y conviene dejarlo
   escrito para que nadie la «arregle»: la del plugin de WooCommerce, en su línea 507, **existe y dice exactamente lo
   que el hallazgo afirma** (el comentario sobre `/ecommerce/{hash}/checkout`). La herramienta no la
-  encuentra porque el archivo vivía en `playground/creditop-woocommerce/`, que **no es uno de los repos
+  encuentra porque el archivo vivía en `my-tools/creditop-woocommerce/`, que **no es uno de los repos
   indexados** — y desde el 2026-09-24 sólo está en la historia (`git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`). Verificado a mano: el archivo tiene 522 líneas y la 507 es esa.
 
 **Lo que NO se verificó, y es lo que importa al usar este nodo:** **el ESTADO de cada hallazgo.** No hay
@@ -545,7 +545,7 @@ distinto según con qué pregunta llegues.
 **Síntoma:** Ábaco responde `MOTV1000` ("no requiere") contra el ambiente remoto para Motai Renting #158, con la tabla `lender_requirements` correctamente sembrada (`abaco_is_enabled=1`) y el código mergeado en `qa`. Se lee como "el feature está roto" o "falta el deploy".
 **Causa raíz verificada — dos servicios distintos, nombre del cluster engañoso.** En el cluster `inertia-develop` conviven **`legacy-backend`** (sirve la rama **`develop`**, workflow `main-dev.yaml`) y **`legacy-backend-qa`** (sirve **`qa`**, `main-qa.yaml` con `on: push: branches: [qa]`). El `.env.staging` del harness apuntaba su API a `legacy-backend.inertia-develop`, o sea **front desplegado de qa + backend de develop**. Y como la **BD sí es compartida** entre ambos, los datos se ven desde los dos y todo *parece* consistente: lo único que cambia es **qué código responde**. `develop` todavía decide Ábaco por los modos deprecados (`$isAbacoRequired = $this->isAbacoRequired($alliedMode->config)`) → sin modo activo (nadie los escribe desde junio) → `false` → `MOTV1000`.
 **Evidencia:** mismo request a los dos hosts → `legacy-backend.inertia-develop` sin `allowed_document_types` (no tiene motai-v2), `legacy-backend-qa.inertia-develop` **con** el campo; las rutas del merge de Ábaco dan **404** en el primero y **405** (existe) en el segundo; ningún commit de `qa` es ancestro de `origin/develop` (14 vs 12 commits divergidos). Con el host de qa: `MOTV1001` + cadena completa.
-**Arreglo:** `.env.staging` → `E2E_API_BASE_URL=http://legacy-backend-qa.inertia-develop/api` (la BD queda igual: es compartida a propósito). Documentado en `.env.staging.example`, en el `CLAUDE.md` de playground (decía "staging comparte BD/API con dev" — comparte BD, **no** API) y en la tabla de targets del `CLAUDE.md` de `harness`.
+**Arreglo:** `.env.staging` → `E2E_API_BASE_URL=http://legacy-backend-qa.inertia-develop/api` (la BD queda igual: es compartida a propósito). Documentado en `.env.staging.example`, en el `CLAUDE.md` de my-tools (decía "staging comparte BD/API con dev" — comparte BD, **no** API) y en la tabla de targets del `CLAUDE.md` de `harness`.
 **Estado: resuelto y verificado.** Truco para saber qué rama tenés enfrente sin adivinar: `GET /api/loans/allied/{hash}` trae `allowed_document_types` **solo** con motai-v2, o sea solo en `qa`. **Lección:** cuando un feature "no funciona" en un ambiente remoto, lo primero es probar que ese host sirve la rama que creés — un dato en la BD compartida no dice nada del código desplegado.
 
 ---
@@ -1141,7 +1141,7 @@ Dato de contexto: `feature/onboarding/ecommerce-continue-route` (junio, ya en `d
 
 El wizard aterriza en **`/no-preapproved`** —la pantalla de "no preaprobado" de Bancolombia— y la corrida termina en timeout esperando una pantalla a la que nunca va a llegar. Sin la traza, eso se veía como un cuelgue mudo de 5 minutos; con ella, el diagnóstico está en la primera línea.
 
-**Confirmado desde el OTRO extremo: el plugin de WooCommerce.** `playground/creditop-woocommerce` (v1.0.20, lo que el comercio instala; borrado del playground el 2026-09-24, sigue en `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`) es el productor real de esa URL, y en `class-creditop-gateway.php:507` apunta a:
+**Confirmado desde el OTRO extremo: el plugin de WooCommerce.** `my-tools/creditop-woocommerce` (v1.0.20, lo que el comercio instala; borrado de my-tools el 2026-09-24, sigue en `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`) es el productor real de esa URL, y en `class-creditop-gateway.php:507` apunta a:
 
 ```php
 $redirect_url = $base . '/ecommerce/' . $hash . '/checkout' . '?o=' . …
@@ -1298,7 +1298,7 @@ La cuarta divergencia es la más peligrosa porque no es un redondeo: **la "fianz
 - `PaymentCalculationService.php:234-256` (`calculateInitialAmount`) → resta la cuota inicial (`initial_fee` o, si es 0, la que resuelve `initialFeePolicyResolver`, :236-240) y después aplica el ajuste de capital por plazo (:244-255). El fragmento `$amount = original_amount; if (initial_fee > 0) { $amount -= initial_fee; }` que citaba esta línea ya no existe; **no se volvió a comprobar el orden de esa resta respecto de la fianza**.
 - `PaymentCalculationService.php:136` → `$guaranteePerMillionFixedMonthly = ($inputs['guarantee_fixed_monthly_percentage'] / 100) * $totalAmountNoFee;`
 - `grep -rn "gmf\|GMF\|0.004" Modules/Loans/App/Services/PaymentSchedule/` → **sin resultados**.
-- `playground/engine/reference/full-sheet.js` (la hoja verificada 30/30 contra los `.xlsm`) → `guaranteeBase` · `guaranteeCost` · `guaranteeVat` · `guaranteeTax` · `monthlyGuarantee`.
+- `my-tools/engine/reference/full-sheet.js` (la hoja verificada 30/30 contra los `.xlsm`) → `guaranteeBase` · `guaranteeCost` · `guaranteeVat` · `guaranteeTax` · `monthlyGuarantee`.
 
 **Y el dato que ordena cuál importa.** En la copia local, `lenders_by_allieds` (994 filas):
 
@@ -1316,7 +1316,7 @@ O sea: **la fianza anticipada es el caso real** (338 comercios) y la mensualizad
 - **Al transcribir un `.xlsm`**, mirar las tres: si el IVA ya viene en la tarifa, el campo va en 0; el GMF probablemente no se cobra; y si la fianza es mensual, confirmar si es un total repartido o un % por cuota — no son lo mismo.
 - **Al normalizar**, el `administrative_costs_percentage` no es opcional: es parte de la base.
 - **El IVA al 19 % cableado debería ser un dato con fecha**, no una constante en el código: fue 16 % hasta 2017. Misma deuda que el techo de usura.
-- Prototipo con las dos bases (neto y bruto) como opción explícita: `playground/engine` — ver su README.
+- Prototipo con las dos bases (neto y bruto) como opción explícita: `my-tools/engine` — ver su README.
 
 ### F-79 · El canal del código de compra está APAGADO desde enero de 2026 — si no ves códigos, no es tu bug
 
@@ -1529,7 +1529,7 @@ Sin `errors`, `['errors'][0]['code']` lanza. Y como lo llama `Integration::handl
 - **Colapsar estados consecutivos repetidos** al leer el historial. Sin eso, cualquier métrica de "cuántos pasos dio" está inflada.
 - **No usar «la última fila» como el evento más reciente.** Si se necesita cuándo ocurrió un estado puntual, buscar ese estado; y si las horas de las etapas no son monótonas, **avisarlo** en vez de reordenar por hora — reordenar esconde el dato y pone la etapa en el lugar equivocado del flujo.
 
-**Estado:** verificado el 2026-08-05 contra dev y staging. Implementado en `playground/trazador` (colapso + aviso de no-monotonía).
+**Estado:** verificado el 2026-08-05 contra dev y staging. Implementado en `my-tools/trazador` (colapso + aviso de no-monotonía).
 
 ---
 
@@ -3720,7 +3720,7 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
   después abortaba por la guarda, dejando huérfanos.
 - **Alcance medido:** dos runners, `dev/listing.ts` y `dev/sweep.ts`. El barrido es
   `for f in dev/*.ts` comparando la línea del primer `import … from '../pkg/…'` contra la del
-  `E2E_TARGET ||=`. ⚠ Y `playground/CLAUDE.md` afirmaba «`dev/sweep.ts:35` ya lo fuerza» — es
+  `E2E_TARGET ||=`. ⚠ Y el `CLAUDE.md` de my-tools afirmaba «`dev/sweep.ts:35` ya lo fuerza» — es
   justamente la creencia que este defecto fabrica.
 - **Arreglo:** el import pasa a **dinámico**, junto a los otros y después de la asignación. La lección
   generaliza más que el arreglo: **un `||=` de variable de entorno nunca gana a un import estático**;

@@ -1,4 +1,4 @@
-// Package guard tiene los patrones de lo que NO puede salir del playground hacia Jira o Slack.
+// Package guard tiene los patrones de lo que NO puede salir de my-tools (ni nombrar el playground compartido) hacia Jira o Slack.
 //
 // Es la FUENTE ÚNICA: el aviso a QA del server los aplica antes de mandar el DM, `cmd/issue-create` antes
 // de publicar, `make bitacora-add` antes de escribir, y `cmd/tasks` los usa para decir si una tarea puede
@@ -24,6 +24,7 @@ type Pattern struct {
 var Patterns = []Pattern{
 	{`\bF-\d+\b`, "referencia a un hallazgo interno"},
 	{`playground`, "menciona el playground"},
+	{`\bmy-tools\b`, "menciona my-tools, las herramientas locales"},
 	{`harness|backend-e2e|legacy-backend|frontend-monorepo|creditop-woocommerce`, "nombra un repo interno"},
 	{`[\w/-]+\.(ts|tsx|php|go|vue|json|mjs)\b`, "incluye una ruta de archivo"},
 	// La trampa que trae `TASK-TEMPLATE.md`: su guía va en comentarios HTML, y una tarea copiada y

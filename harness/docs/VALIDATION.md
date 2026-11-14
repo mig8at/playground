@@ -1,6 +1,6 @@
 # VALIDATION — estado de validación E2E por la UI (Playwright)
 
-> ⚠ Los `docs/*.md` que se citan abajo vivían en `playground/docs/`, **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
+> ⚠ Los `docs/*.md` que se citan abajo vivían en `my-tools/docs/` (entonces `playground/docs/`), **borrada de `main`** (absorbida por el árbol de `context/`). Quedan como referencia histórica; para leer una: `git show 159906a:docs/<archivo>`.
 
 
 > Par del `backend-e2e` *(borrado 2026-07-19 — lo rescatado está en findings F-57)*, pero **desde la UI del wizard**

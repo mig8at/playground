@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 // La lista por etapas: cada tema en su etapa, y los que no tienen estación como transversales. Ninguno se

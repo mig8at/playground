@@ -36,7 +36,7 @@ entidades después consulta — sin ids de entidad copiados en el código.
 - `Modules/UserRequestV1/App/Domain/PreApprovalPayloadData.php`, la interfaz del repositorio, y
   `tests/Unit/PreApprovalLendingProductsTest.php`.
 
-**`playground/harness`**: `dev/montar-peru.ts` (los slugs), `mock-preapprovals/server.mjs` (valida la
+**`my-tools/harness`**: `dev/montar-peru.ts` (los slugs), `mock-preapprovals/server.mjs` (valida la
 clave) y `dev/bcp-volver.ts` (recorrido C).
 
 ## Cómo se ataca

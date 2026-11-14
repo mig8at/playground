@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // Jira y Confluence comparten credenciales y cliente: son UN conector. La ruta va pegada a una comilla

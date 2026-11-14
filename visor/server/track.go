@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // RASTREAR UN ENLACE. La ruta `/<proyecto>/<pantalla>` vive lo que vive el nodo en Figma, pero eso no dice

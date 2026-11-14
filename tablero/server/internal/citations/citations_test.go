@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 func run(t *testing.T, dir, date string, args ...string) {

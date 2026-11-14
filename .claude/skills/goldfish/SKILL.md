@@ -7,13 +7,13 @@ description: El paso previo a publicar un PR en un repo real (legacy-backend, fr
 
 Quien escribió el cambio (vos, la sesión: sos el **elephant**) no lo valida solo. Goldfish lo pone delante de dos
 revisores en frío que sólo ven la descripción, el diff y lo que pide la tarea, y después un elephant con el contexto
-del playground le da veredicto a cada hallazgo contra el código. El método y sus trampas: `goldfish/CLAUDE.md`.
+de my-tools le da veredicto a cada hallazgo contra el código. El método y sus trampas: `goldfish/CLAUDE.md`.
 
 ## El flujo
 
 1. **Escribí la descripción del PR que vas a abrir** en un Markdown (en el scratchpad): la primera línea es el
    título; después, qué cambia y por qué, qué se tocó (rutas del repo) y cómo se comprobó (qué se midió y qué dio).
-   Con las reglas de siempre: **sin nombrar herramientas internas** (harness, tablero, playground, `make`…).
+   Con las reglas de siempre: **sin nombrar herramientas internas** (harness, tablero, my-tools, playground, `make`…).
 2. **Corré el chequeo** sobre la rama (la que tenga el clon si no decís otra), contra la base donde va el PR:
 
        make goldfish-check REPO=legacy-backend DESC=<ruta al md> BASE=main

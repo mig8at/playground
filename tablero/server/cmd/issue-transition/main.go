@@ -15,8 +15,8 @@ import (
 	"os"
 	"strings"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/tablero/server/internal/env"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/tablero/server/internal/env"
 )
 
 func main() {

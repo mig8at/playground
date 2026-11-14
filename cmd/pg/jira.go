@@ -8,7 +8,7 @@ import (
 	"regexp"
 	"strings"
 
-	"creditop/playground/connectors/atlassian"
+	"creditop/my-tools/connectors/atlassian"
 )
 
 // Jira por el conector de Atlassian. Lo que hacían `jira-mcp` y sus herramientas, ahora como comandos

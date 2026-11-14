@@ -5,7 +5,7 @@ import (
 	"log"
 	"net/http"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 type configResponse struct {

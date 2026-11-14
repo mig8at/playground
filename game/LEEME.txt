@@ -1,7 +1,7 @@
 FUGA · ladrones y policías en una ciudad que vive sola (Vue 3 + three.js, con Vite)
 
 INICIAR
-  cd ~/Workspace/Miguel/playground/game
+  cd ~/Desktop/CREDITOP/my-tools/game
   npm install        (sólo la primera vez)
   npm run dev
 Abre http://127.0.0.1:5181. También: doble clic en iniciar.command.

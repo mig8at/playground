@@ -33,9 +33,9 @@ var (
 )
 
 // LoadTasks lee el frontmatter de cada tarea (las archivadas también: una rama puede ser de una tarea cerrada).
-func LoadTasks(playground string) Tasks {
+func LoadTasks(myTools string) Tasks {
 	var out Tasks
-	files, _ := filepath.Glob(filepath.Join(playground, "tablero", "tasks", "*", "task.md"))
+	files, _ := filepath.Glob(filepath.Join(myTools, "tablero", "tasks", "*", "task.md"))
 	for _, f := range files {
 		raw, err := os.ReadFile(f)
 		if err != nil {

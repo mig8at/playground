@@ -19,7 +19,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Cada ventana suscrita al stream.

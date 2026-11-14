@@ -24,7 +24,7 @@
 //
 // QUIÉN PRODUCE ESTA URL DE VERDAD: el plugin de WooCommerce que instala el comercio
 //   (`class-creditop-gateway.php:470-512`). Es la fuente autoritativa del contrato — esto lo imita. Su
-//   copia se borró del playground el 2026-09-24: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
+//   copia se borró de my-tools el 2026-09-24: `git show 2b9d13be:creditop-woocommerce/class-creditop-gateway.php`.
 //   Dos diferencias reconciliadas contra él:
 //   · SERIALIZACIÓN: cada parámetro va distinto en el original. El mapa exacto (del plugin y de
 //     `github/generate_checkout_url.php`, que coinciden):

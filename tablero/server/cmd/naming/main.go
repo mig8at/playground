@@ -1,4 +1,4 @@
-// naming: ¿el código del playground —el tablero, lo compartido de la raíz (connectors, cmd, lib, tools), el harness,
+// naming: ¿el código de my-tools —el tablero, lo compartido de la raíz (connectors, cmd, lib, tools), el harness,
 // el visor y las apps (`naming.Apps`)— nombra algo en español que no esté en la deuda conocida? Sale 1 si sí. La vara y por qué no es el
 // diccionario del sistema: `internal/naming`.
 //
@@ -22,8 +22,8 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/playground/tablero/server/internal/layout"
-	"creditop/playground/tablero/server/internal/naming"
+	"creditop/my-tools/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/naming"
 )
 
 func main() {

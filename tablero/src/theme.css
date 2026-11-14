@@ -129,7 +129,7 @@
 /* ══ PALETAS ═══════════════════════════════════════════════════════════════════════════════════
    Además del color por defecto (Darkmatter, arriba), la persona puede elegir otra paleta en Configuración →
    Apariencia → Color (en Cockpit, el modal del engranaje; traído del playground compartido el 2026-11-11). Se pone como `data-palette` en el <html> (lo aplica `THEME_BOOT` antes de pintar) y
-   vale en todo el playground, igual que el tema claro u oscuro; sin el atributo es la base tal cual.
+   vale en todo my-tools, igual que el tema claro u oscuro; sin el atributo es la base tal cual.
 
    Una paleta redefine sólo lo que la distingue —lienzo, tinta, tarjeta, sidebar, borde, acento y el radio—
    y el resto se deriva (bloque de abajo). La rampa de texto, el hover y las tintas de `workbench.css` se

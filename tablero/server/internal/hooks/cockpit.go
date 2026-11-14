@@ -23,7 +23,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/lib/cockpit"
+	"creditop/my-tools/lib/cockpit"
 )
 
 func Cockpit(env Env) int {
@@ -183,7 +183,7 @@ func toolFailed(payload map[string]any) bool {
 	return false
 }
 
-// shortTool: `mcp__playground__sql` → `sql`; las demás, como vienen.
+// shortTool: `mcp__my-tools__sql` → `sql`; las demás, como vienen.
 func shortTool(tool string) string {
 	if strings.HasPrefix(tool, "mcp__") {
 		if i := strings.LastIndex(tool, "__"); i > 4 {

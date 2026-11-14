@@ -30,7 +30,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/lib/text"
+	"creditop/my-tools/lib/text"
 )
 
 // piece es lo que la sesión le MANDÓ a una herramienta: su nombre y su entrada, como texto.
@@ -357,7 +357,7 @@ func Closeout(env Env) int {
 			mines = append(mines, m)
 			continue
 		}
-		// o la sesión commiteó en esa herramienta («goldfish: …»): en el playground personal se trabaja en `main`,
+		// o la sesión commiteó en esa herramienta («goldfish: …»): en my-tools se trabaja en `main`,
 		// y el prefijo del commit es lo que dice de qué herramienta fue el trabajo.
 		if hasToolCommit(t.TouchedBy) && committed(pieces, t.Slug) {
 			mines = append(mines, m)

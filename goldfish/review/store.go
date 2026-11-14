@@ -13,10 +13,10 @@ import (
 var storeMu sync.Mutex
 
 // Save escribe la validación (atómico: la interfaz puede estar leyéndola).
-func Save(playground string, r *Run) error {
+func Save(myTools string, r *Run) error {
 	storeMu.Lock()
 	defer storeMu.Unlock()
-	dir := filepath.Join(RunsDir(playground), r.ID)
+	dir := filepath.Join(RunsDir(myTools), r.ID)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return err
 	}
@@ -32,11 +32,11 @@ func Save(playground string, r *Run) error {
 }
 
 // Load: una validación por su id.
-func Load(playground, id string) (*Run, error) {
+func Load(myTools, id string) (*Run, error) {
 	if id != filepath.Base(id) || id == "" || id == "." || id == ".." {
 		return nil, os.ErrNotExist
 	}
-	raw, err := os.ReadFile(filepath.Join(RunsDir(playground), id, "run.json"))
+	raw, err := os.ReadFile(filepath.Join(RunsDir(myTools), id, "run.json"))
 	if err != nil {
 		return nil, err
 	}
@@ -48,14 +48,14 @@ func Load(playground, id string) (*Run, error) {
 }
 
 // List: todas las validaciones, de la más nueva a la más vieja.
-func List(playground string) []*Run {
-	entries, _ := os.ReadDir(RunsDir(playground))
+func List(myTools string) []*Run {
+	entries, _ := os.ReadDir(RunsDir(myTools))
 	var out []*Run
 	for _, e := range entries {
 		if !e.IsDir() {
 			continue
 		}
-		if r, err := Load(playground, e.Name()); err == nil {
+		if r, err := Load(myTools, e.Name()); err == nil {
 			out = append(out, r)
 		}
 	}
@@ -64,9 +64,9 @@ func List(playground string) []*Run {
 }
 
 // withLastRuns: a cada PR, su última validación.
-func withLastRuns(playground string, bs []RepoBlock) []RepoBlock {
+func withLastRuns(myTools string, bs []RepoBlock) []RepoBlock {
 	last := map[string]string{}
-	for _, r := range List(playground) {
+	for _, r := range List(myTools) {
 		if r.PR == nil || r.Slug == "" {
 			continue
 		}

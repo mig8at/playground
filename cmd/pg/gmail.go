@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 // Gmail por su conector, sólo lectura: la cuenta de quien hizo `pg gmail login`. Lo usa también la herramienta de

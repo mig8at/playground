@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 /* LA BASE DE CANON, sólo para leer.
@@ -112,7 +112,7 @@ func (c DBConfig) ConnString() string {
 	q := url.Values{}
 	q.Set("sslmode", ssl)
 	q.Set("connect_timeout", "10")
-	q.Set("application_name", "playground-connectors")
+	q.Set("application_name", "my-tools-connectors")
 	// Parámetros de la SESIÓN: la base misma rechaza cualquier escritura y corta lo que tarde de más.
 	q.Set("default_transaction_read_only", "on")
 	q.Set("statement_timeout", fmt.Sprint(timeout))

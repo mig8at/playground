@@ -1,6 +1,6 @@
 # tools/ui — el sistema de diseño de las herramientas
 
-Cómo se ven y cómo se dividen las UIs del playground (`harness/panel`, `tablero`, `visor`, `radar` y `keyring`; el trazador se retiró el 2026-10-13),
+Cómo se ven y cómo se dividen las UIs de my-tools (`harness/panel`, `tablero`, `visor`, `radar` y `keyring`; el trazador se retiró el 2026-10-13),
 y por qué. El contrato de uso —regiones, medidas, componentes— es [`README.md`](README.md); acá van las
 reglas y las trampas medidas que lo sostienen. Vivió en el `CLAUDE.md` raíz hasta el 2026-09-27: se mudó
 para que se lea al tocar estilos, no en cada sesión.

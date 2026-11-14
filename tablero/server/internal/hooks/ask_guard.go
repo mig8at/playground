@@ -1,6 +1,6 @@
 package hooks
 
-/* ask-guard: frena que una sesión de este playground le PREGUNTE a canon (`/api/ask`, `-pregunta`).
+/* ask-guard: frena que una sesión de my-tools le PREGUNTE a canon (`/api/ask`, `-pregunta`).
  *
  * Canon es el contexto de CreditOp y se trabaja LEYÉNDOLO: `canon-search`, `canon-read`, `canon-mapa`, que
  * son gratis y devuelven lo que el equipo escribió. `/api/ask` pone un modelo en el medio: cuesta (Bedrock),
@@ -23,7 +23,7 @@ import (
 	"regexp"
 	"strings"
 
-	"creditop/playground/lib/shell"
+	"creditop/my-tools/lib/shell"
 )
 
 // AskOverride es lo que deja pasar una pregunta a canon cuando se está calibrando el corpus a propósito.

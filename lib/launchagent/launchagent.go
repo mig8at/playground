@@ -1,7 +1,7 @@
-// Package launchagent deja un servidor del playground corriendo DE FONDO como LaunchAgent de macOS: arranca con la
+// Package launchagent deja un servidor de my-tools corriendo DE FONDO como LaunchAgent de macOS: arranca con la
 // sesión, se vuelve a levantar si se cae y sigue aunque Cockpit esté cerrado. Lo usan Sentinel y el chat.
 //
-// Corre un binario compilado (nunca el temporal de `go run`, que se borra al salir), con la carpeta del playground como
+// Corre un binario compilado (nunca el temporal de `go run`, que se borra al salir), con la carpeta de my-tools como
 // directorio de trabajo y un PATH explícito: launchd no hereda la shell.
 package launchagent
 
@@ -20,7 +20,7 @@ import (
 type Agent struct {
 	Label string   // com.creditop.<algo>
 	Args  []string // los argumentos del binario
-	Root  string   // la carpeta del playground: su directorio de trabajo
+	Root  string   // la carpeta de my-tools: su directorio de trabajo
 	Log   string   // el nombre del archivo en ~/Library/Logs
 	Env   map[string]string
 }
@@ -75,7 +75,7 @@ func (a Agent) Install() error {
 	b.WriteString("  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n  <key>ThrottleInterval</key><integer>30</integer>\n")
 	b.WriteString("  <key>EnvironmentVariables</key>\n  <dict>\n")
 	b.WriteString("    <key>PATH</key><string>/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/opt/homebrew/bin:/usr/local/go/bin</string>\n")
-	fmt.Fprintf(&b, "    <key>PLAYGROUND_ROOT</key><string>%s</string>\n", e(a.Root))
+	fmt.Fprintf(&b, "    <key>MY_TOOLS_ROOT</key><string>%s</string>\n", e(a.Root))
 	for k, v := range a.Env {
 		fmt.Fprintf(&b, "    <key>%s</key><string>%s</string>\n", e(k), e(v))
 	}

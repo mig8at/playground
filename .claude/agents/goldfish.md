@@ -17,12 +17,12 @@ que encontrar. Mañana otra sesión va a ejecutar esta tarea leyendo sólo este 
 ## Qué leés, y nada más
 
 1. El `task.md` entero.
-2. Lo que el documento **enlaza o nombra como ruta**: archivos relativos al repo del playground
-   (`~/Desktop/CREDITOP/playground`), los temas de `knowledge:` del encabezado
+2. Lo que el documento **enlaza o nombra como ruta**: archivos relativos al repo my-tools
+   (`~/Desktop/CREDITOP/my-tools`), los temas de `knowledge:` del encabezado
    (`knowledge/<tema>/rules.md`) y, si el texto los cita, archivos de los repos reales en
    `~/Desktop/CREDITOP/github/<repo>/`.
 3. Si el plan **depende de otra tarea** por número (`#107`) o por carpeta, podés leer el `## Pendientes`
-   de esa tarea (`~/Desktop/CREDITOP/playground/tablero/tasks/*/task.md`, buscando `id: <n>`) sólo para
+   de esa tarea (`~/Desktop/CREDITOP/my-tools/tablero/tasks/*/task.md`, buscando `id: <n>`) sólo para
    saber si la dependencia sigue abierta. Si ya está resuelta allá y este documento no lo dice, el hallazgo
    es que el documento quedó viejo, no que la dependencia bloquea.
 4. Nada más. No busques por tu cuenta en el código para «completar» el plan: si para entender un paso

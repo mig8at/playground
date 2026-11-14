@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	dbsql "creditop/playground/connectors/sql"
+	dbsql "creditop/my-tools/connectors/sql"
 )
 
 // Dos preguntas que se contestaban armando consultas a mano, cada vez, en cada ambiente. Las dos son SÓLO LECTURA (pasan por

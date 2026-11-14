@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/tablero/server/internal/layout"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/tablero/server/internal/layout"
 )
 
 // jiraSprints: los mismos que pinta el tablero (SPRINT_TABS en App.vue).

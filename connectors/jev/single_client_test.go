@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // Jev queda como transporte sin uso: el día que aterrice uno, tiene que pasar por acá, que es donde

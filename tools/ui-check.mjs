@@ -36,7 +36,7 @@ const sample = {
     { id: '41', name: 'Enviar a pruebas', to: 'En pruebas' },
   ], testing: 'pruebas' },
   '/api/ramas': { measuredAt: '2026-09-19T20:00:00-05:00', tasks: { '1': { pattern: 'ui', measuredAt: '2026-09-19T20:00:00-05:00', branches: [
-    { repo: 'playground', branch: 'feat/ui', commit: 'abc1234', subject: 'Validar consola',
+    { repo: 'my-tools', branch: 'feat/ui', commit: 'abc1234', subject: 'Validar consola',
       in: { qa: true, main: false }, own: { qa: 0, main: 1 }, how: { qa: 'patch', main: 'no' },
       pr: { number: 10, state: 'OPEN', base: 'main', url: 'https://example.test/pr/10', revision: 'REVIEW_REQUIRED' } },
     { repo: 'tablero-api', branch: 'feat/ui-api', commit: 'def5678', subject: 'Agregar rutas',
@@ -171,7 +171,7 @@ try {
       await page.locator('.auxiliarybar').waitFor();
       assert.equal(await page.locator('.branch-panel').isVisible(), true,
         'Tablero: la consola de ramas de la tarea está abierta al enfocarla');
-      assert.equal(await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).isVisible(), true,
+      assert.equal(await page.getByRole('table', { name: 'Ramas de my-tools para Validar el espacio de trabajo', exact: true }).isVisible(), true,
         'Tablero: la consola muestra como tabla las ramas del repo seleccionado');
       assert.equal(await page.getByRole('listbox', { name: 'Repositorios trabajados en la tarea' }).getByRole('option').count(), 2,
         'Tablero: el sidebar lista sólo los repos asociados a la tarea');
@@ -413,7 +413,7 @@ try {
       assert.equal(await page.locator('.split-side').count(), 0,
         'Tablero: una tarea sin ramas no inventa un selector de repositorios');
       await page.locator('.tree-row').first().click();
-      await page.getByRole('table', { name: 'Ramas de playground para Validar el espacio de trabajo', exact: true }).waitFor();
+      await page.getByRole('table', { name: 'Ramas de my-tools para Validar el espacio de trabajo', exact: true }).waitFor();
     }
     for (const width of [1440, 1024, 768]) {
       await page.setViewportSize({ width, height: 800 });

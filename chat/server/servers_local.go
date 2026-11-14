@@ -49,12 +49,12 @@ func githubDir(name, env string) string {
 	return filepath.Join(home, "Desktop", "CREDITOP", "github", name)
 }
 
-func playgroundDir() string {
-	if dir := os.Getenv("PLAYGROUND_DIR"); dir != "" {
+func myToolsDir() string {
+	if dir := os.Getenv("MY_TOOLS_DIR"); dir != "" {
 		return dir
 	}
 	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Desktop", "CREDITOP", "playground")
+	return filepath.Join(home, "Desktop", "CREDITOP", "my-tools")
 }
 
 func localPidPath() string {
@@ -88,7 +88,7 @@ func localPieces() []localPiece {
 	backend := githubDir("legacy-backend", "LEGACY_BACKEND_REPO")
 	vtex := githubDir("vtex", "VTEX_REPO")
 	shopifyDocker := filepath.Join(shopifyRepo(), "docker")
-	harness := filepath.Join(playgroundDir(), "harness")
+	harness := filepath.Join(myToolsDir(), "harness")
 	return []localPiece{
 		{
 			name: "Backend local", how: "vendor/bin/sail up -d en legacy-backend (la rama que tengas)", okText: "legacy-backend contesta en :80 (sail, tu base local)",
@@ -104,7 +104,7 @@ func localPieces() []localPiece {
 			name: "Wizard local", how: "make harness-wizard TARGET=local", okText: "contesta en :5174",
 			off: "no contesta en :5174", ok: func() bool { return httpAnswers(localWizardURL, 3*time.Second) },
 			up: func(ctx context.Context) error {
-				return localSrv.run(ctx, playgroundDir(), nil, "make", "-s", "harness-wizard", "TARGET=local")
+				return localSrv.run(ctx, myToolsDir(), nil, "make", "-s", "harness-wizard", "TARGET=local")
 			},
 		},
 		{
@@ -224,7 +224,7 @@ func startLocalTunnel(ctx context.Context) error {
 	logFile.Close()
 	// La tienda tiene que estar prendida para que el túnel llegue: si no, se prende sin túnel y se reinicia después.
 	if !httpOK("http://localhost:"+localStorePort+"/health", 2*time.Second) {
-		_ = localSrv.run(ctx, filepath.Join(playgroundDir(), "harness"), nil, "sh", "bin/mock-payment-link", "start")
+		_ = localSrv.run(ctx, filepath.Join(myToolsDir(), "harness"), nil, "sh", "bin/mock-payment-link", "start")
 	}
 	for deadline := time.Now().Add(150 * time.Second); time.Now().Before(deadline); time.Sleep(2 * time.Second) {
 		raw, _ := os.ReadFile(logPath)
@@ -311,7 +311,7 @@ func issueLocalToken(ctx context.Context, backend string) error {
 	}
 	// La tienda lee los tokens al arrancar: si ya corría, se reinicia con el nuevo.
 	if httpOK("http://localhost:"+localStorePort+"/health", 2*time.Second) {
-		_ = localSrv.run(ctx, filepath.Join(playgroundDir(), "harness"), nil, "sh", "bin/mock-payment-link", "stop")
+		_ = localSrv.run(ctx, filepath.Join(myToolsDir(), "harness"), nil, "sh", "bin/mock-payment-link", "stop")
 	}
 	return nil
 }

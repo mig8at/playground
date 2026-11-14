@@ -177,7 +177,7 @@ func runMCP(args []string) int {
 	if err != nil {
 		return fail(1, "no sé dónde estoy: %v", err)
 	}
-	server := mcp.NewServer(&mcp.Implementation{Name: "playground", Version: "1.0.0"}, nil)
+	server := mcp.NewServer(&mcp.Implementation{Name: "my-tools", Version: "1.0.0"}, nil)
 	for _, c := range tools() {
 		c := c
 		server.AddTool(&mcp.Tool{Name: toolName(c), Description: toolDescription(c), InputSchema: toolSchema(c)},

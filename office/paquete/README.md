@@ -5,7 +5,7 @@ Personajes en papel cortado (personas y 20 animales), con la chaqueta de CreditO
 el logo. No usa librerías ni framework.
 
 Un personaje es un **JSON** chico (nombre, especie, forma de cara, peinado, barba, gorro, colores…). Lo armás en la
-página del editor (`index.html` en el playground, `ejemplo.html` en el paquete) y lo copiás con «Copiar JSON».
+página del editor (`index.html` en my-tools, `ejemplo.html` en el paquete) y lo copiás con «Copiar JSON».
 
 ## Mostrar un personaje
 
@@ -58,5 +58,5 @@ Lo que falte toma un valor por defecto, así que `{"name":"Luis"}` ya es un pers
 
 ## De dónde sale
 
-El paquete se genera desde el playground de Miguel (`make office-package`) a partir de los mismos archivos que usa la
+El paquete se genera desde my-tools, el repo de Miguel, (`make office-package`) a partir de los mismos archivos que usa la
 llamada de Office: lo que se ve acá es lo que se ve allá. Los personajes son diseños propios.

@@ -6,8 +6,8 @@ import (
 	"io"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/radar/scan"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/radar/scan"
 )
 
 /* recheck vuelve a correr contra canon las búsquedas que dieron vacío: si hoy encuentran algo, el hueco

@@ -50,7 +50,7 @@ type Catalog struct {
 	} `json:"outcomes"`
 }
 
-// File es dónde vive el catálogo, a partir de la raíz del playground.
+// File es dónde vive el catálogo, a partir de la raíz de my-tools.
 func File(root string) string { return filepath.Join(root, "harness", "journeys.json") }
 
 // Load lee el catálogo.

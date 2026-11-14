@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 func TestCanonRouteHTTP(t *testing.T) {

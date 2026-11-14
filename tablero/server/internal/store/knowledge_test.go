@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/layout"
 )
 
 func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {

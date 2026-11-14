@@ -1,7 +1,7 @@
 package main
 
 /* La base de cada ambiente, sin depender de nada fuera de este proyecto. Es una copia reducida del cliente SQL del
- * playground (MySQL directo para local y qa, Redash para prod) y lee sus credenciales del `.env` de la raíz (env.go).
+ * my-tools (MySQL directo para local y qa, Redash para prod) y lee sus credenciales del `.env` de la raíz (env.go).
  * Toda lectura pasa por ValidateReadOnly (readonly.go) y sus argumentos tienen que ser dígitos (validArgs). */
 
 import (

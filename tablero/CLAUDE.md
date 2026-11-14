@@ -20,7 +20,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
 
   | nivel | qué es | Jira | contenedor general · por herramienta o repo |
   |---|---|---|---|
-  | `miguel` | el playground PERSONAL de Miguel (`mig8at/playground`): sus herramientas, no de la compañía | nunca | `miguel` (#90) · `chat`, `cockpit`, `goldfish`, `harness`, `tablero`, `office`, `jarvis`, `sentinel`, `herramienta-ecommerce`, `designer`, `radar`, `keyring`, `captura` |
+  | `miguel` | my-tools, las herramientas PERSONALES de Miguel (`mig8at/playground` en GitHub), no de la compañía | nunca | `miguel` (#90) · `chat`, `cockpit`, `goldfish`, `harness`, `tablero`, `office`, `jarvis`, `sentinel`, `herramienta-ecommerce`, `designer`, `radar`, `keyring`, `captura` |
   | `playground` | el playground COMPARTIDO (`Creditop-SAS/playground`): de la compañía, se trabaja en local | por ahora no (las viejas con Jira lo conservan) | `playground` (#124) · `canon`, `cuadrilla`, `tracer`, `forecast` |
   | `creditop` (default) | el trabajo de CreditOp | sí (lo que se evalúa puede vivir sin Jira todavía) | `incidencias` · globales por repo: `legacy-backend`, `frontend-monorepo`, `legacy-application`, y una tarea por trabajo con su Jira |
 
@@ -138,7 +138,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 puede volver a tomar ni desmentir. Rechaza además rutas locales, archivos sin repo, SQL que escribe, HTML
 y títulos de más de una línea. **Un archivo suelto que está en `main` de UN solo repo citable se enlaza
 solo** (con aviso); si está en varios o en ninguno, el error dice dónde está. Dentro de un comando
-(`` `cat x.php` ``) no se toca. Los repos citables salen de `tools/repos.json`, más `playground` y
+(`` `cat x.php` ``) no se toca. Los repos citables salen de `tools/repos.json`, más `my-tools` y
 `playground-equipo`. El material que no es un comando va en ` ```json ` o ` ```text `.
 
 Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make tarea-bloque N=<id|slug>
@@ -147,7 +147,7 @@ con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-su
 `bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make tarea-context N=…` o `make retomar`. El contrato de la línea: `docs/task-context.schema.json`.
 
-**Un agente escribe y lee sin archivos ni make** con las herramientas MCP del playground (`bin/pg mcp`):
+**Un agente escribe y lee sin archivos ni make** con las herramientas MCP de my-tools (`bin/pg mcp`):
 `tarea_bloque` (tarea, título, cuerpo; `seco` valida sin escribir), `bitacora_add` (con `lapso`, `pulso` o
 `min`+`fuente`), `tarea_pila` y `tareas`. En la consola son `bin/pg tarea bloque|pila`, `bin/pg bitacora add`
 y `bin/pg tareas`. Corren el mismo código del tablero: misma validación y mismas guardas.
@@ -183,7 +183,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
 **`make cierre TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
-desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en el playground,
+desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en my-tools,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
 flujo), ya escritas en el cuerpo del bloque como `jarvis:<id>`, y **el correo de la tarea** (`correo:`): lo que llegó de

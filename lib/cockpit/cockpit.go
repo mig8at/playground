@@ -1,5 +1,5 @@
 // Package cockpit es el cliente del PUERTO DE CONTROL de Cockpit (cockpit/, la app de escritorio que junta las
-// herramientas del playground): lo usan `bin/cockpit` (cmd/cockpit), para que Claude navegue Cockpit y cuente qué hace,
+// herramientas de my-tools): lo usan `bin/cockpit` (cmd/cockpit), para que Claude navegue Cockpit y cuente qué hace,
 // y el hook `cockpit` (tablero/server/internal/hooks), que le pasa cada herramienta que Claude usa.
 //
 // Cockpit, al arrancar, escucha en 127.0.0.1 y deja su puerto y una LLAVE nueva en ~/.config/creditop-cockpit/

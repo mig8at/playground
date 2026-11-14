@@ -35,7 +35,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 func main() {
@@ -233,7 +233,7 @@ func propose(ctx context.Context, client *canon.Client, args []string) error {
 
 func write(ctx context.Context, client *canon.Client, args []string) error {
 	flags := flag.NewFlagSet("write", flag.ExitOnError)
-	title := flags.String("title", "canon: dictado desde el playground", "el título de la revisión")
+	title := flags.String("title", "canon: dictado desde my-tools", "el título de la revisión")
 	author := flags.String("author", envOr("CANON_AUTHOR", "Miguel Ochoa"), "quién firma la revisión")
 	dry := flags.Bool("dry", false, "ensayar: manda las piezas al borrador y lo abandona, sin cerrar")
 	_ = flags.Parse(args)

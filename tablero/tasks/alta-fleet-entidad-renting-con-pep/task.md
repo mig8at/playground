@@ -186,7 +186,7 @@ su CRUD **no lo consume nadie**: el admin vivo sigue siendo el panel Inertia de 
 
 ## La tarjeta de cada entidad: por capacidad y no por id
 
-> ⏩ **Este frente vive en `playground.md`** hasta que se convierta en Jira. Lo de abajo se conserva
+> ⏩ **Este frente vive en `miguel` (#90)** hasta que se convierta en Jira. Lo de abajo se conserva
 > porque es donde se midió por primera vez, pero **no se actualiza más acá**.
 
 

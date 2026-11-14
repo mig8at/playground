@@ -732,7 +732,7 @@ func main() {
 	if len(os.Args) > 1 && cliCommands[os.Args[1]] {
 		root, err := os.Getwd()
 		if err == nil {
-			if r := os.Getenv("PLAYGROUND_ROOT"); r != "" {
+			if r := os.Getenv("MY_TOOLS_ROOT"); r != "" {
 				root = r
 			}
 		}
@@ -752,7 +752,7 @@ func main() {
 		log.Fatal(err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "connectors", "sql")); err != nil {
-		log.Fatalf("sentinel: corré desde la raíz del playground (no encuentro connectors/ en %s)", root)
+		log.Fatalf("sentinel: corré desde la raíz de my-tools (no encuentro connectors/ en %s)", root)
 	}
 	st, err := openStore(filepath.Join(root, "sentinel", ".data"))
 	if err != nil {

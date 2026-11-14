@@ -20,7 +20,7 @@ import (
 // Dir es la carpeta `connectors/`. Se busca hacia arriba desde donde se corre, porque los comandos corren
 // desde la carpeta de cada herramienta (`tablero/server`, `visor/server`); si no aparece, desde el
 // binario —un servidor MCP lo lanza Claude desde un directorio que no elegimos—, y por último en
-// `PLAYGROUND_ROOT`.
+// `MY_TOOLS_ROOT`.
 func Dir() (string, error) {
 	wd, err := os.Getwd()
 	if err != nil {
@@ -33,7 +33,7 @@ func Dir() (string, error) {
 		}
 		starts = append(starts, filepath.Dir(exe))
 	}
-	if root := os.Getenv("PLAYGROUND_ROOT"); root != "" {
+	if root := os.Getenv("MY_TOOLS_ROOT"); root != "" {
 		starts = append(starts, root)
 	}
 	for _, start := range starts {
@@ -41,7 +41,7 @@ func Dir() (string, error) {
 			return dir, nil
 		}
 	}
-	return "", fmt.Errorf("no encontré la carpeta connectors/ subiendo desde %s ni desde el binario (PLAYGROUND_ROOT la fija)", wd)
+	return "", fmt.Errorf("no encontré la carpeta connectors/ subiendo desde %s ni desde el binario (MY_TOOLS_ROOT la fija)", wd)
 }
 
 func findUp(start string) (string, bool) {

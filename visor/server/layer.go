@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/visor/render"
+	"creditop/my-tools/visor/render"
 )
 
 // UNA CAPA DE UNA PANTALLA: lo que Miguel señala en la interfaz para decirle al modelo «acá hay algo que

@@ -29,7 +29,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Cómo avisa un tipo de conversación o una conversación: todo, sólo cuando te mencionan, o nada.

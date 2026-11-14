@@ -189,7 +189,7 @@ Catálogo visual con cómo se ve cada uno: el artifact «Burbujas de WhatsApp».
 
 ## 5. Crearlo: cuatro llamadas
 
-Con `set -a && . connectors/.env && set +a` (desde la raíz del playground) y `AUTH="$TWILIO_SID:$TWILIO_TOKEN"`.
+Con `set -a && . connectors/.env && set +a` (desde la raíz de my-tools) y `AUTH="$TWILIO_SID:$TWILIO_TOKEN"`.
 ⚠ Estas cuatro llamadas ESCRIBEN y quedan a mano a propósito: el conector sólo lee.
 
 **1) crear el template** (queda en borrador, reversible con `DELETE`)

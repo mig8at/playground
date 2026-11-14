@@ -10,7 +10,7 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // Figma por su conector, y sólo lectura. Cada comando acepta la URL que se copia de Figma (con o sin

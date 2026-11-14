@@ -133,7 +133,7 @@ Instalada: 0.2.2 (2026-11-09).
    del pedido; y en este tema, el `checkout6-custom.js` con los campos.
 3. Pendientes menores: ticket a VTEX por el 504 del builder; las facturas impagas que bloquean partes del admin.
 
-## Herramientas que se tocaron en el playground
+## Herramientas que se tocaron en my-tools
 
 - `jarvis/`: subir archivos desde un botón que abre el selector (`upload`), y escritorio a 1440×900 con densidad 2.
 - `harness/dev/setting.ts`: `add|remove` con **hash de sucursal** (antes convertía un hash como `"a1b2c3d4"` a `NaN` y rompía

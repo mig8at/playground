@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/elevenlabs"
+	"creditop/my-tools/connectors/elevenlabs"
 )
 
 // ElevenLabs por su conector: el saldo, las voces y un texto a voz suelto (para probar una voz antes de dársela a

@@ -67,8 +67,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"creditop/playground/connectors/repos"
-	"creditop/playground/lib/text"
+	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/lib/text"
 )
 
 const (
@@ -151,8 +151,8 @@ func Sorted(items []Item) []Item {
 
 // Checker guarda lo que ya le preguntó a git: el mismo archivo se abre muchas veces por documento.
 type Checker struct {
-	repos      *repos.Client
-	playground string
+	repos   *repos.Client
+	myTools string
 
 	repoOf   map[string][2]string
 	shaAt    map[string]string
@@ -174,7 +174,7 @@ func New(client *repos.Client) *Checker {
 	}
 	sort.Strings(aliases) // el orden no decide nada: los candidatos se ordenan antes de evaluarse
 	return &Checker{
-		repos: client, playground: client.Playground, indexed: aliases,
+		repos: client, myTools: client.MyTools, indexed: aliases,
 		repoOf: map[string][2]string{}, shaAt: map[string]string{}, renames: map[string]map[string]string{},
 		contents: map[string][]string{}, absent: map[string]bool{},
 	}
@@ -217,7 +217,7 @@ func head(s string, n int) string {
 
 /* repoOfAlias: (raíz del repo, prefijo del alias dentro de esa raíz).
  *
- * ⚠ El alias `harness` NO es un repo: es un subdirectorio de `playground`. Sin normalizar acá, unos
+ * ⚠ El alias `harness` NO es un repo: es un subdirectorio de `my-tools`. Sin normalizar acá, unos
  * comandos de git devuelven rutas relativas al subdirectorio y otros relativas a la raíz, y esa
  * asimetría ya causó dos bugs reales (alinear.py contaba 1 de 44 en vez de 16; refs.py armaba
  * `legacy-backend/legacy-backend/...`). Con toplevel+prefix hay una sola forma de nombrar un archivo. */
@@ -345,7 +345,7 @@ func (c *Checker) inRef(alias, ref, rel string) []string {
  * Las líneas sin commitear salen con fecha de hoy (blame las marca `0000…`), que es lo correcto:
  * acabás de escribirlas. */
 func (c *Checker) writtenAt(doc string) map[int]string {
-	out, _ := git(c.playground, "blame", "--line-porcelain", "-w", "--", doc)
+	out, _ := git(c.myTools, "blame", "--line-porcelain", "-w", "--", doc)
 	dates := map[int]string{}
 	ln, ts, haveTS := 0, int64(0), false
 	for _, row := range text.SplitLines(out) {
@@ -729,7 +729,7 @@ func (c *Checker) Review(documents []string) Result {
 			unstamped[name] = true
 		}
 		abs, _ := filepath.Abs(doc)
-		rel, err := filepath.Rel(c.playground, abs)
+		rel, err := filepath.Rel(c.myTools, abs)
 		if err != nil {
 			rel = doc
 		}

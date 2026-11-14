@@ -8,7 +8,7 @@ package main
 // «sin eventos» NO significa «el cliente no hizo nada».
 
 import (
-	"creditop/playground/connectors/events"
+	"creditop/my-tools/connectors/events"
 	"flag"
 	"fmt"
 	"strings"

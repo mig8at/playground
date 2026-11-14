@@ -2,7 +2,7 @@
 // leer una URL no arrastre el driver de MySQL.
 //
 // Cada `harness/.env.<target>` es AUTOSUFICIENTE: trae los HECHOS del entorno (BD, API, APP_KEY)
-// y las perillas (Cognito, mocks, SEED). Ya NO existe la capa compartida `playground/env/` — se
+// y las perillas (Cognito, mocks, SEED). Ya NO existe la capa compartida `my-tools/env/` — se
 // eliminó el 2026-07-22 porque solo la usaba harness (backend-e2e/backend-mcp, que la compartían,
 // fueron borrados). Sin plantillas versionadas desde el 2026-10-19; la última: `git show bda2b796:harness/.env.<target>.example`.
 //

@@ -33,7 +33,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/canon"
+	"creditop/my-tools/connectors/canon"
 )
 
 const (
@@ -66,7 +66,7 @@ const sweepRules = `No edites archivos, no commitees y no corras nada contra pro
 	`Un comando por llamada a Bash, sin cd, sin ;, && ni |: usá git -C <repo> y bin/pg con ruta relativa. ` +
 	`En una consulta a Loki, buscá texto sin rayas ni comillas tipográficas: un «—» que no coincide da 0 sin fallar.`
 
-const sweepSystem = `Trabajás SOLO sobre un TEMA del conocimiento local del playground de CreditOp. Hacés todo: traer lo que ya se ` +
+const sweepSystem = `Trabajás SOLO sobre un TEMA del conocimiento local de my-tools (CreditOp). Hacés todo: traer lo que ya se ` +
 	`sabe (knowledge/, trampas del tablero, Confluence), mirar dónde se decide en main (git grep / git show contra origin/main en los DOS ` +
 	`monolitos, legacy-backend y legacy-application), medir en prod sólo leyendo (bin/pg sql, bin/pg logs) y correr el harness si sirve. ` +
 	`Buscás contradicciones entre el tema y main, huecos (reglas en main que ningún tema nombra), afirmaciones sin suite que las pruebe y ` +

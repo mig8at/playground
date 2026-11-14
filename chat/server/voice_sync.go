@@ -35,7 +35,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // syncConversation: lo que se guarda por conversación (voice-sync.json).

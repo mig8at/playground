@@ -26,7 +26,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 // prRef es un PR citado: `owner/repo` en GitHub y su número.
@@ -99,7 +99,7 @@ var mergeAck = regexp.MustCompile("(?i)mergead[oa]s?\\b|ya está en `?(main|deve
 
 func acknowledgesMerge(item string) bool { return mergeAck.MatchString(item) }
 
-// prRefsIn encuentra los PRs con repo de un pendiente. `aliases` va de alias del playground a
+// prRefsIn encuentra los PRs con repo de un pendiente. `aliases` va de alias de my-tools a
 // `owner/repo`; `names` del nombre del repo en GitHub a `owner/repo` (para `legacy-application#171`).
 func prRefsIn(item string, aliases, names map[string]string) []prRef {
 	seen := map[prRef]bool{}

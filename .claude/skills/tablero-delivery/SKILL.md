@@ -1,11 +1,11 @@
 ---
 name: tablero-delivery
-description: Saber dónde está y cómo va una tarea FUERA del playground: en qué ramas y ambientes vive su cambio (make tareas-ramas, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FALLAS=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
+description: Saber dónde está y cómo va una tarea FUERA de my-tools: en qué ramas y ambientes vive su cambio (make tareas-ramas, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FALLAS=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
 ---
 
 # tablero · la entrega: ramas, ambientes, despliegues, Sonar y Jira
 
-Lo que dice dónde está el trabajo de una tarea afuera del playground. Vivía en `tablero/CLAUDE.md` hasta
+Lo que dice dónde está el trabajo de una tarea afuera de my-tools. Vivía en `tablero/CLAUDE.md` hasta
 el 2026-09-27.
 
 ## Ramas: se declaran los patrones, el resto lo mide git

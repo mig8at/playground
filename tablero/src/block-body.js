@@ -179,10 +179,10 @@ export function visorURL(target) {
   return p.kind === 'visor' ? visorHref(p) : '';
 }
 
-// Un tema de knowledge/ vive en el repo del playground: el enlace abre su `rules.md`. El ancla no viaja,
+// Un tema de knowledge/ vive en el repo de my-tools: el enlace abre su `rules.md`. El ancla no viaja,
 // porque GitHub arma las suyas distinto que la biblioteca; la sección se lee en el título del enlace.
 export function knowledgeHref(part, repos) {
-  return repoHref({ kind: 'repo', repo: 'playground', path: `knowledge/${part.topic}/rules.md` }, repos);
+  return repoHref({ kind: 'repo', repo: 'my-tools', path: `knowledge/${part.topic}/rules.md` }, repos);
 }
 
 // El comando que lee el tema o la sección sin salir de la consola.

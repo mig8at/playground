@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Lo leído sólo avanza, y el buzón cuenta lo sin leer y las menciones como lo verían la app y bin/chat.

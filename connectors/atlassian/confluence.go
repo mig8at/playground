@@ -22,7 +22,7 @@ import (
 	"sort"
 	"strings"
 
-	"creditop/playground/lib/text"
+	"creditop/my-tools/lib/text"
 )
 
 // flexID acepta un id que Atlassian a veces manda como número y a veces como texto.

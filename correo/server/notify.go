@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 // notice: el aviso de un correo nuevo. «te contestó» si en esa conversación ya habías escrito vos (`t`, el estado del

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // Un adjunto se muestra sólo si lo bajó este chat o si es un archivo dentro de ~/Downloads: nunca otra ruta.

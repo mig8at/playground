@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/connectors/repos"
+	"creditop/my-tools/connectors/repos"
 )
 
 func TestSourceChecksCatchDriftAndMissingEvidence(t *testing.T) {

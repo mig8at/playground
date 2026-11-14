@@ -11,7 +11,7 @@ package scan
  *     no lo tuviera —puede que se fuera a verificar—, pero donde se repite, el corpus no alcanzó.
  *
  * ⚠ CONSULTAR canon no es DESARROLLAR canon. Medido el 2026-09-27: de 793 llamadas a la API de canon en
- * las sesiones de este playground, casi todas eran bancos de prueba contra `localhost`, bucles y ediciones
+ * las sesiones de my-tools, casi todas eran bancos de prueba contra `localhost`, bucles y ediciones
  * de su servidor. Ésas no son preguntas de una tarea y se dejan afuera (`Dev`, sólo contadas). */
 
 import (
@@ -22,7 +22,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/lib/shell"
+	"creditop/my-tools/lib/shell"
 )
 
 // CanonLookup es una consulta a canon hecha para trabajar (no para desarrollar canon).

@@ -1,4 +1,4 @@
-# CREDITOP · playground — una sola puerta para todo
+# CREDITOP · my-tools — una sola puerta para todo
 #
 # `make` sin argumentos lista lo que hay. La idea es no tener que recordar en qué carpeta vive cada
 # comando ni cómo se llamaba el script.
@@ -19,7 +19,7 @@ SHELL := /bin/bash
 .PHONY: help
 help: ## esta lista
 	@echo ""
-	@echo "  CREDITOP · playground        (make <comando>)"
+	@echo "  CREDITOP · my-tools          (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
 	@$(call listar,@can,CANON — opcional para negocio/producto: consultar o publicar (skill: .claude/skills/canon))
 	@echo "    y desde ~/Desktop/CREDITOP/github/playground/tools/canon:"
@@ -53,7 +53,7 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 	@cd tablero && npm run dev
 
 # El tablero por CONSOLA. El store ya había resuelto la mitad —pasó a archivos porque «era el único
-# rincón del playground que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
+# rincón de my-tools que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
 # TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
 # cuando ya es tarde para decidir cómo escribir.
 tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
@@ -141,7 +141,7 @@ captura-panel: ## @dia deja Captura como un PANEL flotante y movible (siempre en
 chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al guardar) contra el servidor de Cockpit (:5185) o, si está cerrado, uno con go run. Para usarlo: Cockpit, `make cockpit`
 	@cd chat && npm run dev
 
-cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas del playground en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis, Designer —el visor—, ecommerce y knowledge). Trae adentro el servidor del chat (de respaldo si corre de fondo, `make chat-install`, que también recompila), sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
+cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas de my-tools en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis, Designer —el visor—, ecommerce y knowledge). Trae adentro el servidor del chat (de respaldo si corre de fondo, `make chat-install`, que también recompila), sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
 	@cd cockpit && npm run build && { \
 	  for id in com.creditop.playground.cockpit com.creditop.playground.chat-app; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
 	  rm -rf /Applications/Chat.app "$$HOME/Library/LaunchAgents/Chat.plist" /Applications/Cockpit.app; \
@@ -362,7 +362,7 @@ jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterr
 # archivos y carpetas; los comentarios siguen en español. La vara del inglés es la stdlib de Go y de
 # Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
 # conoce va a tablero/tools/naming-allow.txt, con su categoría.
-tablero-naming: ## @dia ¿el código del playground nombra algo en español? el tablero, lo compartido (connectors, cmd, lib, tools), el harness, el visor y las apps (chat, jarvis, ecommerce, cockpit, captura, keyring, radar, sala). identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. Falla sólo con un nombre NUEVO: los de antes son deuda conocida (tablero/tools/naming-debt.txt). ALL=1 muestra también la deuda · FREEZE=1 la vuelve a congelar (después de renombrar, para que baje) · WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
+tablero-naming: ## @dia ¿el código de my-tools nombra algo en español? el tablero, lo compartido (connectors, cmd, lib, tools), el harness, el visor y las apps (chat, jarvis, ecommerce, cockpit, captura, keyring, radar, sala). identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. Falla sólo con un nombre NUEVO: los de antes son deuda conocida (tablero/tools/naming-debt.txt). ALL=1 muestra también la deuda · FREEZE=1 la vuelve a congelar (después de renombrar, para que baje) · WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
 	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words) $(if $(ALL),-all) $(if $(FREEZE),-freeze) $(if $(CANON),-canon $(CANON))
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
@@ -413,7 +413,7 @@ correo-status: ## @dia ¿Correo corre de fondo?
 correo-uninstall: ## @dia saca Correo de fondo (lo guardado se queda)
 	@go run ./correo/server -uninstall
 
-ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app del playground en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores
+ui-shot: ## @dia ¿cómo se VE esta interfaz? una captura de una app de my-tools en un Chromium sin ventana, más los errores de consola y los pedidos fallidos (lo que el navegador de la sesión no muestra con el pane oculto). APP=<tablero|harness|chat|jarvis|designer|ecommerce> [ROUTE='#/…' o '/…'] [CLICK='selector;;otro'] [WAIT_FOR=selector] [SELECTOR=sólo ese elemento] [WIDTH=1440] [HEIGHT=900] [THEME=dark|light] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] [FULL=1] [OUT=archivo.png] · URL=http://… otra página · COCKPIT=1 la ventana de Cockpit tal como la ve Miguel. No levanta servidores
 	@node tools/ui-shot/main.mjs
 
 tablero-ui-offline: ## @dia prueba la interfaz del tablero SIN servidores: compila, sirve el dist/ desde disco y simula la API en Chromium. No toca datos
@@ -462,7 +462,7 @@ jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chr
 	@cd harness && JARVIS_CHROME=1 JARVIS_HANDS=$(HANDS) E2E_TARGET=qa VERBOSE=$(VERBOSE) node dev/vtex-run.ts --cases rotativo
 
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
-# playground. Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
+# repo (my-tools). Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
 RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
 .PHONY: radar radar-uso radar-friccion radar-deriva radar-sesion
@@ -896,7 +896,7 @@ canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaz
 	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
 canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe] · un lote de más de ~90 piezas no entra en 5 min: CANON_TIMEOUT=20m
 	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde el playground)' $(foreach p,$(PIECE),$(abspath $(p)))
+	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde my-tools)' $(foreach p,$(PIECE),$(abspath $(p)))
 canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara cambiaron en main (contra los clones del servidor: si main avanzó, antes canon-clones SYNC=1). El servidor la cachea 10 min: FORCE=1 la vuelve a medir. Sale 1 si algo cambió
 	@cd tablero/server && go run ./cmd/canon round $(if $(FORCE),-force)
 canon-eval: ## @can ¿canon está parejo y qué código se mueve sin área? tamaño de cada tema, secciones sin área, repos con dos nombres y, por módulo, cambios en main en archivos que ningún área vigila. Sin modelo, sólo lectura. DIAS=90 · TOP=15 · REPOS=legacy-backend,application,frontend-monorepo · TARGET=prod lee además lo que canon no supo contestar (VPN) · JSON=1

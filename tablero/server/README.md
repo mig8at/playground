@@ -2,7 +2,7 @@
 
 `cmd/web` (la API de la UI), los comandos de la consola (`tasks`, `today`, `issue-*`, `pulse`, `hooks`…) y
 sus paquetes `internal/`. Los clientes de Jira, Slack, canon y la base NO viven acá: son de
-`connectors/`, en la raíz del playground, porque los usan todas las herramientas.
+`connectors/`, en la raíz de my-tools, porque los usan todas las herramientas.
 
 ## Jira y Slack para un agente: `bin/pg mcp`
 
@@ -13,11 +13,11 @@ también la base, Loki, PostHog y Confluence—, derivados de la misma lista que
 la vista previa si no se les pasa `apply: true`, y el texto que sale pasa por el guard.
 
 ```bash
-claude mcp add playground -- /Users/miguelochoa/Desktop/CREDITOP/playground/bin/pg mcp
+claude mcp add -s local my-tools -- /Users/miguelochoa/Desktop/CREDITOP/my-tools/bin/pg mcp
 ```
 
 `bin/pg` compila el binario si cambió su código y corre desde la raíz, así que encuentra
-`connectors/.env` sin importar desde dónde lo lance Claude. Para quitarlo: `claude mcp remove playground`.
+`connectors/.env` sin importar desde dónde lo lance Claude. Para quitarlo: `claude mcp remove my-tools`.
 Agregar una herramienta es agregar un comando a `cmd/pg/registry.go`: la prueba de ese paquete cruza lo
 que el registro declara contra las banderas que el comando acepta.
 

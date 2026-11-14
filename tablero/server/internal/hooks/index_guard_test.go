@@ -55,10 +55,10 @@ func TestTheIndexGuard(t *testing.T) {
 	}
 }
 
-// Fuera del playground el índice no es compartido: el squash de un PR en otro repo no se frena. Adentro, y
+// Fuera de my-tools el índice no es compartido: el squash de un PR en otro repo no se frena. Adentro, y
 // cuando la carpeta no se puede saber, sí.
-func TestTheIndexGuardOnlyInsideThePlayground(t *testing.T) {
-	root, home := "/Users/m/Desktop/CREDITOP/playground", "/Users/m"
+func TestTheIndexGuardOnlyInsideMyTools(t *testing.T) {
+	root, home := "/Users/m/Desktop/CREDITOP/my-tools", "/Users/m"
 	cases := []struct {
 		cmd, cwd string
 		blocks   bool
@@ -69,8 +69,8 @@ func TestTheIndexGuardOnlyInsideThePlayground(t *testing.T) {
 		{"cd ~/Desktop/CREDITOP/github/vtex && git reset --soft x && git commit -q -F msg", root, false},
 		{"cd ~/Desktop/CREDITOP/github/$repo && git commit -q -F msg", root, true},
 		{"git -C /Users/m/Desktop/CREDITOP/github/shopify commit -m x", root, false},
-		{"git -C ../playground commit -m x", "/Users/m/Desktop/CREDITOP/github", true},
-		{"cd /tmp && cd ~/Desktop/CREDITOP/playground && git add -A", "/tmp", true},
+		{"git -C ../my-tools commit -m x", "/Users/m/Desktop/CREDITOP/github", true},
+		{"cd /tmp && cd ~/Desktop/CREDITOP/my-tools && git add -A", "/tmp", true},
 		{"git add -A", "/Users/m/Desktop/CREDITOP/github/legacy-backend", false},
 		{"git commit -m x", "", true},
 		{"git commit --dry-run -q -m x >/dev/null 2>&1", root, true},

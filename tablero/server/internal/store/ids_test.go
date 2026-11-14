@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/tablero/server/internal/layout"
+	"creditop/my-tools/tablero/server/internal/layout"
 )
 
 // Dos archivos con el mismo id se pisaban en `slugs[id]` y sobrevivía uno solo, sin aviso (pasó el

@@ -18,8 +18,8 @@ import (
 	"regexp"
 	"strings"
 
-	"creditop/playground/connectors/figma"
-	"creditop/playground/visor/render"
+	"creditop/my-tools/connectors/figma"
+	"creditop/my-tools/visor/render"
 )
 
 // LA API POR CONSOLA DEL VISOR. La interfaz es para mirar; el modelo trabaja con comandos, como con el

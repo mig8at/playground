@@ -4,7 +4,7 @@
 //	make barrido TEMAS=…   lo mismo por consola, sin página
 //	make barrido-canon     el barrido sobre los temas de CANON que la ronda marca con archivos cambiados (canon.go)
 //
-// Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura del playground, sobre UN tema:
+// Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura de my-tools, sobre UN tema:
 // no habla con los otros ni espera turno. Cuando terminan todos, un verificador que no escribió nada comprueba cada
 // hallazgo. El porqué y la historia (la sala de llamadas entre agentes que se retiró el 2026-11-03) están en barrido.go.
 //
@@ -40,7 +40,7 @@ func main() {
 	flag.Parse()
 	root, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
-		log.Fatal("corré la sala desde la raíz del playground (make sala)")
+		log.Fatal("corré la sala desde la raíz de my-tools (make sala)")
 	}
 	mock := os.Getenv("SALA_MOCK") == "1"
 	sw := &sweeper{root: root}

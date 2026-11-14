@@ -14,7 +14,7 @@ func isolatedSessionRoot(t *testing.T) string {
 		t.Fatal(err)
 	}
 	t.Chdir(root)
-	t.Setenv("PLAYGROUND_ROOT", root)
+	t.Setenv("MY_TOOLS_ROOT", root)
 	return root
 }
 

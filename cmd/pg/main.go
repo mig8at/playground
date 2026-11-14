@@ -1,4 +1,4 @@
-// pg es la puerta única a los conectores del playground (`connectors/`): una consulta por ambiente, con
+// pg es la puerta única a los conectores de my-tools (`connectors/`): una consulta por ambiente, con
 // el ambiente siempre escrito y la fuente que contestó siempre dicha.
 //
 //	pg help [--json]                                           los comandos, de la misma lista que el binario
@@ -41,11 +41,11 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/atlassian"
-	"creditop/playground/connectors/events"
-	"creditop/playground/connectors/gemini"
-	"creditop/playground/connectors/logs"
-	dbsql "creditop/playground/connectors/sql"
+	"creditop/my-tools/connectors/atlassian"
+	"creditop/my-tools/connectors/events"
+	"creditop/my-tools/connectors/gemini"
+	"creditop/my-tools/connectors/logs"
+	dbsql "creditop/my-tools/connectors/sql"
 )
 
 func main() {

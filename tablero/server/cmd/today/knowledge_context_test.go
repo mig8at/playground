@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/knowledge"
+	"creditop/my-tools/knowledge"
 )
 
 func TestTaskReadsLocalReferencesAndKeepsHistoricalCanonOptional(t *testing.T) {

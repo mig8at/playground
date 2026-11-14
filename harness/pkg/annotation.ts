@@ -32,7 +32,7 @@ const quote = (v: string) => (SHELL_SAFE.test(v) ? v : `'${v.replaceAll("'", `'\
 /**
  * El comando de `make` que reproduce la corrida.
  *
- * ⚠ VA EL `make`, NO EL RUNNER. `npx tsx dev/case.ts …` no se corre desde la raíz del playground, que
+ * ⚠ VA EL `make`, NO EL RUNNER. `npx tsx dev/case.ts …` no se corre desde la raíz de my-tools, que
  * es desde donde se corre todo lo demás; `make harness-case CASES=…` sí. Lo que una herramienta te pasa
  * tiene que ser pegable donde estás parado.
  *
@@ -80,8 +80,8 @@ export const pie = (cmd: string) => `\n     ↻ ${cmd}`;
  * `annotation.spec.ts` le pregunta al validador de verdad, en seco.
  */
 
-/** La raíz del playground: `harness/pkg/` → `harness/` → playground. Desde ahí se corre `make`. */
-export const PLAYGROUND = fileURLToPath(new URL('../../', import.meta.url));
+/** La raíz de my-tools: `harness/pkg/` → `harness/` → my-tools. Desde ahí se corre `make`. */
+export const MY_TOOLS = fileURLToPath(new URL('../../', import.meta.url));
 
 /** Lo que el validador rechazaría por forma, no por contenido: HTML y rutas de esta máquina. */
 const clean = (s: string) => s.replace(/[\r\n]+/g, ' ').replaceAll('<', '‹').replaceAll('>', '›')
@@ -113,7 +113,7 @@ export function blockMD(summary: string, cmd: string, evidence: string[] = []): 
 export function addBlock(task: string, md: string, dry = false): { ok: boolean; salida: string } {
       const env = { ...process.env };
       for (const k of ['MAKEFLAGS', 'MFLAGS', 'MAKELEVEL', 'MAKEOVERRIDES']) delete env[k];
-      const r = spawnSync('make', ['-s', '-C', PLAYGROUND, 'tarea-bloque', `N=${task}`, 'ARCHIVO=-', 'VIA=harness',
+      const r = spawnSync('make', ['-s', '-C', MY_TOOLS, 'tarea-bloque', `N=${task}`, 'ARCHIVO=-', 'VIA=harness',
             ...(dry ? ['SECO=1'] : [])], { input: md, encoding: 'utf8', env });
       return { ok: r.status === 0, salida: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() };
 }

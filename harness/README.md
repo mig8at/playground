@@ -4,7 +4,7 @@
 > (`loan-request-wizard`, :5174) de punta a punta — desde el monto hasta el cierre del crédito.
 > Su camino headless es `dev/sweep.ts` (mismo modelo de aserción, sin navegador).
 
-> 🔒 Convención de `playground/`: **commit local; el push lo decide Miguel.**
+> 🔒 Convención de `my-tools/`: **commit local; el push lo decide Miguel.**
 
 ## Por qué existe
 

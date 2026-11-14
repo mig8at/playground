@@ -12,7 +12,7 @@ jira_title: ""
 
 ## Objetivo
 
-Chat: el chat del equipo y su videollamada (voces, línea de tiempo, subtítulos). Una herramienta del playground personal de Miguel: no es de CreditOp y no va a Jira. Esta tarea junta la historia de sus cambios (la pila) y lo que queda abierto; cómo funciona está en su CLAUDE.md, que es lo que tiene que sobrevivir a cualquier reorganización de tareas.
+Chat: el chat del equipo y su videollamada (voces, línea de tiempo, subtítulos). Una herramienta de my-tools, lo personal de Miguel: no es de CreditOp y no va a Jira. Esta tarea junta la historia de sus cambios (la pila) y lo que queda abierto; cómo funciona está en su CLAUDE.md, que es lo que tiene que sobrevivir a cualquier reorganización de tareas.
 
 ## Dónde se toca
 

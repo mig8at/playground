@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/chat/cli"
+	"creditop/my-tools/chat/cli"
 )
 
 // TestVoiceTextParity: la sincronización (Go) y la videollamada (JS, chat/src/voiceText.js) tienen que partir cada

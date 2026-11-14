@@ -92,7 +92,7 @@ tarea en Pendientes. Las tarjetas se acomodan solas al ancho (`auto-fill`); la s
 ## La consola de ramas, como interfaz
 
 Declaración mínima: `ramas: patron-de-la-rama` en el frontmatter, sólo cuando exista; varios patrones
-se separan por coma. Actualizá la medición con `make tareas-ramas N=<id>` desde la raíz del playground.
+se separan por coma. Actualizá la medición con `make tareas-ramas N=<id>` desde la raíz de my-tools.
 Repositorio, rama, PR, ambientes y fecha de medición vienen del snapshot. No mantengas una segunda
 tabla de estados en Markdown ni presentes una medición antigua como una comprobación de hoy. Si el
 trabajo no tiene rama propia, no inventes un patrón para llenar la consola.

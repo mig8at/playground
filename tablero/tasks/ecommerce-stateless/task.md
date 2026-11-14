@@ -234,14 +234,14 @@ tienen volumen en `rt=2` en 90 días, y a My Tech (305) le cambiaría el 100 % d
 ya usa el `qrUrl` real: vale la intención, no el código.
 
 **Que el flujo corra dentro de la página del comercio.** Es el frente «SDK del comercio» dentro de
-`playground.md` hasta que tenga Jira: son dos horizontes distintos — ésta migra el canal que ya existe,
+`miguel` (#90) hasta que tenga Jira: son dos horizontes distintos — ésta migra el canal que ya existe,
 aquél explora una capa nueva.
 
 ## Lo que NO entra
 
 - **La PANTALLA de la sala de espera.** El backend se rescató (#1392: `ecommerce-status` en el grupo
   `device`); el `ecommerce-continue.tsx` montado en `waiting-room` que traía #363 **no** entra en esta tarea.
-- **El SDK del comercio** — frente general en `playground.md` hasta que tenga Jira.
+- **El SDK del comercio** — frente general en `miguel` (#90) hasta que tenga Jira.
 - **El flujo de Corbeta / Bancolombia retail**, que ya tiene su propio camino desde febrero y es el tráfico
   que mejor convierte. Ni el redirect ni el cutover lo tocan.
 - **Cambiar el recorrido del asesor**: sigue entregándole el proceso al cliente igual que siempre.
@@ -328,7 +328,7 @@ misma consulta tiene que mostrar los casos vecinos, o no se distingue «no pasa�
 - **Nodos de contexto:** `ecommerce` (el canal: contrato base64, credencial, `/vtex/*`, «volver al comercio»)
   · `onboarding` (el formulario que se hidrata sin cookie) · `payments` (cuota inicial y
   `down-payment-validation`) · `architecture` (la costura `application → legacy-backend + frontend`).
-- **Frentes vecinos:** «SDK del comercio» en `playground.md` — el flujo dentro de la tienda y el
+- **Frentes vecinos:** «SDK del comercio» en `miguel` (#90) — el flujo dentro de la tienda y el
   conocimiento del prefill del comercio.
 - **Hallazgos que salieron de acá:** F-214, F-215, F-216 (14/9) · F-221 (17/9) · F-223 (17/9).
 - **Los PRs y sus ambientes no se listan acá: los mide la consola Ramas** (`make tareas-ramas N=6`). Lo único

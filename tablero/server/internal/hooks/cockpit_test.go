@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/lib/cockpit"
+	"creditop/my-tools/lib/cockpit"
 )
 
 // Lo que el hook le manda al panel «Claude» de Cockpit: una línea por herramienta, emparejada antes y después.
@@ -45,7 +45,7 @@ func TestCockpitActivitySummarizesEachTool(t *testing.T) {
 		}
 	}
 
-	if act, _ := cockpitActivity(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "mcp__playground__sql",
+	if act, _ := cockpitActivity(map[string]any{"hook_event_name": "PreToolUse", "tool_name": "mcp__my-tools__sql",
 		"tool_input": map[string]any{"query": "SELECT 1"}}, ""); act.Tool != "sql" || act.Text != "SELECT 1" {
 		t.Errorf("mcp: el nombre corto y su consulta: %+v", act)
 	}
@@ -70,7 +70,7 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		{"Bash", bash("git status"), "", ""},
 		{"Edit", map[string]any{"file_path": "/repo/tablero/tasks/canon/task.md"}, "tablero", "#/tareas/canon"},
 		{"Edit", map[string]any{"file_path": "/repo/harness/panel/index.html"}, "", ""},
-		{"mcp__playground__tarea_bloque", map[string]any{"tarea": "harness"}, "tablero", "#/tareas/harness"},
+		{"mcp__my-tools__tarea_bloque", map[string]any{"tarea": "harness"}, "tablero", "#/tareas/harness"},
 	}
 	for _, c := range cases {
 		app, route := cockpitTarget(c.tool, c.in, "/repo")

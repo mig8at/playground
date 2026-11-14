@@ -1,4 +1,4 @@
-// Package repos es la fuente ÚNICA de los repos del playground: dónde está clonado cada uno, qué ref
+// Package repos es la fuente ÚNICA de los repos de my-tools: dónde está clonado cada uno, qué ref
 // mirar, qué existe en `main` y cómo se cita un archivo.
 //
 // La LISTA vive en `tools/repos.json`, que lee este paquete; `cmd/repos` la expone en JSON para las
@@ -14,7 +14,7 @@
 // disco: se comprueba preguntándole a Loki qué `service_name` emitió en los últimos 7 días. Hasta el
 // 2026-08-07 se conocían 5 repos mientras producción corría 14 servicios, y cualquier cita a los 9
 // que faltaban dropeaba en silencio (F-123). `harness` y `trazador` no son repos: son subdirectorios
-// de playground, y `git ls-tree` desde ahí devuelve rutas relativas a ese directorio, que es justo el
+// de my-tools, y `git ls-tree` desde ahí devuelve rutas relativas a ese directorio, que es justo el
 // `relpath` con que se nombra un archivo.
 package repos
 
@@ -45,13 +45,13 @@ type list struct {
 
 // Client resuelve repos contra la lista de `tools/repos.json`.
 type Client struct {
-	Playground string
-	indexed    map[string]string // lo que se indexa: repos de la compañía y herramientas propias
-	citable    map[string]string // indexed + playground y playground-equipo, que una tarea cita
-	branches   map[string]string // carpeta → rama de producción, cuando no es `main`
-	exts       map[string]bool
-	order      []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
-	loadErr    error
+	MyTools  string
+	indexed  map[string]string // lo que se indexa: repos de la compañía y herramientas propias
+	citable  map[string]string // indexed + my-tools y playground-equipo, que una tarea cita
+	branches map[string]string // carpeta → rama de producción, cuando no es `main`
+	exts     map[string]bool
+	order    []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
+	loadErr  error
 
 	refs sync.Map // root → refChoice, cacheado por proceso: resolverla son cuatro llamadas a git
 	once sync.Once
@@ -60,9 +60,9 @@ type Client struct {
 
 type refChoice struct{ ref, reason string }
 
-// New recibe la carpeta `tools/` del playground; `layout.Find().Tools()` dice dónde está.
+// New recibe la carpeta `tools/` de my-tools; `layout.Find().Tools()` dice dónde está.
 func New(tools string) *Client {
-	c := &Client{Playground: filepath.Dir(tools), indexed: map[string]string{}, citable: map[string]string{}, branches: map[string]string{}, exts: map[string]bool{}}
+	c := &Client{MyTools: filepath.Dir(tools), indexed: map[string]string{}, citable: map[string]string{}, branches: map[string]string{}, exts: map[string]bool{}}
 	raw, err := os.ReadFile(filepath.Join(tools, "repos.json"))
 	if err != nil {
 		c.loadErr = fmt.Errorf("no pude leer la lista de repos: %w", err)
@@ -141,7 +141,7 @@ func (c *Client) expand(path string) string {
 	if filepath.IsAbs(path) {
 		return path
 	}
-	return filepath.Clean(filepath.Join(c.Playground, path))
+	return filepath.Clean(filepath.Join(c.MyTools, path))
 }
 
 // Indexed: alias → carpeta, de lo que se indexa.
@@ -168,7 +168,7 @@ func (c *Client) IsLocal(alias string) bool {
 	if !ok {
 		return false
 	}
-	return root == c.Playground || strings.HasPrefix(root, c.Playground+string(os.PathSeparator))
+	return root == c.MyTools || strings.HasPrefix(root, c.MyTools+string(os.PathSeparator))
 }
 
 func git(root string, timeout time.Duration, args ...string) (int, string) {
@@ -231,7 +231,7 @@ func (c *Client) RefreshRemotes(timeout time.Duration) []string {
 /* RefToIndex es la ref que hay que mirar, con su motivo para poder imprimirlo.
  *
  * «main» local no alcanza: medido el 2026-09-18, `legacy-backend` estaba 14 commits detrás de
- * `origin/main`. Pero «siempre origin/main» es igual de falso: playground va ADELANTE de su origin a
+ * `origin/main`. Pero «siempre origin/main» es igual de falso: my-tools va ADELANTE de su origin a
  * propósito, porque el push lo decide Miguel. La regla que sirve para los dos es la relación: se mira
  * la ref que CONTIENE a la otra. ⚠ NO HACE FETCH: resuelve con lo que hay en disco.
  *
@@ -366,7 +366,7 @@ type File struct {
 	Error  string `json:"error,omitempty"`
 }
 
-// Web es dónde se ve un repo: su URL en GitHub y la carpeta que ocupa adentro (`harness/` en playground).
+// Web es dónde se ve un repo: su URL en GitHub y la carpeta que ocupa adentro (`harness/` en my-tools).
 type Web struct {
 	Web    string `json:"web"`
 	Prefix string `json:"prefix"`

@@ -21,8 +21,8 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/drive"
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/drive"
+	"creditop/my-tools/connectors/env"
 )
 
 // Scope es el único permiso que se pide.

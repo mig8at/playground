@@ -38,7 +38,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/goldfish/review"
+	"creditop/my-tools/goldfish/review"
 )
 
 func main() {
@@ -53,7 +53,7 @@ func main() {
 	desc := flag.String("desc", "", "un Markdown con la descripción del PR que se va a abrir (la primera línea, el título)")
 	prove := flag.Bool("prove", false, "además, comprobar corriendo con el harness en local")
 	flag.Parse()
-	root, err := playgroundRoot()
+	root, err := myToolsRoot()
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "goldfish:", err)
 		os.Exit(1)
@@ -82,16 +82,16 @@ func main() {
 	}
 }
 
-// playgroundRoot: la raíz del playground, subiendo desde la carpeta actual hasta su go.mod.
-func playgroundRoot() (string, error) {
+// myToolsRoot: la raíz de my-tools, subiendo desde la carpeta actual hasta su go.mod.
+func myToolsRoot() (string, error) {
 	dir, _ := os.Getwd()
 	for {
-		if raw, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil && strings.Contains(string(raw), "module creditop/playground\n") {
+		if raw, err := os.ReadFile(filepath.Join(dir, "go.mod")); err == nil && strings.Contains(string(raw), "module creditop/my-tools\n") {
 			return dir, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			return "", errors.New("no estoy dentro del playground (no encuentro su go.mod)")
+			return "", errors.New("no estoy dentro de my-tools (no encuentro su go.mod)")
 		}
 		dir = parent
 	}

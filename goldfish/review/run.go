@@ -95,7 +95,7 @@ type Finding struct {
 }
 
 // RunsDir: dónde quedan las validaciones.
-func RunsDir(playground string) string { return filepath.Join(playground, "goldfish", ".runs") }
+func RunsDir(myTools string) string { return filepath.Join(myTools, "goldfish", ".runs") }
 
 const (
 	maxDiff = 400 << 10 // lo que pasa de acá del diff se corta (y se dice)
@@ -130,7 +130,7 @@ func NewRun(p PR, clone string) *Run {
 
 // NewLocalRun: la validación de una rama local ANTES de abrir su PR. La descripción la escribe quien trabaja en la rama
 // (la sesión que la hizo: es el elephant); si no la hay, se usan sus commits.
-func NewLocalRun(ctx context.Context, playground, clone, branch, base, title, body string) (*Run, error) {
+func NewLocalRun(ctx context.Context, myTools, clone, branch, base, title, body string) (*Run, error) {
 	url, _ := git(ctx, clone, "remote", "get-url", "origin")
 	slug := slugOfURL(url)
 	if slug == "" {
@@ -149,7 +149,7 @@ func NewLocalRun(ctx context.Context, playground, clone, branch, base, title, bo
 	r := &Run{
 		ID:   now.Format("20060102-150405") + "-" + safeName(filepath.Base(clone)+"-"+branch),
 		Repo: filepath.Base(clone), Slug: slug, Branch: branch, Base: "origin/" + base, HeadRef: "refs/heads/" + branch,
-		Local: true, CloneDir: clone, Task: LoadTasks(playground).ForBranch(filepath.Base(clone), branch),
+		Local: true, CloneDir: clone, Task: LoadTasks(myTools).ForBranch(filepath.Base(clone), branch),
 		Proposal: Proposal{Source: "local", Title: title, Body: body},
 		Started:  now.Format(time.RFC3339), Status: "running", PID: os.Getpid(),
 	}
@@ -184,7 +184,7 @@ func safeName(s string) string { return strings.Trim(reUnsafe.ReplaceAllString(s
 type Recorder func(*Run)
 
 // Execute corre la validación entera. Lo que falle deja la validación en «failed» con el porqué; lo hecho queda.
-func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
+func Execute(ctx context.Context, myTools string, r *Run, save Recorder) {
 	var mu sync.Mutex
 	set := func(id string, f func(*Stage)) {
 		mu.Lock()
@@ -210,7 +210,7 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 		fail("package", fmt.Errorf("no hay un clon de %s en %s: sin él no se puede leer el código", r.Slug, ReposDir()))
 		return
 	}
-	dir := filepath.Join(RunsDir(playground), r.ID)
+	dir := filepath.Join(RunsDir(myTools), r.ID)
 	pkg := filepath.Join(dir, "package")
 
 	// 1 · la propuesta en una carpeta: lo que verán los goldfish
@@ -296,7 +296,7 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 	raw, _ := json.MarshalIndent(r.Findings, "", "  ")
 	_ = os.WriteFile(filepath.Join(pkg, "findings.json"), raw, 0o644)
 	res, err := runAgent(ctx, agentSpec{
-		dir: playground, prompt: fill(promptVerdict, r, repoDir, pkg), schema: schemaVerdict,
+		dir: myTools, prompt: fill(promptVerdict, r, repoDir, pkg), schema: schemaVerdict,
 		tools: elephantTools, allowed: elephantAllowed, denied: elephantDenied,
 		addDirs: []string{repoDir, pkg}, budgetUSD: 4, timeout: 25 * time.Minute,
 	})
@@ -341,7 +341,7 @@ func Execute(ctx context.Context, playground string, r *Run, save Recorder) {
 	_ = os.WriteFile(r.Report, []byte(report), 0o644)
 	note = ""
 	if r.Task != nil {
-		art, err := attachToTask(ctx, playground, r, report)
+		art, err := attachToTask(ctx, myTools, r, report)
 		r.Artifact = art
 		if err != nil {
 			note = "no se pudo dejar en la tarea: " + err.Error()
@@ -541,7 +541,7 @@ func short(sha string) string {
 }
 
 // attachToTask copia el informe a los artifacts de la tarea y deja un bloque corto en su pila.
-func attachToTask(ctx context.Context, playground string, r *Run, report string) (string, error) {
+func attachToTask(ctx context.Context, myTools string, r *Run, report string) (string, error) {
 	taskDir := filepath.Dir(r.Task.Path)
 	art := filepath.Join(taskDir, "artifacts", fmt.Sprintf("goldfish-%s.md", r.ID))
 	if err := os.MkdirAll(filepath.Dir(art), 0o755); err != nil {
@@ -571,7 +571,7 @@ func attachToTask(ctx context.Context, playground string, r *Run, report string)
 		block += "\nConfirmados:\n\n" + strings.Join(top, "\n") + "\n"
 	}
 	cmd := exec.CommandContext(ctx, "make", "-s", "tarea-bloque", "N="+r.Task.Slug, "ARCHIVO=-")
-	cmd.Dir = playground
+	cmd.Dir = myTools
 	cmd.Stdin = strings.NewReader(block)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return art, fmt.Errorf("el informe quedó en artifacts, pero el bloque no: %s", tail(string(out), 200))

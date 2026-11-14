@@ -4,7 +4,7 @@ import (
 	"regexp"
 	"testing"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // Un cliente de Loki fuera de `connectors/` es cómo empezó la deriva que este paquete vino a cerrar:

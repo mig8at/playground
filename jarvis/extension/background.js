@@ -1,4 +1,4 @@
-/* Jarvis: el puente entre este Chrome y el navegador del playground (jarvis/server/chrome.go).
+/* Jarvis: el puente entre este Chrome y el navegador de my-tools (jarvis/server/chrome.go).
  *
  * Se conecta a ws://127.0.0.1:5203/api/chrome/bridge y hace de manos: engancha el depurador (chrome.debugger) a
  * las pestañas PERMITIDAS y reenvía el protocolo de depuración en las dos direcciones. Permitidas son sólo dos

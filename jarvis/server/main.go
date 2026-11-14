@@ -24,7 +24,7 @@ import (
 	"syscall"
 	"time"
 
-	"creditop/playground/jarvis/docs"
+	"creditop/my-tools/jarvis/docs"
 )
 
 var cliMode bool

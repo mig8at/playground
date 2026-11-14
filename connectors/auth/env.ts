@@ -16,8 +16,8 @@ import { fileURLToPath } from 'node:url';
  * el admin) con la clave compartida del ambiente, `ALLIED_TEST_ADVISOR_PASSWORD` (ver `advisor/session.ts`).
  */
 
-const PLAYGROUND = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
-export const CONNECTORS_DIR = join(PLAYGROUND, 'connectors');
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
+export const CONNECTORS_DIR = join(ROOT, 'connectors');
 
 /** `KEY=VALUE` por línea, sin interpolación ni multilínea: un `.env` nunca se ejecuta. Pura. */
 export function parseEnvText(text: string): Record<string, string> {

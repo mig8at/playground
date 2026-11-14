@@ -23,17 +23,17 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import deriva  # noqa: E402  (anchor, bins, body_of, order helpers)
 
-PLAYGROUND = deriva.PLAYGROUND
-KN = os.path.join(PLAYGROUND, "knowledge")
+MY_TOOLS = deriva.MY_TOOLS
+KN = os.path.join(MY_TOOLS, "knowledge")
 WORK = os.path.join(deriva.WORK, "runs-knowledge")
 
 
 def repo_dirs():
-    d = json.load(open(os.path.join(PLAYGROUND, "tools", "repos.json")))
+    d = json.load(open(os.path.join(MY_TOOLS, "tools", "repos.json")))
     out = {}
     for group in ("indexed", "citable_only"):
         for k, v in (d.get(group) or {}).items():
-            out[k] = os.path.expanduser(v) if v.startswith("~") else os.path.join(PLAYGROUND, v)
+            out[k] = os.path.expanduser(v) if v.startswith("~") else os.path.join(MY_TOOLS, v)
     return out
 
 
@@ -91,7 +91,7 @@ def fetch_all():
 def step_paquete(args):
     d = run_dir(args, create=True)
     fetch_all()
-    check = json.loads(sh(["go", "run", "./cmd/knowledge", "check", "--json"], cwd=PLAYGROUND) or "[]")
+    check = json.loads(sh(["go", "run", "./cmd/knowledge", "check", "--json"], cwd=MY_TOOLS) or "[]")
     drift = [c for c in check if c["state"] != "unchanged"]
     dirs = repo_dirs()
     srcs = {}

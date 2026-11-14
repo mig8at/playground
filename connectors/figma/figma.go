@@ -24,7 +24,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/env"
+	"creditop/my-tools/connectors/env"
 )
 
 // API es el host real. Un pedido sólo sale hacia ahí: el token viaja en cada uno.

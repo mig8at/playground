@@ -382,7 +382,7 @@ frontend-monorepo `33941936`): se mueven, así que se ubican por el nombre.
 
 ## Lo que NO entra
 
-- Las mejoras de las herramientas del playground: van a su contenedor (`canon`, `harness`, `tablero`…).
+- Las mejoras de las herramientas (de my-tools o del playground compartido): van a su contenedor (`canon`, `harness`, `tablero`…).
 - Lo que ya tiene tarea con Jira: se enlaza, no se duplica.
 - La prosa del corpus del equipo: lo que ya quedó corregido en canon no es una incidencia.
 

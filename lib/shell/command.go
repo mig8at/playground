@@ -9,7 +9,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"creditop/playground/lib/text"
+	"creditop/my-tools/lib/text"
 )
 
 var (

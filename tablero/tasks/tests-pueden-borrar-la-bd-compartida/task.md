@@ -61,7 +61,7 @@ jira_title: "Los tests no pueden volver a borrar la BD de un ambiente"
 > eslabones, qué encaja con lo observado y cómo confirmarlo o descartarlo. Deliberadamente **no nombra
 > a nadie**: el punto es el mecanismo, que lleva 14 meses abierto y es invisible para quien lo pisa.
 >
-> 🔎 **Barrido de los 11 `.env` del playground (`make env-auditoria`, nuevo el 19/08).** Imprime cada
+> 🔎 **Barrido de los 11 `.env` de my-tools (`make env-auditoria`, nuevo el 19/08).** Imprime cada
 > clave con los **3 primeros caracteres** del valor —alcanza para distinguir `loc`alhost de
 > `ine`rtia-dev, no alcanza para usar un secreto— y clasifica por riesgo. Destapó **un choque de nombres
 > que nadie había visto**:

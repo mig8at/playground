@@ -285,7 +285,7 @@ func routeOf(sig Signal) string {
 	return "#/" + kind + "/" + url.PathEscape(key)
 }
 
-// rulesPath la fija main (la carpeta del playground); failed la usa para leer `staleMinutes`.
+// rulesPath la fija main (la carpeta de my-tools); failed la usa para leer `staleMinutes`.
 var rulesPath string
 
 func loadRulesQuiet() (Rules, error) { return loadRules(rulesPath) }

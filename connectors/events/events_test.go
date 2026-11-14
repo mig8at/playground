@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"creditop/playground/connectors/internal/repocheck"
+	"creditop/my-tools/connectors/internal/repocheck"
 )
 
 // Los ambientes que no escriben lo dicen, y un token de escritura o un ambiente vacío no se consultan.

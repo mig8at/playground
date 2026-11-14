@@ -15,8 +15,8 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/canon"
-	"creditop/playground/radar/scan"
+	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/radar/scan"
 )
 
 // SessionSummary es una fila de la lista de sesiones.

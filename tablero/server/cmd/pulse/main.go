@@ -24,9 +24,9 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/tablero/server/internal/ansi"
-	"creditop/playground/tablero/server/internal/env"
-	"creditop/playground/tablero/server/internal/pulse"
+	"creditop/my-tools/tablero/server/internal/ansi"
+	"creditop/my-tools/tablero/server/internal/env"
+	"creditop/my-tools/tablero/server/internal/pulse"
 )
 
 // stdout lleva los colores sólo a una terminal: por un pipe, un agente los tenía que limpiar con sed.

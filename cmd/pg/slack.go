@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"creditop/playground/connectors/slack"
+	"creditop/my-tools/connectors/slack"
 )
 
 // Slack por su conector, como el bot. Lo que hacía `slack-mcp`, ahora como comandos de pg con vista

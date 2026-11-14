@@ -80,11 +80,11 @@ type Config struct {
 	Emails []string      // qué autor soy yo (los commits ajenos que llegan por `pull` NO son mi jornada)
 	MaxGap time.Duration // techo de la ventana de un tick: acota el costo tras un hueco largo
 	// Extra: repos FUERA de la raíz que también son jornada, con el nombre con que se registran.
-	// Existe por un punto ciego medido el 2026-09-14: el playground personal (donde viven el tablero,
+	// Existe por un punto ciego medido el 2026-09-14: my-tools (donde viven el tablero,
 	// las tareas y buena parte del trabajo de las herramientas) no está bajo `github/`, así que una
 	// sesión entera de ediciones y commits ahí daba CERO tramos, y la bitácora superaba al pulso.
 	// El nombre va explícito porque `Name` sólo sabe resolver rutas relativas a la raíz, y el último
-	// segmento —«playground»— choca con `github/playground`, que es OTRO repo.
+	// segmento —antes «playground», hoy «my-tools»— chocaba con `github/playground`, que es OTRO repo.
 	Extra []RepoExtra
 }
 

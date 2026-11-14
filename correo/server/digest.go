@@ -23,7 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"creditop/playground/connectors/gmail"
+	"creditop/my-tools/connectors/gmail"
 )
 
 // Turn es un mensaje del hilo, desglosado.
@@ -259,7 +259,7 @@ func claudeBinary() (string, error) {
 }
 
 // askClaude corre `claude -p` con el texto por stdin y devuelve lo que contestó. Desde una carpeta neutra (sin el
-// CLAUDE.md ni los hooks del playground), sin herramientas ni MCP, y sin las variables de una sesión de Claude Code
+// CLAUDE.md ni los hooks de my-tools), sin herramientas ni MCP, y sin las variables de una sesión de Claude Code
 // anfitriona (como hace Jarvis: con ellas el hijo se cree parte de esa sesión y falla la autenticación).
 func askClaude(prompt string) (string, string, error) {
 	bin, err := claudeBinary()

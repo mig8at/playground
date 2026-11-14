@@ -1,10 +1,10 @@
 package scan
 
-/* Las transcripciones de Claude Code de ESTE playground, leídas como llamadas a herramientas.
+/* Las transcripciones de Claude Code de ESTE repo (my-tools), leídas como llamadas a herramientas.
  *
  * Claude Code guarda cada sesión en `~/.claude/projects/<carpeta>/<sesión>.jsonl`, y la carpeta es la ruta
- * donde arrancó con `/` cambiada por `-`. Una sesión que arranca en `harness/` cae en `…-playground-harness`,
- * así que «este playground» es la carpeta de la raíz MÁS las que empiezan con su nombre y un guion.
+ * donde arrancó con `/` cambiada por `-`. Una sesión que arranca en `harness/` cae en `…-my-tools-harness`,
+ * así que «este repo» es la carpeta de la raíz MÁS las que empiezan con su nombre y un guion.
  *
  * De cada línea sólo interesa lo que la sesión HIZO (`tool_use`) y cómo le fue (`tool_result`): el texto de
  * las respuestas no se lee. */
@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/lib/shell"
+	"creditop/my-tools/lib/shell"
 )
 
 // Call es una llamada a una herramienta y cómo terminó.
@@ -29,7 +29,7 @@ type Call struct {
 	Session string    `json:"session"`
 	Time    time.Time `json:"time"`
 	Tool    string    `json:"tool"`
-	// Keys son las herramientas del playground que la llamada usó: `make tareas`, `git commit`,
+	// Keys son las herramientas de my-tools que la llamada usó: `make tareas`, `git commit`,
 	// `skill harness-local`… Un comando de Bash con `&&` usa varias.
 	Keys    []string `json:"keys"`
 	Command string   `json:"command,omitempty"` // cortado y sin secretos

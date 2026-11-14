@@ -4,7 +4,7 @@ import (
 	"context"
 	"strings"
 
-	"creditop/playground/connectors/figma"
+	"creditop/my-tools/connectors/figma"
 )
 
 // loadFlow lee la página de flujo de un archivo —la misma que abre la barra (flowPage)— y la guarda en

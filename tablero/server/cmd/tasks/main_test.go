@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"creditop/playground/tablero/server/internal/taskcontext"
+	"creditop/my-tools/tablero/server/internal/taskcontext"
 )
 
 // Los tres niveles: una tarea de Miguel no va a Jira; una de CreditOp puede vivir sin Jira mientras se evalúa; un

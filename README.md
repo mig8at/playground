@@ -1,4 +1,4 @@
-# Playground
+# my-tools
 
 Espacio propio de Miguel: el conocimiento de **CreditOp** —fintech colombiana de originación de
 crédito— junto a las herramientas para probarlo. No es un repo de la empresa: es el taller. **Su
@@ -73,7 +73,7 @@ guarda algún token: no los imprimas ni los cites.
 
 Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
 
-- **`playground/docs/` fue borrada** de `main` (2026-07-17, absorbida por el árbol de contexto). Toda
+- **`docs/` (entonces `playground/docs/`) fue borrada** de `main` (2026-07-17, absorbida por el árbol de contexto). Toda
   ruta `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
 - **`context/` se apagó** (2026-09-21): lo que valía graduó a **canon** —el corpus compartido, en otro
   repo— y las trampas del sistema se mudaron a `tablero/data/traps/`. Toda ruta

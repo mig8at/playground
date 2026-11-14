@@ -81,7 +81,7 @@ era el único momento libre.
 
 ## El dictado de inglés (2026-09-21)
 
-Salió de mudar la herramienta personal `playground/ingles` a los games de cuadrilla, y en el camino se
+Salió de mudar la herramienta personal `my-tools/ingles` a los games de cuadrilla, y en el camino se
 podó: **quedó sólo el dictado**, sin lector, sin glosario y sin historias. La razón está en el código
 y vale repetirla: leer con el glosario al lado se puede hacer copiando letra por letra sin aprender a
 escribir nada; el dictado saca el modelo de la pantalla y deja sólo el sonido.

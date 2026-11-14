@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"creditop/playground/connectors/drive"
+	"creditop/my-tools/connectors/drive"
 )
 
 // Google Drive por su conector, y sólo lectura. Cada comando acepta la URL que se copia del navegador

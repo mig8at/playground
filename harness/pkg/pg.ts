@@ -6,8 +6,8 @@ import { fileURLToPath } from 'node:url';
  * único que lo sabe hablar (y donde viven sus credenciales). `bin/pg` lo compila la primera vez y cada vez que cambia su código.
  */
 
-const PLAYGROUND = fileURLToPath(new URL('../../', import.meta.url));
-const PG = `${PLAYGROUND}bin/pg`;
+const MY_TOOLS = fileURLToPath(new URL('../../', import.meta.url));
+const PG = `${MY_TOOLS}bin/pg`;
 
 export interface PgResult {
     status: number;
@@ -15,9 +15,9 @@ export interface PgResult {
     stderr: string;
 }
 
-/** Corre `pg <args>` desde la raíz del playground (los conectores buscan `connectors/` subiendo desde ahí). */
+/** Corre `pg <args>` desde la raíz de my-tools (los conectores buscan `connectors/` subiendo desde ahí). */
 export function runPg(args: string[], opts: { timeoutMs?: number } = {}): PgResult {
-    const r = spawnSync(PG, args, { cwd: PLAYGROUND, encoding: 'utf8', timeout: opts.timeoutMs ?? 5 * 60_000, env: process.env });
+    const r = spawnSync(PG, args, { cwd: MY_TOOLS, encoding: 'utf8', timeout: opts.timeoutMs ?? 5 * 60_000, env: process.env });
     return { status: r.status ?? 1, stdout: r.stdout ?? '', stderr: r.stderr ?? '' };
 }
 
