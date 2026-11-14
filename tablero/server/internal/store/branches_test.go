@@ -92,3 +92,16 @@ func TestBranchPatternWithRepo(t *testing.T) {
 		t.Fatalf("un repo normal se nombra por su carpeta, quedó %q", got)
 	}
 }
+
+// La lista de YAML (`ramas: ["a", "b"]`) es la misma lista: la tarea del harness la escribió así y quedaba fuera
+// del reporte entero, sin aviso. Lo que no es un patrón se separa para poder decirlo, no se descarta callado.
+func TestSplitPatternsAcceptsYAMLListAndReportsInvalid(t *testing.T) {
+	valid, invalid := splitPatterns(`["risk-services-mockery-lambda:dictado-compartido", 'vtex:payment-link']`)
+	if len(valid) != 2 || valid[0] != "risk-services-mockery-lambda:dictado-compartido" || valid[1] != "vtex:payment-link" || len(invalid) != 0 {
+		t.Fatalf("la lista de YAML: valid=%v invalid=%v", valid, invalid)
+	}
+	valid, invalid = splitPatterns("fix/a-b, x, ok-pattern")
+	if len(valid) != 2 || len(invalid) != 1 || invalid[0] != "x" {
+		t.Fatalf("«x» es muy corto para ser patrón y tiene que salir como inválido: valid=%v invalid=%v", valid, invalid)
+	}
+}

@@ -104,6 +104,12 @@ type TaskBranches struct {
 	// (`ramas -n 62`). Con una sola fecha global, una tarea medida hace una semana se leía con la fecha
 	// de la corrida de hoy — un dato viejo presentado como fresco.
 	MeasuredAt string `json:"measuredAt,omitempty"`
+	// Unmatched son los patrones que no trajeron NINGUNA rama, ni local ni en GitHub. Sin esto, una rama
+	// declarada que desaparece (se borró la local, se borró la remota al mergear) deja la tarea con menos
+	// filas y nada más: se lee igual que «nunca hubo», que es justo lo que este comando existe para evitar.
+	Unmatched []string `json:"unmatched,omitempty"`
+	// Invalid son las entradas de `ramas:` que no son un patrón (no se midieron).
+	Invalid []string `json:"invalid,omitempty"`
 }
 
 // BranchSnapshot es lo que se guarda en disco.
@@ -166,7 +172,9 @@ func ParseBranchPattern(p string) BranchPattern {
 	return BranchPattern{Fragment: p}
 }
 
-// AppliesTo dice si el patrón busca en el repo con ese nombre (ver RepoName).
+// AppliesTo dice si el patrón busca en el repo con ese nombre (ver RepoName): el de su carpeta, que es también
+// su nombre en tools/repos.json. Hasta el 2026-11-14 legacy-application tenía el alias `application`, y los
+// patrones `application:` no encontraban nada; se renombró para que carpeta y alias sean lo mismo.
 func (bp BranchPattern) AppliesTo(repo string) bool { return bp.Repo == "" || bp.Repo == repo }
 
 // RepoName es el nombre con que un patrón `repo:` nombra la carpeta: el de la carpeta, salvo en un worktree,
@@ -189,14 +197,27 @@ func RepoName(dir string) string {
 // ramas ajenas: `kyc` trae también `obs-kyc-03-codes`, que es observabilidad. Un patrón ancho no
 // falla — miente en silencio, que es lo que este campo existe para evitar.
 func patternsOf(v string) []string {
-	var out []string
+	valid, _ := splitPatterns(v)
+	return valid
+}
+
+// splitPatterns separa los patrones válidos de los que no lo son. Acepta también la LISTA de YAML
+// (`ramas: ["a", "b"]`): la tarea del harness la escribió así y quedaba fuera del reporte entero, sin
+// aviso, porque los corchetes y las comillas no pasan reBranchPattern (visto el 2026-11-14).
+func splitPatterns(v string) (valid, invalid []string) {
+	v = strings.TrimSpace(v)
+	v = strings.TrimSuffix(strings.TrimPrefix(v, "["), "]")
 	for _, p := range strings.Split(v, ",") {
-		p = strings.TrimSpace(p)
-		if reBranchPattern.MatchString(p) {
-			out = append(out, p)
+		p = strings.Trim(strings.TrimSpace(p), `"'`)
+		switch {
+		case p == "":
+		case reBranchPattern.MatchString(p):
+			valid = append(valid, p)
+		default:
+			invalid = append(invalid, p)
 		}
 	}
-	return out
+	return valid, invalid
 }
 
 // MeasureBranches mide, para cada (id de tarea → patrón), las ramas que matchean en los repos bajo `root`.
@@ -222,8 +243,13 @@ func MeasureBranches(ctx context.Context, root string, patterns map[string]strin
 		queue = make(chan struct{}, 4)
 	)
 	for id, pattern := range patterns {
-		pats := patternsOf(pattern)
+		pats, invalid := splitPatterns(pattern)
 		if len(pats) == 0 {
+			if len(invalid) > 0 { // nada medible: se registra igual, para que el reporte diga por qué
+				mu.Lock()
+				snap.Tasks[id] = TaskBranches{Pattern: pattern, Invalid: invalid, MeasuredAt: time.Now().Format(time.RFC3339)}
+				mu.Unlock()
+			}
 			continue
 		}
 		wg.Add(1)
@@ -239,6 +265,7 @@ func MeasureBranches(ctx context.Context, root string, patterns map[string]strin
 			}
 			res := measureTask(ctx, repos, pattern, pats, environments, prs)
 			res.MeasuredAt = time.Now().Format(time.RFC3339)
+			_, res.Invalid = splitPatterns(pattern)
 			mu.Lock()
 			defer mu.Unlock()
 			if ctx.Err() != nil {
@@ -258,6 +285,7 @@ func MeasureBranches(ctx context.Context, root string, patterns map[string]strin
 func measureTask(ctx context.Context, repos []string, pattern string, pats, environments []string, prs *prCache) TaskBranches {
 	{
 		res := TaskBranches{Pattern: pattern}
+		matched := map[string]bool{}
 		for _, repo := range repos {
 			// Dos patrones pueden traer la MISMA rama (`motai` y `motai-v2`): se mide una sola vez, o la
 			// card mostraría la rama repetida y el conteo del botón diría más de las que hay.
@@ -270,6 +298,7 @@ func measureTask(ctx context.Context, repos []string, pattern string, pats, envi
 					continue
 				}
 				for _, rm := range matchingBranches(ctx, repo, bp.Fragment) {
+					matched[pat] = true
 					if !seen[rm.Name] {
 						seen[rm.Name] = true
 						branches = append(branches, rm)
@@ -307,6 +336,11 @@ func measureTask(ctx context.Context, repos []string, pattern string, pats, envi
 					r.In[env], r.Own[env], r.How[env] = reached, own, how
 				}
 				res.Branches = append(res.Branches, r)
+			}
+		}
+		for _, pat := range pats {
+			if !matched[pat] {
+				res.Unmatched = append(res.Unmatched, pat)
 			}
 		}
 		sort.Slice(res.Branches, func(i, j int) bool {

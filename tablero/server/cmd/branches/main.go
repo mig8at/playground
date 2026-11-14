@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -149,7 +150,7 @@ func main() {
 		return
 	}
 
-	printReport(shown, titles)
+	printReport(shown, titles, readDeleted(filepath.Join(dataDir, "cache")))
 	fmt.Printf("\n  snapshot → %s\n", filepath.Join(cacheDir, "ramas.json"))
 }
 
@@ -327,7 +328,7 @@ func suggestions(ctx context.Context, root, dataDir string, efforts []store.Effo
 	fmt.Printf("  %d tarea(s) sin `ramas:` no se parecen a ninguna rama — probablemente todavía no tienen código.\n\n", noMatches)
 }
 
-func printReport(snap store.BranchSnapshot, titles map[string]string) {
+func printReport(snap store.BranchSnapshot, titles map[string]string, deleted []deletedBranch) {
 	slugs := make([]string, 0, len(snap.Tasks))
 	for s := range snap.Tasks {
 		slugs = append(slugs, s)
@@ -339,8 +340,19 @@ func printReport(snap store.BranchSnapshot, titles map[string]string) {
 		t := snap.Tasks[id]
 		fmt.Printf("\n  #%s  %s\n", id, titles[id])
 		fmt.Printf("  patrón: %s\n", t.Pattern)
+		for _, bad := range t.Invalid {
+			fmt.Printf("    ✗ «%s» no es un patrón y no se midió (va como `ramas: a, b`, o `repo:a`)\n", bad)
+		}
+		for _, pat := range t.Unmatched {
+			fmt.Printf("    ▲ «%s»: ninguna rama, ni local ni en GitHub\n", pat)
+			for _, d := range deletedMatching(deleted, pat) {
+				fmt.Printf("      borrada el %s en %s: %s (%s)\n", d.Date, d.Repo, d.Branch, d.Commit[:min(9, len(d.Commit))])
+				if d.Bundle != "" {
+					fmt.Printf("      recuperarla: git -C ~/Desktop/CREDITOP/github/%s fetch %s %s:%s\n", d.Repo, d.Bundle, d.Branch, d.Branch)
+				}
+			}
+		}
 		if len(t.Branches) == 0 {
-			fmt.Println("    (ninguna rama remota matchea — ¿está pusheada?)")
 			continue
 		}
 		for _, r := range t.Branches {
@@ -414,4 +426,57 @@ func idOfSlug(dataDir, slug string) string {
 		}
 	}
 	return ""
+}
+
+// ── ramas borradas ─────────────────────────────────────────────────────────────────────────────
+
+// deletedBranch es una fila del registro que deja una limpieza de ramas (`data/cache/ramas-borradas-<fecha>.tsv`:
+// repo, rama, commit, motivo) y, si la rama sólo existía en esta máquina, el respaldo donde quedó
+// (`data/cache/ramas-respaldo-<fecha>/<repo>.bundle`).
+type deletedBranch struct {
+	Date, Repo, Branch, Commit, Bundle string
+}
+
+// readDeleted lee todos los registros de ramas borradas. Sin registros, nada: no es un error.
+func readDeleted(cacheDir string) []deletedBranch {
+	files, _ := filepath.Glob(filepath.Join(cacheDir, "ramas-borradas-*.tsv"))
+	sort.Strings(files)
+	var out []deletedBranch
+	for _, f := range files {
+		date := strings.TrimSuffix(strings.TrimPrefix(filepath.Base(f), "ramas-borradas-"), ".tsv")
+		b, err := os.ReadFile(f)
+		if err != nil {
+			continue
+		}
+		for _, line := range strings.Split(string(b), "\n") {
+			cols := strings.Split(line, "\t")
+			if len(cols) < 3 || cols[0] == "repo" {
+				continue
+			}
+			d := deletedBranch{Date: date, Repo: cols[0], Branch: cols[1], Commit: cols[2]}
+			bundle := filepath.Join(cacheDir, "ramas-respaldo-"+date, d.Repo+".bundle")
+			if abs, err := filepath.Abs(bundle); err == nil { // el comando de recuperar se copia desde cualquier carpeta
+				bundle = abs
+			}
+			if heads, err := exec.Command("git", "bundle", "list-heads", bundle).Output(); err == nil &&
+				strings.Contains(string(heads), " refs/heads/"+d.Branch+"\n") {
+				d.Bundle = bundle
+			}
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// deletedMatching son las ramas borradas que el patrón habría traído (la misma regla que al medir:
+// subcadena del nombre y, con `repo:`, sólo en ese repo).
+func deletedMatching(deleted []deletedBranch, pattern string) []deletedBranch {
+	bp := store.ParseBranchPattern(pattern)
+	var out []deletedBranch
+	for _, d := range deleted {
+		if bp.AppliesTo(d.Repo) && strings.Contains(d.Branch, bp.Fragment) {
+			out = append(out, d)
+		}
+	}
+	return out
 }
