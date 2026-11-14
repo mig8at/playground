@@ -596,6 +596,14 @@ export const useChatStore = defineStore('chat', () => {
     finally { listenBusy.value = false }
   }
 
+  // Apagar el listen (`playground listen --stop`): deja de recibir en vivo; lo que llegue espera en el buzón.
+  async function stopListening() {
+    listenBusy.value = true; listenError.value = ''
+    try { await api('/api/listen', { method: 'DELETE' }); await loadState() }
+    catch (e) { listenError.value = e.message }
+    finally { listenBusy.value = false }
+  }
+
   // Borrar una conversación: se va de la lista y lo que ya llegó no vuelve; lo nuevo sí, como una conversación nueva.
   function removeConversation(key) {
     const c = conversations.value[key]
@@ -931,6 +939,6 @@ export const useChatStore = defineStore('chat', () => {
     teamAgents, teamAgentsError, agentsOf, cuadrilla, cuadrillaError, myTasks, taskUrl, loadCuadrilla, noteTask, doneTask,
     removeConversation, clearMessages, isMe, ensure, removeAgent, selfUnread,
     me, meKey, list, active, unreadTotal, onlineKeys, agentList, groups, groupsError, groupList, loadGroups, createGroup, leaveGroup,
-    live, liveNotice, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
+    live, liveNotice, reconnectLive: () => openLive(), loadState, loadOnline, loadTeamAgents, startListening, stopListening, open, openAgent, send, retry, canRetry, discard, getFile, saveFile, fileUrl, revealFile, forget, findBySid, start, stop,
   }
 })

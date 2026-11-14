@@ -355,6 +355,17 @@ func handler() http.Handler {
 		cliCache.invalidate() // que el estado diga «escuchando» en la próxima consulta
 		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	})
+	// Apagar el listen desde la app (el interruptor de la conexión): lo mismo que `playground listen --stop`.
+	mux.HandleFunc("DELETE /api/listen", func(w http.ResponseWriter, r *http.Request) {
+		ctx, cancel := context.WithTimeout(r.Context(), 15*time.Second)
+		defer cancel()
+		if err := cli.StopListen(ctx); err != nil {
+			fail(w, http.StatusBadGateway, err)
+			return
+		}
+		cliCache.invalidate()
+		writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
+	})
 	// Los agentes del equipo: los de cada persona (identidades con las que hablan sus sesiones), aunque no esté.
 	mux.HandleFunc("GET /api/team-agents", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)

@@ -110,6 +110,7 @@ func registerEvents(mux *http.ServeMux) {
 // si es nuevo, baja sus imágenes y pasa por el llavero. Si el listen no está o se reinicia, vuelve a probar.
 func followListen() {
 	wait := 2 * time.Second
+	lastErr := "" // el mismo corte se anota una vez: con el listen apagado a propósito, reintenta sin llenar el registro
 	for {
 		if cli.Installed() && chatHistory != nil {
 			started := time.Now()
@@ -124,8 +125,13 @@ func followListen() {
 			if time.Since(started) > time.Minute {
 				wait = 2 * time.Second
 			}
-			if err != nil {
-				log.Printf("en vivo: el listen se cortó (%v); reintento en %s", err, wait)
+			if err != nil && err.Error() != lastErr {
+				log.Printf("en vivo: el listen se cortó (%v); reintento cada %s hasta que vuelva", err, 30*time.Second)
+			}
+			if err == nil {
+				lastErr = ""
+			} else {
+				lastErr = err.Error()
 			}
 		}
 		time.Sleep(wait)

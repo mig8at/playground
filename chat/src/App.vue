@@ -1902,8 +1902,14 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <p class="field-hint">Para pedirle el suyo a alguien: <code>🔑 Pido tu llavero</code> en su conversación. Encriptar y desencriptar, en la consola de cada conversación.</p>
       </div>
       <div v-else class="region-body profile-section">
-        <p class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
-          <small v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small></span></p>
+        <div class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
+          <small v-if="chat.listenBusy">{{ listening ? 'apagando…' : 'prendiendo…' }}</small>
+          <small v-else-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small>
+          <small v-else>apagado, lo que te escriban espera en el buzón</small></span>
+          <button v-if="chat.state?.installed && chat.state?.session" type="button" class="switch" role="switch" :aria-checked="!!listening"
+                  :aria-label="listening ? 'Dejar de escuchar' : 'Empezar a escuchar'" :title="listening ? 'Dejar de escuchar (playground listen --stop)' : 'Empezar a escuchar (playground listen)'"
+                  :disabled="chat.listenBusy" @click="listening ? chat.stopListening() : chat.startListening()"></button></div>
+        <p v-if="chat.listenError" class="field-hint bad">{{ chat.listenError }}</p>
         <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
         <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat de my-tools' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
       </div>

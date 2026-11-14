@@ -313,6 +313,13 @@ func Listen(ctx context.Context) error {
 	return err
 }
 
+// StopListen apaga `playground listen` (`listen --stop`): deja de recibir en vivo. Lo que te escriban mientras tanto
+// te espera en el buzón del home y llega al volver a prenderlo.
+func StopListen(ctx context.Context) error {
+	_, err := run(ctx, nil, "listen", "--stop")
+	return err
+}
+
 // Online devuelve quién está conectado al chat ahora.
 func Online(ctx context.Context) ([]Person, error) {
 	out, err := run(ctx, nil, "online", "--json")
