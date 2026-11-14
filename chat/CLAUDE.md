@@ -4,6 +4,13 @@ La app (`chat/src`, Vue) y su servidor (`chat/server`, Go, :5185) sobre el CLI `
 (`bin/chat`), el llavero y Cockpit: el `CLAUDE.md` raíz y [`cockpit/CLAUDE.md`](../cockpit/CLAUDE.md). La videollamada
 y sus voces: [`office/CLAUDE.md`](../office/CLAUDE.md) §«En el chat».
 
+⚠ **Dos dueños, dos nombres.** El chat es una herramienta de **my-tools**: sus nombres propios dicen my-tools (el
+LaunchAgent `com.creditop.my-tools.chat`, el registro `creditop-my-tools-chat.log`, los datos en
+`~/Library/Application Support/creditop-my-tools-chat/` y el avisador «Chat de my-tools.app»). Pero **habla por el CLI
+del playground COMPARTIDO** (`Creditop-SAS/playground`): `playground listen|send|curl|cuadrilla|subscribe`, «tu sesión del
+playground», los servicios del equipo (`playground serve`, `~/playground/team`) y la red del playground son de allá y
+conservan su nombre.
+
 ## Cómo habla un agente en el chat
 
 Lo que escribe un agente (`bin/chat send … --as <agente>`) se lee en el chat y, con la videollamada abierta, **se dice

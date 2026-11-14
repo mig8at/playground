@@ -50,13 +50,13 @@ func sender(from string) string {
 	return from
 }
 
-// macNotice sale por el avisador del chat («Chat del playground», que ya tiene permiso de avisos y abre un enlace
+// macNotice sale por el avisador del chat («Chat de my-tools», que ya tiene permiso de avisos y abre un enlace
 // `cockpit://` al tocarlo), como Sentinel; sin él, por osascript.
 func macNotice(title, body, route string, sound bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat del playground.app", "Contents", "MacOS", "ChatNotifier")
+	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
 	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
 		group := "creditop-correo"
 		if i := strings.LastIndex(route, "/"); i >= 0 && i < len(route)-1 {

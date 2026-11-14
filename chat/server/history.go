@@ -2,7 +2,7 @@ package main
 
 // EL HISTORIAL DEL CHAT, EN DISCO. El servidor es el dueño de lo que llegó: `playground listen` guarda en memoria sólo
 // los últimos cien mensajes y los pierde si se reinicia, y el navegador sólo guardaba lo que veía con la ventana
-// abierta. Acá quedan tres cosas, en ~/Library/Application Support/creditop-playground-chat/ (fuera de git, sólo para
+// abierta. Acá quedan tres cosas, en ~/Library/Application Support/creditop-my-tools-chat/ (fuera de git, sólo para
 // tu usuario):
 //
 //   - messages.jsonl: cada mensaje que pasó por el listen, una línea por mensaje y sin repetir. Lo junta un recolector
@@ -65,7 +65,7 @@ func historyDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(base, "creditop-playground-chat")
+	dir := filepath.Join(base, "creditop-my-tools-chat")
 	return dir, os.MkdirAll(dir, 0o700)
 }
 

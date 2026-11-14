@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>CFBundleIdentifier</key>
-	<string>com.creditop.playground.captura</string>
+	<string>com.creditop.my-tools.captura</string>
 	<key>CFBundleName</key>
 	<string>Captura</string>
 	<key>CFBundleDisplayName</key>

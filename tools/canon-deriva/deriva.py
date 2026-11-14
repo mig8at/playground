@@ -52,7 +52,7 @@ def git(repo, *a, check=False):
 
 
 def canon_cli():
-    """El comando `canon` del playground, compilado una vez por corrida (go run por cada búsqueda es lento)."""
+    """El comando `canon` de my-tools, compilado una vez por corrida (go run por cada búsqueda es lento)."""
     out = os.path.join(WORK, ".bin", "canon")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     sh(["go", "build", "-o", out, "./cmd/canon"], cwd=os.path.join(MY_TOOLS, "tablero", "server"))

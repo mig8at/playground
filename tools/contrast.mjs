@@ -9,7 +9,7 @@
  *   encima le tumba el suyo (ya pasó dos veces con el panel). Audita lo que esté corriendo y **dice
  *   cuál no lo estaba** — una herramienta apagada sale `SIN VERIFICAR`, nunca en verde.
  *
- * ⚠ Playwright vive en `harness/node_modules` (el playground no tiene node_modules propio), así que
+ * ⚠ Playwright vive en `harness/node_modules` (my-tools no tiene node_modules propio), así que
  *   se importa por ruta absoluta. Si algún día el harness deja de tenerlo, esto falla diciendo por
  *   qué, no en silencio.
  *
@@ -79,7 +79,7 @@ let chromium;
 try { ({ chromium } = require('playwright')); }
 catch (e) {
   console.error('  ✗ no encontré Playwright en harness/node_modules.');
-  console.error('     Es donde vive (el playground no tiene node_modules propio):  cd harness && npm i');
+  console.error('     Es donde vive (my-tools no tiene node_modules propio):  cd harness && npm i');
   process.exit(2);
 }
 

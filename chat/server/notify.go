@@ -8,7 +8,7 @@ package main
  *   - por conversación, por encima de su tipo (#shopify sólo menciones, alguien en silencio);
  *   - «no molestar» en un horario, salvo, si querés, cuando te mencionan.
  *
- * Lo muestra macOS: con el avisador propio («Chat del playground», scripts/notifier.sh), que al tocarlo abre esa
+ * Lo muestra macOS: con el avisador propio («Chat de my-tools», scripts/notifier.sh), que al tocarlo abre esa
  * conversación en Cockpit (`cockpit://chat/#/c/…`); sin él, terminal-notifier u osascript. Si estás mirando esa
  * misma conversación con la ventana al frente, no avisa.
  */
@@ -346,10 +346,10 @@ func macTool() string {
 	return "osascript"
 }
 
-// notifierApp: el avisador propio («Chat del playground», scripts/notifier.sh), si está compilado.
+// notifierApp: el avisador propio («Chat de my-tools», scripts/notifier.sh), si está compilado.
 func notifierApp() string {
 	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat del playground.app", "Contents", "MacOS", "ChatNotifier")
+	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
 	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
 		return bin
 	}
@@ -445,7 +445,7 @@ func registerNotify(mux *http.ServeMux) {
 	// Un aviso de prueba, como saldría uno de verdad.
 	mux.HandleFunc("POST /api/notify/test", func(w http.ResponseWriter, r *http.Request) {
 		s := readNotifySettings()
-		n := notice{Title: "Chat del playground", Body: "Así te va a llegar un aviso.", Sound: s.Sound}
+		n := notice{Title: "Chat de my-tools", Body: "Así te va a llegar un aviso.", Sound: s.Sound}
 		if err := macNotify(n); err != nil {
 			fail(w, http.StatusInternalServerError, err)
 			return

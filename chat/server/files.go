@@ -48,7 +48,7 @@ func cacheDir() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	dir := filepath.Join(base, "creditop-playground-chat", "adjuntos")
+	dir := filepath.Join(base, "creditop-my-tools-chat", "adjuntos")
 	return dir, os.MkdirAll(dir, 0o700)
 }
 

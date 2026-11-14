@@ -13,7 +13,7 @@ export const isDesktop = inCockpit
 
 const toCockpit = (message) => window.parent.postMessage({ cockpit: true, ...message }, '*')
 
-// Al registro del servidor (~/Library/Logs/creditop-playground-chat.log, «app: …»): lo que pasa adentro de la ventana.
+// Al registro del servidor (~/Library/Logs/creditop-my-tools-chat.log, «app: …»): lo que pasa adentro de la ventana.
 export function report(text) {
   if (!inCockpit) return
   fetch('/api/desktop/log', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ text: String(text) }) }).catch(() => {})

@@ -26,7 +26,7 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
 ## Quién levanta cada servidor (esto decide qué hacés antes de arrancar uno)
 
-- **El chat corre de fondo** (`make chat-install`, desde el 2026-11-12): un LaunchAgent (`com.creditop.playground.chat`,
+- **El chat corre de fondo** (`make chat-install`, desde el 2026-11-12): un LaunchAgent (`com.creditop.my-tools.chat`,
   binario `chat/bin/chat-server`) que junta el historial, avisa y contesta el llavero aunque Cockpit esté cerrado del
   todo o reinstalándose. Con él instalado Cockpit NO levanta el suyo; sólo de respaldo si el chat no contesta 30 s
   (`chat_agent_installed`, `SIDECAR_GRACE`). Sin él, el servidor viene adentro como antes: arranca con Cockpit, se
@@ -37,7 +37,7 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
   esperan y toman el relevo cuando se suelta. Sólo el que escucha escribe el historial o lo guardado.
 - **Las demás se levantan la primera vez que Miguel las abre** en la barra, con su `make <app>`, y se apagan
   al salir de Cockpit (todo su grupo de procesos). Su salida queda en `~/Library/Logs/cockpit-<id>.log`
-  (el chat: `creditop-playground-chat.log`).
+  (el chat: `creditop-my-tools-chat.log`).
 - **Si el puerto de una app ya contesta, Cockpit usa ésa y no la toca.** Vale en los dos sentidos: lo que
   levantaste vos en una terminal lo muestra Cockpit, y lo que levantó Cockpit ya te sirve a vos.
 - ⚠ **Antes de levantar un servidor, mirá si ya está arriba** (`bin/cockpit status`, o el aviso COCKPIT del

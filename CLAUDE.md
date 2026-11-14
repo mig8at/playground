@@ -10,6 +10,10 @@ nombre. Desde entonces **playground** es SÓLO el compartido de la compañía: `
 `~/Desktop/CREDITOP/github/playground`, con su CLI `playground`, canon y `*.playground.creditop.com`; en las tareas,
 el nivel `playground` y el alias citable `playground-equipo`. Una cita vieja a «playground local», a
 `~/Desktop/CREDITOP/playground` o a «el playground» fuera de git habla de **my-tools**: corregila al encontrarla.
+**La regla:** lo que viene del repo de GitHub compartido (su CLI `playground`, canon, `~/playground/team`, sus dominios)
+conserva el nombre; lo que es interno de my-tools —rutas, variables, servicios, apps, etiquetas— dice my-tools, aunque la
+herramienta use el CLI compartido. El chat es el caso mixto: herramienta de my-tools que habla por ese CLI
+([`chat/CLAUDE.md`](chat/CLAUDE.md)).
 
 Este archivo lleva sólo lo que cambia una decisión en CUALQUIER tarea. Lo que sirve al tocar algo
 concreto vive al lado de ese algo, y se lee ahí:

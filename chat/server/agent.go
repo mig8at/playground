@@ -21,8 +21,8 @@ func chatAgent(addr string) (launchagent.Agent, error) {
 	if err != nil {
 		return launchagent.Agent{}, err
 	}
-	return launchagent.Agent{Label: "com.creditop.playground.chat", Args: []string{"-serve", addr}, Root: root,
-		Log: "creditop-playground-chat.log"}, nil
+	return launchagent.Agent{Label: "com.creditop.my-tools.chat", Args: []string{"-serve", addr}, Root: root,
+		Log: "creditop-my-tools-chat.log"}, nil
 }
 
 func agentCommand(addr string, install, uninstall bool) int {

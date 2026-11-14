@@ -25,8 +25,8 @@
 | **PIP** | CRM comercial de comercios (2024) | histórico |
 | **QC** | QA del refactor comercio por comercio, y fallas automáticas de originación | jun–ago 2026 |
 
-Los proyectos de la app móvil (`TT`) y del backoffice (`BAC`) no son visibles con la cuenta del
-playground.
+Los proyectos de la app móvil (`TT`) y del backoffice (`BAC`) no son visibles con la cuenta de
+Atlassian que usa my-tools.
 
 ## Comercios y entidades que más pesan
 

@@ -1,4 +1,4 @@
-// EL AVISADOR DEL CHAT: una app mínima («Chat del playground») que muestra los avisos que decide el servidor del chat
+// EL AVISADOR DEL CHAT: una app mínima («Chat de my-tools») que muestra los avisos que decide el servidor del chat
 // (server/notify.go) cuando no hay ninguna pestaña abierta. Hace falta porque `osascript` desde el servicio no muestra
 // nada si «Editor de Scripts» nunca tuvo permiso de avisos; esta app pide el suyo una vez, con su nombre, y al tocar
 // un aviso abre el chat en esa conversación.

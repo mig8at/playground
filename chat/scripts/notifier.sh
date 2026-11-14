@@ -1,5 +1,5 @@
 #!/bin/sh
-# Compila el avisador del chat (notifier/main.swift) como app: «Chat del playground.app», con su identificador propio
+# Compila el avisador del chat (notifier/main.swift) como app: «Chat de my-tools.app», con su identificador propio
 # para que macOS le dé su permiso de avisos. Queda en ~/Applications para que macOS la encuentre al tocar un aviso.
 # Sin swiftc (las Command Line Tools) no hace nada: el servidor sigue con osascript.
 #
@@ -8,7 +8,7 @@
 set -eu
 chat=$(cd "$(dirname "$0")/.." && pwd -P)
 src="$chat/notifier/main.swift"
-app="$HOME/Applications/Chat del playground.app"
+app="$HOME/Applications/Chat de my-tools.app"
 bin="$app/Contents/MacOS/ChatNotifier"
 
 command -v swiftc >/dev/null 2>&1 || { echo "chat · sin swiftc: el avisador no se compila (los avisos salen por osascript)"; exit 0; }
@@ -22,9 +22,9 @@ cat > "$app/Contents/Info.plist" <<EOF
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-  <key>CFBundleIdentifier</key><string>com.creditop.playground.chat-notifier</string>
-  <key>CFBundleName</key><string>Chat del playground</string>
-  <key>CFBundleDisplayName</key><string>Chat del playground</string>
+  <key>CFBundleIdentifier</key><string>com.creditop.my-tools.chat-notifier</string>
+  <key>CFBundleName</key><string>Chat de my-tools</string>
+  <key>CFBundleDisplayName</key><string>Chat de my-tools</string>
   <key>CFBundleExecutable</key><string>ChatNotifier</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>1.0</string>

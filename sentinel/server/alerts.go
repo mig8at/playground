@@ -290,14 +290,14 @@ var rulesPath string
 
 func loadRulesQuiet() (Rules, error) { return loadRules(rulesPath) }
 
-// macNotice: el aviso del sistema. En macOS va por el avisador del chat («Chat del playground», que ya tiene permiso de
+// macNotice: el aviso del sistema. En macOS va por el avisador del chat («Chat de my-tools», que ya tiene permiso de
 // avisos y abre un enlace `cockpit://` al tocarlo: Cockpit trae Sentinel al frente en esa ruta); sin él, por osascript.
 // En Linux (sin osascript), por `notify-send` si está en el PATH: no abre nada al tocarlo, pero avisa.
 func macNotice(title, body, route string, sound bool) error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	home, _ := os.UserHomeDir()
-	bin := filepath.Join(home, "Applications", "Chat del playground.app", "Contents", "MacOS", "ChatNotifier")
+	bin := filepath.Join(home, "Applications", "Chat de my-tools.app", "Contents", "MacOS", "ChatNotifier")
 	if st, err := os.Stat(bin); err == nil && !st.IsDir() {
 		args := []string{"--title", title, "--body", body, "--url", "cockpit://sentinel/" + route, "--group", "creditop-sentinel-" + route}
 		if sound {

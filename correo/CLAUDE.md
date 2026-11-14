@@ -111,7 +111,7 @@ seguimiento cuenta sus sin ver, sus por responder y los de los últimos 7 días;
 - **La primera lectura de un seguimiento no avisa** (`Primed`): lo que ya estaba se da por visto. Cambiar la búsqueda de
   un seguimiento lo vuelve a estrenar. Si no, agregar `from:vtex.com` mandaba decenas de avisos viejos.
 - **El aviso dice si te contestaron**: «VTEX · Juan Alzate (VTEX) te contestó» si en esa conversación ya habías escrito
-  vos, «… te escribió» si es nueva; el cuerpo es el asunto. Sale por el avisador del chat («Chat del playground»), como
+  vos, «… te escribió» si es nueva; el cuerpo es el asunto. Sale por el avisador del chat («Chat de my-tools»), como
   el de Sentinel, y **tocarlo abre Cockpit en esa conversación** (`cockpit://correo/#/w/<seguimiento>/<hilo>`, con su
   desglose). Los de un mismo hilo se agrupan: uno nuevo reemplaza al anterior. Sin el avisador, por osascript.
   `correo/bin/correo -notify-test` manda uno de prueba que apunta a la conversación más reciente (2026-11-13: desde el

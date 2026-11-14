@@ -198,7 +198,7 @@ y un cabezal donde vas, sin marcas (hacían ruido). Cada mensaje tiene su lugar 
 huecos de horas apretarían todo) y al final está el directo. Se toca o arrastra en cualquier parte: el cabezal salta al
 mensaje más cercano, arriba dice quién y cuándo, y al soltar suena de corrido; llevarlo hasta el final es volver al
 directo. ⏮ desde el primero, ⏯ pausa, ← y → con el teclado. Repetir no gasta: las frases quedan guardadas JUNTO AL HISTORIAL
-(`~/Library/Application Support/creditop-playground-chat/voice`, no en la caché de macOS, que se puede vaciar; la
+(`~/Library/Application Support/creditop-my-tools-chat/voice`, no en la caché de macOS, que se puede vaciar; la
 primera vez se mudó lo de la caché vieja). Cambiar el servidor pide `make chat-install` (y
 aceptar rápido el permiso de Escritorio de macOS: si tarda, Cockpit levanta su copia vieja y se queda con el puerto).
 

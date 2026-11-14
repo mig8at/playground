@@ -15,7 +15,7 @@
 //   arrancar en ~/.config/creditop-cockpit/control.json (600; se borra al salir): una página web no la conoce.
 //
 // Todo corre desde la carpeta de my-tools (la que tenía este código al compilar) y con el PATH de tu shell. Los
-// registros: ~/Library/Logs/creditop-playground-chat.log (el chat) y ~/Library/Logs/cockpit-<app>.log (las demás).
+// registros: ~/Library/Logs/creditop-my-tools-chat.log (el chat) y ~/Library/Logs/cockpit-<app>.log (las demás).
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 use std::collections::HashMap;
@@ -201,7 +201,7 @@ fn try_spawn(app: &AppDef, path: &str) -> Result<Child, String> {
             let exe = std::env::current_exe().map_err(|e| format!("mi propio ejecutable: {e}"))?;
             let mut c = Command::new(exe.with_file_name("chat-server"));
             c.args(["-serve", "127.0.0.1:5185"]);
-            (c, log_file("creditop-playground-chat.log")?)
+            (c, log_file("creditop-my-tools-chat.log")?)
         }
         Start::Make(target) => {
             let mut c = Command::new("/usr/bin/make");
@@ -251,7 +251,7 @@ const SIDECAR_GRACE: Duration = Duration::from_secs(30);
 
 fn chat_agent_installed() -> bool {
     std::env::var("HOME")
-        .map(|h| PathBuf::from(h).join("Library/LaunchAgents/com.creditop.playground.chat.plist").exists())
+        .map(|h| PathBuf::from(h).join("Library/LaunchAgents/com.creditop.my-tools.chat.plist").exists())
         .unwrap_or(false)
 }
 

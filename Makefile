@@ -143,10 +143,10 @@ chat: ## @dia PARA DESARROLLAR el chat: la interfaz en Vite (:5184, recarga al g
 
 cockpit: ## @dia compila Cockpit (cockpit/), la instala en Aplicaciones y la abre: las herramientas de my-tools en una app con barra de aplicaciones como VS Code (hoy chat, tablero, el panel del harness, Jarvis, Designer —el visor—, ecommerce y knowledge). Trae adentro el servidor del chat (de respaldo si corre de fondo, `make chat-install`, que también recompila), sigue en segundo plano al cerrar la ventana y arranca al iniciar sesión. Necesita Rust (rustup)
 	@cd cockpit && npm run build && { \
-	  for id in com.creditop.playground.cockpit com.creditop.playground.chat-app; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
+	  for id in com.creditop.my-tools.cockpit; do osascript -e "quit app id \"$$id\"" 2>/dev/null || true; done; sleep 1; \
 	  rm -rf /Applications/Chat.app "$$HOME/Library/LaunchAgents/Chat.plist" /Applications/Cockpit.app; \
 	  ditto src-tauri/target/release/bundle/macos/Cockpit.app /Applications/Cockpit.app && open /Applications/Cockpit.app; }
-	@if [ -f "$$HOME/Library/LaunchAgents/com.creditop.playground.chat.plist" ]; then $(MAKE) --no-print-directory chat-install; fi
+	@if [ -f "$$HOME/Library/LaunchAgents/com.creditop.my-tools.chat.plist" ]; then $(MAKE) --no-print-directory chat-install; fi
 
 chat-install: ## @dia deja el servidor del chat corriendo DE FONDO (LaunchAgent): junta el historial, avisa y contesta el llavero aunque Cockpit esté cerrado del todo. Cockpit usa ése. `make cockpit` lo recompila solo
 	@mkdir -p chat/bin && go build -o chat/bin/chat-server ./chat/server && chat/bin/chat-server -install

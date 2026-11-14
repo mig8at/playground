@@ -1,7 +1,8 @@
 #!/bin/bash
 # Arma captura/.build/Captura.app si main.swift o Info.plist cambiaron.
 #
-# Firma: con el certificado autofirmado «Captura playground local» del llavero de inicio de sesión
+# Firma: con el certificado autofirmado «Captura playground local» del llavero de inicio de sesión (conserva el
+# nombre de antes del renombre a my-tools: es el del llavero, y cambiarlo es recrear el certificado)
 # (creado el 2026-11-10, vale 10 años). macOS ata los permisos de Grabación de pantalla y Accesibilidad
 # al REQUISITO de la firma (identificador + certificado), que no cambia al recompilar. Con firma ad hoc
 # los ata a la huella del binario, y cada recompilación era otra app para macOS: el interruptor seguía

@@ -1905,7 +1905,7 @@ watch(rightOpen, (v) => { if (!v) narrowRight.value = false })
         <p class="profile-row"><span><b><i class="status-dot" :class="{ on: listening && chat.state?.connected }" aria-hidden="true"></i> {{ statusText }}</b>
           <small v-if="chat.state?.since && listening">desde las {{ clock(chat.state.since) }}</small></span></p>
         <p v-if="chat.me || chat.state?.session" class="profile-row"><span><b>{{ (chat.me || chat.state.session).email }}</b><small>la sesión del CLI: lo que mandás sale con este nombre</small></span></p>
-        <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat del playground' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
+        <p class="profile-row"><span><b>{{ notify.status.via === 'tab' ? 'esta pestaña' : notify.status.macTool === 'chat-notifier' ? 'Chat de my-tools' : notify.status.macTool }}</b><small>muestra los avisos ahora</small></span></p>
       </div>
       </template>
     </aside>
