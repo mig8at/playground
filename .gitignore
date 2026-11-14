@@ -1,4 +1,4 @@
-# Repo LOCAL único de my-tools. Nunca se pushea (sin remoto).
+# my-tools: las herramientas personales de Miguel. Remoto personal: mig8at/playground (el push lo decide Miguel).
 
 # Dependencias / builds (JS/TS · Vue)
 node_modules/
