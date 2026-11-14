@@ -1,7 +1,7 @@
 {
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
-  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami y su policy_blocked en el asistente, las cuatro variantes de Welli con Sonría aparte y pendiente_desembolso en 28 (application) o 11 (legacy-backend), los reintentos y el 401 de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, el endpoint de UMA y la probabilidad oculta por convenio o comercio.",
+  "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami y su policy_blocked en el asistente, las cuatro variantes de Welli con Sonría aparte y pendiente_desembolso en 28 (legacy-application) o 11 (legacy-backend), los reintentos y el 401 de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, el endpoint de UMA y la probabilidad oculta por convenio o comercio.",
   "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
@@ -43,7 +43,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/PramiController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "e1a178b971b69876a3c89ec85188660f336985ce",
@@ -52,7 +52,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/Lenders/Prami.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b8432de14b99d889ad51df053ef3775e3e66525f",
@@ -115,7 +115,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/Lenders/Welli.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "93bdb449f2686144bb077592a4e40a0815f842c2",
@@ -124,7 +124,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/WelliController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "12f80c1ab81d9f5be96f4990472696e861cfb43a",
@@ -133,7 +133,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Api/Welli/WebhookRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "255a3729c4ae0e438146dd8ac8709d95e1d960da",
@@ -151,7 +151,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/Lenders/Meddipay.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b0fc93d8d7358c8b130770f4845058cb4babf23c",
@@ -188,7 +188,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/PreApprovedLenderService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "38879f56087e88ec42971946581fd8f9a9a6d19a",
@@ -269,7 +269,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/UserRequestController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
@@ -278,7 +278,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Customer/UserRequest/UpdateUmaRequestStatusAndAmount.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "4fc4d6ae0d6986bfaf9ebf4a5040376d62cccd99",
@@ -305,7 +305,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "74eacf879b86177281c54641fdf21e65c0de6978",

@@ -7,7 +7,7 @@
 > **Verificado el 2026-08-19** contra `legacy-backend` y `frontend-monorepo` (ramas remotas y PRs
 > reales). Cuando una afirmación no se pudo comprobar en código, lo dice explícitamente.
 >
-> Repos involucrados: **`legacy-backend`** y **`frontend-monorepo`**. `application` **no se tocó**:
+> Repos involucrados: **`legacy-backend`** y **`frontend-monorepo`**. `legacy-application` **no se tocó**:
 > no tiene lógica de Motai — solo copy de marketing en el listado de entidades y dos migraciones de
 > esquema de Ábaco que trajo otro frente.
 

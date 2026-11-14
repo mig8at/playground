@@ -107,7 +107,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/CreditBenefits/Strategies/InterestSubsidyStrategy.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "3b7ee03a1e65ef77624b3644d71783869012c284",
@@ -161,7 +161,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/User.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a5390759c3d5c096f4def56a2d9d37f652ef3e5d",
@@ -208,7 +208,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
@@ -217,7 +217,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/ApplyPendingCashPaymentCommand.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5b091e51d8055bc7dc14629d5b8e09324d658b06",

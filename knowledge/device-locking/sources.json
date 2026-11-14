@@ -186,7 +186,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/PaymentUnlockSwitch.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "aafdd00ee28184374cd0190b3b9ff34ab18aad16",
@@ -195,7 +195,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
@@ -249,7 +249,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
@@ -258,7 +258,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/admin.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
@@ -267,7 +267,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Providers/RouteServiceProvider.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "410b71bf5e2b9e53a1a9000b0f2be2584c6069cc",
@@ -276,7 +276,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Kernel.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "071d6571bc023f91113c75c579d4993c571f95d9",
@@ -285,7 +285,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Api/DeviceLockApiClient.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b58a1b8ab2b05e8f8542f70e515e6fccacdd4edf",
@@ -295,7 +295,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Jobs/UnlockDeviceIfUpToDate.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "fdff935baec7f970a2ae51623da7324e172ced9f",
@@ -304,7 +304,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/ReconcilePaymentUnlocksCommand.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ee23f1a8676eb37087a47a4d5614447580e33bb0",
@@ -313,7 +313,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",

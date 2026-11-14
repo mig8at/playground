@@ -100,7 +100,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/LenderRequirement.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "46c586c904fc4569e3e30b342b197f9476095c5d",
@@ -177,7 +177,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",

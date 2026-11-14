@@ -3,7 +3,7 @@
 Qué hace el código con una solicitud de Credifamilia antes y después del plan de pagos: cómo se
 lee la preaprobación, cómo cae la validación de identidad a un proveedor de respaldo y cómo se
 radica el crédito por SOAP. Describe `pre-approvals-service`, `legacy-backend` y el wizard de
-`frontend-monorepo` en las refs de `sources.json`. `application` no tiene la preaprobación por
+`frontend-monorepo` en las refs de `sources.json`. `legacy-application` no tiene la preaprobación por
 servicio, CrossCore ni la radicación SOAP: conserva sólo la integración REST anterior con
 Credifamilia (OAuth y redirección a su plataforma). La fianza, el monto radicado y el plan de pagos
 están en `credifamilia-financing`. Lo que valida Credifamilia de su lado no se puede comprobar en

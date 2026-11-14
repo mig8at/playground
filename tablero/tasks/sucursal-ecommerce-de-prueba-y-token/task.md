@@ -3,7 +3,7 @@ id: 108
 title: "Sucursal ecommerce de prueba y token de payment-link desde el admin"
 stage: work
 created: "2026-10-29T12:00:00-05:00"
-ramas: feat/sucursal-ecommerce-de-prueba, application:editar-sucursal-ecommerce, application:laravel-12-cve-develop
+ramas: feat/sucursal-ecommerce-de-prueba, legacy-application:editar-sucursal-ecommerce, legacy-application:laravel-12-cve-develop
 knowledge: [merchant-onboarding, ecommerce-context]
 canon: []
 jira: [CORE-913]
@@ -25,17 +25,17 @@ jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin
 - [ ] Agregar `allied_branches.is_test` con una migración de legacy-backend (es el dueño del esquema, como en CRED-367) y
       marcar las dos sucursales de prueba; la app la escribe sólo si la columna existe (`Schema::hasColumn`).
       Termina con la columna en local y las dos sucursales con `is_test = 1`.
-- [x] ~~Revisar y mergear [legacy-application#345](pr:application#345) y [legacy-backend#1806](pr:legacy-backend#1806)~~ —
+- [x] ~~Revisar y mergear [legacy-application#345](pr:legacy-application#345) y [legacy-backend#1806](pr:legacy-backend#1806)~~ —
       los dos mergeados el 2026-10-29.
 - [ ] Correr la migración de `is_test` en la base compartida de dev, qa y staging: la columna
       `allied_branches.is_test` sigue sin existir ahí (medido el 2026-11-09), aunque en prod ya corrió (batch 242,
       30 sucursales marcadas). Termina con la columna y un comercio nuevo de dev/qa con sus dos sucursales de prueba
       marcadas.
-- [x] ~~Mergear [legacy-application#348](pr:application#348) a `develop`~~ — mergeado y desplegado en dev el 2026-10-29 (20:19 UTC).
+- [x] ~~Mergear [legacy-application#348](pr:legacy-application#348) a `develop`~~ — mergeado y desplegado en dev el 2026-10-29 (20:19 UTC).
 - [x] ~~Llevar #345 y #348 a producción~~ — entraron a `main` por develop → main y están en prod desde
       legacy-application v1.2.10 (2026-11-04; siguen en v1.2.11); la parte de legacy-backend (#1806) está en prod
       desde v0.6.45 o antes, y la migración de `is_test` corrió en prod (batch 242).
-- [ ] Cerrar [legacy-application#349](pr:application#349): sus 10 commits ya están en `main` por equivalencia de
+- [ ] Cerrar [legacy-application#349](pr:legacy-application#349): sus 10 commits ya están en `main` por equivalencia de
       parche (medido con `git cherry` el 2026-11-09). Termina con el PR cerrado y una nota de por qué.
 - [ ] En el admin de prod, emitir el token versión 5 de la sucursal de prueba de Creditop para la prueba VTEX de la
       tarea #102. Termina con el token emitido y guardado donde la prueba lo lee.
@@ -63,7 +63,7 @@ Que probar un comercio por tienda no dependa de nadie con acceso al contenedor:
 
 ## Cómo se ataca
 
-1. Un servicio en application que emite (`createToken('ecommerce-payment-link', ['ecommerce'])`), revoca y resume
+1. Un servicio en legacy-application que emite (`createToken('ecommerce-payment-link', ['ecommerce'])`), revoca y resume
    (emitido, último uso) los tokens de una sucursal, el mismo formato que `ecommerce:issue-token` de legacy-backend.
 2. La pestaña de ecommerce lo usa; el token viaja en el flash una vez.
 3. El provisionador crea la sucursal ecommerce de prueba del mismo hash **base** que la física, pero con hash
@@ -77,7 +77,7 @@ Que probar un comercio por tienda no dependa de nadie con acceso al contenedor:
   asesor se comportaría distinto que en un comercio real.
 - **Una columna «es ecommerce» en la sucursal.** Sería una segunda verdad de lo que ya dice la credencial, y el código
   seguiría preguntando por la credencial en ~10 lugares; se muestra derivado.
-- **Emitir el token desde legacy-backend por API.** No hace falta: application comparte la base y tiene Sanctum 4.
+- **Emitir el token desde legacy-backend por API.** No hace falta: legacy-application comparte la base y tiene Sanctum 4.
 
 ## Lo que NO entra
 

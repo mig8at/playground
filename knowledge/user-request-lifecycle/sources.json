@@ -50,7 +50,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/Users/UserDisableGuard.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "fc2c6800b0da1c68c1cef0e09a1cb1d2c959b27e",
@@ -60,7 +60,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/UserRequestStatus.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "836297e80463c1e13f92df069ab55972dead779e",
@@ -162,7 +162,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/PramiController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "e1a178b971b69876a3c89ec85188660f336985ce",
@@ -288,7 +288,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/ManualApproval/ManualApprovalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d0c63811fa4fd49c177fdad6e886b69e7aef6785",

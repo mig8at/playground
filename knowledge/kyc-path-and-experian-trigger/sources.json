@@ -238,7 +238,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/DatacreditoQueryByAlliedController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c616a8f73fd3ead8641e9d37bea6f0636ea38369",

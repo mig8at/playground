@@ -175,7 +175,7 @@ Regla para lo que se agregue: **sin default, o nullable.**
 
 **Los OCHO filtros literales `->where('country_id', 1)` hoy funcionan por accidente** —leen el default,
 no un país. `legacy-backend` (3): `LenderRetrievalService:458` · `OnboardingService:1782` ·
-`Identity/LenderRepository:52`. **`application` (5)**: `Customer/ListLenderController:87` ·
+`Identity/LenderRepository:52`. **`legacy-application` (5)**: `Customer/ListLenderController:87` ·
 `Customer/PersonalInfoController:1329` · `Customer/SimulatorController:44` ·
 `Services/lenders/LenderRetrievalService:174` **y** `:459`.
 Poblar bien `lenders.country_id` sin arreglarlos primero **vacía el listado en los dos frentes**. La
@@ -242,14 +242,14 @@ que encenderla.
 | | `'COP'` literal en `InitialFeePaymentService:312` (Wompi), `ValidateOtpController:135`, `SelfDevelopmentNotifier` ×2, `VtexService:53` | **quemado** |
 | **Fecha / zona horaria** | `America/Bogota` **×7**: `ConsentService` ×2, `OnboardingPayloadBuilder:86` (fecha de firma), `LeaseAgreementService:102`, `DecevalSoap` ×2, `ReminderNotification:81` | **quemado** — en RD (UTC-4) un documento firmado 23:30 imprime el día anterior |
 | | `->locale('es')` ×6 para formatear fechas | **quemado** |
-| **Listado de entidades** | `->where('country_id', 1)` **×8** (3 legacy + **5 application**) | **quemado**; existe la versión parametrizada y no se usa |
+| **Listado de entidades** | `->where('country_id', 1)` **×8** (3 legacy + **5 legacy-application**) | **quemado**; existe la versión parametrizada y no se usa |
 | **Tasa y usura** | `PaymentCalculationService:201` (`!= 60`), `updateUsuryRate` (saltea 60) | **quemado**, pero reconocen el problema |
-| **Gate de datacrédito** | `addNewRule:80` no crea reglas si el comercio no es CO | **config-ish ✓** en `application`; **el gemelo de legacy no tiene la compuerta** |
+| **Gate de datacrédito** | `addNewRule:80` no crea reglas si el comercio no es CO | **config-ish ✓** en `legacy-application`; **el gemelo de legacy no tiene la compuerta** |
 | **Documentos / KYC** | `issue_country ?? 'COLOMBIANA'`; genderapi `country=CO` ×2; Deceval `CC=>1/CE=>2` ×3 | **quemado** |
 | **Geografía** | form-service lee `countries`/`country_zones`/`country_cities`, read-only, `status=1` | **config ✓** |
 | | `COUNTRY_ID = 47` en `additional-info-form.tsx:34` | **quemado** |
 | **Pagos** | Payvalida country `343` | **quemado** |
-| **Alta / validación** | `Rule::in([47, 60])` en el alta de comercio; `Country::COLOMBIA_ID` solo existe en `application` | **quemado** |
+| **Alta / validación** | `Rule::in([47, 60])` en el alta de comercio; `Country::COLOMBIA_ID` solo existe en `legacy-application` | **quemado** |
 | **Sin uso** | `users.country_id` (215.844 en el default, sin lector), `iso_code_3`, `address_format`, `image` | muerto |
 
 ### Cobertura: 13 repos, no 4
@@ -336,7 +336,7 @@ ruido, o hay un documento del país equivocado. En cualquiera de los dos casos e
 plantilla por id con el país en el texto— es el problema estructural.
 
 ### Volumen
-`legacy-backend` 71 `country_id` (casi todos `$fillable`/modelos) · `application` 83 en 56 archivos ·
+`legacy-backend` 71 `country_id` (casi todos `$fillable`/modelos) · `legacy-application` 83 en 56 archivos ·
 `frontend-monorepo` 7 `alliedCountry` en 3 archivos, 64 `es-CO|es-DO` en ~20 · `form-service` solo lee ·
 **`pre-approvals-service` es agnóstico** (7 menciones, todas pass-through de `issue_country`).
 
@@ -969,7 +969,7 @@ config de `DO` en `messaging-service` (**P2**).
 
 ### ETAPA 2 — los 8 filtros literales, con transición sin ventana [código, 2 ramas]
 - **F1** Los 8 `->where('country_id', 1)` → `->whereIn('country_id', [1, $paisResuelto])`
-  (3 en legacy · 5 en application). Deploy. *Acepta ambos mundos durante la transición.*
+  (3 en legacy · 5 en legacy-application). Deploy. *Acepta ambos mundos durante la transición.*
 - **F2** Backfill `lenders.country_id`: los **129 UPDATE** del dry-run (`SQL=1`) + decidir a mano los
   **23 huérfanos activos** (o apagarlos).
 - **F3** Limpiar el `1` del `whereIn` → `->where('country_id', $paisResuelto)`. Deploy. Fin: la columna
@@ -980,7 +980,7 @@ config de `DO` en `messaging-service` (**P2**).
   con blast radius grande: gobierna el gate del wizard.
 - **R2** Un `CountryContext` único (precedencia sucursal → comercio → default) + test que la fije.
   Unificar los **4** `$isDoLogic` copiados y el `'do':'co'` para que lean de ahí.
-- **R3** `application`: los **7 `'+57'` pelados** (incl. el accessor `User.php:133`) → prefijo del país
+- **R3** `legacy-application`: los **7 `'+57'` pelados** (incl. el accessor `User.php:133`) → prefijo del país
   del contexto, como ya hace legacy. Y los 2 `genderapi country=CO` + el `?? 'COLOMBIANA'` de
   `OnboardingPayloadBuilder:129` (+ su gemelo en pdf-mapper-editor).
 
@@ -1026,7 +1026,7 @@ país 60**. La vara de éxito: **dar de alta el tercer país sin escribir códig
    - Confirmado de paso el desacuerdo de sucursal: **1** con comercio DO y ciudad CO.
    - Falta correrlo contra **dev/prod**: el reparto puede ser otro.
 2. Backfill de `lenders.country_id` **y recién después** matar los **ocho** `->where('country_id', 1)`
-   (3 en `legacy-backend` + 5 en `application`). En ese orden: al revés el listado queda vacío.
+   (3 en `legacy-backend` + 5 en `legacy-application`). En ese orden: al revés el listado queda vacío.
 3. Poblar `countries` para CO y RD (aditivo: `phone_code`, `address_format`, `locale`, `currency`) + agregar
    `is_operating`, `otp_length`, `date_format`, `template_suffix`.
 
@@ -1045,7 +1045,7 @@ Todo esto ya cuelga de `lender_id`, así que **una fila por país lo resuelve so
 
 **Fase 3 · Lo que en rt=2 es colombiano y hay que parametrizar** *(el trabajo real)*
 11. **Riesgo/burós.** El gate de datacrédito **pasa si no hay regla** (`DatacreditoRuleEvaluator`: sin regla
-    → skip), y `application` ya bloquea crear reglas para comercios no-CO (`addNewRule:80`). Pero **el
+    → skip), y `legacy-application` ya bloquea crear reglas para comercios no-CO (`addNewRule:80`). Pero **el
     gemelo de `legacy-backend` NO tiene esa compuerta** (`AlliedManagementService`): una sucursal RD creada
     desde legacy recibe reglas colombianas → y ahí el evaluador es **fail-closed** (`no_datacredito_data`)
     → no se ofrece nada. **Es el primer arreglo de esta fase.** Y decisión de negocio: en un país sin buró,
@@ -1101,7 +1101,7 @@ hardcodea el lender 160, así que la originación distintiva **no es ejercitable
   (estilo PHP/Carbon, `DeviceLockAgreementService.php:164`). Elegir una y convertir en el borde.
 - Solo **6 de 250** filas de `countries` tienen `locale`; `currency` igual. `dial_code` viene **sin `+`**
   (`57`, `1`) mientras el código compara contra `'+57'`.
-- `Country::COLOMBIA_ID = 47` existe **solo en `application`**; `legacy-backend` no lo tiene.
+- `Country::COLOMBIA_ID = 47` existe **solo en `legacy-application`**; `legacy-backend` no lo tiene.
 - **`users.issue_country` está en 0 filas y SÍ se lee**: `$user->issue_country ?? 'COLOMBIANA'`
   (`OnboardingPayloadBuilder.php:129`) → todos los documentos generados afirman nacionalidad colombiana,
   incluidos los de RD. Arreglo barato y visible.

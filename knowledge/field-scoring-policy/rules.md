@@ -2,7 +2,7 @@
 
 Cómo el backend modular asigna una categoría de usuario sumando puntos por las respuestas del
 formulario y por la capacidad de pago, y cómo el formulario dinámico convierte rangos declarados en
-montos. Describe `legacy-backend` en las refs de `sources.json`; `application` no tiene este camino.
+montos. Describe `legacy-backend` en las refs de `sources.json`; `legacy-application` no tiene este camino.
 Qué entidad o país lo usa, sus puntajes y sus categorías son configuración del ambiente. El código
 lo menciona como la categorización de SmartPay.
 

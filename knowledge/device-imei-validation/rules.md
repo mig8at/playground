@@ -1,6 +1,6 @@
 # Registro de IMEI y espera del titular
 
-Describe el wizard y backend modular revisados en la ref local de main. El estado persistido y la respuesta del gateway son señales distintas; una corrida con MDM simulado no acredita inscripción ni desembolso externos. Las rutas `device/*` existen sólo en legacy-backend; application no las tiene.
+Describe el wizard y backend modular revisados en la ref local de main. El estado persistido y la respuesta del gateway son señales distintas; una corrida con MDM simulado no acredita inscripción ni desembolso externos. Las rutas `device/*` existen sólo en legacy-backend; legacy-application no las tiene.
 
 ## Paso del asesor al formulario de IMEI
 

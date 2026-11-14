@@ -17,7 +17,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
@@ -58,7 +58,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRevolvingCreditPaymentController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "3527c04de0a5b7da19eac501805e0e69c897be38",
@@ -135,7 +135,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/Lenders/Wompi.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "2705903fed2f451c8b2a10a371f75d6f51634378",
@@ -183,7 +183,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/PullmanService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "bc5a36f5421b3f424857f3a61749d1136ab50d87",
@@ -192,7 +192,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Repositories/PullmanRepository.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "6db3b758f149457c04f95c81d9501f9321994d52",
@@ -201,7 +201,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Jobs/ValidatePullmanPayment.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "289efe83f27556697c507cf05d5ee0e4dc64f955",
@@ -210,7 +210,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
@@ -229,7 +229,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/GuaranteeAttribution.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "94fc8285f98d2465121191418d9cfec552779223",
@@ -341,7 +341,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Jobs/Lenders/Wompi/StatusCheck.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "6e119dbf21a00b9b8e00bc2bc8464e8deef9f8a2",
@@ -377,7 +377,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/CreditopXRequestHistory.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "53a9f81892c6fbf8c923f25e869d54d5dcf4df4a",
@@ -395,7 +395,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/Lender.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c85c665ba8db2ddaa34fc0460171ca09de951e3f",
@@ -413,7 +413,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",

@@ -14,7 +14,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/PromissoryNote/PromissoryNoteSigningFactory.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "14cf4b4973430c32ae78d4be8b0071da62400236",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/RiskCentralCredential.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b268d45ed0c5418170bc5fbf84cc8b336859f89a",
@@ -90,7 +90,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/DecevalSoap.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c80cf1c5d022be252d283c87e9e650f761c63004",
@@ -121,7 +121,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "config/app.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "501d148608ab2622c89e9d39557f2df2ca9d01d1",
@@ -152,7 +152,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/PromissoryNote/DecevalPromissoryNoteService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "7732b8f6306a91035a9e6a2a54bae48ab73824d4",
@@ -201,7 +201,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/Log.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "6a76787e66f985cdc8e14463641b3a8db638d6b0",

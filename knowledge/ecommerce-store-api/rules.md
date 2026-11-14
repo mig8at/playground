@@ -59,7 +59,7 @@ respuesta 200 trae `redirect_url` (`{app.frontend_url}/ecommerce/{hash}/checkout
 `order_key`, `status` `PENDING` y `expires_at` en hora de Colombia. Una excepción responde 500
 `Server Error` y loguea sólo la clase y los códigos, nunca el cuerpo.
 
-application tiene la misma ruta con otro contrato (`EcommerceController::create`,
+legacy-application tiene la misma ruta con otro contrato (`EcommerceController::create`,
 `routes/api.php`): el middleware de autenticación está comentado, el `FormRequest` sólo exige
 `order_id`, el 409 sale únicamente si existe un `LenderTransaction` con ese `order_id`, y no guarda
 pedido: devuelve la URL del checkout anterior con el pedido serializado en base64 y la credencial de
@@ -101,7 +101,7 @@ del pedido. La consulta no lee `cancelled_at`: un pedido que la tienda canceló 
 la solicitud sigue saliendo `pending`, aunque la respuesta de la cancelación haya dicho `cancelled`.
 Con solicitud, la cancelación la deja en 8 y la consulta sí sale `cancelled`.
 
-La de application (`EcommerceController::status`) es otro contrato: `auth:sanctum` con
+La de legacy-application (`EcommerceController::status`) es otro contrato: `auth:sanctum` con
 `ability:ecommerce`, sin atar el token a una sucursal; busca un `LenderTransaction` por `order_id`,
 así que un pedido que ninguna entidad registró da 404; responde en snake_case y traduce con un
 `switch` fijo (11 `COMPLETED`, 8 `CANCELLED`, 6 `FAILED`, 3 `PENDING PAYMENT`, el resto `PENDING`).
@@ -140,7 +140,7 @@ cualquiera de los dos tapa el flujo con «La tienda canceló tu compra», el tex
 válida. Un pedido cancelado tampoco entrega token por referencia. El campo `cancellation` del detalle
 está descrito en `ecommerce-context`.
 
-application no tiene una cancelación equivalente para la tienda: su `checkout/cancelar`
+legacy-application no tiene una cancelación equivalente para la tienda: su `checkout/cancelar`
 (`WoocommerceController::cancel`) es una ruta web del flujo del comprador.
 
 ## En legacy-backend el aviso sale en general una vez por pedido y gana el primer desenlace
@@ -151,7 +151,7 @@ u 11. De las llamadas explícitas, sólo la del cierre de CreditopX
 (`ValidateOtpPromissoryNoteController`) está viva; las de los webhooks de Bancolombia
 (`app/Http/Controllers/Api/BancolombiaController.php`) y Sistecrédito
 (`Modules/Risk/App/Http/Controllers/Api/SistecreditoController.php`) están en controladores sin ruta
-en legacy-backend (esos webhooks los atiende application). La solicitud tiene que estar en
+en legacy-backend (esos webhooks los atiende legacy-application). La solicitud tiene que estar en
 `user_requests_by_ecommerce_request`: el aviso busca el pedido sólo por esa tabla.
 
 Hay un tercer camino que no pasa por `notifyStoreForUserRequest` ni mira `processed`: el cierre por
@@ -189,9 +189,9 @@ marcar. No hay reintento programado; lo reintenta el siguiente estado final de u
 `status` y el `amount` del cuerpo, sin releer la solicitud y sin middleware propio en la ruta; el
 grupo de Onboarding lleva `['otel', 'auth.cognito']`, así que no es una ruta abierta.
 
-## application avisa desde cada integración, sin mirar si ya avisó
+## legacy-application avisa desde cada integración, sin mirar si ya avisó
 
-En application no hay observer: cada integración que cierra una solicitud (los webhooks de las
+En legacy-application no hay observer: cada integración que cierra una solicitud (los webhooks de las
 entidades, la firma del pagaré, la validación de identidad) busca el pedido en
 `user_requests_by_ecommerce_request` y llama a `WoocommerceController::process` con el estado de
 `woocommerce_statuses`. `process` no consulta `processed` antes de hacer el POST, así que el mismo
@@ -235,5 +235,5 @@ de estado y la cancelación usan `EcommerceOrderStatusService::latestUserRequest
 Las tres operaciones no miran lo mismo. La consulta sigue a la solicitud vigente y puede decir
 `completed` para un pedido cuyo aviso ya salió `failed` con la solicitud anterior, porque el aviso
 se gasta con el primer desenlace. La cancelación sólo evalúa la vigente: si esa está abierta y una
-anterior terminó negada, cancela la abierta; las anteriores no se tocan. En application, y en el camino
+anterior terminó negada, cancela la abierta; las anteriores no se tocan. En legacy-application, y en el camino
 de `validateLenderOtp` de legacy-backend, avisar un desenlace pasa a 7 las hermanas no autorizadas.

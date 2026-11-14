@@ -1,6 +1,6 @@
 # De dónde sale cada credencial de una entidad
 
-Describe cómo legacy-backend y application (legacy-application) encuentran, en `main`, la credencial con la
+Describe cómo legacy-backend y legacy-application encuentran, en `main`, la credencial con la
 que se habla con una entidad (lender) o con una central (Deceval, Experian, ADO): qué tabla, en qué orden de
 búsqueda y qué campos lee cada integración; y cómo se genera el token de una tienda ecommerce. Sólo nombra campos y tablas; no certifica qué filas existen en
 un ambiente, ni que una credencial esté vigente, ni los pasos manuales de renovación de certificados.
@@ -14,7 +14,7 @@ de un lender y, por morph `allied_type`/`allied_id`, de un comercio (`Allied`) o
 cuelga de una central (`risk_central_id`) y, por morph `credentialable`, de un `Lender`, un `Allied` o un
 `AlliedBranch`; la clave única es central + tipo + id, y tiene borrado lógico. Las integraciones de entidades
 (Bancolombia, Banco de Bogotá, Credifamilia, Sistecrédito, Wompi, Approbe…) leen la primera; Deceval y Experian
-la segunda en los dos monolitos, y ADO sólo en legacy-backend: el `AdoController` de application arma la
+la segunda en los dos monolitos, y ADO sólo en legacy-backend: el `AdoController` de legacy-application arma la
 llamada directamente desde `config('services.ado.*')`. El modelo `LenderAlliedCredential` es idéntico en los
 dos monolitos.
 
@@ -26,20 +26,20 @@ sucursal; si no existe, la del lender colgada del comercio de la sucursal; si ta
 comercio corta la integración con un `ModelNotFoundException`, no con un error de la entidad.
 
 La excepción es la selección de la entidad en el onboarding (`UserRequestService` en legacy-backend,
-`UserRequestController` en application): ahí la falta de fila se atrapa, la credencial queda en null y la
+`UserRequestController` en legacy-application): ahí la falta de fila se atrapa, la credencial queda en null y la
 selección sigue sin llamar al `register()` de la entidad. La URL que recibe el cliente depende del tipo de
 respuesta y difiere entre monolitos: en legacy-backend, la UTM para 0 y 1 y la de confirmación en plataforma
-para 2 a 4; en application, la UTM para 0 y 1 y, para 2 y 3, la continuación del flujo sólo si la solicitud
+para 2 a 4; en legacy-application, la UTM para 0 y 1 y, para 2 y 3, la continuación del flujo sólo si la solicitud
 es de autogestión. legacy-backend deja además una fila en `logs` con la descripción
-«Credencial de lender ausente - no se consumió la integración»; application no deja rastro.
+«Credencial de lender ausente - no se consumió la integración»; legacy-application no deja rastro.
 
 ## Credencial de central: la entidad primero, sólo en legacy-backend
 
 `RiskCentralCredential::findForUserRequest(central, solicitud, lender_id)` difiere entre los monolitos.
 En legacy-backend, si llega `lender_id`, busca primero una fila de esa central colgada del `Lender`; si no
-la hay, cae a las filas colgadas del comercio o de la sucursal de la solicitud. En application, si llega
+la hay, cae a las filas colgadas del comercio o de la sucursal de la solicitud. En legacy-application, si llega
 `lender_id` busca sólo la del `Lender` y devuelve null si falta, sin caer al comercio; y el Deceval de
-application llama con `lender_id` en null, así que allí la credencial de la entidad nunca se usa y sólo
+legacy-application llama con `lender_id` en null, así que allí la credencial de la entidad nunca se usa y sólo
 cuentan comercio y sucursal. Las dos consultas usan `inRandomOrder()`: por la clave única, la búsqueda por
 lender devuelve a lo sumo una fila, pero si el comercio y la sucursal tienen cada uno su fila, cuál sale es
 al azar (el efecto sobre el pagaré está en
@@ -103,7 +103,7 @@ Credifamilia, Wompi ni Deceval. Las listas son sólo sugerencia: la validación 
 
 Una sucursal ecommerce no usa estas tablas para autenticar a la tienda: tiene una fila en
 `allied_ecommerce_credentials` cuyo campo `credential` es el token que la tienda presenta. Se genera al crear
-la sucursal, en legacy-backend (`AlliedManagementService::storeEcommerceCredential`) y en application
+la sucursal, en legacy-backend (`AlliedManagementService::storeEcommerceCredential`) y en legacy-application
 (`EcommerceBranchCreator::create`), como `bin2hex($allied->id . $branch->hash . date('Y-m-d'))`: es la
 codificación hexadecimal, reversible, del id del comercio, el hash de la sucursal y la fecha de creación; no
 lleva ningún componente aleatorio. El hash de la sucursal, si no se pasa uno, es `hash('crc32', date('Y-m-d
@@ -111,7 +111,7 @@ H:i:s'))` del momento de creación, y viaja como `partner_id` en rutas públicas
 (`commerce/type/{partner_id}`, `ecommerce-request/create/{partner_id}`). A diferencia de `customer_key`,
 `customer_secret` y `headers`, el token no está cifrado ni oculto al serializar. En el código revisado sólo
 se escribe al crear la sucursal: no se rota. La validación (`findValidCredential` en legacy-backend; los
-controladores VTEX y WooCommerce en application) compara por igualdad la sucursal y el token.
+controladores VTEX y WooCommerce en legacy-application) compara por igualdad la sucursal y el token.
 
 Al crear esa sucursal, las entidades que se le asignan (`LendersByAlliedBranch` y la copia de reglas) son las
 de `LenderAlliedCredential` con `allied_id` igual al id del comercio, sin filtrar `allied_type`: cuenta toda

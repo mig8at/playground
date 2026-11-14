@@ -450,7 +450,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PurchaseCodeController.php",
       "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
       "blob": "14bad50dee9403f77df86636bef3d59224c94054",
@@ -503,7 +503,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "resources/js/pages/customer/purchase-code/FinalizePurchase.vue",
       "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
       "blob": "e762a094edce65362ac95110ddb2e439edccf848",
@@ -512,7 +512,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "database/migrations/2025_05_30_144735_create_purchase_codes_table.php",
       "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
       "blob": "006b650ab3ba5038a8f85ada3a100ad5ea43629e",

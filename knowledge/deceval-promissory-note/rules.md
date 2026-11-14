@@ -1,6 +1,6 @@
 # Pagaré en Deceval: ruteo, credencial y depuración
 
-Describe cómo legacy-backend y application (legacy-application) generan y firman en `main` el pagaré
+Describe cómo legacy-backend y legacy-application generan y firman en `main` el pagaré
 desmaterializado en Deceval: qué decide que un lender vaya por Deceval, qué credencial del depositante
 se elige y qué campos se usan, qué datos del girador se mandan, cómo se reutiliza un pagaré y dónde queda
 el rastro para depurar. No certifica qué depositante parametrizó Deceval para cada entidad, ni qué
@@ -11,9 +11,9 @@ credenciales existen en un ambiente, ni el comportamiento del sandbox de Deceval
 Lo decide el tipo de pagaré del lender: `lenders.promissory_type_id` apunta a `promissory_types`, y
 `PromissoryNoteSigningFactory` lee su `name`. En legacy-backend, `deceval` va a
 `DecevalPromissoryNoteService`, `ownership` o `traditional` al servicio tradicional, y cualquier otro valor
-(o un lender sin tipo) lanza `UnknownPromissoryTypeException`. En application, `deceval` va a Deceval y
+(o un lender sin tipo) lanza `UnknownPromissoryTypeException`. En legacy-application, `deceval` va a Deceval y
 cualquier otro nombre cae al tradicional; el acceso no es null-safe, así que un lender sin tipo no llega
-a ese `default`. Además, la vista del pagaré de application sólo entra al factory si
+a ese `default`. Además, la vista del pagaré de legacy-application sólo entra al factory si
 `promissory_type_id == 2`, un id fijo.
 
 En legacy-backend, la previsualización y la firma consultan antes el catálogo `lender_signing_documents`
@@ -29,7 +29,7 @@ Credifamilia arman su propio juego de documentos y piden el pagaré al factory p
 Ambos monolitos toman la credencial con `RiskCentralCredential::findForUserRequest` sobre la central
 llamada `Deceval`. La consulta usa `inRandomOrder()->first()`. legacy-backend le pasa el `lender_id` de la
 solicitud: primero busca entre las filas colgadas del lender y, sólo si no hay ninguna, entre las del
-comercio (`Allied`) y las de la sucursal (`AlliedBranch`), juntas y sin prioridad entre ellas. application le
+comercio (`Allied`) y las de la sucursal (`AlliedBranch`), juntas y sin prioridad entre ellas. legacy-application le
 pasa null: nunca mira las filas del lender, sólo el grupo comercio más sucursal.
 
 Crear y firmar eligen la credencial cada uno por su cuenta: `DecevalSoap::createPromisoryNote` la busca
@@ -46,7 +46,7 @@ temporales para firmar el XML y se borran al terminar), `deceval_depositante` y 
 (encabezado de cada mensaje), `deceval_nit_emisor` (girador y pagaré) y `deceval_clase_documento`
 (plantilla del pagaré). El destino es `services.deceval.soap.host` (`DECEVAL_SOAP_HOST`); en
 legacy-backend, si está vacío se lanza `DecevalConfigMissingException` con código `LNDV002` y HTTP 500,
-distinto de la falla de comunicación. application no tiene esa guarda.
+distinto de la falla de comunicación. legacy-application no tiene esa guarda.
 
 ## Las cuatro operaciones y los datos del girador
 
@@ -54,7 +54,7 @@ Generar es crear el girador (`CreacionGiradoresCodificados`), crear el pagaré
 (`CreacionPagaresCodificado`) y consultarlo en estado 6, «listo para firmar en blanco», para obtener el
 PDF. Firmar es consultar en estado 6 para obtener el `idPagareDeceval`, firmar con el OTP y volver a
 consultar, con el estado 9 por omisión, para traer el PDF firmado. En legacy-backend el encabezado lleva
-fecha y hora de Bogotá; en application usa `now()` con la zona de la aplicación (`TZ`, UTC por omisión).
+fecha y hora de Bogotá; en legacy-application usa `now()` con la zona de la aplicación (`TZ`, UTC por omisión).
 Del cliente se mandan correo, fechas de expedición y nacimiento si existen, tipo de documento (sólo CC→1 o
 CE→2), documento, celular como teléfono y como celular, nombres, y primer y segundo apellido partidos por
 el primer espacio de `surname`; el país de expedición va fijo en `CO`. Campos extra sólo entran por
@@ -97,9 +97,9 @@ contraseña rechazados, no lanza excepción HTTP: la respuesta no trae el DTO es
 igual a `true`, el pagaré lo exige salvo `SDL.DA.0312`, y la firma exige que la descripción empiece con
 `SDL.SE.0000`.
 
-En application, las guardas de éxito de las cuatro operaciones usan `count() === 0 && …`: si el elemento
+En legacy-application, las guardas de éxito de las cuatro operaciones usan `count() === 0 && …`: si el elemento
 existe, la condición es falsa y un rechazo sigue de largo; si falta, leer `item(0)` sobre null es un error
-de PHP en lugar de la `ValidationException`. Además, la generación del servicio de application captura
+de PHP en lugar de la `ValidationException`. Además, la generación del servicio de legacy-application captura
 cualquier `Exception`, la registra y devuelve el pagaré con id, PDF y URL en null.
 
 ## Dónde mirar un caso
@@ -108,7 +108,7 @@ En legacy-backend cada operación escribe en `deceval_logs` (conexión `mysql_au
 sobreviva al rollback) con `user_request_id`, `name` legible, `method` y el XML enviado y recibido como
 texto; el PDF en base64 se recorta y la `<clave>` se redacta. El XML enviado lleva `codigoDepositante`,
 `usuario` y el `Username` de WS-Security: es la forma de saber qué credencial usó cada llamada. El
-registro es best-effort: si falla, no corta el flujo. application escribe en la tabla general `logs`, no
+registro es best-effort: si falla, no corta el flujo. legacy-application escribe en la tabla general `logs`, no
 en `deceval_logs`, sin recortar ni redactar (la `<clave>` de la firma queda en el XML) y sin capturar sus
 propios errores. El estado del título se lee en `promissory_notes`: `deceval_promissory_note_id` vacío
 significa que la creación no completó, y `otp_id` guarda el OTP con que se firmó. El tipo de pagaré del

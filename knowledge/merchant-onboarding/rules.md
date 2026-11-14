@@ -2,12 +2,12 @@
 
 Punto de entrada para #98 y para configurar comercios. Describe los métodos de las refs
 locales de `main`, no los pools, permisos ni secretos de un ambiente. El asesor de prueba
-automático existe sólo en el alta del admin anterior (`application`), no en la API modular.
+automático existe sólo en el alta del admin anterior (`legacy-application`), no en la API modular.
 No dar por creado un acceso al wizard sólo porque exista el comercio.
 
 ## El admin anterior tiene su propia alta
 
-En `application`, `Admin/AlliedController::store` (`AlliedController.php:100`) abre una transacción,
+En `legacy-application`, `Admin/AlliedController::store` (`AlliedController.php:100`) abre una transacción,
 genera slug y hash, sube la imagen a S3 y crea el comercio con los campos validados, incluidos `nit`,
 `price` y `country_id`, y confirma la transacción. Después, ya fuera de ella, llama a
 `TestAdvisorProvisioner::provision` (`AlliedController.php:133`): crea una sucursal física
@@ -55,10 +55,10 @@ prueba es uno por comercio.
 Varias altas calculan el hash con `hash('crc32', date('Y-m-d H:i:s'))`, es decir, de la fecha al
 segundo sin nada propio del registro:
 
-- el comercio, en las dos entradas (`application` `AlliedController.php:105`, legacy-backend
+- el comercio, en las dos entradas (`legacy-application` `AlliedController.php:105`, legacy-backend
   `AlliedManagementService::storeAllied`);
 - la sucursal creada desde el admin anterior (`AlliedAlliedBranchController.php:254`);
-- la sucursal ecommerce, en `application` `EcommerceBranchCreator::create` cuando no recibe un hash, y
+- la sucursal ecommerce, en `legacy-application` `EcommerceBranchCreator::create` cuando no recibe un hash, y
   en legacy-backend `AlliedManagementService::storeEcommerceCredential`.
 
 Dos altas del mismo tipo en el mismo segundo producen el mismo hash. Las migraciones que crean
@@ -87,7 +87,7 @@ el servicio no los incluye en los datos del comercio.
 Antes de crear el comercio, `storeAllied` lee el setting `front_url` (o `front_url_local` si
 `local_env` vale 1) con `SettingRepository::getValue`, sobre el modelo `Setting`, que castea `value`
 como JSON, y lo concatena con `'aliados/onboarding…'`. Esa URL no se usa después. Si el valor guardado
-es un objeto JSON, que es la forma que lee `application` (`->value['url']` en
+es un objeto JSON, que es la forma que lee `legacy-application` (`->value['url']` en
 `AlliedAlliedBranchController` y en el provisionador), `getValue` devuelve un arreglo, la
 concatenación produce el aviso «Array to string conversion», Laravel lo convierte en excepción, la
 transacción se revierte y el endpoint responde 422 con ese mensaje sin crear el comercio.
@@ -110,7 +110,7 @@ motivo de baja ni a todos los mecanismos de autenticación.
 
 La misma operación tiene el camino inverso: si el comercio está inactivo y el motivo es `Activacion`,
 pasa a `status = 1` a todos los usuarios del comercio con `status = 0`, salvo los ids `1`, `2` y `5`,
-reactiva el comercio y registra el cambio con motivo `Activacion` (`application`
+reactiva el comercio y registra el cambio con motivo `Activacion` (`legacy-application`
 `AlliedController::changeStatus`, legacy-backend `AlliedManagementService::changeAlliedStatus`). No
 distingue a quién desactivó la baja: un usuario que se había desactivado por separado antes de la baja
 vuelve también a quedar activo. Cualquier otra combinación de estado y motivo lanza una excepción sin

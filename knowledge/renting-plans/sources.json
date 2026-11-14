@@ -14,7 +14,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/LenderController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",

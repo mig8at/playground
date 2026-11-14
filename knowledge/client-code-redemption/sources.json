@@ -124,7 +124,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ClientCodeController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "495241674db44a3518c2afefd1d5d89271760a3a",
@@ -134,7 +134,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ListLenderController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
@@ -143,7 +143,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/CreditopXRequestHistory.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "53a9f81892c6fbf8c923f25e869d54d5dcf4df4a",
@@ -152,7 +152,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
@@ -161,7 +161,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/CreditopX/Benefits/CreditBenefitResolver.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "a1aa466e99cb14cb67dc6c769fa83a98e85aa269",

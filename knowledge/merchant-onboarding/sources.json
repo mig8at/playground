@@ -5,7 +5,7 @@
   "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedController.php",
       "commit": "0c86754d79f825dc55556a5af7bbbd304e23d3c9",
       "blob": "ce2c8b8031cae3c33bee6606d20a627623e21e1d",
@@ -18,7 +18,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/TestAdvisorProvisioner.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
@@ -68,7 +68,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/TestAdvisorResult.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "f58010323955a96ce04e4f4344b80fb30995f2f5",
@@ -87,7 +87,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "config/services.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5a0207b2f506e17cd61d3b32ff759121b697f923",
@@ -105,7 +105,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "database/migrations/2023_04_20_193419_create_allieds_table.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "6392b6706d98a0f1f643ac899da1f7b169fd3ee5",
@@ -114,7 +114,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "database/migrations/2023_07_17_161110_create_allied_branches_table.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b8f97d7dae5b5917e509535a6a595a61eb3e587f",

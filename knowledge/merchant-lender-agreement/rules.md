@@ -2,7 +2,7 @@
 
 Cubre qué escriben y qué borran las operaciones sobre un convenio (`lenders_by_allieds`) y la
 habilitación de entidades en una sucursal (`lenders_by_allied_branches`), en las dos copias: el admin
-de `application` (`Admin/AlliedLenderController`, `Admin/AlliedAlliedBranchController`) y la API
+de `legacy-application` (`Admin/AlliedLenderController`, `Admin/AlliedAlliedBranchController`) y la API
 `Partner` de `legacy-backend` (`/api/partners`, `AlliedLenderController`,
 `AlliedManagementService`), más la sucursal ecommerce (`EcommerceBranchCreator`). Describe código de `main`, no qué admin usa el equipo ni el estado de
 un comercio. El alta y la baja del comercio están en `merchant-onboarding`.
@@ -18,9 +18,9 @@ banco, cálculos de tesorería, `url_utm`, orden y autogestión. Si la entidad e
   defecto pide pagaré), con clave `lender_id` y sin comercio;
 - en `Partner`, el controller da a los usuarios del comercio con perfil 4 o 6 los permisos
   `view creditop x requests` y `view creditop x`;
-- en `application`, fuerza `iva = 19`. La copia de `Partner` guarda el IVA que llegue.
+- en `legacy-application`, fuerza `iva = 19`. La copia de `Partner` guarda el IVA que llegue.
 
-En `application` los permisos no los toca el controller: los recalcula `LendersByAlliedObserver`
+En `legacy-application` los permisos no los toca el controller: los recalcula `LendersByAlliedObserver`
 con `CreditopXMerchantAccess`, después del commit, cuando se crea, se borra o cambia de
 `lender_id`/`allied_id` una fila de `lenders_by_allieds` de una entidad tipo 2 o 3 (Credifamilia
 queda afuera). Lo que corresponde sale de qué tipos tiene el comercio en `lenders_by_allieds`, sin
@@ -37,9 +37,9 @@ de esa entidad borra todas sus filas de `lender_guarantee_criteria` (y `update` 
 viene `guarantee_fund_request`), en los dos monolitos. Los que la leen toman
 `where('lender_id', …)->first()` sin orden (`ConsentService` y `LenderGuaranteeCriteriaRepository`
 en `legacy-backend`; `Customer/ConsentController` y `Customer/GuaranteeController` en
-`application`), así que con varias filas no está definido cuál decide la garantía.
+`legacy-application`), así que con varias filas no está definido cuál decide la garantía.
 
-`store` no escribe `max_amount`: en un convenio nuevo queda en `null`. Sólo `application` escribe
+`store` no escribe `max_amount`: en un convenio nuevo queda en `null`. Sólo `legacy-application` escribe
 `enable_collection` (`$request->enable_collection ?? true`); la copia de `Partner` no lo toca, así
 que un convenio nuevo toma el valor por defecto de la columna (`true`) y uno existente conserva el
 que tenía.
@@ -56,16 +56,16 @@ que tenía.
 Ninguna de las dos tablas tiene columna de comercio (sus migraciones sólo llevan `lender_id`), así
 que son datos de la entidad que se editan desde el convenio: editar el convenio de un comercio
 reemplaza (o elimina) el criterio de garantía y el medio de pago de esa entidad para todos los
-comercios. Sólo `application` sincroniza además el subsidio de intereses del comercio
+comercios. Sólo `legacy-application` sincroniza además el subsidio de intereses del comercio
 (`syncCreditopSubsidy`): abre una vigencia nueva del programa con alcance de comercio si cambió
 algo y la cierra al apagarlo; los créditos ya originados conservan el programa con el que nacieron.
-En `application`, editar también fuerza `iva = 19` para CreditopX.
+En `legacy-application`, editar también fuerza `iva = 19` para CreditopX.
 
 Las dos copias escriben `max_amount => (int) $request->max_amount`, y el `UpdateRequest` (el mismo
 en los dos repos) no valida ese campo: si el request no lo trae, el tope del convenio queda en `0`.
 El listado de entidades (`LenderRetrievalService`, en los dos monolitos) reemplaza el tope de la
 línea de crédito por el del convenio sólo si `max_amount != null`; en PHP `0 != null` es falso, así
-que un `0` equivale a «sin tope propio» y manda el de la línea. Sólo `application` reescribe
+que un `0` equivale a «sin tope propio» y manda el de la línea. Sólo `legacy-application` reescribe
 `enable_collection` al editar (`?? true`: un request sin el campo lo vuelve a encender); `Partner` lo
 deja como estaba.
 
@@ -80,7 +80,7 @@ deja como estaba.
    comercio;
 4. en `Partner`, si la entidad es de `response_type` 2, revoca a los perfiles 4 y 6 del comercio
    `view creditop x requests` y `view creditop x`, aunque el comercio tenga otro convenio CreditopX;
-   con un rotativo (tipo 3) no revoca nada. En `application` el borrado dispara el observer de la
+   con un rotativo (tipo 3) no revoca nada. En `legacy-application` el borrado dispara el observer de la
    sección «Crear un convenio», que revoca sólo lo que el comercio ya no justifica con los convenios
    que le quedan.
 
@@ -89,7 +89,7 @@ anteriores aplicados.
 
 ## Habilitar entidades al guardar la sucursal
 
-`AlliedAlliedBranchController::update` (`application`) y `AlliedManagementService::updateAlliedBranch`
+`AlliedAlliedBranchController::update` (`legacy-application`) y `AlliedManagementService::updateAlliedBranch`
 (`Partner`) toman sólo las entidades marcadas activas, borran todas las filas de
 `lenders_by_allied_branches` de la sucursal y las recrean dentro de una transacción. Por cada
 entidad leen `url_utm` del convenio con `->first()->url_utm`: si el comercio no tiene convenio con
@@ -98,7 +98,7 @@ lugar donde «sin convenio no hay habilitación» se cumple, y lo hace por ese e
 una sucursal ecommerce no se cumple (sección siguiente). El
 `url_utm` de la sucursal se guarda en `null` cuando coincide con el del convenio.
 
-Diferencia entre copias: `application` conserva el `document_types` que cada entidad tenía en la
+Diferencia entre copias: `legacy-application` conserva el `document_types` que cada entidad tenía en la
 sucursal (o toma el de la entidad si es nueva); `Partner` recrea las filas sin `document_types`.
 
 Por cada entidad habilitada, las dos copias llaman a `addNewRule` y `addNewLenderRule`, que copian
@@ -107,7 +107,7 @@ las reglas de datacrédito y las reglas duras a la sucursal.
 ## Habilitar entidades al crear una sucursal ecommerce
 
 Dar de alta la credencial ecommerce de un comercio crea una sucursal aparte con su credencial
-(`EcommerceBranchCreator::create` en `application`, que usan `AlliedEcommerceCredentialsController::store`
+(`EcommerceBranchCreator::create` en `legacy-application`, que usan `AlliedEcommerceCredentialsController::store`
 y la provisión del asesor de prueba; `AlliedManagementService::storeEcommerceCredential` en `Partner`).
 Dentro de la misma transacción habilita las entidades que el comercio tiene en
 `lender_allied_credentials`, no las de `lenders_by_allieds`: por cada credencial llama a `addNewRule`
@@ -116,7 +116,7 @@ así que si el comercio tiene credencial con una entidad sin convenio, la sucurs
 habilita igual, con las reglas copiadas y sin términos comerciales. Qué hace el listado con esa
 habilitación no está cubierto acá.
 
-Diferencia entre copias: `application` guarda en la fila el `document_types` de la entidad;
+Diferencia entre copias: `legacy-application` guarda en la fila el `document_types` de la entidad;
 `Partner` la crea sin `document_types`.
 
 ## El `status` de una habilitación casi nadie lo lee
@@ -128,13 +128,13 @@ significa «la fila existe».
 
 Por eso casi ningún lector filtra por `status`:
 
-- el listado de entidades de `application` (`LenderRetrievalService`, también su camino de respaldo)
+- el listado de entidades de `legacy-application` (`LenderRetrievalService`, también su camino de respaldo)
   y los de `legacy-backend` (`Modules/Onboarding` `LenderRetrievalService` y `LenderListingService`,
   y `OnboardingV2` al preguntar si la sucursal tiene una entidad de cierto `response_type`) toman
   todas las filas de la sucursal; el convenio (`lenders_by_allieds`) tampoco se filtra;
-- los permisos CreditopX de `application` (`CreditopXMerchantAccess`) tampoco miran `status`, y su
+- los permisos CreditopX de `legacy-application` (`CreditopXMerchantAccess`) tampoco miran `status`, y su
   observer sólo recalcula al crear, borrar o mover la fila, no al cambiar `status`;
-- sí filtran `status = 1` el simulador v1 de `application` (`Customer/SimulatorController::index`) y
+- sí filtran `status = 1` el simulador v1 de `legacy-application` (`Customer/SimulatorController::index`) y
   `getActiveByAlliedBranchId` del repositorio de `LenderV1`;
 - el diagnóstico del backoffice (`Modules/Backoffice`, `ApplicationsService::apagadaEntities`)
   muestra como «apagada» la fila con `status = 0` y da por hecho que no entró al perfilamiento.

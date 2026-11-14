@@ -62,7 +62,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/AlliedLender/UpdateRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9f8f453cdd17f0756bcfdd3d0c08d7a561c53653",
@@ -80,7 +80,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
@@ -116,7 +116,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ConsentController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "45035467b3e271db4f05c42da7cd5b477cc15014",
@@ -125,7 +125,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/GuaranteeController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
@@ -134,7 +134,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
@@ -153,7 +153,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
@@ -162,7 +162,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "86b90ed9bdfdb38a8a59b6fb593a93cddb673739",
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/TestAdvisorProvisioner.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",
@@ -189,7 +189,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
@@ -198,7 +198,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/SimulatorController.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "112c3346747f8e0ef5f41a4fcf59719cd9d61b52",
@@ -279,7 +279,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
@@ -288,7 +288,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "c84cea12eb74690396114c9e5a9bda8d0a1430c4",
@@ -300,7 +300,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Observers/LendersByAlliedObserver.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "a605cfdaa673244df10e89ed950f77295ae2b1b6",
@@ -311,7 +311,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/Users/CreditopXMerchantAccess.php",
       "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
       "blob": "2eb73486b5e2ec19329c1f0741bc301f561d6976",

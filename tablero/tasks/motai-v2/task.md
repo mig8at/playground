@@ -50,20 +50,20 @@ Llevar Motai v1 al modelo único paramétrico (deber-ser del group Plataforma; m
 6. **CODEUDOR** = pieza NUEVA (modelo + formulario + gate `cosigner.score_min>650`), solo si ingreso < $2.9M.
 7. **PEP** (Permiso Especial de Permanencia, sin historial local): tipo de documento por config; consultar Datacrédito al 100% en thin-file = **decisión de negocio abierta** (C2/C3).
 
-**Frontera de alcance.** El flujo termina en la **pantalla del asesor** (aprobar / validar codeudor / rechazar). Quedan **fuera**: firma/desembolso/cobranza post-aprobación (Estado 11, `PromissoryNote`, servicing en `application`), el **panel/rol del administrador** (workstream aparte; hoy la decisión la toma el **asesor** por `BackDoorUserController`→`BackDoorUserService.php:569-642` — `motaiUpdateStatusOrchestrator` hace `approve?11:9`, request `MotaiUpdateStatusRequest`, sin auth ni "validar codeudor"), el **motor de decisión** R1–R8 corriendo solo, y el **IMEI/device-lock** de compra de celulares (árbol separado, no se cruza).
+**Frontera de alcance.** El flujo termina en la **pantalla del asesor** (aprobar / validar codeudor / rechazar). Quedan **fuera**: firma/desembolso/cobranza post-aprobación (Estado 11, `PromissoryNote`, servicing en `legacy-application`), el **panel/rol del administrador** (workstream aparte; hoy la decisión la toma el **asesor** por `BackDoorUserController`→`BackDoorUserService.php:569-642` — `motaiUpdateStatusOrchestrator` hace `approve?11:9`, request `MotaiUpdateStatusRequest`, sin auth ni "validar codeudor"), el **motor de decisión** R1–R8 corriendo solo, y el **IMEI/device-lock** de compra de celulares (árbol separado, no se cruza).
 
 ## Ramas y PRs por repo
 | Repo | Rama | Base | PR → | Estado |
 |---|---|---|---|---|
 | `legacy-backend` | `feature/motai-v2` | staging | ⚪ **sin destino** — iba a una rama fuera de la vía | pusheado |
 | `frontend-monorepo` | `feature/motai-v2` | staging | **staging** (sin retargetear) | pusheado |
-| `application` | — | — | — | sin cambios (§3.3: sin lógica Motai) |
+| `legacy-application` | — | — | — | sin cambios (§3.3: sin lógica Motai) |
 
 ⚠ **La entrega es `qa → main`, y después el resto de las ramas se pone al día desde `main`.** El PR de backend hay que re-apuntarlo o rehacer la rama sobre `qa` antes de que sirva de algo.
 
 **Commits nuestros — backend:** `936f0a7c` des-motaización · `32cd4203` TyC por comercio · `607fd2b0` recálculo liviano · `5013f4af` quitar columna `abaco` · `44eb3c02` merge develop (resolución del retarget) · `098322a8` fix `$hasCredifamilia` · `4022b6c9` fix ProfilerML. **Frontend:** `653e7939` · `15f3b3e9` · `6708ea5b`.
 ⚠ El diff del PR de backend contra su base mostraba ~52 archivos: arrastraba la divergencia entre ramas (ruido heredado), **no todo es nuestro** — lo real son los commits de arriba. Los fixes `098322a8` (`$hasCredifamilia` indefinido) y `4022b6c9` (ProfilerML 500 sin `H2O_API_HOST`) son bugs pre-existentes de develop; el de `$hasCredifamilia` **también vive en develop → avisar al equipo**.
-`application` no se toca (§3.3, verificado 2026-07-12): sin lógica Motai, solo copy de marketing (`resources/js/pages/customer/lenders/list/v2/ListLenders.vue:296,813,1225`) + 2 migraciones de esquema Ábaco (`2026_03_06_003223_add_abaco_settings_to_settings_table.php` · `2026_03_09_000000_add_abaco_column_to_user_summaries_table.php`) — schema del equipo de Ábaco, no des-motaización.
+`legacy-application` no se toca (§3.3, verificado 2026-07-12): sin lógica Motai, solo copy de marketing (`resources/js/pages/customer/lenders/list/v2/ListLenders.vue:296,813,1225`) + 2 migraciones de esquema Ábaco (`2026_03_06_003223_add_abaco_settings_to_settings_table.php` · `2026_03_09_000000_add_abaco_column_to_user_summaries_table.php`) — schema del equipo de Ábaco, no des-motaización.
 
 ## Alcance técnico del diseño
 <!-- por frente: QUÉ · POR QUÉ · dónde vive (anclas verificadas 2026-07-12 vs staging) · CÓMO AJUSTAR -->
@@ -79,7 +79,7 @@ Llevar Motai v1 al modelo único paramétrico (deber-ser del group Plataforma; m
 ### 2 · Muerte de los "modes"
 **Qué.** Deprecadas en código `allied_modes`/`user_request_modes`; **6 archivos borrados** (modelos `AlliedMode.php`/`UserRequestMode.php`, repos `AlliedModeRepository.php`/`UserRequestModeRepository.php` + interfaces/bindings), `AlliedModeLenderFilterService.php` eliminado, y la página de modos del front. **Por qué (el punto clave):** los modos eran la raíz del hardcode y una **inconsistencia de flujo** — el usuario **pre-elegía** el producto en la pantalla de modos, el modo viajaba en `session`, y al llegar a `/lenders` el `AlliedModeLenderFilterService` **re-decidía/filtraba** por ese modo (además era **NO-OP**: leía `config['lenders']` que ningún config traía). Sin modos, `/lenders` decide como cualquier solicitud.
 **Dónde.** Filtro `AlliedModeLenderFilterService.php:16-42` (cableado en `LenderRetrievalService.php:211` + `LenderListingService.php:127` → ahora passthrough); const `MOTAI_RENTING_ALLIED_MODE_ID=2` en `OnboardingController.php:36` (sin seeder — la fila se insertaba a mano, migración de nombre engañoso `2026_03_09_204622_create_merchant_modes_table.php` que crea `allied_modes`); front `merchant-mode.tsx` (componente + ruta `route("modes")` + `motai-bg.png`).
-**Cómo ajustar.** Las **tablas** `allied_modes`/`user_request_modes` siguen en BD (drop físico pendiente — BD compartida con `application`).
+**Cómo ajustar.** Las **tablas** `allied_modes`/`user_request_modes` siguen en BD (drop físico pendiente — BD compartida con `legacy-application`).
 
 ### 3 · Calculadora renting/rto en BD (no en código)
 **Qué.** Dos columnas nuevas en la tabla `lenders` (modelo `Lender`, `$fillable`/`$casts`) — `lenders.product` (default `credit`) y `lenders.calculator` (json, `null` = identidad) — evaluadas en backend por **`app/Support/FormulaCalculator.php`** (NUEVO; `symfony/expression-language`, **sin `eval`**, `guard()` = solo aritmética escalar, **fail-safe** → degrada a `{amount}`). `LenderListingService::attachCalculatedFields` → `buildCalculated()` corre el `calculator` **por fila de `plans` (renting) / `terms` (rto)** y adjunta `calculated={amount, plans:[{...,payment}], payment_unit, default_plan}` a cada lender del listado. **Por qué.** Que los cálculos vivan en **datos**, no en código.

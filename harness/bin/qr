@@ -11,7 +11,7 @@
 # ⚠ ESTE CANAL NO PASA POR /lenders. El QR de Corbeta salta a
 # `/bancolombia/self-service/{hash}/solicitar` y el OTP resuelve la pre-aprobación decidiendo solo
 # entre BNPL (68) y Consumo (100) — no hay marketplace. Detalle del recorrido y de por qué entramos en
-# el aterrizaje del wizard y no en `application`: pkg/qr.ts.
+# el aterrizaje del wizard y no en `legacy-application`: pkg/qr.ts.
 #
 # Necesita el mock de la API Fondos para llegar al código de compra:  bin/mock-corbeta start
 #

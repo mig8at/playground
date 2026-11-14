@@ -58,7 +58,7 @@ VALIDADO
   Depende de: producto y configuración — tipos de documento admitidos por entidad.
 
 El viejo pendiente de parchear una segunda clase de categorías en Onboarding ya no describe
-`main`: el listado modular usa el motor de Loans. `application` conserva otra implementación;
+`main`: el listado modular usa el motor de Loans. `legacy-application` conserva otra implementación;
 compartir BD no le agrega el salto de buró del backend modular. La publicación histórica del
 contexto y los PRs de abajo no condicionan el cierre local ni sustituyen la aceptación funcional.
 

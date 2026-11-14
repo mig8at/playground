@@ -8,7 +8,7 @@ y la validación funcional siguen en la tarea y en las herramientas.
 En `legacy-backend` hay dos implementaciones de la identidad. La del registro web
 (`OnboardingService::storePersonalInfo`, con los servicios de `Modules/Identity`) es la que
 describen las primeras secciones. El registro móvil (`MobileOnboardingV1`) usa la de `RiskV2`,
-que corta y registra distinto. `application` tiene una tercera, en su controlador.
+que corta y registra distinto. `legacy-application` tiene una tercera, en su controlador.
 
 ## TusDatos distingue ausencia de desacuerdo para cédula
 
@@ -147,7 +147,7 @@ nuevo. Es un camino de escritura de nombres fuera del registro.
 
 ## La aplicación anterior tiene otro camino de escritura
 
-En `application`, `Customer/PersonalInfoController` puede tomar los nombres de Ágil Data
+En `legacy-application`, `Customer/PersonalInfoController` puede tomar los nombres de Ágil Data
 y, en la rama donde Mareigua respondió con `respuesta_id == 4`, asigna sus campos de nombre
 y apellido al usuario. Esa escritura no equivale a la adopción con `NameSimilarity` de los
 servicios modulares.

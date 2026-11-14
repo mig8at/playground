@@ -121,8 +121,8 @@ correo: [shopify]
       rama `feat/core-689-shopify-platform` de legacy-backend (desde `main`, local, sin push, worktree
       `legacy-backend-shopify`): siembra, `ShopifyNotifier` y `ecommerce_type` en el alta de la Partner API. Credencial de
       prueba local: sucursal `f1681537`, tipo 4.
-- [x] ~~Marcar la plataforma de una sucursal sin el admin de application~~ — `php artisan ecommerce:platform <hash>
-      [shopify]` en la misma rama (c5250f71), probado en local. application va a desaparecer: su admin no se toca.
+- [x] ~~Marcar la plataforma de una sucursal sin el admin de legacy-application~~ — `php artisan ecommerce:platform <hash>
+      [shopify]` en la misma rama (c5250f71), probado en local. legacy-application va a desaparecer: su admin no se toca.
 - [x] ~~Publicar `POST /legacy-api/ecommerce/payment-link` (y `/status`) en el gateway de producción~~ — medido el
       2026-10-21 (tarea #102): las dos rutas responden 401 sin token en `v2.api.creditop.com/legacy-api`.
 - [ ] Que la app tome el celular y el nombre de las direcciones cuando la sesión no los trae en `customer`: en qa

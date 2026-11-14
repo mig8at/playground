@@ -4,7 +4,7 @@ Mecanismo del backend modular y del wizard disponible en las refs locales de `ma
 
 ## Producto y calculadora
 
-`lenders.product` distingue `credit`, `renting` y `rto`; `calculator` contiene parámetros, fórmulas y opciones. El modelo modular castea la calculadora a array. `LenderListingService` adjunta `product` y `calculated` usando `LenderCalculator`. Sin fórmulas, `FormulaCalculator` devuelve los inputs. El producto por sí solo no inventa una matriz de planes. El admin de entidades de `application` revisado no guarda `product` ni `calculator` en su `update`: crear o editar allí una entidad no prueba que tenga oferta calculada.
+`lenders.product` distingue `credit`, `renting` y `rto`; `calculator` contiene parámetros, fórmulas y opciones. El modelo modular castea la calculadora a array. `LenderListingService` adjunta `product` y `calculated` usando `LenderCalculator`. Sin fórmulas, `FormulaCalculator` devuelve los inputs. El producto por sí solo no inventa una matriz de planes. El admin de entidades de `legacy-application` revisado no guarda `product` ni `calculator` en su `update`: crear o editar allí una entidad no prueba que tenga oferta calculada.
 
 ## Orden y errores de las fórmulas
 

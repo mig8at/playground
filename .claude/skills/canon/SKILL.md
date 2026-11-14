@@ -104,7 +104,7 @@ que valida el corpus entero y guarda todo en una revisión. `POST /api/propose` 
 - `text` o `text_file` (ruta relativa a la pieza): prosa en markdown, sin el título. Tope: 600 palabras.
 - `objetivo` y `se_deduce_leyendo` son del **área** que nace con los archivos: una frase de negocio, no
   el título otra vez. Sin ellos el área nace con un eco del título que le compite en la búsqueda.
-- `archivos` usa los nombres de repo de canon (`legacy-application`, no `application`) y se valida
+- `archivos` usa los nombres de repo de canon (`legacy-application`, no `legacy-application`) y se valida
   contra `main`. Un archivo que otra área ya declara no crea área nueva: la sección se **enlaza** a ésa.
 - `source`: `verified` (leído en el código) · `measured` (medido) · `testimony` · `inference`.
 

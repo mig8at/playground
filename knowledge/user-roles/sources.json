@@ -5,7 +5,7 @@
   "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Providers/FortifyServiceProvider.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "2c663e1e889b996e9c2ae7013dc21a8bdb391d09",
@@ -14,7 +14,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/UserProfile.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d7a6dca0eb4e978fed1d6fe3e945d8a063437c84",
@@ -24,7 +24,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedCorporateUserController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "1a1f36be37e8a8aad697e1ee729b2ddfffb59c75",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/EndOfMonthReportController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "757fb593e9ff9e352774dba776734128a0cada7e",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/User/UpdateRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "7db796c46ba6bc2831376053190922a8bd9f50dd",
@@ -51,7 +51,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/PaymentLinkController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "454f83187ff41fcd596c1619526d8e0ea9785fb9",

@@ -47,7 +47,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "459a5b8efa12c208b69ee501a320378e5e55870c",
@@ -56,7 +56,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/TusDatosController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9f903852e046e54feaec7c231080d6b43eacfe83",

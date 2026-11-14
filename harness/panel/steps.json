@@ -321,7 +321,7 @@
           "back": [
             "Modules/Onboarding/App/Http/Controllers/EcommerceSimulatorController.php"
           ],
-          "nota": "NO VERIFICADO como camino productivo en legacy-backend: los únicos webhooks ROUTEADOS del repo son Modules/Onboarding/routes/webhooks.php (crosscore, lender-result/s del MS de pre-aprobaciones, VTEX) y scraping/webhook de Ábaco — no hay ruta para el webhook del agregador, aunque sí existan las Request classes huérfanas app/Http/Requests/Api/{Sistecredito,Bancolombia,Approbe,BancoDeBogota,Payvalida}/*WebhookRequest.php. El archivo listado es el DOBLE DE PRUEBA (POST simulator/aggregator-result → EcommerceSimulatorController@aggregatorResult, bloqueado en producción) que usa el harness. El webhook real sigue viviendo en el repo `application`.",
+          "nota": "NO VERIFICADO como camino productivo en legacy-backend: los únicos webhooks ROUTEADOS del repo son Modules/Onboarding/routes/webhooks.php (crosscore, lender-result/s del MS de pre-aprobaciones, VTEX) y scraping/webhook de Ábaco — no hay ruta para el webhook del agregador, aunque sí existan las Request classes huérfanas app/Http/Requests/Api/{Sistecredito,Bancolombia,Approbe,BancoDeBogota,Payvalida}/*WebhookRequest.php. El archivo listado es el DOBLE DE PRUEBA (POST simulator/aggregator-result → EcommerceSimulatorController@aggregatorResult, bloqueado en producción) que usa el harness. El webhook real sigue viviendo en el repo `legacy-application`.",
           "detalle": "Resultado asíncrono (llega por webhook)"
         }
       ]

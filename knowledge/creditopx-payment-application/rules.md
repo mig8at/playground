@@ -1,7 +1,7 @@
 # Cómo entra y se aplica un pago CreditopX
 
 Qué hace el código cuando entra dinero a un crédito CreditopX: cómo se reparte, qué registros escribe y
-por qué canal llega (pasarela Wompi, caja de Pullman). Describe `legacy-backend` y `application` en las
+por qué canal llega (pasarela Wompi, caja de Pullman). Describe `legacy-backend` y `legacy-application` en las
 refs de `sources.json`. No describe la causación nocturna (está en `creditopx-portfolio-servicing`) ni
 los recordatorios (están en `weekly-collection-reminders`), ni certifica qué canal, credencial o
 interruptor está activo en un ambiente.
@@ -9,11 +9,11 @@ interruptor está activo en un ambiente.
 ## Dos motores con la misma cascada
 
 El pago lo aplican dos implementaciones sobre la misma base: `CreditopXPaymentController::processPayment`
-en application y `CreditopXPaymentService::processPayment` en legacy-backend. Las dos crean un registro en
+en legacy-application y `CreditopXPaymentService::processPayment` en legacy-backend. Las dos crean un registro en
 `creditop_x_payment_register` (el dinero recibido) y uno o varios `creditop_x_payments` (las
 imputaciones), y por cada movimiento una fila nueva de `creditop_x_requests_history` que deja la anterior
 en `status = 0`. Diferencias: legacy-backend rechaza los pagos de ciclo de vida de una entidad
-`externally_serviced` y lanza si no hay cartera activa (`status` 1 u 8); application lee sólo `status = 1`
+`externally_serviced` y lanza si no hay cartera activa (`status` 1 u 8); legacy-application lee sólo `status = 1`
 y es el único que aplica el descuento por pronto pago (registro tipo 9). legacy-backend calcula ese
 descuento para mostrarlo, pero su `processPayment` no lo aplica.
 
@@ -29,7 +29,7 @@ que se mueve, es garantía la proporción que tienen los saldos, `guarantee_amou
 principal_amount_balance`, topada por el propio capital y por el saldo de garantía y redondeada a dos
 decimales (`GuaranteeAttribution::forPrincipal`, una copia idéntica en cada monolito). Es la misma regla
 para la cuota, el abono a capital, el pago total, la liberación de retenidos y el pronto pago de
-application, y el pago a cuota guarda la suya en `paid_guarantee`. `next_payment_guarantee` ya no topa
+legacy-application, y el pago a cuota guarda la suya en `paid_guarantee`. `next_payment_guarantee` ya no topa
 nada: es informativo, la garantía que lleva el capital del mínimo con esa misma proporción.
 
 Cada fila nueva recalcula `total_payment_amount` como capital + interés + seguro de vida + seguro de
@@ -45,7 +45,7 @@ del mismo movimiento: el abono mide su garantía sobre lo que dejó la cuota y e
 por la suma de las dos. Cuando la fila nueva queda en `status` 3 o sin capital, el saldo de garantía se
 escribe en cero sin sumar ese resto a lo pagado. El umbral sale de `creditop_x_lender_residual_balances`
 con 5000 por defecto, en los dos monolitos; legacy-backend usa 1 en una utilización de cupo rotativo,
-application sigue usando el de la entidad.
+legacy-application sigue usando el de la entidad.
 
 Si no alcanza, decide el tipo de abono (`principal_payment_type`). Con 3 el sobrante queda RETENIDO
 (tipo 1, con `request_history_id = 0`), esté o no en mora. Con 1 o 2 y el crédito al día, se abona a
@@ -66,7 +66,7 @@ cada monolito) antes de llamar por cada utilización, porque todas comparten la 
 reparto las llama pasando el id del pago del cupo, con lo que `processPayment` no vuelve a chequear.
 El reparto lo hace dentro de su transacción, después de bloquear la cabecera del cupo
 (`lockForUpdate`): dos entregas del mismo pago se serializan en ese bloqueo y la segunda ve el
-registro que dejó la primera. application además hace el mismo chequeo antes de abrir la
+registro que dejó la primera. legacy-application además hace el mismo chequeo antes de abrir la
 transacción, como atajo.
 
 ## Wompi: intención y webhook
@@ -88,7 +88,7 @@ El crédito se identifica con `credit_token` o con el id crudo (`loan_request_id
 gobierna la vista previa (sección siguiente).
 
 El webhook valida el checksum con `wompi_events` de esa credencial, bloquea la transacción y no repite
-un estado terminal: un replay o una transacción sin `concept` (creada por application) no hace nada.
+un estado terminal: un replay o una transacción sin `concept` (creada por legacy-application) no hace nada.
 Una misma referencia puede tener varios intentos en Wompi (el cliente reintenta con otro medio): una vez
 APPROVED, sólo el evento del intento que aprobó puede moverla; los de otro intento, o todos si no se
 conoce el id aprobado, se ignoran y se registran como `wompi.webhook.foreign_transaction_ignored`. En
@@ -122,11 +122,11 @@ interruptor encendido sólo se llega a un crédito cuyo token ya entregó otro e
 `Wompi::updateStatus` consulta a Wompi por la referencia y aplica el pago sólo al pasar a APPROVED: sale
 si el estado ya era APPROVED o si ya hay registro con esa transacción, y no mira `concept`. Tipo 1 de
 `creditop_x_payment_type_id` es cuota inicial; si no, cuota de consumo o pago de cupo. Es el camino de
-las transacciones de application (sin `concept`), por su poller. En legacy-backend también lo llaman el
+las transacciones de legacy-application (sin `concept`), por su poller. En legacy-backend también lo llaman el
 `GET {reference}/status` del flujo nuevo (con la transacción en PENDING desde hace más de 20 s, como
 mucho una consulta cada 15 s por transacción) y la cuota inicial. Entre los intentos que Wompi devuelve
 para la referencia, legacy-backend decide por el aprobado si hay alguno (si no, el primero de la lista) y
-toma de él estado y monto; application lee siempre el primero. `app:reconcile-wompi-transactions` de
+toma de él estado y monto; legacy-application lee siempre el primero. `app:reconcile-wompi-transactions` de
 legacy-backend reconsulta los PENDING de las últimas horas, pero no está agendado.
 
 ## Cuota inicial
@@ -160,6 +160,6 @@ los recaudos que Pullman confirmó; el que cruza el monto con un centavo de tole
 
 ## Límites
 
-En main de los dos monolitos no hay recaudo BHD. El reverso administrativo (application) marca el
+En main de los dos monolitos no hay recaudo BHD. El reverso administrativo (legacy-application) marca el
 registro con `status_id = 2` y los retenidos como PAGO REVERSADO. Ninguno de los dos agenda la cadena
-nocturna de cartera; application la dejó comentada atribuyéndola a otro servicio.
+nocturna de cartera; legacy-application la dejó comentada atribuyéndola a otro servicio.

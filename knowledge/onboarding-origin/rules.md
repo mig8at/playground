@@ -1,7 +1,7 @@
 # Origen del onboarding: canal y backend del usuario
 
 Cubre las columnas `users.onboarding_channel` y `users.onboarding_backend`: quién las escribe y
-cuándo, en `legacy-backend`, `application`, el wizard de `frontend-monorepo` y
+cuándo, en `legacy-backend`, `legacy-application`, el wizard de `frontend-monorepo` y
 `onboarding-forms-service`. Describe el código de `main`; no dice qué proporción de usuarios tiene
 el dato en un ambiente (las filas anteriores a la migración quedan en `null`) ni certifica que cada
 despliegue tenga la migración aplicada.
@@ -9,12 +9,12 @@ despliegue tenga la migración aplicada.
 ## Las dos columnas y sus valores
 
 La migración `2026_07_02_120000_add_onboarding_origin_to_users` de `legacy-backend` agrega las dos
-columnas, ambas `nullable`. `application` no tiene migración propia: escribe sobre la misma base.
+columnas, ambas `nullable`. `legacy-application` no tiene migración propia: escribe sobre la misma base.
 
 - `onboarding_channel`: `ecommerce`, `merchant`, `self_service` o `mobile`. Los tres primeros los
   declara el front; `mobile` sólo lo escribe el backend.
-- `onboarding_backend`: `legacy`, `application` o `refactor`. Nunca viene del front. El comentario
-  de la migración dice `legacy | application`, pero el código también escribe `refactor` (abajo).
+- `onboarding_backend`: `legacy`, `legacy-application` o `refactor`. Nunca viene del front. El comentario
+  de la migración dice `legacy | legacy-application`, pero el código también escribe `refactor` (abajo).
 
 El backoffice las devuelve como `onboardingChannel` y `onboardingBackend` en el detalle del usuario
 (`UsersService`). El único lector con lógica es `UserRequestService::warnIfCounterRequestHasNoAdvisor`
@@ -36,10 +36,10 @@ aproximación (el del primer registro, no el de esta solicitud).
   (`cosigner/self-service-phone.tsx`). Si crean el usuario, queda con canal `null`.
 - **`onboarding-forms-service`** (flujo dinámico): `send_otp.go` toma `onboarding_channel` del
   payload y, si viene vacío, usa `merchant`; lo reenvía a `create-temporary-user` de legacy.
-- **Front de `application`** (`RegisterCellPhone.vue`): `ecommerce` si es ecommerce, `self_service`
+- **Front de `legacy-application`** (`RegisterCellPhone.vue`): `ecommerce` si es ecommerce, `self_service`
   si es autogestión y `merchant` en el resto.
 - **Validación**: `SendOtpCodeRequest` y `BackDoorPhoneNumberRequest` de legacy, y
-  `StoreRegisterCellPhoneRequest` de `application`, aceptan sólo `ecommerce`, `merchant` y
+  `StoreRegisterCellPhoneRequest` de `legacy-application`, aceptan sólo `ecommerce`, `merchant` y
   `self_service`. Un `mobile` enviado a esos endpoints se rechaza. `ResendOtpCodeEmailRequest`
   (el OTP por correo, `OtpService::sendOtpCodeViaEmail`) no tiene regla para el campo: lo que llegue
   en `onboarding_channel` pasa sin validar a la creación del usuario.
@@ -66,15 +66,15 @@ El canal entra al crear el usuario temporal y no después:
 ## El canal se escribe una sola vez; el backend no
 
 `App\Models\User::booted()` registra un `updating` que, si `onboarding_channel` cambia y ya tenía
-valor, le devuelve el original. Lo mismo está en el `User` de `application`. Es un candado de
+valor, le devuelve el original. Lo mismo está en el `User` de `legacy-application`. Es un candado de
 modelo, no de base: no protege un `update` por Query Builder ni una escritura a través de
 `UsersV1\UserEntitie`, que no declara ese evento (lo advierte el propio `createTemporalMobileUser`).
 
-`onboarding_backend` no tiene candado. En `application`, `RegisterCellPhoneController` reenvía el
+`onboarding_backend` no tiene candado. En `legacy-application`, `RegisterCellPhoneController` reenvía el
 canal a `phone/register` de legacy, hidrata el usuario que devuelve y, si su backend no es
-`application`, lo pone en `application` y guarda. Como `phone/register` devuelve también usuarios
-que ya existían, un usuario creado por legacy que vuelve a registrarse por `application` pasa a
-figurar con backend `application`: la columna dice el último backend de `application` que lo
+`legacy-application`, lo pone en `legacy-application` y guarda. Como `phone/register` devuelve también usuarios
+que ya existían, un usuario creado por legacy que vuelve a registrarse por `legacy-application` pasa a
+figurar con backend `legacy-application`: la columna dice el último backend de `legacy-application` que lo
 tocó, no siempre el que lo creó. Si ese guardado falla, sólo deja un warning.
 
 ## Límites

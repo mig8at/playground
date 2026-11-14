@@ -33,7 +33,7 @@
 //   de la consulta y el código deje de mostrarse. Es el caso que el test tiene que congelar.
 //
 // LO QUE **NO** MOCKEA:
-//   · La conciliación batch (los 4 crons de `application` que llaman `query()` con status=3 y
+//   · La conciliación batch (los 4 crons de `legacy-application` que llaman `query()` con status=3 y
 //     confirman a Bancolombia). Necesitan además el confirm del banco: es otro ejercicio.
 //   · El servicio nuevo de Bancolombia (*In Store Billing Code*). Ese es `mock-bancolombia`, y sólo
 //     tiene sentido cuando exista el cliente nuevo en el backend.

@@ -85,7 +85,7 @@ func (l Library) Touched(files []RepoFile) []TouchedSection {
 }
 
 // AliasOf traduce la carpeta de un clon (`legacy-application`) al alias con que la biblioteca lo cita
-// (`application`). Devuelve "" si tools/repos.json no lo conoce.
+// (`legacy-application`). Devuelve "" si tools/repos.json no lo conoce.
 func AliasOf(client *repos.Client, folder string) string {
 	aliases := make([]string, 0, len(client.Citable()))
 	for alias := range client.Citable() {

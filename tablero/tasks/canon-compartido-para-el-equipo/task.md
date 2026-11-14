@@ -101,7 +101,7 @@ perilla (`maxPasos`) y se mide de a una pregunta.
 | pullman | field.merchant-pullman | chico |
 | merchants | field.merchants | par/copia ya graduó a canon.invariants |
 | architecture | **map.repos** ✅ | las costuras: lo conceptual migra |
-| application | **map.repos** ✅ | casi todo queda (denso en direcciones) |
+| legacy-application | **map.repos** ✅ | casi todo queda (denso en direcciones) |
 | legacy-backend | **map.repos** ✅ | ídem |
 | frontend-monorepo | **map.repos** ✅ | ídem |
 | microservicios | **map.services** ✅ | service_name es vocabulario, migró |
@@ -976,7 +976,7 @@ Banco sin cambios: 23/26 primero, 26/26 alcanzable. CI verde, worktree limpio, s
 exclusión silenciosa · frontera del rotativo), **863 palabras** de prosa. Todo salió del nodo local
 `creditopx` (sello 2026-08-17) **re-verificado contra origin/main hoy**: la tolerancia de $1.000, el
 corte por entidad (`user_id+lender_id+rt=2`), los tres evaluadores, y el `unset` silencioso en
-`application` (:376).
+`legacy-application` (:376).
 
 **La prosa que quedó** — sólo lo no deducible: de quién es la plata (el comercio, y eso explica todas
 las reglas) · el rechazo silencioso como comportamiento normal · el bloqueo por crédito activo con sus
@@ -1048,7 +1048,7 @@ tema enlazado con sus vecinos por aristas derivadas.
 
 ## Sexto tema: arquitectura — el que explica a los otros cinco (2026-08-28)
 
-Miguel pidió el tema de cómo están construidos los repos y la migración application→legacy-backend.
+Miguel pidió el tema de cómo están construidos los repos y la migración legacy-application→legacy-backend.
 **14 archivos en 6 áreas** — las cuatro costuras de código · la compuerta del cutover (dos filas de
 settings, OR, sólo el viejo las conoce) · los webhooks que anclan · el grupo público del nuevo · los
 relojes (24 crons vs 5) · el eje response_type/path_id — y **765 palabras**.

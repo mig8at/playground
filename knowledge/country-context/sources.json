@@ -98,7 +98,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Customer/Onboarding/PersonalInfoRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "05b9ab92688b872c9a22386820af98143cd706bc",
@@ -107,7 +107,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/DocumentTypesService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a405baff204400c9cd2a28d763bc9974e5aa0862",
@@ -126,7 +126,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/Country.php",
       "commit": "fc74ac8bc1b364191f859bb6830e8d47c15bb882",
       "blob": "51736b69d658a28a21538fd5fa3e4fe702aa8296",
@@ -144,7 +144,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Allied/StoreRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c4ee10d77adf19aea7efc7167e6f9888b70c12f3",
@@ -153,7 +153,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Allied/UpdateRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "4257eb2d2036c701fbbf2d67ab9207b9228408e0",
@@ -162,7 +162,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Lender/StoreRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9f0facee8b1872db7cbbb600153d9806d8065edc",
@@ -171,7 +171,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/Lender/UpdateRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "17bf39593cf37df3e469dc07e1d9851efb992541",

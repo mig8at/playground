@@ -857,7 +857,7 @@ Es la única parte del post-Estado-11 ejercitable localmente, y **funciona**. Lo
 
 **Gotcha del contrato (nos mordió):** `lock`/`unlock`/`release` NO usan el mismo contrato que `enroll`. El cuerpo es `{ devices: [{deviceId, title, message}] }` y la respuesta se lee con `data_get($response, 'results.0')`. Un mock que devuelva `{deviceId, state}` plano deja el `device_lock` en **`failed`** aunque responda `success: true` — silencioso y confuso. Corregido en `mock-mdm`.
 
-**Lo que sigue sin cubrir del post-11:** el resto del servicing CreditopX (cascada de cobranza, mora, intereses, seguros, capital) corre en **`application`**, no en legacy — fuera del alcance de este stack local.
+**Lo que sigue sin cubrir del post-11:** el resto del servicing CreditopX (cascada de cobranza, mora, intereses, seguros, capital) corre en **`legacy-application`**, no en legacy — fuera del alcance de este stack local.
 
 ### F-40 · Ecommerce: NO es ejercitable — la ruta de checkout ya no existe en el wizard
 > ⚠ **Stale** — CORREGIDO por F-54: el eje ecommerce existe — solo resuelve Bancolombia y se prueba contra dev. Crónica completa: `cerrados.md`.
@@ -1334,7 +1334,7 @@ O sea: **la fianza anticipada es el caso real** (338 comercios) y la mensualizad
 
 Es decir: los comercios siguen originando, pero el camino ya **no pasa por el estado 25**, que es requisito duro del guard del código (ver F-82). Y el ciclo completo (facturar en caja → estado 26) se cerró 10 veces en total.
 
-**Evidencia adicional:** en el mismo período `ecommerce_requests` sólo tiene filas de **jun-26 (22)** y **jul-26 (4)** → el canal ecommerce unificado es reciente y chico. De las 119 solicitudes en estado 25, **118 no tienen `ecommerce_request`**: son del camino clásico de `application`.
+**Evidencia adicional:** en el mismo período `ecommerce_requests` sólo tiene filas de **jun-26 (22)** y **jul-26 (4)** → el canal ecommerce unificado es reciente y chico. De las 119 solicitudes en estado 25, **118 no tienen `ecommerce_request`**: son del camino clásico de `legacy-application`.
 
 **Qué hacer.** Antes de depurar el código de compra o de sembrar un caso, asumí que **no hay tráfico vivo** y construí el caso a mano por el flujo del QR. Y antes de estimar un reemplazo de proveedor, preguntá **por qué se apagó**: cambiar quién emite el código no arregla un embudo que se corta antes.
 
@@ -1760,7 +1760,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   que DIVERGEN: `settings.corbeta_allieds` (BD, dump de dev) = `[24,209,210,211]` **con DOS filas
   duplicadas de la misma key** (id 21 y 26); el cutover/redirect ecommerce del monolito agrega el 311
   (Kalley), hardcodeado en `Customer/WoocommerceController` + `Api/BancolombiaController` +
-  `Api/EcommerceReplayController` de `application`; `User.php` en AMBOS repos usa `[209,210,211]` **sin
+  `Api/EcommerceReplayController` de `legacy-application`; `User.php` en AMBOS repos usa `[209,210,211]` **sin
   el 24**; y `BancolombiaBnpl.php:387` (`$aliadosConPrefijo`) tiene 8 ids.
 - **Evidencia:** `SELECT id,code,`key`,value FROM settings WHERE `key` LIKE '%corbeta%'` (2 filas) +
   grep de los cuatro literales con archivo:línea. La tabla completa: nodo `corbeta` §gate.
@@ -2662,7 +2662,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   dispositivos: hay que contar `DISTINCT user_request_product_id`. Con filas, `failed` parece el
   estado más común del sistema; con dispositivos, es una minoría chica y atascada.
 - **Lo que local SÍ permite** (sembrando a mano el ledger de mora `creditop_x_requests_history` —que en
-  producción escribe **`application`**, no legacy— y con el mock del MDM al que se le puede **dictar el
+  producción escribe **`legacy-application`**, no legacy— y con el mock del MDM al que se le puede **dictar el
   fallo**): ejercitar los tres comandos de punta a punta. El bloqueo y el desbloqueo funcionan y dejan
   **una** fila. Lo que no se puede reproducir ahí es la multiplicación.
 - ⚠ **Un intento de arreglo que NO prosperó, anotado para que nadie lo repita:** reutilizar la fila
@@ -3144,14 +3144,14 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   `STATUS_MAP` y mueve la solicitud en la base que ve `legacy-backend`. Lo único simulado es **la entidad
   que llama**. En el harness: `@webhook=fulfilled`, opt-in.
 - **⚠ Y LOS DOS `STATUS_MAP` DIFIEREN — demostrado corriendo, no leyendo.** `pendiente_desembolso` da
-  **28** (el de application) y está escrito como **11** en `legacy-backend`; además `fraud` y
+  **28** (el de legacy-application) y está escrito como **11** en `legacy-backend`; además `fraud` y
   `risk_in_process` sólo existen en el nuevo. Son 12 estados iguales y 3 distintos. Cuando el webhook
   migre, **uno de esos tres cambia de desenlace** — y el TODO que lo marca (`[PARIDAD]`) ya está en el
   código, pero sin decir cuál gana.
 - **Tres trampas del camino, todas silenciosas:** el monolito viejo **rutea por subdominio** (el webhook
   está en `api.localhost`, y pegarle al host pelado da **405 «Supported methods: GET, HEAD»** por la ruta
   fallback, no 404); **`fetch` de Node descarta el header `Host`** sin avisar, así que el subdominio va en
-  la URL; y sin `WELLI_WEBHOOK_TOKEN` en el `.env` de application el guard rechaza con 401.
+  la URL; y sin `WELLI_WEBHOOK_TOKEN` en el `.env` de legacy-application el guard rechaza con 401.
 - **⚠ Y rt=0 TAMBIÉN avisa por webhook — es la familia MÁS GRANDE y se pasa por alto.** Medido en
   producción (90 días): rt=0 lleva **15.339 solicitudes (46 % del total) y 4.196 autorizadas**, o sea
   que «redirige y nadie decide en plataforma» describe la ida, no la vuelta. Vuelven por un webhook

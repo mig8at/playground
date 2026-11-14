@@ -2,7 +2,7 @@
 
 Para investigar diferencias de montos sin reconstruir la tarea #97. Describe el código de
 `legacy-backend` revisado en `sources.json`. La radicación SOAP no aparece en la ref revisada
-de `application`; no se traslada este mecanismo al monolito anterior.
+de `legacy-application`; no se traslada este mecanismo al monolito anterior.
 Las respuestas del proveedor, los ambientes probados y las decisiones del alcance siguen en la tarea.
 El código permite comprobar qué se calcula, no certificar la regla comercial de Credifamilia.
 

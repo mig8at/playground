@@ -46,7 +46,7 @@ mismo total que ya muestran el voucher y el plan de cuotas.
 
 El mecanismo vigente está en `legacy-backend` y se explica en
 `knowledge/credifamilia-financing/rules.md`, con commits y blobs en `sources.json`.
-La búsqueda de radicación SOAP en la ref local de `main` de `application` no encuentra ese camino.
+La búsqueda de radicación SOAP en la ref local de `main` de `legacy-application` no encuentra ese camino.
 
 - `app/Actions/Lenders/CredifamiliaConsumo/TransactionRequest.php`: obtiene el total de
   `BondBreakdown`, sobre el monto solicitado convertido a entero; informa dos decimales y

@@ -62,12 +62,12 @@ jira_title: "Sucursal y asesor de prueba al crear un comercio"
 - [x] Confirmar a qué pool apuntan dev, qa y staging (2026-10-02): al de PRODUCCIÓN. El id `us-east-1_XnF2zz3Ou` es el
   pool Merchants de la consola de producción. Falta, sólo para cerrar del todo, ver en esa consola que el dominio
   `auth.merchant.creditop.com` y el cliente `il7p9ueb…` son los de ese pool. Cerrado del todo el 2026-10-05 con la consola de prod.
-- [x] Mergear el [PR 252](pr:application#252) y comprobarlo en dev (2026-10-05): los asesores nacen con `is_test = 1` y
+- [x] Mergear el [PR 252](pr:legacy-application#252) y comprobarlo en dev (2026-10-05): los asesores nacen con `is_test = 1` y
   `test_reason = 'manual'`, y siguen entrando.
 - [x] Borrar las dos cuentas del pool Merchants Dev que dejaron los comercios 353 y 354 (hecho el 2026-10-05, pool en 0) (cuentas `cb5c7fdad-fake` y
   `c5073e8d9-fake`); termina cuando el pool está en 0 usuarios.
   Depende de: Miguel — renovar la sesión de AWS.
-- [x] Evitar que el revert del 2026-10-01 ([PR 251](pr:application#251)) saque el asesor de prueba de `develop`: el
+- [x] Evitar que el revert del 2026-10-01 ([PR 251](pr:legacy-application#251)) saque el asesor de prueba de `develop`: el
   servicio volvió a `main` (`TestAdvisorProvisioner.php` está en `origin/main` el 2026-10-22; no se midió con qué merge entró).
 - [ ] Cambiar la clave compartida de dev (`ALLIED_TEST_ADVISOR_PASSWORD`): quedó escrita en una
   conversación; termina cuando el secret tiene una clave nueva y la anterior ya no abre la cuenta.
@@ -127,7 +127,7 @@ Nunca puede romper el alta del comercio, y un comercio que ya tiene el usuario n
 
 ## Dónde se toca
 
-Todo en `legacy-application` (alias `application` en el tablero), rama `develop`:
+Todo en `legacy-application` (alias `legacy-application` en el tablero), rama `develop`:
 
 - `app/Services/Allied/TestAdvisorProvisioner.php` — el servicio: sucursal + asesor en una transacción, y
   luego la cuenta en Cognito; `find`, `summary`, `resetPassword`, `buildEmail`, `branchName`.
@@ -279,7 +279,7 @@ arrancar la tarea); la reversa segura sigue sin probarse.
 - Plan para qa y staging (cambiar el login del wizard a Merchants Dev, con hoja de vuelta): `artifacts/plan-pruebas-qa-staging.html`, del 2026-10-02.
 - Scripts para cambiar el login de un wizard desplegado a Merchants Dev y volver (la carpeta local `cognito`, junto a `my-tools`, fuera de git y sin secretos): estado, crear el cliente, cambiar, probar el login y revertir, con `--dry-run`.
 - Plan para producción (mantener el pool de producción; apagar es vaciar una variable): `artifacts/plan-produccion.html`, del 2026-10-02.
-- [PR #243](pr:application#243) — mergeado a `develop` el 2026-10-01.
+- [PR #243](pr:legacy-application#243) — mergeado a `develop` el 2026-10-01.
 - Conocimiento local: `knowledge/merchant-onboarding/rules.md`; cubre las entradas de `main`, no la configuración de pools por ambiente.
 - Canon (opcional para negocio/producto): [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
 - Hilo con infra en Slack (Daniel Sánchez): pools por ambiente y permisos.

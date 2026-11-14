@@ -101,7 +101,7 @@ misma lógica:
 
 - en `legacy-backend`, `Modules/Risk` (no `RiskV2`), que llaman `OnboardingController`,
   `OnboardingService` y `CreditStudyService`;
-- en `application`, que llaman el listado de entidades, la información personal y la validación del OTP.
+- en `legacy-application`, que llaman el listado de entidades, la información personal y la validación del OTP.
 
 La copia de `legacy-backend` agrega una puerta antes de todo: si el país del comercio no tiene
 centrales de riesgo habilitadas, no consulta (`no_active_risk_centrals_for_country`). Las dos dejan cada

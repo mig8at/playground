@@ -200,7 +200,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/LenderController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "9e954010be4a26e182a3cbb4781ff5eddcc5236c",
@@ -209,7 +209,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
@@ -326,7 +326,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",

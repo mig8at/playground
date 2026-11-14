@@ -115,13 +115,13 @@ hay que saber qué puerta atendió el caso.
 
 El listado evalúa las `lender_rules` de los grupos de la sucursal: por campo del formulario
 (`field_id`) o por tabla. Por tabla, el backend modular lee `age`, `gender` y `document_type` del
-usuario; application sólo `age` y `gender`. Cualquier otra columna compara contra vacío. Los
+usuario; legacy-application sólo `age` y `gender`. Cualquier otra columna compara contra vacío. Los
 operadores son `=` (varios valores separados por `|`), `>=`, `<=` y `!=`. Lo que pasa cuando una
 entidad no cumple depende de su `response_type`:
 
 - Con 2 (CreditopX) sale del listado.
 - Con 3 (rotativo), en el backend modular, sale salvo que el cliente ya tenga un cupo rotativo
-  aprobado con esa entidad. application no tiene este caso y la deja.
+  aprobado con esa entidad. legacy-application no tiene este caso y la deja.
 - Con cualquier otro valor se queda, marcada «Probabilidad muy baja» y ordenada al final. Las
   entidades 5, 135, 136 y 137 quedan además con «0% de probabilidad».
 
@@ -131,11 +131,11 @@ al tope de créditos del mes con ella (`lender_requirements.max_credits_per_clie
 
 Por eso cargar en `lender_rules` la política de una entidad de respuesta externa no la saca del
 listado. En el backend modular una regla con `status = 0` no se evalúa, como en el flujo de cupo;
-application la sigue evaluando.
+legacy-application la sigue evaluando.
 
 El umbral de score de `lender_datacredito_rules` excluye sólo en caminos de CreditopX: en el backend
 modular, el cupo de CreditopX y el rotativo (`DatacreditoRuleEvaluator`, con `allow_0_score` para
-aceptar score 0); en application, el listado lo evalúa sólo para `response_type` 2. En el listado del
+aceptar score 0); en legacy-application, el listado lo evalúa sólo para `response_type` 2. En el listado del
 backend modular el bloque de buró de las reglas duras está comentado, y la regla de la sucursal la
 evalúa en cambio `RiskCentralValidationService`, sólo si el comercio tiene fila en
 `datacredito_frequencies` y el cliente tiene score: sin `allow_0_score`, y una entidad que falla no
@@ -144,4 +144,4 @@ sale: vuelve a la lista con la probabilidad que le dan los niveles de score de l
 probabilidad». `cities_by_lender` existe como tabla en los dos
 monolitos y ningún listado la lee: no saca entidades por ciudad. En el backend modular sólo la lee el
 motor de categorías, para el criterio `residence_city` de los perfiles de la etapa extendida con
-`residence_city_field_id` (`ResidenceCityResolver::isAllowed`); application no la lee.
+`residence_city_field_id` (`ResidenceCityResolver::isAllowed`); legacy-application no la lee.

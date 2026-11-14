@@ -143,7 +143,7 @@ tarea. Los clientes con historial en varios comercios no se descifran con la lla
 
 ## Referencias
 
-- [#170](pr:application#170) · [#171](pr:application#171) · [#365](pr:application#365) · [#366](pr:application#366) · [#367](pr:application#367)
+- [#170](pr:legacy-application#170) · [#171](pr:legacy-application#171) · [#365](pr:legacy-application#365) · [#366](pr:legacy-application#366) · [#367](pr:legacy-application#367)
 - [admin-panel](knowledge:admin-panel)
 - Comercio de ejemplo: https://admin.staging.creditop.com/aliados/94/usuarios
 

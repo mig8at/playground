@@ -63,7 +63,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/LenderAlliedCredential.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
@@ -72,7 +72,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/RiskCentralCredential.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b268d45ed0c5418170bc5fbf84cc8b336859f89a",
@@ -81,7 +81,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/DecevalSoap.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c80cf1c5d022be252d283c87e9e650f761c63004",
@@ -327,7 +327,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
@@ -336,7 +336,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/AlliedEcommerceCredential.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "dc8eea04a0505caf15efa95290767d16221f1bc9",
@@ -345,7 +345,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/VtexController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "4046c915230661f6a3e7f01c44191e7cd7b4c0ed",
@@ -354,7 +354,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/WoocommerceController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
@@ -363,7 +363,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/UserRequestController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b5e3f9ac409434e391a721b3cc453d93662f8573",
@@ -372,7 +372,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/AdoController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "edd863df829fe9198d1884d6cb3af1b9025b6709",
@@ -381,7 +381,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/RiskCentrals/Experian.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "bc7e710aeb7a8872d3ff408a6596ce83945ae1e0",
@@ -390,7 +390,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/Lenders/Sistecredito.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "0118d024f5d532a31e70d63aedb4022feeff6422",

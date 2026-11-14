@@ -136,7 +136,7 @@ fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
   2026-11-12): si alguna entidad activa de la sucursal tiene credencial de Mareigua, **la primera por id**
   (como `DocumentTypesService::resolver` junta los tipos de documento); si ninguna, la de config. Guarda el
   `credential_id` en el request, como ADO, y deja en el log la sucursal, las entidades con cuenta y la elegida.
-  Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), application y el Experian HC2.
+  Probado de punta a punta en local. Fuera: mobile (su comando no trae sucursal), legacy-application y el Experian HC2.
 - [x] Llevar a qa las credenciales de Mareigua por entidad: [#1922](https://github.com/Creditop-SAS/legacy-backend/pull/1922)
   (mergeado el 2026-11-12) y probado en qa: cada sucursal consultó con la cuenta esperada.
 - [ ] Limpiar de la base compartida lo creado para la prueba de qa: comercios 365, 366 y 367 («PRUEBA AUTO
@@ -276,14 +276,14 @@ comercios (prod y local). Lo que el tipo 4 trae y lo que le falta (legacy-backen
   `DelegatedOriginationFormalizations`). Sin formalización la solicitud llega a 11 sin radicar y lo deja en el
   log: Finandina puede llegar a 11 antes de que exista su entrega, que será su clase de formalización.
 - **Credencial:** los tipos 1 y 4 exigen credencial propia en el punto de venta (`LenderIntegrationRules`).
-- `application` no tiene ramas del tipo 4: el piloto lo atiende el backend modular.
+- `legacy-application` no tiene ramas del tipo 4: el piloto lo atiende el backend modular.
 
 Cadena del cupo en legacy-backend (`Modules/Loans/App/Http/Controllers/Customer/CreditopXQuotaController.php`):
 crédito activo (`ActiveCreditRuleEvaluator`) → `lender_rules` (`LenderRuleEvaluator`) → buró
 (`DatacreditoRuleEvaluator`, score con `allow_0_score`) → categoría (`LenderUserCategoryService`). Sin
 categoría no aparece y autorizar da 422; al autorizar se carga el cupo mensual del perfil (`knowledge/creditopx-quota`).
 
-### Regla → mecanismo (legacy-backend `origin/main` c03edaff, application 24dc86eb)
+### Regla → mecanismo (legacy-backend `origin/main` c03edaff, legacy-application 24dc86eb)
 
 | regla | veredicto | dónde |
 |---|---|---|
@@ -340,7 +340,7 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
 ### Trampas para tener en cuenta
 
 - Deceval en legacy-backend busca la credencial de la entidad y, si falta, cae a la del comercio o la sucursal
-  (`RiskCentralCredential.php:86-108`): un pagaré podría salir a nombre de otro emisor sin error. application
+  (`RiskCentralCredential.php:86-108`): un pagaré podría salir a nombre de otro emisor sin error. legacy-application
   no usa la credencial de la entidad (`app/Actions/DecevalSoap.php:56`).
 - Con el tipo 4, fallar `lender_rules` no la saca del listado: sólo la preaprobación la rechaza.
 - Por la cascada de KYC, Mareigua sólo se consulta si Ágil Data no trae datos: para esos clientes no hay

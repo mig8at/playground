@@ -5,7 +5,7 @@
   "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
@@ -23,7 +23,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "7802065602c7042ecc2929736c9012868601a655",
@@ -33,7 +33,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ProfilingReviewController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "383a1d1368f800d4a32d1a255fb1f7ee8f82ff81",
@@ -42,7 +42,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/admin.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
@@ -51,7 +51,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/customer.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b6eb566da0824d4fa671f9dd4ea1c09412b35e2b",
@@ -60,7 +60,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/UserProfilingService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "40196f06e3ff1c3583bdab5831e9f29deb5cbadc",
@@ -69,7 +69,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/UserRequestProfilingController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "fb4354e2fbb167b2660e90cd083170c3e617bfcf",
@@ -79,7 +79,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingReviewController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "b213ff5a6dc70fcf50731b0bd9c9a65ce22fd99e",
@@ -88,7 +88,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/ProfilingModelTestController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "1ee7e872f9e7f64419633e4ac9ce660922691c1e",
@@ -97,7 +97,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/GenericFormController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "56f91c6a247f06bf6f68411f877063b2d00b9b5e",
@@ -115,7 +115,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Policies/UserRequestPolicy.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a9251832ecd42a0e22e1b2a44f45466c041fc2e4",
@@ -125,7 +125,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/ManualApproval/ManualApprovalService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d0c63811fa4fd49c177fdad6e886b69e7aef6785",

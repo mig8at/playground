@@ -10,7 +10,7 @@ Mecanismo revisado en las refs locales de `main`, acotado al requisito, su consu
 
 ## Dónde se pide el paso
 
-El resolver sólo se invoca desde `CreditopXFlowService::getNextStepData`, que usa `POST requests/confirm`: primero el formulario dinámico, después Ábaco y al final la validación de identidad. `POST requests/identity-validation` llama directo a `getIdentityNextStepData`, sin los resolvers de formulario ni de Ábaco; el controlador lo declara como un salto deliberado para cortar el bucle cuando la consulta todavía no aterrizó, y no verifica que Ábaco se haya completado. En `application` el modelo `LenderRequirement` lleva la columna `abaco_is_enabled`, pero no se encontró un paso ni un salto de Ábaco en ese monolito.
+El resolver sólo se invoca desde `CreditopXFlowService::getNextStepData`, que usa `POST requests/confirm`: primero el formulario dinámico, después Ábaco y al final la validación de identidad. `POST requests/identity-validation` llama directo a `getIdentityNextStepData`, sin los resolvers de formulario ni de Ábaco; el controlador lo declara como un salto deliberado para cortar el bucle cuando la consulta todavía no aterrizó, y no verifica que Ábaco se haya completado. En `legacy-application` el modelo `LenderRequirement` lleva la columna `abaco_is_enabled`, pero no se encontró un paso ni un salto de Ábaco en ese monolito.
 
 ## Vigencia de la consulta
 
@@ -30,7 +30,7 @@ Para el motor, una consulta saltada es una consulta sin datos: `AbacoGigProfileR
 
 ## Cupo sin reporte de buró
 
-En el motor `Modules/Loans/LenderUserCategoryService`, sólo si no hay reporte Datacrédito, el flag de Ábaco evita el corte por falta de buró. Las reglas previas de categoría siguen aplicando y el cupo sale de `calculateAvailableAmountWithInitialFee`; el ingreso no queda certificado por este salto. Si la lectura del requisito falla, su helper devuelve false y conserva la exigencia de buró por esa vía. Existe además otra vía de salto por país sin centrales activas. El listado modular ya resuelve las categorías con el motor de Loans: la vieja separación por id 160 no describe ese código. La clase homónima de `application` revisada todavía continúa sin categoría cuando falta Datacrédito; no debe atribuírsele el salto modular. Que los dos monolitos compartan datos no prueba que sus evaluaciones sean iguales.
+En el motor `Modules/Loans/LenderUserCategoryService`, sólo si no hay reporte Datacrédito, el flag de Ábaco evita el corte por falta de buró. Las reglas previas de categoría siguen aplicando y el cupo sale de `calculateAvailableAmountWithInitialFee`; el ingreso no queda certificado por este salto. Si la lectura del requisito falla, su helper devuelve false y conserva la exigencia de buró por esa vía. Existe además otra vía de salto por país sin centrales activas. El listado modular ya resuelve las categorías con el motor de Loans: la vieja separación por id 160 no describe ese código. La clase homónima de `legacy-application` revisada todavía continúa sin categoría cuando falta Datacrédito; no debe atribuírsele el salto modular. Que los dos monolitos compartan datos no prueba que sus evaluaciones sean iguales.
 
 ## Backfill y retirada de modos
 

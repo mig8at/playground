@@ -3,7 +3,7 @@
 Cubre qué decide `legacy-backend` cuando una persona valida su código y cuando envía el formulario de
 datos personales, según sea un usuario temporal o uno consolidado. Describe los módulos
 `OnboardingV2` (el camino del pipeline de KYC) y, donde difiere, el `Onboarding` de siempre (v1); el
-wizard de `frontend-monorepo` sólo en cómo elige el endpoint y traduce los códigos. `application`
+wizard de `frontend-monorepo` sólo en cómo elige el endpoint y traduce los códigos. `legacy-application`
 (legacy-application) tiene su propio formulario Blade (`Customer/PersonalInfoController`), que este
 tema no cubre. No certifica qué comercios van por cada camino (ver `kyc-pipeline`) ni cubre la
 vigencia de consultas a centrales.

@@ -9,8 +9,8 @@ import (
 const prsBody = `
 ## Pendientes
 
-- [x] ~~Mergear [legacy-application#348](pr:application#348)~~ — hecho.
-- [ ] Revisar y mergear [legacy-application#345](pr:application#345) y
+- [x] ~~Mergear [legacy-application#348](pr:legacy-application#348)~~ — hecho.
+- [ ] Revisar y mergear [legacy-application#345](pr:legacy-application#345) y
       [legacy-backend#1806](pr:legacy-backend#1806).
 - [ ] Mergear frontend-monorepo#1314 y el #1670 suelto, que no dice de qué repo es.
 - [ ] Mock: [lamba#11](https://github.com/Creditop-SAS/credifamilia-mockery-lamba/pull/11).
@@ -25,16 +25,16 @@ func TestOpenPendingItems(t *testing.T) {
 	if len(got) != 3 {
 		t.Fatalf("esperaba 3 pendientes abiertos, hubo %d: %q", len(got), got)
 	}
-	if want := "- [ ] Revisar y mergear [legacy-application#345](pr:application#345) y [legacy-backend#1806](pr:legacy-backend#1806)."; got[0] != want {
+	if want := "- [ ] Revisar y mergear [legacy-application#345](pr:legacy-application#345) y [legacy-backend#1806](pr:legacy-backend#1806)."; got[0] != want {
 		t.Fatalf("la continuación no se unió:\n got %q\nwant %q", got[0], want)
 	}
 }
 
 func TestPRRefsIn(t *testing.T) {
 	aliases := map[string]string{
-		"application":       "Creditop-SAS/legacy-application",
-		"legacy-backend":    "Creditop-SAS/legacy-backend",
-		"frontend-monorepo": "Creditop-SAS/frontend-monorepo",
+		"legacy-application": "Creditop-SAS/legacy-application",
+		"legacy-backend":     "Creditop-SAS/legacy-backend",
+		"frontend-monorepo":  "Creditop-SAS/frontend-monorepo",
 	}
 	names := map[string]string{"legacy-application": "Creditop-SAS/legacy-application"}
 	items := openPendingItems(prsBody)
@@ -69,7 +69,7 @@ func TestStalePRs(t *testing.T) {
 		{Slug: "abierta", ID: 108, Body: prsBody},
 		{Slug: "archivada", ID: 50, Body: prsBody, Archived: true},
 	}
-	aliases := map[string]string{"application": "Creditop-SAS/legacy-application", "legacy-backend": "Creditop-SAS/legacy-backend"}
+	aliases := map[string]string{"legacy-application": "Creditop-SAS/legacy-application", "legacy-backend": "Creditop-SAS/legacy-backend"}
 	lookup := func(r prRef) (prState, error) {
 		switch r.String() {
 		case "Creditop-SAS/legacy-application#345":

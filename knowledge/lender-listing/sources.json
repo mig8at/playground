@@ -46,7 +46,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ListLenderController.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "dbcca80e12698d93c43a1d2dbd421430f2cce05a",
@@ -55,7 +55,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderRetrievalService.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "b7a567c9c07f8f4a4552d623baf8a4856589187c",
@@ -119,7 +119,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/LenderAlliedCredential.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "871fcbc88f0f48c0fedb8f768e831ee2e5cf1bc9",
@@ -137,7 +137,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/PreApprovedLenderService.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "38879f56087e88ec42971946581fd8f9a9a6d19a",
@@ -155,7 +155,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderValidationService.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "b6007ba6c6578e6cdbf8f1d9eb11d64f91761d49",
@@ -200,7 +200,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "database/migrations/2024_01_15_165803_create_cities_by_lender_table.php",
       "commit": "24dc86eb1eaabb4e4eee37750ab90e258c36ce78",
       "blob": "31eabf8f8201aa96191e4f2eef6948b463a5d579",
@@ -255,7 +255,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PersonalInfoController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "459a5b8efa12c208b69ee501a320378e5e55870c",

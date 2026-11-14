@@ -8,6 +8,6 @@ Para CADA ítem, comprobá contra el código y decidí:
 
 Estilo de knowledge (distinto de canon): técnico y preciso; SÍ se nombran clases, métodos, rutas, tablas, columnas y flags, entre backticks; se distingue qué monolito hace qué. NO van porcentajes o cifras medidas en un ambiente, casos individuales, secretos, fechas ni crónica (quién, qué PR). Mecanismo, condiciones y límites. Párrafos cortos como los de la sección vigente.
 
-Evidencia: leé SIEMPRE la ref de main del comando (`git -C <clon> show origin/main:<ruta>`, `git -C <clon> grep -n … origin/main`), nunca el working tree; si una regla cruza legacy-backend y legacy-application (alias `application`), mirá los dos. Cada `cambia`, y cada `sigue` de un `contradice`, lleva `repo:ruta:línea`. No modifiques nada fuera de tu salida; ni fetch, ni checkout, ni commits.
+Evidencia: leé SIEMPRE la ref de main del comando (`git -C <clon> show origin/main:<ruta>`, `git -C <clon> grep -n … origin/main`), nunca el working tree; si una regla cruza legacy-backend y legacy-application (alias `legacy-application`), mirá los dos. Cada `cambia`, y cada `sigue` de un `contradice`, lleva `repo:ruta:línea`. No modifiques nada fuera de tu salida; ni fetch, ni checkout, ni commits.
 
 Escribí `{salida}`: lista JSON de `{"id", "veredicto": "sigue|cambia|sin_decidir", "evidencia": [], "por_que", "titulo_nuevo"?, "texto_nuevo"?}`. Todos los ítems; validá que parsea. Devolvé el conteo y una línea por cada `cambia`.

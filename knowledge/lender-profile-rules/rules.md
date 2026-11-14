@@ -58,7 +58,7 @@ perfil no aplica. El monto mínimo de la línea no se aplica ahí: lo rechaza `a
 Cuando la entidad tiene otorgamiento especial (el cálculo de DENTIX/DFS), ese monto reemplaza al cupo
 del perfil, pero se topa con el `max_amount` de la categoría si está configurado mayor que 0.
 
-En application (`app/Services/lenders/LenderUserCategoryService.php`) sólo se toma el menor entre el
+En legacy-application (`app/Services/lenders/LenderUserCategoryService.php`) sólo se toma el menor entre el
 monto del perfil, su `max_amount` y el cupo mensual, llevado a monto con `min_initial_fee`: no topa con
 el máximo de la línea ni con el tope mensual de la entidad, y no existe `finandina_v1`.
 
@@ -67,7 +67,7 @@ el máximo de la línea ni con el tope mensual de la entidad, y no existe `finan
 El motor no mide meses de continuidad: los deriva de banderas de AgilData (o, si no hay, de Mareigua)
 y sólo puede valer 12, 6, 3 o 0. En legacy-backend, «si no hay» es un `??` sobre la columna, que el modelo convierte en
 colección: un `agildata` guardado como `[]` es una colección vacía, no null, así que **no cae a
-Mareigua** y la continuidad da 0 aunque Mareigua traiga meses. En application la cascada pregunta
+Mareigua** y la continuidad da 0 aunque Mareigua traiga meses. En legacy-application la cascada pregunta
 `isset($userSummary->agildata['approximate_real_salary'])`, así que un `agildata` vacío sí cae a Mareigua
 y, después, a Quanto (continuidad 0). Una regla que pide 8 meses exige en la práctica 12, y una que pide
 más de 12 no la cumple nadie. Sin datos, la continuidad es 0.
@@ -76,7 +76,7 @@ En legacy-backend, un perfil cuya fila de reglas declara `income_sources` (centr
 `agildata|mareigua`) no usa esa cascada: el ingreso es el de la primera de esas centrales con monto
 (`MonthlyIncomeResolver::verifiedIncome`) y la continuidad sale de **esa misma** central, con los mismos
 escalones. Ahí un `agildata` vacío no tapa a Mareigua. Si ninguna dio ingreso, la continuidad es 0 y el
-criterio `verified_income` niega el perfil. application no tiene `income_sources`.
+criterio `verified_income` niega el perfil. legacy-application no tiene `income_sources`.
 
 Se comprueba corriendo con `make harness-suite TARGET=local SUITE=harness/suites/continuidad-escalones.json`:
 en CREDI TRACK, que pide 9 meses para Premium, un cliente con 11 meses de aportes no entra.
@@ -143,7 +143,7 @@ un crédito, porque cambiarlo movería las fechas de pago de créditos firmados.
 
 ## El motor de legacy-application
 
-`application` calcula la categoría con su propio `LenderUserCategoryService`, que llaman el
+`legacy-application` calcula la categoría con su propio `LenderUserCategoryService`, que llaman el
 consentimiento, el pagaré, la garantía (de ahí sale el FGA), el pago de la cuota inicial, el listado y
 dos pantallas del admin. Para el mismo cliente puede dar otra categoría que `legacy-backend`:
 

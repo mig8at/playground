@@ -1,6 +1,6 @@
 ---
 name: goldfish
-description: Revisor SIN CONTEXTO del plan de una tarea del tablero, antes de tocar código en un repo real (legacy-backend, frontend-monorepo, application). Recibe SÓLO la ruta de un `task.md`: no la conversación, no el CLAUDE.md. Contesta si el documento alcanza solo para que otra sesión ejecute la tarea — qué supone sin decirlo, qué criterio no se puede volver un `S#` corrible, qué afirmación técnica hay que pasarle a `main-verifier` — y cada hallazgo cita la línea del `task.md`. Usalo al terminar «Cómo se ataca» o los «Criterios de aceptación», y antes de un `make retomar` en frío. No verifica código: eso es `main-verifier`. Sólo lectura.
+description: Revisor SIN CONTEXTO del plan de una tarea del tablero, antes de tocar código en un repo real (legacy-backend, frontend-monorepo, legacy-application). Recibe SÓLO la ruta de un `task.md`: no la conversación, no el CLAUDE.md. Contesta si el documento alcanza solo para que otra sesión ejecute la tarea — qué supone sin decirlo, qué criterio no se puede volver un `S#` corrible, qué afirmación técnica hay que pasarle a `main-verifier` — y cada hallazgo cita la línea del `task.md`. Usalo al terminar «Cómo se ataca» o los «Criterios de aceptación», y antes de un `make retomar` en frío. No verifica código: eso es `main-verifier`. Sólo lectura.
 tools: Read, Grep, Glob
 model: inherit
 omitClaudeMd: true

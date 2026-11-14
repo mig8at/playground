@@ -76,11 +76,11 @@ desenlace automático se leería como si lo fuera.
   que manda a revisar el verbo cuando el problema es el Host.
 - **`fetch` de Node DESCARTA el header `Host`** —es forbidden en el estándar— sin avisar, así que hay que
   poner el subdominio en la URL. `api.localhost` resuelve solo, sin tocar `/etc/hosts`.
-- **Sin `WELLI_WEBHOOK_TOKEN` en el `.env` de application** el guard rechaza con 401 aunque el llamante
+- **Sin `WELLI_WEBHOOK_TOKEN` en el `.env` de legacy-application** el guard rechaza con 401 aunque el llamante
   traiga token.
 
 ⚠ **Y el desenlace que observes es el de HOY, no el de mañana**: los `STATUS_MAP` de los dos repos
-difieren. Medido: `pendiente_desembolso` da **28** (application) y está escrito como **11** en
+difieren. Medido: `pendiente_desembolso` da **28** (legacy-application) y está escrito como **11** en
 legacy-backend. El runner lo demuestra corriendo, no leyendo.
 
 ### rt=0 también tiene desenlace, y es la familia más grande

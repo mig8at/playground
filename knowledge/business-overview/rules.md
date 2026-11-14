@@ -104,7 +104,7 @@ el pago se reversa vuelve a Cancelado (ver `user-request-lifecycle`).
 
 - **Entidad externa**: desembolsa y cobra ella. CreditOp conserva la solicitud y su estado.
 - **CreditopX**: CreditOp administra la cartera. Cada noche loan-servicing agenda, por hora y dependencias, comandos
-  de `application`: concilia pagos Wompi no aplicados, condona colillas, causa intereses (y ahí el
+  de `legacy-application`: concilia pagos Wompi no aplicados, condona colillas, causa intereses (y ahí el
   gasto de cobranza por días de mora; un crédito con cuotas congeladas no causa interés hasta su
   inicio de amortización), aplica pagos retenidos, actualiza los créditos rotativos,
   aplica beneficios (subsidio de intereses de las primeras cuotas) y envía recordatorios. Si la
@@ -118,7 +118,7 @@ Detalle: `creditopx-payment-application`, `creditopx-portfolio-servicing`, `devi
 
 - **legacy-backend** (Laravel modular): el backend del asistente nuevo, de la app móvil y del
   backoffice; KYC, listado, cupo, firma, pagos por la API nueva.
-- **legacy-application** (Laravel + Inertia, «application»): el monolito anterior: admin de staff,
+- **legacy-application** (Laravel + Inertia): el monolito anterior: admin de staff,
   portal de aliados, y los comandos de la cartera CreditopX que corre de noche loan-servicing.
 - **frontend-monorepo**: asistente de solicitud, backoffice, portal de pagos, landing.
 - **Servicios en Go**: pre-approvals-service (preaprobación multi-entidad), merchant-api (comercios

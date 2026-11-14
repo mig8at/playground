@@ -3,7 +3,7 @@
 Cubre el bloqueo remoto de equipos financiados (Trustonic, detrás del merchant gateway) en
 `legacy-backend`: los dos motores que conviven, las condiciones para bloquear, las protecciones
 contra el doble bloqueo, los caminos de desbloqueo y liberación, y los endpoints del bloqueo manual;
-de `application`, su desbloqueo por pago con su interruptor y los botones del admin que llaman a esos
+de `legacy-application`, su desbloqueo por pago con su interruptor y los botones del admin que llaman a esos
 endpoints. Describe código de `main`; qué motor y qué interruptores están encendidos en un ambiente
 es configuración de ese ambiente, y una respuesta de la plataforma no está acreditada por este tema.
 El registro del IMEI en la originación está en `device-imei-validation`.
@@ -76,7 +76,7 @@ y `backoff = 60`. En V1, `LockDeviceJob` (3 intentos, 60 s) sólo reintenta prov
   no existe. Toma el último pago aplicado de cada crédito y desbloquea cuando el crédito queda al día
   o lo pendiente es igual o menor que la colilla de la entidad; deja fuera los créditos rotativos, y
   sólo da por desbloqueado lo que una segunda lectura de la plataforma confirma.
-- En `application`, `UnlockDeviceIfUpToDate` se despacha al registrar en el admin un pago de un
+- En `legacy-application`, `UnlockDeviceIfUpToDate` se despacha al registrar en el admin un pago de un
   crédito no rotativo, y `app:reconcile-payment-unlocks` lo vuelve a correr cada 10 minutos (salvo de
   00:00 a 01:00) para los casos sin cerrar, incluidos los pagos que aplicó `legacy-backend`. Los dos
   dependen de `legacy_application_payment_unlock_enabled`, que sin fila queda **encendido**: el
@@ -105,7 +105,7 @@ manual escribe en `device_locks` sobre el producto más reciente con ese IMEI, r
 viva si existe; esa fila cuenta después para los comandos programados como cualquier otra. La
 consulta de estado no escribe.
 
-En `application`, `CreditopXRequestHistoryController::deviceManagement` y `devicePinUnlock`
+En `legacy-application`, `CreditopXRequestHistoryController::deviceManagement` y `devicePinUnlock`
 (`routes/admin.php`) están detrás del grupo `admin`, es decir, del login del admin, sin un `can:`
 como los de sus rutas vecinas. Reenvían el `imei` y la `trustonic_tenant_key` que llegan en el
 request, con las cabeceras del usuario logueado, y auditan el intento en `device_lock_audits`.

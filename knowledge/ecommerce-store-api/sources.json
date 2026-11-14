@@ -32,7 +32,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceTokenIssuer.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "e6b7fd62e9ab3d6ef73db8aaa38cd9b71b43797c",
@@ -41,7 +41,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedEcommerceCredentialsController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "86b90ed9bdfdb38a8a59b6fb593a93cddb673739",
@@ -284,18 +284,18 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/api.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "a4a6183ea2472ed707df8b138b2a82138d793bc8",
       "sections": [
         "el-enlace-de-pago-crea-el-pedido-y-rechaza-un-order-key-repetido-con-409",
         "la-consulta-de-estado-solo-devuelve-estados-finales-lo-demas-sale-pending",
-        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+        "legacy-application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/EcommerceController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "f3fee466991c25ee45aff44f3dc2491c968ada18",
@@ -305,7 +305,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Api/Ecommerce/EcommerceRequest.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "ae03ed9517c2fff310af7fc693999e01daca4ba7",
@@ -314,18 +314,18 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/WoocommerceController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
       "sections": [
         "la-tienda-puede-cancelar-hasta-que-la-entidad-empieza-a-decidir",
-        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso",
+        "legacy-application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso",
         "una-solicitud-por-pedido-para-la-tienda-cuenta-la-de-id-mas-alto"
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/customer.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "b6eb566da0824d4fa671f9dd4ea1c09412b35e2b",
@@ -334,30 +334,30 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "180ffce3d92f8041a663f5ac0bbda1a53d695f0b",
       "sections": [
-        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+        "legacy-application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Api/EcommerceReplayController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "97025c7ccb81dd6e569af401bd0ba770abc02417",
       "sections": [
-        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+        "legacy-application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
       "sections": [
-        "application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
+        "legacy-application-avisa-desde-cada-integracion-sin-mirar-si-ya-aviso"
       ]
     },
     {
@@ -379,7 +379,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/TestAdvisorProvisioner.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "96c1ebb2188a40dd73b0a421539c65021a07924b",

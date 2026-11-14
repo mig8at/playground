@@ -7,7 +7,7 @@ no sustituyen el mecanismo de las refs de `main` indicadas en las fuentes.
 
 ## El monolito anterior decide si envía al wizard
 
-`application` conserva una entrada en `WoocommerceController::show`: hay una salida anterior
+`legacy-application` conserva una entrada en `WoocommerceController::show`: hay una salida anterior
 para los ids de comercio `[24, 209, 210, 211, 311]`. Para los demás, `NewFrontendUrlService`
 consulta `settings`: habilita el hash incluido en `new_frontend_allied_branches.hashes` o
 el comercio cuyo valor en `new_frontend_allieds` sea el booleano `true`.
@@ -32,7 +32,7 @@ Recién después valida el total (`:441`), la sucursal (`:449`) y la credencial 
 `findValidCredential` (`:458`). La entrada del wizard (`checkout.tsx:164-179`) reenvía esos
 parámetros sin tocarlos a este endpoint.
 
-application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`,
+legacy-application repite el patrón en `WoocommerceController::show` (`GET /checkout/{allied_branch_hash}`,
 fuera del grupo `auth` de `routes/customer.php:244`). Corbeta y las sucursales habilitadas para el
 wizard salen antes (`:153-180`) sin decodificar; el resto decodifica y deserializa (`:207-213`, con
 `unserialize()` sin `allowed_classes` en `:732`, `:744`, `:755`, `:767`) antes de comparar la

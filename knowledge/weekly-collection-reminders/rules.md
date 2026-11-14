@@ -1,7 +1,7 @@
 # Corte semanal y recordatorios de cobranza
 
 Cómo se calculan las fechas y la tasa de los créditos con corte semanal, y quién les manda los
-recordatorios de WhatsApp. Describe `legacy-backend`, `application` y `loan-servicing` en las refs de
+recordatorios de WhatsApp. Describe `legacy-backend`, `legacy-application` y `loan-servicing` en las refs de
 `sources.json`. No dice qué entidades tienen hoy corte semanal ni qué plantillas están activas o
 aprobadas en un ambiente: eso es dato de la base y de messaging-service. El caso de uso es Motai
 (renting y Rent to Own).
@@ -24,9 +24,9 @@ que apagarlo al darla de alta.
 
 ## La tasa semanal es efectiva en los dos monolitos
 
-legacy-backend origina y application causa la cartera, y los dos convierten la tasa mensual del
-lender con `i_semanal = (1 + i_mensual)^(7/30) − 1`; application causa el interés diario como
-`i_semanal / 7`. En application, mensual y quincenal causan `i/30`; en legacy-backend la cuota
+legacy-backend origina y legacy-application causa la cartera, y los dos convierten la tasa mensual del
+lender con `i_semanal = (1 + i_mensual)^(7/30) − 1`; legacy-application causa el interés diario como
+`i_semanal / 7`. En legacy-application, mensual y quincenal causan `i/30`; en legacy-backend la cuota
 quincenal se amortiza con la mitad de la tasa mensual (`CutoffCalendar::periodicRate`). Las dos
 clases `CutoffCalendar` deben coincidir: si una cambiara la conversión, la cuota originada no
 cerraría con el interés causado.
@@ -54,7 +54,7 @@ corte 4 no entra en esa consulta.
 
 Los dos comandos generales dejan fuera las plantillas con `cutoff_type_id` no nulo.
 `app:reminder-creditop-x-requests-command` de legacy-backend (09:30 de Santo Domingo) sólo recorre
-créditos de SmartPay. El de application ya no lo agenda su `Kernel`: lo lanza el worker de
+créditos de SmartPay. El de legacy-application ya no lo agenda su `Kernel`: lo lanza el worker de
 loan-servicing como paso `reminders`, no antes de las 10:15 de Bogotá y después de causación,
 beneficios, pagos retenidos y rotativos (en modo `shadow` el paso sólo corre `artisan --version`).
 Ese comando excluye los créditos de los cortes de `config/reminders.php`

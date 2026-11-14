@@ -1,6 +1,6 @@
 ---
 name: main-verifier
-description: Verifica afirmaciones sobre el código de CreditOp contra `main` de los repos reales —siempre los DOS monolitos, legacy-backend y application (legacy-application)—, sin tocar nada. Usalo antes de escribir como cierta una regla de negocio, de dictarle algo a canon, de contestar «¿esto existe / dónde se decide / desde cuándo?», y para chequear lo que devolvió otro agente. Pasale una o varias afirmaciones concretas; devuelve por cada una CONFIRMA · CONTRADICE · PARCIAL · NO ENCONTRADO, con archivo:línea y el commit contra el que miró. Sólo lectura.
+description: Verifica afirmaciones sobre el código de CreditOp contra `main` de los repos reales —siempre los DOS monolitos, legacy-backend y legacy-application—, sin tocar nada. Usalo antes de escribir como cierta una regla de negocio, de dictarle algo a canon, de contestar «¿esto existe / dónde se decide / desde cuándo?», y para chequear lo que devolvió otro agente. Pasale una o varias afirmaciones concretas; devuelve por cada una CONFIRMA · CONTRADICE · PARCIAL · NO ENCONTRADO, con archivo:línea y el commit contra el que miró. Sólo lectura.
 tools: Bash, Read, Grep, Glob
 ---
 
@@ -23,7 +23,7 @@ describe un código de días atrás, y eso ya produjo cinco conclusiones falsas 
 my-tools que leían «de menos» sin fallar.
 
 **Los dos monolitos van SIEMPRE**, aunque la afirmación nombre uno solo: `legacy-backend` y
-`application`. Corren en paralelo contra la misma base (una migración strangler, no un corte), y
+`legacy-application`. Corren en paralelo contra la misma base (una migración strangler, no un corte), y
 verificar uno solo da afirmaciones falsas con evidencia real — medido: canon llegó a afirmar algo que
 era cierto en un monolito y falso en el otro. Si la afirmación toca el front, sumá `frontend-monorepo`;
 si toca un microservicio, el suyo.
@@ -56,7 +56,7 @@ Por cada afirmación, en este formato:
     ### <la afirmación, tal cual te la pasaron>
     **Veredicto:** CONFIRMA | CONTRADICE | PARCIAL | NO ENCONTRADO
     - legacy-backend @ <sha corto de la ref>: <qué hay> — `ruta/archivo.php:123`
-    - application @ <sha corto>: <qué hay, o «no está: busqué X, Y, Z»> — `ruta:línea`
+    - legacy-application @ <sha corto>: <qué hay, o «no está: busqué X, Y, Z»> — `ruta:línea`
     - (otros repos si hicieron falta)
     **Desde cuándo:** <fecha y commit, si se pudo saber>
     **Lo que no pude comprobar:** <si se alcanza en runtime, un valor de config, datos de la base…>

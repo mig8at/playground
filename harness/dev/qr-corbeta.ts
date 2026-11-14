@@ -18,7 +18,7 @@
 //   BNPL origination devuelve `PENDIENTE DESEMBOLSO` → si el allied está en `Setting('corbeta_allieds')`,
 //   `BancolombiaBnplController.php:1395` sella **estado 25 ("Pendiente de facturación")** y de ahí se
 //   emite el CÓDIGO. El desembolso real llega DESPUÉS y por afuera: el cliente factura en la caja y los
-//   crons de conciliación de `application` cruzan por PIN, marcan **estado 26 (Facturado)** y recién ahí
+//   crons de conciliación de `legacy-application` cruzan por PIN, marcan **estado 26 (Facturado)** y recién ahí
 //   confirman el consumo a Bancolombia. O sea: para este canal, "cerró" = **estado 25 + código emitido**.
 //
 // LA SECUENCIA (autoritativa: sale de los repositories del front, no de suponer —

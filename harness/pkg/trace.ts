@@ -69,7 +69,7 @@ export type Verdict = {
  * **ese flujo NUNCA llega al 11**. BNPL/Consumo devuelven `PENDIENTE DESEMBOLSO`/`pendiente`, el
  * controller sella **25 «Pendiente de facturación»** para los allieds de `Setting('corbeta_allieds')`
  * y ahí se emite el código de compra. El desembolso ocurre DESPUÉS y por afuera: el cliente factura en
- * la caja y los crons de conciliación de `application` mueven la solicitud a **26 (Facturado)**.
+ * la caja y los crons de conciliación de `legacy-application` mueven la solicitud a **26 (Facturado)**.
  * Se agrega acá —y no en un veredicto propio del runner— porque la regla de la casa es que "pasó"
  * tenga UNA sola definición: dos definiciones es como los dos caminos empiezan a derivar.
  */

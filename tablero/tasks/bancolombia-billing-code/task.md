@@ -26,7 +26,7 @@ jira_title: ""
 - [ ] Integrar la corrección de disponibilidad y comprobarla en el ambiente elegido; rama local
   `fix/bancolombia-purchase-code-availability`. Main aún muestra el PIN no disponible antes del corte;
   esta validación no acredita al emisor bancario ni la vigencia efectiva del proveedor.
-- [x] Contrastar el corte del wizard con el de application y el contrato documental disponible:
+- [x] Contrastar el corte del wizard con el de legacy-application y el contrato documental disponible:
   32 casos de reloj en cuatro zonas; el wizard renueva su corte al consultar después de 20:30 Bogotá
   y mantiene «hoy», mientras Inertia usa el día y la zona local del navegador. El OpenAPI no declara TTL.
 - [ ] Obtener la regla de vencimiento y disponibilidad efectiva del PIN para BNPL y consumo.
@@ -110,11 +110,11 @@ No hay jobs, ni schedulers, ni webhooks en la emisión: es una petición HTTP s�
 que Corbeta pone en su orden?
 
 - **Si es el mismo** → se escribe en `user_request_additional_information.data_json->verification_token`
-  (donde ya viven 19.692 tokens) y los 4 crons de `application` siguen conciliando sin cambios. **Sin
+  (donde ya viven 19.692 tokens) y los 4 crons de `legacy-application` siguen conciliando sin cambios. **Sin
   migración.**
 - **Si es un identificador propio** → escribirlo ahí hace que la ruptura sea **silenciosa**: nada falla
   visiblemente, simplemente nadie pasa a 26 y no se confirma el consumo. Hace falta otra columna o un campo
-  extra → **sí implica migración** y toca `application`.
+  extra → **sí implica migración** y toca `legacy-application`.
 
 No se puede empezar por el camino híbrido sin esta respuesta. Lo que **sí** se puede hacer mientras no
 llegue: todo el paso 1 del plan (el proveedor nuevo detrás de un flag, sin conmutar nada).
@@ -144,7 +144,7 @@ Las otras tres, en orden de riesgo:
    escenario que hoy no se puede: 409 `BP21000` como *recuperación* (POST exitoso en el banco, respuesta
    perdida, reintento). Sin la bitácora previa, ese caso deja la orden huérfana.
 4. **Persistencia del código** según la respuesta a Q2 (§4). Si es el mismo PIN: nada nuevo. Si no: campo
-   propio + tocar los crons de `application`.
+   propio + tocar los crons de `legacy-application`.
 5. **Tests del camino**, que hoy no existen: `Http::fake` del emisor nuevo, el guard (25 / lender / allied),
    el 409 de recuperación, y el caso "ya facturada".
 6. **Conmutar un allied** (Alkosto 209 primero) y mirar la conciliación de punta a punta antes de los otros
@@ -192,5 +192,5 @@ documentado responde **409 a cualquier dato real** y no ejercita la seguridad (F
 ## 8 · Lo que NO entra en esta tarea
 
 Cambiar la decisión de crédito, el marketplace, la vigencia del código, los crons de conciliación de
-`application` (salvo que Q2 obligue), y el canal ecommerce (que hoy resuelve con `validate-preapproved` y
+`legacy-application` (salvo que Q2 obligue), y el canal ecommerce (que hoy resuelve con `validate-preapproved` y
 **no** garantiza el `transactionId`, F-80).

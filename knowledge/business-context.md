@@ -18,7 +18,7 @@
 | **CRED** | CreditopX: cupo, cartera, pagos, rotativo, app móvil del lado del crédito | jun-2026 → hoy |
 | **CXCM** | el tablero anterior de CreditopX (operación de cartera, políticas por comercio, Deceval, ADO, AML, Wompi, Trustonic) | jul-2025 → abr-2026 |
 | **LEN** | integración y mantenimiento de entidades; conciliación; mensajería; ISO 27001 | |
-| **LO** | plataforma de originación: el estrangulamiento de `application`, microservicios, app móvil, reportería | |
+| **LO** | plataforma de originación: el estrangulamiento de `legacy-application`, microservicios, app móvil, reportería | |
 | **MER** | canales y comercios: Shopify, VTEX, Corbeta, ERP Siesa, Trustonic, catálogo de la app, código en tienda | |
 | **CACM** | «Agregador» (jul–dic 2025): integración de entidades de terceros al marketplace | cerrado |
 | **REFCM** | 316 casos de soporte `CAS-…` (nov-2025 → ene-2026) y el backlog histórico del refactor | cerrado |
@@ -43,7 +43,7 @@ Atlassian que usa my-tools.
 Fuente: la herramienta `forecast` del playground del equipo (`Creditop-SAS/playground`, `tools/forecast`:
 `README.md`, `revenue.js` y las semillas de `seeds/`, leídas en `origin/main` el 2026-11-02). Lleva la regla
 del Excel de revenue de Fabi y las planillas «Tarifas .xlsx» cargadas en octubre de 2026. **No está en los
-monolitos**: ni el SaaS ni las tasas viven en legacy-backend o application, sino en la base propia de
+monolitos**: ni el SaaS ni las tasas viven en legacy-backend o legacy-application, sino en la base propia de
 `forecast`. Lo que no se verificó queda marcado.
 
 El ingreso de un comercio en un mes es la suma de tres componentes:

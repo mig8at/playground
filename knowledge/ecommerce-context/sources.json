@@ -5,7 +5,7 @@
   "reviewedAt": "2026-11-10T18:07:59+00:00",
   "sources": [
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/WoocommerceController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "0a1f21899f1935b99c7dc24241703b124d4f2a17",
@@ -15,7 +15,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/NewFrontendUrlService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "0b1f1409bf275fd103e7e7ad43d3f36d42982f42",
@@ -151,7 +151,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "routes/customer.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "b6eb566da0824d4fa671f9dd4ea1c09412b35e2b",

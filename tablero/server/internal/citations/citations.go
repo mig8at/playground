@@ -648,7 +648,7 @@ func (c *Checker) evaluate(citation string, n, end int, since string) (string, s
 			// del candidato que el ranking puso primero, no el que la evidencia señala — y aplicarlo
 			// rompe citas buenas. Medido el 2026-09-18 en el nodo `actors`: cinco citas a
 			// `app/Models/User.php` (que existe en los DOS monolitos) salían como «movidas» a
-			// `application`, con saltos de ~54 líneas; eran de `legacy-backend` y estaban corridas +1.
+			// `legacy-application`, con saltos de ~54 líneas; eran de `legacy-backend` y estaban corridas +1.
 			// Se listan los veredictos de TODOS los candidatos, que es lo que deja decidir a quien lee.
 			sorted := append([]verdict(nil), verdicts...)
 			sort.SliceStable(sorted, func(i, j int) bool { return rank(sorted[i].key) < rank(sorted[j].key) })

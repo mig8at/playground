@@ -62,7 +62,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/LenderRulesController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "41e5d352f40a443eceb74d56f74826b4d229524f",
@@ -71,7 +71,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedAlliedBranchController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "be1146122a40887c03a1ddeba278f7c44c6308f7",
@@ -80,7 +80,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/Allied/EcommerceBranchCreator.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "5a4d3c45042b2cb22dc45f6f5f6db7b0e4fca8be",
@@ -153,7 +153,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
@@ -305,7 +305,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",

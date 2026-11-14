@@ -844,7 +844,7 @@ test('guided (semiautomático)', async ({ browser }) => {
         // AUTOGESTIÓN pura: no hay asesor, el cliente hace todo desde su celular en el punto de venta y
         // termina con un CÓDIGO que presenta en caja para facturar.
         //
-        // Entramos en el aterrizaje que produce el QR real, no en `application` (que sólo hace el
+        // Entramos en el aterrizaje que produce el QR real, no en `legacy-application` (que sólo hace el
         // redirect y el harness no levanta). El detalle del recorrido y del `E2E_ALLIED_URL` para
         // ejercitar la puerta original está en pkg/qr.ts.
         //

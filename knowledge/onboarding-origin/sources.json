@@ -59,7 +59,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "resources/js/pages/customer/onboarding/RegisterCellPhone.vue",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "3285b4c6808c34fdaf9ca5cf6e0ba625a2459c4d",
@@ -87,7 +87,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Customer/Onboarding/StoreRegisterCellPhoneRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "7630f6093251c3844c269677dc573a5df7656b39",
@@ -181,7 +181,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/User.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a5390759c3d5c096f4def56a2d9d37f652ef3e5d",
@@ -190,7 +190,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/RegisterCellPhoneController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "765631219ef7c8a68c7c27e60fb138dc4b6b42e5",

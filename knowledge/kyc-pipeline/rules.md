@@ -3,7 +3,7 @@
 Cubre cómo se elige, por comercio, entre la cascada de centrales de siempre (dentro de
 `legacy-backend`) y el pipeline de `customer-profiling-service` sobre Temporal, y qué cambia en el
 wizard según el camino. Describe el código de `main`; qué comercios están encendidos es un dato de
-cada base y se mide ahí. `application` no participa: no tiene nada de este pipeline.
+cada base y se mide ahí. `legacy-application` no participa: no tiene nada de este pipeline.
 
 ## Un setting elige el camino, comercio por comercio
 

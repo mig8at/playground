@@ -5,7 +5,7 @@
   "reviewedAt": "2026-11-11T14:57:37+00:00",
   "sources": [
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Kernel.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "a1df17f166609b5a6b6f0ba935b8160eb2bfced5",
@@ -96,7 +96,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderCollectionChargeService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "470386ebca2b26bbeff3ddd2c09db6efa0e4ba2f",
@@ -105,7 +105,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Rules/NonOverlappingCollectionChargeRange.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d2166f9e6d7843be5cf72c11c570155500db93b2",
@@ -114,7 +114,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRequestsCommand.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "0551de7cb168f8a5231cc7357c688d163ab34fc6",
@@ -125,7 +125,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
@@ -144,7 +144,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/CreditopX/CondoneCreditBalances.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "fc0e5f1e552ef2b62a944024fb8bf4bf84b781c1",
@@ -154,7 +154,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/CorrectNegativeInterestHistory.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "1b2efcb1fcc7e3c3e5ba005110496cf4be931155",
@@ -163,7 +163,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/UpdateCreditopXRemoveOutstandingBalances.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "47965d59ef11771ac47b13e120c08826ee693caa",
@@ -173,7 +173,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Models/Lender.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "c85c665ba8db2ddaa34fc0460171ca09de951e3f",
@@ -182,7 +182,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXRequestHistoryController.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "e4756df9b113cfd1cda1c6a1c051a42e4aa50ac3",
@@ -194,7 +194,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/CreditopX/RefinanceCredit.php",
       "commit": "39def3d0c487ee459997b8fa502dc3554b953092",
       "blob": "4bdabaebbb07365a5e613f1ed2bbd0790e81df3c",
@@ -204,7 +204,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Requests/Admin/CreditopX/RefinanceRequest.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "bf202384a453bc71b78f784d85bc412e5a6d0b8f",
@@ -213,7 +213,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Actions/CreditopX/CondoneCreditToSettled.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "51138fc108cc6c526cd35541da9b6b73769c797a",
@@ -231,7 +231,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/CreditopX/Benefits/CreditBenefitResolver.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "a1aa466e99cb14cb67dc6c769fa83a98e85aa269",
@@ -240,7 +240,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Support/CreditBenefits/Strategies/InterestSubsidyStrategy.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "3b7ee03a1e65ef77624b3644d71783869012c284",
@@ -249,7 +249,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Helpers/CutoffCalendar.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "49d94b641eb35a9ec72fdcc732d69ebec2ae8b7f",

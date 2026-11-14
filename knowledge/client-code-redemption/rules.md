@@ -16,7 +16,7 @@ consultar el código, pregunta a `OriginationGuard` si la sucursal y su comercio
 `error_subcode: ALLIED_DISABLED`, sin tocar el servicio de códigos; el wizard normaliza ese
 rechazo a `ALLIED_DISABLED` (`client-code.repository.ts` con `toAlliedDisabledError`) y muestra
 su mensaje propio. Si la consulta de habilitación no da un veredicto conocido, `blockReason` lanza
-una excepción en vez del 403 (`OriginationGuard.php:77-78`). En `application`,
+una excepción en vez del 403 (`OriginationGuard.php:77-78`). En `legacy-application`,
 `Customer/ClientCodeController::confirmCode` consulta el código sin esa guarda
 (`ClientCodeController.php:51-131`). Habilitado, consulta el código mediante `GenerateServiceProxyService`.
 Exige ids positivos de usuario y entidad.
@@ -37,14 +37,14 @@ también nacen en cero: un canje exitoso no prueba que se haya seleccionado una 
 
 Primero se crea la solicitud y después se consume el código. En legacy-backend, si el consumo
 devuelve un estado HTTP distinto de 200, se intenta borrar la solicitud y se devuelve el error. En
-application el corte es `success` (2xx sin `success:false`), y el registro con el comentario se
+legacy-application el corte es `success` (2xx sin `success:false`), y el registro con el comentario se
 inserta antes del consumo y se borra junto con la solicitud. Si el borrado
 falla se registra; no prometer una transacción atómica con el servicio externo.
 En legacy-backend el registro de estado se intenta sólo después del consumo y su fallo no
 invalida el canje. Su comentario es `CreditopXRequestHistory::CLIENT_CODE_RECORD_COMMENT` (mismo
 texto en los dos monolitos), y la fila CREACIÓN del crédito lo busca para marcar `is_app`
 (`appFlagFor`, espejado en los dos modelos `CreditopXRequestHistory`: en legacy-backend vía
-`CreditBenefitResolver::forNewCredit`, en application en
+`CreditBenefitResolver::forNewCredit`, en legacy-application en
 `Admin/CreditopXRequestHistoryController::createFirstRegister`).
 
 `appFlagFor` da `1` en dos casos: la propia solicitud lleva ese registro, o el mismo usuario tiene
@@ -81,7 +81,7 @@ que deben comprobarse por separado en la tarea.
 
 ## El receptor anterior conserva cuatro dígitos y otro estado de sesión
 
-En `application`, `Customer/ClientCodeController::confirmCode` valida `digits:4`, consulta
+En `legacy-application`, `Customer/ClientCodeController::confirmCode` valida `digits:4`, consulta
 por el puente al backend, crea la solicitud y consume el código. A diferencia de legacy-backend,
 inserta el registro con `CLIENT_CODE_RECORD_COMMENT` junto con la solicitud, antes del consumo;
 si el consumo falla, su limpieza borra registro y solicitud. Tras el éxito guarda el estado del

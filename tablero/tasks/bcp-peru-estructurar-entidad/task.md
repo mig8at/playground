@@ -170,7 +170,7 @@ pantalla no hay funnel de rechazos, que es justo lo que el PRD quiere medir.
 Hoy las audiencias están separadas por subdominio: el **asesor** vive en `aliados.{host}` y `admin.{host}`
 es el **back-office**. El Figma pone el flujo POS del asesor en `admin.` Puede ser un placeholder del
 diseñador, pero si es literal **cambia dónde se monta todo**: grupo de middleware, namespace y archivo de
-rutas distintos. Hay que confirmarlo antes de escribir una ruta. → `application` §audiencias.
+rutas distintos. Hay que confirmarlo antes de escribir una ruta. → `legacy-application` §audiencias.
 
 ## 🔴 Los 7 bloqueantes, que son de BCP y no nuestros
 Del §9 del PRD. Los dos primeros bloquean **cualquier prueba**:
@@ -198,7 +198,7 @@ mientras el WAF solo acepte IPs de Perú.
   ⚠ Ojo: acá la pre-aprobación **no la calculamos nosotros** (es el iframe), así que puede que ninguno de
   los dos aplique y sea un canal aparte.
 - [ ] **¿El «administrador para el comercio» se construye nuevo o es el panel que ya existe?** La capa de
-  configuración ya tiene API sin front (→ `application` §5) — esto podría ser su primer consumidor.
+  configuración ya tiene API sin front (→ `legacy-application` §5) — esto podría ser su primer consumidor.
 - [ ] **¿Dónde vive el vehículo?** Tabla propia, EAV vía formularios dinámicos (lo de José), o
   `user_request_products` como SmartPay. Decide qué se puede reportar después.
 - [ ] **¿Cómo se prueba sin IP peruana?** Mientras P2 no se resuelva, no hay forma de ejercitar el

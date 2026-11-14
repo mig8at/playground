@@ -121,11 +121,11 @@ pagos, que el codeudor no firma, porque tiene plantilla propia y pasa por el mis
 
 ## Los recordatorios de cobro
 
-Los recordatorios de las cuotas de Motai no los manda `application`. Su comando
+Los recordatorios de las cuotas de Motai no los manda `legacy-application`. Su comando
 `app:reminder-creditop-x-requests-command` excluye los créditos cuyo lender tiene `cutoff_type_id`
 en `config('reminders.excluded_cutoff_type_ids')`, que es `[3]` (semanal); un lender sin corte no
 queda excluido. Los manda `legacy-backend` con `app:reminder-weekly-loans`, programado a diario a las
 9:00 de Bogotá, que toma sólo lenders con `cutoff_type_id = 3`: no envía en domingo ni festivo del
 país del lender, recupera el estado de cuenta el siguiente día hábil, deduplica por ciclo de pago y
 manda un solo recordatorio por cliente y día. Los dos filtros miran el corte 3 exacto: un lender con
-el corte semanal de martes (4) no lo excluye `application` ni lo toma el comando semanal.
+el corte semanal de martes (4) no lo excluye `legacy-application` ni lo toma el comando semanal.

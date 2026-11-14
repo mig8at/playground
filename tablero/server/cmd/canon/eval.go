@@ -102,7 +102,7 @@ func evaluate(ctx context.Context, client *canon.Client, args []string) error {
 	flags := flag.NewFlagSet("eval", flag.ExitOnError)
 	days := flags.Int("days", 90, "ventana de cambios en main y de preguntas, en días")
 	top := flags.Int("top", 15, "cuántos módulos mostrar por repo")
-	repoList := flags.String("repos", "legacy-backend,application,frontend-monorepo", "alias de tools/repos.json a medir, separados por coma")
+	repoList := flags.String("repos", "legacy-backend,legacy-application,frontend-monorepo", "alias de tools/repos.json a medir, separados por coma")
 	target := flags.String("target", "", "base de canon de la que leer las preguntas (local · prod); vacío = no se leen")
 	asJSON := flags.Bool("json", false, "el informe en JSON")
 	_ = flags.Parse(args)
@@ -159,15 +159,10 @@ func anchorOf(title string) string {
 	return strings.Trim(nonAnchorRE.ReplaceAllString(accents.Replace(strings.ToLower(title)), "-"), "-")
 }
 
-// canonRepoAlias traduce el nombre de repo de un mapa de canon al alias de tools/repos.json: canon mezcla el
-// alias corto con el nombre completo («Creditop-SAS/legacy-backend») y llama legacy-application a lo que acá
-// es application.
+// canonRepoAlias traduce el nombre de repo de un mapa de canon al de tools/repos.json: canon mezcla el nombre
+// corto con el completo («Creditop-SAS/legacy-backend»). Desde el 2026-11-14 los dos usan legacy-application.
 func canonRepoAlias(name string) string {
-	name = strings.TrimPrefix(name, "Creditop-SAS/")
-	if name == "legacy-application" {
-		return "application"
-	}
-	return name
+	return strings.TrimPrefix(name, "Creditop-SAS/")
 }
 
 /* corpusStats recorre los archivos del export: por tema, palabras y secciones de su prosa, áreas de su mapa y

@@ -24,7 +24,7 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   local (2026-11-03):** con Ágil Data sin información, el pipeline guarda `user_summaries.agildata = []`
   (`AgildataExtractor::summarise` devuelve `[]`). `LenderUserCategoryService::getContinuity` hace `agildata ?? mareigua`
   sobre una colección vacía que no es null, y da **0** aunque Mareigua traiga continuidad 6. Los perfiles con regla de
-  continuidad dejan afuera a ese cliente. application sí cae a Mareigua. En prod se escriben así ~2.700 resúmenes por
+  continuidad dejan afuera a ese cliente. legacy-application sí cae a Mareigua. En prod se escriben así ~2.700 resúmenes por
   mes. Termina cuando el `??` mira «vacía» y no sólo null, o cuando el pipeline guarda null, y la corrida da 6.
 - [x] ~~Abrir los PRs del tope de la cuota inicial~~ — [legacy-backend#1643](https://github.com/Creditop-SAS/legacy-backend/pull/1643)
   y [frontend-monorepo#1169](https://github.com/Creditop-SAS/frontend-monorepo/pull/1169), contra `qa`: la pantalla dejaba
@@ -34,7 +34,7 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [x] ~~Reproducir que, en el sistema nuevo, los estados 8, 9 y 16 de ADO terminan en error de servidor~~ — descartado
   corriendo (2026-11-03): `mapAdoState` tiene `default => 'unknown'` desde `3f7ee90ad` (2026-10-28), y en local
   `check-status` contesta 200 «unknown», terminado y no validado, para los tres; el wizard lo trata como rechazo
-  (`completed && !validated`). application los atiende aparte (`[8, 9, 16]` en `ValidateIdentityController`).
+  (`completed && !validated`). legacy-application los atiende aparte (`[8, 9, 16]` en `ValidateIdentityController`).
 - [x] ~~Reproducir que fuera de la tienda se firma el pagaré sin la cuota inicial pagada~~ — descartado corriendo
   (2026-10-13): fuera de la tienda el asistente NUNCA manda a la pasarela, porque sólo va a la cuota inicial cuando el
   backend contesta «cuota inicial pendiente», y eso sólo pasa con orden de tienda. No hay pago que saltarse.
@@ -128,7 +128,7 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   Borrador 9. Falta medir qué contesta el gateway real a una reinscripción (en local es dictado).
 - [ ] Que la sucursal ecommerce de un comercio que no es colombiano nazca en una ciudad de su país. **Corrido en local
   (2026-11-03):** `storeEcommerceCredential` de Partner sobre un comercio peruano crea la sucursal en la 1123, «TODAS LAS
-  CIUDADES» de Colombia. `EcommerceBranchCreator` de application la tiene igual de fija. Los documentos imprimen
+  CIUDADES» de Colombia. `EcommerceBranchCreator` de legacy-application la tiene igual de fija. Los documentos imprimen
   «BOGOTÁ» sobre la 1123. Termina cuando la ciudad sale del comodín del país del comercio.
 - [x] ~~Sembrar en prod la comisión FNG de Credifamilia Materiales (214)~~ — descartado como incidencia (2026-11-03):
   Materiales está en desarrollo y lo valida otra sesión de Miguel; que su tabla esté vacía en prod es esperable. Para
@@ -243,7 +243,7 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
   por la pasarela»): el front nuevo y la autogestión del viejo sí la cobran por la pasarela. Sigue en `main`
   (2026-11-03), línea 82.
 - [ ] Corregir el comentario de `RefinanceCredit` que dice que el total no incluye la cobranza (sí la
-  incluye desde que el proceso nocturno la suma al total). Sigue en `main` de application (2026-11-03); medido en
+  incluye desde que el proceso nocturno la suma al total). Sigue en `main` de legacy-application (2026-11-03); medido en
   prod: los créditos movidos desde septiembre la traen (borrador 11).
 - [x] ~~Actualizar la guía y la configuración del outbox de CreditopX, que describen una entrega cada minuto
   que ya no existe~~ — ya corregido en `main` (2026-11-03): `docs/creditopx-event-outbox.md` no habla de cada minuto
@@ -285,7 +285,7 @@ Salvo donde se dice «corrido», salen de LEER el código: falta reproducirlos.
 - [ ] Revisar la credencial de tienda ecommerce: se arma como `bin2hex(allied_id . hash . fecha)` y el hash de la
   sucursal es público (viaja en las direcciones), así que es predecible; igual en los dos monolitos. Termina con
   credenciales aleatorias y la rotación de las existentes decidida. **Confirmado por lectura de `main` (2026-11-03):**
-  `AlliedManagementService.php:1418` (legacy-backend) y `EcommerceBranchCreator.php:91` (application) hacen
+  `AlliedManagementService.php:1418` (legacy-backend) y `EcommerceBranchCreator.php:91` (legacy-application) hacen
   `bin2hex($allied->id . $branch->hash . date('Y-m-d'))`. Borrador 13.
 - [ ] Sacar la contraseña del certificado de Credifamilia Consumo del log: `CredifamiliaConsumo::makeClient`
   (legacy-backend) manda `certPassword` al tracer en cada radicación. Termina cuando el log no la incluye y se

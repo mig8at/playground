@@ -197,7 +197,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "config/reminders.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d97580cc642f4837240a425b122a74758ca12a0d",
@@ -206,7 +206,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",

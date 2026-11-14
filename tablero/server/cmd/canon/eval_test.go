@@ -21,12 +21,12 @@ func TestAnchorOfMatchesCanon(t *testing.T) {
 	}
 }
 
-// Canon nombra el mismo repo con el alias o con el nombre completo, y llama legacy-application a application.
+// Canon nombra el mismo repo con el alias o con el nombre completo, y desde el 2026-11-14 los dos dicen legacy-application.
 func TestCanonRepoAlias(t *testing.T) {
 	cases := map[string]string{
 		"Creditop-SAS/frontend-monorepo":  "frontend-monorepo",
-		"legacy-application":              "application",
-		"Creditop-SAS/legacy-application": "application",
+		"legacy-application":              "legacy-application",
+		"Creditop-SAS/legacy-application": "legacy-application",
 		"legacy-backend":                  "legacy-backend",
 	}
 	for in, want := range cases {
@@ -71,7 +71,7 @@ func TestCorpusStats(t *testing.T) {
 	if len(topics[0].Orphans) != 1 || topics[0].Orphans[0] != "Sección suelta" {
 		t.Errorf("huérfanas = %v", topics[0].Orphans)
 	}
-	if !declared["frontend-monorepo"]["a.ts"] || !declared["frontend-monorepo"]["b.ts"] || !declared["application"]["c.php"] {
+	if !declared["frontend-monorepo"]["a.ts"] || !declared["frontend-monorepo"]["b.ts"] || !declared["legacy-application"]["c.php"] {
 		t.Errorf("declarados = %v", declared)
 	}
 	if aliases["frontend-monorepo"] == "" {

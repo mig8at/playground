@@ -81,7 +81,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Services/lenders/LenderUserCategoryService.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "ba861e1778f9739607631d2b6b6aa60ea795c4f0",
@@ -90,7 +90,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/ConsentController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "45035467b3e271db4f05c42da7cd5b477cc15014",
@@ -99,7 +99,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/GuaranteeController.php",
       "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
       "blob": "d7843f422b5f446781b68ac504e81a98cee6346d",
@@ -108,7 +108,7 @@
       ]
     },
     {
-      "repo": "application",
+      "repo": "legacy-application",
       "path": "app/Http/Controllers/Customer/PromissoryNoteController.php",
       "commit": "8290874c1677774e10b15b956339870d5122c0a4",
       "blob": "081ff5c5d1cbd781382628aa6a1300c6046c8334",

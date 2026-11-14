@@ -77,7 +77,7 @@ por ejemplo) llenaría sus documentos sin código: alcanza con marcar cada campo
    lee las filas directo (`knowledge/dynamic-form-schema`). Antes de quitar Redis y S3 de form-service hay que
    decidir:
    - con qué se reemplaza `FormServiceClient::answers` en BCP (leer `user_field_values` en legacy-backend, y con qué
-     regla: la de application toma la fila de id mayor por campo y no filtra por titular);
+     regla: la de legacy-application toma la fila de id mayor por campo y no filtra por titular);
    - quién escribe las respuestas durante la transición, para no tener dos escritores sobre la misma tabla
      (legacy-backend ya escribe las del form 1 desde el onboarding, y el DELETE de form-service las alcanza).
    Mongo no: S3 alcanza con este volumen y sigue el patrón de pdf-mapper. Se reconsidera si el editor necesita
