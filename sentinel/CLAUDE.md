@@ -111,8 +111,8 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 ## Cómo avisa (`server/alerts.go`)
 
 - **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
-  sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por el avisador del chat («Chat del
-  playground», que ya tiene permiso de avisos); sin él, por osascript.
+  sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por el avisador del chat («Chat de
+  my-tools», que ya tiene permiso de avisos); sin él, por osascript.
 - **Uno por episodio.** El episodio sigue abierto hasta que la señal pasa `clearMinutes` (30) en lo normal: una que va y
   viene entre alerta y «para mirar» no avisa cada 5 minutos. Avisa otra vez sólo si empeora. Al cerrarse, «volvió a lo
   normal», sin sonido.
