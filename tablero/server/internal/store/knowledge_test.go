@@ -12,8 +12,8 @@ import (
 func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "data")
 	lay := layout.At(dir)
-	os.MkdirAll(lay.Dir("playground-local"), 0755)
-	path := lay.TaskPath("playground-local")
+	os.MkdirAll(lay.Dir("my-tools"), 0755)
+	path := lay.TaskPath("my-tools")
 	os.WriteFile(path, []byte("---\nid: 96\ntitle: Local\nclase: proyecto\nstage: work\ncreated: \"2026-10-03T12:00:00Z\"\nknowledge: [lender-listing, lender-listing#monto]\ncanon: [listado]\n---\n\n## Objetivo\nTrabajar en local.\n"), 0644)
 	s, err := Open(dir)
 	if err != nil {
@@ -31,7 +31,7 @@ func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {
 	if !strings.Contains(string(raw), "knowledge: [lender-listing, lender-listing#monto]") || !strings.Contains(string(raw), "canon: [listado]") {
 		t.Fatalf("perdió referencias al editar: %s", raw)
 	}
-	if _, _, err := s.readEffort("playground-local"); err != nil {
+	if _, _, err := s.readEffort("my-tools"); err != nil {
 		t.Fatal(err)
 	}
 }

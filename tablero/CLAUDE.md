@@ -29,7 +29,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   de un repo lleva la historia y el desglose; lo técnico verificado sigue en `knowledge/` y se enlaza. El lint y
   `make tareas` validan el nivel: una de `miguel` con Jira es un error. En el tablero, las de `miguel` y
   `playground` van en su propia vista al final («Mis herramientas» y «Playground»); «CreditOp sin Jira» (el menú ⋯) prende las demás sin Jira.
-  `context`, `trazador`, `workers` y `playground-local` están archivadas (lo de esta última, dentro de `miguel`).
+  `context`, `trazador`, `workers` y `my-tools` (antes `playground-local`) están archivadas (lo de esta última, dentro de `miguel`).
 - **Los contenedores son `clase: proyecto`**: sin Jira ni sección publicable. Dentro, cada frente conserva
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.

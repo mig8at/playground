@@ -60,7 +60,7 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		app, route string
 	}{
 		{"Bash", bash("make harness-case TARGET=local CASES='pullman@score=700'"), "harness", "/local/pullman"},
-		{"Bash", bash("make tarea-bloque N=playground-local ARCHIVO=b.md"), "tablero", "#/tareas/playground-local"},
+		{"Bash", bash("make tarea-bloque N=my-tools ARCHIVO=b.md"), "tablero", "#/tareas/my-tools"},
 		{"Bash", bash("make tarea-bloque N=96 ARCHIVO=b.md"), "tablero", ""},
 		{"Bash", bash("bin/pg tarea bloque --tarea integracion-vtex"), "tablero", "#/tareas/integracion-vtex"},
 		{"Bash", bash("bin/jarvis open http://localhost:5207/"), "jarvis", ""},

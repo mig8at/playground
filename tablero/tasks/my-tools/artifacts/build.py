@@ -1,7 +1,7 @@
 # Inyecta en el artifact la especificación y el CSS reales de la base (tools/ui/spec.json, theme.css y
 # workbench.css), así la sección de componentes dibuja con lo mismo que usan las herramientas y no puede
 # quedar desactualizada. Idempotente: reemplaza lo que haya entre los dos <script> de datos.
-# Correr desde la raíz del repo:  python3 tablero/tasks/playground-local/artifacts/build.py
+# Correr desde la raíz del repo:  python3 tablero/tasks/my-tools/artifacts/build.py
 import json, pathlib, re
 root = pathlib.Path(__file__).resolve().parents[4]
 page = pathlib.Path(__file__).with_name('anatomia-del-workbench.html')

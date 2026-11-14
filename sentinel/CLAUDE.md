@@ -4,7 +4,7 @@
 producción (sólo lectura: Redash y Loki) en bloques de 5 minutos y dice, por **entidad**, por **comercio**, por
 **servicio** (errores de los logs) y para la **cola** (trabajos fallidos), si la última hora se salió de lo normal;
 muestra la curva del día contra lo normal, con los **despliegues a producción** marcados. Es el frente «vigía de
-producción» de `playground-local` (#96, desde el 2026-11-13 dentro de `miguel`); su historia sigue en la tarea `sentinel`.
+producción» de `my-tools` (#96, antes `playground-local`; desde el 2026-11-13 dentro de `miguel`); su historia sigue en la tarea `sentinel`.
 
 `make sentinel` (UI :5210 · API :5211) o la app Sentinel de Cockpit. **La interfaz**: a la izquierda, toda la
 originación y lo que se SIGUE, en dos secciones —entidades y comercios—, que se agregan a mano desde el buscador, cada

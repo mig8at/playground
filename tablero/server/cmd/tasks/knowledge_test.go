@@ -16,7 +16,7 @@ func TestHistoricalCanonDoesNotTurnTaskLintIntoARemoteDependency(t *testing.T) {
 	t.Setenv("CANON_URL", srv.URL)
 	root := t.TempDir()
 	t.Setenv("TABLERO_DATA", filepath.Join(root, "data"))
-	path := filepath.Join(root, "tasks", "playground-local", "task.md")
+	path := filepath.Join(root, "tasks", "my-tools", "task.md")
 	os.MkdirAll(filepath.Dir(path), 0755)
 	os.WriteFile(path, []byte("---\nid: 96\ntitle: Local\nclase: proyecto\nstage: work\ncreated: \"2026-10-03T12:00:00Z\"\ncanon: [listado]\n---\n\n## Objetivo\nTrabajar en local.\n"), 0644)
 	if code := showLint(path); code != 0 || hits != 0 {
