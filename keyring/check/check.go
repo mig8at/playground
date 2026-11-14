@@ -1,6 +1,6 @@
 // Package check es keyring, el llavero de my-tools: contesta, sin escribir nada, a qué tenemos acceso AHORA desde esta máquina y cuándo
-// vence cada cosa: la VPN, AWS, las bases, Loki, PostHog, los servicios de connectors/ y las sesiones de
-// asesor del harness.
+// vence cada cosa: la VPN, AWS, las bases, Loki, PostHog, los servicios de connectors/, las sesiones de
+// asesor del harness y los servicios de fondo de my-tools (background.go).
 //
 // POR QUÉ EXISTE. «No tengo acceso» y «no estoy en la VPN» se leen igual desde un curl que falla, y lo
 // caro es descubrirlo a mitad de una tarea (el 2026-09-28 un curl a dev murió por DNS sin VPN). Cada fila
@@ -50,17 +50,18 @@ type Probe struct {
 }
 
 // Groups es el orden en que se muestran los grupos: primero lo que condiciona al resto.
-var Groups = []string{"network", "aws", "databases", "logs", "events", "services", "sessions"}
+var Groups = []string{"network", "aws", "databases", "logs", "events", "services", "sessions", "background"}
 
 // GroupLabel es cómo se muestra cada grupo.
 var GroupLabel = map[string]string{
 	"network": "red", "aws": "aws", "databases": "bases", "logs": "logs",
 	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor", "canon": "Canon (opcional)",
+	"background": "de fondo",
 }
 
 // Quick son los grupos que contestan en un par de segundos sin tocar la red de nadie más que la propia:
 // los que el arranque de sesión se puede permitir esperar.
-var Quick = []string{"network", "aws", "sessions"}
+var Quick = []string{"network", "aws", "sessions", "background"}
 
 // soon es desde cuándo un vencimiento se marca como aviso.
 const soon = time.Hour
@@ -106,6 +107,7 @@ func allProbes() []Probe {
 		Probe{"services", one(probeJev)},
 		Probe{"canon", probeCanon},
 		Probe{"sessions", probeSessions},
+		Probe{"background", probeBackground},
 	)
 }
 
@@ -192,7 +194,7 @@ func expiring(c *Check) {
 // vence pronto con su motivo. Lo que está bien no ocupa más que su nombre.
 func Brief(checks []Check) string {
 	var b strings.Builder
-	b.WriteString("  KEYRING — a qué hay acceso al arrancar: red, AWS y sesiones de asesor (`make keyring`: también bases, logs y servicios)\n")
+	b.WriteString("  KEYRING — a qué hay acceso al arrancar: red, AWS, sesiones de asesor y lo de fondo (`make keyring`: también bases, logs y servicios)\n")
 	var names []string
 	for _, c := range checks {
 		// Una sesión apagada es un archivo viejo, no un acceso: en el arranque sólo ensucia.

@@ -105,7 +105,7 @@ sala: ## @dia agentes independientes en paralelo, uno por tema de knowledge/, y 
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
 
-keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios y sesiones de asesor; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions · Canon sólo con SOLO=canon · JSON=1 · sale 1 si algo falla
+keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios, sesiones de asesor y los servicios de fondo de my-tools; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions,background · Canon sólo con SOLO=canon · JSON=1 · sale 1 si algo falla
 	@go run ./keyring/server -aws $(if $(JSON),-json)
 	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta

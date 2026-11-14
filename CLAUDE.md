@@ -63,6 +63,8 @@ en cualquier tarea:
 - **Antes de levantar un servidor, mirá si ya está arriba**: `bin/cockpit status`, o el aviso COCKPIT de este
   arranque. Cockpit levanta cada app con su `make` la primera vez que Miguel la abre, y un segundo `make tablero`
   choca por el puerto.
+- **Los servicios de fondo** (el chat, sentinel, correo, el pulso) y el listen del chat salen en el aviso KEYRING de
+  cada arranque, con su arreglo si se cayeron (`make keyring SOLO=background`).
 - **Si Miguel toca «Frenar»**, la siguiente herramienta sale negada: contá en una línea dónde quedaste y esperá.
 
 Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuándo hay que reinstalar:
