@@ -138,11 +138,17 @@ correo: [vtex]
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
       resueltos antes): termina con VTEX aprobándola.
       Ticket [#1484435](https://support.vtex.com/hc/en-us/requests/1484435), completo (conector «Creditop» y
-      contacto) desde el 2026-11-12. VTEX ya aceptó la Test Suite 7/7 como evidencia, pero probó el manifest en
-      `v2.api.creditop.com/legacy-api` (la API de Creditop) en vez de la Service URL del conector
-      (`https://creditop.myvtex.com/_v/creditop.creditop/v5`, donde `/manifest` y `/payment-methods` dan 200): falta
-      contestarles con esa URL. Depende de: VTEX Payments — revisar y aprobar (30 días desde el MPA; están viendo si
-      el MPA que Creditop ya tiene sigue vigente).
+      contacto) desde el 2026-11-12. VTEX aceptó la Test Suite 7/7 de la 5.2.0 como evidencia, ya tiene la Service URL
+      correcta (`https://creditop.myvtex.com/_v/creditop.creditop/v5`) y está validando y certificando; se le confirmó
+      que es un conector PPF y no una Payment App. Se homologa la 5.2.0 (la 5.2.1 no está publicada y sólo traía la
+      ficha de App Store, que no aplica). Depende de: VTEX Payments — el resultado de la validación y si el MPA que
+      Creditop ya tiene sigue vigente (los 30 días corren desde el MPA).
+- [ ] Saber cómo se instala `creditop.creditop` en la cuenta de un comercio tras la homologación (si basta con
+      `vtex install` o VTEX tiene que habilitarla por cuenta), y pedir una cuenta de prueba distinta de `creditop`;
+      termina con la respuesta de VTEX escrita acá. Preguntado en el ticket #1484435 el 2026-11-13.
+      Depende de: VTEX — Juan Alzate.
+- [ ] Decidir qué se hace con la ficha de App Store de la 5.2.1 (vtex#27, en `main` sin publicar): VTEX dice que la
+      App Store no acepta conectores de pago; termina con la 5.2.1 publicada sin ella o descartada.
 
 - [ ] Versión posterior · un aviso «Paga con Creditop» en la página del producto, antes del checkout, como el de Addi
       (texto con cuotas y un modal que explica cómo comprar). En VTEX sería un bloque del tema de la tienda. Termina
