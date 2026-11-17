@@ -166,23 +166,19 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   esta máquina, como el de una pregunta; se borran con el agente) y, opcionales y plegados, temas de knowledge. Con
   temas, sigue lo de abajo (fuentes contra main, propuestas); sin temas, sus sugerencias son «Contame qué entendiste» y
   «Arrancá».
-- **Con qué proveedor sigue cada conversación se elige en la barra de escribir** (Miguel, 2026-11-17: «como en la
-  barra del input»): «Automático» (el de la configuración; un agente o el asistente van por Gemini salvo el permiso
-  general) o uno elegido, que se guarda en la conversación (`Conversation.Provider`, `PUT /api/conversations/<id>/
-  provider`; en una pestaña nueva viaja con la primera pregunta) y vale como la decisión de Miguel para ésa, también
-  si es de un agente (`providerForConversation`, probado). Es un menú propio (no un `<select>`: en macOS el nativo no
-  muestra el título de una opción): cada opción dice el nombre RECONOCIBLE (Gemini, DeepSeek, ChatGPT, Groq; Miguel:
-  «como con Gemini, que por debajo es Hydrogen») y, chico, el modelo interno si dice algo más (Gemini 4 Hydrogen, GPT
-  OSS 120B), su tope y su pausa; las respuestas y el uso también se nombran así (`BRAND`). El 2026-11-17 Groq Chat
-  ofrecía GPT OSS 120B y 20B y Qwen 3.8 27B, no Kimi; y ChatGPT gratis no tiene selector de modelo (su «Personalizado»
-  es si usa la memoria de la cuenta, no el modelo), así que no se sabe cuál contesta. Lo que no
-  se puede usar ahora (en pausa, sin sesión, sin Jarvis, sin respuesta) queda apagado con `aria-disabled` —Chrome no
-  muestra el título de un botón `disabled`— y el mouse dice la causa; «Automático» también, si va por uno así. La barra
-  avisa si lo que viaja (la precarga del agente, la conversación y lo
-  escrito; `preloadSize`) no le entra al elegido (`providerLimits`: ChatGPT ~40 mil, Groq ~19 mil). La pausa que frena
-  el botón es la del proveedor de ESA conversación: con Gemini sin cupo, se elige DeepSeek y se sigue. Los Pokémon
-  pesan de 53 a 114 mil caracteres: ninguno entra en ChatGPT gratis ni en Groq. (El selector estuvo un rato en la
-  ficha del agente; `Agent.Provider` sigue leyéndose, pero ya no se elige ahí.)
+- **El proveedor se elige en la barra de escribir, y es UNO para todo** (Miguel, 2026-11-17: «el chat arranca con el
+  modelo que se haya colocado en el input; si se cambia en la conversación, no importa»): es el de la configuración
+  (elegirlo en la barra lo guarda ahí), sin «Automático» ni proveedor por conversación; cada respuesta dice con cuál
+  salió. Vale también para los agentes: el permiso general se sacó de la interfaz, y en la conversación de un agente
+  con un proveedor que no es Gemini la barra avisa «Pikachu manda su contexto interno a DeepSeek». El menú es propio
+  (no un `<select>`, que en macOS no muestra el título de una opción): cada opción dice el nombre reconocible y, chico,
+  el modelo interno, los TOKENS de su modelo más poderoso (`providerContext`: Gemini 4 Hydrogen 1M de la ficha de
+  Google; DeepSeek V4 1M según resúmenes no oficiales; ChatGPT gratis no lo publica; GPT OSS 120B ~128k) y lo que su web
+  aceptó por mensaje (`providerLimits`: ChatGPT ~40 mil car., Groq ~19 mil). Lo que no se puede usar (en pausa, sin
+  sesión, sin Jarvis, próximamente) queda apagado con `aria-disabled` y la causa al pasar el mouse; una pausa muestra
+  su CUENTA REGRESIVA a la derecha («9 h 53 min», o «4:05» en la última hora), también en el botón y en la nota de la
+  barra, y al vencer se vuelve a leer el estado. La barra avisa además si lo que viaja (la precarga del agente, la
+  conversación y lo escrito) no le entra al elegido.
 - **Kimi está, pero apagado («Próximamente»)**: la receta existe (`jarvis/recipes/kimi/`, `bin/kimi`), y en el plan
   gratis sus modelos buenos se frenan con «Muchas personas están chateando… Suscríbete» (Miguel, 2026-11-17: «va a
   seguir poniendo ese mensaje para que uno pague»). `/api/providers` lo lista con estado `proximamente` y su causa, que

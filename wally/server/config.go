@@ -41,6 +41,18 @@ type Config struct {
 
 var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
 
+// providerContext: los tokens del modelo más poderoso de cada uno, publicados, y lo medido en su web gratis
+// (2026-11-17). Lo publicado es el techo del modelo; lo que entra por la web puede ser bastante menos.
+var providerContext = map[string]struct {
+	tokens int
+	note   string
+}{
+	"aistudio": {1_048_576, "1M tokens (ficha de Google de Gemini 4 Hydrogen); por la web entraron 2 MB de texto (~500 mil tokens)"},
+	"deepseek": {1_000_000, "1M tokens (DeepSeek V4, según resúmenes no oficiales); por la web entraron 77 mil caracteres, lo más que se probó"},
+	"chatgpt":  {0, "OpenAI no publica el del plan gratis; por la web entran ~40 mil caracteres (~10 mil tokens) por mensaje"},
+	"groq":     {131_072, "GPT OSS 120B maneja ~128 mil tokens; la web de Groq acepta ~19 mil caracteres (~5 mil tokens) por mensaje"},
+}
+
 // groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia; Kimi no estaba).
 var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
 

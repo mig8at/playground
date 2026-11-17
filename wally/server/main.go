@@ -291,6 +291,10 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 		Model  Model          `json:"model"`
 		Limit  int            `json:"limit"`
 		Status providerStatus `json:"status"`
+		// Context: los tokens que maneja su modelo más poderoso según lo publicado; ContextNote, de dónde sale y lo
+		// que aceptó su web gratis por mensaje, medido.
+		Context     int    `json:"context"`
+		ContextNote string `json:"contextNote"`
 		// Paused: hasta qué hora no se le puede preguntar («15:04»), y en ms para la cuenta regresiva.
 		Paused      string `json:"paused,omitempty"`
 		PausedUntil int64  `json:"pausedUntil,omitempty"`
@@ -307,7 +311,8 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 		if !ok {
 			st = providerStatus{State: "sin-comprobar", Detail: "todavía no se comprobó"}
 		}
-		r := row{ID: id, Model: providerModels[id], Limit: providerLimits[id], Status: st}
+		r := row{ID: id, Model: providerModels[id], Limit: providerLimits[id], Status: st,
+			Context: providerContext[id].tokens, ContextNote: providerContext[id].note}
 		if id == "groq" {
 			r.Model.DisplayName = groqModelNames[a.config.get().GroqModel] // el modelo que contesta, no el servicio
 		}
@@ -627,11 +632,6 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		a.store.convs[c.ID] = c
 	}
 	c.Model = in.Model
-	if _, ok := providerModels[in.Provider]; ok {
-		c.Provider = in.Provider
-	} else if in.Provider == "auto" {
-		c.Provider = ""
-	}
 	c.Updated = done
 	c.Messages = append(c.Messages,
 		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},

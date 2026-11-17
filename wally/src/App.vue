@@ -241,28 +241,29 @@ async function checkProvidersNow() {
   providersInfo.value = { ...providersInfo.value, checking: true }
   const poll = setInterval(async () => { await loadProviders(); if (!providersInfo.value.checking) clearInterval(poll) }, 1500)
 }
-// LO ELEGIDO EN LA BARRA, por conversación: «auto» (el de la configuración) o uno. En una pestaña nueva queda en la
-// pestaña y viaja con la primera pregunta; en una guardada, se guarda en la conversación al cambiarlo.
-const tabProvider = ref({})
-const chosenProvider = computed({
-  get: () => (isNew(active.value) ? tabProvider.value[active.value] : loaded.value[active.value]?.provider) || 'auto',
-  set: (v) => { setChosenProvider(active.value, v) },
-})
-async function setChosenProvider(key, v) {
-  if (isNew(key)) { tabProvider.value = { ...tabProvider.value, [key]: v }; return }
+// EL PROVEEDOR DE LA BARRA ES UNO PARA TODO (Miguel, 2026-11-17: «el chat arranca con el modelo que se haya colocado
+// en el input; si se cambia en la conversación, no importa: no tiene que ver con el chat»). Es el de la configuración:
+// elegirlo en la barra lo guarda ahí, y cada respuesta dice con cuál salió. Sin «Automático» ni proveedor por chat.
+const effectiveProvider = computed(() => providersInfo.value.default)
+async function setProvider(id) {
   try {
-    const c = await api(`/api/conversations/${encodeURIComponent(key)}/provider`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: v }) })
-    loaded.value = { ...loaded.value, [key]: c }
-    loadAgents()
-  } catch (e) { errors.value = { ...errors.value, [key]: e.message } }
+    await api('/api/config', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: id }) })
+    await loadProviders()
+    if (config.value) config.value = { ...config.value, provider: id }
+    loadModels()
+  } catch (e) { errors.value = { ...errors.value, [active.value]: e.message } }
 }
-// El automático: el de la configuración, salvo un agente o el asistente sin el permiso general (van por Gemini).
-const autoProvider = computed(() => {
-  if (agentOf.value?.provider) return agentOf.value.provider
-  const d = providersInfo.value.default
-  return (agentOf.value || mode.value) && d !== 'aistudio' && !providersInfo.value.agentsOther ? 'aistudio' : d
-})
-const effectiveProvider = computed(() => (chosenProvider.value !== 'auto' ? chosenProvider.value : autoProvider.value))
+// LA CUENTA REGRESIVA de una pausa: un reloj que late cada segundo y cuánto falta para que vuelva.
+const now = ref(Date.now())
+let ticker = null
+function timeLeft(until) {
+  const s = Math.max(0, Math.round((until - now.value) / 1000))
+  if (!s) return ''
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60
+  return h ? `${h} h ${String(m).padStart(2, '0')} min` : `${m}:${String(sec).padStart(2, '0')}`
+}
+// LOS TOKENS de cada uno: el techo de su modelo más poderoso según lo publicado (el detalle y lo medido, en el título).
+const tokensLabel = (p) => (p?.context ? `${p.context >= 1_000_000 ? `${Math.round(p.context / 1_048_576 * 10) / 10 || 1}M` : `${Math.round(p.context / 1000)}k`} tokens` : '')
 const providerOf = (id) => providers.value.find((p) => p.id === id)
 const effectivePaused = computed(() => providerOf(effectiveProvider.value)?.paused || '')
 const providerState = (id) => (providerOf(id)?.paused ? 'pausa' : providerOf(id)?.status?.state || 'sin-comprobar')
@@ -284,10 +285,9 @@ function unavailableReason(id) {
   return ''
 }
 function pickProvider(id) {
-  const target = id === 'auto' ? autoProvider.value : id
-  if (unavailableReason(target)) return
-  chosenProvider.value = id
+  if (unavailableReason(id)) return
   providerMenu.value = false
+  if (id !== effectiveProvider.value) setProvider(id)
 }
 function closeProviderMenu(e) { if (providerMenu.value && !e.target.closest?.('.provider-menu-wrap')) providerMenu.value = false }
 // Lo que viaja (la precarga del agente, si es uno, más la conversación y lo escrito) contra el tope del proveedor.
@@ -421,7 +421,7 @@ async function send() {
   scrollDown()
   try {
     const c = await api('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text, files: files.map((f) => f.id), mode: isNew(key) ? (tabMode.value[key] || '') : '', provider: chosenProvider.value }) })
+      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text, files: files.map((f) => f.id), mode: isNew(key) ? (tabMode.value[key] || '') : '', provider: effectiveProvider.value }) })
     attachments.value = { ...attachments.value, [key]: [] }
     if (isNew(key)) {
       // La pestaña nueva pasa a ser la de su conversación, en el mismo lugar.
@@ -677,6 +677,7 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; grow() }
 const themeToggle = ref(null)
 let themeBinding = null
 onMounted(async () => {
+  ticker = setInterval(() => { now.value = Date.now(); if (providers.value.some((p) => p.pausedUntil && p.pausedUntil <= now.value)) loadProviders() }, 1000)
   document.addEventListener('click', closeProviderMenu)
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', readRoute)
@@ -702,6 +703,7 @@ onMounted(async () => {
   }, 3_000)
 })
 onBeforeUnmount(() => {
+  clearInterval(ticker)
   document.removeEventListener('click', closeProviderMenu)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
@@ -869,11 +871,6 @@ onBeforeUnmount(() => {
                 <button v-for="(label, m) in GROQ_MODELS" :key="m" type="button" class="toggle" role="radio" :aria-checked="config.groqModel === m" :aria-pressed="config.groqModel === m" @click="saveConfig({ groqModel: m })">{{ label }}</button>
               </div>
             </div>
-          </div>
-
-          <div class="group-option column">
-            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con otro proveedor elegido, siguen por Gemini salvo que lo permitas.</span></div>
-            <label class="config-check"><input type="checkbox" :checked="config.agentsOther" @change="saveConfig({ agentsOther: $event.target.checked })"> Permitir que vayan por el proveedor elegido (DeepSeek lo guarda en China; ChatGPT, hasta 30 días)</label>
           </div>
 
           <div class="group-option column">
@@ -1186,29 +1183,25 @@ onBeforeUnmount(() => {
               <button type="button" class="provider-trigger" :aria-expanded="providerMenu" aria-haspopup="listbox"
                       :title="unavailableReason(effectiveProvider) || `Contesta ${modelLabel(effectiveProvider)}, por ${PROVIDER_NAME[effectiveProvider]}`" @click="providerMenu = !providerMenu">
                 <i class="state-dot" :class="`is-${providerState(effectiveProvider)}`" aria-hidden="true"></i>
-                <span>{{ chosenProvider === 'auto' ? 'Automático · ' : '' }}{{ modelLabel(effectiveProvider) }}</span>
+                <span>{{ modelLabel(effectiveProvider) }}</span>
+                <span v-if="providerOf(effectiveProvider)?.pausedUntil" class="countdown">{{ timeLeft(providerOf(effectiveProvider).pausedUntil) }}</span>
                 <span class="ui-icon provider-chevron" :class="{ open: providerMenu }" data-icon="chevron" aria-hidden="true"></span>
               </button>
-              <div v-if="providerMenu" class="provider-menu" role="listbox" aria-label="Con qué sigue esta conversación">
-                <button type="button" role="option" class="provider-option" :class="{ on: chosenProvider === 'auto' }"
-                        :aria-selected="chosenProvider === 'auto'" :aria-disabled="!!unavailableReason(autoProvider)"
-                        :title="unavailableReason(autoProvider) ? `Automático va por ${PROVIDER_NAME[autoProvider]}. ${unavailableReason(autoProvider)}` : 'El de la configuración (un agente va por Gemini salvo el permiso general)'"
-                        @click="pickProvider('auto')">
-                  <i class="state-dot" :class="`is-${providerState(autoProvider)}`" aria-hidden="true"></i>
-                  <span class="po-main"><b>Automático</b><span>{{ PROVIDER_NAME[autoProvider] }}, el de la configuración</span></span>
-                </button>
-                <button v-for="p in providers" :key="p.id" type="button" role="option" class="provider-option" :class="{ on: chosenProvider === p.id }"
-                        :aria-selected="chosenProvider === p.id" :aria-disabled="!!unavailableReason(p.id)"
-                        :title="unavailableReason(p.id) || p.status?.detail || ''" @click="pickProvider(p.id)">
+              <div v-if="providerMenu" class="provider-menu" role="listbox" aria-label="Con qué contesta Wally">
+                <button v-for="p in providers" :key="p.id" type="button" role="option" class="provider-option" :class="{ on: effectiveProvider === p.id }"
+                        :aria-selected="effectiveProvider === p.id" :aria-disabled="!!unavailableReason(p.id)"
+                        :title="[unavailableReason(p.id) || p.status?.detail || '', p.contextNote || ''].filter(Boolean).join('\n\n')" @click="pickProvider(p.id)">
                   <i class="state-dot" :class="`is-${providerState(p.id)}`" aria-hidden="true"></i>
-                  <span class="po-main"><b>{{ PROVIDER_NAME[p.id] }}</b><span>{{ p.status?.state === 'proximamente' ? 'Próximamente' : [innerModel(p.id), p.limit ? `hasta ~${Math.round(p.limit / 1000)} mil car.` : '', p.paused ? `en pausa hasta las ${p.paused}` : ''].filter(Boolean).join(' · ') || 'listo' }}</span></span>
+                  <span class="po-main"><b>{{ PROVIDER_NAME[p.id] }}</b><span>{{ p.status?.state === 'proximamente' ? 'Próximamente' : [innerModel(p.id), tokensLabel(p), p.limit ? `la web: ~${Math.round(p.limit / 1000)} mil car.` : ''].filter(Boolean).join(' · ') || 'listo' }}</span></span>
+                  <span v-if="p.pausedUntil" class="countdown" :title="`Vuelve a las ${p.paused}`">{{ timeLeft(p.pausedUntil) }}</span>
                 </button>
               </div>
             </div>
             <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: el modelo no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>
-            <span v-if="effectivePaused" class="composer-note warn-text">{{ providerName }} en pausa hasta las {{ effectivePaused }}: elegí otro o esperá</span>
+            <span v-if="effectivePaused" class="composer-note warn-text">{{ providerName }} vuelve en {{ timeLeft(providerOf(effectiveProvider).pausedUntil) }}: elegí otro o esperá</span>
+            <span v-else-if="agentOf && effectiveProvider !== 'aistudio'" class="composer-note" :title="'Lo que lleva precargado el agente (knowledge, código de main) viaja con cada pregunta'">{{ agentOf.name }} manda su contexto interno a {{ providerName }}</span>
             <span v-else-if="fit.over" class="composer-note warn-text">~{{ Math.round(fit.total / 1000) }} mil car.: {{ providerName }} acepta ~{{ Math.round(fit.limit / 1000) }} mil, no le entra</span>
             <span v-else-if="busyElsewhere" class="composer-note">Wally está contestando en otra pestaña</span>
             <button type="submit" class="btn btn-sm send" :disabled="(!draft.trim() && !pendingFiles.length) || !!pending || !!effectivePaused || !!uploading[active]" title="Preguntar (Enter)">
