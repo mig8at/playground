@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -48,9 +49,26 @@ func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	a.store.mu.Unlock()
+	// Todas las fuentes de todos los agentes, contra main de una vez: un `git cat-file` por repo y no uno por
+	// fuente (con 9 agentes y 48 temas, uno por fuente tardaba 16 s y la lista salía vacía hasta entonces).
+	byTopic := map[string][]source{}
+	var all []source
+	for _, row := range rows {
+		for _, t := range row.Agent.Topics {
+			if _, ok := byTopic[t]; !ok {
+				byTopic[t], _ = a.topicSources(t)
+				all = append(all, byTopic[t]...)
+			}
+		}
+	}
+	blobs := a.blobsAtMain(r.Context(), all)
 	for i := range rows {
 		for _, t := range rows[i].Agent.Topics {
-			rows[i].Changed += len(a.changedSources(r.Context(), t))
+			for _, s := range byTopic[t] {
+				if blobs[s.Repo+":"+s.Path] != s.Blob {
+					rows[i].Changed++
+				}
+			}
 		}
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Agent.Name < rows[j].Agent.Name })
@@ -104,6 +122,38 @@ func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, c)
+}
+
+// blobsAtMain: el blob de cada fuente en la ref de main de su repo («repo:ruta» → blob; sin entrada si no está).
+func (a *app) blobsAtMain(ctx context.Context, sources []source) map[string]string {
+	paths := map[string][]string{}
+	for _, s := range sources {
+		paths[s.Repo] = append(paths[s.Repo], s.Path)
+	}
+	out := map[string]string{}
+	for repo, list := range paths {
+		dir, ref, err := a.repoDir(repo)
+		if err != nil {
+			continue
+		}
+		var in strings.Builder
+		for _, p := range list {
+			fmt.Fprintf(&in, "%s:%s\n", ref, p)
+		}
+		cmd := exec.CommandContext(ctx, "git", "-C", dir, "cat-file", "--batch-check=%(objectname)")
+		cmd.Stdin = strings.NewReader(in.String())
+		raw, err := cmd.Output()
+		if err != nil {
+			continue
+		}
+		// Una línea por pedido, en orden: el blob, o «<ref:ruta> missing».
+		for i, line := range strings.Split(strings.TrimRight(string(raw), "\n"), "\n") {
+			if i < len(list) && !strings.HasSuffix(line, " missing") {
+				out[repo+":"+list[i]] = strings.TrimSpace(line)
+			}
+		}
+	}
+	return out
 }
 
 // changedSources: las fuentes del tema cuyo blob en main ya no es el revisado (o que ya no están).

@@ -124,6 +124,16 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     arriba de la conversación, lo repite); con la conversación vacía ofrece «Ponete al día con lo que cambió»,
     «Revisá que tu parte siga cierta» y «Contame tu parte».
   - **Compactar** la conversación cuando crezca queda para más adelante.
+  - **Los nueve** (2026-11-17), que cubren los 48 temas sin repetir, cada uno con Flash y hasta ~75 mil caracteres de
+    precarga: **Pikachu** KYC · **Charmander** CreditopX (oferta, cupo, configuración, pagos, cartera, recordatorios) ·
+    **Bulbasaur** entidades (listado, reglas de perfil y puntaje, tipos de respuesta, integraciones, credenciales,
+    Ábaco) · **Squirtle** tienda y caja (ecommerce, VTEX, API de la tienda, caja, códigos de compra) · **Snorlax** el
+    camino de una solicitud (caminos, estados, canal, cliente que vuelve, formulario, país) · **Jigglypuff** el cierre
+    (codeudor, pagaré en Deceval, Credifamilia) · **Magnemite** dispositivos y renting (IMEI, bloqueo, planes, Motai) ·
+    **Meowth** comercios y admin (alta, convenios, admin, roles, campañas de WhatsApp) · **Alakazam** el mapa general
+    (negocio, app móvil, infraestructura). Un tema nuevo de knowledge no entra solo a ninguno.
+  - **La lista compara contra main en lote** (`blobsAtMain`: un `git cat-file --batch-check` por repo): uno por fuente
+    eran 16 s con los nueve, y la lista salía vacía hasta entonces; en lote, 0,3 s.
   - **Pikachu** (el primero): KYC —`kyc-pipeline`, `kyc-path-and-experian-trigger`, `identity-validation`,
     `identity-name-validation` y `otp-source-and-bypass`—, con Flash. Su precarga: ~55 mil caracteres; la primera
     pregunta, con WALLY.md, fueron 77 mil (13:15, «Contame tu parte»): AI Studio no contestó en 10 min, con la cuenta

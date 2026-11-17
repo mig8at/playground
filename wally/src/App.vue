@@ -599,7 +599,7 @@ onBeforeUnmount(() => {
               <span class="avatar agent-avatar">{{ a.agent.name[0] }}</span>
               <span class="agent-text">
                 <span class="conv-title"><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</span>
-                <span class="conv-meta">{{ a.agent.intent }}</span>
+                <span class="conv-meta">{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</span>
               </span>
               <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
             </button>
