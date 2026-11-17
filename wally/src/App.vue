@@ -70,7 +70,7 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
-  if (isNew(t.key)) return tabMode.value[t.key] === 'knowledge' ? 'Asistente de knowledge' : 'Conversación nueva'
+  if (isNew(t.key)) return MODES[tabMode.value[t.key]]?.label || 'Conversación nueva'
   return loaded.value[t.key]?.title || conversations.value.find((c) => c.id === t.key)?.title || 'Conversación'
 }
 
@@ -141,7 +141,12 @@ const conv = computed(() => loaded.value[active.value] || null)
 // El modo de la pestaña: el de su conversación, o el elegido en una nueva.
 const modeOf = (key) => loaded.value[key]?.mode || conversations.value.find((c) => c.id === key)?.mode || tabMode.value[key] || ''
 const mode = computed(() => modeOf(active.value))
-const MODES = { knowledge: { label: 'Asistente de knowledge', short: 'knowledge' } }
+// Los modos asistidos: «asistente» lee wally/WALLY.md (sus herramientas de lectura); «knowledge» es el primero, que
+// sólo conocía la biblioteca (sus conversaciones siguen andando).
+const MODES = {
+  asistente: { label: 'Asistente', short: 'asistente', badge: 'A' },
+  knowledge: { label: 'Asistente de knowledge', short: 'knowledge', badge: 'K' },
+}
 const messages = computed(() => conv.value?.messages || [])
 const draft = computed({
   get: () => drafts.value[active.value] || '',
@@ -506,7 +511,7 @@ onBeforeUnmount(() => {
              @mousedown.middle.prevent="closeTab(t.key)">
           <button type="button" class="tab-label" :title="tabTitle(t)" @click="activate(t.key)" @dblclick="pinTab(t.key)">
             <i v-if="pending && pending.key === t.key" class="live-dot" aria-label="esperando la respuesta"></i>
-            <span v-if="modeOf(t.key)" class="mode-badge" :title="MODES[modeOf(t.key)]?.label">K</span>
+            <span v-if="modeOf(t.key)" class="mode-badge" :title="MODES[modeOf(t.key)]?.label">{{ MODES[modeOf(t.key)]?.badge || 'A' }}</span>
             <span>{{ tabTitle(t) }}</span>
           </button>
           <button type="button" class="tab-close" :disabled="pending && pending.key === t.key" title="Cerrar la pestaña" aria-label="Cerrar la pestaña" @click="closeTab(t.key)">
@@ -526,15 +531,15 @@ onBeforeUnmount(() => {
         <div v-if="!messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
-            <div class="empty-title">{{ mode === 'knowledge' ? 'Preguntale a tu biblioteca' : 'Preguntale a Wally' }}</div>
+            <div class="empty-title">{{ mode ? 'Preguntale al asistente' : 'Preguntale a Wally' }}</div>
             <div class="empty-desc">Pregunta por la web de AI Studio, en tu Chrome y con tu cuenta, sin llave de API. Lo que quede guardado acá es el contexto de la próxima pregunta.</div>
           </div>
           <div class="mode-pick" role="radiogroup" aria-label="Qué hace esta conversación">
             <button type="button" class="mode-card" role="radio" :aria-checked="!mode" @click="chooseMode('')">
               <span class="ui-icon" data-icon="comment" aria-hidden="true"></span><b>Chat</b><span>Preguntás y contesta.</span>
             </button>
-            <button type="button" class="mode-card" role="radio" :aria-checked="mode === 'knowledge'" @click="chooseMode('knowledge')">
-              <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><b>Asistente de knowledge</b><span>Recibe el mapa de tu biblioteca y te pide leer temas: vos aprobás cada comando.</span>
+            <button type="button" class="mode-card" role="radio" :aria-checked="mode === 'asistente'" @click="chooseMode('asistente')">
+              <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><b>Asistente</b><span>Lee WALLY.md: conoce tus herramientas y te pide comandos de lectura (knowledge, trampas, guías, tareas). Vos aprobás cada uno.</span>
             </button>
           </div>
           <div v-if="!mode" class="suggestions">

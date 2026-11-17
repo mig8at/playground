@@ -47,19 +47,22 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   clip, arrastrándolos o pegándolos; pertenecen al bloque de la pregunta: borrarlo (o la conversación) los borra del
   disco, y cerrar una pestaña borra los que no se mandaron. Medido el 2026-11-17: un log de 23 mil caracteres con
   Gemini 3.8 Flash, 47 s.
-- **El modo asistido «Asistente de knowledge»** (se elige al abrir una pestaña nueva; la pestaña lleva una «K»):
-  Wally deja de sólo contestar y puede PEDIR VER cosas de la máquina, pero no las corre él (idea de Miguel,
-  2026-11-17). La conversación arranca con el mapa de `knowledge/` adjunto (`make knowledge-map`) y unas instrucciones
-  (`modeInstructions`, en `server/commands.go`): para leer un tema tiene que pedirlo en un bloque ```comando. Cada
-  comando pedido sale como tarjeta con **Correr** y **Descartar**; la salida queda como ficha de la respuesta que lo
-  pidió (viaja pegada a ella; borrar el bloque la borra) y «Mandar resultados» le avisa al modelo para que siga.
-  ⚠ **Qué se corre lo decide el servidor, no el modelo**: una lista blanca (`allowList`) de sólo lectura —`make
-  knowledge-map`, `knowledge-search Q='…'`, `knowledge-read ID=…`— con los argumentos validados, que se corre SIN
-  SHELL (`exec` de `make` con los argumentos separados) y se vuelve a validar al correr. Lo demás queda «no permitido»
-  (`commands_test.go` prueba que `;`, `$(…)`, `|`, `../` u otro target no pasan). Para sumar un comando de lectura:
-  su línea en `allowList`, su caso en la prueba y una línea en las instrucciones. Medido el 2026-11-17 con 3.8 Flash:
-  «¿cómo funciona el cupo mensual de CreditopX y qué lo puede negar?» → pidió 3 temas en 10 s, se corrieron 2 (0,2 s
-  cada uno) y contestó con los dos, citando de dónde salía cada cosa, en 88 s.
+- **El modo asistido «Asistente»** (se elige al abrir una pestaña nueva; la pestaña lleva una «A»): Wally deja de sólo
+  contestar y puede PEDIR VER cosas de la máquina, pero no las corre él (idea de Miguel, 2026-11-17). **Sus
+  instrucciones son [`WALLY.md`](WALLY.md)**, lo que `CLAUDE.md` es para Claude Code: quién es, cómo pedir y el
+  catálogo de comandos de sólo lectura. Va antes de CADA pregunta y se lee en el momento: editarlo cambia a Wally desde
+  la próxima, sin reiniciar. Para pedir, el modelo escribe un bloque ```comando; cada comando sale como tarjeta con
+  **Correr** y **Descartar**, la salida queda como ficha de la respuesta que lo pidió (viaja pegada a ella; borrar el
+  bloque la borra) y «Mandar resultados» le avisa para que siga. El primer modo, «Asistente de knowledge» (sólo la
+  biblioteca, con el mapa adjunto al empezar), sigue andando para sus conversaciones.
+  ⚠ **Qué se corre lo decide el servidor, no el modelo**: la lista blanca (`allowList`, `server/commands.go`) —la
+  biblioteca (`make knowledge-map|search|read`), `make tareas`, el catálogo (`comandos [palabra]`), las trampas
+  (`trampas`, `trampa F-xx`) y las guías (`guia <herramienta>`, de una lista fija)— con los argumentos validados: los
+  de `make` se corren SIN SHELL y los demás leen un archivo fijo; se vuelve a validar al correr. Lo demás queda «no
+  permitido» (`commands_test.go`: `;`, `$(…)`, `|`, rutas, otro target). **Afuera a propósito**: bases, logs,
+  PostHog, datos de clientes o de producción y la pila de las tareas: son de lectura, pero lo que lee Wally viaja a
+  Google. Para sumar un comando: su línea en `allowList`, su caso en la prueba y su fila en WALLY.md (tienen que decir
+  lo mismo).
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.

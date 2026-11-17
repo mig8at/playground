@@ -456,7 +456,7 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		in.Mode = c.Mode
 	}
 	a.store.mu.Unlock()
-	if _, ok := modeInstructions[in.Mode]; in.Mode != "" && !ok {
+	if in.Mode != "" && !modes[in.Mode] {
 		writeErr(w, 400, fmt.Errorf("no existe el modo «%s»", in.Mode))
 		return
 	}
@@ -477,8 +477,15 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	asked := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
 	prompt := transcript(history, in.Text, files, a.fileText)
-	if instructions := modeInstructions[in.Mode]; instructions != "" {
-		prompt = instructions + "\n\n" + prompt
+	instructions, err := a.instructionsFor(in.Mode)
+	if err != nil {
+		cancel()
+		a.askMu.Unlock()
+		writeErr(w, 500, err)
+		return
+	}
+	if instructions != "" {
+		prompt = instructions + "\n\n---\n\n" + prompt
 	}
 	answer, err := a.askAIStudio(ctx, in.Model, prompt)
 	cancel()
