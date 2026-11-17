@@ -7,7 +7,7 @@ knowledge: [lender-response-types, lender-credential-sources, lender-listing, fi
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
-ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad
+ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845-finandina
 ---
 
 ## Pendientes
@@ -85,13 +85,17 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 ### Fase 1 · La política de CRED-519 en el riel 4 (sin esperar a producto)
 
-- [ ] Conectar la preaprobación de la 149 al motor de cupo, donde ya corre la política de CRED-519: la clave de
-  Finandina hacia `creditop_x` en pre-approvals-service (en local, el alias en el mock), y la fuente de insumos
-  (`LenderConfigurationInputs`, en `a666569d4`) tomando el cupo del cliente que devuelve `/available-quota`, en
-  vez del tope de la línea (15 MM). `/available-quota` no deja afuera al tipo 4 (`CreditopXQuotaController` corta
-  el 0 y el 1 y desvía el 3), así que la 149 de tipo 4 cae en el cálculo de CreditopX. **El cupo no es
-  `users_category_log.current_available_amount`**: esa es la bolsa mensual del perfil (`knowledge/creditopx-quota`).
-  Termina con un caso aprobado con cupo menor que 15 MM y uno rechazado, en local.
+- [x] ~~Conectar la preaprobación de la 149 al motor de cupo~~ — en local cierra en 11 por el riel 4 con el cupo
+  del motor, y los negativos se rechazan (2026-11-17). Alias `banco-finandina` → `creditop_x` en
+  pre-approvals-service y fuente `creditop_x_pre_approval` más el recorte de plazos por capacidad en legacy-backend.
+- [ ] Llevar el riel 4 de Finandina a qa: que se mergeen y desplieguen
+  [Creditop-SAS/legacy-backend#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937) (contra `qa`) y
+  [Creditop-SAS/pre-approvals-service#104](https://github.com/Creditop-SAS/pre-approvals-service/pull/104) (contra
+  `develop`). Termina con los dos desplegados. Depende de: revisión del equipo.
+- [ ] Pasar la 149 a tipo 4 en la base compartida, **después** del despliegue y avisándole antes a Abel, con
+  `artifacts/finandina-riel-4-sobre-cred-519.sql` (foto previa y cómo deshacerlo en la cabecera). Antes del
+  despliegue rompe Finandina en qa: el listado daría 400. Termina con el caminador cerrando en 11 en qa
+  (`#5da24bb1:149`) por el riel 4. Depende de: Abel — enterado.
 - [ ] Comprobar si el listado del riel 4 evalúa las categorías del motor (`LenderUserCategoryService`) como el
   tipo 2, y qué casos del QA de Abel cambian al pasar la 149 al tipo 4: con el tipo 4, fallar `lender_rules` no
   la saca del listado. Termina con la guía de 15 casos repetida en local con la 149 de tipo 4, y cada diferencia
