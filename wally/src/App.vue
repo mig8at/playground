@@ -39,7 +39,9 @@ async function loadModels() {
     if (!usable(lastModel.value)) lastModel.value = usable(r.default) ? r.default : (models.value.find((m) => !m.paused)?.name || lastModel.value || r.default)
   } catch (e) { apiError.value = `No pude leer los modelos: ${e.message}` }
 }
-const modelName = (name) => models.value.find((m) => m.name === name)?.displayName || name
+// Un modelo que ya no está en la lista (conversaciones viejas) se nombra desde su id: gemini-3.5-flash-lite → Gemini 3.5 Flash Lite.
+const prettyModel = (id) => (id || '').split('-').map((w) => (/^\d/.test(w) ? w : w.charAt(0).toUpperCase() + w.slice(1))).join(' ').replace(/ It$/, '')
+const modelName = (name) => models.value.find((m) => m.name === name)?.displayName || prettyModel(name)
 const pausedCount = computed(() => models.value.filter((m) => m.paused).length)
 // Toda la cuenta en pausa: Google cortó y no se pregunta hasta que vence (la hora es la de la pausa).
 const allPaused = computed(() => models.value.length > 0 && models.value.every((m) => m.paused) ? models.value[0].paused : '')
@@ -58,6 +60,8 @@ const loaded = ref({})      // clave → conversación { id, title, model, messa
 const drafts = ref({})      // clave → texto sin mandar
 const tabModel = ref({})    // clave → modelo elegido en esa pestaña
 const errors = ref({})      // clave → el último error
+const attachments = ref({}) // clave → archivos subidos y todavía sin mandar: [{ id, name, size, chars, kind }]
+const uploading = ref({})   // clave → cuántos se están subiendo
 let newCounter = Math.max(0, ...tabs.value.map((t) => Number((/^nueva-(\d+)$/.exec(t.key) || [])[1] || 0)))
 const isNew = (key) => key.startsWith('nueva-')
 
@@ -102,6 +106,10 @@ function closeTab(key) {
   tabs.value.splice(i, 1)
   const { [key]: _d, ...restDrafts } = drafts.value
   drafts.value = restDrafts
+  // Los archivos subidos y sin mandar se borran del disco: nadie los va a mandar.
+  for (const f of attachments.value[key] || []) fetch(`/api/files/${f.id}`, { method: 'DELETE' }).catch(() => {})
+  const { [key]: _a, ...restAtts } = attachments.value
+  attachments.value = restAtts
   if (active.value === key) {
     const next = tabs.value[i] || tabs.value[i - 1]
     if (next) activate(next.key)
@@ -139,7 +147,10 @@ const model = computed({
   set: (v) => { tabModel.value = { ...tabModel.value, [active.value]: v }; lastModel.value = v; savePref('wally.model', v) },
 })
 const error = computed(() => errors.value[active.value] || '')
-const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length, 0))
+const pendingFiles = computed(() => attachments.value[active.value] || [])
+const fileChars = (files) => (files || []).reduce((n, f) => n + (f.chars || 0), 0)
+const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length + fileChars(m.files), 0))
+const contextFiles = computed(() => messages.value.reduce((n, m) => n + (m.files?.length || 0), 0))
 
 // ── MANDAR ── (de a una pregunta en toda la app: la respuesta llega cuando AI Studio termina, sin streaming)
 const pending = ref(null)   // { key, text, model, since }
@@ -149,10 +160,13 @@ let refresher = null
 const busyElsewhere = computed(() => !!pending.value && pending.value.key !== active.value)
 async function send() {
   const key = active.value
-  const text = draft.value.trim()
-  if (!text || pending.value || allPaused.value) return
+  const files = attachments.value[key] || []
+  const draftBefore = draft.value
+  const text = draft.value.trim() || (files.length ? (files.length > 1 ? 'Revisá los archivos adjuntos.' : 'Revisá el archivo adjunto.') : '')
+  if (!text || pending.value || allPaused.value || uploading.value[key]) return
   errors.value = { ...errors.value, [key]: '' }
-  pending.value = { key, text, model: model.value, since: Date.now() }
+  pending.value = { key, text, files, model: model.value, since: Date.now() }
+  attachments.value = { ...attachments.value, [key]: [] }   // salen del campo: ya van con la pregunta
   elapsed.value = 0
   tick = setInterval(() => { elapsed.value = Math.floor((Date.now() - pending.value.since) / 1000) }, 250)
   drafts.value = { ...drafts.value, [key]: '' }
@@ -160,12 +174,14 @@ async function send() {
   scrollDown()
   try {
     const c = await api('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text }) })
+      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text, files: files.map((f) => f.id) }) })
+    attachments.value = { ...attachments.value, [key]: [] }
     if (isNew(key)) {
       // La pestaña nueva pasa a ser la de su conversación, en el mismo lugar.
       const t = tabs.value.find((x) => x.key === key)
       if (t) t.key = c.id
       tabModel.value = { ...tabModel.value, [c.id]: pending.value.model }
+      attachments.value = { ...attachments.value, [c.id]: [] }
       if (active.value === key) active.value = c.id
       writeRoute()
     }
@@ -173,7 +189,8 @@ async function send() {
     loadList()
   } catch (e) {
     errors.value = { ...errors.value, [key]: e.message }
-    if (!drafts.value[key]) drafts.value = { ...drafts.value, [key]: text }   // no se pierde lo escrito
+    if (!drafts.value[key]) drafts.value = { ...drafts.value, [key]: draftBefore }   // no se pierde lo escrito
+    if (files.length) attachments.value = { ...attachments.value, [key]: [...files, ...(attachments.value[key] || [])] }
   } finally {
     loadModels()
     clearInterval(tick)
@@ -186,6 +203,54 @@ function onKey(e) {
   // Enter manda; Shift+Enter, renglón nuevo (como en el chat del equipo).
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() }
 }
+
+// LOS ARCHIVOS: se suben a Wally (no a AI Studio, que los guardaría en tu Drive), que les saca el texto en esta máquina;
+// en el campo quedan como fichas, y su texto viaja con la pregunta sin ocupar la conversación. Texto y código, PDF y
+// Word; una imagen o un binario vuelve con su porqué.
+const fileInput = ref(null)
+const dragging = ref(false)
+async function addFiles(list) {
+  const key = active.value
+  for (const file of [...list]) {
+    uploading.value = { ...uploading.value, [key]: (uploading.value[key] || 0) + 1 }
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const att = await api('/api/files', { method: 'POST', body })
+      attachments.value = { ...attachments.value, [key]: [...(attachments.value[key] || []), att] }
+    } catch (e) {
+      errors.value = { ...errors.value, [key]: e.message }
+    } finally {
+      uploading.value = { ...uploading.value, [key]: (uploading.value[key] || 1) - 1 }
+    }
+  }
+  focusInput()
+}
+// Pegar un archivo copiado en el Finder también lo adjunta (el texto se pega como siempre).
+function onPaste(e) { if (e.clipboardData?.files?.length) { e.preventDefault(); addFiles(e.clipboardData.files) } }
+function pickFiles(e) { addFiles(e.target.files); e.target.value = '' }
+function removeAttachment(f) {
+  const key = active.value
+  attachments.value = { ...attachments.value, [key]: (attachments.value[key] || []).filter((x) => x.id !== f.id) }
+  fetch(`/api/files/${f.id}`, { method: 'DELETE' }).catch(() => {})
+}
+let dragDepth = 0
+function onDragEnter(e) { if ([...(e.dataTransfer?.types || [])].includes('Files')) { dragDepth += 1; dragging.value = true } }
+function onDragLeave() { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) dragging.value = false }
+function onDrop(e) { dragDepth = 0; dragging.value = false; if (e.dataTransfer?.files?.length) addFiles(e.dataTransfer.files) }
+// Ver un archivo ya mandado: su ficha se abre y muestra el texto que viajó (el comienzo; «Ver todo» lo abre entero).
+const openFile = ref({ id: '', text: '', full: false })
+async function toggleFile(f) {
+  if (openFile.value.id === f.id) { openFile.value = { id: '', text: '', full: false }; return }
+  try {
+    const text = await (await fetch(`/api/files/${f.id}`)).text()
+    openFile.value = { id: f.id, text, full: false }
+  } catch (e) { errors.value = { ...errors.value, [active.value]: e.message } }
+}
+const PREVIEW_CHARS = 4000
+const sizeLabel = (n) => n >= 1048576 ? `${(n / 1048576).toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`
+const charsLabel = (n) => n >= 1000 ? `${Math.round(n / 1000).toLocaleString('es-CO')} mil car.` : `${n} car.`
+const FILE_ICON = { pdf: 'PDF', documento: 'DOC', texto: 'TXT' }
 
 // BORRAR UN BLOQUE: una pregunta o una respuesta sale de lo guardado y, con eso, del contexto de la próxima pregunta
 // (AI Studio no recuerda nada: cada pregunta le manda todo lo que queda). Sin confirmación, como en un chat.
@@ -412,7 +477,9 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
-      <div ref="thread" class="region-body thread" @click="onThreadClick">
+      <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
+           @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
+        <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
         <div v-if="!messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
@@ -428,9 +495,25 @@ onBeforeUnmount(() => {
             <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar esta pregunta del contexto" aria-label="Borrar esta pregunta del contexto" @click="removeBlock(m)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
-            <div class="bubble mine" :title="clock(m.at)">{{ m.text }}</div>
+            <div class="user-col">
+              <div class="bubble mine" :title="clock(m.at)">{{ m.text }}</div>
+              <div v-if="m.files?.length" class="file-chips sent">
+                <button v-for="f in m.files" :key="f.id" type="button" class="file-chip" :class="{ on: openFile.id === f.id }" :title="`${f.name} · ${sizeLabel(f.size)} · ${charsLabel(f.chars)} de texto: tocá para verlo`" @click="toggleFile(f)">
+                  <span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span><span class="file-size">{{ charsLabel(f.chars) }}</span>
+                </button>
+              </div>
+            </div>
           </div>
-          <article v-else class="block answer">
+          <div v-if="m.role === 'user' && m.files?.some((f) => f.id === openFile.id)" class="file-view">
+            <div class="file-view-head">
+              <b>{{ m.files.find((f) => f.id === openFile.id)?.name }}</b>
+              <span class="count">el texto que viaja con la pregunta</span>
+              <button v-if="openFile.text.length > PREVIEW_CHARS" type="button" class="btn btn-ghost btn-xs" @click="openFile.full = !openFile.full">{{ openFile.full ? 'Ver menos' : 'Ver todo' }}</button>
+              <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="openFile = { id: '', text: '', full: false }"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+            </div>
+            <pre>{{ openFile.full ? openFile.text : openFile.text.slice(0, PREVIEW_CHARS) + (openFile.text.length > PREVIEW_CHARS ? '\n…' : '') }}</pre>
+          </div>
+          <article v-if="m.role === 'model'" class="block answer">
             <div class="answer-who"><span class="avatar" aria-hidden="true">W</span><b>Wally</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s · {{ clock(m.at) }}</span></div>
             <div class="answer-body" v-html="md(m.text)"></div>
             <div class="answer-meta">
@@ -444,7 +527,12 @@ onBeforeUnmount(() => {
           </article>
         </template>
         <template v-if="pending && pending.key === active">
-          <div class="block block-user"><div class="bubble mine">{{ pending.text }}</div></div>
+          <div class="block block-user"><div class="user-col">
+            <div class="bubble mine">{{ pending.text }}</div>
+            <div v-if="pending.files?.length" class="file-chips sent">
+              <span v-for="f in pending.files" :key="f.id" class="file-chip"><span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span></span>
+            </div>
+          </div></div>
           <article class="answer">
             <div class="answer-who"><span class="avatar" aria-hidden="true">W</span><b>Wally</b><span>{{ modelName(pending.model) }} · en AI Studio, en tu Chrome · {{ elapsed }} s</span></div>
             <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
@@ -454,21 +542,32 @@ onBeforeUnmount(() => {
       </div>
 
       <form class="composer" @submit.prevent="send">
-        <div class="composer-box">
+        <div class="composer-box" :class="{ dragging }" @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
+          <div v-if="pendingFiles.length || uploading[active]" class="file-chips">
+            <span v-for="f in pendingFiles" :key="f.id" class="file-chip" :title="`${f.name} · ${sizeLabel(f.size)} · ${charsLabel(f.chars)} de texto`">
+              <span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span><span class="file-size">{{ charsLabel(f.chars) }}</span>
+              <button type="button" class="file-del" title="Quitar el archivo" aria-label="Quitar el archivo" @click="removeAttachment(f)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+            </span>
+            <span v-if="uploading[active]" class="file-chip uploading"><i class="live-dot"></i>leyendo {{ uploading[active] }} archivo{{ uploading[active] > 1 ? 's' : '' }}…</span>
+          </div>
           <textarea ref="input" v-model="draft" class="composer-input" rows="2" placeholder="Preguntale algo… (Enter manda, Shift+Enter baja de renglón)"
-                    aria-label="La pregunta" @keydown="onKey" @input="grow"></textarea>
+                    aria-label="La pregunta" @keydown="onKey" @input="grow" @paste="onPaste"></textarea>
           <div class="composer-bar">
+            <input ref="fileInput" type="file" multiple hidden @change="pickFiles" />
+            <button type="button" class="region-action" title="Adjuntar archivos: texto y código, PDF o Word. También se pueden arrastrar" aria-label="Adjuntar archivos" @click="fileInput?.click()">
+              <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
+            </button>
             <label class="select model-select" title="El modelo que contesta en esta pestaña">
               <select v-model="model" class="input input-xs" aria-label="Modelo" :disabled="!models.length">
                 <option v-for="m in models" :key="m.name" :value="m.name" :disabled="!!m.paused">{{ m.displayName }}{{ m.paused ? ` · en pausa hasta las ${m.paused}` : m.note ? ` · ${m.note}` : '' }}</option>
               </select>
             </label>
             <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: AI Studio no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
-              {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
+              {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>
             <span v-if="allPaused" class="composer-note warn-text">Google cortó: en pausa hasta las {{ allPaused }}</span>
             <span v-else-if="busyElsewhere" class="composer-note">Wally está contestando en otra pestaña</span>
-            <button type="submit" class="btn btn-sm send" :disabled="!draft.trim() || !!pending || !!allPaused" title="Preguntar (Enter)">
+            <button type="submit" class="btn btn-sm send" :disabled="(!draft.trim() && !pendingFiles.length) || !!pending || !!allPaused || !!uploading[active]" title="Preguntar (Enter)">
               <span class="ui-icon" data-icon="send" aria-hidden="true"></span>Preguntar
             </button>
           </div>

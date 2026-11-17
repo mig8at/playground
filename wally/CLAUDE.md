@@ -18,9 +18,10 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | pieza | qué es |
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
-| `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text}` |
+| `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
+| `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
-| `wally/.data/conversations.json` | lo guardado (fuera de git) |
+| `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |
 
 - **Necesita Jarvis conectado en Chrome** y la sesión de Google de Miguel. Sin eso, la pregunta vuelve con el error de
   la receta.
@@ -38,6 +39,14 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   pausa de 1 a 5 min, al azar, para TODA la cuenta (`*` en `~/.cache/my-tools/aistudio-pausa.json`): el corte es por el ritmo de la
   cuenta, no por modelo (Flash Lite contestó a las 9:48 y a las 9:49 ya no, 2026-11-17). Wally muestra hasta qué hora
   y no deja preguntar.
+- **Los archivos adjuntos NO se suben a AI Studio** (que los guardaría en el Drive de la cuenta aunque el chat sea
+  temporal): Wally les saca el texto EN ESTA MÁQUINA y ese texto viaja con la pregunta, delimitado con su nombre,
+  mientras en la conversación sólo queda su ficha (tipo, nombre, cuánto texto; al tocarla se ve el texto). Van texto y
+  código, PDF (`pdftotext`, de poppler) y Word, RTF u ODT (`textutil`, de macOS); una imagen, un binario o un PDF
+  escaneado vuelven con su porqué. Tope: 25 MB de original y 3 millones de caracteres de texto. Se adjuntan con el
+  clip, arrastrándolos o pegándolos; pertenecen al bloque de la pregunta: borrarlo (o la conversación) los borra del
+  disco, y cerrar una pestaña borra los que no se mandaron. Medido el 2026-11-17: un log de 23 mil caracteres con
+  Gemini 3.8 Flash, 47 s.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.

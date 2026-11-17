@@ -50,6 +50,9 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
+	mux.HandleFunc("POST /api/files", a.upload)
+	mux.HandleFunc("GET /api/files/{id}", a.readFile)
+	mux.HandleFunc("DELETE /api/files/{id}", a.deleteFile)
 	log.Printf("wally: API en http://%s", *serve)
 	log.Fatal(http.ListenAndServe(*serve, mux))
 }
@@ -84,6 +87,8 @@ type Message struct {
 	Model string    `json:"model,omitempty"`
 	Ms    int64     `json:"ms,omitempty"`
 	At    time.Time `json:"at"`
+	// Files: los archivos de una pregunta (sólo su ficha; el texto vive en wally/.data/files y viaja en la pregunta).
+	Files []Attachment `json:"files,omitempty"`
 }
 
 // Conversation es un chat: el título sale de la primera pregunta.
@@ -266,6 +271,11 @@ func (a *app) get(w http.ResponseWriter, r *http.Request) {
 func (a *app) remove(w http.ResponseWriter, r *http.Request) {
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
+	if c, ok := a.store.convs[r.PathValue("id")]; ok {
+		for _, m := range c.Messages {
+			a.forgetFiles(m.Files)
+		}
+	}
 	delete(a.store.convs, r.PathValue("id"))
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
@@ -289,6 +299,8 @@ func (a *app) removeMessage(w http.ResponseWriter, r *http.Request) {
 	for _, m := range c.Messages {
 		if m.ID != mid {
 			kept = append(kept, m)
+		} else {
+			a.forgetFiles(m.Files)
 		}
 	}
 	if len(kept) == len(c.Messages) {
@@ -305,22 +317,41 @@ func (a *app) removeMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 // transcript arma lo que se le manda a AI Studio: cada pregunta abre un chat nuevo, así que la conversación anterior
-// viaja como texto antes de la pregunta.
-func transcript(history []Message, question string) string {
-	if len(history) == 0 {
-		return question
-	}
+// viaja como texto antes de la pregunta. Los archivos de cada pregunta van a continuación de ella, delimitados con su
+// nombre (`fileText` da su texto; los que ya no están se nombran y se saltean).
+func transcript(history []Message, question string, files []Attachment, fileText func(string) (string, error)) string {
 	var b strings.Builder
+	writeFiles := func(atts []Attachment) {
+		for _, f := range atts {
+			text, err := fileText(f.ID)
+			if err != nil {
+				fmt.Fprintf(&b, "\n(el archivo «%s» ya no está)\n", f.Name)
+				continue
+			}
+			fmt.Fprintf(&b, "\n----- archivo adjunto: «%s» -----\n%s\n----- fin de «%s» -----\n", f.Name, strings.TrimRight(text, "\n"), f.Name)
+		}
+	}
+	if len(history) == 0 {
+		b.WriteString(question)
+		if len(files) > 0 {
+			b.WriteString("\n")
+			writeFiles(files)
+		}
+		return b.String()
+	}
 	b.WriteString("Esta es la conversación que venimos teniendo; seguila y contestá sólo la última pregunta.\n\n")
 	for _, m := range history {
 		who := "Yo"
 		if m.Role == "model" {
 			who = "Vos"
 		}
-		fmt.Fprintf(&b, "### %s\n%s\n\n", who, m.Text)
+		fmt.Fprintf(&b, "### %s\n%s\n", who, m.Text)
+		writeFiles(m.Files)
+		b.WriteString("\n")
 	}
-	fmt.Fprintf(&b, "### Yo (la pregunta de ahora)\n%s", question)
-	return b.String()
+	fmt.Fprintf(&b, "### Yo (la pregunta de ahora)\n%s\n", question)
+	writeFiles(files)
+	return strings.TrimRight(b.String(), "\n")
 }
 
 // askAIStudio corre `bin/aistudio ask --json` con el texto por stdin (no por argumento: un texto grande no entra) y
@@ -365,9 +396,10 @@ func (a *app) askAIStudio(ctx context.Context, model, text string) (string, erro
 // conversación nueva. Si falla, la pregunta no queda guardada: se puede volver a mandar.
 func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	var in struct {
-		ID    string `json:"id"`
-		Model string `json:"model"`
-		Text  string `json:"text"`
+		ID    string   `json:"id"`
+		Model string   `json:"model"`
+		Text  string   `json:"text"`
+		Files []string `json:"files"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
@@ -380,6 +412,15 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	}
 	if in.Model == "" {
 		in.Model = chatModels[0].Name
+	}
+	var files []Attachment
+	for _, id := range in.Files {
+		att, err := a.attachment(id)
+		if err != nil {
+			writeErr(w, 400, err)
+			return
+		}
+		files = append(files, att)
 	}
 
 	// El historial se copia con el candado tomado, y la pregunta (segundos) va sin él.
@@ -402,7 +443,7 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	}
 	asked := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
-	answer, err := a.askAIStudio(ctx, in.Model, transcript(history, in.Text))
+	answer, err := a.askAIStudio(ctx, in.Model, transcript(history, in.Text, files, a.fileText))
 	cancel()
 	a.askMu.Unlock()
 	if err != nil {
@@ -426,7 +467,7 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	c.Model = in.Model
 	c.Updated = done
 	c.Messages = append(c.Messages,
-		Message{ID: newID(), Role: "user", Text: in.Text, At: asked},
+		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},
 		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done})
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)

@@ -108,3 +108,33 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .composer-note { font-size: var(--text-xs); color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .composer-bar .send { margin-left: auto }
 .composer-bar .send .ui-icon { width: 14px; height: 14px }
+
+/* LOS ARCHIVOS: fichas (tipo, nombre, cuánto texto) en el campo antes de mandar y debajo de la pregunta después; el
+   texto no ocupa la conversación, viaja con la pregunta. Al arrastrar, la conversación y el campo se marcan. */
+.file-chips { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-2) var(--space-2) 0 }
+.file-chips.sent { justify-content: flex-end; padding: var(--space-1) 0 0 }
+.file-chip { display: inline-flex; align-items: center; gap: var(--space-2); max-width: 280px; height: 28px; padding: 0 var(--space-1) 0 4px;
+  border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); color: var(--foreground);
+  font: inherit; font-size: var(--text-xs); cursor: default }
+button.file-chip { cursor: pointer }
+button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
+.file-kind { flex: none; padding: 1px 4px; border-radius: 3px; background: var(--muted); color: var(--fg-2); font-family: var(--font-mono); font-size: 10px; font-weight: 600 }
+.file-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.file-size { flex: none; color: var(--fg-3) }
+.file-del { display: grid; place-items: center; flex: none; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 4px;
+  background: none; color: var(--fg-3); cursor: pointer }
+.file-del:hover { background: var(--hover); color: var(--foreground) }
+.file-del .ui-icon { width: 12px; height: 12px }
+.file-chip.uploading { color: var(--fg-3); padding: 0 var(--space-2) }
+.user-col { display: flex; flex-direction: column; align-items: flex-end; min-width: 0; max-width: min(80%, 640px) }
+.user-col .bubble { max-width: 100% }
+.file-view { border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; background: var(--muted) }
+.file-view-head { display: flex; align-items: center; gap: var(--space-2); height: 32px; padding: 0 var(--space-1) 0 var(--space-3);
+  border-bottom: 1px solid var(--border); font-size: var(--text-xs) }
+.file-view-head .count { margin-right: auto }
+.file-view pre { margin: 0; max-height: 360px; overflow: auto; padding: var(--space-3); font-family: var(--font-mono); font-size: var(--text-sm);
+  line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere }
+.thread.dragging, .composer-box.dragging { outline: 2px dashed var(--ring); outline-offset: -6px }
+.thread { position: relative }
+.drop-hint { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; justify-content: center; gap: var(--space-2);
+  padding: var(--space-2); border-radius: var(--radius-control); background: var(--accent); color: var(--accent-foreground); font-size: var(--text-sm) }

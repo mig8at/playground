@@ -1,9 +1,12 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
+	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -53,7 +56,7 @@ func TestRemovingABlockTakesItOutOfTheNextQuestion(t *testing.T) {
 	}
 
 	// Y el texto de la próxima pregunta lleva sólo lo que quedó, con la pregunta nueva al final.
-	text := transcript(got.Messages, "¿Cuál es el más cálido?")
+	text := transcript(got.Messages, "¿Cuál es el más cálido?", nil, nil)
 	for _, want := range []string{"tres colores primarios", "Rojo, amarillo, azul", "¿Cuál es el más cálido?"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("falta %q en:\n%s", want, text)
@@ -64,7 +67,7 @@ func TestRemovingABlockTakesItOutOfTheNextQuestion(t *testing.T) {
 			t.Errorf("el bloque borrado %q siguió viajando", gone)
 		}
 	}
-	if transcript(nil, "hola") != "hola" {
+	if transcript(nil, "hola", nil, nil) != "hola" {
 		t.Error("sin historia, la pregunta tiene que ir sola")
 	}
 }
@@ -91,5 +94,79 @@ func TestOldBlocksGetAnIDOnLoad(t *testing.T) {
 	raw, _ := json.Marshal(loaded.convs["c1"])
 	if !strings.Contains(string(raw), `"id":`) {
 		t.Error("el id no se guarda")
+	}
+}
+
+// upload hace lo que hace la interfaz: un multipart con el campo «file».
+func upload(t *testing.T, mux *http.ServeMux, name string, content []byte) *httptest.ResponseRecorder {
+	t.Helper()
+	var body bytes.Buffer
+	mw := multipart.NewWriter(&body)
+	part, _ := mw.CreateFormFile("file", name)
+	part.Write(content)
+	mw.Close()
+	req := httptest.NewRequest("POST", "/api/files", &body)
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+	return rec
+}
+
+// Un archivo de texto se guarda con su ficha y viaja en la pregunta, delimitado con su nombre; un binario se rechaza
+// (subirlo a AI Studio lo dejaría en Drive); y borrar el bloque que lo trajo lo borra del disco.
+func TestAFileTravelsInTheQuestionAndGoesAwayWithItsBlock(t *testing.T) {
+	root := t.TempDir()
+	st := &store{file: filepath.Join(root, "wally", ".data", "conversations.json"), convs: map[string]*Conversation{}}
+	a := &app{store: st, root: root}
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/files", a.upload)
+	mux.HandleFunc("GET /api/files/{id}", a.readFile)
+	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
+
+	rec := upload(t, mux, "errores.log", []byte("2026-11-17 ERROR timeout en Experian\r\n2026-11-17 ERROR timeout en Experian\n"))
+	if rec.Code != 200 {
+		t.Fatalf("subir: %d %s", rec.Code, rec.Body)
+	}
+	var att Attachment
+	json.Unmarshal(rec.Body.Bytes(), &att)
+	if att.Kind != "texto" || att.Chars == 0 || att.Name != "errores.log" {
+		t.Fatalf("ficha: %+v", att)
+	}
+	read := httptest.NewRecorder()
+	mux.ServeHTTP(read, httptest.NewRequest("GET", "/api/files/"+att.ID, nil))
+	if !strings.Contains(read.Body.String(), "timeout en Experian") || strings.Contains(read.Body.String(), "\r") {
+		t.Errorf("el texto guardado: %q", read.Body.String())
+	}
+
+	if rec := upload(t, mux, "foto.png", []byte{0x89, 'P', 'N', 'G', 0, 0, 0, 0x0d, 0, 1, 2, 3}); rec.Code != 415 {
+		t.Errorf("un binario tenía que rechazarse con 415, dio %d %s", rec.Code, rec.Body)
+	}
+
+	// En la pregunta: el texto del archivo, delimitado; en la conversación, sólo su ficha.
+	text := transcript(nil, "¿Qué error se repite?", []Attachment{att}, a.fileText)
+	for _, want := range []string{"¿Qué error se repite?", "archivo adjunto: «errores.log»", "timeout en Experian", "fin de «errores.log»"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("falta %q en:\n%s", want, text)
+		}
+	}
+	st.convs["c1"] = &Conversation{ID: "c1", Messages: []Message{
+		{ID: "u1", Role: "user", Text: "¿Qué error se repite?", Files: []Attachment{att}},
+		{ID: "m1", Role: "model", Text: "El timeout de Experian."},
+	}}
+	follow := transcript(st.convs["c1"].Messages, "¿Y cuántas veces?", nil, a.fileText)
+	if !strings.Contains(follow, "timeout en Experian\n2026-11-17") {
+		t.Errorf("el archivo de una pregunta anterior tiene que seguir viajando:\n%s", follow)
+	}
+
+	del := httptest.NewRecorder()
+	mux.ServeHTTP(del, httptest.NewRequest("DELETE", "/api/conversations/c1/messages/u1", nil))
+	if del.Code != 200 {
+		t.Fatalf("borrar el bloque: %d", del.Code)
+	}
+	if _, err := os.Stat(filepath.Join(a.filesDir(), att.ID+".txt")); !os.IsNotExist(err) {
+		t.Error("el archivo tenía que borrarse con su bloque")
+	}
+	if strings.Contains(transcript(st.convs["c1"].Messages, "x", nil, a.fileText), "Experian\n2026") {
+		t.Error("el archivo borrado siguió viajando")
 	}
 }
