@@ -58,11 +58,13 @@ func main() {
 	mux.HandleFunc("GET /api/topics", a.listTopics)
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("GET /api/providers", a.providers)
+	mux.HandleFunc("POST /api/providers/check", a.checkProvidersNow)
 	mux.HandleFunc("PUT /api/config", a.putConfig)
 	mux.HandleFunc("GET /api/usage", a.usage)
 	mux.HandleFunc("GET /api/agents", a.listAgents)
 	mux.HandleFunc("POST /api/agents", a.createAgent)
 	mux.HandleFunc("PUT /api/agents/{conv}", a.setAgentProvider)
+	mux.HandleFunc("PUT /api/conversations/{id}/provider", a.setConversationProvider)
 	mux.HandleFunc("GET /api/groups", a.listGroups)
 	mux.HandleFunc("POST /api/groups", a.createGroup)
 	mux.HandleFunc("GET /api/groups/{id}", a.getGroup)
@@ -71,6 +73,11 @@ func main() {
 	mux.HandleFunc("GET /api/files/{id}", a.readFile)
 	mux.HandleFunc("DELETE /api/files/{id}", a.deleteFile)
 	log.Printf("wally: API en http://%s", *serve)
+	// Al arrancar (Cockpit levanta Wally al abrirse), qué proveedores están listos: sin preguntar nada (status.go).
+	go func() {
+		time.Sleep(5 * time.Second)
+		a.checkProviders()
+	}()
 	log.Fatal(http.ListenAndServe(*serve, mux))
 }
 
@@ -112,9 +119,12 @@ type Message struct {
 
 // Conversation es un chat: el título sale de la primera pregunta.
 type Conversation struct {
-	ID       string    `json:"id"`
-	Title    string    `json:"title"`
-	Model    string    `json:"model"`           // el último elegido: la interfaz lo vuelve a poner al abrirla
+	ID    string `json:"id"`
+	Title string `json:"title"`
+	Model string `json:"model"` // el último elegido: la interfaz lo vuelve a poner al abrirla
+	// Provider: con qué proveedor sigue ESTA conversación, elegido en la barra de escribir (vacío: el de la
+	// configuración). Elegirlo es la decisión de Miguel para ésta, también si es de un agente (Miguel, 2026-11-17).
+	Provider string    `json:"provider,omitempty"`
 	Mode     string    `json:"mode,omitempty"`  // «knowledge»: el modo asistido (commands.go); vacío, un chat
 	Agent    *Agent    `json:"agent,omitempty"` // la conversación de un agente (agents.go): su nombre, intención y temas
 	Created  time.Time `json:"created"`
@@ -195,6 +205,7 @@ type app struct {
 	// groups: los grupos de agentes (groups.go).
 	groups *groupStore
 	config *configStore
+	status statusStore
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -242,18 +253,69 @@ func pauses() map[string]int64 {
 	return out
 }
 
+// setConversationProvider: `PUT /api/conversations/{id}/provider` con {provider}; vacío o «auto», el de la configuración.
+func (a *app) setConversationProvider(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if in.Provider == "auto" {
+		in.Provider = ""
+	}
+	if _, ok := providerModels[in.Provider]; in.Provider != "" && !ok {
+		writeErr(w, 400, fmt.Errorf("no existe el proveedor «%s»", in.Provider))
+		return
+	}
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c, ok := a.store.convs[r.PathValue("id")]
+	if !ok {
+		writeErr(w, 404, errors.New("no existe esa conversación"))
+		return
+	}
+	c.Provider = in.Provider
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
 // GET /api/providers: los proveedores con su modelo y su tope por mensaje (para el selector de cada agente).
 func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 	type row struct {
-		ID    string `json:"id"`
-		Model Model  `json:"model"`
-		Limit int    `json:"limit"`
+		ID     string         `json:"id"`
+		Model  Model          `json:"model"`
+		Limit  int            `json:"limit"`
+		Status providerStatus `json:"status"`
+		// Paused: hasta qué hora no se le puede preguntar («15:04»), y en ms para la cuenta regresiva.
+		Paused      string `json:"paused,omitempty"`
+		PausedUntil int64  `json:"pausedUntil,omitempty"`
 	}
+	paused := pauses()
+	a.status.mu.Lock()
+	byID := a.status.byID
+	running := a.status.running
+	finished := a.status.finished
+	a.status.mu.Unlock()
 	var out []row
 	for _, id := range []string{"aistudio", "deepseek", "chatgpt", "groq"} {
-		out = append(out, row{ID: id, Model: providerModels[id], Limit: providerLimits[id]})
+		st, ok := byID[id]
+		if !ok {
+			st = providerStatus{State: "sin-comprobar", Detail: "todavía no se comprobó"}
+		}
+		r := row{ID: id, Model: providerModels[id], Limit: providerLimits[id], Status: st}
+		if until := pauseFor(id, paused); until > 0 {
+			r.PausedUntil = until
+			r.Paused = time.UnixMilli(until).Format("15:04")
+		}
+		out = append(out, r)
 	}
-	writeJSON(w, 200, map[string]any{"providers": out, "default": a.config.get().Provider})
+	cfg := a.config.get()
+	writeJSON(w, 200, map[string]any{"providers": out, "default": cfg.Provider, "agentsOther": cfg.AgentsOther, "checking": running, "checked": finished})
 }
 
 func (a *app) models(w http.ResponseWriter, r *http.Request) {
@@ -413,9 +475,9 @@ func transcript(history []Message, question string, files []Attachment, fileText
 
 // askProvider le hace la pregunta al proveedor de la configuración por el pool (pool.go): una conexión a Chrome,
 // varias pestañas. Devuelve la respuesta y el modelo con que salió.
-func (a *app) askProvider(ctx context.Context, mode string, agent *Agent, text string) (string, string, error) {
+func (a *app) askProvider(ctx context.Context, mode string, agent *Agent, chosen, text string) (string, string, error) {
 	cfg := a.config.get()
-	provider := cfg.providerForAgent(mode, agent)
+	provider := cfg.providerForConversation(chosen, mode, agent)
 	model := providerModels[provider].Name
 	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
 		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window})
@@ -431,6 +493,8 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		Text  string   `json:"text"`
 		Files []string `json:"files"`
 		Mode  string   `json:"mode"` // sólo al empezar una conversación
+		// Provider: el de la barra de escribir; vacío o «auto», el de la configuración.
+		Provider string `json:"provider"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
@@ -445,7 +509,7 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		}
 		files = append(files, att)
 	}
-	c, err := a.askInConversation(r.Context(), askInput{ID: in.ID, Model: in.Model, Text: in.Text, Files: files, Mode: in.Mode})
+	c, err := a.askInConversation(r.Context(), askInput{ID: in.ID, Model: in.Model, Text: in.Text, Files: files, Mode: in.Mode, Provider: in.Provider})
 	if err != nil {
 		var bad errBadRequest
 		if errors.As(err, &bad) {
@@ -462,6 +526,9 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 type askInput struct {
 	ID, Model, Text, Mode, Title string
 	Files                        []Attachment
+	// Provider: el elegido en la barra para esta conversación; «auto» o vacío, el de la configuración. Se guarda en la
+	// conversación al contestar.
+	Provider string
 }
 
 type errBadRequest struct{ msg string }
@@ -526,7 +593,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		prompt = instructions + "\n\n---\n\n" + prompt
 	}
 	askCtx, cancel := context.WithTimeout(ctx, 12*time.Minute)
-	answer, model, err := a.askProvider(askCtx, in.Mode, agent, prompt)
+	answer, model, err := a.askProvider(askCtx, in.Mode, agent, in.Provider, prompt)
 	in.Model = model
 	cancel()
 	if err != nil {
@@ -550,6 +617,11 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		a.store.convs[c.ID] = c
 	}
 	c.Model = in.Model
+	if _, ok := providerModels[in.Provider]; ok {
+		c.Provider = in.Provider
+	} else if in.Provider == "auto" {
+		c.Provider = ""
+	}
 	c.Updated = done
 	c.Messages = append(c.Messages,
 		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},

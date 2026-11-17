@@ -31,6 +31,15 @@ type poolAnswer struct {
 	Error  string `json:"error"`
 	Paused bool   `json:"paused"`
 	Until  int64  `json:"until"`
+	// Check: la respuesta de un `{"type": "check"}` (check.ts): proveedor → estado.
+	Check map[string]ProviderCheck `json:"check"`
+}
+
+// ProviderCheck: lo que vio el chequeo de un proveedor, sin preguntar nada.
+type ProviderCheck struct {
+	State  string `json:"state"` // listo · sin-sesion · error
+	Detail string `json:"detail"`
+	Ms     int64  `json:"ms"`
 }
 
 type pool struct {
@@ -112,6 +121,52 @@ type poolJob struct {
 	ChatGPTThink bool   `json:"chatgptThink"`
 	GroqModel    string `json:"groqModel,omitempty"`
 	Window       string `json:"window,omitempty"`
+}
+
+// send le manda una línea al pool y espera su respuesta (o que se cancele el contexto).
+func (p *pool) send(ctx context.Context, msg map[string]any) (poolAnswer, error) {
+	p.mu.Lock()
+	if p.waiting == nil {
+		p.waiting = map[string]chan poolAnswer{}
+	}
+	if p.stdin == nil {
+		if err := p.start(); err != nil {
+			p.mu.Unlock()
+			return poolAnswer{}, err
+		}
+	}
+	p.seq++
+	id := fmt.Sprintf("q%d-%d", time.Now().Unix(), p.seq)
+	ch := make(chan poolAnswer, 1)
+	p.waiting[id] = ch
+	msg["id"] = id
+	line, _ := json.Marshal(msg)
+	_, err := p.stdin.Write(append(line, '\n'))
+	p.mu.Unlock()
+	if err != nil {
+		return poolAnswer{}, fmt.Errorf("no pude hablarle al pool de AI Studio: %v", err)
+	}
+	select {
+	case a := <-ch:
+		return a, nil
+	case <-ctx.Done():
+		p.mu.Lock()
+		delete(p.waiting, id)
+		p.mu.Unlock()
+		return poolAnswer{}, errors.New("el pool no contestó a tiempo")
+	}
+}
+
+// check le pide al pool que mire si cada proveedor está listo, sin preguntar nada.
+func (p *pool) check(ctx context.Context, window string) (map[string]ProviderCheck, error) {
+	a, err := p.send(ctx, map[string]any{"type": "check", "window": window})
+	if err != nil {
+		return nil, err
+	}
+	if !a.OK {
+		return nil, errors.New(strings.TrimSpace(a.Error))
+	}
+	return a.Check, nil
 }
 
 // ask le manda una pregunta al pool y espera su respuesta (o que se cancele el contexto).

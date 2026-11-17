@@ -100,6 +100,15 @@ func (c Config) valid() Config {
 	return c
 }
 
+// providerForConversation: el elegido en la barra para esa conversación, si hay uno (la decisión de Miguel para ésa,
+// también si es de un agente); si no, `providerForAgent`.
+func (c Config) providerForConversation(chosen, mode string, agent *Agent) string {
+	if _, ok := providerModels[chosen]; ok {
+		return chosen
+	}
+	return c.providerForAgent(mode, agent)
+}
+
 // providerForAgent: el proveedor elegido para ese agente, si tiene uno (decisión de Miguel para él, por encima del
 // permiso general); si no, la regla de `providerFor`.
 func (c Config) providerForAgent(mode string, agent *Agent) string {

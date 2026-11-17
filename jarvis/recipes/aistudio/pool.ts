@@ -22,6 +22,7 @@ import { askOn, currentPauses, noteFailure, openWorkPage, windowMode, type Think
 import { askDeepSeek } from '../deepseek/page.ts';
 import { askChatGPT } from '../chatgpt/page.ts';
 import { askGroq } from '../groq/page.ts';
+import { checkProviders } from './check.ts';
 
 const MAX = Number(process.env.WALLY_POOL_MAX || 2);
 const GAP_MS = Number(process.env.WALLY_POOL_GAP || 20) * 1000;
@@ -29,7 +30,8 @@ const IDLE_MS = 20_000;
 
 // Desde el 2026-11-17 también DeepSeek: `provider` elige la receta, y la configuración de Wally viaja en cada pregunta
 // (el nivel de AI Studio, los interruptores de DeepSeek, la ventana).
-type Job = { id: string; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string;
+// `type: 'check'`: no pregunta nada; mira si cada proveedor está listo (check.ts).
+type Job = { id: string; type?: 'ask' | 'check'; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string;
     thinking?: Thinking; deepThink?: boolean; search?: boolean; window?: WindowMode };
 const queue: Job[] = [];
 let active = 0;
@@ -84,7 +86,22 @@ function openPage(b: any, mode?: WindowMode): Promise<any> {
     return next;
 }
 
+async function runCheck(job: Job) {
+    let page: any = null;
+    try {
+        const b = await connect();
+        page = await openPage(b, job.window);
+        send({ id: job.id, ok: true, check: await checkProviders(page, (s) => log(`${job.id}: ${s}`)) });
+    } catch (e: any) {
+        send({ id: job.id, ok: false, error: String(e?.message || e) });
+        if (!browser?.isConnected?.()) browser = null;
+    } finally {
+        await page?.close().catch(() => {});
+    }
+}
+
 async function run(job: Job) {
+    if (job.type === 'check') return runCheck(job);
     // DeepSeek y ChatGPT anotan su uso ellos mismos y no tocan la pausa de AI Studio.
     const deepseek = job.provider === 'deepseek' || job.provider === 'chatgpt' || job.provider === 'groq';
     // La pausa «*» es la de la cuenta de AI Studio: no frena a DeepSeek.
@@ -148,7 +165,7 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     if (!line.trim()) return;
     try {
         const job = JSON.parse(line) as Job;
-        if (!job.id || !job.model || !job.text) throw new Error('falta id, model o text');
+        if (!job.id || (job.type !== 'check' && (!job.model || !job.text))) throw new Error('falta id, model o text');
         queue.push(job);
         if (idleTimer) clearTimeout(idleTimer);
         pump();

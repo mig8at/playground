@@ -166,13 +166,23 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   esta máquina, como el de una pregunta; se borran con el agente) y, opcionales y plegados, temas de knowledge. Con
   temas, sigue lo de abajo (fuentes contra main, propuestas); sin temas, sus sugerencias son «Contame qué entendiste» y
   «Arrancá».
-- **Cada agente puede tener su proveedor** (en su ficha, «contesta por»: la configuración, Gemini, DeepSeek, ChatGPT o
-  Groq; `PUT /api/agents/<conv>`). Elegirlo en el agente es la decisión de Miguel para ESE agente y vale aunque el
-  permiso general de agentes esté apagado (`providerForAgent`, probado). La ficha dice cuánto pesa lo que manda
-  (WALLY.md, su contexto y la conversación; `preloadSize`, estimado sin git) y avisa si no le entra al proveedor por
-  donde va a contestar (`providerLimits`: ChatGPT ~40 mil, Groq ~19 mil). Medido el 2026-11-17: con el permiso general
-  apagado, Pikachu con DeepSeek elegido contestó por DeepSeek en 11 s; con Groq, la ficha avisó «~91 mil car. · Groq
-  acepta ~19 mil: no le entra». Los Pokémon pesan de 53 a 114 mil: ninguno entra en ChatGPT gratis ni en Groq.
+- **Con qué proveedor sigue cada conversación se elige en la barra de escribir** (Miguel, 2026-11-17: «como en la
+  barra del input»): «Automático» (el de la configuración; un agente o el asistente van por Gemini salvo el permiso
+  general) o uno elegido, que se guarda en la conversación (`Conversation.Provider`, `PUT /api/conversations/<id>/
+  provider`; en una pestaña nueva viaja con la primera pregunta) y vale como la decisión de Miguel para ésa, también
+  si es de un agente (`providerForConversation`, probado). Cada opción dice su estado («en pausa hasta las 03:10»,
+  «sin sesión») con un punto al lado, y la barra avisa si lo que viaja (la precarga del agente, la conversación y lo
+  escrito; `preloadSize`) no le entra al elegido (`providerLimits`: ChatGPT ~40 mil, Groq ~19 mil). La pausa que frena
+  el botón es la del proveedor de ESA conversación: con Gemini sin cupo, se elige DeepSeek y se sigue. Los Pokémon
+  pesan de 53 a 114 mil caracteres: ninguno entra en ChatGPT gratis ni en Groq. (El selector estuvo un rato en la
+  ficha del agente; `Agent.Provider` sigue leyéndose, pero ya no se elige ahí.)
+- **Al arrancar, Wally comprueba los servicios** (`status.go`, `jarvis/recipes/aistudio/check.ts`): a los 5 s de
+  levantarse —lo levanta Cockpit— el pool abre cada web en la ventana aparte y mira si está el campo para preguntar con
+  sesión, SIN preguntar nada (no gasta cupo): `listo`, `sin-sesion` (entrar a mano), `error` o `sin-jarvis`. A eso se
+  le suma la pausa vigente de cada uno (la del último aviso: el cupo diario de Gemini dice cuándo vuelve). Se ve en la
+  configuración («Servicios», con «Comprobar ahora») y en las opciones de la barra; `GET /api/providers`,
+  `POST /api/providers/check`. Medido el 2026-11-17: los cuatro listos en ~6 s, Gemini en pausa hasta las 03:10. El
+  cupo que QUEDA no lo muestra ninguna web: sólo se sabe cuando se acaba.
 - **Los agentes** (idea de Miguel, 2026-11-17, que reemplaza por ahora a los grupos): una lista de chats con nombre
   propio (de Pokémon), cada uno con **una intención** —tener al día el contexto local de una parte— y sus temas de
   knowledge. **No hablan entre ellos**: cada uno es UNA conversación larga, en el modo asistente (WALLY.md y sus comandos

@@ -50,3 +50,17 @@ func TestProviderForAgent(t *testing.T) {
 		t.Errorf("un chat: %s, quería deepseek", got)
 	}
 }
+
+// Lo elegido en la barra de una conversación gana sobre todo lo demás; «auto» o vacío deja la regla de siempre.
+func TestProviderForConversation(t *testing.T) {
+	cfg := Config{Provider: "deepseek"}
+	if got := cfg.providerForConversation("groq", "asistente", &Agent{}); got != "groq" {
+		t.Errorf("elegido en la barra: %s, quería groq", got)
+	}
+	if got := cfg.providerForConversation("auto", "asistente", &Agent{}); got != "aistudio" {
+		t.Errorf("auto en un agente sin permiso: %s, quería aistudio", got)
+	}
+	if got := cfg.providerForConversation("", "", nil); got != "deepseek" {
+		t.Errorf("auto en un chat: %s, quería deepseek", got)
+	}
+}
