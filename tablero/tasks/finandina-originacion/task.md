@@ -92,6 +92,16 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   [Creditop-SAS/legacy-backend#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937) (contra `qa`) y
   [Creditop-SAS/pre-approvals-service#104](https://github.com/Creditop-SAS/pre-approvals-service/pull/104) (contra
   `develop`). Termina con los dos desplegados. Depende de: revisión del equipo.
+- [ ] Cargar el cupo mensual del perfil también en el riel 4, para que el tope de 2.000 MM de Finandina se
+  descuente (hoy `CreditopXRequestHistoryService` sólo lo carga con `response_type == 2`). Acordado con Laura y
+  Oscar el 2026-11-17, con un tope «muy alto» por defecto para las entidades sin tope. Antes hay que definir qué
+  pasa con una entidad del riel sin perfiles (Credifamilia): hoy la autorización fallaría. Termina con una
+  autorización de Finandina en riel 4 que sube `already_used_loan` y una de Credifamilia que sigue cerrando.
+- [ ] Después de tener el flujo completo: reemplazar el alias `banco-finandina` de pre-approvals-service por
+  configuración. El listado publica, por entidad del riel 4, la clave de preaprobación que sale de la fuente de
+  insumos de su perfil (`credifamilia_pre_approval` → `credifamilia`, `creditop_x_pre_approval` → `creditop_x`), y
+  el front la usa en vez de deducirla del tipo o del slug. Saca también el alias de Materiales. Toca
+  legacy-backend y frontend-monorepo. Decisión de Miguel: esperar al flujo completo.
 - [ ] Pasar la 149 a tipo 4 en la base compartida, **después** del despliegue y avisándole antes a Abel, con
   `artifacts/finandina-riel-4-sobre-cred-519.sql` (foto previa y cómo deshacerlo en la cabecera). Antes del
   despliegue rompe Finandina en qa: el listado daría 400. Termina con el caminador cerrando en 11 en qa
