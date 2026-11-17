@@ -1,0 +1,6 @@
+#!/bin/sh
+# aistudio — preguntarle a Gemini por la interfaz de AI Studio, en tu Chrome con Jarvis y con tu cuenta (sin llave de
+# API). Es la receta jarvis/recipes/aistudio/ask.ts; los archivos se leen desde donde lo corrés.
+#   bin/aistudio --file doc.md --prompt 'Resumilo' [--model gemini-4-hydrogen] [--out resumen.md] [--keep] [--json]
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+exec node "$root/jarvis/recipes/aistudio/ask.ts" "$@"

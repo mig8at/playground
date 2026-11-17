@@ -117,14 +117,6 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5224", "127.0.0.1:5225"],
         start: Start::Make("correo"),
     },
-    AppDef {
-        // Wally (wally/): un chat para preguntarle a Gemini eligiendo el modelo.
-        id: "wally",
-        name: "Wally",
-        url: "http://localhost:5228/",
-        ready: &["localhost:5228", "127.0.0.1:5229"],
-        start: Start::Make("wally"),
-    },
 ];
 
 fn answers(hostport: &str) -> bool {

@@ -332,7 +332,7 @@ estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
-.PHONY: wally correo correo-install correo-status correo-uninstall
+.PHONY: correo correo-install correo-status correo-uninstall
 .PHONY: pulso pulso-install pulso-status pulso-uninstall
 pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
@@ -400,9 +400,6 @@ sentinel-status: ## @dia ¿Sentinel corre de fondo, y hasta dónde llegó lo gua
 
 sentinel-uninstall: ## @dia saca Sentinel de fondo (lo guardado se queda)
 	@go run ./sentinel/server -uninstall
-
-wally: ## @dia abre Wally (:5228 · API :5229): un chat para preguntarle a Gemini eligiendo el modelo (los de tu llave de connectors/.env). Las conversaciones quedan en wally/.data
-	@cd wally && npm run dev
 
 correo: ## @dia abre Correo (:5224 · API :5225): los correos de los remitentes que seguís en Gmail (Shopify, VTEX…), con aviso de macOS cuando llega uno nuevo. SÓLO LECTURA (la sesión de `bin/pg gmail login`). ONCE=1 hace una lectura por consola y sale
 	@$(if $(ONCE),go run ./correo/server -once,cd correo && npm run dev)

@@ -73,8 +73,6 @@ jarvis/.data/
 # correo: lo que se vio y avisó de Gmail (correo/.data) y su binario de fondo — nunca commitear
 /correo/.data/
 /correo/bin/
-# wally: las conversaciones con Gemini (wally/.data) — nunca commitear
-/wally/.data/
 /chat/bin/
 
 # Office: los personajes que genera el CLI (office/cli/personaje.mjs)

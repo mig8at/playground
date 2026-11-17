@@ -118,6 +118,26 @@ Cada caso se hace primero **por pantalla con la red grabada** (`recipes/recorder
 - **Una compra con descuento, del lado de CreditOp** (pedido 1674590500448, 2026-11-07): el **total** de la solicitud en qa (`ecommerce_requests.data.total`) llegó con el descuento ($315.005), pero la **lista de productos** llegó con el precio sin descuento ($350.000). **CreditOp usa el total, no los productos** (2026-11-07, medido y verificado): la compra con cupón llevada a 11 (`credit-outcome --code … --sku 10`, solicitud 504732) quedó con `amount` y `original_amount` = $315.005, el total con el descuento. En `main` de legacy-backend la solicitud nace del `total` del pedido (`OnboardingController`, `UserRequestService`), al elegir entidad se exige que `original_amount` sea ese total (`rejectAmountOutsideTheOrder`), y la columna `products` sólo se guarda y se reenvía: ningún cálculo la suma. El flujo payment-link no existe en legacy-application.
 - **Cancelar un pedido sin aprobar** no genera tarea manual: Creditop lo cancela solo (contesta 200 sin `cancel-manually`). El `cancel-manually` es de los aprobados.
 
+## AI Studio (Gemini por la web, con tu cuenta)
+
+Sin llave de API: maneja la interfaz de AI Studio en tu Chrome, con tu sesión de Google, y usa el uso gratuito de la web
+(que acepta textos enormes) en vez de la cuota de una llave. Por consola funciona como una API: entra texto, sale la
+respuesta en Markdown.
+
+| receta | qué hace | parámetros |
+|---|---|---|
+| `ask` | **una pregunta a Gemini por la web**: chat nuevo (temporal: no queda en el History) → el modelo, si se pide → el texto → Run → la respuesta con «Copy as markdown» interceptado (tu portapapeles no se toca). También `bin/aistudio`, que lee los archivos desde donde lo corrés. Medido el 2026-11-17 con Gemini 4 Hydrogen: una pregunta corta en 4,6 s; 1,2 MB de código en 11,5 s y 2 MB en 17,9 s, encontrando en los dos una frase escondida en el medio y cerca del final | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--model <id>` · `--out` · `--keep` · `--timeout 600` · `--json` |
+
+- **Un texto grande no va en un solo `fill`**: con 1,2 MB el puente de Chrome cortó la conexión y la pestaña quedó
+  colgada, y ninguna conexión nueva andaba hasta reiniciar Chrome (con 280 mil caracteres había andado). La receta lo
+  manda en pedazos de 200 mil caracteres a una variable de la página y lo pone en el campo al final.
+- **La página exige Trusted Types**: un `waitForFunction` con el código como texto falla («Evaluating a string as
+  JavaScript violates…»). Van como función.
+- **El texto de la tarjeta de un modelo viene pegado** («Hydrogengemini-4-hydrogenAn…»): el modelo se elige por el
+  elemento que tiene el id exacto. El elegido queda también para la próxima vez que abras AI Studio.
+- Mientras genera, el botón Run dice «Stop»: la respuesta está completa cuando vuelve a «Run».
+- No anda con otra sesión de Jarvis manejando Chrome (`openChrome` lo niega): cerrala antes.
+
 ## Shopify (tienda de pruebas `creditop-dev-store`)
 
 Credenciales: la app «Jarvis · Admin API (pruebas)» del Dev Dashboard (organización CREDITOP), instalada sólo en
