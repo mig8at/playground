@@ -46,6 +46,7 @@ func main() {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/models", a.models)
 	mux.HandleFunc("GET /api/conversations", a.list)
+	mux.HandleFunc("POST /api/conversations", a.createConversation)
 	mux.HandleFunc("GET /api/conversations/{id}", a.get)
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
@@ -245,6 +246,29 @@ func pauses() map[string]int64 {
 		}
 	}
 	return out
+}
+
+// createConversation: `POST /api/conversations` con {title}: una conversación vacía, del asistente (la usa `bin/wally
+// new`). No le pregunta nada a nadie.
+func (a *app) createConversation(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Title string `json:"title"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&in)
+	title := strings.TrimSpace(in.Title)
+	if title == "" {
+		title = "Conversación nueva"
+	}
+	now := time.Now()
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c := &Conversation{ID: newID(), Title: title, Mode: "asistente", Created: now, Updated: now, Messages: []Message{}}
+	a.store.convs[c.ID] = c
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
 }
 
 // mainConversation: `GET /api/main`, la conversación con Wally; si no existe, la crea vacía (no le pregunta nada a nadie).
@@ -604,7 +628,12 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		agent = c.Agent
 	}
 	a.store.mu.Unlock()
-	if in.Mode != "" && !modes[in.Mode] {
+	// El asistente es lo de siempre (Miguel, 2026-11-17: «no dos cosas diferentes, que sea el default»): toda
+	// conversación sin modo —nueva, o de cuando se elegía «Chat»— contesta con WALLY.md y puede pedir comandos.
+	if in.Mode == "" {
+		in.Mode = "asistente"
+	}
+	if !modes[in.Mode] {
 		return Conversation{}, errBadRequest{fmt.Sprintf("no existe el modo «%s»", in.Mode)}
 	}
 	// Al empezar en un modo asistido, lo que el modo adjunta (el mapa de knowledge) va con la primera pregunta.

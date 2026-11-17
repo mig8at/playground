@@ -155,6 +155,17 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **Toda conversación es del asistente** (Miguel, 2026-11-17: «no dos cosas diferentes, que sea el default»): ya no se
+  elige «Chat» o «Asistente»; una sin modo —nueva o de antes— contesta con WALLY.md y puede pedir comandos de lectura.
+  Vacía, dice «¿Qué hacemos?», qué puede hacer y cuatro arranques (knowledge, trampas, código de main, resumir). Sólo
+  las viejas del modo «knowledge» llevan su «K».
+- **Los agentes y las conversaciones se manejan por consola: `bin/wally`** (`wally/cli.ts`; Miguel: «crear un agente no
+  es algo que yo haga a mano: lo hace Claude»). `agents` · `agent create --name --intent [--notes|--notes-file]
+  [--file]… [--topic]…` · `agent delete <nombre>` · `topics [palabra]` · `conversations` · `new [--title]` ·
+  `delete <id>` (la de Wally no) · `ask [--conv|--agent] 'pregunta'`, con `--json`. Habla con la API, así que aparece
+  solo en la interfaz; crear no le pregunta nada al modelo. El formulario de agentes y su «+» se sacaron de la
+  interfaz. Probado el 2026-11-17: un agente con notas, un archivo y un tema, creado y borrado (con su archivo), y una
+  conversación nueva, listada y borrada.
 - **Wally lleva el borde de colores de sus agentes**, como tu foto en el chat: un arco por agente, en su color, alrededor
   de su bolita en la lista y en su saludo (`ringArcs`, el mismo cálculo del ícono de la pestaña de agentes).
 - **La conversación con Wally, como «Mi chat»** (Miguel, 2026-11-17: «hablar directamente con Wally, el

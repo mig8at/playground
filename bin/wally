@@ -1,0 +1,5 @@
+#!/bin/sh
+# wally — Wally por consola: crear y borrar agentes, y conversaciones nuevas o viejas (lo usa Claude). Habla con la API
+# de Wally (:5229). `bin/wally` solo dice cómo se usa.
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+exec node "$root/wally/cli.ts" "$@"

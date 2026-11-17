@@ -71,13 +71,12 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
-  if (t.key === AGENT_NEW) return 'Agente nuevo'
-  if (isNew(t.key)) return MODES[tabMode.value[t.key]]?.label || 'Conversación nueva'
+  if (isNew(t.key)) return 'Conversación nueva'
   return loaded.value[t.key]?.title || conversations.value.find((c) => c.id === t.key)?.title || 'Conversación'
 }
 
 async function loadConv(key) {
-  if (isNew(key) || key === AGENT_NEW || key === CONFIG) return
+  if (isNew(key) || key === CONFIG) return
   try {
     const c = await api(`/api/conversations/${encodeURIComponent(key)}`)
     loaded.value = { ...loaded.value, [key]: c }
@@ -121,8 +120,7 @@ function closeTab(key) {
 }
 function activate(key) {
   active.value = key
-  if (key === AGENT_NEW) loadTopics()
-  else if (!isNew(key) && !loaded.value[key]) loadConv(key)
+  if (!isNew(key) && !loaded.value[key]) loadConv(key)
   writeRoute()
   scrollDown()
   focusInput()
@@ -130,14 +128,12 @@ function activate(key) {
 
 // La ruta dice la pestaña activa: abrir un enlace `#/c/<id>` la abre.
 function writeRoute() {
-  const hash = active.value === AGENT_NEW ? '#/agente-nuevo'
-    : isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
+  const hash = isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
   if (location.hash !== hash) history.replaceState(null, '', hash)
 }
 function readRoute() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
   if (parts[0] === 'c' && parts[1]) openTab(decodeURIComponent(parts[1]))
-  else if (parts[0] === 'agente-nuevo') openTab(AGENT_NEW)
   else if (parts[0] === 'configuracion') toggleAux(true)
   else if (parts[0] === 'nueva' && parts[1] && tabs.value.some((t) => t.key === `nueva-${parts[1]}`)) activate(`nueva-${parts[1]}`)
 }
@@ -192,47 +188,9 @@ const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini (4 Hydrogen)', 'gemini-3.8-fla
 // tener al día el contexto de una parte, p. ej. KYC), que lleva siempre precargados sus temas de knowledge y el estado
 // de sus fuentes contra main. No hablan entre ellos. La lista dice cuántas fuentes de sus temas cambiaron: así se ve
 // quién tiene que tomar un cambio.
-const AGENT_NEW = 'a:nuevo'
 const agents = ref([])
-const EMPTY_AGENT = () => ({ name: '', intent: '', notes: '', files: [], topics: [], showTopics: false, uploading: 0, model: '', busy: false, error: '' })
-const agentForm = ref(EMPTY_AGENT())
-const agentFileInput = ref(null)
-// Los archivos del contexto de un agente: se suben como los de una pregunta (el texto se saca en esta máquina).
-async function addAgentFiles(list) {
-  const f = agentForm.value
-  for (const file of [...list]) {
-    f.uploading++
-    try {
-      const body = new FormData()
-      body.append('file', file)
-      f.files = [...f.files, await api('/api/files', { method: 'POST', body })]
-    } catch (e) { f.error = e.message } finally { f.uploading-- }
-  }
-}
-function removeAgentFile(att) {
-  agentForm.value.files = agentForm.value.files.filter((x) => x.id !== att.id)
-  api(`/api/files/${encodeURIComponent(att.id)}`, { method: 'DELETE' }).catch(() => {})
-}
 async function loadAgents() { try { agents.value = (await api('/api/agents')).agents } catch { /* lo dice loadList */ } }
-function newAgentTab() { openTab(AGENT_NEW) }
-function toggleAgentTopic(id) {
-  const list = agentForm.value.topics
-  agentForm.value.topics = list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
-}
-async function createAgent() {
-  const f = agentForm.value
-  f.busy = true; f.error = ''
-  try {
-    const c = await api('/api/agents', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: f.name, intent: f.intent, notes: f.notes, fileIds: f.files.map((x) => x.id), topics: f.topics, model: f.model || lastModel.value }) })
-    loaded.value = { ...loaded.value, [c.id]: c }
-    const i = tabs.value.findIndex((t) => t.key === AGENT_NEW)
-    if (i >= 0) tabs.value.splice(i, 1, { key: c.id, preview: false })
-    agentForm.value = EMPTY_AGENT()
-    await Promise.all([loadList(), loadAgents()])
-    activate(c.id)
-  } catch (e) { f.error = e.message } finally { f.busy = false }
-}
+// Se crean por consola (`bin/wally agent create`, lo hace Claude), no con un formulario: Miguel, 2026-11-17.
 const agentRow = (key) => agents.value.find((a) => a.conv === key)
 // EL PROVEEDOR DE CADA AGENTE: «el de la configuración» o uno elegido para él (que vale como permiso para ese agente).
 // El servidor dice por dónde va a contestar de verdad (`effective`) y cuánto pesa lo que manda (precarga + conversación).
@@ -332,10 +290,6 @@ const AGENT_PROMPTS = [
   { label: 'Revisá que tu parte siga cierta', text: 'Revisá contra el código de main lo que dicen tus temas: elegí las afirmaciones que más pesan, pedí el código que haga falta y decime cuáles siguen ciertas y cuáles no, con propuestas.' },
   { label: 'Contame tu parte', text: 'Contame en pocas líneas de qué te ocupás: qué cubren tus temas, cómo se conectan y qué te parece que falta o está flojo.' },
 ]
-
-// ── LOS TEMAS DE KNOWLEDGE ── (para el formulario de un agente: los que lleva precargados, opcionales)
-const topics = ref([])
-async function loadTopics() { try { topics.value = (await api('/api/topics')).topics } catch (e) { agentForm.value.error = e.message } }
 
 // ── LA PESTAÑA ACTIVA ──
 const conv = computed(() => loaded.value[active.value] || null)
@@ -579,11 +533,12 @@ async function copy(m) {
 }
 
 // Sugerencias de una conversación vacía: sólo escriben en el campo, no mandan nada.
+// Lo que puede hacer, para empezar (siempre es el asistente: conoce las herramientas por WALLY.md).
 const SUGGESTIONS = [
+  { label: 'Buscar en knowledge', text: 'Buscá en knowledge qué sabemos de ' },
+  { label: '¿Ya nos pasó?', text: 'Fijate en las trampas si ya nos pasó esto: ' },
+  { label: 'Explicar código de main', text: 'Explicame cómo funciona en main ' },
   { label: 'Resumir un texto', text: 'Resumí en cinco puntos lo esencial de este texto:\n\n' },
-  { label: 'Explicar algo', text: 'Explicame en palabras simples, con un ejemplo: ' },
-  { label: 'Revisar código', text: 'Revisá este código y decime qué puede fallar:\n\n```\n\n```' },
-  { label: 'Redactar un mensaje', text: 'Redactá un mensaje corto y cordial para ' },
 ]
 function suggest(s) { draft.value = s.text; focusInput(true) }
 
@@ -689,7 +644,7 @@ onMounted(async () => {
   await loadList()
   // Las pestañas recordadas cuya conversación ya no existe se cierran; sin ninguna, una nueva.
   const ids = new Set(conversations.value.map((c) => c.id))
-  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || t.key === AGENT_NEW || ids.has(t.key))
+  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || ids.has(t.key))
   readRoute()
   await loadMain()
   if (shown.value.aux) { loadConfig(); loadUsage() }
@@ -755,7 +710,7 @@ onBeforeUnmount(() => {
                 <i v-if="pending && pending.key === c.id" class="live-dot" aria-label="esperando la respuesta"></i>
                 {{ c.title }}
               </span>
-              <span class="conv-meta">{{ c.mode ? `${MODES[c.mode]?.short || c.mode} · ` : '' }}{{ modelName(c.model) }} · {{ c.count }} bloque{{ c.count === 1 ? '' : 's' }} · {{ when(c.updated) }}</span>
+              <span class="conv-meta">{{ c.mode === 'knowledge' ? 'knowledge · ' : '' }}{{ modelName(c.model) }} · {{ c.count }} bloque{{ c.count === 1 ? '' : 's' }} · {{ when(c.updated) }}</span>
             </button>
             <button type="button" class="region-action conv-del" title="Borrar la conversación" aria-label="Borrar la conversación" @click="removeConv(c)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -773,7 +728,7 @@ onBeforeUnmount(() => {
              @mousedown.middle.prevent="closeTab(t.key)">
           <button type="button" class="tab-label" :title="tabTitle(t)" @click="activate(t.key)" @dblclick="pinTab(t.key)">
             <i v-if="pending && pending.key === t.key" class="live-dot" aria-label="esperando la respuesta"></i>
-            <span v-if="modeOf(t.key)" class="mode-badge" :title="MODES[modeOf(t.key)]?.label">{{ MODES[modeOf(t.key)]?.badge || 'A' }}</span>
+            <span v-if="modeOf(t.key) === 'knowledge'" class="mode-badge" :title="MODES.knowledge.label">K</span>
             <span>{{ tabTitle(t) }}</span>
           </button>
           <button type="button" class="tab-close" :disabled="pending && pending.key === t.key" title="Cerrar la pestaña" aria-label="Cerrar la pestaña" @click="closeTab(t.key)">
@@ -787,56 +742,6 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
-      <!-- CREAR UN AGENTE -->
-      <div v-if="active === AGENT_NEW" class="region-body group-new">
-        <form class="group-new-inner" @submit.prevent="createAgent">
-          <h2>Agente nuevo</h2>
-          <p class="group-lede">Una conversación larga con <b>una intención</b> y su <b>contexto</b>, que lleva precargado en cada pregunta: lo que le escribas, los archivos que le des y, si viene al caso, temas de knowledge. Puede pedir comandos de lectura, como el asistente. No habla con otros agentes. Crearlo no le pregunta nada al modelo.</p>
-          <div class="group-option column">
-            <label class="field"><b>Nombre</b><input v-model="agentForm.name" class="input input-sm" placeholder="Eevee" maxlength="30" /></label>
-            <label class="field"><b>Intención</b><input v-model="agentForm.intent" class="input input-sm" placeholder="qué hace: «revisar los correos que le mandamos a VTEX», «tener al día KYC»…" maxlength="160" /></label>
-          </div>
-          <div class="group-option column">
-            <div><b>Lo que tiene que saber</b><span>Instrucciones, datos, cómo querés que conteste. Va antes de cada pregunta.</span></div>
-            <textarea v-model="agentForm.notes" class="input agent-notes" rows="5" placeholder="Por ejemplo: contestá corto y en español de Colombia; el comercio es…; lo que importa es…"></textarea>
-            <div class="agent-files">
-              <span v-for="f in agentForm.files" :key="f.id" class="file-chip" :title="`${f.name} · ${charsLabel(f.chars)} de texto`">
-                <span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span><span class="file-size">{{ charsLabel(f.chars) }}</span>
-                <button type="button" class="file-del" title="Quitar el archivo" aria-label="Quitar el archivo" @click="removeAgentFile(f)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
-              </span>
-              <button type="button" class="btn btn-outline btn-xs" @click="agentFileInput?.click()"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>{{ agentForm.uploading ? 'Subiendo…' : 'Adjuntar archivos' }}</button>
-              <input ref="agentFileInput" type="file" multiple hidden @change="addAgentFiles($event.target.files); $event.target.value = ''" />
-            </div>
-          </div>
-          <div class="group-option column">
-            <button type="button" class="agent-topics-toggle" :aria-expanded="agentForm.showTopics" @click="agentForm.showTopics = !agentForm.showTopics">
-              <b>Temas de knowledge</b><span>(opcional){{ agentForm.topics.length ? ` · ${agentForm.topics.length} elegido${agentForm.topics.length > 1 ? 's' : ''}` : '' }}: si es para tener al día una parte de la biblioteca</span>
-              <span class="ui-icon topics-chevron" :class="{ open: agentForm.showTopics }" data-icon="chevron" aria-hidden="true"></span>
-            </button>
-            <div v-if="agentForm.showTopics" class="topic-list">
-              <label v-for="t in topics" :key="t.id" class="topic-item" :class="{ on: agentForm.topics.includes(t.id) }">
-                <input type="checkbox" :checked="agentForm.topics.includes(t.id)" @change="toggleAgentTopic(t.id)" />
-                <span class="topic-title">{{ t.title }}</span>
-                <code>{{ t.id }}</code>
-                <span v-if="t.changed" class="badge badge-xs">{{ t.changed }} cambiada{{ t.changed > 1 ? 's' : '' }}</span>
-              </label>
-              <p v-if="!topics.length" class="none">Cargando los temas…</p>
-            </div>
-            <div class="group-actions">
-              <label v-if="models.length > 1" class="select model-select" title="El modelo del agente (se cambia después en su conversación)">
-                <select v-model="agentForm.model" class="input input-xs" aria-label="Modelo del agente">
-                  <option value="">{{ modelName(lastModel) }} (el de siempre)</option>
-                  <option v-for="m in models" :key="m.name" :value="m.name">{{ m.displayName }}</option>
-                </select>
-              </label>
-              <button type="submit" class="btn btn-sm" :disabled="!agentForm.name.trim() || !agentForm.intent.trim() || agentForm.busy || agentForm.uploading > 0">Crear</button>
-            </div>
-          </div>
-          <div v-if="agentForm.error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ agentForm.error }}</p></div></div>
-        </form>
-      </div>
-
-      <template v-else>
       <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
@@ -876,18 +781,10 @@ onBeforeUnmount(() => {
         <div v-else-if="!agentOf && !messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
-            <div class="empty-title">{{ mode ? 'Preguntale al asistente' : 'Preguntale a Wally' }}</div>
-            <div class="empty-desc">Pregunta por la web de {{ providerName }}, en tu Chrome y con tu cuenta, sin llave de API. Lo que quede guardado acá es el contexto de la próxima pregunta.</div>
+            <div class="empty-title">¿Qué hacemos?</div>
+            <div class="empty-desc">Wally conoce tus herramientas (WALLY.md): busca en knowledge, lee las trampas y las guías, mira código de main y te pide correr comandos de lectura, con tu sí. Contesta por la web de {{ providerName }}, en tu Chrome; lo que quede acá es el contexto de la próxima pregunta.</div>
           </div>
-          <div class="mode-pick" role="radiogroup" aria-label="Qué hace esta conversación">
-            <button type="button" class="mode-card" role="radio" :aria-checked="!mode" @click="chooseMode('')">
-              <span class="ui-icon" data-icon="comment" aria-hidden="true"></span><b>Chat</b><span>Preguntás y contesta.</span>
-            </button>
-            <button type="button" class="mode-card" role="radio" :aria-checked="mode === 'asistente'" @click="chooseMode('asistente')">
-              <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><b>Asistente</b><span>Lee WALLY.md: conoce tus herramientas y te pide comandos de lectura (knowledge, trampas, guías, tareas). Vos aprobás cada uno.</span>
-            </button>
-          </div>
-          <div v-if="!mode" class="suggestions">
+          <div class="suggestions">
             <button v-for="s in SUGGESTIONS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
           </div>
         </div>
@@ -1029,7 +926,6 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </form>
-      </template>
     </main>
 
     <!-- EL SIDEBAR DERECHO: la configuración, al lado del chat (como el panel de la derecha del chat). -->
@@ -1059,12 +955,9 @@ onBeforeUnmount(() => {
       <div v-if="auxTab === 'agents'" class="region-body aux-section">
         <div class="aux-section-head">
           <b>Tus agentes</b><span class="count">{{ agents.length }}</span>
-          <button type="button" class="region-action" title="Agente nuevo: un nombre, una intención y su contexto" aria-label="Agente nuevo" @click="newAgentTab">
-            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
-          </button>
         </div>
-        <p v-if="!agents.length" class="field-note">Todavía no tenés agentes: el «+» arma uno con su nombre, su intención y su contexto.</p>
-        <ul v-else class="aux-agents">
+        <p class="field-note">Los arma Claude por consola: pedile «creá un agente que haga…, con este contexto» y aparece acá (<code>bin/wally agent create</code>).</p>
+        <ul v-if="agents.length" class="aux-agents">
           <li v-for="a in agents" :key="a.conv">
             <button type="button" class="aux-agent" :class="{ on: active === a.conv }" :title="`${a.agent.name}: ${a.agent.intent}`" @click="openTab(a.conv)">
               <span class="avatar agent-avatar" :style="agentStyle(a.agent.name)" aria-hidden="true">{{ a.agent.name[0] }}</span>
