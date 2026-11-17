@@ -33,3 +33,20 @@ func TestProviderFor(t *testing.T) {
 		t.Errorf("valid no volvió a lo de siempre: %+v", v)
 	}
 }
+
+// El proveedor elegido en un agente gana; sin elegir, manda la configuración (y el permiso general de agentes).
+func TestProviderForAgent(t *testing.T) {
+	cfg := Config{Provider: "deepseek"}
+	if got := cfg.providerForAgent("asistente", &Agent{}); got != "aistudio" {
+		t.Errorf("sin elegir y sin permiso: %s, quería aistudio", got)
+	}
+	if got := cfg.providerForAgent("asistente", &Agent{Provider: "chatgpt"}); got != "chatgpt" {
+		t.Errorf("elegido en el agente: %s, quería chatgpt", got)
+	}
+	if got := cfg.providerForAgent("asistente", &Agent{Provider: "otro"}); got != "aistudio" {
+		t.Errorf("uno que no existe vuelve a la regla: %s", got)
+	}
+	if got := cfg.providerForAgent("", nil); got != "deepseek" {
+		t.Errorf("un chat: %s, quería deepseek", got)
+	}
+}

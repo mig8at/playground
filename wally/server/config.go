@@ -100,6 +100,17 @@ func (c Config) valid() Config {
 	return c
 }
 
+// providerForAgent: el proveedor elegido para ese agente, si tiene uno (decisión de Miguel para él, por encima del
+// permiso general); si no, la regla de `providerFor`.
+func (c Config) providerForAgent(mode string, agent *Agent) string {
+	if agent != nil && agent.Provider != "" {
+		if _, ok := providerModels[agent.Provider]; ok {
+			return agent.Provider
+		}
+	}
+	return c.providerFor(mode, agent != nil)
+}
+
 // providerFor: por dónde va una pregunta. Un agente o el asistente no van por DeepSeek salvo que se haya permitido.
 func (c Config) providerFor(mode string, agent bool) string {
 	if c.Provider != "aistudio" && (agent || mode != "") && !c.AgentsOther {

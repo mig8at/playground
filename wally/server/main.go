@@ -57,10 +57,12 @@ func main() {
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
 	mux.HandleFunc("GET /api/config", a.getConfig)
+	mux.HandleFunc("GET /api/providers", a.providers)
 	mux.HandleFunc("PUT /api/config", a.putConfig)
 	mux.HandleFunc("GET /api/usage", a.usage)
 	mux.HandleFunc("GET /api/agents", a.listAgents)
 	mux.HandleFunc("POST /api/agents", a.createAgent)
+	mux.HandleFunc("PUT /api/agents/{conv}", a.setAgentProvider)
 	mux.HandleFunc("GET /api/groups", a.listGroups)
 	mux.HandleFunc("POST /api/groups", a.createGroup)
 	mux.HandleFunc("GET /api/groups/{id}", a.getGroup)
@@ -240,6 +242,20 @@ func pauses() map[string]int64 {
 	return out
 }
 
+// GET /api/providers: los proveedores con su modelo y su tope por mensaje (para el selector de cada agente).
+func (a *app) providers(w http.ResponseWriter, r *http.Request) {
+	type row struct {
+		ID    string `json:"id"`
+		Model Model  `json:"model"`
+		Limit int    `json:"limit"`
+	}
+	var out []row
+	for _, id := range []string{"aistudio", "deepseek", "chatgpt", "groq"} {
+		out = append(out, row{ID: id, Model: providerModels[id], Limit: providerLimits[id]})
+	}
+	writeJSON(w, 200, map[string]any{"providers": out, "default": a.config.get().Provider})
+}
+
 func (a *app) models(w http.ResponseWriter, r *http.Request) {
 	paused := pauses()
 	models := a.chatModels()
@@ -397,9 +413,9 @@ func transcript(history []Message, question string, files []Attachment, fileText
 
 // askProvider le hace la pregunta al proveedor de la configuración por el pool (pool.go): una conexión a Chrome,
 // varias pestañas. Devuelve la respuesta y el modelo con que salió.
-func (a *app) askProvider(ctx context.Context, mode string, agent bool, text string) (string, string, error) {
+func (a *app) askProvider(ctx context.Context, mode string, agent *Agent, text string) (string, string, error) {
 	cfg := a.config.get()
-	provider := cfg.providerFor(mode, agent)
+	provider := cfg.providerForAgent(mode, agent)
 	model := providerModels[provider].Name
 	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
 		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window})
@@ -510,7 +526,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		prompt = instructions + "\n\n---\n\n" + prompt
 	}
 	askCtx, cancel := context.WithTimeout(ctx, 12*time.Minute)
-	answer, model, err := a.askProvider(askCtx, in.Mode, agent != nil, prompt)
+	answer, model, err := a.askProvider(askCtx, in.Mode, agent, prompt)
 	in.Model = model
 	cancel()
 	if err != nil {

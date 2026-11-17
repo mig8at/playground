@@ -32,6 +32,10 @@ type Agent struct {
 	Notes  string       `json:"notes,omitempty"`
 	Files  []Attachment `json:"files,omitempty"`
 	Topics []string     `json:"topics,omitempty"`
+	// Provider: con qué proveedor contesta ESTE agente («aistudio», «deepseek», «chatgpt», «groq»); vacío, el de la
+	// configuración. Elegirlo acá es la decisión de Miguel para este agente: vale aunque el permiso general de agentes
+	// esté apagado (Miguel, 2026-11-17).
+	Provider string `json:"provider,omitempty"`
 }
 
 // AgentRow es una fila de la lista de agentes, con lo que cambió en main en sus temas.
@@ -42,6 +46,66 @@ type AgentRow struct {
 	Count   int       `json:"count"`
 	Updated time.Time `json:"updated"`
 	Changed int       `json:"changed"` // fuentes de sus temas que cambiaron (o ya no están) en main
+	// Preload: cuántos caracteres viajan en cada pregunta antes de la conversación (WALLY.md + su contexto), estimado
+	// sin git: alcanza para avisar si no le entra a un proveedor con tope.
+	Preload int `json:"preload"`
+	// History: los caracteres de la conversación guardada, que también viajan.
+	History int `json:"history"`
+	// Effective: por dónde va a contestar, con la configuración de ahora (el suyo, o la regla general).
+	Effective string `json:"effective"`
+}
+
+// providerLimits: lo que acepta cada proveedor por mensaje, medido el 2026-11-17 (0 = no se le encontró tope:
+// Gemini aguantó 2 MB y DeepSeek 77 mil caracteres). ChatGPT gratis: ~40 mil sí, ~77 mil no; Groq: ~19 mil sí, ~40 mil no.
+var providerLimits = map[string]int{"aistudio": 0, "deepseek": 0, "chatgpt": 40_000, "groq": 19_000}
+
+// preloadSize estima lo que el agente manda antes de la conversación: WALLY.md, sus notas, sus archivos, sus temas y
+// una línea por fuente (lo que `sourcesReport` agrega).
+func (a *app) preloadSize(ag Agent) int {
+	n := 600 + len(ag.Notes)
+	if raw, err := os.ReadFile(filepath.Join(a.root, "wally", "WALLY.md")); err == nil {
+		n += len([]rune(string(raw)))
+	}
+	for _, f := range ag.Files {
+		n += f.Chars + 80
+	}
+	for _, t := range ag.Topics {
+		if raw, err := os.ReadFile(filepath.Join(a.root, "knowledge", t, "rules.md")); err == nil {
+			n += len([]rune(string(raw)))
+		}
+		if s, err := a.topicSources(t); err == nil {
+			n += len(s) * 160
+		}
+	}
+	return n
+}
+
+// setAgentProvider: `PUT /api/agents/{conv}` con {provider}; vacío vuelve a la configuración.
+func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Provider string `json:"provider"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	if _, ok := providerModels[in.Provider]; in.Provider != "" && !ok {
+		writeErr(w, 400, fmt.Errorf("no existe el proveedor «%s»", in.Provider))
+		return
+	}
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c, ok := a.store.convs[r.PathValue("conv")]
+	if !ok || c.Agent == nil {
+		writeErr(w, 404, errors.New("no existe ese agente"))
+		return
+	}
+	c.Agent.Provider = in.Provider
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
 }
 
 func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +113,14 @@ func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
 	var rows []AgentRow
 	for _, c := range a.store.convs {
 		if c.Agent != nil {
-			rows = append(rows, AgentRow{Conv: c.ID, Agent: *c.Agent, Model: c.Model, Count: len(c.Messages), Updated: c.Updated})
+			history := 0
+			for _, m := range c.Messages {
+				history += len([]rune(m.Text))
+				for _, f := range append(append([]Attachment{}, m.Files...), commandOutputs(m)...) {
+					history += f.Chars
+				}
+			}
+			rows = append(rows, AgentRow{Conv: c.ID, Agent: *c.Agent, Model: c.Model, Count: len(c.Messages), Updated: c.Updated, History: history})
 		}
 	}
 	a.store.mu.Unlock()
@@ -74,6 +145,11 @@ func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
 				}
 			}
 		}
+	}
+	cfg := a.config.get()
+	for i := range rows {
+		rows[i].Preload = a.preloadSize(rows[i].Agent)
+		rows[i].Effective = cfg.providerForAgent("asistente", &rows[i].Agent)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Agent.Name < rows[j].Agent.Name })
 	writeJSON(w, 200, map[string]any{"agents": rows})

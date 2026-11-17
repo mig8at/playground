@@ -260,3 +260,7 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .chat-bubble .commands { background: var(--background) }
 .chat-bubble .typing { padding: var(--space-1) 0 var(--space-2) }
 .agent-avatar.big { width: 34px; height: 34px; font-size: 15px }
+
+/* El proveedor de un agente, en su ficha: «contesta por», el selector y cuánto pesa lo que manda (en rojo si no le entra). */
+.agent-provider { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-3) }
+.agent-provider .select select { min-width: 150px }

@@ -224,6 +224,26 @@ async function createAgent() {
   } catch (e) { f.error = e.message } finally { f.busy = false }
 }
 const agentRow = (key) => agents.value.find((a) => a.conv === key)
+// EL PROVEEDOR DE CADA AGENTE: «el de la configuración» o uno elegido para él (que vale como permiso para ese agente).
+// El servidor dice por dónde va a contestar de verdad (`effective`) y cuánto pesa lo que manda (precarga + conversación).
+const providers = ref([])
+async function loadProviders() { try { providers.value = (await api('/api/providers')).providers } catch { /* lo dice loadList */ } }
+const PROVIDER_NAME = { aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq' }
+async function setAgentProvider(key, provider) {
+  try {
+    const c = await api(`/api/agents/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider }) })
+    loaded.value = { ...loaded.value, [key]: c }
+    await loadAgents()
+  } catch (e) { errors.value = { ...errors.value, [key]: e.message } }
+}
+// Si lo que manda el agente no le entra al proveedor por donde va a contestar, se avisa antes de preguntar.
+const agentFit = computed(() => {
+  const row = agentRow(active.value)
+  if (!row) return null
+  const limit = providers.value.find((p) => p.id === row.effective)?.limit || 0
+  const total = row.preload + row.history
+  return { row, limit, total, over: limit > 0 && total > limit }
+})
 // EL COLOR DE CADA AGENTE: un tono sacado de su nombre, el mismo en la lista, su ficha y sus burbujas (como en el chat).
 // Wally, sin agente, va con el color del tema.
 // El número del nombre se multiplica por el ángulo áureo (137,5°): nombres parecidos quedan en tonos lejanos.
@@ -612,6 +632,7 @@ onMounted(async () => {
   refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgents(); loadAgentGroups() } }, 30_000)
   loadAgentGroups()
   loadAgents()
+  loadProviders()
   groupPoll = setInterval(() => {
     if (document.hidden) return
     const running = agentGroups.value.some((g) => g.status === 'corriendo')
@@ -943,6 +964,19 @@ onBeforeUnmount(() => {
           <span class="avatar agent-avatar big" :style="agentStyle(agentOf.name)">{{ agentOf.name[0] }}</span>
           <div class="agent-sheet-main">
             <div><b>{{ agentOf.name }}</b> · {{ agentOf.intent }}</div>
+            <div class="agent-provider">
+              <span>contesta por</span>
+              <label class="select">
+                <select class="input input-xs" :value="agentOf.provider || ''" aria-label="Proveedor de este agente" @change="setAgentProvider(active, $event.target.value)">
+                  <option value="">la configuración{{ agentFit ? ` (${PROVIDER_NAME[agentFit.row.effective]})` : '' }}</option>
+                  <option v-for="p in providers" :key="p.id" :value="p.id">{{ PROVIDER_NAME[p.id] }}</option>
+                </select>
+              </label>
+              <span v-if="agentFit" class="count" :class="{ 'warn-text': agentFit.over }"
+                    :title="'Lo que viaja en cada pregunta: WALLY.md y su contexto, más la conversación guardada'">
+                ~{{ Math.round(agentFit.total / 1000) }} mil car.{{ agentFit.over ? ` · ${PROVIDER_NAME[agentFit.row.effective]} acepta ~${Math.round(agentFit.limit / 1000)} mil: no le entra` : '' }}
+              </span>
+            </div>
             <div v-if="agentOf.notes || agentOf.files?.length || agentOf.topics?.length" class="agent-topics">
               <span>precarga</span>
               <span v-if="agentOf.notes" class="agent-chip" :title="agentOf.notes">lo que tiene que saber</span>
@@ -1059,7 +1093,7 @@ onBeforeUnmount(() => {
           <article class="answer chat-in">
             <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
             <div class="chat-bubble">
-              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ providerName }}, en tu Chrome · {{ elapsed }} s</span></div>
+              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ agentFit ? PROVIDER_NAME[agentFit.row.effective] : providerName }}, en tu Chrome · {{ elapsed }} s</span></div>
               <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
             </div>
           </article>

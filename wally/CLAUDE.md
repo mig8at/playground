@@ -166,6 +166,13 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   esta máquina, como el de una pregunta; se borran con el agente) y, opcionales y plegados, temas de knowledge. Con
   temas, sigue lo de abajo (fuentes contra main, propuestas); sin temas, sus sugerencias son «Contame qué entendiste» y
   «Arrancá».
+- **Cada agente puede tener su proveedor** (en su ficha, «contesta por»: la configuración, Gemini, DeepSeek, ChatGPT o
+  Groq; `PUT /api/agents/<conv>`). Elegirlo en el agente es la decisión de Miguel para ESE agente y vale aunque el
+  permiso general de agentes esté apagado (`providerForAgent`, probado). La ficha dice cuánto pesa lo que manda
+  (WALLY.md, su contexto y la conversación; `preloadSize`, estimado sin git) y avisa si no le entra al proveedor por
+  donde va a contestar (`providerLimits`: ChatGPT ~40 mil, Groq ~19 mil). Medido el 2026-11-17: con el permiso general
+  apagado, Pikachu con DeepSeek elegido contestó por DeepSeek en 11 s; con Groq, la ficha avisó «~91 mil car. · Groq
+  acepta ~19 mil: no le entra». Los Pokémon pesan de 53 a 114 mil: ninguno entra en ChatGPT gratis ni en Groq.
 - **Los agentes** (idea de Miguel, 2026-11-17, que reemplaza por ahora a los grupos): una lista de chats con nombre
   propio (de Pokémon), cada uno con **una intención** —tener al día el contexto local de una parte— y sus temas de
   knowledge. **No hablan entre ellos**: cada uno es UNA conversación larga, en el modo asistente (WALLY.md y sus comandos
