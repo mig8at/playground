@@ -34,6 +34,13 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   así `bin/aistudio` por consola puede usarla. Las pestañas se abren de a una y con reintento: crear otra mientras una
   carga AI Studio falló una vez con «Cannot read properties of undefined (reading '_page')». El núcleo de la pregunta
   es `askOn` (`page.ts`), el mismo de `bin/aistudio ask`.
+  **Trabaja en una ventana aparte de Chrome, minimizada** (desde el 2026-11-17, para no llenarle de pestañas la
+  ventana a Miguel): `openWorkPage` pide la pestaña con el `Target.createTarget` de CDP (`newWindow`, `background`) y
+  la extensión de Jarvis (0.2.3) la abre en su ventana aparte, que reusa. `AISTUDIO_WINDOW=aside` la deja normal sin
+  robar el foco (para otro escritorio de macOS) y `tab` vuelve a la pestaña de siempre. Medido: minimizada, la
+  página sigue `visible` para Chrome (no la frena) y contestó en 6 s, por la receta y por Wally. Chrome no tiene un
+  modo sin ventana para el Chrome en uso: `--headless` es sólo para uno que arranca así, y no puede abrir el perfil
+  de la persona mientras está abierto.
 - **La conversación la guarda Wally, en BLOQUES** (idea de Miguel, 2026-11-17): cada pregunta tuya y cada respuesta es
   un bloque con su id. AI Studio no recuerda nada (chat temporal: cada pregunta abre uno nuevo), así que la próxima
   pregunta le manda TODOS los bloques guardados como transcripción (`transcript`) y la pregunta nueva al final.

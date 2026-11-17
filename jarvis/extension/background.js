@@ -140,6 +140,11 @@ async function handle(method, params) {
     }
     case 'chrome.tabs.create': {
       const [props] = params
+      if (props.newWindow) {
+        const tab = await createInAsideWindow(props.url || 'about:blank', !!props.background)
+        await setLists({ opened: [...lists.opened, tab.id] })
+        return { id: tab.id }
+      }
       const tab = await chrome.tabs.create({ url: props.url || 'about:blank', active: props.active !== false })
       await setLists({ opened: [...lists.opened, tab.id] })
       await addToGroup(tab)
@@ -162,6 +167,23 @@ async function handle(method, params) {
     default:
       throw new Error(`no sé hacer ${method}`)
   }
+}
+
+// ── la ventana aparte: trabajo que la persona no necesita ver (el pool de AI Studio de Wally) ──
+// Una sola ventana, que se reusa mientras exista (su id vive en storage.session: sobrevive a que el service worker
+// se duerma, no a reiniciar Chrome). Con `minimized` nace minimizada; si no, normal pero sin robar el foco. Cada
+// pestaña nueva va activa DENTRO de esa ventana: Chrome frena las pestañas de fondo.
+async function createInAsideWindow(url, minimized) {
+  const { asideWindowId } = await chrome.storage.session.get('asideWindowId')
+  if (asideWindowId) {
+    try {
+      await chrome.windows.get(asideWindowId)
+      return await chrome.tabs.create({ windowId: asideWindowId, url, active: true })
+    } catch { /* la cerraron: se abre otra */ }
+  }
+  const win = await chrome.windows.create(minimized ? { url, state: 'minimized' } : { url, focused: false })
+  await chrome.storage.session.set({ asideWindowId: win.id })
+  return win.tabs[0]
 }
 
 // ── el grupo «Jarvis»: las pestañas que abre Claude, juntas y de un color, para no confundirlas con las tuyas ──

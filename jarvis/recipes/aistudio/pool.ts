@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
-import { askOn, currentPauses, noteFailure } from './page.ts';
+import { askOn, currentPauses, noteFailure, openWorkPage, windowMode } from './page.ts';
 
 const MAX = Number(process.env.WALLY_POOL_MAX || 2);
 const GAP_MS = Number(process.env.WALLY_POOL_GAP || 20) * 1000;
@@ -66,7 +66,7 @@ function openPage(b: any): Promise<any> {
     const next = opening.then(async () => {
         for (let attempt = 1; ; attempt++) {
             try {
-                return await b.contexts()[0].newPage();
+                return await openWorkPage(b);
             } catch (e: any) {
                 if (attempt >= 3) throw e;
                 log(`no abrió la pestaña (${String(e?.message || e).split('\n')[0]}); reintento ${attempt}`);
@@ -136,4 +136,4 @@ readline.createInterface({ input: process.stdin }).on('line', (line) => {
     await browser?.close().catch(() => {});
     process.exit(0);
 });
-log(`listo: hasta ${MAX} a la vez, ${GAP_MS / 1000} s entre comienzos`);
+log(`listo: hasta ${MAX} a la vez, ${GAP_MS / 1000} s entre comienzos, ventana: ${windowMode()}`);

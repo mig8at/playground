@@ -204,6 +204,29 @@ export async function copyLastAsMarkdown(page: any): Promise<string> {
  * también `pool.ts`, que reparte varias preguntas en varias pestañas de UNA conexión (el puente de Jarvis acepta una
  * sola conexión de Playwright a la vez: una segunda se rechaza con «ya hay otra conexión de Playwright»).
  */
+// DÓNDE SE ABRE EL TRABAJO: `AISTUDIO_WINDOW` = `minimized` (lo de siempre: la ventana aparte de Jarvis, minimizada),
+// `aside` (esa ventana, normal pero sin robar el foco: para ponerla en otro escritorio de macOS) o `tab` (una pestaña
+// más en la ventana de la persona, como antes del 2026-11-17). La ventana aparte se pide con el `Target.createTarget`
+// de CDP (`newWindow`, `background`), que el puente de Jarvis le pasa a la extensión (0.2.3 o más nueva; una vieja la
+// abre como pestaña).
+export type WindowMode = 'minimized' | 'aside' | 'tab';
+export const windowMode = (): WindowMode => {
+    const m = (process.env.AISTUDIO_WINDOW || 'minimized') as WindowMode;
+    return ['minimized', 'aside', 'tab'].includes(m) ? m : 'minimized';
+};
+export async function openWorkPage(browser: any, mode: WindowMode = windowMode()): Promise<any> {
+    const ctx = browser.contexts()[0];
+    if (mode === 'tab') return ctx.newPage();
+    const cdp = await browser.newBrowserCDPSession();
+    try {
+        const page = ctx.waitForEvent('page', { timeout: 20_000 });
+        await cdp.send('Target.createTarget', { url: 'about:blank', newWindow: true, background: mode === 'minimized' });
+        return await page;
+    } finally {
+        await cdp.detach().catch(() => {});
+    }
+}
+
 export async function askOn(page: any, model: string, text: string, timeoutMs: number, log: (s: string) => void = () => {}) {
     const t0 = Date.now();
     // El modelo va por la URL (`?model=`), y SIEMPRE: AI Studio recuerda el último elegido, y si fue uno que no es de

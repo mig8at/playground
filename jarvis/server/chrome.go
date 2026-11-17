@@ -484,10 +484,12 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 		}
 	case "Target.createTarget":
 		var p struct {
-			URL string `json:"url"`
+			URL        string `json:"url"`
+			NewWindow  bool   `json:"newWindow"`
+			Background bool   `json:"background"`
 		}
 		_ = json.Unmarshal(m.Params, &p)
-		go func() { reply(b.createTarget(p.URL)) }()
+		go func() { reply(b.createTarget(p.URL, p.NewWindow, p.Background)) }()
 		return
 	case "Target.closeTarget":
 		var p struct {
@@ -670,11 +672,14 @@ func (b *ChromeBridge) aliasFor(targetID string) (map[string]any, error) {
 }
 
 // createTarget abre una pestaña en el Chrome de la persona: queda compartida (es del navegador) y enganchada.
-func (b *ChromeBridge) createTarget(url string) (map[string]any, error) {
+// Con `newWindow` (CDP) va a la ventana aparte de Jarvis, para trabajo que la persona no necesita ver (el pool de AI
+// Studio de Wally); con `background` además esa ventana nace minimizada. Una extensión vieja los ignora y la abre en
+// la ventana de siempre.
+func (b *ChromeBridge) createTarget(url string, newWindow, background bool) (map[string]any, error) {
 	if url == "" {
 		url = "about:blank"
 	}
-	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": true})
+	raw, err := b.call("chrome.tabs.create", map[string]any{"url": url, "active": true, "newWindow": newWindow, "background": background})
 	if err != nil {
 		return nil, err
 	}
