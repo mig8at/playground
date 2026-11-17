@@ -143,15 +143,11 @@ correo: [vtex]
       entregado. VTEX todavía cree que falta arreglar `https://v2.api.creditop.com/legacy-api` (da 404 en /manifest
       porque es el backend, no el conector; la Service URL da 200, medido 2026-11-17 11:28): hay que volver a
       aclararlo. Depende de: VTEX Payments — priorizar y validar; Creditop — el MPA (pendiente de abajo).
-- [ ] Que VTEX confirme si el MPA firmado sirve para la homologación: Oscar lo compartió (Slack, 2026-11-17 15:09).
-      Firmado por DocuSign el 2025-04-30 (Juan Camilo Rodríguez por Creditop Colombia SAS, Andrés Zuluaga por VTEX
-      Colombia), pero es de tipo **System Integrators (SI) or Reseller** (Reseller and Implementation Partner), no
-      ISV, que es el programa que nombró Juan para un conector. Se sube al ticket #1484435 con esa pregunta. Termina
-      con VTEX diciendo si vale o si hay que firmar el de ISV. Depende de: VTEX — Juan Alzate y Payments.
-- [ ] Que VTEX confirme por escrito qué aplicó: se le pidió (2026-11-17) el conector público (lo decidió Producto,
-      vía Oscar), cambiar la URL del backend por la Service URL y si el MPA de SI/Reseller vale. Juan contestó
-      «we have taken that into account. We have also applied the update» (18:05 GMT-3) sin decir cuál. Termina con
-      VTEX confirmando las tres cosas en #1484435. Depende de: VTEX — Juan Alzate.
+- [ ] Llenar el formulario de Core Alliances de VTEX («Payment Provider Contract Review», para mapear el contrato del
+      partner): https://docs.google.com/forms/d/e/1FAIpQLSf7ZIC8PJF_1mvTYuzYyGNQfNtPh4PoGJpSJKh4WWyQq9UB3g/viewform
+      Es lo que VTEX pide en vez de contestar si el MPA de SI/Reseller (firmado 2025-04-30) sirve; Manuella Valença
+      Correia (VTEX) lo había pedido internamente ~4 días antes (Juan, 2026-11-17 20:21 GMT-3). Termina con el
+      formulario enviado y VTEX confirmándolo en #1484435. Depende de: Oscar Rincón — los datos del contrato.
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
       es un pedido comercial con costo y no hace falta para homologar. Ojo: el MPA firmado (cláusula 1.4) dice que las cuentas
       adicionales cuestan USD 0.00 al Partner; la 1.3 da un entorno de pruebas por USD 250 al mes. Termina con la decisión escrita acá.
