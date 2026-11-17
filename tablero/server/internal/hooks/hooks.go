@@ -228,6 +228,10 @@ func SessionStart(env Env) int {
 	fmt.Fprintln(env.Stdout, <-access)
 	fmt.Fprintln(env.Stdout)
 	fmt.Fprintln(env.Stdout, cockpitSection(env.Home))
+	if stale := staleSection(env.Root); stale != "" {
+		fmt.Fprintln(env.Stdout)
+		fmt.Fprintln(env.Stdout, stale)
+	}
 	return 0
 }
 
