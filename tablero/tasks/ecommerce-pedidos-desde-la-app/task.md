@@ -1,19 +1,20 @@
 ---
 id: 131
-title: "Ecommerce: marcar los pedidos que salen de la app (revisión del trabajo de Kevin)"
-stage: evaluation
+title: "Ecommerce mobile: medir las compras de la tienda virtual que salen de la app"
+stage: work
 created: "2026-11-17T12:00:00-05:00"
 knowledge: [ecommerce-context]
 canon: []
-jira: []
-jira_title: "Ecommerce: marcar los pedidos que salen de la app"
+jira: [CORE-982]
+jira_title: "Ecommerce mobile: medir las compras de la tienda virtual que salen de la app"
 ---
 
 ## Pendientes
 
 - [ ] Mandarle a Kevin la respuesta (borrador abajo, en «Respuesta propuesta») o ajustarla. Termina con el mensaje
       en el hilo de Slack: el texto se confirma antes de mandarlo, sale a nombre de Miguel.
-- [ ] Conseguir el ticket de Jira de Kevin y ponerlo en `jira:`.
+- [x] ~~Crear el issue en Jira~~ — [CORE-982](jira:CORE-982), sprint activo, en progreso (2026-11-17).
+- [ ] Preguntarle a Kevin si tiene su propio ticket para este trabajo y enlazarlo con CORE-982. Depende de: Kevin.
 - [ ] Verificar contra el código lo que afirma Kevin (sin verificar todavía; ver «Afirmaciones de Kevin por verificar»).
       Termina con un veredicto por afirmación (`main-verifier` para `main`, y las ramas de los PRs para lo nuevo).
 - [ ] Revisar los PRs cuando Kevin suba `no_token`, el gate y el artifact corregido: correr Goldfish
@@ -109,3 +110,72 @@ Ninguna está verificada todavía; las de `main` van a `main-verifier`, las nuev
 - Las tres credenciales VTEX son sucursales de prueba del comercio 24 (`bin/pg sql --target prod`).
 - Pullman: las tres sucursales ecommerce son del comercio 94; sólo 1 de 396 comercios tiene `app_ecommerce_url` en prod.
 - `virtual_store_opened` no se dispara desde TT-230 (`creditop_mobile`, `app_router.dart:2173`, 1.57.3).
+
+## Tarea (publicable)
+
+## En una línea
+
+Marcar los pedidos de ecommerce que salen de la app de CreditOp, para medir cuántas compras de la tienda virtual
+vienen de la app.
+
+## Por qué
+
+Más adelante la tienda del comercio va a ir embebida en la app y hay que saber qué compras salen de ahí. Hoy un pedido
+que entra por la tienda no dice si el comprador llegó desde la app o desde la web. El número que se obtenga es un piso:
+sirve para medir, no para comisionar ni para atribuir ventas a un comercio.
+
+## Qué cambia
+
+- La app pide un enlace firmado a la tienda del comercio. Al abrirlo, el flujo de financiación guarda una marca en el
+  navegador del comprador (cookie, válida 2 horas).
+- Cuando el comprador vuelve al checkout de la tienda y entra al flujo de financiación, el pedido queda marcado con su
+  origen.
+- Valores del origen: `app` (llegó con el enlace de la app), `no_token` (abrió el flujo sin la marca; no se afirma que
+  sea web) y vacío para los pedidos que no pasan por el flujo nuevo.
+- La entrada a la tienda virtual en la app queda detrás del flag `ff_virtual_store`, apagado hasta que producto
+  confirme volver a mostrarla (se había quitado en TT-230).
+
+## Alcance
+
+- Entra: pedidos que pasan por el flujo de financiación nuevo (tiendas por enlace de pago, VTEX y Shopify).
+- No entra: los comercios que siguen en el checkout anterior ni la entrada por QR de Corbeta (quedan vacíos).
+- No entra: elegir a cuál tienda entra el usuario cuando un comercio tiene varias (Pullman tiene tres). Queda como
+  decisión de producto.
+- No se usa para comisionar.
+- Se pierde la marca: si pasan más de 2 horas entre el enlace y el checkout, si se cierra sesión, si se abre otro
+  enlace después, si la tienda abre el checkout en otra ventana o en el navegador del sistema, o con versiones de la
+  app sin el enlace firmado.
+
+## Dónde probar
+
+QA: app apuntando a QA, con un comercio que tenga cargada la URL de su tienda en la app y el flag encendido sólo para
+la prueba.
+
+## Cómo validar
+
+1. Desde la app, abrir la tienda del comercio y comprar financiando con CreditOp: el pedido queda marcado `app`.
+2. Abrir el mismo checkout desde la web, sin pasar por la app: el pedido queda `no_token`.
+3. Abrir el enlace desde la app y esperar más de 2 horas antes de pagar: el pedido queda `no_token`.
+4. Un pedido de un comercio en el checkout anterior: el origen queda vacío.
+5. El reporte de compras desde la app cuenta por solicitud original, solicitud actual y solicitudes recreadas, y no
+   suma `no_token` a web.
+
+## Cambios en datos
+
+Dos columnas nuevas en los pedidos de ecommerce: el origen y cuándo se marcó.
+
+## Criterios de aceptación
+
+- Un pedido iniciado desde la app queda marcado `app`; uno sin la marca queda `no_token`, nunca `web`.
+- Con el flag apagado la app no muestra la entrada a la tienda virtual.
+- El flag no se enciende en producción ni se carga la URL de la tienda de los comercios 81 y 94 hasta que producto lo
+  confirme y se mida cuántos usuarios siguen en versiones de la app anteriores a la 1.50.
+- La definición de cada valor del origen y los casos en que se pierde la marca quedan escritos en la documentación del
+  flujo.
+
+## Dependencias / contraparte
+
+- Kevin Gamez: desarrollo en backend, flujo de financiación e infraestructura.
+- Producto: confirmar si vuelve la entrada a la tienda virtual en la app y cómo se elige la tienda cuando un comercio
+  tiene varias.
+
