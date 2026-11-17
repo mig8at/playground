@@ -13,7 +13,12 @@ La app no tiene backend propio: llama por el API Gateway (`v2.api.creditop.com` 
 `api.dev.creditop.com` en dev) a legacy-backend (`/legacy-api/…`), y bajo `/customers/…` a
 merchant-api, pre-approvals-service, self-manager-api, financial-health-service y
 entitlement-service. identity-service no va bajo `/customers`: se llama en la raíz del gateway
-(`/api/v1/identity/…`, `dependency_injection.dart`), igual que las rutas push. Pagar abre los portales web `aliados.` y `pagos.creditop.com`.
+(`/api/v1/identity/…`, `dependency_injection.dart`), igual que las rutas push. Pagar es nativo: la app pide a legacy-backend, bajo
+`/legacy-api/loans/customer`, la información de pago y la intención de cada crédito de consumo o cupo
+(`…/consumer|revolving/credits/{id}/payment-info` y `payment-intent`), abre el checkout de Wompi en el
+navegador del teléfono y, a la vuelta (`/payments/return/{reference}`), consulta el estado y el
+comprobante por la referencia (`…/payments/{reference}` y `…/receipt`). Ya no hay portal web de pagos;
+`aliados.creditop.com` sólo queda como dominio al que la tienda virtual le deja pedir la cámara.
 
 La app además sincroniza el token de notificaciones del dispositivo con `/v1/devices/push-tokens`
 (`POST` para registrar, `PATCH /{device_id}` cuando FCM rota el token, `DELETE /{device_id}` para la
@@ -129,12 +134,15 @@ Datacrédito (con el ajuste CreditopX y sin la deuda de tarjetas que ignora) sob
 llama «capacidad utilizada» (`DebtCapacityDto.percentage`) está mal; el color sí lo lee bien. Sin reporte de Datacrédito o sin salario,
 legacy devuelve 0, y la app lo pinta en riesgo aunque no sea una deuda alta sino falta de datos.
 
-De un crédito de consumo se puede consultar el resumen y los documentos, y pedir cambio de fecha de
+De un crédito de consumo se puede consultar el resumen (se pide por `user_request_id`; `lender_id` sigue
+yendo para que un backend viejo conteste) y los documentos, y pedir cambio de fecha de
 pago o de número de cuotas (legacy dice primero si se puede). Del cupo rotativo se ven sus compras,
 movimientos y documentos. El estado del **cupo** (`active`, `blocked`, `annulled`, `inactive`,
 `data_inconsistent`; uno desconocido queda como tal) es
 distinto del estado de la **deuda**: el cupo puede seguir bloqueado con la deuda al día, mientras
-espera la reactivación diaria. Pagar abre el portal de pagos con la URL que da el backend.
+espera la reactivación diaria. Pagar abre la pantalla nativa «Realizar pago» (`/credits/:creditId/pay`
+o `/credits/revolving/:revolvingCreditId/pay`), que arma la intención con legacy y sigue al checkout de
+Wompi.
 
 ## Salud Financiera: gratuita y premium
 

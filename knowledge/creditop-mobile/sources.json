@@ -2,13 +2,13 @@
   "version": 1,
   "title": "CreditOp Mobile: la app del cliente final",
   "summary": "Qué hace la app Flutter del consumidor (rama main-pro) y qué valida el backend de cada paso: OTP por Cognito o legacy y el registro MOBA, comercios y preaprobación por lotes, canales de compra por sedes y el código de self-manager (que ignora el canal y vence en UTC), Mis créditos y el cupo rotativo, Salud Financiera gratuita o premium por el beneficio de entitlement, identidad ADO sólo para premium; el regalo de premium por reglas versionadas, la identidad que identity-service no aprueba al volver, el registro de push sin backend, y la campaña de cero interés y la versión mínima por flags de Remote Config.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-17T19:23:46+00:00",
   "sources": [
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/environment_config.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "fdccb41c173804d5c031b5befe92edb683ddd54f",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "a25f72ccf3f83f52f900eea3c2a2868f8f78fef7",
       "sections": [
         "con-que-servicios-habla"
       ]
@@ -16,8 +16,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/router/app_routes.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "de7116479ffb79a65f502351014e58a5508273f7",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "463c970d68b3e995ef81cea867369eb0280ae597",
       "sections": [
         "con-que-servicios-habla",
         "campana-de-cero-interes-y-flags-remotos"
@@ -116,8 +116,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/infrastructure/credits/datasources/credits_datasource.dart",
-      "commit": "8e709f929b9f93258c58cd2e532aea9ea4a739f6",
-      "blob": "e2ca322e341617ee70ab8f7c676475d1f6d6151c",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "cfc4300aca02312025d23ce70aa550ca8a8a254d",
       "sections": [
         "mis-creditos"
       ]
@@ -368,8 +368,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/router/app_router.dart",
-      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
-      "blob": "ffc6326713ee476b60e02b0ab578fd0d553c858c",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "cedd89f02bddfa03c90e19eff011380386aba168",
       "sections": [
         "comprar-en-un-comercio-canal-y-codigo"
       ]
@@ -422,8 +422,8 @@
     {
       "repo": "creditop-mobile",
       "path": "app/lib/config/dependency_injection.dart",
-      "commit": "28a16d38bebb3cb8158b875a4206e2560423a83a",
-      "blob": "498e75c01f58828618ccdcb60f9af73dbcef7b17",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "8785ac3baf96d0886cd529d8a6d660940bc19bbf",
       "sections": [
         "campana-de-cero-interes-y-flags-remotos"
       ]
@@ -462,6 +462,24 @@
       "blob": "482581b64b19e588dd5ce904a73e692c7b4f8ae8",
       "sections": [
         "campana-de-cero-interes-y-flags-remotos"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/payments/datasources/payments_datasource.dart",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "b00778cebb33f4e55971f403eabf3f0757558d45",
+      "sections": [
+        "con-que-servicios-habla"
+      ]
+    },
+    {
+      "repo": "creditop-mobile",
+      "path": "app/lib/infrastructure/services/url_launcher_service.dart",
+      "commit": "e97f4b3c6c6b2bbeda8d9c75684eaf214d5ecb03",
+      "blob": "c245f15406929766ec7d4d1ef3f29430e9adae7d",
+      "sections": [
+        "con-que-servicios-habla"
       ]
     }
   ]
