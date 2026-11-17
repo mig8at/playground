@@ -160,9 +160,13 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   arrancar. Es del modo asistente (WALLY.md y sus comandos de lectura) y la crea el servidor la primera vez
   (`Conversation.Main`, `GET /api/main`); vacía, saluda («Hola, soy Wally») con tres sugerencias. Medido: «¿Qué podés
   hacer?» por DeepSeek en 9 s, contando knowledge, la puesta al día y las trampas. Los agentes se aterrizan después.
-- **La configuración vive en el sidebar derecho** (`auxiliarybar`, 340 px, con manija y su botón en el pie y en el
-  engranaje de la lista; `#/configuracion` lo abre), al lado del chat, como el panel derecho del chat; antes era una
-  pestaña. Todo lo que tiene se ajusta a ese ancho.
+- **El sidebar derecho tiene pestañas por ícono, como el perfil del chat** (`auxiliarybar`, 340 px, con manija y su
+  botón en el pie; se recuerda la pestaña, `wally.aux-tab`): **Agentes** (su ícono es un anillo con un arco por agente
+  en su color; la lista con su bolita, su intención y cuántas fuentes suyas cambiaron, el «+» para uno nuevo, y tocar
+  uno abre su conversación; los agentes ya no están en la lista de la izquierda), **Modelo** (el proveedor y las
+  opciones de cada uno; el engranaje de la lista lleva acá, y `#/configuracion` lo abre), **Servicios** (con un punto
+  rojo en el ícono si alguno no está listo) y **Hoy** (el uso). Antes la configuración era una pestaña del editor.
+  Todo se ajusta a ese ancho, y la barra de escribir baja de renglón si el editor queda angosto.
 - **La conversación es un chat** (2026-11-17, «como en el chat, con bolitas»): quien contesta a la izquierda, con su
   bolita y su nombre en su color (un agente, el suyo; sin agente, Wally), en una burbuja; vos a la derecha, en la tuya,
   con la hora adentro. El color de un agente sale de su nombre (`agentHue`, con el ángulo áureo para que nombres

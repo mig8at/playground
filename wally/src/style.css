@@ -331,3 +331,30 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .config-aside .usage td, .config-aside .usage th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .config-aside .usage th:first-child, .config-aside .usage td:first-child { width: 38% }
 .config-aside .usage-note { white-space: normal }
+
+/* LAS PESTAÑAS DEL SIDEBAR DERECHO, como las del perfil del chat: íconos en la cabecera, la elegida con fondo. */
+.aux-head { gap: var(--space-2) }
+.aux-tabs { display: flex; align-items: center; gap: 2px; min-width: 0 }
+.aux-tab { position: relative }
+.aux-tab.on { background: var(--hover); color: var(--foreground) }
+.tab-ring { width: 18px; height: 18px; overflow: visible }
+.tab-ring circle { fill: none; stroke-width: 3.5; stroke-linecap: round }
+.tab-alert { position: absolute; top: 3px; right: 3px; width: 6px; height: 6px; border-radius: 999px; background: var(--destructive) }
+.aux-section { padding: var(--space-3) }
+.aux-section-head { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2) }
+.aux-section-head .region-action { margin-left: auto }
+.aux-agents { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px }
+.aux-agents li { position: relative; display: flex; align-items: center }
+.aux-agent { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--space-2); padding: 6px 8px; border: 0; border-radius: var(--radius-control);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.aux-agent:hover { background: var(--hover) }
+.aux-agent.on { background: var(--accent); color: var(--accent-foreground) }
+.aux-agent .agent-avatar { width: 28px; height: 28px; font-size: 13px }
+.aux-agent-text { display: grid; min-width: 0; flex: 1 }
+.aux-agent-text b { font-size: var(--text-sm); font-weight: 600; display: flex; align-items: center; gap: 4px }
+.aux-agent-text small { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.aux-agent.on .aux-agent-text small { color: inherit; opacity: .8 }
+.aux-agents li .conv-del { opacity: 0 }
+.aux-agents li:hover .conv-del { opacity: 1 }
+/* Con los dos sidebars abiertos el editor queda angosto: la barra de escribir baja de renglón en vez de cortar el botón. */
+.composer-bar { flex-wrap: wrap; row-gap: var(--space-1) }

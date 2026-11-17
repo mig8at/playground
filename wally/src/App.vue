@@ -181,7 +181,7 @@ async function saveConfig(patch) {
     loadModels()
   } catch (e) { configError.value = e.message }
 }
-function openConfig() { toggleAux(!shown.value.aux) }
+function openConfig() { if (shown.value.aux && auxTab.value === 'model') toggleAux(false); else { toggleAux(true); setAuxTab('model') } }
 const PROVIDERS = [
   { id: 'aistudio', name: 'Gemini', note: 'Gemini 4 Hydrogen (pensando a fondo) por la web de Google AI Studio, con tu cuenta. Cupo diario.' },
   { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
@@ -690,6 +690,23 @@ const auxResize = {
   reopen: () => auxW.value,
   commit: (v) => { saveSize('wally.aux-open', v ? 1 : 0); if (v) saveSize('wally.aux-w', auxW.value) },
 }
+const AUX_TABS = [
+  { id: 'agents', label: 'Agentes' },
+  { id: 'model', label: 'Modelo: con qué contesta Wally', icon: 'settings' },
+  { id: 'services', label: 'Servicios: qué está listo y qué en pausa', icon: 'server' },
+  { id: 'today', label: 'Hoy: cuánto se le preguntó a cada uno', icon: 'clock' },
+]
+const auxTab = ref(readPref('wally.aux-tab', 'agents'))
+function setAuxTab(id) { auxTab.value = id; savePref('wally.aux-tab', id); if (id === 'today') loadUsage(); if (id !== 'agents') loadConfig() }
+// El anillo de la pestaña de agentes: un arco por agente, en su color (como el del perfil del chat).
+const agentRing = computed(() => {
+  const n = agents.value.length
+  if (!n) return []
+  const c = 2 * Math.PI * 15, gap = n > 1 ? 2.2 : 0, len = c / n - gap
+  return agents.value.map((a, i) => ({ name: a.agent.name, color: `oklch(0.66 0.14 ${agentHue(a.agent.name)})`, dash: `${len} ${c - len}`, offset: -i * (c / n) }))
+})
+// Un aviso en la pestaña de servicios si alguno no está listo (sin sesión, sin Jarvis, sin respuesta).
+const servicesTrouble = computed(() => providers.value.some((p) => ['sin-sesion', 'sin-jarvis', 'error'].includes(p.status?.state)))
 function toggleAux(open = !shown.value.aux) {
   auxOpen.value = open
   saveSize('wally.aux-open', open ? 1 : 0)
@@ -779,28 +796,6 @@ onBeforeUnmount(() => {
               <span class="conv-meta">{{ mainSummary?.preview || 'Tu conversación con Wally' }}</span>
             </span>
           </button>
-        </section>
-        <section class="agents">
-          <div class="region-head group">
-            <span>Agentes</span>
-            <button type="button" class="region-action" title="Agente nuevo: una conversación larga con una intención y sus temas precargados" aria-label="Agente nuevo" @click="newAgentTab">
-              <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
-            </button>
-          </div>
-          <div v-for="a in agents" :key="a.conv" class="conv-row agent-row" :class="{ on: active === a.conv, open: openKeys.has(a.conv) }">
-            <button type="button" class="conv" :title="`${a.agent.name}: ${a.agent.intent}\nTemas: ${a.agent.topics.join(', ')}`" @click="openTab(a.conv)">
-              <span class="avatar agent-avatar" :style="agentStyle(a.agent.name)">{{ a.agent.name[0] }}</span>
-              <span class="agent-text">
-                <span class="conv-title"><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</span>
-                <span class="conv-meta">{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</span>
-              </span>
-              <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
-            </button>
-            <button type="button" class="region-action conv-del" title="Borrar el agente y su conversación" aria-label="Borrar el agente" @click="removeConv({ id: a.conv, title: a.agent.name }).then(loadAgents)">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
-            </button>
-          </div>
-          <p v-if="!agents.length" class="none">Ninguno todavía.</p>
         </section>
         <section class="agent-groups">
           <div class="region-head group">
@@ -1173,76 +1168,117 @@ onBeforeUnmount(() => {
     </main>
 
     <!-- EL SIDEBAR DERECHO: la configuración, al lado del chat (como el panel de la derecha del chat). -->
-    <aside v-show="shown.aux" class="auxiliarybar" aria-label="Configuración">
+    <!-- EL SIDEBAR DERECHO, con pestañas por icono como el perfil del chat: los agentes, el modelo, los servicios y lo de hoy. -->
+    <aside v-show="shown.aux" class="auxiliarybar" :aria-label="AUX_TABS.find((t) => t.id === auxTab)?.label">
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
-      <div class="region-head">
-        <span>Configuración</span>
+      <div class="region-head aux-head">
+        <nav class="aux-tabs" role="tablist" aria-label="Wally">
+          <button v-for="t in AUX_TABS" :key="t.id" type="button" role="tab" class="region-action aux-tab"
+                  :class="{ on: auxTab === t.id }" :aria-selected="auxTab === t.id" :title="t.label" :aria-label="t.label" @click="setAuxTab(t.id)">
+            <svg v-if="t.id === 'agents'" class="tab-ring" viewBox="0 0 42 42" aria-hidden="true">
+              <circle v-if="!agents.length" cx="21" cy="21" r="15" stroke="currentColor" />
+              <circle v-for="r in agentRing" :key="r.name" cx="21" cy="21" r="15" :stroke="r.color" :stroke-dasharray="r.dash" :stroke-dashoffset="r.offset" transform="rotate(-90 21 21)" />
+            </svg>
+            <span v-else class="ui-icon" :data-icon="t.icon" aria-hidden="true"></span>
+            <i v-if="t.id === 'services' && servicesTrouble" class="tab-alert" aria-hidden="true"></i>
+          </button>
+        </nav>
         <div class="region-actions">
-          <button type="button" class="region-action" title="Cerrar la configuración" aria-label="Cerrar la configuración" @click="toggleAux(false)">
+          <button type="button" class="region-action" title="Ocultar" aria-label="Ocultar el sidebar derecho" @click="toggleAux(false)">
             <span class="ui-icon" data-icon="close" aria-hidden="true"></span>
           </button>
         </div>
       </div>
-      <div class="region-body config-aside">
+
+      <!-- LOS AGENTES: tocar uno abre su conversación; el número es cuántas fuentes suyas cambiaron en main. -->
+      <div v-if="auxTab === 'agents'" class="region-body aux-section">
+        <div class="aux-section-head">
+          <b>Tus agentes</b><span class="count">{{ agents.length }}</span>
+          <button type="button" class="region-action" title="Agente nuevo: un nombre, una intención y su contexto" aria-label="Agente nuevo" @click="newAgentTab">
+            <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+          </button>
+        </div>
+        <p v-if="!agents.length" class="field-note">Todavía no tenés agentes: el «+» arma uno con su nombre, su intención y su contexto.</p>
+        <ul v-else class="aux-agents">
+          <li v-for="a in agents" :key="a.conv">
+            <button type="button" class="aux-agent" :class="{ on: active === a.conv }" :title="`${a.agent.name}: ${a.agent.intent}`" @click="openTab(a.conv)">
+              <span class="avatar agent-avatar" :style="agentStyle(a.agent.name)" aria-hidden="true">{{ a.agent.name[0] }}</span>
+              <span class="aux-agent-text">
+                <b><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</b>
+                <small>{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</small>
+              </span>
+              <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
+              <span v-else class="count" :title="`${a.count} bloque${a.count === 1 ? '' : 's'} en su conversación`">{{ a.count || '' }}</span>
+            </button>
+            <button type="button" class="region-action conv-del" title="Borrar el agente y su conversación" aria-label="Borrar el agente" @click="removeConv({ id: a.conv, title: a.agent.name }).then(loadAgents)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </li>
+        </ul>
+      </div>
+
+      <div v-else class="region-body config-aside aux-section">
         <div v-if="config" class="config">
-          <p class="group-lede">Con qué contesta Wally y cómo. Se guarda al tocarla y vale desde la próxima pregunta; cada respuesta dice con qué salió.</p>
-
-          <div class="group-option column">
-            <div><b>Proveedor</b><span>Los dos van por su web, en tu Chrome con Jarvis y tu sesión: sin llaves de API.</span></div>
-            <div class="provider-pick" role="radiogroup" aria-label="Proveedor">
-              <button v-for="p in PROVIDERS" :key="p.id" type="button" class="mode-card" role="radio" :aria-checked="config.provider === p.id" @click="saveConfig({ provider: p.id })">
-                <b>{{ p.name }}</b><span>{{ p.note }}</span>
-              </button>
-            </div>
-          </div>
-
-          <div class="group-option column">
-            <div><b>Gemini</b><span>Sólo Gemini 4 Hydrogen, por la web de AI Studio. El nivel de razonamiento lo pone Wally en cada pregunta.</span></div>
-            <div class="config-row">
-              <span class="label">Thinking level</span>
-              <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Thinking level">
-                <button v-for="t in ['Low', 'Medium', 'High']" :key="t" type="button" class="toggle" role="radio" :aria-checked="config.thinking === t" :aria-pressed="config.thinking === t" @click="saveConfig({ thinking: t })">{{ t }}</button>
+          <template v-if="auxTab === 'model'">
+            <p class="group-lede">Con qué contesta Wally y cómo. Se guarda al tocarla y vale desde la próxima pregunta; cada respuesta dice con qué salió.</p>
+            <div class="group-option column">
+              <div><b>Proveedor</b><span>Todos van por su web, en tu Chrome con Jarvis y tu sesión: sin llaves de API.</span></div>
+              <div class="provider-pick" role="radiogroup" aria-label="Proveedor">
+                <button v-for="p in PROVIDERS" :key="p.id" type="button" class="mode-card" role="radio" :aria-checked="config.provider === p.id" @click="saveConfig({ provider: p.id })">
+                  <b>{{ p.name }}</b><span>{{ p.note }}</span>
+                </button>
               </div>
             </div>
-          </div>
 
-          <div class="group-option column">
-            <div><b>DeepSeek</b><span>Los dos interruptores de su pantalla, puestos en cada pregunta.</span></div>
-            <div class="config-row">
-              <span class="label">Pensamiento Profundo</span>
-              <button type="button" class="switch" role="switch" :aria-checked="config.deepThink" aria-label="Pensamiento Profundo" @click="saveConfig({ deepThink: !config.deepThink })"></button>
-            </div>
-            <div class="config-row">
-              <span class="label">Búsqueda inteligente</span>
-              <button type="button" class="switch" role="switch" :aria-checked="config.search" aria-label="Búsqueda inteligente" @click="saveConfig({ search: !config.search })"></button>
-            </div>
-          </div>
-
-          <div class="group-option column">
-            <div><b>ChatGPT</b><span>Siempre en chat temporal. El modelo es el que tenga tu cuenta.</span></div>
-            <div class="config-row">
-              <span class="label">Pensar</span>
-              <button type="button" class="switch" role="switch" :aria-checked="config.chatgptThink" aria-label="Pensar" @click="saveConfig({ chatgptThink: !config.chatgptThink })"></button>
-            </div>
-          </div>
-
-          <div class="group-option column">
-            <div><b>Groq</b><span>El ultra rápido: el modelo abierto que corre en su chip.</span></div>
-            <div class="config-row">
-              <span class="label">Modelo</span>
-              <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Modelo de Groq">
-                <button v-for="(label, m) in GROQ_MODELS" :key="m" type="button" class="toggle" role="radio" :aria-checked="config.groqModel === m" :aria-pressed="config.groqModel === m" @click="saveConfig({ groqModel: m })">{{ label }}</button>
+            <div class="group-option column">
+              <div><b>Gemini</b><span>Sólo Gemini 4 Hydrogen, por la web de AI Studio. El nivel de razonamiento lo pone Wally en cada pregunta.</span></div>
+              <div class="config-row">
+                <span class="label">Thinking level</span>
+                <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Thinking level">
+                  <button v-for="t in ['Low', 'Medium', 'High']" :key="t" type="button" class="toggle" role="radio" :aria-checked="config.thinking === t" :aria-pressed="config.thinking === t" @click="saveConfig({ thinking: t })">{{ t }}</button>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div class="group-option column">
-            <div><b>Ventana de Chrome</b><span>Dónde trabaja Wally: minimizada no te llena de pestañas.</span></div>
-            <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Ventana">
-              <button v-for="(label, w) in WINDOWS" :key="w" type="button" class="toggle" role="radio" :aria-checked="config.window === w" :aria-pressed="config.window === w" @click="saveConfig({ window: w })">{{ label }}</button>
+            <div class="group-option column">
+              <div><b>DeepSeek</b><span>Los dos interruptores de su pantalla, puestos en cada pregunta.</span></div>
+              <div class="config-row">
+                <span class="label">Pensamiento Profundo</span>
+                <button type="button" class="switch" role="switch" :aria-checked="config.deepThink" aria-label="Pensamiento Profundo" @click="saveConfig({ deepThink: !config.deepThink })"></button>
+              </div>
+              <div class="config-row">
+                <span class="label">Búsqueda inteligente</span>
+                <button type="button" class="switch" role="switch" :aria-checked="config.search" aria-label="Búsqueda inteligente" @click="saveConfig({ search: !config.search })"></button>
+              </div>
             </div>
-          </div>
 
+            <div class="group-option column">
+              <div><b>ChatGPT</b><span>Siempre en chat temporal. El modelo es el que tenga tu cuenta.</span></div>
+              <div class="config-row">
+                <span class="label">Pensar</span>
+                <button type="button" class="switch" role="switch" :aria-checked="config.chatgptThink" aria-label="Pensar" @click="saveConfig({ chatgptThink: !config.chatgptThink })"></button>
+              </div>
+            </div>
+
+            <div class="group-option column">
+              <div><b>Groq</b><span>El ultra rápido: el modelo abierto que corre en su chip.</span></div>
+              <div class="config-row">
+                <span class="label">Modelo</span>
+                <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Modelo de Groq">
+                  <button v-for="(label, m) in GROQ_MODELS" :key="m" type="button" class="toggle" role="radio" :aria-checked="config.groqModel === m" :aria-pressed="config.groqModel === m" @click="saveConfig({ groqModel: m })">{{ label }}</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="group-option column">
+              <div><b>Ventana de Chrome</b><span>Dónde trabaja Wally: minimizada no te llena de pestañas.</span></div>
+              <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Ventana">
+                <button v-for="(label, w) in WINDOWS" :key="w" type="button" class="toggle" role="radio" :aria-checked="config.window === w" :aria-pressed="config.window === w" @click="saveConfig({ window: w })">{{ label }}</button>
+              </div>
+            </div>
+
+          </template>
+          <template v-else-if="auxTab === 'services'">
           <div class="group-option column">
             <div class="config-row">
               <div><b>Servicios</b><span class="field-note"> Al arrancar, Wally abre cada web en la ventana aparte y mira si está lista y con sesión, sin preguntar nada.</span></div>
@@ -1259,6 +1295,8 @@ onBeforeUnmount(() => {
             <span v-if="providersInfo.checked && !providersInfo.checked.startsWith('0001')" class="count">comprobado a las {{ clock(providersInfo.checked) }}</span>
           </div>
 
+          </template>
+          <template v-else-if="auxTab === 'today'">
           <div class="group-option column">
             <div><b>Hoy</b><span>De cada pregunta queda su tamaño y cómo terminó, nunca el texto (también por consola: <code>bin/aistudio uso</code>).</span></div>
             <table v-if="usageToday.today.length" class="usage">
@@ -1271,6 +1309,7 @@ onBeforeUnmount(() => {
             </table>
             <p v-else class="none">Nada todavía hoy.</p>
           </div>
+          </template>
           <div v-if="configError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ configError }}</p></div></div>
         </div>
         <p v-else class="none">{{ configError || 'Cargando…' }}</p>

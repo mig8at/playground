@@ -398,7 +398,8 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 		// Lo último que se dijo, para la lista (como «Vos: …» en el chat).
 		if n := len(c.Messages); n > 0 {
 			who := map[string]string{"user": "Vos: ", "model": ""}[c.Messages[n-1].Role]
-			text := strings.Join(strings.Fields(c.Messages[n-1].Text), " ")
+			// Sin las marcas de Markdown (negritas, código, títulos): en la lista se leen como texto.
+			text := strings.Join(strings.Fields(strings.NewReplacer("**", "", "__", "", "`", "", "#", "").Replace(c.Messages[n-1].Text)), " ")
 			if r := []rune(text); len(r) > 90 {
 				text = string(r[:90]) + "…"
 			}
