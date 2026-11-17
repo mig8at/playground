@@ -155,6 +155,10 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **Borrar es con dos toques, sin `confirm()`**: dentro de Cockpit (Tauri, un WKWebView sin el plugin de diálogos)
+  `confirm()` no muestra nada y devuelve «no», así que el tacho no borraba (Miguel, 2026-11-17). El primer toque lo
+  arma («¿Borrar?» en rojo, 4 s) y el segundo borra (`armOrRun`), en la lista y en la pestaña de agentes. Probado con
+  `confirm` forzado a «no».
 - **Toda conversación es del asistente** (Miguel, 2026-11-17: «no dos cosas diferentes, que sea el default»): ya no se
   elige «Chat» o «Asistente»; una sin modo —nueva o de antes— contesta con WALLY.md y puede pedir comandos de lectura.
   Vacía, dice «¿Qué hacemos?», qué puede hacer y cuatro arranques (knowledge, trampas, código de main, resumir). Sólo

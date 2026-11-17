@@ -465,8 +465,18 @@ async function removeBlock(m) {
     loadList()
   } catch (e) { errors.value = { ...errors.value, [key]: e.message } }
 }
+// BORRAR CON DOS TOQUES, sin `confirm()`: dentro de Cockpit (Tauri, un WKWebView) el diálogo no aparece y `confirm`
+// devuelve «no» en silencio, así que el tacho no borraba nada (Miguel, 2026-11-17). El primer toque lo «arma»
+// (pasa a «¿Borrar?» en rojo por 4 s) y el segundo borra.
+const armed = ref('')
+let disarm = null
+function armOrRun(id, run) {
+  if (armed.value === id) { armed.value = ''; clearTimeout(disarm); return run() }
+  armed.value = id
+  clearTimeout(disarm)
+  disarm = setTimeout(() => { armed.value = '' }, 4000)
+}
 async function removeConv(c) {
-  if (!confirm(`¿Borrar «${c.title}»? No se puede recuperar.`)) return
   try {
     await api(`/api/conversations/${encodeURIComponent(c.id)}`, { method: 'DELETE' })
     closeTab(c.id)
@@ -712,8 +722,10 @@ onBeforeUnmount(() => {
               </span>
               <span class="conv-meta">{{ c.mode === 'knowledge' ? 'knowledge · ' : '' }}{{ modelName(c.model) }} · {{ c.count }} bloque{{ c.count === 1 ? '' : 's' }} · {{ when(c.updated) }}</span>
             </button>
-            <button type="button" class="region-action conv-del" title="Borrar la conversación" aria-label="Borrar la conversación" @click="removeConv(c)">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            <button type="button" class="region-action conv-del" :class="{ armed: armed === c.id }" :title="armed === c.id ? 'Tocá otra vez para borrarla: no se puede recuperar' : 'Borrar la conversación'"
+                    aria-label="Borrar la conversación" @click.stop="armOrRun(c.id, () => removeConv(c))">
+              <span v-if="armed === c.id" class="arm-label">¿Borrar?</span>
+              <span v-else class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </div>
         </section>
@@ -968,8 +980,10 @@ onBeforeUnmount(() => {
               <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
               <span v-else class="count" :title="`${a.count} bloque${a.count === 1 ? '' : 's'} en su conversación`">{{ a.count || '' }}</span>
             </button>
-            <button type="button" class="region-action conv-del" title="Borrar el agente y su conversación" aria-label="Borrar el agente" @click="removeConv({ id: a.conv, title: a.agent.name }).then(loadAgents)">
-              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            <button type="button" class="region-action conv-del" :class="{ armed: armed === a.conv }" :title="armed === a.conv ? 'Tocá otra vez para borrar el agente y su conversación' : 'Borrar el agente y su conversación'"
+                    aria-label="Borrar el agente" @click.stop="armOrRun(a.conv, () => removeConv({ id: a.conv, title: a.agent.name }).then(loadAgents))">
+              <span v-if="armed === a.conv" class="arm-label">¿Borrar?</span>
+              <span v-else class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
           </li>
         </ul>
