@@ -20,7 +20,7 @@
 import '../args.ts';
 import fs from 'node:fs';
 import path from 'node:path';
-import { argv, flag, has, JSON_OUT, say, resolvePath, refuseMediaConsent, openAIStudio, waitStableAnswer, copyLastAsMarkdown } from './page.ts';
+import { argv, flag, has, JSON_OUT, say, resolvePath, waitMediaConsent, openAIStudio, waitStableAnswer, copyLastAsMarkdown, noteFailure } from './page.ts';
 
 const valued = new Set(['--out', '--file', '--model', '--timeout', '--vocabulary']);
 const positional = argv.filter((a, i) => !a.startsWith('--') && !valued.has(argv[i - 1]));
@@ -46,7 +46,7 @@ async function setSwitch(page: any, name: string, on: boolean) {
     if ((await isOn()) !== on) throw new Error(`«${name}» no quedó ${on ? 'prendido' : 'apagado'}`);
 }
 
-const { page, close } = await openAIStudio(`https://aistudio.google.com/prompts/new_chat?model=${encodeURIComponent(model)}`);
+const { page, close } = await openAIStudio(`https://aistudio.google.com/prompts/new_chat?model=${encodeURIComponent(model)}`, model);
 try {
     const t0 = Date.now();
     const upload = page.getByRole('button', { name: 'Upload', exact: true });
@@ -82,7 +82,7 @@ try {
     // Mientras sube, el botón todavía no está; el aviso de multimedia, si sale, sale acá.
     const until = Date.now() + 5 * 60_000;
     while (!(await transcribe.isVisible().catch(() => false))) {
-        await refuseMediaConsent(page);
+        await waitMediaConsent(page);
         if (Date.now() > until) throw new Error('el audio no terminó de subir en 5 min');
         await page.waitForTimeout(500);
     }
@@ -105,7 +105,7 @@ try {
     if (JSON_OUT) console.log(JSON.stringify({ recipe: 'aistudio/transcribe', model, audio, bytes: size, ms, format, text }));
     else if (!out) console.log(text);
 } catch (e: any) {
-    console.error(`  ✗ ${e.message || e}`);
+    console.error(`  ✗ ${noteFailure(String(e.message || e), model)}`);
     process.exitCode = 1;
 } finally {
     await close();

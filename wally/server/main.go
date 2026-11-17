@@ -1,0 +1,396 @@
+// WALLY: un chat para hacerle preguntas a Gemini eligiendo el modelo, POR LA WEB de AI Studio: cada pregunta la hace
+// `bin/aistudio` (la receta jarvis/recipes/aistudio/ask.ts) en el Chrome de Miguel con Jarvis, con su cuenta y en un
+// chat temporal, sin llave de API: usa el uso gratuito de la web, no la cuota de una llave. La interfaz (wally/src,
+// :5228) habla con esta API (:5229), que guarda las conversaciones en disco (`wally/.data/conversations.json`).
+//
+// Cada pregunta abre un chat NUEVO en AI Studio: la conversación anterior viaja en el texto, como transcripción. Las
+// preguntas van de a una (Jarvis maneja una pestaña por vez), y cuando Google corta («Permiso denegado», 403, cuota)
+// la receta deja una pausa de 30 min para toda la cuenta (`~/.cache/my-tools/aistudio-pausa.json`): Wally la muestra
+// y no deja preguntar hasta que vence.
+//
+//	go run ./wally/server -serve 127.0.0.1:5229
+package main
+
+import (
+	"bytes"
+	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"flag"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"sync"
+	"time"
+)
+
+func main() {
+	serve := flag.String("serve", "127.0.0.1:5229", "dónde escucha la API")
+	flag.Parse()
+	root, err := repoRoot()
+	if err != nil {
+		log.Fatal(err)
+	}
+	st := &store{file: filepath.Join(root, "wally", ".data", "conversations.json")}
+	if err := st.load(); err != nil {
+		log.Fatal(err)
+	}
+	a := &app{store: st, root: root}
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /api/models", a.models)
+	mux.HandleFunc("GET /api/conversations", a.list)
+	mux.HandleFunc("GET /api/conversations/{id}", a.get)
+	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
+	mux.HandleFunc("POST /api/ask", a.ask)
+	log.Printf("wally: API en http://%s", *serve)
+	log.Fatal(http.ListenAndServe(*serve, mux))
+}
+
+// repoRoot sube desde donde se corre hasta la carpeta que tiene go.mod (la raíz de my-tools).
+func repoRoot() (string, error) {
+	dir, err := os.Getwd()
+	if err != nil {
+		return "", err
+	}
+	for {
+		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
+			return dir, nil
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return "", errors.New("no encuentro la raíz de my-tools (go.mod) subiendo desde acá")
+		}
+		dir = parent
+	}
+}
+
+// ── lo guardado ──────────────────────────────────────────────────────────────────────────────────────
+
+// Message es un turno guardado. Los de Gemini dicen con qué modelo salieron y cuánto tardaron.
+type Message struct {
+	Role  string    `json:"role"` // user · model
+	Text  string    `json:"text"`
+	Model string    `json:"model,omitempty"`
+	Ms    int64     `json:"ms,omitempty"`
+	At    time.Time `json:"at"`
+}
+
+// Conversation es un chat: el título sale de la primera pregunta.
+type Conversation struct {
+	ID       string    `json:"id"`
+	Title    string    `json:"title"`
+	Model    string    `json:"model"` // el último elegido: la interfaz lo vuelve a poner al abrirla
+	Created  time.Time `json:"created"`
+	Updated  time.Time `json:"updated"`
+	Messages []Message `json:"messages"`
+}
+
+type store struct {
+	mu    sync.Mutex
+	file  string
+	convs map[string]*Conversation
+}
+
+func (s *store) load() error {
+	s.convs = map[string]*Conversation{}
+	raw, err := os.ReadFile(s.file)
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var list []*Conversation
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return fmt.Errorf("%s no es JSON válido: %w", s.file, err)
+	}
+	for _, c := range list {
+		s.convs[c.ID] = c
+	}
+	return nil
+}
+
+// save escribe a un temporal y lo renombra: un corte a mitad no deja el archivo roto. Se llama con mu tomado.
+func (s *store) save() error {
+	list := make([]*Conversation, 0, len(s.convs))
+	for _, c := range s.convs {
+		list = append(list, c)
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Updated.After(list[j].Updated) })
+	raw, err := json.MarshalIndent(list, "", "  ")
+	if err != nil {
+		return err
+	}
+	if err := os.MkdirAll(filepath.Dir(s.file), 0o755); err != nil {
+		return err
+	}
+	tmp := s.file + ".tmp"
+	if err := os.WriteFile(tmp, raw, 0o600); err != nil {
+		return err
+	}
+	return os.Rename(tmp, s.file)
+}
+
+func newID() string {
+	b := make([]byte, 6)
+	_, _ = rand.Read(b)
+	return hex.EncodeToString(b)
+}
+
+// ── la API ───────────────────────────────────────────────────────────────────────────────────────────
+
+type app struct {
+	store *store
+	root  string
+	// askMu: una pregunta por vez. Jarvis maneja una pestaña de Chrome por vez y AI Studio corta si se le pide mucho.
+	askMu sync.Mutex
+}
+
+func writeJSON(w http.ResponseWriter, code int, v any) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(code)
+	_ = json.NewEncoder(w).Encode(v)
+}
+
+func writeErr(w http.ResponseWriter, code int, err error) {
+	writeJSON(w, code, map[string]string{"error": err.Error()})
+}
+
+// Model es un modelo de chat de AI Studio sin la etiqueta «Paid» (leído del selector de la web el 2026-11-17).
+type Model struct {
+	Name        string `json:"name"`
+	DisplayName string `json:"displayName"`
+	Note        string `json:"note,omitempty"`
+	Paused      string `json:"paused,omitempty"` // hasta qué hora, si Google lo cortó
+}
+
+// chatModels: los de chat que la web ofrece sin «Paid», del más liviano al más capaz. El primero es el de siempre:
+// liviano, para no gastar lo que Google deja usar de los grandes (Hydrogen fue el primero que cortó).
+var chatModels = []Model{
+	{Name: "gemini-3.5-flash-lite", DisplayName: "Gemini 3.5 Flash Lite", Note: "liviano y rápido"},
+	{Name: "gemini-3.1-flash-lite", DisplayName: "Gemini 3.1 Flash Lite", Note: "liviano"},
+	{Name: "gemini-flash-lite-latest", DisplayName: "Gemini Flash-Lite Latest", Note: "el Flash-Lite más nuevo"},
+	{Name: "gemini-flash-latest", DisplayName: "Gemini Flash Latest", Note: "el Flash más nuevo"},
+	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash"},
+	{Name: "gemma-4-31b-it", DisplayName: "Gemma 4 31B", Note: "abierto"},
+	{Name: "gemma-4-26b-a4b-it", DisplayName: "Gemma 4 26B A4B", Note: "abierto"},
+	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: usalo para lo que lo valga"},
+}
+
+// pauses lee las pausas que deja la receta cuando Google corta un modelo: modelo → hasta cuándo (ms).
+func pauses() map[string]int64 {
+	home, _ := os.UserHomeDir()
+	raw, err := os.ReadFile(filepath.Join(home, ".cache", "my-tools", "aistudio-pausa.json"))
+	out := map[string]int64{}
+	if err != nil {
+		return out
+	}
+	var all map[string]struct {
+		Until int64 `json:"until"`
+	}
+	if json.Unmarshal(raw, &all) != nil {
+		return out
+	}
+	now := time.Now().UnixMilli()
+	for m, p := range all {
+		if p.Until > now {
+			out[m] = p.Until
+		}
+	}
+	return out
+}
+
+func (a *app) models(w http.ResponseWriter, r *http.Request) {
+	paused := pauses()
+	list := make([]Model, len(chatModels))
+	for i, m := range chatModels {
+		// «*» es la cuenta entera: AI Studio corta por el ritmo de la cuenta, no por modelo.
+		if until, ok := paused["*"]; ok {
+			m.Paused = time.UnixMilli(until).Format("15:04")
+		} else if until, ok := paused[m.Name]; ok {
+			m.Paused = time.UnixMilli(until).Format("15:04")
+		}
+		list[i] = m
+	}
+	writeJSON(w, 200, map[string]any{"models": list, "default": chatModels[0].Name})
+}
+
+// Summary es una fila de la lista: sin los mensajes.
+type Summary struct {
+	ID      string    `json:"id"`
+	Title   string    `json:"title"`
+	Model   string    `json:"model"`
+	Updated time.Time `json:"updated"`
+	Count   int       `json:"count"`
+}
+
+func (a *app) list(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	out := make([]Summary, 0, len(a.store.convs))
+	for _, c := range a.store.convs {
+		out = append(out, Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages)})
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
+	writeJSON(w, 200, map[string]any{"conversations": out})
+}
+
+func (a *app) get(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c, ok := a.store.convs[r.PathValue("id")]
+	if !ok {
+		writeErr(w, 404, errors.New("no existe esa conversación"))
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
+func (a *app) remove(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	delete(a.store.convs, r.PathValue("id"))
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, map[string]bool{"ok": true})
+}
+
+// transcript arma lo que se le manda a AI Studio: cada pregunta abre un chat nuevo, así que la conversación anterior
+// viaja como texto antes de la pregunta.
+func transcript(history []Message, question string) string {
+	if len(history) == 0 {
+		return question
+	}
+	var b strings.Builder
+	b.WriteString("Esta es la conversación que venimos teniendo; seguila y contestá sólo la última pregunta.\n\n")
+	for _, m := range history {
+		who := "Yo"
+		if m.Role == "model" {
+			who = "Vos"
+		}
+		fmt.Fprintf(&b, "### %s\n%s\n\n", who, m.Text)
+	}
+	fmt.Fprintf(&b, "### Yo (la pregunta de ahora)\n%s", question)
+	return b.String()
+}
+
+// askAIStudio corre `bin/aistudio ask --json` con el texto por stdin (no por argumento: un texto grande no entra) y
+// devuelve la respuesta en Markdown. El error es el que dice la receta (una pausa, «Permiso denegado», Jarvis ocupado).
+func (a *app) askAIStudio(ctx context.Context, model, text string) (string, error) {
+	cmd := exec.CommandContext(ctx, filepath.Join(a.root, "bin", "aistudio"), "ask", "--json", "--model", model, "--timeout", "600")
+	cmd.Dir = a.root
+	cmd.Stdin = strings.NewReader(text)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	err := cmd.Run()
+	var out struct {
+		Answer string `json:"answer"`
+	}
+	for _, line := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
+		if strings.HasPrefix(line, "{") && json.Unmarshal([]byte(line), &out) == nil && out.Answer != "" {
+			return out.Answer, nil
+		}
+	}
+	msg := strings.TrimSpace(stderr.String())
+	// De lo que dice la receta, el porqué: las líneas con ✗ o ⏸ (el resto es el avance).
+	var why []string
+	for _, line := range strings.Split(msg, "\n") {
+		t := strings.TrimSpace(line)
+		if strings.HasPrefix(t, "✗") || strings.HasPrefix(t, "⏸") || strings.HasPrefix(t, "(") {
+			why = append(why, strings.TrimSpace(strings.TrimPrefix(t, "✗")))
+		}
+	}
+	if len(why) > 0 {
+		return "", errors.New(strings.Join(why, " "))
+	}
+	if ctx.Err() != nil {
+		return "", errors.New("AI Studio no contestó a tiempo")
+	}
+	if err != nil {
+		return "", fmt.Errorf("bin/aistudio falló: %v %s", err, msg)
+	}
+	return "", errors.New("bin/aistudio no devolvió respuesta")
+}
+
+// ask agrega la pregunta, se la hace a AI Studio con el modelo elegido y guarda la respuesta. Sin `id` abre una
+// conversación nueva. Si falla, la pregunta no queda guardada: se puede volver a mandar.
+func (a *app) ask(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		ID    string `json:"id"`
+		Model string `json:"model"`
+		Text  string `json:"text"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		writeErr(w, 400, err)
+		return
+	}
+	in.Text = strings.TrimSpace(in.Text)
+	if in.Text == "" {
+		writeErr(w, 400, errors.New("la pregunta está vacía"))
+		return
+	}
+	if in.Model == "" {
+		in.Model = chatModels[0].Name
+	}
+
+	// El historial se copia con el candado tomado, y la pregunta (segundos) va sin él.
+	a.store.mu.Lock()
+	var history []Message
+	if in.ID != "" {
+		c, ok := a.store.convs[in.ID]
+		if !ok {
+			a.store.mu.Unlock()
+			writeErr(w, 404, errors.New("no existe esa conversación"))
+			return
+		}
+		history = append(history, c.Messages...)
+	}
+	a.store.mu.Unlock()
+
+	if !a.askMu.TryLock() {
+		writeErr(w, 409, errors.New("Wally ya está esperando otra respuesta: de a una pregunta por vez"))
+		return
+	}
+	asked := time.Now()
+	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
+	answer, err := a.askAIStudio(ctx, in.Model, transcript(history, in.Text))
+	cancel()
+	a.askMu.Unlock()
+	if err != nil {
+		writeErr(w, 502, err)
+		return
+	}
+	done := time.Now()
+
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c := a.store.convs[in.ID]
+	if c == nil {
+		// Nueva (o borrada mientras contestaba): el título es el comienzo de la pregunta.
+		title := strings.Join(strings.Fields(in.Text), " ")
+		if r := []rune(title); len(r) > 60 {
+			title = string(r[:60]) + "…"
+		}
+		c = &Conversation{ID: newID(), Title: title, Created: asked}
+		a.store.convs[c.ID] = c
+	}
+	c.Model = in.Model
+	c.Updated = done
+	c.Messages = append(c.Messages,
+		Message{Role: "user", Text: in.Text, At: asked},
+		Message{Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done})
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
+}

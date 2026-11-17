@@ -12,14 +12,15 @@
 // toca. La pestaña se cierra al terminar salvo con --keep (para seguir la conversación a mano).
 //
 // Parámetros: --prompt "texto" · --file <archivo> (el texto va primero y el --prompt después, como pregunta) · o el
-// texto por stdin · --model <id> (gemini-4-hydrogen por defecto; gemini-3.5-flash-lite, gemma-4-31b-it…: los ids del selector) · --out
+// texto por stdin · --model <id> (gemini-3.5-flash-lite por defecto: liviano y sin «Paid»; gemini-flash-latest, gemma-4-31b-it,
+// gemini-4-hydrogen…: los ids del selector) · --out
 // <archivo> (guarda la respuesta) · --keep · --timeout <segundos> (600 por defecto) · --json
 // Necesita: Jarvis conectado en Chrome, sin otra sesión de Jarvis manejándolo, y tu sesión de Google abierta.
 // ⚠ Sólo lectura en tu cuenta: no guarda nada en AI Studio. El texto viaja a Google como cuando lo pegás a mano.
 // ⚠ Un uso intenso y automatizado de la web puede verse como abuso: es para preguntas tuyas, no para tandas.
 import '../args.ts';
 import fs from 'node:fs';
-import { flag, has, JSON_OUT, say, resolvePath, readInput, openChrome, runAndWait, waitStableAnswer, copyLastAsMarkdown } from './page.ts';
+import { flag, has, JSON_OUT, say, resolvePath, readInput, openChrome, runAndWait, waitStableAnswer, copyLastAsMarkdown, noteFailure } from './page.ts';
 
 const KEEP = has('keep');
 const text = readInput('prompt');
@@ -27,10 +28,10 @@ if (!text) {
     console.error('  uso: aistudio --prompt "…" | --file <archivo> [--prompt "pregunta"] | (texto por stdin) [--model <id>] [--out <archivo>] [--keep] [--json]');
     process.exit(2);
 }
-const model = flag('model') || 'gemini-4-hydrogen';
+const model = flag('model') || 'gemini-3.5-flash-lite';
 const timeoutMs = Number(flag('timeout') || 600) * 1000;
 
-const { page, close } = await openChrome();
+const { page, close } = await openChrome(model);
 let ok = false;
 try {
     const t0 = Date.now();
@@ -52,6 +53,11 @@ try {
         return (leaf?.textContent || el.textContent || '').trim().slice(0, 60);
     });
     if (modelId !== model) throw new Error(`quedó elegido «${modelId}», no «${model}» (¿existe ese id? son los del selector de AI Studio)`);
+    // El chat temporal («Temporary chat»: no queda en el History) es lo que AI Studio abre por defecto; si alguien lo
+    // cambió, se avisa en vez de llenar el History con consultas sueltas.
+    if (!(await page.getByText('Temporary chat').first().isVisible().catch(() => false))) {
+        say('⚠ el chat NO está en modo temporal: esta consulta va a quedar en tu History de AI Studio');
+    }
     say(`modelo: ${modelId} · ${text.length.toLocaleString('es-CO')} caracteres`);
 
     // ⚠ Un texto grande NO va de una: con 1,2 MB en un solo `fill`, el puente de Chrome cortó la conexión (con 280 mil
@@ -99,7 +105,7 @@ try {
     else if (!out) console.log(answer);
     ok = true;
 } catch (e: any) {
-    console.error(`  ✗ ${e.message || e}`);
+    console.error(`  ✗ ${noteFailure(String(e.message || e), model)}`);
     process.exitCode = 1;
 } finally {
     if (KEEP && ok) say('la pestaña queda abierta en tu Chrome para seguir la conversación');

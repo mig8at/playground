@@ -18,7 +18,7 @@
 // ⚠ Sólo lectura en tu cuenta. El texto viaja a Google como cuando lo escribís a mano.
 import '../args.ts';
 import fs from 'node:fs';
-import { flag, JSON_OUT, say, resolvePath, readInput, runAndWait, refuseMediaConsent, openAIStudio } from './page.ts';
+import { flag, JSON_OUT, say, resolvePath, readInput, runAndWait, waitMediaConsent, openAIStudio, noteFailure } from './page.ts';
 
 const text = readInput('text');
 const out = flag('out');
@@ -51,7 +51,7 @@ function prepare() {
     });
 }
 
-const { page, close } = await openAIStudio(`https://aistudio.google.com/generate-speech?model=${encodeURIComponent(model)}`, prepare);
+const { page, close } = await openAIStudio(`https://aistudio.google.com/generate-speech?model=${encodeURIComponent(model)}`, model, prepare);
 try {
     const t0 = Date.now();
     const create = page.getByText('Create new dialog');
@@ -85,7 +85,7 @@ try {
     await box.fill(text);
     say('generando la voz…');
     await runAndWait(page, timeoutMs);
-    await refuseMediaConsent(page);
+    await waitMediaConsent(page);
 
     // Los pedacitos siguen llegando un instante después de «Run»: se espera a que el conteo quede quieto 1,5 s.
     let count = -1;
@@ -127,7 +127,7 @@ try {
     say(`listo en ${(ms / 1000).toFixed(1)} s · ${wav.seconds.toFixed(1)} s de audio · ${out}`);
     if (JSON_OUT) console.log(JSON.stringify({ recipe: 'aistudio/speak', model, voice: chosenVoice, chars: text.length, ms, seconds: wav.seconds, rate: wav.rate, out: file }));
 } catch (e: any) {
-    console.error(`  ✗ ${e.message || e}`);
+    console.error(`  ✗ ${noteFailure(String(e.message || e), model)}`);
     process.exitCode = 1;
 } finally {
     await close();

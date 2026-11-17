@@ -126,9 +126,10 @@ respuesta en Markdown.
 
 | receta | qué hace | parámetros |
 |---|---|---|
-| `ask` | **una pregunta a Gemini por la web**: chat nuevo (temporal: no queda en el History) → el modelo, si se pide → el texto → Run → la respuesta con «Copy as markdown» interceptado (tu portapapeles no se toca). También `bin/aistudio`, que lee los archivos desde donde lo corrés. Medido el 2026-11-17 con Gemini 4 Hydrogen: una pregunta corta en 4,6 s; 1,2 MB de código en 11,5 s y 2 MB en 17,9 s, encontrando en los dos una frase escondida en el medio y cerca del final | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--model <id>` (gemini-4-hydrogen por defecto) · `--out` · `--keep` · `--timeout 600` · `--json` |
+| `ask` | **una pregunta a Gemini por la web**: chat nuevo (temporal: no queda en el History) → el modelo, si se pide → el texto → Run → la respuesta con «Copy as markdown» interceptado (tu portapapeles no se toca). También `bin/aistudio`, que lee los archivos desde donde lo corrés. Medido el 2026-11-17 con Gemini 4 Hydrogen: una pregunta corta en 4,6 s; 1,2 MB de código en 11,5 s y 2 MB en 17,9 s, encontrando en los dos una frase escondida en el medio y cerca del final | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--model <id>` (gemini-3.5-flash-lite por defecto: liviano y sin «Paid») · `--out` · `--keep` · `--timeout 600` · `--json` |
 | `speak` | **texto a voz** (Generate speech, Gemini 3.8 Flash TTS): «Create new dialog» → la voz (se busca por nombre en Speaker settings y se comprueba «Current voice») → el texto → Run → un WAV mono de 24 kHz. `bin/aistudio speak`. Medido el 2026-11-17: 5,2 s de audio en 4,1 s y 8 s de audio en 7,7 s; lo generado lo transcribió bien Whisper, en esta máquina | `--text` · `--file` · stdin · `--out <archivo.wav>` · `--voice <nombre>` (Enzo, Koda, Bodi…; sin ella, la que esté puesta) · `--model` · `--json` |
 | `transcribe` | **audio a texto** (Gemini 3.5 Transcribe): «Upload» con el archivo → «Transcribe» → la transcripción en Markdown. `bin/aistudio transcribe <audio>`. Medido el 2026-11-17: audios de 2 a 9 s en ~5 s; el de `speak` volvió palabra por palabra. ⚠ El audio SUBE A GOOGLE: queda en tu Drive y, según el aviso de AI Studio, puede usarse para mejorar sus productos | `<audio>` · `--out` · `--plain` (sin marcas de tiempo ni quién habla) · `--smart` · `--vocabulary "a, b"` (implica `--plain`) · `--json` |
+| `image` | **una imagen** (Nano Banana 2 Lite, sin «Paid»): el pedido en un chat temporal → Run → la imagen más grande del último turno, guardada con la extensión del formato que llega. `bin/aistudio image`. ⚠ **SIN PROBAR**: el primer intento (2026-11-17) contestó «Permiso denegado»; falta confirmar cómo se guarda la imagen con una generación real | `--prompt` · `--out` · `--aspect 1:1` · `--only-images` · `--model` · `--json` |
 
 - **Un texto grande no va en un solo `fill`**: con 1,2 MB el puente de Chrome cortó la conexión y la pestaña quedó
   colgada, y ninguna conexión nueva andaba hasta reiniciar Chrome (con 280 mil caracteres había andado). La receta lo
@@ -142,17 +143,21 @@ respuesta en Markdown.
   2026-11-17). La receta espera además a que el texto quede quieto 1,5 s; si «Copy as markdown» igual no entrega, saca
   la respuesta del texto de la página (`format: "text"` en `--json`) y lo avisa.
 - No anda con otra sesión de Jarvis manejando Chrome (`openChrome` lo niega): cerrala antes.
-- **Google corta la cuenta si se le pide mucho seguido**: tras ~40 consultas de prueba en una hora (2026-11-17), el chat
-  contestó «Permiso denegado. Verifica los permisos de tu cuenta y la configuración del proyecto» y la voz un 403. Es
-  para usarla de a una, no en tandas. El error sale en rojo dentro del turno (`.model-error`) o en el aviso de abajo
-  (`mat-snack-bar-container`): las recetas lo cortan ahí con su texto, en vez de esperar al tope.
+- **Google corta la CUENTA, no el modelo**: tras ~40 consultas de prueba en una hora (2026-11-17), el chat contestó
+  «Permiso denegado. Verifica los permisos de tu cuenta y la configuración del proyecto» con Hydrogen, la voz un 403,
+  la imagen lo mismo, y Flash Lite contestó a las 9:48 y a las 9:49 ya no. Es para usarla de a una, no en tandas. El
+  error sale en rojo dentro del turno (`.model-error`) o en el aviso de abajo (`mat-snack-bar-container`): las recetas
+  lo cortan ahí con su texto y dejan **una pausa de 30 min para toda la cuenta** (`*` en
+  `~/.cache/my-tools/aistudio-pausa.json`); mientras dure, `bin/aistudio` sale con 3 sin abrir AI Studio (`--force`
+  la saltea) y Wally no deja preguntar.
+- **El aviso de multimedia lo acepta la persona**: si aparece, la receta trae la pestaña al frente, avisa y espera 5
+  min a que toque «Acknowledge»; no lo toca nunca.
 - **AI Studio recuerda el último modelo del chat**: después de `transcribe`, un chat nuevo abría la pantalla de
   transcripción, sin campo para preguntar. Por eso `ask` pasa SIEMPRE el modelo en la URL (`new_chat?model=<id>`), y
   queda ése para cuando abras AI Studio a mano.
 - **Lo multimedia pide un consentimiento la primera vez** («Start creating with media in Google AI Studio»: lo subido
-  puede usarse para mejorar productos de Google, y queda en tu Drive). Lo acepta la persona, a mano; las recetas no lo
-  tocan (si aparece y sigue a la vista 2 s, lo cancelan y paran). Ya aceptado, AI Studio igual lo arma un instante y lo
-  cierra solo.
+  puede usarse para mejorar productos de Google, y queda en tu Drive). Ya aceptado, AI Studio igual lo arma un instante
+  y lo cierra solo: sólo cuenta si sigue a la vista 2 s.
 - **La voz se reproduce mientras se genera, por Web Audio, en pedacitos de 40-120 ms**: `speak` la silencia (una
   ganancia en 0 antes de los parlantes; suspender el contexto rompe el reproductor) y junta los pedacitos en orden. El
   botón «Download» de la página no baja nada con la pestaña manejada.

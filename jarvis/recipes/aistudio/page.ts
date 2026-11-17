@@ -2,10 +2,9 @@
 // Jarvis, esperar a que el botón Run termine, leer el texto de un argumento, un archivo o stdin, y sacar bytes de la
 // página. No es una receta: no tiene línea de uso.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
-import { openChrome } from '../recorder.ts';
-
-export { openChrome };
+import { openChrome as openJarvisChrome } from '../recorder.ts';
 
 export const argv = process.argv.slice(2);
 export const flag = (n: string) => { const i = argv.indexOf(`--${n}`); return i >= 0 ? argv[i + 1] : undefined; };
@@ -44,24 +43,77 @@ export async function runAndWait(page: any, timeoutMs: number) {
 
 /**
  * El aviso «Start creating with media in Google AI Studio» sale la primera vez que se sube o genera multimedia: dice que
- * lo subido puede usarse para mejorar productos de Google. Aceptarlo es una decisión de la persona, así que la receta
- * no lo toca: lo cancela y para.
+ * lo subido puede usarse para mejorar productos de Google. Aceptarlo es una decisión de la persona: la receta NO lo
+ * toca. Trae la pestaña al frente, avisa y espera (5 min) a que la persona lo acepte en su Chrome; después sigue.
  */
-export async function refuseMediaConsent(page: any) {
+export async function waitMediaConsent(page: any) {
     const dialog = page.locator('mat-dialog-container', { hasText: 'Start creating with media' });
     // Ya aceptado, AI Studio igual lo arma un instante y lo cierra solo: sólo cuenta si sigue a la vista 2 s después.
     if (!(await dialog.isVisible().catch(() => false))) return;
     await page.waitForTimeout(2000);
-    if (await dialog.isVisible().catch(() => false)) {
-        await dialog.getByRole('button', { name: 'Cancel' }).click().catch(() => {});
-        throw new Error('AI Studio pide aceptar su aviso de multimedia («Start creating with media»: lo que subas puede usarse para '
-            + 'mejorar productos de Google). Aceptalo una vez a mano en aistudio.google.com y volvé a correr esto');
+    if (!(await dialog.isVisible().catch(() => false))) return;
+    await page.bringToFront().catch(() => {});
+    say('⚠ AI Studio pide aceptar su aviso de multimedia (lo que subas o generes puede usarse para mejorar productos de Google).');
+    say('  Si estás de acuerdo, tocá «Acknowledge» en la pestaña de AI Studio de tu Chrome; espero 5 min.');
+    try {
+        await dialog.waitFor({ state: 'hidden', timeout: 5 * 60_000 });
+    } catch {
+        throw new Error('nadie aceptó el aviso de multimedia de AI Studio en 5 min');
     }
+    say('aviso aceptado: sigo');
+}
+
+// ── LA PAUSA: no insistirle a Google cuando corta ─────────────────────────────────────────────────────────────────
+// El 2026-11-17 AI Studio contestó «Permiso denegado. Verifica los permisos de tu cuenta…» con Hydrogen (tras ~40
+// consultas de prueba en una hora), con la imagen y, después, con Flash Lite: a las 9:48 contestó y a las 9:49, la
+// pregunta siguiente, ya no. No es por modelo: es la CUENTA, por el ritmo. Seguir pidiendo es la forma de que dure
+// más (Miguel: «no intentar durante un tiempo»), así que un error así pausa TODO (`*`) y anota el modelo; mientras
+// dure, ninguna receta abre AI Studio (`--force` la saltea).
+export const PAUSE_FILE = path.join(os.homedir(), '.cache', 'my-tools', 'aistudio-pausa.json');
+const PAUSE_MINUTES = 30;
+const LIMIT_ERROR = /permiso denegado|permission|denied|\b403\b|\b429\b|quota|cuota|rate.?limit|l[ií]mite|exceeded|too many|resource.?exhausted/i;
+
+type Pause = { until: number; reason: string; at: string };
+function readPauses(): Record<string, Pause> {
+    try { return JSON.parse(fs.readFileSync(PAUSE_FILE, 'utf8')); } catch { return {}; }
+}
+
+/** Las pausas vigentes, por modelo. */
+export function currentPauses(): Record<string, Pause> {
+    return Object.fromEntries(Object.entries(readPauses()).filter(([, p]) => p && p.until > Date.now()));
+}
+
+/** Si el error es de Google cortando (permiso, cuota, límite), pausa ese modelo. Devuelve el mensaje, con la pausa dicha. */
+export function noteFailure(message: string, model: string): string {
+    if (!LIMIT_ERROR.test(message)) return message;
+    const until = Date.now() + PAUSE_MINUTES * 60_000;
+    const pauses = currentPauses();
+    const pause = { until, reason: message.slice(0, 300), at: new Date().toISOString() };
+    pauses['*'] = { ...pause, reason: `${model}: ${pause.reason}` };
+    pauses[model] = pause;
+    fs.mkdirSync(path.dirname(PAUSE_FILE), { recursive: true });
+    fs.writeFileSync(PAUSE_FILE, JSON.stringify(pauses, null, 2));
+    const hour = new Date(until).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+    return `${message}\n  ⏸ Google está cortando: bin/aistudio queda en pausa ${PAUSE_MINUTES} min, con todos los modelos (hasta las ${hour}). `
+        + 'Antes de volver, probá a mano en aistudio.google.com. --force la saltea';
+}
+
+/** Abre una pestaña del Chrome de la persona con Jarvis, salvo que `model` esté en pausa (sale con 3). */
+export async function openChrome(model?: string) {
+    const all = currentPauses();
+    const pause = all['*'] || (model ? all[model] : undefined);
+    if (pause && !has('force')) {
+        const left = Math.ceil((pause.until - Date.now()) / 60_000);
+        console.error(`  ⏸ bin/aistudio está en pausa ${left} min más: ${pause.reason.split('\n')[0]}`);
+        console.error(`    (para no insistirle a Google con la cuenta cortada; --force la saltea · ${PAUSE_FILE})`);
+        process.exit(3);
+    }
+    return openJarvisChrome();
 }
 
 /** Abre AI Studio en una pestaña nueva del Chrome de la persona; con `prepare`, un script antes de que cargue la página. */
-export async function openAIStudio(url: string, prepare?: () => void) {
-    const { page, close } = await openChrome();
+export async function openAIStudio(url: string, model: string, prepare?: () => void) {
+    const { page, close } = await openChrome(model);
     if (prepare) await page.addInitScript(prepare);
     await page.goto(url, { waitUntil: 'domcontentloaded' });
     return { page, close };
