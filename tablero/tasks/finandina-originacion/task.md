@@ -7,7 +7,7 @@ knowledge: [lender-response-types, lender-credential-sources, lender-listing, fi
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
-ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845-finandina
+ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845
 ---
 
 ## Pendientes
@@ -88,15 +88,15 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [x] ~~Conectar la preaprobación de la 149 al motor de cupo~~ — en local cierra en 11 por el riel 4 con el cupo
   del motor, y los negativos se rechazan (2026-11-17). Alias `banco-finandina` → `creditop_x` en
   pre-approvals-service y fuente `creditop_x_pre_approval` más el recorte de plazos por capacidad en legacy-backend.
-- [ ] Llevar el riel 4 de Finandina a qa: que se mergeen y desplieguen
-  [Creditop-SAS/legacy-backend#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937) (contra `qa`) y
-  [Creditop-SAS/pre-approvals-service#104](https://github.com/Creditop-SAS/pre-approvals-service/pull/104) (contra
-  `develop`). Termina con los dos desplegados. Depende de: revisión del equipo.
-- [ ] Cargar el cupo mensual del perfil también en el riel 4, para que el tope de 2.000 MM de Finandina se
-  descuente (hoy `CreditopXRequestHistoryService` sólo lo carga con `response_type == 2`). Acordado con Laura y
-  Oscar el 2026-11-17, con un tope «muy alto» por defecto para las entidades sin tope. Antes hay que definir qué
-  pasa con una entidad del riel sin perfiles (Credifamilia): hoy la autorización fallaría. Termina con una
-  autorización de Finandina en riel 4 que sube `already_used_loan` y una de Credifamilia que sigue cerrando.
+- [ ] Confirmar desplegados en qa el riel 4 de Finandina:
+  [Creditop-SAS/legacy-backend#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937) (mergeado en `qa`
+  el 2026-11-17) y [Creditop-SAS/pre-approvals-service#104](https://github.com/Creditop-SAS/pre-approvals-service/pull/104)
+  (contra `develop`). Termina con los dos desplegados. Depende de: revisión de #104.
+- [ ] Llevar a qa la carga del cupo mensual del perfil en el riel 4:
+  [Creditop-SAS/legacy-backend#1939](https://github.com/Creditop-SAS/legacy-backend/pull/1939) (contra `qa`).
+  Acordado con Laura y Oscar el 2026-11-17. Con perfiles en el motor (Finandina) descuenta como el tipo 2; sin
+  perfiles (Credifamilia) sigue igual; una entidad sin tope configurado no tiene límite. Termina con una
+  autorización de Finandina en qa que sube `already_used_loan`. Depende de: revisión del equipo.
 - [ ] Después de tener el flujo completo: reemplazar el alias `banco-finandina` de pre-approvals-service por
   configuración. El listado publica, por entidad del riel 4, la clave de preaprobación que sale de la fuente de
   insumos de su perfil (`credifamilia_pre_approval` → `credifamilia`, `creditop_x_pre_approval` → `creditop_x`), y
