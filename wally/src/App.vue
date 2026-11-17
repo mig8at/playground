@@ -104,6 +104,17 @@ function onKey(e) {
   if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); send() }
 }
 function newChat() { go(''); conv.value = null; draft.value = ''; focusInput() }
+// BORRAR UN BLOQUE: una pregunta o una respuesta sale de lo guardado y, con eso, del contexto de la próxima pregunta
+// (AI Studio no recuerda nada: cada pregunta le manda todo lo que queda). Sin confirmación, como en un chat.
+async function removeBlock(m) {
+  if (!conv.value || !m.id) return
+  try {
+    conv.value = await api(`/api/conversations/${encodeURIComponent(conv.value.id)}/messages/${encodeURIComponent(m.id)}`, { method: 'DELETE' })
+    loadList()
+  } catch (e) { error.value = e.message }
+}
+const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length, 0))
+
 async function removeConv(c) {
   if (!confirm(`¿Borrar «${c.title}»? No se puede recuperar.`)) return
   try {
@@ -215,6 +226,7 @@ onBeforeUnmount(() => {
     <main class="editor">
       <div class="region-head">
         <span class="head-title">{{ conv?.title || 'Conversación nueva' }}</span>
+        <span v-if="messages.length" class="count" :title="'Lo que viaja como contexto en la próxima pregunta: AI Studio no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">contexto: {{ messages.length }} bloque{{ messages.length > 1 ? 's' : '' }} · {{ contextChars.toLocaleString('es-CO') }} caracteres</span>
       </div>
       <div ref="thread" class="region-body thread">
         <div v-if="!messages.length && !pending" class="empty">
@@ -224,13 +236,21 @@ onBeforeUnmount(() => {
             <div class="empty-desc">Pregunta por la web de AI Studio, en tu Chrome y con tu cuenta, sin llave de API. Elegí el modelo abajo: Flash Lite es el liviano; Hydrogen, el más capaz, para lo que lo valga.</div>
           </div>
         </div>
-        <template v-for="(m, i) in messages" :key="i">
-          <div v-if="m.role === 'user'" class="bubble mine">{{ m.text }}</div>
-          <article v-else class="answer">
+        <template v-for="(m, i) in messages" :key="m.id || i">
+          <div v-if="m.role === 'user'" class="block block-user">
+            <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar esta pregunta del contexto" aria-label="Borrar esta pregunta del contexto" @click="removeBlock(m)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+            <div class="bubble mine">{{ m.text }}</div>
+          </div>
+          <article v-else class="block answer">
             <div class="answer-body" v-html="md(m.text)"></div>
             <div class="answer-meta">
               <span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s</span>
               <button type="button" class="btn btn-ghost btn-xs" @click="copy(m.text, i)">{{ copiedAt === i ? 'Copiado' : 'Copiar' }}</button>
+              <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar esta respuesta del contexto" aria-label="Borrar esta respuesta del contexto" @click="removeBlock(m)">
+                <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+              </button>
             </div>
           </article>
         </template>

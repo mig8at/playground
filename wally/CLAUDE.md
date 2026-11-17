@@ -11,7 +11,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | pieza | qué es |
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
-| `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `POST /api/ask {id?, model, text}` |
+| `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text}` |
 | `src/App.vue` | la interfaz; la ruta es `#/c/<id>` |
 | `wally/.data/conversations.json` | lo guardado (fuera de git) |
 
@@ -19,11 +19,15 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   la receta.
 - **De a una pregunta por vez** (409 si llega otra): Jarvis maneja una pestaña por vez y AI Studio corta si se le pide
   mucho.
-- **Cada pregunta abre un chat nuevo**: la conversación anterior viaja en el texto, como transcripción
-  (`transcript`). Una conversación larga manda cada vez más.
+- **La conversación la guarda Wally, en BLOQUES** (idea de Miguel, 2026-11-17): cada pregunta tuya y cada respuesta es
+  un bloque con su id. AI Studio no recuerda nada (chat temporal: cada pregunta abre uno nuevo), así que la próxima
+  pregunta le manda TODOS los bloques guardados como transcripción (`transcript`) y la pregunta nueva al final.
+  **Cualquier bloque se borra** con su tacho (aparece al pasar el mouse), sin confirmación: así se saca contexto que
+  no aporta y se queda sólo lo que sirve. Arriba a la derecha, «contexto: N bloques · M caracteres» dice lo que va a
+  viajar. Los bloques de antes no tenían id: se les pone al cargar.
 - **Los modelos** son los de chat que la web ofrece sin «Paid» (`chatModels`, leídos del selector el 2026-11-17); el
   de siempre es Gemini 3.5 Flash Lite. **Cuando Google corta** («Permiso denegado», 403, cuota) la receta deja una
-  pausa de 30 min para TODA la cuenta (`*` en `~/.cache/my-tools/aistudio-pausa.json`): el corte es por el ritmo de la
+  pausa de 1 a 5 min, al azar, para TODA la cuenta (`*` en `~/.cache/my-tools/aistudio-pausa.json`): el corte es por el ritmo de la
   cuenta, no por modelo (Flash Lite contestó a las 9:48 y a las 9:49 ya no, 2026-11-17). Wally muestra hasta qué hora
   y no deja preguntar.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto

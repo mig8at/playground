@@ -68,9 +68,12 @@ export async function waitMediaConsent(page: any) {
 // consultas de prueba en una hora), con la imagen y, después, con Flash Lite: a las 9:48 contestó y a las 9:49, la
 // pregunta siguiente, ya no. No es por modelo: es la CUENTA, por el ritmo. Seguir pidiendo es la forma de que dure
 // más (Miguel: «no intentar durante un tiempo»), así que un error así pausa TODO (`*`) y anota el modelo; mientras
-// dure, ninguna receta abre AI Studio (`--force` la saltea).
+// dure, ninguna receta abre AI Studio (`--force` la saltea). Cuánto: AL AZAR ENTRE 1 Y 5 MIN (Miguel, 2026-11-17: la
+// primera versión fijaba 30 min, un número sin medir, y era demasiado). Nadie sabe cuánto dura el corte de Google; la
+// pausa sólo evita insistir en el acto.
 export const PAUSE_FILE = path.join(os.homedir(), '.cache', 'my-tools', 'aistudio-pausa.json');
-const PAUSE_MINUTES = 30;
+/** La pausa: entre 1 y 5 min, al azar (que no vuelva todo al mismo segundo). */
+const pauseMs = () => (60 + Math.floor(Math.random() * 241)) * 1000;
 const LIMIT_ERROR = /permiso denegado|permission|denied|\b403\b|\b429\b|quota|cuota|rate.?limit|l[ií]mite|exceeded|too many|resource.?exhausted/i;
 
 type Pause = { until: number; reason: string; at: string };
@@ -86,7 +89,7 @@ export function currentPauses(): Record<string, Pause> {
 /** Si el error es de Google cortando (permiso, cuota, límite), pausa ese modelo. Devuelve el mensaje, con la pausa dicha. */
 export function noteFailure(message: string, model: string): string {
     if (!LIMIT_ERROR.test(message)) return message;
-    const until = Date.now() + PAUSE_MINUTES * 60_000;
+    const until = Date.now() + pauseMs();
     const pauses = currentPauses();
     const pause = { until, reason: message.slice(0, 300), at: new Date().toISOString() };
     pauses['*'] = { ...pause, reason: `${model}: ${pause.reason}` };
@@ -94,7 +97,8 @@ export function noteFailure(message: string, model: string): string {
     fs.mkdirSync(path.dirname(PAUSE_FILE), { recursive: true });
     fs.writeFileSync(PAUSE_FILE, JSON.stringify(pauses, null, 2));
     const hour = new Date(until).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-    return `${message}\n  ⏸ Google está cortando: bin/aistudio queda en pausa ${PAUSE_MINUTES} min, con todos los modelos (hasta las ${hour}). `
+    const minutes = Math.round((until - Date.now()) / 60_000) || 1;
+    return `${message}\n  ⏸ Google está cortando: bin/aistudio queda en pausa ${minutes} min, con todos los modelos (hasta las ${hour}). `
         + 'Antes de volver, probá a mano en aistudio.google.com. --force la saltea';
 }
 
@@ -103,8 +107,9 @@ export async function openChrome(model?: string) {
     const all = currentPauses();
     const pause = all['*'] || (model ? all[model] : undefined);
     if (pause && !has('force')) {
-        const left = Math.ceil((pause.until - Date.now()) / 60_000);
-        console.error(`  ⏸ bin/aistudio está en pausa ${left} min más: ${pause.reason.split('\n')[0]}`);
+        const left = Math.ceil((pause.until - Date.now()) / 1000);
+        const wait = left >= 60 ? `${Math.floor(left / 60)} min ${left % 60} s` : `${left} s`;
+        console.error(`  ⏸ bin/aistudio está en pausa ${wait} más: ${pause.reason.split('\n')[0]}`);
         console.error(`    (para no insistirle a Google con la cuenta cortada; --force la saltea · ${PAUSE_FILE})`);
         process.exit(3);
     }

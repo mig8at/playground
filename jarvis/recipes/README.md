@@ -147,7 +147,7 @@ respuesta en Markdown.
   «Permiso denegado. Verifica los permisos de tu cuenta y la configuración del proyecto» con Hydrogen, la voz un 403,
   la imagen lo mismo, y Flash Lite contestó a las 9:48 y a las 9:49 ya no. Es para usarla de a una, no en tandas. El
   error sale en rojo dentro del turno (`.model-error`) o en el aviso de abajo (`mat-snack-bar-container`): las recetas
-  lo cortan ahí con su texto y dejan **una pausa de 30 min para toda la cuenta** (`*` en
+  lo cortan ahí con su texto y dejan **una pausa de 1 a 5 min, al azar, para toda la cuenta** (`*` en
   `~/.cache/my-tools/aistudio-pausa.json`); mientras dure, `bin/aistudio` sale con 3 sin abrir AI Studio (`--force`
   la saltea) y Wally no deja preguntar.
 - **El aviso de multimedia lo acepta la persona**: si aparece, la receta trae la pestaña al frente, avisa y espera 5

@@ -5,7 +5,7 @@
 //
 // Cada pregunta abre un chat NUEVO en AI Studio: la conversación anterior viaja en el texto, como transcripción. Las
 // preguntas van de a una (Jarvis maneja una pestaña por vez), y cuando Google corta («Permiso denegado», 403, cuota)
-// la receta deja una pausa de 30 min para toda la cuenta (`~/.cache/my-tools/aistudio-pausa.json`): Wally la muestra
+// la receta deja una pausa de 1 a 5 min, al azar, para toda la cuenta (`~/.cache/my-tools/aistudio-pausa.json`): Wally la muestra
 // y no deja preguntar hasta que vence.
 //
 //	go run ./wally/server -serve 127.0.0.1:5229
@@ -48,6 +48,7 @@ func main() {
 	mux.HandleFunc("GET /api/conversations", a.list)
 	mux.HandleFunc("GET /api/conversations/{id}", a.get)
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
+	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
 	log.Printf("wally: API en http://%s", *serve)
 	log.Fatal(http.ListenAndServe(*serve, mux))
@@ -73,8 +74,11 @@ func repoRoot() (string, error) {
 
 // ── lo guardado ──────────────────────────────────────────────────────────────────────────────────────
 
-// Message es un turno guardado. Los de Gemini dicen con qué modelo salieron y cuánto tardaron.
+// Message es un BLOQUE guardado: una pregunta tuya (user) o una respuesta (model). Las respuestas dicen con qué modelo
+// salieron y cuánto tardaron. Cada bloque se puede borrar por su id: lo que queda es el contexto que viaja en la
+// próxima pregunta (AI Studio no recuerda nada: el chat es temporal y cada pregunta abre uno nuevo).
 type Message struct {
+	ID    string    `json:"id"`
 	Role  string    `json:"role"` // user · model
 	Text  string    `json:"text"`
 	Model string    `json:"model,omitempty"`
@@ -111,8 +115,19 @@ func (s *store) load() error {
 	if err := json.Unmarshal(raw, &list); err != nil {
 		return fmt.Errorf("%s no es JSON válido: %w", s.file, err)
 	}
+	fixed := false
 	for _, c := range list {
+		// Los bloques de antes de que se pudieran borrar no tenían id: se les pone uno, una vez.
+		for i := range c.Messages {
+			if c.Messages[i].ID == "" {
+				c.Messages[i].ID = newID()
+				fixed = true
+			}
+		}
 		s.convs[c.ID] = c
+	}
+	if fixed {
+		return s.save()
 	}
 	return nil
 }
@@ -264,6 +279,36 @@ func (a *app) remove(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, 200, map[string]bool{"ok": true})
 }
 
+// removeMessage borra UN bloque (una pregunta o una respuesta) para sacarlo del contexto de las próximas preguntas.
+// La conversación queda aunque se vacíe: se borra entera con su propio DELETE.
+func (a *app) removeMessage(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	c, ok := a.store.convs[r.PathValue("id")]
+	if !ok {
+		writeErr(w, 404, errors.New("no existe esa conversación"))
+		return
+	}
+	mid := r.PathValue("mid")
+	kept := c.Messages[:0:0]
+	for _, m := range c.Messages {
+		if m.ID != mid {
+			kept = append(kept, m)
+		}
+	}
+	if len(kept) == len(c.Messages) {
+		writeErr(w, 404, errors.New("no existe ese bloque"))
+		return
+	}
+	c.Messages = kept
+	c.Updated = time.Now()
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
 // transcript arma lo que se le manda a AI Studio: cada pregunta abre un chat nuevo, así que la conversación anterior
 // viaja como texto antes de la pregunta.
 func transcript(history []Message, question string) string {
@@ -386,8 +431,8 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	c.Model = in.Model
 	c.Updated = done
 	c.Messages = append(c.Messages,
-		Message{Role: "user", Text: in.Text, At: asked},
-		Message{Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done})
+		Message{ID: newID(), Role: "user", Text: in.Text, At: asked},
+		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done})
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
 		return

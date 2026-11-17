@@ -34,10 +34,15 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 .editor { display: flex; flex-direction: column }
 .thread { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-6) }
 .thread > .empty { flex: 1 }
-.bubble { align-self: flex-end; max-width: min(75%, 640px); padding: var(--space-2) var(--space-3);
+.bubble { align-self: flex-end; max-width: min(75%, 640px); min-width: 0; padding: var(--space-2) var(--space-3);
   border-radius: var(--radius-lg); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5;
   background: var(--accent); color: var(--accent-foreground) }
 .answer { max-width: 760px; line-height: 1.6 }
+/* UN BLOQUE (pregunta o respuesta) se borra con su tacho, que aparece al pasar por encima. */
+.block-user { align-self: flex-end; display: flex; align-items: flex-start; gap: var(--space-1); max-width: min(75%, 640px) }
+.block-user .bubble { max-width: none }
+.block-del { flex: none; opacity: 0 }
+.block:hover .block-del, .block-del:focus-visible { opacity: 1 }
 .answer-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1);
   font-size: var(--text-xs); color: var(--fg-3) }
 .thinking { margin: 0; color: var(--fg-3); font-size: var(--text-sm); font-variant-numeric: tabular-nums }
