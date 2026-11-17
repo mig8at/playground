@@ -207,12 +207,33 @@ type part = map[string]any
 // Ask corre el bucle hasta que el modelo conteste, una herramienta terminal entregue, o se acaben los
 // pasos. `trace` (puede ser nil) recibe cada paso, para que se vea cuánto se acumula.
 func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trace func(string)) (any, error) {
+	return cl.Converse([]Turn{{Role: "user", Text: question}}, instructions, tools, trace)
+}
+
+// Turn es un mensaje de una conversación: `user` (la persona) o `model` (Gemini).
+type Turn struct {
+	Role string `json:"role"`
+	Text string `json:"text"`
+}
+
+// Converse es Ask con la conversación anterior: el modelo ve todos los turnos y contesta el último, que tiene que
+// ser de `user`. La API no guarda nada entre llamadas, así que el historial viaja entero cada vez.
+func (cl *Client) Converse(history []Turn, instructions string, tools map[string]Tool, trace func(string)) (any, error) {
 	say := func(format string, args ...any) {
 		if trace != nil {
 			trace(fmt.Sprintf(format, args...))
 		}
 	}
-	contents := []map[string]any{{"role": "user", "parts": []part{{"text": question}}}}
+	if len(history) == 0 || history[len(history)-1].Role != "user" {
+		return nil, errors.New("la conversación tiene que terminar en una pregunta (un turno de user)")
+	}
+	contents := make([]map[string]any, 0, len(history))
+	for _, t := range history {
+		if t.Role != "user" && t.Role != "model" {
+			return nil, fmt.Errorf("turno con rol «%s»: va user o model", t.Role)
+		}
+		contents = append(contents, map[string]any{"role": t.Role, "parts": []part{{"text": t.Text}}})
+	}
 	base := map[string]any{}
 	if len(tools) > 0 {
 		names := make([]string, 0, len(tools))

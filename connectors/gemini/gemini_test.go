@@ -150,3 +150,19 @@ func TestAnUnknownThinkingLevelFailsBeforeCalling(t *testing.T) {
 		t.Fatalf("tenía que fallar sin llamar: %v", err)
 	}
 }
+
+// Una conversación viaja entera: cada turno anterior va en `contents`, con su rol, y se contesta el último.
+func TestConverseSendsTheWholeHistory(t *testing.T) {
+	cl, bodies := fake(t, sayText)
+	out, err := cl.Converse([]Turn{{Role: "user", Text: "2+3"}, {Role: "model", Text: "5"}, {Role: "user", Text: "¿y por 2?"}}, "", nil, nil)
+	if err != nil || out != "da 5" {
+		t.Fatalf("%v %v", out, err)
+	}
+	contents := (*bodies)[0]["contents"].([]any)
+	if len(contents) != 3 || contents[1].(map[string]any)["role"] != "model" {
+		t.Errorf("contents: %v", contents)
+	}
+	if _, err := cl.Converse([]Turn{{Role: "model", Text: "hola"}}, "", nil, nil); err == nil {
+		t.Error("una conversación que no termina en user tenía que fallar")
+	}
+}

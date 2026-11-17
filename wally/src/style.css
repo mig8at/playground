@@ -1,0 +1,66 @@
+/* EL VOCABULARIO VISUAL DE WALLY.
+ *
+ * Las mismas capas que las demás herramientas, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo acá: la
+ * conversación (la pregunta en globo, la respuesta como documento) y el campo para preguntar.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./theme.css";
+@import "./workbench.css";
+
+/* El contrato de la base: la página ocupa la ventana y no scrollea; scrollea cada región. */
+html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
+  font-family: var(--font-sans); font-size: var(--text-base) }
+#app { height: 100% }
+
+.none { margin: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
+.warn-text { color: var(--destructive) }
+.head-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* LAS CONVERSACIONES: la fila entera abre; el tacho aparece al pasar por encima. */
+.conv-row { display: flex; align-items: center; margin: 0 var(--space-1); border-radius: var(--radius-sm) }
+.conv-row:hover { background: var(--hover) }
+.conv-row.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.conv { display: grid; gap: 2px; flex: 1; min-width: 0; padding: var(--space-2); text-align: left; border: 0;
+  background: transparent; color: inherit; cursor: pointer; font: inherit }
+.conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.conv-meta { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.conv-row.on .conv-meta { color: var(--accent-foreground) }
+.conv-del { flex: none; margin-right: var(--space-1); opacity: 0 }
+.conv-row:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
+
+/* LA CONVERSACIÓN: el editor es una columna — el hilo scrollea y el campo queda abajo. */
+.editor { display: flex; flex-direction: column }
+.thread { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-6) }
+.thread > .empty { flex: 1 }
+.bubble { align-self: flex-end; max-width: min(75%, 640px); padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-lg); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5;
+  background: var(--accent); color: var(--accent-foreground) }
+.answer { max-width: 760px; line-height: 1.6 }
+.answer-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1);
+  font-size: var(--text-xs); color: var(--fg-3) }
+.thinking { margin: 0; color: var(--fg-3); font-size: var(--text-sm); font-variant-numeric: tabular-nums }
+
+/* El Markdown de una respuesta. */
+.answer-body > :first-child { margin-top: 0 }
+.answer-body > :last-child { margin-bottom: 0 }
+.answer-body p, .answer-body ul, .answer-body ol, .answer-body pre, .answer-body table, .answer-body blockquote { margin: 0 0 var(--space-3) }
+.answer-body h1, .answer-body h2, .answer-body h3, .answer-body h4 { margin: var(--space-4) 0 var(--space-2); font-size: var(--text-base); font-weight: 600 }
+.answer-body ul, .answer-body ol { padding-left: 1.4em }
+.answer-body li + li { margin-top: 2px }
+.answer-body a { color: var(--primary-ink) }
+.answer-body code { font-family: var(--font-mono); font-size: .92em; padding: 1px 4px; border-radius: var(--radius-sm); background: var(--muted) }
+.answer-body pre { padding: var(--space-3); border-radius: var(--radius-md); background: var(--muted); overflow-x: auto }
+.answer-body pre code { padding: 0; background: transparent }
+.answer-body blockquote { padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--border); color: var(--fg-2) }
+.answer-body table { border-collapse: collapse; font-size: var(--text-sm) }
+.answer-body th, .answer-body td { padding: var(--space-1) var(--space-3) var(--space-1) 0; text-align: left; border-bottom: 1px solid var(--border) }
+.answer-body th { color: var(--fg-2); font-weight: 600 }
+
+/* EL CAMPO PARA PREGUNTAR, con el modelo y «Preguntar» debajo. */
+.composer { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border) }
+.composer textarea.input { min-height: 64px; max-height: 40vh; resize: none }
+.composer-bar { display: flex; align-items: center; gap: var(--space-2) }
+.model-select { flex: 0 1 280px }
+.composer-bar .btn { margin-left: auto }
