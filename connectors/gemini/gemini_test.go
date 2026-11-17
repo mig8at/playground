@@ -103,3 +103,50 @@ func TestModelsKeepsOnlyTheOnesThatGenerate(t *testing.T) {
 		t.Errorf("models=%v err=%v", ms, err)
 	}
 }
+
+// Los ajustes de AI Studio llegan a la API con los nombres de su JSON, y la respuesta muestra el código que
+// corrió, su salida y las fuentes de la búsqueda.
+func TestOptionsReachTheBodyAndTheAnswerShowsCodeAndSources(t *testing.T) {
+	reply := `{"candidates":[{"content":{"parts":[
+		{"text":"pensando","thought":true},
+		{"text":"Calculo:"},
+		{"executableCode":{"language":"PYTHON","code":"print(2+3)"}},
+		{"codeExecutionResult":{"outcome":"OUTCOME_OK","output":"5"}}]},
+		"groundingMetadata":{"webSearchQueries":["dos más tres"],"groundingChunks":[{"web":{"uri":"https://x.test","title":"x.test"}}]}}]}`
+	cl, bodies := fake(t, reply)
+	cl.Options = Options{Thinking: "High", Search: true, URLContext: true, Code: true,
+		Schema: map[string]any{"type": "object"}}
+	out, err := cl.Ask("¿2+3?", "", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b := (*bodies)[0]
+	gen := b["generationConfig"].(map[string]any)
+	if gen["thinkingConfig"].(map[string]any)["thinkingLevel"] != "high" || gen["responseMimeType"] != "application/json" ||
+		gen["responseJsonSchema"] == nil {
+		t.Errorf("generationConfig: %v", gen)
+	}
+	raw, _ := json.Marshal(b["tools"])
+	for _, k := range []string{"google_search", "url_context", "code_execution"} {
+		if !strings.Contains(string(raw), k) {
+			t.Errorf("falta %s en tools: %s", k, raw)
+		}
+	}
+	s := out.(string)
+	for _, want := range []string{"Calculo:", "print(2+3)", "5", "Fuentes (buscó: dos más tres)", "https://x.test"} {
+		if !strings.Contains(s, want) {
+			t.Errorf("falta %q en:\n%s", want, s)
+		}
+	}
+	if strings.Contains(s, "pensando") {
+		t.Error("los pensamientos no se muestran")
+	}
+}
+
+func TestAnUnknownThinkingLevelFailsBeforeCalling(t *testing.T) {
+	cl, bodies := fake(t)
+	cl.Options.Thinking = "máximo"
+	if _, err := cl.Ask("x", "", nil, nil); err == nil || len(*bodies) != 0 {
+		t.Fatalf("tenía que fallar sin llamar: %v", err)
+	}
+}

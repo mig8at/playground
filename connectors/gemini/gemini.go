@@ -70,10 +70,29 @@ func LoadConfig() (Config, error) {
 	return c, nil
 }
 
+// Options son los ajustes que AI Studio muestra en «Run settings» y que la API recibe por llamada. Todos
+// opcionales: el cero es lo que la API hace por defecto. «Get code» en AI Studio da el mismo JSON, así que
+// lo que se prueba en la interfaz se pasa acá sin traducir.
+type Options struct {
+	// Thinking es el nivel de razonamiento (`thinkingConfig.thinkingLevel`): low, medium o high. Vacío deja
+	// el del modelo (en AI Studio, High).
+	Thinking string
+	// Search: «Grounding with Google Search». El modelo busca en la web y la respuesta trae sus fuentes.
+	Search bool
+	// URLContext: «URL context». El modelo lee las URLs que aparecen en la pregunta.
+	URLContext bool
+	// Code: «Code execution». El modelo escribe Python y la API lo CORRE (en Google, no acá); el código y su
+	// salida vuelven en la respuesta.
+	Code bool
+	// Schema: «Structured outputs». Un JSON Schema; la respuesta sale como JSON que lo cumple.
+	Schema map[string]any
+}
+
 // Client habla con la API.
 type Client struct {
-	HTTP   *http.Client
-	Config Config
+	HTTP    *http.Client
+	Config  Config
+	Options Options
 }
 
 // New arma el cliente.
@@ -210,6 +229,9 @@ func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trac
 	if instructions != "" {
 		base["system_instruction"] = map[string]any{"parts": []part{{"text": instructions}}}
 	}
+	if err := cl.Options.apply(base); err != nil {
+		return nil, err
+	}
 	for step := 1; step <= cl.Config.MaxSteps; step++ {
 		body := map[string]any{"contents": contents}
 		for k, v := range base {
@@ -223,6 +245,7 @@ func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trac
 				Content struct {
 					Parts []part `json:"parts"`
 				} `json:"content"`
+				Grounding grounding `json:"groundingMetadata"`
 			} `json:"candidates"`
 		}
 		if err := cl.request("models/"+cl.Config.Model+":generateContent", body, &r); err != nil {
@@ -240,14 +263,9 @@ func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trac
 			}
 		}
 		if len(calls) == 0 {
-			var text strings.Builder
-			for _, p := range parts {
-				if t, ok := p["text"].(string); ok {
-					text.WriteString(t)
-				}
-			}
 			say("contestó en el paso %d", step)
-			if s := strings.TrimSpace(text.String()); s != "" {
+			s := strings.TrimSpace(render(parts) + r.Candidates[0].Grounding.sources())
+			if s != "" {
 				return s, nil
 			}
 			return "(el modelo no devolvió texto)", nil
@@ -280,4 +298,94 @@ func (cl *Client) Ask(question, instructions string, tools map[string]Tool, trac
 	}
 	return nil, fmt.Errorf("sin respuesta: se agotaron los %d pasos. Subí MAX_PASOS, o mirá si el modelo pide "+
 		"la misma herramienta en círculo — suele ser una descripción que no dice bien qué devuelve", cl.Config.MaxSteps)
+}
+
+// apply pone las opciones en el cuerpo de la llamada. Las herramientas de Google (búsqueda, URLs, código) van
+// en el mismo arreglo `tools` que las funciones propias, cada una como su propio objeto.
+func (o Options) apply(body map[string]any) error {
+	gen := map[string]any{}
+	switch strings.ToLower(o.Thinking) {
+	case "":
+	case "low", "medium", "high", "minimal":
+		gen["thinkingConfig"] = map[string]any{"thinkingLevel": strings.ToLower(o.Thinking)}
+	default:
+		return fmt.Errorf("nivel de razonamiento «%s»: va low, medium o high", o.Thinking)
+	}
+	if o.Schema != nil {
+		gen["responseMimeType"] = "application/json"
+		gen["responseJsonSchema"] = o.Schema
+	}
+	if len(gen) > 0 {
+		body["generationConfig"] = gen
+	}
+	tools, _ := body["tools"].([]map[string]any)
+	if o.Search {
+		tools = append(tools, map[string]any{"google_search": map[string]any{}})
+	}
+	if o.URLContext {
+		tools = append(tools, map[string]any{"url_context": map[string]any{}})
+	}
+	if o.Code {
+		tools = append(tools, map[string]any{"code_execution": map[string]any{}})
+	}
+	if len(tools) > 0 {
+		body["tools"] = tools
+	}
+	return nil
+}
+
+// render arma el texto de la respuesta. Con ejecución de código, las partes no son sólo texto: el código que
+// escribió el modelo y lo que dio al correrlo van en bloques, en el orden en que llegaron. Los pensamientos
+// (`thought`) no se muestran.
+func render(parts []part) string {
+	var b strings.Builder
+	for _, p := range parts {
+		if th, _ := p["thought"].(bool); th {
+			continue
+		}
+		if t, ok := p["text"].(string); ok {
+			b.WriteString(t)
+		}
+		if c, ok := p["executableCode"].(map[string]any); ok {
+			code, _ := c["code"].(string)
+			fmt.Fprintf(&b, "\n```python\n%s\n```\n", strings.TrimSpace(code))
+		}
+		if r, ok := p["codeExecutionResult"].(map[string]any); ok {
+			out, _ := r["output"].(string)
+			outcome, _ := r["outcome"].(string)
+			if outcome != "" && outcome != "OUTCOME_OK" {
+				fmt.Fprintf(&b, "(la ejecución terminó en %s)\n", outcome)
+			}
+			fmt.Fprintf(&b, "```\n%s\n```\n", strings.TrimSpace(out))
+		}
+	}
+	return b.String()
+}
+
+// grounding es lo que la búsqueda de Google deja en la respuesta: las páginas en que se apoyó.
+type grounding struct {
+	Chunks []struct {
+		Web struct {
+			URI   string `json:"uri"`
+			Title string `json:"title"`
+		} `json:"web"`
+	} `json:"groundingChunks"`
+	Queries []string `json:"webSearchQueries"`
+}
+
+// sources las lista debajo de la respuesta: una respuesta con búsqueda sin sus fuentes no se puede verificar.
+func (g grounding) sources() string {
+	if len(g.Chunks) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("\n\nFuentes")
+	if len(g.Queries) > 0 {
+		fmt.Fprintf(&b, " (buscó: %s)", strings.Join(g.Queries, " · "))
+	}
+	b.WriteString(":\n")
+	for i, c := range g.Chunks {
+		fmt.Fprintf(&b, "  %d. %s — %s\n", i+1, c.Web.Title, c.Web.URI)
+	}
+	return b.String()
 }

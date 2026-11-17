@@ -13,7 +13,8 @@
 //	pg elevenlabs usage | voices [--gender female]              el saldo y las voces de ElevenLabs
 //	pg elevenlabs say --voice <nombre|id> --text '…' --out f.mp3  un texto a voz (gasta créditos)
 //	pg gemini models                                           los modelos que la llave puede usar hoy
-//	pg gemini ask --prompt '…' [--system '…']                  una pregunta, sin herramientas
+//	pg gemini ask --prompt '…' [--system '…'] [--model M] [--thinking low|medium|high] [--search] [--url-context] [--code] [--schema JSON|@archivo]
+//	                                                           una pregunta, con los ajustes de AI Studio
 //	pg confluence spaces | pages <clave> | read <id> | search <texto>   la documentación de negocio
 //	pg jira myself | search | create | delete                  Jira; las que escriben piden --apply
 //	pg slack post | channel-create | channel-archive           Slack como el bot; piden --apply
@@ -672,6 +673,12 @@ func runGeminiAsk(args []string) int {
 	fs := flag.NewFlagSet("gemini ask", flag.ContinueOnError)
 	prompt := fs.String("prompt", "", "la pregunta")
 	system := fs.String("system", "", "instrucciones de sistema (opcional)")
+	model := fs.String("model", "", "el modelo, si no es el de GEMINI_MODEL (bin/pg gemini models los lista)")
+	thinking := fs.String("thinking", "", "nivel de razonamiento: low, medium o high")
+	search := fs.Bool("search", false, "que busque en Google y liste sus fuentes")
+	urls := fs.Bool("url-context", false, "que lea las URLs que aparecen en la pregunta")
+	code := fs.Bool("code", false, "que escriba Python y lo corra (en Google); muestra el código y su salida")
+	schema := fs.String("schema", "", "JSON Schema de la respuesta (el JSON, o @archivo.json): la respuesta sale como JSON")
 	if fs.Parse(args) != nil {
 		return 2
 	}
@@ -682,7 +689,23 @@ func runGeminiAsk(args []string) int {
 	if err != nil {
 		return fail(2, "%v", err)
 	}
-	out, err := gemini.New(cfg).Ask(*prompt, *system, nil, nil)
+	if *model != "" {
+		cfg.Model = *model
+	}
+	cl := gemini.New(cfg)
+	cl.Options = gemini.Options{Thinking: *thinking, Search: *search, URLContext: *urls, Code: *code}
+	if *schema != "" {
+		raw := []byte(*schema)
+		if strings.HasPrefix(*schema, "@") {
+			if raw, err = os.ReadFile(strings.TrimPrefix(*schema, "@")); err != nil {
+				return fail(2, "--schema: %v", err)
+			}
+		}
+		if err := json.Unmarshal(raw, &cl.Options.Schema); err != nil {
+			return fail(2, "--schema no es un JSON válido: %v", err)
+		}
+	}
+	out, err := cl.Ask(*prompt, *system, nil, nil)
 	if err != nil {
 		return fail(1, "Gemini: %v", err)
 	}
