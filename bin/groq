@@ -1,0 +1,10 @@
+#!/bin/sh
+# groq — Groq Chat (el ultra rápido) por su web, en tu Chrome con Jarvis (sin llave de API). Es la receta de
+# jarvis/recipes/groq/; los archivos se leen y se escriben desde donde lo corrés.
+#   bin/groq [ask] --prompt '…' [--file doc.md] [--model openai/gpt-oss-120b] [--out r.md] [--keep] [--json]
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+case "$1" in
+  ask) recipe=$1; shift ;;
+  *) recipe=ask ;;
+esac
+exec node "$root/jarvis/recipes/groq/$recipe.ts" "$@"

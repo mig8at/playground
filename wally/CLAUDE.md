@@ -51,13 +51,14 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 - **La configuración** (el engranaje de la lista, `#/configuracion`; idea de Miguel, 2026-11-17, como la de avisos del
   chat): se guarda en el servidor al tocarla y vale desde la próxima pregunta. **Proveedor**: AI Studio (Gemini 4
   Hydrogen), **DeepSeek** (chat.deepseek.com, `jarvis/recipes/deepseek/`) o **ChatGPT** (chatgpt.com en chat temporal,
-  `jarvis/recipes/chatgpt/`, con su «Pensar»); todos por su web y por el pool,
+  `jarvis/recipes/chatgpt/`, con su «Pensar») o **Groq** (chat.groq.com, el ultra rápido, con GPT OSS 120B o 20B; hasta
+  ~20 mil caracteres); todos por su web y por el pool,
   en el Chrome de Miguel con su sesión. El Thinking level de AI Studio; «Pensamiento Profundo» y «Búsqueda
   inteligente» de DeepSeek; la ventana de Chrome (minimizada, aparte o pestaña), y lo de hoy por modelo (preguntas,
   cortes, media, cupo agotado y pausa). ⚠ **Los agentes y el asistente sólo van por AI Studio** aunque se elija otro
   (`providerFor`), salvo que se marque «Permitir» (`agentsOther`; antes `agentsDeepSeek`, que se migra solo): llevan
   contexto interno de CreditOp, que DeepSeek guarda en China (y deja en el historial) y ChatGPT puede guardar 30 días;
-  y ChatGPT gratis no acepta los ~77 mil caracteres de un agente (sí ~40 mil). Medido el 2026-11-17 con DeepSeek
+  y ChatGPT gratis no acepta los ~77 mil caracteres de un agente (sí ~40 mil), ni Groq más de ~20 mil. Medido el 2026-11-17 con DeepSeek
   elegido: un chat contestó por DeepSeek en 8,7 s y Pikachu fue por AI Studio (y dio la pausa de Hydrogen).
 - **Un solo modelo por proveedor: Gemini 4 Hydrogen con «Thinking level: High»** (Miguel, la tarde del 2026-11-17: «no le veo
   necesidad de usar el 3.8»), para el chat, los agentes y `bin/aistudio`. Con un solo modelo la interfaz no muestra

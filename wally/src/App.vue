@@ -170,11 +170,13 @@ const PROVIDERS = [
   { id: 'aistudio', name: 'AI Studio', note: 'Gemini 4 Hydrogen por la web de Google, con tu cuenta. Cupo diario por modelo.' },
   { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
   { id: 'chatgpt', name: 'ChatGPT', note: 'chatgpt.com en chat temporal: no queda en tu historial (puede guardar una copia 30 días). Gratis: hasta ~40 mil caracteres.' },
+  { id: 'groq', name: 'Groq', note: 'chat.groq.com: el ultra rápido (~480 tokens/s), modelos abiertos. Sin historial. Hasta ~20 mil caracteres: para lo corto.' },
 ]
+const GROQ_MODELS = { 'openai/gpt-oss-120b': 'GPT OSS 120B', 'openai/gpt-oss-20b': 'GPT OSS 20B' }
 const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
 // El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
-const providerName = computed(() => ({ 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT' })[models.value[0]?.name] || 'AI Studio')
-const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT' }
+const providerName = computed(() => ({ 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web': 'Groq' })[models.value[0]?.name] || 'AI Studio')
+const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web:openai/gpt-oss-120b': 'Groq · GPT OSS 120B', 'groq-web:openai/gpt-oss-20b': 'Groq · GPT OSS 20B' }
 
 // ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
 // tener al día el contexto de una parte, p. ej. KYC), que lleva siempre precargados sus temas de knowledge y el estado
@@ -743,6 +745,16 @@ onBeforeUnmount(() => {
             <div class="config-row">
               <span class="label">Pensar</span>
               <button type="button" class="switch" role="switch" :aria-checked="config.chatgptThink" aria-label="Pensar" @click="saveConfig({ chatgptThink: !config.chatgptThink })"></button>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>Groq</b><span>El ultra rápido: el modelo abierto que corre en su chip.</span></div>
+            <div class="config-row">
+              <span class="label">Modelo</span>
+              <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Modelo de Groq">
+                <button v-for="(label, m) in GROQ_MODELS" :key="m" type="button" class="toggle" role="radio" :aria-checked="config.groqModel === m" :aria-pressed="config.groqModel === m" @click="saveConfig({ groqModel: m })">{{ label }}</button>
+              </div>
             </div>
           </div>
 

@@ -21,6 +21,7 @@ import readline from 'node:readline';
 import { askOn, currentPauses, noteFailure, openWorkPage, windowMode, type Thinking, type WindowMode } from './page.ts';
 import { askDeepSeek } from '../deepseek/page.ts';
 import { askChatGPT } from '../chatgpt/page.ts';
+import { askGroq } from '../groq/page.ts';
 
 const MAX = Number(process.env.WALLY_POOL_MAX || 2);
 const GAP_MS = Number(process.env.WALLY_POOL_GAP || 20) * 1000;
@@ -28,7 +29,7 @@ const IDLE_MS = 20_000;
 
 // Desde el 2026-11-17 también DeepSeek: `provider` elige la receta, y la configuración de Wally viaja en cada pregunta
 // (el nivel de AI Studio, los interruptores de DeepSeek, la ventana).
-type Job = { id: string; provider?: 'aistudio' | 'deepseek' | 'chatgpt'; model: string; text: string; timeout?: number; chatgptThink?: boolean;
+type Job = { id: string; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string;
     thinking?: Thinking; deepThink?: boolean; search?: boolean; window?: WindowMode };
 const queue: Job[] = [];
 let active = 0;
@@ -85,7 +86,7 @@ function openPage(b: any, mode?: WindowMode): Promise<any> {
 
 async function run(job: Job) {
     // DeepSeek y ChatGPT anotan su uso ellos mismos y no tocan la pausa de AI Studio.
-    const deepseek = job.provider === 'deepseek' || job.provider === 'chatgpt';
+    const deepseek = job.provider === 'deepseek' || job.provider === 'chatgpt' || job.provider === 'groq';
     // La pausa «*» es la de la cuenta de AI Studio: no frena a DeepSeek.
     const pause = (deepseek ? undefined : currentPauses()['*']) || currentPauses()[job.model];
     if (pause) {
@@ -98,7 +99,10 @@ async function run(job: Job) {
         const b = await connect();
         page = await openPage(b, job.window);
         const say = (s: string) => log(`${job.id}: ${s}`);
-        if (job.provider === 'chatgpt') {
+        if (job.provider === 'groq') {
+            const r = await askGroq(page, job.text, { model: job.groqModel || undefined, timeoutMs: (job.timeout || 300) * 1000, log: say });
+            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
+        } else if (job.provider === 'chatgpt') {
             const r = await askChatGPT(page, job.text, { think: !!job.chatgptThink, timeoutMs: (job.timeout || 600) * 1000, log: say });
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
         } else if (deepseek) {

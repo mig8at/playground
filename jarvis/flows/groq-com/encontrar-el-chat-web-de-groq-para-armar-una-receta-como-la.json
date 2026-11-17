@@ -1,0 +1,102 @@
+{
+  "name": "Encontrar el chat web de Groq para armar una receta como la de AI Studio",
+  "meta": "Encontrar el chat web de Groq para armar una receta como la de AI Studio",
+  "start": "https://groq.com",
+  "device": "chrome",
+  "created": "2026-11-17T16:07:20.647137-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-17_16-05-44",
+  "steps": [
+    {
+      "action": "goto",
+      "target": "https://chat.groq.com",
+      "value": "https://chat.groq.com",
+      "instruction": "Abrí https://chat.groq.com",
+      "why": "Busco dónde está el chat de Groq",
+      "code": "page.goto('https://chat.groq.com')"
+    },
+    {
+      "action": "goto",
+      "target": "https://console.groq.com/playground",
+      "value": "https://console.groq.com/playground",
+      "instruction": "Abrí https://console.groq.com/playground",
+      "code": "page.goto('https://console.groq.com/playground')"
+    },
+    {
+      "action": "goto",
+      "target": "https://chat.groq.com",
+      "value": "https://chat.groq.com",
+      "instruction": "Abrí https://chat.groq.com",
+      "code": "page.goto('https://chat.groq.com')"
+    },
+    {
+      "action": "press",
+      "target": "Canopy Labs Orpheus Arabic Saudi",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «Canopy Labs Orpheus Arabic Saudi»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Canopy Labs Orpheus Arabic Saudi",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Canopy Labs Orpheus Arabic Saudi', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Canopy Labs Orpheus Arabic Saudi', exact: true }).press('Enter')"
+    },
+    {
+      "action": "goto",
+      "target": "https://chat.groq.com/?model=openai/gpt-oss-120b",
+      "value": "https://chat.groq.com/?model=openai/gpt-oss-120b",
+      "instruction": "Abrí https://chat.groq.com/?model=openai/gpt-oss-120b",
+      "code": "page.goto('https://chat.groq.com/?model=openai/gpt-oss-120b')"
+    },
+    {
+      "action": "fill",
+      "target": "Try it",
+      "value": "Respondé sólo con la palabra: listo",
+      "instruction": "Escribí «Respondé sólo con la palabra: listo» en «Try it»",
+      "param": "Try it",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Try it",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Try it', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Try it', exact: true }).fill('Respondé sólo con la palabra: listo')"
+    },
+    {
+      "action": "press",
+      "target": "Try it",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «Try it»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Try it",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Try it', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Try it', exact: true }).press('Enter')"
+    },
+    {
+      "action": "expect",
+      "target": "listo",
+      "value": "listo",
+      "instruction": "Comprobá que se vea «listo»",
+      "code": "expect(page.getByText('listo').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

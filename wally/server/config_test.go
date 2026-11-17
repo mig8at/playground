@@ -18,6 +18,8 @@ func TestProviderFor(t *testing.T) {
 		{Config{Provider: "aistudio"}, "", false, "aistudio"},
 		{Config{Provider: "chatgpt"}, "", false, "chatgpt"},
 		{Config{Provider: "chatgpt"}, "asistente", true, "aistudio"},
+		{Config{Provider: "groq"}, "", false, "groq"},
+		{Config{Provider: "groq"}, "asistente", true, "aistudio"},
 	}
 	for _, c := range cases {
 		if got := c.cfg.providerFor(c.mode, c.agent); got != c.want {

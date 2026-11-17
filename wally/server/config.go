@@ -27,6 +27,8 @@ type Config struct {
 	Search    bool `json:"search"`
 	// ChatGPTThink: el «Pensar» de ChatGPT.
 	ChatGPTThink bool `json:"chatgptThink"`
+	// GroqModel: el modelo de Groq Chat (el ultra rápido), su id en la URL.
+	GroqModel string `json:"groqModel"`
 	// AgentsOther: si los agentes y el asistente pueden ir por un proveedor que no sea AI Studio. Apagado: llevan
 	// contexto interno de CreditOp (knowledge, código de main), que DeepSeek guarda en China y ChatGPT puede guardar
 	// 30 días; además, ChatGPT gratis no acepta mensajes de ~77 mil caracteres (sí ~40 mil). Siguen por AI Studio.
@@ -37,13 +39,17 @@ type Config struct {
 	Window string `json:"window"`
 }
 
-var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: true, Search: false, Window: "minimized"}
+var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
+
+// groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia).
+var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
 
 // Los modelos que puede usar Wally, por proveedor: el nombre es lo que queda en cada respuesta.
 var providerModels = map[string]Model{
 	"aistudio": {Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "AI Studio"},
 	"deepseek": {Name: "deepseek-web", DisplayName: "DeepSeek", Note: "chat.deepseek.com"},
 	"chatgpt":  {Name: "chatgpt-web", DisplayName: "ChatGPT", Note: "chatgpt.com, chat temporal"},
+	"groq":     {Name: "groq-web", DisplayName: "Groq", Note: "chat.groq.com, el ultra rápido"},
 }
 
 type configStore struct {
@@ -78,6 +84,13 @@ func (c Config) valid() Config {
 	case "Low", "Medium", "High":
 	default:
 		c.Thinking = defaultConfig.Thinking
+	}
+	ok := false
+	for _, m := range groqModels {
+		ok = ok || m == c.GroqModel
+	}
+	if !ok {
+		c.GroqModel = defaultConfig.GroqModel
 	}
 	switch c.Window {
 	case "minimized", "aside", "tab":

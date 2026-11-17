@@ -188,6 +188,18 @@ siempre un `section[role=dialog]` invisible y el análisis de Jarvis creía que 
 |---|---|---|
 | `ask` | **una pregunta a ChatGPT**: chat temporal → «Pensar» si se pide → el texto en su editor (ProseMirror) → «Enviar» → espera a que el turno diga `complete` → la respuesta con su «Copiar» interceptado ANTES de que cargue la página (después ya no se ve la copia). También `bin/chatgpt`. Medido el 2026-11-17, plan gratis: una pregunta corta en 7 a 17 s, en Markdown; ~40 mil caracteres en 6,5 s (encontró la clave escondida); con ~77 mil contestó «Algo salió mal» y la receta lo corta al instante | `--prompt` · `--file` · stdin · `--think` · `--keep-history` (un chat normal) · `--out` · `--keep` · `--timeout 600` · `--json` |
 
+## Groq (el ultra rápido, por su web: chat.groq.com)
+
+Groq corre modelos abiertos en su chip (LPU) a ~480 tokens por segundo. groq.com ya no tiene chat en la portada: está
+en `chat.groq.com`, con el modelo en la URL (`?model=openai/gpt-oss-120b`), sin historial. Se encontró con Jarvis el
+2026-11-17 (`flows/groq-com/`); la receta va por script. ⚠ Para tareas cortas: el chat web acepta hasta ~20 mil
+caracteres (con ~19 mil sí; con ~40 mil, «Something went wrong»). ⚠ La consola de desarrolladores
+(`console.groq.com`) pide entrar con Google: no hace falta para el chat.
+
+| receta | qué hace | parámetros |
+|---|---|---|
+| `ask` | **una pregunta a Groq**: el chat con el modelo por URL → espera a que la página termine de cargar (redibuja el campo y se pierde lo escrito) → escribe y comprueba que quedó entero → Enter → la respuesta del último bloque `.font-inter` (sin el razonamiento plegado) con el primer botón siguiente («copiar») interceptado. También `bin/groq`. Medido el 2026-11-17 con GPT OSS 120B: 6,9 a 7,3 s en total (casi todo es cargar la página; genera a 472-481 tokens/s), en Markdown; encontró la clave escondida con 7,5 y 19 mil caracteres | `--prompt` · `--file` · stdin · `--model <id>` (openai/gpt-oss-120b por defecto; openai/gpt-oss-20b) · `--out` · `--keep` · `--timeout 300` · `--json` |
+
 ## Shopify (tienda de pruebas `creditop-dev-store`)
 
 Credenciales: la app «Jarvis · Admin API (pruebas)» del Dev Dashboard (organización CREDITOP), instalada sólo en

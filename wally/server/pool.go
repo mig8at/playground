@@ -110,6 +110,7 @@ type poolJob struct {
 	DeepThink    bool   `json:"deepThink"`
 	Search       bool   `json:"search"`
 	ChatGPTThink bool   `json:"chatgptThink"`
+	GroqModel    string `json:"groqModel,omitempty"`
 	Window       string `json:"window,omitempty"`
 }
 
@@ -130,7 +131,7 @@ func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
 	ch := make(chan poolAnswer, 1)
 	p.waiting[id] = ch
 	line, _ := json.Marshal(map[string]any{"id": id, "provider": job.Provider, "model": job.Model, "text": job.Text,
-		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "window": job.Window, "timeout": 600})
+		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "groqModel": job.GroqModel, "window": job.Window, "timeout": 600})
 	_, err := p.stdin.Write(append(line, '\n'))
 	p.mu.Unlock()
 	if err != nil {

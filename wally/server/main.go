@@ -399,7 +399,7 @@ func (a *app) askProvider(ctx context.Context, mode string, agent bool, text str
 	provider := cfg.providerFor(mode, agent)
 	model := providerModels[provider].Name
 	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
-		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, Window: cfg.Window})
+		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window})
 	return answer, model, err
 }
 
