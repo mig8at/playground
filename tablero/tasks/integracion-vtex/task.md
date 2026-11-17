@@ -143,10 +143,15 @@ correo: [vtex]
       que es un conector PPF y no una Payment App. Se homologa la 5.2.0 (la 5.2.1 no está publicada y sólo traía la
       ficha de App Store, que no aplica). Depende de: VTEX Payments — el resultado de la validación y si el MPA que
       Creditop ya tiene sigue vigente (los 30 días corren desde el MPA).
-- [ ] Saber cómo se instala `creditop.creditop` en la cuenta de un comercio tras la homologación (si basta con
-      `vtex install` o VTEX tiene que habilitarla por cuenta), y pedir una cuenta de prueba distinta de `creditop`;
-      termina con la respuesta de VTEX escrita acá. Preguntado en el ticket #1484435 el 2026-11-13.
+- [ ] Confirmar con VTEX cómo llega el conector a la cuenta de un comercio: el 2026-11-16 Juan dijo que, publicado,
+      queda «nativo» y se configura desde el admin de cualquier cuenta, sin instalar; el 2026-11-13 había dicho que se
+      restringe instalando la app sólo en las cuentas elegidas. Termina con una sola respuesta escrita acá (y si
+      cualquier cuenta lo ve, saber qué la frena: hoy, que necesita el hash y el token de una sucursal).
       Depende de: VTEX — Juan Alzate.
+- [ ] Decidir si se pide una cuenta VTEX adicional (de tipo QA) para probar como una tienda externa: no la da
+      soporte, se pide con un ticket nuevo desde la cuenta de partner (correo del administrador, nombre, tipo, si usa
+      VTEX IO) y puede costar si el contrato no la incluye. Mientras tanto se prueba en un workspace de `creditop`.
+      Termina con la decisión escrita acá. Depende de: Miguel — si vale el trámite (y quién firma si hay costo).
 - [ ] Decidir qué se hace con la ficha de App Store de la 5.2.1 (vtex#27, en `main` sin publicar): VTEX dice que la
       App Store no acepta conectores de pago; termina con la 5.2.1 publicada sin ella o descartada.
 
