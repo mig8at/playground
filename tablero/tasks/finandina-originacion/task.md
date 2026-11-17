@@ -107,10 +107,8 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   la 149 no tiene regla de mínimo y que el perfil Riesgo Y no tiene piso, así que un 600 cae ahí y sale «Sin
   cupo disponible» (Abel lo aceptó el 17-nov). Termina con la decisión escrita y, si es leer el Advance 1.1, con
   su pendiente de código. Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
-- [ ] Llevar a qa las cuatro fechas de pago de Finandina (una por día de pago del perfil) y el ADR al riel 4:
-  [Creditop-SAS/legacy-backend#1944](https://github.com/Creditop-SAS/legacy-backend/pull/1944), rama
-  `feat/CORE-845-finandina-fechas-y-adr`. En local Finandina ofrece 4 fechas y Credifamilia sus 2, y las dos cierran
-  en 11. Termina con el PR mergeado y las 4 fechas en qa.
+- [x] ~~Llevar a qa las cuatro fechas de pago de Finandina y el ADR al riel 4~~ —
+  [#1944](https://github.com/Creditop-SAS/legacy-backend/pull/1944); en qa la 505114 ofrece 20-dic, 5, 10 y 15 de enero (2026-11-17).
 - [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
