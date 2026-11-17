@@ -2,7 +2,8 @@
  *
  * Las mismas capas que las demás herramientas, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
  * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo acá: la
- * conversación (la pregunta en globo, la respuesta como documento) y el campo para preguntar.
+ * lista con su buscador, la conversación (la pregunta en globo, la respuesta como documento con su código), las
+ * pestañas que esperan respuesta y el campo para preguntar. Las pestañas mismas son las de la base (`.tabs`).
  */
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);
@@ -16,58 +17,94 @@ html, body { margin: 0; height: 100%; overflow: hidden; background: var(--backgr
 
 .none { margin: var(--space-3); color: var(--fg-3); font-size: var(--text-sm) }
 .warn-text { color: var(--destructive) }
-.head-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 
-/* LAS CONVERSACIONES: la fila entera abre; el tacho aparece al pasar por encima. */
-.conv-row { display: flex; align-items: center; margin: 0 var(--space-1); border-radius: var(--radius-sm) }
+/* LA LISTA: el buscador debajo de la banda, y las conversaciones por día. La fila entera abre; el tacho aparece al
+   pasar. Una conversación abierta en una pestaña lleva su punto a la izquierda. */
+.sidebar { display: flex; flex-direction: column }
+.sidebar-search { flex: none; padding: var(--space-2) var(--space-2) var(--space-1) }
+.sidebar-search .input-group { height: var(--control-sm) }
+.sidebar-search .ui-icon { flex: none; color: var(--fg-3) }
+.conv-row { position: relative; display: flex; align-items: center; margin: 0 var(--space-1); border-radius: var(--radius-control) }
 .conv-row:hover { background: var(--hover) }
 .conv-row.on { background: var(--accent); color: var(--accent-foreground); box-shadow: inset 2px 0 0 var(--primary) }
+.conv-row.open:not(.on)::before { content: ""; position: absolute; left: 2px; top: 50%; width: 4px; height: 4px;
+  border-radius: 999px; background: var(--fg-3); translate: 0 -50% }
 .conv { display: grid; gap: 2px; flex: 1; min-width: 0; padding: var(--space-2); text-align: left; border: 0;
   background: transparent; color: inherit; cursor: pointer; font: inherit }
-.conv-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.conv-title { display: flex; align-items: center; gap: var(--space-1); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .conv-meta { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .conv-row.on .conv-meta { color: var(--accent-foreground) }
 .conv-del { flex: none; margin-right: var(--space-1); opacity: 0 }
 .conv-row:hover .conv-del, .conv-del:focus-visible { opacity: 1 }
 
-/* LA CONVERSACIÓN: el editor es una columna — el hilo scrollea y el campo queda abajo. */
+/* La que espera respuesta, en su pestaña y en la lista: un punto que late. */
+.live-dot { flex: none; width: 7px; height: 7px; border-radius: 999px; background: var(--primary); animation: wally-pulse 1.2s ease-in-out infinite }
+@keyframes wally-pulse { 50% { opacity: .3 } }
+
+/* LA CONVERSACIÓN: el editor es una columna — las pestañas, el hilo que scrollea y el campo abajo. */
 .editor { display: flex; flex-direction: column }
-.thread { flex: 1; display: flex; flex-direction: column; gap: var(--space-3); padding: var(--space-4) var(--space-6) }
-.thread > .empty { flex: 1 }
-.bubble { align-self: flex-end; max-width: min(75%, 640px); min-width: 0; padding: var(--space-2) var(--space-3);
-  border-radius: var(--radius-lg); white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5;
-  background: var(--accent); color: var(--accent-foreground) }
-.answer { max-width: 760px; line-height: 1.6 }
-/* UN BLOQUE (pregunta o respuesta) se borra con su tacho, que aparece al pasar por encima. */
-.block-user { align-self: flex-end; display: flex; align-items: flex-start; gap: var(--space-1); max-width: min(75%, 640px) }
-.block-user .bubble { max-width: none }
-.block-del { flex: none; opacity: 0 }
+.editor > .tabs { overflow-x: auto; overflow-y: hidden; scrollbar-width: none }
+.editor > .tabs::-webkit-scrollbar { display: none }
+.tab-label .live-dot { margin-right: 2px }
+.thread { flex: 1; display: flex; flex-direction: column; gap: var(--space-4); padding: var(--space-5, 20px) var(--space-6) }
+.thread > * { width: 100%; max-width: 820px; margin-left: auto; margin-right: auto; box-sizing: border-box }
+.thread > .empty { flex: 1; max-width: none }
+.suggestions { display: flex; flex-wrap: wrap; justify-content: center; gap: var(--space-2); margin-top: var(--space-4) }
+
+/* La pregunta, en globo a la derecha; el tacho aparece a su izquierda al pasar. */
+.block-user { display: flex; justify-content: flex-end; align-items: flex-start; gap: var(--space-1) }
+.bubble { max-width: min(80%, 640px); min-width: 0; padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control) var(--radius-control) 2px var(--radius-control);
+  white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.5; background: var(--accent); color: var(--accent-foreground) }
+.block-del { flex: none; opacity: 0; transition: opacity .12s }
 .block:hover .block-del, .block-del:focus-visible { opacity: 1 }
-.answer-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1);
-  font-size: var(--text-xs); color: var(--fg-3) }
-.thinking { margin: 0; color: var(--fg-3); font-size: var(--text-sm); font-variant-numeric: tabular-nums }
+
+/* La respuesta, como documento: quién contestó arriba, las acciones abajo. */
+.answer { line-height: 1.65 }
+.answer-who { display: flex; align-items: center; gap: var(--space-2); margin-bottom: var(--space-2); font-size: var(--text-xs); color: var(--fg-3) }
+.answer-who b { color: var(--foreground); font-weight: 600 }
+.avatar { display: grid; place-items: center; width: 20px; height: 20px; border-radius: 999px; font-size: 11px; font-weight: 700;
+  background: var(--primary); color: var(--primary-foreground) }
+.answer-meta { display: flex; align-items: center; gap: var(--space-1); margin-top: var(--space-2); margin-left: -6px }
+.answer-meta .btn .ui-icon { width: 14px; height: 14px }
+.typing { display: flex; gap: 5px; padding: var(--space-2) 0 }
+.typing i { width: 7px; height: 7px; border-radius: 999px; background: var(--fg-3); animation: wally-typing 1.2s ease-in-out infinite }
+.typing i:nth-child(2) { animation-delay: .15s }
+.typing i:nth-child(3) { animation-delay: .3s }
+@keyframes wally-typing { 0%, 60%, 100% { transform: translateY(0); opacity: .4 } 30% { transform: translateY(-4px); opacity: 1 } }
 
 /* El Markdown de una respuesta. */
 .answer-body > :first-child { margin-top: 0 }
 .answer-body > :last-child { margin-bottom: 0 }
-.answer-body p, .answer-body ul, .answer-body ol, .answer-body pre, .answer-body table, .answer-body blockquote { margin: 0 0 var(--space-3) }
+.answer-body p, .answer-body ul, .answer-body ol, .answer-body table, .answer-body blockquote, .answer-body .code-block { margin: 0 0 var(--space-3) }
 .answer-body h1, .answer-body h2, .answer-body h3, .answer-body h4 { margin: var(--space-4) 0 var(--space-2); font-size: var(--text-base); font-weight: 600 }
+.answer-body h1, .answer-body h2 { font-size: var(--text-title) }
 .answer-body ul, .answer-body ol { padding-left: 1.4em }
-.answer-body li + li { margin-top: 2px }
+.answer-body li + li { margin-top: 3px }
 .answer-body a { color: var(--primary-ink) }
-.answer-body code { font-family: var(--font-mono); font-size: .92em; padding: 1px 4px; border-radius: var(--radius-sm); background: var(--muted) }
-.answer-body pre { padding: var(--space-3); border-radius: var(--radius-md); background: var(--muted); overflow-x: auto }
-.answer-body pre code { padding: 0; background: transparent }
+.answer-body hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-4) 0 }
+.answer-body code { font-family: var(--font-mono); font-size: .9em; padding: 1px 4px; border-radius: 4px; background: var(--muted) }
 .answer-body blockquote { padding-left: var(--space-3); box-shadow: inset 2px 0 0 var(--border); color: var(--fg-2) }
-.answer-body table { border-collapse: collapse; font-size: var(--text-sm) }
+.answer-body table { border-collapse: collapse; font-size: var(--text-sm); display: block; overflow-x: auto }
 .answer-body th, .answer-body td { padding: var(--space-1) var(--space-3) var(--space-1) 0; text-align: left; border-bottom: 1px solid var(--border) }
 .answer-body th { color: var(--fg-2); font-weight: 600 }
+/* Un bloque de código: el lenguaje y «Copiar» en su cabecera. */
+.code-block { border: 1px solid var(--border); border-radius: var(--radius-control); overflow: hidden; background: var(--muted) }
+.code-head { display: flex; align-items: center; justify-content: space-between; height: 28px; padding: 0 var(--space-1) 0 var(--space-3);
+  border-bottom: 1px solid var(--border); font-size: var(--text-xs); color: var(--fg-3); font-family: var(--font-mono) }
+.code-block pre { margin: 0; padding: var(--space-3); overflow-x: auto; line-height: 1.5 }
+.code-block pre code { padding: 0; background: transparent; font-size: var(--text-sm) }
 
-/* EL CAMPO PARA PREGUNTAR, con el modelo y «Preguntar» debajo. */
-.composer { flex: none; display: grid; gap: var(--space-2); padding: var(--space-3) var(--space-4); border-top: 1px solid var(--border) }
-.composer textarea.input { min-height: 64px; max-height: 40vh; resize: none }
-.composer-bar { display: flex; align-items: center; gap: var(--space-2) }
-.model-select { flex: 0 1 280px }
-.composer-bar .btn { margin-left: auto }
-.paused-note { margin-left: auto; font-size: var(--text-sm); color: var(--destructive) }
-.paused-note + .btn { margin-left: 0 }
+/* EL CAMPO PARA PREGUNTAR: una caja que crece con lo escrito, con el modelo, el contexto y «Preguntar» adentro. */
+.composer { flex: none; padding: var(--space-2) var(--space-4) var(--space-3) }
+.composer-box { max-width: 820px; margin: 0 auto; border: 1px solid var(--input); border-radius: var(--radius-control);
+  background: var(--background); transition: border-color .12s }
+.composer-box:focus-within { border-color: var(--ring) }
+.composer-input { display: block; width: 100%; box-sizing: border-box; min-height: 52px; padding: var(--space-3) var(--space-3) var(--space-1);
+  border: 0; outline: none; resize: none; background: transparent; color: var(--foreground); font: inherit; line-height: 1.5 }
+.composer-input::placeholder { color: var(--fg-3) }
+.composer-bar { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-2) var(--space-2) }
+.model-select { flex: 0 1 260px; min-width: 0 }
+.composer-note { font-size: var(--text-xs); color: var(--fg-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.composer-bar .send { margin-left: auto }
+.composer-bar .send .ui-icon { width: 14px; height: 14px }

@@ -1,7 +1,14 @@
 # Wally — un chat con Gemini por la web de AI Studio, eligiendo el modelo
 
-Para hacerle preguntas a Gemini sin abrir AI Studio: a la izquierda las conversaciones guardadas, al centro la
-abierta y, abajo, el campo y el selector de modelo. Cada respuesta dice con qué modelo salió y cuánto tardó.
+Para hacerle preguntas a Gemini sin abrir AI Studio: a la izquierda las conversaciones guardadas (con buscador y por
+día: Hoy, Ayer, Últimos 7 días, Antes); al centro, **en pestañas, las abiertas** —varias a la vez, cada una con su
+borrador y su modelo—, y abajo el campo, que crece con lo escrito. Cada respuesta dice con qué modelo salió, cuánto
+tardó y a qué hora; un bloque de código lleva su lenguaje y su «Copiar».
+
+**Las pestañas** siguen la gramática del taller (`tools/ui/README.md`, «documentos abiertos»): un clic en la lista
+abre la conversación de paso (itálica, la reemplaza el próximo clic); doble clic, o mandar una pregunta, la deja fija;
+«+» abre una nueva; ✕ o el botón del medio la cierran. Se recuerdan en esta máquina (`wally.tabs`). Mientras una
+espera respuesta, su pestaña y su fila laten, y en las otras se escribe pero no se manda (las preguntas van de a una).
 
 **Pregunta POR LA WEB, no por la API** (decisión de Miguel, 2026-11-17): cada pregunta la hace `bin/aistudio` (la
 receta `jarvis/recipes/aistudio/ask.ts`) en su Chrome con Jarvis, con su cuenta y en un chat temporal de AI Studio
@@ -12,7 +19,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text}` |
-| `src/App.vue` | la interfaz; la ruta es `#/c/<id>` |
+| `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` | lo guardado (fuera de git) |
 
 - **Necesita Jarvis conectado en Chrome** y la sesión de Google de Miguel. Sin eso, la pregunta vuelve con el error de
