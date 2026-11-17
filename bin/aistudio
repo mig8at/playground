@@ -1,7 +1,7 @@
 #!/bin/sh
 # aistudio — Gemini por la interfaz de AI Studio, en tu Chrome con Jarvis y con tu cuenta (sin llave de API). Son las
 # recetas de jarvis/recipes/aistudio/; los archivos se leen y se escriben desde donde lo corrés.
-#   bin/aistudio [ask] --prompt '…' [--file doc.md] [--model gemini-3.5-flash-lite] [--out r.md] [--keep] [--json]
+#   bin/aistudio [ask] --prompt '…' [--file doc.md] [--model gemini-3.8-flash] [--out r.md] [--keep] [--json]
 #   bin/aistudio speak --text '…' --out voz.wav [--voice Enzo] [--model gemini-3.8-flash-tts] [--json]
 #   bin/aistudio transcribe <audio> [--out texto.md] [--json]
 #   bin/aistudio image --prompt '…' --out imagen.png [--aspect 1:1] [--json]

@@ -12,8 +12,8 @@
 // toca. La pestaña se cierra al terminar salvo con --keep (para seguir la conversación a mano).
 //
 // Parámetros: --prompt "texto" · --file <archivo> (el texto va primero y el --prompt después, como pregunta) · o el
-// texto por stdin · --model <id> (gemini-3.5-flash-lite por defecto: liviano y sin «Paid»; gemini-flash-latest, gemma-4-31b-it,
-// gemini-4-hydrogen…: los ids del selector) · --out
+// texto por stdin · --model <id> (gemini-3.8-flash por defecto, como Wally: el Flash más inteligente, sin «Paid»;
+// gemini-4-hydrogen para lo difícil; los ids son los del selector) · --out
 // <archivo> (guarda la respuesta) · --keep · --timeout <segundos> (600 por defecto) · --json
 // Necesita: Jarvis conectado en Chrome, sin otra sesión de Jarvis manejándolo, y tu sesión de Google abierta.
 // ⚠ Sólo lectura en tu cuenta: no guarda nada en AI Studio. El texto viaja a Google como cuando lo pegás a mano.
@@ -28,7 +28,7 @@ if (!text) {
     console.error('  uso: aistudio --prompt "…" | --file <archivo> [--prompt "pregunta"] | (texto por stdin) [--model <id>] [--out <archivo>] [--keep] [--json]');
     process.exit(2);
 }
-const model = flag('model') || 'gemini-3.5-flash-lite';
+const model = flag('model') || 'gemini-3.8-flash';
 const timeoutMs = Number(flag('timeout') || 600) * 1000;
 
 const { page, close } = await openChrome(model);
