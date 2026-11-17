@@ -169,7 +169,36 @@ const KNOWN_KEYS = new Set([
  * front manda `lenders.slug` como clave, y Materiales tiene slug propio. El servicio lo normaliza a
  * `credifamilia` ANTES de validar, así que Salud y Materiales comparten la fila y se distinguen por
  * `lending_product_id`. Hacé lo mismo acá: sin esto el preaprobado de Materiales da 400 en local. */
-const KEY_ALIASES = { "credifamilia-materiales": "credifamilia" };
+const KEY_ALIASES = { "credifamilia-materiales": "credifamilia", "banco-finandina": "creditop_x" };
+
+/* ── LAS ENTIDADES QUE SE DECIDEN CON EL MOTOR DE VERDAD ───────────────────────────────────────────
+ * Para `creditop_x` el servicio real NO inventa: llama a `POST /api/loans/lender/available-quota` del backend y
+ * adapta la respuesta (`internal/infra/lending_products/creditop_x/adapter.go`): aprobada si `has_quota` y
+ * `status = approved`, con `approved_amount = quota_details.max_requestable` y la respuesta entera como
+ * `transaction_data`. Este mock aprueba todo con un cupo fijo, y para Banco Finandina (149, riel 4) eso
+ * esconde justo lo que se prueba: que su política decida el cupo. Para las entidades de esta lista se hace lo
+ * mismo que el servicio, contra el backend LOCAL. El resto sigue como siempre. */
+const ENGINE_LENDERS = new Set(String(process.env.MOCK_PA_ENGINE_LENDERS ?? "149").split(",").map((v) => v.trim()).filter(Boolean));
+const BACKEND = process.env.MOCK_PA_BACKEND || "http://localhost";
+
+async function fromEngine(req) {
+      const r = await fetch(`${BACKEND}/api/loans/lender/available-quota`, {
+            method: "POST",
+            headers: { "content-type": "application/json", accept: "application/json" },
+            body: JSON.stringify({
+                  user_id: Number(req.applicant_id),
+                  lender_id: Number(req.lending_product_id),
+                  ...(req.user_request_id ? { user_request_id: Number(req.user_request_id) } : {}),
+            }),
+      });
+      const raw = await r.json().catch(() => null);
+      const d = raw?.data ?? {};
+      const approved = d.has_quota === true && d.status === "approved";
+      const base = build(req, approved ? "approved" : "rejected");
+      if (!approved) return { ...base, rejection_reason: d.reason ?? raw?.reason ?? null, transaction_data: raw };
+      const amount = Number(d.quota_details?.max_requestable ?? 0);
+      return { ...base, approved_amount: String(amount), available: amount, transaction_data: raw };
+}
 
 function norm(s) {
       const v = String(s || "").toLowerCase();
@@ -185,7 +214,7 @@ const server = http.createServer((r, res) => {
       if (r.method === "POST" && r.url.startsWith("/v1/preapprovals/check")) {
             let body = "";
             r.on("data", (c) => (body += c));
-            r.on("end", () => {
+            r.on("end", async () => {
                   let req = {};
                   try {
                         req = JSON.parse(body || "{}");
@@ -215,9 +244,18 @@ const server = http.createServer((r, res) => {
                   const status = norm(
                         u.searchParams.get("status") || r.headers["x-mock-status"] || req.force_status || lenderStatusFor(req) || FORCE,
                   );
-                  const payload = build(req, status);
+                  const useEngine = keyValue === "creditop_x" && ENGINE_LENDERS.has(String(req.lending_product_id));
+                  let payload;
+                  try {
+                        payload = useEngine ? await fromEngine(req) : build(req, status);
+                  } catch (e) {
+                        console.log(`[mock-pa] ${keyValue}#${req.lending_product_id} → 502 el motor no contestó: ${e.message}`);
+                        res.writeHead(502, { "content-type": "application/json" });
+                        res.end(JSON.stringify({ error: "upstream failed", details: String(e.message) }));
+                        return;
+                  }
                   console.log(
-                        `[mock-pa] ${payload.lending_product_key}#${payload.lending_product_id} amount=${req.amount ?? "-"} ur=${req.user_request_id ?? "-"} → ${payload.status}${DELAY ? ` (+${DELAY}ms)` : ""}`,
+                        `[mock-pa] ${payload.lending_product_key}#${payload.lending_product_id} amount=${req.amount ?? "-"} ur=${req.user_request_id ?? "-"} → ${payload.status}${useEngine ? ` (motor: ${payload.approved_amount ?? payload.rejection_reason})` : ""}${DELAY ? ` (+${DELAY}ms)` : ""}`,
                   );
                   const send = () => {
                         res.writeHead(200, { "content-type": "application/json" });
