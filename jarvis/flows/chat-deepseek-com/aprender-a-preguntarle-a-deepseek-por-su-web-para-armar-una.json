@@ -1,0 +1,56 @@
+{
+  "name": "Aprender a preguntarle a DeepSeek por su web para armar una receta como la de AI Studio",
+  "meta": "Aprender a preguntarle a DeepSeek por su web para armar una receta como la de AI Studio",
+  "start": "https://chat.deepseek.com",
+  "device": "chrome",
+  "created": "2026-11-17T15:42:42.203547-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-17_15-42-28",
+  "steps": [
+    {
+      "action": "fill",
+      "target": "Mensaje a DeepSeek",
+      "value": "Respondé sólo con la palabra: listo",
+      "instruction": "Escribí «Respondé sólo con la palabra: listo» en «Mensaje a DeepSeek»",
+      "why": "Una pregunta corta para ver dónde aparece la respuesta y cómo termina",
+      "param": "Mensaje a DeepSeek",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Mensaje a DeepSeek",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Mensaje a DeepSeek', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Mensaje a DeepSeek', exact: true }).fill('Respondé sólo con la palabra: listo')"
+    },
+    {
+      "action": "press",
+      "target": "Mensaje a DeepSeek",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «Mensaje a DeepSeek»",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Mensaje a DeepSeek",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Mensaje a DeepSeek', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Mensaje a DeepSeek', exact: true }).press('Enter')"
+    },
+    {
+      "action": "expect",
+      "target": "listo",
+      "value": "listo",
+      "instruction": "Comprobá que se vea «listo»",
+      "code": "expect(page.getByText('listo').filter({ visible: true }).first()).toBeVisible()"
+    }
+  ]
+}

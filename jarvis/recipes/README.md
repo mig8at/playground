@@ -126,7 +126,7 @@ respuesta en Markdown.
 
 | receta | qué hace | parámetros |
 |---|---|---|
-| `ask` | **una pregunta a Gemini por la web**: chat nuevo (temporal: no queda en el History) → el modelo, si se pide → el texto → Run → la respuesta con «Copy as markdown» interceptado (tu portapapeles no se toca). También `bin/aistudio`, que lee los archivos desde donde lo corrés. Medido el 2026-11-17 con Gemini 4 Hydrogen: una pregunta corta en 4,6 s; 1,2 MB de código en 11,5 s y 2 MB en 17,9 s, encontrando en los dos una frase escondida en el medio y cerca del final | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--model <id>` (gemini-3.8-flash por defecto, como Wally; gemini-4-hydrogen para lo difícil) · `--out` · `--keep` · `--timeout 600` · `--json` |
+| `ask` | **una pregunta a Gemini por la web**: chat nuevo (temporal: no queda en el History) → el modelo, si se pide → el texto → Run → la respuesta con «Copy as markdown» interceptado (tu portapapeles no se toca). También `bin/aistudio`, que lee los archivos desde donde lo corrés. Medido el 2026-11-17 con Gemini 4 Hydrogen: una pregunta corta en 4,6 s; 1,2 MB de código en 11,5 s y 2 MB en 17,9 s, encontrando en los dos una frase escondida en el medio y cerca del final | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--model <id>` (gemini-4-hydrogen por defecto, como Wally; gemini-3.8-flash para lo rápido) · `--thinking low|medium|high` (high) · `--out` · `--keep` · `--timeout 600` · `--json` |
 | `speak` | **texto a voz** (Generate speech, Gemini 3.8 Flash TTS): «Create new dialog» → la voz (se busca por nombre en Speaker settings y se comprueba «Current voice») → el texto → Run → un WAV mono de 24 kHz. `bin/aistudio speak`. Medido el 2026-11-17: 5,2 s de audio en 4,1 s y 8 s de audio en 7,7 s; lo generado lo transcribió bien Whisper, en esta máquina | `--text` · `--file` · stdin · `--out <archivo.wav>` · `--voice <nombre>` (Enzo, Koda, Bodi…; sin ella, la que esté puesta) · `--model` · `--json` |
 | `transcribe` | **audio a texto** (Gemini 3.5 Transcribe): «Upload» con el archivo → «Transcribe» → la transcripción en Markdown. `bin/aistudio transcribe <audio>`. Medido el 2026-11-17: audios de 2 a 9 s en ~5 s; el de `speak` volvió palabra por palabra. ⚠ El audio SUBE A GOOGLE: queda en tu Drive y, según el aviso de AI Studio, puede usarse para mejorar sus productos | `<audio>` · `--out` · `--plain` (sin marcas de tiempo ni quién habla) · `--smart` · `--vocabulary "a, b"` (implica `--plain`) · `--json` |
 | `image` | **una imagen** (Nano Banana 2 Lite, sin «Paid»): el pedido en un chat temporal → Run → la imagen más grande del último turno, guardada con la extensión del formato que llega. `bin/aistudio image`. ⚠ **SIN PROBAR**: el primer intento (2026-11-17) contestó «Permiso denegado»; falta confirmar cómo se guarda la imagen con una generación real | `--prompt` · `--out` · `--aspect 1:1` · `--only-images` · `--model` · `--json` |
@@ -165,6 +165,17 @@ respuesta en Markdown.
   («custom_vocabulary is incompatible with word timestamps / with diarization»); el campo es de etiquetas (un término +
   Enter). Un WAV a 16 kHz hecho con la voz de macOS se transcribió cortado («Hola, esta es una de», 2 de 9 s), dos veces;
   el mismo audio a 24 kHz salió entero. Sin causa medida: si una transcripción sale cortada, probar otra frecuencia.
+
+## DeepSeek (por la web, con tu sesión de chat.deepseek.com)
+
+Lo mismo que AI Studio contra DeepSeek: maneja su web en tu Chrome, en la ventana aparte de Jarvis, y por consola
+funciona como una API. Se aprendió con Jarvis el 2026-11-17 (`flows/chat-deepseek-com/`). ⚠ **Escribe en tu cuenta**:
+DeepSeek no tiene chat temporal y cada pregunta queda en su historial. ⚠ Es una empresa china: lo que se manda queda en
+sus servidores, así que nada de datos de clientes, credenciales ni contexto o código interno de CreditOp sin decidirlo.
+
+| receta | qué hace | parámetros |
+|---|---|---|
+| `ask` | **una pregunta a DeepSeek**: chat nuevo → «Pensamiento Profundo» y «Búsqueda inteligente» como se pidan (DeepSeek recuerda el último estado: se ponen en cada pregunta) → el texto → Enter → la respuesta (sin el razonamiento) con su botón «copiar» interceptado. También `bin/deepseek`. Trae el último mensaje a la vista antes de leerlo: la conversación es una lista virtual, como la de AI Studio. Medido el 2026-11-17 con «Pensamiento Profundo»: una pregunta corta en 6,8 s; 77 mil caracteres en 6,7 s, encontrando una clave escondida en la línea 641 de 1.300 | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--no-think` · `--search` · `--out` · `--keep` · `--timeout 600` · `--json` |
 
 ## Shopify (tienda de pruebas `creditop-dev-store`)
 

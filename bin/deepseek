@@ -1,0 +1,10 @@
+#!/bin/sh
+# deepseek — DeepSeek por su web, en tu Chrome con Jarvis y con tu sesión (sin llave de API). Es la receta de
+# jarvis/recipes/deepseek/; los archivos se leen y se escriben desde donde lo corrés.
+#   bin/deepseek [ask] --prompt '…' [--file doc.md] [--no-think] [--search] [--out r.md] [--keep] [--json]
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+case "$1" in
+  ask) recipe=$1; shift ;;
+  *) recipe=ask ;;
+esac
+exec node "$root/jarvis/recipes/deepseek/$recipe.ts" "$@"
