@@ -112,14 +112,9 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 ### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
-- [ ] Repetir la firma (caso 1, que falló por una migración faltante) y después la pantalla final sin «Paga tu
-  cuota» (caso 14). La migración `2026_11_05_090000_add_installment_freeze` ya está en dev. Termina con los dos
-  casos pasando en qa.
-- [ ] Hacer que el formulario de residencia (25) se pueda guardar en qa: form-service contesta 422 a
-  `POST /v1/dynamic-form/25/response/<ureq>` (con nombres y con ids), y el 25 no tiene una sola respuesta en qa
-  desde que reemplazó al 18 el 11-nov. Sin él la etapa extendida rechaza por residencia y qa no llega a 11.
-  Termina con el caminador cerrando en 11 en qa (`#5da24bb1:149`). Depende de: Abel o quien tenga los logs de
-  form-service en qa.
+- [x] ~~Repetir la firma (caso 1)~~ — en qa cierra en 11 con firma y OTP (uReq 505097, 2026-11-17).
+- [ ] Revisar la pantalla final sin «Paga tu cuota» (caso 14): mira lo que se ve, así que va por navegador.
+  Termina con la pantalla de aprobado de una solicitud de Finandina en qa sin ese botón.
 - [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
   directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
   falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
@@ -438,7 +433,8 @@ dejar `document_types` como la entidad y el seguro del convenio en 0,166. El est
 
     make harness-walk-wizard TARGET=local LAMBDA=1 CLOSE=1 MANUAL=1 AMOUNT=5000000 CASES='#03751a1d:149'
 
-Tiene que dar estado 11, pasando por `dynamic-form/25`. En qa el mismo comando con `#5da24bb1:149`.
+Tiene que dar estado 11, pasando por `dynamic-form/25`. En qa el mismo comando con `#5da24bb1:149` (Mediarte ·
+Principal) también cierra en 11.
 
 **El riel 4 en local (verificado el 2026-11-03).** Se arma con:
 

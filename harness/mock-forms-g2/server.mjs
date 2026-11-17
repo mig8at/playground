@@ -56,8 +56,6 @@ const fixture = (name) => {
 const answers_ = new Map();
 const key = (ft, ur) => `${ft}:${ur}`;
 
-/** El id numérico que el front usa como clave: manda `field_248`, el servicio guarda `248`. */
-const withoutPrefix = (k) => String(k).replace(/^field_/, '');
 
 /** LO QUE EL SERVICIO REAL ESCRIBE EN LA BASE DEL BACKEND. form-service guarda cada respuesta como una fila de
  *  `user_field_values` (DELETE+INSERT en una transacción, `user_field_value_queries.sql`), y el backend lee esa tabla
@@ -164,8 +162,20 @@ const server = http.createServer(async (req, res) => {
             const raw = await new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
             let entry = {};
             try { entry = JSON.parse(raw || '{}'); } catch { return json(res, 400, { code: 'INVALID_BODY', message: 'cuerpo no es JSON', payload: null }); }
+            /* LAS CLAVES SON IDS DE CAMPO («184»), como el real: form-service contesta 422 INVALID_FIELD_ID a cualquier
+               otra, también a `field_184`. Hasta el 2026-11-17 el mock le quitaba el prefijo y aceptaba: el arnés mandaba
+               `field_<id>` y sólo se vio en qa, donde el formulario 25 de Finandina no se podía guardar. */
+            const badKeys = Object.keys(entry.answers ?? {}).filter((k) => !/^[1-9]\d*$/.test(k));
+            if (badKeys.length) {
+                log(`✗ form ${ft} · solicitud ${ur} · claves que no son ids de campo: ${badKeys.join(', ')}`);
+                return json(res, 422, {
+                    code: 'INVALID_REQUEST', message: 'Invalid request.',
+                    errors: badKeys.map(() => ({ field: 'answers', code: 'INVALID_FIELD_ID', message: 'answers keys must be positive integer field ids.' })),
+                    payload: null,
+                });
+            }
             const normalized = {};
-            for (const [k, v] of Object.entries(entry.answers ?? {})) normalized[withoutPrefix(k)] = v;
+            for (const [k, v] of Object.entries(entry.answers ?? {})) normalized[k] = v;
             /* REEMPLAZA, no mezcla: es lo que hace el servicio real (EAV replace) y lo que hace que
                volver a guardar el formulario con un campo menos DEJE ESE CAMPO VACÍO. Si acá se
                mezclara, una prueba de re-edición pasaría por el recuerdo del mock. */

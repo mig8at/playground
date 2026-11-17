@@ -52,7 +52,10 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
     // Varias pasadas: un campo puede depender de otro que aparece más abajo en el esquema.
     for (let pass = 0; pass < 4; pass++) {
         for (const f of fields) {
-            const key = f.formKey ?? String(f.id);
+            // La clave es el ID del campo («184»), no el `formKey` («field_184»): así arma el front el envío
+            // (`buildSubmitPayload`) y form-service rechaza cualquier otra con 422 INVALID_FIELD_ID. El mock le quita
+            // el prefijo y lo aceptaba igual, así que en local el error no se veía (qa, 2026-11-17).
+            const key = String(f.id);
             if (key in out) continue;
             const parent = f.parentId ?? idOfKey(f.dependency?.parentFormKey);
             const parentValue = f.parentValue ?? f.dependency?.parentValue;
