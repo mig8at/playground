@@ -70,12 +70,14 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
+  if (t.key === GROUP_NEW) return 'Grupo nuevo'
+  if (isGroup(t.key)) return loadedGroups.value[t.key]?.title || agentGroups.value.find((g) => `g:${g.id}` === t.key)?.title || 'Grupo'
   if (isNew(t.key)) return MODES[tabMode.value[t.key]]?.label || 'Conversación nueva'
   return loaded.value[t.key]?.title || conversations.value.find((c) => c.id === t.key)?.title || 'Conversación'
 }
 
 async function loadConv(key) {
-  if (isNew(key)) return
+  if (isNew(key) || isGroup(key)) return
   try {
     const c = await api(`/api/conversations/${encodeURIComponent(key)}`)
     loaded.value = { ...loaded.value, [key]: c }
@@ -119,7 +121,8 @@ function closeTab(key) {
 }
 function activate(key) {
   active.value = key
-  if (!isNew(key) && !loaded.value[key]) loadConv(key)
+  if (isGroup(key)) { if (key === GROUP_NEW) loadTopics(); else loadGroup(key) }
+  else if (!isNew(key) && !loaded.value[key]) loadConv(key)
   writeRoute()
   scrollDown()
   focusInput()
@@ -127,14 +130,66 @@ function activate(key) {
 
 // La ruta dice la pestaña activa: abrir un enlace `#/c/<id>` la abre.
 function writeRoute() {
-  const hash = isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
+  const hash = active.value === GROUP_NEW ? '#/grupo-nuevo'
+    : isGroup(active.value) ? `#/g/${encodeURIComponent(active.value.slice(2))}`
+    : isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
   if (location.hash !== hash) history.replaceState(null, '', hash)
 }
 function readRoute() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
   if (parts[0] === 'c' && parts[1]) openTab(decodeURIComponent(parts[1]))
+  else if (parts[0] === 'grupo-nuevo') openTab(GROUP_NEW)
+  else if (parts[0] === 'g' && parts[1]) openTab(`g:${decodeURIComponent(parts[1])}`)
   else if (parts[0] === 'nueva' && parts[1] && tabs.value.some((t) => t.key === `nueva-${parts[1]}`)) activate(`nueva-${parts[1]}`)
 }
+
+// ── LOS GRUPOS DE AGENTES ── (wally/server/groups.go) Un grupo «Knowledge»: el coordinador (Wally, sin modelo)
+// reparte temas entre EVA y M-O, que trabajan en paralelo en pestañas de AI Studio; en el grupo queda sólo el resumen
+// de cada uno, y su conversación completa se abre tocándolo. La pestaña de un grupo es `g:<id>`; armar uno, `g:nuevo`.
+const GROUP_NEW = 'g:nuevo'
+const isGroup = (key) => key.startsWith('g:')
+const agentGroups = ref([])
+const loadedGroups = ref({})
+const topics = ref([])
+const groupForm = ref({ topics: [], model: '', busy: false, error: '' })
+async function loadAgentGroups() { try { agentGroups.value = (await api('/api/groups')).groups } catch { /* lo dice loadList */ } }
+async function loadGroup(key) {
+  try { loadedGroups.value = { ...loadedGroups.value, [key]: await api(`/api/groups/${encodeURIComponent(key.slice(2))}`) } } catch (e) {
+    if (/no existe/.test(e.message)) closeTab(key)
+    else errors.value = { ...errors.value, [key]: e.message }
+  }
+}
+async function loadTopics() { try { topics.value = (await api('/api/topics')).topics } catch (e) { groupForm.value.error = e.message } }
+const pendingTopicCount = computed(() => topics.value.filter((t) => t.changed).length)
+function newGroupTab() { openTab(GROUP_NEW) }
+function toggleGroupTopic(id) {
+  const list = groupForm.value.topics
+  groupForm.value.topics = list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
+}
+async function startGroup(onlyPending) {
+  const f = groupForm.value
+  f.busy = true; f.error = ''
+  try {
+    const g = await api('/api/groups', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ topics: onlyPending ? [] : f.topics, model: f.model || lastModel.value }) })
+    const i = tabs.value.findIndex((t) => t.key === GROUP_NEW)
+    if (i >= 0) tabs.value.splice(i, 1, { key: `g:${g.id}`, preview: false })
+    loadedGroups.value = { ...loadedGroups.value, [`g:${g.id}`]: g }
+    f.topics = []
+    activate(`g:${g.id}`)
+    loadAgentGroups()
+  } catch (e) { f.error = e.message } finally { f.busy = false }
+}
+async function removeGroup(g) {
+  if (!confirm(`¿Borrar el grupo «${g.title}»? Las conversaciones de los agentes quedan.`)) return
+  try { await api(`/api/groups/${encodeURIComponent(g.id)}`, { method: 'DELETE' }); closeTab(`g:${g.id}`); loadAgentGroups() } catch (e) { apiError.value = e.message }
+}
+const group = computed(() => (isGroup(active.value) && active.value !== GROUP_NEW ? loadedGroups.value[active.value] : null))
+const AUTHOR = { Wally: { badge: 'W', role: 'coordinador' }, EVA: { badge: 'E', role: 'agente' }, 'M-O': { badge: 'M', role: 'agente' } }
+const KIND = { plan: 'plan', toma: 'toma un tema', resumen: 'resumen', pausa: 'en pausa', error: 'problema', cierre: 'cierre' }
+const memberTone = (m) => (m.status.startsWith('en pausa') ? 'pause' : m.status === 'trabajando' ? 'work' : m.status === 'listo' ? 'done' : 'idle')
+// Mientras un grupo trabaja, el grupo abierto y la lista se releen cada 3 s.
+let groupPoll = null
 
 // ── LA PESTAÑA ACTIVA ──
 const conv = computed(() => loaded.value[active.value] || null)
@@ -448,18 +503,26 @@ onMounted(async () => {
   await loadList()
   // Las pestañas recordadas cuya conversación ya no existe se cierran; sin ninguna, una nueva.
   const ids = new Set(conversations.value.map((c) => c.id))
-  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || ids.has(t.key))
+  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || isGroup(t.key) || ids.has(t.key))
   readRoute()
   if (!tabs.value.length) newTab()
   else activate(tabs.value.some((t) => t.key === active.value) ? active.value : tabs.value[0].key)
   // Cada 30 s: si la API no contestaba al abrir, aparece sola, y una pausa que venció habilita «Preguntar».
-  refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList() } }, 30_000)
+  refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgentGroups() } }, 30_000)
+  loadAgentGroups()
+  groupPoll = setInterval(() => {
+    if (document.hidden) return
+    const running = agentGroups.value.some((g) => g.status === 'corriendo')
+    if (group.value?.status === 'corriendo') loadGroup(active.value)
+    if (running) { loadAgentGroups(); loadList() }
+  }, 3_000)
 })
 onBeforeUnmount(() => {
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
   clearInterval(tick)
   clearInterval(refresher)
+  clearInterval(groupPoll)
   themeBinding?.destroy?.()
 })
 </script>
@@ -484,6 +547,24 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="region-body">
+        <section class="agent-groups">
+          <div class="region-head group">
+            <span>Grupos de agentes</span>
+            <button type="button" class="region-action" title="Grupo Knowledge nuevo: EVA y M-O ponen al día o revisan temas en paralelo" aria-label="Grupo nuevo" @click="newGroupTab">
+              <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div v-for="g in agentGroups" :key="g.id" class="conv-row" :class="{ on: active === `g:${g.id}` }">
+            <button type="button" class="conv" @click="openTab(`g:${g.id}`)">
+              <span class="conv-title"><i v-if="g.status === 'corriendo'" class="live-dot" aria-label="trabajando"></i>{{ g.title }}</span>
+              <span class="conv-meta">{{ g.status }} · {{ g.members.map((m) => m.name).join(', ') }} · {{ when(g.updated) }}</span>
+            </button>
+            <button type="button" class="region-action conv-del" :disabled="g.status === 'corriendo'" title="Borrar el grupo" aria-label="Borrar el grupo" @click="removeGroup(g)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p v-if="!agentGroups.length" class="none">Ninguno todavía.</p>
+        </section>
         <section v-for="g in groups" :key="g.name">
           <div class="region-head group"><span>{{ g.name }}</span></div>
           <div v-for="c in g.items" :key="c.id" class="conv-row" :class="{ on: active === c.id, open: openKeys.has(c.id) }">
@@ -525,6 +606,76 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
+      <!-- ARMAR UN GRUPO -->
+      <div v-if="active === GROUP_NEW" class="region-body group-new">
+        <div class="group-new-inner">
+          <h2>Grupo Knowledge</h2>
+          <p class="group-lede">Wally coordina; <b>EVA</b> y <b>M-O</b> trabajan en paralelo en AI Studio, cada uno con un tema y su paquete en un solo envío. Corren solos los comandos de lectura que pidan; <b>nada se escribe en knowledge</b>: las propuestas quedan para revisar.</p>
+          <div class="group-option">
+            <div>
+              <b>Poner al día lo pendiente</b>
+              <span>{{ pendingTopicCount ? `${pendingTopicCount} tema${pendingTopicCount > 1 ? 's tienen' : ' tiene'} fuentes que cambiaron en main` : 'Ningún tema tiene fuentes cambiadas en main: la biblioteca está al día' }}</span>
+            </div>
+            <button type="button" class="btn btn-sm" :disabled="!pendingTopicCount || groupForm.busy" @click="startGroup(true)">Empezar</button>
+          </div>
+          <div class="group-option column">
+            <div>
+              <b>Revisar temas</b>
+              <span>Que comprueben contra main lo que dicen los temas que marques{{ groupForm.topics.length ? ` (${groupForm.topics.length})` : '' }}.</span>
+            </div>
+            <div class="topic-list">
+              <label v-for="t in topics" :key="t.id" class="topic-item" :class="{ on: groupForm.topics.includes(t.id) }">
+                <input type="checkbox" :checked="groupForm.topics.includes(t.id)" @change="toggleGroupTopic(t.id)" />
+                <span class="topic-title">{{ t.title }}</span>
+                <code>{{ t.id }}</code>
+                <span v-if="t.changed" class="badge badge-xs">{{ t.changed }} cambiada{{ t.changed > 1 ? 's' : '' }}</span>
+              </label>
+            </div>
+            <div class="group-actions">
+              <label class="select model-select" title="El modelo de los agentes">
+                <select v-model="groupForm.model" class="input input-xs" aria-label="Modelo de los agentes">
+                  <option value="">{{ modelName(lastModel) }} (el de siempre)</option>
+                  <option v-for="m in models" :key="m.name" :value="m.name" :disabled="!!m.paused">{{ m.displayName }}</option>
+                </select>
+              </label>
+              <button type="button" class="btn btn-sm" :disabled="!groupForm.topics.length || groupForm.busy" @click="startGroup(false)">Revisar {{ groupForm.topics.length || '' }}</button>
+            </div>
+          </div>
+          <div v-if="groupForm.error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ groupForm.error }}</p></div></div>
+        </div>
+      </div>
+
+      <!-- UN GRUPO TRABAJANDO: los agentes arriba (tocar uno abre su conversación), el chat del grupo abajo -->
+      <div v-else-if="isGroup(active)" class="region-body group-view" @click="onThreadClick">
+        <template v-if="group">
+          <div class="group-members">
+            <button v-for="m in group.members" :key="m.name" type="button" class="member" :class="`is-${memberTone(m)}`" :disabled="!m.conv"
+                    :title="m.conv ? `Abrir la conversación de ${m.name}` : `${m.name} todavía no empezó`" @click="m.conv && openTab(m.conv)">
+              <span class="avatar member-avatar">{{ AUTHOR[m.name]?.badge || m.name[0] }}</span>
+              <span class="member-main">
+                <b>{{ m.name }}</b>
+                <span>{{ m.status }}{{ m.topic ? ` · ${m.topic}` : '' }}{{ m.rounds ? ` · vuelta ${m.rounds}` : '' }}</span>
+              </span>
+              <span v-if="m.done" class="count">{{ m.done }} hecho{{ m.done > 1 ? 's' : '' }}</span>
+              <i v-if="m.status === 'trabajando'" class="live-dot"></i>
+            </button>
+          </div>
+          <ol class="posts">
+            <li v-for="p in group.posts" :key="p.id" class="post" :class="[`kind-${p.kind}`, { coordinator: p.author === 'Wally' }]">
+              <span class="avatar">{{ AUTHOR[p.author]?.badge || p.author[0] }}</span>
+              <div class="post-main">
+                <div class="post-head"><b>{{ p.author }}</b><span>{{ AUTHOR[p.author]?.role }}</span><span class="post-kind">{{ KIND[p.kind] || p.kind }}</span><span>{{ clock(p.at) }}</span></div>
+                <div class="answer-body" v-html="md(p.text)"></div>
+                <button v-if="p.conv" type="button" class="btn btn-ghost btn-xs" @click="openTab(p.conv)"><span class="ui-icon" data-icon="external" aria-hidden="true"></span>Abrir la conversación</button>
+              </div>
+            </li>
+          </ol>
+          <p v-if="group.status === 'corriendo'" class="thinking group-working"><span class="typing"><i></i><i></i><i></i></span>trabajando…</p>
+        </template>
+        <p v-else class="none">Cargando el grupo…</p>
+      </div>
+
+      <template v-else>
       <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
@@ -662,6 +813,7 @@ onBeforeUnmount(() => {
           </div>
         </div>
       </form>
+      </template>
     </main>
 
     <footer class="statusbar">

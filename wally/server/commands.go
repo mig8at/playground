@@ -297,14 +297,25 @@ func (a *app) commandAction(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, errors.New("action tiene que ser run o decline"))
 		return
 	}
+	c, code, err := a.decideCommand(r.Context(), r.PathValue("id"), r.PathValue("mid"), r.PathValue("cid"), in.Action)
+	if err != nil {
+		writeErr(w, code, err)
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
+// decideCommand corre o descarta un comando propuesto y lo guarda. La usan la interfaz y los agentes de un grupo,
+// que corren solos los de la lista blanca (son de sólo lectura). Devuelve la conversación y, si falla, el código HTTP.
+func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string) (Conversation, int, error) {
 	a.store.mu.Lock()
-	c, ok := a.store.convs[r.PathValue("id")]
+	c, ok := a.store.convs[convID]
 	var cmd *Command
 	if ok {
 		for i := range c.Messages {
-			if c.Messages[i].ID == r.PathValue("mid") {
+			if c.Messages[i].ID == mid {
 				for j := range c.Messages[i].Commands {
-					if c.Messages[i].Commands[j].ID == r.PathValue("cid") {
+					if c.Messages[i].Commands[j].ID == cid {
 						cmd = &c.Messages[i].Commands[j]
 					}
 				}
@@ -313,25 +324,23 @@ func (a *app) commandAction(w http.ResponseWriter, r *http.Request) {
 	}
 	if cmd == nil {
 		a.store.mu.Unlock()
-		writeErr(w, 404, errors.New("no existe ese comando"))
-		return
+		return Conversation{}, 404, errors.New("no existe ese comando")
 	}
 	if cmd.Status != "propuesto" {
 		a.store.mu.Unlock()
-		writeErr(w, 409, fmt.Errorf("ese comando ya está %s", cmd.Status))
-		return
+		return Conversation{}, 409, fmt.Errorf("ese comando ya está %s", cmd.Status)
 	}
 	shown := cmd.Cmd
 	a.store.mu.Unlock()
 
 	result := Command{Status: "descartado"}
-	if in.Action == "run" {
+	if action == "run" {
 		// La lista blanca se vuelve a mirar acá, al correr: lo guardado no se toma como validado.
 		if _, err := commandArgs(shown); err != nil {
 			result = Command{Status: "no-permitido", Reason: err.Error()}
 		} else {
 			start := time.Now()
-			att, exit, err := a.runToFile(r.Context(), shown, "salida: "+shown)
+			att, exit, err := a.runToFile(ctx, shown, "salida: "+shown)
 			result = Command{Status: "corrido", Exit: exit, Ms: time.Since(start).Milliseconds()}
 			if err != nil {
 				result.Reason = err.Error()
@@ -346,8 +355,7 @@ func (a *app) commandAction(w http.ResponseWriter, r *http.Request) {
 	cmd.Status, cmd.Reason, cmd.Exit, cmd.Ms, cmd.Output = result.Status, result.Reason, result.Exit, result.Ms, result.Output
 	c.Updated = time.Now()
 	if err := a.store.save(); err != nil {
-		writeErr(w, 500, err)
-		return
+		return Conversation{}, 500, err
 	}
-	writeJSON(w, 200, c)
+	return *c, 200, nil
 }

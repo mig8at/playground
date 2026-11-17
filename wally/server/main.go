@@ -12,7 +12,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"crypto/rand"
 	"encoding/hex"
@@ -23,7 +22,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -42,7 +40,11 @@ func main() {
 	if err := st.load(); err != nil {
 		log.Fatal(err)
 	}
-	a := &app{store: st, root: root}
+	gs := &groupStore{file: filepath.Join(root, "wally", ".data", "groups.json")}
+	if err := gs.load(); err != nil {
+		log.Fatal(err)
+	}
+	a := &app{store: st, root: root, pool: &pool{root: root}, groups: gs}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/models", a.models)
 	mux.HandleFunc("GET /api/conversations", a.list)
@@ -51,6 +53,11 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
+	mux.HandleFunc("GET /api/topics", a.listTopics)
+	mux.HandleFunc("GET /api/groups", a.listGroups)
+	mux.HandleFunc("POST /api/groups", a.createGroup)
+	mux.HandleFunc("GET /api/groups/{id}", a.getGroup)
+	mux.HandleFunc("DELETE /api/groups/{id}", a.deleteGroup)
 	mux.HandleFunc("POST /api/files", a.upload)
 	mux.HandleFunc("GET /api/files/{id}", a.readFile)
 	mux.HandleFunc("DELETE /api/files/{id}", a.deleteFile)
@@ -173,8 +180,10 @@ func newID() string {
 type app struct {
 	store *store
 	root  string
-	// askMu: una pregunta por vez. Jarvis maneja una pestaña de Chrome por vez y AI Studio corta si se le pide mucho.
-	askMu sync.Mutex
+	// pool: las preguntas a AI Studio, en pestañas de una sola conexión (pool.go); él decide cuántas a la vez.
+	pool *pool
+	// groups: los grupos de agentes (groups.go).
+	groups *groupStore
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -372,42 +381,9 @@ func transcript(history []Message, question string, files []Attachment, fileText
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// askAIStudio corre `bin/aistudio ask --json` con el texto por stdin (no por argumento: un texto grande no entra) y
-// devuelve la respuesta en Markdown. El error es el que dice la receta (una pausa, «Permiso denegado», Jarvis ocupado).
+// askAIStudio le hace una pregunta a AI Studio por el pool (pool.go): una conexión a Chrome, varias pestañas.
 func (a *app) askAIStudio(ctx context.Context, model, text string) (string, error) {
-	cmd := exec.CommandContext(ctx, filepath.Join(a.root, "bin", "aistudio"), "ask", "--json", "--model", model, "--timeout", "600")
-	cmd.Dir = a.root
-	cmd.Stdin = strings.NewReader(text)
-	var stdout, stderr bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &stdout, &stderr
-	err := cmd.Run()
-	var out struct {
-		Answer string `json:"answer"`
-	}
-	for _, line := range strings.Split(strings.TrimSpace(stdout.String()), "\n") {
-		if strings.HasPrefix(line, "{") && json.Unmarshal([]byte(line), &out) == nil && out.Answer != "" {
-			return out.Answer, nil
-		}
-	}
-	msg := strings.TrimSpace(stderr.String())
-	// De lo que dice la receta, el porqué: las líneas con ✗ o ⏸ (el resto es el avance).
-	var why []string
-	for _, line := range strings.Split(msg, "\n") {
-		t := strings.TrimSpace(line)
-		if strings.HasPrefix(t, "✗") || strings.HasPrefix(t, "⏸") || strings.HasPrefix(t, "(") {
-			why = append(why, strings.TrimSpace(strings.TrimPrefix(t, "✗")))
-		}
-	}
-	if len(why) > 0 {
-		return "", errors.New(strings.Join(why, " "))
-	}
-	if ctx.Err() != nil {
-		return "", errors.New("AI Studio no contestó a tiempo")
-	}
-	if err != nil {
-		return "", fmt.Errorf("bin/aistudio falló: %v %s", err, msg)
-	}
-	return "", errors.New("bin/aistudio no devolvió respuesta")
+	return a.pool.ask(ctx, model, text)
 }
 
 // ask agrega la pregunta, se la hace a AI Studio con el modelo elegido y guarda la respuesta. Sin `id` abre una
@@ -424,14 +400,6 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 400, err)
 		return
 	}
-	in.Text = strings.TrimSpace(in.Text)
-	if in.Text == "" {
-		writeErr(w, 400, errors.New("la pregunta está vacía"))
-		return
-	}
-	if in.Model == "" {
-		in.Model = chatModels[0].Name
-	}
 	var files []Attachment
 	for _, id := range in.Files {
 		att, err := a.attachment(id)
@@ -441,6 +409,41 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		}
 		files = append(files, att)
 	}
+	c, err := a.askInConversation(r.Context(), askInput{ID: in.ID, Model: in.Model, Text: in.Text, Files: files, Mode: in.Mode})
+	if err != nil {
+		var bad errBadRequest
+		if errors.As(err, &bad) {
+			writeErr(w, 400, err)
+		} else {
+			writeErr(w, 502, err)
+		}
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
+// askInput: una pregunta en una conversación (nueva si ID está vacío). Title sólo para una nueva.
+type askInput struct {
+	ID, Model, Text, Mode, Title string
+	Files                        []Attachment
+}
+
+type errBadRequest struct{ msg string }
+
+func (e errBadRequest) Error() string { return e.msg }
+
+// askInConversation es una pregunta entera: arma el texto con lo guardado y las instrucciones del modo, se la hace a
+// AI Studio (por el pool) y guarda la pregunta y la respuesta, con los comandos que pidió. La usan la interfaz (ask) y
+// los agentes de un grupo (groups.go). Si falla, no guarda nada.
+func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation, error) {
+	in.Text = strings.TrimSpace(in.Text)
+	if in.Text == "" {
+		return Conversation{}, errBadRequest{"la pregunta está vacía"}
+	}
+	if in.Model == "" {
+		in.Model = chatModels[0].Name
+	}
+	files := in.Files
 
 	// El historial se copia con el candado tomado, y la pregunta (segundos) va sin él.
 	a.store.mu.Lock()
@@ -449,50 +452,38 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		c, ok := a.store.convs[in.ID]
 		if !ok {
 			a.store.mu.Unlock()
-			writeErr(w, 404, errors.New("no existe esa conversación"))
-			return
+			return Conversation{}, errBadRequest{"no existe esa conversación"}
 		}
 		history = append(history, c.Messages...)
 		in.Mode = c.Mode
 	}
 	a.store.mu.Unlock()
 	if in.Mode != "" && !modes[in.Mode] {
-		writeErr(w, 400, fmt.Errorf("no existe el modo «%s»", in.Mode))
-		return
+		return Conversation{}, errBadRequest{fmt.Sprintf("no existe el modo «%s»", in.Mode)}
 	}
 	// Al empezar en un modo asistido, lo que el modo adjunta (el mapa de knowledge) va con la primera pregunta.
 	if len(history) == 0 && in.Mode != "" {
-		extra, err := a.modeContext(r.Context(), in.Mode)
+		extra, err := a.modeContext(ctx, in.Mode)
 		if err != nil {
-			writeErr(w, 500, err)
-			return
+			return Conversation{}, err
 		}
 		files = append(extra, files...)
 	}
 
-	if !a.askMu.TryLock() {
-		writeErr(w, 409, errors.New("Wally ya está esperando otra respuesta: de a una pregunta por vez"))
-		return
-	}
 	asked := time.Now()
-	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
 	prompt := transcript(history, in.Text, files, a.fileText)
 	instructions, err := a.instructionsFor(in.Mode)
 	if err != nil {
-		cancel()
-		a.askMu.Unlock()
-		writeErr(w, 500, err)
-		return
+		return Conversation{}, err
 	}
 	if instructions != "" {
 		prompt = instructions + "\n\n---\n\n" + prompt
 	}
-	answer, err := a.askAIStudio(ctx, in.Model, prompt)
+	askCtx, cancel := context.WithTimeout(ctx, 12*time.Minute)
+	answer, err := a.askAIStudio(askCtx, in.Model, prompt)
 	cancel()
-	a.askMu.Unlock()
 	if err != nil {
-		writeErr(w, 502, err)
-		return
+		return Conversation{}, err
 	}
 	done := time.Now()
 
@@ -500,10 +491,13 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.Unlock()
 	c := a.store.convs[in.ID]
 	if c == nil {
-		// Nueva (o borrada mientras contestaba): el título es el comienzo de la pregunta.
-		title := strings.Join(strings.Fields(in.Text), " ")
-		if r := []rune(title); len(r) > 60 {
-			title = string(r[:60]) + "…"
+		// Nueva (o borrada mientras contestaba): el título es el pedido, o el comienzo de la pregunta.
+		title := in.Title
+		if title == "" {
+			title = strings.Join(strings.Fields(in.Text), " ")
+			if r := []rune(title); len(r) > 60 {
+				title = string(r[:60]) + "…"
+			}
 		}
 		c = &Conversation{ID: newID(), Title: title, Mode: in.Mode, Created: asked}
 		a.store.convs[c.ID] = c
@@ -515,10 +509,9 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done,
 			Commands: modeCommands(in.Mode, answer)})
 	if err := a.store.save(); err != nil {
-		writeErr(w, 500, err)
-		return
+		return Conversation{}, err
 	}
-	writeJSON(w, 200, c)
+	return *c, nil
 }
 
 // modeCommands: en un modo asistido, los comandos que pidió el modelo; en un chat, ninguno.

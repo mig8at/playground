@@ -161,3 +161,49 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .results-bar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-2) var(--space-3); border-radius: var(--radius-control);
   background: var(--accent); color: var(--accent-foreground); font-size: var(--text-sm) }
 .results-bar .btn { margin-left: auto; flex: none }
+
+/* LOS GRUPOS DE AGENTES: la sección en la lista, armar uno, y la vista del grupo (los agentes arriba, el chat abajo). */
+.agent-groups { margin-bottom: var(--space-2) }
+.group-new { padding: var(--space-6) var(--space-4) }
+.group-new-inner { max-width: 720px; margin: 0 auto; display: grid; gap: var(--space-3) }
+.group-new h2 { margin: 0; font-size: var(--text-title); font-weight: 600 }
+.group-lede { margin: 0; color: var(--fg-2); line-height: 1.55 }
+.group-option { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: var(--card) }
+.group-option.column { flex-direction: column; align-items: stretch }
+.group-option > div:first-child { display: grid; gap: 2px; flex: 1 }
+.group-option > div:first-child span { font-size: var(--text-sm); color: var(--fg-3) }
+.topic-list { display: grid; gap: 2px; max-height: 320px; overflow: auto; padding: var(--space-1) 0 }
+.topic-item { display: flex; align-items: center; gap: var(--space-2); padding: 4px var(--space-2); border-radius: var(--radius-control); cursor: pointer; font-size: var(--text-sm) }
+.topic-item:hover { background: var(--hover) }
+.topic-item.on { background: var(--accent); color: var(--accent-foreground) }
+.topic-item code { margin-left: auto; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-3) }
+.topic-item.on code { color: var(--accent-foreground) }
+.topic-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.group-actions { display: flex; align-items: center; gap: var(--space-2) }
+.group-actions .btn { margin-left: auto }
+
+.group-view { padding: var(--space-4) var(--space-6); display: flex; flex-direction: column; gap: var(--space-4) }
+.group-view > * { width: 100%; max-width: 820px; margin-left: auto; margin-right: auto; box-sizing: border-box }
+.group-members { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--space-2) }
+.member { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2); text-align: left; border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: var(--card); color: var(--foreground); font: inherit; cursor: pointer }
+.member:hover:not(:disabled) { border-color: var(--ring) }
+.member:disabled { cursor: default }
+.member-main { display: grid; gap: 1px; flex: 1; min-width: 0 }
+.member-main span { font-size: var(--text-xs); color: var(--fg-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.member.is-work { border-color: var(--primary) }
+.member.is-pause .member-main span { color: var(--destructive) }
+.member-avatar { flex: none }
+.posts { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3) }
+.post { display: flex; gap: var(--space-3) }
+.post .avatar { flex: none; margin-top: 2px }
+.post.coordinator .avatar { background: var(--foreground); color: var(--background) }
+.post-main { flex: 1; min-width: 0; line-height: 1.55 }
+.post-head { display: flex; align-items: baseline; gap: var(--space-2); font-size: var(--text-xs); color: var(--fg-3); margin-bottom: 2px }
+.post-head b { color: var(--foreground); font-size: var(--text-sm) }
+.post-kind { padding: 0 6px; border-radius: 999px; border: 1px solid var(--border) }
+.post.kind-resumen .post-kind { border-color: var(--primary); color: var(--primary-ink) }
+.post.kind-error .post-kind, .post.kind-pausa .post-kind { border-color: var(--destructive); color: var(--destructive) }
+.group-working { display: flex; align-items: center; gap: var(--space-2) }
+.group-working .typing { padding: 0 }

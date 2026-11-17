@@ -197,3 +197,74 @@ export async function copyLastAsMarkdown(page: any): Promise<string> {
     }
     return '';
 }
+
+/**
+ * UNA PREGUNTA en una pestaña ya abierta: chat temporal nuevo con el modelo en la URL, el texto (en pedazos si es
+ * grande), Run, la espera hasta que la respuesta quede quieta y «Copy as markdown». Es el núcleo de `ask.ts`; lo usa
+ * también `pool.ts`, que reparte varias preguntas en varias pestañas de UNA conexión (el puente de Jarvis acepta una
+ * sola conexión de Playwright a la vez: una segunda se rechaza con «ya hay otra conexión de Playwright»).
+ */
+export async function askOn(page: any, model: string, text: string, timeoutMs: number, log: (s: string) => void = () => {}) {
+    const t0 = Date.now();
+    // El modelo va por la URL (`?model=`), y SIEMPRE: AI Studio recuerda el último elegido, y si fue uno que no es de
+    // chat (la transcripción, después de `transcribe`) la página que abre no tiene el campo para preguntar.
+    await page.goto(`https://aistudio.google.com/prompts/new_chat?model=${encodeURIComponent(model)}`, { waitUntil: 'domcontentloaded' });
+    const box = page.getByRole('textbox', { name: 'Enter a prompt' });
+    try {
+        await box.waitFor({ timeout: 30_000 });
+    } catch {
+        throw new Error(`no apareció el campo para preguntar (¿sesión de Google cerrada, o «${model}» no es un modelo de chat?): ${page.url()}`);
+    }
+    // El id del elegido: el texto de la tarjeta que empieza con gemini- o gemma- (el nombre va en otro elemento; su
+    // texto entero viene pegado, «Hydrogengemini-4-hydrogenAn…»).
+    const card = page.locator('ms-model-selector button').first();
+    const modelId: string = await card.evaluate((el: Element) => {
+        const leaf = [...el.querySelectorAll('*')].find((e) => !e.children.length && /^(gemini|gemma)-[\w.-]+$/.test((e.textContent || '').trim()));
+        return (leaf?.textContent || el.textContent || '').trim().slice(0, 60);
+    });
+    if (modelId !== model) throw new Error(`quedó elegido «${modelId}», no «${model}» (¿existe ese id? son los del selector de AI Studio)`);
+    // El chat temporal («Temporary chat»: no queda en el History) es lo que AI Studio abre por defecto; si alguien lo
+    // cambió, se avisa en vez de llenar el History con consultas sueltas.
+    if (!(await page.getByText('Temporary chat').first().isVisible().catch(() => false))) {
+        log('⚠ el chat NO está en modo temporal: esta consulta va a quedar en tu History de AI Studio');
+    }
+    log(`modelo: ${modelId} · ${text.length.toLocaleString('es-CO')} caracteres`);
+
+    // ⚠ Un texto grande NO va de una: con 1,2 MB en un solo `fill`, el puente de Chrome cortó la conexión (con 280 mil
+    // caracteres anduvo). Viaja en pedazos a una variable de la página y al final se pone en el campo, con el evento
+    // `input` que escucha Angular.
+    const CHUNK = 200_000;
+    if (text.length <= CHUNK) await box.fill(text);
+    else {
+        await page.evaluate(() => { (window as any).__jarvisText = ''; });
+        for (let i = 0; i < text.length; i += CHUNK) {
+            await page.evaluate((piece: string) => { (window as any).__jarvisText += piece; }, text.slice(i, i + CHUNK));
+        }
+        await box.evaluate((el: HTMLTextAreaElement) => {
+            el.focus();
+            el.value = (window as any).__jarvisText;
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            delete (window as any).__jarvisText;
+        });
+        const got = await box.evaluate((el: HTMLTextAreaElement) => el.value.length);
+        if (got !== text.length) throw new Error(`el campo quedó con ${got} caracteres de ${text.length}`);
+    }
+    const turnsBefore = await page.locator('ms-chat-turn').count();
+    log('esperando la respuesta…');
+    await runAndWait(page, timeoutMs);
+    // Que vuelva «Run» no alcanza: espera a que el texto quede quieto, y corta ya si AI Studio muestra un error.
+    const seen = await waitStableAnswer(page, timeoutMs);
+    const turns = await page.locator('ms-chat-turn').count();
+    if (turns < turnsBefore + 2 || !seen) throw new Error('AI Studio no contestó');
+
+    // «Copy as markdown»; si no entrega, la respuesta sale del texto de la página (sin el Markdown de origen).
+    let answer = await copyLastAsMarkdown(page);
+    let format: 'markdown' | 'text' = 'markdown';
+    if (!answer.trim()) {
+        answer = seen;
+        format = 'text';
+        log('«Copy as markdown» no entregó la respuesta: sale como texto de la página (sin el Markdown de origen)');
+    }
+    if (!answer.trim()) throw new Error('la respuesta llegó vacía');
+    return { answer, format, modelId, ms: Date.now() - t0 };
+}

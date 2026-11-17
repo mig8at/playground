@@ -19,14 +19,20 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
+| `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo) |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |
 
 - **Necesita Jarvis conectado en Chrome** y la sesión de Google de Miguel. Sin eso, la pregunta vuelve con el error de
   la receta.
-- **De a una pregunta por vez** (409 si llega otra): Jarvis maneja una pestaña por vez y AI Studio corta si se le pide
-  mucho.
+- **Todas las preguntas pasan por EL POOL** (`server/pool.go` → `jarvis/recipes/aistudio/pool.ts`, desde el
+  2026-11-17): un proceso de Node con LA conexión a Chrome (el puente de Jarvis acepta una sola de Playwright, pero
+  esa maneja varias pestañas a la vez), hasta 2 preguntas en paralelo (`WALLY_POOL_MAX`) y 20 s entre comienzos
+  (`WALLY_POOL_GAP`; con 8 s la segunda ya recibió «Permiso denegado»). Suelta la conexión a los 20 s sin trabajo,
+  así `bin/aistudio` por consola puede usarla. Las pestañas se abren de a una y con reintento: crear otra mientras una
+  carga AI Studio falló una vez con «Cannot read properties of undefined (reading '_page')». El núcleo de la pregunta
+  es `askOn` (`page.ts`), el mismo de `bin/aistudio ask`.
 - **La conversación la guarda Wally, en BLOQUES** (idea de Miguel, 2026-11-17): cada pregunta tuya y cada respuesta es
   un bloque con su id. AI Studio no recuerda nada (chat temporal: cada pregunta abre uno nuevo), así que la próxima
   pregunta le manda TODOS los bloques guardados como transcripción (`transcript`) y la pregunta nueva al final.
@@ -103,6 +109,25 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **Los grupos de agentes** (idea de Miguel, 2026-11-17, «como Duncan»: varios agentes en paralelo y un chat de todos):
+  en la lista, «Grupos de agentes» y su «+» (`#/grupo-nuevo`). El grupo **Knowledge** (`server/groups.go`) lo
+  coordina **Wally** (sin modelo: reparte, avisa y cierra) y lo trabajan **EVA** y **M-O**, en paralelo por el pool.
+  Se arma de dos formas: «Poner al día lo pendiente» (los temas con fuentes cambiadas según `knowledge-check`) o
+  «Revisar temas» (los que se marcan). Cada agente toma un tema de la cola y lo manda **en UN envío**: el paquete
+  (`taskPack`) ya lleva lo que antes pedía en 4 a 7 vueltas —las fuentes, el `diff` de cada una cambiada y las
+  secciones afectadas, o el tema entero si es una revisión—; si pide más, sus comandos de lectura se corren solos
+  (`decideCommand`, la misma lista blanca: la lectura va en automático, como salió de la evaluación), hasta 5 vueltas
+  y 6 comandos por vuelta. **Escribir sigue igual**: el grupo NO toca knowledge; deja propuestas para verificar contra
+  `main`. En el chat del grupo cada agente publica sólo lo corto (toma un tema, la línea `RESUMEN:` de su respuesta,
+  una pausa, un problema); tocar su ficha arriba, o «Abrir la conversación», abre su conversación completa, que es una
+  más de la lista («EVA · tema»). Un corte de Google lo espera el agente hasta que vence la pausa (+20 s, hasta 4
+  veces); otro error, lo reintenta una vez a los 30 s. Un grupo que corría cuando se reinició el servidor queda
+  «terminado» con sus agentes «cortado». API: `GET /api/topics`, `GET/POST /api/groups`, `GET/DELETE
+  /api/groups/<id>`; se guarda en `.data/groups.json`.
+  - **Primera corrida (2026-11-17, 12:49, Flash, 2 temas para revisar)**: la interfaz anduvo (plan, fichas, posts en
+    vivo); M-O no abrió su pestaña (el `_page`, ya con reintento) y EVA chocó 5 veces con «Permiso denegado»: la
+    cuenta venía cortada desde las 12:39 tras un día entero de pruebas. Se frenó a mano. **Falta una corrida entera
+    con la cuenta descansada**: que los dos contesten en paralelo y salga el `RESUMEN:`.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.
