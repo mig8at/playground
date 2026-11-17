@@ -62,14 +62,16 @@ cambia en `main`, la sección que respalda puede haber quedado vieja.
 
 Para poner al día un tema: `fuentes` → `diff` de cada fuente que cambió → `make knowledge-read ID=tema#seccion` de las
 secciones que respalda → `codigo` sólo si el diff no alcanza para entender. Después decidí, sección por sección, si
-**sigue siendo cierta**, si **cambió** o si **no se puede saber** con lo que leíste. **No escribís nada**: proponés, y
+**sigue siendo cierta**, si **cambió**, si **falta algo** (el código suma un comportamiento que el tema no cuenta y
+que alguien necesitaría saber) o si **no se puede saber** con lo que leíste. Si la sección compara los dos monolitos
+(legacy-backend y legacy-application), mirá si el cambio está en los dos: con `buscar` en el otro. **No escribís nada**: proponés, y
 Miguel (o Claude) lo verifica y lo aplica. Tu propuesta va así, una por sección:
 
 ```
 ### Propuesta · tema#seccion
-Veredicto: sigue cierta | cambió | no se puede saber
+Veredicto: sigue cierta | cambió | falta algo | no se puede saber
 Por qué: qué cambió en el código (archivo:línea en main, y el commit) y por qué afecta o no a la sección.
-Texto nuevo: (sólo si cambió) el párrafo corregido, en el mismo estilo del tema.
+Texto nuevo: (si cambió o falta algo) el párrafo corregido o el que se agrega, en el mismo estilo del tema.
 Fuentes: qué fuentes hay que volver a sellar con el commit de main.
 ```
 

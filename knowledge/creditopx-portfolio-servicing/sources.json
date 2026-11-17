@@ -137,8 +137,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bb44c4508cb6f1e5e106c3cecaec3ce959985fea",
+      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
+      "blob": "60ad88c13a37edbe9a1bd454697bac7aa78bdb4d",
       "sections": [
         "saldo-total-y-gasto-de-cobranza"
       ]
