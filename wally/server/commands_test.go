@@ -60,6 +60,9 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"buscar legacy-backend:../a.php 'x'",
 		"diff tema legacy-backend:x | sh",
 		"fuentes ../connectors",
+		"tarea ../connectors",
+		"tarea 7/context.jsonl",
+		"tarea 7; cat ~/.ssh/id_rsa",
 	} {
 		if args, err := commandArgs(bad); err == nil {
 			t.Errorf("%q tenía que rechazarse y dio %v", bad, args)
@@ -100,6 +103,17 @@ func TestGuidesAndTrapsReadOnlyTheirFixedFiles(t *testing.T) {
 	}
 	if got := run("trampa F-2"); got != "### F-2 · Dos\ncausa dos" {
 		t.Errorf("trampa F-2: %q", got)
+	}
+	// Una tarea: su task.md por número o por slug, y nunca la pila de al lado.
+	write(tasksDir+"/una-tarea/task.md", "---\nid: 7\ntitle: Una\n---\n## Objetivo\nel plan")
+	write(tasksDir+"/una-tarea/context.jsonl", `{"secreto":"pila"}`)
+	for _, cmd := range []string{"tarea 7", "tarea una-tarea"} {
+		if got := run(cmd); !strings.Contains(got, "el plan") || strings.Contains(got, "pila") {
+			t.Errorf("%s: %q", cmd, got)
+		}
+	}
+	if got := run("tarea 70"); !strings.Contains(got, "no hay una tarea") {
+		t.Errorf("tarea 70 no existe: %q", got)
 	}
 }
 

@@ -95,6 +95,11 @@ var allowList = []allowed{
 	{regexp.MustCompile(`^trampa (F-[0-9]{1,4})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.section(trapsFile, "### "+m[1]+" ", "\n### F-", "\n## ")
 	}},
+	// Una tarea del tablero: SÓLO su task.md (el plan y sus criterios), por número o por slug. Nunca su pila
+	// (context.jsonl) ni sus artifacts: traen mediciones de los ambientes, y lo que lee Wally viaja al proveedor.
+	{regexp.MustCompile(`^tarea ([0-9]{1,5}|[a-z0-9][a-z0-9-]{1,100})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+		return a.readTask(m[1])
+	}},
 	// Poner al día la biblioteca (code.go): qué cambió, en qué fuente, y el código de hoy.
 	{regexp.MustCompile(`^cambios$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
 		out, _, err := a.runMake(ctx, "knowledge-check")
@@ -358,4 +363,30 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 		return Conversation{}, 500, err
 	}
 	return *c, 200, nil
+}
+
+// tasksDir: las tareas del tablero, una carpeta por slug con su task.md.
+const tasksDir = "tablero/tasks"
+
+// readTask devuelve el task.md de una tarea, buscándola por slug o por el `id:` de su frontmatter.
+func (a *app) readTask(key string) (string, int, error) {
+	dir := filepath.Join(a.root, tasksDir)
+	if raw, err := os.ReadFile(filepath.Join(dir, key, "task.md")); err == nil {
+		return string(raw), 0, nil
+	}
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return "", -1, err
+	}
+	want := "\nid: " + key + "\n"
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		raw, err := os.ReadFile(filepath.Join(dir, e.Name(), "task.md"))
+		if err == nil && strings.Contains("\n"+string(raw), want) {
+			return string(raw), 0, nil
+		}
+	}
+	return fmt.Sprintf("no hay una tarea «%s» (`make tareas` las lista con su número)", key), 1, nil
 }

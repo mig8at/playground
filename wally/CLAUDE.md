@@ -254,6 +254,23 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     tema: todo lo verificado «sigue cierta», con 14 citas archivo:línea que se comprobaron EXACTAS contra main (guarda
     `OBV22012`, `missingUserFields`, `RKV24007`, `MAX_TYPOS = 3`, los `substr` del bypass), y dijo lo que NO alcanzó a
     verificar (TusDatos, el `NameUtils` de RiskV2, las etapas 5 a 7). Nada que aplicar.
+- **Mew, el agente de pruebas** (2026-11-17, el primero que no es de knowledge): le das una tarea y propone CÓMO se
+  comprueba corriendo —por criterio, el comando del harness, qué demuestra frente a su caso de control, qué se espera
+  en la base y qué trampa puede dar un falso verde—, más lo que el harness no alcanza y el orden. No corre nada. Su
+  contexto son sus notas, [`agents/mew.md`](agents/mew.md) (los caminos del harness, las perillas de `harness-case` y
+  `harness-walk-wizard`, las claves de una suite y el formato); los temas los lee según la tarea. Para eso se sumó a
+  la lista blanca **`tarea <N|slug>`**: SÓLO el `task.md`, nunca la pila ni los artifacts (traen mediciones de los
+  ambientes). Se crea con `bin/wally agent create --name Mew --intent '…' --notes-file wally/agents/mew.md`.
+  **Probado con la tarea 101** (nombres en el onboarding), por DeepSeek: 3 vueltas, ~100 s; pidió la tarea, el índice
+  de trampas, tres trampas (F-132, F-133, F-145), el tema `identity-name-validation` y `comandos harness`, y propuso
+  5 pruebas. Sus dos tandas de `harness-case` se corrieron en local (rama con `NameSimilarity` igual a `main`): los 7
+  casos dejaron en `users` y `kyc_name_checks` exactamente lo que dijo —Ñ y tildes conservadas en los tres sentidos,
+  `completed` en las dos formas sin ambigüedad, `token_mismatch` sin completar en la ambigua y con el error de tipeo—.
+  Avisó solo que el runner no imprime el nombre (hay que leer `users`), que `adopted` no prueba un cambio, que «no
+  hay fila» no prueba «no consultó» y F-133 (el pagaré con un apellido). Lo que dijo del comando de reparación
+  (`--since`, `--apply`, `--undo`, sólo `CC`, sin desembolsados ni validación manual) está en `main`. Un caso de la
+  tanda cayó en el listado con «There is no active transaction» (del backend, en paralelo), después de guardar el
+  nombre.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

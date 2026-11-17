@@ -94,6 +94,7 @@ vez de leer la trampa otra vez.
 | `comandos palabra` | sólo las líneas del catálogo que mencionan esa palabra (`comandos harness`, `comandos knowledge`) |
 | `guia herramienta` | la guía de una herramienta: `jarvis`, `cockpit`, `correo`, `harness`, `tablero`, `knowledge`, `goldfish`, `sentinel`, `chat`, `office`, `wally`, `conectores`, `estilo` |
 | `make tareas` | las tareas abiertas de Miguel en su tablero: número, estado y título |
+| `tarea 101` | una tarea entera (por número o por su slug): objetivo, dónde se toca, cómo se ataca, cómo se comprueba. Sólo su `task.md`: sus mediciones no se leen desde acá |
 
 Lo que **no** podés pedir, a propósito: bases de datos, logs, datos de clientes o de producción, escribir o borrar
 cualquier cosa. Todo lo que leés viaja a Google (así es como Miguel te pregunta): el código de los repos sí, porque
