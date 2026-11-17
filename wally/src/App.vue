@@ -62,6 +62,7 @@ const tabModel = ref({})    // clave → modelo elegido en esa pestaña
 const errors = ref({})      // clave → el último error
 const attachments = ref({}) // clave → archivos subidos y todavía sin mandar: [{ id, name, size, chars, kind }]
 const uploading = ref({})   // clave → cuántos se están subiendo
+const tabMode = ref({})     // clave de una pestaña nueva → su modo («knowledge») antes de la primera pregunta
 let newCounter = Math.max(0, ...tabs.value.map((t) => Number((/^nueva-(\d+)$/.exec(t.key) || [])[1] || 0)))
 const isNew = (key) => key.startsWith('nueva-')
 
@@ -69,7 +70,7 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
-  if (isNew(t.key)) return 'Conversación nueva'
+  if (isNew(t.key)) return tabMode.value[t.key] === 'knowledge' ? 'Asistente de knowledge' : 'Conversación nueva'
   return loaded.value[t.key]?.title || conversations.value.find((c) => c.id === t.key)?.title || 'Conversación'
 }
 
@@ -137,6 +138,10 @@ function readRoute() {
 
 // ── LA PESTAÑA ACTIVA ──
 const conv = computed(() => loaded.value[active.value] || null)
+// El modo de la pestaña: el de su conversación, o el elegido en una nueva.
+const modeOf = (key) => loaded.value[key]?.mode || conversations.value.find((c) => c.id === key)?.mode || tabMode.value[key] || ''
+const mode = computed(() => modeOf(active.value))
+const MODES = { knowledge: { label: 'Asistente de knowledge', short: 'knowledge' } }
 const messages = computed(() => conv.value?.messages || [])
 const draft = computed({
   get: () => drafts.value[active.value] || '',
@@ -149,8 +154,10 @@ const model = computed({
 const error = computed(() => errors.value[active.value] || '')
 const pendingFiles = computed(() => attachments.value[active.value] || [])
 const fileChars = (files) => (files || []).reduce((n, f) => n + (f.chars || 0), 0)
-const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length + fileChars(m.files), 0))
-const contextFiles = computed(() => messages.value.reduce((n, m) => n + (m.files?.length || 0), 0))
+// Lo que viaja: el texto de cada bloque, sus archivos y las salidas de los comandos que se corrieron.
+const outputsOf = (m) => (m.commands || []).filter((c) => c.output).map((c) => c.output)
+const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length + fileChars(m.files) + fileChars(outputsOf(m)), 0))
+const contextFiles = computed(() => messages.value.reduce((n, m) => n + (m.files?.length || 0) + outputsOf(m).length, 0))
 
 // ── MANDAR ── (de a una pregunta en toda la app: la respuesta llega cuando AI Studio termina, sin streaming)
 const pending = ref(null)   // { key, text, model, since }
@@ -174,7 +181,7 @@ async function send() {
   scrollDown()
   try {
     const c = await api('/api/ask', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text, files: files.map((f) => f.id) }) })
+      body: JSON.stringify({ id: isNew(key) ? '' : key, model: pending.value.model, text, files: files.map((f) => f.id), mode: isNew(key) ? (tabMode.value[key] || '') : '' }) })
     attachments.value = { ...attachments.value, [key]: [] }
     if (isNew(key)) {
       // La pestaña nueva pasa a ser la de su conversación, en el mismo lugar.
@@ -251,6 +258,41 @@ const PREVIEW_CHARS = 4000
 const sizeLabel = (n) => n >= 1048576 ? `${(n / 1048576).toLocaleString('es-CO', { maximumFractionDigits: 1 })} MB` : n >= 1024 ? `${Math.round(n / 1024)} KB` : `${n} B`
 const charsLabel = (n) => n >= 1000 ? `${Math.round(n / 1000).toLocaleString('es-CO')} mil car.` : `${n} car.`
 const FILE_ICON = { pdf: 'PDF', documento: 'DOC', texto: 'TXT' }
+
+// EL MODO ASISTIDO: el modelo pide comandos de sólo lectura en sus respuestas; acá se corren o se descartan, uno por
+// uno (el servidor sólo corre los de su lista blanca, sin shell). Cuando no queda ninguno por decidir, «Mandar
+// resultados» le avisa al modelo, y las salidas viajan pegadas a la respuesta que las pidió.
+const running = ref('')   // el id del comando que se está corriendo
+async function commandAction(m, c, action) {
+  const key = active.value
+  if (!conv.value || running.value) return
+  running.value = c.id
+  try {
+    const updated = await api(`/api/conversations/${encodeURIComponent(conv.value.id)}/messages/${encodeURIComponent(m.id)}/commands/${encodeURIComponent(c.id)}`,
+      { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action }) })
+    loaded.value = { ...loaded.value, [key]: updated }
+    scrollDown()
+  } catch (e) { errors.value = { ...errors.value, [key]: e.message } } finally { running.value = '' }
+}
+// La última respuesta, si pidió comandos y ya se decidió cada uno: es cuando se le puede seguir.
+const awaitingResults = computed(() => {
+  const last = messages.value[messages.value.length - 1]
+  if (!last || last.role !== 'model' || !last.commands?.length) return null
+  if (last.commands.some((c) => c.status === 'propuesto')) return null
+  return { ran: last.commands.filter((c) => c.status === 'corrido').length, total: last.commands.length }
+})
+function sendResults() {
+  const r = awaitingResults.value
+  if (!r) return
+  draft.value = r.ran
+    ? `Listo: corrí ${r.ran === 1 ? 'el comando' : `los ${r.ran} comandos`} (la salida va arriba${r.ran < r.total ? '; los otros los descarté' : ''}). Seguí.`
+    : 'No corrí ninguno de esos comandos. Seguí con lo que tenés, o pedí otra cosa.'
+  send()
+}
+const proposedCount = (m) => (m.commands || []).filter((c) => c.status === 'propuesto').length
+// En una respuesta con comandos, sus bloques ```comando no se repiten como código: van como tarjetas.
+const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').trim() : m.text)
+function chooseMode(m) { if (isNew(active.value)) tabMode.value = { ...tabMode.value, [active.value]: m }; focusInput() }
 
 // BORRAR UN BLOQUE: una pregunta o una respuesta sale de lo guardado y, con eso, del contexto de la próxima pregunta
 // (AI Studio no recuerda nada: cada pregunta le manda todo lo que queda). Sin confirmación, como en un chat.
@@ -446,7 +488,7 @@ onBeforeUnmount(() => {
                 <i v-if="pending && pending.key === c.id" class="live-dot" aria-label="esperando la respuesta"></i>
                 {{ c.title }}
               </span>
-              <span class="conv-meta">{{ modelName(c.model) }} · {{ c.count }} bloque{{ c.count === 1 ? '' : 's' }} · {{ when(c.updated) }}</span>
+              <span class="conv-meta">{{ c.mode ? `${MODES[c.mode]?.short || c.mode} · ` : '' }}{{ modelName(c.model) }} · {{ c.count }} bloque{{ c.count === 1 ? '' : 's' }} · {{ when(c.updated) }}</span>
             </button>
             <button type="button" class="region-action conv-del" title="Borrar la conversación" aria-label="Borrar la conversación" @click="removeConv(c)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -464,6 +506,7 @@ onBeforeUnmount(() => {
              @mousedown.middle.prevent="closeTab(t.key)">
           <button type="button" class="tab-label" :title="tabTitle(t)" @click="activate(t.key)" @dblclick="pinTab(t.key)">
             <i v-if="pending && pending.key === t.key" class="live-dot" aria-label="esperando la respuesta"></i>
+            <span v-if="modeOf(t.key)" class="mode-badge" :title="MODES[modeOf(t.key)]?.label">K</span>
             <span>{{ tabTitle(t) }}</span>
           </button>
           <button type="button" class="tab-close" :disabled="pending && pending.key === t.key" title="Cerrar la pestaña" aria-label="Cerrar la pestaña" @click="closeTab(t.key)">
@@ -483,10 +526,18 @@ onBeforeUnmount(() => {
         <div v-if="!messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
-            <div class="empty-title">Preguntale a Wally</div>
+            <div class="empty-title">{{ mode === 'knowledge' ? 'Preguntale a tu biblioteca' : 'Preguntale a Wally' }}</div>
             <div class="empty-desc">Pregunta por la web de AI Studio, en tu Chrome y con tu cuenta, sin llave de API. Lo que quede guardado acá es el contexto de la próxima pregunta.</div>
           </div>
-          <div class="suggestions">
+          <div class="mode-pick" role="radiogroup" aria-label="Qué hace esta conversación">
+            <button type="button" class="mode-card" role="radio" :aria-checked="!mode" @click="chooseMode('')">
+              <span class="ui-icon" data-icon="comment" aria-hidden="true"></span><b>Chat</b><span>Preguntás y contesta.</span>
+            </button>
+            <button type="button" class="mode-card" role="radio" :aria-checked="mode === 'knowledge'" @click="chooseMode('knowledge')">
+              <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><b>Asistente de knowledge</b><span>Recibe el mapa de tu biblioteca y te pide leer temas: vos aprobás cada comando.</span>
+            </button>
+          </div>
+          <div v-if="!mode" class="suggestions">
             <button v-for="s in SUGGESTIONS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
           </div>
         </div>
@@ -515,7 +566,36 @@ onBeforeUnmount(() => {
           </div>
           <article v-if="m.role === 'model'" class="block answer">
             <div class="answer-who"><span class="avatar" aria-hidden="true">W</span><b>Wally</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s · {{ clock(m.at) }}</span></div>
-            <div class="answer-body" v-html="md(m.text)"></div>
+            <div class="answer-body" v-html="md(answerText(m))"></div>
+            <div v-if="m.commands?.length" class="commands">
+              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ proposedCount(m) ? ': decidí cada uno' : '' }}</div>
+              <div v-for="c in m.commands" :key="c.id" class="command" :class="`is-${c.status}`">
+                <code class="command-line">{{ c.cmd }}</code>
+                <template v-if="c.status === 'propuesto'">
+                  <button type="button" class="btn btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'run')">
+                    <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ running === c.id ? 'Corriendo…' : 'Correr' }}
+                  </button>
+                  <button type="button" class="btn btn-ghost btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'decline')">Descartar</button>
+                </template>
+                <template v-else-if="c.status === 'corrido'">
+                  <button v-if="c.output" type="button" class="file-chip" :class="{ on: openFile.id === c.output.id }" :title="'Ver la salida que viaja con la respuesta'" @click="toggleFile(c.output)">
+                    <span class="file-kind">OUT</span><span class="file-name">salida</span><span class="file-size">{{ charsLabel(c.output.chars) }} · {{ seconds(c.ms) }} s{{ c.exit ? ` · código ${c.exit}` : '' }}</span>
+                  </button>
+                  <span v-else class="command-status warn-text">{{ c.reason }}</span>
+                </template>
+                <span v-else-if="c.status === 'descartado'" class="command-status">descartado</span>
+                <span v-else class="command-status warn-text" :title="c.reason">no permitido</span>
+              </div>
+              <div v-if="m.commands.some((c) => c.output && c.output.id === openFile.id)" class="file-view">
+                <div class="file-view-head">
+                  <b>{{ m.commands.find((c) => c.output?.id === openFile.id)?.cmd }}</b>
+                  <span class="count">la salida que viaja con esta respuesta</span>
+                  <button v-if="openFile.text.length > PREVIEW_CHARS" type="button" class="btn btn-ghost btn-xs" @click="openFile.full = !openFile.full">{{ openFile.full ? 'Ver menos' : 'Ver todo' }}</button>
+                  <button type="button" class="region-action" title="Cerrar" aria-label="Cerrar" @click="openFile = { id: '', text: '', full: false }"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+                </div>
+                <pre>{{ openFile.full ? openFile.text : openFile.text.slice(0, PREVIEW_CHARS) + (openFile.text.length > PREVIEW_CHARS ? '\n…' : '') }}</pre>
+              </div>
+            </div>
             <div class="answer-meta">
               <button type="button" class="btn btn-ghost btn-xs" @click="copy(m)">
                 <span class="ui-icon" data-icon="copy" aria-hidden="true"></span>{{ copiedId === m.id ? 'Copiado' : 'Copiar' }}
@@ -526,6 +606,10 @@ onBeforeUnmount(() => {
             </div>
           </article>
         </template>
+        <div v-if="awaitingResults && !pending" class="results-bar">
+          <span>{{ awaitingResults.ran ? `${awaitingResults.ran} de ${awaitingResults.total} corrido${awaitingResults.total > 1 ? 's' : ''}: sus salidas viajan con la próxima pregunta.` : 'Descartaste todo lo que pidió.' }}</span>
+          <button type="button" class="btn btn-sm" :disabled="!!allPaused" @click="sendResults"><span class="ui-icon" data-icon="send" aria-hidden="true"></span>{{ awaitingResults.ran ? 'Mandar resultados' : 'Seguir sin eso' }}</button>
+        </div>
         <template v-if="pending && pending.key === active">
           <div class="block block-user"><div class="user-col">
             <div class="bubble mine">{{ pending.text }}</div>

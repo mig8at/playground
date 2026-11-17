@@ -50,6 +50,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
+	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("POST /api/files", a.upload)
 	mux.HandleFunc("GET /api/files/{id}", a.readFile)
 	mux.HandleFunc("DELETE /api/files/{id}", a.deleteFile)
@@ -89,13 +90,16 @@ type Message struct {
 	At    time.Time `json:"at"`
 	// Files: los archivos de una pregunta (sólo su ficha; el texto vive en wally/.data/files y viaja en la pregunta).
 	Files []Attachment `json:"files,omitempty"`
+	// Commands: los comandos que el modelo pidió en una respuesta del modo asistido (commands.go).
+	Commands []Command `json:"commands,omitempty"`
 }
 
 // Conversation es un chat: el título sale de la primera pregunta.
 type Conversation struct {
 	ID       string    `json:"id"`
 	Title    string    `json:"title"`
-	Model    string    `json:"model"` // el último elegido: la interfaz lo vuelve a poner al abrirla
+	Model    string    `json:"model"`          // el último elegido: la interfaz lo vuelve a poner al abrirla
+	Mode     string    `json:"mode,omitempty"` // «knowledge»: el modo asistido (commands.go); vacío, un chat
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 	Messages []Message `json:"messages"`
@@ -244,6 +248,7 @@ type Summary struct {
 	Model   string    `json:"model"`
 	Updated time.Time `json:"updated"`
 	Count   int       `json:"count"`
+	Mode    string    `json:"mode,omitempty"`
 }
 
 func (a *app) list(w http.ResponseWriter, r *http.Request) {
@@ -251,7 +256,7 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.Unlock()
 	out := make([]Summary, 0, len(a.store.convs))
 	for _, c := range a.store.convs {
-		out = append(out, Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages)})
+		out = append(out, Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages), c.Mode})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
 	writeJSON(w, 200, map[string]any{"conversations": out})
@@ -274,6 +279,7 @@ func (a *app) remove(w http.ResponseWriter, r *http.Request) {
 	if c, ok := a.store.convs[r.PathValue("id")]; ok {
 		for _, m := range c.Messages {
 			a.forgetFiles(m.Files)
+			a.forgetFiles(commandOutputs(m))
 		}
 	}
 	delete(a.store.convs, r.PathValue("id"))
@@ -301,6 +307,7 @@ func (a *app) removeMessage(w http.ResponseWriter, r *http.Request) {
 			kept = append(kept, m)
 		} else {
 			a.forgetFiles(m.Files)
+			a.forgetFiles(commandOutputs(m))
 		}
 	}
 	if len(kept) == len(c.Messages) {
@@ -328,7 +335,11 @@ func transcript(history []Message, question string, files []Attachment, fileText
 				fmt.Fprintf(&b, "\n(el archivo «%s» ya no está)\n", f.Name)
 				continue
 			}
-			fmt.Fprintf(&b, "\n----- archivo adjunto: «%s» -----\n%s\n----- fin de «%s» -----\n", f.Name, strings.TrimRight(text, "\n"), f.Name)
+			label := "archivo adjunto"
+			if f.Kind == "salida" {
+				label = "salida del comando que pediste"
+			}
+			fmt.Fprintf(&b, "\n----- %s: «%s» -----\n%s\n----- fin de «%s» -----\n", label, f.Name, strings.TrimRight(text, "\n"), f.Name)
 		}
 	}
 	if len(history) == 0 {
@@ -347,6 +358,13 @@ func transcript(history []Message, question string, files []Attachment, fileText
 		}
 		fmt.Fprintf(&b, "### %s\n%s\n", who, m.Text)
 		writeFiles(m.Files)
+		// Lo que pidió el modelo y Miguel corrió viaja justo después de esa respuesta; lo descartado se dice.
+		writeFiles(commandOutputs(m))
+		for _, c := range m.Commands {
+			if c.Status == "descartado" || c.Status == "no-permitido" {
+				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"descartado": "Miguel lo descartó", "no-permitido": "no está en la lista"}[c.Status])
+			}
+		}
 		b.WriteString("\n")
 	}
 	fmt.Fprintf(&b, "### Yo (la pregunta de ahora)\n%s\n", question)
@@ -400,6 +418,7 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		Model string   `json:"model"`
 		Text  string   `json:"text"`
 		Files []string `json:"files"`
+		Mode  string   `json:"mode"` // sólo al empezar una conversación
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
@@ -434,8 +453,22 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		history = append(history, c.Messages...)
+		in.Mode = c.Mode
 	}
 	a.store.mu.Unlock()
+	if _, ok := modeInstructions[in.Mode]; in.Mode != "" && !ok {
+		writeErr(w, 400, fmt.Errorf("no existe el modo «%s»", in.Mode))
+		return
+	}
+	// Al empezar en un modo asistido, lo que el modo adjunta (el mapa de knowledge) va con la primera pregunta.
+	if len(history) == 0 && in.Mode != "" {
+		extra, err := a.modeContext(r.Context(), in.Mode)
+		if err != nil {
+			writeErr(w, 500, err)
+			return
+		}
+		files = append(extra, files...)
+	}
 
 	if !a.askMu.TryLock() {
 		writeErr(w, 409, errors.New("Wally ya está esperando otra respuesta: de a una pregunta por vez"))
@@ -443,7 +476,11 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	}
 	asked := time.Now()
 	ctx, cancel := context.WithTimeout(r.Context(), 12*time.Minute)
-	answer, err := a.askAIStudio(ctx, in.Model, transcript(history, in.Text, files, a.fileText))
+	prompt := transcript(history, in.Text, files, a.fileText)
+	if instructions := modeInstructions[in.Mode]; instructions != "" {
+		prompt = instructions + "\n\n" + prompt
+	}
+	answer, err := a.askAIStudio(ctx, in.Model, prompt)
 	cancel()
 	a.askMu.Unlock()
 	if err != nil {
@@ -461,17 +498,37 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 		if r := []rune(title); len(r) > 60 {
 			title = string(r[:60]) + "…"
 		}
-		c = &Conversation{ID: newID(), Title: title, Created: asked}
+		c = &Conversation{ID: newID(), Title: title, Mode: in.Mode, Created: asked}
 		a.store.convs[c.ID] = c
 	}
 	c.Model = in.Model
 	c.Updated = done
 	c.Messages = append(c.Messages,
 		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},
-		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done})
+		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done,
+			Commands: modeCommands(in.Mode, answer)})
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
 		return
 	}
 	writeJSON(w, 200, c)
+}
+
+// modeCommands: en un modo asistido, los comandos que pidió el modelo; en un chat, ninguno.
+func modeCommands(mode, answer string) []Command {
+	if mode == "" {
+		return nil
+	}
+	return parseCommands(answer)
+}
+
+// commandOutputs: las salidas guardadas de los comandos de un bloque (se borran con él).
+func commandOutputs(m Message) []Attachment {
+	var out []Attachment
+	for _, c := range m.Commands {
+		if c.Output != nil {
+			out = append(out, *c.Output)
+		}
+	}
+	return out
 }

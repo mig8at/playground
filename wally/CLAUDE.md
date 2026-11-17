@@ -47,6 +47,19 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   clip, arrastrándolos o pegándolos; pertenecen al bloque de la pregunta: borrarlo (o la conversación) los borra del
   disco, y cerrar una pestaña borra los que no se mandaron. Medido el 2026-11-17: un log de 23 mil caracteres con
   Gemini 3.8 Flash, 47 s.
+- **El modo asistido «Asistente de knowledge»** (se elige al abrir una pestaña nueva; la pestaña lleva una «K»):
+  Wally deja de sólo contestar y puede PEDIR VER cosas de la máquina, pero no las corre él (idea de Miguel,
+  2026-11-17). La conversación arranca con el mapa de `knowledge/` adjunto (`make knowledge-map`) y unas instrucciones
+  (`modeInstructions`, en `server/commands.go`): para leer un tema tiene que pedirlo en un bloque ```comando. Cada
+  comando pedido sale como tarjeta con **Correr** y **Descartar**; la salida queda como ficha de la respuesta que lo
+  pidió (viaja pegada a ella; borrar el bloque la borra) y «Mandar resultados» le avisa al modelo para que siga.
+  ⚠ **Qué se corre lo decide el servidor, no el modelo**: una lista blanca (`allowList`) de sólo lectura —`make
+  knowledge-map`, `knowledge-search Q='…'`, `knowledge-read ID=…`— con los argumentos validados, que se corre SIN
+  SHELL (`exec` de `make` con los argumentos separados) y se vuelve a validar al correr. Lo demás queda «no permitido»
+  (`commands_test.go` prueba que `;`, `$(…)`, `|`, `../` u otro target no pasan). Para sumar un comando de lectura:
+  su línea en `allowList`, su caso en la prueba y una línea en las instrucciones. Medido el 2026-11-17 con 3.8 Flash:
+  «¿cómo funciona el cupo mensual de CreditopX y qué lo puede negar?» → pidió 3 temas en 10 s, se corrieron 2 (0,2 s
+  cada uno) y contestó con los dos, citando de dónde salía cada cosa, en 88 s.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.
