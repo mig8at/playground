@@ -304,3 +304,4 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .po-main span { font-size: var(--text-xs); color: var(--fg-3) }
 .provider-option.on .po-main span { color: inherit; opacity: .8 }
 .provider-trigger { white-space: nowrap; flex: none }
+.state-dot.is-proximamente { background: transparent; box-shadow: inset 0 0 0 1px var(--fg-3) }

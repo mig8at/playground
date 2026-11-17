@@ -277,6 +277,7 @@ function unavailableReason(id) {
   const p = providerOf(id)
   if (!p) return ''
   if (p.paused) return id === 'aistudio' ? `En pausa hasta las ${p.paused}: se acabó el cupo diario de Gemini (lo dijo su último aviso)` : `En pausa hasta las ${p.paused}: cortó por el ritmo`
+  if (p.status?.state === 'proximamente') return p.status.detail
   if (p.status?.state === 'sin-sesion') return `${PROVIDER_NAME[id]} pide entrar: hacelo a mano en tu Chrome y tocá «Comprobar ahora» en la configuración`
   if (p.status?.state === 'sin-jarvis') return 'Jarvis no está conectado en Chrome: abrí Chrome o tocá el ícono de Jarvis'
   if (p.status?.state === 'error') return p.status.detail
@@ -295,7 +296,7 @@ const fit = computed(() => {
   const total = (agentRow(active.value)?.preload || 0) + contextChars.value + (draft.value?.length || 0)
   return { limit, total, over: limit > 0 && total > limit }
 })
-const PROVIDER_NAME = { aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq' }
+const PROVIDER_NAME = { aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq', kimi: 'Kimi' }
 async function setAgentProvider(key, provider) {
   try {
     const c = await api(`/api/agents/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider }) })
@@ -1200,7 +1201,7 @@ onBeforeUnmount(() => {
                         :aria-selected="chosenProvider === p.id" :aria-disabled="!!unavailableReason(p.id)"
                         :title="unavailableReason(p.id) || p.status?.detail || ''" @click="pickProvider(p.id)">
                   <i class="state-dot" :class="`is-${providerState(p.id)}`" aria-hidden="true"></i>
-                  <span class="po-main"><b>{{ PROVIDER_NAME[p.id] }}</b><span>{{ [innerModel(p.id), p.limit ? `hasta ~${Math.round(p.limit / 1000)} mil car.` : '', p.paused ? `en pausa hasta las ${p.paused}` : ''].filter(Boolean).join(' · ') || 'listo' }}</span></span>
+                  <span class="po-main"><b>{{ PROVIDER_NAME[p.id] }}</b><span>{{ p.status?.state === 'proximamente' ? 'Próximamente' : [innerModel(p.id), p.limit ? `hasta ~${Math.round(p.limit / 1000)} mil car.` : '', p.paused ? `en pausa hasta las ${p.paused}` : ''].filter(Boolean).join(' · ') || 'listo' }}</span></span>
                 </button>
               </div>
             </div>

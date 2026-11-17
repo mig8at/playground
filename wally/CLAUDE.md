@@ -183,6 +183,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   el botón es la del proveedor de ESA conversación: con Gemini sin cupo, se elige DeepSeek y se sigue. Los Pokémon
   pesan de 53 a 114 mil caracteres: ninguno entra en ChatGPT gratis ni en Groq. (El selector estuvo un rato en la
   ficha del agente; `Agent.Provider` sigue leyéndose, pero ya no se elige ahí.)
+- **Kimi está, pero apagado («Próximamente»)**: la receta existe (`jarvis/recipes/kimi/`, `bin/kimi`), y en el plan
+  gratis sus modelos buenos se frenan con «Muchas personas están chateando… Suscríbete» (Miguel, 2026-11-17: «va a
+  seguir poniendo ese mensaje para que uno pague»). `/api/providers` lo lista con estado `proximamente` y su causa, que
+  el menú muestra en gris y al pasar el mouse; no está en `providerModels`, así que no se puede elegir. Elegir un
+  proveedor que no existe en la configuración ahora da 400 (antes `valid` lo cambiaba en silencio por Gemini).
 - **Al arrancar, Wally comprueba los servicios** (`status.go`, `jarvis/recipes/aistudio/check.ts`): a los 5 s de
   levantarse —lo levanta Cockpit— el pool abre cada web en la ventana aparte y mira si está el campo para preguntar con
   sesión, SIN preguntar nada (no gasta cupo): `listo`, `sin-sesion` (entrar a mano), `error` o `sin-jarvis`. A eso se

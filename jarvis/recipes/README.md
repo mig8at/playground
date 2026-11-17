@@ -200,6 +200,18 @@ caracteres (con ~19 mil sí; con ~40 mil, «Something went wrong»). ⚠ La cons
 |---|---|---|
 | `ask` | **una pregunta a Groq**: el chat con el modelo por URL → espera a que la página termine de cargar (redibuja el campo y se pierde lo escrito) → escribe y comprueba que quedó entero → Enter → la respuesta del último bloque `.font-inter` (sin el razonamiento plegado) con el primer botón siguiente («copiar») interceptado. También `bin/groq`. Medido el 2026-11-17 con GPT OSS 120B: 6,9 a 7,3 s en total (casi todo es cargar la página; genera a 472-481 tokens/s), en Markdown; encontró la clave escondida con 7,5 y 19 mil caracteres | `--prompt` · `--file` · stdin · `--model <id>` (openai/gpt-oss-120b por defecto; openai/gpt-oss-20b) · `--out` · `--keep` · `--timeout 300` · `--json` |
 
+## Kimi (Moonshot, por su web: kimi.ai) — escrita, sin habilitar en Wally
+
+kimi.com es la versión china (WeChat o celular +86); con Google se entra por `kimi.ai`. Con sesión, cada chat queda en el
+historial. Se aprendió el 2026-11-17 (`flows/www-kimi-com/`). ⚠ **En el plan gratis, con mucha gente, sus modelos buenos
+(K3.1 Pro, K3, K2.8 Preview) contestan «Muchas personas están chateando con Kimi… Suscríbete» y no mandan la pregunta**;
+«Instantáneo» sí contestó (~10 s). Por eso Miguel la dejó escrita pero apagada en Wally («Próximamente»). ⚠ Es china:
+nada de datos de clientes, credenciales ni contexto interno.
+
+| receta | qué hace | parámetros |
+|---|---|---|
+| `ask` | **una pregunta a Kimi**: chat nuevo → el texto en `.chat-input-editor` → prueba los modelos de mejor a peor (K3.1 Pro, K3, K2.8 Preview, Instantáneo): si sale el aviso (`confirm-dialog`), lo cierra («Entendido») y baja al siguiente, con el texto ya escrito → la respuesta de `.segment-assistant .markdown` y su «copiar». También `bin/kimi`. ⚠ **Sin probar entera**: las piezas se probaron por script (el aviso con los tres buenos; Instantáneo contestó), pero la primera corrida de la receta no cargó kimi.ai en 30 s y se cortó | `--prompt` · `--file` · stdin · `--model <nombre>` (sólo ése) · `--out` · `--keep` · `--timeout 600` · `--json` |
+
 ## Shopify (tienda de pruebas `creditop-dev-store`)
 
 Credenciales: la app «Jarvis · Admin API (pruebas)» del Dev Dashboard (organización CREDITOP), instalada sólo en

@@ -1,0 +1,10 @@
+#!/bin/sh
+# kimi — Kimi (Moonshot) por su web, kimi.ai, en tu Chrome con Jarvis y tu sesión (sin llave de API). Es la receta de
+# jarvis/recipes/kimi/; los archivos se leen y se escriben desde donde lo corrés.
+#   bin/kimi [ask] --prompt '…' [--file doc.md] [--model K3] [--out r.md] [--keep] [--json]
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+case "$1" in
+  ask) recipe=$1; shift ;;
+  *) recipe=ask ;;
+esac
+exec node "$root/jarvis/recipes/kimi/$recipe.ts" "$@"

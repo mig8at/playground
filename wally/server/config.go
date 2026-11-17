@@ -154,6 +154,15 @@ func (a *app) putConfig(w http.ResponseWriter, r *http.Request) {
 		}
 		merged[k] = v
 	}
+	// Un proveedor que no existe (o uno «próximamente», como Kimi) se rechaza: si no, `valid` lo cambiaba en silencio
+	// por el de siempre y se perdía el elegido (pasó el 2026-11-17).
+	if p, ok := patch["provider"]; ok {
+		var id string
+		if json.Unmarshal(p, &id) != nil || providerModels[id].Name == "" {
+			writeErr(w, 400, errors.New("no se puede elegir ese proveedor"))
+			return
+		}
+	}
 	raw, _ := json.Marshal(merged)
 	var next Config
 	if err := json.Unmarshal(raw, &next); err != nil {

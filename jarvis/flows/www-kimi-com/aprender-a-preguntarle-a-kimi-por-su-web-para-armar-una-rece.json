@@ -1,0 +1,271 @@
+{
+  "name": "Aprender a preguntarle a Kimi por su web para armar una receta como la de DeepSeek",
+  "meta": "Aprender a preguntarle a Kimi por su web para armar una receta como la de DeepSeek",
+  "start": "https://www.kimi.com",
+  "device": "chrome",
+  "created": "2026-11-17T17:01:00.3867-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-17_16-54-14",
+  "steps": [
+    {
+      "action": "fill",
+      "target": "div",
+      "value": "Respondé sólo con la palabra: listo",
+      "instruction": "Escribí «Respondé sólo con la palabra: listo» en «div»",
+      "why": "Pruebo si Kimi contesta sin sesión",
+      "param": "div",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').fill('Respondé sólo con la palabra: listo')"
+    },
+    {
+      "action": "press",
+      "target": "Respondé sólo con la palabra: listo",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «Respondé sólo con la palabra: listo»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').press('Enter')"
+    },
+    {
+      "action": "expect",
+      "target": "listo",
+      "value": "listo",
+      "instruction": "Comprobá que se vea «listo»",
+      "code": "expect(page.getByText('listo').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "goto",
+      "target": "https://www.kimi.ai",
+      "value": "https://www.kimi.ai",
+      "instruction": "Abrí https://www.kimi.ai",
+      "why": "Kimi pide entrar; con Google es en kimi.ai (el sitio internacional)",
+      "code": "page.goto('https://www.kimi.ai')"
+    },
+    {
+      "action": "goto",
+      "target": "https://www.kimi.ai",
+      "value": "https://www.kimi.ai",
+      "instruction": "Abrí https://www.kimi.ai",
+      "why": "Con sesión: pruebo una pregunta corta y miro el selector de modelo",
+      "code": "page.goto('https://www.kimi.ai')"
+    },
+    {
+      "action": "fill",
+      "target": "div",
+      "value": "Respondé sólo con la palabra: listo",
+      "instruction": "Escribí «Respondé sólo con la palabra: listo» en «div»",
+      "param": "div",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').fill('Respondé sólo con la palabra: listo')"
+    },
+    {
+      "action": "press",
+      "target": "Respondé sólo con la palabra: listo",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «Respondé sólo con la palabra: listo»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-box \u003e div:nth-of-type(1) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').press('Enter')"
+    },
+    {
+      "action": "expect",
+      "target": "listo",
+      "value": "listo",
+      "instruction": "Comprobá que se vea «listo»",
+      "code": "expect(page.getByText('listo').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "click",
+      "target": "Instantáneo",
+      "instruction": "Hacé clic en «Instantáneo»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Instantáneo",
+          "visible": true,
+          "code": "page.getByText('Instantáneo', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Instantáneo', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Más modelos",
+      "instruction": "Hacé clic en «Más modelos»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Más modelos",
+          "visible": true,
+          "code": "page.getByText('Más modelos', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Más modelos', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "K3.1 Pro",
+      "instruction": "Hacé clic en «K3.1 Pro»",
+      "why": "Elijo K3.1 Pro para ver si el plan gratis lo deja",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "K3.1 Pro",
+          "visible": true,
+          "code": "page.getByText('K3.1 Pro', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('K3.1 Pro', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "div",
+      "value": "En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?",
+      "instruction": "Escribí «En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?» en «div»",
+      "param": "div",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').fill('En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?')"
+    },
+    {
+      "action": "press",
+      "target": "En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').press('Enter')"
+    },
+    {
+      "action": "click",
+      "target": "Entendido",
+      "instruction": "Hacé clic en «Entendido»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Entendido",
+          "visible": true,
+          "code": "page.getByText('Entendido', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Entendido', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "K3.1 Pro",
+      "instruction": "Hacé clic en «K3.1 Pro»",
+      "why": "K3.1 Pro pide suscripción cuando hay mucha gente; pruebo K3",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "K3.1 Pro",
+          "visible": true,
+          "code": "page.getByText('K3.1 Pro', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('K3.1 Pro', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Más modelos",
+      "instruction": "Hacé clic en «Más modelos»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Más modelos",
+          "visible": true,
+          "code": "page.getByText('Más modelos', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('Más modelos', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "K3",
+      "instruction": "Hacé clic en «K3»",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "K3",
+          "visible": true,
+          "code": "page.getByText('K3', { exact: true }).filter({ visible: true })",
+          "count": 0,
+          "works": false
+        }
+      },
+      "code": "page.getByText('K3', { exact: true }).filter({ visible: true }).click()"
+    },
+    {
+      "action": "press",
+      "target": "En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?",
+      "value": "Enter",
+      "instruction": "Apretá Enter en «En una línea: ¿qué diferencia hay entre una tasa nominal y una efectiva?»",
+      "ref": {
+        "loc": {
+          "kind": "css",
+          "value": "#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)",
+          "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)')",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.locator('#chat-container \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div \u003e div:nth-of-type(2) \u003e div:nth-of-type(4) \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(1) \u003e div \u003e div:nth-of-type(2) \u003e div \u003e div \u003e div:nth-of-type(2)').press('Enter')"
+    }
+  ]
+}

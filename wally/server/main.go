@@ -317,6 +317,13 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 		}
 		out = append(out, r)
 	}
+	// Kimi: la receta está (jarvis/recipes/kimi/), pero en el plan gratis sus modelos buenos contestan «muchas personas
+	// están chateando… suscríbete» y no mandan la pregunta (2026-11-17). Se lista apagado, «Próximamente», y no está en
+	// `providerModels`: no se puede elegir ni en la barra ni en la configuración (Miguel: «déjalo deshabilitado»).
+	out = append(out, row{ID: "kimi", Model: Model{Name: "kimi-web", DisplayName: "Kimi", Note: "kimi.ai"}, Status: providerStatus{
+		State:  "proximamente",
+		Detail: "Próximamente: en el plan gratis Kimi frena sus modelos buenos (K3.1 Pro, K3, K2.8) con «Muchas personas están chateando… Suscríbete» y no manda la pregunta. La receta está lista (bin/kimi) para cuando se pueda usar.",
+	}})
 	cfg := a.config.get()
 	writeJSON(w, 200, map[string]any{"providers": out, "default": cfg.Provider, "agentsOther": cfg.AgentsOther, "checking": running, "checked": finished})
 }
