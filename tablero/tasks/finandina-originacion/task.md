@@ -5,7 +5,7 @@ stage: evaluation
 created: "2026-10-28T10:38:26-05:00"
 knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination]
 canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
-jira: [CORE-845]
+jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
 ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad
 ---
@@ -13,8 +13,10 @@ ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-
 ## Pendientes
 
 El plan va por fases, y cada requisito está trazado a su documento en
-`artifacts/finandina-matriz-requisitos.md`. Las fases 1 y 2 se pueden hacer sin esperar a producto; la 3 en
-adelante depende de las respuestas de la fase 0.
+`artifacts/finandina-matriz-requisitos.md`. La política de Finandina ya la construyó Abel en CRED-519 (en `main`
+desde el 2026-11-12, pensada para el tipo 2). Desde el 2026-11-17 Miguel sigue CRED-519 y Abel audita. Abel
+decidió que Finandina va por el riel 4 y dejó a Miguel cómo se hace. Las fases 1 y 2 se pueden hacer sin esperar
+a producto; de la 3 en adelante dependen de las respuestas de la fase 0.
 
 ### Hecho
 
@@ -24,17 +26,22 @@ adelante depende de las respuestas de la fase 0.
 - [x] ~~Armar Finandina en local como entidad del riel 4~~ — comercio «Finandina Pruebas»
   (`harness/merchant-specs/finandina.json`) y la 149 con `artifacts/finandina-local-149.sql`.
 - [x] ~~Llegar a 11 sin formalización en local~~ — fuente de insumos `lender_configuration` y plan por la entidad
-  de la solicitud (legacy-backend 519495056, rama local `feat/finandina-originacion-delegada`). Suite
+  de la solicitud (legacy-backend `a666569d4` sobre `qa`, rama local `feat/finandina-originacion-delegada`;
+  la versión original `519495056`, en `feat/finandina-originacion-delegada-v1`). Suite
   `harness/suites/finandina.json` 3 de 3; Salud y Materiales siguen 3 de 3 con radicación.
 - [x] ~~Releer los documentos requisito por requisito~~ — PRD, diagrama, política, formulario, T&C, mapa de
   campos y notas: `artifacts/finandina-matriz-requisitos.md`, y el resumen con la comparación con Credifamilia
   y el plan en `artifacts/finandina-analisis-documentos.html`.
+- [x] ~~La política de Finandina en el motor de CreditopX~~ — CRED-519 (Abel): capacidad (Tablas 1, 2 y 3),
+  veces el ingreso por rango, experiencia, residencia por las zonas de la Tabla 5, FGA por score, 2 créditos al
+  mes por cliente, tope mensual de la entidad, y su editor y simulador en el backoffice. En `main` desde el
+  2026-11-12; **no está en `develop`**. Lo reemplaza lo que era la «Fase 2 · Política que no existe».
 
 ### Lo nuestro: del monto al listado (Loan Origination)
 
-Del listado en adelante (política, capacidad, plan, documentos, entrega a Finandina) es del motor de CreditopX y
-de quien lo lleve. Lo que pasa antes del listado y queda por hacer es esto, más las casillas de credenciales de la
-fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
+Lo que pasa antes del listado y queda por hacer es esto, más las casillas de credenciales de la fase 5
+(Experian HC2, consentimiento, cuándo se consulta y limpieza de qa). Del listado en adelante, la política ya
+existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
 - [ ] Experian del onboarding con la cuenta de la sucursal, igual que Mareigua: en el flujo viejo (el único que
   usa prod: `kyc_pipeline_allieds` vacío) la consulta pasa por `Experian.php:73` con `findForUserRequest` sin
@@ -52,7 +59,9 @@ fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
   Depende de: en qué flujo arrancan los comercios de Finandina.
 - [ ] Dejar a la 149 sólo con cédula: hoy tiene `document_types = ["CC","CE"]` en qa y en prod, y la política
   pide persona natural con cédula. Los tipos de la sucursal son la unión de sus entidades, así que esto no le
-  quita CE a las demás. Termina con la 149 en `["CC"]` y una prueba de que una CE no le llega a Finandina.
+  quita CE a las demás. En el QA de Abel del 9-nov el caso de cédula de extranjería pasó: antes de cambiar nada,
+  ver qué la rechazó (el motor o el listado). Termina con la 149 en `["CC"]`, o con la razón para dejarla, y una
+  prueba de que una CE no le llega a Finandina.
 - [ ] Cargar en prod la cuenta real de Mareigua de Finandina y comprobar que el proveedor real la acepta (qa
   contesta con el mock). Termina con una consulta real con la cuenta de Finandina y su `credential_id`
   guardado. Depende de: Finandina — la cuenta de producción; y quien cargue en el admin de prod.
@@ -73,24 +82,26 @@ fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
 - [ ] Conseguir el diseño de las pantallas (el PRD pide «UX alineado con Figma» y no lo enlaza). Depende de:
   producto.
 
-### Fase 1 · Decisión de crédito en el motor (sin esperar a producto, con valores provisionales)
+### Fase 1 · La política de CRED-519 en el riel 4 (sin esperar a producto)
 
-- [ ] Conectar la preaprobación de la 149 al motor de cupo: la clave de Finandina hacia `creditop_x` en
-  pre-approvals-service (en local, el alias en el mock) y la fuente de insumos tomando el cupo del cliente en vez
-  del tope de la línea. ⚠ Falta decidir qué campo es «el cupo del cliente». **No es
-  `users_category_log.current_available_amount`**: esa es la bolsa mensual del perfil, no el cupo de la persona
-  (`knowledge/creditopx-quota`). Los candidatos son el `max_amount` de la categoría o lo que devuelve
-  `available-quota`; se elige antes de escribir la clase. Termina con un caso aprobado con cupo menor que
-  15 MM y uno rechazado, en local.
+- [ ] Conectar la preaprobación de la 149 al motor de cupo, donde ya corre la política de CRED-519: la clave de
+  Finandina hacia `creditop_x` en pre-approvals-service (en local, el alias en el mock), y la fuente de insumos
+  (`LenderConfigurationInputs`, en `a666569d4`) tomando el cupo del cliente que devuelve `/available-quota`, en
+  vez del tope de la línea (15 MM). `/available-quota` no deja afuera al tipo 4 (`CreditopXQuotaController` corta
+  el 0 y el 1 y desvía el 3), así que la 149 de tipo 4 cae en el cálculo de CreditopX. **El cupo no es
+  `users_category_log.current_available_amount`**: esa es la bolsa mensual del perfil (`knowledge/creditopx-quota`).
+  Termina con un caso aprobado con cupo menor que 15 MM y uno rechazado, en local.
+- [ ] Comprobar si el listado del riel 4 evalúa las categorías del motor (`LenderUserCategoryService`) como el
+  tipo 2, y qué casos del QA de Abel cambian al pasar la 149 al tipo 4: con el tipo 4, fallar `lender_rules` no
+  la saca del listado. Termina con la guía de 15 casos repetida en local con la 149 de tipo 4, y cada diferencia
+  frente al tipo 2 explicada.
+- [ ] Reescribir con Abel el ADR (`docs/finandina-policy-adr.md`, que dice que la 149 pasa a tipo 2) y CRED-519
+  para el riel 4. Termina con el ADR actualizado en el PR de la tarea y Abel de acuerdo. Depende de: Abel.
 - [ ] Decidir sobre qué score se aplica el corte 646. La política pide Experian Advance 1.1, y el motor
-  (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Con el corte
-  sobre ese promedio se aprueba o rechaza con otro número. Termina con la decisión escrita y, si es leer el
-  Advance 1.1, con su pendiente de código.
-  Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
-- [ ] Cargar en las categorías del motor lo que ya existe como criterio: edad 21–64, ocupación empleado o
-  pensionado, ingreso ≥ 1 SMMLV, antigüedad 6 meses, experiencia de 12 meses, y score 646 con score 0. Termina
-  con un caso fuera de política por cada criterio rechazado por la preaprobación (las reglas del listado no
-  rechazan en el riel 4).
+  (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Abel encontró que
+  la 149 no tiene regla de mínimo y que el perfil Riesgo Y no tiene piso, así que un 600 cae ahí y sale «Sin
+  cupo disponible» (Abel lo aceptó el 17-nov). Termina con la decisión escrita y, si es leer el Advance 1.1, con
+  su pendiente de código. Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
 - [ ] Hacer configurable cuántas fechas de pago se ofrecen (`DATES_TO_RETURN = 2` en
   `PaymentPlanDatesService`), para que Finandina muestre 5, 10, 15 y 20 sin cambiar Credifamilia. Termina con
   las cuatro fechas en la 149 y las dos de siempre en Salud.
@@ -98,19 +109,31 @@ fase 5 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa):
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
 
-### Fase 2 · Política que no existe (diseño técnico ya, valores cuando responda producto)
+### Fase 2 · Cerrar el QA de CRED-519 (corrida del 9-nov: 6 pasan, 4 fallan, 5 abiertos)
 
-- [ ] Capacidad de pago de Finandina: gastos (Tabla 1) y descuentos de ley (Tabla 2) por SMMLV, cuota real y
-  potencial por tipo de cartera (Tabla 3, con SBG y la regla del 50 %), tasa de modelación configurable y
-  componentes persistidos para auditoría. Termina con el cálculo de un caso conocido igual al de una planilla.
-- [ ] Veces el ingreso por segmento de riesgo y SMMLV. Depende de: fase 0 (origen del segmento y la fila AA).
-- [ ] Cobertura por código DANE con las 99 zonas de la Tabla 5 (normalizadas a 5 dígitos, Bosa corregida), y la
-  captura de la ciudad de residencia. Termina con un caso fuera de zona rechazado.
-- [ ] Riesgo del empleador de Mareigua (alto y «document» rechazan) y experiencia por monto (≥ 3 MM, 48 meses;
-  sin experiencia, tope 5 MM). Depende de: fase 0 para los estados no concluyentes y la regla de experiencia.
-- [ ] Límites: 2 créditos al mes por cliente y tope de desembolsos por entidad. Depende de: fase 0 (alcance y
-  ventana).
-- [ ] FGA por score (5 % con ≥ 856, 9 % el resto) y si el IVA va dentro del porcentaje. Depende de: fase 0.
+- [ ] Repetir la firma (caso 1, que falló por una migración faltante) y después la pantalla final sin «Paga tu
+  cuota» (caso 14). La migración `2026_11_05_090000_add_installment_freeze` ya está en dev. Termina con los dos
+  casos pasando en qa.
+- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10): las filas de `users_category_log` sin criterios
+  `finandina_*` coinciden con `develop`, que no tiene CRED-519. Hipótesis de Abel, sin verificar: un servicio
+  (pre-approvals-service o el API Gateway) llama al backend de develop. Termina con la llamada ubicada y
+  apuntada a qa (o qa llevado a develop), y el listado mostrando el monto de la fórmula (decisión de Abel).
+- [ ] Reproducir el «Oops!» de Mediarte X al pasar a la fecha de pago (caso 15, solicitud 504835). Hipótesis de
+  Abel: el 409 `OFFER_CHANGED` de `OfferStillStandsGuard` (#1834), que aplica a todas las entidades. Termina con la
+  causa en la red del navegador o en PostHog, y su arreglo o descarte.
+- [ ] Correr los casos abiertos: el 8 con un buró sin experiencia (dictado al lambda), el 11 y el 13 en el
+  backoffice de dev devolviendo la configuración como estaba, y el 12 (tercer crédito del mes) en el simulador
+  o con datos armados. Depende de: Abel — cómo se prueba el 12.
+- [ ] Correr las 10 revisiones del backoffice de la guía: el simulador tiene que dar el mismo perfil y monto que
+  `/available-quota`.
+- [ ] Ubicar la suite `tests/test_finandina.py` (sin commitear en ningún repo), subirla y dejar los resultados por
+  caso en CRED-519. Depende de: quien corrió el QA.
+- [ ] Decidir si se dejan apagadas las reglas de centrales, ingresos ≥ 0 y género de la 149 (49788–49790,
+  49795–49797, 49802–49804). Depende de: Abel.
+- [ ] Revisar las diferencias con la política que quedan por confirmar: Abel cuenta 98 zonas en dev y la
+  Tabla 5 normalizada daba 99 (con Bosa corregida); y el riesgo del empleador de Mareigua (alto y «document»
+  rechazan, según el PRD), que no se nombra en `Modules/Loans/App/Services/RiskPolicy/Finandina/` de `main`.
+  Termina con cada una cuadrada o con su pendiente.
 
 ### Fase 3 · Documentos, firma y pagaré
 
@@ -357,9 +380,9 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
    categorías con edad, ocupación, ingreso, antigüedad, experiencia y FGA; regla de buró con score y
    `allow_0_score`; seguro por comercio; identidad ADO; un comercio de prueba con la 149 asignada y credencial.
    Se empieza en local y no en la base compartida para no mostrar la 149 a nadie antes de tiempo.
-2. **Su fuente de insumos y la decisión:** la clase de insumos de Finandina sobre el motor de cupo, y la clave
-   de Finandina en pre-approvals-service hacia ese motor. Probar con el arnés un caso dentro y otro fuera de
-   política, y llegar a 11 sin formalización.
+2. **Su fuente de insumos y la decisión:** la clase de insumos de Finandina sobre el motor de cupo, donde ya
+   corre la política de CRED-519, y la clave de Finandina en pre-approvals-service hacia ese motor. Probar con
+   el arnés un caso dentro y otro fuera de política, y llegar a 11 sin formalización.
 3. **Cerrar las decisiones de producto** (política vigente, estado al autorizar, entrega a Finandina, FGA, días
    de pago, con qué cuenta se consulta el buró).
 4. **Credenciales:** las llaves llegan por un canal seguro y se cargan desde el admin como credencial de la 149
@@ -367,16 +390,16 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
    Mareigua necesitan leer la credencial de la entidad.
 5. **Formalización de Finandina:** su clase de formalización (la entrega de la operación), el pagaré con su
    credencial de Deceval, y el formulario y los T&C.
-6. **Construir la política que falta:** capacidad de pago de Finandina (gastos y ley por SMMLV, cuota potencial,
-   tasa de modelación) con los componentes persistidos; veces el ingreso por segmento; experiencia por monto;
-   riesgo del empleador; cobertura por DANE; límite de 2 al mes; tope de desembolsos por entidad.
+6. **La política ya existe (CRED-519):** se lleva al riel 4 y se termina su QA (fases 1 y 2), en vez de
+   construirla.
 
 ## Lo que se evaluó y NO se eligió
 
 - **`response_type = 2` con `externally_serviced = 1`** (lo que se propuso el 28-10): decide sin código nuevo,
   pero es el riel de la política de Creditop con cartera de otro (DENTIX, DFS, Alta Fleet). Finandina dicta su
   política y origina con su nombre; además no hay dónde enchufar la entrega de la operación, y autorizar cancela
-  las otras solicitudes pendientes del cliente. El criterio lo corrigieron Laura y Joel.
+  las otras solicitudes pendientes del cliente. El criterio lo corrigieron Laura y Joel. CRED-519 se construyó y
+  se probó sobre el tipo 2 (su ADR lo dice), y el 2026-11-17 Abel decidió el riel 4.
 - **`response_type = 1` (externa):** Finandina no tiene una API que decida ni firma en su propio flujo.
 - **Que la entidad cargue sus llaves en un portal propio** (extender el backoffice, que hoy sólo escribe las de
   Wompi): evita que alguien de Creditop las vea, pero no hay portal de entidades en uso ni una segunda entidad
@@ -423,8 +446,12 @@ Falta: un caso fuera de política (necesita la preaprobación por el motor de cu
   raíz). ⚠ `Archivos_credenciales`, `Credenciales de pruebas Experian.docx` y `Mareigua.png` tienen
   credenciales: no se copian.
 - Slack: `#finandina` (pendientes de llaves, CONFE y Deceval, enero–febrero) y el hilo del PRD en `#producto-tech`.
-- Jira: CORE-845 (la tarea); relacionados: CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463
-  (certificación de Deceval).
+- Jira: CORE-845 (la tarea) y CRED-519 (la política en el motor, de Abel; Miguel la sigue desde el 2026-11-17);
+  relacionados: CXCM-533, CXCM-521 (políticas de entidades especiales), CRED-463 (certificación de Deceval),
+  CORE-936 (formulario de Finandina, Jose Escobar).
+- Traspaso de CRED-519 de Abel (2026-11-17): https://claude.ai/artifact/KUr8gV5nH1WvsNT83r4q6N. Lleva la guía de 15
+  casos, los PRs (#1809, #1834, #1844 en legacy-backend; #1312, #1332, #1337, #1360 en frontend-monorepo), los
+  tests y el runbook previo a producción del ADR.
 - Conocimiento: `knowledge/lender-response-types`, `lender-listing`, `field-scoring-policy`, `creditopx-quota`, `kyc-pipeline`,
   `identity-name-validation`; en canon, `perfilamiento/context` y `creditopx/context`.
 
