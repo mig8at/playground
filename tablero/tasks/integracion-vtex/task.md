@@ -147,12 +147,10 @@ correo: [vtex]
       el trámite en https://www.vtex.com/en-us/isv/become-an-isv. Los 30 días de la homologación corren desde ahí.
       Termina con el MPA en el ticket o el trámite iniciado. Depende de: Oscar Rincón — quién tiene el MPA firmado
       (le pidió el número de caso a Miguel para que su contacto en VTEX agilice).
-- [ ] Decidir si el conector queda restringido a cuentas puntuales o para todas: VTEX pidió la opción restringida
-      porque el ticket original decía «empezar con comercios puntuales»; se puede ampliar después. Abierto a todas, el
-      comercio sólo instala `creditop.creditop` y VTEX no hace nada por tienda (eso también contesta dónde se
-      configuran los ajustes del `settingsSchema`: en la app instalada). Termina con la decisión comunicada en el
-      ticket. Depende de: Producto, vía Oscar Rincón (se le preguntó el 2026-11-17; Miguel prefiere público porque el
-      hash y el token ya controlan quién lo usa, pero no es su decisión).
+- [ ] Pedirle a VTEX que el conector quede público (para todas las cuentas) y no restringido: Producto lo decidió
+      (Oscar Rincón, Slack, 2026-11-17 13:59). Abierto a todas, el comercio sólo instala `creditop.creditop` y
+      configura los ajustes del `settingsSchema` en la app instalada. Termina con VTEX confirmándolo en #1484435.
+      Depende de: VTEX — Juan Alzate.
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
       es un pedido comercial con costo y no hace falta para homologar. Termina con la decisión escrita acá.
       Depende de: Miguel (y quién firma si hay costo).
