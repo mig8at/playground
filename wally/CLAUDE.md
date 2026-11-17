@@ -171,8 +171,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   general) o uno elegido, que se guarda en la conversación (`Conversation.Provider`, `PUT /api/conversations/<id>/
   provider`; en una pestaña nueva viaja con la primera pregunta) y vale como la decisión de Miguel para ésa, también
   si es de un agente (`providerForConversation`, probado). Es un menú propio (no un `<select>`: en macOS el nativo no
-  muestra el título de una opción): cada opción dice el MODELO que contesta y, chico, por dónde va y su tope (Groq se
-  ve como «GPT OSS 120B · Groq»: el 2026-11-17 Groq Chat ofrecía GPT OSS 120B y 20B y Qwen 3.8 27B, no Kimi). Lo que no
+  muestra el título de una opción): cada opción dice el nombre RECONOCIBLE (Gemini, DeepSeek, ChatGPT, Groq; Miguel:
+  «como con Gemini, que por debajo es Hydrogen») y, chico, el modelo interno si dice algo más (Gemini 4 Hydrogen, GPT
+  OSS 120B), su tope y su pausa; las respuestas y el uso también se nombran así (`BRAND`). El 2026-11-17 Groq Chat
+  ofrecía GPT OSS 120B y 20B y Qwen 3.8 27B, no Kimi; y ChatGPT gratis no tiene selector de modelo (su «Personalizado»
+  es si usa la memoria de la cuenta, no el modelo), así que no se sabe cuál contesta. Lo que no
   se puede usar ahora (en pausa, sin sesión, sin Jarvis, sin respuesta) queda apagado con `aria-disabled` —Chrome no
   muestra el título de un botón `disabled`— y el mouse dice la causa; «Automático» también, si va por uno así. La barra
   avisa si lo que viaja (la precarga del agente, la conversación y lo
