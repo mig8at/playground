@@ -35,7 +35,7 @@
     "              sesión y por día (marca en tablero/data/cache/).",
     "",
     "Stop        · verify: corre el chequeo de cada zona de código que ESTA sesión escribió —harness-check,",
-    "              go vet + go test de los paquetes tocados, estilo-check— y devuelve `block` con la salida",
+    "              gofmt + go vet + go test de los paquetes tocados, estilo-check— y devuelve `block` con la salida",
     "              si falla. Una vez por ESTADO del árbol (huella en tablero/data/cache/verify-*.json): un",
     "              rojo se avisa una vez, y cambiar el código vuelve a medir."
   ],

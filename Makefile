@@ -867,6 +867,11 @@ knowledge-read: ## @dia leer un tema o sección local. ID='lender-listing[#ancla
 	@go run ./cmd/knowledge read $(if $(JSON),--json) '$(ID)'
 knowledge-touch: ## @dia ¿qué secciones respaldan estos archivos? F='legacy-backend:ruta …' (archivos) o F='legacy-backend:origin/main~20..origin/main' (lo que cambió entre dos refs: qué releer tras un merge). Sin red [JSON=1]
 	@go run ./cmd/knowledge touch $(if $(JSON),--json) $(F)
+go-fmt: ## @dia ¿qué archivos Go del repo están sin gofmt? Sale 1 si hay. FIX=1 los formatea (el hook de Stop lo chequea en lo que tocó la sesión)
+	@files=$$(git ls-files '*.go' | xargs gofmt -l); \
+	if [ -z "$$files" ]; then echo "  ✔ todo el Go del repo tiene gofmt"; exit 0; fi; \
+	if [ -n "$(FIX)" ]; then echo "$$files" | xargs gofmt -w; echo "$$files" | sed 's/^/  formateado: /'; exit 0; fi; \
+	echo "$$files" | sed 's/^/  ✗ sin gofmt: /'; echo "  → make go-fmt FIX=1"; exit 1
 knowledge-check: ## @dia contrastar fuentes con las refs de main disponibles en disco. Sin fetch; un cambio o fuente ilegible sale 1 [JSON=1]
 	@go run ./cmd/knowledge check $(if $(JSON),--json)
 knowledge-deriva: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md

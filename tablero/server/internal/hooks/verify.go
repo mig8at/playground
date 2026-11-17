@@ -52,15 +52,23 @@ var verifyZones = []zone{
 		commands: func([]string) [][]string { return [][]string{{"make", "--no-print-directory", "harness-check"}} },
 	},
 	{
-		name:     "go",
-		prefixes: []string{"tablero/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/"},
-		exts:     []string{".go"},
+		// Las carpetas del módulo raíz (go.mod de my-tools). `ecommerce/` es un módulo aparte: su `go vet`
+		// desde la raíz no compila, por eso no está.
+		name: "go",
+		prefixes: []string{"tablero/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/", "chat/",
+			"correo/", "ensayo/", "goldfish/", "jarvis/", "keyring/", "radar/", "sala/", "sentinel/", "services/"},
+		exts: []string{".go"},
 		commands: func(touched []string) [][]string {
 			pkgs := make([]string, 0, len(touched))
+			dirs := make([]string, 0, len(touched))
 			for _, p := range touched {
 				pkgs = append(pkgs, "./"+p+"...")
+				dirs = append(dirs, strings.TrimSuffix(p, "/"))
 			}
-			return [][]string{append([]string{"go", "vet"}, pkgs...), append([]string{"go", "test"}, pkgs...)}
+			// gofmt -l sale 0 aunque liste archivos: el sh lo vuelve un fallo con la lista y el arreglo.
+			fmtCheck := append([]string{"sh", "-c", `out=$(gofmt -l "$@") || exit 1; [ -z "$out" ] && exit 0; ` +
+				`printf 'sin gofmt:\n%s\n→ make go-fmt FIX=1\n' "$out"; exit 1`, "gofmt"}, dirs...)
+			return [][]string{fmtCheck, append([]string{"go", "vet"}, pkgs...), append([]string{"go", "test"}, pkgs...)}
 		},
 	},
 	{

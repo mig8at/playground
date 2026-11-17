@@ -184,12 +184,12 @@ func watching(key string) bool {
 
 // ── la decisión ──
 type notice struct {
-	Title    string `json:"title"`
-	Body     string `json:"body"`
-	Key      string `json:"key"` // la conversación, para abrirla al tocar el aviso
-	ID       string `json:"id"`
-	Sound    bool   `json:"sound"`
-	Mention  bool   `json:"mention"`
+	Title   string `json:"title"`
+	Body    string `json:"body"`
+	Key     string `json:"key"` // la conversación, para abrirla al tocar el aviso
+	ID      string `json:"id"`
+	Sound   bool   `json:"sound"`
+	Mention bool   `json:"mention"`
 }
 
 type me struct {

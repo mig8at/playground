@@ -31,7 +31,7 @@ type Flow struct {
 	Device   string     `json:"device,omitempty"`
 	Created  time.Time  `json:"created"`
 	Verified time.Time  `json:"verified,omitempty"`
-	Source   string     `json:"run,omitempty"`        // la corrida donde se grabó (su video, si está en .data)
+	Source   string     `json:"run,omitempty"`     // la corrida donde se grabó (su video, si está en .data)
 	LastRun  string     `json:"lastRun,omitempty"` // la última repetición
 	Steps    []FlowStep `json:"steps"`
 }

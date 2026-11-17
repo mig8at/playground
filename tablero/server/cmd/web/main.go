@@ -318,7 +318,6 @@ func main() {
 	})
 	mux.HandleFunc("/api/ramas/refresh", a.refreshBranches)
 
-
 	// Las tareas, para la UI. Es de SOLO LECTURA desde el 2026-07-21: las tareas las escribe el asistente
 	// en su `task.md` y el tablero las muestra, así que el alta y el borrador de Jira ya no pasan por acá.
 	mux.HandleFunc("/api/efforts", func(w http.ResponseWriter, r *http.Request) {

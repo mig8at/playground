@@ -70,9 +70,9 @@ func Load(root string) (Catalog, error) {
 type Fit string
 
 const (
-	Fits             Fit = "encaja"
+	Fits              Fit = "encaja"
 	FitsWithVariation Fit = "encaja-con-variacion"
-	NewJourney     Fit = "recorrido-nuevo"
+	NewJourney        Fit = "recorrido-nuevo"
 )
 
 // Route es un recorrido ya leído: cada pieza con su nombre, y lo que el catálogo no tiene.

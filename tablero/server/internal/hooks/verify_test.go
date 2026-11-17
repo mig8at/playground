@@ -148,8 +148,11 @@ func TestTheGoZoneTestsOnlyTheTouchedPackages(t *testing.T) {
 		}
 		got := z.commands([]string{"visor/server/"})
 		want := [][]string{{"go", "vet", "./visor/server/..."}, {"go", "test", "./visor/server/..."}}
-		if len(got) != 2 || strings.Join(got[0], " ") != strings.Join(want[0], " ") || strings.Join(got[1], " ") != strings.Join(want[1], " ") {
+		if len(got) != 3 || strings.Join(got[1], " ") != strings.Join(want[0], " ") || strings.Join(got[2], " ") != strings.Join(want[1], " ") {
 			t.Errorf("comandos: %v", got)
+		}
+		if fmt := got[0]; fmt[0] != "sh" || fmt[len(fmt)-1] != "visor/server" {
+			t.Errorf("el de gofmt tiene que mirar sólo la carpeta tocada: %v", fmt)
 		}
 		return
 	}
