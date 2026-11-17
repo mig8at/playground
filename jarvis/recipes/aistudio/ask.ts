@@ -116,35 +116,78 @@ try {
     say('esperando la respuesta…');
     await page.waitForFunction(idle, null, { timeout: timeoutMs });
 
+    // ⚠ «Run» no alcanza para saber que terminó: entre los «Thoughts» y la respuesta hay un instante en que el botón no
+    // dice «Stop» (2026-11-17: una pregunta de Miguel se leyó a medias y la copia no llegó). Se espera, además, a que el
+    // texto de la respuesta quede quieto 1,5 s y el botón siga en «Run».
+    const answerText = () => {
+        const turns = [...document.querySelectorAll('ms-chat-turn')];
+        const last = turns[turns.length - 1];
+        if (!last) return '';
+        return [...last.querySelectorAll('ms-text-chunk')]
+            .filter((c) => !c.closest('ms-thought-chunk'))
+            .map((c) => (c as HTMLElement).innerText.trim())
+            .filter(Boolean)
+            .join('\n\n');
+    };
+    let seen = '';
+    let stableSince = Date.now();
+    const settleUntil = Date.now() + timeoutMs;
+    while (Date.now() < settleUntil) {
+        const now: string = await page.evaluate(answerText);
+        const running = await page.evaluate(generating);
+        if (now !== seen || running) { seen = now; stableSince = Date.now(); }
+        else if (now && Date.now() - stableSince >= 1500) break;
+        await page.waitForTimeout(300);
+    }
+
     // Un error de la web (cuota, texto demasiado largo, filtro) sale en un aviso abajo, no como turno.
     const notice = await page.locator('mat-snack-bar-container, .mat-mdc-snack-bar-container').first().textContent({ timeout: 1500 }).catch(() => null);
     const turns = await page.locator('ms-chat-turn').count();
-    if (turns < turnsBefore + 2) throw new Error(`AI Studio no contestó${notice ? `: ${notice.replace(/\s+/g, ' ').trim()}` : ''}`);
+    if (turns < turnsBefore + 2 || !seen) throw new Error(`AI Studio no contestó${notice ? `: ${notice.replace(/\s+/g, ' ').trim()}` : ''}`);
 
-    // «Copy as markdown», interceptado: la página escribe en una variable en vez del portapapeles.
-    await page.evaluate(() => {
-        const w = window as any;
-        w.__jarvisCopied = null;
-        const exec = document.execCommand.bind(document);
-        (document as any).execCommand = (cmd: string, ...rest: any[]) => {
-            if (cmd === 'copy') { const el = document.activeElement as any; w.__jarvisCopied = el?.value ?? String(getSelection()); return true; }
-            return exec(cmd, ...rest);
-        };
-        if (navigator.clipboard) (navigator.clipboard as any).writeText = async (t: string) => { w.__jarvisCopied = t; };
-    });
-    const last = page.locator('ms-chat-turn').last();
-    await last.hover();
-    await last.locator('button[aria-label="Open options"]').click();
-    await page.getByRole('menuitem', { name: /Copy as markdown/ }).click();
-    await page.waitForFunction(() => (window as any).__jarvisCopied !== null, null, { timeout: 5_000 });
-    const answer: string = (await page.evaluate(() => (window as any).__jarvisCopied)) || '';
+    // «Copy as markdown», interceptado: la página escribe en una variable en vez del portapapeles. Si no llega (el menú
+    // no abrió, o la copia fue por otro lado), la respuesta sale del texto de la página: sin el Markdown de origen,
+    // pero entera, y se avisa.
+    let answer = '';
+    let format: 'markdown' | 'text' = 'markdown';
+    for (let attempt = 1; attempt <= 2 && !answer; attempt++) {
+        try {
+            await page.evaluate(() => {
+                const w = window as any;
+                w.__jarvisCopied = null;
+                if (!w.__jarvisHooked) {
+                    w.__jarvisHooked = true;
+                    const exec = document.execCommand.bind(document);
+                    (document as any).execCommand = (cmd: string, ...rest: any[]) => {
+                        if (cmd === 'copy') { const el = document.activeElement as any; w.__jarvisCopied = el?.value ?? String(getSelection()); return true; }
+                        return exec(cmd, ...rest);
+                    };
+                    if (navigator.clipboard) (navigator.clipboard as any).writeText = async (t: string) => { w.__jarvisCopied = t; };
+                }
+            });
+            const last = page.locator('ms-chat-turn').last();
+            await last.scrollIntoViewIfNeeded().catch(() => {});
+            await last.hover();
+            await last.locator('button[aria-label="Open options"]').click({ timeout: 5_000 });
+            await page.getByRole('menuitem', { name: /Copy as markdown/ }).click({ timeout: 5_000 });
+            await page.waitForFunction(() => (window as any).__jarvisCopied !== null, null, { timeout: 5_000 });
+            answer = (await page.evaluate(() => (window as any).__jarvisCopied)) || '';
+        } catch {
+            await page.keyboard.press('Escape').catch(() => {});
+        }
+    }
+    if (!answer.trim()) {
+        answer = seen;
+        format = 'text';
+        say('«Copy as markdown» no entregó la respuesta: sale como texto de la página (sin el Markdown de origen)');
+    }
     const ms = Date.now() - t0;
     if (!answer.trim()) throw new Error('la respuesta llegó vacía');
 
     const out = flag('out');
     if (out) fs.writeFileSync(path.resolve(process.env.INIT_CWD || process.cwd(), out), answer);
     say(`respondió en ${(ms / 1000).toFixed(1)} s${out ? ` · guardada en ${out}` : ''}`);
-    if (JSON_OUT) console.log(JSON.stringify({ recipe: 'aistudio/ask', model: modelId, chars: text.length, ms, answer }));
+    if (JSON_OUT) console.log(JSON.stringify({ recipe: 'aistudio/ask', model: modelId, chars: text.length, ms, format, answer }));
     else if (!out) console.log(answer);
     ok = true;
 } catch (e: any) {

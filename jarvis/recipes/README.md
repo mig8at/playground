@@ -135,7 +135,10 @@ respuesta en Markdown.
   JavaScript violates…»). Van como función.
 - **El texto de la tarjeta de un modelo viene pegado** («Hydrogengemini-4-hydrogenAn…»): el modelo se elige por el
   elemento que tiene el id exacto. El elegido queda también para la próxima vez que abras AI Studio.
-- Mientras genera, el botón Run dice «Stop»: la respuesta está completa cuando vuelve a «Run».
+- Mientras genera, el botón Run dice «Stop», pero **que vuelva a «Run» no alcanza**: entre los «Thoughts» y la
+  respuesta hay un instante sin «Stop», y una pregunta de Miguel se leyó a medias («Timeout 5000ms» esperando la copia,
+  2026-11-17). La receta espera además a que el texto quede quieto 1,5 s; si «Copy as markdown» igual no entrega, saca
+  la respuesta del texto de la página (`format: "text"` en `--json`) y lo avisa.
 - No anda con otra sesión de Jarvis manejando Chrome (`openChrome` lo niega): cerrala antes.
 
 ## Shopify (tienda de pruebas `creditop-dev-store`)
