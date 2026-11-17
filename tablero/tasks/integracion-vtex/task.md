@@ -137,20 +137,24 @@ correo: [vtex]
       simulador, que lo permite a propósito). Termina reproducido —y entonces una guarda en legacy-backend— o descartado.
 - [ ] Homologar con VTEX la versión nueva de `creditop.creditop` (el modo Test Suite y cancelaciones/reembolsos
       resueltos antes): termina con VTEX aprobándola.
-      Ticket [#1484435](https://support.vtex.com/hc/en-us/requests/1484435), completo (conector «Creditop» y
-      contacto) desde el 2026-11-12. VTEX aceptó la Test Suite 7/7 de la 5.2.0 como evidencia, ya tiene la Service URL
-      correcta (`https://creditop.myvtex.com/_v/creditop.creditop/v5`) y está validando y certificando; se le confirmó
-      que es un conector PPF y no una Payment App. Se homologa la 5.2.0 (la 5.2.1 no está publicada y sólo traía la
-      ficha de App Store, que no aplica). Depende de: VTEX Payments — el resultado de la validación y si el MPA que
-      Creditop ya tiene sigue vigente (los 30 días corren desde el MPA).
-- [ ] Confirmar con VTEX dónde configura un comercio los ajustes de la app (ambiente de Creditop y auto-onboarding,
-      del `settingsSchema`) si el conector publicado se usa sin instalar la app; termina con la respuesta escrita acá.
-      Se preguntó también si quedará público o por comercio (Miguel prefiere público, sin pedirlo; 2026-11-17).
-      Depende de: VTEX — Juan Alzate.
-- [ ] Decidir si se pide una cuenta VTEX adicional (de tipo QA) para probar como una tienda externa: no la da
-      soporte, se pide con un ticket nuevo desde la cuenta de partner (correo del administrador, nombre, tipo, si usa
-      VTEX IO) y puede costar si el contrato no la incluye. Mientras tanto se prueba en un workspace de `creditop`.
-      Termina con la decisión escrita acá. Depende de: Miguel — si vale el trámite (y quién firma si hay costo).
+      Ticket [#1484435](https://support.vtex.com/hc/en-us/requests/1484435). VTEX aceptó la Test Suite 7/7 de la 5.2.0;
+      la solicitud entró a Payments el 2026-11-13 y espera priorización, sin fecha (Juan, 2026-11-17). El conector
+      sólo se ve en otra cuenta (Store Settings › Payments › Providers) cuando la homologación termina Y el MPA está
+      entregado. VTEX todavía cree que falta arreglar `https://v2.api.creditop.com/legacy-api` (da 404 en /manifest
+      porque es el backend, no el conector; la Service URL da 200, medido 2026-11-17 11:28): hay que volver a
+      aclararlo. Depende de: VTEX Payments — priorizar y validar; Creditop — el MPA (pendiente de abajo).
+- [ ] Entregar el MPA a VTEX: si Creditop tiene una copia firmada vigente, subirla al ticket #1484435; si no, empezar
+      el trámite en https://www.vtex.com/en-us/isv/become-an-isv. Los 30 días de la homologación corren desde ahí.
+      Termina con el MPA en el ticket o el trámite iniciado. Depende de: Oscar Rincón — quién tiene el MPA firmado
+      (le pidió el número de caso a Miguel para que su contacto en VTEX agilice).
+- [ ] Decidir si el conector queda restringido a cuentas puntuales o para todas: VTEX pidió la opción restringida
+      porque el ticket original decía «empezar con comercios puntuales»; se puede ampliar después. Abierto a todas, el
+      comercio sólo instala `creditop.creditop` y VTEX no hace nada por tienda (eso también contesta dónde se
+      configuran los ajustes del `settingsSchema`: en la app instalada). Termina con la decisión comunicada en el
+      ticket. Depende de: Miguel (prefiere público; el hash y el token ya controlan quién lo usa).
+- [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
+      es un pedido comercial con costo y no hace falta para homologar. Termina con la decisión escrita acá.
+      Depende de: Miguel (y quién firma si hay costo).
 - [ ] Decidir qué se hace con la ficha de App Store de la 5.2.1 (vtex#27, en `main` sin publicar): VTEX dice que la
       App Store no acepta conectores de pago; termina con la 5.2.1 publicada sin ella o descartada.
 
