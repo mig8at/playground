@@ -32,9 +32,9 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   **Cualquier bloque se borra** con su tacho (aparece al pasar el mouse), sin confirmación: así se saca contexto que
   no aporta y se queda sólo lo que sirve. Arriba a la derecha, «contexto: N bloques · M caracteres» dice lo que va a
   viajar. Los bloques de antes no tenían id: se les pone al cargar.
-- **Los modelos** son cuatro de chat que la web ofrece sin «Paid» (`chatModels`, elegidos de sus fichas el
-  2026-11-17): 3.5 Flash Lite (el de siempre), 3.8 Flash (el equilibrio), Hydrogen (el más capaz, de vez en cuando) y
-  Gemma 4 31B. Fuera: los alias `*-latest` (repiten 3.8 Flash y 3.5 Flash Lite) y 3.1 Flash Lite (más viejo). **Cuando Google corta** («Permiso denegado», 403, cuota) la receta deja una
+- **Los modelos** son dos, elegidos por Miguel para el día a día (2026-11-17) de las fichas del selector: Gemini
+  3.8 Flash, el de siempre, y Gemini 4 Hydrogen para lo difícil (`chatModels`). Los dos sin «Paid».
+- **Cuando Google corta** («Permiso denegado», 403, cuota) la receta deja una
   pausa de 1 a 5 min, al azar, para TODA la cuenta (`*` en `~/.cache/my-tools/aistudio-pausa.json`): el corte es por el ritmo de la
   cuenta, no por modelo (Flash Lite contestó a las 9:48 y a las 9:49 ya no, 2026-11-17). Wally muestra hasta qué hora
   y no deja preguntar.

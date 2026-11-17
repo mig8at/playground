@@ -186,16 +186,12 @@ type Model struct {
 	Paused      string `json:"paused,omitempty"` // hasta qué hora, si Google lo cortó
 }
 
-// chatModels: los de chat que la web ofrece sin «Paid», del más liviano al más capaz (leídos del selector el
-// 2026-11-17, con su ficha). El primero es el de siempre: liviano, para no gastar lo que Google deja usar de los
-// grandes (Hydrogen fue el primero que cortó). Fuera a propósito: los alias `gemini-flash-latest` y
-// `gemini-flash-lite-latest` (apuntan a 3.8 Flash y 3.5 Flash Lite: el mismo modelo dos veces) y 3.1 Flash Lite (más
-// viejo que 3.5 Flash Lite). Gemma queda al final: abierto, sin ventaja desde la web.
+// chatModels: los dos que Miguel eligió para el día a día (2026-11-17), de las fichas del selector de AI Studio: 3.8
+// Flash, el de siempre (el Flash más inteligente, la mitad de pesado que Hydrogen), y Hydrogen para lo difícil. Los
+// dos sin «Paid». Fuera a propósito: Flash Lite, Gemma y los alias `*-latest`.
 var chatModels = []Model{
-	{Name: "gemini-3.5-flash-lite", DisplayName: "Gemini 3.5 Flash Lite", Note: "el de todos los días: liviano y rápido"},
-	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash", Note: "el equilibrio: el Flash más inteligente"},
-	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: para lo difícil, de vez en cuando"},
-	{Name: "gemma-4-31b-it", DisplayName: "Gemma 4 31B", Note: "abierto"},
+	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash", Note: "el de todos los días"},
+	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: para lo difícil"},
 }
 
 // pauses lee las pausas que deja la receta cuando Google corta un modelo: modelo → hasta cuándo (ms).
