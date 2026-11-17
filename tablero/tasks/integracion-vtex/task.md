@@ -151,7 +151,8 @@ correo: [vtex]
       porque el ticket original decía «empezar con comercios puntuales»; se puede ampliar después. Abierto a todas, el
       comercio sólo instala `creditop.creditop` y VTEX no hace nada por tienda (eso también contesta dónde se
       configuran los ajustes del `settingsSchema`: en la app instalada). Termina con la decisión comunicada en el
-      ticket. Depende de: Miguel (prefiere público; el hash y el token ya controlan quién lo usa).
+      ticket. Depende de: Producto, vía Oscar Rincón (se le preguntó el 2026-11-17; Miguel prefiere público porque el
+      hash y el token ya controlan quién lo usa, pero no es su decisión).
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
       es un pedido comercial con costo y no hace falta para homologar. Termina con la decisión escrita acá.
       Depende de: Miguel (y quién firma si hay costo).
