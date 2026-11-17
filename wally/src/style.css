@@ -207,3 +207,17 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .post.kind-error .post-kind, .post.kind-pausa .post-kind { border-color: var(--destructive); color: var(--destructive) }
 .group-working { display: flex; align-items: center; gap: var(--space-2) }
 .group-working .typing { padding: 0 }
+
+/* LOS AGENTES: la sección en la lista (avatar, nombre, intención y cuántas fuentes suyas cambiaron), el formulario y su ficha arriba de la conversación. */
+.agents { margin-bottom: var(--space-2) }
+.conv-row.agent-row .conv { display: flex; flex-direction: row; align-items: center; gap: var(--space-2) }
+.agent-text { display: grid; min-width: 0; flex: 1 }
+.agent-avatar { flex: none; background: var(--primary); color: var(--primary-foreground) }
+.agent-avatar.big { width: 32px; height: 32px; font-size: var(--text-sm) }
+.field { display: grid; gap: 4px; font-size: var(--text-sm) }
+.agent-sheet { display: flex; align-items: center; gap: var(--space-3); max-width: 820px; width: 100%; margin: 0 auto var(--space-3);
+  padding: var(--space-2) var(--space-3); border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--card); box-sizing: border-box }
+.agent-sheet-main { display: grid; gap: 4px; min-width: 0; font-size: var(--text-sm) }
+.agent-topics { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--text-xs); color: var(--fg-3) }
+.agent-topics code { font-family: var(--font-mono); padding: 0 6px; border-radius: 999px; border: 1px solid var(--border) }
+.agent-prompts { justify-content: center; margin-top: var(--space-4) }

@@ -70,6 +70,7 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
+  if (t.key === AGENT_NEW) return 'Agente nuevo'
   if (t.key === GROUP_NEW) return 'Grupo nuevo'
   if (isGroup(t.key)) return loadedGroups.value[t.key]?.title || agentGroups.value.find((g) => `g:${g.id}` === t.key)?.title || 'Grupo'
   if (isNew(t.key)) return MODES[tabMode.value[t.key]]?.label || 'Conversación nueva'
@@ -77,7 +78,7 @@ const tabTitle = (t) => {
 }
 
 async function loadConv(key) {
-  if (isNew(key) || isGroup(key)) return
+  if (isNew(key) || isGroup(key) || key === AGENT_NEW) return
   try {
     const c = await api(`/api/conversations/${encodeURIComponent(key)}`)
     loaded.value = { ...loaded.value, [key]: c }
@@ -121,7 +122,8 @@ function closeTab(key) {
 }
 function activate(key) {
   active.value = key
-  if (isGroup(key)) { if (key === GROUP_NEW) loadTopics(); else loadGroup(key) }
+  if (key === AGENT_NEW) loadTopics()
+  else if (isGroup(key)) { if (key === GROUP_NEW) loadTopics(); else loadGroup(key) }
   else if (!isNew(key) && !loaded.value[key]) loadConv(key)
   writeRoute()
   scrollDown()
@@ -130,7 +132,7 @@ function activate(key) {
 
 // La ruta dice la pestaña activa: abrir un enlace `#/c/<id>` la abre.
 function writeRoute() {
-  const hash = active.value === GROUP_NEW ? '#/grupo-nuevo'
+  const hash = active.value === AGENT_NEW ? '#/agente-nuevo' : active.value === GROUP_NEW ? '#/grupo-nuevo'
     : isGroup(active.value) ? `#/g/${encodeURIComponent(active.value.slice(2))}`
     : isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
   if (location.hash !== hash) history.replaceState(null, '', hash)
@@ -139,9 +141,45 @@ function readRoute() {
   const parts = location.hash.replace(/^#\/?/, '').split('/').filter(Boolean)
   if (parts[0] === 'c' && parts[1]) openTab(decodeURIComponent(parts[1]))
   else if (parts[0] === 'grupo-nuevo') openTab(GROUP_NEW)
+  else if (parts[0] === 'agente-nuevo') openTab(AGENT_NEW)
   else if (parts[0] === 'g' && parts[1]) openTab(`g:${decodeURIComponent(parts[1])}`)
   else if (parts[0] === 'nueva' && parts[1] && tabs.value.some((t) => t.key === `nueva-${parts[1]}`)) activate(`nueva-${parts[1]}`)
 }
+
+// ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
+// tener al día el contexto de una parte, p. ej. KYC), que lleva siempre precargados sus temas de knowledge y el estado
+// de sus fuentes contra main. No hablan entre ellos. La lista dice cuántas fuentes de sus temas cambiaron: así se ve
+// quién tiene que tomar un cambio.
+const AGENT_NEW = 'a:nuevo'
+const agents = ref([])
+const agentForm = ref({ name: '', intent: '', topics: [], model: '', busy: false, error: '' })
+async function loadAgents() { try { agents.value = (await api('/api/agents')).agents } catch { /* lo dice loadList */ } }
+function newAgentTab() { openTab(AGENT_NEW) }
+function toggleAgentTopic(id) {
+  const list = agentForm.value.topics
+  agentForm.value.topics = list.includes(id) ? list.filter((x) => x !== id) : [...list, id]
+}
+async function createAgent() {
+  const f = agentForm.value
+  f.busy = true; f.error = ''
+  try {
+    const c = await api('/api/agents', { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ name: f.name, intent: f.intent, topics: f.topics, model: f.model || lastModel.value }) })
+    loaded.value = { ...loaded.value, [c.id]: c }
+    const i = tabs.value.findIndex((t) => t.key === AGENT_NEW)
+    if (i >= 0) tabs.value.splice(i, 1, { key: c.id, preview: false })
+    agentForm.value = { name: '', intent: '', topics: [], model: '', busy: false, error: '' }
+    await Promise.all([loadList(), loadAgents()])
+    activate(c.id)
+  } catch (e) { f.error = e.message } finally { f.busy = false }
+}
+const agentRow = (key) => agents.value.find((a) => a.conv === key)
+const agentOf = computed(() => conv.value?.agent || null)
+const AGENT_PROMPTS = [
+  { label: 'Ponete al día con lo que cambió', text: 'Mirá en tus fuentes lo que CAMBIÓ en main desde que se revisaron: pedí los diffs que necesites y decime, sección por sección, qué sigue cierto y qué hay que corregir, con propuestas en el formato de WALLY.md.' },
+  { label: 'Revisá que tu parte siga cierta', text: 'Revisá contra el código de main lo que dicen tus temas: elegí las afirmaciones que más pesan, pedí el código que haga falta y decime cuáles siguen ciertas y cuáles no, con propuestas.' },
+  { label: 'Contame tu parte', text: 'Contame en pocas líneas de qué te ocupás: qué cubren tus temas, cómo se conectan y qué te parece que falta o está flojo.' },
+]
 
 // ── LOS GRUPOS DE AGENTES ── (wally/server/groups.go) Un grupo «Knowledge»: el coordinador (Wally, sin modelo)
 // reparte temas entre EVA y M-O, que trabajan en paralelo en pestañas de AI Studio; en el grupo queda sólo el resumen
@@ -389,6 +427,7 @@ const groups = computed(() => {
   const q = search.value.trim().toLowerCase()
   const out = []
   for (const c of conversations.value) {
+    if (c.agent) continue // los agentes tienen su sección
     if (q && !c.title.toLowerCase().includes(q)) continue
     const name = dayGroup(c.updated)
     let g = out.find((x) => x.name === name)
@@ -503,13 +542,14 @@ onMounted(async () => {
   await loadList()
   // Las pestañas recordadas cuya conversación ya no existe se cierran; sin ninguna, una nueva.
   const ids = new Set(conversations.value.map((c) => c.id))
-  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || isGroup(t.key) || ids.has(t.key))
+  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || isGroup(t.key) || t.key === AGENT_NEW || ids.has(t.key))
   readRoute()
   if (!tabs.value.length) newTab()
   else activate(tabs.value.some((t) => t.key === active.value) ? active.value : tabs.value[0].key)
   // Cada 30 s: si la API no contestaba al abrir, aparece sola, y una pausa que venció habilita «Preguntar».
-  refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgentGroups() } }, 30_000)
+  refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgents(); loadAgentGroups() } }, 30_000)
   loadAgentGroups()
+  loadAgents()
   groupPoll = setInterval(() => {
     if (document.hidden) return
     const running = agentGroups.value.some((g) => g.status === 'corriendo')
@@ -547,6 +587,28 @@ onBeforeUnmount(() => {
         </div>
       </div>
       <div class="region-body">
+        <section class="agents">
+          <div class="region-head group">
+            <span>Agentes</span>
+            <button type="button" class="region-action" title="Agente nuevo: una conversación larga con una intención y sus temas precargados" aria-label="Agente nuevo" @click="newAgentTab">
+              <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
+            </button>
+          </div>
+          <div v-for="a in agents" :key="a.conv" class="conv-row agent-row" :class="{ on: active === a.conv, open: openKeys.has(a.conv) }">
+            <button type="button" class="conv" :title="`${a.agent.name}: ${a.agent.intent}\nTemas: ${a.agent.topics.join(', ')}`" @click="openTab(a.conv)">
+              <span class="avatar agent-avatar">{{ a.agent.name[0] }}</span>
+              <span class="agent-text">
+                <span class="conv-title"><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</span>
+                <span class="conv-meta">{{ a.agent.intent }}</span>
+              </span>
+              <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
+            </button>
+            <button type="button" class="region-action conv-del" title="Borrar el agente y su conversación" aria-label="Borrar el agente" @click="removeConv({ id: a.conv, title: a.agent.name }).then(loadAgents)">
+              <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
+            </button>
+          </div>
+          <p v-if="!agents.length" class="none">Ninguno todavía.</p>
+        </section>
         <section class="agent-groups">
           <div class="region-head group">
             <span>Grupos de agentes</span>
@@ -606,8 +668,42 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
+      <!-- CREAR UN AGENTE -->
+      <div v-if="active === AGENT_NEW" class="region-body group-new">
+        <form class="group-new-inner" @submit.prevent="createAgent">
+          <h2>Agente nuevo</h2>
+          <p class="group-lede">Una conversación larga con <b>una intención</b>: lleva siempre precargados sus temas de knowledge (el texto vigente y el estado de sus fuentes contra main) y pide comandos de lectura como el asistente. No habla con otros agentes. Crearlo no le pregunta nada a Google.</p>
+          <div class="group-option column">
+            <label class="field"><b>Nombre</b><input v-model="agentForm.name" class="input input-sm" placeholder="Pikachu" maxlength="30" /></label>
+            <label class="field"><b>Intención</b><input v-model="agentForm.intent" class="input input-sm" placeholder="tener al día el contexto de KYC" maxlength="140" /></label>
+          </div>
+          <div class="group-option column">
+            <div><b>Sus temas</b><span>{{ agentForm.topics.length ? `${agentForm.topics.length} elegido${agentForm.topics.length > 1 ? 's' : ''}` : 'Los que lleva precargados en cada pregunta.' }}</span></div>
+            <div class="topic-list">
+              <label v-for="t in topics" :key="t.id" class="topic-item" :class="{ on: agentForm.topics.includes(t.id) }">
+                <input type="checkbox" :checked="agentForm.topics.includes(t.id)" @change="toggleAgentTopic(t.id)" />
+                <span class="topic-title">{{ t.title }}</span>
+                <code>{{ t.id }}</code>
+                <span v-if="t.changed" class="badge badge-xs">{{ t.changed }} cambiada{{ t.changed > 1 ? 's' : '' }}</span>
+              </label>
+              <p v-if="!topics.length" class="none">Cargando los temas…</p>
+            </div>
+            <div class="group-actions">
+              <label class="select model-select" title="El modelo del agente (se cambia después en su conversación)">
+                <select v-model="agentForm.model" class="input input-xs" aria-label="Modelo del agente">
+                  <option value="">{{ modelName(lastModel) }} (el de siempre)</option>
+                  <option v-for="m in models" :key="m.name" :value="m.name">{{ m.displayName }}</option>
+                </select>
+              </label>
+              <button type="submit" class="btn btn-sm" :disabled="!agentForm.name.trim() || !agentForm.intent.trim() || !agentForm.topics.length || agentForm.busy">Crear</button>
+            </div>
+          </div>
+          <div v-if="agentForm.error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ agentForm.error }}</p></div></div>
+        </form>
+      </div>
+
       <!-- ARMAR UN GRUPO -->
-      <div v-if="active === GROUP_NEW" class="region-body group-new">
+      <div v-else-if="active === GROUP_NEW" class="region-body group-new">
         <div class="group-new-inner">
           <h2>Grupo Knowledge</h2>
           <p class="group-lede">Wally coordina; <b>EVA</b> y <b>M-O</b> trabajan en paralelo en AI Studio, cada uno con un tema y su paquete en un solo envío. Corren solos los comandos de lectura que pidan; <b>nada se escribe en knowledge</b>: las propuestas quedan para revisar.</p>
@@ -679,7 +775,21 @@ onBeforeUnmount(() => {
       <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
-        <div v-if="!messages.length && !(pending && pending.key === active)" class="empty">
+        <div v-if="agentOf" class="agent-sheet">
+          <span class="avatar agent-avatar big">{{ agentOf.name[0] }}</span>
+          <div class="agent-sheet-main">
+            <div><b>{{ agentOf.name }}</b> · {{ agentOf.intent }}</div>
+            <div class="agent-topics">
+              <span>precarga</span><code v-for="t in agentOf.topics" :key="t">{{ t }}</code>
+              <span v-if="agentRow(active)?.changed" class="badge badge-xs">{{ agentRow(active).changed }} fuente{{ agentRow(active).changed > 1 ? 's' : '' }} cambiaron en main</span>
+              <span v-else-if="agentRow(active)" class="count">sus fuentes, al día</span>
+            </div>
+          </div>
+        </div>
+        <div v-if="agentOf && !messages.length && !(pending && pending.key === active)" class="suggestions agent-prompts">
+          <button v-for="s in AGENT_PROMPTS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
+        </div>
+        <div v-if="!agentOf && !messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
             <div class="empty-title">{{ mode ? 'Preguntale al asistente' : 'Preguntale a Wally' }}</div>

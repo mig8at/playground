@@ -54,6 +54,8 @@ func main() {
 	mux.HandleFunc("POST /api/ask", a.ask)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
+	mux.HandleFunc("GET /api/agents", a.listAgents)
+	mux.HandleFunc("POST /api/agents", a.createAgent)
 	mux.HandleFunc("GET /api/groups", a.listGroups)
 	mux.HandleFunc("POST /api/groups", a.createGroup)
 	mux.HandleFunc("GET /api/groups/{id}", a.getGroup)
@@ -105,8 +107,9 @@ type Message struct {
 type Conversation struct {
 	ID       string    `json:"id"`
 	Title    string    `json:"title"`
-	Model    string    `json:"model"`          // el último elegido: la interfaz lo vuelve a poner al abrirla
-	Mode     string    `json:"mode,omitempty"` // «knowledge»: el modo asistido (commands.go); vacío, un chat
+	Model    string    `json:"model"`           // el último elegido: la interfaz lo vuelve a poner al abrirla
+	Mode     string    `json:"mode,omitempty"`  // «knowledge»: el modo asistido (commands.go); vacío, un chat
+	Agent    *Agent    `json:"agent,omitempty"` // la conversación de un agente (agents.go): su nombre, intención y temas
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 	Messages []Message `json:"messages"`
@@ -258,6 +261,7 @@ type Summary struct {
 	Updated time.Time `json:"updated"`
 	Count   int       `json:"count"`
 	Mode    string    `json:"mode,omitempty"`
+	Agent   string    `json:"agent,omitempty"` // el nombre, si es la conversación de un agente
 }
 
 func (a *app) list(w http.ResponseWriter, r *http.Request) {
@@ -265,7 +269,11 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.Unlock()
 	out := make([]Summary, 0, len(a.store.convs))
 	for _, c := range a.store.convs {
-		out = append(out, Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages), c.Mode})
+		s := Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages), c.Mode, ""}
+		if c.Agent != nil {
+			s.Agent = c.Agent.Name
+		}
+		out = append(out, s)
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Updated.After(out[j].Updated) })
 	writeJSON(w, 200, map[string]any{"conversations": out})
@@ -448,6 +456,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	// El historial se copia con el candado tomado, y la pregunta (segundos) va sin él.
 	a.store.mu.Lock()
 	var history []Message
+	var agent *Agent
 	if in.ID != "" {
 		c, ok := a.store.convs[in.ID]
 		if !ok {
@@ -456,6 +465,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		}
 		history = append(history, c.Messages...)
 		in.Mode = c.Mode
+		agent = c.Agent
 	}
 	a.store.mu.Unlock()
 	if in.Mode != "" && !modes[in.Mode] {
@@ -475,6 +485,14 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	instructions, err := a.instructionsFor(in.Mode)
 	if err != nil {
 		return Conversation{}, err
+	}
+	// Un agente lleva su contexto precargado (agents.go) entre las instrucciones y la conversación.
+	if agent != nil {
+		pre, err := a.agentContext(ctx, *agent)
+		if err != nil {
+			return Conversation{}, err
+		}
+		prompt = pre + "\n\n---\n\n" + prompt
 	}
 	if instructions != "" {
 		prompt = instructions + "\n\n---\n\n" + prompt

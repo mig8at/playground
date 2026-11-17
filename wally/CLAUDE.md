@@ -19,7 +19,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
-| `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo) |
+| `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |
+| `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo, en pausa) |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |
@@ -109,7 +110,26 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
-- **Los grupos de agentes** (idea de Miguel, 2026-11-17, «como Duncan»: varios agentes en paralelo y un chat de todos):
+- **Los agentes** (idea de Miguel, 2026-11-17, que reemplaza por ahora a los grupos): una lista de chats con nombre
+  propio (de Pokémon), cada uno con **una intención** —tener al día el contexto local de una parte— y sus temas de
+  knowledge. **No hablan entre ellos**: cada uno es UNA conversación larga, en el modo asistente (WALLY.md y sus comandos
+  de lectura, que se aprueban como siempre), a la que se vuelve cada vez que algo cambia en su parte. El agente vive
+  dentro de su conversación (`Conversation.Agent`: nombre, intención, temas), así que borrar, los bloques y los
+  comandos son los de siempre; la lista de fechas no lo muestra porque tiene su sección, «Agentes», con su «+»
+  (`#/agente-nuevo`). Crearlo no le pregunta nada a Google.
+  - **Su contexto precargado** (`agentContext`): en CADA pregunta, entre WALLY.md y la conversación, viaja quién es y,
+    por cada tema, el `rules.md` vigente y el estado de sus fuentes contra main (al día · CAMBIÓ · no está). Se lee en
+    el momento: si se aplica una propuesta, la próxima pregunta ya la ve.
+  - **Quién toma un cambio**: la fila de cada agente dice cuántas fuentes de sus temas cambiaron en main (y su ficha,
+    arriba de la conversación, lo repite); con la conversación vacía ofrece «Ponete al día con lo que cambió»,
+    «Revisá que tu parte siga cierta» y «Contame tu parte».
+  - **Compactar** la conversación cuando crezca queda para más adelante.
+  - **Pikachu** (el primero): KYC —`kyc-pipeline`, `kyc-path-and-experian-trigger`, `identity-validation`,
+    `identity-name-validation` y `otp-source-and-bypass`—, con Flash. Su precarga: ~55 mil caracteres; la primera
+    pregunta, con WALLY.md, fueron 77 mil (13:15, «Contame tu parte»): AI Studio no contestó en 10 min, con la cuenta
+    cortada desde las 12:39. **Falta su primera respuesta.**
+- **Los grupos de agentes** (EN PAUSA desde el 2026-11-17: Miguel prefirió empezar por los agentes sueltos; el código
+  queda y no se toca) (idea de Miguel, 2026-11-17, «como Duncan»: varios agentes en paralelo y un chat de todos):
   en la lista, «Grupos de agentes» y su «+» (`#/grupo-nuevo`). El grupo **Knowledge** (`server/groups.go`) lo
   coordina **Wally** (sin modelo: reparte, avisa y cierra) y lo trabajan **EVA** y **M-O**, en paralelo por el pool.
   Se arma de dos formas: «Poner al día lo pendiente» (los temas con fuentes cambiadas según `knowledge-check`) o
