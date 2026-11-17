@@ -23,6 +23,8 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"cambios", "fuentes creditopx-offer-calculation",
 		"diff creditopx-offer-calculation legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
 		"codigo legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
+		"codigo legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php:228-262",
+		"buscar legacy-application:app/Http/Controllers/Admin/CreditopXPaymentController.php 'nextPaymentDate'",
 	} {
 		if _, err := commandArgs(cmd); err != nil {
 			t.Errorf("%q tenía que pasar: %v", cmd, err)
@@ -52,6 +54,10 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"codigo legacy-backend:/etc/passwd",
 		"codigo legacy-backend:a.php; ls",
 		"codigo legacy-backend:$(id)",
+		"codigo legacy-backend:a.php:1-2; ls",
+		"buscar legacy-backend:a.php '$(id)'",
+		"buscar legacy-backend:a.php 'x'; rm -rf ~",
+		"buscar legacy-backend:../a.php 'x'",
 		"diff tema legacy-backend:x | sh",
 		"fuentes ../connectors",
 	} {

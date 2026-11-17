@@ -36,6 +36,14 @@ Cada fila nueva recalcula `total_payment_amount` como capital + interés + segur
 garantía + mora + gasto de cobranza; si la suma no supera el umbral residual queda en cero. Es la misma
 composición que usa la causación nocturna.
 
+Cuando el pago deja el mínimo en cero, los dos motores mueven la fecha distinto. legacy-backend
+(`CutoffCalendar::paymentDateAfterSettling`) salta hasta la primera cuota sin facturar: si el mínimo traía
+más de una cuota (mora con un corte de por medio), `next_payment_date` queda en la primera fecha de pago
+que no cae antes del próximo corte agendado (`next_billing_date`) y `last_payment_date` en la última cuota
+saldada; sin corte agendado avanza un ciclo, como antes. legacy-application sigue avanzando un solo
+ciclo desde el `next_payment_date` anterior (`CutoffCalendar::nextPaymentDate`) y deja ese
+`next_payment_date` como `last_payment_date`.
+
 ## Qué pasa con el sobrante
 
 Si sobrante + umbral residual ≥ total con promociones, es pago total: se condonan los intereses cuando

@@ -117,8 +117,17 @@ var allowList = []allowed{
 		out, err := a.sourceDiff(ctx, m[1], m[2])
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^codigo ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
-		out, err := a.codeAtMain(ctx, m[1])
+	{regexp.MustCompile(`^buscar ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300}) (?:'([^'"` + "`" + `$\\;&|<>]{2,80})'|"([^'"` + "`" + `$\\;&|<>]{2,80})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.grepAtMain(ctx, m[1], m[2]+m[3])
+		return out, 0, err
+	}},
+	{regexp.MustCompile(`^codigo ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})(?::([0-9]{1,6})-([0-9]{1,6}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		from, to := 0, 0
+		if m[2] != "" {
+			fmt.Sscan(m[2], &from)
+			fmt.Sscan(m[3], &to)
+		}
+		out, err := a.codeAtMain(ctx, m[1], from, to)
 		return out, 0, err
 	}},
 	{regexp.MustCompile(`^guia ([a-z]{3,20})$`), func(_ context.Context, a *app, m []string) (string, int, error) {

@@ -56,7 +56,9 @@ cambia en `main`, la sección que respalda puede haber quedado vieja.
 | `cambios` | las fuentes que cambiaron en `main` desde su revisión, en toda la biblioteca: **empezá acá** |
 | `fuentes tema` | las fuentes de un tema, cuáles cambiaron y qué secciones respalda cada una |
 | `diff tema repo:ruta` | lo que cambió en esa fuente desde la revisión hasta `main`, con los commits |
-| `codigo repo:ruta` | el archivo como está hoy en `main`, con números de línea (para ver el contexto de un cambio) |
+| `buscar repo:ruta 'texto'` | las líneas de ese archivo en `main` donde aparece el texto, con su número: para saber qué rango pedir |
+| `codigo repo:ruta:desde-hasta` | sólo esas líneas del archivo como está hoy en `main` (`codigo legacy-backend:Modules/…/X.php:600-640`): **preferilo**; el diff ya te dice qué líneas mirar |
+| `codigo repo:ruta` | el archivo entero, con números de línea: sólo si es chico (uno de 1.500 líneas son ~80 mil caracteres que viajan en cada vuelta) |
 
 Para poner al día un tema: `fuentes` → `diff` de cada fuente que cambió → `make knowledge-read ID=tema#seccion` de las
 secciones que respalda → `codigo` sólo si el diff no alcanza para entender. Después decidí, sección por sección, si

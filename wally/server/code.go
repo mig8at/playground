@@ -160,8 +160,9 @@ func (a *app) sourceDiff(ctx context.Context, id, target string) (string, error)
 	return "", fmt.Errorf("«%s» no es una fuente del tema %s (mirá `fuentes %s`)", target, id, id)
 }
 
-// codeAtMain: `codigo repo:ruta`, el archivo como está hoy en main, con números de línea.
-func (a *app) codeAtMain(ctx context.Context, target string) (string, error) {
+// codeAtMain: `codigo repo:ruta[:desde-hasta]`, el archivo como está hoy en main, con números de línea; con un rango,
+// sólo esas líneas (un archivo de 1.500 líneas entero son ~80 mil caracteres que viajan en cada vuelta).
+func (a *app) codeAtMain(ctx context.Context, target string, from, to int) (string, error) {
 	m := repoPath.FindStringSubmatch(target)
 	if m == nil || cleanPath(m[2]) != nil {
 		return "", errors.New("se pide como repo:ruta (legacy-backend:Modules/…)")
@@ -175,10 +176,46 @@ func (a *app) codeAtMain(ctx context.Context, target string) (string, error) {
 		return "", fmt.Errorf("%s no está en %s de %s", m[2], ref, m[1])
 	}
 	lines := strings.Split(strings.TrimRight(text, "\n"), "\n")
+	if from <= 0 {
+		from, to = 1, len(lines)
+	}
+	if to > len(lines) {
+		to = len(lines)
+	}
+	if from > to {
+		return "", fmt.Errorf("el rango %d-%d no está en el archivo (%d líneas)", from, to, len(lines))
+	}
 	var b strings.Builder
-	fmt.Fprintf(&b, "%s:%s en %s (%d líneas)\n", m[1], m[2], ref, len(lines))
-	for i, l := range lines {
-		fmt.Fprintf(&b, "%5d  %s\n", i+1, l)
+	fmt.Fprintf(&b, "%s:%s en %s (%d líneas; se muestran %d-%d)\n", m[1], m[2], ref, len(lines), from, to)
+	for i := from - 1; i < to; i++ {
+		fmt.Fprintf(&b, "%5d  %s\n", i+1, lines[i])
 	}
 	return b.String(), nil
+}
+
+// grepAtMain: `buscar repo:ruta 'texto'`, las líneas de ese archivo en main que contienen el texto (literal), con su
+// número: para saber qué rango pedir con `codigo` sin traer el archivo entero.
+func (a *app) grepAtMain(ctx context.Context, target, text string) (string, error) {
+	m := repoPath.FindStringSubmatch(target)
+	if m == nil || cleanPath(m[2]) != nil {
+		return "", errors.New("se pide como repo:ruta (legacy-backend:Modules/…)")
+	}
+	dir, ref, err := a.repoDir(m[1])
+	if err != nil {
+		return "", err
+	}
+	out, err := git(ctx, dir, "grep", "-n", "-F", "-e", text, ref, "--", m[2])
+	if err != nil {
+		// git grep sale con 1 cuando no encuentra nada.
+		if strings.Contains(err.Error(), "exit status 1") {
+			return fmt.Sprintf("«%s» no aparece en %s:%s (%s)", text, m[1], m[2], ref), nil
+		}
+		return "", err
+	}
+	out = strings.ReplaceAll(out, ref+":"+m[2]+":", "")
+	lines := strings.Split(strings.TrimRight(out, "\n"), "\n")
+	if len(lines) > 80 {
+		lines = append(lines[:80], fmt.Sprintf("… y %d líneas más: buscá algo más preciso", len(lines)-80))
+	}
+	return fmt.Sprintf("%s:%s en %s, líneas con «%s»:\n%s", m[1], m[2], ref, text, strings.Join(lines, "\n")), nil
 }
