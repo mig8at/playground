@@ -21,7 +21,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
 | `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`); en el sidebar derecho |
 | `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |
-| `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo, en pausa) |
+| `server/pool.go` · `server/topics.go` | el pool de AI Studio (todas las preguntas, de cualquier proveedor) · la lista de temas de knowledge para el formulario de un agente |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |
@@ -155,6 +155,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **Wally lleva el borde de colores de sus agentes**, como tu foto en el chat: un arco por agente, en su color, alrededor
+  de su bolita en la lista y en su saludo (`ringArcs`, el mismo cálculo del ícono de la pestaña de agentes).
 - **La conversación con Wally, como «Mi chat»** (Miguel, 2026-11-17: «hablar directamente con Wally, el
   orquestador»): una sola, arriba de todo en la lista con su bolita y lo último que se dijo, y la que se abre al
   arrancar. Es del modo asistente (WALLY.md y sus comandos de lectura) y la crea el servidor la primera vez
@@ -237,26 +239,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     tema: todo lo verificado «sigue cierta», con 14 citas archivo:línea que se comprobaron EXACTAS contra main (guarda
     `OBV22012`, `missingUserFields`, `RKV24007`, `MAX_TYPOS = 3`, los `substr` del bypass), y dijo lo que NO alcanzó a
     verificar (TusDatos, el `NameUtils` de RiskV2, las etapas 5 a 7). Nada que aplicar.
-- **Los grupos de agentes** (EN PAUSA desde el 2026-11-17: Miguel prefirió empezar por los agentes sueltos; el código
-  queda y no se toca) (idea de Miguel, 2026-11-17, «como Duncan»: varios agentes en paralelo y un chat de todos):
-  en la lista, «Grupos de agentes» y su «+» (`#/grupo-nuevo`). El grupo **Knowledge** (`server/groups.go`) lo
-  coordina **Wally** (sin modelo: reparte, avisa y cierra) y lo trabajan **EVA** y **M-O**, en paralelo por el pool.
-  Se arma de dos formas: «Poner al día lo pendiente» (los temas con fuentes cambiadas según `knowledge-check`) o
-  «Revisar temas» (los que se marcan). Cada agente toma un tema de la cola y lo manda **en UN envío**: el paquete
-  (`taskPack`) ya lleva lo que antes pedía en 4 a 7 vueltas —las fuentes, el `diff` de cada una cambiada y las
-  secciones afectadas, o el tema entero si es una revisión—; si pide más, sus comandos de lectura se corren solos
-  (`decideCommand`, la misma lista blanca: la lectura va en automático, como salió de la evaluación), hasta 5 vueltas
-  y 6 comandos por vuelta. **Escribir sigue igual**: el grupo NO toca knowledge; deja propuestas para verificar contra
-  `main`. En el chat del grupo cada agente publica sólo lo corto (toma un tema, la línea `RESUMEN:` de su respuesta,
-  una pausa, un problema); tocar su ficha arriba, o «Abrir la conversación», abre su conversación completa, que es una
-  más de la lista («EVA · tema»). Un corte de Google lo espera el agente hasta que vence la pausa (+20 s, hasta 4
-  veces); otro error, lo reintenta una vez a los 30 s. Un grupo que corría cuando se reinició el servidor queda
-  «terminado» con sus agentes «cortado». API: `GET /api/topics`, `GET/POST /api/groups`, `GET/DELETE
-  /api/groups/<id>`; se guarda en `.data/groups.json`.
-  - **Primera corrida (2026-11-17, 12:49, Flash, 2 temas para revisar)**: la interfaz anduvo (plan, fichas, posts en
-    vivo); M-O no abrió su pestaña (el `_page`, ya con reintento) y EVA chocó 5 veces con «Permiso denegado»: la
-    cuenta venía cortada desde las 12:39 tras un día entero de pruebas. Se frenó a mano. **Falta una corrida entera
-    con la cuenta descansada**: que los dos contesten en paralelo y salga el `RESUMEN:`.
+- **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
+  «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
+  su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su
+  historia está en git (commit ee0d1432), y sus conversaciones viejas (por ejemplo «EVA · cosigner-signature») siguen en
+  la lista hasta que se borren.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.

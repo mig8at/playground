@@ -40,13 +40,9 @@ func main() {
 	if err := st.load(); err != nil {
 		log.Fatal(err)
 	}
-	gs := &groupStore{file: filepath.Join(root, "wally", ".data", "groups.json")}
-	if err := gs.load(); err != nil {
-		log.Fatal(err)
-	}
 	cs := &configStore{file: filepath.Join(root, "wally", ".data", "config.json")}
 	cs.load()
-	a := &app{store: st, root: root, pool: &pool{root: root}, groups: gs, config: cs}
+	a := &app{store: st, root: root, pool: &pool{root: root}, config: cs}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/models", a.models)
 	mux.HandleFunc("GET /api/conversations", a.list)
@@ -66,10 +62,6 @@ func main() {
 	mux.HandleFunc("POST /api/agents", a.createAgent)
 	mux.HandleFunc("PUT /api/agents/{conv}", a.setAgentProvider)
 	mux.HandleFunc("PUT /api/conversations/{id}/provider", a.setConversationProvider)
-	mux.HandleFunc("GET /api/groups", a.listGroups)
-	mux.HandleFunc("POST /api/groups", a.createGroup)
-	mux.HandleFunc("GET /api/groups/{id}", a.getGroup)
-	mux.HandleFunc("DELETE /api/groups/{id}", a.deleteGroup)
 	mux.HandleFunc("POST /api/files", a.upload)
 	mux.HandleFunc("GET /api/files/{id}", a.readFile)
 	mux.HandleFunc("DELETE /api/files/{id}", a.deleteFile)
@@ -205,9 +197,7 @@ type app struct {
 	store *store
 	root  string
 	// pool: las preguntas a AI Studio, en pestañas de una sola conexión (pool.go); él decide cuántas a la vez.
-	pool *pool
-	// groups: los grupos de agentes (groups.go).
-	groups *groupStore
+	pool   *pool
 	config *configStore
 	status statusStore
 }
@@ -588,7 +578,7 @@ func (e errBadRequest) Error() string { return e.msg }
 
 // askInConversation es una pregunta entera: arma el texto con lo guardado y las instrucciones del modo, se la hace a
 // AI Studio (por el pool) y guarda la pregunta y la respuesta, con los comandos que pidió. La usan la interfaz (ask) y
-// los agentes de un grupo (groups.go). Si falla, no guarda nada.
+// los agentes (agents.go). Si falla, no guarda nada.
 func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation, error) {
 	in.Text = strings.TrimSpace(in.Text)
 	if in.Text == "" {
