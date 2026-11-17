@@ -182,7 +182,13 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **Pikachu** (el primero): KYC —`kyc-pipeline`, `kyc-path-and-experian-trigger`, `identity-validation`,
     `identity-name-validation` y `otp-source-and-bypass`—, con Flash. Su precarga: ~55 mil caracteres; la primera
     pregunta, con WALLY.md, fueron 77 mil (13:15, «Contame tu parte»): AI Studio no contestó en 10 min, con la cuenta
-    cortada desde las 12:39. **Falta su primera respuesta.**
+    cortada desde las 12:39. Después se supo que esos «cuelgues» eran de la receta (abajo).
+  - **Su primera revisión, por DeepSeek** (2026-11-17, 16:14, con el permiso de agentes prendido a pedido de Miguel
+    y apagado al terminar; Hydrogen sin cupo): «Revisá que tu parte siga cierta» en 3 vueltas y ~70 s. Siguió WALLY.md
+    al pie: primero `buscar` para anclar líneas, después `codigo` con rangos de 20 a 55 líneas, y un veredicto por
+    tema: todo lo verificado «sigue cierta», con 14 citas archivo:línea que se comprobaron EXACTAS contra main (guarda
+    `OBV22012`, `missingUserFields`, `RKV24007`, `MAX_TYPOS = 3`, los `substr` del bypass), y dijo lo que NO alcanzó a
+    verificar (TusDatos, el `NameUtils` de RiskV2, las etapas 5 a 7). Nada que aplicar.
 - **Los grupos de agentes** (EN PAUSA desde el 2026-11-17: Miguel prefirió empezar por los agentes sueltos; el código
   queda y no se toca) (idea de Miguel, 2026-11-17, «como Duncan»: varios agentes en paralelo y un chat de todos):
   en la lista, «Grupos de agentes» y su «+» (`#/grupo-nuevo`). El grupo **Knowledge** (`server/groups.go`) lo

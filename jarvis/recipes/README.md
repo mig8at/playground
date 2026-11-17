@@ -175,7 +175,7 @@ sus servidores, así que nada de datos de clientes, credenciales ni contexto o c
 
 | receta | qué hace | parámetros |
 |---|---|---|
-| `ask` | **una pregunta a DeepSeek**: chat nuevo → «Pensamiento Profundo» y «Búsqueda inteligente» como se pidan (DeepSeek recuerda el último estado: se ponen en cada pregunta) → el texto → Enter → la respuesta (sin el razonamiento) con su botón «copiar» interceptado. También `bin/deepseek`. Trae el último mensaje a la vista antes de leerlo: la conversación es una lista virtual, como la de AI Studio. Medido el 2026-11-17 con «Pensamiento Profundo»: una pregunta corta en 6,8 s; 77 mil caracteres en 6,7 s, encontrando una clave escondida en la línea 641 de 1.300 | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--no-think` · `--search` · `--out` · `--keep` · `--timeout 600` · `--json` |
+| `ask` | **una pregunta a DeepSeek**: chat nuevo → «Pensamiento Profundo» y «Búsqueda inteligente» como se pidan (DeepSeek recuerda el último estado: se ponen en cada pregunta) → el texto → Enter → la respuesta (sin el razonamiento) con el «copiar» del MENSAJE interceptado (no el de un bloque de código, que trae el suyo adentro y copiaba sólo el código: Pikachu perdió así su bloque `comando`). También `bin/deepseek`. Trae el último mensaje a la vista antes de leerlo: la conversación es una lista virtual, como la de AI Studio. Medido el 2026-11-17 con «Pensamiento Profundo»: una pregunta corta en 6,8 s; 77 mil caracteres en 6,7 s, encontrando una clave escondida en la línea 641 de 1.300 | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--no-think` · `--search` · `--out` · `--keep` · `--timeout 600` · `--json` |
 
 ## ChatGPT (por la web, con tu sesión de chatgpt.com)
 

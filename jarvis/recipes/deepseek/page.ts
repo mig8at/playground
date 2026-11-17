@@ -121,9 +121,17 @@ export async function askDeepSeek(page: any, text: string, { think = true, searc
                 const exec = document.execCommand.bind(document);
                 (document as any).execCommand = (cmd: string, ...rest: any[]) => (cmd === 'copy' ? ((w.__jarvisCopied = String(getSelection())), true) : exec(cmd, ...rest));
             });
-            const last = page.locator('.ds-message').last();
-            // Los botones van debajo del mensaje, en el mismo bloque: el primero es «copiar».
-            const copy = last.locator('xpath=..').locator('.ds-icon-button, [role=button]').first();
+            // El «copiar» del MENSAJE: el primer botón del bloque que NO está dentro del Markdown. Un bloque de código trae su
+            // propio «copiar» adentro, y tomar ése copiaba sólo el código, sin el texto ni sus ``` (2026-11-17, Pikachu: sus
+            // comandos llegaron sin ```comando y Wally no vio ninguno).
+            const handle = await page.evaluateHandle(() => {
+                const msgs = [...document.querySelectorAll('.ds-message')];
+                const last = msgs[msgs.length - 1];
+                const scope = last?.parentElement;
+                return [...(scope?.querySelectorAll('.ds-icon-button, [role=button]') || [])].find((b) => !b.closest('.ds-markdown')) || null;
+            });
+            const copy = handle.asElement();
+            if (!copy) throw new Error('sin «copiar» del mensaje');
             await copy.click({ timeout: 5000 });
             await page.waitForFunction(() => (window as any).__jarvisCopied !== null, null, { timeout: 5000 });
             answer = (await page.evaluate(() => (window as any).__jarvisCopied)) || '';
