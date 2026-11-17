@@ -88,24 +88,20 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [x] ~~Conectar la preaprobación de la 149 al motor de cupo~~ — en local cierra en 11 por el riel 4 con el cupo
   del motor, y los negativos se rechazan (2026-11-17). Alias `banco-finandina` → `creditop_x` en
   pre-approvals-service y fuente `creditop_x_pre_approval` más el recorte de plazos por capacidad en legacy-backend.
-- [ ] Confirmar desplegados en qa el riel 4 de Finandina:
-  [Creditop-SAS/legacy-backend#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937) (mergeado en `qa`
-  el 2026-11-17) y [Creditop-SAS/pre-approvals-service#104](https://github.com/Creditop-SAS/pre-approvals-service/pull/104)
-  (contra `develop`). Termina con los dos desplegados. Depende de: revisión de #104.
-- [ ] Llevar a qa la carga del cupo mensual del perfil en el riel 4:
-  [Creditop-SAS/legacy-backend#1939](https://github.com/Creditop-SAS/legacy-backend/pull/1939) (contra `qa`).
-  Acordado con Laura y Oscar el 2026-11-17. Con perfiles en el motor (Finandina) descuenta como el tipo 2; sin
-  perfiles (Credifamilia) sigue igual; una entidad sin tope configurado no tiene límite. Termina con una
-  autorización de Finandina en qa que sube `already_used_loan`. Depende de: revisión del equipo.
+- [x] ~~Desplegar en qa el riel 4 de Finandina~~ — #1937 y #1939 en `qa` (`aef992814`) y pre-approvals-service#104 en
+  `develop` (`a6242041b`), 2026-11-17.
+- [x] ~~Llevar a qa la carga del cupo mensual del perfil en el riel 4~~ — [#1939](https://github.com/Creditop-SAS/legacy-backend/pull/1939);
+  en qa la 505101 llevó Riesgo Y de 5 MM a 10 MM (2026-11-17).
 - [ ] Después de tener el flujo completo: reemplazar el alias `banco-finandina` de pre-approvals-service por
   configuración. El listado publica, por entidad del riel 4, la clave de preaprobación que sale de la fuente de
   insumos de su perfil (`credifamilia_pre_approval` → `credifamilia`, `creditop_x_pre_approval` → `creditop_x`), y
   el front la usa en vez de deducirla del tipo o del slug. Saca también el alias de Materiales. Toca
   legacy-backend y frontend-monorepo. Decisión de Miguel: esperar al flujo completo.
-- [ ] Pasar la 149 a tipo 4 en la base compartida, **después** del despliegue y avisándole antes a Abel, con
-  `artifacts/finandina-riel-4-sobre-cred-519.sql` (foto previa y cómo deshacerlo en la cabecera). Antes del
-  despliegue rompe Finandina en qa: el listado daría 400. Termina con el caminador cerrando en 11 en qa
-  (`#5da24bb1:149`) por el riel 4. Depende de: Abel — enterado.
+- [x] ~~Pasar la 149 a tipo 4 en la base compartida~~ — 2026-11-17, con el pagaré sin Deceval (`promissory_type_id` 1); foto
+  en `artifacts/qa-149-antes-riel-4-2026-11-17.json`. Cierra en 11 en qa por el riel 4 (505101).
+- [ ] Pagaré digital por Deceval para Finandina en el riel 4 (`promissory_type_id` 2): en qa da 500 al generar los
+  documentos porque la 149 no tiene credencial de Deceval (`DecevalSoap::createGirador`, credencial null). Termina
+  con la credencial cargada y un cierre en qa con el pagaré digital. Depende de: Hans — CRED-463.
 - [ ] Comprobar si el listado del riel 4 evalúa las categorías del motor (`LenderUserCategoryService`) como el
   tipo 2, y qué casos del QA de Abel cambian al pasar la 149 al tipo 4: con el tipo 4, fallar `lender_rules` no
   la saca del listado. Termina con la guía de 15 casos repetida en local con la 149 de tipo 4, y cada diferencia

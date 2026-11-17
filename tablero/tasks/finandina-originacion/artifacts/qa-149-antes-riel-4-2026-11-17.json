@@ -1,0 +1,41 @@
+{
+  "columns": [
+    "id",
+    "response_type",
+    "promissory_type_id",
+    "validation_type",
+    "signing_provider_id",
+    "updated_at"
+  ],
+  "query": "SELECT id, response_type, promissory_type_id, validation_type, signing_provider_id, updated_at FROM lenders WHERE id = 149",
+  "rows": [
+    {
+      "id": 149,
+      "promissory_type_id": 1,
+      "response_type": 2,
+      "signing_provider_id": null,
+      "updated_at": "2026-11-09T20:21:57Z",
+      "validation_type": 1
+    }
+  ],
+  "source": "mysql inertia-development.cfya8a0qoudi.us-east-2.rds.amazonaws.com",
+  "target": "qa"
+}
+{
+  "columns": [
+    "id",
+    "lender_id",
+    "bond_percentage_source",
+    "forced_bond_type",
+    "applies_four_per_thousand",
+    "payment_days",
+    "inputs_source",
+    "formalization",
+    "created_at",
+    "updated_at"
+  ],
+  "query": "SELECT * FROM delegated_origination_profiles WHERE lender_id = 149",
+  "rows": [],
+  "source": "mysql inertia-development.cfya8a0qoudi.us-east-2.rds.amazonaws.com",
+  "target": "qa"
+}

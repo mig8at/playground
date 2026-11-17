@@ -5,9 +5,10 @@
 -- Antes de aplicar, la foto: SELECT id,response_type,promissory_type_id,validation_type,signing_provider_id FROM lenders WHERE id=149;
 --                            SELECT * FROM delegated_origination_profiles WHERE lender_id=149;
 -- Deshacer (volver a lo de CRED-519):
---   UPDATE lenders SET response_type=2, promissory_type_id=1, validation_type=1 WHERE id=149;
+--   UPDATE lenders SET response_type=2, validation_type=1 WHERE id=149;
 --   DELETE FROM delegated_origination_profiles WHERE lender_id=149;
-UPDATE lenders SET response_type=4, promissory_type_id=2, validation_type=2, updated_at=NOW() WHERE id=149;
+-- El pagaré se queda como en CRED-519 (promissory_type_id 1): el digital (2) va por Deceval y la credencial de Finandina no llegó (CRED-463).
+UPDATE lenders SET response_type=4, promissory_type_id=1, validation_type=2, updated_at=NOW() WHERE id=149;
 INSERT INTO delegated_origination_profiles (lender_id, bond_percentage_source, forced_bond_type, applies_four_per_thousand, payment_days, inputs_source, formalization, created_at, updated_at)
 VALUES (149, 'pre_approval', 'Anticipada', 0, '[5, 10, 15, 20]', 'creditop_x_pre_approval', NULL, NOW(), NOW())
 ON DUPLICATE KEY UPDATE bond_percentage_source=VALUES(bond_percentage_source), forced_bond_type=VALUES(forced_bond_type),
