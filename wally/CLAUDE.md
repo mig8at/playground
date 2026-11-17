@@ -19,7 +19,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
-| `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`) |
+| `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`); en el sidebar derecho |
 | `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |
 | `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo, en pausa) |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
@@ -155,6 +155,14 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **La conversación con Wally, como «Mi chat»** (Miguel, 2026-11-17: «hablar directamente con Wally, el
+  orquestador»): una sola, arriba de todo en la lista con su bolita y lo último que se dijo, y la que se abre al
+  arrancar. Es del modo asistente (WALLY.md y sus comandos de lectura) y la crea el servidor la primera vez
+  (`Conversation.Main`, `GET /api/main`); vacía, saluda («Hola, soy Wally») con tres sugerencias. Medido: «¿Qué podés
+  hacer?» por DeepSeek en 9 s, contando knowledge, la puesta al día y las trampas. Los agentes se aterrizan después.
+- **La configuración vive en el sidebar derecho** (`auxiliarybar`, 340 px, con manija y su botón en el pie y en el
+  engranaje de la lista; `#/configuracion` lo abre), al lado del chat, como el panel derecho del chat; antes era una
+  pestaña. Todo lo que tiene se ajusta a ese ancho.
 - **La conversación es un chat** (2026-11-17, «como en el chat, con bolitas»): quien contesta a la izquierda, con su
   bolita y su nombre en su color (un agente, el suyo; sin agente, Wally), en una burbuja; vos a la derecha, en la tuya,
   con la hora adentro. El color de un agente sale de su nombre (`agentHue`, con el ángulo áureo para que nombres

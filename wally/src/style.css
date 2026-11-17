@@ -309,3 +309,25 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 /* La cuenta regresiva de una pausa, a la derecha: cuánto falta para que vuelva. */
 .countdown { margin-left: auto; padding-left: var(--space-2); font-variant-numeric: tabular-nums; font-size: var(--text-xs); color: var(--destructive) }
 .provider-trigger .countdown { margin-left: 2px }
+
+/* LA CONVERSACIÓN CON WALLY, arriba en la lista (como «Mi chat»), y la configuración en el sidebar derecho. */
+.main-chat { margin-bottom: var(--space-2) }
+.main-row { display: flex; flex-direction: row; align-items: center; gap: var(--space-2); width: 100% }
+.main-avatar { width: 36px; height: 36px; font-size: 15px; flex: none; background: var(--foreground); color: var(--background);
+  box-shadow: 0 0 0 2px var(--background), 0 0 0 3.5px var(--primary) }
+.config-aside { padding: var(--space-3) }
+.config-aside .config { display: grid; gap: var(--space-3) }
+.config-aside .group-lede { margin: 0; font-size: var(--text-sm) }
+.config-aside .provider-pick { grid-template-columns: 1fr }
+.config-aside .usage { font-size: var(--text-xs) }
+.main-avatar-big { display: grid; place-items: center; width: 52px; height: 52px; border-radius: 999px; font-size: 22px; font-weight: 700;
+  background: var(--foreground); color: var(--background); box-shadow: 0 0 0 3px var(--background), 0 0 0 5px var(--primary); margin: 0 auto var(--space-2) }
+/* El sidebar derecho es angosto (340): nada se sale de su ancho. */
+.config-aside { overflow-x: hidden }
+.config-aside .config > *, .config-aside .group-option, .config-aside .group-option > * { min-width: 0 }
+.config-aside .config-row { flex-wrap: wrap; row-gap: var(--space-1) }
+.config-aside .toggle-group { flex-wrap: wrap }
+.config-aside .usage { table-layout: fixed; width: 100% }
+.config-aside .usage td, .config-aside .usage th { overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.config-aside .usage th:first-child, .config-aside .usage td:first-child { width: 38% }
+.config-aside .usage-note { white-space: normal }

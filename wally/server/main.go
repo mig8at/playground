@@ -56,6 +56,7 @@ func main() {
 	mux.HandleFunc("POST /api/ask", a.ask)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
+	mux.HandleFunc("GET /api/main", a.mainConversation)
 	mux.HandleFunc("GET /api/config", a.getConfig)
 	mux.HandleFunc("GET /api/providers", a.providers)
 	mux.HandleFunc("POST /api/providers/check", a.checkProvidersNow)
@@ -124,7 +125,10 @@ type Conversation struct {
 	Model string `json:"model"` // el último elegido: la interfaz lo vuelve a poner al abrirla
 	// Provider: con qué proveedor sigue ESTA conversación, elegido en la barra de escribir (vacío: el de la
 	// configuración). Elegirlo es la decisión de Miguel para ésta, también si es de un agente (Miguel, 2026-11-17).
-	Provider string    `json:"provider,omitempty"`
+	Provider string `json:"provider,omitempty"`
+	// Main: LA conversación con Wally, el orquestador (como «Mi chat» del chat): una sola, arriba en la lista, en el
+	// modo asistente (conoce las herramientas por WALLY.md). Miguel, 2026-11-17.
+	Main     bool      `json:"main,omitempty"`
 	Mode     string    `json:"mode,omitempty"`  // «knowledge»: el modo asistido (commands.go); vacío, un chat
 	Agent    *Agent    `json:"agent,omitempty"` // la conversación de un agente (agents.go): su nombre, intención y temas
 	Created  time.Time `json:"created"`
@@ -253,6 +257,26 @@ func pauses() map[string]int64 {
 	return out
 }
 
+// mainConversation: `GET /api/main`, la conversación con Wally; si no existe, la crea vacía (no le pregunta nada a nadie).
+func (a *app) mainConversation(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	defer a.store.mu.Unlock()
+	for _, c := range a.store.convs {
+		if c.Main {
+			writeJSON(w, 200, c)
+			return
+		}
+	}
+	now := time.Now()
+	c := &Conversation{ID: newID(), Title: "Wally", Mode: "asistente", Main: true, Created: now, Updated: now, Messages: []Message{}}
+	a.store.convs[c.ID] = c
+	if err := a.store.save(); err != nil {
+		writeErr(w, 500, err)
+		return
+	}
+	writeJSON(w, 200, c)
+}
+
 // setConversationProvider: `PUT /api/conversations/{id}/provider` con {provider}; vacío o «auto», el de la configuración.
 func (a *app) setConversationProvider(w http.ResponseWriter, r *http.Request) {
 	var in struct {
@@ -358,6 +382,8 @@ type Summary struct {
 	Count   int       `json:"count"`
 	Mode    string    `json:"mode,omitempty"`
 	Agent   string    `json:"agent,omitempty"` // el nombre, si es la conversación de un agente
+	Main    bool      `json:"main,omitempty"`  // la conversación con Wally
+	Preview string    `json:"preview,omitempty"`
 }
 
 func (a *app) list(w http.ResponseWriter, r *http.Request) {
@@ -365,9 +391,18 @@ func (a *app) list(w http.ResponseWriter, r *http.Request) {
 	defer a.store.mu.Unlock()
 	out := make([]Summary, 0, len(a.store.convs))
 	for _, c := range a.store.convs {
-		s := Summary{c.ID, c.Title, c.Model, c.Updated, len(c.Messages), c.Mode, ""}
+		s := Summary{ID: c.ID, Title: c.Title, Model: c.Model, Updated: c.Updated, Count: len(c.Messages), Mode: c.Mode, Main: c.Main}
 		if c.Agent != nil {
 			s.Agent = c.Agent.Name
+		}
+		// Lo último que se dijo, para la lista (como «Vos: …» en el chat).
+		if n := len(c.Messages); n > 0 {
+			who := map[string]string{"user": "Vos: ", "model": ""}[c.Messages[n-1].Role]
+			text := strings.Join(strings.Fields(c.Messages[n-1].Text), " ")
+			if r := []rune(text); len(r) > 90 {
+				text = string(r[:90]) + "…"
+			}
+			s.Preview = who + text
 		}
 		out = append(out, s)
 	}
