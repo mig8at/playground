@@ -50,19 +50,17 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   la sucursal tiene una entidad con cuenta HC2 la consulta va por ese cliente. Termina con la misma prueba de
   Mareigua (local y qa). Depende de: el cliente HC2 (fase 5) y que Oscar confirme para Experian las mismas reglas
   que para Mareigua (cuenta de la sucursal; reutilizar la guardada; pasado el plazo, la cuenta vigente).
-- [ ] Decidir si en las sucursales de Finandina se consulta Mareigua siempre: hoy la cascada sólo llega a
-  Mareigua si Ágil Data no trae datos, y la política de Finandina pide de Mareigua la antigüedad y el riesgo del
-  empleador. Termina con la decisión escrita y, si es «siempre», con su pendiente de código. Depende de: Oscar y
-  producto.
+- [x] ~~Decidir si en las sucursales de Finandina se consulta Mareigua siempre~~ — no: sigue la cascada Ágil Data →
+  Mareigua → TusDatos, y la cuenta de Finandina sólo se usa si la cascada llega a Mareigua (Miguel, 2026-11-17). El
+  riesgo del empleador de Mareigua quedó fuera del alcance por decisión de Abel (ADR §6, 2026-10-29).
 - [ ] Llevar al pipeline de KYC nuevo (customer-profiling-service, clientes de RiskV2) la cuenta de la sucursal,
   si los comercios de Finandina van a ir por él. Hoy `MareiguaClient` y `ExperianAciertaClient` leen sólo config;
   prod no tiene comercios en el pipeline y qa tiene 91, 196 y 237. Termina con la decisión de si hace falta.
   Depende de: en qué flujo arrancan los comercios de Finandina.
-- [ ] Dejar a la 149 sólo con cédula: hoy tiene `document_types = ["CC","CE"]` en qa y en prod, y la política
-  pide persona natural con cédula. Los tipos de la sucursal son la unión de sus entidades, así que esto no le
-  quita CE a las demás. En el QA de Abel del 9-nov el caso de cédula de extranjería pasó: antes de cambiar nada,
-  ver qué la rechazó (el motor o el listado). Termina con la 149 en `["CC"]`, o con la razón para dejarla, y una
-  prueba de que una CE no le llega a Finandina.
+- [ ] Comprobar en qa que la 149 rechaza la cédula de extranjería también por el riel 4: CRED-519 la deja sólo con
+  cédula con una regla de la entidad (D13 del ADR), y con el tipo 4 fallar `lender_rules` no la saca del listado. Lo
+  cubre el caso 5 de la guía. Decisión de Miguel (2026-11-17): no se cambia `document_types`; la política y el PRD
+  piden cédula de ciudadanía y el mapa de campos dice CC/CE.
 - [ ] Cargar en prod la cuenta real de Mareigua de Finandina y comprobar que el proveedor real la acepta (qa
   contesta con el mock). Termina con una consulta real con la cuenta de Finandina y su `credential_id`
   guardado. Depende de: Finandina — la cuenta de producción; y quien cargue en el admin de prod.
@@ -92,30 +90,27 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
   `develop` (`a6242041b`), 2026-11-17.
 - [x] ~~Llevar a qa la carga del cupo mensual del perfil en el riel 4~~ — [#1939](https://github.com/Creditop-SAS/legacy-backend/pull/1939);
   en qa la 505101 llevó Riesgo Y de 5 MM a 10 MM (2026-11-17).
-- [ ] Después de tener el flujo completo: reemplazar el alias `banco-finandina` de pre-approvals-service por
-  configuración. El listado publica, por entidad del riel 4, la clave de preaprobación que sale de la fuente de
-  insumos de su perfil (`credifamilia_pre_approval` → `credifamilia`, `creditop_x_pre_approval` → `creditop_x`), y
-  el front la usa en vez de deducirla del tipo o del slug. Saca también el alias de Materiales. Toca
-  legacy-backend y frontend-monorepo. Decisión de Miguel: esperar al flujo completo.
+- [ ] (Más adelante, idea de Miguel) Reemplazar el alias `banco-finandina` de pre-approvals-service por configuración
+  de la entidad: el listado publica la clave de preaprobación que sale de su perfil y el front la usa.
 - [x] ~~Pasar la 149 a tipo 4 en la base compartida~~ — 2026-11-17, con el pagaré sin Deceval (`promissory_type_id` 1); foto
   en `artifacts/qa-149-antes-riel-4-2026-11-17.json`. Cierra en 11 en qa por el riel 4 (505101).
 - [ ] Pagaré digital por Deceval para Finandina en el riel 4 (`promissory_type_id` 2): en qa da 500 al generar los
   documentos porque la 149 no tiene credencial de Deceval (`DecevalSoap::createGirador`, credencial null). Termina
   con la credencial cargada y un cierre en qa con el pagaré digital. Depende de: Hans — CRED-463.
-- [ ] Comprobar si el listado del riel 4 evalúa las categorías del motor (`LenderUserCategoryService`) como el
-  tipo 2, y qué casos del QA de Abel cambian al pasar la 149 al tipo 4: con el tipo 4, fallar `lender_rules` no
-  la saca del listado. Termina con la guía de 15 casos repetida en local con la 149 de tipo 4, y cada diferencia
-  frente al tipo 2 explicada.
-- [ ] Reescribir con Abel el ADR (`docs/finandina-policy-adr.md`, que dice que la 149 pasa a tipo 2) y CRED-519
-  para el riel 4. Termina con el ADR actualizado en el PR de la tarea y Abel de acuerdo. Depende de: Abel.
+- [ ] Correr en qa, sobre el riel 4, los casos de la guía de Abel que faltan: 2 y 3 (zona), 4 (edad), 5 (cédula de
+  extranjería), 6 (independiente), 8 (sin experiencia), 9 en pantalla (monto de la tarjeta), 11 (cambia la oferta),
+  12 (tercer crédito del mes), 13 (tope de la entidad), 14 (pantalla final) y 15 (el «Oops!» de Mediarte X). Ya
+  corridos el 2026-11-17: 1, 7 y 10. Termina con cada caso con su resultado en la pila.
+- [ ] Que Abel revise el ADR actualizado al riel 4 (D16–D18, en el PR de las fechas). Depende de: Abel.
 - [ ] Decidir sobre qué score se aplica el corte 646. La política pide Experian Advance 1.1, y el motor
   (`DatacreditoRuleEvaluator`) evalúa el promedio de los modelos del HDC+ (`Experian.php:547`). Abel encontró que
   la 149 no tiene regla de mínimo y que el perfil Riesgo Y no tiene piso, así que un 600 cae ahí y sale «Sin
   cupo disponible» (Abel lo aceptó el 17-nov). Termina con la decisión escrita y, si es leer el Advance 1.1, con
   su pendiente de código. Depende de: producto / Finandina — si el promedio es aceptable o se lee el Advance 1.1.
-- [ ] Hacer configurable cuántas fechas de pago se ofrecen (`DATES_TO_RETURN = 2` en
-  `PaymentPlanDatesService`), para que Finandina muestre 5, 10, 15 y 20 sin cambiar Credifamilia. Termina con
-  las cuatro fechas en la 149 y las dos de siempre en Salud.
+- [ ] Llevar a qa las cuatro fechas de pago de Finandina (una por día de pago del perfil) y el ADR al riel 4:
+  [Creditop-SAS/legacy-backend#1944](https://github.com/Creditop-SAS/legacy-backend/pull/1944), rama
+  `feat/CORE-845-finandina-fechas-y-adr`. En local Finandina ofrece 4 fechas y Credifamilia sus 2, y las dos cierran
+  en 11. Termina con el PR mergeado y las 4 fechas en qa.
 - [ ] Revisar con la 149 los huecos de CORE-918 fuera del plan: pagaré y documentos de Credifamilia por
   `CredifamiliaLenders::engineLenderIdFor`, 500 sin perfil, y firma Netco sin SigningV1. Termina con cada uno
   corregido o descartado.
@@ -200,9 +195,10 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Cargar las llaves desde el admin en la base compartida: las de prueba (Experian HC2 y Mareigua «Validador
   I/E») están en `connectors/.env.finandina`, sin versionar, y se siguen usando las que entregó Finandina; las
   de Deceval todavía no llegaron. Depende de: producto — las de Deceval.
-- [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas
-  sin autenticación; lo agregó Santiago (2025-12-15) y lo usa pre-approvals-service por la red interna. Termina
-  con la exposición confirmada o descartada, o con el endpoint protegido.
+- [ ] Avisar a infra de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas sin
+  autenticación. Existe porque pre-approvals-service (Go, aparte) no tiene la `APP_KEY` para descifrar
+  `encrypted:collection`. El riesgo es que sea alcanzable desde afuera. Termina con la exposición confirmada o
+  descartada, o con un token entre servicios. Queda para después (Miguel, 2026-11-17).
 - [ ] Validación de Duncan del riel 4 de Finandina en qa: los PRs ya están en `qa` (#1937, #1939) y `develop` (#104), y la
   149 está en tipo 4 en la base compartida (Mediarte · Principal, `5da24bb1`). Termina con la guía de pruebas verde en
   qa. Depende de: Duncan.
