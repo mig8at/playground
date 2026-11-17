@@ -49,8 +49,10 @@ Los créditos con corte 3 los atiende sólo `app:reminder-weekly-loans` de legac
 `Kernel` agenda todos los días a las 09:00 de Bogotá sin solaparse. Toma las plantillas de
 `creditop_x_reminder_messages` con `status = 1` y `cutoff_type_id = 3` y, por cada país de las
 entidades con corte 3 y `status = 1`, busca la fila viva (`status = 1`) del histórico de créditos de
-entidades con corte 3 de ese país, en el estado de la plantilla y con `next_payment_amount > 0`. El
-corte 4 no entra en esa consulta.
+entidades con corte 3 de ese país, en el estado de la plantilla, con `next_payment_amount > 0` y
+sin créditos de prueba (`user_requests.is_test` o `users.is_test` del dueño; cada utilización de un
+cupo se juzga por su propia solicitud): a esos no se les manda mensajería. El corte 4 no entra en
+esa consulta.
 
 Los dos comandos generales dejan fuera las plantillas con `cutoff_type_id` no nulo.
 `app:reminder-creditop-x-requests-command` de legacy-backend (09:30 de Santo Domingo) sólo recorre

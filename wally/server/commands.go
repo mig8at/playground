@@ -95,6 +95,32 @@ var allowList = []allowed{
 	{regexp.MustCompile(`^trampa (F-[0-9]{1,4})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.section(trapsFile, "### "+m[1]+" ", "\n### F-", "\n## ")
 	}},
+	// Poner al día la biblioteca (code.go): qué cambió, en qué fuente, y el código de hoy.
+	{regexp.MustCompile(`^cambios$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
+		out, _, err := a.runMake(ctx, "knowledge-check")
+		if err != nil {
+			return "", -1, err
+		}
+		var keep []string
+		for _, line := range strings.Split(out, "\n") {
+			if t := strings.TrimSpace(line); t != "" && !strings.HasPrefix(t, "unchanged ·") && !strings.HasPrefix(t, "make:") && !strings.HasPrefix(t, "exit status") {
+				keep = append(keep, t)
+			}
+		}
+		return strings.Join(keep, "\n"), 0, nil
+	}},
+	{regexp.MustCompile(`^fuentes ([a-z0-9][a-z0-9-]{0,80})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.sourcesReport(ctx, m[1])
+		return out, 0, err
+	}},
+	{regexp.MustCompile(`^diff ([a-z0-9][a-z0-9-]{0,80}) ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.sourceDiff(ctx, m[1], m[2])
+		return out, 0, err
+	}},
+	{regexp.MustCompile(`^codigo ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.codeAtMain(ctx, m[1])
+		return out, 0, err
+	}},
 	{regexp.MustCompile(`^guia ([a-z]{3,20})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		path, ok := guides[m[1]]
 		if !ok {

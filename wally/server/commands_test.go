@@ -20,6 +20,9 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"make knowledge-read ID='creditopx-quota#el-cupo-es-una-bolsa'",
 		"make tareas",
 		"comandos", "comandos harness", "trampas", "trampa F-162", "guia jarvis",
+		"cambios", "fuentes creditopx-offer-calculation",
+		"diff creditopx-offer-calculation legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
+		"codigo legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
 	} {
 		if _, err := commandArgs(cmd); err != nil {
 			t.Errorf("%q tenía que pasar: %v", cmd, err)
@@ -45,6 +48,12 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"trampa ../doc",
 		"comandos $(id)",
 		"comandos a b",
+		"codigo legacy-backend:../../.ssh/id_rsa",
+		"codigo legacy-backend:/etc/passwd",
+		"codigo legacy-backend:a.php; ls",
+		"codigo legacy-backend:$(id)",
+		"diff tema legacy-backend:x | sh",
+		"fuentes ../connectors",
 	} {
 		if args, err := commandArgs(bad); err == nil {
 			t.Errorf("%q tenía que rechazarse y dio %v", bad, args)

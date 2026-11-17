@@ -243,8 +243,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CutoffCalendar.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6f29006ad046252e8aeaae68b10c2cca6bd6478b",
+      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
+      "blob": "142c9f206e2c886b077e2be9dd65276888609f74",
       "sections": [
         "el-backend-repite-la-regla-con-iva-fijo"
       ]

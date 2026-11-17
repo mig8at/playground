@@ -75,6 +75,23 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     faltaba era criterio de costo (buscar un id en vez de leerlo, palabras demasiado generales), y se corrigió en
     WALLY.md. Lo que todavía frena el automático es Google: tres cortes en el día y respuestas de hasta 4 min con
     contexto largo.
+- **Poner al día la biblioteca con Hydrogen** (2026-11-17, Claude como aprobador y verificador). WALLY.md suma los
+  comandos de lectura de código (`server/code.go`): `cambios` (lo de `knowledge-check` que cambió), `fuentes tema`,
+  `diff tema repo:ruta` (desde el commit revisado hasta `origin/main`) y `codigo repo:ruta` (con números de línea);
+  `git` sin shell, el repo de `tools/repos.json`, la ruta sin `..`. Y un formato de propuesta por sección (veredicto,
+  por qué con archivo:línea y commit, texto nuevo, fuentes a sellar): **Wally no escribe**.
+  - `creditopx-offer-calculation` (1 fuente cambiada): eligió el tema solo con `cambios`, pidió `fuentes`, el `diff`
+    y SÓLO la sección afectada; 4 vueltas, ~67 s. Veredicto «sigue cierta» (el commit `60f773a32` sólo agregó
+    `paymentDateAfterSettling`, 34 líneas y ninguna borrada): correcto, con las líneas bien citadas.
+  - `weekly-collection-reminders` (3 fuentes): 3 vueltas, ~41 s, 6 propuestas. Cinco «sigue cierta» y una «cambió»
+    (`3a434b108`: la consulta excluye créditos de prueba), con el párrafo corregido idéntico al anterior salvo esa
+    cláusula. Todo verificado contra `main` (líneas, commits, `TestCreditExclusion`) y aplicado: 12 → 8 fuentes
+    pendientes.
+  - **Evaluación para un modo automático**: los 10 comandos que pidió fueron de la lista, siguieron el procedimiento
+    de WALLY.md y hacían falta (se aprobaron todos). **La lectura puede ir en automático** (la lista blanca garantiza
+    que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
+    sólo dos; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). El freno real es Google: el mismo
+    día, Hydrogen fue rechazado y una vez no contestó en 10 min.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.

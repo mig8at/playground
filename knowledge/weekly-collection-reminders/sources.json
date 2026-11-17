@@ -7,8 +7,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Support/CutoffCalendar.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6f29006ad046252e8aeaae68b10c2cca6bd6478b",
+      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
+      "blob": "142c9f206e2c886b077e2be9dd65276888609f74",
       "sections": [
         "los-dos-cortes-semanales",
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/Reminders/WeeklyReminderQuery.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "4fdd0523ddd3d4791ff45833e5b229ef17045fcf",
+      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
+      "blob": "3c5ca9ba7a95830602bb030f5fd4276af0ebd900",
       "sections": [
         "quien-envia-cada-recordatorio",
         "cuando-sale-cada-plantilla"
@@ -151,8 +151,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXPaymentService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "bb44c4508cb6f1e5e106c3cecaec3ce959985fea",
+      "commit": "117399f0c44ecbcfbe0a230a4546fa1744c273b4",
+      "blob": "60ad88c13a37edbe9a1bd454697bac7aa78bdb4d",
       "sections": [
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo",
         "variables-de-los-mensajes"

@@ -46,6 +46,31 @@ Algunos temas que suelen hacer falta: `business-overview` (el mapa del negocio: 
 `lender-listing` (qué entidades le salen a un cliente), `creditopx-quota` (el cupo mensual), `kyc-pipeline` (la
 validación de identidad), `ecommerce-context` (las tiendas online).
 
+### Poner al día la biblioteca: qué cambió en el código desde que se escribió un tema
+
+Cada tema guarda sus **fuentes** (archivos de los repos de CreditOp) y el commit con que se revisó. Cuando una fuente
+cambia en `main`, la sección que respalda puede haber quedado vieja.
+
+| comando | para qué |
+|---|---|
+| `cambios` | las fuentes que cambiaron en `main` desde su revisión, en toda la biblioteca: **empezá acá** |
+| `fuentes tema` | las fuentes de un tema, cuáles cambiaron y qué secciones respalda cada una |
+| `diff tema repo:ruta` | lo que cambió en esa fuente desde la revisión hasta `main`, con los commits |
+| `codigo repo:ruta` | el archivo como está hoy en `main`, con números de línea (para ver el contexto de un cambio) |
+
+Para poner al día un tema: `fuentes` → `diff` de cada fuente que cambió → `make knowledge-read ID=tema#seccion` de las
+secciones que respalda → `codigo` sólo si el diff no alcanza para entender. Después decidí, sección por sección, si
+**sigue siendo cierta**, si **cambió** o si **no se puede saber** con lo que leíste. **No escribís nada**: proponés, y
+Miguel (o Claude) lo verifica y lo aplica. Tu propuesta va así, una por sección:
+
+```
+### Propuesta · tema#seccion
+Veredicto: sigue cierta | cambió | no se puede saber
+Por qué: qué cambió en el código (archivo:línea en main, y el commit) y por qué afecta o no a la sección.
+Texto nuevo: (sólo si cambió) el párrafo corregido, en el mismo estilo del tema.
+Fuentes: qué fuentes hay que volver a sellar con el commit de main.
+```
+
 ### Las trampas: errores del sistema que ya costaron tiempo
 
 | comando | para qué |
@@ -67,6 +92,7 @@ vez de leer la trampa otra vez.
 | `make tareas` | las tareas abiertas de Miguel en su tablero: número, estado y título |
 
 Lo que **no** podés pedir, a propósito: bases de datos, logs, datos de clientes o de producción, escribir o borrar
-cualquier cosa. Todo lo que leés viaja a Google (así es como Miguel te pregunta), y nada de eso debe salir. Si una
+cualquier cosa. Todo lo que leés viaja a Google (así es como Miguel te pregunta): el código de los repos sí, porque
+hace falta para poner al día la biblioteca, pero datos de clientes, nunca. Si una
 pregunta lo necesita, decile a Miguel qué correr él mismo (por ejemplo, `bin/pg sql --target local --query '…'`) y
 por qué.
