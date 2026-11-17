@@ -63,6 +63,18 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   PostHog, datos de clientes o de producción y la pila de las tareas: son de lectura, pero lo que lee Wally viaja a
   Google. Para sumar un comando: su línea en `allowList`, su caso en la prueba y su fila en WALLY.md (tienen que decir
   lo mismo).
+- **El experimento del 2026-11-17** (Claude como aprobador, la misma pregunta: «un comercio dice que una entidad no
+  le aparece a sus clientes: ¿cómo lo investigo y qué puede pasar?»):
+  - **3.8 Flash**, 3 vueltas: pidió 4 comandos (aprobados 3; `comandos lender` descartado: medio catálogo), después 3
+    más (el tema `lender-listing` y las trampas F-118 y F-140, que eran las del índice para ese síntoma), y contestó
+    con `harness-listing`, las puertas v1/v2, reglas duras que reordenan y F-140, citando cada cosa. Tiempos: 12 s,
+    241 s y 30 s (la segunda, con ~30 mil caracteres de contexto). Todo lo que pidió estuvo en la lista y tuvo sentido.
+  - **Hydrogen**, con WALLY.md corregido: pidió mejor de entrada (leyó el tema directo, 3 comandos sin redundancia, en
+    8,5 s), pero con las salidas no contestó en 10 min. Fue el modelo que Google cortó primero ese día.
+  - **¿Modo automático?** Lo pedido fue siempre seguro (la lista blanca lo garantiza de todos modos); lo que le
+    faltaba era criterio de costo (buscar un id en vez de leerlo, palabras demasiado generales), y se corrigió en
+    WALLY.md. Lo que todavía frena el automático es Google: tres cortes en el día y respuestas de hasta 4 min con
+    contexto largo.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
 - Si falla, la pregunta no se guarda y vuelve al campo para mandarla de nuevo.
