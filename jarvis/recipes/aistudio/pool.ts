@@ -18,13 +18,17 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
-import { askOn, currentPauses, noteFailure, openWorkPage, windowMode } from './page.ts';
+import { askOn, currentPauses, noteFailure, openWorkPage, windowMode, type Thinking, type WindowMode } from './page.ts';
+import { askDeepSeek } from '../deepseek/page.ts';
 
 const MAX = Number(process.env.WALLY_POOL_MAX || 2);
 const GAP_MS = Number(process.env.WALLY_POOL_GAP || 20) * 1000;
 const IDLE_MS = 20_000;
 
-type Job = { id: string; model: string; text: string; timeout?: number };
+// Desde el 2026-11-17 también DeepSeek: `provider` elige la receta, y la configuración de Wally viaja en cada pregunta
+// (el nivel de AI Studio, los interruptores de DeepSeek, la ventana).
+type Job = { id: string; provider?: 'aistudio' | 'deepseek'; model: string; text: string; timeout?: number;
+    thinking?: Thinking; deepThink?: boolean; search?: boolean; window?: WindowMode };
 const queue: Job[] = [];
 let active = 0;
 let lastStart = 0;
@@ -62,11 +66,11 @@ function scheduleIdle() {
 // Playwright con «Cannot read properties of undefined (reading '_page')» (2026-11-17, el primer grupo de Wally: M-O
 // perdió su tema por eso mientras EVA trabajaba). Un segundo intento, ya sin la carrera, anda.
 let opening: Promise<unknown> = Promise.resolve();
-function openPage(b: any): Promise<any> {
+function openPage(b: any, mode?: WindowMode): Promise<any> {
     const next = opening.then(async () => {
         for (let attempt = 1; ; attempt++) {
             try {
-                return await openWorkPage(b);
+                return await openWorkPage(b, mode || windowMode());
             } catch (e: any) {
                 if (attempt >= 3) throw e;
                 log(`no abrió la pestaña (${String(e?.message || e).split('\n')[0]}); reintento ${attempt}`);
@@ -79,7 +83,9 @@ function openPage(b: any): Promise<any> {
 }
 
 async function run(job: Job) {
-    const pause = currentPauses()['*'] || currentPauses()[job.model];
+    const deepseek = job.provider === 'deepseek';
+    // La pausa «*» es la de la cuenta de AI Studio: no frena a DeepSeek.
+    const pause = (deepseek ? undefined : currentPauses()['*']) || currentPauses()[job.model];
     if (pause) {
         const hour = new Date(pause.until).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
         send({ id: job.id, ok: false, paused: true, until: pause.until, error: `bin/aistudio está en pausa hasta las ${hour}: ${pause.reason.split('\n')[0]}` });
@@ -88,13 +94,21 @@ async function run(job: Job) {
     let page: any = null;
     try {
         const b = await connect();
-        page = await openPage(b);
-        const r = await askOn(page, job.model, job.text, (job.timeout || 600) * 1000, (s) => log(`${job.id}: ${s}`));
-        send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: r.modelId, ms: r.ms });
+        page = await openPage(b, job.window);
+        const say = (s: string) => log(`${job.id}: ${s}`);
+        if (deepseek) {
+            const r = await askDeepSeek(page, job.text, { think: job.deepThink !== false, search: !!job.search, timeoutMs: (job.timeout || 600) * 1000, log: say });
+            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
+        } else {
+            const r = await askOn(page, job.model, job.text, (job.timeout || 600) * 1000, say, job.thinking);
+            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: r.modelId, ms: r.ms });
+        }
     } catch (e: any) {
-        const message = noteFailure(String(e?.message || e), job.model);
+        // DeepSeek anota su uso él mismo y no toca la pausa de AI Studio.
+        const message = deepseek ? String(e?.message || e) : noteFailure(String(e?.message || e), job.model);
         // Con el corte, la hora en que vence la pausa: sin ella, quien pregunta vuelve antes de tiempo y gasta reintentos.
-        const now = currentPauses()['*'];
+        // La que aplica: la del modelo (el cupo diario) o la de la cuenta de AI Studio; DeepSeek no deja pausa.
+        const now = deepseek ? undefined : (currentPauses()[job.model] || currentPauses()['*']);
         send({ id: job.id, ok: false, error: message, paused: !!now, until: now?.until });
         // Una conexión rota no se reusa: la próxima pregunta abre otra.
         if (!browser?.isConnected?.()) browser = null;

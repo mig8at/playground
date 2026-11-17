@@ -19,6 +19,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 |---|---|
 | `make wally` | levanta la interfaz (:5228, Vue) y la API (:5229, Go). En Cockpit es la app Wally |
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
+| `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`) |
 | `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |
 | `server/pool.go` · `server/groups.go` | el pool de AI Studio y los grupos de agentes (abajo, en pausa) |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
@@ -47,7 +48,16 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   **Cualquier bloque se borra** con su tacho (aparece al pasar el mouse), sin confirmación: así se saca contexto que
   no aporta y se queda sólo lo que sirve. Arriba a la derecha, «contexto: N bloques · M caracteres» dice lo que va a
   viajar. Los bloques de antes no tenían id: se les pone al cargar.
-- **Un solo modelo: Gemini 4 Hydrogen con «Thinking level: High»** (Miguel, la tarde del 2026-11-17: «no le veo
+- **La configuración** (el engranaje de la lista, `#/configuracion`; idea de Miguel, 2026-11-17, como la de avisos del
+  chat): se guarda en el servidor al tocarla y vale desde la próxima pregunta. **Proveedor**: AI Studio (Gemini 4
+  Hydrogen) o **DeepSeek** (chat.deepseek.com por su web, la receta `jarvis/recipes/deepseek/`); los dos por el pool,
+  en el Chrome de Miguel con su sesión. El Thinking level de AI Studio; «Pensamiento Profundo» y «Búsqueda
+  inteligente» de DeepSeek; la ventana de Chrome (minimizada, aparte o pestaña), y lo de hoy por modelo (preguntas,
+  cortes, media, cupo agotado y pausa). ⚠ **Los agentes y el asistente no van por DeepSeek** aunque esté elegido
+  (`providerFor`), salvo que se marque «Permitir»: llevan contexto interno de CreditOp y DeepSeek lo guarda en
+  servidores en China, además de dejar cada pregunta en el historial de la cuenta. Medido el 2026-11-17 con DeepSeek
+  elegido: un chat contestó por DeepSeek en 8,7 s y Pikachu fue por AI Studio (y dio la pausa de Hydrogen).
+- **Un solo modelo por proveedor: Gemini 4 Hydrogen con «Thinking level: High»** (Miguel, la tarde del 2026-11-17: «no le veo
   necesidad de usar el 3.8»), para el chat, los agentes y `bin/aistudio`. Con un solo modelo la interfaz no muestra
   selector (`chatModels`); Flash sigue a mano con `bin/aistudio --model gemini-3.8-flash`. El nivel lo pone la receta
   en cada pregunta (`ensureThinking`): cada modelo trae el suyo (Hydrogen nace en High, Flash en Medium). La preferencia

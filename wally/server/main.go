@@ -44,7 +44,9 @@ func main() {
 	if err := gs.load(); err != nil {
 		log.Fatal(err)
 	}
-	a := &app{store: st, root: root, pool: &pool{root: root}, groups: gs}
+	cs := &configStore{file: filepath.Join(root, "wally", ".data", "config.json")}
+	cs.load()
+	a := &app{store: st, root: root, pool: &pool{root: root}, groups: gs, config: cs}
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /api/models", a.models)
 	mux.HandleFunc("GET /api/conversations", a.list)
@@ -54,6 +56,9 @@ func main() {
 	mux.HandleFunc("POST /api/ask", a.ask)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
+	mux.HandleFunc("GET /api/config", a.getConfig)
+	mux.HandleFunc("PUT /api/config", a.putConfig)
+	mux.HandleFunc("GET /api/usage", a.usage)
 	mux.HandleFunc("GET /api/agents", a.listAgents)
 	mux.HandleFunc("POST /api/agents", a.createAgent)
 	mux.HandleFunc("GET /api/groups", a.listGroups)
@@ -187,6 +192,7 @@ type app struct {
 	pool *pool
 	// groups: los grupos de agentes (groups.go).
 	groups *groupStore
+	config *configStore
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -207,14 +213,9 @@ type Model struct {
 	Paused      string `json:"paused,omitempty"` // hasta qué hora, si Google lo cortó
 }
 
-// chatModels: los dos que Miguel eligió para el día a día (2026-11-17), de las fichas del selector de AI Studio: 3.8
-// Flash, el de siempre (el Flash más inteligente, la mitad de pesado que Hydrogen), y Hydrogen para lo difícil. Los
-// dos sin «Paid». Fuera a propósito: Flash Lite, Gemma y los alias `*-latest`.
-var chatModels = []Model{
-	// SÓLO Hydrogen, con «Thinking level: High» (Miguel, 2026-11-17: «no le veo necesidad de usar el 3.8»; el nivel lo
-	// pone la receta). Con un solo modelo la interfaz no muestra selector. Flash queda en `bin/aistudio --model`.
-	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "pensando a fondo (High)"},
-}
+// chatModels: el modelo con que contesta Wally, que sale de la configuración (config.go): Gemini 4 Hydrogen por AI
+// Studio, o DeepSeek por su web. Uno solo a la vez: la interfaz no muestra selector (Miguel, 2026-11-17).
+func (a *app) chatModels() []Model { return []Model{providerModels[a.config.get().Provider]} }
 
 // pauses lee las pausas que deja la receta cuando Google corta un modelo: modelo → hasta cuándo (ms).
 func pauses() map[string]int64 {
@@ -241,17 +242,18 @@ func pauses() map[string]int64 {
 
 func (a *app) models(w http.ResponseWriter, r *http.Request) {
 	paused := pauses()
-	list := make([]Model, len(chatModels))
-	for i, m := range chatModels {
-		// «*» es la cuenta entera: AI Studio corta por el ritmo de la cuenta, no por modelo.
-		if until, ok := paused["*"]; ok {
+	models := a.chatModels()
+	list := make([]Model, len(models))
+	for i, m := range models {
+		// «*» es la cuenta entera de AI Studio (corta por el ritmo); no frena a DeepSeek.
+		if until, ok := paused["*"]; ok && m.Name != providerModels["deepseek"].Name {
 			m.Paused = time.UnixMilli(until).Format("15:04")
 		} else if until, ok := paused[m.Name]; ok {
 			m.Paused = time.UnixMilli(until).Format("15:04")
 		}
 		list[i] = m
 	}
-	writeJSON(w, 200, map[string]any{"models": list, "default": chatModels[0].Name})
+	writeJSON(w, 200, map[string]any{"models": list, "default": models[0].Name})
 }
 
 // Summary es una fila de la lista: sin los mensajes.
@@ -390,9 +392,15 @@ func transcript(history []Message, question string, files []Attachment, fileText
 	return strings.TrimRight(b.String(), "\n")
 }
 
-// askAIStudio le hace una pregunta a AI Studio por el pool (pool.go): una conexión a Chrome, varias pestañas.
-func (a *app) askAIStudio(ctx context.Context, model, text string) (string, error) {
-	return a.pool.ask(ctx, model, text)
+// askProvider le hace la pregunta al proveedor de la configuración por el pool (pool.go): una conexión a Chrome,
+// varias pestañas. Devuelve la respuesta y el modelo con que salió.
+func (a *app) askProvider(ctx context.Context, mode string, agent bool, text string) (string, string, error) {
+	cfg := a.config.get()
+	provider := cfg.providerFor(mode, agent)
+	model := providerModels[provider].Name
+	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
+		DeepThink: cfg.DeepThink, Search: cfg.Search, Window: cfg.Window})
+	return answer, model, err
 }
 
 // ask agrega la pregunta, se la hace a AI Studio con el modelo elegido y guarda la respuesta. Sin `id` abre una
@@ -450,7 +458,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		return Conversation{}, errBadRequest{"la pregunta está vacía"}
 	}
 	if in.Model == "" {
-		in.Model = chatModels[0].Name
+		in.Model = a.chatModels()[0].Name
 	}
 	files := in.Files
 
@@ -499,7 +507,8 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		prompt = instructions + "\n\n---\n\n" + prompt
 	}
 	askCtx, cancel := context.WithTimeout(ctx, 12*time.Minute)
-	answer, err := a.askAIStudio(askCtx, in.Model, prompt)
+	answer, model, err := a.askProvider(askCtx, in.Mode, agent != nil, prompt)
+	in.Model = model
 	cancel()
 	if err != nil {
 		return Conversation{}, err

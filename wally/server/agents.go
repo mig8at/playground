@@ -103,7 +103,7 @@ func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if in.Model == "" {
-		in.Model = chatModels[0].Name
+		in.Model = a.chatModels()[0].Name
 	}
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()

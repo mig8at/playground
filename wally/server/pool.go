@@ -101,8 +101,19 @@ func (p *pool) start() error {
 	return nil
 }
 
+// poolJob: una pregunta para el pool, con su proveedor y sus opciones (de la configuración de Wally).
+type poolJob struct {
+	Provider  string `json:"provider"`
+	Model     string `json:"model"`
+	Text      string `json:"text"`
+	Thinking  string `json:"thinking,omitempty"`
+	DeepThink bool   `json:"deepThink"`
+	Search    bool   `json:"search"`
+	Window    string `json:"window,omitempty"`
+}
+
 // ask le manda una pregunta al pool y espera su respuesta (o que se cancele el contexto).
-func (p *pool) ask(ctx context.Context, model, text string) (string, error) {
+func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
 	p.mu.Lock()
 	if p.waiting == nil {
 		p.waiting = map[string]chan poolAnswer{}
@@ -117,7 +128,8 @@ func (p *pool) ask(ctx context.Context, model, text string) (string, error) {
 	id := fmt.Sprintf("q%d-%d", time.Now().Unix(), p.seq)
 	ch := make(chan poolAnswer, 1)
 	p.waiting[id] = ch
-	line, _ := json.Marshal(map[string]any{"id": id, "model": model, "text": text, "timeout": 600})
+	line, _ := json.Marshal(map[string]any{"id": id, "provider": job.Provider, "model": job.Model, "text": job.Text,
+		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "window": job.Window, "timeout": 600})
 	_, err := p.stdin.Write(append(line, '\n'))
 	p.mu.Unlock()
 	if err != nil {

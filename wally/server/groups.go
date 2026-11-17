@@ -221,7 +221,7 @@ func (a *app) createGroup(w http.ResponseWriter, r *http.Request) {
 	}
 	_ = json.NewDecoder(r.Body).Decode(&in)
 	if in.Model == "" {
-		in.Model = chatModels[0].Name
+		in.Model = a.chatModels()[0].Name
 	}
 	ctx := context.Background()
 	pending, err := a.pendingTopics(ctx)

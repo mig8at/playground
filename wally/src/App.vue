@@ -71,6 +71,7 @@ function persistTabs() { savePref('wally.tabs', { tabs: tabs.value, active: acti
 watch([tabs, active], persistTabs, { deep: true })
 
 const tabTitle = (t) => {
+  if (t.key === CONFIG) return 'Configuración'
   if (t.key === AGENT_NEW) return 'Agente nuevo'
   if (t.key === GROUP_NEW) return 'Grupo nuevo'
   if (isGroup(t.key)) return loadedGroups.value[t.key]?.title || agentGroups.value.find((g) => `g:${g.id}` === t.key)?.title || 'Grupo'
@@ -79,7 +80,7 @@ const tabTitle = (t) => {
 }
 
 async function loadConv(key) {
-  if (isNew(key) || isGroup(key) || key === AGENT_NEW) return
+  if (isNew(key) || isGroup(key) || key === AGENT_NEW || key === CONFIG) return
   try {
     const c = await api(`/api/conversations/${encodeURIComponent(key)}`)
     loaded.value = { ...loaded.value, [key]: c }
@@ -123,7 +124,8 @@ function closeTab(key) {
 }
 function activate(key) {
   active.value = key
-  if (key === AGENT_NEW) loadTopics()
+  if (key === CONFIG) { loadConfig(); loadUsage() }
+  else if (key === AGENT_NEW) loadTopics()
   else if (isGroup(key)) { if (key === GROUP_NEW) loadTopics(); else loadGroup(key) }
   else if (!isNew(key) && !loaded.value[key]) loadConv(key)
   writeRoute()
@@ -133,7 +135,7 @@ function activate(key) {
 
 // La ruta dice la pestaña activa: abrir un enlace `#/c/<id>` la abre.
 function writeRoute() {
-  const hash = active.value === AGENT_NEW ? '#/agente-nuevo' : active.value === GROUP_NEW ? '#/grupo-nuevo'
+  const hash = active.value === CONFIG ? '#/configuracion' : active.value === AGENT_NEW ? '#/agente-nuevo' : active.value === GROUP_NEW ? '#/grupo-nuevo'
     : isGroup(active.value) ? `#/g/${encodeURIComponent(active.value.slice(2))}`
     : isNew(active.value) ? `#/nueva/${active.value.slice(6)}` : `#/c/${encodeURIComponent(active.value)}`
   if (location.hash !== hash) history.replaceState(null, '', hash)
@@ -143,9 +145,35 @@ function readRoute() {
   if (parts[0] === 'c' && parts[1]) openTab(decodeURIComponent(parts[1]))
   else if (parts[0] === 'grupo-nuevo') openTab(GROUP_NEW)
   else if (parts[0] === 'agente-nuevo') openTab(AGENT_NEW)
+  else if (parts[0] === 'configuracion') openTab(CONFIG)
   else if (parts[0] === 'g' && parts[1]) openTab(`g:${decodeURIComponent(parts[1])}`)
   else if (parts[0] === 'nueva' && parts[1] && tabs.value.some((t) => t.key === `nueva-${parts[1]}`)) activate(`nueva-${parts[1]}`)
 }
+
+// ── LA CONFIGURACIÓN ── (wally/server/config.go) Con qué proveedor contesta Wally y cómo, guardada en el servidor al
+// tocarla (como la de avisos del chat). Vale desde la próxima pregunta. La pestaña es `config`.
+const CONFIG = 'config'
+const config = ref(null)
+const usageToday = ref({ today: [], paused: {} })
+const configError = ref('')
+async function loadConfig() { try { config.value = await api('/api/config'); configError.value = '' } catch (e) { configError.value = e.message } }
+async function loadUsage() { try { usageToday.value = await api('/api/usage') } catch { /* lo dice loadConfig */ } }
+async function saveConfig(patch) {
+  try {
+    config.value = await api('/api/config', { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) })
+    configError.value = ''
+    loadModels()
+  } catch (e) { configError.value = e.message }
+}
+function openConfig() { openTab(CONFIG) }
+const PROVIDERS = [
+  { id: 'aistudio', name: 'AI Studio', note: 'Gemini 4 Hydrogen por la web de Google, con tu cuenta. Cupo diario por modelo.' },
+  { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
+]
+const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
+// El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
+const providerName = computed(() => (models.value[0]?.name === 'deepseek-web' ? 'DeepSeek' : 'AI Studio'))
+const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek' }
 
 // ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
 // tener al día el contexto de una parte, p. ej. KYC), que lleva siempre precargados sus temas de knowledge y el estado
@@ -543,7 +571,7 @@ onMounted(async () => {
   await loadList()
   // Las pestañas recordadas cuya conversación ya no existe se cierran; sin ninguna, una nueva.
   const ids = new Set(conversations.value.map((c) => c.id))
-  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || isGroup(t.key) || t.key === AGENT_NEW || ids.has(t.key))
+  if (!apiError.value) tabs.value = tabs.value.filter((t) => isNew(t.key) || isGroup(t.key) || t.key === AGENT_NEW || t.key === CONFIG || ids.has(t.key))
   readRoute()
   if (!tabs.value.length) newTab()
   else activate(tabs.value.some((t) => t.key === active.value) ? active.value : tabs.value[0].key)
@@ -576,6 +604,9 @@ onBeforeUnmount(() => {
         <span>Wally</span>
         <span class="count">{{ conversations.length }}</span>
         <div class="region-actions">
+          <button type="button" class="region-action" :class="{ on: active === CONFIG }" title="Configuración: con qué proveedor contesta Wally" aria-label="Configuración" @click="openConfig">
+            <span class="ui-icon" data-icon="settings" aria-hidden="true"></span>
+          </button>
           <button type="button" class="region-action" title="Conversación nueva" aria-label="Conversación nueva" @click="newTab">
             <span class="ui-icon" data-icon="plus" aria-hidden="true"></span>
           </button>
@@ -669,8 +700,74 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
+      <!-- LA CONFIGURACIÓN: se guarda al tocarla -->
+      <div v-if="active === CONFIG" class="region-body group-new">
+        <div v-if="config" class="group-new-inner config">
+          <h2>Configuración</h2>
+          <p class="group-lede">Con qué contesta Wally y cómo. Se guarda al tocarla y vale desde la próxima pregunta; lo ya contestado dice con qué salió.</p>
+
+          <div class="group-option column">
+            <div><b>Proveedor</b><span>Los dos van por su web, en tu Chrome con Jarvis y tu sesión: sin llaves de API.</span></div>
+            <div class="provider-pick" role="radiogroup" aria-label="Proveedor">
+              <button v-for="p in PROVIDERS" :key="p.id" type="button" class="mode-card" role="radio" :aria-checked="config.provider === p.id" @click="saveConfig({ provider: p.id })">
+                <b>{{ p.name }}</b><span>{{ p.note }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>AI Studio</b><span>Gemini 4 Hydrogen. El nivel de razonamiento lo pone Wally en cada pregunta.</span></div>
+            <div class="config-row">
+              <span class="label">Thinking level</span>
+              <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Thinking level">
+                <button v-for="t in ['Low', 'Medium', 'High']" :key="t" type="button" class="toggle" role="radio" :aria-checked="config.thinking === t" :aria-pressed="config.thinking === t" @click="saveConfig({ thinking: t })">{{ t }}</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>DeepSeek</b><span>Los dos interruptores de su pantalla, puestos en cada pregunta.</span></div>
+            <div class="config-row">
+              <span class="label">Pensamiento Profundo</span>
+              <button type="button" class="switch" role="switch" :aria-checked="config.deepThink" aria-label="Pensamiento Profundo" @click="saveConfig({ deepThink: !config.deepThink })"></button>
+            </div>
+            <div class="config-row">
+              <span class="label">Búsqueda inteligente</span>
+              <button type="button" class="switch" role="switch" :aria-checked="config.search" aria-label="Búsqueda inteligente" @click="saveConfig({ search: !config.search })"></button>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con DeepSeek elegido, siguen por AI Studio salvo que lo permitas.</span></div>
+            <label class="config-check"><input type="checkbox" :checked="config.agentsDeepSeek" @change="saveConfig({ agentsDeepSeek: $event.target.checked })"> Permitir que vayan por DeepSeek (queda en sus servidores, en China)</label>
+          </div>
+
+          <div class="group-option column">
+            <div><b>Ventana de Chrome</b><span>Dónde trabaja Wally: minimizada no te llena de pestañas.</span></div>
+            <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Ventana">
+              <button v-for="(label, w) in WINDOWS" :key="w" type="button" class="toggle" role="radio" :aria-checked="config.window === w" :aria-pressed="config.window === w" @click="saveConfig({ window: w })">{{ label }}</button>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>Hoy</b><span>De cada pregunta queda su tamaño y cómo terminó, nunca el texto (también por consola: <code>bin/aistudio uso</code>).</span></div>
+            <table v-if="usageToday.today.length" class="usage">
+              <tr><th>Modelo</th><th>Preguntas</th><th>Bien</th><th>Cortes</th><th>Media</th><th></th></tr>
+              <tr v-for="u in usageToday.today" :key="u.model">
+                <td>{{ USAGE_NAME[u.model] || u.model }}</td><td>{{ u.asked }}</td><td>{{ u.ok }}</td><td>{{ u.cuts }}</td>
+                <td>{{ u.ok ? `${Math.round(u.avgMs / 1000)} s` : '—' }}</td>
+                <td class="usage-note">{{ u.dailyOut ? `cupo diario agotado a las ${u.dailyOut}` : '' }}{{ usageToday.paused[u.model] ? ` · en pausa hasta las ${usageToday.paused[u.model]}` : '' }}</td>
+              </tr>
+            </table>
+            <p v-else class="none">Nada todavía hoy.</p>
+          </div>
+          <div v-if="configError" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ configError }}</p></div></div>
+        </div>
+        <p v-else class="none">{{ configError || 'Cargando…' }}</p>
+      </div>
+
       <!-- CREAR UN AGENTE -->
-      <div v-if="active === AGENT_NEW" class="region-body group-new">
+      <div v-else-if="active === AGENT_NEW" class="region-body group-new">
         <form class="group-new-inner" @submit.prevent="createAgent">
           <h2>Agente nuevo</h2>
           <p class="group-lede">Una conversación larga con <b>una intención</b>: lleva siempre precargados sus temas de knowledge (el texto vigente y el estado de sus fuentes contra main) y pide comandos de lectura como el asistente. No habla con otros agentes. Crearlo no le pregunta nada a Google.</p>
@@ -794,7 +891,7 @@ onBeforeUnmount(() => {
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
             <div class="empty-title">{{ mode ? 'Preguntale al asistente' : 'Preguntale a Wally' }}</div>
-            <div class="empty-desc">Pregunta por la web de AI Studio, en tu Chrome y con tu cuenta, sin llave de API. Lo que quede guardado acá es el contexto de la próxima pregunta.</div>
+            <div class="empty-desc">Pregunta por la web de {{ providerName }}, en tu Chrome y con tu cuenta, sin llave de API. Lo que quede guardado acá es el contexto de la próxima pregunta.</div>
           </div>
           <div class="mode-pick" role="radiogroup" aria-label="Qué hace esta conversación">
             <button type="button" class="mode-card" role="radio" :aria-checked="!mode" @click="chooseMode('')">
@@ -929,7 +1026,7 @@ onBeforeUnmount(() => {
 
     <footer class="statusbar">
       <span v-if="apiError" class="warn-text">{{ apiError }}</span>
-      <span v-else>{{ tabs.length }} abierta{{ tabs.length === 1 ? '' : 's' }} · por la web de AI Studio{{ allPaused ? ` · en pausa hasta las ${allPaused}` : pausedCount ? ` · ${pausedCount} modelo${pausedCount > 1 ? 's' : ''} en pausa` : '' }}</span>
+      <span v-else>{{ tabs.length }} abierta{{ tabs.length === 1 ? '' : 's' }} · por la web de {{ providerName }}{{ allPaused ? ` · en pausa hasta las ${allPaused}` : pausedCount ? ` · ${pausedCount} modelo${pausedCount > 1 ? 's' : ''} en pausa` : '' }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las conversaciones" aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
