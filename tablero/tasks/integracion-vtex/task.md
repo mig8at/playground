@@ -148,10 +148,10 @@ correo: [vtex]
       Colombia), pero es de tipo **System Integrators (SI) or Reseller** (Reseller and Implementation Partner), no
       ISV, que es el programa que nombró Juan para un conector. Se sube al ticket #1484435 con esa pregunta. Termina
       con VTEX diciendo si vale o si hay que firmar el de ISV. Depende de: VTEX — Juan Alzate y Payments.
-- [ ] Pedirle a VTEX que el conector quede público (para todas las cuentas) y no restringido: Producto lo decidió
-      (Oscar Rincón, Slack, 2026-11-17 13:59). Abierto a todas, el comercio sólo instala `creditop.creditop` y
-      configura los ajustes del `settingsSchema` en la app instalada. Termina con VTEX confirmándolo en #1484435.
-      Depende de: VTEX — Juan Alzate.
+- [ ] Que VTEX confirme por escrito qué aplicó: se le pidió (2026-11-17) el conector público (lo decidió Producto,
+      vía Oscar), cambiar la URL del backend por la Service URL y si el MPA de SI/Reseller vale. Juan contestó
+      «we have taken that into account. We have also applied the update» (18:05 GMT-3) sin decir cuál. Termina con
+      VTEX confirmando las tres cosas en #1484435. Depende de: VTEX — Juan Alzate.
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
       es un pedido comercial con costo y no hace falta para homologar. Ojo: el MPA firmado (cláusula 1.4) dice que las cuentas
       adicionales cuestan USD 0.00 al Partner; la 1.3 da un entorno de pruebas por USD 250 al mes. Termina con la decisión escrita acá.
