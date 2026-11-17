@@ -143,16 +143,18 @@ correo: [vtex]
       entregado. VTEX todavía cree que falta arreglar `https://v2.api.creditop.com/legacy-api` (da 404 en /manifest
       porque es el backend, no el conector; la Service URL da 200, medido 2026-11-17 11:28): hay que volver a
       aclararlo. Depende de: VTEX Payments — priorizar y validar; Creditop — el MPA (pendiente de abajo).
-- [ ] Entregar el MPA a VTEX: si Creditop tiene una copia firmada vigente, subirla al ticket #1484435; si no, empezar
-      el trámite en https://www.vtex.com/en-us/isv/become-an-isv. Los 30 días de la homologación corren desde ahí.
-      Termina con el MPA en el ticket o el trámite iniciado. Depende de: Oscar Rincón — quién tiene el MPA firmado
-      (le pidió el número de caso a Miguel para que su contacto en VTEX agilice).
+- [ ] Que VTEX confirme si el MPA firmado sirve para la homologación: Oscar lo compartió (Slack, 2026-11-17 15:09).
+      Firmado por DocuSign el 2025-04-30 (Juan Camilo Rodríguez por Creditop Colombia SAS, Andrés Zuluaga por VTEX
+      Colombia), pero es de tipo **System Integrators (SI) or Reseller** (Reseller and Implementation Partner), no
+      ISV, que es el programa que nombró Juan para un conector. Se sube al ticket #1484435 con esa pregunta. Termina
+      con VTEX diciendo si vale o si hay que firmar el de ISV. Depende de: VTEX — Juan Alzate y Payments.
 - [ ] Pedirle a VTEX que el conector quede público (para todas las cuentas) y no restringido: Producto lo decidió
       (Oscar Rincón, Slack, 2026-11-17 13:59). Abierto a todas, el comercio sólo instala `creditop.creditop` y
       configura los ajustes del `settingsSchema` en la app instalada. Termina con VTEX confirmándolo en #1484435.
       Depende de: VTEX — Juan Alzate.
 - [ ] Decidir si se compra una cuenta VTEX adicional para probar como tienda externa: VTEX no da cuentas de prueba,
-      es un pedido comercial con costo y no hace falta para homologar. Termina con la decisión escrita acá.
+      es un pedido comercial con costo y no hace falta para homologar. Ojo: el MPA firmado (cláusula 1.4) dice que las cuentas
+      adicionales cuestan USD 0.00 al Partner; la 1.3 da un entorno de pruebas por USD 250 al mes. Termina con la decisión escrita acá.
       Depende de: Miguel (y quién firma si hay costo).
 - [ ] Decidir qué se hace con la ficha de App Store de la 5.2.1 (vtex#27, en `main` sin publicar): VTEX dice que la
       App Store no acepta conectores de pago; termina con la 5.2.1 publicada sin ella o descartada.
