@@ -1,0 +1,125 @@
+{
+  "name": "Aprender a usar AI Studio: abrir un chat nuevo, elegir modelo, ajustar la configuración y mandar un prompt de prueba",
+  "meta": "Aprender a usar AI Studio: abrir un chat nuevo, elegir modelo, ajustar la configuración y mandar un prompt de prueba",
+  "start": "https://aistudio.google.com/prompts/new_chat",
+  "device": "chrome",
+  "created": "2026-11-17T07:45:31.862217-05:00",
+  "verified": "0001-01-01T00:00:00Z",
+  "run": "2026-11-17_07-42-01",
+  "steps": [
+    {
+      "action": "click",
+      "target": "Gemini 4 Hydrogen gemini-4-hydrogen An efficient model with cutting-edge intelligence for fast, depe",
+      "instruction": "Hacé clic en «Gemini 4 Hydrogen gemini-4-hydrogen An efficient model with cutting-edge intelligence for fast, depe»",
+      "why": "Abro el selector de modelo para ver cuáles hay",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Gemini 4 Hydrogen gemini-4-hydrogen An efficient model with cutting-edge intelligence for fast, depe",
+          "code": "page.getByRole('button', { name: 'Gemini 4 Hydrogen gemini-4-hydrogen An efficient model with cutting-edge intelligence for fast, depe' })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Gemini 4 Hydrogen gemini-4-hydrogen An efficient model with cutting-edge intelligence for fast, depe' }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Cerrar panel",
+      "instruction": "Hacé clic en «Cerrar panel»",
+      "why": "Cierro el selector: Hydrogen es el modelo gratis por defecto",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Cerrar panel",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Cerrar panel', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Cerrar panel', exact: true }).click()"
+    },
+    {
+      "action": "fill",
+      "target": "Enter a prompt",
+      "value": "Respondé en una sola frase: ¿qué es un crédito de consumo?",
+      "instruction": "Escribí «Respondé en una sola frase: ¿qué es un crédito de consumo?» en «Enter a prompt»",
+      "why": "Escribo un prompt de prueba en el campo del chat",
+      "param": "Enter a prompt",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "textbox",
+          "value": "Enter a prompt",
+          "exact": true,
+          "code": "page.getByRole('textbox', { name: 'Enter a prompt', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('textbox', { name: 'Enter a prompt', exact: true }).fill('Respondé en una sola frase: ¿qué es un crédito de consumo?')"
+    },
+    {
+      "action": "click",
+      "target": "Run keyboard_command_key keyboard_return",
+      "instruction": "Hacé clic en «Run keyboard_command_key keyboard_return»",
+      "why": "Run manda el prompt al modelo elegido",
+      "ref": {
+        "loc": {
+          "kind": "text",
+          "value": "Run keyboard_command_key keyboard_return",
+          "code": "page.getByText('Run keyboard_command_key keyboard_return', { exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByText('Run keyboard_command_key keyboard_return', { exact: true }).click()"
+    },
+    {
+      "action": "expect",
+      "target": "crédito",
+      "value": "crédito",
+      "instruction": "Comprobá que se vea «crédito»",
+      "code": "expect(page.getByText('crédito').filter({ visible: true }).first()).toBeVisible()"
+    },
+    {
+      "action": "click",
+      "target": "Get code",
+      "instruction": "Hacé clic en «Get code»",
+      "why": "Get code da el mismo pedido como código para la API",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Get code",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Get code', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Get code', exact: true }).click()"
+    },
+    {
+      "action": "click",
+      "target": "Close",
+      "instruction": "Hacé clic en «Close»",
+      "why": "Cierro Get code: el snippet ya se vio",
+      "ref": {
+        "loc": {
+          "kind": "role",
+          "role": "button",
+          "value": "Close",
+          "exact": true,
+          "code": "page.getByRole('button', { name: 'Close', exact: true })",
+          "count": 1,
+          "works": true
+        }
+      },
+      "code": "page.getByRole('button', { name: 'Close', exact: true }).click()"
+    }
+  ]
+}
