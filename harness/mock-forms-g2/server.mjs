@@ -101,6 +101,9 @@ async function capture() {
         ['dynamic-form/6/schema', 'esquema-6.json', 'GET'],
         // El de Motai después de elegir la entidad («motai-renting»: la moto y los bienes), en la 158 y la 193 de prod.
         ['dynamic-form/7/schema', 'esquema-7.json', 'GET'],
+        // El de Finandina (149) después de elegir la entidad («finandina-creditop-x-additional-info»: la residencia que
+        // pide la etapa extendida de CRED-519). Sin él, la etapa extendida rechaza por falta de ciudad de residencia.
+        ['dynamic-form/25/schema', 'esquema-25.json', 'GET'],
         ['field-options/bcp/cars-tree', 'cars-tree.json', 'GET'],
         ['field-options/countries', 'countries.json', 'GET'],
         // ⚠ El árbol de un país se pide con PUT, no con GET: lo CONSTRUYE si no está cacheado.

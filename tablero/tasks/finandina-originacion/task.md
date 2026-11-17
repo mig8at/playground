@@ -43,7 +43,8 @@ Lo que pasa antes del listado y queda por hacer es esto, más las casillas de cr
 (Experian HC2, consentimiento, cuándo se consulta y limpieza de qa). Del listado en adelante, la política ya
 existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 
-- [ ] Experian del onboarding con la cuenta de la sucursal, igual que Mareigua: en el flujo viejo (el único que
+- [ ] ⏸ En espera por decisión de Oscar (2026-11-17: probar de punta a punta con el Experian de Creditop).
+  Experian del onboarding con la cuenta de la sucursal, igual que Mareigua: en el flujo viejo (el único que
   usa prod: `kyc_pipeline_allieds` vacío) la consulta pasa por `Experian.php:73` con `findForUserRequest` sin
   entidad, así que nunca ve la cuenta de una entidad de la sucursal. Como las llaves de Finandina son del HC2, si
   la sucursal tiene una entidad con cuenta HC2 la consulta va por ese cliente. Termina con la misma prueba de
@@ -114,10 +115,17 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Repetir la firma (caso 1, que falló por una migración faltante) y después la pantalla final sin «Paga tu
   cuota» (caso 14). La migración `2026_11_05_090000_add_installment_freeze` ya está en dev. Termina con los dos
   casos pasando en qa.
-- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10): las filas de `users_category_log` sin criterios
-  `finandina_*` coinciden con `develop`, que no tiene CRED-519. Hipótesis de Abel, sin verificar: un servicio
-  (pre-approvals-service o el API Gateway) llama al backend de develop. Termina con la llamada ubicada y
-  apuntada a qa (o qa llevado a develop), y el listado mostrando el monto de la fórmula (decisión de Abel).
+- [ ] Hacer que el formulario de residencia (25) se pueda guardar en qa: form-service contesta 422 a
+  `POST /v1/dynamic-form/25/response/<ureq>` (con nombres y con ids), y el 25 no tiene una sola respuesta en qa
+  desde que reemplazó al 18 el 11-nov. Sin él la etapa extendida rechaza por residencia y qa no llega a 11.
+  Termina con el caminador cerrando en 11 en qa (`#5da24bb1:149`). Depende de: Abel o quien tenga los logs de
+  form-service en qa.
+- [ ] Encontrar por qué el listado ofrece 15 MM (casos 9 y 10). El motor de qa decide bien: por el backend
+  directo, 1,5 MM queda sin perfil y con 0, con los criterios `finandina_*` en `users_category_log`. Lo que
+  falla es otro camino del front; en la corrida, el listado recibió 400 y 401 de `POST /v1/preapprovals/check`.
+  Hipótesis de Abel, sin verificar: pre-approvals-service o el API Gateway llaman al backend de develop, que no
+  tiene CRED-519. Termina con la llamada ubicada y apuntada a qa (o qa llevado a develop), y el listado
+  mostrando el monto de la fórmula (decisión de Abel).
 - [ ] Reproducir el «Oops!» de Mediarte X al pasar a la fecha de pago (caso 15, solicitud 504835). Hipótesis de
   Abel: el 409 `OFFER_CHANGED` de `OfferStillStandsGuard` (#1834), que aplica a todas las entidades. Termina con la
   causa en la red del navegador o en PostHog, y su arreglo o descarte.
@@ -417,7 +425,22 @@ Detalle de tablas y orden de búsqueda en `knowledge/lender-credential-sources`.
 
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
-**En local (verificado el 2026-11-03).** Se arma con:
+**La política de CRED-519 (tipo 2) en local (verificado el 2026-11-17).** Con legacy-backend y frontend-monorepo
+en `main`, las migraciones de CRED-519 y la 149 copiada de qa:
+
+    python3 -I tablero/tasks/finandina-originacion/artifacts/copiar-149-de-qa-a-local.py /tmp/149.sql apply
+    docker exec -i legacy-backend-mysql-1 sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < tablero/tasks/finandina-originacion/artifacts/finandina-local-formulario-25.sql
+    docker exec legacy-backend-laravel.test-1 php artisan finandina:sync-zones 149
+
+Después, en la sucursal 2309 (`03751a1d`): regenerar sus reglas desde las de la entidad (`group_rule_id` 7894),
+dejar `document_types` como la entidad y el seguro del convenio en 0,166. El estado anterior (el riel 4) quedó en
+`artifacts/local-149-riel4-antes-2026-11-17.sql`. Se comprueba con:
+
+    make harness-walk-wizard TARGET=local LAMBDA=1 CLOSE=1 MANUAL=1 AMOUNT=5000000 CASES='#03751a1d:149'
+
+Tiene que dar estado 11, pasando por `dynamic-form/25`. En qa el mismo comando con `#5da24bb1:149`.
+
+**El riel 4 en local (verificado el 2026-11-03).** Se arma con:
 
     make harness-merchant MERCHANT=finandina
     docker exec -i legacy-backend-mysql-1 sh -c 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" creditop' < tablero/tasks/finandina-originacion/artifacts/finandina-local-149.sql

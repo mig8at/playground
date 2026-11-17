@@ -8,7 +8,9 @@
 // que el cliente nunca vio; por eso se contestan sólo los visibles.
 //
 // ⚠ LOS VALORES. Una pregunta con opciones guarda la CLAVE de la opción (`no`, `regimen_comun`); una ubicación
-// guarda el id de la zona o de la ciudad del árbol del país; un país, su id. Es lo que guarda el formulario real.
+// del árbol del país guarda el NOMBRE de la zona y de la ciudad («Bogotá D.c.»), no su id; un país, su id. Medido
+// en qa el 2026-11-17 (`user_field_values` 184 y 185 del formulario 6) y es lo que lee la política de Finandina
+// (`ResidenceCityResolver`, que busca el departamento por nombre): con el id, la etapa extendida la rechaza.
 
 // Acepta los DOS formatos del esquema: el crudo de form-service (`parentId`/`parentValue`, opciones `{key, name}`) y
 // el que devuelve el loader del asistente, ya adaptado (`dependency.parentFormKey`, opciones `{value, label}`,
@@ -59,8 +61,8 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
             const options = f.options ?? [];
             let value: string | number;
             let label: string;
-            if (ds === 'field_options.country_tree.zones') { value = String(zone?.id ?? ''); label = zone?.name ?? ''; }
-            else if (ds === 'field_options.country_tree.zones.cities') { value = String(city?.id ?? ''); label = city?.name ?? ''; }
+            if (ds === 'field_options.country_tree.zones') { value = zone?.name ?? ''; label = value; }
+            else if (ds === 'field_options.country_tree.zones.cities') { value = city?.name ?? ''; label = value; }
             else if (ds === 'field_options.countries') { value = String(colombia?.id ?? ''); label = colombia?.name ?? ''; }
             else if (options.length) {
                 const pick = options.find((o) => /^no$/i.test(o.key ?? o.value ?? '') || /^no$/i.test(o.name ?? o.label ?? '')) ?? options[0];
