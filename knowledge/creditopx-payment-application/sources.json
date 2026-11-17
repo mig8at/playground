@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, vista previa pública y su token, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-17T18:57:39+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -19,8 +19,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/CreditopXPaymentController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "666ce1b88e6d201a74d50d3c25eb1d2ebda498e3",
+      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
+      "blob": "0c17f254fb8ea9b7e8e0bd22327bddf6539baef3",
       "sections": [
         "dos-motores-con-la-misma-cascada",
         "el-pago-minimo-va-en-cascada",
@@ -137,8 +137,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Actions/Lenders/Wompi.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "2705903fed2f451c8b2a10a371f75d6f51634378",
+      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
+      "blob": "128d1cba0a1c2ce8612f7981b1bad00d4d2c6116",
       "sections": [
         "wompi-consulta-de-estado-y-reconciliacion",
         "cuota-inicial",

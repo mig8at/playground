@@ -62,7 +62,11 @@ beneficios, pagos retenidos y rotativos (en modo `shadow` el paso sólo corre `a
 Ese comando excluye los créditos de los cortes de `config/reminders.php`
 (`excluded_cutoff_type_ids`, que lista el 3) y de sus `excluded_lender_ids`; si la columna
 `cutoff_type_id` no existe en la base, no filtra plantillas. El corte 4 no está excluido: sus
-créditos quedan en ese comando, con las plantillas sin corte.
+créditos quedan en ese comando, con las plantillas sin corte. Tampoco les escribe a los créditos de
+prueba: deja fuera la solicitud con `user_requests.is_test` o de un cliente con `users.is_test`. Un cupo
+rotativo se juzga entero, no por utilización como en legacy-backend: queda fuera si su cliente es de
+prueba o si todas sus utilizaciones vivas son de solicitudes de prueba; con una sola que no lo sea,
+sigue recibiendo.
 
 ## Cuándo sale cada plantilla
 

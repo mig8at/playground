@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Corte semanal y recordatorios de cobranza",
   "summary": "Cortes 3 (viernes) y 4 (martes): primera cuota y tasa semanal en los dos monolitos; quién agenda cada comando de recordatorios, qué excluyen los generales, qué tiene que ser cierto para que salga una plantilla semanal y sus variables.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T18:57:39+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -26,8 +26,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Helpers/CutoffCalendar.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "49d94b641eb35a9ec72fdcc732d69ebec2ae8b7f",
+      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
+      "blob": "bd82337ebb4c19317163ebf22e16cea4b4a6ed33",
       "sections": [
         "la-tasa-semanal-es-efectiva-en-los-dos-monolitos"
       ]
@@ -112,8 +112,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Console/Commands/ReminderCreditopXRequestsCommand.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "bdec571b8e0aba39f2f1a058bdab89e5a6018dbc",
+      "commit": "9ec33cd7e73de6be6b6cd92a8344cdda49ac5216",
+      "blob": "475fb8f506942a4885c24cb9fdcdefaf0b1080e1",
       "sections": [
         "quien-envia-cada-recordatorio",
         "que-tiene-que-ser-cierto-para-que-un-credito-reciba-algo"

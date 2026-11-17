@@ -36,13 +36,11 @@ Cada fila nueva recalcula `total_payment_amount` como capital + interés + segur
 garantía + mora + gasto de cobranza; si la suma no supera el umbral residual queda en cero. Es la misma
 composición que usa la causación nocturna.
 
-Cuando el pago deja el mínimo en cero, los dos motores mueven la fecha distinto. legacy-backend
-(`CutoffCalendar::paymentDateAfterSettling`) salta hasta la primera cuota sin facturar: si el mínimo traía
+Cuando el pago deja el mínimo en cero, los dos motores mueven la fecha igual, cada uno con su
+`CutoffCalendar::paymentDateAfterSettling`: salta hasta la primera cuota sin facturar. Si el mínimo traía
 más de una cuota (mora con un corte de por medio), `next_payment_date` queda en la primera fecha de pago
 que no cae antes del próximo corte agendado (`next_billing_date`) y `last_payment_date` en la última cuota
-saldada; sin corte agendado avanza un ciclo, como antes. legacy-application sigue avanzando un solo
-ciclo desde el `next_payment_date` anterior (`CutoffCalendar::nextPaymentDate`) y deja ese
-`next_payment_date` como `last_payment_date`.
+saldada; sin corte agendado avanza un ciclo, como antes.
 
 ## Qué pasa con el sobrante
 
@@ -128,9 +126,14 @@ interruptor encendido sólo se llega a un crédito cuyo token ya entregó otro e
 ## Wompi: consulta de estado y reconciliación
 
 `Wompi::updateStatus` consulta a Wompi por la referencia y aplica el pago sólo al pasar a APPROVED: sale
-si el estado ya era APPROVED o si ya hay registro con esa transacción, y no mira `concept`. Tipo 1 de
-`creditop_x_payment_type_id` es cuota inicial; si no, cuota de consumo o pago de cupo. Es el camino de
-las transacciones de legacy-application (sin `concept`), por su poller. En legacy-backend también lo llaman el
+si el estado ya era APPROVED o si ya hay registro con esa transacción, y no mira `concept` para aplicar.
+Tipo 1 de `creditop_x_payment_type_id` es cuota inicial; si no, cuota de consumo o pago de cupo. Es el
+camino de las transacciones de legacy-application (sin `concept`), por su poller. Para consultar Wompi
+necesita la credencial de la sucursal que firmó el cobro, porque Wompi sólo devuelve la transacción con
+esa llave: en una solicitud, su sucursal; en un cupo rotativo, legacy-application sí mira `concept`. Con
+`concept` (la creó legacy-backend) toma la sucursal de la utilización más reciente del cupo; sin él, la
+primera sucursal del aliado, y ninguna si el cupo no tiene aliado. Sin sucursal lanza
+`ModelNotFoundException`, como un aliado sin pasarela. En legacy-backend también lo llaman el
 `GET {reference}/status` del flujo nuevo (con la transacción en PENDING desde hace más de 20 s, como
 mucho una consulta cada 15 s por transacción) y la cuota inicial. Entre los intentos que Wompi devuelve
 para la referencia, legacy-backend decide por el aprobado si hay alguno (si no, el primero de la lista) y
