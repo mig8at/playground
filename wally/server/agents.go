@@ -23,11 +23,15 @@ import (
 	"time"
 )
 
-// Agent: quién es y de qué se ocupa. Los temas son ids de knowledge/.
+// Agent: quién es, de qué se ocupa y con qué contexto trabaja. GENÉRICO (Miguel, 2026-11-17: «que no sea sólo para
+// recontextualizar knowledge»): el contexto es lo que se le escriba (Notes), los archivos que se le adjunten (Files,
+// con su texto sacado en esta máquina, como los de una pregunta) y, si viene al caso, temas de knowledge (Topics).
 type Agent struct {
-	Name   string   `json:"name"`
-	Intent string   `json:"intent"`
-	Topics []string `json:"topics"`
+	Name   string       `json:"name"`
+	Intent string       `json:"intent"`
+	Notes  string       `json:"notes,omitempty"`
+	Files  []Attachment `json:"files,omitempty"`
+	Topics []string     `json:"topics,omitempty"`
 }
 
 // AgentRow es una fila de la lista de agentes, con lo que cambió en main en sus temas.
@@ -80,13 +84,22 @@ func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
 func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 	var in struct {
 		Agent
-		Model string `json:"model"`
+		FileIDs []string `json:"fileIds"`
+		Model   string   `json:"model"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
 		return
 	}
-	ag := Agent{Name: strings.TrimSpace(in.Name), Intent: strings.TrimSpace(in.Intent)}
+	ag := Agent{Name: strings.TrimSpace(in.Name), Intent: strings.TrimSpace(in.Intent), Notes: strings.TrimSpace(in.Notes)}
+	for _, id := range in.FileIDs {
+		att, err := a.attachment(id)
+		if err != nil {
+			writeErr(w, 400, err)
+			return
+		}
+		ag.Files = append(ag.Files, att)
+	}
 	if ag.Name == "" || ag.Intent == "" {
 		writeErr(w, 400, errors.New("el agente necesita nombre e intención"))
 		return
@@ -97,10 +110,6 @@ func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		ag.Topics = append(ag.Topics, t)
-	}
-	if len(ag.Topics) == 0 {
-		writeErr(w, 400, errors.New("el agente necesita al menos un tema de knowledge"))
-		return
 	}
 	if in.Model == "" {
 		in.Model = a.chatModels()[0].Name
@@ -175,16 +184,31 @@ func (a *app) changedSources(ctx context.Context, topic string) []source {
 	return out
 }
 
-// agentContext es lo que el agente lleva SIEMPRE, antes de la conversación: quién es, y el texto VIGENTE de sus temas
-// con el estado de sus fuentes. Se arma en cada pregunta: si alguien aplicó una propuesta, la próxima ya lo ve.
+// agentContext es lo que el agente lleva SIEMPRE, antes de la conversación: quién es, lo que tiene que saber, sus
+// archivos y, si tiene, el texto VIGENTE de sus temas de knowledge con el estado de sus fuentes. Se arma en cada
+// pregunta: si se aplicó una propuesta o cambió un tema, la próxima ya lo ve.
 func (a *app) agentContext(ctx context.Context, ag Agent) (string, error) {
 	var b strings.Builder
-	fmt.Fprintf(&b, "Sos **%s**, uno de los agentes de Wally, con UNA intención: %s.\n\n", ag.Name, ag.Intent)
-	b.WriteString("Esta conversación es tuya y larga: Miguel vuelve a ella cada vez que algo cambia en tu parte. Abajo va tu " +
-		"contexto precargado, leído en este momento: el texto vigente de cada tema de knowledge que te toca y el estado de " +
-		"sus fuentes contra main (CAMBIÓ = el archivo es distinto del que se revisó). Trabajá sólo sobre tu parte; si algo " +
-		"cae afuera, decilo y nombrá qué tema le tocaría. Para ver código o diffs, pedí comandos como dice WALLY.md, y lo " +
-		"que propongas para knowledge va en su formato de propuesta: nadie lo escribe sin verificarlo contra main.\n")
+	fmt.Fprintf(&b, "Sos **%s**, uno de los agentes de Wally. Tu intención: %s.\n\n", ag.Name, ag.Intent)
+	b.WriteString("Esta conversación es tuya y larga: Miguel vuelve a ella cuando hay algo de lo tuyo. Abajo va tu contexto " +
+		"precargado, leído en este momento. Trabajá sobre eso y con esa intención; si te piden algo que cae afuera, decilo. " +
+		"Si necesitás ver algo de la máquina (código, knowledge, trampas), pedí comandos de lectura como dice WALLY.md.\n")
+	if ag.Notes != "" {
+		fmt.Fprintf(&b, "\n===== lo que tenés que saber =====\n%s\n===== fin =====\n", ag.Notes)
+	}
+	for _, f := range ag.Files {
+		text, err := a.fileText(f.ID)
+		if err != nil {
+			fmt.Fprintf(&b, "\n(el archivo «%s» ya no está)\n", f.Name)
+			continue
+		}
+		fmt.Fprintf(&b, "\n----- archivo «%s» -----\n%s\n----- fin de «%s» -----\n", f.Name, strings.TrimRight(text, "\n"), f.Name)
+	}
+	if len(ag.Topics) > 0 {
+		b.WriteString("\nTemas de knowledge que te tocan: su texto vigente y el estado de sus fuentes contra main (CAMBIÓ = el " +
+			"archivo es distinto del que se revisó). Lo que propongas para knowledge va en el formato de propuesta de " +
+			"WALLY.md: nadie lo escribe sin verificarlo contra main.\n")
+	}
 	for _, t := range ag.Topics {
 		raw, err := os.ReadFile(filepath.Join(a.root, "knowledge", t, "rules.md"))
 		if err != nil {

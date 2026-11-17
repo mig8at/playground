@@ -301,6 +301,9 @@ func (a *app) remove(w http.ResponseWriter, r *http.Request) {
 			a.forgetFiles(m.Files)
 			a.forgetFiles(commandOutputs(m))
 		}
+		if c.Agent != nil {
+			a.forgetFiles(c.Agent.Files) // los archivos del contexto de un agente son suyos: se van con él
+		}
 	}
 	delete(a.store.convs, r.PathValue("id"))
 	if err := a.store.save(); err != nil {

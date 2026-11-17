@@ -46,7 +46,7 @@ var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
 
 // Los modelos que puede usar Wally, por proveedor: el nombre es lo que queda en cada respuesta.
 var providerModels = map[string]Model{
-	"aistudio": {Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "AI Studio"},
+	"aistudio": {Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "Gemini, por la web de AI Studio"},
 	"deepseek": {Name: "deepseek-web", DisplayName: "DeepSeek", Note: "chat.deepseek.com"},
 	"chatgpt":  {Name: "chatgpt-web", DisplayName: "ChatGPT", Note: "chatgpt.com, chat temporal"},
 	"groq":     {Name: "groq-web", DisplayName: "Groq", Note: "chat.groq.com, el ultra rápido"},

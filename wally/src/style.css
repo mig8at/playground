@@ -231,3 +231,32 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .usage th { text-align: left; font-weight: 500; color: var(--fg-3); padding: 4px var(--space-2); border-bottom: 1px solid var(--border) }
 .usage td { padding: 4px var(--space-2); border-bottom: 1px solid var(--border) }
 .usage-note { color: var(--fg-3); font-size: var(--text-xs) }
+
+/* EL AGENTE GENÉRICO: lo que tiene que saber, sus archivos y los temas de knowledge plegados (opcionales). */
+.agent-notes { width: 100%; box-sizing: border-box; resize: vertical; min-height: 96px; font: inherit; line-height: 1.5 }
+.agent-files { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) }
+.agent-topics-toggle { display: flex; align-items: baseline; gap: var(--space-2); width: 100%; padding: 0; border: 0; background: none;
+  color: inherit; font: inherit; text-align: left; cursor: pointer }
+.agent-topics-toggle span:not(.ui-icon) { font-size: var(--text-sm); color: var(--fg-3) }
+.topics-chevron { margin-left: auto; transition: transform .15s; transform: rotate(90deg) }
+.topics-chevron.open { transform: rotate(-90deg) }
+.agent-chip { padding: 0 6px; border-radius: 999px; border: 1px solid var(--border); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+
+/* LA CONVERSACIÓN COMO CHAT (Miguel, 2026-11-17: «como en el chat, con bolitas»): quien contesta a la izquierda, con su
+   bolita y su nombre en su color, en una burbuja; vos a la derecha, en la tuya. La hora va adentro de cada burbuja. */
+.bubble.mine { position: relative; background: color-mix(in oklab, var(--primary) 20%, var(--background)); color: var(--foreground);
+  border-radius: 14px 14px 4px 14px; padding: var(--space-2) var(--space-3) var(--space-1) }
+.bubble-time { display: block; text-align: right; margin-top: 2px; font-size: var(--text-xs); color: var(--fg-3); font-variant-numeric: tabular-nums }
+.chat-in { display: flex; align-items: flex-start; gap: var(--space-2) }
+.msg-avatar { flex: none; display: grid; place-items: center; width: 30px; height: 30px; margin-top: 2px; border-radius: 999px;
+  font-size: 13px; font-weight: 700; background: var(--primary); color: var(--primary-foreground) }
+.msg-avatar.wally { background: var(--foreground); color: var(--background) }
+.chat-bubble { flex: 1; min-width: 0; max-width: calc(100% - 38px); padding: var(--space-2) var(--space-3) var(--space-1);
+  border-radius: 4px 14px 14px 14px; background: var(--muted); box-shadow: 0 1px 0 var(--border) }
+.chat-bubble .answer-who { margin-bottom: var(--space-1) }
+.chat-bubble .answer-who b { font-size: var(--text-sm) }
+.chat-bubble .answer-meta { margin-top: var(--space-1) }
+.chat-bubble .answer-meta .bubble-time { margin: 0 0 0 auto }
+.chat-bubble .commands { background: var(--background) }
+.chat-bubble .typing { padding: var(--space-1) 0 var(--space-2) }
+.agent-avatar.big { width: 34px; height: 34px; font-size: 15px }

@@ -155,6 +155,17 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
     seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
+- **La conversación es un chat** (2026-11-17, «como en el chat, con bolitas»): quien contesta a la izquierda, con su
+  bolita y su nombre en su color (un agente, el suyo; sin agente, Wally), en una burbuja; vos a la derecha, en la tuya,
+  con la hora adentro. El color de un agente sale de su nombre (`agentHue`, con el ángulo áureo para que nombres
+  parecidos no queden en tonos parecidos) y es el mismo en la lista, su ficha y sus burbujas.
+- **En la interfaz, «AI Studio» se llama «Gemini»** (sólo Gemini 4 Hydrogen); por dentro el proveedor sigue siendo
+  `aistudio`, y la receta y `bin/aistudio` no cambian de nombre.
+- **Los agentes son GENÉRICOS** (Miguel, 2026-11-17: «no sólo para recontextualizar knowledge»): nombre, intención y un
+  contexto que es lo que se le escriba («Lo que tiene que saber»), los archivos que se le adjunten (su texto se saca en
+  esta máquina, como el de una pregunta; se borran con el agente) y, opcionales y plegados, temas de knowledge. Con
+  temas, sigue lo de abajo (fuentes contra main, propuestas); sin temas, sus sugerencias son «Contame qué entendiste» y
+  «Arrancá».
 - **Los agentes** (idea de Miguel, 2026-11-17, que reemplaza por ahora a los grupos): una lista de chats con nombre
   propio (de Pokémon), cada uno con **una intención** —tener al día el contexto local de una parte— y sus temas de
   knowledge. **No hablan entre ellos**: cada uno es UNA conversación larga, en el modo asistente (WALLY.md y sus comandos

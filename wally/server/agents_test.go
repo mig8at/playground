@@ -44,3 +44,20 @@ func TestBlobsAtMain(t *testing.T) {
 		t.Error("una ruta que no está en main no debería tener blob")
 	}
 }
+
+// Un agente genérico (sin temas de knowledge) lleva su intención y lo que tiene que saber, y nada de knowledge.
+func TestAgentContextGeneric(t *testing.T) {
+	a := &app{root: t.TempDir()}
+	got, err := a.agentContext(context.Background(), Agent{Name: "Eevee", Intent: "ayudarme con los correos a VTEX", Notes: "Escribo en español neutro."})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, want := range []string{"Sos **Eevee**", "Tu intención: ayudarme con los correos a VTEX", "Escribo en español neutro."} {
+		if !strings.Contains(got, want) {
+			t.Errorf("falta %q", want)
+		}
+	}
+	if strings.Contains(got, "Temas de knowledge") {
+		t.Error("un agente sin temas no debería hablar de knowledge")
+	}
+}

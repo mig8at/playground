@@ -167,7 +167,7 @@ async function saveConfig(patch) {
 }
 function openConfig() { openTab(CONFIG) }
 const PROVIDERS = [
-  { id: 'aistudio', name: 'AI Studio', note: 'Gemini 4 Hydrogen por la web de Google, con tu cuenta. Cupo diario por modelo.' },
+  { id: 'aistudio', name: 'Gemini', note: 'Gemini 4 Hydrogen (pensando a fondo) por la web de Google AI Studio, con tu cuenta. Cupo diario.' },
   { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
   { id: 'chatgpt', name: 'ChatGPT', note: 'chatgpt.com en chat temporal: no queda en tu historial (puede guardar una copia 30 días). Gratis: hasta ~40 mil caracteres.' },
   { id: 'groq', name: 'Groq', note: 'chat.groq.com: el ultra rápido (~480 tokens/s), modelos abiertos. Sin historial. Hasta ~20 mil caracteres: para lo corto.' },
@@ -175,7 +175,7 @@ const PROVIDERS = [
 const GROQ_MODELS = { 'openai/gpt-oss-120b': 'GPT OSS 120B', 'openai/gpt-oss-20b': 'GPT OSS 20B' }
 const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
 // El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
-const providerName = computed(() => ({ 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web': 'Groq' })[models.value[0]?.name] || 'AI Studio')
+const providerName = computed(() => ({ 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web': 'Groq' })[models.value[0]?.name] || 'Gemini')
 const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web:openai/gpt-oss-120b': 'Groq · GPT OSS 120B', 'groq-web:openai/gpt-oss-20b': 'Groq · GPT OSS 20B' }
 
 // ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
@@ -184,7 +184,25 @@ const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash
 // quién tiene que tomar un cambio.
 const AGENT_NEW = 'a:nuevo'
 const agents = ref([])
-const agentForm = ref({ name: '', intent: '', topics: [], model: '', busy: false, error: '' })
+const EMPTY_AGENT = () => ({ name: '', intent: '', notes: '', files: [], topics: [], showTopics: false, uploading: 0, model: '', busy: false, error: '' })
+const agentForm = ref(EMPTY_AGENT())
+const agentFileInput = ref(null)
+// Los archivos del contexto de un agente: se suben como los de una pregunta (el texto se saca en esta máquina).
+async function addAgentFiles(list) {
+  const f = agentForm.value
+  for (const file of [...list]) {
+    f.uploading++
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      f.files = [...f.files, await api('/api/files', { method: 'POST', body })]
+    } catch (e) { f.error = e.message } finally { f.uploading-- }
+  }
+}
+function removeAgentFile(att) {
+  agentForm.value.files = agentForm.value.files.filter((x) => x.id !== att.id)
+  api(`/api/files/${encodeURIComponent(att.id)}`, { method: 'DELETE' }).catch(() => {})
+}
 async function loadAgents() { try { agents.value = (await api('/api/agents')).agents } catch { /* lo dice loadList */ } }
 function newAgentTab() { openTab(AGENT_NEW) }
 function toggleAgentTopic(id) {
@@ -196,17 +214,29 @@ async function createAgent() {
   f.busy = true; f.error = ''
   try {
     const c = await api('/api/agents', { method: 'POST', headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ name: f.name, intent: f.intent, topics: f.topics, model: f.model || lastModel.value }) })
+      body: JSON.stringify({ name: f.name, intent: f.intent, notes: f.notes, fileIds: f.files.map((x) => x.id), topics: f.topics, model: f.model || lastModel.value }) })
     loaded.value = { ...loaded.value, [c.id]: c }
     const i = tabs.value.findIndex((t) => t.key === AGENT_NEW)
     if (i >= 0) tabs.value.splice(i, 1, { key: c.id, preview: false })
-    agentForm.value = { name: '', intent: '', topics: [], model: '', busy: false, error: '' }
+    agentForm.value = EMPTY_AGENT()
     await Promise.all([loadList(), loadAgents()])
     activate(c.id)
   } catch (e) { f.error = e.message } finally { f.busy = false }
 }
 const agentRow = (key) => agents.value.find((a) => a.conv === key)
+// EL COLOR DE CADA AGENTE: un tono sacado de su nombre, el mismo en la lista, su ficha y sus burbujas (como en el chat).
+// Wally, sin agente, va con el color del tema.
+// El número del nombre se multiplica por el ángulo áureo (137,5°): nombres parecidos quedan en tonos lejanos.
+function agentHue(name) { let h = 0; for (const ch of name || '') h = (h * 31 + ch.codePointAt(0)) >>> 0; return Math.round((h * 137.508) % 360) }
+const agentStyle = (name) => (name ? { background: `oklch(0.66 0.14 ${agentHue(name)})`, color: 'white' } : null)
+const agentInk = (name) => (name ? { color: `oklch(0.62 0.15 ${agentHue(name)})` } : null)
 const agentOf = computed(() => conv.value?.agent || null)
+const speaker = computed(() => (agentOf.value ? { name: agentOf.value.name, agent: true } : { name: 'Wally', agent: false }))
+const AGENT_PROMPTS_GENERIC = [
+  { label: 'Contame qué entendiste', text: 'Contame en pocas líneas qué entendiste de tu intención y de tu contexto, y qué te falta saber para hacerlo bien.' },
+  { label: 'Arrancá', text: 'Arrancá con tu intención: decime por dónde empezarías y hacé el primer paso.' },
+]
+const agentPrompts = computed(() => (agentOf.value?.topics?.length ? AGENT_PROMPTS : AGENT_PROMPTS_GENERIC))
 const AGENT_PROMPTS = [
   { label: 'Ponete al día con lo que cambió', text: 'Mirá en tus fuentes lo que CAMBIÓ en main desde que se revisaron: pedí los diffs que necesites y decime, sección por sección, qué sigue cierto y qué hay que corregir, con propuestas en el formato de WALLY.md.' },
   { label: 'Revisá que tu parte siga cierta', text: 'Revisá contra el código de main lo que dicen tus temas: elegí las afirmaciones que más pesan, pedí el código que haga falta y decime cuáles siguen ciertas y cuáles no, con propuestas.' },
@@ -631,7 +661,7 @@ onBeforeUnmount(() => {
           </div>
           <div v-for="a in agents" :key="a.conv" class="conv-row agent-row" :class="{ on: active === a.conv, open: openKeys.has(a.conv) }">
             <button type="button" class="conv" :title="`${a.agent.name}: ${a.agent.intent}\nTemas: ${a.agent.topics.join(', ')}`" @click="openTab(a.conv)">
-              <span class="avatar agent-avatar">{{ a.agent.name[0] }}</span>
+              <span class="avatar agent-avatar" :style="agentStyle(a.agent.name)">{{ a.agent.name[0] }}</span>
               <span class="agent-text">
                 <span class="conv-title"><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</span>
                 <span class="conv-meta">{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</span>
@@ -719,7 +749,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="group-option column">
-            <div><b>AI Studio</b><span>Gemini 4 Hydrogen. El nivel de razonamiento lo pone Wally en cada pregunta.</span></div>
+            <div><b>Gemini</b><span>Sólo Gemini 4 Hydrogen, por la web de AI Studio. El nivel de razonamiento lo pone Wally en cada pregunta.</span></div>
             <div class="config-row">
               <span class="label">Thinking level</span>
               <div class="toggle-group toggle-outline toggle-joined" role="radiogroup" aria-label="Thinking level">
@@ -759,7 +789,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="group-option column">
-            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con otro proveedor elegido, siguen por AI Studio salvo que lo permitas.</span></div>
+            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con otro proveedor elegido, siguen por Gemini salvo que lo permitas.</span></div>
             <label class="config-check"><input type="checkbox" :checked="config.agentsOther" @change="saveConfig({ agentsOther: $event.target.checked })"> Permitir que vayan por el proveedor elegido (DeepSeek lo guarda en China; ChatGPT, hasta 30 días)</label>
           </div>
 
@@ -791,14 +821,29 @@ onBeforeUnmount(() => {
       <div v-else-if="active === AGENT_NEW" class="region-body group-new">
         <form class="group-new-inner" @submit.prevent="createAgent">
           <h2>Agente nuevo</h2>
-          <p class="group-lede">Una conversación larga con <b>una intención</b>: lleva siempre precargados sus temas de knowledge (el texto vigente y el estado de sus fuentes contra main) y pide comandos de lectura como el asistente. No habla con otros agentes. Crearlo no le pregunta nada a Google.</p>
+          <p class="group-lede">Una conversación larga con <b>una intención</b> y su <b>contexto</b>, que lleva precargado en cada pregunta: lo que le escribas, los archivos que le des y, si viene al caso, temas de knowledge. Puede pedir comandos de lectura, como el asistente. No habla con otros agentes. Crearlo no le pregunta nada al modelo.</p>
           <div class="group-option column">
-            <label class="field"><b>Nombre</b><input v-model="agentForm.name" class="input input-sm" placeholder="Pikachu" maxlength="30" /></label>
-            <label class="field"><b>Intención</b><input v-model="agentForm.intent" class="input input-sm" placeholder="tener al día el contexto de KYC" maxlength="140" /></label>
+            <label class="field"><b>Nombre</b><input v-model="agentForm.name" class="input input-sm" placeholder="Eevee" maxlength="30" /></label>
+            <label class="field"><b>Intención</b><input v-model="agentForm.intent" class="input input-sm" placeholder="qué hace: «revisar los correos que le mandamos a VTEX», «tener al día KYC»…" maxlength="160" /></label>
           </div>
           <div class="group-option column">
-            <div><b>Sus temas</b><span>{{ agentForm.topics.length ? `${agentForm.topics.length} elegido${agentForm.topics.length > 1 ? 's' : ''}` : 'Los que lleva precargados en cada pregunta.' }}</span></div>
-            <div class="topic-list">
+            <div><b>Lo que tiene que saber</b><span>Instrucciones, datos, cómo querés que conteste. Va antes de cada pregunta.</span></div>
+            <textarea v-model="agentForm.notes" class="input agent-notes" rows="5" placeholder="Por ejemplo: contestá corto y en español de Colombia; el comercio es…; lo que importa es…"></textarea>
+            <div class="agent-files">
+              <span v-for="f in agentForm.files" :key="f.id" class="file-chip" :title="`${f.name} · ${charsLabel(f.chars)} de texto`">
+                <span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span><span class="file-size">{{ charsLabel(f.chars) }}</span>
+                <button type="button" class="file-del" title="Quitar el archivo" aria-label="Quitar el archivo" @click="removeAgentFile(f)"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+              </span>
+              <button type="button" class="btn btn-outline btn-xs" @click="agentFileInput?.click()"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>{{ agentForm.uploading ? 'Subiendo…' : 'Adjuntar archivos' }}</button>
+              <input ref="agentFileInput" type="file" multiple hidden @change="addAgentFiles($event.target.files); $event.target.value = ''" />
+            </div>
+          </div>
+          <div class="group-option column">
+            <button type="button" class="agent-topics-toggle" :aria-expanded="agentForm.showTopics" @click="agentForm.showTopics = !agentForm.showTopics">
+              <b>Temas de knowledge</b><span>(opcional){{ agentForm.topics.length ? ` · ${agentForm.topics.length} elegido${agentForm.topics.length > 1 ? 's' : ''}` : '' }}: si es para tener al día una parte de la biblioteca</span>
+              <span class="ui-icon topics-chevron" :class="{ open: agentForm.showTopics }" data-icon="chevron" aria-hidden="true"></span>
+            </button>
+            <div v-if="agentForm.showTopics" class="topic-list">
               <label v-for="t in topics" :key="t.id" class="topic-item" :class="{ on: agentForm.topics.includes(t.id) }">
                 <input type="checkbox" :checked="agentForm.topics.includes(t.id)" @change="toggleAgentTopic(t.id)" />
                 <span class="topic-title">{{ t.title }}</span>
@@ -814,7 +859,7 @@ onBeforeUnmount(() => {
                   <option v-for="m in models" :key="m.name" :value="m.name">{{ m.displayName }}</option>
                 </select>
               </label>
-              <button type="submit" class="btn btn-sm" :disabled="!agentForm.name.trim() || !agentForm.intent.trim() || !agentForm.topics.length || agentForm.busy">Crear</button>
+              <button type="submit" class="btn btn-sm" :disabled="!agentForm.name.trim() || !agentForm.intent.trim() || agentForm.busy || agentForm.uploading > 0">Crear</button>
             </div>
           </div>
           <div v-if="agentForm.error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ agentForm.error }}</p></div></div>
@@ -895,18 +940,23 @@ onBeforeUnmount(() => {
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
         <div v-if="agentOf" class="agent-sheet">
-          <span class="avatar agent-avatar big">{{ agentOf.name[0] }}</span>
+          <span class="avatar agent-avatar big" :style="agentStyle(agentOf.name)">{{ agentOf.name[0] }}</span>
           <div class="agent-sheet-main">
             <div><b>{{ agentOf.name }}</b> · {{ agentOf.intent }}</div>
-            <div class="agent-topics">
-              <span>precarga</span><code v-for="t in agentOf.topics" :key="t">{{ t }}</code>
-              <span v-if="agentRow(active)?.changed" class="badge badge-xs">{{ agentRow(active).changed }} fuente{{ agentRow(active).changed > 1 ? 's' : '' }} cambiaron en main</span>
-              <span v-else-if="agentRow(active)" class="count">sus fuentes, al día</span>
+            <div v-if="agentOf.notes || agentOf.files?.length || agentOf.topics?.length" class="agent-topics">
+              <span>precarga</span>
+              <span v-if="agentOf.notes" class="agent-chip" :title="agentOf.notes">lo que tiene que saber</span>
+              <span v-for="f in agentOf.files || []" :key="f.id" class="agent-chip" :title="`${f.name} · ${charsLabel(f.chars)} de texto`">{{ f.name }}</span>
+              <code v-for="t in agentOf.topics || []" :key="t">{{ t }}</code>
+              <template v-if="agentOf.topics?.length">
+                <span v-if="agentRow(active)?.changed" class="badge badge-xs">{{ agentRow(active).changed }} fuente{{ agentRow(active).changed > 1 ? 's' : '' }} cambiaron en main</span>
+                <span v-else-if="agentRow(active)" class="count">sus fuentes, al día</span>
+              </template>
             </div>
           </div>
         </div>
         <div v-if="agentOf && !messages.length && !(pending && pending.key === active)" class="suggestions agent-prompts">
-          <button v-for="s in AGENT_PROMPTS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
+          <button v-for="s in agentPrompts" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
         </div>
         <div v-if="!agentOf && !messages.length && !(pending && pending.key === active)" class="empty">
           <div class="empty-head">
@@ -932,7 +982,7 @@ onBeforeUnmount(() => {
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
             <div class="user-col">
-              <div class="bubble mine" :title="clock(m.at)">{{ m.text }}</div>
+              <div class="bubble mine">{{ m.text }}<span class="bubble-time">{{ clock(m.at) }}</span></div>
               <div v-if="m.files?.length" class="file-chips sent">
                 <button v-for="f in m.files" :key="f.id" type="button" class="file-chip" :class="{ on: openFile.id === f.id }" :title="`${f.name} · ${sizeLabel(f.size)} · ${charsLabel(f.chars)} de texto: tocá para verlo`" @click="toggleFile(f)">
                   <span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span><span class="file-size">{{ charsLabel(f.chars) }}</span>
@@ -949,8 +999,10 @@ onBeforeUnmount(() => {
             </div>
             <pre>{{ openFile.full ? openFile.text : openFile.text.slice(0, PREVIEW_CHARS) + (openFile.text.length > PREVIEW_CHARS ? '\n…' : '') }}</pre>
           </div>
-          <article v-if="m.role === 'model'" class="block answer">
-            <div class="answer-who"><span class="avatar" aria-hidden="true">W</span><b>Wally</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s · {{ clock(m.at) }}</span></div>
+          <article v-if="m.role === 'model'" class="block answer chat-in">
+            <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
+            <div class="chat-bubble">
+            <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s</span></div>
             <div class="answer-body" v-html="md(answerText(m))"></div>
             <div v-if="m.commands?.length" class="commands">
               <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ proposedCount(m) ? ': decidí cada uno' : '' }}</div>
@@ -988,6 +1040,8 @@ onBeforeUnmount(() => {
               <button type="button" class="btn btn-ghost btn-xs block-del" :disabled="!!pending" title="Borrar esta respuesta del contexto" @click="removeBlock(m)">
                 <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>Borrar
               </button>
+              <span class="bubble-time">{{ clock(m.at) }}</span>
+            </div>
             </div>
           </article>
         </template>
@@ -1002,9 +1056,12 @@ onBeforeUnmount(() => {
               <span v-for="f in pending.files" :key="f.id" class="file-chip"><span class="file-kind">{{ FILE_ICON[f.kind] || 'TXT' }}</span><span class="file-name">{{ f.name }}</span></span>
             </div>
           </div></div>
-          <article class="answer">
-            <div class="answer-who"><span class="avatar" aria-hidden="true">W</span><b>Wally</b><span>{{ modelName(pending.model) }} · en AI Studio, en tu Chrome · {{ elapsed }} s</span></div>
-            <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
+          <article class="answer chat-in">
+            <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
+            <div class="chat-bubble">
+              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ providerName }}, en tu Chrome · {{ elapsed }} s</span></div>
+              <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
+            </div>
           </article>
         </template>
         <div v-if="error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ error }}</p></div></div>
@@ -1031,7 +1088,7 @@ onBeforeUnmount(() => {
                 <option v-for="m in models" :key="m.name" :value="m.name" :disabled="!!m.paused">{{ m.displayName }}{{ m.paused ? ` · en pausa hasta las ${m.paused}` : m.note ? ` · ${m.note}` : '' }}</option>
               </select>
             </label>
-            <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: AI Studio no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
+            <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: el modelo no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>
             <span v-if="allPaused" class="composer-note warn-text">Google cortó: en pausa hasta las {{ allPaused }}</span>
