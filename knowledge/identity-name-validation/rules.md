@@ -21,6 +21,17 @@ Si hay errores devuelve rechazo. Cuando ese camino tiene éxito, devuelve los no
 introducidos, no nombres recuperados del proveedor. Esta regla no describe la rama `CE` ni
 convierte un resultado de TusDatos en una corrección automática del nombre.
 
+Antes de consultar, `separateNames` parte los nombres y los apellidos como los guarda el registro
+(`NameUtils::registrySplit`): la primera palabra, con las partículas que la preceden, en el primer
+campo y todo el resto en el segundo («KATTY | JULIETH PATRICIA», «DE LA CRUZ | MARTINEZ»); normaliza
+tildes conservando la Ñ. El corte anterior dejaba sola la última palabra, y un nombre de tres palabras
+escrito igual que en la cédula llegaba partido mal y se rechazaba. Si la consulta rechaza **sólo** el
+segundo apellido (`second_surname` en 0 y el resto en 1, con `middle_name` en 1 o null) y ese apellido
+es un «DE» solo seguido de un apellido (`NameUtils::withoutMarriedParticle`: «DE BOLAÑO» → «BOLAÑO»,
+no «DE LA HOZ»), consulta una vez más sin el «DE», la marca del apellido de casada. Si el reintento
+responde, decide él; si el proveedor falla en el reintento, decide la primera respuesta. Lo tecleado no
+se modifica.
+
 ## Ágil Data y Mareigua pueden devolver una versión adoptada
 
 Ágil Data pasa el nombre completo devuelto a `NameSimilarity::alignedSplit`
@@ -74,7 +85,9 @@ la persona fue rechazada.
 no devuelve null, también con el nombre idéntico al tecleado, y Mareigua no distingue completar de
 corregir. Para saber si hubo cambio hay que comparar `entered_normalized` con `returned_normalized`
 de la fila. TusDatos y la reparación guardan sus filas con `user_request_id` en null: para ver todas
-las de una solicitud hay que buscarlas también por `user_id`.
+las de una solicitud hay que buscarlas también por `user_id`. Cuando TusDatos reintentó sin el «DE»
+del apellido de casada, deja una sola fila, con `detail.married_surname_retry` en true y `passed` y
+`detail.match_codes` de la respuesta que decidió.
 
 ## La tolerancia no certifica identidad ni completa todos los nombres
 
@@ -118,6 +131,12 @@ completo del registro (`data.nombre_completo`); `TusDatosIdentityValidator::vali
 lo guardado con `NameUtils::compare` y `alignedSplit`, sin adoptar nada, y `UpdateInfoService` lo reporta como un
 único rechazo de nombres y apellidos (`names_and_surnames`). Una comparación vacía ahí es un error interno.
 
+Un rechazo de TusDatos en `CC` tiene una segunda oportunidad: si el único campo rechazado fue el segundo
+apellido (`failed_fields` igual a `['surname' => ['second_surname']]`) y es un «DE» solo seguido de un
+apellido (`NameUtils::withoutMarriedParticle`), la cascada consulta una vez más sin el «DE», guarda y
+revalida esa respuesta, la marca con `detail.marriedSurnameRetry` y decide con ella. Lo guardado en
+`users` sigue como se tecleó.
+
 Los validadores comparan contra el `users` guardado, no contra lo recién tecleado: el flujo móvil
 escribe los datos antes de llamar a la cascada. El docblock del servicio dice que en el camino
 anterior un no-match de Ágil Data termina en `ONB005` sin consultar Mareigua. Lo de Mareigua es
@@ -127,10 +146,13 @@ TusDatos. Las dos cascadas no deciden igual ante el mismo no-match.
 ## RiskV2 adopta con su propia copia y no deja registro
 
 En `RiskV2` la comparación vive en `CommonsV1/App/Utils/NameUtils.php`, una copia de `NameSimilarity`
-con `alignedSplit`, `compare` y `keepEnteredAccents`, pero sin `adoptSplit`. Los validadores por central
+con `alignedSplit`, `compare` y `keepEnteredAccents`, pero sin `adoptSplit`; además tiene `registrySplit`
+y `withoutMarriedParticle`, que comparte con `TusDatosService` de `Identity`. Los validadores por central
 (`AgildataIdentityValidator`, `MareiguaIdentityValidator`, `TusDatosIdentityValidator`) devuelven un
 `IdentityResult`; el de Mareigua compara nombres y apellidos por separado con `compare` y adopta si
-los dos pasan.
+los dos pasan. El de TusDatos nunca adopta, y en `CC` acepta sólo el código 1
+(`ACCEPTED_MATCH_CODES`): un 2 (coincidencia parcial, casi siempre un error de tipeo) también es
+rechazo, como en el registro web, para que la persona corrija el campo.
 
 Cuando el resultado trae adopción, `StoreRiskCentralDataService` (al guardar una respuesta nueva) y
 `CheckIdentityService` (al revalidar una guardada) escriben el nombre en `users` con
@@ -165,3 +187,8 @@ cédula, o `nombre_completo` partido para `CE`. En `storePersonalInfo`, en cambi
 `TusDatosController::validateUserDataTusDatosV2` devuelve lo tecleado, como el servicio de
 `legacy-backend`. Revisar el controlador de la entrada utilizada antes de trasladar un hallazgo de un
 monolito al otro.
+
+`TusDatosController` tiene su propio `separateNames`, que sigue dejando sola la última palabra
+(«KATTY JULIETH | PATRICIA»), y no reintenta sin el «DE» del apellido de casada: un nombre de tres
+palabras o un apellido «DE …» que `legacy-backend` ya acepta puede seguir siendo rechazado por
+TusDatos en `legacy-application`.

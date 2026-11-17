@@ -87,10 +87,21 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     (`3a434b108`: la consulta excluye créditos de prueba), con el párrafo corregido idéntico al anterior salvo esa
     cláusula. Todo verificado contra `main` (líneas, commits, `TestCreditExclusion`) y aplicado: 12 → 8 fuentes
     pendientes.
+  - La tanda siguiente, el mismo día, dejó la biblioteca entera al día (`knowledge-check` en 0, 1.294 fuentes):
+    `creditopx-payment-application` («sigue cierta» hasta que se le preguntó; entonces vio solo que los dos motores
+    mueven distinto la fecha al saldar el mínimo y que legacy-application sigue con un ciclo), `creditopx-portfolio-
+    servicing` (distinguió que lo nuevo era del otro tema), `motai-renting` («falta algo»: los recordatorios no les
+    escriben a los créditos de prueba) e `identity-name-validation` (7 propuestas, 4 «falta algo»: el corte de nombres
+    como el registro, el reintento sin el «DE» de casada en web y móvil, el código 2 rechazado en RiskV2, la marca en
+    `kyc_name_checks`; y encontró que `legacy-application` sigue con el corte viejo). Todo verificado contra `main`
+    antes de aplicarlo; los textos necesitaron retoques de editor (matices, una comparación que no aplicaba, pasar una
+    «observación» al tema). Sumó a WALLY.md el veredicto «falta algo», mirar el otro monolito con `buscar` y pedir
+    rangos (`codigo …:desde-hasta`). Costo: 6 cortes de Google en el día (el último, «rate limit» explícito), dos
+    esperas de 10 min sin respuesta y vueltas de 8 a 270 s según el contexto.
   - **Evaluación para un modo automático**: los 10 comandos que pidió fueron de la lista, siguieron el procedimiento
     de WALLY.md y hacían falta (se aprobaron todos). **La lectura puede ir en automático** (la lista blanca garantiza
     que sea de sólo lectura). **La escritura todavía no**: sus propuestas fueron correctas en los dos temas, pero son
-    sólo dos; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). El freno real es Google: el mismo
+    seis temas; aplicar sigue pidiendo verificar contra `main` (lo que hizo Claude). Lo que más rendiría: armar el paquete de un tema (secciones, diffs y rangos) y mandarlo en UNA vuelta, en vez de 4 a 7 vueltas que reenvían el contexto cada vez y disparan el límite de Google. El freno real es Google: el mismo
     día, Hydrogen fue rechazado y una vez no contestó en 10 min.
 - **Lo que contesta el modelo se trata como no confiable**: el Markdown se muestra, pero el HTML crudo sale como texto
   y sólo se enlaza a http(s).
