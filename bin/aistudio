@@ -1,6 +1,12 @@
 #!/bin/sh
-# aistudio — preguntarle a Gemini por la interfaz de AI Studio, en tu Chrome con Jarvis y con tu cuenta (sin llave de
-# API). Es la receta jarvis/recipes/aistudio/ask.ts; los archivos se leen desde donde lo corrés.
-#   bin/aistudio --file doc.md --prompt 'Resumilo' [--model gemini-4-hydrogen] [--out resumen.md] [--keep] [--json]
+# aistudio — Gemini por la interfaz de AI Studio, en tu Chrome con Jarvis y con tu cuenta (sin llave de API). Son las
+# recetas de jarvis/recipes/aistudio/; los archivos se leen y se escriben desde donde lo corrés.
+#   bin/aistudio [ask] --prompt '…' [--file doc.md] [--model gemini-4-hydrogen] [--out r.md] [--keep] [--json]
+#   bin/aistudio speak --text '…' --out voz.wav [--voice Enzo] [--model gemini-3.8-flash-tts] [--json]
+#   bin/aistudio transcribe <audio> [--out texto.md] [--json]
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
-exec node "$root/jarvis/recipes/aistudio/ask.ts" "$@"
+case "$1" in
+  ask|speak|transcribe) recipe=$1; shift ;;
+  *) recipe=ask ;;
+esac
+exec node "$root/jarvis/recipes/aistudio/$recipe.ts" "$@"
