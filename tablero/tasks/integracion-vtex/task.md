@@ -145,7 +145,7 @@ correo: [vtex]
       Creditop ya tiene sigue vigente (los 30 días corren desde el MPA).
 - [ ] Confirmar con VTEX dónde configura un comercio los ajustes de la app (ambiente de Creditop y auto-onboarding,
       del `settingsSchema`) si el conector publicado se usa sin instalar la app; termina con la respuesta escrita acá.
-      Ya se pidió que el conector sea público para todas las cuentas (decisión de Miguel, 2026-11-17).
+      Se preguntó también si quedará público o por comercio (Miguel prefiere público, sin pedirlo; 2026-11-17).
       Depende de: VTEX — Juan Alzate.
 - [ ] Decidir si se pide una cuenta VTEX adicional (de tipo QA) para probar como una tienda externa: no la da
       soporte, se pide con un ticket nuevo desde la cuenta de partner (correo del administrador, nombre, tipo, si usa
