@@ -276,6 +276,23 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   `chequeoNombre`, `harness/dev/case.ts`) y quedó `harness/suites/nombres.json`, con sus 6 casos más el ambiguo que
   había dejado afuera: 7/7 en local, y una copia con las expectativas cambiadas dio rojo con las tres diferencias.
   Sus notas se pusieron al día con `bin/wally agent update Mew --notes-file wally/agents/mew.md`.
+- **Noctowl, el dictamen de producción** (2026-11-17): lee Sentinel y dice 🟢/🟡/🔴, qué mirar ya (máximo 3), qué
+  echarle ojo, qué es ruido conocido y los despliegues del día, con qué correr para confirmar. Sus notas,
+  [`agents/noctowl.md`](agents/noctowl.md): cómo decide Sentinel, lo ya conocido y cómo no leerlo mal. Para eso se
+  sumaron a la lista blanca **`sentinel now`**, **`sentinel day [fecha]`** y **`sentinel deploy repo [versión]`**
+  (`runSentinel`, sin shell; lee lo guardado). ⚠ **Es la primera vez que viajan datos de PRODUCCIÓN al proveedor**,
+  con el sí de Miguel: agregados (cuántas solicitudes, conversión por pantalla, errores por servicio, nombres de
+  comercios y entidades, títulos de despliegues), nunca de clientes. `sentinel signal` queda afuera (trae líneas de
+  log de una entidad) y de `deploy` se saca el texto de los errores nuevos del front, que puede traer lo que escribió
+  un cliente: queda cuántos son (`withoutFrontErrorTexts`, con su prueba).
+  **Primer dictamen, por DeepSeek** (18:38): 3 vueltas, ~60 s; pidió `now` y `day`, después los tres despliegues de
+  la tarde y las trampas. Dio 🔴 por las pantallas del wizard tras el front v1.11.12 (OTP falla 16 % contra 8 % antes
+  y 4 % lo normal; registro 9 % contra 17 %), y separó bien lo conocido (los dos servicios callados desde el 12/11, el
+  ×5 de legacy-backend, la ráfaga de legacy-application que ya venía de antes de su despliegue). Los números,
+  comprobados contra las salidas, eran exactos. Cuatro errores de lectura, que pasaron a sus notas: llamó al OTP «el
+  paso que cierra la solicitud» (es el del comienzo), a Sistecrédito «comercio» (es entidad), dijo que empezó «~16:54»
+  (el «antes» de los despliegues de las 17:26 estaba en 5 %), y dio por hecho «tráfico de prueba» en Sonría y Asyco.
+  Tampoco vio que el registro de todo el wizard ya había caído a 9 % a las 11:30, sin despliegue.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

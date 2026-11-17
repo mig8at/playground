@@ -100,6 +100,24 @@ var allowList = []allowed{
 	{regexp.MustCompile(`^tarea ([0-9]{1,5}|[a-z0-9][a-z0-9-]{1,100})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.readTask(m[1])
 	}},
+	// Sentinel, el vigía de producción: sólo sus resúmenes AGREGADOS (conteos, porcentajes, despliegues), que lee de
+	// lo guardado. `signal` queda afuera (trae líneas de log de una entidad) y de `deploy` se sacan los textos de los
+	// errores nuevos del front: viajan al proveedor.
+	{regexp.MustCompile(`^sentinel now$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
+		return a.runSentinel(ctx, "now")
+	}},
+	{regexp.MustCompile(`^sentinel day(?: ([0-9]{4}-[0-9]{2}-[0-9]{2}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		if m[1] == "" {
+			return a.runSentinel(ctx, "day")
+		}
+		return a.runSentinel(ctx, "day", m[1])
+	}},
+	{regexp.MustCompile(`^sentinel deploy ([a-z][a-z0-9-]{1,40})(?: (v?[0-9][0-9A-Za-z.-]{0,30}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		if m[2] == "" {
+			return a.runSentinel(ctx, "deploy", m[1])
+		}
+		return a.runSentinel(ctx, "deploy", m[1], m[2])
+	}},
 	// Poner al día la biblioteca (code.go): qué cambió, en qué fuente, y el código de hoy.
 	{regexp.MustCompile(`^cambios$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
 		out, _, err := a.runMake(ctx, "knowledge-check")
@@ -389,4 +407,43 @@ func (a *app) readTask(key string) (string, int, error) {
 		}
 	}
 	return fmt.Sprintf("no hay una tarea «%s» (`make tareas` las lista con su número)", key), 1, nil
+}
+
+// runSentinel corre `bin/sentinel <args>` sin shell. Su salida 1 es «hay algo que mirar», no un error.
+func (a *app) runSentinel(ctx context.Context, args ...string) (string, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 3*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, filepath.Join(a.root, "bin", "sentinel"), args...)
+	cmd.Dir = a.root
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Run(); err != nil {
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) {
+			return "", -1, fmt.Errorf("no pude correr bin/sentinel %s: %v", strings.Join(args, " "), err)
+		}
+	}
+	return withoutFrontErrorTexts(ansi.ReplaceAllString(out.String(), "")), 0, nil
+}
+
+// frontErrorsHeader: el bloque de `bin/sentinel deploy` con el TEXTO de los errores de JavaScript del front. Puede traer
+// lo que el cliente escribió, así que no viaja: queda cuántos son y cómo verlos.
+const frontErrorsHeader = "Errores del front NUEVOS"
+
+func withoutFrontErrorTexts(text string) string {
+	lines := strings.Split(text, "\n")
+	var keep []string
+	for i := 0; i < len(lines); i++ {
+		if !strings.HasPrefix(lines[i], frontErrorsHeader) {
+			keep = append(keep, lines[i])
+			continue
+		}
+		n := 0
+		for i+1 < len(lines) && strings.HasPrefix(lines[i+1], "  ✗ ") {
+			i++
+			n++
+		}
+		keep = append(keep, fmt.Sprintf("%s: %d mensaje(s) distintos. Sus textos no se mandan desde acá (pueden traer lo que escribió un cliente): Miguel los ve con bin/sentinel deploy en su consola.", frontErrorsHeader, n))
+	}
+	return strings.Join(keep, "\n")
 }

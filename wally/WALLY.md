@@ -94,6 +94,9 @@ vez de leer la trampa otra vez.
 | `comandos palabra` | sólo las líneas del catálogo que mencionan esa palabra (`comandos harness`, `comandos knowledge`) |
 | `guia herramienta` | la guía de una herramienta: `jarvis`, `cockpit`, `correo`, `harness`, `tablero`, `knowledge`, `goldfish`, `sentinel`, `chat`, `office`, `wally`, `conectores`, `estilo` |
 | `make tareas` | las tareas abiertas de Miguel en su tablero: número, estado y título |
+| `sentinel now` | cómo está producción ahora (Sentinel): lo que pide atención, lo que se sigue y cada servicio con su versión, errores y señal de vida |
+| `sentinel day [2026-11-12]` | el resumen de un día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora, los despliegues y los avisos |
+| `sentinel deploy repo [versión]` | ¿se dañó algo después de un despliegue a producción? Las señales que empeoraron después, contra antes y contra lo normal. Sin versión, el último del repo. Los textos de los errores nuevos del front no llegan: sólo cuántos son |
 | `tarea 101` | una tarea entera (por número o por su slug): objetivo, dónde se toca, cómo se ataca, cómo se comprueba. Sólo su `task.md`: sus mediciones no se leen desde acá |
 
 Lo que **no** podés pedir, a propósito: bases de datos, logs, datos de clientes o de producción, escribir o borrar

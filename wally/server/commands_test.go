@@ -61,6 +61,10 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"diff tema legacy-backend:x | sh",
 		"fuentes ../connectors",
 		"tarea ../connectors",
+		"sentinel signal credifamilia",
+		"sentinel day ayer",
+		"sentinel deploy legacy-backend; ls",
+		"sentinel deploy ../x",
 		"tarea 7/context.jsonl",
 		"tarea 7; cat ~/.ssh/id_rsa",
 	} {
@@ -132,5 +136,19 @@ func TestCommandsAreReadFromCommandBlocks(t *testing.T) {
 	}
 	if modeCommands("", answer) != nil {
 		t.Error("en un chat sin modo no se leen comandos")
+	}
+}
+
+// De `bin/sentinel deploy` no viaja el texto de los errores nuevos del front: sólo cuántos son.
+func TestSentinelDropsFrontErrorTexts(t *testing.T) {
+	in := "Empeoró (1 de 9 señales):\n  ✗ algo\n\nErrores del front NUEVOS (no aparecieron en los 7 días de antes):\n  ✗ 12 × TypeError: tel 3001234567\n  ✗ 3 × otro\n\nOjo: …"
+	got := withoutFrontErrorTexts(in)
+	if strings.Contains(got, "3001234567") || strings.Contains(got, "otro") || !strings.Contains(got, "2 mensaje(s)") || !strings.Contains(got, "  ✗ algo") || !strings.Contains(got, "Ojo") {
+		t.Errorf("salida: %q", got)
+	}
+	for _, ok := range []string{"sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
+		if _, err := commandArgs(ok); err != nil {
+			t.Errorf("%q tenía que pasar: %v", ok, err)
+		}
 	}
 }
