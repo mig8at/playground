@@ -34,11 +34,46 @@ export function readInput(name: string): string {
 export const generating = () => /Stop/.test(document.querySelector('ms-run-button button')?.textContent || '');
 export const idle = () => !/Stop/.test(document.querySelector('ms-run-button button')?.textContent || '');
 
-/** Run y la espera: «Stop» mientras genera, «Run» al terminar. */
-export async function runAndWait(page: any, timeoutMs: number) {
+// Una generación TRABADA: «Stop» sigue pero la página no cambia. Pasó el 2026-11-17 con preguntas de 49 a 77 mil
+// caracteres que otras veces, iguales, contestaban en segundos: es de AI Studio y no del texto. Sin esto se esperaban
+// los 10 min enteros sin saber nada.
+const STALL_MS = Number(process.env.AISTUDIO_STALL || 240) * 1000;
+
+/** Run y la espera: «Stop» mientras genera, «Run» al terminar. Devuelve si llegó a generar. */
+export async function runAndWait(page: any, timeoutMs: number): Promise<boolean> {
     await page.locator('ms-run-button button').click();
-    await page.waitForFunction(generating, null, { timeout: 60_000 }).catch(() => {});
-    await page.waitForFunction(idle, null, { timeout: timeoutMs });
+    const started = await page.waitForFunction(generating, null, { timeout: 60_000 }).then(() => true, () => false);
+    const until = Date.now() + timeoutMs;
+    let last = '';
+    let changedAt = Date.now();
+    while (await page.evaluate(generating)) {
+        const now: string = await page.evaluate(() => {
+            const turns = document.querySelectorAll('ms-chat-turn');
+            return (turns[turns.length - 1] as HTMLElement | undefined)?.innerText || '';
+        });
+        if (now !== last) { last = now; changedAt = Date.now(); }
+        if (Date.now() - changedAt > STALL_MS) {
+            const shown = await captureFailure(page, `generando sin cambios hace ${STALL_MS / 1000} s`);
+            await page.locator('ms-run-button button').click().catch(() => {}); // Stop
+            throw new Error(`AI Studio se trabó: ${STALL_MS / 1000} s generando sin que cambie la respuesta (foto en ~/.cache/my-tools/aistudio-fallas). Al final: ${shown.slice(-200)}`);
+        }
+        if (Date.now() > until) throw new Error(`AI Studio siguió generando más de ${timeoutMs / 1000} s`);
+        await new Promise((r) => setTimeout(r, 3000));
+    }
+    return started;
+}
+
+// Cuando AI Studio no contesta, lo que mostraba: foto y texto en ~/.cache/my-tools/aistudio-fallas/, para ver el
+// porqué en vez de adivinarlo (2026-11-17: Pikachu, con sus temas de KYC, se quedó dos veces sin que «Run» llegara a
+// «Stop», mientras otros agentes con más texto contestaban). Devuelve lo visible del final de la página.
+export async function captureFailure(page: any, why: string): Promise<string> {
+    const dir = path.join(os.homedir(), '.cache', 'my-tools', 'aistudio-fallas');
+    fs.mkdirSync(dir, { recursive: true });
+    const base = path.join(dir, new Date().toISOString().replace(/[:.]/g, '-'));
+    const text: string = await page.evaluate(() => document.body.innerText).catch(() => '');
+    fs.writeFileSync(base + '.txt', `${why}\n\n${text}`);
+    await page.screenshot({ path: base + '.png' }).catch(() => {});
+    return text.trim().split('\n').filter(Boolean).slice(-12).join(' · ').slice(-600);
 }
 
 /**
@@ -63,6 +98,45 @@ export async function waitMediaConsent(page: any) {
     say('aviso aceptado: sigo');
 }
 
+// ── LO DE SIEMPRE: Gemini 4 Hydrogen con «Thinking level: High» (Miguel, 2026-11-17) ──────────────────────────────
+// Hasta ese día era 3.8 Flash; Hydrogen razona mejor y Miguel lo prefiere siempre. El nivel se pone en CADA pregunta:
+// cada modelo trae el suyo (Hydrogen nace en High, Flash en Medium). `AISTUDIO_THINKING` (low|medium|high) o
+// `--thinking` lo cambian.
+export const DEFAULT_MODEL = 'gemini-4-hydrogen';
+export type Thinking = 'Low' | 'Medium' | 'High';
+export const thinkingLevel = (): Thinking => {
+    const v = (process.env.AISTUDIO_THINKING || 'high').toLowerCase();
+    return v === 'low' ? 'Low' : v === 'medium' ? 'Medium' : 'High';
+};
+
+// ── EL USO: cada pregunta queda en ~/.cache/my-tools/aistudio-uso.jsonl, para saber cuánto deja Google por día ──────
+// (`bin/aistudio uso`). Una línea por pregunta: hora, modelo, nivel, caracteres, ms y cómo terminó (ok · corte ·
+// error). Nunca el texto: sólo su tamaño.
+export const USAGE_FILE = path.join(os.homedir(), '.cache', 'my-tools', 'aistudio-uso.jsonl');
+export function recordUse(entry: { model: string; thinking?: string; chars?: number; ms?: number; result: 'ok' | 'corte' | 'cupo-diario' | 'error'; error?: string }) {
+    try {
+        fs.mkdirSync(path.dirname(USAGE_FILE), { recursive: true });
+        fs.appendFileSync(USAGE_FILE, JSON.stringify({ at: new Date().toISOString(), ...entry, error: entry.error?.split('\n')[0].slice(0, 200) }) + '\n');
+    } catch { /* el registro no frena una pregunta */ }
+}
+
+/** Pone el «Thinking level» del panel; si el modelo no lo tiene, sigue sin él. Devuelve el que quedó. */
+export async function ensureThinking(page: any, level: Thinking, log: (s: string) => void = () => {}): Promise<string> {
+    const combo = page.getByRole('combobox', { name: 'Thinking Level' });
+    if (!(await combo.count())) return '';
+    // El valor elegido, sin la lista: con la lista abierta el texto del combo trae todas las opciones.
+    const value = async () => ((await combo.first().locator('.mat-mdc-select-value').innerText().catch(() => '')) || (await combo.first().innerText())).trim();
+    const now = await value();
+    if (now === level) return now;
+    await combo.first().click();
+    await page.getByRole('option', { name: level, exact: true }).click();
+    await page.getByRole('listbox').waitFor({ state: 'hidden', timeout: 5000 }).catch(() => {});
+    const got = await value();
+    if (got !== level) throw new Error(`el Thinking level quedó en «${got}», no en «${level}»`);
+    log(`thinking: ${now} → ${got}`);
+    return got;
+}
+
 // ── LA PAUSA: no insistirle a Google cuando corta ─────────────────────────────────────────────────────────────────
 // El 2026-11-17 AI Studio contestó «Permiso denegado. Verifica los permisos de tu cuenta…» con Hydrogen (tras ~40
 // consultas de prueba en una hora), con la imagen y, después, con Flash Lite: a las 9:48 contestó y a las 9:49, la
@@ -77,6 +151,16 @@ const pauseMs = () => (60 + Math.floor(Math.random() * 241)) * 1000;
 const LIMIT_ERROR = /permiso denegado|permission|denied|\b403\b|\b429\b|quota|cuota|rate.?limit|l[ií]mite|exceeded|too many|resource.?exhausted/i;
 
 type Pause = { until: number; reason: string; at: string };
+
+/** Si el aviso es el del cupo diario («daily limit … resets in 11 horas y 30 minutos»), cuándo vuelve (ms); si no, 0. */
+export function dailyReset(message: string, now = Date.now()): number {
+    if (!/daily limit|l[ií]mite diario|generaciones gratuitas/i.test(message)) return 0;
+    const m = message.match(/resets? in ([^)]*)/i) || message.match(/se restablece en ([^)]*)/i);
+    if (!m) return now + 60 * 60_000; // sin hora: una hora, y se vuelve a ver
+    const n = (re: RegExp) => Number((m[1].match(re) || [])[1] || 0);
+    const ms = (n(/(\d+)\s*(?:d[ií]as?|days?)/i) * 24 * 60 + n(/(\d+)\s*(?:horas?|hours?|h\b)/i) * 60 + n(/(\d+)\s*(?:minutos?|minutes?|mins?|m\b)/i)) * 60_000;
+    return now + (ms || 60 * 60_000);
+}
 function readPauses(): Record<string, Pause> {
     try { return JSON.parse(fs.readFileSync(PAUSE_FILE, 'utf8')); } catch { return {}; }
 }
@@ -88,6 +172,19 @@ export function currentPauses(): Record<string, Pause> {
 
 /** Si el error es de Google cortando (permiso, cuota, límite), pausa ese modelo. Devuelve el mensaje, con la pausa dicha. */
 export function noteFailure(message: string, model: string): string {
+    const daily = dailyReset(message);
+    recordUse({ model, result: daily ? 'cupo-diario' : LIMIT_ERROR.test(message) ? 'corte' : 'error', error: message });
+    if (daily) {
+        // El cupo diario es POR MODELO y AI Studio dice cuándo vuelve: se pausa ese modelo hasta entonces (+2 min), no
+        // la cuenta entera ni 1 a 5 min al azar. Los demás modelos siguen andando.
+        const until = daily + 2 * 60_000;
+        const pauses = currentPauses();
+        pauses[model] = { until, reason: `cupo diario de ${model} agotado: ${message.slice(0, 260)}`, at: new Date().toISOString() };
+        fs.mkdirSync(path.dirname(PAUSE_FILE), { recursive: true });
+        fs.writeFileSync(PAUSE_FILE, JSON.stringify(pauses, null, 2));
+        const when = new Date(until).toLocaleString('es-CO', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+        return `${message}\n  ⏸ Se acabó el cupo DIARIO de ${model} (lo dice AI Studio): queda en pausa hasta ${when}; los otros modelos siguen.`;
+    }
     if (!LIMIT_ERROR.test(message)) return message;
     const until = Date.now() + pauseMs();
     const pauses = currentPauses();
@@ -125,10 +222,14 @@ export async function openAIStudio(url: string, model: string, prepare?: () => v
 }
 
 /** El texto visible de la última respuesta (sin los «Thoughts»): las piezas de texto del último turno. */
+// ⚠ AI Studio sólo dibuja los turnos que están a la vista: con una pregunta enorme (77 mil caracteres, Pikachu), el
+// turno de la respuesta queda fuera de la pantalla y llega VACÍO —sólo sus botones— aunque ya contestó. Se lo trae a la
+// vista antes de leerlo (2026-11-17: así se «colgaban» las preguntas largas; AI Studio había contestado en 10 s).
 export const lastAnswerText = () => {
     const turns = [...document.querySelectorAll('ms-chat-turn')];
     const last = turns[turns.length - 1];
     if (!last) return '';
+    last.scrollIntoView({ block: 'end' });
     return [...last.querySelectorAll('ms-text-chunk')]
         .filter((c) => !c.closest('ms-thought-chunk'))
         .map((c) => (c as HTMLElement).innerText.trim())
@@ -149,13 +250,17 @@ export async function waitStableAnswer(page: any, timeoutMs: number): Promise<st
         // ya, con su mensaje, en vez de esperar al tope.
         // También en rojo dentro del turno (`.model-error`): «Permiso denegado. Verifica los permisos de tu cuenta…» es
         // como Google corta una cuenta que hizo demasiadas consultas seguidas (2026-11-17).
+        // Puede haber varios a la vez (2026-11-17, Hydrogen agotado: el turno decía «You've reached your rate limit», el
+        // aviso de abajo «Quota exceeded: … daily limit … (resets in 11 horas y 30 minutos)» y una tarjeta «Upgrade»):
+        // se juntan todos y el del cupo diario va primero, porque dice cuándo vuelve.
         const failed: string | null = await page.evaluate(() => {
+            const clean = (el: Element | null) => ((el as HTMLElement | null)?.innerText || '').replace(/\s+/g, ' ').replace(/\b(error|close)\b/g, '').trim();
             const turns = [...document.querySelectorAll('ms-chat-turn')];
-            const inTurn = turns[turns.length - 1]?.querySelector('.model-error') as HTMLElement | null;
-            if (inTurn?.innerText.trim()) return inTurn.innerText.replace(/\s+/g, ' ').trim();
-            const bar = document.querySelector('mat-snack-bar-container') as HTMLElement | null;
-            const t = bar?.innerText.replace(/\s+/g, ' ').replace(/\b(error|close)\b/g, '').trim() || '';
-            return /failed|error|quota|limit/i.test(bar?.innerText || '') ? t : null;
+            const inTurn = clean(turns[turns.length - 1]?.querySelector('.model-error') || null);
+            const bars = [...document.querySelectorAll('mat-snack-bar-container')].map(clean).filter((t) => /failed|error|quota|limit/i.test(t));
+            const daily = [...bars, inTurn].find((t) => /daily limit|resets in/i.test(t));
+            const all = [daily, ...bars, inTurn].filter((t, i, a) => t && a.indexOf(t) === i);
+            return all.length ? all.join(' · ') : null;
         });
         if (failed) throw new Error(`AI Studio: ${failed}`);
         const now: string = await page.evaluate(lastAnswerText);
@@ -227,7 +332,7 @@ export async function openWorkPage(browser: any, mode: WindowMode = windowMode()
     }
 }
 
-export async function askOn(page: any, model: string, text: string, timeoutMs: number, log: (s: string) => void = () => {}) {
+export async function askOn(page: any, model: string, text: string, timeoutMs: number, log: (s: string) => void = () => {}, thinking: Thinking = thinkingLevel()) {
     const t0 = Date.now();
     // El modelo va por la URL (`?model=`), y SIEMPRE: AI Studio recuerda el último elegido, y si fue uno que no es de
     // chat (la transcripción, después de `transcribe`) la página que abre no tiene el campo para preguntar.
@@ -256,6 +361,7 @@ export async function askOn(page: any, model: string, text: string, timeoutMs: n
     // ⚠ Un texto grande NO va de una: con 1,2 MB en un solo `fill`, el puente de Chrome cortó la conexión (con 280 mil
     // caracteres anduvo). Viaja en pedazos a una variable de la página y al final se pone en el campo, con el evento
     // `input` que escucha Angular.
+    const level = await ensureThinking(page, thinking, log);
     const CHUNK = 200_000;
     if (text.length <= CHUNK) await box.fill(text);
     else {
@@ -274,7 +380,10 @@ export async function askOn(page: any, model: string, text: string, timeoutMs: n
     }
     const turnsBefore = await page.locator('ms-chat-turn').count();
     log('esperando la respuesta…');
-    await runAndWait(page, timeoutMs);
+    if (!(await runAndWait(page, timeoutMs))) {
+        const shown = await captureFailure(page, 'Run no pasó a Stop en 60 s');
+        throw new Error(`AI Studio no empezó a generar (foto en ~/.cache/my-tools/aistudio-fallas). Al final de la página: ${shown}`);
+    }
     // Que vuelva «Run» no alcanza: espera a que el texto quede quieto, y corta ya si AI Studio muestra un error.
     const seen = await waitStableAnswer(page, timeoutMs);
     const turns = await page.locator('ms-chat-turn').count();
@@ -289,5 +398,7 @@ export async function askOn(page: any, model: string, text: string, timeoutMs: n
         log('«Copy as markdown» no entregó la respuesta: sale como texto de la página (sin el Markdown de origen)');
     }
     if (!answer.trim()) throw new Error('la respuesta llegó vacía');
-    return { answer, format, modelId, ms: Date.now() - t0 };
+    const ms = Date.now() - t0;
+    recordUse({ model: modelId, thinking: level, chars: text.length, ms, result: 'ok' });
+    return { answer, format, modelId, thinking: level, ms };
 }

@@ -47,8 +47,33 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   **Cualquier bloque se borra** con su tacho (aparece al pasar el mouse), sin confirmación: así se saca contexto que
   no aporta y se queda sólo lo que sirve. Arriba a la derecha, «contexto: N bloques · M caracteres» dice lo que va a
   viajar. Los bloques de antes no tenían id: se les pone al cargar.
-- **Los modelos** son dos, elegidos por Miguel para el día a día (2026-11-17) de las fichas del selector: Gemini
-  3.8 Flash, el de siempre, y Gemini 4 Hydrogen para lo difícil (`chatModels`). Los dos sin «Paid».
+- **Un solo modelo: Gemini 4 Hydrogen con «Thinking level: High»** (Miguel, la tarde del 2026-11-17: «no le veo
+  necesidad de usar el 3.8»), para el chat, los agentes y `bin/aistudio`. Con un solo modelo la interfaz no muestra
+  selector (`chatModels`); Flash sigue a mano con `bin/aistudio --model gemini-3.8-flash`. El nivel lo pone la receta
+  en cada pregunta (`ensureThinking`): cada modelo trae el suyo (Hydrogen nace en High, Flash en Medium). La preferencia
+  del navegador cambió de clave (`wally.model.v2`) para no volver sola a Flash, que era el de siempre hasta esa tarde.
+  ⚠ Con un solo modelo, cuando se acaba su cupo diario Wally queda en pausa hasta que vuelve (abajo).
+- **Cuánto deja Google por día**: cada pregunta (de Wally o de `bin/aistudio`) queda en
+  `~/.cache/my-tools/aistudio-uso.jsonl` —hora, modelo, nivel, tamaño, tiempo y si salió, la cortó Google u otro
+  error; nunca el texto— y `bin/aistudio uso [--days 7]` lo resume por día y modelo, con la hora del primer corte y
+  cuántas salieron antes. Empezó a registrar el 2026-11-17 a las 15:30 para medirlo con el uso real, sin tandas a
+  propósito (una tanda es justo lo que hace cortar a la cuenta).
+- **El cupo diario de la web es POR MODELO, y AI Studio dice cuándo vuelve** (medido el 2026-11-17 a las 15:30,
+  Hydrogen tras un día entero de pruebas): un aviso «Failed to generate content, Quota exceeded: you have reached the
+  daily limit of requests for this model (resets in 11 horas y 30 minutos)», junto con «No tienes más generaciones
+  gratuitas… tu propia clave de API pagada» y una tarjeta «Upgrade». Vuelve a las 3:00 de Colombia (medianoche del
+  Pacífico); los otros modelos siguen andando, por eso a mano se podía seguir chateando. La receta junta todos los
+  avisos (el del cupo primero), y `noteFailure` pausa ESE modelo hasta la hora que dice (+2 min, `dailyReset`) en vez de
+  1 a 5 min; el «rate limit» por minuto sigue con la pausa corta de toda la cuenta. El «Dashboard» de AI Studio (Uso,
+  Límite de frecuencia) es sólo de la API con llave: el cupo de la web no aparece en ningún número.
+- **El «cuelgue» de las preguntas largas era de la receta** (2026-11-17, Pikachu: 77 mil caracteres, cinco veces): AI
+  Studio sólo dibuja los turnos a la vista, y con una pregunta enorme el turno de la respuesta quedaba fuera de pantalla
+  y llegaba VACÍO (sólo sus botones), aunque había contestado en 10 s. La receta esperaba ese texto hasta el tope y
+  decía «AI Studio no contestó». Se reprodujo con Flash, y `lastAnswerText` ahora trae el último turno a la vista antes
+  de leerlo: la misma pregunta salió en 12,5 s. No era la ventana minimizada, ni la pausa antes de «Run», ni el texto.
+- **Cuando AI Studio se traba de verdad** (`runAndWait`): si «Run» no pasa a «Stop» en 60 s, o si genera 4 min sin que
+  cambie la respuesta (`AISTUDIO_STALL`), saca foto y texto a `~/.cache/my-tools/aistudio-fallas/` y corta, en vez de
+  esperar los 10 min en silencio.
 - **Cuando Google corta** («Permiso denegado», 403, cuota) la receta deja una
   pausa de 1 a 5 min, al azar, para TODA la cuenta (`*` en `~/.cache/my-tools/aistudio-pausa.json`): el corte es por el ritmo de la
   cuenta, no por modelo (Flash Lite contestó a las 9:48 y a las 9:49 ya no, 2026-11-17). Wally muestra hasta qué hora

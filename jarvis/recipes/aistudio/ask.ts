@@ -12,23 +12,24 @@
 // toca. La pestaña se cierra al terminar salvo con --keep (para seguir la conversación a mano).
 //
 // Parámetros: --prompt "texto" · --file <archivo> (el texto va primero y el --prompt después, como pregunta) · o el
-// texto por stdin · --model <id> (gemini-3.8-flash por defecto, como Wally: el Flash más inteligente, sin «Paid»;
-// gemini-4-hydrogen para lo difícil; los ids son los del selector) · --out
+// texto por stdin · --model <id> (gemini-4-hydrogen por defecto desde el 2026-11-17, como Wally; gemini-3.8-flash
+// para lo rápido; los ids son los del selector) · --thinking low|medium|high (high por defecto) · --out
 // <archivo> (guarda la respuesta) · --keep · --timeout <segundos> (600 por defecto) · --json
 // Necesita: Jarvis conectado en Chrome, sin otra sesión de Jarvis manejándolo, y tu sesión de Google abierta.
 // ⚠ Sólo lectura en tu cuenta: no guarda nada en AI Studio. El texto viaja a Google como cuando lo pegás a mano.
 // ⚠ Un uso intenso y automatizado de la web puede verse como abuso: es para preguntas tuyas, no para tandas.
 import '../args.ts';
 import fs from 'node:fs';
-import { flag, has, JSON_OUT, say, resolvePath, readInput, openChrome, askOn, noteFailure } from './page.ts';
+import { flag, has, JSON_OUT, say, resolvePath, readInput, openChrome, askOn, noteFailure, DEFAULT_MODEL } from './page.ts';
 
 const KEEP = has('keep');
 const text = readInput('prompt');
 if (!text) {
-    console.error('  uso: aistudio --prompt "…" | --file <archivo> [--prompt "pregunta"] | (texto por stdin) [--model <id>] [--out <archivo>] [--keep] [--json]');
+    console.error('  uso: aistudio --prompt "…" | --file <archivo> [--prompt "pregunta"] | (texto por stdin) [--model <id>] [--thinking low|medium|high] [--out <archivo>] [--keep] [--json]');
     process.exit(2);
 }
-const model = flag('model') || 'gemini-3.8-flash';
+if (flag('thinking')) process.env.AISTUDIO_THINKING = flag('thinking');
+const model = flag('model') || DEFAULT_MODEL;
 const timeoutMs = Number(flag('timeout') || 600) * 1000;
 
 const { page, close } = await openChrome(model);

@@ -18,7 +18,8 @@ import { vResize, readSize, saveSize, readPref, savePref, fitRegions, cssSize, b
 
 const models = ref([])
 const defaultModel = ref('')
-const lastModel = ref(readPref('wally.model', ''))
+// v2 (2026-11-17): el de siempre pasó a Hydrogen; la preferencia vieja («wally.model») era Flash.
+const lastModel = ref(readPref('wally.model.v2', ''))
 const conversations = ref([])
 const apiError = ref('')
 
@@ -247,7 +248,7 @@ const draft = computed({
 })
 const model = computed({
   get: () => (usable(tabModel.value[active.value]) ? tabModel.value[active.value] : lastModel.value),
-  set: (v) => { tabModel.value = { ...tabModel.value, [active.value]: v }; lastModel.value = v; savePref('wally.model', v) },
+  set: (v) => { tabModel.value = { ...tabModel.value, [active.value]: v }; lastModel.value = v; savePref('wally.model.v2', v) },
 })
 const error = computed(() => errors.value[active.value] || '')
 const pendingFiles = computed(() => attachments.value[active.value] || [])
@@ -689,7 +690,7 @@ onBeforeUnmount(() => {
               <p v-if="!topics.length" class="none">Cargando los temas…</p>
             </div>
             <div class="group-actions">
-              <label class="select model-select" title="El modelo del agente (se cambia después en su conversación)">
+              <label v-if="models.length > 1" class="select model-select" title="El modelo del agente (se cambia después en su conversación)">
                 <select v-model="agentForm.model" class="input input-xs" aria-label="Modelo del agente">
                   <option value="">{{ modelName(lastModel) }} (el de siempre)</option>
                   <option v-for="m in models" :key="m.name" :value="m.name">{{ m.displayName }}</option>
@@ -728,7 +729,7 @@ onBeforeUnmount(() => {
               </label>
             </div>
             <div class="group-actions">
-              <label class="select model-select" title="El modelo de los agentes">
+              <label v-if="models.length > 1" class="select model-select" title="El modelo de los agentes">
                 <select v-model="groupForm.model" class="input input-xs" aria-label="Modelo de los agentes">
                   <option value="">{{ modelName(lastModel) }} (el de siempre)</option>
                   <option v-for="m in models" :key="m.name" :value="m.name" :disabled="!!m.paused">{{ m.displayName }}</option>
@@ -907,7 +908,7 @@ onBeforeUnmount(() => {
             <button type="button" class="region-action" title="Adjuntar archivos: texto y código, PDF o Word. También se pueden arrastrar" aria-label="Adjuntar archivos" @click="fileInput?.click()">
               <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
             </button>
-            <label class="select model-select" title="El modelo que contesta en esta pestaña">
+            <label v-if="models.length > 1" class="select model-select" title="El modelo que contesta en esta pestaña">
               <select v-model="model" class="input input-xs" aria-label="Modelo" :disabled="!models.length">
                 <option v-for="m in models" :key="m.name" :value="m.name" :disabled="!!m.paused">{{ m.displayName }}{{ m.paused ? ` · en pausa hasta las ${m.paused}` : m.note ? ` · ${m.note}` : '' }}</option>
               </select>

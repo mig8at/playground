@@ -211,8 +211,9 @@ type Model struct {
 // Flash, el de siempre (el Flash más inteligente, la mitad de pesado que Hydrogen), y Hydrogen para lo difícil. Los
 // dos sin «Paid». Fuera a propósito: Flash Lite, Gemma y los alias `*-latest`.
 var chatModels = []Model{
-	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash", Note: "el de todos los días"},
-	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: para lo difícil"},
+	// SÓLO Hydrogen, con «Thinking level: High» (Miguel, 2026-11-17: «no le veo necesidad de usar el 3.8»; el nivel lo
+	// pone la receta). Con un solo modelo la interfaz no muestra selector. Flash queda en `bin/aistudio --model`.
+	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "pensando a fondo (High)"},
 }
 
 // pauses lee las pausas que deja la receta cuando Google corta un modelo: modelo → hasta cuándo (ms).
