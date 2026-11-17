@@ -178,9 +178,8 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Limpiar de la base compartida lo creado para la prueba de qa: comercios 365, 366 y 367 («PRUEBA AUTO
   Mareigua»), entidades 218 y 219, credenciales de Mareigua 12 y 13 y sus asignaciones. Termina con esas filas
   borradas o con la decisión de dejarlas como datos de prueba.
-- [ ] Revisar el commit local `a666569d4` (insumos del riel 4 desde la configuración de la entidad) contra lo que
-  Abel ya mergeó de Finandina (CRED-519: #1809, #1844, #1834). Termina con el commit subido en el PR de la tarea o
-  descartado con su motivo.
+- [x] ~~Revisar el commit local `a666569d4` contra CRED-519~~ — no choca con lo de Abel: entró en
+  [#1937](https://github.com/Creditop-SAS/legacy-backend/pull/1937), con la fuente reemplazada por `creditop_x_pre_approval`.
 - [ ] Decidir si el comercio puede elegir qué entidad paga la consulta (o usar la de Creditop teniendo
   entidades con cuenta). Por ahora no: decisión de Miguel del 2026-11-12. Depende de: Miguel y Oscar.
 - [x] Decidir si una consulta de Mareigua del último mes hecha con la cuenta de Creditop se reutiliza en una
@@ -204,8 +203,9 @@ existe (CRED-519); lo que falta ahí son las fases 1 y 2:
 - [ ] Avisar al equipo de `POST /api/onboarding/credentials/get-by-lender`: devuelve credenciales descifradas
   sin autenticación; lo agregó Santiago (2025-12-15) y lo usa pre-approvals-service por la red interna. Termina
   con la exposición confirmada o descartada, o con el endpoint protegido.
-- [ ] Un PR por repo contra `qa` con todo lo de la tarea, la 149 configurada en la base compartida para un
-  comercio de prueba, y la validación de Duncan. Termina con la suite verde en qa.
+- [ ] Validación de Duncan del riel 4 de Finandina en qa: los PRs ya están en `qa` (#1937, #1939) y `develop` (#104), y la
+  149 está en tipo 4 en la base compartida (Mediarte · Principal, `5da24bb1`). Termina con la guía de pruebas verde en
+  qa. Depende de: Duncan.
 - [ ] Definir quién monitorea que el motor sea «espejo» de la política, y con qué reporte. Depende de: producto.
 
 ## Objetivo
