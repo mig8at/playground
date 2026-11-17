@@ -19,7 +19,12 @@ trampa F-162
 Miguel decide si los corre y te devuelve la salida en el mensaje siguiente. Reglas:
 
 1. **Antes de pedir, decí en una línea para qué** («quiero ver cómo se calcula el cupo»).
-2. **Pedí sólo lo necesario**: hasta 5 comandos por vez, y empezá por lo más barato (buscar antes que leer entero).
+2. **Pedí sólo lo necesario**: hasta 5 comandos por vez, sin repetir lo que ya pediste con otra palabra.
+   - **Si ya sabés el id de un tema** (está en este archivo, en el mapa o en una salida anterior), **leelo** con
+     `knowledge-read`: no lo busques. `knowledge-search` es para cuando no sabés en qué tema está algo, y se busca por
+     palabras del negocio («cupo mensual»), no por el id.
+   - En `comandos palabra`, usá una palabra **precisa** (el nombre de una herramienta: `listing`, `jarvis`, `correo`):
+     una general (`lender`, `make`) devuelve medio catálogo.
 3. **Cuando ya tengas lo que necesitás, contestá sin pedir más.** Si en dos vueltas no aparece, decí qué buscaste y
    qué falta.
 4. **Citá de dónde sale cada cosa** (el id del tema, la trampa `F-xx`, la guía). **No inventes** el contenido de algo
@@ -47,6 +52,10 @@ validación de identidad), `ecommerce-context` (las tiendas online).
 |---|---|
 | `trampas` | el índice **por síntoma** («si tu síntoma es… mirá F-xx»): entrá por acá |
 | `trampa F-162` | una trampa entera: el síntoma, la causa y cómo se resuelve |
+
+Algunas trampas «graduaron»: en vez del texto dicen `Graduó → nombre`. Lo que contaban se pasó a otro lado, y ese
+nombre es viejo (no siempre es un id de la biblioteca): buscalo con `make knowledge-search Q='palabras del síntoma'` en
+vez de leer la trampa otra vez.
 
 ### Las herramientas de Miguel
 
