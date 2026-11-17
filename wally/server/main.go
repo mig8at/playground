@@ -186,17 +186,16 @@ type Model struct {
 	Paused      string `json:"paused,omitempty"` // hasta qué hora, si Google lo cortó
 }
 
-// chatModels: los de chat que la web ofrece sin «Paid», del más liviano al más capaz. El primero es el de siempre:
-// liviano, para no gastar lo que Google deja usar de los grandes (Hydrogen fue el primero que cortó).
+// chatModels: los de chat que la web ofrece sin «Paid», del más liviano al más capaz (leídos del selector el
+// 2026-11-17, con su ficha). El primero es el de siempre: liviano, para no gastar lo que Google deja usar de los
+// grandes (Hydrogen fue el primero que cortó). Fuera a propósito: los alias `gemini-flash-latest` y
+// `gemini-flash-lite-latest` (apuntan a 3.8 Flash y 3.5 Flash Lite: el mismo modelo dos veces) y 3.1 Flash Lite (más
+// viejo que 3.5 Flash Lite). Gemma queda al final: abierto, sin ventaja desde la web.
 var chatModels = []Model{
-	{Name: "gemini-3.5-flash-lite", DisplayName: "Gemini 3.5 Flash Lite", Note: "liviano y rápido"},
-	{Name: "gemini-3.1-flash-lite", DisplayName: "Gemini 3.1 Flash Lite", Note: "liviano"},
-	{Name: "gemini-flash-lite-latest", DisplayName: "Gemini Flash-Lite Latest", Note: "el Flash-Lite más nuevo"},
-	{Name: "gemini-flash-latest", DisplayName: "Gemini Flash Latest", Note: "el Flash más nuevo"},
-	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash"},
+	{Name: "gemini-3.5-flash-lite", DisplayName: "Gemini 3.5 Flash Lite", Note: "el de todos los días: liviano y rápido"},
+	{Name: "gemini-3.8-flash", DisplayName: "Gemini 3.8 Flash", Note: "el equilibrio: el Flash más inteligente"},
+	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: para lo difícil, de vez en cuando"},
 	{Name: "gemma-4-31b-it", DisplayName: "Gemma 4 31B", Note: "abierto"},
-	{Name: "gemma-4-26b-a4b-it", DisplayName: "Gemma 4 26B A4B", Note: "abierto"},
-	{Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "el más capaz: usalo para lo que lo valga"},
 }
 
 // pauses lee las pausas que deja la receta cuando Google corta un modelo: modelo → hasta cuándo (ms).
