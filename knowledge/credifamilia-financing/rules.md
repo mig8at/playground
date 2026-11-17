@@ -159,11 +159,22 @@ Credifamilia (`credifamilia_pre_approval`). Los días de pago también son del p
 (`INVALID_PAYMENT_DAY` si no), y el servicio de fechas (`PaymentPlanDatesService`) ofrece las dos
 próximas, entre esos días, que cumplen la regla de 30 días. Una entidad sin perfil no calcula. El
 resumen no valida el día: lo toma de `selected_payment_date`, con desembolso hoy. Cuando el cliente
-todavía no eligió, el builder usa el primer día del perfil (`defaultPaymentDay`). El listado de
-plazos (`PaymentPlanLoanOptionsService`) recorre los `fee_numbers` de la línea de crédito de la
-entidad con la que calcula (la de la ruta, o la de la solicitud si es Credifamilia, o Salud),
-calcula con ese día por omisión y desembolso hoy, y muestra la cuota 2 como representativa porque
-la 1 lleva el interés diario.
+todavía no eligió, el builder usa el primer día del perfil (`defaultPaymentDay`).
+
+Los plazos que se ofrecen son los de `credit_line_by_lenders.fee_numbers` de la entidad, recortados
+por su banda de monto (`creditop_x_conditions_by_amount_by_lender`) con `AmountBandTerms`, que
+delega la elección de la banda en `AmountConditionTermPolicy` (la misma del plan de pagos regular y
+del listado). El resultado es siempre un subconjunto de lo declarado: un `mandatory_fee_number` cuyo
+techo no está en `fee_numbers` se descarta en vez de ofrecerse. Una entidad sin bandas (Salud) recibe
+exactamente lo declarado. El monto con que se elige la banda depende del paso: el plan de cuotas usa
+`user_requests.amount` y el listado de plazos (`PaymentPlanLoanOptionsService`) el monto que manda
+el front. Si no queda ningún plazo, `INVALID_TERM`. El listado recorre esos plazos de la línea de
+crédito de la entidad con la que calcula (la de la ruta, o la de la solicitud si es Credifamilia, o
+Salud), con ese día por omisión y desembolso hoy, y muestra la cuota 2 como representativa porque
+la 1 lleva el interés diario. Al confirmar el plan (`ExternallyManagedPaymentScheduleService`),
+si la entidad tiene alguna banda, el plazo debe estar entre los permitidos para
+`user_requests.amount`; si no, `FeeNumberNotAllowedException` (422). Sin bandas no se valida el
+plazo.
 
 Límites: el Days360 del código sólo ajusta el día 31, no el fin de febrero como DAYS360 de Excel, y
 la calculadora del proveedor cuenta los 30 días en días calendario: en los bordes de mes la primera

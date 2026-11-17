@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Credifamilia: preaprobación, identidad y radicación",
   "summary": "Cuándo aprueba la preaprobación de Credifamilia, cómo cae la identidad de CrossCore o ADO a un respaldo, cómo y cuándo se radica por SOAP (después del estado 11, con el 422 por documentos faltantes) y que autorizar no exige identidad terminada: estados, idempotencia, los nueve documentos del PDF y los datos derivados de la ocupación.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "pre-approvals-service",
@@ -126,8 +126,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
       "sections": [
         "la-radicacion-tiene-dos-pasos-soap",
         "autorizar-no-exige-que-la-identidad-haya-terminado"

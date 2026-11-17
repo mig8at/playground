@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Solicitud: estados, cierre y guardas contra el retroceso",
   "summary": "El catálogo de estados de user_requests con sus ids anotados y por qué se lee por nombre, qué estados cierran una solicitud en cada monolito, la cancelación en cascada de solicitudes CreditopX hermanas al autorizar y safeCancel, la guarda de 11 y 8 que vive en el grupo de rutas (y el desembolso IMEI que la saltea), el 11 confirmado antes de radicar en originación delegada, el webhook tardío contra Autorizada, la gestión manual del comercio, una solicitud por pedido en ecommerce, Nequi y los links que vencen.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -154,8 +154,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
       "sections": [
         "la-guarda-de-11-y-8-vive-en-el-grupo-de-rutas-no-en-la-transicion",
         "con-originacion-delegada-11-se-confirma-antes-de-radicar"
@@ -281,8 +281,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "886cf549f2961cd497d5ba4ee061eea52a9887cc",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8eb7c056225ad2cf1ced7b2e3fdf44176398e29b",
       "sections": [
         "links-que-vencen-continuacion-y-aprobacion-manual"
       ]

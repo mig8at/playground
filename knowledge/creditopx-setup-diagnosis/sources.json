@@ -2,7 +2,7 @@
   "version": 1,
   "title": "CreditopX: alta de una entidad y por qué no aparece",
   "summary": "Qué filas necesita una entidad CreditopX (plantilla de reglas y copias por sucursal, regla de datacrédito sin sucursal, perfiles por priority, proveedor de identidad order 1) y cómo leer hard_rules, la razón de available-quota, el rechazo de la autorización sin categoría y users_category_log para saber por qué un cliente no la vio, la vio sin cupo o no pudo autorizar.",
-  "reviewedAt": "2026-11-11T14:57:37+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -100,8 +100,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderRulesWriterService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "1c7e056f7ffc35f73b2068330d08c0c5d38e6b3b",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "40ab7798d87823299ffa3f2860651fb7a1c7bb15",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -109,8 +109,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "15e30e999b55874a2abf1c9f97bb2f346a2cd945",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -136,8 +136,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "20c9fc4087bf94dbff2fddd6f097d290d82e572a",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "0cc74b87d58c88bb8402d58de43806d8dd0495e0",
       "sections": [
         "alta-plantilla-copias-y-perfiles"
       ]
@@ -210,8 +210,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "be6c99c8aa8d580c49de964e705e2b39937dddef",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "a445e7c74d448dd10246584a4ec063eb641b546f",
       "sections": [
         "diagnostico-no-salio-en-el-listado"
       ]
@@ -279,8 +279,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
       "sections": [
         "sin-buro-sin-categoria-y-la-autorizacion-rechaza",
         "leer-users-category-log"

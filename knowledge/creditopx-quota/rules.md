@@ -35,16 +35,21 @@ crédito sigue sin cargarse a ningún cupo.
 `app:reset-creditop-x-monthly-quota` corre el día 1 a las 00:00 de Bogotá desde el `Kernel` del
 monolito nuevo, sin solaparse. Para cada perfil, en su propia transacción y con la fila bloqueada,
 pone lo colocado en 0, descarta `period_loan_limit` y escribe un `month_reset`; un perfil que ya tiene
-su `month_reset` del mes se salta, así que repetirlo es seguro. El monolito viejo no reinicia: lee el
+su `month_reset` del mes se salta, así que repetirlo es seguro. El monolito viejo no reinicia: lee y suma sobre el
 mismo perfil.
 
 El backoffice nuevo (`LenderQuotaWriterService`, rutas `lenders/{lender}/quota` con
 `cognito.token:staff`) reinicia lo colocado del mes (`used_reset`) o cambia el tope (`limit_changed`):
-sólo del mes, en `period_loan_limit`, o de forma permanente, en `loan_limit` por el editor de reglas,
-lo que sube la versión de reglas y descarta el tope del mes. Cada acción bloquea la entidad y la fila
-y compara el valor que vio la pantalla con el actual: si otro crédito o cambio entró en el medio,
-contesta conflicto en vez de pisarlo. Un tope más bajo que deja el perfil sin disponible también
-escribe `limit_reached`.
+sólo del mes, en `period_loan_limit`, o de forma permanente, en `loan_limit` por el editor de reglas
+(`LenderRulesWriterService::saveProfileLoanLimit`), lo que sube la versión de reglas (si el valor cambia) y descarta el tope
+del mes. Cada acción bloquea la entidad y la fila y compara el valor que vio la pantalla con el actual:
+si otro crédito o cambio entró en el medio, contesta conflicto en vez de pisarlo. Un tope más bajo que
+deja el perfil sin disponible también escribe `limit_reached`.
+
+El cambio permanente pasa por dos validaciones del guardado de reglas (`saveProfileLoanLimit`): un lender con política
+específica de otorgamiento no se edita desde acá, y en un perfil Premium Plus (`template_key =
+LenderRulesMap::PREMIUM_PLUS_TEMPLATE_KEY`) un tope menor o igual a 0 se rechaza con 422 sobre el campo
+`amount`. El tope sólo del mes (`period_loan_limit`) no pasa por esa validación.
 
 ## El «cupo» del log es lo que le queda al perfil
 

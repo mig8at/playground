@@ -75,7 +75,11 @@ en la preaprobación. En `legacy-backend` la pertenencia al riel se decide por e
 
 - **Fechas de pago:** `PaymentDateService` le pide las fechas a `PaymentPlanDatesService`.
 - **Plan de cuotas:** `ExternallyManagedPaymentScheduleService` (su `supports()` pregunta por el tipo 4)
-  simula y confirma el plan con `InstallmentPlanService`.
+  simula el plan con `InstallmentPlanService` (con el día de `selected_payment_date`) y al confirmar sólo
+  guarda `fee_number` en la solicitud, sin recalcular. Antes valida que el plazo sea uno de los
+  que la simulación ofrece para `user_requests.amount` (`assertFeeNumberAllowed`): si no, lanza
+  `FeeNumberNotAllowedException` (código `INVALID_TERM`, HTTP 422) con los plazos permitidos. Sólo valida si
+  la entidad tiene bandas de monto (`AmountBandTerms::hasBands`); sin bandas acepta el plazo que llegue.
 - **Formalización al autorizar:** después del commit de la autorización y en su propia transacción,
   `LoanAuthorizationService::formalizeExternalManagedIfApplicable` lee la clave `formalization` del
   perfil de la entidad. Con null no radica y lo deja en el log; con una clave,
@@ -99,6 +103,14 @@ con fianza de la preaprobación y 4x1000, y a Materiales con fianza de la tabla 
 4x1000; los dos pagan el 2 o el 16, toman los insumos de la preaprobación de Credifamilia y radican por
 su SOAP. Sólo siembra las entidades que existen en esa base.
 
+Los plazos que ofrece el riel salen de `AmountBandTerms::allowed`: los que declara la entidad en
+`credit_line_by_lenders.fee_numbers`, recortados por su banda de monto (`creditop_x_conditions_by_amount_by_lender`,
+elegida con `AmountConditionTermPolicy`, la misma del plan de pagos regular). El resultado es siempre un
+subconjunto de lo declarado: un `mandatory_fee_number` fuera de esa lista se descarta. Lo usan
+`PaymentPlanLoanOptionsService` (con el monto que manda el asistente), `InstallmentPlanService` (con
+`user_requests.amount`) y la confirmación del plan. Una entidad sin bandas (Salud, 24) recibe exactamente lo
+declarado.
+
 El plan de pago corre en `App\Services\PaymentPlan\DelegatedOrigination` (`PaymentPlanLoanOptionsService`,
 `PaymentPlanDatesService`, `InstallmentPlanService`, `PaymentPlanContinueRequestService`,
 `PaymentPlanSummaryService`, `PaymentPlanVoucherService`, `PaymentPlanPayloadBuilder`). Las rutas son
@@ -108,6 +120,9 @@ El plan de pago corre en `App\Services\PaymentPlan\DelegatedOrigination` (`Payme
 riel; `credifamilia` sigue siendo la URL de Salud y `payment-plan/credifamilia/calculate` quedó fija. Cada
 servicio acota la solicitud con `DelegatedOriginationLenders::constrainRequests`: a la entidad de la ruta,
 o a cualquier entidad de tipo 4 cuando lo llama un servicio interno sin entidad.
+`PaymentPlanContinueRequestService` devuelve, además de las cuotas, `advance_bond_total` y `total_amount`
+(monto más fianza) sólo cuando el tipo de fianza es el anticipado y su total es mayor que cero; con fianza
+vencida, que se cobra repartida en las cuotas, ambos van en null.
 
 Lo que sigue atado a Credifamilia:
 
@@ -131,7 +146,9 @@ Lo que sigue atado a Credifamilia:
   otro id.
 
 En el asistente, `supportsDynamicPaymentPlan` decide por tipo: toda entidad de tipo 4 calcula la cuota
-en el backend (`payment-plan/{slug}/loan-options`). Son de Credifamilia, y está bien que lo sean, su
+en el backend (`payment-plan/{slug}/loan-options`). El mismo criterio decide el polling de la preaprobación
+(`fetchLenderPreApproval`): sólo las entidades de tipo 4 sondean, porque su primera consulta contesta
+`pending`; con cualquier otro tipo se resuelve en un solo intento y un `pending` se trata como error. Son de Credifamilia, y está bien que lo sean, su
 radicación SOAP, CrossCore, Evidente y Jumio, y el adaptador `credifamilia` de pre-approvals-service.
 Para una segunda entidad de tipo 4 hace falta su fila de perfil, una fuente de insumos y una
 formalización registradas si no usa las de Credifamilia, y su clave en pre-approvals-service.

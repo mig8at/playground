@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Campañas de WhatsApp del backoffice",
   "summary": "Cómo se crea una campaña (la pantalla limpia el CSV, el servidor no; crear y lanzar son dos pasos, crear no es atómico), cómo la envía messaging-service con Temporal de a un destinatario, por qué relanzar sólo manda pendientes y dónde puede repetirse un envío, cómo se deduce el estado, qué frena el lanzamiento y qué datos personales quedan en logs.",
-  "reviewedAt": "2026-11-11T13:35:23+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -299,8 +299,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/communications/src/lib/domain/recipients.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "e7885f42ef5fd36cda9e7d05090e597b1c26c9fe",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "c673eaa3b4d53f100f691aff4a7da5f91330e3f9",
       "sections": [
         "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
       ]
@@ -308,8 +308,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/communications/src/lib/domain/format.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "375fae10075d890debafe879f3586fa89bdec4a9",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "8d505f27ef8bff04948a18da57cd18387e1a0713",
       "sections": [
         "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
       ]
@@ -335,8 +335,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/communications/src/components/wizard/WhatsAppCampaignWizard.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "3e4af46484ee7357806f622987e6b7a25a8388f8",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "7401d93c277880b644e7297cca8f16d8a831ef51",
       "sections": [
         "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
       ]
@@ -353,8 +353,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/communications/src/lib/application/campaigns.use-cases.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "1664c3edf68312519942145287ad04d233eecbd9",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "d90ec31bf915172a47535e4c75c72e4b47fd3137",
       "sections": [
         "crear-y-lanzar-son-dos-pasos-y-crear-no-es-atomico-ni-idempotente",
         "el-estado-de-la-campana-es-una-deduccion-sobre-la-cola"
@@ -412,8 +412,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "15e30e999b55874a2abf1c9f97bb2f346a2cd945",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
       "sections": [
         "la-pantalla-limpia-el-archivo-y-el-servidor-lo-toma-como-viene"
       ]

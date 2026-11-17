@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Listado de entidades",
   "summary": "Puertas del listado en ambos monolitos, resolución del monto en lenders-v2, reescritura del perfilamiento guardado, requisitos de Welli Risk, las entidades excluidas del preaprobado y del listado v1, y la oferta especial de Bancolombia en Sonría.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -67,8 +67,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/Customer/ProfilingReviewController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "be6c99c8aa8d580c49de964e705e2b39937dddef",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "a445e7c74d448dd10246584a4ec063eb641b546f",
       "sections": [
         "el-ultimo-guardado-del-perfilamiento-es-lo-que-vio-el-cliente"
       ]
@@ -85,8 +85,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/lenders-marketplace/src/components/available-lenders/AvailableLenders.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "7351c10ab119e1bbcb08923dbf1da386e16b8ba0",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "a9e55feaeeaa6e01a7b70aa15587ea67f435877e",
       "sections": [
         "el-ultimo-guardado-del-perfilamiento-es-lo-que-vio-el-cliente"
       ]
@@ -103,8 +103,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
       "sections": [
         "welli-risk-depende-de-la-sucursal-de-la-consulta-compartida-y-de-la-comision-del-aliado"
       ]
@@ -229,8 +229,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
         "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
       ]
@@ -248,8 +248,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
       "sections": [
         "prami-welli-y-la-166-quedan-fuera-del-preaprobado-y-del-listado-v1"
       ]

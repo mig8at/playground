@@ -43,16 +43,13 @@ En los cuatro, TusDatos sigue por las tres aristas. Si TusDatos lanza un error, 
 
 ## Antes de cada central, el dato vigente
 
-Antes de cada nodo, incluido Experian y antes del disparador, el servicio pregunta
-`POST /api/v2/risk/risk-central-data/check/{central}/{userId}`. Si hay un registro de menos de 30 días
-(`MAX_AGE_DAYS` de cada pre-procesador) el nodo queda `OK` sin consultar. Ese chequeo usa
-`checkJustFreshness = true`: cuenta la fecha, no si la consulta salió bien. Un Experian reciente pero
-fallido evita una nueva compra en el pipeline, aunque la etapa 1 del disparador, que es estricta, no lo
-daría por vigente.
+El servicio ya no pregunta por la frescura: no llama `POST /api/v2/risk/risk-central-data/check/{central}/{userId}` ni ningún otro endpoint del monolito para decidir si lo que ya hay alcanza. Cada nodo de proveedor, Experian incluido, es una sola actividad `AcquireProviderData` que le pide el producto a risk-service (gRPC `AcquisitionService.Acquire`, sólo con identificadores y una clave de idempotencia). Es risk-service quien decide, antes que cualquier otra regla, si lo que ya hay de esa persona alcanza. (Antes de recorrer el grafo, el servicio sí le pregunta al monolito `GET /api/v2/onboarding/kyc-requirements/{ur}`, que puede saltar centrales enteras; eso no es una comprobación de frescura.)
 
-En Experian se reutiliza entre productos: un combinado vigente responde por Acierta o Quanto si trae
-esa sección, y Acierta + Quanto vigentes por separado se fusionan en una fila combinada. Acierta sola
-nunca responde por el combinado.
+Esa comprobación (etapa `REUSE` del protocolo de risk-service, la primera para todos los productos, identidad incluida) conserva el contrato del monolito: ventana de 30 días por producto (`DefaultReuseWindow`, leída de la política resuelta y no de un `MAX_AGE_DAYS` por pre-procesador) y `FreshnessOnly = true`, o sea `checkJustFreshness`: cuenta la fecha, no si la consulta salió bien, y no se aplica la regla de resultado del proveedor. Primero se mira lo último del producto pedido (`Reuse.Held`) y, si no sirve, la cobertura entre productos del buró (`Reuse.Cover`). Si algo alcanza, el resultado es `REUSED`: el recorrido lo enruta por la arista de éxito igual que una consulta nueva, el nodo queda `OK` y no se consulta ni se cobra. Por eso un Experian reciente pero fallido evita una nueva compra.
+
+En Experian se reutiliza entre productos: un combinado vigente responde por Acierta o Quanto sólo si trae esa sección (`models` para Acierta; el producto de código 62 dentro de `productValueList` para Quanto), y Acierta + Quanto vigentes por separado responden por el combinado. Acierta sola nunca responde por el combinado. A diferencia del monolito, que escribe una fila combinada al fusionar las dos, risk-service las compone en memoria, no escribe nada y fecha el resultado con la más vieja de las dos.
+
+El endpoint `check/{central}/{userId}` sigue existiendo en `RiskV2` del monolito, pero este pipeline ya no lo usa.
 
 ## El disparador, etapa por etapa
 
@@ -88,16 +85,22 @@ evaluación da `RKV24024` y lo deja en 1.
 
 ## Lo que el servicio hace con el veredicto
 
-Sólo `RKV24000`, `RKV24007`, `RKV24020`, `RKV24021` y `RKV24030` autorizan. Los rechazos conocidos,
-un código desconocido, un status distinto de 200 o un error de red dejan Experian `SKIPPED`, que cuenta
-como cierre válido. El disparador corre con un solo intento, sin reintentos. Si autoriza, el servicio
-compra la variante que devolvió `data.variant` aunque el nodo pidiera otra; por eso una sucursal con
-bypass compra el combinado sea cual sea el grafo.
+El servicio no decide el disparador ni interpreta los códigos `RKV`: ya no llama a `check-hard-rules-trigger` ni compra la variante que le diga el monolito. Eso ocurre dentro de risk-service, que traduce el veredicto del disparador (`triggerTranslations`) y contesta con un `outcome` cerrado, que es lo único por lo que el recorrido enruta; el `reason_code` se guarda, nunca se enruta.
+
+- `ALLOWED_ACQUIRED` y `REUSED` (el nodo queda `OK`) toman la arista de éxito. Autorizan `RKV24000`, `RKV24007`, `RKV24020`, `RKV24021` y `RKV24030`; `RKV24027` (ya hay dato vigente) es `REUSED`.
+- `NO_BUREAU_DATA` queda `NO_DATA`; `DENIED_BY_POLICY` (los rechazos conocidos del disparador) queda `SKIPPED`; `SUSPENDED` (adquisición retenida, por ejemplo por el cortacircuitos) queda `UNAVAILABLE`. Los tres toman la arista de sin datos (o la de éxito si el nodo no la declara) y cuentan como cierre válido.
+- `ERROR`, un `outcome` vacío o desconocido y un código de veredicto que risk-service no tiene traducido (`TRIGGER_CODE_UNTRANSLATED`) toman la arista de error. Ya no se vuelven `SKIPPED`.
+
+La actividad (`AcquireProviderData`) se reintenta ante una falla técnica: 2 intentos de 30 s, siempre con la misma clave de idempotencia (`kyc-pipeline/<solicitud>/<run>/<nodo>/<correcciones de TusDatos>`), para que un reintento no compre dos veces. La única falla técnica que no corta el recorrido es la de TusDatos: queda `UNAVAILABLE` y sigue por la arista de éxito.
+
+Si autoriza, risk-service compra el producto que dicte su política y el servicio lo lee de `product_acquired` (`answeredBy`) y lo registra bajo ese proveedor aunque el nodo pidiera otro. La etapa `MANDATE` (comercio en la lista, sucursal con entidad de la lista o con entidad CreditopX) manda Acierta + Quanto (`MandatedProduct`); por eso una sucursal así compra el combinado sea cual sea el grafo.
+
+Aparte, `SKIPPED` también lo escribe el servicio cuando `kyc-requirements` salta un proveedor (PEP, comercio sin fecha de expedición, país sin centrales), con las razones en el `ReasonCode` del resultado.
 
 ## El disparador viejo, en los dos monolitos
 
 Fuera del pipeline decide `DatacreditoQueryByAlliedController::userViability`, con dos copias de la
-misma lógica:
+misma lógica que ya no coinciden en todo (ver más abajo: la regla de edad, la excepción de Prami y el producto que compran):
 
 - en `legacy-backend`, `Modules/Risk` (no `RiskV2`), que llaman `OnboardingController`,
   `OnboardingService` y `CreditStudyService`;
@@ -113,16 +116,37 @@ No usan los códigos `RKV` y en dos puntos deciden al revés que el disparador d
 
 - **Sin reglas `datacredito_trigger` en la sucursal, no consultan nunca**
   (`no_datacredito_trigger_configured`). `RiskV2` consulta en ese caso (`RKV24007`).
-- **No tienen bypass:** comercio en la lista, entidad de la lista o `response_type = 2` no fuerzan nada.
-  En cambio, **Prami (12)** hace evaluar la consulta aunque las reglas fallen
-  (`datacredito_evaluated_by_prami_despite_failed_rules`) si está activa como entidad, en la sucursal y
-  en el comercio, y tiene credencial de integración de la sucursal o del comercio. Con esa Prami
-  compran Acierta+Quanto (también cuando las reglas pasan). Sin Prami compran `creditScore`.
+- **No tienen bypass dentro de `userViability`:** comercio en la lista, entidad de la lista o
+  `response_type = 2` no fuerzan nada ahí. Lo que fuerza la compra está antes, en quien lo llama: en
+  `legacy-backend`, `OnboardingService::resolveForcedExperianProduct` (lee `experian_trigger_bypass_rules`:
+  comercio o entidad de la sucursal en la lista compra `creditScore` si AgilData o Mareigua ya devolvieron
+  ingreso vigente y `aciertaQuanto` si no; una sucursal con entidad CreditopX compra `creditScore`) y, si
+  compró, `userViability` no se llama (`experian_already_triggered`); en `legacy-application`, el
+  `alliedsLendersValidator` de `PersonalInfoController`, que compra `aciertaQuanto`.
+
+Qué entidad hace evaluar la consulta aunque las reglas fallen, y qué se compra, es lo que distingue a las
+dos copias:
+
+- **`legacy-backend`:** cualquier entidad con `lenders.requires_preapproval_gate = true` que esté activa
+  (`lenders.status = 1`) en la sucursal (`lenders_by_allied_branches`) y en el comercio
+  (`lenders_by_allieds`) y tenga integración completa (`HasActiveIntegratedEntitiesService` de `LenderV1`
+  con `justFullyIntegratedLenders = true`: credencial de integración de la sucursal o del comercio en
+  `lender_allied_credentials`; `LNV11000` cuenta, `LNV11001` pasa a la siguiente entidad y cualquier otro
+  código lanza excepción) hace evaluar la consulta
+  (`datacredito_evaluated_by_preapproval_gated_lender_despite_failed_rules`). `validateDatacreditoQuery`
+  compra siempre `creditScore` (Acierta): la entidad cambia si se evalúa, no qué se compra.
+- **`legacy-application`:** sigue fijo **Prami (12)** (`hasActiveIntegratedPrami`): si está activa como
+  entidad, en la sucursal y en el comercio, y tiene credencial de integración de la sucursal o del
+  comercio, evalúa aunque las reglas fallen (`datacredito_evaluated_by_prami_despite_failed_rules`). Con esa
+  Prami compra Acierta+Quanto (también cuando las reglas pasan); sin Prami, `creditScore`.
 
 Con reglas, falla si no se cumple alguna: Pullman (94) con monto ≤ 600.000, situación laboral (29),
-género, reportes (160), ingreso mínimo (87) o edad, que debe quedar estrictamente entre el mínimo y el
-máximo. La vía «por entidad» está apagada: la lista de entidades con credencial de Datacrédito está
-vacía en el código, así que nunca suma.
+género, reportes (160), ingreso mínimo (87) o edad. La regla de edad difiere entre las copias: en
+`legacy-application` la edad debe quedar estrictamente entre el mínimo y el máximo (falla si
+`edad <= mínimo` o `edad >= máximo`); en `legacy-backend` la condición es `edad <= mínimo && edad >= máximo`,
+así que con un rango normal (mínimo < máximo) nunca falla y sólo descalifica un rango invertido. La vía
+«por entidad» (`validateViabilityByLender`) está apagada en las dos: la lista de entidades con credencial
+de Datacrédito está vacía en el código, así que nunca suma.
 
 Frecuencia: sin fila de frecuencia del comercio, no consulta (`no_datacredito_frequency_for_allied`).
 Con `frequency` nulo, consulta siempre. Si no, avanza el contador **antes** de comparar y consulta

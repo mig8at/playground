@@ -57,9 +57,7 @@ Cada ambiente puede tener otros valores en `settings`: el número efectivo se mi
 código. Con un tope M, los primeros M no-match van a TusDatos y el siguiente, con el contador en
 `count >= M`, da `ONB005`. Cada incremento vuelve a escribir la clave con la duración completa, así
 que la ventana se cuenta desde el último no-match, no desde el primero. Así, el primer no-match de
-Ágil Data termina decidido por lo que conteste TusDatos. Fue al revés hasta el 2026-06-18: la versión original devolvía
-`false` en los primeros intentos (el error de nombres iba al cliente para corregir) y consultaba TusDatos
-recién al agotarlos; el PR #850 invirtió los dos `return`.
+Ágil Data termina decidido por lo que conteste TusDatos, no por el cliente corrigiendo su nombre.
 
 ## El motivo registrado no dice si el nombre cambió
 
@@ -108,9 +106,17 @@ sin leer lo guardado ni consultar.
 La cascada se detiene en la primera central que da veredicto, en cualquier sentido: si Ágil Data dice
 que el nombre no es de esta persona, Mareigua y TusDatos no se consultan. Sólo pasa a la siguiente
 cuando la central no pudo contestar (falla de transporte, sin registro, o TusDatos sin fecha de
-expedición). No hay contador de intentos ni `shouldValidateTusDatos`. Con una central en `false`,
+expedición o sin ruta para el tipo de documento). La cascada no lleva contador de intentos ni `shouldValidateTusDatos`; el único tope es el de `UpdateInfoService`, que cuenta cada llamada del usuario por hora (setting `mobile_onboarding_update_info_max_attempts_per_hour`, `MOV16015`) y no decide qué central se consulta. Con una central en `false`,
 `UpdateInfoService` responde uno de los rechazos `MOV16008`–`MOV16013`; si ninguna dio veredicto,
 responde `MOV16000` con `validated` en false y sin marcar al usuario como registrado.
+
+TusDatos se consulta por la ruta que corresponde al documento: `CC` va a `validateIdentity` (cuatro partes
+del nombre y fecha de expedición) y `CE` a `validateForeignerIdentity` (sólo la fecha de expedición); cualquier
+otro tipo no se le pregunta, y cuenta como silencio. `UpdateInfoRequest` ya rechaza con `MOV16002` un
+`documentType` distinto de `CC` o `CE`. En una `CE`, TusDatos no devuelve códigos por campo sino el nombre
+completo del registro (`data.nombre_completo`); `TusDatosIdentityValidator::validateForeignerId` lo compara con
+lo guardado con `NameUtils::compare` y `alignedSplit`, sin adoptar nada, y `UpdateInfoService` lo reporta como un
+único rechazo de nombres y apellidos (`names_and_surnames`). Una comparación vacía ahí es un error interno.
 
 Los validadores comparan contra el `users` guardado, no contra lo recién tecleado: el flujo móvil
 escribe los datos antes de llamar a la cascada. El docblock del servicio dice que en el camino

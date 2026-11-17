@@ -32,28 +32,18 @@ marcador. Mientras no se consolida, la persona puede corregir su formulario las 
 
 ## Los desenlaces al validar el OTP (v2)
 
-`ValidateOtpAuthService` (`POST api/v2/onboarding/otp-auth/validate/{partnerBranchId}`), después de
-validar el código y de desviar al codeudor:
+`ValidateOtpAuthService` (`POST api/v2/onboarding/otp-auth/validate/{partnerBranchId}`), después de validar el código y de desviar al codeudor:
 
-1. Resuelve la sucursal; si ella o su comercio no pueden originar, responde `OBV22012` (403) antes
-   de crear o reutilizar la solicitud.
-2. Busca o crea la solicitud del usuario en esa sucursal.
-3. Si el usuario es temporal (y el comercio no es Corbeta) responde `OBV22005`: va al formulario de
-   datos personales.
-4. Si no tiene información laboral **y** no está validado con centrales (lectura local del resumen
-   del usuario, `agildata` o `mareigua` no nulos; no una consulta) responde `OBV22006`: va al
-   formulario laboral. Este corte no mira si el comercio recoge información laboral.
-5. Si no es temporal, firma y envía términos y condiciones (un fallo de esa firma se traga y no
-   cambia la respuesta) y responde `OBV22000` (u `OBV22007` para Corbeta).
+1. Resuelve la sucursal; si ella o su comercio no pueden originar, responde `OBV22012` (403) antes de crear o reutilizar la solicitud.
+2. Refresca los burós de identidad del usuario (`adaptRefreshIdentityBurosResponse` → RiskV2 `RefreshIdentityBurosService`): si ni AgilData, ni Mareigua ni TusDatos tienen una fila de `risk_central_user_data` de menos de 30 días, los consulta en ese orden hasta que uno devuelve datos usables, y lo que compra lo guarda en `user_summaries` (y consolida la cuenta si coincide). Es un efecto lateral síncrono y de mejor esfuerzo: nunca cambia la respuesta, y un fallo sólo se registra. Corre después de los cortes de sucursal, así que un acceso rechazado no compra nada; un usuario temporal o sin documento real no se consulta, y Experian nunca.
+3. Busca o crea la solicitud del usuario en esa sucursal.
+4. Si el usuario es temporal (y el comercio no es Corbeta) responde `OBV22005`: va al formulario de datos personales.
+5. Si no tiene información laboral **y** no está validado con centrales (lectura local del resumen del usuario, `agildata` o `mareigua` no nulos; no una consulta) responde `OBV22006`: va al formulario laboral. Este corte no mira si el comercio recoge información laboral. Como el refresco del paso 2 ya corrió, esta lectura ve lo que acaba de guardar.
+6. Si no es temporal, firma y envía términos y condiciones (un fallo de esa firma se traga y no cambia la respuesta) y responde `OBV22000` (u `OBV22007` para Corbeta).
 
-Corbeta salta los pasos 3 y 4 y, si no hay información laboral, la autocompleta.
+Corbeta salta los pasos 4 y 5 y, si no hay información laboral, la autocompleta.
 
-El v1 (`OnboardingController::validateOtpCodeAndRedirectOrchestrator`,
-`POST api/onboarding/loan-application/otp-validate/{partner_branch_id}`) tiene los mismos cortes con
-`ONB002` (temporal) y `ONB004` (laboral), ambos con HTTP 200, y bloquea la originación con `ONB041`.
-Difiere en que, entre los dos cortes, sí puede consultar centrales (la viabilidad de Experian si
-no hubo pre-aprobación, y `validateRiskCentrals` si el comercio tiene CreditopX), y en que no manda
-al formulario laboral cuando el comercio no recoge información laboral.
+El v1 (`OnboardingController::validateOtpCodeAndRedirectOrchestrator`, `POST api/onboarding/loan-application/otp-validate/{partner_branch_id}`) tiene los mismos cortes con `ONB002` (temporal) y `ONB004` (laboral), ambos con HTTP 200, y bloquea la originación con `ONB041`. También hace el refresco de burós de identidad (`adaptRefreshIdentityBurosResponse`), justo después de ese bloqueo y antes de crear la solicitud, y lo hace además en la entrada con teléfono verificado por el comercio (`startMerchantVerifiedSession`), donde no hay OTP. Difiere en que, entre los dos cortes, sí puede consultar centrales (la viabilidad de Experian, `userViability`, si no hubo pre-aprobación, y `validateRiskCentrals` si el comercio tiene CreditopX), y en que no manda al formulario laboral cuando el comercio no recoge información laboral.
 
 ## Las guardas del formulario, en orden
 

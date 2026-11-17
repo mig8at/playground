@@ -14,16 +14,23 @@ descarta las de otros países que trae el listado. Una plantilla se identifica p
 (`templateKey`); la que viene con `enabled` en falso se muestra y no se puede elegir. Cada `{{n}}`
 distinto del cuerpo es una columna del archivo, en orden numérico (`templateVariables`).
 
-`reviewRecipients` revisa el CSV en el navegador. `parseCsv` parte por líneas y por comas, sin
-comillas, y recorta cada celda. Si no hay encabezado o no hay filas, o si el encabezado no tiene
-exactamente «variables + 1» columnas (cuenta la cantidad, no los nombres), no deja seguir. Después
-`classify` excluye la fila, en este orden: con más celdas que el encabezado; con un celular que no
-cumple `^\d{10}$` (`isNationalPhone`); con una variable vacía; con un celular ya visto en una fila
-válida anterior. `cleanCsv` arma el archivo que se manda al crear con el encabezado y las filas
-incluidas; `excludedCsv` es la descarga con el motivo de cada fila fuera.
+`reviewRecipients` revisa el CSV en el navegador, con el país de la plantilla elegida. `parseCsv` parte
+por líneas y por comas, sin comillas, y recorta cada celda. Si no hay encabezado o no hay filas, o si el
+encabezado no tiene exactamente «variables + 1» columnas (cuenta la cantidad, no los nombres), no deja
+seguir. Después `classify` excluye la fila, en este orden: con más celdas que el encabezado; con un
+celular que no es un celular del país de la plantilla (`phoneProblem` con `isMobilePhone`: diez dígitos,
+`^\d{10}$`, y prefijo `^3` en `CO` o `^(809|829|849)` en `DO`; el motivo distingue vacío, indicativo,
+espacios o guiones, letras o símbolos, cantidad de dígitos y «No es un celular de <país>»); con una
+variable vacía; con un celular ya visto en una fila válida anterior. `cleanCsv` arma el archivo que se
+manda al crear con el encabezado y las filas incluidas; `excludedCsv` es la descarga con el motivo de cada
+fila fuera. El archivo de ejemplo (`exampleCsv`) trae dos celulares válidos del país de la plantilla
+(`SAMPLE_PHONES`).
 
-El mensaje de prueba es un envío real: `testCsv` manda el encabezado y la primera fila incluida a
-`POST …/templates/{templateName}/test` de `BroadcastV1`, al celular de diez dígitos que se escribe.
+El mensaje de prueba es un envío real: `testCsv` manda el encabezado y la primera fila incluida, al celular que se escribe, a
+`POST communications/whatsapp/templates/{templateName}/test` del backoffice, que llega a `SendTestMessageController` de
+`BroadcastV1` (`messages/whatsapp/templates/{templateName}/csv/test`). Ese celular tiene que
+ser un celular del país de la plantilla, con el mismo criterio (`testPhoneError`, que ignora los espacios):
+se valida en el formulario antes de enviar y otra vez en `SendTestMessageUseCase`.
 
 `CreateCampaignRequest::validate` no repite ninguna de esas reglas. Exige `x-user-id` entero
 positivo, `name` de hasta 255 caracteres, `templateName` con `^[A-Za-z0-9_]+$`, `country` en

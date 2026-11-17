@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Transacciones de caja del comercio",
   "summary": "API servidor a servidor de la caja del comercio (MerchantTransactionsV1): token del aliado, códigos de caja del servicio de códigos, consulta y confirmación, cancelaciones, entidad sin llamar y simulación con su perilla.",
-  "reviewedAt": "2026-11-11T13:36:00Z",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -107,8 +107,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "885cd59dc8581496fbc0d64e5bc53046f644c2a2",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "5acc4abb5acfc31b64fe3185df35ae6550e28c8e",
       "sections": [
         "los-codigos-de-caja-los-emite-el-servicio-de-codigos-y-su-recurso-no-esta-en-main"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Credifamilia: fianza y monto de radicación",
   "summary": "Origen de la fianza, fórmula compartida y diferencias de entradas, formatos y respaldo entre SOAP, cuotas y comprobante; Salud y Materiales calculan la fianza distinto. También el plan de pagos: tasas, fechas (días 2 y 16), interés diario, seguro y cuota representativa.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -176,8 +176,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/InstallmentPlan/InstallmentPlanService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "47bcd7e44a95a527fc19f38e94e57fca24740976",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "c6cabc4348f3c6bd0e2de14420294084a3c5c232",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]
@@ -194,8 +194,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Services/PaymentPlan/DelegatedOrigination/LoanOptions/PaymentPlanLoanOptionsService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "43b0b2aac05b12b920e00649f5f457053b9eb360",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "3c17cb496da6ad1900cf66d86fbf67713d7a5977",
       "sections": [
         "el-plan-de-pagos-tasas-fechas-y-cuotas"
       ]

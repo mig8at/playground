@@ -42,6 +42,8 @@ sesión, apagado por defecto; el flavor mock no lo lee y siempre sigue el camino
   a `POST /api/v1/mobile-onboarding/users/confirm-sign-up` de `MobileOnboardingV1` (no la llama la
   app): enlaza el `sub` al usuario de ese país y número o crea uno temporal.
 
+Al validar el OTP en el camino legacy (`validateOtpCodeOrchestor`, también con el usuario de prueba), si ya existe un `users` con ese celular, legacy refresca sus centrales de identidad (Ágil Data, Mareigua y TusDatos) con `RefreshIdentityBurosService`, de forma síncrona y sin cambiar lo que responde el login: sólo compra de nuevo si ninguna tiene una fila vigente (30 días), exige documento real (un temporal sale con `RKV212007`) y nunca consulta Experian. Los códigos `RKV212000`, `RKV212005`, `RKV212006` y `RKV212007` sólo se registran; cualquier otro se registra como advertencia y el login sigue.
+
 En el camino legacy, al validar, `MOBA2009` (409) no es un error: significa que el usuario tiene que
 registrarse. El registro (`register-user`) pide documento (cédula o cédula de extranjería), nombres,
 apellidos, correo, fecha de expedición, ingreso, situación laboral y estrato, y legacy:
@@ -65,13 +67,16 @@ Con el flag, tras el OTP de Cognito la app acepta los términos
 (`/legacy-api/v1/mobile-onboarding/terms-and-conditions/accept`, sin esperar la respuesta) y consulta
 `users/is-temporal`: un temporal va al registro, que manda los mismos datos (`clientData`) a
 `users/update-info` (códigos `MOV16xxx`); si la consulta falla, la app descarta la sesión recién
-creada. `update-info` sólo escribe sobre un usuario temporal creado por el canal móvil
-(`users.mobile_created`) cuyo celular coincide con el del `x-user-id`, rechaza documento o correo de
-otro usuario, guarda los datos antes de consultar las centrales (un rechazo de identidad deja lo
-escrito) y, si una central valida la identidad, marca `users.onboarding_completed`; tiene un tope de
-intentos por hora (`mobile_onboarding_update_info_max_attempts_per_hour`). Borrar la cuenta va por
-`DELETE users` (`MOV14xxx`): se niega si el usuario está inactivo o tiene una solicitud en los estados
-configurados; si no, borra la cuenta del pool y da de baja lógica la fila de `users`.
+creada. `update-info` sólo escribe sobre un usuario creado por el canal móvil
+(`users.mobile_created`, `MOV16007` si no) cuyo onboarding no esté completo (`users.onboarding_completed`,
+`MOV16014` si ya lo está) y cuyo celular coincide con el del `x-user-id` (`MOV16005`); no exige que sea
+temporal. Rechaza documento o correo de otro usuario (`MOV16006`, `MOV16003`), abre una solicitud contra el
+comercio por defecto del mismo setting, guarda los datos antes de consultar las centrales (un rechazo de
+identidad, `MOV16008`–`MOV16013`, deja lo escrito) y, si una central valida la identidad, marca
+`users.onboarding_completed`; cada llamada cuenta contra un tope de intentos por hora
+(`mobile_onboarding_update_info_max_attempts_per_hour`, `MOV16015`). Borrar la cuenta va por
+`DELETE users` (`MOV14xxx`): se niega si el usuario está inactivo (`MOV14004`) o tiene una solicitud en los
+estados configurados (`MOV14006`); si no, borra la cuenta del pool y da de baja lógica la fila de `users`.
 
 Sin el flag, el OTP de Cognito también pregunta `is-temporal` (con tope de tiempo y fallando abierto),
 para mandar al registro a quien quedó temporal con el flag prendido.

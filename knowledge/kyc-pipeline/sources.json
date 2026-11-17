@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Pipeline de KYC por comercio",
   "summary": "Cómo kyc_pipeline_allieds elige por comercio entre la cascada dentro de legacy-backend y el pipeline de customer-profiling-service sobre Temporal, y qué cambia en OTP, datos personales y kyc-processing.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -55,8 +55,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "3bc3579d02b18312ec341a1d5470b93e26a97b57",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8a1e9c05e2c5463de44e83c77e170225930b3eb2",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]
@@ -73,8 +73,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "406bf8a28404f31524280acea1c0bb6b1cd29c05",
-      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino",
         "antes-de-validar-algo-de-identidad-o-centrales"
@@ -130,8 +130,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/workflow.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "2a4480b83390337edf45a44bd3c0db59714ca750",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "2feaac8da476f0531d2c9d61636550afc6d0263d",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais",
         "antes-de-validar-algo-de-identidad-o-centrales",
@@ -187,8 +187,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/providers.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "bfb7c2040e32df61194c452b2c38203161680430",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "73a62e2f50d26284206d5da50e48ac555fedd7f0",
       "sections": [
         "como-termina-la-corrida-y-que-ve-el-wizard"
       ]
@@ -206,8 +206,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/workflow_test.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "bc3184bd4ca59c8b6eeac407f296ad301a259ec1",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "d68f7a78115ef6b0023eeda73d3b24715020915b",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais"
       ]
@@ -260,8 +260,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/walk.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "dac393794fe7f77a7d1838ef6f9c55fe8cd3a5bb",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "d86de8f25132adac14299d3b3eec7291a11df8d1",
       "sections": [
         "el-servicio-recorre-un-grafo-por-tipo-y-pais"
       ]
@@ -269,8 +269,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/domain/provider_requirements.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "2dc9662528693ec0dab31febf6da61e16b463407",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "a4ed05c0ee23251fbb8c37d0c8e724801a41f127",
       "sections": [
         "que-cambia-en-el-wizard-segun-el-camino"
       ]

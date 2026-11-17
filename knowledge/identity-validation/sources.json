@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Validación de identidad: proveedores y cuándo corre",
   "summary": "Qué proveedor valida a la persona después de elegir una entidad que origina en casa (ADO, AWS, CrossCore, Evidente o ninguno), cómo se elige por entidad y en orden, los estados de ADO y su re-validación sólo con selfie, y en qué se diferencia de la validación de datos del tramo común.",
-  "reviewedAt": "2026-11-04T11:33:12+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -100,8 +100,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "d724df6690f53c018f71f0b5853dfe2008dabf93",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "084efde54570ad612f39c92cd5aefacc2732b73e",
       "sections": [
         "cada-entidad-elige-sus-proveedores-en-orden"
       ]

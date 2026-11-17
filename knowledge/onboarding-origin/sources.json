@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Origen del onboarding: canal y backend del usuario",
   "summary": "Quién escribe users.onboarding_channel y users.onboarding_backend en cada front y backend, por qué el canal es write-once a nivel de modelo y por qué el backend puede cambiar después.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -154,8 +154,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/MobileOnboardingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2cc3688440c9c5afa2554012559888753395c860",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "ddb1e99b4bbf1c7245f929deafad7a13941353fe",
       "sections": [
         "donde-se-escribe-en-legacy-backend",
         "limites"
@@ -183,8 +183,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/User.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "a5390759c3d5c096f4def56a2d9d37f652ef3e5d",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "70ab0dea0cd5b4aec4b38575a4012edece095826",
       "sections": [
         "el-canal-se-escribe-una-sola-vez-el-backend-no"
       ]
@@ -246,8 +246,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
       "sections": [
         "quien-declara-el-canal",
         "donde-se-escribe-en-legacy-backend"

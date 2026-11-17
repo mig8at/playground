@@ -49,8 +49,11 @@ ambientes, y hay que comprobar que el otro no tenga diff inesperado.
 
 ## Publicar una ruta en el API Gateway
 
-Las rutas públicas viven en `environments/<ambiente>/api-gateway/terragrunt.hcl`, en la lista `routes`.
-Cada una es un objeto con `route_key` (método y ruta pública, por ejemplo
+Las rutas públicas viven en `environments/<ambiente>/api-gateway/terragrunt.hcl`, repartidas en cuatro
+listas de `inputs`: `routes`, `routes_customers`, `routes_backoffice_legacy` y `routes_backoffice`. El módulo
+`modules/api-gateway` las junta con `concat` y las indexa por `route_key`; se separan para que cada input quede
+bajo el límite de 128 KB de una variable de entorno. Las de legacy-backend para ecommerce, mobile-onboarding y
+`debt-summary` están en `routes`. Cada ruta es un objeto con `route_key` (método y ruta pública, por ejemplo
 `POST /legacy-api/ecommerce/payment-link`), `method`, `authorizer_name` (`null` cuando la autenticación
 la hace el backend, como el token de sucursal de ecommerce; `customer-authorizer` o
 `backoffice-authorizer` cuando la hace Cognito) y `request_parameters` con dos sobrescrituras:
@@ -58,6 +61,12 @@ la hace el backend, como el token de sucursal de ecommerce; `customer-authorizer
 ruta en ese servicio, para legacy-backend con `/api/…`). Un parámetro de ruta seguido de más segmentos
 se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`), porque API Gateway ignora
 la forma sin llaves.
+
+Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le llega (por ejemplo las de
+`/legacy-api/v1/mobile-onboarding/…`) agregan dos sobrescrituras más, tomadas del contexto del authorizer:
+`overwrite:header.x-user-id` (`$context.authorizer.internal_id`) y `overwrite:header.x-cognito-identity-id`
+(`$context.authorizer.cognito_sub`). Así un valor mandado por quien llama no llega al backend. No todas las
+rutas de cliente las llevan: `GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`.
 
 Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint
 desplegado no basta. Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la

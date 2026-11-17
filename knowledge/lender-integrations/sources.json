@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Entidades integradas: reglas propias de cada una",
   "summary": "Reglas por entidad con su porqué en Jira: la compuerta de buró de Prami y su policy_blocked en el asistente, las cuatro variantes de Welli con Sonría aparte y pendiente_desembolso en 28 (legacy-application) o 11 (legacy-backend), los reintentos y el 401 de Meddipay, Sistecrédito oculto al moroso sólo en el camino viejo (el asistente nuevo lo aprueba), el NIT de Corbeta que marca el canal en Bancolombia BNPL, los estados de Crédito 365, el endpoint de UMA y la probabilidad oculta por convenio o comercio.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -217,8 +217,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
       "sections": [
         "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
@@ -226,8 +226,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
         "sistecredito-al-moroso-lo-oculta-solo-el-camino-viejo"
       ]
@@ -307,8 +307,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Http/Controllers/Admin/AlliedLenderController.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "74eacf879b86177281c54641fdf21e65c0de6978",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "c84cea12eb74690396114c9e5a9bda8d0a1430c4",
       "sections": [
         "probabilidad-oculta-por-convenio-o-por-comercio"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cupo mensual y mandato de CreditopX",
   "summary": "Cupo mensual por perfil CreditopX: cálculo, carga, reinicio y backoffice; el cupo del log, el creditCard nulo del buró y el mandato de la entidad.",
-  "reviewedAt": "2026-11-11T14:57:37+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -28,8 +28,8 @@
     {
       "repo": "legacy-backend",
       "path": "app/Models/LenderUsersCategory.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "d33b4c4f90ec9d790b9ecec49fa48246602abe76",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "d2ee3b2673e7c52ee1d8dd8fe668e875a5475bcc",
       "sections": [
         "el-cupo-es-una-bolsa-mensual-por-perfil"
       ]
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
       "sections": [
         "se-carga-al-autorizar-con-la-fila-bloqueada"
       ]
@@ -102,8 +102,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/routes/backoffice.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "15e30e999b55874a2abf1c9f97bb2f346a2cd945",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "0b184a75eac03d3d0dbbc41c84b96c67499da053",
       "sections": [
         "el-dia-1-se-reinicia-y-el-backoffice-puede-reiniciar-o-cambiar-el-tope"
       ]
@@ -185,8 +185,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/backoffice/lender-rules/src/components/LenderRulesView.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "bf25b77591685c3dd1932a580648819a8c3d8376",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "4b9e691e01cff02e29aa06f0ffa77bb73ffd92c0",
       "sections": [
         "el-mandato-no-frena-ninguna-originacion"
       ]

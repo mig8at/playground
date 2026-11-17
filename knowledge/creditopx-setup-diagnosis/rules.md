@@ -57,11 +57,44 @@ de otorgación especial, y a una rotativa sólo le edita la política, sin perfi
 datacrédito se escribe en la fila sin sucursal (la crea si falta) y se copia a las filas por
 sucursal. Los perfiles (`lender_users_categories` y sus `lender_users_category_rules`) se
 sincronizan con el orden de la pantalla en `priority`, que es lo que ordena la evaluación; `order`
-es sólo un espejo. `already_used_loan` nunca se escribe desde ahí. Un perfil se puede desactivar
-(`lender_users_categories.active`): conserva sus filas para el historial, el motor de categorías de
-`legacy-backend` sólo carga reglas de categorías activas y el readiness no lo cuenta como perfil
-evaluable. El servicio de categorías de `legacy-application` no filtra por `active`. Un perfil con
-asignaciones, productos o historial de cupo mensual no se puede borrar; se desactiva.
+es sólo un espejo. `already_used_loan` nunca se escribe desde ahí. Sobre una categoría que otra
+entidad también usa, el guardado sólo lee y escribe las filas de criterios con el `lender_id` de la
+entidad que guarda (`LenderRulesService::ownRuleOf` / `ownRulesQuery`): si la entidad no tiene fila
+propia en el tipo, la crea aunque la categoría tenga una ajena, y nunca reescribe la de otra
+entidad. `template_key` (la marca del estándar, p. ej. `premium_plus`) se escribe sólo al crear el
+perfil; en uno existente manda la marca guardada.
+
+Un perfil se puede desactivar (`lender_users_categories.active`): conserva sus filas para el
+historial, el motor de categorías de `legacy-backend` sólo carga reglas de categorías activas y el
+readiness no lo cuenta como perfil evaluable. El servicio de categorías de `legacy-application` no
+filtra por `active`. Un perfil con asignaciones, productos o historial de cupo mensual no se puede
+borrar; se desactiva. Tampoco se puede borrar el que quita el documento si su categoría también
+tiene filas de criterios de otra entidad (`assertCategoriesNotUsedByOtherLenders`): 422 en
+`profiles`, con el guardado revertido. Esa validación (`assertProfilesRemovable`) corre antes de
+escribir y también en el `/diff`, para que el modal de revisión no muestre un borrado que el
+guardado va a rechazar. Un perfil que además tiene fila de codeudor no se borra: se le quitan las
+etapas del titular (filas tipo 1 y 2 de la entidad) y la categoría sigue para el codeudor.
+
+Premium Plus: en una entidad de consumo (`response_type` 2) de política genérica (no rotativa ni de
+política especial), todo guardado del documento de reglas exige al menos un perfil Premium Plus
+activo (`assertPremiumPlusProfiles`; 422 en `profiles` si no). Es Premium Plus un perfil con
+`template_key = premium_plus` (uno nuevo con `templateKey: premium_plus` o uno existente ya
+marcado). Cada Premium Plus activo necesita `maxAmount` (monto a financiar) y `loanLimit` (cupo
+mensual) mayores que 0; el documento no puede quitar ni apagar el único activo, y no puede crear un
+segundo Premium Plus (con dos ya marcados se puede quitar o apagar uno mientras quede otro activo).
+El cupo permanente de un Premium Plus tampoco puede quedar en 0 desde la pantalla de cupos
+(`saveProfileLoanLimit`); el override del mes (`period_loan_limit`) no pasa por esa regla.
+
+El estándar de criterios de Premium Plus (etapa inicial) se lee y se guarda en
+`GET`/`PUT profile-templates/premium-plus` (`ProfileTemplateController`,
+`ProfileTemplateWriterService`), fuera de cualquier entidad. Guardarlo propaga cada criterio que
+cambió a los perfiles marcados: el que tenía el valor anterior del estándar toma el nuevo y el que
+tenía otro lo conserva (`LenderRulesWriterService::followProfileTemplate`). Escribe sólo las columnas
+de esos criterios en la fila tipo 1 propia del perfil, versiona cada entidad tocada en su historial
+con el actor, y no pasa por la regla de Premium Plus: guardar el estándar funciona aunque una
+entidad tenga el suyo apagado o en $0. El readiness (`LenderReadinessService`) avisa
+`premiumPlusProfileMissing` (ningún perfil Premium Plus) y `premiumPlusProfileInactive` (todos
+apagados) en las entidades de consumo de política genérica.
 
 El guardado puede llevar un documento de soporte (`LenderRulesSupportDocumentService`): sólo se
 acepta si el guardado cambia algo, se sube dentro de la misma transacción y queda referenciado en el

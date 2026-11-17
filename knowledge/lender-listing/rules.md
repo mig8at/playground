@@ -32,37 +32,13 @@ del servicio no demuestra que ambos recorridos decidan lo mismo.
 
 ## El último guardado del perfilamiento es lo que vio el cliente
 
-Al armar el listado, `ProfilingReviewController::store` guarda en `profiling_reviews.displayed_lenders`
-cada entidad con su probabilidad, `weighted_score` y porcentaje, y el monto disponible sólo para
-algunas entidades (CreditopX preaprobado, Sistecrédito, Welli, Meddipay). Cuando terminan de resolverse
-las consultas de preaprobación, el asistente nuevo manda las entidades visibles al endpoint
-`lender-results` (`ListLenderController::storeLenderResults`) por dos caminos: el loader de
-`available-lenders` lo hace desde el servidor cuando se resuelven todas las promesas que lanzó
-(`postLenderResultsWhenSettled`, que arma la misma vista que la pantalla con
-`buildServerLenderResultsPayload`), y `AvailableLenders` lo hace desde el navegador al cargar y tras
-cada reintento exitoso (`buildLenderResultsPayload`). Los dos llevan `run_started_at_ms`, el momento en
-que arrancó la corrida del loader.
+Al armar el listado, `ProfilingReviewController::store` crea la revisión del perfilamiento y guarda en `profiling_reviews.displayed_lenders` cada entidad con su probabilidad, `weighted_score` y porcentaje, y el monto disponible sólo para algunas entidades (CreditopX preaprobado, Sistecrédito, Welli, Meddipay). Si la revisión de la solicitud ya existe y todavía no tiene snapshot de resultados (`run_started_at_ms` nulo), `store` la reescribe: `displayed_lenders` y `recommended_lender` salen del listado recién armado (`seedDisplayedLenders`). Si ya lo tiene, `store` conserva `displayed_lenders` y `recommended_lender` y sólo actualiza `hard_rules` y `ML_predictions`: el wizard vuelve a llamar a `lenders-v2` cuando refresca una entidad ya aprobada (cambio de monto o cuota inicial) y no manda otro snapshot, así que reescribirlas dejaría la revisión con las bandas del perfilador en lugar de los resultados de preaprobación. Una corrida nueva reemplaza la revisión por `replaceLenderResults`.
 
-`replaceLenderResults` bloquea la fila de `user_requests` y la revisión vigente (`lockForUpdate`),
-igual que `store`, `updateAsyncLender`, `updateSelectedLenders` y `updateDisbursedLender`, así que los
-guardados de una misma solicitud van en fila. Un snapshot con `run_started_at_ms` anterior al de la
-revisión vigente es de una corrida vieja y se descarta sin tocar nada (`stale_run`). Si coincide con
-la revisión vigente (mismas entidades y mismo recomendado) no crea otra y sólo adelanta
-`run_started_at_ms`. Si no, archiva la revisión vigente y crea otra con exactamente esas entidades,
-conservando `hard_rules`, `selected_lenders` y las predicciones: una oculta por el asistente
-(respaldo, Welli Risk, error del servidor) desaparece, no queda «Rechazado». El docblock de
-`storeLenderResults` dice lo contrario; el código las descarta. `recommended_lender` sale de la
-primera entidad del snapshot, que el asistente ordena con la tarjeta recomendada primero; el campo
-`recommended_lender` del request queda sin efecto.
+Cuando terminan de resolverse las consultas de preaprobación, el asistente nuevo manda las entidades visibles al endpoint `lender-results` (`ListLenderController::storeLenderResults`) por dos caminos: el loader de `available-lenders` lo hace desde el servidor cuando se resuelven todas las promesas que lanzó (`postLenderResultsWhenSettled`, que arma la misma vista que la pantalla con `buildServerLenderResultsPayload`), y `AvailableLenders` lo hace desde el navegador al cargar y tras cada reintento exitoso (`buildLenderResultsPayload`). Los dos llevan `run_started_at_ms`, el momento en que arrancó la corrida del loader.
 
-Cada entidad conserva `weighted_score` y porcentaje del primer guardado; aprobada queda «Pre
-aprobado» o el texto enviado, con su monto; cualquier otro estado queda con monto 0 y la etiqueta de
-su tarjeta («Rechazado», «Sin cupo disponible», «No consultado por políticas internas», «error»…), o
-la probabilidad original si no tenía estado. El resultado de una sola entidad (Credifamilia, y el
-endpoint `lender-result`, que en `main` no tiene llamador activo: pre-approvals-service lo llama
-detrás de `legacyLenderResultEnabled = false`) usa `updateAsyncLender`, que reescribe esa entrada
-sobre la revisión vigente sin sacar a las demás. La vuelta de Cuotéalo no lo usa: sólo marca la
-entidad desembolsada con `updateDisbursedLender` (`CuotealoReturnResolver`).
+`replaceLenderResults` bloquea la fila de `user_requests` y la revisión vigente (`lockForUpdate`), igual que `store`, `updateAsyncLender`, `updateSelectedLenders` y `updateDisbursedLender`, así que los guardados de una misma solicitud van en fila. Un snapshot con `run_started_at_ms` anterior al de la revisión vigente es de una corrida vieja y se descarta sin tocar nada (`stale_run`). Si coincide con la revisión vigente (mismas entidades y mismo recomendado) no crea otra y sólo adelanta `run_started_at_ms`. Si no, archiva la revisión vigente y crea otra con exactamente esas entidades, conservando `hard_rules`, `selected_lenders` y las predicciones: una oculta por el asistente (respaldo, Welli Risk, error del servidor) desaparece, no queda «Rechazado». El docblock de `storeLenderResults` dice lo contrario; el código las descarta. `recommended_lender` sale de la primera entidad del snapshot, que el asistente ordena con la tarjeta recomendada primero; el campo `recommended_lender` del request queda sin efecto.
+
+Cada entidad conserva `weighted_score` y porcentaje del primer guardado; aprobada queda «Pre aprobado» o el texto enviado, con su monto; cualquier otro estado queda con monto 0 y la etiqueta de su tarjeta («Rechazado», «Sin cupo disponible», «No consultado por políticas internas», «error»…), o la probabilidad original si no tenía estado. El resultado de una sola entidad (Credifamilia, y el endpoint `lender-result`, que en `main` no tiene llamador activo: pre-approvals-service lo llama detrás de `legacyLenderResultEnabled = false`) usa `updateAsyncLender`, que reescribe esa entrada sobre la revisión vigente sin sacar a las demás. La vuelta de Cuotéalo no lo usa: sólo marca la entidad desembolsada con `updateDisbursedLender` (`CuotealoReturnResolver`).
 
 ## Welli Risk depende de la sucursal, de la consulta compartida y de la comisión del aliado
 

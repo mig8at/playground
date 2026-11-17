@@ -161,11 +161,9 @@ edad que devuelve Ágil Data; si fue Mareigua o TusDatos, se calcula desde la fe
 entonces es la estimada, más baja cuanto más tarde se expidió el documento. Si el comercio no recauda
 la expedición, el criterio de edad se salta. Las listas usan ids fijos, y el mismo id puede ser otro comercio en otra base.
 
-La información laboral sale primero de las centrales. Si respondió Ágil Data o Mareigua, el backend
-completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la
-pantalla de empleo no se muestra. Si ninguna contestó, la pide el formulario (`ONB004`), salvo que el
-comercio no la recaude. Los comercios de Corbeta reciben valores por defecto (1.500.000, empleado,
-continuidad 3) en vez de la pantalla.
+La información laboral sale primero de las centrales, pero sólo de un informe reciente. Ágil Data o Mareigua cuentan si tienen una fila en `risk_central_user_data` de los últimos 30 días (`IDENTITY_BUREAU_FRESHNESS_DAYS`) y su resumen reporta empleo, independiente o pensión (`OnboardingService::identityBureausHaveFreshIncome`). Con eso, el backend completa ocupación, ingreso y continuidad con el resumen de la que contestó (primero Ágil Data) y la pantalla de empleo no se muestra. Que haya sesión de Ágil Data o Mareigua ya no basta: si ninguna tiene un informe reciente con empleo, no se escribe nada de ahí.
+
+Si las centrales de identidad no trajeron ingreso, lo puede traer Quanto, pero sólo si la compra forzada de Experian resuelve a `aciertaQuanto`: el comercio o un lender de la sucursal está en el setting `experian_trigger_bypass_rules` y las centrales de identidad no tienen datos recientes (`resolveForcedExperianProduct`; si sí los tienen, o si la sucursal sólo tiene un lender CreditopX, se compra `creditScore` y no hay ingreso de Quanto). Con ese informe, el ingreso es el promedio mensual de Quanto (producto 62, en pesos), con ocupación `Empleado` y continuidad 3 (`storeQuantoLaborInformation`); si Quanto no trae ingreso, no se escribe nada. Si tampoco hay laboral por ninguna vía, la pide el formulario (`ONB004`), salvo que el comercio no la recaude (`allieds.collect_employment_info`). Los comercios de Corbeta (setting `corbeta_allieds`) y el flujo Pash reciben valores por defecto (1.500.000, empleado, continuidad 3) en vez de la pantalla, igual que el bypass de documentos de extranjería (PEP).
 
 ## El riel 4 paso a paso: qué es del riel y qué es de Credifamilia
 

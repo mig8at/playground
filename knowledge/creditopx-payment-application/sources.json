@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cómo entra y se aplica un pago CreditopX",
   "summary": "La cascada del pago mínimo, qué se hace con el sobrante (pago total, abono o retenido), la idempotencia por transacción y cómo llega el pago por Wompi (intención, webhook, vista previa pública y su token, consulta de estado), la cuota inicial y la caja de Pullman, en los dos monolitos.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -33,8 +33,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "0fd53fbfe91429b6cd0de8427464e8fc99b6ec7d",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "ba9f215d61f709d5b3688b3f11153f9ed60c724f",
       "sections": [
         "dos-motores-con-la-misma-cascada"
       ]
@@ -278,8 +278,8 @@
     {
       "repo": "legacy-backend",
       "path": "config/services.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "885cd59dc8581496fbc0d64e5bc53046f644c2a2",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "5acc4abb5acfc31b64fe3185df35ae6550e28c8e",
       "sections": [
         "wompi-intencion-y-webhook",
         "wompi-vista-previa-publica"
@@ -397,8 +397,8 @@
     {
       "repo": "legacy-application",
       "path": "app/Models/Lender.php",
-      "commit": "1755ab4fa3a50cac5669cdff4826131979a15def",
-      "blob": "c85c665ba8db2ddaa34fc0460171ca09de951e3f",
+      "commit": "7aaadd1bd56afffb54179c798d3886974f8e2672",
+      "blob": "eb2352b9117b24f88f8d5931a4c130168042127d",
       "sections": [
         "que-pasa-con-el-sobrante"
       ]
@@ -406,8 +406,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
       "sections": [
         "dos-motores-con-la-misma-cascada"
       ]

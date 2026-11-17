@@ -2,7 +2,7 @@
   "version": 1,
   "title": "KYC nuevo: qué camino toma una solicitud y cuándo se consulta Experian",
   "summary": "Cómo el pipeline de KYC elige grafo (STANDARD, CREDITOP_X, PULLMAN, DFS) por sucursal, cuándo salta una central por dato vigente y en qué orden decide el disparador de Experian, con su bypass, su frecuencia y la variante que compra.",
-  "reviewedAt": "2026-11-03T03:19:35+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -34,8 +34,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/workflow.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "2a4480b83390337edf45a44bd3c0db59714ca750",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "2feaac8da476f0531d2c9d61636550afc6d0263d",
       "sections": [
         "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal",
         "pullman-y-dfs-un-override-en-el-servicio",
@@ -45,8 +45,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/providers.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "bfb7c2040e32df61194c452b2c38203161680430",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "73a62e2f50d26284206d5da50e48ac555fedd7f0",
       "sections": [
         "el-tipo-de-grafo-lo-deduce-el-backend-por-sucursal",
         "lo-que-el-servicio-hace-con-el-veredicto"
@@ -64,8 +64,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/activities.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "4ebc385832c7e870ad61a17a8cde070b8c796697",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "a8bb9489acddf12d8bfbb555188e23d693683a64",
       "sections": [
         "pullman-y-dfs-un-override-en-el-servicio"
       ]
@@ -100,8 +100,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/workflow_test.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "bc3184bd4ca59c8b6eeac407f296ad301a259ec1",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "d68f7a78115ef6b0023eeda73d3b24715020915b",
       "sections": [
         "los-cuatro-grafos"
       ]
@@ -118,8 +118,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/core/workflows/legacykycpipeline/walk.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "dac393794fe7f77a7d1838ef6f9c55fe8cd3a5bb",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "d86de8f25132adac14299d3b3eec7291a11df8d1",
       "sections": [
         "los-cuatro-grafos",
         "antes-de-cada-central-el-dato-vigente",
@@ -129,8 +129,8 @@
     {
       "repo": "customer-profiling-service",
       "path": "internal/infra/clients/legacy_client.go",
-      "commit": "09c0703ffe6e662bac6d4fc58fa715c1f808a914",
-      "blob": "601fcbe57e4d04b8f158fe12b043af4f116924cd",
+      "commit": "b60e0d474962bc0e933240402e86c17ca4408d5a",
+      "blob": "bd8efabced35be605d73477150e5d7b3d74ae2bf",
       "sections": [
         "antes-de-cada-central-el-dato-vigente",
         "lo-que-el-servicio-hace-con-el-veredicto"
@@ -139,8 +139,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/RiskV2/routes/api.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "2a9610c9ba81cc47afc707da1c5e14d91616257f",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "980423fa880a2fa9620c501097e1cc635d875223",
       "sections": [
         "antes-de-cada-central-el-dato-vigente",
         "el-disparador-etapa-por-etapa"
@@ -158,8 +158,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/RiskV2/App/Services/GetRiskCentralDataService.php",
-      "commit": "c03edaffa465bd07bceccd4076af5d1cec9916b9",
-      "blob": "e70c3916c09d2ce3d7f2b5785bf0395a32185392",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "afbc591d74f88c260ac0d12f98dcee63ad20a8bf",
       "sections": [
         "antes-de-cada-central-el-dato-vigente"
       ]
@@ -249,8 +249,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Risk/App/Http/Controllers/DatacreditoQueryByAlliedController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "f7a45502d44e4d17e6d4c4f1871310a12b957f0a",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8c643a7682b54e20a6eaa50d042680d99e535b1a",
       "sections": [
         "el-disparador-viejo-en-los-dos-monolitos"
       ]
@@ -258,8 +258,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
       "sections": [
         "el-disparador-viejo-en-los-dos-monolitos"
       ]

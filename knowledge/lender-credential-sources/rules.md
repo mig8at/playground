@@ -14,8 +14,16 @@ de un lender y, por morph `allied_type`/`allied_id`, de un comercio (`Allied`) o
 cuelga de una central (`risk_central_id`) y, por morph `credentialable`, de un `Lender`, un `Allied` o un
 `AlliedBranch`; la clave única es central + tipo + id, y tiene borrado lógico. Las integraciones de entidades
 (Bancolombia, Banco de Bogotá, Credifamilia, Sistecrédito, Wompi, Approbe…) leen la primera; Deceval y Experian
-la segunda en los dos monolitos, y ADO sólo en legacy-backend: el `AdoController` de legacy-application arma la
-llamada directamente desde `config('services.ado.*')`. El modelo `LenderAlliedCredential` es idéntico en los
+la segunda en los dos monolitos, por `RiskCentralCredential::findForUserRequest`. ADO y Mareigua la leen sólo en
+legacy-backend: el `AdoController` de legacy-application arma la llamada directamente desde
+`config('services.ado.*')`.
+
+Mareigua no usa `findForUserRequest` sino `RiskCentralCredential::forBranchLenders`: como su consulta del
+onboarding sale antes de que el cliente elija entidad, recorre las entidades de la sucursal (asociaciones
+`lenders_by_allied_branches` con `status = 1` y entidad activa) y toma las credenciales de la central colgadas de
+esos `Lender`. Devuelve todas, en orden fijo (id de la entidad y luego id de la credencial), y `Mareigua::getCredentials`
+usa la primera; si ninguna entidad de la sucursal tiene credencial, cae a `config('services.mareigua.*')`. No mira
+las filas de comercio ni de sucursal. `findForUserRequest` no cambió. El modelo `LenderAlliedCredential` es idéntico en los
 dos monolitos.
 
 ## Credencial de entidad: sucursal primero, comercio después
@@ -46,6 +54,15 @@ al azar (el efecto sobre el pagaré está en
 [deceval-promissory-note](../deceval-promissory-note/rules.md#la-credencial-del-depositante)). Experian y
 ADO, cuando no encuentran fila, arman una credencial en memoria desde
 `config('services.experian.<producto>.*')` o `config('services.ado.*')`; Deceval no tiene ese respaldo.
+
+Mareigua en legacy-backend no usa `findForUserRequest`: `Mareigua::getCredentials($userRequest)` llama a
+`RiskCentralCredential::forBranchLenders(central, allied_branch_id)`, que devuelve las credenciales de esa
+central colgadas de los `Lender` activos asignados a la sucursal (`LendersByAlliedBranch.status = 1`), en
+orden fijo por id de la entidad y luego por id de la credencial, y se usa la primera. Se mira la sucursal y no
+la entidad de la solicitud porque la consulta del onboarding sale antes de que el cliente elija entidad. Si
+ninguna entidad de la sucursal tiene credencial, o no hay solicitud, arma una en memoria desde
+`config('services.mareigua.*')`. `MareiguaService::validateUserMareiguaV2` pasa la solicitud (`UserRequest::find`)
+para que esa elección ocurra. Las llaves de la credencial son `mareigua_username` y `mareigua_password`.
 
 En ADO de legacy-backend, la búsqueda vale para crear la transacción: el enroll guarda en el `request`
 del registro de `risk_central_user_data` el `credential_id` con que la creó (null si salió de config).

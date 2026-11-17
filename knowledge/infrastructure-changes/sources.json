@@ -2,13 +2,13 @@
   "version": 1,
   "title": "Infraestructura: cómo se propone y se aplica un cambio",
   "summary": "Repo infrastructure: PR por rama, un ambiente por PR (development y luego prod), sin plan ni apply local, apply manual desde main, reglas del PR, cómo se publica una ruta en el API Gateway y qué backend elige cada ruta en development.",
-  "reviewedAt": "2026-11-11T20:40:00+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "infrastructure",
       "path": "README.md",
-      "commit": "c445dff514f7965c6691f40ab0aface18e7fd2e6",
-      "blob": "22255fc1c14ea60dc5c9a1263030db3d6e4f8d28",
+      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
+      "blob": "3e363078ae4de6bc59531008e4f48f5911877276",
       "sections": [
         "que-es-el-repo-y-que-cuentas-maneja",
         "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main",
@@ -21,8 +21,8 @@
     {
       "repo": "infrastructure",
       "path": ".github/workflows/pr-checks.yml",
-      "commit": "c445dff514f7965c6691f40ab0aface18e7fd2e6",
-      "blob": "7f7c3de93e8e584fb9901bd06b210e43473ef31b",
+      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
+      "blob": "7f42198a51a963701a63aef49737da5b76b8478b",
       "sections": [
         "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main",
         "un-pr-toca-un-solo-ambiente-primero-development-despues-prod"
@@ -31,8 +31,8 @@
     {
       "repo": "infrastructure",
       "path": ".github/workflows/deploy-infra.yml",
-      "commit": "c445dff514f7965c6691f40ab0aface18e7fd2e6",
-      "blob": "b43773e684f5821a12307f2bc60ff1fd21728251",
+      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
+      "blob": "05ddc4cf2def1c762abfde0917a1a759422e90b3",
       "sections": [
         "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main"
       ]
@@ -40,8 +40,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/development/api-gateway/terragrunt.hcl",
-      "commit": "c445dff514f7965c6691f40ab0aface18e7fd2e6",
-      "blob": "230c5cd5c6ed8ef6952fdb75e1b9086a454d7409",
+      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
+      "blob": "fa320e1b18ff51fb3986fb7507dc7cb7def712ff",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"
@@ -50,8 +50,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/prod/api-gateway/terragrunt.hcl",
-      "commit": "c445dff514f7965c6691f40ab0aface18e7fd2e6",
-      "blob": "9e344719a4be9a862eee6fd2d102002b1922a156",
+      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
+      "blob": "e093b57db56e3cdeb91ce2b8f08c7b0018ce6328",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"

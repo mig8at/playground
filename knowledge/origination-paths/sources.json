@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Recorrido de una solicitud: canal, riel y variaciones",
   "summary": "El vocabulario para describir el camino de una solicitud —canal, tramo común, riel, producto, variaciones, campos, ajustes y desenlace—, qué activa cada variación y qué decide cada campo del formulario.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -154,8 +154,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Backoffice/App/Services/LenderReadinessService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "20c9fc4087bf94dbff2fddd6f097d290d82e572a",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "0cc74b87d58c88bb8402d58de43806d8dd0495e0",
       "sections": [
         "desenlace-como-termina"
       ]
@@ -172,8 +172,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
       "sections": [
         "variaciones-y-ajustes"
       ]
@@ -181,8 +181,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
         "campos-que-pide-el-formulario-en-cada-comercio"
       ]

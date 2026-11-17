@@ -137,21 +137,23 @@ otro fallo → `retry`. Como `retry` no se persiste, la siguiente llamada de VTE
 `refund` no llama a Creditop: niega siempre con `refund-manually` y guarda la respuesta por
 `paymentId-requestId`. La devolución se tramita fuera del conector.
 
-## En main del repo shopify sólo hay un README y la comparación con Shopify no se puede sostener
+## La app de Shopify es una Payments App offsite: payment-link, aviso firmado y estado confirmado por Creditop
 
-En la ref `main` del repo `shopify` el árbol contiene únicamente `README.md`, con el título y sin
-contenido; la app vive en ramas sin mergear (`develop`). Su mecanismo (enlace, credenciales,
-captura, cancelación, reembolso) no se describe acá, y cualquier afirmación sobre ella debe
-salir de la rama donde viva, con ese estado dicho.
+La app de Shopify vive en `main` del repo `shopify`: una Payments App *offsite* (React Router, Prisma sobre Postgres, imagen con `Dockerfile` desplegada en ECS por los workflows de `.github/workflows/`). Su extensión `extensions/creditop-offsite` es de tipo `payments_extension`, con `supported_payment_methods = ["generalfinancing"]`, país CO y sin captura ni anulación declaradas.
 
-El lado de Creditop del aviso a Shopify sí está en `main` de legacy-backend: `ShopifyNotifier`
-(`Modules/Onboarding/App/Services/Ecommerce/ShopifyNotifier.php`), registrado en
-`config/ecommerce.php` para `ecommerce_id = 4`, y la migración
-`2026_10_19_120000_seed_shopify_ecommerce.php`, que siembra ese id en el catálogo `ecommerces`.
+Mecanismo, por pieza:
 
-Lo que sí distingue a VTEX y sirve de vara al comparar otro conector:
+- **Enlace.** Shopify llama a `payment_session_url` (`app/routes/payments.session.tsx`) con `Shopify-Shop-Domain`. La app rechaza la sesión si la moneda no es COP (`INVALID_CURRENCY`) o si `kind` no es `sale` (`authorization`, captura manual: `PROCESSING_ERROR`); si no, busca la sucursal de la tienda en `CreditopShop` y pide `POST {api}/ecommerce/payment-link` (`requestPaymentLink`) con el token de la sucursal como Bearer y el id de la sesión como `order_key`. Responde `redirect_url` (si no es HTTPS, el wizard local, pasa por `/payments/go/{sessionId}`). El id de la sesión deduplica los reintentos de Shopify (`CreditopPaymentSession`).
+- **Credenciales.** Una tienda es una sucursal: el comercio carga el hash de la sucursal y su token de ecommerce en la pantalla de la app (`app/routes/app._index.tsx`). El token se guarda cifrado con AES-GCM en `CreditopShop.token` (llave `CREDITOP_TOKEN_KEY`, obligatoria con `NODE_ENV=production`) y al navegador sólo llegan sus últimos 4 caracteres. Antes de activar el medio de pago, `checkBranchToken` consulta un pedido inexistente en `ecommerce/status`: 401 o 403 es token inválido.
+- **Ambiente.** Lo decide el despliegue, no la tienda: `CREDITOP_ENVIRONMENT=develop` usa la API de desarrollo y sin la variable se usa producción; `CREDITOP_API_URL` pisa las dos. Una sesión de prueba (`test: true`) contra producción no entra al wizard: va a una página de prueba de la app (`simulatedTestSession`) que simula el resultado sin hablar con Creditop.
+- **Desenlace.** Creditop avisa al `webhook_url` que la app mandó al crear el pedido (`app/routes/webhooks.creditop.tsx`), firmado con `?s=<sesión>&sig=<HMAC>`; la firma sólo dice de qué sesión se trata. El `status` del cuerpo no decide: `settle` (`app/settlement.server.ts`) pregunta `GET {api}/ecommerce/status/{order_key}` (`orderStatus`: `completed`, `failed`, `cancelled`; todo lo demás es `pending`) y `settlementAction` (`app/settlement-rules.ts`) lo aplica en Shopify: `completed` resuelve la sesión (`paymentSessionResolve`), `failed` la rechaza con `INSTRUMENT_DECLINED`, `cancelled` con `CANCELLED_PAYMENT`, y un aviso `pending payment` la deja pendiente (`paymentSessionPending`). Un resultado final (`resolved`, `rejected`) no se vuelve a aplicar. Un conciliador (`reconcile`, cada `CREDITOP_RECONCILE_MINUTES`, 10 por omisión) repasa las sesiones `redirected`, `pending` o `error:*` de los últimos 3 días, por si el aviso no llegó o Shopify rechazó la mutación.
+- **Captura, cancelación y reembolso.** No hay captura manual (se rechaza `authorization`) ni cancelación desde la tienda. El reembolso (`app/routes/payments.refund.tsx`) responde 201 y rechaza la sesión de reembolso (`refundSessionReject`) con un mensaje al comercio para que lo gestione con Creditop; sólo en modo de prueba lo aprueba (`refundSessionResolve`).
 
-- las credenciales de la sucursal llegan por petición desde la afiliación, sin almacenamiento propio;
-- el ambiente es configuración por cuenta y workspace, con producción como valor por omisión;
-- el desenlace lo confirma el conector preguntando el estado, y el aviso sólo dispara el reintento;
+El lado de Creditop del aviso está en `main` de legacy-backend: `ShopifyNotifier` (`Modules/Onboarding/App/Services/Ecommerce/ShopifyNotifier.php`), registrado en `config/ecommerce.php` para `ecommerce_id = 4`, hace `POST` JSON a `process_url` (el `webhook_url` de la app) con `orderId`, `approvedAmount`, `currency`, `status`, `statusTimestamp`, `paymentType` y `transactionId`, sin cabeceras de autenticación (la firma va en la URL). La migración `2026_10_19_120000_seed_shopify_ecommerce.php` siembra ese id en el catálogo `ecommerces`.
+
+Lo que distingue a VTEX y sirve de vara al comparar otro conector:
+
+- las credenciales de la sucursal llegan por petición desde la afiliación, sin almacenamiento propio (Shopify, en cambio, guarda el token cifrado por tienda);
+- el ambiente es configuración por cuenta y workspace, con producción como valor por omisión (en Shopify es una variable del despliegue, con el mismo valor por omisión);
+- el desenlace lo confirma el conector preguntando el estado, y el aviso sólo dispara el reintento (igual en Shopify);
 - capturar es una confirmación de estado, cancelar se delega en Creditop y reembolsar es manual.

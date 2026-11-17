@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Cliente temporal y consolidado al validar el OTP y guardar datos personales",
   "summary": "Qué decide legacy-backend al validar el OTP y al guardar datos personales según el usuario sea temporal o consolidado: desenlaces del OTP v2 y v1, guardas del formulario v2, el documento inmutable, qué columnas puede corregir un consolidado y por qué su reenvío por v1 choca con su propio correo y documento.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -27,8 +27,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Services/OnboardingService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "2b8146b5aa65d80b144d70c774b1d12cce4c9fa3",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "b18993b078403415d7135bb2a8d70c5298ad5456",
       "sections": [
         "temporal-y-consolidado",
         "las-guardas-del-formulario-en-orden"
@@ -37,8 +37,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/UsersV1/App/Services/IsTemporalUserService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "b5c2a81d438df119c3dc986678a60e6b9bada30b",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "3ea677b02cf76de7ea971b6566ba77525160aaa8",
       "sections": [
         "temporal-y-consolidado",
         "que-puede-cambiar-un-consolidado"
@@ -56,8 +56,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/RiskV2/App/Services/StoreRiskCentralDataService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "bbc75b207fc41fee3b68f910c72838b9493bdfba",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "19944cd15f786235eb7e3e13374f36c3d24e7564",
       "sections": [
         "temporal-y-consolidado"
       ]
@@ -83,8 +83,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/OnboardingV2/App/Services/ValidateOtpAuthService.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "3bc3579d02b18312ec341a1d5470b93e26a97b57",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8a1e9c05e2c5463de44e83c77e170225930b3eb2",
       "sections": [
         "los-desenlaces-al-validar-el-otp-v2"
       ]
@@ -121,8 +121,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Onboarding/App/Http/Controllers/OnboardingController.php",
-      "commit": "dd1365e85b9cf825bc46991e0b513630c1a74da1",
-      "blob": "738415ab7825c6212177127c5fd8ccddc4c69f54",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "977c4713996a0a7d0f394eee22f7ba8cf10f7e1a",
       "sections": [
         "los-desenlaces-al-validar-el-otp-v2",
         "el-consolidado-que-reenvia-por-v1",

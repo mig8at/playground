@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Requisitos y consulta vigente de Ábaco",
   "summary": "Flag por entidad, vigencia configurable y alcance del salto de buró en el motor modular.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -84,8 +84,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ContinueUserFlowController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "886cf549f2961cd497d5ba4ee061eea52a9887cc",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8eb7c056225ad2cf1ced7b2e3fdf44176398e29b",
       "sections": [
         "donde-se-pide-el-paso"
       ]

@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: entrada, contexto y monto",
   "summary": "Rehidratación del pedido sin cookie de contexto, tres vínculos con la solicitud y prioridad del canal sobre la sesión.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -78,8 +78,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
       "sections": [
         "el-canal-de-tienda-tiene-precedencia-y-gobierna-el-monto"
       ]

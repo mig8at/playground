@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Registro de IMEI y espera del titular",
   "summary": "Paso del asesor a IMEI, registro y reintento, ruta de desembolso sin autenticación ni chequeo de estado, y polling del titular.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "frontend-monorepo",
@@ -131,8 +131,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/NotificationService.php",
-      "commit": "69920f580f62ad35f0a555e3b8b8f2c247d758aa",
-      "blob": "f297653ca3d83f6ac8326a587bd33b4a618ea970",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "e3f82d72ef76ede57966427052bd1197531bd77f",
       "sections": [
         "paso-del-asesor-al-formulario-de-imei",
         "registro-del-equipo-desde-el-asesor"
@@ -141,8 +141,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
       "sections": [
         "paso-del-asesor-al-formulario-de-imei",
         "ruta-de-desembolso-del-dispositivo"
@@ -207,8 +207,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
       "sections": [
         "ruta-de-desembolso-del-dispositivo"
       ]

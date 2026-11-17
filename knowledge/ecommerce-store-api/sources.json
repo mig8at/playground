@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Ecommerce: la API de la tienda contra Creditop",
   "summary": "Enlace de pago, consulta de estado y cancelación con el token de sucursal; el aviso a la tienda en los dos monolitos y qué solicitud cuenta por pedido.",
-  "reviewedAt": "2026-11-11T13:35:27+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -214,8 +214,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
       "sections": [
         "en-legacy-backend-el-aviso-sale-en-general-una-vez-por-pedido-y-gana-el-primer-desenlace"
       ]

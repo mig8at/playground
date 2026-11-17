@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Firma y cierre del codeudor",
   "summary": "Firma del codeudor, autorización y documentos; política de entrada, saga, confirmación persistida y límites de recuperación.",
-  "reviewedAt": "2026-11-11T14:57:37+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -82,8 +82,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "6145299ab83a989b94dd8945188cc5adc61b730e",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
       "sections": [
         "firma-del-titular-y-espera",
         "estado-del-saga-y-sincronizacion-de-la-espera",
@@ -134,8 +134,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/modules/cosigner/types/cosigner-signature.ts",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "198e6b8176781fe8588367f7222ebe93a8c5c7de",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "353827ee593c7574de614f524dbf0d4c14a005b7",
       "sections": [
         "firma-registrada-y-autorizacion-de-la-solicitud"
       ]
@@ -218,8 +218,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-confirmation.tsx",
-      "commit": "e0c370c299cf4a613c7282626a9977d635484616",
-      "blob": "d724df6690f53c018f71f0b5853dfe2008dabf93",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "084efde54570ad612f39c92cd5aefacc2732b73e",
       "sections": [
         "entrada-del-titular-y-politica-de-codeudor"
       ]
@@ -344,8 +344,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/loan-approved.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "4c91de61ac612c2e8d6e4fa69e6dc0957f0fd03b",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "7a57389c2a30d32b98ea102931403612ca0fc255",
       "sections": [
         "confirmacion-del-titular-y-estado-persistido"
       ]
@@ -353,8 +353,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "modules/loan-request-wizard/loan-origination/src/lib/domain/promissory-note.entity.ts",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "0460eb349a400824f9c5878a61df6b66ae5c1245",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "a58f751af17ef6aa4dfd67c6401cd1c4a2b81868",
       "sections": [
         "confirmacion-del-titular-y-estado-persistido"
       ]
@@ -373,8 +373,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Services/CreditopXRequestHistoryService.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "18bdc0c862d3492c21aa6854c190c3a64f6bb562",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "babbf121a58be7990a224fc971003f231363bb64",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]
@@ -382,8 +382,8 @@
     {
       "repo": "legacy-backend",
       "path": "Modules/Loans/App/Repositories/CreditopXRequestHistoryRepository.php",
-      "commit": "df3e36bacd1428c45f3f43955b300758bba31f1c",
-      "blob": "0fd53fbfe91429b6cd0de8427464e8fc99b6ec7d",
+      "commit": "523fde4afd87096a30e58df742a5ab79fa673b7d",
+      "blob": "ba9f215d61f709d5b3688b3f11153f9ed60c724f",
       "sections": [
         "reanudar-autorizacion-y-efectos-posteriores"
       ]

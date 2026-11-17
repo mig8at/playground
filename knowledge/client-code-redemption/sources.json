@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Canje del código de preaprobado",
   "summary": "Consulta, creación, consumo y filtro del listado; formatos y diferencias con el receptor anterior.",
-  "reviewedAt": "2026-11-11T14:57:37+00:00",
+  "reviewedAt": "2026-11-17T12:52:59+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -108,8 +108,8 @@
     {
       "repo": "frontend-monorepo",
       "path": "apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx",
-      "commit": "5026d80e45b74cfc0230e4544800cb60d333f14f",
-      "blob": "1c0b47ebbc71c963e8d95dd19b914743a0018022",
+      "commit": "3f35ac9f768f66bb05a79361188c2b85344cda22",
+      "blob": "ce5b8d5c02c8199d40f01fb005af97f21841854f",
       "sections": [
         "el-recorte-del-wizard-depende-de-una-marca-de-sesion"
       ]

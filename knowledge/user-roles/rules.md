@@ -24,16 +24,29 @@ del orden en que se crearon los roles.
 1. **Permisos de Spatie por rol** (`role_has_permissions`): habilitan módulos y acciones del admin
    («ver solicitudes», «actualizar solicitud», «ver reportes»…). La mayoría se carga en la base; algunos
    permisos recientes los crea o asigna una migración de application.
-2. **Permisos por usuario** (`model_has_permissions`): se dan uno a uno. Al crear un usuario de
-   comercio asesor (4) o superadmin (6), si el comercio tiene una entidad CreditopX, el alta le da los
-   permisos de los créditos CreditopX (`AlliedCorporateUserController::store`), incluido
-   `reduce creditop x installments` (bajar el valor de las próximas cuotas). Al perfil Entidad
-   Comercio (13) el alta le da ese mismo permiso, salvo que el usuario sea de un comercio que trabaja
-   con SmartPay (`CreditopXPrincipalPaymentType::isSmartPayUser`). Por eso dos usuarios del mismo
-   perfil pueden ver cosas distintas.
+2. **Permisos por usuario** (`model_has_permissions`): se dan uno a uno. Los de los créditos CreditopX de
+   comercio los decide `CreditopXMerchantAccess` (el único lugar con esa regla) para los perfiles asesor
+   (4), superadmin (6) y admin de comercio (7), y los aplican los observers de `User`, `LendersByAllied` y
+   `Lender` después del commit, así que no importa en qué orden se creen el comercio, la entidad y el
+   usuario; `AlliedCorporateUserController::store` ya no los da. Salen de los tipos de entidad del comercio
+   (`lenders_by_allieds` y `lenders.response_type`; el superadmin cuenta también los de `multiple_allieds`):
+   con una entidad tipo 2 (CreditopX), `view creditop x`, `view creditop x requests` y
+   `register creditop x payments` para los tres perfiles, y además los reportes (`view funnel creditop x
+   requests`, `view management creditop x requests`, `view payment creditop x requests`) para 6 y 7; con una
+   tipo 3 (cupo rotativo), `register creditop x payments` y, para 6 y 7, `view creditop x revolving credits
+   requests`. `reduce creditop x installments` (bajar el valor de las próximas cuotas) va con
+   `register creditop x payments`, salvo que el usuario sea de un comercio que trabaja con SmartPay
+   (`CreditopXPrincipalPaymentType::isSmartPayUser`). Los asesores de un comercio listado en el setting
+   `creditop_x_allieds_without_comercial_payments` no registran pagos ni reducen cuota. No toca usuarios de
+   prueba (`users.is_test`), y el lender Credifamilia no cuenta como tipo 2 ni 3 aunque la base diga otra
+   cosa. El cálculo agrega y también revoca; `creditop-x:sync-merchant-permissions`
+   lo vuelve a aplicar a mano. Al perfil Entidad Comercio (13) el rol ya le da registrar pagos, pero no
+   reducir cuota: el alta le da `reduce creditop x installments` en el controlador, salvo SmartPay. Por eso
+   dos usuarios del mismo perfil pueden ver cosas distintas.
 3. **Comparaciones con el número de perfil en el código** (`user_profile_id == 4`, `== 7`…). Deciden
-   comportamiento sin pasar por permisos, y son muchas: la mayoría son del asesor (4). Un perfil nuevo
-   o renumerado no hereda estas ramas.
+   comportamiento sin pasar por permisos, están repartidas entre varios perfiles (1, 2, 4, 6 y 7) en
+   controladores, requests y vistas Vue de `legacy-application`, y no hay una en `legacy-backend`. Un perfil
+   nuevo o renumerado no hereda estas ramas.
 
 ## El alcance de cada perfil del comercio
 
