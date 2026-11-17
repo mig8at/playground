@@ -246,7 +246,7 @@ func (a *app) models(w http.ResponseWriter, r *http.Request) {
 	list := make([]Model, len(models))
 	for i, m := range models {
 		// «*» es la cuenta entera de AI Studio (corta por el ritmo); no frena a DeepSeek.
-		if until, ok := paused["*"]; ok && m.Name != providerModels["deepseek"].Name {
+		if until, ok := paused["*"]; ok && m.Name == providerModels["aistudio"].Name {
 			m.Paused = time.UnixMilli(until).Format("15:04")
 		} else if until, ok := paused[m.Name]; ok {
 			m.Paused = time.UnixMilli(until).Format("15:04")
@@ -399,7 +399,7 @@ func (a *app) askProvider(ctx context.Context, mode string, agent bool, text str
 	provider := cfg.providerFor(mode, agent)
 	model := providerModels[provider].Name
 	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
-		DeepThink: cfg.DeepThink, Search: cfg.Search, Window: cfg.Window})
+		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, Window: cfg.Window})
 	return answer, model, err
 }
 

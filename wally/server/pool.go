@@ -103,13 +103,14 @@ func (p *pool) start() error {
 
 // poolJob: una pregunta para el pool, con su proveedor y sus opciones (de la configuración de Wally).
 type poolJob struct {
-	Provider  string `json:"provider"`
-	Model     string `json:"model"`
-	Text      string `json:"text"`
-	Thinking  string `json:"thinking,omitempty"`
-	DeepThink bool   `json:"deepThink"`
-	Search    bool   `json:"search"`
-	Window    string `json:"window,omitempty"`
+	Provider     string `json:"provider"`
+	Model        string `json:"model"`
+	Text         string `json:"text"`
+	Thinking     string `json:"thinking,omitempty"`
+	DeepThink    bool   `json:"deepThink"`
+	Search       bool   `json:"search"`
+	ChatGPTThink bool   `json:"chatgptThink"`
+	Window       string `json:"window,omitempty"`
 }
 
 // ask le manda una pregunta al pool y espera su respuesta (o que se cancele el contexto).
@@ -129,7 +130,7 @@ func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
 	ch := make(chan poolAnswer, 1)
 	p.waiting[id] = ch
 	line, _ := json.Marshal(map[string]any{"id": id, "provider": job.Provider, "model": job.Model, "text": job.Text,
-		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "window": job.Window, "timeout": 600})
+		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "window": job.Window, "timeout": 600})
 	_, err := p.stdin.Write(append(line, '\n'))
 	p.mu.Unlock()
 	if err != nil {

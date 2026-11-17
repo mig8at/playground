@@ -169,11 +169,12 @@ function openConfig() { openTab(CONFIG) }
 const PROVIDERS = [
   { id: 'aistudio', name: 'AI Studio', note: 'Gemini 4 Hydrogen por la web de Google, con tu cuenta. Cupo diario por modelo.' },
   { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
+  { id: 'chatgpt', name: 'ChatGPT', note: 'chatgpt.com en chat temporal: no queda en tu historial (puede guardar una copia 30 días). Gratis: hasta ~40 mil caracteres.' },
 ]
 const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
 // El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
-const providerName = computed(() => (models.value[0]?.name === 'deepseek-web' ? 'DeepSeek' : 'AI Studio'))
-const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek' }
+const providerName = computed(() => ({ 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT' })[models.value[0]?.name] || 'AI Studio')
+const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini 4 Hydrogen', 'gemini-3.8-flash': 'Gemini 3.8 Flash', 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT' }
 
 // ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
 // tener al día el contexto de una parte, p. ej. KYC), que lleva siempre precargados sus temas de knowledge y el estado
@@ -738,8 +739,16 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="group-option column">
-            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con DeepSeek elegido, siguen por AI Studio salvo que lo permitas.</span></div>
-            <label class="config-check"><input type="checkbox" :checked="config.agentsDeepSeek" @change="saveConfig({ agentsDeepSeek: $event.target.checked })"> Permitir que vayan por DeepSeek (queda en sus servidores, en China)</label>
+            <div><b>ChatGPT</b><span>Siempre en chat temporal. El modelo es el que tenga tu cuenta.</span></div>
+            <div class="config-row">
+              <span class="label">Pensar</span>
+              <button type="button" class="switch" role="switch" :aria-checked="config.chatgptThink" aria-label="Pensar" @click="saveConfig({ chatgptThink: !config.chatgptThink })"></button>
+            </div>
+          </div>
+
+          <div class="group-option column">
+            <div><b>Agentes y asistente</b><span>Llevan contexto interno de CreditOp (knowledge, código de main). Con otro proveedor elegido, siguen por AI Studio salvo que lo permitas.</span></div>
+            <label class="config-check"><input type="checkbox" :checked="config.agentsOther" @change="saveConfig({ agentsOther: $event.target.checked })"> Permitir que vayan por el proveedor elegido (DeepSeek lo guarda en China; ChatGPT, hasta 30 días)</label>
           </div>
 
           <div class="group-option column">

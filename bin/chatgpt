@@ -1,0 +1,10 @@
+#!/bin/sh
+# chatgpt — ChatGPT por su web, en tu Chrome con Jarvis y con tu sesión (sin llave de API). Es la receta de
+# jarvis/recipes/chatgpt/; los archivos se leen y se escriben desde donde lo corrés.
+#   bin/chatgpt [ask] --prompt '…' [--file doc.md] [--think] [--keep-history] [--out r.md] [--keep] [--json]
+root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+case "$1" in
+  ask) recipe=$1; shift ;;
+  *) recipe=ask ;;
+esac
+exec node "$root/jarvis/recipes/chatgpt/$recipe.ts" "$@"

@@ -177,6 +177,17 @@ sus servidores, así que nada de datos de clientes, credenciales ni contexto o c
 |---|---|---|
 | `ask` | **una pregunta a DeepSeek**: chat nuevo → «Pensamiento Profundo» y «Búsqueda inteligente» como se pidan (DeepSeek recuerda el último estado: se ponen en cada pregunta) → el texto → Enter → la respuesta (sin el razonamiento) con su botón «copiar» interceptado. También `bin/deepseek`. Trae el último mensaje a la vista antes de leerlo: la conversación es una lista virtual, como la de AI Studio. Medido el 2026-11-17 con «Pensamiento Profundo»: una pregunta corta en 6,8 s; 77 mil caracteres en 6,7 s, encontrando una clave escondida en la línea 641 de 1.300 | `--prompt` · `--file` (va antes de la pregunta) · stdin · `--no-think` · `--search` · `--out` · `--keep` · `--timeout 600` · `--json` |
 
+## ChatGPT (por la web, con tu sesión de chatgpt.com)
+
+Lo mismo contra ChatGPT, siempre en **chat temporal** (`/?temporary-chat=true`): no queda en tu historial, aunque
+ChatGPT avisa que puede guardar una copia hasta 30 días y que el chat temporal puede leer la memoria y las instrucciones
+personalizadas de la cuenta. Se aprendió el 2026-11-17: la sesión con Jarvis y el resto por script, porque ChatGPT tiene
+siempre un `section[role=dialog]` invisible y el análisis de Jarvis creía que había un modal y no dejaba escribir.
+
+| receta | qué hace | parámetros |
+|---|---|---|
+| `ask` | **una pregunta a ChatGPT**: chat temporal → «Pensar» si se pide → el texto en su editor (ProseMirror) → «Enviar» → espera a que el turno diga `complete` → la respuesta con su «Copiar» interceptado ANTES de que cargue la página (después ya no se ve la copia). También `bin/chatgpt`. Medido el 2026-11-17, plan gratis: una pregunta corta en 7 a 17 s, en Markdown; ~40 mil caracteres en 6,5 s (encontró la clave escondida); con ~77 mil contestó «Algo salió mal» y la receta lo corta al instante | `--prompt` · `--file` · stdin · `--think` · `--keep-history` (un chat normal) · `--out` · `--keep` · `--timeout 600` · `--json` |
+
 ## Shopify (tienda de pruebas `creditop-dev-store`)
 
 Credenciales: la app «Jarvis · Admin API (pruebas)» del Dev Dashboard (organización CREDITOP), instalada sólo en

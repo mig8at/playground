@@ -17,16 +17,22 @@ import (
 )
 
 type Config struct {
-	// Provider: «aistudio» (Gemini 4 Hydrogen por la web de AI Studio) o «deepseek» (chat.deepseek.com por su web).
+	// Provider: «aistudio» (Gemini 4 Hydrogen por la web de AI Studio), «deepseek» (chat.deepseek.com) o «chatgpt»
+	// (chatgpt.com, en chat temporal), todos por su web.
 	Provider string `json:"provider"`
 	// Thinking: el «Thinking level» de AI Studio (Low, Medium, High).
 	Thinking string `json:"thinking"`
 	// DeepThink y Search: los interruptores de DeepSeek («Pensamiento Profundo», «Búsqueda inteligente»).
 	DeepThink bool `json:"deepThink"`
 	Search    bool `json:"search"`
-	// AgentsDeepSeek: si los agentes y el asistente pueden ir por DeepSeek. Apagado: llevan contexto interno de
-	// CreditOp (knowledge, código de main) y DeepSeek lo guarda en servidores en China; siguen por AI Studio.
-	AgentsDeepSeek bool `json:"agentsDeepSeek"`
+	// ChatGPTThink: el «Pensar» de ChatGPT.
+	ChatGPTThink bool `json:"chatgptThink"`
+	// AgentsOther: si los agentes y el asistente pueden ir por un proveedor que no sea AI Studio. Apagado: llevan
+	// contexto interno de CreditOp (knowledge, código de main), que DeepSeek guarda en China y ChatGPT puede guardar
+	// 30 días; además, ChatGPT gratis no acepta mensajes de ~77 mil caracteres (sí ~40 mil). Siguen por AI Studio.
+	AgentsOther bool `json:"agentsOther"`
+	// AgentsDeepSeek: el nombre de AgentsOther hasta que llegó ChatGPT (2026-11-17); se lee y se pasa a AgentsOther.
+	AgentsDeepSeek bool `json:"agentsDeepSeek,omitempty"`
 	// Window: dónde trabaja el pool en Chrome (minimized · aside · tab), como AISTUDIO_WINDOW.
 	Window string `json:"window"`
 }
@@ -37,6 +43,7 @@ var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: tr
 var providerModels = map[string]Model{
 	"aistudio": {Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "AI Studio"},
 	"deepseek": {Name: "deepseek-web", DisplayName: "DeepSeek", Note: "chat.deepseek.com"},
+	"chatgpt":  {Name: "chatgpt-web", DisplayName: "ChatGPT", Note: "chatgpt.com, chat temporal"},
 }
 
 type configStore struct {
@@ -61,6 +68,9 @@ func (s *configStore) get() Config {
 
 // valid deja cada campo en un valor conocido (uno raro vuelve al de siempre).
 func (c Config) valid() Config {
+	if c.AgentsDeepSeek {
+		c.AgentsOther, c.AgentsDeepSeek = true, false
+	}
 	if _, ok := providerModels[c.Provider]; !ok {
 		c.Provider = defaultConfig.Provider
 	}
@@ -79,7 +89,7 @@ func (c Config) valid() Config {
 
 // providerFor: por dónde va una pregunta. Un agente o el asistente no van por DeepSeek salvo que se haya permitido.
 func (c Config) providerFor(mode string, agent bool) string {
-	if c.Provider == "deepseek" && (agent || mode != "") && !c.AgentsDeepSeek {
+	if c.Provider != "aistudio" && (agent || mode != "") && !c.AgentsOther {
 		return "aistudio"
 	}
 	return c.Provider
