@@ -1,0 +1,32 @@
+client_id = "9bad40b96fc86cca4a4f5ae3e4f293ca"
+name = "Creditop (anterior)"
+application_url = "https://shopify-app.dev.creditop.com/"
+embedded = false
+
+[build]
+automatically_update_urls_on_dev = false
+
+[webhooks]
+api_version = "2026-07"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/uninstalled" ]
+  uri = "/webhooks/app/uninstalled"
+
+  [[webhooks.subscriptions]]
+  topics = [ "app/scopes_update" ]
+  uri = "/webhooks/app/scopes_update"
+
+  [[webhooks.subscriptions]]
+  compliance_topics = [ "customers/data_request", "customers/redact", "shop/redact" ]
+  uri = "/webhooks/compliance"
+
+[access_scopes]
+scopes = "write_payment_gateways,write_payment_sessions"
+
+[auth]
+redirect_urls = [
+  "https://shopify-app.dev.creditop.com/auth/callback",
+  "https://shopify-app.dev.creditop.com/auth/shopify/callback",
+  "https://shopify-app.dev.creditop.com/"
+]

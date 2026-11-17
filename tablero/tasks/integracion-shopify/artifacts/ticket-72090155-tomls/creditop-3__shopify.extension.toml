@@ -1,0 +1,23 @@
+api_version = "2026-07"
+
+[[extensions]]
+name = "CREDITOP-OFFSITE"
+handle = "creditop-offsite"
+type = "payments_extension"
+uid = "badac230-f98c-b15c-b503-8902b7ca59c3525f26b1"
+
+merchant_label = "Creditop"
+buyer_label = "Creditop"
+
+payment_session_url = "https://shopify-app.creditop.com:8443/payments/session"
+refund_session_url = "https://shopify-app.creditop.com:8443/payments/refund"
+
+supported_countries = ["CO"]
+supported_payment_methods = ["generalfinancing"]
+supports_3ds = false
+supports_installments = true 
+supports_deferred_payments = true
+test_mode_available = true
+
+[[extensions.targeting]]
+target = "payments.offsite.render"

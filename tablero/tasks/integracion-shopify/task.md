@@ -14,16 +14,16 @@ correo: [shopify]
 
 ## Pendientes
 
-- [ ] Lograr que la app pública «Creditop» (447249776641) cobre con SU extensión de pago: hoy comparte el uid
-      `badac230…` con la anterior (custom, 317076176897) y Shopify le da la configuración de ésa (nombre y URL de
-      pago). Desplegarla con un uid propio lo niega Shopify (`creditop-4`, «Unpublishing payments app extensions … is
-      not permitted»). Termina con una compra en `creditop-dev-store` que dice «Creditop» y llega al servidor de la
-      pública. Depende de: Danny (Shopify Support) — ticket 72090155, se le escribió el 2026-11-13 19:57 pidiendo
-      reiniciar o desvincular la extensión de la pública.
-- [ ] Según lo que diga Shopify, reinstalar o borrar la app anterior (custom): quedó DESINSTALADA de `creditop-dev-store`
-      el 2026-11-13 para la prueba; mientras tanto no se prueba con ella (ni `credit-outcome`). Reinstalar es con el
-      enlace de su distribución personalizada en Partners y volver a cargarle sucursal y token. Danny había recomendado
-      conservarla hasta que la pública pase la revisión. Depende de: Danny (Shopify Support) — la misma respuesta.
+- [ ] Lograr que la app pública «Creditop» (447249776641) cobre con SU extensión de pago: en `creditop-dev-store`
+      muestra el nombre de la anterior (custom, 317076176897) y su pago llega al servidor de ésa. Según Shopify
+      (2026-11-16) el uid compartido `badac230…` NO es la causa: las dos versiones tienen registros de extensión
+      separados; se mantiene ese uid y `creditop-4` queda sin publicar. Termina con una compra en `creditop-dev-store`
+      que dice «Creditop» y llega al servidor de la pública. Depende de: Danny (Shopify Support) — ticket 72090155:
+      revisa el ruteo con los toml, los comandos y un pago que le mandamos (artifacts `ticket-72090155-tomls`).
+- [ ] Dejar la app anterior (custom) DESINSTALADA de `creditop-dev-store` y no borrar ninguna de las dos apps mientras
+      Shopify revisa (lo pidió Danny el 2026-11-16); mientras tanto no se prueba con ella (ni `credit-outcome`).
+      Reinstalarla después es con el enlace de su distribución personalizada en Partners y volver a cargarle sucursal y
+      token. Depende de: Danny (Shopify Support) — que termine la revisión.
 - [ ] Deshacer la prueba local de la pública cuando ya no sirva: `docker/llaves-app.sh --volver` (el contenedor de qa
       volvió a las llaves de la anterior) y `npx shopify app dev clean --config shopify.app.production.toml` (saca la
       vista previa de la tienda), en `shopify-produccion`. Termina con `docker/llaves-app.sh` diciendo client_id

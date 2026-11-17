@@ -1,0 +1,23 @@
+api_version = "2026-07"
+
+[[extensions]]
+name = "CREDITOP-OFFSITE"
+handle = "creditop-offsite"
+type = "payments_extension"
+uid = "8d19603e-6ffc-4017-9d22-0258e0d08301"
+
+merchant_label = "Creditop"
+buyer_label = "Creditop"
+
+payment_session_url = "https://boolean-late-attempted-tanks.trycloudflare.com/payments/session"
+refund_session_url = "https://boolean-late-attempted-tanks.trycloudflare.com/payments/refund"
+
+supported_countries = ["CO"]
+supported_payment_methods = ["generalfinancing"]
+supports_3ds = false
+supports_installments = true 
+supports_deferred_payments = true
+test_mode_available = true
+
+[[extensions.targeting]]
+target = "payments.offsite.render"
