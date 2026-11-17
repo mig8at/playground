@@ -82,15 +82,24 @@ func (a *app) preloadSize(ag Agent) int {
 
 // setAgentProvider: `PUT /api/agents/{conv}` con {provider}; vacío vuelve a la configuración.
 func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
+	// Lo que no viene no se toca: `provider` (legado), y la intención o las notas (bin/wally agent update).
 	var in struct {
-		Provider string `json:"provider"`
+		Provider *string `json:"provider"`
+		Intent   *string `json:"intent"`
+		Notes    *string `json:"notes"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
 		return
 	}
-	if _, ok := providerModels[in.Provider]; in.Provider != "" && !ok {
-		writeErr(w, 400, fmt.Errorf("no existe el proveedor «%s»", in.Provider))
+	if in.Provider != nil {
+		if _, ok := providerModels[*in.Provider]; *in.Provider != "" && !ok {
+			writeErr(w, 400, fmt.Errorf("no existe el proveedor «%s»", *in.Provider))
+			return
+		}
+	}
+	if in.Intent != nil && strings.TrimSpace(*in.Intent) == "" {
+		writeErr(w, 400, errors.New("la intención no puede quedar vacía"))
 		return
 	}
 	a.store.mu.Lock()
@@ -100,7 +109,15 @@ func (a *app) setAgentProvider(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, 404, errors.New("no existe ese agente"))
 		return
 	}
-	c.Agent.Provider = in.Provider
+	if in.Provider != nil {
+		c.Agent.Provider = *in.Provider
+	}
+	if in.Intent != nil {
+		c.Agent.Intent = strings.TrimSpace(*in.Intent)
+	}
+	if in.Notes != nil {
+		c.Agent.Notes = *in.Notes
+	}
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
 		return

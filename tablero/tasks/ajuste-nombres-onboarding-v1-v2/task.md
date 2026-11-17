@@ -66,6 +66,9 @@ apellido?); se sigue pidiendo corregir.
 ## Cómo se comprueba — y el MATERIAL para volver a hacerlo
 
 - v1 en local o qa: `make harness-case LAMBDA=1 CASES='pullman@name=…,surname=…,agilname=…'` y leer `users`.
+- v1 en local, repetible: `make harness-suite TARGET=local LAMBDA=1 SUITE=harness/suites/nombres.json` (7 casos: Ñ y
+  tildes en los dos sentidos, las dos formas de completar, el ambiguo y el error de tipeo; afirma `users` y
+  `kyc_name_checks`).
 - v2 en local: `make harness-pipeline` y `make harness-pipeline-run` (19 casos: Ñ, tildes, ortografía, nombres incompletos, ambiguos y la cascada con una, dos y tres centrales caídas; `A=stop` para bajarlo).
 - v2 en qa, sólo el backend: `POST /api/v2/risk/identity-check/agildata/{userId}` contra `legacy-backend-qa`.
 

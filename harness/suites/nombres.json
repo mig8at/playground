@@ -1,0 +1,43 @@
+{
+  "nombre": "nombres · Ñ y tildes, y completar sólo sin ambigüedad (tarea 101)",
+  "nota": "Camino v1 (NameSimilarity::alignedSplit y keepEnteredAccents). Afirma lo GUARDADO en users y el motivo de kyc_name_checks: el runner no imprime el nombre, y `adopted` no prueba un cambio. La diseñó Mew (Wally) y se corrió en local el 2026-11-17. Respalda knowledge/identity-name-validation.",
+  "requiere": ["lambda"],
+  "ambientes": ["local"],
+  "casos": [
+    {
+      "nombre": "S1 · la central sin Ñ ni tildes: se conservan las del asesor",
+      "comercio": "pullman", "name": "JOSÉ", "surname": "MUÑOZ", "agilname": "JOSE MUNOZ",
+      "espera": { "nombreGuardado": { "nombres": "JOSÉ", "apellidos": "MUÑOZ" }, "chequeoNombre": "adopted" }
+    },
+    {
+      "nombre": "S1 · la central trae Ñ y tildes que el asesor no puso: gana la central",
+      "comercio": "pullman", "name": "JOSE", "surname": "MUNOZ", "agilname": "JOSÉ MUÑOZ",
+      "espera": { "nombreGuardado": { "nombres": "JOSÉ", "apellidos": "MUÑOZ" }, "chequeoNombre": "adopted" }
+    },
+    {
+      "nombre": "S1 control · central y asesor iguales: no cambia nada",
+      "comercio": "pullman", "name": "JOSÉ", "surname": "MUÑOZ", "agilname": "JOSÉ MUÑOZ",
+      "espera": { "nombreGuardado": { "nombres": "JOSÉ", "apellidos": "MUÑOZ" }, "chequeoNombre": "adopted" }
+    },
+    {
+      "nombre": "S2 · un nombre y un apellido contra cuatro partes: completa",
+      "comercio": "pullman", "name": "JUAN", "surname": "PEREZ", "agilname": "JUAN CARLOS PEREZ GOMEZ",
+      "espera": { "nombreGuardado": { "nombres": "JUAN CARLOS", "apellidos": "PEREZ GOMEZ" }, "chequeoNombre": "completed" }
+    },
+    {
+      "nombre": "S2 · tres partes contra cuatro: la sobrante va al final como segundo apellido",
+      "comercio": "pullman", "name": "JUAN CARLOS", "surname": "PEREZ", "agilname": "JUAN CARLOS PEREZ GOMEZ",
+      "espera": { "nombreGuardado": { "nombres": "JUAN CARLOS", "apellidos": "PEREZ GOMEZ" }, "chequeoNombre": "completed" }
+    },
+    {
+      "nombre": "S2 ambiguo · la palabra de más cae entre nombre y apellido: no adivina",
+      "comercio": "pullman", "name": "JUAN", "surname": "PEREZ GOMEZ", "agilname": "JUAN CARLOS PEREZ GOMEZ",
+      "espera": { "nombreGuardado": { "nombres": "JUAN", "apellidos": "PEREZ GOMEZ" }, "chequeoNombre": "token_mismatch" }
+    },
+    {
+      "nombre": "S2 borde · error de tipeo en lo escrito: al completar no hay tolerancia",
+      "comercio": "pullman", "name": "JUAN CARLO", "surname": "PEREZ", "agilname": "JUAN CARLOS PEREZ GOMEZ",
+      "espera": { "nombreGuardado": { "nombres": "JUAN CARLO", "apellidos": "PEREZ" }, "chequeoNombre": "token_mismatch" }
+    }
+  ]
+}

@@ -216,7 +216,9 @@ donde se dice otra cosa:
   en la ruta, con el user-agent de celular del caso: el `http` esperado —200 si no se dice—, `campos` por ruta de punto
   con igualdad exacta y `existen`; un campo ausente es falla, y conviene pedir al menos uno, porque un 200 genérico sin
   campos pasaría) e `imei` (si el equipo quedó inscrito en `user_request_products`: el cierre IMEI y el estándar
-  llegan los dos a 11, F-157). Arriba de todo, `"preparar": {"perfiles": [{"lender": 77, "perfil": "Premium", "activo": false}]}`
+  llegan los dos a 11, F-157), `nombreGuardado` (`{"nombres", "apellidos"}`: lo que quedó en `users`, exacto, con Ñ
+  y tildes; el runner no lo imprime) y `chequeoNombre` (el `reason` de la última fila de Ágil Data en
+  `kyc_name_checks`, o `null`; `adopted` no prueba un cambio, por eso va con `nombreGuardado`; suite `nombres.json`). Arriba de todo, `"preparar": {"perfiles": [{"lender": 77, "perfil": "Premium", "activo": false}]}`
   prende o apaga un perfil (`lender_users_categories.active`), y `"aprobacionManual": [{"lender": 211, "activo": true}]`
   la aprobación manual de una entidad (`lender_requirements.manual_approval`), antes de correr y lo restaura al final, con foto en
   `.runs/profiles/` y comparar-y-cambiar (`pkg/profile-prep.ts`); sólo en una suite con `"ambientes": ["local"]`, y si

@@ -513,6 +513,12 @@ type Wait = {
     /** Si el equipo financiado quedó inscrito (`user_request_products.imei`). Una entidad IMEI que cierra
      *  por el `authorize` estándar también llega a 11, pero sin equipo (F-157): el estado solo no lo distingue. */
     imei?: boolean;
+    /** El nombre que quedó GUARDADO (`users.first_name` / `users.surname`), exacto, con Ñ y tildes: lo que se radica.
+     *  Lo que no se dice no se compara. */
+    nombreGuardado?: { nombres?: string; apellidos?: string };
+    /** El `reason` de la última fila de Ágil Data en `kyc_name_checks` del cliente (`completed`, `adopted`,
+     *  `token_mismatch`…), o `null` si no hay ninguna. ⚠ `adopted` no prueba que el nombre cambió: para eso, `nombreGuardado`. */
+    chequeoNombre?: string | null;
 };
 
 type Case = {
@@ -657,7 +663,8 @@ const SUITE_KEYS = {
            'negatives', 'delinquencies', 'consulted', 'cards', 'months', 'maturation'],
     paso: ['nombre', 'lender', 'amount', 'espera', 'cerrar'],
     espera: ['enListado', 'cierra', 'estado', 'entidades', 'noEntidades', 'radicacion', 'pais', 'conConsulta',
-             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores', 'consulta', 'plazo', 'imei'],
+             'sinConsulta', 'categoria', 'cupo', 'estadoAnteriores', 'consulta', 'plazo', 'imei',
+             'nombreGuardado', 'chequeoNombre'],
     pais: ['iso', 'documento', 'celular', 'moneda'],
     consulta: ['ruta', 'http', 'campos', 'existen'],
     preparar: ['perfiles', 'aprobacionManual'],
@@ -1545,6 +1552,35 @@ async function verifyImei(res: Res[]): Promise<Array<{ res: Res; linea: string }
     return out;
 }
 
+/** El nombre guardado y el motivo de la última comprobación de Ágil Data (tarea 101: la Ñ, las tildes y el completado). */
+async function verifyStoredName(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
+    const out: Array<{ res: Res; linea: string }> = [];
+    for (const r of res) {
+        const want = r.caso.espera?.nombreGuardado;
+        const wantCheck = r.caso.espera?.chequeoNombre;
+        if (want === undefined && wantCheck === undefined) continue;
+        const who = r.caso.nombre ?? r.caso.comercio;
+        if (!r.uid) { out.push({ res: r, linea: `${who}: espera el nombre y el cliente ni se registró (${r.detalle ?? 'sin detalle'})` }); continue; }
+        if (want) {
+            const row = await one<{ first: string; last: string }>(
+                'SELECT first_name AS first, surname AS last FROM users WHERE id = ?', [r.uid]).catch(() => null);
+            if (!row) { out.push({ res: r, linea: `${who}: espera \`nombreGuardado\` y no pude leer el usuario ${r.uid}` }); continue; }
+            if (want.nombres !== undefined && row.first !== want.nombres)
+                out.push({ res: r, linea: `${who}: el usuario ${r.uid} quedó con nombres «${row.first}» y se esperaba «${want.nombres}»` });
+            if (want.apellidos !== undefined && row.last !== want.apellidos)
+                out.push({ res: r, linea: `${who}: el usuario ${r.uid} quedó con apellidos «${row.last}» y se esperaba «${want.apellidos}»` });
+        }
+        if (wantCheck !== undefined) {
+            const row = await one<{ reason: string }>(
+                "SELECT reason FROM kyc_name_checks WHERE user_id = ? AND central = 'agildata' ORDER BY id DESC LIMIT 1", [r.uid]).catch(() => undefined);
+            const got = row === undefined ? undefined : (row?.reason ?? null);
+            if (got === undefined) out.push({ res: r, linea: `${who}: espera \`chequeoNombre\` y no pude leer kyc_name_checks del usuario ${r.uid}` });
+            else if (got !== wantCheck) out.push({ res: r, linea: `${who}: la comprobación de nombre de Ágil Data dio ${JSON.stringify(got)} y se esperaba ${JSON.stringify(wantCheck)}` });
+        }
+    }
+    return out;
+}
+
 async function verifyQuota(res: Res[]): Promise<Array<{ res: Res; linea: string }>> {
     const out: Array<{ res: Res; linea: string }> = [];
     for (const r of res) {
@@ -2130,7 +2166,7 @@ async function main(): Promise<number> {
     await reconcileWithDb(baseline, res.length - badList);
 
     const deviations = [...verifyWaits(res), ...await verifyCountries(res), ...await verifyCategories(res), ...await verifyQuota(res), ...await verifyPrevious(res),
-                        ...await verifyEndpoints(res), ...await verifyTerm(res), ...await verifyImei(res)];
+                        ...await verifyEndpoints(res), ...await verifyTerm(res), ...await verifyImei(res), ...await verifyStoredName(res)];
     REPORT = {
         formato: 'harness.case/v1',
         target: process.env.E2E_TARGET || 'dev',

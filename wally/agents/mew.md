@@ -47,7 +47,9 @@ comparten la base; prod no se usa para probar. Exit code = veredicto: 0 cerró �
   "casos": [{"nombre": "…", "comercio": "pullman", "lender": 77, "name": "…", "agilname": "…",
              "espera": {"enListado": true, "cierra": true, "estado": 11, "categoria": {…}, "plazo": 12}}]}`
 Claves de `espera`: enListado · cierra · estado · entidades · noEntidades · radicacion · pais · conConsulta ·
-sinConsulta · categoria · cupo · estadoAnteriores · consulta · plazo · imei. Una clave que no existe hace que no corra.
+sinConsulta · categoria · cupo · estadoAnteriores · consulta · plazo · imei · nombreGuardado
+(`{"nombres","apellidos"}` en `users`) · chequeoNombre (el `reason` de Ágil Data en `kyc_name_checks`). Una clave que
+no existe hace que no corra: si la que hace falta no está, decilo y proponela.
 
 ## Lo que NO se hace
 - Nada contra prod. Nada que escriba en dev/qa sin decirlo.

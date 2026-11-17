@@ -165,7 +165,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   las viejas del modo «knowledge» llevan su «K».
 - **Los agentes y las conversaciones se manejan por consola: `bin/wally`** (`wally/cli.ts`; Miguel: «crear un agente no
   es algo que yo haga a mano: lo hace Claude»). `agents` · `agent create --name --intent [--notes|--notes-file]
-  [--file]… [--topic]…` · `agent delete <nombre>` · `topics [palabra]` · `conversations` · `new [--title]` ·
+  [--file]… [--topic]…` · `agent update <nombre> [--intent] [--notes|--notes-file]` (vale desde la próxima
+  pregunta; `PUT /api/agents/<conv>`, que cambia sólo lo que llega) · `agent delete <nombre>` · `topics [palabra]` · `conversations` · `new [--title]` ·
   `delete <id>` (la de Wally no) · `ask [--conv|--agent] 'pregunta'`, con `--json`. Habla con la API, así que aparece
   solo en la interfaz; crear no le pregunta nada al modelo. El formulario de agentes y su «+» se sacaron de la
   interfaz. Probado el 2026-11-17: un agente con notas, un archivo y un tema, creado y borrado (con su archivo), y una
@@ -270,7 +271,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   hay fila» no prueba «no consultó» y F-133 (el pagaré con un apellido). Lo que dijo del comando de reparación
   (`--since`, `--apply`, `--undo`, sólo `CC`, sin desembolsados ni validación manual) está en `main`. Un caso de la
   tanda cayó en el listado con «There is no active transaction» (del backend, en paralelo), después de guardar el
-  nombre.
+  nombre. **Le pedí la suite** y contestó lo correcto: con las claves de `espera` que había, sólo comprobaría que el
+  caso llega al listado, no el nombre; y propuso las claves que faltaban. Se sumaron al runner (`nombreGuardado` y
+  `chequeoNombre`, `harness/dev/case.ts`) y quedó `harness/suites/nombres.json`, con sus 6 casos más el ambiguo que
+  había dejado afuera: 7/7 en local, y una copia con las expectativas cambiadas dio rojo con las tres diferencias.
+  Sus notas se pusieron al día con `bin/wally agent update Mew --notes-file wally/agents/mew.md`.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

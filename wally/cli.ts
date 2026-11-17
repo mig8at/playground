@@ -5,6 +5,7 @@
 //   bin/wally agents                                   los agentes (nombre, intención, temas, peso de su precarga)
 //   bin/wally agent create --name Eevee --intent 'qué hace' [--notes 'lo que tiene que saber' | --notes-file n.md]
 //                          [--file doc.pdf]… [--topic kyc-pipeline]…     uno nuevo: no le pregunta nada al modelo
+//   bin/wally agent update <nombre> [--intent '…'] [--notes '…' | --notes-file n.md]   cambia su intención o sus notas
 //   bin/wally agent delete <nombre>                    lo borra con su conversación y sus archivos
 //   bin/wally topics [palabra]                         los temas de knowledge, para elegir los de un agente
 //   bin/wally conversations                            las conversaciones (sin la de Wally ni las de los agentes)
@@ -72,6 +73,17 @@ try {
         for (const f of flags('file')) files.push(await upload(f));
         const c = await post('/api/agents', { name, intent, notes, fileIds: files.map((f: any) => f.id), topics: flags('topic') });
         out(c, `Listo: ${c.agent.name} · ${c.agent.intent}\n  conversación ${c.id}${files.length ? ` · ${files.length} archivo(s)` : ''}${c.agent.topics?.length ? ` · temas: ${c.agent.topics.join(', ')}` : ''}\n  Está en la pestaña «Agentes» de Wally. Abrilo: bin/cockpit open wally '#/c/${c.id}'`);
+    } else if (cmd === 'agent' && sub === 'update') {
+        const name = positional()[2];
+        if (!name) throw new Error("falta el nombre: bin/wally agent update Mew --notes-file n.md");
+        const a = await agentByName(name);
+        const body: Record<string, string> = {};
+        if (flag('intent')) body.intent = flag('intent')!;
+        if (flag('notes-file')) body.notes = fs.readFileSync(resolve(flag('notes-file')!), 'utf8');
+        else if (flag('notes') !== undefined) body.notes = flag('notes')!;
+        if (!Object.keys(body).length) throw new Error('nada que cambiar: --intent, --notes o --notes-file');
+        const c = await post(`/api/agents/${a.conv}`, body, 'PUT');
+        out(c, `Listo: ${c.agent.name} · ${Object.keys(body).map((k) => (k === 'notes' ? 'notas' : 'intención')).join(' y ')} al día (vale desde la próxima pregunta).`);
     } else if (cmd === 'agent' && sub === 'delete') {
         const name = positional()[2];
         if (!name) throw new Error('falta el nombre: bin/wally agent delete Eevee');
@@ -108,7 +120,7 @@ try {
         out({ conv: c.id, model: m.model, ms: m.ms, answer: m.text, commands: m.commands || [] },
             `${m.text}\n\n  (${m.model}, ${(m.ms / 1000).toFixed(1)} s${m.commands?.length ? ` · pide ${m.commands.length} comando(s): aprobalos en Wally` : ''})`);
     } else {
-        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 16).map((l) => l.slice(3)).join('\n'));
+        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 17).map((l) => l.slice(3)).join('\n'));
         process.exit(cmd ? 2 : 0);
     }
 } catch (e: any) {

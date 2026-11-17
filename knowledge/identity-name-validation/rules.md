@@ -98,6 +98,11 @@ Puede aceptar partes adicionales al final, por lo que en Mareigua una parte de m
 nombres o apellidos también se adopta. `alignedSplit` limita las formas de completar descritas
 arriba y, para completar, no usa la tolerancia sino coincidencia exacta.
 
+Las formas de adoptar y completar de Ágil Data (Ñ y tildes en los dos sentidos, las dos formas de
+completar, la palabra de más en medio y un error de tipeo al completar) se comprueban corriendo con
+`make harness-suite TARGET=local LAMBDA=1 SUITE=harness/suites/nombres.json`, que afirma el nombre
+guardado en `users` y el motivo de `kyc_name_checks`.
+
 El tope es absoluto: no depende del largo de la palabra. En un apellido de cuatro o cinco letras,
 tres cambios son casi toda la palabra, así que pares como RUIZ/DIAZ, MORA/SOTO o PEREZ/LOPEZ
 (distancia 3) pasan como la misma palabra y, cuando la forma no cambia, se adopta el apellido de la
