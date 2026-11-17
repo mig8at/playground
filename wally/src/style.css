@@ -282,3 +282,25 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .group-option > .config-row:first-child { display: flex; align-items: flex-start }
 .group-option > .config-row:first-child > div { flex: 1 }
 .group-option > .config-row:first-child > .btn { flex: none }
+
+/* EL MENÚ DE PROVEEDOR de la barra: un botón con el punto, el modelo y la flecha; la lista se abre hacia arriba. Lo que
+   no se puede usar queda apagado y el título dice por qué. */
+.provider-menu-wrap { position: relative }
+.provider-trigger { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 8px; border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: var(--background); color: var(--foreground); font: inherit; font-size: var(--text-xs); cursor: pointer }
+.provider-trigger:hover { border-color: var(--ring) }
+.provider-chevron { width: 12px; height: 12px; transform: rotate(-90deg); transition: transform .15s }
+.provider-chevron.open { transform: rotate(90deg) }
+.provider-menu { position: absolute; bottom: calc(100% + 6px); left: 0; z-index: 20; min-width: 280px; padding: 4px; display: grid; gap: 2px;
+  border: 1px solid var(--border); border-radius: var(--radius-control); background: var(--popover, var(--card)); color: var(--foreground);
+  box-shadow: 0 8px 24px color-mix(in oklab, var(--foreground) 18%, transparent) }
+.provider-option { display: flex; align-items: center; gap: var(--space-2); padding: 6px 8px; border: 0; border-radius: calc(var(--radius-control) - 2px);
+  background: none; color: inherit; font: inherit; text-align: left; cursor: pointer }
+.provider-option:hover:not([aria-disabled="true"]) { background: var(--hover) }
+.provider-option.on { background: var(--accent); color: var(--accent-foreground) }
+.provider-option[aria-disabled="true"] { opacity: .45; cursor: not-allowed }
+.po-main { display: grid; min-width: 0 }
+.po-main b { font-size: var(--text-sm); font-weight: 600 }
+.po-main span { font-size: var(--text-xs); color: var(--fg-3) }
+.provider-option.on .po-main span { color: inherit; opacity: .8 }
+.provider-trigger { white-space: nowrap; flex: none }

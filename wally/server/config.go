@@ -41,8 +41,11 @@ type Config struct {
 
 var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
 
-// groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia).
+// groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia; Kimi no estaba).
 var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
+
+// groqModelNames: cómo se llama cada uno en la barra (Groq es por dónde va; el que contesta es el modelo).
+var groqModelNames = map[string]string{"openai/gpt-oss-120b": "GPT OSS 120B", "openai/gpt-oss-20b": "GPT OSS 20B"}
 
 // Los modelos que puede usar Wally, por proveedor: el nombre es lo que queda en cada respuesta.
 var providerModels = map[string]Model{

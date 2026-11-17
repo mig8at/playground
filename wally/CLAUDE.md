@@ -170,8 +170,12 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   barra del input»): «Automático» (el de la configuración; un agente o el asistente van por Gemini salvo el permiso
   general) o uno elegido, que se guarda en la conversación (`Conversation.Provider`, `PUT /api/conversations/<id>/
   provider`; en una pestaña nueva viaja con la primera pregunta) y vale como la decisión de Miguel para ésa, también
-  si es de un agente (`providerForConversation`, probado). Cada opción dice su estado («en pausa hasta las 03:10»,
-  «sin sesión») con un punto al lado, y la barra avisa si lo que viaja (la precarga del agente, la conversación y lo
+  si es de un agente (`providerForConversation`, probado). Es un menú propio (no un `<select>`: en macOS el nativo no
+  muestra el título de una opción): cada opción dice el MODELO que contesta y, chico, por dónde va y su tope (Groq se
+  ve como «GPT OSS 120B · Groq»: el 2026-11-17 Groq Chat ofrecía GPT OSS 120B y 20B y Qwen 3.8 27B, no Kimi). Lo que no
+  se puede usar ahora (en pausa, sin sesión, sin Jarvis, sin respuesta) queda apagado con `aria-disabled` —Chrome no
+  muestra el título de un botón `disabled`— y el mouse dice la causa; «Automático» también, si va por uno así. La barra
+  avisa si lo que viaja (la precarga del agente, la conversación y lo
   escrito; `preloadSize`) no le entra al elegido (`providerLimits`: ChatGPT ~40 mil, Groq ~19 mil). La pausa que frena
   el botón es la del proveedor de ESA conversación: con Gemini sin cupo, se elige DeepSeek y se sigue. Los Pokémon
   pesan de 53 a 114 mil caracteres: ninguno entra en ChatGPT gratis ni en Groq. (El selector estuvo un rato en la

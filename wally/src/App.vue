@@ -262,9 +262,28 @@ const autoProvider = computed(() => {
 const effectiveProvider = computed(() => (chosenProvider.value !== 'auto' ? chosenProvider.value : autoProvider.value))
 const providerOf = (id) => providers.value.find((p) => p.id === id)
 const effectivePaused = computed(() => providerOf(effectiveProvider.value)?.paused || '')
-const STATE_NOTE = { listo: '', 'sin-sesion': 'sin sesión', error: 'no responde', 'sin-jarvis': 'sin Jarvis', comprobando: 'comprobando…', 'sin-comprobar': '' }
-const providerLabel = (p) => `${PROVIDER_NAME[p.id]}${p.paused ? ` · en pausa hasta las ${p.paused}` : STATE_NOTE[p.status?.state] ? ` · ${STATE_NOTE[p.status.state]}` : ''}`
 const providerState = (id) => (providerOf(id)?.paused ? 'pausa' : providerOf(id)?.status?.state || 'sin-comprobar')
+// EL MENÚ DE LA BARRA: el modelo que contesta en grande y, chico, por dónde va. Lo que no se puede usar ahora queda
+// deshabilitado y el mouse dice por qué (con `aria-disabled` y no `disabled`: Chrome no muestra el título de un botón
+// deshabilitado).
+const providerMenu = ref(false)
+const modelLabel = (id) => providerOf(id)?.model?.displayName || PROVIDER_NAME[id] || id
+function unavailableReason(id) {
+  const p = providerOf(id)
+  if (!p) return ''
+  if (p.paused) return id === 'aistudio' ? `En pausa hasta las ${p.paused}: se acabó el cupo diario de Gemini (lo dijo su último aviso)` : `En pausa hasta las ${p.paused}: cortó por el ritmo`
+  if (p.status?.state === 'sin-sesion') return `${PROVIDER_NAME[id]} pide entrar: hacelo a mano en tu Chrome y tocá «Comprobar ahora» en la configuración`
+  if (p.status?.state === 'sin-jarvis') return 'Jarvis no está conectado en Chrome: abrí Chrome o tocá el ícono de Jarvis'
+  if (p.status?.state === 'error') return p.status.detail
+  return ''
+}
+function pickProvider(id) {
+  const target = id === 'auto' ? autoProvider.value : id
+  if (unavailableReason(target)) return
+  chosenProvider.value = id
+  providerMenu.value = false
+}
+function closeProviderMenu(e) { if (providerMenu.value && !e.target.closest?.('.provider-menu-wrap')) providerMenu.value = false }
 // Lo que viaja (la precarga del agente, si es uno, más la conversación y lo escrito) contra el tope del proveedor.
 const fit = computed(() => {
   const limit = providerOf(effectiveProvider.value)?.limit || 0
@@ -652,6 +671,7 @@ const onWindowResize = () => { viewportW.value = window.innerWidth; grow() }
 const themeToggle = ref(null)
 let themeBinding = null
 onMounted(async () => {
+  document.addEventListener('click', closeProviderMenu)
   window.addEventListener('resize', onWindowResize)
   window.addEventListener('hashchange', readRoute)
   if (themeToggle.value) themeBinding = bindThemeToggle(themeToggle.value)
@@ -676,6 +696,7 @@ onMounted(async () => {
   }, 3_000)
 })
 onBeforeUnmount(() => {
+  document.removeEventListener('click', closeProviderMenu)
   window.removeEventListener('resize', onWindowResize)
   window.removeEventListener('hashchange', readRoute)
   clearInterval(tick)
@@ -1155,15 +1176,29 @@ onBeforeUnmount(() => {
             <button type="button" class="region-action" title="Adjuntar archivos: texto y código, PDF o Word. También se pueden arrastrar" aria-label="Adjuntar archivos" @click="fileInput?.click()">
               <span class="ui-icon" data-icon="attach" aria-hidden="true"></span>
             </button>
-            <span class="provider-pick-bar" :title="providerOf(effectiveProvider)?.status?.detail || 'Con qué proveedor sigue esta conversación'">
-              <i class="state-dot" :class="`is-${providerState(effectiveProvider)}`" aria-hidden="true"></i>
-              <label class="select provider-select">
-                <select v-model="chosenProvider" class="input input-xs" aria-label="Con qué proveedor sigue esta conversación">
-                  <option value="auto">Automático · {{ PROVIDER_NAME[autoProvider] }}</option>
-                  <option v-for="p in providers" :key="p.id" :value="p.id">{{ providerLabel(p) }}</option>
-                </select>
-              </label>
-            </span>
+            <div class="provider-menu-wrap" @keydown.esc="providerMenu = false">
+              <button type="button" class="provider-trigger" :aria-expanded="providerMenu" aria-haspopup="listbox"
+                      :title="unavailableReason(effectiveProvider) || `Contesta ${modelLabel(effectiveProvider)}, por ${PROVIDER_NAME[effectiveProvider]}`" @click="providerMenu = !providerMenu">
+                <i class="state-dot" :class="`is-${providerState(effectiveProvider)}`" aria-hidden="true"></i>
+                <span>{{ chosenProvider === 'auto' ? 'Automático · ' : '' }}{{ modelLabel(effectiveProvider) }}</span>
+                <span class="ui-icon provider-chevron" :class="{ open: providerMenu }" data-icon="chevron" aria-hidden="true"></span>
+              </button>
+              <div v-if="providerMenu" class="provider-menu" role="listbox" aria-label="Con qué sigue esta conversación">
+                <button type="button" role="option" class="provider-option" :class="{ on: chosenProvider === 'auto' }"
+                        :aria-selected="chosenProvider === 'auto'" :aria-disabled="!!unavailableReason(autoProvider)"
+                        :title="unavailableReason(autoProvider) ? `Automático va por ${PROVIDER_NAME[autoProvider]}. ${unavailableReason(autoProvider)}` : 'El de la configuración (un agente va por Gemini salvo el permiso general)'"
+                        @click="pickProvider('auto')">
+                  <i class="state-dot" :class="`is-${providerState(autoProvider)}`" aria-hidden="true"></i>
+                  <span class="po-main"><b>Automático</b><span>{{ modelLabel(autoProvider) }} · {{ PROVIDER_NAME[autoProvider] }}</span></span>
+                </button>
+                <button v-for="p in providers" :key="p.id" type="button" role="option" class="provider-option" :class="{ on: chosenProvider === p.id }"
+                        :aria-selected="chosenProvider === p.id" :aria-disabled="!!unavailableReason(p.id)"
+                        :title="unavailableReason(p.id) || p.status?.detail || ''" @click="pickProvider(p.id)">
+                  <i class="state-dot" :class="`is-${providerState(p.id)}`" aria-hidden="true"></i>
+                  <span class="po-main"><b>{{ p.model.displayName }}</b><span>{{ PROVIDER_NAME[p.id] }}{{ p.limit ? ` · hasta ~${Math.round(p.limit / 1000)} mil car.` : '' }}{{ p.paused ? ` · hasta las ${p.paused}` : '' }}</span></span>
+                </button>
+              </div>
+            </div>
             <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: el modelo no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>

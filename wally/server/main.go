@@ -308,6 +308,9 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 			st = providerStatus{State: "sin-comprobar", Detail: "todavía no se comprobó"}
 		}
 		r := row{ID: id, Model: providerModels[id], Limit: providerLimits[id], Status: st}
+		if id == "groq" {
+			r.Model.DisplayName = groqModelNames[a.config.get().GroqModel] // el modelo que contesta, no el servicio
+		}
 		if until := pauseFor(id, paused); until > 0 {
 			r.PausedUntil = until
 			r.Paused = time.UnixMilli(until).Format("15:04")
