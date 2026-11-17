@@ -126,6 +126,8 @@ Los recordatorios de las cuotas de Motai no los manda `legacy-application`. Su c
 en `config('reminders.excluded_cutoff_type_ids')`, que es `[3]` (semanal); un lender sin corte no
 queda excluido. Los manda `legacy-backend` con `app:reminder-weekly-loans`, programado a diario a las
 9:00 de Bogotá, que toma sólo lenders con `cutoff_type_id = 3`: no envía en domingo ni festivo del
-país del lender, recupera el estado de cuenta el siguiente día hábil, deduplica por ciclo de pago y
-manda un solo recordatorio por cliente y día. Los dos filtros miran el corte 3 exacto: un lender con
+país del lender, recupera el estado de cuenta el siguiente día hábil, deduplica por ciclo de pago,
+manda un solo recordatorio por cliente y día y no les escribe a los créditos de prueba
+(`user_requests.is_test` o `users.is_test` del dueño; cada utilización de un cupo se juzga por su
+propia solicitud). Los dos filtros miran el corte 3 exacto: un lender con
 el corte semanal de martes (4) no lo excluye `legacy-application` ni lo toma el comando semanal.
