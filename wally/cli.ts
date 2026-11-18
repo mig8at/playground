@@ -12,6 +12,9 @@
 //   bin/wally new [--title 'título']                   una conversación vacía
 //   bin/wally delete <id>                              borra una conversación (la de Wally no se borra)
 //   bin/wally ask [--conv <id> | --agent <nombre>] 'pregunta'   le pregunta (sin --conv ni --agent, a Wally)
+//                 [--auto [--rounds 6]]   sin esperar a nadie: corre los comandos que pida (sólo los de la lista
+//                                          blanca, que valida el servidor) y le manda los resultados, hasta que
+//                                          conteste sin pedir nada o se acaben las vueltas
 //   cualquiera con --json: la salida en JSON
 import fs from 'node:fs';
 import path from 'node:path';
@@ -21,7 +24,9 @@ const args = process.argv.slice(2);
 const JSON_OUT = args.includes('--json');
 const flag = (n: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
 const flags = (n: string) => args.flatMap((a, i) => (a === `--${n}` && args[i + 1] ? [args[i + 1]] : []));
-const positional = () => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && args[i - 1] !== '--json'));
+// Las banderas sin valor (--json, --auto) no se comen la palabra que sigue.
+const BOOLEAN_FLAGS = ['--json', '--auto'];
+const positional = () => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && !BOOLEAN_FLAGS.includes(args[i - 1])));
 const resolve = (p: string) => path.resolve(process.env.INIT_CWD || process.cwd(), p);
 
 async function api(p: string, init?: RequestInit) {
@@ -115,12 +120,37 @@ try {
         if (!text) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
         const id = flag('conv') || (flag('agent') ? (await agentByName(flag('agent')!)).conv : (await api('/api/main')).id);
         const { default: provider } = await api('/api/providers');
-        const c = await post('/api/ask', { id, provider, text });
-        const m = c.messages[c.messages.length - 1];
-        out({ conv: c.id, model: m.model, ms: m.ms, answer: m.text, commands: m.commands || [] },
-            `${m.text}\n\n  (${m.model}, ${(m.ms / 1000).toFixed(1)} s${m.commands?.length ? ` · pide ${m.commands.length} comando(s): aprobalos en Wally` : ''})`);
+        let c = await post('/api/ask', { id, provider, text });
+        let m = c.messages[c.messages.length - 1];
+        // --auto: el agente sigue solo. Lo que corre lo decide el servidor (la lista blanca, sólo lectura); el tope
+        // de vueltas evita que pida y pida sin terminar, y cada vuelta reenvía todo el contexto al proveedor.
+        const rounds: Array<{ ms: number; ran: string[]; refused: string[] }> = [{ ms: m.ms, ran: [], refused: [] }];
+        if (args.includes('--auto')) {
+            const max = Number(flag('rounds') || 6);
+            while ((m.commands || []).some((x: any) => x.status === 'propuesto') && rounds.length <= max) {
+                const ran: string[] = [], refused: string[] = [];
+                for (const cmd of m.commands) {
+                    if (cmd.status === 'no-permitido') { refused.push(cmd.cmd); continue; }
+                    if (cmd.status !== 'propuesto') continue;
+                    const r = await post(`/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`, { action: 'run' });
+                    const done = r.messages?.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
+                    (done?.status === 'corrido' ? ran : refused).push(cmd.cmd);
+                }
+                if (!JSON_OUT) console.error(`  ↻ vuelta ${rounds.length}: corrí ${ran.length}${refused.length ? `, no permitidos ${refused.length} (${refused.join(' · ')})` : ''}`);
+                const next = ran.length
+                    ? `Listo: corrí ${ran.length === 1 ? 'el comando' : `los ${ran.length} comandos`} (la salida va arriba)${refused.length ? `; ${refused.length} no están en la lista: ${refused.join(' · ')}` : ''}. Seguí.`
+                    : `Ninguno de esos comandos está en la lista de sólo lectura (${refused.join(' · ')}). Seguí con lo que tenés o pedí otro.`;
+                c = await post('/api/ask', { id: c.id, provider, text: next });
+                m = c.messages[c.messages.length - 1];
+                rounds.push({ ms: m.ms, ran, refused });
+            }
+        }
+        const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
+        const total = rounds.reduce((s, r) => s + r.ms, 0);
+        out({ conv: c.id, model: m.model, ms: m.ms, totalMs: total, rounds, answer: m.text, commands: m.commands || [] },
+            `${m.text}\n\n  (${m.model}, ${rounds.length > 1 ? `${rounds.length} vueltas, ${(total / 1000).toFixed(1)} s en el modelo` : `${(m.ms / 1000).toFixed(1)} s`}${pending ? ` · pide ${pending} comando(s)${args.includes('--auto') ? ': se acabaron las vueltas' : ': aprobalos en Wally'}` : ''})`);
     } else {
-        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 17).map((l) => l.slice(3)).join('\n'));
+        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 20).map((l) => l.slice(3)).join('\n'));
         process.exit(cmd ? 2 : 0);
     }
 } catch (e: any) {

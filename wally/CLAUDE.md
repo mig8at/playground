@@ -293,6 +293,22 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   paso que cierra la solicitud» (es el del comienzo), a Sistecrédito «comercio» (es entidad), dijo que empezó «~16:54»
   (el «antes» de los despliegues de las 17:26 estaba en 5 %), y dio por hecho «tráfico de prueba» en Sonría y Asyco.
   Tampoco vio que el registro de todo el wizard ya había caído a 9 % a las 11:30, sin despliegue.
+- **El modo AUTOMÁTICO: `bin/wally ask … --auto [--rounds 6]`** (2026-11-17, Miguel: «un agente que no espere la
+  acción mía o tuya»): corre solo los comandos que pida el modelo y le manda los resultados, hasta que contesta sin
+  pedir nada o se acaban las vueltas. Lo que corre lo sigue decidiendo el servidor (la lista blanca, sólo lectura): un
+  comando fuera de ella queda «no permitido» y se le avisa. El tope existe porque cada vuelta reenvía todo el contexto
+  al proveedor. Es seguro por la lista, no por el modelo: sumar a la lista algo que escribe lo volvería peligroso.
+- **Porygon, el primer agente automático** (2026-11-17): pone al día la biblioteca solo —`cambios`, los `diff` de cada
+  fuente, las secciones que tocan— y da un veredicto por tema con el formato de WALLY.md; no escribe ([`agents/
+  porygon.md`](agents/porygon.md)). Se probó con lo que cambió ese día en legacy-application (la gestión del cupo
+  rotativo, `1ebeb8da`: 5 rutas en `routes/admin.php` y un `first_payment_date` opcional en `RefinanceCredit`), que
+  dejó 4 fuentes de 4 temas para revisar. Por DeepSeek, `--auto`: **5 vueltas, 15 comandos, ~3 min, sin que nadie
+  aprobara nada**. Veredictos: client-profiling y device-locking «sigue cierta», creditopx-portfolio-servicing «falta
+  algo» (la refinanciación del cupo impone la primera cuota desde afuera) y admin-panel «falta algo» (la sección
+  «Créditos CreditopX» dice que una utilización no se gestiona desde su detalle y no cuenta que el cupo entero sí; esa
+  sección no lista `routes/admin.php` entre sus fuentes, y aun así la encontró). Los cuatro se comprobaron contra
+  `main`, y el de admin-panel era uno que Claude no había previsto. De sus citas, una línea estaba corrida dos
+  (`preview` es la 66, dijo 64). Los textos propuestos no se aplicaron todavía.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su
