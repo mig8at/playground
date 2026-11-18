@@ -31,7 +31,6 @@ func main() {
 	asJSON := flag.Bool("json", false, "los hallazgos en JSON")
 	decls := flag.String("decls", "", "lista las declaraciones de Go de ese árbol y sale")
 	jsonKeys := flag.String("json-keys", "", "lista las claves JSON de ese árbol y sale")
-	canon := flag.String("canon", "", "la raíz del repo compartido: revisa SÓLO canon (tools/canon), que vive allá")
 	cache := flag.String("cache", "", "dónde guardar la tabla de frecuencias (por defecto data/cache/naming-baseline.json)")
 	freeze := flag.Bool("freeze", false, "congela los nombres en español de ahora como deuda conocida")
 	all := flag.Bool("all", false, "muestra también la deuda conocida")
@@ -71,9 +70,6 @@ func main() {
 	var seen []string
 	boards := []naming.Board{naming.Default(board), naming.Shared(filepath.Dir(board)), naming.Harness(filepath.Dir(board)), naming.Visor(filepath.Dir(board))}
 	boards = append(boards, naming.Apps(filepath.Dir(board))...)
-	if *canon != "" {
-		boards = []naming.Board{naming.Canon(*canon, filepath.Dir(board))}
-	}
 	for _, b := range boards {
 		found, counts, err := naming.Check(b, baseline, allow, os.Stderr)
 		if err != nil {
@@ -82,9 +78,9 @@ func main() {
 		findings = append(findings, found...)
 		seen = append(seen, b.Name+": "+naming.Seen(counts))
 	}
-	// La deuda conocida (no aplica a canon, que vive en otro repo): falla sólo lo nuevo.
+	// La deuda conocida: falla sólo lo nuevo.
 	debtPath := filepath.Join(board, "tools", "naming-debt.txt")
-	if *freeze && *canon == "" {
+	if *freeze {
 		n, err := naming.WriteDebt(debtPath, findings)
 		if err != nil {
 			fail(err)
@@ -94,7 +90,7 @@ func main() {
 	}
 	var known []naming.Finding
 	var paid []string
-	if *canon == "" && !*all && !*words {
+	if !*all && !*words {
 		debt, err := naming.LoadDebt(debtPath)
 		if err != nil {
 			fail(err)

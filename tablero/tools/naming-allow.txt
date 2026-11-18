@@ -76,21 +76,9 @@ json: server/cmd/branches/main.go:map *                            # palabras va
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave
 
 
-# ── canon (`tools/canon`, repo compartido): inglés que la stdlib casi no usa, y nombres de su dominio ────────────────────────────
-# `rig` es el banco de prueba (test rig); `atlas` es el mapa de recorridos; `globalmap` es el mapa completo (una sola pieza);
-# `upkeep` el mantenimiento del corpus; `spaces`/`vision` los espacios de prosa (vision es la palabra inglesa: la visión del producto).
-rig rigs atlas globalmap upkeep vision seedfiles testcorpus showcase
-postgres bedrock anthropic sonnet sigv sigv4 credibot manuela meddipay onboarding
-restructure reactive breadcrumb breadcrumbs faithful travels administer headline omissions symptoms chevron fleet neighborhood neighborhoods
-rescue chronicle detour heartbeat heartbeats ladder mints refusal alittle anim ccw compass compete darkness disguise editorial fixable hedged
-hfov vfov idf inm intruder lateral lcs lightbulb lightness llp merch migs navigable paintable pencil prurl ray recomposes requestable
-revalidate revalidates rise rope spheres stopwords telescope tomorrow topple traceability twin twins vocab weave weigh withdrawals yardstick yesterday arn
-homonym
-sslmode
-origination
-formalization
-formalizations
-stratum
+# ── inglés que la stdlib casi no usa y nombres del dominio (se juntaron al revisar canon; quedan los que usa my-tools) ──
+# `rescue` (rescatar una solicitud trabada), `heartbeat`, `migs` (migraciones); `meddipay` es una entidad.
+postgres meddipay onboarding reactive travels rescue heartbeat anim lcs migs prurl yesterday arn sslmode origination formalization formalizations stratum ray
 
 # ── 2026-11-11: lo que el chequeo marcaba sin ser español (el rojo de siempre tapaba los nombres nuevos) ──
 # productos y herramientas: tiendas, navegadores remotos y el producto HDC+ de Experian
