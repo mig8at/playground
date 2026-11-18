@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Infraestructura: cómo se propone y se aplica un cambio",
   "summary": "Repo infrastructure: PR por rama, un ambiente por PR (development y luego prod), sin plan ni apply local, apply manual desde main, reglas del PR, cómo se publica una ruta en el API Gateway y qué backend elige cada ruta en development.",
-  "reviewedAt": "2026-11-17T12:52:59+00:00",
+  "reviewedAt": "2026-11-18T20:03:57+00:00",
   "sources": [
     {
       "repo": "infrastructure",
@@ -21,8 +21,8 @@
     {
       "repo": "infrastructure",
       "path": ".github/workflows/pr-checks.yml",
-      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
-      "blob": "7f42198a51a963701a63aef49737da5b76b8478b",
+      "commit": "b623112c86b1a8b6fda4ced4af480c0b48997bc3",
+      "blob": "f7393d6a8f33885458ed64ded60431e13f6233ce",
       "sections": [
         "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main",
         "un-pr-toca-un-solo-ambiente-primero-development-despues-prod"
@@ -31,8 +31,8 @@
     {
       "repo": "infrastructure",
       "path": ".github/workflows/deploy-infra.yml",
-      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
-      "blob": "05ddc4cf2def1c762abfde0917a1a759422e90b3",
+      "commit": "b623112c86b1a8b6fda4ced4af480c0b48997bc3",
+      "blob": "1f7e6528b1e1465c68730fff2edb0780a3ce0012",
       "sections": [
         "un-cambio-entra-por-pr-y-se-aplica-a-mano-desde-main"
       ]

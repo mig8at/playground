@@ -15,25 +15,17 @@ La lógica reutilizable vive en `modules/` y los valores de cada ambiente en `en
 ## Un cambio entra por PR y se aplica a mano desde main
 
 1. Rama desde `main` actualizado; nunca push directo a `main`.
-2. PR. El check `pr-checks.yml` corre pre-commit y `terragrunt run --all plan` del ambiente tocado; el
-   plan se revisa entero.
+2. PR. El check `pr-checks.yml` corre pre-commit y `terragrunt run --all plan` del ambiente tocado (`development`, `prod` o `internal`, según el path modificado); el plan se revisa entero.
 3. Nadie mergea su propio PR sin revisión del equipo de infra.
-4. El `apply` es manual: el workflow `deploy-infra.yml` (`workflow_dispatch`, ambiente `production` o
-   `development`) sólo aplica desde `refs/heads/main`. Mergear no despliega.
+4. El `apply` es manual: el workflow `deploy-infra.yml` (`workflow_dispatch`, ambiente `production`, `development` o `internal`) sólo aplica desde `refs/heads/main`; cada ambiente tiene su job (`apply-production`, `apply-development`, `apply-internal`) con esa condición. Mergear no despliega.
 
-No se corre `terragrunt plan`, `apply` ni `destroy` en local, ni se propone como paso: el trabajo local
-es editar archivos. Los cambios en recursos base (VPC, RDS, DynamoDB, S3, KMS, SQS, Cognito, WAF, IAM
-compartido) se conversan con infra antes de abrir el PR, y un `destroy` o un reemplazo de un recurso con
-datos pide la confirmación explícita del dueño de infra.
+No se corre `terragrunt plan`, `apply` ni `destroy` en local, ni se propone como paso: el trabajo local es editar archivos. Los cambios en recursos base (VPC, RDS, DynamoDB, S3, KMS, SQS, Cognito, WAF, IAM compartido) se conversan con infra antes de abrir el PR, y un `destroy` o un reemplazo de un recurso con datos pide la confirmación explícita del dueño de infra.
 
 ## Un PR toca un solo ambiente: primero development, después prod
 
-El job «Guard single environment per PR» de `pr-checks.yml` falla si el PR cambia
-`environments/development/**` y `environments/prod/**` a la vez. El orden es: un PR para development,
-se aplica y se valida allí, y la promoción a prod va en otro PR que sólo toca `environments/prod`. Al
-promover se copia del equivalente de **prod**, no del de development: cambian cuenta, ARNs, hostnames
-(`*.production.internal.creditop.com`) y secrets. Un cambio en `modules/**` dispara el plan de los dos
-ambientes, y hay que comprobar que el otro no tenga diff inesperado.
+El job «Guard single environment per PR» de `pr-checks.yml` falla si el PR cambia más de uno de `environments/development/**`, `environments/prod/**` y `environments/internal/**`. El orden es: un PR para development, se aplica y se valida allí, y la promoción a prod va en otro PR que sólo toca `environments/prod`. Al promover se copia del equivalente de **prod**, no del de development: cambian cuenta, ARNs, hostnames (`*.production.internal.creditop.com`) y secrets.
+
+Un cambio en `modules/**` dispara el plan de development y de prod (los filtros `development` y `prod` incluyen `modules/**`), y hay que comprobar que el otro no tenga diff inesperado. El plan de `internal` (`plan-internal`) se dispara sólo por cambios en `environments/internal/**`; un cambio en `modules/**` no lo dispara, así que si un módulo lo usa internal el plan no lo cubre en el PR.
 
 ## Qué se exige dentro del PR
 
