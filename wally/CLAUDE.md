@@ -414,7 +414,19 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   y correcto; el formulario confirma con el servicio nuevo). (2) Arreglado eso, «el sábado hasta las 15:00»: un parche
   de un cambio, una respuesta de 335 caracteres en vez de 13 mil, 2 vueltas, 38 s. La lección de la falla: probar la
   función no alcanza si el comando no pasa la lista (`commands_test.go` ahora lo comprueba para los de la carpeta).
-  `probar` dice si hay errores, no si la página HACE lo pedido ni cómo se ve: eso se mira (las capturas quedan en
+  **Los criterios y el freno** (2026-11-17; la idea es de los harness de agentes largos: una lista de «hecho» que el
+  modelo no puede saltarse, y verificar usando la página). Cada proyecto lleva `criterios.json`: un criterio por cada
+  cosa pedida, con los pasos que lo comprueban (`tocar`, `escribir`, `elegir`, `marcar`, `ver`, `no_ver`; cada uno
+  arranca con la página recién cargada y tiene que terminar en un `ver` o `no_ver`). `probar` los ejecuta
+  (`sandbox-check.mjs`) y dice cuál pasa; si falla, con el paso y lo que se ve en su lugar; si el archivo falta, es un
+  problema y devuelve la forma. **El freno** (`sandboxPending`, `GET /api/conversations/<id>/pending`): en Auto, si el
+  modelo contesta sin pedir nada pero escribió después del último `probar`, o el último dejó algo en rojo, Wally le
+  dice «todavía no terminaste» y sigue (hasta 3 veces; después frena y avisa), en la interfaz y en `bin/wally`.
+  Probado con una calculadora de propina, en Auto: 2 vueltas, 74 s; entregó la página y 4 criterios con los números
+  exactos (15 % de 100.000 entre 2 → $57.500 cada uno), todos en verde; un caso que no había escrito él (20 % entre 4)
+  también pasó. ⚠ Los criterios los escribe el mismo agente: sirven para que no cierre a ciegas, no reemplazan mirar
+  que cubran lo pedido. En esa corrida el freno no llegó a actuar (salió todo a la primera): lo cubren sus pruebas.
+  `probar` dice si hay errores y si pasan los criterios, no cómo se ve: eso se mira (las capturas quedan en
   `wally/pruebas/.capturas/`) o se usa.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron

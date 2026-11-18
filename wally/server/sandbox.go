@@ -176,12 +176,16 @@ func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error)
 	} else if info.IsDir() {
 		target = strings.TrimSuffix(rel, "/") + "/index.html"
 	}
-	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, 150*time.Second)
 	defer cancel()
 	shots := filepath.Join(a.root, sandboxDir, ".capturas")
 	_ = os.MkdirAll(shots, 0o755)
+	// Los criterios del proyecto (criterios.json en su raíz): lo que la página tiene que HACER. Se pasan siempre: si
+	// faltan, `probar` lo dice como un problema, con la forma que tienen que tener.
+	project := strings.SplitN(rel, "/", 2)[0]
 	cmd := exec.CommandContext(ctx, "node", filepath.Join(a.root, "wally", "sandbox-check.mjs"),
-		"http://127.0.0.1:5229/pruebas/"+target, filepath.Join(shots, strings.ReplaceAll(strings.TrimSuffix(target, ".html"), "/", "--")))
+		"http://127.0.0.1:5229/pruebas/"+target, filepath.Join(shots, strings.ReplaceAll(strings.TrimSuffix(target, ".html"), "/", "--")),
+		filepath.Join(a.root, sandboxDir, project, "criterios.json"))
 	cmd.Dir = a.root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -281,4 +285,59 @@ func (a *app) patchSandbox(path, patch string) (string, int, error) {
 		return err.Error(), 1, nil
 	}
 	return fmt.Sprintf("parche aplicado: %d cambio(s). %s", len(hunks), note), 0, nil
+}
+
+// sandboxPending: por qué una conversación que escribió en la carpeta de pruebas todavía NO puede darse por terminada
+// ("" si puede). Es el freno del modo automático (Miguel, 2026-11-17; la idea es la lista de «hecho» de los harness de
+// agentes largos): el modelo no decide solo que terminó. Queda pendiente si escribió después del último `probar` (o
+// nunca probó), o si el último `probar` dejó problemas (errores, o un criterio de criterios.json que no pasa).
+func sandboxPending(c Conversation) string {
+	seq, lastWrite, lastCheck, lastExit := 0, 0, 0, 0
+	project := ""
+	for _, m := range c.Messages {
+		for _, k := range m.Commands {
+			seq++
+			if k.Status != "corrido" {
+				continue
+			}
+			fields := strings.Fields(k.Cmd)
+			if len(fields) != 2 || !strings.HasPrefix(fields[1], "pruebas/") {
+				continue
+			}
+			switch fields[0] {
+			case "escribir", "parchar":
+				if k.Exit == 0 {
+					lastWrite = seq
+					project = strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0]
+				}
+			case "probar":
+				lastCheck, lastExit = seq, k.Exit
+			}
+		}
+	}
+	switch {
+	case lastWrite == 0:
+		return ""
+	case lastCheck < lastWrite:
+		return fmt.Sprintf("Todavía no terminaste: escribiste en pruebas/%s después del último `probar` (o nunca lo corriste). Pedí `probar pruebas/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, project)
+	case lastExit != 0:
+		return "Todavía no terminaste: el último `probar` dejó problemas (están en su salida, arriba). Corregí lo que falla —la página, o el criterio si estaba mal escrito— y volvé a correr `probar`. No cierres hasta que diga «RESULTADO: sin errores»."
+	}
+	return ""
+}
+
+// pending: GET /api/conversations/{id}/pending → {"reason": "…"} si el modo automático no la puede dar por cerrada.
+func (a *app) pending(w http.ResponseWriter, r *http.Request) {
+	a.store.mu.Lock()
+	c, ok := a.store.convs[r.PathValue("id")]
+	reason := ""
+	if ok {
+		reason = sandboxPending(*c)
+	}
+	a.store.mu.Unlock()
+	if !ok {
+		writeErr(w, 404, errors.New("no existe esa conversación"))
+		return
+	}
+	writeJSON(w, 200, map[string]string{"reason": reason})
 }

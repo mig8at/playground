@@ -149,7 +149,20 @@ try {
         const rounds: Array<{ ms: number; ran: string[]; refused: string[] }> = [{ ms: m.ms, ran: [], refused: [] }];
         if (args.includes('--auto')) {
             const max = Number(flag('rounds') || 6);
-            while ((m.commands || []).some((x: any) => x.status === 'propuesto') && rounds.length <= max) {
+            let nudges = 0;
+            while (rounds.length <= max) {
+                // Contestó sin pedir nada: ¿puede cerrar? Si escribió en pruebas/ sin probar, o el último `probar` dejó
+                // algo en rojo, Wally no lo deja (hasta 3 veces: después frena y lo dice).
+                if (!(m.commands || []).some((x: any) => x.status === 'propuesto')) {
+                    const { reason } = await api(`/api/conversations/${c.id}/pending`);
+                    if (!reason || nudges >= 3) { if (reason && !JSON_OUT) console.error(`  ⚠ quedó sin cerrar bien: ${reason}`); break; }
+                    nudges++;
+                    if (!JSON_OUT) console.error(`  ↻ no puede cerrar todavía (${nudges}/3): ${reason.slice(0, 90)}…`);
+                    c = await ask({ id: c.id, provider, text: reason });
+                    m = c.messages[c.messages.length - 1];
+                    rounds.push({ ms: m.ms, ran: [], refused: [] });
+                    continue;
+                }
                 const ran: string[] = [], refused: string[] = [];
                 for (const cmd of m.commands) {
                     if (cmd.status === 'no-permitido') { refused.push(cmd.cmd); continue; }

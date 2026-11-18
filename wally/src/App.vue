@@ -349,7 +349,7 @@ async function send() {
   const key = active.value
   const fromAuto = autoSending
   autoSending = false
-  if (!fromAuto) autoRounds[key] = 0
+  if (!fromAuto) { autoRounds[key] = 0; autoNudges[key] = 0 }
   let answered = ''
   const files = attachments.value[key] || []
   const draftBefore = draft.value
@@ -461,6 +461,7 @@ const running = ref('')   // el id del comando que se está corriendo
 const AUTO_ROUNDS = 6
 const autoRun = ref(readPref('wally.auto', {}))
 const autoRounds = {}   // conversación → vueltas automáticas seguidas
+const autoNudges = {}   // conversación → veces seguidas que se le dijo «todavía no terminaste»
 let autoSending = false
 const autoOn = computed(() => !!autoRun.value[active.value])
 function setAuto(on) {
@@ -473,7 +474,23 @@ async function autoContinue(id) {
   const last = c?.messages?.[c.messages.length - 1]
   if (!autoRun.value[id] || !last || last.role !== 'model') return
   const proposed = (last.commands || []).filter((x) => x.status === 'propuesto')
-  if (!proposed.length) { autoRounds[id] = 0; return }
+  if (!proposed.length) {
+    // Contestó sin pedir nada: si escribió en pruebas/ sin probar, o el último `probar` dejó algo en rojo, no puede
+    // cerrar: Wally se lo dice solo (hasta 3 veces seguidas; después frena y avisa).
+    let reason = ''
+    try { reason = (await api(`/api/conversations/${encodeURIComponent(id)}/pending`)).reason } catch {}
+    if (!reason) { autoRounds[id] = 0; autoNudges[id] = 0; return }
+    if ((autoNudges[id] || 0) >= 3 || active.value !== id) {
+      autoNudges[id] = 0
+      errors.value = { ...errors.value, [id]: `Auto frenó sin que quede bien: ${reason}` }
+      return
+    }
+    autoNudges[id] = (autoNudges[id] || 0) + 1
+    autoSending = true
+    draft.value = reason
+    send()
+    return
+  }
   if ((autoRounds[id] || 0) >= AUTO_ROUNDS) {
     autoRounds[id] = 0
     errors.value = { ...errors.value, [id]: `Auto: ${AUTO_ROUNDS} vueltas seguidas pidiendo comandos. Decidí vos estos, o mandá otra pregunta.` }

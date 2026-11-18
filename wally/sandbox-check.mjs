@@ -1,14 +1,17 @@
 /* Abre una página de wally/pruebas en un Chromium sin ventana y dice, EN TEXTO, lo que un modelo por la web no puede
  * ver: errores de consola y de JavaScript, recursos que no cargaron, el esquema de lo que quedó en pantalla y si se
  * desborda en un teléfono. Deja además una captura de escritorio y otra de teléfono para la persona.
- *   node wally/sandbox-check.mjs <url> <base de las capturas, sin extensión>
+ *   node wally/sandbox-check.mjs <url> <base de las capturas, sin extensión> [criterios.json]
+ * Con el archivo de criterios, además USA la página: por cada criterio la abre de nuevo y corre sus pasos (tocar,
+ * escribir, elegir, marcar, ver, no_ver), y dice cuál pasa y cuál no. Sin eso sólo se sabe que no hay errores, no que
+ * la página haga lo pedido (2026-11-17: un formulario que no validaba pasó `probar` sin un solo error).
  * Sale 0 si no hubo errores, 1 si los hubo. Lo corre el comando `probar` de Wally (server/sandbox.go). */
 import { createRequire } from 'node:module';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const [url, shotBase] = process.argv.slice(2);
+const [url, shotBase, criteriaFile] = process.argv.slice(2);
 if (!url) { console.error('uso: sandbox-check.mjs <url> [base de capturas]'); process.exit(2); }
 const { chromium } = createRequire(join(root, 'harness/package.json'))('playwright');
 
@@ -58,6 +61,64 @@ try {
     for (const e of [...new Set(errors)].slice(0, 12)) { out.push('  ✗ ' + e); problems.push(e); }
     if (shotBase) await page.screenshot({ path: `${shotBase}-${view.width}.png`, fullPage: true }).catch(() => {});
     await page.close();
+  }
+  // LOS CRITERIOS: lo que la página tiene que HACER, comprobado usándola.
+  if (criteriaFile) {
+    const { readFileSync, existsSync } = await import('node:fs');
+    const FORM = `[
+  { "criterio": "lo que tiene que pasar, en una línea",
+    "pasos": [ { "tocar": "Texto del botón" }, { "escribir": { "en": "Etiqueta del campo", "texto": "Ana" } },
+               { "elegir": { "en": "Etiqueta del desplegable", "opcion": "Texto de la opción" } },
+               { "marcar": "Etiqueta de la casilla" }, { "ver": "texto que tiene que aparecer" }, { "no_ver": "texto que NO" } ] }
+]`;
+    if (!existsSync(criteriaFile)) {
+      problems.push('falta criterios.json');
+      out.push(`\nCRITERIOS: falta el archivo criterios.json del proyecto. Sin él no se sabe si la página HACE lo pedido. Escribilo (un criterio por cada cosa que te pidieron), con esta forma:\n${FORM}`);
+    } else {
+      let list = null;
+      try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criterios.json no es JSON válido'); out.push(`\nCRITERIOS: criterios.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
+      if (list && (!Array.isArray(list) || !list.length)) { problems.push('criterios.json está vacío'); out.push(`\nCRITERIOS: criterios.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
+      if (list) {
+        out.push(`\nCRITERIOS (${Math.min(list.length, 25)}):`);
+        const base = url.replace(/[^/]*$/, '');
+        for (const [i, c] of list.slice(0, 25).entries()) {
+          const name = String(c?.criterio || `criterio ${i + 1}`).slice(0, 140);
+          const steps = Array.isArray(c?.pasos) ? c.pasos.slice(0, 20) : [];
+          if (!steps.length || !steps.some((s) => s && ('ver' in s || 'no_ver' in s))) {
+            problems.push(`criterio sin comprobación: ${name}`);
+            out.push(`  ✗ ${name} — no tiene ningún paso «ver» o «no_ver»: no comprueba nada`);
+            continue;
+          }
+          const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+          const errors = [];
+          page.on('pageerror', (e) => errors.push(String(e.message || e).slice(0, 200)));
+          let failed = '';
+          try {
+            await page.goto(c.pagina ? base + String(c.pagina).replace(/^\/+/, '') : url, { waitUntil: 'load', timeout: 15_000 });
+            for (const [k, s] of steps.entries()) {
+              const T = { timeout: 4000 };
+              const field = (label) => page.getByLabel(label, { exact: false }).or(page.getByPlaceholder(label)).or(page.getByRole('textbox', { name: label })).first();
+              try {
+                if ('tocar' in s) await page.getByRole('button', { name: s.tocar }).or(page.getByRole('link', { name: s.tocar })).or(page.getByText(s.tocar, { exact: true })).first().click(T);
+                else if ('escribir' in s) await field(s.escribir.en).fill(String(s.escribir.texto ?? ''), T);
+                else if ('elegir' in s) await page.getByLabel(s.elegir.en, { exact: false }).first().selectOption({ label: s.elegir.opcion }, T).catch(() => page.getByLabel(s.elegir.en, { exact: false }).first().selectOption(s.elegir.opcion, T));
+                else if ('marcar' in s) await page.getByLabel(s.marcar, { exact: false }).first().check(T);
+                else if ('ver' in s) await page.getByText(s.ver, { exact: false }).first().waitFor({ state: 'visible', ...T });
+                else if ('no_ver' in s) { await page.waitForTimeout(300); if (await page.getByText(s.no_ver, { exact: false }).first().isVisible().catch(() => false)) throw new Error('está a la vista'); }
+                else throw new Error('paso desconocido: usá tocar, escribir, elegir, marcar, ver o no_ver');
+              } catch (e) {
+                const seen = (await page.evaluate(() => (document.body?.innerText || '').replace(/\s+/g, ' ').trim()).catch(() => '')).slice(0, 260);
+                failed = `paso ${k + 1} ${JSON.stringify(s)}: ${String(e.message || e).split('\n')[0].slice(0, 160)}. Lo que se ve: «${seen}»`;
+                break;
+              }
+            }
+            if (!failed && errors.length) failed = `error de JavaScript al usarla: ${errors[0]}`;
+          } catch (e) { failed = `no abrió: ${String(e.message || e).split('\n')[0]}`; }
+          await page.close();
+          if (failed) { problems.push(`criterio: ${name}`); out.push(`  ✗ ${name} — ${failed}`); } else out.push(`  ✓ ${name}`);
+        }
+      }
+    }
   }
 } finally { await browser.close(); }
 out.push(problems.length ? `\nRESULTADO: ${problems.length} problema(s) para corregir.` : '\nRESULTADO: sin errores.');

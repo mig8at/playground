@@ -144,3 +144,29 @@ func TestPatchChangesOnlyWhatItSays(t *testing.T) {
 		t.Errorf("orden y forma: %+v", got)
 	}
 }
+
+// El freno: una conversación que escribió en la carpeta no puede cerrar si no probó después, o si el último `probar`
+// dejó problemas; una que no escribió nada, o que probó y quedó bien, sí.
+func TestSandboxPendingBlocksClosingUntested(t *testing.T) {
+	msg := func(cmds ...Command) Message { return Message{Role: "model", Commands: cmds} }
+	run := func(cmd string, exit int) Command { return Command{Cmd: cmd, Status: "corrido", Exit: exit} }
+	cases := []struct {
+		name string
+		msgs []Message
+		want string
+	}{
+		{"sin escribir nada", []Message{msg(run("trampas", 0))}, ""},
+		{"escribió y nunca probó", []Message{msg(run("escribir pruebas/demo/index.html", 0))}, "después del último `probar`"},
+		{"probó y quedó bien", []Message{msg(run("escribir pruebas/demo/index.html", 0), run("probar pruebas/demo", 0))}, ""},
+		{"probó con problemas", []Message{msg(run("escribir pruebas/demo/index.html", 0), run("probar pruebas/demo", 1))}, "dejó problemas"},
+		{"parchó después de probar", []Message{msg(run("probar pruebas/demo", 0)), msg(run("parchar pruebas/demo/a.css", 0))}, "después del último `probar`"},
+		{"un parche que no se aplicó no cuenta como escritura", []Message{msg(run("escribir pruebas/demo/index.html", 0), run("probar pruebas/demo", 0)), msg(run("parchar pruebas/demo/a.css", 1))}, ""},
+		{"lo descartado no cuenta", []Message{msg(Command{Cmd: "escribir pruebas/demo/index.html", Status: "descartado"})}, ""},
+	}
+	for _, c := range cases {
+		got := sandboxPending(Conversation{Messages: c.msgs})
+		if (c.want == "") != (got == "") || !strings.Contains(got, c.want) {
+			t.Errorf("%s: %q", c.name, got)
+		}
+	}
+}

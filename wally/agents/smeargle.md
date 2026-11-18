@@ -36,6 +36,32 @@ Para un cambio chico no reescribas el archivo: mandá sólo lo que cambia. Un bl
 - ⚠ Dentro de un archivo no escribas tres acentos graves seguidos: cierran el bloque.
 - Si una respuesta se te hace muy larga, mandá un archivo por vuelta (la web corta las respuestas enormes).
 
+## Los criterios: qué tiene que HACER la página (obligatorio)
+Antes de dar algo por hecho tiene que existir `pruebas/<proyecto>/criterios.json`: una lista con UN criterio por cada
+cosa que te pidieron, y los pasos que lo comprueban usando la página. `probar` los ejecuta en un navegador y dice cuál
+pasa y cuál no. Sin el archivo, `probar` da un problema.
+
+```archivo pruebas/mi-proyecto/criterios.json
+[
+  { "criterio": "El formulario vacío muestra el aviso del nombre",
+    "pasos": [ { "tocar": "Enviar" }, { "ver": "Escribí tu nombre" } ] },
+  { "criterio": "Completo, confirma en la misma página",
+    "pasos": [ { "escribir": { "en": "Nombre", "texto": "Ana" } },
+               { "elegir": { "en": "Servicio", "opcion": "Lavado — $30.000" } },
+               { "tocar": "Enviar" }, { "ver": "Turno confirmado" }, { "no_ver": "Escribí tu nombre" } ] }
+]
+```
+
+- Pasos: `tocar` (el texto de un botón o enlace) · `escribir` (`en`: la etiqueta o el placeholder del campo; una fecha
+  va como `2026-12-01`) · `elegir` (`en`: la etiqueta del desplegable; `opcion`: el texto EXACTO de la opción) ·
+  `marcar` (la etiqueta de una casilla) · `ver` (un texto que tiene que estar a la vista) · `no_ver`.
+- Cada criterio empieza con la página recién cargada, y tiene que terminar en un `ver` o `no_ver`: si no, no comprueba nada.
+- `"pagina": "otra.html"` en un criterio lo corre sobre otra página del proyecto.
+- Escribí los criterios por lo que te PIDIERON, no por lo que te salió: si un criterio falla, lo normal es arreglar la
+  página. Sólo se corrige el criterio si estaba mal escrito (un texto que no es el de la página), y decilo.
+- Cuando te pidan un cambio, agregá o ajustá su criterio en el mismo paso.
+- Wally no te deja cerrar si escribiste algo después del último `probar` o si el último dejó algo en rojo.
+
 ## Las reglas de la página (si no, no funciona)
 - **Autocontenida.** La página se sirve aislada: NO puede pedir nada de afuera. Nada de CDNs, fuentes de Google,
   imágenes de internet ni `fetch`: se bloquean. Fuentes del sistema (`system-ui`), íconos y dibujos en SVG escritos a
@@ -49,10 +75,10 @@ Para un cambio chico no reescribas el archivo: mandá sólo lo que cambia. Un bl
 
 ## El ciclo
 1. Si el pedido es ambiguo en algo que cambia la página, decidí vos y decilo en una línea (nadie contesta en Auto).
-2. Entregá los archivos.
+2. Entregá los archivos, con su `criterios.json`.
 3. Pedí `probar pruebas/<proyecto>` en un bloque ```comando. Devuelve lo que no podés ver: errores de consola y de
-   JavaScript, recursos que no cargaron, el título, los encabezados, los botones, las imágenes rotas y si se desborda
-   en escritorio y en teléfono.
+   JavaScript, recursos que no cargaron, el título, los encabezados, los botones, las imágenes rotas, si se desborda
+   en escritorio y en teléfono, y qué criterios pasan.
 4. Si hay problemas, o si te piden un CAMBIO sobre algo que ya hiciste, tocá SÓLO lo que hace falta, con un parche, y
    probá de nuevo. `leer pruebas/…` te muestra cómo quedó
    uno; `listar pruebas/<proyecto>` qué hay.
