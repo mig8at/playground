@@ -456,6 +456,16 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     el paso que falló), los errores y los desbordes.
   ⚠ Para verificar la vista previa, `make ui-shot` (un Chromium real): el navegador embebido de la sesión de Claude
   bloquea los iframes con `src` y la muestra en blanco aunque ande.
+- **Enterarse cuando un agente termina** (`server/runs.go`, 2026-11-17): quien corre el modo Auto —la interfaz o
+  `bin/wally ask --auto`— avisa al cerrar (`POST /api/conversations/<id>/done`, con las vueltas y, si frenó sin quedar
+  bien, por qué). Sale un **aviso de macOS** por el avisador del chat, como Sentinel y Correo (tocarlo abre Wally en
+  esa conversación, `cockpit://wally/#/c/<id>`; con sonido si frenó mal; sin aviso si la interfaz la tiene adelante), y
+  la corrida queda **«sin ver»** hasta que se abre su conversación con Wally a la vista (`…/seen`). Las sin ver son el
+  **numerito del ícono de Wally** en la barra de Cockpit (`postMessage` `badge`, que también suma al globito del
+  Dock: por eso cuenta corridas terminadas, no agentes trabajando) y un punto en el agente, con su resultado debajo
+  del nombre; mientras trabaja, el agente dice «trabajando solo…». `GET /api/live` da las dos cosas (quién espera
+  respuesta y qué quedó sin ver) y la interfaz lo consulta al abrir y cada 2,5 s. Lo sin ver vive en memoria: un
+  reinicio de Wally lo olvida.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

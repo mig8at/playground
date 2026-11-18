@@ -424,3 +424,7 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 /* Con la página al lado la conversación queda angosta: las fichas de un comando bajan de renglón en vez de salirse. */
 .command { flex-wrap: wrap; row-gap: 4px; padding-top: 4px; padding-bottom: 4px }
 .command-line { flex: 1 1 200px }
+
+/* Una corrida que terminó y todavía no viste: un punto al lado del nombre del agente (rojo si frenó sin quedar bien). */
+.unseen-dot { display: inline-block; width: 7px; height: 7px; margin-left: 6px; border-radius: 50%; background: var(--primary); vertical-align: middle }
+.unseen-dot.bad { background: var(--destructive) }

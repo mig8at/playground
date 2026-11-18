@@ -346,11 +346,41 @@ const busyElsewhere = computed(() => !!pending.value && pending.value.key !== ac
 // EN VIVO: lo que corre desde otro lado (`bin/wally ask --auto`, otra ventana) se ve igual. Cada 2,5 s, mientras no
 // pregunta esta ventana, se mira qué conversaciones esperan respuesta (`/api/busy`) y se recarga la abierta si cambió.
 const remoteBusy = ref({})   // id → { since, text }
+// LAS CORRIDAS QUE TERMINARON Y NO VISTE (runs.go): son el numerito del ícono de Wally en la barra de Cockpit, y un
+// punto en el agente. Se dan por vistas al tener su conversación adelante, con Wally a la vista.
+const unseen = ref({})       // id → { at, who, text, ok }
+const inCockpit = window.parent !== window
+const cockpitVisible = ref(!inCockpit)   // Cockpit avisa cuándo Wally está a la vista (un iframe escondido no se entera solo)
+const shownToMiguel = computed(() => cockpitVisible.value && !document.hidden)
+async function markSeen(id) {
+  const { [id]: _, ...rest } = unseen.value
+  unseen.value = rest
+  try { await api(`/api/conversations/${encodeURIComponent(id)}/seen`, { method: 'POST' }) } catch {}
+}
+watch(() => Object.keys(unseen.value).length, (n) => { if (inCockpit) { try { window.parent.postMessage({ cockpit: true, type: 'badge', count: n }, '*') } catch {} } })
+function onCockpitMessage(e) {
+  const d = e.data
+  if (e.source !== window.parent || !d || d.cockpit !== true || d.type !== 'visible') return
+  cockpitVisible.value = !!d.visible
+  if (d.visible && unseen.value[active.value]) markSeen(active.value)
+}
+// Quien corre el modo Auto le cuenta al servidor que terminó: sale el aviso y queda «sin ver» si no estás mirando.
+async function autoFinished(id, stopped = '') {
+  const rounds = autoRounds[id] || 0
+  if (!rounds && !stopped) return
+  try { await api(`/api/conversations/${encodeURIComponent(id)}/done`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ rounds, ms: 0, stopped, quiet: shownToMiguel.value && active.value === id }) }) } catch {}
+}
 const remote = computed(() => (pending.value ? null : remoteBusy.value[active.value] || null))
 let live = null
 async function liveTick() {
   if (document.hidden || pending.value) return
-  try { remoteBusy.value = await api('/api/busy') } catch { return }
+  try {
+    const live = await api('/api/live')
+    remoteBusy.value = live.busy || {}
+    unseen.value = live.unseen || {}
+  } catch { return }
+  // La corrida de la conversación que tenés adelante ya la viste.
+  if (unseen.value[active.value] && shownToMiguel.value) markSeen(active.value)
   const id = active.value
   if (!id || isNew(id) || !loaded.value[id] || running.value) return
   try {
@@ -494,10 +524,12 @@ async function autoContinue(id) {
     // cerrar: Wally se lo dice solo (hasta 3 veces seguidas; después frena y avisa).
     let reason = ''
     try { reason = (await api(`/api/conversations/${encodeURIComponent(id)}/pending`)).reason } catch {}
-    if (!reason) { autoRounds[id] = 0; autoNudges[id] = 0; return }
+    if (!reason) { await autoFinished(id); autoRounds[id] = 0; autoNudges[id] = 0; return }
     if ((autoNudges[id] || 0) >= 3 || active.value !== id) {
       autoNudges[id] = 0
       errors.value = { ...errors.value, [id]: `Auto frenó sin que quede bien: ${reason}` }
+      await autoFinished(id, reason)
+      autoRounds[id] = 0
       return
     }
     autoNudges[id] = (autoNudges[id] || 0) + 1
@@ -507,6 +539,7 @@ async function autoContinue(id) {
     return
   }
   if ((autoRounds[id] || 0) >= AUTO_ROUNDS) {
+    await autoFinished(id, `${AUTO_ROUNDS} vueltas seguidas pidiendo comandos`)
     autoRounds[id] = 0
     errors.value = { ...errors.value, [id]: `Auto: ${AUTO_ROUNDS} vueltas seguidas pidiendo comandos. Decidí vos estos, o mandá otra pregunta.` }
     return
@@ -807,6 +840,8 @@ onMounted(async () => {
   else activate(tabs.value.some((t) => t.key === active.value) ? active.value : tabs.value[0].key)
   // Cada 30 s: si la API no contestaba al abrir, aparece sola, y una pausa que venció habilita «Preguntar».
   live = setInterval(liveTick, 2500)
+  liveTick()   // al abrir, sin esperar la primera vuelta: el numerito y los puntos salen de entrada
+  window.addEventListener('message', onCockpitMessage)
   refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgents(); loadProviders() } }, 30_000)
   loadAgents()
   loadProviders()
@@ -819,6 +854,7 @@ onBeforeUnmount(() => {
   clearInterval(tick)
   clearInterval(refresher)
   clearInterval(live)
+  window.removeEventListener('message', onCockpitMessage)
   themeBinding?.destroy?.()
 })
 </script>
@@ -1193,8 +1229,10 @@ onBeforeUnmount(() => {
             <button type="button" class="aux-agent" :class="{ on: active === a.conv }" :title="`${a.agent.name}: ${a.agent.intent}`" @click="openTab(a.conv)">
               <span class="avatar agent-avatar" :style="agentStyle(a.agent.name)" aria-hidden="true">{{ a.agent.name[0] }}</span>
               <span class="aux-agent-text">
-                <b><i v-if="pending && pending.key === a.conv" class="live-dot" aria-label="esperando la respuesta"></i>{{ a.agent.name }}</b>
-                <small>{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</small>
+                <b><i v-if="(pending && pending.key === a.conv) || remoteBusy[a.conv]" class="live-dot" aria-label="trabajando"></i>{{ a.agent.name }}<i v-if="unseen[a.conv]" class="unseen-dot" :class="{ bad: !unseen[a.conv].ok }" :title="unseen[a.conv].text"></i></b>
+                <small v-if="remoteBusy[a.conv]">trabajando solo…</small>
+                <small v-else-if="unseen[a.conv]" :class="{ 'warn-text': !unseen[a.conv].ok }">{{ unseen[a.conv].text }}</small>
+                <small v-else>{{ a.agent.intent.replace(/^tener al día (el contexto de |el )?/i, '') }}</small>
               </span>
               <span v-if="a.changed" class="badge badge-xs" :title="`${a.changed} fuente${a.changed > 1 ? 's' : ''} de sus temas cambiaron en main: le toca a este agente`">{{ a.changed }}</span>
               <span v-else class="count" :title="`${a.count} bloque${a.count === 1 ? '' : 's'} en su conversación`">{{ a.count || '' }}</span>

@@ -60,6 +60,14 @@ func main() {
 		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })
 		writeJSON(w, 200, busy)
 	})
+	// Lo de ahora, de una: quién espera respuesta y qué corridas terminaron sin verse (la interfaz lo mira cada 2,5 s).
+	mux.HandleFunc("GET /api/live", func(w http.ResponseWriter, _ *http.Request) {
+		busy := map[string]askingInfo{}
+		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })
+		writeJSON(w, 200, map[string]any{"busy": busy, "unseen": a.runsUnseen()})
+	})
+	mux.HandleFunc("POST /api/conversations/{id}/done", a.runDone)
+	mux.HandleFunc("POST /api/conversations/{id}/seen", a.runSeen)
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
 	mux.HandleFunc("GET /api/main", a.mainConversation)
@@ -311,6 +319,8 @@ type app struct {
 	// asking: las conversaciones que esperan respuesta del proveedor, sea quien sea que preguntó (la interfaz o
 	// `bin/wally ask --auto`): la interfaz lo consulta para mostrar en vivo lo que corre desde otro lado.
 	asking sync.Map // id → askingInfo
+	// runs: las corridas automáticas que terminaron y no se vieron (runs.go).
+	runs runStore
 }
 
 type askingInfo struct {

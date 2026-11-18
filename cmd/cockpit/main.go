@@ -3,7 +3,8 @@
 //
 //	bin/cockpit status [--json]          qué apps hay, cuáles están arriba y cuál está al frente
 //	bin/cockpit open <app> [ruta]        trae una app al frente, en una ruta (#/… o /…)
-//	bin/cockpit restart <app>            reinicia una app (su servidor Go no se recarga solo) y Cockpit la recarga
+//	bin/cockpit restart <app> [--wait]   reinicia una app (su servidor Go no se recarga solo) y Cockpit la recarga;
+//	                                     con --wait vuelve recién cuando la app contesta de nuevo
 //	bin/cockpit say <texto…>             cuenta en el panel qué vas a hacer o qué encontraste
 //	bin/cockpit apps                     los ids de las apps
 //
@@ -32,7 +33,8 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
 
   bin/cockpit status [--json]       qué apps hay, cuáles están arriba y cuál está al frente
   bin/cockpit open <app> [ruta]     trae una app al frente, en una ruta: #/tareas/core-543 · /local/motai/asesor
-  bin/cockpit restart <app>         la reinicia para que tome un cambio en su servidor; Cockpit la recarga sola
+  bin/cockpit restart <app> [--wait]  la reinicia para que tome un cambio en su servidor; Cockpit la recarga sola.
+                                    --wait: vuelve cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
   bin/cockpit say <texto…>          cuenta en el panel qué vas a hacer o qué encontraste
   bin/cockpit apps                  los ids de las apps
 
@@ -101,6 +103,26 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 			return 1
 		}
 		fmt.Println("Cockpit:", out.Text)
+		// --wait: `restart` vuelve cuando la app SOLTÓ el puerto, no cuando levantó de nuevo; el comando que sigue le
+		// pegaba a un servidor que todavía no estaba (2026-11-17: quince reinicios de Wally con un bucle de curl a mano).
+		if len(args) > 2 && args[2] == "--wait" {
+			start := time.Now()
+			for time.Since(start) < 90*time.Second {
+				time.Sleep(500 * time.Millisecond)
+				var st cockpit.Status
+				if err := ctl.Do("GET", "/status", nil, &st, wait); err != nil {
+					continue
+				}
+				for _, a := range st.Apps {
+					if a.ID == args[1] && a.Ready {
+						fmt.Printf("Cockpit: %s contesta de nuevo (%.1f s)\n", a.Name, time.Since(start).Seconds())
+						return 0
+					}
+				}
+			}
+			fmt.Fprintf(os.Stderr, "cockpit: %s no levantó en 90 s (su log: ~/Library/Logs/cockpit-%s.log)\n", args[1], args[1])
+			return 1
+		}
 		return 0
 	case "say":
 		text := strings.TrimSpace(strings.Join(args[1:], " "))

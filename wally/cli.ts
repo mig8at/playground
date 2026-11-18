@@ -158,6 +158,7 @@ try {
         // --auto: el agente sigue solo. Lo que corre lo decide el servidor (la lista blanca, sólo lectura); el tope
         // de vueltas evita que pida y pida sin terminar, y cada vuelta reenvía todo el contexto al proveedor.
         const rounds: Array<{ ms: number; ran: string[]; refused: string[] }> = [{ ms: m.ms, ran: [], refused: [] }];
+        let autoStopped = '';
         if (args.includes('--auto')) {
             const max = Number(flag('rounds') || 6);
             let nudges = 0;
@@ -166,7 +167,7 @@ try {
                 // algo en rojo, Wally no lo deja (hasta 3 veces: después frena y lo dice).
                 if (!(m.commands || []).some((x: any) => x.status === 'propuesto')) {
                     const { reason } = await api(`/api/conversations/${c.id}/pending`);
-                    if (!reason || nudges >= 3) { if (reason && !JSON_OUT) console.error(`  ⚠ quedó sin cerrar bien: ${reason}`); break; }
+                    if (!reason || nudges >= 3) { if (reason && !JSON_OUT) console.error(`  ⚠ quedó sin cerrar bien: ${reason}`); autoStopped = reason || ''; break; }
                     nudges++;
                     if (!JSON_OUT) console.error(`  ↻ no puede cerrar todavía (${nudges}/3): ${reason.slice(0, 90)}…`);
                     c = await ask({ id: c.id, provider, text: reason });
@@ -202,6 +203,11 @@ try {
             }
         }
         const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
+        // La corrida automática terminó: aviso de macOS y queda «sin ver» en Wally hasta que se abra la conversación.
+        if (args.includes('--auto') && rounds.length > 1) {
+            if (pending) autoStopped = `se acabaron las ${rounds.length - 1} vueltas y todavía pedía ${pending} comando(s)`;
+            await post(`/api/conversations/${c.id}/done`, { rounds: rounds.length, ms: rounds.reduce((s, r) => s + r.ms, 0), stopped: autoStopped }).catch(() => {});
+        }
         const total = rounds.reduce((s, r) => s + r.ms, 0);
         out({ conv: c.id, model: m.model, ms: m.ms, totalMs: total, rounds, answer: m.text, commands: m.commands || [] },
             `${m.text}\n\n  (${m.model}, ${rounds.length > 1 ? `${rounds.length} vueltas, ${(total / 1000).toFixed(1)} s en el modelo` : `${(m.ms / 1000).toFixed(1)} s`}${pending ? ` · pide ${pending} comando(s)${args.includes('--auto') ? ': se acabaron las vueltas' : ': aprobalos en Wally'}` : ''})`);

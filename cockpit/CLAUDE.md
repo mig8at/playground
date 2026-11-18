@@ -21,7 +21,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `sentinel` | el vigía de producción: entidades y comercios contra lo normal | `sentinel/` | :5210 · :5211 | `make sentinel`; su API también de fondo (`make sentinel-install`, ver `sentinel/CLAUDE.md`) |
 | `goldfish` | tus PRs abiertos por repo y su validación Elephant-Goldfish (también de los PRs de otros) | `goldfish/` | :5216 · :5217 | `make goldfish` |
 | `correo` | los correos de los remitentes que seguís en Gmail, con aviso de macOS | `correo/` | :5224 · :5225 | `make correo`; su API también de fondo (`make correo-install`, ver `correo/CLAUDE.md`) |
-| `wally` | un chat con Gemini por la web de AI Studio (`bin/aistudio`), eligiendo el modelo | `wally/` | :5228 · :5229 | `make wally` |
+| `wally` | el asistente y sus agentes, por la web de Gemini, DeepSeek, ChatGPT o Groq (`bin/wally`); manda el numerito de las corridas automáticas que terminaron sin verse | `wally/` | :5228 · :5229 | `make wally` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 
@@ -47,7 +47,9 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
   de contestar la tapa con un aviso y, tras 3 revisiones seguidas, la levanta de nuevo con su `make` y la
   recarga. Medido el 2026-11-11: el tablero, apagado a la fuerza, volvió en 16 s. Espera esas revisiones a
   propósito: un servidor que se reinicia solo (Vite al cambiar su config) deja el puerto un par de segundos.
-- **Para que una app tome un cambio en su servidor Go: `bin/cockpit restart <app>`.** Apaga la de Cockpit, o la
+- **Para que una app tome un cambio en su servidor Go: `bin/cockpit restart <app> --wait`.** Sin `--wait` el comando
+  vuelve cuando la app SOLTÓ el puerto, no cuando levantó: lo que corra enseguida le pega a un servidor que no está.
+  Apaga la de Cockpit, o la
   de una terminal sólo si el líder de su grupo de procesos es el `make` de esa app; si no, lo dice y no toca
   nada. No mates servidores a mano: nunca `pkill` con patrón, ni por puerto sin `-sTCP:LISTEN`.
 - Lo que corre es el **código del working tree**: un cambio en el Vue de una app se ve al guardar (Vite); un
@@ -59,7 +61,8 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
     bin/cockpit status [--json]        qué apps hay, cuáles están arriba y cuál está al frente
     bin/cockpit open <app> [ruta]      trae una app al frente, en una ruta
-    bin/cockpit restart <app>          la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga
+    bin/cockpit restart <app> [--wait] la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga;
+                                       --wait vuelve recién cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
     bin/cockpit say "<texto>"          cuenta en el panel «Claude» la intención o una conclusión
     bin/cockpit apps                   los ids
 
