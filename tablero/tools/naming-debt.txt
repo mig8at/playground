@@ -7,13 +7,6 @@
 #
 # Una línea: el archivo (sin la línea) y el nombre.
 
-captura captura
-cmd/pg/checks.go bajas
-connectors/canon/api.go autenticado
-connectors/canon/api.go nombre
-connectors/canon/api.go puede_corregir
-connectors/canon/session.go nivel
-connectors/canon/session_test.go vigente
 harness/bin/bureaus.ts cedula
 harness/bin/dbops.ts canales
 harness/bin/failures.ts dias
@@ -80,13 +73,6 @@ harness/pkg/run-plan.ts comercio
 harness/pkg/run-plan.ts nombre
 harness/pkg/suite-scope.spec.ts caso
 harness/pkg/wizard-health.spec.ts sano
-jarvis/recipes/aistudio/uso.ts uso.ts
-jarvis/recipes/chatgpt/page.ts pensar
-sala sala
-sala/barrido.go barrido.go
-sala/canon-guia.md canon-guia.md
-sala/canon.go archivos
-sala/canon.go operacion
 server/cmd/agent/main.go Detalle
 server/cmd/agent/main.go Frena
 server/cmd/agent/main.go ambiente

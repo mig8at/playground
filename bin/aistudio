@@ -4,11 +4,12 @@
 #   bin/aistudio [ask] --prompt '…' [--file doc.md] [--model gemini-4-hydrogen] [--thinking high] [--out r.md] [--keep] [--json]
 #   bin/aistudio speak --text '…' --out voz.wav [--voice Enzo] [--model gemini-3.8-flash-tts] [--json]
 #   bin/aistudio transcribe <audio> [--out texto.md] [--json]
-#   bin/aistudio uso [--days 7] [--json]              (cuánto se le preguntó por día y cuándo cortó Google)
+#   bin/aistudio usage [--days 7] [--json]            (cuánto se le preguntó por día y cuándo cortó Google; `uso`, el nombre de antes, sigue andando)
 #   bin/aistudio image --prompt '…' --out imagen.png [--aspect 1:1] [--json]
 root=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
 case "$1" in
-  ask|speak|transcribe|image|uso) recipe=$1; shift ;;
+  ask|speak|transcribe|image|usage) recipe=$1; shift ;;
+  uso) recipe=usage; shift ;; # el nombre de antes
   *) recipe=ask ;;
 esac
 exec node "$root/jarvis/recipes/aistudio/$recipe.ts" "$@"

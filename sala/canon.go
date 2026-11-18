@@ -41,7 +41,7 @@ var canonTools = append(append([]string(nil), sweepTools...),
 // pidiendo el resto por una herramienta.
 const maxCanonBriefRunes = 60000
 
-//go:embed canon-guia.md
+//go:embed canon-guide.md
 var canonGuide string
 
 // El formato de salida es lo único que la guía no dice: es de la sala, no de canon.
@@ -193,8 +193,8 @@ func pieceLabel(p canon.Piece) (kind, label string) {
 		kind, _ = p["kind"].(string)
 	}
 	var files []string
-	if archivos, ok := p["archivos"].(map[string]any); ok {
-		for repo, paths := range archivos {
+	if pieceFiles, ok := p["archivos"].(map[string]any); ok {
+		for repo, paths := range pieceFiles {
 			if list, ok := paths.([]any); ok {
 				for _, path := range list {
 					files = append(files, fmt.Sprintf("%s:%v", repo, path))
@@ -529,8 +529,8 @@ func (s *sweeper) integrate(ctx context.Context, b *board, dir string) {
 		if f.Verdict != "✓" || f.piece == nil {
 			continue
 		}
-		archivos, _ := f.piece["archivos"].(map[string]any)
-		for repo, paths := range archivos {
+		pieceFiles, _ := f.piece["archivos"].(map[string]any)
+		for repo, paths := range pieceFiles {
 			list, _ := paths.([]any)
 			for _, path := range list {
 				key := fmt.Sprintf("%s:%v", repo, path)

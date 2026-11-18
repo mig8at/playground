@@ -34,8 +34,8 @@ func withToken(t *testing.T, value string) {
 }
 
 func TestTheSessionGoesOnlyToTheGateway(t *testing.T) {
-	vigente := token(time.Now().Add(time.Hour))
-	withToken(t, vigente)
+	valid := token(time.Now().Add(time.Hour))
+	withToken(t, valid)
 	var seen *http.Request
 	transport := newSessionTransport(fakeTransport(func(r *http.Request) (*http.Response, error) {
 		seen = r
@@ -54,7 +54,7 @@ func TestTheSessionGoesOnlyToTheGateway(t *testing.T) {
 			t.Fatalf("%s: %v", tc.url, err)
 		}
 		got := seen.Header.Get("Authorization")
-		if tc.with && got != "Bearer "+vigente {
+		if tc.with && got != "Bearer "+valid {
 			t.Errorf("%s: Authorization = %q, esperaba la sesión del playground", tc.url, got)
 		}
 		if !tc.with && got != "" {
@@ -82,7 +82,7 @@ func TestWithoutSessionItSaysToLogIn(t *testing.T) {
 			t.Errorf("token %.12q: error = %v, esperaba ErrSession con %q y playground login", tc.token, err, tc.want)
 		}
 		if called {
-			t.Errorf("token %.12q: no debería salir el pedido sin sesión vigente", tc.token)
+			t.Errorf("token %.12q: no debería salir el pedido sin sesión valid", tc.token)
 		}
 	}
 }

@@ -1,7 +1,7 @@
 // CUÁNTO SE LE PREGUNTÓ A AI STUDIO, POR DÍA: el registro que deja cada pregunta (page.ts, `recordUse`), resumido.
 // Sirve para medir cuánto deja Google con la cuenta de la persona (Miguel, 2026-11-17: «validamos qué tanto permite al
 // día»): preguntas, cuántas salieron, cuántas cortó Google y a qué hora fue el primer corte, por día y modelo.
-//   bin/aistudio uso [--days 7] [--json]
+//   bin/aistudio usage [--days 7] [--json]
 import fs from 'node:fs';
 import { flag, JSON_OUT, USAGE_FILE } from './page.ts';
 

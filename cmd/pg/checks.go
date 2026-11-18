@@ -151,14 +151,14 @@ func runClientState(args []string) int {
 	}
 
 	fmt.Printf("  cédula %s en %s (%s)\n", doc, st.Target, st.Source)
-	var bajas []string
+	var retired []string
 	for _, a := range accounts {
 		if rowCell(a, "document_number") != doc || intCell(a, "status") != 1 {
-			bajas = append(bajas, fmt.Sprintf("%s (id %s)", rowCell(a, "document_number"), rowCell(a, "id")))
+			retired = append(retired, fmt.Sprintf("%s (id %s)", rowCell(a, "document_number"), rowCell(a, "id")))
 		}
 	}
-	if len(bajas) > 0 {
-		fmt.Printf("  bajas anteriores: %s\n", strings.Join(bajas, " · "))
+	if len(retired) > 0 {
+		fmt.Printf("  bajas anteriores: %s\n", strings.Join(retired, " · "))
 	}
 	if st.Active == nil {
 		fmt.Println("  sin cliente ACTIVO: el próximo registro con esta cédula crea uno nuevo y consulta las centrales.")

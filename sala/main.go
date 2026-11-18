@@ -6,7 +6,7 @@
 //
 // Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura de my-tools, sobre UN tema:
 // no habla con los otros ni espera turno. Cuando terminan todos, un verificador que no escribió nada comprueba cada
-// hallazgo. El porqué y la historia (la sala de llamadas entre agentes que se retiró el 2026-11-03) están en barrido.go.
+// hallazgo. El porqué y la historia (la sala de llamadas entre agentes que se retiró el 2026-11-03) están en sweep.go.
 //
 // Gasta el límite del asiento de Miguel: los US$ que muestra son equivalentes a precio de API, no se cobran aparte.
 // Con MOCK=1 (o la casilla «Simulado») los agentes son de mentira y no gastan nada.

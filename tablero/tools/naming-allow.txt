@@ -164,3 +164,7 @@ json: wally/server/legacy.go *                                      # la tabla d
 json: wally/server/commands.go archivo parche                      # los bloques ```archivo y ```parche de antes, aceptados como alias de ```file y ```patch
 json: goldfish/review/legacy.go *                                   # los valores de antes de Goldfish y sus etiquetas en español (2026-11-18): traduce lo guardado
 refuted
+# `captura` y `sala` son nombres de herramientas (sus carpetas), como `tablero`: se quedan (2026-11-18)
+captura sala
+json: connectors/canon/ autenticado nombre puede_corregir nivel     # la API de canon (/api/me y la sesión): contrato del repo compartido
+json: sala/canon.go archivos operacion                              # la forma de una pieza de canon (canon-write): contrato del repo compartido
