@@ -33,6 +33,10 @@ Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:
   `harness.doctor/v1` y el registro de fallas— siguen en español. Son miles de usos en 149 archivos y la
   herramienta con la que se valida; un renombre a medias no falla, devuelve vacío. Se pasan a inglés, con alias
   para las viejas, la parte que se toque por otra razón, y se prueba ahí. Lo nuevo va en inglés.
+- **Excepción decidida (2026-11-18): `tools/canon-deriva`** —su carpeta, `deriva.py`, sus prompts, sus pasos
+  (`foto`, `paquete`, `triaje`…), las carpetas de cada corrida y las claves que escriben sus agentes— queda en
+  español: trabaja sobre canon, el corpus del equipo, se usa poco y cambiarla pide una corrida con agentes. Sus
+  comandos de `make` sí pasaron (`canon-drift`, `knowledge-drift`, `STEP=`, `--groups`).
 - **Claude contesta en español** cuando se habla de my-tools y sus herramientas.
 - **La vara es `make tablero-naming`:** falla con un nombre nuevo en español. Lo de antes queda en
   `tablero/tools/naming-debt.txt` como deuda, y se baja renombrando con `tablero/tools/rename/`. Al renombrar un

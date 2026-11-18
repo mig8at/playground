@@ -177,3 +177,12 @@ json: server/internal/hooks/cockpit.go asesor autogestion           # los canale
 json: lib/cliflags/legacy.go *                                      # las opciones de antes de los CLI en Go (2026-11-18): traduce lo que siguen escribiendo el Makefile viejo, los hooks y las tareas
 json: keyring/check/background.go pulso                            # el nombre del LaunchAgent del pulso (com.creditop.tablero.pulso): dato del sistema
 json: cmd/pg/legacy.go *                                           # los subcomandos de antes de pg (2026-11-18): las tareas guardan el comando exacto
+path: tools/canon-deriva   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/deriva.py   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/codigo.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/k-codigo.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/k-segunda.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/k-triaje.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/segunda.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/prompts/triaje.md   # excepción decidida (2026-11-18): canon-deriva queda en español
+path: tools/canon-deriva/test_deriva.py   # excepción decidida (2026-11-18): canon-deriva queda en español

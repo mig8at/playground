@@ -7,12 +7,4 @@
 #
 # Una línea: el archivo (sin la línea) y el nombre.
 
-tools/canon-deriva canon-deriva
-tools/canon-deriva/deriva.py deriva.py
-tools/canon-deriva/prompts/codigo.md codigo.md
-tools/canon-deriva/prompts/k-codigo.md k-codigo.md
-tools/canon-deriva/prompts/k-segunda.md k-segunda.md
-tools/canon-deriva/prompts/k-triaje.md k-triaje.md
-tools/canon-deriva/prompts/segunda.md segunda.md
-tools/canon-deriva/prompts/triaje.md triaje.md
-tools/canon-deriva/test_deriva.py test_deriva.py
+
