@@ -579,6 +579,7 @@ let settingsOpen = false
 const SECTIONS = [
   { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'El color y el modo, claro u oscuro. Vale para todas las apps de Cockpit.', keys: 'tema claro oscuro color paleta nord catppuccin monokai vintage' },
   { id: 'claude', t: 'Claude', icon: 'claude', d: 'Lo que hace Claude, en vivo, en el panel que abre el asterisco del pie de cada app.', keys: 'seguir panel actividad frenar asterisco' },
+  { id: 'model', t: 'Modelo', icon: 'clock', d: 'El modelo de lo que corre en segundo plano: lo agendado, a ciertas horas, sin nadie mirando.', keys: 'modelo claude gemini segundo plano agendado tareas bedrock ia' },
   { id: 'apps', t: 'Apps', icon: 'apps', d: 'Las herramientas de la barra: si están arriba, y reiniciar una para que tome un cambio.', keys: 'servidor puerto reiniciar arriba apagada' },
   { id: 'help', t: 'Cómo se usa', icon: 'help', d: 'Lo que hay en cada lugar de Cockpit.', keys: 'ayuda guía atajos barra pie' },
 ]
@@ -591,6 +592,22 @@ async function loadAppStates() {
   appStates = await invoke('apps_state').catch(() => [])
   if (settingsOpen && settingsSection === 'apps') paintSettings()
 }
+// EL MODELO DE SEGUNDO PLANO: se lee y se guarda con `bin/pg model` (Rust: model_state, set_model), en
+// ~/.config/creditop-cockpit/settings.json, para que lo agendado lea lo mismo con Cockpit cerrado.
+let modelState = null
+let modelError = ''
+let modelBusy = false
+async function loadModelState() {
+  modelBusy = true
+  if (settingsOpen && settingsSection === 'model') paintSettings()
+  try { modelState = await invoke('model_state'); modelError = '' } catch (err) { modelError = String(err) }
+  modelBusy = false
+  if (settingsOpen && settingsSection === 'model') paintSettings()
+}
+const MODEL_CHOICES = [
+  { id: 'claude', name: 'Claude', what: 'Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon: el mismo modelo de canon en producción. Lo paga la empresa; pide la sesión de `playground login`.' },
+  { id: 'gemini', name: 'Gemini', what: 'Gemini por su API, con la llave de connectors/.env: gasta la cuota de esa llave.' },
+]
 function paintSections() {
   const q = settingsFilter.trim().toLowerCase()
   const visible = q ? SECTIONS.filter((x) => `${x.t} ${x.keys}`.toLowerCase().includes(q)) : SECTIONS
@@ -625,6 +642,17 @@ function paintSettings() {
       <section><h3>El panel de Claude</h3><div class="options" role="radiogroup" aria-label="Cuándo se abre el panel">
       ${option('auto-on', auto, 'Se abre solo con actividad', 'Cuando Claude usa una herramienta, el panel aparece.')}
       ${option('auto-off', !auto, 'Sólo cuando lo abro', 'Queda cerrado; el asterisco del pie marca con un punto lo que no viste.')}</div></section>`
+  } else if (settingsSection === 'model') {
+    const chosen = modelState?.model || 'claude'
+    const status = modelBusy ? 'Comprobando…' : modelError ? modelError : modelState ? (modelState.ready ? `Listo · ${modelState.detail}` : `No está listo · ${modelState.detail}${modelState.fix ? ` · arreglo: ${modelState.fix}` : ''}`) : ''
+    blocks.innerHTML = `<section><h3>Modelo de segundo plano</h3><div class="options" role="radiogroup" aria-label="Modelo de segundo plano">
+      ${MODEL_CHOICES.map((m) => option(`model-${m.id}`, chosen === m.id, m.name, m.what)).join('')}</div></section>
+      <section><h3>Estado</h3><div class="settings-box"><div class="settings-row"><span class="settings-row-text">
+        <span class="settings-row-name">${esc(MODEL_CHOICES.find((m) => m.id === chosen)?.name || chosen)}</span>
+        <span class="settings-row-what">${esc(status)}</span></span>
+        <span class="state ${modelState?.ready && !modelBusy ? 'up' : ''}">${modelBusy ? '…' : modelState?.ready ? 'listo' : 'no'}</span>
+        <button type="button" class="btn btn-outline btn-sm" data-act="model-check" ${modelBusy ? 'disabled' : ''}>Comprobar</button></div></div>
+      <p>Lo usa lo que corre solo con <code>bin/pg model ask --prompt '…'</code>. Wally elige el suyo aparte, en su barra.</p></section>`
   } else if (settingsSection === 'apps') {
     blocks.innerHTML = `<section><h3>Las apps de la barra</h3><div class="settings-box">${apps.map((a) => {
       const st = appStates.find((x) => x.id === a.id) || {}
@@ -661,7 +689,7 @@ document.getElementById('settingsClose').addEventListener('click', () => setSett
 document.getElementById('settingsSearch').addEventListener('input', (e) => { settingsFilter = e.target.value; paintSettings() })
 document.getElementById('settingsSections').addEventListener('click', (e) => {
   const id = e.target.closest('[data-section]')?.dataset.section
-  if (id) { settingsSection = id; paintSettings() }
+  if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState() }
 })
 document.getElementById('settingsBlocks').addEventListener('click', async (e) => {
   const restartId = e.target.closest('[data-restart]')?.dataset.restart
@@ -693,6 +721,13 @@ document.getElementById('settingsBlocks').addEventListener('click', async (e) =>
     paintFollow()
   } else if (act === 'auto-on' || act === 'auto-off') {
     keep(ACTIVITY_KEY, act === 'auto-on' ? 'auto' : 'closed')
+  } else if (act === 'model-check') {
+    loadModelState()
+    return
+  } else if (act.startsWith('model-')) {
+    try { await invoke('set_model', { model: act.slice(6) }) } catch (err) { modelError = String(err) }
+    loadModelState()
+    return
   }
   paintSettings()
   document.querySelector(`#settingsBlocks [data-act="${act}"]`)?.focus()

@@ -32,6 +32,26 @@ que llega a cada herramienta por la red interna.
 
 El conector de canon se sacó el 2026-11-18: canon se mantiene en el repo compartido, con su propio cliente.
 
+## Claude: el modelo de canon en producción, por su puente
+
+`claude/` (2026-11-18) llama a Claude Sonnet 5.5 en el Bedrock de CreditOp por el puente `/api/model/stream` de canon,
+el que canon deja para usarse desde una máquina sin credenciales de AWS. Lo usan Wally (su proveedor por defecto) y lo
+que corre en segundo plano (`bin/pg model ask`). No es un segundo cliente del playground: **usa la sesión del CLI**
+(`~/.config/creditop-playground/token.json`, sin crear otra) y sólo toca esa ruta, por el gateway del home
+(`/api/t/canon/api/model/stream`), porque el dominio de canon pide Google en el balanceador aunque lleve la llave. La
+llave del puente no se copia: `CANON_PROXY_KEY` del proceso o la del `tools/canon/.env` del clon del repo compartido.
+
+```sh
+bin/pg model info              # el modelo de segundo plano elegido en Cockpit y si contesta (sin preguntarle nada)
+bin/pg model ask --prompt '…'  # una pregunta; --file f.md|- , --system, --max-tokens, --json
+bin/pg model set claude|gemini # lo mismo que elegirlo en Cockpit (engranaje → Modelo)
+```
+
+`model` usa la preferencia de Cockpit (`lib/cockpit/settings.go`, `~/.config/creditop-cockpit/settings.json`): Claude
+por defecto, o Gemini por su API con la llave de `connectors/.env` (`gemini/`). Gemini por la web de AI Studio no sirve
+para lo agendado: pide Chrome abierto. ⚠ Sonnet 5.5 piensa antes de escribir: con `--max-tokens 60` lo gastó entero
+pensando y no devolvió texto; el de siempre es el tope del puente (16.384).
+
 ## Google Drive: con la cuenta de quien entra, sólo lectura
 
 `drive/` lee Drive con el OAuth de escritorio de una persona (PKCE, redirección a `127.0.0.1`) y el alcance

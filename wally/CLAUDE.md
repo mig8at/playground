@@ -1,4 +1,4 @@
-# Wally — un chat con agentes: Claude (el Bedrock de CreditOp) por defecto, y Gemini, DeepSeek, ChatGPT o Groq por su web
+# Wally — un chat con agentes: Claude (el Bedrock de CreditOp) por defecto, y Gemini por su web
 
 Para hacerle preguntas a Gemini sin abrir AI Studio: a la izquierda las conversaciones guardadas (con buscador y por
 día: Hoy, Ayer, Últimos 7 días, Antes); al centro, **en pestañas, las abiertas** —varias a la vez, cada una con su
@@ -25,7 +25,7 @@ aceptan las claves viejas, lo guardado se migró al cargar y `wally/pruebas/` pa
 **Por defecto contesta CLAUDE, por el puente de canon** (decisión de Miguel, 2026-11-18: «el que se usa en lo
 agéntico; Gemini o DeepSeek, opcionales»; `server/claude.go`). Es Claude Sonnet 5.5 en el Bedrock de CreditOp, el
 mismo modelo de canon en producción, por el puente `/api/model/stream` que canon deja para usarlo sin credenciales de
-AWS. **Es el único que no va por la web ni por el pool**: es una API, no necesita Chrome ni Jarvis, y el contexto no
+AWS. El cliente es el conector `connectors/claude` (el mismo de lo que corre en segundo plano, `bin/pg model ask`). **Es el único que no va por la web ni por el pool**: es una API, no necesita Chrome ni Jarvis, y el contexto no
 sale de la cuenta de la empresa, así que los agentes van por él sin el permiso `agentsOther` (sin permiso, un agente
 que tiene elegida una web de afuera ahora cae en Claude, no en Gemini).
 - **El camino**: `canon.playground.creditop.com` pide Google en el balanceador aunque lleve la llave (302), así que va
@@ -42,7 +42,14 @@ que tiene elegida una web de afuera ahora cae en Claude, no en Gemini).
   trampas → `trap F-135` → la causa, los dos arreglos, el rodeo y qué no verificó: **4 vueltas, 15 s** (la misma
   pregunta por DeepSeek el 17/11: 4 vueltas, 97 s). Comparado con F-135: exacto.
 
-**Las webs siguen, como opción** (decisión de Miguel, 2026-11-17, cuando era el único camino): cada pregunta la hace `bin/aistudio` (la
+**A la vista, sólo Claude y Gemini** (Miguel, 2026-11-18: «dejemos sólo Claude y Gemini por ahora»). DeepSeek, ChatGPT
+y Groq quedan **deshabilitados, no borrados** (`hiddenProviders`, `server/config.go`; `SHOWN_PROVIDERS` en la
+interfaz): no se listan, no se pueden elegir (400) y una configuración guardada con uno vuelve a Claude; sus recetas y
+`bin/deepseek`, `bin/chatgpt`, `bin/groq` siguen andando por consola. Kimi («Próximamente») tampoco se lista. Lo que
+este archivo cuenta de ellos más abajo es de cuando estaban a la vista. Para volver a mostrar uno, sacarlo de las dos
+listas.
+
+**Gemini sigue por la web, como opción** (decisión de Miguel, 2026-11-17, cuando era el único camino): cada pregunta la hace `bin/aistudio` (la
 receta `jarvis/recipes/aistudio/ask.ts`) en su Chrome con Jarvis, con su cuenta y en un chat temporal de AI Studio
 (no queda en el History ni en Drive). Usa el uso gratuito de la web, que acepta textos enormes, y no la cuota de una
 llave. La primera versión, del mismo día, llamaba a la API con la llave de `connectors/.env` y se retiró por eso.

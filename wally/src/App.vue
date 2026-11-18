@@ -179,6 +179,10 @@ const PROVIDERS = [
   { id: 'chatgpt', name: 'ChatGPT', note: 'chatgpt.com en chat temporal: no queda en tu historial (puede guardar una copia 30 días). Gratis: hasta ~40 mil caracteres.' },
   { id: 'groq', name: 'Groq', note: 'chat.groq.com: el ultra rápido (~480 tokens/s), modelos abiertos. Sin historial. Hasta ~20 mil caracteres: para lo corto.' },
 ]
+// Los que se muestran (Miguel, 2026-11-18: «sólo Claude y Gemini por ahora»). DeepSeek, ChatGPT y Groq quedan
+// deshabilitados, no borrados: el servidor tampoco los lista ni deja elegirlos (`hiddenProviders`, config.go).
+const SHOWN_PROVIDERS = ['claude', 'aistudio']
+const shownProviders = PROVIDERS.filter((p) => SHOWN_PROVIDERS.includes(p.id))
 const GROQ_MODELS = { 'openai/gpt-oss-120b': 'GPT OSS 120B', 'openai/gpt-oss-20b': 'GPT OSS 20B' }
 const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
 // El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
@@ -1282,9 +1286,9 @@ onBeforeUnmount(() => {
           <template v-if="auxTab === 'model'">
             <p class="group-lede">Con qué contesta Wally y cómo. Se guarda al tocarla y vale desde la próxima pregunta; cada respuesta dice con qué salió.</p>
             <div class="group-option column">
-              <div><b>Proveedor</b><span>Todos van por su web, en tu Chrome con Jarvis y tu sesión: sin llaves de API.</span></div>
+              <div><b>Proveedor</b><span>Claude es una API de la empresa (el Bedrock de CreditOp); Gemini va por su web, en tu Chrome con Jarvis y tu sesión.</span></div>
               <div class="provider-pick" role="radiogroup" aria-label="Proveedor">
-                <button v-for="p in PROVIDERS" :key="p.id" type="button" class="mode-card" role="radio" :aria-checked="config.provider === p.id" @click="saveConfig({ provider: p.id })">
+                <button v-for="p in shownProviders" :key="p.id" type="button" class="mode-card" role="radio" :aria-checked="config.provider === p.id" @click="saveConfig({ provider: p.id })">
                   <b>{{ p.name }}</b><span>{{ p.note }}</span>
                 </button>
               </div>
@@ -1300,6 +1304,7 @@ onBeforeUnmount(() => {
               </div>
             </div>
 
+            <template v-if="SHOWN_PROVIDERS.includes('deepseek')">
             <div class="group-option column">
               <div><b>DeepSeek</b><span>Los dos interruptores de su pantalla, puestos en cada pregunta.</span></div>
               <div class="config-row">
@@ -1329,6 +1334,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
             </div>
+            </template>
 
             <div class="group-option column">
               <div><b>Ventana de Chrome</b><span>Dónde trabaja Wally: minimizada no te llena de pestañas.</span></div>

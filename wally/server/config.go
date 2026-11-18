@@ -41,6 +41,12 @@ type Config struct {
 
 var defaultConfig = Config{Provider: claudeProvider, Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
 
+// hiddenProviders: deshabilitados, no borrados (Miguel, 2026-11-18: «dejemos sólo Claude y Gemini por ahora»). Sus
+// recetas y su código siguen (bin/deepseek, bin/chatgpt, bin/groq andan por consola), pero Wally no los lista ni los
+// deja elegir: una configuración guardada con uno de ellos vuelve a la de siempre. Para volver a mostrar uno, sacarlo
+// de acá.
+var hiddenProviders = map[string]bool{"deepseek": true, "chatgpt": true, "groq": true}
+
 // groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia; Kimi no estaba).
 var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
 
@@ -81,7 +87,7 @@ func (c Config) valid() Config {
 	if c.AgentsDeepSeek {
 		c.AgentsOther, c.AgentsDeepSeek = true, false
 	}
-	if _, ok := providerModels[c.Provider]; !ok {
+	if _, ok := providerModels[c.Provider]; !ok || hiddenProviders[c.Provider] {
 		c.Provider = defaultConfig.Provider
 	}
 	switch c.Thinking {
@@ -161,7 +167,7 @@ func (a *app) putConfig(w http.ResponseWriter, r *http.Request) {
 	// por el de siempre y se perdía el elegido (pasó el 2026-11-17).
 	if p, ok := patch["provider"]; ok {
 		var id string
-		if json.Unmarshal(p, &id) != nil || providerModels[id].Name == "" {
+		if json.Unmarshal(p, &id) != nil || providerModels[id].Name == "" || hiddenProviders[id] {
 			writeErr(w, 400, errors.New("no se puede elegir ese proveedor"))
 			return
 		}

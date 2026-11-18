@@ -21,7 +21,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `sentinel` | el vigía de producción: entidades y comercios contra lo normal | `sentinel/` | :5210 · :5211 | `make sentinel`; su API también de fondo (`make sentinel-install`, ver `sentinel/CLAUDE.md`) |
 | `goldfish` | tus PRs abiertos por repo y su validación Elephant-Goldfish (también de los PRs de otros) | `goldfish/` | :5216 · :5217 | `make goldfish` |
 | `correo` | los correos de los remitentes que seguís en Gmail, con aviso de macOS | `correo/` | :5224 · :5225 | `make correo`; su API también de fondo (`make correo-install`, ver `correo/CLAUDE.md`) |
-| `wally` | el asistente y sus agentes, por la web de Gemini, DeepSeek, ChatGPT o Groq (`bin/wally`); manda el numerito de las corridas automáticas que terminaron sin verse | `wally/` | :5228 · :5229 | `make wally` |
+| `wally` | el asistente y sus agentes, con Claude (el Bedrock de CreditOp) o Gemini por su web (`bin/wally`); manda el numerito de las corridas automáticas que terminaron sin verse | `wally/` | :5228 · :5229 | `make wally` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 
@@ -120,7 +120,7 @@ Lo que ya costó, y por qué existe:
 | pieza | dónde |
 |---|---|
 | qué apps hay, cómo se levantan, enlaces `cockpit://`, el puerto de control | `src-tauri/src/main.rs` |
-| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make style-sync`) |
+| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, **Modelo** —el de segundo plano, abajo—, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make style-sync`) |
 | el cliente del puerto de control | `lib/cockpit/` · el CLI: `cmd/cockpit/` (`bin/cockpit`) |
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
@@ -134,6 +134,14 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 **El puerto de control** escucha en 127.0.0.1:5209 y pide la llave que Cockpit deja al arrancar en
 `~/.config/creditop-cockpit/control.json` (600, se borra al salir): `GET /status`, `GET|POST /stop`,
 `POST /open`, `/say`, `/activity`. La llave existe para que una página web cualquiera no pueda manejar Cockpit.
+
+**El modelo de segundo plano** (engranaje → «Modelo», 2026-11-18; Miguel: «para tareas en segundo plano que se
+ejecutan a ciertas horas»): el modelo que usa lo que corre solo, agendado o sin nadie mirando. Claude por defecto
+(Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon) o Gemini por su API. La carcasa no lo implementa:
+corre `bin/pg model info --json` y `bin/pg model set <m>` (Rust: `model_state`, `set_model`), que leen y guardan
+`~/.config/creditop-cockpit/settings.json` (`lib/cockpit/settings.go`; no se borra al salir, a diferencia del
+control). Lo agendado pregunta con `bin/pg model ask`, y lee la misma elección con Cockpit cerrado. Wally elige el
+suyo aparte, en su barra.
 
 **Agregar una app**, en este orden:
 

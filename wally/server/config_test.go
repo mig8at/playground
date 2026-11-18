@@ -68,3 +68,15 @@ func TestProviderForConversation(t *testing.T) {
 		t.Errorf("auto en un chat: %s, quería deepseek", got)
 	}
 }
+
+// Las webs deshabilitadas no se listan ni se eligen: una configuración guardada con una vuelve a la de siempre.
+func TestHiddenProviders(t *testing.T) {
+	for _, id := range []string{"deepseek", "chatgpt", "groq"} {
+		if v := (Config{Provider: id}).valid(); v.Provider != "claude" {
+			t.Errorf("%s guardado: quedó %s, quería claude", id, v.Provider)
+		}
+	}
+	if v := (Config{Provider: "aistudio"}).valid(); v.Provider != "aistudio" {
+		t.Errorf("Gemini sigue: %s", v.Provider)
+	}
+}

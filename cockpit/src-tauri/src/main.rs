@@ -489,6 +489,43 @@ async fn restart_app(id: String, app: tauri::AppHandle) -> Result<String, String
     .map_err(|e| e.to_string())?
 }
 
+// EL MODELO DE SEGUNDO PLANO (el engranaje → «Modelo»): el que usa lo que corre solo, agendado o a ciertas horas.
+// Cockpit no lo implementa: corre `bin/pg model info --json` y `bin/pg model set <m>` (cmd/pg/model.go), que guardan
+// y leen ~/.config/creditop-cockpit/settings.json (lib/cockpit/settings.go). Así lo que corre sin Cockpit abierto
+// lee lo mismo que se eligió acá.
+fn run_pg(args: &[&str]) -> Result<String, String> {
+    let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
+    let out = Command::new(root.join("bin").join("pg"))
+        .args(args)
+        .current_dir(&root)
+        .env("PATH", user_path())
+        .output()
+        .map_err(|e| format!("bin/pg: {e}"))?;
+    let stdout = String::from_utf8_lossy(&out.stdout).into_owned();
+    // `model info` sale 1 si el modelo no está listo, pero igual devuelve su JSON: eso es una respuesta, no un error.
+    if stdout.trim_start().starts_with('{') || out.status.success() {
+        return Ok(stdout);
+    }
+    Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+}
+
+#[tauri::command]
+async fn model_state() -> Result<serde_json::Value, String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let raw = run_pg(&["model", "info", "--json"])?;
+        serde_json::from_str(&raw).map_err(|e| format!("bin/pg model info: {e}"))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn set_model(model: String) -> Result<(), String> {
+    tauri::async_runtime::spawn_blocking(move || run_pg(&["model", "set", &model]).map(|_| ()))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 // La app al frente, que la carcasa avisa al cambiar: la lee `status` del puerto de control.
 #[derive(Default)]
 struct Current(Mutex<String>);
@@ -709,7 +746,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();
