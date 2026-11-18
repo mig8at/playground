@@ -38,7 +38,15 @@ if [ $up -ne 1 ]; then
   echo; echo "RESULTADO: 1 problema(s) para corregir."; exit 1
 fi
 echo "La API levantó en 127.0.0.1:$PORT."
-n=$(jq 'length' criterios.json); [ "$n" -gt 30 ] && n=30
+# Se corren TODOS. Un tope que descarta en silencio los del final se lee como «pasaron» (2026-11-17: cortaba en 30 y
+# el criterio 31 nunca se evaluaba; lo encontró el propio agente). Por encima de MAX no se corre ninguno: se dice.
+MAX=200
+n=$(jq 'length' criterios.json)
+if [ "$n" -gt $MAX ]; then
+  echo; echo "CRITERIOS: hay $n y el tope es $MAX. No se corrió ninguno: juntá o sacá criterios hasta $MAX."
+  kill $PID 2>/dev/null
+  echo; echo "RESULTADO: 1 problema(s) para corregir."; exit 1
+fi
 echo; echo "CRITERIOS ($n):"
 bad=0
 for i in $(seq 0 $((n - 1))); do

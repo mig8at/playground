@@ -80,10 +80,18 @@ try {
       let list = null;
       try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criterios.json no es JSON válido'); report.note = 'criterios.json no es JSON válido'; out.push(`\nCRITERIOS: criterios.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
       if (list && (!Array.isArray(list) || !list.length)) { problems.push('criterios.json está vacío'); report.note = 'criterios.json está vacío'; out.push(`\nCRITERIOS: criterios.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
+      // Se corren TODOS: un tope que descarta en silencio los del final se lee como «pasaron». Por encima de MAX no se
+      // corre ninguno, y se dice.
+      const MAX = 100;
+      if (list && list.length > MAX) {
+        problems.push(`hay ${list.length} criterios y el tope es ${MAX}`); report.note = `hay ${list.length} criterios y el tope es ${MAX}: no se corrió ninguno`;
+        out.push(`\nCRITERIOS: hay ${list.length} y el tope es ${MAX}. No se corrió ninguno: juntá o sacá criterios hasta ${MAX}.`);
+        list = null;
+      }
       if (list) {
-        out.push(`\nCRITERIOS (${Math.min(list.length, 25)}):`);
+        out.push(`\nCRITERIOS (${list.length}):`);
         const base = url.replace(/[^/]*$/, '');
-        for (const [i, c] of list.slice(0, 25).entries()) {
+        for (const [i, c] of list.entries()) {
           const name = String(c?.criterio || `criterio ${i + 1}`).slice(0, 140);
           const steps = Array.isArray(c?.pasos) ? c.pasos.slice(0, 20) : [];
           if (!steps.length || !steps.some((s) => s && ('ver' in s || 'no_ver' in s))) {

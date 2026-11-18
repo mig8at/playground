@@ -535,6 +535,12 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   58 s; 12 pedidos aparte, bien. **Explorar con la consola y después corregir**: con `con-api curl` vio que dos casos
   raros daban 400 pero en texto plano con el mensaje crudo de axum; los pasó a `{"error":"…"}` con parches y dejó
   23/23; el caso que dijo no haber vuelto a probar (el JSON mal formado literal) se comprobó aparte y está bien.
+  **Tres cosas nuevas, sin apoyo** (`GET /tareas/resumen`, `?buscar=` combinable con `?hecha=`, y `DELETE
+  /tareas?hecha=true` con su conteo): 8 vueltas, 194 s, todo con parches (45 renglones nuevos), 30/30; 19 pedidos
+  aparte, bien (entre ellos que `/tareas/resumen` no se confunde con un id). Y **encontró un defecto del probador**:
+  `probar-api` corría como máximo 30 criterios y descartaba el resto EN SILENCIO; lo vio comparando `jq length` (31)
+  con lo que contaba la corrida, usando la consola. Corregido en los dos probadores (el de páginas cortaba en 25):
+  ahora corren todos, y por encima del tope (200 y 100) no corren ninguno y lo dicen.
   ⚠ De esa corrida: la salida de `curl -i` trae `\r\n` y el cuadro de texto de la web los vuelve `\n` («el campo
   quedó con 41003 caracteres de 41013»); los saltos se normalizan al guardar la salida y antes de mandar.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
