@@ -28,4 +28,7 @@ func agentStatus(a launchagent.Agent, st *store) {
 	if reach := st.reach(); !reach.IsZero() {
 		fmt.Printf("guardado hasta %s (hace %s) · %s\n", reach.In(bogota).Format("2006-01-02 15:04"), time.Since(reach).Round(time.Minute), st)
 	}
+	if u := openNotifier(st.dir).unsent(); u != nil {
+		fmt.Println(unsentLine(u))
+	}
 }

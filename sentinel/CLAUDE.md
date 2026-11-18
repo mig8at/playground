@@ -76,6 +76,10 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
   que vuelve a escribir. Las noches de un servicio que sólo trabaja de día cuentan como su silencio normal.
 - **«Poco volumen» no cierra un episodio** (`alerts.go`): sólo lo cierra volver a lo normal. Un servicio callado pasaba
   a «poco volumen» de noche, se cerraba y avisaba otra vez cada mañana.
+- **Cero líneas no es normal si todos los días comparables escribieron** (`stats.go`): alerta si el día más flojo llegó
+  a `liveness.minMedian`, si no «para mirar», aunque z no llegue. Con 4 muestras de fin de semana la dispersión es tan
+  ancha que el 14/11 dio «volvió a lo normal: escribió 0 líneas; lo normal es 798,5». Y un episodio de `logs:` no se
+  cierra mientras el servicio escriba 0 líneas (`alerts.go`).
 - **Errores: hace falta un mínimo** (`errors.minNow`, 10 por hora). Un servicio que casi nunca tiene errores daba alerta
   con 5.
 - **Errores por entidad** (`lerr:<id>`): los errores en los logs que nombran a una entidad. Sólo dos fuentes la nombran:
@@ -112,7 +116,13 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 
 - **Un aviso de macOS cuando una señal pasa a alerta** (el estado sostenido, el mismo que muestra la interfaz), con
   sonido. Tocarlo abre Cockpit en esa señal (`cockpit://sentinel/#/lender/6`). Sale por el avisador del chat («Chat de
-  my-tools», que ya tiene permiso de avisos); sin él, por osascript.
+  my-tools»); si el avisador falla (sin permiso de avisos), por osascript, que avisa pero no abre nada al tocarlo, y el
+  aviso guarda por dónde salió (`via`).
+- **Un aviso que no sale no se pierde** (`Pending` en `alerts.json`): cada pasada los reintenta en UNO solo («3 avisos
+  no salieron desde…»). Mientras esperan, lo dicen `bin/sentinel now`, `make sentinel-status` y una franja roja en
+  «Para mirar»; en la lista de avisos, los que no salieron llevan «no salió». `-notify-test` sale 2 si llegó por el
+  respaldo y 1 si no llegó. Del 14 al 18/11/2026 Sentinel estuvo mudo: macOS le quitó el permiso al avisador y 7
+  alertas quedaron sólo en `notices.jsonl`. «Volvió a lo normal» no se guarda: atrasado no sirve.
 - **Uno por episodio.** El episodio sigue abierto hasta que la señal pasa `clearMinutes` (30) en lo normal: una que va y
   viene entre alerta y «para mirar» no avisa cada 5 minutos. Avisa otra vez sólo si empeora. Al cerrarse, «volvió a lo
   normal», sin sonido.

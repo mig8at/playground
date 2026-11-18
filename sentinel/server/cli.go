@@ -145,11 +145,13 @@ type NowReport struct {
 	Attention []Subject `json:"attention"` // en alerta o para mirar, lo peor primero
 	Following []Subject `json:"following"`
 	Apps      []App     `json:"apps"`
+	Unsent    *Unsent   `json:"unsent,omitempty"` // avisos que no salieron: lo primero que se dice
 }
 
 func (c *cli) now() (*NowReport, error) {
 	o := c.s.overview(c.rules, c.reach.Truncate(time.Minute))
-	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps}
+	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps,
+		Unsent: openNotifier(c.s.store.dir).unsent()}
 	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Lenders, o.Merchants} {
 		for _, x := range list {
 			if x.State == "alert" || x.State == "warn" {
@@ -167,6 +169,9 @@ func (c *cli) now() (*NowReport, error) {
 func (r *NowReport) Text() string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "Producción · %s\n\n", r.Freshness)
+	if u := r.Unsent; u != nil {
+		b.WriteString(unsentLine(u) + "\n\n")
+	}
 	fmt.Fprintf(&b, "Toda la originación: %s · %s\n\n", stateWord(r.All.State), r.All.Why)
 	if len(r.Attention) == 0 {
 		b.WriteString("Nada fuera de lo normal.\n\n")
@@ -813,4 +818,14 @@ func shortAgo(iso string) string {
 		return fmt.Sprintf("hace %d h", int(h))
 	}
 	return fmt.Sprintf("hace %d días", int(h/24))
+}
+
+// unsentLine: el aviso de que los avisos no están saliendo, para `now` y `make sentinel-status`.
+func unsentLine(u *Unsent) string {
+	since, _ := time.Parse(time.RFC3339, u.Since)
+	line := fmt.Sprintf("⚠ %d avisos no salieron desde %s", u.Count, since.In(bogota).Format("02/01 15:04"))
+	if u.Error != "" {
+		line += ": " + u.Error
+	}
+	return line + "\n  (salen juntos en la próxima pasada que pueda avisar; probá con `go run ./sentinel/server -notify-test`)"
 }

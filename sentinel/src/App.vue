@@ -186,8 +186,18 @@ const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 
 // En la tabla, corto: es una columna.
 const TABLE_KIND = { jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
 const KIND_LABEL = { jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
-const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción' }
-const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn' }
+const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados' }
+const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn' }
+// La cabecera cuenta por nivel («2 alertas · 1 para mirar») con el color del peor: antes decía «3 para mirar» en
+// amarillo aunque las tres fueran alertas.
+const attentionCounts = computed(() => {
+  const alerts = attention.value.filter((s) => s.state === 'alert').length
+  const warns = attention.value.length - alerts
+  const parts = []
+  if (alerts) parts.push(`${alerts} ${alerts === 1 ? 'alerta' : 'alertas'}`)
+  if (warns) parts.push(`${warns} para mirar`)
+  return { text: parts.join(' · '), worst: alerts ? 'alert' : 'warn' }
+})
 // Un aviso lleva a su señal: «lender:6», «service:legacy-backend», «queue:failed»; «sentinel» y «all» a la vista general.
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
@@ -342,7 +352,7 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
       <div class="region-head">
         <span>Sentinel</span>
-        <span v-if="attention.length" class="count attention">{{ attention.length }} para mirar</span>
+        <span v-if="attention.length" class="count attention" :class="`is-${attentionCounts.worst}`">{{ attentionCounts.text }}</span>
       </div>
       <div class="search">
         <input v-model="query" class="input" type="search" placeholder="Seguir un comercio o una entidad…" aria-label="Buscar un comercio o una entidad para seguir" />
@@ -574,9 +584,13 @@ onBeforeUnmount(() => {
       <div class="rsz rsz-edge-left" v-resize="auxResize"></div>
       <div class="region-head">
         <span>Para mirar</span>
-        <span class="count">{{ attention.length }}</span>
+        <span class="count attention" :class="`is-${attentionCounts.worst}`">{{ attentionCounts.text || 0 }}</span>
       </div>
       <div class="region-body">
+        <p v-if="data?.unsent" class="source-note is-alert" role="alert">
+          ⚠ {{ data.unsent.count }} {{ data.unsent.count === 1 ? 'aviso no salió' : 'avisos no salieron' }} desde {{ dayClock(data.unsent.since) }}.
+          Salen juntos cuando el aviso vuelva a funcionar.<small v-if="data.unsent.error" class="row-desc">{{ data.unsent.error }}</small>
+        </p>
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora.</p>
         <button v-for="s in attention" :key="`a-${s.signal}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
           <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
@@ -620,9 +634,9 @@ onBeforeUnmount(() => {
 
         <div class="region-head group"><span>Avisos</span><span class="count">{{ data?.notices?.length || 0 }}</span></div>
         <p v-if="data && !data.notices?.length" class="none">Ninguno todavía. Avisa macOS cuando algo pasa a alerta, una vez por episodio, y cuando vuelve.</p>
-        <button v-for="n in data?.notices || []" :key="`${n.at}-${n.signal}`" type="button" class="row stacked" :title="n.text" @click="pickSignal(n.signal)">
-          <span><i class="dot" :class="`is-${NOTICE_DOT[n.level]}`" aria-hidden="true"></i>{{ NOTICE_LABEL[n.level] }} · {{ n.name }}</span>
-          <small class="row-desc">{{ dayClock(n.at) }}{{ n.sent ? '' : ' · no salió' }} · {{ n.text }}</small>
+        <button v-for="n in data?.notices || []" :key="`${n.at}-${n.signal}`" type="button" class="row stacked" :class="{ unsent: !n.sent }" :title="n.via ? `${n.text}\nSalió por ${n.via}` : n.text" @click="pickSignal(n.signal)">
+          <span><i class="dot" :class="`is-${NOTICE_DOT[n.level] || 'warn'}`" aria-hidden="true"></i>{{ NOTICE_LABEL[n.level] || n.level }} · {{ n.name }}<b v-if="!n.sent" class="unsent-tag">no salió</b></span>
+          <small class="row-desc">{{ dayClock(n.at) }} · {{ n.text }}</small>
         </button>
 
         <div class="region-head group"><span>Despliegues a producción</span><span class="count">{{ data?.deploys?.length || 0 }}</span></div>
@@ -664,6 +678,11 @@ onBeforeUnmount(() => {
 .search .input { width: 100%; box-sizing: border-box }
 .none { margin: 0; padding: var(--space-3); color: var(--fg-2); font-size: var(--text-sm) }
 .count.attention { color: var(--sentinel-warn) }
+.count.attention.is-alert { color: var(--sentinel-alert) }
+.source-note.is-alert { border-left-color: var(--sentinel-alert) }
+.source-note .row-desc { display: block; margin-top: var(--space-1) }
+.row.unsent .unsent-tag { margin-left: var(--space-2); padding: 0 var(--space-1); border-radius: var(--radius-sm, 3px); font-size: var(--text-sm); font-weight: 600;
+  color: var(--foreground); background: color-mix(in oklab, var(--sentinel-alert) 35%, transparent) }
 .dot { display: inline-block; flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3); margin-right: 6px; vertical-align: 1px }
 .dot.is-alert { background: var(--sentinel-alert) }
 .dot.is-warn { background: var(--sentinel-warn) }

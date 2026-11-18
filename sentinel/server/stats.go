@@ -180,6 +180,18 @@ func comparable(t time.Time, history int, have map[string]bool) []time.Time {
 	return out
 }
 
+// minimum: el menor de xs (0 si no hay).
+func minimum(xs []float64) float64 {
+	if len(xs) == 0 {
+		return 0
+	}
+	lo := xs[0]
+	for _, x := range xs[1:] {
+		lo = math.Min(lo, x)
+	}
+	return lo
+}
+
 func median(xs []float64) float64 {
 	if len(xs) == 0 {
 		return 0
@@ -377,6 +389,18 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 		ev.Why = fmt.Sprintf("entraron %d en %s; %s", ev.Now, span(ev.Minutes), normal)
 		if kindOf(sig) == "logs" {
 			ev.Why = fmt.Sprintf("escribió %d líneas en %s; %s", ev.Now, span(ev.Minutes), normal)
+			// Cero líneas cuando TODOS los días comparables escribieron algo a esta hora no es «normal», diga lo que
+			// diga z: con pocas muestras (4 de fin de semana) la dispersión es tan ancha que z no llega, y el
+			// 14/11/2026 dio «volvió a lo normal: escribió 0 líneas; lo normal es 798,5». Alerta si el día más flojo
+			// igual llegó al mínimo de volumen; si no, para mirar.
+			if lo := minimum(ev.Samples); ev.Now == 0 && lo > 0 && ev.Level < levelWarn {
+				ev.Level = levelWarn
+				if lo >= th.MinMedian {
+					ev.Level = levelAlert
+				}
+				ev.Why = fmt.Sprintf("no escribió una línea en %s; los %d días comparables escribieron todos (al menos %s; %s)",
+					span(ev.Minutes), len(ev.Samples), fmtNum(lo), normal)
+			}
 		}
 	}
 	// Un servicio callado más tiempo que nunca en las semanas guardadas: alerta, diga lo que diga la estadística de la

@@ -102,7 +102,8 @@ type Overview struct {
 	History     History  `json:"history"`
 	Rules       Rules    `json:"rules"`
 	Seconds     float64  `json:"seconds"`
-	Notices     []Notice `json:"notices"` // los últimos avisos mandados
+	Notices     []Notice `json:"notices"`          // los últimos avisos mandados
+	Unsent      *Unsent  `json:"unsent,omitempty"` // los avisos que no salieron y esperan: la interfaz lo muestra arriba
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -604,6 +605,7 @@ func (s *sentinel) run() {
 	if s.notifier != nil {
 		s.notifier.observe(o, time.Now())
 		o.Notices = s.notifier.recent(20)
+		o.Unsent = s.notifier.unsent()
 	}
 	s.last, s.err = o, ""
 	s.saveLast(o)
@@ -762,7 +764,15 @@ func main() {
 	rulesPath = s.rulesPath
 	switch {
 	case *notifyTest:
-		exitOn(macNotice("Sentinel · prueba", "Así llega un aviso de Sentinel. Tocalo y abre Sentinel.", "", false))
+		// Sale ≠0 si no llegó por ningún lado; si llegó por el respaldo, lo dice: el avisador del chat es el que abre
+		// Sentinel al tocarlo, y su permiso es lo que se pierde (sin él, Sentinel estuvo mudo del 14 al 18/11/2026).
+		via, err := systemNotice("Sentinel · prueba", "Así llega un aviso de Sentinel. Tocalo y abre Sentinel.", "", false)
+		exitOn(err)
+		fmt.Println("sentinel: el aviso salió por " + via)
+		if strings.HasPrefix(via, "osascript (") {
+			fmt.Println("⚠ el avisador del chat no tiene permiso: Ajustes del Sistema → Notificaciones → «Chat de my-tools»")
+			os.Exit(2)
+		}
 		return
 	case *install:
 		exitOn(agent(root, *serve).Install())
