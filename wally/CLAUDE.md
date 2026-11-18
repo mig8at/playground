@@ -356,8 +356,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 - **La tarjeta de comandos ya no se sale de la burbuja**: la columna de `.commands` crecía con el comando más largo
   (`nowrap`) y la ficha OUT quedaba afuera; ahora es `minmax(0, 1fr)` y el comando se corta con «…». Medido a 1440 px:
   4 tarjetas, ninguna ficha afuera.
-- **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `code`, `grep` y
-  `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-check FETCH=1`) sin tocar
+- **El código de main sale de los clones sólo-main** (`main_clones` en `tools/repos.json`): `code`, `grep` y
+  `diff` leen `~/Desktop/CREDITOP/main-clones/<repo>`, a los que se les hace fetch (`make knowledge-check FETCH=1`) sin tocar
   las ramas de los clones de trabajo de otras sesiones.
 - **En vivo, también lo que corre desde otro lado** (2026-11-17, Miguel: «verlo en tiempo real»): el servidor anota qué
   conversación espera respuesta (`GET /api/busy`, de la interfaz o de `bin/wally ask --auto`) y la interfaz lo mira

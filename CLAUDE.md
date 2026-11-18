@@ -63,7 +63,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`) inyecta los NOMBRES al
 arrancar, al reanudar y después de compactar, junto al catálogo LOCAL de `knowledge/`.
 `make knowledge-map` lista títulos y resúmenes; `make knowledge-check` detecta
-cambios en sus fuentes contra el `main` de los clones sólo-main (`~/Desktop/CREDITOP/canon/repos`), sin fetch:
+cambios en sus fuentes contra el `main` de los clones sólo-main (`~/Desktop/CREDITOP/main-clones`, compartidos con el proceso de canon del repo compartido), sin fetch:
 antes, `make knowledge-check FETCH=1`, que trae main a esos clones sin tocar los de trabajo.
 Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,

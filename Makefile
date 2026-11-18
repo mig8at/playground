@@ -871,7 +871,7 @@ go-fmt: ## @dia ¿qué archivos Go del repo están sin gofmt? Sale 1 si hay. FIX
 	echo "$$files" | sed 's/^/  ✗ sin gofmt: /'; echo "  → make go-fmt FIX=1"; exit 1
 wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally compilan y corren Rust, con sus bibliotecas fijas ya compiladas (después todo corre sin red). Tarda unos minutos; hace falta Docker abierto
 	@docker build -t wally-rust wally/rust
-knowledge-check: ## @dia contrastar fuentes con el main de los clones de canon (main_clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
+knowledge-check: ## @dia contrastar fuentes con el main de los clones sólo-main (main_clones, en ~/Desktop/CREDITOP/main-clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
 knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
 	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/knowledge-drift/CLAUDE.md"; exit 2; }

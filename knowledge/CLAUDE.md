@@ -7,7 +7,7 @@ No reconstruyas el antiguo servicio context/ ni importes el corpus productivo co
 ## Revisar y escribir
 
 1. Leé el código real contra `main` en los **clones sólo-main** (`main_clones` en `tools/repos.json`,
-   `~/Desktop/CREDITOP/canon/repos/<repo>`): sólo siguen main, así que se les hace fetch (`make knowledge-check FETCH=1`)
+   `~/Desktop/CREDITOP/main-clones/<repo>`): sólo siguen main, así que se les hace fetch (`make knowledge-check FETCH=1`)
    sin tocar las ramas ni los stashes de los clones de trabajo de `github/`, que usan otras sesiones. Desde el
    2026-11-17 `knowledge-check`, `knowledge-touch`, `knowledge-deriva` y los comandos de código de Wally leen de ahí
    (`MainRoot`, `connectors/repos`); un repo sin clon ahí cae a su clon de trabajo. Si una regla cruza ambos

@@ -51,7 +51,7 @@ type Client struct {
 	citable  map[string]string // indexed + my-tools y playground-equipo, que una tarea cita
 	branches map[string]string // carpeta → rama de producción, cuando no es `main`
 	exts     map[string]bool
-	// mainClones: la carpeta de clones que sólo siguen main (los de canon). MainRoot lee de ahí.
+	// mainClones: la carpeta de clones que sólo siguen main . MainRoot lee de ahí.
 	mainClones string
 	order      []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
 	loadErr    error
@@ -98,7 +98,7 @@ func New(tools string) *Client {
 	return c
 }
 
-// MainRoot: dónde leer el `main` de un repo. El clon de `main_clones` (los de canon) si lo hay —por el alias o por
+// MainRoot: dónde leer el `main` de un repo. El clon de `main_clones`  si lo hay —por el alias o por
 // el nombre de la carpeta de trabajo—, porque se le puede hacer fetch sin tocar las ramas y stashes de otra sesión;
 // si no, el clon de trabajo. "" si el alias no está en la lista.
 func (c *Client) MainRoot(alias string) string {

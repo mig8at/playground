@@ -80,7 +80,7 @@ func run(args []string) int {
 		}
 		fmt.Printf("\nFuentes: knowledge/%s/sources.json · revisión registrada: %s\n", t.ID, t.ReviewedAt)
 	case "fetch":
-		/* Trae main a los clones de `main_clones` (los de canon) de los repos que cita la biblioteca. Un repo sin
+		/* Trae main a los clones de `main_clones`  de los repos que cita la biblioteca. Un repo sin
 		 * clon ahí no se toca: su clon de trabajo tiene ramas y stashes de otras sesiones. */
 		client := repos.New(filepath.Join(*root, "tools"))
 		seen := map[string]bool{}
@@ -107,7 +107,7 @@ func run(args []string) int {
 				fmt.Printf("  ✗ %s: %s\n", alias, strings.TrimSpace(string(out)))
 				continue
 			}
-			/* Los clones de canon son parciales (`blob:none`): el primer `git grep` sobre main baja el contenido de los
+			/* Los clones sólo-main son parciales (`blob:none`): el primer `git grep` sobre main baja el contenido de los
 			 * archivos de a uno y tardaba ~24 s por búsqueda en Wally. Se baja acá, una vez, con una búsqueda que no
 			 * encuentra nada; después cada búsqueda tarda centésimas. */
 			_ = exec.Command("git", "-C", dir, "grep", "-q", "-F", "-e", "knowledge fetch: texto que no existe en ningún repo", "FETCH_HEAD").Run()

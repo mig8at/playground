@@ -18,6 +18,6 @@ es obligatoria**: en la corrida del 2026-11-10 encontró 6 contradicciones y uno
 - ⚠ `paquete` hace fetch de TODOS los clones antes de medir: `knowledge-check` no hace fetch, y un repo vecino
   atrasado 18 días hizo que un agente afirmara que una ruta no existía.
 - Los prompts nombran clases, métodos y tablas: es el estilo de knowledge.
-- Las corridas quedan fuera de git, en `KNOWLEDGE_DRIFT_DIR` (por defecto `~/Desktop/CREDITOP/canon/runs-knowledge`).
+- Las corridas quedan fuera de git, en `KNOWLEDGE_DRIFT_DIR` (por defecto `tools/knowledge-drift/.runs/`).
 - Nació junto al método que pone al día canon; ése vive desde el 2026-11-18 en el repo compartido
   (`tools/canon/recontext`), y acá no queda nada de canon.

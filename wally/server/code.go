@@ -54,7 +54,7 @@ func (a *app) repoDir(alias string) (string, string, error) {
 	} else if !filepath.IsAbs(dir) {
 		dir = filepath.Join(a.root, dir)
 	}
-	// El main se lee de los clones de canon (`main_clones`) cuando el repo está ahí: se les hace fetch sin tocar
+	// El main se lee de los clones sólo-main (`main_clones`) cuando el repo está ahí: se les hace fetch sin tocar
 	// las ramas de los clones de trabajo. Lo mismo que MainRoot en connectors/repos.
 	if cfg.Main != "" {
 		clones := cfg.Main

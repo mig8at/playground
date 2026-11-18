@@ -16,8 +16,7 @@ donde la prosa probablemente quedó mal.
 ⚠ Antes de `paquete`, los clones tienen que tener su origin al día (`make knowledge-check FETCH=1`):
 knowledge-check no hace fetch, y un clon atrasado devuelve MENOS deriva sin avisar.
 
-Las corridas quedan fuera de git, en KNOWLEDGE_DRIFT_DIR (por defecto ~/Desktop/CREDITOP/canon/runs-knowledge,
-donde están las de antes).
+Las corridas quedan fuera de git, en KNOWLEDGE_DRIFT_DIR (por defecto `.runs/`, en esta carpeta).
 """
 import argparse, collections, datetime, json, os, re, subprocess, sys, unicodedata
 from concurrent.futures import ThreadPoolExecutor
@@ -25,7 +24,7 @@ from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.abspath(__file__))
 MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
-WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", "~/Desktop/CREDITOP/canon/runs-knowledge"))
+WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", os.path.join(HERE, ".runs")))
 PR_BODY_CAP = 12000  # recortar fijo y corto fabricó dudas: 41 de 60 ítems quedaron «no se sabe» por un PR largo
 
 
@@ -59,7 +58,7 @@ def body_of(t):
 
 
 def repo_dirs():
-    """Dónde leer el main de cada repo: el clon de `main_clones` (los de canon) si lo hay, por el alias o por el
+    """Dónde leer el main de cada repo: el clon de `main_clones` si lo hay, por el alias o por el
     nombre de la carpeta de trabajo; si no, el clon de trabajo. Lo mismo que `MainRoot` en connectors/repos."""
     d = json.load(open(os.path.join(MY_TOOLS, "tools", "repos.json")))
     expand = lambda v: os.path.expanduser(v) if v.startswith("~") else os.path.join(MY_TOOLS, v)
