@@ -99,8 +99,13 @@ y UserPromptSubmit) le pasa una línea por herramienta. Tres cosas que salen de 
   tarea. Editar el CÓDIGO de una herramienta no mueve nada. Qué
   comando lleva a qué app lo decide `cockpitTarget`.
 - **`say` es para lo que los comandos no dicen**: qué vas a hacer y qué concluiste. No narres cada paso.
-- **Frenar**: si Miguel toca «Frenar», el hook niega la siguiente herramienta (sale 2) hasta que reanude o te
-  escriba. Pasan sólo `bin/cockpit say|status|apps` y las herramientas internas de la app (`open` y `restart` hacen algo: no pasan). Si te frena: contá en una línea
+- **Con dos o más sesiones de Claude, Cockpit sigue a UNA** (2026-11-18): la primera que habla. Sólo ésa mueve la
+  ventana; las otras se ven en el panel con su etiqueta (los 4 primeros caracteres de su id) pero no cambian la app al
+  frente. Cambia sola cuando la que se seguía lleva 90 s sin hacer nada y otra actúa, o cuando Miguel toca la ficha de
+  otra sesión en la cabecera del panel.
+- **Frenar es por sesión**: si Miguel toca «Frenar», el hook niega la siguiente herramienta (sale 2) de la sesión que
+  se sigue, no de las demás («todas» las frena juntas), hasta que reanude o te escriba. Escribirle a una sesión la
+  reanuda a ella, no a otra que esté frenada. El hook pregunta por la suya (`POST /stop/check {session}`). Pasan sólo `bin/cockpit say|status|apps` y las herramientas internas de la app (`open` y `restart` hacen algo: no pasan). Si te frena: contá en una línea
   dónde quedaste y esperá.
 
 ⚠ En un comando compuesto, un `bin/cockpit open` pisa el «seguir» de lo demás: si querés que Cockpit siga a
@@ -146,8 +151,8 @@ para todas (se eligen en el modal del engranaje, Apariencia).
 Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el navegador de Miguel.
 
 **El puerto de control** escucha en 127.0.0.1:5209 y pide la llave que Cockpit deja al arrancar en
-`~/.config/creditop-cockpit/control.json` (600, se borra al salir): `GET /status`, `GET|POST /stop`,
-`POST /open`, `/say`, `/activity`. La llave existe para que una página web cualquiera no pueda manejar Cockpit.
+`~/.config/creditop-cockpit/control.json` (600, se borra al salir): `GET /status`, `POST /stop {stopped, session}`
+(sin sesión: todas), `POST /stop/check {session}`, `POST /open`, `/ensure`, `/restart`, `/say`, `/activity`. La llave existe para que una página web cualquiera no pueda manejar Cockpit.
 
 **Una app oculta o sin abrir sigue sirviendo a Claude** (2026-11-18). Cockpit levanta cada app la primera vez que
 Miguel la abre, así que una oculta puede no tener servidor. Los CLI que hablan con la API de su app (`bin/wally`,

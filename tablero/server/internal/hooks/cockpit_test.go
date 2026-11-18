@@ -79,10 +79,11 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 	}
 }
 
-// Frenar desde Cockpit: con el freno puesto, una herramienta se niega (sale 2 y le dice a Claude por qué), bin/cockpit
-// pasa, y escribirle a Claude lo levanta.
+// Frenar desde Cockpit es POR SESIÓN: con el freno puesto en «a», una herramienta suya se niega (sale 2 y le dice a
+// Claude por qué), bin/cockpit pasa, la sesión «b» sigue trabajando, escribirle a «b» no suelta a «a», y escribirle a
+// «a» la levanta.
 func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
-	stopped := true
+	stoppedSessions := map[string]bool{"a": true}
 	var activities int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Header.Get("x-cockpit-token") != "llave" {
@@ -90,15 +91,20 @@ func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
 			return
 		}
 		switch r.URL.Path {
-		case "/stop":
-			if r.Method == http.MethodPost {
-				var in struct {
-					Stopped bool `json:"stopped"`
-				}
-				_ = json.NewDecoder(r.Body).Decode(&in)
-				stopped = in.Stopped
+		case "/stop/check":
+			var in struct {
+				Session string `json:"session"`
 			}
-			_ = json.NewEncoder(w).Encode(map[string]bool{"stopped": stopped})
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			_ = json.NewEncoder(w).Encode(map[string]bool{"stopped": stoppedSessions[in.Session]})
+		case "/stop":
+			var in struct {
+				Stopped bool   `json:"stopped"`
+				Session string `json:"session"`
+			}
+			_ = json.NewDecoder(r.Body).Decode(&in)
+			stoppedSessions[in.Session] = in.Stopped
+			_ = json.NewEncoder(w).Encode(map[string]bool{"stopped": in.Stopped})
 		case "/activity":
 			activities++
 		}
@@ -118,23 +124,29 @@ func TestCockpitStopBlocksToolsUntilMiguelWrites(t *testing.T) {
 		return code, stderr.String()
 	}
 
-	code, msg := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"make harness-case TARGET=local"}}`)
+	code, msg := hook(`{"hook_event_name":"PreToolUse","session_id":"a","tool_name":"Bash","tool_input":{"command":"make harness-case TARGET=local"}}`)
 	if code != 2 || !strings.Contains(msg, "te frenó") {
 		t.Errorf("frenado, el comando se niega con el motivo: %d %q", code, msg)
 	}
 	if activities != 2 {
 		t.Errorf("el intento negado queda en el panel (empieza y falla): %d avisos", activities)
 	}
-	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"bin/cockpit say paré"}}`); code != 0 {
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","session_id":"a","tool_name":"Bash","tool_input":{"command":"bin/cockpit say paré"}}`); code != 0 {
 		t.Errorf("bin/cockpit pasa aunque esté frenado: %d", code)
 	}
-	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"bin/cockpit restart tablero"}}`); code != 2 {
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","session_id":"a","tool_name":"Bash","tool_input":{"command":"bin/cockpit restart tablero"}}`); code != 2 {
 		t.Errorf("bin/cockpit restart hace algo: frenado no pasa (salió %d)", code)
 	}
-	if code, _ := hook(`{"hook_event_name":"UserPromptSubmit","prompt":"seguí"}`); code != 0 || stopped {
-		t.Errorf("escribirle a Claude levanta el freno: %d %v", code, stopped)
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","session_id":"b","tool_name":"Bash","tool_input":{"command":"git status"}}`); code != 0 {
+		t.Errorf("la otra sesión no está frenada: %d", code)
 	}
-	if code, _ := hook(`{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"git status"}}`); code != 0 {
+	if code, _ := hook(`{"hook_event_name":"UserPromptSubmit","session_id":"b","prompt":"seguí"}`); code != 0 || !stoppedSessions["a"] {
+		t.Errorf("escribirle a la otra sesión no suelta a la frenada: %d %v", code, stoppedSessions)
+	}
+	if code, _ := hook(`{"hook_event_name":"UserPromptSubmit","session_id":"a","prompt":"seguí"}`); code != 0 || stoppedSessions["a"] {
+		t.Errorf("escribirle a Claude levanta el freno: %d %v", code, stoppedSessions)
+	}
+	if code, _ := hook(`{"hook_event_name":"PreToolUse","session_id":"a","tool_name":"Bash","tool_input":{"command":"git status"}}`); code != 0 {
 		t.Errorf("sin freno, pasa: %d", code)
 	}
 }

@@ -542,25 +542,57 @@ struct Current(Mutex<String>);
 // FRENAR: con el botón del panel «Claude», el hook `cockpit` niega cada herramienta que Claude intente usar (menos
 // `bin/cockpit`, para que pueda contar que paró). Se levanta con «Reanudar» o cuando Miguel le escribe a Claude
 // (hook en UserPromptSubmit). Lo que ya estaba corriendo termina: se corta lo siguiente, no un proceso a la mitad.
+//
+// POR SESIÓN (2026-11-18): se frena una sesión de Claude, no todas. Antes era un sí/no global: con dos sesiones, Frenar
+// las paraba a las dos, y escribirle a cualquiera reanudaba también a la otra. `ALL` («*») sigue existiendo para
+// «frenar todas», también las que todavía no hablaron; reanudar sin sesión las suelta a todas.
 #[derive(Default)]
-struct Stopped(Mutex<bool>);
+struct Stopped(Mutex<std::collections::HashSet<String>>);
 
-fn set_stop(app: &tauri::AppHandle, stopped: bool, by: &str) {
+const ALL: &str = "*";
+
+fn is_stopped(app: &tauri::AppHandle, session: &str) -> bool {
+    let state = app.state::<Stopped>();
+    let s = state.0.lock().unwrap();
+    s.contains(ALL) || (!session.is_empty() && s.contains(session))
+}
+
+fn stopped_list(app: &tauri::AppHandle) -> Vec<String> {
+    let state = app.state::<Stopped>();
+    let mut list: Vec<String> = state.0.lock().unwrap().iter().cloned().collect();
+    list.sort();
+    list
+}
+
+// session vacía: todas. Reanudar UNA mientras están todas frenadas no se puede expresar con un conjunto, así que
+// «todas» se reanuda entero (es lo que pasaba antes) y se dice en el panel.
+fn set_stop(app: &tauri::AppHandle, stopped: bool, session: &str, by: &str) {
     let changed = {
         let state = app.state::<Stopped>();
         let mut s = state.0.lock().unwrap();
-        let changed = *s != stopped;
-        *s = stopped;
-        changed
+        let key = if session.is_empty() { ALL } else { session };
+        if stopped {
+            s.insert(key.to_string())
+        } else if session.is_empty() || s.contains(ALL) {
+            let had = !s.is_empty();
+            s.clear();
+            had
+        } else {
+            s.remove(key)
+        }
     };
     if changed {
-        let _ = app.emit("cockpit-activity", serde_json::json!({ "kind": "stop", "stopped": stopped, "text": by }));
+        let _ = app.emit(
+            "cockpit-activity",
+            serde_json::json!({ "kind": "stop", "stopped": stopped, "text": by, "session": session, "list": stopped_list(app) }),
+        );
     }
 }
 
 #[tauri::command]
-fn set_stopped(stopped: bool, app: tauri::AppHandle) {
-    set_stop(&app, stopped, if stopped { "frenado desde Cockpit" } else { "reanudado desde Cockpit" });
+fn set_stopped(stopped: bool, session: Option<String>, app: tauri::AppHandle) {
+    let session = session.unwrap_or_default();
+    set_stop(&app, stopped, &session, if stopped { "frenado desde Cockpit" } else { "reanudado desde Cockpit" });
 }
 
 #[tauri::command]
@@ -636,17 +668,21 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     .map(|a| serde_json::json!({ "id": a.id, "name": a.name, "ready": ready(a), "started": running.started(a.id) }))
                     .collect();
                 let current = app.state::<Current>().0.lock().unwrap().clone();
-                let stopped = *app.state::<Stopped>().0.lock().unwrap();
-                json_response(200, serde_json::json!({ "current": current, "apps": apps, "stopped": stopped }))
+                let list = stopped_list(&app);
+                json_response(200, serde_json::json!({ "current": current, "apps": apps, "stopped": !list.is_empty(), "stoppedSessions": list }))
             }
-            ("GET", "/stop") => {
-                let stopped = *app.state::<Stopped>().0.lock().unwrap();
-                json_response(200, serde_json::json!({ "stopped": stopped }))
+            // ¿Están TODAS frenadas? (lo de antes; el hook viejo lo sigue entendiendo.)
+            ("GET", "/stop") => json_response(200, serde_json::json!({ "stopped": is_stopped(&app, "") })),
+            // ¿Está frenada ESTA sesión? Lo pregunta el hook antes de cada herramienta.
+            ("POST", "/stop/check") => {
+                let session = text("session", 80);
+                json_response(200, serde_json::json!({ "stopped": is_stopped(&app, &session) }))
             }
             ("POST", "/stop") => {
                 let stopped = input.get("stopped").and_then(|v| v.as_bool()).unwrap_or(false);
                 let by = text("by", 80);
-                set_stop(&app, stopped, if by.is_empty() { if stopped { "frenado" } else { "reanudado" } } else { &by });
+                let session = text("session", 80);
+                set_stop(&app, stopped, &session, if by.is_empty() { if stopped { "frenado" } else { "reanudado" } } else { &by });
                 json_response(200, serde_json::json!({ "stopped": stopped }))
             }
             ("POST", "/open") => {

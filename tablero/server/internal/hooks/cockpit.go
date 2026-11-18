@@ -38,7 +38,8 @@ func Cockpit(env Env) int {
 	const wait = 400 * time.Millisecond
 	switch str(payload, "hook_event_name") {
 	case "UserPromptSubmit":
-		_ = ctl.Do("POST", "/stop", map[string]any{"stopped": false, "by": "reanudado: le escribiste a Claude"}, nil, wait)
+		// Reanuda ESTA sesión: escribirle a una no suelta a las demás que estén frenadas.
+		_ = ctl.Do("POST", "/stop", map[string]any{"stopped": false, "session": str(payload, "session_id"), "by": "reanudado: le escribiste a Claude"}, nil, wait)
 		return 0
 	case "PreToolUse":
 		if cockpitAlwaysAllowed(payload) {
@@ -47,7 +48,8 @@ func Cockpit(env Env) int {
 		var st struct {
 			Stopped bool `json:"stopped"`
 		}
-		if ctl.Do("GET", "/stop", nil, &st, wait) == nil && st.Stopped {
+		// Frenar es por sesión: se pregunta por la propia.
+		if ctl.Do("POST", "/stop/check", map[string]any{"session": str(payload, "session_id")}, &st, wait) == nil && st.Stopped {
 			if act, send := cockpitActivity(payload, env.Root); send {
 				_ = ctl.Do("POST", "/activity", act, nil, wait)
 				no := false

@@ -192,6 +192,12 @@
     border-left: 3px solid var(--cockpit-stop); background: color-mix(in oklab, var(--cockpit-stop) 14%, transparent);
     font-size: var(--text-sm); line-height: 1.4 }
   .stopbar[hidden] { display: none }
+  .session-bar { flex: none; display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--gutter) }
+  .session-bar[hidden] { display: none }
+  .sess-chip { border: 1px solid var(--border); background: none; color: var(--fg-3); font: inherit; font-size: var(--text-xs);
+    font-family: var(--font-mono); padding: 1px 8px; border-radius: 999px; cursor: pointer }
+  .sess-chip.on { color: var(--foreground); border-color: var(--primary) }
+  .sess-chip.stopped { color: var(--destructive) }
   .stopbar span { flex: 1 }
   .stopbar button { flex: none; height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border); border-radius: var(--radius-control);
     background: var(--panel-surface); color: var(--foreground); font: inherit; font-size: var(--text-xs); cursor: pointer }
@@ -226,9 +232,11 @@
   <header><span>Claude</span><span class="grow"></span>
     <button type="button" id="followToggle" class="follow"><i aria-hidden="true"></i><span></span></button>
     <button type="button" id="stopToggle" title="Frenar a Claude: no va a poder usar más herramientas" aria-label="Frenar a Claude"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="6" width="12" height="12" rx="2"/></svg></button>
+    <button type="button" id="stopAll" class="follow" title="Frenar a todas las sesiones de Claude" hidden><span>todas</span></button>
     <button type="button" id="activityClear" title="Vaciar" aria-label="Vaciar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M10 11v6M14 11v6M5.5 7l1 12.5a1.5 1.5 0 0 0 1.5 1.5h8a1.5 1.5 0 0 0 1.5-1.5L18.5 7M9 7V4.5h6V7"/></svg></button>
     <button type="button" id="activityClose" title="Ocultar" aria-label="Ocultar el panel"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
   </header>
+  <div class="session-bar" id="sessionBar" role="group" aria-label="Sesiones de Claude" hidden></div>
   <div class="stopbar" id="stopbar" role="status" hidden><span>Claude está frenado: no puede usar herramientas hasta que lo reanudes o le escribas.</span><button type="button" id="resume">Reanudar</button></div>
   <div class="feed" id="feed" aria-live="polite"><p class="empty">Cuando una sesión de Claude use herramientas o <code>bin/cockpit</code>, lo vas a ver acá, en vivo.</p></div>
 </aside>
@@ -492,7 +500,25 @@ const activity = document.getElementById('activity')
 const feed = document.getElementById('feed')
 let activityOpen = pick(ACTIVITY_KEY, 'auto') === 'open'
 let unseen = false
-const sessions = new Set()
+/* LAS SESIONES DE CLAUDE (2026-11-18): con más de una trabajando, Cockpit SIGUE a una sola (`focus`) y Frenar actúa
+   sobre ésa. Antes cada sesión movía la ventana y Frenar las paraba a todas.
+   - `focus` es la primera que habla; cambia sola cuando la que se seguía lleva FOCUS_IDLE sin hacer nada y otra actúa,
+     o cuando tocás su ficha en la cabecera del panel (aparecen con dos o más activas).
+   - una sesión deja de contar a los SESSION_IDLE sin actividad. */
+const sessions = new Map() // id → cuándo se la vio por última vez
+const stoppedSessions = new Set() // las frenadas ('*': todas)
+let focus = ''
+const FOCUS_IDLE = 90_000
+const SESSION_IDLE = 30 * 60_000
+const activeSessions = () => [...sessions].filter(([, at]) => Date.now() - at < SESSION_IDLE).map(([id]) => id)
+function seeSession(id) {
+  if (!id) return
+  const before = activeSessions().length
+  const prev = sessions.get(focus) || 0
+  sessions.set(id, Date.now())
+  if (!focus || (id !== focus && Date.now() - prev > FOCUS_IDLE)) focus = id
+  if (activeSessions().length !== before || !document.getElementById('sessionBar').childElementCount) paintSessions()
+}
 const startedAt = {}
 function setActivityOpen(open, byHand = false) {
   activityOpen = open
@@ -520,29 +546,58 @@ function line(className, html) {
 }
 const esc = (t) => String(t ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 // Con más de una sesión mandando, cada línea dice de cuál es (los primeros caracteres de su id).
-const sess = (a) => (a.session ? sessions.add(a.session) : null, sessions.size > 1 && a.session ? `<span class="sess">${esc(a.session.slice(0, 4))}</span>` : '')
-/* FRENAR (Rust `set_stopped`, el hook `cockpit` niega las herramientas): el botón de la cabecera frena y reanuda; el
-   aviso de abajo dice que está frenado. Lo levanta también escribirle a Claude (el hook en UserPromptSubmit). */
-let stopped = false
+const tag = (id) => id.slice(0, 4)
+const sess = (a) => (seeSession(a.session), activeSessions().length > 1 && a.session ? `<span class="sess">${esc(tag(a.session))}</span>` : '')
+/* FRENAR (Rust `set_stopped`, el hook `cockpit` niega las herramientas), POR SESIÓN: el botón de la cabecera frena y
+   reanuda a la que se sigue (`focus`); con dos o más, «todas» las frena juntas. El aviso de abajo dice cuál está
+   frenada. Escribirle a una sesión la reanuda a ella (el hook en UserPromptSubmit), no a las demás. */
 const stopToggle = document.getElementById('stopToggle')
+const stopAll = document.getElementById('stopAll')
 const stopbar = document.getElementById('stopbar')
+const sessionBar = document.getElementById('sessionBar')
+const isStopped = (id) => stoppedSessions.has('*') || (!!id && stoppedSessions.has(id))
 function paintStop() {
-  stopToggle.classList.toggle('on', stopped)
-  stopToggle.title = stopped ? 'Reanudar: Claude vuelve a poder usar herramientas' : 'Frenar a Claude: no va a poder usar más herramientas'
-  stopToggle.setAttribute('aria-label', stopped ? 'Reanudar a Claude' : 'Frenar a Claude')
-  stopToggle.setAttribute('aria-pressed', String(stopped))
-  stopbar.hidden = !stopped
+  const on = isStopped(focus)
+  const many = activeSessions().length > 1
+  const who = many && focus ? `la sesión ${tag(focus)}` : 'Claude'
+  stopToggle.classList.toggle('on', on)
+  stopToggle.title = on ? `Reanudar a ${who}: vuelve a poder usar herramientas` : `Frenar a ${who}: no va a poder usar más herramientas`
+  stopToggle.setAttribute('aria-label', on ? `Reanudar a ${who}` : `Frenar a ${who}`)
+  stopToggle.setAttribute('aria-pressed', String(on))
+  stopAll.hidden = !many
+  const list = stoppedSessions.has('*') ? ['todas las sesiones'] : [...stoppedSessions].map((id) => `la sesión ${tag(id)}`)
+  stopbar.hidden = !list.length
+  stopbar.querySelector('span').textContent = !list.length ? '' : stoppedSessions.has('*')
+    ? 'Frenadas todas las sesiones: no pueden usar herramientas hasta que las reanudes.'
+    : many ? `Frenada ${list.join(', ')}: no puede usar herramientas hasta que la reanudes o le escribas.`
+    : 'Claude está frenado: no puede usar herramientas hasta que lo reanudes o le escribas.'
 }
-stopToggle.addEventListener('click', () => invoke('set_stopped', { stopped: !stopped }).catch(() => {}))
-document.getElementById('resume').addEventListener('click', () => invoke('set_stopped', { stopped: false }).catch(() => {}))
+// Las fichas de las sesiones activas (con dos o más): cuál se sigue y cuál está frenada. Tocar una pasa a seguirla.
+function paintSessions() {
+  const ids = activeSessions()
+  sessionBar.hidden = ids.length < 2
+  sessionBar.innerHTML = ids.map((id) => `<button type="button" class="sess-chip${id === focus ? ' on' : ''}${isStopped(id) ? ' stopped' : ''}" data-session="${esc(id)}"
+    aria-pressed="${id === focus}" title="${id === focus ? 'Cockpit sigue a esta sesión; Frenar actúa sobre ella' : 'Seguir a esta sesión'}${isStopped(id) ? ' · frenada' : ''}">${esc(tag(id))}${isStopped(id) ? ' ■' : ''}</button>`).join('')
+  paintStop()
+}
+sessionBar.addEventListener('click', (e) => {
+  const id = e.target.closest('[data-session]')?.dataset.session
+  if (id) { focus = id; sessions.set(id, Date.now()); paintSessions() }
+})
+stopToggle.addEventListener('click', () => invoke('set_stopped', { stopped: !isStopped(focus), session: focus }).catch(() => {}))
+stopAll.addEventListener('click', () => invoke('set_stopped', { stopped: true, session: '' }).catch(() => {}))
+// «Reanudar» suelta todo lo frenado: es el botón del aviso, que las nombra.
+document.getElementById('resume').addEventListener('click', () => invoke('set_stopped', { stopped: false, session: '' }).catch(() => {}))
 paintStop()
 function onActivity(a) {
   if (!a || !a.kind) return
   if (a.kind === 'stop') {
-    stopped = !!a.stopped
-    paintStop()
-    line('stop', `<span>${stopped ? '■' : '▶'} ${esc(a.text)}</span><time>${clock()}</time>`)
-    if (stopped && !activityOpen) setActivityOpen(true)
+    stoppedSessions.clear()
+    for (const id of a.list || []) stoppedSessions.add(id)
+    paintSessions()
+    const who = a.session && activeSessions().length > 1 ? `${tag(a.session)} · ` : ''
+    line('stop', `<span>${a.stopped ? '■' : '▶'} ${esc(who + a.text)}</span><time>${clock()}</time>`)
+    if (a.stopped && !activityOpen) setActivityOpen(true)
     return
   }
   if (a.kind === 'say') line('say', `${sess(a)}<p>${esc(a.text)}</p><time>${clock()}</time>`)
@@ -796,7 +851,9 @@ tauri.event.listen('cockpit-app', (e) => {
 
 tauri.event.listen('cockpit-activity', (e) => {
   onActivity(e.payload)
-  if (e.payload?.kind === 'start' && e.payload.app) followTo(e.payload.app, e.payload.route)
+  // Sólo la sesión que se sigue mueve la ventana: con dos trabajando, la otra no te cambia de app.
+  const p = e.payload
+  if (p?.kind === 'start' && p.app && (!p.session || !focus || p.session === focus)) followTo(p.app, p.route)
 })
 
 // ⌘1, ⌘2…: cambiar de app (dentro de un iframe el atajo no llega acá; desde la barra, sí).
