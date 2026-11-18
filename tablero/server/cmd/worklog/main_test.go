@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-func TestAtDayUsaElDiaDeLaBase(t *testing.T) {
+func TestAtDayUsesTheBaseDay(t *testing.T) {
 	base := time.Date(2026, 10, 5, 3, 0, 0, 0, time.Local)
 	got, err := atDay(base, "14:47")
 	if err != nil {
@@ -35,7 +35,7 @@ func TestEntryDay(t *testing.T) {
 	}
 }
 
-func TestOverlappingDetectaElSolape(t *testing.T) {
+func TestOverlappingDetectsTheOverlap(t *testing.T) {
 	at := func(hm string) time.Time { v, _ := time.Parse("15:04", hm); return v }
 	entries := []loggedSpan{{ID: 663, Minutes: 15, start: at("11:47")}}
 	if _, ok := overlapping(entries, at("11:52"), 17); !ok {

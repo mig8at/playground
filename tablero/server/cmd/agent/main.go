@@ -511,17 +511,17 @@ func printText(b brief, task taskView) {
 		var env struct {
 			OK     bool `json:"ok"`
 			Checks []struct {
-				ID      string `json:"id"`
-				OK      bool   `json:"ok"`
-				Frena   bool   `json:"frena"`
-				Detalle string `json:"detalle"`
+				ID     string `json:"id"`
+				OK     bool   `json:"ok"`
+				Blocks bool   `json:"frena"`
+				Detail string `json:"detalle"`
 			} `json:"checks"`
 		}
 		_ = json.Unmarshal(b.Environment, &env)
 		fmt.Printf("\n  AMBIENTE local · %s\n", map[bool]string{true: "nada frena", false: "✗ algo FRENA: una corrida mentiría"}[env.OK])
 		for _, c := range env.Checks {
 			if !c.OK {
-				fmt.Printf("    %s %s · %s\n", map[bool]string{true: "✗", false: "⚠"}[c.Frena], c.ID, truncate(c.Detalle, 110))
+				fmt.Printf("    %s %s · %s\n", map[bool]string{true: "✗", false: "⚠"}[c.Blocks], c.ID, truncate(c.Detail, 110))
 			}
 		}
 	} else {

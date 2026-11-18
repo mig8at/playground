@@ -169,3 +169,8 @@ captura sala
 json: connectors/canon/ autenticado nombre puede_corregir nivel     # la API de canon (/api/me y la sesión): contrato del repo compartido
 json: sala/canon.go archivos operacion                              # la forma de una pieza de canon (canon-write): contrato del repo compartido
 path: harness/dev/alta-branding.ts   # «Alta» es Alta Fleet, el comercio: nombre propio (2026-11-18)
+json: server/cmd/agent/main.go:map *                                # palabras vacías del español para comparar textos de tareas: es dato, no clave
+json: server/cmd/agent/main.go recorrido                            # el campo `recorrido:` del frontmatter de las tareas (el frontmatter queda en español)
+json: server/cmd/agent/main.go frena detalle                        # el JSON de harness-doctor (harness.doctor/v1): las claves del harness se deciden aparte
+json: server/cmd/canon/main.go pregunta                             # una columna de la base de canon: contrato del repo compartido
+json: server/internal/hooks/cockpit.go asesor autogestion           # los canales del panel del harness como van en su URL (/<ambiente>/<comercio>/<canal>)

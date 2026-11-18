@@ -48,16 +48,16 @@ func atDay(base time.Time, hhmm string) (time.Time, error) {
 }
 
 // entryDay es el día al que pertenece la entrada: hoy, o el que se pidió con -dia (que nunca puede ser futuro).
-func entryDay(now time.Time, dia string) (time.Time, error) {
-	if dia == "" {
+func entryDay(now time.Time, day string) (time.Time, error) {
+	if day == "" {
 		return now, nil
 	}
-	d, err := time.ParseInLocation("2006-01-02", dia, time.Local)
+	d, err := time.ParseInLocation("2006-01-02", day, time.Local)
 	if err != nil {
-		return d, fmt.Errorf("-dia %q: tiene que ser AAAA-MM-DD", dia)
+		return d, fmt.Errorf("-dia %q: tiene que ser AAAA-MM-DD", day)
 	}
 	if d.After(now) {
-		return d, fmt.Errorf("-dia %s es futuro: la bitácora anota lo que ya pasó", dia)
+		return d, fmt.Errorf("-dia %s es futuro: la bitácora anota lo que ya pasó", day)
 	}
 	return d, nil
 }

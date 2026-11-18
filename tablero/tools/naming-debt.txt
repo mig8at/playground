@@ -7,40 +7,6 @@
 #
 # Una línea: el archivo (sin la línea) y el nombre.
 
-server/cmd/agent/main.go Detalle
-server/cmd/agent/main.go Frena
-server/cmd/agent/main.go ambiente
-server/cmd/agent/main.go comercio
-server/cmd/agent/main.go cuando
-server/cmd/agent/main.go datos
-server/cmd/agent/main.go desde
-server/cmd/agent/main.go detalle
-server/cmd/agent/main.go donde
-server/cmd/agent/main.go entidad
-server/cmd/agent/main.go estado
-server/cmd/agent/main.go frena
-server/cmd/agent/main.go hasta
-server/cmd/agent/main.go misma
-server/cmd/agent/main.go mismo
-server/cmd/agent/main.go nadie
-server/cmd/agent/main.go otros
-server/cmd/agent/main.go porque
-server/cmd/agent/main.go prueba
-server/cmd/agent/main.go pruebas
-server/cmd/agent/main.go puede
-server/cmd/agent/main.go queda
-server/cmd/agent/main.go recorrido
-server/cmd/agent/main.go sobre
-server/cmd/agent/main.go solicitud
-server/cmd/agent/main.go tarea
-server/cmd/agent/main.go termina
-server/cmd/agent/main.go tiene
-server/cmd/canon/main.go pregunta
-server/cmd/worklog/main.go dia
-server/cmd/worklog/main_test.go TestAtDayUsaElDiaDeLaBase
-server/cmd/worklog/main_test.go TestOverlappingDetectaElSolape
-server/internal/hooks/cockpit.go asesor
-server/internal/hooks/cockpit.go autogestion
 tools/canon-deriva canon-deriva
 tools/canon-deriva/deriva.py deriva.py
 tools/canon-deriva/prompts/codigo.md codigo.md
