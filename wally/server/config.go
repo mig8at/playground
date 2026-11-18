@@ -17,8 +17,8 @@ import (
 )
 
 type Config struct {
-	// Provider: «aistudio» (Gemini 4 Hydrogen por la web de AI Studio), «deepseek» (chat.deepseek.com) o «chatgpt»
-	// (chatgpt.com, en chat temporal), todos por su web.
+	// Provider: «claude» (Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon: claude.go; el de
+	// siempre desde el 2026-11-18), o por su web: «aistudio» (Gemini 4 Hydrogen), «deepseek», «chatgpt», «groq».
 	Provider string `json:"provider"`
 	// Thinking: el «Thinking level» de AI Studio (Low, Medium, High).
 	Thinking string `json:"thinking"`
@@ -39,7 +39,7 @@ type Config struct {
 	Window string `json:"window"`
 }
 
-var defaultConfig = Config{Provider: "aistudio", Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
+var defaultConfig = Config{Provider: claudeProvider, Thinking: "High", DeepThink: true, Search: false, GroqModel: "openai/gpt-oss-120b", Window: "minimized"}
 
 // groqModels: los de texto que ofrecía Groq Chat el 2026-11-17 (los demás eran de voz o de guardia; Kimi no estaba).
 var groqModels = []string{"openai/gpt-oss-120b", "openai/gpt-oss-20b"}
@@ -49,6 +49,7 @@ var groqModelNames = map[string]string{"openai/gpt-oss-120b": "GPT OSS 120B", "o
 
 // Los modelos que puede usar Wally, por proveedor: el nombre es lo que queda en cada respuesta.
 var providerModels = map[string]Model{
+	"claude":   {Name: "claude-sonnet-5-5", DisplayName: "Claude Sonnet 5.5", Note: "Bedrock de CreditOp, por el puente de canon"},
 	"aistudio": {Name: "gemini-4-hydrogen", DisplayName: "Gemini 4 Hydrogen", Note: "Gemini, por la web de AI Studio"},
 	"deepseek": {Name: "deepseek-web", DisplayName: "DeepSeek", Note: "chat.deepseek.com"},
 	"chatgpt":  {Name: "chatgpt-web", DisplayName: "ChatGPT", Note: "chatgpt.com, chat temporal"},
@@ -123,10 +124,12 @@ func (c Config) providerForAgent(mode string, agent *Agent) string {
 	return c.providerFor(mode, agent != nil)
 }
 
-// providerFor: por dónde va una pregunta. Un agente o el asistente no van por DeepSeek salvo que se haya permitido.
+// providerFor: por dónde va una pregunta. Un agente o el asistente no van por una web que guarda su contexto afuera
+// (DeepSeek, ChatGPT, Groq) salvo que se haya permitido: van por Claude, que queda en la cuenta de AWS de CreditOp.
+// Gemini sigue permitido como antes (chat temporal, sin Drive).
 func (c Config) providerFor(mode string, agent bool) string {
-	if c.Provider != "aistudio" && (agent || mode != "") && !c.AgentsOther {
-		return "aistudio"
+	if c.Provider != "aistudio" && c.Provider != claudeProvider && (agent || mode != "") && !c.AgentsOther {
+		return claudeProvider
 	}
 	return c.Provider
 }

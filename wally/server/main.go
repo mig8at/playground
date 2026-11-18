@@ -494,7 +494,7 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 	a.status.mu.Unlock()
 	var out []row
 	specs := a.providerSpecs()
-	for _, id := range []string{"aistudio", "deepseek", "chatgpt", "groq"} {
+	for _, id := range []string{claudeProvider, "aistudio", "deepseek", "chatgpt", "groq"} {
 		st, ok := byID[id]
 		if !ok {
 			st = providerStatus{State: "sin-comprobar", Detail: "todavía no se comprobó"}
@@ -697,6 +697,10 @@ func transcript(history []Message, question string, files []Attachment, fileText
 func (a *app) askProvider(ctx context.Context, provider, text, chatURL string) (answer, model, url string, err error) {
 	cfg := a.config.get()
 	model = providerModels[provider].Name
+	if provider == claudeProvider && a.testAsk == nil {
+		answer, err = a.askClaude(ctx, text) // una API, no una web: no pasa por el pool
+		return answer, model, "", err
+	}
 	// Los saltos de línea, todos «\n»: un cuadro de texto de la web convierte «\r\n» en «\n», el texto queda más corto
 	// que el mandado y la receta cree que no entró entero (2026-11-17: la salida de `curl -i`, con encabezados HTTP).
 	text = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(text)

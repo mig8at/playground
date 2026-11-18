@@ -22,6 +22,7 @@ type providerSpec struct {
 
 // defaultSpecs: por si el archivo falta o está roto (lo medido el 2026-11-17).
 var defaultSpecs = map[string]providerSpec{
+	"claude":   {ContextTokens: 200_000, Chat: "temporal", CompactChars: 400_000},
 	"aistudio": {ContextTokens: 1_048_576, Chat: "temporal", CompactChars: 600_000},
 	"deepseek": {MessageChars: 114_000, ContextTokens: 1_000_000, Chat: "sigue", Chunks: true, CompactChars: 250_000},
 	"chatgpt":  {MessageChars: 72_000, Chat: "sigue", Chunks: true, CompactChars: 120_000},

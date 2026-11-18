@@ -15,7 +15,7 @@ import (
 )
 
 type providerStatus struct {
-	State   string    `json:"state"` // listo · sin-sesion · error · sin-jarvis · comprobando · sin-comprobar
+	State   string    `json:"state"` // listo · sin-sesion · error · sin-jarvis · comprobando · sin-comprobar (también Claude: sin-sesion es `playground login`)
 	Detail  string    `json:"detail"`
 	Checked time.Time `json:"checked,omitempty"`
 }
@@ -42,6 +42,10 @@ func (a *app) checkProviders() {
 		a.status.byID[id] = providerStatus{State: "comprobando", Detail: "mirando si está listo…"}
 	}
 	a.status.mu.Unlock()
+	// Claude no es una web: se pregunta al puente si contesta (GET /api/model), sin Chrome ni pool.
+	claudeCtx, claudeCancel := context.WithTimeout(context.Background(), 30*time.Second)
+	claude := a.checkClaude(claudeCtx)
+	claudeCancel()
 
 	now := time.Now()
 	result := map[string]providerStatus{}
@@ -61,6 +65,7 @@ func (a *app) checkProviders() {
 			}
 		}
 	}
+	result[claudeProvider] = claude
 	a.status.mu.Lock()
 	a.status.byID = result
 	a.status.running = false

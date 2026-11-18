@@ -1,4 +1,4 @@
-# Wally — un chat con Gemini por la web de AI Studio, eligiendo el modelo
+# Wally — un chat con agentes: Claude (el Bedrock de CreditOp) por defecto, y Gemini, DeepSeek, ChatGPT o Groq por su web
 
 Para hacerle preguntas a Gemini sin abrir AI Studio: a la izquierda las conversaciones guardadas (con buscador y por
 día: Hoy, Ayer, Últimos 7 días, Antes); al centro, **en pestañas, las abiertas** —varias a la vez, cada una con su
@@ -22,7 +22,27 @@ modelo (WALLY.md, las habilidades, las notas entre vueltas) sigue en español. *
 funcionando** (`server/legacy.go`): un modelo que los escribe por su historia queda traducido, los dos checadores
 aceptan las claves viejas, lo guardado se migró al cargar y `wally/pruebas/` pasó a `wally/sandbox/` con sus criterios.
 
-**Pregunta POR LA WEB, no por la API** (decisión de Miguel, 2026-11-17): cada pregunta la hace `bin/aistudio` (la
+**Por defecto contesta CLAUDE, por el puente de canon** (decisión de Miguel, 2026-11-18: «el que se usa en lo
+agéntico; Gemini o DeepSeek, opcionales»; `server/claude.go`). Es Claude Sonnet 5.5 en el Bedrock de CreditOp, el
+mismo modelo de canon en producción, por el puente `/api/model/stream` que canon deja para usarlo sin credenciales de
+AWS. **Es el único que no va por la web ni por el pool**: es una API, no necesita Chrome ni Jarvis, y el contexto no
+sale de la cuenta de la empresa, así que los agentes van por él sin el permiso `agentsOther` (sin permiso, un agente
+que tiene elegida una web de afuera ahora cae en Claude, no en Gemini).
+- **El camino**: `canon.playground.creditop.com` pide Google en el balanceador aunque lleve la llave (302), así que va
+  por el GATEWAY del home, como el CLI `playground`: `POST https://playground.creditop.com/api/t/canon/api/model/stream`
+  con la sesión de `playground login` (`~/.config/creditop-playground/token.json`) y `x-canon-key`. La llave no se
+  copia: `CANON_PROXY_KEY` del proceso, o la del `tools/canon/.env` del clon del playground compartido
+  (`CANON_PROXY_KEY` o `CANON_WRITE_KEY`). Sin sesión o vencida, «Servicios» lo dice (`sin-sesion`: `playground login`).
+- **Con stream** porque sin él el puente corta a los 55 s; los eventos de Anthropic se juntan en texto
+  (`readClaudeStream`), y un corte por tope de tokens (16.384) se avisa al final de la respuesta.
+- **Chat temporal**: cada vuelta reenvía toda la conversación, y lo paga la empresa; compacta a 400 mil caracteres
+  (`providers.json`). El puente deja 4 invocaciones a la vez por instancia, compartidas con canon.
+- **La comprobación** es `GET /api/model` (modelo y región, sin invocar nada), junto con la de las webs.
+- **Probado el 2026-11-18**: en el chat de Wally, en Auto, «¿ya nos pasó que el OTP no valide en staging?» → índice de
+  trampas → `trap F-135` → la causa, los dos arreglos, el rodeo y qué no verificó: **4 vueltas, 15 s** (la misma
+  pregunta por DeepSeek el 17/11: 4 vueltas, 97 s). Comparado con F-135: exacto.
+
+**Las webs siguen, como opción** (decisión de Miguel, 2026-11-17, cuando era el único camino): cada pregunta la hace `bin/aistudio` (la
 receta `jarvis/recipes/aistudio/ask.ts`) en su Chrome con Jarvis, con su cuenta y en un chat temporal de AI Studio
 (no queda en el History ni en Drive). Usa el uso gratuito de la web, que acepta textos enormes, y no la cuota de una
 llave. La primera versión, del mismo día, llamaba a la API con la llave de `connectors/.env` y se retiró por eso.
@@ -33,7 +53,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | `server/main.go` | la API: `GET /api/models`, `GET/DELETE /api/conversations[/<id>]`, `DELETE /api/conversations/<id>/messages/<bloque>`, `POST /api/ask {id?, model, text, files?}` |
 | `server/config.go` | la configuración (`GET/PUT /api/config`, en `.data/config.json`) y lo de hoy (`GET /api/usage`); en el sidebar derecho |
 | `server/agents.go` | los agentes: `GET/POST /api/agents` (abajo) |
-| `server/pool.go` · `server/topics.go` | el pool de AI Studio (todas las preguntas, de cualquier proveedor) · la lista de temas de knowledge para el formulario de un agente |
+| `server/claude.go` | Claude por el puente de canon (el de siempre): la pregunta por stream y la comprobación |
+| `server/pool.go` · `server/topics.go` | el pool de las webs (todas las preguntas que no son de Claude) · la lista de temas de knowledge para el formulario de un agente |
 | `server/files.go` | los adjuntos: `POST /api/files` (multipart, campo `file`), `GET/DELETE /api/files/<id>` |
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |

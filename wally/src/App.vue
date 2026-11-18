@@ -173,6 +173,7 @@ async function saveConfig(patch) {
 }
 function openConfig() { if (shown.value.aux && auxTab.value === 'model') toggleAux(false); else { toggleAux(true); setAuxTab('model') } }
 const PROVIDERS = [
+  { id: 'claude', name: 'Claude', note: 'Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon (el mismo modelo de canon en producción). Una API, no una web: no pasa por Chrome y el contexto no sale de la cuenta de la empresa. Pide `playground login`.' },
   { id: 'aistudio', name: 'Gemini', note: 'Gemini 4 Hydrogen (pensando a fondo) por la web de Google AI Studio, con tu cuenta. Cupo diario.' },
   { id: 'deepseek', name: 'DeepSeek', note: 'chat.deepseek.com con tu sesión. Cada pregunta queda en su historial, en servidores en China.' },
   { id: 'chatgpt', name: 'ChatGPT', note: 'chatgpt.com en chat temporal: no queda en tu historial (puede guardar una copia 30 días). Gratis: hasta ~40 mil caracteres.' },
@@ -181,7 +182,9 @@ const PROVIDERS = [
 const GROQ_MODELS = { 'openai/gpt-oss-120b': 'GPT OSS 120B', 'openai/gpt-oss-20b': 'GPT OSS 20B' }
 const WINDOWS = { minimized: 'Minimizada', aside: 'Ventana aparte', tab: 'Pestaña' }
 // El proveedor de ahora, para los textos: sale del modelo que da el servidor (la configuración se carga sólo en su pestaña).
-const providerName = computed(() => PROVIDER_NAME[effectiveProvider.value] || 'Gemini')
+const providerName = computed(() => PROVIDER_NAME[effectiveProvider.value] || 'Claude')
+// Por dónde va, para los textos: Claude es una API de la empresa; los demás, una web en tu Chrome.
+const providerVia = computed(() => (effectiveProvider.value === 'claude' ? 'Claude, en el Bedrock de CreditOp' : `la web de ${providerName.value}, en tu Chrome`))
 const USAGE_NAME = { 'gemini-4-hydrogen': 'Gemini (4 Hydrogen)', 'gemini-3.8-flash': 'Gemini (3.8 Flash)', 'deepseek-web': 'DeepSeek', 'chatgpt-web': 'ChatGPT', 'groq-web:openai/gpt-oss-120b': 'Groq (GPT OSS 120B)', 'groq-web:openai/gpt-oss-20b': 'Groq (GPT OSS 20B)', 'kimi-web': 'Kimi' }
 
 // ── LOS AGENTES ── (wally/server/agents.go) Cada uno es UNA conversación larga con nombre propio y una intención (poner y
@@ -195,7 +198,7 @@ const agentRow = (key) => agents.value.find((a) => a.conv === key)
 // EL PROVEEDOR DE CADA AGENTE: «el de la configuración» o uno elegido para él (que vale como permiso para ese agente).
 // El servidor dice por dónde va a contestar de verdad (`effective`) y cuánto pesa lo que manda (precarga + conversación).
 const providers = ref([])
-const providersInfo = ref({ default: 'aistudio', agentsOther: false, checking: false, checked: '' })
+const providersInfo = ref({ default: 'claude', agentsOther: false, checking: false, checked: '' })
 async function loadProviders() {
   try {
     const r = await api('/api/providers')
@@ -247,6 +250,7 @@ function unavailableReason(id) {
   if (!p) return ''
   if (p.paused) return id === 'aistudio' ? `En pausa hasta las ${p.paused}: se acabó el cupo diario de Gemini (lo dijo su último aviso)` : `En pausa hasta las ${p.paused}: cortó por el ritmo`
   if (p.status?.state === 'proximamente') return p.status.detail
+  if (p.status?.state === 'sin-sesion' && id === 'claude') return `${p.status.detail} y tocá «Comprobar ahora» en la configuración`
   if (p.status?.state === 'sin-sesion') return `${PROVIDER_NAME[id]} pide entrar: hacelo a mano en tu Chrome y tocá «Comprobar ahora» en la configuración`
   if (p.status?.state === 'sin-jarvis') return 'Jarvis no está conectado en Chrome: abrí Chrome o tocá el ícono de Jarvis'
   if (p.status?.state === 'error') return p.status.detail
@@ -266,7 +270,7 @@ const fit = computed(() => {
   const chunks = !!providerOf(effectiveProvider.value)?.chunks
   return { limit, total, over: limit > 0 && total > limit && !chunks, parts: limit > 0 && chunks && total > limit ? Math.ceil(total / (limit * 0.9)) : 0 }
 })
-const PROVIDER_NAME = { aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq', kimi: 'Kimi' }
+const PROVIDER_NAME = { claude: 'Claude', aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq', kimi: 'Kimi' }
 async function setAgentProvider(key, provider) {
   try {
     const c = await api(`/api/agents/${encodeURIComponent(key)}`, { method: 'PUT', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider }) })
@@ -994,7 +998,7 @@ onBeforeUnmount(() => {
               <svg v-if="wallyRing.length" class="wally-ring" viewBox="0 0 42 42"><circle v-for="r in wallyRing" :key="r.name" cx="21" cy="21" r="19.5" :stroke="r.color" :stroke-dasharray="r.dash" :stroke-dashoffset="r.offset" transform="rotate(-90 21 21)" /></svg>
             </div>
             <div class="empty-title">Hola, soy Wally</div>
-            <div class="empty-desc">Tu orquestador: conozco tus herramientas (WALLY.md) y puedo pedirte ver cosas de tu máquina, siempre de lectura y con tu sí. Contesto por la web de {{ providerName }}; lo cambiás abajo o a la derecha.</div>
+            <div class="empty-desc">Tu orquestador: conozco tus herramientas (WALLY.md) y puedo pedirte ver cosas de tu máquina, siempre de lectura y con tu sí. Contesto por {{ providerVia }}; lo cambiás abajo o a la derecha.</div>
           </div>
           <div class="suggestions">
             <button v-for="s in MAIN_PROMPTS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
@@ -1004,7 +1008,7 @@ onBeforeUnmount(() => {
           <div class="empty-head">
             <div class="empty-media"><span class="ui-icon" data-icon="comment" aria-hidden="true"></span></div>
             <div class="empty-title">¿Qué hacemos?</div>
-            <div class="empty-desc">Wally conoce tus herramientas (WALLY.md): busca en knowledge, lee las trampas y las guías, mira código de main y te pide correr comandos de lectura, con tu sí. Contesta por la web de {{ providerName }}, en tu Chrome; lo que quede acá es el contexto de la próxima pregunta.</div>
+            <div class="empty-desc">Wally conoce tus herramientas (WALLY.md): busca en knowledge, lee las trampas y las guías, mira código de main y te pide correr comandos de lectura, con tu sí. Contesta por {{ providerVia }}; lo que quede acá es el contexto de la próxima pregunta.</div>
           </div>
           <div class="suggestions">
             <button v-for="s in SUGGESTIONS" :key="s.label" type="button" class="btn btn-outline btn-sm" @click="suggest(s)">{{ s.label }}</button>
@@ -1124,7 +1128,7 @@ onBeforeUnmount(() => {
           <article class="answer chat-in">
             <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
             <div class="chat-bubble">
-              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ providerName }}, en tu Chrome · {{ elapsed }} s</span></div>
+              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ effectiveProvider === 'claude' ? 'Claude, en el Bedrock de CreditOp' : `${providerName}, en tu Chrome` }} · {{ elapsed }} s</span></div>
               <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
             </div>
           </article>
@@ -1210,7 +1214,7 @@ onBeforeUnmount(() => {
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>
             <span v-if="effectivePaused" class="composer-note warn-text">{{ providerName }} vuelve en {{ timeLeft(providerOf(effectiveProvider).pausedUntil) }}: elegí otro o esperá</span>
-            <span v-else-if="agentOf && effectiveProvider !== 'aistudio'" class="composer-note" :title="'Lo que lleva precargado el agente (knowledge, código de main) viaja con cada pregunta'">{{ agentOf.name }} manda su contexto interno a {{ providerName }}</span>
+            <span v-else-if="agentOf && effectiveProvider !== 'aistudio' && effectiveProvider !== 'claude'" class="composer-note" :title="'Lo que lleva precargado el agente (knowledge, código de main) viaja con cada pregunta'">{{ agentOf.name }} manda su contexto interno a {{ providerName }}</span>
             <span v-else-if="fit.over" class="composer-note warn-text">~{{ Math.round(fit.total / 1000) }} mil car.: {{ providerName }} acepta ~{{ Math.round(fit.limit / 1000) }} mil, no le entra</span>
             <span v-else-if="fit.parts" class="composer-note" :title="'Lo que no entra en un mensaje va en trozos, en el mismo chat: los primeros le piden que no conteste todavía'">~{{ Math.round(fit.total / 1000) }} mil car.: va a {{ providerName }} en {{ fit.parts }} trozos</span>
             <span v-else-if="busyElsewhere" class="composer-note">Wally está contestando en otra pestaña</span>
@@ -1374,7 +1378,7 @@ onBeforeUnmount(() => {
 
     <footer class="statusbar">
       <span v-if="apiError" class="warn-text">{{ apiError }}</span>
-      <span v-else>{{ tabs.length }} abierta{{ tabs.length === 1 ? '' : 's' }} · por la web de {{ providerName }}{{ effectivePaused ? ` · en pausa hasta las ${effectivePaused}` : '' }}</span>
+      <span v-else>{{ tabs.length }} abierta{{ tabs.length === 1 ? '' : 's' }} · por {{ effectiveProvider === 'claude' ? 'Claude (Bedrock de CreditOp)' : `la web de ${providerName}` }}{{ effectivePaused ? ` · en pausa hasta las ${effectivePaused}` : '' }}</span>
       <div class="layout-controls" role="group" aria-label="Tema y regiones visibles">
         <button ref="themeToggle" type="button" class="region-action theme-toggle"><span class="ui-icon" aria-hidden="true"></span></button>
         <button type="button" class="region-action" :aria-pressed="!!shown.sidebar" title="Mostrar u ocultar las conversaciones" aria-label="Mostrar u ocultar las conversaciones" @click="toggleSidebar">
