@@ -6,7 +6,9 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"creditop/my-tools/connectors/repos"
@@ -16,7 +18,7 @@ import (
 func main() { os.Exit(run(os.Args[1:])) }
 func run(args []string) int {
 	if len(args) == 0 {
-		fmt.Fprintln(os.Stderr, "uso: knowledge map|search|read|check|touch [--json] [--root <repo>] <consulta|referencia|repo:ruta…|repo:a..b>")
+		fmt.Fprintln(os.Stderr, "uso: knowledge map|search|read|check|touch|fetch [--json] [--root <repo>] <consulta|referencia|repo:ruta…|repo:a..b>")
 		return 2
 	}
 	fs := flag.NewFlagSet("knowledge", flag.ContinueOnError)
@@ -77,6 +79,40 @@ func run(args []string) int {
 			fmt.Printf("\n## %s\n\n%s\n", s.Title, s.Text)
 		}
 		fmt.Printf("\nFuentes: knowledge/%s/sources.json · revisión registrada: %s\n", t.ID, t.ReviewedAt)
+	case "fetch":
+		/* Trae main a los clones de `main_clones` (los de canon) de los repos que cita la biblioteca. Un repo sin
+		 * clon ahí no se toca: su clon de trabajo tiene ramas y stashes de otras sesiones. */
+		client := repos.New(filepath.Join(*root, "tools"))
+		seen := map[string]bool{}
+		for _, t := range l.Topics {
+			for _, s := range t.Sources {
+				seen[s.Repo] = true
+			}
+		}
+		aliases := make([]string, 0, len(seen))
+		for a := range seen {
+			aliases = append(aliases, a)
+		}
+		sort.Strings(aliases)
+		bad := 0
+		for _, alias := range aliases {
+			dir := client.MainRoot(alias)
+			if dir == "" || dir == client.Citable()[alias] {
+				fmt.Printf("  · %s: sin clon en main_clones, no se toca (%s)\n", alias, dir)
+				continue
+			}
+			out, err := exec.Command("git", "-C", dir, "fetch", "-q", "origin").CombinedOutput()
+			if err != nil {
+				bad++
+				fmt.Printf("  ✗ %s: %s\n", alias, strings.TrimSpace(string(out)))
+				continue
+			}
+			head, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%h · %cr", "FETCH_HEAD").Output()
+			fmt.Printf("  ✓ %s · %s\n", alias, strings.TrimSpace(string(head)))
+		}
+		if bad > 0 {
+			return 1
+		}
 	case "check":
 		states, err := l.Check(repos.New(filepath.Join(*root, "tools")))
 		if *asJSON {
@@ -104,7 +140,7 @@ func run(args []string) int {
 				return 2
 			}
 			if a, b, isRange := strings.Cut(rest, ".."); isRange {
-				for _, path := range knowledge.ChangedBetween(client.Citable()[alias], a, b) {
+				for _, path := range knowledge.ChangedBetween(client.MainRoot(alias), a, b) {
 					files = append(files, knowledge.RepoFile{Repo: alias, Path: path})
 				}
 				continue

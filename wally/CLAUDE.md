@@ -311,6 +311,18 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   (`preview` es la 66, dijo 64). Con el sí de Miguel, Claude leyó el código nuevo (`RevolvingCreditManagementController`,
   `RefinanceRevolvingCredit`), escribió los dos párrafos a partir del suyo, sumó esas fuentes y selló las cuatro en
   `2798bb7a`: `knowledge-check` volvió a 0.
+- **Manual o Auto, en la barra de escribir** (2026-11-17, Miguel): un alternador por conversación (se recuerda en esta
+  máquina, `wally.auto`). En **Auto** corre solo los comandos que pida —los de la lista blanca, que valida el servidor—
+  y le manda los resultados, hasta 6 vueltas seguidas (`AUTO_ROUNDS`); al pasar el tope frena y lo dice. Lo mismo que
+  `bin/wally ask --auto`. Si te vas a otra pestaña mientras corre, los comandos quedan corridos y la barra «Mandar
+  resultados» espera. Probado: una pregunta que pedía `trampa F-135` corrió el comando, mandó los resultados sola y
+  contestó.
+- **La tarjeta de comandos ya no se sale de la burbuja**: la columna de `.commands` crecía con el comando más largo
+  (`nowrap`) y la ficha OUT quedaba afuera; ahora es `minmax(0, 1fr)` y el comando se corta con «…». Medido a 1440 px:
+  4 tarjetas, ninguna ficha afuera.
+- **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `codigo`, `buscar` y
+  `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-fetch`) sin tocar
+  las ramas de los clones de trabajo de otras sesiones.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

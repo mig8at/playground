@@ -29,11 +29,19 @@ WORK = os.path.join(deriva.WORK, "runs-knowledge")
 
 
 def repo_dirs():
+    """Dónde leer el main de cada repo: el clon de `main_clones` (los de canon) si lo hay, por el alias o por el
+    nombre de la carpeta de trabajo; si no, el clon de trabajo. Lo mismo que `MainRoot` en connectors/repos."""
     d = json.load(open(os.path.join(MY_TOOLS, "tools", "repos.json")))
+    expand = lambda v: os.path.expanduser(v) if v.startswith("~") else os.path.join(MY_TOOLS, v)
+    clones = expand(d["main_clones"]) if d.get("main_clones") else ""
     out = {}
     for group in ("indexed", "citable_only"):
         for k, v in (d.get(group) or {}).items():
-            out[k] = os.path.expanduser(v) if v.startswith("~") else os.path.join(MY_TOOLS, v)
+            out[k] = expand(v)
+            for name in (k, os.path.basename(out[k])) if clones else ():
+                if os.path.isdir(os.path.join(clones, name, ".git")):
+                    out[k] = os.path.join(clones, name)
+                    break
     return out
 
 

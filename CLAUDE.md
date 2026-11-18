@@ -40,7 +40,8 @@ concreto vive al lado de ese algo, y se lee ahí:
 parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`) inyecta los NOMBRES al
 arrancar, al reanudar y después de compactar, junto al catálogo LOCAL de `knowledge/`. No consulta
 ni sincroniza Canon. `make knowledge-map` lista títulos y resúmenes; `make knowledge-check` detecta
-cambios en sus fuentes usando las refs locales de `main`, sin fetch. Canon es opcional para conocimiento
+cambios en sus fuentes contra el `main` de los clones de canon (`~/Desktop/CREDITOP/canon/repos`), sin fetch:
+antes, `make knowledge-fetch`, que trae main a esos clones sin tocar los de trabajo. Canon es opcional para conocimiento
 de negocio o producto que no se puede comprobar en local; su disponibilidad no bloquea las herramientas.
 Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,

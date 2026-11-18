@@ -41,6 +41,7 @@ type list struct {
 	CitableOnly map[string]string `json:"citable_only"`
 	Branches    map[string]string `json:"branches"`
 	Extensions  []string          `json:"extensions"`
+	MainClones  string            `json:"main_clones"`
 }
 
 // Client resuelve repos contra la lista de `tools/repos.json`.
@@ -50,8 +51,10 @@ type Client struct {
 	citable  map[string]string // indexed + my-tools y playground-equipo, que una tarea cita
 	branches map[string]string // carpeta → rama de producción, cuando no es `main`
 	exts     map[string]bool
-	order    []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
-	loadErr  error
+	// mainClones: la carpeta de clones que sólo siguen main (los de canon). MainRoot lee de ahí.
+	mainClones string
+	order      []string // los alias indexados en el orden de la lista, que es el orden en que se recorren
+	loadErr    error
 
 	refs sync.Map // root → refChoice, cacheado por proceso: resolverla son cuatro llamadas a git
 	once sync.Once
@@ -89,7 +92,32 @@ func New(tools string) *Client {
 	for _, e := range l.Extensions {
 		c.exts[e] = true
 	}
+	if l.MainClones != "" {
+		c.mainClones = c.expand(l.MainClones)
+	}
 	return c
+}
+
+// MainRoot: dónde leer el `main` de un repo. El clon de `main_clones` (los de canon) si lo hay —por el alias o por
+// el nombre de la carpeta de trabajo—, porque se le puede hacer fetch sin tocar las ramas y stashes de otra sesión;
+// si no, el clon de trabajo. "" si el alias no está en la lista.
+func (c *Client) MainRoot(alias string) string {
+	work, ok := c.citable[alias]
+	if !ok {
+		return ""
+	}
+	if c.mainClones != "" {
+		for _, name := range []string{alias, filepath.Base(work)} {
+			dir := filepath.Join(c.mainClones, name)
+			if isRepo(dir) {
+				if b, ok := c.branches[work]; ok {
+					c.branches[dir] = b
+				}
+				return dir
+			}
+		}
+	}
+	return work
 }
 
 // Find arma el cliente buscando `tools/repos.json` hacia arriba desde donde se corre: es lo que usa una

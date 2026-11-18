@@ -327,6 +327,10 @@ let refresher = null
 const busyElsewhere = computed(() => !!pending.value && pending.value.key !== active.value)
 async function send() {
   const key = active.value
+  const fromAuto = autoSending
+  autoSending = false
+  if (!fromAuto) autoRounds[key] = 0
+  let answered = ''
   const files = attachments.value[key] || []
   const draftBefore = draft.value
   const text = draft.value.trim() || (files.length ? (files.length > 1 ? 'Revisá los archivos adjuntos.' : 'Revisá el archivo adjunto.') : '')
@@ -348,12 +352,14 @@ async function send() {
       const t = tabs.value.find((x) => x.key === key)
       if (t) t.key = c.id
       tabModel.value = { ...tabModel.value, [c.id]: pending.value.model }
+      if (autoRun.value[key]) setAutoFor(c.id, true)
       attachments.value = { ...attachments.value, [c.id]: [] }
       if (active.value === key) active.value = c.id
       writeRoute()
     }
     loaded.value = { ...loaded.value, [c.id]: c }
     loadList()
+    answered = c.id
   } catch (e) {
     errors.value = { ...errors.value, [key]: e.message }
     if (!drafts.value[key]) drafts.value = { ...drafts.value, [key]: draftBefore }   // no se pierde lo escrito
@@ -365,6 +371,11 @@ async function send() {
     scrollDown()
     focusInput()
   }
+  if (answered) autoContinue(answered)
+}
+function setAutoFor(id, on) {
+  autoRun.value = { ...autoRun.value, [id]: on || undefined }
+  savePref('wally.auto', autoRun.value)
 }
 function onKey(e) {
   // Enter manda; Shift+Enter, renglón nuevo (como en el chat del equipo).
@@ -423,6 +434,46 @@ const FILE_ICON = { pdf: 'PDF', documento: 'DOC', texto: 'TXT' }
 // uno (el servidor sólo corre los de su lista blanca, sin shell). Cuando no queda ninguno por decidir, «Mandar
 // resultados» le avisa al modelo, y las salidas viajan pegadas a la respuesta que las pidió.
 const running = ref('')   // el id del comando que se está corriendo
+
+// MANUAL O AUTO, por conversación (se recuerda en esta máquina): en Auto, Wally corre solo los comandos que pide —los
+// de la lista blanca, que valida el servidor; uno de afuera queda «no permitido»— y le manda los resultados, hasta
+// AUTO_ROUNDS vueltas seguidas (cada vuelta reenvía todo el contexto al proveedor). Lo mismo que `bin/wally ask --auto`.
+const AUTO_ROUNDS = 6
+const autoRun = ref(readPref('wally.auto', {}))
+const autoRounds = {}   // conversación → vueltas automáticas seguidas
+let autoSending = false
+const autoOn = computed(() => !!autoRun.value[active.value])
+function setAuto(on) {
+  const key = active.value
+  setAutoFor(key, on)
+  if (on && !isNew(key)) { autoRounds[key] = 0; autoContinue(key) }
+}
+async function autoContinue(id) {
+  const c = loaded.value[id]
+  const last = c?.messages?.[c.messages.length - 1]
+  if (!autoRun.value[id] || !last || last.role !== 'model') return
+  const proposed = (last.commands || []).filter((x) => x.status === 'propuesto')
+  if (!proposed.length) { autoRounds[id] = 0; return }
+  if ((autoRounds[id] || 0) >= AUTO_ROUNDS) {
+    autoRounds[id] = 0
+    errors.value = { ...errors.value, [id]: `Auto: ${AUTO_ROUNDS} vueltas seguidas pidiendo comandos. Decidí vos estos, o mandá otra pregunta.` }
+    return
+  }
+  autoRounds[id] = (autoRounds[id] || 0) + 1
+  for (const x of proposed) {
+    running.value = x.id
+    try {
+      const updated = await api(`/api/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(last.id)}/commands/${encodeURIComponent(x.id)}`,
+        { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'run' }) })
+      loaded.value = { ...loaded.value, [id]: updated }
+    } catch (e) { errors.value = { ...errors.value, [id]: e.message } } finally { running.value = '' }
+  }
+  scrollDown()
+  // Los resultados se mandan desde la pestaña de la conversación: si te fuiste a otra, queda la barra «Mandar resultados».
+  if (active.value !== id || !autoRun.value[id]) return
+  autoSending = true
+  sendResults()
+}
 async function commandAction(m, c, action) {
   const key = active.value
   if (!conv.value || running.value) return
@@ -829,7 +880,7 @@ onBeforeUnmount(() => {
             <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s</span></div>
             <div class="answer-body" v-html="md(answerText(m))"></div>
             <div v-if="m.commands?.length" class="commands">
-              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ proposedCount(m) ? ': decidí cada uno' : '' }}</div>
+              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ proposedCount(m) ? (autoOn ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
               <div v-for="c in m.commands" :key="c.id" class="command" :class="`is-${c.status}`">
                 <code class="command-line">{{ c.cmd }}</code>
                 <template v-if="c.status === 'propuesto'">
@@ -924,6 +975,14 @@ onBeforeUnmount(() => {
                   <span v-if="p.pausedUntil" class="countdown" :title="`Vuelve a las ${p.paused}`">{{ timeLeft(p.pausedUntil) }}</span>
                 </button>
               </div>
+            </div>
+            <div class="toggle-group toggle-outline toggle-joined run-mode" role="radiogroup" aria-label="Cómo corre los comandos que pide">
+              <button type="button" class="toggle" role="radio" :aria-checked="!autoOn" :aria-pressed="!autoOn"
+                      title="Manual: cada comando que pida espera tu Correr o Descartar" @click="setAuto(false)">Manual</button>
+              <button type="button" class="toggle" role="radio" :aria-checked="autoOn" :aria-pressed="autoOn"
+                      :title="`Auto: corre solo los comandos de sólo lectura que pida (la lista blanca la decide el servidor) y le manda los resultados, hasta ${AUTO_ROUNDS} vueltas seguidas. No escribe nada.`" @click="setAuto(true)">
+                <span class="ui-icon" data-icon="play" aria-hidden="true"></span>Auto
+              </button>
             </div>
             <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: el modelo no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}

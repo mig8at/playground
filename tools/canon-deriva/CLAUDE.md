@@ -59,7 +59,7 @@ escribir es `canon-write` sin `DRY` o `APPLY=1`, y lo decide Miguel.
 
 `make knowledge-deriva PASO=paquete|codigo|final|aplicar` (`knowledge.py`). knowledge/ es la biblioteca del día a
 día; canon es la del equipo. Sus fuentes guardan el commit exacto, así que no hay que buscar el blob en la historia.
-`paquete` hace fetch de TODOS los clones de trabajo antes de medir: `knowledge-check` no hace fetch, y un repo vecino
+`paquete` hace fetch de TODOS los clones antes de medir —desde el 2026-11-17, los de `main_clones` en `tools/repos.json` (los de canon), no los de trabajo—: `knowledge-check` no hace fetch, y un repo vecino
 atrasado 18 días hizo que un agente afirmara que una ruta no existía. Los prompts son `prompts/k-*.md`: el estilo de
 knowledge nombra clases, métodos y tablas. `aplicar` escribe `rules.md` y `sources.json` (commit y blob al día, sigue
 los renombres; `reemplazos.json` para un archivo borrado que otro reemplazó) y después van `make knowledge-check`

@@ -29,8 +29,8 @@ func (l Library) Check(client *repos.Client) ([]SourceState, error) {
 	for _, t := range l.Topics {
 		for _, s := range t.Sources {
 			state := SourceState{Topic: t.ID, Repo: s.Repo, Path: s.Path}
-			root, ok := client.Citable()[s.Repo]
-			if !ok {
+			root := client.MainRoot(s.Repo)
+			if root == "" {
 				state.State, state.Detail = "unavailable", "repo desconocido en tools/repos.json"
 			} else if blob, err := blobAt(root, s.Commit, s.Path); err != nil {
 				state.State, state.Detail = "unavailable", "no pude leer el archivo del commit revisado"

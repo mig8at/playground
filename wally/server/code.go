@@ -36,6 +36,7 @@ func (a *app) repoDir(alias string) (string, string, error) {
 		Indexed  map[string]string `json:"indexed"`
 		Citable  map[string]string `json:"citable_only"`
 		Branches map[string]string `json:"branches"`
+		Main     string            `json:"main_clones"`
 	}
 	if err := json.Unmarshal(raw, &cfg); err != nil {
 		return "", "", err
@@ -52,6 +53,21 @@ func (a *app) repoDir(alias string) (string, string, error) {
 		dir = filepath.Join(home, dir[2:])
 	} else if !filepath.IsAbs(dir) {
 		dir = filepath.Join(a.root, dir)
+	}
+	// El main se lee de los clones de canon (`main_clones`) cuando el repo está ahí: se les hace fetch sin tocar
+	// las ramas de los clones de trabajo. Lo mismo que MainRoot en connectors/repos.
+	if cfg.Main != "" {
+		clones := cfg.Main
+		if strings.HasPrefix(clones, "~/") {
+			home, _ := os.UserHomeDir()
+			clones = filepath.Join(home, clones[2:])
+		}
+		for _, name := range []string{alias, filepath.Base(dir)} {
+			if _, err := os.Stat(filepath.Join(clones, name, ".git")); err == nil {
+				dir = filepath.Join(clones, name)
+				break
+			}
+		}
 	}
 	branch := cfg.Branches[alias]
 	if branch == "" {

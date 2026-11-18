@@ -6,8 +6,12 @@ No reconstruyas el antiguo servicio context/ ni importes el corpus productivo co
 
 ## Revisar y escribir
 
-1. Leé el código real contra la ref local de `main` que devuelve `go run ./cmd/repos ref <alias>`
-   desde `tablero/server`. Si una regla cruza ambos monolitos, revisá ambos y distinguí sus entradas.
+1. Leé el código real contra `main` en los **clones de canon** (`main_clones` en `tools/repos.json`,
+   `~/Desktop/CREDITOP/canon/repos/<repo>`): sólo siguen main, así que se les hace fetch (`make knowledge-fetch`)
+   sin tocar las ramas ni los stashes de los clones de trabajo de `github/`, que usan otras sesiones. Desde el
+   2026-11-17 `knowledge-check`, `knowledge-touch`, `knowledge-deriva` y los comandos de código de Wally leen de ahí
+   (`MainRoot`, `connectors/repos`); un repo sin clon ahí cae a su clon de trabajo. Si una regla cruza ambos
+   monolitos, revisá ambos y distinguí sus entradas.
 2. Escribí el mecanismo, las condiciones y sus límites. Cada `##` genera un ancla; no repitas títulos.
    El `#` inicial debe coincidir con `title` de los metadatos.
 3. Registrá `version: 1`, `title`, `summary`, `reviewedAt` en RFC3339, y `sources`: cada fuente lleva
