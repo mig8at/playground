@@ -62,6 +62,12 @@
     "emoji": "smile",
     "mic": "mic",
     "apps": "layout-grid",
-    "help": "book-open"
+    "help": "book-open",
+    "text": "type",
+    "multimodal": "blend",
+    "video": "clapperboard",
+    "audio": "audio-lines",
+    "box": "box",
+    "paper": "file-text"
   }
 }

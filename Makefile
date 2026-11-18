@@ -344,7 +344,7 @@ style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
-.PHONY: vault wally correo correo-install correo-status correo-uninstall knowledge-flow knowledge-flow-install knowledge-flow-status knowledge-flow-uninstall wally-install wally-status wally-uninstall jarvis-install jarvis-status jarvis-uninstall
+.PHONY: news vault wally correo correo-install correo-status correo-uninstall knowledge-flow knowledge-flow-install knowledge-flow-status knowledge-flow-uninstall wally-install wally-status wally-uninstall jarvis-install jarvis-status jarvis-uninstall
 .PHONY: pulse pulse-install pulse-status pulse-uninstall
 pulse: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
@@ -430,6 +430,9 @@ jarvis-status: ## @dia ¿la API de Jarvis corre de fondo?
 
 jarvis-uninstall: ## @dia saca la API de Jarvis de fondo (las corridas y los flujos se quedan)
 	@go run ./jarvis/server -uninstall
+
+news: ## @dia abre News (:5240 · API :5241): lo que pasó en Hugging Face cada semana — lo más innovador, los modelos nuevos por tipo con su ficha documentada, los que siguen subiendo y los papers más votados en español (los textos, con el modelo de fondo). ONCE=1: actualiza la semana de hoy por consola
+	@$(if $(ONCE),MY_TOOLS_ROOT=$(CURDIR) go run ./news/server -once,cd news && npm run dev)
 
 vault: ## @dia abre el Llavero (:5236 · API :5237): tus llaves en llaveros, cifradas con tu llave personal, con tarjetas, ver, copiar, exportar e importar. Por consola, sin servidor: bin/pg vault
 	@cd vault && npm run dev

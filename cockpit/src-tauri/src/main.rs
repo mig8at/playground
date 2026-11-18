@@ -143,6 +143,14 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5236", "127.0.0.1:5237"],
         start: Start::Make("vault"),
     },
+    AppDef {
+        // News (news/): lo que pasó en Hugging Face cada semana, con los textos del modelo de fondo.
+        id: "news",
+        name: "News",
+        url: "http://localhost:5240/",
+        ready: &["localhost:5240", "127.0.0.1:5241"],
+        start: Start::Make("news"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

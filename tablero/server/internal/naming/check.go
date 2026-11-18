@@ -236,6 +236,7 @@ func Apps(root string) []Board {
 		app("wally", []string{"wally/server"}, append(vue("wally"), "wally/*.mjs", "wally/*.ts"), []string{"wally/server/", "wally/src/", "wally/rust/", "wally/cli.ts", "wally/sandbox-check.mjs", "wally/skills/", "wally/agents/"}),
 		app("correo", []string{"correo/server"}, vue("correo"), []string{"correo/server/", "correo/src/"}),
 		app("vault", []string{"vault/server"}, vue("vault"), []string{"vault/server/", "vault/src/"}),
+		app("news", []string{"news/server"}, vue("news"), []string{"news/server/", "news/src/"}),
 		app("goldfish", []string{"goldfish/server", "goldfish/review"}, vue("goldfish"), []string{"goldfish/server/", "goldfish/review/", "goldfish/src/", "goldfish/bin/"}),
 		app("office", nil, []string{"office/*.js", "office/cli/*.mjs", "office/generation/*.mjs", "office/package/*.mjs", "office/package/*.html", "office/*.html"}, []string{"office/"}),
 	}

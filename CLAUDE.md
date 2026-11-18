@@ -44,6 +44,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | Knowledge (el vigía de knowledge/: mira main y la pone al día sola, paso a paso; `make knowledge-flow`) | [`knowledge-flow/CLAUDE.md`](knowledge-flow/CLAUDE.md) |
 | el Llavero (tus llaves en llaveros, cifradas; `bin/pg vault`, `make vault`, exportar e importar) | [`vault/CLAUDE.md`](vault/CLAUDE.md) |
+| News (lo nuevo de Hugging Face cada semana: lo más innovador, los modelos documentados, los papers; `make news`) | [`news/CLAUDE.md`](news/CLAUDE.md) |
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
