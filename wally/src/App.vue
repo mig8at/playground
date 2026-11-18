@@ -571,6 +571,32 @@ function openPreview(c) {
   preview.value = { url: `/pruebas/${path}`, path, phone: preview.value.phone, nonce: Date.now() }
 }
 function closePreview() { preview.value = { ...preview.value, url: '' } }
+// La página se recarga sola cuando el agente escribe o parcha; y si está trabajando solo (Auto, o una corrida de
+// afuera) y todavía no hay página abierta, se abre al lado en cuanto escribe la primera.
+const writtenIds = computed(() => messages.value.flatMap((m) => (m.commands || []).filter((c) => c.status === 'corrido' && c.change && /^(escribir|parchar) pruebas\//.test(c.cmd))))
+watch([active, () => messages.value.length, () => writtenIds.value.map((c) => c.id).join(',')], ([key, , now], [prevKey, prevCount, before]) => {
+  // Cambiar de conversación, o que termine de cargar, no es «el agente escribió».
+  if (key !== prevKey || !prevCount || !now || now === before) return
+  const last = writtenIds.value[writtenIds.value.length - 1]
+  if (preview.value.url) preview.value = { ...preview.value, nonce: Date.now() }
+  else if ((autoOn.value || remote.value) && window.innerWidth >= 1100) openPreview(last)
+})
+watch(active, () => { closePreview(); openDiff.value = '' })
+
+// EL CAMBIO de un «escribir» o un «parchar», renglón por renglón (lo calcula el servidor: diff.go).
+const openDiff = ref('')
+const diffLines = (diff) => (diff || '').replace(/\n$/, '').split('\n').map((l) => ({ kind: l.startsWith('@@') ? 'hunk' : l[0] === '+' ? 'add' : l[0] === '-' ? 'del' : 'ctx', text: l.startsWith('@@') ? (l.slice(2).trim() || '⋯') : l }))
+
+// LAS VUELTAS AUTOMÁTICAS: lo que Wally (o `bin/wally ask --auto`) le manda al modelo entre respuesta y respuesta no
+// es una pregunta de Miguel: se muestra como una línea fina, no como una burbuja suya.
+function roundNote(text) {
+  const t = text || ''
+  let m
+  if ((m = t.match(/^Listo: corrí (el comando|los (\d+) comandos)/))) return { label: `siguió con el resultado de ${m[2] ? `${m[2]} comandos` : '1 comando'}` }
+  if (/^(No corrí ninguno de esos comandos|Ninguno de esos comandos está en la lista)/.test(t)) return { label: 'siguió sin correr esos comandos' }
+  if (/^Todavía no terminaste:/.test(t)) return { gate: true, label: `Wally no lo dejó cerrar: ${/dejó problemas/.test(t) ? 'el último probar dejó problemas' : 'faltaba probar lo último que escribió'}` }
+  return null
+}
 function chooseMode(m) { if (isNew(active.value)) tabMode.value = { ...tabMode.value, [active.value]: m }; focusInput() }
 
 // BORRAR UN BLOQUE: una pregunta o una respuesta sale de lo guardado y, con eso, del contexto de la próxima pregunta
@@ -875,11 +901,12 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
+      <div class="work-split" :class="{ 'has-preview': !!preview.url }">
       <div v-if="preview.url" class="region-body preview-pane">
         <div class="preview-head">
           <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
           <b>pruebas/{{ preview.path }}</b>
-          <span class="count">lo escribió un agente: va aislado, sin pedidos a ningún lado</span>
+          <span class="count" title="Lo escribió un agente: va aislado, sin pedidos a ningún lado. Se recarga sola cuando el agente escribe o parcha.">aislada · se recarga sola</span>
           <div class="toggle-group toggle-outline toggle-joined run-mode" role="radiogroup" aria-label="Tamaño">
             <button type="button" class="toggle" role="radio" :aria-pressed="!preview.phone" :aria-checked="!preview.phone" @click="preview = { ...preview, phone: false }">Escritorio</button>
             <button type="button" class="toggle" role="radio" :aria-pressed="preview.phone" :aria-checked="preview.phone" @click="preview = { ...preview, phone: true }">Teléfono</button>
@@ -891,7 +918,7 @@ onBeforeUnmount(() => {
           <iframe :key="preview.url + preview.nonce" :src="preview.url" sandbox="allow-scripts allow-modals allow-forms" referrerpolicy="no-referrer" title="Vista previa de la página"></iframe>
         </div>
       </div>
-      <div v-show="!preview.url" ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
+      <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
         <div v-if="agentOf" class="agent-sheet">
@@ -943,7 +970,12 @@ onBeforeUnmount(() => {
               <span class="count">reemplaza {{ m.compacted }} bloques ({{ charsLabel(m.compactedChars || 0) }}) por {{ charsLabel((m.text || '').length) }} · lo escribió {{ modelName(m.model) }} · el original quedó en .data/archive/{{ m.archive }}</span></summary>
             <div class="answer-body" v-html="md(m.text)"></div>
           </details>
-          <div v-if="m.role === 'user'" class="block block-user">
+          <div v-if="m.role === 'user' && roundNote(m.text)" class="round-line" :class="{ gate: roundNote(m.text).gate }" :title="m.text">
+            <span class="ui-icon" :data-icon="roundNote(m.text).gate ? 'alert' : 'refresh'" aria-hidden="true"></span>
+            <span>{{ roundNote(m.text).label }}</span><time>{{ clock(m.at) }}</time>
+            <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar este bloque del contexto" aria-label="Borrar este bloque del contexto" @click="removeBlock(m)"><span class="ui-icon" data-icon="trash" aria-hidden="true"></span></button>
+          </div>
+          <div v-else-if="m.role === 'user'" class="block block-user">
             <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar esta pregunta del contexto" aria-label="Borrar esta pregunta del contexto" @click="removeBlock(m)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
             </button>
@@ -972,7 +1004,8 @@ onBeforeUnmount(() => {
             <div class="answer-body" v-html="md(answerText(m))"></div>
             <div v-if="m.commands?.length" class="commands">
               <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ m.commands.some((c) => c.status === 'corriendo') ? ': corriendo…' : proposedCount(m) ? (autoOn || remote ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
-              <div v-for="c in m.commands" :key="c.id" class="command" :class="`is-${c.status}`">
+              <template v-for="c in m.commands" :key="c.id">
+              <div class="command" :class="`is-${c.status}`">
                 <code class="command-line">{{ c.cmd }}</code>
                 <span v-if="c.status === 'corriendo' || running === c.id" class="command-status running-text"><i class="spinner" aria-hidden="true"></i>corriendo…</span>
                 <span v-else-if="c.status === 'propuesto' && (autoOn || remote)" class="command-status">en cola{{ c.content ? ` · ${charsLabel(c.content.length)}` : '' }}</span>
@@ -983,7 +1016,13 @@ onBeforeUnmount(() => {
                   <button type="button" class="btn btn-ghost btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'decline')">Descartar</button>
                 </template>
                 <template v-else-if="c.status === 'corrido'">
-                  <button v-if="previewable(c)" type="button" class="btn btn-outline btn-sm" title="Ver la página, aislada" @click="openPreview(c)"><span class="ui-icon" data-icon="eye" aria-hidden="true"></span>Ver</button>
+                  <button v-if="c.change" type="button" class="change-chip" :class="{ on: openDiff === c.id }" :title="c.change.new ? 'Archivo nuevo: ver lo que entró' : 'Ver qué cambió'" @click="openDiff = openDiff === c.id ? '' : c.id">
+                    <template v-if="c.change.new">nuevo · {{ c.change.added }} rengl.</template>
+                    <template v-else-if="c.change.added || c.change.removed"><b class="add">+{{ c.change.added }}</b> <b class="del">−{{ c.change.removed }}</b></template>
+                    <template v-else>sin cambios</template>
+                  </button>
+                  <span v-if="c.report" class="report-chip" :class="c.report.problems ? 'bad' : 'good'">{{ c.report.problems ? `${c.report.problems} problema${c.report.problems > 1 ? 's' : ''}` : 'sin errores' }}{{ c.report.criteria?.length ? ` · ${c.report.criteria.filter((k) => k.ok).length}/${c.report.criteria.length} criterios` : '' }}</span>
+                  <button v-if="previewable(c)" type="button" class="btn btn-outline btn-sm" title="Ver la página al lado, aislada" @click="openPreview(c)"><span class="ui-icon" data-icon="eye" aria-hidden="true"></span>Ver</button>
                   <button v-if="c.output" type="button" class="file-chip" :class="{ on: openFile.id === c.output.id }" :title="'Ver la salida que viaja con la respuesta'" @click="toggleFile(c.output)">
                     <span class="file-kind">OUT</span><span class="file-name">salida</span><span class="file-size">{{ charsLabel(c.output.chars) }} · {{ seconds(c.ms) }} s{{ c.exit ? ` · código ${c.exit}` : '' }}</span>
                   </button>
@@ -992,6 +1031,17 @@ onBeforeUnmount(() => {
                 <span v-else-if="c.status === 'descartado'" class="command-status">descartado</span>
                 <span v-else class="command-status warn-text" :title="c.reason">no permitido</span>
               </div>
+              <pre v-if="c.change && openDiff === c.id" class="diff-view"><span v-for="(l, i) in diffLines(c.change.diff)" :key="i" :class="l.kind">{{ l.text || ' ' }}</span></pre>
+              <ul v-if="c.report && (c.report.criteria?.length || c.report.errors?.length || c.report.overflow?.length || c.report.note)" class="check-list">
+                <li v-if="c.report.note" class="bad"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span><span>{{ c.report.note }}</span></li>
+                <li v-for="k in c.report.criteria || []" :key="k.name" :class="k.ok ? 'good' : 'bad'">
+                  <span class="ui-icon" :data-icon="k.ok ? 'check' : 'close'" aria-hidden="true"></span>
+                  <span>{{ k.name }}<small v-if="!k.ok && k.detail">{{ k.detail }}</small></span>
+                </li>
+                <li v-for="e in c.report.errors || []" :key="e" class="bad"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span><span>{{ e }}</span></li>
+                <li v-for="o in c.report.overflow || []" :key="o" class="bad"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span><span>se desborda en {{ o }}</span></li>
+              </ul>
+              </template>
               <div v-if="m.commands.some((c) => c.output && c.output.id === openFile.id)" class="file-view">
                 <div class="file-view-head">
                   <b>{{ m.commands.find((c) => c.output?.id === openFile.id)?.cmd }}</b>
@@ -1034,7 +1084,8 @@ onBeforeUnmount(() => {
           </article>
         </template>
         <template v-if="remote">
-          <div class="block block-user"><div class="user-col"><div class="bubble mine">{{ remote.text }}</div></div></div>
+          <div v-if="roundNote(remote.text)" class="round-line" :class="{ gate: roundNote(remote.text).gate }"><span class="ui-icon" :data-icon="roundNote(remote.text).gate ? 'alert' : 'refresh'" aria-hidden="true"></span><span>{{ roundNote(remote.text).label }}</span></div>
+          <div v-else class="block block-user"><div class="user-col"><div class="bubble mine">{{ remote.text }}</div></div></div>
           <article class="answer chat-in">
             <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
             <div class="chat-bubble">
@@ -1044,6 +1095,7 @@ onBeforeUnmount(() => {
           </article>
         </template>
         <div v-if="error" class="alert alert-destructive" role="alert"><span class="ui-icon alert-icon" data-icon="alert" aria-hidden="true"></span><div class="alert-desc"><p>{{ error }}</p></div></div>
+      </div>
       </div>
 
       <form class="composer" @submit.prevent="send">

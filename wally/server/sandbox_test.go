@@ -170,3 +170,30 @@ func TestSandboxPendingBlocksClosingUntested(t *testing.T) {
 		}
 	}
 }
+
+// El cambio de una escritura: renglones que entran y que salen, con contexto, y las cuentas.
+func TestLineDiffShowsOnlyWhatChanged(t *testing.T) {
+	before := "uno\ndos\ntres\ncuatro\ncinco\nseis\nsiete\nocho"
+	after := "uno\ndos\nTRES\ncuatro\ncinco\nseis\nsiete\nocho\nnueve"
+	ch := lineDiff(before, after)
+	if ch.Added != 2 || ch.Removed != 1 || ch.New {
+		t.Fatalf("cuentas: %+v", ch)
+	}
+	for _, want := range []string{"-tres\n", "+TRES\n", "+nueve\n", " dos\n", "@@\n"} {
+		if !strings.Contains(ch.Diff, want) {
+			t.Errorf("falta %q en:\n%s", want, ch.Diff)
+		}
+	}
+	if strings.Contains(ch.Diff, " uno\n") == false && strings.Contains(ch.Diff, " seis\n") {
+		t.Errorf("contexto de más:\n%s", ch.Diff)
+	}
+	if n := lineDiff("", "a\nb"); !n.New || n.Added != 2 || n.Diff != "+a\n+b\n" {
+		t.Errorf("uno nuevo: %+v", n)
+	}
+	a := &app{root: t.TempDir()}
+	a.writeSandbox("pruebas/demo/a.css", "h1 { color: red }\np { margin: 0 }\n")
+	_, _, change, err := a.patchSandboxChange("pruebas/demo/a.css", "<<<<<<< BUSCAR\nh1 { color: red }\n=======\nh1 { color: blue }\n>>>>>>> REEMPLAZAR")
+	if err != nil || change.Added != 1 || change.Removed != 1 || !strings.Contains(change.Diff, "+h1 { color: blue }") {
+		t.Errorf("el parche tiene que traer su cambio: %+v %v", change, err)
+	}
+}

@@ -6,6 +6,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -67,28 +68,36 @@ func (a *app) sandboxAbs(rel string) (string, error) {
 
 // writeSandbox guarda un archivo que entregó el modelo. Si ya existía, la versión anterior queda en `.historial/`.
 func (a *app) writeSandbox(path, content string) (string, error) {
+	note, _, err := a.writeSandboxChange(path, content)
+	return note, err
+}
+
+// writeSandboxChange es writeSandbox que además dice qué cambió (para la tarjeta del comando).
+func (a *app) writeSandboxChange(path, content string) (string, fileChange, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "", errors.New("sólo se escribe en pruebas/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md o txt")
+		return "", fileChange{}, errors.New("sólo se escribe en pruebas/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md o txt")
 	}
 	if len(content) > sandboxMaxBytes {
-		return "", fmt.Errorf("el archivo pesa %d bytes y el tope es %d: partilo", len(content), sandboxMaxBytes)
+		return "", fileChange{}, fmt.Errorf("el archivo pesa %d bytes y el tope es %d: partilo", len(content), sandboxMaxBytes)
 	}
 	abs, err := a.sandboxAbs(m[1])
 	if err != nil {
-		return "", err
+		return "", fileChange{}, err
 	}
 	project := strings.SplitN(m[1], "/", 2)[0]
 	if n := a.sandboxCount(project); n >= sandboxMaxFiles {
 		if _, err := os.Stat(abs); err != nil {
-			return "", fmt.Errorf("el proyecto «%s» ya tiene %d archivos, el tope", project, n)
+			return "", fileChange{}, fmt.Errorf("el proyecto «%s» ya tiene %d archivos, el tope", project, n)
 		}
 	}
 	note := "nuevo"
+	before := ""
 	if old, err := os.ReadFile(abs); err == nil {
 		if string(old) == content {
-			return fmt.Sprintf("%s: sin cambios (%d bytes)", path, len(content)), nil
+			return fmt.Sprintf("%s: sin cambios (%d bytes)", path, len(content)), fileChange{}, nil
 		}
+		before = string(old)
 		keep := filepath.Join(a.root, sandboxDir, ".historial", filepath.FromSlash(m[1])+"."+time.Now().Format("20060102-150405"))
 		if err := os.MkdirAll(filepath.Dir(keep), 0o755); err == nil {
 			_ = os.WriteFile(keep, old, 0o644)
@@ -96,12 +105,12 @@ func (a *app) writeSandbox(path, content string) (string, error) {
 		note = fmt.Sprintf("reemplaza al anterior de %d bytes, que quedó en .historial", len(old))
 	}
 	if err := os.MkdirAll(filepath.Dir(abs), 0o755); err != nil {
-		return "", err
+		return "", fileChange{}, err
 	}
 	if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
-		return "", err
+		return "", fileChange{}, err
 	}
-	return fmt.Sprintf("guardado %s · %d bytes · %d renglones (%s). Se ve en /pruebas/%s", path, len(content), strings.Count(content, "\n")+1, note, m[1]), nil
+	return fmt.Sprintf("guardado %s · %d bytes · %d renglones (%s). Se ve en /pruebas/%s", path, len(content), strings.Count(content, "\n")+1, note, m[1]), lineDiff(before, content), nil
 }
 
 func (a *app) sandboxCount(project string) int {
@@ -178,13 +187,14 @@ func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error)
 	}
 	ctx, cancel := context.WithTimeout(ctx, 150*time.Second)
 	defer cancel()
-	shots := filepath.Join(a.root, sandboxDir, ".capturas")
-	_ = os.MkdirAll(shots, 0o755)
+	base := a.sandboxShotBase(target)
+	_ = os.MkdirAll(filepath.Dir(base), 0o755)
+	_ = os.Remove(base + ".json") // el resumen de una corrida anterior no se confunde con el de ésta
 	// Los criterios del proyecto (criterios.json en su raíz): lo que la página tiene que HACER. Se pasan siempre: si
 	// faltan, `probar` lo dice como un problema, con la forma que tienen que tener.
 	project := strings.SplitN(rel, "/", 2)[0]
 	cmd := exec.CommandContext(ctx, "node", filepath.Join(a.root, "wally", "sandbox-check.mjs"),
-		"http://127.0.0.1:5229/pruebas/"+target, filepath.Join(shots, strings.ReplaceAll(strings.TrimSuffix(target, ".html"), "/", "--")),
+		"http://127.0.0.1:5229/pruebas/"+target, base,
 		filepath.Join(a.root, sandboxDir, project, "criterios.json"))
 	cmd.Dir = a.root
 	out, err := cmd.CombinedOutput()
@@ -231,21 +241,27 @@ func (a *app) serveSandbox(w http.ResponseWriter, r *http.Request) {
 // aparece tal cual, se prueba sin los espacios del final de cada renglón, que es donde más se equivoca un modelo.
 // Lo que falla vuelve como salida para que el modelo lo corrija, no como error del servidor.
 func (a *app) patchSandbox(path, patch string) (string, int, error) {
+	note, exit, _, err := a.patchSandboxChange(path, patch)
+	return note, exit, err
+}
+
+// patchSandboxChange es patchSandbox que además dice qué cambió.
+func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "sólo se parcha un archivo de pruebas/<proyecto>/…", 1, nil
+		return "sólo se parcha un archivo de pruebas/<proyecto>/…", 1, fileChange{}, nil
 	}
 	abs, err := a.sandboxAbs(m[1])
 	if err != nil {
-		return "", -1, err
+		return "", -1, fileChange{}, err
 	}
 	raw, err := os.ReadFile(abs)
 	if err != nil {
-		return fmt.Sprintf("no existe %s: un parche cambia un archivo que ya está (para uno nuevo, entregalo entero en un bloque archivo)", path), 1, nil
+		return fmt.Sprintf("no existe %s: un parche cambia un archivo que ya está (para uno nuevo, entregalo entero en un bloque archivo)", path), 1, fileChange{}, nil
 	}
 	hunks := patchHunk.FindAllStringSubmatch(patch, -1)
 	if len(hunks) == 0 {
-		return "el parche no trae ningún cambio con la forma:\n<<<<<<< BUSCAR\n(texto que está)\n=======\n(texto nuevo)\n>>>>>>> REEMPLAZAR", 1, nil
+		return "el parche no trae ningún cambio con la forma:\n<<<<<<< BUSCAR\n(texto que está)\n=======\n(texto nuevo)\n>>>>>>> REEMPLAZAR", 1, fileChange{}, nil
 	}
 	trimEnds := func(s string) string {
 		lines := strings.Split(s, "\n")
@@ -258,7 +274,7 @@ func (a *app) patchSandbox(path, patch string) (string, int, error) {
 	for i, h := range hunks {
 		find, repl := h[1], h[2]
 		if find == "" {
-			return fmt.Sprintf("el cambio %d no dice qué BUSCAR", i+1), 1, nil
+			return fmt.Sprintf("el cambio %d no dice qué BUSCAR", i+1), 1, fileChange{}, nil
 		}
 		n := strings.Count(text, find)
 		if n == 0 {
@@ -274,17 +290,17 @@ func (a *app) patchSandbox(path, patch string) (string, int, error) {
 			if first != "" && strings.Contains(text, first) {
 				hint = fmt.Sprintf(" Su primer renglón («%s») sí está: lo demás no coincide. Pedí `leer %s` y copiá el texto tal como está.", first, path)
 			}
-			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR no está en %s.%s No se cambió nada.", i+1, len(hunks), path, hint), 1, nil
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR no está en %s.%s No se cambió nada.", i+1, len(hunks), path, hint), 1, fileChange{}, nil
 		case n > 1:
-			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR aparece %d veces en %s. Sumale renglones de alrededor para que sea único. No se cambió nada.", i+1, len(hunks), n, path), 1, nil
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR aparece %d veces en %s. Sumale renglones de alrededor para que sea único. No se cambió nada.", i+1, len(hunks), n, path), 1, fileChange{}, nil
 		}
 		text = strings.Replace(text, find, repl, 1)
 	}
-	note, err := a.writeSandbox(path, text)
+	note, change, err := a.writeSandboxChange(path, text)
 	if err != nil {
-		return err.Error(), 1, nil
+		return err.Error(), 1, fileChange{}, nil
 	}
-	return fmt.Sprintf("parche aplicado: %d cambio(s). %s", len(hunks), note), 0, nil
+	return fmt.Sprintf("parche aplicado: %d cambio(s). %s", len(hunks), note), 0, change, nil
 }
 
 // sandboxPending: por qué una conversación que escribió en la carpeta de pruebas todavía NO puede darse por terminada
@@ -340,4 +356,43 @@ func (a *app) pending(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, 200, map[string]string{"reason": reason})
+}
+
+// checkReport: el resultado de `probar` en datos, para la tarjeta (lo escribe sandbox-check.mjs junto a las capturas).
+type checkReport struct {
+	Problems int      `json:"problems"`
+	Errors   []string `json:"errors,omitempty"`
+	Overflow []string `json:"overflow,omitempty"`
+	Note     string   `json:"note,omitempty"` // «falta criterios.json», etc.
+	Criteria []struct {
+		Name   string `json:"name"`
+		OK     bool   `json:"ok"`
+		Detail string `json:"detail,omitempty"`
+	} `json:"criteria,omitempty"`
+}
+
+// sandboxShotBase: dónde quedan las capturas y el resumen de `probar` de una página (sin la extensión).
+func (a *app) sandboxShotBase(target string) string {
+	return filepath.Join(a.root, sandboxDir, ".capturas", strings.ReplaceAll(strings.TrimSuffix(target, ".html"), "/", "--"))
+}
+
+// sandboxReport lee el resumen que dejó el último `probar <cmd>` (nil si no hay).
+func (a *app) sandboxReport(cmd string) *checkReport {
+	m := sandboxPath.FindStringSubmatch(strings.TrimPrefix(cmd, "probar "))
+	if m == nil || m[1] == "" {
+		return nil
+	}
+	target := m[1]
+	if !strings.HasSuffix(target, ".html") {
+		target = strings.TrimSuffix(target, "/") + "/index.html"
+	}
+	raw, err := os.ReadFile(a.sandboxShotBase(target) + ".json")
+	if err != nil {
+		return nil
+	}
+	var r checkReport
+	if json.Unmarshal(raw, &r) != nil {
+		return nil
+	}
+	return &r
 }

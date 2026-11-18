@@ -442,6 +442,20 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   caracteres, con las citas `archivo:línea` copiadas enteras; después, preguntado por cosas que sólo estaban en lo
   compactado (qué búsquedas quedaron «no permitidas», la línea de `cognito_id`, el `destroy` vacío del admin), contestó
   bien las tres —comparado con el archivo y con `main`— mandando 39 mil caracteres en vez de más de 130 mil.
+- **Ver trabajar a un agente** (2026-11-17, cuatro cambios de interfaz):
+  - **Las vueltas automáticas son una línea fina**, no una burbuja de Miguel: lo que Wally le manda al modelo entre
+    respuesta y respuesta («Listo: corrí los N comandos… Seguí», «Todavía no terminaste…») se reconoce por su texto
+    (`roundNote`) y se muestra como «siguió con el resultado de N comandos» o «Wally no lo dejó cerrar: …».
+  - **La página al lado de la conversación** (`.work-split`): «Ver» la abre a la derecha, a mitad de ancho, y se
+    recarga sola cuando el agente escribe o parcha; si el agente trabaja solo (Auto, o una corrida de afuera) se abre
+    sola con la primera escritura. Con menos de 1100 px ocupa todo, como antes.
+  - **El cambio de cada escritura**: el servidor guarda en el comando el diff por renglones (`server/diff.go`,
+    `Command.Change`: `+N −M`, o «nuevo»); la ficha lo abre en verde y rojo.
+  - **El resultado de `probar` como lista**: `sandbox-check.mjs` deja el resumen en datos junto a las capturas y el
+    comando lo guarda (`Command.Report`): la ficha «sin errores · 5/5 criterios» y debajo cada criterio con ✓ o ✗ (y
+    el paso que falló), los errores y los desbordes.
+  ⚠ Para verificar la vista previa, `make ui-shot` (un Chromium real): el navegador embebido de la sesión de Claude
+  bloquea los iframes con `src` y la muestra en blanco aunque ande.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

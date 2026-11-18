@@ -38,6 +38,10 @@ type Command struct {
 	Output *Attachment `json:"output,omitempty"` // la salida, como un archivo: viaja con la próxima pregunta
 	// Content: el archivo que entregó el modelo en un bloque ```archivo (sandbox.go): «correrlo» es guardarlo.
 	Content string `json:"content,omitempty"`
+	// Change: qué cambió al escribir o parchar (el diff y las cuentas); Report: el resultado de `probar` en datos
+	// (errores y criterios). Los dos son para la tarjeta de la interfaz: al modelo le llega el texto de Output.
+	Change *fileChange  `json:"change,omitempty"`
+	Report *checkReport `json:"report,omitempty"`
 }
 
 // allowed: un comando de la lista blanca y cómo se corre. `run` recibe lo que capturó la expresión: o corre `make`
@@ -417,6 +421,8 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	a.store.mu.Unlock()
 
 	result := Command{Status: "descartado"}
+	var change *fileChange
+	var report *checkReport
 	if action == "run" {
 		// La lista blanca se vuelve a mirar acá, al correr: lo guardado no se toma como validado.
 		if _, err := commandArgs(shown); err != nil {
@@ -428,7 +434,11 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 			var err error
 			if content != "" && strings.HasPrefix(shown, "parchar ") {
 				var note string
-				if note, exit, err = a.patchSandbox(strings.TrimPrefix(shown, "parchar "), content); err == nil {
+				var ch fileChange
+				if note, exit, ch, err = a.patchSandboxChange(strings.TrimPrefix(shown, "parchar "), content); err == nil {
+					if exit == 0 {
+						change = &ch
+					}
 					if exit != 0 {
 						note = fmt.Sprintf("(el parche no se aplicó)\n%s", note)
 					}
@@ -436,11 +446,16 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 				}
 			} else if content != "" {
 				var note string
-				if note, err = a.writeSandbox(strings.TrimPrefix(shown, "escribir "), content); err == nil {
+				var ch fileChange
+				if note, ch, err = a.writeSandboxChange(strings.TrimPrefix(shown, "escribir "), content); err == nil {
+					change = &ch
 					att, err = a.saveOutput(note, "salida: "+shown)
 				}
 			} else {
 				att, exit, err = a.runToFile(ctx, shown, "salida: "+shown)
+				if strings.HasPrefix(shown, "probar ") {
+					report = a.sandboxReport(shown)
+				}
 			}
 			result = Command{Status: "corrido", Exit: exit, Ms: time.Since(start).Milliseconds()}
 			if err != nil {
@@ -454,6 +469,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
 	cmd.Status, cmd.Reason, cmd.Exit, cmd.Ms, cmd.Output = result.Status, result.Reason, result.Exit, result.Ms, result.Output
+	cmd.Change, cmd.Report = change, report
 	// Guardado, el contenido ya está en el disco (y en el texto de la respuesta): no se duplica en lo guardado.
 	if result.Status == "corrido" && result.Reason == "" {
 		cmd.Content = ""

@@ -18,6 +18,8 @@ const { chromium } = createRequire(join(root, 'harness/package.json'))('playwrig
 const browser = await chromium.launch();
 const problems = [];
 const out = [];
+// Lo mismo, en datos, para la tarjeta de la interfaz (queda al lado de las capturas, en <base>.json).
+const report = { errors: [], overflow: [], criteria: [], note: '' };
 try {
   for (const view of [{ name: 'escritorio', width: 1280, height: 800 }, { name: 'teléfono', width: 390, height: 844 }]) {
     const page = await browser.newPage({ viewport: { width: view.width, height: view.height } });
@@ -56,9 +58,9 @@ try {
       out.push(`Empieza así:\n${info.start}`);
     }
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
-    if (overflow > 2) { problems.push(`en ${view.name} (${view.width}px) se desborda ${overflow}px a lo ancho`); }
+    if (overflow > 2) { problems.push(`en ${view.name} (${view.width}px) se desborda ${overflow}px a lo ancho`); report.overflow.push(`${view.name} (${view.width}px): ${overflow}px`); }
     out.push(`En ${view.name} (${view.width}px): ${overflow > 2 ? `SE DESBORDA ${overflow}px a lo ancho` : 'no se desborda'} · ${errors.length ? errors.length + ' error(es)' : 'sin errores'}`);
-    for (const e of [...new Set(errors)].slice(0, 12)) { out.push('  ✗ ' + e); problems.push(e); }
+    for (const e of [...new Set(errors)].slice(0, 12)) { out.push('  ✗ ' + e); problems.push(e); if (!report.errors.includes(e)) report.errors.push(e); }
     if (shotBase) await page.screenshot({ path: `${shotBase}-${view.width}.png`, fullPage: true }).catch(() => {});
     await page.close();
   }
@@ -72,12 +74,12 @@ try {
                { "marcar": "Etiqueta de la casilla" }, { "ver": "texto que tiene que aparecer" }, { "no_ver": "texto que NO" } ] }
 ]`;
     if (!existsSync(criteriaFile)) {
-      problems.push('falta criterios.json');
+      problems.push('falta criterios.json'); report.note = 'falta criterios.json';
       out.push(`\nCRITERIOS: falta el archivo criterios.json del proyecto. Sin él no se sabe si la página HACE lo pedido. Escribilo (un criterio por cada cosa que te pidieron), con esta forma:\n${FORM}`);
     } else {
       let list = null;
-      try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criterios.json no es JSON válido'); out.push(`\nCRITERIOS: criterios.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
-      if (list && (!Array.isArray(list) || !list.length)) { problems.push('criterios.json está vacío'); out.push(`\nCRITERIOS: criterios.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
+      try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criterios.json no es JSON válido'); report.note = 'criterios.json no es JSON válido'; out.push(`\nCRITERIOS: criterios.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
+      if (list && (!Array.isArray(list) || !list.length)) { problems.push('criterios.json está vacío'); report.note = 'criterios.json está vacío'; out.push(`\nCRITERIOS: criterios.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
       if (list) {
         out.push(`\nCRITERIOS (${Math.min(list.length, 25)}):`);
         const base = url.replace(/[^/]*$/, '');
@@ -87,6 +89,7 @@ try {
           if (!steps.length || !steps.some((s) => s && ('ver' in s || 'no_ver' in s))) {
             problems.push(`criterio sin comprobación: ${name}`);
             out.push(`  ✗ ${name} — no tiene ningún paso «ver» o «no_ver»: no comprueba nada`);
+            report.criteria.push({ name, ok: false, detail: 'no tiene ningún paso «ver» o «no_ver»: no comprueba nada' });
             continue;
           }
           const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -116,11 +119,13 @@ try {
           } catch (e) { failed = `no abrió: ${String(e.message || e).split('\n')[0]}`; }
           await page.close();
           if (failed) { problems.push(`criterio: ${name}`); out.push(`  ✗ ${name} — ${failed}`); } else out.push(`  ✓ ${name}`);
+          report.criteria.push({ name, ok: !failed, detail: failed });
         }
       }
     }
   }
 } finally { await browser.close(); }
 out.push(problems.length ? `\nRESULTADO: ${problems.length} problema(s) para corregir.` : '\nRESULTADO: sin errores.');
+if (shotBase) { const { writeFileSync } = await import('node:fs'); try { writeFileSync(`${shotBase}.json`, JSON.stringify({ ...report, problems: problems.length })); } catch { /* sin el resumen en datos: queda el texto */ } }
 console.log(out.join('\n'));
 process.exit(problems.length ? 1 : 0);

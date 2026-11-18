@@ -377,3 +377,50 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .summary-block > summary .count { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .summary-block > summary .ui-icon { width: 14px; height: 14px; flex: none }
 .summary-block > .answer-body { padding: 0 var(--space-3) var(--space-2); border-top: 1px solid var(--border) }
+
+/* LA PÁGINA AL LADO de la conversación: el agente trabaja a la izquierda y lo que escribe se ve a la derecha. En una
+   ventana angosta la página ocupa todo (como antes). */
+.work-split { flex: 1; min-height: 0; display: flex }
+.work-split > .thread { order: 1; flex: 1; min-width: 0 }
+.work-split > .preview-pane { order: 2; flex: 0 0 50%; min-width: 320px; border-left: 1px solid var(--border) }
+@media (max-width: 1099px) {
+  .work-split.has-preview > .thread { display: none }
+  .work-split > .preview-pane { flex: 1; border-left: 0 }
+}
+
+/* Una vuelta automática: una línea fina entre respuestas, no una burbuja de Miguel. */
+.round-line { display: flex; align-items: center; gap: var(--space-2); margin: calc(var(--space-2) * -1) 0; color: var(--fg-3); font-size: var(--text-xs) }
+.round-line::before, .round-line::after { content: ""; flex: 1; height: 1px; background: var(--border) }
+.round-line .ui-icon { width: 12px; height: 12px; flex: none }
+.round-line time { opacity: .7 }
+.round-line .block-del { opacity: 0 }
+.round-line:hover .block-del { opacity: 1 }
+.round-line.gate { color: var(--warning, var(--fg-2)) }
+
+/* Lo que cambió una escritura, y el resultado de `probar`, en la tarjeta del comando. */
+.change-chip, .report-chip { flex: none; display: inline-flex; align-items: center; gap: 6px; height: 24px; padding: 0 var(--space-2); border: 1px solid var(--border);
+  border-radius: var(--radius-control); background: none; font: inherit; font-size: var(--text-xs); color: var(--fg-2); white-space: nowrap }
+.change-chip { cursor: pointer }
+.change-chip:hover, .change-chip.on { border-color: var(--ring) }
+.change-chip .add, .diff-view .add { color: var(--success, #3fb950) }
+.change-chip .del, .diff-view .del { color: var(--destructive, #f85149) }
+.report-chip.good { color: var(--success, #3fb950); border-color: color-mix(in srgb, var(--success, #3fb950) 40%, transparent) }
+.report-chip.bad { color: var(--destructive, #f85149); border-color: color-mix(in srgb, var(--destructive, #f85149) 40%, transparent) }
+.diff-view { margin: 0 var(--space-1) var(--space-1); padding: var(--space-2); max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-control);
+  background: var(--card); font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.5; white-space: pre }
+.diff-view span { display: block }
+.diff-view .add { background: color-mix(in srgb, var(--success, #3fb950) 12%, transparent) }
+.diff-view .del { background: color-mix(in srgb, var(--destructive, #f85149) 12%, transparent) }
+.diff-view .hunk { color: var(--fg-3); text-align: center }
+.diff-view .ctx { color: var(--fg-2) }
+.check-list { list-style: none; margin: 0 var(--space-1) var(--space-1); padding: var(--space-1) var(--space-2); display: grid; gap: 2px; font-size: var(--text-sm) }
+.check-list li { display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0 }
+.check-list li > span:last-child { min-width: 0; overflow-wrap: anywhere }
+.check-list .ui-icon { width: 14px; height: 14px; flex: none; margin-top: 3px }
+.check-list .good .ui-icon { color: var(--success, #3fb950) }
+.check-list .bad .ui-icon { color: var(--destructive, #f85149) }
+.check-list small { display: block; color: var(--fg-3); font-size: var(--text-xs) }
+
+/* Con la página al lado la conversación queda angosta: las fichas de un comando bajan de renglón en vez de salirse. */
+.command { flex-wrap: wrap; row-gap: 4px; padding-top: 4px; padding-bottom: 4px }
+.command-line { flex: 1 1 200px }
