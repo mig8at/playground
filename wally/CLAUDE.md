@@ -422,6 +422,10 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   problema y devuelve la forma. **El freno** (`sandboxPending`, `GET /api/conversations/<id>/pending`): en Auto, si el
   modelo contesta sin pedir nada pero escribió después del último `probar`, o el último dejó algo en rojo, Wally le
   dice «todavía no terminaste» y sigue (hasta 3 veces; después frena y avisa), en la interfaz y en `bin/wally`.
+  **El freno, en una corrida real**: pedido «escribí una nota y cerrá sin probar», Smeargle quiso cerrar, Wally le
+  dijo «todavía no terminaste», corrió `probar`, falló, y siguió hasta dejarlo en verde (5 vueltas), contando solo el
+  choque. De ahí salió un ajuste: un proyecto sin ninguna página (`sandboxHasPage`: ningún .html) no tiene qué probar
+  y no frena; antes el agente inventaba una página y un criterio sólo para poder cerrar.
   Probado con una calculadora de propina, en Auto: 2 vueltas, 74 s; entregó la página y 4 criterios con los números
   exactos (15 % de 100.000 entre 2 → $57.500 cada uno), todos en verde; un caso que no había escrito él (20 % entre 4)
   también pasó. ⚠ Los criterios los escribe el mismo agente: sirven para que no cierre a ciegas, no reemplazan mirar
@@ -466,6 +470,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   del nombre; mientras trabaja, el agente dice «trabajando solo…». `GET /api/live` da las dos cosas (quién espera
   respuesta y qué quedó sin ver) y la interfaz lo consulta al abrir y cada 2,5 s. Lo sin ver vive en memoria: un
   reinicio de Wally lo olvida.
+- **Vite ya no recarga la interfaz por lo que no es la interfaz** (`vite.config.js`, `server.watch.ignored`): Tailwind
+  mira toda la carpeta buscando clases, y cada archivo que un agente escribía en `pruebas/` —o un cambio en `server/`,
+  una guía, lo guardado— recargaba la página entera: se cerraba la vista previa y se cortaba el Auto de la interfaz.
+  Se vio en `bin/cockpit logs wally` («page reload pruebas/…»). Un cambio en el servidor sigue pidiendo
+  `bin/cockpit restart wally --wait`.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

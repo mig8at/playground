@@ -63,6 +63,8 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
     bin/cockpit open <app> [ruta]      trae una app al frente, en una ruta
     bin/cockpit restart <app> [--wait] la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga;
                                        --wait vuelve recién cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
+    bin/cockpit logs <app> [--lines 40] [--errors]   lo último que escribió una app (su servidor y su Vite), de
+                                       ~/Library/Logs; no pasa por Cockpit: sirve con la app caída o Cockpit cerrado
     bin/cockpit say "<texto>"          cuenta en el panel «Claude» la intención o una conclusión
     bin/cockpit apps                   los ids
 

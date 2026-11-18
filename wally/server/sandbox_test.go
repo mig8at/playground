@@ -164,10 +164,15 @@ func TestSandboxPendingBlocksClosingUntested(t *testing.T) {
 		{"lo descartado no cuenta", []Message{msg(Command{Cmd: "escribir pruebas/demo/index.html", Status: "descartado"})}, ""},
 	}
 	for _, c := range cases {
-		got := sandboxPending(Conversation{Messages: c.msgs})
+		got := sandboxPending(Conversation{Messages: c.msgs}, func(string) bool { return true })
 		if (c.want == "") != (got == "") || !strings.Contains(got, c.want) {
 			t.Errorf("%s: %q", c.name, got)
 		}
+	}
+	// Un proyecto sin ninguna página (una nota suelta) no tiene qué probar: no frena.
+	onlyNote := Conversation{Messages: []Message{msg(run("escribir pruebas/notas/nota.txt", 0))}}
+	if got := sandboxPending(onlyNote, func(string) bool { return false }); got != "" {
+		t.Errorf("sin página no tiene que frenar: %q", got)
 	}
 }
 

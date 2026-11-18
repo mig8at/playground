@@ -1329,12 +1329,12 @@ onBeforeUnmount(() => {
           <div class="group-option column">
             <div><b>Hoy</b><span>De cada pregunta queda su tamaño y cómo terminó, nunca el texto (también por consola: <code>bin/aistudio uso</code>).</span></div>
             <table v-if="usageToday.today.length" class="usage">
-              <tr><th>Modelo</th><th>Preguntas</th><th>Bien</th><th>Cortes</th><th>Media</th><th></th></tr>
-              <tr v-for="u in usageToday.today" :key="u.model">
+              <thead><tr><th>Modelo</th><th>Preguntas</th><th>Bien</th><th>Cortes</th><th>Media</th><th></th></tr></thead>
+              <tbody><tr v-for="u in usageToday.today" :key="u.model">
                 <td>{{ USAGE_NAME[u.model] || u.model }}</td><td>{{ u.asked }}</td><td>{{ u.ok }}</td><td>{{ u.cuts }}</td>
                 <td>{{ u.ok ? `${Math.round(u.avgMs / 1000)} s` : '—' }}</td>
                 <td class="usage-note">{{ u.dailyOut ? `cupo diario agotado a las ${u.dailyOut}` : '' }}{{ usageToday.paused[u.model] ? ` · en pausa hasta las ${usageToday.paused[u.model]}` : '' }}</td>
-              </tr>
+              </tr></tbody>
             </table>
             <p v-else class="none">Nada todavía hoy.</p>
           </div>

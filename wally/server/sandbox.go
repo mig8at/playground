@@ -307,7 +307,10 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 // ("" si puede). Es el freno del modo automático (Miguel, 2026-11-17; la idea es la lista de «hecho» de los harness de
 // agentes largos): el modelo no decide solo que terminó. Queda pendiente si escribió después del último `probar` (o
 // nunca probó), o si el último `probar` dejó problemas (errores, o un criterio de criterios.json que no pasa).
-func sandboxPending(c Conversation) string {
+//
+// hasPage dice si un proyecto tiene alguna página: uno sin ningún .html (una nota, un JSON) no tiene qué probar, y
+// exigírselo hacía que el agente inventara una página y un criterio sólo para poder cerrar (2026-11-17).
+func sandboxPending(c Conversation, hasPage func(project string) bool) string {
 	seq, lastWrite, lastCheck, lastExit := 0, 0, 0, 0
 	project := ""
 	for _, m := range c.Messages {
@@ -332,7 +335,7 @@ func sandboxPending(c Conversation) string {
 		}
 	}
 	switch {
-	case lastWrite == 0:
+	case lastWrite == 0, !hasPage(project):
 		return ""
 	case lastCheck < lastWrite:
 		return fmt.Sprintf("Todavía no terminaste: escribiste en pruebas/%s después del último `probar` (o nunca lo corriste). Pedí `probar pruebas/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, project)
@@ -348,7 +351,7 @@ func (a *app) pending(w http.ResponseWriter, r *http.Request) {
 	c, ok := a.store.convs[r.PathValue("id")]
 	reason := ""
 	if ok {
-		reason = sandboxPending(*c)
+		reason = sandboxPending(*c, a.sandboxHasPage)
 	}
 	a.store.mu.Unlock()
 	if !ok {
@@ -395,4 +398,17 @@ func (a *app) sandboxReport(cmd string) *checkReport {
 		return nil
 	}
 	return &r
+}
+
+// sandboxHasPage: ¿el proyecto tiene algún .html?
+func (a *app) sandboxHasPage(project string) bool {
+	found := false
+	_ = filepath.WalkDir(filepath.Join(a.root, sandboxDir, project), func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".html") {
+			found = true
+			return filepath.SkipAll
+		}
+		return nil
+	})
+	return found
 }

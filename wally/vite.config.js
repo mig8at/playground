@@ -15,6 +15,10 @@ export default defineConfig({
   server: {
     port: 5228,
     strictPort: true,
+    // Lo que NO es la interfaz no la recarga: Tailwind mira toda la carpeta buscando clases, y cada archivo que un
+    // agente escribía en pruebas/ (o un cambio en el servidor, una guía, lo guardado) recargaba la página entera: se
+    // cerraba la vista previa y se cortaba el modo Auto que corre la interfaz (2026-11-17).
+    watch: { ignored: ['**/pruebas/**', '**/server/**', '**/.data/**', '**/agents/**', '**/dist/**', '**/*.md', '**/*.json', '**/*.mjs', '**/cli.ts'] },
     proxy: { '/api': { target: 'http://127.0.0.1:5229', changeOrigin: false }, '/pruebas': { target: 'http://127.0.0.1:5229', changeOrigin: false } },
   },
 })

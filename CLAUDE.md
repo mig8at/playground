@@ -59,7 +59,7 @@ en cualquier tarea:
 
 - **Lo que hacés se ve solo.** Cada herramienta que usás llega al panel «Claude» de Cockpit, y USAR una (correr el
   harness, escribir en una tarea) trae su app al frente en esa ruta. `bin/cockpit say "…"` es para la intención y
-  las conclusiones; `bin/cockpit open <app> [ruta]`, para llevarlo a un lugar; `bin/cockpit restart <app> --wait`, para que
+  las conclusiones; `bin/cockpit open <app> [ruta]`, para llevarlo a un lugar; `bin/cockpit logs <app> [--errors]`, para ver por qué una app se portó raro; `bin/cockpit restart <app> --wait`, para que
   una app tome un cambio en su servidor (vuelve cuando contesta de nuevo) (una que se cae vuelve sola). Sin Cockpit abierto, nada de esto bloquea.
 - **Antes de levantar un servidor, mirá si ya está arriba**: `bin/cockpit status`, o el aviso COCKPIT de este
   arranque. Cockpit levanta cada app con su `make` la primera vez que Miguel la abre, y un segundo `make tablero`
