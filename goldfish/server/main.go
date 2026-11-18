@@ -53,7 +53,10 @@ func main() {
 	desc := flag.String("desc", "", "un Markdown con la descripción del PR que se va a abrir (la primera línea, el título)")
 	prove := flag.Bool("prove", false, "además, comprobar corriendo con el harness en local")
 	impact := flag.Bool("impact", false, "sólo el mapa de impacto de una rama (con -repo), sin agentes: segundos")
-	asJSON := flag.Bool("json", false, "con -impact: en JSON")
+	asJSON := flag.Bool("json", false, "con -impact o -calibrate: en JSON")
+	calibrate := flag.Bool("calibrate", false, "calibrar el mapa de impacto con los PRs ya mergeados de -repo (sin agentes)")
+	days := flag.Int("days", 180, "con -calibrate: cuántos días hacia atrás")
+	horizon := flag.Int("horizon", 21, "con -calibrate: cuántos días después del merge se buscan arreglos")
 	flag.Parse()
 	root, err := myToolsRoot()
 	if err != nil {
@@ -66,6 +69,12 @@ func main() {
 		listen(root, *serve)
 	case *list:
 		printBlocks(root)
+	case *calibrate:
+		if *repo == "" {
+			fmt.Fprintln(os.Stderr, "goldfish: falta -repo")
+			os.Exit(2)
+		}
+		os.Exit(calibrateConsole(root, *repo, *base, *days, *horizon, *asJSON))
 	case *impact:
 		if *repo == "" {
 			fmt.Fprintln(os.Stderr, "goldfish: falta -repo")
@@ -200,6 +209,33 @@ func impactConsole(root, repo, branch, base string, asJSON bool) int {
 		return 0
 	}
 	fmt.Printf("%s · %s → origin/%s\n\n%s", filepath.Base(clone), head, base, im.Markdown())
+	return 0
+}
+
+// calibrateConsole: el mapa de impacto sobre los PRs ya mergeados, contra lo que pasó después. El avance, por stderr.
+func calibrateConsole(root, repo, base string, days, horizon int, asJSON bool) int {
+	clone := repo
+	if !filepath.IsAbs(clone) {
+		clone = filepath.Join(review.ReposDir(), repo)
+	}
+	last := -1
+	cal, err := review.Calibrate(context.Background(), root, clone, "origin/"+base, days, horizon, func(done, total int) {
+		if pct := 100 * done / total; pct/10 != last {
+			last = pct / 10
+			fmt.Fprintf(os.Stderr, "  %d de %d PRs\n", done, total)
+		}
+	})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "goldfish:", err)
+		return 1
+	}
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(cal)
+		return 0
+	}
+	fmt.Print(cal.Markdown(0.3))
 	return 0
 }
 

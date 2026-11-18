@@ -22,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"creditop/my-tools/connectors/repos"
 	"creditop/my-tools/knowledge"
@@ -40,7 +41,10 @@ type Impact struct {
 	Knowledge  []KnowledgeHit `json:"knowledge"`
 	Traps      []TrapHit      `json:"traps"`
 	AfterMerge []string       `json:"afterMerge"` // qué hacer o vigilar después de mergear y desplegar
+	NoTests    bool           `json:"noTests"`    // cambia código y ninguna prueba
 	Notes      []string       `json:"notes,omitempty"`
+
+	alias, base, repo string // para «después de mergear»
 }
 
 // FileSignal: lo que dice un archivo cambiado. Sólo se listan los que tienen algo que decir.
@@ -67,15 +71,19 @@ type TrapHit struct {
 	Files []string `json:"files"`
 }
 
-// Los umbrales. Están acá, a la vista, para poder discutirlos: no salen de ningún entrenamiento.
-const (
-	fanInHigh   = 15 // un archivo que nombran 15 o más de la base: lo que rompa, se rompe en muchos lados
-	fanInMedium = 5
-	fixesHigh   = 3 // tres arreglos en 90 días: el archivo ya viene dando problemas
-	bigFiles    = 10
-	bigLines    = 400
-	maxFanIn    = 40 // archivos a los que se les mide la dependencia, para que tarde segundos y no minutos
-)
+// Thresholds: los umbrales del nivel. Están a la vista para poder discutirlos, y `make goldfish-calibrate` mide con
+// qué valores el nivel separa los cambios que después necesitaron un arreglo.
+type Thresholds struct {
+	FixesHigh int // un archivo con tantos arreglos en 90 días: ya viene dando problemas
+	FanInHigh int // un archivo que nombran tantos de la base
+	BigFiles  int // un cambio de tantos archivos
+}
+
+// DefaultThresholds: calibrados el 2026-11-18 sobre 200 días de PRs (legacy-backend 314, frontend-monorepo 179): con
+// dos de las tres señales, «alto» marca ~16 % y 63 % / 83 % de ésos necesitó un arreglo en 21 días (promedio 39 % / 53 %).
+var DefaultThresholds = Thresholds{FixesHigh: 5, FanInHigh: 15, BigFiles: 20}
+
+const maxFanIn = 40 // archivos a los que se les mide la dependencia, para que tarde segundos y no minutos
 
 var (
 	reFix       = regexp.MustCompile(`(?i)\b(fix|hotfix|bug|revert)`)
@@ -99,8 +107,27 @@ var genericNames = map[string]bool{"index.ts": true, "index.tsx": true, "index.j
 // Assess calcula el mapa de impacto del cambio `base...head` en el clon `repoDir`. `myTools` es la raíz de my-tools
 // (de ahí salen knowledge, las trampas y tools/repos.json). Nada de esto escribe ni trae nada.
 func Assess(ctx context.Context, myTools, repoDir, base, head string) Impact {
+	src := source{myTools: myTools, knowledgeDir: filepath.Join(myTools, "knowledge")}
+	if raw, err := os.ReadFile(traps.Doc(src.knowledgeDir)); err == nil {
+		src.traps = string(raw)
+	}
+	im := measure(ctx, src, repoDir, base, head)
+	im.Grade(DefaultThresholds)
+	return im
+}
+
+// source: de dónde sale lo que my-tools sabe. Hoy, o como estaba un día (la calibración no puede mirar el futuro).
+type source struct {
+	myTools      string
+	knowledgeDir string // "" = sin knowledge
+	traps        string // el registro de trampas; "" = sin trampas
+}
+
+// measure: todo lo que se cuenta, sin el nivel.
+func measure(ctx context.Context, src source, repoDir, base, head string) Impact {
+	myTools := src.myTools
 	im := Impact{Reasons: []string{}, Areas: []string{}, Signals: []FileSignal{}, Knowledge: []KnowledgeHit{},
-		Traps: []TrapHit{}, AfterMerge: []string{}}
+		Traps: []TrapHit{}, AfterMerge: []string{}, base: base, repo: filepath.Base(repoDir)}
 	numstat, err := git(ctx, repoDir, "diff", "--numstat", base+"..."+head)
 	if err != nil {
 		im.Level = "low"
@@ -131,6 +158,8 @@ func Assess(ctx context.Context, myTools, repoDir, base, head string) Impact {
 
 	client := repos.New(filepath.Join(myTools, "tools"))
 	alias := knowledge.AliasOf(client, filepath.Base(repoDir))
+	im.alias = alias
+	until := commitDate(ctx, repoDir, base)
 
 	// 1 · cada archivo: qué es, cuánto depende de él y cómo viene
 	codeChanged, testChanged := false, false
@@ -157,19 +186,22 @@ func Assess(ctx context.Context, myTools, repoDir, base, head string) Impact {
 		if isCode(f) && !contains(s.Kinds, "test") && !contains(s.Kinds, "migration") && measured < maxFanIn {
 			measured++
 			s.FanIn = fanIn(ctx, repoDir, base, f)
-			s.Commits90, s.Fixes90 = history(ctx, repoDir, base, f)
+			s.Commits90, s.Fixes90 = history(ctx, repoDir, base, f, until)
 			if other, ok := otherMonolith[alias]; ok && strings.HasSuffix(f, ".php") {
 				s.OtherTwin = twin(ctx, client.MainRoot(other), other, f)
 			}
 		}
-		if len(s.Kinds) > 0 || s.FanIn >= fanInMedium || s.Fixes90 > 0 || s.OtherTwin != "" {
+		if len(s.Kinds) > 0 || s.FanIn > 0 || s.Fixes90 > 0 || s.OtherTwin != "" {
 			im.Signals = append(im.Signals, s)
 		}
 	}
 	sort.SliceStable(im.Signals, func(i, j int) bool { return weight(im.Signals[i]) > weight(im.Signals[j]) })
 
 	// 2 · lo que my-tools sabe de esos archivos: secciones de knowledge y trampas
-	if lib, err := knowledge.Open(filepath.Join(myTools, "knowledge")); err == nil && alias != "" {
+	im.NoTests = codeChanged && !testChanged
+	if src.knowledgeDir == "" || alias == "" {
+		// sin knowledge (no existía ese día, o el repo no es citable)
+	} else if lib, err := knowledge.Open(src.knowledgeDir); err == nil {
 		var rf []knowledge.RepoFile
 		for _, f := range files {
 			rf = append(rf, knowledge.RepoFile{Repo: alias, Path: f})
@@ -177,80 +209,78 @@ func Assess(ctx context.Context, myTools, repoDir, base, head string) Impact {
 		for _, t := range lib.Touched(rf) {
 			im.Knowledge = append(im.Knowledge, KnowledgeHit{ID: t.ID, Title: t.Title, Files: t.Files})
 		}
-	} else if err != nil {
+	} else {
 		im.Notes = append(im.Notes, "no se pudo abrir knowledge: "+err.Error())
 	}
-	if raw, err := os.ReadFile(traps.Doc(filepath.Join(myTools, "knowledge"))); err == nil {
-		if hits := trapsCiting(string(raw), files); hits != nil {
-			im.Traps = hits
-		}
-	} else {
-		im.Notes = append(im.Notes, "no se pudieron leer las trampas: "+err.Error())
+	if src.traps == "" {
+		im.Notes = append(im.Notes, "no se pudieron leer las trampas")
+	} else if hits := trapsCiting(src.traps, files); hits != nil {
+		im.Traps = hits
 	}
+	return im
+}
 
-	// 3 · el nivel, con sus razones
-	high, medium := []string{}, []string{}
-	heavyHigh, heavyMedium := 0, 0
+// Grade le pone el nivel, las razones y lo de después de mergear, con esos umbrales.
+func (im *Impact) Grade(th Thresholds) {
+	// las tres señales que, medidas, separan los cambios que después necesitaron un arreglo (make goldfish-calibrate)
+	var fixes, fans []string
 	for _, s := range im.Signals {
-		if contains(s.Kinds, "migration") {
-			high = append(high, fmt.Sprintf("trae una migración (`%s`)", s.Path))
-			continue
+		if s.Fixes90 >= th.FixesHigh && len(fixes) < 3 {
+			fixes = append(fixes, fmt.Sprintf("`%s` viene con %d arreglos en 90 días", s.Path, s.Fixes90))
 		}
-		// un archivo, una razón: todo lo que pesa de él junto
-		var bits []string
-		isHigh := s.FanIn >= fanInHigh || s.Fixes90 >= fixesHigh
-		if s.FanIn >= fanInMedium {
-			bits = append(bits, fmt.Sprintf("lo nombran %d archivos de la base", s.FanIn))
-		}
-		if s.Fixes90 >= fixesHigh {
-			bits = append(bits, fmt.Sprintf("recibió %d arreglos en 90 días", s.Fixes90))
-		}
-		if len(bits) > 0 {
-			reason := fmt.Sprintf("`%s` %s", s.Path, strings.Join(bits, " y "))
-			switch {
-			case isHigh && heavyHigh < 4:
-				high, heavyHigh = append(high, reason), heavyHigh+1
-			case isHigh:
-				heavyHigh++
-			case heavyMedium < 3:
-				medium, heavyMedium = append(medium, reason), heavyMedium+1
-			default:
-				heavyMedium++
-			}
-		}
-		if contains(s.Kinds, "route") {
-			medium = append(medium, fmt.Sprintf("cambia rutas (`%s`): es el contrato con quien llama", s.Path))
-		}
-		if s.OtherTwin != "" {
-			medium = append(medium, fmt.Sprintf("`%s` tiene su par en %s: la regla puede vivir en los dos monolitos", s.Path, s.OtherTwin))
+		if s.FanIn >= th.FanInHigh && len(fans) < 3 {
+			fans = append(fans, fmt.Sprintf("`%s` lo nombran %d archivos de la base", s.Path, s.FanIn))
 		}
 	}
-	if extra := heavyHigh + heavyMedium - countHeavy(high) - countHeavy(medium); extra > 0 {
-		medium = append(medium, fmt.Sprintf("y %d archivo(s) más de los que dependen otros (en la lista de abajo)", extra))
+	strong, reasons := 0, []string{}
+	if len(fixes) > 0 {
+		strong++
+		reasons = append(reasons, fixes...)
 	}
+	if len(fans) > 0 {
+		strong++
+		reasons = append(reasons, fans...)
+	}
+	if im.Files >= th.BigFiles {
+		strong++
+		reasons = append(reasons, fmt.Sprintf("es grande: %d archivos, +%d −%d", im.Files, im.Added, im.Deleted))
+	}
+	secondary := false
 	if len(im.Traps) > 0 {
-		high = append(high, fmt.Sprintf("toca archivos de %d trampa(s) ya vividas: mirá si este cambio las arregla o las vuelve a pisar", len(im.Traps)))
+		secondary = true
+		reasons = append(reasons, fmt.Sprintf("toca archivos de %d trampa(s) ya vividas: mirá si este cambio las arregla o las vuelve a pisar", len(im.Traps)))
 	}
 	if len(im.Knowledge) > 0 {
-		medium = append(medium, fmt.Sprintf("toca lo que explican %d sección(es) de knowledge", len(im.Knowledge)))
+		secondary = true
+		reasons = append(reasons, fmt.Sprintf("toca lo que explican %d sección(es) de knowledge", len(im.Knowledge)))
 	}
-	if im.Files >= bigFiles || im.Added+im.Deleted >= bigLines {
-		medium = append(medium, fmt.Sprintf("es grande: %d archivos, +%d −%d", im.Files, im.Added, im.Deleted))
+	// información que, medida, no predice arreglos: se dice, pero no cambia el nivel
+	for _, s := range im.Signals {
+		if contains(s.Kinds, "route") {
+			reasons = append(reasons, fmt.Sprintf("(no cambia el nivel) cambia rutas: `%s`", s.Path))
+			break
+		}
 	}
-	if codeChanged && !testChanged {
-		medium = append(medium, "cambia código y ninguna prueba")
+	for _, s := range im.Signals {
+		if s.OtherTwin != "" {
+			reasons = append(reasons, fmt.Sprintf("(no cambia el nivel) `%s` tiene su par en %s: la regla puede vivir en los dos monolitos", s.Path, s.OtherTwin))
+			break
+		}
 	}
+	im.AfterMerge = []string{}
 	switch {
 	case im.Files == 0:
-		im.Level, im.Reasons = "low", []string{fmt.Sprintf("no hay cambios contra %s: la rama ya está ahí, o la base del clon está desactualizada", base)}
-		return im
-	case len(high) > 0:
-		im.Level, im.Reasons = "high", append(high, medium...)
-	case len(medium) > 0:
-		im.Level, im.Reasons = "medium", medium
+		im.Level, im.Reasons = "low", []string{fmt.Sprintf("no hay cambios contra %s: la rama ya está ahí, o la base del clon está desactualizada", im.base)}
+		return
+	case strong >= 2:
+		im.Level = "high"
+	case strong == 1 || secondary:
+		im.Level = "medium"
 	default:
-		im.Level, im.Reasons = "low", []string{"no toca nada que my-tools conozca como delicado"}
+		im.Level = "low"
+		reasons = append([]string{"no trae ninguna de las señales que, medidas, anticipan un arreglo"}, reasons...)
 	}
+	im.Reasons = reasons
 
 	// 4 · después de mergear
 	for _, s := range im.Signals {
@@ -260,12 +290,11 @@ func Assess(ctx context.Context, myTools, repoDir, base, head string) Impact {
 		}
 	}
 	if len(im.Knowledge) > 0 {
-		im.AfterMerge = append(im.AfterMerge, fmt.Sprintf("releer las secciones de knowledge que toca y actualizarlas si cambió la regla (`make knowledge-touch F='%s:%s..<merge>'`)", alias, base))
+		im.AfterMerge = append(im.AfterMerge, fmt.Sprintf("releer las secciones de knowledge que toca y actualizarlas si cambió la regla (`make knowledge-touch F='%s:%s..<merge>'`)", im.alias, im.base))
 	}
-	if alias != "" {
-		im.AfterMerge = append(im.AfterMerge, fmt.Sprintf("después del despliegue, `bin/sentinel deploy %s`: las señales antes y después contra lo normal de esa franja", filepath.Base(repoDir)))
+	if im.alias != "" {
+		im.AfterMerge = append(im.AfterMerge, fmt.Sprintf("después del despliegue, `bin/sentinel deploy %s`: las señales antes y después contra lo normal de esa franja", im.repo))
 	}
-	return im
 }
 
 // renamedTo: en un `--numstat`, un renombre sale `a/{b => c}/d` o `x => y`: queda la ruta nueva.
@@ -348,9 +377,20 @@ func fanIn(ctx context.Context, repoDir, base, path string) int {
 	return n
 }
 
-// history: commits en la base que tocaron el archivo en los últimos 90 días, y cuántos son arreglos.
-func history(ctx context.Context, repoDir, base, path string) (int, int) {
-	out, err := git(ctx, repoDir, "log", "--no-merges", "--since=90.days", "--format=%s", base, "--", path)
+// commitDate: la fecha del commit de la base. Los 90 días de la historia se cuentan hasta ahí, no hasta hoy: para un
+// cambio viejo (la calibración), hasta hoy sumaría arreglos que llegaron después.
+func commitDate(ctx context.Context, repoDir, ref string) time.Time {
+	out, err := git(ctx, repoDir, "log", "-1", "--format=%cI", ref)
+	if t, perr := time.Parse(time.RFC3339, strings.TrimSpace(out)); err == nil && perr == nil {
+		return t
+	}
+	return time.Now()
+}
+
+// history: commits en la base que tocaron el archivo en los 90 días antes de `until`, y cuántos son arreglos.
+func history(ctx context.Context, repoDir, base, path string, until time.Time) (int, int) {
+	since := until.AddDate(0, 0, -90).Format(time.RFC3339)
+	out, err := git(ctx, repoDir, "log", "--no-merges", "--since="+since, "--format=%s", base, "--", path)
 	if err != nil || out == "" {
 		return 0, 0
 	}
@@ -374,7 +414,8 @@ func twin(ctx context.Context, otherRoot, other, path string) string {
 	if _, err := git(ctx, otherRoot, "rev-parse", "--verify", "-q", ref); err != nil {
 		ref = "HEAD"
 	}
-	out, err := git(ctx, otherRoot, "grep", "-l", "-E", `^(final |abstract )?class `+regexp.QuoteMeta(name)+`\b`, ref, "--", "*.php")
+	// `-w` y no `\b`: el ERE de git grep en macOS no conoce `\b`, y así esto no encontró nunca nada
+	out, err := git(ctx, otherRoot, "grep", "-l", "-w", "-E", `^(final |abstract )?class `+regexp.QuoteMeta(name), ref, "--", "*.php")
 	if err != nil || out == "" {
 		return ""
 	}

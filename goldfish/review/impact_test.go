@@ -95,7 +95,7 @@ func TestAssess(t *testing.T) {
 		[]byte("# T\n### F-9 · Nueve\nen `app/Services/PaymentCore.php:1`\n"), 0o644)
 
 	im := Assess(context.Background(), myTools, repo, "origin/main", "feat/x")
-	if im.Level != "high" || im.Files != 2 {
+	if im.Level != "medium" || im.Files != 2 { // la trampa sola: medio (calibrado: la migración no sube el nivel)
 		t.Fatalf("nivel %q con %d archivos: %+v", im.Level, im.Files, im)
 	}
 	var core *FileSignal
@@ -111,7 +111,7 @@ func TestAssess(t *testing.T) {
 		t.Errorf("trampas: %+v", im.Traps)
 	}
 	md := im.Markdown()
-	for _, want := range []string{"Impacto: ALTO", "trae una migración", "F-9 · Nueve", "no se aplican al mergear"} {
+	for _, want := range []string{"Impacto: MEDIO", "F-9 · Nueve", "no se aplican al mergear"} {
 		if !strings.Contains(md, want) {
 			t.Errorf("el informe no dice %q:\n%s", want, md)
 		}
