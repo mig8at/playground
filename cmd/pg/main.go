@@ -18,7 +18,6 @@
 //	pg confluence spaces | pages <clave> | read <id> | search <texto>   la documentación de negocio
 //	pg jira myself | search | create | delete                  Jira; las que escriben piden --apply
 //	pg slack post | channel-create | channel-archive           Slack como el bot; piden --apply
-//	pg mcp                                                     todo lo anterior como herramientas MCP
 //
 // `logs raw` existe para las herramientas que ya parsean la respuesta de Loki a su manera (el harness, en
 // TypeScript): conserva su parseo y pierden su cliente HTTP, que es lo que se

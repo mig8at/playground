@@ -70,7 +70,6 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		{"Bash", bash("git status"), "", ""},
 		{"Edit", map[string]any{"file_path": "/repo/tablero/tasks/canon/task.md"}, "tablero", "#/tareas/canon"},
 		{"Edit", map[string]any{"file_path": "/repo/harness/panel/index.html"}, "", ""},
-		{"mcp__my-tools__tarea_bloque", map[string]any{"tarea": "harness"}, "tablero", "#/tareas/harness"},
 	}
 	for _, c := range cases {
 		app, route := cockpitTarget(c.tool, c.in, "/repo")

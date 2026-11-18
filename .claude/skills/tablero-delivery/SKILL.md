@@ -168,8 +168,8 @@ el 2026-09-27.
 
 ## Jira
 
-- **Jira y Slack tienen TRES caminos**, no dos: el server (`npm run dev` → :8787, botones con vista
-  previa), el servidor MCP de los conectores (`bin/pg mcp`, stdio — sólo si está registrado) y **la CONSOLA**,
+- **Jira y Slack tienen DOS caminos**: el server (`npm run dev` → :8787, botones con vista previa) y
+  **la CONSOLA**,
   que es la que sirve cuando no hay UI a mano y **no depende del server corriendo**:
 
       make jira-create JSON=t.json     # crea y mete al sprint activo; el único que puede ESTIMAR

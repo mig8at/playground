@@ -4,20 +4,13 @@
 sus paquetes `internal/`. Los clientes de Jira, Slack, canon y la base NO viven acá: son de
 `connectors/`, en la raíz de my-tools, porque los usan todas las herramientas.
 
-## Jira y Slack para un agente: `bin/pg mcp`
+## Jira y Slack para un agente: `bin/pg`
 
-Hasta el 2026-09-24 había acá dos servidores MCP escritos a mano, `jira-mcp` y `slack-mcp`. Se
-reemplazaron por UNO, `bin/pg mcp`, cuyas herramientas son los comandos de `pg` —los de Jira y Slack y
-también la base, Loki, PostHog y Confluence—, derivados de la misma lista que su ayuda. Las que escriben
-(`jira_create`, `jira_delete`, `slack_post`, `slack_channel_create`, `slack_channel_archive`) devuelven
-la vista previa si no se les pasa `apply: true`, y el texto que sale pasa por el guard.
-
-```bash
-claude mcp add -s local my-tools -- /Users/miguelochoa/Desktop/CREDITOP/my-tools/bin/pg mcp
-```
-
-`bin/pg` compila el binario si cambió su código y corre desde la raíz, así que encuentra
-`connectors/.env` sin importar desde dónde lo lance Claude. Para quitarlo: `claude mcp remove my-tools`.
+Hasta el 2026-09-24 había acá dos servidores MCP escritos a mano, `jira-mcp` y `slack-mcp`; los reemplazó
+`bin/pg mcp`, que se sacó el 2026-11-18 (casi no se usaba). Hoy un agente usa la consola: `bin/pg jira …`,
+`bin/pg slack …`; lo que escribe muestra la vista previa sin `--apply` y el texto pasa por el guard. `bin/pg`
+compila el binario si cambió su código y corre desde la raíz, así que encuentra `connectors/.env` desde
+donde se lo llame.
 Agregar una herramienta es agregar un comando a `cmd/pg/registry.go`: la prueba de ese paquete cruza lo
 que el registro declara contra las banderas que el comando acepta.
 

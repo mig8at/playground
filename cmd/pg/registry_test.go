@@ -1,12 +1,10 @@
 package main
 
 import (
-	"encoding/json"
 	"io"
 	"os"
 	"regexp"
 	"slices"
-	"strings"
 	"testing"
 )
 
@@ -28,16 +26,15 @@ func flagsOf(t *testing.T, c command) []string {
 	return flags
 }
 
-// Lo que el registro DECLARA de un comando es lo que el MCP le ofrece al modelo. Si no coincide con lo
-// que el comando ACEPTA, el modelo manda un parámetro que el comando rechaza —o peor, uno que no existe
-// y se pierde—. Es la regla de «lo que una herramienta afirma sobre otra se cablea»: acá se lee la
+// Lo que el registro DECLARA de un comando es lo que muestra la ayuda de pg. Si no coincide con lo que el
+// comando ACEPTA, la ayuda ofrece una opción que el comando rechaza —o calla una que existe—. Es la regla de «lo que una herramienta afirma sobre otra se cablea»: acá se lee la
 // ayuda de cada comando y se cruza contra su declaración, en los dos sentidos.
 func TestEveryDeclaredParamIsAFlagTheCommandAccepts(t *testing.T) {
 	// banderas que un comando acepta y que a propósito no se le ofrecen al modelo
 	notOffered := map[string][]string{
 		"sql": {"csv"}, // el CSV es para la consola; el modelo lee texto o JSON
 	}
-	for _, c := range tools() {
+	for _, c := range commands {
 		// Sólo los que parsean banderas: uno sin banderas, o con sólo posicionales, tomaría `-h` como
 		// argumento y saldría a la red.
 		hasFlags := c.Write
@@ -53,7 +50,7 @@ func TestEveryDeclaredParamIsAFlagTheCommandAccepts(t *testing.T) {
 			if p.Positional {
 				continue
 			}
-			flag := flagName(p.Name) // el argumento MCP puede llamarse distinto que la opción (lib/cliflags)
+			flag := p.Name
 			declared[flag] = true
 			if !slices.Contains(accepted, flag) {
 				t.Errorf("%s declara --%s, pero el comando no la acepta (acepta %v)", c.Name, flag, accepted)
@@ -80,86 +77,4 @@ func mustFind(t *testing.T, name string) command {
 		t.Fatalf("no existe %q", name)
 	}
 	return c
-}
-
-// Los argumentos del modelo pasan a la línea de comando, y lo que no cuadra se rechaza en vez de
-// ignorarse: un parámetro ignorado se lee como aplicado.
-func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
-	cases := []struct {
-		cmd, in string
-		want    string // la línea, o "ERR:<fragmento>"
-	}{
-		{"sql", `{"target":"local","query":"SELECT 1","json":true}`, "sql --target local --query SELECT 1 --json"},
-		{"sql", `{"target":"local","query":"SELECT 1","json":false}`, "sql --target local --query SELECT 1"},
-		{"sql", `{"target":"local"}`, "ERR:falta query"},
-		{"sql", `{"target":"local","query":"x","otro":1}`, "ERR:desconocido: otro"},
-		{"logs", `{"target":"qa","query":"{a=\"b\"}","limit":20}`, `logs --target qa --query {a="b"} --limit 20`},
-		{"logs", `{"target":"qa","query":"x","limit":2.5}`, "ERR:entero"},
-		{"confluence search", `{"text":"cupo rotativo"}`, "confluence search cupo rotativo"},
-		{"jira create", `{"summary":"t","type_id":"10005"}`, "jira create --summary t --type-id 10005"},
-		{"jira create", `{"summary":"t","apply":true}`, "jira create --summary t --apply"},
-		{"jira delete", `{"key":"CORE-1"}`, "jira delete --key CORE-1"},
-		{"tarea bloque", `{"tarea":"84","titulo":"t","cuerpo":"c","seco":true}`, "tarea bloque --task 84 --title t --body c --dry"},
-		{"tarea bloque", `{"tarea":"84","titulo":"t"}`, "ERR:falta cuerpo"},
-		{"bitacora add", `{"tarea":"84","titulo":"t","lapso":"10:00-10:30"}`, "bitacora add --task 84 --title t --span 10:00-10:30"},
-		{"tarea pila", `{"tarea":"integracion-vtex"}`, "tarea pila --task integracion-vtex"},
-		{"cierre", `{"tarea":"84"}`, "cierre --task 84"},
-		{"tarea ramas", `{"tarea":"integracion-vtex"}`, "tarea ramas --task integracion-vtex"},
-		{"jira search", `{"jql":"key = X","apply":true}`, "ERR:desconocido: apply"},
-	}
-	for _, tc := range cases {
-		got, err := argv(mustFind(t, tc.cmd), json.RawMessage(tc.in))
-		line := strings.Join(got, " ")
-		if strings.HasPrefix(tc.want, "ERR:") {
-			if err == nil || !strings.Contains(err.Error(), tc.want[4:]) {
-				t.Errorf("%s %s: quería error %q, dio %q / %v", tc.cmd, tc.in, tc.want[4:], line, err)
-			}
-			continue
-		}
-		if err != nil || line != tc.want {
-			t.Errorf("%s %s:\n  dio    %q (%v)\n  quería %q", tc.cmd, tc.in, line, err, tc.want)
-		}
-	}
-}
-
-// Sólo las herramientas que escriben ofrecen `apply`, y el ambiente se ofrece con sus cinco valores.
-func TestTheSchemaOffersApplyOnlyToWritesAndTheTargetEnum(t *testing.T) {
-	// Los que sólo existen en algunos ambientes ofrecen exactamente ésos. Canon sólo tiene base en local (el laboratorio) y en
-	// prod: ofrecer dev/qa/staging invitaría a leer otro ambiente por accidente. El admin sólo existe en local, dev y staging: qa
-	// no tiene admin propio (comparte la base con dev) y producción es sólo lectura, así que ofrecerlos invitaría a crear un
-	// comercio donde no se debe.
-	restricted := map[string]string{
-		"canon sql": "local,prod", "canon tables": "local,prod", "canon config": "local,prod",
-		"shopify sql": "dev", "shopify tables": "dev", "shopify config": "dev",
-		"advisor status": "local,dev,qa,staging",
-		"admin status":   "local,dev,staging", "admin allied-create": "local,dev,staging", "admin test-advisor": "local,dev,staging", "admin branch-lenders": "local,dev,staging", "admin client-disable": "local,dev,staging", "otp last": "local,dev,qa,staging",
-	}
-	for _, c := range tools() {
-		if want, ok := restricted[c.Name]; ok {
-			props := toolSchema(c)["properties"].(map[string]any)
-			tp, _ := props["target"].(map[string]any)
-			if got := strings.Join(tp["enum"].([]string), ","); got != want {
-				t.Errorf("%s: el target tiene que ofrecer exactamente %s, ofrece %q", c.Name, want, got)
-			}
-			if _, has := props["apply"]; has != c.Write {
-				t.Errorf("%s: ¿apply en el esquema? %v, ¿escribe? %v", c.Name, has, c.Write)
-			}
-			continue
-		}
-		props := toolSchema(c)["properties"].(map[string]any)
-		if _, has := props["apply"]; has != c.Write {
-			t.Errorf("%s: ¿apply en el esquema? %v, ¿escribe? %v", c.Name, has, c.Write)
-		}
-		if tp, ok := props["target"].(map[string]any); ok && len(tp["enum"].([]string)) != 5 {
-			t.Errorf("%s: el target tiene que ofrecer los cinco ambientes", c.Name)
-		}
-	}
-}
-
-func TestAdvisorLoginAndLogoutAreHumanCommands(t *testing.T) {
-	for _, c := range tools() {
-		if c.Name == "advisor login" || c.Name == "advisor logout" {
-			t.Fatalf("human auth exposed as MCP: %s", c.Name)
-		}
-	}
 }

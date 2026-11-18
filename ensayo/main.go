@@ -53,12 +53,10 @@ var allowed = []string{
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)",
 	"Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(head *)", "Bash(tail *)",
 	"Bash(go run ./cmd/repos *)",
-	// Las mismas lecturas por el MCP de my-tools (`bin/pg mcp`): un agente las prefiere a la consola, y
-	// negarlas contaba como fricción del cambio medido (tanda «agente», 2026-11-02).
-	"mcp__my-tools__sql", "mcp__my-tools__request_timeline", "mcp__my-tools__client_state",
-	"mcp__my-tools__client_fields", "mcp__my-tools__experian_check", "mcp__my-tools__settings_diff",
-	"mcp__my-tools__jobs_failed", "mcp__my-tools__events_request", "mcp__my-tools__events_errors",
-	"mcp__my-tools__logs", "mcp__my-tools__tareas", "mcp__my-tools__tarea_pila",
+	// Las demás lecturas de pg (antes, también por su servidor MCP, que se sacó el 2026-11-18): negarlas contaba
+	// como fricción del cambio medido (tanda «agente», 2026-11-02).
+	"Bash(bin/pg request *)", "Bash(bin/pg client *)", "Bash(bin/pg experian *)", "Bash(bin/pg settings *)",
+	"Bash(bin/pg jobs *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)",
 }
 
 var denied = []string{

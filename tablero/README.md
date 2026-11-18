@@ -39,7 +39,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
 | Pieza | Qué es | Cómo se corre |
 |---|---|---|
 | `cmd/web` | API HTTP (`:8787`) que lee la UI: tareas, bitácora, sprint de Jira, pulso y artifacts | `npm run dev` |
-| `bin/pg` (raíz de my-tools) | Jira y Slack —y la base, Loki, PostHog, Confluence— por consola, y como **servidor MCP** (`bin/pg mcp`) | `bin/pg help` |
+| `bin/pg` (raíz de my-tools) | Jira y Slack —y la base, Loki, PostHog, Confluence— por consola | `bin/pg help` |
 | `src/` (Vue) | tareas por estado de los últimos 4 sprints, evidencia, entrega y actividad | `npm run dev` → `:5191` |
 
 ## Usar el tablero
@@ -178,27 +178,12 @@ tools/
         └── env/env.go  ← carga .env sin pisar variables ya exportadas
 ```
 
-## Jira y Slack como herramientas del agente
+## Jira y Slack para el agente
 
-Un solo servidor MCP, **`bin/pg mcp`** (en la raíz de my-tools), cuyas herramientas son los comandos
-de `pg`, derivados de la misma lista que su ayuda y el catálogo del hook de inicio. Reemplazó el
-2026-09-24 a `jira-mcp` y `slack-mcp`, que se mantenían a mano y no llegaban a la base, Loki, PostHog
-ni Confluence.
-
-| Herramienta | Qué hace | Riesgo |
-|---|---|---|
-| `jira_myself` · `jira_search` | quién soy · issues por JQL (con al menos una restricción) | lectura |
-| `jira_create` | crea issue; con `board` además lo mete al **sprint activo** de ese board | escritura, con vista previa |
-| `jira_delete` | borra un issue, mostrando antes cuál | **irreversible**, con vista previa |
-| `slack_post` · `slack_channel_create` · `slack_channel_archive` | como el bot | escritura, con vista previa |
-| `sql` · `logs` · `events_hogql` · `confluence_*` … | los demás conectores | lectura |
-
-Las que escriben devuelven la vista previa si no llevan `apply: true`, y el texto que sale pasa por el
-guard. Registrarlo:
-
-```bash
-claude mcp add -s local my-tools -- /Users/miguelochoa/Desktop/CREDITOP/my-tools/bin/pg mcp
-```
+Por consola, con `bin/pg` (en la raíz de my-tools): `bin/pg jira …`, `bin/pg slack …` y los demás conectores
+(la base, Loki, PostHog, Confluence). Lo que escribe muestra una vista previa si no lleva `--apply`, y el texto que
+sale pasa por el guard. Hubo un servidor MCP con los mismos comandos (`bin/pg mcp`): se sacó el 2026-11-18 porque
+casi no se usaba (40 llamadas contra 998 por consola).
 
 Para quitarlo: `claude mcp remove my-tools`.
 

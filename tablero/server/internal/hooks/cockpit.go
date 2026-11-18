@@ -183,7 +183,7 @@ func toolFailed(payload map[string]any) bool {
 	return false
 }
 
-// shortTool: `mcp__my-tools__sql` → `sql`; las demás, como vienen.
+// shortTool: `mcp__<servidor>__<herramienta>` → `<herramienta>`; las demás, como vienen.
 func shortTool(tool string) string {
 	if strings.HasPrefix(tool, "mcp__") {
 		if i := strings.LastIndex(tool, "__"); i > 4 {
@@ -247,7 +247,7 @@ SEGUIR A CLAUDE: a qué app de Cockpit corresponde una herramienta, y en qué ru
 	trabajar en ella, no usarla, y no mueve nada. Vacío: no corresponde a ninguna.
 */
 var (
-	taskArg     = regexp.MustCompile(`(?:\bN=|--tarea[= ]|\bTAREA=)['"]?([a-z0-9][a-z0-9-]*)`)
+	taskArg     = regexp.MustCompile(`(?:\bN=|--task[= ]|--tarea[= ]|\bTASK=|\bTAREA=)['"]?([a-z0-9][a-z0-9-]*)`)
 	taskDocPath = regexp.MustCompile(`(?:^|/)tablero/tasks/([a-z0-9][a-z0-9-]*)/`)
 )
 
@@ -290,8 +290,6 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 	}
 	short := shortTool(tool)
 	switch {
-	case short == "tarea_bloque" || short == "tarea_pila" || short == "bitacora_add" || short == "tareas" || short == "cierre":
-		return "tablero", taskRoute(str(in, "tarea"))
 	case strings.HasPrefix(short, "harness"):
 		return "harness", ""
 	}

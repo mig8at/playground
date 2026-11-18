@@ -1,19 +1,17 @@
 package main
 
-// command es un verbo de pg. La lista es la ÚNICA fuente de la ayuda (`pg help`), del catálogo que el
-// hook de inicio le muestra al agente y de las herramientas del servidor MCP (`pg mcp`): un comando que
-// no está acá no existe, y uno que está existe igual en los tres lados.
+// command es un verbo de pg. La lista es la ÚNICA fuente de la ayuda (`pg help`) y del catálogo que el hook de
+// inicio le muestra al agente: un comando que no está acá no existe. (Hasta el 2026-11-18 también servía las
+// herramientas de un servidor MCP, `pg mcp`; se sacó porque casi no se usaba: 40 llamadas contra 998 por consola.)
 type command struct {
 	Name    string  `json:"name"`
 	Summary string  `json:"summary"`
 	Usage   string  `json:"usage"`
 	Params  []param `json:"params,omitempty"`
 	// Write: escribe HACIA AFUERA (Jira, Slack). Sin `--apply` sólo muestra lo que haría, y el texto que
-	// sale pasa por el guard. En el MCP, la herramienta suma el parámetro `apply`.
+	// sale pasa por el guard.
 	Write bool `json:"write,omitempty"`
-	// NoTool: no se ofrece como herramienta MCP (plomería para otra herramienta, o un modelo detrás).
-	NoTool bool `json:"no_tool,omitempty"`
-	run    func(args []string) int
+	run   func(args []string) int
 }
 
 // param es un parámetro de un comando: una bandera (`--name valor`) o un posicional.
@@ -55,26 +53,26 @@ func init() {
 	commands = []command{
 		{Name: "tareas", Summary: "las tareas del tablero: las abiertas con su etapa, Jira y ramas; o UNA, por id o slug. Sólo lectura",
 			Usage: "pg tareas [--n <id|slug>] [--todas] [--json]", run: runTasks,
-			Params: []param{str("n", "una tarea, por id o slug"), boolean("todas", "también las archivadas"), boolean("json", "en JSON")}},
+			Params: []param{str("n", "una tarea, por id o slug"), boolean("all", "también las archivadas"), boolean("json", "en JSON")}},
 		{Name: "tarea pila", Summary: "la pila de una tarea: sus últimos bloques (qué se hizo y con qué se sostiene). Sólo lectura",
 			Usage: "pg tarea pila --task <id|slug>", run: runTaskStack,
-			Params: []param{req("tarea", "id o slug de la tarea")}},
+			Params: []param{req("task", "id o slug de la tarea")}},
 		{Name: "tarea ramas", Summary: "en qué ramas vive UNA tarea (los patrones de su `ramas:`) y hasta dónde llegó cada una: en qué ambientes ya está y su PR. Mide git en el momento, en segundos. Sólo lectura de los repos",
 			Usage: "pg tarea ramas --task <id|slug> [--json]", run: runTaskBranches,
-			Params: []param{req("tarea", "id o slug de la tarea"), boolean("json", "en JSON")}},
-		{Name: "tarea bloque", Summary: "agrega un bloque a la pila de una tarea: el título es la conclusión y el cuerpo lo que la sostiene (cada comando, en su caja, seguido de «Resultado: …»; los archivos como [nombre](repo:<repo>/<ruta>); un tema local como [nombre](knowledge:<tema>#<ancla>)). Con seco=true valida y muestra sin escribir. Escribe en el tablero local",
-			Usage: "pg tarea bloque --task <id|slug> --title '…' --body '…' [--seco]", run: runTaskBlock,
-			Params: []param{req("tarea", "id o slug de la tarea"), req("titulo", "la conclusión, en una línea"),
-				req("cuerpo", "lo que la sostiene, en Markdown"), boolean("seco", "valida y muestra el bloque sin escribirlo")}},
+			Params: []param{req("task", "id o slug de la tarea"), boolean("json", "en JSON")}},
+		{Name: "tarea bloque", Summary: "agrega un bloque a la pila de una tarea: el título es la conclusión y el cuerpo lo que la sostiene (cada comando, en su caja, seguido de «Resultado: …»; los archivos como [nombre](repo:<repo>/<ruta>); un tema local como [nombre](knowledge:<tema>#<ancla>)). Con --dry valida y muestra sin escribir. Escribe en el tablero local",
+			Usage: "pg tarea bloque --task <id|slug> --title '…' --body '…' [--dry]", run: runTaskBlock,
+			Params: []param{req("task", "id o slug de la tarea"), req("title", "la conclusión, en una línea"),
+				req("body", "lo que la sostiene, en Markdown"), boolean("dry", "valida y muestra el bloque sin escribirlo")}},
 		{Name: "cierre", Summary: "propone el cierre de UNA tarea hoy: el lapso desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso y los dos comandos listos (tarea bloque y bitacora add) para completar y correr. Sólo lectura: no escribe nada",
 			Usage: "pg cierre --task <id|slug> [--json]", run: runCloseout,
-			Params: []param{req("tarea", "id o slug de la tarea"), boolean("json", "en JSON")}},
-		{Name: "bitacora add", Summary: "registra tiempo en la bitácora de una tarea, con los minutos MEDIDOS: --span HH:MM-HH:MM, --pulse HH:MM o --min N con --fuente. La nota sube a Jira como worklog: sin repos, rutas ni herramientas internas. Con seco=true valida sin escribir. Escribe en el tablero local",
-			Usage: "pg bitacora add --task <id|slug> --title '…' [--nota '…'] (--span HH:MM-HH:MM | --pulse HH:MM | --min N --source '…') [--dia AAAA-MM-DD] [--desde HH:MM] [--seco]", run: runWorklogAdd,
-			Params: []param{req("tarea", "id o slug de la tarea"), req("titulo", "qué se hizo, corto"), str("nota", "realizada → resultado → validación"),
-				str("lapso", "HH:MM-HH:MM"), str("pulso", "HH:MM: desde esa hora, medido por el pulso"), str("min", "minutos, con fuente"),
-				str("fuente", "de dónde salen los minutos de min"), str("dia", "AAAA-MM-DD, para un día anterior"),
-				str("desde", "HH:MM, con min en un día anterior"), boolean("seco", "valida y muestra sin escribir")}},
+			Params: []param{req("task", "id o slug de la tarea"), boolean("json", "en JSON")}},
+		{Name: "bitacora add", Summary: "registra tiempo en la bitácora de una tarea, con los minutos MEDIDOS: --span HH:MM-HH:MM, --pulse HH:MM o --min N con --fuente. La nota sube a Jira como worklog: sin repos, rutas ni herramientas internas. Con --dry valida sin escribir. Escribe en el tablero local",
+			Usage: "pg bitacora add --task <id|slug> --title '…' [--nota '…'] (--span HH:MM-HH:MM | --pulse HH:MM | --min N --source '…') [--dia AAAA-MM-DD] [--desde HH:MM] [--dry]", run: runWorklogAdd,
+			Params: []param{req("task", "id o slug de la tarea"), req("title", "qué se hizo, corto"), str("note", "realizada → resultado → validación"),
+				str("span", "HH:MM-HH:MM"), str("pulse", "HH:MM: desde esa hora, medido por el pulso"), str("min", "minutos, con fuente"),
+				str("source", "de dónde salen los minutos de min"), str("day", "AAAA-MM-DD, para un día anterior"),
+				str("since", "HH:MM, con min en un día anterior"), boolean("dry", "valida y muestra sin escribir")}},
 		{Name: "client state", Summary: "qué hay de una CÉDULA en la base del ambiente: el cliente activo y sus bajas (-t<n>), sus últimas solicitudes, qué centrales se le consultaron y cuándo, y qué central decidió su nombre. Sólo lectura (también prod)",
 			Usage: "pg client state --target T --document 1031138508 [--json]", run: runClientState,
 			Params: []param{target(), req("document", "la cédula, sólo dígitos"), boolean("json", "el resultado en JSON")}},
@@ -82,7 +80,7 @@ func init() {
 			Usage: "pg experian check --target T (--hash <sucursal> | --branch <id>) [--json]", run: runExperianCheck,
 			Params: []param{target(), str("hash", "el hash de la sucursal (hexadecimal)"), num("branch", "o el id de la sucursal (allied_branches.id)"), boolean("json", "el resultado en JSON")}},
 		{Name: "jev ask", Summary: "manda un pedido a Jev (TypeSafe) por el cliente único y devuelve la respuesta: el pedido va en JSON por la entrada estándar. Para herramientas que lo usan como servicio (p. ej. el juego)",
-			Usage: "echo '{\"model\":\"jev-latest\",…}' | pg jev ask", run: runJevAsk, NoTool: true},
+			Usage: "echo '{\"model\":\"jev-latest\",…}' | pg jev ask", run: runJevAsk},
 		{Name: "settings diff", Summary: "en qué difieren las settings de legacy-backend entre ambientes (por defecto local, dev y prod). Las credenciales se comparan por huella y nunca se muestran. Sólo lectura",
 			Usage: "pg settings diff [--targets local,dev,prod] [--key texto] [--all] [--json]", run: runSettingsDiff,
 			Params: []param{str("targets", "ambientes separados por coma (default local,dev,prod)"), str("key", "sólo claves que contienen este texto"), boolean("all", "también las iguales"), boolean("json", "el resultado en JSON")}},
@@ -102,8 +100,8 @@ func init() {
 			Usage: "pg sql --target T --query 'SELECT …' [--json | --csv | --md] [--bloque TAREA [--titulo '…']]", run: runSQL,
 			Params: []param{target(), req("query", "SELECT o WITH, una sola sentencia"), boolean("json", "filas en JSON, con el ambiente y la fuente"),
 				boolean("md", "la consulta como evidencia (sql + resultado) y la tabla en markdown"),
-				str("bloque", "agrega la consulta y su resultado como bloque a la pila de esa tarea (slug o id)"),
-				str("titulo", "título del bloque (por defecto, el ambiente y el resultado)")}},
+				str("block", "agrega la consulta y su resultado como bloque a la pila de esa tarea (slug o id)"),
+				str("title", "título del bloque (por defecto, el ambiente y el resultado)")}},
 		{Name: "canon sql", Summary: "SQL de sólo lectura contra la base de Postgres de canon (local = el laboratorio; prod): corpus, galaxias, mantenedores, revisiones",
 			Usage: "pg canon sql --target local|prod --query 'SELECT …' [--json]", run: runCanonSQL,
 			Params: []param{canonTarget(), req("query", "SELECT o WITH, una sola sentencia, ej. SELECT id, author, reason FROM canon_revision ORDER BY id DESC LIMIT 5"),
@@ -134,7 +132,7 @@ func init() {
 		{Name: "logs config", Summary: "qué Loki atiende el ambiente y si se puede leer, sin secretos",
 			Usage: "pg logs config --target T", run: runLogsConfig, Params: []param{target()}},
 		{Name: "logs raw", Summary: "el cuerpo de Loki tal cual, para quien ya lo parsea (el harness)",
-			Usage: "pg logs raw --target T --path query_range|query|labels|label/<x>/values --param k=v …", run: runLogsRaw, NoTool: true},
+			Usage: "pg logs raw --target T --path query_range|query|labels|label/<x>/values --param k=v …", run: runLogsRaw},
 		{Name: "events config", Summary: "qué PostHog atiende el ambiente y si se puede consultar, sin secretos",
 			Usage: "pg events config --target T", run: runEventsConfig, Params: []param{target()}},
 		{Name: "events hogql", Summary: "una consulta HogQL de sólo lectura: columnas y filas en JSON",
@@ -152,13 +150,13 @@ func init() {
 		{Name: "elevenlabs voices", Summary: "las voces de ElevenLabs que la cuenta puede usar (nombre, id, género, acento)",
 			Usage: "pg elevenlabs voices [--gender female|male] [--json]", run: runElevenVoices},
 		{Name: "elevenlabs sfx", Summary: "genera un efecto de sonido con ElevenLabs a partir de una descripción y lo guarda en un MP3 (~10 créditos por segundo)",
-			Usage: "pg elevenlabs sfx --text '…' [--seconds 2] [--loop] --out archivo.mp3", run: runElevenSfx, NoTool: true},
+			Usage: "pg elevenlabs sfx --text '…' [--seconds 2] [--loop] --out archivo.mp3", run: runElevenSfx},
 		{Name: "elevenlabs say", Summary: "convierte un texto en voz con ElevenLabs y lo guarda en un MP3 (gasta créditos)",
-			Usage: "pg elevenlabs say --voice <nombre|id> --text '…' --out archivo.mp3", run: runElevenSay, NoTool: true},
+			Usage: "pg elevenlabs say --voice <nombre|id> --text '…' --out archivo.mp3", run: runElevenSay},
 		{Name: "gemini models", Summary: "los modelos de Gemini que la llave puede usar hoy (el configurado, marcado)",
-			Usage: "pg gemini models", run: runGeminiModels, NoTool: true},
+			Usage: "pg gemini models", run: runGeminiModels},
 		{Name: "gemini ask", Summary: "una pregunta a Gemini con los ajustes de AI Studio: modelo, razonamiento, búsqueda en Google (con fuentes), URLs, ejecución de código y salida JSON con esquema",
-			Usage: "pg gemini ask --prompt '…' [--system '…'] [--model M] [--thinking low|medium|high] [--search] [--url-context] [--code] [--schema JSON|@archivo.json]", run: runGeminiAsk, NoTool: true},
+			Usage: "pg gemini ask --prompt '…' [--system '…'] [--model M] [--thinking low|medium|high] [--search] [--url-context] [--code] [--schema JSON|@archivo.json]", run: runGeminiAsk},
 		{Name: "confluence spaces", Summary: "los espacios de Confluence (sin los personales)",
 			Usage: "pg confluence spaces", run: runConfluenceSpaces},
 		{Name: "confluence pages", Summary: "las páginas de un espacio: id y título",
@@ -184,18 +182,18 @@ func init() {
 			Usage: "pg advisor status [--target local|dev|qa|staging] [--origin URL] [--account c<hash>-fake@creditop.com] [--json]", run: runAdvisorStatus,
 			Params: []param{param{Name: "target", Type: "string", Desc: "ambiente de autenticación", Enum: []string{"local", "dev", "qa", "staging"}}, str("origin", "origen del wizard"), str("account", "el asesor de prueba de un comercio, ej. c036610aa-fake@creditop.com"), boolean("json", "estado en JSON")}},
 		{Name: "advisor login", Summary: "entra como el asesor de prueba de un comercio (--account, obligatorio) con ALLIED_TEST_ADVISOR_PASSWORD; abre una ventana y guarda una sesión reutilizable de esa cuenta",
-			Usage: "pg advisor login --target local|dev|qa|staging --account c<hash>-fake@creditop.com [--origin URL] [--headless]", run: runAdvisorLogin, NoTool: true},
+			Usage: "pg advisor login --target local|dev|qa|staging --account c<hash>-fake@creditop.com [--origin URL] [--headless]", run: runAdvisorLogin},
 		{Name: "advisor logout", Summary: "borra la sesión del asesor de prueba para ese ambiente, origen y cuenta",
-			Usage: "pg advisor logout --target local|dev|qa|staging --account c<hash>-fake@creditop.com [--origin URL]", run: runAdvisorLogout, NoTool: true},
+			Usage: "pg advisor logout --target local|dev|qa|staging --account c<hash>-fake@creditop.com [--origin URL]", run: runAdvisorLogout},
 		{Name: "admin status", Summary: "las sesiones guardadas del admin de legacy-application (local, dev, staging): de quién son y si siguen sirviendo. No imprime la sesión",
 			Usage: "pg admin status [--target dev|staging|local] [--json]", run: runAdminStatus,
 			Params: []param{adminTargetParam(false), boolean("json", "el estado en JSON")}},
 		{Name: "admin login", Summary: "ENTRA al admin con ADMIN_USER y ADMIN_PASS de connectors/.env.<ambiente> y guarda la sesión. Teclea una contraseña: lo corre una persona",
-			Usage: "pg admin login --target dev|staging|local", run: runAdminLogin, NoTool: true},
+			Usage: "pg admin login --target dev|staging|local", run: runAdminLogin},
 		{Name: "admin logout", Summary: "borra la sesión guardada del admin de un ambiente",
-			Usage: "pg admin logout --target dev|staging|local", run: runAdminLogout, NoTool: true},
+			Usage: "pg admin logout --target dev|staging|local", run: runAdminLogout},
 		{Name: "admin get", Summary: "una página del admin con la sesión guardada: su componente y sus props (leer páginas del admin puede traer datos de personas, así que va sólo por consola)",
-			Usage: "pg admin get --target dev|staging|local [--path /aliados] [--json]", run: runAdminGet, NoTool: true},
+			Usage: "pg admin get --target dev|staging|local [--path /aliados] [--json]", run: runAdminGet},
 		{Name: "admin allied-create", Summary: "crea un COMERCIO de prueba por el formulario real del admin (el alta crea sola su sucursal, su asesor de prueba y su cuenta de Cognito). Dice con quién actúa. Sin --apply sólo muestra lo que mandaría",
 			Usage: "pg admin allied-create --target dev|staging|local [--name 'PRUEBA AUTO x'] [--type N] [--industry N] [--country N] [--price N] [--json] [--apply]", Write: true, run: runAdminAlliedCreate,
 			Params: []param{adminTargetParam(true), str("name", "el nombre; tiene que empezar por PRUEBA AUTO (lo único que el borrado reconoce)"),
@@ -229,7 +227,7 @@ func init() {
 		{Name: "twilio oauth", Summary: "la app OAuth de Twilio: su identidad y qué permiso pediría cada producto",
 			Usage: "pg twilio oauth", run: runTwilioOAuth},
 		{Name: "twilio get", Summary: "un GET puntual a Twilio con la credencial elegida, resumido",
-			Usage: "pg twilio get --url https://….twilio.com/… [--auth account|key|oauth]", run: runTwilioGet, NoTool: true},
+			Usage: "pg twilio get --url https://….twilio.com/… [--auth account|key|oauth]", run: runTwilioGet},
 		{Name: "figma me", Summary: "de quién es el token de Figma (valida la credencial)",
 			Usage: "pg figma me", run: runFigmaMe},
 		{Name: "figma projects", Summary: "los proyectos de un equipo de Figma y los archivos de cada uno",
@@ -260,9 +258,9 @@ func init() {
 			Usage: "pg figma comments <URL|clave> [--open]", run: runFigmaComments,
 			Params: []param{pos("ref", "la URL de Figma o la clave del archivo"), boolean("open", "sólo los no resueltos")}},
 		{Name: "drive login", Summary: "entra a Google Drive con TU cuenta (OAuth, sólo lectura): abre el navegador y guarda el refresh token en connectors/.auth/drive.json",
-			Usage: "pg drive login", run: runDriveLogin, NoTool: true},
+			Usage: "pg drive login", run: runDriveLogin},
 		{Name: "drive logout", Summary: "revoca la sesión de Drive en Google y borra el archivo",
-			Usage: "pg drive logout", run: runDriveLogout, NoTool: true},
+			Usage: "pg drive logout", run: runDriveLogout},
 		{Name: "drive me", Summary: "de quién es la sesión de Google Drive (valida la credencial)",
 			Usage: "pg drive me", run: runDriveMe},
 		{Name: "drive ls", Summary: "lo que hay en una carpeta de Google Drive: carpetas y archivos con tipo, fecha, tamaño e id",
@@ -281,9 +279,9 @@ func init() {
 				str("out", "guardar en este archivo o carpeta en vez de imprimir; obligatorio si no es texto"),
 				str("format", "exportar un Doc/Sheet/Slides a este mime (ej. application/pdf)")}},
 		{Name: "gmail login", Summary: "entra a Gmail con TU cuenta (OAuth, sólo lectura; el mismo cliente que Drive): abre el navegador y guarda el refresh token en connectors/.auth/gmail.json",
-			Usage: "pg gmail login", run: runGmailLogin, NoTool: true},
+			Usage: "pg gmail login", run: runGmailLogin},
 		{Name: "gmail logout", Summary: "revoca la sesión de Gmail en Google y borra el archivo",
-			Usage: "pg gmail logout", run: runGmailLogout, NoTool: true},
+			Usage: "pg gmail logout", run: runGmailLogout},
 		{Name: "gmail me", Summary: "de quién es la sesión de Gmail (valida la credencial)",
 			Usage: "pg gmail me", run: runGmailMe},
 		{Name: "gmail search", Summary: "busca correos con la sintaxis de Gmail (from:, subject:, newer_than:…): fecha, id, remitente y asunto",
@@ -295,7 +293,5 @@ func init() {
 		{Name: "gmail read", Summary: "un correo entero por su id (el que da gmail search): encabezados y texto",
 			Usage: "pg gmail read <id> [--json]", run: runGmailRead,
 			Params: []param{pos("id", "el id del mensaje"), boolean("json", "en JSON")}},
-		{Name: "mcp", Summary: "sirve estos mismos comandos como herramientas MCP, por stdio", NoTool: true,
-			Usage: "pg mcp", run: runMCP},
 	}
 }

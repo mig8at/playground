@@ -13,8 +13,7 @@ import (
 // EL TABLERO COMO HERRAMIENTA. Escribir en una tarea era `make task-block N=… FILE=<bloque.md>`: un archivo
 // temporal por bloque, comillas de shell en cada título y la salida con colores de terminal. Medido el 2026-10-20
 // en una sesión: unas quince llamadas por tarea para cerrarla, y seis bloques rebotados por formato. Acá los mismos
-// comandos del tablero se ofrecen como comandos de pg —y por eso como herramientas MCP—, con el texto como
-// argumento.
+// comandos del tablero se ofrecen como comandos de pg, con el texto como argumento.
 //
 // Corren el código del tablero tal cual (`go run` en tablero/server, que es otro módulo), sin pasar por make: la
 // validación, las guardas y lo que se escribe son los de siempre, y no hay variables de make que se cuelen

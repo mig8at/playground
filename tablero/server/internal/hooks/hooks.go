@@ -101,9 +101,8 @@ lo externo ya está cableado y con credenciales puestas. Acá van SÓLO LOS NOMB
 ` + "`make`" + ` sin argumentos da qué hace cada uno y sus parámetros, y ` + "`make | grep <palabra>`" + ` lo busca.
 
 La base, Loki, PostHog, Confluence, Jira y Slack se consultan por ` + "`bin/pg`" + ` (la lista, al final): leer es libre
-y lo que escribe (Jira, Slack) sin ` + "`--apply`" + ` sólo muestra. Registrado como servidor MCP (` + "`bin/pg mcp`" + `), los
-mismos comandos llegan como herramientas nativas (` + "`sql`, `logs`, `jira_search`…" + `). Leer canales e hilos de
-Slack sigue por su MCP de claude.ai.
+y lo que escribe (Jira, Slack) sin ` + "`--apply`" + ` sólo muestra. Leer canales e hilos de Slack sigue por su MCP de
+claude.ai.
 
 `
 
@@ -279,8 +278,7 @@ type pgCommand struct {
 	NoTool  bool   `json:"no_tool"`
 }
 
-// connectorCatalog es la lista de `bin/pg`, sacada del propio binario: la misma que su ayuda y que su
-// servidor MCP. Si pg no compila, no hay lista —y el catálogo de `make` sale igual—.
+// connectorCatalog es la lista de `bin/pg`, sacada del propio binario: la misma que su ayuda. Si pg no compila, no hay lista —y el catálogo de `make` sale igual—.
 func connectorCatalog(root string) string {
 	_, out, _, err := run(root, 60*time.Second, filepath.Join(root, "bin", "pg"), "help", "--json")
 	if err != nil {
@@ -290,13 +288,12 @@ func connectorCatalog(root string) string {
 	if json.Unmarshal([]byte(out), &cmds) != nil || len(cmds) == 0 {
 		return ""
 	}
-	// Como los targets: sólo nombres, porque `bin/pg help` los describe y el MCP ya los trae como
-	// herramientas con su esquema.
+	// Como los targets: sólo nombres, porque `bin/pg help` los describe.
 	names := make([]string, 0, len(cmds))
 	for _, c := range cmds {
 		names = append(names, marked(c.Name, c.Write))
 	}
-	return "  CONECTORES   (bin/pg help · ⚠ = escribe: sin --apply sólo muestra · MCP: bin/pg mcp)\n" +
+	return "  CONECTORES   (bin/pg help · ⚠ = escribe: sin --apply sólo muestra)\n" +
 		strings.TrimRight(wrapNames(names), "\n")
 }
 
