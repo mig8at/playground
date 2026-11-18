@@ -16,8 +16,11 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"path"
+	"runtime"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -180,6 +183,10 @@ func comparable(t time.Time, history int, have map[string]bool) []time.Time {
 	return out
 }
 
+// afterDeployNote: lo que el porqué agrega después de un despliegue. «Volvió a lo normal» lo corta (alerts.go): ahí no
+// dice nada.
+const afterDeployNote = " · más sensible tras el despliegue de "
+
 // minimum: el menor de xs (0 si no hay).
 func minimum(xs []float64) float64 {
 	if len(xs) == 0 {
@@ -252,9 +259,12 @@ type evaluator struct {
 	rules   Rules
 	data    map[Signal]*series
 	have    map[string]bool
-	deploys []time.Time        // a producción
-	ceils   map[string]float64 // el techo de los errores por señal y día, calculado una vez
-	follows func(Signal) bool  // lo que se sigue: puede mirar una ventana más larga (FollowedWindows)
+	deploys []time.Time // a producción
+	// deployNames: «legacy-backend v0.6.53», alineado con deploys, para que el porqué diga CUÁL despliegue lo volvió
+	// más sensible (antes decía «hubo un despliegue» y había que ir a buscarlo).
+	deployNames []string
+	ceils       map[string]float64 // el techo de los errores por señal y día, calculado una vez
+	follows     func(Signal) bool  // lo que se sigue: puede mirar una ventana más larga (FollowedWindows)
 }
 
 // span: la ventana en palabras, para los porqués.
@@ -288,13 +298,24 @@ func (e evaluator) ceiling(sig Signal, se *series, t time.Time, q float64) float
 	return c
 }
 
-func (e evaluator) afterDeploy(t time.Time) bool {
-	for _, d := range e.deploys {
-		if !d.After(t) && t.Sub(d) <= time.Duration(e.rules.AfterDeployHours*float64(time.Hour)) {
-			return true
+func (e evaluator) afterDeploy(t time.Time) bool { _, ok := e.deployBefore(t); return ok }
+
+// deployBefore: el despliegue más reciente de las últimas `AfterDeployHours` antes de t, si hay.
+func (e evaluator) deployBefore(t time.Time) (string, bool) {
+	best, name, ok := time.Time{}, "", false
+	for i, d := range e.deploys {
+		if !d.After(t) && t.Sub(d) <= time.Duration(e.rules.AfterDeployHours*float64(time.Hour)) && d.After(best) {
+			best, ok = d, true
+			name = "un despliegue"
+			if i < len(e.deployNames) && e.deployNames[i] != "" {
+				name = e.deployNames[i]
+			}
 		}
 	}
-	return false
+	if ok {
+		name += " a las " + best.In(bogota).Format("15:04")
+	}
+	return name, ok
 }
 
 func (e evaluator) eval(sig Signal, t time.Time) Eval {
@@ -416,8 +437,8 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 			}
 		}
 	}
-	if factor != 1 && ev.Level >= levelOK {
-		ev.Why += " · más sensible: hubo un despliegue a producción hace menos de " + fmtNum(e.rules.AfterDeployHours) + " h"
+	if name, ok := e.deployBefore(t); ok && factor != 1 && ev.Level >= levelOK {
+		ev.Why += afterDeployNote + name
 	}
 	return ev
 }
@@ -584,21 +605,90 @@ type Episode struct {
 // backtest recorre los últimos `days` días cada `StepMinutes` y cuenta las veces que cada señal ENTRÓ en alerta o en
 // «para mirar» (sostenido), como si las reglas hubieran estado prendidas.
 func (e evaluator) backtest(days int, now time.Time) []Episode {
+	return episodesOf(e.replay(days, now))
+}
+
+// episodesOf: las entradas a alerta o a «para mirar» de una historia ya evaluada (replay).
+func episodesOf(replayed map[Signal][]replayStep) []Episode {
 	var out []Episode
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -days)
-	step := time.Duration(e.rules.StepMinutes) * time.Minute
-	for sig := range e.data {
+	for sig, steps := range replayed {
 		prev := levelOK
-		for t := start; t.Before(now); t = t.Add(step) {
-			ev, level := e.sustained(sig, t)
-			if level > prev && level >= levelWarn {
-				out = append(out, Episode{Signal: sig, Start: t.Format(time.RFC3339), Level: levelName(level), Why: ev.Why})
+		for _, st := range steps {
+			if st.Level > prev && st.Level >= levelWarn {
+				out = append(out, Episode{Signal: sig, Start: st.At.Format(time.RFC3339), Level: levelName(st.Level), Why: st.Why})
 			}
-			prev = max(level, levelOK)
+			prev = max(st.Level, levelOK)
 		}
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Start < out[j].Start })
 	return out
+}
+
+// replayStep: el veredicto sostenido de una señal en un momento de la historia.
+type replayStep struct {
+	At    time.Time
+	Level int
+	Why   string
+	Now   int
+}
+
+// replay evalúa cada señal en cada paso de los últimos `days` días, en paralelo por señal. Cada trabajador lleva su
+// propia caché de techos (`ceils` es un mapa sin candado y su clave lleva la señal, así que no se comparten). Es lo caro
+// del backtest y de replayNotices: 240 señales × 1.000 pasos × 3 lecturas sostenidas.
+func (e evaluator) replay(days int, now time.Time) map[Signal][]replayStep {
+	return e.replayRange(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -days), now)
+}
+
+// replayRange: lo mismo, de start a now (el tramo que Sentinel no miró, por ejemplo).
+func (e evaluator) replayRange(start, now time.Time) map[Signal][]replayStep {
+	step := time.Duration(e.rules.StepMinutes) * time.Minute
+	sigs := make(chan Signal)
+	out := map[Signal][]replayStep{}
+	var mu sync.Mutex
+	var wg sync.WaitGroup
+	for w := 0; w < runtime.NumCPU(); w++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			mine := e
+			mine.ceils = map[string]float64{}
+			for sig := range sigs {
+				var steps []replayStep
+				for t := start; t.Before(now); t = t.Add(step) {
+					ev, level := mine.sustained(sig, t)
+					steps = append(steps, replayStep{At: t, Level: level, Why: ev.Why, Now: ev.Now})
+				}
+				mu.Lock()
+				out[sig] = steps
+				mu.Unlock()
+			}
+		}()
+	}
+	for sig := range e.data {
+		sigs <- sig
+	}
+	close(sigs)
+	wg.Wait()
+	return out
+}
+
+// only deja en el evaluador las señales que coinciden con algún patrón (`service:*`, `lender:24`, `logs:*`); sin
+// patrones, todas. Para acotar un backtest a lo que se está tocando.
+func (e evaluator) only(patterns []string) evaluator {
+	if len(patterns) == 0 {
+		return e
+	}
+	keep := map[Signal]*series{}
+	for sig, se := range e.data {
+		for _, p := range patterns {
+			if ok, _ := path.Match(p, sig); ok || p == sig {
+				keep[sig] = se
+				break
+			}
+		}
+	}
+	e.data = keep
+	return e
 }
 
 func levelName(l int) string {

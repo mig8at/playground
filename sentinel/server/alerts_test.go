@@ -131,3 +131,61 @@ func TestZeroLinesWhenEveryComparableDayWrote(t *testing.T) {
 		t.Fatalf("con un día comparable en cero no debía forzarse: %s", ev.Why)
 	}
 }
+
+// Reconocer saca el episodio de «Pide atención» hasta que empeora; si empeora, vuelve y avisa.
+func TestAckedUntilItGetsWorse(t *testing.T) {
+	n := &notifier{dry: true, Episodes: map[Signal]*episode{}}
+	rules := defaultRules()
+	rules.Notify.Level = "warn"
+	at := time.Date(2026, 11, 18, 9, 0, 0, 0, bogota)
+	warn := &Overview{Rules: rules, Services: []Subject{{Signal: "service:x", Name: "x", State: "warn"}}}
+	n.observe(warn, at)
+	if err := n.ack("service:y", at); err == nil {
+		t.Fatal("sin episodio no hay nada que reconocer")
+	}
+	if err := n.ack("service:x", at); err != nil {
+		t.Fatal(err)
+	}
+	n.observe(warn, at.Add(10*time.Minute))
+	if !n.acked()["service:x"] {
+		t.Fatal("se perdió el reconocimiento sin empeorar")
+	}
+	n.observe(&Overview{Rules: rules, Services: []Subject{{Signal: "service:x", Name: "x", State: "alert"}}}, at.Add(20*time.Minute))
+	if n.acked()["service:x"] {
+		t.Fatal("empeoró y siguió reconocido")
+	}
+	if last := n.notices[len(n.notices)-1]; last.Level != "alert" {
+		t.Fatalf("al empeorar debía avisar: %+v", last)
+	}
+}
+
+// El aviso del hueco dice cuánto no miró y qué pasó a alerta (sin los comercios que no se siguen), con sonido sólo si
+// hubo alertas, y apaga la espera del «volvió a leer».
+func TestGapNoticeSummarizesWhatHappened(t *testing.T) {
+	var titles, bodies []string
+	var sounds []bool
+	n := &notifier{dry: true, Episodes: map[Signal]*episode{}, follows: func(Signal) bool { return false },
+		deliver: func(title, body, route string, sound bool) (string, error) {
+			titles, bodies, sounds = append(titles, title), append(bodies, body), append(sounds, sound)
+			return "prueba", nil
+		}}
+	n.FailingSince, n.StaleNotified = "2026-11-14T15:43:00-05:00", true
+	from := time.Date(2026, 11, 14, 15, 43, 0, 0, bogota)
+	to := time.Date(2026, 11, 17, 7, 40, 0, 0, bogota)
+	g := Gap{From: from.Format(time.RFC3339), To: to.Format(time.RFC3339)}
+	n.gap(g, []GapAlert{
+		{Signal: "lender:12", Name: "Prami · errores", At: from.Add(24 * time.Hour)},
+		{Signal: "merchant:99", Name: "Comercio que no sigo", At: from.Add(25 * time.Hour)},
+	}, defaultRules().Notify, false, to)
+	if len(bodies) != 1 || !strings.Contains(bodies[0], "No miró 2 d") || !strings.Contains(bodies[0], "Prami") ||
+		strings.Contains(bodies[0], "no sigo") || !sounds[0] {
+		t.Fatalf("aviso: %q · sonido %v", bodies, sounds)
+	}
+	if n.StaleNotified || n.FailingSince != "" {
+		t.Fatal("después del aviso del hueco no debía quedar esperando el «volvió a leer»")
+	}
+	n.gap(g, nil, defaultRules().Notify, false, to)
+	if !strings.Contains(bodies[1], "nada pasó a alerta") || sounds[1] {
+		t.Fatalf("sin alertas: %q · sonido %v", bodies[1], sounds[1])
+	}
+}

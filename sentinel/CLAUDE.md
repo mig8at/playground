@@ -13,7 +13,9 @@ Comercios, ordenable, con + para seguir); a la derecha, lo que pide atención, *
 producción** (su versión, sus errores y su señal de vida), los avisos y los despliegues.
 
 `make sentinel ONCE=1` carga lo que falte, hace una pasada y la resume por consola. `go run ./sentinel/server -backtest 7` dice cuántas veces habrían sonado las reglas
-en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**.
+en los últimos 7 días, con la lista de alertas: **es la vara antes de cambiar una regla**. Lee lo guardado (sin pasada:
+~30 s para 650 señales, en paralelo; antes pasaba de 10 minutos porque leía producción primero); `-fresh` hace la
+pasada antes y `-signals 'service:*,logs:*'` lo acota a lo que se está tocando.
 
 ## La consola: `bin/sentinel` (o `make sentinel-now|day|signal|deploy`)
 
@@ -26,6 +28,7 @@ un agente para que resuma.
 | `bin/sentinel now` | cómo está producción ahora: lo que pide atención, lo que se sigue y cada servicio con su versión |
 | `bin/sentinel day [AAAA-MM-DD]` | el día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora (con el porqué de su peor momento), los despliegues y los avisos |
 | `bin/sentinel signal <señal\|nombre>` | una señal hora por hora, hoy contra lo normal; de una entidad, también sus errores en los logs |
+| `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
 
 **La trazabilidad del día** queda escrita en `sentinel/.data/days/<día>.md` (lo mismo que `bin/sentinel day`): la API
@@ -127,6 +130,12 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
   viene entre alerta y «para mirar» no avisa cada 5 minutos. Avisa otra vez sólo si empeora. Al cerrarse, «volvió a lo
   normal», sin sonido.
 - **Si no puede leer producción 30 min** (la VPN caída), avisa una vez «Sentinel no está mirando», y otra cuando vuelve.
+- **El hueco se mide por reloj** (`gapSince`, en `main.go`): si lo guardado llegaba hasta hace más de `staleMinutes`
+  (el Mac dormido, la API apagada: no hay pasadas que fallen), la primera pasada al volver repasa el tramo ya relleno
+  (hasta 72 h) y manda UN aviso: «No miró 2 días, de … a …. En ese tramo pasaron a alerta 2: …», con sonido sólo si hubo
+  alertas. Queda en `gaps.jsonl` y la curva de hoy sombrea el tramo. Del 14 al 17/11/2026 no miró 64 h sin decirlo.
+- **El porqué nombra el despliegue** que lo volvió más sensible («· más sensible tras el despliegue de legacy-backend
+  v0.6.53 a las 17:02»), y «volvió a lo normal» lo corta.
 - **Si una pasada se cuelga** (no devuelve nunca, así que tampoco falla), avisa el perro guardián (`watch`, en
   `main.go`): más de 2× el intervalo sin avanzar da el mismo «Sentinel no está mirando», una vez. No corta la pasada:
   avisa. Los procesos de afuera (`gh`, `go run` de los despliegues) llevan plazo (`runTool`, en `services.go`).

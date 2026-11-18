@@ -20,6 +20,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -62,6 +63,24 @@ type episode struct {
 	Notified   string `json:"notified"`   // el nivel que ya se avisó («» si ninguno)
 	NormalFrom string `json:"normalFrom"` // desde cuándo volvió a lo normal, si volvió
 	Name       string `json:"name"`
+	// Acked: el nivel que Miguel reconoció («ya lo sé»); «» si no. Un episodio reconocido sale de «Pide atención» a
+	// «Conocidos» hasta que se cierra o EMPEORA (pasa a un nivel mayor que el reconocido).
+	Acked   string `json:"acked,omitempty"`
+	AckedAt string `json:"ackedAt,omitempty"`
+}
+
+// Gap: un tramo en que Sentinel no miró (el Mac dormido, la VPN caída, la API apagada). Se mide por reloj: lo guardado
+// llegaba hasta From y la pasada siguiente fue a las To.
+type Gap struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// GapAlert: una señal que pasó a alerta mientras Sentinel no miraba.
+type GapAlert struct {
+	Signal Signal
+	Name   string
+	At     time.Time
 }
 
 type notifier struct {
@@ -179,6 +198,9 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 			if lvl > rank(ep.Level) {
 				ep.Level = subj.State
 			}
+			if ep.Acked != "" && lvl > rank(ep.Acked) { // empeoró: lo reconocido ya no alcanza
+				ep.Acked, ep.AckedAt = "", ""
+			}
 			// Se avisa al llegar al umbral, y otra vez sólo si empeora (de «para mirar» avisado a alerta).
 			if lvl >= threshold && lvl > rank(ep.Notified) && !n.silenced(subj.Signal, rules) {
 				ep.Notified = subj.State
@@ -207,7 +229,8 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 		from, _ := time.Parse(time.RFC3339, ep.NormalFrom)
 		if now.Sub(from) >= time.Duration(rules.ClearMinutes)*time.Minute {
 			if ep.Notified != "" && rules.Recovered {
-				n.send(Notice{Signal: subj.Signal, Name: subj.Name, Level: "recovered", Text: "Volvió a lo normal: " + subj.Why}, now, "Sentinel · volvió a lo normal", false)
+				why, _, _ := strings.Cut(subj.Why, afterDeployNote)
+				n.send(Notice{Signal: subj.Signal, Name: subj.Name, Level: "recovered", Text: "Volvió a lo normal: " + why}, now, "Sentinel · volvió a lo normal", false)
 			}
 			delete(n.Episodes, subj.Signal)
 		}
@@ -218,6 +241,100 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 		}
 	}
 	n.save()
+}
+
+// ack: «ya lo sé». Reconoce el episodio abierto de una señal en su nivel de ahora. Error si no hay episodio.
+func (n *notifier) ack(sig Signal, now time.Time) error {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	ep := n.Episodes[sig]
+	if ep == nil {
+		return fmt.Errorf("%s no tiene un episodio abierto: no hay nada que reconocer", sig)
+	}
+	ep.Acked, ep.AckedAt = ep.Level, now.Format(time.RFC3339)
+	n.save()
+	return nil
+}
+
+// clearAck deshace el reconocimiento.
+func (n *notifier) clearAck(sig Signal) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if ep := n.Episodes[sig]; ep != nil {
+		ep.Acked, ep.AckedAt = "", ""
+		n.save()
+	}
+}
+
+// acked: las señales reconocidas.
+func (n *notifier) acked() map[Signal]bool {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	out := map[Signal]bool{}
+	for sig, ep := range n.Episodes {
+		if ep.Acked != "" {
+			out[sig] = true
+		}
+	}
+	return out
+}
+
+// gap: Sentinel no miró de g.From a g.To. Manda UN aviso con lo que pasó a alerta en ese tramo (las señales que
+// avisarían: un comercio que no se sigue, no), lo anota en gaps.jsonl y deja de esperar el «volvió a leer»: este aviso
+// ya lo dice. Antes, del 14 al 17/11/2026 no miró 64 h y el único rastro fue un «no puede leer» que no salió.
+func (n *notifier) gap(g Gap, alerts []GapAlert, rules NotifyRules, capped bool, now time.Time) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	from, _ := time.Parse(time.RFC3339, g.From)
+	to, _ := time.Parse(time.RFC3339, g.To)
+	var names []string
+	seen := map[Signal]bool{}
+	for _, a := range alerts {
+		if seen[a.Signal] || n.silenced(a.Signal, rules) {
+			continue
+		}
+		seen[a.Signal] = true
+		names = append(names, a.Name+" ("+a.At.In(bogota).Format("02/01 15:04")+")")
+	}
+	text := fmt.Sprintf("No miró %s, de %s a %s (¿el Mac dormido o la VPN?). ", fmtDuration(int(to.Sub(from).Minutes())),
+		from.In(bogota).Format("02/01 15:04"), to.In(bogota).Format("02/01 15:04"))
+	if capped {
+		text += "Se repasaron sólo los últimos 3 días. "
+	}
+	if len(names) == 0 {
+		text += "En ese tramo nada pasó a alerta."
+	} else {
+		text += fmt.Sprintf("En ese tramo pasaron a alerta %d: %s.", len(names), strings.Join(names, ", "))
+	}
+	n.FailingSince, n.StaleNotified = "", false
+	n.send(Notice{Signal: "sentinel", Name: "Sentinel", Level: "gap", Text: text}, now, "Sentinel · no estuvo mirando", len(names) > 0)
+	if !n.dry {
+		if f, err := os.OpenFile(filepath.Join(n.dir, "gaps.jsonl"), os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644); err == nil {
+			raw, _ := json.Marshal(g)
+			f.Write(append(raw, '\n'))
+			f.Close()
+		}
+	}
+	n.save()
+}
+
+// gaps: los tramos sin mirar que terminan después de `since`.
+func (n *notifier) gaps(since time.Time) []Gap {
+	var out []Gap
+	raw, err := os.ReadFile(filepath.Join(n.dir, "gaps.jsonl"))
+	if err != nil {
+		return out
+	}
+	for _, line := range strings.Split(string(raw), "\n") {
+		var g Gap
+		if json.Unmarshal([]byte(line), &g) != nil {
+			continue
+		}
+		if to, err := time.Parse(time.RFC3339, g.To); err == nil && to.After(since) {
+			out = append(out, g)
+		}
+	}
+	return out
 }
 
 // failed: una pasada que no pudo leer producción. Si dura `staleMinutes`, un aviso (una vez).
@@ -426,18 +543,36 @@ func systemNotice(title, body, route string, sound bool) (string, error) {
 }
 
 // replayNotices: qué avisos habrían salido en los últimos `days` días, con una pasada cada `stepMinutes`. No manda nada:
-// es la vara antes de cambiar `notify` en rules.json.
+// es la vara antes de cambiar `notify` en rules.json. Las señales se evalúan en paralelo (replay) y el avisador se
+// repasa después, en orden, paso por paso.
 func replayNotices(e evaluator, days int, now time.Time, follows func(Signal) bool) []Notice {
+	return noticesOf(e.rules, e.replay(days, now), follows)
+}
+
+// noticesOf: los avisos que habrían salido de una historia ya evaluada (replay), repasando el avisador paso por paso.
+func noticesOf(rules Rules, steps map[Signal][]replayStep, follows func(Signal) bool) []Notice {
 	n := &notifier{dry: true, Episodes: map[Signal]*episode{}, follows: follows}
-	start := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -days)
-	step := time.Duration(e.rules.StepMinutes) * time.Minute
-	for t := start; t.Before(now); t = t.Add(step) {
-		o := &Overview{Rules: e.rules}
-		for sig := range e.data {
-			ev, level := e.sustained(sig, t)
-			o.Lenders = append(o.Lenders, Subject{Signal: sig, Name: sig, State: levelName(level), Why: ev.Why, Now: Window{Total: ev.Now}})
+	count := 0
+	for _, s := range steps {
+		count = max(count, len(s))
+	}
+	sigs := make([]Signal, 0, len(steps))
+	for sig := range steps {
+		sigs = append(sigs, sig)
+	}
+	sort.Strings(sigs)
+	for i := 0; i < count; i++ {
+		o := &Overview{Rules: rules}
+		var at time.Time
+		for _, sig := range sigs {
+			if i >= len(steps[sig]) {
+				continue
+			}
+			st := steps[sig][i]
+			at = st.At
+			o.Lenders = append(o.Lenders, Subject{Signal: sig, Name: sig, State: levelName(st.Level), Why: st.Why, Now: Window{Total: st.Now}})
 		}
-		n.observe(o, t)
+		n.observe(o, at)
 	}
 	return n.notices
 }

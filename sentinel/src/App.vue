@@ -137,8 +137,26 @@ const selected = computed(() => {
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
 })
-const attention = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.steps || []).filter((x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
-  .filter((s) => s.state === 'alert' || s.state === 'warn'))
+// Lo que pide atención se parte en tres: lo que avisa y nadie reconoció (arriba), lo reconocido («Conocidos»: ya lo
+// sabés, vuelve si empeora) y lo de comercios que no se siguen (se ve en la tabla pero no avisa: antes no estaba en
+// este panel y la tabla mostraba alertas que acá no aparecían).
+const stepFollowed = (x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)
+const outOfNormal = (s) => s.state === 'alert' || s.state === 'warn'
+const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+  .filter(outOfNormal))
+const attention = computed(() => noticing.value.filter((s) => !s.acked))
+const known = computed(() => noticing.value.filter((s) => s.acked))
+const unfollowed = computed(() => (data.value?.steps || []).filter((x) => !stepFollowed(x) && outOfNormal(x)))
+const showUnfollowed = ref(false)
+async function setAck(s, on) {
+  try {
+    const res = await fetch(on ? '/api/ack' : `/api/ack?signal=${encodeURIComponent(s.signal)}`,
+      on ? { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ signal: s.signal }) } : { method: 'DELETE' })
+    const body = await res.json()
+    if (body.error) { apiError.value = body.error; return }
+    data.value = body.overview || data.value
+  } catch { apiError.value = 'No contesta la API: no se pudo reconocer.' }
+}
 
 function readRoute() {
   const { parts } = readHashRoute()
@@ -186,8 +204,8 @@ const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 
 // En la tabla, corto: es una columna.
 const TABLE_KIND = { jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
 const KIND_LABEL = { jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
-const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados' }
-const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn' }
+const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando' }
+const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn' }
 // La cabecera cuenta por nivel («2 alertas · 1 para mirar») con el color del peor: antes decía «3 para mirar» en
 // amarillo aunque las tres fueran alertas.
 const attentionCounts = computed(() => {
@@ -249,7 +267,14 @@ function chartFor(s) {
     const t = new Date(d.at)
     return { ...d, x: x(t.getHours() + t.getMinutes() / 60) }
   })
-  return { band, median, today, ticks, marks, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
+  // Los tramos de HOY en que Sentinel no miró (el Mac dormido, la VPN): la curva ahí es real (se rellenó después), pero
+  // nadie avisó de lo que pasó en ellos.
+  const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0)
+  const hourOf = (iso) => Math.min(23, Math.max(0, (new Date(iso) - dayStart) / 3_600_000))
+  const gaps = (data.value?.gaps || []).filter((g) => new Date(g.to) > dayStart).map((g) => ({
+    key: g.from, x1: x(hourOf(g.from)), x2: x(hourOf(g.to)), title: `Sentinel no miró de ${dayClock(g.from)} a ${dayClock(g.to)}`,
+  })).filter((g) => g.x2 - g.x1 > 1)
+  return { band, median, today, ticks, marks, gaps, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
 }
 // Los errores en los logs que nombran a la entidad elegida (preapprovals-service y legacy-backend).
 const lenderErrors = computed(() => (selected.value?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === selected.value.id) : null))
@@ -447,6 +472,7 @@ onBeforeUnmount(() => {
                 <text v-for="t in chart.ticks" :key="`l${t.v}`" :x="PAD.l - 6" :y="t.y + 4" text-anchor="end">{{ t.v }}</text>
                 <text v-for="h in chart.hours" :key="`h${h.h}`" :x="h.x" :y="H - 6" text-anchor="middle">{{ h.h }}h</text>
               </g>
+              <rect v-for="g in chart.gaps" :key="g.key" class="gap" :x="g.x1" :y="PAD.t" :width="g.x2 - g.x1" :height="H - PAD.t - PAD.b"><title>{{ g.title }}</title></rect>
               <polygon class="band" :points="chart.band" />
               <polyline class="median" :points="chart.median" />
               <g v-for="m in chart.marks" :key="m.url" class="deploy-mark">
@@ -591,11 +617,37 @@ onBeforeUnmount(() => {
           ⚠ {{ data.unsent.count }} {{ data.unsent.count === 1 ? 'aviso no salió' : 'avisos no salieron' }} desde {{ dayClock(data.unsent.since) }}.
           Salen juntos cuando el aviso vuelva a funcionar.<small v-if="data.unsent.error" class="row-desc">{{ data.unsent.error }}</small>
         </p>
-        <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora.</p>
-        <button v-for="s in attention" :key="`a-${s.signal}`" type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
-          <span><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }} <small class="muted">· {{ KIND_LABEL[s.kind].toLowerCase() }}</small></span>
-          <small class="row-desc">{{ s.why }}</small>
-        </button>
+        <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora{{ known.length ? ' que no conozcas' : '' }}.</p>
+        <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item">
+          <button type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
+            <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
+            <small class="muted attention-kind">{{ KIND_LABEL[s.kind] }}</small>
+            <small class="row-desc">{{ s.why }}</small>
+          </button>
+          <button type="button" class="btn btn-ghost ack" title="Ya lo sé: pasa a «Conocidos» hasta que se cierre o empeore" @click="setAck(s, true)">Reconocer</button>
+        </div>
+
+        <template v-if="known.length">
+          <div class="region-head group"><span>Conocidos</span><span class="count">{{ known.length }}</span></div>
+          <div v-for="s in known" :key="`k-${s.signal}`" class="attention-item">
+            <button type="button" class="row attention-row known" :title="s.why" @click="pick(s)">
+              <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
+            </button>
+            <button type="button" class="btn btn-ghost ack" title="Vuelve a «Para mirar»" @click="setAck(s, false)">Devolver</button>
+          </div>
+        </template>
+
+        <template v-if="unfollowed.length">
+          <button type="button" class="region-head group toggle" :aria-expanded="showUnfollowed" @click="showUnfollowed = !showUnfollowed">
+            <span>{{ showUnfollowed ? '▾' : '▸' }} De lo que no seguís · no avisa</span><span class="count">{{ unfollowed.length }}</span>
+          </button>
+          <template v-if="showUnfollowed">
+            <button v-for="s in unfollowed" :key="`u-${s.signal}`" type="button" class="row stacked attention-row" @click="pick(s)">
+              <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
+              <small class="row-desc">{{ s.why }}</small>
+            </button>
+          </template>
+        </template>
 
         <div class="region-head group"><span>Servicios en producción</span><span class="count">{{ apps.length }}</span></div>
         <p v-if="data?.logsNote" class="source-note" role="status">⚠ {{ data.logsNote }}. Los errores y las líneas de las tarjetas son los de la última lectura que sí llegó.</p>
@@ -766,6 +818,15 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .day-bar.today small { color: var(--foreground); font-weight: 600 }
 
 .attention-row .row-desc { white-space: normal }
+.attention-item { display: flex; align-items: flex-start; gap: var(--space-1) }
+.attention-item .attention-row { flex: 1; min-width: 0 }
+.attention-name { white-space: normal; overflow-wrap: anywhere }
+.attention-kind { display: block; padding-left: calc(var(--space-2) + 8px) }
+.attention-item .ack { flex: none; margin: var(--space-1) var(--space-2) 0 0; font-size: var(--text-sm) }
+.attention-item:not(:hover) .ack { opacity: 0.35 }
+.attention-row.known { opacity: 0.75 }
+.region-head.toggle { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
+.chart .gap { fill: var(--fg-2); opacity: 0.12 }
 /* Las tarjetas de los servicios: nombre y versión arriba, cuándo se desplegó, y las dos señales (errores y líneas)
    con su número de la última hora contra lo normal y su curva de hoy. Un clic en una señal la abre al centro. */
 .app-cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-3) }

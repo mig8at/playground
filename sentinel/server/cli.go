@@ -12,10 +12,13 @@ package main
 // Todos aceptan --json. Un despliegue sin versión es el último a producción de ese repo.
 
 import (
+	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
 	"math"
+	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -25,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true}
 
 // runCLI: un comando de la consola. Devuelve el código de salida.
 func runCLI(root string, args []string) int {
@@ -33,6 +36,7 @@ func runCLI(root string, args []string) int {
 	fs := flag.NewFlagSet(cmd, flag.ContinueOnError)
 	asJSON := fs.Bool("json", false, "la salida en JSON (para un agente)")
 	hours := fs.Float64("hours", 2, "deploy: cuántas horas mirar antes y después")
+	undo := fs.Bool("undo", false, "ack: deshace el reconocimiento (vuelve a «Pide atención»)")
 	var positional []string
 	// Los flags pueden ir antes o después de los argumentos.
 	rest := args[1:]
@@ -45,6 +49,10 @@ func runCLI(root string, args []string) int {
 			positional = append(positional, rest[0])
 			rest = rest[1:]
 		}
+	}
+	// ack escribe en el avisador, que vive en la API: va por ella (si no, dos procesos pisarían alerts.json).
+	if cmd == "ack" {
+		return ackCLI(*undo, positional)
 	}
 	c, err := openCLI(root)
 	if err != nil {
@@ -143,6 +151,7 @@ type NowReport struct {
 	Freshness string    `json:"freshness"`
 	All       Subject   `json:"all"`
 	Attention []Subject `json:"attention"` // en alerta o para mirar, lo peor primero
+	Known     []Subject `json:"known"`     // en alerta o para mirar, pero reconocidos (`bin/sentinel ack`)
 	Following []Subject `json:"following"`
 	Apps      []App     `json:"apps"`
 	Unsent    *Unsent   `json:"unsent,omitempty"` // avisos que no salieron: lo primero que se dice
@@ -152,10 +161,15 @@ func (c *cli) now() (*NowReport, error) {
 	o := c.s.overview(c.rules, c.reach.Truncate(time.Minute))
 	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps,
 		Unsent: openNotifier(c.s.store.dir).unsent()}
+	acked := openNotifier(c.s.store.dir).acked()
 	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Lenders, o.Merchants} {
 		for _, x := range list {
 			if x.State == "alert" || x.State == "warn" {
-				r.Attention = append(r.Attention, x)
+				if acked[x.Signal] {
+					r.Known = append(r.Known, x)
+				} else {
+					r.Attention = append(r.Attention, x)
+				}
 			}
 			if c.s.follow.has(x.Signal) {
 				r.Following = append(r.Following, x)
@@ -178,6 +192,13 @@ func (r *NowReport) Text() string {
 	} else {
 		fmt.Fprintf(&b, "Pide atención (%d):\n", len(r.Attention))
 		for _, x := range r.Attention {
+			fmt.Fprintf(&b, "  %s %s — %s\n", mark(x.State), x.Name, x.Why)
+		}
+		b.WriteString("\n")
+	}
+	if len(r.Known) > 0 {
+		fmt.Fprintf(&b, "Conocidos (reconocidos; vuelven si empeoran) (%d):\n", len(r.Known))
+		for _, x := range r.Known {
 			fmt.Fprintf(&b, "  %s %s — %s\n", mark(x.State), x.Name, x.Why)
 		}
 		b.WriteString("\n")
@@ -828,4 +849,42 @@ func unsentLine(u *Unsent) string {
 		line += ": " + u.Error
 	}
 	return line + "\n  (salen juntos en la próxima pasada que pueda avisar; probá con `go run ./sentinel/server -notify-test`)"
+}
+
+// ackCLI: `bin/sentinel ack <señal>` reconoce un episodio («ya lo sé»); con --undo lo devuelve. Por la API.
+func ackCLI(undo bool, positional []string) int {
+	if len(positional) == 0 {
+		fmt.Fprintln(os.Stderr, "sentinel: falta la señal, como la da `bin/sentinel now --json` («logs:kyc-gateway-service», «lender:12»)")
+		return 2
+	}
+	sig := positional[0]
+	base := "http://127.0.0.1:5211/api/ack"
+	var req *http.Request
+	if !undo {
+		body, _ := json.Marshal(map[string]string{"signal": sig})
+		req, _ = http.NewRequest(http.MethodPost, base, bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+	} else {
+		req, _ = http.NewRequest(http.MethodDelete, base+"?signal="+url.QueryEscape(sig), nil)
+	}
+	res, err := (&http.Client{Timeout: 10 * time.Second}).Do(req)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "sentinel: la API no contesta en :5211 (`make sentinel-status`):", err)
+		return 1
+	}
+	defer res.Body.Close()
+	if res.StatusCode != http.StatusOK {
+		var e struct {
+			Error string `json:"error"`
+		}
+		_ = json.NewDecoder(res.Body).Decode(&e)
+		fmt.Fprintln(os.Stderr, "sentinel:", e.Error)
+		return 1
+	}
+	if !undo {
+		fmt.Printf("%s reconocido: sale de «Pide atención» hasta que se cierre o empeore\n", sig)
+	} else {
+		fmt.Printf("%s vuelve a «Pide atención»\n", sig)
+	}
+	return 0
 }

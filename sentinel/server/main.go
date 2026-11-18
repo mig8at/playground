@@ -18,6 +18,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -63,6 +64,8 @@ type Subject struct {
 	Silence *Silence `json:"silence,omitempty"`
 	// Step (sólo `step:`): la conversión y los fallos de la pantalla en la ventana.
 	Step *StepEval `json:"step,omitempty"`
+	// Acked: el episodio está reconocido («ya lo sé»): la interfaz lo pasa a «Conocidos» hasta que se cierre o empeore.
+	Acked bool `json:"acked,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
 	// (una solicitud se aprueba o se niega horas después), así que compararla con días ya asentados engaña.
 	DeniedRate float64 `json:"deniedRate"`
@@ -104,6 +107,7 @@ type Overview struct {
 	Seconds     float64  `json:"seconds"`
 	Notices     []Notice `json:"notices"`          // los últimos avisos mandados
 	Unsent      *Unsent  `json:"unsent,omitempty"` // los avisos que no salieron y esperan: la interfaz lo muestra arriba
+	Gaps        []Gap    `json:"gaps,omitempty"`   // los tramos sin mirar de hoy y ayer: la curva los sombrea
 }
 
 // ── la carga: inicial (los días que falten) y en cada pasada (las últimas horas) ───────────────────────────────
@@ -431,12 +435,15 @@ func (s *sentinel) evaluator(rules Rules) evaluator {
 		have[d] = true
 	}
 	var deployTimes []time.Time
+	var deployNames []string
 	for _, d := range s.deployList {
 		if t, err := time.Parse(time.RFC3339, d.At); err == nil {
 			deployTimes = append(deployTimes, t)
+			deployNames = append(deployNames, strings.TrimSpace(path.Base(d.Repo)+" "+d.Version))
 		}
 	}
-	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, ceils: map[string]float64{}, follows: s.follow.has}
+	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, deployNames: deployNames,
+		ceils: map[string]float64{}, follows: s.follow.has}
 }
 
 func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
@@ -590,7 +597,12 @@ func (s *sentinel) run() {
 	s.running = true
 	s.progressAt = time.Now()
 	s.mu.Unlock()
+	before := s.store.reach()
 	o, err := s.pass()
+	var gap *gapReport
+	if err == nil && s.notifier != nil {
+		gap = s.gapSince(before, time.Now(), o)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.running = false
@@ -603,9 +615,11 @@ func (s *sentinel) run() {
 		return
 	}
 	if s.notifier != nil {
+		if gap != nil {
+			s.notifier.gap(gap.Gap, gap.Alerts, o.Rules.Notify, gap.Capped, time.Now())
+		}
 		s.notifier.observe(o, time.Now())
-		o.Notices = s.notifier.recent(20)
-		o.Unsent = s.notifier.unsent()
+		s.decorate(o)
 	}
 	s.last, s.err = o, ""
 	s.saveLast(o)
@@ -613,6 +627,76 @@ func (s *sentinel) run() {
 		s.daysAt = time.Now()
 		go s.writeDays(o.Rules)
 	}
+}
+
+// decorate: lo del avisador que va en la vista (avisos, pendientes, tramos sin mirar y lo reconocido). Con s.mu tomado
+// o sobre una vista que todavía no se publicó.
+func (s *sentinel) decorate(o *Overview) {
+	o.Notices = s.notifier.recent(20)
+	o.Unsent = s.notifier.unsent()
+	now := time.Now().In(bogota)
+	o.Gaps = s.notifier.gaps(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -1))
+	acked := s.notifier.acked()
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps} {
+		for i := range *list {
+			(*list)[i].Acked = acked[(*list)[i].Signal]
+		}
+	}
+}
+
+// decorateLast: vuelve a poner lo del avisador sobre la última vista (después de reconocer, sin esperar la pasada).
+func (s *sentinel) decorateLast() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.last != nil && s.notifier != nil {
+		s.decorate(s.last)
+	}
+}
+
+// gapReport: un tramo sin mirar y lo que pasó a alerta en él.
+type gapReport struct {
+	Gap
+	Alerts []GapAlert
+	Capped bool // el tramo era más largo que gapReplayMax y se repasó sólo el final
+}
+
+// gapReplayMax: hasta cuánto hacia atrás se repasa un tramo sin mirar (repasar es evaluar cada señal cada 10 min).
+const gapReplayMax = 72 * time.Hour
+
+// gapSince: si lo guardado llegaba hasta `before` y ahora es `now`, ¿Sentinel dejó de mirar más de `staleMinutes`? Se
+// mide por RELOJ: con el Mac dormido no hay pasadas que fallen, y el aviso de «no puede leer» no salía nunca. Si hubo
+// hueco, repasa el tramo (ya relleno por esta pasada) y dice qué pasó a alerta. Sin historia (la primera carga), nada.
+func (s *sentinel) gapSince(before, now time.Time, o *Overview) *gapReport {
+	stale := time.Duration(max(o.Rules.Notify.StaleMinutes, 1)) * time.Minute
+	if before.IsZero() || now.Sub(before) < stale {
+		return nil
+	}
+	r := &gapReport{Gap: Gap{From: before.In(bogota).Format(time.RFC3339), To: now.In(bogota).Format(time.RFC3339)}}
+	from := before
+	if now.Sub(from) > gapReplayMax {
+		from, r.Capped = now.Add(-gapReplayMax), true
+	}
+	names := map[Signal]string{}
+	for _, list := range [][]Subject{{o.All}, o.Lenders, o.Merchants, o.Services, o.Liveness, o.LenderErrors, o.Steps} {
+		for _, x := range list {
+			names[x.Signal] = x.Name
+		}
+	}
+	for sig, steps := range s.evaluator(o.Rules).replayRange(from, now) {
+		prev := levelOK
+		for _, st := range steps {
+			if st.Level == levelAlert && prev < levelAlert {
+				name := names[sig]
+				if name == "" {
+					name = sig
+				}
+				r.Alerts = append(r.Alerts, GapAlert{Signal: sig, Name: name, At: st.At})
+			}
+			prev = st.Level
+		}
+	}
+	sort.Slice(r.Alerts, func(i, j int) bool { return r.Alerts[i].At.Before(r.Alerts[j].At) })
+	return r
 }
 
 // EL PERRO GUARDIÁN. El lazo llama a `run` de corrido: si una pasada se cuelga (una consulta que no vuelve, un proceso
@@ -747,7 +831,9 @@ func main() {
 	install := flag.Bool("install", false, "la deja corriendo de fondo como LaunchAgent (desde el binario compilado)")
 	uninstall := flag.Bool("uninstall", false, "saca el LaunchAgent (lo guardado se queda)")
 	status := flag.Bool("status", false, "¿el LaunchAgent está cargado, y hasta dónde llegó lo guardado?")
-	backtest := flag.Int("backtest", 0, "cuántas veces habrían sonado las reglas en los últimos N días, y sale")
+	backtest := flag.Int("backtest", 0, "cuántas veces habrían sonado las reglas en los últimos N días, y sale (lee lo guardado)")
+	fresh := flag.Bool("fresh", false, "con -backtest: antes, una pasada contra producción (lo de los últimos minutos; tarda y pide la VPN)")
+	only := flag.String("signals", "", "con -backtest: sólo estas señales, separadas por coma; acepta * («service:*,logs:*,lender:24»)")
 	flag.Parse()
 	root, err := os.Getwd()
 	if err != nil {
@@ -785,13 +871,20 @@ func main() {
 		return
 	}
 
+	// El backtest lee lo guardado, como la consola: antes hacía una pasada entera contra producción (Redash, Loki,
+	// PostHog y GitHub) y pasaba de 10 minutos. Con -fresh, la hace igual.
+	if *backtest > 0 && !*fresh {
+		s.loadLast() // los despliegues de la última pasada (la sensibilidad de después de un despliegue)
+		printBacktest(s, *backtest, splitPatterns(*only))
+		return
+	}
 	if *once || *backtest > 0 {
 		o, err := s.pass()
 		if err != nil {
 			log.Fatal(err)
 		}
 		if *backtest > 0 {
-			printBacktest(s, *backtest)
+			printBacktest(s, *backtest, splitPatterns(*only))
 		} else {
 			printSummary(o)
 		}
@@ -849,6 +942,28 @@ func main() {
 		}
 		writeJSON(w, http.StatusOK, s.view())
 	})
+	// Reconocer un episodio (alerts.go): POST {"signal":"logs:kyc-gateway-service"} lo pasa a «Conocidos»; DELETE
+	// ?signal=… lo devuelve. Contestan la vista entera, ya con la marca.
+	mux.HandleFunc("POST /api/ack", func(w http.ResponseWriter, r *http.Request) {
+		var body struct {
+			Signal Signal `json:"signal"`
+		}
+		if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 4096)).Decode(&body); err != nil || body.Signal == "" {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "falta {\"signal\": \"<señal>\"}"})
+			return
+		}
+		if err := s.notifier.ack(body.Signal, time.Now()); err != nil {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
+			return
+		}
+		s.decorateLast()
+		writeJSON(w, http.StatusOK, s.view())
+	})
+	mux.HandleFunc("DELETE /api/ack", func(w http.ResponseWriter, r *http.Request) {
+		s.notifier.clearAck(Signal(r.URL.Query().Get("signal")))
+		s.decorateLast()
+		writeJSON(w, http.StatusOK, s.view())
+	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		go s.run()
 		writeJSON(w, http.StatusOK, s.view())
@@ -893,12 +1008,25 @@ func printSummary(o *Overview) {
 	}
 }
 
-func printBacktest(s *sentinel, days int) {
+func splitPatterns(raw string) []string {
+	var out []string
+	for _, p := range strings.Split(raw, ",") {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+func printBacktest(s *sentinel, days int, patterns []string) {
 	rules, err := loadRules(s.rulesPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	eps := s.evaluator(rules).backtest(days, time.Now().In(bogota))
+	began := time.Now()
+	e := s.evaluator(rules).only(patterns)
+	replayed := e.replay(days, time.Now().In(bogota))
+	eps := episodesOf(replayed)
 	alerts, warns := 0, 0
 	bySignal := map[Signal][2]int{}
 	for _, e := range eps {
@@ -923,7 +1051,7 @@ func printBacktest(s *sentinel, days int) {
 	for _, sig := range sigs {
 		fmt.Printf("  %-26s %3d alertas · %3d para mirar\n", sig, bySignal[sig][0], bySignal[sig][1])
 	}
-	notices := replayNotices(s.evaluator(rules), days, time.Now().In(bogota), s.follow.has)
+	notices := noticesOf(rules, replayed, s.follow.has)
 	byLevel := map[string]int{}
 	for _, x := range notices {
 		byLevel[x.Level]++
@@ -939,4 +1067,5 @@ func printBacktest(s *sentinel, days int) {
 			fmt.Printf("  %s  %-26s %s\n", e.Start[:16], e.Signal, e.Why)
 		}
 	}
+	fmt.Printf("(%d señales en %s)\n", len(e.data), time.Since(began).Round(100*time.Millisecond))
 }
