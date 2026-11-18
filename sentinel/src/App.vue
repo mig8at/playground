@@ -834,7 +834,6 @@ onBeforeUnmount(() => {
             <span class="attention-name"><i class="dot" :class="`is-${m.state}`" aria-hidden="true"></i>{{ m.message?.service }} · {{ m.message?.count }} {{ m.message?.count === 1 ? 'vez' : 'veces' }}</span>
             <small class="row-desc msg-text">{{ m.message?.text }}</small>
             <small class="row-desc">desde {{ dayClock(m.message?.first) }}</small>
-            <small v-if="m.message?.source" class="row-desc msg-source" :title="'Dónde lo escribe el código, en main'">{{ m.message.source }}</small>
           </button>
         </template>
 
@@ -1011,7 +1010,6 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .examples code { margin-left: auto; font-size: 11px; color: var(--muted-foreground); user-select: all }
 .rules-box tr.is-up td { color: var(--sentinel-alert) }
 .rules-box th:first-child { text-align: left }
-.msg-source { font-family: var(--font-mono, monospace); font-size: 11px; word-break: break-all }
 .chart .policy-mark line { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 1 3 }
 .chart .policy-mark text { fill: var(--primary); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }

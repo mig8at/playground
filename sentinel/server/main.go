@@ -693,11 +693,6 @@ func (s *sentinel) run() {
 			o.MessagesNote = s.msgs.status()
 		}
 		o.NewMessages = s.msgs.subjects(time.Now())
-		for _, subj := range o.NewMessages {
-			if m := subj.Message; m != nil {
-				m.Source = s.sourceOf(m.Service, m.Sample)
-			}
-		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()

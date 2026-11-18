@@ -148,7 +148,7 @@ siempre; ahora la nota dice si falló. Medido el 18/11/2026: 187 mensajes distin
 pasada la siembra 0 o 1 por día se repiten 10 veces; el 16/11 fueron 6, entre ellos un `Connection refused` contra la
 base de producción (55 veces).
 
-## De la señal al caso (`server/examples.go`, `server/source.go`)
+## De la señal al caso (`server/examples.go`)
 
 Lo que hace tracer (la herramienta del repo compartido para seguir UNA solicitud) puesto al lado de cada señal, a pedido
 (no en cada pasada: cada uno es una consulta):
@@ -164,12 +164,6 @@ Lo que hace tracer (la herramienta del repo compartido para seguir UNA solicitud
   anteriores, de la que más subió a la que menos. Las reglas se copian a cada sucursal con otro id: se agrupan por lo que
   dicen. ⚠ El perfilador de varias entidades CreditopX no deja la regla por regla: ahí viene vacío. Medido el 18/11/2026
   con 120 h: en CrediPullman «ingresos mensuales» pasó de 2,4 % a 10,3 % y «ocupación» de 1,7 % a 6,9 %.
-- **De qué archivo sale un error nuevo** (`message.source` en los «Errores que no estaban»): el texto fijo del mensaje
-  (el comienzo hasta lo primero variable, acortado palabra por palabra, y los tramos fijos más largos) buscado con
-  `git grep -F` en el `main` de los clones sólo-main (`connectors/repos`), en el repo del servicio y en los dos
-  monolitos; sin pruebas ni comentarios. tracer trae un índice de mensajes embebido con su fecha (el que hay es de
-  septiembre): un índice viejo no falla, deja de encontrar; buscar en `main` no envejece. Se busca una vez por mensaje y
-  proceso. Un mensaje de la librería estándar (un timeout de `net/http`) no tiene archivo, y está bien.
 
 ## Las pantallas del wizard (`server/steps.go`, PostHog)
 
@@ -292,7 +286,7 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | las pantallas del wizard (PostHog) | `server/steps.go` |
 | los proveedores externos (`out:`) | `server/outbound.go` |
 | los errores que no estaban (`newmsg:`) | `server/messages.go` |
-| casos de ejemplo, qué regla rechaza y de qué archivo sale un error | `server/examples.go`, `server/source.go` |
+| casos de ejemplo y qué regla rechaza | `server/examples.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
