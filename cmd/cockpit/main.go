@@ -25,6 +25,7 @@ import (
 	"strings"
 	"time"
 
+	"creditop/my-tools/keyring/check"
 	"creditop/my-tools/lib/cockpit"
 )
 
@@ -39,6 +40,9 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
 
   bin/cockpit status [--json]       qué apps hay, cuáles están arriba y cuál está al frente
   bin/cockpit open <app> [ruta]     trae una app al frente, en una ruta: #/tareas/core-543 · /local/motai/asesor
+  bin/cockpit doctor [--json] [--all]   ¿qué puedo usar ahora? Red, AWS, sesiones (playground, gh, asesores), el modelo
+                                    de fondo, Cockpit y sus apps, y los servicios de fondo, en ~3 s. --all suma bases,
+                                    logs, eventos y servicios (lo de make keyring). Sale 1 si algo falla
   bin/cockpit ensure <app>          que esté arriba, sin traerla al frente (vuelve cuando contesta; sale 1 si no levantó)
   bin/cockpit restart <app> [--wait]  la reinicia para que tome un cambio en su servidor; Cockpit la recarga sola.
                                     --wait: vuelve cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
@@ -52,6 +56,10 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 	// logs no pasa por Cockpit: lee el archivo, así sirve también con Cockpit cerrado o con la app caída.
 	if args[0] == "logs" {
 		return logs(args[1:])
+	}
+	// doctor tampoco pasa por Cockpit: dice también si está cerrado.
+	if args[0] == "doctor" {
+		return doctor(args[1:])
 	}
 	// Una app que corre DE FONDO no la reinicia Cockpit (no es suya): se recompila y se recarga su LaunchAgent. Sirve
 	// también con Cockpit cerrado.
@@ -313,4 +321,64 @@ func (b backgroundApp) reinstall(app string) int {
 	}
 	fmt.Fprintf(os.Stderr, "cockpit: %s no levantó en 90 s (su log: bin/cockpit logs %s)\n", app, app)
 	return 1
+}
+
+// doctor: «¿qué puedo usar ahora?», para un agente antes de empezar. Son las sondas rápidas del llavero (keyring/check):
+// no es otra herramienta, es su entrada corta. Dice sólo lo que hay que saber: una línea por fila, y sale 1 si algo
+// falla.
+func doctor(args []string) int {
+	asJSON, all := false, false
+	for _, a := range args {
+		switch a {
+		case "--json":
+			asJSON = true
+		case "--all":
+			all = true
+		}
+	}
+	// Las sondas buscan connectors/ desde donde se corre: se corre desde la raíz de my-tools.
+	if root := os.Getenv("MY_TOOLS_ROOT"); root != "" {
+		_ = os.Chdir(root)
+	}
+	groups := check.Quick
+	if all {
+		groups = check.Groups
+	}
+	rows := check.Run(check.Select(groups), 12*time.Second)
+	failed := 0
+	for _, r := range rows {
+		if r.State == check.Fail {
+			failed++
+		}
+	}
+	if asJSON {
+		_ = json.NewEncoder(os.Stdout).Encode(map[string]any{"ok": failed == 0, "failed": failed, "checks": rows})
+	} else {
+		group := ""
+		for _, g := range check.Groups {
+			for _, r := range rows {
+				if r.Group != g {
+					continue
+				}
+				if group != g {
+					group = g
+					fmt.Printf("\n  %s\n", strings.ToUpper(check.GroupLabel[g]))
+				}
+				line := fmt.Sprintf("    %s %-18s %s", check.Mark(r.State), r.Name, r.Detail)
+				if r.Expires != nil {
+					line += " · " + check.UntilText(*r.Expires)
+				}
+				fmt.Println(line)
+			}
+		}
+		if failed > 0 {
+			fmt.Printf("\n  %d con falla: lo que dependa de eso no va a andar.\n", failed)
+		} else {
+			fmt.Println("\n  Todo lo necesario está disponible.")
+		}
+	}
+	if failed > 0 {
+		return 1
+	}
+	return 0
 }

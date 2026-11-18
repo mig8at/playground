@@ -50,18 +50,18 @@ type Probe struct {
 }
 
 // Groups es el orden en que se muestran los grupos: primero lo que condiciona al resto.
-var Groups = []string{"network", "aws", "databases", "logs", "events", "services", "sessions", "background"}
+var Groups = []string{"network", "aws", "databases", "logs", "events", "services", "sessions", "agent", "background"}
 
 // GroupLabel es cómo se muestra cada grupo.
 var GroupLabel = map[string]string{
 	"network": "red", "aws": "aws", "databases": "bases", "logs": "logs",
 	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor",
-	"background": "de fondo",
+	"background": "de fondo", "agent": "para agentes",
 }
 
 // Quick son los grupos que contestan en un par de segundos sin tocar la red de nadie más que la propia:
 // los que el arranque de sesión se puede permitir esperar.
-var Quick = []string{"network", "aws", "sessions", "background"}
+var Quick = []string{"network", "aws", "sessions", "agent", "background"}
 
 // soon es desde cuándo un vencimiento se marca como aviso.
 const soon = time.Hour
@@ -106,6 +106,7 @@ func allProbes() []Probe {
 		Probe{"services", one(probeGemini)},
 		Probe{"services", one(probeJev)},
 		Probe{"sessions", probeSessions},
+		Probe{"agent", probeAgent},
 		Probe{"background", probeBackground},
 	)
 }

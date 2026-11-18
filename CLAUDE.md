@@ -74,6 +74,8 @@ en cualquier tarea:
   harness, escribir en una tarea) trae su app al frente en esa ruta. `bin/cockpit say "…"` es para la intención y
   las conclusiones; `bin/cockpit open <app> [ruta]`, para llevarlo a un lugar; `bin/cockpit logs <app> [--errors]`, para ver por qué una app se portó raro; `bin/cockpit restart <app> --wait`, para que
   una app tome un cambio en su servidor (vuelve cuando contesta de nuevo) (una que se cae vuelve sola). Sin Cockpit abierto, nada de esto bloquea.
+- **¿Qué puedo usar ahora?** `bin/cockpit doctor` (~4 s, `--json`): red, AWS, las sesiones (playground, `gh`), el
+  modelo de fondo, las apps y los servicios de fondo. Antes de un trabajo largo, miralo.
 - **Una app apagada u oculta no te frena**: `bin/wally` y `bin/jarvis` levantan la suya solos; para otra,
   `bin/cockpit ensure <app>` (no la trae al frente).
 - **Antes de levantar un servidor, mirá si ya está arriba**: `bin/cockpit status`, o el aviso COCKPIT de este

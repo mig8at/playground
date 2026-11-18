@@ -69,6 +69,10 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
     bin/cockpit status [--json]        qué apps hay, cuáles están arriba y cuál está al frente
     bin/cockpit open <app> [ruta]      trae una app al frente, en una ruta
+    bin/cockpit doctor [--json] [--all] ¿qué puedo usar AHORA? En ~4 s: red, AWS, sesiones (playground, gh, asesores de
+                                       prueba), el modelo de fondo, Cockpit y sus apps, y los servicios de fondo.
+                                       Sirve con Cockpit cerrado; sale 1 si algo falla. Son las sondas rápidas del
+                                       llavero (`keyring/check`, grupo `agent` incluido); `--all` es `make keyring`
     bin/cockpit ensure <app>           que esté arriba, SIN traerla al frente ni tocar una que ya anda; vuelve cuando
                                        contesta (hasta 90 s; sale 1 si no levantó). Lo llaman solos bin/wally y bin/jarvis
     bin/cockpit restart <app> [--wait] la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga;
