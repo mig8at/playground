@@ -6,7 +6,7 @@ package main
 // la miran (`GET /api/live`) y la frenan (`…/auto/stop`), y no depende de ninguna de las dos.
 //
 // El ciclo: preguntar → correr los comandos que pidió (los de la lista blanca, como siempre) → mandarle los resultados
-// → … hasta que contesta sin pedir nada. Ahí actúa el freno (sandboxPending): si escribió en pruebas/ sin comprobar, o
+// → … hasta que contesta sin pedir nada. Ahí actúa el freno (sandboxPending): si escribió en sandbox/ sin comprobar, o
 // la última comprobación dejó algo en rojo, se le dice «todavía no terminaste» (hasta 3 veces). Tope de vueltas. Al
 // terminar, finishRun: el aviso de macOS y el «sin ver».
 
@@ -310,7 +310,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 		last := conv.Messages[len(conv.Messages)-1]
 		var proposed []Command
 		for _, k := range last.Commands {
-			if k.Status == "propuesto" {
+			if k.Status == "proposed" {
 				proposed = append(proposed, k)
 			}
 		}
@@ -330,7 +330,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 				a.autoSet(st, func(s *autoState) { s.Doing = "un revisor compara lo pedido con los criterios" })
 				mode := conv.Mode
 				if mode == "" {
-					mode = "asistente"
+					mode = "assistant"
 				}
 				v, err := a.reviewCriteria(ctx, conv, from, project, a.providerSummarizer(a.config.get().providerForConversation(provider, mode, conv.Agent)))
 				if err != nil {
@@ -341,7 +341,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 					return
 				}
 				if reviews >= maxReviews {
-					stopped = "cerró con huecos que vio el revisor: " + strings.Join(append(append([]string{}, v.Faltan...), v.Debiles...), " · ")
+					stopped = "cerró con huecos que vio el revisor: " + strings.Join(append(append([]string{}, v.Missing...), v.Weak...), " · ")
 					return
 				}
 				if st.Round >= st.Max {
@@ -394,7 +394,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 			for _, m := range c2.Messages {
 				for _, x := range m.Commands {
 					if x.ID == k.ID {
-						if x.Status == "corrido" {
+						if x.Status == "ran" {
 							ran = append(ran, k.Cmd)
 						} else {
 							refused = append(refused, k.Cmd)
@@ -404,7 +404,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 			}
 		}
 		for _, k := range last.Commands {
-			if k.Status == "no-permitido" {
+			if k.Status == "not-allowed" {
 				refused = append(refused, k.Cmd)
 			}
 		}

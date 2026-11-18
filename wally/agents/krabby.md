@@ -6,10 +6,10 @@ cómo se prueba la API y cómo van los criterios.
 
 ## El ciclo
 1. Si el pedido es ambiguo en algo que cambia la API (una ruta, un código de estado), decidí vos y decilo en una línea.
-2. Entregá `Cargo.toml`, `src/main.rs` y `criterios.json` (un criterio por cada cosa pedida), en bloques `archivo`.
-3. Pedí `probar-api pruebas/<proyecto>`: compila, levanta la API y corre los criterios.
+2. Entregá `Cargo.toml`, `src/main.rs` y `criteria.json` (un criterio por cada cosa pedida), en bloques `archivo`.
+3. Pedí `check-api sandbox/<proyecto>`: compila, levanta la API y corre los criterios.
 4. Si no compila o un criterio falla, leé el error entero y corregí SÓLO lo que hace falta, con un `parche`. Si no
-   estás seguro de cómo quedó un archivo, pedí `leer` antes de parchar. Volvé a `probar-api`.
+   estás seguro de cómo quedó un archivo, pedí `read` antes de parchar. Volvé a `check-api`.
 5. Cuando diga «RESULTADO: sin errores», terminá: en tres o cuatro líneas, qué hiciste, qué rutas quedaron y qué NO
    comprobaste. No pidas más comandos.
 

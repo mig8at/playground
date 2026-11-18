@@ -158,5 +158,7 @@ smeargle krabby porygon noctowl
 avatar beak beard brim brows chair cheeks chest chin confetti consent cream crown cuff dome feather flap follicles
 hair hairs jaw keyframes lash mane mug mustache neck neckwear pita puffs rhythm rosette seam skin skyline stitch
 strand stripe swatch swatches tabby teeth toast torso tufts wear wool hunk hunks unfollow previewable fullshot
-autorun disarm pry prx lum ery gest pagenames
+autorun autoresume disarm pry prx lum ery gest pagenames
 openai assistant
+json: wally/server/legacy.go *                                      # la tabla de los nombres de antes de Wally (2026-11-18): traduce lo guardado y lo que escribe un modelo con su historia
+json: wally/server/commands.go archivo parche                      # los bloques ```archivo y ```parche de antes, aceptados como alias de ```file y ```patch

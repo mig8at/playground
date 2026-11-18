@@ -6,7 +6,7 @@ package main
 //   - no tiene red (`--network none`): por eso la imagen trae un conjunto FIJO de bibliotecas ya compiladas;
 //   - ve SÓLO la carpeta del proyecto (/work) y un volumen propio para lo compilado (/target);
 //   - tiene tope de memoria, de procesos y de tiempo, sin privilegios nuevos.
-// Los comandos: `compilar`, `testear` y `probar-api pruebas/<proyecto>`.
+// Los comandos: `compilar`, `testear` y `check-api sandbox/<proyecto>`.
 
 import (
 	"bytes"
@@ -27,7 +27,7 @@ const (
 )
 
 var (
-	rustProject = regexp.MustCompile(`^pruebas/([a-z0-9][a-z0-9_-]{0,40})$`)
+	rustProject = regexp.MustCompile(`^sandbox/([a-z0-9][a-z0-9_-]{0,40})$`)
 	cargoNoise  = regexp.MustCompile(`^\s*(Compiling|Downloaded|Downloading|Locking|Adding|Updating|Blocking|Fresh)\b`)
 )
 
@@ -49,7 +49,7 @@ func dockerBin() (string, error) {
 func (a *app) runRust(ctx context.Context, target, mode string) (string, int, error) {
 	m := rustProject.FindStringSubmatch(target)
 	if m == nil {
-		return "va el proyecto, sin archivos: " + mode + " pruebas/<proyecto>", 1, nil
+		return "va el proyecto, sin archivos: " + mode + " sandbox/<proyecto>", 1, nil
 	}
 	project := m[1]
 	dir, err := a.sandboxAbs(project)
@@ -57,16 +57,16 @@ func (a *app) runRust(ctx context.Context, target, mode string) (string, int, er
 		return "", -1, err
 	}
 	if _, err := os.Stat(filepath.Join(dir, "Cargo.toml")); err != nil {
-		return fmt.Sprintf("pruebas/%s no tiene Cargo.toml: no es un proyecto de Rust (escribí primero Cargo.toml y src/main.rs)", project), 1, nil
+		return fmt.Sprintf("sandbox/%s no tiene Cargo.toml: no es un proyecto de Rust (escribí primero Cargo.toml y src/main.rs)", project), 1, nil
 	}
 	var inner []string
 	switch mode {
-	case "compilar":
+	case "build":
 		inner = []string{"cargo", "build", "--offline", "--color", "never"}
-	case "testear":
+	case "test":
 		inner = []string{"cargo", "test", "--offline", "--color", "never"}
-	case "probar-api":
-		inner = []string{"probar-api"}
+	case "check-api":
+		inner = []string{"check-api"}
 	default:
 		return "", -1, fmt.Errorf("modo desconocido: %s", mode)
 	}
@@ -75,7 +75,7 @@ func (a *app) runRust(ctx context.Context, target, mode string) (string, int, er
 		return raw, 1, err
 	}
 	text := ansi.ReplaceAllString(raw, "")
-	if mode != "probar-api" {
+	if mode != "check-api" {
 		var keep []string
 		for _, l := range strings.Split(text, "\n") {
 			if !cargoNoise.MatchString(l) {
@@ -84,9 +84,9 @@ func (a *app) runRust(ctx context.Context, target, mode string) (string, int, er
 		}
 		text = lastLines(strings.Join(keep, "\n"), 140)
 		if exit == 0 {
-			text = strings.TrimSpace(text) + "\n\nRESULTADO: " + map[string]string{"compilar": "compila.", "testear": "los tests pasan."}[mode]
+			text = strings.TrimSpace(text) + "\n\nRESULTADO: " + map[string]string{"build": "compila.", "test": "los tests pasan."}[mode]
 		} else {
-			text = strings.TrimSpace(text) + "\n\nRESULTADO: " + map[string]string{"compilar": "NO compila: corregí los errores de arriba.", "testear": "hay tests que fallan (o no compila): corregí lo de arriba."}[mode]
+			text = strings.TrimSpace(text) + "\n\nRESULTADO: " + map[string]string{"build": "NO compila: corregí los errores de arriba.", "test": "hay tests que fallan (o no compila): corregí lo de arriba."}[mode]
 		}
 	}
 	return text, exit, nil
@@ -100,7 +100,7 @@ func lastLines(s string, n int) string {
 	return strings.Join(lines, "\n")
 }
 
-// checkTextReport arma, de la salida de `probar-api`, el resumen en datos para la tarjeta (los ✓ y ✗ de sus criterios).
+// checkTextReport arma, de la salida de `check-api`, el resumen en datos para la tarjeta (los ✓ y ✗ de sus criterios).
 func checkTextReport(text string) *checkReport {
 	r := &checkReport{}
 	for _, l := range strings.Split(text, "\n") {
@@ -172,21 +172,21 @@ func (a *app) runInContainer(ctx context.Context, project, dir string, inner []s
 
 const consoleTimeout = 5 * time.Minute
 
-// runConsole: `consola pruebas/<proyecto> <comando>` — la terminal del agente (2026-11-17, Miguel: «que lo pruebe
+// runConsole: `consola sandbox/<proyecto> <comando>` — la terminal del agente (2026-11-17, Miguel: «que lo pruebe
 // usando comandos de consola»). Corre CUALQUIER comando, pero dentro del contenedor del proyecto: lo peor que puede
 // romper es su propio proyecto, que ya puede editar. El comando viaja como UN argumento a `bash -c` del contenedor:
 // en la Mac no pasa por ningún shell.
 func (a *app) runConsole(ctx context.Context, target, command string) (string, int, error) {
 	m := rustProject.FindStringSubmatch(target)
 	if m == nil {
-		return "va el proyecto y después el comando: consola pruebas/<proyecto> <comando>", 1, nil
+		return "va el proyecto y después el comando: consola sandbox/<proyecto> <comando>", 1, nil
 	}
 	dir, err := a.sandboxAbs(m[1])
 	if err != nil {
 		return "", -1, err
 	}
 	if st, err := os.Stat(dir); err != nil || !st.IsDir() {
-		return fmt.Sprintf("no existe el proyecto pruebas/%s (listar pruebas dice qué hay)", m[1]), 1, nil
+		return fmt.Sprintf("no existe el proyecto sandbox/%s (listar pruebas dice qué hay)", m[1]), 1, nil
 	}
 	raw, exit, err := a.runInContainer(ctx, m[1], dir, []string{"bash", "-c", command}, consoleTimeout, "el comando")
 	if err != nil {

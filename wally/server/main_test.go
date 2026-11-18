@@ -160,10 +160,10 @@ func TestAFileTravelsInTheQuestionAndGoesAwayWithItsBlock(t *testing.T) {
 		t.Errorf("el archivo de una pregunta anterior tiene que seguir viajando:\n%s", follow)
 	}
 
-	del := httptest.NewRecorder()
-	mux.ServeHTTP(del, httptest.NewRequest("DELETE", "/api/conversations/c1/messages/u1", nil))
-	if del.Code != 200 {
-		t.Fatalf("borrar el bloque: %d", del.Code)
+	deleted := httptest.NewRecorder()
+	mux.ServeHTTP(deleted, httptest.NewRequest("DELETE", "/api/conversations/c1/messages/u1", nil))
+	if deleted.Code != 200 {
+		t.Fatalf("borrar el bloque: %d", deleted.Code)
 	}
 	if _, err := os.Stat(filepath.Join(a.filesDir(), att.ID+".txt")); !os.IsNotExist(err) {
 		t.Error("el archivo tenía que borrarse con su bloque")
@@ -179,7 +179,7 @@ func TestProviderChatContinuesOnlyWithTheSameBlocks(t *testing.T) {
 	out := &Attachment{ID: "o1", Name: "salida: trampas", Kind: "salida"}
 	history := []Message{
 		{ID: "u1", Role: "user", Text: "hola"},
-		{ID: "m1", Role: "model", Text: "pido", Commands: []Command{{Cmd: "trampas", Status: "corrido", Output: out}, {Cmd: "rm -rf", Status: "no-permitido"}}},
+		{ID: "m1", Role: "model", Text: "pido", Commands: []Command{{Cmd: "traps", Status: "ran", Output: out}, {Cmd: "rm -rf", Status: "not-allowed"}}},
 	}
 	pc := &ProviderChat{URL: "https://x/1", Base: "b", Sent: []string{"u1", "m1"}}
 	if !pc.canContinue("b", history) {

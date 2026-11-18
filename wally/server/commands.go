@@ -31,12 +31,12 @@ import (
 type Command struct {
 	ID     string      `json:"id"`
 	Cmd    string      `json:"cmd"`
-	Status string      `json:"status"`           // propuesto · corriendo · corrido · descartado · no-permitido
+	Status string      `json:"status"`           // propuesto · corriendo · corrido · descartado · not-allowed
 	Reason string      `json:"reason,omitempty"` // por qué no está permitido, o el error al correrlo
 	Exit   int         `json:"exit,omitempty"`
 	Ms     int64       `json:"ms,omitempty"`
 	Output *Attachment `json:"output,omitempty"` // la salida, como un archivo: viaja con la próxima pregunta
-	// Content: el archivo que entregó el modelo en un bloque ```archivo (sandbox.go): «correrlo» es guardarlo.
+	// Content: el archivo que entregó el modelo en un bloque ```file (sandbox.go): «correrlo» es guardarlo.
 	Content string `json:"content,omitempty"`
 	// Change: qué cambió al escribir o parchar (el diff y las cuentas); Report: el resultado de `probar` en datos
 	// (errores y criterios). Los dos son para la tarjeta de la interfaz: al modelo le llega el texto de Output.
@@ -63,14 +63,14 @@ var guides = map[string]string{
 	"jarvis": "jarvis/CLAUDE.md", "cockpit": "cockpit/CLAUDE.md", "correo": "correo/CLAUDE.md", "harness": "harness/CLAUDE.md",
 	"tablero": "tablero/CLAUDE.md", "knowledge": "knowledge/CLAUDE.md", "goldfish": "goldfish/CLAUDE.md",
 	"sentinel": "sentinel/CLAUDE.md", "chat": "chat/CLAUDE.md", "office": "office/CLAUDE.md", "wally": "wally/CLAUDE.md",
-	"conectores": "connectors/CLAUDE.md", "estilo": "tools/ui/CLAUDE.md", "visor": "visor/CLAUDE.md", "herramientas": "tools/CLAUDE.md",
+	"connectors": "connectors/CLAUDE.md", "style": "tools/ui/CLAUDE.md", "visor": "visor/CLAUDE.md", "tools": "tools/CLAUDE.md",
 }
 
 const trapsFile = "tablero/data/traps/doc.md"
 
 var allowList = []allowed{
 	// Las habilidades (skills.go): el índice, o una entera con sus comandos. Es lo primero que pide el modelo.
-	{regexp.MustCompile(`^ayuda(?: ([a-z][a-z0-9-]{1,30}))?$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^help(?: ([a-z][a-z0-9-]{1,30}))?$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.skillHelp(m[1])
 	}},
 	{regexp.MustCompile(`^make knowledge-map$`), makeRun("knowledge-map")},
@@ -84,7 +84,7 @@ var allowList = []allowed{
 		}},
 	{regexp.MustCompile(`^make tareas$`), makeRun("tareas")},
 	// El catálogo de make: `make` sin argumentos sólo lista. Con una palabra, sus líneas (y la del grupo).
-	{regexp.MustCompile(`^comandos(?: ([\p{L}0-9-]{2,40}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^commands(?: ([\p{L}0-9-]{2,40}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		out, exit, err := a.runMake(ctx)
 		if err != nil || m[1] == "" {
 			return out, exit, err
@@ -101,15 +101,15 @@ var allowList = []allowed{
 		}
 		return strings.Join(keep, "\n"), 0, nil
 	}},
-	{regexp.MustCompile(`^trampas$`), func(_ context.Context, a *app, _ []string) (string, int, error) {
+	{regexp.MustCompile(`^traps$`), func(_ context.Context, a *app, _ []string) (string, int, error) {
 		return a.section(trapsFile, "## Índice · ¿con qué síntoma llegás?", "\n## ")
 	}},
-	{regexp.MustCompile(`^trampa (F-[0-9]{1,4})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^trap (F-[0-9]{1,4})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.section(trapsFile, "### "+m[1]+" ", "\n### F-", "\n## ")
 	}},
 	// Una tarea del tablero: SÓLO su task.md (el plan y sus criterios), por número o por slug. Nunca su pila
 	// (context.jsonl) ni sus artifacts: traen mediciones de los ambientes, y lo que lee Wally viaja al proveedor.
-	{regexp.MustCompile(`^tarea ([0-9]{1,5}|[a-z0-9][a-z0-9-]{1,100})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^task ([0-9]{1,5}|[a-z0-9][a-z0-9-]{1,100})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		return a.readTask(m[1])
 	}},
 	// Sentinel, el vigía de producción: sólo sus resúmenes AGREGADOS (conteos, porcentajes, despliegues), que lee de
@@ -131,50 +131,50 @@ var allowList = []allowed{
 		return a.runSentinel(ctx, "deploy", m[1], m[2])
 	}},
 	// La carpeta de pruebas (sandbox.go): lo único que un agente escribe. «escribir» no se pide como comando: sale de
-	// un bloque ```archivo, y su contenido viaja en el Command (decideCommand lo guarda).
-	{regexp.MustCompile(`^escribir (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
-		return "para escribir, entregá el archivo en un bloque ```archivo " + m[1] + " … ```", 1, nil
+	// un bloque ```file, y su contenido viaja en el Command (decideCommand lo guarda).
+	{regexp.MustCompile(`^write (sandbox/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
+		return "para escribir, entregá el archivo en un bloque ```file " + m[1] + " … ```", 1, nil
 	}},
-	{regexp.MustCompile(`^parchar (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
-		return "para parchar, entregá los cambios en un bloque ```parche " + m[1] + " … ```", 1, nil
+	{regexp.MustCompile(`^patch (sandbox/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
+		return "para parchar, entregá los cambios en un bloque ```patch " + m[1] + " … ```", 1, nil
 	}},
 	// Rust (rust.go): compilar, testear y probar una API, DENTRO de un contenedor sin red que sólo ve el proyecto.
-	{regexp.MustCompile(`^(compilar|testear|probar-api) (pruebas/[a-z0-9][a-z0-9_-]{0,40})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^(build|test|check-api) (sandbox/[a-z0-9][a-z0-9_-]{0,40})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		return a.runRust(ctx, m[2], m[1])
 	}},
 	// La consola del agente (rust.go): cualquier comando, pero DENTRO del contenedor de su proyecto. Acá el texto no
 	// se restringe —adentro no hay red ni nada de la Mac salvo el proyecto—; lo que se valida es dónde corre.
-	{regexp.MustCompile(`^consola (pruebas/[a-z0-9][a-z0-9_-]{0,40}) (.+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^console (sandbox/[a-z0-9][a-z0-9_-]{0,40}) (.+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		if len(m[2]) > 2000 {
 			return "el comando pasa de 2.000 caracteres: partilo en varios", 1, nil
 		}
 		return a.runConsole(ctx, m[1], m[2])
 	}},
-	{regexp.MustCompile(`^listar (pruebas(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
-		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "pruebas"), "/"))
+	{regexp.MustCompile(`^list (sandbox(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "sandbox"), "/"))
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^leer (pruebas/\S+)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^read (sandbox/\S+)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.readSandbox(m[1])
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^probar (pruebas/\S+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^check (sandbox/\S+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		rel := sandboxPath.FindStringSubmatch(m[1])
 		if rel == nil {
-			return "se prueba como probar pruebas/<proyecto> o pruebas/<proyecto>/<pagina>.html", 1, nil
+			return "se prueba como probar sandbox/<proyecto> o sandbox/<proyecto>/<pagina>.html", 1, nil
 		}
 		return a.checkSandbox(ctx, rel[1])
 	}},
 	// Canon, el corpus del equipo, sólo para leer: un tema o una sección, y buscar. Va por el CLI `playground` con la
 	// sesión de Miguel (sin shell). Sirve para pasar un tema de canon a knowledge, verificándolo contra main.
-	{regexp.MustCompile(`^canon tema ([a-z0-9][a-z0-9-]{0,60}/(?:context|operar)(?:#[a-z0-9][a-z0-9-]{0,120})?)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^canon read ([a-z0-9][a-z0-9-]{0,60}/(?:context|operar)(?:#[a-z0-9][a-z0-9-]{0,120})?)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		return a.runPlayground(ctx, "canon", "read", m[1])
 	}},
-	{regexp.MustCompile(`^canon buscar (?:'([^'"` + "`" + `$\\;&|<>]{2,120})'|"([^'"` + "`" + `$\\;&|<>]{2,120})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^canon search (?:'([^'"` + "`" + `$\\;&|<>]{2,120})'|"([^'"` + "`" + `$\\;&|<>]{2,120})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		return a.runPlayground(ctx, "canon", "search", m[1]+m[2])
 	}},
 	// Poner al día la biblioteca (code.go): qué cambió, en qué fuente, y el código de hoy.
-	{regexp.MustCompile(`^cambios$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
+	{regexp.MustCompile(`^changes$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
 		out, _, err := a.runMake(ctx, "knowledge-check")
 		if err != nil {
 			return "", -1, err
@@ -187,7 +187,7 @@ var allowList = []allowed{
 		}
 		return strings.Join(keep, "\n"), 0, nil
 	}},
-	{regexp.MustCompile(`^fuentes ([a-z0-9][a-z0-9-]{0,80})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^sources ([a-z0-9][a-z0-9-]{0,80})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.sourcesReport(ctx, m[1])
 		return out, 0, err
 	}},
@@ -195,11 +195,11 @@ var allowList = []allowed{
 		out, err := a.sourceDiff(ctx, m[1], m[2])
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^buscar ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300}) (?:'([^'"` + "`" + `$\\;&|<>]{2,80})'|"([^'"` + "`" + `$\\;&|<>]{2,80})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^grep ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300}) (?:'([^'"` + "`" + `$\\;&|<>]{2,80})'|"([^'"` + "`" + `$\\;&|<>]{2,80})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.grepAtMain(ctx, m[1], m[2]+m[3])
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^codigo ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})(?::([0-9]{1,6})-([0-9]{1,6}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^code ([a-z][a-z0-9-]{1,40}:[A-Za-z0-9_][A-Za-z0-9_./@+-]{0,300})(?::([0-9]{1,6})-([0-9]{1,6}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		from, to := 0, 0
 		if m[2] != "" {
 			fmt.Sscan(m[2], &from)
@@ -208,7 +208,7 @@ var allowList = []allowed{
 		out, err := a.codeAtMain(ctx, m[1], from, to)
 		return out, 0, err
 	}},
-	{regexp.MustCompile(`^guia ([a-z]{3,20})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+	{regexp.MustCompile(`^guide ([a-z]{3,20})$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		path, ok := guides[m[1]]
 		if !ok {
 			names := make([]string, 0, len(guides))
@@ -225,7 +225,7 @@ var allowList = []allowed{
 
 // match busca el comando en la lista blanca: la entrada y lo que capturó, o por qué no.
 func match(cmd string) (allowed, []string, error) {
-	cmd = strings.Join(strings.Fields(cmd), " ")
+	cmd = normalizeCommand(strings.Join(strings.Fields(cmd), " "))
 	for _, a := range allowList {
 		if m := a.re.FindStringSubmatch(cmd); m != nil {
 			return a, m, nil
@@ -261,23 +261,28 @@ func (a *app) section(path, start string, ends ...string) (string, int, error) {
 	return strings.TrimSpace(rest[:cut]), 0, nil
 }
 
-// Los comandos van en bloques ```comando, uno por línea.
-var commandBlock = regexp.MustCompile("(?s)```comando[^\\n]*\\n(.*?)```")
+// Los comandos van en bloques ```command, uno por línea.
+var commandBlock = regexp.MustCompile("(?s)```(?:command|comando)[^\\n]*\\n(.*?)```")
 
 // parseCommands saca los comandos que pidió el modelo, ya validados (máximo 8 por respuesta).
 func parseCommands(answer string) []Command {
 	var out []Command
-	// Primero lo que entrega para la carpeta de pruebas, en el orden en que lo escribió: un archivo entero (```archivo)
-	// es un comando «escribir» y un parche (```parche), «parchar», cada uno con su contenido. Van ANTES que los comandos
+	// Primero lo que entrega para la carpeta de pruebas, en el orden en que lo escribió: un archivo entero (```file)
+	// es un comando «escribir» y un parche (```patch), «parchar», cada uno con su contenido. Van ANTES que los comandos
 	// para que un `probar` de la misma respuesta encuentre lo recién escrito.
 	for _, block := range fileBlock.FindAllStringSubmatch(answer, -1) {
 		if len(out) >= 10 {
 			break
 		}
-		verb := map[string]string{"archivo": "escribir", "parche": "parchar"}[block[1]]
-		c := Command{ID: newID(), Cmd: verb + " " + block[2], Status: "propuesto", Content: block[3]}
-		if !sandboxFile.MatchString(block[2]) {
-			c.Status, c.Reason, c.Content = "no-permitido", "sólo se escribe en pruebas/<proyecto>/…, tipos html, css, js, mjs, json, svg, md, txt, rs, toml o lock", ""
+		verb := map[string]string{"file": "write", "patch": "patch", "archivo": "write", "parche": "patch"}[block[1]]
+		path := block[2]
+		if strings.HasPrefix(path, "pruebas/") { // la carpeta de antes (legacy.go)
+			path = "sandbox/" + strings.TrimPrefix(path, "pruebas/")
+		}
+		path = strings.Fields(normalizeCommand("write " + path))[1] // criterios.json → criteria.json
+		c := Command{ID: newID(), Cmd: verb + " " + path, Status: "proposed", Content: block[3]}
+		if !sandboxFile.MatchString(path) {
+			c.Status, c.Reason, c.Content = "not-allowed", "sólo se escribe en sandbox/<proyecto>/…, tipos html, css, js, mjs, json, svg, md, txt, rs, toml o lock", ""
 		}
 		out = append(out, c)
 	}
@@ -288,9 +293,10 @@ func parseCommands(answer string) []Command {
 			if line == "" || len(out)-files >= 8 {
 				continue
 			}
-			c := Command{ID: newID(), Cmd: line, Status: "propuesto"}
+			line = normalizeCommand(line) // con los nombres de antes también (legacy.go)
+			c := Command{ID: newID(), Cmd: line, Status: "proposed"}
 			if _, err := commandArgs(line); err != nil {
-				c.Status, c.Reason = "no-permitido", err.Error()
+				c.Status, c.Reason = "not-allowed", err.Error()
 			}
 			out = append(out, c)
 		}
@@ -300,7 +306,7 @@ func parseCommands(answer string) []Command {
 
 // modes: los modos asistidos. «asistente» (y «knowledge», el primero, del mismo día) lee sus instrucciones de
 // wally/WALLY.md en CADA pregunta: editarlo cambia a Wally desde la próxima, sin reiniciar nada.
-var modes = map[string]bool{"asistente": true, "knowledge": true}
+var modes = map[string]bool{"assistant": true, "knowledge": true}
 
 // instructionsFor es lo que va antes de cada pregunta en un modo asistido.
 func (a *app) instructionsFor(mode string) (string, error) {
@@ -426,7 +432,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 		a.store.mu.Unlock()
 		return Conversation{}, 404, errors.New("no existe ese comando")
 	}
-	if cmd.Status != "propuesto" {
+	if cmd.Status != "proposed" {
 		a.store.mu.Unlock()
 		return Conversation{}, 409, fmt.Errorf("ese comando ya está %s", cmd.Status)
 	}
@@ -434,28 +440,28 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	content := cmd.Content
 	// «corriendo» mientras corre: otra ventana (o `bin/wally ask --auto`) no lo vuelve a correr y la interfaz lo muestra.
 	if action == "run" {
-		cmd.Status = "corriendo"
+		cmd.Status = "running"
 		c.Updated = time.Now()
 	}
 	a.store.mu.Unlock()
 
-	result := Command{Status: "descartado"}
+	result := Command{Status: "dismissed"}
 	var change *fileChange
 	var report *checkReport
 	touched := false
 	if action == "run" {
 		// La lista blanca se vuelve a mirar acá, al correr: lo guardado no se toma como validado.
 		if _, err := commandArgs(shown); err != nil {
-			result = Command{Status: "no-permitido", Reason: err.Error()}
+			result = Command{Status: "not-allowed", Reason: err.Error()}
 		} else {
 			start := time.Now()
 			var att Attachment
 			var exit int
 			var err error
-			if content != "" && strings.HasPrefix(shown, "parchar ") {
+			if content != "" && strings.HasPrefix(shown, "patch ") {
 				var note string
 				var ch fileChange
-				if note, exit, ch, err = a.patchSandboxChange(strings.TrimPrefix(shown, "parchar "), content); err == nil {
+				if note, exit, ch, err = a.patchSandboxChange(strings.TrimPrefix(shown, "patch "), content); err == nil {
 					if exit == 0 {
 						change = &ch
 					}
@@ -467,27 +473,27 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 			} else if content != "" {
 				var note string
 				var ch fileChange
-				if note, ch, err = a.writeSandboxChange(strings.TrimPrefix(shown, "escribir "), content); err == nil {
+				if note, ch, err = a.writeSandboxChange(strings.TrimPrefix(shown, "write "), content); err == nil {
 					change = &ch
 					att, err = a.saveOutput(note, "salida: "+shown)
 				}
 			} else {
 				stampProject, before := "", ""
-				if f := strings.Fields(shown); len(f) > 2 && f[0] == "consola" {
-					stampProject = strings.TrimPrefix(f[1], "pruebas/")
+				if f := strings.Fields(shown); len(f) > 2 && f[0] == "console" {
+					stampProject = strings.TrimPrefix(f[1], "sandbox/")
 					before = a.sandboxStamp(stampProject)
 				}
 				att, exit, err = a.runToFile(ctx, shown, "salida: "+shown)
 				touched = stampProject != "" && a.sandboxStamp(stampProject) != before
-				if strings.HasPrefix(shown, "probar ") {
+				if strings.HasPrefix(shown, "check ") {
 					report = a.sandboxReport(shown)
-				} else if strings.HasPrefix(shown, "probar-api ") && err == nil {
+				} else if strings.HasPrefix(shown, "check-api ") && err == nil {
 					if text, terr := a.fileText(att.ID); terr == nil {
 						report = checkTextReport(text)
 					}
 				}
 			}
-			result = Command{Status: "corrido", Exit: exit, Ms: time.Since(start).Milliseconds()}
+			result = Command{Status: "ran", Exit: exit, Ms: time.Since(start).Milliseconds()}
 			if err != nil {
 				result.Reason = err.Error()
 			} else {
@@ -501,7 +507,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	cmd.Status, cmd.Reason, cmd.Exit, cmd.Ms, cmd.Output = result.Status, result.Reason, result.Exit, result.Ms, result.Output
 	cmd.Change, cmd.Report, cmd.Touched = change, report, touched
 	// Guardado, el contenido ya está en el disco (y en el texto de la respuesta): no se duplica en lo guardado.
-	if result.Status == "corrido" && result.Reason == "" {
+	if result.Status == "ran" && result.Reason == "" {
 		cmd.Content = ""
 	}
 	c.Updated = time.Now()

@@ -2,7 +2,7 @@ package main
 
 // Las habilidades de Wally (wally/skills/*.md): lo que sabe hacer, un archivo por habilidad. De entrada el modelo ve
 // sólo el nombre y una línea de cada una (el índice que arma skillIndex, pegado a WALLY.md); el detalle —sus comandos
-// exactos, cómo usarlos, sus formatos— lo pide con `ayuda <nombre>` cuando lo necesita. Es la carga de a poco de un
+// exactos, cómo usarlos, sus formatos— lo pide con `help <nombre>` cuando lo necesita. Es la carga de a poco de un
 // agente de código (Miguel, 2026-11-17: «que pidan los comandos disponibles, no que los cargue todo de totazo»).
 // Agregar una habilidad es agregar un archivo: su primera línea es `# nombre: para qué sirve`.
 
@@ -51,14 +51,14 @@ func (a *app) skillIndex() string {
 		return ""
 	}
 	var b strings.Builder
-	b.WriteString("## Tus habilidades (pedí `ayuda <nombre>` antes de usar una: ahí están sus comandos)\n\n")
+	b.WriteString("## Tus habilidades (pedí `help <nombre>` antes de usar una: ahí están sus comandos)\n\n")
 	for _, s := range list {
 		fmt.Fprintf(&b, "- `%s` — %s\n", s.Name, s.About)
 	}
 	return b.String()
 }
 
-// skillHelp: `ayuda` (el índice) o `ayuda <nombre>` (la habilidad entera).
+// skillHelp: `help` (el índice) o `help <nombre>` (la habilidad entera).
 func (a *app) skillHelp(name string) (string, int, error) {
 	if name == "" {
 		return a.skillIndex(), 0, nil

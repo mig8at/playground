@@ -52,7 +52,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
-	mux.HandleFunc("GET /pruebas/", a.serveSandbox)
+	mux.HandleFunc("GET /sandbox/", a.serveSandbox)
 	mux.HandleFunc("GET /api/conversations/{id}/pending", a.pending)
 	mux.HandleFunc("POST /api/conversations/{id}/compact", a.compactHandler)
 	mux.HandleFunc("GET /api/busy", func(w http.ResponseWriter, _ *http.Request) {
@@ -230,8 +230,8 @@ func delta(history []Message, pc *ProviderChat, question string, files []Attachm
 			if c.Output != nil && !sent[c.Output.ID] {
 				writeFile(*c.Output)
 			}
-			if (c.Status == "descartado" || c.Status == "no-permitido") && i >= len(pc.Sent)-1 {
-				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"descartado": "Miguel lo descartó", "no-permitido": "no está en la lista"}[c.Status])
+			if (c.Status == "dismissed" || c.Status == "not-allowed") && i >= len(pc.Sent)-1 {
+				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"dismissed": "Miguel lo descartó", "not-allowed": "no está en la lista"}[c.Status])
 			}
 		}
 	}
@@ -270,6 +270,9 @@ func (s *store) load() error {
 	}
 	fixed := false
 	for _, c := range list {
+		if migrateConversation(c) { // los nombres de antes (legacy.go)
+			fixed = true
+		}
 		// Los bloques de antes de que se pudieran borrar no tenían id: se les pone uno, una vez.
 		for i := range c.Messages {
 			if c.Messages[i].ID == "" {
@@ -278,8 +281,8 @@ func (s *store) load() error {
 			}
 			// Un comando que quedó «corriendo» es de un proceso que se cortó: vuelve a esperar.
 			for j := range c.Messages[i].Commands {
-				if c.Messages[i].Commands[j].Status == "corriendo" {
-					c.Messages[i].Commands[j].Status = "propuesto"
+				if c.Messages[i].Commands[j].Status == "running" {
+					c.Messages[i].Commands[j].Status = "proposed"
 					fixed = true
 				}
 			}
@@ -405,7 +408,7 @@ func (a *app) createConversation(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
-	c := &Conversation{ID: newID(), Title: title, Mode: "asistente", Created: now, Updated: now, Messages: []Message{}}
+	c := &Conversation{ID: newID(), Title: title, Mode: "assistant", Created: now, Updated: now, Messages: []Message{}}
 	a.store.convs[c.ID] = c
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
@@ -425,7 +428,7 @@ func (a *app) mainConversation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	now := time.Now()
-	c := &Conversation{ID: newID(), Title: "Wally", Mode: "asistente", Main: true, Created: now, Updated: now, Messages: []Message{}}
+	c := &Conversation{ID: newID(), Title: "Wally", Mode: "assistant", Main: true, Created: now, Updated: now, Messages: []Message{}}
 	a.store.convs[c.ID] = c
 	if err := a.store.save(); err != nil {
 		writeErr(w, 500, err)
@@ -678,8 +681,8 @@ func transcript(history []Message, question string, files []Attachment, fileText
 		// Lo que pidió el modelo y Miguel corrió viaja justo después de esa respuesta; lo descartado se dice.
 		writeFiles(commandOutputs(m))
 		for _, c := range m.Commands {
-			if c.Status == "descartado" || c.Status == "no-permitido" {
-				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"descartado": "Miguel lo descartó", "no-permitido": "no está en la lista"}[c.Status])
+			if c.Status == "dismissed" || c.Status == "not-allowed" {
+				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"dismissed": "Miguel lo descartó", "not-allowed": "no está en la lista"}[c.Status])
 			}
 		}
 		b.WriteString("\n")
@@ -798,7 +801,10 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	// El asistente es lo de siempre (Miguel, 2026-11-17: «no dos cosas diferentes, que sea el default»): toda
 	// conversación sin modo —nueva, o de cuando se elegía «Chat»— contesta con WALLY.md y puede pedir comandos.
 	if in.Mode == "" {
-		in.Mode = "asistente"
+		in.Mode = "assistant"
+	}
+	if m, ok := legacyModes[in.Mode]; ok { // el nombre de antes (legacy.go)
+		in.Mode = m
 	}
 	if !modes[in.Mode] {
 		return Conversation{}, errBadRequest{fmt.Sprintf("no existe el modo «%s»", in.Mode)}

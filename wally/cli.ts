@@ -8,7 +8,7 @@
 //                          nada al modelo. --skill: las habilidades que trae precargadas (las de su oficio)
 //   bin/wally agent update <nombre> [--intent '…'] [--notes '…' | --notes-file n.md] [--skill s]…   cambia su intención,
 //                          sus notas o las habilidades que trae precargadas (--skill ninguna las saca)
-//   bin/wally skills                                   las habilidades de Wally (lo que se pide con `ayuda <nombre>`)
+//   bin/wally skills                                   las habilidades de Wally (lo que se pide con `help <nombre>`)
 //   bin/wally agent delete <nombre>                    lo borra con su conversación y sus archivos
 //   bin/wally topics [palabra]                         los temas de knowledge, para elegir los de un agente
 //   bin/wally conversations                            las conversaciones (sin la de Wally ni las de los agentes)
@@ -168,7 +168,7 @@ try {
         if (!args.includes('--auto') && !resume) {
             const c = await ask({ id, provider, text });
             const m = c.messages[c.messages.length - 1];
-            const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
+            const pending = (m.commands || []).filter((x: any) => x.status === 'proposed').length;
             out({ conv: c.id, model: m.model, ms: m.ms, answer: m.text, commands: m.commands || [] },
                 `${m.text}\n\n  (${m.model}, ${(m.ms / 1000).toFixed(1)} s${pending ? ` · pide ${pending} comando(s): aprobalos en Wally` : ''})`);
         } else {

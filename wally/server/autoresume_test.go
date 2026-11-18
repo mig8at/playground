@@ -49,7 +49,7 @@ func TestAutoRetriesAndResumes(t *testing.T) {
 		}
 		return "listo, nada más", "", nil
 	})
-	a.store.convs["c"] = &Conversation{ID: "c", Mode: "asistente"}
+	a.store.convs["c"] = &Conversation{ID: "c", Mode: "assistant"}
 
 	// Falla las tres veces (la primera y dos reintentos): termina, con la pregunta anotada.
 	if code := postAuto(t, a, "c", `{"text":"armá algo"}`); code != 202 {
@@ -101,7 +101,7 @@ func TestAutoRetrySucceeds(t *testing.T) {
 		}
 		return "hecho", "", nil
 	})
-	a.store.convs["c"] = &Conversation{ID: "c", Mode: "asistente"}
+	a.store.convs["c"] = &Conversation{ID: "c", Mode: "assistant"}
 	postAuto(t, a, "c", `{"text":"hola"}`)
 	if st := waitAuto(t, a, "c"); st.Stopped != "" || calls.Load() != 2 || a.store.convs["c"].AutoResume != nil {
 		t.Errorf("stopped=%q llamadas=%d resume=%+v", st.Stopped, calls.Load(), a.store.convs["c"].AutoResume)
@@ -112,7 +112,7 @@ func TestAutoRetrySucceeds(t *testing.T) {
 func TestResumedRunStartsAtTheLastRequest(t *testing.T) {
 	msgs := []Message{
 		{Role: "user", Text: "En cuota: agregá 48 meses"},
-		{Role: "model", Commands: []Command{{Cmd: "parchar pruebas/cuota/index.html", Status: "corrido"}}},
+		{Role: "model", Commands: []Command{{Cmd: "patch sandbox/cuota/index.html", Status: "ran"}}},
 	}
 	if i := lastRequestIndex(msgs); i != 0 || lastWrittenProject(msgs, i) != "cuota" {
 		t.Errorf("desde %d: %q", i, lastWrittenProject(msgs, i))

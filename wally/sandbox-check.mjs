@@ -1,7 +1,7 @@
-/* Abre una página de wally/pruebas en un Chromium sin ventana y dice, EN TEXTO, lo que un modelo por la web no puede
+/* Abre una página de wally/sandbox en un Chromium sin ventana y dice, EN TEXTO, lo que un modelo por la web no puede
  * ver: errores de consola y de JavaScript, recursos que no cargaron, el esquema de lo que quedó en pantalla y si se
  * desborda en un teléfono. Deja además una captura de escritorio y otra de teléfono para la persona.
- *   node wally/sandbox-check.mjs <url> <base de las capturas, sin extensión> [criterios.json]
+ *   node wally/sandbox-check.mjs <url> <base de las capturas, sin extensión> [criteria.json]
  * Con el archivo de criterios, además USA la página: por cada criterio la abre de nuevo y corre sus pasos (tocar,
  * escribir, elegir, marcar, ver, no_ver), y dice cuál pasa y cuál no. Sin eso sólo se sabe que no hay errores, no que
  * la página haga lo pedido (2026-11-17: un formulario que no validaba pasó `probar` sin un solo error).
@@ -68,18 +68,32 @@ try {
   if (criteriaFile) {
     const { readFileSync, existsSync } = await import('node:fs');
     const FORM = `[
-  { "criterio": "lo que tiene que pasar, en una línea",
-    "pasos": [ { "tocar": "Texto del botón" }, { "escribir": { "en": "Etiqueta del campo", "texto": "Ana" } },
-               { "elegir": { "en": "Etiqueta del desplegable", "opcion": "Texto de la opción" } },
-               { "marcar": "Etiqueta de la casilla" }, { "ver": "texto que tiene que aparecer" }, { "no_ver": "texto que NO" } ] }
+  { "name": "lo que tiene que pasar, en una línea",
+    "steps": [ { "click": "Texto del botón" }, { "type": { "field": "Etiqueta del campo", "text": "Ana" } },
+               { "select": { "field": "Etiqueta del desplegable", "option": "Texto de la opción" } },
+               { "check": "Etiqueta de la casilla" }, { "see": "texto que tiene que aparecer" }, { "not_see": "texto que NO" } ] }
 ]`;
+    // Los nombres de antes (en español): un criterio escrito así se traduce y corre igual.
+    const STEP_KEYS = { tocar: 'click', escribir: 'type', elegir: 'select', marcar: 'check', ver: 'see', no_ver: 'not_see' };
+    const legacyStep = (s) => {
+      if (!s || typeof s !== 'object') return s;
+      const out = {};
+      for (const [k, v] of Object.entries(s)) {
+        const nk = STEP_KEYS[k] || k;
+        out[nk] = v && typeof v === 'object' && !Array.isArray(v) ? { field: v.field ?? v.en, text: v.text ?? v.texto, option: v.option ?? v.opcion } : v;
+      }
+      return out;
+    };
+    const legacyCriterion = (c) => c && typeof c === 'object'
+      ? { name: c.name ?? c.criterio, page: c.page ?? c.pagina, steps: Array.isArray(c.steps ?? c.pasos) ? (c.steps ?? c.pasos).map(legacyStep) : c.steps ?? c.pasos }
+      : c;
     if (!existsSync(criteriaFile)) {
-      problems.push('falta criterios.json'); report.note = 'falta criterios.json';
-      out.push(`\nCRITERIOS: falta el archivo criterios.json del proyecto. Sin él no se sabe si la página HACE lo pedido. Escribilo (un criterio por cada cosa que te pidieron), con esta forma:\n${FORM}`);
+      problems.push('falta criteria.json'); report.note = 'falta criteria.json';
+      out.push(`\nCRITERIOS: falta el archivo criteria.json del proyecto. Sin él no se sabe si la página HACE lo pedido. Escribilo (un criterio por cada cosa que te pidieron), con esta forma:\n${FORM}`);
     } else {
       let list = null;
-      try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criterios.json no es JSON válido'); report.note = 'criterios.json no es JSON válido'; out.push(`\nCRITERIOS: criterios.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
-      if (list && (!Array.isArray(list) || !list.length)) { problems.push('criterios.json está vacío'); report.note = 'criterios.json está vacío'; out.push(`\nCRITERIOS: criterios.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
+      try { list = JSON.parse(readFileSync(criteriaFile, 'utf8')); } catch (e) { problems.push('criteria.json no es JSON válido'); report.note = 'criteria.json no es JSON válido'; out.push(`\nCRITERIOS: criteria.json no es JSON válido (${e.message}). La forma:\n${FORM}`); }
+      if (list && (!Array.isArray(list) || !list.length)) { problems.push('criteria.json está vacío'); report.note = 'criteria.json está vacío'; out.push(`\nCRITERIOS: criteria.json tiene que ser una lista con al menos un criterio. La forma:\n${FORM}`); list = null; }
       // Se corren TODOS: un tope que descarta en silencio los del final se lee como «pasaron». Por encima de MAX no se
       // corre ninguno, y se dice.
       const MAX = 100;
@@ -91,13 +105,14 @@ try {
       if (list) {
         out.push(`\nCRITERIOS (${list.length}):`);
         const base = url.replace(/[^/]*$/, '');
-        for (const [i, c] of list.entries()) {
-          const name = String(c?.criterio || `criterio ${i + 1}`).slice(0, 140);
-          const steps = Array.isArray(c?.pasos) ? c.pasos.slice(0, 20) : [];
-          if (!steps.length || !steps.some((s) => s && ('ver' in s || 'no_ver' in s))) {
+        for (const [i, raw] of list.entries()) {
+          const c = legacyCriterion(raw);
+          const name = String(c?.name || `criterio ${i + 1}`).slice(0, 140);
+          const steps = Array.isArray(c?.steps) ? c.steps.slice(0, 20) : [];
+          if (!steps.length || !steps.some((s) => s && ('see' in s || 'not_see' in s))) {
             problems.push(`criterio sin comprobación: ${name}`);
-            out.push(`  ✗ ${name} — no tiene ningún paso «ver» o «no_ver»: no comprueba nada`);
-            report.criteria.push({ name, ok: false, detail: 'no tiene ningún paso «ver» o «no_ver»: no comprueba nada' });
+            out.push(`  ✗ ${name} — no tiene ningún paso «see» o «not_see»: no comprueba nada`);
+            report.criteria.push({ name, ok: false, detail: 'no tiene ningún paso «see» o «not_see»: no comprueba nada' });
             continue;
           }
           const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -105,18 +120,18 @@ try {
           page.on('pageerror', (e) => errors.push(String(e.message || e).slice(0, 200)));
           let failed = '';
           try {
-            await page.goto(c.pagina ? base + String(c.pagina).replace(/^\/+/, '') : url, { waitUntil: 'load', timeout: 15_000 });
+            await page.goto(c.page ? base + String(c.page).replace(/^\/+/, '') : url, { waitUntil: 'load', timeout: 15_000 });
             for (const [k, s] of steps.entries()) {
               const T = { timeout: 4000 };
               const field = (label) => page.getByLabel(label, { exact: false }).or(page.getByPlaceholder(label)).or(page.getByRole('textbox', { name: label })).first();
               try {
-                if ('tocar' in s) await page.getByRole('button', { name: s.tocar }).or(page.getByRole('link', { name: s.tocar })).or(page.getByText(s.tocar, { exact: true })).first().click(T);
-                else if ('escribir' in s) await field(s.escribir.en).fill(String(s.escribir.texto ?? ''), T);
-                else if ('elegir' in s) await page.getByLabel(s.elegir.en, { exact: false }).first().selectOption({ label: s.elegir.opcion }, T).catch(() => page.getByLabel(s.elegir.en, { exact: false }).first().selectOption(s.elegir.opcion, T));
-                else if ('marcar' in s) await page.getByLabel(s.marcar, { exact: false }).first().check(T);
-                else if ('ver' in s) await page.getByText(s.ver, { exact: false }).first().waitFor({ state: 'visible', ...T });
-                else if ('no_ver' in s) { await page.waitForTimeout(300); if (await page.getByText(s.no_ver, { exact: false }).first().isVisible().catch(() => false)) throw new Error('está a la vista'); }
-                else throw new Error('paso desconocido: usá tocar, escribir, elegir, marcar, ver o no_ver');
+                if ('click' in s) await page.getByRole('button', { name: s.click }).or(page.getByRole('link', { name: s.click })).or(page.getByText(s.click, { exact: true })).first().click(T);
+                else if ('type' in s) await field(s.type.field).fill(String(s.type.text ?? ''), T);
+                else if ('select' in s) await page.getByLabel(s.select.field, { exact: false }).first().selectOption({ label: s.select.option }, T).catch(() => page.getByLabel(s.select.field, { exact: false }).first().selectOption(s.select.option, T));
+                else if ('check' in s) await page.getByLabel(s.check, { exact: false }).first().check(T);
+                else if ('see' in s) await page.getByText(s.see, { exact: false }).first().waitFor({ state: 'visible', ...T });
+                else if ('not_see' in s) { await page.waitForTimeout(300); if (await page.getByText(s.not_see, { exact: false }).first().isVisible().catch(() => false)) throw new Error('está a la vista'); }
+                else throw new Error('paso desconocido: usá click, type, select, check, see o not_see');
               } catch (e) {
                 const seen = (await page.evaluate(() => (document.body?.innerText || '').replace(/\s+/g, ' ').trim()).catch(() => '')).slice(0, 260);
                 failed = `paso ${k + 1} ${JSON.stringify(s)}: ${String(e.message || e).split('\n')[0].slice(0, 160)}. Lo que se ve: «${seen}»`;

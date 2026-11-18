@@ -1,11 +1,11 @@
 #!/bin/bash
 # Dentro del contenedor: levanta la API del proyecto de /work en 127.0.0.1:$PORT, corre el comando que le pasen
-# (un curl, varios) contra ella, y la apaga. Para explorar a mano lo que `probar-api` comprueba con criterios.
-#   con-api curl -s localhost:8080/tareas
-#   con-api bash -c 'curl -s -X POST localhost:8080/tareas -H "content-type: application/json" -d "{\"titulo\":\"a\"}"; curl -s localhost:8080/tareas'
+# (un curl, varios) contra ella, y la apaga. Para explorar a mano lo que `check-api` comprueba con criterios.
+#   with-api curl -s localhost:8080/tareas
+#   with-api bash -c 'curl -s -X POST localhost:8080/tareas -H "content-type: application/json" -d "{\"titulo\":\"a\"}"; curl -s localhost:8080/tareas'
 cd /work || exit 2
 export PORT=${PORT:-8080}
-if [ $# -eq 0 ]; then echo "uso: con-api <comando>   (por ejemplo: con-api curl -s localhost:$PORT/)"; exit 2; fi
+if [ $# -eq 0 ]; then echo "uso: with-api <comando>   (por ejemplo: with-api curl -s localhost:$PORT/)"; exit 2; fi
 if ! cargo build --offline --color never > /tmp/build.log 2>&1; then
   echo "NO COMPILA:"; grep -v '^ *Compiling\|^ *Locking' /tmp/build.log | tail -50; exit 1
 fi

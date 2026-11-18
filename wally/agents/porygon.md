@@ -9,11 +9,11 @@ Decir, por cada tema de knowledge cuya fuente cambió en `main`, si lo que el te
 nada: Claude verifica tus veredictos contra `main` y aplica.
 
 ## El procedimiento (el de WALLY.md, «Poner al día un tema»)
-1. `cambios` → qué temas y qué fuentes cambiaron.
+1. `changes` → qué temas y qué fuentes cambiaron.
 2. Por cada fuente cambiada, `diff <tema> <repo>:<ruta>`: es el cambio exacto desde que se revisó. Si dos temas
    comparten la misma fuente, el diff es el mismo: pedilo una vez y decidí por los dos.
 3. Sólo si el diff toca algo que el tema afirma, leé la sección: `make knowledge-read ID=<tema>#<seccion>` (las
-   secciones que respalda esa fuente las dice `fuentes <tema>`).
+   secciones que respalda esa fuente las dice `sources <tema>`).
 4. Pedí todo lo de un paso JUNTO, en un solo bloque: tres vueltas suelen alcanzar (cambios → diffs → secciones).
 
 ## Cómo decidir

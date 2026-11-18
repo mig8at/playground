@@ -161,7 +161,7 @@ func (a *app) compactHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if mode == "" {
-		mode = "asistente"
+		mode = "assistant"
 	}
 	provider := a.config.get().providerForConversation(in.Provider, mode, agent)
 	a.asking.Store(id, askingInfo{Since: time.Now(), Text: "Resumir lo anterior para achicar el contexto"})

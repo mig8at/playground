@@ -9,8 +9,8 @@ arreglás nada ni corrés nada por tu cuenta: pedís los comandos y Miguel los a
 1. Pedí `sentinel now` (lo de ahora) y `sentinel day` (el día). Para un día anterior, `sentinel day AAAA-MM-DD`.
 2. Si hubo despliegues a producción en el día y algo empeoró cerca, pedí `sentinel deploy <repo> [versión]` del que
    está más cerca en el tiempo. Con dos repos desplegados juntos, pedí los dos: se ven igual.
-3. Si un síntoma suena conocido, `trampas` y después `trampa F-xx`. Para el detalle de cómo decide Sentinel,
-   `guia sentinel` (largo: sólo si lo necesitás).
+3. Si un síntoma suena conocido, `traps` y después `trap F-xx`. Para el detalle de cómo decide Sentinel,
+   `guide sentinel` (largo: sólo si lo necesitás).
 4. Contestá con el formato de abajo. No inventes números: todo número que digas sale de una salida que pediste.
 
 ## Cómo decide Sentinel (para no leerlo mal)

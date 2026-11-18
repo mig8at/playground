@@ -10,6 +10,18 @@ abre la conversación de paso (itálica, la reemplaza el próximo clic); doble c
 «+» abre una nueva; ✕ o el botón del medio la cierran. Se recuerdan en esta máquina (`wally.tabs`). Mientras una
 espera respuesta, su pestaña y su fila laten, y en las otras se escribe pero no se manda (las preguntas van de a una).
 
+**Los nombres del protocolo están en inglés** (2026-11-18, regla de my-tools: el código en inglés, lo que se ve en
+español). Lo que pide un agente: `help`, `commands`, `traps`/`trap`, `task`, `guide`, `write`, `patch`, `list`,
+`read`, `check`, `build`, `test`, `check-api`, `console` (y `with-api` adentro), `changes`, `sources`, `grep`, `code`,
+`canon read|search`; los bloques ```` ```command ````, ```` ```file ```` y ```` ```patch ```` (`SEARCH`/`REPLACE`); la
+carpeta `wally/sandbox/` (servida en `/sandbox/`) con su `criteria.json` (páginas: `name`, `page`, `steps` con `click`,
+`type {field, text}`, `select {field, option}`, `check`, `see`, `not_see`; APIs: `request {method, path, body}` y
+`expect {status, contains, not_contains}`); los estados `proposed · running · ran · dismissed · not-allowed`; el modo
+`assistant`; y las habilidades `code`, `tools`, `knowledge-sync`, `sandbox`, `tasks`, `traps`. El texto que lee el
+modelo (WALLY.md, las habilidades, las notas entre vueltas) sigue en español. **Los nombres de antes siguen
+funcionando** (`server/legacy.go`): un modelo que los escribe por su historia queda traducido, los dos checadores
+aceptan las claves viejas, lo guardado se migró al cargar y `wally/pruebas/` pasó a `wally/sandbox/` con sus criterios.
+
 **Pregunta POR LA WEB, no por la API** (decisión de Miguel, 2026-11-17): cada pregunta la hace `bin/aistudio` (la
 receta `jarvis/recipes/aistudio/ask.ts`) en su Chrome con Jarvis, con su cuenta y en un chat temporal de AI Studio
 (no queda en el History ni en Drive). Usa el uso gratuito de la web, que acepta textos enormes, y no la cuota de una
@@ -103,13 +115,13 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   contestar y puede PEDIR VER cosas de la máquina, pero no las corre él (idea de Miguel, 2026-11-17). **Sus
   instrucciones son [`WALLY.md`](WALLY.md)**, lo que `CLAUDE.md` es para Claude Code: quién es, cómo pedir y el
   catálogo de comandos de sólo lectura. Va antes de CADA pregunta y se lee en el momento: editarlo cambia a Wally desde
-  la próxima, sin reiniciar. Para pedir, el modelo escribe un bloque ```comando; cada comando sale como tarjeta con
+  la próxima, sin reiniciar. Para pedir, el modelo escribe un bloque ```command; cada comando sale como tarjeta con
   **Correr** y **Descartar**, la salida queda como ficha de la respuesta que lo pidió (viaja pegada a ella; borrar el
   bloque la borra) y «Mandar resultados» le avisa para que siga. El primer modo, «Asistente de knowledge» (sólo la
   biblioteca, con el mapa adjunto al empezar), sigue andando para sus conversaciones.
   ⚠ **Qué se corre lo decide el servidor, no el modelo**: la lista blanca (`allowList`, `server/commands.go`) —la
-  biblioteca (`make knowledge-map|search|read`), `make tareas`, el catálogo (`comandos [palabra]`), las trampas
-  (`trampas`, `trampa F-xx`) y las guías (`guia <herramienta>`, de una lista fija)— con los argumentos validados: los
+  biblioteca (`make knowledge-map|search|read`), `make tareas`, el catálogo (`commands [palabra]`), las trampas
+  (`traps`, `trap F-xx`) y las guías (`guide <herramienta>`, de una lista fija)— con los argumentos validados: los
   de `make` se corren SIN SHELL y los demás leen un archivo fijo; se vuelve a validar al correr. Lo demás queda «no
   permitido» (`commands_test.go`: `;`, `$(…)`, `|`, rutas, otro target). **Afuera a propósito**: bases, logs,
   PostHog, datos de clientes o de producción y la pila de las tareas: son de lectura, pero lo que lee Wally viaja a
@@ -117,7 +129,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   lo mismo).
 - **El experimento del 2026-11-17** (Claude como aprobador, la misma pregunta: «un comercio dice que una entidad no
   le aparece a sus clientes: ¿cómo lo investigo y qué puede pasar?»):
-  - **3.8 Flash**, 3 vueltas: pidió 4 comandos (aprobados 3; `comandos lender` descartado: medio catálogo), después 3
+  - **3.8 Flash**, 3 vueltas: pidió 4 comandos (aprobados 3; `commands lender` descartado: medio catálogo), después 3
     más (el tema `lender-listing` y las trampas F-118 y F-140, que eran las del índice para ese síntoma), y contestó
     con `harness-listing`, las puertas v1/v2, reglas duras que reordenan y F-140, citando cada cosa. Tiempos: 12 s,
     241 s y 30 s (la segunda, con ~30 mil caracteres de contexto). Todo lo que pidió estuvo en la lista y tuvo sentido.
@@ -128,11 +140,11 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     WALLY.md. Lo que todavía frena el automático es Google: tres cortes en el día y respuestas de hasta 4 min con
     contexto largo.
 - **Poner al día la biblioteca con Hydrogen** (2026-11-17, Claude como aprobador y verificador). WALLY.md suma los
-  comandos de lectura de código (`server/code.go`): `cambios` (lo de `knowledge-check` que cambió), `fuentes tema`,
-  `diff tema repo:ruta` (desde el commit revisado hasta `origin/main`) y `codigo repo:ruta` (con números de línea);
+  comandos de lectura de código (`server/code.go`): `changes` (lo de `knowledge-check` que cambió), `sources tema`,
+  `diff tema repo:ruta` (desde el commit revisado hasta `origin/main`) y `code repo:ruta` (con números de línea);
   `git` sin shell, el repo de `tools/repos.json`, la ruta sin `..`. Y un formato de propuesta por sección (veredicto,
   por qué con archivo:línea y commit, texto nuevo, fuentes a sellar): **Wally no escribe**.
-  - `creditopx-offer-calculation` (1 fuente cambiada): eligió el tema solo con `cambios`, pidió `fuentes`, el `diff`
+  - `creditopx-offer-calculation` (1 fuente cambiada): eligió el tema solo con `changes`, pidió `sources`, el `diff`
     y SÓLO la sección afectada; 4 vueltas, ~67 s. Veredicto «sigue cierta» (el commit `60f773a32` sólo agregó
     `paymentDateAfterSettling`, 34 líneas y ninguna borrada): correcto, con las líneas bien citadas.
   - `weekly-collection-reminders` (3 fuentes): 3 vueltas, ~41 s, 6 propuestas. Cinco «sigue cierta» y una «cambió»
@@ -147,8 +159,8 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     como el registro, el reintento sin el «DE» de casada en web y móvil, el código 2 rechazado en RiskV2, la marca en
     `kyc_name_checks`; y encontró que `legacy-application` sigue con el corte viejo). Todo verificado contra `main`
     antes de aplicarlo; los textos necesitaron retoques de editor (matices, una comparación que no aplicaba, pasar una
-    «observación» al tema). Sumó a WALLY.md el veredicto «falta algo», mirar el otro monolito con `buscar` y pedir
-    rangos (`codigo …:desde-hasta`). Costo: 6 cortes de Google en el día (el último, «rate limit» explícito), dos
+    «observación» al tema). Sumó a WALLY.md el veredicto «falta algo», mirar el otro monolito con `grep` y pedir
+    rangos (`code …:desde-hasta`). Costo: 6 cortes de Google en el día (el último, «rate limit» explícito), dos
     esperas de 10 min sin respuesta y vueltas de 8 a 270 s según el contexto.
   - **Evaluación para un modo automático**: los 10 comandos que pidió fueron de la lista, siguieron el procedimiento
     de WALLY.md y hacían falta (se aprobaron todos). **La lectura puede ir en automático** (la lista blanca garantiza
@@ -251,7 +263,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     cortada desde las 12:39. Después se supo que esos «cuelgues» eran de la receta (abajo).
   - **Su primera revisión, por DeepSeek** (2026-11-17, 16:14, con el permiso de agentes prendido a pedido de Miguel
     y apagado al terminar; Hydrogen sin cupo): «Revisá que tu parte siga cierta» en 3 vueltas y ~70 s. Siguió WALLY.md
-    al pie: primero `buscar` para anclar líneas, después `codigo` con rangos de 20 a 55 líneas, y un veredicto por
+    al pie: primero `grep` para anclar líneas, después `code` con rangos de 20 a 55 líneas, y un veredicto por
     tema: todo lo verificado «sigue cierta», con 14 citas archivo:línea que se comprobaron EXACTAS contra main (guarda
     `OBV22012`, `missingUserFields`, `RKV24007`, `MAX_TYPOS = 3`, los `substr` del bypass), y dijo lo que NO alcanzó a
     verificar (TusDatos, el `NameUtils` de RiskV2, las etapas 5 a 7). Nada que aplicar.
@@ -260,10 +272,10 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   en la base y qué trampa puede dar un falso verde—, más lo que el harness no alcanza y el orden. No corre nada. Su
   contexto son sus notas, [`agents/mew.md`](agents/mew.md) (los caminos del harness, las perillas de `harness-case` y
   `harness-walk-wizard`, las claves de una suite y el formato); los temas los lee según la tarea. Para eso se sumó a
-  la lista blanca **`tarea <N|slug>`**: SÓLO el `task.md`, nunca la pila ni los artifacts (traen mediciones de los
+  la lista blanca **`task <N|slug>`**: SÓLO el `task.md`, nunca la pila ni los artifacts (traen mediciones de los
   ambientes). Se crea con `bin/wally agent create --name Mew --intent '…' --notes-file wally/agents/mew.md`.
   **Probado con la tarea 101** (nombres en el onboarding), por DeepSeek: 3 vueltas, ~100 s; pidió la tarea, el índice
-  de trampas, tres trampas (F-132, F-133, F-145), el tema `identity-name-validation` y `comandos harness`, y propuso
+  de trampas, tres trampas (F-132, F-133, F-145), el tema `identity-name-validation` y `commands harness`, y propuso
   5 pruebas. Sus dos tandas de `harness-case` se corrieron en local (rama con `NameSimilarity` igual a `main`): los 7
   casos dejaron en `users` y `kyc_name_checks` exactamente lo que dijo —Ñ y tildes conservadas en los tres sentidos,
   `completed` en las dos formas sin ambigüedad, `token_mismatch` sin completar en la ambigua y con el error de tipeo—.
@@ -298,7 +310,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   pedir nada o se acaban las vueltas. Lo que corre lo sigue decidiendo el servidor (la lista blanca, sólo lectura): un
   comando fuera de ella queda «no permitido» y se le avisa. El tope existe porque cada vuelta reenvía todo el contexto
   al proveedor. Es seguro por la lista, no por el modelo: sumar a la lista algo que escribe lo volvería peligroso.
-- **Porygon, el primer agente automático** (2026-11-17): pone al día la biblioteca solo —`cambios`, los `diff` de cada
+- **Porygon, el primer agente automático** (2026-11-17): pone al día la biblioteca solo —`changes`, los `diff` de cada
   fuente, las secciones que tocan— y da un veredicto por tema con el formato de WALLY.md; no escribe ([`agents/
   porygon.md`](agents/porygon.md)). Se probó con lo que cambió ese día en legacy-application (la gestión del cupo
   rotativo, `1ebeb8da`: 5 rutas en `routes/admin.php` y un `first_payment_date` opcional en `RefinanceCredit`), que
@@ -333,7 +345,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **`bin/wally ask --auto`** la arranca y la sigue (muestra cada paso); **Ctrl-C la frena**; si el proceso se
     corta, la corrida sigue en Wally.
   Probado (Krabby, DeepSeek): arrancada por consola y la consola cortada a los 10 s, la corrida siguió sola —2
-  vueltas, parches, `probar-api` en verde— y terminó bien; con otra corrida andando, la franja de la interfaz mostró
+  vueltas, parches, `check-api` en verde— y terminó bien; con otra corrida andando, la franja de la interfaz mostró
   «vuelta 2/10 · esperando la respuesta» y tocar «Frenar» la cortó en la vuelta 3 («la frenaste», sin aviso).
   ⚠ Dos cosas que salieron de esa prueba: **(1) una pregunta sin proveedor sigue la regla vieja de privacidad** (un
   agente va por Gemini salvo permiso): la interfaz y `bin/wally` siempre mandan el de la barra, pero un `curl` a mano
@@ -344,7 +356,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 - **La tarjeta de comandos ya no se sale de la burbuja**: la columna de `.commands` crecía con el comando más largo
   (`nowrap`) y la ficha OUT quedaba afuera; ahora es `minmax(0, 1fr)` y el comando se corta con «…». Medido a 1440 px:
   4 tarjetas, ninguna ficha afuera.
-- **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `codigo`, `buscar` y
+- **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `code`, `grep` y
   `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-check FETCH=1`) sin tocar
   las ramas de los clones de trabajo de otras sesiones.
 - **En vivo, también lo que corre desde otro lado** (2026-11-17, Miguel: «verlo en tiempo real»): el servidor anota qué
@@ -354,10 +366,10 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   ventana no lo vuelve a correr: 409 «ya está corriendo», que la interfaz y el CLI toman como «lo tomó otro»); en
   Auto, o con una corrida de afuera, la tarjeta dice «en cola» y «corriendo…» en vez de Correr/Descartar. Al
   arrancar, un comando que quedó «corriendo» de un proceso cortado vuelve a «propuesto».
-- **Canon, para leer**: `canon tema <id>[#ancla]` y `canon buscar '…'` (`runPlayground`, el CLI `playground` con la
+- **Canon, para leer**: `canon read <id>[#ancla]` y `canon search '…'` (`runPlayground`, el CLI `playground` con la
   sesión de Miguel, sin shell).
 - **Ditto: un tema de canon a knowledge, solo** ([`agents/ditto.md`](agents/ditto.md)): lee el tema, busca cada
-  afirmación en los dos monolitos (`buscar` acepta una carpeta), lee el rango, y entrega el borrador de `rules.md`, sus
+  afirmación en los dos monolitos (`grep` acepta una carpeta), lee el rango, y entrega el borrador de `rules.md`, sus
   fuentes, las diferencias con canon y lo no verificado; no escribe. Primera corrida (2026-11-17, `asesor/context`,
   por DeepSeek en Auto): 7 vueltas de 4 a 5 búsquedas, hasta que el mensaje llegó a ~130 mil caracteres y la web lo
   rechazó («El contenido es demasiado largo»); de ahí salieron los trozos (abajo). Retomado con los trozos, entregó en
@@ -398,17 +410,17 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   antes); Groq 37.125 entra y 40.937 no, con un minuto entre pruebas (seguidas, su cupo por minuto corta antes:
   «Rate limit reached» con dos de ~30 mil). Buscado en internet: lo único publicado es el contexto de los modelos (Groq, 131.072 tokens en su ficha);
   el tope por mensaje de las webs gratis no aparece en ninguna fuente oficial.
-- **La carpeta de pruebas: lo ÚNICO donde un agente escribe** (`wally/pruebas/`, fuera de git; `server/sandbox.go`,
+- **La carpeta de pruebas: lo ÚNICO donde un agente escribe** (`wally/sandbox/`, fuera de git; `server/sandbox.go`,
   2026-11-17, Miguel: «que un agente haga una página web en una carpeta pruebas»). El modelo entrega cada archivo en un
-  bloque ` ```archivo pruebas/<proyecto>/<archivo> ` y eso es un comando **«escribir»** con su contenido (va como una
+  bloque ` ```file sandbox/<proyecto>/<archivo> ` y eso es un comando **«escribir»** con su contenido (va como una
   tarjeta, no como cien renglones de código; en Auto se guarda solo). Se valida en el servidor: la ruta adentro de la
   carpeta (ni `..`, ni ocultos, ni un enlace simbólico que salga), tipos fijos (html, css, js, mjs, json, svg, md, txt),
   400 KB por archivo y 60 archivos por proyecto. Reescribir uno guarda el anterior en `.historial/`. Además:
-  `listar pruebas[/proyecto]`, `leer pruebas/…` y **`probar pruebas/<proyecto>`**, que abre la página en un Chromium
+  `list sandbox[/proyecto]`, `read sandbox/…` y **`check sandbox/<proyecto>`**, que abre la página en un Chromium
   sin ventana (`wally/sandbox-check.mjs`, el Playwright del harness) y devuelve EN TEXTO lo que el modelo no ve: errores
   de consola y de JavaScript, recursos que no cargaron, título, encabezados, botones, imágenes rotas y si se desborda en
   escritorio (1280) y teléfono (390); deja capturas en `.capturas/`. No se ejecuta nada de lo escrito fuera del navegador.
-  ⚠ **Lo escrito se sirve AISLADO** (`GET /pruebas/…`, `serveSandbox`): `Content-Security-Policy: sandbox allow-scripts`
+  ⚠ **Lo escrito se sirve AISLADO** (`GET /sandbox/…`, `serveSandbox`): `Content-Security-Policy: sandbox allow-scripts`
   (origen propio: no ve cookies ni almacenamiento de Wally), `connect-src 'none'` y `form-action 'none'` (ni un pedido,
   ni a la API de Wally ni afuera) y sólo recursos de la misma carpeta; por eso la página tiene que ser autocontenida
   (sin CDNs). Comprobado con una página que hacía `fetch('/api/conversations')`: bloqueado. La interfaz la muestra con
@@ -417,20 +429,20 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   que sí se ejecuta es Rust, y dentro de un contenedor (más abajo).
   **Smeargle** ([`agents/smeargle.md`](agents/smeargle.md)) es el agente que la usa. Primera corrida (DeepSeek, Auto): una
   landing de un taller de bicicletas ficticio —encabezado con un logo SVG, tres servicios con precio, horario y un
-  formulario de turno—, en UNA respuesta de 13 mil caracteres con tres archivos (12,7 KB), y `probar` sin errores en
+  formulario de turno—, en UNA respuesta de 13 mil caracteres con tres archivos (12,7 KB), y `check` sin errores en
   escritorio y teléfono al primer intento. Comprobado aparte, usándola: el formulario vacío muestra sus tres avisos y
   completo confirma el turno en la misma página. Lo que costó, y quedó arreglado:
-  - **El orden**: `probar` corría ANTES que los `escribir` de la misma respuesta (se leían primero los comandos).
+  - **El orden**: `check` corría ANTES que los `write` de la misma respuesta (se leían primero los comandos).
     Ahora los archivos van primero (`parseCommands`).
   - **El aislamiento rompía los formularios**: sin `allow-forms`, el navegador corta el envío antes del evento
-    `submit` y la validación de la página nunca corría (`probar` no lo ve: no usa la página). Se agregó `allow-forms`;
+    `submit` y la validación de la página nunca corría (`check` no lo ve: no usa la página). Se agregó `allow-forms`;
     el envío real lo sigue cortando `form-action 'none'`.
   - **DeepSeek, al seguir un chat, no veía la respuesta del tercer mensaje**: la receta contaba mensajes y su lista es
     virtual (el número deja de crecer). Ahora la respuesta es nueva si se vio generar o si cambió el último texto.
   - **`bin/wally ask` cortaba a los 5 min** (el tope de `fetch` de Node) con la pregunta todavía en curso: pregunta por
     `http`, sin ese tope.
   **Los parches** (2026-11-17, como los editores de Cursor o Claude Code): para cambiar un archivo que ya existe el
-  agente manda un bloque ` ```parche pruebas/… ` con uno o más cambios `<<<<<<< BUSCAR … ======= … >>>>>>> REEMPLAZAR`
+  agente manda un bloque ` ```patch sandbox/… ` con uno o más cambios `<<<<<<< SEARCH … ======= … >>>>>>> REPLACE`
   (comando **«parchar»**, `patchSandbox`). Cada texto buscado tiene que estar UNA vez (tolera los espacios del final
   de cada renglón); se aplican todos o ninguno, y lo que falla vuelve como salida explicada (cuál, y si no está o se
   repite) para que lo corrija solo. Probado pidiéndole cambios a Smeargle en Auto, sin intervenir: (1) un cuarto
@@ -440,27 +452,27 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   de un cambio, una respuesta de 335 caracteres en vez de 13 mil, 2 vueltas, 38 s. La lección de la falla: probar la
   función no alcanza si el comando no pasa la lista (`commands_test.go` ahora lo comprueba para los de la carpeta).
   **Los criterios y el freno** (2026-11-17; la idea es de los harness de agentes largos: una lista de «hecho» que el
-  modelo no puede saltarse, y verificar usando la página). Cada proyecto lleva `criterios.json`: un criterio por cada
-  cosa pedida, con los pasos que lo comprueban (`tocar`, `escribir`, `elegir`, `marcar`, `ver`, `no_ver`; cada uno
-  arranca con la página recién cargada y tiene que terminar en un `ver` o `no_ver`). `probar` los ejecuta
+  modelo no puede saltarse, y verificar usando la página). Cada proyecto lleva `criteria.json`: un criterio por cada
+  cosa pedida, con los pasos que lo comprueban (`tocar`, `write`, `elegir`, `marcar`, `ver`, `no_ver`; cada uno
+  arranca con la página recién cargada y tiene que terminar en un `ver` o `no_ver`). `check` los ejecuta
   (`sandbox-check.mjs`) y dice cuál pasa; si falla, con el paso y lo que se ve en su lugar; si el archivo falta, es un
   problema y devuelve la forma. **El freno** (`sandboxPending`, `GET /api/conversations/<id>/pending`): en Auto, si el
-  modelo contesta sin pedir nada pero escribió después del último `probar`, o el último dejó algo en rojo, Wally le
+  modelo contesta sin pedir nada pero escribió después del último `check`, o el último dejó algo en rojo, Wally le
   dice «todavía no terminaste» y sigue (hasta 3 veces; después frena y avisa), en la interfaz y en `bin/wally`.
   **El freno, en una corrida real**: pedido «escribí una nota y cerrá sin probar», Smeargle quiso cerrar, Wally le
-  dijo «todavía no terminaste», corrió `probar`, falló, y siguió hasta dejarlo en verde (5 vueltas), contando solo el
+  dijo «todavía no terminaste», corrió `check`, falló, y siguió hasta dejarlo en verde (5 vueltas), contando solo el
   choque. De ahí salió un ajuste: un proyecto sin ninguna página (`sandboxHasPage`: ningún .html) no tiene qué probar
   y no frena; antes el agente inventaba una página y un criterio sólo para poder cerrar.
   Probado con una calculadora de propina, en Auto: 2 vueltas, 74 s; entregó la página y 4 criterios con los números
   exactos (15 % de 100.000 entre 2 → $57.500 cada uno), todos en verde; un caso que no había escrito él (20 % entre 4)
   también pasó. ⚠ Los criterios los escribe el mismo agente: sirven para que no cierre a ciegas, no reemplazan mirar
   que cubran lo pedido. En esa corrida el freno no llegó a actuar (salió todo a la primera): lo cubren sus pruebas.
-  `probar` dice si hay errores y si pasan los criterios, no cómo se ve: eso se mira (las capturas quedan en
-  `wally/pruebas/.capturas/`) o se usa.
+  `check` dice si hay errores y si pasan los criterios, no cómo se ve: eso se mira (las capturas quedan en
+  `wally/sandbox/.capturas/`) o se usa.
   **El revisor: el agente no se pone la nota solo** (`server/review.go`, 2026-11-18). Cuando una corrida en Auto que
-  escribió en `pruebas/` queda en verde y quiere cerrar, una pregunta APARTE al mismo proveedor —sin la conversación
+  escribió en `sandbox/` queda en verde y quiere cerrar, una pregunta APARTE al mismo proveedor —sin la conversación
   del agente ni su código: sólo los pedidos de Miguel sobre ese proyecto (los de la corrida y los de antes que lo
-  nombran) y su `criterios.json`— lista lo pedido que ningún criterio comprueba (`faltan`) y los criterios que
+  nombran) y su `criteria.json`— lista lo pedido que ningún criterio comprueba (`faltan`) y los criterios que
   pasarían aunque estuviera mal (`debiles`). Si hay algo, el agente recibe «Todavía no terminaste: un revisor…» y
   tiene que agregar o reforzar criterios y volver a probar; en la interfaz es la línea «un revisor pidió más
   criterios». Hasta 3 revisiones por corrida: la tercera con huecos cierra marcada «sin quedar bien» con lo que vio.
@@ -499,7 +511,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     sola con la primera escritura. Con menos de 1100 px ocupa todo, como antes.
   - **El cambio de cada escritura**: el servidor guarda en el comando el diff por renglones (`server/diff.go`,
     `Command.Change`: `+N −M`, o «nuevo»); la ficha lo abre en verde y rojo.
-  - **El resultado de `probar` como lista**: `sandbox-check.mjs` deja el resumen en datos junto a las capturas y el
+  - **El resultado de `check` como lista**: `sandbox-check.mjs` deja el resumen en datos junto a las capturas y el
     comando lo guarda (`Command.Report`): la ficha «sin errores · 5/5 criterios» y debajo cada criterio con ✓ o ✗ (y
     el paso que falló), los errores y los desbordes.
   ⚠ Para verificar la vista previa, `make ui-shot` (un Chromium real): el navegador embebido de la sesión de Claude
@@ -515,9 +527,9 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   respuesta y qué quedó sin ver) y la interfaz lo consulta al abrir y cada 2,5 s. Lo sin ver vive en memoria: un
   reinicio de Wally lo olvida.
 - **Vite ya no recarga la interfaz por lo que no es la interfaz** (`vite.config.js`, `server.watch.ignored`): Tailwind
-  mira toda la carpeta buscando clases, y cada archivo que un agente escribía en `pruebas/` —o un cambio en `server/`,
+  mira toda la carpeta buscando clases, y cada archivo que un agente escribía en `sandbox/` —o un cambio en `server/`,
   una guía, lo guardado— recargaba la página entera: se cerraba la vista previa y se cortaba el Auto de la interfaz.
-  Se vio en `bin/cockpit logs wally` («page reload pruebas/…»). Un cambio en el servidor sigue pidiendo
+  Se vio en `bin/cockpit logs wally` («page reload sandbox/…»). Un cambio en el servidor sigue pidiendo
   `bin/cockpit restart wally --wait`.
 - **Wally es genérico y carga de a poco: una base corta y HABILIDADES que se piden** (2026-11-17, Miguel: «que no sea
   solamente de knowledge; que pidan los comandos disponibles, no que los cargue todo de totazo, como vos con los
@@ -525,26 +537,26 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **[`WALLY.md`](WALLY.md) es la base** (2,5 KB): quién es, cómo trabaja (pedir antes de afirmar, el plan en dos
     líneas para lo de varios pasos, no inventar, citar, decir qué comprobó y qué no) y qué no puede. Sin comandos.
   - **[`skills/`](skills/) son sus habilidades**, un archivo cada una (`# nombre: para qué sirve`, sus comandos con un
-    bloque de ejemplo, y cómo usarla): `knowledge`, `knowledge-al-dia`, `codigo`, `trampas`, `tareas`, `herramientas`,
+    bloque de ejemplo, y cómo usarla): `knowledge`, `knowledge-al-dia`, `code`, `traps`, `tareas`, `herramientas`,
     `pruebas`, `sentinel`, `canon`. El servidor arma el ÍNDICE solo (`skillIndex`, una línea por habilidad) y lo pega
-    a la base; el detalle se pide con **`ayuda <nombre>`** (`ayuda` solo: el índice). **Agregar una habilidad es
+    a la base; el detalle se pide con **`help <nombre>`** (`help` solo: el índice). **Agregar una habilidad es
     agregar un archivo**, sin tocar la base ni el servidor (si trae un comando nuevo, sí su línea en `allowList`).
   - **Las dos cosas dicen lo mismo, y se prueba**: `TestSkillsMatchTheAllowList` corre cada comando de ejemplo de cada
     habilidad contra la lista blanca. Lo de «su fila en WALLY.md» de más arriba ahora es «su habilidad».
   - **Un agente trae precargadas las de su oficio** (`Agent.Skills`; `bin/wally agent create|update --skill …`,
     `bin/wally skills` las lista): no gasta una vuelta pidiendo ayuda. Smeargle `pruebas` (y sus notas quedaron en el
-    ciclo, sin repetir la habilidad); Porygon y los nueve de knowledge `knowledge`, `knowledge-al-dia`, `codigo`;
-    Noctowl `sentinel`, `trampas`; Mew `tareas`, `trampas`, `knowledge`; Ditto `canon`, `codigo`.
+    ciclo, sin repetir la habilidad); Porygon y los nueve de knowledge `knowledge`, `knowledge-al-dia`, `code`;
+    Noctowl `sentinel`, `traps`; Mew `tareas`, `traps`, `knowledge`; Ditto `canon`, `code`.
   Probado con DeepSeek, en Auto, en conversaciones nuevas de Wally: (1) una pregunta que no pide mirar nada: contestó
-  directo, 7,5 s; (2) «¿ya nos pasó que el OTP no valide en staging?»: `ayuda trampas` → `trampas` → `trampa F-135` →
-  la causa, diciendo qué no verificó (4 vueltas, 97 s); (3) «armame una página con un contador»: `ayuda pruebas` → la
-  página, 5 criterios y `probar` en verde (3 vueltas, 48 s). El primer mensaje de una conversación pasó de ~7.700 a
+  directo, 7,5 s; (2) «¿ya nos pasó que el OTP no valide en staging?»: `help trampas` → `traps` → `trap F-135` →
+  la causa, diciendo qué no verificó (4 vueltas, 97 s); (3) «armame una página con un contador»: `help pruebas` → la
+  página, 5 criterios y `check` en verde (3 vueltas, 48 s). El primer mensaje de una conversación pasó de ~7.700 a
   ~3.300 caracteres; el costo es UNA vuelta más la primera vez que usa cada habilidad. ⚠ Lo que costó: con «si se
-  contesta sin mirar nada, contestala», Porygon repitió DE MEMORIA su revisión anterior sin correr `cambios`; la base
+  contesta sin mirar nada, contestala», Porygon repitió DE MEMORIA su revisión anterior sin correr `changes`; la base
   ahora dice que lo que cambia con el tiempo (main, producción, el tablero, un archivo) se vuelve a mirar cada vez.
 - **Rust: lo primero que Wally EJECUTA de lo que escribe un modelo, y por eso va en un contenedor** (`server/rust.go`,
   `wally/rust/`, 2026-11-17; Miguel: «hacer una API en Rust usando un agente»). Compilar Rust ya es correr su código
-  (un `build.rs`, una macro), así que nada corre en la Mac: `compilar`, `testear` y `probar-api pruebas/<proyecto>`
+  (un `build.rs`, una macro), así que nada corre en la Mac: `build`, `test` y `check-api sandbox/<proyecto>`
   hacen `docker run` de la imagen **`wally-rust`** (`make wally-rust`, 1,5 GB) con `--network none`, viendo SÓLO la
   carpeta del proyecto (`/work`) y un volumen propio para lo compilado (`/target`), con tope de memoria, de procesos y
   de tiempo (12 min; si se pasa, se mata el contenedor) y sin privilegios nuevos. Comprobado a mano: adentro no hay
@@ -553,35 +565,35 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     `serde_json`; para tests `tower` y `http-body-util`), y la habilidad `rust` da las líneas exactas del `Cargo.toml`.
     Por eso un proyecto nuevo compila en ~1 s. Para sumar una biblioteca: su `cargo add` en el Dockerfile, `make
     wally-rust` y su línea en `skills/rust.md`.
-  - **`probar-api`** (`wally/rust/probar-api.sh`, dentro del contenedor): compila, levanta el binario en
-    `127.0.0.1:$PORT` y le hace EN ORDEN, contra el mismo proceso, los pedidos de `criterios.json` (`pedido`: método,
+  - **`check-api`** (`wally/rust/check-api.sh`, dentro del contenedor): compila, levanta el binario en
+    `127.0.0.1:$PORT` y le hace EN ORDEN, contra el mismo proceso, los pedidos de `criteria.json` (`pedido`: método,
     ruta, cuerpo; `espera`: estado, `contiene`, `no_contiene`); dice cuál pasa y la tarjeta lo muestra como lista.
-  - **El freno sabe qué es cada proyecto** (`sandboxKind`): una página se comprueba con `probar`, una API en Rust con
-    `probar-api` (que compile no alcanza para cerrar), y lo que no es ninguna de las dos no frena.
+  - **El freno sabe qué es cada proyecto** (`sandboxKind`): una página se comprueba con `check`, una API en Rust con
+    `check-api` (que compile no alcanza para cerrar), y lo que no es ninguna de las dos no frena.
   - Se escriben también `.rs`, `.toml` y `.lock`. «Ver» sólo aparece en lo que es de una página.
-  - **La consola del agente: `consola pruebas/<proyecto> <comando>`** (`runConsole`; Miguel: «que lo pruebe usando
+  - **La consola del agente: `console sandbox/<proyecto> <comando>`** (`runConsole`; Miguel: «que lo pruebe usando
     comandos de consola»). Corre CUALQUIER comando de terminal, pero dentro del mismo contenedor (sin red, sólo su
     proyecto, 5 min, la cola de 200 renglones): `cargo`, `curl`, `jq`, `grep`, `sed`… Es el único comando de la lista
-    blanca cuyo texto no se restringe: lo que se valida es DÓNDE corre (un proyecto de `pruebas/`), y en la Mac viaja
+    blanca cuyo texto no se restringe: lo que se valida es DÓNDE corre (un proyecto de `sandbox/`), y en la Mac viaja
     como UN argumento a `bash -c` del contenedor, sin shell de este lado. Cada comando arranca de cero, así que para
-    pedirle algo a la API va **`con-api <comando>`** (`wally/rust/con-api.sh`): compila, la levanta en
+    pedirle algo a la API va **`with-api <comando>`** (`wally/rust/with-api.sh`): compila, la levanta en
     `localhost:8080`, corre el comando y la apaga, mostrando lo que la API escribió. Si un comando de consola cambió
     archivos del proyecto (`sandboxStamp`, `Command.Touched`), para el freno es una escritura y hay que volver a probar.
-    Sirve para explorar y depurar; se cierra igual con `probar-api`. Vale también en un proyecto de página.
+    Sirve para explorar y depurar; se cierra igual con `check-api`. Vale también en un proyecto de página.
   **Krabby** ([`agents/krabby.md`](agents/krabby.md), con `rust` y `pruebas` precargadas), por DeepSeek en Auto: una
   API de tareas con cinco rutas (listar, crear con validación, leer, marcar hecha, borrar) en UNA respuesta —121
-  renglones en un `main.rs`, estado en memoria— y `probar-api` con sus 12 criterios en verde al primer intento: 2
+  renglones en un `main.rs`, estado en memoria— y `check-api` con sus 12 criterios en verde al primer intento: 2
   vueltas, 52 s. Verificado aparte con 13 pedidos que él no escribió (un id que no es número, no reusar ids después de
   borrar, marcar hecha una que no existe): los 13 pasan. Lo que costó fue del probador: rechazaba un criterio que
   sólo tenía `no_contiene`. **Un endpoint nuevo sobre lo que ya existía** (`PATCH /tareas/{id}` y el filtro
   `?hecha=`): leyó los dos archivos, 6 parches (39 renglones, sin reescribir), 9 criterios más y 21/21 en 3 vueltas,
-  58 s; 12 pedidos aparte, bien. **Explorar con la consola y después corregir**: con `con-api curl` vio que dos casos
+  58 s; 12 pedidos aparte, bien. **Explorar con la consola y después corregir**: con `with-api curl` vio que dos casos
   raros daban 400 pero en texto plano con el mensaje crudo de axum; los pasó a `{"error":"…"}` con parches y dejó
   23/23; el caso que dijo no haber vuelto a probar (el JSON mal formado literal) se comprobó aparte y está bien.
   **Tres cosas nuevas, sin apoyo** (`GET /tareas/resumen`, `?buscar=` combinable con `?hecha=`, y `DELETE
   /tareas?hecha=true` con su conteo): 8 vueltas, 194 s, todo con parches (45 renglones nuevos), 30/30; 19 pedidos
   aparte, bien (entre ellos que `/tareas/resumen` no se confunde con un id). Y **encontró un defecto del probador**:
-  `probar-api` corría como máximo 30 criterios y descartaba el resto EN SILENCIO; lo vio comparando `jq length` (31)
+  `check-api` corría como máximo 30 criterios y descartaba el resto EN SILENCIO; lo vio comparando `jq length` (31)
   con lo que contaba la corrida, usando la consola. Corregido en los dos probadores (el de páginas cortaba en 25):
   ahora corren todos, y por encima del tope (200 y 100) no corren ninguno y lo dicen.
   ⚠ De esa corrida: la salida de `curl -i` trae `\r\n` y el cuadro de texto de la web los vuelve `\n` («el campo

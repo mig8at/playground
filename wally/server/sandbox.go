@@ -1,6 +1,6 @@
 package main
 
-// La carpeta de pruebas (wally/pruebas): el único lugar donde un agente ESCRIBE. Páginas estáticas, sin dependencias.
+// La carpeta de pruebas (wally/sandbox): el único lugar donde un agente ESCRIBE. Páginas estáticas, sin dependencias.
 // Todo lo demás de Wally es de sólo lectura; esto sigue siendo seguro en Auto porque la ruta se valida acá (adentro de
 // la carpeta, tipos de archivo fijos, tamaño con tope), no se ejecuta nada y lo escrito se sirve aislado (sandboxHeaders).
 
@@ -21,20 +21,20 @@ import (
 )
 
 const (
-	sandboxDir      = "wally/pruebas"
+	sandboxDir      = "wally/sandbox"
 	sandboxMaxBytes = 400_000 // por archivo
 	sandboxMaxFiles = 60      // por proyecto
 )
 
-// sandboxFile: `pruebas/<proyecto>[/<carpeta>…]/<archivo>.<tipo>`. Sin `..`, sin puntos al comienzo, tipos de una página.
+// sandboxFile: `sandbox/<proyecto>[/<carpeta>…]/<archivo>.<tipo>`. Sin `..`, sin puntos al comienzo, tipos de una página.
 var (
-	sandboxFile = regexp.MustCompile(`^pruebas/((?:[a-z0-9][a-z0-9_-]{0,40}/){1,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}\.(?:html|css|js|mjs|json|svg|md|txt|rs|toml|lock))$`)
-	sandboxPath = regexp.MustCompile(`^pruebas(?:/((?:[a-z0-9][a-z0-9_-]{0,40}/){0,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}))?$`)
+	sandboxFile = regexp.MustCompile(`^sandbox/((?:[a-z0-9][a-z0-9_-]{0,40}/){1,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}\.(?:html|css|js|mjs|json|svg|md|txt|rs|toml|lock))$`)
+	sandboxPath = regexp.MustCompile(`^sandbox(?:/((?:[a-z0-9][a-z0-9_-]{0,40}/){0,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}))?$`)
 	// fileBlock: lo que entrega el modelo, en el orden en que lo escribió: un archivo entero
-	// (```archivo pruebas/mi-pagina/index.html … ```) o un parche sobre uno que ya existe (```parche … ```).
-	fileBlock = regexp.MustCompile("(?s)```(archivo|parche)[ \\t]+(\\S+)[ \\t]*\\n(.*?)\\n```")
+	// (```file sandbox/mi-pagina/index.html … ```) o un parche sobre uno que ya existe (```patch … ```).
+	fileBlock = regexp.MustCompile("(?s)```(file|patch|archivo|parche)[ \\t]+(\\S+)[ \\t]*\\n(.*?)\\n```")
 	// patchHunk: un cambio de un parche: el texto que está, y el que lo reemplaza.
-	patchHunk = regexp.MustCompile(`(?s)<<<<<<< BUSCAR\n(.*?)\n?=======\n(.*?)\n?>>>>>>> REEMPLAZAR`)
+	patchHunk = regexp.MustCompile(`(?s)<<<<<<< (?:SEARCH|BUSCAR)\n(.*?)\n?=======\n(.*?)\n?>>>>>>> (?:REPLACE|REEMPLAZAR)`)
 )
 
 // sandboxAbs: la ruta en disco de algo de la carpeta de pruebas, comprobando que de verdad quede adentro (un enlace
@@ -76,7 +76,7 @@ func (a *app) writeSandbox(path, content string) (string, error) {
 func (a *app) writeSandboxChange(path, content string) (string, fileChange, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "", fileChange{}, errors.New("sólo se escribe en pruebas/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md, txt, rs, toml o lock")
+		return "", fileChange{}, errors.New("sólo se escribe en sandbox/<proyecto>/…, con nombre simple y tipo html, css, js, mjs, json, svg, md, txt, rs, toml o lock")
 	}
 	if len(content) > sandboxMaxBytes {
 		return "", fileChange{}, fmt.Errorf("el archivo pesa %d bytes y el tope es %d: partilo", len(content), sandboxMaxBytes)
@@ -110,7 +110,7 @@ func (a *app) writeSandboxChange(path, content string) (string, fileChange, erro
 	if err := os.WriteFile(abs, []byte(content), 0o644); err != nil {
 		return "", fileChange{}, err
 	}
-	return fmt.Sprintf("guardado %s · %d bytes · %d renglones (%s). Se ve en /pruebas/%s", path, len(content), strings.Count(content, "\n")+1, note, m[1]), lineDiff(before, content), nil
+	return fmt.Sprintf("guardado %s · %d bytes · %d renglones (%s). Se ve en /sandbox/%s", path, len(content), strings.Count(content, "\n")+1, note, m[1]), lineDiff(before, content), nil
 }
 
 func (a *app) sandboxCount(project string) int {
@@ -142,7 +142,7 @@ func (a *app) listSandbox(rel string) (string, error) {
 		if !d.IsDir() {
 			info, _ := d.Info()
 			r, _ := filepath.Rel(root, p)
-			lines = append(lines, fmt.Sprintf("pruebas/%s · %d bytes", filepath.ToSlash(r), info.Size()))
+			lines = append(lines, fmt.Sprintf("sandbox/%s · %d bytes", filepath.ToSlash(r), info.Size()))
 		}
 		return nil
 	})
@@ -156,7 +156,7 @@ func (a *app) listSandbox(rel string) (string, error) {
 func (a *app) readSandbox(path string) (string, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "", errors.New("se lee como pruebas/<proyecto>/<archivo>")
+		return "", errors.New("se lee como sandbox/<proyecto>/<archivo>")
 	}
 	abs, err := a.sandboxAbs(m[1])
 	if err != nil {
@@ -173,7 +173,7 @@ func (a *app) readSandbox(path string) (string, error) {
 // modelo no puede ver: errores de consola, recursos que no cargaron, el esquema de lo que quedó y si se desborda.
 func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error) {
 	if rel == "" {
-		return "", 1, errors.New("decí qué probar: probar pruebas/<proyecto> o pruebas/<proyecto>/<pagina>.html")
+		return "", 1, errors.New("decí qué probar: probar sandbox/<proyecto> o sandbox/<proyecto>/<pagina>.html")
 	}
 	abs, err := a.sandboxAbs(rel)
 	if err != nil {
@@ -181,7 +181,7 @@ func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error)
 	}
 	target := rel
 	if info, err := os.Stat(abs); err != nil {
-		return fmt.Sprintf("no existe pruebas/%s", rel), 1, nil
+		return fmt.Sprintf("no existe sandbox/%s", rel), 1, nil
 	} else if info.IsDir() {
 		target = strings.TrimSuffix(rel, "/") + "/index.html"
 	}
@@ -190,12 +190,12 @@ func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error)
 	base := a.sandboxShotBase(target)
 	_ = os.MkdirAll(filepath.Dir(base), 0o755)
 	_ = os.Remove(base + ".json") // el resumen de una corrida anterior no se confunde con el de ésta
-	// Los criterios del proyecto (criterios.json en su raíz): lo que la página tiene que HACER. Se pasan siempre: si
+	// Los criterios del proyecto (criteria.json en su raíz): lo que la página tiene que HACER. Se pasan siempre: si
 	// faltan, `probar` lo dice como un problema, con la forma que tienen que tener.
 	project := strings.SplitN(rel, "/", 2)[0]
 	cmd := exec.CommandContext(ctx, "node", filepath.Join(a.root, "wally", "sandbox-check.mjs"),
-		"http://127.0.0.1:5229/pruebas/"+target, base,
-		filepath.Join(a.root, sandboxDir, project, "criterios.json"))
+		"http://127.0.0.1:5229/sandbox/"+target, base,
+		filepath.Join(a.root, sandboxDir, project, "criteria.json"))
 	cmd.Dir = a.root
 	out, err := cmd.CombinedOutput()
 	if err != nil {
@@ -215,7 +215,7 @@ func (a *app) checkSandbox(ctx context.Context, rel string) (string, int, error)
 // y sólo carga recursos de la misma
 // carpeta (nada de CDNs: la página tiene que ser autocontenida).
 func (a *app) serveSandbox(w http.ResponseWriter, r *http.Request) {
-	rel := strings.TrimPrefix(r.URL.Path, "/pruebas/")
+	rel := strings.TrimPrefix(r.URL.Path, "/sandbox/")
 	if strings.HasSuffix(rel, "/") || rel == "" {
 		rel += "index.html"
 	}
@@ -236,7 +236,7 @@ func (a *app) serveSandbox(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, abs)
 }
 
-// patchSandbox aplica un parche a un archivo de la carpeta: uno o más cambios «BUSCAR / REEMPLAZAR». Cada texto
+// patchSandbox aplica un parche a un archivo de la carpeta: uno o más cambios «SEARCH / REPLACE». Cada texto
 // buscado tiene que estar UNA sola vez (si no, no se sabe dónde va); se aplican todos o ninguno. Si un texto no
 // aparece tal cual, se prueba sin los espacios del final de cada renglón, que es donde más se equivoca un modelo.
 // Lo que falla vuelve como salida para que el modelo lo corrija, no como error del servidor.
@@ -249,7 +249,7 @@ func (a *app) patchSandbox(path, patch string) (string, int, error) {
 func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, error) {
 	m := sandboxFile.FindStringSubmatch(path)
 	if m == nil {
-		return "sólo se parcha un archivo de pruebas/<proyecto>/…", 1, fileChange{}, nil
+		return "sólo se parcha un archivo de sandbox/<proyecto>/…", 1, fileChange{}, nil
 	}
 	abs, err := a.sandboxAbs(m[1])
 	if err != nil {
@@ -257,11 +257,11 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 	}
 	raw, err := os.ReadFile(abs)
 	if err != nil {
-		return fmt.Sprintf("no existe %s: un parche cambia un archivo que ya está (para uno nuevo, entregalo entero en un bloque archivo)", path), 1, fileChange{}, nil
+		return fmt.Sprintf("no existe %s: un parche cambia un archivo que ya está (para uno nuevo, entregalo entero en un bloque file)", path), 1, fileChange{}, nil
 	}
 	hunks := patchHunk.FindAllStringSubmatch(patch, -1)
 	if len(hunks) == 0 {
-		return "el parche no trae ningún cambio con la forma:\n<<<<<<< BUSCAR\n(texto que está)\n=======\n(texto nuevo)\n>>>>>>> REEMPLAZAR", 1, fileChange{}, nil
+		return "el parche no trae ningún cambio con la forma:\n<<<<<<< SEARCH\n(texto que está)\n=======\n(texto nuevo)\n>>>>>>> REPLACE", 1, fileChange{}, nil
 	}
 	trimEnds := func(s string) string {
 		lines := strings.Split(s, "\n")
@@ -274,7 +274,7 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 	for i, h := range hunks {
 		find, repl := h[1], h[2]
 		if find == "" {
-			return fmt.Sprintf("el cambio %d no dice qué BUSCAR", i+1), 1, fileChange{}, nil
+			return fmt.Sprintf("el cambio %d no dice qué buscar (SEARCH)", i+1), 1, fileChange{}, nil
 		}
 		n := strings.Count(text, find)
 		if n == 0 {
@@ -290,9 +290,9 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 			if first != "" && strings.Contains(text, first) {
 				hint = fmt.Sprintf(" Su primer renglón («%s») sí está: lo demás no coincide. Pedí `leer %s` y copiá el texto tal como está.", first, path)
 			}
-			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR no está en %s.%s No se cambió nada.", i+1, len(hunks), path, hint), 1, fileChange{}, nil
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de SEARCH no está en %s.%s No se cambió nada.", i+1, len(hunks), path, hint), 1, fileChange{}, nil
 		case n > 1:
-			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR aparece %d veces en %s. Sumale renglones de alrededor para que sea único. No se cambió nada.", i+1, len(hunks), n, path), 1, fileChange{}, nil
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de SEARCH aparece %d veces en %s. Sumale renglones de alrededor para que sea único. No se cambió nada.", i+1, len(hunks), n, path), 1, fileChange{}, nil
 		}
 		text = strings.Replace(text, find, repl, 1)
 	}
@@ -306,10 +306,10 @@ func (a *app) patchSandboxChange(path, patch string) (string, int, fileChange, e
 // sandboxPending: por qué una conversación que escribió en la carpeta de pruebas todavía NO puede darse por terminada
 // ("" si puede). Es el freno del modo automático (Miguel, 2026-11-17; la idea es la lista de «hecho» de los harness de
 // agentes largos): el modelo no decide solo que terminó. Queda pendiente si escribió después de la última
-// comprobación (o nunca comprobó), o si la última dejó problemas (errores, o un criterio de criterios.json que no pasa).
+// comprobación (o nunca comprobó), o si la última dejó problemas (errores, o un criterio de criteria.json que no pasa).
 //
 // La comprobación depende de qué es el proyecto (`kind`): una página se comprueba con `probar`; una API en Rust, con
-// `probar-api`. Uno que no es ninguna de las dos (una nota, un JSON suelto) no tiene qué comprobar y no frena: exigirlo
+// `check-api`. Uno que no es ninguna de las dos (una nota, un JSON suelto) no tiene qué comprobar y no frena: exigirlo
 // hacía que el agente inventara una página y un criterio sólo para poder cerrar.
 func sandboxPending(c Conversation, kind func(project string) string) string {
 	type event struct {
@@ -321,14 +321,14 @@ func sandboxPending(c Conversation, kind func(project string) string) string {
 	for _, m := range c.Messages {
 		for _, k := range m.Commands {
 			fields := strings.Fields(k.Cmd)
-			if k.Status != "corrido" || len(fields) < 2 || !strings.HasPrefix(fields[1], "pruebas/") {
+			if k.Status != "ran" || len(fields) < 2 || !strings.HasPrefix(fields[1], "sandbox/") {
 				continue
 			}
-			project := strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0]
+			project := strings.SplitN(strings.TrimPrefix(fields[1], "sandbox/"), "/", 2)[0]
 			// Un comando de consola que cambió archivos del proyecto es una escritura más.
-			if fields[0] == "consola" {
+			if fields[0] == "console" {
 				if k.Touched {
-					events = append(events, event{"escribir", project, 0})
+					events = append(events, event{"write", project, 0})
 				}
 				continue
 			}
@@ -341,14 +341,14 @@ func sandboxPending(c Conversation, kind func(project string) string) string {
 	project := ""
 	lastWrite := -1
 	for i, e := range events {
-		if (e.verb == "escribir" || e.verb == "parchar") && e.exit == 0 {
+		if (e.verb == "write" || e.verb == "patch") && e.exit == 0 {
 			lastWrite, project = i, e.project
 		}
 	}
 	if lastWrite < 0 {
 		return ""
 	}
-	check := map[string]string{"pagina": "probar", "rust": "probar-api"}[kind(project)]
+	check := map[string]string{"page": "check", "rust": "check-api"}[kind(project)]
 	if check == "" {
 		return ""
 	}
@@ -360,7 +360,7 @@ func sandboxPending(c Conversation, kind func(project string) string) string {
 	}
 	switch {
 	case lastCheck < lastWrite:
-		return fmt.Sprintf("Todavía no terminaste: escribiste en pruebas/%s después del último `%s` (o nunca lo corriste). Pedí `%s pruebas/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, check, check, project)
+		return fmt.Sprintf("Todavía no terminaste: escribiste en sandbox/%s después del último `%s` (o nunca lo corriste). Pedí `%s sandbox/%s` y no cierres hasta que diga «RESULTADO: sin errores».", project, check, check, project)
 	case lastExit != 0:
 		return fmt.Sprintf("Todavía no terminaste: el último `%s` dejó problemas (están en su salida, arriba). Corregí lo que falla —el código, o el criterio si estaba mal escrito— y volvé a correr `%s`. No cierres hasta que diga «RESULTADO: sin errores».", check, check)
 	}
@@ -388,7 +388,7 @@ type checkReport struct {
 	Problems int      `json:"problems"`
 	Errors   []string `json:"errors,omitempty"`
 	Overflow []string `json:"overflow,omitempty"`
-	Note     string   `json:"note,omitempty"` // «falta criterios.json», etc.
+	Note     string   `json:"note,omitempty"` // «falta criteria.json», etc.
 	Criteria []struct {
 		Name   string `json:"name"`
 		OK     bool   `json:"ok"`
@@ -403,7 +403,7 @@ func (a *app) sandboxShotBase(target string) string {
 
 // sandboxReport lee el resumen que dejó el último `probar <cmd>` (nil si no hay).
 func (a *app) sandboxReport(cmd string) *checkReport {
-	m := sandboxPath.FindStringSubmatch(strings.TrimPrefix(cmd, "probar "))
+	m := sandboxPath.FindStringSubmatch(strings.TrimPrefix(cmd, "check "))
 	if m == nil || m[1] == "" {
 		return nil
 	}
@@ -422,7 +422,7 @@ func (a *app) sandboxReport(cmd string) *checkReport {
 	return &r
 }
 
-// sandboxKind: qué es un proyecto de la carpeta, que decide cómo se comprueba: "rust" (tiene Cargo.toml), "pagina"
+// sandboxKind: qué es un proyecto de la carpeta, que decide cómo se comprueba: "rust" (tiene Cargo.toml), "page"
 // (tiene algún .html) o "" (nada que comprobar).
 func (a *app) sandboxKind(project string) string {
 	dir := filepath.Join(a.root, sandboxDir, project)
@@ -438,7 +438,7 @@ func (a *app) sandboxKind(project string) string {
 		return nil
 	})
 	if found {
-		return "pagina"
+		return "page"
 	}
 	return ""
 }

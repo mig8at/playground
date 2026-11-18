@@ -2,13 +2,13 @@
 
 | comando | para qué |
 |---|---|
-| `canon buscar 'texto'` | qué temas y secciones de canon hablan de algo |
-| `canon tema asesor/context` · `canon tema cuota/context#ancla` | un tema o una sección |
+| `canon search 'texto'` | qué temas y secciones de canon hablan de algo |
+| `canon read asesor/context` · `canon read cuota/context#ancla` | un tema o una sección |
 
-```comando
-canon buscar 'deshabilitar asesor'
-canon tema asesor/context
+```command
+canon search 'deshabilitar asesor'
+canon read asesor/context
 ```
 
-Canon no nombra clases ni archivos y puede estar desactualizado: lo técnico se verifica contra `main` (`ayuda codigo`)
-antes de darlo por cierto. Para el día a día técnico, primero `ayuda knowledge`.
+Canon no nombra clases ni archivos y puede estar desactualizado: lo técnico se verifica contra `main` (`help code`)
+antes de darlo por cierto. Para el día a día técnico, primero `help knowledge`.

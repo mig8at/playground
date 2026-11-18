@@ -301,7 +301,7 @@ const mode = computed(() => modeOf(active.value))
 // Los modos asistidos: «asistente» lee wally/WALLY.md (sus herramientas de lectura); «knowledge» es el primero, que
 // sólo conocía la biblioteca (sus conversaciones siguen andando).
 const MODES = {
-  asistente: { label: 'Asistente', short: 'asistente', badge: 'A' },
+  assistant: { label: 'Asistente', short: 'asistente', badge: 'A' },
   knowledge: { label: 'Asistente de knowledge', short: 'knowledge', badge: 'K' },
 }
 const messages = computed(() => conv.value?.messages || [])
@@ -537,7 +537,7 @@ function setAuto(on) {
   setAutoFor(key, on)
   // Prenderlo con comandos esperando su sí: la corrida arranca desde ahí.
   const last = messages.value[messages.value.length - 1]
-  if (on && !isNew(key) && last?.role === 'model' && (last.commands || []).some((x) => x.status === 'propuesto')) startAuto(key, '', [])
+  if (on && !isNew(key) && last?.role === 'model' && (last.commands || []).some((x) => x.status === 'proposed')) startAuto(key, '', [])
 }
 async function startAuto(id, text, files) {
   errors.value = { ...errors.value, [id]: '' }
@@ -582,8 +582,8 @@ async function commandAction(m, c, action) {
 const awaitingResults = computed(() => {
   const last = messages.value[messages.value.length - 1]
   if (!last || last.role !== 'model' || !last.commands?.length) return null
-  if (last.commands.some((c) => c.status === 'propuesto')) return null
-  return { ran: last.commands.filter((c) => c.status === 'corrido').length, total: last.commands.length }
+  if (last.commands.some((c) => c.status === 'proposed')) return null
+  return { ran: last.commands.filter((c) => c.status === 'ran').length, total: last.commands.length }
 })
 function sendResults() {
   const r = awaitingResults.value
@@ -593,26 +593,26 @@ function sendResults() {
     : 'No corrí ninguno de esos comandos. Seguí con lo que tenés, o pedí otra cosa.'
   send()
 }
-const proposedCount = (m) => (m.commands || []).filter((c) => c.status === 'propuesto').length
-// En una respuesta con comandos, sus bloques ```comando no se repiten como código: van como tarjetas.
-// Tampoco los ```archivo: el archivo entero va como una tarjeta «escribir», no como un bloque de código de cien renglones.
-const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').replace(/```(?:archivo|parche)[^\n]*\n[\s\S]*?\n```/g, '').trim() : m.text)
+const proposedCount = (m) => (m.commands || []).filter((c) => c.status === 'proposed').length
+// En una respuesta con comandos, sus bloques ```command no se repiten como código: van como tarjetas.
+// Tampoco los ```file: el archivo entero va como una tarjeta «escribir», no como un bloque de código de cien renglones.
+const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```command[^\n]*\n[\s\S]*?```/g, '').replace(/```(?:archivo|parche)[^\n]*\n[\s\S]*?\n```/g, '').trim() : m.text)
 
-// LA VISTA PREVIA de lo que un agente escribió en wally/pruebas: en un iframe AISLADO (sandbox, y el servidor además la
+// LA VISTA PREVIA de lo que un agente escribió en wally/sandbox: en un iframe AISLADO (sandbox, y el servidor además la
 // sirve sin permiso para hacer pedidos). Ocupa el lugar de la conversación hasta que se cierra.
 const preview = ref({ url: '', path: '', phone: false, nonce: 0 })
 // Sólo lo que es de una página: un `main.rs` o un `Cargo.toml` no tienen qué mostrar.
-const previewable = (c) => c.status === 'corrido' && (/^probar pruebas\/[a-z0-9]/.test(c.cmd) || /^(escribir|parchar) pruebas\/\S+\.(html|css|js|mjs|svg)$/.test(c.cmd))
+const previewable = (c) => c.status === 'ran' && (/^check sandbox\/[a-z0-9]/.test(c.cmd) || /^(write|patch) sandbox\/\S+\.(html|css|js|mjs|svg)$/.test(c.cmd))
 function openPreview(c) {
-  const rel = c.cmd.replace(/^(escribir|parchar|probar) pruebas\//, '')
+  const rel = c.cmd.replace(/^(write|patch|check) sandbox\//, '')
   // Un .html se abre tal cual; cualquier otro archivo (css, js) o un proyecto, por su index.
   const path = /\.html$/.test(rel) ? rel : rel.split('/')[0] + '/'
-  preview.value = { url: `/pruebas/${path}`, path, phone: preview.value.phone, nonce: Date.now() }
+  preview.value = { url: `/sandbox/${path}`, path, phone: preview.value.phone, nonce: Date.now() }
 }
 function closePreview() { preview.value = { ...preview.value, url: '' } }
 // La página se recarga sola cuando el agente escribe o parcha; y si está trabajando solo (Auto, o una corrida de
 // afuera) y todavía no hay página abierta, se abre al lado en cuanto escribe la primera.
-const writtenIds = computed(() => messages.value.flatMap((m) => (m.commands || []).filter((c) => c.status === 'corrido' && c.change && /^(escribir|parchar) pruebas\//.test(c.cmd))))
+const writtenIds = computed(() => messages.value.flatMap((m) => (m.commands || []).filter((c) => c.status === 'ran' && c.change && /^(write|patch) sandbox\//.test(c.cmd))))
 watch([active, () => messages.value.length, () => writtenIds.value.map((c) => c.id).join(',')], ([key, , now], [prevKey, prevCount, before]) => {
   // Cambiar de conversación, o que termine de cargar, no es «el agente escribió».
   if (key !== prevKey || !prevCount || !now || now === before) return
@@ -951,7 +951,7 @@ onBeforeUnmount(() => {
       <div v-if="preview.url" class="region-body preview-pane">
         <div class="preview-head">
           <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
-          <b>pruebas/{{ preview.path }}</b>
+          <b>sandbox/{{ preview.path }}</b>
           <span class="count" title="Lo escribió un agente: va aislado, sin pedidos a ningún lado. Se recarga sola cuando el agente escribe o parcha.">aislada · se recarga sola</span>
           <div class="toggle-group toggle-outline toggle-joined run-mode" role="radiogroup" aria-label="Tamaño">
             <button type="button" class="toggle" role="radio" :aria-pressed="!preview.phone" :aria-checked="!preview.phone" @click="preview = { ...preview, phone: false }">Escritorio</button>
@@ -1049,19 +1049,19 @@ onBeforeUnmount(() => {
             <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s</span></div>
             <div class="answer-body" v-html="md(answerText(m))"></div>
             <div v-if="m.commands?.length" class="commands">
-              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ m.commands.some((c) => c.status === 'corriendo') ? ': corriendo…' : proposedCount(m) ? (autoOn || remote ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
+              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ m.commands.some((c) => c.status === 'running') ? ': corriendo…' : proposedCount(m) ? (autoOn || remote ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
               <template v-for="c in m.commands" :key="c.id">
               <div class="command" :class="`is-${c.status}`">
                 <code class="command-line">{{ c.cmd }}</code>
-                <span v-if="c.status === 'corriendo' || running === c.id" class="command-status running-text"><i class="spinner" aria-hidden="true"></i>corriendo…</span>
-                <span v-else-if="c.status === 'propuesto' && (autoOn || remote)" class="command-status">en cola{{ c.content ? ` · ${charsLabel(c.content.length)}` : '' }}</span>
-                <template v-else-if="c.status === 'propuesto'">
+                <span v-if="c.status === 'running' || running === c.id" class="command-status running-text"><i class="spinner" aria-hidden="true"></i>corriendo…</span>
+                <span v-else-if="c.status === 'proposed' && (autoOn || remote)" class="command-status">en cola{{ c.content ? ` · ${charsLabel(c.content.length)}` : '' }}</span>
+                <template v-else-if="c.status === 'proposed'">
                   <button type="button" class="btn btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'run')">
                     <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ running === c.id ? 'Corriendo…' : 'Correr' }}
                   </button>
                   <button type="button" class="btn btn-ghost btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'decline')">Descartar</button>
                 </template>
-                <template v-else-if="c.status === 'corrido'">
+                <template v-else-if="c.status === 'ran'">
                   <button v-if="c.change" type="button" class="change-chip" :class="{ on: openDiff === c.id }" :title="c.change.new ? 'Archivo nuevo: ver lo que entró' : 'Ver qué cambió'" @click="openDiff = openDiff === c.id ? '' : c.id">
                     <template v-if="c.change.new">nuevo · {{ c.change.added }} rengl.</template>
                     <template v-else-if="c.change.added || c.change.removed"><b class="add">+{{ c.change.added }}</b> <b class="del">−{{ c.change.removed }}</b></template>
@@ -1074,7 +1074,7 @@ onBeforeUnmount(() => {
                   </button>
                   <span v-else class="command-status warn-text">{{ c.reason }}</span>
                 </template>
-                <span v-else-if="c.status === 'descartado'" class="command-status">descartado</span>
+                <span v-else-if="c.status === 'dismissed'" class="command-status">descartado</span>
                 <span v-else class="command-status warn-text" :title="c.reason">no permitido</span>
               </div>
               <pre v-if="c.change && openDiff === c.id" class="diff-view"><span v-for="(l, i) in diffLines(c.change.diff)" :key="i" :class="l.kind">{{ l.text || ' ' }}</span></pre>

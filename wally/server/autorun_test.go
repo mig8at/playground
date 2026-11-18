@@ -29,9 +29,9 @@ func TestAutoRunLivesInTheServer(t *testing.T) {
 	a := &app{root: filepath.Join("..", ".."), silent: true,
 		store: &store{file: filepath.Join(root, "conv.json"), convs: map[string]*Conversation{}}}
 	// Una respuesta que pidió un comando de la lista (ayuda lee wally/skills, sin red ni modelo).
-	a.store.convs["c1"] = &Conversation{ID: "c1", Mode: "asistente", Messages: []Message{
+	a.store.convs["c1"] = &Conversation{ID: "c1", Mode: "assistant", Messages: []Message{
 		{ID: "u1", Role: "user", Text: "hola"},
-		{ID: "m1", Role: "model", Text: "pido", Commands: []Command{{ID: "k1", Cmd: "ayuda", Status: "propuesto"}}},
+		{ID: "m1", Role: "model", Text: "pido", Commands: []Command{{ID: "k1", Cmd: "help", Status: "proposed"}}},
 	}}
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/api/conversations/c1/auto", strings.NewReader(`{"rounds":3}`))
@@ -50,7 +50,7 @@ func TestAutoRunLivesInTheServer(t *testing.T) {
 		t.Errorf("la segunda: %d", rec2.Code)
 	}
 	// El comando se corrió y quedó guardado, aunque después la pregunta al modelo falle (acá no hay pool).
-	if got := a.store.convs["c1"].Messages[1].Commands[0]; got.Status != "corrido" || got.Output == nil {
+	if got := a.store.convs["c1"].Messages[1].Commands[0]; got.Status != "ran" || got.Output == nil {
 		t.Errorf("el comando no quedó corrido: %+v", got)
 	}
 	if st.Stopped == "" || st.Round != 1 {

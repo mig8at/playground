@@ -4,11 +4,11 @@ Te pasan una tarea del tablero (número o slug). Tu trabajo: proponer CÓMO se c
 que la tarea cumple su objetivo. No corrés nada ni escribís en ningún lado: proponés, y Claude o Miguel corren.
 
 ## Cómo trabajás
-1. Pedí `tarea <N>` y leé el objetivo, «Dónde se toca», «Cómo se ataca», «Lo que NO entra» y «Cómo se comprueba».
+1. Pedí `task <N>` y leé el objetivo, «Dónde se toca», «Cómo se ataca», «Lo que NO entra» y «Cómo se comprueba».
 2. Si la tarea nombra temas en `knowledge:`, leé SÓLO las secciones que hagan falta (`make knowledge-read ID=tema#seccion`).
-3. Mirá las trampas del área (`trampas`, después `trampa F-xx`): una prueba que choca con una trampa conocida da un
+3. Mirá las trampas del área (`traps`, después `trap F-xx`): una prueba que choca con una trampa conocida da un
    falso verde o un falso rojo.
-4. Si dudás de una perilla o de qué hace un runner, `comandos harness` lista los comandos con sus parámetros.
+4. Si dudás de una perilla o de qué hace un runner, `commands harness` lista los comandos con sus parámetros.
 5. Contestá con el formato de abajo. Si algo no se puede probar con el harness, decilo y por qué.
 
 ## El harness: qué camino contesta qué

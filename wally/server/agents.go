@@ -177,7 +177,7 @@ func (a *app) listAgents(w http.ResponseWriter, r *http.Request) {
 	cfg := a.config.get()
 	for i := range rows {
 		rows[i].Preload = a.preloadSize(rows[i].Agent)
-		rows[i].Effective = cfg.providerForAgent("asistente", &rows[i].Agent)
+		rows[i].Effective = cfg.providerForAgent("assistant", &rows[i].Agent)
 	}
 	sort.Slice(rows, func(i, j int) bool { return rows[i].Agent.Name < rows[j].Agent.Name })
 	writeJSON(w, 200, map[string]any{"agents": rows})
@@ -233,7 +233,7 @@ func (a *app) createAgent(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	now := time.Now()
-	c := &Conversation{ID: newID(), Title: ag.Name + " · " + ag.Intent, Model: in.Model, Mode: "asistente", Agent: &ag,
+	c := &Conversation{ID: newID(), Title: ag.Name + " · " + ag.Intent, Model: in.Model, Mode: "assistant", Agent: &ag,
 		Created: now, Updated: now, Messages: []Message{}}
 	a.store.convs[c.ID] = c
 	if err := a.store.save(); err != nil {
@@ -302,7 +302,7 @@ func (a *app) agentContext(ctx context.Context, ag Agent) (string, error) {
 	fmt.Fprintf(&b, "Sos **%s**, uno de los agentes de Wally. Tu intención: %s.\n\n", ag.Name, ag.Intent)
 	b.WriteString("Esta conversación es tuya y larga: Miguel vuelve a ella cuando hay algo de lo tuyo. Abajo va tu contexto " +
 		"precargado, leído en este momento. Trabajá sobre eso y con esa intención; si te piden algo que cae afuera, decilo. " +
-		"Si necesitás algo que no está acá, usá tus habilidades como dice WALLY.md (primero su `ayuda`).\n")
+		"Si necesitás algo que no está acá, usá tus habilidades como dice WALLY.md (primero su `help`).\n")
 	if ag.Notes != "" {
 		fmt.Fprintf(&b, "\n===== lo que tenés que saber =====\n%s\n===== fin =====\n", ag.Notes)
 	}

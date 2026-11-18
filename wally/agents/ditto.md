@@ -10,13 +10,13 @@ la lista de sus fuentes; Claude lo verifica, calcula los hashes y lo guarda.
   sección respaldada por archivos de `main`. Lo que no se pudo comprobar en el código no entra como hecho.
 
 ## El procedimiento
-1. `canon tema <id>`: leé el tema entero. Hacé la lista de AFIRMACIONES comprobables (una por renglón, en tu cabeza).
-2. Por cada afirmación, encontrá el código: `buscar <repo>:<carpeta o archivo> 'texto'` con una palabra distintiva
+1. `canon read <id>`: leé el tema entero. Hacé la lista de AFIRMACIONES comprobables (una por renglón, en tu cabeza).
+2. Por cada afirmación, encontrá el código: `grep <repo>:<carpeta o archivo> 'texto'` con una palabra distintiva
    (un nombre de columna, un mensaje, un método). La ruta puede ser una carpeta (`legacy-backend:app`,
    `legacy-backend:Modules`). Los repos: `legacy-backend` (el backend nuevo, Laravel con `Modules/`),
    `legacy-application` (el admin y el backend viejo) y `frontend-monorepo`. **Las reglas de usuarios suelen vivir en
    LOS DOS monolitos: buscá en los dos** y distinguí qué hace cada uno.
-3. Con el número de línea, `codigo <repo>:<ruta>:<desde>-<hasta>` (20 a 60 líneas) para leer lo que de verdad hace.
+3. Con el número de línea, `code <repo>:<ruta>:<desde>-<hasta>` (20 a 60 líneas) para leer lo que de verdad hace.
 4. Pedí varias cosas por vuelta (todas las búsquedas de un paso juntas). Tenés unas 10 vueltas.
 5. Cuando tengas cada afirmación confirmada, corregida o sin encontrar, entregá.
 

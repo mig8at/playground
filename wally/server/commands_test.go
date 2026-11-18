@@ -20,12 +20,12 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"make knowledge-read ID=creditopx-quota",
 		"make knowledge-read ID='creditopx-quota#el-cupo-es-una-bolsa'",
 		"make tareas",
-		"comandos", "comandos harness", "trampas", "trampa F-162", "guia jarvis",
-		"cambios", "fuentes creditopx-offer-calculation",
+		"commands", "commands harness", "traps", "trap F-162", "guide jarvis",
+		"changes", "sources creditopx-offer-calculation",
 		"diff creditopx-offer-calculation legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
-		"codigo legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
-		"codigo legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php:228-262",
-		"buscar legacy-application:app/Http/Controllers/Admin/CreditopXPaymentController.php 'nextPaymentDate'",
+		"code legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php",
+		"code legacy-backend:Modules/Loans/App/Support/CutoffCalendar.php:228-262",
+		"grep legacy-application:app/Http/Controllers/Admin/CreditopXPaymentController.php 'nextPaymentDate'",
 	} {
 		if _, err := commandArgs(cmd); err != nil {
 			t.Errorf("%q tenía que pasar: %v", cmd, err)
@@ -45,33 +45,33 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"cat knowledge/business-overview.md",
 		"rm -rf /",
 		"make knowledge-map && make cockpit",
-		"guia ../../connectors/.env",
-		"guia jarvis; ls",
-		"trampa F-1; ls",
-		"trampa ../doc",
-		"comandos $(id)",
-		"comandos a b",
-		"codigo legacy-backend:../../.ssh/id_rsa",
-		"codigo legacy-backend:/etc/passwd",
-		"codigo legacy-backend:a.php; ls",
-		"codigo legacy-backend:$(id)",
-		"codigo legacy-backend:a.php:1-2; ls",
-		"buscar legacy-backend:a.php '$(id)'",
-		"buscar legacy-backend:a.php 'x'; rm -rf ~",
-		"buscar legacy-backend:../a.php 'x'",
+		"guide ../../connectors/.env",
+		"guide jarvis; ls",
+		"trap F-1; ls",
+		"trap ../doc",
+		"commands $(id)",
+		"commands a b",
+		"code legacy-backend:../../.ssh/id_rsa",
+		"code legacy-backend:/etc/passwd",
+		"code legacy-backend:a.php; ls",
+		"code legacy-backend:$(id)",
+		"code legacy-backend:a.php:1-2; ls",
+		"grep legacy-backend:a.php '$(id)'",
+		"grep legacy-backend:a.php 'x'; rm -rf ~",
+		"grep legacy-backend:../a.php 'x'",
 		"diff tema legacy-backend:x | sh",
-		"fuentes ../connectors",
-		"tarea ../connectors",
+		"sources ../connectors",
+		"task ../connectors",
 		"sentinel signal credifamilia",
-		"canon tema ../x",
-		"canon tema asesor/context; ls",
-		"canon buscar 'x'; rm",
-		"canon buscar `id`",
+		"canon read ../x",
+		"canon read asesor/context; ls",
+		"canon search 'x'; rm",
+		"canon search `id`",
 		"sentinel day ayer",
 		"sentinel deploy legacy-backend; ls",
 		"sentinel deploy ../x",
-		"tarea 7/context.jsonl",
-		"tarea 7; cat ~/.ssh/id_rsa",
+		"task 7/context.jsonl",
+		"task 7; cat ~/.ssh/id_rsa",
 	} {
 		if args, err := commandArgs(bad); err == nil {
 			t.Errorf("%q tenía que rechazarse y dio %v", bad, args)
@@ -101,43 +101,43 @@ func TestGuidesAndTrapsReadOnlyTheirFixedFiles(t *testing.T) {
 		}
 		return out
 	}
-	if got := run("guia jarvis"); !strings.Contains(got, "la guía") {
-		t.Errorf("guia jarvis: %q", got)
+	if got := run("guide jarvis"); !strings.Contains(got, "la guía") {
+		t.Errorf("guide jarvis: %q", got)
 	}
-	if got := run("guia tesoro"); !strings.Contains(got, "las que hay") {
+	if got := run("guide tesoro"); !strings.Contains(got, "las que hay") {
 		t.Errorf("una guía que no existe tiene que decir cuáles hay: %q", got)
 	}
-	if got := run("trampas"); !strings.Contains(got, "F-2 |") || strings.Contains(got, "Otra cosa") {
-		t.Errorf("trampas tiene que ser sólo el índice: %q", got)
+	if got := run("traps"); !strings.Contains(got, "F-2 |") || strings.Contains(got, "Otra cosa") {
+		t.Errorf("traps tiene que ser sólo el índice: %q", got)
 	}
-	if got := run("trampa F-2"); got != "### F-2 · Dos\ncausa dos" {
-		t.Errorf("trampa F-2: %q", got)
+	if got := run("trap F-2"); got != "### F-2 · Dos\ncausa dos" {
+		t.Errorf("trap F-2: %q", got)
 	}
 	// Una tarea: su task.md por número o por slug, y nunca la pila de al lado.
 	write(tasksDir+"/una-tarea/task.md", "---\nid: 7\ntitle: Una\n---\n## Objetivo\nel plan")
 	write(tasksDir+"/una-tarea/context.jsonl", `{"secreto":"pila"}`)
-	for _, cmd := range []string{"tarea 7", "tarea una-tarea"} {
+	for _, cmd := range []string{"task 7", "task una-tarea"} {
 		if got := run(cmd); !strings.Contains(got, "el plan") || strings.Contains(got, "pila") {
 			t.Errorf("%s: %q", cmd, got)
 		}
 	}
-	if got := run("tarea 70"); !strings.Contains(got, "no hay una tarea") {
-		t.Errorf("tarea 70 no existe: %q", got)
+	if got := run("task 70"); !strings.Contains(got, "no hay una tarea") {
+		t.Errorf("task 70 no existe: %q", got)
 	}
 }
 
-// Los comandos se leen de los bloques ```comando, uno por línea; los que no están en la lista quedan «no-permitido».
+// Los comandos se leen de los bloques ```command, uno por línea; los que no están en la lista quedan «not-allowed».
 func TestCommandsAreReadFromCommandBlocks(t *testing.T) {
-	answer := "Necesito ver dos temas:\n\n```comando\nmake knowledge-read ID=creditopx-quota\n$ trampa F-162\nrm -rf ~\n```\n\nY este código no:\n```bash\nmake knowledge-map\n```"
+	answer := "Necesito ver dos temas:\n\n```command\nmake knowledge-read ID=creditopx-quota\n$ trampa F-162\nrm -rf ~\n```\n\nY este código no:\n```bash\nmake knowledge-map\n```"
 	got := parseCommands(answer)
 	if len(got) != 3 {
 		t.Fatalf("quería 3 comandos, salieron %d: %+v", len(got), got)
 	}
-	if got[0].Status != "propuesto" || got[1].Status != "propuesto" || got[1].Cmd != "trampa F-162" {
+	if got[0].Status != "proposed" || got[1].Status != "proposed" || got[1].Cmd != "trap F-162" {
 		t.Errorf("los dos primeros: %+v %+v", got[0], got[1])
 	}
-	if got[2].Status != "no-permitido" || got[2].Reason == "" {
-		t.Errorf("rm -rf tenía que quedar no-permitido: %+v", got[2])
+	if got[2].Status != "not-allowed" || got[2].Reason == "" {
+		t.Errorf("rm -rf tenía que quedar not-allowed: %+v", got[2])
 	}
 	if modeCommands("", answer) != nil {
 		t.Error("en un chat sin modo no se leen comandos")
@@ -154,17 +154,17 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 	// Lo de la carpeta de pruebas pasa la lista: si no, un archivo o un parche bien formado queda «no permitido» al
 	// guardarlo (pasó con «parchar»: su expresión tenía una barra de más y Smeargle tuvo que reescribir todo).
 	// La consola acepta cualquier texto de comando (corre adentro del contenedor), pero sólo sobre un proyecto de pruebas.
-	for _, bad := range []string{"consola ~/.ssh cat id_rsa", "consola pruebas/../wally ls", "consola pruebas/demo", "consola pruebas/Demo ls", "consola /etc ls"} {
+	for _, bad := range []string{"console ~/.ssh cat id_rsa", "console sandbox/../wally ls", "console sandbox/demo", "console sandbox/Demo ls", "console /etc ls"} {
 		if _, err := commandArgs(bad); err == nil {
 			t.Errorf("%q tenía que rechazarse", bad)
 		}
 	}
-	for _, ok := range []string{"escribir pruebas/demo/index.html", "parchar pruebas/demo/css/base.css", "listar pruebas", "listar pruebas/demo", "leer pruebas/demo/app.js", "probar pruebas/demo", "probar pruebas/demo/otra.html"} {
+	for _, ok := range []string{"write sandbox/demo/index.html", "patch sandbox/demo/css/base.css", "list pruebas", "list sandbox/demo", "read sandbox/demo/app.js", "check sandbox/demo", "check sandbox/demo/otra.html"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}
 	}
-	for _, ok := range []string{"canon tema asesor/context", "canon tema cuota/context#el-monto", "canon buscar 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
+	for _, ok := range []string{"canon read asesor/context", "canon read cuota/context#el-monto", "canon search 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}
@@ -172,21 +172,21 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 }
 
 // Las habilidades y la lista blanca dicen lo mismo: cada comando de ejemplo de wally/skills/*.md pasa la lista, cada
-// habilidad tiene su línea de índice, y `ayuda` devuelve el índice o la habilidad.
+// habilidad tiene su línea de índice, y `help` devuelve el índice o la habilidad.
 func TestSkillsMatchTheAllowList(t *testing.T) {
 	a := &app{root: filepath.Join("..", "..")}
 	list := a.skills()
 	if len(list) < 5 {
 		t.Fatalf("leí %d habilidades de wally/skills", len(list))
 	}
-	block := regexp.MustCompile("(?s)```comando\\n(.*?)\\n```")
+	block := regexp.MustCompile("(?s)```command\\n(.*?)\\n```")
 	for _, s := range list {
 		if s.About == "" || strings.Contains(s.About, "#") {
 			t.Errorf("%s: su primera línea tiene que ser `# %s: para qué sirve`", s.Name, s.Name)
 		}
 		text, exit, _ := a.skillHelp(s.Name)
 		if exit != 0 {
-			t.Errorf("ayuda %s: %s", s.Name, text)
+			t.Errorf("help %s: %s", s.Name, text)
 		}
 		for _, m := range block.FindAllStringSubmatch(text, -1) {
 			for _, line := range strings.Split(m[1], "\n") {
@@ -205,12 +205,12 @@ func TestSkillsMatchTheAllowList(t *testing.T) {
 	if text, exit, _ := a.skillHelp("no-existe"); exit == 0 || !strings.Contains(text, "las que hay") {
 		t.Errorf("una habilidad que no existe tiene que decir cuáles hay: %q", text)
 	}
-	for _, ok := range []string{"ayuda", "ayuda trampas", "ayuda knowledge-al-dia"} {
+	for _, ok := range []string{"help", "help traps", "help knowledge-sync"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}
 	}
-	for _, bad := range []string{"ayuda ../WALLY", "ayuda trampas; ls", "ayuda Trampas"} {
+	for _, bad := range []string{"help ../WALLY", "help trampas; ls", "help Trampas"} {
 		if _, err := commandArgs(bad); err == nil {
 			t.Errorf("%q tenía que rechazarse", bad)
 		}
