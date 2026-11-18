@@ -321,6 +321,21 @@ const outputsOf = (m) => (m.commands || []).filter((c) => c.output).map((c) => c
 const contextChars = computed(() => messages.value.reduce((n, m) => n + (m.text || '').length + fileChars(m.files) + fileChars(outputsOf(m)), 0))
 const contextFiles = computed(() => messages.value.reduce((n, m) => n + (m.files?.length || 0) + outputsOf(m).length, 0))
 
+// COMPACTAR: resumir lo viejo de la conversación abierta (compact.go). Tarda lo que una pregunta; mientras, la burbuja
+// «corriendo solo» dice que se está resumiendo.
+const compacting = ref(false)
+async function compactNow() {
+  const id = active.value
+  if (compacting.value || pending.value || isNew(id)) return
+  compacting.value = true
+  errors.value = { ...errors.value, [id]: '' }
+  try {
+    const r = await api(`/api/conversations/${encodeURIComponent(id)}/compact`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ provider: effectiveProvider.value }) })
+    loaded.value = { ...loaded.value, [id]: r.conversation }
+    loadList(); loadAgents()
+  } catch (e) { errors.value = { ...errors.value, [id]: e.message } } finally { compacting.value = false }
+}
+
 // ── MANDAR ── (de a una pregunta en toda la app: la respuesta llega cuando AI Studio termina, sin streaming)
 const pending = ref(null)   // { key, text, model, since }
 const elapsed = ref(0)
@@ -923,6 +938,11 @@ onBeforeUnmount(() => {
           </div>
         </div>
         <template v-for="m in messages" :key="m.id">
+          <details v-if="m.role === 'summary'" class="block summary-block">
+            <summary><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span><b>Resumen de lo anterior</b>
+              <span class="count">reemplaza {{ m.compacted }} bloques ({{ charsLabel(m.compactedChars || 0) }}) por {{ charsLabel((m.text || '').length) }} · lo escribió {{ modelName(m.model) }} · el original quedó en .data/archive/{{ m.archive }}</span></summary>
+            <div class="answer-body" v-html="md(m.text)"></div>
+          </details>
           <div v-if="m.role === 'user'" class="block block-user">
             <button type="button" class="region-action block-del" :disabled="!!pending" title="Borrar esta pregunta del contexto" aria-label="Borrar esta pregunta del contexto" @click="removeBlock(m)">
               <span class="ui-icon" data-icon="trash" aria-hidden="true"></span>
@@ -1068,6 +1088,9 @@ onBeforeUnmount(() => {
                 <span class="ui-icon" data-icon="play" aria-hidden="true"></span>Auto
               </button>
             </div>
+            <button v-if="messages.length > 6 && !isNew(active)" type="button" class="region-action" :disabled="!!pending || compacting || !!remote"
+                    :title="`Resumir lo anterior: los bloques viejos se reemplazan por un resumen que escribe ${providerName} (los últimos 4 quedan tal cual; el original se guarda en .data/archive). Wally lo hace solo cuando la conversación pasa el tope del proveedor.`"
+                    aria-label="Resumir lo anterior" @click="compactNow"><span class="ui-icon" data-icon="collapse" aria-hidden="true"></span></button>
             <span class="count" :title="'Lo que viaja como contexto en la próxima pregunta: el modelo no recuerda nada (chat temporal), así que se le manda todo lo guardado. Borrá los bloques que no hagan falta.'">
               {{ messages.length ? `contexto: ${messages.length} bloque${messages.length > 1 ? 's' : ''}${contextFiles ? ` · ${contextFiles} archivo${contextFiles > 1 ? 's' : ''}` : ''} · ${contextChars.toLocaleString('es-CO')} car.` : 'sin contexto' }}
             </span>

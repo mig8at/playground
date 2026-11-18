@@ -54,6 +54,7 @@ func main() {
 	mux.HandleFunc("POST /api/ask", a.ask)
 	mux.HandleFunc("GET /pruebas/", a.serveSandbox)
 	mux.HandleFunc("GET /api/conversations/{id}/pending", a.pending)
+	mux.HandleFunc("POST /api/conversations/{id}/compact", a.compactHandler)
 	mux.HandleFunc("GET /api/busy", func(w http.ResponseWriter, _ *http.Request) {
 		busy := map[string]askingInfo{}
 		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })
@@ -108,7 +109,7 @@ func repoRoot() (string, error) {
 // próxima pregunta (AI Studio no recuerda nada: el chat es temporal y cada pregunta abre uno nuevo).
 type Message struct {
 	ID    string    `json:"id"`
-	Role  string    `json:"role"` // user · model
+	Role  string    `json:"role"` // user · model · summary (el resumen de lo que se compactó, compact.go)
 	Text  string    `json:"text"`
 	Model string    `json:"model,omitempty"`
 	Ms    int64     `json:"ms,omitempty"`
@@ -117,6 +118,10 @@ type Message struct {
 	Files []Attachment `json:"files,omitempty"`
 	// Commands: los comandos que el modelo pidió en una respuesta del modo asistido (commands.go).
 	Commands []Command `json:"commands,omitempty"`
+	// De un resumen: cuántos bloques reemplazó, cuánto pesaban y en qué archivo de .data/archive quedó el original.
+	Compacted      int    `json:"compacted,omitempty"`
+	CompactedChars int    `json:"compactedChars,omitempty"`
+	Archive        string `json:"archive,omitempty"`
 }
 
 // Conversation es un chat: el título sale de la primera pregunta.
@@ -634,8 +639,11 @@ func transcript(history []Message, question string, files []Attachment, fileText
 	b.WriteString("Esta es la conversación que venimos teniendo; seguila y contestá sólo la última pregunta.\n\n")
 	for _, m := range history {
 		who := "Yo"
-		if m.Role == "model" {
+		switch m.Role {
+		case "model":
 			who = "Vos"
+		case "summary":
+			who = "Resumen de lo anterior (la conversación era más larga: esto la reemplaza; lo que no esté acá, no lo des por dicho)"
 		}
 		fmt.Fprintf(&b, "### %s\n%s\n", who, m.Text)
 		writeFiles(m.Files)
@@ -760,6 +768,15 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	if !modes[in.Mode] {
 		return Conversation{}, errBadRequest{fmt.Sprintf("no existe el modo «%s»", in.Mode)}
 	}
+	// Si la conversación ya pesa más de lo que conviene para este proveedor, primero se resume lo viejo (compact.go).
+	// Si el resumen falla, se pregunta igual, con todo.
+	provider := a.config.get().providerForConversation(in.Provider, in.Mode, agent)
+	if lim := a.providerSpecs()[provider].CompactChars; in.ID != "" && lim > 0 && transcriptChars(history) > lim && compactPoint(history, compactKeep) > 0 {
+		if conv, _, err := a.compact(ctx, in.ID, compactKeep, a.providerSummarizer(provider)); err == nil {
+			history = append([]Message(nil), conv.Messages...)
+			chats = map[string]*ProviderChat{}
+		}
+	}
 	// Al empezar en un modo asistido, lo que el modo adjunta (el mapa de knowledge) va con la primera pregunta.
 	if len(history) == 0 && in.Mode != "" {
 		extra, err := a.modeContext(ctx, in.Mode)
@@ -791,7 +808,6 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		prompt = base + "\n\n---\n\n" + prompt
 	}
 	// Si el chat de este proveedor todavía tiene lo mismo que Wally, va sólo lo nuevo; si no, uno nuevo con todo.
-	provider := a.config.get().providerForConversation(in.Provider, in.Mode, agent)
 	baseHash := hashText(base)
 	pc := chats[provider]
 	chatURL, text := "", prompt

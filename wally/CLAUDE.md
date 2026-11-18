@@ -428,6 +428,20 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   que cubran lo pedido. En esa corrida el freno no llegó a actuar (salió todo a la primera): lo cubren sus pruebas.
   `probar` dice si hay errores y si pasan los criterios, no cómo se ve: eso se mira (las capturas quedan en
   `wally/pruebas/.capturas/`) o se usa.
+- **Compactar: lo viejo se resume, lo último queda** (`server/compact.go`, 2026-11-17; lo que hacen los harness de
+  agentes cuando el contexto se llena). Los bloques viejos se reemplazan por UN bloque `summary` que escribe el
+  proveedor de la conversación en una pregunta aparte, con secciones fijas (qué se pidió, qué se hizo, hechos
+  comprobados CON sus citas, lo que falló, estado y pendientes); los últimos 4 bloques quedan tal cual
+  (`compactKeep`, y el corte cae en una pregunta). **Nada se pierde**: el original va a `wally/.data/archive/<conv>-
+  <fecha>.json`. Después de compactar, el chat del proveedor se olvida (tenía lo viejo) y la próxima pregunta abre uno
+  con el resumen; viaja como «Resumen de lo anterior», no como algo que dijo Miguel. Un resumen que falla o viene
+  vacío no toca nada. **Se hace solo** cuando la conversación guardada pasa `compactChars` del proveedor
+  (`providers.json`: Gemini 600 mil, DeepSeek 250 mil, ChatGPT 120 mil, Groq 20 mil), antes de preguntar; a mano, el
+  botón de la barra de escribir o `bin/wally compact [--conv|--agent] [--keep 4]`. En la interfaz el resumen es un
+  bloque plegado que dice cuánto reemplazó. Probado con Ditto (DeepSeek): 16 bloques → 1 resumen, de 129.801 a 26.489
+  caracteres, con las citas `archivo:línea` copiadas enteras; después, preguntado por cosas que sólo estaban en lo
+  compactado (qué búsquedas quedaron «no permitidas», la línea de `cognito_id`, el `destroy` vacío del admin), contestó
+  bien las tres —comparado con el archivo y con `main`— mandando 39 mil caracteres en vez de más de 130 mil.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

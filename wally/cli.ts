@@ -15,6 +15,8 @@
 //                 [--auto [--rounds 6]]   sin esperar a nadie: corre los comandos que pida (sólo los de la lista
 //                                          blanca, que valida el servidor) y le manda los resultados, hasta que
 //                                          conteste sin pedir nada o se acaben las vueltas
+//   bin/wally compact [--conv <id> | --agent <nombre>] [--keep 4]   resume lo viejo de la conversación (los últimos
+//                 4 bloques quedan tal cual; el original va a .data/archive). Wally lo hace solo al pasar el tope
 //   cualquiera con --json: la salida en JSON
 import fs from 'node:fs';
 import http from 'node:http';
@@ -44,10 +46,10 @@ async function api(p: string, init?: RequestInit) {
 const post = (p: string, data: unknown, method = 'POST') => api(p, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
 // Una pregunta puede tardar más de 5 minutos (el modelo piensa, o va en trozos), y `fetch` de Node corta a los 5 si no
 // llegaron los encabezados («Wally no contesta», con la pregunta todavía en curso). Para preguntar, http sin ese tope.
-function ask(data: unknown): Promise<any> {
+function ask(data: unknown, path = '/api/ask'): Promise<any> {
     return new Promise((resolve, reject) => {
         const body = JSON.stringify(data);
-        const req = http.request(API + '/api/ask', { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (res) => {
+        const req = http.request(API + path, { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (res) => {
             let raw = '';
             res.setEncoding('utf8');
             res.on('data', (c) => { raw += c; });
@@ -137,6 +139,15 @@ try {
         const c = await api(`/api/conversations/${id}`);
         await api(`/api/conversations/${id}`, { method: 'DELETE' });
         out({ deleted: id }, `Borrada: «${c.title}».`);
+    } else if (cmd === 'compact') {
+        const id = flag('conv') || (flag('agent') ? (await agentByName(flag('agent')!)).conv : (await api('/api/main')).id);
+        const { default: provider } = await api('/api/providers');
+        const before = await api(`/api/conversations/${id}`);
+        const size = (c: any) => c.messages.reduce((n: number, m: any) => n + (m.text || '').length + (m.commands || []).reduce((k: number, x: any) => k + (x.output?.chars || 0), 0) + (m.files || []).reduce((k: number, f: any) => k + (f.chars || 0), 0), 0);
+        const r = await ask({ provider, keep: Number(flag('keep') || 0) }, `/api/conversations/${id}/compact`);
+        const s = r.conversation.messages[0];
+        out({ conv: id, compacted: r.compacted, before: size(before), after: size(r.conversation), archive: s.archive, summary: s.text },
+            `Compactada: ${r.compacted} bloques → 1 resumen. De ${size(before).toLocaleString('es-CO')} a ${size(r.conversation).toLocaleString('es-CO')} caracteres (${s.model}).\n  El original: wally/.data/archive/${s.archive}\n\n${s.text}`);
     } else if (cmd === 'ask') {
         const text = positional().slice(1).join(' ').trim();
         if (!text) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
@@ -195,7 +206,7 @@ try {
         out({ conv: c.id, model: m.model, ms: m.ms, totalMs: total, rounds, answer: m.text, commands: m.commands || [] },
             `${m.text}\n\n  (${m.model}, ${rounds.length > 1 ? `${rounds.length} vueltas, ${(total / 1000).toFixed(1)} s en el modelo` : `${(m.ms / 1000).toFixed(1)} s`}${pending ? ` · pide ${pending} comando(s)${args.includes('--auto') ? ': se acabaron las vueltas' : ': aprobalos en Wally'}` : ''})`);
     } else {
-        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 20).map((l) => l.slice(3)).join('\n'));
+        console.error(fs.readFileSync(new URL(import.meta.url), 'utf8').split('\n').filter((l) => l.startsWith('//')).slice(0, 22).map((l) => l.slice(3)).join('\n'));
         process.exit(cmd ? 2 : 0);
     }
 } catch (e: any) {

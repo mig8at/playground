@@ -14,15 +14,18 @@ type providerSpec struct {
 	ContextTokens int    `json:"contextTokens"`
 	Chat          string `json:"chat"`   // «sigue» (un chat por conversación) o «temporal»
 	Chunks        bool   `json:"chunks"` // si lo que no entra se parte en trozos en el mismo chat
-	Note          string `json:"note"`
+	// CompactChars: cuando la conversación guardada pasa de esto, Wally resume lo viejo antes de preguntar
+	// (compact.go); 0 = no compacta solo.
+	CompactChars int    `json:"compactChars"`
+	Note         string `json:"note"`
 }
 
 // defaultSpecs: por si el archivo falta o está roto (lo medido el 2026-11-17).
 var defaultSpecs = map[string]providerSpec{
-	"aistudio": {ContextTokens: 1_048_576, Chat: "temporal"},
-	"deepseek": {MessageChars: 114_000, ContextTokens: 1_000_000, Chat: "sigue", Chunks: true},
-	"chatgpt":  {MessageChars: 72_000, Chat: "sigue", Chunks: true},
-	"groq":     {MessageChars: 37_000, ContextTokens: 131_072, Chat: "temporal"},
+	"aistudio": {ContextTokens: 1_048_576, Chat: "temporal", CompactChars: 600_000},
+	"deepseek": {MessageChars: 114_000, ContextTokens: 1_000_000, Chat: "sigue", Chunks: true, CompactChars: 250_000},
+	"chatgpt":  {MessageChars: 72_000, Chat: "sigue", Chunks: true, CompactChars: 120_000},
+	"groq":     {MessageChars: 37_000, ContextTokens: 131_072, Chat: "temporal", CompactChars: 20_000},
 }
 
 // providerSpecs lee wally/providers.json en cada uso: cambiar un número vale desde la próxima pregunta.

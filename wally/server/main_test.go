@@ -2,7 +2,9 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -197,5 +199,51 @@ func TestProviderChatContinuesOnlyWithTheSameBlocks(t *testing.T) {
 	pc.Outputs = []string{"o1"}
 	if got := delta(history[:1], &ProviderChat{Sent: []string{"u1"}}, "otra", nil, read); got != "otra" {
 		t.Errorf("sin nada nuevo va sólo la pregunta: %q", got)
+	}
+}
+
+// Compactar: lo viejo se vuelve UN bloque de resumen, lo último queda tal cual, el original va al archivo y el chat
+// del proveedor se olvida. Un resumen que falla o viene vacío no toca nada.
+func TestCompactKeepsTheTailAndArchivesTheRest(t *testing.T) {
+	root := t.TempDir()
+	a := &app{root: root, store: &store{file: filepath.Join(root, "conv.json"), convs: map[string]*Conversation{}}}
+	var msgs []Message
+	for i := 0; i < 5; i++ {
+		msgs = append(msgs, Message{ID: fmt.Sprintf("u%d", i), Role: "user", Text: fmt.Sprintf("pregunta %d", i)},
+			Message{ID: fmt.Sprintf("m%d", i), Role: "model", Text: fmt.Sprintf("respuesta %d", i)})
+	}
+	a.store.convs["c1"] = &Conversation{ID: "c1", Messages: msgs, Chats: map[string]*ProviderChat{"deepseek": {URL: "https://x"}}}
+	var got string
+	ok := func(_ context.Context, prompt string) (string, string, error) {
+		got = prompt
+		return strings.Repeat("resumen denso con citas. ", 20), "prueba", nil
+	}
+	c, n, err := a.compact(context.Background(), "c1", 4, ok)
+	if err != nil || n != 6 {
+		t.Fatalf("compactó %d: %v", n, err)
+	}
+	if len(c.Messages) != 5 || c.Messages[0].Role != "summary" || c.Messages[0].Compacted != 6 || c.Messages[1].ID != "u3" || c.Chats != nil {
+		t.Errorf("quedó: %+v", c.Messages)
+	}
+	if !strings.Contains(got, "pregunta 0") || !strings.Contains(got, "respuesta 2") || strings.Contains(got, "pregunta 3") {
+		t.Error("al resumen tiene que ir sólo lo viejo")
+	}
+	raw, err := os.ReadFile(filepath.Join(root, "wally", ".data", "archive", c.Messages[0].Archive))
+	if err != nil || !strings.Contains(string(raw), "pregunta 0") {
+		t.Errorf("el original no quedó archivado: %v", err)
+	}
+	// El resumen viaja como «Resumen de lo anterior», no como algo que dijo Miguel.
+	if tr := transcript(c.Messages, "sigo", nil, func(string) (string, error) { return "", nil }); !strings.Contains(tr, "### Resumen de lo anterior") {
+		t.Errorf("transcript: %q", tr[:120])
+	}
+	// Corta, o con un resumen que falla: no se toca.
+	before := len(a.store.convs["c1"].Messages)
+	if _, _, err := a.compact(context.Background(), "c1", 4, ok); err == nil {
+		t.Error("una conversación corta no se compacta")
+	}
+	a.store.convs["c2"] = &Conversation{ID: "c2", Messages: append([]Message(nil), msgs...)}
+	bad := func(context.Context, string) (string, string, error) { return "ok", "prueba", nil }
+	if _, _, err := a.compact(context.Background(), "c2", 4, bad); err == nil || len(a.store.convs["c2"].Messages) != 10 || len(a.store.convs["c1"].Messages) != before {
+		t.Errorf("un resumen vacío no tiene que compactar: %v", err)
 	}
 }
