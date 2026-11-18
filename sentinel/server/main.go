@@ -64,6 +64,10 @@ type Subject struct {
 	Silence *Silence `json:"silence,omitempty"`
 	// Step (sólo `step:`): la conversión y los fallos de la pantalla en la ventana.
 	Step *StepEval `json:"step,omitempty"`
+	// Out (sólo `out:`): las llamadas y las fallas de un proveedor externo en la ventana.
+	Out *OutEval `json:"out,omitempty"`
+	// Message (sólo `newmsg:`): el mensaje de error nuevo.
+	Message *MsgView `json:"message,omitempty"`
 	// Acked: el episodio está reconocido («ya lo sé»): la interfaz lo pasa a «Conocidos» hasta que se cierre o empeore.
 	Acked bool `json:"acked,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
@@ -94,11 +98,17 @@ type Overview struct {
 	// LenderErrors: los errores en los logs que nombran a una entidad (preapprovals-service y legacy-backend).
 	LenderErrors []Subject `json:"lenderErrors"`
 	// Steps: las pantallas del wizard (PostHog), en todo el wizard (`step:otp`) y por comercio (`step:otp@94`).
-	Steps     []Subject `json:"steps"`
-	StepsNote string    `json:"stepsNote,omitempty"`
-	Apps      []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
-	LogsNote  string    `json:"logsNote,omitempty"`
-	Deploys   []Deploy  `json:"deploys"`
+	Steps []Subject `json:"steps"`
+	// Providers: los proveedores externos a los que llama legacy-backend (`out:experian`), por su tasa de falla.
+	Providers []Subject `json:"providers"`
+	// NewMessages: los mensajes de error que no estaban en los 7 días anteriores (messages.go). MessagesNote: si todavía
+	// se están aprendiendo, o si Loki no contestó.
+	NewMessages  []Subject `json:"newMessages"`
+	MessagesNote string    `json:"messagesNote,omitempty"`
+	StepsNote    string    `json:"stepsNote,omitempty"`
+	Apps         []App     `json:"apps"` // los servicios en producción: su versión, sus errores y su señal de vida
+	LogsNote     string    `json:"logsNote,omitempty"`
+	Deploys      []Deploy  `json:"deploys"`
 	// DeploysNote: la lista de despliegues o las versiones no se pudieron leer (gh, PostHog). Sin esto, una lectura
 	// fallida se veía igual que «ninguno en los últimos días».
 	DeploysNote string   `json:"deploysNote,omitempty"`
@@ -122,6 +132,7 @@ type sentinel struct {
 	loading         string
 	fromDisk        bool      // la vista de arranque salió de last.json
 	notifier        *notifier // sólo en la API que escucha: la pasada por consola no avisa
+	msgs            *msgStore // los mensajes de error nuevos (messages.go); nil fuera de la API
 	follow          *following
 	releases        map[string]Release // el último despliegue a producción por repo (services.go)
 	releasesAt      time.Time
@@ -486,10 +497,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.LenderErrors = append(o.LenderErrors, subj)
 		case "step":
 			o.Steps = append(o.Steps, subj)
+		case "out":
+			o.Providers = append(o.Providers, subj)
 		}
 	}
 	o.Apps = s.apps(o)
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.NewMessages} {
 		sortSubjects(*list)
 	}
 	return o
@@ -526,6 +539,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = "Trabajos fallidos de la cola"
 	case "logs":
 		subj.Name = key + " · líneas"
+	case "out":
+		subj.Name = providerName(key) + " · llamadas"
 	case "jserr":
 		subj.Name = s.subjectName(sig)
 	case "step":
@@ -553,6 +568,7 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 	subj.Shift = e.shift(sig, now)
 	subj.Silence = ev.Silence
 	subj.Step = ev.Step
+	subj.Out = ev.Out
 	// La curva del día y lo normal por hora, de los días comparables.
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
 	comp := comparable(now, e.rules.BaselineDays, e.have)
@@ -603,6 +619,14 @@ func (s *sentinel) run() {
 	if err == nil && s.notifier != nil {
 		gap = s.gapSince(before, time.Now(), o)
 	}
+	if err == nil && s.msgs != nil {
+		if merr := s.msgs.track(time.Now()); merr != nil {
+			o.MessagesNote = "sin los mensajes de error de Loki: " + merr.Error()
+		} else {
+			o.MessagesNote = s.msgs.status()
+		}
+		o.NewMessages = s.msgs.subjects(time.Now())
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.running = false
@@ -637,7 +661,7 @@ func (s *sentinel) decorate(o *Overview) {
 	now := time.Now().In(bogota)
 	o.Gaps = s.notifier.gaps(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -1))
 	acked := s.notifier.acked()
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.NewMessages} {
 		for i := range *list {
 			(*list)[i].Acked = acked[(*list)[i].Signal]
 		}
@@ -677,7 +701,7 @@ func (s *sentinel) gapSince(before, now time.Time, o *Overview) *gapReport {
 		from, r.Capped = now.Add(-gapReplayMax), true
 	}
 	names := map[Signal]string{}
-	for _, list := range [][]Subject{{o.All}, o.Lenders, o.Merchants, o.Services, o.Liveness, o.LenderErrors, o.Steps} {
+	for _, list := range [][]Subject{{o.All}, o.Lenders, o.Merchants, o.Services, o.Liveness, o.LenderErrors, o.Steps, o.Providers, o.NewMessages} {
 		for _, x := range list {
 			names[x.Signal] = x.Name
 		}
@@ -909,6 +933,7 @@ func main() {
 	}
 	s.loadLast()
 	s.notifier = openNotifier(st.dir)
+	s.msgs = openMessages(st.dir)
 	s.notifier.follows = s.follow.has
 	go func() {
 		for {

@@ -239,7 +239,8 @@ const (
 //
 //	2: errores y líneas de todos los servicios (`service:`, `logs:`)
 //	3: errores por entidad (`lerr:`)
-const logsVersion = 3
+//	4: las llamadas a proveedores externos (`out:`, outbound.go)
+const logsVersion = 4
 
 // logKindsSince: las clases de señal que agregó cada versión después de `since`. Se reemplazan sólo ésas: pasar una
 // clase que no se pidió la dejaría en cero.
@@ -251,6 +252,9 @@ func logKindsSince(since int) []string {
 	if since < 3 {
 		kinds = append(kinds, "lerr")
 	}
+	if since < 4 {
+		kinds = append(kinds, "out")
+	}
 	return kinds
 }
 
@@ -261,13 +265,14 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 	type job struct {
 		query    string
 		signalOf func(map[string]string) Signal
+		field    string // «total» si no se dice
 	}
 	byService := func(prefix string) func(map[string]string) Signal {
 		return func(m map[string]string) Signal { return prefix + m["service_name"] }
 	}
 	var jobs []job
 	if since < 2 {
-		jobs = append(jobs, job{errorsLogQL, byService("service:")}, job{linesLogQL, byService("logs:")})
+		jobs = append(jobs, job{query: errorsLogQL, signalOf: byService("service:")}, job{query: linesLogQL, signalOf: byService("logs:")})
 	}
 	if since < 3 {
 		bySlug := func(m map[string]string) Signal {
@@ -282,7 +287,10 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 			}
 			return ""
 		}
-		jobs = append(jobs, job{lenderNameErrorsLogQL, bySlug}, job{lenderIDErrorsLogQL, byID})
+		jobs = append(jobs, job{query: lenderNameErrorsLogQL, signalOf: bySlug}, job{query: lenderIDErrorsLogQL, signalOf: byID})
+	}
+	if since < 4 {
+		jobs = append(jobs, job{query: outCallsLogQL, signalOf: outSignalOf}, job{query: outFailsLogQL, signalOf: outSignalOf, field: "denied"})
 	}
 	parts, errs := make([]Fresh, len(jobs)), make([]error, len(jobs))
 	var wg sync.WaitGroup
@@ -291,7 +299,11 @@ func logErrors(cl *connlogs.Client, from, to time.Time, f Fresh, since int, slug
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			errs[i] = lokiSeries(cl, j.query, j.signalOf, from, to, parts[i])
+			field := j.field
+			if field == "" {
+				field = "total"
+			}
+			errs[i] = lokiSeries(cl, j.query, j.signalOf, field, from, to, parts[i])
 		}()
 	}
 	wg.Wait()
@@ -314,7 +326,7 @@ func slugKey(s string) string {
 
 // lokiSeries: una consulta de conteo por servicio. Cada punto de Loki cuenta los 5 minutos que terminan en él: va al
 // bloque que empieza 5 minutos antes.
-func lokiSeries(cl *connlogs.Client, query string, signalOf func(map[string]string) Signal, from, to time.Time, f Fresh) error {
+func lokiSeries(cl *connlogs.Client, query string, signalOf func(map[string]string) Signal, field string, from, to time.Time, f Fresh) error {
 	status, body, err := cl.API("query_range", url.Values{
 		"query": {query}, "start": {fmt.Sprint(from.Add(5 * time.Minute).UnixNano())}, "end": {fmt.Sprint(to.UnixNano())}, "step": {"300"},
 	})
@@ -344,7 +356,7 @@ func lokiSeries(cl *connlogs.Client, query string, signalOf func(map[string]stri
 			ts, _ := v[0].(float64)
 			n, _ := strconv.ParseFloat(fmt.Sprint(v[1]), 64)
 			t := time.Unix(int64(ts), 0).In(bogota).Add(-5 * time.Minute)
-			f.add(t.Format("2006-01-02"), sig, "total", bucketOf(t), int(n))
+			f.add(t.Format("2006-01-02"), sig, field, bucketOf(t), int(n))
 		}
 	}
 	return nil

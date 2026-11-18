@@ -159,10 +159,11 @@ type NowReport struct {
 
 func (c *cli) now() (*NowReport, error) {
 	o := c.s.overview(c.rules, c.reach.Truncate(time.Minute))
+	o.NewMessages = openMessages(c.s.store.dir).subjects(time.Now()) // lo lleva la API; acá se lee lo que dejó
 	r := &NowReport{At: c.reach.Format(time.RFC3339), Freshness: c.freshness(), All: o.All, Apps: o.Apps,
 		Unsent: openNotifier(c.s.store.dir).unsent()}
 	acked := openNotifier(c.s.store.dir).acked()
-	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Lenders, o.Merchants} {
+	for _, list := range [][]Subject{o.Services, o.Liveness, o.LenderErrors, o.Providers, o.NewMessages, o.Lenders, o.Merchants} {
 		for _, x := range list {
 			if x.State == "alert" || x.State == "warn" {
 				if acked[x.Signal] {

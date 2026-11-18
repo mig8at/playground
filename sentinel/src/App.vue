@@ -64,7 +64,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -98,7 +98,7 @@ function spark(s) {
 }
 
 // ── la tabla de la consola: todas las señales ──
-const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
 const tableKind = ref('all')
 const tableQuery = ref('')
 const showIdle = ref(false)
@@ -133,6 +133,7 @@ const selected = computed(() => {
   if (route.value.kind === 'step') return d.steps?.find((s) => s.signal === `step:${route.value.name}`) || d.all
   if (route.value.kind === 'lerr') return d.lenderErrors?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
+  if (route.value.kind === 'out') return d.providers?.find((s) => s.signal === `out:${route.value.name}`) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
@@ -142,7 +143,7 @@ const selected = computed(() => {
 // este panel y la tabla mostraba alertas que acá no aparecían).
 const stepFollowed = (x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)
 const outOfNormal = (s) => s.state === 'alert' || s.state === 'warn'
-const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter(outOfNormal))
 const attention = computed(() => noticing.value.filter((s) => !s.acked))
 const known = computed(() => noticing.value.filter((s) => s.acked))
@@ -161,7 +162,7 @@ async function setAck(s, on) {
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 // Ir a una señal: `setRoute` recibe una URL, no las partes; con la lista escribía `/merchant,94` en la ruta y el
@@ -174,15 +175,22 @@ function pick(s) {
   else if (s.kind === 'logs') go(['logs', s.signal.slice(5)])
   else if (s.kind === 'step') go(['step', s.signal.slice(5)])
   else if (s.kind === 'jserr') go(['jserr', s.signal.slice(6)])
+  else if (s.kind === 'out') go(['out', s.signal.slice(4)])
+  else if (s.kind === 'newmsg') go(['service', s.message.service]) // el error nuevo se mira en su servicio
   else go([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
 // Los servicios en producción (las tarjetas): su versión sale del último despliegue a producción en GitHub.
 const apps = computed(() => data.value?.apps || [])
+// Las tarjetas: las que piden atención arriba y completas; las normales, en una línea (eran 23 tarjetas largas y lo
+// que importaba quedaba abajo). La elegida se abre aunque esté normal.
+const APP_RANK = { alert: 0, warn: 1, ok: 2, quiet: 3 }
+const sortedApps = computed(() => [...apps.value].sort((a, b) => (APP_RANK[a.state] ?? 4) - (APP_RANK[b.state] ?? 4)))
+const compactCard = (a) => (a.state === 'ok' || a.state === 'quiet') && !a.lines?.silence && !(a.errors && isOn(a.errors)) && !(a.lines && isOn(a.lines)) && !appNote(a)
 const isService = (s) => s?.kind === 'service' || s?.kind === 'logs' || s?.kind === 'jserr'
 const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.kind === 'jserr' ? 'frontend-monorepo' : s.name)
 // Una fuente que no contestó en la última pasada: la API sigue con lo que tiene y lo dice en una nota. Lo que se ve de
@@ -202,8 +210,8 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
-const KIND_LABEL = { jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
+const TABLE_KIND = { out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const KIND_LABEL = { out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn' }
 // La cabecera cuenta por nivel («2 alertas · 1 para mirar») con el color del peor: antes decía «3 para mirar» en
@@ -234,6 +242,9 @@ function windowRange(s) {
   const from = new Date(new Date(data.value.windowTo) - (s.windowMinutes || 60) * 60000).toISOString()
   return hours(s) >= 24 ? `${dayClock(from)} – ${dayClock(data.value.windowTo)}` : `${clock(from)}–${clock(data.value.windowTo)}`
 }
+// «normal» con 29 errores contra 0 de mediana se leía como contradicción: está por debajo del techo (el percentil 99 de
+// cualquier hora de los días comparables), y por eso no avisa. La marca lo dice.
+const overButUnderCeiling = (s) => s.state === 'ok' && isErrors(s) && s.now.total >= 10 && s.now.total >= 1.5 * Math.max(s.median, 1)
 const isErrors = (s) => s?.kind === 'service' || s?.kind === 'queue' || s?.kind === 'lerr' || s?.kind === 'jserr'
 const shortDate = (d) => new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric' })
 // El cambio de nivel: no es alerta, es que lo normal se movió y se quedó (la última semana contra las anteriores).
@@ -584,14 +595,14 @@ onBeforeUnmount(() => {
           </thead>
           <tbody>
             <tr v-for="s in tableRows" :key="`t-${s.signal}`" :class="{ on: isOn(s) }" :title="s.why" @click="pick(s)">
-              <td><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ STATE_LABEL[s.state] }}</td>
+              <td><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ STATE_LABEL[s.state] }}<b v-if="overButUnderCeiling(s)" class="over-mark" title="Sobre lo normal de esta hora, pero por debajo del techo (lo que llega a pasar en una hora cualquiera de los días comparables): por eso no avisa">↑</b></td>
               <td class="name-cell">{{ s.name }}</td>
               <td class="muted">{{ TABLE_KIND[s.kind] }}</td>
               <td class="num">{{ s.now.total }}<small v-if="hours(s) > 1" class="muted">{{ spanShort(s) }}</small></td>
               <td class="num">{{ fmt(s.median) }}</td>
               <td class="num muted">{{ s.low }}–{{ s.high }}</td>
               <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>
-              <td class="num muted">{{ isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
+              <td class="num muted">{{ s.kind === 'out' && s.out ? `${s.out.fails} fallas` : isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
               <td class="follow-col">
                 <button v-if="canFollow(s)" type="button" class="region-action" :class="{ following: isFollowed(s) }"
                         :aria-pressed="isFollowed(s)" :title="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`"
@@ -649,18 +660,32 @@ onBeforeUnmount(() => {
           </template>
         </template>
 
+        <template v-if="data?.newMessages?.length || data?.messagesNote">
+          <div class="region-head group"><span>Errores que no estaban</span><span class="count">{{ data?.newMessages?.length || 0 }}</span></div>
+          <p v-if="data?.messagesNote" class="source-note" role="status">⚠ {{ data.messagesNote }}</p>
+          <button v-for="m in data?.newMessages || []" :key="`m-${m.signal}`" type="button" class="row stacked attention-row" :title="m.message?.sample" @click="pick(m)">
+            <span class="attention-name"><i class="dot" :class="`is-${m.state}`" aria-hidden="true"></i>{{ m.message?.service }} · {{ m.message?.count }} {{ m.message?.count === 1 ? 'vez' : 'veces' }}</span>
+            <small class="row-desc msg-text">{{ m.message?.text }}</small>
+            <small class="row-desc">desde {{ dayClock(m.message?.first) }}</small>
+          </button>
+        </template>
+
         <div class="region-head group"><span>Servicios en producción</span><span class="count">{{ apps.length }}</span></div>
         <p v-if="data?.logsNote" class="source-note" role="status">⚠ {{ data.logsNote }}. Los errores y las líneas de las tarjetas son los de la última lectura que sí llegó.</p>
         <p v-if="data && !apps.length" class="none">Todavía sin servicios: se leen de los logs de producción.</p>
         <div class="app-cards">
-          <div v-for="a in apps" :key="a.service" class="app-card" :title="appNote(a) ? `Datos viejos: ${appNote(a)}` : null"
-               :class="[`is-${a.state}`, { on: (a.errors && isOn(a.errors)) || (a.lines && isOn(a.lines)), 'is-old': appNote(a) }]">
+          <div v-for="a in sortedApps" :key="a.service" class="app-card" :title="appNote(a) ? `Datos viejos: ${appNote(a)}` : null"
+               :class="[`is-${a.state}`, { on: (a.errors && isOn(a.errors)) || (a.lines && isOn(a.lines)), 'is-old': appNote(a), compact: compactCard(a) }]">
             <div class="app-head">
               <i class="dot" :class="`is-${a.state}`" aria-hidden="true"></i>
               <span class="app-name" :title="a.repo && a.repo !== a.service ? `repo ${a.repo}` : a.service">{{ a.service }}</span>
+              <button v-if="compactCard(a)" type="button" class="app-inline" :title="a.errors?.why || a.lines?.why" @click="pick(a.errors || a.lines)">
+                {{ a.errors ? `${compact(a.errors.now.total)} err` : '' }}{{ a.errors && a.lines ? ' · ' : '' }}{{ a.lines ? `${compact(a.lines.now.total)} lín` : '' }}
+              </button>
               <a v-if="a.release" class="app-version" :class="{ failed: !a.release.ok }" :href="a.release.url" target="_blank" rel="noopener"
                  :title="`${a.release.title} · ${dayClock(a.release.at)}`">{{ a.release.version }}</a>
             </div>
+            <template v-if="!compactCard(a)">
             <small class="app-when">
               <template v-if="a.release">desplegado {{ ago(a.release.at) }}<template v-if="!a.release.ok"> · FALLÓ<template v-if="a.release.lastOk">, sigue {{ a.release.lastOk.version }}</template></template></template>
               <template v-else>sin despliegues a producción en GitHub</template>
@@ -681,6 +706,7 @@ onBeforeUnmount(() => {
                 <svg v-if="spark(a.lines)" class="spark" viewBox="0 0 72 22" aria-hidden="true"><polyline class="spark-normal" :points="spark(a.lines).normal" /><polyline class="spark-today" :points="spark(a.lines).today" /></svg>
               </button>
             </div>
+            </template>
           </div>
         </div>
 
@@ -827,6 +853,11 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .attention-row.known { opacity: 0.75 }
 .region-head.toggle { width: 100%; border: 0; background: none; cursor: pointer; font: inherit; color: inherit; text-align: left }
 .chart .gap { fill: var(--fg-2); opacity: 0.12 }
+.over-mark { margin-left: var(--space-1); color: var(--sentinel-warn) }
+.msg-text { font-family: var(--font-mono, ui-monospace, monospace); overflow-wrap: anywhere }
+.app-card.compact { padding-block: var(--space-1) }
+.app-inline { margin-left: auto; border: 0; background: none; padding: 0 var(--space-1); color: var(--fg-2); font: inherit; font-size: var(--text-sm); cursor: pointer; white-space: nowrap }
+.app-inline:hover { color: var(--foreground) }
 /* Las tarjetas de los servicios: nombre y versión arriba, cuándo se desplegó, y las dos señales (errores y líneas)
    con su número de la última hora contra lo normal y su curva de hoy. Un clic en una señal la abre al centro. */
 .app-cards { display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-1) var(--space-3) var(--space-3) }

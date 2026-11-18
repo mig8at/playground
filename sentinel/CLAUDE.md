@@ -93,6 +93,27 @@ Su salida queda en `~/Library/Logs/sentinel.log`.
 - **`logsVersion`** (`fetch.go`): cuando cambia lo que se lee de Loki, los días guardados con la versión anterior se
   vuelven a pedir (sólo Loki). El paso de 2 a 18 servicios recargó 29 días en ~11 minutos, una vez.
 
+## Los proveedores externos (`server/outbound.go`)
+
+Cada llamada de legacy-backend hacia afuera (Experian, Nequi, Mareigua, Netco, las entidades y los servicios internos)
+queda en producción como una línea «Llamada saliente» con `context["saliente.proveedor"]` y
+`context["saliente.desenlace"]` (ok · rechazo · error_del_proveedor · sin_conexion · limite_de_tasa): ~27.000 por día,
+de ~50 proveedores (medido el 2026-11-18). Señal `out:<proveedor>`: Total, las llamadas; Denied, las que fallaron POR
+EL PROVEEDOR (error, sin conexión, límite de tasa). «rechazo» (un 4xx) no es falla: pre_approvals rechaza ~300 por día.
+Se evalúa la **tasa de falla** contra la de siempre a esa hora, con prueba binomial como las pantallas (alerta: z ≥ 4,5,
+≥ 10 fallas y el doble de lo normal), con 20 llamadas como mínimo; uno chico mira 3, 6 o 24 horas. Es lo que habría
+visto el 404 de Netco del 17/11 (en dev). Pestaña «Proveedores» en la tabla. `logsVersion` 4 recargó su historia.
+
+## Los errores que no estaban (`server/messages.go`)
+
+Un conteo no ve una falla nueva de poco volumen (el «Unknown column 'cell_phone_lenght'» del form-service fueron 12 en
+una hora). Por eso se lleva, por servicio, cada mensaje de error de producción —normalizado: sin números, ids, URLs ni
+lo que va entre comillas largo o con números; un nombre de columna entre comillas se queda— con cuándo apareció por
+primera vez (`sentinel/.data/messages.json`). La primera vez se siembra con los 7 días anteriores, de a una hora; hasta
+que termina, nada es nuevo. Un mensaje que aparece después es `newmsg:<servicio>#<huella>` durante 6 horas: «para
+mirar» desde 5 veces, alerta desde 10. Se olvida a los 14 días sin verse. El mensaje sale de `exception_message` (los
+servicios en Go), del `message` del JSON (los monolitos) o de la línea. Tocar el aviso lleva a la vista del servicio.
+
 ## Las pantallas del wizard (`server/steps.go`, PostHog)
 
 Lo que el backend no ve: si un despliegue del front rompe una pantalla, simplemente no llegan pedidos. Por paso
@@ -205,6 +226,8 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | la carga, las pasadas y la API | `server/main.go` |
 | lo que se sigue (y de qué comercios avisa) | `server/following.go` |
 | las pantallas del wizard (PostHog) | `server/steps.go` |
+| los proveedores externos (`out:`) | `server/outbound.go` |
+| los errores que no estaban (`newmsg:`) | `server/messages.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |

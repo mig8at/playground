@@ -245,6 +245,7 @@ type Eval struct {
 	Minutes int       // la ventana que se miró: WindowMinutes, o una de FollowedWindows
 	Silence *Silence  // sólo `logs:`: desde cuándo no escribe, si es más que el silencio más largo de la historia
 	Step    *StepEval // sólo `step:`: la conversión y los fallos de una pantalla del wizard
+	Out     *OutEval  // sólo `out:`: la falla de un proveedor externo
 	Now     int
 	Samples []float64
 	Dates   []string
@@ -323,6 +324,13 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	var ev Eval
 	if se == nil {
 		ev.Level, ev.Why = levelQuiet, "sin datos"
+		return ev
+	}
+	if kindOf(sig) == "out" {
+		ev = e.evalOut(sig, se, t)
+		if e.rules.Signals[sig].Ignore {
+			ev.Level, ev.Why = levelQuiet, "ignorada en rules.json"
+		}
 		return ev
 	}
 	if kindOf(sig) == "step" {

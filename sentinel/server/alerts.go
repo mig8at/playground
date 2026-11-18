@@ -184,6 +184,8 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 	all = append(all, o.Liveness...)
 	all = append(all, o.LenderErrors...)
 	all = append(all, o.Steps...)
+	all = append(all, o.Providers...)
+	all = append(all, o.NewMessages...)
 	seen := map[Signal]bool{}
 	for _, subj := range all {
 		seen[subj.Signal] = true
@@ -228,7 +230,8 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 		}
 		from, _ := time.Parse(time.RFC3339, ep.NormalFrom)
 		if now.Sub(from) >= time.Duration(rules.ClearMinutes)*time.Minute {
-			if ep.Notified != "" && rules.Recovered {
+			// Un mensaje nuevo no «vuelve a lo normal»: deja de ser nuevo (se va de la lista y el episodio se olvida).
+			if ep.Notified != "" && rules.Recovered && !strings.HasPrefix(subj.Signal, "newmsg:") {
 				why, _, _ := strings.Cut(subj.Why, afterDeployNote)
 				n.send(Notice{Signal: subj.Signal, Name: subj.Name, Level: "recovered", Text: "Volvió a lo normal: " + why}, now, "Sentinel · volvió a lo normal", false)
 			}
@@ -479,6 +482,9 @@ func routeOf(sig Signal) string {
 		return ""
 	case kind == "queue":
 		return "#/queue"
+	case kind == "newmsg": // `newmsg:<servicio>#<huella>`: el servicio
+		svc, _, _ := strings.Cut(key, "#")
+		return "#/service/" + url.PathEscape(svc)
 	}
 	return "#/" + kind + "/" + url.PathEscape(key)
 }
