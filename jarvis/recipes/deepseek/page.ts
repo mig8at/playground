@@ -121,21 +121,26 @@ async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<
     }
     const got = await box.evaluate((el: HTMLTextAreaElement) => el.value.length);
     if (got !== text.length) throw new Error(`el campo quedó con ${got} caracteres de ${text.length}`);
-    const before = await page.locator('.ds-message').count();
+    // ⚠ La respuesta nueva NO se detecta contando mensajes: la lista es virtual y en un chat que sigue (el tercer
+    // mensaje en adelante) el número deja de crecer; la receta esperaba para siempre una respuesta que ya estaba
+    // (2026-11-17, Smeargle). Se sabe que es nueva porque se vio generar («detener») o porque el último texto cambió.
+    const prev: string = (await page.evaluate(lastAnswer)).text;
     await box.press('Enter');
 
-    // Terminó: hay un mensaje nuevo de DeepSeek, el botón ya no es «detener» y el texto no cambió en 2 s.
+    // Terminó: hubo respuesta nueva de DeepSeek, el botón ya no es «detener» y el texto no cambió en 2 s.
     const until = Date.now() + timeoutMs;
     let seen = '';
+    let started = false;
     let stableSince = Date.now();
     while (Date.now() < until) {
         const toast: string = await page.evaluate(() => [...document.querySelectorAll('.ds-toast, [role=alert]')].map((e) => (e as HTMLElement).innerText.trim()).join(' · '));
         if (toast && BUSY_TEXT.test(toast)) throw new Error(`DeepSeek: ${toast}`);
         if (await page.evaluate(tooLongShown, TOO_LONG.source)) throw new Error(`DeepSeek: el mensaje es demasiado largo para su web (${text.length.toLocaleString('es-CO')} caracteres): bajá DEEPSEEK_CHUNK`);
-        const count = await page.locator('.ds-message').count();
         const { text: now, assistant } = await page.evaluate(lastAnswer);
         const running = await page.evaluate(busy);
-        if (now !== seen || running || count <= before || !assistant) { seen = now; stableSince = Date.now(); }
+        if (running) started = true;
+        const fresh = assistant && (started || now !== prev);
+        if (now !== seen || running || !fresh) { seen = fresh ? now : ''; stableSince = Date.now(); }
         else if (now && Date.now() - stableSince >= 2000) break;
         await page.waitForTimeout(400);
     }

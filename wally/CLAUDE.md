@@ -374,6 +374,38 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   antes); Groq 37.125 entra y 40.937 no, con un minuto entre pruebas (seguidas, su cupo por minuto corta antes:
   «Rate limit reached» con dos de ~30 mil). Buscado en internet: lo único publicado es el contexto de los modelos (Groq, 131.072 tokens en su ficha);
   el tope por mensaje de las webs gratis no aparece en ninguna fuente oficial.
+- **La carpeta de pruebas: lo ÚNICO donde un agente escribe** (`wally/pruebas/`, fuera de git; `server/sandbox.go`,
+  2026-11-17, Miguel: «que un agente haga una página web en una carpeta pruebas»). El modelo entrega cada archivo en un
+  bloque ` ```archivo pruebas/<proyecto>/<archivo> ` y eso es un comando **«escribir»** con su contenido (va como una
+  tarjeta, no como cien renglones de código; en Auto se guarda solo). Se valida en el servidor: la ruta adentro de la
+  carpeta (ni `..`, ni ocultos, ni un enlace simbólico que salga), tipos fijos (html, css, js, mjs, json, svg, md, txt),
+  400 KB por archivo y 60 archivos por proyecto. Reescribir uno guarda el anterior en `.historial/`. Además:
+  `listar pruebas[/proyecto]`, `leer pruebas/…` y **`probar pruebas/<proyecto>`**, que abre la página en un Chromium
+  sin ventana (`wally/sandbox-check.mjs`, el Playwright del harness) y devuelve EN TEXTO lo que el modelo no ve: errores
+  de consola y de JavaScript, recursos que no cargaron, título, encabezados, botones, imágenes rotas y si se desborda en
+  escritorio (1280) y teléfono (390); deja capturas en `.capturas/`. No se ejecuta nada de lo escrito fuera del navegador.
+  ⚠ **Lo escrito se sirve AISLADO** (`GET /pruebas/…`, `serveSandbox`): `Content-Security-Policy: sandbox allow-scripts`
+  (origen propio: no ve cookies ni almacenamiento de Wally), `connect-src 'none'` y `form-action 'none'` (ni un pedido,
+  ni a la API de Wally ni afuera) y sólo recursos de la misma carpeta; por eso la página tiene que ser autocontenida
+  (sin CDNs). Comprobado con una página que hacía `fetch('/api/conversations')`: bloqueado. La interfaz la muestra con
+  **«Ver»** en la tarjeta: un iframe con `sandbox` que ocupa el lugar de la conversación, en escritorio o teléfono.
+  Es seguro en Auto por esto (ruta validada, nada se ejecuta, servido aislado), no por el modelo.
+  **Smeargle** ([`agents/smeargle.md`](agents/smeargle.md)) es el agente que la usa. Primera corrida (DeepSeek, Auto): una
+  landing de un taller de bicicletas ficticio —encabezado con un logo SVG, tres servicios con precio, horario y un
+  formulario de turno—, en UNA respuesta de 13 mil caracteres con tres archivos (12,7 KB), y `probar` sin errores en
+  escritorio y teléfono al primer intento. Comprobado aparte, usándola: el formulario vacío muestra sus tres avisos y
+  completo confirma el turno en la misma página. Lo que costó, y quedó arreglado:
+  - **El orden**: `probar` corría ANTES que los `escribir` de la misma respuesta (se leían primero los comandos).
+    Ahora los archivos van primero (`parseCommands`).
+  - **El aislamiento rompía los formularios**: sin `allow-forms`, el navegador corta el envío antes del evento
+    `submit` y la validación de la página nunca corría (`probar` no lo ve: no usa la página). Se agregó `allow-forms`;
+    el envío real lo sigue cortando `form-action 'none'`.
+  - **DeepSeek, al seguir un chat, no veía la respuesta del tercer mensaje**: la receta contaba mensajes y su lista es
+    virtual (el número deja de crecer). Ahora la respuesta es nueva si se vio generar o si cambió el último texto.
+  - **`bin/wally ask` cortaba a los 5 min** (el tope de `fetch` de Node) con la pregunta todavía en curso: pregunta por
+    `http`, sin ese tope.
+  `probar` dice si hay errores, no si la página HACE lo pedido ni cómo se ve: eso se mira (las capturas quedan en
+  `wally/pruebas/.capturas/`) o se usa.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

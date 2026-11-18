@@ -52,6 +52,7 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
+	mux.HandleFunc("GET /pruebas/", a.serveSandbox)
 	mux.HandleFunc("GET /api/busy", func(w http.ResponseWriter, _ *http.Request) {
 		busy := map[string]askingInfo{}
 		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })

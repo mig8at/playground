@@ -15,6 +15,6 @@ export default defineConfig({
   server: {
     port: 5228,
     strictPort: true,
-    proxy: { '/api': { target: 'http://127.0.0.1:5229', changeOrigin: false } },
+    proxy: { '/api': { target: 'http://127.0.0.1:5229', changeOrigin: false }, '/pruebas': { target: 'http://127.0.0.1:5229', changeOrigin: false } },
   },
 })

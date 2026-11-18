@@ -36,6 +36,8 @@ type Command struct {
 	Exit   int         `json:"exit,omitempty"`
 	Ms     int64       `json:"ms,omitempty"`
 	Output *Attachment `json:"output,omitempty"` // la salida, como un archivo: viaja con la próxima pregunta
+	// Content: el archivo que entregó el modelo en un bloque ```archivo (sandbox.go): «correrlo» es guardarlo.
+	Content string `json:"content,omitempty"`
 }
 
 // allowed: un comando de la lista blanca y cómo se corre. `run` recibe lo que capturó la expresión: o corre `make`
@@ -117,6 +119,26 @@ var allowList = []allowed{
 			return a.runSentinel(ctx, "deploy", m[1])
 		}
 		return a.runSentinel(ctx, "deploy", m[1], m[2])
+	}},
+	// La carpeta de pruebas (sandbox.go): lo único que un agente escribe. «escribir» no se pide como comando: sale de
+	// un bloque ```archivo, y su contenido viaja en el Command (decideCommand lo guarda).
+	{regexp.MustCompile(`^escribir (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
+		return "para escribir, entregá el archivo en un bloque ```archivo " + m[1] + " … ```", 1, nil
+	}},
+	{regexp.MustCompile(`^listar (pruebas(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "pruebas"), "/"))
+		return out, 0, err
+	}},
+	{regexp.MustCompile(`^leer (pruebas/\S+)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
+		out, err := a.readSandbox(m[1])
+		return out, 0, err
+	}},
+	{regexp.MustCompile(`^probar (pruebas/\S+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		rel := sandboxPath.FindStringSubmatch(m[1])
+		if rel == nil {
+			return "se prueba como probar pruebas/<proyecto> o pruebas/<proyecto>/<pagina>.html", 1, nil
+		}
+		return a.checkSandbox(ctx, rel[1])
 	}},
 	// Canon, el corpus del equipo, sólo para leer: un tema o una sección, y buscar. Va por el CLI `playground` con la
 	// sesión de Miguel (sin shell). Sirve para pasar un tema de canon a knowledge, verificándolo contra main.
@@ -220,10 +242,23 @@ var commandBlock = regexp.MustCompile("(?s)```comando[^\\n]*\\n(.*?)```")
 // parseCommands saca los comandos que pidió el modelo, ya validados (máximo 8 por respuesta).
 func parseCommands(answer string) []Command {
 	var out []Command
+	// Primero los archivos que entrega (```archivo pruebas/…): cada uno es un comando «escribir», con su contenido. Van
+	// ANTES que los comandos para que un `probar` de la misma respuesta encuentre lo recién escrito.
+	for _, block := range fileBlock.FindAllStringSubmatch(answer, -1) {
+		if len(out) >= 8 {
+			break
+		}
+		c := Command{ID: newID(), Cmd: "escribir " + block[1], Status: "propuesto", Content: block[2]}
+		if !sandboxFile.MatchString(block[1]) {
+			c.Status, c.Reason, c.Content = "no-permitido", "sólo se escribe en pruebas/<proyecto>/…, tipos html, css, js, mjs, json, svg, md o txt", ""
+		}
+		out = append(out, c)
+	}
+	files := len(out)
 	for _, block := range commandBlock.FindAllStringSubmatch(answer, -1) {
 		for _, line := range strings.Split(block[1], "\n") {
 			line = strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(line), "$"))
-			if line == "" || len(out) >= 8 {
+			if line == "" || len(out)-files >= 8 {
 				continue
 			}
 			c := Command{ID: newID(), Cmd: line, Status: "propuesto"}
@@ -305,18 +340,24 @@ func (a *app) runToFile(ctx context.Context, shown, name string) (Attachment, in
 	if exit != 0 {
 		text = fmt.Sprintf("(el comando terminó con código %d)\n%s", exit, text)
 	}
+	att, err := a.saveOutput(text, name)
+	return att, exit, err
+}
+
+// saveOutput guarda un texto como la salida de un comando: un adjunto que viaja con la próxima pregunta.
+func (a *app) saveOutput(text, name string) (Attachment, error) {
 	if err := os.MkdirAll(a.filesDir(), 0o755); err != nil {
-		return Attachment{}, exit, err
+		return Attachment{}, err
 	}
 	att := Attachment{ID: newID(), Name: name, Size: int64(len(text)), Chars: utf8.RuneCountInString(text), Kind: "salida"}
 	if err := os.WriteFile(filepath.Join(a.filesDir(), att.ID+".txt"), []byte(text), 0o600); err != nil {
-		return Attachment{}, exit, err
+		return Attachment{}, err
 	}
 	meta, _ := json.Marshal(att)
 	if err := os.WriteFile(filepath.Join(a.filesDir(), att.ID+".json"), meta, 0o600); err != nil {
-		return Attachment{}, exit, err
+		return Attachment{}, err
 	}
-	return att, exit, nil
+	return att, nil
 }
 
 // commandAction corre o descarta un comando propuesto: POST …/messages/{mid}/commands/{cid} {action: run|decline}.
@@ -362,6 +403,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 		return Conversation{}, 409, fmt.Errorf("ese comando ya está %s", cmd.Status)
 	}
 	shown := cmd.Cmd
+	content := cmd.Content
 	// «corriendo» mientras corre: otra ventana (o `bin/wally ask --auto`) no lo vuelve a correr y la interfaz lo muestra.
 	if action == "run" {
 		cmd.Status = "corriendo"
@@ -376,7 +418,17 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 			result = Command{Status: "no-permitido", Reason: err.Error()}
 		} else {
 			start := time.Now()
-			att, exit, err := a.runToFile(ctx, shown, "salida: "+shown)
+			var att Attachment
+			var exit int
+			var err error
+			if content != "" {
+				var note string
+				if note, err = a.writeSandbox(strings.TrimPrefix(shown, "escribir "), content); err == nil {
+					att, err = a.saveOutput(note, "salida: "+shown)
+				}
+			} else {
+				att, exit, err = a.runToFile(ctx, shown, "salida: "+shown)
+			}
 			result = Command{Status: "corrido", Exit: exit, Ms: time.Since(start).Milliseconds()}
 			if err != nil {
 				result.Reason = err.Error()
@@ -389,6 +441,10 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
 	cmd.Status, cmd.Reason, cmd.Exit, cmd.Ms, cmd.Output = result.Status, result.Reason, result.Exit, result.Ms, result.Output
+	// Guardado, el contenido ya está en el disco (y en el texto de la respuesta): no se duplica en lo guardado.
+	if result.Status == "corrido" && result.Reason == "" {
+		cmd.Content = ""
+	}
 	c.Updated = time.Now()
 	if err := a.store.save(); err != nil {
 		return Conversation{}, 500, err

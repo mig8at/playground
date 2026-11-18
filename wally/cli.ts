@@ -17,6 +17,7 @@
 //                                          conteste sin pedir nada o se acaben las vueltas
 //   cualquiera con --json: la salida en JSON
 import fs from 'node:fs';
+import http from 'node:http';
 import path from 'node:path';
 
 const API = process.env.WALLY_API || 'http://127.0.0.1:5229';
@@ -41,6 +42,27 @@ async function api(p: string, init?: RequestInit) {
     return body;
 }
 const post = (p: string, data: unknown, method = 'POST') => api(p, { method, headers: { 'content-type': 'application/json' }, body: JSON.stringify(data) });
+// Una pregunta puede tardar más de 5 minutos (el modelo piensa, o va en trozos), y `fetch` de Node corta a los 5 si no
+// llegaron los encabezados («Wally no contesta», con la pregunta todavía en curso). Para preguntar, http sin ese tope.
+function ask(data: unknown): Promise<any> {
+    return new Promise((resolve, reject) => {
+        const body = JSON.stringify(data);
+        const req = http.request(API + '/api/ask', { method: 'POST', headers: { 'content-type': 'application/json', 'content-length': Buffer.byteLength(body) } }, (res) => {
+            let raw = '';
+            res.setEncoding('utf8');
+            res.on('data', (c) => { raw += c; });
+            res.on('end', () => {
+                let parsed: any = {};
+                try { parsed = JSON.parse(raw); } catch { /* sin cuerpo */ }
+                if ((res.statusCode || 500) >= 400) reject(new Error(parsed.error || `${res.statusCode}`));
+                else resolve(parsed);
+            });
+        });
+        req.on('error', () => reject(new Error(`Wally no contesta en ${API}: ¿está arriba? (make wally, o abrí Wally en Cockpit)`)));
+        req.setTimeout(0);
+        req.end(body);
+    });
+}
 const out = (obj: unknown, text: string) => console.log(JSON_OUT ? JSON.stringify(obj, null, 2) : text);
 
 async function agentByName(name: string) {
@@ -120,7 +142,7 @@ try {
         if (!text) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
         const id = flag('conv') || (flag('agent') ? (await agentByName(flag('agent')!)).conv : (await api('/api/main')).id);
         const { default: provider } = await api('/api/providers');
-        let c = await post('/api/ask', { id, provider, text });
+        let c = await ask({ id, provider, text });
         let m = c.messages[c.messages.length - 1];
         // --auto: el agente sigue solo. Lo que corre lo decide el servidor (la lista blanca, sólo lectura); el tope
         // de vueltas evita que pida y pida sin terminar, y cada vuelta reenvía todo el contexto al proveedor.
@@ -150,7 +172,7 @@ try {
                 const next = ran.length
                     ? `Listo: corrí ${ran.length === 1 ? 'el comando' : `los ${ran.length} comandos`} (la salida va arriba)${refused.length ? `; ${refused.length} no están en la lista: ${refused.join(' · ')}` : ''}. Seguí.`
                     : `Ninguno de esos comandos está en la lista de sólo lectura (${refused.join(' · ')}). Seguí con lo que tenés o pedí otro.`;
-                c = await post('/api/ask', { id: c.id, provider, text: next });
+                c = await ask({ id: c.id, provider, text: next });
                 m = c.messages[c.messages.length - 1];
                 rounds.push({ ms: m.ms, ran, refused });
             }

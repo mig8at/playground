@@ -94,6 +94,9 @@ vez de leer la trampa otra vez.
 | `comandos palabra` | sólo las líneas del catálogo que mencionan esa palabra (`comandos harness`, `comandos knowledge`) |
 | `guia herramienta` | la guía de una herramienta: `jarvis`, `cockpit`, `correo`, `harness`, `tablero`, `knowledge`, `goldfish`, `sentinel`, `chat`, `office`, `wally`, `conectores`, `estilo` |
 | `make tareas` | las tareas abiertas de Miguel en su tablero: número, estado y título |
+| `listar pruebas[/proyecto]` | los archivos de la carpeta de pruebas (lo único donde se escribe), con su tamaño |
+| `leer pruebas/proyecto/archivo` | un archivo de la carpeta de pruebas, como está en el disco |
+| `probar pruebas/proyecto[/pagina.html]` | abre la página en un navegador sin ventana y dice lo que no se ve desde acá: errores de consola y de JavaScript, recursos que no cargaron, el esquema de lo que quedó (título, encabezados, botones, imágenes) y si se desborda en escritorio y en teléfono |
 | `canon tema asesor/context[#ancla]` | un tema de canon (el corpus del equipo) o una sección, con la sesión de Miguel. Es prosa de negocio: lo técnico se verifica contra main antes de darlo por cierto |
 | `canon buscar 'texto'` | qué temas y secciones de canon hablan de algo |
 | `sentinel now` | cómo está producción ahora (Sentinel): lo que pide atención, lo que se sigue y cada servicio con su versión, errores y señal de vida |

@@ -525,7 +525,20 @@ function sendResults() {
 }
 const proposedCount = (m) => (m.commands || []).filter((c) => c.status === 'propuesto').length
 // En una respuesta con comandos, sus bloques ```comando no se repiten como código: van como tarjetas.
-const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').trim() : m.text)
+// Tampoco los ```archivo: el archivo entero va como una tarjeta «escribir», no como un bloque de código de cien renglones.
+const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').replace(/```archivo[^\n]*\n[\s\S]*?\n```/g, '').trim() : m.text)
+
+// LA VISTA PREVIA de lo que un agente escribió en wally/pruebas: en un iframe AISLADO (sandbox, y el servidor además la
+// sirve sin permiso para hacer pedidos). Ocupa el lugar de la conversación hasta que se cierra.
+const preview = ref({ url: '', path: '', phone: false, nonce: 0 })
+const previewable = (c) => c.status === 'corrido' && /^(escribir|probar) pruebas\/[a-z0-9]/.test(c.cmd)
+function openPreview(c) {
+  const rel = c.cmd.replace(/^(escribir|probar) pruebas\//, '')
+  // Un .html se abre tal cual; cualquier otro archivo (css, js) o un proyecto, por su index.
+  const path = /\.html$/.test(rel) ? rel : rel.split('/')[0] + '/'
+  preview.value = { url: `/pruebas/${path}`, path, phone: preview.value.phone, nonce: Date.now() }
+}
+function closePreview() { preview.value = { ...preview.value, url: '' } }
 function chooseMode(m) { if (isNew(active.value)) tabMode.value = { ...tabMode.value, [active.value]: m }; focusInput() }
 
 // BORRAR UN BLOQUE: una pregunta o una respuesta sale de lo guardado y, con eso, del contexto de la próxima pregunta
@@ -830,7 +843,23 @@ onBeforeUnmount(() => {
         </div>
       </nav>
 
-      <div ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
+      <div v-if="preview.url" class="region-body preview-pane">
+        <div class="preview-head">
+          <span class="ui-icon" data-icon="eye" aria-hidden="true"></span>
+          <b>pruebas/{{ preview.path }}</b>
+          <span class="count">lo escribió un agente: va aislado, sin pedidos a ningún lado</span>
+          <div class="toggle-group toggle-outline toggle-joined run-mode" role="radiogroup" aria-label="Tamaño">
+            <button type="button" class="toggle" role="radio" :aria-pressed="!preview.phone" :aria-checked="!preview.phone" @click="preview = { ...preview, phone: false }">Escritorio</button>
+            <button type="button" class="toggle" role="radio" :aria-pressed="preview.phone" :aria-checked="preview.phone" @click="preview = { ...preview, phone: true }">Teléfono</button>
+          </div>
+          <button type="button" class="region-action" title="Recargar" aria-label="Recargar" @click="preview = { ...preview, nonce: Date.now() }"><span class="ui-icon" data-icon="refresh" aria-hidden="true"></span></button>
+          <button type="button" class="region-action" title="Volver a la conversación" aria-label="Cerrar" @click="closePreview"><span class="ui-icon" data-icon="close" aria-hidden="true"></span></button>
+        </div>
+        <div class="preview-stage" :class="{ phone: preview.phone }">
+          <iframe :key="preview.url + preview.nonce" :src="preview.url" sandbox="allow-scripts allow-modals allow-forms" referrerpolicy="no-referrer" title="Vista previa de la página"></iframe>
+        </div>
+      </div>
+      <div v-show="!preview.url" ref="thread" class="region-body thread" :class="{ dragging }" @click="onThreadClick"
            @dragenter.prevent="onDragEnter" @dragover.prevent @dragleave="onDragLeave" @drop.prevent="onDrop">
         <div v-if="dragging" class="drop-hint"><span class="ui-icon" data-icon="attach" aria-hidden="true"></span>Soltá para adjuntar: el texto viaja con la pregunta</div>
         <div v-if="agentOf" class="agent-sheet">
@@ -909,7 +938,7 @@ onBeforeUnmount(() => {
               <div v-for="c in m.commands" :key="c.id" class="command" :class="`is-${c.status}`">
                 <code class="command-line">{{ c.cmd }}</code>
                 <span v-if="c.status === 'corriendo' || running === c.id" class="command-status running-text"><i class="spinner" aria-hidden="true"></i>corriendo…</span>
-                <span v-else-if="c.status === 'propuesto' && (autoOn || remote)" class="command-status">en cola</span>
+                <span v-else-if="c.status === 'propuesto' && (autoOn || remote)" class="command-status">en cola{{ c.content ? ` · ${charsLabel(c.content.length)}` : '' }}</span>
                 <template v-else-if="c.status === 'propuesto'">
                   <button type="button" class="btn btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'run')">
                     <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ running === c.id ? 'Corriendo…' : 'Correr' }}
@@ -917,6 +946,7 @@ onBeforeUnmount(() => {
                   <button type="button" class="btn btn-ghost btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'decline')">Descartar</button>
                 </template>
                 <template v-else-if="c.status === 'corrido'">
+                  <button v-if="previewable(c)" type="button" class="btn btn-outline btn-sm" title="Ver la página, aislada" @click="openPreview(c)"><span class="ui-icon" data-icon="eye" aria-hidden="true"></span>Ver</button>
                   <button v-if="c.output" type="button" class="file-chip" :class="{ on: openFile.id === c.output.id }" :title="'Ver la salida que viaja con la respuesta'" @click="toggleFile(c.output)">
                     <span class="file-kind">OUT</span><span class="file-name">salida</span><span class="file-size">{{ charsLabel(c.output.chars) }} · {{ seconds(c.ms) }} s{{ c.exit ? ` · código ${c.exit}` : '' }}</span>
                   </button>

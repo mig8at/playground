@@ -79,3 +79,6 @@ jarvis/.data/
 
 # Office: los personajes que genera el CLI (office/cli/personaje.mjs)
 office/generados/
+
+# Lo que escriben los agentes de Wally (páginas de prueba, su historial y capturas): no se versiona.
+wally/pruebas/
