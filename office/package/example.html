@@ -33,7 +33,7 @@
 <main>
   <section>
     <h1>Tu personaje</h1>
-    <div class="preview"><office-character id="grande" gesture="talking"></office-character></div>
+    <div class="preview"><office-character id="large" gesture="talking"></office-character></div>
     <div class="gestures" id="gestures"></div>
   </section>
   <aside class="panel" id="panel" aria-label="Piezas del personaje">
@@ -74,7 +74,7 @@ import { OPTIONS, randomCharacter } from './office-characters.js'
 // el punto de partida: todas las piezas a la vista, así cada selector muestra lo que tiene el personaje
 const DEFAULTS = { name: 'Nuevo', species: '', face: 'round', nose: 'button', teeth: 'grin', hair: 'side', hairColor: '#4a2f1c', beardStyle: '', hat: '', hatColor: '#c5381f', skin: '#e0ac7e', shirt: '#2b6670', eye: 25, extras: [], scene: 'sunset' }
 let config = { ...DEFAULTS }
-const grande = document.getElementById('grande')
+const large = document.getElementById('large')
 const gestures = document.getElementById('gestures')
 gestures.innerHTML = Object.entries({ idle: 'escucha', typing: 'teclea', thinking: 'piensa', talking: 'habla' }).map(([g, label]) => `<figure><office-character gesture="${g}"></office-character><figcaption>${label}</figcaption></figure>`).join('')
 
@@ -86,7 +86,7 @@ const looks = { ...OPTIONS.extras, ...OPTIONS.looks }
 document.getElementById('extras').innerHTML = Object.entries(looks).map(([v, l]) => `<label><input type="checkbox" data-x="${v}"> ${l}</label>`).join('')
 
 function draw() {
-  grande.config = config
+  large.config = config
   gestures.querySelectorAll('office-character').forEach((el) => { el.config = config })
   document.querySelectorAll('[data-k]').forEach((el) => { if (document.activeElement !== el) el.value = config[el.dataset.k] ?? '' })
   document.querySelectorAll('[data-x]').forEach((el) => { el.checked = OPTIONS.extras[el.dataset.x] ? (config.extras || []).includes(el.dataset.x) : !!config[el.dataset.x] })
