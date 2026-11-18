@@ -35,6 +35,8 @@ type Day struct {
 	Logs int `json:"logs,omitempty"`
 	// Ph: con qué versión de la lectura de PostHog (phVersion, en steps.go). Menor: se vuelve a pedir.
 	Ph int `json:"ph,omitempty"`
+	// Rej: con qué versión de la lectura del rechazo de CreditopX (rejectVersion, en reject.go). Menor: se vuelve a pedir.
+	Rej int `json:"rej,omitempty"`
 }
 
 const bucketsPerDay = 288
@@ -228,6 +230,11 @@ func (s *store) String() string { return fmt.Sprintf("%d días en %s", len(s.day
 // markLogs: el día ya tiene la lectura de Loki de la versión v.
 func (s *store) markLogs(date string, v int) {
 	s.mark(date, func(d *Day) bool { ok := d.Logs < v; d.Logs = max(d.Logs, v); return ok })
+}
+
+// markRej: el día ya tiene la lectura del rechazo de CreditopX de la versión v.
+func (s *store) markRej(date string, v int) {
+	s.mark(date, func(d *Day) bool { ok := d.Rej < v; d.Rej = max(d.Rej, v); return ok })
 }
 
 // markPh: el día ya tiene la lectura de PostHog de la versión v.

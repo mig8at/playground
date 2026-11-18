@@ -66,6 +66,8 @@ type Subject struct {
 	Step *StepEval `json:"step,omitempty"`
 	// Out (sólo `out:`): las llamadas y las fallas de un proveedor externo en la ventana.
 	Out *OutEval `json:"out,omitempty"`
+	// Reject (sólo `reject:`): las ofertas y los rechazos de una entidad CreditopX en la ventana, y su tasa de siempre.
+	Reject *RejectEval `json:"reject,omitempty"`
 	// Message (sólo `newmsg:`): el mensaje de error nuevo.
 	Message *MsgView `json:"message,omitempty"`
 	// Acked: el episodio está reconocido («ya lo sé»): la interfaz lo pasa a «Conocidos» hasta que se cierre o empeore.
@@ -101,6 +103,12 @@ type Overview struct {
 	Steps []Subject `json:"steps"`
 	// Providers: los proveedores externos a los que llama legacy-backend (`out:experian`), por su tasa de falla.
 	Providers []Subject `json:"providers"`
+	// Rejections: el rechazo de las entidades CreditopX (`reject:6`, `reject:all`), por su tasa (reject.go).
+	Rejections []Subject `json:"rejections"`
+	RejectNote string    `json:"rejectNote,omitempty"`
+	// Policies: los cambios de política de las entidades (lender_rules_snapshots), del más nuevo al más viejo: se
+	// marcan como los despliegues.
+	Policies []PolicyChange `json:"policies"`
 	// NewMessages: los mensajes de error que no estaban en los 7 días anteriores (messages.go). MessagesNote: si todavía
 	// se están aprendiendo, o si Loki no contestó.
 	NewMessages  []Subject `json:"newMessages"`
@@ -149,6 +157,9 @@ type sentinel struct {
 	logsNote        string
 	stepsNote       string
 	deploysNote     string // la lista de despliegues no se pudo leer (o le falta el front)
+	rejectNote      string // el rechazo de CreditopX no se pudo leer (reject.go)
+	policyList      []PolicyChange
+	policiesAt      time.Time
 	releasesNote    string // las versiones de los servicios no se pudieron leer (services.go)
 	// progressAt: la última vez que la pasada en curso dio señales de vida (al empezar y en cada paso de la carga). El
 	// perro guardián (watch) avisa si pasa demasiado sin moverse. Con mu tomado.
@@ -171,14 +182,18 @@ var (
 // solicitudes de la última hora se leería como una caída a cero (alertas falsas), y guardar sólo los logs correría
 // `reach`, con lo que el hueco de solicitudes no se volvería a pedir. La pasada siguiente pide todo desde `reach`.
 func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
-	fresh, logs, ph := Fresh{}, Fresh{}, Fresh{}
-	var reqErr, logsErr, phErr error
+	fresh, logs, ph, rej := Fresh{}, Fresh{}, Fresh{}, Fresh{}
+	var reqErr, logsErr, phErr, rejErr error
 	var wg sync.WaitGroup
 	wg.Add(3)
 	go func() {
 		defer wg.Done()
 		if reqErr = r.requests(from, to, fresh); reqErr == nil {
 			reqErr = r.failedJobs(from, to, fresh)
+		}
+		// El rechazo de CreditopX es una señal más: si falla, la pasada sigue sin él y lo dice (rejectNote).
+		if reqErr == nil {
+			rejErr = r.rejections(from, to, rej)
 		}
 	}()
 	go func() {
@@ -199,6 +214,14 @@ func (s *sentinel) fetchRange(r reader, from, to time.Time) error {
 	}
 	if err := s.putRange(from, to, fresh, requestKinds); err != nil {
 		return err
+	}
+	if rejErr != nil {
+		s.rejectNote = "sin el rechazo de CreditopX: " + rejErr.Error()
+	} else {
+		s.rejectNote = ""
+		if err := s.putRange(from, to, rej, rejectKinds); err != nil {
+			return err
+		}
 	}
 	if logsErr != nil {
 		s.logsNote = "sin los errores de Loki: " + logsErr.Error()
@@ -304,6 +327,9 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 		if s.stepsNote == "" {
 			s.store.markPh(day.Format("2006-01-02"), phVersion)
 		}
+		if s.rejectNote == "" {
+			s.store.markRej(day.Format("2006-01-02"), rejectVersion)
+		}
 	}
 	if s.store.day(today.Format("2006-01-02")) == nil {
 		s.setLoading("cargando hoy")
@@ -352,6 +378,30 @@ func (s *sentinel) backfill(r reader, rules Rules, now time.Time) error {
 			break
 		}
 		s.store.markPh(day.Format("2006-01-02"), phVersion)
+	}
+	// Y el rechazo de CreditopX: los días guardados antes de que existiera (o con una lectura vieja) se piden, sólo él.
+	var noReject []time.Time
+	for d := rules.HistoryDays; d >= 0; d-- {
+		day := today.AddDate(0, 0, -d)
+		if x := s.store.day(day.Format("2006-01-02")); x != nil && x.Rej < rejectVersion {
+			noReject = append(noReject, day)
+		}
+	}
+	for i, day := range noReject {
+		s.setLoading(fmt.Sprintf("leyendo el rechazo de CreditopX: %d de %d días (%s)", i+1, len(noReject), day.Format("2006-01-02")))
+		to := day.AddDate(0, 0, 1)
+		if to.After(now) {
+			to = now
+		}
+		f := Fresh{}
+		if err := r.rejections(day, to, f); err != nil {
+			s.rejectNote = "sin la historia del rechazo de CreditopX: " + err.Error()
+			break
+		}
+		if err := s.putRange(day, to, f, rejectKinds); err != nil {
+			return err
+		}
+		s.store.markRej(day.Format("2006-01-02"), rejectVersion)
 	}
 	s.setLoading("")
 	return nil
@@ -403,6 +453,14 @@ func (s *sentinel) pass() (*Overview, error) {
 	}
 	if err := s.fetchRange(r, from.Truncate(5*time.Minute), now); err != nil {
 		return nil, err
+	}
+	if time.Since(s.policiesAt) > 30*time.Minute {
+		// Los cambios de política: como los despliegues, una lectura fallida deja la lista anterior y se dice.
+		if list, err := r.policyChanges(rules.HistoryDays); err != nil {
+			s.rejectNote = "sin los cambios de política: " + err.Error()
+		} else {
+			s.policyList, s.policiesAt = list, time.Now()
+		}
 	}
 	if time.Since(s.deploysAt) > 30*time.Minute {
 		// Si no se pudo leer, se DICE (deploysNote): una lectura fallida no es «ninguno en los últimos días». La lista
@@ -457,7 +515,7 @@ func (s *sentinel) evaluator(rules Rules) evaluator {
 		}
 	}
 	return evaluator{rules: rules, data: s.store.dense(), have: have, deploys: deployTimes, deployNames: deployNames,
-		ceils: map[string]float64{}, follows: s.follow.has}
+		policies: s.policyList, ceils: map[string]float64{}, follows: s.follow.has}
 }
 
 func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
@@ -466,6 +524,7 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 	o := &Overview{
 		CheckedAt: now.Format(time.RFC3339), WindowFrom: now.Add(-time.Duration(rules.WindowMinutes) * time.Minute).Format(time.RFC3339),
 		WindowTo: now.Format(time.RFC3339), Deploys: s.deployList, Rules: rules, LogsNote: s.logsNote, StepsNote: s.stepsNote,
+		RejectNote: s.rejectNote, Policies: s.policyList,
 	}
 	for _, note := range []string{s.deploysNote, s.releasesNote} {
 		if note == "" {
@@ -502,10 +561,12 @@ func (s *sentinel) overview(rules Rules, now time.Time) *Overview {
 			o.Steps = append(o.Steps, subj)
 		case "out":
 			o.Providers = append(o.Providers, subj)
+		case "reject":
+			o.Rejections = append(o.Rejections, subj)
 		}
 	}
 	o.Apps = s.apps(o)
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.NewMessages} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.NewMessages} {
 		sortSubjects(*list)
 	}
 	return o
@@ -544,6 +605,8 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 		subj.Name = key + " · líneas"
 	case "out":
 		subj.Name = providerName(key) + " · llamadas"
+	case "reject":
+		subj.Name = rejectName(s.lenderNames, key)
 	case "jserr":
 		subj.Name = s.subjectName(sig)
 	case "step":
@@ -572,6 +635,7 @@ func (s *sentinel) subject(e evaluator, sig Signal, now time.Time) Subject {
 	subj.Silence = ev.Silence
 	subj.Step = ev.Step
 	subj.Out = ev.Out
+	subj.Reject = ev.Reject
 	// La curva del día y lo normal por hora, de los días comparables.
 	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota)
 	comp := comparable(now, e.rules.BaselineDays, e.have)
@@ -664,7 +728,7 @@ func (s *sentinel) decorate(o *Overview) {
 	now := time.Now().In(bogota)
 	o.Gaps = s.notifier.gaps(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -1))
 	acked := s.notifier.acked()
-	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.NewMessages} {
+	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.NewMessages} {
 		for i := range *list {
 			(*list)[i].Acked = acked[(*list)[i].Signal]
 		}
@@ -844,7 +908,7 @@ func (s *sentinel) loadLast() {
 	if json.Unmarshal(raw, &o) == nil && o.CheckedAt != "" {
 		s.mu.Lock()
 		s.last, s.fromDisk = &o, true
-		s.deployList = o.Deploys
+		s.deployList, s.policyList = o.Deploys, o.Policies
 		s.mu.Unlock()
 	}
 }

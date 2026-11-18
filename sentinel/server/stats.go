@@ -241,10 +241,11 @@ const (
 )
 
 type Eval struct {
-	Minutes int       // la ventana que se miró: WindowMinutes, o una de FollowedWindows
-	Silence *Silence  // sólo `logs:`: desde cuándo no escribe, si es más que el silencio más largo de la historia
-	Step    *StepEval // sólo `step:`: la conversión y los fallos de una pantalla del wizard
-	Out     *OutEval  // sólo `out:`: la falla de un proveedor externo
+	Minutes int         // la ventana que se miró: WindowMinutes, o una de FollowedWindows
+	Silence *Silence    // sólo `logs:`: desde cuándo no escribe, si es más que el silencio más largo de la historia
+	Step    *StepEval   // sólo `step:`: la conversión y los fallos de una pantalla del wizard
+	Out     *OutEval    // sólo `out:`: la falla de un proveedor externo
+	Reject  *RejectEval // sólo `reject:`: el rechazo de una entidad CreditopX
 	Now     int
 	Samples []float64
 	Dates   []string
@@ -263,6 +264,7 @@ type evaluator struct {
 	// deployNames: «legacy-backend v0.6.53», alineado con deploys, para que el porqué diga CUÁL despliegue lo volvió
 	// más sensible (antes decía «hubo un despliegue» y había que ir a buscarlo).
 	deployNames []string
+	policies    []PolicyChange     // los cambios de política de las entidades, del más nuevo al más viejo (reject.go)
 	ceils       map[string]float64 // el techo de los errores por señal y día, calculado una vez
 	follows     func(Signal) bool  // lo que se sigue: puede mirar una ventana más larga (FollowedWindows)
 }
@@ -323,6 +325,13 @@ func (e evaluator) eval(sig Signal, t time.Time) Eval {
 	var ev Eval
 	if se == nil {
 		ev.Level, ev.Why = levelQuiet, "sin datos"
+		return ev
+	}
+	if kindOf(sig) == "reject" {
+		ev = e.evalReject(sig, se, t)
+		if e.rules.Signals[sig].Ignore {
+			ev.Level, ev.Why = levelQuiet, "ignorada en rules.json"
+		}
 		return ev
 	}
 	if kindOf(sig) == "out" {

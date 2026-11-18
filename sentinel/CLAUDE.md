@@ -107,6 +107,31 @@ Se evalúa la **tasa de falla** contra la de siempre a esa hora, con prueba bino
 ≥ 10 fallas y el doble de lo normal), con 20 llamadas como mínimo; uno chico mira 3, 6 o 24 horas. Es lo que habría
 visto el 404 de Netco del 17/11 (en dev). Pestaña «Proveedores» en la tabla. `logsVersion` 4 recargó su historia.
 
+## El rechazo de CreditopX y los cambios de política (`server/reject.go`)
+
+Lo que las solicitudes no muestran: que una política o el perfilador empiecen a rechazar más con el MISMO tráfico. Sale
+de `profiling_reviews.displayed_lenders` (lo que vio el cliente en cada perfilamiento, cada entidad con su `probability`),
+sólo de las entidades CreditopX (`lenders.response_type` 2 y 3): el embudo de CreditopX de forecast (el panel comercial
+del repo compartido), llevado a una señal. Señales `reject:<entidad>` y `reject:all`: Total, las ofertas; Approved, las
+no rechazadas; Denied, las rechazadas. ⚠ Son perfilamientos, no personas.
+
+Se evalúa la **tasa de rechazo** contra la de siempre a esa hora (binomial, como los proveedores): con 30 ofertas como
+mínimo (una entidad chica mira 3, 6 o 24 horas), «para mirar» si sube 5 puntos y ×1,25; **alerta** si sube 10 puntos y
+×1,5 con al menos **100 ofertas** en la ventana. Backtest del 11 al 18/11/2026: con 30 ofertas como piso de la alerta
+daba 11, casi todas de madrugada con 34 a 46 ofertas; con 100, 4 (Refurbicredit sostenido en 24 % contra 12 % y CreditopX
+entero dos veces). Cuesta ~1 s por día en Redash: va en cada pasada (las últimas horas) y completa la historia con
+`rejectVersion` (`Day.Rej`). Si falla, la pasada sigue sin él y lo dice (`rejectNote`).
+
+**Los cambios de política** (`lender_rules_snapshots`: cada versión de las reglas de una entidad, con su hora; sin el
+contenido, que pesa cientos de KB) se leen cada 30 minutos, como los despliegues, y se marcan igual: en la curva de la
+entidad y del rechazo, en la línea del día y en `bin/sentinel day`. El porqué de una señal de rechazo nombra el cambio de
+política de su entidad de las 24 horas anteriores («cambió la política de X (versión 6) el 13/11 a las 13:38»). Pestaña
+«Rechazo» en la tabla; el detalle de una entidad muestra su rechazo.
+
+Medido al crearlo (2026-11-18): el rechazo de CreditopX venía en 14–16 % a comienzos de noviembre y pasó a 20–25 % desde
+el 13, en varias entidades a la vez (Credi ASYCO, Dentix, Crédito Directo X LB, Credi Free, Refurbicredit); sólo Crédito
+Directo X LB tuvo un cambio de política ese día.
+
 ## Los errores que no estaban (`server/messages.go`)
 
 Un conteo no ve una falla nueva de poco volumen (el «Unknown column 'cell_phone_lenght'» del form-service fueron 12 en

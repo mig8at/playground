@@ -64,7 +64,7 @@ const filtered = (list) => (query.value.trim() ? (list || []).filter((s) => fold
 // Sin movimiento: lo normal a esta hora es 0 y hoy tampoco entró nada. Van plegados al final de su grupo: son la
 // mayoría de las entidades a cualquier hora y tapaban las que sí se mueven.
 const idle = (s) => s.median === 0 && s.now.total === 0
-const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
+const everything = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.steps || []), ...(data.value?.lenders || []), ...(data.value?.merchants || [])])
 const bySignal = computed(() => new Map(everything.value.map((s) => [s.signal, s])))
 const followed = computed(() => following.value.map((sig) => bySignal.value.get(sig) || { signal: sig, name: sig, kind: sig.split(':')[0], id: Number(sig.split(':')[1]), state: 'quiet', now: { total: 0 }, median: 0, why: 'Sin datos todavía: no aparece en lo guardado.' }))
 // Lo que se sigue, en dos secciones: entidades primero (son menos y cada una cruza varios comercios), después comercios.
@@ -98,7 +98,7 @@ function spark(s) {
 }
 
 // ── la tabla de la consola: todas las señales ──
-const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
+const KIND_TABS = [{ id: 'all', label: 'Todas' }, { id: 'errors', label: 'Errores' }, { id: 'logs', label: 'Vida' }, { id: 'step', label: 'Pantallas' }, { id: 'out', label: 'Proveedores' }, { id: 'reject', label: 'Rechazo' }, { id: 'lender', label: 'Entidades' }, { id: 'merchant', label: 'Comercios' }]
 const tableKind = ref('all')
 const tableQuery = ref('')
 const showIdle = ref(false)
@@ -134,6 +134,7 @@ const selected = computed(() => {
   if (route.value.kind === 'lerr') return d.lenderErrors?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'logs') return d.liveness?.find((s) => s.signal === `logs:${route.value.name}`) || d.all
   if (route.value.kind === 'out') return d.providers?.find((s) => s.signal === `out:${route.value.name}`) || d.all
+  if (route.value.kind === 'reject') return d.rejections?.find((s) => s.signal === `reject:${route.value.name}`) || d.all
   if (route.value.kind === 'lender') return d.lenders?.find((s) => s.id === route.value.id) || d.all
   if (route.value.kind === 'merchant') return d.merchants?.find((s) => s.id === route.value.id) || d.all
   return d.all
@@ -143,7 +144,7 @@ const selected = computed(() => {
 // este panel y la tabla mostraba alertas que acá no aparecían).
 const stepFollowed = (x) => !x.signal.includes('@') || following.value.includes(`merchant:${x.signal.split('@')[1]}`)
 const outOfNormal = (s) => s.state === 'alert' || s.state === 'warn'
-const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
+const noticing = computed(() => [...(data.value?.services || []), ...(data.value?.liveness || []), ...(data.value?.lenderErrors || []), ...(data.value?.providers || []), ...(data.value?.rejections || []), ...(data.value?.newMessages || []), ...(data.value?.steps || []).filter(stepFollowed), ...(data.value?.lenders || []), ...(data.value?.merchants || [])]
   .filter(outOfNormal))
 const attention = computed(() => noticing.value.filter((s) => !s.acked))
 const known = computed(() => noticing.value.filter((s) => s.acked))
@@ -162,7 +163,7 @@ async function setAck(s, on) {
 function readRoute() {
   const { parts } = readHashRoute()
   if (parts[0] === 'queue') route.value = { kind: 'queue', id: 0 }
-  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
+  else if ((parts[0] === 'service' || parts[0] === 'logs' || parts[0] === 'step' || parts[0] === 'jserr' || parts[0] === 'out' || parts[0] === 'reject') && parts[1]) route.value = { kind: parts[0], id: 0, name: decodeURIComponent(parts[1]) }
   else route.value = (parts[0] === 'lender' || parts[0] === 'merchant' || parts[0] === 'lerr') && parts[1] ? { kind: parts[0], id: Number(parts[1]) } : { kind: 'all', id: 0 }
 }
 // Ir a una señal: `setRoute` recibe una URL, no las partes; con la lista escribía `/merchant,94` en la ruta y el
@@ -176,11 +177,12 @@ function pick(s) {
   else if (s.kind === 'step') go(['step', s.signal.slice(5)])
   else if (s.kind === 'jserr') go(['jserr', s.signal.slice(6)])
   else if (s.kind === 'out') go(['out', s.signal.slice(4)])
+  else if (s.kind === 'reject') go(['reject', s.signal.slice(7)])
   else if (s.kind === 'newmsg') go(['service', s.message.service]) // el error nuevo se mira en su servicio
   else go([s.kind, String(s.id)])
   readRoute()
 }
-const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
+const isOn = (s) => route.value.kind === s.kind && (s.kind === 'queue' || (s.kind === 'service' ? route.value.name === s.name : s.kind === 'logs' || s.kind === 'step' || s.kind === 'jserr' || s.kind === 'out' || s.kind === 'reject' ? `${s.kind}:${route.value.name}` === s.signal : route.value.id === s.id))
 
 // El último despliegue a producción de un servicio: los servicios de Loki se llaman como sus repos.
 const lastDeployOf = (name) => (data.value?.deploys || []).find((d) => d.repo === name)
@@ -198,7 +200,7 @@ const serviceOf = (s) => (s.kind === 'logs' ? s.signal.slice(5) : s.kind === 'js
 // Los servicios salen de Loki; el front (sus errores de JavaScript) y las pantallas, de PostHog.
 const sourceNoteOf = (s) => (!s ? '' : s.kind === 'service' || s.kind === 'logs' || s.kind === 'lerr' ? data.value?.logsNote || '' : s.kind === 'jserr' || s.kind === 'step' ? data.value?.stepsNote || '' : '')
 const appNote = (a) => (a.service === 'frontend-monorepo' ? data.value?.stepsNote : data.value?.logsNote) || ''
-const sourceNotes = computed(() => [['sin Loki', data.value?.logsNote], ['sin PostHog', data.value?.stepsNote], ['sin despliegues', data.value?.deploysNote]].filter((x) => x[1]))
+const sourceNotes = computed(() => [['sin Loki', data.value?.logsNote], ['sin PostHog', data.value?.stepsNote], ['sin despliegues', data.value?.deploysNote], ['sin rechazo de CreditopX', data.value?.rejectNote]].filter((x) => x[1]))
 const releaseOf = (s) => apps.value.find((a) => a.service === serviceOf(s))?.release
 const silentFor = (m) => (m >= 2880 ? `${Math.floor(m / 1440)} días` : m >= 120 ? `${Math.floor(m / 60)} h` : `${m} min`)
 const compact = (n) => (n >= 10000 ? `${Math.round(n / 1000)}k` : n >= 1000 ? `${(n / 1000).toFixed(1)}k` : fmt(n))
@@ -210,7 +212,7 @@ const ago = (iso) => {
 // ── textos ──
 const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 'poco volumen' }
 // En la tabla, corto: es una columna.
-const TABLE_KIND = { out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
+const TABLE_KIND = { reject: 'Rechazo', out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
 const KIND_LABEL = { out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
 const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando' }
 const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn' }
@@ -228,7 +230,7 @@ const attentionCounts = computed(() => {
 function pickSignal(sig) {
   const [kind, key] = String(sig).split(':')
   if (kind === 'lender' || kind === 'merchant' || kind === 'lerr') go([kind, key])
-  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr') go([kind, String(sig).slice(kind.length + 1)])
+  else if (kind === 'service' || kind === 'logs' || kind === 'step' || kind === 'jserr' || kind === 'out' || kind === 'reject') go([kind, String(sig).slice(kind.length + 1)])
   else if (kind === 'queue') go(['queue'])
   else go([])
   readRoute()
@@ -285,9 +287,10 @@ const timeline = computed(() => {
   })
   const height = 34 + Math.max(1, spells.length) * DAY_ROW
   const deploys = (d.deploys || []).map((dp) => ({ ...dp, x: x(dp.at) }))
+  const policies = (d.policies || []).map((p) => ({ ...p, x: x(p.at) }))
   const notices = (d.notices || []).filter((n) => n.level !== 'recovered').map((n) => ({ ...n, x: x(n.at) }))
   const hours = [0, 6, 12, 18, 24].map((h) => ({ h, x: PAD.l + (h / 24) * (W - PAD.l - PAD.r) }))
-  return { spells, deploys, notices, hours, height, more: Math.max(0, (d.spells || []).length - spells.length) }
+  return { spells, deploys, policies, notices, hours, height, more: Math.max(0, (d.spells || []).length - spells.length) }
 })
 const PAD = { l: 34, r: 12, t: 12, b: 24 }
 const chart = computed(() => chartFor(selected.value))
@@ -308,6 +311,13 @@ function chartFor(s) {
     const t = new Date(d.at)
     return { ...d, x: x(t.getHours() + t.getMinutes() / 60) }
   })
+  // Los cambios de política de HOY de la entidad elegida (o de todas, en el rechazo de CreditopX): como los despliegues.
+  const lenderId = s.kind === 'lender' ? s.id : s.kind === 'reject' ? s.signal.slice(7) : null
+  const policyMarks = lenderId == null ? [] : (data.value?.policies || [])
+    .filter((p) => new Date(p.at).toDateString() === todayStr && (lenderId === 'all' || String(p.lenderId) === String(lenderId)))
+    // varias versiones seguidas (tres en dos minutos el 18/11) se dibujaban encimadas: queda la última de cada tanda
+    .filter((p, i, all) => !all.some((q) => q !== p && String(q.lenderId) === String(p.lenderId) && new Date(q.at) > new Date(p.at) && new Date(q.at) - new Date(p.at) < 30 * 60_000))
+    .map((p) => { const t = new Date(p.at); return { ...p, x: x(t.getHours() + t.getMinutes() / 60) } })
   // Los tramos de HOY en que Sentinel no miró (el Mac dormido, la VPN): la curva ahí es real (se rellenó después), pero
   // nadie avisó de lo que pasó en ellos.
   const dayStart = new Date(); dayStart.setHours(0, 0, 0, 0)
@@ -315,10 +325,11 @@ function chartFor(s) {
   const gaps = (data.value?.gaps || []).filter((g) => new Date(g.to) > dayStart).map((g) => ({
     key: g.from, x1: x(hourOf(g.from)), x2: x(hourOf(g.to)), title: `Sentinel no miró de ${dayClock(g.from)} a ${dayClock(g.to)}`,
   })).filter((g) => g.x2 - g.x1 > 1)
-  return { band, median, today, ticks, marks, gaps, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
+  return { band, median, today, ticks, marks, policyMarks, gaps, lastX: last >= 0 ? x(last) : 0, lastY: last >= 0 ? y(s.today[last]) : 0, hours: [0, 6, 12, 18, 23].map((h) => ({ h, x: x(h) })) }
 }
 // Los errores en los logs que nombran a la entidad elegida (preapprovals-service y legacy-backend).
 const lenderErrors = computed(() => (selected.value?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === selected.value.id) : null))
+const lenderReject = computed(() => (selected.value?.kind === 'lender' ? (data.value?.rejections || []).find((x) => x.signal === `reject:${selected.value.id}`) : null))
 const lenderErrorsOf = (s) => (s?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === s.id) : null)
 const errChart = computed(() => chartFor(lenderErrors.value))
 // Las pantallas del wizard de lo elegido: de todo el wizard en la vista general, del comercio en la de un comercio.
@@ -482,13 +493,13 @@ onBeforeUnmount(() => {
           <p v-if="sourceNoteOf(selected)" class="source-note" role="status">⚠ {{ sourceNoteOf(selected) }}. Lo que se ve acá es lo de la última lectura que sí llegó.</p>
           <p v-if="selected.raw !== selected.state && (selected.raw === 'alert' || selected.raw === 'warn')" class="note">
             Ahora mismo daría «{{ STATE_LABEL[selected.raw] }}», pero todavía no se sostuvo: se avisa cuando dura {{ data.rules.sustain }} lecturas seguidas ({{ data.rules.sustain * data.rules.stepMinutes }} min).</p>
-          <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar.</p>
+          <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: {{ selected.kind === 'reject' || selected.kind === 'out' ? 'en una hora hay muy pocas para hablar de una tasa' : 'es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar' }}.</p>
           <p v-if="selected.silence" class="note">Callado desde el {{ dayClock(selected.silence.since) }}: {{ silentFor(selected.silence.minutes) }} sin escribir una línea, más que el silencio más largo de las semanas anteriores ({{ silentFor(selected.silence.longest) }}). Se marca hasta que vuelva a escribir, aunque la estadística de la hora ya lo tome por normal.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
 
           <div class="cards">
             <div class="card-num"><span class="card-label">{{ spanLabel(selected) }}</span><span class="card-value">{{ selected.now.total }}</span>
-              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : 'solicitudes que entraron' }}</span></div>
+              <span class="card-what">{{ selected.kind === 'jserr' ? 'errores de JavaScript en el front (PostHog)' : selected.kind === 'step' ? 'enviaron esta pantalla (la curva: por hora)' : selected.kind === 'lerr' ? 'errores en los logs que nombran a la entidad' : selected.kind === 'service' ? 'errores en los logs de producción' : selected.kind === 'queue' ? 'trabajos fallidos en la cola' : selected.kind === 'logs' ? 'líneas que escribió en los logs (si deja de escribir, probablemente se cayó)' : selected.kind === 'reject' ? 'ofertas: perfilamientos en que el cliente vio la entidad' : 'solicitudes que entraron' }}</span></div>
             <div class="card-num"><span class="card-label">Lo normal</span><span class="card-value">{{ fmt(selected.median) }}</span>
               <span class="card-what">casi siempre entre {{ selected.low }} y {{ selected.high }} {{ hours(selected) === 1 ? 'a esta hora' : `en estas ${hours(selected)} horas` }}, en {{ selected.samples?.length || 0 }} días comparables</span></div>
             <div v-if="isService(selected)" class="card-num"><span class="card-label">Desplegado en producción</span>
@@ -500,6 +511,9 @@ onBeforeUnmount(() => {
             <div v-else-if="selected.kind === 'step'" class="card-num"><span class="card-label">La enviaron · fallaron</span>
               <span class="card-value">{{ selected.step?.rate >= 0 ? `${Math.round(selected.step.rate * 100)} %` : '—' }} · {{ selected.step?.done ? `${Math.round(selected.step.failRate * 100)} %` : '—' }}</span>
               <span class="card-what">de {{ selected.step?.views || 0 }} que la vieron; lo normal, {{ selected.step?.baseRate ? `${Math.round(selected.step.baseRate * 100)} %` : '—' }} y {{ selected.step?.baseFail ? `${Math.round(selected.step.baseFail * 100)} %` : '—' }} de fallos</span></div>
+            <div v-else-if="selected.kind === 'reject'" class="card-num"><span class="card-label">Rechazadas</span>
+              <span class="card-value">{{ selected.reject ? pct(selected.reject.rate) : '—' }}</span>
+              <span class="card-what">{{ selected.reject?.rejects || 0 }} de {{ selected.reject?.offers || 0 }} ofertas; lo normal a esta hora, {{ selected.reject ? pct(selected.reject.baseRate) : '—' }}{{ selected.reject?.policy ? ` · ${selected.reject.policy}` : '' }}</span></div>
             <div v-else-if="!isErrors(selected)" class="card-num"><span class="card-label">Aprobadas · negadas</span><span class="card-value">{{ selected.now.approved }} · {{ selected.now.denied }}</span>
               <span class="card-what">negadas {{ pct(selected.deniedRate) }} de las que terminaron; lo de hoy todavía avanza</span></div>
           </div>
@@ -523,6 +537,11 @@ onBeforeUnmount(() => {
                 <line :x1="m.x" :x2="m.x" :y1="PAD.t" :y2="H - PAD.b" />
                 <text :x="m.x + 4" :y="PAD.t + 10">{{ repoShort(m.repo) }} {{ m.version }}</text>
               </g>
+              <g v-for="p in chart.policyMarks" :key="`pol-${p.lenderId}-${p.version}`" class="policy-mark">
+                <line :x1="p.x" :x2="p.x" :y1="PAD.t" :y2="H - PAD.b" />
+                <text :x="p.x + 4" :y="PAD.t + 22">política v{{ p.version }}</text>
+                <title>Cambio de política de {{ p.lender }} (versión {{ p.version }}) · {{ dayClock(p.at) }}</title>
+              </g>
               <polyline class="today" :points="chart.today" />
               <circle class="now" :cx="chart.lastX" :cy="chart.lastY" r="4"><title>hora en curso: todavía se está llenando</title></circle>
             </svg>
@@ -539,6 +558,10 @@ onBeforeUnmount(() => {
               <g v-for="dp in timeline.deploys" :key="dp.url" class="deploy-mark">
                 <line :x1="dp.x" :x2="dp.x" y1="6" :y2="timeline.height - 14" />
                 <title>{{ repoShort(dp.repo) }} {{ dp.version }} · {{ dayClock(dp.at) }}</title>
+              </g>
+              <g v-for="p in timeline.policies" :key="`tp-${p.lenderId}-${p.version}`" class="policy-mark">
+                <line :x1="p.x" :x2="p.x" y1="6" :y2="timeline.height - 14" />
+                <title>Cambio de política de {{ p.lender }} (versión {{ p.version }}) · {{ dayClock(p.at) }}</title>
               </g>
               <g v-for="sp in timeline.spells" :key="`sp-${sp.signal}-${sp.from}`" class="spell" :class="`is-${sp.level}`" @click="pickSignal(sp.signal)">
                 <rect :x="sp.x1" :y="sp.y - 2" :width="sp.x2 - sp.x1" height="8" rx="2" />
@@ -583,6 +606,17 @@ onBeforeUnmount(() => {
               </tbody>
             </table>
             <p class="chart-note">De PostHog: de los que vieron cada pantalla, cuántos la enviaron, y de los resultados, cuántos fallaron, contra lo normal de esta hora. Si un despliegue del front rompe una pantalla, el backend no se entera; esto sí.<template v-if="data.stepsNote"> ⚠ {{ data.stepsNote }}</template></p>
+          </section>
+
+          <section v-if="lenderReject" class="chart-box lender-reject">
+            <div class="chart-head">
+              <h3>Rechazo de CreditopX</h3>
+              <button type="button" class="linkish small" @click="pick(lenderReject)">abrir como señal</button>
+            </div>
+            <p class="verdict" :class="`is-${lenderReject.state}`">
+              <i class="dot" :class="`is-${lenderReject.state}`" aria-hidden="true"></i>
+              <b>{{ STATE_LABEL[lenderReject.state] }}</b> · {{ lenderReject.why }}
+            </p>
           </section>
 
           <section v-if="selected.kind === 'lender'" class="chart-box lender-errors">
@@ -659,7 +693,7 @@ onBeforeUnmount(() => {
               <td class="num">{{ fmt(s.median) }}</td>
               <td class="num muted">{{ s.low }}–{{ s.high }}</td>
               <td class="num">{{ s.z ? s.z.toFixed(1) : '·' }}</td>
-              <td class="num muted">{{ s.kind === 'out' && s.out ? `${s.out.fails} fallas` : isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
+              <td class="num muted">{{ s.kind === 'reject' && s.reject ? `${pct(s.reject.rate)} · lo normal ${pct(s.reject.baseRate)}` : s.kind === 'out' && s.out ? `${s.out.fails} fallas` : isErrors(s) || s.kind === 'logs' || s.kind === 'step' ? '' : `${s.now.approved} · ${s.now.denied}` }}</td>
               <td class="follow-col">
                 <button v-if="canFollow(s)" type="button" class="region-action" :class="{ following: isFollowed(s) }"
                         :aria-pressed="isFollowed(s)" :title="isFollowed(s) ? `Dejar de seguir ${s.name}` : `Seguir ${s.name}`"
@@ -893,6 +927,8 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .linkish.small { font-size: var(--text-xs); color: var(--fg-2) }
 .chart .deploy-mark line { stroke: var(--sentinel-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
 .chart .deploy-mark text { fill: var(--sentinel-warn); font-size: 10px }
+.chart .policy-mark line { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 1 3 }
+.chart .policy-mark text { fill: var(--primary); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }
 .day-bars { display: flex; align-items: flex-end; gap: var(--space-3); height: 90px; padding: var(--space-2) 0 }
 .day-bar { display: flex; flex-direction: column; align-items: center; gap: 4px; font-size: var(--text-xs); color: var(--fg-3) }

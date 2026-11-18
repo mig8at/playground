@@ -250,14 +250,15 @@ type Spell struct {
 }
 
 type DayReport struct {
-	Date       string    `json:"date"`
-	Freshness  string    `json:"freshness"`
-	Through    string    `json:"through"` // hasta qué hora mira (hoy, la hora de lo guardado)
-	Requests   DayTotals `json:"requests"`
-	Spells     []Spell   `json:"spells"`
-	Deploys    []Deploy  `json:"deploys"`
-	Notices    []Notice  `json:"notices"`
-	Comparable int       `json:"comparable"` // cuántos días comparables hay para lo normal
+	Date       string         `json:"date"`
+	Freshness  string         `json:"freshness"`
+	Through    string         `json:"through"` // hasta qué hora mira (hoy, la hora de lo guardado)
+	Requests   DayTotals      `json:"requests"`
+	Spells     []Spell        `json:"spells"`
+	Deploys    []Deploy       `json:"deploys"`
+	Policies   []PolicyChange `json:"policies"` // los cambios de política de las entidades ese día (reject.go)
+	Notices    []Notice       `json:"notices"`
+	Comparable int            `json:"comparable"` // cuántos días comparables hay para lo normal
 }
 
 // DayTotals: lo que entró en el día (hasta `Through`) y lo normal hasta esa misma hora.
@@ -296,6 +297,11 @@ func (c *cli) day(date string) (*DayReport, error) {
 	for _, d := range c.s.deployList {
 		if strings.HasPrefix(d.At, date) {
 			r.Deploys = append(r.Deploys, d)
+		}
+	}
+	for _, p := range c.s.policyList {
+		if strings.HasPrefix(p.At, date) {
+			r.Policies = append(r.Policies, p)
 		}
 	}
 	for _, x := range openNotifier(c.s.store.dir).recent(1000) {
@@ -384,6 +390,14 @@ func (r *DayReport) Text() string {
 			fmt.Fprintf(&b, "  %s %s %s%s — %s\n", t.In(bogota).Format("15:04"), d.Repo, d.Version, ok, d.Title)
 		}
 		b.WriteString("  (¿se dañó algo? bin/sentinel deploy <repo> <versión>)\n\n")
+	}
+	if len(r.Policies) > 0 {
+		b.WriteString("Cambios de política de las entidades:\n")
+		for _, p := range r.Policies {
+			t, _ := time.Parse(time.RFC3339, p.At)
+			fmt.Fprintf(&b, "  %s %s · versión %d\n", t.In(bogota).Format("15:04"), p.Lender, p.Version)
+		}
+		b.WriteString("  (su rechazo: bin/sentinel signal reject:<id de la entidad>)\n\n")
 	}
 	if len(r.Notices) > 0 {
 		b.WriteString("Avisos que salieron:\n")
@@ -751,6 +765,8 @@ func (s *sentinel) subjectName(sig Signal) string {
 		return key + " · líneas"
 	case "jserr":
 		return "Errores del front (JavaScript)"
+	case "reject":
+		return rejectName(s.lenderNames, key)
 	case "step":
 		id, m := stepParts(sig)
 		label := id
