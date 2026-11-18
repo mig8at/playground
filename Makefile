@@ -866,6 +866,8 @@ knowledge-check: ## @dia contrastar fuentes con el main de los clones sólo-main
 knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/): tools/knowledge-drift/CLAUDE.md
 	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/knowledge-drift/CLAUDE.md"; exit 2; }
 	@python3 tools/knowledge-drift/drift.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(RUN),--run '$(RUN)')
+meetings-fetch: ## @dia baja las notas de reuniones que falten (Gemini en Drive, Read AI en Gmail) a knowledge/meetings/raw/ (fuera de git), por reunión y fecha, con su índice. Después se cura a mano knowledge/meetings/weekly-ct.md
+	@python3 tools/meetings/fetch.py "$(CURDIR)"
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
 	@go test ./knowledge ./cmd/knowledge ./tablero/server/cmd/today ./tablero/server/cmd/tasks ./tablero/server/internal/hooks ./tablero/server/internal/layout ./tablero/server/internal/store ./tablero/server/cmd/web
 
