@@ -551,6 +551,18 @@ async function startAuto(id, text, files) {
     return false
   }
 }
+// RETOMAR: una corrida que se cortó a mitad de una pregunta (falló el proveedor después de los reintentos, se reinició
+// Wally) deja esa pregunta anotada en la conversación (autoResume); «Retomar» la vuelve a hacer y sigue en Auto.
+async function resumeAuto(id) {
+  errors.value = { ...errors.value, [id]: '' }
+  try {
+    const st = await api(`/api/conversations/${encodeURIComponent(id)}/auto`, { method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ resume: true, rounds: AUTO_ROUNDS }) })
+    autoLive.value = { ...autoLive.value, [id]: st }
+    const c = loaded.value[id]
+    if (c) loaded.value = { ...loaded.value, [id]: { ...c, autoResume: null } }
+  } catch (e) { errors.value = { ...errors.value, [id]: e.message } }
+}
 async function stopAuto(id) {
   try { await api(`/api/conversations/${encodeURIComponent(id)}/auto/stop`, { method: 'POST' }) } catch (e) { errors.value = { ...errors.value, [id]: e.message } }
   liveTick()
@@ -1139,6 +1151,14 @@ onBeforeUnmount(() => {
         <span class="auto-doing" :title="autoActive.doing">{{ autoActive.doing }}</span>
         <button type="button" class="btn btn-outline btn-sm" title="Frenar la corrida: corta lo que esté haciendo; lo ya hecho queda" @click="stopAuto(active)">
           <span class="ui-icon" data-icon="close" aria-hidden="true"></span>Frenar
+        </button>
+      </div>
+      <div v-else-if="conv?.autoResume && !pending" class="auto-strip resume" role="status">
+        <span class="ui-icon" data-icon="alert" aria-hidden="true"></span>
+        <b>Auto</b>
+        <span class="auto-doing" :title="conv.autoResume.text">quedó a mitad: la última pregunta no se contestó · {{ clock(conv.autoResume.at) }}</span>
+        <button type="button" class="btn btn-outline btn-sm" title="Volver a hacer la pregunta que quedó sin contestar y seguir en Auto" @click="resumeAuto(active)">
+          <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>Retomar
         </button>
       </div>
       <form class="composer" @submit.prevent="send">

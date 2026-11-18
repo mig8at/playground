@@ -160,6 +160,10 @@ type Conversation struct {
 	// temporal», también en Gemini). Con él, cada pregunta manda sólo lo nuevo; Wally sigue siendo el dueño de la
 	// conversación y abre otro chat (con todo) si algo cambió por fuera.
 	Chats map[string]*ProviderChat `json:"chats,omitempty"`
+	// AutoResume: la pregunta que una corrida automática estaba por hacer y no llegó a contestarse (falló el proveedor,
+	// se reinició Wally, la frenaron). Con ella, «Retomar» sigue justo ahí (autorun.go). Se borra con cualquier
+	// respuesta que llega.
+	AutoResume *autoResume `json:"autoResume,omitempty"`
 }
 
 // ProviderChat: un chat abierto en la web de un proveedor y lo que ya tiene.
@@ -333,6 +337,8 @@ type app struct {
 	autos autoRuns
 	// silent: sin avisos de macOS (las pruebas).
 	silent bool
+	// testAsk: en las pruebas, el proveedor (en vez de la web por el pool).
+	testAsk func(ctx context.Context, job poolJob) (answer, url string, err error)
 }
 
 type askingInfo struct {
@@ -691,7 +697,11 @@ func (a *app) askProvider(ctx context.Context, provider, text, chatURL string) (
 	// Los saltos de línea, todos «\n»: un cuadro de texto de la web convierte «\r\n» en «\n», el texto queda más corto
 	// que el mandado y la receta cree que no entró entero (2026-11-17: la salida de `curl -i`, con encabezados HTTP).
 	text = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(text)
-	answer, url, err = a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
+	ask := a.pool.ask
+	if a.testAsk != nil {
+		ask = a.testAsk
+	}
+	answer, url, err = ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
 		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window, ChatURL: chatURL,
 		Chunk: a.providerSpecs()[provider].chunkSize()})
 	return answer, model, url, err
@@ -871,6 +881,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	}
 	c.Model = in.Model
 	c.Updated = done
+	c.AutoResume = nil // llegó una respuesta: lo que había para retomar ya no corresponde
 	c.Messages = append(c.Messages,
 		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},
 		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done,

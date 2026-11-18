@@ -40,6 +40,37 @@ type autoRuns struct {
 
 const autoMaxRounds = 12
 
+// autoResume: lo que hace falta para seguir una corrida que se cortó a mitad de una pregunta.
+type autoResume struct {
+	Text     string       `json:"text"`
+	Files    []Attachment `json:"files,omitempty"`
+	Provider string       `json:"provider,omitempty"`
+	At       time.Time    `json:"at"`
+}
+
+// retryWaits: cuánto se espera antes de cada reintento cuando el proveedor falla (una web que no cargó, un chat que se
+// trabó, un corte de red). Después del último, la corrida termina y queda para retomar. maxPauseWait: una pausa de
+// Google más corta que esto se espera; una más larga termina la corrida (se retoma a mano cuando pase).
+var (
+	retryWaits   = []time.Duration{30 * time.Second, 90 * time.Second}
+	maxPauseWait = 10 * time.Minute
+)
+
+// setResume guarda (o borra, con nil) lo que hay para retomar en una conversación.
+func (a *app) setResume(id string, r *autoResume) {
+	a.store.mu.Lock()
+	c, ok := a.store.convs[id]
+	if ok {
+		c.AutoResume = r
+	}
+	a.store.mu.Unlock()
+	if ok {
+		if err := a.store.save(); err != nil {
+			log.Printf("wally: no pude guardar lo que hay para retomar de %s: %v", id, err)
+		}
+	}
+}
+
 // startAuto: POST /api/conversations/{id}/auto {text, provider, rounds, files} — arranca una corrida. Sin text, sigue
 // desde lo que quedó (corre los comandos propuestos de la última respuesta). Contesta enseguida: la corrida sigue sola.
 func (a *app) startAuto(w http.ResponseWriter, r *http.Request) {
@@ -48,6 +79,7 @@ func (a *app) startAuto(w http.ResponseWriter, r *http.Request) {
 		Provider string   `json:"provider"`
 		Rounds   int      `json:"rounds"`
 		Files    []string `json:"files"`
+		Resume   bool     `json:"resume"` // seguir la corrida que se cortó: vuelve a hacer la pregunta que quedó sin contestar
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		writeErr(w, 400, err)
@@ -55,11 +87,26 @@ func (a *app) startAuto(w http.ResponseWriter, r *http.Request) {
 	}
 	id := r.PathValue("id")
 	a.store.mu.Lock()
-	_, ok := a.store.convs[id]
+	c, ok := a.store.convs[id]
+	var resume *autoResume
+	if ok && c.AutoResume != nil {
+		cp := *c.AutoResume
+		resume = &cp
+	}
 	a.store.mu.Unlock()
 	if !ok {
 		writeErr(w, 404, errors.New("no existe esa conversación"))
 		return
+	}
+	if in.Resume {
+		if resume == nil {
+			writeErr(w, 409, errors.New("esa conversación no tiene una corrida a mitad para retomar"))
+			return
+		}
+		in.Text, in.Files = resume.Text, nil
+		if in.Provider == "" {
+			in.Provider = resume.Provider
+		}
 	}
 	var files []Attachment
 	for _, f := range in.Files {
@@ -69,6 +116,9 @@ func (a *app) startAuto(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		files = append(files, att)
+	}
+	if in.Resume {
+		files = resume.Files
 	}
 	if in.Rounds <= 0 || in.Rounds > 30 {
 		in.Rounds = autoMaxRounds
@@ -157,10 +207,46 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 	stopped := ""
 	nudges, reviews := 0, 0
 	from := -1 // desde qué mensaje es de esta corrida (para saber qué proyecto escribió ella)
+	// ask hace una pregunta de la corrida. Antes la deja anotada para retomar (askInConversation la borra cuando llega
+	// la respuesta); si el proveedor falla, reintenta (retryWaits); si igual no llega, queda anotada y la corrida
+	// termina.
 	ask := func(t string, f []Attachment) error {
 		a.autoSet(st, func(s *autoState) { s.Round++; s.Doing = fmt.Sprintf("vuelta %d: esperando la respuesta", s.Round) })
-		_, err := a.askInConversation(ctx, askInput{ID: id, Text: t, Files: f, Provider: provider})
-		return err
+		a.setResume(id, &autoResume{Text: t, Files: f, Provider: provider, At: time.Now()})
+		for attempt := 0; ; attempt++ {
+			_, err := a.askInConversation(ctx, askInput{ID: id, Text: t, Files: f, Provider: provider})
+			if err == nil || ctx.Err() != nil {
+				return err
+			}
+			var bad errBadRequest
+			if errors.As(err, &bad) || attempt >= len(retryWaits) {
+				return err
+			}
+			wait := retryWaits[attempt]
+			var paused errPaused
+			if errors.As(err, &paused) {
+				p := time.Until(paused.until) + 5*time.Second
+				if p > maxPauseWait {
+					return err
+				}
+				if p > wait {
+					wait = p
+				}
+			}
+			log.Printf("wally: la corrida de %s: el proveedor falló (%v); reintento en %s", id, err, wait)
+			a.autoSet(st, func(s *autoState) {
+				s.Doing = fmt.Sprintf("vuelta %d: el proveedor falló (%s); reintento %d de %d en %d s", s.Round,
+					shorten(err.Error(), 80), attempt+1, len(retryWaits), int(wait.Seconds()))
+			})
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(wait):
+			}
+			a.autoSet(st, func(s *autoState) {
+				s.Doing = fmt.Sprintf("vuelta %d: esperando la respuesta (reintento %d)", s.Round, attempt+1)
+			})
+		}
 	}
 	defer func() {
 		if r := recover(); r != nil {
@@ -184,14 +270,19 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 			log.Printf("wally: no pude anotar el fin de la corrida de %s: %v", id, err)
 		}
 	}()
+	// Lo de esta corrida empieza en su pregunta; una que sigue (sin texto) o una retomada (su texto es una vuelta
+	// automática) empieza en el último pedido de Miguel: si no, lo que escribió la corrida cortada no lo revisa nadie.
 	a.store.mu.Lock()
 	if c, ok := a.store.convs[id]; ok {
 		from = len(c.Messages)
+		if text == "" || isRoundNote(text) {
+			from = lastRequestIndex(c.Messages)
+		}
 	}
 	a.store.mu.Unlock()
 	if text != "" {
 		if err := ask(text, files); err != nil {
-			stopped = "la pregunta falló: " + err.Error()
+			stopped = "la pregunta falló (se puede retomar): " + err.Error()
 			return
 		}
 	}
@@ -258,7 +349,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 					return
 				}
 				if err := ask(reviewNudge(project, v), nil); err != nil {
-					stopped = "la pregunta falló: " + err.Error()
+					stopped = "la pregunta falló (se puede retomar): " + err.Error()
 					return
 				}
 				continue
@@ -273,7 +364,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 				return
 			}
 			if err := ask(reason, nil); err != nil {
-				stopped = "la pregunta falló: " + err.Error()
+				stopped = "la pregunta falló (se puede retomar): " + err.Error()
 				return
 			}
 			continue
@@ -337,7 +428,7 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 			next = fmt.Sprintf("Ninguno de esos comandos está en la lista de sólo lectura (%s). Seguí con lo que tenés o pedí otro.", strings.Join(refused, " · "))
 		}
 		if err := ask(next, nil); err != nil {
-			stopped = "la pregunta falló: " + err.Error()
+			stopped = "la pregunta falló (se puede retomar): " + err.Error()
 			return
 		}
 	}

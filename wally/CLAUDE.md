@@ -468,6 +468,14 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   263 s): Smeargle cerró con 8 criterios en verde; el revisor vio que no se probaban los plazos 6 y 24 ni la tasa de
   5 % exacto (el límite es «mayor a 5 %»); agregó 3 criterios, 11/11, y la segunda revisión lo dejó cerrar. La cuota
   del 5 % (1.000.000 a 6 meses → $197.017) se verificó a mano aparte.
+  **Reintentar y retomar** (`server/autorun.go`, 2026-11-18). Si el proveedor falla en una vuelta (la web no cargó, el
+  chat se trabó), la corrida reintenta dos veces (a los 30 y 90 s, `retryWaits`); una pausa de Google de menos de 10
+  minutos se espera. Antes de cada pregunta, la corrida la deja anotada en la conversación (`autoResume`) y la borra
+  cualquier respuesta que llega: si la corrida muere a mitad (reintentos agotados, Wally reiniciado), queda
+  «Retomar» en la interfaz (sobre la barra de escribir) y `bin/wally ask --agent <n> --resume` por consola, que
+  vuelven a hacer ESA pregunta con su proveedor y siguen en Auto. Una corrida retomada revisa (el revisor) lo que
+  escribió la cortada, porque empieza en el último pedido de Miguel. Probado: Smeargle cortado reiniciando Wally a
+  mitad de la vuelta 2; lo anotado sobrevivió, «Retomar» apareció, y `--resume` cerró en 1 vuelta (18 s, 12/12).
 - **Compactar: lo viejo se resume, lo último queda** (`server/compact.go`, 2026-11-17; lo que hacen los harness de
   agentes cuando el contexto se llena). Los bloques viejos se reemplazan por UN bloque `summary` que escribe el
   proveedor de la conversación en una pregunta aparte, con secciones fijas (qué se pidió, qué se hizo, hechos

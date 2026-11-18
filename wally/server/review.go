@@ -152,3 +152,13 @@ func lastWrittenProject(msgs []Message, from int) string {
 	}
 	return project
 }
+
+// lastRequestIndex: dónde está el último pedido de Miguel (no una vuelta automática); 0 si no hay.
+func lastRequestIndex(msgs []Message) int {
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Role == "user" && strings.TrimSpace(msgs[i].Text) != "" && !isRoundNote(msgs[i].Text) {
+			return i
+		}
+	}
+	return 0
+}

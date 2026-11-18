@@ -18,6 +18,9 @@
 //                 [--auto [--rounds 12]]  sin esperar a nadie: la corrida la lleva el servidor (corre los comandos
 //                                          de la lista blanca y le manda los resultados) y esto la sigue; Ctrl-C
 //                                          la frena; si este proceso se corta, la corrida sigue en Wally
+//   bin/wally ask [--conv <id> | --agent <nombre>] --resume   retoma la corrida automática que se cortó (falló el
+//                                          proveedor, se reinició Wally): vuelve a hacer la pregunta que quedó sin
+//                                          contestar y sigue en Auto
 //   bin/wally compact [--conv <id> | --agent <nombre>] [--keep 4]   resume lo viejo de la conversación (los últimos
 //                 4 bloques quedan tal cual; el original va a .data/archive). Wally lo hace solo al pasar el tope
 //   cualquiera con --json: la salida en JSON
@@ -31,7 +34,7 @@ const JSON_OUT = args.includes('--json');
 const flag = (n: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
 const flags = (n: string) => args.flatMap((a, i) => (a === `--${n}` && args[i + 1] ? [args[i + 1]] : []));
 // Las banderas sin valor (--json, --auto) no se comen la palabra que sigue.
-const BOOLEAN_FLAGS = ['--json', '--auto'];
+const BOOLEAN_FLAGS = ['--json', '--auto', '--resume'];
 const positional = () => args.filter((a, i) => !a.startsWith('--') && !(i > 0 && args[i - 1].startsWith('--') && !BOOLEAN_FLAGS.includes(args[i - 1])));
 const resolve = (p: string) => path.resolve(process.env.INIT_CWD || process.cwd(), p);
 
@@ -158,10 +161,11 @@ try {
             `Compactada: ${r.compacted} bloques → 1 resumen. De ${size(before).toLocaleString('es-CO')} a ${size(r.conversation).toLocaleString('es-CO')} caracteres (${s.model}).\n  El original: wally/.data/archive/${s.archive}\n\n${s.text}`);
     } else if (cmd === 'ask') {
         const text = positional().slice(1).join(' ').trim();
-        if (!text) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
+        const resume = args.includes('--resume');
+        if (!text && !resume) throw new Error("falta la pregunta: bin/wally ask 'qué hacemos'");
         const id = flag('conv') || (flag('agent') ? (await agentByName(flag('agent')!)).conv : (await api('/api/main')).id);
         const { default: provider } = await api('/api/providers');
-        if (!args.includes('--auto')) {
+        if (!args.includes('--auto') && !resume) {
             const c = await ask({ id, provider, text });
             const m = c.messages[c.messages.length - 1];
             const pending = (m.commands || []).filter((x: any) => x.status === 'propuesto').length;
@@ -171,7 +175,8 @@ try {
             // --auto: la corrida la lleva el SERVIDOR (autorun.go): esto la arranca y la sigue. Si este proceso se corta,
             // la corrida sigue igual (se ve en Wally); Ctrl-C la frena.
             const started = Date.now();
-            await post(`/api/conversations/${id}/auto`, { text, provider, rounds: Number(flag('rounds') || 0) });
+            // Al retomar, el proveedor es el de la corrida que se cortó (lo guarda el servidor).
+            await post(`/api/conversations/${id}/auto`, resume ? { resume: true, rounds: Number(flag('rounds') || 0) } : { text, provider, rounds: Number(flag('rounds') || 0) });
             let stopping = false;
             process.on('SIGINT', () => {
                 if (stopping) process.exit(130);
