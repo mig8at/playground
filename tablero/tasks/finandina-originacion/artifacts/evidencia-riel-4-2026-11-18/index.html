@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finandina · riel 4 · evidencia</title>
+<style>
+  :root { --bg:#f6f6f8; --card:#fff; --ink:#1d1b3a; --muted:#5f5d78; --line:#e3e2ec; --ok:#0f8a5f; --warn:#a15c00; --accent:#4c3df5; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#121220; --card:#1c1c2e; --ink:#ecebf7; --muted:#a9a7c4; --line:#2e2d45; --ok:#4fd1a1; --warn:#f0b14a; --accent:#8f85ff; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1100px; margin: 0 auto; padding: 24px 16px 48px; }
+  h1 { font-size: 24px; margin: 0 0 4px; }
+  h2 { font-size: 18px; margin: 32px 0 12px; }
+  .date { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; }
+  .verdict { border-left: 4px solid var(--ok); }
+  .verdict strong { color: var(--ok); }
+  ul { margin: 8px 0; padding-left: 20px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { font-size: 13px; background: color-mix(in srgb, var(--line) 60%, transparent); padding: 1px 5px; border-radius: 5px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+  figure { margin: 0; background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; }
+  figure img { width: 100%; display: block; border-bottom: 1px solid var(--line); background: #f4f4f4; }
+  figcaption { padding: 10px 12px; font-size: 13px; }
+  figcaption b { display: block; margin-bottom: 2px; }
+  .state { color: var(--muted); font-size: 12px; }
+  .note { color: var(--warn); }
+  .key { outline: 2px solid var(--accent); }
+</style>
+</head>
+<body>
+<main>
+  <h1>Banco Finandina por el riel 4 · flujo de punta a punta</h1>
+  <p class="date">Corrida del 18 de noviembre de 2026 · ambiente local · navegador (Chromium sin ventana) · solicitud 468423</p>
+
+  <div class="card verdict">
+    <strong>Resultado: cerró en estado 11 «Autorizada» con Banco Finandina.</strong>
+    <ul>
+      <li>Autogestión en la sucursal «Finandina Pruebas»; cliente empleado con 2,5 MM de ingreso y score 700; pidió 5 MM.</li>
+      <li>La política de CRED-519 lo puso en el perfil <b>Riesgo Y · Empleado</b> y aprobó los 5 MM.</li>
+      <li>Al autorizar se descontó el <b>cupo mensual del perfil</b>: de 30 MM a 35 MM usados.</li>
+      <li>Se ofrecieron las <b>4 fechas de pago</b> de Finandina y sólo los <b>plazos que caben</b> en la capacidad (12 a 36 cuotas; el de 6 no).</li>
+      <li>La pantalla final <b>no muestra «Paga tu cuota»</b>: la cobranza es de Finandina (caso 14 de la guía de Abel).</li>
+    </ul>
+  </div>
+
+  <h2>Cómo quedó la solicitud en la base</h2>
+  <div class="card">
+    <table>
+      <tr><th>Campo</th><th>Valor</th></tr>
+      <tr><td>Estado</td><td>11 «Autorizada»</td></tr>
+      <tr><td>Entidad</td><td>Banco Finandina (149), tipo 4</td></tr>
+      <tr><td>Monto aprobado</td><td>$5.000.000 (el monto con el FGA e IVA es $5.450.000)</td></tr>
+      <tr><td>Plazo</td><td>12 cuotas</td></tr>
+      <tr><td>Primera fecha de pago</td><td>20 de diciembre de 2026</td></tr>
+      <tr><td>Desembolso marcado</td><td>18-11-2026 14:17</td></tr>
+      <tr><td>Perfil y cupo mensual</td><td>Riesgo Y · Empleado · 30.000.000 → 35.000.000</td></tr>
+    </table>
+  </div>
+
+  <h2>Pantalla por pantalla</h2>
+  <p class="state">Cada captura se toma al <b>llegar</b> a la pantalla, antes de llenarla. Debajo, el estado de la solicitud en la base en ese momento.</p>
+  <div class="grid">
+    <figure><img src="01-solicitar.png" alt="Monto"><figcaption><b>1 · Monto</b>El cliente pide 5 MM.<div class="state">sin solicitud todavía</div></figcaption></figure>
+    <figure><img src="02-solicitar.png" alt="Celular"><figcaption><b>2 · Celular</b>Ingresa su número.<div class="state">sin solicitud todavía</div></figcaption></figure>
+    <figure><img src="03-otp.png" alt="Código"><figcaption><b>3 · Código de verificación</b>OTP del onboarding.<div class="state">sin solicitud todavía</div></figcaption></figure>
+    <figure><img src="04-personal-info.png" alt="Datos personales"><figcaption><b>4 · Datos personales</b>Documento, nombre, correo, expedición. Las centrales se consultan aquí.<div class="state">9 «Formulario de perfil»</div></figcaption></figure>
+    <figure><img src="05-lenders.png" alt="Listado"><figcaption><b>5 · Listado de entidades</b>La preaprobación de Finandina la contesta la política de CreditopX. <span class="note">La captura salió mientras cargaba: no se ve la tarjeta.</span><div class="state">9 «Formulario de perfil»</div></figcaption></figure>
+    <figure><img src="06-continue.png" alt="Selección"><figcaption><b>6 · Eligió Finandina</b>Paso de entrega del front.<div class="state">9 → 3 «Seleccionó entidad»</div></figcaption></figure>
+    <figure><img src="07-confirmation.png" alt="Confirmación"><figcaption><b>7 · Confirmación</b><div class="state">3 «Seleccionó entidad»</div></figcaption></figure>
+    <figure><img src="08-25.png" alt="Formulario de residencia"><figcaption><b>8 · Formulario de Finandina (25)</b>Residencia (Bogotá), dirección, actividad y preguntas PEP. La etapa extendida revisa que la ciudad esté en las zonas.<div class="state">3 «Seleccionó entidad»</div></figcaption></figure>
+    <figure class="key"><img src="09-first-payment-date.png" alt="Fecha de pago"><figcaption><b>9 · Primera fecha de pago</b>Las 4 de Finandina: 20-dic, 5-ene, 10-ene y 15-ene.<div class="state">3 → 10 «Pendiente de autorización»</div></figcaption></figure>
+    <figure class="key"><img src="10-payment-schedule.png" alt="Plan de pagos"><figcaption><b>10 · Plazo y plan de pagos</b>12, 18, 24 y 36 cuotas: el 6 no cabe en la capacidad. Cuota a 12 meses: $574.620.<div class="state">10 «Pendiente de autorización»</div></figcaption></figure>
+    <figure><img src="11-sign-documents.png" alt="Documentos"><figcaption><b>11 · Documentos para firmar</b><div class="state">10 «Pendiente de autorización»</div></figcaption></figure>
+    <figure><img src="12-otp-validation.png" alt="Firma"><figcaption><b>12 · Firma con OTP</b><div class="state">10 «Pendiente de autorización»</div></figcaption></figure>
+    <figure class="key"><img src="13-loan-approved.png" alt="Aprobado"><figcaption><b>13 · Aprobado</b>«¡Felicidades! tu monto ha sido desembolsado», sin «Paga tu cuota».<div class="state">10 → 11 «Autorizada»</div></figcaption></figure>
+  </div>
+
+  <h2>Qué no cubre esta corrida</h2>
+  <div class="card">
+    <ul>
+      <li><b>Es local:</b> qa está caído desde el 18-11 (la columna <code>collect_expedition_date</code> borrada por CORE-562). El mismo flujo cerró en qa el 17-11 (solicitudes 505101 y 505114).</li>
+      <li><b>Centrales y documentos simulados:</b> Ágil Data, Mareigua y Experian los contesta el mock local; la identidad se aprobó a mano y los PDF salen del mock del generador.</li>
+      <li><b>Pagaré:</b> en local va el digital por el mock de Deceval; en qa quedó el pagaré sin Deceval hasta que llegue la credencial de Finandina (CRED-463).</li>
+      <li>Los rechazos (zona, edad, cédula de extranjería, independiente, score, capacidad y tope de la entidad) se probaron en qa el 17-11: están en la pila de la tarea.</li>
+    </ul>
+  </div>
+</main>
+</body>
+</html>
