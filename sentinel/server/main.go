@@ -693,6 +693,11 @@ func (s *sentinel) run() {
 			o.MessagesNote = s.msgs.status()
 		}
 		o.NewMessages = s.msgs.subjects(time.Now())
+		for _, subj := range o.NewMessages {
+			if m := subj.Message; m != nil {
+				m.Source = s.sourceOf(m.Service, m.Sample)
+			}
+		}
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -1088,6 +1093,43 @@ func main() {
 			return
 		}
 		writeJSON(w, http.StatusOK, d)
+	})
+	// GET /api/examples?signal=reject:167&minutes=180 — solicitudes de ejemplo de la ventana de una señal (examples.go).
+	mux.HandleFunc("GET /api/examples", func(w http.ResponseWriter, r *http.Request) {
+		sig := r.URL.Query().Get("signal")
+		if !strings.Contains(sig, ":") {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "falta signal=<clase:clave>"})
+			return
+		}
+		minutes, _ := strconv.Atoi(r.URL.Query().Get("minutes"))
+		if minutes <= 0 || minutes > 24*60 {
+			minutes = 60
+		}
+		now := time.Now().In(bogota)
+		ex, err := s.examples(sig, now.Add(-time.Duration(minutes)*time.Minute), now)
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, ex)
+	})
+	// GET /api/rules?lender=167&hours=24 — las reglas duras que rechazan, ahora contra los 7 días anteriores.
+	mux.HandleFunc("GET /api/rules", func(w http.ResponseWriter, r *http.Request) {
+		lender, _ := strconv.Atoi(r.URL.Query().Get("lender"))
+		hours, _ := strconv.Atoi(r.URL.Query().Get("hours"))
+		if lender <= 0 {
+			writeJSON(w, http.StatusBadRequest, map[string]string{"error": "falta lender=<id>"})
+			return
+		}
+		if hours <= 0 || hours > 24*7 {
+			hours = 24
+		}
+		rf, err := blockingRules(lender, hours, time.Now().In(bogota))
+		if err != nil {
+			writeJSON(w, http.StatusBadGateway, map[string]string{"error": err.Error()})
+			return
+		}
+		writeJSON(w, http.StatusOK, rf)
 	})
 	mux.HandleFunc("POST /api/refresh", func(w http.ResponseWriter, r *http.Request) {
 		go s.run()

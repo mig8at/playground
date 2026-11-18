@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true}
 
 // runCLI: un comando de la consola. Devuelve el código de salida.
 func runCLI(root string, args []string) int {
@@ -53,6 +53,11 @@ func runCLI(root string, args []string) int {
 	// ack escribe en el avisador, que vive en la API: va por ella (si no, dos procesos pisarían alerts.json).
 	if cmd == "ack" {
 		return ackCLI(*undo, positional)
+	}
+	// cases y rules leen producción en el momento (examples.go): no necesitan lo guardado.
+	if cmd == "cases" || cmd == "rules" {
+		out, err := casesOrRules(cmd, positional, *hours)
+		return printOut(out, err, *asJSON)
 	}
 	c, err := openCLI(root)
 	if err != nil {
@@ -92,11 +97,16 @@ func runCLI(root string, args []string) int {
 		}
 		out, err = c.deploy(positional[0], version, *hours)
 	}
+	return printOut(out, err, *asJSON)
+}
+
+// printOut: la salida de un comando, en texto o en JSON.
+func printOut(out any, err error, asJSON bool) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sentinel:", err)
 		return 1
 	}
-	if *asJSON {
+	if asJSON {
 		enc := json.NewEncoder(os.Stdout)
 		enc.SetIndent("", "  ")
 		_ = enc.Encode(out)

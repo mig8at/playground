@@ -330,6 +330,42 @@ function chartFor(s) {
 // Los errores en los logs que nombran a la entidad elegida (preapprovals-service y legacy-backend).
 const lenderErrors = computed(() => (selected.value?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === selected.value.id) : null))
 const lenderReject = computed(() => (selected.value?.kind === 'lender' ? (data.value?.rejections || []).find((x) => x.signal === `reject:${selected.value.id}`) : null))
+// Casos de ejemplo de la señal elegida y, de una entidad, qué regla rechaza: se piden al tocar el botón (cuestan una
+// consulta a Redash o a Loki), no en cada pasada. Sólo números de solicitud, con su enlace a tracer.
+const EXAMPLE_KINDS = ['reject', 'lender', 'merchant', 'all', 'lerr', 'service']
+const examples = ref(null)
+const examplesBusy = ref(false)
+async function loadExamples(s) {
+  examplesBusy.value = true
+  try {
+    const res = await fetch(`/api/examples?signal=${encodeURIComponent(s.signal)}&minutes=${Math.max(60, s.windowMinutes || 60)}`)
+    const body = await res.json()
+    examples.value = { signal: s.signal, ...(res.ok ? body : { list: [], note: body.error || 'no contestó' }) }
+  } catch (e) {
+    examples.value = { signal: s.signal, list: [], note: String(e) }
+  } finally { examplesBusy.value = false }
+}
+const rulesLender = computed(() => {
+  const s = selected.value
+  if (s?.kind === 'lender') return s.id
+  if (s?.kind === 'reject' && s.signal !== 'reject:all') return Number(s.signal.slice(7))
+  return null
+})
+const rules = ref(null)
+const rulesBusy = ref(false)
+async function loadRules(lender) {
+  rulesBusy.value = true
+  try {
+    const res = await fetch(`/api/rules?lender=${lender}&hours=24`)
+    const body = await res.json()
+    rules.value = { lender, ...(res.ok ? body : { list: [], note: body.error || 'no contestó' }) }
+  } catch (e) {
+    rules.value = { lender, list: [], note: String(e) }
+  } finally { rulesBusy.value = false }
+}
+const shownExamples = computed(() => (examples.value?.signal === selected.value?.signal ? examples.value : null))
+const shownRules = computed(() => (rules.value && rules.value.lender === rulesLender.value ? rules.value : null))
+const clockOf = (iso) => { const t = new Date(iso); return `${String(t.getDate()).padStart(2, '0')}/${String(t.getMonth() + 1).padStart(2, '0')} ${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}` }
 const lenderErrorsOf = (s) => (s?.kind === 'lender' ? (data.value?.lenderErrors || []).find((x) => x.id === s.id) : null)
 const errChart = computed(() => chartFor(lenderErrors.value))
 // Las pantallas del wizard de lo elegido: de todo el wizard en la vista general, del comercio en la de un comercio.
@@ -619,6 +655,46 @@ onBeforeUnmount(() => {
             </p>
           </section>
 
+          <section v-if="rulesLender" class="chart-box rules-box">
+            <div class="chart-head">
+              <h3>Qué regla rechaza</h3>
+              <button type="button" class="linkish small" :disabled="rulesBusy" @click="loadRules(rulesLender)">{{ rulesBusy ? 'leyendo…' : shownRules ? 'volver a leer' : 'ver' }}</button>
+            </div>
+            <template v-if="shownRules">
+              <table v-if="shownRules.list?.length" class="steps-table">
+                <thead><tr><th>Regla</th><th class="num">Últimas {{ shownRules.hours }} h</th><th class="num">7 días antes</th></tr></thead>
+                <tbody>
+                  <tr v-for="r in shownRules.list.slice(0, 8)" :key="`${r.rule}-${r.column}-${r.value}`" :class="{ 'is-up': r.rateNow >= r.rateBefore * 1.5 && r.rateNow - r.rateBefore >= 0.02 }">
+                    <td :title="`${r.column} ${r.operator} ${r.value}`">{{ r.rule || r.column }}</td>
+                    <td class="num">{{ pct(r.rateNow) }} <small class="muted">({{ r.failsNow }} de {{ r.evalsNow }})</small></td>
+                    <td class="num">{{ pct(r.rateBefore) }}</td>
+                  </tr>
+                </tbody>
+              </table>
+              <p class="chart-note">{{ shownRules.note || 'De las reglas duras de los perfilamientos: en cuántos falló cada una, ahora contra los 7 días anteriores, de la que más subió a la que menos.' }}</p>
+            </template>
+            <p v-else class="chart-note">Las reglas duras que la rechazan en los perfilamientos, ahora contra los 7 días anteriores. Se lee al pedirlo (una consulta a la base).</p>
+          </section>
+
+          <section v-if="EXAMPLE_KINDS.includes(selected.kind)" class="chart-box examples-box">
+            <div class="chart-head">
+              <h3>Casos de ejemplo</h3>
+              <button type="button" class="linkish small" :disabled="examplesBusy" @click="loadExamples(selected)">{{ examplesBusy ? 'leyendo…' : shownExamples ? 'volver a leer' : 'ver' }}</button>
+            </div>
+            <template v-if="shownExamples">
+              <ul v-if="shownExamples.list?.length" class="examples">
+                <li v-for="x in shownExamples.list" :key="x.ureq">
+                  <a :href="x.tracer" target="_blank" rel="noopener">#{{ x.ureq }}</a>
+                  <span class="muted">{{ clockOf(x.at) }}</span>
+                  <span v-if="x.note" class="ex-note">{{ x.note }}</span>
+                  <code :title="'Por consola'">{{ x.cmd }}</code>
+                </li>
+              </ul>
+              <p class="chart-note">{{ shownExamples.note || `De ${shownExamples.source}. Cada número abre la solicitud en tracer (VPN de producción).` }}</p>
+            </template>
+            <p v-else class="chart-note">Solicitudes de esta ventana para ir a mirar una por una, con su enlace a tracer y el comando de consola.</p>
+          </section>
+
           <section v-if="selected.kind === 'lender'" class="chart-box lender-errors">
             <div class="chart-head">
               <h3>Errores en los logs que la nombran</h3>
@@ -758,6 +834,7 @@ onBeforeUnmount(() => {
             <span class="attention-name"><i class="dot" :class="`is-${m.state}`" aria-hidden="true"></i>{{ m.message?.service }} · {{ m.message?.count }} {{ m.message?.count === 1 ? 'vez' : 'veces' }}</span>
             <small class="row-desc msg-text">{{ m.message?.text }}</small>
             <small class="row-desc">desde {{ dayClock(m.message?.first) }}</small>
+            <small v-if="m.message?.source" class="row-desc msg-source" :title="'Dónde lo escribe el código, en main'">{{ m.message.source }}</small>
           </button>
         </template>
 
@@ -927,6 +1004,14 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .linkish.small { font-size: var(--text-xs); color: var(--fg-2) }
 .chart .deploy-mark line { stroke: var(--sentinel-warn); stroke-width: 1.5; stroke-dasharray: 2 3 }
 .chart .deploy-mark text { fill: var(--sentinel-warn); font-size: 10px }
+.examples { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px }
+.examples li { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; font-size: 12px }
+.examples a { color: var(--primary); font-variant-numeric: tabular-nums }
+.examples .ex-note { color: var(--muted-foreground) }
+.examples code { margin-left: auto; font-size: 11px; color: var(--muted-foreground); user-select: all }
+.rules-box tr.is-up td { color: var(--sentinel-alert) }
+.rules-box th:first-child { text-align: left }
+.msg-source { font-family: var(--font-mono, monospace); font-size: 11px; word-break: break-all }
 .chart .policy-mark line { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 1 3 }
 .chart .policy-mark text { fill: var(--primary); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }

@@ -349,6 +349,8 @@ type MsgView struct {
 	First   string `json:"first"`
 	Last    string `json:"last"`
 	Count   int    `json:"count"`
+	// Source: de qué archivo sale, buscado en main (source.go): «legacy-backend/…/X.php:812». Vacío si no se encontró.
+	Source string `json:"source,omitempty"`
 }
 
 // status: si la siembra terminó, para la nota de la interfaz.

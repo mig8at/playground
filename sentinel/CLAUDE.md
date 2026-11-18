@@ -31,6 +31,7 @@ un agente para que resuma.
 | `bin/sentinel day [AAAA-MM-DD]` | el día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora (con el porqué de su peor momento), los despliegues y los avisos |
 | `bin/sentinel signal <señal\|nombre>` | una señal hora por hora, hoy contra lo normal; de una entidad, también sus errores en los logs |
 | `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
+| `bin/sentinel cases <señal> [--hours N]` · `bin/sentinel rules <entidad> [--hours N]` | solicitudes de ejemplo de la señal (con su enlace a tracer) · qué regla dura rechaza a la entidad, ahora contra antes (§«De la señal al caso»). Leen producción, no lo guardado |
 | `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
 
@@ -146,6 +147,29 @@ el conector corta las respuestas en 4 MB, así que la siembra fallaba en cada ho
 siempre; ahora la nota dice si falló. Medido el 18/11/2026: 187 mensajes distintos en 7 días (133 de legacy-backend), y
 pasada la siembra 0 o 1 por día se repiten 10 veces; el 16/11 fueron 6, entre ellos un `Connection refused` contra la
 base de producción (55 veces).
+
+## De la señal al caso (`server/examples.go`, `server/source.go`)
+
+Lo que hace tracer (la herramienta del repo compartido para seguir UNA solicitud) puesto al lado de cada señal, a pedido
+(no en cada pasada: cada uno es una consulta):
+
+- **Casos de ejemplo** (`GET /api/examples?signal=…&minutes=…`, `bin/sentinel cases <señal> [--hours N]`): hasta 8
+  solicitudes de la ventana, con su enlace a tracer (`?ureq=N`, con la VPN de producción) y el mismo caso por consola
+  (`bin/pg request timeline --target prod --ureq N`). De `reject:` salen los perfilamientos en que la entidad quedó
+  «Rechazado»; de una entidad, un comercio o toda la originación, las solicitudes, negadas primero; de `lerr:` y
+  `service:`, las líneas de error de Loki que traen `user_request_id`. Sólo números de solicitud: nada de cédula,
+  teléfono ni nombre.
+- **Qué regla rechaza** (`GET /api/rules?lender=N&hours=24`, `bin/sentinel rules <entidad> [--hours N]`): de
+  `profiling_reviews.hard_rules`, en cuántos perfilamientos falló cada regla dura de la entidad, ahora contra los 7 días
+  anteriores, de la que más subió a la que menos. Las reglas se copian a cada sucursal con otro id: se agrupan por lo que
+  dicen. ⚠ El perfilador de varias entidades CreditopX no deja la regla por regla: ahí viene vacío. Medido el 18/11/2026
+  con 120 h: en CrediPullman «ingresos mensuales» pasó de 2,4 % a 10,3 % y «ocupación» de 1,7 % a 6,9 %.
+- **De qué archivo sale un error nuevo** (`message.source` en los «Errores que no estaban»): el texto fijo del mensaje
+  (el comienzo hasta lo primero variable, acortado palabra por palabra, y los tramos fijos más largos) buscado con
+  `git grep -F` en el `main` de los clones sólo-main (`connectors/repos`), en el repo del servicio y en los dos
+  monolitos; sin pruebas ni comentarios. tracer trae un índice de mensajes embebido con su fecha (el que hay es de
+  septiembre): un índice viejo no falla, deja de encontrar; buscar en `main` no envejece. Se busca una vez por mensaje y
+  proceso. Un mensaje de la librería estándar (un timeout de `net/http`) no tiene archivo, y está bien.
 
 ## Las pantallas del wizard (`server/steps.go`, PostHog)
 
@@ -268,6 +292,7 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | las pantallas del wizard (PostHog) | `server/steps.go` |
 | los proveedores externos (`out:`) | `server/outbound.go` |
 | los errores que no estaban (`newmsg:`) | `server/messages.go` |
+| casos de ejemplo, qué regla rechaza y de qué archivo sale un error | `server/examples.go`, `server/source.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
