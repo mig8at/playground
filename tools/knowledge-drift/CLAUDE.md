@@ -1,5 +1,8 @@
 # knowledge-drift — poner `knowledge/` al día contra main
 
+**Lo corre solo Knowledge** (`knowledge-flow/`, desde el 2026-11-18): mira main cada 30 minutos y, cuando una fuente
+cambia, hace estos pasos con el modelo de segundo plano, verifica, aplica y commitea. A mano sigue sirviendo igual.
+
 `make knowledge-drift STEP=paquete|codigo|final|aplicar` (`drift.py`). knowledge/ es la biblioteca local del día a
 día. Sus fuentes guardan el commit exacto, así que no hay que buscar el blob en la historia. El método avanza **de lo
 barato a lo caro**: el modelo lee código sólo donde la prosa probablemente quedó mal.

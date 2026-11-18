@@ -344,7 +344,7 @@ style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # `pulso` y no `tablero-pulso` por dos razones: es un nombre propio más (como `panel`, que tampoco es
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
-.PHONY: wally correo correo-install correo-status correo-uninstall
+.PHONY: wally correo correo-install correo-status correo-uninstall knowledge-flow knowledge-flow-install knowledge-flow-status knowledge-flow-uninstall
 .PHONY: pulse pulse-install pulse-status pulse-uninstall
 pulse: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
@@ -412,6 +412,18 @@ sentinel-status: ## @dia ¿Sentinel corre de fondo, y hasta dónde llegó lo gua
 
 sentinel-uninstall: ## @dia saca Sentinel de fondo (lo guardado se queda)
 	@go run ./sentinel/server -uninstall
+
+knowledge-flow: ## @dia abre Knowledge (:5232 · API :5233): el vigía de knowledge/. Mira main cada 30 min y, si una fuente cambió, la pone al día SOLO con los diez pasos de knowledge-drift (el modelo de segundo plano lee, verifica, aplica y commitea), como un workflow de GitHub. ONCE=1: una mirada y, si hace falta, una corrida, por consola
+	@$(if $(ONCE),MY_TOOLS_ROOT=$(CURDIR) go run ./knowledge-flow/server -once,cd knowledge-flow && npm run dev)
+
+knowledge-flow-install: ## @dia deja Knowledge mirando main DE FONDO (LaunchAgent: corre aunque Cockpit esté cerrado). Volvé a correrlo después de cambiar su servidor
+	@mkdir -p knowledge-flow/bin && go build -o knowledge-flow/bin/knowledge-flow ./knowledge-flow/server && bin/sign knowledge-flow/bin/knowledge-flow com.creditop.my-tools.knowledge && MY_TOOLS_ROOT=$(CURDIR) knowledge-flow/bin/knowledge-flow -install
+
+knowledge-flow-status: ## @dia ¿Knowledge corre de fondo?
+	@MY_TOOLS_ROOT=$(CURDIR) go run ./knowledge-flow/server -status
+
+knowledge-flow-uninstall: ## @dia saca Knowledge de fondo (las corridas guardadas se quedan)
+	@MY_TOOLS_ROOT=$(CURDIR) go run ./knowledge-flow/server -uninstall
 
 wally: ## @dia abre Wally (:5228 · API :5229): un chat con Gemini POR LA WEB de AI Studio (bin/aistudio, en tu Chrome con Jarvis y tu cuenta, sin llave de API), eligiendo el modelo. Las conversaciones quedan en wally/.data
 	@cd wally && npm run dev

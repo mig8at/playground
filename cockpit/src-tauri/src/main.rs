@@ -125,6 +125,15 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5228", "127.0.0.1:5229"],
         start: Start::Make("wally"),
     },
+    AppDef {
+        // Knowledge (knowledge-flow/): el vigía de knowledge/. Mira main y, cuando una fuente cambia, la pone al día con
+        // los diez pasos de knowledge-drift, como un workflow. Su API también corre de fondo (`make knowledge-flow-install`).
+        id: "knowledge",
+        name: "Knowledge",
+        url: "http://localhost:5232/",
+        ready: &["localhost:5232", "127.0.0.1:5233"],
+        start: Start::Make("knowledge-flow"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {

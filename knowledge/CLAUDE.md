@@ -24,6 +24,12 @@ No reconstruyas el antiguo servicio context/ ni importes el corpus productivo co
 Las refs locales pueden estar atrasadas. Usá la ref y fecha visibles en la comprobación como límite;
 si la tarea exige verificar el remoto, actualizá el clon por el procedimiento normal y repetí el chequeo.
 
+## Quién la mantiene al día
+
+**Knowledge** (`knowledge-flow/`, la app de Cockpit) mira main cada 30 minutos y, cuando una fuente cambia, corre solo
+el método de `tools/knowledge-drift` (triaje, código, segunda mirada, verificación), aplica y commitea. Un commit
+«knowledge: puesto al día contra main (corrida #N de Knowledge)» es suyo. Si frena, espera a que se mire su corrida.
+
 ## Las trampas del sistema (`traps/`)
 
 `traps/traps.md` es el registro vivo de las trampas (`F-xx`): un síntoma que ya costó tiempo, con su causa raíz

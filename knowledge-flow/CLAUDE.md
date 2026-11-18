@@ -1,0 +1,75 @@
+# knowledge-flow — Knowledge, el vigía de la biblioteca
+
+**Para qué existe:** que `knowledge/` no quede vieja sin que nadie se entere (Miguel, 2026-11-18: «que esté al pendiente
+de cuando queda vieja el contexto y arranque la recontextualización como un flujo, paso a paso, como los workflows de
+GitHub»). No muestra el contenido de knowledge: dice si está al día con `main` y, cuando no, la pone al día SOLA.
+Vivía a mano en Wally (Porygon) y en `make knowledge-drift`; se sacó de Wally porque un flujo con pasos no es un chat.
+
+`make knowledge-flow` (UI :5232 · API :5233) o la app **Knowledge** de Cockpit. A la izquierda las **corridas** (en
+curso, en cola, las anteriores por día, cada una con su resultado); al centro la elegida, **paso a paso**, con su
+estado, quién lo hace (comando o modelo), cuánto tardó y una línea de qué salió; a la derecha **la biblioteca** (cuántos
+temas y fuentes están al día), **el vigía** (cada cuánto mira, la última y la próxima mirada, el modelo) y qué está viejo
+o en cola. La ruta es `#/run/<n>`.
+
+## Cómo decide
+
+- **Mira `main` cada 30 minutos** (`lookEvery`), y al tocar «Mirar ahora»: trae los clones sólo-main (`cmd/knowledge
+  fetch`) y corre `knowledge check`. Mirar no gasta modelo.
+- **Si una fuente cambió, arranca una corrida** con los diez pasos (abajo). Una a la vez: lo que entra mientras corre
+  **no se mezcla**; queda en cola (se ve a la izquierda y como aviso arriba de la corrida) y, al terminar bien, mira
+  otra vez y arranca otra, hasta que no quede nada. Después espera.
+- **Una corrida no se repite sobre los mismos cambios** (la huella de las fuentes viejas, `fingerprint`): si frenó,
+  espera a que la mires o a que entre un cambio nuevo; si terminó y esas fuentes siguen viejas, también espera, porque
+  repetirla sería un bucle que gasta modelo sin arreglar nada.
+- **Aplica solo** (decisión de Miguel, 2026-11-18) si la verificación sale limpia, y **commitea** lo aplicado por ruta
+  (`knowledge/<tema>/rules.md` y `sources.json`) con el número de corrida en el mensaje: cada cambio se puede rastrear
+  o deshacer con git. Avisa por macOS al terminar (con sonido si frenó o falló); tocarlo abre la corrida.
+- **Sólo corre el proceso que escucha el puerto**: el de fondo y el de Cockpit no se pisan (el segundo espera).
+
+## Los diez pasos (los de `tools/knowledge-drift`)
+
+| # | paso | quién | qué |
+|---|---|---|---|
+| 1 | Traer main | comando | `cmd/knowledge fetch` (lo hace la mirada que dispara la corrida) |
+| 2 | Detectar | comando | `knowledge check`: qué fuentes cambiaron o se perdieron |
+| 3 | Armar paquetes | comando | `drift.py paquete`: diffs, PRs (con `gh`) y secciones; los paquetes del triaje |
+| 4 | Triaje | modelo | `prompts/triage.md`, sin código: `no_toca` · `contradice` · `no_se_sabe` |
+| 5 | Leer código | modelo | `drift.py codigo` arma los paquetes; `prompts/code.md` decide `sigue` · `cambia` (con el texto nuevo) |
+| 6 | Segunda mirada | modelo | `prompts/second-look.md` sobre lo que el triaje descartó, a ciegas |
+| 7 | Juntar | comando | `drift.py final` (con `overrides.json`). **Frena** si queda algo `sin_decidir` o un `cambia` sin texto |
+| 8 | Verificar | modelo | una pregunta aparte por sección reescrita: el texto de antes, el nuevo, el diff y el archivo en main. **Frena** si encuentra algo |
+| 9 | Aplicar | comando | `drift.py aplicar`. **Frena** si esos temas tienen cambios sin commitear (otra sesión) |
+| 10 | Comprobar y commitear | comando | que las fuentes de la corrida queden al día, `make knowledge-test`, y el commit |
+
+- **El modelo es el de segundo plano** (`lib/background`: Claude por defecto, el elegido en Cockpit). No corre nada:
+  los prompts de drift se escribieron para agentes que corren `git`, así que cada paquete le llega con el diff de cada
+  archivo y el archivo como está en `main` ya adentro (`expand`, recortados a 40 y 30 mil caracteres). Una pregunta
+  por paquete.
+- **Por qué «sin decidir» frena**: `aplicar` sella TODAS las fuentes de la corrida (commit y blob al día); con una
+  sección sin decidir, marcaría al día algo que nadie verificó.
+- **Si frena o falla después de aplicar**, la corrida deshace lo aplicado (`git checkout` de esos temas: aplicar sólo
+  arranca con ellos limpios). Una corrida cortada por un reinicio queda «falló» y no se retoma a mitad.
+
+## Dónde queda
+
+`knowledge-flow/.data/runs/<n>/run.json` (la corrida: pasos, estados, resumen) y `.../drift/` (los archivos de
+drift.py: paquetes, resultados del modelo, `final.json`), fuera de git. Por consola: `make knowledge-flow ONCE=1` hace
+una mirada y, si hace falta, una corrida.
+
+## De fondo
+
+`make knowledge-flow-install` deja la API como **LaunchAgent** (`com.creditop.my-tools.knowledge`, binario
+`knowledge-flow/bin/knowledge-flow`, fuera de git): mira `main` aunque Cockpit esté cerrado. Después de cambiar el
+servidor, `make knowledge-flow-install` de nuevo. `make knowledge-flow-status` · `make knowledge-flow-uninstall`. Su
+salida: `~/Library/Logs/my-tools-knowledge.log`. Necesita la sesión de `playground login` (el modelo), `gh` con sesión
+(los PRs del paso 3) y la VPN de dev no hace falta.
+
+## Cómo está construido
+
+| pieza | dónde |
+|---|---|
+| el vigía, la cola, la API y el LaunchAgent | `server/main.go` |
+| una corrida y sus pasos, guardados | `server/run.go` |
+| los pasos de comando (drift.py, aplicar, comprobar, commitear) | `server/steps.go` |
+| los pasos con modelo y la verificación | `server/model.go` |
+| la interfaz | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |
