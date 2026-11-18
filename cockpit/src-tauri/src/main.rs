@@ -134,6 +134,15 @@ const APPS: &[AppDef] = &[
         ready: &["localhost:5232", "127.0.0.1:5233"],
         start: Start::Make("knowledge-flow"),
     },
+    AppDef {
+        // El Llavero (vault/): las llaves de Miguel que no se comparten, en llaveros, cifradas con su llave personal.
+        // Por consola es `bin/pg vault`, que no necesita este servidor.
+        id: "vault",
+        name: "Llavero",
+        url: "http://localhost:5236/",
+        ready: &["localhost:5236", "127.0.0.1:5237"],
+        start: Start::Make("vault"),
+    },
 ];
 
 fn answers(hostport: &str) -> bool {
@@ -518,48 +527,6 @@ fn run_pg(args: &[&str]) -> Result<String, String> {
     Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
 }
 
-// EL LLAVERO PERSONAL (el engranaje → «Llavero»): Cockpit no lo implementa, corre `bin/pg vault …` (lib/vault), así
-// lo mismo anda por consola con Cockpit cerrado. Sólo los subcomandos de la lista; el valor de `set` va por stdin (no
-// por un argumento, que se ve en `ps`). `get --reveal` sí se permite acá: lo pide Miguel con «Ver» o «Copiar»; a una
-// sesión de Claude se lo niega el hook vault-guard.
-const VAULT_VERBS: &[&str] = &["list", "ring-create", "ring-rename", "ring-delete", "set", "key-rename", "key-move", "key-delete", "get", "export", "import"];
-
-#[tauri::command]
-async fn vault(args: Vec<String>, input: Option<String>) -> Result<String, String> {
-    let verb = args.first().cloned().unwrap_or_default();
-    if !VAULT_VERBS.contains(&verb.as_str()) {
-        return Err(format!("vault {verb}: no se corre desde Cockpit"));
-    }
-    tauri::async_runtime::spawn_blocking(move || {
-        let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
-        let mut full = vec!["vault".to_string()];
-        full.extend(args);
-        let mut child = Command::new(root.join("bin").join("pg"))
-            .args(&full)
-            .current_dir(&root)
-            .env("PATH", user_path())
-            .stdin(Stdio::piped())
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .spawn()
-            .map_err(|e| format!("bin/pg: {e}"))?;
-        if let Some(mut stdin) = child.stdin.take() {
-            use std::io::Write;
-            if let Some(text) = input {
-                let _ = stdin.write_all(text.as_bytes());
-            }
-        }
-        let out = child.wait_with_output().map_err(|e| format!("bin/pg: {e}"))?;
-        if out.status.success() {
-            Ok(String::from_utf8_lossy(&out.stdout).into_owned())
-        } else {
-            Err(String::from_utf8_lossy(&out.stderr).trim().trim_start_matches("pg: ").to_string())
-        }
-    })
-    .await
-    .map_err(|e| e.to_string())?
-}
-
 #[tauri::command]
 async fn model_state() -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -893,7 +860,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model, vault])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();

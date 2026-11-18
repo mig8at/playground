@@ -23,6 +23,8 @@ var (
 	vaultRevealRe = regexp.MustCompile(`\bvault\s+(get|env)\b[^|;&]*\s-{1,2}reveal\b`)
 	// Exportar: quien elige la contraseña del zip puede abrirlo. Lo hace Miguel, desde Cockpit o su terminal.
 	vaultExportRe = regexp.MustCompile(`\bvault\s+export\b`)
+	// La API de la app Llavero (vault/server, :5236 por Vite y :5237 directo) también devuelve valores y el zip.
+	vaultAPIRe    = regexp.MustCompile(`(127\.0\.0\.1|localhost):523[67]\S*/api/(export|rings/\S*/reveal)`)
 	personalKeyRe = regexp.MustCompile(`personal-key\b`)
 	// Usar la llave personal en una línea de shell: un lector antes de ella (en la misma línea), `file:` (openssl) o
 	// una redirección. Nombrarla sin más (un texto, un comentario dentro de un archivo que se escribe) no frena: frenaba
@@ -38,6 +40,10 @@ func VaultGuardIn(tool string, input map[string]any) string {
 		if vaultRevealRe.MatchString(cmd) {
 			return "`pg vault get|env --reveal` imprime valores del llavero personal: es para Miguel, en su terminal. " +
 				"Para usar las llaves sin verlas: `bin/pg vault run --ring <llavero> -- <comando>` (con $VAR: `-- sh -c '…'`)."
+		}
+		if vaultAPIRe.MatchString(cmd) {
+			return "la API del Llavero devuelve valores (ver, copiar, el zip): es para la app, que la maneja Miguel. " +
+				"Para usar las llaves sin verlas: `bin/pg vault run --ring <llavero> -- <comando>`."
 		}
 		if vaultExportRe.MatchString(cmd) {
 			return "`pg vault export` cifra el llavero con una contraseña que elige quien lo corre, y con ella se abre: es para Miguel " +

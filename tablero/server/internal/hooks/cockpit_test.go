@@ -67,6 +67,7 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		{"Bash", bash("make goldfish-run REPO=legacy-backend GIT_BRANCH=fix/x"), "goldfish", ""},
 		{"Bash", bash("go run ./goldfish/server -list"), "goldfish", ""},
 		{"Bash", bash("bin/chat send miguel@creditop.com hola --as luigi"), "chat", ""},
+		{"Bash", bash("bin/pg vault list"), "vault", ""},
 		{"Bash", bash("git status"), "", ""},
 		{"Edit", map[string]any{"file_path": "/repo/tablero/tasks/canon/task.md"}, "tablero", "#/tareas/canon"},
 		{"Edit", map[string]any{"file_path": "/repo/harness/panel/index.html"}, "", ""},

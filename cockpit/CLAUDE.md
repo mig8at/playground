@@ -23,6 +23,7 @@ La lista vive en UN lugar: `APPS`, en `src-tauri/src/main.rs`. `bin/cockpit stat
 | `correo` | los correos de los remitentes que seguís en Gmail, con aviso de macOS | `correo/` | :5224 · :5225 | `make correo`; su API también de fondo (`make correo-install`, ver `correo/CLAUDE.md`) |
 | `knowledge` | Knowledge: el vigía de `knowledge/`; mira main y la pone al día sola, paso a paso, como un workflow | `knowledge-flow/` | :5232 · :5233 | `make knowledge-flow`; su API también de fondo (`make knowledge-flow-install`, ver `knowledge-flow/CLAUDE.md`) |
 | `wally` | el asistente y sus agentes, con Claude (el Bedrock de CreditOp) o Gemini por su web (`bin/wally`); manda el numerito de las corridas automáticas que terminaron sin verse | `wally/` | :5228 · :5229 | `make wally` |
+| `vault` | el Llavero: tus llaves que no se comparten, en llaveros como tarjetas, cifradas con tu llave personal; exportar e importar para otra máquina | `vault/` | :5236 · :5237 | `make vault` |
 
 En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` siguen siendo `visor`.
 
@@ -171,43 +172,8 @@ barra y de los atajos ⌘1, ⌘2…, nada más: sigue andando (sus avisos, su se
 con `bin/cockpit open`, y mientras está al frente se ve en la barra. Al menos una queda visible. Se guarda en Cockpit
 (`localStorage`, `cockpit.hidden-apps`), no en un archivo: es una preferencia de esta ventana.
 
-**El llavero personal** (engranaje → «Llavero», 2026-11-18): las llaves de Miguel que NO se comparten, en llaveros
-con nombre. Se renombran con doble clic, «Ver» muestra el valor 20 s, «Copiar» lo copia y la papelera borra con dos toques
-(mover una llave de llavero queda sólo por consola, `key-move`: en la interfaz no hacía falta, dijo Miguel). Cada
-valor se guarda cifrado con la **llave personal** (`~/.config/creditop/personal-key`, 600, se crea con la primera llave),
-no con la del equipo: ésa la tiene todo el equipo (decisión de Miguel). El formato es el de `openssl enc`, como el
-llavero del chat. La carcasa no lo implementa: corre `bin/pg vault …` (Rust: `vault`, con una lista de verbos; el valor
-va por stdin), y la librería es `lib/vault` (archivo `~/.config/creditop-cockpit/vault.json`, con candado). Por consola:
-
-    bin/pg vault list                       llaveros, nombres y huellas; nunca un valor
-    bin/pg vault run --ring R -- <comando>  el comando recibe las llaves como variables de entorno (así las usa Claude)
-    pbpaste | bin/pg vault set --ring R --key NOMBRE
-    bin/pg vault get --ring R --key K --reveal   sólo Miguel: el hook `vault-guard` se lo niega a una sesión de Claude
-    bin/pg vault import-env --ring R --file .env [--only A,B | --except A,B]   un .env entero, sin mostrar valores
-    printf '%s\n' '<contraseña>' | bin/pg vault import --file llavero.zip [--replace]
-
-**Qué hay** (2026-11-18, cargado con `import-env` desde los `.env` de my-tools y de los repos, sin repetir; 31 llaveros,
-453 llaves; `bin/pg vault list` lo dice al día): un llavero por servicio (`Atlassian · Jira y Confluence`, `Slack`,
-`Twilio`, `Google · Gemini y Drive`, `Figma`, `ElevenLabs`, `Jev`, `VTEX · cuenta de pruebas`, `Shopify · Partners`,
-`Sonar`, `Finandina · Experian HC2`, `Finandina · Mareigua`), uno por ambiente con lo de los conectores y el harness
-juntos (`Ambiente · local|dev|qa|staging|prod`), uno por repo con su `.env` de trabajo (`legacy-backend · local`,
-`legacy-application · local`, `frontend-monorepo · wizard`, `dynamic-form · local`, las tres apps de Shopify) y uno por
-herramienta del playground del equipo (`Playground · home|canon|cuadrilla|forecast|tracer`). Las copias viejas de los
-repos (`.env.antes-*`, `.env.bak-*`) no se cargaron. Los microservicios no tienen `.env` en esta máquina. Los `.env`
-siguen siendo de donde LEEN las herramientas: el llavero es una copia cifrada para `vault run` y para otra máquina; si
-una llave cambia en su `.env`, se vuelve a correr `import-env` (deja igual lo igual y actualiza lo distinto).
-
-**Otra máquina**: «Exportar» (al pie de los llaveros) deja `~/Downloads/llavero-<fecha>.zip` con cada valor cifrado con
-una contraseña que se elige ahí, NO con la llave personal (que no viaja en el zip); «Importar» lo trae con esa
-contraseña: crea los llaveros y las llaves que faltan y no pisa una llave con otro valor salvo que se marque. Una
-contraseña mala no escribe nada. Desde Cockpit el zip viaja en base64 por stdin (no hay ruta del archivo).
-
-⚠ El cifrado no esconde nada de un agente con consola (la llave está en el mismo disco). Lo que hace que Claude no vea
-un valor es que nada lo imprime sin `--reveal`, y el hook `vault-guard` (`tablero/server/internal/hooks/vault_guard.go`),
-que niega `--reveal`, `vault export` (quien elige la contraseña del zip puede abrirlo) y leer o usar la llave personal.
-Es un freno para el descuido, no un muro. Y frena también un comando
-de shell que sólo NOMBRA esas cosas en una línea (un heredoc que escribe esta documentación): eso se escribe con las
-herramientas de edición o desde un archivo.
+**El Llavero** es una app de la barra desde el 2026-11-18 (antes una sección del engranaje, que se sacó: con 31
+llaveros se veía muy chico). Todo lo suyo está en [`vault/CLAUDE.md`](../vault/CLAUDE.md).
 
 **La sesión del playground** (2026-11-18): mientras Cockpit está abierto, cada 10 min corre `bin/cockpit session check`
 (`cmd/cockpit/session.go`): si el token vence en menos de una hora, o ya venció, un aviso de macOS —a lo sumo uno por

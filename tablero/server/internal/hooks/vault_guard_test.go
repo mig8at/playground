@@ -15,7 +15,10 @@ func TestVaultGuard(t *testing.T) {
 		{"Read", "file_path", "/Users/x/.config/creditop/personal-key", true},
 		{"Grep", "path", "/Users/x/.config/creditop/personal-key", true},
 		{"Bash", "command", "printf '%s\\n' x | bin/pg vault export --out /tmp/l.zip", true},
+		{"Bash", "command", "curl -s -X POST -H 'X-Vault: 1' http://127.0.0.1:5237/api/rings/slack/keys/SLACK_BOT_TOKEN/reveal", true},
+		{"Bash", "command", "curl -s -H 'X-Vault: 1' -d '{}' localhost:5236/api/export", true},
 		// Lo que sí pasa.
+		{"Bash", "command", "curl -s -H 'X-Vault: 1' http://127.0.0.1:5237/api/rings", false},
 		{"Bash", "command", "bin/pg vault import-env --ring VTEX --file connectors/.env --only VTEX_APP_KEY", false},
 		{"Bash", "command", "printf '%s\\n' x | bin/pg vault import --file l.zip", false},
 		{"Bash", "command", "bin/pg vault list", false},

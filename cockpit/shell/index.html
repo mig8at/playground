@@ -117,57 +117,6 @@
   .settings-row .state::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--fg-3) }
   .settings-row .state.up::before { background: var(--cockpit-ok) }
   .settings-box.padded { padding: 16px }
-  /* EL LLAVERO: los llaveros a la izquierda y las llaves del elegido a la derecha, dentro de una caja. */
-  .vault { display: grid; grid-template-columns: 200px minmax(0, 1fr); min-height: 320px }
-  .vault-rings { border-right: 1px solid var(--border); padding: 8px; display: flex; flex-direction: column; gap: 2px }
-  .vault-ring { display: flex; align-items: flex-start; gap: 8px; width: 100%; padding: 7px 10px; border: 0; border-radius: var(--radius);
-    background: none; color: var(--fg-2); font: inherit; font-size: 13px; text-align: left; cursor: pointer }
-  .vault-ring:hover { background: var(--hover) }
-  .vault-ring[aria-selected="true"] { background: var(--muted); color: var(--foreground) }
-  .vault-ring .ui-icon { flex: none; margin-top: 1px }
-  /* Los nombres de llavero suelen ser una palabra larga (FINANDINA_EXPERIAN): se parten en vez de cortarse. */
-  .vault-ring-name { flex: 1; min-width: 0; overflow-wrap: break-word }
-  .vault-ring .count { flex: none; font-size: 12px; color: var(--fg-3) }
-  .vault-ring.add { margin-top: 4px; color: var(--fg-3) }
-  .vault-main { padding: 14px 16px; display: flex; flex-direction: column; min-width: 0 }
-  .vault-head { display: flex; align-items: center; gap: 8px; padding-bottom: 10px }
-  .vault-title { font-weight: 600; font-size: 15px; flex: 1; min-width: 0; overflow-wrap: break-word; cursor: text }
-  .vault-head input { flex: 1 }
-  .vault-key { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center;
-    min-height: 40px; border-top: 1px solid var(--border) }
-  .vault-key-name { font-family: var(--font-mono); font-size: 12px; cursor: text; overflow-wrap: break-word }
-  .vault-key-value { display: flex; align-items: baseline; gap: 8px; min-width: 0; font-family: var(--font-mono); font-size: 12px; color: var(--fg-3) }
-  .vault-key-value .dots { letter-spacing: 1px; overflow: hidden; white-space: nowrap }
-  .vault-key-value .print { flex: none; font-size: 11px }
-  .vault-key-value.shown { color: var(--foreground); user-select: all; overflow-wrap: anywhere }
-  .vault-tools { display: flex; align-items: center; gap: 2px }
-  .vault-icon { border: 0; background: none; color: var(--fg-2); padding: 5px; border-radius: var(--radius); cursor: pointer; display: inline-flex }
-  .vault-icon:hover { background: var(--hover); color: var(--foreground) }
-  .vault-icon.danger:hover { color: var(--destructive) }
-  .vault-confirm { border: 1px solid var(--destructive); background: none; color: var(--destructive); font: inherit; font-size: 12px;
-    padding: 3px 8px; border-radius: var(--radius); cursor: pointer }
-  .vault-add { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 12px; align-items: center;
-    padding-top: 10px; border-top: 1px solid var(--border) }
-  .vault input { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius);
-    background: var(--background); color: var(--foreground); min-width: 0 }
-  .vault input.mono { font-family: var(--font-mono) }
-  .vault-error { color: var(--destructive); font-size: 12px; min-height: 16px; margin-top: 6px }
-  .vault-empty { padding: 14px 0; font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border) }
-  .vault-filter { margin: 0 2px 6px }
-  .vault-none { font-size: 12px; color: var(--fg-3); padding: 4px 10px }
-  /* Exportar e importar, al pie de la columna de llaveros. */
-  .vault-transfer { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px }
-  .vault-ring[aria-pressed="true"] { background: var(--muted); color: var(--foreground) }
-  .vault-note { font-size: 13px; color: var(--fg-2); margin: 0 0 12px; line-height: 1.5 }
-  .vault-xfer { display: flex; flex-direction: column; gap: 8px; max-width: 360px }
-  .vault-xfer .btn { align-self: flex-start }
-  .vault-file { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px dashed var(--border); border-radius: var(--radius);
-    font-size: 12px; color: var(--fg-2); cursor: pointer }
-  .vault-file input { position: absolute; opacity: 0; width: 1px; height: 1px }
-  .vault-file:hover { border-color: var(--fg-3); color: var(--foreground) }
-  .vault-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-2) }
-  .vault-check input { width: auto }
-  .vault-result { font-size: 13px; color: var(--cockpit-ok); margin: 12px 0 0 }
   /* LAS MUESTRAS de color (como `.paleta-muestra` de canon): cada círculo lleva dos colores FIJOS de su paleta —el
      acento y el lienzo, en claro o en oscuro según su fila—, no var(--primary): con una paleta puesta, un círculo que
      usara el token cambiaría con ella y dejaría de decir qué se elige. */
@@ -303,6 +252,7 @@ const ICONS = {
   sentinel: '<path d="M19.07 4.93A10 10 0 0 0 6.99 3.34"/><path d="M4 6h.01"/><path d="M2.29 9.62A10 10 0 1 0 21.31 8.35"/><path d="M16.24 7.76A6 6 0 1 0 8.23 16.67"/><path d="M12 18h.01"/><path d="M17.99 11.66A6 6 0 0 1 15.77 16.67"/><circle cx="12" cy="12" r="2"/><path d="m13.41 10.59 5.66-5.66"/>',
   goldfish: '<path d="M6.5 12c.94-3.46 4.94-6 8.5-6 3.56 0 6.06 2.54 7 6-.94 3.47-3.44 6-7 6s-7.56-2.53-8.5-6Z"/><path d="M18 12v.5"/><path d="M16 17.93a9.77 9.77 0 0 1 0-11.86"/><path d="M7 10.67C7 8 5.58 5.97 2.73 5.5c-1 1.5-1 5 .23 6.5-1.24 1.5-1.24 5-.23 6.5C5.58 18.03 7 16 7 13.33"/><path d="M10.46 7.26C10.2 5.88 9.17 4.24 8 3h5.8a2 2 0 0 1 1.98 1.67l.23 1.4"/><path d="m16.01 17.93-.23 1.4A2 2 0 0 1 13.8 21H9.5a5.96 5.96 0 0 0 1.49-3.98"/>',
   correo: '<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 7 9 6 9-6"/>',
+  vault: '<circle cx="8" cy="15" r="4"/><path d="M10.8 12.2 19.5 3.5"/><path d="m16.5 6.5 2.5 2.5"/><path d="m14 9 2 2"/>',
   knowledge: '<path d="M4 4.5h6a2 2 0 0 1 2 2v13a1.5 1.5 0 0 0-1.5-1.5H4z"/><path d="M20 4.5h-6a2 2 0 0 0-2 2v13a1.5 1.5 0 0 1 1.5-1.5H20z"/><path d="m15 10 1.5 1.5L19 9"/>',
   wally: '<path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2M20 14h2M15 13v2M9 13v2"/>',
 }
@@ -702,7 +652,6 @@ const SECTIONS = [
   { id: 'appearance', t: 'Apariencia', icon: 'theme', d: 'El color y el modo, claro u oscuro. Vale para todas las apps de Cockpit.', keys: 'tema claro oscuro color paleta nord catppuccin monokai vintage' },
   { id: 'claude', t: 'Claude', icon: 'claude', d: 'Lo que hace Claude, en vivo, en el panel que abre el asterisco del pie de cada app.', keys: 'seguir panel actividad frenar asterisco' },
   { id: 'model', t: 'Modelo', icon: 'clock', d: 'El modelo de lo que corre en segundo plano: lo agendado, a ciertas horas, sin nadie mirando.', keys: 'modelo claude gemini segundo plano agendado tareas bedrock ia' },
-  { id: 'vault', t: 'Llavero', icon: 'key', d: 'Tus llaves, que no se comparten: en llaveros, cifradas con tu llave personal. Claude las usa sin ver el valor.', keys: 'llavero llaves claves secretos credenciales token cifrar contraseña vault' },
   { id: 'apps', t: 'Apps', icon: 'apps', d: 'Las herramientas de la barra: si están arriba, y reiniciar una para que tome un cambio.', keys: 'servidor puerto reiniciar arriba apagada' },
   { id: 'help', t: 'Cómo se usa', icon: 'help', d: 'Lo que hay en cada lugar de Cockpit.', keys: 'ayuda guía atajos barra pie' },
 ]
@@ -727,257 +676,6 @@ async function loadModelState() {
   modelBusy = false
   if (settingsOpen && settingsSection === 'model') paintSettings()
 }
-/* EL LLAVERO PERSONAL: todo pasa por `bin/pg vault` (Rust: `vault`), así lo mismo anda por consola con Cockpit cerrado.
-   Nada se descifra al pintar: «Ver» trae UN valor por 20 s y «Copiar» lo copia sin mostrarlo. Mover una llave de llavero
-   quedó sólo en la consola (`key-move`): en la interfaz no hacía falta (Miguel, 2026-11-18). */
-let vaultData = null
-let vaultRing = ''
-let vaultError = ''
-let vaultEdit = ''          // 'ring' o el id de la llave que se está renombrando
-let vaultConfirm = ''       // lo que espera el segundo toque para borrar
-const vaultShown = {}       // id de la llave → valor, por 20 s
-const vaultDraft = { name: '', value: '' }
-let vaultFilter = ''        // busca llaveros por su nombre o el de sus llaves
-let vaultMode = ''          // '' (un llavero) · 'export' · 'import'
-// Exportar e importar: la contraseña del zip (dos veces), el zip elegido en base64 y lo que pasó.
-const vaultXfer = { pass: '', pass2: '', replace: false, zip: '', zipName: '', busy: false, result: '' }
-const vaultCall = (args, input) => invoke('vault', { args, input: input ?? null })
-async function loadVault() {
-  try {
-    vaultData = JSON.parse(await vaultCall(['list', '--json']))
-    vaultError = ''
-    if (!vaultData.rings.some((r) => r.id === vaultRing)) vaultRing = vaultData.rings[0]?.id || ''
-  } catch (err) { vaultError = String(err) }
-  if (settingsOpen && settingsSection === 'vault') paintSettings()
-}
-async function vaultDo(args, input) {
-  try { await vaultCall(args, input); vaultError = '' } catch (err) { vaultError = String(err); paintSettings(); return false }
-  await loadVault()
-  return true
-}
-// Un nombre largo (FINANDINA_EXPERIAN) se parte después de un guión bajo antes que en cualquier letra.
-const breakable = (name) => esc(name).replace(/_/g, '_<wbr>')
-function paintVault() {
-  const rings = vaultData?.rings || []
-  const ring = vaultMode ? null : rings.find((r) => r.id === vaultRing)
-  const q = vaultFilter.trim().toLowerCase()
-  const visible = q ? rings.filter((r) => r.name.toLowerCase().includes(q) || r.keys.some((k) => k.name.toLowerCase().includes(q))) : rings
-  const list = visible.map((r) => `<button type="button" class="vault-ring" role="tab" aria-selected="${r.id === vaultRing && !vaultMode}" data-vring="${r.id}">
-    <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-ring-name">${breakable(r.name)}</span><span class="count">${r.keys.length}</span></button>`).join('')
-  const icon = (act, id, name, title, cls = '') => `<button type="button" class="vault-icon ${cls}" data-vact="${act}" data-vkey="${id}" title="${esc(title)}" aria-label="${esc(title)}"><span class="ui-icon" data-icon="${name}" aria-hidden="true"></span></button>`
-  // Borrar es de dos toques: el primero cambia la papelera por «Borrar», el segundo borra. Cualquier otro clic lo cancela.
-  const trash = (act, id, what) => vaultConfirm === (id || 'ring')
-    ? `<button type="button" class="vault-confirm" data-vact="${act}" data-vkey="${id}">Borrar${what}</button>`
-    : icon(act, id, 'trash', id ? 'Borrar la llave' : 'Borrar el llavero', 'danger')
-  let main = `<div class="vault-empty">Creá tu primer llavero a la izquierda y guardá sus llaves acá.</div>`
-  const total = rings.reduce((n, r) => n + r.keys.length, 0)
-  const result = vaultXfer.result ? `<p class="vault-result">${esc(vaultXfer.result)}</p>` : ''
-  if (vaultMode === 'export') {
-    main = `<div class="vault-head"><span class="ui-icon" data-icon="download" aria-hidden="true"></span><span class="vault-title">Exportar el llavero</span></div>
-      <p class="vault-note">Un zip con los ${rings.length} llaveros y sus ${total} llaves, para llevarlos a otra máquina. Cada valor va cifrado con la contraseña que pongas acá: sin ella el zip no sirve, así que guardala aparte.</p>
-      <form class="vault-xfer" data-vform="export" autocomplete="off">
-        <input type="password" data-vxfer="pass" placeholder="Contraseña del zip (8 o más)" value="${esc(vaultXfer.pass)}" aria-label="Contraseña del zip">
-        <input type="password" data-vxfer="pass2" placeholder="Repetila" value="${esc(vaultXfer.pass2)}" aria-label="Repetir la contraseña">
-        <button type="submit" class="btn btn-sm" ${vaultXfer.busy ? 'disabled' : ''}>${vaultXfer.busy ? 'Exportando…' : 'Exportar a Descargas'}</button></form>${result}`
-  } else if (vaultMode === 'import') {
-    main = `<div class="vault-head"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-title">Importar un llavero</span></div>
-      <p class="vault-note">Un zip exportado desde Cockpit, con su contraseña. Se agregan los llaveros y las llaves que falten; una llave que ya está con otro valor no se toca, salvo que lo marques.</p>
-      <form class="vault-xfer" data-vform="import" autocomplete="off">
-        <label class="vault-file"><input type="file" accept=".zip,application/zip" data-vzip><span>${vaultXfer.zipName ? esc(vaultXfer.zipName) : 'Elegir el zip…'}</span></label>
-        <input type="password" data-vxfer="pass" placeholder="Contraseña del zip" value="${esc(vaultXfer.pass)}" aria-label="Contraseña del zip">
-        <label class="vault-check"><input type="checkbox" data-vxfer="replace" ${vaultXfer.replace ? 'checked' : ''}> Reemplazar las que tengan otro valor</label>
-        <button type="submit" class="btn btn-sm" ${vaultXfer.busy ? 'disabled' : ''}>${vaultXfer.busy ? 'Importando…' : 'Importar'}</button></form>${result}`
-  } else if (ring) {
-    const title = vaultEdit === 'ring'
-      ? `<input data-vrename="ring" value="${esc(ring.name)}" aria-label="Nombre del llavero">`
-      : `<span class="vault-title" data-vdbl="ring" title="Doble clic para renombrar">${breakable(ring.name)}</span>`
-    const n = ring.keys.length
-    const keys = ring.keys.map((k) => {
-      const name = vaultEdit === k.id
-        ? `<input class="mono" data-vrename="${k.id}" value="${esc(k.name)}" aria-label="Nombre de la llave">`
-        : `<span class="vault-key-name" data-vdbl="${k.id}" title="Doble clic para renombrar">${breakable(k.name)}</span>`
-      const shown = k.id in vaultShown
-      const value = shown ? `<span class="vault-key-value shown">${esc(vaultShown[k.id])}</span>`
-        : `<span class="vault-key-value"><span class="dots">••••••••</span><span class="print" title="La huella: cambia si cambia el valor">${esc(k.print)}</span></span>`
-      return `<div class="vault-key">${name}${value}<span class="vault-tools">${icon('reveal', k.id, shown ? 'eye-off' : 'eye', shown ? 'Ocultar' : 'Ver por 20 s')}${icon('copy', k.id, 'copy', 'Copiar el valor')}${trash('key-delete', k.id, '')}</span></div>`
-    }).join('') || `<div class="vault-empty">Sin llaves todavía.</div>`
-    main = `<div class="vault-head"><span class="ui-icon" data-icon="lock" aria-hidden="true"></span>${title}${trash('ring-delete', '', n ? ` con ${n} llave${n === 1 ? '' : 's'}` : '')}</div>
-      <div>${keys}</div>
-      <form class="vault-add" data-vform="add" autocomplete="off">
-        <input class="mono" data-vdraft="name" placeholder="NOMBRE" value="${esc(vaultDraft.name)}" aria-label="Nombre de la llave nueva">
-        <input type="password" data-vdraft="value" placeholder="Valor" value="${esc(vaultDraft.value)}" aria-label="Valor de la llave nueva">
-        <button type="submit" class="btn btn-sm">Guardar</button></form>`
-  }
-  return `<section><div class="settings-box"><div class="vault">
-    <div class="vault-rings" role="tablist" aria-label="Llaveros">
-      ${rings.length > 6 ? `<input class="vault-filter" data-vfilter placeholder="Buscar llavero o llave" value="${esc(vaultFilter)}" aria-label="Buscar llavero o llave">` : ''}
-      ${list || `<p class="vault-none">Nada coincide.</p>`}
-      <button type="button" class="vault-ring add" data-vact="ring-new"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span class="vault-ring-name">Nuevo llavero</span></button>
-      <div class="vault-transfer">
-        <button type="button" class="vault-ring add" data-vact="mode-export" aria-pressed="${vaultMode === 'export'}"><span class="ui-icon" data-icon="download" aria-hidden="true"></span><span class="vault-ring-name">Exportar</span></button>
-        <button type="button" class="vault-ring add" data-vact="mode-import" aria-pressed="${vaultMode === 'import'}"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-ring-name">Importar</span></button>
-      </div></div>
-    <div class="vault-main">${main}<div class="vault-error" role="alert">${esc(vaultError)}</div></div></div></div>
-    <p>Se guardan cifradas con tu llave personal, que el equipo no tiene. Claude las usa sin ver los valores.</p></section>`
-}
-async function vaultClick(e) {
-  const ringBtn = e.target.closest('[data-vring]')
-  if (ringBtn) { vaultRing = ringBtn.dataset.vring; vaultMode = vaultEdit = vaultConfirm = ''; vaultError = ''; paintSettings(); return true }
-  const mode = e.target.closest('[data-vact^="mode-"]')?.dataset.vact.slice(5)
-  if (mode) {
-    vaultMode = vaultMode === mode ? '' : mode
-    Object.assign(vaultXfer, { pass: '', pass2: '', replace: false, zip: '', zipName: '', result: '' })
-    vaultEdit = vaultConfirm = vaultError = ''
-    paintSettings()
-    vaultBlocks.querySelector('[data-vxfer="pass"]')?.focus()
-    return true
-  }
-  const el = e.target.closest('[data-vact]')
-  const act = el?.dataset.vact
-  const id = el?.dataset.vkey
-  // Un «Borrar» a la espera se cancela con cualquier otro clic.
-  if (vaultConfirm && !((act === 'key-delete' && id === vaultConfirm) || (act === 'ring-delete' && vaultConfirm === 'ring'))) {
-    vaultConfirm = ''
-    if (!el) { paintSettings(); return true }
-  }
-  if (!el) return false
-  const ring = vaultData?.rings.find((r) => r.id === vaultRing)
-  const key = ring?.keys.find((k) => k.id === id)
-  if (act === 'ring-new') {
-    const taken = new Set((vaultData?.rings || []).map((r) => r.name.toLowerCase()))
-    let name = 'Llavero nuevo'
-    for (let i = 2; taken.has(name.toLowerCase()); i++) name = `Llavero nuevo ${i}`
-    if (await vaultDo(['ring-create', '--name', name])) {
-      vaultRing = vaultData.rings.find((r) => r.name === name)?.id || vaultRing
-      vaultEdit = 'ring'
-      paintSettings()
-      document.querySelector('#settingsBlocks [data-vrename="ring"]')?.select()
-    }
-  } else if (act === 'ring-delete' && ring) {
-    if (vaultConfirm !== 'ring') { vaultConfirm = 'ring'; paintSettings(); return true }
-    vaultConfirm = ''
-    await vaultDo(['ring-delete', '--ring', ring.id, '--force'])
-  } else if (act === 'reveal' && key) {
-    if (key.id in vaultShown) { delete vaultShown[key.id]; paintSettings(); return true }
-    try { vaultShown[key.id] = await vaultCall(['get', '--ring', ring.id, '--key', key.name, '--reveal']) } catch (err) { vaultError = String(err) }
-    setTimeout(() => { delete vaultShown[key.id]; if (settingsOpen && settingsSection === 'vault') paintSettings() }, 20000)
-    paintSettings()
-  } else if (act === 'copy' && key) {
-    try {
-      await navigator.clipboard.writeText(await vaultCall(['get', '--ring', ring.id, '--key', key.name, '--reveal']))
-      el.title = 'Copiado'
-      el.querySelector('.ui-icon').dataset.icon = 'check'
-      setTimeout(() => { if (el.isConnected) el.querySelector('.ui-icon').dataset.icon = 'copy' }, 1500)
-    } catch (err) { vaultError = String(err); paintSettings() }
-  } else if (act === 'key-delete' && key) {
-    if (vaultConfirm !== key.id) { vaultConfirm = key.id; paintSettings(); return true }
-    vaultConfirm = ''
-    await vaultDo(['key-delete', '--ring', ring.id, '--key', key.name])
-  }
-  return true
-}
-function vaultRenameDone(input, save) {
-  const ring = vaultData?.rings.find((r) => r.id === vaultRing)
-  const target = input.dataset.vrename
-  const value = input.value.trim()
-  vaultEdit = ''
-  if (!save || !ring || !value) return paintSettings()
-  if (target === 'ring') {
-    if (value === ring.name) return paintSettings()
-    vaultDo(['ring-rename', '--ring', ring.id, '--name', value])
-  } else {
-    const key = ring.keys.find((k) => k.id === target)
-    if (!key || value === key.name) return paintSettings()
-    vaultDo(['key-rename', '--ring', ring.id, '--key', key.name, '--name', value])
-  }
-}
-const vaultBlocks = document.getElementById('settingsBlocks')
-vaultBlocks.addEventListener('dblclick', (e) => {
-  const target = e.target.closest('[data-vdbl]')?.dataset.vdbl
-  if (!target || settingsSection !== 'vault') return
-  vaultEdit = target
-  paintSettings()
-  document.querySelector(`#settingsBlocks [data-vrename="${target}"]`)?.select()
-})
-vaultBlocks.addEventListener('keydown', (e) => {
-  const input = e.target.closest('[data-vrename]')
-  if (!input) return
-  if (e.key === 'Enter') { e.preventDefault(); vaultRenameDone(input, true) }
-  else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); vaultRenameDone(input, false) }
-})
-vaultBlocks.addEventListener('focusout', (e) => {
-  const input = e.target.closest('[data-vrename]')
-  if (input && vaultEdit) vaultRenameDone(input, true)
-})
-vaultBlocks.addEventListener('input', (e) => {
-  const clearError = () => { if (vaultError) { vaultError = ''; const box = vaultBlocks.querySelector('.vault-error'); if (box) box.textContent = '' } }
-  if (e.target.matches('[data-vfilter]')) {
-    // Repintar pierde el foco del buscador: se devuelve con el cursor donde estaba.
-    vaultFilter = e.target.value
-    const at = e.target.selectionStart
-    paintSettings()
-    const box = vaultBlocks.querySelector('[data-vfilter]')
-    if (box) { box.focus(); box.setSelectionRange(at, at) }
-    return
-  }
-  const x = e.target.closest('[data-vxfer]')?.dataset.vxfer
-  if (x) { vaultXfer[x] = x === 'replace' ? e.target.checked : e.target.value; clearError(); return }
-  const f = e.target.closest('[data-vdraft]')?.dataset.vdraft
-  if (f) { vaultDraft[f] = e.target.value; clearError() }
-})
-// El zip elegido se lee acá y viaja en base64 por stdin a `vault import` (desde Cockpit no hay ruta del archivo).
-vaultBlocks.addEventListener('change', (e) => {
-  if (e.target.matches('[data-vxfer="replace"]')) { vaultXfer.replace = e.target.checked; return }
-  if (!e.target.matches('[data-vzip]')) return
-  const file = e.target.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => {
-    vaultXfer.zip = String(reader.result).split(',')[1] || ''
-    vaultXfer.zipName = file.name
-    vaultXfer.result = ''
-    paintSettings()
-    vaultBlocks.querySelector('[data-vxfer="pass"]')?.focus()
-  }
-  reader.readAsDataURL(file)
-})
-async function vaultTransfer(kind) {
-  if (kind === 'export') {
-    if (vaultXfer.pass.length < 8) { vaultError = 'La contraseña tiene que tener al menos 8 caracteres'; return paintSettings() }
-    if (vaultXfer.pass !== vaultXfer.pass2) { vaultError = 'Las dos contraseñas no coinciden'; return paintSettings() }
-  } else {
-    if (!vaultXfer.zip) { vaultError = 'Elegí el zip'; return paintSettings() }
-    if (!vaultXfer.pass) { vaultError = 'Falta la contraseña del zip'; return paintSettings() }
-  }
-  vaultXfer.busy = true
-  vaultError = vaultXfer.result = ''
-  paintSettings()
-  try {
-    const out = kind === 'export'
-      ? await vaultCall(['export'], vaultXfer.pass + '\n')
-      : await vaultCall(['import', ...(vaultXfer.replace ? ['--replace'] : [])], vaultXfer.pass + '\n' + vaultXfer.zip)
-    vaultXfer.result = kind === 'export' ? out.trim().replace(/ \(cada valor.*\)$/, '').replace(/→ .*\//, '→ Descargas: ') : out.trim().replace(' que no se tocaron (--replace)', ' que no se tocaron')
-    Object.assign(vaultXfer, { pass: '', pass2: '' })
-    if (kind === 'import') await loadVault()
-  } catch (err) { vaultError = String(err) }
-  vaultXfer.busy = false
-  paintSettings()
-}
-vaultBlocks.addEventListener('submit', async (e) => {
-  const kind = e.target.closest('[data-vform]')?.dataset.vform
-  if (kind === 'export' || kind === 'import') { e.preventDefault(); return vaultTransfer(kind) }
-  if (kind !== 'add') return
-  e.preventDefault()
-  const ring = vaultData?.rings.find((r) => r.id === vaultRing)
-  if (!ring) return
-  if (!vaultDraft.name.trim() || !vaultDraft.value) { vaultError = 'Falta el nombre o el valor'; return paintSettings() }
-  if (await vaultDo(['set', '--ring', ring.id, '--key', vaultDraft.name], vaultDraft.value)) {
-    vaultDraft.name = ''
-    vaultDraft.value = ''
-    paintSettings()
-    vaultBlocks.querySelector('[data-vdraft="name"]')?.focus()
-  }
-})
 const MODEL_CHOICES = [
   { id: 'claude', name: 'Claude', what: 'Claude Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon: el mismo modelo de canon en producción. Lo paga la empresa; pide la sesión del playground.' },
   { id: 'gemini', name: 'Gemini', what: 'Gemini por su API: gasta la cuota de su llave.' },
@@ -1027,8 +725,6 @@ function paintSettings() {
         <span class="state ${modelState?.ready && !modelBusy ? 'up' : ''}">${modelBusy ? '…' : modelState?.ready ? 'listo' : 'no'}</span>
         <button type="button" class="btn btn-outline btn-sm" data-act="model-check" ${modelBusy ? 'disabled' : ''}>Comprobar</button></div></div>
       <p>Wally elige el suyo aparte, en su barra.</p></section>`
-  } else if (settingsSection === 'vault') {
-    blocks.innerHTML = vaultData || vaultError ? paintVault() : '<section><p>Leyendo el llavero…</p></section>'
   } else if (settingsSection === 'apps') {
     blocks.innerHTML = `<section><h3>Las apps de la barra</h3><div class="settings-box">${apps.map((a) => {
       const st = appStates.find((x) => x.id === a.id) || {}
@@ -1066,10 +762,9 @@ document.getElementById('settingsClose').addEventListener('click', () => setSett
 document.getElementById('settingsSearch').addEventListener('input', (e) => { settingsFilter = e.target.value; paintSettings() })
 document.getElementById('settingsSections').addEventListener('click', (e) => {
   const id = e.target.closest('[data-section]')?.dataset.section
-  if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState(); if (id === 'vault') loadVault() }
+  if (id) { settingsSection = id; paintSettings(); if (id === 'model') loadModelState() }
 })
 document.getElementById('settingsBlocks').addEventListener('click', async (e) => {
-  if (settingsSection === 'vault' && await vaultClick(e)) return
   const visibleId = e.target.closest('[data-visible]')?.dataset.visible
   if (visibleId) {
     setVisible(visibleId, hiddenApps.has(visibleId))

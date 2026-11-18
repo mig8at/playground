@@ -43,6 +43,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Correo (los correos de los remitentes que se siguen en Gmail, con aviso: `make correo`, `bin/correo`, `bin/pg gmail`; el `correo:` de una tarea) | [`correo/CLAUDE.md`](correo/CLAUDE.md) |
 | conocimiento local: leerlo, verificarlo, editarlo | [`knowledge/CLAUDE.md`](knowledge/CLAUDE.md) |
 | Knowledge (el vigía de knowledge/: mira main y la pone al día sola, paso a paso; `make knowledge-flow`) | [`knowledge-flow/CLAUDE.md`](knowledge-flow/CLAUDE.md) |
+| el Llavero (tus llaves en llaveros, cifradas; `bin/pg vault`, `make vault`, exportar e importar) | [`vault/CLAUDE.md`](vault/CLAUDE.md) |
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
@@ -125,7 +126,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **crear un agente de Wally** · conversaciones de Wally | `bin/wally agent create --name … --intent '…'` · `agents` · `ask [--agent n] [--auto] '…'` · `skills`. Lo hace Claude cuando Miguel lo pide. Contesta Claude (el Bedrock de CreditOp) por defecto. [`wally/CLAUDE.md`](wally/CLAUDE.md) |
 | **¿qué digo en la daily?** | el home del tablero, «Para la daily» (se arma sola de lunes a viernes a las 7:30), o `make daily [DAY=…]`: tu bitácora del último día, sin lo de my-tools, en pocas líneas |
 | **un proceso agendado o en segundo plano necesita un modelo** | `bin/pg model ask --prompt '…'` (o `--file`): el modelo de segundo plano elegido en Cockpit (engranaje → Modelo), Claude Sonnet 5.5 en el Bedrock de CreditOp por defecto; `bin/pg model info` dice si contesta. Pide la sesión de `playground login` ([`connectors/CLAUDE.md`](connectors/CLAUDE.md)) |
-| **una llave mía** (las que no se comparten: guardarla, usarla) | `bin/pg vault list` · `bin/pg vault run --ring R -- <comando>` (las pasa como variables de entorno, sin mostrarlas). El valor no se pide: el hook `vault-guard` lo niega. El llavero en Cockpit (engranaje → Llavero): [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
+| **una llave mía** (las que no se comparten: guardarla, usarla) | `bin/pg vault list` · `bin/pg vault run --ring R -- <comando>` (las pasa como variables de entorno, sin mostrarlas). El valor no se pide: el hook `vault-guard` lo niega. La app Llavero de Cockpit: [`vault/CLAUDE.md`](vault/CLAUDE.md) |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 
 ⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** El conocimiento local y el código describen el mecanismo;
