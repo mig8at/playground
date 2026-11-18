@@ -16,8 +16,8 @@ jira_title: ""
       contra cada archivo.
 - [x] ~~Exportar e importar en un zip con contraseña~~ — 2026-11-18.
 - [x] ~~La app propia, con tarjetas~~ — 2026-11-18.
-- [ ] Verlo en Cockpit: la app en la barra después de `make cockpit`, y «Copiar» dentro del iframe; termina cuando
-      copiar una llave pega el valor en otro lado.
+- [x] ~~La app en la barra de Cockpit~~ — 2026-11-18: después de `make cockpit`, con los 31 llaveros y sus grupos.
+- [ ] «Copiar» dentro del iframe de Cockpit; termina cuando copiar una llave pega el valor en otro lado.
 - [ ] Traer el zip en otra máquina; termina con un import real que deje los llaveros y las llaves iguales.
 
 ## Objetivo
