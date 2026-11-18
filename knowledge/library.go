@@ -57,6 +57,9 @@ type Library struct {
 // TrapsDir es la carpeta de las trampas del sistema (`F-xx`): vive en knowledge/ pero no es un tema.
 const TrapsDir = "traps"
 
+// MeetingsDir es la carpeta de las notas de reuniones (la Weekly CT y otras): contexto de negocio, no un tema.
+const MeetingsDir = "meetings"
+
 func Open(dir string) (Library, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -71,8 +74,8 @@ func Open(dir string) (Library, error) {
 			continue
 		}
 		id := entry.Name()
-		if id == TrapsDir {
-			continue // las trampas del sistema: un registro, no un tema (knowledge/traps)
+		if id == TrapsDir || id == MeetingsDir {
+			continue // registros, no temas: las trampas (knowledge/traps) y las notas de reuniones (knowledge/meetings)
 		}
 		if !topicID.MatchString(id) {
 			return l, fmt.Errorf("carpeta de conocimiento inválida: %q", id)
