@@ -3,8 +3,7 @@ id: 6
 title: "Ecommerce web stateless"
 stage: work
 created: "2026-07-21T10:30:30-05:00"
-knowledge: [ecommerce-context, lender-listing]
-canon: [fronteras, onboarding, cuota, arquitectura]
+knowledge: [ecommerce-context, lender-listing, origination-paths]
 jira: [CORE-30]
 cuadrilla: ecommerce/miguel
 jira_title: "Ecommerce: flujo de onboarding hasta el listado de entidades, webhook y retorno al comercio"

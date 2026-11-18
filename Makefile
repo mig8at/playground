@@ -83,9 +83,9 @@ cuadrilla-publish: ## @dia publica en cuadrilla las ramas de una tarea (a tu par
 today: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-resume: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 la ficha de las referencias canon: declaradas, por la API, sólo si se necesita el contexto opcional de negocio/producto]
+resume: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make resume N=84"; exit 2; }
-	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
+	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json)
 
 agent: ## @dia ARRANCAR una tarea como agente, en una sola salida: la tarea (retomar), las trampas que pueden tocarla (por síntoma y citadas), si las fuentes de sus temas de knowledge: siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. N=<id|slug> [ENV=1 corre harness-doctor contra local] [JSON=1 tablero.agent-brief/v1]
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make agent N=86"; exit 2; }

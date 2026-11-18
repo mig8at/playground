@@ -4,7 +4,6 @@ title: "Ecommerce mobile: medir las compras de la tienda virtual que salen de la
 stage: work
 created: "2026-11-17T12:00:00-05:00"
 knowledge: [ecommerce-context]
-canon: []
 jira: [CORE-982]
 jira_title: "Ecommerce mobile: medir las compras de la tienda virtual que salen de la app"
 ---

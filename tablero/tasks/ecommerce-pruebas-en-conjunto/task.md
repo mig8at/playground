@@ -4,7 +4,6 @@ title: "Ecommerce: pruebas en conjunto de todo el flujo"
 stage: work
 created: "2026-09-23T17:30:00-05:00"
 knowledge: [ecommerce-context, lender-listing]
-canon: []
 jira: [CORE-543]
 jira_title: "Ecommerce: pruebas en conjunto de todo el flujo"
 ramas: feat/ecommerce-checkout-por-settings, fix/restaurar-ecommerce-en-qa, fix/profiling-reviews-user-id-bigint, fix/ecommerce-amount-from-order, fix/ecommerce-celular-editable, fix/ecommerce-datos-editables, fix/ecommerce-aviso-cuota-inicial-solo-tienda, fix/ecommerce-monto-del-pedido

@@ -1,7 +1,7 @@
 # tablero/server — el backend del tablero
 
 `cmd/web` (la API de la UI), los comandos de la consola (`tasks`, `today`, `issue-*`, `pulse`, `hooks`…) y
-sus paquetes `internal/`. Los clientes de Jira, Slack, canon y la base NO viven acá: son de
+sus paquetes `internal/`. Los clientes de Jira, Slack y la base NO viven acá: son de
 `connectors/`, en la raíz de my-tools, porque los usan todas las herramientas.
 
 ## Jira y Slack para un agente: `bin/pg`

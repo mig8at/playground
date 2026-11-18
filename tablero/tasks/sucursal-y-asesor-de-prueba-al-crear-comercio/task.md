@@ -5,8 +5,7 @@ ramas: feat/usuario-y-sucursal-de-prueba-al-crear-comercio, feat/asesor-de-prueb
 stage: work
 created: "2026-10-01T10:48:29-05:00"
 archived: "2026-10-22T10:25:25-05:00"
-knowledge: [merchant-onboarding]
-canon: [comercio, sucursal, asesor, actores]
+knowledge: [merchant-onboarding, merchant-lender-agreement, advisor-accounts, user-roles]
 jira: [CORE-683]
 jira_title: "Sucursal y asesor de prueba al crear un comercio"
 ---
@@ -281,7 +280,7 @@ arrancar la tarea); la reversa segura sigue sin probarse.
 - Plan para producción (mantener el pool de producción; apagar es vaciar una variable): `artifacts/plan-produccion.html`, del 2026-10-02.
 - [PR #243](pr:legacy-application#243) — mergeado a `develop` el 2026-10-01.
 - Conocimiento local: `knowledge/merchant-onboarding/rules.md`; cubre las entradas de `main`, no la configuración de pools por ambiente.
-- Canon (opcional para negocio/producto): [comercio](canon:comercio), [sucursal](canon:sucursal), [asesor](canon:asesor), [actores](canon:actores).
+- Canon (opcional para negocio/producto): [comercio](knowledge:merchant-onboarding), [sucursal](knowledge:merchant-lender-agreement), [asesor](knowledge:advisor-accounts), [actores](knowledge:user-roles).
 - Hilo con infra en Slack (Daniel Sánchez): pools por ambiente y permisos.
 
 ## Tarea (publicable)

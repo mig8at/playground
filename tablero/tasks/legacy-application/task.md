@@ -6,7 +6,6 @@ nivel: creditop
 stage: work
 created: "2026-11-13T12:30:00-05:00"
 knowledge: [admin-panel]
-canon: []
 jira: []
 jira_title: ""
 ---

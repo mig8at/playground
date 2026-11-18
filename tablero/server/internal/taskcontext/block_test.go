@@ -11,15 +11,13 @@ import (
 // Las pruebas no persiguen cobertura: cada una fija una regla que existe para que un bloque se pueda
 // volver a comprobar meses después, o un caso donde el validador podía equivocarse de lado.
 
-// Los enlaces a canon son texto histórico: entran por su forma y nadie los comprueba.
-func TestCanonLinksAreHistoricalText(t *testing.T) {
-	body := "Se cambia [la firma](canon-ruta:codeudor/renting#firma), con [su regla](canon:codeudor#firma)."
-	e, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", BlockDeps{}, time.Now())
-	if err != nil || len(warnings) != 0 || e.Body != body {
-		t.Fatalf("%+v %v %v", e, warnings, err)
-	}
-	if err := ValidateBlock(e); err != nil {
-		t.Fatalf("no se puede volver a leer: %v", err)
+// Canon no es de my-tools: un enlace a canon no entra, y el error dice qué citar en su lugar.
+func TestCanonLinksAreRejected(t *testing.T) {
+	for _, body := range []string{"Se cambia [la firma](canon-ruta:codeudor/renting#firma).", "Con [su regla](canon:codeudor#firma)."} {
+		_, _, err := PrepareBlock(context.Background(), "Firma", body, "", BlockDeps{}, time.Now())
+		if err == nil || !strings.Contains(err.Error(), "knowledge:") {
+			t.Fatalf("%q: %v", body, err)
+		}
 	}
 }
 

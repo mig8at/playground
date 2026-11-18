@@ -3,7 +3,7 @@
  *
  * Tuvo dos formas antes de esta. Primero fue un CAJÓN flotando sobre la página (`TaskPanel`), con
  * overlay, trampa de foco y manija de ancho; después un editor con OCHO pestañas adentro. Hoy el
- * cuerpo contiene una cronología: Hoy, Ayer y después cada fecha real. El contexto de Canon aparece
+ * cuerpo contiene una cronología: Hoy, Ayer y después cada fecha real. Un tema de knowledge aparece
  * sólo junto al punto que ayudó a decidir; Hallazgos, Evidencia y la historia quedan como material de
  * consulta después de las jornadas. Sus cabeceras se fijan durante el scroll.
  * Las consultas de apoyo (Jira, Pendientes y Artifacts) viven en el sidebar derecho y las ramas abajo.

@@ -4,7 +4,6 @@ title: "Envío de información de PEP (Persona Públicamente Expuesta)"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-canon: []
 jira: [CORE-159]
 jira_title: "Envío de información de PEP (Persona Públicamente Expuesta)"
 ---

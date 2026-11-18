@@ -5,7 +5,6 @@ nivel: playground
 ramas: sesion-unica, forecast/, feat/cli
 stage: work
 created: "2026-08-13T16:00:18-05:00"
-canon: []
 jira: [CORE-421]
 jira_title: "Dónde publicar las herramientas internas del equipo"
 ---

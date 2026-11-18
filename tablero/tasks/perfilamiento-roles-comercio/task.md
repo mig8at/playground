@@ -5,7 +5,6 @@ ramas: feat/perfil-de-riesgo-por-comercio
 stage: work
 created: "2026-11-03T10:00:00-05:00"
 knowledge: [admin-panel]
-canon: []
 jira: [CORE-925]
 jira_title: "Perfil de riesgo visible para Superadmin y Admin comercio"
 ---

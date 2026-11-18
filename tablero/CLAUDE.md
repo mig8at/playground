@@ -7,7 +7,6 @@ skills que se cargan cuando hacen falta:
 |---|---|
 | la interfaz del tablero (Vue, regiones, rutas, preferencias) o su código (nombres en inglés) | **`tablero-ui`** |
 | ramas y ambientes de una tarea, despliegues, Sonar, crear o mover un issue de Jira | **`tablero-delivery`** |
-| canon: leerlo o dictarle una regla | **`canon`** (en la raíz) |
 
 ## Una tarea es una carpeta
 
@@ -34,7 +33,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   objetivo y condición de cierre; al terminar, lo que pasó queda en un bloque y el frente sale de los
   pendientes. No apiles una tarea nueva por cada mejora de la misma herramienta.
 - **Frontmatter**: `id` · `title` · `clase?` (`tarea`|`proyecto`) · `nivel?` (`miguel`|`playground`|`creditop`) · `stage` (`evaluation`|`work`|`tasks`) ·
-  `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `canon[]` · `jira[]` · `jira_title` · `ramas?` · `chat[]?` · `correo[]?`. Archivar es poner `archived`,
+  `created` · `archived?` · `knowledge[]?` · `recorrido[]?` · `jira[]` · `jira_title` · `ramas?` · `chat[]?` · `correo[]?`. Archivar es poner `archived`,
   no mover el archivo. **`id: 0` no aparece en el tablero.**
 - **`recorrido:`** dice en qué camino de la plataforma cae la tarea, con los ids del catálogo del harness
   (`harness/journeys.json`, explicado en `knowledge/origination-paths`):
@@ -63,8 +62,10 @@ lee y qué necesita**:
 
 **El conocimiento técnico reutilizable** va a `knowledge/` con fuentes revisadas; las decisiones y
 mediciones de esta tarea van a su pila. Una trampa reproducible del sistema va a `data/traps/doc.md`.
-El conocimiento de negocio/producto sin comprobación local puede consultarse en Canon o la documentación
-del equipo, citando la fuente y el límite. No se exige publicar en Canon para cerrar o archivar.
+El conocimiento de negocio/producto sin comprobación local sale de Confluence o la documentación del equipo,
+citando la fuente y el límite. **Una tarea no cita canon** (decisión de Miguel, 2026-11-18): canon no es de
+my-tools; lo que una tarea necesita saber se cita de `knowledge/` o del código. El lint rechaza un `canon:` en
+el frontmatter y la pila un enlace `canon:`, y los dos dicen qué poner.
 
 ### El documento
 
@@ -122,7 +123,6 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 | Qué se nombra | Cómo se escribe | Qué comprueba el validador |
 |---|---|---|
 | un tema del conocimiento local | `[texto](knowledge:tema#ancla)`; sin `#ancla`, el tema entero | que exista en `knowledge/` el tema, y la sección si trae ancla |
-| un tema o un recorrido de canon (histórico) | `[texto](canon:tema#ancla)` · `[Firma](canon-ruta:codeudor/renting#paso)` | sólo la forma: canon no es de my-tools y no se consulta. En bloques nuevos, citá knowledge o el código |
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
@@ -163,7 +163,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
   tiempo. La pila cuenta qué pasó; los avances, cuánto llevó.
 - **Artifacts** (`tasks/<slug>/artifacts/`): prototipos, consultas, notas. Se abren en la pestaña Artifacts del
   tablero, al lado de la tarea (`bin/cockpit open tablero '#/tareas/<slug>?vista=artifacts'` se la muestra a Miguel). Un prototipo es **un HTML
-  autocontenido, sin build**, **con la fecha visible adentro**, y **no gradúa a canon**: describe lo
+  autocontenido, sin build**, **con la fecha visible adentro**, y **no gradúa a knowledge**: describe lo
   propuesto y muere con la tarea.
 - **`ramas:`** en el frontmatter declara sólo los PATRONES; dónde vive cada rama lo mide `make
   task-branches N=<id|slug>` (segundos; sin `N`, todas) o `bin/pg task branches` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
@@ -232,9 +232,8 @@ conversación en Gmail. Correo no escribe en el tablero: el cierre lee lo que gu
 el `#` va entre comillas). `make resume` y `make agent` lo muestran con `bin/chat history` para el contexto; seguirlo
 en vivo (`bin/chat follow … --theirs`) es sólo si Miguel lo pide.
 
-No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
-se puede comprobar en local, Canon es opcional. Las tareas históricas conservan `canon:`:
-`BRIEF=1` consulta su API, sólo cuando hace falta. No hay copia local de Canon.
+Las citas a canon que tenían las tareas pasaron el 2026-11-18 a temas de knowledge (`knowledge:` y
+`[texto](knowledge:tema)`); las que no tenían equivalente quedaron como texto.
 Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los conectores (`bin/pg`) o al tracer del equipo si es de prod.
 
 ## Cuando aparece conocimiento reutilizable
@@ -251,7 +250,6 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
 | herramienta | contesta | deja en la tarea |
 |---|---|---|
 | **knowledge/** | conocimiento técnico local con fuentes | `knowledge:` para retomar · evidencia en el bloque |
-| **Canon**, opcional | conocimiento compartido de negocio/producto | `canon:` si se usó · cita en el bloque |
 | el código de `main` | lo que nadie escribió | **«Dónde se toca»**: archivos con el porqué |
 | [`harness/`](../harness/CLAUDE.md) | ¿funciona, corriéndolo? | **«Cómo se comprueba»**: el comando, no la conclusión |
 | `tablero-db` | ¿qué dicen los datos en un ambiente? | la consulta SQL de sólo lectura, con su ambiente |
@@ -268,7 +266,7 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
     make worklog DAYS=7              el tiempo registrado, por día
     make task-branches                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
     make today                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
-    make resume N=84                 retomar UNA en frío. suma knowledge: local; BRIEF=1 consulta Canon explícitamente
+    make resume N=84                 retomar UNA en frío, con los temas de knowledge: (sin red)
     make closeout                       el cierre del día: a qué tarea tocada le falta qué
     make worklog-add TASK=84 …      la bitácora con minutos medidos por el comando
     make task-block N=84 FILE=…  apilar un bloque validado

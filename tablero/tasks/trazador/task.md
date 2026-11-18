@@ -6,7 +6,6 @@ clase: proyecto
 ramas: tracer/nace
 stage: evaluation
 created: "2026-09-19T14:55:00-05:00"
-canon: []
 jira: []
 jira_title: ""
 archived: "2026-11-13T12:30:00-05:00"

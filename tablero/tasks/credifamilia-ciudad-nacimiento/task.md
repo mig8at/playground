@@ -4,8 +4,7 @@ title: "Credifamilia — campo Ciudad de nacimiento en cascada (form dinámico G
 ramas: credifamilia-add-ciudad-nacimiento
 stage: tasks
 created: "2026-07-23T15:46:04-05:00"
-knowledge: [dynamic-form-schema, country-geography#arbol-de-opciones]
-canon: [formularios, credifamilia]
+knowledge: [dynamic-form-schema, country-geography#arbol-de-opciones, credifamilia-origination]
 jira: [CORE-301]
 jira_title: "Credifamilia: campo Ciudad de nacimiento en cascada"
 ---

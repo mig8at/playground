@@ -13,12 +13,12 @@ import (
 	"creditop/my-tools/knowledge"
 )
 
-func TestTaskReadsLocalReferencesAndKeepsHistoricalCanonOptional(t *testing.T) {
+func TestTaskReadsLocalReferencesWithoutCanon(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "task.md")
 	os.WriteFile(path, []byte("---\nid: 1\ntitle: Listado\nknowledge: [lender-listing]\ncanon: [listado]\n---\n## Objetivo\nComprobar el listado\n"), 0644)
 	entry := readTaskFile(path, nil)
-	if len(entry.Knowledge) != 1 || entry.Knowledge[0] != "lender-listing" || len(entry.Nodes) != 1 {
+	if len(entry.Knowledge) != 1 || entry.Knowledge[0] != "lender-listing" {
 		t.Fatalf("referencias: %+v", entry)
 	}
 	base := filepath.Join(dir, "knowledge", "lender-listing")
@@ -35,7 +35,7 @@ func TestTaskReadsLocalReferencesAndKeepsHistoricalCanonOptional(t *testing.T) {
 	if len(c.Missing) != 1 {
 		t.Fatal("silenció una referencia desconocida")
 	}
-	// La retoma completa incluye el tema local aun con referencias históricas de Canon.
+	// La retoma completa incluye el tema local y no le habla a canon, aunque la tarea todavía diga `canon:`.
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits++; w.WriteHeader(500) }))
 	defer srv.Close()
@@ -50,7 +50,7 @@ func TestTaskReadsLocalReferencesAndKeepsHistoricalCanonOptional(t *testing.T) {
 		t.Fatal(err)
 	}
 	os.Stdout = writer
-	code := resume(filepath.Join(dir, "tablero", "data"), []task{entry}, branchesSnap{}, "1", true, "")
+	code := resume(filepath.Join(dir, "tablero", "data"), []task{entry}, branchesSnap{}, "1", true)
 	writer.Close()
 	os.Stdout = stdout
 	raw, _ = io.ReadAll(reader)

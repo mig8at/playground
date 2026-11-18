@@ -4,8 +4,7 @@ title: "Codeudor — cierre propio tras la firma (pantalla \"Firma realizada con
 ramas: cosigner-signature-success, motai/flujo-codeudor, fix/cosigner-signature-confirmation, fix/cosigner-authorization-recovery
 stage: work
 created: "2026-07-27T12:13:57-05:00"
-knowledge: [cosigner-signature, device-imei-validation]
-canon: [formalizacion, creditopx]
+knowledge: [cosigner-signature, device-imei-validation, deceval-promissory-note, creditopx-quota]
 jira: [CORE-317]
 jira_title: "Codeudor: confirmación propia al terminar la firma"
 ---

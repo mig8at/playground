@@ -4,8 +4,7 @@ title: "KYC: el «no coincide» del segundo apellido se traga — `0 == null` en
 ramas: kyc-name-match, kyc-second-surname, fix/kyc-name-match-onto-main, fix/kyc-name-adoption-keeps-accents, fix/kyc-remove-name-revalidation, fix/kyc-name-adoption, fix/kyc-v2-name-adoption, fix/kyc-v2-name-adoption-qa
 stage: work
 created: "2026-08-13T09:16:27-05:00"
-knowledge: [identity-name-validation, kyc-pipeline]
-canon: [kyc, credifamilia, formalizacion]
+knowledge: [identity-name-validation, kyc-pipeline, credifamilia-origination, deceval-promissory-note]
 jira: [CORE-420]
 jira_title: "Identidad: el «no coincide» del nombre ya no se ignora"
 ---

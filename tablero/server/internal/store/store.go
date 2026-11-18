@@ -12,7 +12,7 @@
 // cmd/tasks. Así `ls tasks/` muestra trabajo comprometido y no una tarea nueva por cada mejora.
 //
 //	nombre de la carpeta    el slug de la tarea (renombrala a mano si querés: el id vive adentro)
-//	frontmatter             id · title · stage · created · archived? · canon[] · jira[] · jira_title · ramas?
+//	frontmatter             id · title · stage · created · archived? · knowledge[] · jira[] · jira_title · ramas?
 //	cuerpo                  las notas técnicas: PRIVADO, puede nombrar repos y rutas
 //	## Tarea (publicable)   lo único que va a Jira, y pasa el guard
 //
@@ -303,7 +303,6 @@ func (s *Store) readEffort(slug string) (Effort, string, error) {
 		CreatedAt:       fm["created"],
 		// el struct expone los temas como cadena separada por comas (así lo consume la UI);
 		// en el archivo son una lista YAML, que es lo legible
-		CanonTopics:     strings.Join(yamlList(fm["canon"]), ","),
 		KnowledgeTopics: strings.Join(yamlList(fm["knowledge"]), ","),
 		ChatThreads:     strings.Join(yamlList(fm["chat"]), ","),
 		BranchPatterns:  fm["ramas"],
@@ -582,10 +581,9 @@ type Effort struct {
 	// acá, por eso puede nombrar archivos y repos — justo lo que el borrador de Jira tiene prohibido.
 	// Es el CUERPO del archivo de la tarea.
 	TechNotes string `json:"techNotes"`
-	// Referencias de Canon que toca, separadas por coma. En el archivo son una lista YAML; acá van
-	// como cadena porque así lo consume la UI. Preferir `tema/context#ancla` evita presentar un tema
-	// entero como evidencia de una decisión puntual.
-	CanonTopics     string `json:"canon"`
+	// Temas de knowledge/ que toca, separados por coma. En el archivo son una lista YAML; acá van
+	// como cadena porque así lo consume la UI. `tema#ancla` evita presentar un tema entero como
+	// evidencia de una decisión puntual.
 	KnowledgeTopics string `json:"knowledge"`
 	// Dónde se habla de la tarea en el chat del equipo: un grupo (`#ecommerce`) o personas (`duncan`), separados por
 	// coma. `make resume` y `make agent` lo leen para dar el contexto con `bin/chat`.
@@ -741,7 +739,6 @@ type ImportIssue struct {
 	Summary string
 	Body    string // el cuerpo PRIVADO ya redactado (procedencia + lo que hoy dice Jira)
 	Closed  bool   // si ya está cerrado, la tarea nace archivada
-	Nodes   string // nodos de contexto, separados por coma (opcional)
 }
 
 // ImportFromJira registra un issue de Jira como tarea local: el archivo nace YA vinculado (`jira: [KEY]`)
@@ -766,7 +763,6 @@ func (s *Store) ImportFromJira(in ImportIssue) (Effort, bool, error) {
 	e := s.newEffort(in.Summary, "tasks")
 	e.JiraTitle = in.Summary
 	e.TechNotes = in.Body
-	e.CanonTopics = in.Nodes
 	*s.find(e.ID) = e
 	if in.Closed {
 		s.archived[e.ID] = time.Now().Format(time.RFC3339)
@@ -859,7 +855,6 @@ func (s *Store) writeEffort(id int64) error {
 		fmt.Fprintf(&b, "archived: %s\n", escapeYAML(a))
 	}
 	fmt.Fprintf(&b, "knowledge: [%s]\n", strings.Join(yamlList(e.KnowledgeTopics), ", "))
-	fmt.Fprintf(&b, "canon: [%s]\n", strings.Join(yamlList(e.CanonTopics), ", "))
 	fmt.Fprintf(&b, "jira: [%s]\n", strings.Join(keys, ", "))
 	// Sólo si hay: la mayoría de las tareas no tiene un hilo propio en el chat.
 	if e.ChatThreads != "" {

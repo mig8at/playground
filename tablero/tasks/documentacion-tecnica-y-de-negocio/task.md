@@ -4,7 +4,6 @@ title: "Documentacion técnica y de negocio."
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-canon: []
 jira: [CORE-243]
 jira_title: "Documentacion técnica y de negocio."
 ---

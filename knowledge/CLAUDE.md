@@ -30,8 +30,8 @@ Las hipótesis, los PR sin mergear y las decisiones de una tarea viven en su doc
 estado explícito. Datos personales, secretos y volcados de producción no entran a esta biblioteca.
 Los resultados del harness y las mediciones de los conectores siguen siendo evidencia del ambiente medido.
 
-Para políticas o conocimiento de negocio/producto sin comprobación local, Canon o documentos del equipo
-son fuentes opcionales: citá cuál usaste y qué no verificaste. No conviertas una explicación de Canon
+Para políticas o conocimiento de negocio/producto sin comprobación local, Confluence o documentos del equipo
+son fuentes opcionales: citá cuál usaste y qué no verificaste. No conviertas una explicación documental
 en hecho técnico sin contrastarla. Si hace falta guardar ese contexto, distinguí su fuente documental
 del mecanismo respaldado por código; el lector actual exige fuentes Git para los temas técnicos.
 

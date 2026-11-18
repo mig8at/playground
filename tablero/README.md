@@ -52,7 +52,7 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   mientras se lee su contenido —el día siguiente lo empuja al llegar— y **se pliega** con un clic, como
   el acordeón del sidebar; plegar un día pegado lo deja en el borde en vez de saltar lejos. Después del recorrido queda el documento
   como material de consulta, **sólo si tiene algo**: una tarea limpia está vacía, sin contenedores con
-  su «todavía no hay». El contexto de Canon aparece sólo en el bloque que lo usó. *(Hasta el
+  su «todavía no hay». Un tema de knowledge aparece sólo en el bloque que lo usó. *(Hasta el
   2026-09-23 venían además «Hallazgos» y «Evidencia de trabajo», que salían de las anotaciones del
   documento; ese día las anotaciones pasaron a la pila y cada hecho es un bloque de la cronología.)* **Jira** y **Pendientes** viven en el sidebar derecho; cuando
   la tarea tiene salidas navegables, aparece también **Artifacts**. Ramas queda en la consola inferior.
@@ -63,19 +63,10 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   local**, **Trazador · prod**, **DB · prod**— y debajo lo que dio. *(Hasta el 2026-09-23 había además
   una sección fija «Harness · comandos reproducibles», y después una «Evidencia de trabajo» con enlaces
   al trazador; se retiraron junto con `HARNESS_URL` y `TRACER_URL`.)*
-- El documento muestra el plan y el material después de la cronología. Una referencia de Canon se
-  enlaza dentro del bloque que la usó; no hay una sección especial ni una colección genérica de temas
-  declarados.
-- Un enlace `canon-ruta:tema/variante#paso` sitúa ese bloque en el recorrido publicado de Canon.
-  Muestra el paso citado y sus vecinos, con la regla y su fuente plegadas; sin `#paso`, muestra
-  la variante completa. Conserva los pasos distintos que comparten estación. «Ver mapa» abre la
-  variante en esa estación. Los enlaces `canon:tema#sección` siguen abriendo la prosa.
-  Ejemplo: `[Firma del codeudor](canon-ruta:codeudor/renting#renting-codeudor)`.
-  Se consulta el mapa al mostrar el bloque y se revalida al volver a la ventana; una referencia
-  eliminada o una caída de Canon deja visible el relato y ofrece reintentar. El recorrido se consulta
-  sólo al pulsar «Consultar en Canon»; aparecer en pantalla no llama a su API. No se copia el mapa
-  a las tareas ni se usan modelos. El recorrido describe producción; el bloque explica el cambio
-  propuesto o su evidencia, sin darlo por desplegado.
+- El documento muestra el plan y el material después de la cronología. Un tema de knowledge
+  (`[texto](knowledge:tema#ancla)`) se enlaza dentro del bloque que lo usó; los que sirven para retomar
+  van en `knowledge:`, bajo el título. El tablero no le habla a canon: canon no es de my-tools
+  (2026-11-18), y las citas que había a canon pasaron ese día a temas de knowledge.
 - **Jira** muestra el estado y la descripción recibida al cargar el sprint, con el formato adaptado al
   tema del tablero. El HTML se aísla en un marco sin scripts. Si falta una descripción o la tarea es
   local, lo indica; nunca sustituye el contenido publicado por el borrador local.
@@ -204,7 +195,7 @@ ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 
 | Ruta | Qué devuelve o hace |
 |---|---|
-| `GET /api/config` | los enlaces a canon, trazador y harness (salen de `server/.env`) |
+| `GET /api/config` | dónde se ve en la web cada repo citable (sale de `tools/repos.json`) |
 | `GET /api/efforts` | las tareas locales, con cuerpo, pendientes y artifacts |
 | `GET /api/task-locals` | de qué tarea local cuelga cada clave de Jira (`{taskKey, effortId}`) |
 | `GET /api/task-context?effort=` | la pila de hitos de una tarea (`tasks/<slug>/context.jsonl`) |
@@ -246,7 +237,6 @@ Un **esfuerzo** (`efforts`) es el trabajo real privado del que salen las tareas 
 | `title` | cómo lo llamás vos | privado, sin guard |
 | `tech_notes` | el detalle técnico: archivos, análisis, rutas | **sin guard** — nunca sale de local, por eso *sí* puede nombrar archivos y repos |
 | `knowledge` | temas locales usados por la retoma, conservados al editar desde el tablero | — |
-| `canon` | referencias opcionales o históricas del corpus del equipo | — |
 | `jira_title` · `jira_description` | el borrador de la tarea (se escribe en la etapa `tasks`) | **con guard** — termina publicado en Jira |
 | `stage` | en qué etapa del método está | — |
 
@@ -385,7 +375,6 @@ title: "..."                     ← privado: nombra el esfuerzo, no sale de ac�
 stage: tasks                     ← evaluation | work | tasks
 created: "..."
 knowledge: [lender-listing]                 ← contexto local que retomar lee sin red
-canon: [onboarding, kyc/context#validacion]  ← referencias opcionales de Canon usadas por la tarea
 jira: [CORE-293]                 ← las tareas de Jira que salieron de este esfuerzo
 jira_title: "..."                ← PUBLICABLE: pasa el guard
 ---
@@ -428,7 +417,7 @@ Dos cosas más, que son de higiene y no de mecánica:
 
 - **Lleva la fecha adentro, visible.** Un prototipo sin fecha se lee como estado actual; con fecha se
   lee como lo que es: lo que se acordó ese día.
-- **No gradúa a canon.** Cuando la tarea se archiva, el prototipo se archiva con ella. Describe
+- **No gradúa a knowledge.** Cuando la tarea se archiva, el prototipo se archiva con ella. Describe
   lo que se propuso, no cómo funciona CreditOp — y un prototipo viejo en el árbol de contexto miente
   con mucha convicción. Si algo de ahí resultó verdad perenne, se escribe en el nodo con palabras.
 
@@ -495,7 +484,7 @@ make task-context N=84
 ```
 
 Adentro de la descripción, un archivo va por repo y ruta —`[texto](repo:legacy-backend/ruta)`— y el
-comando lo deja fijado al commit en que existe; un tema de canon, como `[texto](canon:tema#ancla)`; y
+comando lo deja fijado al commit en que existe; un tema de knowledge, como `[texto](knowledge:tema#ancla)`; y
 un comando, en un bloque de código `harness`, `trazador`, `sql <ambiente>` o `sh`, seguido de su
 `Resultado: …`. La tabla completa de lo que se admite y lo que se rechaza está en `CLAUDE.md`,
 «Bloques de la pila»; el contrato de la línea guardada, en `docs/task-context.schema.json`, y el que
@@ -617,7 +606,6 @@ de Jira, el server arranca igual y cada ruta de Jira lo dice. En `server/.env` q
 | `QA_SLACK_EMAIL` | a quién le llega el DM al pasar a pruebas | `duncan.estrada@creditop.com` |
 | `JIRA_TESTING_STATUS` | **subcadena** del estado "listo para probar" | `pruebas` (matchea `🧪 En pruebas`) |
 | `WEB_PORT` | puerto de la API | `8787` |
-| `CANON_URL` | API y enlaces de Canon | `https://canon.playground.creditop.com` |
 | `TABLERO_DATA` | dónde vive `data/` | `../data` (relativo al cwd del server) |
 | `TABLERO_RAMAS_ROOT` | repos que mide **Refrescar ramas** | `~/Desktop/CREDITOP/github` |
 | `PULSO_ROOT` | dónde viven los repos que mira el pulso | `~/Desktop/CREDITOP/github` |
@@ -668,7 +656,7 @@ Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Ins
 
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) — mapa corto de datos, UI, consola y contexto.
 - [`server/README.md`](server/README.md) — instalar y probar los conectores MCP de Jira y Slack.
-- **canon** — el contexto curado de CreditOp, compartido con el equipo, en otro repo
-  (`github/playground/tools/canon`). *(Acá apuntaba a `../context/`, que se apagó el 2026-09-21.)*
+- [`../knowledge/`](../knowledge/CLAUDE.md) — el conocimiento técnico local que las tareas citan. Canon, el
+  corpus del equipo, vive en el repo compartido y no es de my-tools.
 - `docs/` de la raíz de my-tools **ya no existe** (absorbido por `context/`, que a su vez graduó a canon): si algún doc
   apunta ahí, es puntero roto.

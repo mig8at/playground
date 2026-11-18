@@ -101,7 +101,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Confluence (`make confluence`) y la documentación del equipo. Canon, el corpus del equipo, NO es de my-tools: si hace falta, se lee con el CLI compartido (`playground canon search\|read`). Citá la fuente y señalá lo que queda sin verificar |
 | **arranco una tarea como agente** | `make agent N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make task-verify N=…` |
 | **¿el plan de la tarea se sostiene sin mí?** (antes de tocar un repo real) | el subagente **`goldfish`**: le pasás SÓLO la ruta del `task.md`; lo lee sin la conversación ni este archivo y devuelve supuestos sin escribir, criterios que no se pueden volver `S#` y afirmaciones para `main-verifier`, cada una con su línea. Revisa el documento, no el código |
-| **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. Sin red ni VPN. Los `canon:` de una tarea vieja son texto histórico: no se validan ni se consultan |
+| **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. Sin red ni VPN. Una tarea no cita canon: cita knowledge |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
@@ -219,7 +219,7 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    medidas y la bitácora con minutos MEDIDOS— y el hook de `Stop` lo corre solo.
 2. **El contexto de la tarea se lee antes de investigar** con `make resume`. Si existe contexto
    local pertinente, se lee en `knowledge/` con sus fuentes y límites. El código real vive en
-   `~/Desktop/CREDITOP/github/`. No exige consultar Canon para empezar.
+   `~/Desktop/CREDITOP/github/`.
 3. **Lo que se descubre SE REGISTRA.** El test: *si esto se mergea mañana, ¿sigue siendo cierto?*
    - conocimiento técnico reutilizable, verificado en `main` → **knowledge/** con sus fuentes;
      políticas de negocio/producto sin comprobación local quedan citadas a su fuente y con ese límite;
@@ -236,7 +236,7 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    no es condición de cierre ni crea un pendiente.
 
 Las herramientas se documentan en su propio `CLAUDE.md`. `knowledge:` enlaza los temas locales
-de una tarea; un `canon:` en una tarea vieja es texto histórico. De una tarea sólo salen a Jira
+de una tarea (sus citas a canon pasaron a knowledge el 2026-11-18). De una tarea sólo salen a Jira
 `jira_title` y `## Tarea (publicable)`, que pasan el guard; el resto es privado.
 
 ## Git

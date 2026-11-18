@@ -4,7 +4,6 @@ title: "Ecommerce: volver a la tienda cuando no hay opciones de financiamiento"
 stage: work
 created: "2026-10-21T10:33:00-05:00"
 knowledge: [ecommerce-context, lender-listing]
-canon: []
 jira: []
 jira_title: "Ecommerce: volver a la tienda cuando no hay opciones de financiamiento"
 ramas: "fix/ecommerce-volver-a-la-tienda"

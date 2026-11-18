@@ -157,9 +157,6 @@ type app struct {
 	// branchesRoot es el árbol de checkouts que se mide cuando la consola pide una actualización
 	// explícita. Coincide con el default de `make task-branches`; abrir el tablero nunca ejecuta git.
 	branchesRoot string
-	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
-	// direcciones distintas. El server los entrega desde server/.env.
-	canonURL string
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
@@ -176,8 +173,6 @@ func main() {
 	jiraCfg, jiraErr := atlassian.LoadConfig()
 	slackCfg, _ := slack.LoadConfig()
 	a := &app{
-		// La web de canon, sólo para que un enlace `canon:` viejo de una tarea abra algo: el tablero no le habla a canon.
-		canonURL:    "https://canon.playground.creditop.com",
 		jiraSite:    jiraCfg.Site,
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
@@ -437,7 +432,6 @@ func main() {
 		var in struct {
 			Create []string         `json:"create"` // claves que nacen como tarea local nueva
 			Link   map[string]int64 `json:"link"`   // clave → id de la tarea local que ya la cubre
-			Nodes  string           `json:"nodes"`  // nodos de contexto para las creadas (opcional)
 		}
 		if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 			w.WriteHeader(http.StatusBadRequest)
@@ -491,7 +485,7 @@ func main() {
 			for _, d := range issues {
 				e, created, err := a.st.ImportFromJira(store.ImportIssue{
 					Key: d.Key, Summary: d.Summary, Body: importedBody(d, today),
-					Closed: d.Category == "done", Nodes: in.Nodes,
+					Closed: d.Category == "done",
 				})
 				if err != nil {
 					results = append(results, map[string]any{"key": d.Key, "action": "error", "error": err.Error()})

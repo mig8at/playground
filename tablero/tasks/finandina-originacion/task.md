@@ -3,8 +3,7 @@ id: 107
 title: "Finandina: originación completa en Creditop"
 stage: evaluation
 created: "2026-10-28T10:38:26-05:00"
-knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination]
-canon: [perfilamiento/context, creditopx/context, listado/context, documentos/context, entidad/context, formalizacion/context]
+knowledge: [lender-response-types, lender-credential-sources, lender-listing, field-scoring-policy, creditopx-quota, kyc-pipeline, identity-name-validation, credifamilia-origination, client-profiling, deceval-promissory-note]
 jira: [CORE-845, CRED-519]
 jira_title: "Finandina: originación completa en Creditop"
 ramas: legacy-backend:finandina-originacion, legacy-backend:mareigua-cuenta-por-entidad, CORE-845

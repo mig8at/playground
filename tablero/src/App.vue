@@ -19,7 +19,7 @@ import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
 import { organizeDocument, renderMarkdown } from './task-document.js';
 import { highlightSQL } from './sql-highlight.js';
-import { parseBlockBody, blockRouteLinks, knowledgeCommand, knowledgeHref } from './block-body.js';
+import { parseBlockBody, knowledgeCommand, knowledgeHref } from './block-body.js';
 import { jiraPreview } from './jira-preview.js';
 import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 
@@ -30,8 +30,6 @@ import { readBootstrapCache, writeBootstrapCache } from './bootstrap-cache.js';
 //   VITE_TABLERO_API=http://localhost:8790 npx vite --port 5296
 const SERVER = import.meta.env.VITE_TABLERO_API || 'http://localhost:8787';
 const BOARD = 384;            // CORE — el proyecto donde están MIS tareas (no LO / Loans Origination)
-const CANON_DEFAULT_URL = 'https://canon.playground.creditop.com';
-const canonUrl = ref(CANON_DEFAULT_URL);
 // Dónde se ve cada repo que un bloque puede citar (alias → web y carpeta). Sale de tools/repos.json, la
 // lista única, vía /api/config; sin ella, un archivo citado se muestra igual pero sin enlace.
 const repos = ref({});
@@ -152,7 +150,6 @@ async function loadTaskLocals() {
 async function loadConfig() {
   try {
     const j = await (await fetch(`${SERVER}/api/config`)).json();
-    if (j.canonUrl) canonUrl.value = j.canonUrl;
     if (j.repos) repos.value = j.repos;
   } catch { /* sin server: los enlaces conservan el origen público por defecto */ }
 }
@@ -778,7 +775,7 @@ const contextGroups = computed(() => {
     // El cuerpo se parsea UNA vez por lectura de la pila, no por bloque en cada render del editor.
     day, label: contextDayLabel(day), items: items.map((event) => {
       const parts = parseBlockBody(event.body);
-      return { id: event.id, title: event.title, parts, routes: blockRouteLinks(event.body, parts) };
+      return { id: event.id, title: event.title, parts };
     }),
   }));
 });
@@ -800,7 +797,6 @@ async function toggleDay(day, event) {
   await nextTick();
   scroller.scrollTop += section.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
 }
-const routeURLs = ref({});
 // Los temas de knowledge/ que la tarea declara en `knowledge:` —con qué se retoma—, bajo el título junto a
 // los demás datos: el mismo enlace que en un bloque, y el comando que lo lee en la consola.
 const activeKnowledge = computed(() => {
@@ -812,7 +808,7 @@ const activeKnowledge = computed(() => {
     return { ref, href: knowledgeHref(part, repos.value), command: knowledgeCommand(part) };
   });
 });
-const blockLinks = computed(() => ({ repos: repos.value, canonLink, jiraLink, canonRouteLink: reference => routeURLs.value[reference] || '' }));
+const blockLinks = computed(() => ({ repos: repos.value, jiraLink }));
 // Citar un bloque lleva a él; si su día está plegado, primero lo despliega.
 async function goToBlock(id) {
   const group = contextGroups.value.find(g => g.items.some(event => event.id === id));
@@ -915,22 +911,6 @@ onMounted(() => {
 });
 onUnmounted(() => { removeEventListener('ui-theme', onThemeChange); removeEventListener('ui-palette', onPaletteChange); themeBinding?.destroy(); });
 const jiraDocument = computed(() => jiraPreview(active.value, uiTheme.value, themeTick.value ? previewTokens() : null));
-// Canon abre una referencia estable por URL. No ocupa una vista propia: una cita sólo aparece dentro
-// del trabajo que realmente la usó. Una tarea puede declarar un tema (`listado`) o, preferiblemente,
-// una sección exacta (`listado/context#por-donde-pasa-todo`).
-//
-// ⚠ Acá decía que canon «no lee la URL» y era FALSO: lo escribí después de grepear el front y no ver
-// un router, cuando el router está en `src/rutas.js` y además `Sala.vue` observa `route.query.nodo`
-// desde hace semanas. Comprobado en el navegador contra producción el 2026-09-21: la URL abre la
-// sección, muestra su texto y la dirección queda en la barra, o sea que se puede copiar. El costo de
-// aquel error no fue el comentario: fue el chip mandando a la home un día entero.
-const canonID = (canonRef) => {
-  const id = typeof canonRef === 'string' ? canonRef : (canonRef?.id || canonRef?.requested || '');
-  const [node, anchor] = id.split('#', 2);
-  const complete = node.includes('/') ? node : `${node}/context`;
-  return anchor ? `${complete}#${anchor}` : complete;
-};
-const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(canonID(canonRef))}`;
 // COPIAR EL CUERPO ENTERO, para pegarlo en otro lado (Slack, un hilo, otra sesión).
 //
 // Se copia el MARKDOWN, no el HTML renderizado: es lo que se pegó bien en todos lados y lo que otra
@@ -938,7 +918,7 @@ const canonLink = (canonRef) => `${canonUrl.value}/?nodo=${encodeURIComponent(ca
 // de código, que es justo lo que uno quiere compartir de estos cuerpos.
 //
 // Y va con encabezado: pegado suelto, este texto empieza en «## Si retomás esto sin contexto» y quien
-// lo recibe no sabe de qué tarea es. Se le antepone la clave, el título y los temas de canon para
+// lo recibe no sabe de qué tarea es. Se le antepone la clave, el título y los temas de knowledge para
 // que sea autosuficiente — más la advertencia de que es PRIVADO, porque lo es: nombra repos, rutas y
 // F-xx, y no pasa el guard de Jira. La decisión de compartirlo es de quien copia; que salga sin el
 // aviso, no.
@@ -1006,13 +986,13 @@ function shareText(mode) {
   let body = bodyOf(i.Key);
   if (!body) return '';
   if (mode === 'compartir') body = trimForSharing(body);
-  const topics = (e?.canon || '').split(',').map(s => s.trim()).filter(Boolean);
+  const topics = (e?.knowledge || '').split(',').map(s => s.trim()).filter(Boolean);
   // ⚠ Las líneas en blanco son SIGNIFICATIVAS acá, no decoración: sin la que separa la cita del
   // cuerpo, el primer párrafo se pega al `>` y markdown se lo traga DENTRO del blockquote. Por eso
   // la línea opcional de temas se decide al armar el arreglo y no con un `.filter` de vacíos
   // después — ese filtro se comía también los separadores, que es justo el bug que tenía esto.
   const citation = [`> Cuerpo técnico del tablero, copiado el ${new Date().toLocaleDateString('es-CO')}.`];
-  if (topics.length) citation.push(`> Temas de canon: ${topics.join(', ')}.`);
+  if (topics.length) citation.push(`> Temas de knowledge: ${topics.join(', ')}.`);
   // Decir QUÉ se recortó, y no sólo que se recortó: quien lo recibe tiene que poder pedir lo que falta.
   if (mode === 'compartir') citation.push('> Recortado para compartir: sin «cómo se comprueba», que es con qué lo probé.');
   citation.push('> ⚠ PRIVADO — nombra repos, rutas y hallazgos internos. Esto NO es lo que sale a Jira.');

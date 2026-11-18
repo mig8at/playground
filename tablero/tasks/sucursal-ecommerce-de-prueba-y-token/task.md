@@ -5,7 +5,6 @@ stage: work
 created: "2026-10-29T12:00:00-05:00"
 ramas: feat/sucursal-ecommerce-de-prueba, legacy-application:editar-sucursal-ecommerce, legacy-application:laravel-12-cve-develop
 knowledge: [merchant-onboarding, ecommerce-context]
-canon: []
 jira: [CORE-913]
 jira_title: "Sucursal ecommerce de prueba y token de payment-link desde el admin"
 ---

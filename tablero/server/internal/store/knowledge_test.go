@@ -9,7 +9,7 @@ import (
 	"creditop/my-tools/tablero/server/internal/layout"
 )
 
-func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {
+func TestEditingAnEffortPreservesKnowledgeAndDropsCanon(t *testing.T) {
 	dir := filepath.Join(t.TempDir(), "data")
 	lay := layout.At(dir)
 	os.MkdirAll(lay.Dir("my-tools"), 0755)
@@ -20,7 +20,7 @@ func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	e := s.find(96)
-	if e == nil || e.KnowledgeTopics != "lender-listing,lender-listing#monto" || e.CanonTopics != "listado" {
+	if e == nil || e.KnowledgeTopics != "lender-listing,lender-listing#monto" {
 		t.Fatalf("lectura: %+v", e)
 	}
 	e.Title = "Título editado"
@@ -28,8 +28,12 @@ func TestEditingAnEffortPreservesLocalAndHistoricalReferences(t *testing.T) {
 		t.Fatal(err)
 	}
 	raw, _ := os.ReadFile(path)
-	if !strings.Contains(string(raw), "knowledge: [lender-listing, lender-listing#monto]") || !strings.Contains(string(raw), "canon: [listado]") {
+	if !strings.Contains(string(raw), "knowledge: [lender-listing, lender-listing#monto]") {
 		t.Fatalf("perdió referencias al editar: %s", raw)
+	}
+	// Canon no es de my-tools: al reescribir la tarea, un `canon:` viejo no se vuelve a escribir.
+	if strings.Contains(string(raw), "canon:") {
+		t.Fatalf("volvió a escribir canon: %s", raw)
 	}
 	if _, _, err := s.readEffort("my-tools"); err != nil {
 		t.Fatal(err)

@@ -4,7 +4,6 @@ title: PDF mapper en backoffice
 stage: work
 created: "2026-10-26T16:02:12-05:00"
 knowledge: []
-canon: []
 jira: [CORE-818]
 jira_title: PDF mapper en backoffice
 ramas: frontend-monorepo:pdf-mapper, infrastructure:backoffice-pdf-mapper, authz-policies:pdf-mapper-authorization

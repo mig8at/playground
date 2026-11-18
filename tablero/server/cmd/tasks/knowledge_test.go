@@ -9,7 +9,8 @@ import (
 	"testing"
 )
 
-func TestHistoricalCanonDoesNotTurnTaskLintIntoARemoteDependency(t *testing.T) {
+// Un `canon:` que quedó en una tarea falla el lint y dice que va a `knowledge:`, sin consultar a canon.
+func TestCanonInATaskFailsLintWithoutAskingCanon(t *testing.T) {
 	hits := 0
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { hits++; w.WriteHeader(500) }))
 	defer srv.Close()
@@ -19,7 +20,7 @@ func TestHistoricalCanonDoesNotTurnTaskLintIntoARemoteDependency(t *testing.T) {
 	path := filepath.Join(root, "tasks", "my-tools", "task.md")
 	os.MkdirAll(filepath.Dir(path), 0755)
 	os.WriteFile(path, []byte("---\nid: 96\ntitle: Local\nclase: proyecto\nstage: work\ncreated: \"2026-10-03T12:00:00Z\"\ncanon: [listado]\n---\n\n## Objetivo\nTrabajar en local.\n"), 0644)
-	if code := showLint(path); code != 0 || hits != 0 {
+	if code := showLint(path); code != 1 || hits != 0 {
 		t.Fatalf("lint: code=%d consultas=%d", code, hits)
 	}
 }

@@ -5,8 +5,7 @@ nivel: creditop
 clase: proyecto
 stage: evaluation
 created: "2026-10-09T15:30:00-05:00"
-knowledge: [weekly-collection-reminders, field-scoring-policy, motai-renting]
-canon: [kyc/context, ecommerce/context, cartera/context, creditopx/context, formalizacion/context]
+knowledge: [weekly-collection-reminders, field-scoring-policy, motai-renting, kyc-pipeline, ecommerce-context, creditopx-portfolio-servicing, creditopx-quota, deceval-promissory-note]
 jira: []
 jira_title: ""
 ramas: fix/cuota-inicial-no-supera-el-total
@@ -388,11 +387,11 @@ frontend-monorepo `33941936`): se mueven, así que se ubican por el nombre.
 
 ## Referencias
 
-- [ADO: tope por persona](canon:kyc/context#el-tope-de-ado-cuenta-validaciones-iniciadas-por-persona-en-24-horas-no-por-solicitud) ·
-  [ADO: estados](canon:kyc/context#el-estado-de-ado-decide-el-desenlace-y-los-dos-sistemas-no-leen-el-mismo-catalogo)
-- [Cuota inicial y compuerta de la firma](canon:ecommerce/context#en-tienda-la-cuota-inicial-la-cobra-la-pasarela-y-la-firma-espera-a-que-se-pague)
-- [Refinanciación](canon:cartera/context#la-refinanciacion-condona-todo-lo-que-no-es-capital) ·
-  [Cobranza por tramo](canon:cartera/context#el-gasto-de-cobranza-se-cobra-al-entrar-a-cada-tramo-de-mora)
-- [Cupo mensual](canon:creditopx/context#un-perfil-sin-cupo-del-mes-rechaza-y-el-motor-no-pasa-al-siguiente-perfil) ·
-  [Avisos de CreditopX](canon:creditopx/context#los-avisos-de-creditopx-salen-al-terminar-la-peticion-en-orden-por-persona)
-- [Emisor del pagaré](canon:formalizacion/context#el-pagare-queda-a-nombre-del-emisor-de-la-credencial-con-que-se-firma)
+- [ADO: tope por persona](knowledge:identity-validation) ·
+  [ADO: estados](knowledge:identity-validation)
+- [Cuota inicial y compuerta de la firma](knowledge:creditopx-payment-application)
+- [Refinanciación](knowledge:creditopx-portfolio-servicing) ·
+  [Cobranza por tramo](knowledge:creditopx-portfolio-servicing)
+- [Cupo mensual](knowledge:creditopx-quota) ·
+  [Avisos de CreditopX](knowledge:creditopx-portfolio-servicing)
+- [Emisor del pagaré](knowledge:deceval-promissory-note)

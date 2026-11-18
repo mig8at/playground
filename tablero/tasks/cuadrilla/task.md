@@ -6,7 +6,6 @@ clase: proyecto
 ramas: cuadrilla/
 stage: work
 created: "2026-09-21T09:40:00-05:00"
-canon: []
 jira: []
 jira_title: ""
 ---

@@ -4,8 +4,7 @@ title: "Motai v2 — des-motaización y TyC por comercio"
 ramas: motai-v2
 stage: tasks
 created: "2026-07-21T10:30:30-05:00"
-knowledge: [renting-plans, abaco-requirements]
-canon: [arrendamiento, creditopx, comercio, formularios, kyc]
+knowledge: [renting-plans, abaco-requirements, creditopx-quota, merchant-onboarding, dynamic-form-schema, kyc-pipeline]
 jira: [CORE-265, CORE-266, CORE-267, CORE-268]
 jira_title: ""
 ---

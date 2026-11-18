@@ -5,7 +5,7 @@ nivel: playground
 stage: work
 archived: "2026-09-07T08:10:00-05:00"
 created: "2026-08-25T12:00:00-05:00"
-canon: [negocio, arquitectura]
+knowledge: [business-overview]
 jira: [CORE-530]
 ramas: canon/, feat/canon-limpieza-y-contexto-rico
 jira_title: "Consulta del conocimiento técnico y de negocio por API, con agente de búsqueda"

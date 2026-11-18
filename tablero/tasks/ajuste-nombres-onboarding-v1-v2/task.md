@@ -4,7 +4,6 @@ title: "Ajuste de nombres en el onboarding v1 y v2"
 stage: work
 created: "2026-10-16T11:00:00-05:00"
 knowledge: [identity-name-validation, kyc-pipeline, admin-panel]
-canon: []
 jira: [CORE-757]
 jira_title: "Ajuste de nombres en el onboarding v1 y v2"
 ramas: "fix/kyc-name-adoption, fix/kyc-v2-name-adoption, fix/kyc-remove-name-revalidation"

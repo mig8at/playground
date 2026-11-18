@@ -4,7 +4,6 @@ title: "Integración VTEX: generar la URL de checkout y saber de qué sucursal v
 stage: evaluation
 created: "2026-10-19T12:00:00-05:00"
 knowledge: [ecommerce-context]
-canon: []
 jira: [CORE-800, CORE-638]
 jira_title: "Integración VTEX: enlace de pago con referencia y pedidos atribuidos a la sucursal"
 chat: [duncan]

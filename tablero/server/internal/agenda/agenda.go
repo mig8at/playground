@@ -37,7 +37,7 @@ type Task struct {
 	ID                                       int
 	Archived                                 bool
 	Branches                                 []string
-	Jira, Nodes, Knowledge, Chat             []string
+	Jira, Knowledge, Chat                    []string
 	Mail                                     []string // `correo:`: los seguimientos de Correo (correo/) de la tarea
 	Body                                     string
 	Touch                                    time.Time // último cambio del archivo (git; hoy si está sucio)
@@ -93,8 +93,6 @@ func ReadTask(path string, touches map[string]string) Task {
 			case strings.HasPrefix(l, "correo:"):
 				// Los seguimientos de la herramienta Correo (`vtex`, `shopify`): la correspondencia de la tarea.
 				t.Mail = list(l)
-			case strings.HasPrefix(l, "canon:"):
-				t.Nodes = list(l)
 			case strings.HasPrefix(l, "ramas:"):
 				for _, p := range strings.Split(value(l), ",") {
 					if p = strings.TrimSpace(p); p != "" {

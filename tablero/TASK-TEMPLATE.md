@@ -4,7 +4,6 @@ title: ""
 stage: evaluation
 created: ""
 knowledge: []
-canon: []
 jira: []
 jira_title: ""
 ---
@@ -45,8 +44,6 @@ jira_title: ""
     stage         evaluation → work → tasks
     created       ISO-8601 con offset, ej "2026-08-20T09:00:00-05:00"
     knowledge     temas locales, ej [lender-listing] o [lender-listing#ancla]. Retomar los lee sin red
-    canon         referencias opcionales o históricas del equipo. BRIEF=1 consulta su API, sólo
-                  cuando se elige. No bloquea la edición de la tarea
     jira          [CORE-123]. Se omite hasta que el issue exista
     jira_title    se llena al publicar; con varios issues se deja en ""
 -->
@@ -129,24 +126,23 @@ chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
 
 ## Referencias
 
-<!-- Temas de canon, PRs y enlaces útiles para retomar. El conocimiento técnico reutilizable vive en knowledge/;
+<!-- PRs y enlaces útiles para retomar. El conocimiento técnico reutilizable vive en knowledge/;
      acá sólo se enlaza. No copies el historial dentro de esta sección.
-     Los temas locales usados van en `knowledge:`; las referencias de Canon elegidas van en `canon:`,
-     en el frontmatter, que es lo que el tablero
+     Los temas locales usados van en `knowledge:`, en el frontmatter, que es lo que el tablero
      lee; acá van los que ayudan a retomar y lo que no es un tema (PRs, un tablero, un documento). -->
 
-<!-- Si una referencia de Canon sirvió para avanzar, citala en el bloque que la usó como
-     [texto visible](canon:tema#ancla). El editor la enlaza ahí mismo; no crees una sección ni un
+<!-- Si un tema de knowledge sirvió para avanzar, citalo en el bloque que lo usó como
+     [texto visible](knowledge:tema#ancla). El editor lo enlaza ahí mismo; no crees una sección ni un
      marcador especial. -->
 
 <!-- LA HISTORIA VA A LA PILA
-     Este documento no lleva `## Registro`, anotaciones fechadas, sección de retoma ni marcadores CANON:
+     Este documento no lleva `## Registro`, anotaciones fechadas, sección de retoma ni marcadores viejos:
      un diario en el Markdown mezcla historia con lo vigente, y hasta el 2026-09-23 eso volvía ilegibles
      las tareas grandes. Esa historia se apila con `make task-block N=<id|slug> FILE=<bloque.md>`,
      y el lint frena una nueva en el documento.
 
      Un bloque es un título —la conclusión, en una línea— y una descripción con lo que la sostiene:
-     archivos por repo, canon, y cada comando con su «Resultado:». Ver `docs/task-context-block.example.md`. -->
+     archivos por repo, temas de knowledge, y cada comando con su «Resultado:». Ver `docs/task-context-block.example.md`. -->
 
 <!-- ─────────────────────────────────────────────────────────────────────────────────────────────
      DE ACÁ PARA ABAJO ES LO ÚNICO QUE SALE A JIRA. Pasa el guard (ni repos, ni rutas, ni F-xx) y

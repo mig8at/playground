@@ -5,7 +5,7 @@ nivel: miguel
 clase: proyecto
 stage: work
 created: "2026-09-15T17:00:00-05:00"
-canon: [creditopx, arrendamiento, ecommerce, listado]
+knowledge: [creditopx-quota, renting-plans, ecommerce-context, lender-listing]
 jira: []
 jira_title: ""
 ramas: ["risk-services-mockery-lambda:dictado-compartido"]

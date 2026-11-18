@@ -6,7 +6,6 @@ nivel: miguel
 stage: work
 created: "2026-09-19T14:55:00-05:00"
 knowledge: [lender-listing]
-canon: []
 jira: []
 jira_title: ""
 ---

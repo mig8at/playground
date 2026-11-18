@@ -52,11 +52,13 @@ type Task struct {
 	Level     string   `json:"level"`           // miguel | playground | creditop (default) — ver levelOf
 	Archived  bool     `json:"archived"`
 	Jira      []string `json:"jira,omitempty"`
-	Nodes     []string `json:"canon,omitempty"`
 	Knowledge []string `json:"knowledge,omitempty"`
 	// Journey es el `recorrido:` del frontmatter: en qué camino de la plataforma cae la tarea, con los ids del
 	// catálogo del harness (`harness/journeys.json`). Lo valida `internal/journeys`.
 	Journey []string `json:"journey,omitempty"`
+	// Canon es un `canon:` que quedó en el frontmatter. Canon no es de my-tools desde el 2026-11-18: se lee sólo
+	// para que el lint diga que va a `knowledge:`.
+	Canon []string `json:"-"`
 	// OldNodes es el `context_nodes:` de antes del 2026-09-21. No se usa para nada salvo para
 	// poder FALLAR nombrándolo: un campo que se ignora en silencio se lee como un campo vacío.
 	OldNodes []string `json:"-"`
@@ -270,7 +272,7 @@ func readTaskFile(path string) (Task, string, error) {
 		case strings.HasPrefix(l, "jira:"):
 			t.Jira = list(l)
 		case strings.HasPrefix(l, "canon:"):
-			t.Nodes = list(l)
+			t.Canon = list(l)
 		case strings.HasPrefix(l, "knowledge:"):
 			t.Knowledge = list(l)
 		case strings.HasPrefix(l, "recorrido:"):
@@ -352,7 +354,10 @@ func showLint(path string) int {
 			failure("id %d repetido con %s — en el tablero sobrevive uno solo. El siguiente libre es %d", t.ID, o.Slug, maxID(ts)+1)
 		}
 	}
-	// El lint local no consulta Canon por las referencias históricas de una tarea.
+	// Canon no es de my-tools: una tarea cita los temas de knowledge/.
+	if len(t.Canon) > 0 {
+		failure("`canon:` ya no va en una tarea — canon no es de my-tools; citá los temas locales en `knowledge:` (esta tarea todavía dice: %s)", strings.Join(t.Canon, ", "))
+	}
 	if len(t.OldNodes) > 0 {
 		failure("`context_nodes:` es histórico — elegí referencias locales `knowledge:` (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
 	}
@@ -597,8 +602,8 @@ func showOne(ref string, asJSON, includeContent bool) int {
 	if len(chosen.Jira) > 0 {
 		fmt.Printf("  jira: %s\n", strings.Join(chosen.Jira, ", "))
 	}
-	if len(chosen.Nodes) > 0 {
-		fmt.Printf("  nodos de context: %s\n", strings.Join(chosen.Nodes, ", "))
+	if len(chosen.Knowledge) > 0 {
+		fmt.Printf("  knowledge: %s\n", strings.Join(chosen.Knowledge, ", "))
 	}
 	fmt.Printf("\n  archivo: %s\n", chosen.File)
 	if public == "" {

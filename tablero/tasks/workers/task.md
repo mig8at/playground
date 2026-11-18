@@ -5,7 +5,6 @@ nivel: miguel
 clase: proyecto
 stage: evaluation
 created: "2026-09-19T14:55:00-05:00"
-canon: [arquitectura]
 jira: []
 jira_title: ""
 archived: "2026-09-24T07:00:00-05:00"

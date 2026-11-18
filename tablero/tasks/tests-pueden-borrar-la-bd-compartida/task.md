@@ -4,7 +4,6 @@ title: "La suite de tests puede borrar la base de datos compartida, y el trait q
 ramas: CORE-431
 stage: evaluation
 created: "2026-08-18T18:30:00-05:00"
-canon: []
 jira: [CORE-431]
 jira_title: "Los tests no pueden volver a borrar la BD de un ambiente"
 ---

@@ -4,7 +4,6 @@ title: "Una solicitud por pedido de tienda"
 stage: work
 created: "2026-10-27T10:30:00-05:00"
 knowledge: [ecommerce-context]
-canon: []
 jira: [CORE-819]
 jira_title: "Ecommerce: una compra nueva no debe reabrir la solicitud de un pedido anterior"
 ramas: legacy-backend:una-solicitud-por-pedido

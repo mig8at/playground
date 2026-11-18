@@ -4,7 +4,6 @@ title: "Ecommerce: cancelación de pedidos, el estándar para todas las tiendas"
 stage: evaluation
 created: "2026-11-09T10:00:00-05:00"
 knowledge: [ecommerce-context]
-canon: []
 chat: [duncan]
 jira: [CORE-932]
 ramas: "vtex:ecommerce-cancel, legacy-backend:ecommerce-cancelar-pedido, frontend-monorepo:ecommerce-cancelacion, infrastructure:api-gateway-ecommerce-cancel"

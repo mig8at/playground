@@ -100,7 +100,6 @@ func main() {
 		stage   = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
 		anatomy = flag.Bool("anatomy", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		asJSON  = flag.Bool("json", false, "salida en JSON")
-		brief   = flag.String("brief", "", "ya no hace nada: canon se consulta con `playground canon read <tema>` (el CLI del equipo)")
 	)
 	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	env.LoadDefaults()
@@ -119,7 +118,7 @@ func main() {
 		os.Exit(showAnatomy(data, tasks, *single))
 	}
 	if *single != "" {
-		os.Exit(resume(data, tasks, snap, *single, *asJSON, *brief))
+		os.Exit(resume(data, tasks, snap, *single, *asJSON))
 	}
 	os.Exit(agenda(data, tasks, snap, *stage, *asJSON))
 }
@@ -316,7 +315,7 @@ func showAnatomy(data string, tasks []task, ref string) int {
 	return 0
 }
 
-func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string) int {
+func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool) int {
 	var t *task
 	for i := range tasks {
 		if tasks[i].Slug == ref || strconv.Itoa(tasks[i].ID) == ref {
@@ -356,9 +355,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 	localContext := buildKnowledgeContext(t.Knowledge, layout.At(data).Knowledge())
 	suggested := suggestKnowledge(t.Knowledge, snap.Tasks[strconv.Itoa(t.ID)].Branches, layout.At(data).Knowledge())
-	if brief != "" {
-		fmt.Fprintln(os.Stderr, "  ⚠ BRIEF ya no trae la ficha de canon: se consulta con `playground canon read <tema>` (el CLI del equipo)")
-	}
 
 	if asJSON {
 		output := map[string]any{
@@ -372,8 +368,8 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 
 	fmt.Printf("\n  #%d · %s\n  %s · %s · tocada hace %d día(s) · creada %s\n", t.ID, t.Title, t.Slug, t.Stage, t.Days(), strings.SplitN(t.Created+"T", "T", 2)[0])
-	if len(t.Jira) > 0 || len(t.Nodes) > 0 {
-		fmt.Printf("  jira: %s · referencias de Canon: %s\n", strings.Join(t.Jira, ", "), strings.Join(t.Nodes, ", "))
+	if len(t.Jira) > 0 {
+		fmt.Printf("  jira: %s\n", strings.Join(t.Jira, ", "))
 	}
 	fmt.Printf("  archivo: %s\n", t.Path)
 

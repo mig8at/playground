@@ -1,17 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseBlockBody, inlineParts, repoHref, visorHref, jarvisHref, visorURL, blockRouteLinks, knowledgeHref, knowledgeCommand } from '../src/block-body.js';
-import { routeReference } from '../src/canon-routes.js';
-
-test('las rutas guardan variante y paso, conviven con las citas y se deduplican fuera del código', () => {
-  const link = '[firma](canon-ruta:codeudor/renting#firma)';
-  assert.deepEqual(routeReference('codeudor/renting#firma'), { topic: 'codeudor/context', variant: 'renting', step: 'firma' });
-  assert.equal(inlineParts(link)[0].kind, 'canon-route');
-  assert.equal(inlineParts('[tema](canon:codeudor#firma)')[0].kind, 'canon');
-  for (const bad of ['codeudor', '../renting', 'codeudor/renting#', 'codeudor/renting?x=y']) assert.equal(routeReference(bad), null);
-  const body = `${link} y ${link}\n\n- ${link}\n\n\`\`\`text\n[ejemplo](canon-ruta:bcp/otra)\n\`\`\`\n\n\`${link}\``;
-  assert.deepEqual(blockRouteLinks(body).map(l => l.ref), ['codeudor/renting#firma']);
-});
+import { parseBlockBody, inlineParts, repoHref, visorHref, jarvisHref, visorURL, knowledgeHref, knowledgeCommand } from '../src/block-body.js';
 
 const body = [
   'La guarda vive en [CreatesApplication](repo:legacy-backend@cfc577218f2d/tests/CreatesApplication.php#L12)',
@@ -53,10 +42,10 @@ test('el ambiente del rótulo sale también de E2E_TARGET', () => {
 });
 
 test('una línea se separa en texto, código y enlaces con tipo, y nada es HTML', () => {
-  const parts = inlineParts('Ver <b>esto</b> en [el tema](canon:kyc#identidad), `x.php` y **ojo**.');
+  const parts = inlineParts('Ver <b>esto</b> en [el tema](knowledge:kyc-pipeline#identidad), `x.php` y **ojo**.');
   assert.deepEqual(parts.map(p => p.type), ['text', 'link', 'text', 'code', 'text', 'strong', 'text']);
   assert.equal(parts[0].value, 'Ver <b>esto</b> en ', 'el HTML queda como texto');
-  assert.deepEqual({ kind: parts[1].kind, ref: parts[1].ref }, { kind: 'canon', ref: 'kyc#identidad' });
+  assert.deepEqual({ kind: parts[1].kind, topic: parts[1].topic, anchor: parts[1].anchor }, { kind: 'knowledge', topic: 'kyc-pipeline', anchor: 'identidad' });
 });
 
 test('un archivo enlaza a GitHub en el commit fijado, dentro de su carpeta si la tiene', () => {

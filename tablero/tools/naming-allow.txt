@@ -68,8 +68,6 @@ cam enrich inj refuge signup preboot twisty nfmt financial backfill aml peru per
 # ── claves JSON en español que son el contrato de OTRO (fase 4b, 2026-09-23) ──────────────────────
 # `json: <ruta>[:<clase|tipo>] <clave…|*>` — la clave se acepta SÓLO ahí; en cualquier otro lugar se
 # renombra. Las nuestras pasaron a inglés con la fase (mapa en tools/rename/maps/phase4b-json.tsv).
-json: connectors/canon/ objetivo secciones tablas fuentes citar sin_cubrir operacion detalle sin_enlazar quien titulo objetivo_de_plantilla archivos_nota tablas_nota ya_vigilados_nota temas mapa tema releidos retirados accion carpeta estado     # el contrato de la API de canon (lectura, borrador, parche y clones)
-json: server/cmd/today/main.go:areaCanon objetivo secciones        # el brief de canon, reenviado tal cual en `retomar -json`
 json: server/cmd/cuadrilla/ rama ramas autor nota nombre           # la API de cuadrilla, en el repo compartido
 json: chat/server/voice_top.go leon panda zorro oso buho tucan loro rana pato mico conejo gorila jaguar gato perro cerdito raton capibara perezoso koala oveja pinguino mapache     # las claves de especie de Office (office/characters.js, SPECIES): el contrato de otro módulo
 json: server/internal/store/store.go:index clase nivel ramas       # claves del frontmatter: se escribe a mano y la fase 0 lo dejó en español
@@ -77,9 +75,6 @@ json: server/internal/pulse/ del                                   # «deletions
 json: server/cmd/branches/main.go:map *                            # palabras vacías para sugerir patrones de rama: dato, no clave
 json: server/internal/store/sources.go:map develop                 # nombres de ambiente: dato, no clave
 
-# Contrato de /api/globalmap de Canon; no son claves del tablero.
-json: connectors/canon/routes.go mapa desde hasta titulo rutas estaciones cuando pasos estacion_global referencia nota
-json: connectors/canon/snapshot.go exportado     # el export de canon
 
 # ── canon (`tools/canon`, repo compartido): inglés que la stdlib casi no usa, y nombres de su dominio ────────────────────────────
 # `rig` es el banco de prueba (test rig); `atlas` es el mapa de recorridos; `globalmap` es el mapa completo (una sola pieza);
@@ -166,13 +161,10 @@ json: goldfish/review/legacy.go *                                   # los valore
 refuted
 # `captura` y `sala` son nombres de herramientas (sus carpetas), como `tablero`: se quedan (2026-11-18)
 captura sala
-json: connectors/canon/ autenticado nombre puede_corregir nivel     # la API de canon (/api/me y la sesión): contrato del repo compartido
-json: sala/canon.go archivos operacion                              # la forma de una pieza de canon (canon-write): contrato del repo compartido
 path: harness/dev/alta-branding.ts   # «Alta» es Alta Fleet, el comercio: nombre propio (2026-11-18)
 json: server/cmd/agent/main.go:map *                                # palabras vacías del español para comparar textos de tareas: es dato, no clave
 json: server/cmd/agent/main.go recorrido                            # el campo `recorrido:` del frontmatter de las tareas (el frontmatter queda en español)
 json: server/cmd/agent/main.go frena detalle                        # el JSON de harness-doctor (harness.doctor/v1): las claves del harness se deciden aparte
-json: server/cmd/canon/main.go pregunta                             # una columna de la base de canon: contrato del repo compartido
 json: server/internal/hooks/cockpit.go asesor autogestion           # los canales del panel del harness como van en su URL (/<ambiente>/<comercio>/<canal>)
 json: lib/cliflags/legacy.go *                                      # las opciones de antes de los CLI en Go (2026-11-18): traduce lo que siguen escribiendo el Makefile viejo, los hooks y las tareas
 json: keyring/check/background.go pulso                            # el nombre del LaunchAgent del pulso (com.creditop.tablero.pulso): dato del sistema

@@ -4,8 +4,7 @@ title: "Card de renting: planes, pago semanal y estados de carga"
 ramas: motai-renting-planes, monto-actualizando, renting-sin-chips
 stage: tasks
 created: "2026-07-30T12:30:19-05:00"
-knowledge: [renting-plans]
-canon: [arrendamiento, creditopx]
+knowledge: [renting-plans, creditopx-quota]
 jira: [CORE-323]
 jira_title: "Renting: la tarjeta muestra plan y pago semanal"
 ---

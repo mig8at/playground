@@ -31,7 +31,7 @@ const API = 'http://localhost:8787';
 // quedó llamándose — o una nueva que hay que sumar.
 const LIVE = new Set(['/api/config', '/api/sprints', '/api/sprint', '/api/ramas', '/api/ramas/refresh', '/api/efforts',
   '/api/task-locals', '/api/jira-inbox', '/api/jira-import', '/api/qa-notice',
-  '/api/transitions', '/api/entries', '/api/task-context', '/api/pulse', '/api/canon/route']);
+  '/api/transitions', '/api/entries', '/api/task-context', '/api/pulse', '/api/today', '/api/events']);
 
 const sprint = { id: 1, name: 'Sprint UI', state: 'active', startDate: '2026-09-14', endDate: '2026-09-28' };
 const techNotes = [
@@ -54,20 +54,10 @@ const contextEvent = (n, daysAgo) => ({ schema: 'tablero.task-context/v2', id: `
 // Un bloque con enlaces y un comando: lo que la vista tiene que pintar de verdad.
 const blockEvent = { schema: 'tablero.task-context/v2', id: 'blk_ui', at: localDay(0), via: 'manual',
   title: 'La regla de `ingreso mínimo` sí excluye',
-  body: 'La cascada está en [el listado](canon:listado) y la regla en [LenderFilter](repo:legacy-backend@cfc577218f2d/app/Services/LenderFilter.php#L40).\n\n'
-    + "```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\nResultado: salen 7 entidades; con ingreso, 6."
-    + '\n\nUbicación: [Firma del codeudor](canon-ruta:codeudor/renting#firma).' };
-const routeURL = 'https://canon.test/recorridos?tema=codeudor%2Fcontext&ruta=renting&estacion=cosigner-signature';
+  body: 'La cascada está en [el listado](knowledge:lender-listing) y la regla en [LenderFilter](repo:legacy-backend@cfc577218f2d/app/Services/LenderFilter.php#L40).\n\n'
+    + "```harness\nmake harness-caso TARGET=local CASOS='ingreso=0'\n```\nResultado: salen 7 entidades; con ingreso, 6." };
 const sample = {
-  '/api/canon/route': { reference: 'codeudor/renting#firma', title: 'Codeudor', variant_title: 'Renting',
-    url: routeURL, when: 'Producto renting, política con codeudor.', before: 3, after: 0,
-    steps: [
-      { id: 'espera', station: 'cosigner-signature', title: 'Espera segunda firma', url: routeURL },
-      { id: 'firma', station: 'cosigner-signature', title: 'Firma del codeudor', focused: true, url: routeURL,
-        note: 'El codeudor firma después del titular.', source_url: 'https://canon.test/?nodo=codeudor%2Fcontext%23firma' },
-      { id: 'autorizada', station: 'authorized', title: 'Solicitud autorizada', url: 'https://canon.test/recorridos?estacion=authorized' },
-    ] },
-  '/api/config': { canonUrl: 'https://canon.test',
+  '/api/config': {
     repos: { 'legacy-backend': { web: 'https://github.com/Creditop-SAS/legacy-backend', prefix: '' } } },
   '/api/sprints': { sprints: [sprint] },
   '/api/sprint': { sprint, issues: [{ Key: 'UI-1', Summary: 'Validar el espacio de trabajo', Status: 'En curso',
@@ -85,7 +75,7 @@ const asked = new Set();
 const failures = [];
 async function check(name, fn) {
   try { await fn(); console.log(`  ✓ ${name}`); }
-  catch (e) { failures.push(name); console.log(`  ✗ ${name}\n      ${String(e.message).split('\n')[0]}`); }
+  catch (e) { failures.push(name); console.log(`  ✗ ${name}\n      ${String(e.message).split('\n').slice(0, 12).join('\n      ')}`); }
 }
 async function openTablero(viewport) {
   const page = await browser.newPage({ viewport });
@@ -101,6 +91,8 @@ async function openTablero(viewport) {
   await page.route(`${API}/**`, (route) => {
     const p = new URL(route.request().url()).pathname;
     asked.add(p);
+    // El tiempo real (SSE): un flujo vacío con su tipo, para que el EventSource no se queje.
+    if (p === '/api/events') return route.fulfill({ body: '', contentType: 'text/event-stream', headers: { 'access-control-allow-origin': '*' } });
     return route.fulfill({ json: sample[p] || {}, headers: { 'access-control-allow-origin': '*' } });
   });
   await page.route(new RegExp(`^https?://(?!${new URL(APP).host}|${new URL(API).host})`), (route) => route.abort());
@@ -195,7 +187,7 @@ try {
       result: el.querySelector('.block-result')?.innerText,
       file: el.querySelector('a.ref-repo')?.getAttribute('href'),
       fileText: el.querySelector('a.ref-repo')?.innerText,
-      canon: el.querySelector('a.ref-canon')?.getAttribute('href'),
+      knowledge: el.querySelector('.ref-knowledge')?.innerText,
       time: /\b\d{1,2}:\d{2}\b/.test(el.innerText),
     }), null, { timeout: 5000 });
     assert.equal(r.title, 'La regla de ingreso mínimo sí excluye');
@@ -204,7 +196,7 @@ try {
     assert.match(r.result || '', /^Resultado: salen 7 entidades/);
     assert.equal(r.file, 'https://github.com/Creditop-SAS/legacy-backend/blob/cfc577218f2d/app/Services/LenderFilter.php#L40');
     assert.equal(r.fileText, 'legacy-backend · LenderFilter');
-    assert.match(r.canon || '', /^https:\/\/canon\.test\//);
+    assert.equal(r.knowledge, 'conocimiento · el listado', 'el tema de knowledge se nombra como tal');
     assert.equal(r.time, false, 'la hora no se pinta');
   });
   await check('los enlaces del documento no quedan con el azul del navegador', async () => {
@@ -251,47 +243,6 @@ try {
     }
   });
   await check('sin errores de consola', () => assert.deepEqual([...errors, ...narrow.errors], []));
-  await check('abrir el tablero y una tarea con citas antiguas no consulta Canon', async () => {
-    assert.equal(asked.has('/api/canon/route'), false);
-    await page.evaluate(() => window.dispatchEvent(new Event('focus')));
-    await page.evaluate(() => window.dispatchEvent(new Event('online')));
-    assert.equal(asked.has('/api/canon/route'), false);
-    assert.equal(await page.getByRole('button', { name: 'Canon · opcional', exact: true }).count(), 0);
-  });
-  await check('el recorrido enfoca el paso exacto, conserva su vecino en la misma estación y pliega fuentes', async () => {
-    const routePage = await openTablero({ width: 780, height: 900 });
-    const card = routePage.page.locator('.canon-route').first();
-    await card.scrollIntoViewIfNeeded();
-    await card.getByRole('button', { name: 'Consultar en Canon' }).click();
-    await card.locator('ol').waitFor();
-    assert.deepEqual(await card.locator('li').allInnerTexts(), ['Espera segunda firma', 'Firma del codeudor', 'Solicitud autorizada']);
-    assert.equal(await card.locator('[aria-current="step"]').innerText(), 'Firma del codeudor');
-    assert.equal(await routePage.page.locator('a.ref-canon-route').first().getAttribute('href'), routeURL);
-    assert.equal(await card.locator('details').getAttribute('open'), null);
-    await card.locator('summary').click();
-    assert.equal(await card.getByText('El codeudor firma después del titular.').isVisible(), true);
-    assert.equal(await card.getByRole('link', { name: 'Leer en Canon' }).getAttribute('href'), sample['/api/canon/route'].steps[1].source_url);
-    const fits = await card.evaluate(el => el.scrollWidth <= el.clientWidth + 1);
-    assert(fits, 'el recorrido se desbordó en el editor estrecho');
-    assert.deepEqual(routePage.errors, []);
-    await routePage.page.close();
-  });
-  await check('un recorrido borrado no oculta el bloque y permite volver a consultar', async () => {
-    const previous = sample['/api/canon/route'];
-    sample['/api/canon/route'] = { error: 'La variante o el paso ya no existe en Canon. Revisa la referencia.' };
-    const routePage = await openTablero({ width: 1440, height: 900 });
-    const card = routePage.page.locator('.canon-route').first();
-    await card.scrollIntoViewIfNeeded();
-    await card.getByRole('button', { name: 'Consultar en Canon' }).click();
-    // Este fallo también cubre una respuesta incompleta: el componente debe conservar el bloque.
-    await card.getByRole('button', { name: 'Reintentar' }).waitFor();
-    assert.equal(await routePage.page.locator('.block-title').first().isVisible(), true);
-    sample['/api/canon/route'] = previous;
-    await card.getByRole('button', { name: 'Reintentar' }).click();
-    await card.locator('ol').waitFor();
-    assert.equal(await card.locator('li').count(), 3);
-    await routePage.page.close();
-  });
   await check('la UI sólo pide rutas que el server sirve', () => assert.deepEqual([...asked].filter((p) => !LIVE.has(p)), []));
 } finally {
   await browser.close();

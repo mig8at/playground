@@ -25,8 +25,6 @@
     "              (salvo que el mismo comando stagee rutas antes): el índice de git es UNO para todas las sesiones",
     "              que comparten este worktree. Salida: I_CHECKED_THE_INDEX=1, después de mirar el índice.",
     "",
-    "Canon queda como consulta opcional de negocio/producto; ask-guard no se ejecuta automáticamente.",
-    "",
     "PostToolUse · task-lint (Write|Edit): al escribir tablero/tasks/<slug>/task.md corre `tasks -lint`.",
     "              Exit 2 con la lista si algo está mal.",
     "",

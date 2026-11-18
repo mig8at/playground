@@ -15,7 +15,7 @@ import (
 //
 // Un bloque muestra dos cosas: un título —una línea, la conclusión y no la actividad— y una
 // descripción en prosa libre. Lo estricto no está en la forma sino en lo que la descripción NOMBRA:
-// un archivo va con su repo y fijado al commit en que se escribió, un tema de canon tiene que existir
+// un archivo va con su repo y fijado al commit en que se escribió, un tema de knowledge tiene que existir
 // y un comando dice contra qué ambiente corrió y qué dio. Eso es lo que permite volver a comprobar un
 // bloque meses después.
 //
@@ -44,10 +44,9 @@ var (
 
 var (
 	blockLinkRe = regexp.MustCompile(`\[([^\[\]\n]+)\]\(([^()\s]+)\)`)
-	// Los enlaces a canon son TEXTO HISTÓRICO desde el 2026-11-18 (canon se mantiene en el repo compartido y my-tools
-	// ya no le habla): se acepta su forma y no se comprueba que existan.
-	canonTargetRe = regexp.MustCompile(`^canon:([A-Za-z0-9][A-Za-z0-9._/#-]*)$`)
-	canonRouteRe  = regexp.MustCompile(`^canon-ruta:[A-Za-z0-9][A-Za-z0-9._/#-]*$`)
+	// Canon no es de my-tools (2026-11-18): un enlace `canon:` o `canon-ruta:` se rechaza y dice que va a knowledge.
+	// Las pilas viejas se pasaron a `knowledge:` ese día.
+	canonTargetRe = regexp.MustCompile(`^canon(?:-ruta)?:`)
 	repoTargetRe  = regexp.MustCompile(`^repo:([a-z0-9][a-z0-9-]*)(?:@([0-9a-f]{7,40}))?/([^#\s]+?)(#L\d+(?:-L\d+)?)?$`)
 	prTargetRe    = regexp.MustCompile(`^pr:([a-z0-9][a-z0-9-]*)#\d+$`)
 	jiraTargetRe  = regexp.MustCompile(`^jira:[A-Z][A-Z0-9]+-\d+$`)
@@ -178,7 +177,9 @@ func checkLinks(prose string, pinned bool) error {
 	for _, m := range blockLinkRe.FindAllStringSubmatch(prose, -1) {
 		target := m[2]
 		switch {
-		case canonRouteRe.MatchString(target), canonTargetRe.MatchString(target), prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
+		case canonTargetRe.MatchString(target):
+			return fmt.Errorf("el enlace %s cita canon, que no es de my-tools: citá el tema de knowledge (knowledge:<tema>[#ancla]) o el código (repo:<repo>/<ruta>)", target)
+		case prTargetRe.MatchString(target), jiraTargetRe.MatchString(target),
 			blockTargetRe.MatchString(target), httpsTargetRe.MatchString(target), visorTargetRe.MatchString(target),
 			knowledgeTargetRe.MatchString(target), jarvisTargetRe.MatchString(target):
 		case repoTargetRe.MatchString(target):
@@ -186,7 +187,7 @@ func checkLinks(prose string, pinned bool) error {
 				return fmt.Errorf("el enlace %s no está fijado a un commit", target)
 			}
 		default:
-			return fmt.Errorf("el enlace %q no tiene un tipo válido: knowledge:<tema>[#ancla] · canon:<tema> · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · jarvis:<corrida> · https://", target)
+			return fmt.Errorf("el enlace %q no tiene un tipo válido: knowledge:<tema>[#ancla] · repo:<repo>/<ruta> · pr:<repo>#N · jira:CLAVE-N · bloque:<id> · visor:<proyecto>/<pantalla>@<huella> · jarvis:<corrida> · https://", target)
 		}
 	}
 	return nil
@@ -293,10 +294,7 @@ func mapProse(body string, fn func(string) string) string {
 }
 
 // PrepareBlock convierte lo que se escribió en un bloque listo para apilar: fija cada archivo al commit
-// en que existe, comprueba canon, los PR y los bloques citados, y completa `id`, `at` y `via`.
-//
-// Canon caído no frena: el bloque entra y vuelve un aviso, porque una red que falla no hace falsa una
-// cita. Un tema que canon contesta que no existe, sí frena.
+// en que existe, comprueba los temas de knowledge, los PR y los bloques citados, y completa `id`, `at` y `via`.
 func PrepareBlock(ctx context.Context, title, body, via string, deps BlockDeps, now time.Time) (Event, []string, error) {
 	title = strings.TrimSpace(title)
 	body = strings.TrimSpace(strings.ReplaceAll(body, "\r\n", "\n"))

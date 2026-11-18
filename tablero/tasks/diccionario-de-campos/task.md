@@ -4,7 +4,6 @@ title: "Diccionario de campos compartido entre formularios y documentos"
 stage: evaluation
 created: "2026-10-29T18:30:00-05:00"
 knowledge: [dynamic-form-schema]
-canon: []
 jira: []
 jira_title: ""
 ---

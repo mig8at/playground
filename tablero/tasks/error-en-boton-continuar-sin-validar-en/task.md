@@ -4,7 +4,6 @@ title: "Error en botón Continuar sin validar en Abaco"
 stage: tasks
 created: "2026-08-03T18:38:47-05:00"
 archived: "2026-08-03T18:38:47-05:00"
-canon: []
 jira: [QC-181]
 jira_title: "Error en botón Continuar sin validar en Abaco"
 ---

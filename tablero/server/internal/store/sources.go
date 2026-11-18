@@ -59,7 +59,7 @@ var tools = []struct {
 // que la frase menciona, que no es lo mismo.
 var reEnvironment = regexp.MustCompile(`(?i)\b(?:E2E_)?(?:CFE_)?TARGET=(prod|production|qa|staging|dev|develop|local)\b|\bDB\s*·\s*(prod|production|qa|staging|dev|develop|local)\b`)
 
-var canonEnvironment = map[string]string{
+var normalEnvironment = map[string]string{
 	"prod": "prod", "production": "prod", "qa": "qa",
 	"staging": "staging", "dev": "dev", "develop": "dev", "local": "local",
 }
@@ -86,7 +86,7 @@ func SourcesOf(how string) []string {
 		if environment == "" {
 			environment = m[2]
 		}
-		if c, ok := canonEnvironment[strings.ToLower(environment)]; ok {
+		if c, ok := normalEnvironment[strings.ToLower(environment)]; ok {
 			envs[c] = true
 		}
 	}

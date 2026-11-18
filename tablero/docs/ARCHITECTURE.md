@@ -7,7 +7,7 @@ El tablero tiene dos entradas para el mismo trabajo:
 | Decidir qué mover hoy | interfaz Vue | las carpetas de `tasks/` + estado actual de Jira |
 | Retomar una tarea o automatizarla | `make today` / `make resume` | la misma carpeta en `tasks/` |
 | Compartir trabajo con el equipo | Jira | sólo `jira_title` y `## Tarea (publicable)` |
-| Entender el sistema estable | **canon** (`github/playground/tools/canon`) | temas curados contra `main`, compartidos con el equipo |
+| Entender el sistema estable | **knowledge/** (`../knowledge`) | temas locales con fuentes, verificados contra `main` |
 
 ## Datos y fronteras
 
