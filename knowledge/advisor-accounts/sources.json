@@ -1,0 +1,224 @@
+{
+  "version": 1,
+  "title": "Asesor: alta, baja y celular con token",
+  "summary": "El usuario del asesor: a qué comercios y sucursales lo ata el alta, qué le cambia la baja (sufijo -t<n> en el documento, contacto y cognito_id en NULL) y por qué después no aparece al buscarlo, y el token -comadv- de su celular: dónde se pega, dónde se quita y por qué el bypass usa el número marcable.",
+  "reviewedAt": "2026-11-18T00:56:56+00:00",
+  "sources": [
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Partner/App/Services/AlliedManagementService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "7da20a81759a1e037e675374290522303476b7e9",
+      "sections": [
+        "el-alta-lo-ata-a-comercios-y-sucursales"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UsersV1/App/Repositories/UserRepository.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "01aeea09ee2edf53ccbe4558562dae15bf3e26e2",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto",
+        "buscar-por-documento-o-correo-no-encuentra-a-uno-dado-de-baja"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Models/User.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "0c0a94200d800005f15b218b4fc5d54dfab0eb71",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "database/migrations/2014_10_12_000000_create_users_table.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "455ffac2b092cfa1973b19e511c4f695bb5cba12",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto",
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UsersV1/App/Services/DisableUserService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "ea82dd8e6c360f0ab657102ad12861b762cc46b2",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/MobileOnboardingV1/App/Services/DeleteUserService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "dead4b02bf77578e76df4552e80a3648e9eb6de4",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UsersV1/App/Services/FindCustomerByDocumentNumberAndTypeService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "2894e82ac4e090655e72d5cbce6b0a4b69478d40",
+      "sections": [
+        "buscar-por-documento-o-correo-no-encuentra-a-uno-dado-de-baja"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/UsersV1/App/Domain/UserData.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "f4437f9903f6f683627fcb0d201f0fbab706b43a",
+      "sections": [
+        "buscar-por-documento-o-correo-no-encuentra-a-uno-dado-de-baja"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Models/User.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "70ab0dea0cd5b4aec4b38575a4012edece095826",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto",
+        "buscar-por-documento-o-correo-no-encuentra-a-uno-dado-de-baja"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "database/migrations/2014_10_12_000000_create_users_table.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "455ffac2b092cfa1973b19e511c4f695bb5cba12",
+      "sections": [
+        "la-baja-apaga-sufija-el-documento-y-borra-el-contacto",
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/CommonsV1/App/Utils/PhoneUtils.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "b135cc59c48883769aa3f9ced13ef40b54e11cbe",
+      "sections": [
+        "el-celular-del-asesor-lleva-el-token-comadv",
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado",
+        "el-bypass-se-decide-con-el-numero-marcable"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/DynamicFormsService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "71eba7cf836cdc62aa360a41f3897b084390548f",
+      "sections": [
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/BackDoorUserService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "a0c27454418d6150e061ac5256215c59ba9802e1",
+      "sections": [
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/UserController.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ae8f8c479d630ca8119267649fe7bcd696b90ecf",
+      "sections": [
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "app/Http/Controllers/Admin/UserController.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "3668bb89218c73c0a045c58f08069e27c46ee1b9",
+      "sections": [
+        "el-celular-del-asesor-lleva-el-token-comadv"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/TwilioMessagingService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "b16f61e4e38a639b36bd6ce28a556ec71977847f",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/NotificationService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "e3f82d72ef76ede57966427052bd1197531bd77f",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/OtpService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "691163e6ac4f5ceaaf56a5a36a2d2415ccc1f806",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Onboarding/App/Services/OtpService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "24139219ab32e0dd068baad39125ffd397de5a3b",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Repositories/LoanMessagingServiceRepository.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "250fc9081d558c07e814f1000e7bd358b93a3c66",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/OtpValidationService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "34c1f6ec445b87bb53a9894492cd1cd9c3fc87de",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado",
+        "el-bypass-se-decide-con-el-numero-marcable"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Http/Controllers/Customer/ValidateOtpPromissoryNoteController.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "8b00482bbb3b9e3ab5bde121a130bf173d195ee9",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado",
+        "el-bypass-se-decide-con-el-numero-marcable"
+      ]
+    },
+    {
+      "repo": "legacy-backend",
+      "path": "Modules/Loans/App/Services/PromissoryNotePhoneChangeService.php",
+      "commit": "bf0ddcc79bbbc430005e07e7e64956575f6de939",
+      "blob": "7add3c836597197979358868da2324b69cee382d",
+      "sections": [
+        "el-token-se-quita-en-lo-que-sale-y-se-conserva-en-lo-guardado",
+        "el-bypass-se-decide-con-el-numero-marcable"
+      ]
+    }
+  ]
+}

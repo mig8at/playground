@@ -875,10 +875,8 @@ go-fmt: ## @dia ¿qué archivos Go del repo están sin gofmt? Sale 1 si hay. FIX
 	if [ -z "$$files" ]; then echo "  ✔ todo el Go del repo tiene gofmt"; exit 0; fi; \
 	if [ -n "$(FIX)" ]; then echo "$$files" | xargs gofmt -w; echo "$$files" | sed 's/^/  formateado: /'; exit 0; fi; \
 	echo "$$files" | sed 's/^/  ✗ sin gofmt: /'; echo "  → make go-fmt FIX=1"; exit 1
-knowledge-fetch: ## @dia trae main a los clones de `main_clones` (los de canon) de los repos que cita knowledge: sin tocar ramas ni stashes de los clones de trabajo. Después, knowledge-check
-	@go run ./cmd/knowledge fetch
-knowledge-check: ## @dia contrastar fuentes con las refs de main disponibles en disco. Sin fetch; un cambio o fuente ilegible sale 1 [JSON=1]
-	@go run ./cmd/knowledge check $(if $(JSON),--json)
+knowledge-check: ## @dia contrastar fuentes con el main de los clones de canon (main_clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
+	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
 knowledge-deriva: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
 	@test -n "$(PASO)" || { echo "falta PASO=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
 	@python3 tools/canon-deriva/knowledge.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(RUN),--run '$(RUN)')

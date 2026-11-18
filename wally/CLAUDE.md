@@ -321,7 +321,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   (`nowrap`) y la ficha OUT quedaba afuera; ahora es `minmax(0, 1fr)` y el comando se corta con «…». Medido a 1440 px:
   4 tarjetas, ninguna ficha afuera.
 - **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `codigo`, `buscar` y
-  `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-fetch`) sin tocar
+  `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-check FETCH=1`) sin tocar
   las ramas de los clones de trabajo de otras sesiones.
 - **En vivo, también lo que corre desde otro lado** (2026-11-17, Miguel: «verlo en tiempo real»): el servidor anota qué
   conversación espera respuesta (`GET /api/busy`, de la interfaz o de `bin/wally ask --auto`) y la interfaz lo mira
@@ -336,9 +336,14 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   afirmación en los dos monolitos (`buscar` acepta una carpeta), lee el rango, y entrega el borrador de `rules.md`, sus
   fuentes, las diferencias con canon y lo no verificado; no escribe. Primera corrida (2026-11-17, `asesor/context`,
   por DeepSeek en Auto): 7 vueltas de 4 a 5 búsquedas, hasta que el mensaje llegó a ~130 mil caracteres y la web lo
-  rechazó («El contenido es demasiado largo»); de ahí salieron los trozos (abajo). Las primeras búsquedas en los clones
+  rechazó («El contenido es demasiado largo»); de ahí salieron los trozos (abajo). Retomado con los trozos, entregó en
+  2 vueltas más: 7 secciones, 16 fuentes en los dos monolitos, 3 diferencias con canon (la baja también borra
+  `cognito_id`, el sufijo es un contador `-t<n>`, el token sólo se pega para asesores de Smartpay) y 2 cosas sin
+  verificar que dejó afuera. Un verificador independiente (`main-verifier`) confirmó sus 13 afirmaciones contra `main`,
+  con líneas corridas y omisiones (un tercer lugar que pega el token, más llamadas al limpiador, el prefijo del perfil
+  en el documento); con eso quedó `knowledge/advisor-accounts`. Las primeras búsquedas en los clones
   de canon tardaban ~24 s: son clones parciales (`blob:none`) y el primer `git grep` baja los archivos;
-  `make knowledge-fetch` ahora los baja por adelantado.
+  `make knowledge-check FETCH=1` ahora los baja por adelantado.
 - **DeepSeek en TROZOS cuando no entra** (Miguel: «no lo compactemos, partámoslo»; en Gemini no hace falta): la receta
   (`jarvis/recipes/deepseek/page.ts`) parte lo que pasa de `DEEPSEEK_CHUNK` (100 mil; medido: 109 mil entraron, ~130 mil
   no) por renglones y lo manda en el MISMO chat: cada trozo menos el último pide «no contestes, respondé sólo OK i/n»
