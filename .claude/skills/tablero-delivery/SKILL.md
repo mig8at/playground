@@ -1,6 +1,6 @@
 ---
 name: tablero-delivery
-description: Saber dónde está y cómo va una tarea FUERA de my-tools: en qué ramas y ambientes vive su cambio (make tareas-ramas, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FALLAS=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
+description: Saber dónde está y cómo va una tarea FUERA de my-tools: en qué ramas y ambientes vive su cambio (make task-branches, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FALLAS=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
 ---
 
 # tablero · la entrega: ramas, ambientes, despliegues, Sonar y Jira
@@ -11,7 +11,7 @@ el 2026-09-27.
 ## Ramas: se declaran los patrones, el resto lo mide git
 
 - **RAMAS: se declaran los PATRONES, el resto lo mide git.** `ramas: pais-como-dato` en el frontmatter
-  —o varios separados por coma— y `make tareas-ramas` responde en qué ramas de qué repos vive la tarea,
+  —o varios separados por coma— y `make task-branches` responde en qué ramas de qué repos vive la tarea,
   **en qué ambientes ya está el cambio** y **en qué estado está su PR**. Igual que los artifacts (son lo
   que hay en la carpeta) y los pendientes (salen del cuerpo): una lista de ramas escrita a mano **miente
   en silencio** en cuanto algo se mergea o se renombra. Medido el 2026-08-19 grepeando las 16 tareas de
@@ -57,7 +57,7 @@ el 2026-09-27.
      con esa sola: el tablero mostraba que ninguna otra tarea tiene ramas, sin avisar (2026-09-15). Ahora
      se fusiona con lo que había, y **cada tarea lleva su propia fecha de medición**, así que lo viejo se
      ve viejo en vez de heredar la fecha de la última corrida.
-  7. **Las tareas que no declaran `ramas:` no se miden — y son la mitad.** `make tareas-ramas SUGERIR=1`
+  7. **Las tareas que no declaran `ramas:` no se miden — y son la mitad.** `make task-branches SUGERIR=1`
      propone patrones mirando las ramas reales: rankea por lo que comparten de RARO (un trozo que
      aparece en pocas ramas de todo el universo) y por la clave de Jira **del frontmatter**, no del
      cuerpo —el cuerpo menciona las claves de otras tareas—. Es una propuesta, no una medición: el patrón

@@ -17,7 +17,7 @@ import (
 // está la pantalla y a dónde lleva), del nodo (sus textos en orden), de la traducción (el HTML, fiel a
 // Figma, con los tokens) y de las hojas del archivo (los tokens y componentes que usa).
 //
-// `/api/brief?key=<clave>&id=<pantalla>` lo devuelve en Markdown; por consola, `make visor-pantalla`.
+// `/api/brief?key=<clave>&id=<pantalla>` lo devuelve en Markdown; por consola, `make visor-screen`.
 
 // screenPlace es dónde vive una pantalla en el mapa: su carril y su posición.
 type screenPlace struct {
@@ -173,7 +173,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		b.WriteString("La pantalla no tiene imágenes (fotos, logos en bitmap).\n")
 	}
 	fmt.Fprintf(&b, "- %d dibujo(s) de Figma (íconos, logos vectoriales).\n", len(unique(rep.Drawings)))
-	fmt.Fprintf(&b, "\nBajalas en su resolución ORIGINAL, con el nombre de su capa: `make visor-recursos R=%s/%s DIR=<carpeta>` (`SVG=1` suma los dibujos). No hace falta pedírselas a diseño.\n", key, dashed)
+	fmt.Fprintf(&b, "\nBajalas en su resolución ORIGINAL, con el nombre de su capa: `make visor-assets R=%s/%s DIR=<carpeta>` (`SVG=1` suma los dibujos). No hace falta pedírselas a diseño.\n", key, dashed)
 
 	if len(rep.Controls) > 0 {
 		b.WriteString("\n## Controles\n\n")
@@ -249,7 +249,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 	if f, err := s.fidelityOf(ctx, key, id, false, true); err == nil {
 		fmt.Fprintf(&b, "%.2f %% igual sin contar el suavizado de las letras (%.1f %% píxel a píxel; medida %s).\n", f.SameReal*100, f.Same*100, f.Measured.Format("2006-01-02 15:04"))
 	} else {
-		fmt.Fprintf(&b, "Sin medir en esta versión: `make visor-fidelidad R=%s/%s` dice cuánto se parece.\n", key, dashed)
+		fmt.Fprintf(&b, "Sin medir en esta versión: `make visor-fidelity R=%s/%s` dice cuánto se parece.\n", key, dashed)
 	}
 
 	if len(rep.Missing) > 0 {

@@ -38,7 +38,7 @@ func TestAgentPointingToAMissingFolderFails(t *testing.T) {
 	f := writeAgent(t, "com.creditop.tablero.pulso", "/bin/sh", "/Users/nadie/Desktop/CREDITOP/playground", "")
 	c := checkAgent(context.Background(), f)
 	if c.Name != "pulso" || c.State != Fail || !strings.Contains(c.Detail, "/Users/nadie/Desktop/CREDITOP/playground") ||
-		!strings.Contains(c.Detail, "make pulso-install") {
+		!strings.Contains(c.Detail, "make pulse-install") {
 		t.Fatalf("quería ✗ pulso con la carpeta y el arreglo: %+v", c)
 	}
 }

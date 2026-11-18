@@ -73,8 +73,8 @@ edita acá) con «Responder en Gmail», que abre la conversación para contestar
 Una tarea declara sus seguimientos en el frontmatter (`correo: [vtex]` en integracion-vtex, `correo: [shopify]` en
 integracion-shopify). Correo no escribe en el tablero; el tablero lo lee:
 
-- `make retomar N=…` y `make agente N=…` muestran el correo de la tarea y cómo consultarlo (`bin/correo latest <seguimiento>`).
-- `make cierre TAREA=N` pone en el bloque del día los correos de esos seguimientos que **llegaron** o que **respondiste** en
+- `make resume N=…` y `make agent N=…` muestran el correo de la tarea y cómo consultarlo (`bin/correo latest <seguimiento>`).
+- `make closeout TAREA=N` pone en el bloque del día los correos de esos seguimientos que **llegaron** o que **respondiste** en
   el lapso, con el enlace a la conversación en Gmail (`tablero/server/cmd/closeout/correo.go`, lee
   `correo/.data/state.json`; `CORREO_DATA` lo cambia).
 - Para un agente que retoma: `bin/correo latest <seguimiento>` dice si se espera a ellos o te toca, y
@@ -142,4 +142,4 @@ margen de documento (24). Anchos por defecto: seguimientos 240, desglose 380.
 | el aviso de macOS | `server/notify.go` |
 | la consola (`bin/correo`) | `server/cli.go` |
 | el desglose en español (`claude -p`, guardado por hilo) | `server/digest.go` |
-| la interfaz | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
+| la interfaz | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |

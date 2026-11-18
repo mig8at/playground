@@ -7,11 +7,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Panel del harness · CreditOp</title>
   <!-- EL TEMA ANTES DE PINTAR: el renglón es el valor de `THEME_BOOT` de `tools/ui/workbench.js`, y lo
-       escribe `make estilo-sync` entre los marcadores (el panel no tiene bundler que lo inyecte). No se
-       edita a mano: `make estilo-check` avisa si se desvía de la fuente. -->
+       escribe `make style-sync` entre los marcadores (el panel no tiene bundler que lo inyecte). No se
+       edita a mano: `make style-check` avisa si se desvía de la fuente. -->
   <script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('ui.palette');if(p&&p!=='default'&&/^(default|vintage|catppuccin|nord|monokaipro|ristretto)$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}/* </theme-boot> */</script>
   <!-- EL TEMA y LA BASE: los dos archivos compartidos, idénticos en las cuatro herramientas y
-       repartidos por `make estilo-sync` (no se editan acá). El tema dice de qué COLOR es cada cosa;
+       repartidos por `make style-sync` (no se editan acá). El tema dice de qué COLOR es cada cosa;
        `workbench.css` dice QUÉ COSA ES y cuánto mide. ⚠ El panel no tiene bundler —`npm run dev` es
        `node panel/server.ts` y nada compila—, así que el `@theme inline` y el `@custom-variant` de
        `theme.css` son at-rules desconocidas y el navegador las descarta enteras, que es lo que se
@@ -42,7 +42,7 @@
     /* Cada color, en los DOS temas: el claro en `:root` y el oscuro en `.dark` (la clase que pone el
        botón del pie). Un color pensado para fondo oscuro sobre blanco no se lee —el ámbar #f59e0b da
        2,1:1 sobre blanco—, así que el claro es otro color, no el mismo. Los dos juegos se miden con
-       `make estilo-contraste THEME=light|dark`. */
+       `make style-contrast THEME=light|dark`. */
     :root {
       --ok: #15803d;
       --warn: #b45309;
@@ -79,7 +79,7 @@
     /* ⚠ LOS TINTES SE MEZCLAN `in oklab`, NUNCA `in oklch`. Los neutros del tema son `oklch(L 0 0)`:
        croma 0 y hue 0, que es el ROJO, y un `color-mix` polar arrastra el matiz — medido el
        2026-09-18: `color-mix(in oklch, #4ade80 20%, var(--card))` da #4d3530, un marrón rojizo;
-       `in oklab` da #2d4132. `make estilo-check` lo frena. */
+       `in oklab` da #2d4132. `make style-check` lo frena. */
 
     /* ── EL DOCUMENTO ─────────────────────────────────────────────────────────────────────────── */
     html, body { height: 100% }
@@ -1293,7 +1293,7 @@
         <span class="ui-icon" data-icon="server" aria-hidden="true"></span><span class="status-dot" id="healthDot"></span><span id="healthText"></span>
       </button>
       <!-- Las FALLAS del harness: el registro de corridas (qué falla, desde cuándo, en qué ambiente y con qué comercio),
-           la página de `make harness-fallas HTML=1`. La sirve este mismo panel en `/fallas`, regenerada al abrirla, así
+           la página de `make harness-failures HTML=1`. La sirve este mismo panel en `/fallas`, regenerada al abrirla, así
            que muestra lo de ahora. Abre en otra pestaña. -->
       <a class="statusbar-item incidents-item" id="lnkIncidents" href="/fallas" target="_blank" rel="noopener" title="Fallas del harness: qué falla, desde cuándo, en qué ambiente y con qué comercio"><span class="ui-icon" data-icon="alert" aria-hidden="true"></span><span>Fallas</span></a>
       <div class="layout-controls" role="group" aria-label="Regiones visibles">

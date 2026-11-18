@@ -90,7 +90,7 @@ func main() {
 	}
 	effort, err := resolve(s, *task)
 	if err != nil {
-		fail("%v. `make tareas` las lista.", err)
+		fail("%v. `make tasks` las lista.", err)
 	}
 	slug := effort.Slug
 	events, err := s.TaskContext(effort.ID)

@@ -120,7 +120,7 @@ Lo que ya costó, y por qué existe:
 | pieza | dónde |
 |---|---|
 | qué apps hay, cómo se levantan, enlaces `cockpit://`, el puerto de control | `src-tauri/src/main.rs` |
-| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make estilo-sync`) |
+| la carcasa: la barra, la configuración (el engranaje abre un modal como el de canon: Apariencia, Claude, Apps —su estado y Reiniciar, con `apps_state` y `restart_app`— y Cómo se usa), los iframes, el panel «Claude», el botón Frenar | `shell/index.html` (su tema y taller son copias de `tools/ui`: `make style-sync`) |
 | el cliente del puerto de control | `lib/cockpit/` · el CLI: `cmd/cockpit/` (`bin/cockpit`) |
 | qué se ve de cada herramienta y a qué app lleva | `tablero/server/internal/hooks/cockpit.go` (con test) |
 | lo que una app le dice a la carcasa | `tools/ui/workbench.js` (todas) · `chat/src/desktop.js` (el chat) |
@@ -141,7 +141,7 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 2. Una entrada en `APPS` (`main.rs`): id, nombre, url, los `host:puerto` que tienen que contestar, y su `make`.
 3. Su ícono en `ICONS` (`shell/index.html`).
 4. El estilo «Paneles» y el tema compartido: sumala a `tools/ui-sync.py` y `tools/style.py`, y `make
-   estilo-sync` + `make estilo-check`.
+   style-sync` + `make style-check`.
 5. Si tiene comandos de consola, a qué app llevan: `cockpitTarget`, con su caso en el test.
 6. La fila de la tabla de arriba, y el id en la fila de `bin/cockpit` del `CLAUDE.md` raíz.
 

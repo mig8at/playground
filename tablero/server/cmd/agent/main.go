@@ -1,5 +1,5 @@
 // agent arma, en UNA salida, lo que un agente necesita para arrancar una tarea del tablero: la tarea
-// (lo mismo que `make retomar`), las trampas que pueden tocarla, si las fuentes de sus temas de
+// (lo mismo que `make resume`), las trampas que pueden tocarla, si las fuentes de sus temas de
 // `knowledge:` siguen al día, las suites que comprueban esos temas, el estado del ambiente local y el
 // recorrido de trabajo con los comandos ya puestos.
 //
@@ -427,7 +427,7 @@ func shareAny(a, b []string) bool {
 // steps: el recorrido del frente «un agente saca una tarea solo», con la tarea ya puesta en cada comando.
 func steps(task taskView) []step {
 	id := fmt.Sprint(task.ID)
-	first := "make retomar N=" + id + " · make knowledge-search Q='…'"
+	first := "make resume N=" + id + " · make knowledge-search Q='…'"
 	if len(task.Chat) > 0 {
 		// Lo que se habló de la tarea en el chat del equipo también es contexto.
 		first += " · bin/chat history '" + task.Chat[0] + "'"
@@ -442,9 +442,9 @@ func steps(task taskView) []step {
 		{3, "¿una corrida ahora diría la verdad?", "make harness-doctor TARGET=local · make keyring · en remoto, make harness-env-drift TARGET=…"},
 		{4, "¿pasa, y cuánto?", "make harness-case|harness-listing|harness-walk-wizard TARGET=… JSON=1 · prod sólo lectura: bin/pg request timeline|events request|sql --target prod"},
 		{5, "¿dónde se decide?", "git grep contra main en los DOS monolitos, o el subagente main-verifier"},
-		{6, "¿lo arreglé sin romper otro flujo?", "make tarea-verify N=" + id + " (las S# del paso 2) · make harness-regression TARGET=local"},
-		{7, "¿lo encuentra el próximo?", "BLOQUE=" + id + " en las corridas · make tarea-bloque N=" + id + " · knowledge/ si es mecanismo · traps/doc.md si es trampa"},
-		{8, "¿quedó medido y entregado?", "make bitacora-add TAREA=" + id + " PULSO=HH:MM · make cierre · commit por ruta; push, PR, Jira o Canon sólo con el sí de Miguel"},
+		{6, "¿lo arreglé sin romper otro flujo?", "make task-verify N=" + id + " (las S# del paso 2) · make harness-regression TARGET=local"},
+		{7, "¿lo encuentra el próximo?", "BLOQUE=" + id + " en las corridas · make task-block N=" + id + " · knowledge/ si es mecanismo · traps/doc.md si es trampa"},
+		{8, "¿quedó medido y entregado?", "make worklog-add TAREA=" + id + " PULSO=HH:MM · make closeout · commit por ruta; push, PR, Jira o Canon sólo con el sí de Miguel"},
 	}
 }
 
@@ -456,7 +456,7 @@ func printText(b brief, task taskView) {
 		}
 	}
 	fmt.Printf("\n  AGENTE · #%d %s · %d pendiente(s) abierto(s) · %d bloque(s) recientes\n", task.ID, task.Title, open, len(task.Context))
-	fmt.Printf("  (el detalle de la tarea: make retomar N=%d · todo junto: JSON=1)\n\n", task.ID)
+	fmt.Printf("  (el detalle de la tarea: make resume N=%d · todo junto: JSON=1)\n\n", task.ID)
 
 	fmt.Println("  TRAMPAS que pueden tocarla")
 	if len(b.Traps.BySymptom)+len(b.Traps.Cited) == 0 {
@@ -481,7 +481,7 @@ func printText(b brief, task taskView) {
 		fmt.Printf("    %s · %s\n        %s\n", sp.ID, truncate(sp.What, 100), cmd)
 	}
 	if len(b.Specs) > 0 {
-		fmt.Printf("    el veredicto: make tarea-verify N=%d\n", task.ID)
+		fmt.Printf("    el veredicto: make task-verify N=%d\n", task.ID)
 	}
 
 	fmt.Println("\n  CONOCIMIENTO declarado")
@@ -549,7 +549,7 @@ var fitText = map[journeys.Fit]string{
 func printJourney(j *journeyState, task taskView) {
 	fmt.Println("\n  RECORRIDO EN LA PLATAFORMA")
 	if j == nil {
-		fmt.Printf("    la tarea no declara `recorrido:` — ubicala con make harness-recorrido TARGET=local LENDER=… y declarala en el frontmatter\n")
+		fmt.Printf("    la tarea no declara `recorrido:` — ubicala con make harness-journey TARGET=local LENDER=… y declarala en el frontmatter\n")
 		return
 	}
 	if len(j.Errors) > 0 {

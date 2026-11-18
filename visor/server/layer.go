@@ -23,7 +23,7 @@ import (
 //	/api/layers?key=&id=          las cajas de todas las capas visibles: la interfaz busca la de abajo del mouse
 //	/api/layer?key=&id=&layer=    lo que se sabe de UNA: qué es, dónde está, qué dice Figma y qué HTML salió
 //
-// La consola (`make visor-capa`) suma lo que el modelo no puede ver: los recortes de Figma y del HTML en
+// La consola (`make visor-layer`) suma lo que el modelo no puede ver: los recortes de Figma y del HTML en
 // esa zona, y cuánto se parecen ahí.
 
 // layerBox es una capa visible con su caja, en píxeles de la pantalla.

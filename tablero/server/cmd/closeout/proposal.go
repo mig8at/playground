@@ -16,7 +16,7 @@ import (
 	"creditop/my-tools/tablero/server/internal/store"
 )
 
-// EL CIERRE EN UN PASO. `make cierre` decía QUÉ faltaba —el bloque, la bitácora— y dejaba al agente
+// EL CIERRE EN UN PASO. `make closeout` decía QUÉ faltaba —el bloque, la bitácora— y dejaba al agente
 // reconstruir el resto: desde qué hora medir, qué commits entran, cómo se escribe cada comando. Medido el
 // 2026-10-20: cerrar una tarea llevaba unas quince llamadas. Con `-tarea N` el cierre arma la propuesta: el
 // lapso desde donde terminó la última entrada de bitácora del día, los commits de la tarea en ese lapso y
@@ -193,7 +193,7 @@ func propose(data string, t task, now time.Time, myTools, reposDir string) (Prop
 	if !ok {
 		first, _ := pulseSince(data, midnight)
 		if first.IsZero() {
-			return p, fmt.Errorf("no hay bitácora ni pulso de hoy: no hay de dónde medir. Usá `make bitacora-add TAREA=%d LAPSO=HH:MM-HH:MM` con la hora de `date`", t.ID)
+			return p, fmt.Errorf("no hay bitácora ni pulso de hoy: no hay de dónde medir. Usá `make worklog-add TAREA=%d LAPSO=HH:MM-HH:MM` con la hora de `date`", t.ID)
 		}
 		since = first.Truncate(5 * time.Minute)
 		p.SinceFrom = "el primer cambio del pulso de hoy"

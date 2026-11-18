@@ -15,7 +15,7 @@ package store
 // cómo se supo que el backend de países estaba en `develop` y en `staging` pero no en `main`.
 //
 // POR QUÉ ES UN SNAPSHOT. Medir esto son varias invocaciones de git por repo. Hacerlo en cada render de
-// la card haría lenta la UI, así que se mide con `make tareas-ramas` y se guarda con la FECHA de la
+// la card haría lenta la UI, así que se mide con `make task-branches` y se guarda con la FECHA de la
 // medición — igual que el sprint. Un estado de git sin fecha se lee como actual y no lo es.
 //
 // LA PARTE QUE SÍ HABLA CON LA RED: los PRs. Git sólo sabe de commits, y "en qué PR va esto y quién lo

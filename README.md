@@ -51,7 +51,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Ver las tareas o el chat | Cockpit (`make cockpit`), o `make tablero` |
 | Investigar una solicitud rota | en prod, el tracer del equipo (`tools/tracer` del playground compartido); fuera de prod, `make harness-loki UREQ=… TARGET=…` y `make harness-posthog UREQ=… TARGET=…` |
 
-**El trabajo diario arranca en local:** `make retomar N=…` reúne la tarea y sus referencias
+**El trabajo diario arranca en local:** `make resume N=…` reúne la tarea y sus referencias
 `knowledge:` sin consultar Canon. `make knowledge-check` detecta cambios en los archivos fuente;
 no certifica la prosa ni el despliegue. Canon vive en `github/playground/tools/canon` y sirve al
 equipo: consultarlo o publicar allí es una decisión explícita, no un requisito de estas herramientas.

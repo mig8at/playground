@@ -1,4 +1,4 @@
-/* `make estilo-contraste` — mide el contraste de lo que SE PINTA, en las tres UIs.
+/* `make style-contrast` — mide el contraste de lo que SE PINTA, en las tres UIs.
  *
  * El chequeo 3 de `estilo-check` sólo puede mirar reglas que fijan color Y fondo en la MISMA regla.
  * Todo lo demás hereda el color de un ancestro y el fondo de otro, y eso no se resuelve leyendo CSS:

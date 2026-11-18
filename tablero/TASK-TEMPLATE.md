@@ -27,11 +27,11 @@ jira_title: ""
                  Nunca minutos ni notas de sesión.
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
-    · RAMAS      frontmatter `ramas:` + snapshot de `make tareas-ramas N=<id>`.
-    · BITÁCORA   tiempo medido con `make bitacora-add TAREA=<id>`; no es una sección de este archivo.
+    · RAMAS      frontmatter `ramas:` + snapshot de `make task-branches N=<id>`.
+    · BITÁCORA   tiempo medido con `make worklog-add TAREA=<id>`; no es una sección de este archivo.
 
   Reescribí el plan; mantené el material reproducible. Lo que pasa —una medición, una decisión, una
-  pregunta, un riesgo, lo que se hizo en el día— entra a la pila como bloque con `make tarea-bloque`;
+  pregunta, un riesgo, lo que se hizo en el día— entra a la pila como bloque con `make task-block`;
   no copies sesiones ni logs. El conocimiento técnico reutilizable va a knowledge/ con fuentes verificadas.
   No crees seis copias del contenido ni encabezados con los contadores de la interfaz.
 -->
@@ -58,7 +58,7 @@ jira_title: ""
      - [ ] Acción pendiente; termina cuando [resultado verificable].
        Depende de: [nombre] — [dato o respuesta], si aplica.
      - [x] Acción cerrada — [evidencia de la comprobación].
-     Una pregunta abierta a alguien es un pendiente con su «Depende de:»: `make hoy` lo muestra como
+     Una pregunta abierta a alguien es un pendiente con su «Depende de:»: `make today` lo muestra como
      «espera a …» y, a diferencia de la vieja anotación PREGUNTA, se cierra tildándolo.
 -->
 
@@ -70,7 +70,7 @@ jira_title: ""
 
 <!-- Opcional, y lo que hace que «hecho» no dependa de quien cierra: cada S# es algo que tiene que ser
 cierto, con la cita textual de quien lo pidió (Miguel, producto, Jira) y el comando que lo comprueba.
-`make tarea-verify N=…` las corre y contesta S1 ✓ · S2 ✗. Sólo admite corridas del harness contra local,
+`make task-verify N=…` las corre y contesta S1 ✓ · S2 ✗. Sólo admite corridas del harness contra local,
 chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
 
 - **S1** · lo que tiene que ser cierto — «la cita» (quién, AAAA-MM-DD)
@@ -142,7 +142,7 @@ chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
 <!-- LA HISTORIA VA A LA PILA
      Este documento no lleva `## Registro`, anotaciones fechadas, sección de retoma ni marcadores CANON:
      un diario en el Markdown mezcla historia con lo vigente, y hasta el 2026-09-23 eso volvía ilegibles
-     las tareas grandes. Esa historia se apila con `make tarea-bloque N=<id|slug> ARCHIVO=<bloque.md>`,
+     las tareas grandes. Esa historia se apila con `make task-block N=<id|slug> ARCHIVO=<bloque.md>`,
      y el lint frena una nueva en el documento.
 
      Un bloque es un título —la conclusión, en una línea— y una descripción con lo que la sostiene:

@@ -45,7 +45,7 @@ func (l Layout) Knowledge() string { return filepath.Join(filepath.Dir(l.Tools()
 //
 // Primero, dos niveles arriba de `data/`. ⚠ Pero TABLERO_DATA puede apuntar AFUERA del repo —el agente
 // del pulso, una copia para probar sin tocar las pilas reales— y ahí «al lado de los datos» no hay nada:
-// una herramienta que mandaba su bloque con `make tarea-bloque` recibía «No rule to make target» (lo cazó
+// una herramienta que mandaba su bloque con `make task-block` recibía «No rule to make target» (lo cazó
 // la prueba de punta a punta del 2026-09-23). Entonces se busca hacia arriba desde donde se corre.
 func (l Layout) Tools() string {
 	data, err := filepath.Abs(l.Data)

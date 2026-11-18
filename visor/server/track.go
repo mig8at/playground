@@ -24,7 +24,7 @@ import (
 // (`?huella=`, figma.Fingerprint), y comparar contra la de hoy dice «igual», «cambió» o «la borraron».
 // Es el mismo mecanismo que canon usa con el hash del blob de cada fuente.
 
-// Los estados de un enlace. La UI y `make visor-enlaces` los dicen en castellano.
+// Los estados de un enlace. La UI y `make visor-links` los dicen en castellano.
 const (
 	linkSame     = "same"     // la pantalla es la que se enlazó
 	linkChanged  = "changed"  // el diseñador la cambió después

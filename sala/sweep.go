@@ -56,11 +56,11 @@ var denied = []string{
 // logs de cada ambiente, y el harness.
 var sweepTools = []string{"Read", "Grep", "Glob",
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)", "Bash(go run ./cmd/repos *)",
-	"Bash(make knowledge-*)", "Bash(make retomar *)", "Bash(make tareas *)", "Bash(make trampas *)",
+	"Bash(make knowledge-*)", "Bash(make resume *)", "Bash(make tasks *)", "Bash(make traps *)",
 	"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)",
 	"Bash(bin/pg sql *)", "Bash(bin/pg events *)", "Bash(bin/pg request *)", "Bash(bin/pg logs *)", "Bash(bin/pg client *)",
 	"Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)", "Bash(make harness-walk-wizard *)",
-	"Bash(make harness-doctor *)", "Bash(make tarea-verify *)", "Bash(make agente *)", "Bash(lsof -nP -iTCP*)", "Bash(grep *)"}
+	"Bash(make harness-doctor *)", "Bash(make task-verify *)", "Bash(make agent *)", "Bash(lsof -nP -iTCP*)", "Bash(grep *)"}
 
 const sweepRules = `No edites archivos, no commitees y no corras nada contra producción salvo lecturas de bin/pg. ` +
 	`Un comando por llamada a Bash, sin cd, sin ;, && ni |: usá git -C <repo> y bin/pg con ruta relativa. ` +

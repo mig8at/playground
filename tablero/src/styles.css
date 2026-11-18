@@ -56,7 +56,7 @@
   /* Cada color de estado, en los dos temas: el claro en `:root` y el oscuro en `.dark`, que es la
      clase que pone el botón de tema (`bindThemeToggle`). Un color pensado para fondo oscuro sobre
      blanco no se lee —el ámbar #fbbf24 da 1,7:1—, así que el claro es otro color, no el mismo.
-     Los dos juegos se miden con `make estilo-contraste`. */
+     Los dos juegos se miden con `make style-contrast`. */
   --ok:   #15803d;
   --warn: #b45309;
   /* ⚠ Y una medición que sobrevive a la vista que la motivó, porque es del TEMA y no de ella: el par
@@ -70,7 +70,7 @@
   --bad:  var(--destructive-ink);
   --info: #1d4ed8;
   /* El resaltado del SQL de los hallazgos: los tonos de un editor. Tampoco los trae un tema, y como
-     literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make estilo-check`). */
+     literales sueltos en su regla un tema nuevo no los alcanzaba (lo marca `make style-check`). */
   --sql-keyword:    #6d28d9;
   --sql-function:   #0369a1;
   --sql-string:     #3f6212;

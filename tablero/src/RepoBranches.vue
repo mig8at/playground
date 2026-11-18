@@ -158,7 +158,7 @@ const relativeMeasurement = computed(() => {
     </template>
 
     <div v-else class="empty-branches">
-      <strong>{{ taskLabel || 'Esta tarea' }}</strong><span>no tiene ramas asociadas en la medición local.</span><code>make tareas-ramas</code>
+      <strong>{{ taskLabel || 'Esta tarea' }}</strong><span>no tiene ramas asociadas en la medición local.</span><code>make task-branches</code>
     </div>
   </div>
 </template>

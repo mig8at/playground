@@ -15,7 +15,7 @@ skills que se cargan cuando hacen falta:
 operativo: bitácora, pulso, cachés y las trampas del sistema. **Dónde vive cada cosa lo sabe un solo
 lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano en un comando.
 
-- ⚠ **Antes de crear cualquier archivo, corré `make tareas TODAS=1`.** Cada tarea es de uno de **tres niveles**
+- ⚠ **Antes de crear cualquier archivo, corré `make tasks TODAS=1`.** Cada tarea es de uno de **tres niveles**
   (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13), y el nivel decide si va a Jira:
 
   | nivel | qué es | Jira | contenedor general · por herramienta o repo |
@@ -27,7 +27,7 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   **Una herramienta nueva trae su tarea nueva** (`clase: proyecto`, `nivel: miguel` o `playground`); el trabajo
   sobre una herramienta va en la suya, y lo que cruza varias, en el contenedor general de su nivel. Una tarea global
   de un repo lleva la historia y el desglose; lo técnico verificado sigue en `knowledge/` y se enlaza. El lint y
-  `make tareas` validan el nivel: una de `miguel` con Jira es un error. En el tablero, las de `miguel` y
+  `make tasks` validan el nivel: una de `miguel` con Jira es un error. En el tablero, las de `miguel` y
   `playground` van en su propia vista al final («Mis herramientas» y «Playground»); «CreditOp sin Jira» (el menú ⋯) prende las demás sin Jira.
   `context`, `trazador`, `workers` y `my-tools` (antes `playground-local`) están archivadas (lo de esta última, dentro de `miguel`).
 - **Los contenedores son `clase: proyecto`**: sin Jira ni sección publicable. Dentro, cada frente conserva
@@ -40,10 +40,10 @@ lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano e
   (`harness/journeys.json`, explicado en `knowledge/origination-paths`):
   `recorrido: [advisor|self-service, riel-4, credit, +dynamic-form, formalizacion:radicacion]`. Lo que el catálogo
   no tiene se escribe con `nuevo-`/`nueva-` (`formalizacion:nueva-entrega-finandina`); sin ese prefijo, el lint lo
-  toma como tipeo. `make agente` dice si la tarea **encaja**, **encaja con variación** o pide un **recorrido nuevo**,
+  toma como tipeo. `make agent` dice si la tarea **encaja**, **encaja con variación** o pide un **recorrido nuevo**,
   y qué suites lo cubren (las que declaran su `recorrido` en el JSON).
 - **Renombrar o mover una tarea NO es tocarla**: «días sin tocar» y el cierre siguen las mudanzas de git.
-- **JSON es una proyección, no otro archivo**: `make tarea-json N=<slug|id>` deriva `tablero.task.v3` del
+- **JSON es una proyección, no otro archivo**: `make task-json N=<slug|id>` deriva `tablero.task.v3` del
   Markdown y la pila. No crees sidecars manuales.
 - `data/entries/` (bitácora), `data/pulse/` (el pulso) y `data/cache/` están **fuera de git** a propósito;
   `tasks/` **sí** se versiona.
@@ -85,7 +85,7 @@ tarea). Copiala para una tarea nueva. El orden es el que necesita quien llega si
 - **Pendientes**: una lista canónica bajo `## Pendientes`. Cada casilla empieza con una acción y dice cómo
   se sabe que terminó; una dependencia agrega `Depende de: <quién> — <qué>`. Marcá sólo lo verificado.
 - **Tener fecha no condena a una sección**: «Cómo se prueba (verificado el …)» es material vigente. El
-  test es el de arriba. `make anatomia` mide el peso de cada documento y señala secciones con fecha que
+  test es el de arriba. `make anatomy` mide el peso de cada documento y señala secciones con fecha que
   parecen historia; no mueve nada. El lint, a propósito, no avisa por tamaño.
 - **Las tareas ya publicadas NO se migran** (decisión de Miguel, 2026-08-20).
 
@@ -105,7 +105,7 @@ mismo nivel que el marcador.
 el guard (`connectors/guard`), que rechaza F-xx, repos, rutas con extensión, `playground` y el
 vocabulario de las herramientas (`make <target>`, `E2E_TARGET`, `trazador`, `localhost`…). **Se comparte
 QUÉ se hizo, no CON QUÉ**: *«se recorrió el flujo de punta a punta con un cliente de prueba»*, nunca el
-comando. `make tareas-guard F=<archivo>` lo prueba antes de escribir (sale 1 si no pasa). El guard no es
+comando. `make task-guard F=<archivo>` lo prueba antes de escribir (sale 1 si no pasa). El guard no es
 la regla de qué escribir, sólo de qué no filtrar: un texto lleno de SQL y clases de Laravel lo pasa.
 
 **Editar el archivo no publica nada**, y **nada se publica sin que Miguel lo vea antes**. La pestaña Jira
@@ -127,7 +127,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
-| una pantalla del diseño | `[Completa tu solicitud](visor:<clave>/<nodo>@<huella>)`, como lo da el visor | la forma (`make visor-enlaces` dice si cambió) |
+| una pantalla del diseño | `[Completa tu solicitud](visor:<clave>/<nodo>@<huella>)`, como lo da el visor | la forma (`make visor-links` dice si cambió) |
 | una corrida de Jarvis | `[Ver el Dev Dashboard](jarvis:2026-11-13_12-40-53)`: el id de la corrida; se abre como video en su interfaz | la forma (las corridas viven fuera de git: no se comprueba que existan) |
 | una página | `[texto](https://…)` | nada |
 | una prueba | ` ```harness ` con el comando (los bloques viejos traen ` ```trazador `), y debajo `Resultado: …` | que el comando diga su `TARGET=` |
@@ -141,11 +141,11 @@ solo** (con aviso); si está en varios o en ninguno, el error dice dónde está.
 (`` `cat x.php` ``) no se toca. Los repos citables salen de `tools/repos.json`, más `my-tools` y
 `playground-equipo`. El material que no es un comando va en ` ```json ` o ` ```text `.
 
-Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make tarea-bloque N=<id|slug>
+Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make task-block N=<id|slug>
 ARCHIVO=<bloque.md>` (`SECO=1` previsualiza; `ARCHIVO=-` lee stdin). **Las herramientas lo hacen solas
 con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `tablero-db` y
 `bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
-con `make tarea-context N=…` o `make retomar`. El contrato de la línea: `docs/task-context.schema.json`.
+con `make task-context N=…` o `make resume`. El contrato de la línea: `docs/task-context.schema.json`.
 
 **Un agente escribe y lee sin archivos ni make** con las herramientas MCP de my-tools (`bin/pg mcp`):
 `tarea_bloque` (tarea, título, cuerpo; `seco` valida sin escribir), `bitacora_add` (con `lapso`, `pulso` o
@@ -156,33 +156,33 @@ y `bin/pg tareas`. Corren el mismo código del tablero: misma validación y mism
 enlace, reiniciá el tablero, o la pila entera de esa tarea se ve vacía.
 
 **Un hallazgo** (lo que le pasó a ESTA tarea) es un bloque y muere con ella; **una trampa** (`F-xx`, lo que
-le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `make trampas` las valida.
+le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `make traps` las valida.
 
 ### Avances y artifacts
 
 - **Avances** (`data/entries/`): una entrada por tramo de trabajo, append-only, en la forma **acción
-  realizada → resultado → validación**. Se escriben con `make bitacora-add TAREA=<id>` y una fuente de
+  realizada → resultado → validación**. Se escriben con `make worklog-add TAREA=<id>` y una fuente de
   tiempo. La pila cuenta qué pasó; los avances, cuánto llevó.
 - **Artifacts** (`tasks/<slug>/artifacts/`): prototipos, consultas, notas. Se abren en la pestaña Artifacts del
   tablero, al lado de la tarea (`bin/cockpit open tablero '#/tareas/<slug>?vista=artifacts'` se la muestra a Miguel). Un prototipo es **un HTML
   autocontenido, sin build**, **con la fecha visible adentro**, y **no gradúa a canon**: describe lo
   propuesto y muere con la tarea.
 - **`ramas:`** en el frontmatter declara sólo los PATRONES; dónde vive cada rama lo mide `make
-  tareas-ramas N=<id|slug>` (segundos; sin `N`, todas) o `bin/pg tarea ramas` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
+  task-branches N=<id|slug>` (segundos; sin `N`, todas) o `bin/pg tarea ramas` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
   Un patrón es una subcadena del nombre de la rama en TODOS los repos; con `repo:subcadena`
   (`vtex:payment-link`) busca sólo en ese repo, y un worktree cuenta como su repo original.
 
 ## AL CERRAR UNA SESIÓN: tres cosas
 
-1. **Un bloque del día** con `make tarea-bloque`, en la tarea con `id`: el título con la conclusión y la
+1. **Un bloque del día** con `make task-block`, en la tarea con `id`: el título con la conclusión y la
    descripción con lo que la sostiene. Lo descartado entra como bloque con su motivo.
-2. **`ramas:`** apenas exista la primera rama, y volvé a medir con `make tareas-ramas`.
-3. **La bitácora con `make bitacora-add`**, con los minutos de UNA fuente que queda escrita en la nota
+2. **`ramas:`** apenas exista la primera rama, y volvé a medir con `make task-branches`.
+3. **La bitácora con `make worklog-add`**, con los minutos de UNA fuente que queda escrita en la nota
    (un lapso que se pisa con otra entrada del mismo día, de cualquier tarea o sesión, se rechaza: es tiempo contado dos veces):
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
-**`make cierre TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
+**`make closeout TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en my-tools,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
@@ -192,11 +192,11 @@ esos remitentes y lo que respondiste en el lapso, con el enlace a Gmail. Jarvis 
 bloque saca las ajenas. No escribe nada: el título del bloque es la conclusión y la pone quien
 trabajó.
 
-**`make cierre` lo chequea** (sale 1 si a una tarea tocada le falta una pieza) y el hook de `Stop`
+**`make closeout` lo chequea** (sale 1 si a una tarea tocada le falta una pieza) y el hook de `Stop`
 (`closeout`) lo corre solo, una vez por sesión, sobre las tareas que ESA sesión escribió. Si te frena en el
 medio del trabajo, decilo en una línea y seguí.
 
-- **Pendientes que quedaron atrás de un merge**: `make cierre` cruza los pendientes abiertos de todas las
+- **Pendientes que quedaron atrás de un merge**: `make closeout` cruza los pendientes abiertos de todas las
   tareas con el estado de los PRs que citan con su repo (`pr:alias#N`, `repo#N` o la URL) y avisa con `▲` los
   que ya están mergeados o cerrados. No frena: un pendiente puede nombrar un PR como contexto. Si el pendiente
   ya lo reconoce («(mergeado)», «ya está en `main`») no avisa. El hook de `Stop` no lo corre (`-sin-prs`: no va
@@ -210,28 +210,28 @@ medio del trabajo, decilo en una línea y seguí.
 
 - Si la tarea declara `ramas:` y no hay un solo comando reconocible en ella, el cierre avisa `▲ tocó
   código y no dice con QUÉ se comprobó`. Avisa, no frena.
-- **El tablero pinta el documento de un issue sólo si una tarea lo nombra en `jira:`.** `make cierre`
+- **El tablero pinta el documento de un issue sólo si una tarea lo nombra en `jira:`.** `make closeout`
   cruza mis issues de los últimos 4 sprints con esos `jira:`: un issue que una tarea nombra (documento o
   pila) sin tenerlo en `jira:` es `✗` y sale 1; uno que ninguna nombra es `▲`. Cuando se crea el issue
   después que la tarea, sumá la clave a su `jira:` (una tarea puede tener varias). El hook de `Stop` no
   consulta Jira (`-sin-jira`).
 
 **El pulso** (`server/cmd/pulse`, un LaunchAgent cada 5 min) anota solo cuándo se tocó código leyendo git;
-no se escribe a mano. Se lee con `make pulso`. El pulso dice **cuándo**; la bitácora, **en qué**.
+no se escribe a mano. Se lee con `make pulse`. El pulso dice **cuándo**; la bitácora, **en qué**.
 
 ## Retomar una tarea
 
-`make tareas TODAS=1` → `make retomar N=<id>`: pila, documento y los temas locales declarados en
+`make tasks TODAS=1` → `make resume N=<id>`: pila, documento y los temas locales declarados en
 `knowledge:`. Acepta `lender-listing` o `lender-listing#ancla`. Lee `knowledge/<topic>/rules.md` y sus
 fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, sin cortar una regla.
 
-`correo:` dice qué seguimientos de la herramienta Correo (`correo/`) son de la tarea (`correo: [vtex]`): `make retomar` y
-`make agente` lo muestran con `bin/correo latest <seguimiento>` (quién escribió último y si te toca), y `make cierre` pone
+`correo:` dice qué seguimientos de la herramienta Correo (`correo/`) son de la tarea (`correo: [vtex]`): `make resume` y
+`make agent` lo muestran con `bin/correo latest <seguimiento>` (quién escribió último y si te toca), y `make closeout` pone
 en el bloque del día los correos de esos seguimientos que llegaron o que respondiste en el lapso, con el enlace a cada
 conversación en Gmail. Correo no escribe en el tablero: el cierre lee lo que guarda (`correo/.data/state.json`).
 
 `chat:` dice dónde se habla de la tarea en el chat del equipo: un grupo o personas (`chat: ['#ecommerce', duncan]`;
-el `#` va entre comillas). `make retomar` y `make agente` lo muestran con `bin/chat history` para el contexto; seguirlo
+el `#` va entre comillas). `make resume` y `make agent` lo muestran con `bin/chat history` para el contexto; seguirlo
 en vivo (`bin/chat follow … --theirs`) es sólo si Miguel lo pide.
 
 No consultar Canon es el comportamiento por defecto. Para una consulta de negocio/producto que no
@@ -262,19 +262,19 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
 
 ## El tablero por consola, sin levantar nada
 
-    make tareas                       las abiertas, con etapa, Jira y nodos
-    make tareas N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
-    make tareas STAGE=work TODAS=1 JSON=1
-    make tarea-json N=tablero         una tarea —documento y pila— en el contrato `tablero.task.v3`
-    make tareas-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
+    make tasks                       las abiertas, con etapa, Jira y nodos
+    make tasks N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
+    make tasks STAGE=work TODAS=1 JSON=1
+    make task-json N=tablero         una tarea —documento y pila— en el contrato `tablero.task.v3`
+    make task-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
     make sprint                       el sprint activo con puntos, del SNAPSHOT
-    make bitacora DAYS=7              el tiempo registrado, por día
-    make tareas-ramas                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
-    make hoy                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
-    make retomar N=84                 retomar UNA en frío. suma knowledge: local; BRIEF=1 consulta Canon explícitamente
-    make cierre                       el cierre del día: a qué tarea tocada le falta qué
-    make bitacora-add TAREA=84 …      la bitácora con minutos medidos por el comando
-    make tarea-bloque N=84 ARCHIVO=…  apilar un bloque validado
-    make tarea-context N=84           leer la pila de una tarea
+    make worklog DAYS=7              el tiempo registrado, por día
+    make task-branches                 en qué ramas vive cada tarea y hasta dónde llegó (mide git)
+    make today                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
+    make resume N=84                 retomar UNA en frío. suma knowledge: local; BRIEF=1 consulta Canon explícitamente
+    make closeout                       el cierre del día: a qué tarea tocada le falta qué
+    make worklog-add TAREA=84 …      la bitácora con minutos medidos por el comando
+    make task-block N=84 ARCHIVO=…  apilar un bloque validado
+    make task-context N=84           leer la pila de una tarea
     make deploys FALLAS=1             sólo lo que falló en los despliegues, con el error del log
     make jira-create JSON=t.json      crear en Jira y meter al sprint activo (skill `tablero-delivery`)

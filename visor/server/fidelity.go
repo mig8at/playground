@@ -38,7 +38,7 @@ import (
 type fidelity struct {
 	// SameReal es LA medida: la fracción de píxeles sin una diferencia REAL —la que no se explica con el
 	// suavizado de las letras ni con medio píxel de corrimiento (ver RADIUS y FLOOR en fidelity.mjs)—. Same
-	// es la estricta, píxel a píxel, la de `make visor-fidelidad REF=` y la de las medidas viejas.
+	// es la estricta, píxel a píxel, la de `make visor-fidelity REF=` y la de las medidas viejas.
 	SameReal  float64   `json:"same_real"`
 	Same      float64   `json:"same"`
 	Threshold int       `json:"threshold"` // cuánto tiene que diferir un canal para contar

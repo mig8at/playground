@@ -263,7 +263,7 @@ func readTaskFile(path string) (Task, string, error) {
 		case strings.HasPrefix(l, "archived:"):
 			// El valor es la FECHA de archivado (así lo escribe el tablero y así lo lee el store:
 			// "" = viva). Acá decía `== "true"`, y como ningún archivo dice `true`, las 24 archivadas
-			// contaban como abiertas: `make tareas` anunciaba 63 cuando eran 39 (2026-09-14).
+			// contaban como abiertas: `make tasks` anunciaba 63 cuando eran 39 (2026-09-14).
 			v := value(l)
 			t.Archived = v != "" && v != "false" && v != "null"
 		case strings.HasPrefix(l, "jira:"):
@@ -402,7 +402,7 @@ func showLint(path string) int {
 			warns("%s — ya estaba antes de la pila de bloques; cuando se toque, va a la pila", where)
 			continue
 		}
-		failure("%s — la historia va a la pila como bloque, no al documento: `make tarea-bloque N=%d ARCHIVO=<bloque.md>`", where, t.ID)
+		failure("%s — la historia va a la pila como bloque, no al documento: `make task-block N=%d ARCHIVO=<bloque.md>`", where, t.ID)
 	}
 	for _, a := range warnings {
 		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(path), a)

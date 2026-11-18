@@ -277,7 +277,7 @@ func runCommand(which, base string, apply bool) error {
 	snap := store.ReadBranchSnapshot(filepath.Join(root, "cache"))
 	measurements, found := snap.Tasks[strconv.Itoa(t.id)]
 	if !found || len(measurements.Branches) == 0 {
-		return fmt.Errorf("la tarea %d no tiene ramas medidas. Corré primero: make tareas-ramas N=%d", t.id, t.id)
+		return fmt.Errorf("la tarea %d no tiene ramas medidas. Corré primero: make task-branches N=%d", t.id, t.id)
 	}
 	when := measurements.MeasuredAt
 	if when == "" {
@@ -411,6 +411,6 @@ func ago(iso string) string {
 	case d < 48*time.Hour:
 		return fmt.Sprintf("medidas hace %d h", int(d.Hours()))
 	default:
-		return fmt.Sprintf("⚠ medidas hace %d días — conviene `make tareas-ramas` antes", int(d.Hours()/24))
+		return fmt.Sprintf("⚠ medidas hace %d días — conviene `make task-branches` antes", int(d.Hours()/24))
 	}
 }

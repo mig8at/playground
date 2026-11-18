@@ -25,14 +25,14 @@ URL. El modelo no sale a buscar qué podría ser: entiende esa URL y trae eso.
 
 Las piezas sueltas, para cuando hace falta una sola cosa (ninguna necesita el visor corriendo):
 
-    make visor-pantallas                                        # los proyectos, con su clave de Figma
-    make visor-pantallas P=<clave>                              # el flujo: carriles y pantallas, cada una con su id
-    make visor-pantalla R=<clave>/<nodo>                        # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
-    make visor-recursos R=<clave>/<nodo> DIR=<carpeta> [SVG=1]  # las imágenes ORIGINALES, con el nombre de su capa
-    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-componentes P=<clave>
-    make visor-fidelidad R=<clave>/<nodo>                       # ¿cuánto se parece el HTML a Figma?
-    make visor-capa R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló
-    make visor-buscar Q='alquila moto'                          # el caso RARO: nadie pegó nada
+    make visor-screens                                        # los proyectos, con su clave de Figma
+    make visor-screens P=<clave>                              # el flujo: carriles y pantallas, cada una con su id
+    make visor-screen R=<clave>/<nodo>                        # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
+    make visor-assets R=<clave>/<nodo> DIR=<carpeta> [SVG=1]  # las imágenes ORIGINALES, con el nombre de su capa
+    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-components P=<clave>
+    make visor-fidelity R=<clave>/<nodo>                       # ¿cuánto se parece el HTML a Figma?
+    make visor-layer R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló
+    make visor-search Q='alquila moto'                          # el caso RARO: nadie pegó nada
 
 - **Lee todas las páginas del archivo**, no sólo la de flujo: una pantalla que no está en «Flujo» (la versión
   Q3 de App Creditop, el prototipo) se busca en las demás. La primera vez que hace falta lee cada página de
@@ -50,7 +50,7 @@ Las piezas sueltas, para cuando hace falta una sola cosa (ninguna necesita el vi
 
 ## El paquete para el modelo: una pantalla, lista para pasar a código
 
-**`make visor-pantalla R=<clave/nodo>`** da en un solo Markdown lo que un modelo necesita para pasarla a Vue
+**`make visor-screen R=<clave/nodo>`** da en un solo Markdown lo que un modelo necesita para pasarla a Vue
 o React (`/api/brief`, en `visor/server/brief.go`): el enlace `visor:` con su huella, el de Figma, el carril y el tamaño; los **textos en orden de
 lectura** (sin la barra de estado: que el modelo no invente copy); **a dónde lleva** cada zona; los
 controles; los **componentes** con sus variantes; los **tokens** con su variable o clase; lo que el HTML no
@@ -69,7 +69,7 @@ para el modelo va por consola. Si hace falta información nueva, va primero al C
 - **Lee, no escribe.** Todo sale de `connectors/figma` (el mapa es el mismo `bin/pg figma map`); el token
   de Figma no sale del server.
 - **El HTML lo traduce `visor/render`** desde el JSON del nodo, y **la imagen de Figma es su vara**:
-  `make visor-fidelidad` los compara en Chromium. Lo que no tiene equivalente en CSS (máscaras, modos de
+  `make visor-fidelity` los compara en Chromium. Lo que no tiene equivalente en CSS (máscaras, modos de
   mezcla, degradados no lineales) no se imita: va al reporte de la traducción.
 - **El carril y el título se DEDUCEN** del lienzo. Las reglas están en `connectors/figma/structure.go`: si
   un archivo nuevo sale mal agrupado, se corrige ahí, con su prueba, no en la Vue.
@@ -79,17 +79,17 @@ para el modelo va por consola. Si hace falta información nueva, va primero al C
 ## Cómo se comprueba
 
     make visor-test                      # la traducción (visor/render) y las guardas del server, sin red
-    make visor-fidelidad R=<clave/nodo>  # una pantalla: su porcentaje, sin el visor corriendo
-    make visor-fidelidad REF='<url>'     # el flujo entero, con el visor corriendo
-    make visor-enlaces                   # ¿las pantallas que enlazan las tareas siguen igual, cambiaron o las borraron?
+    make visor-fidelity R=<clave/nodo>  # una pantalla: su porcentaje, sin el visor corriendo
+    make visor-fidelity REF='<url>'     # el flujo entero, con el visor corriendo
+    make visor-links                   # ¿las pantallas que enlazan las tareas siguen igual, cambiaron o las borraron?
     go test ./connectors/figma/          # las reglas que deducen carriles, títulos y zonas
-    make estilo-check                    # el visor es una de las UIs del tema compartido
+    make style-check                    # el visor es una de las UIs del tema compartido
 
 ## Qué deja esto en la tarea
 
 Una pantalla puntual va en un bloque como **`[Título](visor:<clave>/<nodo>@<huella>)`**, que `make
-visor-pantalla` da listo en su primer renglón: el tablero lo abre en el visor en esa pantalla, y `make
-visor-enlaces` puede decir mañana si cambió o la borraron. Va como tipo propio y no como
+visor-screen` da listo en su primer renglón: el tablero lo abre en el visor en esa pantalla, y `make
+visor-links` puede decir mañana si cambió o la borraron. Va como tipo propio y no como
 `http://localhost:5193/…`, igual que `repo:`: el enlace nombra qué es. Lo que se vio en un diseño va con el
 comando que lo reproduce (`bin/pg figma map '<url>'`), no con una captura. A Jira no va la herramienta: va
 «el diseño del flujo tiene tal recorrido».

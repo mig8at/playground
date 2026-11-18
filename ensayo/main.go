@@ -47,7 +47,7 @@ var batchName = regexp.MustCompile(`^[a-z0-9][a-z0-9-]*$`)
 var allowed = []string{
 	"Read", "Grep", "Glob", "Skill",
 	"Bash(make harness-*)", "Bash(E2E_TARGET=local make harness-*)", "Bash(make knowledge-*)",
-	"Bash(make tablero-db *)", "Bash(make retomar *)", "Bash(make trampas *)", "Bash(make agente *)", "Bash(make tarea-verify *)",
+	"Bash(make tablero-db *)", "Bash(make resume *)", "Bash(make traps *)", "Bash(make agent *)", "Bash(make task-verify *)",
 	"Bash(bin/pg sql *)", "Bash(bin/pg logs *)", "Bash(bin/pg events *)",
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)",
 	"Bash(grep *)", "Bash(ls *)", "Bash(cat *)", "Bash(head *)", "Bash(tail *)",

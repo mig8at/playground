@@ -665,7 +665,7 @@ const copied = ref(false)
 // ── la huella: rastrear si la pantalla de un enlace cambió ──
 // El enlace que se copia lleva la huella del contenido de la pantalla en ese momento (server:
 // `/api/track`, connectors/figma.Fingerprint). Abrirlo después compara contra la de hoy: la pantalla puede
-// cambiar entera sin cambiar de id. `make visor-enlaces` hace lo mismo con todos los enlaces de las tareas.
+// cambiar entera sin cambiar de id. `make visor-links` hace lo mismo con todos los enlaces de las tareas.
 async function checkLink(key, id, linked) {
   linkCheck.value = { id, linked, status: 'checking' }
   try {
@@ -748,7 +748,7 @@ const pct = (x, digits = 1) => (x * 100).toFixed(digits).replace('.', ',') + ' %
 // SEÑALAR UNA CAPA: para decirle al modelo «acá hay algo que no cuadra» con un enlace. En el modo
 // «Señalar» (S) se marca la capa de abajo del mouse —la visible más chica que contiene el punto, en la
 // imagen o en el HTML, con las cajas que da el server— y un clic la fija: va a la ruta como `?capa=` y la
-// barra derecha dice qué es, qué dice Figma y cómo se ve esa zona de cada lado. `make visor-capa` con el
+// barra derecha dice qué es, qué dice Figma y cómo se ve esa zona de cada lado. `make visor-layer` con el
 // mismo enlace le da al modelo lo mismo, con los recortes en archivo.
 const picking = ref(false)
 const layers = ref([])       // las cajas de la pantalla actual
@@ -845,7 +845,7 @@ const layerCopied = ref(false)
 async function copyLayerLink() {
   const url = location.origin + routePath.value
   const d = layerDetail.value
-  const text = `${url}\n(capa «${d?.name || selectedLayer.value}» de «${current.value?.title || current.value?.name}»; por consola: make visor-capa R='${url}')`
+  const text = `${url}\n(capa «${d?.name || selectedLayer.value}» de «${current.value?.title || current.value?.name}»; por consola: make visor-layer R='${url}')`
   try {
     await navigator.clipboard.writeText(text)
     layerCopied.value = true

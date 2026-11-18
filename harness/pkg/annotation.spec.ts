@@ -91,7 +91,7 @@ test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acept
       });
 
       // ⚠ LA QUE IMPORTA: quien decide si el bloque entra es el validador del tablero, no este archivo. Se
-      // le pregunta al de verdad y en seco (`make tarea-bloque … SECO=1`): si allá cambia una regla, acá se
+      // le pregunta al de verdad y en seco (`make task-block … SECO=1`): si allá cambia una regla, acá se
       // nota — que es lo que una copia de sus reglas en TypeScript no haría nunca.
       test('el validador del tablero lo acepta, en seco', () => {
             const md = blockMD('2/2 caso(s) en `local`.', cmdMake('harness-case', 'local', { CASOS: 'pullman@meddipay=rechaza' }),

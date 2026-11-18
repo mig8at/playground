@@ -1,5 +1,5 @@
 // Package agenda es la agenda del día derivada de las tareas: en movimiento (con su último bloque, lo que espera a
-// alguien y su entrega) y dormidas. La comparten `make hoy` (cmd/today, que también retoma una tarea) y el home del
+// alguien y su entrega) y dormidas. La comparten `make today` (cmd/today, que también retoma una tarea) y el home del
 // tablero (`/api/today`), para que las dos digan lo mismo.
 package agenda
 
@@ -258,7 +258,7 @@ func DaysSince(at string) int {
 }
 
 // Build arma la agenda: una fila por tarea no archivada (de la etapa pedida, o todas), con su último bloque, lo que
-// espera a alguien y su entrega, ordenada por lo más reciente. La usan `make hoy` y el home del tablero.
+// espera a alguien y su entrega, ordenada por lo más reciente. La usan `make today` y el home del tablero.
 func Build(data string, tasks []Task, snap BranchesSnap, stage string) []Row {
 	var rows []Row
 	for _, t := range tasks {

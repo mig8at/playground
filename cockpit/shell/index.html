@@ -15,9 +15,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cockpit</title>
-<!-- EL TEMA ANTES DE PINTAR: el renglón es `THEME_BOOT` de tools/ui/workbench.js, y lo rellena `make estilo-sync`. -->
+<!-- EL TEMA ANTES DE PINTAR: el renglón es `THEME_BOOT` de tools/ui/workbench.js, y lo rellena `make style-sync`. -->
 <script>/* <theme-boot> */try{var t=localStorage.getItem('ui.theme');if(t!=='light'&&t!=='dark')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.classList.toggle('dark',t==='dark');document.documentElement.style.colorScheme=t}catch(e){}try{var p=localStorage.getItem('ui.palette');if(p&&p!=='default'&&/^(default|vintage|catppuccin|nord|monokaipro|ristretto)$/.test(p))document.documentElement.setAttribute('data-palette',p)}catch(e){}/* </theme-boot> */</script>
-<!-- El mismo tema y taller que las apps (copias de tools/ui, `make estilo-sync`): la barra se apoya en el MISMO lienzo
+<!-- El mismo tema y taller que las apps (copias de tools/ui, `make style-sync`): la barra se apoya en el MISMO lienzo
      que los paneles de cada app, y cambia con ellas de claro a oscuro. -->
 <link rel="stylesheet" href="theme.css">
 <link rel="stylesheet" href="workbench.css">

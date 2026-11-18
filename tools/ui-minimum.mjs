@@ -6,8 +6,8 @@
 // No levanta servidores —los puertos son tuyos—: lo que no responde sale SIN VERIFICAR y el comando
 // termina con 2, nunca en verde. Toda petición que no sea GET se bloquea en este navegador.
 //
-//   make estilo-minimo            las cuatro
-//   make estilo-minimo SOLO=visor una o varias, separadas por coma
+//   make style-minimal            las cuatro
+//   make style-minimal SOLO=visor una o varias, separadas por coma
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 
@@ -118,7 +118,7 @@ try {
       }
       assert.equal(Number(await handle.getAttribute('aria-valuenow')), 0, `${name}: «${label}» no se pliega con el teclado`);
       assert.equal(min, 0, `${name}: «${label}» anuncia un mínimo de ${min} y se pliega: aria-valuemin tiene que ser 0`);
-      // Si la manija se fue con su región, se vuelve por el botón del pie, que prueba `make estilo-ui`.
+      // Si la manija se fue con su región, se vuelve por el botón del pie, que prueba `make style-ui`.
       if (await handle.isVisible()) {
         await handle.press('Enter');
         const back = Number(await handle.getAttribute('aria-valuenow'));

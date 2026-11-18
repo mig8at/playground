@@ -34,7 +34,7 @@ run() { # run <nombre> <comando, con las rutas VIEJAS>
 }
 run "trampas" python3 tablero/tools/trampas.py
 run "trampas --indice" python3 tablero/tools/trampas.py --indice
-run "make trampas (Makefile)" make -s trampas
+run "make traps (Makefile)" make -s traps
 run "citas trampas/doc.md" python3 tablero/tools/citas.py tablero/data/trampas/doc.md
 run "citas trampas/doc.md --ok" python3 tablero/tools/citas.py tablero/data/trampas/doc.md --ok
 run "citas kyc (tarea)" python3 tablero/tools/citas.py tablero/data/kyc-segundo-apellido-no-coincide.md

@@ -588,7 +588,7 @@ type Effort struct {
 	CanonTopics     string `json:"canon"`
 	KnowledgeTopics string `json:"knowledge"`
 	// Dónde se habla de la tarea en el chat del equipo: un grupo (`#ecommerce`) o personas (`duncan`), separados por
-	// coma. `make retomar` y `make agente` lo leen para dar el contexto con `bin/chat`.
+	// coma. `make resume` y `make agent` lo leen para dar el contexto con `bin/chat`.
 	ChatThreads string `json:"chat,omitempty"`
 	// ETAPA del método de trabajo: evaluar → trabajar → crear las tareas. Las tareas de Jira se
 	// escriben AL FINAL, cuando ya se entendió el problema — por eso la etapa es explícita y no

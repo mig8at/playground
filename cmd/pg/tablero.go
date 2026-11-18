@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// EL TABLERO COMO HERRAMIENTA. Escribir en una tarea era `make tarea-bloque N=… ARCHIVO=<bloque.md>`: un archivo
+// EL TABLERO COMO HERRAMIENTA. Escribir en una tarea era `make task-block N=… ARCHIVO=<bloque.md>`: un archivo
 // temporal por bloque, comillas de shell en cada título y la salida con colores de terminal. Medido el 2026-10-20
 // en una sesión: unas quince llamadas por tarea para cerrarla, y seis bloques rebotados por formato. Acá los mismos
 // comandos del tablero se ofrecen como comandos de pg —y por eso como herramientas MCP—, con el texto como

@@ -101,7 +101,7 @@ que se está mirando.
   detalle («sin cambios» · «el diseño cambió: lo que diga la tarea puede estar viejo»). Cambia también si el
   diseñador edita un componente que la pantalla usa: eso también es «se ve distinta». Medido: dos lecturas
   frescas y una guardada horas antes dieron la misma huella.
-- **`make visor-enlaces` rastrea TODOS los enlaces del visor de las tareas** (`tablero/tasks`, o `DIR=`): por
+- **`make visor-links` rastrea TODOS los enlaces del visor de las tareas** (`tablero/tasks`, o `DIR=`): por
   cada uno dice `igual`, `CAMBIÓ` (con la huella vieja y la nueva), `BORRADA` o `sin huella`, con el archivo
   y la línea. Sale ≠0 si alguno se rompió (borrada, o un proyecto que la biblioteca no conoce); «cambió» es
   un aviso para releer, no un error. Pregunta a Figma, no a la caché.
@@ -141,7 +141,7 @@ URL, no el de los archivos que se ven en esa pantalla: «recientes» mezcla arch
   (`TestScreenDownloadsOnceAndServesFromDisk`).
 - **La clave y el id terminan en una ruta de disco**: se validan contra su forma exacta, no se limpian.
 - **El tipo de pantalla va en `data-kind`, no en una clase**: `panel` es la región compartida del
-  workbench, y como clase le ponía su fondo y su borde al dispositivo. Lo frenó `make estilo-check`.
+  workbench, y como clase le ponía su fondo y su borde al dispositivo. Lo frenó `make style-check`.
 
 ## ¿Le sirve el paquete a un modelo?
 
@@ -168,7 +168,7 @@ formularios de Credifamilia y una de flujo-ecommerce con imagen), un modelo por 
 
 ## Los componentes: qué piezas hay que tener antes de armar pantallas
 
-**`make visor-componentes P=<clave>`**: las piezas del sistema de diseño que usa el flujo
+**`make visor-components P=<clave>`**: las piezas del sistema de diseño que usa el flujo
 (`connectors/figma/inventory.go`), con las **variantes con que aparece** cada una y las pantallas donde
 está. Es la lista de componentes de Vue o React que hay que tener: los que ya existen en el front se
 reusan, los que no se arman primero. El paquete de cada pantalla trae los que usa ESA pantalla.
@@ -315,9 +315,9 @@ Miguel señala en la interfaz y el modelo lo lee por consola, con **el mismo enl
   capa** repartido para leer (`src/html-format.js`: una etiqueta por renglón con su sangría y una
   declaración del `style` por renglón; sigue siendo HTML válido). Copiar el HTML copia el original, exacto,
   de un renglón. Lo que Figma sabe de ella (auto-layout, ajuste, rellenos con su token, propiedades de
-  componente) NO va en la barra —Miguel prefirió ver el código— y sí en `make visor-capa`. El botón de
+  componente) NO va en la barra —Miguel prefirió ver el código— y sí en `make visor-layer`. El botón de
   copiar de la cabecera deja el enlace con una línea para el chat.
-- **`make visor-capa R='<ese enlace>'`** le da al modelo lo mismo y lo que no puede ver: los recortes en
+- **`make visor-layer R='<ese enlace>'`** le da al modelo lo mismo y lo que no puede ver: los recortes en
   archivo (`<clave>/<versión>/layers/`), cuánto se parecen **en esa zona** (`fidelity.mjs --clip`) y el
   **pedazo de HTML** que la dibuja (`htmlFragment`: el elemento con su `data-figma` y todo lo de adentro).
   Si la capa va dibujada adentro de otra —un SVG de Figma, una imagen—, lo dice: no tiene elemento propio.
@@ -329,7 +329,7 @@ Miguel señala en la interfaz y el modelo lo lee por consola, con **el mismo enl
 ## La fidelidad: cuánto confiar en el HTML de una pantalla, en un número
 
 La medida es la de `visor/tools/fidelity.mjs` —Chromium dibuja el HTML al doble y lo compara con la
-exportación de Figma—, también **de a una pantalla**: `make visor-fidelidad R=<clave/nodo>` por consola
+exportación de Figma—, también **de a una pantalla**: `make visor-fidelity R=<clave/nodo>` por consola
 (sin el visor corriendo: abre su propia API en un puerto libre para que Chromium lea el HTML) y
 `/api/fidelity` en la barra derecha de la interfaz (`server/fidelity.go`), junto con la **paleta** (cada
 color con su muestra, su token y sus usos, y los que no tienen estilo) y la **tipografía** (familia, peso,
@@ -340,7 +340,7 @@ tamaño e interlineado, con su clase), que salen del reporte del render.
   Comparar píxel a píxel cuenta el borde de TODAS las letras (Chromium y Figma no suavizan igual, y medio
   píxel de corrimiento pinta un contorno entero). Queda alta en una pantalla bien traducida (Alta 266:1279:
   **99,98 %** real contra 99,0 píxel a píxel) y baja de verdad cuando algo está corrido (Motai 29:3117:
-  86,5 %). La estricta se muestra al lado y es la de las medianas de arriba y de `make visor-fidelidad
+  86,5 %). La estricta se muestra al lado y es la de las medianas de arriba y de `make visor-fidelity
   REF=`, que imprime las dos columnas. `RADIUS` y `FLOOR` están en `fidelity.mjs`, y cambiar el método
   invalida lo guardado (`fidelityMethod`).
 - ⛔ **No hay mapa de calor ni «capas que difieren», y es a propósito.** Se construyeron (2026-09-25):

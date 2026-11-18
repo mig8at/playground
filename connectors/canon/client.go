@@ -74,7 +74,7 @@ type Area struct {
 	Sources  map[string]map[string]string `json:"fuentes"`
 }
 
-// Brief es el apoyo compacto que `make retomar BRIEF=1` muestra. Sale de
+// Brief es el apoyo compacto que `make resume BRIEF=1` muestra. Sale de
 // /api/read: no es una inferencia ni una segunda base de conocimiento.
 type Brief struct {
 	ID      string

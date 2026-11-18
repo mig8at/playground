@@ -189,7 +189,7 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |
 | los despliegues a producción | `go run ./tablero/server/cmd/deploys -json` (lo mismo que `make deploys`) |
-| la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make estilo-sync`) |
+| la interfaz: el semáforo, la curva y las alertas | `src/App.vue`, con la base de `tools/ui` (`make style-sync`) |
 
 ## Lo que falta
 

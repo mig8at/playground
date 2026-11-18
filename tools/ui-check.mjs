@@ -5,7 +5,7 @@ import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 const require = createRequire(new URL('../harness/package.json', import.meta.url));
 const { chromium } = require('playwright');
-// `SOLO=tablero,radar` corre sólo esas, como `make estilo-contraste`: el panel del harness deshabilita
+// `SOLO=tablero,radar` corre sólo esas, como `make style-contrast`: el panel del harness deshabilita
 // su configuración mientras hay una corrida en curso, y ahí sus pruebas de foco no pueden pasar.
 const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boolean);
 const apps = [
@@ -47,7 +47,7 @@ const sample = {
 // la prueba no lee transcripciones reales.
 const row = (key, calls, note = '') => ({ key, calls, sessions: 1, last: '2026-09-27T15:00:00Z', note, example: key });
 const radarFixture = {
-  '/api/usage': { make: [row('make tareas', 40), row('make cierre', 12)], skills: [row('skill canon', 3)], agents: [row('agent Explore', 2)], other: [] },
+  '/api/usage': { make: [row('make tasks', 40), row('make closeout', 12)], skills: [row('skill canon', 3)], agents: [row('agent Explore', 2)], other: [] },
   '/api/friction': { denied: [row('make canon-search', 18)], rejected: [row('grep', 2)], blocked: [row('git commit', 1, 'index-guard')], errors: [row('python3', 4)] },
   '/api/drift': { usedAfterRemoval: [], neverExisted: [row('make tipeo', 1)], oldNames: [row('make harness-caso', 2, 'hoy se llama `harness-case`')],
     unusedTargets: [{ target: 'visor-html', since: '2026-09-24T10:00:00Z' }], unusedSkills: ['harness-panel'] },
@@ -58,7 +58,7 @@ const radarFixture = {
   '/api/session': { id: 'sesion-a', entrypoint: 'claude-desktop', start: '2026-09-27T14:00:00Z', human: true, calls: [
     { session: 'sesion-a', time: '2026-09-27T14:00:05Z', tool: 'Skill', keys: ['skill canon'], outcome: 'ok' },
     { session: 'sesion-a', time: '2026-09-27T14:01:00Z', tool: 'Bash', keys: ['make canon-search'], command: "make canon-search Q='x'", outcome: 'denied' },
-    { session: 'sesion-a', time: '2026-09-27T14:02:00Z', tool: 'Bash', keys: ['make tareas'], command: 'make tareas', outcome: 'ok' },
+    { session: 'sesion-a', time: '2026-09-27T14:02:00Z', tool: 'Bash', keys: ['make tasks'], command: 'make tasks', outcome: 'ok' },
   ] },
 };
 // keyring: dos perfiles de AWS (uno sin credenciales) y la consola con un grupo rápido y uno lento con una
@@ -226,7 +226,7 @@ try {
     }
     if (name === 'radar') {
       const editor = page.locator('.editor');
-      await editor.getByText('make tareas', { exact: true }).waitFor();
+      await editor.getByText('make tasks', { exact: true }).waitFor();
       assert.match(await page.locator('.statusbar').textContent(), /sin 3 corridas automáticas/,
         'Radar: el pie dice cuántas corridas automáticas quedaron afuera');
       await page.getByRole('button', { name: /^Fricción/ }).click();

@@ -72,7 +72,7 @@ func canonLookupOf(cmd string) *CanonLookup {
 		case "make":
 			t, _ := makeTarget(toks[1:])
 			kind, ok := canonTarget[t]
-			if t == "retomar" && hasArg(toks, "CANON=") {
+			if (t == "resume" || t == "retomar") && hasArg(toks, "CANON=") { // `retomar`, el nombre de antes
 				kind, ok = LookupContext, true
 			}
 			if ok && found == nil {

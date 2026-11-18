@@ -1,5 +1,5 @@
 {
-  "_comentario": "El catálogo de RECORRIDOS: los nombres de cada pieza (canal, riel, producto, variación, desenlace) y cómo se reconoce cada una en la base. El porqué y las fuentes en `main` están en knowledge/origination-paths. Este archivo NOMBRA y dice cómo MEDIR; no guarda qué entidad cae en qué recorrido, porque eso cambia por ambiente (el riel de una misma entidad no siempre coincide entre local y qa): lo mide `make harness-recorrido`. Los ids van en inglés; los nombres, como se dicen.",
+  "_comentario": "El catálogo de RECORRIDOS: los nombres de cada pieza (canal, riel, producto, variación, desenlace) y cómo se reconoce cada una en la base. El porqué y las fuentes en `main` están en knowledge/origination-paths. Este archivo NOMBRA y dice cómo MEDIR; no guarda qué entidad cae en qué recorrido, porque eso cambia por ambiente (el riel de una misma entidad no siempre coincide entre local y qa): lo mide `make harness-journey`. Los ids van en inglés; los nombres, como se dicen.",
   "version": 1,
   "knowledge": "origination-paths",
   "channels": {

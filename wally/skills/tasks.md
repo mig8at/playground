@@ -2,11 +2,11 @@
 
 | comando | para qué |
 |---|---|
-| `make tareas` | las tareas abiertas: número, estado y título |
+| `make tasks` | las tareas abiertas: número, estado y título |
 | `task 101` | una tarea entera, por número o por su slug: objetivo, dónde se toca, cómo se ataca, cómo se comprueba |
 
 ```command
-make tareas
+make tasks
 task 101
 ```
 

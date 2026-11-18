@@ -1,7 +1,7 @@
 package scan
 
 /* El índice en disco y los filtros sobre las sesiones. Vivían en el comando (`radar/server`) y se mudaron
- * acá el 2026-09-27 para que el cierre del tablero (`make cierre`) lea la fricción del día con el MISMO
+ * acá el 2026-09-27 para que el cierre del tablero (`make closeout`) lea la fricción del día con el MISMO
  * código, sin llamar a radar como subproceso. */
 
 import (

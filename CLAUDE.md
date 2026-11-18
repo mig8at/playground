@@ -56,7 +56,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
-| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-deriva PASO=…` |
+| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-drift PASO=…` |
 
 ## `make` es la puerta única
 
@@ -101,9 +101,9 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 |---|---|
 | **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
 | **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…` (o, con la sesión de Miguel y sin llave, `playground canon search|read|topics|ask`). Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
-| **arranco una tarea como agente** | `make agente N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make tarea-verify N=…` |
+| **arranco una tarea como agente** | `make agent N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make task-verify N=…` |
 | **¿el plan de la tarea se sostiene sin mí?** (antes de tocar un repo real) | el subagente **`goldfish`**: le pasás SÓLO la ruta del `task.md`; lo lee sin la conversación ni este archivo y devuelve supuestos sin escribir, criterios que no se pueden volver `S#` y afirmaciones para `main-verifier`, cada una con su línea. Revisa el documento, no el código |
-| **retomo una tarea del tablero** | `make retomar N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API sólo cuando se elige explícitamente; Canon no tiene copia local |
+| **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API sólo cuando se elige explícitamente; Canon no tiene copia local |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
@@ -213,16 +213,16 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
 `~/Desktop/CREDITOP/temp/`, fuera de git, **no están validadas: no las cites ni decidas con ellas**.
 
 1. **La TAREA vive en `tablero/tasks/<slug>/`** (`task.md`, su pila `context.jsonl`, sus `artifacts/`).
-   **Buscá la que ya cubre esto antes de crear una: `make tareas TODAS=1`.** Una con `id: 0` no aparece
-   en el tablero. Al cerrar la sesión, `make cierre` chequea las tres piezas —el bloque del día, `ramas:`
+   **Buscá la que ya cubre esto antes de crear una: `make tasks TODAS=1`.** Una con `id: 0` no aparece
+   en el tablero. Al cerrar la sesión, `make closeout` chequea las tres piezas —el bloque del día, `ramas:`
    medidas y la bitácora con minutos MEDIDOS— y el hook de `Stop` lo corre solo.
-2. **El contexto de la tarea se lee antes de investigar** con `make retomar`. Si existe contexto
+2. **El contexto de la tarea se lee antes de investigar** con `make resume`. Si existe contexto
    local pertinente, se lee en `knowledge/` con sus fuentes y límites. El código real vive en
    `~/Desktop/CREDITOP/github/`. No exige consultar Canon para empezar.
 3. **Lo que se descubre SE REGISTRA.** El test: *si esto se mergea mañana, ¿sigue siendo cierto?*
    - conocimiento técnico reutilizable, verificado en `main` → **knowledge/** con sus fuentes;
      políticas de negocio/producto sin comprobación local quedan citadas a su fuente y con ese límite;
-   - hallazgos **de la tarea** → su **pila**, como bloques (`make tarea-bloque`, o `BLOQUE=`);
+   - hallazgos **de la tarea** → su **pila**, como bloques (`make task-block`, o `BLOQUE=`);
    - trampas **del sistema**, verificadas → `tablero/data/traps/doc.md`. **Mirala antes de depurar un
      muro.**
 4. **Probar de verdad es `harness/`**: se comprueba corriendo, no leyendo. ⚠ En local/dev/staging las
@@ -281,7 +281,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 ## Dos reglas de honestidad
 
 - Si tocaste las `fuentes` de un tema de canon, validá que existan en `main`: una ruta mal escrita no
-  falla en ningún lado. Lo mismo con las citas `archivo:línea` de una trampa: `make trampas` las ancla.
+  falla en ningún lado. Lo mismo con las citas `archivo:línea` de una trampa: `make traps` las ancla.
 - **Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
 
 ## Variables de entorno

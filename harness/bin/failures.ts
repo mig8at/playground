@@ -73,7 +73,7 @@ for (const s of shown) {
         console.log(`      repetir: ${f.comando}`);
     }
 }
-console.log(`\n  dashboard: make harness-fallas HTML=1 · para un agente: JSON=1\n`);
+console.log(`\n  dashboard: make harness-failures HTML=1 · para un agente: JSON=1\n`);
 
 // ── DASHBOARD ──────────────────────────────────────────────────────────────────────────────────────
 function page(rows: CaseSummary[], m: typeof meta): string {

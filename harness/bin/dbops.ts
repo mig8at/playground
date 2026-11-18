@@ -225,7 +225,7 @@ try {
                 [a[0] ?? ''],
             );
             // Lo que el mapa del panel necesita para dibujar el recorrido de VERDAD de cada entidad, medido por el
-            // mismo clasificador que `make harness-recorrido` (pkg/journeys.ts): si pide Ábaco (la bandera de la
+            // mismo clasificador que `make harness-journey` (pkg/journeys.ts): si pide Ábaco (la bandera de la
             // entidad, no su producto) y qué formalización le toca a un riel 4. Si la medición falla, las filas
             // salen igual, sin estos dos campos, y el mapa cae a lo que dibujaba antes.
             try {

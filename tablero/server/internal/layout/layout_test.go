@@ -7,7 +7,7 @@ import (
 )
 
 // Con TABLERO_DATA afuera del repo, `tools/` no está al lado de los datos: se busca hacia arriba desde donde
-// se corre. Sin esto, una herramienta que manda su bloque por `make tarea-bloque` corría make en un
+// se corre. Sin esto, una herramienta que manda su bloque por `make task-block` corría make en un
 // directorio sin Makefile (2026-09-23).
 func TestToolsIsFoundFromTheWorkingDirWhenDataLivesElsewhere(t *testing.T) {
 	repo := t.TempDir()

@@ -334,7 +334,7 @@ const normalizedSearch = computed(() => withoutAccents(searchQuery.value).trim()
 // ── las tareas LOCALES, las que todavía no tienen Jira ────────────────────────────────────────────
 //
 // El tablero mostraba sólo issues de Jira, así que una tarea que vive únicamente en `tasks/<slug>/task.md`
-// era INVISIBLE: sin tarjeta, sin avances, sin cajón de ramas. Se veía nada más con `make tareas`, y
+// era INVISIBLE: sin tarjeta, sin avances, sin cajón de ramas. Se veía nada más con `make tasks`, y
 // por eso el avance escrito ahí no lo miraba nadie (medido el 2026-08-27: ocho días).
 //
 // ⚠ Que aparezcan NO las publica. Publicar a Jira sigue siendo una decisión que se PIDE —hoy
@@ -544,7 +544,7 @@ const artifactType = (artifact) => artifact.url
   : (/\.([a-z0-9]+)$/i.exec(artifact.file)?.[1] || 'archivo').toUpperCase();
 
 // ── RAMAS DE LA TAREA: qué repos tocó y hasta dónde llegó cada rama ──────────────────────────────
-// No se miden al renderizar: el snapshot lo deja `make tareas-ramas`. La consola inferior deriva su
+// No se miden al renderizar: el snapshot lo deja `make task-branches`. La consola inferior deriva su
 // tabla y su selector de repos EXCLUSIVAMENTE de la tarea enfocada; nunca muestra el inventario global.
 const branchesSnap = ref({ measuredAt: '', tasks: {} });
 const refreshingBranches = ref(false);
@@ -1621,7 +1621,7 @@ const hoursShort = (min) => { if (!min) return ''; const h = min / 60; return (N
 // DE 5', no los minutos: un commit a las 18:00 no dice cuándo empezaste, así que estimar minutos desde
 // git sería inventar. Una hora tiene 12 tramos y la celda se llena con los que tuvieron cambios — el
 // total del día es tramos × 5', que sí es una medición.
-// ── LA AGENDA DE HOY: la misma de `make hoy` (/api/today, internal/agenda). Arriba del home porque es lo que
+// ── LA AGENDA DE HOY: la misma de `make today` (/api/today, internal/agenda). Arriba del home porque es lo que
 // dice qué sigue: dónde quedó cada tarea en movimiento y a quién se le está esperando algo. Los contenedores
 // locales (clase proyecto) no entran en movimiento ni dormidas, como en la consola; lo que esperan sí cuenta.
 const agendaData = ref({ rows: [], branchesMeasuredAt: '', dormantDays: 14 });
@@ -1659,7 +1659,7 @@ const showAllWho = ref(false);
 const shownWho = computed(() => (showAllWho.value ? waitingByWho.value : waitingByWho.value.slice(0, WHO_SHOWN)));
 const agoText = (days) => (days === 0 ? 'hoy' : days === 1 ? 'ayer' : `hace ${days} d`);
 // La fila de la agenda trae el id de la tarea; la interfaz la conoce por su `_effortId`. Una que no está en el sprint
-// ni entre las locales no se puede abrir desde acá (se retoma con `make retomar`).
+// ni entre las locales no se puede abrir desde acá (se retoma con `make resume`).
 const agendaTask = (row) => tasksForRoute().find((t) => (t._effortId || effortFor(t.Key)) === row.id);
 function openAgendaRow(row, view) {
   const task = agendaTask(row);
@@ -2457,7 +2457,7 @@ function documentAction(id) {
           <div id="journey-content" v-show="journeyOpen">
           <p class="nota" v-if="pulseOff">El pulso todavía no está corriendo, así que esta grilla no dice
             «no trabajé» — dice que nadie estaba anotando. Se instala una vez y arranca solo con la sesión:
-            <code>make pulso-install</code>.</p>
+            <code>make pulse-install</code>.</p>
           <p class="nota" v-else-if="!rangeMin">Sin cambios registrados en los últimos {{ days }} días.</p>
           <!-- `gridEl` es lo que mide el ResizeObserver: de su ancho sale cuántos días entran. -->
           <div class="jm" ref="gridEl" :style="gridVars">
@@ -2550,7 +2550,7 @@ function documentAction(id) {
               <h3 class="agenda-k">En movimiento</h3>
               <div class="agenda-grid">
               <button v-for="row in shownLive" :key="row.id" type="button" class="agenda-row"
-                      :disabled="!agendaTask(row)" :title="agendaTask(row) ? 'Abrir la tarea' : 'No está en el sprint ni entre las locales: make retomar N=' + row.id"
+                      :disabled="!agendaTask(row)" :title="agendaTask(row) ? 'Abrir la tarea' : 'No está en el sprint ni entre las locales: make resume N=' + row.id"
                       @click="openAgendaRow(row)">
                 <span class="agenda-title"><span class="agenda-id">#{{ row.id }}</span> {{ row.title }}</span>
                 <span v-if="row.lastBlock" class="agenda-last">{{ row.lastBlock }} <span class="agenda-when">· {{ agoText(row.lastBlockDays) }}</span></span>
@@ -3080,7 +3080,7 @@ function documentAction(id) {
    angosta: el rótulo y la leyenda medían **0 px de ancho** y se leían una letra por renglón. No falla
    nada, no hay error en consola — se ve como un diseño roto. Es el mismo choque que `.empty`, y la
    regla que deja es la misma: cuando un nombre del bloque compartido coincide con uno propio, se
-   resuelve EL DÍA que se agrega el componente. Hoy lo chequea `make estilo-check`. */
+   resuelve EL DÍA que se agrega el componente. Hoy lo chequea `make style-check`. */
 .stat.bad .v { color: var(--warn) }
 .stat.ok .v { color: var(--acc) }
 

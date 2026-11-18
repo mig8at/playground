@@ -3,7 +3,7 @@
 // letra, peso, interlineado, radio, gap, icono— contra los números de la especificación. Sale ≠0 si
 // uno no coincide: la base no puede decir una medida y pintar otra.
 //
-//   make estilo-componentes
+//   make style-components
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';

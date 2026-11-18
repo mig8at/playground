@@ -1,6 +1,6 @@
 // Pruebas de «mínimo o nada»: la lógica que decide cuánto mide una región. Corren sin navegador
 // (`node --test tools/ui/workbench.test.mjs`); lo que pasa en las cuatro apps encendidas lo mide
-// `make estilo-ui`.
+// `make style-ui`.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { regionSize, reopenSize, fitRegions, bindResize, preferredTheme, setTheme, bindThemeToggle, THEME_KEY, THEME_BOOT, bindPanelMaximize,

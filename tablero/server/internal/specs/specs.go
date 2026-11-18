@@ -1,6 +1,6 @@
 // Package specs lee la sección `## Specs` de una tarea: cada `S#` con lo que tiene que ser cierto, la cita de
-// quién lo pidió y el comando que lo comprueba. La corre `cmd/verify` (`make tarea-verify`) y la anuncia
-// `cmd/agent` (`make agente`). La forma, en `tablero/TASK-TEMPLATE.md`.
+// quién lo pidió y el comando que lo comprueba. La corre `cmd/verify` (`make task-verify`) y la anuncia
+// `cmd/agent` (`make agent`). La forma, en `tablero/TASK-TEMPLATE.md`.
 package specs
 
 import (

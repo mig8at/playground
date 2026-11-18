@@ -9,7 +9,7 @@ package main
  * Lo que cambió lo ve un vigía que mira el disco cada 2 s, y sólo mientras haya alguien suscripto: fechas y tamaños de
  * cada `task.md`, su `context.jsonl` y sus artifacts, de la bitácora (`data/entries`), de `data/cache/ramas.json` y del
  * pulso. Es por fecha de archivo y no por fsnotify a propósito: sin dependencias nuevas, y lo que escribe una sesión
- * desde otro proceso (git, un editor, `make tarea-bloque`) se ve igual.
+ * desde otro proceso (git, un editor, `make task-block`) se ve igual.
  *
  * La interfaz recarga sólo lo que cambió (App.vue, `onLiveChange`). Lo de Jira no pasa por acá: no está en disco. */
 

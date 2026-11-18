@@ -43,9 +43,9 @@ define listar
 endef
 
 # ── DÍA A DÍA ────────────────────────────────────────────────────────────────────────────────────
-.PHONY: keyring keyring-ui ui-shot sentinel ecommerce chat cockpit status tablero tareas tareas-guard cuadrilla-publicar sprint bitacora tarea-bloque tarea-context-add tarea-context tablero-db panel
+.PHONY: keyring keyring-ui ui-shot sentinel ecommerce chat cockpit status tablero tasks task-guard cuadrilla-publish sprint worklog task-block task-context-add task-context tablero-db panel
 status: ## @dia ¿está el contexto al día? (resumen, no escribe nada)
-	@$(MAKE) --no-print-directory trampas
+	@$(MAKE) --no-print-directory traps
 	@echo ""
 	@$(MAKE) --no-print-directory knowledge-check
 
@@ -56,11 +56,11 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 # rincón de my-tools que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
 # TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
 # cuando ya es tarde para decidir cómo escribir.
-tareas: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
+tasks: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
 	@cd tablero/server && go run ./cmd/tasks $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
 
-tarea-json: ## @dia proyección JSON tipada de UNA tarea (v3): el documento y su pila. N=<slug|id> · CONTENIDO=1 incluye borrador Jira
-	@test -n "$(N)" || { echo "falta N=<slug|id>  ·  ej: make tarea-json N=tablero"; exit 2; }
+task-json: ## @dia proyección JSON tipada de UNA tarea (v3): el documento y su pila. N=<slug|id> · CONTENIDO=1 incluye borrador Jira
+	@test -n "$(N)" || { echo "falta N=<slug|id>  ·  ej: make task-json N=tablero"; exit 2; }
 	@cd tablero/server && go run ./cmd/tasks -n "$(N)" -json $(if $(CONTENIDO),-contenido)
 
 # ⚠ Lee el SNAPSHOT de Jira, no el estado vivo — e imprime cuándo se tomó, porque un tablero
@@ -68,35 +68,35 @@ tarea-json: ## @dia proyección JSON tipada de UNA tarea (v3): el documento y su
 sprint: ## @dia el sprint activo con sus tareas y puntos, del snapshot (dice cuándo se tomó). JSON=1
 	@cd tablero/server && go run ./cmd/tasks -sprint $(if $(JSON),-json)
 
-bitacora: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la nota entera va en el json)
+worklog: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la nota entera va en el json)
 	@cd tablero/server && go run ./cmd/tasks -bitacora $(or $(DAYS),7) $(if $(JSON),-json)
 
 # ⚠ Sale 1 si el texto NO puede salir: sirve para frenar antes de publicar, no sólo para informar.
 # Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
 # comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
-tareas-ramas: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|slug|trozo del título> mide y muestra sólo esa, en segundos · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
+task-branches: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|slug|trozo del título> mide y muestra sólo esa, en segundos · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
 	@cd tablero/server && go run ./cmd/branches $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
 
 # Publica en CUADRILLA (el tablero del EQUIPO) las ramas de una tarea de acá. Viaja lo que se MIDE
 # —repo y rama— y nada más: quién está en la épica y la rama base se deciden allá. Sin APLICAR=1 sólo
 # dice qué haría. No crea épicas: la épica es un acuerdo del equipo.
-cuadrilla-publicar: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APLICAR=1 escribe · EN=<url>
+cuadrilla-publish: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APLICAR=1 escribe · EN=<url>
 	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APLICAR),-aplicar) $(if $(EN),-en $(EN))
 
-hoy: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
+today: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
 
-retomar: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 la ficha de las referencias canon: declaradas, por la API, sólo si se necesita el contexto opcional de negocio/producto]
-	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make retomar N=84"; exit 2; }
+resume: ## @dia retomar UNA tarea: pila, documento, pendientes, ramas y conocimiento LOCAL declarado en knowledge:. N=<id|slug> [BRIEF=1 la ficha de las referencias canon: declaradas, por la API, sólo si se necesita el contexto opcional de negocio/producto]
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make resume N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/today -n "$(N)" $(if $(JSON),-json) $(if $(BRIEF),-brief "$(BRIEF)")
 
-agente: ## @dia ARRANCAR una tarea como agente, en una sola salida: la tarea (retomar), las trampas que pueden tocarla (por síntoma y citadas), si las fuentes de sus temas de knowledge: siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. N=<id|slug> [ENV=1 corre harness-doctor contra local] [JSON=1 tablero.agent-brief/v1]
-	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make agente N=86"; exit 2; }
+agent: ## @dia ARRANCAR una tarea como agente, en una sola salida: la tarea (retomar), las trampas que pueden tocarla (por síntoma y citadas), si las fuentes de sus temas de knowledge: siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. N=<id|slug> [ENV=1 corre harness-doctor contra local] [JSON=1 tablero.agent-brief/v1]
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make agent N=86"; exit 2; }
 	@cd tablero/server && go run ./cmd/agent -n "$(N)" $(if $(JSON),-json) $(if $(ENV),-env)
 
-tarea-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de cada S# de su `## Specs` y contesta S1 ✓ · S2 ✗. Sólo comandos de una lista cerrada (harness local, chequeos, lecturas de bin/pg), sin shell. N=<id|slug> [ONLY=S1,S3] [JSON=1 tablero.verify/v1]
-	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-verify N=86"; exit 2; }
+task-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de cada S# de su `## Specs` y contesta S1 ✓ · S2 ✗. Sólo comandos de una lista cerrada (harness local, chequeos, lecturas de bin/pg), sin shell. N=<id|slug> [ONLY=S1,S3] [JSON=1 tablero.verify/v1]
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make task-verify N=86"; exit 2; }
 	@cd tablero/server && go run ./cmd/verify -n "$(N)" $(if $(ONLY),-only "$(ONLY)") $(if $(JSON),-json)
 
 sala: ## @dia agentes independientes en paralelo, uno por tema de knowledge/, y un verificador al final: se ven trabajar en vivo. GASTA modelo salvo con «Simulado». http://127.0.0.1:5201 · MOCK=1 todo simulado
@@ -157,25 +157,25 @@ chat-status: ## @dia ¿el servidor del chat corre de fondo?
 chat-uninstall: ## @dia saca el servidor del chat de fondo (vuelve a traerlo Cockpit; el historial se queda)
 	@go run ./chat/server -uninstall
 
-anatomia: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
+anatomy: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
 
-bitacora-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [DIA=AAAA-MM-DD trabajo de un día anterior: con LAPSO, o con MIN y SINCE=HH:MM] [KIND=progress] [SECO=1]
-	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make bitacora-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
+worklog-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [DIA=AAAA-MM-DD trabajo de un día anterior: con LAPSO, o con MIN y SINCE=HH:MM] [KIND=progress] [SECO=1]
+	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make worklog-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
 	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
 	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(DIA),-dia $(DIA)) $(if $(SINCE),-desde $(SINCE)) $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
 
-tarea-bloque: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|db] · [SECO=1]
-	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }
+task-block: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|db] · [SECO=1]
+	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make task-block N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -bloque $(if $(filter -,$(ARCHIVO)),-,$(if $(filter /%,$(ARCHIVO)),$(ARCHIVO),../../$(ARCHIVO))) $(if $(VIA),-via $(VIA)) $(if $(SECO),-n)
 
 # El formato de hitos se retiró el 2026-09-23. El target queda para que quien siga una guía vieja
 # reciba el camino nuevo en vez de un «No rule to make target».
-tarea-context-add:
-	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make tarea-bloque N=<tarea> ARCHIVO=<bloque.md>"; exit 2
+task-context-add:
+	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make task-block N=<tarea> ARCHIVO=<bloque.md>"; exit 2
 
-tarea-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
-	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make tarea-context N=84"; exit 2; }
+task-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
+	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make task-context N=84"; exit 2; }
 	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -ver
 
 pg: ## @dia la puerta a los CONECTORES: base y logs de un ambiente, con la fuente que contestó. ARGS='sql --target prod --query "SELECT …"' · ARGS='logs --target qa --query "{…}" --since 1h' · ARGS=help
@@ -187,18 +187,18 @@ tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET oblig
 	@# La consulta la hace el conector (`bin/pg sql`): una sola implementación del formato, la anotación y el bloque.
 	@bin/pg sql --target "$(TARGET)" --query $$'$(subst ','\'',$(SQL))' $(if $(CSV),--csv) $(if $(MD),--md) $(if $(BLOQUE),--bloque $(BLOQUE))
 
-cierre: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DIA=YYYY-MM-DD · JSON=1 · SIN_PRS=1 no consulta GitHub · TAREA=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
+closeout: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DIA=YYYY-MM-DD · JSON=1 · SIN_PRS=1 no consulta GitHub · TAREA=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
 	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json) $(if $(SIN_PRS),-sin-prs) $(if $(TAREA),-tarea $(TAREA))
 
-trampas: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
+traps: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
 	@cd tablero/server && go run ./cmd/traps $(if $(INDICE),-index)
 
-citas: ## @dia ¿las citas `archivo:línea` de un documento siguen apuntando a lo que dicen? (ancla por contenido contra `main`) DOC=<doc.md …> · OK=1 lista también las sanas
-	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citas DOC=tablero/data/traps/doc.md"; exit 2; }
+citations: ## @dia ¿las citas `archivo:línea` de un documento siguen apuntando a lo que dicen? (ancla por contenido contra `main`) DOC=<doc.md …> · OK=1 lista también las sanas
+	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citations DOC=tablero/data/traps/doc.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/citations $(if $(OK),-ok) $(addprefix ../../,$(DOC))
 
-tareas-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
-	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make tareas-guard F=tablero/tasks/x/task.md"; exit 2; }
+task-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
+	@test -n "$(F)" || { echo "falta F=<archivo>  ·  ej: make task-guard F=tablero/tasks/x/task.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/tasks -guard ../../$(F)
 
 # ── JIRA, por consola ────────────────────────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@ visor: ## @dia ¿CÓMO ES el diseño de este flujo, y qué tan bien pasa a HTML?
 visor-test: ## @dia las pruebas del visor: la traducción a HTML (flex, absolutas, recortes, dibujos) y el server (rutas de disco, una sola bajada)
 	@go test ./visor/...
 
-visor-fidelidad: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave/nodo>: una pantalla, sin contar el suavizado de las letras [NUEVA=1 vuelve a medir]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [SOLO=id,id] [TODAS=1 también las web], con `make visor` corriendo
+visor-fidelity: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave/nodo>: una pantalla, sin contar el suavizado de las letras [NUEVA=1 vuelve a medir]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [SOLO=id,id] [TODAS=1 también las web], con `make visor` corriendo
 	@test -n "$(R)$(REF)" || { echo "falta R=<clave/nodo> (una pantalla) o REF='<url de la sección de Figma>' (el flujo)"; exit 2; }
 	@if [ -n "$(R)" ]; then cd visor/server && go run . fidelity '$(R)' $(if $(NUEVA),--fresh); \
 	else node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all); fi
@@ -252,38 +252,38 @@ visor-url: ## @dia ⚠ LA PUERTA: lo que Miguel pegó —la URL de una pantalla 
 	@test -n "$(U)" || { echo "falta U='<lo que pegó Miguel>'  ·  ej: make visor-url U='http://localhost:5193/uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
 	@cd visor/server && go run . url '$(U)'
 
-visor-buscar: ## @dia ¿qué pantalla es? busca en los flujos por título, carril o proyecto; si nada tiene todas las palabras, da las que abren cada carril del proyecto nombrado. Q='alta bienvenida'
-	@test -n "$(Q)" || { echo "falta Q='<palabras>'  ·  ej: make visor-buscar Q='alta bienvenida'"; exit 2; }
+visor-search: ## @dia ¿qué pantalla es? busca en los flujos por título, carril o proyecto; si nada tiene todas las palabras, da las que abren cada carril del proyecto nombrado. Q='alta bienvenida'
+	@test -n "$(Q)" || { echo "falta Q='<palabras>'  ·  ej: make visor-search Q='alta bienvenida'"; exit 2; }
 	@cd visor/server && go run . search $(Q)
 
-visor-pantallas: ## @dia el flujo de un proyecto: carriles y pantallas, cada una con su ruta. P=<clave> (sin P, los proyectos con su clave)
+visor-screens: ## @dia el flujo de un proyecto: carriles y pantallas, cada una con su ruta. P=<clave> (sin P, los proyectos con su clave)
 	@cd visor/server && go run . screens $(P)
 
-visor-pantalla: ## @dia el PAQUETE PARA EL MODELO de una pantalla: textos en orden, a dónde lleva, imágenes, componentes, tokens y el HTML traducido. R=<clave/nodo>
-	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-pantalla R=RkyauDfqEsFbJZBBoqChAV/266-1279"; exit 2; }
+visor-screen: ## @dia el PAQUETE PARA EL MODELO de una pantalla: textos en orden, a dónde lleva, imágenes, componentes, tokens y el HTML traducido. R=<clave/nodo>
+	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-screen R=RkyauDfqEsFbJZBBoqChAV/266-1279"; exit 2; }
 	@cd visor/server && go run . screen '$(R)'
 
 visor-html: ## @dia el HTML traducido de una pantalla (fiel a Figma, con los tokens). R=<clave/nodo> [OUT=<archivo>]
 	@test -n "$(R)" || { echo "falta R=<clave/nodo>"; exit 2; }
 	@cd visor/server && go run . html '$(R)' $(if $(OUT),--out "$(abspath $(OUT))")
 
-visor-recursos: ## @dia BAJA las imágenes de una pantalla en su resolución ORIGINAL, con el nombre de su capa. R=<clave/nodo> [DIR=<carpeta>] [SVG=1 también los dibujos]
-	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-recursos R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=./recursos"; exit 2; }
+visor-assets: ## @dia BAJA las imágenes de una pantalla en su resolución ORIGINAL, con el nombre de su capa. R=<clave/nodo> [DIR=<carpeta>] [SVG=1 también los dibujos]
+	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-assets R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=./recursos"; exit 2; }
 	@cd visor/server && go run . assets '$(R)' $(if $(DIR),--dir "$(abspath $(DIR))") $(if $(SVG),--svg)
 
-visor-capa: ## @dia UNA capa de una pantalla, la que se señaló en el visor: qué es, qué dice Figma, el HTML que la dibuja y los recortes de Figma y del HTML en esa zona, con cuánto se parecen. R='<ruta o enlace con ?capa=>' [CAPA=<id>] [DIR=<carpeta>]
-	@test -n "$(R)" || { echo "falta R='<ruta con ?capa=>'  ·  ej: make visor-capa R='uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
+visor-layer: ## @dia UNA capa de una pantalla, la que se señaló en el visor: qué es, qué dice Figma, el HTML que la dibuja y los recortes de Figma y del HTML en esa zona, con cuánto se parecen. R='<ruta o enlace con ?capa=>' [CAPA=<id>] [DIR=<carpeta>]
+	@test -n "$(R)" || { echo "falta R='<ruta con ?capa=>'  ·  ej: make visor-layer R='uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
 	@cd visor/server && go run . layer '$(R)' $(if $(CAPA),--capa '$(CAPA)') $(if $(DIR),--dir "$(abspath $(DIR))")
 
 visor-tokens: ## @dia los tokens del diseño de un proyecto: colores y textos con su nombre del sistema. P=<clave> [FORMATO=css|tailwind|json]
 	@test -n "$(P)" || { echo "falta P=<clave del archivo>  ·  ej: make visor-tokens P=7M01d0CZPzzJs0iZeKhwvf FORMATO=tailwind"; exit 2; }
 	@cd visor/server && go run . tokens '$(P)' --$(or $(FORMATO),css)
 
-visor-componentes: ## @dia los componentes del sistema de diseño que usa un flujo, con sus variantes y en qué pantallas. P=<clave>
+visor-components: ## @dia los componentes del sistema de diseño que usa un flujo, con sus variantes y en qué pantallas. P=<clave>
 	@test -n "$(P)" || { echo "falta P=<clave del archivo>"; exit 2; }
 	@cd visor/server && go run . components '$(P)'
 
-visor-enlaces: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorre el tablero y dice, por cada enlace del visor, si la pantalla sigue igual, CAMBIÓ o la BORRARON (por su huella). Sale ≠0 si hay alguno roto. DIR=<carpeta> (default: las tareas)
+visor-links: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorre el tablero y dice, por cada enlace del visor, si la pantalla sigue igual, CAMBIÓ o la BORRARON (por su huella). Sale ≠0 si hay alguno roto. DIR=<carpeta> (default: las tareas)
 	@cd visor/server && go run . -links "$(abspath $(or $(DIR),tablero/tasks))"
 
 
@@ -291,35 +291,35 @@ visor-enlaces: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? reco
 
 
 
-estilo-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. SOLO=<herramienta,…>
+style-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. SOLO=<herramienta,…>
 	@SOLO="$(SOLO)" node tools/ui-check.mjs
 
-estilo-minimo: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
+style-minimal: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
 	@node --test tools/ui/workbench.test.mjs >/dev/null && echo '  ✓  workbench.js: la lógica, sin navegador'
 	@SOLO="$(SOLO)" node tools/ui-minimum.mjs
 
-estilo-componentes: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con workbench.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
+style-components: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con workbench.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
 	@node tools/ui-spec.mjs
 
-estilo-guia: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
+style-guide: ## @dia catálogo interactivo de la UI compartida en http://127.0.0.1:5198
 	@python3 -m http.server 5198 --bind 127.0.0.1 --directory tools/ui
 
-estilo-sync: ## @dia distribuye tools/ui a las cuatro herramientas
+style-sync: ## @dia distribuye tools/ui a las cuatro herramientas
 	@node tools/ui-icons.mjs
 	@python3 tools/ui-sync.py
 
-estilo-iconos: ## @dia genera el bloque de iconos de la base desde Lucide (tools/ui/icons.json); CHECK=1 sólo comprueba
+style-icons: ## @dia genera el bloque de iconos de la base desde Lucide (tools/ui/icons.json); CHECK=1 sólo comprueba
 	@node tools/ui-icons.mjs $(if $(CHECK),--check,)
 
-estilo-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `theme.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
+style-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `theme.css`, mezclas `in oklch` (que tiñen de rojo), contraste y variables usadas sin declarar
 	@python3 tools/ui-sync.py --check
 	@node tools/ui-icons.mjs --check
 	@python3 tools/style.py
 
-estilo-contraste: ## @dia [THEME=light|dark] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
+style-contrast: ## @dia [THEME=light|dark] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
 	@THEME="$(THEME)" PALETTE="$(PALETTE)" SOLO="$(SOLO)" node tools/contrast.mjs
 
-estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
+style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
 	@python3 tools/style.py --tema $(if $(DE),$(DE))
 
 
@@ -333,17 +333,17 @@ estilo-tema: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un exp
 # una carpeta), y los nombres de 23 caracteres desalinean la ayuda de `make`.
 .PHONY: sentinel-install sentinel-status sentinel-uninstall chat-install chat-status chat-uninstall
 .PHONY: wally correo correo-install correo-status correo-uninstall
-.PHONY: pulso pulso-install pulso-status pulso-uninstall
-pulso: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
+.PHONY: pulse pulse-install pulse-status pulse-uninstall
+pulse: ## @dia mi jornada REAL: cuándo toqué los repos de la compañía, en tramos de 5'. DAYS=7
 	@cd tablero/server && go run ./cmd/pulse report -days $(or $(DAYS),7)
 
-pulso-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
+pulse-install: ## @dia deja el pulso registrando solo (cada 5 min, arranca con la sesión) + siembra el pasado
 	@cd tablero && npm run --silent server:build && ../bin/sign server/bin/pulse com.creditop.my-tools.pulso && server/bin/pulse seed && server/bin/pulse install
 
-pulso-status: ## @dia ¿el pulso está vivo? último tick y actividad de hoy
+pulse-status: ## @dia ¿el pulso está vivo? último tick y actividad de hoy
 	@cd tablero && server/bin/pulse status
 
-pulso-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
+pulse-uninstall: ## @dia saca el agente del pulso (lo ya registrado se queda)
 	@cd tablero && server/bin/pulse uninstall
 
 # ── CONTEXTO ─────────────────────────────────────────────────────────────────────────────────────
@@ -468,31 +468,31 @@ jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chr
 # repo (my-tools). Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
 RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
-.PHONY: radar radar-uso radar-friccion radar-deriva radar-sesion
+.PHONY: radar radar-usage radar-friction radar-drift radar-session
 radar: ## @dia abre radar: el uso real de las herramientas, visual (:5188 · API :5189). Lo mismo que los radar-* de abajo
 	@cd radar && npm run dev
-radar-uso: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
+radar-usage: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
 	@$(RADAR) -view usage
-radar-friccion: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DIAS=30 · JSON=1
+radar-friction: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DIAS=30 · JSON=1
 	@$(RADAR) -view friction
-radar-deriva: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DIAS=30 · JSON=1
+radar-drift: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DIAS=30 · JSON=1
 	@$(RADAR) -view drift
-radar-huecos: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DIAS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
+radar-gaps: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DIAS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
 	@$(RADAR) -view gaps $(if $(RECHECK),-recheck)
-radar-sesion: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
+radar-session: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
 	@$(RADAR) -view session $(if $(SESION),-session $(SESION),)
 
 # ensayo: ¿un cambio a un CLAUDE.md, una skill, un hook o una memoria mejora lo que hace el modelo? Corre las
 # preguntas fijas de ensayo/preguntas.json con `claude -p` (GASTA modelo), las califica con un juez que no
 # es un modelo y compara la tanda de antes del cambio con la de después. Frente «ensayo con/sin» de #96.
-.PHONY: ensayo ensayo-comparar
-barrido: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TEMAS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [TOPE=2.5 US$ por agente] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
+.PHONY: rehearsal rehearsal-compare
+sweep: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TEMAS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [TOPE=2.5 US$ por agente] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
 	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
-barrido-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TEMAS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [TOPE=2.5] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
+sweep-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TEMAS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [TOPE=2.5] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
 	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -modo canon -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
-ensayo: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. TANDA=<nombre> [N=3 corridas por pregunta] [SOLO=listado-local,…] [BUDGET=1.5 US$ por corrida] [SECO=1 sólo los jueces, gratis]
+rehearsal: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. TANDA=<nombre> [N=3 corridas por pregunta] [SOLO=listado-local,…] [BUDGET=1.5 US$ por corrida] [SECO=1 sólo los jueces, gratis]
 	@go run ./ensayo -tanda "$(TANDA)" $(if $(N),-n $(N),) $(if $(SOLO),-solo $(SOLO),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(SECO),-seco,)
-ensayo-comparar: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
+rehearsal-compare: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
 	@go run ./ensayo -comparar "$(A),$(B)" $(if $(JSON),-json,)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
@@ -549,7 +549,7 @@ $(1):
 endef
 $(foreach p,$(HARNESS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
 
-.PHONY: harness-bureaus-set harness-bureaus-show harness-bureaus-reset harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-codeudor harness-listing harness-recorrido harness-case harness-check soporte-qa
+.PHONY: harness-bureaus-set harness-bureaus-show harness-bureaus-reset harness-wompi harness-restore harness-ecommerce harness-contract harness-sandbox harness-walk harness-qr harness-mocks harness-bureaus harness-rto harness-peru harness-merchant harness-forms-g2 harness-bcp-return tests-cosigner harness-listing harness-journey harness-case harness-check support-qa
 harness-contract: ## @har ¿el mock de Bancolombia cumple los esquemas zod del front? (sin browser ni BD)
 	@cd harness && npm run --silent contrato:bancolombia
 
@@ -647,7 +647,7 @@ harness-auto-onboarding: ## @har ¿UN PEDIDO COMPLETO SALTA EL SMS Y EL FORMULAR
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/auto-onboarding-link.ts $(if $(BRANCH),--branch $(BRANCH)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(CASES),--cases $(CASES))
 
-harness-rotativo: ## @har EL CREDITOPX ROTATIVO DE PUNTA A PUNTA, con la copia de Mario Hernández (comercio slug mario-hernadez, entidad 200; se trae de prod con dev/copy-creditopx.ts): dos compras por tienda que cierran por el wizard en navegador hasta loan-approved, una BAJO y otra SOBRE la mitad del cupo (1.500.000). La de arriba es la que fallaba con 403 de cuota inicial (legacy-backend#1881). Identidad a mano (la entidad valida con ADO). Sale 1 si alguna no llega al final. TARGET=local|qa [BAJO=500000] [SOBRE=1000000]
+harness-revolving: ## @har EL CREDITOPX ROTATIVO DE PUNTA A PUNTA, con la copia de Mario Hernández (comercio slug mario-hernadez, entidad 200; se trae de prod con dev/copy-creditopx.ts): dos compras por tienda que cierran por el wizard en navegador hasta loan-approved, una BAJO y otra SOBRE la mitad del cupo (1.500.000). La de arriba es la que fallaba con 403 de cuota inicial (legacy-backend#1881). Identidad a mano (la entidad valida con ADO). Sale 1 si alguna no llega al final. TARGET=local|qa [BAJO=500000] [SOBRE=1000000]
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
 	@ok=0; for a in $(or $(BAJO),500000) $(or $(SOBRE),1000000); do \
 	  echo "\n  ── rotativo · compra de $$a ──"; \
@@ -682,7 +682,7 @@ harness-plan: ## @har deja una corrida ARMADA en el panel: aparece arriba de los
 # (`pkg/target-policy.ts` lo frena también dentro del proceso).
 harness_target = $(strip $(if $(filter prod,$(TARGET) $(E2E_TARGET)),$(error TARGET=prod: estos comandos crean solicitudes y prod es de sólo lectura. Para leer prod: bin/pg sql · request timeline · client state))$(if $(and $(TARGET),$(E2E_TARGET)),$(if $(filter-out $(TARGET),$(E2E_TARGET)),$(error TARGET=$(TARGET) y E2E_TARGET=$(E2E_TARGET) no coinciden: dejá uno)))$(or $(TARGET),$(E2E_TARGET),$(error falta TARGET=local|dev|qa|staging: sin él la corrida iría contra dev, que es compartido)))
 
-harness-recorrido: ## @har en qué RECORRIDO cae cada entidad de un comercio (canal · riel · producto · variaciones · desenlace), medido en la base del ambiente; sólo lee. MERCHANT=sonria | LENDER=149,172 [CHANNEL=advisor|self-service|store|bancolombia] [JSON=1] [TARGET=local|dev|qa|staging obligatorio: el ambiente]. Los nombres: harness/journeys.json · el porqué: knowledge/origination-paths
+harness-journey: ## @har en qué RECORRIDO cae cada entidad de un comercio (canal · riel · producto · variaciones · desenlace), medido en la base del ambiente; sólo lee. MERCHANT=sonria | LENDER=149,172 [CHANNEL=advisor|self-service|store|bancolombia] [JSON=1] [TARGET=local|dev|qa|staging obligatorio: el ambiente]. Los nombres: harness/journeys.json · el porqué: knowledge/origination-paths
 	@cd harness && E2E_TARGET=$(harness_target) node dev/journey.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(CHANNEL),--channel $(CHANNEL)) $(if $(JSON),--json)
 
 harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
@@ -744,7 +744,7 @@ harness-doctor: ## @har ¿el ambiente LOCAL está listo para que una corrida dig
 harness-regression: ## @har ¿mi cambio rompió OTRO flujo? Corre TODAS las suites del runner de casos (en serie: comparten la base local) después de harness-doctor, y compara cada una con la corrida anterior (`harness/.runs/regression-last.json`): nueva · igual · SE ROMPIÓ · SE ARREGLÓ. Sale 1 si alguna falla, 2 si el ambiente frena. TARGET=local [RESET=1 reinicia antes el cupo local de los perfiles] [ONLY=texto sólo las suites cuyo nombre lo contiene; no guarda] [JSON=1 harness.regression/v1]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/regression.ts $(if $(RESET),--reset) $(if $(ONLY),--only $(ONLY)) $(if $(JSON),--json)
 
-harness-fallas: ## @har ¿qué FALLA, desde cuándo, en qué ambiente y con qué comercio? Resume el registro que deja cada corrida del runner de casos (`.runs/registry/cases.ndjson`, de esta máquina): por caso y ambiente, rojo · intermitente · sin veredicto · verde, con la historia, el último desvío y el comando para repetirlo. Sólo lectura. [TARGET=qa] [ESTADO=rojo|intermitente|verde|todos — default: lo que no está verde] [DIAS=7] [JSON=1 para un agente] [HTML=1 escribe el dashboard y dice dónde]
+harness-failures: ## @har ¿qué FALLA, desde cuándo, en qué ambiente y con qué comercio? Resume el registro que deja cada corrida del runner de casos (`.runs/registry/cases.ndjson`, de esta máquina): por caso y ambiente, rojo · intermitente · sin veredicto · verde, con la historia, el último desvío y el comando para repetirlo. Sólo lectura. [TARGET=qa] [ESTADO=rojo|intermitente|verde|todos — default: lo que no está verde] [DIAS=7] [JSON=1 para un agente] [HTML=1 escribe el dashboard y dice dónde]
 	@cd harness && node bin/failures.ts $(if $(TARGET),--target $(TARGET)) $(if $(ESTADO),--estado $(ESTADO)) $(if $(DIAS),--dias $(DIAS)) $(if $(JSON),--json) $(if $(HTML),--html)
 
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
@@ -753,11 +753,11 @@ harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual
 harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
 	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual) $(if $(JSON),--json)
 
-soporte-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
+support-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
 	@cd tablero/tasks/agente-soporte-modificacion-datos/artifacts && python3 -m http.server 5199
 
-tests-codeudor: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
+tests-cosigner: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
 	@cd harness && bash bin/tests-cosigner.sh $(if $(PREPARAR),--preparar)
 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
@@ -880,7 +880,7 @@ wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally com
 	@docker build -t wally-rust wally/rust
 knowledge-check: ## @dia contrastar fuentes con el main de los clones de canon (main_clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
-knowledge-deriva: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
+knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
 	@test -n "$(PASO)" || { echo "falta PASO=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
 	@python3 tools/canon-deriva/knowledge.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(RUN),--run '$(RUN)')
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
@@ -889,11 +889,11 @@ knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de c
 # ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
 # Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
 # prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-mapa canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-deriva
+.PHONY: canon-search canon-read canon-route canon-map canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-drift
 canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
 	@cd tablero/server && go run ./cmd/canon route '$(REF)'
 
-canon-mapa: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen, leído de la API en el momento (gratis)
+canon-map: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen, leído de la API en el momento (gratis)
 	@cd tablero/server && go run ./cmd/canon map
 
 canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
@@ -917,7 +917,7 @@ canon-restructure: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya y muestra el 
 	@cd tablero/server && go run ./cmd/canon restructure $(if $(APPLY),-apply) -reason '$(REASON)' '$(abspath $(OPS))'
 canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
 	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
-canon-deriva: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GRUPOS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
+canon-drift: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GRUPOS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
 	@test -n "$(PASO)" || { echo "falta PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
 	@python3 tools/canon-deriva/deriva.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(APPLY),--apply) $(if $(RUN),--run '$(RUN)')
 canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
@@ -937,3 +937,65 @@ canon-patch: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya: canon valida el co
 .PHONY: cuadrilla
 cuadrilla: ## @expl las épicas del equipo — ramas por persona. Vive en el repo COMPARTIDO (API :8080 · front :5197)
 	@cd ../github/playground && task dev TOOL=cuadrilla
+
+# LOS NOMBRES DE ANTES (2026-11-18: los comandos pasaron a inglés). Siguen andando porque las tareas guardan el
+# comando exacto de cada medición; avisan el nombre nuevo. Radar los lee de este bloque (`*_OLD_TARGETS`).
+MYTOOLS_OLD_TARGETS := \
+  tareas:tasks \
+  tarea-json:task-json \
+  tareas-ramas:task-branches \
+  tarea-verify:task-verify \
+  tarea-bloque:task-block \
+  tarea-context:task-context \
+  tarea-context-add:task-context-add \
+  tareas-guard:task-guard \
+  bitacora:worklog \
+  bitacora-add:worklog-add \
+  hoy:today \
+  retomar:resume \
+  agente:agent \
+  anatomia:anatomy \
+  cierre:closeout \
+  trampas:traps \
+  citas:citations \
+  cuadrilla-publicar:cuadrilla-publish \
+  estilo-ui:style-ui \
+  estilo-minimo:style-minimal \
+  estilo-componentes:style-components \
+  estilo-guia:style-guide \
+  estilo-sync:style-sync \
+  estilo-iconos:style-icons \
+  estilo-check:style-check \
+  estilo-contraste:style-contrast \
+  estilo-tema:style-theme \
+  pulso:pulse \
+  pulso-install:pulse-install \
+  pulso-status:pulse-status \
+  pulso-uninstall:pulse-uninstall \
+  radar-uso:radar-usage \
+  radar-friccion:radar-friction \
+  radar-deriva:radar-drift \
+  radar-huecos:radar-gaps \
+  radar-sesion:radar-session \
+  visor-buscar:visor-search \
+  visor-pantallas:visor-screens \
+  visor-pantalla:visor-screen \
+  visor-capa:visor-layer \
+  visor-componentes:visor-components \
+  visor-enlaces:visor-links \
+  visor-fidelidad:visor-fidelity \
+  visor-recursos:visor-assets \
+  harness-fallas:harness-failures \
+  harness-recorrido:harness-journey \
+  harness-rotativo:harness-revolving \
+  soporte-qa:support-qa \
+  tests-codeudor:tests-cosigner \
+  barrido:sweep \
+  barrido-canon:sweep-canon \
+  ensayo:rehearsal \
+  ensayo-comparar:rehearsal-compare \
+  canon-mapa:canon-map \
+  canon-deriva:canon-drift \
+  knowledge-deriva:knowledge-drift \
+
+$(foreach p,$(MYTOOLS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))

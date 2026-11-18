@@ -21,7 +21,7 @@ make knowledge-map
 make knowledge-search Q='monto listado'
 make knowledge-read ID=lender-listing
 make knowledge-check
-make retomar N=96
+make resume N=96
 ```
 
 Una tarea declara `knowledge: [lender-listing]`. La retoma lee esos temas completos o secciones exactas,

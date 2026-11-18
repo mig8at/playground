@@ -70,7 +70,7 @@ func sqlTableMD(columns []string, rows []dbsql.Row) string {
 	return b.String()
 }
 
-// addTaskBlock agrega el bloque a la pila de la tarea por la puerta de siempre (`make tarea-bloque`), con el entorno
+// addTaskBlock agrega el bloque a la pila de la tarea por la puerta de siempre (`make task-block`), con el entorno
 // de make LIMPIO: un `N=` heredado por MAKEFLAGS mandaría el bloque a otra tarea sin decirlo.
 func addTaskBlock(task, title, body string) error {
 	root, err := myToolsRoot()
@@ -80,7 +80,7 @@ func addTaskBlock(task, title, body string) error {
 	if r := []rune(title); len(r) > 120 {
 		title = string(r[:119]) + "…"
 	}
-	cmd := exec.Command("make", "-s", "-C", root, "tarea-bloque", "N="+task, "ARCHIVO=-", "VIA=db")
+	cmd := exec.Command("make", "-s", "-C", root, "task-block", "N="+task, "ARCHIVO=-", "VIA=db")
 	cmd.Stdin = strings.NewReader("# " + title + "\n\n" + body)
 	for _, kv := range os.Environ() {
 		if k, _, _ := strings.Cut(kv, "="); k != "MAKEFLAGS" && k != "MFLAGS" && k != "MAKELEVEL" && k != "MAKEOVERRIDES" {

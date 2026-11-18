@@ -1,5 +1,5 @@
 {
-  "about": "El juego de iconos de la base: cada nombre de `data-icon` apunta a un icono de Lucide, la biblioteca de shadcn. No se dibujan iconos: se elige uno de la biblioteca. `make estilo-iconos` genera el bloque de workbench.css desde acá y `make estilo-check` falla si el bloque no coincide o si una herramienta usa un nombre que no está en la lista.",
+  "about": "El juego de iconos de la base: cada nombre de `data-icon` apunta a un icono de Lucide, la biblioteca de shadcn. No se dibujan iconos: se elige uno de la biblioteca. `make style-icons` genera el bloque de workbench.css desde acá y `make style-check` falla si el bloque no coincide o si una herramienta usa un nombre que no está en la lista.",
   "library": "lucide-static",
   "version": "1.48.0",
   "select": "chevron-down",

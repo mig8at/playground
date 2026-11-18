@@ -57,7 +57,7 @@ var (
 	// Una pantalla de un diseño, en el visor: `visor:<clave del archivo>/<pantalla>[@<huella>]` —ids de
 	// Figma; el nombre del proyecto en lugar de la clave también vale—. La huella es la del
 	// contenido de la pantalla cuando se enlazó (`?huella=` en el enlace que copia el visor); con ella,
-	// `make visor-enlaces` dice después si el diseñador la cambió o la borró. Va como tipo propio, y no como
+	// `make visor-links` dice después si el diseñador la cambió o la borró. Va como tipo propio, y no como
 	// `http://localhost:5193/…`, por lo mismo que `repo:`: el enlace nombra QUÉ es, y dónde corre el visor
 	// lo decide quien lo abre.
 	visorTargetRe = regexp.MustCompile(`^visor:[A-Za-z0-9][A-Za-z0-9-]*/[0-9]+-[0-9]+(?:@[0-9a-f]{12})?$`)

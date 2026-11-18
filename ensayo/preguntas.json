@@ -58,9 +58,9 @@
     },
     {
       "id": "herramienta-specs",
-      "why": "el criterio de «hecho» de una tarea se corre con make tarea-verify, no se deduce leyendo la tarea (frente del agente, 2026-11-02)",
+      "why": "el criterio de «hecho» de una tarea se corre con make task-verify, no se deduce leyendo la tarea (frente del agente, 2026-11-02)",
       "prompt": "¿La tarea harness (#86) del tablero cumple hoy su criterio de «hecho»? Contestá sí o no y nombrá las specs que pasaron.",
-      "judge": "make tarea-verify N=86 2>/dev/null | sed -nE 's/^  ✓ (S[0-9]+) .*/\\1/p'",
+      "judge": "make task-verify N=86 2>/dev/null | sed -nE 's/^  ✓ (S[0-9]+) .*/\\1/p'",
       "must": [
         "tarea-verify"
       ],

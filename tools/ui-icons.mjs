@@ -3,8 +3,8 @@
 // `<icons>` y `</icons>`. Con --check no escribe: sale ≠0 si el bloque no es el que saldría, si queda un
 // icono definido fuera del bloque, o si una herramienta pide un `data-icon` que no está en la lista.
 //
-//   make estilo-iconos          genera el bloque
-//   make estilo-check           lo comprueba (junto con lo demás)
+//   make style-icons          genera el bloque
+//   make style-check           lo comprueba (junto con lo demás)
 import { createRequire } from 'node:module';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -54,7 +54,7 @@ const css = readFileSync(cssPath, 'utf8');
 const re = /\/\* <icons>[\s\S]*?\/\* <\/icons> \*\//;
 if (!re.test(css)) { fail('workbench.css no tiene los marcadores <icons> … </icons>'); process.exit(1); }
 if (check) {
-  if (css.match(re)[0] !== block) fail('el bloque de workbench.css no es el que sale de icons.json (corré make estilo-iconos)');
+  if (css.match(re)[0] !== block) fail('el bloque de workbench.css no es el que sale de icons.json (corré make style-icons)');
 } else if (css.match(re)[0] !== block) {
   writeFileSync(cssPath, css.replace(re, block));
   console.log(`  iconos: ${Object.keys(cfg.icons).length} desde ${cfg.library}@${cfg.version} → tools/ui/workbench.css`);

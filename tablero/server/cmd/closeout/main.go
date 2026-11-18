@@ -130,7 +130,7 @@ type FrictionNote struct {
 // frictionLookback: contra cuántos días anteriores se decide si una fricción es NUEVA.
 const frictionLookback = 30
 
-/* dayFriction: la fricción nueva del día, con el mismo código que `make radar-friccion` (radar/scan). Si no
+/* dayFriction: la fricción nueva del día, con el mismo código que `make radar-friction` (radar/scan). Si no
  * hay transcripciones de my-tools —otra máquina, TABLERO_DATA afuera del repo— no dice nada: el
  * cierre no puede depender de radar para lo que sí es suyo. */
 func dayFriction(root, projects, cachePath string, day time.Time) []FrictionNote {
@@ -351,7 +351,7 @@ func dayRefs(hours []pulse.Hour, day string) map[string]branchRef {
 	return refs
 }
 
-// reposRoot: donde viven los repos que mira el pulso (la misma raíz que `make tareas-ramas`).
+// reposRoot: donde viven los repos que mira el pulso (la misma raíz que `make task-branches`).
 func reposRoot() string {
 	for _, k := range []string{"TABLERO_RAMAS_ROOT", "PULSO_ROOT"} {
 		if v := os.Getenv(k); v != "" {
@@ -583,10 +583,10 @@ func main() {
 		}
 		rv.BlockToday, _ = blocksOn(events, *day)
 		if !rv.BlockToday {
-			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make tarea-bloque N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
+			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make task-block N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
 		}
 		if rv.MinutesToday == 0 {
-			rv.Missing = append(rv.Missing, "sin bitácora del día: `make bitacora-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
+			rv.Missing = append(rv.Missing, "sin bitácora del día: `make worklog-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
 		}
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
 		// lectura donde no hay nada que correr, y convertir eso en un error enseña a ignorar el cierre.
@@ -600,7 +600,7 @@ func main() {
 			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
 		}
 		if len(rv.Missing) > 0 {
-			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make cierre TAREA="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
+			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TAREA="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)
@@ -634,7 +634,7 @@ func main() {
 		}
 	}
 	if !pulseOK {
-		inf.Warnings = append(inf.Warnings, "el pulso no tiene registro de este día: las ramas tocadas y los minutos reales no se saben (`make pulso-status`)")
+		inf.Warnings = append(inf.Warnings, "el pulso no tiene registro de este día: las ramas tocadas y los minutos reales no se saben (`make pulse-status`)")
 	}
 	if withoutTask > 0 {
 		inf.Warnings = append(inf.Warnings, fmt.Sprintf("%d′ de bitácora sin tarea asignada (effortId vacío)", withoutTask))
@@ -760,7 +760,7 @@ func printReport(inf Report) {
 	// ▲ y no ✗: la fricción es para mirar, no una pieza que falte (misma regla que «tocó código y no dice
 	// con qué se comprobó»).
 	if len(inf.Friction) > 0 {
-		fmt.Println("  ▲ fricción NUEVA del día (no pasó en el último mes · `make radar-friccion DIAS=1`):")
+		fmt.Println("  ▲ fricción NUEVA del día (no pasó en el último mes · `make radar-friction DIAS=1`):")
 		for _, f := range inf.Friction {
 			line := fmt.Sprintf("    · %s — %s, %d vez/veces", f.Key, f.Kind, f.Calls)
 			if f.Note != "" {

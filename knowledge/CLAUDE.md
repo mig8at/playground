@@ -37,7 +37,7 @@ del mecanismo respaldado por código; el lector actual exige fuentes Git para lo
 
 ## Uso y cierre
 
-`make retomar` y `make agente` sugieren solos las secciones que respaldan los archivos de las ramas de
+`make resume` y `make agent` sugieren solos las secciones que respaldan los archivos de las ramas de
 la tarea y que su `knowledge:` no declara (el índice al revés de las fuentes, `touch.go`: sin red ni
 modelo, primero las más específicas). `make knowledge-touch F='repo:a..b'` contesta lo mismo para un
 rango de main: qué secciones releer después de un merge. La sugerencia es una pista: una sección entra

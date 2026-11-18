@@ -29,7 +29,7 @@ type Call struct {
 	Session string    `json:"session"`
 	Time    time.Time `json:"time"`
 	Tool    string    `json:"tool"`
-	// Keys son las herramientas de my-tools que la llamada usó: `make tareas`, `git commit`,
+	// Keys son las herramientas de my-tools que la llamada usó: `make tasks`, `git commit`,
 	// `skill harness-local`… Un comando de Bash con `&&` usa varias.
 	Keys    []string `json:"keys"`
 	Command string   `json:"command,omitempty"` // cortado y sin secretos

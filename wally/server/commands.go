@@ -82,7 +82,7 @@ var allowList = []allowed{
 		func(ctx context.Context, a *app, m []string) (string, int, error) {
 			return a.runMake(ctx, "knowledge-read", "ID="+m[1])
 		}},
-	{regexp.MustCompile(`^make tareas$`), makeRun("tareas")},
+	{regexp.MustCompile(`^make (?:tasks|tareas)$`), makeRun("tasks")}, // `tareas`, el nombre de antes
 	// El catálogo de make: `make` sin argumentos sólo lista. Con una palabra, sus líneas (y la del grupo).
 	{regexp.MustCompile(`^commands(?: ([\p{L}0-9-]{2,40}))?$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		out, exit, err := a.runMake(ctx)
@@ -540,7 +540,7 @@ func (a *app) readTask(key string) (string, int, error) {
 			return string(raw), 0, nil
 		}
 	}
-	return fmt.Sprintf("no hay una tarea «%s» (`make tareas` las lista con su número)", key), 1, nil
+	return fmt.Sprintf("no hay una tarea «%s» (`make tasks` las lista con su número)", key), 1, nil
 }
 
 // runSentinel corre `bin/sentinel <args>` sin shell. Su salida 1 es «hay algo que mirar», no un error.

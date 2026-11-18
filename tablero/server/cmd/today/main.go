@@ -151,7 +151,7 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 		nPend += f.Pending
 		// LOS CONTENEDORES LOCALES VAN APARTE. Son las herramientas y `miguel`: no son el día a día
 		// comprometido en Jira y mezclarlos ahoga lo que alguien del equipo está esperando. Se listan
-		// igual, abajo y sin detalle: se retoman con `make retomar`.
+		// igual, abajo y sin detalle: se retoman con `make resume`.
 		if f.Class == "proyecto" {
 			projects = append(projects, f)
 			continue
@@ -168,7 +168,7 @@ func agenda(data string, tasks []task, snap branchesSnap, stage string, asJSON b
 	fmt.Printf("\n  hoy · %s · %d tarea(s) (%d en work) · %d dormidas (≥%d días sin tocar) · %d contenedor(es) local(es) · %d pendiente(s), %d esperando a alguien\n",
 		time.Now().Format("2006-01-02"), len(rows)-len(projects), nWork, len(dormant), dormantDays, len(projects), nPend, nWaiting)
 	if snap.MeasuredAt != "" {
-		fmt.Printf("  entrega según `make tareas-ramas` del %s", snap.MeasuredAt[:10])
+		fmt.Printf("  entrega según `make task-branches` del %s", snap.MeasuredAt[:10])
 		if len(snap.Incomplete) > 0 {
 			fmt.Printf(" ⚠ incompleto (%d sin medir)", len(snap.Incomplete))
 		}
@@ -409,7 +409,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 	}
 	if t == nil {
-		fmt.Fprintf(os.Stderr, "no hay tarea que matchee %q. `make tareas` las lista.\n", ref)
+		fmt.Fprintf(os.Stderr, "no hay tarea que matchee %q. `make tasks` las lista.\n", ref)
 		return 2
 	}
 	contextInfo, contextErr := taskcontext.Read(data, t.Slug)
@@ -422,7 +422,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	bit := worklogOf(data, t.ID)
 	var missing []string
 	if len(contextInfo) == 0 {
-		missing = append(missing, "la pila está vacía: `make tarea-bloque N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
+		missing = append(missing, "la pila está vacía: `make task-block N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
 	}
 	if len(t.Branches) == 0 && requiresBranches(*t) {
 		missing = append(missing, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")
@@ -487,7 +487,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	case len(t.Branches) == 0:
 		fmt.Println("  ✗ la tarea no declara `ramas:`")
 	case len(rs) == 0:
-		fmt.Println("  · sin ramas medidas — corré `make tareas-ramas N=" + strconv.Itoa(t.ID) + "`")
+		fmt.Println("  · sin ramas medidas — corré `make task-branches N=" + strconv.Itoa(t.ID) + "`")
 	default:
 		for _, r := range rs {
 			var presentIn []string

@@ -14,7 +14,7 @@ bundler). Lo que una herramienta envuelve en un contenedor propio (el `.editorbo
 corridas encima del editor) se enmarca en SU hoja: la regla compartida sólo enmarca regiones.
 
 **Cockpit** (`cockpit/`, la app de escritorio que junta las herramientas en una barra) es una carcasa con su copia del
-tema (`cockpit/shell`, destino de `make estilo-sync` y del chequeo) y la barra apoyada en el mismo `--canvas`. Cada
+tema (`cockpit/shell`, destino de `make style-sync` y del chequeo) y la barra apoyada en el mismo `--canvas`. Cada
 herramienta es ahí un iframe con su propio origen, así que guardaría su propio claro/oscuro: `workbench.js` le avisa a
 Cockpit cuando se elige un tema (`theme` por postMessage) y aplica el que Cockpit le manda. Fuera de un iframe, nada
 de eso corre.
@@ -24,7 +24,7 @@ Catppuccin, Nord, Monokai Pro y Monokai Ristretto—, cada una un bloque `:root[
 versión oscura, que redefine sólo lo que la distingue (lienzo, texto, tarjeta, borde, acento) y el resto se deriva.
 `workbench.js` la guarda en `ui.palette` (`PALETTES`, `setPalette`) y `THEME_BOOT` la aplica antes de pintar. Se elige
 en Cockpit (Configuración → Apariencia) y Cockpit la reparte como el tema (`palette` por postMessage). Medidas con
-`make estilo-contraste THEME=… PALETTE=…`: las doce combinaciones pasan AA en el tablero y ecommerce. Para sumar una:
+`make style-contrast THEME=… PALETTE=…`: las doce combinaciones pasan AA en el tablero y ecommerce. Para sumar una:
 su bloque en `theme.css`, su entrada en `PALETTES` y su muestra en el modal de `cockpit/shell`.
 
 ## Las tres UIs comparten UN tema, y es un archivo
@@ -32,12 +32,12 @@ su bloque en `theme.css`, su entrada en `PALETTES` y su muestra en el modal de `
 ⚠ **Eran CUATRO hasta el 2026-09-21**, cuando se apagó la viz del árbol de `context/` (:5193). Las
 medidas y los conteos de acá abajo se tomaron con las cuatro y **no se reescriben**: son lo que se
 midió ese día. Lo que sí cambió es dónde viven los archivos —hoy tres copias, no cuatro— y eso lo
-comprueba `make estilo-check`, que cuenta las que hay y no las que dice este texto.
+comprueba `make style-check`, que cuenta las que hay y no las que dice este texto.
 
 **Fuente canónica (2026-09-19):** `tools/ui/theme.css`, `tools/ui/workbench.css` y
-`tools/ui/workbench.js` y `tools/ui/RegionMenu.vue`. Editar allí y ejecutar `make estilo-sync`; `make estilo-check` detecta
+`tools/ui/workbench.js` y `tools/ui/RegionMenu.vue`. Editar allí y ejecutar `make style-sync`; `make style-check` detecta
 cualquier copia desincronizada. El harness recibe el JS incrustado por el mismo comando, sin reiniciar
-su servidor. Catálogo: `make estilo-guia` → http://127.0.0.1:5198; contrato actual en
+su servidor. Catálogo: `make style-guide` → http://127.0.0.1:5198; contrato actual en
 [`README.md`](README.md).
 
 **Preferencia de Miguel:** sin titlebar ni banners globales. Las acciones pertenecen al toolbar del
@@ -57,9 +57,9 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 - **`theme.css` es el archivo que se cambia, y es el MISMO en las tres** (`harness/panel` ·
   `tablero/src` · `visor/src` · `radar/src` · `keyring/src`). La fuente vigente es el tema Darkmatter de
   [ShadcnThemer](https://shadcnthemer.com/themes/278e858e-7c4c-4407-a4bc-2d48faadc5c8): al cambiar
-  de tema se reemplaza el bloque de tokens y luego se ejecuta `make estilo-sync`. No lleva reglas
+  de tema se reemplaza el bloque de tokens y luego se ejecuta `make style-sync`. No lleva reglas
   propias de ninguna herramienta.
-- **`make estilo-check`** es lo que hace que eso sea cierto y no una intención. Ocho chequeos, y cada
+- **`make style-check`** es lo que hace que eso sea cierto y no una intención. Ocho chequeos, y cada
   uno nació de un error medido: md5 de los dos archivos compartidos · `in oklch` prohibido · contraste
   de las reglas que fijan color y fondo · variables usadas y nunca declaradas · el contrato de scroll ·
   **color literal adentro de una regla** · **reglas y media queries vacías** · qué región usa cada
@@ -72,7 +72,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   las cuatro encontró 22 nodos abajo del umbral —10 casos distintos— que el estático no veía: dos <!-- lint:ok -->
   quedado con la piel POR DEFECTO del navegador (#efefef sobre fondo oscuro), una manija de arrastre en
   **1,38:1** pintada con un token de borde, y tres textos con `opacity` apilada encima de la rampa.
-  **Está cableado: `make estilo-contraste`** lo corre en las cuatro con el Chromium del harness. ⚠ NO
+  **Está cableado: `make style-contrast`** lo corre en las cuatro con el Chromium del harness. ⚠ NO
   levanta servidores —los puertos son tuyos— así que audita lo que esté corriendo y lo que no sale
   `SIN VERIFICAR` con exit 2, nunca en verde. Probado al revés con un `#555` inventado: sale ✗ y con 1.
   ⚠ Y tres trampas que costaron una corrida cada una: **Vite escucha sólo en IPv6**, así que sondear
@@ -88,7 +88,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
   pasó de 7 a 21 nodos bajo AA.
 - **La tinta compacta usa la rampa de `workbench.css`, no `--muted-foreground`:** los temas cambian su
   contraste relativo. `--fg-2` (74%) y `--fg-3` (70%) se derivan de `--foreground`; cualquier
-  combinación explícita de tinta y superficie se verifica con `make estilo-check`. `--accent` es una
+  combinación explícita de tinta y superficie se verifica con `make style-check`. `--accent` es una
   superficie, así que su texto siempre usa `--accent-foreground`.
 - Cada herramienta tiene, al lado, **su propia hoja con el PUENTE**: sus nombres viejos apuntando a
   los tokens (`--bg: var(--background)`, `--mut: …`) y lo que sólo significa algo ahí —el estado de una
@@ -106,7 +106,7 @@ paletas escritas a mano, con **cuatro nombres para el mismo concepto** —el tex
 1. **Un tinte se mezcla `in oklab`, NUNCA `in oklch`.** Los neutros de tweakcn son `oklch(L 0 0)`:
    croma 0 y **hue 0, que es el rojo**. `oklch` es polar, así que `color-mix` interpola ese hue y
    arrastra el matiz — `color-mix(in oklch, #4ade80 20%, var(--card))` da **#4d3530**, un marrón
-   rojizo, donde `in oklab` da **#2d4132**. Pasa con los cuatro colores. `make estilo-check` lo frena.
+   rojizo, donde `in oklab` da **#2d4132**. Pasa con los cuatro colores. `make style-check` lo frena.
 2. **Una variable sin declarar hace que el navegador tire la declaración ENTERA, sin decir nada.**
    `scorecards/` del tablero venía de otra paleta y usaba diez nombres que nadie declaraba: 60
    declaraciones muertas, o sea una vista sin superficies, sin bordes y sin semáforo. Se ve como un
@@ -132,7 +132,7 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   sidebar en acordeón y sin activitybar, porque con UN solo contenedor de vistas esa columna no cambia
   nada— · `context` usa dos
   (`sidebar` el árbol, `editor` el detalle) · el trazador dos (`editor` el mapa, `auxiliarybar` los
-  logs). `make estilo-check` lo lista, así que se ve de un vistazo quién adoptó qué.
+  logs). `make style-check` lo lista, así que se ve de un vistazo quién adoptó qué.
 - ⛔ **NINGUNA usa `titlebar`, y eso es el resultado de medirlo cuatro veces.** Una barra a lo ancho de
   la ventana le cobra su alto a TODAS las regiones, incluidas las que no usan nada de lo que hay ahí —
   y casi siempre lo que hay ahí le pertenece a UNA. Lo que se hizo en las cuatro es lo mismo: **su
@@ -189,7 +189,7 @@ abajo) · `auxiliarybar` (el sidebar secundario) · `statusbar`, y adentro de ca
   mapa del trazador como `.editor`: su regla propia ya decía todo lo que la compartida diría, y lo
   único que sumaba era un `display:flex` que no tenía. Se sacó.
 - **El contrato de scroll**: `.workbench` ocupa la ventana y **cada región scrollea sola; la página
-  nunca scrollea**. Es opt-in, y `make estilo-check` lo verifica — incluido el atajo prohibido de
+  nunca scrollea**. Es opt-in, y `make style-check` lo verifica — incluido el atajo prohibido de
   fingirlo con `max-height: 82vh`, que el día que el header crezca una línea miente.
 - El panel del harness es la **implementación de referencia**: el vocabulario se extrajo de ahí, no se
   inventó. Ya tenía el grid, las medidas en tokens y hasta los nombres (`.titlebar`, `.statusbar`).
@@ -244,7 +244,7 @@ selects, iframes, imágenes y píldoras, que son objetos, no contenedores.
    del harness son tokens desde hoy, igual que los carriles del trazador. **Cableado** en el chequeo 6.
    ⚠ Y al pasarlos a token, **el token tiene que existir en ESA herramienta**: puse `var(--fail)` en el
    harness por costumbre del trazador y ahí se llama `--danger`; el navegador habría tirado la
-   declaración entera sin decir nada. Lo cazó `make estilo-check`.
+   declaración entera sin decir nada. Lo cazó `make style-check`.
 
 ⚠ **Lo que NO se toca: el cromo de un OBJETO.** Un input, un select, un botón, un iframe con contenido
 ajeno y la miniatura de un screenshot sí llevan su marco y su radio — son cosas, no cajas alrededor de

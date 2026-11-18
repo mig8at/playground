@@ -108,7 +108,7 @@ nuestro— y recién después dispara el webhook. Ver F-171 para las tres guarda
 ## El CreditopX rotativo (rt=3): lo que hace falta para que cierre
 
 Medido el 2026-11-06 con la copia de Mario Hernández (entidad 200) en local y en qa, por la tienda:
-`make harness-rotativo TARGET=local|qa` y `make harness-vtex TARGET=qa CASES=rotativo`.
+`make harness-revolving TARGET=local|qa` y `make harness-vtex TARGET=qa CASES=rotativo`.
 
 - **La copia tiene que traer los RANGOS del multiplicador** (`creditop_x_revolving_multiplier_ranges`, colgados de la
   variable y no de la entidad). Sin ellos cada variable puntúa 0, el cupo sale en 0 y el FRONT esconde la tarjeta aunque

@@ -12,7 +12,7 @@
  *   node visor/tools/fidelity.mjs --key … --id … --w … --h … --clip x,y,w,h --figma-out a.png --html-out b.png --json
  *
  * Con `--clip` mide sólo esa zona —la caja de una capa, en píxeles de pantalla— y guarda los dos recortes:
- * es lo que usa `make visor-capa` para que el modelo vea, lado a lado, lo que Miguel señaló.
+ * es lo que usa `make visor-layer` para que el modelo vea, lado a lado, lo que Miguel señaló.
  *
  * El segundo es el de UNA pantalla, y lo usa el server del visor: imprime en JSON cuánto se parece, la
  * medida estricta y la REAL (sin el suavizado de las letras; ver RADIUS y FLOOR).

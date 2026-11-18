@@ -20,7 +20,7 @@ func main() {
 	showOK := flag.Bool("ok", false, "lista también las que están bien")
 	flag.Parse()
 	if flag.NArg() == 0 {
-		fmt.Fprintln(os.Stderr, "uso: citations [-ok] <doc.md> [<doc.md> …]  ·  desde la raíz: make citas DOC=<doc.md>")
+		fmt.Fprintln(os.Stderr, "uso: citations [-ok] <doc.md> [<doc.md> …]  ·  desde la raíz: make citations DOC=<doc.md>")
 		os.Exit(2)
 	}
 	checker := citations.New(repos.New(layout.Find().Tools()))

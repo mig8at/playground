@@ -32,17 +32,17 @@ import (
 // que no cuadra), y `url` la entiende y trae eso. Los demás son piezas sueltas.
 //
 //	url <lo que se pegó>             QUÉ es (pantalla o capa), su tarea, y lo que hace falta (make visor-url)
-//	search <texto>                   ¿qué pantalla es? por título, carril o archivo      (make visor-buscar)
-//	screens <proyecto>               el flujo: carriles y pantallas, con su ruta          (make visor-pantallas)
-//	screen <ruta>                    el paquete para el modelo (Markdown)                 (make visor-pantalla)
+//	search <texto>                   ¿qué pantalla es? por título, carril o archivo      (make visor-search)
+//	screens <proyecto>               el flujo: carriles y pantallas, con su ruta          (make visor-screens)
+//	screen <ruta>                    el paquete para el modelo (Markdown)                 (make visor-screen)
 //	html <ruta> [--out <archivo>]    el HTML traducido                                    (make visor-html)
 //	assets <ruta> [--dir <carpeta>] [--svg]
-//	                                 las imágenes ORIGINALES (y sus dibujos en SVG)       (make visor-recursos)
+//	                                 las imágenes ORIGINALES (y sus dibujos en SVG)       (make visor-assets)
 //	tokens <proyecto> [--css|--tailwind|--json]                                           (make visor-tokens)
-//	components <proyecto>            el inventario de componentes del flujo               (make visor-componentes)
-//	fidelity <ruta> [--fresh]        cuánto se parece el HTML a Figma                     (make visor-fidelidad R=)
+//	components <proyecto>            el inventario de componentes del flujo               (make visor-components)
+//	fidelity <ruta> [--fresh]        cuánto se parece el HTML a Figma                     (make visor-fidelity R=)
 //	layer <ruta>?capa=<capa> [--capa <id>] [--dir <carpeta>]
-//	                                 UNA capa: qué es, qué dice Figma, su HTML y los recortes (make visor-capa)
+//	                                 UNA capa: qué es, qué dice Figma, su HTML y los recortes (make visor-layer)
 var cliVerbs = map[string]func(s *server, ctx context.Context, args []string, out io.Writer) error{
 	"search":     cliSearch,
 	"screens":    cliScreens,
@@ -102,7 +102,7 @@ func (s *server) resolveScreen(ref string) (key, id string, err error) {
 	}
 	key = s.keyOfProject(m[1])
 	if key == "" {
-		return "", "", fmt.Errorf("no hay un proyecto «%s» en la biblioteca del visor (make visor-pantallas los lista)", m[1])
+		return "", "", fmt.Errorf("no hay un proyecto «%s» en la biblioteca del visor (make visor-screens los lista)", m[1])
 	}
 	return key, strings.ReplaceAll(m[2], "-", ":"), nil
 }
@@ -168,7 +168,7 @@ func route(key, id string) string { return key + "/" + strings.ReplaceAll(id, ":
 func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) error {
 	q := fold(strings.TrimSpace(strings.Join(args, " ")))
 	if q == "" {
-		return usageError("falta qué buscar: make visor-buscar Q='alta bienvenida'")
+		return usageError("falta qué buscar: make visor-search Q='alta bienvenida'")
 	}
 	words := strings.Fields(q)
 	type hit struct {
@@ -234,9 +234,9 @@ func cliSearch(s *server, ctx context.Context, args []string, out io.Writer) err
 			print(h)
 		}
 	default:
-		fmt.Fprintln(out, "  Ninguna pantalla. Busca en el título, la capa, el carril, el proyecto y lo que dice la pantalla; el flujo entero: make visor-pantallas P=<proyecto>")
+		fmt.Fprintln(out, "  Ninguna pantalla. Busca en el título, la capa, el carril, el proyecto y lo que dice la pantalla; el flujo entero: make visor-screens P=<proyecto>")
 	}
-	fmt.Fprintln(out, "  Una pantalla entera: make visor-pantalla R=<ruta> · sus imágenes: make visor-recursos R=<ruta>")
+	fmt.Fprintln(out, "  Una pantalla entera: make visor-screen R=<ruta> · sus imágenes: make visor-assets R=<ruta>")
 	return nil
 }
 
@@ -281,7 +281,7 @@ func cliScreens(s *server, ctx context.Context, args []string, out io.Writer) er
 		fmt.Fprintf(out, "      %2d. %-44s %s%s\n", fs.index, clip(title, 44), route(key, fs.sc.ID), link)
 		n++
 	}
-	fmt.Fprintf(out, "\n  %d pantallas. «→» lleva a otra por el prototipo. Una pantalla: make visor-pantalla R=<ruta>\n", n)
+	fmt.Fprintf(out, "\n  %d pantallas. «→» lleva a otra por el prototipo. Una pantalla: make visor-screen R=<ruta>\n", n)
 	return nil
 }
 
@@ -312,7 +312,7 @@ func (s *server) screenReady(ctx context.Context, ref string) (key, id string, e
 
 func cliBrief(s *server, ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return usageError("falta la pantalla: make visor-pantalla R=RkyauDfqEsFbJZBBoqChAV/266-1279")
+		return usageError("falta la pantalla: make visor-screen R=RkyauDfqEsFbJZBBoqChAV/266-1279")
 	}
 	key, id, err := s.screenReady(ctx, args[0])
 	if err != nil {
@@ -575,7 +575,7 @@ func cliTokens(s *server, ctx context.Context, args []string, out io.Writer) err
 
 func cliInventory(s *server, ctx context.Context, args []string, out io.Writer) error {
 	if len(args) == 0 {
-		return usageError("falta el proyecto: make visor-componentes P=credifamilia")
+		return usageError("falta el proyecto: make visor-components P=credifamilia")
 	}
 	key, err := s.resolveProject(args[0])
 	if err != nil {

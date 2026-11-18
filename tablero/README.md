@@ -9,8 +9,8 @@
 
 | Si necesitás… | Abrí… |
 |---|---|
-| retomar una tarea concreta | `make retomar N=<id|slug>` o **Hoy** en la tarea |
-| decidir qué mover hoy | `make hoy` o los grupos de estado en **Mis tareas** |
+| retomar una tarea concreta | `make resume N=<id|slug>` o **Hoy** en la tarea |
+| decidir qué mover hoy | `make today` o los grupos de estado en **Mis tareas** |
 | crear o actualizar una tarea | `TASK-TEMPLATE.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARCHITECTURE.md` |
 | encontrar conocimiento técnico local | `make knowledge-map`, `knowledge-search` y `knowledge-read` |
@@ -113,14 +113,14 @@ El dashboard es una vista, no la única puerta. Todo el dominio del tablero se l
 que es lo que sirve cuando quien pregunta es un modelo, o cuando no hay ganas de abrir un navegador:
 
 ```bash
-make tareas                      # las abiertas, con etapa, Jira y nodos
-make tareas N=kyc-segundo        # una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
-make tareas STAGE=work TODAS=1 JSON=1
-make tarea-json N=tablero        # estado operativo tipado, sin copiar cuerpos largos
-make tarea-json N=tablero CONTENIDO=1  # agrega el borrador publicable cuando se necesita
-make tareas-guard F=<archivo>    # ¿este texto puede salir a Jira? SALE 1 si no
+make tasks                      # las abiertas, con etapa, Jira y nodos
+make tasks N=kyc-segundo        # una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
+make tasks STAGE=work TODAS=1 JSON=1
+make task-json N=tablero        # estado operativo tipado, sin copiar cuerpos largos
+make task-json N=tablero CONTENIDO=1  # agrega el borrador publicable cuando se necesita
+make task-guard F=<archivo>    # ¿este texto puede salir a Jira? SALE 1 si no
 make sprint                      # el sprint activo con puntos, del SNAPSHOT (dice cuándo se tomó)
-make bitacora DAYS=7             # el tiempo registrado, por día
+make worklog DAYS=7             # el tiempo registrado, por día
 ```
 
 Funciona porque **los datos son archivos** (ver «Los datos») y el server lee exactamente los mismos:
@@ -214,7 +214,7 @@ Para quitarlo: `claude mcp remove my-tools`.
 Casi todo es **lectura**. Lo único que escribe afuera son tres clics explícitos —importar de Jira, mover
 una tarea de estado y avisarle a QA—, y adentro, refrescar la medición de ramas. Las tareas y la bitácora
 **no se escriben desde acá**: las tareas las escribe el asistente en su `task.md` y la bitácora
-`make bitacora-add`, que mide los minutos. *(Hasta el 2026-09-23 el server tenía además un WebSocket del
+`make worklog-add`, que mide los minutos. *(Hasta el 2026-09-23 el server tenía además un WebSocket del
 dashboard original, el guard servido a la UI, ajustes, la escritura de tareas y bitácora, y la consola de
 ramas de `context`: ninguno tenía quien lo llamara, y se retiraron.)*
 
@@ -370,7 +370,7 @@ decida. Los niveles y sus contenedores están en `CLAUDE.md`.
 La API tampoco acepta crear esfuerzos locales sueltos: una tarea de producto se importa desde Jira y
 una mejora interna se escribe en el contenedor ya existente.
 
-`make tarea-json N=<slug|id>` deriva una vista `tablero.task.v3` desde ese mismo Markdown y su pila:
+`make task-json N=<slug|id>` deriva una vista `tablero.task.v3` desde ese mismo Markdown y su pila:
 identidad, conteos, pendientes, la pila entera (`stack`, del bloque más nuevo al más viejo), índice de
 secciones y estado del borrador para Jira. No guarda sidecars. El contrato está en
 [`schemas/task.v3.schema.json`](schemas/task.v3.schema.json).
@@ -417,7 +417,7 @@ la descripción que va a Jira — PUBLICABLE: pasa el guard
 
 La frontera es **lógica y no física**: un archivo, con una marca adentro. Separarla en archivos
 distintos sería redundante, porque **el guard es el mecanismo real** — corre sobre el texto antes de
-publicar y ataja repos, rutas y `F-xx` (`make tareas-guard F=…` lo pregunta sin publicar nada).
+publicar y ataja repos, rutas y `F-xx` (`make task-guard F=…` lo pregunta sin publicar nada).
 
 ### Los artifacts de una tarea (`tasks/<slug>/artifacts/`)
 
@@ -470,7 +470,7 @@ Sigue pensada **para análisis de tiempo**, no sólo para que la UI recargue. La
   una decisión de publicación, no una reescritura de la verdad.
 - `taskKey` puede ir vacío (`freeTitle` dice qué fue): reuniones y soporte no son tareas del sprint, y
   forzarlos a una envenena el análisis.
-- La `note` es **publicable por construcción**: `make bitacora-add` le pasa el guard (fuente única en
+- La `note` es **publicable por construcción**: `make worklog-add` le pasa el guard (fuente única en
   `connectors/guard`) **antes** de escribir.
 - Borrado **suave** (`deletedAt`): existe para recuperación administrativa; la pila visible no ofrece
   borrado ni edición.
@@ -494,7 +494,7 @@ jq -s 'map(select(.deletedAt|not)
        | group_by(.)[] | {bloque: .[0], registros: length}' data/entries/*.jsonl
 ```
 
-Endpoint: `GET /api/entries?days=&sprint=`, de sólo lectura — se escribe con `make bitacora-add`.
+Endpoint: `GET /api/entries?days=&sprint=`, de sólo lectura — se escribe con `make worklog-add`.
 
 ### La pila de una tarea (`context.jsonl`)
 
@@ -505,9 +505,9 @@ se publica en Jira. La fecha es interna: sólo agrupa los bloques en el acordeó
 Un bloque se escribe en un Markdown revisable y se valida antes de apilarlo:
 
 ```bash
-make tarea-bloque N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1   # previsualiza
-make tarea-bloque N=84 ARCHIVO=mi-bloque.md
-make tarea-context N=84
+make task-block N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1   # previsualiza
+make task-block N=84 ARCHIVO=mi-bloque.md
+make task-context N=84
 ```
 
 Adentro de la descripción, un archivo va por repo y ruta —`[texto](repo:legacy-backend/ruta)`— y el
@@ -520,7 +520,7 @@ valida de verdad es `server/internal/taskcontext/block.go`.
 Hasta el 2026-09-23 la pila era de hitos (`kind` checkpoint · decision · blocker · evidence); los 37 que
 había se migraron a bloques ese día y el formato ya no se lee. Ese mismo día entró la historia del
 documento —anotaciones, Registro y retoma de las 22 tareas abiertas que los tenían: 430 bloques más, con
-`via: migration`—. `make retomar` incluye los ocho bloques más recientes.
+`via: migration`—. `make resume` incluye los ocho bloques más recientes.
 
 ### Consultas a base de datos
 
@@ -543,10 +543,10 @@ código** y no depende de nadie: lo anota un agente cada 5 minutos, corra o no e
 grilla de «Mi jornada» con dos fuentes, y el selector del encabezado cambia cuál se pinta.
 
 ```bash
-make pulso                # mi jornada en la terminal (DAYS=7 por defecto)
-make pulso-install        # siembra el pasado y deja el agente corriendo solo
-make pulso-status         # ¿está vivo? último tick y actividad de hoy
-make pulso-uninstall      # lo saca (lo ya registrado se queda)
+make pulse                # mi jornada en la terminal (DAYS=7 por defecto)
+make pulse-install        # siembra el pasado y deja el agente corriendo solo
+make pulse-status         # ¿está vivo? último tick y actividad de hoy
+make pulse-uninstall      # lo saca (lo ya registrado se queda)
 ```
 
 ### La unidad es el TRAMO DE 5 MINUTOS, no "los minutos trabajados"
@@ -643,7 +643,7 @@ de Jira, el server arranca igual y cada ruta de Jira lo dice. En `server/.env` q
 Las tres últimas también salen de `server/.env` (`pulso` lo carga igual que el server: `LoadDefaults` lo
 busca junto al binario y en su carpeta padre, así que lo encuentra aun corriendo con `cwd=/`). Además,
 `pulso install` congela sus valores en el `plist` — y **eso gana** sobre el archivo, porque el entorno
-tiene prioridad. Si cambian, reinstalá: `make pulso-install`.
+tiene prioridad. Si cambian, reinstalá: `make pulse-install`.
 
 API token de Atlassian: <https://id.atlassian.com/manage-profile/security/api-tokens>.
 Slack app y scopes: <https://api.slack.com/apps> → OAuth & Permissions → Install to Workspace.

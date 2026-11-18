@@ -158,7 +158,7 @@ func writeString(sb *strings.Builder, s string) {
 }
 
 /* readTranscript: sólo lo que la sesión ESCRIBIÓ en sus herramientas — rutas editadas, comandos,
- * contenido. No el transcript entero: una sesión que corre `make tareas` o `make cierre` recibe TODOS los
+ * contenido. No el transcript entero: una sesión que corre `make tasks` o `make closeout` recibe TODOS los
  * slugs en la salida, y con eso cualquier tarea parecería tocada. Lo que se lee (tool_result) no cuenta;
  * lo que se manda (tool_use.input) sí. Si el formato no es el esperado, devuelve el texto crudo — mejor un
  * aviso de más que un hook que calla porque cambió una clave. */
@@ -351,7 +351,7 @@ func Closeout(env Env) int {
 		}
 		m := mine{t.ID.String(), t.Slug, t.Missing, t.TouchedBy}
 		// La RUTA del archivo, no el slug pelado: un comando que sólo nombra la tarea (un grep, un dato
-		// de prueba, un `make tareas N=x`) no la tocó. Medido en la primera corrida real: marcó tres
+		// de prueba, un `make tasks N=x`) no la tocó. Medido en la primera corrida real: marcó tres
 		// tareas de otras sesiones porque sus slugs aparecían como texto en un script.
 		if wrote(pieces, "tasks/"+t.Slug+"/task.md") {
 			mines = append(mines, m)
@@ -386,7 +386,7 @@ func Closeout(env Env) int {
 
 	lines := []string{
 		"CIERRE DEL TABLERO · " + rep.Day + " · a las tareas que tocaste en esta sesión les faltan piezas " +
-			"(medido por `make cierre`; tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»):",
+			"(medido por `make closeout`; tablero/CLAUDE.md §«AL CERRAR UNA SESIÓN»):",
 		"",
 	}
 	for _, m := range mines {
@@ -405,7 +405,7 @@ func Closeout(env Env) int {
 			without = "0"
 		}
 		lines = append(lines, "pulso del día: "+rep.PulseMinutes.String()+"′ · bitácora: "+rep.WorklogMinutes.String()+"′ ("+
-			without+"′ sin tarea). Los minutos se MIDEN (`make pulso`), no se estiman.")
+			without+"′ sin tarea). Los minutos se MIDEN (`make pulse`), no se estiman.")
 	}
 	lines = append(lines, "Si esta era la última respuesta de la sesión, completá lo que falta ahora. Si seguís en el medio del "+
 		"trabajo, decilo en una línea y continuá: este aviso no se repite en esta sesión.")

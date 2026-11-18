@@ -1,7 +1,7 @@
 // Package guard tiene los patrones de lo que NO puede salir de my-tools (ni nombrar el playground compartido) hacia Jira o Slack.
 //
 // Es la FUENTE ÚNICA: el aviso a QA del server los aplica antes de mandar el DM, `cmd/issue-create` antes
-// de publicar, `make bitacora-add` antes de escribir, y `cmd/tasks` los usa para decir si una tarea puede
+// de publicar, `make worklog-add` antes de escribir, y `cmd/tasks` los usa para decir si una tarea puede
 // salir. Vive en `internal/` justamente porque tener el guard dentro de `cmd/web` obligaba a copiarlo
 // para usarlo desde otro comando — y el comentario original ya advertía que dos copias habrían
 // derivado. Tres, peor.

@@ -1,6 +1,6 @@
 /* Contraste de lo que SE PINTA, no de lo que dice una regla.
  *
- * `make estilo-check` §3 sólo puede mirar reglas que fijan color Y fondo en la misma regla — son 11 a
+ * `make style-check` §3 sólo puede mirar reglas que fijan color Y fondo en la misma regla — son 11 a
  * 37 por herramienta. El resto del texto hereda su color de un ancestro y su fondo de otro, y eso
  * ningún chequeo estático lo puede resolver. Esto sí: recorre el DOM, resuelve el fondo efectivo
  * subiendo por los ancestros y mide cada nodo con texto propio.

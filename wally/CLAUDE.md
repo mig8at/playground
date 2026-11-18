@@ -120,7 +120,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   bloque la borra) y «Mandar resultados» le avisa para que siga. El primer modo, «Asistente de knowledge» (sólo la
   biblioteca, con el mapa adjunto al empezar), sigue andando para sus conversaciones.
   ⚠ **Qué se corre lo decide el servidor, no el modelo**: la lista blanca (`allowList`, `server/commands.go`) —la
-  biblioteca (`make knowledge-map|search|read`), `make tareas`, el catálogo (`commands [palabra]`), las trampas
+  biblioteca (`make knowledge-map|search|read`), `make tasks`, el catálogo (`commands [palabra]`), las trampas
   (`traps`, `trap F-xx`) y las guías (`guide <herramienta>`, de una lista fija)— con los argumentos validados: los
   de `make` se corren SIN SHELL y los demás leen un archivo fijo; se vuelve a validar al correr. Lo demás queda «no
   permitido» (`commands_test.go`: `;`, `$(…)`, `|`, rutas, otro target). **Afuera a propósito**: bases, logs,

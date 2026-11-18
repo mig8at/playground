@@ -28,11 +28,11 @@ func TestBashKeysCountsToolsNotText(t *testing.T) {
 		cmd  string
 		want []string
 	}{
-		{"make -s tareas N=3 2>/dev/null && git -C ../x log --oneline", []string{"make tareas", "git log"}},
+		{"make -s tasks N=3 2>/dev/null && git -C ../x log --oneline", []string{"make tasks", "git log"}},
 		{"make 2>/dev/null | grep -A3 deploys", []string{"make", "grep"}},
 		{"grep -E 'foo|make [a-z-]+' Makefile", []string{"grep"}},
 		{"python3 -c \"\nimport json\nprint(1)\n\"", []string{"python3"}},
-		{"A=1 sudo make -C tablero cierre", []string{"make cierre"}},
+		{"A=1 sudo make -C tablero closeout", []string{"make closeout"}},
 		{"bin/pg sql --target local --query 'SELECT 1'", []string{"pg sql"}},
 	}
 	for _, c := range cases {
@@ -62,10 +62,10 @@ func TestFrictionIsAnErrorAndHasItsCulprit(t *testing.T) {
 // las 527 llamadas a `context-lint` eran todas de antes de sacarlo—. Y un nombre viejo sólo es viejo
 // DESPUÉS de que existió su alias.
 func TestDriftLooksAtWhenThingsExisted(t *testing.T) {
-	mk := Makefile{Targets: map[string]bool{"harness-walk-wizard": true, "tareas": true, "nuevo": true},
+	mk := Makefile{Targets: map[string]bool{"harness-walk-wizard": true, "tasks": true, "nuevo": true},
 		Aliases: map[string]string{"harness-caminar": "harness-walk-wizard"}}
 	hist := History{
-		Added:      map[string]time.Time{"context-lint": day("2026-08-01"), "tareas": day("2026-07-01"), "nuevo": day("2026-09-26")},
+		Added:      map[string]time.Time{"context-lint": day("2026-08-01"), "tasks": day("2026-07-01"), "nuevo": day("2026-09-26")},
 		Removed:    map[string]time.Time{"context-lint": day("2026-09-21")},
 		AliasAdded: map[string]time.Time{"harness-caminar": day("2026-09-25")},
 	}
@@ -75,7 +75,7 @@ func TestDriftLooksAtWhenThingsExisted(t *testing.T) {
 	calls := []Call{
 		call("make context-lint", "2026-09-20"),    // antes de sacarlo: uso legítimo
 		call("make harness-caminar", "2026-09-21"), // antes del alias: era el nombre
-		call("make tareas", "2026-09-26"),
+		call("make tasks", "2026-09-26"),
 		call("make tipeo", "2026-09-26"), // nunca existió
 	}
 	d := DriftView(calls, mk, hist, nil)
@@ -95,7 +95,7 @@ func TestDriftLooksAtWhenThingsExisted(t *testing.T) {
 	}
 	// y el alias cuenta para el nombre nuevo: harness-walk-wizard no figura como sin uso
 	for _, u := range d.UnusedTargets {
-		if u.Target == "harness-walk-wizard" || u.Target == "tareas" {
+		if u.Target == "harness-walk-wizard" || u.Target == "tasks" {
 			t.Errorf("%s se usó (por alias o directo) y figura como sin uso", u.Target)
 		}
 		if u.Target == "nuevo" && !u.Since.Equal(day("2026-09-26")) {
@@ -132,7 +132,7 @@ func TestTheRealMakefileParses(t *testing.T) {
 		t.Fatal(err)
 	}
 	mk := ParseMakefile(string(src))
-	if len(mk.Targets) < 50 || !mk.Targets["tareas"] {
+	if len(mk.Targets) < 50 || !mk.Targets["tasks"] || mk.Canonical("tareas") != "tasks" {
 		t.Errorf("leí %d targets: el patrón dejó de reconocerlos", len(mk.Targets))
 	}
 	if mk.Aliases["harness-caminar"] != "harness-walk-wizard" {
@@ -207,7 +207,8 @@ func TestCanonLookupSeparatesWorkFromDev(t *testing.T) {
 	}{
 		{`make canon-search Q='cuota inicial'`, LookupSearch, "cuota inicial", false},
 		{`make canon-read IDS='kyc/context#a'`, LookupRead, "kyc/context#a", false},
-		{`make retomar N=84 CANON=1`, LookupContext, "", false},
+		{`make resume N=84 CANON=1`, LookupContext, "", false},
+		{`make retomar N=84 CANON=1`, LookupContext, "", false}, // el nombre de antes
 		{`make canon-write PIECE=a.json`, LookupWrite, "", false},
 		{`cd tablero/server && go run ./cmd/canon search codigo de compra`, LookupSearch, "codigo de compra", false},
 		{`curl -s --get "https://canon.playground.creditop.com/api/search" --data-urlencode "q=firmo en prami"`, LookupSearch, "firmo en prami", false},
@@ -223,7 +224,7 @@ func TestCanonLookupSeparatesWorkFromDev(t *testing.T) {
 			t.Errorf("%q: %+v, quería %s «%s» dev=%v", c.cmd, got, c.kind, c.query, c.dev)
 		}
 	}
-	if canonLookupOf("grep -rn /api/search tools") != nil || canonLookupOf("make tareas") != nil {
+	if canonLookupOf("grep -rn /api/search tools") != nil || canonLookupOf("make tasks") != nil {
 		t.Error("nombrar la API o correr otro target no es consultar canon")
 	}
 }

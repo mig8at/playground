@@ -75,7 +75,7 @@ export const pie = (cmd: string) => `\n     ↻ ${cmd}`;
  * corrida se agrega sola a la pila de esa tarea, con `via: harness`: lo que la emite es la herramienta,
  * no alguien que la copió, y eso cambia cuánto se le cree.
  *
- * ⚠ El bloque NO se valida acá: entra por `make tarea-bloque`, que lo pasa por el validador del tablero
+ * ⚠ El bloque NO se valida acá: entra por `make task-block`, que lo pasa por el validador del tablero
  * (server/internal/taskcontext/block.go). Una copia de sus reglas en TypeScript derivaría en silencio;
  * `annotation.spec.ts` le pregunta al validador de verdad, en seco.
  */
@@ -94,7 +94,7 @@ export function blockTitle(summary: string): string {
 }
 
 /**
- * El bloque en el Markdown que recibe `make tarea-bloque`: `# título`, y el comando en su caja con lo que
+ * El bloque en el Markdown que recibe `make task-block`: `# título`, y el comando en su caja con lo que
  * dio. `resultado` es la evidencia por caso, en una línea; sin evidencia, el resumen.
  */
 export function blockMD(summary: string, cmd: string, evidence: string[] = []): string {

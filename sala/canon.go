@@ -32,7 +32,7 @@ import (
 
 // Las herramientas de un agente de canon: las del barrido más la lectura de canon.
 var canonTools = append(append([]string(nil), sweepTools...),
-	"Bash(make canon-search *)", "Bash(make canon-read *)", "Bash(make canon-route *)", "Bash(make canon-mapa*)",
+	"Bash(make canon-search *)", "Bash(make canon-read *)", "Bash(make canon-route *)", "Bash(make canon-map*)",
 	// En la primera corrida real (2026-11-05) los agentes llamaron con -C a la raíz, y eso pedía aprobación: sin la
 	// prosa, 3 de 8 piezas quedaron en «—».
 	"Bash(make -C * canon-read *)", "Bash(make -s -C * canon-read *)", "Bash(make -C * canon-search *)")

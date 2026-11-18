@@ -372,7 +372,7 @@ export function channelOfFlow(flow: string): string {
 /**
  * Las líneas que el log de una corrida imprime al elegir la entidad: el recorrido que le toca, con los
  * campos del formulario de la sucursal y lo que hay que saber para leer el resto. No consulta nada que no
- * consulte `make harness-recorrido`; si la base no contesta, devuelve una sola línea que lo dice.
+ * consulte `make harness-journey`; si la base no contesta, devuelve una sola línea que lo dice.
  */
 export async function routeSummary(lenderId: number, branchHash: string, flow: string): Promise<string[]> {
     try {

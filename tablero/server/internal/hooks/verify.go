@@ -72,10 +72,10 @@ var verifyZones = []zone{
 		},
 	},
 	{
-		name:     "estilo-check",
+		name:     "style-check",
 		prefixes: []string{"tools/ui/", "tablero/src/", "harness/panel/", "visor/"},
 		exts:     []string{".css", ".vue"},
-		commands: func([]string) [][]string { return [][]string{{"make", "--no-print-directory", "estilo-check"}} },
+		commands: func([]string) [][]string { return [][]string{{"make", "--no-print-directory", "style-check"}} },
 	},
 }
 

@@ -656,7 +656,7 @@ let prepare: { perfiles?: Array<{ lender: number; perfil: string; activo: boolea
 let profileSnap: import('../pkg/profile-prep.ts').ProfileSnap | null = null;
 
 const SUITE_KEYS = {
-    // `recorrido`: en qué recorrido del catálogo (journeys.json) cae la suite; lo lee `make agente` para decir qué la cubre.
+    // `recorrido`: en qué recorrido del catálogo (journeys.json) cae la suite; lo lee `make agent` para decir qué la cubre.
     top: ['nombre', 'recorrido', 'requiere', 'porDefecto', 'casos', 'nota', 'ambientes', 'preparar'],
     caso: ['comercio', 'lender', 'nombre', 'nota', 'espera', 'ocupacion', 'cuotas', 'webhook', 'name', 'surname', 'agilname',
            'doc', 'agildata', 'mareigua', 'tusdatos', 'pasos', 'escenarios', 'amount', 'income', 'score',
@@ -2259,7 +2259,7 @@ await restoreBypass(bypassSet);
 const restored = profileSnap ? await (await import('../pkg/profile-prep.ts')).restoreProfiles(profileSnap) : true;
 const code = restored ? mainCode : Math.max(mainCode, 1);
 // EL REGISTRO DE FALLAS (`pkg/failure-log.ts`): cada caso de la corrida, verde o rojo, a `.runs/registry/`, para ver
-// después qué falla siempre, qué es intermitente y desde cuándo (`make harness-fallas`). Va DESPUÉS de restaurar, con el
+// después qué falla siempre, qué es intermitente y desde cuándo (`make harness-failures`). Va DESPUÉS de restaurar, con el
 // veredicto final, y nunca le cambia el código de salida a la corrida.
 await (async () => {
     const { appendCases, repoRef, repoPath } = await import('../pkg/failure-log.ts');

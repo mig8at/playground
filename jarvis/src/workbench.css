@@ -1,4 +1,4 @@
-/* Fuente: tools/ui/workbench.css. Distribuir con make estilo-sync.
+/* Fuente: tools/ui/workbench.css. Distribuir con make style-sync.
  *
  * EL TALLER: cómo se divide la pantalla, con los nombres de VS Code.
  *
@@ -112,7 +112,7 @@
   /* ── LA RAMPA DE TEXTO ────────────────────────────────────────────────────────────────────────
      `muted-foreground` depende de cada tema y no se usa como tinta densa sin medirlo. Esta rampa
      sale del foreground contra el lienzo, por lo que conserva jerarquía al cambiar la paleta.
-     `make estilo-check` valida las reglas que fijan tinta y superficie; no apilar `opacity` sobre
+     `make style-check` valida las reglas que fijan tinta y superficie; no apilar `opacity` sobre
      estos valores, porque el contraste efectivo baja sin que se note en la regla aislada. */
   --fg-2: color-mix(in oklab, var(--foreground) 74%, var(--background));
   --fg-3: color-mix(in oklab, var(--foreground) 70%, var(--background));
@@ -495,7 +495,7 @@ body.resizing { cursor: col-resize; user-select: none }
 .btn-ghost { background: transparent; color: inherit }
 .btn-ghost:hover { background: var(--hover) }
 /* ⚠ El original pone `text-white` sobre destructive, y ACÁ NO SIRVE: `--destructive` es #e06666, un
-   rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make estilo-check` sobre este mismo archivo.
+   rojo medio, y el blanco encima mide 3,35:1. Lo cazó `make style-check` sobre este mismo archivo.
    Va el fondo de la app como tinta —la misma inversión que usa el tooltip del original—, que sobre
    ese rojo sí llega. Si un tema trae un rojo oscuro, esto sigue funcionando: se invierte solo. */
 .btn-destructive { background: var(--destructive-ink); color: var(--background) }
@@ -901,7 +901,7 @@ textarea.input { height: auto; min-height: 80px; padding: var(--space-2) var(--g
 
 /* ── PIEZAS DE LA BASE ────────────────────────────────────────────────────────────────────────────
    Las que faltaban para que cada cosa de la base tenga UNA forma: el select, el contador, la tabla,
-   la fila y las pestañas. Sus medidas son las de `tools/ui/spec.json`, y `make estilo-componentes`
+   la fila y las pestañas. Sus medidas son las de `tools/ui/spec.json`, y `make style-components`
    comprueba que lo pintado coincida. */
 
 /* El select: un `.input` con la flecha como icono de 16 a 8 del borde, pintada con la tinta. */

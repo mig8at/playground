@@ -9,7 +9,7 @@ package hooks
  * Estaba escrito como regla en la memoria; una regla que depende de acordarse se olvida.
  *
  * Por qué no un worktree por sesión: medido ese mismo día, my-tools no anda desde un worktree
- * —los `.env`, la bitácora y las cachés están fuera de git—, y falla en silencio (`make bitacora` dice
+ * —los `.env`, la bitácora y las cachés están fuera de git—, y falla en silencio (`make worklog` dice
  * «0 asientos»). Esto ataca el choque real sin cambiar cómo se trabaja.
  *
  * Qué frena, sólo en posición de comando (nombrar `git commit` en un grep o en un mensaje no cuenta):

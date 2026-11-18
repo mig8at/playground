@@ -164,13 +164,13 @@ func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	session("hoy", today.Add(15*time.Hour), "grep x && make trampas", "The following part requires approval: make trampas")
+	session("hoy", today.Add(15*time.Hour), "grep x && make traps", "The following part requires approval: make traps")
 	session("frenada", today.Add(16*time.Hour), "git commit -m x", "⛔ Bloqueado por el hook index-guard (…): …")
 	session("vieja", today.AddDate(0, 0, -3).Add(10*time.Hour), "git commit -m y", "⛔ Bloqueado por el hook index-guard (…): …")
 
 	notes := dayFriction(root, projects, filepath.Join(t.TempDir(), "idx.json"), today)
-	if len(notes) != 1 || notes[0].Key != "make trampas" || notes[0].Kind != "pidió aprobación" {
-		t.Fatalf("fricción nueva del día: %+v (quería sólo make trampas; el commit frenado ya había pasado hace 3 días)", notes)
+	if len(notes) != 1 || notes[0].Key != "make traps" || notes[0].Kind != "pidió aprobación" {
+		t.Fatalf("fricción nueva del día: %+v (quería sólo make traps; el commit frenado ya había pasado hace 3 días)", notes)
 	}
 
 	// y sale en el texto del cierre, como aviso —no cambia lo que falta—
@@ -184,7 +184,7 @@ func TestTheDaysNewFrictionReachesTheCloseout(t *testing.T) {
 	buf := make([]byte, 1<<16)
 	n, _ := r.Read(buf)
 	out.Write(buf[:n])
-	if !strings.Contains(out.String(), "▲ fricción NUEVA del día") || !strings.Contains(out.String(), "make trampas") {
+	if !strings.Contains(out.String(), "▲ fricción NUEVA del día") || !strings.Contains(out.String(), "make traps") {
 		t.Errorf("el cierre no la muestra:\n%s", out.String())
 	}
 	if !strings.Contains(out.String(), "todo en orden") {

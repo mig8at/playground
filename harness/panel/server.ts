@@ -1766,7 +1766,7 @@ const server = createServer(async (req, res) => {
 
     /* EL TEMA. Es un archivo aparte y no un bloque más dentro del index porque tiene que poder
        REEMPLAZARSE entero (es un export de tweakcn) y porque es byte a byte el mismo que usan
-       `context`, `tablero` y `trazador` — `make estilo-check` compara los md5. `no-store` como el
+       `context`, `tablero` y `trazador` — `make style-check` compara los md5. `no-store` como el
        index: es una herramienta local, y una hoja cacheada mientras se ajusta un tema es una
        pérdida de tiempo garantizada. */
     if (path === '/theme.css' || path === '/workbench.css') {
@@ -2235,7 +2235,7 @@ const server = createServer(async (req, res) => {
 
 
     // ── LAS FALLAS (el registro de corridas, `pkg/failure-log.ts`) ──────────────────────────────────────────────────
-    // La página de `make harness-fallas HTML=1`, REGENERADA en cada pedido: el archivo suelto queda con los datos del
+    // La página de `make harness-failures HTML=1`, REGENERADA en cada pedido: el archivo suelto queda con los datos del
     // momento en que alguien lo generó, y desde el pie del panel lo que se quiere es lo de ahora. Sólo lee el registro
     // de esta máquina (`.runs/registry/`): no toca bases ni sale a la red.
     if (path === '/fallas') {
@@ -2243,7 +2243,7 @@ const server = createServer(async (req, res) => {
             const file = join(ROOT, '.runs', 'registry', 'fallas.html');
             if (err || !existsSync(file)) {
                 res.writeHead(500, { 'content-type': 'text/plain; charset=utf-8' });
-                return res.end(`no pude generar la página de fallas: ${err?.message ?? 'sin archivo'}\n(por consola: make harness-fallas HTML=1)`);
+                return res.end(`no pude generar la página de fallas: ${err?.message ?? 'sin archivo'}\n(por consola: make harness-failures HTML=1)`);
             }
             res.writeHead(200, { 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' });
             res.end(readFileSync(file));

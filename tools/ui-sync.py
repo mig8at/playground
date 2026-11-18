@@ -72,7 +72,7 @@ def sync(check=False):
             if not check:
                 target.write_text(html[:start] + boot + html[end:])
     if check and drift:
-        print('UI compartida desincronizada. Ejecuta make estilo-sync:')
+        print('UI compartida desincronizada. Ejecuta make style-sync:')
         print('\n'.join(drift))
         return 1
     print(f'UI compartida: {len(DESTINATIONS)} destinos sincronizados.' if not drift or not check else '')

@@ -39,7 +39,11 @@ type launchAgent struct {
 // absPath encuentra las rutas absolutas dentro de un valor de entorno (`nombre=/ruta, otro=/y`).
 var absPath = regexp.MustCompile(`/(?:Users|Applications|private|opt)/[^,=\s]+`)
 
-// agentName es el nombre corto de un LaunchAgent, el mismo de su `make <nombre>-install`.
+// installTargets: el target de `make` de un servicio cuyo LaunchAgent conserva el nombre de antes (los comandos pasaron
+// a inglés el 2026-11-18; el LaunchAgent del pulso sigue siendo com.creditop.tablero.pulso).
+var installTargets = map[string]string{"pulso": "pulse"}
+
+// agentName es el nombre corto de un LaunchAgent, el mismo de su `make <nombre>-install` (salvo installTargets).
 func agentName(label string) string {
 	name := strings.TrimPrefix(label, "com.creditop.")
 	for _, p := range []string{"my-tools.", "tablero.", "playground."} {
@@ -69,7 +73,11 @@ func checkAgent(ctx context.Context, file string) Check {
 	}
 	name := agentName(a.Label)
 	c.Name = name
-	fix := " → `make " + name + "-install`"
+	target := name
+	if t, ok := installTargets[name]; ok {
+		target = t
+	}
+	fix := " → `make " + target + "-install`"
 
 	// Lo que declara tiene que existir: el programa, su carpeta y las rutas de su entorno.
 	var paths []string

@@ -18,7 +18,7 @@ propia base**: sirve para ensayar, y lo que se escribe ahí no lo ve nadie.
 
     make canon-search Q='monto avisado al comercio'     # qué sección (prosa) y qué área (mapa) lo cubren
     make canon-read IDS='cuota/context#<ancla>'         # la sección completa; varias por coma, o el tema
-    make canon-mapa                                     # los temas por etapa del crédito, con título y resumen
+    make canon-map                                     # los temas por etapa del crédito, con título y resumen
 
 **No hay copia en disco**: Canon se lee sólo por su API, así que lo que se lee es lo vigente. Para
 trabajar archivos enteros (un `map.json`), `make canon-export` baja el corpus de ese momento (abajo).

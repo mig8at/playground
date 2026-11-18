@@ -156,7 +156,7 @@ type app struct {
 
 	dataDir string // raíz de `data/`: de ahí sale el snapshot de ramas (data/cache/ramas.json)
 	// branchesRoot es el árbol de checkouts que se mide cuando la consola pide una actualización
-	// explícita. Coincide con el default de `make tareas-ramas`; abrir el tablero nunca ejecuta git.
+	// explícita. Coincide con el default de `make task-branches`; abrir el tablero nunca ejecuta git.
 	branchesRoot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega desde server/.env.
@@ -301,7 +301,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"sprint": sp, "issues": iss, "board": board, "site": strings.TrimRight(a.jiraSite, "/")})
 	})
 
-	// RAMAS de las tareas: el SNAPSHOT que dejó `make tareas-ramas`, tal cual. No se mide al cargar
+	// RAMAS de las tareas: el SNAPSHOT que dejó `make task-branches`, tal cual. No se mide al cargar
 	// porque son varias invocaciones de git por repo; la consola lo hace sólo cuando se pide
 	// explícitamente actualizar la tarea enfocada. Por eso viaja con `measuredAt`: la card muestra la
 	// antigüedad y el humano decide si re-medir. Si no hay snapshot devuelve vacío, que no es un error.
@@ -754,7 +754,7 @@ func main() {
 		}
 	})
 
-	// La bitácora, para mostrarla. Se escribe con `make bitacora-add`, que mide los minutos: desde el
+	// La bitácora, para mostrarla. Se escribe con `make worklog-add`, que mide los minutos: desde el
 	// 2026-07-21 el tablero no carga avances, así que ni el alta ni el borrado pasan por acá.
 	mux.HandleFunc("/api/entries", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
@@ -796,7 +796,7 @@ func main() {
 		json.NewEncoder(w).Encode(map[string]any{"events": events})
 	})
 
-	// LA AGENDA DE HOY, la misma de `make hoy` (internal/agenda): por tarea, su último bloque, lo que espera a alguien
+	// LA AGENDA DE HOY, la misma de `make today` (internal/agenda): por tarea, su último bloque, lo que espera a alguien
 	// y su entrega, más la fecha de la medición de ramas. El home la pone arriba: es lo que dice qué sigue.
 	mux.HandleFunc("/api/today", func(w http.ResponseWriter, r *http.Request) {
 		cors(w)
@@ -952,7 +952,7 @@ func cors(w http.ResponseWriter) {
 var branchesTaskIDRe = regexp.MustCompile(`^[1-9]\d*$`)
 
 // refreshBranches vuelve a medir UNA tarea desde la consola. Repite la semántica de
-// `make tareas-ramas N=<id>`: lee los refs que el último fetch dejó localmente y consulta los PRs si
+// `make task-branches N=<id>`: lee los refs que el último fetch dejó localmente y consulta los PRs si
 // `gh` está disponible, pero no hace fetch ni modifica ninguna rama. Medir sólo la tarea enfocada
 // mantiene esta acción interactiva y, al guardar, preserva las mediciones de las demás tareas.
 func (a *app) refreshBranches(w http.ResponseWriter, r *http.Request) {

@@ -91,7 +91,7 @@ Un control dentro de una banda mide 28 (24 si es de icono): 4 de aire, 28 y 4 da
 
 ## Componentes
 
-Cada componente tiene una medida exacta —alto, padding, gap, letra, peso, interlineado, radio, icono— escrita en [`spec.json`](spec.json), que es la fuente: se cambia ahí primero y después `workbench.css`. `make estilo-componentes` dibuja cada uno con `theme.css` y `workbench.css` y compara lo que pinta el navegador contra esos números, así la base no puede decir una medida y pintar otra. El artifact muestra la misma especificación, con cada componente dibujado con este `workbench.css`.
+Cada componente tiene una medida exacta —alto, padding, gap, letra, peso, interlineado, radio, icono— escrita en [`spec.json`](spec.json), que es la fuente: se cambia ahí primero y después `workbench.css`. `make style-components` dibuja cada uno con `theme.css` y `workbench.css` y compara lo que pinta el navegador contra esos números, así la base no puede decir una medida y pintar otra. El artifact muestra la misma especificación, con cada componente dibujado con este `workbench.css`.
 
 Los controles comparten una escalera de cuatro tamaños. Un control de un tamaño mide lo mismo, sea botón, botón de icono, campo, alternador o select:
 
@@ -157,7 +157,7 @@ No hay 20. La única excepción a la escala son los 2 px entre botones de icono 
 
 ## Iconos
 
-Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la versión que fija [`icons.json`](icons.json). **No se dibuja ningún icono**: cada nombre de `data-icon` apunta a un icono de Lucide, que se usa tal cual —grilla de 24, trazo de 2, extremos redondeados, sin relleno— y se pinta con `currentColor`. `make estilo-iconos` genera el bloque de `workbench.css` desde esa lista (lo corre también `make estilo-sync`) y `make estilo-check` falla si el bloque no coincide, si una herramienta define un icono propio o si pide un nombre que no está en la lista.
+Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la versión que fija [`icons.json`](icons.json). **No se dibuja ningún icono**: cada nombre de `data-icon` apunta a un icono de Lucide, que se usa tal cual —grilla de 24, trazo de 2, extremos redondeados, sin relleno— y se pinta con `currentColor`. `make style-icons` genera el bloque de `workbench.css` desde esa lista (lo corre también `make style-sync`) y `make style-check` falla si el bloque no coincide, si una herramienta define un icono propio o si pide un nombre que no está en la lista.
 
 - Un solo tamaño, 16 px, adentro de un botón de 24. La zona de toque es el botón.
 - `--fg-2` en reposo y `--foreground` al pasar o activo. Con color sólo para un estado, y con texto o forma que diga lo mismo.
@@ -213,7 +213,7 @@ Un solo juego: **Lucide** (`lucide-static`, la biblioteca de shadcn), en la vers
 </script>
 ```
 
-⚠ **Una herramienta muestra el botón recién cuando sus colores funcionan en los dos temas.** Los colores de estado de su hoja propia (`--ok`, `--warn`, los carriles, los semáforos) se definen para claro y para oscuro, no se fija `color-scheme: dark` a mano en un control, y `make estilo-contraste` pasa en los dos. Un color pensado para fondo oscuro sobre blanco no se lee.
+⚠ **Una herramienta muestra el botón recién cuando sus colores funcionan en los dos temas.** Los colores de estado de su hoja propia (`--ok`, `--warn`, los carriles, los semáforos) se definen para claro y para oscuro, no se fija `color-scheme: dark` a mano en un control, y `make style-contrast` pasa en los dos. Un color pensado para fondo oscuro sobre blanco no se lee.
 
 **El teclado llega a todo.** En una manija enfocada, las flechas ajustan 16 px y la que cruza el mínimo pliega; Shift más flecha, 48 px; Home pliega; End amplía; Enter alterna y reabre en la última medida. El arrastre sigue al puntero y se cancela limpio ante `pointercancel` o si se pierde la captura.
 
@@ -245,7 +245,7 @@ En Vue se pasan `items` y se maneja `@select`. En HTML, `bindMenu(button, { getI
 
 Para una herramienta nueva, y en ese orden para acercar una existente cada vez que se la toca:
 
-1. Sumarla a `make estilo-sync` y `make estilo-check` (en `tools/ui-sync.py` y `tools/style.py`), para que reciba `theme.css`, `workbench.css` y `workbench.js`, y para que el chequeo la vea.
+1. Sumarla a `make style-sync` y `make style-check` (en `tools/ui-sync.py` y `tools/style.py`), para que reciba `theme.css`, `workbench.css` y `workbench.js`, y para que el chequeo la vea.
 2. La raíz es `.workbench`. Empezar por el `editor` y sumar las demás regiones sólo si tienen algo que mostrar.
 3. Cada región arranca con su banda de 40 (`.region-head` o una barra de pestañas) y sigue con un cuerpo que scrollea.
 4. Escribir cada medida con su token: `var(--row-h)`, `var(--gutter)`, `var(--text-sm)`.
@@ -286,23 +286,23 @@ const sidebarResize = {
 <div class="rsz rsz-edge-right" v-resize="sidebarResize"></div>
 ```
 
-8. Verificar con `make estilo-componentes` que un componente nuevo o cambiado pinta lo que dice `spec.json`, y con los chequeos de abajo.
+8. Verificar con `make style-components` que un componente nuevo o cambiado pinta lo que dice `spec.json`, y con los chequeos de abajo.
 
 ## Archivos y verificación
 
-- `theme.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make estilo-tema DE=archivo.css`.
+- `theme.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make style-theme DE=archivo.css`.
 - `workbench.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
 - `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; la consola maximizada, `bindPanelMaximize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
-- `spec.json`: la medida exacta de cada componente; la lee `make estilo-componentes` y de ahí sale la sección de componentes del artifact.
+- `spec.json`: la medida exacta de cada componente; la lee `make style-components` y de ahí sale la sección de componentes del artifact.
 - `RegionMenu.vue`: el adaptador Vue del mismo menú.
-- `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make estilo-guia`, en http://127.0.0.1:5198).
+- `index.html`: el catálogo interactivo, que usa estos mismos archivos (`make style-guide`, en http://127.0.0.1:5198).
 
-Se edita acá y se reparte con `make estilo-sync`: cada herramienta tiene su copia para no depender de las otras, y el panel del harness recibe `workbench.js` incrustado en su HTML (no se edita el bloque entre `workbench-shared`).
+Se edita acá y se reparte con `make style-sync`: cada herramienta tiene su copia para no depender de las otras, y el panel del harness recibe `workbench.js` incrustado en su HTML (no se edita el bloque entre `workbench-shared`).
 
 | Comando | Qué verifica |
 | --- | --- |
-| `make estilo-check` | Que las copias sean iguales a la fuente, los tokens, el contraste estático y la estructura |
-| `make estilo-componentes` | Que cada componente pinte la medida exacta de `spec.json` (sin herramientas encendidas) |
-| `make estilo-minimo` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
-| `make estilo-contraste` | El contraste de lo que se pinta, con las herramientas encendidas. `THEME=light` o `THEME=dark` fija el tema de las que tienen botón: una herramienta con botón de tema tiene que pasar en los dos |
-| `make estilo-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |
+| `make style-check` | Que las copias sean iguales a la fuente, los tokens, el contraste estático y la estructura |
+| `make style-components` | Que cada componente pinte la medida exacta de `spec.json` (sin herramientas encendidas) |
+| `make style-minimal` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
+| `make style-contrast` | El contraste de lo que se pinta, con las herramientas encendidas. `THEME=light` o `THEME=dark` fija el tema de las que tienen botón: una herramienta con botón de tema tiene que pasar en los dos |
+| `make style-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |

@@ -62,7 +62,7 @@ func main() {
  *
  * ⚠ HASTA EL 2026-09-21 ESTE CHEQUEO NO PODÍA PONERSE EN ROJO. Filtraba las líneas del validador que
  * anunciaban movidas o reescritas… y guardaba el resultado en una variable que no leía nadie: imprimía
- * el resumen y devolvía 0 igual. O sea que una cita corrida salía en pantalla y `make trampas` seguía
+ * el resumen y devolvía 0 igual. O sea que una cita corrida salía en pantalla y `make traps` seguía
  * dando verde. Ahora el balde roto decide la salida, y se listan las primeras para poder arreglarlas
  * sin volver a correr nada. */
 func reviewCitations(client *repos.Client, doc, shown string) int {
@@ -84,6 +84,6 @@ func reviewCitations(client *repos.Client, doc, shown string) int {
 			fmt.Printf("    %s %s %s\n", citations.Pad(it.Where, 22), citations.Pad(it.Citation, 54), it.Note)
 		}
 	}
-	fmt.Printf("  → todas: make citas DOC=%s\n", shown)
+	fmt.Printf("  → todas: make citations DOC=%s\n", shown)
 	return 1
 }

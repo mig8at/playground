@@ -414,7 +414,7 @@ def distribute(origin=None):
             print(f'      {n:20} {resolver(v, table) or v.strip()}')
         print(f"\n      --radius {table.get('--radius','').strip()}   ·   md5 "
               f"{hashlib.md5((ROOT / THEMES[0]).read_bytes()).hexdigest()[:12]}")
-        print('\n  para cambiarlo:  make estilo-tema DE=<el .css que copiaste de tweakcn.com>\n')
+        print('\n  para cambiarlo:  make style-theme DE=<el .css que copiaste de tweakcn.com>\n')
         return 0
     src = pathlib.Path(origin)
     if not src.is_absolute(): src = ROOT / src
@@ -442,7 +442,7 @@ def distribute(origin=None):
     print(f'  ✓ repartido a las {len(THEMES)} · md5 {hashlib.md5(txt.encode()).hexdigest()[:12]}')
     print('     ⚠ el color SEMÁNTICO no viene en el export y no se toca: vive en la hoja de cada')
     print('       herramienta (estado de una etapa, carril de un ramal, semáforo). Revisalo si el')
-    print('       tema nuevo cambia mucho de luminancia — `make estilo-check` mide el contraste.')
+    print('       tema nuevo cambia mucho de luminancia — `make style-check` mide el contraste.')
     return 0
 
 

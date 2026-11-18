@@ -266,7 +266,7 @@ func main() {
 		}
 	}
 	if chosen == nil {
-		fail("no hay tarea %q (id o slug exacto). `make tareas` las lista.", *task)
+		fail("no hay tarea %q (id o slug exacto). `make tasks` las lista.", *task)
 	}
 	if chosen.Archived != "" {
 		fmt.Fprintf(os.Stderr, "⚠ la tarea #%d está ARCHIVADA; se anota igual, pero revisá que sea la correcta\n", chosen.ID)

@@ -1,5 +1,5 @@
 // Package ansi decide si una salida lleva colores de terminal. Un agente lee la salida por un pipe, y ahí los
-// códigos son ruido: medido el 2026-10-20, la ayuda de `make` y `make pulso` se limpiaban con `sed` en casi
+// códigos son ruido: medido el 2026-10-20, la ayuda de `make` y `make pulse` se limpiaban con `sed` en casi
 // cada llamada de una sesión. Sigue la convención de https://no-color.org: con NO_COLOR, nunca.
 package ansi
 
