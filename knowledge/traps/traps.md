@@ -992,7 +992,7 @@ consulta queda guardada con la 12 y `AbacoStepResolver` deja de pedir el paso.
 
 **Causa raíz — el muro lo ponía el harness.** La bifurcación NO está donde uno la buscaría (en una pantalla propia del renting) sino en el **`action` de `/confirmation`**:
 
-> **Actualización (verificada contra `main`):** el fragmento que estaba aquí —`if (abacoRequirement.code === AbacoRequirementCode.REQUIRED)` en `routes/loan-confirmation.tsx`— **ya no existe**. Hoy el `action` de `/confirmation` llama `confirmLoanRequestUc.execute` (`loan-confirmation.tsx:230`) y elige el destino con un mapa `stepRouteMap` según `response.payload.step_details` (`abaco` en :233-236). Que `/abaco` se decide en ese `action`, al tocar "Continuar" y antes del ADO, sigue en pie, pero por ese mecanismo y no porque el front consulte el requerimiento ahí. El resto de esta trampa no se volvió a auditar.
+> **Actualización (verificada contra `main`):** el fragmento que estaba aquí —`if (abacoRequirement.code === AbacoRequirementCode.REQUIRED)` en `routes/loan-confirmation.tsx`— **ya no existe**. Hoy el `action` de `/confirmation` llama `confirmLoanRequestUc.execute` (`loan-confirmation.tsx:218`) y elige el destino con un mapa `stepRouteMap` según `response.payload.step_details` (`abaco` en :233-236). Que `/abaco` se decide en ese `action`, al tocar "Continuar" y antes del ADO, sigue en pie, pero por ese mecanismo y no porque el front consulte el requerimiento ahí. El resto de esta trampa no se volvió a auditar.
 
 O sea: se dispara **al tocar "Continuar" en confirmation**, y por lo tanto **ANTES del ADO**. El harness saltaba de `confirmation` directo a `first-payment-date` para esquivar la captura de identidad (F-10) — y con eso se comía exactamente el paso que se quería ver.
 
@@ -1024,7 +1024,7 @@ user_request_records: 3 → 8 "Cancelación no voluntaria código 5001"
 **Causa raíz — un dato que la migración de v2 no sembró.** `lender_identity_validation_types` no tiene fila para los lenders nuevos de Motai (**158, 168, 169, 170**). Todos los demás rt=2 sí la tienen. Y el resolutor la lee con un default silencioso:
 
 ```php
-// ValidationStatusService.php:298
+// ValidationStatusService.php:325
 (int) ($userRequest->lender?->primaryIdentityValidationType?->identity_validation_type_id ?? 0)
 ```
 
@@ -1035,10 +1035,10 @@ Sin fila → `0` = **`Unknown`** (¡no `None`, que es `1`!) → `IdentityValidat
 | # | Dónde | Qué hace con un tipo que no conoce |
 |---|---|---|
 | 1 | `abaco/platform-otp-validation.tsx:257` | fallback → `identity-validation-instructions` |
-| 2 | `identity-validation-instructions.tsx:94` | el `action` solo contempla `ado_validation` y `crosscore_validation`; el `return` final → `request-canceled` |
+| 2 | `identity-validation-instructions.tsx:236-280` | el `action` solo contempla `ado_validation` y `crosscore_validation`; el `return` final → `request-canceled` (desde entonces, el codeudor con `no_validation_required` va a `cosigner-validating`) |
 | 3 | `request-canceled.tsx:32` | **cancela en el `loader`** (no es una pantalla pasiva): `CancelLoanRequestUc` sin código → default **5001** "Error genérico de validación", `voluntary=false` |
 
-`loan-confirmation.tsx:258` tiene el mismo fallback, así que el flujo normal (sin Ábaco) llega al mismo pozo.
+`loan-confirmation.tsx:320-335` tiene el mismo fallback, así que el flujo normal (sin Ábaco) llega al mismo pozo.
 
 **Lo peligroso es la forma, no el dato:** un tipo de validación no soportado —una condición de **configuración**— termina cancelando el crédito del cliente, sin mensaje ni código propio. `request-canceled` es una ruta que *ejecuta* la cancelación con solo aterrizar en ella, y es el destino de todos los fallbacks del wizard.
 
@@ -1092,7 +1092,7 @@ huérfanos en user_request_records:  873 / 1288  (68%)
 GET /api/onboarding/checkout/{allied_branch_hash}?o=&p=&t=&u=&ps=[&config=]
 ```
 
-Los 5 parámetros van en **base64** (`CorbetaCheckoutController.php:119-146`): `o`=order (debe traer `billing` y `total`), `p`=products, `t`=token, `u`=return_url, `ps`=process_endpoint. Si falta uno → `SP20754` sin explicación.
+Los 5 parámetros van en **base64** (`CorbetaCheckoutController.php:265-292`): `o`=order (debe traer `billing` y `total`), `p`=products, `t`=token, `u`=return_url, `ps`=process_endpoint. Si falta uno → `SP20754` sin explicación.
 
 El backend decodifica, **crea la solicitud** y responde **302** a
 `{FRONTEND_URL_DEV}/bancolombia/self-service/{hash}/resolve-ecommerce-flow/{uReq}` (`Modules/Onboarding/App/Http/Controllers/CorbetaCheckoutController.php:1565`).
@@ -1149,7 +1149,7 @@ $redirect_url = $base . '/ecommerce/' . $hash . '/checkout' . '?o=' . …
 
 O sea **el plugin apunta hoy a la landing que esta rama no tiene**. El propio comentario del plugin avisa del cambio de path (`/ecommerce/{hash}/checkout`, no `/checkout/{hash}` como el monolito viejo), así que la ruta se movió y el wizard de `main`/`develop` no la acompañó. Si producción funciona, es porque corre una rama que sí la tiene.
 
-**Detalle de serialización, para quien reimplemente el contrato:** el plugin manda `o` y `u` **PHP-serializados** (`serialize()`) y `p` como JSON. Las dos formas funcionan: `deserializeData` (`CorbetaCheckoutController.php:767-787`) intenta `unserialize`, cae a `json_decode`, y castea array→objeto en ambos casos. El harness manda todo JSON y el backend lo acepta igual.
+**Detalle de serialización, para quien reimplemente el contrato:** el plugin manda `o` y `u` **PHP-serializados** (`serialize()`) y `p` como JSON. Las dos formas funcionan: `deserializeData` (`CorbetaCheckoutController.php:943-963`) intenta `unserialize`, cae a `json_decode`, y castea array→objeto en ambos casos. El harness manda todo JSON y el backend lo acepta igual.
 
 **Para correr un comercio CreditopX (Pullman) por ecommerce hace falta la landing genérica de la rama de abril.** Con lo que hay en `develop`, la entrada base64 solo tiene sentido para comercios Bancolombia.
 
@@ -1165,17 +1165,17 @@ unsupported_validation      → 0 ocurrencias en TODO el frontend
 no_validation_configured    → 0 ocurrencias
 ```
 
-Los dos huérfanos salen de `IdentityValidationStepResolver.php:100-111` (rama `default`) y `CreditopXFlowService.php:158-172` (lender sin `primaryIdentityValidationType`). Caen en el fallback de `loan-confirmation.tsx:258` → `identity-validation-instructions` → su action no matchea → `apps/loan-request-wizard/app/routes/identity-validation-instructions.tsx:279-280` → cancelación.
+Los dos huérfanos salen de `IdentityValidationStepResolver.php:100-111` (rama `default`) y `CreditopXFlowService.php:158-172` (lender sin `primaryIdentityValidationType`). Caen en el fallback de `loan-confirmation.tsx:320-335` → `identity-validation-instructions` → su action no matchea → `apps/loan-request-wizard/app/routes/identity-validation-instructions.tsx:279-280` → cancelación.
 
 **Lo importante para F-50:** el enum `IdentityValidationType` tiene 7 casos y el resolver mapea 5 (1,2,4,5,6). **`Unknown=0` y `Questions=3` son valores REALES que caen en el default.** Sembrar la fila no alcanza si el valor sembrado es `3`: un lender con `identity_validation_type_id = 3` mata la solicitud igual.
 
-Y el backend **ya avisa**: marca esos casos con `next_step => 'error'`. El front lee solo `step_details.type` (`loan-confirmation.tsx:257`) e ignora `next_step` — descarta la señal explícita.
+Y el backend **ya avisa**: marca esos casos con `next_step => 'error'`. El front lee solo `step_details.type` (`loan-confirmation.tsx:245` y `:281`) e ignora `next_step` — descarta la señal explícita.
 
-**2 · Un fallo al cargar el TEMA VISUAL cancela el crédito.** `identity-validation-instructions.tsx:31-40`: el `catch` del loader —que envuelve el `GetAlliedThemeUc`, o sea el fetch del branding del comercio— redirige a `request-canceled`. Un problema de theming mata una solicitud viva. Esa pantalla tiene **cinco** salidas a cancelación (`:63, :77, :88, :94, :103`) más la del loader.
+**2 · Un fallo en el loader cancela el crédito.** Cuando se escribió, el `catch` del loader envolvía el `GetAlliedThemeUc` (el fetch del branding del comercio) y un problema de theming mataba una solicitud viva. En `main` de 2026-11 el loader ya no carga el tema, pero el `catch` sigue igual: `identity-validation-instructions.tsx:92-100` manda **cualquier** error del loader (hoy, las propiedades de analítica del comercio) a `request-canceled`. Esa pantalla tiene **cinco** salidas a cancelación en el `action` y sus ayudantes (`:139, :151, :242, :280, :290`) más la del loader.
 
 **3 · Renting + Evidente se cancela solo.** `abaco/platform-otp-validation.tsx` mapea 3 tipos (`aws`, `ado`, `no_validation_required`) — grep de `evidente` da **0**. Al terminar Ábaco, un lender con Evidente cae en el fallback `apps/loan-request-wizard/app/routes/abaco/platform-otp-validation.tsx:368-372` → instructions → cancelación. `crosscore` zafa de casualidad porque instructions sí lo maneja.
 
-**Contraste que muestra que es arreglable:** el mismo tipo huérfano **sí** está contenido en `identity-validation-status.tsx:128` (cambio de proveedor en caliente), donde el `default` cae a `defaultPath` en vez de a instructions. La misma clase de valor se maneja bien en un lugar y mal en el otro.
+**Contraste que muestra que es arreglable:** el mismo tipo huérfano **sí** está contenido en `identity-validation-status.tsx:137` (cambio de proveedor en caliente), donde el `default` cae a `defaultPath` en vez de a instructions. La misma clase de valor se maneja bien en un lugar y mal en el otro.
 
 **Qué haría falta (decisión del equipo):** que el front honre `next_step === 'error'` con una pantalla de error de configuración, y que `request-canceled` deje de cancelar desde el `loader` — hoy **navegar o recargar esa URL cancela la solicitud**.
 
@@ -1294,8 +1294,8 @@ La base **sí coincide**: los dos descuentan la cuota inicial **antes** de calcu
 La cuarta divergencia es la más peligrosa porque no es un redondeo: **la "fianza mensual" del `.xlsm` y la de producción son mecanismos diferentes.** Un `0,50 %` en `guarantee_fixed_monthly_percentage` a 36 cuotas suma **18 %** del financiado, no 0,5 %.
 
 **Evidencia.**
-- `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:82-85` → `// IVA hardcoded at 19% — matches monolito business rule.` seguido de `$guarantee = ($amount + $administrativeCosts) * ($inputs['guarantee_fund_percentage'] / 100) * (1 + (19 / 100));`
-- `PaymentCalculationService.php:234-256` (`calculateInitialAmount`) → resta la cuota inicial (`initial_fee` o, si es 0, la que resuelve `initialFeePolicyResolver`, :236-240) y después aplica el ajuste de capital por plazo (:244-255). El fragmento `$amount = original_amount; if (initial_fee > 0) { $amount -= initial_fee; }` que citaba esta línea ya no existe; **no se volvió a comprobar el orden de esa resta respecto de la fianza**.
+- `Modules/Loans/App/Services/PaymentSchedule/PaymentCalculationService.php:112-122` → `$guarantee = ($amount + $administrativeCosts) * ($inputs['guarantee_fund_percentage'] / 100) * (1 + ($guaranteeTaxRate / 100));`. Cuando se escribió, el IVA era un 19 % fijo; hoy es 19 % salvo en República Dominicana, donde es 0 (y sin `country_id` se conserva el 19 %).
+- `PaymentCalculationService.php:262-283` (`calculateInitialAmount`) → resta la cuota inicial (`initial_fee` o, si es 0, la que resuelve `initialFeePolicyResolver`, :264-268) y después aplica el ajuste de capital por plazo (:272-282). El fragmento `$amount = original_amount; if (initial_fee > 0) { $amount -= initial_fee; }` que citaba esta línea ya no existe; **no se volvió a comprobar el orden de esa resta respecto de la fianza**.
 - `PaymentCalculationService.php:136` → `$guaranteePerMillionFixedMonthly = ($inputs['guarantee_fixed_monthly_percentage'] / 100) * $totalAmountNoFee;`
 - `grep -rn "gmf\|GMF\|0.004" Modules/Loans/App/Services/PaymentSchedule/` → **sin resultados**.
 - `my-tools/engine/reference/full-sheet.js` (la hoja verificada 30/30 contra los `.xlsm`) → `guaranteeBase` · `guaranteeCost` · `guaranteeVat` · `guaranteeTax` · `monthlyGuarantee`.
@@ -1905,10 +1905,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   2023-08-01 y **2024-03-18** tienen `country_id = 47` (Colombia); los **19.618** creados desde ese día
   hasta hoy tienen **1**. O sea que el default no es una omisión histórica que nadie tocó: algo cambió el
   18/3/2024 y desde entonces ningún usuario temporal lleva país. Hoy ninguno de los dos caminos que lo
-  crean lo setea —`Onboarding/App/Services/RegisterCellPhoneService.php:376` y
-  `Onboarding/App/Services/UserService.php:161`— y en los módulos de onboarding `country_id` sólo aparece
-  **leyéndose** (`UsersV1/App/Domain/UserData.php:120`). Refuerza el arreglo de arriba: derivar del
-  comercio, porque el usuario no tiene el dato ni va a tenerlo por accidente.
+  crean lo seteaba. **En `main` de 2026-11 ya lo hacen los dos**, con el arreglo que se proponía arriba:
+  `Onboarding/App/Services/RegisterCellPhoneService.php:436` y `Onboarding/App/Services/UserService.php:191`
+  toman el país del comercio donde está parada la persona (`MerchantCountryService`) y **omiten** el campo cuando
+  no se puede resolver, así que esa fila sigue cayendo al default 1. Los usuarios temporales viejos siguen en 1.
 - **Estado:** vivo. ⚠ Y no confundir con las cifras de otra medición (186 / 364.527): esas son de otro
   ambiente. Las de arriba son de la copia local.
 
@@ -1917,7 +1917,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** un cliente queda guardado con el segundo apellido mal escrito y **no hay ningún error**.
   El crédito avanza, los documentos se firman con ese nombre y la entidad lo acepta. Desde soporte llega
   como «se guardó un usuario solo con un nombre y con un apellido».
-- **Causa raíz (verificada 2026-08-13):** `TusDatosService.php:195` decide si un no-match cuenta como
+- **Causa raíz (verificada 2026-08-13):** `TusDatosService.php:218` decide si un no-match cuenta como
   error. La tolerancia es correcta y deliberada —un cliente puede **no tener** segundo nombre o segundo
   apellido, y entonces el campo no se envía y TusDatos devuelve `match_code = null`— pero estaba escrita
   con comparación laxa: `$matchCode == null`. En PHP **`0 == null` es `true`**, y `0` es el código de
@@ -1928,7 +1928,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   **198** validaciones pasaron con un no-coincide declarado — 87 de segundo apellido, 87 de segundo
   nombre, 24 de segundo apellido sin segundo nombre. Caso testigo uReq 523201: `{first_name: 1,
   middle_name: null, first_surname: 1, second_surname: 0}` y `passed = 1`.
-- **Arreglo:** `=== null`. **YA EN `main`** — `TusDatosService.php:203`, verificado el 2026-09-18 y releído el 2026-09-29.
+- **Arreglo:** `=== null`. **YA EN `main`** — `TusDatosService.php:218`, verificado el 2026-09-18 y releído el 2026-09-29.
   Mergeó primero a `staging` el 2026-08-15 (PR #1098, `eb429dda`; la rama original sobre `main` quedó
   como respaldo y su PR #1082 se cerró), y de ahí llegó. *(La marca `⏳ PENDIENTE DE MERGE` estuvo un
   mes de más.)*
@@ -1942,7 +1942,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 
 - **Síntoma:** el pagaré sale con el mismo apellido en primer y segundo apellido. Nadie lo ve hasta que
   Deceval rechaza por conflicto de identidad (`SDL.DA.0439`), al final del embudo.
-- **Causa raíz (verificada 2026-08-13):** `Modules/Loans/App/Actions/DecevalSoap.php:283-284` parte el
+- **Causa raíz (verificada 2026-08-13):** `Modules/Loans/App/Actions/DecevalSoap.php:307-308` parte el
   apellido con `Str::before($user->surname, ' ')` y `Str::after($user->surname, ' ')`. En Laravel,
   **`Str::after` devuelve la cadena COMPLETA si no encuentra el separador**, así que con
   `surname = "LICONA"` salen `primerApellido_Nat = LICONA` **y** `segundoApellido_Nat = LICONA`.
@@ -1980,7 +1980,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** el usuario recibe el SMS, digita el código y la validación responde `NO_PREVIOUS_OTP`.
   Desde afuera parece que digitó mal o que la sesión expiró. **Y el registro del teléfono responde
   `success`**, así que nada avisa en el paso anterior.
-- **Causa raíz (verificada 2026-08-15):** `Modules/Onboarding/App/Services/OtpService.php:432` lee el
+- **Causa raíz (verificada 2026-08-15):** `Modules/Onboarding/App/Services/OtpService.php:460` lee el
   código generado desde la caché (`readOtpFromRedis`) en todos los entornos salvo `local`, que tiene
   el atajo `1111`. Si la caché no lo entrega, el flujo aborta con `ONB014_OTP_GENERATION_FAILED` y
   **no persiste la fila de `otps`** — deliberadamente, para no dejar un espejo en `0`. Sin esa fila,
@@ -2004,10 +2004,10 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   («todavía no se ha generado») se lee como *«esperá un rato»*, y esperar no cambia nada. Llega
   reportado como «error de hoy» porque hoy alguien fue a buscar un voucher, no porque hoy empezara.
 - **Causa raíz (verificada 2026-08-15):** el voucher se genera en **dos ramas mutuamente excluyentes**, y
-  hay lenders que no caen en ninguna. `Modules/Loans/App/Services/LoanAuthorizationService.php:827` calcula
+  hay lenders que no caen en ninguna. `Modules/Loans/App/Services/LoanAuthorizationService.php:914` calcula
   `$isImeiFlow = lender->path->name === 'IMEI'` y con eso **saltea** `generateVoucher`,
-  `updateDisbursedLender` y `completeRequest` (`Modules/Loans/App/Services/LoanAuthorizationService.php:839-852`), difiriéndolos al desembolso. El único lugar que
-  los ejecuta después es `handlePostDisbursementSideEffects:532` (`Modules/Loans/App/Services/LoanAuthorizationService.php:552` el voucher), dentro de
+  `updateDisbursedLender` y `completeRequest` (`Modules/Loans/App/Services/LoanAuthorizationService.php:923-939`), difiriéndolos al desembolso. El único lugar que
+  los ejecuta después es `handlePostDisbursementSideEffects:591` (`Modules/Loans/App/Services/LoanAuthorizationService.php:611` el voucher), dentro de
   `disburseImeiRequest` — y `Modules/Loans/App/Http/Controllers/Customer/DeviceController.php:102`
   sólo llega ahí si `isSmartPay()`, que es
   `isImeiPath() && lender->id === $smartpayLenderId` —160 en producción, 152 fuera— (`legacy-backend/app/Models/UserRequest.php:250-252`). Un lender con `path_id=2`
@@ -2081,7 +2081,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   es el FormRequest de la ruta, y **`lender_id` no figura en `rules()`**. Sólo se exige `amount`. Sin
   `exists` ni una regla que ate la entidad a `lenders_by_allied_branches`, el id entra crudo y
   `ListLenderController@updateUserRequest`
-  (`Modules/Onboarding/App/Http/Controllers/ListLenderController.php:66-73`) lo pasa al servicio, que
+  (`Modules/Onboarding/App/Http/Controllers/ListLenderController.php:57-64`) lo pasa al servicio, que
   deshace una relación que vino `null`.
 - **Y hay un segundo defecto en el mismo `rules()`:** tres campos declaran `'optional'`, que **no es una
   regla de Laravel** (las reales son `sometimes` / `nullable`). Mientras el campo no venga, no pasa nada;
@@ -2184,7 +2184,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Causa raíz (verificada 2026-08-18 contra `main` de `frontend-monorepo`):** el listado del backend
   devuelve las cards, y es el **loader del wizard** quien dispara una promesa de pre-aprobación por
   entidad elegible contra el microservicio —
-  `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:153`
+  `apps/loan-request-wizard/app/routes/lenders-marketplace/available-lenders.tsx:168`
   (`process.env.VITE_PREAPPROVALS_ENDPOINT`), server-to-server, con streaming por entidad. Sin front,
   ese paso no ocurre: el backend ya devolvió su respuesta y nadie llama al MS.
 - **⚠ La excepción que confunde:** **Meddipay (39) SÍ se resuelve en el backend**, inline, dentro de
@@ -2261,7 +2261,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   lo mismo, guardando el nombre que tecleó el asesor. El mock respondió `200` y con el cuerpo pedido,
   así que todo parece bien.
 - **Causa raíz (verificada 2026-08-18 contra `main`, medido en local):**
-  `legacy-backend/Modules/Identity/App/Services/TusDatosService.php:156` corta con
+  `legacy-backend/Modules/Identity/App/Services/TusDatosService.php:171` corta con
   `if ($tusDatos->status !== 'success')` y retorna `errors => null`. Ese `errors` vacío es lo que
   `Modules/Onboarding/App/Services/OnboardingService.php:592-593` lee como **inconcluyente**, no como
   rechazo: sigue con los nombres del formulario y la solicitud avanza. Ninguna otra palabra sirve.
@@ -2281,7 +2281,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Causa raíz (verificada 2026-08-18 contra `main`):** para `document_type = 'CC'` el camino termina
   en el bucle de `match_code` de `TusDatosService.php:182-194` y, si ninguno reporta error, retorna
   éxito con **los nombres del formulario** — nunca compara `nombre_completo`. El `verifyCoincidence`
-  que sí lo compara (`TusDatosService.php:325`) vive en la rama de **CE**.
+  que sí lo compara (`TusDatosService.php:375`) vive en la rama de **CE**.
 - **Evidencia:** solicitud 464963 — Ágil abstenido, Mareigua devolviendo otra persona y TusDatos con
   `nombre_completo` ajeno pero todos los `match_code` en `1`: **ACEPTADA**. El mismo caso con
   `first_name`, `first_surname` y `second_surname` en `0`: `ONB005` (solicitud 464964).
@@ -2319,19 +2319,20 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** el cliente elige una de las dos fechas ofrecidas y el cambio falla con «la fecha tiene que
   ser de hoy en adelante». Con las dos opciones pasa lo mismo: un menú donde **todo** falla.
 - **Causa raíz (verificada 2026-08-20 contra `main`):** `getNextPaymentCycles`
-  (`legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:96`) toma como punto de partida la fecha
+  (`legacy-backend/Modules/Loans/App/Services/CreditChangeValidationService.php:350`) tomaba como punto de partida la fecha
   de pago **del crédito** y nunca la compara con hoy, así que calcula «los próximos 5/16/28» a partir de
   una fecha que ya pasó. El guardado, en cambio, exige `after_or_equal:today`.
 - **Evidencia:** crédito 412380 en local, con `next_payment_date` en 2026-07-16 (más de un mes viejo):
   ofrecía 2026-07-28 y 2026-08-05, las dos en el pasado. Con el punto de partida anclado en
   `max(fecha del crédito, hoy)` ofrece 2026-08-28 y 2026-09-05; y con fecha futura —el caso sano— el
   resultado no cambia.
-- **⚠ La otra mitad, que sigue abierta:** las rutas de la app (`Consumer` y `Customer`) **no** validan
-  `after_or_equal:today` al guardar, o sea que por ahí hoy se puede dejar una fecha de pago **en el
-  pasado**. Dejar de ofrecerla no es lo mismo que rechazarla.
-- **Arreglo:** el ancla ya está corregida en `develop` (PR #1166 del canal de soporte). **Estado:**
-  arreglado en `develop`, **pendiente de llegar a `main`**; la validación de entrada de las rutas viejas,
-  abierta.
+- **La otra mitad, también cerrada:** las rutas de la app (`Consumer` y `Customer`) no validaban
+  `after_or_equal:today` al guardar, así que por ahí se podía dejar una fecha de pago **en el pasado**. En
+  `main` de 2026-11 sólo aceptan una fecha que el crédito ofrece (`isOfferedPaymentDate`), y lo ofrecido
+  nunca queda en el pasado.
+- **Arreglo:** el ancla es `max(fecha del crédito, hoy)` (PR #1166 del canal de soporte), y las escrituras
+  (Consumer, Customer y el bot) ya sólo aceptan una fecha que el crédito ofrece (`isOfferedPaymentDate`). **Estado:**
+  arreglado en `main` (comprobado en 2026-11): el ancla y la validación de entrada.
 
 ### F-146 · El mismo cliente con el nombre mal se comporta AL REVÉS según por qué monolito entre
 
@@ -2339,7 +2340,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   que se reproduce por un camino no se reproduce por el otro, con la misma configuración.
 - **Causa raíz (verificada 2026-08-18 contra `main`):** la misma función, con el mismo nombre y
   leyendo **las mismas claves de `settings`**, devuelve valores opuestos.
-  `legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php:1465-1471` retorna `false` al
+  `legacy-backend/Modules/Onboarding/App/Services/OnboardingService.php:1479-1486` retorna `false` al
   agotar los intentos; `application/app/Http/Controllers/Customer/PersonalInfoController.php:504`
   retorna `true`. El llamador es idéntico en los dos. Resultado: el flujo nuevo consulta la fuente
   registral en los dos primeros intentos y frena al tercero; el viejo **rechaza** los dos primeros y
@@ -2523,7 +2524,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   un error de cupo (`QUOTA_CHECK_ERROR`). Parece que el usuario no califica, o que el motor de cupo
   está roto; en realidad nunca llegó a decidir nada.
 - **Causa raíz (verificada 2026-08-22 contra `main`):**
-  `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:1235` y `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:1238` leen
+  `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:1274` y `legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:1277` leen
   `$creditCard['status']['account']['businessAccountStatus']` y
   `$creditCard['status']['payment']['businessBureauEvent']` con **acceso directo**, sin `isset`. El
   guard existe sólo para la clave externa (`legacy-backend/Modules/Loans/App/Services/LenderUserCategoryService.php:1225` chequea `creditCard`), y el comentario declara la
@@ -3208,7 +3209,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 - **Síntoma:** el cliente recorre todo el flujo, firma, y en el último paso recibe
   `HTTP 500 · Attempt to assign property "already_used_loan" on null`. La solicitud queda en **estado
   28**. No hay nada en el mensaje que hable de configuración.
-- **Dónde:** `Modules/Loans/App/Services/CreditopXRequestHistoryService.php:595-604` (así era antes de la guarda):
+- **Dónde:** `Modules/Loans/App/Services/CreditopXRequestHistoryService.php:629-638` (así era antes de la guarda):
 
       if ($userRequest->lender->response_type == 2) {
           $category = $this->promotionsByLenderRepository->getUserCategory(...);
@@ -3230,7 +3231,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
   lugar posible para descubrir un dato de configuración faltante.
 - **Y el mensaje no ayuda:** «Attempt to assign property on null» manda a leer código. La causa es una
   entidad dada de alta sin terminar de configurar, que es un problema de operación, no de desarrollo.
-- **Arreglo:** la mitad está en `main`. El null ahora se guarda (`CreditopXRequestHistoryService.php:598-603`): sin
+- **Arreglo:** la mitad está en `main`. El null ahora se guarda (`CreditopXRequestHistoryService.php:632-637`): sin
   categoría, autorizar responde **422** con «El usuario no tiene una categoría vigente con la entidad para registrar el
   consumo de cupo.», en vez del 500 que mandaba a leer código. La otra mitad sigue sin hacer: **no dejar habilitar una
   rt=2 sin al menos una categoría**, que es donde el error se evita de verdad; hoy el cliente igual llega firmado hasta
@@ -3329,8 +3330,8 @@ F-xx citados siguen vigentes salvo los que sus propias entradas ya marcan cerrad
 
   | camino | llamada | ¿pega el indicativo? |
   |---|---|---|
-  | flujo normal (`send-otp-code`) | `Onboarding/App/Services/OtpService.php:378` pasa `$sendOtpCodeRequest->dialCode ?? ""` | **sí**, cuando el front lo manda |
-  | alta por asesor del formulario dinámico | `Onboarding/App/Services/DynamicFormsService.php:899` usa argumentos con nombre y **omite `dialCode`** | **no, nunca** |
+  | flujo normal (`send-otp-code`) | `Onboarding/App/Services/OtpService.php:387` pasa `$sendOtpCodeRequest->dialCode ?? ""` | **sí**, cuando el front lo manda |
+  | alta por asesor del formulario dinámico | `Onboarding/App/Services/DynamicFormsService.php:903` usa argumentos con nombre y **omite `dialCode`** | **no, nunca** |
 
   Los dos terminan en el mismo `createTemporalUser`, que guarda `cell_phone` **tal como se lo pasan**: la
   diferencia no está en el guardado sino en quién llama. ⚠ El `+` no lo produce ninguno de estos dos: lo
@@ -3938,9 +3939,9 @@ O sea que para este comercio TODO perfil exige codeudor.
 `autogestión: /self-service/<hash>/<ur>/confirmation` y el caso termina `1 passed`. Se lee como «el
 front redirigió bien». **No lo prueba.**
 
-**Causa:** `harness/dev/guided.spec.ts:1276` hace `cliente.goto(`${selfServiceBase}/confirmation`)`
+**Causa:** `harness/dev/guided.spec.ts:1515` hace `customer.goto(`${selfServiceBase}/confirmation`)`
 **siempre**, en los dos canales. Está ahí por el canal del asesor, donde la ventana B es otro
-dispositivo y hay que llevarla al link a mano; pero en autogestión `cliente === page`, o sea la misma
+dispositivo y hay que llevarla al link a mano; pero en autogestión `customer === page`, o sea la misma
 ventana que el front ya redirigió (o no). El `goto` tapa la diferencia: **un verde no distingue entre
 «el front redirigió» y «el front no redirigió y el harness lo puso ahí»**. Es exactamente el error que
 F-191 tuvo que destapar por otro camino (el 404 de `/continue`).
@@ -3955,7 +3956,7 @@ medir solas:
     # → data.continueUrl = http://localhost:5174/self-service/<hash>/<ur>/confirmation
 
     # 2) el front: la usa tal cual — `redirectExternal(continuationPath(continueUrl))`
-    #    (available-lenders.tsx:697-698; el path sale de Onboarding/App/Services/UserRequestService.php:637-644)
+    #    (available-lenders.tsx:720-721; el path sale de Onboarding/App/Services/UserRequestService.php:637-644)
 
 Medido así el 2026-09-10 contra local: el destino es `/confirmation`, **no** `/continue`, y lo decide
 el flujo. El uReq tiene que estar en estado 9 (en el marketplace, sin entidad elegida).
@@ -4080,7 +4081,7 @@ cruce con la lista de bypass —la misma que el producto usa para saltarse el OT
 distingue una cosa de la otra.
 
 ⚠ **De dónde salió el `+1` no se pudo atribuir**, y el sospechoso obvio está descartado:
-`normalizePhoneE164` (`apps/loan-request-wizard/app/utils/analytics-taxonomy.ts:314`) convierte 10
+`normalizePhoneE164` (en `analytics-taxonomy.ts` del wizard, que en `main` de 2026-11 ya no la tiene) convertía 10
 dígitos a **`+57`**, no a `+1`, y además alimenta la analítica, no `users.cell_phone`. El usuario es de
 junio. Con el arreglo el formato deja de importar, que es mejor que perseguir un valor viejo.
 
@@ -5411,7 +5412,7 @@ entidades que sí resolvieron. En el navegador, el mismo caso lista bien. La pan
 entidad culpable, así que parece una caída del servidor y no un problema de UNA tarjeta.
 
 **Causa raíz — el loader transmite promesas, y una promesa rechazada no es un dato.** El loader de
-`available-lenders.tsx:199` arma `preApprovals`, un diccionario **de promesas** (una por entidad), y lo
+`available-lenders.tsx:214` arma `preApprovals`, un diccionario **de promesas** (una por entidad), y lo
 devuelve **sin esperarlas**: el streaming de React Router las va resolviendo en el cliente contra un
 `<Await>`. El adapter de pre-aprobados convierte a estado terminal todo lo que **él** ve (`aborted`,
 `http_4xx`, `polling_timeout`…), pero lo que se le escapa —el abort del `signal` fuera de su bucle, un
@@ -5419,12 +5420,12 @@ throw de la capa de red, un rechazo que ni siquiera es `Error`— **sale como re
 viaja en el stream no llega como el error de esa entidad: **tumba la serialización de todo el lote**.
 
 ⚠ **El `Promise.allSettled` que ya estaba NO cubre esto**, y por eso el bug sobrevivió a una guarda que
-parecía justamente la guarda: `available-lenders.tsx:302` espera las promesas primarias con
+parecía justamente la guarda: `available-lenders.tsx:308` espera las promesas primarias con
 `allSettled`, así que el `await` **del loader** nunca revienta. Pero el objeto promesa que se guardó en
 `preApprovals` es **el mismo** que viaja al cliente, y ése sigue rechazando. Una guarda sobre el `await`
 no es una guarda sobre el valor.
 
-⚠ **Y una sola promesa puede tumbar varias tarjetas**: `available-lenders.tsx:290-296` **comparte** la
+⚠ **Y una sola promesa puede tumbar varias tarjetas**: `available-lenders.tsx:296-302` **comparte** la
 promesa de Welli entre las entidades que consultan por ella. Un rechazo ahí no es una tarjeta, son
 todas las que apuntan a ese objeto.
 
@@ -6371,7 +6372,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
 - **Arreglo:** en `main` desde `dbcf666b2` (2026-10-26, «validate QA-bypass OTPs against the stored code»). El envío
   marca la fila con `qa_bypass` (`Modules/Onboarding/App/Services/OtpService.php:772`) y la validación v2 compara
   contra el código guardado cuando la fila lo trae y el ambiente no es producción
-  (`Modules/AuthV1/App/Services/ValidateOtpService.php:156-158`), en vez de preguntarle al servicio. El docblock de
+  (`Modules/AuthV1/App/Services/ValidateOtpService.php:156-158`, `verifyBypassedOtpCode`), en vez de preguntarle al servicio. El docblock de
   `ValidateOtpService` ya describe ese camino. No se midió en qa si la rama desplegada lo tiene.
 - **Para el harness:** en la compartida, con un teléfono FUERA de la lista, el código se lee del hilo de ese teléfono
   en #qa-messages; los dos del arnés están en la lista, así que con un comercio del pipeline no pasan. No se comprobaron
@@ -6441,7 +6442,7 @@ dos. **No se sabe cuántos diagnósticos viejos eran esto.**
   dejan buró distinto: en una hay consulta de viabilidad a Experian y en la otra no, y la categoría o la oferta
   cambian sin que haya cambiado el caso.
 - **Causa raíz (verificada en `main` 69920f58):** `OnboardingController::storeLaboralInfoOrchestrator`
-  (legacy-backend `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:401-404`) reemplaza
+  (legacy-backend `Modules/Onboarding/App/Http/Controllers/OnboardingController.php:408-411`) reemplaza
   `validatePreApproveLender` por `(bool) random_int(0, 1)` cuando `app()->environment('local', 'development')`, para no
   repetir en el monolito las consultas a las entidades que ya hace pre-approvals-service. Ese booleano decide más
   abajo, junto con `alliedsLendersValidator`, si se llama a la viabilidad de Experian
