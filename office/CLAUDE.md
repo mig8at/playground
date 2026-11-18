@@ -7,23 +7,23 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
 |---|---|---|
 | la llamada | `index.html` | `make office` → http://localhost:5220 |
 | el editor de personajes | `editor.html` | http://localhost:5220/editor.html (botón «Editar personajes») |
-| el CLI de personajes | `cli/personaje.mjs` | `make office-character ESPECIE=gato NOMBRE=Miso` (`OPCIONES=1` lista todo) |
-| el paquete para compartir | `paquete/` → `paquete/dist/` | `make office-package`; se comparte la carpeta `dist/` (un JS, ejemplo, README) |
-| el dibujo, compartido por los tres | `personajes.js` · `personajes.css` | — |
-| hojas de referencia de Gemini (no se calcan) | `generacion/` | `node office/generacion/hoja.mjs <personaje> <salida.jpg>` |
+| el CLI de personajes | `cli/character.mjs` | `make office-character SPECIES=gato NAME=Miso` (`OPTIONS=1` lista todo) |
+| el paquete para compartir | `paquete/` → `package/dist/` | `make office-package`; se comparte la carpeta `dist/` (un JS, ejemplo, README) |
+| el dibujo, compartido por los tres | `characters.js` · `characters.css` | — |
+| hojas de referencia de Gemini (no se calcan) | `generacion/` | `node office/generation/sheet.mjs <personaje> <salida.jpg>` |
 
 ## Cómo está armado
 
-- **Un solo dibujo para todo.** `personajes.js` arma un personaje (`person(p)`) a partir de un objeto plano: especie,
+- **Un solo dibujo para todo.** `characters.js` arma un personaje (`person(p)`) a partir de un objeto plano: especie,
   piel o pelaje, cara, ojos, nariz, dientes, peinado, gorro, extras, chaqueta y fondo. La llamada, el editor y el CLI
   lo cargan tal cual (en Node con `require`), así que lo que sale del CLI es lo que se ve en la llamada.
 - **Los gestos los decide el CSS**, no el SVG. El recuadro lleva la clase `tile idle|typing|thinking|talking` y
-  `personajes.css` elige la boca que se ve, adónde miran las pupilas, cómo van las cejas y qué se anima. La cabeza y
+  `characters.css` elige la boca que se ve, adónde miran las pupilas, cómo van las cejas y qué se anima. La cabeza y
   el cuerpo se balancean por separado, poquito, como títeres de recortes. El CLI lee ese CSS para escribir las
   animaciones del JSON: no hay una segunda lista que pueda desincronizarse.
-- **Cada personaje tiene su ritmo** (`personRhythm` en `personajes.js`, 2026-11-12): de su nombre y sus rasgos sale cuándo
+- **Cada personaje tiene su ritmo** (`personRhythm` en `characters.js`, 2026-11-12): de su nombre y sus rasgos sale cuándo
   arranca (`--d`) y qué tan rápido se mece, cabecea, parpadea y mira (`--kb`, `--kh`, `--ke`, `--kl`, que
-  `personajes.css` multiplica por la duración base). Va dentro del dibujo, así vale igual en la llamada, en el chat y
+  `characters.css` multiplica por la duración base). Va dentro del dibujo, así vale igual en la llamada, en el chat y
   en el paquete; antes en el chat todos se movían y parpadeaban al compás.
 - **Las manos** (`personHands`) sólo se ven en dos gestos: tecleando asoman abajo y golpean alternadas; pensando, una sube a
   la barbilla y la cabeza se ladea. Son del color de la piel o del pelaje, con la manga más clara y su puño.
@@ -35,17 +35,17 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
   `act-coffee|music|wave|thumb|celebrate` (`ACTIVITIES`). Tomar tinto cierra la tapa; con audífonos salen notas y la
   cabeza lleva el ritmo; celebrar levanta los dos brazos y llueve confeti. En la llamada (`index.html`, `activities` y
   `react`) cada uno hace su pausa a su ritmo, el nombrado saluda y con una buena noticia unos celebran y otros dan el
-  visto bueno. En el componente del paquete son los atributos `actividad="cafe|musica|saluda|pulgar|celebra"` y
-  `portatil="abierto|cerrado"`, que es lo que usa la videollamada del chat (`CallView.vue`: `laptopOf`, `doingOf`): ya no
+  visto bueno. En el componente del paquete son los atributos `activity="coffee|music|wave|thumb|celebrate"` y
+  `laptop="open|closed"`, que es lo que usa la videollamada del chat (`CallView.vue`: `laptopOf`, `doingOf`): ya no
   dibuja su propio portátil ni su taza encima, y al nombrado no le sale un 👋 sino que levanta la mano. En el chat,
   además, una buena noticia en lo que se dice («listo», «quedó», 🎉…) hace que unos celebren y otros den el visto bueno.
 - **El nombre va arriba a la izquierda** del recuadro: abajo tapaba el portátil y las manos. En la grilla de la llamada
   el letrero de estado no se muestra (lo dicen el gesto y la lista).
 - **Caras de reacción** (2026-11-13): tres actividades más en `ACTIVITIES`, `laugh` (ojos en arco, boca que salta, se
   sacude), `surprise` (respingo, ojos más abiertos, boca en «o» y un «!») y `confused` (una ceja arriba, boca torcida,
-  cabeza ladeada y un «?» que flota). En el componente: `actividad="rie|sorpresa|duda"`. La llamada y el chat las
+  cabeza ladeada y un «?» que flota). En el componente: `activity="laugh|surprise|confused"`. La llamada y el chat las
   disparan por lo que se dice (un «jajaja», un «¿cómo así?», un «uy, se cayó»).
-- **Los ojos van hacia quien habla** (`setTileLook(el, dx, dy)` y `lookVector`; en el componente, `mira="dx,dy"`): la
+- **Los ojos van hacia quien habla** (`setTileLook(el, dx, dy)` y `lookVector`; en el componente, `look="dx,dy"`): la
   dirección sale de dónde quedó cada recuadro en la grilla. Sin argumentos vuelve a mirar por su cuenta.
 - **Cada especie se mueve a su manera**: el grupo del personaje lleva `sp-<especie>` y las orejas van sueltas (`ear
   ear-l|r`, con su bisagra). El gato, el zorro y los de oreja redonda tienen un tic cada tanto; al conejo se le caen al
@@ -85,37 +85,40 @@ es solo visual: lo que dicen sale de un guion de ejemplo (`SCRIPT` en `index.htm
 - **Los fondos son cuartos** (`ROOMS`, 2026-11-12: oficina, estudio, noche, sala, reunión): pared con zócalo, una ventana
   con su vista recortada por el marco, un mueble a un lado y el respaldo de la silla detrás de los hombros. Los
   paisajes de antes siguen en `SCENES` (el editor los ofrece), pero para el trabajo se usan los cuartos.
-- **Agregar una pieza** (un peinado, un gorro, una especie) es dibujarla una vez y nombrarla en `OPCIONES`: aparece
+- **Agregar una pieza** (un peinado, un gorro, una especie) es dibujarla una vez y nombrarla en `OPTIONS`: aparece
   sola en el editor, en el CLI y en «Al azar».
 
 ## Reglas
 
 - ⛔ **Personajes originales, siempre.** Nada de personajes con derechos ni sus rasgos (gorras con la inicial,
   corbatas con siglas, overoles…). Se descartaron unos inspirados en un videojuego y se eligieron animales propios.
-- **Colores planos de la paleta** (`P` y `--*` en `personajes.css`), sin degradados. La textura de papel es opcional
+- **Colores planos de la paleta** (`P` y `--*` en `characters.css`), sin degradados. La textura de papel es opcional
   (botón «Papel», preferencia en `localStorage`).
 - **El servidor no cachea** (`serve.py`): con el servidor simple de Python el navegador mostraba versiones viejas de
-  `personajes.js`. Si igual ves algo viejo, recargá con Cmd+Shift+R.
+  `characters.js`. Si igual ves algo viejo, recargá con Cmd+Shift+R.
 - Los personajes armados en el editor quedan en ese navegador (`office:custom`) y entran a la llamada en lugar de
   invitados de ejemplo. Para dejarlos fijos, se copia su JSON (editor o CLI: `config`) al `CAST` de `index.html`.
-- Lo que genera el CLI queda en `office/generados/`, fuera de git.
+- Lo que genera el CLI queda en `office/generated/`, fuera de git.
 
-## El JSON del CLI (`office.personaje.v1`)
+## El JSON del CLI (`office.character.v1`)
 
 `config` es la entrada de `CAST`. `states` trae, por gesto, el SVG animado y la boca que se ve. `animations` lista
 qué pieza se anima (`part`), con qué `@keyframes`, cuánto dura y en qué gestos; `poses`, lo que se acomoda sin
 animarse (pupilas, cejas). Cada SVG trae su CSS: cambiar el gesto es cambiar la clase del `<svg>` raíz.
 
-## El paquete para compartir (`paquete/`)
+## El paquete para compartir (`package/`)
 
-`make office-package` arma `paquete/dist/office-personajes.js`: un solo archivo con el dibujo (`personajes.js` tal cual,
-encerrado en su alcance), el estilo y el logo, más el componente `<office-personaje config='…' gesto="habla">` (shadow
-DOM, no toca el CSS de la página) y las funciones `dibujar`, `svg`, `alAzar`, `personaje` y `OPCIONES`. En Node sólo
-están `svg` y `alAzar` (no hay `HTMLElement`). Junto a él quedan `ejemplo.html` (armar el tuyo y copiar su JSON),
+`make office-package` arma `package/dist/office-characters.js`: un solo archivo con el dibujo (`characters.js` tal cual,
+encerrado en su alcance), el estilo y el logo, más el componente `<office-character config='…' gesture="talking">` (shadow
+DOM, no toca el CSS de la página) y las funciones `draw`, `svg`, `randomCharacter`, `character` y `OPTIONS`. En Node
+sólo están `svg` y `randomCharacter` (no hay `HTMLElement`). **Los nombres de antes siguen andando** (en español hasta
+el 2026-11-18: `<office-personaje>` con `gesto`, `fondo`, `boca`, `actividad`, `portatil`, `mira`; `dibujar`, `alAzar`,
+`personaje`, `OPCIONES`), porque los usan páginas del playground compartido; `DEST=` publica también
+`office-personajes.js`. El CLI escribe `character.json`, `idle|typing|thinking|talking.svg` y `view.html`. Junto a él quedan `example.html` (armar el tuyo y copiar su JSON),
 `README.md` y un `package.json` que lo declara módulo ES. `dist/` no se versiona (el `.gitignore` del repo ignora toda
 carpeta `dist/`): se regenera con `make office-package` justo antes de compartirlo, y así nunca queda atrás de
-`personajes.js` o `personajes.css`. `personajes.js` no toca la página
-cuando está empacado (la constante `OFFICE_PAQUETE`).
+`characters.js` o `characters.css`. `characters.js` no toca la página
+cuando está empacado (la constante `OFFICE_PACKAGE`).
 
 ## En el chat: la videollamada
 

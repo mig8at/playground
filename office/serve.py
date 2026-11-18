@@ -1,6 +1,6 @@
 """Office · el servidor de la llamada y el editor (:5220).
 
-Es el servidor estático de Python, pero sin caché: después de cambiar personajes.js o personajes.css el navegador
+Es el servidor estático de Python, pero sin caché: después de cambiar characters.js o characters.css el navegador
 servía la versión vieja (pasó varias veces) y había que recargar forzando. Con «Cache-Control: no-store» cada recarga
 trae lo que está en disco.
 

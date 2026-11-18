@@ -11,7 +11,7 @@
 // de Office (forma de cara, peinado, barba, especie…); lo que falte toma su valor por defecto. El dibujo y los gestos
 // están en office-characters.js (el paquete de Office), que se regenera con
 // `make office-package JS=chat/src/characters/office-characters.js`.
-import { OPCIONES } from './office-characters.js'
+import { OPTIONS } from './office-characters.js'
 
 const files = import.meta.glob('./*.json', { eager: true, import: 'default' })
 export const characters = Object.values(files)
@@ -54,9 +54,9 @@ function hashOf(text) {
 }
 export function autoCharacter(owner, agent) {
   const h = hashOf(`${owner}/${agent}`) // sin signo, y se corre con >>> (con >> salían índices negativos)
-  const species = Object.keys(OPCIONES.species).filter(Boolean)
+  const species = Object.keys(OPTIONS.species).filter(Boolean)
   const kind = species[h % species.length]
-  const skins = OPCIONES.skinBy[kind] || []
+  const skins = OPTIONS.skinBy[kind] || []
   return {
     name: agent.charAt(0).toUpperCase() + agent.slice(1), owner, agent, auto: true,
     character: { species: kind, skin: skins[(h >>> 5) % (skins.length || 1)], eye: 24, shirt: SHIRTS[(h >>> 9) % SHIRTS.length],

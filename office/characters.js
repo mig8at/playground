@@ -1,14 +1,14 @@
 // OFFICE · los personajes en papel cortado. Lo usan la llamada (index.html) y el editor (editor.html): el mismo
 // dibujo, los mismos gestos y el mismo recuadro. Un personaje es un objeto plano (ver CAST en index.html y las
-// opciones en OPCIONES, abajo); person(p) lo dibuja y tile(p) arma su recuadro de la llamada.
+// opciones en OPTIONS, abajo); person(p) lo dibuja y tile(p) arma su recuadro de la llamada.
 
 // El logo de CreditOp (la palabra), del repo móvil: packages/cds_mobile/assets/logos/creditop_logo.svg. Va una sola
 // vez en la página como símbolo, en sus colores y en la versión bordada: las letras en currentColor (blanco en las
 // chaquetas) y la E en su verde de marca.
 // En Node (el CLI de personajes) no hay página: el logo va dentro de cada SVG que se genera (LOGO_SVG). En el paquete
-// (office/paquete, que define OFFICE_PAQUETE) tampoco se toca la página: cada personaje lleva su logo adentro.
+// (office/package, que define OFFICE_PACKAGE) tampoco se toca la página: cada personaje lleva su logo adentro.
 const LOGO_SVG = `<svg width="0" height="0" style="position:absolute" aria-hidden="true"><symbol id="creditop-logo" viewBox="0 0 232 30"><g clip-path="url(#co-clip)"><path fill="#4c39ff" d="M52.469 19.035c.23-.096.428-.188.618-.281 1.689-.844 3.01-2.025 3.928-3.508.916-1.483 1.382-3.172 1.382-5.025s-.465-3.542-1.382-5.025c-.918-1.483-2.24-2.662-3.928-3.508C51.402.848 49.422.421 47.202.421H35.65c-.97 0-1.753.759-1.753 1.694v25.844c0 .815.657 1.487 1.498 1.532a45 45 0 0 0 4.607 0c.846-.045 1.508-.715 1.508-1.532V20.02h.86a3.16 3.16 0 0 1 2.637 1.385l4.928 7.345c.271.405.727.667 1.226.695a64 64 0 0 0 3.6.103h.22a63 63 0 0 0 2.821-.072c.315-.017.623-.164.783-.429a.85.85 0 0 0-.02-.923l-6.097-9.093zm-1.94-8.896a3.2 3.2 0 0 1-.416 1.612 2.9 2.9 0 0 1-1.159 1.12c-.499.267-1.088.403-1.75.403h-5.031a.645.645 0 0 1-.657-.635V7.602c0-.352.293-.635.657-.635h5.031c.662 0 1.253.136 1.75.403a2.9 2.9 0 0 1 1.159 1.12 3.3 3.3 0 0 1 .417 1.651zm62.534-7.816c-2.331-1.263-4.98-1.905-7.874-1.905h-10.75c-.969 0-1.751.759-1.751 1.694v25.595c0 .937.785 1.694 1.752 1.694h10.749c2.894 0 5.545-.64 7.874-1.904 2.332-1.266 4.183-3.02 5.507-5.22 1.321-2.2 1.992-4.679 1.992-7.369s-.671-5.17-1.992-7.368c-1.321-2.197-3.175-3.955-5.507-5.22zm-12.763 5.7c0-.586.49-1.06 1.096-1.06h3.158c1.614 0 3.054.34 4.282 1.013a7.1 7.1 0 0 1 2.848 2.814c.669 1.202 1.008 2.589 1.008 4.123s-.339 2.922-1.008 4.124a7.1 7.1 0 0 1-2.848 2.813c-1.226.673-2.668 1.012-4.282 1.012h-3.158c-.606 0-1.096-.473-1.096-1.059zM133.13.377a91 91 0 0 0-2.257-.028h-.012c-.749 0-1.507.009-2.259.028-.865.02-1.543.696-1.543 1.534V27.92c0 .837.676 1.511 1.539 1.535.729.02 1.471.03 2.2.03h.063c.754 0 1.518-.012 2.271-.03.863-.024 1.539-.698 1.539-1.535V1.911c0-.838-.678-1.513-1.544-1.534zm31.391.043h-21.939c-.841 0-1.539.633-1.585 1.444a32 32 0 0 0 0 3.652c.046.813.744 1.448 1.585 1.448h6.067c.605 0 1.095.473 1.095 1.059v19.949c0 .808.647 1.48 1.474 1.53.695.042 1.4.066 2.098.07h.231c.768 0 1.546-.023 2.314-.07.839-.052 1.496-.724 1.496-1.532V8.023c0-.586.489-1.06 1.095-1.06h6.069c.843 0 1.539-.639 1.585-1.456a32 32 0 0 0 0-3.632c-.046-.817-.744-1.457-1.585-1.457zm66.032 4.96c-.96-1.552-2.339-2.78-4.098-3.65C224.7.86 222.642.421 220.34.421h-11.018c-.875 0-1.588.689-1.588 1.534v25.997c0 .82.664 1.494 1.513 1.532a53 53 0 0 0 2.203.054h.087c.764 0 1.534-.02 2.295-.054.851-.04 1.515-.712 1.515-1.535v-6.286c0-.569.48-1.03 1.066-1.03h3.924c2.332 0 4.402-.427 6.154-1.268 1.76-.843 3.134-2.038 4.079-3.547s1.425-3.254 1.425-5.19c0-1.935-.487-3.699-1.444-5.25zm-6.423 5.168c0 .667-.155 1.279-.458 1.815-.3.532-.749.956-1.325 1.263-.585.307-1.258.464-2.005.464h-4.333a.645.645 0 0 1-.657-.635V7.603c0-.352.293-.635.657-.635h4.333c.747 0 1.423.157 2.005.464a3.2 3.2 0 0 1 1.325 1.262c.306.537.458 1.162.458 1.858zM185.758 0c-8.555 0-15.516 6.729-15.516 15.001 0 8.273 6.961 14.999 15.516 14.999s15.519-6.729 15.519-14.999S194.316 0 185.758 0m8.11 15.001c0 4.323-3.638 7.837-8.107 7.837s-8.107-3.517-8.107-7.837 3.638-7.837 8.107-7.837 8.107 3.517 8.107 7.837M15.51 7.17c1.079 0 2.157.28 2.17.285 1.735.473 2.973 1.453 3.708 2.19a1.62 1.62 0 0 0 2.004.211 25 25 0 0 0 1.98-1.405c.54-.427 1.069-.881 1.568-1.354a1.497 1.497 0 0 0 .058-2.125C25.562 3.467 23.117 1.478 19.636.55A16 16 0 0 0 14.37.049 15.67 15.67 0 0 0 4.38 4.58C1.717 7.24.166 10.72.013 14.378c-.174 4.119 1.358 8.027 4.312 11 2.957 2.977 6.93 4.615 11.185 4.615s8.432-1.75 11.362-4.803a1.5 1.5 0 0 0-.104-2.193 25.3 25.3 0 0 0-3.667-2.622 1.63 1.63 0 0 0-1.929.207 8.26 8.26 0 0 1-3.495 1.968 8 8 0 0 1-2.162.283c-2.91-.051-8.107-2.713-8.107-7.834 0-4.32 3.635-7.835 8.105-7.835z"/><path fill="#05d587" d="M66.868 7.294h14.806c.844 0 1.54-.637 1.585-1.45a36 36 0 0 0 0-3.98c-.046-.811-.741-1.446-1.585-1.446H66.868c-.84 0-1.539.635-1.585 1.446a35 35 0 0 0 0 3.985c.046.81.742 1.445 1.585 1.445m19.365 16.824c-.046-.809-.741-1.441-1.585-1.441h-17.78c-.843 0-1.539.64-1.585 1.455a35 35 0 0 0 0 3.969c.046.815.744 1.452 1.585 1.452h17.78c.844 0 1.542-.642 1.585-1.46a35 35 0 0 0 0-3.973zm-19.365-5.536h9.499c.843 0 1.541-.642 1.585-1.46a36 36 0 0 0 0-3.973c-.046-.809-.742-1.439-1.585-1.439h-9.499c-.843 0-1.539.64-1.585 1.455a35 35 0 0 0 0 3.969c.046.815.744 1.452 1.585 1.452z"/></g><defs><clipPath id="co-clip"><path fill="#fff" d="M0 0h232v30H0z"/></clipPath></defs></symbol><symbol id="creditop-logo-mono" viewBox="0 0 232 30"><g clip-path="url(#co-clip-mono)"><path fill="currentColor" d="M52.469 19.035c.23-.096.428-.188.618-.281 1.689-.844 3.01-2.025 3.928-3.508.916-1.483 1.382-3.172 1.382-5.025s-.465-3.542-1.382-5.025c-.918-1.483-2.24-2.662-3.928-3.508C51.402.848 49.422.421 47.202.421H35.65c-.97 0-1.753.759-1.753 1.694v25.844c0 .815.657 1.487 1.498 1.532a45 45 0 0 0 4.607 0c.846-.045 1.508-.715 1.508-1.532V20.02h.86a3.16 3.16 0 0 1 2.637 1.385l4.928 7.345c.271.405.727.667 1.226.695a64 64 0 0 0 3.6.103h.22a63 63 0 0 0 2.821-.072c.315-.017.623-.164.783-.429a.85.85 0 0 0-.02-.923l-6.097-9.093zm-1.94-8.896a3.2 3.2 0 0 1-.416 1.612 2.9 2.9 0 0 1-1.159 1.12c-.499.267-1.088.403-1.75.403h-5.031a.645.645 0 0 1-.657-.635V7.602c0-.352.293-.635.657-.635h5.031c.662 0 1.253.136 1.75.403a2.9 2.9 0 0 1 1.159 1.12 3.3 3.3 0 0 1 .417 1.651zm62.534-7.816c-2.331-1.263-4.98-1.905-7.874-1.905h-10.75c-.969 0-1.751.759-1.751 1.694v25.595c0 .937.785 1.694 1.752 1.694h10.749c2.894 0 5.545-.64 7.874-1.904 2.332-1.266 4.183-3.02 5.507-5.22 1.321-2.2 1.992-4.679 1.992-7.369s-.671-5.17-1.992-7.368c-1.321-2.197-3.175-3.955-5.507-5.22zm-12.763 5.7c0-.586.49-1.06 1.096-1.06h3.158c1.614 0 3.054.34 4.282 1.013a7.1 7.1 0 0 1 2.848 2.814c.669 1.202 1.008 2.589 1.008 4.123s-.339 2.922-1.008 4.124a7.1 7.1 0 0 1-2.848 2.813c-1.226.673-2.668 1.012-4.282 1.012h-3.158c-.606 0-1.096-.473-1.096-1.059zM133.13.377a91 91 0 0 0-2.257-.028h-.012c-.749 0-1.507.009-2.259.028-.865.02-1.543.696-1.543 1.534V27.92c0 .837.676 1.511 1.539 1.535.729.02 1.471.03 2.2.03h.063c.754 0 1.518-.012 2.271-.03.863-.024 1.539-.698 1.539-1.535V1.911c0-.838-.678-1.513-1.544-1.534zm31.391.043h-21.939c-.841 0-1.539.633-1.585 1.444a32 32 0 0 0 0 3.652c.046.813.744 1.448 1.585 1.448h6.067c.605 0 1.095.473 1.095 1.059v19.949c0 .808.647 1.48 1.474 1.53.695.042 1.4.066 2.098.07h.231c.768 0 1.546-.023 2.314-.07.839-.052 1.496-.724 1.496-1.532V8.023c0-.586.489-1.06 1.095-1.06h6.069c.843 0 1.539-.639 1.585-1.456a32 32 0 0 0 0-3.632c-.046-.817-.744-1.457-1.585-1.457zm66.032 4.96c-.96-1.552-2.339-2.78-4.098-3.65C224.7.86 222.642.421 220.34.421h-11.018c-.875 0-1.588.689-1.588 1.534v25.997c0 .82.664 1.494 1.513 1.532a53 53 0 0 0 2.203.054h.087c.764 0 1.534-.02 2.295-.054.851-.04 1.515-.712 1.515-1.535v-6.286c0-.569.48-1.03 1.066-1.03h3.924c2.332 0 4.402-.427 6.154-1.268 1.76-.843 3.134-2.038 4.079-3.547s1.425-3.254 1.425-5.19c0-1.935-.487-3.699-1.444-5.25zm-6.423 5.168c0 .667-.155 1.279-.458 1.815-.3.532-.749.956-1.325 1.263-.585.307-1.258.464-2.005.464h-4.333a.645.645 0 0 1-.657-.635V7.603c0-.352.293-.635.657-.635h4.333c.747 0 1.423.157 2.005.464a3.2 3.2 0 0 1 1.325 1.262c.306.537.458 1.162.458 1.858zM185.758 0c-8.555 0-15.516 6.729-15.516 15.001 0 8.273 6.961 14.999 15.516 14.999s15.519-6.729 15.519-14.999S194.316 0 185.758 0m8.11 15.001c0 4.323-3.638 7.837-8.107 7.837s-8.107-3.517-8.107-7.837 3.638-7.837 8.107-7.837 8.107 3.517 8.107 7.837M15.51 7.17c1.079 0 2.157.28 2.17.285 1.735.473 2.973 1.453 3.708 2.19a1.62 1.62 0 0 0 2.004.211 25 25 0 0 0 1.98-1.405c.54-.427 1.069-.881 1.568-1.354a1.497 1.497 0 0 0 .058-2.125C25.562 3.467 23.117 1.478 19.636.55A16 16 0 0 0 14.37.049 15.67 15.67 0 0 0 4.38 4.58C1.717 7.24.166 10.72.013 14.378c-.174 4.119 1.358 8.027 4.312 11 2.957 2.977 6.93 4.615 11.185 4.615s8.432-1.75 11.362-4.803a1.5 1.5 0 0 0-.104-2.193 25.3 25.3 0 0 0-3.667-2.622 1.63 1.63 0 0 0-1.929.207 8.26 8.26 0 0 1-3.495 1.968 8 8 0 0 1-2.162.283c-2.91-.051-8.107-2.713-8.107-7.834 0-4.32 3.635-7.835 8.105-7.835z"/><path fill="#05d587" d="M66.868 7.294h14.806c.844 0 1.54-.637 1.585-1.45a36 36 0 0 0 0-3.98c-.046-.811-.741-1.446-1.585-1.446H66.868c-.84 0-1.539.635-1.585 1.446a35 35 0 0 0 0 3.985c.046.81.742 1.445 1.585 1.445m19.365 16.824c-.046-.809-.741-1.441-1.585-1.441h-17.78c-.843 0-1.539.64-1.585 1.455a35 35 0 0 0 0 3.969c.046.815.744 1.452 1.585 1.452h17.78c.844 0 1.542-.642 1.585-1.46a35 35 0 0 0 0-3.973zm-19.365-5.536h9.499c.843 0 1.541-.642 1.585-1.46a36 36 0 0 0 0-3.973c-.046-.809-.742-1.439-1.585-1.439h-9.499c-.843 0-1.539.64-1.585 1.455a35 35 0 0 0 0 3.969c.046.815.744 1.452 1.585 1.452z"/></g><defs><clipPath id="co-clip-mono"><path fill="#fff" d="M0 0h232v30H0z"/></clipPath></defs></symbol></svg>`
-if (typeof document !== 'undefined' && typeof OFFICE_PAQUETE === 'undefined') document.body.insertAdjacentHTML('afterbegin', LOGO_SVG)
+if (typeof document !== 'undefined' && typeof OFFICE_PACKAGE === 'undefined') document.body.insertAdjacentHTML('afterbegin', LOGO_SVG)
 
 // ── LOS PAISAJES DE PAPEL ────────────────────────────────────────────────────────────────────────
 // Cada recuadro es una escena de capas recortadas (viewBox 400×300), con la paleta de papel: verde azulado,
@@ -390,7 +390,7 @@ const NOSES = {
 // El pico del pato: ancho y plano, como una paleta redondeada que sobresale de la cara (no la puntita de un pollo).
 // La parte de arriba lleva un brillo y las fosas (sin raya de comisura: con el pico abierto parecía otra boca); la
 // de abajo, más angosta. Al hablar el pico se
-// mueve como una mandíbula (personajes.css: .beak-jaw baja, .beak-top sube apenas, .beak-inside se abre desde arriba),
+// mueve como una mandíbula (characters.css: .beak-jaw baja, .beak-top sube apenas, .beak-inside se abre desde arriba),
 // no con el estirón de la boca de las personas, que en un pico se veía falso.
 function beak(cx, y, c, w = 74) {
   // pico de tucán (w > 100): grande, cae por delante del mentón, con la punta roja y una arista oscura
@@ -500,7 +500,7 @@ function neckwear(p) {
 // rana, pingüino, búho, tucán, loro, perezoso, capibara, jaguar)
 // (sin species, persona). p.skin es el color del pelaje o de las plumas. Diseños propios: no copian a nadie.
 // piezas que comparten los animales
-// cada oreja va en su grupo (`ear ear-l|r`) con la bisagra donde se une a la cabeza: personajes.css la mueve según la
+// cada oreja va en su grupo (`ear ear-l|r`) con la bisagra donde se une a la cabeza: characters.css la mueve según la
 // especie (el tic del gato, las del conejo que se caen al pensar, las del perro que aletean)
 const ear = (right, ox, oy, inner) => `<g class="ear ear-${right ? 'r' : 'l'}" style="transform-origin:${r1(ox)}px ${r1(oy)}px">${inner}</g>`
 const ANIMAL = {
@@ -857,7 +857,7 @@ function creature(p) {
 function completePerson(p) {
   const q = { ...p }
   if (q.species && !SPECIES[q.species]) q.species = ''
-  if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPCIONES.skinBy[q.species]?.[0]) || '#e0ac7e'
+  if (!/^#[0-9a-f]{6}$/i.test(q.skin || '')) q.skin = (q.species && OPTIONS.skinBy[q.species]?.[0]) || '#e0ac7e'
   // el viejo peinado «gorro de lana» era un gorro guardado entre los peinados, del color del pelo: se confundía con él.
   // Ahora es pelo corto con el gorro de lana de verdad (del color que tenía, si no eligió otro gorro)
   if (q.hair === 'beanie') { q.hair = 'short'; if (!q.hat) { q.hat = 'lana'; q.hatColor = /^#[0-9a-f]{6}$/i.test(q.hairColor || '') ? q.hairColor : '#c5381f'; q.hairColor = '#4a2f1c' } }
@@ -875,7 +875,7 @@ function personSeed(p) {
   return n >>> 0
 }
 // EL RITMO DE CADA UNO: cuándo arranca (--d) y qué tan rápido se balancea, cabecea, parpadea y mira (--kb, --kh, --ke,
-// --kl; personajes.css multiplica sus duraciones por eso). Con el mismo ritmo para todos, una grilla entera se mecía y
+// --kl; characters.css multiplica sus duraciones por eso). Con el mismo ritmo para todos, una grilla entera se mecía y
 // parpadeaba al compás; en el chat, además, todos arrancaban a la vez.
 function personRhythm(p) {
   let n = personSeed(p)
@@ -901,7 +901,7 @@ function personHands(p) {
 }
 // LO QUE TIENEN A MANO EN LA LLAMADA: el portátil, el tinto, los brazos para saludar o celebrar y el confeti. Todos los
 // personajes los traen dibujados y escondidos; qué se ve lo decide la clase del recuadro (setTileActivity y
-// personajes.css), igual que los gestos. Así cualquier personaje —persona o animal, de la llamada, del chat o del
+// characters.css), igual que los gestos. Así cualquier personaje —persona o animal, de la llamada, del chat o del
 // paquete— puede abrir y cerrar su portátil, tomar café, ponerse los audífonos, saludar, dar el visto bueno o celebrar.
 function personProps(p) {
   const s = p.skin, sd = shade(s, .78), j = p.shirt, jl = shade(j, 1.18), jd = shade(j, .78)
@@ -1053,7 +1053,7 @@ function saveCustom(list) { try { localStorage.setItem('office:custom', JSON.str
 // ── LO QUE SE PUEDE ELEGIR ───────────────────────────────────────────────────────────────────────
 // El catálogo del editor: cada opción es una pieza que person() ya sabe dibujar. Agregar una (un peinado, una
 // nariz) es sumarla en su objeto de arriba y nombrarla acá.
-const OPCIONES = {
+const OPTIONS = {
   species: { '': 'Persona', mico: 'Mico', pato: 'Pato', gorila: 'Gorila', oso: 'Oso de anteojos', panda: 'Panda', koala: 'Koala', mapache: 'Mapache', cerdito: 'Cerdito', oveja: 'Oveja', leon: 'León', gato: 'Gato', zorro: 'Zorro', perro: 'Perro', conejo: 'Conejo', raton: 'Ratón', rana: 'Rana', pinguino: 'Pingüino', buho: 'Búho', tucan: 'Tucán', loro: 'Loro', perezoso: 'Perezoso', capibara: 'Capibara', jaguar: 'Jaguar' },
   // el color de la piel, del pelaje o de las plumas, según la especie
   skinBy: {
@@ -1093,15 +1093,15 @@ function randomPerson(base = {}) {
   const keys = (o) => Object.keys(o)
   // con más accesorios en el catálogo, cada uno sale menos seguido; y los que no van juntos no salen juntos (dos gafas,
   // bufanda con corbatín, diadema con lazo)
-  let extras = keys(OPCIONES.extras).filter(() => Math.random() < .17)
+  let extras = keys(OPTIONS.extras).filter(() => Math.random() < .17)
   for (const [a, b] of [['glasses', 'sunglasses'], ['scarf', 'bowtie'], ['headband', 'bow']]) if (extras.includes(a) && extras.includes(b)) extras = extras.filter((x) => x !== b)
-  const beardStyle = Math.random() < .3 ? pick(keys(OPCIONES.beardStyle).filter(Boolean)) : ''
+  const beardStyle = Math.random() < .3 ? pick(keys(OPTIONS.beardStyle).filter(Boolean)) : ''
   return {
     ...base,
-    skin: pick((base.species && OPCIONES.skinBy[base.species]) || OPCIONES.skin), hair: pick(keys(OPCIONES.hair)), hairColor: pick(OPCIONES.hairColor), face: pick(keys(OPCIONES.face)),
-    nose: pick(keys(OPCIONES.nose)), brows: pick(keys(OPCIONES.brows)), eyeShape: Math.random() < .6 ? '' : pick(keys(OPCIONES.eyeShape)), teeth: pick(keys(OPCIONES.teeth)), eye: 20 + Math.floor(Math.random() * 11),
-    extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPCIONES.hat).filter(Boolean)) : '', hatColor: pick(OPCIONES.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPCIONES.gear),
-    shirt: pick(OPCIONES.shirt), accent: pick(OPCIONES.accent), scene: Math.random() < .8 ? pick(keys(ROOMS)) : pick(keys(OPCIONES.scene)), // casi siempre un cuarto: un paisaje con el sol del tamaño de la cabeza compite con el personaje
+    skin: pick((base.species && OPTIONS.skinBy[base.species]) || OPTIONS.skin), hair: pick(keys(OPTIONS.hair)), hairColor: pick(OPTIONS.hairColor), face: pick(keys(OPTIONS.face)),
+    nose: pick(keys(OPTIONS.nose)), brows: pick(keys(OPTIONS.brows)), eyeShape: Math.random() < .6 ? '' : pick(keys(OPTIONS.eyeShape)), teeth: pick(keys(OPTIONS.teeth)), eye: 20 + Math.floor(Math.random() * 11),
+    extras, beardStyle, hat: Math.random() < .35 ? pick(keys(OPTIONS.hat).filter(Boolean)) : '', hatColor: pick(OPTIONS.hatColor), lashes: Math.random() < .4, lids: Math.random() < .15, glassesRound: Math.random() < .5, gear: pick(OPTIONS.gear),
+    shirt: pick(OPTIONS.shirt), accent: pick(OPTIONS.accent), scene: Math.random() < .8 ? pick(keys(ROOMS)) : pick(keys(OPTIONS.scene)), // casi siempre un cuarto: un paisaje con el sol del tamaño de la cabeza compite con el personaje
   }
 }
 
@@ -1113,12 +1113,12 @@ function setPaper(on) {
   try { localStorage.setItem('office:paper', on ? 'on' : 'off') } catch { /* sin guardar, igual se aplica */ }
   document.querySelectorAll('[data-paper-toggle]').forEach((b) => b.setAttribute('aria-pressed', String(on)))
 }
-if (typeof document !== 'undefined' && typeof OFFICE_PAQUETE === 'undefined') {
+if (typeof document !== 'undefined' && typeof OFFICE_PACKAGE === 'undefined') {
   document.addEventListener('click', (e) => { if (e.target.closest('[data-paper-toggle]')) setPaper(!document.documentElement.classList.contains('paper')) })
   document.addEventListener('DOMContentLoaded', () => setPaper(paperOn()))
   setPaper(paperOn())
 }
 
 // ── PARA NODE ────────────────────────────────────────────────────────────────────────────────────
-// El CLI (office/cli/personaje.mjs) carga este mismo archivo: lo que dibuja la llamada es lo que sale del CLI.
-if (typeof module !== 'undefined') module.exports = { person, SCENES, OPCIONES, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES, sceneOf }
+// El CLI (office/cli/character.mjs) carga este mismo archivo: lo que dibuja la llamada es lo que sale del CLI.
+if (typeof module !== 'undefined') module.exports = { person, SCENES, OPTIONS, OPCIONES: OPTIONS, SPECIES, HAIR, HATS, randomPerson, shade, LOGO_SVG, STATE_LABEL, ACTIVITIES, sceneOf }

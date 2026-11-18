@@ -465,8 +465,8 @@ const now = ref(Date.now())
 const clock = setInterval(() => { now.value = Date.now() }, 500)
 onBeforeUnmount(() => clearInterval(clock))
 const propOf = (c) => { const p = voice.props[keyOf(c)]; return p && p.until > now.value ? p.kind : '' }
-const gestureOf = (c) => (speaking.value === keyOf(c) ? 'habla' : propOf(c) ? 'teclea' : addressed.value.has(keyOf(c)) ? 'escucha'
-  : activityOf(c) === 'cafe' || reactionOf(c) ? 'escucha' : 'teclea') // los ojos, en el portátil; con la taza o celebrando, arriba
+const gestureOf = (c) => (speaking.value === keyOf(c) ? 'talking' : propOf(c) ? 'typing' : addressed.value.has(keyOf(c)) ? 'idle'
+  : activityOf(c) === 'coffee' || reactionOf(c) ? 'idle' : 'typing') // los ojos, en el portátil; con la taza o celebrando, arriba
 
 // ── EL PORTÁTIL Y LO QUE HACEN MIENTRAS TANTO ───────────────────────────────────────────────────────────
 // Todos tienen su portátil delante (abajo, a la altura del pecho) y la mirada puesta en él. Cada uno, por su cuenta y de
@@ -483,21 +483,21 @@ const activityTimer = setInterval(() => {
     if (a && a.until > t) { next[keyOf(c)] = a; continue }
     // cada 3 s, uno libre arranca algo con poca probabilidad: así cada quien va a su ritmo
     if (!isIdle(c) || Math.random() > 0.1) continue
-    const kind = Math.random() < 0.5 ? 'cafe' : 'audifonos'
+    const kind = Math.random() < 0.5 ? 'coffee' : 'music'
     const [lo, hi] = ACTIVITIES[kind]
     next[keyOf(c)] = { kind, until: t + lo + Math.random() * (hi - lo) }
   }
   activities.value = next
 }, 3000)
 onBeforeUnmount(() => clearInterval(activityTimer))
-// EL PORTÁTIL, LA TAZA, LOS AUDÍFONOS Y LOS BRAZOS LOS DIBUJA EL PERSONAJE (office/personajes.js, personProps): acá
+// EL PORTÁTIL, LA TAZA, LOS AUDÍFONOS Y LOS BRAZOS LOS DIBUJA EL PERSONAJE (office/characters.js, personProps): acá
 // sólo se le dice qué hace, con los atributos `portatil` y `actividad` del componente. Antes el chat dibujaba su propio
 // portátil y su taza encima del recuadro, y para los audífonos cambiaba la config, que redibujaba el personaje entero.
 // el portátil: abierto, salvo mientras toma tinto; no está mientras tiene algo en la mano (null quita el atributo)
-const laptopOf = (c) => (propOf(c) ? null : activityOf(c) === 'cafe' ? 'cerrado' : 'abierto')
+const laptopOf = (c) => (propOf(c) ? null : activityOf(c) === 'coffee' ? 'closed' : 'open')
 // lo que hace: el nombrado saluda; si no, su reacción a lo que se acaba de decir; si no, su pausa (tinto o audífonos)
 const doingOf = (c) => (propOf(c) || speaking.value === keyOf(c) ? null
-  : addressed.value.has(keyOf(c)) ? 'saluda' : reactionOf(c) || activityOf(c) || null)
+  : addressed.value.has(keyOf(c)) ? 'wave' : reactionOf(c) || activityOf(c) || null)
 const configOf = (c) => JSON.stringify({ name: c.name, owner: c.agent ? c.owner : '', ...c.character })
 // CUANDO ALGO SALE BIEN, SE NOTA: si lo que se está diciendo trae una buena noticia, de los que escuchan unos celebran
 // (brazos arriba y confeti) y otros dan el visto bueno, unos segundos. Una vez por frase.
@@ -511,11 +511,11 @@ const ODD = /¿c[oó]mo as[ií]|no entiendo|no me cuadra|qu[eé] raro|qu[eé] ex
 const ALARM = /(?<![a-záéíóúñ])(uy|ups|se cay[oó]|se rompi[oó]|en serio)(?![a-záéíóúñ])|😮|😱|🤯|\?!|!\?/i
 // qué reacción pide una frase: [cuál, a qué parte de los que escuchan, cuánto dura] o null. Varias por frase, por sorteo.
 function reactionsTo(line) {
-  if (FUNNY.test(line)) return [['rie', .7, 2200, 1600]]
-  if (ODD.test(line)) return [['duda', .45, 2600, 1600]]
-  if (ALARM.test(line)) return [['sorpresa', .45, 1800, 1200]]
+  if (FUNNY.test(line)) return [['laugh', .7, 2200, 1600]]
+  if (ODD.test(line)) return [['confused', .45, 2600, 1600]]
+  if (ALARM.test(line)) return [['surprise', .45, 1800, 1200]]
   // «no quedó», «todavía no está listo»: una negación cerca no es para celebrar
-  if (GOOD_NEWS.test(line) && !/(^|[^a-záéíóúñ])(no|ni|sin|falta)\s+(\S+\s+){0,2}(listo|lista|qued|pas[oó]|resuelt|arreglad|comprobad|mergead|desplegad)/i.test(line)) return [['celebra', .4, 2800, 1600], ['pulgar', .3, 2400, 1400]]
+  if (GOOD_NEWS.test(line) && !/(^|[^a-záéíóúñ])(no|ni|sin|falta)\s+(\S+\s+){0,2}(listo|lista|qued|pas[oó]|resuelt|arreglad|comprobad|mergead|desplegad)/i.test(line)) return [['celebrate', .4, 2800, 1600], ['thumb', .3, 2400, 1400]]
   return null
 }
 watch(() => voice.line, (line) => {
@@ -524,7 +524,7 @@ watch(() => voice.line, (line) => {
   const t = Date.now(), next = {}
   for (const c of props.cast) {
     const k = keyOf(c)
-    if (k === voice.speaker || propOf(c) || activityOf(c) === 'cafe') continue
+    if (k === voice.speaker || propOf(c) || activityOf(c) === 'coffee') continue
     // en un mensaje dirigido, reaccionan los nombrados; los demás siguen en lo suyo
     if (voice.addressed.length && !voice.addressed.includes(k)) continue
     let r = Math.random()
@@ -538,7 +538,7 @@ watch(() => voice.line, (line) => {
 
 // ── LOS EFECTOS DE SONIDO (sfx.js): lo que pasa en la llamada suena, bajito ─────────────────────────────
 // el portátil: al cerrarlo, el clic y enseguida el sorbo del tinto; al abrirlo, su clic
-watch(() => props.cast.map((c) => `${keyOf(c)}:${activityOf(c) === 'cafe' ? 'closed' : 'open'}`).join(','), (cur, before) => {
+watch(() => props.cast.map((c) => `${keyOf(c)}:${activityOf(c) === 'coffee' ? 'closed' : 'open'}`).join(','), (cur, before) => {
   if (before === undefined) return
   const prev = Object.fromEntries(before.split(',').map((x) => x.split(/:(?=[^:]*$)/)))
   for (const [k, st] of cur.split(',').map((x) => x.split(/:(?=[^:]*$)/))) {
@@ -547,9 +547,9 @@ watch(() => props.cast.map((c) => `${keyOf(c)}:${activityOf(c) === 'cafe' ? 'clo
   }
 })
 // la música de los audífonos, mientras alguien los tenga puestos; el murmullo de la oficina, si está prendido
-watch(() => props.cast.some((c) => activityOf(c) === 'audifonos'), (on) => sfxLoop('headphones', on), { immediate: true })
+watch(() => props.cast.some((c) => activityOf(c) === 'music'), (on) => sfxLoop('headphones', on), { immediate: true })
 watch(() => sfx.ambient && sfx.on, (on) => sfxLoop('ambient', on), { immediate: true })
-watch(() => sfx.on, (on) => { if (on) { sfxLoop('ambient', sfx.ambient); sfxLoop('headphones', props.cast.some((c) => activityOf(c) === 'audifonos')) } })
+watch(() => sfx.on, (on) => { if (on) { sfxLoop('ambient', sfx.ambient); sfxLoop('headphones', props.cast.some((c) => activityOf(c) === 'music')) } })
 onBeforeUnmount(stopLoops)
 // una mención: un pop cuando empieza el mensaje que nombra a alguien (o cuando nombrás vos)
 watch(() => voice.addressed, (list, old) => { if (list !== old && list?.length) sfxPlay('mention') })
@@ -581,19 +581,19 @@ const speaking = computed(() => (voice.line ? voice.speaker : ''))
    personaje de quien habla (y sólo cuando el valor cambia de verdad, a dos decimales); al callarse o cambiar de turno
    se lo quita, y el personaje vuelve a su vaivén propio. Corre después del render (`post`): el recuadro ya existe. */
 let mouthEl = null, mouthKey = '', mouthValue = ''
-function clearMouth() { mouthEl?.removeAttribute('boca'); mouthEl = null; mouthKey = ''; mouthValue = '' }
+function clearMouth() { mouthEl?.removeAttribute('mouth'); mouthEl = null; mouthKey = ''; mouthValue = '' }
 watchEffect(() => {
   const key = speaking.value, level = voice.level
   if (key !== mouthKey || (mouthEl && !mouthEl.isConnected)) {
     clearMouth()
     mouthKey = key
     if (key) for (const el of box.value?.querySelectorAll('.call-tile') || []) {
-      if (el.dataset.key === key) { mouthEl = el.querySelector('office-personaje'); break }
+      if (el.dataset.key === key) { mouthEl = el.querySelector('office-character'); break }
     }
   }
   if (!mouthEl) return
   const value = level.toFixed(2)
-  if (value !== mouthValue) { mouthValue = value; mouthEl.setAttribute('boca', value) }
+  if (value !== mouthValue) { mouthValue = value; mouthEl.setAttribute('mouth', value) }
 }, { flush: 'post' })
 onBeforeUnmount(clearMouth)
 /* LOS OJOS, HACIA QUIEN HABLA: mientras alguien tiene la palabra, las pupilas de los demás van hacia su recuadro (el
@@ -606,13 +606,13 @@ watchEffect(() => {
   const target = key ? tiles.find((el) => el.dataset.key === key) : null // sin nadie hablando key es '', no null
   const to = target ? target.getBoundingClientRect() : null
   for (const el of tiles) {
-    const who = el.querySelector('office-personaje')
+    const who = el.querySelector('office-character')
     if (!who) continue
     const c = byKey.value[el.dataset.key]
-    if (!to || el === target || !c || aside(c)) { who.removeAttribute('mira'); continue }
+    if (!to || el === target || !c || aside(c)) { who.removeAttribute('look'); continue }
     const from = el.getBoundingClientRect()
     const x = (to.left + to.width / 2) - (from.left + from.width / 2), y = (to.top + to.height / 2) - (from.top + from.height / 2), d = Math.hypot(x, y)
-    d < 1 ? who.removeAttribute('mira') : who.setAttribute('mira', `${(x / d).toFixed(2)},${(y / d).toFixed(2)}`)
+    d < 1 ? who.removeAttribute('look') : who.setAttribute('look', `${(x / d).toFixed(2)},${(y / d).toFixed(2)}`)
   }
 }, { flush: 'post' })
 // el JSON de cada personaje se arma una vez por elenco, no en cada render
@@ -660,7 +660,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
               :title="label(c) ? `${c.name} · ${label(c)}` : c.name"
               :aria-label="`${c.name}${label(c) ? `, ${label(c)}` : ''}: que salude`"
               @click="greet(c)" @keydown.enter.prevent="greet(c)" @keydown.space.prevent="greet(c)">
-        <office-personaje :config="configs[keyOf(c)]" :gesto="gestureOf(c)" :portatil="laptopOf(c)" :actividad="doingOf(c)" aria-hidden="true" />
+        <office-character :config="configs[keyOf(c)]" :gesture="gestureOf(c)" :laptop="laptopOf(c)" :activity="doingOf(c)" aria-hidden="true" />
         <!-- lo que muestra: una hoja, una foto o una hoja que corre, en papel cortado como los personajes -->
         <svg v-if="propOf(c)" class="call-prop" :class="propOf(c)" viewBox="0 0 100 80" aria-hidden="true">
           <template v-if="propOf(c) === 'image'">
@@ -782,7 +782,7 @@ const label = (c) => (c.agent ? `agente de ${c.ownerName || c.owner.split('.')[0
    su único hijo pide height: 100% */
 .call-tile { position: relative; margin: 0; width: var(--tile); height: calc(var(--tile) * 3 / 4); border-radius: 14px; overflow: hidden;
   box-shadow: 0 6px 18px rgba(0, 0, 0, .35); }
-.call-tile office-personaje { display: block; width: 100%; height: 100%; border-radius: 14px; }
+.call-tile office-character { display: block; width: 100%; height: 100%; border-radius: 14px; }
 .call-name { position: absolute; left: 8px; bottom: 8px; max-width: calc(100% - 16px); display: flex; gap: 6px; align-items: baseline;
   padding: 3px 9px; border-radius: 8px; background: #f1e4c7; color: #13323a; font-size: 12px; box-shadow: 0 2px 0 #d9c9a6;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

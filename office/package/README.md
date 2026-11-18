@@ -1,41 +1,48 @@
 # Personajes de Office
 
 Personajes en papel cortado (personas y 20 animales), con la chaqueta de CreditOp y cuatro gestos animados:
-**escucha, teclea, piensa y habla**. Todo viene en un solo archivo, `office-personajes.js`: el dibujo, el estilo y
+**escucha, teclea, piensa y habla**. Todo viene en un solo archivo, `office-characters.js`: el dibujo, el estilo y
 el logo. No usa librerías ni framework.
 
 Un personaje es un **JSON** chico (nombre, especie, forma de cara, peinado, barba, gorro, colores…). Lo armás en la
-página del editor (`index.html` en my-tools, `ejemplo.html` en el paquete) y lo copiás con «Copiar JSON».
+página del editor (`index.html` en my-tools, `example.html` en el paquete) y lo copiás con «Copiar JSON».
 
 ## Mostrar un personaje
 
 ```html
-<script type="module" src="office-personajes.js"></script>
+<script type="module" src="office-characters.js"></script>
 
-<office-personaje
-  gesto="habla"
+<office-character
+  gesture="talking"
   config='{"name":"Ana","face":"corazon","hair":"curly","hairColor":"#23171a","skin":"#8a5a3c","hat":"boina","hatColor":"#9b8ec7"}'>
-</office-personaje>
+</office-character>
 ```
 
-- `gesto`: `escucha` · `teclea` · `piensa` · `habla` (se puede cambiar en cualquier momento).
-- `fondo="false"`: sin el paisaje de papel, sólo el personaje.
-- `boca="0.6"` (con `gesto="habla"`): la boca la movés vos, de 0 (cerrada) a 1 (abierta), por ejemplo con el volumen de
+- `gesture`: `idle` (escucha) · `typing` (teclea) · `thinking` (piensa) · `talking` (habla); se puede cambiar en
+  cualquier momento.
+- `background="false"`: sin el paisaje de papel, sólo el personaje.
+- `activity`: `coffee` · `music` · `wave` · `thumb` · `celebrate` · `laugh` · `surprise` · `confused`, y `laptop="open|closed"`.
+- `look="dx,dy"`: adónde mira (de -1 a 1).
+- `mouth="0.6"` (con `gesture="talking"`): la boca la movés vos, de 0 (cerrada) a 1 (abierta), por ejemplo con el volumen de
   un audio cuadro a cuadro. Sin el atributo, la boca hace su vaivén propio.
 - El tamaño lo pone tu CSS (`width`); guarda la proporción 4:3.
 
 ## Desde JavaScript
 
 ```js
-import { dibujar, svg, alAzar, OPCIONES } from './office-personajes.js'
+import { draw, svg, randomCharacter, OPTIONS } from './office-characters.js'
 
-const yo = dibujar(document.querySelector('#avatar'), { name: 'Miguel', face: 'largo', hair: 'recogido', beardStyle: 'chivera' })
-yo.gesto = 'piensa'                       // cambia el gesto
-yo.config = alAzar({ name: 'Sorpresa' })  // otro personaje
+const me = draw(document.querySelector('#avatar'), { name: 'Miguel', face: 'largo', hair: 'recogido', beardStyle: 'chivera' })
+me.gesture = 'thinking'                          // cambia el gesto
+me.config = randomCharacter({ name: 'Sorpresa' }) // otro personaje
 
-const texto = svg({ species: 'gato' }, { gesto: 'escucha', fondo: false })  // el SVG como texto
-console.log(Object.keys(OPCIONES.species))                                  // lo que se puede elegir
+const text = svg({ species: 'gato' }, { gesture: 'idle', background: false })  // el SVG como texto
+console.log(Object.keys(OPTIONS.species))                                     // lo que se puede elegir
 ```
+
+**Los nombres de antes siguen andando** (eran en español hasta el 2026-11-18): `<office-personaje>` con `gesto`,
+`fondo`, `boca`, `actividad`, `portatil` y `mira` (y sus valores en español: `habla`, `cafe`, `cerrado`…), las
+funciones `dibujar`, `alAzar`, `personaje` y `OPCIONES`, y el archivo `office-personajes.js` donde se publica.
 
 ## Las piezas del JSON
 

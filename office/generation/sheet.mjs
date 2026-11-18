@@ -2,15 +2,15 @@
 // animarla: colores sólidos, sin degradados ni texturas, piezas separadas y las mismas proporciones en las nueve.
 // La llave se lee de connectors/.env y no se imprime.
 //
-//   node office/generacion/hoja.mjs <personaje> <salida.jpg> [modelo]   (Gemini devuelve JPEG)
+//   node office/generation/sheet.mjs <personaje> <salida.jpg> [modelo]   (Gemini devuelve JPEG)
 //
-// Personajes: los de PERSONAJES, abajo. Son los agentes y personas originales de Office.
+// Personajes: los de CHARACTERS, abajo. Son los agentes y personas originales de Office.
 import { readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..')
-const [, , who = 'wario', out = 'hoja.png', model = 'gemini-3-pro-image'] = process.argv
+const [, , who = 'wario', out = 'sheet.png', model = 'gemini-3-pro-image'] = process.argv
 const env = readFileSync(join(root, 'connectors', '.env'), 'utf8')
 const key = env.split('\n').find((l) => l.startsWith('GEMINI_API_KEY='))?.slice('GEMINI_API_KEY='.length).trim().replace(/^["']|["']$/g, '')
 if (!key) throw new Error('falta GEMINI_API_KEY en connectors/.env')
@@ -19,7 +19,7 @@ if (!key) throw new Error('falta GEMINI_API_KEY en connectors/.env')
 const PALETTE = 'deep teal #13323a, teal #2b6670, soft teal #4f8b8a, sage #8db3a9, cream #f1e4c7, red #c5381f, dark red #962b19, orange #e5592a, amber #f08c3d'
 // Cada personaje: cómo es, de qué piezas está hecho y los nueve cuadros. Todos son ORIGINALES: nada de personajes
 // con derechos (ni sus gorras, letras, bigotes u overoles característicos).
-const PERSONAJES = {
+const CHARACTERS = {
   wario: {
     desc: `a friendly original robot assistant: a rounded-square cream (#f1e4c7) head with a dark teal (#13323a) rounded visor, two round sage (#8db3a9) eyes on the visor and a short sage pill-shaped mouth, a thin dark antenna topped by a sage ball, two small orange ear pieces on the sides of the head, a chunky amber-orange (#f08c3d) body with rounded shoulders and a cream circle on the chest with a sage dot, short orange arms with cream round hands`,
     parts: 'head, visor, each eye, mouth, antenna, body, each arm, each hand; eyes and mouth are simple separate shapes on top of the visor',
@@ -35,8 +35,8 @@ const PERSONAJES = {
     panels: '1 neutral, small smile; 2 blinking, both eyes as short curved lines; 3 talking, mouth a small open oval; 4 big happy smile, eyes as upward arcs; 5 looking to the left, only the eyes move; 6 waving hello with one hand raised, the rest unchanged; 7 both hands together in front of the chest, as if typing; 8 thinking, one mitten on the chin, eyes looking up; 9 surprised, eyes as bigger round dots and a small round open mouth',
   },
 }
-const c = PERSONAJES[who]
-if (!c) throw new Error(`no conozco a «${who}»: ${Object.keys(PERSONAJES).join(', ')}`)
+const c = CHARACTERS[who]
+if (!c) throw new Error(`no conozco a «${who}»: ${Object.keys(CHARACTERS).join(', ')}`)
 
 const prompt = `A character sheet: a 3x3 grid of nine square panels of equal size on a pure flat white background, separated by generous white space, no borders, no text, no letters, no numbers.
 The SAME single character in every panel: ${c.desc}.

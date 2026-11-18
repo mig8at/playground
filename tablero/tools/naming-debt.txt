@@ -82,17 +82,6 @@ harness/pkg/suite-scope.spec.ts caso
 harness/pkg/wizard-health.spec.ts sano
 jarvis/recipes/aistudio/uso.ts uso.ts
 jarvis/recipes/chatgpt/page.ts pensar
-office/cli/personaje.mjs personaje.mjs
-office/generacion generacion
-office/generacion/hoja.mjs PERSONAJES
-office/generacion/hoja.mjs hoja.mjs
-office/generacion/hojas hojas
-office/paquete paquete
-office/paquete/build.mjs destino
-office/paquete/ejemplo.html ejemplo.html
-office/personajes.css personajes.css
-office/personajes.js OPCIONES
-office/personajes.js personajes.js
 sala sala
 sala/barrido.go barrido.go
 sala/canon-guia.md canon-guia.md

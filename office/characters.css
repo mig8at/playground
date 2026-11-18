@@ -1,5 +1,5 @@
 /* OFFICE · los personajes en papel cortado: la paleta, el recuadro de la llamada y la animación de recortes.
- Lo usan la llamada (index.html) y el editor (editor.html); el dibujo está en personajes.js. */
+ Lo usan la llamada (index.html) y el editor (editor.html); el dibujo está en characters.js. */
 :root {
   /* la paleta del papel */
   --ink: #13323a; --teal-deep: #1d4a54; --teal: #2b6670; --teal-soft: #4f8b8a; --sage: #8db3a9;
@@ -44,7 +44,7 @@
 .avatar, .head, .body, .pupils, .brow-l, .brow-r, .eyes, .mouth, .hand-l, .hand-r, .hand-chin { transform-box: view-box; }
 .body { transform-origin: 200px 300px; animation: sway 4.6s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
 .head { transform-origin: 200px 236px; animation: bob 3.4s ease-in-out infinite alternate; animation-delay: var(--d, 0s); }
-/* CADA UNO A SU RITMO: personajes.js le da a cada personaje sus factores (--kb cuerpo, --kh cabeza, --ke parpadeo, --kl
+/* CADA UNO A SU RITMO: characters.js le da a cada personaje sus factores (--kb cuerpo, --kh cabeza, --ke parpadeo, --kl
    mirada) además de su arranque (--d). Las duraciones de arriba y de abajo son la base; acá se multiplican. Va aparte
    del `animation:` para que el CLI siga leyendo de ahí la duración base. */
 .body { animation-duration: calc(4.6s * var(--kb, 1)); }
@@ -77,7 +77,7 @@
 .m-talk, .m-think, .m-flat { display: none; }
 .tile.talking .m-smile, .tile.thinking .m-smile, .tile.typing .m-smile { display: none; }
 .tile.talking .m-talk, .tile.thinking .m-think, .tile.typing .m-flat { display: inline; }
-/* LAS MANOS (personajes.js, personHands): tecleando asoman abajo y golpean alternadas; pensando, una sube a la barbilla */
+/* LAS MANOS (characters.js, personHands): tecleando asoman abajo y golpean alternadas; pensando, una sube a la barbilla */
 .hand-type, .hand-chin { display: none; }
 .tile.typing .hand-type, .tile.thinking .hand-chin { display: inline; }
 .tile.typing .hand-l { animation: tap .3s ease-in-out infinite alternate; }
@@ -100,14 +100,14 @@
    boca y la parte de abajo */
 .tile.talking .beak-top.big { animation: bigbill .24s ease-in-out infinite alternate; }
 @keyframes bigbill { from { transform: scaleY(1); } to { transform: scaleY(.74); } }
-/* LA BOCA MOVIDA DESDE AFUERA (lipsync): quien reproduce un audio pone --boca de 0 (cerrada) a 1 (abierta) cuadro a
+/* LA BOCA MOVIDA DESDE AFUERA (lipsync): quien reproduce un audio pone --mouth de 0 (cerrada) a 1 (abierta) cuadro a
    cuadro con el volumen, y la boca sigue eso en vez de su vaivén fijo. La cabeza sigue asintiendo. */
-.tile.talking.lipsync .mouth { animation: none; transform: scaleY(calc(.3 + var(--boca, .5) * .95)); transition: transform 50ms linear; }
-.tile.talking.lipsync .beak-jaw { animation: none; transform: translateY(calc(-8px + var(--boca, .5) * 12px)); transition: transform 50ms linear; }
-.tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--boca, .5) * .75)); transition: transform 50ms linear; }
-.tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--boca, .5) * -3px)); transition: transform 50ms linear; }
-.tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--boca, .5) * .26)); transition: transform 50ms linear; }
-/* LO QUE TIENEN A MANO (personajes.js, personProps): todo viene dibujado y escondido; se ve según las clases del
+.tile.talking.lipsync .mouth { animation: none; transform: scaleY(calc(.3 + var(--mouth, .5) * .95)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-jaw { animation: none; transform: translateY(calc(-8px + var(--mouth, .5) * 12px)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-inside { animation: none; transform: scaleY(calc(.25 + var(--mouth, .5) * .75)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-top { animation: none; transform: translateY(calc(var(--mouth, .5) * -3px)); transition: transform 50ms linear; }
+.tile.talking.lipsync .beak-top.big { animation: none; transform: scaleY(calc(1 - var(--mouth, .5) * .26)); transition: transform 50ms linear; }
+/* LO QUE TIENEN A MANO (characters.js, personProps): todo viene dibujado y escondido; se ve según las clases del
    recuadro, que pone setTileActivity: has-laptop (tiene el portátil delante), lid-closed (cerrado) y act-coffee,
    act-music, act-wave, act-thumb o act-celebrate. */
 .prop-laptop, .prop-mug, .prop-notes, .prop-confetti, .prop-headphones, .arm { display: none; }
@@ -164,7 +164,7 @@
 @keyframes confetti { from { transform: translateY(0) rotate(0deg); } to { transform: translateY(440px) rotate(calc(var(--br, 1) * 540deg)); } }
 .bit { transform-origin: center; transform-box: fill-box; }
 /* LAS CARAS DE REACCIÓN (act-laugh, act-surprise, act-confused): se arman con lo que la cara ya tiene, más los ojos
-   de risa (dos arcos) y las marcas «!» y «?» que personajes.js deja dibujadas y escondidas. */
+   de risa (dos arcos) y las marcas «!» y «?» que characters.js deja dibujadas y escondidas. */
 .eyes-laugh, .mark { display: none; }
 .mark { transform-box: view-box; transform-origin: 330px 100px; }
 /* la risa: ojos en arco, boca abierta que salta, y cabeza y cuerpo que se sacuden */

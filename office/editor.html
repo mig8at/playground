@@ -5,13 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Office · personajes</title>
 <!--
-  OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPCIONES, en personajes.js):
+  OFFICE · EL EDITOR DE PERSONAJES. Se arma un personaje eligiendo piezas del catálogo (OPTIONS, en characters.js):
   especie (persona o uno de los animales), piel o pelaje, forma de cara, ojos, nariz, dientes, peinado y su color, detalles, chaqueta y fondo. La vista previa es el
   mismo recuadro de la llamada, con los mismos gestos (escucha, teclea, piensa, habla), así que lo que se ve acá es
   lo que se ve allá. También se elige el gorro, que va encima de cualquier peinado. «Guardar» lo deja en este navegador y entra a la llamada en lugar de un invitado de ejemplo;
   también se puede copiar como JSON (una entrada de CAST) o bajar como SVG.
 -->
-<link rel="stylesheet" href="personajes.css">
+<link rel="stylesheet" href="characters.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -132,7 +132,7 @@
   <div class="toast" id="toast" role="status"></div>
 </div>
 
-<script src="personajes.js"></script>
+<script src="characters.js"></script>
 <script>
 // ── EL PERSONAJE QUE SE EDITA ────────────────────────────────────────────────────────────────────
 const START = { name: 'Nuevo', owner: '', kind: 'human', species: '', skin: '#e0ac7e', hair: 'side', hairColor: '#4a2f1c', face: 'round', nose: 'button', teeth: 'grin', eye: 25,
@@ -190,11 +190,11 @@ const swatches = (key, label, colors) => colors.map((c, i) => {
 }).join('')
 document.querySelectorAll('[data-swatches]').forEach((row) => {
   const key = row.dataset.swatches
-  row.innerHTML = swatches(key, SWATCH_LABEL[key] || key, OPCIONES[key])
+  row.innerHTML = swatches(key, SWATCH_LABEL[key] || key, OPTIONS[key])
 })
 function drawSkinRow() {
   const sp = cur.species || ''
-  const colors = OPCIONES.skinBy[sp] || OPCIONES.skin
+  const colors = OPTIONS.skinBy[sp] || OPTIONS.skin
   const label = ['pato', 'pinguino', 'buho', 'tucan', 'loro'].includes(sp) ? 'Plumas' : sp === 'oveja' ? 'Lana' : sp === 'rana' ? 'Piel' : sp ? 'Pelaje' : 'Piel'
   document.getElementById('skin-label').textContent = label
   document.getElementById('skin-row').innerHTML = swatches('skin', label, colors)
@@ -202,15 +202,15 @@ function drawSkinRow() {
 }
 document.querySelectorAll('[data-options]').forEach((row) => {
   const key = row.dataset.options
-  row.innerHTML = Object.entries(OPCIONES[key]).map(([v, l]) => `<button type="button" class="opt" data-key="${key}" data-val="${v}">${l}</button>`).join('')
+  row.innerHTML = Object.entries(OPTIONS[key]).map(([v, l]) => `<button type="button" class="opt" data-key="${key}" data-val="${v}">${l}</button>`).join('')
 })
 document.getElementById('extras').innerHTML = [
-  ...Object.entries(OPCIONES.extras).map(([v, l]) => `<button type="button" class="opt" data-extra="${v}">${l}</button>`),
-  ...Object.entries(OPCIONES.looks).map(([v, l]) => `<button type="button" class="opt" data-look="${v}">${l}</button>`),
+  ...Object.entries(OPTIONS.extras).map(([v, l]) => `<button type="button" class="opt" data-extra="${v}">${l}</button>`),
+  ...Object.entries(OPTIONS.looks).map(([v, l]) => `<button type="button" class="opt" data-look="${v}">${l}</button>`),
 ].join('')
 document.querySelector('.panel').addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return
-  if (b.dataset.key === 'species') { cur.species = b.dataset.val; cur.skin = (OPCIONES.skinBy[cur.species] || OPCIONES.skin)[cur.species ? 0 : 3]; drawSkinRow(); draw() }
+  if (b.dataset.key === 'species') { cur.species = b.dataset.val; cur.skin = (OPTIONS.skinBy[cur.species] || OPTIONS.skin)[cur.species ? 0 : 3]; drawSkinRow(); draw() }
   else if (b.dataset.key) { cur[b.dataset.key] = b.dataset.val; draw() }
   else if (b.dataset.extra) { const x = b.dataset.extra; cur.extras = cur.extras.includes(x) ? cur.extras.filter((y) => y !== x) : [...cur.extras, x]; draw() }
   else if (b.dataset.look) { cur[b.dataset.look] = !cur[b.dataset.look]; draw() }
@@ -283,7 +283,7 @@ document.getElementById('delete').addEventListener('click', () => {
 })
 document.getElementById('random').addEventListener('click', () => {
   const previous = { ...cur }
-  cur = randomPerson(cur); if (cur.species) cur.skin = OPCIONES.skinBy[cur.species][Math.floor(Math.random() * OPCIONES.skinBy[cur.species].length)]; draw()
+  cur = randomPerson(cur); if (cur.species) cur.skin = OPTIONS.skinBy[cur.species][Math.floor(Math.random() * OPTIONS.skinBy[cur.species].length)]; draw()
   offerUndo(previous, 'Piezas al azar.')
 })
 document.getElementById('new').addEventListener('click', () => {

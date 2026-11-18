@@ -79,7 +79,7 @@
    tiene en la mano y la lista de la derecha */
 #grid .state { display: none; }
 </style>
-<link rel="stylesheet" href="personajes.css">
+<link rel="stylesheet" href="characters.css">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;800;900&display=swap" rel="stylesheet">
 </head>
@@ -118,7 +118,7 @@
   <div class="captions" id="captions" aria-live="off"></div>
 </div>
 
-<script src="personajes.js"></script>
+<script src="characters.js"></script>
 <script>
 // ── QUIÉNES ESTÁN ────────────────────────────────────────────────────────────────────────────────
 // Todos son originales y dibujados a mano. kind: 'human' | 'agent' (el agente lleva owner, de quién es).
@@ -209,7 +209,7 @@ function idleStates() {
 // ── LO QUE HACEN MIENTRAS TANTO ──────────────────────────────────────────────────────────────────
 // Aparte del gesto, cada uno a su ritmo cierra el portátil para un tinto, se pone los audífonos, o reacciona a lo que
 // se dice: el nombrado saluda, y cuando algo sale bien unos celebran y otros dan el visto bueno. Lo dibuja
-// personajes.js (setTileActivity); acá sólo se decide quién, cuándo y por cuánto.
+// characters.js (setTileActivity); acá sólo se decide quién, cuándo y por cuánto.
 function setActivity(p, act, ms) {
   p.act = act; p.actUntil = act ? t + ms : 0
   setTileActivity(p.el, act, 'open')

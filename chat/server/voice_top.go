@@ -76,7 +76,7 @@ var characterVoices = []topVoice{
 	{"Rada", "HJmys3t5KLr6DUWl0kSe", "male", "latin american", "relaxed, confident, calm, 174 Hz", 0},
 }
 
-// speciesVoices: por especie (las de office/personajes.js), su voz de mujer y su voz de hombre.
+// speciesVoices: por especie (las de office/characters.js), su voz de mujer y su voz de hombre.
 var speciesVoices = map[string][2]string{
 	"leon":     {"Malena", "Gabo"},
 	"panda":    {"Gabriela González", "Santiago"},
