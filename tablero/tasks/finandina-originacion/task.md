@@ -464,7 +464,7 @@ Falta: un caso fuera de política (necesita la preaprobación por el motor de cu
 - PRD «PRD – Integración Banco Finandina» (Google Doc `1utJdnxfmL8Zre7ihll6Zvq9VraA57JDQpopGYybgUb0`).
 - Carpeta de Drive «Finandina» (`17AcO2PoM2U_5MCzpFtvA9bJDbbTwc0th`): «Politicas Creditop.pdf» (la Tabla 3 es
   una imagen en la página 4), `image.png` (el flujo), y «Documentos formalización de crédito» con el formulario,
-  los T&C y el mapa de campos (`1WOLprjW9qvsqHhDy1Ah555Pyff7Y5oKa`, 27-10; hay otra versión del 23-10 en la
+  los T&C y el mapa de campos (subcarpeta `1HoKX0QkNNOX0U2HNMzuOtD4O2NUqVrOo`; el mapa del 27-10 es `1WOLprjW9qvsqHhDy1Ah555Pyff7Y5oKa`, y hay uno del 10-11 en la raíz; otra versión del 23-10 en la
   raíz). ⚠ `Archivos_credenciales`, `Credenciales de pruebas Experian.docx` y `Mareigua.png` tienen
   credenciales: no se copian.
 - Slack: `#finandina` (pendientes de llaves, CONFE y Deceval, enero–febrero) y el hilo del PRD en `#producto-tech`.
