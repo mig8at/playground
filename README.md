@@ -45,7 +45,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | Si venís a… | Arrancá por |
 |---|---|
 | Entender un flujo o subsistema | `make knowledge-map`, `knowledge-search Q=…` y `knowledge-read ID=…`; completar y verificar en el código de `main` |
-| Consultar conocimiento de negocio/producto que no se puede comprobar en local | Canon, opcional: `make canon-search Q=…` y `make canon-read IDS=…` |
+| Consultar conocimiento de negocio/producto que no se puede comprobar en local | Confluence y la documentación del equipo; canon (del equipo, fuera de my-tools) con `playground canon search\|read` |
 | «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/traps/doc.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | la app Harness de Cockpit, o `make panel` → el panel maneja el wizard real |
 | Ver las tareas o el chat | Cockpit (`make cockpit`), o `make tablero` |

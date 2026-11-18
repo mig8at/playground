@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/connectors/repos"
 	"creditop/my-tools/knowledge"
 	"creditop/my-tools/tablero/server/internal/layout"
@@ -37,31 +36,6 @@ func resolve(s *store.Store, ref string) (*store.EffortRef, error) {
 		}
 	}
 	return nil, fmt.Errorf("no hay tarea %q (id o slug exacto)", ref)
-}
-
-// canonMissing le pregunta a canon por los temas citados y devuelve los que no conoce.
-func canonMissing(ctx context.Context, refs []string) ([]string, error) {
-	// Cuatro segundos y no los ocho del cliente: sin VPN canon no contesta, y agregar un bloque no
-	// puede quedarse colgado esperando una red que no está (el bloque entra con un aviso).
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
-	got, err := canon.FromEnv().References(ctx, refs)
-	if err != nil {
-		return nil, err
-	}
-	var missing []string
-	for _, r := range got {
-		if r.Error != "" {
-			missing = append(missing, r.Requested+" ("+r.Error+")")
-		}
-	}
-	return missing, nil
-}
-
-func canonRoutesMissing(ctx context.Context, refs []string) ([]string, error) {
-	ctx, cancel := context.WithTimeout(ctx, 4*time.Second)
-	defer cancel()
-	return canon.FromEnv().MissingRoutes(ctx, refs)
 }
 
 func main() {
@@ -126,8 +100,7 @@ func main() {
 	if err != nil {
 		fail("bloque inválido: %v", err)
 	}
-	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Canon: canonMissing, CanonRoutes: canonRoutesMissing,
-		Knowledge: knowledgeExists, Existing: events}
+	deps := taskcontext.BlockDeps{Files: repos.New(layout.Find().Tools()), Knowledge: knowledgeExists, Existing: events}
 	block, warnings, err := taskcontext.PrepareBlock(context.Background(), title, body, *via, deps, time.Now())
 	for _, w := range warnings {
 		fmt.Fprintf(os.Stderr, "  ⚠ %s\n", w)

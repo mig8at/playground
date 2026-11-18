@@ -12,8 +12,8 @@ espera respuesta, su pestaña y su fila laten, y en las otras se escribe pero no
 
 **Los nombres del protocolo están en inglés** (2026-11-18, regla de my-tools: el código en inglés, lo que se ve en
 español). Lo que pide un agente: `help`, `commands`, `traps`/`trap`, `task`, `guide`, `write`, `patch`, `list`,
-`read`, `check`, `build`, `test`, `check-api`, `console` (y `with-api` adentro), `changes`, `sources`, `grep`, `code`,
-`canon read|search`; los bloques ```` ```command ````, ```` ```file ```` y ```` ```patch ```` (`SEARCH`/`REPLACE`); la
+`read`, `check`, `build`, `test`, `check-api`, `console` (y `with-api` adentro), `changes`, `sources`, `grep`, `code`;
+los bloques ```` ```command ````, ```` ```file ```` y ```` ```patch ```` (`SEARCH`/`REPLACE`); la
 carpeta `wally/sandbox/` (servida en `/sandbox/`) con su `criteria.json` (páginas: `name`, `page`, `steps` con `click`,
 `type {field, text}`, `select {field, option}`, `check`, `see`, `not_see`; APIs: `request {method, path, body}` y
 `expect {status, contains, not_contains}`); los estados `proposed · running · ran · dismissed · not-allowed`; el modo
@@ -366,9 +366,9 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   ventana no lo vuelve a correr: 409 «ya está corriendo», que la interfaz y el CLI toman como «lo tomó otro»); en
   Auto, o con una corrida de afuera, la tarjeta dice «en cola» y «corriendo…» en vez de Correr/Descartar. Al
   arrancar, un comando que quedó «corriendo» de un proceso cortado vuelve a «propuesto».
-- **Canon, para leer**: `canon read <id>[#ancla]` y `canon search '…'` (`runPlayground`, el CLI `playground` con la
-  sesión de Miguel, sin shell).
-- **Ditto: un tema de canon a knowledge, solo** ([`agents/ditto.md`](agents/ditto.md)): lee el tema, busca cada
+- **Canon se sacó de Wally el 2026-11-18** (canon es del equipo y no es de my-tools): ya no están `canon read` ni
+  `canon search`, la habilidad `canon` ni las notas de Ditto. Lo de abajo es historia de cuando existían.
+- **Ditto (retirado): un tema de canon a knowledge, solo**: lee el tema, busca cada
   afirmación en los dos monolitos (`grep` acepta una carpeta), lee el rango, y entrega el borrador de `rules.md`, sus
   fuentes, las diferencias con canon y lo no verificado; no escribe. Primera corrida (2026-11-17, `asesor/context`,
   por DeepSeek en Auto): 7 vueltas de 4 a 5 búsquedas, hasta que el mensaje llegó a ~130 mil caracteres y la web lo
@@ -538,7 +538,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     líneas para lo de varios pasos, no inventar, citar, decir qué comprobó y qué no) y qué no puede. Sin comandos.
   - **[`skills/`](skills/) son sus habilidades**, un archivo cada una (`# nombre: para qué sirve`, sus comandos con un
     bloque de ejemplo, y cómo usarla): `knowledge`, `knowledge-al-dia`, `code`, `traps`, `tareas`, `herramientas`,
-    `pruebas`, `sentinel`, `canon`. El servidor arma el ÍNDICE solo (`skillIndex`, una línea por habilidad) y lo pega
+    `pruebas`, `sentinel`. El servidor arma el ÍNDICE solo (`skillIndex`, una línea por habilidad) y lo pega
     a la base; el detalle se pide con **`help <nombre>`** (`help` solo: el índice). **Agregar una habilidad es
     agregar un archivo**, sin tocar la base ni el servidor (si trae un comando nuevo, sí su línea en `allowList`).
   - **Las dos cosas dicen lo mismo, y se prueba**: `TestSkillsMatchTheAllowList` corre cada comando de ejemplo de cada
@@ -546,7 +546,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **Un agente trae precargadas las de su oficio** (`Agent.Skills`; `bin/wally agent create|update --skill …`,
     `bin/wally skills` las lista): no gasta una vuelta pidiendo ayuda. Smeargle `pruebas` (y sus notas quedaron en el
     ciclo, sin repetir la habilidad); Porygon y los nueve de knowledge `knowledge`, `knowledge-al-dia`, `code`;
-    Noctowl `sentinel`, `traps`; Mew `tareas`, `traps`, `knowledge`; Ditto `canon`, `code`.
+    Noctowl `sentinel`, `traps`; Mew `tareas`, `traps`, `knowledge`.
   Probado con DeepSeek, en Auto, en conversaciones nuevas de Wally: (1) una pregunta que no pide mirar nada: contestó
   directo, 7,5 s; (2) «¿ya nos pasó que el OTP no valide en staging?»: `help trampas` → `traps` → `trap F-135` →
   la causa, diciendo qué no verificó (4 vueltas, 97 s); (3) «armame una página con un contador»: `help pruebas` → la

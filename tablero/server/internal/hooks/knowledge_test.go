@@ -17,7 +17,7 @@ func TestSessionKnowledgeDoesNotContactCanonOrRequireACopy(t *testing.T) {
 	root := t.TempDir()
 	os.MkdirAll(filepath.Join(root, "knowledge"), 0755)
 	got := knowledgeSection(root)
-	if hits != 0 || !strings.Contains(got, "Canon es opcional") || strings.Contains(got, "MAPA DE CANON") {
+	if hits != 0 || !strings.Contains(got, "no es de my-tools") || strings.Contains(got, "MAPA DE CANON") {
 		t.Fatalf("arranque: %d consultas, %s", hits, got)
 	}
 }

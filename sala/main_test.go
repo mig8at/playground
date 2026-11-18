@@ -30,47 +30,6 @@ func TestVerdictLine(t *testing.T) {
 	}
 }
 
-// Las piezas salen de los bloques ```pieza; un JSON roto no cuenta, y la etiqueta lleva tema, sección y archivos.
-func TestParsePieces(t *testing.T) {
-	text := mockCanonPieces("cuota") + "\n```pieza\n{roto\n```\n"
-	got := parsePieces(text)
-	if len(got) != 2 {
-		t.Fatalf("quería 2 piezas, salieron %d", len(got))
-	}
-	if kind, _ := pieceLabel(got[0]); kind != "verificado" {
-		t.Fatalf("la primera es un verificado, salió %q", kind)
-	}
-	kind, label := pieceLabel(got[1])
-	if kind != "correction" || !strings.Contains(label, "«Regla simulada»") || !strings.Contains(label, "legacy-backend:app/Y.php") {
-		t.Fatalf("la segunda quedó mal: %q %q", kind, label)
-	}
-	if m := reVerdict.FindStringSubmatch("VEREDICTO: P2 | ✓ | git show | sigue"); m == nil || m[1] != "P2" {
-		t.Fatalf("no se leyó el veredicto de una pieza: %v", m)
-	}
-}
-
-// Las notas se cortan por su línea «NOTA:», y el integrador marca cada pieza que nombra.
-func TestNotesAndIntegration(t *testing.T) {
-	got := parseNotes("intro\nNOTA: legacy-backend:a/B.php\ncambió X\n\nNOTA: frontend-monorepo:c.tsx\nnada de fondo\n")
-	if len(got) != 2 || !strings.Contains(got["legacy-backend:a/B.php"], "cambió X") || strings.Contains(got["legacy-backend:a/B.php"], "nada de fondo") {
-		t.Fatalf("las notas quedaron mal: %q", got)
-	}
-	m := reIntegration.FindStringSubmatch("INTEGRACIÓN: P3, P12 | cuentan distinto el tope | P12 enlaza a P3")
-	if m == nil || len(reID.FindAllString(m[1], -1)) != 2 || !strings.Contains(m[2], "enlaza") {
-		t.Fatalf("no se leyó la integración: %v", m)
-	}
-	if reIntegration.FindStringSubmatch("INTEGRACIÓN: ninguna") != nil {
-		t.Fatal("«ninguna» no es un problema")
-	}
-	shared := sharedChanges(canonWork{
-		"a": {{Topic: "a", Repo: "r", Path: "x"}, {Topic: "a", Repo: "r", Path: "solo"}},
-		"b": {{Topic: "b", Repo: "r", Path: "x"}},
-	}, []string{"a"})
-	if len(shared) != 1 || len(shared["r:x"]) != 2 {
-		t.Fatalf("compartidos mal: %v", shared)
-	}
-}
-
 // Un verificador que escribe el veredicto en negrita sigue contando (pasó el 2026-11-05 y dejó dos piezas sin veredicto).
 func TestVerdictInBold(t *testing.T) {
 	m := reVerdict.FindStringSubmatch("**VEREDICTO: P1 | ✗ | git show x | la sección dice otra cosa**")

@@ -21,10 +21,6 @@ help: ## esta lista
 	@echo ""
 	@echo "  CREDITOP · my-tools          (make <comando>)"
 	@$(call listar,@dia,LO QUE SE USA TODOS LOS DÍAS)
-	@$(call listar,@can,CANON — opcional para negocio/producto: consultar o publicar (skill: .claude/skills/canon))
-	@echo "    y desde ~/Desktop/CREDITOP/github/playground/tools/canon:"
-	@echo "    go run . -ronda                      ¿qué cambió en main de lo que el corpus declara?"
-	@echo "    go run . -peso                       …y cuál de eso pesa, por actividad de 90 días"
 	@$(call listar,@har,HARNESS — validar una tarea corriéndola contra el código real)
 	@$(call listar,@expl,EXPLORACIONES — NO son fuente de contexto (ver CLAUDE.md))
 	@echo ""
@@ -363,7 +359,7 @@ jev-test: ## @dia la conexión con la API de Jev, sin uso encima hasta que aterr
 # Python, NO el diccionario del sistema, que deja pasar `aviso` o `leer`. Lo legítimo que la vara no
 # conoce va a tablero/tools/naming-allow.txt, con su categoría.
 tablero-naming: ## @dia ¿el código de my-tools nombra algo en español? el tablero, lo compartido (connectors, cmd, lib, tools), el harness, el visor y las apps (chat, jarvis, ecommerce, cockpit, captura, keyring, radar, sala, sentinel). wally, correo, goldfish, office. identificadores de Go, Vue/JS y Python, claves JSON, archivos y carpetas. Sale 1 si sí. Falla sólo con un nombre NUEVO: los de antes son deuda conocida (tablero/tools/naming-debt.txt). ALL=1 muestra también la deuda · FREEZE=1 la vuelve a congelar (después de renombrar, para que baje) · WORDS=1 lista las palabras desconocidas · CANON=<raíz del repo compartido> revisa SÓLO canon (tools/canon)
-	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words) $(if $(ALL),-all) $(if $(FREEZE),-freeze) $(if $(CANON),-canon $(CANON))
+	@cd tablero/server && go run ./cmd/naming $(if $(WORDS),-words) $(if $(ALL),-all) $(if $(FREEZE),-freeze)
 
 tablero-naming-test: ## @dia pruebas del chequeo de nombres: la vara, las formas derivadas y un nombre español inventado en cada lenguaje
 	@cd tablero/server && go test -count=1 ./internal/naming
@@ -488,8 +484,6 @@ radar-session: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, 
 .PHONY: rehearsal rehearsal-compare
 sweep: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TOPICS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [CAP=2.5 US$ por agente] [VERIFIER_CAP=3] · MOCK=1 simula sin gastar
 	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -sweep "$(if $(TOPICS),$(TOPICS),auto)" $(if $(N),-n $(N),) $(if $(CAP),-cap $(CAP),) $(if $(VERIFIER_CAP),-verifier-cap $(VERIFIER_CAP),)
-sweep-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TOPICS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [CAP=2.5] [VERIFIER_CAP=3] · MOCK=1 simula sin gastar
-	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -mode canon -sweep "$(if $(TOPICS),$(TOPICS),auto)" $(if $(N),-n $(N),) $(if $(CAP),-cap $(CAP),) $(if $(VERIFIER_CAP),-verifier-cap $(VERIFIER_CAP),)
 rehearsal: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. BATCH=<nombre> [N=3 corridas por pregunta] [ONLY=listado-local,…] [BUDGET=1.5 US$ por corrida] [DRY=1 sólo los jueces, gratis]
 	@go run ./ensayo -batch "$(BATCH)" $(if $(N),-n $(N),) $(if $(ONLY),-only $(ONLY),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(DRY),-dry,)
 rehearsal-compare: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
@@ -879,53 +873,26 @@ wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally com
 	@docker build -t wally-rust wally/rust
 knowledge-check: ## @dia contrastar fuentes con el main de los clones de canon (main_clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
-knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
-	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
-	@python3 tools/canon-deriva/knowledge.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(RUN),--run '$(RUN)')
+knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
+	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/knowledge-drift/CLAUDE.md"; exit 2; }
+	@python3 tools/knowledge-drift/drift.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(RUN),--run '$(RUN)')
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
 	@go test ./knowledge ./cmd/knowledge ./tablero/server/cmd/today ./tablero/server/cmd/tasks ./tablero/server/internal/hooks ./tablero/server/internal/layout ./tablero/server/internal/store ./tablero/server/cmd/web
 
-# ── CANON ─────────────────────────────────────────────────────────────────────────────────────────
-# Lectura gratis y escritura por la API, contra CANON_URL (producción por defecto: pide la VPN de
-# prod). Cuándo y qué se escribe: `.claude/skills/canon/SKILL.md`. La llave no se imprime nunca.
-.PHONY: canon-search canon-read canon-route canon-map canon-propose canon-write canon-round canon-clones canon-export canon-patch canon-drift
-canon-route: ## @can el tramo de una variante publicada. REF='codeudor/renting#renting-codeudor'; sin #paso trae la variante entera
-	@cd tablero/server && go run ./cmd/canon route '$(REF)'
-
-canon-map: ## @can el mapa de canon: sus temas por etapa del crédito, con título y resumen, leído de la API en el momento (gratis)
-	@cd tablero/server && go run ./cmd/canon map
-
-canon-search: ## @can ¿canon ya lo tiene? qué sección y qué área lo cubren, gratis. Q='monto avisado al comercio'
-	@test -n "$(Q)" || { echo "falta Q='<palabras del negocio>'"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon search $(Q)
-canon-read: ## @can las secciones completas. IDS='cuota/context#<ancla>' (varias por coma) o el tema entero
-	@test -n "$(IDS)" || { echo "falta IDS='<tema/capa#ancla>'"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon read '$(IDS)'
-canon-propose: ## @can ensaya una pieza sin escribir: dónde iría y qué rechaza el lint. PIECE=<pieza.json>
-	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json> (formato: .claude/skills/canon/SKILL.md)"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon propose '$(abspath $(PIECE))'
-canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UNA revisión que ve el equipo. PIECE='a.json b.json' TITLE='…' [DRY=1 ensaya el recorrido entero —cada pieza al borrador, con sus avisos y los archivos que un `verificado` releería— y lo abandona: no escribe] · un lote de más de ~90 piezas no entra en 5 min: CANON_TIMEOUT=20m
-	@test -n "$(PIECE)" || { echo "falta PIECE=<pieza.json…>"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde my-tools)' $(foreach p,$(PIECE),$(abspath $(p)))
-canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara cambiaron en main (contra los clones del servidor: si main avanzó, antes canon-clones SYNC=1). El servidor la cachea 10 min: FORCE=1 la vuelve a medir. Sale 1 si algo cambió
-	@cd tablero/server && go run ./cmd/canon round $(if $(FORCE),-force)
-canon-eval: ## @can ¿canon está parejo y qué código se mueve sin área? tamaño de cada tema, secciones sin área, repos con dos nombres y, por módulo, cambios en main en archivos que ningún área vigila. Sin modelo, sólo lectura. DAYS=90 · TOP=15 · REPOS=legacy-backend,legacy-application,frontend-monorepo · TARGET=prod lee además lo que canon no supo contestar (VPN) · JSON=1
-	@cd tablero/server && go run ./cmd/canon eval -days $(or $(DAYS),90) -top $(or $(TOP),15) $(if $(REPOS),-repos '$(REPOS)') $(if $(TARGET),-target $(TARGET)) $(if $(JSON),-json)
-canon-restructure: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya y muestra el diff): un lote de operaciones de estructura de canon —crear o reubicar temas, editar su introducción, mover secciones, asignar entidades— en UNA revisión. OPS=<ops.json> REASON='…'
-	@test -n "$(OPS)" -a -n "$(REASON)" || { echo "falta OPS=<ops.json> y REASON='<por qué>'"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon restructure $(if $(APPLY),-apply) -reason '$(REASON)' '$(abspath $(OPS))'
-canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
-	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
-canon-drift: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. STEP=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GROUPS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
-	@test -n "$(STEP)" || { echo "falta STEP=foto|paquete|triaje|codigo|final|piezas|movidos|estado  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
-	@python3 tools/canon-deriva/deriva.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(APPLY),--apply) $(if $(RUN),--run '$(RUN)')
-canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
-	@test -n "$(DIR)" || { echo "falta DIR=<carpeta nueva>"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon export -out '$(abspath $(DIR))'
-canon-patch: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya: canon valida el corpus resultante y muestra el diff): publica los archivos que cambiaste en DIR (la de canon-export), en una revisión parcial. DIR=… REASON='…'. Canon lo rechaza si el corpus cambió desde el export
-	@test -n "$(DIR)" -a -n "$(REASON)" || { echo "falta DIR=<carpeta de canon-export> y REASON='<por qué>'"; exit 2; }
-	@cd tablero/server && go run ./cmd/canon patch $(if $(APPLY),-apply) -dir '$(abspath $(DIR))' -reason '$(REASON)'
-
+# ── CANON SE MUDÓ ──────────────────────────────────────────────────────────────────
+# Canon es del equipo y se mantiene en SU repo (2026-11-18): my-tools ya no tiene nada de canon. El recorrido para
+# ponerlo al día y su cliente viven en ~/Desktop/CREDITOP/github/playground/tools/canon/recontext (README.md), con
+# `task recontextualizar-canon` y `task canon-cli`. Para consultarlo: `playground canon search|read|ask`.
+# Los nombres de antes quedan sólo para decir adónde ir.
+CANON_MOVED := canon-search canon-read canon-route canon-map canon-mapa canon-propose canon-write canon-round canon-eval \
+  canon-restructure canon-clones canon-drift canon-deriva canon-export canon-patch sweep-canon barrido-canon
+.PHONY: $(CANON_MOVED)
+$(CANON_MOVED):
+	@echo "  ✗ make $@ ya no existe: canon se mantiene en el repo compartido (playground)." >&2
+	@echo "    consultar:  playground canon search|read|ask" >&2
+	@echo "    mantener:   cd ~/Desktop/CREDITOP/github/playground && task canon-cli -- <comando>   ·   task recontextualizar-canon -- <paso>" >&2
+	@echo "    el paso a paso: tools/canon/recontext/README.md (en ese repo)" >&2
+	@exit 2
 
 # ── EXPLORACIONES ────────────────────────────────────────────────────────────────────────────────
 # Están acá para poder abrirlas, NO porque sean fuente. No se citan para decidir (ver CLAUDE.md).
@@ -990,11 +957,8 @@ MYTOOLS_OLD_TARGETS := \
   soporte-qa:support-qa \
   tests-codeudor:tests-cosigner \
   barrido:sweep \
-  barrido-canon:sweep-canon \
   ensayo:rehearsal \
   ensayo-comparar:rehearsal-compare \
-  canon-mapa:canon-map \
-  canon-deriva:canon-drift \
   knowledge-deriva:knowledge-drift \
 
 $(foreach p,$(MYTOOLS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))

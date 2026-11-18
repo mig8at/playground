@@ -30,11 +30,7 @@ directo —`playground whoami`, `playground canon search …`, `playground onlin
 se envuelve en `bin/pg`: sería un segundo cliente del mismo servicio. Todo pasa por el home (`/api/t/<herramienta>/api/…`),
 que llega a cada herramienta por la red interna.
 
-**`canon/` usa la misma sesión.** Desde el 2026-10-21 llama a canon de producción por ese gateway
-(`https://playground.creditop.com/api/t/canon`) con el token que deja `playground login` en
-`~/.config/creditop-playground/token.json`, en `Authorization: Bearer`; la llave de escritura va en `x-canon-key`. Ya no
-hay cookies del navegador que copiar: `AUTH_GOOGLE` y `PLAYGROUND_SESION` se sacaron de `.env.prod`. Sin sesión vigente,
-`make canon-*` y `pg canon me` dicen «corré `playground login`».
+El conector de canon se sacó el 2026-11-18: canon se mantiene en el repo compartido, con su propio cliente.
 
 ## Google Drive: con la cuenta de quien entra, sólo lectura
 

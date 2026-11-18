@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/radar/scan"
 )
 
@@ -118,9 +117,6 @@ func (sv *server) handler() http.Handler {
 	}))
 	mux.HandleFunc("/api/gaps", view(func(sessions []scan.Session, _ []scan.Call, since time.Time, r *http.Request) (any, int) {
 		g := scan.GapsView(sessions, since)
-		if r.URL.Query().Get("recheck") == "1" {
-			recheck(&g, canon.FromEnv())
-		}
 		return g, http.StatusOK
 	}))
 	mux.HandleFunc("/api/sessions", view(func(sessions []scan.Session, _ []scan.Call, since time.Time, _ *http.Request) (any, int) {

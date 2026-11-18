@@ -68,7 +68,7 @@ func AskGuard(cmd string) []string {
 		}
 		reasons = append(reasons, r)
 	}
-	const why = "canon se LEE —`make canon-search`, `make canon-read`, `make canon-map`, gratis y con el texto que " +
+	const why = "canon se LEE —`playground canon search`, `playground canon read`, gratis y con el texto que " +
 		"sostiene cada cosa—; `/api/ask` pone un modelo en el medio y es para credibot. Si estás calibrando canon a " +
 		"propósito, agregá " + AskOverride + " al comando."
 	for _, seg := range shell.Segments(cmd) {

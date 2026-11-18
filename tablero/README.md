@@ -14,7 +14,7 @@
 | crear o actualizar una tarea | `TASK-TEMPLATE.md` y después `CLAUDE.md` |
 | entender cómo está compuesta la herramienta | `docs/ARCHITECTURE.md` |
 | encontrar conocimiento técnico local | `make knowledge-map`, `knowledge-search` y `knowledge-read` |
-| consultar negocio/producto sin comprobación local | **Canon**, opcional: `make canon-search` y `canon-read` |
+| consultar negocio/producto sin comprobación local | Confluence y la documentación del equipo (canon no es de my-tools) |
 
 ## La conexión con Jev (sin uso, a propósito)
 
@@ -71,7 +71,6 @@ Un proyecto con **varios comandos Go y un frontend Vue**, todos apoyados en los 
   la variante completa. Conserva los pasos distintos que comparten estación. «Ver mapa» abre la
   variante en esa estación. Los enlaces `canon:tema#sección` siguen abriendo la prosa.
   Ejemplo: `[Firma del codeudor](canon-ruta:codeudor/renting#renting-codeudor)`.
-  `make canon-route REF='codeudor/renting#renting-codeudor'` permite comprobar el destino.
   Se consulta el mapa al mostrar el bloque y se revalida al volver a la ventana; una referencia
   eliminada o una caída de Canon deja visible el relato y ofrece reintentar. El recorrido se consulta
   sólo al pulsar «Consultar en Canon»; aparecer en pantalla no llama a su API. No se copia el mapa

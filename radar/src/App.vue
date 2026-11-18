@@ -49,9 +49,9 @@ async function getJSON(path) {
 // Al cambiar de vista se limpia lo anterior: los datos de «Uso» leídos como «Fricción» se pintaban como
 // «nada en el período». Y sólo se acepta la respuesta del ÚLTIMO pedido, para que una lenta no pise a otra.
 let requestSeq = 0
-async function load(recheck = false) {
+async function load() {
   const seq = ++requestSeq
-  const path = `/api/${view.value}?days=${days.value}${recheck ? '&recheck=1' : ''}`
+  const path = `/api/${view.value}?days=${days.value}`
   data.value = null
   loading.value = true
   error.value = ''
@@ -214,11 +214,6 @@ onBeforeUnmount(() => {
         <span>{{ currentView.label }}</span>
         <span v-if="!loading && data" class="count">{{ total }}</span>
         <div class="region-actions">
-          <button v-if="view === 'gaps'" type="button" class="region-action" :disabled="loading"
-            title="Volver a buscar en canon las consultas vacías (gratis, sin modelo)" aria-label="Volver a buscar en canon las consultas vacías"
-            @click="load(true)">
-            <span class="ui-icon" data-icon="search" aria-hidden="true"></span>
-          </button>
           <button type="button" class="region-action" title="Volver a leer" aria-label="Volver a leer" @click="load()">
             <span class="ui-icon" data-icon="refresh" aria-hidden="true"></span>
           </button>

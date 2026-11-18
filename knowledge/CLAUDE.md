@@ -6,7 +6,7 @@ No reconstruyas el antiguo servicio context/ ni importes el corpus productivo co
 
 ## Revisar y escribir
 
-1. Leé el código real contra `main` en los **clones de canon** (`main_clones` en `tools/repos.json`,
+1. Leé el código real contra `main` en los **clones sólo-main** (`main_clones` en `tools/repos.json`,
    `~/Desktop/CREDITOP/canon/repos/<repo>`): sólo siguen main, así que se les hace fetch (`make knowledge-check FETCH=1`)
    sin tocar las ramas ni los stashes de los clones de trabajo de `github/`, que usan otras sesiones. Desde el
    2026-11-17 `knowledge-check`, `knowledge-touch`, `knowledge-deriva` y los comandos de código de Wally leen de ahí
@@ -48,9 +48,9 @@ en los bloques con `[texto](repo:my-tools/knowledge/topic/rules.md#L1)` para fij
 Un tema ausente o que excede el presupuesto se avisa; no se reemplaza por una búsqueda parecida.
 Los contratos de una herramienta se mantienen junto a ella, en su CLAUDE.md.
 
-Canon conserva el conocimiento compartido del equipo. Consultarlo es opcional; publicar allí requiere
-una solicitud de Miguel, y no condiciona el cierre. Se lee sólo por su API (no hay copia local) y no
-se sincroniza hacia knowledge/. Esta biblioteca depende de archivos locales y fuentes comprobables.
+Canon es el conocimiento compartido del EQUIPO y no es de my-tools: se consulta y se mantiene en el repo
+compartido (`playground canon search|read`; su puesta al día, en `tools/canon/recontext` de ese repo). No
+se sincroniza hacia knowledge/ ni al revés: son dos bibliotecas separadas, cada una con su método. Esta biblioteca depende de archivos locales y fuentes comprobables.
 
 ## Adaptar lo que aparece en el tablero
 

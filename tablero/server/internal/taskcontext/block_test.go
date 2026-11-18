@@ -11,39 +11,15 @@ import (
 // Las pruebas no persiguen cobertura: cada una fija una regla que existe para que un bloque se pueda
 // volver a comprobar meses después, o un caso donde el validador podía equivocarse de lado.
 
-func TestCanonRouteBlockValidation(t *testing.T) {
+// Los enlaces a canon son texto histórico: entran por su forma y nadie los comprueba.
+func TestCanonLinksAreHistoricalText(t *testing.T) {
 	body := "Se cambia [la firma](canon-ruta:codeudor/renting#firma), con [su regla](canon:codeudor#firma)."
-	deps := BlockDeps{
-		Canon: func(_ context.Context, refs []string) ([]string, error) {
-			if len(refs) != 1 || refs[0] != "codeudor#firma" {
-				t.Fatalf("citas antiguas: %v", refs)
-			}
-			return nil, nil
-		},
-		CanonRoutes: func(_ context.Context, refs []string) ([]string, error) {
-			if len(refs) != 1 || refs[0] != "codeudor/renting#firma" {
-				t.Fatalf("recorrido: %v", refs)
-			}
-			return nil, nil
-		},
-	}
-	e, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now())
+	e, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", BlockDeps{}, time.Now())
 	if err != nil || len(warnings) != 0 || e.Body != body {
 		t.Fatalf("%+v %v %v", e, warnings, err)
 	}
 	if err := ValidateBlock(e); err != nil {
 		t.Fatalf("no se puede volver a leer: %v", err)
-	}
-	deps.CanonRoutes = func(_ context.Context, refs []string) ([]string, error) { return refs, nil }
-	if _, _, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now()); err == nil {
-		t.Fatal("aceptó un paso ausente")
-	}
-	deps.CanonRoutes = func(_ context.Context, refs []string) ([]string, error) { return nil, errors.New("sin red") }
-	if _, warnings, err := PrepareBlock(context.Background(), "Firma", body, "", deps, time.Now()); err != nil || len(warnings) != 1 {
-		t.Fatalf("red caída: %v %v", warnings, err)
-	}
-	if _, _, err := PrepareBlock(context.Background(), "Firma", "[x](canon-ruta:codeudor)", "", deps, time.Now()); err == nil {
-		t.Fatal("aceptó referencia incompleta")
 	}
 }
 
@@ -146,24 +122,13 @@ func TestAStoredBlockMustCarryTheCommitOfEveryFile(t *testing.T) {
 
 func TestPrepareChecksTheWorldBeforeWriting(t *testing.T) {
 	existing := []Event{{ID: "blk_anterior"}}
-	deps := BlockDeps{Files: repos, Existing: existing, Canon: func(_ context.Context, refs []string) ([]string, error) {
-		var missing []string
-		for _, r := range refs {
-			if r == "nada" {
-				missing = append(missing, "nada (no existe en Canon)")
-			}
-		}
-		return missing, nil
-	}}
+	deps := BlockDeps{Files: repos, Existing: existing}
 	run := func(body string) error {
 		_, _, err := PrepareBlock(context.Background(), "Un título", body, "", deps, blockNow)
 		return err
 	}
 	if err := run("Ver [x](repo:legacy-backend/app/NoExiste.php)."); err == nil || !strings.Contains(err.Error(), "no existe") {
 		t.Fatalf("aceptó un archivo que no existe: %v", err)
-	}
-	if err := run("Ver [x](canon:nada)."); err == nil || !strings.Contains(err.Error(), "canon:nada") {
-		t.Fatalf("aceptó un tema de canon que no existe: %v", err)
 	}
 	if err := run("Corrige al [anterior](bloque:blk_otro)."); err == nil {
 		t.Fatal("aceptó un bloque citado que no está en la pila")
@@ -176,16 +141,6 @@ func TestPrepareChecksTheWorldBeforeWriting(t *testing.T) {
 	}
 	if _, _, err := PrepareBlock(context.Background(), "Un título", "Algo.", "a-mano", deps, blockNow); err == nil {
 		t.Fatal("aceptó un via inventado")
-	}
-}
-
-func TestCanonDownIsAWarningNotARejection(t *testing.T) {
-	deps := BlockDeps{Files: repos, Canon: func(context.Context, []string) ([]string, error) {
-		return nil, errors.New("sin red")
-	}}
-	e, warnings, err := PrepareBlock(context.Background(), "Un título", "El [listado](canon:listado) manda.", "", deps, blockNow)
-	if err != nil || len(warnings) != 1 || e.ID == "" {
-		t.Fatalf("err=%v warnings=%v", err, warnings)
 	}
 }
 

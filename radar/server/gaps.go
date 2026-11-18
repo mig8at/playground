@@ -1,37 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"io"
-	"time"
 
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/radar/scan"
 )
-
-/* recheck vuelve a correr contra canon las búsquedas que dieron vacío: si hoy encuentran algo, el hueco
- * se cerró. Es `/api/search` —gratis, sin modelo— y sólo se hace a pedido (`-recheck`), porque radar
- * funciona sin red. Una búsqueda que falla deja el hueco como estaba y lo dice. */
-func recheck(g *scan.Gaps, client *canon.Client) {
-	for i := range g.Gaps {
-		gap := &g.Gaps[i]
-		if gap.Signal != scan.SignalEmpty || gap.Query == "" {
-			continue
-		}
-		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
-		res, err := client.Search(ctx, gap.Query)
-		cancel()
-		switch {
-		case err != nil:
-			gap.Recheck = "no se pudo volver a buscar"
-		case len(res.Prose)+len(res.Map) > 0:
-			gap.Recheck = "cubierto"
-		default:
-			gap.Recheck = "sigue vacío"
-		}
-	}
-}
 
 var signalText = map[string]string{
 	scan.SignalEmpty:        "sin resultados",
@@ -73,7 +47,7 @@ func printGaps(w io.Writer, g scan.Gaps) {
 		}
 		fmt.Fprintln(w)
 	}
-	fmt.Fprintln(w, "   un hueco que se repite va a canon: se verifica en main y se dicta (skill canon). -recheck mira si las vacías ya encuentran algo.")
+	fmt.Fprintln(w, "   historia: de cuando canon se consultaba desde my-tools. Un hueco que se repite es para knowledge/.")
 }
 
 func clip(s string, n int) string {

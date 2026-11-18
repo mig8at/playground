@@ -63,10 +63,6 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"sources ../connectors",
 		"task ../connectors",
 		"sentinel signal credifamilia",
-		"canon read ../x",
-		"canon read asesor/context; ls",
-		"canon search 'x'; rm",
-		"canon search `id`",
 		"sentinel day ayer",
 		"sentinel deploy legacy-backend; ls",
 		"sentinel deploy ../x",
@@ -164,7 +160,7 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}
 	}
-	for _, ok := range []string{"canon read asesor/context", "canon read cuota/context#el-monto", "canon search 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
+	for _, ok := range []string{"sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}

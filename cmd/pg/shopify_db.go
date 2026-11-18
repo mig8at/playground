@@ -3,10 +3,11 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"strings"
 	"time"
 
-	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/pgreadonly"
 	"creditop/my-tools/connectors/shopifyapp"
 )
 
@@ -14,13 +15,13 @@ import (
 //
 // SÓLO PARA LEER: las tiendas configuradas (sucursal y token cifrado) y las sesiones de pago de la app desplegada en dev.
 // La sólo-lectura la impone la base (ver `connectors/shopifyapp/db.go`); acá sólo se arma la línea de comandos. La
-// consulta y la salida son las de `canon sql`.
+// consulta es de sólo lectura (connectors/pgreadonly).
 
 func shopifyTarget() param {
 	return param{Name: "target", Type: "string", Desc: "el ambiente con la app desplegada: dev", Required: true, Enum: shopifyapp.DBTargets}
 }
 
-func openShopifyDB(target string) (*canon.DB, int) {
+func openShopifyDB(target string) (*pgreadonly.DB, int) {
 	if !shopifyapp.ValidDBTarget(target) {
 		return nil, fail(2, "falta o no es válido --target (la app de Shopify sólo tiene base en %s)", strings.Join(shopifyapp.DBTargets, " · "))
 	}
@@ -45,7 +46,7 @@ func runShopifySQL(args []string) int {
 	if fs.Parse(args) != nil {
 		return 2
 	}
-	if err := canon.ValidateReadOnlyPG(*query); err != nil {
+	if err := pgreadonly.ValidateReadOnlyPG(*query); err != nil {
 		return fail(2, "consulta rechazada: %v", err)
 	}
 	db, code := openShopifyDB(*target)
@@ -109,4 +110,36 @@ func runShopifyConfig(args []string) int {
 		"sslmode": ssl, "awsProfile": cfg.AWSProfile, "iam": cfg.Password == "" && cfg.AWSProfile != "",
 		"hasCredentials": len(cfg.Missing()) == 0, "missing": cfg.Missing(), "file": file, "readOnly": true,
 	})
+}
+
+// printResult muestra lo que contestó una base de Postgres: en texto recortado, o entero con --json.
+func printResult(target string, r pgreadonly.Result, query string, asJSON bool) int {
+	if asJSON {
+		out := map[string]any{"target": target, "source": r.Source, "columns": r.Columns, "rows": r.Rows}
+		if query != "" {
+			out["query"] = query
+		}
+		if r.Truncated {
+			out["truncated"] = fmt.Sprintf("hay más de %d filas: se cortó", pgreadonly.MaxRowsDB)
+		}
+		return writeJSON(out)
+	}
+	truncation := ""
+	if r.Truncated {
+		truncation = fmt.Sprintf(" (cortado en %d)", pgreadonly.MaxRowsDB)
+	}
+	fmt.Printf("%s · %s · %d fila(s)%s\n", target, r.Source, len(r.Rows), truncation)
+	for _, row := range r.Rows {
+		parts := make([]string, len(r.Columns))
+		for i, c := range r.Columns {
+			v := strings.ReplaceAll(cell(row[c]), "\n", " ")
+			// Un contenido de archivo o una conversación entera taparía la pantalla: en texto se recorta; --json lo trae completo.
+			if r := []rune(v); len(r) > 240 {
+				v = string(r[:240]) + "… (" + fmt.Sprint(len(r)) + " caracteres; --json los trae completos)"
+			}
+			parts[i] = c + "=" + v
+		}
+		fmt.Println("  " + strings.Join(parts, " · "))
+	}
+	return 0
 }

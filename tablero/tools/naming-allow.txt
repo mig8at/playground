@@ -158,7 +158,7 @@ smeargle krabby porygon noctowl
 avatar beak beard brim brows chair cheeks chest chin confetti consent cream crown cuff dome feather flap follicles
 hair hairs jaw keyframes lash mane mug mustache neck neckwear pita puffs rhythm rosette seam skin skyline stitch
 strand stripe swatch swatches tabby teeth toast torso tufts wear wool hunk hunks unfollow previewable fullshot
-autorun autoresume outage cliflags disarm pry prx lum ery gest pagenames
+autorun autoresume outage cliflags pgreadonly disarm pry prx lum ery gest pagenames
 openai assistant
 json: wally/server/legacy.go *                                      # la tabla de los nombres de antes de Wally (2026-11-18): traduce lo guardado y lo que escribe un modelo con su historia
 json: wally/server/commands.go archivo parche                      # los bloques ```archivo y ```parche de antes, aceptados como alias de ```file y ```patch
@@ -177,12 +177,3 @@ json: server/internal/hooks/cockpit.go asesor autogestion           # los canale
 json: lib/cliflags/legacy.go *                                      # las opciones de antes de los CLI en Go (2026-11-18): traduce lo que siguen escribiendo el Makefile viejo, los hooks y las tareas
 json: keyring/check/background.go pulso                            # el nombre del LaunchAgent del pulso (com.creditop.tablero.pulso): dato del sistema
 json: cmd/pg/legacy.go *                                           # los subcomandos de antes de pg (2026-11-18): las tareas guardan el comando exacto
-path: tools/canon-deriva   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/deriva.py   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/codigo.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/k-codigo.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/k-segunda.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/k-triaje.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/segunda.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/prompts/triaje.md   # excepción decidida (2026-11-18): canon-deriva queda en español
-path: tools/canon-deriva/test_deriva.py   # excepción decidida (2026-11-18): canon-deriva queda en español

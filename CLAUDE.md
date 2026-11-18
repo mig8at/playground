@@ -33,10 +33,6 @@ Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:
   `harness.doctor/v1` y el registro de fallas— siguen en español. Son miles de usos en 149 archivos y la
   herramienta con la que se valida; un renombre a medias no falla, devuelve vacío. Se pasan a inglés, con alias
   para las viejas, la parte que se toque por otra razón, y se prueba ahí. Lo nuevo va en inglés.
-- **Excepción decidida (2026-11-18): `tools/canon-deriva`** —su carpeta, `deriva.py`, sus prompts, sus pasos
-  (`foto`, `paquete`, `triaje`…), las carpetas de cada corrida y las claves que escriben sus agentes— queda en
-  español: trabaja sobre canon, el corpus del equipo, se usa poco y cambiarla pide una corrida con agentes. Sus
-  comandos de `make` sí pasaron (`canon-drift`, `knowledge-drift`, `STEP=`, `--groups`).
 - **Claude contesta en español** cuando se habla de my-tools y sus herramientas.
 - **La vara es `make tablero-naming`:** falla con un nombre nuevo en español. Lo de antes queda en
   `tablero/tools/naming-debt.txt` como deuda, y se baja renombrando con `tablero/tools/rename/`. Al renombrar un
@@ -59,18 +55,16 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Goldfish (validar un PR con Elephant-Goldfish: `make goldfish`, `make goldfish-run PR=<url>`) | [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
-| Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
-| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-drift STEP=…` |
+| poner `knowledge/` al día contra main | [`tools/knowledge-drift/CLAUDE.md`](tools/knowledge-drift/CLAUDE.md) · `make knowledge-drift STEP=…` |
 
 ## `make` es la puerta única
 
 `make` sin argumentos lista todo lo que se puede correr, agrupado por para qué sirve, con los
 parámetros de cada uno. El hook `SessionStart` (`tablero/server/internal/hooks`) inyecta los NOMBRES al
-arrancar, al reanudar y después de compactar, junto al catálogo LOCAL de `knowledge/`. No consulta
-ni sincroniza Canon. `make knowledge-map` lista títulos y resúmenes; `make knowledge-check` detecta
-cambios en sus fuentes contra el `main` de los clones de canon (`~/Desktop/CREDITOP/canon/repos`), sin fetch:
-antes, `make knowledge-check FETCH=1`, que trae main a esos clones sin tocar los de trabajo. Canon es opcional para conocimiento
-de negocio o producto que no se puede comprobar en local; su disponibilidad no bloquea las herramientas.
+arrancar, al reanudar y después de compactar, junto al catálogo LOCAL de `knowledge/`.
+`make knowledge-map` lista títulos y resúmenes; `make knowledge-check` detecta
+cambios en sus fuentes contra el `main` de los clones sólo-main (`~/Desktop/CREDITOP/canon/repos`), sin fetch:
+antes, `make knowledge-check FETCH=1`, que trae main a esos clones sin tocar los de trabajo.
 Acá va lo que `make` no puede decir: **cuál elegir, y
 contra qué ambiente**. Convención de nombres: los nombres propios se quedan (`tablero`, `harness`,
 `panel`) y los verbos van en inglés (`align`, `refs`, `seal`, `check`), como `proyecto-verbo`.
@@ -104,10 +98,10 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | Tu pregunta | Con qué se contesta |
 |---|---|
 | **¿cómo funciona X técnicamente?** | `make knowledge-search Q='…'` → `make knowledge-read ID=…`, si hay un tema local. Verificá su alcance en el código de `main`; si falta el tema, investigá el código directamente. La biblioteca es una ayuda, no un paso obligatorio |
-| **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Canon es una consulta opcional: `make canon-search Q='…'` → `make canon-read IDS=…` (o, con la sesión de Miguel y sin llave, `playground canon search|read|topics|ask`). Contrastá con documentación del equipo si necesitás política o contrato. Citá la fuente y señalá lo que queda sin verificar |
+| **me falta conocimiento de negocio o producto que no puedo comprobar en local** | Confluence (`make confluence`) y la documentación del equipo. Canon, el corpus del equipo, NO es de my-tools: si hace falta, se lee con el CLI compartido (`playground canon search\|read`). Citá la fuente y señalá lo que queda sin verificar |
 | **arranco una tarea como agente** | `make agent N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make task-verify N=…` |
 | **¿el plan de la tarea se sostiene sin mí?** (antes de tocar un repo real) | el subagente **`goldfish`**: le pasás SÓLO la ruta del `task.md`; lo lee sin la conversación ni este archivo y devuelve supuestos sin escribir, criterios que no se pueden volver `S#` y afirmaciones para `main-verifier`, cada una con su línea. Revisa el documento, no el código |
-| **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. No pide Canon ni VPN. Las referencias históricas `canon:` se conservan; `BRIEF=1` consulta su API sólo cuando se elige explícitamente; Canon no tiene copia local |
+| **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. Sin red ni VPN. Los `canon:` de una tarea vieja son texto histórico: no se validan ni se consultan |
 | **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
@@ -127,7 +121,6 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **¿este PR está bien?** (el mío antes de publicarlo, o uno que me pasaron) | Goldfish, el paso previo a publicar: `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` sobre la rama local (skill **`goldfish`**), o `make goldfish-run PR=<url>` para un PR ya abierto (también desde su app en Cockpit). Dos goldfish lo revisan en frío y el elephant, con tu contexto, le da veredicto a cada hallazgo, sin ser estricto: lo que no es de la tarea sale «fuera de alcance». No comenta en GitHub ni aprueba. Cómo decide: [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | **¿cómo se VE esta interfaz?** (después de tocar una UI) | `make ui-shot APP=<app> ROUTE='#/…' [CLICK='selector']`: la captura en un Chromium sin ventana más los errores de consola y los pedidos fallidos; `COCKPIT=1`, la ventana de Cockpit tal como la ve Miguel. No depende del navegador de la sesión ni levanta servidores |
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). El panel (la app Harness de Cockpit, `make panel`) es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
-| **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |
 | **¿en qué anda el equipo?** | Slack (MCP) · `make cuadrilla` · `make tablero` |
 | **hablarle a alguien del equipo por la terminal** · ¿quién está conectado? | `playground online` · `playground send @jose.guzman "…"` (el CLI del playground compartido, con tu sesión; sin guardar nada). Visual: `make chat` (conversaciones y contestar, sobre el mismo CLI; su servidor guarda el historial y las imágenes en disco). Mandar un mensaje sale a nombre de Miguel: se confirma el texto antes. **Conversación en vivo, sólo si Miguel la pide** (no en toda sesión), con `bin/chat` sobre ese servidor (lo trae Cockpit, la app de escritorio, `make cockpit`, que arranca al iniciar sesión y sigue en segundo plano con la ventana cerrada; si :5185 no contesta, abrila): `history <who>` para el contexto (con las imágenes ya bajadas: no uses `playground get`, que le quita el adjunto al chat), un Monitor sobre `follow <who> --theirs` para cada respuesta (con `--json`, un mensaje por línea), y `reply`/`send` con el texto confirmado. Los adjuntos van con `bin/chat send <who> <texto> --file <ruta>` y no con `playground send --file`: así el chat guarda una copia y los muestra en la conversación. `bin/chat inbox --unread` dice qué falta leer y `bin/chat mentions` qué te nombra; `bin/chat who #grupo` da los `@usuario` para mencionar. Un agente habla **como agente** con `--as <agente>` (o `CHAT_AS`), no a nombre de Miguel, y **como en una llamada**: saludo, una a tres frases, lo largo como adjunto ([`chat/CLAUDE.md`](chat/CLAUDE.md), que con la videollamada abierta se dice en voz alta): es una identidad de Miguel que nace la primera vez que habla y queda guardada (`playground agents` lista los de todos); en un grupo tiene que ser miembro (`playground groups add #g @miguel/<agente>`), y `send … --wait 5m` espera la respuesta en una sola llamada, sin Monitor (sale 3 si nadie contesta). Contestar marca leído; lo leído lo comparten la app y `bin/chat`. **Claves para el equipo: el llavero** (la consola de una conversación en `make chat`): nombre y valor, «Encriptar» da el encriptado para pegarlo en el mensaje, y «Desencriptar» abre uno recibido; lo encriptado con nombre queda en la tabla «Guardadas» (sólo encriptado, nunca el valor). En una conversación directa, escribir `🔑 Pido tu llavero` pide **su llavero**: el servidor del chat del otro contesta SOLO con los nombres (`🔑 Mi llavero (n)` y viñetas), elegís cuáles y «Pedir» manda `🔑 Pido estas claves`, que también se contesta solo con UN bloque `.env` de valores encriptados (`🔒 Llavero · n claves …` y debajo `NOMBRE=U2FsdGVkX1…`); su tarjeta trae «Guardar en mi llavero» y «Descargar .env» (desencriptado). Sin el chat, el bloque guardado en `bloque.txt` se vuelve `.env` con `grep '=U2FsdGVkX1' bloque.txt \| while read -r l; do printf '%s=%s\n' "${l%%=*}" "$(printf '%s' "${l#*=}" \| openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key)"; done > .env`. Contesta sólo mensajes directos y recientes, y si «Compartir mi llavero solo» está prendido en la consola (`chat/server/keyring_auto.go`) | openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key` y la pone en su `.env`, sin pegarla en claro en el chat. Lo privado no va al llavero |
 | **que Miguel vea lo que hacés** · llevar Cockpit a una herramienta | `bin/cockpit say "…"` (la intención o una conclusión, en el panel «Claude» de Cockpit) · `bin/cockpit open <app> [ruta]` (`tablero '#/tareas/<slug>'`; `harness '/<ambiente>/<comercio>/<canal>?vista=comercio|cliente|buros'`, canal `asesor·autogestion·ecommerce·auto·qr`) · `bin/cockpit status`. Cada herramienta que usás ya llega sola al panel (hook `cockpit`) y Cockpit salta a su app —un caso del harness, al comercio y canal del comando—; sin Cockpit abierto, el comando lo dice y sale |
@@ -209,10 +202,14 @@ arrastraban el trait y la guarda: `tablero/tasks/tests-pueden-borrar-la-bd-compa
 
 Se resuelven **tareas** con **tablero** (historia y plan), **knowledge/** (conocimiento local con
 fuentes), **harness** (pruebas) y los **conectores** (`bin/pg`: evidencia de los ambientes). El código de `main`
-respalda las afirmaciones técnicas. Canon queda como consulta opcional de negocio/producto.
+respalda las afirmaciones técnicas.
 
-Canon vive en otro repo (`~/Desktop/CREDITOP/github/playground/tools/canon`, `Creditop-SAS/playground`)
-y se publica en canon.playground.creditop.com. **`context/` y `workers/` ya no existen**: si los ves
+⚠ **Canon NO es de my-tools** (decisión de Miguel, 2026-11-18). Es el corpus del EQUIPO y vive entero en el repo
+compartido (`~/Desktop/CREDITOP/github/playground/tools/canon`): ahí se consulta, se escribe y se pone al día
+(`tools/canon/recontext/README.md`, con `task recontextualizar-canon` y `task canon-cli`). Acá no queda ningún comando,
+conector, skill ni agente de canon: los `make canon-*` sólo dicen adónde ir. El conocimiento de my-tools es
+**knowledge/**, que es local, más explicado y tiene su propio método (`make knowledge-drift`). No mezcles los dos: lo
+que se aprende trabajando acá va a knowledge/. **`context/` y `workers/` ya no existen**: si los ves
 citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas`…) están en
 `~/Desktop/CREDITOP/temp/`, fuera de git, **no están validadas: no las cites ni decidas con ellas**.
 
@@ -235,11 +232,11 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    cédula (F-139): sin saberlo, una prueba de identidad siempre devuelve la misma persona.
 5. **Al mergear**, revisá el conocimiento local afectado y archivá la tarea cuando su objetivo
    terminó. Un PR abierto sigue siendo una propuesta de la tarea, no comportamiento vigente.
-   Publicar conocimiento para el equipo en Canon es una acción separada, cuando Miguel la solicita;
-   no es condición de cierre ni crea un pendiente automático.
+   Publicar conocimiento para el equipo (en canon) se hace desde el repo compartido, no desde acá;
+   no es condición de cierre ni crea un pendiente.
 
 Las herramientas se documentan en su propio `CLAUDE.md`. `knowledge:` enlaza los temas locales
-de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo. De una tarea sólo salen a Jira
+de una tarea; un `canon:` en una tarea vieja es texto histórico. De una tarea sólo salen a Jira
 `jira_title` y `## Tarea (publicable)`, que pasan el guard; el resto es privado.
 
 ## Git
@@ -284,7 +281,7 @@ de una tarea; `canon:` conserva las referencias opcionales del corpus del equipo
 
 ## Dos reglas de honestidad
 
-- Si tocaste las `fuentes` de un tema de canon, validá que existan en `main`: una ruta mal escrita no
+- Si tocaste las fuentes de un tema de knowledge, validá que existan en `main`: una ruta mal escrita no
   falla en ningún lado. Lo mismo con las citas `archivo:línea` de una trampa: `make traps` las ancla.
 - **Nunca afirmes como verificado algo que no comprobaste contra el código.** Si no lo miraste, decilo.
 

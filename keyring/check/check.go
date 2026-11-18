@@ -55,7 +55,7 @@ var Groups = []string{"network", "aws", "databases", "logs", "events", "services
 // GroupLabel es cómo se muestra cada grupo.
 var GroupLabel = map[string]string{
 	"network": "red", "aws": "aws", "databases": "bases", "logs": "logs",
-	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor", "canon": "Canon (opcional)",
+	"events": "eventos", "services": "servicios", "sessions": "sesiones de asesor",
 	"background": "de fondo",
 }
 
@@ -66,7 +66,7 @@ var Quick = []string{"network", "aws", "sessions", "background"}
 // soon es desde cuándo un vencimiento se marca como aviso.
 const soon = time.Hour
 
-// Select deja las sondas de esos grupos; sin grupos, las habituales. Canon exige elegir su grupo.
+// Select deja las sondas de esos grupos; sin grupos, las habituales.
 func Select(groups []string) []Probe {
 	all := allProbes()
 	if len(groups) == 0 {
@@ -105,7 +105,6 @@ func allProbes() []Probe {
 		Probe{"services", one(probeTwilio)},
 		Probe{"services", one(probeGemini)},
 		Probe{"services", one(probeJev)},
-		Probe{"canon", probeCanon},
 		Probe{"sessions", probeSessions},
 		Probe{"background", probeBackground},
 	)
@@ -156,7 +155,6 @@ func Run(ps []Probe, timeout time.Duration) []Check {
 	for i, g := range Groups {
 		rank[g] = i
 	}
-	rank["canon"] = len(Groups)
 	sort.SliceStable(out, func(a, b int) bool {
 		if rank[out[a].Group] != rank[out[b].Group] {
 			return rank[out[a].Group] < rank[out[b].Group]
@@ -224,7 +222,7 @@ func Brief(checks []Check) string {
 // offHint dice qué deja de llegar sin cada VPN: el error que se ve después (un timeout, un DNS) no lo dice.
 var offHint = map[string]string{
 	"VPN dev":  " → no llegan las bases de dev/qa/staging ni los servicios internos de dev",
-	"VPN prod": " → no llegan canon ni los servicios internos de prod",
+	"VPN prod": " → no llegan los servicios internos de prod",
 }
 
 // Mark es el signo de un estado, el mismo en la consola y en el arranque.

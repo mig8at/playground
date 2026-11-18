@@ -1,4 +1,4 @@
-package canon
+package pgreadonly
 
 import (
 	"fmt"

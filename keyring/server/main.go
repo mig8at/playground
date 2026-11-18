@@ -18,7 +18,7 @@ import (
 
 func main() {
 	asJSON := flag.Bool("json", false, "las filas en JSON")
-	only := flag.String("only", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ",")+"; canon es opcional y exige -only canon")
+	only := flag.String("only", "", "sólo estos grupos, separados por coma: "+strings.Join(check.Groups, ","))
 	brief := flag.Bool("brief", false, "el resumen del arranque de sesión: sólo red, AWS y sesiones")
 	timeout := flag.Duration("timeout", 12*time.Second, "tope por sonda")
 	awsOnly := flag.Bool("aws", false, "sólo la matriz de AWS: qué servicios alcanza cada perfil")

@@ -38,11 +38,6 @@ func normalizeCommand(cmd string) string {
 	if v, ok := legacyVerbs[f[0]]; ok {
 		f[0] = v
 	}
-	if f[0] == "canon" && len(f) > 1 {
-		if v, ok := map[string]string{"tema": "read", "buscar": "search"}[f[1]]; ok {
-			f[1] = v
-		}
-	}
 	for i := 1; i < len(f); i++ {
 		if f[i] == "pruebas" || strings.HasPrefix(f[i], "pruebas/") {
 			f[i] = "sandbox" + strings.TrimPrefix(f[i], "pruebas")

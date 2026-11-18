@@ -122,8 +122,7 @@ decide uno, entra como bloque o como pendiente. Una pregunta a alguien es ademá
 | Qué se nombra | Cómo se escribe | Qué comprueba el validador |
 |---|---|---|
 | un tema del conocimiento local | `[texto](knowledge:tema#ancla)`; sin `#ancla`, el tema entero | que exista en `knowledge/` el tema, y la sección si trae ancla |
-| un tema de canon | `[texto](canon:tema#ancla)` | que canon lo conozca (sin red, entra con aviso) |
-| un paso de un recorrido de canon | `[Firma](canon-ruta:codeudor/renting#renting-codeudor)`; sin `#paso`, la variante | que existan tema, variante y paso (`make canon-route REF=…`) |
+| un tema o un recorrido de canon (histórico) | `[texto](canon:tema#ancla)` · `[Firma](canon-ruta:codeudor/renting#paso)` | sólo la forma: canon no es de my-tools y no se consulta. En bloques nuevos, citá knowledge o el código |
 | un archivo | `[texto](repo:<repo>/<ruta>#L12)`, nunca una ruta local | que el repo se pueda citar y la ruta exista; **lo fija al commit** |
 | un PR · un issue | `[#1140](pr:legacy-backend#1140)` · `[CORE-431](jira:CORE-431)` | que el repo se pueda citar |
 | otro bloque | `[el de ayer](bloque:<id>)`: así se corrige uno sin editarlo | que esté en la pila |
@@ -245,8 +244,7 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
 2. Guardá la explicación estable en `knowledge/<topic>/rules.md` con su `sources.json`, siguiendo
    `knowledge/CLAUDE.md`. Las hipótesis y cambios sin mergear siguen en la tarea.
 3. Citá en el bloque la evidencia usada y sumá a `knowledge:` los temas que sirven para retomar.
-4. Si Miguel pide compartirlo con el equipo, prepará la publicación en Canon con la skill `canon`.
-   La publicación es independiente: no se crea un pendiente por faltar VPN o no publicar.
+4. Compartirlo con el equipo (en canon) se hace desde el repo compartido, no desde acá: no es parte de la tarea.
 
 ## De dónde sale lo que se escribe acá
 

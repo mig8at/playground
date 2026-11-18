@@ -2,7 +2,6 @@
 //
 //	make sala              la página (http://127.0.0.1:5201): elegís temas, la larga y ves trabajar a cada agente
 //	make sweep TOPICS=…   lo mismo por consola, sin página
-//	make sweep-canon     el barrido sobre los temas de CANON que la ronda marca con archivos cambiados (canon.go)
 //
 // Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura de my-tools, sobre UN tema:
 // no habla con los otros ni espera turno. Cuando terminan todos, un verificador que no escribió nada comprueba cada
@@ -37,7 +36,7 @@ func main() {
 	sweepN := flag.Int("n", 3, "cuántos temas toma el barrido en «auto»")
 	sweepBudget := flag.Float64("cap", 2.5, "tope de cada agente del barrido, en US$ equivalentes")
 	sweepCheck := flag.Float64("verifier-cap", 3, "tope del verificador del barrido, en US$ equivalentes")
-	sweepMode := flag.String("mode", "knowledge", "sobre qué barre: knowledge (los temas locales) o canon (los que la ronda marca)")
+	sweepMode := flag.String("mode", "knowledge", "sobre qué barre: knowledge (los temas locales). El de canon se sacó: canon se mantiene en el repo compartido")
 	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	root, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
@@ -66,13 +65,8 @@ func main() {
 			log.Fatal(err)
 		}
 		sw.mu.Lock()
-		if sw.b.Mode == "canon" {
-			fmt.Printf("barrido canon sobre %s: %d cadena(s) en paralelo (agente US$%.2f → su verificador US$%.2f → ensayo)\n",
-				topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
-		} else {
-			fmt.Printf("barrido %s sobre %s: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
-				sw.b.Mode, topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
-		}
+		fmt.Printf("barrido %s sobre %s: %d agente(s) en paralelo, US$%.2f eq. cada uno, y el verificador con US$%.2f\n",
+			sw.b.Mode, topicNames(sw.b), len(sw.b.Agents), *sweepBudget, *sweepCheck)
 		sw.mu.Unlock()
 		<-done
 		return
@@ -91,23 +85,6 @@ func main() {
 		http.ServeFile(w, r, filepath.Join(root, "tools", "ui", "theme.css"))
 	})
 	http.HandleFunc("/api/topics", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Query().Get("mode") == "canon" {
-			// Los temas de canon con archivos cambiados en main, de más a menos: la ronda del servidor.
-			_, work, err := canonRound(r.Context(), nil, 0)
-			if err != nil {
-				http.Error(w, err.Error(), 502)
-				return
-			}
-			out := []topicInfo{}
-			for t, changes := range work {
-				out = append(out, topicInfo{ID: t, Title: fmt.Sprintf("%d archivo(s) cambiados en main", len(changes)), Reviewed: fmt.Sprintf("%04d", len(changes))})
-			}
-			sort.Slice(out, func(i, j int) bool {
-				return out[i].Reviewed > out[j].Reviewed || (out[i].Reviewed == out[j].Reviewed && out[i].ID < out[j].ID)
-			})
-			writeJSON(w, out)
-			return
-		}
 		writeJSON(w, allTopics(root))
 	})
 	// El estado del barrido en curso (o el último): la página lo pide cada segundo.

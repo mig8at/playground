@@ -15,7 +15,6 @@
 //
 //	hoy                la agenda: en movimiento (con su último bloque, lo que espera a alguien y entrega) y dormidas
 //	hoy -n <id|slug>   RETOMAR una tarea en frío: la pila primero —el último bloque entero—, y en rojo lo que falta
-//	hoy -n … -brief 1 …y al final la FICHA de cada referencia de Canon declarada por la tarea.
 //	                   Es un APOYO: decide qué tema se abre, no reemplaza leerlo — y va opt-in porque una
 //	                   tarea llega a declarar 9.
 //
@@ -25,7 +24,6 @@
 package main
 
 import (
-	"context"
 	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
@@ -38,7 +36,6 @@ import (
 	"strings"
 	"time"
 
-	"creditop/my-tools/connectors/canon"
 	agendapkg "creditop/my-tools/tablero/server/internal/agenda"
 	"creditop/my-tools/tablero/server/internal/env"
 	"creditop/my-tools/tablero/server/internal/layout"
@@ -103,7 +100,7 @@ func main() {
 		stage   = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
 		anatomy = flag.Bool("anatomy", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		asJSON  = flag.Bool("json", false, "salida en JSON")
-		brief   = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
+		brief   = flag.String("brief", "", "ya no hace nada: canon se consulta con `playground canon read <tema>` (el CLI del equipo)")
 	)
 	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	env.LoadDefaults()
@@ -319,80 +316,6 @@ func showAnatomy(data string, tasks []task, ref string) int {
 	return 0
 }
 
-// canonBrief es lo que `-brief` agrega al final de la retoma: lo que una referencia de Canon declara
-// sobre sí misma, leído desde la API vigente.
-//
-// ⚠ NO SE LE PIDE A UN MODELO. Canon entrega `title`, `summary` y el objetivo de cada área; la ficha
-// sólo los proyecta. Así la tarea consulta la fuente vigente en Postgres y no una carpeta que Canon
-// ya no usa.
-type canonBrief struct {
-	Topic    string      `json:"topic"`
-	Declared bool        `json:"declared"`
-	Title    string      `json:"title,omitempty"`
-	Summary  string      `json:"summary,omitempty"`
-	Areas    []areaCanon `json:"areas,omitempty"`
-	Tables   []string    `json:"tables,omitempty"`
-	Repos    []string    `json:"repos,omitempty"`
-	Error    string      `json:"error,omitempty"`
-}
-
-type areaCanon struct {
-	ID       string `json:"id"`
-	Goal     string `json:"objetivo"`
-	Sections int    `json:"secciones"`
-}
-
-const briefLimit = 4
-
-// canonBriefs decide QUÉ temas van y se los pide a `readTaskFile`, sin interpretar la respuesta.
-// `requested` es el valor de BRIEF=: «1» son los declarados por la tarea, en su orden y hasta el tope
-// —una tarea llega a declarar 9, y nueve fichas pesan más que el documento que se quería no abrir—;
-// «a,b» son esos, estén declarados o no (y se marca cuando no). Un error de `readTaskFile` se DEVUELVE en su
-// ficha, nunca se calla: una ficha que falta se lee igual que un tema que no existe.
-func canonBriefs(declared []string, requested string, readBrief func(topic string) (canonBrief, error)) (briefs []canonBrief, notice string) {
-	seen := map[string]bool{}
-	for _, n := range declared {
-		seen[n] = true
-	}
-	topics := declared
-	if requested != "1" {
-		topics = nil
-		for _, n := range strings.Split(requested, ",") {
-			if n = strings.TrimSpace(n); n != "" {
-				topics = append(topics, n)
-			}
-		}
-	} else if len(topics) > briefLimit {
-		notice = fmt.Sprintf("… y %d más (%s) — BRIEF=a,b elige cuáles", len(topics)-briefLimit, strings.Join(topics[briefLimit:], ", "))
-		topics = topics[:briefLimit]
-	}
-	for _, n := range topics {
-		f, err := readBrief(n)
-		f.Topic, f.Declared = n, seen[n]
-		if err != nil {
-			f.Error = err.Error()
-		}
-		briefs = append(briefs, f)
-	}
-	return briefs, notice
-}
-
-func briefFromCanon(client *canon.Client) func(string) (canonBrief, error) {
-	return func(reference string) (canonBrief, error) {
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
-		f, err := client.Brief(ctx, reference)
-		if err != nil {
-			return canonBrief{}, err
-		}
-		out := canonBrief{Title: f.Title, Summary: f.Summary, Tables: f.Tables, Repos: f.Repos}
-		for _, area := range f.Areas {
-			out.Areas = append(out.Areas, areaCanon{ID: area.ID, Goal: area.Goal, Sections: len(area.Sections)})
-		}
-		return out, nil
-	}
-}
-
 func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON bool, brief string) int {
 	var t *task
 	for i := range tasks {
@@ -433,10 +356,8 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	}
 	localContext := buildKnowledgeContext(t.Knowledge, layout.At(data).Knowledge())
 	suggested := suggestKnowledge(t.Knowledge, snap.Tasks[strconv.Itoa(t.ID)].Branches, layout.At(data).Knowledge())
-	var briefs []canonBrief
-	var briefsNotice string
 	if brief != "" {
-		briefs, briefsNotice = canonBriefs(t.Nodes, brief, briefFromCanon(canon.FromEnv()))
+		fmt.Fprintln(os.Stderr, "  ⚠ BRIEF ya no trae la ficha de canon: se consulta con `playground canon read <tema>` (el CLI del equipo)")
 	}
 
 	if asJSON {
@@ -445,9 +366,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 			"delivery": delivery(snap, t.ID), "branches": snap.Tasks[strconv.Itoa(t.ID)].Branches,
 			"pending": pend, "worklog": bit, "context": contextInfo, "missing": missing,
 			"knowledge": localContext, "knowledgeSuggested": suggested, "chat": t.Chat, "correo": t.Mail,
-		}
-		if brief != "" {
-			output["canon"], output["canonNotice"] = briefs, briefsNotice
 		}
 		_ = json.NewEncoder(os.Stdout).Encode(output)
 		return 0
@@ -547,50 +465,6 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 		}
 	}
 
-	if brief != "" {
-		fmt.Println("\n  ── Canon: referencias declaradas por la tarea ──")
-		if len(briefs) == 0 {
-			fmt.Println("  ✗ la tarea no declara `canon:`. Para encontrar una referencia de una pregunta nueva:")
-			fmt.Println("    make canon-search Q='<palabras del negocio>'   (gratis, sin modelo)")
-		}
-		for i, f := range briefs {
-			if i > 0 {
-				fmt.Println()
-			}
-			if !f.Declared {
-				fmt.Printf("  ⚠ %s no está en el `canon:` de la tarea\n", f.Topic)
-			}
-			if f.Error != "" {
-				fmt.Printf("  ✗ %s: %s\n", f.Topic, f.Error)
-				continue
-			}
-			fmt.Printf("  %s · %s\n", f.Topic, f.Title)
-			if f.Summary != "" {
-				fmt.Println("  " + fit(f.Summary, 96, "  "))
-			}
-			secs := 0
-			for _, a := range f.Areas {
-				secs += a.Sections
-			}
-			fmt.Printf("  %d áreas · %d secciones", len(f.Areas), secs)
-			if len(f.Repos) > 0 {
-				fmt.Printf(" · %s", strings.Join(f.Repos, ", "))
-			}
-			if len(f.Tables) > 0 {
-				fmt.Printf("\n  tablas: %s", fit(strings.Join(f.Tables, ", "), 92, "  "))
-			}
-			fmt.Println()
-			// El `id` del área NO se imprime: en canon es un hash (`area-dda3b2591178`), así que
-			// ocupaba media columna sin decir nada. Lo que nombra a un área es su `objetivo`.
-			for _, a := range f.Areas {
-				fmt.Printf("    · %s\n", fit(a.Goal, 92, "      "))
-			}
-		}
-		if briefsNotice != "" {
-			fmt.Println("  " + briefsNotice)
-		}
-		fmt.Println("  la ficha decide qué referencia se abre; si ninguna contesta, la pregunta va al código de main — no a otra referencia")
-	}
 	printKnowledgeContext(localContext)
 	printKnowledgeSuggested(suggested)
 	printChat(t.Chat)

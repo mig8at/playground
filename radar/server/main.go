@@ -15,7 +15,6 @@ import (
 	"strings"
 	"time"
 
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/radar/scan"
 )
 
@@ -44,7 +43,6 @@ func main() {
 	days := flag.Int("days", 30, "el período, en días hacia atrás")
 	sessionID := flag.String("session", "", "con -view session: el id (o su comienzo) de la sesión")
 	asJSON := flag.Bool("json", false, "la salida en JSON")
-	recheckFlag := flag.Bool("recheck", false, "con -view gaps: vuelve a correr contra canon las búsquedas vacías (gratis, sin modelo; pide red)")
 	all := flag.Bool("all", false, "incluir las corridas automáticas (sin nadie escribiendo: claude -p, bancos de prueba)")
 	addr := flag.String("serve", "", "levanta la API para la interfaz en esta dirección (sólo 127.0.0.1)")
 	projects := flag.String("projects", filepath.Join(os.Getenv("HOME"), ".claude", "projects"), "dónde guarda Claude Code las transcripciones")
@@ -88,9 +86,6 @@ func main() {
 		out = scan.DriftView(calls, mk, scan.GitHistory(root), scan.SkillNames(root))
 	case "gaps":
 		g := scan.GapsView(sessions, since)
-		if *recheckFlag {
-			recheck(&g, canon.FromEnv())
-		}
 		out = g
 	case "session":
 		s, ok := scan.FindSession(sessions, *sessionID)

@@ -354,7 +354,7 @@ func showLint(path string) int {
 	}
 	// El lint local no consulta Canon por las referencias históricas de una tarea.
 	if len(t.OldNodes) > 0 {
-		failure("`context_nodes:` es histórico — elegí referencias locales `knowledge:` u opcionales `canon:` (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
+		failure("`context_nodes:` es histórico — elegí referencias locales `knowledge:` (esta tarea todavía dice: %s)", strings.Join(t.OldNodes, ", "))
 	}
 	if len(t.Knowledge) > 0 {
 		library, err := knowledge.Open(layout.Find().Knowledge())

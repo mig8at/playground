@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"creditop/my-tools/connectors/atlassian"
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/connectors/guard"
 	"creditop/my-tools/connectors/repos"
 	"creditop/my-tools/connectors/slack"
@@ -160,8 +159,7 @@ type app struct {
 	branchesRoot string
 	// Los enlaces de herramientas no se queman en la UI: local y el entorno compartido pueden tener
 	// direcciones distintas. El server los entrega desde server/.env.
-	canonURL    string
-	canonClient *canon.Client
+	canonURL string
 	// repos dice dónde se ve en la web cada repo que un bloque puede citar. Sale de tools/repos.json,
 	// la lista única: la UI arma el enlace a GitHub de un archivo fijado a su commit.
 	repos *repos.Client
@@ -178,8 +176,8 @@ func main() {
 	jiraCfg, jiraErr := atlassian.LoadConfig()
 	slackCfg, _ := slack.LoadConfig()
 	a := &app{
-		canonURL:    canon.URL(),
-		canonClient: canon.FromEnv(),
+		// La web de canon, sólo para que un enlace `canon:` viejo de una tarea abra algo: el tablero no le habla a canon.
+		canonURL:    "https://canon.playground.creditop.com",
 		jiraSite:    jiraCfg.Site,
 		jiraProject: envDefault("JIRA_PROJECT_KEY", "CORE"),
 		jiraBoardID: atoiDefault(os.Getenv("JIRA_BOARD_ID"), 384),
@@ -220,7 +218,6 @@ func main() {
 	mux.HandleFunc("/api/config", a.config)
 	// El tiempo real: lo que cambia en disco (tareas, bitácora, ramas, pulso) llega a la interfaz sin recargar (events.go).
 	registerEvents(mux, dataDir)
-	mux.HandleFunc("/api/canon/route", a.canonRoute)
 
 	// ARTIFACTS de las tareas: `/artifacts/<slug>/<archivo>` sirve `tasks/<slug>/artifacts/<archivo>`,
 	// tal cual, para que el tablero los abra en una pestaña. Los sirve este server y no uno aparte a

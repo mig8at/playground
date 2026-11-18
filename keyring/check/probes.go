@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"creditop/my-tools/connectors/atlassian"
-	"creditop/my-tools/connectors/canon"
 	"creditop/my-tools/connectors/env"
 	"creditop/my-tools/connectors/events"
 	"creditop/my-tools/connectors/figma"
@@ -402,22 +401,6 @@ func probeJev(ctx context.Context) Check {
 	}
 	c.State, c.Detail = OK, "hay token (no se prueba: cada pedido gasta)"
 	return c
-}
-
-func probeCanon(ctx context.Context) []Check {
-	read := Check{Name: "canon · lectura"}
-	if _, err := canon.FromEnv().Search(ctx, "solicitud"); err != nil {
-		read.State, read.Detail = Fail, host(canon.URL())+": "+firstLine(err.Error())
-	} else {
-		read.State, read.Detail = OK, host(canon.URL())
-	}
-	write := Check{Name: "canon · escritura"}
-	if _, err := canon.WriteKey(); err != nil {
-		write.State, write.Detail = Off, "sin llave de escritura"
-	} else {
-		write.State, write.Detail = OK, "hay llave (no se prueba: escribir es una revisión)"
-	}
-	return []Check{read, write}
 }
 
 // ── sesiones ────────────────────────────────────────────────────────────────────────────────────────

@@ -250,7 +250,7 @@ func accessSection() string {
 func knowledgeSection(root string) string {
 	library, err := knowledge.Open(filepath.Join(root, "knowledge"))
 	if err != nil {
-		return "  CONOCIMIENTO LOCAL — " + err.Error() + "\n    El código y las fuentes disponibles permiten continuar; Canon es opcional para negocio o producto."
+		return "  CONOCIMIENTO LOCAL — " + err.Error() + "\n    El código y las fuentes disponibles permiten continuar."
 	}
 	return formatKnowledge(library)
 }
@@ -266,7 +266,7 @@ func formatKnowledge(library knowledge.Library) string {
 		}
 		fmt.Fprintf(&out, "    %s · %s\n", topic.ID, topic.Title)
 	}
-	out.WriteString("    Canon es opcional: políticas o decisiones de negocio/producto que las fuentes disponibles no explican. No hace falta consultarlo para investigar, probar, registrar ni cerrar tareas.")
+	out.WriteString("    Canon (el corpus del equipo) no es de my-tools: se consulta con `playground canon search|read` y se mantiene en el repo compartido. No hace falta para investigar, probar, registrar ni cerrar tareas.")
 	return out.String()
 }
 

@@ -11,7 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"creditop/my-tools/connectors/canon"
+	"creditop/my-tools/connectors/pgreadonly"
 	"creditop/my-tools/connectors/env"
 )
 
@@ -108,7 +108,7 @@ func (c DBConfig) ConnString() string {
 	q.Set("connect_timeout", "10")
 	q.Set("application_name", "my-tools-connectors")
 	q.Set("default_transaction_read_only", "on")
-	q.Set("statement_timeout", fmt.Sprint(canon.DefaultTimeoutMs))
+	q.Set("statement_timeout", fmt.Sprint(pgreadonly.DefaultTimeoutMs))
 	q.Set("idle_in_transaction_session_timeout", "60000")
 	if c.Schema != "" {
 		q.Set("search_path", c.Schema)
@@ -117,8 +117,8 @@ func (c DBConfig) ConnString() string {
 	return u.String()
 }
 
-// OpenDB valida la configuración y abre la conexión, con la misma consulta de sólo lectura que la base de canon.
-func OpenDB(ctx context.Context, c DBConfig) (*canon.DB, error) {
+// OpenDB valida la configuración y abre la conexión, con la misma consulta de sólo lectura que la base de pgreadonly.
+func OpenDB(ctx context.Context, c DBConfig) (*pgreadonly.DB, error) {
 	if !ValidDBTarget(c.Target) {
 		return nil, fmt.Errorf("la app de Shopify sólo tiene base en %s (pediste %q)", strings.Join(DBTargets, " · "), c.Target)
 	}
@@ -150,7 +150,7 @@ func OpenDB(ctx context.Context, c DBConfig) (*canon.DB, error) {
 		return nil, fmt.Errorf("no se pudo conectar a la base de la app de Shopify en %s (%s:%s; %s): %s",
 			c.Target, c.Host, orDefault(c.Port, "5432"), hint, redact(err.Error(), c.Password))
 	}
-	return canon.NewDB(db, fmt.Sprintf("shopify-app postgres %s/%s", c.Host, c.Database)), nil
+	return pgreadonly.NewDB(db, fmt.Sprintf("shopify-app postgres %s/%s", c.Host, c.Database)), nil
 }
 
 // iamToken pide a AWS la contraseña de 15 minutos de IAM para el usuario, con la sesión del perfil. Firma local: no

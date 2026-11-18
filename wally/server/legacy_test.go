@@ -12,7 +12,6 @@ func TestLegacyNamesStillWork(t *testing.T) {
 		"listar pruebas":                              "list sandbox",
 		"ayuda pruebas":                               "help sandbox",
 		"guia conectores":                             "guide connectors",
-		"canon tema kyc/context":                      "canon read kyc/context",
 		"trampa F-162":                                "trap F-162",
 		"check sandbox/x":                             "check sandbox/x",
 	}

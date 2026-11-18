@@ -14,7 +14,6 @@ import { vResize, refreshResizers, fitRegions, regionSize, reopenSize, cssSize, 
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import TaskEditor from './TaskEditor.vue';
 import BlockText from './BlockText.vue';
-import CanonRoute from './CanonRoute.vue';
 import RegionMenu from './RegionMenu.vue';
 import RepoBranches from './RepoBranches.vue';
 import { readPreference, savePreference, groupTasks, TASK_GROUPS } from './ui-state.js';
@@ -2420,8 +2419,6 @@ function documentAction(id) {
                 </ul>
                 <p v-else><BlockText :text="part.text" v-bind="blockLinks" @block="goToBlock" /></p>
               </template>
-              <CanonRoute v-for="link in event.routes" :key="link.ref" :reference="link.ref" :label="link.label" :server="SERVER"
-                          @resolved="(reference, url) => routeURLs[reference] = url" />
             </article>
             </div>
           </section>

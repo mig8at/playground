@@ -1,31 +1,61 @@
 #!/usr/bin/env python3
-"""knowledge-deriva: poner knowledge/ al día contra main con el mismo método jerárquico que canon-deriva.
+"""knowledge-drift: poner knowledge/ al día contra main, de lo barato a lo caro.
 
-knowledge/ es la biblioteca LOCAL del día a día (canon es la del equipo). Sus fuentes son más precisas que las
-de canon: cada una guarda el COMMIT y el blob con que se leyó y qué secciones respalda, así que el diff sale
-exacto, sin buscar el blob en la historia.
+knowledge/ es la biblioteca LOCAL del día a día. Cada fuente guarda el COMMIT y el blob con que se leyó y qué
+secciones respalda, así que el diff sale exacto, sin buscar el blob en la historia. El modelo lee código sólo
+donde la prosa probablemente quedó mal.
 
     paquete     make knowledge-check (con las refs que ya resuelve) → fuentes cambiadas o perdidas → diffs, PRs y
-                secciones; y los paquetes del triaje SIN código (prompts/k-triaje.md)
+                secciones; y los paquetes del triaje SIN código (prompts/triage.md)
     codigo      con el triaje hecho: paquetes de código (diff bajo demanda) y de segunda mirada a ciegas
     final       junta código, segunda mirada y overrides.json
     aplicar     escribe rules.md y sources.json: el texto nuevo de cada sección, el título si cambió (y su ancla en
                 las fuentes), y commit + blob al día de cada fuente releída; reapunta las movidas. Después:
                 make knowledge-check y make knowledge-test
 
-⚠ Antes de `paquete`, los clones de trabajo tienen que tener su origin al día (`git fetch`): knowledge-check no
-hace fetch, y un clon atrasado devuelve MENOS deriva sin avisar.
+⚠ Antes de `paquete`, los clones tienen que tener su origin al día (`make knowledge-check FETCH=1`):
+knowledge-check no hace fetch, y un clon atrasado devuelve MENOS deriva sin avisar.
+
+Las corridas quedan fuera de git, en KNOWLEDGE_DRIFT_DIR (por defecto ~/Desktop/CREDITOP/canon/runs-knowledge,
+donde están las de antes).
 """
-import argparse, collections, datetime, json, os, re, subprocess, sys
+import argparse, collections, datetime, json, os, re, subprocess, sys, unicodedata
 from concurrent.futures import ThreadPoolExecutor
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, HERE)
-import deriva  # noqa: E402  (anchor, bins, body_of, order helpers)
-
-MY_TOOLS = deriva.MY_TOOLS
+MY_TOOLS = os.path.dirname(os.path.dirname(HERE))
 KN = os.path.join(MY_TOOLS, "knowledge")
-WORK = os.path.join(deriva.WORK, "runs-knowledge")
+WORK = os.path.expanduser(os.environ.get("KNOWLEDGE_DRIFT_DIR", "~/Desktop/CREDITOP/canon/runs-knowledge"))
+PR_BODY_CAP = 12000  # recortar fijo y corto fabricó dudas: 41 de 60 ítems quedaron «no se sabe» por un PR largo
+
+
+def die(msg):
+    print(f"✗ {msg}", file=sys.stderr)
+    sys.exit(2)
+
+
+def anchor(title):
+    """El ancla de un título: a-z0-9, el resto colapsa en un guion."""
+    t = unicodedata.normalize("NFKD", title.lower())
+    t = "".join(c for c in t if not unicodedata.combining(c))
+    return re.sub(r"[^a-z0-9]+", "-", t).strip("-")
+
+
+def bins(groups, n, size):
+    buckets, load_ = [[] for _ in range(n)], [0] * n
+    for g in sorted(groups, key=size, reverse=True):
+        k = load_.index(min(load_)); buckets[k].append(g); load_[k] += size(g)
+    return [b for b in buckets if b]
+
+
+def body(prs, p):
+    b = (prs.get(p) or {}).get("body") or "(sin descripción)"
+    return b if len(b) <= PR_BODY_CAP else b[:PR_BODY_CAP] + " …[recortada]"
+
+
+def body_of(t):
+    t = (t or "").strip()
+    return t.split("\n", 1)[1].strip() if t.startswith("## ") else t
 
 
 def repo_dirs():
@@ -75,7 +105,7 @@ def sections_of(topic):
     out, cur = {}, None
     for line in text.splitlines():
         if line.startswith("## "):
-            cur = deriva.anchor(line[3:]); out[cur] = [line]
+            cur = anchor(line[3:]); out[cur] = [line]
         elif cur:
             out[cur].append(line)
     return {k: "\n".join(v).strip() for k, v in out.items()}
@@ -171,9 +201,9 @@ def step_paquete(args):
     by_topic = collections.defaultdict(list)
     for k, v in items.items():
         by_topic[v["topic"]].append(k)
-    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(deriva.body(prs, p)) for k in by_topic[t] for p in items[k]["prs"])
+    size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(body(prs, p)) for k in by_topic[t] for p in items[k]["prs"])
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
-    for g, topics in enumerate(deriva.bins(list(by_topic), args.groups, size), 1):
+    for g, topics in enumerate(bins(list(by_topic), args.groups, size), 1):
         o, used = [], set()
         for t in sorted(topics):
             o.append(f"\n\n# TEMA {t}")
@@ -184,7 +214,7 @@ def step_paquete(args):
                 o.append("PRs: " + ", ".join(s["prs"]))
                 used |= set(s["prs"])
         o.append("\n\n# PRs (título y descripción)")
-        o += [f"\n## {p} — {(prs.get(p) or {}).get('title')}\n{deriva.body(prs, p)}" for p in sorted(used)]
+        o += [f"\n## {p} — {(prs.get(p) or {}).get('title')}\n{body(prs, p)}" for p in sorted(used)]
         open(os.path.join(d, "triaje", f"grupo-{g}.md"), "w").write("\n".join(o))
         print(f"  triaje/grupo-{g}.md · {sum(len(by_topic[t]) for t in topics)} ítems · ~{len(chr(10).join(o)) // 4:,} tokens")
     print(f"corrida {d}: {len(files)} fuentes · {len(items)} secciones · {len(prs)} PRs")
@@ -199,7 +229,7 @@ def step_codigo(args):
            for x in json.load(open(os.path.join(d, "triaje", n)))]
     missing = set(items) - {x["id"] for x in tri}
     if missing:
-        deriva.die(f"al triaje le faltan {len(missing)} ítems: {sorted(missing)[:3]}")
+        die(f"al triaje le faltan {len(missing)} ítems: {sorted(missing)[:3]}")
     save(d, "triaje.json", tri)
     cmd = lambda f: (f"`git -C {f['dir']} diff {f['base']} {f['ref']} -- {f['path']}`" if f["exists"]
                      else f"YA NO ESTÁ EN MAIN → {(f['moved'] or {}).get('to') or 'borrado'} ({(f['moved'] or {}).get('subject', '')})")
@@ -209,7 +239,7 @@ def step_codigo(args):
         by_topic[items[i]["topic"]].append(i)
     os.makedirs(os.path.join(d, "codigo"), exist_ok=True)
     order = {"contradice": 0, "no_se_sabe": 1}
-    for g, topics in enumerate(deriva.bins(list(by_topic), args.groups, lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])), 1):
+    for g, topics in enumerate(bins(list(by_topic), args.groups, lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])), 1):
         ids = sorted([i for t in topics for i in by_topic[t]], key=lambda i: (order.get(open_[i]["veredicto"], 2), i))
         o = [f"# Paquete de código {g}: {len(ids)} ítems\n"]
         for i in ids:
@@ -223,7 +253,7 @@ def step_codigo(args):
     bt = collections.defaultdict(list)
     for i in blind:
         bt[items[i]["topic"]].append(i)
-    for g, topics in enumerate(deriva.bins(list(bt), max(1, args.groups // 2), lambda t: len(bt[t])), 1):
+    for g, topics in enumerate(bins(list(bt), max(1, args.groups // 2), lambda t: len(bt[t])), 1):
         o = [f"# Segunda mirada {g}\n"]
         for t in topics:
             for i in bt[t]:
@@ -250,7 +280,7 @@ def step_final(args):
             final[k] = dict(x, id=k, fuente="a mano")
     missing = set(items) - set(final)
     if missing:
-        deriva.die(f"sin veredicto final: {sorted(missing)[:5]}")
+        die(f"sin veredicto final: {sorted(missing)[:5]}")
     save(d, "final.json", final)
     print("  final:", dict(collections.Counter(x["veredicto"] for x in final.values())))
     for i, x in final.items():
@@ -278,12 +308,12 @@ def step_aplicar(args):
                 continue
             a = i.split("#", 1)[1]
             lines = text.split("\n")
-            start = next(n for n, l in enumerate(lines) if l.startswith("## ") and deriva.anchor(l[3:]) == a)
+            start = next(n for n, l in enumerate(lines) if l.startswith("## ") and anchor(l[3:]) == a)
             end = next((n for n in range(start + 1, len(lines)) if lines[n].startswith("## ")), len(lines))
             title = x.get("titulo_nuevo") or lines[start][3:].strip()
             if x.get("titulo_nuevo"):
-                renames[a] = deriva.anchor(title)
-            body = deriva.body_of(x["texto_nuevo"])
+                renames[a] = anchor(title)
+            body = body_of(x["texto_nuevo"])
             lines[start:end] = [f"## {title}", "", body, ""]
             text = "\n".join(lines)
         open(rp, "w").write(re.sub(r"\n{3,}", "\n\n", text).rstrip() + "\n")

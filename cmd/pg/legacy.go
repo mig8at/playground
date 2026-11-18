@@ -10,7 +10,7 @@ import (
 // tareas guardan el comando exacto y otras herramientas los escribían; avisan el nombre nuevo por stderr.
 var legacyCommands = map[string]string{
 	"tareas": "tasks", "tarea pila": "task stack", "tarea ramas": "task branches", "tarea bloque": "task block",
-	"cierre": "closeout", "bitacora add": "worklog add", "canon yo": "canon me",
+	"cierre": "closeout", "bitacora add": "worklog add",
 	// un grupo sin su verbo (`pg tarea`) lista los del grupo nuevo
 	"tarea": "task", "bitacora": "worklog",
 }
