@@ -37,6 +37,7 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
 
   bin/cockpit status [--json]       qué apps hay, cuáles están arriba y cuál está al frente
   bin/cockpit open <app> [ruta]     trae una app al frente, en una ruta: #/tareas/core-543 · /local/motai/asesor
+  bin/cockpit ensure <app>          que esté arriba, sin traerla al frente (vuelve cuando contesta; sale 1 si no levantó)
   bin/cockpit restart <app> [--wait]  la reinicia para que tome un cambio en su servidor; Cockpit la recarga sola.
                                     --wait: vuelve cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
   bin/cockpit logs <app> [--lines 40] [--errors]   lo último que escribió una app; --errors, sólo lo que huele a falla
@@ -98,6 +99,40 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 		}
 		fmt.Printf("Cockpit: %s %s\n", args[1], route)
 		return 0
+	case "ensure":
+		// Que la app esté arriba, sin traerla al frente: lo llaman los CLI cuando su API no contesta.
+		if len(args) < 2 {
+			fmt.Fprintln(os.Stderr, "uso: bin/cockpit ensure <app>")
+			return 2
+		}
+		var res struct {
+			Ready bool   `json:"ready"`
+			Name  string `json:"name"`
+		}
+		if err := ctl.Do("POST", "/ensure", map[string]string{"app": args[1]}, &res, wait); err != nil {
+			fmt.Fprintln(os.Stderr, "cockpit:", err)
+			return 1
+		}
+		if res.Ready {
+			fmt.Printf("Cockpit: %s ya estaba arriba\n", res.Name)
+			return 0
+		}
+		start := time.Now()
+		for time.Since(start) < 90*time.Second {
+			time.Sleep(500 * time.Millisecond)
+			var st cockpit.Status
+			if err := ctl.Do("GET", "/status", nil, &st, wait); err != nil {
+				continue
+			}
+			for _, a := range st.Apps {
+				if a.ID == args[1] && a.Ready {
+					fmt.Printf("Cockpit: %s levantó (%.1f s)\n", a.Name, time.Since(start).Seconds())
+					return 0
+				}
+			}
+		}
+		fmt.Fprintf(os.Stderr, "cockpit: %s no levantó en 90 s (su log: bin/cockpit logs %s)\n", args[1], args[1])
+		return 1
 	case "restart":
 		if len(args) < 2 {
 			fmt.Fprintln(os.Stderr, "uso: bin/cockpit restart <app>")

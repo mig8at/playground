@@ -27,9 +27,33 @@
 import fs from 'node:fs';
 import http from 'node:http';
 import path from 'node:path';
+import net from 'node:net';
+import { execFileSync } from 'node:child_process';
 
 const API = process.env.WALLY_API || 'http://127.0.0.1:5229';
 const args = process.argv.slice(2);
+
+// SI WALLY ESTÁ APAGADO, SE LEVANTA SOLO (2026-11-18): una app oculta en Cockpit, o que nadie abrió todavía, no tiene
+// servidor. Antes de hablarle se mira si el puerto contesta y, si no, se le pide a Cockpit que la levante (`bin/cockpit
+// ensure`, sin traerla al frente). Sólo con la API de siempre: con WALLY_API puesto (una prueba) no se toca nada.
+const DOWN = `Wally no contesta en ${API}: ¿está arriba? (make wally, o abrí Wally en Cockpit)`;
+const portAnswers = () => new Promise<boolean>((done) => {
+    const u = new URL(API);
+    const s = net.connect({ host: u.hostname, port: Number(u.port || 80) });
+    s.once('connect', () => { s.destroy(); done(true); });
+    s.once('error', () => done(false));
+    s.setTimeout(1500, () => { s.destroy(); done(false); });
+});
+async function ensureUp() {
+    if (process.env.WALLY_API || await portAnswers()) return;
+    const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+    try {
+        console.error('  Wally estaba apagado: levantándolo por Cockpit…');
+        execFileSync(path.join(root, 'bin', 'cockpit'), ['ensure', 'wally'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    } catch (e: any) {
+        throw new Error(`${DOWN} · no se pudo levantar solo: ${String(e.stderr || e.message || e).trim()}`);
+    }
+}
 const JSON_OUT = args.includes('--json');
 const flag = (n: string) => { const i = args.indexOf(`--${n}`); return i >= 0 ? args[i + 1] : undefined; };
 const flags = (n: string) => args.flatMap((a, i) => (a === `--${n}` && args[i + 1] ? [args[i + 1]] : []));
@@ -89,6 +113,7 @@ async function upload(file: string) {
 
 const [cmd, sub] = positional();
 try {
+    if (cmd) await ensureUp(); // sin comando sólo se muestra la ayuda
     if (cmd === 'agents') {
         const { agents } = await api('/api/agents');
         out(agents, agents.length ? agents.map((a: any) =>

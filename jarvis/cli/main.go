@@ -46,6 +46,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"sort"
@@ -99,6 +100,11 @@ func main() {
 	inSession := cmd != "ask" && cmd != "start" && cmd != "chrome" && cmd != "think" && cmd != "finish" && cmd != "docs" && cmd != "recipe" && os.Getenv("JARVIS_ASK") == "" && os.Getenv("JARVIS_EVENTS") == ""
 	if inSession {
 		panelEvent("act", "jarvis "+shellLine(os.Args[1:]))
+	}
+	// Si la API de Jarvis está apagada (la app oculta en Cockpit, o nadie la abrió), se levanta sola antes de pedirle
+	// nada. `docs` y `recipe` no la usan.
+	if cmd != "docs" && cmd != "recipe" && cmd != "receta" && cmd != "help" {
+		ensureUp()
 	}
 	var err error
 	switch cmd {
@@ -273,6 +279,31 @@ func unknownCommand(cmd string) {
 	fmt.Fprintln(os.Stderr, `  lo más usado: open <url> · look · click <n> · fill <n> <valor> · press <n> <tecla> · text [buscar] · steps · close
   todos los comandos: bin/jarvis help`)
 	os.Exit(2)
+}
+
+// ensureUp: si el puerto de la API no contesta, le pide a Cockpit que levante Jarvis (`bin/cockpit ensure`, sin traerla
+// al frente) y espera. Sólo con la API de siempre: con JARVIS_API puesto (una prueba) no se toca nada. Si no se puede,
+// sigue, y el comando falla con su error de siempre.
+func ensureUp() {
+	if os.Getenv("JARVIS_API") != "" {
+		return
+	}
+	u, err := url.Parse(api)
+	if err != nil {
+		return
+	}
+	if c, err := net.DialTimeout("tcp", u.Host, 1500*time.Millisecond); err == nil {
+		c.Close()
+		return
+	}
+	root, err := repoRoot()
+	if err != nil {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "jarvis: la API estaba apagada: levantándola por Cockpit…")
+	if out, err := exec.Command(filepath.Join(root, "bin", "cockpit"), "ensure", "jarvis").CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "jarvis: no se pudo levantar sola: %s\n", strings.TrimSpace(string(out)))
+	}
 }
 
 // ── la API ──

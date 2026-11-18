@@ -662,6 +662,27 @@ fn control_server(app: tauri::AppHandle, token: String) {
                     json_response(404, serde_json::json!({ "error": format!("no hay app «{id}»: {}", ids.join(", ")) }))
                 }
             }
+            // ENSURE: que la app esté arriba, sin traerla al frente ni tocar una que ya anda. Es lo que usa un CLI
+            // (bin/wally, bin/jarvis) cuando su API no contesta: una app oculta o que nadie abrió todavía.
+            ("POST", "/ensure") => {
+                let id = text("app", 40);
+                match APPS.iter().find(|a| a.id == id) {
+                    None => {
+                        let ids: Vec<_> = APPS.iter().map(|a| a.id).collect();
+                        json_response(404, serde_json::json!({ "error": format!("no hay app «{id}»: {}", ids.join(", ")) }))
+                    }
+                    Some(def) => {
+                        let running = app.state::<Running>();
+                        running.watch(def.id);
+                        let was_ready = ready(def);
+                        if !was_ready {
+                            running.forget_launches(def.id); // lo pidió alguien: no espera
+                            running.ensure(def);
+                        }
+                        json_response(200, serde_json::json!({ "ok": true, "ready": was_ready, "name": def.name }))
+                    }
+                }
+            }
             ("POST", "/restart") => {
                 let id = text("app", 40);
                 match APPS.iter().find(|a| a.id == id) {

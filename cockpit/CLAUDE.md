@@ -62,6 +62,8 @@ En la barra el visor se llama **Designer**; por dentro la carpeta y sus `make` s
 
     bin/cockpit status [--json]        qué apps hay, cuáles están arriba y cuál está al frente
     bin/cockpit open <app> [ruta]      trae una app al frente, en una ruta
+    bin/cockpit ensure <app>           que esté arriba, SIN traerla al frente ni tocar una que ya anda; vuelve cuando
+                                       contesta (hasta 90 s; sale 1 si no levantó). Lo llaman solos bin/wally y bin/jarvis
     bin/cockpit restart <app> [--wait] la reinicia (su servidor Go no se recarga solo) y Cockpit la recarga;
                                        --wait vuelve recién cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
     bin/cockpit logs <app> [--lines 40] [--errors]   lo último que escribió una app (su servidor y su Vite), de
@@ -135,6 +137,14 @@ Los enlaces `target="_blank"` de cualquier app los atrapa Rust y los abre en el 
 **El puerto de control** escucha en 127.0.0.1:5209 y pide la llave que Cockpit deja al arrancar en
 `~/.config/creditop-cockpit/control.json` (600, se borra al salir): `GET /status`, `GET|POST /stop`,
 `POST /open`, `/say`, `/activity`. La llave existe para que una página web cualquiera no pueda manejar Cockpit.
+
+**Una app oculta o sin abrir sigue sirviendo a Claude** (2026-11-18). Cockpit levanta cada app la primera vez que
+Miguel la abre, así que una oculta puede no tener servidor. Los CLI que hablan con la API de su app (`bin/wally`,
+`bin/jarvis`) miran antes si el puerto contesta y, si no, corren `bin/cockpit ensure <app>` (`POST /ensure`): la
+levanta sin cambiar la app al frente. Medido: Wally apagado, `bin/wally agents` contestó en 2 s. Con `WALLY_API` o
+`JARVIS_API` puestos (una prueba) no levantan nada. Con Cockpit cerrado no hay quién la levante: el comando lo dice
+y sale 1. Los que tienen servicio de fondo (chat, Sentinel, Correo, Knowledge) y los que no usan servidor (`bin/pg`,
+harness, tablero) no lo necesitan.
 
 **Qué apps se ven en la barra** (engranaje → «Apps», un interruptor por app; 2026-11-18): ocultar una la saca de la
 barra y de los atajos ⌘1, ⌘2…, nada más: sigue andando (sus avisos, su servidor de fondo) y se abre igual por un aviso o
