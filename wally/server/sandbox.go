@@ -321,10 +321,21 @@ func sandboxPending(c Conversation, kind func(project string) string) string {
 	for _, m := range c.Messages {
 		for _, k := range m.Commands {
 			fields := strings.Fields(k.Cmd)
-			if k.Status != "corrido" || len(fields) != 2 || !strings.HasPrefix(fields[1], "pruebas/") {
+			if k.Status != "corrido" || len(fields) < 2 || !strings.HasPrefix(fields[1], "pruebas/") {
 				continue
 			}
-			events = append(events, event{fields[0], strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0], k.Exit})
+			project := strings.SplitN(strings.TrimPrefix(fields[1], "pruebas/"), "/", 2)[0]
+			// Un comando de consola que cambió archivos del proyecto es una escritura más.
+			if fields[0] == "consola" {
+				if k.Touched {
+					events = append(events, event{"escribir", project, 0})
+				}
+				continue
+			}
+			if len(fields) != 2 {
+				continue
+			}
+			events = append(events, event{fields[0], project, k.Exit})
 		}
 	}
 	project := ""

@@ -153,6 +153,12 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 	}
 	// Lo de la carpeta de pruebas pasa la lista: si no, un archivo o un parche bien formado queda «no permitido» al
 	// guardarlo (pasó con «parchar»: su expresión tenía una barra de más y Smeargle tuvo que reescribir todo).
+	// La consola acepta cualquier texto de comando (corre adentro del contenedor), pero sólo sobre un proyecto de pruebas.
+	for _, bad := range []string{"consola ~/.ssh cat id_rsa", "consola pruebas/../wally ls", "consola pruebas/demo", "consola pruebas/Demo ls", "consola /etc ls"} {
+		if _, err := commandArgs(bad); err == nil {
+			t.Errorf("%q tenía que rechazarse", bad)
+		}
+	}
 	for _, ok := range []string{"escribir pruebas/demo/index.html", "parchar pruebas/demo/css/base.css", "listar pruebas", "listar pruebas/demo", "leer pruebas/demo/app.js", "probar pruebas/demo", "probar pruebas/demo/otra.html"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)

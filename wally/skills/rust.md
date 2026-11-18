@@ -48,6 +48,28 @@ probar-api pruebas/mi-api
 La primera compilación de un proyecto tarda más; las siguientes, segundos. Leé el error del compilador entero: dice el
 archivo, la línea y casi siempre el arreglo. Corregí con un `parche`, no reescribas todo.
 
+## La consola: explorar y depurar a mano
+
+`consola pruebas/proyecto <comando>` corre CUALQUIER comando de terminal dentro del contenedor del proyecto (parado
+en su carpeta): `cargo`, `curl`, `jq`, `grep`, `sed`, `ls`, `cat`, `find`… Sin red, y sólo ve tu proyecto.
+
+```comando
+consola pruebas/mi-api ls -la src
+consola pruebas/mi-api grep -n "fn " src/main.rs
+consola pruebas/mi-api cargo test crea_una_tarea -- --nocapture
+consola pruebas/mi-api con-api curl -s -i localhost:8080/tareas
+consola pruebas/mi-api con-api bash -c 'curl -s -X POST localhost:8080/tareas -H "content-type: application/json" -d "{\"titulo\":\"a\"}"; echo; curl -s localhost:8080/tareas'
+```
+
+- **Cada comando arranca de cero**: la API no queda corriendo entre uno y otro. Para pedirle algo, anteponé
+  **`con-api`**: compila, la levanta en `localhost:8080`, corre tu comando y la apaga (y muestra lo que la API
+  escribió por consola). Varios pedidos seguidos contra el mismo proceso: `con-api bash -c '…; …'`.
+- Un comando por línea, hasta 2.000 caracteres, hasta 5 minutos. Llega la cola de la salida (200 renglones).
+- Sirve para MIRAR y depurar: qué contesta de verdad una ruta, por qué falla un test, qué hay en un archivo. Para
+  cambiar código seguí usando `parche` (queda el diff a la vista); si un comando cambia archivos del proyecto, cuenta
+  como una escritura y hay que volver a probar.
+- No reemplaza a los criterios: cerrás con `probar-api` en verde.
+
 ## Los criterios de una API (obligatorio): `pruebas/<proyecto>/criterios.json`
 
 UN criterio por cada cosa pedida. Se corren en orden y la API no se reinicia entre uno y otro: lo que crea un criterio

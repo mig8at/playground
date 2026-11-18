@@ -37,6 +37,16 @@ listar pruebas
 probar pruebas/mi-proyecto
 ```
 
+## La consola
+
+`consola pruebas/proyecto <comando>` corre un comando de terminal dentro de un contenedor aislado, parado en la carpeta
+del proyecto (sin red; sólo ve el proyecto): para mirar o buscar en lo que escribiste.
+
+```comando
+consola pruebas/mi-proyecto ls -la
+consola pruebas/mi-proyecto grep -n "addEventListener" app.js
+```
+
 ## Los criterios (obligatorio si el proyecto tiene una página)
 
 `pruebas/<proyecto>/criterios.json`: UN criterio por cada cosa pedida, con los pasos que lo comprueban usando la página.

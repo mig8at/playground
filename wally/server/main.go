@@ -677,6 +677,9 @@ func transcript(history []Message, question string, files []Attachment, fileText
 func (a *app) askProvider(ctx context.Context, provider, text, chatURL string) (answer, model, url string, err error) {
 	cfg := a.config.get()
 	model = providerModels[provider].Name
+	// Los saltos de línea, todos «\n»: un cuadro de texto de la web convierte «\r\n» en «\n», el texto queda más corto
+	// que el mandado y la receta cree que no entró entero (2026-11-17: la salida de `curl -i`, con encabezados HTTP).
+	text = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(text)
 	answer, url, err = a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
 		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window, ChatURL: chatURL,
 		Chunk: a.providerSpecs()[provider].chunkSize()})

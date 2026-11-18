@@ -516,12 +516,27 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **El freno sabe qué es cada proyecto** (`sandboxKind`): una página se comprueba con `probar`, una API en Rust con
     `probar-api` (que compile no alcanza para cerrar), y lo que no es ninguna de las dos no frena.
   - Se escriben también `.rs`, `.toml` y `.lock`. «Ver» sólo aparece en lo que es de una página.
+  - **La consola del agente: `consola pruebas/<proyecto> <comando>`** (`runConsole`; Miguel: «que lo pruebe usando
+    comandos de consola»). Corre CUALQUIER comando de terminal, pero dentro del mismo contenedor (sin red, sólo su
+    proyecto, 5 min, la cola de 200 renglones): `cargo`, `curl`, `jq`, `grep`, `sed`… Es el único comando de la lista
+    blanca cuyo texto no se restringe: lo que se valida es DÓNDE corre (un proyecto de `pruebas/`), y en la Mac viaja
+    como UN argumento a `bash -c` del contenedor, sin shell de este lado. Cada comando arranca de cero, así que para
+    pedirle algo a la API va **`con-api <comando>`** (`wally/rust/con-api.sh`): compila, la levanta en
+    `localhost:8080`, corre el comando y la apaga, mostrando lo que la API escribió. Si un comando de consola cambió
+    archivos del proyecto (`sandboxStamp`, `Command.Touched`), para el freno es una escritura y hay que volver a probar.
+    Sirve para explorar y depurar; se cierra igual con `probar-api`. Vale también en un proyecto de página.
   **Krabby** ([`agents/krabby.md`](agents/krabby.md), con `rust` y `pruebas` precargadas), por DeepSeek en Auto: una
   API de tareas con cinco rutas (listar, crear con validación, leer, marcar hecha, borrar) en UNA respuesta —121
   renglones en un `main.rs`, estado en memoria— y `probar-api` con sus 12 criterios en verde al primer intento: 2
   vueltas, 52 s. Verificado aparte con 13 pedidos que él no escribió (un id que no es número, no reusar ids después de
   borrar, marcar hecha una que no existe): los 13 pasan. Lo que costó fue del probador: rechazaba un criterio que
-  sólo tenía `no_contiene`.
+  sólo tenía `no_contiene`. **Un endpoint nuevo sobre lo que ya existía** (`PATCH /tareas/{id}` y el filtro
+  `?hecha=`): leyó los dos archivos, 6 parches (39 renglones, sin reescribir), 9 criterios más y 21/21 en 3 vueltas,
+  58 s; 12 pedidos aparte, bien. **Explorar con la consola y después corregir**: con `con-api curl` vio que dos casos
+  raros daban 400 pero en texto plano con el mensaje crudo de axum; los pasó a `{"error":"…"}` con parches y dejó
+  23/23; el caso que dijo no haber vuelto a probar (el JSON mal formado literal) se comprobó aparte y está bien.
+  ⚠ De esa corrida: la salida de `curl -i` trae `\r\n` y el cuadro de texto de la web los vuelve `\n` («el campo
+  quedó con 41003 caracteres de 41013»); los saltos se normalizan al guardar la salida y antes de mandar.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

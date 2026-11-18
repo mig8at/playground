@@ -40,8 +40,10 @@ type Command struct {
 	Content string `json:"content,omitempty"`
 	// Change: qué cambió al escribir o parchar (el diff y las cuentas); Report: el resultado de `probar` en datos
 	// (errores y criterios). Los dos son para la tarjeta de la interfaz: al modelo le llega el texto de Output.
-	Change *fileChange  `json:"change,omitempty"`
-	Report *checkReport `json:"report,omitempty"`
+	// Touched: un comando de consola que cambió archivos del proyecto (para el freno cuenta como escritura).
+	Touched bool         `json:"touched,omitempty"`
+	Change  *fileChange  `json:"change,omitempty"`
+	Report  *checkReport `json:"report,omitempty"`
 }
 
 // allowed: un comando de la lista blanca y cómo se corre. `run` recibe lo que capturó la expresión: o corre `make`
@@ -139,6 +141,14 @@ var allowList = []allowed{
 	// Rust (rust.go): compilar, testear y probar una API, DENTRO de un contenedor sin red que sólo ve el proyecto.
 	{regexp.MustCompile(`^(compilar|testear|probar-api) (pruebas/[a-z0-9][a-z0-9_-]{0,40})$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
 		return a.runRust(ctx, m[2], m[1])
+	}},
+	// La consola del agente (rust.go): cualquier comando, pero DENTRO del contenedor de su proyecto. Acá el texto no
+	// se restringe —adentro no hay red ni nada de la Mac salvo el proyecto—; lo que se valida es dónde corre.
+	{regexp.MustCompile(`^consola (pruebas/[a-z0-9][a-z0-9_-]{0,40}) (.+)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		if len(m[2]) > 2000 {
+			return "el comando pasa de 2.000 caracteres: partilo en varios", 1, nil
+		}
+		return a.runConsole(ctx, m[1], m[2])
 	}},
 	{regexp.MustCompile(`^listar (pruebas(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "pruebas"), "/"))
@@ -357,6 +367,7 @@ func (a *app) runToFile(ctx context.Context, shown, name string) (Attachment, in
 	if exit != 0 {
 		text = fmt.Sprintf("(el comando terminó con código %d)\n%s", exit, text)
 	}
+	text = strings.NewReplacer("\r\n", "\n", "\r", "\n").Replace(text)
 	att, err := a.saveOutput(text, name)
 	return att, exit, err
 }
@@ -431,6 +442,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	result := Command{Status: "descartado"}
 	var change *fileChange
 	var report *checkReport
+	touched := false
 	if action == "run" {
 		// La lista blanca se vuelve a mirar acá, al correr: lo guardado no se toma como validado.
 		if _, err := commandArgs(shown); err != nil {
@@ -460,7 +472,13 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 					att, err = a.saveOutput(note, "salida: "+shown)
 				}
 			} else {
+				stampProject, before := "", ""
+				if f := strings.Fields(shown); len(f) > 2 && f[0] == "consola" {
+					stampProject = strings.TrimPrefix(f[1], "pruebas/")
+					before = a.sandboxStamp(stampProject)
+				}
 				att, exit, err = a.runToFile(ctx, shown, "salida: "+shown)
+				touched = stampProject != "" && a.sandboxStamp(stampProject) != before
 				if strings.HasPrefix(shown, "probar ") {
 					report = a.sandboxReport(shown)
 				} else if strings.HasPrefix(shown, "probar-api ") && err == nil {
@@ -481,7 +499,7 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 	a.store.mu.Lock()
 	defer a.store.mu.Unlock()
 	cmd.Status, cmd.Reason, cmd.Exit, cmd.Ms, cmd.Output = result.Status, result.Reason, result.Exit, result.Ms, result.Output
-	cmd.Change, cmd.Report = change, report
+	cmd.Change, cmd.Report, cmd.Touched = change, report, touched
 	// Guardado, el contenido ya está en el disco (y en el texto de la respuesta): no se duplica en lo guardado.
 	if result.Status == "corrido" && result.Reason == "" {
 		cmd.Content = ""

@@ -16,6 +16,7 @@ RUN cargo init --name base --vcs none . \
  && cargo add --dev http-body-util \
  && cargo build && cargo build --tests
 COPY probar-api.sh /usr/local/bin/probar-api
-RUN chmod +x /usr/local/bin/probar-api
+COPY con-api.sh /usr/local/bin/con-api
+RUN chmod +x /usr/local/bin/probar-api /usr/local/bin/con-api
 ENV CARGO_NET_OFFLINE=true
 WORKDIR /work

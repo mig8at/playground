@@ -187,6 +187,16 @@ func TestSandboxPendingBlocksClosingUntested(t *testing.T) {
 	if got := sandboxPending(Conversation{Messages: []Message{wrote, msg(run("probar-api pruebas/api", 1))}}, rust); !strings.Contains(got, "dejó problemas") {
 		t.Errorf("Rust con un criterio en rojo frena: %q", got)
 	}
+	// La consola: mirar no obliga a nada; un comando que CAMBIÓ archivos cuenta como escritura y hay que volver a probar.
+	green := []Message{wrote, msg(run("probar-api pruebas/api", 0))}
+	look := Command{Cmd: "consola pruebas/api con-api curl -s localhost:8080/tareas", Status: "corrido"}
+	if got := sandboxPending(Conversation{Messages: append(green, msg(look))}, rust); got != "" {
+		t.Errorf("mirar con la consola no frena: %q", got)
+	}
+	edit := Command{Cmd: "consola pruebas/api sed -i s/a/b/ src/main.rs", Status: "corrido", Touched: true}
+	if got := sandboxPending(Conversation{Messages: append(green, msg(edit))}, rust); !strings.Contains(got, "probar-api pruebas/api") {
+		t.Errorf("la consola que tocó archivos tiene que frenar: %q", got)
+	}
 	// El resumen de probar-api, en datos, sale de sus ✓ y ✗.
 	rep := checkTextReport("La API levantó.\n\nCRITERIOS (2):\n  ✓ lista vacía\n  ✗ crea una tarea — POST /tareas: esperaba estado 201 y dio 404. Contestó (404): \n\nRESULTADO: 1 problema(s) para corregir.")
 	if rep.Problems != 1 || len(rep.Criteria) != 2 || !rep.Criteria[0].OK || rep.Criteria[1].OK || !strings.Contains(rep.Criteria[1].Detail, "404") {
