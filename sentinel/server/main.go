@@ -74,6 +74,8 @@ type Subject struct {
 	Stake *Stake `json:"stake,omitempty"`
 	// Message (sólo `newmsg:`): el mensaje de error nuevo.
 	Message *MsgView `json:"message,omitempty"`
+	// Explain: el porqué que escribió el modelo al pasar a alerta (verdict.go), como hipótesis.
+	Explain string `json:"explain,omitempty"`
 	// Acked: el episodio está reconocido («ya lo sé»): la interfaz lo pasa a «Conocidos» hasta que se cierre o empeore.
 	Acked bool `json:"acked,omitempty"`
 	// La proporción de negadas sobre lo que terminó: se muestra, no alerta. Lo de hoy todavía no terminó de avanzar
@@ -110,8 +112,10 @@ type Overview struct {
 	// Rejections: el rechazo de las entidades CreditopX (`reject:6`, `reject:all`), por su tasa (reject.go).
 	Rejections []Subject `json:"rejections"`
 	// Funnel: el embudo del backend (`funnel:profiled`, `funnel:selected`): de las que entran, cuántas siguen (funnel.go).
-	Funnel     []Subject `json:"funnel"`
-	RejectNote string    `json:"rejectNote,omitempty"`
+	Funnel []Subject `json:"funnel"`
+	// Verdict: el dictamen de la mañana más reciente (verdict.go), o nil.
+	Verdict    *Verdict `json:"verdict,omitempty"`
+	RejectNote string   `json:"rejectNote,omitempty"`
 	// Policies: los cambios de política de las entidades (lender_rules_snapshots), del más nuevo al más viejo: se
 	// marcan como los despliegues.
 	Policies []PolicyChange `json:"policies"`
@@ -140,6 +144,7 @@ type sentinel struct {
 	root, rulesPath string
 	store           *store
 	mu              sync.Mutex
+	verdicts        verdictState
 	last            *Overview
 	err             string
 	running         bool
@@ -738,8 +743,12 @@ func (s *sentinel) run() {
 			s.notifier.gap(gap.Gap, gap.Alerts, o.Rules.Notify, gap.Capped, time.Now())
 		}
 		s.notifier.observe(o, time.Now())
+		for _, subj := range s.notifier.takeAlerted() {
+			go s.explainAlert(subj, o.Rules)
+		}
 		s.decorate(o)
 	}
+	s.maybeVerdict(o.Rules)
 	s.last, s.err = o, ""
 	s.saveLast(o)
 	if time.Since(s.daysAt) > 30*time.Minute {
@@ -756,8 +765,11 @@ func (s *sentinel) decorate(o *Overview) {
 	now := time.Now().In(bogota)
 	o.Gaps = s.notifier.gaps(time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, bogota).AddDate(0, 0, -1))
 	acked := s.notifier.acked()
+	why := s.notifier.explanations()
+	o.Verdict = s.latestVerdict()
 	for _, list := range []*[]Subject{&o.Lenders, &o.Merchants, &o.Services, &o.Liveness, &o.LenderErrors, &o.Steps, &o.Providers, &o.Rejections, &o.Funnel, &o.NewMessages} {
 		for i := range *list {
+			(*list)[i].Explain = why[(*list)[i].Signal]
 			(*list)[i].Acked = acked[(*list)[i].Signal]
 		}
 	}

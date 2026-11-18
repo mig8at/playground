@@ -316,7 +316,7 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   `chequeoNombre`, `harness/dev/case.ts`) y quedó `harness/suites/nombres.json`, con sus 6 casos más el ambiguo que
   había dejado afuera: 7/7 en local, y una copia con las expectativas cambiadas dio rojo con las tres diferencias.
   Sus notas se pusieron al día con `bin/wally agent update Mew --notes-file wally/agents/mew.md`.
-- **Noctowl, el dictamen de producción** (2026-11-17): lee Sentinel y dice 🟢/🟡/🔴, qué mirar ya (máximo 3), qué
+- **Noctowl, el dictamen de producción** (2026-11-17; desde el 2026-11-18 Sentinel lo arma SOLO cada mañana y explica cada alerta con el modelo de segundo plano, leyendo estas mismas notas: `sentinel/server/verdict.go`): lee Sentinel y dice 🟢/🟡/🔴, qué mirar ya (máximo 3), qué
   echarle ojo, qué es ruido conocido y los despliegues del día, con qué correr para confirmar. Sus notas,
   [`agents/noctowl.md`](agents/noctowl.md): cómo decide Sentinel, lo ya conocido y cómo no leerlo mal. Para eso se
   sumaron a la lista blanca **`sentinel now`**, **`sentinel day [fecha]`** y **`sentinel deploy repo [versión]`**

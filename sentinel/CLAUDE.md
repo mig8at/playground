@@ -32,6 +32,7 @@ un agente para que resuma.
 | `bin/sentinel signal <señal\|nombre>` | una señal hora por hora, hoy contra lo normal; de una entidad, también sus errores en los logs |
 | `bin/sentinel ack <señal> [--undo]` | reconoce un episodio («ya lo sé»): pasa de «Pide atención» a «Conocidos» hasta que se cierra o EMPEORA. Va por la API (`POST/DELETE /api/ack`), porque el avisador vive ahí; en la interfaz, «Reconocer» y «Devolver» |
 | `bin/sentinel cases <señal> [--hours N]` · `bin/sentinel rules <entidad> [--hours N]` | solicitudes de ejemplo de la señal (con su enlace a tracer) · qué regla dura rechaza a la entidad, ahora contra antes (§«De la señal al caso»). Leen producción, no lo guardado |
+| `bin/sentinel verdict [--make]` · `bin/sentinel why <señal>` | el dictamen de la mañana (el último guardado; `--make` arma el de hoy ya, ~30 s) · el porqué de una señal ahora, como hipótesis, sin guardar ni avisar (§«El dictamen y el porqué») |
 | `bin/sentinel schema` | **la deriva de esquema**: lo que producción tiene y la base de dev/qa/staging ya NO (columnas renombradas o borradas por una migración que corrió en dev: lo que un servicio desplegado puede estar leyendo, como el `countries.cell_phone_lenght` del 18/11/2026), los cambios de tipo y las migraciones de dev que producción no corrió, con las que por el nombre renombran o borran. Sin respaldos, temporales ni vistas `VW_`. ~5 s, sólo lectura (`server/schema.go`) |
 | `bin/sentinel deploy <repo> [versión] [--hours 2]` | **¿se dañó algo después de un despliegue?** Las horas de después contra las mismas de antes y contra esa franja en los días comparables, en TODAS las señales: errores que subieron, solicitudes que cayeron (con piso de volumen), servicios que se callaron. Sin versión, el último a producción del repo (GitHub). Que algo empeore después no prueba que lo causó: dos repos que se despliegan juntos se ven igual |
 
@@ -173,6 +174,29 @@ sobre lo que pase de su base mínima + la tasa general del comercio, `revenue.js
 PROPIA de forecast (`lender_rates`, `merchant_config`, cargadas a mano), no en producción, y Sentinel no tiene
 credenciales para leerla. Copiar las de octubre (`seeds/tarifas-*.sql`) sería un índice que envejece sin avisar. Para
 ordenar alcanza con lo desembolsado; pasar a revenue pide leer esa base.
+
+## El dictamen y el porqué de una alerta (`server/verdict.go`)
+
+Lo que hacía Noctowl en Wally cuando se lo pedían, ahora solo, con el modelo de segundo plano (`lib/background`: Claude
+por defecto, el elegido en Cockpit). El modelo no corre nada: recibe las salidas y contesta.
+
+- **El dictamen**: de lunes a viernes, en la primera pasada desde las 7:30 (`maybeVerdict`, dentro de la API de fondo:
+  no hace falta otro agendado), 🟢/🟡/🔴 con lo que hay que mirar ya, lo de echarle ojo, el ruido conocido y los
+  despliegues. Lee lo mismo que `bin/sentinel now` y `bin/sentinel day` de ayer y de hoy. Queda en
+  `.data/verdicts/<día>.md`, arriba de «Para mirar» en la interfaz (la primera línea a la vista, el resto plegado), y
+  con un aviso (con sonido si es 🔴). Un intento fallido se reintenta a los 30 min.
+- **El porqué de una alerta**: cuando una señal pasa a alerta y se avisa, una pregunta aparte con esa señal hora por
+  hora, lo demás que está fuera de lo normal, el día (despliegues, cambios de política) y, si es de una entidad, qué
+  regla dura rechaza (una consulta a producción, sólo lectura). Contesta en tres oraciones, como HIPÓTESIS; llega como
+  un segundo aviso («Sentinel · por qué: …»), queda en el episodio (`alerts.json`) y se ve debajo de la alerta y en su
+  detalle. Uno por episodio y como mucho 8 por día (`explainPerDay`). El backtest no explica nada.
+- **Cómo leer Sentinel lo dicen las notas de Noctowl** (`wally/agents/noctowl.md`), que se leen en cada pregunta sin «Cómo
+  trabajás»: un error de lectura se corrige en UN lugar para Wally, el dictamen y el porqué.
+- **Medido el 2026-11-18**: el dictamen salió 🟡 en ~30 s (Credifamilia con 21 errores contra 0, el pico de OTP de la
+  mañana, el rechazo de CreditopX); los números que cité, comprobados contra `bin/sentinel now` y `day`. La primera versión
+  ocupaba 40 renglones: se le puso tope de 12. El porqué de `lerr:24` en ~17 s, bien razonado (otras entidades a la vez,
+  sin despliegue ni política, reglas quietas), pero llamó «techo» a los conteos por hora (2 a 7) cuando el techo era 12:
+  por eso va como hipótesis.
 
 ## Los errores que no estaban (`server/messages.go`)
 
@@ -329,6 +353,7 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 | los errores que no estaban (`newmsg:`) | `server/messages.go` |
 | casos de ejemplo y qué regla rechaza | `server/examples.go` |
 | el embudo del backend (`funnel:`) | `server/funnel.go` |
+| el dictamen de la mañana y el porqué de una alerta | `server/verdict.go` |
 | la plata en juego (lo desembolsado por entidad y comercio) | `server/stake.go` |
 | los servicios en producción: versión y tarjetas | `server/services.go` |
 | el LaunchAgent (de fondo) | `server/agent.go` |

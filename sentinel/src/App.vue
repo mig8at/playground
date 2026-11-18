@@ -218,8 +218,27 @@ const STATE_LABEL = { alert: 'alerta', warn: 'para mirar', ok: 'normal', quiet: 
 // En la tabla, corto: es una columna.
 const TABLE_KIND = { reject: 'Rechazo', out: 'Proveedor', newmsg: 'Error nuevo', jserr: 'Errores', step: 'Pantalla', lerr: 'Errores', lender: 'Entidad', merchant: 'Comercio', service: 'Errores', queue: 'Cola', all: 'Producción', logs: 'Vida' }
 const KIND_LABEL = { funnel: 'Embudo del backend', reject: 'Rechazo de CreditopX', out: 'Proveedor externo', newmsg: 'Error que no estaba', jserr: 'Errores del front', step: 'Pantalla del wizard', lerr: 'Errores de una entidad', lender: 'Entidad', merchant: 'Comercio', all: 'Producción', service: 'Errores en los logs', queue: 'La cola', logs: 'Líneas en los logs' }
-const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando' }
-const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn' }
+const NOTICE_LABEL = { alert: 'Alerta', warn: 'Para mirar', recovered: 'Volvió a lo normal', stale: 'Sin leer producción', late: 'Atrasados', gap: 'No estuvo mirando', verdict: 'Dictamen', why: 'Por qué' }
+const NOTICE_DOT = { alert: 'alert', warn: 'warn', recovered: 'ok', stale: 'warn', late: 'warn', gap: 'warn', verdict: 'ok', why: 'warn' }
+// EL DICTAMEN DE LA MAÑANA (verdict.go): lo escribe el modelo de segundo plano de lunes a viernes desde las 7:30. Su
+// Markdown se muestra en renglones: los títulos en negrita, las viñetas como lista y el resto como párrafo.
+const VERDICT_DOT = { green: 'ok', yellow: 'warn', red: 'alert' }
+const verdictOpen = ref(false)
+const plainMd = (t) => t.replace(/\*\*/g, '').replace(/`/g, '').replace(/^#+\s*/, '')
+const verdictLines = computed(() => (data.value?.verdict?.text || '').split('\n').map((l) => l.trimEnd()).filter((l) => l.trim())
+  .map((l) => {
+    const indent = /^\s{2,}-/.test(l)
+    const t = l.trim()
+    if (t.startsWith('- ')) return { kind: indent ? 'sub' : 'li', text: plainMd(t.slice(2)) }
+    if (/^\*\*[^*]+\*\*:?$/.test(t)) return { kind: 'h', text: plainMd(t).replace(/:$/, '') }
+    return { kind: 'p', text: plainMd(t) }
+  }))
+const verdictDay = computed(() => {
+  const d = data.value?.verdict?.day
+  if (!d) return ''
+  const today = new Date().toLocaleDateString('en-CA')
+  return d === today ? 'de hoy' : `del ${new Date(`${d}T12:00:00`).toLocaleDateString('es-CO', { weekday: 'long', day: 'numeric' })}`
+})
 // La cabecera cuenta por nivel («2 alertas · 1 para mirar») con el color del peor: antes decía «3 para mirar» en
 // amarillo aunque las tres fueran alertas.
 const attentionCounts = computed(() => {
@@ -539,6 +558,7 @@ onBeforeUnmount(() => {
           <p v-if="hours(selected) > 1" class="note">Mira las últimas {{ hours(selected) }} horas y no una: {{ selected.kind === 'reject' || selected.kind === 'out' || selected.kind === 'funnel' ? 'en una hora hay muy pocas para hablar de una tasa' : 'es de lo que seguís, y en una hora entra tan poco que no hay con qué comparar' }}.</p>
           <p v-if="selected.silence" class="note">Callado desde el {{ dayClock(selected.silence.since) }}: {{ silentFor(selected.silence.minutes) }} sin escribir una línea, más que el silencio más largo de las semanas anteriores ({{ silentFor(selected.silence.longest) }}). Se marca hasta que vuelva a escribir, aunque la estadística de la hora ya lo tome por normal.</p>
           <p v-if="selected.shift" class="note">{{ shiftText(selected) }}</p>
+          <p v-if="selected.explain" class="note why-note"><b>Por qué (hipótesis del modelo, al pasar a alerta):</b> {{ selected.explain }}</p>
           <p v-if="selected.stake && selected.stake.share < 1" class="note">Mueve {{ sharePct(selected.stake.share) }} de lo desembolsado en los últimos 28 días (~{{ money(selected.stake.perDay) }} por día, {{ selected.stake.count }} créditos): es lo que se deja de colocar si esto se cae.</p>
 
           <div class="cards">
@@ -822,12 +842,29 @@ onBeforeUnmount(() => {
           ⚠ {{ data.unsent.count }} {{ data.unsent.count === 1 ? 'aviso no salió' : 'avisos no salieron' }} desde {{ dayClock(data.unsent.since) }}.
           Salen juntos cuando el aviso vuelva a funcionar.<small v-if="data.unsent.error" class="row-desc">{{ data.unsent.error }}</small>
         </p>
+        <section v-if="data?.verdict" class="verdict-box" aria-label="Dictamen">
+          <button type="button" class="verdict-head" :aria-expanded="verdictOpen" @click="verdictOpen = !verdictOpen">
+            <i class="dot" :class="`is-${VERDICT_DOT[data.verdict.level] || 'warn'}`" aria-hidden="true"></i>
+            <span>Dictamen {{ verdictDay }}</span>
+            <span class="ui-icon verdict-chevron" data-icon="chevron" aria-hidden="true"></span>
+          </button>
+          <p class="verdict-lede">{{ verdictLines[0]?.text }}</p>
+          <div v-show="verdictOpen" class="verdict-rest">
+            <template v-for="(l, i) in verdictLines.slice(1)" :key="i">
+              <p v-if="l.kind === 'h'" class="verdict-h">{{ l.text }}</p>
+              <p v-else-if="l.kind === 'li' || l.kind === 'sub'" class="verdict-li" :class="{ sub: l.kind === 'sub' }">{{ l.text }}</p>
+              <p v-else class="verdict-p">{{ l.text }}</p>
+            </template>
+            <small class="row-desc">Lo escribió el modelo de segundo plano ({{ data.verdict.model }}) con lo guardado de ayer y de hoy. Lo que dice como causa es hipótesis. Por consola: <code>bin/sentinel verdict</code>.</small>
+          </div>
+        </section>
         <p v-if="data && !attention.length" class="none">Nada fuera de lo normal en la última hora{{ known.length ? ' que no conozcas' : '' }}.</p>
         <div v-for="s in attention" :key="`a-${s.signal}`" class="attention-item">
           <button type="button" class="row stacked attention-row" :class="`is-${s.state}`" @click="pick(s)">
             <span class="attention-name"><i class="dot" :class="`is-${s.state}`" aria-hidden="true"></i>{{ s.name }}</span>
             <small class="muted attention-kind">{{ KIND_LABEL[s.kind] }}</small>
             <small class="row-desc">{{ s.why }}</small>
+            <small v-if="s.explain" class="row-desc why-text">Por qué: {{ s.explain }}</small>
           </button>
           <button type="button" class="btn btn-ghost ack" title="Ya lo sé: pasa a «Conocidos» hasta que se cierre o empeore" @click="setAck(s, true)">Reconocer</button>
         </div>
@@ -1037,6 +1074,20 @@ h3 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--fg-3);
 .examples code { margin-left: auto; font-size: 11px; color: var(--muted-foreground); user-select: all }
 .rules-box tr.is-up td { color: var(--sentinel-alert) }
 .rules-box th:first-child { text-align: left }
+.verdict-box { margin: 4px 8px 10px; padding: 8px 10px; border-radius: 6px; background: color-mix(in oklab, var(--foreground) 5%, transparent) }
+.verdict-head { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; color: var(--foreground); font: inherit; font-weight: 600; padding: 0; cursor: pointer; text-align: left }
+.verdict-chevron { margin-left: auto; transition: transform .15s }
+.verdict-head[aria-expanded="true"] .verdict-chevron { transform: rotate(180deg) }
+.verdict-lede { margin: 6px 0 0; font-size: 12px; line-height: 1.45 }
+.verdict-rest { display: grid; gap: 4px; margin-top: 6px; font-size: 12px; line-height: 1.45 }
+.verdict-rest p { margin: 0 }
+.verdict-h { font-weight: 600; margin-top: 4px !important }
+.verdict-li { padding-left: 12px; position: relative }
+.verdict-li::before { content: '–'; position: absolute; left: 0; color: var(--muted-foreground) }
+.verdict-li.sub { padding-left: 24px }
+.verdict-li.sub::before { left: 12px }
+.why-text { font-style: italic }
+.why-note { border-left: 2px solid var(--muted-foreground); padding-left: 8px }
 .chart .policy-mark line { stroke: var(--primary); stroke-width: 1.5; stroke-dasharray: 1 3 }
 .chart .policy-mark text { fill: var(--primary); font-size: 10px }
 .chart-note { margin: 0; font-size: var(--text-xs); color: var(--fg-3) }

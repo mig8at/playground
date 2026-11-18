@@ -67,6 +67,8 @@ type episode struct {
 	// «Conocidos» hasta que se cierra o EMPEORA (pasa a un nivel mayor que el reconocido).
 	Acked   string `json:"acked,omitempty"`
 	AckedAt string `json:"ackedAt,omitempty"`
+	// Explain: el porqué que escribió el modelo de segundo plano al pasar a alerta (verdict.go), como hipótesis.
+	Explain string `json:"explain,omitempty"`
 }
 
 // Gap: un tramo en que Sentinel no miró (el Mac dormido, la VPN caída, la API apagada). Se mide por reloj: lo guardado
@@ -96,7 +98,9 @@ type notifier struct {
 	Pending   []Notice `json:"pending,omitempty"`
 	LastError string   `json:"lastError,omitempty"`
 	notices   []Notice
-	dry       bool // la prueba contra la historia: no manda ni escribe nada
+	// alerted: lo que pasó a alerta y se avisó en la última observación; la API lo toma para explicarlo (verdict.go).
+	alerted []Subject
+	dry     bool // la prueba contra la historia: no manda ni escribe nada
 	// deliver manda un aviso; nil es el del sistema (systemNotice). Los tests lo reemplazan.
 	deliver func(title, body, route string, sound bool) (string, error)
 	// follows dice si un comercio se sigue; sin él (nil), se avisa de todos.
@@ -210,6 +214,9 @@ func (n *notifier) observe(o *Overview, now time.Time) {
 				ep.Notified = subj.State
 				title := "Sentinel · " + map[string]string{"alert": "alerta", "warn": "para mirar"}[subj.State]
 				n.send(Notice{Signal: subj.Signal, Name: subj.Name, Level: subj.State, Text: subj.Why}, now, title, lvl == levelAlert)
+				if lvl == levelAlert && !(n.dry && n.deliver == nil) { // en el backtest no se explica nada
+					n.alerted = append(n.alerted, subj)
+				}
 			}
 			continue
 		}
@@ -583,4 +590,44 @@ func noticesOf(rules Rules, steps map[Signal][]replayStep, follows func(Signal) 
 		n.observe(o, at)
 	}
 	return n.notices
+}
+
+// takeAlerted: lo que pasó a alerta en la última observación, y la lista queda vacía.
+func (n *notifier) takeAlerted() []Subject {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	out := n.alerted
+	n.alerted = nil
+	return out
+}
+
+// explained guarda el porqué en el episodio abierto de la señal (si sigue abierto).
+func (n *notifier) explained(sig Signal, text string) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	if ep := n.Episodes[sig]; ep != nil {
+		ep.Explain = text
+		n.save()
+	}
+}
+
+// explanations: el porqué de cada episodio abierto que lo tiene.
+func (n *notifier) explanations() map[Signal]string {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	out := map[Signal]string{}
+	for sig, ep := range n.Episodes {
+		if ep.Explain != "" {
+			out[sig] = ep.Explain
+		}
+	}
+	return out
+}
+
+// tell manda un aviso desde fuera de la pasada (el dictamen, el porqué de una alerta) y lo anota con los demás.
+func (n *notifier) tell(x Notice, title string, sound bool) {
+	n.mu.Lock()
+	defer n.mu.Unlock()
+	n.send(x, time.Now(), title, sound)
+	n.save()
 }

@@ -28,7 +28,7 @@ import (
 	"time"
 )
 
-var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true}
+var cliCommands = map[string]bool{"now": true, "day": true, "signal": true, "deploy": true, "ack": true, "schema": true, "cases": true, "rules": true, "verdict": true, "why": true}
 
 // runCLI: un comando de la consola. Devuelve el código de salida.
 func runCLI(root string, args []string) int {
@@ -37,6 +37,7 @@ func runCLI(root string, args []string) int {
 	asJSON := fs.Bool("json", false, "la salida en JSON (para un agente)")
 	hours := fs.Float64("hours", 2, "deploy: cuántas horas mirar antes y después")
 	undo := fs.Bool("undo", false, "ack: deshace el reconocimiento (vuelve a «Pide atención»)")
+	makeIt := fs.Bool("make", false, "verdict: armar el de hoy ahora (si no, muestra el último guardado)")
 	var positional []string
 	// Los flags pueden ir antes o después de los argumentos.
 	rest := args[1:]
@@ -63,6 +64,10 @@ func runCLI(root string, args []string) int {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "sentinel:", err)
 		return 1
+	}
+	// verdict y why le preguntan al modelo de segundo plano (verdict.go).
+	if cmd == "verdict" || cmd == "why" {
+		return verdictCLI(c, cmd, positional, *makeIt, *asJSON)
 	}
 	var out any
 	switch cmd {
