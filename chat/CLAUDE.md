@@ -1,8 +1,45 @@
 # chat — el chat del equipo
 
-La app (`chat/src`, Vue) y su servidor (`chat/server`, Go, :5185) sobre el CLI `playground`. Cómo se usa por consola
-(`bin/chat`), el llavero y Cockpit: el `CLAUDE.md` raíz y [`cockpit/CLAUDE.md`](../cockpit/CLAUDE.md). La videollamada
-y sus voces: [`office/CLAUDE.md`](../office/CLAUDE.md) §«En el chat».
+La app (`chat/src`, Vue) y su servidor (`chat/server`, Go, :5185) sobre el CLI `playground`. Cockpit:
+[`cockpit/CLAUDE.md`](../cockpit/CLAUDE.md). La videollamada y sus voces: [`office/CLAUDE.md`](../office/CLAUDE.md)
+§«En el chat».
+
+## Por consola (vivía en el `CLAUDE.md` raíz hasta el 2026-11-18)
+
+| para… | comando |
+|---|---|
+| ver quién está conectado · mandar un mensaje suelto | `playground online` · `playground send @jose.guzman "…"` (el CLI del playground compartido, con tu sesión; sin guardar nada) |
+| verlo | `make chat` (conversaciones y contestar, sobre el mismo CLI; su servidor guarda el historial y las imágenes en disco) |
+| el contexto de una conversación | `bin/chat history <who>` (con las imágenes ya bajadas: no uses `playground get`, que le quita el adjunto al chat) |
+| seguir las respuestas | un Monitor sobre `bin/chat follow <who> --theirs` (con `--json`, un mensaje por línea) |
+| contestar o mandar | `bin/chat reply` / `bin/chat send`, con el texto confirmado |
+| un adjunto | `bin/chat send <who> <texto> --file <ruta>`, no `playground send --file`: así el chat guarda una copia y lo muestra |
+| qué falta leer · qué te nombra · a quién mencionar | `bin/chat inbox --unread` · `bin/chat mentions` · `bin/chat who #grupo` (los `@usuario`) |
+| esperar la respuesta en una sola llamada | `bin/chat send … --wait 5m`, sin Monitor (sale 3 si nadie contesta) |
+
+- **Mandar un mensaje sale a nombre de Miguel: se confirma el texto antes.**
+- **La conversación en vivo es sólo si Miguel la pide** (no en toda sesión), con `bin/chat` sobre el servidor del chat
+  (corre de fondo; lo trae también Cockpit). Si :5185 no contesta, abrí Cockpit.
+- **Un agente habla como agente** con `--as <agente>` (o `CHAT_AS`), no a nombre de Miguel, y como en una llamada
+  (abajo). Es una identidad de Miguel que nace la primera vez que habla y queda guardada (`playground agents` lista los
+  de todos); en un grupo tiene que ser miembro (`playground groups add #g @miguel/<agente>`).
+- Contestar marca leído; lo leído lo comparten la app y `bin/chat`.
+
+### El llavero: claves para el equipo
+
+La consola de una conversación en `make chat`: nombre y valor; «Encriptar» da el encriptado para pegarlo en el mensaje y
+«Desencriptar» abre uno recibido. Lo encriptado con nombre queda en la tabla «Guardadas» (sólo encriptado, nunca el
+valor). **Lo privado no va al llavero.**
+
+- En una conversación directa, escribir `🔑 Pido tu llavero` pide **su llavero**: el servidor del chat del otro contesta
+  SOLO con los nombres (`🔑 Mi llavero (n)` y viñetas); elegís cuáles y «Pedir» manda `🔑 Pido estas claves`, que también
+  se contesta solo con UN bloque `.env` de valores encriptados (`🔒 Llavero · n claves …` y debajo
+  `NOMBRE=U2FsdGVkX1…`). Su tarjeta trae «Guardar en mi llavero» y «Descargar .env» (desencriptado).
+- Contesta sólo mensajes directos y recientes, y si «Compartir mi llavero solo» está prendido en la consola
+  (`chat/server/keyring_auto.go`).
+- **Sin el chat**, el bloque guardado en `bloque.txt` se vuelve `.env` así (no se pega la clave en claro en el chat):
+
+      grep '=U2FsdGVkX1' bloque.txt | while read -r l; do printf '%s=%s\n' "${l%%=*}" "$(printf '%s' "${l#*=}" | openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha256 -a -A -pass file:$HOME/.config/creditop/team-key)"; done > .env
 
 ⚠ **Dos dueños, dos nombres.** El chat es una herramienta de **my-tools**: sus nombres propios dicen my-tools (el
 LaunchAgent `com.creditop.my-tools.chat`, el registro `creditop-my-tools-chat.log`, los datos en

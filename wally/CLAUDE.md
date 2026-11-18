@@ -67,6 +67,28 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 | `src/App.vue` | la interfaz; la ruta es la pestaña activa: `#/c/<id>`, o `#/nueva/<n>` para una sin preguntas |
 | `wally/.data/conversations.json` · `wally/.data/files/` | lo guardado y el texto de los adjuntos (fuera de git) |
 
+## Los modelos por su web, por consola (vivía en el `CLAUDE.md` raíz hasta el 2026-11-18)
+
+Sin Wally: cada uno maneja su web en tu Chrome con Jarvis y tu cuenta. **De a una**: Google corta la cuenta si se le pide
+mucho seguido. Para lo agendado o sin Chrome, `bin/pg model ask` (Claude, `connectors/CLAUDE.md`).
+
+| para… | comando | ojo |
+|---|---|---|
+| un texto enorme a Gemini (400-500 mil tokens) sin gastar la cuota de una llave | `bin/aistudio --file doc.md --prompt '…' [--model gemini-4-hydrogen] [--out r.md] [--json]` | 2 MB de texto en ~18 s |
+| texto a voz | `bin/aistudio speak --text '…' --out voz.wav [--voice Enzo]` | |
+| transcribir un audio | `bin/aistudio transcribe audio.wav [--out t.md]` | ⚠ sube el audio a Google (queda en tu Drive): nada con datos de clientes |
+| Gemini con llave de API y sus opciones (búsqueda, código, JSON) | `bin/pg gemini ask` | gasta la cuota de la llave |
+| DeepSeek | `bin/deepseek --prompt '…' [--no-think] [--search]` | ⚠ queda en su historial y en servidores en China: nada interno ni de clientes |
+| ChatGPT | `bin/chatgpt --prompt '…' [--think]` | chat temporal; gratis, hasta ~40 mil caracteres |
+| Groq | `bin/groq --prompt '…'` | el ultra rápido (~480 tokens/s); hasta ~20 mil caracteres: para lo corto |
+
+## Los agentes, por consola: `bin/wally`
+
+`bin/wally agent create --name … --intent '…' [--notes '…'] [--file f]… [--topic t]… [--skill s]…` · `agents` ·
+`agent update <nombre> --notes-file n.md` · `agent delete <nombre>` · `skills` · `new` · `delete <id>` ·
+`compact [--agent n]` · `ask [--agent n] [--auto | --resume] '…'`. Lo hace Claude cuando Miguel lo pide, y aparece solo
+en Wally. El detalle de cada uno, más abajo.
+
 - **Necesita Jarvis conectado en Chrome** y la sesión de Google de Miguel. Sin eso, la pregunta vuelve con el error de
   la receta.
 - **Todas las preguntas pasan por EL POOL** (`server/pool.go` → `jarvis/recipes/aistudio/pool.ts`, desde el

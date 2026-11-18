@@ -53,3 +53,27 @@ diff— sino la cascada de identidad, o sea `kyc`. Seguir ese enrutamiento fue l
 
 ⚠ **Y la lección que atraviesa las cinco: lo que una herramienta AFIRMA sobre otra hay que cablearlo,
 no escribirlo.** Los comentarios «esto coincide con aquello» envejecen sin avisar; los chequeos, no.
+
+## El idioma del código (la regla entera; el resumen está en el `CLAUDE.md` raíz)
+
+Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:
+
+- **En inglés, todo lo que es código:** carpetas, archivos, identificadores (variables, funciones, tipos, constantes),
+  claves JSON, clases CSS y tokens, rutas de API, comandos y opciones de un CLI (y lo que imprime), targets y
+  variables de `make`, los verbos de un protocolo (lo que un agente de Wally escribe para pedir algo) y los valores
+  internos (estados, tipos).
+- **En español, lo que ve una persona en una interfaz:** el texto del HTML y de las plantillas Vue, los avisos y
+  los mensajes de la pantalla. También la documentación (`CLAUDE.md`, `knowledge/`, las tareas) y los
+  comentarios del código.
+- **Se quedan los nombres propios** de las herramientas (`tablero`, `cuadrilla`, `harness`, `wally`, `jarvis`,
+  `correo`, `sentinel`…) y los datos (los valores que vienen de la base o de un servicio).
+- **Excepción decidida (2026-11-18): las claves de los contratos del harness** —las suites (`casos`, `comercio`,
+  `espera`…), el mapa del panel (`panel/steps.json`), las fichas de `merchant-specs/`, `harness.case/v1`,
+  `harness.doctor/v1` y el registro de fallas— siguen en español. Son miles de usos en 149 archivos y la
+  herramienta con la que se valida; un renombre a medias no falla, devuelve vacío. Se pasan a inglés, con alias
+  para las viejas, la parte que se toque por otra razón, y se prueba ahí. Lo nuevo va en inglés.
+- **Claude contesta en español** cuando se habla de my-tools y sus herramientas.
+- **La vara es `make tablero-naming`:** falla con un nombre nuevo en español. Lo de antes queda en
+  `tablero/tools/naming-debt.txt` como deuda, y se baja renombrando con `tablero/tools/rename/`. Al renombrar un
+  comando o un target, el nombre viejo sigue como alias, porque las tareas guardan el comando exacto de cada
+  medición.
