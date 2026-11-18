@@ -14,15 +14,6 @@ connectors/canon/api.go nombre
 connectors/canon/api.go puede_corregir
 connectors/canon/session.go nivel
 connectors/canon/session_test.go vigente
-goldfish/review/prove.go comprobado
-goldfish/review/prove.go refutado
-goldfish/review/prove.go sin probar
-goldfish/review/run.go alta
-goldfish/review/run.go baja
-goldfish/review/run.go confirmado
-goldfish/review/run.go descartado
-goldfish/review/run.go fuera de alcance
-goldfish/review/tasks.go ramas
 harness/bin/bureaus.ts cedula
 harness/bin/dbops.ts canales
 harness/bin/failures.ts dias

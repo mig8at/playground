@@ -44,6 +44,7 @@ func Load(myTools, id string) (*Run, error) {
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return nil, err
 	}
+	migrateRun(&r) // los valores de antes (legacy.go)
 	return &r, nil
 }
 

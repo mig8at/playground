@@ -11,15 +11,16 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { vResize, readSize, saveSize, fitRegions, cssSize, bindThemeToggle, bindMenu, readHashRoute, hashRoute, setRoute } from './workbench.js'
 
 const VERDICTS = [
-  { id: 'confirmado', label: 'Para atender', hint: 'confirmados: de este cambio, antes de publicar' },
+  { id: 'confirmed', label: 'Para atender', hint: 'confirmados: de este cambio, antes de publicar' },
   { id: 'plausible', label: 'Para mirar', hint: 'dependen de algo que no se ve leyendo' },
   { id: '', label: 'Sin veredicto', hint: 'el elephant no alcanzó a juzgarlos' },
-  { id: 'fuera de alcance', label: 'Fuera de alcance', hint: 'no son de este cambio: no se arreglan acá' },
-  { id: 'descartado', label: 'Descartados', hint: 'no aplican, con su evidencia' },
+  { id: 'out-of-scope', label: 'Fuera de alcance', hint: 'no son de este cambio: no se arreglan acá' },
+  { id: 'dismissed', label: 'Descartados', hint: 'no aplican, con su evidencia' },
 ]
 const FROM = { intent: 'goldfish · descripción vs cambio', risk: 'goldfish · riesgos', context: 'elephant · contexto' }
 const STAGE_MARK = { pending: '·', running: '…', done: '✓', failed: '✗', skipped: '–' }
-const PROOF_LABEL = { comprobado: 'comprobado corriendo', refutado: 'refutado corriendo', 'sin probar': 'sin probar' }
+const SEVERITY_LABEL = { high: 'alta', medium: 'media', low: 'baja' }
+const PROOF_LABEL = { proven: 'comprobado corriendo', refuted: 'refutado corriendo', untested: 'sin probar' }
 const BASES = ['main', 'qa', 'develop', 'staging']
 const BASE_LABEL = { main: 'main · producción', qa: 'qa · lo que se prueba en qa', develop: 'develop · el dev compartido', staging: 'staging' }
 const MAIN_REPOS = ['legacy-backend', 'frontend-monorepo', 'legacy-application']
@@ -83,14 +84,14 @@ function summaryOf(r) {
   if (r.status === 'failed') return 'no terminó'
   const v = r.verdicts || {}
   const parts = []
-  if (v.confirmado) parts.push(`${v.confirmado} para atender`)
+  if (v.confirmed) parts.push(`${v.confirmed} para atender`)
   if (v.plausible) parts.push(`${v.plausible} para mirar`)
   if (!parts.length) parts.push('nada para atender')
   const p = r.proofs || {}
-  if (p.comprobado || p.refutado) parts.push(`corrido: ${[p.comprobado && `${p.comprobado} comprobados`, p.refutado && `${p.refutado} refutados`].filter(Boolean).join(', ')}`)
+  if (p.proven || p.refuted) parts.push(`corrido: ${[p.proven && `${p.proven} comprobados`, p.refuted && `${p.refuted} refutados`].filter(Boolean).join(', ')}`)
   return parts.join(' · ')
 }
-const stateOf = (r) => (r.status !== 'done' ? r.status : r.verdicts?.confirmado ? 'attend' : r.verdicts?.plausible ? 'look' : 'clear')
+const stateOf = (r) => (r.status !== 'done' ? r.status : r.verdicts?.confirmed ? 'attend' : r.verdicts?.plausible ? 'look' : 'clear')
 
 // ── la elegida ──
 const run = ref(null)
@@ -109,7 +110,7 @@ watch(runId, loadRun)
 const listed = computed(() => runs.value.find((r) => r.id === runId.value) || null)
 const byVerdict = computed(() => {
   const fs = run.value?.findings || []
-  const sev = { alta: 0, media: 1, baja: 2 }
+  const sev = { high: 0, medium: 1, low: 2 }
   return VERDICTS.map((v) => ({ ...v, items: fs.filter((f) => (f.verdict || '') === v.id).sort((a, b) => (sev[a.severity] ?? 3) - (sev[b.severity] ?? 3)) }))
     .filter((v) => v.items.length)
 })
@@ -254,7 +255,7 @@ make goldfish-run PR=https://github.com/…/pull/123</pre>
             <div class="region-head group"><span>{{ v.label }}</span><span class="count">{{ v.items.length }}</span><span class="hint">{{ v.hint }}</span></div>
             <article v-for="f in v.items" :key="f.n" class="finding">
               <header>
-                <span class="sev" :data-sev="f.severity">{{ f.severity }}</span>
+                <span class="sev" :data-sev="f.severity">{{ SEVERITY_LABEL[f.severity] || f.severity }}</span>
                 <b>{{ f.title }}</b>
               </header>
               <p class="where"><code v-if="loc(f)">{{ loc(f) }}</code> <span class="muted">{{ FROM[f.from] }}</span></p>
@@ -362,7 +363,7 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .stage-total[data-state="clear"] { color: var(--stage-done) }
 /* los hallazgos, por veredicto */
 .verdict .hint { margin-left: var(--space-2); color: var(--fg-3); font-weight: 400 }
-.verdict[data-verdict="confirmado"] > .region-head { color: var(--verdict-confirmed) }
+.verdict[data-verdict="confirmed"] > .region-head { color: var(--verdict-confirmed) }
 .verdict[data-verdict="plausible"] > .region-head { color: var(--verdict-plausible) }
 .finding { padding: var(--space-2) var(--gutter); border-bottom: 1px solid var(--border) }
 .finding header { display: flex; gap: var(--space-2); align-items: baseline }
@@ -370,14 +371,14 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .finding .where { font-size: var(--text-sm) }
 .finding .detail { white-space: pre-wrap }
 .finding .reason { color: var(--fg-2); font-size: var(--text-sm); border-left: 2px solid var(--border); padding-left: var(--space-2); white-space: pre-wrap }
-.verdict[data-verdict="descartado"] .finding b, .verdict[data-verdict="fuera de alcance"] .finding b { color: var(--fg-2); font-weight: 500 }
+.verdict[data-verdict="dismissed"] .finding b, .verdict[data-verdict="out-of-scope"] .finding b { color: var(--fg-2); font-weight: 500 }
 .sev { flex: none; font-size: var(--text-xs); text-transform: uppercase; letter-spacing: .03em; color: var(--fg-3) }
-.sev[data-sev="alta"] { color: var(--verdict-confirmed); font-weight: 700 }
+.sev[data-sev="high"] { color: var(--verdict-confirmed); font-weight: 700 }
 .sev[data-sev="media"] { color: var(--verdict-plausible); font-weight: 600 }
 .proof { margin-top: 6px; padding: 6px var(--space-2); border-radius: 6px; border: 1px solid var(--border); font-size: var(--text-sm) }
-.proof[data-proof="comprobado"] b { color: var(--verdict-confirmed) }
-.proof[data-proof="refutado"] b { color: var(--stage-done) }
-.proof[data-proof="sin probar"] b { color: var(--fg-3) }
+.proof[data-proof="proven"] b { color: var(--verdict-confirmed) }
+.proof[data-proof="refuted"] b { color: var(--stage-done) }
+.proof[data-proof="untested"] b { color: var(--fg-3) }
 .proof pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
 /* la descripción revisada */
 .proposal .toggle { background: transparent; border: 0; color: inherit; font: inherit; display: flex; gap: var(--space-2); align-items: center; cursor: pointer; padding: 0 }

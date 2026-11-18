@@ -87,4 +87,7 @@ pushea: el elephant tiene negados `Edit`, `Write` y los `git` que escriben.
 - **Una validación «corriendo» guarda su proceso** (`pid`): al arrancar, el servidor marca cortadas sólo las de un
   proceso muerto.
 - Las validaciones del primer día, por rama local y sin PR, quedan en `.runs/` pero ya no se listan.
-- Identificadores en inglés; prompts y comentarios en español.
+- Identificadores en inglés; prompts y comentarios en español. Desde el 2026-11-18 también los VALORES: el veredicto
+  (`confirmed · plausible · dismissed · out-of-scope`), lo que dio correrlo (`proven · refuted · untested`) y la
+  gravedad (`high · medium · low`) van así en los esquemas, lo guardado y la interfaz; el informe, la consola y la
+  pantalla los muestran en español (`review/legacy.go`, que además traduce al cargar las validaciones de antes).

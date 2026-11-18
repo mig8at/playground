@@ -162,3 +162,5 @@ autorun autoresume disarm pry prx lum ery gest pagenames
 openai assistant
 json: wally/server/legacy.go *                                      # la tabla de los nombres de antes de Wally (2026-11-18): traduce lo guardado y lo que escribe un modelo con su historia
 json: wally/server/commands.go archivo parche                      # los bloques ```archivo y ```parche de antes, aceptados como alias de ```file y ```patch
+json: goldfish/review/legacy.go *                                   # los valores de antes de Goldfish y sus etiquetas en español (2026-11-18): traduce lo guardado
+refuted

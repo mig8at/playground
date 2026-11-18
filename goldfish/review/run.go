@@ -88,8 +88,8 @@ type Finding struct {
 	Detail   string `json:"detail"`
 	File     string `json:"file"`
 	Line     int    `json:"line"`
-	Severity string `json:"severity"` // alta · media · baja
-	Verdict  string `json:"verdict"`  // confirmado · plausible · descartado (vacío si el veredicto no llegó)
+	Severity string `json:"severity"` // high · medium · low
+	Verdict  string `json:"verdict"`  // confirmed · plausible · dismissed · out-of-scope (vacío si el veredicto no llegó)
 	Reason   string `json:"reason"`
 	Proof    *Proof `json:"proof,omitempty"` // lo que dio correrlo (Comprobar corriendo)
 }
@@ -494,9 +494,9 @@ func Report(r *Run) string {
 		counts[f.Verdict]++
 	}
 	fmt.Fprintf(&b, "**%d hallazgos**: %d confirmados · %d plausibles · %d descartados · %d sin veredicto\n\n",
-		len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"], counts[""])
-	order := map[string]int{"confirmado": 0, "plausible": 1, "": 2, "fuera de alcance": 3, "descartado": 4}
-	sev := map[string]int{"alta": 0, "media": 1, "baja": 2}
+		len(r.Findings), counts["confirmed"], counts["plausible"], counts["dismissed"], counts[""])
+	order := map[string]int{"confirmed": 0, "plausible": 1, "": 2, "out-of-scope": 3, "dismissed": 4}
+	sev := map[string]int{"high": 0, "medium": 1, "low": 2}
 	fs := append([]Finding(nil), r.Findings...)
 	sort.SliceStable(fs, func(i, j int) bool {
 		if order[fs[i].Verdict] != order[fs[j].Verdict] {
@@ -506,11 +506,11 @@ func Report(r *Run) string {
 	})
 	from := map[string]string{"intent": "goldfish · propuesta vs cambio", "risk": "goldfish · riesgos", "context": "elephant · contexto"}
 	for _, f := range fs {
-		verdict := f.Verdict
+		verdict := verdictLabels[f.Verdict]
 		if verdict == "" {
 			verdict = "sin veredicto"
 		}
-		fmt.Fprintf(&b, "## %s · %s — %s\n\n", strings.ToUpper(verdict), f.Severity, f.Title)
+		fmt.Fprintf(&b, "## %s · %s — %s\n\n", strings.ToUpper(verdict), label(severityLabels, f.Severity), f.Title)
 		if f.File != "" {
 			loc := f.File
 			if f.Line > 0 {
@@ -523,7 +523,7 @@ func Report(r *Run) string {
 			fmt.Fprintf(&b, "> Veredicto: %s\n\n", strings.TrimSpace(f.Reason))
 		}
 		if f.Proof != nil {
-			fmt.Fprintf(&b, "**Corriendo: %s.** %s\n\n", f.Proof.Status, strings.TrimSpace(f.Proof.Result))
+			fmt.Fprintf(&b, "**Corriendo: %s.** %s\n\n", label(proofLabels, f.Proof.Status), strings.TrimSpace(f.Proof.Result))
 			if f.Proof.Command != "" {
 				fmt.Fprintf(&b, "```\n%s\n```\n\n", strings.TrimSpace(f.Proof.Command))
 			}
@@ -556,7 +556,7 @@ func attachToTask(ctx context.Context, myTools string, r *Run, report string) (s
 	}
 	var top []string
 	for _, f := range r.Findings {
-		if f.Verdict == "confirmado" && len(top) < 5 {
+		if f.Verdict == "confirmed" && len(top) < 5 {
 			top = append(top, "- "+f.Title)
 		}
 	}
@@ -566,7 +566,7 @@ func attachToTask(ctx context.Context, myTools string, r *Run, report string) (s
 		what = "antes del PR, " + filepath.Base(r.Slug)
 	}
 	block := fmt.Sprintf("# Goldfish: %s (%s)\n\nRevisión en frío en `%s` contra `%s`: %d hallazgos, %d confirmados, %d plausibles, %d descartados. El informe completo quedó en los artifacts de la tarea.\n",
-		what, r.Branch, short(r.Head), r.Base, len(r.Findings), counts["confirmado"], counts["plausible"], counts["descartado"])
+		what, r.Branch, short(r.Head), r.Base, len(r.Findings), counts["confirmed"], counts["plausible"], counts["dismissed"])
 	if len(top) > 0 {
 		block += "\nConfirmados:\n\n" + strings.Join(top, "\n") + "\n"
 	}
@@ -617,7 +617,7 @@ func Summary(r *Run) string {
 		if len(fs) == 0 {
 			return
 		}
-		sev := map[string]int{"alta": 0, "media": 1, "baja": 2}
+		sev := map[string]int{"high": 0, "medium": 1, "low": 2}
 		sort.SliceStable(fs, func(i, j int) bool { return sev[fs[i].Severity] < sev[fs[j].Severity] })
 		fmt.Fprintf(&b, "\n%s (%d)\n", title, len(fs))
 		for _, f := range fs {
@@ -625,7 +625,7 @@ func Summary(r *Run) string {
 			if f.Line > 0 {
 				loc = fmt.Sprintf("%s:%d", f.File, f.Line)
 			}
-			fmt.Fprintf(&b, "  [%s] %s", f.Severity, f.Title)
+			fmt.Fprintf(&b, "  [%s] %s", label(severityLabels, f.Severity), f.Title)
 			if loc != "" {
 				fmt.Fprintf(&b, " — %s", loc)
 			}
@@ -634,19 +634,19 @@ func Summary(r *Run) string {
 				fmt.Fprintf(&b, "      %s\n", why)
 			}
 			if f.Proof != nil {
-				fmt.Fprintf(&b, "      corriendo: %s — %s\n", f.Proof.Status, firstSentence(f.Proof.Result))
+				fmt.Fprintf(&b, "      corriendo: %s — %s\n", label(proofLabels, f.Proof.Status), firstSentence(f.Proof.Result))
 			}
 		}
 	}
-	group("Para atender antes de publicar", func(f Finding) bool { return f.Verdict == "confirmado" })
+	group("Para atender antes de publicar", func(f Finding) bool { return f.Verdict == "confirmed" })
 	group("Para mirar (dependen de algo que no se ve leyendo)", func(f Finding) bool { return f.Verdict == "plausible" })
 	group("Sin veredicto", func(f Finding) bool { return f.Verdict == "" })
 	var out, gone []string
 	for _, f := range r.Findings {
 		switch f.Verdict {
-		case "fuera de alcance":
+		case "out-of-scope":
 			out = append(out, f.Title)
-		case "descartado":
+		case "dismissed":
 			gone = append(gone, f.Title)
 		}
 	}
@@ -656,7 +656,7 @@ func Summary(r *Run) string {
 	if len(gone) > 0 {
 		fmt.Fprintf(&b, "Descartados (%d)\n", len(gone))
 	}
-	if !hasVerdict(r, "confirmado") && !hasVerdict(r, "plausible") {
+	if !hasVerdict(r, "confirmed") && !hasVerdict(r, "plausible") {
 		b.WriteString("\n✓ Nada para atender: se puede publicar.\n")
 	}
 	fmt.Fprintf(&b, "\nCosto equivalente US$%.2f · informe: %s\n", r.CostUSD, r.Report)

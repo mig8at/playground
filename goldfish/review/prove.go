@@ -29,7 +29,7 @@ var promptProve string
 
 // Proof: lo que dio correr un hallazgo.
 type Proof struct {
-	Status  string `json:"status"`  // comprobado · refutado · sin probar
+	Status  string `json:"status"`  // proven · refuted · untested
 	Command string `json:"command"` // lo que se corrió (para repetirlo)
 	Result  string `json:"result"`  // lo que dio, corto
 }
@@ -76,7 +76,7 @@ func Prove(ctx context.Context, myTools string, r *Run, save Recorder) {
 
 	var testable []Finding
 	for _, f := range r.Findings {
-		if f.Verdict == "confirmado" || f.Verdict == "plausible" {
+		if f.Verdict == "confirmed" || f.Verdict == "plausible" {
 			testable = append(testable, f)
 		}
 	}
@@ -162,7 +162,7 @@ func Prove(ctx context.Context, myTools string, r *Run, save Recorder) {
 	if r.Artifact != "" {
 		_ = os.WriteFile(r.Artifact, []byte(Report(r)), 0o644)
 	}
-	done("done", fmt.Sprintf("%d comprobados · %d refutados · %d sin probar", counts["comprobado"], counts["refutado"], counts["sin probar"]))
+	done("done", fmt.Sprintf("%d comprobados · %d refutados · %d sin probar", counts["proven"], counts["refuted"], counts["untested"]))
 }
 
 // checkoutPR pone el clon en el commit del PR (detached) y devuelve cómo dejarlo como estaba.

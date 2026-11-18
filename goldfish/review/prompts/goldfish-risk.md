@@ -20,8 +20,8 @@ Tu ángulo: **¿QUÉ PUEDE SALIR MAL CON ESTE CAMBIO?**
   una carga nueva.
 
 Cada hallazgo: un título corto, el detalle (qué viste, en qué condiciones falla y qué pasaría), el archivo y la
-línea (del diff o de `files/`), y su gravedad: «alta» si rompería algo en producción o expone datos, «media» si
-falla en un caso posible, «baja» si es un riesgo menor. Si no encontrás nada serio, devolvé pocos hallazgos o
+línea (del diff o de `files/`), y su gravedad: «high» si rompería algo en producción o expone datos, «medium» si
+falla en un caso posible, «low» si es un riesgo menor. Si no encontrás nada serio, devolvé pocos hallazgos o
 ninguno: no rellenes. No propongas el código corregido. Escribí en español.
 
 Mirá sólo lo que ESTE cambio hace o deja de hacer: no pidas mejoras del código que el diff no toca, ni refactors, ni

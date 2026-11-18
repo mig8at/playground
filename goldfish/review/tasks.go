@@ -46,7 +46,7 @@ func LoadTasks(myTools string) Tasks {
 			continue
 		}
 		t := Task{Slug: filepath.Base(filepath.Dir(f)), Path: f}
-		var ramas string
+		var branches string
 		for _, fm := range reField.FindAllStringSubmatch(string(m[1]), -1) {
 			v := strings.Trim(strings.TrimSpace(fm[2]), `"'`)
 			switch fm[1] {
@@ -55,10 +55,10 @@ func LoadTasks(myTools string) Tasks {
 			case "title":
 				t.Title = v
 			case "ramas":
-				ramas = v
+				branches = v
 			}
 		}
-		for _, entry := range strings.Split(ramas, ",") {
+		for _, entry := range strings.Split(branches, ",") {
 			entry = strings.Trim(strings.TrimSpace(entry), `"'`)
 			if entry == "" {
 				continue

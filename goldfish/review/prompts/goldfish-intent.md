@@ -19,8 +19,8 @@ Tu ángulo: **¿LA PROPUESTA Y EL CAMBIO DICEN LO MISMO?**
 - Lo que no se puede entender sin un contexto que la propuesta no da.
 
 Cada hallazgo: un título corto, el detalle (qué viste y por qué importa), el archivo y la línea si aplica (del diff
-o de `files/`), y su gravedad: «alta» si rompería algo o la propuesta dice algo falso, «media» si confunde o falta
-algo importante, «baja» si es de forma. Si no encontrás nada serio, devolvé pocos hallazgos o ninguno: no rellenes.
+o de `files/`), y su gravedad: «high» si rompería algo o la propuesta dice algo falso, «medium» si confunde o falta
+algo importante, «low» si es de forma. Si no encontrás nada serio, devolvé pocos hallazgos o ninguno: no rellenes.
 No propongas el código corregido. Escribí en español.
 
 Mirá sólo lo que ESTE cambio hace o deja de hacer: no pidas mejoras del código que el diff no toca, ni refactors, ni

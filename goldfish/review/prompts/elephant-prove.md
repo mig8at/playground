@@ -8,7 +8,7 @@ que vieron los revisores está en `{{PACKAGE}}` (`proposal.md`, `diff.patch`, `f
 su número, en `{{TESTABLE}}`.
 
 **Por cada hallazgo, decidí si se puede probar corriendo y, si se puede, probalo con lo mínimo.** No hace falta
-probarlo todo: lo que habla de la descripción o del historial no se corre, se marca «sin probar» en una línea.
+probarlo todo: lo que habla de la descripción o del historial no se corre, se marca «untested» en una línea.
 - `make harness-case TARGET=local …` para un caso del cliente (segundos), `make harness-listing` para qué entidades
   salen, `make harness-walk-wizard TARGET=local …` para el recorrido, `make tablero-db TARGET=local SQL=…` o
   `bin/pg sql --target local` para mirar la base. Para comparar con producción, `bin/pg sql --target prod` (sólo
@@ -20,10 +20,10 @@ probarlo todo: lo que habla de la descripción o del historial no se corre, se m
   lado salvo para la prueba del PR en su clon.
 - Para la base local: `bin/pg sql --target local --query 'SELECT …'` (no `docker exec` ni `tinker`). Para pegarle a la API local, el
   ayudante (no tenés `curl`: sólo localhost): `goldfish/bin/local-http POST http://localhost/api/… '{"a":1}'` o
-  `… GET …`; devuelve el cuerpo y, en la última línea, el código HTTP. Lo que no te dejen correr, decilo en el resultado («sin probar: no se pudo correr X»).
+  `… GET …`; devuelve el cuerpo y, en la última línea, el código HTTP. Lo que no te dejen correr, decilo en el resultado («untested: no se pudo correr X»).
 - Una regla que «debería» excluir se prueba con y sin el dato: si no cambia nada, es lo que hay que reportar.
 - Si el ambiente local no está arriba, o el cambio necesita algo que no está (una migración del PR sin correr, una
-  dependencia nueva), decilo como «sin probar» con el porqué: no lo arregles.
+  dependencia nueva), decilo como «untested» con el porqué: no lo arregles.
 
 **Reglas que no se discuten:**
 - **Siempre `TARGET=local`** (`E2E_TARGET=local` ya está puesto). Nunca escribas en dev, qa o staging, y prod es
@@ -34,8 +34,8 @@ probarlo todo: lo que habla de la descripción o del historial no se corre, se m
 - No edites archivos.
 
 Para cada hallazgo de `{{TESTABLE}}` devolvé:
-- «comprobado»: lo corriste y pasa lo que dice el hallazgo.
-- «refutado»: lo corriste y NO pasa (el hallazgo era falso).
-- «sin probar»: no se prueba corriendo, o no se pudo; decí por qué en una línea.
+- «proven»: lo corriste y pasa lo que dice el hallazgo.
+- «refuted»: lo corriste y NO pasa (el hallazgo era falso).
+- «untested»: no se prueba corriendo, o no se pudo; decí por qué en una línea.
 
 Con el comando exacto (para repetirlo) y lo que dio, corto (números, estados, el error). Escribí en español.
