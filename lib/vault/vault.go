@@ -262,7 +262,10 @@ func now() string { return time.Now().Format(time.RFC3339) }
 
 // ── nombres ───────────────────────────────────────────────────────────────────────────────────────────
 
-var envRe = regexp.MustCompile(`[^A-Z0-9_]+`)
+var (
+	envRe     = regexp.MustCompile(`[^A-Z0-9_]+`)
+	envNameRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.]*$`) // un nombre de un .env
+)
 
 // EnvName vuelve un nombre una variable de entorno: mayúsculas, sin tildes, guiones bajos, sin empezar en número.
 func EnvName(name string) string {

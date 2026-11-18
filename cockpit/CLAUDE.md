@@ -183,10 +183,29 @@ va por stdin), y la librería es `lib/vault` (archivo `~/.config/creditop-cockpi
     bin/pg vault run --ring R -- <comando>  el comando recibe las llaves como variables de entorno (así las usa Claude)
     pbpaste | bin/pg vault set --ring R --key NOMBRE
     bin/pg vault get --ring R --key K --reveal   sólo Miguel: el hook `vault-guard` se lo niega a una sesión de Claude
+    bin/pg vault import-env --ring R --file .env [--only A,B | --except A,B]   un .env entero, sin mostrar valores
+    printf '%s\n' '<contraseña>' | bin/pg vault import --file llavero.zip [--replace]
+
+**Qué hay** (2026-11-18, cargado con `import-env` desde los `.env` de my-tools y de los repos, sin repetir; 31 llaveros,
+453 llaves; `bin/pg vault list` lo dice al día): un llavero por servicio (`Atlassian · Jira y Confluence`, `Slack`,
+`Twilio`, `Google · Gemini y Drive`, `Figma`, `ElevenLabs`, `Jev`, `VTEX · cuenta de pruebas`, `Shopify · Partners`,
+`Sonar`, `Finandina · Experian HC2`, `Finandina · Mareigua`), uno por ambiente con lo de los conectores y el harness
+juntos (`Ambiente · local|dev|qa|staging|prod`), uno por repo con su `.env` de trabajo (`legacy-backend · local`,
+`legacy-application · local`, `frontend-monorepo · wizard`, `dynamic-form · local`, las tres apps de Shopify) y uno por
+herramienta del playground del equipo (`Playground · home|canon|cuadrilla|forecast|tracer`). Las copias viejas de los
+repos (`.env.antes-*`, `.env.bak-*`) no se cargaron. Los microservicios no tienen `.env` en esta máquina. Los `.env`
+siguen siendo de donde LEEN las herramientas: el llavero es una copia cifrada para `vault run` y para otra máquina; si
+una llave cambia en su `.env`, se vuelve a correr `import-env` (deja igual lo igual y actualiza lo distinto).
+
+**Otra máquina**: «Exportar» (al pie de los llaveros) deja `~/Downloads/llavero-<fecha>.zip` con cada valor cifrado con
+una contraseña que se elige ahí, NO con la llave personal (que no viaja en el zip); «Importar» lo trae con esa
+contraseña: crea los llaveros y las llaves que faltan y no pisa una llave con otro valor salvo que se marque. Una
+contraseña mala no escribe nada. Desde Cockpit el zip viaja en base64 por stdin (no hay ruta del archivo).
 
 ⚠ El cifrado no esconde nada de un agente con consola (la llave está en el mismo disco). Lo que hace que Claude no vea
 un valor es que nada lo imprime sin `--reveal`, y el hook `vault-guard` (`tablero/server/internal/hooks/vault_guard.go`),
-que niega `--reveal` y leer o usar la llave personal. Es un freno para el descuido, no un muro. Y frena también un comando
+que niega `--reveal`, `vault export` (quien elige la contraseña del zip puede abrirlo) y leer o usar la llave personal.
+Es un freno para el descuido, no un muro. Y frena también un comando
 de shell que sólo NOMBRA esas cosas en una línea (un heredoc que escribe esta documentación): eso se escribe con las
 herramientas de edición o desde un archivo.
 

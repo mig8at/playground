@@ -153,6 +153,21 @@
   .vault input.mono { font-family: var(--font-mono) }
   .vault-error { color: var(--destructive); font-size: 12px; min-height: 16px; margin-top: 6px }
   .vault-empty { padding: 14px 0; font-size: 13px; color: var(--fg-2); border-top: 1px solid var(--border) }
+  .vault-filter { margin: 0 2px 6px }
+  .vault-none { font-size: 12px; color: var(--fg-3); padding: 4px 10px }
+  /* Exportar e importar, al pie de la columna de llaveros. */
+  .vault-transfer { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); display: flex; flex-direction: column; gap: 2px }
+  .vault-ring[aria-pressed="true"] { background: var(--muted); color: var(--foreground) }
+  .vault-note { font-size: 13px; color: var(--fg-2); margin: 0 0 12px; line-height: 1.5 }
+  .vault-xfer { display: flex; flex-direction: column; gap: 8px; max-width: 360px }
+  .vault-xfer .btn { align-self: flex-start }
+  .vault-file { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border: 1px dashed var(--border); border-radius: var(--radius);
+    font-size: 12px; color: var(--fg-2); cursor: pointer }
+  .vault-file input { position: absolute; opacity: 0; width: 1px; height: 1px }
+  .vault-file:hover { border-color: var(--fg-3); color: var(--foreground) }
+  .vault-check { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--fg-2) }
+  .vault-check input { width: auto }
+  .vault-result { font-size: 13px; color: var(--cockpit-ok); margin: 12px 0 0 }
   /* LAS MUESTRAS de color (como `.paleta-muestra` de canon): cada círculo lleva dos colores FIJOS de su paleta —el
      acento y el lienzo, en claro o en oscuro según su fila—, no var(--primary): con una paleta puesta, un círculo que
      usara el token cambiaría con ella y dejaría de decir qué se elige. */
@@ -722,6 +737,10 @@ let vaultEdit = ''          // 'ring' o el id de la llave que se está renombran
 let vaultConfirm = ''       // lo que espera el segundo toque para borrar
 const vaultShown = {}       // id de la llave → valor, por 20 s
 const vaultDraft = { name: '', value: '' }
+let vaultFilter = ''        // busca llaveros por su nombre o el de sus llaves
+let vaultMode = ''          // '' (un llavero) · 'export' · 'import'
+// Exportar e importar: la contraseña del zip (dos veces), el zip elegido en base64 y lo que pasó.
+const vaultXfer = { pass: '', pass2: '', replace: false, zip: '', zipName: '', busy: false, result: '' }
 const vaultCall = (args, input) => invoke('vault', { args, input: input ?? null })
 async function loadVault() {
   try {
@@ -740,8 +759,10 @@ async function vaultDo(args, input) {
 const breakable = (name) => esc(name).replace(/_/g, '_<wbr>')
 function paintVault() {
   const rings = vaultData?.rings || []
-  const ring = rings.find((r) => r.id === vaultRing)
-  const list = rings.map((r) => `<button type="button" class="vault-ring" role="tab" aria-selected="${r.id === vaultRing}" data-vring="${r.id}">
+  const ring = vaultMode ? null : rings.find((r) => r.id === vaultRing)
+  const q = vaultFilter.trim().toLowerCase()
+  const visible = q ? rings.filter((r) => r.name.toLowerCase().includes(q) || r.keys.some((k) => k.name.toLowerCase().includes(q))) : rings
+  const list = visible.map((r) => `<button type="button" class="vault-ring" role="tab" aria-selected="${r.id === vaultRing && !vaultMode}" data-vring="${r.id}">
     <span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-ring-name">${breakable(r.name)}</span><span class="count">${r.keys.length}</span></button>`).join('')
   const icon = (act, id, name, title, cls = '') => `<button type="button" class="vault-icon ${cls}" data-vact="${act}" data-vkey="${id}" title="${esc(title)}" aria-label="${esc(title)}"><span class="ui-icon" data-icon="${name}" aria-hidden="true"></span></button>`
   // Borrar es de dos toques: el primero cambia la papelera por «Borrar», el segundo borra. Cualquier otro clic lo cancela.
@@ -749,7 +770,24 @@ function paintVault() {
     ? `<button type="button" class="vault-confirm" data-vact="${act}" data-vkey="${id}">Borrar${what}</button>`
     : icon(act, id, 'trash', id ? 'Borrar la llave' : 'Borrar el llavero', 'danger')
   let main = `<div class="vault-empty">Creá tu primer llavero a la izquierda y guardá sus llaves acá.</div>`
-  if (ring) {
+  const total = rings.reduce((n, r) => n + r.keys.length, 0)
+  const result = vaultXfer.result ? `<p class="vault-result">${esc(vaultXfer.result)}</p>` : ''
+  if (vaultMode === 'export') {
+    main = `<div class="vault-head"><span class="ui-icon" data-icon="download" aria-hidden="true"></span><span class="vault-title">Exportar el llavero</span></div>
+      <p class="vault-note">Un zip con los ${rings.length} llaveros y sus ${total} llaves, para llevarlos a otra máquina. Cada valor va cifrado con la contraseña que pongas acá: sin ella el zip no sirve, así que guardala aparte.</p>
+      <form class="vault-xfer" data-vform="export" autocomplete="off">
+        <input type="password" data-vxfer="pass" placeholder="Contraseña del zip (8 o más)" value="${esc(vaultXfer.pass)}" aria-label="Contraseña del zip">
+        <input type="password" data-vxfer="pass2" placeholder="Repetila" value="${esc(vaultXfer.pass2)}" aria-label="Repetir la contraseña">
+        <button type="submit" class="btn btn-sm" ${vaultXfer.busy ? 'disabled' : ''}>${vaultXfer.busy ? 'Exportando…' : 'Exportar a Descargas'}</button></form>${result}`
+  } else if (vaultMode === 'import') {
+    main = `<div class="vault-head"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-title">Importar un llavero</span></div>
+      <p class="vault-note">Un zip exportado desde Cockpit, con su contraseña. Se agregan los llaveros y las llaves que falten; una llave que ya está con otro valor no se toca, salvo que lo marques.</p>
+      <form class="vault-xfer" data-vform="import" autocomplete="off">
+        <label class="vault-file"><input type="file" accept=".zip,application/zip" data-vzip><span>${vaultXfer.zipName ? esc(vaultXfer.zipName) : 'Elegir el zip…'}</span></label>
+        <input type="password" data-vxfer="pass" placeholder="Contraseña del zip" value="${esc(vaultXfer.pass)}" aria-label="Contraseña del zip">
+        <label class="vault-check"><input type="checkbox" data-vxfer="replace" ${vaultXfer.replace ? 'checked' : ''}> Reemplazar las que tengan otro valor</label>
+        <button type="submit" class="btn btn-sm" ${vaultXfer.busy ? 'disabled' : ''}>${vaultXfer.busy ? 'Importando…' : 'Importar'}</button></form>${result}`
+  } else if (ring) {
     const title = vaultEdit === 'ring'
       ? `<input data-vrename="ring" value="${esc(ring.name)}" aria-label="Nombre del llavero">`
       : `<span class="vault-title" data-vdbl="ring" title="Doble clic para renombrar">${breakable(ring.name)}</span>`
@@ -771,13 +809,29 @@ function paintVault() {
         <button type="submit" class="btn btn-sm">Guardar</button></form>`
   }
   return `<section><div class="settings-box"><div class="vault">
-    <div class="vault-rings" role="tablist" aria-label="Llaveros">${list}<button type="button" class="vault-ring add" data-vact="ring-new"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span class="vault-ring-name">Nuevo llavero</span></button></div>
+    <div class="vault-rings" role="tablist" aria-label="Llaveros">
+      ${rings.length > 6 ? `<input class="vault-filter" data-vfilter placeholder="Buscar llavero o llave" value="${esc(vaultFilter)}" aria-label="Buscar llavero o llave">` : ''}
+      ${list || `<p class="vault-none">Nada coincide.</p>`}
+      <button type="button" class="vault-ring add" data-vact="ring-new"><span class="ui-icon" data-icon="plus" aria-hidden="true"></span><span class="vault-ring-name">Nuevo llavero</span></button>
+      <div class="vault-transfer">
+        <button type="button" class="vault-ring add" data-vact="mode-export" aria-pressed="${vaultMode === 'export'}"><span class="ui-icon" data-icon="download" aria-hidden="true"></span><span class="vault-ring-name">Exportar</span></button>
+        <button type="button" class="vault-ring add" data-vact="mode-import" aria-pressed="${vaultMode === 'import'}"><span class="ui-icon" data-icon="folder" aria-hidden="true"></span><span class="vault-ring-name">Importar</span></button>
+      </div></div>
     <div class="vault-main">${main}<div class="vault-error" role="alert">${esc(vaultError)}</div></div></div></div>
     <p>Se guardan cifradas con tu llave personal, que el equipo no tiene. Claude las usa sin ver los valores.</p></section>`
 }
 async function vaultClick(e) {
   const ringBtn = e.target.closest('[data-vring]')
-  if (ringBtn) { vaultRing = ringBtn.dataset.vring; vaultEdit = vaultConfirm = ''; vaultError = ''; paintSettings(); return true }
+  if (ringBtn) { vaultRing = ringBtn.dataset.vring; vaultMode = vaultEdit = vaultConfirm = ''; vaultError = ''; paintSettings(); return true }
+  const mode = e.target.closest('[data-vact^="mode-"]')?.dataset.vact.slice(5)
+  if (mode) {
+    vaultMode = vaultMode === mode ? '' : mode
+    Object.assign(vaultXfer, { pass: '', pass2: '', replace: false, zip: '', zipName: '', result: '' })
+    vaultEdit = vaultConfirm = vaultError = ''
+    paintSettings()
+    vaultBlocks.querySelector('[data-vxfer="pass"]')?.focus()
+    return true
+  }
   const el = e.target.closest('[data-vact]')
   const act = el?.dataset.vact
   const id = el?.dataset.vkey
@@ -856,11 +910,63 @@ vaultBlocks.addEventListener('focusout', (e) => {
   if (input && vaultEdit) vaultRenameDone(input, true)
 })
 vaultBlocks.addEventListener('input', (e) => {
+  const clearError = () => { if (vaultError) { vaultError = ''; const box = vaultBlocks.querySelector('.vault-error'); if (box) box.textContent = '' } }
+  if (e.target.matches('[data-vfilter]')) {
+    // Repintar pierde el foco del buscador: se devuelve con el cursor donde estaba.
+    vaultFilter = e.target.value
+    const at = e.target.selectionStart
+    paintSettings()
+    const box = vaultBlocks.querySelector('[data-vfilter]')
+    if (box) { box.focus(); box.setSelectionRange(at, at) }
+    return
+  }
+  const x = e.target.closest('[data-vxfer]')?.dataset.vxfer
+  if (x) { vaultXfer[x] = x === 'replace' ? e.target.checked : e.target.value; clearError(); return }
   const f = e.target.closest('[data-vdraft]')?.dataset.vdraft
-  if (f) { vaultDraft[f] = e.target.value; if (vaultError) { vaultError = ''; const box = vaultBlocks.querySelector('.vault-error'); if (box) box.textContent = '' } }
+  if (f) { vaultDraft[f] = e.target.value; clearError() }
 })
+// El zip elegido se lee acá y viaja en base64 por stdin a `vault import` (desde Cockpit no hay ruta del archivo).
+vaultBlocks.addEventListener('change', (e) => {
+  if (e.target.matches('[data-vxfer="replace"]')) { vaultXfer.replace = e.target.checked; return }
+  if (!e.target.matches('[data-vzip]')) return
+  const file = e.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => {
+    vaultXfer.zip = String(reader.result).split(',')[1] || ''
+    vaultXfer.zipName = file.name
+    vaultXfer.result = ''
+    paintSettings()
+    vaultBlocks.querySelector('[data-vxfer="pass"]')?.focus()
+  }
+  reader.readAsDataURL(file)
+})
+async function vaultTransfer(kind) {
+  if (kind === 'export') {
+    if (vaultXfer.pass.length < 8) { vaultError = 'La contraseña tiene que tener al menos 8 caracteres'; return paintSettings() }
+    if (vaultXfer.pass !== vaultXfer.pass2) { vaultError = 'Las dos contraseñas no coinciden'; return paintSettings() }
+  } else {
+    if (!vaultXfer.zip) { vaultError = 'Elegí el zip'; return paintSettings() }
+    if (!vaultXfer.pass) { vaultError = 'Falta la contraseña del zip'; return paintSettings() }
+  }
+  vaultXfer.busy = true
+  vaultError = vaultXfer.result = ''
+  paintSettings()
+  try {
+    const out = kind === 'export'
+      ? await vaultCall(['export'], vaultXfer.pass + '\n')
+      : await vaultCall(['import', ...(vaultXfer.replace ? ['--replace'] : [])], vaultXfer.pass + '\n' + vaultXfer.zip)
+    vaultXfer.result = kind === 'export' ? out.trim().replace(/ \(cada valor.*\)$/, '').replace(/→ .*\//, '→ Descargas: ') : out.trim().replace(' que no se tocaron (--replace)', ' que no se tocaron')
+    Object.assign(vaultXfer, { pass: '', pass2: '' })
+    if (kind === 'import') await loadVault()
+  } catch (err) { vaultError = String(err) }
+  vaultXfer.busy = false
+  paintSettings()
+}
 vaultBlocks.addEventListener('submit', async (e) => {
-  if (!e.target.closest('[data-vform="add"]')) return
+  const kind = e.target.closest('[data-vform]')?.dataset.vform
+  if (kind === 'export' || kind === 'import') { e.preventDefault(); return vaultTransfer(kind) }
+  if (kind !== 'add') return
   e.preventDefault()
   const ring = vaultData?.rings.find((r) => r.id === vaultRing)
   if (!ring) return

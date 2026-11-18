@@ -522,7 +522,7 @@ fn run_pg(args: &[&str]) -> Result<String, String> {
 // lo mismo anda por consola con Cockpit cerrado. Sólo los subcomandos de la lista; el valor de `set` va por stdin (no
 // por un argumento, que se ve en `ps`). `get --reveal` sí se permite acá: lo pide Miguel con «Ver» o «Copiar»; a una
 // sesión de Claude se lo niega el hook vault-guard.
-const VAULT_VERBS: &[&str] = &["list", "ring-create", "ring-rename", "ring-delete", "set", "key-rename", "key-move", "key-delete", "get"];
+const VAULT_VERBS: &[&str] = &["list", "ring-create", "ring-rename", "ring-delete", "set", "key-rename", "key-move", "key-delete", "get", "export", "import"];
 
 #[tauri::command]
 async fn vault(args: Vec<String>, input: Option<String>) -> Result<String, String> {

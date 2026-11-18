@@ -21,6 +21,8 @@ import (
 
 var (
 	vaultRevealRe = regexp.MustCompile(`\bvault\s+(get|env)\b[^|;&]*\s-{1,2}reveal\b`)
+	// Exportar: quien elige la contraseña del zip puede abrirlo. Lo hace Miguel, desde Cockpit o su terminal.
+	vaultExportRe = regexp.MustCompile(`\bvault\s+export\b`)
 	personalKeyRe = regexp.MustCompile(`personal-key\b`)
 	// Usar la llave personal en una línea de shell: un lector antes de ella (en la misma línea), `file:` (openssl) o
 	// una redirección. Nombrarla sin más (un texto, un comentario dentro de un archivo que se escribe) no frena: frenaba
@@ -36,6 +38,10 @@ func VaultGuardIn(tool string, input map[string]any) string {
 		if vaultRevealRe.MatchString(cmd) {
 			return "`pg vault get|env --reveal` imprime valores del llavero personal: es para Miguel, en su terminal. " +
 				"Para usar las llaves sin verlas: `bin/pg vault run --ring <llavero> -- <comando>` (con $VAR: `-- sh -c '…'`)."
+		}
+		if vaultExportRe.MatchString(cmd) {
+			return "`pg vault export` cifra el llavero con una contraseña que elige quien lo corre, y con ella se abre: es para Miguel " +
+				"(Cockpit → engranaje → Llavero → Exportar, o su terminal)."
 		}
 		if personalKeyUseRe.MatchString(cmd) {
 			return "la llave personal (~/.config/creditop/personal-key) abre el llavero de Miguel: no se lee ni se usa desde una sesión. " +

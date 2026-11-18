@@ -5,6 +5,8 @@ package main
 // de Claude: un agente usa las llaves con `run`, que las pasa al comando como variables de entorno sin mostrarlas.
 
 import (
+	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -12,7 +14,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"creditop/my-tools/lib/vault"
 )
@@ -328,5 +332,133 @@ func runVaultRun(args []string) int {
 		}
 		return fail(127, "%v", err)
 	}
+	return 0
+}
+
+// runVaultImportEnv: un .env al llavero, leído y cifrado acá adentro (nadie ve un valor). Imprime sólo nombres.
+func runVaultImportEnv(args []string) int {
+	fs := vaultFlags("import-env")
+	ring := fs.String("ring", "", "el llavero (se crea si no existe)")
+	file := fs.String("file", "", "el .env")
+	only := fs.String("only", "", "sólo estas claves, separadas por coma")
+	except := fs.String("except", "", "todas menos éstas, separadas por coma")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	if *ring == "" || *file == "" {
+		return fail(2, "pg vault import-env --ring R --file .env [--only A,B | --except A,B]")
+	}
+	f, err := os.Open(*file)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	pairs, err := vault.ParseEnv(f)
+	f.Close()
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	p, code := vaultPaths()
+	if code != 0 {
+		return code
+	}
+	split := func(s string) []string {
+		if s == "" {
+			return nil
+		}
+		return strings.Split(s, ",")
+	}
+	res, err := p.ImportEnv(*ring, pairs, split(*only), split(*except))
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	fmt.Printf("%s ← %s: %d nuevas, %d actualizadas, %d iguales\n", *ring, *file, len(res.Added), len(res.Updated), len(res.Same))
+	if len(res.Added) > 0 {
+		fmt.Printf("  nuevas: %s\n", strings.Join(res.Added, " "))
+	}
+	if len(res.Updated) > 0 {
+		fmt.Printf("  actualizadas: %s\n", strings.Join(res.Updated, " "))
+	}
+	return 0
+}
+
+// readPassphrase: la contraseña del zip, la primera línea de stdin.
+func readPassphrase() (string, []byte, error) {
+	raw, err := io.ReadAll(io.LimitReader(os.Stdin, 48<<20))
+	if err != nil {
+		return "", nil, err
+	}
+	line, rest, _ := strings.Cut(string(raw), "\n")
+	return strings.TrimRight(line, "\r"), []byte(rest), nil
+}
+
+// runVaultExport: el llavero a un zip, cada valor cifrado con una contraseña (la primera línea de stdin).
+func runVaultExport(args []string) int {
+	fs := vaultFlags("export")
+	out := fs.String("out", "", "el zip (por defecto ~/Downloads/llavero-<fecha>.zip)")
+	ring := fs.String("ring", "", "sólo estos llaveros, separados por coma")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	pass, _, err := readPassphrase()
+	if err != nil || pass == "" {
+		return fail(2, "la contraseña del zip va por stdin: printf '%%s\\n' '…' | pg vault export")
+	}
+	if *out == "" {
+		home, _ := os.UserHomeDir()
+		*out = filepath.Join(home, "Downloads", "llavero-"+time.Now().Format("2006-01-02")+".zip")
+	}
+	p, code := vaultPaths()
+	if code != 0 {
+		return code
+	}
+	var rings []string
+	if *ring != "" {
+		rings = strings.Split(*ring, ",")
+	}
+	var buf bytes.Buffer
+	n, keys, err := p.Export(&buf, pass, rings)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	if err := os.WriteFile(*out, buf.Bytes(), 0o600); err != nil {
+		return fail(1, "%v", err)
+	}
+	fmt.Printf("%d llaveros, %d llaves → %s (cada valor cifrado con la contraseña; sin ella el zip no sirve)\n", n, keys, *out)
+	return 0
+}
+
+// runVaultImport: un zip de `export` (por --file, o en base64 por stdin después de la contraseña: así lo manda Cockpit).
+func runVaultImport(args []string) int {
+	fs := vaultFlags("import")
+	file := fs.String("file", "", "el zip; sin --file, la segunda línea de stdin es el zip en base64")
+	replace := fs.Bool("replace", false, "una llave que ya está con otro valor se reemplaza (si no, se deja y se avisa)")
+	if fs.Parse(args) != nil {
+		return 2
+	}
+	pass, rest, err := readPassphrase()
+	if err != nil || pass == "" {
+		return fail(2, "la contraseña del zip va por stdin: printf '%%s\\n' '…' | pg vault import --file llavero.zip")
+	}
+	var data []byte
+	if *file != "" {
+		if data, err = vault.ReadFileLimited(*file); err != nil {
+			return fail(1, "%v", err)
+		}
+	} else if data, err = base64.StdEncoding.DecodeString(strings.TrimSpace(string(rest))); err != nil || len(data) == 0 {
+		return fail(2, "falta el zip: --file llavero.zip")
+	}
+	p, code := vaultPaths()
+	if code != 0 {
+		return code
+	}
+	res, err := p.Import(data, pass, *replace)
+	if err != nil {
+		return fail(1, "%v", err)
+	}
+	fmt.Printf("%d llaveros: %d llaves nuevas, %d iguales, %d reemplazadas", res.Rings, res.Added, res.Same, res.Replaced)
+	if len(res.Conflicts) > 0 {
+		fmt.Printf(", %d con otro valor que no se tocaron (--replace): %s", len(res.Conflicts), strings.Join(res.Conflicts, ", "))
+	}
+	fmt.Println()
 	return 0
 }

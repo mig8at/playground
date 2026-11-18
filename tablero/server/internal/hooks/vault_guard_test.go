@@ -14,7 +14,10 @@ func TestVaultGuard(t *testing.T) {
 		{"Bash", "command", "cat ~/.config/creditop/personal-key", true},
 		{"Read", "file_path", "/Users/x/.config/creditop/personal-key", true},
 		{"Grep", "path", "/Users/x/.config/creditop/personal-key", true},
+		{"Bash", "command", "printf '%s\\n' x | bin/pg vault export --out /tmp/l.zip", true},
 		// Lo que sí pasa.
+		{"Bash", "command", "bin/pg vault import-env --ring VTEX --file connectors/.env --only VTEX_APP_KEY", false},
+		{"Bash", "command", "printf '%s\\n' x | bin/pg vault import --file l.zip", false},
 		{"Bash", "command", "bin/pg vault list", false},
 		{"Bash", "command", "bin/pg vault get --ring vtex --key APP_KEY", false},
 		{"Bash", "command", "bin/pg vault run --ring vtex -- sh -c 'curl -H \"k: $APP_KEY\" …'", false},
