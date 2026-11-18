@@ -71,8 +71,8 @@ export function buildChecks(advisor: AdvisorRow | null, pool: PoolState | null, 
     });
 
     if (!pool || pool.state === 'sin-acceso') {
-        const motivo = pool && pool.state === 'sin-acceso' ? pool.motivo : 'no se consultó';
-        checks.push({ label: 'la cuenta existe en el pool de prod', ok: null, detalle: `no se pudo comprobar: ${motivo}` });
+        const reason = pool && pool.state === 'sin-acceso' ? pool.motivo : 'no se consultó';
+        checks.push({ label: 'la cuenta existe en el pool de prod', ok: null, detalle: `no se pudo comprobar: ${reason}` });
     } else if (pool.state === 'no-existe') {
         checks.push({ label: 'la cuenta existe en el pool de prod', ok: false, detalle: `no existe en ${PROD_POOL_ID}` });
     } else {

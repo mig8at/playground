@@ -44,30 +44,30 @@ export function validatePlan(raw: unknown): { ok: boolean; errors: string[]; pla
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, errors: ['el plan tiene que ser un objeto JSON'] };
     const p = raw as Record<string, unknown>;
     const str = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '');
-    const nombre = str(p.nombre);
+    const name = str(p.nombre);
     const target = str(p.target) || 'local';
-    const comercio = str(p.comercio);
-    const canal = str(p.canal) || 'asesor';
+    const merchant = str(p.comercio);
+    const channel = str(p.canal) || 'asesor';
     const play = str(p.play) || 'manual';
-    if (!nombre) errors.push('falta `nombre`');
-    if (!comercio) errors.push('falta `comercio` (slug del panel o hash de sucursal)');
+    if (!name) errors.push('falta `nombre`');
+    if (!merchant) errors.push('falta `comercio` (slug del panel o hash de sucursal)');
     if (!TARGETS.includes(target)) errors.push(`\`target\` «${target}» no es uno del panel (${TARGETS.join(', ')})`);
-    if (!CHANNELS.includes(canal)) errors.push(`\`canal\` «${canal}»: un plan abre ${CHANNELS.join(' o ')} por ahora`);
+    if (!CHANNELS.includes(channel)) errors.push(`\`canal\` «${channel}»: un plan abre ${CHANNELS.join(' o ')} por ahora`);
     if (!PLAYS.includes(play)) errors.push(`\`play\` «${play}» no es ${PLAYS.join(' ni ')}`);
-    const caso: RunPlan['caso'] = {};
+    const testCase: RunPlan['caso'] = {};
     if (p.caso !== undefined) {
         if (!p.caso || typeof p.caso !== 'object' || Array.isArray(p.caso)) errors.push('`caso` tiene que ser un objeto');
         else for (const [k, v] of Object.entries(p.caso as Record<string, unknown>)) {
             if (!(CASE_KEYS as readonly string[]).includes(k)) { errors.push(`\`caso.${k}\` no es un campo del panel (${CASE_KEYS.join(', ')})`); continue; }
             if (typeof v !== 'string' && typeof v !== 'number') { errors.push(`\`caso.${k}\` tiene que ser texto o número`); continue; }
-            caso[k as (typeof CASE_KEYS)[number]] = v;
+            testCase[k as (typeof CASE_KEYS)[number]] = v;
         }
     }
     const lender = p.lender === undefined || p.lender === null || p.lender === '' ? null
         : typeof p.lender === 'number' || typeof p.lender === 'string' ? p.lender : undefined;
     if (lender === undefined) errors.push('`lender` tiene que ser el id o el nombre de la entidad');
     if (errors.length) return { ok: false, errors };
-    return { ok: true, errors, plan: { nombre, target, comercio, canal, lender, caso, play, creado: str(p.creado) || new Date().toISOString() } };
+    return { ok: true, errors, plan: { nombre: name, target, comercio: merchant, canal: channel, lender, caso: testCase, play, creado: str(p.creado) || new Date().toISOString() } };
 }
 
 export function readPlan(): RunPlan | null {

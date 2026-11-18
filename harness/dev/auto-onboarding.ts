@@ -31,9 +31,9 @@ process.env.E2E_TARGET = 'local';
 const FRONT = env('E2E_BASE_URL', 'http://localhost:5174');
 const MERCHANT = process.env.MERCHANT || 'pullman';
 
-const AGIL_SIN_DATOS = { codRespuesta: '02', observaciones: 'No se encontró información.', respuesta: null };
-const MAREIGUA_SIN_DATOS = { respuesta_id: 1, mensaje: 'No se encontró información.' };
-const CAIDA = { __http_status: 500 };
+const AGIL_NO_DATA = { codRespuesta: '02', observaciones: 'No se encontró información.', respuesta: null };
+const MAREIGUA_NO_DATA = { respuesta_id: 1, mensaje: 'No se encontró información.' };
+const OUTAGE = { __http_status: 500 };
 const tusdatos = (findings: Record<string, number>, extra: Record<string, unknown> = {}) => ({
     data: {
         findings: Object.fromEntries(['first_name', 'middle_name', 'first_surname', 'second_surname', 'issue_date']
@@ -47,7 +47,7 @@ const tusdatos = (findings: Record<string, number>, extra: Record<string, unknow
  *  guarda su resumen con `employed: false`. Es lo que devolvió la lambda de qa para Refurbi (uReq 503252). */
 const agilOldJobs = (doc: string) => {
     const old = new Date(); old.setMonth(old.getMonth() - 18);
-    const pagos = Array.from({ length: 6 }, (_, k) => {
+    const payments = Array.from({ length: 6 }, (_, k) => {
         const m = new Date(old); m.setMonth(old.getMonth() - k);
         const per = `${m.getFullYear()}${String(m.getMonth() + 1).padStart(2, '0')}`;
         return { id: k + 1, ibc: 1_890_000, periodo: Number(per), fechaPago: `${per.slice(0, 4)}-${per.slice(4)}-15 00:00:00`, diasCotizados: 30, valorCotizacionObligatoria: 217_350 };
@@ -57,7 +57,7 @@ const agilOldJobs = (doc: string) => {
         respuesta: {
             type: 'aorg.asofondos.agildata.domain.AfiliadoDetalladoa', fechaVinculacion: null,
             datosBasicos: { edad: 30, genero: 'F', nombre: 'LAURA AUTO PRUEBA', tipoId: 'CC', numeroId: doc, viabilidad: null },
-            detalladoEmpleos: [{ id: 1, pagos, nombreEmpleador: 'EMPRESA ANTERIOR SAS', identifiacionEmpleador: '900101010', tipoIdentifiacionEmpleador: 'NI' }],
+            detalladoEmpleos: [{ id: 1, pagos: payments, nombreEmpleador: 'EMPRESA ANTERIOR SAS', identifiacionEmpleador: '900101010', tipoIdentifiacionEmpleador: 'NI' }],
         },
     };
 };
@@ -67,13 +67,13 @@ type Case = { id: string; what: string; name?: string; noBirth?: boolean; takenD
 const employed = (doc: string) => dictateEmployment(doc, 2_500_000, 'Empleado');
 const CASES: Case[] = [
     { id: 'aprobado', what: 'las tres centrales contestan bien', dictate: employed },
-    { id: 'agil-sin-datos', what: 'AgilData sin datos; Mareigua contesta', dictate: (d) => dictate(d, 'agildata', AGIL_SIN_DATOS) },
-    { id: 'agil-caida', what: 'AgilData caída (HTTP 500); Mareigua contesta', dictate: (d) => dictate(d, 'agildata', CAIDA) },
+    { id: 'agil-sin-datos', what: 'AgilData sin datos; Mareigua contesta', dictate: (d) => dictate(d, 'agildata', AGIL_NO_DATA) },
+    { id: 'agil-caida', what: 'AgilData caída (HTTP 500); Mareigua contesta', dictate: (d) => dictate(d, 'agildata', OUTAGE) },
     { id: 'agil-desempleado', what: 'AgilData encuentra a la persona, pero con aportes de hace más de un año (sale «Desempleado», como en qa)', dictate: (d) => dictate(d, 'agildata', agilOldJobs(d)) },
-    { id: 'sin-empleo', what: 'AgilData y Mareigua sin datos', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); } },
-    { id: 'todas-caidas', what: 'AgilData, Mareigua y TusDatos caídas (HTTP 500)', dictate: async (d) => { for (const c of ['agildata', 'mareigua', 'tusdatos']) await dictate(d, c, CAIDA); } },
-    { id: 'tusdatos-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: el apellido no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ first_surname: 0 })); } },
-    { id: 'fecha-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: la fecha de expedición no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_SIN_DATOS); await dictate(d, 'mareigua', MAREIGUA_SIN_DATOS); await dictate(d, 'tusdatos', tusdatos({ issue_date: 0 })); } },
+    { id: 'sin-empleo', what: 'AgilData y Mareigua sin datos', dictate: async (d) => { await dictate(d, 'agildata', AGIL_NO_DATA); await dictate(d, 'mareigua', MAREIGUA_NO_DATA); } },
+    { id: 'todas-caidas', what: 'AgilData, Mareigua y TusDatos caídas (HTTP 500)', dictate: async (d) => { for (const c of ['agildata', 'mareigua', 'tusdatos']) await dictate(d, c, OUTAGE); } },
+    { id: 'tusdatos-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: el apellido no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_NO_DATA); await dictate(d, 'mareigua', MAREIGUA_NO_DATA); await dictate(d, 'tusdatos', tusdatos({ first_surname: 0 })); } },
+    { id: 'fecha-no-coincide', what: 'sin empleo en Agil/Mareigua y TusDatos: la fecha de expedición no coincide', dictate: async (d) => { await dictate(d, 'agildata', AGIL_NO_DATA); await dictate(d, 'mareigua', MAREIGUA_NO_DATA); await dictate(d, 'tusdatos', tusdatos({ issue_date: 0 })); } },
     { id: 'sin-nacimiento', what: 'la tienda no manda la fecha de nacimiento (la exige la sucursal si tiene Welli, Credifamilia…)', noBirth: true, dictate: employed },
     { id: 'cedula-de-otro', what: 'el pedido trae un celular nuevo con la cédula de un cliente que ya existe con otro celular', takenDoc: true, dictate: employed },
     { id: 'correo-de-otro', what: 'cédula y celular nuevos, con el correo de un cliente que ya existe', takenEmail: true, dictate: employed },

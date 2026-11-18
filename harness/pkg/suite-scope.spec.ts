@@ -6,11 +6,11 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { suiteScope, suiteTargets, EXIT_NOT_FOR_TARGET } from './suite-scope.ts';
 
-const caso = { comercio: 'pullman', lender: null };
+const testCase = { comercio: 'pullman', lender: null };
 
 test.describe('suiteTargets', () => {
     test('sin la clave vale en todos', () => {
-        expect(suiteTargets({ casos: [caso] })).toBeNull();
+        expect(suiteTargets({ casos: [testCase] })).toBeNull();
     });
     test('una lista vacía o un ambiente desconocido es un error, no «no corre en ningún lado»', () => {
         expect(() => suiteTargets({ ambientes: [] })).toThrow(/no vacía/);
@@ -21,10 +21,10 @@ test.describe('suiteTargets', () => {
 
 test.describe('suiteScope', () => {
     test('sin `ambientes` corre en cualquier target', () => {
-        for (const t of ['local', 'dev', 'qa', 'staging']) expect(suiteScope({ casos: [caso] }, t)).toEqual({ kind: 'run' });
+        for (const t of ['local', 'dev', 'qa', 'staging']) expect(suiteScope({ casos: [testCase] }, t)).toEqual({ kind: 'run' });
     });
     test('con `ambientes` corre sólo en los suyos, y el resto la saltea diciendo dónde vale', () => {
-        const s = { ambientes: ['local', 'qa'], casos: [caso] };
+        const s = { ambientes: ['local', 'qa'], casos: [testCase] };
         expect(suiteScope(s, 'local')).toEqual({ kind: 'run' });
         expect(suiteScope(s, 'QA')).toEqual({ kind: 'run' });
         expect(suiteScope(s, 'dev')).toEqual({ kind: 'not-for-target', targets: ['local', 'qa'] });

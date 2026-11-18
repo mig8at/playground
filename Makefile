@@ -504,7 +504,7 @@ ensayo-comparar: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta p
 # `SOLO` y `DIAS` no están acá porque también los usan otras herramientas (`estilo-ui SOLO=`, el tablero):
 # se aceptan sólo dentro de `harness-ssr` y `harness-posthog-errors`. Los flags viejos de los scripts los
 # traduce `harness/pkg/cli-aliases.ts`.
-HARNESS_OLD_VARS := CASOS:CASES CERRAR:CLOSE COMERCIO:MERCHANT ENTIDAD:LENDER CODIGO:CODE MONTO:AMOUNT CUOTA:DOWN_PAYMENT PAGO:PAYMENT PLAZO:INSTALLMENTS MOTOR:ENGINE PAR:PARALLEL GRUPO:GROUP FOTO:SNAPSHOT CONTRA:COMPARE DESDE:SINCE PANTALLAS:SCREENS NIEGA:DENY INICIAL:DOWN_PAYMENT BONO:BONUS FILTRO:FILTER SEGUIR:FOLLOW SIN_ENDPOINTS:NO_ENDPOINTS RECETA:RECIPE PANTALLA:SCREEN MARCO:FRAME SIN_MARCO:NO_FRAME MANOS:HANDS
+HARNESS_OLD_VARS := CASOS:CASES CERRAR:CLOSE COMERCIO:MERCHANT ENTIDAD:LENDER CODIGO:CODE MONTO:AMOUNT CUOTA:DOWN_PAYMENT PAGO:PAYMENT PLAZO:INSTALLMENTS MOTOR:ENGINE PAR:PARALLEL GRUPO:GROUP FOTO:SNAPSHOT CONTRA:COMPARE DESDE:SINCE PANTALLAS:SCREENS NIEGA:DENY INICIAL:DOWN_PAYMENT BONO:BONUS FILTRO:FILTER SEGUIR:FOLLOW SIN_ENDPOINTS:NO_ENDPOINTS RECETA:RECIPE PANTALLA:SCREEN MARCO:FRAME SIN_MARCO:NO_FRAME MANOS:HANDS USUARIO:USER_ID LOTE:BATCH
 define harness_old_var
 ifneq ($$(origin $(1)),undefined)
 $(2) ?= $$($(1))
@@ -514,6 +514,7 @@ endef
 $(foreach p,$(HARNESS_OLD_VARS),$(eval $(call harness_old_var,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
 
 HARNESS_OLD_TARGETS := \
+  harness-codigo-qa:harness-qa-code \
   harness-centrales:harness-bureaus \
   harness-codigo-prueba:harness-code-redeem \
   harness-codigo:harness-code \
@@ -596,9 +597,9 @@ harness-code: ## @har siembra un código de preaprobado para probar la pantalla 
 	@test -n "$(MERCHANT)" || { echo "falta MERCHANT=<hash de sucursal o slug de .flows.json>"; exit 2; }
 	@cd harness && bin/seed-code "$(MERCHANT)" "$(CODE)" "$(LENDER)"
 
-harness-codigo-qa: ## @har genera un código de preaprobado REAL en qa (el que emitiría la app) para probar el canje en la pantalla del asesor. Pide la VPN de dev. [COMERCIO=<hash> default Pullman ec977139] [ENTIDAD=<lender_id>] [USUARIO=<user_id> default un cliente sintético]
-	@cd harness && COMERCIO="$(COMERCIO)" ENTIDAD="$(ENTIDAD)" USUARIO="$(USUARIO)" LOTE="$(LOTE)" node dev/codigo-qa.ts
-# LOTE=10 genera 10 por comercio de Colombia (los que tienen asesores en qa) y deja harness/.runs/codigos-qa.json
+harness-qa-code: ## @har genera un código de preaprobado REAL en qa (el que emitiría la app) para probar el canje en la pantalla del asesor. Pide la VPN de dev. [MERCHANT=<hash> default Pullman ec977139] [LENDER=<lender_id>] [USER_ID=<user_id> default un cliente sintético] [BATCH=<n>]
+	@cd harness && MERCHANT="$(MERCHANT)" LENDER="$(LENDER)" USER_ID="$(USER_ID)" BATCH="$(BATCH)" node dev/qa-code.ts
+# BATCH=10 genera 10 por comercio de Colombia (los que tienen asesores en qa) y deja harness/.runs/qa-codes.json
 # para cargar la lista de QA. Vencen a fin de mes: se corre de nuevo cada mes.
 
 harness-code-redeem: ## @har redime un código sembrado desde la UI del asesor y comprueba que sólo quede su entidad. HASH=<sucursal> CODE=<4 dígitos> LENDER='<nombre>'

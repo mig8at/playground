@@ -335,13 +335,13 @@ let routeIndex: Array<{ re: RegExp; piece: string }> | null = null;
 function buildRouteIndex(): Array<{ re: RegExp; piece: string }> {
     const steps = JSON.parse(readFileSync(STEPS_FILE, 'utf8'));
     const out: Array<{ re: RegExp; piece: string }> = [];
-    const add = (pasos: any[] | undefined, prefix: string) => {
-        for (const p of pasos ?? []) {
+    const add = (stepList: any[] | undefined, prefix: string) => {
+        for (const p of stepList ?? []) {
             // Una ruta con texto al lado («… (sin navegación)», «… → URL externa») no es una pantalla propia.
             const raw = String(p?.ruta ?? '');
             if (!raw.startsWith('/') || /\s/.test(raw)) continue;
-            const ruta = raw.split('?')[0];
-            const re = new RegExp('^' + ruta.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '[^/]+') + '/?$');
+            const route = raw.split('?')[0];
+            const re = new RegExp('^' + route.replace(/[.*+?^$()|[\]\\]/g, '\\$&').replace(/\{[^}]+\}/g, '[^/]+') + '/?$');
             out.push({ re, piece: `${prefix} · ${p.label}` });
         }
     };

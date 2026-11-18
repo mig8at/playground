@@ -69,8 +69,8 @@ async function runChild(): Promise<void> {
         if (w.estado === 'falló') return finish(notProbed({ veredicto: 'no se pudo probar', detalle: `el wizard local no quedó al día: ${w.detalle}` }));
     }
 
-    const { hosted, motivo } = await discoverHostedUi(config.feBaseUrl);
-    if (!hosted) return finish(notProbed({ veredicto: 'no se pudo probar', detalle: motivo }));
+    const { hosted, motivo: reason } = await discoverHostedUi(config.feBaseUrl);
+    if (!hosted) return finish(notProbed({ veredicto: 'no se pudo probar', detalle: reason }));
 
     let advisor = null;
     let user = args.user ?? '';

@@ -1467,7 +1467,7 @@ for (const r of results) {
 // `--result-file <ruta>`: la tanda en JSON, para que otro runner (p. ej. `dev/vtex-run.ts`) siga desde acá sin leer el texto.
 if (arg('result-file')) {
     const { writeFileSync } = await import('node:fs');
-    writeFileSync(arg('result-file'), JSON.stringify(results.map(({ lineas, ...rest }) => rest), null, 2));
+    writeFileSync(arg('result-file'), JSON.stringify(results.map(({ lineas: logLines, ...rest }) => rest), null, 2));
 }
 const closedOnes = results.filter((r) => r.fin === 'cerro' || r.fin === 'listo').length;
 console.log(`  ${closedOnes}/${results.length} ${flag('close') ? 'cerraron' : 'listaron'} · ${((Date.now() - t0) / 1000).toFixed(1)}s`);
@@ -1521,7 +1521,7 @@ if (process.env.MD === '1' || process.env.BLOQUE) {
 await (async () => {
     const { appendCases, repoRef, repoPath } = await import('../pkg/failure-log.ts');
     const { cmdMake } = await import('../pkg/annotation.ts');
-    const comando = cmdMake('harness-walk-wizard', TARGET, {
+    const command = cmdMake('harness-walk-wizard', TARGET, {
         CASES: arg('cases'), MERCHANT: arg('cases') ? '' : arg('merchant'), LENDER: arg('cases') ? '' : arg('lender'),
         AMOUNT: AMOUNT === 2000000 ? '' : AMOUNT, DOWN_PAYMENT: DOWN_PAYMENT, INSTALLMENTS: INSTALLMENTS ?? '',
         FLOW: FLOW === 'self-service' ? '' : FLOW, ENGINE: ENGINE === 'http' ? '' : ENGINE,
@@ -1529,13 +1529,13 @@ await (async () => {
     });
     const lb = repoPath('legacy-backend');
     const base = { v: 1 as const, at: new Date().toISOString(), run: `${Date.now().toString(36)}-${process.pid}`,
-        runner: 'walk' as const, target: TARGET, suite: null, canal: `${FLOW} · ${ENGINE}`, comando,
+        runner: 'walk' as const, target: TARGET, suite: null, canal: `${FLOW} · ${ENGINE}`, comando: command,
         backend: lb ? repoRef(lb) : null };
     appendCases(results.map((r) => {
         // `caso` es `<comercio>[:<entidad>]`, como se pidió en CASES.
-        const [comercio, lender] = r.caso.split(':');
+        const [merchant, lender] = r.caso.split(':');
         const ok = r.fin === 'cerro' || r.fin === 'listo';
-        return { ...base, caso: null, comercio, lender: lender ?? null, ur: r.ur, ok,
+        return { ...base, caso: null, comercio: merchant, lender: lender ?? null, ur: r.ur, ok,
             detalle: ok ? null : `${r.fin}: ${r.motivo || 'sin motivo registrado'}`, desvios: [] };
     }));
 })().catch(() => {});

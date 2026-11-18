@@ -446,12 +446,12 @@ function measureChannels(hash: string, target: string): Promise<{ ok: boolean; m
         // tiene una tienda en `auto_onboarding_allied_branches`. Sin eso sería una puerta que cae al ecommerce normal.
         const autoTargets = ['local', 'qa'];
         const autoCheck = autoTargets.includes(target) && !corbeta ? await dbopsJson(['auto-onboarding-ok', hash], target).catch(() => null) : null;
-        const autoMotivo = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
+        const autoReason = !autoTargets.includes(target) ? 'el auto-onboarding corre contra local o qa'
             : corbeta ? 'en un comercio Corbeta la entrada es el QR de la caja'
             : autoCheck?.motivo || (autoCheck ? '' : 'no se pudo comprobar la tienda del comercio');
         // Sin la comprobación de la tienda la respuesta está incompleta: sirve para esta vez, no se guarda.
         if (autoTargets.includes(target) && !corbeta && !autoCheck) channelMeasures.delete(key);
-        return { ok: true, r, corbeta, auto: autoCheck?.ok === true ? ['auto'] : [], autoMotivo };
+        return { ok: true, r, corbeta, auto: autoCheck?.ok === true ? ['auto'] : [], autoMotivo: autoReason };
     })();
     channelMeasures.set(key, { at: Date.now(), value });
     return value;
@@ -559,9 +559,9 @@ async function fireEntityWebhook(uReq: number, lender: number, stateValue: strin
     const { webhookFamily, integrationWebhook, webhookSelfManager, meddipayWebhook } = await import('../pkg/entity-webhook.ts');
     const fam = await webhookFamily(lender);
     if (!fam) return { ok: false, detalle: 'esta entidad no recibe webhook: es redirección pura o su familia no está cubierta (F-170)' };
-    const estado = stateValue === 'aprueba' ? (fam === 'rt0' ? 'completed' : 'fulfilled') : stateValue;
+    const stateName = stateValue === 'aprueba' ? (fam === 'rt0' ? 'completed' : 'fulfilled') : stateValue;
     const r = fam === 'meddipay' ? await meddipayWebhook(uReq, lender, stateValue)
-        : fam === 'rt0' ? await webhookSelfManager(uReq, lender, estado) : await integrationWebhook(uReq, estado);
+        : fam === 'rt0' ? await webhookSelfManager(uReq, lender, stateName) : await integrationWebhook(uReq, stateName);
     return { ...r, familia: fam };
 }
 /**
@@ -2370,7 +2370,7 @@ const server = createServer(async (req, res) => {
         // Si la consulta falla no se adivina: se deja el set completo y se dice por qué. Inferir "no es
         // Corbeta" ante un error escondería el canal QR justo cuando sí corresponde.
         if (!m.ok) return json(res, 200, { hash, corbeta: null, canales: ['asesor', 'autogestion', 'ecommerce', 'qr'], msg: `no pude determinar si es Corbeta (${m.msg})` });
-        const { r, corbeta, auto = [], autoMotivo } = m;
+        const { r, corbeta, auto = [], autoMotivo: autoReason } = m;
         const measured = corbeta ? ['qr'] : ['asesor', 'autogestion', 'ecommerce', ...auto];
         const declared = declaredChannels(slug);
         // En el ORDEN de la declaración: el primero es el que se preselecciona si el sugerido no está.
@@ -2379,7 +2379,7 @@ const server = createServer(async (req, res) => {
             hash, corbeta, alliedId: (r as any).alliedId ?? null,
             canales: offered,
             ...(declared ? { declarados: declared } : {}),
-            autoMotivo,
+            autoMotivo: autoReason,
             // Qué canal viene PRESELECCIONADO. No es cosmético: asesor y autogestión se ven idénticos en
             // pantalla y el default equivocado hace que la corrida pruebe el otro camino sin avisar —
             // pasó el 2026-09-09 y costó dos vueltas de diagnóstico. Un comercio con «Habilitar auto

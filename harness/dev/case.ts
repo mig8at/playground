@@ -2267,16 +2267,16 @@ await (async () => {
     const target = process.env.E2E_TARGET || 'dev';
     const suite = arg('suite') ? String(arg('suite')).split('/').pop()! : null;
     const { cmdMake } = await import('../pkg/annotation.ts');
-    const comando = suite
+    const command = suite
         ? cmdMake('harness-suite', target, { SUITE: arg('suite') })
         : cmdMake('harness-case', target, { CASES: arg('cases'), MERCHANT: arg('merchant'), LENDER: arg('lender'),
             AMOUNT: arg('amount'), LAMBDA: flag('lambda') ? 1 : '', CLOSE: flag('close') ? 1 : '' });
     const lb = repoPath('legacy-backend');
     const base = { v: 1 as const, at: new Date().toISOString(), run: `${Date.now().toString(36)}-${process.pid}`,
-        runner: 'case' as const, target, suite, canal: 'api', comando, backend: lb ? repoRef(lb) : null };
-    const casos: any[] = Array.isArray(rep?.casos) ? rep.casos : [];
-    const records = casos.length
-        ? casos.map((c) => ({ ...base, caso: c.nombre ?? null, comercio: String(c.comercio), lender: c.lender ?? null,
+        runner: 'case' as const, target, suite, canal: 'api', comando: command, backend: lb ? repoRef(lb) : null };
+    const reportCases: any[] = Array.isArray(rep?.casos) ? rep.casos : [];
+    const records = reportCases.length
+        ? reportCases.map((c) => ({ ...base, caso: c.nombre ?? null, comercio: String(c.comercio), lender: c.lender ?? null,
             ur: c.userRequest ?? null, ok: Boolean(c.ok) && !(c.desvios?.length), detalle: c.detalle ?? null,
             desvios: c.desvios ?? [] }))
         // Sin veredicto (prevuelo, suite inválida, error): una línea igual, para que el registro no calle una corrida rota.

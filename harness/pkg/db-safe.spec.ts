@@ -218,25 +218,25 @@ test.describe('contra la base local', () => {
 
 test.describe('permisos del comercio de prueba (los que usa dev/allied-create.ts)', () => {
       const scope = (...ids: number[]) => new Set(ids);
-      const DEL_ALLIED = "DELETE FROM allieds WHERE id = ? AND name LIKE 'PRUEBA AUTO %'";
-      const DEL_BRANCH = "DELETE FROM allied_branches WHERE id = ? AND allied_id = ? AND name LIKE 'b%-fake'";
-      const DEL_USER = "DELETE FROM users WHERE id = ? AND allied_id = ? AND email LIKE 'c%-fake@%'";
-      const DEL_ROLE = "DELETE FROM model_has_roles WHERE model_type LIKE '%User' AND model_id = ?";
+      const DELETE_ALLIED = "DELETE FROM allieds WHERE id = ? AND name LIKE 'PRUEBA AUTO %'";
+      const DELETE_BRANCH = "DELETE FROM allied_branches WHERE id = ? AND allied_id = ? AND name LIKE 'b%-fake'";
+      const DELETE_USER = "DELETE FROM users WHERE id = ? AND allied_id = ? AND email LIKE 'c%-fake@%'";
+      const DELETE_ROLE = "DELETE FROM model_has_roles WHERE model_type LIKE '%User' AND model_id = ?";
 
       test('borrar el comercio y su sucursal pasa sólo con el prefijo y el sufijo de la automatización', () => {
-            expect(blockReason(DEL_ALLIED, 'prueba-comercio', 0, [349], undefined)).toBeNull();
-            expect(blockReason(DEL_BRANCH, 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
+            expect(blockReason(DELETE_ALLIED, 'prueba-comercio', 0, [349], undefined)).toBeNull();
+            expect(blockReason(DELETE_BRANCH, 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
       });
 
       test('las sucursales de prueba del admin (física p… o b…, ecommerce e…) y lo que cuelga de la ecommerce se borran', () => {
             for (const prefix of ['p', 'b', 'e']) {
-                  expect(blockReason(DEL_BRANCH.replace("'b%-fake'", `'${prefix}%-fake'`), 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
+                  expect(blockReason(DELETE_BRANCH.replace("'b%-fake'", `'${prefix}%-fake'`), 'prueba-comercio', 0, [2185, 349], undefined)).toBeNull();
             }
             expect(blockReason('DELETE FROM allied_ecommerce_credentials WHERE allied_branch_id = ? AND allied_id = ?', 'prueba-comercio', 0, [2186, 349], undefined)).toBeNull();
             expect(blockReason("DELETE FROM personal_access_tokens WHERE tokenable_type = 'App\\\\Models\\\\AlliedBranch' AND tokenable_id = ?", 'prueba-comercio', 0, [2186], undefined)).toBeNull();
             expect(blockReason('DELETE FROM lenders_by_allied_branches WHERE allied_branch_id = ?', 'prueba-comercio', 0, [2186], undefined)).toBeNull();
             // Otra letra, o los tokens de otra cosa (un usuario), no.
-            expect(blockReason(DEL_BRANCH.replace("'b%-fake'", "'x%-fake'"), 'prueba-comercio', 0, [2185, 349], undefined)).toMatch(/NO cubre esta sentencia/);
+            expect(blockReason(DELETE_BRANCH.replace("'b%-fake'", "'x%-fake'"), 'prueba-comercio', 0, [2185, 349], undefined)).toMatch(/NO cubre esta sentencia/);
             expect(blockReason("DELETE FROM personal_access_tokens WHERE tokenable_type = 'App\\\\Models\\\\User' AND tokenable_id = ?", 'prueba-comercio', 0, [1], undefined)).toMatch(/NO cubre esta sentencia/);
       });
 
@@ -249,20 +249,20 @@ test.describe('permisos del comercio de prueba (los que usa dev/allied-create.ts
       });
 
       test('el permiso del comercio no sirve para borrar usuarios ni otra tabla', () => {
-            expect(blockReason(DEL_USER, 'prueba-comercio', 0, [1, 2], undefined)).toMatch(/NO cubre esta sentencia/);
+            expect(blockReason(DELETE_USER, 'prueba-comercio', 0, [1, 2], undefined)).toMatch(/NO cubre esta sentencia/);
             expect(blockReason('DELETE FROM user_requests WHERE id = ?', 'prueba-comercio', 0, [1], undefined)).toMatch(/NO cubre esta sentencia/);
       });
 
       // 🔴 `users` es una tabla de PERSONAS: la sentencia sola no alcanza, hace falta el ámbito por usuario.
       test('borrar al asesor sin ámbito, o sobre otro usuario, se bloquea', () => {
-            expect(blockReason(DEL_USER, 'prueba-asesor', 1828744, [1828744, 349], undefined)).toMatch(/necesita un ámbito/);
-            expect(blockReason(DEL_USER, 'prueba-asesor', 1827080, [1827080, 349], scope(1828744))).toMatch(/sólo alcanza a los usuarios de esta corrida/);
-            expect(blockReason(DEL_USER, 'prueba-asesor', 1828744, [1827080, 349], scope(1828744))).toMatch(/NO está entre sus parámetros/);
+            expect(blockReason(DELETE_USER, 'prueba-asesor', 1828744, [1828744, 349], undefined)).toMatch(/necesita un ámbito/);
+            expect(blockReason(DELETE_USER, 'prueba-asesor', 1827080, [1827080, 349], scope(1828744))).toMatch(/sólo alcanza a los usuarios de esta corrida/);
+            expect(blockReason(DELETE_USER, 'prueba-asesor', 1828744, [1827080, 349], scope(1828744))).toMatch(/NO está entre sus parámetros/);
       });
 
       test('y dentro del ámbito del asesor de la corrida, pasan el usuario y su rol', () => {
-            expect(blockReason(DEL_USER, 'prueba-asesor', 1828744, [1828744, 349], scope(1828744))).toBeNull();
-            expect(blockReason(DEL_ROLE, 'prueba-asesor', 1828744, [1828744], scope(1828744))).toBeNull();
+            expect(blockReason(DELETE_USER, 'prueba-asesor', 1828744, [1828744, 349], scope(1828744))).toBeNull();
+            expect(blockReason(DELETE_ROLE, 'prueba-asesor', 1828744, [1828744], scope(1828744))).toBeNull();
       });
 
       test('un correo que no es de asesor de prueba no pasa aunque se declare el usuario', () => {

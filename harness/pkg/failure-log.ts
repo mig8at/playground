@@ -118,12 +118,12 @@ export function summarize(cases: CaseRecord[], window = 10): CaseSummary[] {
         const lastGreen = [...list].reverse().find((c) => c.ok) ?? null;
         const lastFail = fails.length ? fails[fails.length - 1] : null;
         const firstRedAfterGreen = list.find((c) => !c.ok && (!lastGreen || c.at > lastGreen.at)) ?? null;
-        const estado: CaseSummary['estado'] = last.sinVeredicto ? 'sin-veredicto'
+        const status: CaseSummary['estado'] = last.sinVeredicto ? 'sin-veredicto'
             : recent.some((c) => c.ok) && recent.some((c) => !c.ok) ? 'intermitente'
             : last.ok ? 'verde' : 'rojo';
         out.push({
             key: k, target: last.target, runner: last.runner, suite: last.suite, caso: last.caso, comercio: last.comercio,
-            lender: last.lender, canal: last.canal, corridas: list.length, fallas: fails.length, estado,
+            lender: last.lender, canal: last.canal, corridas: list.length, fallas: fails.length, estado: status,
             ultima: last, ultimaFalla: lastFail, ultimoVerde: lastGreen,
             rojoDesde: last.ok ? null : firstRedAfterGreen?.at ?? null,
             historia: list.slice(-30).map((c) => ({ at: c.at, ok: c.ok, ur: c.ur, run: c.run })),

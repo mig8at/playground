@@ -27,14 +27,14 @@ export async function applyProfiles(list: Array<{ lender: number; perfil: string
     const col = await one(`SELECT 1 AS x FROM information_schema.columns WHERE table_schema = DATABASE()
                             AND table_name = 'lender_users_categories' AND column_name = 'active'`);
     if (!col) throw new Error('preparar: la base local no tiene `lender_users_categories.active` (migración 2026_10_26): actualizá legacy-backend y migrá');
-    const cambios: ProfileChange[] = [];
+    const profileChanges: ProfileChange[] = [];
     for (const p of list) {
         const rows = await query<{ id: number; active: number }>(
             'SELECT id, active FROM lender_users_categories WHERE lender_id = ? AND name = ?', [p.lender, p.perfil]);
         if (rows.length !== 1) throw new Error(`preparar: ${p.lender}·«${p.perfil}» dio ${rows.length} filas (se espera una)`);
-        cambios.push({ id: rows[0].id, lender: p.lender, perfil: p.perfil, before: Number(rows[0].active), after: p.activo ? 1 : 0 });
+        profileChanges.push({ id: rows[0].id, lender: p.lender, perfil: p.perfil, before: Number(rows[0].active), after: p.activo ? 1 : 0 });
     }
-    return write(cambios, 'profiles');
+    return write(profileChanges, 'profiles');
 }
 
 const where = (c: ProfileChange) => ({ t: c.table ?? 'lender_users_categories', k: c.column ?? 'active' });

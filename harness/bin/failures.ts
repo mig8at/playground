@@ -16,19 +16,19 @@ const opt = (name: string) => { const i = argv.indexOf(`--${name}`); return i >=
 const has = (name: string) => argv.includes(`--${name}`);
 
 const target = opt('target') || process.env.TARGET || '';
-const estado = opt('estado') || process.env.ESTADO || 'no-verde';
-const dias = Number(opt('dias') || process.env.DIAS || 0);
+const status = opt('estado') || process.env.ESTADO || 'no-verde';
+const days = Number(opt('dias') || process.env.DIAS || 0);
 
 const { cases, broken } = readCases();
-const since = dias > 0 ? new Date(Date.now() - dias * 86_400_000).toISOString() : '';
+const since = days > 0 ? new Date(Date.now() - days * 86_400_000).toISOString() : '';
 const scoped = cases.filter((c) => (!target || c.target === target) && (!since || c.at >= since));
 const all = summarize(scoped);
-const shown = all.filter((s) => estado === 'todos' ? true : estado === 'no-verde' ? s.estado !== 'verde' : s.estado === estado);
+const shown = all.filter((s) => status === 'todos' ? true : status === 'no-verde' ? s.estado !== 'verde' : s.estado === status);
 
 const count = (e: CaseSummary['estado']) => all.filter((s) => s.estado === e).length;
 const meta = {
     formato: 'harness.failures/v1', archivo: REGISTRY_FILE, lineasRotas: broken,
-    filtro: { target: target || null, estado, dias: dias || null },
+    filtro: { target: target || null, estado: status, dias: days || null },
     corridas: new Set(scoped.map((c) => c.run)).size, casos: all.length,
     rojos: count('rojo'), intermitentes: count('intermitente'), sinVeredicto: count('sin-veredicto'), verdes: count('verde'),
     desde: scoped.length ? scoped.map((c) => c.at).sort()[0] : null,
@@ -55,10 +55,10 @@ const mark = { rojo: '✗', intermitente: '~', 'sin-veredicto': '?', verde: '✓
 console.log(`\n  FALLAS DEL HARNESS · registro de esta máquina · ${meta.corridas} corrida(s) · ${meta.casos} caso(s)`
     + (meta.desde ? ` · desde ${day(meta.desde)}` : ''));
 console.log(`  ${meta.rojos} rojo(s) · ${meta.intermitentes} intermitente(s) · ${meta.sinVeredicto} sin veredicto · ${meta.verdes} verde(s)`
-    + (target ? ` · sólo ${target}` : '') + (dias ? ` · últimos ${dias} día(s)` : ''));
+    + (target ? ` · sólo ${target}` : '') + (days ? ` · últimos ${days} día(s)` : ''));
 if (broken) console.log(`  ⚠ ${broken} línea(s) del registro no se pudieron leer y se saltearon`);
 if (!cases.length) console.log(`\n  El registro está vacío: lo llenan las corridas del runner de casos (make harness-case / harness-suite / harness-regression).\n`);
-else if (!shown.length) console.log(`\n  Nada en «${estado}» con ese filtro.\n`);
+else if (!shown.length) console.log(`\n  Nada en «${status}» con ese filtro.\n`);
 for (const s of shown) {
     const who = s.suite && s.caso ? `${s.suite} · ${s.caso}`
         : `${s.comercio} → ${s.lender ?? 'listado'}` + (s.runner === 'walk' ? ` · caminador (${s.canal})` : '');

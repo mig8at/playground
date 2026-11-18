@@ -299,13 +299,13 @@ try {
             r = Object.fromEntries(rows.map((x) => {
                 const stores = (x.stores ?? '').split(',').filter(Boolean);
                 const isCorbeta = corbeta.includes(Number(x.allied_id));
-                const canales = isCorbeta ? ['qr'] : [
+                const channels = isCorbeta ? ['qr'] : [
                     'asesor',
                     ...(Number(x.self_managed) === 1 ? ['autogestion'] : []),
                     ...(stores.length ? ['ecommerce'] : []),
                     ...(stores.some((h) => autoHashes.includes(h)) ? ['auto'] : []),
                 ];
-                return [x.hash, { pais: x.pais ?? '', iso: x.iso ?? '', canales }];
+                return [x.hash, { pais: x.pais ?? '', iso: x.iso ?? '', canales: channels }];
             }));
             break;
         }

@@ -104,7 +104,7 @@
     {
       "task": "codigo",
       "name": "los códigos de QA siguen canjeables (usuario, sucursal y entidad existen)",
-      "codes": "harness/.runs/codigos-qa.json"
+      "codes": "harness/.runs/qa-codes.json"
     }
   ]
 }

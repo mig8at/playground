@@ -9,7 +9,7 @@ import { expect, test } from '@playwright/test';
 import { envValue, parseLstart, settle, stalenessOf, type Staleness, type WizardFacts } from './wizard-health.ts';
 
 const T0 = 1_790_000_000;
-const sano: WizardFacts = {
+const healthy: WizardFacts = {
     up: true, startedAt: T0, envMtimes: { '.env': T0 - 100 },
     configuredAuthHost: 'merchant-develop.auth.us-east-2.amazoncognito.com',
     servedAuthHost: 'merchant-develop.auth.us-east-2.amazoncognito.com',
@@ -17,18 +17,18 @@ const sano: WizardFacts = {
 
 test.describe('¿el wizard está al día?', () => {
     test('sano: responde, su configuración es anterior al arranque y sirve el login que dice', () => {
-        expect(stalenessOf(sano)).toEqual({ ok: true, reasons: [] });
+        expect(stalenessOf(healthy)).toEqual({ ok: true, reasons: [] });
     });
 
     test('caído: no hace falta mirar más', () => {
-        const s = stalenessOf({ ...sano, up: false });
+        const s = stalenessOf({ ...healthy, up: false });
         expect(s.ok).toBe(false);
         expect(s.reasons).toEqual([expect.stringMatching(/no contesta/)]);
     });
 
     // 🔴 El caso del 2026-10-02: el `.env` se editó DESPUÉS de arrancar y Vite no lo relee.
     test('un .env editado después del arranque lo deja viejo, y nombra el archivo', () => {
-        const s = stalenessOf({ ...sano, envMtimes: { '.env': T0 + 3600, '.env.local': T0 - 5 } });
+        const s = stalenessOf({ ...healthy, envMtimes: { '.env': T0 + 3600, '.env.local': T0 - 5 } });
         expect(s.ok).toBe(false);
         expect(s.reasons).toEqual([expect.stringMatching(/\.env se editó después/)]);
     });
@@ -36,13 +36,13 @@ test.describe('¿el wizard está al día?', () => {
     // 🔴 La prueba directa, que no depende de fechas: un `.env` restaurado con `mtime` viejo pasa el
     // control anterior, pero el wizard sigue mandando al login equivocado.
     test('si el login que sirve no es el de su .env, está viejo aunque las fechas cuadren', () => {
-        const s = stalenessOf({ ...sano, servedAuthHost: 'login.creditop.com' });
+        const s = stalenessOf({ ...healthy, servedAuthHost: 'login.creditop.com' });
         expect(s.ok).toBe(false);
         expect(s.reasons[0]).toMatch(/login\.creditop\.com/);
     });
 
     test('sin poder leer alguno de los dos datos, no inventa un motivo', () => {
-        expect(stalenessOf({ ...sano, startedAt: null, servedAuthHost: null }).ok).toBe(true);
+        expect(stalenessOf({ ...healthy, startedAt: null, servedAuthHost: null }).ok).toBe(true);
     });
 });
 

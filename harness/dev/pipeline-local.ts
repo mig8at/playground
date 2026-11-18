@@ -182,7 +182,7 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
     };
     let st: any = await poll();
     // El formulario laboral, como lo manda el front (el mismo endpoint en v1 y v2), y el aviso de «ya está».
-    let laboral = false;
+    let employmentSent = false;
     if (st.pending_form === 'employment') {
         const lab = await http('POST', `${API}/api/onboarding/loan-application/laboral-info/${branch}/${ur}`,
             { income_amount: 2_500_000, employment_situation: 'Empleado', original_amount: 2_000_000, amount: 2_000_000 });
@@ -193,7 +193,7 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
                 laboral: `el formulario laboral se rechazó: ${code} ${lab.json?.message ?? ''}`.trim(), esperado: c.expect };
         }
         await http('POST', `${CPS}/api/v1/loan-requests/${ur}/legacy-kyc-pipeline/${wf}/user-data`);
-        laboral = true;
+        employmentSent = true;
         st = await poll('employment');
     }
     const u = await one<{ first_name: string; surname: string; full_name: string }>(
@@ -203,7 +203,7 @@ async function runCase(key: string, c: Case, branch: string): Promise<Record<str
     const ok = c.expect === 'pide corregir' ? st.pending_reason === 'identity_mismatch' : (st.status === 'COMPLETED' && saved === c.expect);
     return {
         caso: `${key} ${c.label}`, ok, escrito: `${c.name} / ${c.surname}`, ur, workflow: wf, estado: st.status,
-        ...(laboral ? { laboral: 'pidió el formulario laboral y se entregó' } : {}),
+        ...(employmentSent ? { laboral: 'pidió el formulario laboral y se entregó' } : {}),
         centrales: (st.provider_outcomes ?? []).map((o: any) => `${o.provider}=${o.result}`), ...(asks ? { pide: asks } : {}),
         guardado: saved, full_name: u?.full_name, esperado: c.expect,
     };

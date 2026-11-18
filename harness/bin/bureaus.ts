@@ -121,26 +121,26 @@ if (!/^(https?:\/\/)?(localhost|127\.0\.0\.1|host\.docker\.internal)(:\d+)?/.tes
     fail(`RISK_LAMBDA_URL apunta a ${LAMBDA}: estos estados sólo se dictan al mock LOCAL (el lambda es de la empresa y compartido)`);
 }
 if (!['show', 'set', 'reset'].includes(cmd)) fail(`comando desconocido «${cmd}»: show | set | reset (sin argumentos, la ayuda)`);
-const cedula = String(doc || '').replace(/\D/g, '');
-if (!cedula) fail('falta la cédula del caso');
+const docNumber = String(doc || '').replace(/\D/g, '');
+if (!docNumber) fail('falta la cédula del caso');
 
 if (cmd === 'show') {
-    const now = await readBureauConfig(cedula).catch((e) => fail((e as Error).message));
-    out({ ok: true, doc: cedula, bureaus: now }, [`Burós para ${cedula}:`, ...BUREAUS.map((c) => `  ${c.padEnd(9)} ${now[c]}`)].join('\n'));
+    const now = await readBureauConfig(docNumber).catch((e) => fail((e as Error).message));
+    out({ ok: true, doc: docNumber, bureaus: now }, [`Burós para ${docNumber}:`, ...BUREAUS.map((c) => `  ${c.padEnd(9)} ${now[c]}`)].join('\n'));
 } else {
     let cfg = cmd === 'reset' ? {} : parsePairs(pairs);
     const spec = pairs.find((p) => p.startsWith('category='));
     const solved = cmd === 'set' && spec ? await solveCategory(spec.slice('category='.length).replace(/^["']|["']$/g, ''), cfg) : null;
     if (solved) cfg = solved.cfg;
-    const r = await applyBureauConfig(cedula, cfg);
+    const r = await applyBureauConfig(docNumber, cfg);
     // Dos cascadas distintas (verificado en `main`): la IDENTIDAD la resuelve la primera de agildata → mareigua →
     // tusdatos; el INGRESO y la ocupación sólo agildata o mareigua (TusDatos no los trae). Sin ninguna de las dos,
     // el wizard le pide al cliente su información laboral (lo DECLARADO).
     const identity = (['agildata', 'mareigua', 'tusdatos'] as const).find((c) => r.config[c].mode === 'ok');
     const income = (['agildata', 'mareigua'] as const).find((c) => r.config[c].mode === 'ok');
-    out({ ok: r.ok, doc: cedula, config: r.config, identity: identity ?? null, income: income ?? 'declared',
+    out({ ok: r.ok, doc: docNumber, config: r.config, identity: identity ?? null, income: income ?? 'declared',
           quantoOverrides: r.config.experian.mode === 'ok' && r.config.experian.quantoIncome > 0, lines: r.lines },
-        [`${r.ok ? '✓' : '✗'} Burós para ${cedula}${solved ? ' — ' + solved.note : ''}:`, ...r.lines.map((l) => '  ' + l),
+        [`${r.ok ? '✓' : '✗'} Burós para ${docNumber}${solved ? ' — ' + solved.note : ''}:`, ...r.lines.map((l) => '  ' + l),
          `  → identidad: ${identity ?? 'ninguna central la resuelve'}`,
          `  → ingreso y ocupación: ${income ?? 'ninguna central — el wizard le pide al cliente su información laboral (lo declarado)'}`,
          ...(r.config.experian.mode === 'ok' && r.config.experian.quantoIncome > 0

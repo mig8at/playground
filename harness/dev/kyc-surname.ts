@@ -172,15 +172,15 @@ async function correr(scenario: Scenario, name = NAME, surnames = SURNAMES): Pro
 
     // De dónde salió la respuesta de identidad: si cayó al respaldo del backend, el caso no se ejercitó.
     await new Promise((res) => setTimeout(res, 4_000));
-    let origen: string | null;
+    let origin: string | null;
     try {
-        origen = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), [central]);
+        origin = bureauSourceProblem(await bureauSources(from - 1_000, Date.now() + 1_000), [central]);
     } catch (e) {
-        origen = `no se pudo leer el log: ${(e as Error).message}`;
+        origin = `no se pudo leer el log: ${(e as Error).message}`;
     }
 
     return {
-        origen,
+        origen: origin,
         aceptado: accepted,
         status: r.status,
         subcode: `${code ?? '—'}${r.json?.errors?.error_subcode ? ' / ' + r.json.errors.error_subcode : ''}`,

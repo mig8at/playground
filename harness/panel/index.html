@@ -1564,8 +1564,8 @@
      */
     function advisorIssues(e) {
       // Un comercio que no se vende por asesor (sus canales no lo traen: Refurbi es sólo tienda) no tiene a quién abrir.
-      const chs = merchantTags[e.hash]?.canales;
-      if (chs && !chs.includes('asesor')) return { block: ['este comercio no se vende por asesor'], note: [] };
+      const tagChannels = merchantTags[e.hash]?.canales;
+      if (tagChannels && !tagChannels.includes('asesor')) return { block: ['este comercio no se vende por asesor'], note: [] };
       const r = e.readiness;
       if (!r) return { block: [], note: [] };
       const adminT = target === 'qa' ? 'dev' : target;   // qa no tiene admin: comparte base y pool con dev
@@ -3337,7 +3337,7 @@
     // dibuja: si la UI re-derivara "esto es Corbeta" habría dos definiciones de la misma regla. `null` =
     // todavía no se consultó (o falló) → no se gatea nada, que es el default menos entrometido.
     let channelsOk = null;
-    let autoMotivo = '';   // por qué «Auto (tienda)» no aplica a este comercio (lo dice el servidor)
+    let autoReason = '';   // por qué «Auto (tienda)» no aplica a este comercio (lo dice el servidor)
 
     // LOS CANALES DE CADA COMERCIO SE PRECARGAN: al medir el ambiente se piden los de toda la barra (`preloadMerchantData`), y
     // elegir uno los lee de acá en vez de esperar la consulta. Por ambiente y comercio; lo que no se pudo medir (sin
@@ -3392,7 +3392,7 @@
         if (!sel || sel.slug !== askedSlug || target !== askedTarget) return;
         channelsOk = Array.isArray(r.canales) ? r.canales : null;
         channelsFor = askedSlug;
-        autoMotivo = r.autoMotivo || '';
+        autoReason = r.autoMotivo || '';
         // El servidor sugiere el canal según el comercio (autogestión si tiene el flag). Se aplica UNA
         // vez por comercio: si ya tocaste los botones, tu elección manda — un default que te pisa la
         // selección cada vez que el panel refresca es peor que no tener default.
@@ -4000,8 +4000,8 @@
       if (channelsOk && !channelsOk.includes('asesor')) {
         return setAdvisorMode('status', 'Este comercio no tiene canal Asesor (en Corbeta se entra por el QR de la caja).');
       }
-      const asesor = document.querySelector('#channelOptions button[data-c="asesor"]');
-      if (channel !== 'asesor' && asesor && !asesor.disabled) asesor.click();
+      const advisorButton = document.querySelector('#channelOptions button[data-c="asesor"]');
+      if (channel !== 'asesor' && advisorButton && !advisorButton.disabled) advisorButton.click();
       openAdvisorBrowser();
     }
 
@@ -4020,20 +4020,20 @@
     /** La configuración POR DEFECTO de una pestaña nueva: la del HTML (los `value` del marcado, no lo que se tipeó) y
      *  los burós respondiendo con sus valores por defecto. La identidad queda vacía: se genera en cada corrida. */
     function defaultTabConfig() {
-      const caso = {};
+      const testCase = {};
       for (const id of TAB_CASE_FIELDS) {
         const f = $(id);
         if (!f) continue;
-        caso[id] = f.tagName === 'SELECT' ? ([...f.options].find((o) => o.defaultSelected) || f.options[0])?.value ?? '' : f.defaultValue;
+        testCase[id] = f.tagName === 'SELECT' ? ([...f.options].find((o) => o.defaultSelected) || f.options[0])?.value ?? '' : f.defaultValue;
       }
-      return { caso, doctype: 'CC', gender: 'M', step: 'monto', inject: true, quota: false,
+      return { caso: testCase, doctype: 'CC', gender: 'M', step: 'monto', inject: true, quota: false,
         bureauModes: { agildata: 'ok', mareigua: 'ok', tusdatos: 'ok', experian: 'ok' }, bureauData: { agildata: {}, mareigua: {}, experian: {} } };
     }
     /** Lo que la pestaña guarda de la configuración: el caso y las perillas del sidebar derecho. */
     function captureTabConfig() {
-      const caso = {};
-      for (const id of TAB_CASE_FIELDS) if ($(id)) caso[id] = $(id).value;
-      return { caso, doctype, gender, step, inject, quota: $('quota').checked,
+      const testCase = {};
+      for (const id of TAB_CASE_FIELDS) if ($(id)) testCase[id] = $(id).value;
+      return { caso: testCase, doctype, gender, step, inject, quota: $('quota').checked,
         bureauModes: structuredClone(bureauModes), bureauData: structuredClone(bureauData) };
     }
     /** La repone por los caminos de la persona: el `input` de cada campo y el click del botón real (apagado = no-op,
@@ -4110,7 +4110,7 @@
     const newTabId = () => 't' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
     /** ¿Los celulares están mostrando algo? (abiertos o abriéndose) */
     const devicesBusy = () => deviceShown('advisor') || deviceShown('client') || !$('advisorStatus').hidden || !$('clientStatus').hidden;
-    const inOriginacion = () => $('viewOrig').classList.contains('on');
+    const inOrigination = () => $('viewOrig').classList.contains('on');
     /** La pestaña dueña de los celulares, si es de ESTE ambiente. */
     /** El carril del que es dueña esta pestaña, o null. */
     const laneOfTab = (t) => (t ? LANES.find((l) => laneOwners[l] && laneOwners[l].target === tabsTarget && laneOwners[l].id === t.id) : null) || null;
@@ -4214,29 +4214,29 @@
 
     /** El centro según la pestaña: la pregunta del canal, el aviso de «los celulares son de otra», o los celulares. */
     function renderStage() {
-      const t = currentTab(), orig = inOriginacion();
-      const ficha = prodMode && orig && t?.kind === 'prod';
+      const t = currentTab(), orig = inOrigination();
+      const showSheet = prodMode && orig && t?.kind === 'prod';
       // En prod sólo el celular del asesor: no hay traspaso al cliente ni tienda (ver «El celular en prod, a mano»).
       // En prod, el celular del CANAL de la pestaña: el del asesor por asesor, el del cliente por autogestión (no hay traspaso).
-      const prodSelf = ficha && t.canal === 'autogestion';
-      $('advisorProd').hidden = !ficha || prodSelf;
+      const prodSelf = showSheet && t.canal === 'autogestion';
+      $('advisorProd').hidden = !showSheet || prodSelf;
       $('clientProd').hidden = !prodSelf;
-      if (ficha) { $('deviceAdvisor').hidden = prodSelf; $('deviceClient').hidden = !prodSelf; $('deviceStore').hidden = true; }
+      if (showSheet) { $('deviceAdvisor').hidden = prodSelf; $('deviceClient').hidden = !prodSelf; $('deviceStore').hidden = true; }
       $('devices').dataset.count = String(document.querySelectorAll('.device:not([hidden])').length);
       if (prodMode) {
         // La pestaña de un comercio de prod ES su celular: se abre solo al activarla (`openProdPhone`) o con su ▶.
-        const asking = ficha && !t.canal;
-        const full = ficha && !!t.canal && !isOwner(t) && !freeLane();
+        const asking = showSheet && !t.canal;
+        const full = showSheet && !!t.canal && !isOwner(t) && !freeLane();
         $('tabStart').hidden = !asking; $('tabBusy').hidden = !full;
         // Sin pestaña, los celulares vacíos, como en los otros ambientes.
         $('devices').hidden = !orig || asking || full;
         if (asking) renderProdChannelChoice(t);
         if (full) renderBusyLanes(t);
-        if (ficha) {
+        if (showSheet) {
           const idle = t.evicted ? `${t.evicted}. ▶ para volver a abrirla` : 'Abriendo la entrada de prod…';
           if (!isOwner(t)) { $('advisorIdle').textContent = idle; $('clientEmpty').textContent = idle; }
           syncPlay();
-          renderProdFicha(t);
+          renderProdSheet(t);
         } else {
           $('prodFichaName').textContent = 'Comercio';
           $('prodFichaBody').innerHTML = '<p class="list-note">Elegí un comercio a la izquierda.</p>';
@@ -4315,14 +4315,14 @@
       if (t && t.kind !== 'admin' && t.kind !== 'prodrun') { if (!laneOfTab(t)) await pollLanes(); await setPhoneLane(laneToShow(t)); }
       if (t?.kind === 'prodrun') { baseShowStageView('prod'); renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value); return; }
       if (t?.kind === 'prod') {
-        if (!inOriginacion()) baseShowStageView('orig');
+        if (!inOrigination()) baseShowStageView('orig');
         renderTabs(); renderStage(); saveTabs(); renderProdList($('merchantSearch').value);
         // Su celular se abre solo en la entrada de prod, si el carril A está libre; si no, queda con su ▶ (que pregunta).
         if (t.canal && !isOwner(t) && freeLane() && !t.evicted) openProdPhone();
         return;
       }
       if (t?.kind === 'admin') { if (sel) followKey = sel.slug + '|' + channel; baseShowStageView('admin'); renderTabs(); renderStage(); saveTabs(); return; }
-      if (!inOriginacion()) baseShowStageView('orig');
+      if (!inOrigination()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
       loadStatus();   // la tarjeta «esperando a la entidad» es la de ESTA pestaña (su carril)
       if (!t) return;
@@ -4349,25 +4349,25 @@
 
     /** Elegir un comercio a la izquierda: su pestaña. Sin canal, en vista previa (la reemplaza el próximo) y pregunta.
      *  Una pestaña nueva arranca con la configuración por defecto, no con la de la pestaña que estaba abierta. */
-    async function openTab(e, canal = null) {
+    async function openTab(e, pathChannel = null) {
       if (runRunning) return;
       const cur = currentTab();
       // UNA PESTAÑA POR COMERCIO (2026-10-21): si ya tiene, se va a ésa con su canal. Un canal pedido distinto (un enlace
       // `/local/pullman/autogestion`) se lo cambia, salvo que esté corriendo: ahí sólo se la elige. Para otro canal de un
       // comercio que corre, se cierra su pestaña y se abre de nuevo.
       let t = runTabs.find((x) => !x.kind && x.slug === e.slug) || null;
-      if (t && canal && t.canal !== canal && !isOwner(t)) {
-        if (t.id === activeTab) { await activateTab(t.id); pickChannel(t, canal); return; }
-        t.canal = canal; t.preview = false;
+      if (t && pathChannel && t.canal !== pathChannel && !isOwner(t)) {
+        if (t.id === activeTab) { await activateTab(t.id); pickChannel(t, pathChannel); return; }
+        t.canal = pathChannel; t.preview = false;
       }
       if (!t) {
         const preview = runTabs.find((x) => x.preview && !isOwner(x));
         if (preview) {
           if (preview.id === activeTab) snapshotTab(preview);
-          Object.assign(preview, { slug: e.slug, canal, preview: !canal, config: defaultTabConfig() });
+          Object.assign(preview, { slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() });
           t = preview;
         } else {
-          t = { id: newTabId(), slug: e.slug, canal, preview: !canal, config: defaultTabConfig() };
+          t = { id: newTabId(), slug: e.slug, canal: pathChannel, preview: !pathChannel, config: defaultTabConfig() };
           runTabs.splice(cur ? runTabs.indexOf(cur) + 1 : runTabs.length, 0, t);
         }
       }
@@ -4600,7 +4600,7 @@
       saveTabs();
       loadTabSet(target);
       if (currentTab()) activateTab(activeTab);
-      else { if (!inOriginacion()) baseShowStageView('orig'); renderTabs(); renderStage(); }
+      else { if (!inOrigination()) baseShowStageView('orig'); renderTabs(); renderStage(); }
       saveTabs();
     }
     document.querySelectorAll('#targets .toggle').forEach((b) => b.addEventListener('click', () => setTimeout(switchTabSet, 0)));
@@ -4611,7 +4611,7 @@
     // antes y el panel sólo pide a prod por `/api/prod/*`, que lee por el conector (Redash, usuario de sólo lectura). Su
     // juego de pestañas es `prod`, con FICHAS en vez de celulares, y el sidebar derecho queda apagado: no se inyecta nada.
     let prodRows = null, prodDetail = '', prodFieldsets = [], prodBranchAllied = {};
-    const prodFichas = new Map();   // allied → la ficha leída (se vuelve a leer con ↻)
+    const prodSheets = new Map();   // allied → la ficha leída (se vuelve a leer con ↻)
     async function enterProdMode() {
       if (runRunning || prodMode) return;
       snapshotTab(currentTab());
@@ -4627,7 +4627,7 @@
       renderViewNotes();
       $('valEnvironment').textContent = 'prod';
       updateGo();
-      if (!inOriginacion()) baseShowStageView('orig');
+      if (!inOrigination()) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
       if (currentTab()) activateTab(activeTab);
       renderProdList($('merchantSearch').value);
@@ -4738,14 +4738,14 @@
       }
       activateTab(t.id);
     }
-    async function renderProdFicha(t, force = false) {
+    async function renderProdSheet(t, force = false) {
       $('prodFichaName').textContent = `${t.name} · #${t.allied}`;
       const body = $('prodFichaBody');
-      let f = force ? null : prodFichas.get(t.allied);
+      let f = force ? null : prodSheets.get(t.allied);
       if (!f) {
         body.innerHTML = '<p class="list-note">leyendo de prod…</p>';
         try { f = await (await fetch('/api/prod/merchant?allied=' + t.allied)).json(); } catch { f = { ok: false, detail: 'el panel no respondió' }; }
-        if (f.ok) prodFichas.set(t.allied, f);
+        if (f.ok) prodSheets.set(t.allied, f);
         if (currentTab()?.id !== t.id) return;   // mientras leía se eligió otra pestaña
       }
       // El título otra vez, al terminar de leer: mientras se leía, otra pasada del centro pudo reponer «Comercio» (con la
@@ -4784,7 +4784,7 @@
       };
       $('prodFichaHint').textContent = '';
     }
-    $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdFicha(t, true); };
+    $('prodFichaReload').onclick = () => { const t = currentTab(); if (t?.kind === 'prod') renderProdSheet(t, true); };
     // Abrir el celular del asesor EN PROD, para entrar a mano (`/api/prod/phone`: sin autorrelleno ni nada que avance solo).
     /** LA PREGUNTA DEL CANAL EN PROD: los mismos botones que en los otros ambientes, con los que no se pueden abrir a mano
      *  apagados y su motivo. Elegido, su celular se abre solo. */
@@ -4858,7 +4858,7 @@
       }
       snapshotTab(t);
       activeTab = m.id;
-      if (!inOriginacion() && $('prodView').hidden) baseShowStageView('orig');
+      if (!inOrigination() && $('prodView').hidden) baseShowStageView('orig');
       renderTabs(); renderStage(); saveTabs();
     }
     /** Al arrancar, después de la ruta: la pestaña activa del ambiente si es Admin o del comercio elegido; si no, la
@@ -4924,7 +4924,7 @@
           : b.dataset.c === 'qr'
           ? 'El QR sólo aplica a comercios del grupo Corbeta: para el resto cae en el flujo normal, que es el mismo del asesor.'
           : b.dataset.c === 'auto'
-          ? `Auto (tienda) no aplica: ${autoMotivo || 'sólo corre contra local, con un comercio que tenga tienda online habilitada para el auto-onboarding'}.`
+          ? `Auto (tienda) no aplica: ${autoReason || 'sólo corre contra local, con un comercio que tenga tienda online habilitada para el auto-onboarding'}.`
           : isCorbeta
           ? 'En un comercio Corbeta el camino de producción es el QR de la caja: el cliente entra escaneando, sin asesor '
             + 'ni carrito. (Asesor acá no está roto: entrega el flujo al celular del cliente por WhatsApp y termina en las '
@@ -7147,9 +7147,9 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       const enc = (x) => encodeURIComponent(String(x));
       const legacyToPath = (hash) => {
         const { parts, params } = readHashRoute(hash);
-        const canal = params.get('canal'); params.delete('canal');
+        const pathChannel = params.get('canal'); params.delete('canal');
         const qs = params.toString();
-        return `/${target}${parts[0] ? '/' + enc(parts[0]) : ''}${parts[0] && canal ? '/' + enc(canal) : ''}${qs ? '?' + qs : ''}`;
+        return `/${target}${parts[0] ? '/' + enc(parts[0]) : ''}${parts[0] && pathChannel ? '/' + enc(pathChannel) : ''}${qs ? '?' + qs : ''}`;
       };
       {
         if (location.hash.startsWith('#/')) history.replaceState(null, '', legacyToPath(location.hash));
@@ -7200,7 +7200,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       async function applyRoute() {
         const seq = ++routeSeq;
         lastRoute = location.pathname + location.search;
-        const [env, slug, canal] = readPath();
+        const [env, slug, pathChannel] = readPath();
         const params = new URLSearchParams(location.search);
         restoring = true;
         try {
@@ -7222,7 +7222,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
             if (m) {
               openProdTab({ ...m, name: e ? (e.alias || e.name) : m.name, entrySlug: e?.slug });
               const t = currentTab();
-              if (t?.kind === 'prod' && CHANNELS.includes(canal) && t.canal !== canal) { t.canal = canal; t.preview = false; renderTabs(); renderStage(); saveTabs(); openProdPhone(); }
+              if (t?.kind === 'prod' && CHANNELS.includes(pathChannel) && t.canal !== pathChannel) { t.canal = pathChannel; t.preview = false; renderTabs(); renderStage(); saveTabs(); openProdPhone(); }
             }
           } else if (slug) {
             let entry = findEntry(slug);
@@ -7230,7 +7230,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
             if (!entry) { await loadRegistry(); if (seq !== routeSeq) return; entry = findEntry(slug); }
             // Sin ese comercio el panel no inventa uno: queda en la pestaña que había.
             if (entry) {
-              const c = CHANNELS.includes(canal) ? canal : null;
+              const c = CHANNELS.includes(pathChannel) ? pathChannel : null;
               const own = runTabs.find((x) => !x.kind && x.slug === entry.slug && (c ? x.canal === c : !x.canal));
               if (own) await activateTab(own.id); else await openTab(entry, c);
             }

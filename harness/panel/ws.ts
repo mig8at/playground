@@ -47,11 +47,11 @@ export function accept(req: IncomingMessage, socket: Duplex): Socket | null {
     socket.on('data', (chunk: Buffer) => {
         pending = Buffer.concat([pending, chunk]);
         while (pending.length >= 2) {
-            const fin = (pending[0] & 0x80) !== 0, opcode = pending[0] & 0x0f, masked = (pending[1] & 0x80) !== 0;
+            const isFinal = (pending[0] & 0x80) !== 0, opcode = pending[0] & 0x0f, masked = (pending[1] & 0x80) !== 0;
             let len = pending[1] & 0x7f, off = 2;
             if (len === 126) { if (pending.length < 4) return; len = pending.readUInt16BE(2); off = 4; }
             else if (len === 127) { if (pending.length < 10) return; const big = pending.readBigUInt64BE(2); if (big > BigInt(MAX_IN)) return finish(); len = Number(big); off = 10; }
-            if (!fin || len > MAX_IN || !masked) return finish();
+            if (!isFinal || len > MAX_IN || !masked) return finish();
             if (pending.length < off + 4 + len) return;
             const mask = pending.subarray(off, off + 4);
             const data = Buffer.from(pending.subarray(off + 4, off + 4 + len));
