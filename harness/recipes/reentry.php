@@ -18,6 +18,9 @@
  * índice único. Ese valor nunca coincide con el número pelado, y es a propósito.
  *
  * Escribe en la base LOCAL y borra lo que crea. No sirve contra un ambiente compartido.
+ *
+ * @repo legacy-backend
+ * @writes
  */
 
 use App\Models\User;

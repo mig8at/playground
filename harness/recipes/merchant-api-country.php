@@ -17,6 +17,9 @@
  * lo que se está probando es la regla y el guardado, no el candado.
  *
  * Escribe en la base LOCAL y borra lo que crea. No sirve contra un ambiente compartido.
+ *
+ * @repo legacy-backend
+ * @writes
  */
 
 use App\Http\Requests\Admin\Allied\StoreRequest;

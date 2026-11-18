@@ -50,6 +50,7 @@ que escribe cada una, fila por fila: [`HISTORY.md`](HISTORY.md) §«Las herramie
 | Tu pregunta | Comando |
 |---|---|
 | ¿qué entidades le salen al comercio? · ¿qué pasa si el cliente es así? | `make harness-listing MERCHANT=…` · `make harness-case CASES='…'` (`CLOSE=1`, `LAMBDA=1`, `JSON=1`) |
+| ¿qué devuelve ESTE código del backend? (una clase, un servicio privado, una consulta, en local) | `make harness-recipe` (la lista) · `NAME=<receta> ARGS='--param valor'` · `CODE='return …;'` (PHP suelto) · `REPO=legacy-application` · `JSON=1` · `BLOCK=`. Abajo, «Las recetas de código» |
 | ¿el FRONT encadena las pantallas? | `make harness-walk-wizard` (`ENGINE=browser`; skill `harness-caminador`) · `make harness-screens` |
 | ¿mi cambio rompió OTRO flujo? · ¿la regla de `knowledge/` sigue en pie? | `make harness-regression TARGET=local` · `make harness-suite` · `make harness-knowledge TARGET=local` |
 | ¿local está listo para decir la verdad? | `make harness-doctor TARGET=local` · `make harness-environment TARGET=local LIVE=1` · `make harness-wizard` (:5174) |
@@ -99,6 +100,30 @@ no con SQL propio. El comando que encuentra las duplicadas y la lección de cada
 
 Los specs de `channel/` corren contra **local** por defecto (`playwright.config.ts` fija
 `E2E_TARGET ||= 'local'`); sin eso escribían en dev, y la guarda F-53 no frena las escrituras por API.
+
+## Las recetas de código: correr el backend sin armar un flujo
+
+`dev/recipe.ts` (Miguel, 2026-11-18: «herramientas que el modelo use día a día, como un artesano»). Corre PHP ADENTRO
+de la app local —`legacy-backend` por defecto, o `legacy-application`— con sus clases, sus modelos y su base, por
+`sail artisan tinker`, y devuelve lo que dio en segundos. Es el «corrido en local» de las incidencias sin caminar el
+wizard: la clase que decide, llamada directo (un método privado, por reflexión, como hace `continuity`).
+
+- **Una receta es un archivo de `recipes/<nombre>.php`**: PHP normal (`use`, `const`, funciones), con un comentario
+  arriba cuya primera oración es la pregunta que contesta, y las marcas `@repo`, `@param <nombre> <qué es>` (adentro
+  llega en `$params`) y `@writes` si escribe en la base local. Lo que `return`a sale como resultado; lo que imprime,
+  como salida. Agregar una es agregar el archivo: sale sola en la lista y en el panel. **Un probe libre que sirvió dos
+  veces se guarda como receta.**
+- **El modo libre** (`CODE='…'`): una expresión sola se devuelve; un bloque con `;` va tal cual. No se guarda.
+- ⚠ **Sólo local, por construcción**: el mismo proceso de PHP mira a qué base apunta la app ANTES de incluir la receta
+  y no sigue si no es la del contenedor (`mysql`, `127.0.0.1`, `localhost`); sale 2. No hay `TARGET=` que cambiar.
+  Medido el 2026-11-18 con la app apuntando a otro host: se negó. Los archivos temporales (`.harness-recipe-*.php` en
+  la raíz del repo) se borran siempre, también si falla.
+- Salida: `0` corrió · `1` la receta tiró una excepción (sale la clase, el mensaje y el archivo:línea) · `2` uso o la
+  guarda. `JSON=1`: un objeto con `ok`, `result`, `output`, `error`. Cada corrida deja su última vez en
+  `.runs/recipes/<nombre>.json`, que muestra la pestaña **Recetas** de la consola del panel (sólo la lista: las corre
+  el agente).
+- Las cinco que vivían sueltas en el Makefile (`harness-duplicate-phone`, `-user-country`, `-merchant-api-country`,
+  `-reentry`, `-dni-clash`) son recetas desde el 2026-11-18, con el mismo `make` de siempre.
 
 ## Recorridos: cómo se nombra lo que se prueba
 

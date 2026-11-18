@@ -17,6 +17,9 @@
  * por la puerta pública (`getOrCreateUser`), que es por donde pasan SmartPay y el OTP del wizard.
  *
  * Escribe en la base LOCAL y borra lo que crea. No sirve contra un ambiente compartido.
+ *
+ * @repo legacy-backend
+ * @writes
  */
 
 use App\Models\User;

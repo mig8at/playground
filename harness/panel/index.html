@@ -616,6 +616,11 @@
     .mocks-table .mock-owner { white-space: nowrap; color: var(--fg-2) }
     .mocks-table .mock-actions { white-space: nowrap; text-align: right }
     .mocks-table .mock-actions .region-action { display: inline-flex }
+    .recipes-table tbody tr { cursor: default }
+    .recipes-table .recipe-name { white-space: nowrap; font-family: var(--font-mono); font-size: var(--text-xs) }
+    .recipes-table .recipe-what { min-width: 380px }
+    .recipes-table .recipe-last { max-width: 340px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-2); font-family: var(--font-mono); font-size: var(--text-xs) }
+    .recipes-table .recipe-params { color: var(--fg-2); font-size: var(--text-xs) }
     .mock-log { border-top: 1px solid var(--border) }
     /* Se cae al arrancar: el supervisor dejó de reintentarlo, hay que mirar su salida. */
     .status-dot.fail { background: var(--danger) }
@@ -1218,6 +1223,7 @@
         <button type="button" class="tab" id="tabConsoleClient" role="tab" aria-selected="false" title="Lo que pasó en el celular del CLIENTE (más lo que hizo el panel): la misma consola, filtrada">Cliente</button>
         <button type="button" class="tab" id="tabSsr" role="tab" aria-selected="false" title="El stdout del wizard (SSR): sus llamadas salientes y sus errores">SSR</button>
         <button type="button" class="tab" id="tabMocks" role="tab" aria-selected="false" title="Los mocks locales que vigila el panel: si responden, quién los levantó y su salida">Mocks</button>
+        <button type="button" class="tab" id="tabRecipes" role="tab" aria-selected="false" title="Las recetas de código: qué pregunta contesta cada una, contra qué repo corre y la última vez que corrió">Recetas</button>
         <button type="button" class="tab" id="tabMap" role="tab" aria-selected="false" title="El mapa del recorrido del comercio: sus carriles y dónde va la corrida">Mapa</button>
         <div class="region-actions" role="group" aria-label="Acciones de consola">
           <span id="consoleTabNote" class="count" hidden></span>
@@ -1245,6 +1251,14 @@
             <tbody id="mockRows"></tbody>
           </table>
           <div id="mockLog" class="log-lines mock-log" role="log" hidden></div>
+        </div>
+        <!-- Las recetas de código (`dev/recipe.ts`, archivos en `recipes/`): sólo la lista, para ver qué hay. Las corre
+             el agente por consola; acá se ve qué contesta cada una y cómo le fue la última vez. -->
+        <div id="recipesScroll" class="region-body mocks-view" style="display:none">
+          <table class="table mocks-table recipes-table">
+            <thead><tr><th>Receta</th><th>Qué contesta</th><th>Corre en</th><th>Pide</th><th>La última vez</th></tr></thead>
+            <tbody id="recipeRows"></tbody>
+          </table>
         </div>
         <!-- El mapa del recorrido (antes ocupaba el centro). Se encuadra solo al mostrarse. -->
         <div id="mapScroll" class="region-body map-view" style="display:none">
@@ -5422,6 +5436,7 @@
       $('logSsrScroll').style.display = on && tab === 'ssr' ? '' : 'none';
       $('mocksScroll').style.display = on && tab === 'mocks' ? '' : 'none';
       $('mapScroll').style.display = on && tab === 'mapa' ? '' : 'none';
+      $('recipesScroll').style.display = on && tab === 'recetas' ? '' : 'none';
       // (el botón de plegar se quitó: la consola es una ZONA fija del layout, no una tarjeta que
       //  compita por alto con lo de arriba. `showLog` se queda: lo llaman el arranque y las corridas.)
     }
@@ -5585,7 +5600,7 @@
       } catch { /* el panel sigue andando sin esto */ }
     }
 
-    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabConsoleAdvisor', 'asesor'], ['tabConsoleClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabMap', 'mapa']];
+    const CONSOLE_TABS = [['tabRun', 'corrida'], ['tabConsoleAdvisor', 'asesor'], ['tabConsoleClient', 'cliente'], ['tabSsr', 'ssr'], ['tabMocks', 'mocks'], ['tabRecipes', 'recetas'], ['tabMap', 'mapa']];
     function consoleTab() {
       return (CONSOLE_TABS.find(([id]) => $(id).classList.contains('on')) || CONSOLE_TABS[0])[1];
     }
@@ -5604,6 +5619,7 @@
       // Los mocks se consultan sólo mientras la pestaña está a la vista: cada consulta prueba 19 puertos.
       if (mocksPoll) { clearInterval(mocksPoll); mocksPoll = null; }
       if (tab === 'mocks') { tickMocks(); mocksPoll = setInterval(tickMocks, 3000); }
+      if (tab === 'recetas') tickRecipes();
       // Oculto, el mapa no tiene caja: se encuadra recién cuando se lo mira.
       if (tab === 'mapa') requestAnimationFrame(() => { try { frame(); } catch { } });
       routeChanged();
@@ -5615,6 +5631,37 @@
     $('tabSsr').onclick = () => showTab('ssr');
     $('tabMocks').onclick = () => showTab('mocks');
     $('tabMap').onclick = () => showTab('mapa');
+    $('tabRecipes').onclick = () => showTab('recetas');
+
+    // ── Recetas: la lista de `recipes/` y la última corrida de cada una (`/api/recipes`). Sólo para ver. ──
+    const agoText = (iso) => {
+      const s = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+      return s < 90 ? 'recién' : s < 5400 ? `hace ${Math.round(s / 60)} min` : s < 129600 ? `hace ${Math.round(s / 3600)} h` : `hace ${Math.round(s / 86400)} d`;
+    };
+    async function tickRecipes() {
+      let data;
+      try { data = await (await fetch('/api/recipes')).json(); } catch { return; }
+      const body = $('recipeRows');
+      body.replaceChildren();
+      const cell = (text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; return td; };
+      for (const r of data.recipes || []) {
+        const tr = document.createElement('tr');
+        tr.append(cell(r.name, 'recipe-name'), cell(r.what + (r.writes ? ' · escribe en la base local y limpia' : ''), 'recipe-what'),
+          cell(r.repo, 'mock-owner'), cell(r.params.map((p) => p.what).join(' · ') || '—', 'recipe-params'));
+        const last = (data.last || {})[r.name];
+        const lt = cell(last ? `${agoText(last.at)} · ${last.ok ? '✓' : '✗'} ${last.summary ?? ''}` : 'nunca', 'recipe-last');
+        if (last) lt.title = `${new Date(last.at).toLocaleString('es-CO')} · ${(last.ms / 1000).toFixed(1)} s\n${last.summary ?? ''}`;
+        tr.append(lt);
+        body.append(tr);
+      }
+      if (!body.children.length) {
+        const tr = document.createElement('tr');
+        const td = cell('Todavía no hay recetas.', 'recipe-last');
+        td.colSpan = 5;
+        tr.append(td);
+        body.append(tr);
+      }
+    }
 
     // ── Mocks: la vista del supervisor (`panel/mocks.ts`) ─────────────────────────────────────────
     // El panel es el DUEÑO de los mocks locales: al arrancar levanta los que falten y adopta los que ya
@@ -7107,7 +7154,7 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
       document.getElementById('consoleMenu').classList.toggle('has-options', filtered);
       consoleOptions.refresh();
     }
-    for (const id of ['tabRun', 'tabConsoleAdvisor', 'tabConsoleClient', 'tabSsr', 'tabMocks', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
+    for (const id of ['tabRun', 'tabConsoleAdvisor', 'tabConsoleClient', 'tabSsr', 'tabMocks', 'tabRecipes', 'tabMap']) document.getElementById(id).addEventListener('click', reflectConsoleFilter);
     reflectConsoleFilter();
 
     // ══ RUTA Y PREFERENCIAS ═══════════════════════════════════════════════════════════════════════
@@ -7245,8 +7292,8 @@ export function bindMenu(trigger, { getItems, onSelect, label = 'Más opciones' 
           if (currentView() !== wantedView) showAuxView(wantedView);
 
           // La consola por su pestaña real: el rótulo «Filtrada» escucha ese click.
-          const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
-          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabConsoleAdvisor', cliente: 'tabConsoleClient', ssr: 'tabSsr', mocks: 'tabMocks', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
+          const wantedConsole = ['asesor', 'cliente', 'ssr', 'mocks', 'recetas', 'mapa'].includes(params.get('consola')) ? params.get('consola') : 'corrida';
+          if (currentConsole() !== wantedConsole) byId({ asesor: 'tabConsoleAdvisor', cliente: 'tabConsoleClient', ssr: 'tabSsr', mocks: 'tabMocks', recetas: 'tabRecipes', mapa: 'tabMap' }[wantedConsole] || 'tabRun').click();
         } finally {
           if (seq === routeSeq) { restoring = false; syncRoute({ replace: true }); }
         }

@@ -16,6 +16,9 @@
  *   3. el índice de la BD -> número solo                        (el muro final)
  *
  * Escribe en la base LOCAL y borra lo que crea. No sirve contra un ambiente compartido.
+ *
+ * @repo legacy-backend
+ * @writes
  */
 
 use App\Models\User;

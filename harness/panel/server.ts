@@ -27,6 +27,7 @@ import { validatePlan, readPlan, writePlan, clearPlan } from '../pkg/run-plan.ts
 import { prodCatalog, prodMerchant, prodBranches } from '../pkg/prod-catalog.ts';
 import { waitForOtp } from '../pkg/otp-service.ts';
 import { readFlows, writeFlows, branchFor } from '../pkg/flows.ts';
+import { listRecipes, lastRuns } from '../dev/recipe.ts';
 import { homedir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -1893,6 +1894,12 @@ const server = createServer(async (req, res) => {
         // Y va fijo, no configurable: el receptor del webhook es el monolito viejo en localhost, así
         // que este botón sólo tiene sentido contra local.
         return json(res, 200, await fireEntityWebhook(uReq, lender, stateValue));
+    }
+
+    /* LAS RECETAS DE CÓDIGO (`dev/recipe.ts`): la lista, para verla. No se corren desde acá: las corre el agente por
+       consola (`make harness-recipe`). Sale de los archivos de `recipes/` y de la última corrida de cada una. */
+    if (path === '/api/recipes' && req.method === 'GET') {
+        return json(res, 200, { recipes: listRecipes().map(({ file, ...r }) => r), last: lastRuns() });
     }
 
     /* LOS MOCKS LOCALES: estado, dueño y log de cada uno, y levantar, apagar o reiniciar a pedido. */

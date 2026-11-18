@@ -642,25 +642,24 @@ harness-admin-cities: ## @har ¿el selector de ciudad del admin filtra por país
 harness-merchant-country-fix: ## @har ¿el país de un comercio se puede corregir hasta la primera SOLICITUD? Pide `harness/.admin.json` + el admin en :8000
 	@cd harness && E2E_TARGET=local npx playwright test dev/admin-merchant-country.spec.ts --reporter=list
 
+harness-recipe: ## @har RECETAS DE CÓDIGO: corre PHP adentro de la app LOCAL (sus clases, sus modelos, su base) y devuelve lo que da, sin armar un flujo. Sin NAME, la lista. NAME=<receta> [ARGS='--param valor'] · CODE='return …;' [REPO=legacy-application] · [JSON=1] [BLOCK=<tarea>]. Sólo local: no corre si la app apunta a otra base
+	@test -z "$(TARGET)" -o "$(TARGET)" = local || { echo "las recetas corren sólo en local (TARGET=local)"; exit 2; }
+	@cd harness && node dev/recipe.ts $(if $(NAME),$(NAME)) $(ARGS) $(if $(CODE),--code '$(subst ','"'"',$(CODE))') $(if $(REPO),--repo $(REPO)) $(if $(JSON),--json)
+
 harness-duplicate-phone: ## @har ¿dos altas del MISMO teléfono (una con indicativo y otra sin) crean dos usuarios? Escribe en LOCAL y limpia
-	@cp harness/dev/php/user-duplicated-by-phone.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-telefono.php
-	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-telefono.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell" ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-telefono.php
+	@cd harness && node dev/recipe.ts duplicate-phone
 
 harness-user-country: ## @har ¿el usuario temporal nace con el país del COMERCIO o nace afgano? Los dos caminos de alta. Escribe en LOCAL y limpia
-	@cp harness/dev/php/merchant-country-on-the-user.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
-	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-pais.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-pais.php
+	@cd harness && node dev/recipe.ts user-country
 
 harness-merchant-api-country: ## @har ¿el POST de comercios de la API exige país y lo guarda, o el comercio nace afgano? Escribe en LOCAL y limpia
-	@cp harness/dev/php/create-merchant-by-api-requires-country.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-merchant.php
-	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-merchant.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-merchant.php
+	@cd harness && node dev/recipe.ts merchant-api-country
 
 harness-reentry: ## @har el cliente llega a /lenders, se sale y vuelve con el MISMO número: ¿retoma o le nace otro usuario? Escribe en LOCAL y limpia
-	@cp harness/dev/php/reentering-does-not-duplicate.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
-	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-volver.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-volver.php
+	@cd harness && node dev/recipe.ts reentry
 
 harness-dni-clash: ## @har ¿un DNI peruano se puede registrar si el número ya existe como cédula colombiana? Muestra las 3 guardas. LOCAL
-	@cp harness/dev/php/peruvian-dni-clashes-with-national-id.php $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-dni.php
-	@cd $(HOME)/Desktop/CREDITOP/github/legacy-backend && ./vendor/bin/sail artisan tinker .harness-dni.php < /dev/null 2>&1 | grep -vE "Restricted Mode|DEPRECATED|Psy Shell|nullable is deprecated" | cat -s ; rm -f $(HOME)/Desktop/CREDITOP/github/legacy-backend/.harness-dni.php
+	@cd harness && node dev/recipe.ts dni-clash
 
 harness-suite-countries: ## @har ¿el cliente nace con el país de su comercio, su documento y su celular? La suite de internacionalización, contra la base. [PARALLEL=1]
 	@cd harness && node dev/case.ts --suite suites/paises.json $(if $(PARALLEL),--parallel)
