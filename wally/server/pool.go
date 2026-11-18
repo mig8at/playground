@@ -125,6 +125,8 @@ type poolJob struct {
 	Window       string `json:"window,omitempty"`
 	// ChatURL: seguir ese chat (sólo lo nuevo) en vez de abrir uno.
 	ChatURL string `json:"chatUrl,omitempty"`
+	// Chunk: de a cuánto partir lo que no entra en un mensaje (wally/providers.json); 0 = no se parte.
+	Chunk int `json:"chunk,omitempty"`
 }
 
 // send le manda una línea al pool y espera su respuesta (o que se cancele el contexto).
@@ -190,7 +192,7 @@ func (p *pool) ask(ctx context.Context, job poolJob) (string, string, error) {
 	ch := make(chan poolAnswer, 1)
 	p.waiting[id] = ch
 	line, _ := json.Marshal(map[string]any{"id": id, "provider": job.Provider, "model": job.Model, "text": job.Text,
-		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "groqModel": job.GroqModel, "window": job.Window, "chatUrl": job.ChatURL, "timeout": 600})
+		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "groqModel": job.GroqModel, "window": job.Window, "chatUrl": job.ChatURL, "chunk": job.Chunk, "timeout": 600})
 	_, err := p.stdin.Write(append(line, '\n'))
 	p.mu.Unlock()
 	if err != nil {

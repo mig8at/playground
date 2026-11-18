@@ -90,7 +90,17 @@ export function splitText(text: string, size = CHUNK): string[] {
 }
 
 /** `chatUrl`: seguir ESE chat (`/a/chat/s/<id>`) en vez de abrir uno nuevo: Wally manda sólo lo nuevo. */
-export type Ask = { think?: boolean; search?: boolean; chatUrl?: string; timeoutMs?: number; log?: (s: string) => void };
+/** Lo que va en cada trozo de un mensaje partido: los primeros piden «no contestes, respondé OK»; el último, contestar.
+ *  Lo usan DeepSeek (adentro de su receta) y el pool para ChatGPT (un trozo por llamada, en el mismo chat). */
+export function chunkBodies(parts: string[]): string[] {
+    const n = parts.length;
+    if (n === 1) return parts;
+    return parts.map((p, i) => i === n - 1
+        ? `[Trozo ${i + 1} de ${n}, el último] Ya tenés el mensaje entero (los trozos anteriores y éste, en orden). Ahora sí: leelo todo como UN solo mensaje y contestá lo que pide.\n\n${p}`
+        : `[Trozo ${i + 1} de ${n}] Te mando un mensaje largo en ${n} trozos. NO contestes todavía ni lo resumas: guardalo y respondé sólo «OK ${i + 1}/${n}».\n\n${p}`);
+}
+
+export type Ask = { think?: boolean; search?: boolean; chatUrl?: string; chunk?: number; timeoutMs?: number; log?: (s: string) => void };
 
 /** Escribe un mensaje en el chat abierto, lo manda y espera la respuesta; devuelve su texto visible. */
 async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<string> {
@@ -137,14 +147,15 @@ async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<
 /** Una pregunta en un chat nuevo: pone los interruptores, manda el texto y devuelve la respuesta en Markdown.
  *  Si no entra en un mensaje (`CHUNK`), va en TROZOS en el mismo chat: cada uno menos el último pide «no contestes,
  *  respondé sólo OK» (sin Pensamiento Profundo, para que sea rápido), y el último trae lo que hay que contestar. */
-export async function askDeepSeek(page: any, text: string, { think = true, search = false, chatUrl = '', timeoutMs = 600_000, log = () => {} }: Ask = {}) {
+export async function askDeepSeek(page: any, text: string, { think = true, search = false, chatUrl = '', chunk = CHUNK, timeoutMs = 600_000, log = () => {} }: Ask = {}) {
     const t0 = Date.now();
     try {
         await page.goto(chatUrl || 'https://chat.deepseek.com/', { waitUntil: 'domcontentloaded' });
         const box = page.getByRole('textbox', { name: 'Mensaje a DeepSeek' });
         await Promise.race([box.waitFor({ timeout: 30_000 }), page.waitForURL(/sign_in/, { timeout: 30_000 })]).catch(() => {});
         if (/sign_in/.test(page.url())) throw new Error('DeepSeek no tiene sesión en este Chrome: entrá a mano en chat.deepseek.com');
-        const parts = splitText(text);
+        const parts = splitText(text, chunk || Infinity);
+        const bodies = chunkBodies(parts);
         if (chatUrl) log('deepseek · sigue su chat');
         log(`deepseek · pensamiento ${think ? 'sí' : 'no'} · búsqueda ${search ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres${parts.length > 1 ? ` en ${parts.length} trozos` : ''}`);
         let seen = '';
@@ -153,9 +164,7 @@ export async function askDeepSeek(page: any, text: string, { think = true, searc
             await setToggle(page, /Pensamiento Profundo|DeepThink/i, last ? think : false);
             await setToggle(page, /Búsqueda inteligente|Search/i, last ? search : false);
             const n = parts.length;
-            const body = n === 1 ? parts[i]
-                : last ? `[Trozo ${i + 1} de ${n}, el último] Ya tenés el mensaje entero (los trozos anteriores y éste, en orden). Ahora sí: leelo todo como UN solo mensaje y contestá lo que pide.\n\n${parts[i]}`
-                : `[Trozo ${i + 1} de ${n}] Te mando un mensaje largo en ${n} trozos. NO contestes todavía ni lo resumas: guardalo y respondé sólo «OK ${i + 1}/${n}».\n\n${parts[i]}`;
+            const body = bodies[i];
             if (n > 1) log(`trozo ${i + 1}/${n} · ${body.length.toLocaleString('es-CO')} caracteres`);
             seen = await sendAndWait(page, body, last ? timeoutMs : 180_000);
         }

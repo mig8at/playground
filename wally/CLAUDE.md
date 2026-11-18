@@ -364,6 +364,16 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   - **Gemini**: sigue TEMPORAL a propósito (no queda en el Drive) y le llega todo cada vez: acepta textos enormes. Su
     receta no devuelve dirección, así que Wally no recuerda chat.
   - **Groq**: no tiene historial; le llega todo.
+- **Los límites de cada proveedor son CONFIGURACIÓN: [`providers.json`](providers.json)** (versionado; el servidor lo lee
+  en cada pregunta, `server/providers.go`): por proveedor, lo más que entró en UN mensaje por su web (`messageChars`,
+  medido: ninguna web lo publica), el contexto publicado del modelo (`contextTokens`), si sigue su chat o es temporal
+  (`chat`) y si parte en trozos lo que no entra (`chunks`, al 90 % de lo medido; el pool lo hace en DeepSeek adentro
+  de su receta y en ChatGPT con una llamada por trozo en el mismo chat). La barra de escribir dice «va en N trozos» en
+  vez de «no le entra» para los que parten. Medido el 2026-11-17 por bisección, con relleno sin datos y «respondé sólo
+  OK» (bin/deepseek, bin/chatgpt, bin/groq): DeepSeek 114.250 entra y 116.875 no; ChatGPT 72.375 entra (77 mil falló
+  antes); Groq 37.125 entra y 40.937 no, con un minuto entre pruebas (seguidas, su cupo por minuto corta antes:
+  «Rate limit reached» con dos de ~30 mil). Buscado en internet: lo único publicado es el contexto de los modelos (Groq, 131.072 tokens en su ficha);
+  el tope por mensaje de las webs gratis no aparece en ninguna fuente oficial.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

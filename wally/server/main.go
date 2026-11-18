@@ -441,6 +441,9 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 		// que aceptó su web gratis por mensaje, medido.
 		Context     int    `json:"context"`
 		ContextNote string `json:"contextNote"`
+		// Chunks: lo que no entra en un mensaje va en trozos (no se avisa «no le entra»); Chat: «sigue» o «temporal».
+		Chunks bool   `json:"chunks,omitempty"`
+		Chat   string `json:"chat,omitempty"`
 		// Paused: hasta qué hora no se le puede preguntar («15:04»), y en ms para la cuenta regresiva.
 		Paused      string `json:"paused,omitempty"`
 		PausedUntil int64  `json:"pausedUntil,omitempty"`
@@ -452,13 +455,15 @@ func (a *app) providers(w http.ResponseWriter, r *http.Request) {
 	finished := a.status.finished
 	a.status.mu.Unlock()
 	var out []row
+	specs := a.providerSpecs()
 	for _, id := range []string{"aistudio", "deepseek", "chatgpt", "groq"} {
 		st, ok := byID[id]
 		if !ok {
 			st = providerStatus{State: "sin-comprobar", Detail: "todavía no se comprobó"}
 		}
-		r := row{ID: id, Model: providerModels[id], Limit: providerLimits[id], Status: st,
-			Context: providerContext[id].tokens, ContextNote: providerContext[id].note}
+		spec := specs[id]
+		r := row{ID: id, Model: providerModels[id], Limit: spec.MessageChars, Chunks: spec.chunkSize() > 0, Chat: spec.Chat, Status: st,
+			Context: spec.ContextTokens, ContextNote: spec.Note}
 		if id == "groq" {
 			r.Model.DisplayName = groqModelNames[a.config.get().GroqModel] // el modelo que contesta, no el servicio
 		}
@@ -652,7 +657,8 @@ func (a *app) askProvider(ctx context.Context, provider, text, chatURL string) (
 	cfg := a.config.get()
 	model = providerModels[provider].Name
 	answer, url, err = a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
-		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window, ChatURL: chatURL})
+		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window, ChatURL: chatURL,
+		Chunk: a.providerSpecs()[provider].chunkSize()})
 	return answer, model, url, err
 }
 

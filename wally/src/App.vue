@@ -262,7 +262,9 @@ function closeProviderMenu(e) { if (providerMenu.value && !e.target.closest?.('.
 const fit = computed(() => {
   const limit = providerOf(effectiveProvider.value)?.limit || 0
   const total = (agentRow(active.value)?.preload || 0) + contextChars.value + (draft.value?.length || 0)
-  return { limit, total, over: limit > 0 && total > limit }
+  // Un proveedor que parte en trozos (wally/providers.json) no queda afuera: lo dice como aviso.
+  const chunks = !!providerOf(effectiveProvider.value)?.chunks
+  return { limit, total, over: limit > 0 && total > limit && !chunks, parts: limit > 0 && chunks && total > limit ? Math.ceil(total / (limit * 0.9)) : 0 }
 })
 const PROVIDER_NAME = { aistudio: 'Gemini', deepseek: 'DeepSeek', chatgpt: 'ChatGPT', groq: 'Groq', kimi: 'Kimi' }
 async function setAgentProvider(key, provider) {
@@ -1025,6 +1027,7 @@ onBeforeUnmount(() => {
             <span v-if="effectivePaused" class="composer-note warn-text">{{ providerName }} vuelve en {{ timeLeft(providerOf(effectiveProvider).pausedUntil) }}: elegí otro o esperá</span>
             <span v-else-if="agentOf && effectiveProvider !== 'aistudio'" class="composer-note" :title="'Lo que lleva precargado el agente (knowledge, código de main) viaja con cada pregunta'">{{ agentOf.name }} manda su contexto interno a {{ providerName }}</span>
             <span v-else-if="fit.over" class="composer-note warn-text">~{{ Math.round(fit.total / 1000) }} mil car.: {{ providerName }} acepta ~{{ Math.round(fit.limit / 1000) }} mil, no le entra</span>
+            <span v-else-if="fit.parts" class="composer-note" :title="'Lo que no entra en un mensaje va en trozos, en el mismo chat: los primeros le piden que no conteste todavía'">~{{ Math.round(fit.total / 1000) }} mil car.: va a {{ providerName }} en {{ fit.parts }} trozos</span>
             <span v-else-if="busyElsewhere" class="composer-note">Wally está contestando en otra pestaña</span>
             <button type="submit" class="btn btn-sm send" :disabled="(!draft.trim() && !pendingFiles.length) || !!pending || !!effectivePaused || !!uploading[active]" title="Preguntar (Enter)">
               <span class="ui-icon" data-icon="send" aria-hidden="true"></span>Preguntar

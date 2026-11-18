@@ -19,7 +19,7 @@ import os from 'node:os';
 import path from 'node:path';
 import readline from 'node:readline';
 import { askOn, currentPauses, noteFailure, openWorkPage, windowMode, type Thinking, type WindowMode } from './page.ts';
-import { askDeepSeek } from '../deepseek/page.ts';
+import { askDeepSeek, splitText, chunkBodies } from '../deepseek/page.ts';
 import { askChatGPT } from '../chatgpt/page.ts';
 import { askGroq } from '../groq/page.ts';
 import { checkProviders } from './check.ts';
@@ -31,7 +31,7 @@ const IDLE_MS = 20_000;
 // Desde el 2026-11-17 también DeepSeek: `provider` elige la receta, y la configuración de Wally viaja en cada pregunta
 // (el nivel de AI Studio, los interruptores de DeepSeek, la ventana).
 // `type: 'check'`: no pregunta nada; mira si cada proveedor está listo (check.ts).
-type Job = { id: string; type?: 'ask' | 'check'; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string; chatUrl?: string;
+type Job = { id: string; type?: 'ask' | 'check'; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string; chatUrl?: string; chunk?: number;
     thinking?: Thinking; deepThink?: boolean; search?: boolean; window?: WindowMode };
 const queue: Job[] = [];
 let active = 0;
@@ -121,10 +121,19 @@ async function run(job: Job) {
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
         } else if (job.provider === 'chatgpt') {
             // Con historial (Miguel, 2026-11-17: «quitar el temporal»): Wally recuerda el chat y la próxima manda sólo lo nuevo.
-            const r = await askChatGPT(page, job.text, { think: !!job.chatgptThink, temporary: false, chatUrl: job.chatUrl || '', timeoutMs: (job.timeout || 600) * 1000, log: say });
+            // Lo que no entra en un mensaje va en trozos, uno por llamada, en el MISMO chat (wally/providers.json).
+            const bodies = chunkBodies(splitText(job.text, job.chunk || Infinity));
+            let url = job.chatUrl || '';
+            let r: any;
+            for (let i = 0; i < bodies.length; i++) {
+                const last = i === bodies.length - 1;
+                if (bodies.length > 1) say(`trozo ${i + 1}/${bodies.length} · ${bodies[i].length.toLocaleString('es-CO')} caracteres`);
+                r = await askChatGPT(page, bodies[i], { think: last && !!job.chatgptThink, temporary: false, chatUrl: url, timeoutMs: (last ? job.timeout || 600 : 180) * 1000, log: say });
+                url = r.url;
+            }
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms, url: r.url });
         } else if (deepseek) {
-            const r = await askDeepSeek(page, job.text, { think: job.deepThink !== false, search: !!job.search, chatUrl: job.chatUrl || '', timeoutMs: (job.timeout || 600) * 1000, log: say });
+            const r = await askDeepSeek(page, job.text, { think: job.deepThink !== false, search: !!job.search, chatUrl: job.chatUrl || '', chunk: job.chunk || undefined, timeoutMs: (job.timeout || 600) * 1000, log: say });
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms, url: r.url });
         } else {
             const r = await askOn(page, job.model, job.text, (job.timeout || 600) * 1000, say, job.thinking);

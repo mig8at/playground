@@ -55,10 +55,6 @@ type AgentRow struct {
 	Effective string `json:"effective"`
 }
 
-// providerLimits: lo que acepta cada proveedor por mensaje, medido el 2026-11-17 (0 = no se le encontró tope:
-// Gemini aguantó 2 MB y DeepSeek 77 mil caracteres). ChatGPT gratis: ~40 mil sí, ~77 mil no; Groq: ~19 mil sí, ~40 mil no.
-var providerLimits = map[string]int{"aistudio": 0, "deepseek": 0, "chatgpt": 40_000, "groq": 19_000}
-
 // preloadSize estima lo que el agente manda antes de la conversación: WALLY.md, sus notas, sus archivos, sus temas y
 // una línea por fuente (lo que `sourcesReport` agrega).
 func (a *app) preloadSize(ag Agent) int {

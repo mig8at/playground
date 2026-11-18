@@ -1,0 +1,11 @@
+{
+  "_note": "Lo que acepta cada proveedor por su WEB gratis, y cómo trabaja Wally con cada uno. Lo lee el servidor en cada pregunta (server/providers.go): cambiar un número vale desde la próxima, sin reiniciar. messageChars: lo más que entró en UN mensaje, medido (no se publica en ningún lado); 0 = sin tope encontrado. Wally parte en trozos al 90 % de eso cuando el proveedor sigue su chat (chunks). contextTokens: el contexto publicado del modelo. chat: «sigue» (un chat por conversación, sólo lo nuevo) o «temporal» (todo cada vez).",
+  "aistudio": { "messageChars": 0, "contextTokens": 1048576, "chat": "temporal", "chunks": false,
+    "note": "1M tokens (ficha de Google de Gemini 4 Hydrogen); por la web entraron 2 MB de texto de una vez (2026-11-17). Temporal a propósito: no queda en el Drive." },
+  "deepseek": { "messageChars": 114000, "contextTokens": 1000000, "chat": "sigue", "chunks": true,
+    "note": "1M tokens (DeepSeek V4, según resúmenes no oficiales). Por mensaje, medido el 2026-11-17 por bisección: 114.250 caracteres entraron y 116.875 no («El contenido es demasiado largo»)." },
+  "chatgpt":  { "messageChars": 72000, "contextTokens": 0, "chat": "sigue", "chunks": true,
+    "note": "OpenAI no publica el contexto ni el tope por mensaje del plan gratis. Medido el 2026-11-17: 72.375 caracteres entraron (antes de eso, 77 mil fallaron con «Algo salió mal»)." },
+  "groq":     { "messageChars": 37000, "contextTokens": 131072, "chat": "temporal", "chunks": false,
+    "note": "131.072 tokens (ficha oficial de GPT OSS 120B en GroqDocs). Por mensaje, medido el 2026-11-17 con un minuto entre pruebas: 37.125 entraron y 40.937 no («Something went wrong»). ⚠ Tiene además un cupo de tokens POR MINUTO del plan gratis: dos mensajes de ~30 mil seguidos dan «Rate limit reached». Sin historial, así que no se parte en trozos." }
+}
