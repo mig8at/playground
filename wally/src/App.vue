@@ -526,14 +526,14 @@ function sendResults() {
 const proposedCount = (m) => (m.commands || []).filter((c) => c.status === 'propuesto').length
 // En una respuesta con comandos, sus bloques ```comando no se repiten como código: van como tarjetas.
 // Tampoco los ```archivo: el archivo entero va como una tarjeta «escribir», no como un bloque de código de cien renglones.
-const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').replace(/```archivo[^\n]*\n[\s\S]*?\n```/g, '').trim() : m.text)
+const answerText = (m) => (m.commands?.length ? (m.text || '').replace(/```comando[^\n]*\n[\s\S]*?```/g, '').replace(/```(?:archivo|parche)[^\n]*\n[\s\S]*?\n```/g, '').trim() : m.text)
 
 // LA VISTA PREVIA de lo que un agente escribió en wally/pruebas: en un iframe AISLADO (sandbox, y el servidor además la
 // sirve sin permiso para hacer pedidos). Ocupa el lugar de la conversación hasta que se cierra.
 const preview = ref({ url: '', path: '', phone: false, nonce: 0 })
-const previewable = (c) => c.status === 'corrido' && /^(escribir|probar) pruebas\/[a-z0-9]/.test(c.cmd)
+const previewable = (c) => c.status === 'corrido' && /^(escribir|parchar|probar) pruebas\/[a-z0-9]/.test(c.cmd)
 function openPreview(c) {
-  const rel = c.cmd.replace(/^(escribir|probar) pruebas\//, '')
+  const rel = c.cmd.replace(/^(escribir|parchar|probar) pruebas\//, '')
   // Un .html se abre tal cual; cualquier otro archivo (css, js) o un proyecto, por su index.
   const path = /\.html$/.test(rel) ? rel : rel.split('/')[0] + '/'
   preview.value = { url: `/pruebas/${path}`, path, phone: preview.value.phone, nonce: Date.now() }

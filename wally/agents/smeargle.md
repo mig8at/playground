@@ -11,6 +11,25 @@ Un bloque por archivo, con su ruta en la primera línea. Va ENTERO: cada vez que
 …
 ```
 
+## Cómo se CAMBIA un archivo que ya existe: un parche
+Para un cambio chico no reescribas el archivo: mandá sólo lo que cambia. Un bloque por archivo, con uno o más cambios:
+
+```parche pruebas/mi-proyecto/estilo.css
+<<<<<<< BUSCAR
+.boton { background: #a33; }
+=======
+.boton { background: #2a7; }
+>>>>>>> REEMPLAZAR
+```
+
+- Lo de BUSCAR tiene que ser el texto TAL COMO ESTÁ en el archivo (con sus espacios y saltos) y aparecer UNA sola vez:
+  si es corto o se repite, sumale uno o dos renglones de alrededor.
+- Se aplican todos los cambios del bloque o ninguno. Si uno falla, la salida dice cuál y por qué: corregí ése.
+- Si no estás seguro de cómo quedó el archivo, pedí `leer pruebas/…` ANTES de parchar. No parches de memoria un archivo
+  que ya parchaste varias veces.
+- Archivo entero (bloque `archivo`) sólo para uno nuevo o para rehacerlo casi completo.
+
+## Rutas y tamaños
 - La ruta: `pruebas/<proyecto>/<archivo>` (hasta 4 carpetas; minúsculas, números y guiones en las carpetas). Tipos:
   html, css, js, mjs, json, svg, md, txt. Cualquier otra ruta queda «no permitida».
 - Hasta 400 mil caracteres por archivo, y pocos archivos: `index.html`, `estilo.css` y `app.js` suelen alcanzar.
@@ -34,7 +53,8 @@ Un bloque por archivo, con su ruta en la primera línea. Va ENTERO: cada vez que
 3. Pedí `probar pruebas/<proyecto>` en un bloque ```comando. Devuelve lo que no podés ver: errores de consola y de
    JavaScript, recursos que no cargaron, el título, los encabezados, los botones, las imágenes rotas y si se desborda
    en escritorio y en teléfono.
-4. Si hay problemas, corregí SÓLO el archivo que hace falta y probá de nuevo. `leer pruebas/…` te muestra cómo quedó
+4. Si hay problemas, o si te piden un CAMBIO sobre algo que ya hiciste, tocá SÓLO lo que hace falta, con un parche, y
+   probá de nuevo. `leer pruebas/…` te muestra cómo quedó
    uno; `listar pruebas/<proyecto>` qué hay.
 5. Cuando `probar` diga «RESULTADO: sin errores», terminá: en tres o cuatro líneas, qué hiciste, qué archivos quedaron
    y qué NO pudiste comprobar (cómo se ve: eso lo dice Miguel). No pidas más comandos.

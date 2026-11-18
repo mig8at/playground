@@ -101,3 +101,46 @@ func TestSandboxIsServedIsolated(t *testing.T) {
 		}
 	}
 }
+
+// Un parche cambia sólo lo que dice: cada texto buscado tiene que estar una vez; se aplican todos o ninguno, y lo que
+// falla vuelve explicado, sin tocar el archivo.
+func TestPatchChangesOnlyWhatItSays(t *testing.T) {
+	a := &app{root: t.TempDir()}
+	const path = "pruebas/demo/estilo.css"
+	a.writeSandbox(path, "h1 { color: red }\n.btn { color: red }  \n.pie { margin: 0 }\n")
+	read := func() string {
+		raw, _ := os.ReadFile(filepath.Join(a.root, sandboxDir, "demo", "estilo.css"))
+		return string(raw)
+	}
+	hunk := func(find, repl string) string {
+		return "<<<<<<< BUSCAR\n" + find + "\n=======\n" + repl + "\n>>>>>>> REEMPLAZAR"
+	}
+	// Dos cambios en un parche; el segundo coincide salvo por los espacios del final del renglón.
+	note, exit, err := a.patchSandbox(path, hunk("h1 { color: red }", "h1 { color: blue }")+"\n"+hunk(".btn { color: red }", ".btn { color: green }"))
+	if err != nil || exit != 0 || !strings.Contains(note, "2 cambio(s)") {
+		t.Fatalf("parche: %q %d %v", note, exit, err)
+	}
+	if got := read(); !strings.Contains(got, "h1 { color: blue }") || !strings.Contains(got, ".btn { color: green }") || !strings.Contains(got, ".pie { margin: 0 }") {
+		t.Errorf("quedó %q", got)
+	}
+	before := read()
+	// Un texto que no está, o que está más de una vez, no cambia nada (ni el cambio bueno que venía antes).
+	for name, patch := range map[string]string{
+		"no está":      hunk(".pie { margin: 0 }", ".pie { margin: 1px }") + "\n" + hunk("no existe", "x"),
+		"está dos":     hunk("color", "colour"),
+		"sin la forma": "cambiá el color por favor",
+	} {
+		note, exit, err := a.patchSandbox(path, patch)
+		if err != nil || exit == 0 || read() != before {
+			t.Errorf("%s: tenía que fallar sin tocar el archivo: %q %d %v", name, note, exit, err)
+		}
+	}
+	if note, exit, _ := a.patchSandbox("pruebas/demo/nuevo.css", hunk("a", "b")); exit == 0 || !strings.Contains(note, "no existe") {
+		t.Errorf("parchar uno que no existe: %q", note)
+	}
+	// Del bloque ```parche sale un comando «parchar», antes que los comandos de la misma respuesta.
+	got := parseCommands("```comando\nprobar pruebas/demo\n```\n\n```parche pruebas/demo/estilo.css\n" + hunk("a", "b") + "\n```")
+	if len(got) != 2 || got[0].Cmd != "parchar pruebas/demo/estilo.css" || got[0].Content == "" || got[1].Cmd != "probar pruebas/demo" {
+		t.Errorf("orden y forma: %+v", got)
+	}
+}

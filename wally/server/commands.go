@@ -125,6 +125,9 @@ var allowList = []allowed{
 	{regexp.MustCompile(`^escribir (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
 		return "para escribir, entregá el archivo en un bloque ```archivo " + m[1] + " … ```", 1, nil
 	}},
+	{regexp.MustCompile(`^parchar (pruebas/\S+)$`), func(_ context.Context, _ *app, m []string) (string, int, error) {
+		return "para parchar, entregá los cambios en un bloque ```parche " + m[1] + " … ```", 1, nil
+	}},
 	{regexp.MustCompile(`^listar (pruebas(?:/[a-z0-9][a-z0-9_/-]{0,120})?)$`), func(_ context.Context, a *app, m []string) (string, int, error) {
 		out, err := a.listSandbox(strings.TrimPrefix(strings.TrimPrefix(m[1], "pruebas"), "/"))
 		return out, 0, err
@@ -242,14 +245,16 @@ var commandBlock = regexp.MustCompile("(?s)```comando[^\\n]*\\n(.*?)```")
 // parseCommands saca los comandos que pidió el modelo, ya validados (máximo 8 por respuesta).
 func parseCommands(answer string) []Command {
 	var out []Command
-	// Primero los archivos que entrega (```archivo pruebas/…): cada uno es un comando «escribir», con su contenido. Van
-	// ANTES que los comandos para que un `probar` de la misma respuesta encuentre lo recién escrito.
+	// Primero lo que entrega para la carpeta de pruebas, en el orden en que lo escribió: un archivo entero (```archivo)
+	// es un comando «escribir» y un parche (```parche), «parchar», cada uno con su contenido. Van ANTES que los comandos
+	// para que un `probar` de la misma respuesta encuentre lo recién escrito.
 	for _, block := range fileBlock.FindAllStringSubmatch(answer, -1) {
-		if len(out) >= 8 {
+		if len(out) >= 10 {
 			break
 		}
-		c := Command{ID: newID(), Cmd: "escribir " + block[1], Status: "propuesto", Content: block[2]}
-		if !sandboxFile.MatchString(block[1]) {
+		verb := map[string]string{"archivo": "escribir", "parche": "parchar"}[block[1]]
+		c := Command{ID: newID(), Cmd: verb + " " + block[2], Status: "propuesto", Content: block[3]}
+		if !sandboxFile.MatchString(block[2]) {
 			c.Status, c.Reason, c.Content = "no-permitido", "sólo se escribe en pruebas/<proyecto>/…, tipos html, css, js, mjs, json, svg, md o txt", ""
 		}
 		out = append(out, c)
@@ -421,7 +426,15 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 			var att Attachment
 			var exit int
 			var err error
-			if content != "" {
+			if content != "" && strings.HasPrefix(shown, "parchar ") {
+				var note string
+				if note, exit, err = a.patchSandbox(strings.TrimPrefix(shown, "parchar "), content); err == nil {
+					if exit != 0 {
+						note = fmt.Sprintf("(el parche no se aplicó)\n%s", note)
+					}
+					att, err = a.saveOutput(note, "salida: "+shown)
+				}
+			} else if content != "" {
 				var note string
 				if note, err = a.writeSandbox(strings.TrimPrefix(shown, "escribir "), content); err == nil {
 					att, err = a.saveOutput(note, "salida: "+shown)

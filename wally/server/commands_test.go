@@ -150,6 +150,13 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 	if strings.Contains(got, "3001234567") || strings.Contains(got, "otro") || !strings.Contains(got, "2 mensaje(s)") || !strings.Contains(got, "  ✗ algo") || !strings.Contains(got, "Ojo") {
 		t.Errorf("salida: %q", got)
 	}
+	// Lo de la carpeta de pruebas pasa la lista: si no, un archivo o un parche bien formado queda «no permitido» al
+	// guardarlo (pasó con «parchar»: su expresión tenía una barra de más y Smeargle tuvo que reescribir todo).
+	for _, ok := range []string{"escribir pruebas/demo/index.html", "parchar pruebas/demo/css/base.css", "listar pruebas", "listar pruebas/demo", "leer pruebas/demo/app.js", "probar pruebas/demo", "probar pruebas/demo/otra.html"} {
+		if _, err := commandArgs(ok); err != nil {
+			t.Errorf("%q tenía que pasar: %v", ok, err)
+		}
+	}
 	for _, ok := range []string{"canon tema asesor/context", "canon tema cuota/context#el-monto", "canon buscar 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)

@@ -404,6 +404,16 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
     virtual (el número deja de crecer). Ahora la respuesta es nueva si se vio generar o si cambió el último texto.
   - **`bin/wally ask` cortaba a los 5 min** (el tope de `fetch` de Node) con la pregunta todavía en curso: pregunta por
     `http`, sin ese tope.
+  **Los parches** (2026-11-17, como los editores de Cursor o Claude Code): para cambiar un archivo que ya existe el
+  agente manda un bloque ` ```parche pruebas/… ` con uno o más cambios `<<<<<<< BUSCAR … ======= … >>>>>>> REEMPLAZAR`
+  (comando **«parchar»**, `patchSandbox`). Cada texto buscado tiene que estar UNA vez (tolera los espacios del final
+  de cada renglón); se aplican todos o ninguno, y lo que falla vuelve como salida explicada (cuál, y si no está o se
+  repite) para que lo corrija solo. Probado pidiéndole cambios a Smeargle en Auto, sin intervenir: (1) un cuarto
+  servicio y el botón en verde: 3 vueltas, 71 s, de punta a punta solo; los parches salieron «no permitidos» por una
+  barra de más en la expresión de la lista blanca, y él mismo lo notó y reescribió los tres archivos (el diff, mínimo
+  y correcto; el formulario confirma con el servicio nuevo). (2) Arreglado eso, «el sábado hasta las 15:00»: un parche
+  de un cambio, una respuesta de 335 caracteres en vez de 13 mil, 2 vueltas, 38 s. La lección de la falla: probar la
+  función no alcanza si el comando no pasa la lista (`commands_test.go` ahora lo comprueba para los de la carpeta).
   `probar` dice si hay errores, no si la página HACE lo pedido ni cómo se ve: eso se mira (las capturas quedan en
   `wally/pruebas/.capturas/`) o se usa.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo

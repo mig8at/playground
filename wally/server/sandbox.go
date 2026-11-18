@@ -29,8 +29,11 @@ const (
 var (
 	sandboxFile = regexp.MustCompile(`^pruebas/((?:[a-z0-9][a-z0-9_-]{0,40}/){1,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}\.(?:html|css|js|mjs|json|svg|md|txt))$`)
 	sandboxPath = regexp.MustCompile(`^pruebas(?:/((?:[a-z0-9][a-z0-9_-]{0,40}/){0,4}[A-Za-z0-9][A-Za-z0-9_.-]{0,60}))?$`)
-	// fileBlock: un archivo que entrega el modelo: ```archivo pruebas/mi-pagina/index.html … ```
-	fileBlock = regexp.MustCompile("(?s)```archivo[ \\t]+(\\S+)[ \\t]*\\n(.*?)\\n```")
+	// fileBlock: lo que entrega el modelo, en el orden en que lo escribió: un archivo entero
+	// (```archivo pruebas/mi-pagina/index.html … ```) o un parche sobre uno que ya existe (```parche … ```).
+	fileBlock = regexp.MustCompile("(?s)```(archivo|parche)[ \\t]+(\\S+)[ \\t]*\\n(.*?)\\n```")
+	// patchHunk: un cambio de un parche: el texto que está, y el que lo reemplaza.
+	patchHunk = regexp.MustCompile(`(?s)<<<<<<< BUSCAR\n(.*?)\n?=======\n(.*?)\n?>>>>>>> REEMPLAZAR`)
 )
 
 // sandboxAbs: la ruta en disco de algo de la carpeta de pruebas, comprobando que de verdad quede adentro (un enlace
@@ -217,4 +220,65 @@ func (a *app) serveSandbox(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.Header().Set("Cache-Control", "no-store")
 	http.ServeFile(w, r, abs)
+}
+
+// patchSandbox aplica un parche a un archivo de la carpeta: uno o más cambios «BUSCAR / REEMPLAZAR». Cada texto
+// buscado tiene que estar UNA sola vez (si no, no se sabe dónde va); se aplican todos o ninguno. Si un texto no
+// aparece tal cual, se prueba sin los espacios del final de cada renglón, que es donde más se equivoca un modelo.
+// Lo que falla vuelve como salida para que el modelo lo corrija, no como error del servidor.
+func (a *app) patchSandbox(path, patch string) (string, int, error) {
+	m := sandboxFile.FindStringSubmatch(path)
+	if m == nil {
+		return "sólo se parcha un archivo de pruebas/<proyecto>/…", 1, nil
+	}
+	abs, err := a.sandboxAbs(m[1])
+	if err != nil {
+		return "", -1, err
+	}
+	raw, err := os.ReadFile(abs)
+	if err != nil {
+		return fmt.Sprintf("no existe %s: un parche cambia un archivo que ya está (para uno nuevo, entregalo entero en un bloque archivo)", path), 1, nil
+	}
+	hunks := patchHunk.FindAllStringSubmatch(patch, -1)
+	if len(hunks) == 0 {
+		return "el parche no trae ningún cambio con la forma:\n<<<<<<< BUSCAR\n(texto que está)\n=======\n(texto nuevo)\n>>>>>>> REEMPLAZAR", 1, nil
+	}
+	trimEnds := func(s string) string {
+		lines := strings.Split(s, "\n")
+		for i := range lines {
+			lines[i] = strings.TrimRight(lines[i], " \t\r")
+		}
+		return strings.Join(lines, "\n")
+	}
+	text := string(raw)
+	for i, h := range hunks {
+		find, repl := h[1], h[2]
+		if find == "" {
+			return fmt.Sprintf("el cambio %d no dice qué BUSCAR", i+1), 1, nil
+		}
+		n := strings.Count(text, find)
+		if n == 0 {
+			// Sin los espacios del final de cada renglón, en el archivo y en lo buscado.
+			if loose, f := trimEnds(text), trimEnds(find); strings.Count(loose, f) == 1 {
+				text, find, n = loose, f, 1
+			}
+		}
+		switch {
+		case n == 0:
+			first := strings.TrimSpace(strings.SplitN(find, "\n", 2)[0])
+			hint := ""
+			if first != "" && strings.Contains(text, first) {
+				hint = fmt.Sprintf(" Su primer renglón («%s») sí está: lo demás no coincide. Pedí `leer %s` y copiá el texto tal como está.", first, path)
+			}
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR no está en %s.%s No se cambió nada.", i+1, len(hunks), path, hint), 1, nil
+		case n > 1:
+			return fmt.Sprintf("el cambio %d de %d no se aplicó: el texto de BUSCAR aparece %d veces en %s. Sumale renglones de alrededor para que sea único. No se cambió nada.", i+1, len(hunks), n, path), 1, nil
+		}
+		text = strings.Replace(text, find, repl, 1)
+	}
+	note, err := a.writeSandbox(path, text)
+	if err != nil {
+		return err.Error(), 1, nil
+	}
+	return fmt.Sprintf("parche aplicado: %d cambio(s). %s", len(hunks), note), 0, nil
 }
