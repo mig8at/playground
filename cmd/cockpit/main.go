@@ -47,6 +47,8 @@ bin/cockpit — manejar Cockpit por consola (y que se vea en su panel «Claude»
   bin/cockpit restart <app> [--wait]  la reinicia para que tome un cambio en su servidor; Cockpit la recarga sola.
                                     --wait: vuelve cuando contesta de nuevo (hasta 90 s; sale 1 si no levantó)
   bin/cockpit logs <app> [--lines 40] [--errors]   lo último que escribió una app; --errors, sólo lo que huele a falla
+  bin/cockpit session [status|check|login]   la sesión del playground: cuándo vence, avisar si vence en menos de una
+                                    hora (check; Cockpit lo corre cada 10 min) y entrar (login: el aviso lleva ahí)
   bin/cockpit say <texto…>          cuenta en el panel qué vas a hacer o qué encontraste
   bin/cockpit apps                  los ids de las apps
 
@@ -60,6 +62,10 @@ Cada herramienta que usa Claude llega sola al panel (hook «cockpit»); say es p
 	// doctor tampoco pasa por Cockpit: dice también si está cerrado.
 	if args[0] == "doctor" {
 		return doctor(args[1:])
+	}
+	// session tampoco: la sesión del playground (session.go). Cockpit corre `session check` cada 10 min.
+	if args[0] == "session" {
+		return session(args[1:])
 	}
 	// Una app que corre DE FONDO no la reinicia Cockpit (no es suya): se recompila y se recarga su LaunchAgent. Sirve
 	// también con Cockpit cerrado.

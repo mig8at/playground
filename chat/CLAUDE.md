@@ -29,7 +29,8 @@ La app (`chat/src`, Vue) y su servidor (`chat/server`, Go, :5185) sobre el CLI `
 
 La consola de una conversación en `make chat`: nombre y valor; «Encriptar» da el encriptado para pegarlo en el mensaje y
 «Desencriptar» abre uno recibido. Lo encriptado con nombre queda en la tabla «Guardadas» (sólo encriptado, nunca el
-valor). **Lo privado no va al llavero.**
+valor). **Lo privado no va al llavero**: va al llavero personal de Cockpit (engranaje → Llavero, `bin/pg vault`), cifrado con una
+llave que no tiene el equipo.
 
 - En una conversación directa, escribir `🔑 Pido tu llavero` pide **su llavero**: el servidor del chat del otro contesta
   SOLO con los nombres (`🔑 Mi llavero (n)` y viñetas); elegís cuáles y «Pedir» manda `🔑 Pido estas claves`, que también

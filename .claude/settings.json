@@ -24,6 +24,9 @@
     "PreToolUse  · index-guard (Bash): frena `git add -A|-u|.` sin rutas, `git commit -a` y el `git commit` sin rutas",
     "              (salvo que el mismo comando stagee rutas antes): el índice de git es UNO para todas las sesiones",
     "              que comparten este worktree. Salida: I_CHECKED_THE_INDEX=1, después de mirar el índice.",
+    "PreToolUse  · vault-guard (Bash|Read|Grep): niega `pg vault get|env --reveal` y todo lo que nombre la llave",
+    "              personal: una sesión de Claude usa las llaves con `pg vault run`, sin ver los valores.",
+    "",
     "",
     "PostToolUse · task-lint (Write|Edit): al escribir tablero/tasks/<slug>/task.md corre `tasks -lint`.",
     "              Exit 2 con la lista si algo está mal.",
@@ -95,6 +98,18 @@
               "cockpit"
             ],
             "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Bash|Read|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/run",
+            "args": [
+              "vault-guard"
+            ]
           }
         ]
       }

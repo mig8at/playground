@@ -23,7 +23,7 @@ use std::fs::OpenOptions;
 use std::net::{TcpStream, ToSocketAddrs};
 use std::os::unix::process::CommandExt;
 use std::path::PathBuf;
-use std::process::{Child, Command};
+use std::process::{Child, Command, Stdio};
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
@@ -518,6 +518,48 @@ fn run_pg(args: &[&str]) -> Result<String, String> {
     Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
 }
 
+// EL LLAVERO PERSONAL (el engranaje → «Llavero»): Cockpit no lo implementa, corre `bin/pg vault …` (lib/vault), así
+// lo mismo anda por consola con Cockpit cerrado. Sólo los subcomandos de la lista; el valor de `set` va por stdin (no
+// por un argumento, que se ve en `ps`). `get --reveal` sí se permite acá: lo pide Miguel con «Ver» o «Copiar»; a una
+// sesión de Claude se lo niega el hook vault-guard.
+const VAULT_VERBS: &[&str] = &["list", "ring-create", "ring-rename", "ring-delete", "set", "key-rename", "key-move", "key-delete", "get"];
+
+#[tauri::command]
+async fn vault(args: Vec<String>, input: Option<String>) -> Result<String, String> {
+    let verb = args.first().cloned().unwrap_or_default();
+    if !VAULT_VERBS.contains(&verb.as_str()) {
+        return Err(format!("vault {verb}: no se corre desde Cockpit"));
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let root = std::fs::canonicalize(ROOT).map_err(|e| format!("la raíz de my-tools ({ROOT}): {e}"))?;
+        let mut full = vec!["vault".to_string()];
+        full.extend(args);
+        let mut child = Command::new(root.join("bin").join("pg"))
+            .args(&full)
+            .current_dir(&root)
+            .env("PATH", user_path())
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .map_err(|e| format!("bin/pg: {e}"))?;
+        if let Some(mut stdin) = child.stdin.take() {
+            use std::io::Write;
+            if let Some(text) = input {
+                let _ = stdin.write_all(text.as_bytes());
+            }
+        }
+        let out = child.wait_with_output().map_err(|e| format!("bin/pg: {e}"))?;
+        if out.status.success() {
+            Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+        } else {
+            Err(String::from_utf8_lossy(&out.stderr).trim().trim_start_matches("pg: ").to_string())
+        }
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 async fn model_state() -> Result<serde_json::Value, String> {
     tauri::async_runtime::spawn_blocking(|| {
@@ -770,8 +812,47 @@ fn show_main(app: &tauri::AppHandle) {
     }
 }
 
+// `bin/cockpit <args>` de fondo, con su salida en ~/Library/Logs/cockpit-session.log.
+fn run_cockpit_cli(args: &[&str]) {
+    let Ok(root) = std::fs::canonicalize(ROOT) else { return };
+    let log = dirs_log("cockpit-session.log");
+    let out = OpenOptions::new().create(true).append(true).open(&log).ok();
+    let mut cmd = Command::new(root.join("bin").join("cockpit"));
+    cmd.args(args).current_dir(&root).env("PATH", user_path()).stdin(Stdio::null());
+    if let Some(f) = out {
+        if let Ok(f2) = f.try_clone() {
+            cmd.stdout(f).stderr(f2);
+        }
+    }
+    if let Ok(mut child) = cmd.spawn() {
+        thread::spawn(move || {
+            let _ = child.wait();
+        });
+    }
+}
+
+fn dirs_log(name: &str) -> PathBuf {
+    PathBuf::from(std::env::var("HOME").unwrap_or_default()).join("Library").join("Logs").join(name)
+}
+
+// LA SESIÓN DEL PLAYGROUND: cada 10 min (la primera al minuto de abrir), `bin/cockpit session check`, que avisa si vence
+// en menos de una hora (cmd/cockpit/session.go). Sólo mientras Cockpit está abierto, a propósito: cerrado, no se trabaja.
+fn session_watch() {
+    thread::sleep(Duration::from_secs(60));
+    loop {
+        run_cockpit_cli(&["session", "check"]);
+        thread::sleep(Duration::from_secs(600));
+    }
+}
+
 // Un enlace `cockpit://<app>/#/<ruta>`: la ventana al frente y la carcasa a esa app y ruta.
 fn open_link(app: &tauri::AppHandle, url: &tauri::Url) {
+    // `cockpit://session/login`: lo abre el aviso de que vence la sesión del playground. Corre `playground login` (el
+    // navegador, un clic en Google) sin traer Cockpit al frente.
+    if url.host_str() == Some("session") && url.path() == "/login" {
+        run_cockpit_cli(&["session", "login"]);
+        return;
+    }
     show_main(app);
     let Some(id) = url.host_str().and_then(|h| APPS.iter().find(|a| a.id == h)).map(|a| a.id) else { return };
     let route = url.fragment().map(|h| format!("#{h}")).unwrap_or_default();
@@ -812,7 +893,7 @@ fn main() {
         .manage(running)
         .manage(Current::default())
         .manage(Stopped::default())
-        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model])
+        .invoke_handler(tauri::generate_handler![apps, ensure_app, set_current, set_stopped, apps_state, restart_app, model_state, set_model, vault])
         .setup(|app| {
             // El puerto de control, con una llave nueva en cada arranque.
             let token = new_token();
@@ -825,6 +906,7 @@ fn main() {
                 let handle = app.handle().clone();
                 thread::spawn(move || watchdog(handle, watching));
             }
+            thread::spawn(session_watch);
             let handle = app.handle().clone();
             WebviewWindowBuilder::new(app, "main", WebviewUrl::App("index.html".into()))
                 .title("Cockpit")

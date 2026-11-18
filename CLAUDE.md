@@ -125,6 +125,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **crear un agente de Wally** · conversaciones de Wally | `bin/wally agent create --name … --intent '…'` · `agents` · `ask [--agent n] [--auto] '…'` · `skills`. Lo hace Claude cuando Miguel lo pide. Contesta Claude (el Bedrock de CreditOp) por defecto. [`wally/CLAUDE.md`](wally/CLAUDE.md) |
 | **¿qué digo en la daily?** | el home del tablero, «Para la daily» (se arma sola de lunes a viernes a las 7:30), o `make daily [DAY=…]`: tu bitácora del último día, sin lo de my-tools, en pocas líneas |
 | **un proceso agendado o en segundo plano necesita un modelo** | `bin/pg model ask --prompt '…'` (o `--file`): el modelo de segundo plano elegido en Cockpit (engranaje → Modelo), Claude Sonnet 5.5 en el Bedrock de CreditOp por defecto; `bin/pg model info` dice si contesta. Pide la sesión de `playground login` ([`connectors/CLAUDE.md`](connectors/CLAUDE.md)) |
+| **una llave mía** (las que no se comparten: guardarla, usarla) | `bin/pg vault list` · `bin/pg vault run --ring R -- <comando>` (las pasa como variables de entorno, sin mostrarlas). El valor no se pide: el hook `vault-guard` lo niega. El llavero en Cockpit (engranaje → Llavero): [`cockpit/CLAUDE.md`](cockpit/CLAUDE.md) |
 | **Jira o Slack** | `bin/pg jira …` · `bin/pg slack …`. Leer es libre; lo que escribe **sin `--apply` sólo muestra** |
 
 ⚠ **Hay preguntas que no se contestan leyendo: se contestan corriendo.** El conocimiento local y el código describen el mecanismo;

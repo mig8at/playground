@@ -167,6 +167,32 @@ barra y de los atajos ⌘1, ⌘2…, nada más: sigue andando (sus avisos, su se
 con `bin/cockpit open`, y mientras está al frente se ve en la barra. Al menos una queda visible. Se guarda en Cockpit
 (`localStorage`, `cockpit.hidden-apps`), no en un archivo: es una preferencia de esta ventana.
 
+**El llavero personal** (engranaje → «Llavero», 2026-11-18): las llaves de Miguel que NO se comparten, en llaveros
+con nombre. Se renombran con doble clic, una llave se mueve de llavero, «Ver» la muestra 20 s y «Copiar» la copia. Cada
+valor se guarda cifrado con la **llave personal** (`~/.config/creditop/personal-key`, 600, se crea con la primera llave),
+no con la del equipo: ésa la tiene todo el equipo (decisión de Miguel). El formato es el de `openssl enc`, como el
+llavero del chat. La carcasa no lo implementa: corre `bin/pg vault …` (Rust: `vault`, con una lista de verbos; el valor
+va por stdin), y la librería es `lib/vault` (archivo `~/.config/creditop-cockpit/vault.json`, con candado). Por consola:
+
+    bin/pg vault list                       llaveros, nombres y huellas; nunca un valor
+    bin/pg vault run --ring R -- <comando>  el comando recibe las llaves como variables de entorno (así las usa Claude)
+    pbpaste | bin/pg vault set --ring R --key NOMBRE
+    bin/pg vault get --ring R --key K --reveal   sólo Miguel: el hook `vault-guard` se lo niega a una sesión de Claude
+
+⚠ El cifrado no esconde nada de un agente con consola (la llave está en el mismo disco). Lo que hace que Claude no vea
+un valor es que nada lo imprime sin `--reveal`, y el hook `vault-guard` (`tablero/server/internal/hooks/vault_guard.go`),
+que niega `--reveal` y leer o usar la llave personal. Es un freno para el descuido, no un muro. Y frena también un comando
+de shell que sólo NOMBRA esas cosas en una línea (un heredoc que escribe esta documentación): eso se escribe con las
+herramientas de edición o desde un archivo.
+
+**La sesión del playground** (2026-11-18): mientras Cockpit está abierto, cada 10 min corre `bin/cockpit session check`
+(`cmd/cockpit/session.go`): si el token vence en menos de una hora, o ya venció, un aviso de macOS —a lo sumo uno por
+hora— que al tocarlo abre `cockpit://session/login`, que corre `playground login`. Con Cockpit cerrado no avisa nadie, a
+propósito. **No se renueva sola**: la página del playground pide tocar «Continuar con Google» cada vez (medido el
+2026-11-18 con una pestaña minimizada de Jarvis: a los 90 s seguía ahí), y que una herramienta toque ese botón por Miguel
+no se hace. ⚠ El aviso abre el enlace sólo si sale por el avisador del chat («Chat de my-tools» con permiso de avisos en
+Configuración del Sistema); por `osascript` se ve, pero tocarlo no hace nada.
+
 **El modelo de segundo plano** (engranaje → «Modelo», 2026-11-18; Miguel: «para tareas en segundo plano que se
 ejecutan a ciertas horas»): el modelo que usa lo que corre solo, agendado o sin nadie mirando. Claude por defecto
 (Sonnet 5.5 en el Bedrock de CreditOp, por el puente de canon) o Gemini por su API. La carcasa no lo implementa:
