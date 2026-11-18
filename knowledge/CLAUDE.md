@@ -24,6 +24,20 @@ No reconstruyas el antiguo servicio context/ ni importes el corpus productivo co
 Las refs locales pueden estar atrasadas. Usá la ref y fecha visibles en la comprobación como límite;
 si la tarea exige verificar el remoto, actualizá el clon por el procedimiento normal y repetí el chequeo.
 
+## Las trampas del sistema (`traps/`)
+
+`traps/traps.md` es el registro vivo de las trampas (`F-xx`): un síntoma que ya costó tiempo, con su causa raíz
+verificada, su evidencia y su arreglo. `traps/closed.md` guarda las crónicas de las cerradas. Vivían en el tablero
+(`tablero/data/traps/`) hasta el 2026-11-18. **No es un tema**: no lleva `rules.md` ni `sources.json`, y la
+biblioteca la salta. Se entra por el índice de síntomas, nunca leyendo el archivo entero.
+
+- Una trampa nueva va al final, con su `### F-xx · título`, y su síntoma entra al índice. `make traps` falla si una
+  queda fuera del índice o si una cita `archivo:línea` se corrió en `main` (`INDEX=1`, sólo el índice).
+- Un tema y una trampa no se repiten: el tema explica el mecanismo vigente; la trampa, el síntoma que confunde y
+  cómo se llegó a la causa. Si una trampa describe una regla que sigue en `main`, el tema la explica y la trampa
+  lo enlaza.
+- Las tareas citan una trampa por su número (`F-53`); `make agent` muestra las que pueden tocar la tarea.
+
 ## Separar el mecanismo de la evidencia de un caso
 
 Las hipótesis, los PR sin mergear y las decisiones de una tarea viven en su documento o pila, con ese

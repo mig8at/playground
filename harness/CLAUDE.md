@@ -449,7 +449,7 @@ Una corrida termina cuando lo que probó queda escrito donde alguien lo vuelva a
 |---|---|
 | la RECETA para volver a correrlo | **«Cómo se comprueba — y el MATERIAL»** del documento, que se MANTIENE |
 | lo que pasó ESE día | **un bloque de la pila** (`BLOCK=<id|slug>`), que se APILA |
-| una trampa del SISTEMA, reproducible y con causa raíz | **`F-xx`** en `tablero/data/traps/doc.md` |
+| una trampa del SISTEMA, reproducible y con causa raíz | **`F-xx`** en `knowledge/traps/traps.md` |
 
 ⚠ **Va el COMANDO, no la conclusión**, y el validador de la pila lo exige: la caja ` ```harness ` con su
 `TARGET=` y debajo su `Resultado:`. Con `BLOCK=<id|slug>`, `harness-case`, `-listing`, `-walk-wizard` y

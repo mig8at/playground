@@ -32,7 +32,7 @@ es justo un supuesto que la propuesta tendría que escribir; en ese caso es «co
 
 **2 · Lo que sólo se ve con el contexto**, como hallazgos nuevos (con su veredicto), y SÓLO si importan para este
 cambio (no listes lo que está bien: si una regla se cumple, no es un hallazgo):
-- Las trampas ya vividas que este cambio puede pisar: `tablero/data/traps/doc.md` (entrá por su índice de síntomas).
+- Las trampas ya vividas que este cambio puede pisar: `knowledge/traps/traps.md` (entrá por su índice de síntomas).
 - El conocimiento local de la tarea (`knowledge/<tema>/rules.md` de los temas que declara la tarea).
 - Las reglas de los PRs del CLAUDE.md raíz: un PR por tarea y por repo, la descripción no nombra herramientas internas
   (harness, trazador, tablero, connectors, my-tools, playground, canon, cockpit, goldfish, comandos `make`), y en

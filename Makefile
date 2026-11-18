@@ -184,11 +184,11 @@ tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET oblig
 closeout: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DAY=YYYY-MM-DD · JSON=1 · NO_PRS=1 no consulta GitHub · TASK=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
 	@cd tablero/server && go run ./cmd/closeout $(if $(DAY),-day $(DAY)) $(if $(JSON),-json) $(if $(NO_PRS),-no-prs) $(if $(TASK),-task $(TASK))
 
-traps: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDEX=1 sólo el índice (sin tocar los repos)
-	@cd tablero/server && go run ./cmd/traps $(if $(INDEX),-index)
+traps: ## @dia las TRAMPAS del sistema (`F-xx`, en knowledge/traps/traps.md): ¿el índice está completo y sus citas siguen apuntando bien? INDEX=1 sólo el índice (sin tocar los repos)
+	@go run ./cmd/traps $(if $(INDEX),-index)
 
 citations: ## @dia ¿las citas `archivo:línea` de un documento siguen apuntando a lo que dicen? (ancla por contenido contra `main`) DOC=<doc.md …> · OK=1 lista también las sanas
-	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citations DOC=tablero/data/traps/doc.md"; exit 2; }
+	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citations DOC=knowledge/traps/traps.md"; exit 2; }
 	@cd tablero/server && go run ./cmd/citations $(if $(OK),-ok) $(addprefix ../../,$(DOC))
 
 task-guard: ## @dia ¿este texto puede salir a Jira? (el cuerpo de una tarea NO: nombra repos y rutas). F=<archivo>
@@ -857,7 +857,7 @@ wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally com
 	@docker build -t wally-rust wally/rust
 knowledge-check: ## @dia contrastar fuentes con el main de los clones sólo-main (main_clones, en ~/Desktop/CREDITOP/main-clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
-knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
+knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico, de lo barato a lo caro. STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/): tools/knowledge-drift/CLAUDE.md
 	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/knowledge-drift/CLAUDE.md"; exit 2; }
 	@python3 tools/knowledge-drift/drift.py $(STEP) $(if $(GROUPS),--groups $(GROUPS)) $(if $(RUN),--run '$(RUN)')
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon

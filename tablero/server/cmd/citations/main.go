@@ -12,7 +12,7 @@ import (
 	"os"
 
 	"creditop/my-tools/connectors/repos"
-	"creditop/my-tools/tablero/server/internal/citations"
+	"creditop/my-tools/lib/citations"
 	"creditop/my-tools/tablero/server/internal/layout"
 )
 

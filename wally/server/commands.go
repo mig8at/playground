@@ -66,7 +66,7 @@ var guides = map[string]string{
 	"connectors": "connectors/CLAUDE.md", "style": "tools/ui/CLAUDE.md", "visor": "visor/CLAUDE.md", "tools": "tools/CLAUDE.md",
 }
 
-const trapsFile = "tablero/data/traps/doc.md"
+const trapsFile = "knowledge/traps/traps.md"
 
 var allowList = []allowed{
 	// Las habilidades (skills.go): el índice, o una entera con sus comandos. Es lo primero que pide el modelo.

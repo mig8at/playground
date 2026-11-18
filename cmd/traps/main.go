@@ -1,5 +1,5 @@
-// traps revisa las TRAMPAS del sistema (`tablero/data/traps/doc.md`): que su índice esté completo y
-// que sus citas sigan apuntando bien. Por qué los dos chequeos: `internal/traps`.
+// traps revisa las TRAMPAS del sistema (`knowledge/traps/traps.md`): que su índice esté completo y
+// que sus citas sigan apuntando bien. Por qué los dos chequeos: `knowledge/traps`.
 //
 //	traps          los dos chequeos
 //	traps -index   sólo el índice (no necesita los repos, no toca git)
@@ -14,19 +14,22 @@ import (
 	"path/filepath"
 
 	"creditop/my-tools/connectors/repos"
+	"creditop/my-tools/knowledge/traps"
+	"creditop/my-tools/lib/citations"
 	"creditop/my-tools/lib/text"
-	"creditop/my-tools/tablero/server/internal/citations"
-	"creditop/my-tools/tablero/server/internal/layout"
-	"creditop/my-tools/tablero/server/internal/traps"
 )
 
 func main() {
 	onlyIndex := flag.Bool("index", false, "sólo el índice, sin tocar los repos")
+	rootFlag := flag.String("root", ".", "raíz de my-tools")
 	flag.Parse()
 
-	lay := layout.Find()
-	root := filepath.Dir(lay.Tools())
-	doc, err := filepath.Abs(filepath.Join(lay.Data, "traps", "doc.md"))
+	root, err := filepath.Abs(*rootFlag)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "✗", err)
+		os.Exit(1)
+	}
+	doc := traps.Doc(filepath.Join(root, "knowledge"))
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "✗", err)
 		os.Exit(1)
@@ -45,7 +48,7 @@ func main() {
 
 	exit := 0
 	if !*onlyIndex {
-		exit = reviewCitations(repos.New(lay.Tools()), doc, shown)
+		exit = reviewCitations(repos.New(filepath.Join(root, "tools")), doc, shown)
 	}
 	if len(failures) > 0 {
 		fmt.Print("\n✗ el índice no está completo — una trampa fuera de la puerta se lee como «no nos pasó»:\n\n")

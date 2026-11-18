@@ -6,7 +6,12 @@
 // que comparte el equipo— rechaza por regla escrita: allá van las reglas que existen en `main`, sin el
 // relato de quién las descubrió. Vivieron en el árbol de `context/` hasta el 2026-09-21 y se mudaron
 // al tablero cuando ese árbol empezó a apagarse: **el tablero ya era su lector real** —medido ese día,
-// 12 de 45 tareas citaban 60 `F-xx` distintos, y canon no citaba ninguno—.
+// 12 de 45 tareas citaban 60 `F-xx` distintos, y canon no citaba ninguno—. El 2026-11-18 pasaron a
+// `knowledge/traps/` (decisión de Miguel): son contexto para trabajar, como los temas de knowledge, y el
+// tablero no las necesita. Las tareas las siguen citando por su `F-xx`.
+//
+// ⚠ `knowledge/traps/` NO es un tema: no tiene `rules.md` ni `sources.json`, y la biblioteca la salta
+// (`knowledge.TrapsDir`). `traps.md` es el registro vivo; `closed.md`, las crónicas de las cerradas.
 //
 // ⚠ **No son los «Hallazgos» del tablero, y el nombre importa.** Un hallazgo es un bloque DENTRO de la
 // pila de una tarea; una trampa es del sistema, no de una tarea, y se entra a ella por su SÍNTOMA.
@@ -17,11 +22,12 @@
 //     archivo entero: entrá por acá, saltá al `F-xx`»— y esa puerta es un índice escrito a mano. Medido
 //     el 2026-09-21: 9 de 239 hallazgos estaban fuera del índice de síntomas, justamente los últimos
 //     agregados. Para quien entra por la puerta no existían, y su ausencia se lee «no nos pasó».
-//  2. **Las citas `archivo:línea` se corren**, con `internal/citations`: ancla por CONTENIDO, así que
+//  2. **Las citas `archivo:línea` se corren**, con `lib/citations`: ancla por CONTENIDO, así que
 //     sigue renombres y no se deja engañar por un archivo que ganó un import arriba.
 package traps
 
 import (
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strconv"
@@ -29,6 +35,10 @@ import (
 
 	"creditop/my-tools/lib/text"
 )
+
+// Doc es el registro vivo de trampas dentro de la carpeta de knowledge; Closed, las crónicas cerradas.
+func Doc(knowledgeDir string) string    { return filepath.Join(knowledgeDir, "traps", "traps.md") }
+func Closed(knowledgeDir string) string { return filepath.Join(knowledgeDir, "traps", "closed.md") }
 
 var (
 	anchorRe   = regexp.MustCompile(`^### (F-[0-9]+)`)

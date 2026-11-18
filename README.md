@@ -46,7 +46,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 |---|---|
 | Entender un flujo o subsistema | `make knowledge-map`, `knowledge-search Q=…` y `knowledge-read ID=…`; completar y verificar en el código de `main` |
 | Consultar conocimiento de negocio/producto que no se puede comprobar en local | Confluence y la documentación del equipo; canon (del equipo, fuera de my-tools) con `playground canon search\|read` |
-| «¿Ya nos pasó esto?» | [las trampas del sistema](tablero/data/traps/doc.md): entrá por el índice de síntomas |
+| «¿Ya nos pasó esto?» | [las trampas del sistema](knowledge/traps/traps.md): entrá por el índice de síntomas |
 | Probar un flujo corriendo | la app Harness de Cockpit, o `make panel` → el panel maneja el wizard real |
 | Ver las tareas o el chat | Cockpit (`make cockpit`), o `make tablero` |
 | Investigar una solicitud rota | en prod, el tracer del equipo (`tools/tracer` del playground compartido); fuera de prod, `make harness-loki UREQ=… TARGET=…` y `make harness-posthog UREQ=… TARGET=…` |
@@ -76,7 +76,7 @@ Cosas que vas a encontrar escritas por ahí y **ya no son ciertas**:
 - **`docs/` (entonces `playground/docs/`) fue borrada** de `main` (2026-07-17, absorbida por el árbol de contexto). Toda
   ruta `docs/X.md` es histórica: `git show 159906a:docs/<ruta>`.
 - **`context/` se apagó** (2026-09-21): lo que valía graduó a **canon** —el corpus compartido, en otro
-  repo— y las trampas del sistema se mudaron a `tablero/data/traps/`. Toda ruta
+  repo— y las trampas del sistema se mudaron a `tablero/data/traps/` (desde el 2026-11-18, `knowledge/traps/`). Toda ruta
   `context/server/data/flows/<nodo>/` es histórica. No reconstruyas ese servicio: `knowledge/` son archivos del taller, sin sincronización ni copia
   automática del corpus productivo.
 - Referencias a **`soporte/`, `examples/`, `backend-e2e` o `backend-mcp`**: todo eso se borró. El <!-- lint:ok -->

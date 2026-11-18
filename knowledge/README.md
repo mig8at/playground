@@ -10,9 +10,13 @@ knowledge/
   lender-listing/
     rules.md
     sources.json
+  traps/
+    traps.md      las trampas del sistema (F-xx), con su índice de síntomas
+    closed.md     las crónicas de las cerradas
 ```
 
-`rules.md` explica reglas y límites. `sources.json` conserva título, resumen, fecha de revisión y, por
+`traps/` no es un tema: es el registro de las trampas del sistema, con `make traps` como chequeo (ver
+[CLAUDE.md](CLAUDE.md)). `rules.md` explica reglas y límites. `sources.json` conserva título, resumen, fecha de revisión y, por
 sección, repositorio, archivo, commit y hash del blob revisado. Los temas se extraen del trabajo del tablero y
 cubren mecanismos acotados: su alcance y sus límites aparecen antes de las reglas.
 

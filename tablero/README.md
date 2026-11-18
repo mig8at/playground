@@ -330,7 +330,6 @@ tasks/<slug>/                UNA TAREA = UNA CARPETA (ver abajo)      → versio
 data/
   entries/2026-07.jsonl      avances por tiempo, un archivo por mes      → FUERA de git (dato personal)
   pulse/2026-08.jsonl        el pulso: cuándo toqué los repos          → FUERA de git (dato personal)
-  traps/                     las trampas del sistema (F-xx)           → versionado
   cache/jira.json            snapshot de Jira, descartable            → fuera de git
 ```
 

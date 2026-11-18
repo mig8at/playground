@@ -61,7 +61,7 @@ lee y qué necesita**:
 | **`## Tarea (publicable)`** | qué problema resuelve (producto) y cómo se prueba (QA) | el equipo, vía Jira |
 
 **El conocimiento técnico reutilizable** va a `knowledge/` con fuentes revisadas; las decisiones y
-mediciones de esta tarea van a su pila. Una trampa reproducible del sistema va a `data/traps/doc.md`.
+mediciones de esta tarea van a su pila. Una trampa reproducible del sistema va a `../knowledge/traps/traps.md`.
 El conocimiento de negocio/producto sin comprobación local sale de Confluence o la documentación del equipo,
 citando la fuente y el límite. **Una tarea no cita canon** (decisión de Miguel, 2026-11-18): canon no es de
 my-tools; lo que una tarea necesita saber se cita de `knowledge/` o del código. El lint rechaza un `canon:` en
@@ -154,7 +154,7 @@ con `make task-context N=…` o `make resume`. El contrato de la línea: `docs/t
 enlace, reiniciá el tablero, o la pila entera de esa tarea se ve vacía.
 
 **Un hallazgo** (lo que le pasó a ESTA tarea) es un bloque y muere con ella; **una trampa** (`F-xx`, lo que
-le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `make traps` las valida.
+le pasa al sistema) vive en `knowledge/traps/traps.md` y se entra por su síntoma. `make traps` las valida.
 
 ### Avances y artifacts
 

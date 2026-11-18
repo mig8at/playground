@@ -46,7 +46,7 @@ grep. Hoy es una lectura de 77.000 palabras, que es por lo que nadie la hace.
   fila en los DOS índices de abajo. La causa raíz va **verificada** o marcada `hipótesis, sin confirmar`;
   si el síntoma engaña, decilo en el título.
 - **Al graduar el hecho a un nodo, el cuerpo se colapsa a stub ese mismo día** (título + tesis +
-  `→ nodo dueño`). La crónica queda en git y, si era un incidente cerrado, en `cerrados.md` (frío,
+  `→ nodo dueño`). La crónica queda en git y, si era un incidente cerrado, en `closed.md` (frío,
   greppeable — la regla automatizable: «resuelto + cero citas externas ⇒ frío»).
 - Las viejas secciones A–O eran historia, no temas — se retiraron; **los índices son la única puerta**.
 
@@ -512,7 +512,7 @@ distinto según con qué pregunta llegues.
 **Estado:** resuelto — pero **el patrón sigue vivo**: cualquier fallo dentro de ese action se ve como "no pasa nada".
 
 ### F-03 · Un `.catch(() => {})` convirtió una corrida rota en "1 passed"
-> **Incidente cerrado** (resuelto en el spec). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto en el spec). Crónica completa: `closed.md`.
 
 ### F-04 · `/lenders` da 500 en todo local (H2O sin host)
 
@@ -551,7 +551,7 @@ distinto según con qué pregunta llegues.
 ---
 
 ### F-76 · El backfill de una migración NO cubre las filas futuras: Motai perdió el PEP en dev/qa sin que nadie tocara nada
-> **Incidente cerrado** (desbloqueado (la causa de fondo quedó anotada en el cuerpo frío)). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (desbloqueado (la causa de fondo quedó anotada en el cuerpo frío)). Crónica completa: `closed.md`.
 
 ### F-77 · Mergear a `qa` NO aplica migraciones: el deploy solo actualiza el servicio ECS
 
@@ -612,19 +612,19 @@ Foto del documento contra un proveedor externo: imposible con usuario sintético
 > **Ojo con la pista falsa:** buscar una *tabla* `qa_otp_bypass_phones` da "no existe" y lleva a concluir que el bypass no está implementado. Es una **fila de `settings`** (migración `add_qa_otp_bypass_phones_to_settings_table`).
 
 ### F-13 · Wompi (cuota inicial)
-> **Incidente cerrado** (aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (aplicado). Crónica completa: `closed.md`.
 
 ### F-14 · El harness arrastraba al usuario de vuelta al listado
-> **Incidente cerrado** (resuelto). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto). Crónica completa: `closed.md`.
 
 ### F-15 · La ventana B era una caja negra
-> **Incidente cerrado** (resuelto). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto). Crónica completa: `closed.md`.
 
 ### F-16 · Un selector CSS pisaba el handler de otro botón
-> **Incidente cerrado** (resuelto). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto). Crónica completa: `closed.md`.
 
 ### F-74 · El sweep resolvía el backend por su cuenta: contra `dev` registraba en LOCAL y dejaba la solicitud huérfana
-> **Incidente cerrado** (resuelto). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto). Crónica completa: `closed.md`.
 
 ### F-17 · La CSP de la página de login rompe tus pruebas de fetch
 
@@ -802,7 +802,7 @@ POST …/promissory-note/validate/authorize               → estado 11 + reques
 Gotchas: las rutas de fechas/cronograma viven bajo el prefijo `promissory-note` (un 404 lo enseñó); el estado **28 "Autorizado pendiente desembolso" es el intermedio real** entre verify-otp y authorize; todo con UA de iPhone.
 
 ### F-30 · DENTIX no cierra en local: su pagaré es Deceval (SOAP)
-> ⚠ **Stale** — corregido por F-31 y afinado por F-37 → `credifamilia`. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — corregido por F-31 y afinado por F-37 → `credifamilia`. Crónica completa: `closed.md`.
 
 ### F-31 · Credifamilia rt=4: la cadena real de bloqueos (no era el SOAP)
 > **Graduó** → `credifamilia` — el hecho vive allá; la crónica, en git.
@@ -841,7 +841,7 @@ Cobertura del barrido headless sobre **todos** los comercios de `.flows.json`. C
 > **Graduó** → `credifamilia` — el hecho vive allá; la crónica, en git.
 
 ### F-38 · Rotativo (rt=3) SÍ existe y se distingue — pero no cierra por config del comercio
-> **Incidente cerrado** (lo cierra F-57). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (lo cierra F-57). Crónica completa: `closed.md`.
 
 ### F-39 · Servicing (cobranza por hardware): VERIFICADO end-to-end en local
 
@@ -860,13 +860,13 @@ Es la única parte del post-Estado-11 ejercitable localmente, y **funciona**. Lo
 **Lo que sigue sin cubrir del post-11:** el resto del servicing CreditopX (cascada de cobranza, mora, intereses, seguros, capital) corre en **`legacy-application`**, no en legacy — fuera del alcance de este stack local.
 
 ### F-40 · Ecommerce: NO es ejercitable — la ruta de checkout ya no existe en el wizard
-> ⚠ **Stale** — CORREGIDO por F-54: el eje ecommerce existe — solo resuelve Bancolombia y se prueba contra dev. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — CORREGIDO por F-54: el eje ecommerce existe — solo resuelve Bancolombia y se prueba contra dev. Crónica completa: `closed.md`.
 
 ### F-41 · "Formulario no encontrado" = el flujo DINÁMICO sin su schema
 > **Graduó** → `form-service` — el hecho vive allá; la crónica, en git.
 
 ### F-42 · Varios "servicios externos" existen como repo local
-> ⚠ **Stale** — superado por F-123 + el nodo `microservicios` (criterio: vivo en prod, no clonado en disco). Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — superado por F-123 + el nodo `microservicios` (criterio: vivo en prod, no clonado en disco). Crónica completa: `closed.md`.
 
 ### F-43 · El formulario dinámico carga pero no deja avanzar: dos causas distintas
 
@@ -984,7 +984,7 @@ local las centrales 10–13 de prod (`wireRiskCentrals`). Comprobado con `sweep.
 consulta queda guardada con la 12 y `AbacoStepResolver` deja de pedir el paso.
 
 ### F-48 · Renting en v2: el discriminador es `product`, y estaba roto
-> ⚠ **Stale** — el puente `lenders.product` fue reemplazado por `lender_requirements` → `motai`. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — el puente `lenders.product` fue reemplazado por `lender_requirements` → `motai`. Crónica completa: `closed.md`.
 
 ### F-49 · Dónde vive el paso de Ábaco en el front (y por qué el harness se lo comía)
 
@@ -1059,7 +1059,7 @@ SELECT l.id, 1, 1, 1, NOW(), NOW() FROM lenders l WHERE l.id IN (158,168,169,170
 **Verificado en la práctica (uReq 464499, mismo comercio y lender):** con la fila sembrada el flujo de renting cierra entero — `confirmation → abaco → abaco/platforms → abaco/platform-otp-validation → first-payment-date → payment-schedule → sign-documents → otp-validation → loan-approved`, con rastro `3 → 28 → 11` (Autorizada).
 
 ### F-51 · El formulario de referencias del Figma: el mecanismo existe, la posición y los campos no
-> **Incidente cerrado** (comparación de un día contra dump local). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (comparación de un día contra dump local). Crónica completa: `closed.md`.
 
 ### F-52 · El scrub del harness borra la corrida anterior y deja el historial huérfano
 
@@ -1080,7 +1080,7 @@ huérfanos en user_request_records:  873 / 1288  (68%)
 **Regla práctica:** para hacer forense de una corrida, consultarla **antes** de lanzar la siguiente; o buscar por `user_request_records`, que sobrevive. Y al mirar una solicitud vieja, recordar que la columna de estado es `user_request_status_id`, no `status` (F-50).
 
 ### F-53 · La guarda de "estás tocando dev compartido" viene desarmada de fábrica
-> ⚠ **Stale** — herramientas citadas BORRADAS; la regla sigue viva: el guard se exporta A MANO en la shell, nunca en un `.env` (CLAUDE.md raíz). Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — herramientas citadas BORRADAS; la regla sigue viva: el guard se exporta A MANO en la shell, nunca en un `.env` (CLAUDE.md raíz). Crónica completa: `closed.md`.
 
 ### F-54 · La entrada por ecommerce existe y funciona — pero hoy solo resuelve Bancolombia
 
@@ -1180,19 +1180,19 @@ Y el backend **ya avisa**: marca esos casos con `next_step => 'error'`. El front
 **Qué haría falta (decisión del equipo):** que el front honre `next_step === 'error'` con una pantalla de error de configuración, y que `request-canceled` deje de cancelar desde el `loader` — hoy **navegar o recargar esa URL cancela la solicitud**.
 
 ### F-56 · Cuatro de las cinco salidas de `/lenders` dan 404 fuera de `/merchant`
-> ⚠ **Stale** — rama mergeada a qa el 2026-07-29; el análisis de `standBy` era de esa rama → `motai`. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — rama mergeada a qa el 2026-07-29; el análisis de `standBy` era de esa rama → `motai`. Crónica completa: `closed.md`.
 
 ### F-57 · Rescate antes de borrar `backend-e2e` y `backend-mcp`
-> ⚠ **Stale** — el rescate se hizo; los hechos rescatados viven en sus nodos — las citas a `backend-e2e/docs/*` ya no resuelven. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — el rescate se hizo; los hechos rescatados viven en sus nodos — las citas a `backend-e2e/docs/*` ya no resuelven. Crónica completa: `closed.md`.
 
 ### F-58 · Un rechazo de la firma de flujo llega como HTTP 200 y el front lo toma como éxito
 > **Graduó** → `kyc §deuda F-58` — el hecho vive allá; la crónica, en git.
 
 ### F-59 · `bin/advisor` moría mudo en el paso `frontend` porque un `grep` sin match mata al script
-> ⚠ **Stale** — el `env/` compartido se eliminó; la regla viva: bajo `set -euo pipefail`, un `VAR="$(grep …)"` sin match ABORTA el script sin mensaje. Crónica completa: `cerrados.md`.
+> ⚠ **Stale** — el `env/` compartido se eliminó; la regla viva: bajo `set -euo pipefail`, un `VAR="$(grep …)"` sin match ABORTA el script sin mensaje. Crónica completa: `closed.md`.
 
 ### F-60 · Sonría no sirve para probar la omisión de Experian: el throttle corta antes que el flujo
-> **Incidente cerrado** (la tabla que traía ya no valía (se auto-invalidó)). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (la tabla que traía ya no valía (se auto-invalidó)). Crónica completa: `closed.md`.
 
 ### F-61 · Staging falla el login del asesor porque es OTRO pool de Cognito sobre la MISMA base
 
@@ -1220,7 +1220,7 @@ En dev existe una familia de cuentas QA `oscar+<comercio>@creditop.com`, una por
 **Lo que queda abierto.** El `sub` de staging **no se puede deducir offline** (los de ambos pools son UUIDv7, sin nada que los distinga) y el storageState cacheado **no guarda JWT** — solo cookies. Se confirma en el primer login: si el wizard abre el comercio, el `cognito_id` que la fila ya tenía era el de staging; si repite "no tienes un comercio asignado", era del otro pool y hay que leer el real del id_token de esa sesión.
 
 ### F-62 · En dev/staging está desplegada solo LA MITAD de la omisión de Experian: aparece el selector, pero nada lo aplica
-> **Incidente cerrado** (lo cierra F-63 (PR #988 desplegado)). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (lo cierra F-63 (PR #988 desplegado)). Crónica completa: `closed.md`.
 
 ### F-63 · `RKV24027` (dato vigente) corta ANTES que la omisión por flujo — y se lee como si la omisión fallara
 
@@ -1245,25 +1245,25 @@ Firma `URV13000`, `flow_id` 1 → 2. **Lo único que cambió entre ambas medicio
 **Cierra F-62:** el PR #988 se mergeó (`91aaad3b`) y se desplegó. La huella del build viejo era `URV13005` al firmar en estado 9; con el nuevo, `URV13000`.
 
 ### F-64 · El "Recorrido del wizard" cambiaba de forma según el ambiente — y contra dev salía vacío por un error que el panel se comía
-> **Incidente cerrado** (fix aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (fix aplicado). Crónica completa: `closed.md`.
 
 ### F-65 · El sembrado headless registraba al cliente en el backend LOCAL aunque el target fuera dev
-> **Incidente cerrado** (aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (aplicado). Crónica completa: `closed.md`.
 
 ### F-66 · El salto headless a `/lenders` "rebotaba" en staging — no era el front ni el estado, era una carrera post-login del harness
-> **Incidente cerrado** (RESUELTO y verificado en los tres targets). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (RESUELTO y verificado en los tres targets). Crónica completa: `closed.md`.
 
 ### F-67 · El salto a `/lenders` se colgaba 90s en staging — no era la inserción del sintético, era `domcontentloaded` esperando el stream de pre-aprobaciones
-> **Incidente cerrado** (aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (aplicado). Crónica completa: `closed.md`.
 
 ### F-68 · El guiado AUTO de Motai renting/rto nunca pasaba por Ábaco — lo salteaba el driver del harness, no la des-motaización
-> **Incidente cerrado** (aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (aplicado). Crónica completa: `closed.md`.
 
 ### F-69 · "Advisor validation error" en el `/continue` del asesor para lenders None-identity + Ábaco — un `validated=false` en una validación NO requerida
-> **Incidente cerrado** (aplicado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (aplicado). Crónica completa: `closed.md`.
 
 ### F-70 · La pantalla del asesor (`financial-profile`) muere con `fetch failed` en local — falta el MS financial-health (:4000) → mock que lee la BD real
-> **Incidente cerrado** (mock creado). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (mock creado). Crónica completa: `closed.md`.
 
 ### F-75 · El marketplace sale VACÍO si el lender que ofrece la sucursal no tiene `group_rules` propias
 > **Graduó** → `motai` — el hecho vive allá; la crónica, en git.
@@ -1439,7 +1439,7 @@ control al front está en esta situación. El referrer sirve para *loguear*, no 
 ---
 
 ### F-87 · `bin/mock-* start` reusaba el proceso viejo: editabas el mock y seguía sirviendo la versión anterior
-> **Incidente cerrado** (resuelto — los mocks nuevos publican huella de código). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (resuelto — los mocks nuevos publican huella de código). Crónica completa: `closed.md`.
 
 ### F-88 · El front valida cada respuesta del banco con zod, y el runner por consola no lo veía: dos verdes que no se cruzaban
 > **Graduó** → `bancolombia §pantallas` — el hecho vive allá; la crónica, en git.
@@ -1750,7 +1750,7 @@ en producción — el webhook no deja registro cuando `firstOrFail()` lanza, as�
 > **Graduó** → `microservicios (+ tools/roots.py)` — el hecho vive allá; la crónica, en git.
 
 ### F-124 · El teléfono con prefijo NO estaba corrupto: E.164 es lo correcto. La hipótesis de «acumula prefijos» la refutó el dato
-> **Incidente cerrado** (la hipótesis se refutó: era ruido de pruebas en producción). Crónica completa: `cerrados.md`.
+> **Incidente cerrado** (la hipótesis se refutó: era ruido de pruebas en producción). Crónica completa: `closed.md`.
 
 ### F-125 · «¿Este comercio es Corbeta?» tiene CUATRO respuestas distintas — no cites una lista única
 

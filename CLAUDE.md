@@ -102,7 +102,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **arranco una tarea como agente** | `make agent N=…` (`ENV=1` mira el ambiente local, `JSON=1` para un agente): la tarea, su criterio de «hecho» (`## Specs`), las trampas que pueden tocarla, si las fuentes de sus temas siguen al día y qué suites los comprueban, y el recorrido de trabajo con los comandos puestos. El veredicto por spec: `make task-verify N=…` |
 | **¿el plan de la tarea se sostiene sin mí?** (antes de tocar un repo real) | el subagente **`goldfish`**: le pasás SÓLO la ruta del `task.md`; lo lee sin la conversación ni este archivo y devuelve supuestos sin escribir, criterios que no se pueden volver `S#` y afirmaciones para `main-verifier`, cada una con su línea. Revisa el documento, no el código |
 | **retomo una tarea del tablero** | `make resume N=…`: pila, documento y temas locales declarados en `knowledge:`. Sin red ni VPN. Una tarea no cita canon: cita knowledge |
-| **¿ya nos pasó?** | `tablero/data/traps/doc.md`, entrando por su índice de síntomas |
+| **¿ya nos pasó?** | `knowledge/traps/traps.md`, entrando por su índice de síntomas |
 | **¿por qué existe esta regla?** (política, contrato, qué se le ofreció al comercio) | `make confluence`: el porqué del negocio no está en el código |
 | **¿qué archivos toco o cómo verifico una afirmación técnica?** | el código de `main` con `git grep` contra la rama, nunca el working tree. La ref de cada repo: `go run ./cmd/repos ref <alias>` desde `tablero/server`. **En los dos monolitos**, o la afirmación sale falsa con evidencia real. Para verificar una afirmación, delegala al subagente **`main-verifier`**: mira los dos, sin tocar nada, y devuelve veredicto con archivo:línea |
 | **¿esto pasa de verdad, y cuánto?** | `bin/pg sql --target prod --query 'SELECT …'` (o `make tablero-db TARGET=prod SQL=…`) |
@@ -224,7 +224,7 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
    - conocimiento técnico reutilizable, verificado en `main` → **knowledge/** con sus fuentes;
      políticas de negocio/producto sin comprobación local quedan citadas a su fuente y con ese límite;
    - hallazgos **de la tarea** → su **pila**, como bloques (`make task-block`, o `BLOCK=`);
-   - trampas **del sistema**, verificadas → `tablero/data/traps/doc.md`. **Mirala antes de depurar un
+   - trampas **del sistema**, verificadas → `knowledge/traps/traps.md`. **Mirala antes de depurar un
      muro.**
 4. **Probar de verdad es `harness/`**: se comprueba corriendo, no leyendo. ⚠ En local/dev/staging las
    centrales de riesgo las atiende un lambda de mocks de la empresa

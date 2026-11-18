@@ -1,7 +1,7 @@
-# Findings · cerrados (crónicas frías)
+# Findings · cerradas (crónicas frías)
 
-> Cuerpos completos de incidentes CERRADOS y hallazgos STALE, movidos de `doc.md` el 2026-08-08.
-> El ancla `### F-xx` vive SIEMPRE en `doc.md`; esto es solo la crónica, para grep. Append-only.
+> Cuerpos completos de incidentes CERRADOS y hallazgos STALE, movidos del registro vivo (hoy `traps.md`) el 2026-08-08.
+> El ancla `### F-xx` vive SIEMPRE en `traps.md`; esto es solo la crónica, para grep. Append-only.
 
 ### F-03 · Un `.catch(() => {})` convirtió una corrida rota en "1 passed"
 

@@ -27,6 +27,7 @@ import (
 	"sort"
 	"strings"
 
+	knowledgetraps "creditop/my-tools/knowledge/traps"
 	"creditop/my-tools/lib/text"
 	"creditop/my-tools/tablero/server/internal/journeys"
 	"creditop/my-tools/tablero/server/internal/layout"
@@ -145,7 +146,7 @@ func main() {
 	}
 
 	b := brief{Format: format, Task: raw, Warnings: []string{}}
-	doc, err := os.ReadFile(filepath.Join(lay.Data, "traps", "doc.md"))
+	doc, err := os.ReadFile(knowledgetraps.Doc(lay.Knowledge()))
 	if err != nil {
 		b.Warnings = append(b.Warnings, "no pude leer las trampas: "+err.Error())
 	} else {
@@ -443,7 +444,7 @@ func steps(task taskView) []step {
 		{4, "¿pasa, y cuánto?", "make harness-case|harness-listing|harness-walk-wizard TARGET=… JSON=1 · prod sólo lectura: bin/pg request timeline|events request|sql --target prod"},
 		{5, "¿dónde se decide?", "git grep contra main en los DOS monolitos, o el subagente main-verifier"},
 		{6, "¿lo arreglé sin romper otro flujo?", "make task-verify N=" + id + " (las S# del paso 2) · make harness-regression TARGET=local"},
-		{7, "¿lo encuentra el próximo?", "BLOCK=" + id + " en las corridas · make task-block N=" + id + " · knowledge/ si es mecanismo · traps/doc.md si es trampa"},
+		{7, "¿lo encuentra el próximo?", "BLOCK=" + id + " en las corridas · make task-block N=" + id + " · knowledge/ si es mecanismo · knowledge/traps/traps.md si es trampa"},
 		{8, "¿quedó medido y entregado?", "make worklog-add TASK=" + id + " PULSE=HH:MM · make closeout · commit por ruta; push, PR, Jira o Canon sólo con el sí de Miguel"},
 	}
 }

@@ -248,7 +248,7 @@ node dev/sweep.ts abaco  motai 169            # cadena renting: requiere → ini
 
 Manda `x-cognito-identity-id` en todas sus llamadas — sin ese header, `update-user-request` **borra el
 asesor de la solicitud en silencio** (`corporate_user_id = NULL`) y Ábaco después revienta. Los hallazgos
-de estos barridos están numerados como `F-xx` en `tablero/data/traps/doc.md`.
+de estos barridos están numerados como `F-xx` en `knowledge/traps/traps.md`.
 
 ---
 
@@ -361,7 +361,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
   aunque `lenders-v2` esté roto** → verde en falso para este fallo.
 - **El eje ecommerce solo resuelve Bancolombia (F-54, que corrige a F-40)**: la entrada por checkout
   existe, pero el marketplace de esa vía quedó acotado y en local se degrada — probalo contra `dev`.
-  Antes de invertir tiempo ahí, leé F-54 en `tablero/data/traps/doc.md`.
+  Antes de invertir tiempo ahí, leé F-54 en `knowledge/traps/traps.md`.
 - **`npm run test:onboarding` está roto**: apunta a `tests/onboarding`, carpeta que no existe.
 - **Un asesor = un comercio.** Cambiar de comercio en `dev` **escribe en la BD compartida** (reversible,
   con guard). `node bin/dbops.ts revoke` restaura desde `.asesor-snapshot.json`.
@@ -395,7 +395,7 @@ GRAFANA_TEMPO_ENDPOINT=http://host.docker.internal:4318/v1/traces
 **Contexto técnico** (`response_type`, estados, entidades): `knowledge/` y el código de `main`.
 Canon es una consulta opcional de negocio o producto cuando falta algo que no se puede comprobar
 en local; no es requisito para preparar ni correr el harness.
-`tablero/data/traps/doc.md` reúne los muros conocidos: buscá tu síntoma antes de depurarlo.
+`knowledge/traps/traps.md` reúne los muros conocidos: buscá tu síntoma antes de depurarlo.
 
 > ⚠ Varios docs de esta carpeta (`VALIDATION.md`, `PLAN-PRUEBAS.md`, `lender/README.md`) y algunos
 > comentarios de specs todavía enlazan `../docs/*.md`. **Esa carpeta fue borrada** de `main` (absorbida por

@@ -54,6 +54,9 @@ type Library struct {
 }
 
 // Open exige ambas piezas de cada tema: una prosa sin fuentes no entra silenciosamente.
+// TrapsDir es la carpeta de las trampas del sistema (`F-xx`): vive en knowledge/ pero no es un tema.
+const TrapsDir = "traps"
+
 func Open(dir string) (Library, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
@@ -68,6 +71,9 @@ func Open(dir string) (Library, error) {
 			continue
 		}
 		id := entry.Name()
+		if id == TrapsDir {
+			continue // las trampas del sistema: un registro, no un tema (knowledge/traps)
+		}
 		if !topicID.MatchString(id) {
 			return l, fmt.Errorf("carpeta de conocimiento inválida: %q", id)
 		}
