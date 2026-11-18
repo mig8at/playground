@@ -15,6 +15,13 @@ import { MONTHS, isDateTrio, screenDate, syntheticDates, comboPart, searchedValu
 
 /** Un campo de la pantalla, con el valor YA resuelto. Se busca por testid, por etiqueta y por `name`,
  *  en ese orden: los tres existen en este front y ninguno solo alcanza para todas las pantallas. */
+/** Las opciones que se prefieren en un combo, en orden: la residencia de `E2E_RESIDENCE` y después Bogotá. */
+function preferredOptions(): RegExp[] {
+    const esc = (v: string) => v.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const wanted = (process.env.E2E_RESIDENCE ?? '').split('|').map((v) => v.trim()).filter(Boolean);
+    return [...wanted.map((v) => new RegExp(`^\\s*${esc(v)}\\s*$`, 'i')), /bogot[aá]/i];
+}
+
 export type Field = {
     /** `data-testid`, que es lo más estable donde el front lo pone. */
     testId?: string;
@@ -219,7 +226,16 @@ export async function autofill(page: Page, fields: Field[],
             if (!empty) continue;
             if (!(await cb.isEnabled().catch(() => false))) continue;
             await cb.click({ timeout: t }).catch(() => {});
-            const option = page.locator('[role="option"]:visible').first();
+            /* La residencia, como en el camino por HTTP (`pkg/dynamic-form-answers.ts`): Bogotá, o la de
+               `E2E_RESIDENCE="Departamento|Ciudad"`. Con la primera opción el departamento era «Amazonas», fuera
+               de las zonas de Banco Finandina, y su etapa extendida cancelaba la solicitud. Si la preferida no
+               está en el listado, la primera, como siempre. */
+            const visibleOptions = page.locator('[role="option"]:visible');
+            let option = visibleOptions.first();
+            for (const want of preferredOptions()) {
+                const preferred = visibleOptions.filter({ hasText: want }).first();
+                if (await preferred.count().catch(() => 0)) { option = preferred; break; }
+            }
             if (await option.count().catch(() => 0)) {
                 const label = (await option.textContent().catch(() => '')) ?? '';
                 await option.click({ timeout: t })
@@ -290,7 +306,10 @@ export async function autofill(page: Page, fields: Field[],
     // ⚠ Y CUÁL SE ELIGE IMPORTA, no es cosmético: la primera pantalla pregunta «¿el cliente tiene cupo
     // disponible?» y contestar «Sí» firma el flujo `already-confirmed-pre-approval`, que SALTA el buró y
     // recorta el listado a las rt=0. Con `preferirRadio` el canal dice qué quiere; el default es el primero.
-    const radixGroups = page.locator('[role="radiogroup"]:visible');
+    // ⚠ El `ToggleGroup` de Radix (`type="single"`) también es una elección única, pero su contenedor es
+    // `role="group"`, no `radiogroup`: así dibuja el formulario dinámico sus preguntas de sí/no (las PEP del 25 de
+    // Finandina). Sin esto el grupo quedaba sin elegir y la pantalla no avanzaba («es requerido»).
+    const radixGroups = page.locator('[role="radiogroup"]:visible, [role="group"]:visible:has([role="radio"])');
     for (let i = 0; i < (await radixGroups.count().catch(() => 0)); i += 1) {
         const g = radixGroups.nth(i);
         const radios = g.locator('[role="radio"]');
