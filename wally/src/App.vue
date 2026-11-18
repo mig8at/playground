@@ -621,6 +621,10 @@ function roundNote(text) {
   let m
   if ((m = t.match(/^Listo: corrí (el comando|los (\d+) comandos)/))) return { label: `siguió con el resultado de ${m[2] ? `${m[2]} comandos` : '1 comando'}` }
   if (/^(No corrí ninguno de esos comandos|Ninguno de esos comandos está en la lista)/.test(t)) return { label: 'siguió sin correr esos comandos' }
+  if (/^Todavía no terminaste: un revisor/.test(t)) {
+    const n = (t.match(/^- /gm) || []).length
+    return { gate: true, label: `un revisor pidió más criterios (${n} hueco${n === 1 ? '' : 's'})` }
+  }
   if (/^Todavía no terminaste:/.test(t)) return { gate: true, label: `Wally no lo dejó cerrar: ${/dejó problemas/.test(t) ? 'el último probar dejó problemas' : 'faltaba probar lo último que escribió'}` }
   return null
 }

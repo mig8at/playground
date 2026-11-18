@@ -457,6 +457,17 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   que cubran lo pedido. En esa corrida el freno no llegó a actuar (salió todo a la primera): lo cubren sus pruebas.
   `probar` dice si hay errores y si pasan los criterios, no cómo se ve: eso se mira (las capturas quedan en
   `wally/pruebas/.capturas/`) o se usa.
+  **El revisor: el agente no se pone la nota solo** (`server/review.go`, 2026-11-18). Cuando una corrida en Auto que
+  escribió en `pruebas/` queda en verde y quiere cerrar, una pregunta APARTE al mismo proveedor —sin la conversación
+  del agente ni su código: sólo los pedidos de Miguel sobre ese proyecto (los de la corrida y los de antes que lo
+  nombran) y su `criterios.json`— lista lo pedido que ningún criterio comprueba (`faltan`) y los criterios que
+  pasarían aunque estuviera mal (`debiles`). Si hay algo, el agente recibe «Todavía no terminaste: un revisor…» y
+  tiene que agregar o reforzar criterios y volver a probar; en la interfaz es la línea «un revisor pidió más
+  criterios». Hasta 3 revisiones por corrida: la tercera con huecos cierra marcada «sin quedar bien» con lo que vio.
+  Si el revisor falla o no contesta JSON, no frena. En una corrida real (simulador de cuota, DeepSeek, 5 vueltas,
+  263 s): Smeargle cerró con 8 criterios en verde; el revisor vio que no se probaban los plazos 6 y 24 ni la tasa de
+  5 % exacto (el límite es «mayor a 5 %»); agregó 3 criterios, 11/11, y la segunda revisión lo dejó cerrar. La cuota
+  del 5 % (1.000.000 a 6 meses → $197.017) se verificó a mano aparte.
 - **Compactar: lo viejo se resume, lo último queda** (`server/compact.go`, 2026-11-17; lo que hacen los harness de
   agentes cuando el contexto se llena). Los bloques viejos se reemplazan por UN bloque `summary` que escribe el
   proveedor de la conversación en una pregunta aparte, con secciones fijas (qué se pidió, qué se hizo, hechos

@@ -155,7 +155,8 @@ func (a *app) autoSet(st *autoState, f func(*autoState)) {
 func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, provider string, st *autoState) {
 	start := time.Now()
 	stopped := ""
-	nudges := 0
+	nudges, reviews := 0, 0
+	from := -1 // desde qué mensaje es de esta corrida (para saber qué proyecto escribió ella)
 	ask := func(t string, f []Attachment) error {
 		a.autoSet(st, func(s *autoState) { s.Round++; s.Doing = fmt.Sprintf("vuelta %d: esperando la respuesta", s.Round) })
 		_, err := a.askInConversation(ctx, askInput{ID: id, Text: t, Files: f, Provider: provider})
@@ -183,6 +184,11 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 			log.Printf("wally: no pude anotar el fin de la corrida de %s: %v", id, err)
 		}
 	}()
+	a.store.mu.Lock()
+	if c, ok := a.store.convs[id]; ok {
+		from = len(c.Messages)
+	}
+	a.store.mu.Unlock()
 	if text != "" {
 		if err := ask(text, files); err != nil {
 			stopped = "la pregunta falló: " + err.Error()
@@ -221,7 +227,41 @@ func (a *app) runAuto(ctx context.Context, id, text string, files []Attachment, 
 		if len(proposed) == 0 {
 			reason := sandboxPending(conv, a.sandboxKind)
 			if reason == "" {
-				return
+				// Quedó en verde con sus propios criterios: antes de cerrar, el revisor (review.go).
+				project := lastWrittenProject(conv.Messages, from)
+				if project == "" || a.sandboxKind(project) == "" {
+					return
+				}
+				if reviews >= maxReviews {
+					return // ya lo revisó y lo dejó pasar, o ya se le pidió lo que había que pedirle
+				}
+				reviews++
+				a.autoSet(st, func(s *autoState) { s.Doing = "un revisor compara lo pedido con los criterios" })
+				mode := conv.Mode
+				if mode == "" {
+					mode = "asistente"
+				}
+				v, err := a.reviewCriteria(ctx, conv, from, project, a.providerSummarizer(a.config.get().providerForConversation(provider, mode, conv.Agent)))
+				if err != nil {
+					log.Printf("wally: el revisor de %s no pudo: %v (cierra igual)", id, err)
+				}
+				if v.OK {
+					reviews = maxReviews // pasó: no se vuelve a revisar en esta corrida
+					return
+				}
+				if reviews >= maxReviews {
+					stopped = "cerró con huecos que vio el revisor: " + strings.Join(append(append([]string{}, v.Faltan...), v.Debiles...), " · ")
+					return
+				}
+				if st.Round >= st.Max {
+					stopped = fmt.Sprintf("se acabaron las %d vueltas y el revisor vio huecos en los criterios", st.Max)
+					return
+				}
+				if err := ask(reviewNudge(project, v), nil); err != nil {
+					stopped = "la pregunta falló: " + err.Error()
+					return
+				}
+				continue
 			}
 			if nudges >= 3 {
 				stopped = reason
