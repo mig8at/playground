@@ -52,6 +52,8 @@ func main() {
 	base := flag.String("base", "main", "contra qué rama se va a abrir el PR")
 	desc := flag.String("desc", "", "un Markdown con la descripción del PR que se va a abrir (la primera línea, el título)")
 	prove := flag.Bool("prove", false, "además, comprobar corriendo con el harness en local")
+	impact := flag.Bool("impact", false, "sólo el mapa de impacto de una rama (con -repo), sin agentes: segundos")
+	asJSON := flag.Bool("json", false, "con -impact: en JSON")
 	flag.Parse()
 	root, err := myToolsRoot()
 	if err != nil {
@@ -64,6 +66,12 @@ func main() {
 		listen(root, *serve)
 	case *list:
 		printBlocks(root)
+	case *impact:
+		if *repo == "" {
+			fmt.Fprintln(os.Stderr, "goldfish: falta -repo")
+			os.Exit(2)
+		}
+		os.Exit(impactConsole(root, *repo, *branch, *base, *asJSON))
 	case *check:
 		if *repo == "" {
 			fmt.Fprintln(os.Stderr, "goldfish: falta -repo")
@@ -168,6 +176,33 @@ func runConsole(root, url string) int {
 
 // checkConsole: el paso previo a publicar, para la sesión que trabaja en la rama. Imprime el avance por stderr y el
 // resumen por stdout. Sale 0 si terminó (aunque haya hallazgos: decidir es de la sesión y de Miguel), 1 si falló.
+// impactConsole: el mapa de impacto de una rama local contra origin/<base>, sin agentes ni fetch (la base es la que
+// tenga el clon; para tenerla al día, `git -C <clon> fetch origin <base>`).
+func impactConsole(root, repo, branch, base string, asJSON bool) int {
+	ctx := context.Background()
+	clone := repo
+	if !filepath.IsAbs(clone) {
+		clone = filepath.Join(review.ReposDir(), repo)
+	}
+	if _, err := os.Stat(filepath.Join(clone, ".git")); err != nil {
+		fmt.Fprintf(os.Stderr, "goldfish: %s no es un clon de git\n", clone)
+		return 1
+	}
+	head := branch
+	if head == "" {
+		head = "HEAD"
+	}
+	im := review.Assess(ctx, root, clone, "origin/"+base, head)
+	if asJSON {
+		enc := json.NewEncoder(os.Stdout)
+		enc.SetIndent("", "  ")
+		_ = enc.Encode(im)
+		return 0
+	}
+	fmt.Printf("%s · %s → origin/%s\n\n%s", filepath.Base(clone), head, base, im.Markdown())
+	return 0
+}
+
 func checkConsole(root, repo, branch, base, descFile string, prove bool) int {
 	ctx := context.Background()
 	clone := repo

@@ -55,6 +55,7 @@ type Run struct {
 	Stages    []Stage   `json:"stages"`
 	Proposal  Proposal  `json:"proposal"`
 	Findings  []Finding `json:"findings"`
+	Impact    *Impact   `json:"impact,omitempty"` // el mapa de impacto (impact.go): sin modelo
 	CostUSD   float64   `json:"costUsd"`
 	Proving   bool      `json:"proving"`   // corre «Comprobar corriendo»
 	ProveFrom string    `json:"proveFrom"` // en qué estaba el clon antes (rama o commit), para devolverlo
@@ -104,6 +105,7 @@ const (
 
 var stageLabels = []Stage{
 	{ID: "package", Label: "Propuesta: el diff y lo que pide la tarea"},
+	{ID: "impact", Label: "Impacto: qué toca y qué vigilar (sin modelo)"},
 	{ID: "proposal", Label: "La descripción (la del PR, o la que se va a publicar)"},
 	{ID: "intent", Label: "Goldfish: ¿la propuesta y el cambio dicen lo mismo?"},
 	{ID: "risk", Label: "Goldfish: ¿qué puede salir mal?"},
@@ -223,6 +225,17 @@ func Execute(ctx context.Context, myTools string, r *Run, save Recorder) {
 	r.Head = head
 	set("package", func(s *Stage) { s.Status, s.Note = "done", note })
 
+	// 1b · el mapa de impacto: fuera de la carpeta de los goldfish (siguen en frío); lo lee el elephant
+	set("impact", func(s *Stage) { s.Status = "running" })
+	started := time.Now()
+	im := Assess(ctx, myTools, repoDir, r.Base, r.HeadRef)
+	r.Impact = &im
+	_ = os.WriteFile(filepath.Join(dir, "impact.md"), []byte(im.Markdown()), 0o644)
+	set("impact", func(s *Stage) {
+		s.Status, s.Millis = "done", int(time.Since(started).Milliseconds())
+		s.Note = fmt.Sprintf("%s · %d trampas · %d secciones de knowledge", label(impactLabels, im.Level), len(im.Traps), len(im.Knowledge))
+	})
+
 	// 2 · la descripción: la del PR (si no trae, eso mismo es lo primero que va a ver un goldfish)
 	set("proposal", func(s *Stage) { s.Status = "running" })
 	p, err := prDescription(ctx, r, repoDir)
@@ -298,7 +311,7 @@ func Execute(ctx context.Context, myTools string, r *Run, save Recorder) {
 	res, err := runAgent(ctx, agentSpec{
 		dir: myTools, prompt: fill(promptVerdict, r, repoDir, pkg), schema: schemaVerdict,
 		tools: elephantTools, allowed: elephantAllowed, denied: elephantDenied,
-		addDirs: []string{repoDir, pkg}, budgetUSD: 4, timeout: 25 * time.Minute,
+		addDirs: []string{repoDir, dir}, budgetUSD: 4, timeout: 25 * time.Minute,
 	})
 	set("verdict", func(s *Stage) { s.CostUSD, s.Millis = res.CostUSD, res.Millis })
 	if err != nil {
@@ -372,7 +385,8 @@ func fill(tpl string, r *Run, repoDir, pkg string) string {
 		task = fmt.Sprintf("Es de la tarea `%s` (#%s, «%s»): `%s`. Leela entera; sus temas de `knowledge:` también.",
 			r.Task.Slug, r.Task.ID, r.Task.Title, r.Task.Path)
 	}
-	return strings.NewReplacer("{{BRANCH}}", r.label(),
+	impact := filepath.Join(filepath.Dir(pkg), "impact.md")
+	return strings.NewReplacer("{{BRANCH}}", r.label(), "{{IMPACT}}", impact,
 		"{{HEAD_REF}}", r.HeadRef, "{{REPO}}", r.Slug, "{{REPO_DIR}}", repoDir, "{{BASE}}", r.Base,
 		"{{PACKAGE}}", pkg, "{{TASK_LINE}}", task).Replace(tpl)
 }
@@ -495,6 +509,10 @@ func Report(r *Run) string {
 	}
 	fmt.Fprintf(&b, "**%d hallazgos**: %d confirmados · %d plausibles · %d descartados · %d sin veredicto\n\n",
 		len(r.Findings), counts["confirmed"], counts["plausible"], counts["dismissed"], counts[""])
+	if r.Impact != nil {
+		b.WriteString(r.Impact.Markdown())
+		b.WriteString("\n---\n\n")
+	}
 	order := map[string]int{"confirmed": 0, "plausible": 1, "": 2, "out-of-scope": 3, "dismissed": 4}
 	sev := map[string]int{"high": 0, "medium": 1, "low": 2}
 	fs := append([]Finding(nil), r.Findings...)
@@ -636,6 +654,19 @@ func Summary(r *Run) string {
 			if f.Proof != nil {
 				fmt.Fprintf(&b, "      corriendo: %s — %s\n", label(proofLabels, f.Proof.Status), firstSentence(f.Proof.Result))
 			}
+		}
+	}
+	if r.Impact != nil {
+		fmt.Fprintf(&b, "\nImpacto %s", label(impactLabels, r.Impact.Level))
+		if len(r.Impact.Reasons) > 0 {
+			fmt.Fprintf(&b, ": %s", strings.Join(r.Impact.Reasons, " · "))
+		}
+		b.WriteString("\n")
+		for _, t := range r.Impact.Traps {
+			fmt.Fprintf(&b, "  trampa %s · %s\n", t.ID, t.Title)
+		}
+		for _, a := range r.Impact.AfterMerge {
+			fmt.Fprintf(&b, "  después: %s\n", a)
 		}
 	}
 	group("Para atender antes de publicar", func(f Finding) bool { return f.Verdict == "confirmed" })

@@ -8,6 +8,7 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 | la app (Cockpit: **Goldfish**) | `make goldfish` → :5216 · API :5217 |
 | tus PRs abiertos y los externos | `make goldfish-list` |
 | **antes de publicar** (la rama local) | `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` (skill `goldfish`) |
+| cuánto pesa una rama, en segundos y sin agentes | `make goldfish-impact REPO=… [GIT_BRANCH=…] [BASE=main] [JSON=1]` |
 | validar un PR ya abierto | `make goldfish-run PR=<url>`, o pegar la URL en la app |
 | comprobar corriendo (harness en local, con el PR) | el botón «Comprobar corriendo» de una validación terminada |
 
@@ -41,6 +42,14 @@ El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revis
    carpeta con su título y descripción, el diff (`git diff base...pr`, cortado en 400 KB), los commits, los archivos
    tocados como quedan y, si la rama es de una tarea (`ramas:` de su `task.md`), lo que la tarea pide: sólo
    `Objetivo`, `Specs`, `Criterios`, `Tarea (publicable)` y `En una línea`.
+   **El mapa de impacto** (`review/impact.go`, también sin agente, ~2 s): qué toca el cambio y qué vigilar. Las
+   secciones de `knowledge/` que respaldan los archivos cambiados (`knowledge.Touched`), las trampas que los citan
+   (`knowledge/traps/traps.md`), cuántos archivos de la base los nombran (sin pruebas ni migraciones: una
+   aproximación de cuánto depende de ellos), sus commits y arreglos en 90 días (sin merges), migraciones, rutas del
+   backend y si la clase tiene su par en el otro monolito. Da un nivel —alto, medio o bajo— **con sus razones**, a la
+   vista y discutibles (los umbrales están arriba del archivo): es la idea de los «diff risk score», sin un puntaje
+   opaco. Queda en `impact.md`, FUERA de la carpeta de los goldfish (siguen en frío): lo lee el elephant para su
+   parte 2, y va al informe, al resumen de la consola y a la app. No frena nada.
 2. **Dos goldfish, en paralelo y en frío**: `claude -p --restricted --strict-mcp-config` desde esa carpeta, con sólo
    `Read`, `Grep` y `Glob`. No hay CLAUDE.md en ningún padre ni configuración que cargar: saben únicamente lo que el
    PR dice. Uno mira **si la descripción y el cambio dicen lo mismo** (`prompts/goldfish-intent.md`), el otro **qué

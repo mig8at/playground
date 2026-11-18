@@ -7,6 +7,10 @@ Lo que se revisa: {{BRANCH}}, del repo `{{REPO}}` (clon en `{{REPO_DIR}}`), cont
 vieron los goldfish están en `{{PACKAGE}}`: `proposal.md`, `diff.patch`, `files/` y `findings.json` (la lista
 numerada de sus hallazgos).
 {{TASK_LINE}}
+El mapa de impacto del cambio, calculado sin modelo (las trampas y las secciones de knowledge que tocan los archivos
+cambiados, cuánto depende de cada archivo, sus arreglos recientes, migraciones y rutas), está en `{{IMPACT}}`. Leelo
+primero: dice por dónde empezar la parte 2. No lo repitas como hallazgo; un hallazgo es lo que el mapa no puede decir
+(por ejemplo, si una trampa listada de verdad aplica a este cambio).
 
 **1 · Un veredicto por cada hallazgo de `findings.json`**, mirando el código de verdad (el PR es `{{HEAD_REF}}` en
 `{{REPO_DIR}}`, la base es `{{BASE}}`; leé con `git -C {{REPO_DIR}} show <ref>:<ruta>`, nunca supongas; el árbol de

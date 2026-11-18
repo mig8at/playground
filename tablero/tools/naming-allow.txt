@@ -157,3 +157,6 @@ json: server/internal/hooks/cockpit.go asesor autogestion           # los canale
 json: lib/cliflags/legacy.go *                                      # las opciones de antes de los CLI en Go (2026-11-18): traduce lo que siguen escribiendo el Makefile viejo, los hooks y las tareas
 json: keyring/check/background.go pulso                            # el nombre del LaunchAgent del pulso (com.creditop.tablero.pulso): dato del sistema
 json: cmd/pg/legacy.go *                                           # los subcomandos de antes de pg (2026-11-18): las tareas guardan el comando exacto
+
+# goldfish: el mapa de impacto (2026-11-18): inglés común, el `--numstat` de git y la extensión de TypeScript con JSX
+twin monolith assess numstat tsx

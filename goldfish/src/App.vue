@@ -120,6 +120,9 @@ const fmtTime = (iso) => (iso ? new Date(iso).toLocaleString('es-CO', { day: 'nu
 const fmtSecs = (ms) => (ms ? `${Math.round(ms / 1000)} s` : '')
 const usd = (n) => (n ? `US$${n.toFixed(2)}` : '')
 const loc = (f) => (f.file ? (f.line ? `${f.file}:${f.line}` : f.file) : '')
+// el mapa de impacto viene escrito en Markdown: acá va como texto, sin las comillas de código
+const IMPACT_LABEL = { high: 'alto', medium: 'medio', low: 'bajo' }
+const plain = (s) => String(s || '').replaceAll('`', '')
 
 // ── la base, en el pie (como el ambiente en ecommerce) ──
 const baseItems = computed(() => BASES.map((b) => ({ id: b, label: BASE_LABEL[b], selected: base.value === b })))
@@ -251,6 +254,33 @@ make goldfish-run PR=https://github.com/…/pull/123</pre>
             <p v-else-if="listed" class="stage-total" :data-state="stateOf(listed)">{{ summaryOf(listed) }}</p>
           </section>
 
+          <!-- el mapa de impacto (review/impact.go): sin modelo, lo que toca el cambio y qué vigilar después -->
+          <section v-if="run.impact" class="impact" :data-level="run.impact.level">
+            <div class="region-head group"><span>Impacto {{ IMPACT_LABEL[run.impact.level] || run.impact.level }}</span><span class="hint">sin modelo: el diff, la historia de la base y lo que my-tools ya sabe</span></div>
+            <ul class="impact-list">
+              <li v-for="r in run.impact.reasons" :key="r">{{ plain(r) }}</li>
+            </ul>
+            <template v-if="run.impact.traps?.length">
+              <p class="impact-sub">Trampas ya vividas en estos archivos</p>
+              <ul class="impact-list">
+                <li v-for="t in run.impact.traps" :key="t.id"><b>{{ t.id }}</b> {{ plain(t.title) }}</li>
+              </ul>
+            </template>
+            <template v-if="run.impact.knowledge?.length">
+              <p class="impact-sub">Lo que explica knowledge de estos archivos</p>
+              <ul class="impact-list">
+                <li v-for="k in run.impact.knowledge.slice(0, 8)" :key="k.id"><code>{{ k.id }}</code> {{ k.title }}</li>
+                <li v-if="run.impact.knowledge.length > 8" class="muted">y {{ run.impact.knowledge.length - 8 }} más</li>
+              </ul>
+            </template>
+            <template v-if="run.impact.afterMerge?.length">
+              <p class="impact-sub">Después de mergear</p>
+              <ul class="impact-list">
+                <li v-for="a in run.impact.afterMerge" :key="a">{{ plain(a) }}</li>
+              </ul>
+            </template>
+          </section>
+
           <section v-for="v in byVerdict" :key="v.id" class="verdict" :data-verdict="v.id || 'none'">
             <div class="region-head group"><span>{{ v.label }}</span><span class="count">{{ v.items.length }}</span><span class="hint">{{ v.hint }}</span></div>
             <article v-for="f in v.items" :key="f.n" class="finding">
@@ -380,6 +410,16 @@ code { font-family: var(--font-mono); font-size: var(--text-sm) }
 .proof[data-proof="refuted"] b { color: var(--stage-done) }
 .proof[data-proof="untested"] b { color: var(--fg-3) }
 .proof pre { margin: 4px 0 0; white-space: pre-wrap; word-break: break-all; font-family: var(--font-mono); font-size: var(--text-xs); color: var(--fg-2) }
+/* el impacto */
+.impact { padding-bottom: var(--space-2); border-bottom: 1px solid var(--border) }
+.impact[data-level="high"] > .region-head { color: var(--verdict-confirmed) }
+.impact[data-level="medium"] > .region-head { color: var(--verdict-plausible) }
+.impact[data-level="low"] > .region-head { color: var(--stage-done) }
+.impact .hint { margin-left: var(--space-2); color: var(--fg-3); font-weight: 400 }
+.impact-sub { margin: var(--space-2) var(--gutter) 0; color: var(--fg-3); font-size: var(--text-sm) }
+.impact-list { margin: 4px 0 0; padding: 0 var(--gutter) 0 calc(var(--gutter) + 14px); font-size: var(--text-sm) }
+.impact-list li { margin: 2px 0 }
+.impact-list code { font-size: var(--text-xs) }
 /* la descripción revisada */
 .proposal .toggle { background: transparent; border: 0; color: inherit; font: inherit; display: flex; gap: var(--space-2); align-items: center; cursor: pointer; padding: 0 }
 .proposal-body { padding: var(--space-2) var(--gutter) }

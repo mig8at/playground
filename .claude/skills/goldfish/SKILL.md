@@ -19,10 +19,17 @@ de my-tools le da veredicto a cada hallazgo contra el código. El método y sus 
        make goldfish-check REPO=legacy-backend DESC=<ruta al md> BASE=main
        make goldfish-check REPO=frontend-monorepo GIT_BRANCH=fix/x DESC=<md> BASE=qa PROVE=1
 
+   Antes, si querés saber en segundos cuánto pesa la rama (sin agentes ni costo):
+   `make goldfish-impact REPO=legacy-backend [GIT_BRANCH=…] [BASE=main]`. Es el mismo mapa de impacto que arma el
+   chequeo: las trampas y las secciones de knowledge que tocan los archivos, cuántos archivos dependen de cada uno, sus
+   arreglos en 90 días, migraciones y rutas, y qué vigilar después del despliegue.
+
    `PROBAR=1` además lo comprueba corriendo con el harness en LOCAL: el clon se pone en ese commit (si ya está ahí no
    se mueve) y vuelve solo a su rama. Usalo cuando el cambio se pueda ejercitar en local; tarda más y gasta más.
    Corre unos minutos (3 agentes con `claude -p`, ~US$1–4 equivalentes del asiento): lanzalo en segundo plano.
-3. **Leé el resumen** (stdout) y decidí con criterio, **sin ser estricto**:
+3. **Leé el resumen** (stdout) y decidí con criterio, **sin ser estricto**. Arriba va el **impacto** (alto · medio ·
+   bajo, con sus razones): no frena nada, dice dónde mirar con más cuidado y qué hacer después de mergear (releer
+   knowledge, aplicar migraciones a mano, `bin/sentinel deploy`).
    - «Para atender antes de publicar»: lo confirmado de ESTE cambio. Arreglalo, o corregí la descripción si el
      problema es que dice algo que el diff no hace.
    - «Para mirar»: depende de algo que no se ve leyendo. Decíselo a Miguel en una línea; no frena el PR.
