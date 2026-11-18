@@ -14,26 +14,6 @@ connectors/canon/api.go nombre
 connectors/canon/api.go puede_corregir
 connectors/canon/session.go nivel
 connectors/canon/session_test.go vigente
-correo/server/digest.go Borrador
-correo/server/digest.go BorradorEs
-correo/server/digest.go DraftEs
-correo/server/digest.go Estado
-correo/server/digest.go Indice
-correo/server/digest.go Mensajes
-correo/server/digest.go PorQue
-correo/server/digest.go Puntos
-correo/server/digest.go Resumen
-correo/server/digest.go Siguiente
-correo/server/digest.go borrador
-correo/server/digest.go borrador_es
-correo/server/digest.go draftEs
-correo/server/digest.go estado
-correo/server/digest.go indice
-correo/server/digest.go mensajes
-correo/server/digest.go por_que
-correo/server/digest.go puntos
-correo/server/digest.go resumen
-correo/server/digest.go siguiente
 goldfish/review/prove.go comprobado
 goldfish/review/prove.go refutado
 goldfish/review/prove.go sin probar

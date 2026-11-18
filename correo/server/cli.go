@@ -233,8 +233,8 @@ func runCLI(root string, args []string) int {
 			}
 			if g.Reply {
 				fmt.Printf("\nConviene responder: %s\n\n--- borrador ---\n%s\n", g.ReplyWhy, g.Draft)
-				if g.DraftEs != "" {
-					fmt.Printf("\n--- en español ---\n%s\n", g.DraftEs)
+				if g.DraftSpanish != "" {
+					fmt.Printf("\n--- en español ---\n%s\n", g.DraftSpanish)
 				}
 			} else {
 				fmt.Printf("\nNo hace falta responder: %s\n", g.ReplyWhy)

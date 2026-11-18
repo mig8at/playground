@@ -422,9 +422,9 @@ onBeforeUnmount(() => {
             <template v-if="digest.reply">
               <pre class="reply-draft">{{ digest.draft }}</pre>
               <p class="hint">Lo que está entre [corchetes] lo completás vos al pegarlo en Gmail.</p>
-              <details v-if="digest.draftEs" class="reply-es">
+              <details v-if="digest.draftSpanish" class="reply-es">
                 <summary>En español</summary>
-                <pre>{{ digest.draftEs }}</pre>
+                <pre>{{ digest.draftSpanish }}</pre>
               </details>
             </template>
           </section>

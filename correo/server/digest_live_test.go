@@ -27,11 +27,11 @@ func TestLiveTheyAskSoThereIsADraftInTheirLanguage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !g.Reply || g.Draft == "" || g.DraftEs == "" {
-		t.Fatalf("tenía que proponer respuesta: reply=%v why=%q draft=%q es=%q", g.Reply, g.ReplyWhy, g.Draft, g.DraftEs)
+	if !g.Reply || g.Draft == "" || g.DraftSpanish == "" {
+		t.Fatalf("tenía que proponer respuesta: reply=%v why=%q draft=%q es=%q", g.Reply, g.ReplyWhy, g.Draft, g.DraftSpanish)
 	}
 	if !strings.Contains(strings.ToLower(g.Draft), "service url") {
 		t.Errorf("el borrador va en el idioma del hilo y contesta lo pedido: %q", g.Draft)
 	}
-	t.Logf("por qué: %s\n--- borrador ---\n%s\n--- en español ---\n%s", g.ReplyWhy, g.Draft, g.DraftEs)
+	t.Logf("por qué: %s\n--- borrador ---\n%s\n--- en español ---\n%s", g.ReplyWhy, g.Draft, g.DraftSpanish)
 }

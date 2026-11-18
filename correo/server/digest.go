@@ -47,13 +47,13 @@ type Digest struct {
 	Turns    []Turn `json:"turns"`
 	// La respuesta: si vale la pena contestar (Reply) y por qué, y el borrador en el idioma del hilo con su traducción
 	// al español. Sin borrador cuando lo último es tuyo, es un acuse automático o sólo cabría un «gracias».
-	Reply    bool      `json:"reply"`
-	ReplyWhy string    `json:"replyWhy"`
-	Draft    string    `json:"draft,omitempty"`
-	DraftEs  string    `json:"draftEs,omitempty"`
-	Model    string    `json:"model"`
-	At       time.Time `json:"at"`
-	Version  int       `json:"version"` // digestVersion con que se armó: uno más viejo se rearma
+	Reply        bool      `json:"reply"`
+	ReplyWhy     string    `json:"replyWhy"`
+	Draft        string    `json:"draft,omitempty"`
+	DraftSpanish string    `json:"draftSpanish,omitempty"`
+	Model        string    `json:"model"`
+	At           time.Time `json:"at"`
+	Version      int       `json:"version"` // digestVersion con que se armó: uno más viejo se rearma
 }
 
 // digestVersion sube cuando cambia lo que el desglose trae (2: el borrador de respuesta, 2026-11-13).
@@ -150,18 +150,18 @@ func cleanBody(s string) string {
 
 const digestInstructions = `Sos el asistente de Miguel Ochoa (Creditop, una fintech colombiana de crédito BNPL). Te paso un hilo de correo, mensaje por mensaje, y lo desglosás EN ESPAÑOL (aunque venga en inglés), para que Miguel lo entienda de un vistazo.
 
-- resumen: dos o tres frases: de qué trata el hilo y qué se sabe hoy.
-- estado: en qué quedó, en una frase (por ejemplo «VTEX está revisando la homologación»).
-- siguiente: qué le toca a Miguel, o qué se espera de la otra parte, en una frase. Si a Miguel no le toca nada, decilo.
-- mensajes: uno por cada mensaje del hilo, en el MISMO orden e índice que te paso, con 1 a 4 puntos cortos en español: lo que dice o pide ese mensaje, con los datos concretos (números de ticket, fechas, nombres, errores, pasos). Sin saludos ni firmas. Un acuse automático se resume en un punto.
+- summary: dos o tres frases: de qué trata el hilo y qué se sabe hoy.
+- status: en qué quedó, en una frase (por ejemplo «VTEX está revisando la homologación»).
+- next: qué le toca a Miguel, o qué se espera de la otra parte, en una frase. Si a Miguel no le toca nada, decilo.
+- messages: uno por cada mensaje del hilo, en el MISMO orden e índice que te paso, con 1 a 4 puntos cortos en español: lo que dice o pide ese mensaje, con los datos concretos (números de ticket, fechas, nombres, errores, pasos). Sin saludos ni firmas. Un acuse automático se resume en un punto.
 
-- responder: true SÓLO si el último mensaje del hilo es de ellos (no de Miguel) y pide algo a Miguel (un dato, una decisión, una confirmación, un archivo, una corrección) o le hace una pregunta. false si lo último es de Miguel (se espera a ellos), si es un acuse automático o un aviso sin pedido, o si lo único que cabría es agradecer: en tickets de soporte (Zendesk, Shopify Support) un «gracias» suelto reabre el ticket y no se manda.
-- por_que: una frase en español que explique por qué conviene responder o por qué no.
-- borrador: si responder es true, la respuesta lista para pegar, EN EL IDIOMA DEL HILO (si ellos escriben en inglés, en inglés), corta, cordial y concreta, firmada «Miguel». Contesta cada pedido o pregunta; donde falte un dato que no está en el hilo, dejá un marcador entre corchetes ([confirmar la URL], [adjuntar captura]) en vez de inventarlo. Si responder es false, cadena vacía.
-- borrador_es: la traducción al español del borrador (vacía si el borrador ya está en español o no hay borrador).
+- reply: true SÓLO si el último mensaje del hilo es de ellos (no de Miguel) y pide algo a Miguel (un dato, una decisión, una confirmación, un archivo, una corrección) o le hace una pregunta. false si lo último es de Miguel (se espera a ellos), si es un acuse automático o un aviso sin pedido, o si lo único que cabría es agradecer: en tickets de soporte (Zendesk, Shopify Support) un «gracias» suelto reabre el ticket y no se manda.
+- reply_why: una frase en español que explique por qué conviene responder o por qué no.
+- draft: si reply es true, la respuesta lista para pegar, EN EL IDIOMA DEL HILO (si ellos escriben en inglés, en inglés), corta, cordial y concreta, firmada «Miguel». Contesta cada pedido o pregunta; donde falte un dato que no está en el hilo, dejá un marcador entre corchetes ([confirmar la URL], [adjuntar captura]) en vez de inventarlo. Si reply es false, cadena vacía.
+- draft_spanish: la traducción al español del borrador (vacía si el borrador ya está en español o no hay borrador).
 
 No inventes nada que no esté en los mensajes. Contestá SÓLO con un objeto JSON, sin texto antes ni después ni bloque de código, con esta forma:
-{"resumen": "…", "estado": "…", "siguiente": "…", "mensajes": [{"indice": 0, "puntos": ["…", "…"]}], "responder": false, "por_que": "…", "borrador": "", "borrador_es": ""}`
+{"summary": "…", "status": "…", "next": "…", "messages": [{"index": 0, "points": ["…", "…"]}], "reply": false, "reply_why": "…", "draft": "", "draft_spanish": ""}`
 
 func digest(thread string, msgs []gmail.Message, me string) (Digest, error) {
 	me = strings.ToLower(me)
@@ -183,41 +183,41 @@ func digest(thread string, msgs []gmail.Message, me string) (Digest, error) {
 		return Digest{}, err
 	}
 	var out struct {
-		Resumen   string `json:"resumen"`
-		Estado    string `json:"estado"`
-		Siguiente string `json:"siguiente"`
-		Mensajes  []struct {
-			Indice int      `json:"indice"`
-			Puntos []string `json:"puntos"`
-		} `json:"mensajes"`
-		Responder  bool   `json:"responder"`
-		PorQue     string `json:"por_que"`
-		Borrador   string `json:"borrador"`
-		BorradorEs string `json:"borrador_es"`
+		Summary  string `json:"summary"`
+		Status   string `json:"status"`
+		Next     string `json:"next"`
+		Messages []struct {
+			Index  int      `json:"index"`
+			Points []string `json:"points"`
+		} `json:"messages"`
+		Reply        bool   `json:"reply"`
+		ReplyWhy     string `json:"reply_why"`
+		Draft        string `json:"draft"`
+		DraftSpanish string `json:"draft_spanish"`
 	}
 	if err := json.Unmarshal([]byte(jsonObject(raw)), &out); err != nil {
 		return Digest{}, fmt.Errorf("Claude no devolvió el desglose en JSON: %v", err)
 	}
-	for _, m := range out.Mensajes {
-		if m.Indice < 0 || m.Indice >= len(turns) {
+	for _, m := range out.Messages {
+		if m.Index < 0 || m.Index >= len(turns) {
 			continue
 		}
-		for _, p := range m.Puntos {
+		for _, p := range m.Points {
 			if p = strings.TrimSpace(p); p != "" {
-				turns[m.Indice].Points = append(turns[m.Indice].Points, p)
+				turns[m.Index].Points = append(turns[m.Index].Points, p)
 			}
 		}
 	}
 	g := Digest{
 		ThreadID: thread, Subject: msgs[0].Subject, Count: len(msgs), LastID: msgs[len(msgs)-1].ID,
-		Summary: strings.TrimSpace(out.Resumen), Status: strings.TrimSpace(out.Estado), Next: strings.TrimSpace(out.Siguiente),
+		Summary: strings.TrimSpace(out.Summary), Status: strings.TrimSpace(out.Status), Next: strings.TrimSpace(out.Next),
 		Turns: turns, Model: model, At: time.Now(), Version: digestVersion,
-		Reply: out.Responder && strings.TrimSpace(out.Borrador) != "", ReplyWhy: strings.TrimSpace(out.PorQue),
-		Draft: strings.TrimSpace(out.Borrador), DraftEs: strings.TrimSpace(out.BorradorEs),
+		Reply: out.Reply && strings.TrimSpace(out.Draft) != "", ReplyWhy: strings.TrimSpace(out.ReplyWhy),
+		Draft: strings.TrimSpace(out.Draft), DraftSpanish: strings.TrimSpace(out.DraftSpanish),
 	}
 	// Lo último es tuyo: no hay nada que contestar, diga lo que diga el modelo.
 	if turns[len(turns)-1].Mine {
-		g.Reply, g.Draft, g.DraftEs = false, "", ""
+		g.Reply, g.Draft, g.DraftSpanish = false, "", ""
 		if g.ReplyWhy == "" {
 			g.ReplyWhy = "Lo último del hilo es tuyo: se espera a ellos."
 		}
