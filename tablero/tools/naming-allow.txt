@@ -162,4 +162,4 @@ json: cmd/pg/legacy.go *                                           # los subcoma
 twin monolith assess numstat tsx
 
 # goldfish: la calibración del mapa de impacto
-calibrate calibration
+calibrate calibration horizon

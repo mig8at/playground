@@ -9,6 +9,7 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 | tus PRs abiertos y los externos | `make goldfish-list` |
 | **antes de publicar** (la rama local) | `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` (skill `goldfish`) |
 | cuánto pesa una rama, en segundos y sin agentes | `make goldfish-impact REPO=… [GIT_BRANCH=…] [BASE=main] [JSON=1]` |
+| recalibrar el nivel del impacto con los PRs ya mergeados | `make goldfish-calibrate REPO=… [DAYS=180] [HORIZON=21]` |
 | validar un PR ya abierto | `make goldfish-run PR=<url>`, o pegar la URL en la app |
 | comprobar corriendo (harness en local, con el PR) | el botón «Comprobar corriendo» de una validación terminada |
 
@@ -46,10 +47,21 @@ El repo de Google revisa DOCUMENTOS de diseño antes de construir; acá se revis
    secciones de `knowledge/` que respaldan los archivos cambiados (`knowledge.Touched`), las trampas que los citan
    (`knowledge/traps/traps.md`), cuántos archivos de la base los nombran (sin pruebas ni migraciones: una
    aproximación de cuánto depende de ellos), sus commits y arreglos en 90 días (sin merges), migraciones, rutas del
-   backend y si la clase tiene su par en el otro monolito. Da un nivel —alto, medio o bajo— **con sus razones**, a la
-   vista y discutibles (los umbrales están arriba del archivo): es la idea de los «diff risk score», sin un puntaje
-   opaco. Queda en `impact.md`, FUERA de la carpeta de los goldfish (siguen en frío): lo lee el elephant para su
-   parte 2, y va al informe, al resumen de la consola y a la app. No frena nada.
+   backend y si la clase tiene su par en el otro monolito. Da un nivel —alto, medio o bajo— **con sus razones**:
+   es la idea de los «diff risk score», sin un puntaje opaco. Queda en `impact.md`, FUERA de la carpeta de los
+   goldfish (siguen en frío): lo lee el elephant para su parte 2, y va al informe, al resumen de la consola y a la
+   app. No frena nada.
+
+   **El nivel está calibrado** (`review/calibrate.go`, `make goldfish-calibrate`; 2026-11-18, 200 días: 314 PRs de
+   legacy-backend y 179 de frontend-monorepo). Cada PR mergeado se midió como estaba EL DÍA DEL MERGE —su base, y las
+   trampas y knowledge de my-tools de ese día, sacados de su historia— contra lo que pasó después: si en los 21 días
+   siguientes entró a la base un fix, hotfix o revert sobre sus archivos (una aproximación: puede ser de otra cosa).
+   Sólo tres señales separan: **un archivo con 5+ arreglos en 90 días, uno que nombran 15+ archivos y un cambio de
+   20+ archivos**. Con dos de las tres, «alto»: marca ~16 % y de ésos necesitó un arreglo el 63 % en legacy-backend
+   (promedio 39 %) y el 83 % en frontend (promedio 53 %). Con una, o tocando trampas o knowledge, «medio». Lo que
+   medido NO anticipa nada —migraciones (por debajo del promedio), rutas, «sin pruebas», el par del otro monolito
+   (33 % de los PRs, 38 % contra 40 %)— se dice como «(no cambia el nivel)». Antes de calibrar, «alto» marcaba el 70 %.
+   Al tocar las señales o los umbrales (`DefaultThresholds`), recalibrá y anotá los números acá.
 2. **Dos goldfish, en paralelo y en frío**: `claude -p --restricted --strict-mcp-config` desde esa carpeta, con sólo
    `Read`, `Grep` y `Glob`. No hay CLAUDE.md en ningún padre ni configuración que cargar: saben únicamente lo que el
    PR dice. Uno mira **si la descripción y el cambio dicen lo mismo** (`prompts/goldfish-intent.md`), el otro **qué

@@ -29,7 +29,10 @@ de my-tools le da veredicto a cada hallazgo contra el código. El método y sus 
    Corre unos minutos (3 agentes con `claude -p`, ~US$1–4 equivalentes del asiento): lanzalo en segundo plano.
 3. **Leé el resumen** (stdout) y decidí con criterio, **sin ser estricto**. Arriba va el **impacto** (alto · medio ·
    bajo, con sus razones): no frena nada, dice dónde mirar con más cuidado y qué hacer después de mergear (releer
-   knowledge, aplicar migraciones a mano, `bin/sentinel deploy`).
+   knowledge, aplicar migraciones a mano, `bin/sentinel deploy`). El nivel está calibrado contra los arreglos que
+   recibieron los PRs ya mergeados: «alto» (dos de: un archivo con 5+ arreglos recientes, uno del que dependen 15+,
+   un cambio de 20+ archivos) es ~1 de cada 6 PRs y acierta bastante más que el promedio; tomalo en serio. Lo marcado
+   «(no cambia el nivel)» es información, no riesgo.
    - «Para atender antes de publicar»: lo confirmado de ESTE cambio. Arreglalo, o corregí la descripción si el
      problema es que dice algo que el diff no hace.
    - «Para mirar»: depende de algo que no se ve leyendo. Decíselo a Miguel en una línea; no frena el PR.

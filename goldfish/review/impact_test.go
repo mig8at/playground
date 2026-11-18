@@ -46,7 +46,7 @@ func TestTrapsCiting(t *testing.T) {
 	}
 }
 
-// El mapa entero sobre un repo de prueba: una migración lo pone en alto; la dependencia y los arreglos se cuentan sin
+// El mapa entero sobre un repo de prueba: la trampa sola lo deja en medio (la migración no sube el nivel); la dependencia y los arreglos se cuentan sin
 // pruebas, migraciones ni merges.
 func TestAssess(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
