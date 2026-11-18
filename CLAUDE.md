@@ -28,6 +28,11 @@ Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:
   comentarios del código.
 - **Se quedan los nombres propios** de las herramientas (`tablero`, `cuadrilla`, `harness`, `wally`, `jarvis`,
   `correo`, `sentinel`…) y los datos (los valores que vienen de la base o de un servicio).
+- **Excepción decidida (2026-11-18): las claves de los contratos del harness** —las suites (`casos`, `comercio`,
+  `espera`…), el mapa del panel (`panel/steps.json`), las fichas de `merchant-specs/`, `harness.case/v1`,
+  `harness.doctor/v1` y el registro de fallas— siguen en español. Son miles de usos en 149 archivos y la
+  herramienta con la que se valida; un renombre a medias no falla, devuelve vacío. Se pasan a inglés, con alias
+  para las viejas, la parte que se toque por otra razón, y se prueba ahí. Lo nuevo va en inglés.
 - **Claude contesta en español** cuando se habla de my-tools y sus herramientas.
 - **La vara es `make tablero-naming`:** falla con un nombre nuevo en español. Lo de antes queda en
   `tablero/tools/naming-debt.txt` como deuda, y se baja renombrando con `tablero/tools/rename/`. Al renombrar un
