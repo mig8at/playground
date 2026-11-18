@@ -40,8 +40,13 @@ export function answersFromSchema(loaderData: any, ctx: FormContext): Record<str
     const zones: Zone[] = loaderData?.countryTree?.zones ?? [];
     const countries: Array<{ id: number; name: string }> = Array.isArray(loaderData?.countries)
         ? loaderData.countries : (loaderData?.countries?.countries ?? []);
-    const zone = zones.find((z) => /bogot/i.test(z.name)) ?? zones[0];
-    const city = zone?.cities?.find((c) => /bogot/i.test(c.name)) ?? zone?.cities?.[0];
+    // La residencia: Bogotá por defecto, o la de `E2E_RESIDENCE="Departamento|Ciudad"` (sin tildes ni mayúsculas que
+    // importen), para probar las zonas de una entidad. Si no la encuentra en el árbol, cae a Bogotá.
+    const norm = (v: string) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+    const [wantZone, wantCity] = (process.env.E2E_RESIDENCE ?? '').split('|').map(norm);
+    const zone = (wantZone && zones.find((z) => norm(z.name) === wantZone)) || zones.find((z) => /bogot/i.test(z.name)) || zones[0];
+    const city = (wantCity && zone?.cities?.find((c) => norm(c.name) === wantCity))
+        || zone?.cities?.find((c) => /bogot/i.test(c.name)) || zone?.cities?.[0];
     const colombia = countries.find((c) => /colombia/i.test(c.name)) ?? countries[0];
 
     // Lo que «muestra» cada campo contestado, para resolver las dependencias: el nombre de la opción elegida

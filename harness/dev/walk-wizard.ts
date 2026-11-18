@@ -270,8 +270,8 @@ async function seed(ur: number, doc: string, log: (s: string) => void, lender?: 
     // el lambda nunca se consulta: así una ruta del lambda que devolvía 404 pasó inadvertida (503353 a 503356).
     const injected = REAL_BUREAUS ? { datacredito_forged: 'sin sembrar: consulta las centrales' }
         : lender
-        ? await synthFill(ur, { lender, skipIdentity: true } as any)
-        : await synthFill(ur, { income: INCOME, score: SCORE, skipIdentity: true } as any);
+        ? await synthFill(ur, { lender, occupation: arg('occupation', 'Empleado'), skipIdentity: true } as any)
+        : await synthFill(ur, { income: INCOME, score: SCORE, occupation: arg('occupation', 'Empleado'), skipIdentity: true } as any);
     const u = await one<{ user_id: number }>('SELECT user_id FROM user_requests WHERE id=?', [ur]).catch(() => null);
     if (u?.user_id) await exec('UPDATE users SET front_url=?, back_url=?, updated_at=NOW() WHERE id=?',
         [synthIdImageUrl('frontal', doc), synthIdImageUrl('reverso', doc), u.user_id]).catch(() => null);
@@ -403,7 +403,8 @@ async function correr(c: Case, i: number): Promise<Result> {
     doc = arg('doc') || await merchantDocument(br.hash, i).catch(() => doc);   // `--doc` fija la cédula del caso (p. ej. una fuera de rango, para ver qué le pasa a la persona)
     r.doc = doc;
     await employmentFor(doc, log);
-    const docType = await merchantDocumentType(br.hash);
+    // `E2E_DOC_TYPE` (CC, CE…) pisa el del comercio: para probar qué hace una entidad con otro documento.
+    const docType = process.env.E2E_DOC_TYPE || await merchantDocumentType(br.hash);
 
     const s = new FrontSession();
     // ⚠ El canal ASESOR necesita la sesión de Cognito, y este motor NO LA CARGABA: `s` nacía sin
@@ -584,8 +585,8 @@ async function correr(c: Case, i: number): Promise<Result> {
             form = sheet === 'personal-info'
                 ? { intent: 'save-personal-info', documentType: docType, documentNumber: doc, name: typedName(), surname: typedSurname(),   // `--name`/`--surname`: lo que escribe el asesor
                     email: `qa${doc}@gmail.com`, address: 'Calle 1 # 2-3', stratum: '3',
-                    ...issueOf(arg('expedition') || '2019-05-10'), birthDay: '10', birthMonth: '5', birthYear: '2001' }   // `--expedition AAAA-MM-DD`: la fecha que escribe el asesor
-                : { employmentStatus: 'Empleado', monthlyIncome: String(INCOME) };
+                    ...issueOf(arg('expedition') || '2019-05-10'), ...birthOf(arg('birth') || '2001-05-10') }   // `--birth AAAA-MM-DD`: la fecha de nacimiento (la edad)   // `--expedition AAAA-MM-DD`: la fecha que escribe el asesor
+                : { employmentStatus: arg('occupation', 'Empleado'), monthlyIncome: String(INCOME) };   // `--occupation`: la misma que se le dicta a las centrales
         } else if (sheet === 'lenders') {
             const lo = res.datos?.loanOptionsPromise;
             const options: any[] = Array.isArray(lo?.loan_options) ? lo.loan_options : [];
@@ -909,6 +910,12 @@ async function correr(c: Case, i: number): Promise<Result> {
  * ⚠ Por `env()` y no por `process.env`: lo que declara `.env.<target>` no llega a process.env, así que
  * leído directo el valor del archivo se ignoraba, y el preflight del panel frenaba la corrida.
  */
+/** `AAAA-MM-DD` → los tres campos de nacimiento del formulario de datos personales, sin ceros a la izquierda. */
+function birthOf(date: string): { birthDay: string; birthMonth: string; birthYear: string } {
+    const [y, m, d] = date.split('-');
+    return { birthDay: String(Number(d)), birthMonth: String(Number(m)), birthYear: y };
+}
+
 async function ecommerceEntry(br: { hash: string; com: string }, ref: string, tel: string, doc: string, docType: string)
 : Promise<{ path: string; vtex?: { orderId: string; transactionId: string; ms: number; line: string } } | { error: string }> {
     /* `--store vtex`: LA TIENDA ES VTEX DE VERDAD. En vez de armar la URL base64, se compra en la tienda de pruebas
