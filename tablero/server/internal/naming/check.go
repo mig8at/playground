@@ -205,9 +205,9 @@ func Harness(root string) Board {
 }
 
 /*
-Apps son las demás herramientas con interfaz: chat, Jarvis, ecommerce, Cockpit, Captura, el llavero, radar y la
+Apps son las demás herramientas: chat, Jarvis, ecommerce, Cockpit, Captura, el llavero, radar (sólo consola) y las
 
-	sala. Hasta el 2026-11-11 ninguna tenía vara y un nombre en español entraba sin aviso. Una pasada por app, para que
+	que siguen. Hasta el 2026-11-11 ninguna tenía vara y un nombre en español entraba sin aviso. Una pasada por app, para que
 	el resumen diga qué leyó de cada una. Lo que es DATO y no código queda afuera a propósito: los flujos y mapas de
 	Jarvis (`flows/`, `maps/`: su nombre es el título de lo que se grabó) y el `testdata` de ecommerce. El Swift y el
 	Rust (Captura, el avisador del chat, la carcasa de Cockpit) no tienen extractor: de ellos se revisan sólo las rutas.
@@ -231,8 +231,7 @@ func Apps(root string) []Board {
 		app("cockpit", nil, []string{"cockpit/shell/index.html"}, []string{"cockpit/shell/", "cockpit/src-tauri/src/", "cockpit/build.sh"}),
 		app("captura", nil, nil, []string{"captura/"}),
 		app("keyring", []string{"keyring/check", "keyring/server"}, vue("keyring"), []string{"keyring/check/", "keyring/server/", "keyring/src/"}),
-		app("radar", []string{"radar/scan", "radar/server"}, vue("radar"), []string{"radar/scan/", "radar/server/", "radar/src/"}),
-		app("sala", []string{"sala"}, []string{"sala/index.html"}, []string{"sala/"}),
+		app("radar", []string{"radar/scan", "radar/server"}, nil, []string{"radar/scan/", "radar/server/"}),
 		app("sentinel", []string{"sentinel/server"}, vue("sentinel"), []string{"sentinel/server/", "sentinel/src/"}),
 		app("wally", []string{"wally/server"}, append(vue("wally"), "wally/*.mjs", "wally/*.ts"), []string{"wally/server/", "wally/src/", "wally/rust/", "wally/cli.ts", "wally/sandbox-check.mjs", "wally/skills/", "wally/agents/"}),
 		app("correo", []string{"correo/server"}, vue("correo"), []string{"correo/server/", "correo/src/"}),

@@ -38,7 +38,7 @@ nodos, qué valida, qué derivó) los imprimen las herramientas, no la prosa.
 | [`ecommerce/`](ecommerce/README.md) | Qué le pasó a una prueba de tienda, por celular, URL del wizard o número de solicitud. |
 | [`tienda-simple/`](tienda-simple/README.md) | La tienda VTEX de pruebas (tema y checkout). |
 | [`tools/`](tools/CLAUDE.md) | Lo transversal: el sistema de diseño que comparten las interfaces ([`tools/ui/`](tools/ui/README.md)) y sus chequeos. |
-| `keyring/` · `radar/` · `sala/` | A qué hay acceso ahora y cuándo vence · el uso real de las herramientas · agentes en paralelo sobre `knowledge/`. |
+| `keyring/` · `radar/` | A qué hay acceso ahora y cuándo vence · el uso real de las herramientas, por consola (`make radar-usage`, `-friction`, `-drift`, `-session`). |
 
 ## Por dónde empezar
 

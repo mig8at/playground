@@ -95,8 +95,6 @@ task-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de cad
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make task-verify N=86"; exit 2; }
 	@cd tablero/server && go run ./cmd/verify -n "$(N)" $(if $(ONLY),-only "$(ONLY)") $(if $(JSON),-json)
 
-sala: ## @dia agentes independientes en paralelo, uno por tema de knowledge/, y un verificador al final: se ven trabajar en vivo. GASTA modelo salvo con «Simulado». http://127.0.0.1:5201 · MOCK=1 todo simulado
-	@$(if $(MOCK),SALA_MOCK=1) go run ./sala
 
 deploys: ## @dia ¿qué se desplegó y a qué ambiente? FAILURES=1 deja SÓLO lo que falló, con el error del log. DAYS=7 · REPO=legacy-backend · JSON=1
 	@cd tablero/server && go run ./cmd/deploys $(if $(DAYS),-days $(DAYS)) $(if $(REPO),-repo $(REPO)) $(if $(FAILURES),-failures) $(if $(JSON),-json)
@@ -287,7 +285,7 @@ visor-links: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorr
 
 
 
-style-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. ONLY=<herramienta,…>
+style-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero); con datos de prueba. ONLY=<herramienta,…>
 	@ONLY="$(ONLY)" node tools/ui-check.mjs
 
 style-minimal: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. ONLY=<herramienta,…>
@@ -464,30 +462,16 @@ jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chr
 # repo (my-tools). Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
 RADAR = go run ./radar/server $(if $(DAYS),-days $(DAYS),) $(if $(JSON),-json,)
-.PHONY: radar radar-usage radar-friction radar-drift radar-session
-radar: ## @dia abre radar: el uso real de las herramientas, visual (:5188 · API :5189). Lo mismo que los radar-* de abajo
-	@cd radar && npm run dev
+.PHONY: radar-usage radar-friction radar-drift radar-session
 radar-usage: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DAYS=30 · JSON=1
 	@$(RADAR) -view usage
 radar-friction: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DAYS=30 · JSON=1
 	@$(RADAR) -view friction
 radar-drift: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DAYS=30 · JSON=1
 	@$(RADAR) -view drift
-radar-gaps: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DAYS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
-	@$(RADAR) -view gaps $(if $(RECHECK),-recheck)
 radar-session: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESSION=<id o su comienzo> (sin él, la última)
 	@$(RADAR) -view session $(if $(SESSION),-session $(SESSION),)
 
-# ensayo: ¿un cambio a un CLAUDE.md, una skill, un hook o una memoria mejora lo que hace el modelo? Corre las
-# preguntas fijas de ensayo/preguntas.json con `claude -p` (GASTA modelo), las califica con un juez que no
-# es un modelo y compara la tanda de antes del cambio con la de después. Frente «ensayo con/sin» de #96.
-.PHONY: rehearsal rehearsal-compare
-sweep: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TOPICS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [CAP=2.5 US$ por agente] [VERIFIER_CAP=3] · MOCK=1 simula sin gastar
-	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -sweep "$(if $(TOPICS),$(TOPICS),auto)" $(if $(N),-n $(N),) $(if $(CAP),-cap $(CAP),) $(if $(VERIFIER_CAP),-verifier-cap $(VERIFIER_CAP),)
-rehearsal: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. BATCH=<nombre> [N=3 corridas por pregunta] [ONLY=listado-local,…] [BUDGET=1.5 US$ por corrida] [DRY=1 sólo los jueces, gratis]
-	@go run ./ensayo -batch "$(BATCH)" $(if $(N),-n $(N),) $(if $(ONLY),-only $(ONLY),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(DRY),-dry,)
-rehearsal-compare: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
-	@go run ./ensayo -compare "$(A),$(B)" $(if $(JSON),-json,)
 
 # ── PRUEBAS (harness) ────────────────────────────────────────────────────────────────────────────
 # ── los nombres VIEJOS (en español) del harness: siguen andando, y avisan ─────────────────────────
@@ -941,7 +925,6 @@ MYTOOLS_OLD_TARGETS := \
   radar-uso:radar-usage \
   radar-friccion:radar-friction \
   radar-deriva:radar-drift \
-  radar-huecos:radar-gaps \
   radar-sesion:radar-session \
   visor-buscar:visor-search \
   visor-pantallas:visor-screens \
@@ -956,9 +939,6 @@ MYTOOLS_OLD_TARGETS := \
   harness-rotativo:harness-revolving \
   soporte-qa:support-qa \
   tests-codeudor:tests-cosigner \
-  barrido:sweep \
-  ensayo:rehearsal \
-  ensayo-comparar:rehearsal-compare \
   knowledge-deriva:knowledge-drift \
 
 $(foreach p,$(MYTOOLS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))

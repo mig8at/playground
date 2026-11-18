@@ -48,18 +48,12 @@ test-results/
 # el índice de radar: derivado de las transcripciones, se reconstruye solo
 radar/.cache/
 
-# las tandas del ensayo: corridas con sus respuestas, locales por máquina
-ensayo/.tandas/
-# El consumo de cada llamada de la sala (tokens y US$ equivalentes), para comparar elencos y modelos
-sala/.llamadas/
-sala/.hallazgos/
 
 # FUGA (game/): lo pesado que no se versiona —las fuentes de los modelos, lo viejo y las capturas— (2026-10-18)
 /game/assets-fuente/
 /game/before/
 /game/capturas/
 tablero/tasks/*/artifacts/*.log.json
-sala/.barridos/
 
 # navegador: perfiles de Chromium con sesiones abiertas, mapas y capturas — nunca commitear
 jarvis/.data/

@@ -1,6 +1,6 @@
 /* EL VOCABULARIO VISUAL DE CHAT.
  *
- * Las mismas capas que keyring y radar, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * Las mismas capas que keyring y jarvis, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
  * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo
  * acá: la burbuja propia y la ajena, y el punto de «conectado».
  */

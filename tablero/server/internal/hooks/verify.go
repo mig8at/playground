@@ -56,7 +56,7 @@ var verifyZones = []zone{
 		// desde la raíz no compila, por eso no está.
 		name: "go",
 		prefixes: []string{"tablero/server/", "visor/", "cmd/", "connectors/", "lib/", "knowledge/", "chat/",
-			"correo/", "ensayo/", "goldfish/", "jarvis/", "keyring/", "radar/", "sala/", "sentinel/", "services/"},
+			"correo/", "goldfish/", "jarvis/", "keyring/", "radar/", "sentinel/"},
 		exts: []string{".go"},
 		commands: func(touched []string) [][]string {
 			pkgs := make([]string, 0, len(touched))

@@ -1,6 +1,6 @@
 /* EL VOCABULARIO VISUAL DE KEYRING.
  *
- * Las mismas capas que radar y el trazador, en el mismo orden: Tailwind (utilidades, sin preflight), el
+ * Las mismas capas que chat y jarvis, en el mismo orden: Tailwind (utilidades, sin preflight), el
  * tema compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa
  * algo sólo acá: el color del estado de un acceso.
  */

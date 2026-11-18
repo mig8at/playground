@@ -31,7 +31,6 @@ const UIS = [
   { tool: 'harness',  url: 'http://localhost:5195' },
   { tool: 'tablero',  url: 'http://localhost:5191' },
   { tool: 'visor', url: 'http://localhost:5186' },
-  { tool: 'radar', url: 'http://localhost:5188' },
   { tool: 'keyring', url: 'http://localhost:5182' },
   { tool: 'ecommerce', url: 'http://localhost:5178' },
 ];

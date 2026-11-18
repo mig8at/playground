@@ -11,7 +11,8 @@ package main
 // El `serve` y los programas que arranca el chat corren en su propio grupo de procesos (sobreviven al chat); sus pid
 // quedan en el directorio de caché del usuario.
 //
-// El servicio de ejemplo es `faker` (services/faker): personas inventadas para pruebas. Arranca apagado.
+// Hoy no hay ningún programa propio que levantar: el de ejemplo (`faker`, en services/) se retiró el 2026-11-18. Un
+// servicio que se agregue a mano en services.json se prende y se apaga igual; levantar su programa es cosa tuya.
 
 import (
 	"context"
@@ -46,13 +47,10 @@ type knownProgram struct {
 	Dir string // carpeta del programa, relativa a my-tools
 }
 
-var knownPrograms = map[string]knownProgram{
-	"faker": {Dir: "services/faker"},
-}
+var knownPrograms = map[string]knownProgram{}
 
-var defaultServices = []teamService{
-	{Alias: "faker", To: "http://127.0.0.1:5293", Description: "personas inventadas para pruebas: GET /persona, /personas?n=5"},
-}
+// Los que entran apagados la primera vez, para que haya algo que mostrar. Ninguno desde que salió faker.
+var defaultServices = []teamService{}
 
 var servicesMu sync.Mutex
 

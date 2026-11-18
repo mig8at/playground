@@ -1,6 +1,6 @@
 /* EL VOCABULARIO VISUAL DE NAVEGADOR.
  *
- * Las mismas capas que radar y keyring, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
+ * Las mismas capas que keyring y chat, en el mismo orden: Tailwind (utilidades, sin preflight), el tema
  * compartido —que se REEMPLAZA entero— y la base (`workbench.css`). Abajo, lo único que significa algo sólo
  * acá: cómo respondió una página o una llamada.
  */
