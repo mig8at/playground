@@ -252,6 +252,10 @@ func Apps(root string) []Board {
 		app("radar", []string{"radar/scan", "radar/server"}, vue("radar"), []string{"radar/scan/", "radar/server/", "radar/src/"}),
 		app("sala", []string{"sala"}, []string{"sala/index.html"}, []string{"sala/"}),
 		app("sentinel", []string{"sentinel/server"}, vue("sentinel"), []string{"sentinel/server/", "sentinel/src/"}),
+		app("wally", []string{"wally/server"}, append(vue("wally"), "wally/*.mjs", "wally/*.ts"), []string{"wally/server/", "wally/src/", "wally/rust/", "wally/cli.ts", "wally/sandbox-check.mjs", "wally/skills/", "wally/agents/"}),
+		app("correo", []string{"correo/server"}, vue("correo"), []string{"correo/server/", "correo/src/"}),
+		app("goldfish", []string{"goldfish/server", "goldfish/review"}, vue("goldfish"), []string{"goldfish/server/", "goldfish/review/", "goldfish/src/", "goldfish/bin/"}),
+		app("office", nil, []string{"office/*.js", "office/cli/*.mjs", "office/generacion/*.mjs", "office/paquete/*.mjs", "office/*.html"}, []string{"office/"}),
 	}
 }
 

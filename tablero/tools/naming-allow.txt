@@ -148,3 +148,15 @@ whisper ffmpeg transcribe
 hourly
 # inglés que la vara no conoce: `hush` (callar), `pitch` (tono) y `analyser` (AnalyserNode de WebAudio, en británico)
 hush pitch analyser daily roomier headphones reaction reactions tone
+
+# ── 2026-11-18: el chequeo pasó a cubrir wally, correo, goldfish y office ─────────────────────────
+# Herramientas y proveedores (nombres propios): las apps de my-tools y las webs de IA que maneja Wally.
+wally goldfish correo aistudio deepseek chatgpt groq kimi gpt dockerfile launchctl porcelain react noreply
+# Los agentes de Wally se llaman como Pokémon (nombres propios).
+smeargle krabby porygon noctowl
+# Inglés que la vara no conoce: el cuerpo y la ropa de los personajes de Office, y términos de UI y de diffs.
+avatar beak beard brim brows chair cheeks chest chin confetti consent cream crown cuff dome feather flap follicles
+hair hairs jaw keyframes lash mane mug mustache neck neckwear pita puffs rhythm rosette seam skin skyline stitch
+strand stripe swatch swatches tabby teeth toast torso tufts wear wool hunk hunks unfollow previewable fullshot
+autorun disarm pry prx lum ery gest pagenames
+openai assistant
