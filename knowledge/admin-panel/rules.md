@@ -74,6 +74,12 @@ servidor rechaza plazo, refinanciación, condonación, recuperación y anulació
 (`isRevolvingUtilization`). El envío y la validación del OTP de cambio de fecha y plazo exigen
 `update creditop x requests`, el mismo permiso que el cambio.
 
+El cupo rotativo entero sí se gestiona, desde su propia vista (`/cupos-rotativos/{revolvingCredit}/…`,
+`RevolvingCreditManagementController`): cambiar la fecha de pago (`update creditop x requests`, con el
+OTP del cliente) y simular y aplicar una condonación (`condone creditop x credit balances`) o una
+refinanciación (`refinance creditop x credit`), los mismos permisos que en un crédito de consumo. La
+refinanciación deja el cupo bloqueado para compras hasta que se salde.
+
 ## El historial de un crédito CreditopX lleva dos estados
 
 En `creditop_x_requests_history`, `creditop_x_requests_status_id` es el estado del crédito, del catálogo

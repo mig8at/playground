@@ -308,7 +308,9 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   «Créditos CreditopX» dice que una utilización no se gestiona desde su detalle y no cuenta que el cupo entero sí; esa
   sección no lista `routes/admin.php` entre sus fuentes, y aun así la encontró). Los cuatro se comprobaron contra
   `main`, y el de admin-panel era uno que Claude no había previsto. De sus citas, una línea estaba corrida dos
-  (`preview` es la 66, dijo 64). Los textos propuestos no se aplicaron todavía.
+  (`preview` es la 66, dijo 64). Con el sí de Miguel, Claude leyó el código nuevo (`RevolvingCreditManagementController`,
+  `RefinanceRevolvingCredit`), escribió los dos párrafos a partir del suyo, sumó esas fuentes y selló las cuatro en
+  `2798bb7a`: `knowledge-check` volvió a 0.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

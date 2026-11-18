@@ -185,6 +185,12 @@ cupo. Ninguna toca los acumulados `paid_*`, porque no son pagos del cliente:
   plan sin error. Dentro de la transacción se
   bloquean la solicitud y la fila y, si la fila dejó de ser la vigente, se aborta. Deja
   `CONDONACIÓN POR REFINANCIACIÓN` y `REFINANCIACIÓN`; queda al día.
+  La refinanciación de un cupo rotativo entero (`RefinanceRevolvingCredit`) pasa cada compra vigente por
+  esta misma acción, al mismo plazo y con la misma primera cuota: la que esta regla le daría a la compra
+  con la fecha de pago más temprana, que llega a `preview()` y `handle()` como `first_payment_date`
+  (llevada al comienzo del día) en lugar de calcularse por compra. Sin ese parámetro, el camino de un
+  crédito de consumo, la primera cuota sale como se describe arriba. El cupo queda bloqueado para
+  compras hasta que se salde.
 - **Condonar y pasar a paz y salvo:** todos los saldos a 0 y estado 3, con el movimiento
   `CONDONACIÓN Y PASO A PAZ Y SALVO`.
 

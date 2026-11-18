@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Perfilamiento del cliente: probabilidades, pantallas y aprobación manual",
   "summary": "Qué es el perfilamiento (el perfil de riesgo de un cliente, no su rol): cómo se calcula la probabilidad de cada entidad al listar (demográfica, matriz y ML), las pantallas que lo muestran y quién las ve, y cómo funciona la aprobación manual entre los dos monolitos.",
-  "reviewedAt": "2026-11-10T18:07:59+00:00",
+  "reviewedAt": "2026-11-18T00:07:49+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -44,8 +44,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
       "sections": [
         "las-pantallas-del-perfilamiento"
       ]

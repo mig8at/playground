@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Bloqueo y desbloqueo de equipos IMEI por mora",
   "summary": "Los dos motores de bloqueo IMEI de legacy-backend (legacy y DeviceLockingV1), el umbral de mora de cada uno, las capas contra el doble bloqueo, cómo se lee la respuesta del gateway, los caminos de desbloqueo y liberación con sus interruptores en ambos monolitos, y qué protege (y qué no) a los endpoints del bloqueo manual.",
-  "reviewedAt": "2026-11-17T19:14:54+00:00",
+  "reviewedAt": "2026-11-18T00:07:49+00:00",
   "sources": [
     {
       "repo": "legacy-backend",
@@ -260,8 +260,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
       "sections": [
         "bloqueo-y-desbloqueo-manual"
       ]

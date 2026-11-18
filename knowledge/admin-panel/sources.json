@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Admin de legacy-application: secciones, roles y escrituras",
   "summary": "Qué hace cada sección del admin por el negocio, quién entra con qué perfil, qué escribe, las bajas lógicas con -t<n>; las escrituras sin permiso, las lecturas por id sin alcance de comercio, los listados sin recorte por rol y las rutas de desarrollo publicadas; historial, facturación y recaudo, y lo que ve el comercio de un crédito CreditopX.",
-  "reviewedAt": "2026-11-17T19:21:37+00:00",
+  "reviewedAt": "2026-11-18T00:07:49+00:00",
   "sources": [
     {
       "repo": "legacy-application",
@@ -95,8 +95,8 @@
     {
       "repo": "legacy-application",
       "path": "routes/admin.php",
-      "commit": "8290874c1677774e10b15b956339870d5122c0a4",
-      "blob": "739817f772dcdfcb1e3d7ece35b92a76cb5940da",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "ed9787f30df38ad0b913720c3d4ccd590db922c3",
       "sections": [
         "centrales-de-riesgo-y-validacion-de-usuarios",
         "configuracion-comercios-entidades-y-reglas",
@@ -106,7 +106,8 @@
         "las-bajas-son-logicas",
         "lecturas-por-id-sin-alcance-de-comercio",
         "listados-que-no-se-recortan-por-rol",
-        "rutas-de-desarrollo-en-la-version-publicada"
+        "rutas-de-desarrollo-en-la-version-publicada",
+        "creditos-creditopx"
       ]
     },
     {
@@ -544,6 +545,15 @@
       "blob": "e517f528272bdeeac1794e3d641f1d5a48b5ccba",
       "sections": [
         "el-historial-de-un-credito-creditopx-lleva-dos-estados"
+      ]
+    },
+    {
+      "repo": "legacy-application",
+      "path": "app/Http/Controllers/Admin/RevolvingCreditManagementController.php",
+      "commit": "2798bb7aa41fe406ed4335845c7e814dfbc5f4dc",
+      "blob": "60cade93f3b244359ee38e5ed9fb9f54c4d073f1",
+      "sections": [
+        "creditos-creditopx"
       ]
     }
   ]
