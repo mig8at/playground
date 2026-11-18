@@ -74,13 +74,13 @@ type chromeTab struct {
 
 // ChromeBridge une la extensión (una) con Playwright (uno a la vez).
 type ChromeBridge struct {
-	mu          sync.Mutex
-	ext         *websocket.Conn
-	extInfo     map[string]any // lo que la extensión dijo de sí al conectarse (versión, navegador)
-	pending     map[int]chan extReply
+	mu      sync.Mutex
+	ext     *websocket.Conn
+	extInfo map[string]any // lo que la extensión dijo de sí al conectarse (versión, navegador)
+	pending map[int]chan extReply
 	// inline: las respuestas que se entregan EN el lector de la extensión, en el orden en que llegaron respecto de los
 	// eventos (sendThen). Las de los comandos que Playwright reenvía van por acá: ver handleCommand.
-	inline map[int]func(extReply)
+	inline      map[int]func(extReply)
 	lastID      int
 	pw          *websocket.Conn
 	shared      map[int]bool // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
