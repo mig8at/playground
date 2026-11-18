@@ -25,8 +25,9 @@ importe se mide en la base (`bin/pg sql`) antes de usarla.
 Cada miércoles, después de la Weekly:
 
 1. `make meetings-fetch` baja lo nuevo de Drive y Gmail a `raw/` y rehace el índice.
-2. Se agrega la semana arriba de `weekly-ct.md`, con la misma forma que las demás, leyendo el resumen, las decisiones,
-   los próximos pasos y los detalles (la transcripción, sólo para una duda), y se actualiza la tendencia.
+2. Se agrega la semana arriba de «Semana a semana» en `weekly-ct.md`, con la misma forma que las demás, leyendo el
+   resumen, las decisiones, los próximos pasos y los detalles (la transcripción, sólo para una duda); se suma su fila a
+   las tablas de cifras y, si cambió el rumbo, se reescribe la «Síntesis».
 
 **Qué entra**: metas y cifras de negocio, comercios y entidades, decisiones, prioridades de producto, tecnología y
 crédito, financiación y cambios de organización. **Qué no**: vacaciones, logística de oficina, eventos, temas de

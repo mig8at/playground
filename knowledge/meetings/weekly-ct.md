@@ -7,7 +7,63 @@ arma y se pone al día: [README](README.md). Las notas crudas, fuera de git: `ra
 
 Hay 19 reuniones, del 2025-12-16 al 2026-11-18. Faltan notas entre el 17 de febrero y el 4 de agosto.
 
-## En una mirada
+## Síntesis (al 2026-11-18)
+
+Lo que dijo la dirección en la Weekly, juntado. Las notas casi nunca dicen quién decidió qué: esto es lo dicho, no
+algo atribuible a una persona. Se reescribe cuando cambia el rumbo.
+
+**Hacia dónde se quiere ir**
+
+- **El modelo**: CreditOp no presta ni asume riesgo de balance. Es una plataforma de crédito para comercios y
+  entidades y gana por desembolso (take rate de 4–5 % y comisiones de entidades); CreditopX es crédito del comercio,
+  que pone el capital y asume el riesgo.
+- **Cómo crecer**: *product-led growth* desde agosto. El comercio se registra gratis y se autogestiona; las entidades
+  se conectan plug and play en todos los canales (punto de venta, e-commerce y app).
+- **La meta norte** (11-nov): un billón de pesos al año en desembolsos a junio de 2028, con 600 comercios, 20 entidades y
+  2 millones de usuarios; el 18-nov se habló de 40.000 millones de pesos de ingresos anuales.
+- **La plata**: equilibrio en Colombia con o sin ronda, con un burn hacia US$100.000 al mes. La ronda (al menos US$3
+  millones, cuatro fondos negociando) es para Perú y México.
+
+**Cómo va el revenue**
+
+- **Ingreso anualizado**: ~US$810.000 (ago) → ~US$1 millón (fin de ago) → US$1,2 millones (sep y nov). La meta del
+  trimestre se cumplió; la siguiente, **US$2,5 millones en marzo de 2027**, pide duplicar en ~4 meses, y de septiembre a
+  noviembre el número no se movió.
+- **Facturación mensual**: septiembre en 290–310 millones contra 348 (≈85–89 %); octubre proyectado al 105 %;
+  meta de diciembre, 420–440 millones.
+- **Desembolsos**: ~13.500 millones al mes (ago) → 15.000–16.000 (sep, récord); metas de 15.000, 17.000 y 18.000 para
+  oct–dic. **CreditopX es el motor** (141 % a fines de octubre; 112 % y camino al 150 % en noviembre); **el agregador va
+  por debajo** (93 %).
+- **Riesgos que se repiten**: concentración (80 % del ingreso en 10 comercios en diciembre; Sonría, la mitad de los
+  desembolsos en febrero) y dependencia de comercios grandes como Motai, que en septiembre se llevó el renting.
+- **La app**, lejos de su meta: 27.000 descargas y 33 ventas contra 1.000 al año.
+
+**Lo que se pide una y otra vez**
+
+1. **Control de gasto y equilibrio**, con un péndulo: ronda cancelada y contrataciones congeladas (feb), aceleración y
+   burn de 500 millones al mes (oct), y otra vez recorte (fin de oct y nov).
+2. **Product-led y autogestión**: comercios que entran solos, entidades estándar en todos los canales, ninguna entidad
+   nueva sin el agregador estándar.
+3. **Depender menos de pocos comercios**: más comercios medianos y verticales.
+4. **IA en todas las áreas**: cinco agentes por persona (oct); un agente base para todos (nov).
+5. **Estabilidad antes de crecer**: cero incidentes críticos y Black Friday sin caídas.
+
+**El plan que toca a Loan Origination**
+
+| prioridad | por qué, según las weekly |
+|---|---|
+| validación de identidad | el mayor dolor en el punto de venta desde enero; en noviembre, la sospecha principal de por qué la app no vende |
+| OTP y fricción del registro | en septiembre, 1.748 de ~40.000 usuarios fallaron el OTP; meta: bajar la pérdida del registro del 12 % al 8 % |
+| VTEX y Shopify plug and play | prioridad máxima desde agosto |
+| auto-onboarding de comercios | aprobado para producción en octubre: es la base del modelo product-led |
+| entidades en todos los canales | lanzamientos de noviembre: Finandina, Brilla y Credifamilia Materiales |
+| estabilidad para Black Friday | noviembre es el mes más alto; los objetivos de tecnología son entregar a tiempo y estabilidad |
+
+**La tensión de fondo**: para los US$2,5 millones la apuesta es product-led (app y autogestión), pero hoy crece
+CreditopX con comercios grandes y la app y el agregador van por debajo. Lo que más destraba ese salto, según las propias
+reuniones, es que la identidad y el registro dejen de frenar a la gente.
+
+## Las cifras, mes a mes
 
 **Cómo cambió la estrategia** (según lo dicho):
 
@@ -34,11 +90,6 @@ Hay 19 reuniones, del 2025-12-16 al 2026-11-18. Faltan notas entre el 17 de febr
 | 2026-10-28 | agregador 93 %, CreditopX 141 % | ingresos al 105 % | 12 meses de caja |
 | 2026-11-11 | ~US$5 millones al mes | US$1,2 millones | bajar a ~US$100.000/mes |
 | 2026-11-18 | CreditopX 4.770 contra 4.200 millones (112 %); agregador 93 % | — | — |
-
-**Lo que toca a Loan Origination**, a lo largo del año: la validación de identidad (el mayor dolor en el punto de
-venta, y en noviembre la razón de que la app venda poco), el OTP y la fricción del registro, VTEX y Shopify plug and
-play, el auto-onboarding de comercios, que toda entidad nueva funcione en todos los canales, el refactor (todos los
-puntos de venta forzados a él) y la migración de arquitectura.
 
 ## Semana a semana
 
