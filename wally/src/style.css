@@ -10,6 +10,15 @@
 @import "./theme.css";
 @import "./workbench.css";
 
+/* El verde de «sin errores» y de las líneas agregadas de un diff: el tema compartido no tiene uno. Declarado por tema,
+ * como en Goldfish (`--stage-done`), para que se lea en claro y en oscuro. */
+:root {
+  --success: #15803d;
+}
+.dark {
+  --success: #4ade80;
+}
+
 /* El contrato de la base: la página ocupa la ventana y no scrollea; scrollea cada región. */
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--background); color: var(--foreground);
   font-family: var(--font-sans); font-size: var(--text-base) }
@@ -366,7 +375,7 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .preview-head b { font-family: var(--font-mono); font-weight: 500 }
 .preview-head .count { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
 .preview-stage { flex: 1; min-height: 0; display: flex; justify-content: center; background: var(--muted, var(--card)); overflow: auto }
-.preview-stage iframe { width: 100%; height: 100%; border: 0; background: #fff }
+.preview-stage iframe { width: 100%; height: 100%; border: 0; color-scheme: light; background: Canvas } /* la página se ve como en un navegador: fondo blanco */
 .preview-stage.phone { padding: var(--space-3) }
 .preview-stage.phone iframe { width: 390px; height: 844px; max-height: 100%; border: 1px solid var(--border); border-radius: 12px }
 
@@ -402,23 +411,23 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
   border-radius: var(--radius-control); background: none; font: inherit; font-size: var(--text-xs); color: var(--fg-2); white-space: nowrap }
 .change-chip { cursor: pointer }
 .change-chip:hover, .change-chip.on { border-color: var(--ring) }
-.change-chip .add, .diff-view .add { color: var(--success, #3fb950) }
-.change-chip .del, .diff-view .del { color: var(--destructive, #f85149) }
-.report-chip.good { color: var(--success, #3fb950); border-color: color-mix(in srgb, var(--success, #3fb950) 40%, transparent) }
-.report-chip.bad { color: var(--destructive, #f85149); border-color: color-mix(in srgb, var(--destructive, #f85149) 40%, transparent) }
+.change-chip .add, .diff-view .add { color: var(--success) }
+.change-chip .del, .diff-view .del { color: var(--destructive) }
+.report-chip.good { color: var(--success); border-color: color-mix(in srgb, var(--success) 40%, transparent) }
+.report-chip.bad { color: var(--destructive); border-color: color-mix(in srgb, var(--destructive) 40%, transparent) }
 .diff-view { margin: 0 var(--space-1) var(--space-1); padding: var(--space-2); max-height: 320px; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-control);
   background: var(--card); font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.5; white-space: pre }
 .diff-view span { display: block }
-.diff-view .add { background: color-mix(in srgb, var(--success, #3fb950) 12%, transparent) }
-.diff-view .del { background: color-mix(in srgb, var(--destructive, #f85149) 12%, transparent) }
+.diff-view .add { background: color-mix(in srgb, var(--success) 12%, transparent) }
+.diff-view .del { background: color-mix(in srgb, var(--destructive) 12%, transparent) }
 .diff-view .hunk { color: var(--fg-3); text-align: center }
 .diff-view .ctx { color: var(--fg-2) }
 .check-list { list-style: none; margin: 0 var(--space-1) var(--space-1); padding: var(--space-1) var(--space-2); display: grid; gap: 2px; font-size: var(--text-sm) }
 .check-list li { display: flex; align-items: flex-start; gap: var(--space-2); min-width: 0 }
 .check-list li > span:last-child { min-width: 0; overflow-wrap: anywhere }
 .check-list .ui-icon { width: 14px; height: 14px; flex: none; margin-top: 3px }
-.check-list .good .ui-icon { color: var(--success, #3fb950) }
-.check-list .bad .ui-icon { color: var(--destructive, #f85149) }
+.check-list .good .ui-icon { color: var(--success) }
+.check-list .bad .ui-icon { color: var(--destructive) }
 .check-list small { display: block; color: var(--fg-3); font-size: var(--text-xs) }
 
 /* Con la página al lado la conversación queda angosta: las fichas de un comando bajan de renglón en vez de salirse. */
