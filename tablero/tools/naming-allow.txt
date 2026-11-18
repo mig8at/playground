@@ -158,7 +158,7 @@ smeargle krabby porygon noctowl
 avatar beak beard brim brows chair cheeks chest chin confetti consent cream crown cuff dome feather flap follicles
 hair hairs jaw keyframes lash mane mug mustache neck neckwear pita puffs rhythm rosette seam skin skyline stitch
 strand stripe swatch swatches tabby teeth toast torso tufts wear wool hunk hunks unfollow previewable fullshot
-autorun autoresume outage disarm pry prx lum ery gest pagenames
+autorun autoresume outage cliflags disarm pry prx lum ery gest pagenames
 openai assistant
 json: wally/server/legacy.go *                                      # la tabla de los nombres de antes de Wally (2026-11-18): traduce lo guardado y lo que escribe un modelo con su historia
 json: wally/server/commands.go archivo parche                      # los bloques ```archivo y ```parche de antes, aceptados como alias de ```file y ```patch
@@ -174,3 +174,5 @@ json: server/cmd/agent/main.go recorrido                            # el campo `
 json: server/cmd/agent/main.go frena detalle                        # el JSON de harness-doctor (harness.doctor/v1): las claves del harness se deciden aparte
 json: server/cmd/canon/main.go pregunta                             # una columna de la base de canon: contrato del repo compartido
 json: server/internal/hooks/cockpit.go asesor autogestion           # los canales del panel del harness como van en su URL (/<ambiente>/<comercio>/<canal>)
+json: lib/cliflags/legacy.go *                                      # las opciones de antes de los CLI en Go (2026-11-18): traduce lo que siguen escribiendo el Makefile viejo, los hooks y las tareas
+json: keyring/check/background.go pulso                            # el nombre del LaunchAgent del pulso (com.creditop.tablero.pulso): dato del sistema

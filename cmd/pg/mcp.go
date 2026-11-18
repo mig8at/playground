@@ -18,6 +18,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -72,6 +73,16 @@ func toolDescription(c command) string {
 	return d
 }
 
+// flagName: la opción de la línea de comando para un argumento del modelo. Los argumentos de las herramientas MCP
+// conservan su nombre (`tarea`, `titulo`…: es el esquema que ven las sesiones); las opciones de los CLI pasaron a
+// inglés el 2026-11-18 (lib/cliflags).
+func flagName(param string) string {
+	if n, ok := cliflags.Legacy[param]; ok {
+		return n
+	}
+	return param
+}
+
 // argv arma la línea de comando a partir de los argumentos del modelo. Lo que no está declarado se
 // rechaza: un argumento que se ignora en silencio hace creer que se aplicó.
 func argv(c command, raw json.RawMessage) ([]string, error) {
@@ -103,7 +114,7 @@ func argv(c command, raw json.RawMessage) ([]string, error) {
 				return nil, fmt.Errorf("%s no es booleano", name)
 			}
 			if x {
-				args = append(args, "--"+p.Name)
+				args = append(args, "--"+flagName(p.Name))
 			}
 			continue
 		case float64:
@@ -117,7 +128,7 @@ func argv(c command, raw json.RawMessage) ([]string, error) {
 		if p.Positional {
 			positional = append(positional, text)
 		} else {
-			args = append(args, "--"+p.Name, text)
+			args = append(args, "--"+flagName(p.Name), text)
 		}
 	}
 	if c.Write {

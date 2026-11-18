@@ -17,6 +17,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -39,10 +40,10 @@ func main() {
 		onlyJSON = flag.Bool("json", false, "imprimir el snapshot además de guardarlo")
 		onlyOne  = flag.String("n", "", "medir sólo esta tarea: id, slug o un trozo del título")
 		root     = flag.String("root", "", "dónde viven los repos (default: ~/Desktop/CREDITOP/github)")
-		suggest  = flag.Bool("sugerir", false, "las tareas que NO declaran `ramas:`: qué patrón las cubriría, y qué ramas traería")
+		suggest  = flag.Bool("suggest", false, "las tareas que NO declaran `ramas:`: qué patrón las cubriría, y qué ramas traería")
 		wait     = flag.Duration("timeout", 5*time.Minute, "cuánto esperar la medición entera antes de devolver lo que haya")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	if *root == "" {
 		*root = filepath.Join(os.Getenv("HOME"), "Desktop", "CREDITOP", "github")

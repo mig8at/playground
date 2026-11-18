@@ -7,6 +7,7 @@
 // Por defecto muestra lo que NO está verde. `--html` escribe el dashboard (`.runs/registry/fallas.html`), una página
 // autocontenida: los datos y el tema compartido (`tools/ui/theme.css` + `workbench.css`) van ADENTRO, leídos al
 // generarla, así que no queda una copia del tema que envejezca. Sólo lectura: no toca bases ni sale a la red.
+import '../pkg/cli-aliases.ts';   // los flags de antes (--estado, --dias) siguen andando
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { readCases, summarize, REGISTRY_DIR, REGISTRY_FILE, type CaseSummary } from '../pkg/failure-log.ts';
@@ -16,8 +17,8 @@ const opt = (name: string) => { const i = argv.indexOf(`--${name}`); return i >=
 const has = (name: string) => argv.includes(`--${name}`);
 
 const target = opt('target') || process.env.TARGET || '';
-const status = opt('estado') || process.env.STATUS || process.env.ESTADO || 'no-verde';
-const days = Number(opt('dias') || process.env.DAYS || process.env.DIAS || 0);
+const status = opt('status') || process.env.STATUS || process.env.ESTADO || 'no-verde';
+const days = Number(opt('days') || process.env.DAYS || process.env.DIAS || 0);
 
 const { cases, broken } = readCases();
 const since = days > 0 ? new Date(Date.now() - days * 86_400_000).toISOString() : '';

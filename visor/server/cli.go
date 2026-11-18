@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"errors"
 	"flag"
 	"fmt"
@@ -360,7 +361,7 @@ func parseRefArgs(fs *flag.FlagSet, args []string) (string, error) {
 	fs.SetOutput(io.Discard)
 	var pos []string
 	for len(args) > 0 {
-		if err := fs.Parse(args); err != nil {
+		if err := fs.Parse(cliflags.Translate(args, cliflags.Legacy)); err != nil {
 			return "", usageError(err.Error())
 		}
 		if fs.NArg() == 0 {
@@ -690,7 +691,7 @@ func layerFromRoute(v string) string {
 // adivinar dónde mirar.
 func cliLayer(s *server, ctx context.Context, args []string, out io.Writer) error {
 	fs := flag.NewFlagSet("layer", flag.ContinueOnError)
-	layerFlag := fs.String("capa", "", "el id de la capa (si la ruta no lo trae como ?capa=)")
+	layerFlag := fs.String("layer", "", "el id de la capa (si la ruta no lo trae como ?capa=)")
 	dir := fs.String("dir", "", "dónde guardar los recortes (sin esto, en la caché del visor)")
 	ref, err := parseRefArgs(fs, args)
 	if err != nil {
@@ -701,7 +702,7 @@ func cliLayer(s *server, ctx context.Context, args []string, out io.Writer) erro
 		layer = layerFromRoute(m[1])
 	}
 	if layer == "" {
-		return usageError("falta la capa: la ruta con ?capa=<id> (como la copia la interfaz) o --capa <id>")
+		return usageError("falta la capa: la ruta con ?capa=<id> (como la copia la interfaz) o --layer <id>")
 	}
 	if !reLayerID.MatchString(layer) {
 		return usageError(fmt.Sprintf("«%s» no es un id de capa de Figma", layer))

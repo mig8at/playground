@@ -29,6 +29,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/csv"
 	"encoding/json"
 	"errors"
@@ -241,9 +242,9 @@ func runSQL(args []string) int {
 	asJSON := fs.Bool("json", false, "filas en JSON, con el ambiente y la fuente")
 	asCSV := fs.Bool("csv", false, "filas en CSV")
 	asMD := fs.Bool("md", false, "la consulta y lo que dio, listos para pegar en una tarea (más la tabla en Markdown)")
-	block := fs.String("bloque", "", "id o slug de una tarea del tablero: agrega la consulta y lo que dio como bloque de su pila")
-	title := fs.String("titulo", "", "con --bloque: el título del bloque (la conclusión en una línea); sin él, se arma de la consulta")
-	if fs.Parse(args) != nil {
+	block := fs.String("block", "", "id o slug de una tarea del tablero: agrega la consulta y lo que dio como bloque de su pila")
+	title := fs.String("title", "", "con --block: el título del bloque (la conclusión en una línea); sin él, se arma de la consulta")
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if !dbsql.ValidTarget(*target) {
@@ -404,7 +405,7 @@ func runLogs(args []string) int {
 	limit := fs.Int("limit", 500, "tope de líneas")
 	direction := fs.String("direction", "forward", "forward o backward")
 	asJSON := fs.Bool("json", false, "los streams de Loki en JSON, con el ambiente")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *query == "" {
@@ -505,7 +506,7 @@ func runLabels(args []string) int {
 	since := fs.String("since", "1h", "ventana hacia atrás")
 	start := fs.String("start", "", "inicio: RFC3339 o ms desde epoch")
 	end := fs.String("end", "", "fin: RFC3339 o ms desde epoch")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *label == "" {
@@ -530,7 +531,7 @@ func runLabels(args []string) int {
 func runLogsConfig(args []string) int {
 	fs := flag.NewFlagSet("logs config", flag.ContinueOnError)
 	target := fs.String("target", "", "ambiente (obligatorio)")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if !logs.ValidTarget(*target) {
@@ -562,7 +563,7 @@ func runLogsRaw(args []string) int {
 	path := fs.String("path", "", "query_range · query · labels · label/<x>/values")
 	var params multi
 	fs.Var(&params, "param", "k=v, repetible (query, start, end, limit, direction, time…)")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if !rawPath(*path) {
@@ -601,7 +602,7 @@ func (m *multi) Set(s string) error { *m = append(*m, s); return nil }
 func runEventsConfig(args []string) int {
 	fs := flag.NewFlagSet("events config", flag.ContinueOnError)
 	target := fs.String("target", "", "ambiente (obligatorio)")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if !events.ValidTarget(*target) {
@@ -621,7 +622,7 @@ func runHogQL(args []string) int {
 	fs := flag.NewFlagSet("events hogql", flag.ContinueOnError)
 	target := fs.String("target", "", "ambiente (obligatorio)")
 	query := fs.String("query", "", "HogQL (SELECT …)")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if !events.ValidTarget(*target) {
@@ -679,7 +680,7 @@ func runGeminiAsk(args []string) int {
 	urls := fs.Bool("url-context", false, "que lea las URLs que aparecen en la pregunta")
 	code := fs.Bool("code", false, "que escriba Python y lo corra (en Google); muestra el código y su salida")
 	schema := fs.String("schema", "", "JSON Schema de la respuesta (el JSON, o @archivo.json): la respuesta sale como JSON")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if strings.TrimSpace(*prompt) == "" {

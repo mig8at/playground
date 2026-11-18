@@ -77,7 +77,7 @@ func TestTheProposalTakesOnlyTheTasksCommitsAndTimeNotYetLogged(t *testing.T) {
 	if strings.Join(got, " · ") != want {
 		t.Fatalf("commits = %q\nquería     %q", strings.Join(got, " · "), want)
 	}
-	if !strings.Contains(p.BlockBody, "Resultado: 1 commits de la tarea en vtex.") || !strings.Contains(p.WorklogCmd, "--lapso "+p.Since+"-"+p.Until) {
+	if !strings.Contains(p.BlockBody, "Resultado: 1 commits de la tarea en vtex.") || !strings.Contains(p.WorklogCmd, "--span "+p.Since+"-"+p.Until) {
 		t.Fatalf("propuesta incompleta:\n%s\n%s", p.BlockBody, p.WorklogCmd)
 	}
 }

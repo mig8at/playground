@@ -1,6 +1,7 @@
 package main
 
 import (
+	"creditop/my-tools/lib/cliflags"
 	"errors"
 	"flag"
 	"os"
@@ -48,9 +49,9 @@ func runTablero(stdin string, args ...string) int {
 func runTasks(args []string) int {
 	fs := flag.NewFlagSet("tareas", flag.ContinueOnError)
 	n := fs.String("n", "", "una tarea, por id o slug")
-	all := fs.Bool("todas", false, "también las archivadas")
+	all := fs.Bool("all", false, "también las archivadas")
 	asJSON := fs.Bool("json", false, "en JSON")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	cmd := []string{"./cmd/tasks"}
@@ -58,7 +59,7 @@ func runTasks(args []string) int {
 		cmd = append(cmd, "-n", *n)
 	}
 	if *all {
-		cmd = append(cmd, "-todas")
+		cmd = append(cmd, "-all")
 	}
 	if *asJSON {
 		cmd = append(cmd, "-json")
@@ -68,25 +69,25 @@ func runTasks(args []string) int {
 
 func runTaskStack(args []string) int {
 	fs := flag.NewFlagSet("tarea pila", flag.ContinueOnError)
-	task := fs.String("tarea", "", "id o slug")
-	if fs.Parse(args) != nil {
+	task := fs.String("task", "", "id o slug")
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *task == "" {
-		return fail(2, "falta --tarea")
+		return fail(2, "falta --task")
 	}
-	return runTablero("", "./cmd/task-context", "-tarea", *task, "-ver")
+	return runTablero("", "./cmd/task-context", "-task", *task, "-show")
 }
 
 func runTaskBranches(args []string) int {
 	fs := flag.NewFlagSet("tarea ramas", flag.ContinueOnError)
-	task := fs.String("tarea", "", "id o slug")
+	task := fs.String("task", "", "id o slug")
 	asJSON := fs.Bool("json", false, "en JSON")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *task == "" {
-		return fail(2, "falta --tarea")
+		return fail(2, "falta --task")
 	}
 	cmd := []string{"./cmd/branches", "-n", *task}
 	if *asJSON {
@@ -97,20 +98,20 @@ func runTaskBranches(args []string) int {
 
 func runTaskBlock(args []string) int {
 	fs := flag.NewFlagSet("tarea bloque", flag.ContinueOnError)
-	task := fs.String("tarea", "", "id o slug")
-	title := fs.String("titulo", "", "la conclusión, en una línea")
-	body := fs.String("cuerpo", "", "lo que la sostiene, en Markdown")
-	dry := fs.Bool("seco", false, "valida y muestra el bloque sin escribirlo")
-	if fs.Parse(args) != nil {
+	task := fs.String("task", "", "id o slug")
+	title := fs.String("title", "", "la conclusión, en una línea")
+	body := fs.String("body", "", "lo que la sostiene, en Markdown")
+	dry := fs.Bool("dry", false, "valida y muestra el bloque sin escribirlo")
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *task == "" || strings.TrimSpace(*title) == "" || strings.TrimSpace(*body) == "" {
-		return fail(2, "faltan --tarea, --titulo y --cuerpo")
+		return fail(2, "faltan --task, --title y --body")
 	}
 	if strings.ContainsAny(*title, "\r\n") {
-		return fail(2, "el título va en una sola línea: lo demás va en --cuerpo")
+		return fail(2, "el título va en una sola línea: lo demás va en --body")
 	}
-	cmd := []string{"./cmd/task-context", "-tarea", *task, "-bloque", "-"}
+	cmd := []string{"./cmd/task-context", "-task", *task, "-block", "-"}
 	if *dry {
 		cmd = append(cmd, "-n")
 	}
@@ -119,15 +120,15 @@ func runTaskBlock(args []string) int {
 
 func runCloseout(args []string) int {
 	fs := flag.NewFlagSet("cierre", flag.ContinueOnError)
-	task := fs.String("tarea", "", "id o slug")
+	task := fs.String("task", "", "id o slug")
 	asJSON := fs.Bool("json", false, "en JSON")
-	if fs.Parse(args) != nil {
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *task == "" {
-		return fail(2, "falta --tarea")
+		return fail(2, "falta --task")
 	}
-	cmd := []string{"./cmd/closeout", "-tarea", *task}
+	cmd := []string{"./cmd/closeout", "-task", *task}
 	if *asJSON {
 		cmd = append(cmd, "-json")
 	}
@@ -136,26 +137,26 @@ func runCloseout(args []string) int {
 
 func runWorklogAdd(args []string) int {
 	fs := flag.NewFlagSet("bitacora add", flag.ContinueOnError)
-	task := fs.String("tarea", "", "id o slug")
-	title := fs.String("titulo", "", "qué se hizo, corto")
-	note := fs.String("nota", "", "realizada → resultado → validación")
-	span := fs.String("lapso", "", "HH:MM-HH:MM")
-	pulse := fs.String("pulso", "", "HH:MM: desde esa hora, medido por el pulso")
-	minutes := fs.String("min", "", "minutos, con --fuente")
-	source := fs.String("fuente", "", "de dónde salen los minutos de --min")
-	day := fs.String("dia", "", "AAAA-MM-DD, para un día anterior")
-	since := fs.String("desde", "", "HH:MM, con --min en un día anterior")
-	dry := fs.Bool("seco", false, "valida y muestra sin escribir")
-	if fs.Parse(args) != nil {
+	task := fs.String("task", "", "id o slug")
+	title := fs.String("title", "", "qué se hizo, corto")
+	note := fs.String("note", "", "realizada → resultado → validación")
+	span := fs.String("span", "", "HH:MM-HH:MM")
+	pulse := fs.String("pulse", "", "HH:MM: desde esa hora, medido por el pulso")
+	minutes := fs.String("min", "", "minutos, con --source")
+	source := fs.String("source", "", "de dónde salen los minutos de --min")
+	day := fs.String("day", "", "AAAA-MM-DD, para un día anterior")
+	since := fs.String("since", "", "HH:MM, con --min en un día anterior")
+	dry := fs.Bool("dry", false, "valida y muestra sin escribir")
+	if fs.Parse(cliflags.Translate(args, cliflags.Legacy)) != nil {
 		return 2
 	}
 	if *task == "" || *title == "" {
-		return fail(2, "faltan --tarea y --titulo")
+		return fail(2, "faltan --task y --title")
 	}
-	cmd := []string{"./cmd/worklog", "-tarea", *task, "-titulo", *title}
+	cmd := []string{"./cmd/worklog", "-task", *task, "-title", *title}
 	for _, f := range []struct{ flag, value string }{
-		{"-nota", *note}, {"-lapso", *span}, {"-pulso", *pulse}, {"-min", *minutes},
-		{"-fuente", *source}, {"-dia", *day}, {"-desde", *since},
+		{"-note", *note}, {"-span", *span}, {"-pulse", *pulse}, {"-min", *minutes},
+		{"-source", *source}, {"-day", *day}, {"-since", *since},
 	} {
 		if f.value != "" {
 			cmd = append(cmd, f.flag, f.value)

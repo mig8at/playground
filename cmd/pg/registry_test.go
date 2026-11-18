@@ -53,9 +53,10 @@ func TestEveryDeclaredParamIsAFlagTheCommandAccepts(t *testing.T) {
 			if p.Positional {
 				continue
 			}
-			declared[p.Name] = true
-			if !slices.Contains(accepted, p.Name) {
-				t.Errorf("%s declara --%s, pero el comando no la acepta (acepta %v)", c.Name, p.Name, accepted)
+			flag := flagName(p.Name) // el argumento MCP puede llamarse distinto que la opción (lib/cliflags)
+			declared[flag] = true
+			if !slices.Contains(accepted, flag) {
+				t.Errorf("%s declara --%s, pero el comando no la acepta (acepta %v)", c.Name, flag, accepted)
 			}
 		}
 		for _, f := range accepted {
@@ -98,12 +99,12 @@ func TestArgvBuildsTheCommandLineAndRejectsWhatDoesNotFit(t *testing.T) {
 		{"jira create", `{"summary":"t","type_id":"10005"}`, "jira create --summary t --type-id 10005"},
 		{"jira create", `{"summary":"t","apply":true}`, "jira create --summary t --apply"},
 		{"jira delete", `{"key":"CORE-1"}`, "jira delete --key CORE-1"},
-		{"tarea bloque", `{"tarea":"84","titulo":"t","cuerpo":"c","seco":true}`, "tarea bloque --tarea 84 --titulo t --cuerpo c --seco"},
+		{"tarea bloque", `{"tarea":"84","titulo":"t","cuerpo":"c","seco":true}`, "tarea bloque --task 84 --title t --body c --dry"},
 		{"tarea bloque", `{"tarea":"84","titulo":"t"}`, "ERR:falta cuerpo"},
-		{"bitacora add", `{"tarea":"84","titulo":"t","lapso":"10:00-10:30"}`, "bitacora add --tarea 84 --titulo t --lapso 10:00-10:30"},
-		{"tarea pila", `{"tarea":"integracion-vtex"}`, "tarea pila --tarea integracion-vtex"},
-		{"cierre", `{"tarea":"84"}`, "cierre --tarea 84"},
-		{"tarea ramas", `{"tarea":"integracion-vtex"}`, "tarea ramas --tarea integracion-vtex"},
+		{"bitacora add", `{"tarea":"84","titulo":"t","lapso":"10:00-10:30"}`, "bitacora add --task 84 --title t --span 10:00-10:30"},
+		{"tarea pila", `{"tarea":"integracion-vtex"}`, "tarea pila --task integracion-vtex"},
+		{"cierre", `{"tarea":"84"}`, "cierre --task 84"},
+		{"tarea ramas", `{"tarea":"integracion-vtex"}`, "tarea ramas --task integracion-vtex"},
 		{"jira search", `{"jql":"key = X","apply":true}`, "ERR:desconocido: apply"},
 	}
 	for _, tc := range cases {

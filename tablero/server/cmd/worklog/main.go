@@ -9,17 +9,18 @@
 // de un número con su fuente declarada, y la fuente queda escrita en la nota. Es la regla «los minutos
 // se miden, no se estiman» hecha comando.
 //
-//	bitacora -tarea 84 -lapso 21:58-22:11 -titulo "…" -nota "…"        minutos = el lapso
-//	bitacora -tarea 84 -pulso 21:30 -titulo "…" -nota-archivo n.txt    minutos = tramos del pulso desde esa hora, hoy
-//	bitacora -tarea 84 -min 40 -fuente "lapso entre los commits a1 y b2" -titulo "…"
-//	bitacora -tarea 98 -dia 2026-10-05 -lapso 14:47-14:55 -titulo "…"       trabajo de un día anterior que no se anotó
-//	bitacora -tarea 98 -dia 2026-10-05 -desde 09:14 -min 130 -fuente "…"    ídem, con minutos medidos y la hora de inicio
+//	bitacora -task 84 -span 21:58-22:11 -title "…" -note "…"        minutos = el lapso
+//	bitacora -task 84 -pulse 21:30 -title "…" -note-file n.txt    minutos = tramos del pulso desde esa hora, hoy
+//	bitacora -task 84 -min 40 -source "lapso entre los commits a1 y b2" -title "…"
+//	bitacora -task 98 -day 2026-10-05 -span 14:47-14:55 -title "…"       trabajo de un día anterior que no se anotó
+//	bitacora -task 98 -day 2026-10-05 -since 09:14 -min 130 -source "…"    ídem, con minutos medidos y la hora de inicio
 //
 // La nota y el título pasan el guard: la bitácora sube a Jira como worklog.
 package main
 
 import (
 	"bufio"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -47,17 +48,17 @@ func atDay(base time.Time, hhmm string) (time.Time, error) {
 	return time.Date(base.Year(), base.Month(), base.Day(), t.Hour(), t.Minute(), 0, 0, time.Local), nil
 }
 
-// entryDay es el día al que pertenece la entrada: hoy, o el que se pidió con -dia (que nunca puede ser futuro).
+// entryDay es el día al que pertenece la entrada: hoy, o el que se pidió con -day (que nunca puede ser futuro).
 func entryDay(now time.Time, day string) (time.Time, error) {
 	if day == "" {
 		return now, nil
 	}
 	d, err := time.ParseInLocation("2006-01-02", day, time.Local)
 	if err != nil {
-		return d, fmt.Errorf("-dia %q: tiene que ser AAAA-MM-DD", day)
+		return d, fmt.Errorf("-day %q: tiene que ser AAAA-MM-DD", day)
 	}
 	if d.After(now) {
-		return d, fmt.Errorf("-dia %s es futuro: la bitácora anota lo que ya pasó", day)
+		return d, fmt.Errorf("-day %s es futuro: la bitácora anota lo que ya pasó", day)
 	}
 	return d, nil
 }
@@ -136,27 +137,27 @@ func overlapping(entries []loggedSpan, start time.Time, minutes int) (loggedSpan
 
 func main() {
 	var (
-		task      = flag.String("tarea", "", "id o slug de la tarea (obligatorio)")
-		title     = flag.String("titulo", "", "qué fue, en una línea (obligatorio)")
-		note      = flag.String("nota", "", "la nota (o `-` para leerla de stdin); también -nota-archivo")
-		noteFile  = flag.String("nota-archivo", "", "archivo con la nota")
+		task      = flag.String("task", "", "id o slug de la tarea (obligatorio)")
+		title     = flag.String("title", "", "qué fue, en una línea (obligatorio)")
+		note      = flag.String("note", "", "la nota (o `-` para leerla de stdin); también -note-file")
+		noteFile  = flag.String("note-file", "", "archivo con la nota")
 		kind      = flag.String("kind", "progress", "progress · test · finding · blocker")
-		span      = flag.String("lapso", "", "HH:MM-HH:MM de hoy: los minutos son la diferencia")
-		fromPulse = flag.String("pulso", "", "HH:MM de hoy: los minutos son los tramos del pulso desde esa hora")
-		min       = flag.Int("min", 0, "minutos, si ya los mediste: exige -fuente")
-		source    = flag.String("fuente", "", "de dónde salió -min (ej. «lapso entre el primer y el último commit»)")
-		day       = flag.String("dia", "", "AAAA-MM-DD: el día de un trabajo que no se anotó a tiempo (por defecto, hoy). Sólo con -lapso, o con -min y -desde; no con -pulso, que sólo lee hoy")
-		since     = flag.String("desde", "", "HH:MM de inicio del trabajo, con -min y -dia")
+		span      = flag.String("span", "", "HH:MM-HH:MM de hoy: los minutos son la diferencia")
+		fromPulse = flag.String("pulse", "", "HH:MM de hoy: los minutos son los tramos del pulso desde esa hora")
+		min       = flag.Int("min", 0, "minutos, si ya los mediste: exige -source")
+		source    = flag.String("source", "", "de dónde salió -min (ej. «lapso entre el primer y el último commit»)")
+		day       = flag.String("day", "", "AAAA-MM-DD: el día de un trabajo que no se anotó a tiempo (por defecto, hoy). Sólo con -span, o con -min y -desde; no con -pulse, que sólo lee hoy")
+		since     = flag.String("since", "", "HH:MM de inicio del trabajo, con -min y -day")
 		dryRun    = flag.Bool("n", false, "mostrar la entrada y NO escribirla")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	fail := func(f string, a ...any) {
 		fmt.Fprintf(os.Stderr, f+"\n", a...)
 		os.Exit(2)
 	}
 	if *task == "" || *title == "" {
-		fail("faltan -tarea y/o -titulo. Ej: bitacora -tarea 84 -lapso 21:58-22:11 -titulo \"…\" -nota \"…\"")
+		fail("faltan -task y/o -title. Ej: bitacora -task 84 -span 21:58-22:11 -title \"…\" -note \"…\"")
 	}
 	text := *note
 	if text == "" && *noteFile != "" {
@@ -166,7 +167,7 @@ func main() {
 		}
 		text = string(b)
 	}
-	// La nota por stdin se pide EXPLÍCITA (`-nota -`): adivinarla por el tipo de descriptor colgaba el
+	// La nota por stdin se pide EXPLÍCITA (`-note -`): adivinarla por el tipo de descriptor colgaba el
 	// comando cuando lo lanzaba un proceso con un pipe abierto y sin nada que mandar.
 	if *note == "-" {
 		b, _ := os.ReadFile("/dev/stdin")
@@ -189,7 +190,7 @@ func main() {
 	late := ""
 	if *day != "" {
 		if *fromPulse != "" {
-			fail("-dia no se combina con -pulso: el pulso sólo se lee de hoy. Usá -lapso o -min con -desde")
+			fail("-day no se combina con -pulse: el pulso sólo se lee de hoy. Usá -span o -min con -since")
 		}
 		late = fmt.Sprintf(" Entrada registrada el %s para el %s.", now.Format("2006-01-02"), *day)
 	}
@@ -197,7 +198,7 @@ func main() {
 	case *span != "":
 		a, b, ok := strings.Cut(*span, "-")
 		if !ok {
-			fail("-lapso tiene que ser HH:MM-HH:MM")
+			fail("-span tiene que ser HH:MM-HH:MM")
 		}
 		ta, err := atDay(base, a)
 		if err != nil {
@@ -219,20 +220,20 @@ func main() {
 		}
 		slots, happened := slotsSince(data, td)
 		if !happened {
-			fail("el pulso no tiene registro de hoy desde las %s: usá -lapso o -min con -fuente", *fromPulse)
+			fail("el pulso no tiene registro de hoy desde las %s: usá -span o -min con -source", *fromPulse)
 		}
 		if slots == 0 {
-			fail("el pulso no vio cambios desde las %s. Si trabajaste sin tocar archivos (correr, leer, medir), usá -lapso", *fromPulse)
+			fail("el pulso no vio cambios desde las %s. Si trabajaste sin tocar archivos (correr, leer, medir), usá -span", *fromPulse)
 		}
 		minutes, start = slots*5, td
 		origin = fmt.Sprintf("medidos por el pulso: %d tramos de 5′ con cambios desde las %s", slots, *fromPulse)
 	case *min > 0:
 		if strings.TrimSpace(*source) == "" {
-			fail("-min exige -fuente: la bitácora sube a Jira y un número sin origen es una estimación")
+			fail("-min exige -source: la bitácora sube a Jira y un número sin origen es una estimación")
 		}
 		if *day != "" {
 			if *since == "" {
-				fail("-dia con -min necesita -desde HH:MM: sin la hora de inicio la entrada caería a la hora de ahora")
+				fail("-day con -min necesita -since HH:MM: sin la hora de inicio la entrada caería a la hora de ahora")
 			}
 			st, err := atDay(base, *since)
 			if err != nil {
@@ -244,7 +245,7 @@ func main() {
 		}
 		origin = "medidos: " + strings.TrimSpace(*source)
 	default:
-		fail("decí de dónde salen los minutos: -lapso HH:MM-HH:MM · -pulso HH:MM · -min N -fuente \"…\"")
+		fail("decí de dónde salen los minutos: -span HH:MM-HH:MM · -pulse HH:MM · -min N -source \"…\"")
 	}
 
 	if o, ok := overlapping(dayEntries(data, start), start, minutes); ok {

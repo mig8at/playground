@@ -866,7 +866,7 @@ func read(args []string) error {
 		budget -= len(res.Lines[i])
 	}
 	if i < len(res.Lines) {
-		fmt.Printf("\n(sigue: read --desde %d · %d líneas en total)\n", i, len(res.Lines))
+		fmt.Printf("\n(sigue: read --from %d · %d líneas en total)\n", i, len(res.Lines))
 	} else if len(res.Links) > 0 {
 		fmt.Println("\nEnlaces del contenido:")
 		for i, l := range res.Links {

@@ -22,7 +22,7 @@ func TestAtDayUsesTheBaseDay(t *testing.T) {
 func TestEntryDay(t *testing.T) {
 	now := time.Date(2026, 10, 6, 12, 0, 0, 0, time.Local)
 	if d, err := entryDay(now, ""); err != nil || !d.Equal(now) {
-		t.Fatalf("sin -dia es hoy: %v %v", d, err)
+		t.Fatalf("sin -day es hoy: %v %v", d, err)
 	}
 	if d, err := entryDay(now, "2026-10-05"); err != nil || d.Day() != 5 {
 		t.Fatalf("un día pasado debía valer: %v %v", d, err)

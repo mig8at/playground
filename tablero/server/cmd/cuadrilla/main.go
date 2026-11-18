@@ -21,6 +21,7 @@ package main
 
 import (
 	"bytes"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"errors"
 	"flag"
@@ -42,9 +43,9 @@ func main() {
 	var which, targetURL string
 	var apply bool
 	flag.StringVar(&which, "n", "", "tarea: su id o parte de su título")
-	flag.StringVar(&targetURL, "en", env("CUADRILLA_URL", "https://cuadrilla.playground.creditop.com"), "a qué cuadrilla")
-	flag.BoolVar(&apply, "aplicar", false, "escribir de verdad (sin esto sólo dice qué haría)")
-	flag.Parse()
+	flag.StringVar(&targetURL, "epic", env("CUADRILLA_URL", "https://cuadrilla.playground.creditop.com"), "a qué cuadrilla")
+	flag.BoolVar(&apply, "apply", false, "escribir de verdad (sin esto sólo dice qué haría)")
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	if err := runCommand(which, strings.TrimRight(targetURL, "/"), apply); err != nil {
 		fmt.Fprintln(os.Stderr, "  ✗ "+err.Error())

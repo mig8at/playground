@@ -13,6 +13,7 @@
 package main
 
 import (
+	"creditop/my-tools/lib/cliflags"
 	_ "embed"
 	"encoding/json"
 	"flag"
@@ -32,12 +33,12 @@ var indexHTML []byte
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:5201", "dónde escucha")
-	sweepTopics := flag.String("barrido", "", "corre un barrido por consola y sale: temas separados por coma, o «auto» para los de revisión más vieja")
+	sweepTopics := flag.String("sweep", "", "corre un barrido por consola y sale: temas separados por coma, o «auto» para los de revisión más vieja")
 	sweepN := flag.Int("n", 3, "cuántos temas toma el barrido en «auto»")
-	sweepBudget := flag.Float64("tope", 2.5, "tope de cada agente del barrido, en US$ equivalentes")
-	sweepCheck := flag.Float64("tope-verificador", 3, "tope del verificador del barrido, en US$ equivalentes")
-	sweepMode := flag.String("modo", "knowledge", "sobre qué barre: knowledge (los temas locales) o canon (los que la ronda marca)")
-	flag.Parse()
+	sweepBudget := flag.Float64("cap", 2.5, "tope de cada agente del barrido, en US$ equivalentes")
+	sweepCheck := flag.Float64("verifier-cap", 3, "tope del verificador del barrido, en US$ equivalentes")
+	sweepMode := flag.String("mode", "knowledge", "sobre qué barre: knowledge (los temas locales) o canon (los que la ronda marca)")
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	root, _ := os.Getwd()
 	if _, err := os.Stat(filepath.Join(root, "tools", "ui", "theme.css")); err != nil {
 		log.Fatal("corré la sala desde la raíz de my-tools (make sala)")

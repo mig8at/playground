@@ -24,14 +24,15 @@
 // todo en orden — es la forma que usa el hook de Stop, que sólo habla cuando hay algo que decir.
 //
 //	cierre                 el día de hoy
-//	cierre -dia 2026-09-10 otro día
+//	cierre -day 2026-09-10 otro día
 //	cierre -json           para otro programa
 //	cierre -quiet          silencio si no falta nada
-//	cierre -sin-jira       sin consultar Jira (el hook de Stop: no va a la red)
-//	cierre -sin-prs        sin cruzar los pendientes con el estado de sus PRs (tampoco va a la red)
+//	cierre -no-jira       sin consultar Jira (el hook de Stop: no va a la red)
+//	cierre -no-prs        sin cruzar los pendientes con el estado de sus PRs (tampoco va a la red)
 package main
 
 import (
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -473,16 +474,16 @@ func attributeWith(tasks []task, touched map[string]bool, branches []string, rep
 
 func main() {
 	var (
-		day    = flag.String("dia", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
+		day    = flag.String("day", time.Now().Format("2006-01-02"), "qué día cerrar (YYYY-MM-DD)")
 		asJSON = flag.Bool("json", false, "salida en JSON")
 		quiet  = flag.Bool("quiet", false, "no imprimir nada si no falta ninguna pieza")
-		noJira = flag.Bool("sin-jira", false, "no cruzar mis issues de Jira con las tareas locales")
-		noPRs  = flag.Bool("sin-prs", false, "no cruzar los pendientes abiertos con el estado de sus PRs en GitHub")
-		only   = flag.String("tarea", "", "id o slug: propone el bloque y la bitácora de esa tarea, sin escribir nada")
+		noJira = flag.Bool("no-jira", false, "no cruzar mis issues de Jira con las tareas locales")
+		noPRs  = flag.Bool("no-prs", false, "no cruzar los pendientes abiertos con el estado de sus PRs en GitHub")
+		only   = flag.String("task", "", "id o slug: propone el bloque y la bitácora de esa tarea, sin escribir nada")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	if _, err := time.Parse("2006-01-02", *day); err != nil {
-		fmt.Fprintln(os.Stderr, "-dia tiene que ser YYYY-MM-DD")
+		fmt.Fprintln(os.Stderr, "-day tiene que ser YYYY-MM-DD")
 		os.Exit(2)
 	}
 	isToday := *day == time.Now().Format("2006-01-02")
@@ -600,7 +601,7 @@ func main() {
 			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
 		}
 		if len(rv.Missing) > 0 {
-			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TASK="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
+			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TASK="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --task "+strconv.Itoa(t.ID)+"`)")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)
@@ -791,10 +792,10 @@ func printReport(inf Report) {
 	}
 }
 
-// runProposal es `-tarea N`: la propuesta de cierre de una sola tarea.
+// runProposal es `-task N`: la propuesta de cierre de una sola tarea.
 func runProposal(data string, tasks []task, which string, asJSON, isToday bool) int {
 	if !isToday {
-		fmt.Fprintln(os.Stderr, "-tarea propone el cierre de HOY: el lapso se mide hasta ahora")
+		fmt.Fprintln(os.Stderr, "-task propone el cierre de HOY: el lapso se mide hasta ahora")
 		return 2
 	}
 	for _, t := range tasks {

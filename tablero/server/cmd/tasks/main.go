@@ -8,7 +8,7 @@
 // decidir cómo escribir.
 //
 //	go run ./cmd/tasks                      las abiertas, con estado, Jira y nodos
-//	go run ./cmd/tasks -todas               incluidas las archivadas
+//	go run ./cmd/tasks -all               incluidas las archivadas
 //	go run ./cmd/tasks -stage work          filtradas por etapa
 //	go run ./cmd/tasks -n <slug|id>         una tarea: qué es PÚBLICO y qué es PRIVADO
 //	go run ./cmd/tasks -guard <archivo>     ¿este texto puede salir a Jira? (sale 1 si no)
@@ -21,6 +21,7 @@
 package main
 
 import (
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -771,13 +772,13 @@ func main() {
 		save    = flag.String("guard", "", "¿el texto de este archivo puede salir a Jira? sale 1 si no")
 		lint    = flag.String("lint", "", "¿este archivo de tarea está bien formado? frontmatter, id único, etapa, nodos y guard de la publicable. Sale 1 si no")
 		stage   = flag.String("stage", "", "filtrar por etapa (p. ej. work)")
-		withAll = flag.Bool("todas", false, "incluir las archivadas")
+		withAll = flag.Bool("all", false, "incluir las archivadas")
 		sprint  = flag.Bool("sprint", false, "el sprint activo, del snapshot de Jira (dice cuándo se tomó)")
-		worklog = flag.Int("bitacora", 0, "el tiempo registrado, agrupado por día: cuántos días mirar")
+		worklog = flag.Int("worklog", 0, "el tiempo registrado, agrupado por día: cuántos días mirar")
 		asJSON  = flag.Bool("json", false, "salida en JSON")
-		content = flag.Bool("contenido", false, "con -n -json, incluir también el borrador publicable")
+		content = flag.Bool("content", false, "con -n -json, incluir también el borrador publicable")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	env.LoadDefaults()
 
 	if *save != "" {

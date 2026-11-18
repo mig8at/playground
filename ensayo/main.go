@@ -3,10 +3,10 @@
 // un juez que no es un modelo (el harness, la base, `git grep`) y compara dos tandas: la de antes del
 // cambio y la de después, en el mismo checkout.
 //
-//	go run ./ensayo -tanda base [-n 3] [-solo listado-local,…] [-budget 1.5] [-seco]
-//	go run ./ensayo -comparar base,recorte [-json]
+//	go run ./ensayo -batch base [-n 3] [-only listado-local,…] [-budget 1.5] [-dry]
+//	go run ./ensayo -compare base,recorte [-json]
 //
-// Las tandas quedan en ensayo/.tandas/<tanda>.json (fuera de git). La salida de `-comparar` es el
+// Las tandas quedan en ensayo/.tandas/<tanda>.json (fuera de git). La salida de `-compare` es el
 // veredicto: 0 = B se puede adoptar, 1 = no.
 package main
 
@@ -14,6 +14,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -300,7 +301,7 @@ func runBatch(root, name string, qs []Question, n int, budget float64, dry bool)
 		}
 	}
 	if dry {
-		fmt.Println("\n(-seco: sólo corrieron los jueces; ninguna pregunta fue al modelo)")
+		fmt.Println("\n(-dry: sólo corrieron los jueces; ninguna pregunta fue al modelo)")
 		return nil
 	}
 	if err := saveBatch(root, b); err != nil {
@@ -365,7 +366,7 @@ func describe(r Run) string {
 func compareBatches(root, pair string, asJSON bool) (bool, error) {
 	names := strings.Split(pair, ",")
 	if len(names) != 2 {
-		return false, errors.New("-comparar va con dos tandas: A,B")
+		return false, errors.New("-compare va con dos tandas: A,B")
 	}
 	a, err := loadBatch(root, names[0])
 	if err != nil {
@@ -415,14 +416,14 @@ func ratio(k, n int) string {
 func pairOf(a, b string) string { return a + "→" + b }
 
 func main() {
-	name := flag.String("tanda", "", "el nombre de la tanda que se corre (se agrega si ya existe)")
+	name := flag.String("batch", "", "el nombre de la tanda que se corre (se agrega si ya existe)")
 	n := flag.Int("n", 3, "corridas por pregunta: una sola es ruido")
-	only := flag.String("solo", "", "sólo estas preguntas, separadas por coma")
+	only := flag.String("only", "", "sólo estas preguntas, separadas por coma")
 	budget := flag.Float64("budget", 1.5, "tope en US$ por corrida")
-	dry := flag.Bool("seco", false, "sólo corre los jueces: no gasta modelo")
-	pair := flag.String("comparar", "", "A,B: compara dos tandas")
-	asJSON := flag.Bool("json", false, "con -comparar: la salida en JSON")
-	flag.Parse()
+	dry := flag.Bool("dry", false, "sólo corre los jueces: no gasta modelo")
+	pair := flag.String("compare", "", "A,B: compara dos tandas")
+	asJSON := flag.Bool("json", false, "con -compare: la salida en JSON")
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	root, err := findRoot()
 	if err != nil {
@@ -441,7 +442,7 @@ func main() {
 		return
 	}
 	if !batchName.MatchString(*name) {
-		fmt.Fprintln(os.Stderr, "ensayo: falta -tanda <nombre> (minúsculas, números y guiones)")
+		fmt.Fprintln(os.Stderr, "ensayo: falta -batch <nombre> (minúsculas, números y guiones)")
 		os.Exit(2)
 	}
 	qs, err := loadQuestions(root)

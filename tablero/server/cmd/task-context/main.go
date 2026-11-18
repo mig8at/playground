@@ -7,6 +7,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -64,25 +65,25 @@ func canonRoutesMissing(ctx context.Context, refs []string) ([]string, error) {
 }
 
 func main() {
-	task := flag.String("tarea", "", "id o slug de la tarea")
-	blockPath := flag.String("bloque", "", "Markdown del bloque: `# título` y la descripción (`-`: por stdin)")
+	task := flag.String("task", "", "id o slug de la tarea")
+	blockPath := flag.String("block", "", "Markdown del bloque: `# título` y la descripción (`-`: por stdin)")
 	via := flag.String("via", "manual", "quién lo agrega: manual · harness · trazador · db")
-	show := flag.Bool("ver", false, "muestra la pila sin escribir")
+	show := flag.Bool("show", false, "muestra la pila sin escribir")
 	dryRun := flag.Bool("n", false, "valida y previsualiza, sin escribir")
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	fail := func(format string, args ...any) {
 		fmt.Fprintf(os.Stderr, format+"\n", args...)
 		os.Exit(2)
 	}
 	if *task == "" {
-		fail("falta -tarea. Ej: task-context -tarea codigo-preaprobado -bloque bloque.md")
+		fail("falta -task. Ej: task-context -task codigo-preaprobado -block bloque.md")
 	}
 	if *show && *blockPath != "" {
-		fail("-ver no recibe -bloque")
+		fail("-show no recibe -block")
 	}
 	if !*show && *blockPath == "" {
-		fail("falta -bloque con el Markdown del bloque")
+		fail("falta -block con el Markdown del bloque")
 	}
 	s, err := store.Open(dataDir())
 	if err != nil {
@@ -119,7 +120,7 @@ func main() {
 		src, err = os.ReadFile(*blockPath)
 	}
 	if err != nil {
-		fail("leyendo -bloque: %v", err)
+		fail("leyendo -block: %v", err)
 	}
 	title, body, err := taskcontext.ParseBlockMarkdown(string(src))
 	if err != nil {

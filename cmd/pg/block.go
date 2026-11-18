@@ -100,7 +100,7 @@ func addTaskBlock(task, title, body string) error {
 
 // myToolsRoot: la raíz de my-tools, buscando hacia arriba el módulo de Go con el tablero adentro. Buscaba
 // `tablero/server/go.mod`, que dejó de existir cuando my-tools (entonces playground) pasó a un solo módulo en la raíz (ddfb05db): desde
-// ahí `pg sql --bloque` fallaba siempre con «no encontré la raíz del playground» (visto el 2026-10-20).
+// ahí `pg sql --block` fallaba siempre con «no encontré la raíz del playground» (visto el 2026-10-20).
 func myToolsRoot() (string, error) {
 	dir, err := os.Getwd()
 	if err != nil {

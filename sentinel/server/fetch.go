@@ -372,7 +372,7 @@ type Deploy struct {
 
 func deploys(root string, days int) ([]Deploy, error) {
 	// Con plazo (runTool, en services.go): un `go run` colgado detenía la pasada para siempre.
-	out, err := runTool(deploysTimeout, root, "go", "run", "./tablero/server/cmd/deploys", "-json", "-dias", strconv.Itoa(days))
+	out, err := runTool(deploysTimeout, root, "go", "run", "./tablero/server/cmd/deploys", "-json", "-days", strconv.Itoa(days))
 	if err != nil {
 		return nil, fmt.Errorf("make deploys no contestó (¿gh autenticado?): %v", err)
 	}

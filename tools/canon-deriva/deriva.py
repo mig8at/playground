@@ -328,7 +328,7 @@ def step_triaje(args):
         by_topic[v["topic"]].append(k)
     size = lambda t: sum(len(secs[k]["prose"]) for k in by_topic[t]) + sum(len(body(prs, p)) for k in by_topic[t] for p in secs[k]["prs"])
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
-    for g, topics in enumerate(bins(list(by_topic), args.grupos, size), 1):
+    for g, topics in enumerate(bins(list(by_topic), args.groups, size), 1):
         o, used = [], set()
         for t in sorted(topics):
             o.append(f"\n\n# TEMA {t}")
@@ -380,7 +380,7 @@ def step_codigo(args):
     size = lambda c: sum(len(items[i]["prose"]) for i in c) + sum(files[f]["diff_lines"] * 40 for f in {f for i in c for f in items[i]["files"]})
     os.makedirs(os.path.join(d, "codigo"), exist_ok=True)
     order = {"contradice": 0, "no_se_sabe": 1}
-    for g, b in enumerate(bins(list(comps.values()), args.grupos, size), 1):
+    for g, b in enumerate(bins(list(comps.values()), args.groups, size), 1):
         ids = sorted([i for c in b for i in c], key=lambda i: (order.get(items[i]["veredicto"], 2), i))
         fs = sorted({f for i in ids for f in items[i]["files"]})
         o = [f"# Paquete de código {g}: {len(ids)} ítems, {len(fs)} archivos\n"]
@@ -405,7 +405,7 @@ def step_codigo(args):
     by_topic = collections.defaultdict(list)
     for i in blind:
         by_topic[secs[i]["topic"]].append(i)
-    for g, topics in enumerate(bins(list(by_topic), max(1, args.grupos // 2), lambda t: len(by_topic[t])), 1):
+    for g, topics in enumerate(bins(list(by_topic), max(1, args.groups // 2), lambda t: len(by_topic[t])), 1):
         o = [f"# Segunda mirada {g}\n"]
         for t in topics:
             for i in by_topic[t]:
@@ -612,7 +612,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("paso", choices=["foto", "paquete", "triaje", "codigo", "final", "piezas", "movidos", "estado"])
     ap.add_argument("--run", help="carpeta de la corrida (por defecto, runs/ACTUAL)")
-    ap.add_argument("--grupos", type=int, default=8, help="cuántos paquetes para agentes")
+    ap.add_argument("--groups", "--grupos", dest="groups", type=int, default=8, help="cuántos paquetes para agentes (--grupos: el nombre de antes)")
     ap.add_argument("--apply", action="store_true", help="movidos: publicar el canon-patch")
     args = ap.parse_args()
     globals()[f"step_{args.paso}"](args)

@@ -144,7 +144,7 @@ solo** (con aviso); si está en varios o en ninguno, el error dice dónde está.
 Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make task-block N=<id|slug>
 ARCHIVO=<bloque.md>` (`SECO=1` previsualiza; `ARCHIVO=-` lee stdin). **Las herramientas lo hacen solas
 con `BLOCK=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `tablero-db` y
-`bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
+`bin/pg sql --block`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make task-context N=…` o `make resume`. El contrato de la línea: `docs/task-context.schema.json`.
 
 **Un agente escribe y lee sin archivos ni make** con las herramientas MCP de my-tools (`bin/pg mcp`):
@@ -182,7 +182,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
-**`make closeout TASK=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
+**`make closeout TASK=N` lo propone** (o `bin/pg cierre --task N`, también como herramienta MCP): el lapso
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en my-tools,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
@@ -199,7 +199,7 @@ medio del trabajo, decilo en una línea y seguí.
 - **Pendientes que quedaron atrás de un merge**: `make closeout` cruza los pendientes abiertos de todas las
   tareas con el estado de los PRs que citan con su repo (`pr:alias#N`, `repo#N` o la URL) y avisa con `▲` los
   que ya están mergeados o cerrados. No frena: un pendiente puede nombrar un PR como contexto. Si el pendiente
-  ya lo reconoce («(mergeado)», «ya está en `main`») no avisa. El hook de `Stop` no lo corre (`-sin-prs`: no va
+  ya lo reconoce («(mergeado)», «ya está en `main`») no avisa. El hook de `Stop` no lo corre (`-no-prs`: no va
   a la red). Al ver uno, reescribí el pendiente con lo que de verdad falta.
 - **Cambiar sólo el frontmatter no es trabajar en la tarea**: el cierre no reclama nada.
 - **Un barrido tampoco**: el commit lo declara con un trailer, y el cierre no le pide bloque ni bitácora
@@ -214,7 +214,7 @@ medio del trabajo, decilo en una línea y seguí.
   cruza mis issues de los últimos 4 sprints con esos `jira:`: un issue que una tarea nombra (documento o
   pila) sin tenerlo en `jira:` es `✗` y sale 1; uno que ninguna nombra es `▲`. Cuando se crea el issue
   después que la tarea, sumá la clave a su `jira:` (una tarea puede tener varias). El hook de `Stop` no
-  consulta Jira (`-sin-jira`).
+  consulta Jira (`-no-jira`).
 
 **El pulso** (`server/cmd/pulse`, un LaunchAgent cada 5 min) anota solo cuándo se tocó código leyendo git;
 no se escribe a mano. Se lee con `make pulse`. El pulso dice **cuándo**; la bitácora, **en qué**.

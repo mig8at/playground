@@ -18,7 +18,7 @@ import (
 
 // EL CIERRE EN UN PASO. `make closeout` decía QUÉ faltaba —el bloque, la bitácora— y dejaba al agente
 // reconstruir el resto: desde qué hora medir, qué commits entran, cómo se escribe cada comando. Medido el
-// 2026-10-20: cerrar una tarea llevaba unas quince llamadas. Con `-tarea N` el cierre arma la propuesta: el
+// 2026-10-20: cerrar una tarea llevaba unas quince llamadas. Con `-task N` el cierre arma la propuesta: el
 // lapso desde donde terminó la última entrada de bitácora del día, los commits de la tarea en ese lapso y
 // los dos comandos para escribirlo. No escribe nada: el título del bloque es una conclusión, y ésa la pone
 // quien trabajó.
@@ -224,8 +224,8 @@ func propose(data string, t task, now time.Time, myTools, reposDir string) (Prop
 	body.WriteString(jarvisSection(p.JarvisRuns))
 	body.WriteString(mailSection(t.Mail, p.Mail))
 	p.BlockBody = strings.TrimSpace(body.String())
-	p.BlockCmd = fmt.Sprintf("bin/pg tarea bloque --tarea %d --seco --titulo %s --cuerpo %s", t.ID, shellQuote(p.BlockTitle), shellQuote(p.BlockBody))
-	p.WorklogCmd = fmt.Sprintf("bin/pg bitacora add --tarea %d --lapso %s-%s --titulo %s --nota %s", t.ID, p.Since, p.Until,
+	p.BlockCmd = fmt.Sprintf("bin/pg tarea bloque --task %d --dry --title %s --body %s", t.ID, shellQuote(p.BlockTitle), shellQuote(p.BlockBody))
+	p.WorklogCmd = fmt.Sprintf("bin/pg bitacora add --task %d --span %s-%s --title %s --note %s", t.ID, p.Since, p.Until,
 		shellQuote("<qué se hizo, corto>"), shellQuote("<acción realizada> → <resultado> → <cómo se validó>"))
 	return p, nil
 }
@@ -259,7 +259,7 @@ func printProposal(p Proposal) {
 	for _, n := range p.Notes {
 		fmt.Println("\n  ▲ " + n)
 	}
-	fmt.Println("\n  1 · el bloque (completá título y prosa, sacá --seco para escribirlo):\n\n    " + p.BlockCmd)
+	fmt.Println("\n  1 · el bloque (completá título y prosa, sacá --dry para escribirlo):\n\n    " + p.BlockCmd)
 	fmt.Println("\n  2 · la bitácora (los minutos salen del lapso):\n\n    " + p.WorklogCmd)
 	fmt.Println()
 }

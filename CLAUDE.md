@@ -143,7 +143,7 @@ las afirmaciones técnicas en el código de `main`; el comportamiento de un ambi
 falla: devuelve menos. Ante un resultado tranquilizador, preguntá de qué está leyendo.
 
 **Una afirmación verificable se verifica antes de escribirla**, y la medición no se escribe a mano: con
-`BLOCK=<tarea>` el harness y `tablero-db` (o `bin/pg sql --bloque`) la agregan solos a la pila de la tarea, con el
+`BLOCK=<tarea>` el harness y `tablero-db` (o `bin/pg sql --block`) la agregan solos a la pila de la tarea, con el
 comando y lo que dio. La salida de un agente también se verifica, contra `git show main:<ruta>`.
 
 ### Contra qué ambiente

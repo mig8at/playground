@@ -13,6 +13,7 @@
 /** Nombre viejo → nombre nuevo. Sin los dos guiones. */
 export const OLD_FLAGS: Readonly<Record<string, string>> = {
     casos: 'cases',
+    estado: 'status',
     cerrar: 'close',
     comercio: 'merchant',
     paralelo: 'parallel',

@@ -26,6 +26,7 @@ package main
 
 import (
 	"context"
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -100,11 +101,11 @@ func main() {
 	var (
 		single  = flag.String("n", "", "retomar UNA tarea, por id o slug (acepta subcadena del slug)")
 		stage   = flag.String("stage", "", "sólo esta etapa (work · evaluation · tasks)")
-		anatomy = flag.Bool("anatomia", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
+		anatomy = flag.Bool("anatomy", false, "cómo está repartido el archivo de cada tarea, y qué sección parece estar en el lugar equivocado")
 		asJSON  = flag.Bool("json", false, "salida en JSON")
 		brief   = flag.String("brief", "", "al final, la ficha de las referencias de Canon declaradas: 1 = las declaradas (hasta 4) · a,b = sólo esas")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 	env.LoadDefaults()
 	lay := layout.Find()
 	data := lay.Data

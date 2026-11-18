@@ -26,6 +26,7 @@
 package main
 
 import (
+	"creditop/my-tools/lib/cliflags"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -224,13 +225,13 @@ func errorFromLog(repo string, id int64) string {
 
 func main() {
 	var (
-		days       = flag.Int("dias", 7, "cuántos días hacia atrás")
+		days       = flag.Int("days", 7, "cuántos días hacia atrás")
 		repo       = flag.String("repo", "", "un solo repo (por defecto: los tres donde se despliega)")
-		limit      = flag.Int("limite", 80, "cuántas corridas pedirle a GitHub por repo antes de filtrar")
-		onlyFailed = flag.Bool("fallas", false, "sólo lo que falló, con el error del log")
+		limit      = flag.Int("limit", 80, "cuántas corridas pedirle a GitHub por repo antes de filtrar")
+		onlyFailed = flag.Bool("failures", false, "sólo lo que falló, con el error del log")
 		asJSON     = flag.Bool("json", false, "salida en JSON")
 	)
-	flag.Parse()
+	flag.CommandLine.Parse(cliflags.Translate(os.Args[1:], cliflags.Legacy)) // los nombres de antes (lib/cliflags)
 
 	repos := DefaultRepos
 	if *repo != "" {

@@ -173,7 +173,7 @@ def step_paquete(args):
         by_topic[v["topic"]].append(k)
     size = lambda t: sum(len(items[k]["prose"]) for k in by_topic[t]) + sum(len(deriva.body(prs, p)) for k in by_topic[t] for p in items[k]["prs"])
     os.makedirs(os.path.join(d, "triaje"), exist_ok=True)
-    for g, topics in enumerate(deriva.bins(list(by_topic), args.grupos, size), 1):
+    for g, topics in enumerate(deriva.bins(list(by_topic), args.groups, size), 1):
         o, used = [], set()
         for t in sorted(topics):
             o.append(f"\n\n# TEMA {t}")
@@ -209,7 +209,7 @@ def step_codigo(args):
         by_topic[items[i]["topic"]].append(i)
     os.makedirs(os.path.join(d, "codigo"), exist_ok=True)
     order = {"contradice": 0, "no_se_sabe": 1}
-    for g, topics in enumerate(deriva.bins(list(by_topic), args.grupos, lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])), 1):
+    for g, topics in enumerate(deriva.bins(list(by_topic), args.groups, lambda t: sum(len(items[i]["prose"]) for i in by_topic[t])), 1):
         ids = sorted([i for t in topics for i in by_topic[t]], key=lambda i: (order.get(open_[i]["veredicto"], 2), i))
         o = [f"# Paquete de código {g}: {len(ids)} ítems\n"]
         for i in ids:
@@ -223,7 +223,7 @@ def step_codigo(args):
     bt = collections.defaultdict(list)
     for i in blind:
         bt[items[i]["topic"]].append(i)
-    for g, topics in enumerate(deriva.bins(list(bt), max(1, args.grupos // 2), lambda t: len(bt[t])), 1):
+    for g, topics in enumerate(deriva.bins(list(bt), max(1, args.groups // 2), lambda t: len(bt[t])), 1):
         o = [f"# Segunda mirada {g}\n"]
         for t in topics:
             for i in bt[t]:
@@ -319,7 +319,7 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("paso", choices=["paquete", "codigo", "final", "aplicar"])
     ap.add_argument("--run")
-    ap.add_argument("--grupos", type=int, default=8)
+    ap.add_argument("--groups", "--grupos", dest="groups", type=int, default=8)  # --grupos: el nombre de antes
     args = ap.parse_args()
     globals()[f"step_{args.paso}"](args)
 
