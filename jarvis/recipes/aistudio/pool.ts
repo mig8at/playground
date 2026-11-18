@@ -31,7 +31,7 @@ const IDLE_MS = 20_000;
 // Desde el 2026-11-17 también DeepSeek: `provider` elige la receta, y la configuración de Wally viaja en cada pregunta
 // (el nivel de AI Studio, los interruptores de DeepSeek, la ventana).
 // `type: 'check'`: no pregunta nada; mira si cada proveedor está listo (check.ts).
-type Job = { id: string; type?: 'ask' | 'check'; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string;
+type Job = { id: string; type?: 'ask' | 'check'; provider?: 'aistudio' | 'deepseek' | 'chatgpt' | 'groq'; model: string; text: string; timeout?: number; chatgptThink?: boolean; groqModel?: string; chatUrl?: string;
     thinking?: Thinking; deepThink?: boolean; search?: boolean; window?: WindowMode };
 const queue: Job[] = [];
 let active = 0;
@@ -120,11 +120,12 @@ async function run(job: Job) {
             const r = await askGroq(page, job.text, { model: job.groqModel || undefined, timeoutMs: (job.timeout || 300) * 1000, log: say });
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
         } else if (job.provider === 'chatgpt') {
-            const r = await askChatGPT(page, job.text, { think: !!job.chatgptThink, timeoutMs: (job.timeout || 600) * 1000, log: say });
-            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
+            // Con historial (Miguel, 2026-11-17: «quitar el temporal»): Wally recuerda el chat y la próxima manda sólo lo nuevo.
+            const r = await askChatGPT(page, job.text, { think: !!job.chatgptThink, temporary: false, chatUrl: job.chatUrl || '', timeoutMs: (job.timeout || 600) * 1000, log: say });
+            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms, url: r.url });
         } else if (deepseek) {
-            const r = await askDeepSeek(page, job.text, { think: job.deepThink !== false, search: !!job.search, timeoutMs: (job.timeout || 600) * 1000, log: say });
-            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms });
+            const r = await askDeepSeek(page, job.text, { think: job.deepThink !== false, search: !!job.search, chatUrl: job.chatUrl || '', timeoutMs: (job.timeout || 600) * 1000, log: say });
+            send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: job.model, ms: r.ms, url: r.url });
         } else {
             const r = await askOn(page, job.model, job.text, (job.timeout || 600) * 1000, say, job.thinking);
             send({ id: job.id, ok: true, answer: r.answer, format: r.format, model: r.modelId, ms: r.ms });

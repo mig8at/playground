@@ -89,7 +89,8 @@ export function splitText(text: string, size = CHUNK): string[] {
     return parts;
 }
 
-export type Ask = { think?: boolean; search?: boolean; timeoutMs?: number; log?: (s: string) => void };
+/** `chatUrl`: seguir ESE chat (`/a/chat/s/<id>`) en vez de abrir uno nuevo: Wally manda sólo lo nuevo. */
+export type Ask = { think?: boolean; search?: boolean; chatUrl?: string; timeoutMs?: number; log?: (s: string) => void };
 
 /** Escribe un mensaje en el chat abierto, lo manda y espera la respuesta; devuelve su texto visible. */
 async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<string> {
@@ -136,14 +137,15 @@ async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<
 /** Una pregunta en un chat nuevo: pone los interruptores, manda el texto y devuelve la respuesta en Markdown.
  *  Si no entra en un mensaje (`CHUNK`), va en TROZOS en el mismo chat: cada uno menos el último pide «no contestes,
  *  respondé sólo OK» (sin Pensamiento Profundo, para que sea rápido), y el último trae lo que hay que contestar. */
-export async function askDeepSeek(page: any, text: string, { think = true, search = false, timeoutMs = 600_000, log = () => {} }: Ask = {}) {
+export async function askDeepSeek(page: any, text: string, { think = true, search = false, chatUrl = '', timeoutMs = 600_000, log = () => {} }: Ask = {}) {
     const t0 = Date.now();
     try {
-        await page.goto('https://chat.deepseek.com/', { waitUntil: 'domcontentloaded' });
+        await page.goto(chatUrl || 'https://chat.deepseek.com/', { waitUntil: 'domcontentloaded' });
         const box = page.getByRole('textbox', { name: 'Mensaje a DeepSeek' });
         await Promise.race([box.waitFor({ timeout: 30_000 }), page.waitForURL(/sign_in/, { timeout: 30_000 })]).catch(() => {});
         if (/sign_in/.test(page.url())) throw new Error('DeepSeek no tiene sesión en este Chrome: entrá a mano en chat.deepseek.com');
         const parts = splitText(text);
+        if (chatUrl) log('deepseek · sigue su chat');
         log(`deepseek · pensamiento ${think ? 'sí' : 'no'} · búsqueda ${search ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres${parts.length > 1 ? ` en ${parts.length} trozos` : ''}`);
         let seen = '';
         for (let i = 0; i < parts.length; i++) {

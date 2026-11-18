@@ -14,6 +14,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -132,6 +133,93 @@ type Conversation struct {
 	Created  time.Time `json:"created"`
 	Updated  time.Time `json:"updated"`
 	Messages []Message `json:"messages"`
+	// Chats: el chat de cada proveedor donde sigue esta conversación (Miguel, 2026-11-17: «usar el chat y quitar el
+	// temporal», también en Gemini). Con él, cada pregunta manda sólo lo nuevo; Wally sigue siendo el dueño de la
+	// conversación y abre otro chat (con todo) si algo cambió por fuera.
+	Chats map[string]*ProviderChat `json:"chats,omitempty"`
+}
+
+// ProviderChat: un chat abierto en la web de un proveedor y lo que ya tiene.
+type ProviderChat struct {
+	URL string `json:"url"`
+	// Base: la huella de lo que va arriba de todo (WALLY.md y la precarga del agente). Si cambió, el chat está viejo.
+	Base string `json:"base"`
+	// Sent: los bloques que ya están en ese chat, en orden. Si se borró uno, ya no es un prefijo y se abre otro chat.
+	Sent []string `json:"sent"`
+	// Outputs: las salidas de comandos que ya viajaron (llegan DESPUÉS de la respuesta que los pidió).
+	Outputs []string `json:"outputs"`
+}
+
+// canContinue: ¿ese chat todavía tiene exactamente lo que Wally guarda (sin bloques borrados, la misma base)?
+func (pc *ProviderChat) canContinue(base string, history []Message) bool {
+	if pc == nil || pc.URL == "" || pc.Base != base || len(pc.Sent) > len(history) {
+		return false
+	}
+	for i, id := range pc.Sent {
+		if history[i].ID != id {
+			return false
+		}
+	}
+	return true
+}
+
+func hashText(s string) string {
+	sum := sha256.Sum256([]byte(s))
+	return hex.EncodeToString(sum[:8])
+}
+
+// delta: lo que el chat todavía no tiene. Las salidas de los comandos que pidió (y lo que no se corrió), los bloques
+// que entraron por otro lado (otro proveedor) y la pregunta de ahora con sus archivos.
+func delta(history []Message, pc *ProviderChat, question string, files []Attachment, fileText func(string) (string, error)) string {
+	sent := map[string]bool{}
+	for _, id := range pc.Outputs {
+		sent[id] = true
+	}
+	var b strings.Builder
+	writeFile := func(f Attachment) {
+		text, err := fileText(f.ID)
+		if err != nil {
+			fmt.Fprintf(&b, "\n(el archivo «%s» ya no está)\n", f.Name)
+			return
+		}
+		label := "archivo adjunto"
+		if f.Kind == "salida" {
+			label = "salida del comando que pediste"
+		}
+		fmt.Fprintf(&b, "\n----- %s: «%s» -----\n%s\n----- fin de «%s» -----\n", label, f.Name, strings.TrimRight(text, "\n"), f.Name)
+	}
+	for i, m := range history {
+		if i >= len(pc.Sent) {
+			who := "Yo"
+			if m.Role == "model" {
+				who = "Vos (por otro modelo)"
+			}
+			fmt.Fprintf(&b, "### %s\n%s\n", who, m.Text)
+			for _, f := range m.Files {
+				writeFile(f)
+			}
+		}
+		for _, c := range m.Commands {
+			if c.Output != nil && !sent[c.Output.ID] {
+				writeFile(*c.Output)
+			}
+			if (c.Status == "descartado" || c.Status == "no-permitido") && i >= len(pc.Sent)-1 {
+				fmt.Fprintf(&b, "\n(no se corrió «%s»: %s)\n", c.Cmd, map[string]string{"descartado": "Miguel lo descartó", "no-permitido": "no está en la lista"}[c.Status])
+			}
+		}
+	}
+	if b.Len() > 0 {
+		return "Desde tu última respuesta:\n" + strings.TrimRight(b.String(), "\n") + "\n\n### Yo (la pregunta de ahora)\n" + question + attachmentsText(files, fileText)
+	}
+	return question + attachmentsText(files, fileText)
+}
+
+// attachmentsText: los archivos de la pregunta, delimitados con su nombre (como en transcript).
+func attachmentsText(files []Attachment, fileText func(string) (string, error)) string {
+	if len(files) == 0 {
+		return ""
+	}
+	return "\n" + strings.TrimPrefix(transcript(nil, "", files, fileText), "\n")
 }
 
 type store struct {
@@ -560,13 +648,12 @@ func transcript(history []Message, question string, files []Attachment, fileText
 
 // askProvider le hace la pregunta al proveedor de la configuración por el pool (pool.go): una conexión a Chrome,
 // varias pestañas. Devuelve la respuesta y el modelo con que salió.
-func (a *app) askProvider(ctx context.Context, mode string, agent *Agent, chosen, text string) (string, string, error) {
+func (a *app) askProvider(ctx context.Context, provider, text, chatURL string) (answer, model, url string, err error) {
 	cfg := a.config.get()
-	provider := cfg.providerForConversation(chosen, mode, agent)
-	model := providerModels[provider].Name
-	answer, err := a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
-		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window})
-	return answer, model, err
+	model = providerModels[provider].Name
+	answer, url, err = a.pool.ask(ctx, poolJob{Provider: provider, Model: model, Text: text, Thinking: cfg.Thinking,
+		DeepThink: cfg.DeepThink, Search: cfg.Search, ChatGPTThink: cfg.ChatGPTThink, GroqModel: cfg.GroqModel, Window: cfg.Window, ChatURL: chatURL})
+	return answer, model, url, err
 }
 
 // ask agrega la pregunta, se la hace a AI Studio con el modelo elegido y guarda la respuesta. Sin `id` abre una
@@ -641,6 +728,7 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	a.store.mu.Lock()
 	var history []Message
 	var agent *Agent
+	chats := map[string]*ProviderChat{}
 	if in.ID != "" {
 		c, ok := a.store.convs[in.ID]
 		if !ok {
@@ -650,6 +738,10 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		history = append(history, c.Messages...)
 		in.Mode = c.Mode
 		agent = c.Agent
+		for k, v := range c.Chats {
+			cp := *v
+			chats[k] = &cp
+		}
 	}
 	a.store.mu.Unlock()
 	// El asistente es lo de siempre (Miguel, 2026-11-17: «no dos cosas diferentes, que sea el default»): toda
@@ -676,18 +768,36 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		return Conversation{}, err
 	}
 	// Un agente lleva su contexto precargado (agents.go) entre las instrucciones y la conversación.
+	base := ""
 	if agent != nil {
 		pre, err := a.agentContext(ctx, *agent)
 		if err != nil {
 			return Conversation{}, err
 		}
-		prompt = pre + "\n\n---\n\n" + prompt
+		base = pre
 	}
 	if instructions != "" {
-		prompt = instructions + "\n\n---\n\n" + prompt
+		base = strings.TrimSuffix(instructions+"\n\n---\n\n"+base, "\n\n---\n\n")
+	}
+	if base != "" {
+		prompt = base + "\n\n---\n\n" + prompt
+	}
+	// Si el chat de este proveedor todavía tiene lo mismo que Wally, va sólo lo nuevo; si no, uno nuevo con todo.
+	provider := a.config.get().providerForConversation(in.Provider, in.Mode, agent)
+	baseHash := hashText(base)
+	pc := chats[provider]
+	chatURL, text := "", prompt
+	if pc.canContinue(baseHash, history) {
+		chatURL, text = pc.URL, delta(history, pc, in.Text, files, a.fileText)
 	}
 	askCtx, cancel := context.WithTimeout(ctx, 12*time.Minute)
-	answer, model, err := a.askProvider(askCtx, in.Mode, agent, in.Provider, prompt)
+	answer, model, url, err := a.askProvider(askCtx, provider, text, chatURL)
+	// El chat ya no sirve (lo borraron, no carga): de nuevo, entero, en uno nuevo. Una pausa de Google no se reintenta.
+	var paused errPaused
+	if err != nil && chatURL != "" && !errors.As(err, &paused) {
+		chatURL = ""
+		answer, model, url, err = a.askProvider(askCtx, provider, prompt, "")
+	}
 	in.Model = model
 	cancel()
 	if err != nil {
@@ -716,6 +826,25 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		Message{ID: newID(), Role: "user", Text: in.Text, Files: files, At: asked},
 		Message{ID: newID(), Role: "model", Text: answer, Model: in.Model, Ms: done.Sub(asked).Milliseconds(), At: done,
 			Commands: modeCommands(in.Mode, answer)})
+	// El chat donde quedó: lo que ya tiene son los bloques de antes (si siguió), más estos dos. Sin URL (Groq, que no
+	// guarda chats), no se recuerda nada y la próxima va entera.
+	if url != "" {
+		if c.Chats == nil {
+			c.Chats = map[string]*ProviderChat{}
+		}
+		next := &ProviderChat{URL: url, Base: baseHash}
+		for _, m := range c.Messages {
+			next.Sent = append(next.Sent, m.ID)
+			for _, k := range m.Commands {
+				if k.Output != nil {
+					next.Outputs = append(next.Outputs, k.Output.ID)
+				}
+			}
+		}
+		c.Chats[provider] = next
+	} else if c.Chats != nil {
+		delete(c.Chats, provider)
+	}
 	if err := a.store.save(); err != nil {
 		return Conversation{}, err
 	}

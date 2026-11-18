@@ -25,6 +25,8 @@ type poolAnswer struct {
 	ID     string `json:"id"`
 	OK     bool   `json:"ok"`
 	Answer string `json:"answer"`
+	// URL: el chat donde quedó la respuesta (DeepSeek, ChatGPT, AI Studio): la próxima pregunta sigue ahí.
+	URL    string `json:"url"`
 	Format string `json:"format"`
 	Model  string `json:"model"`
 	Ms     int64  `json:"ms"`
@@ -121,6 +123,8 @@ type poolJob struct {
 	ChatGPTThink bool   `json:"chatgptThink"`
 	GroqModel    string `json:"groqModel,omitempty"`
 	Window       string `json:"window,omitempty"`
+	// ChatURL: seguir ese chat (sólo lo nuevo) en vez de abrir uno.
+	ChatURL string `json:"chatUrl,omitempty"`
 }
 
 // send le manda una línea al pool y espera su respuesta (o que se cancele el contexto).
@@ -170,7 +174,7 @@ func (p *pool) check(ctx context.Context, window string) (map[string]ProviderChe
 }
 
 // ask le manda una pregunta al pool y espera su respuesta (o que se cancele el contexto).
-func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
+func (p *pool) ask(ctx context.Context, job poolJob) (string, string, error) {
 	p.mu.Lock()
 	if p.waiting == nil {
 		p.waiting = map[string]chan poolAnswer{}
@@ -178,7 +182,7 @@ func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
 	if p.stdin == nil {
 		if err := p.start(); err != nil {
 			p.mu.Unlock()
-			return "", err
+			return "", "", err
 		}
 	}
 	p.seq++
@@ -186,29 +190,29 @@ func (p *pool) ask(ctx context.Context, job poolJob) (string, error) {
 	ch := make(chan poolAnswer, 1)
 	p.waiting[id] = ch
 	line, _ := json.Marshal(map[string]any{"id": id, "provider": job.Provider, "model": job.Model, "text": job.Text,
-		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "groqModel": job.GroqModel, "window": job.Window, "timeout": 600})
+		"thinking": job.Thinking, "deepThink": job.DeepThink, "search": job.Search, "chatgptThink": job.ChatGPTThink, "groqModel": job.GroqModel, "window": job.Window, "chatUrl": job.ChatURL, "timeout": 600})
 	_, err := p.stdin.Write(append(line, '\n'))
 	p.mu.Unlock()
 	if err != nil {
-		return "", fmt.Errorf("no pude hablarle al pool de AI Studio: %v", err)
+		return "", "", fmt.Errorf("no pude hablarle al pool de AI Studio: %v", err)
 	}
 	select {
 	case a := <-ch:
 		if a.OK {
-			return a.Answer, nil
+			return a.Answer, a.URL, nil
 		}
 		msg := strings.TrimSpace(a.Error)
 		if msg == "" {
 			msg = "AI Studio no contestó"
 		}
 		if a.Paused {
-			return "", errPaused{until: time.UnixMilli(a.Until), msg: msg}
+			return "", "", errPaused{until: time.UnixMilli(a.Until), msg: msg}
 		}
-		return "", errors.New(msg)
+		return "", "", errors.New(msg)
 	case <-ctx.Done():
 		p.mu.Lock()
 		delete(p.waiting, id)
 		p.mu.Unlock()
-		return "", errors.New("AI Studio no contestó a tiempo")
+		return "", "", errors.New("AI Studio no contestó a tiempo")
 	}
 }

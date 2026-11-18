@@ -350,6 +350,20 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
   (sin Pensamiento Profundo, para que sea rápido) y el último trae la pregunta. Y reconoce el aviso «El contenido es
   demasiado largo»: antes la receta esperaba los 10 min. Probado retomando a Ditto (con un tope de 60 mil): dos
   mensajes de 128 y 136 mil caracteres salieron en trozos, en 23 y 52 s, y Ditto entregó en 2 vueltas.
+- **Cada proveedor sigue su chat, y Wally manda sólo lo nuevo** (Miguel, 2026-11-17: «configurar cada cliente con la
+  mejor forma de trabajo»). La conversación recuerda, por proveedor, el chat donde quedó (`Conversation.Chats`: su
+  dirección, la huella de lo de arriba —WALLY.md y la precarga del agente— y qué bloques y salidas ya tiene). Si ese chat
+  tiene exactamente lo que Wally guarda (`canContinue`), la próxima pregunta va a ESE chat con sólo lo nuevo (`delta`: las
+  salidas de los comandos que pidió, lo que entró por otro proveedor y la pregunta); si se borró un bloque, cambió
+  WALLY.md o la precarga, o el chat falla, abre uno nuevo con todo (y una pausa de Google no se reintenta). Wally sigue
+  siendo el dueño de la conversación. Por proveedor:
+  - **DeepSeek**: su chat (`/a/chat/s/<id>`), y en trozos cuando lo primero no entra. Medido: la vuelta con la salida
+    de un comando pasó de reenviar ~10 mil caracteres a mandar 2 mil.
+  - **ChatGPT**: con historial (sin `temporary-chat`), su chat `/c/<id>`: su web gratis acepta ~40 mil por mensaje, y
+    así sólo lo primero tiene que entrar. `bin/chatgpt` por consola sigue en chat temporal.
+  - **Gemini**: sigue TEMPORAL a propósito (no queda en el Drive) y le llega todo cada vez: acepta textos enormes. Su
+    receta no devuelve dirección, así que Wally no recuerda chat.
+  - **Groq**: no tiene historial; le llega todo.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

@@ -2,6 +2,8 @@
 // y con su sesión, como las de AI Studio y DeepSeek. No es una receta: no tiene línea de uso.
 //
 // Aprendido el 2026-11-17 (Jarvis para la sesión, el resto por script: su análisis ve un modal donde no hay):
+// - Wally NO usa el temporal (2026-11-17): sigue el chat de cada conversación (`chatUrl`, `/c/<id>`) y manda sólo lo
+//   nuevo, porque la web gratis acepta ~40 mil caracteres por mensaje. `bin/chatgpt` sigue en temporal.
 // - `/?temporary-chat=true` abre un CHAT TEMPORAL: no aparece en el historial (ChatGPT avisa que puede guardar una copia
 //   hasta 30 días, por seguridad) y puede consultar la memoria y las instrucciones personalizadas de la cuenta.
 // - El campo es un editor ProseMirror (contenteditable), el textbox «Preguntar a ChatGPT»; el botón «Enviar» manda.
@@ -45,10 +47,11 @@ const lastAnswer = () => {
 // Lo que dice ChatGPT cuando no deja seguir (el límite del plan gratis, o un error de la página).
 const LIMIT_TEXT = /reached (our|your|the) .*limit|límite de (uso|mensajes)|alcanzaste el límite|has alcanzado|try again later|inténtalo (de nuevo )?más tarde|something went wrong|algo salió mal|too many requests/i;
 
-export type Ask = { think?: boolean; temporary?: boolean; timeoutMs?: number; log?: (s: string) => void };
+/** `chatUrl`: seguir ESE chat (uno con historial, `/c/<id>`) en vez de abrir uno nuevo: Wally manda sólo lo nuevo. */
+export type Ask = { think?: boolean; temporary?: boolean; chatUrl?: string; timeoutMs?: number; log?: (s: string) => void };
 
 /** Una pregunta en un chat nuevo (temporal por defecto): manda el texto y devuelve la respuesta en Markdown. */
-export async function askChatGPT(page: any, text: string, { think = false, temporary = true, timeoutMs = 600_000, log = () => {} }: Ask = {}) {
+export async function askChatGPT(page: any, text: string, { think = false, temporary = true, chatUrl = '', timeoutMs = 600_000, log = () => {} }: Ask = {}) {
     const t0 = Date.now();
     try {
         // El portapapeles se intercepta ANTES de que cargue ChatGPT: si no, su «Copiar» usa la referencia que guardó al
@@ -69,7 +72,7 @@ export async function askChatGPT(page: any, text: string, { think = false, tempo
             const exec = document.execCommand.bind(document);
             (document as any).execCommand = (cmd: string, ...rest: any[]) => (cmd === 'copy' ? ((w.__jarvisCopied = String(getSelection())), true) : exec(cmd, ...rest));
         });
-        await page.goto(temporary ? 'https://chatgpt.com/?temporary-chat=true' : 'https://chatgpt.com/', { waitUntil: 'domcontentloaded' });
+        await page.goto(chatUrl || (temporary ? 'https://chatgpt.com/?temporary-chat=true' : 'https://chatgpt.com/'), { waitUntil: 'domcontentloaded' });
         const box = page.getByRole('textbox', { name: 'Preguntar a ChatGPT' });
         await box.waitFor({ timeout: 30_000 }).catch(() => {});
         if (!(await box.count()) || /auth|login/.test(page.url())) throw new Error('ChatGPT no tiene sesión en este Chrome (o cambió la página): entrá a mano en chatgpt.com');
@@ -78,7 +81,7 @@ export async function askChatGPT(page: any, text: string, { think = false, tempo
             if (await pensar.count()) await pensar.click();
             else log('no está «Pensar» en esta cuenta: sigo sin él');
         }
-        log(`chatgpt · ${temporary ? 'chat temporal' : 'con historial'} · pensar ${think ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres`);
+        log(`chatgpt · ${chatUrl ? 'sigue su chat' : temporary ? 'chat temporal' : 'con historial'} · pensar ${think ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres`);
 
         await box.click();
         if (text.length <= 200_000) await box.fill(text);

@@ -170,3 +170,32 @@ func TestAFileTravelsInTheQuestionAndGoesAwayWithItsBlock(t *testing.T) {
 		t.Error("el archivo borrado siguió viajando")
 	}
 }
+
+// Un chat de proveedor sigue sólo si tiene exactamente lo que Wally guarda; lo nuevo son las salidas que llegaron
+// después de su respuesta y la pregunta de ahora.
+func TestProviderChatContinuesOnlyWithTheSameBlocks(t *testing.T) {
+	out := &Attachment{ID: "o1", Name: "salida: trampas", Kind: "salida"}
+	history := []Message{
+		{ID: "u1", Role: "user", Text: "hola"},
+		{ID: "m1", Role: "model", Text: "pido", Commands: []Command{{Cmd: "trampas", Status: "corrido", Output: out}, {Cmd: "rm -rf", Status: "no-permitido"}}},
+	}
+	pc := &ProviderChat{URL: "https://x/1", Base: "b", Sent: []string{"u1", "m1"}}
+	if !pc.canContinue("b", history) {
+		t.Fatal("con los mismos bloques y la misma base tiene que seguir")
+	}
+	if pc.canContinue("otra", history) {
+		t.Error("con otra base (WALLY.md o la precarga cambiaron) no sigue")
+	}
+	if pc.canContinue("b", history[1:]) {
+		t.Error("con un bloque borrado no sigue")
+	}
+	read := func(id string) (string, error) { return "F-1 · algo", nil }
+	got := delta(history, pc, "seguí", nil, read)
+	if !strings.Contains(got, "F-1 · algo") || !strings.Contains(got, "no está en la lista") || !strings.HasSuffix(got, "seguí") || strings.Contains(got, "hola") {
+		t.Errorf("delta: %q", got)
+	}
+	pc.Outputs = []string{"o1"}
+	if got := delta(history[:1], &ProviderChat{Sent: []string{"u1"}}, "otra", nil, read); got != "otra" {
+		t.Errorf("sin nada nuevo va sólo la pregunta: %q", got)
+	}
+}
