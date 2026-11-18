@@ -11,8 +11,8 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	"creditop/my-tools/connectors/pgreadonly"
 	"creditop/my-tools/connectors/env"
+	"creditop/my-tools/connectors/pgreadonly"
 )
 
 /* LA BASE DE LA APP DE PAGOS DE SHOPIFY, sólo para leer.
