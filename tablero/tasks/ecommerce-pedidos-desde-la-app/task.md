@@ -10,17 +10,23 @@ jira_title: "Ecommerce mobile: medir las compras de la tienda virtual que salen 
 
 ## Pendientes
 
-- [ ] Mandarle a Kevin la respuesta (borrador abajo, en «Respuesta propuesta») o ajustarla. Termina con el mensaje
-      en el hilo de Slack: el texto se confirma antes de mandarlo, sale a nombre de Miguel.
 - [x] ~~Crear el issue en Jira~~ — [CORE-982](jira:CORE-982), sprint activo, en progreso (2026-11-17).
+- [x] ~~Verificar contra el código lo que afirma Kevin~~ — confirmado contra la rama de los PRs, merchant-api y prod
+      (2026-11-18, bloque de la pila).
+- [x] ~~Revisar los PRs con Goldfish cuando Kevin suba `no_token`, el gate y el artifact~~ — backend y frontend
+      revisados el 2026-11-18; los informes están en `artifacts/`.
+- [ ] Mandarle a Kevin la segunda respuesta (borrador abajo, en «Respuesta propuesta»). Termina con el mensaje en el
+      hilo de Slack: el texto se confirma antes de mandarlo, sale a nombre de Miguel.
+- [ ] Revisar los PRs cuando Kevin corrija: orden de despliegue escrito, la cookie `ct_app` borrada (o el límite
+      escrito), pruebas de `AppHandoffToken::verify` y de la marca, `max(1, …)` en el límite por minuto. Termina con
+      los cuatro puntos vistos en el diff. Depende de: Kevin.
+- [ ] Actualizar CORE-982 con los valores reales del origen (`mobile_app`, `no_token`, vacío). La publicable ya está
+      corregida; falta pasarla a Jira con `make jira-edit`, después de que Miguel la vea.
 - [ ] Preguntarle a Kevin si tiene su propio ticket para este trabajo y enlazarlo con CORE-982. Depende de: Kevin.
-- [ ] Verificar contra el código lo que afirma Kevin (sin verificar todavía; ver «Afirmaciones de Kevin por verificar»).
-      Termina con un veredicto por afirmación (`main-verifier` para `main`, y las ramas de los PRs para lo nuevo).
-- [ ] Revisar los PRs cuando Kevin suba `no_token`, el gate y el artifact corregido: correr Goldfish
-      (`make goldfish-run PR=<url>`) sobre los tres y anotar el veredicto en la pila.
 - [ ] Confirmar quién de producto decide volver a mostrar la tienda virtual quitada en TT-230 y que la decisión quede
       escrita en el hilo o en el ticket. Hasta entonces `ff_virtual_store` sigue apagado y no se carga
-      `app_ecommerce_url` de los comercios 81 y 94.
+      `app_ecommerce_url` de los comercios 81 y 94. Con el flag prendido también aparece el 271 (La Solar), el único
+      con URL en prod. Depende de: producto.
 
 ## Objetivo
 
@@ -82,25 +88,32 @@ Kevin cierra con: «Si están de acuerdo hago no_token, el gate y el artifact».
 
 ## Respuesta propuesta (sin mandar)
 
-> Buenas Kevin, gracias, quedó claro. Con el objetivo así (medir, el número es un piso y no se usa para comisionar)
-> estamos de acuerdo, dale con los tres: `no_token`, el gate y el artifact.
->
-> Dos cosas para que queden escritas en el ticket:
-> - **`no_token` no se suma a web** en ningún reporte. Que el artifact diga qué significa cada valor (`app`, `web`,
->   `no_token`, `NULL`) y en qué casos se pierde la marca: más de 2 h, cierre de sesión, otro enlace abierto después,
->   versiones sin store-link, Corbeta y el checkout del monolito.
-> - **El flag no se prende ni se carga `app_ecommerce_url` de 81 y 94** hasta que producto confirme que vuelve la
->   entrada que se quitó en TT-230, y después de que midas cuántos usuarios siguen por debajo de la 1.50. Lo de a qué
->   tienda entra el usuario cuando el comercio tiene varias (Pullman) queda como pendiente de producto, no de este PR.
->
-> Si la tarjeta de Metabase de ventas por canal se va a usar para este número, toca pasarla a la unión por los tres
-> lados como en `reporting-query.sql`. Si no, que quede anotado que esa tarjeta subcuenta.
->
-> Cuando subas los cambios, avisame y revisamos los PRs (backend, frontend-monorepo#1409 e infra#245).
+La primera respuesta (aceptar `no_token`, el gate y el artifact) ya está cubierta por los cambios de Kevin. Ésta es la
+segunda, después de revisar los PRs:
 
-## Afirmaciones de Kevin por verificar
+> Buenas Kevin, revisé los cuatro PRs con los cambios y quedó muy bien: `no_token`, el gate apagado por defecto y
+> store-link sin `is_available_in_app`. También confirmé que la marca compara contra el comercio, lo de VTEX y que la
+> app abre el enlace en su WebView, así que la cookie llega al checkout.
+>
+> Me quedan cuatro cositas antes de aprobar:
+> 1. **Orden de despliegue** en las descripciones: migración → backend → gateway → wizard → app. Si el wizard sale
+>    antes que el backend, todo enlace cae en «No encontramos la tienda»; si el backend sale antes que la migración,
+>    cada pedido deja un `ecommerce.app_origin.failed`.
+> 2. **La cookie `ct_app` no se borra al usarla**: durante 2 h, cualquier otro pedido del mismo comercio en ese
+>    navegador sale `mobile_app`, y el número deja de ser un piso. Propongo expirarla en el checkout después de mandar
+>    el `appToken` (la marca ya quedó con el primer toque).
+> 3. **Pruebas** para `AppHandoffToken::verify` (formato, firma, vencimiento, otro comercio) y para `markOriginChannel`
+>    (primer toque), sin `RefreshDatabase`.
+> 4. `MOBILE_STORE_LINK_RATE_LIMIT_PER_MINUTE` vacío da `perMinute(0)` y un 429 para todo: un `max(1, …)` lo blinda.
+>
+> Menor: a las tablas de códigos les faltan `MBV12001` y `ERS000`. Y un dato: en prod el único comercio con
+> `app_ecommerce_url` es el 271 (La Solar, apunta a `aliados.creditop.com/evento/la-solar`), así que al prender el
+> flag es el primero que va a mostrar la tienda virtual.
 
-Ninguna está verificada todavía; las de `main` van a `main-verifier`, las nuevas contra la rama del PR.
+## Afirmaciones de Kevin (verificadas)
+
+Comprobadas el 2026-11-18 contra la rama de los PRs, merchant-api y prod; el detalle está en la pila. La de
+`EcommerceRequestRepository.php:104` (`web`) ya no aplica: ahora escribe `no_token`.
 
 - `EcommerceRequestService.php:653` compara el token contra `ecommerce_requests.allied_id` (rama del PR).
 - merchant-api `merchant.sql:16` lee `allieds.app_ecommerce_url` y con NULL devuelve `physical_only`.
@@ -129,8 +142,8 @@ sirve para medir, no para comisionar ni para atribuir ventas a un comercio.
   navegador del comprador (cookie, válida 2 horas).
 - Cuando el comprador vuelve al checkout de la tienda y entra al flujo de financiación, el pedido queda marcado con su
   origen.
-- Valores del origen: `app` (llegó con el enlace de la app), `no_token` (abrió el flujo sin la marca; no se afirma que
-  sea web) y vacío para los pedidos que no pasan por el flujo nuevo.
+- Valores del origen: `mobile_app` (llegó con el enlace de la app), `no_token` (abrió el flujo sin la marca; no se
+  afirma que sea web) y vacío para los pedidos que no pasan por el flujo nuevo.
 - La entrada a la tienda virtual en la app queda detrás del flag `ff_virtual_store`, apagado hasta que producto
   confirme volver a mostrarla (se había quitado en TT-230).
 
@@ -152,7 +165,7 @@ la prueba.
 
 ## Cómo validar
 
-1. Desde la app, abrir la tienda del comercio y comprar financiando con CreditOp: el pedido queda marcado `app`.
+1. Desde la app, abrir la tienda del comercio y comprar financiando con CreditOp: el pedido queda marcado `mobile_app`.
 2. Abrir el mismo checkout desde la web, sin pasar por la app: el pedido queda `no_token`.
 3. Abrir el enlace desde la app y esperar más de 2 horas antes de pagar: el pedido queda `no_token`.
 4. Un pedido de un comercio en el checkout anterior: el origen queda vacío.
@@ -165,7 +178,7 @@ Dos columnas nuevas en los pedidos de ecommerce: el origen y cuándo se marcó.
 
 ## Criterios de aceptación
 
-- Un pedido iniciado desde la app queda marcado `app`; uno sin la marca queda `no_token`, nunca `web`.
+- Un pedido iniciado desde la app queda marcado `mobile_app`; uno sin la marca queda `no_token`, nunca `web`.
 - Con el flag apagado la app no muestra la entrada a la tienda virtual.
 - El flag no se enciende en producción ni se carga la URL de la tienda de los comercios 81 y 94 hasta que producto lo
   confirme y se mida cuántos usuarios siguen en versiones de la app anteriores a la 1.50.
