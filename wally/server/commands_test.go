@@ -40,7 +40,7 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"make knowledge-read ID=../../etc/passwd",
 		"make knowledge-read ID=X",
 		"make cockpit",
-		"make knowledge-drift PASO=aplicar",
+		"make knowledge-drift STEP=aplicar",
 		"make tasks N=1; rm -rf ~",
 		"cat knowledge/business-overview.md",
 		"rm -rf /",

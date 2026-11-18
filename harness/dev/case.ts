@@ -2219,7 +2219,7 @@ async function main(): Promise<number> {
  * cada caso, que es lo que alguien va a querer contrastar. El conteo va igual, pero de segundo.
  */
 async function annotate(res: Res[], badList: number): Promise<void> {
-    if (process.env.MD !== '1' && !process.env.BLOQUE) return;
+    if (process.env.MD !== '1' && !(process.env.BLOCK || process.env.BLOQUE)) return;
     const { emit, cmdMake } = await import('../pkg/annotation.ts');
     // El target sale del env, que es donde este runner lo fija (arriba, con `||=`): no hay una
     // constante que importar, y leer otra cosa sería inventar un segundo lugar donde vive el ambiente.

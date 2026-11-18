@@ -1,7 +1,7 @@
 // dev/login-check.ts — ¿el ASESOR DE PRUEBA de un comercio entra al wizard en cada ambiente?
 //
 //   make harness-login-check ALLIED=346 TARGETS=dev,qa,staging
-//   make harness-login-check ALLIED=last BLOQUE=98     el comercio recién creado, y la prueba queda en la tarea
+//   make harness-login-check ALLIED=last BLOCK=98     el comercio recién creado, y la prueba queda en la tarea
 //   make harness-login-check TARGETS=dev,qa,staging             (sólo descubre a qué login manda cada front)
 //
 // Por cada ambiente lanza UN PROCESO HIJO con `E2E_TARGET` propio, porque la config del harness (front,
@@ -150,8 +150,8 @@ async function runParent(): Promise<void> {
     // Un bloque es un hecho con fecha: sólo si alguien INTENTÓ entrar. «Sin clave» o «no se pudo probar» no
     // prueban nada, y anotarlos llenaría la pila de corridas que no corrieron.
     const attempted = results.some((r) => r.veredicto === 'entró' || r.veredicto === 'no entró');
-    if (process.env.BLOQUE && !attempted) console.log('  ▸ no se agregó bloque: ningún ambiente llegó a intentar el login');
-    if ((process.env.MD === '1' || process.env.BLOQUE) && attempted) {
+    if ((process.env.BLOCK || process.env.BLOQUE) && !attempted) console.log('  ▸ no se agregó bloque: ningún ambiente llegó a intentar el login');
+    if ((process.env.MD === '1' || (process.env.BLOCK || process.env.BLOQUE)) && attempted) {
         const entered = results.filter((r) => r.veredicto === 'entró').length;
         const who = results.find((r) => r.advisor)?.advisor;
         const summary = `${entered}/${results.length} ambiente(s) dejaron entrar al asesor de prueba${who ? ` del comercio ${who.alliedId}` : ''}.`;

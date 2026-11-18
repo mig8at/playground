@@ -110,7 +110,7 @@ func main() {
 		return
 	}
 
-	// `-` lo lee de stdin: así lo mandan el harness, el trazador y las consultas DB con BLOQUE=<tarea>,
+	// `-` lo lee de stdin: así lo mandan el harness, el trazador y las consultas DB con BLOCK=<tarea>,
 	// sin un archivo temporal de por medio.
 	var src []byte
 	if *blockPath == "-" {

@@ -1,6 +1,6 @@
 # canon-deriva — poner canon al día contra main
 
-`make canon-drift PASO=…` (`deriva.py`). El método se probó el 2026-11-10 contra una pasada única de 1M sobre
+`make canon-drift STEP=…` (`deriva.py`). El método se probó el 2026-11-10 contra una pasada única de 1M sobre
 la misma deriva: tardó lo mismo en reloj y encontró 76 secciones a corregir contra 34. Tiene que avanzar **de
 lo barato a lo caro**: el modelo lee código sólo donde la prosa probablemente quedó mal. El registro completo
 de esa corrida está en la tarea **#74** del tablero.
@@ -57,7 +57,7 @@ escribir es `canon-write` sin `DRY` o `APPLY=1`, y lo decide Miguel.
 
 ## knowledge/: el mismo método, para la biblioteca local
 
-`make knowledge-drift PASO=paquete|codigo|final|aplicar` (`knowledge.py`). knowledge/ es la biblioteca del día a
+`make knowledge-drift STEP=paquete|codigo|final|aplicar` (`knowledge.py`). knowledge/ es la biblioteca del día a
 día; canon es la del equipo. Sus fuentes guardan el commit exacto, así que no hay que buscar el blob en la historia.
 `paquete` hace fetch de TODOS los clones antes de medir —desde el 2026-11-17, los de `main_clones` en `tools/repos.json` (los de canon), no los de trabajo—: `knowledge-check` no hace fetch, y un repo vecino
 atrasado 18 días hizo que un agente afirmara que una ruta no existía. Los prompts son `prompts/k-*.md`: el estilo de

@@ -290,7 +290,7 @@ const sidebarResize = {
 
 ## Archivos y verificación
 
-- `theme.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make style-theme DE=archivo.css`.
+- `theme.css`: los tokens de color, tipografía y radio del tema (hoy Darkmatter, de ShadcnThemer). Se reemplaza entero con `make style-theme FROM=archivo.css`.
 - `workbench.css`: las regiones, las medidas, los componentes, el foco y los iconos. Un tema no lo toca.
 - `workbench.js`: el comportamiento (manijas con mínimo o nada, `regionSize`, `fitRegions`, `reopenSize`, `cssSize`; la consola maximizada, `bindPanelMaximize`; el tema, `THEME_BOOT`, `bindThemeToggle`, `setTheme`, `applyTheme`; el menú `bindMenu` y la directiva `vResize`). Sus pruebas sin navegador están en `workbench.test.mjs`.
 - `spec.json`: la medida exacta de cada componente; la lee `make style-components` y de ahí sale la sección de componentes del artifact.
@@ -305,4 +305,4 @@ Se edita acá y se reparte con `make style-sync`: cada herramienta tiene su copi
 | `make style-components` | Que cada componente pinte la medida exacta de `spec.json` (sin herramientas encendidas) |
 | `make style-minimal` | Mínimo o nada: la lógica sin navegador y, con las herramientas encendidas, cuatro anchos de ventana y cada paso del teclado |
 | `make style-contrast` | El contraste de lo que se pinta, con las herramientas encendidas. `THEME=light` o `THEME=dark` fija el tema de las que tienen botón: una herramienta con botón de tema tiene que pasar en los dos |
-| `make style-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`SOLO=` elige cuáles) |
+| `make style-ui` | Teclado, arrastre, persistencia, menús y tres anchos de ventana, con las herramientas encendidas (`ONLY=` elige cuáles) |

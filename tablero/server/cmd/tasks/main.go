@@ -402,7 +402,7 @@ func showLint(path string) int {
 			warns("%s — ya estaba antes de la pila de bloques; cuando se toque, va a la pila", where)
 			continue
 		}
-		failure("%s — la historia va a la pila como bloque, no al documento: `make task-block N=%d ARCHIVO=<bloque.md>`", where, t.ID)
+		failure("%s — la historia va a la pila como bloque, no al documento: `make task-block N=%d FILE=<bloque.md>`", where, t.ID)
 	}
 	for _, a := range warnings {
 		fmt.Fprintf(os.Stderr, "tarea %s ⚠ %s\n", filepath.Base(path), a)

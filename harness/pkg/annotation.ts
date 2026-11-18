@@ -68,10 +68,10 @@ export function annotationMD(summary: string, cmd: string, evidence: string[] = 
  *  porque es la misma promesa y se aprende una sola vez. */
 export const pie = (cmd: string) => `\n     ↻ ${cmd}`;
 
-/* ─── LA CORRIDA COMO BLOQUE DE LA PILA DE UNA TAREA (`BLOQUE=<tarea>`) ─────────────────────────────
+/* ─── LA CORRIDA COMO BLOQUE DE LA PILA DE UNA TAREA (`BLOCK=<tarea>`) ─────────────────────────────
  *
  * Desde el 2026-09-23 la pila de una tarea es de BLOQUES: un título —la conclusión, en una línea— y una
- * descripción en prosa, donde cada comando va en su caja con su `Resultado:`. Con `BLOQUE=<id|slug>` la
+ * descripción en prosa, donde cada comando va en su caja con su `Resultado:`. Con `BLOCK=<id|slug>` la
  * corrida se agrega sola a la pila de esa tarea, con `via: harness`: lo que la emite es la herramienta,
  * no alguien que la copió, y eso cambia cuánto se le cree.
  *
@@ -108,24 +108,24 @@ export function blockMD(summary: string, cmd: string, evidence: string[] = []): 
  *
  * ⚠ Con el entorno de `make` LIMPIO: esto corre adentro de un target del harness, y un `make` hijo hereda
  * por MAKEFLAGS las variables de la línea de comando del padre (`TARGET=`, `CASOS=`…). No rompería hoy,
- * pero un `N=` o un `SECO=` que viniera de afuera cambiaría a qué tarea va el bloque sin decirlo.
+ * pero un `N=` o un `DRY=` que viniera de afuera cambiaría a qué tarea va el bloque sin decirlo.
  */
 export function addBlock(task: string, md: string, dry = false): { ok: boolean; salida: string } {
       const env = { ...process.env };
       for (const k of ['MAKEFLAGS', 'MFLAGS', 'MAKELEVEL', 'MAKEOVERRIDES']) delete env[k];
-      const r = spawnSync('make', ['-s', '-C', MY_TOOLS, 'tarea-bloque', `N=${task}`, 'ARCHIVO=-', 'VIA=harness',
-            ...(dry ? ['SECO=1'] : [])], { input: md, encoding: 'utf8', env });
+      const r = spawnSync('make', ['-s', '-C', MY_TOOLS, 'task-block', `N=${task}`, 'FILE=-', 'VIA=harness',
+            ...(dry ? ['DRY=1'] : [])], { input: md, encoding: 'utf8', env });
       return { ok: r.status === 0, salida: `${r.stdout ?? ''}${r.stderr ?? ''}`.trim() };
 }
 
 /**
- * La salida de una corrida para la tarea: la anotación con `MD=1` y el bloque con `BLOQUE=<tarea>`.
+ * La salida de una corrida para la tarea: la anotación con `MD=1` y el bloque con `BLOCK=<tarea>`.
  * Un bloque que no entra no cambia el desenlace de la corrida —la corrida pasó o no pasó igual—, pero
  * se dice fuerte, porque «no se agregó» leído como «se agregó» es una tarea sin su prueba.
  */
 export function emit(summary: string, cmd: string, evidence: string[] = []): void {
       if (process.env.MD === '1') console.log('\n' + annotationMD(summary, cmd, evidence));
-      const task = process.env.BLOQUE;
+      const task = (process.env.BLOCK || process.env.BLOQUE);
       if (!task) return;
       const { ok, salida: output } = addBlock(task, blockMD(summary, cmd, evidence));
       console.log(ok ? `\n  ▸ bloque agregado a la pila de la tarea ${task}`

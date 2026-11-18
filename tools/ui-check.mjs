@@ -5,9 +5,9 @@ import { createRequire } from 'node:module';
 import { mkdir } from 'node:fs/promises';
 const require = createRequire(new URL('../harness/package.json', import.meta.url));
 const { chromium } = require('playwright');
-// `SOLO=tablero,radar` corre sólo esas, como `make style-contrast`: el panel del harness deshabilita
+// `ONLY=tablero,radar` corre sólo esas, como `make style-contrast`: el panel del harness deshabilita
 // su configuración mientras hay una corrida en curso, y ahí sus pruebas de foco no pueden pasar.
-const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boolean);
+const only = ((process.env.ONLY || process.env.SOLO) || '').split(',').map((x) => x.trim()).filter(Boolean);
 const apps = [
   ['harness', 'http://localhost:5195'],
   ['tablero', 'http://localhost:5191'],

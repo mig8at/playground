@@ -17,7 +17,7 @@ de my-tools le da veredicto a cada hallazgo contra el código. El método y sus 
 2. **Corré el chequeo** sobre la rama (la que tenga el clon si no decís otra), contra la base donde va el PR:
 
        make goldfish-check REPO=legacy-backend DESC=<ruta al md> BASE=main
-       make goldfish-check REPO=frontend-monorepo RAMA=fix/x DESC=<md> BASE=qa PROBAR=1
+       make goldfish-check REPO=frontend-monorepo GIT_BRANCH=fix/x DESC=<md> BASE=qa PROVE=1
 
    `PROBAR=1` además lo comprueba corriendo con el harness en LOCAL: el clon se pone en ese commit (si ya está ahí no
    se mueve) y vuelve solo a su rama. Usalo cuando el cambio se pueda ejercitar en local; tarda más y gasta más.

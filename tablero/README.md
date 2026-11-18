@@ -115,9 +115,9 @@ que es lo que sirve cuando quien pregunta es un modelo, o cuando no hay ganas de
 ```bash
 make tasks                      # las abiertas, con etapa, Jira y nodos
 make tasks N=kyc-segundo        # una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
-make tasks STAGE=work TODAS=1 JSON=1
+make tasks STAGE=work ALL=1 JSON=1
 make task-json N=tablero        # estado operativo tipado, sin copiar cuerpos largos
-make task-json N=tablero CONTENIDO=1  # agrega el borrador publicable cuando se necesita
+make task-json N=tablero CONTENT=1  # agrega el borrador publicable cuando se necesita
 make task-guard F=<archivo>    # ¿este texto puede salir a Jira? SALE 1 si no
 make sprint                      # el sprint activo con puntos, del SNAPSHOT (dice cuándo se tomó)
 make worklog DAYS=7             # el tiempo registrado, por día
@@ -505,8 +505,8 @@ se publica en Jira. La fecha es interna: sólo agrupa los bloques en el acordeó
 Un bloque se escribe en un Markdown revisable y se valida antes de apilarlo:
 
 ```bash
-make task-block N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1   # previsualiza
-make task-block N=84 ARCHIVO=mi-bloque.md
+make task-block N=84 FILE=tablero/docs/task-context-block.example.md DRY=1   # previsualiza
+make task-block N=84 FILE=mi-bloque.md
 make task-context N=84
 ```
 

@@ -7,14 +7,14 @@
 // termina con 2, nunca en verde. Toda petición que no sea GET se bloquea en este navegador.
 //
 //   make style-minimal            las cuatro
-//   make style-minimal SOLO=visor una o varias, separadas por coma
+//   make style-minimal ONLY=visor una o varias, separadas por coma
 import { createRequire } from 'node:module';
 import assert from 'node:assert/strict';
 
 const require = createRequire(new URL('../harness/package.json', import.meta.url));
 const { chromium } = require('playwright');
 
-const only = (process.env.SOLO || '').split(',').map((x) => x.trim()).filter(Boolean);
+const only = ((process.env.ONLY || process.env.SOLO) || '').split(',').map((x) => x.trim()).filter(Boolean);
 const apps = [
   ['harness', 'http://localhost:5195'], ['tablero', 'http://localhost:5191'],
   ['visor', 'http://localhost:5186'],

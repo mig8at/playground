@@ -7,14 +7,14 @@ Aplica el modelo [Elephant-Goldfish](https://github.com/google/elephant-goldfish
 |---|---|
 | la app (Cockpit: **Goldfish**) | `make goldfish` → :5216 · API :5217 |
 | tus PRs abiertos y los externos | `make goldfish-list` |
-| **antes de publicar** (la rama local) | `make goldfish-check REPO=… DESC=<md> BASE=main [PROBAR=1]` (skill `goldfish`) |
+| **antes de publicar** (la rama local) | `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` (skill `goldfish`) |
 | validar un PR ya abierto | `make goldfish-run PR=<url>`, o pegar la URL en la app |
 | comprobar corriendo (harness en local, con el PR) | el botón «Comprobar corriendo» de una validación terminada |
 
 ## El uso principal: el paso previo a publicar (consola)
 
 Mientras se trabaja en un PR, la sesión (el elephant: es la que tiene el contexto) escribe la descripción del PR que va
-a abrir y corre `make goldfish-check REPO=… DESC=<md> BASE=main [PROBAR=1]` sobre la rama local, todavía sin PR. El
+a abrir y corre `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` sobre la rama local, todavía sin PR. El
 resumen (stdout) dice qué atender antes de publicar, qué mirar y qué quedó fuera de alcance; el avance va por stderr.
 Sale 0 aunque haya hallazgos: decidir es de la sesión y de Miguel. El skill `goldfish` lo explica para la sesión.
 

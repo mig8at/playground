@@ -570,7 +570,7 @@ func attachToTask(ctx context.Context, myTools string, r *Run, report string) (s
 	if len(top) > 0 {
 		block += "\nConfirmados:\n\n" + strings.Join(top, "\n") + "\n"
 	}
-	cmd := exec.CommandContext(ctx, "make", "-s", "task-block", "N="+r.Task.Slug, "ARCHIVO=-")
+	cmd := exec.CommandContext(ctx, "make", "-s", "task-block", "N="+r.Task.Slug, "FILE=-")
 	cmd.Dir = myTools
 	cmd.Stdin = strings.NewReader(block)
 	if out, err := cmd.CombinedOutput(); err != nil {

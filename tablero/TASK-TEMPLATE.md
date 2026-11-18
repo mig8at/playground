@@ -28,7 +28,7 @@ jira_title: ""
     · JIRA       issue recibido de Jira. «Tarea (publicable)» es sólo el borrador local.
     · PENDIENTES las casillas de «Pendientes», sin copiarlas a otras secciones.
     · RAMAS      frontmatter `ramas:` + snapshot de `make task-branches N=<id>`.
-    · BITÁCORA   tiempo medido con `make worklog-add TAREA=<id>`; no es una sección de este archivo.
+    · BITÁCORA   tiempo medido con `make worklog-add TASK=<id>`; no es una sección de este archivo.
 
   Reescribí el plan; mantené el material reproducible. Lo que pasa —una medición, una decisión, una
   pregunta, un riesgo, lo que se hizo en el día— entra a la pila como bloque con `make task-block`;
@@ -124,7 +124,7 @@ chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
      volver ilegible el archivo. Si la receta cambió, se corrige acá; el bloque que explica el cambio va
      a la pila. Llevá la fecha de la última vez que se comprobó, no una fecha por versión.
      Una MEDICIÓN no va acá: va a la pila como bloque, con el comando y su «Resultado:». Con
-     `BLOQUE=<id|slug>`, `harness-case` · `-listing` · `-walk-wizard` · `-suite` y
+     `BLOCK=<id|slug>`, `harness-case` · `-listing` · `-walk-wizard` · `-suite` y
      `tablero-db` lo agregan solos. -->
 
 ## Referencias
@@ -142,7 +142,7 @@ chequeos y lecturas de bin/pg, sin shell (la lista: tablero/server/cmd/verify).
 <!-- LA HISTORIA VA A LA PILA
      Este documento no lleva `## Registro`, anotaciones fechadas, sección de retoma ni marcadores CANON:
      un diario en el Markdown mezcla historia con lo vigente, y hasta el 2026-09-23 eso volvía ilegibles
-     las tareas grandes. Esa historia se apila con `make task-block N=<id|slug> ARCHIVO=<bloque.md>`,
+     las tareas grandes. Esa historia se apila con `make task-block N=<id|slug> FILE=<bloque.md>`,
      y el lint frena una nueva en el documento.
 
      Un bloque es un título —la conclusión, en una línea— y una descripción con lo que la sostiene:

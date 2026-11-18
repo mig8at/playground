@@ -56,7 +56,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | Office (la llamada en papel cortado, el editor de personajes y su CLI: `make office`, `make office-character`) | [`office/CLAUDE.md`](office/CLAUDE.md) |
 | la tienda VTEX de pruebas (tema, checkout, auto-onboarding con CreditOp) | [`tienda-simple/VTEX.md`](tienda-simple/VTEX.md) |
 | Canon: consulta opcional de negocio/producto o mantenimiento solicitado | el skill **`canon`** (`.claude/skills/canon/SKILL.md`) |
-| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-drift PASO=…` |
+| poner canon al día contra main (la ronda marca archivos cambiados) | [`tools/canon-deriva/CLAUDE.md`](tools/canon-deriva/CLAUDE.md) · `make canon-drift STEP=…` |
 
 ## `make` es la puerta única
 
@@ -89,7 +89,7 @@ en cualquier tarea:
   arranque. Cockpit levanta cada app con su `make` la primera vez que Miguel la abre, y un segundo `make tablero`
   choca por el puerto.
 - **Los servicios de fondo** (el chat, sentinel, correo, el pulso) y el listen del chat salen en el aviso KEYRING de
-  cada arranque, con su arreglo si se cayeron (`make keyring SOLO=background`).
+  cada arranque, con su arreglo si se cayeron (`make keyring ONLY=background`).
 - **Si Miguel toca «Frenar»**, la siguiente herramienta sale negada: contá en una línea dónde quedaste y esperá.
 
 Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuándo hay que reinstalar:
@@ -120,7 +120,7 @@ Quién levanta qué, las rutas de cada app, cómo verificar una interfaz y cuán
 | **¿qué pasa si el cliente es así?** | `make harness-case CASES='…'`, en paralelo; `CLOSE=1` llega al desenlace |
 | **¿esta regla excluye, o sólo reordena?** | corré el caso con y sin el dato. Una regla que «debería» excluir y no excluye es el error más caro del dominio (F-162) |
 | **¿algo que subió a producción está rompiendo la originación?** · **¿se dañó algo con ESTE despliegue?** | Sentinel. Por consola, sin la API: `bin/sentinel deploy <repo> [versión]` (antes, después y lo normal de esa franja en todas las señales) · `bin/sentinel now` · `bin/sentinel day [fecha]` (el resumen del día; queda en `sentinel/.data/days/`) · `bin/sentinel signal <nombre>`. Visual: su app en Cockpit (`make sentinel`). Sólo lectura. Cómo decide: [`sentinel/CLAUDE.md`](sentinel/CLAUDE.md) |
-| **¿este PR está bien?** (el mío antes de publicarlo, o uno que me pasaron) | Goldfish, el paso previo a publicar: `make goldfish-check REPO=… DESC=<md> BASE=main [PROBAR=1]` sobre la rama local (skill **`goldfish`**), o `make goldfish-run PR=<url>` para un PR ya abierto (también desde su app en Cockpit). Dos goldfish lo revisan en frío y el elephant, con tu contexto, le da veredicto a cada hallazgo, sin ser estricto: lo que no es de la tarea sale «fuera de alcance». No comenta en GitHub ni aprueba. Cómo decide: [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
+| **¿este PR está bien?** (el mío antes de publicarlo, o uno que me pasaron) | Goldfish, el paso previo a publicar: `make goldfish-check REPO=… DESC=<md> BASE=main [PROVE=1]` sobre la rama local (skill **`goldfish`**), o `make goldfish-run PR=<url>` para un PR ya abierto (también desde su app en Cockpit). Dos goldfish lo revisan en frío y el elephant, con tu contexto, le da veredicto a cada hallazgo, sin ser estricto: lo que no es de la tarea sale «fuera de alcance». No comenta en GitHub ni aprueba. Cómo decide: [`goldfish/CLAUDE.md`](goldfish/CLAUDE.md) |
 | **¿cómo se VE esta interfaz?** (después de tocar una UI) | `make ui-shot APP=<app> ROUTE='#/…' [CLICK='selector']`: la captura en un Chromium sin ventana más los errores de consola y los pedidos fallidos; `COCKPIT=1`, la ventana de Cockpit tal como la ve Miguel. No depende del navegador de la sesión ni levanta servidores |
 | **¿funciona, corriéndolo?** | por consola: `harness-case` (segundos) · `harness-walk-wizard` (HTTP, ~20 s) · `harness-walk-wizard ENGINE=browser` (Chromium, ~3 min). El panel (la app Harness de Cockpit, `make panel`) es el camino visual de Miguel. El canal de asesor pide sesión: `make harness-session` / `make harness-login` |
 | **¿qué hay en la base de canon?** (revisiones, galaxias, mantenedores, quién cambió qué) | `bin/pg canon sql --target local\|prod --query 'SELECT …'` (solo lectura, impuesta por la base) · `canon tables` las lista · `canon config` dice qué falta. `local` es el laboratorio de canon; `prod` va por la VPN con un usuario de solo lectura. ⚠ Tiene las preguntas y conversaciones de la gente: se consulta para diagnosticar, no se pega en tareas ni PRs |
@@ -143,7 +143,7 @@ las afirmaciones técnicas en el código de `main`; el comportamiento de un ambi
 falla: devuelve menos. Ante un resultado tranquilizador, preguntá de qué está leyendo.
 
 **Una afirmación verificable se verifica antes de escribirla**, y la medición no se escribe a mano: con
-`BLOQUE=<tarea>` el harness y `tablero-db` (o `bin/pg sql --bloque`) la agregan solos a la pila de la tarea, con el
+`BLOCK=<tarea>` el harness y `tablero-db` (o `bin/pg sql --bloque`) la agregan solos a la pila de la tarea, con el
 comando y lo que dio. La salida de un agente también se verifica, contra `git show main:<ruta>`.
 
 ### Contra qué ambiente
@@ -213,7 +213,7 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
 `~/Desktop/CREDITOP/temp/`, fuera de git, **no están validadas: no las cites ni decidas con ellas**.
 
 1. **La TAREA vive en `tablero/tasks/<slug>/`** (`task.md`, su pila `context.jsonl`, sus `artifacts/`).
-   **Buscá la que ya cubre esto antes de crear una: `make tasks TODAS=1`.** Una con `id: 0` no aparece
+   **Buscá la que ya cubre esto antes de crear una: `make tasks ALL=1`.** Una con `id: 0` no aparece
    en el tablero. Al cerrar la sesión, `make closeout` chequea las tres piezas —el bloque del día, `ramas:`
    medidas y la bitácora con minutos MEDIDOS— y el hook de `Stop` lo corre solo.
 2. **El contexto de la tarea se lee antes de investigar** con `make resume`. Si existe contexto
@@ -222,7 +222,7 @@ citados, está viejo. Las exploraciones de Miguel (`flow`, `engine`, `plantillas
 3. **Lo que se descubre SE REGISTRA.** El test: *si esto se mergea mañana, ¿sigue siendo cierto?*
    - conocimiento técnico reutilizable, verificado en `main` → **knowledge/** con sus fuentes;
      políticas de negocio/producto sin comprobación local quedan citadas a su fuente y con ese límite;
-   - hallazgos **de la tarea** → su **pila**, como bloques (`make task-block`, o `BLOQUE=`);
+   - hallazgos **de la tarea** → su **pila**, como bloques (`make task-block`, o `BLOCK=`);
    - trampas **del sistema**, verificadas → `tablero/data/traps/doc.md`. **Mirala antes de depurar un
      muro.**
 4. **Probar de verdad es `harness/`**: se comprueba corriendo, no leyendo. ⚠ En local/dev/staging las

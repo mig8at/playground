@@ -355,7 +355,7 @@ func runCommand(which, base string, apply bool) error {
 	}
 
 	if !apply {
-		fmt.Printf("\n  Esto es lo que HARÍA. Para hacerlo: agregá APLICAR=1\n\n")
+		fmt.Printf("\n  Esto es lo que HARÍA. Para hacerlo: agregá APPLY=1\n\n")
 		return nil
 	}
 	if c.token == "" {

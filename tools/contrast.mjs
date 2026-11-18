@@ -83,7 +83,7 @@ catch (e) {
   process.exit(2);
 }
 
-const onlyTool = process.env.SOLO || null;
+const onlyTool = (process.env.ONLY || process.env.SOLO) || null;
 const belowThreshold = [];
 let unverified = 0;
 

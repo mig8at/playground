@@ -118,7 +118,7 @@ func (s *server) brief(ctx context.Context, key, id string) (string, error) {
 		}
 		fmt.Fprintf(&b, "- **Dónde está:** carril «%s», %d de %d · %s %.0f×%.0f\n", lane, place.index, place.total, kind, place.screen.W, place.screen.H)
 	}
-	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** `make visor-tokens P=%s` (o `FORMATO=tailwind`)\n", key)
+	fmt.Fprintf(&b, "- **Hoja de tokens del archivo:** `make visor-tokens P=%s` (o `FORMAT=tailwind`)\n", key)
 
 	b.WriteString("\n## Textos, en orden de lectura\n\n")
 	for i, t := range render.ScreenTexts(n) {

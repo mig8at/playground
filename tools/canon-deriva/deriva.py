@@ -108,7 +108,7 @@ def run_dir(args, create=False):
     if args.run:
         return args.run
     if not os.path.exists(pointer):
-        die("no hay corrida: empezá con PASO=foto")
+        die("no hay corrida: empezá con STEP=foto")
     return open(pointer).read().strip()
 
 
@@ -302,7 +302,7 @@ def step_paquete(args):
         if h["kind"] == "sección inexistente":
             print(f"  ⚠ el mapa de {h['topic']} A{h['area']} respalda una sección que no existe: {h['anchor']}")
     if gone:
-        print("  → los movidos no los arregla un `verificado`: van con PASO=movidos")
+        print("  → los movidos no los arregla un `verificado`: van con STEP=movidos")
 
 
 # ── 6 · triaje ──────────────────────────────────────────────────────────────────────────────────────

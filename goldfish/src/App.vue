@@ -223,7 +223,7 @@ onBeforeUnmount(() => {
               <b>goldfish</b> lo revisan en frío (la descripción, el diff y lo que pide la tarea) y el <b>elephant</b>,
               con tu contexto, le da veredicto a cada hallazgo, sin ser estricto. Acá queda lo que se hizo: elegí una
               validación a la izquierda.
-              <pre class="cli">make goldfish-check REPO=legacy-backend DESC=pr.md BASE=main [PROBAR=1]
+              <pre class="cli">make goldfish-check REPO=legacy-backend DESC=pr.md BASE=main [PROVE=1]
 make goldfish-run PR=https://github.com/…/pull/123</pre>
             </div>
           </div>

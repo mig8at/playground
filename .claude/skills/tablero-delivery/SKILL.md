@@ -1,6 +1,6 @@
 ---
 name: tablero-delivery
-description: Saber dónde está y cómo va una tarea FUERA de my-tools: en qué ramas y ambientes vive su cambio (make task-branches, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FALLAS=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
+description: Saber dónde está y cómo va una tarea FUERA de my-tools: en qué ramas y ambientes vive su cambio (make task-branches, patch-id y PR), dónde se prueba (dev, qa, staging comparten la base pero no el backend; prod se despliega al taguear; las migraciones no se aplican al mergear), qué se desplegó y qué falló (make deploys FAILURES=1), por qué falla Sonar (el paso o el gate), y cómo crear, mover o editar un issue de Jira (make jira-create/-move/-edit, transiciones de CORE).
 ---
 
 # tablero · la entrega: ramas, ambientes, despliegues, Sonar y Jira
@@ -57,7 +57,7 @@ el 2026-09-27.
      con esa sola: el tablero mostraba que ninguna otra tarea tiene ramas, sin avisar (2026-09-15). Ahora
      se fusiona con lo que había, y **cada tarea lleva su propia fecha de medición**, así que lo viejo se
      ve viejo en vez de heredar la fecha de la última corrida.
-  7. **Las tareas que no declaran `ramas:` no se miden — y son la mitad.** `make task-branches SUGERIR=1`
+  7. **Las tareas que no declaran `ramas:` no se miden — y son la mitad.** `make task-branches SUGGEST=1`
      propone patrones mirando las ramas reales: rankea por lo que comparten de RARO (un trozo que
      aparece en pocas ramas de todo el universo) y por la clave de Jira **del frontmatter**, no del
      cuerpo —el cuerpo menciona las claves de otras tareas—. Es una propuesta, no una medición: el patrón
@@ -113,7 +113,7 @@ el 2026-09-27.
   dependencias se filtra por el nombre del workflow, y de cada falla se muestra **el job y el paso**.
 
   > **MEDICIÓN · 2026-09-15** — 201 despliegues en 15 días, 11 fallidos: 7 en «Build Image» y 4 en «Deploy Task Def to ECS»; por ambiente, 6 en qa, 3 en develop y 2 en producción. El deploy a producción del 2026-09-02 se cayó en el paso de **SonarCloud**, porque el scanner no pudo cargar los perfiles de calidad del proyecto — el código estaba bien, falló la herramienta de análisis.
-  > `make deploys DIAS=15 JSON=1`
+  > `make deploys DAYS=15 JSON=1`
 
   **`FALLAS=1` es el modo de todos los días**: sólo lo fallido, con el ERROR del log y el enlace. Sin
   él hay que buscar los ✗ entre 122 líneas, de las cuales 106 están en verde — medido, y es justo lo
@@ -144,7 +144,7 @@ el 2026-09-27.
   | **el PASO del deploy** | el scanner no pudo correr, y **tumba el despliegue entero** | raro: 1 de 40 |
   | **el GATE de calidad** | el análisis corrió bien y el código no pasa el umbral | permanente hoy |
 
-  **1 · El PASO.** `make deploys FALLAS=1` lo muestra con su motivo. El del 2026-09-02 tumbó el deploy
+  **1 · El PASO.** `make deploys FAILURES=1` lo muestra con su motivo. El del 2026-09-02 tumbó el deploy
   a **producción** con *«Failed to load the quality profiles of project … An unexpected error occurred.
   Please try again later»* — un fallo del lado de SonarCloud, no del código ni de la configuración (los
   perfiles existen: se comprueba con `api/qualityprofiles/search?project=…`). Se reintenta y pasa.

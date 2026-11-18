@@ -2,7 +2,7 @@
 //
 //   make harness-prod-advisor ALLIED=363                      el asesor de prueba (c…-fake@) de ese comercio
 //   make harness-prod-advisor EMAIL=c9aa92333-fake@creditop.com
-//   make harness-prod-advisor ALLIED=363 BLOQUE=98            …y la corrida queda en la pila de la tarea
+//   make harness-prod-advisor ALLIED=363 BLOCK=98            …y la corrida queda en la pila de la tarea
 //
 // SOLO LECTURA, y sin clave: lee la base de prod por el conector `sql` (Redash, que impone el solo lectura), la cuenta en el pool de comercios de
 // prod con el perfil de AWS `prod` (`admin-get-user`) y a qué login manda el wizard de prod (un fetch sin sesión). No abre navegador, no escribe
@@ -62,8 +62,8 @@ if (args.json) {
     console.log('  (esto no prueba el login: entrar al wizard de prod se hace a mano)\n');
 }
 
-// La corrida como bloque de la tarea, igual que las demás herramientas (BLOQUE=<tarea>).
-if (process.env.MD === '1' || process.env.BLOQUE) {
+// La corrida como bloque de la tarea, igual que las demás herramientas (BLOCK=<tarea>).
+if (process.env.MD === '1' || (process.env.BLOCK || process.env.BLOQUE)) {
     const { emit, cmdMake } = await import('../pkg/annotation.ts');
     emit(
         `el asesor de prueba de producción ${found.advisor ? found.advisor.email : '(no existe)'} quedó ${verdict === 'lista' ? 'listo para entrar' : verdict === 'con-problemas' ? 'con problemas' : 'sin comprobar del todo'}`,

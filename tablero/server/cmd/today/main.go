@@ -422,7 +422,7 @@ func resume(data string, tasks []task, snap branchesSnap, ref string, asJSON boo
 	bit := worklogOf(data, t.ID)
 	var missing []string
 	if len(contextInfo) == 0 {
-		missing = append(missing, "la pila está vacía: `make task-block N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
+		missing = append(missing, "la pila está vacía: `make task-block N="+strconv.Itoa(t.ID)+" FILE=<bloque.md>`")
 	}
 	if len(t.Branches) == 0 && requiresBranches(*t) {
 		missing = append(missing, "`ramas:` en el frontmatter — sin eso no se mide hasta dónde llegó")

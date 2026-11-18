@@ -583,10 +583,10 @@ func main() {
 		}
 		rv.BlockToday, _ = blocksOn(events, *day)
 		if !rv.BlockToday {
-			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make task-block N="+strconv.Itoa(t.ID)+" ARCHIVO=<bloque.md>`")
+			rv.Missing = append(rv.Missing, "falta un bloque del día en la pila: `make task-block N="+strconv.Itoa(t.ID)+" FILE=<bloque.md>`")
 		}
 		if rv.MinutesToday == 0 {
-			rv.Missing = append(rv.Missing, "sin bitácora del día: `make worklog-add TAREA="+strconv.Itoa(t.ID)+" LAPSO=HH:MM-HH:MM TITULO='…' NOTA='…'` (o PULSO=HH:MM; los minutos los mide el comando)")
+			rv.Missing = append(rv.Missing, "sin bitácora del día: `make worklog-add TASK="+strconv.Itoa(t.ID)+" SPAN=HH:MM-HH:MM TITLE='…' NOTE='…'` (o PULSE=HH:MM; los minutos los mide el comando)")
 		}
 		// ⚠ CON QUÉ SE COMPROBÓ — avisa, no frena, y la diferencia importa: hay tareas de diseño o de
 		// lectura donde no hay nada que correr, y convertir eso en un error enseña a ignorar el cierre.
@@ -600,7 +600,7 @@ func main() {
 			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
 		}
 		if len(rv.Missing) > 0 {
-			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TAREA="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
+			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TASK="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --tarea "+strconv.Itoa(t.ID)+"`)")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)
@@ -760,7 +760,7 @@ func printReport(inf Report) {
 	// ▲ y no ✗: la fricción es para mirar, no una pieza que falte (misma regla que «tocó código y no dice
 	// con qué se comprobó»).
 	if len(inf.Friction) > 0 {
-		fmt.Println("  ▲ fricción NUEVA del día (no pasó en el último mes · `make radar-friction DIAS=1`):")
+		fmt.Println("  ▲ fricción NUEVA del día (no pasó en el último mes · `make radar-friction DAYS=1`):")
 		for _, f := range inf.Friction {
 			line := fmt.Sprintf("    · %s — %s, %d vez/veces", f.Key, f.Kind, f.Calls)
 			if f.Note != "" {

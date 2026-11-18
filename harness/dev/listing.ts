@@ -231,7 +231,7 @@ async function main(): Promise<number> {
      * ⚠ ACÁ LO QUE SE PEGA ES EL «POR QUÉ NO», no el listado. Que salgan 7 de 12 no explica nada; que
      * la 141 no salga «por cupo rt=2» es la respuesta que alguien pegó la tarea para tener. Por eso la
      * evidencia lista las que NO salieron con su causa, y las que sí sólo como ids. */
-    if (process.env.MD === '1' || process.env.BLOQUE) {
+    if (process.env.MD === '1' || (process.env.BLOCK || process.env.BLOQUE)) {
         const { emit, cmdMake } = await import('../pkg/annotation.ts');
         const target = process.env.E2E_TARGET || 'local';
         const outside = universe.filter((l) => !wentOut.has(l.id));

@@ -1,9 +1,9 @@
-// Qué se fija acá: que lo que el arnés emite sea lo que el tablero entiende — el bloque de `BLOQUE=`,
+// Qué se fija acá: que lo que el arnés emite sea lo que el tablero entiende — el bloque de `BLOCK=`,
 // el que acepta su validador, y la anotación de `MD=1`, la que reconoce su regex. Es lógica pura —sin
 // base, sin red, sin variables de entorno— así que corre contra cualquier target.
 //
 // ⚠ Desde el 2026-09-23 una anotación ya no va en una TAREA: lo que se mide para una tarea entra a su
-// pila como bloque, con `BLOQUE=`. La de `MD=1` es para los documentos que no son una tarea —un
+// pila como bloque, con `BLOCK=`. La de `MD=1` es para los documentos que no son una tarea —un
 // `CLAUDE.md`, una trampa del sistema—, y el tablero la reconoce para frenarla si alguien la pega en
 // una tarea. Se prueba porque el modo de falla es silencioso: una forma que el tablero no reconoce se
 // ve bien en el markdown y nadie se entera de que no es lo que dice ser.
@@ -78,7 +78,7 @@ test('la forma coincide con el regex REAL con que el tablero reconoce una anotac
             `el tablero NO reconoce la primera línea:\n  ${first}\n  patrón: ${pattern}`).toBe(true);
 });
 
-test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acepta', () => {
+test.describe('el bloque que emite con BLOCK=<tarea> es el que el tablero acepta', () => {
       test('título en una línea de hasta 120, el comando en su caja y lo que dio', () => {
             const md = blockMD('x'.repeat(200) + '.', 'make harness-case TARGET=local',
                   ['✔ pullman · cerró', '✘ otro · <div> en /Users/yo/log']);
@@ -91,7 +91,7 @@ test.describe('el bloque que emite con BLOQUE=<tarea> es el que el tablero acept
       });
 
       // ⚠ LA QUE IMPORTA: quien decide si el bloque entra es el validador del tablero, no este archivo. Se
-      // le pregunta al de verdad y en seco (`make task-block … SECO=1`): si allá cambia una regla, acá se
+      // le pregunta al de verdad y en seco (`make task-block … DRY=1`): si allá cambia una regla, acá se
       // nota — que es lo que una copia de sus reglas en TypeScript no haría nunca.
       test('el validador del tablero lo acepta, en seco', () => {
             const md = blockMD('2/2 caso(s) en `local`.', cmdMake('harness-case', 'local', { CASOS: 'pullman@meddipay=rechaza' }),

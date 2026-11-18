@@ -29,7 +29,7 @@ Las piezas sueltas, para cuando hace falta una sola cosa (ninguna necesita el vi
     make visor-screens P=<clave>                              # el flujo: carriles y pantallas, cada una con su id
     make visor-screen R=<clave>/<nodo>                        # el paquete: textos, destinos, imágenes, componentes, tokens, HTML
     make visor-assets R=<clave>/<nodo> DIR=<carpeta> [SVG=1]  # las imágenes ORIGINALES, con el nombre de su capa
-    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMATO=css|tailwind|json] · make visor-components P=<clave>
+    make visor-html R=… [OUT=<archivo>] · make visor-tokens P=<clave> [FORMAT=css|tailwind|json] · make visor-components P=<clave>
     make visor-fidelity R=<clave>/<nodo>                       # ¿cuánto se parece el HTML a Figma?
     make visor-layer R='<enlace con ?capa=>'                     # UNA capa que Miguel señaló
     make visor-search Q='alquila moto'                          # el caso RARO: nadie pegó nada

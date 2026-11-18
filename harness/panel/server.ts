@@ -1155,7 +1155,7 @@ function postHogHint(ureq: number | string, target: string, since: Date): string
     if (target === 'local') return '  ▸ PostHog: no hay nada que mirar — el front local no escribe (APP_ENV=local apaga getServerPostHog)';
     if (target === 'dev') return '  ▸ PostHog: no hay nada que mirar — el target dev sirve el front LOCAL, que tampoco escribe';
     return `  ▸ PostHog: disponible, pero su ingesta tarda minutos y bloquearía este cierre.\n`
-        + `  ▸   make harness-posthog UREQ=${ureq} TARGET=${target} VENTANA=1d`;
+        + `  ▸   make harness-posthog UREQ=${ureq} TARGET=${target} WINDOW=1d`;
 }
 
 // hash de la SUCURSAL que usa el LAUNCH para un slug (de .flows.json, igual que bin/advisor). Es ese branch

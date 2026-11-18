@@ -10,7 +10,7 @@ import (
 	dbsql "creditop/my-tools/connectors/sql"
 )
 
-// LA CONSULTA COMO EVIDENCIA DE UNA TAREA. Lo que hacía `make trazador-sql MD=1 BLOQUE=…`, que ahora vive acá: el
+// LA CONSULTA COMO EVIDENCIA DE UNA TAREA. Lo que hacía `make trazador-sql MD=1 BLOCK=…`, que ahora vive acá: el
 // bloque lleva la consulta en su caja ` ```sql <ambiente> ` y debajo «Resultado:», que es lo que el validador de la pila
 // exige (una consulta sin lo que dio no se puede volver a tomar ni desmentir).
 
@@ -80,7 +80,7 @@ func addTaskBlock(task, title, body string) error {
 	if r := []rune(title); len(r) > 120 {
 		title = string(r[:119]) + "…"
 	}
-	cmd := exec.Command("make", "-s", "-C", root, "task-block", "N="+task, "ARCHIVO=-", "VIA=db")
+	cmd := exec.Command("make", "-s", "-C", root, "task-block", "N="+task, "FILE=-", "VIA=db")
 	cmd.Stdin = strings.NewReader("# " + title + "\n\n" + body)
 	for _, kv := range os.Environ() {
 		if k, _, _ := strings.Cut(kv, "="); k != "MAKEFLAGS" && k != "MFLAGS" && k != "MAKELEVEL" && k != "MAKEOVERRIDES" {

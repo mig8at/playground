@@ -56,12 +56,12 @@ tablero: ## @dia abre el tablero: las tareas a realizar (:5191)
 # rincón de my-tools que un modelo no puede leer sin levantar un server»— pero preguntar EN QUÉ SE
 # TRABAJA seguía obligando a parsear los frontmatters a mano, y el GUARD sólo corría al publicar,
 # cuando ya es tarde para decidir cómo escribir.
-tasks: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · TODAS=1 · JSON=1
-	@cd tablero/server && go run ./cmd/tasks $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(TODAS),-todas) $(if $(JSON),-json)
+tasks: ## @dia las tareas abiertas, sin abrir la UI. N=<slug|id> · STAGE=work · ALL=1 · JSON=1
+	@cd tablero/server && go run ./cmd/tasks $(if $(N),-n $(N)) $(if $(STAGE),-stage $(STAGE)) $(if $(ALL),-todas) $(if $(JSON),-json)
 
-task-json: ## @dia proyección JSON tipada de UNA tarea (v3): el documento y su pila. N=<slug|id> · CONTENIDO=1 incluye borrador Jira
+task-json: ## @dia proyección JSON tipada de UNA tarea (v3): el documento y su pila. N=<slug|id> · CONTENT=1 incluye borrador Jira
 	@test -n "$(N)" || { echo "falta N=<slug|id>  ·  ej: make task-json N=tablero"; exit 2; }
-	@cd tablero/server && go run ./cmd/tasks -n "$(N)" -json $(if $(CONTENIDO),-contenido)
+	@cd tablero/server && go run ./cmd/tasks -n "$(N)" -json $(if $(CONTENT),-contenido)
 
 # ⚠ Lee el SNAPSHOT de Jira, no el estado vivo — e imprime cuándo se tomó, porque un tablero
 # presentado como actual siendo de hace días es peor que no tenerlo: se decide sobre él.
@@ -75,14 +75,14 @@ worklog: ## @dia el tiempo registrado, agrupado por día. DAYS=7 · JSON=1 (la n
 # Mide contra los repos LOCALES lo que el último `fetch` dejó: no habla con la red a propósito (un
 # comando de lectura que sale a internet sorprende, y en 13 repos nadie lo correría). Por patch-id, así
 # que detecta un cambio que llegó por SQUASH — donde el nombre de la rama ya no existe.
-task-branches: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|slug|trozo del título> mide y muestra sólo esa, en segundos · SUGERIR=1 propone patrón a las que no declaran ramas · JSON=1
-	@cd tablero/server && go run ./cmd/branches $(if $(N),-n "$(N)") $(if $(SUGERIR),-sugerir) $(if $(JSON),-json)
+task-branches: ## @dia ¿en qué ramas vive cada tarea y hasta dónde llegó (y si ya está en main)? mide git + PRs. N=<id|slug|trozo del título> mide y muestra sólo esa, en segundos · SUGGEST=1 propone patrón a las que no declaran ramas · JSON=1
+	@cd tablero/server && go run ./cmd/branches $(if $(N),-n "$(N)") $(if $(SUGGEST),-sugerir) $(if $(JSON),-json)
 
 # Publica en CUADRILLA (el tablero del EQUIPO) las ramas de una tarea de acá. Viaja lo que se MIDE
-# —repo y rama— y nada más: quién está en la épica y la rama base se deciden allá. Sin APLICAR=1 sólo
+# —repo y rama— y nada más: quién está en la épica y la rama base se deciden allá. Sin APPLY=1 sólo
 # dice qué haría. No crea épicas: la épica es un acuerdo del equipo.
-cuadrilla-publish: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APLICAR=1 escribe · EN=<url>
-	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APLICAR),-aplicar) $(if $(EN),-en $(EN))
+cuadrilla-publish: ## @dia publica en cuadrilla las ramas de una tarea (a tu parte de la épica). N=<id|título> · APPLY=1 escribe · EPIC=<url>
+	@cd tablero/server && go run ./cmd/cuadrilla -n "$(N)" $(if $(APPLY),-aplicar) $(if $(EPIC),-en $(EPIC))
 
 today: ## @dia la agenda derivada de las tareas: en movimiento (último bloque, lo que espera a alguien, entrega) y dormidas (≥14 d sin tocar). STAGE=work · JSON=1
 	@cd tablero/server && go run ./cmd/today $(if $(STAGE),-stage $(STAGE)) $(if $(JSON),-json)
@@ -102,12 +102,12 @@ task-verify: ## @dia el VEREDICTO de una tarea por spec: corre el comando de cad
 sala: ## @dia agentes independientes en paralelo, uno por tema de knowledge/, y un verificador al final: se ven trabajar en vivo. GASTA modelo salvo con «Simulado». http://127.0.0.1:5201 · MOCK=1 todo simulado
 	@$(if $(MOCK),SALA_MOCK=1) go run ./sala
 
-deploys: ## @dia ¿qué se desplegó y a qué ambiente? FALLAS=1 deja SÓLO lo que falló, con el error del log. DIAS=7 · REPO=legacy-backend · JSON=1
-	@cd tablero/server && go run ./cmd/deploys $(if $(DIAS),-dias $(DIAS)) $(if $(REPO),-repo $(REPO)) $(if $(FALLAS),-fallas) $(if $(JSON),-json)
+deploys: ## @dia ¿qué se desplegó y a qué ambiente? FAILURES=1 deja SÓLO lo que falló, con el error del log. DAYS=7 · REPO=legacy-backend · JSON=1
+	@cd tablero/server && go run ./cmd/deploys $(if $(DAYS),-dias $(DAYS)) $(if $(REPO),-repo $(REPO)) $(if $(FAILURES),-fallas) $(if $(JSON),-json)
 
-keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios, sesiones de asesor y los servicios de fondo de my-tools; sólo lee y nunca muestra un secreto. SOLO=network,aws,databases,logs,events,services,sessions,background · Canon sólo con SOLO=canon · JSON=1 · sale 1 si algo falla
+keyring: ## @dia el llavero: ¿a qué tengo acceso AHORA y cuándo vence? Primero, qué servicios de AWS lee cada perfil; después VPN, bases, Loki, PostHog, servicios, sesiones de asesor y los servicios de fondo de my-tools; sólo lee y nunca muestra un secreto. ONLY=network,aws,databases,logs,events,services,sessions,background · Canon sólo con ONLY=canon · JSON=1 · sale 1 si algo falla
 	@go run ./keyring/server -aws $(if $(JSON),-json)
-	@go run ./keyring/server $(if $(SOLO),-only "$(SOLO)") $(if $(JSON),-json)
+	@go run ./keyring/server $(if $(ONLY),-only "$(ONLY)") $(if $(JSON),-json)
 keyring-ui: ## @dia abre keyring, el llavero, visual (:5182 · API :5183): las mismas filas que `make keyring`, cada grupo apenas contesta
 	@cd keyring && npm run dev
 .PHONY: goldfish goldfish-list goldfish-run goldfish-check
@@ -118,9 +118,9 @@ goldfish-list: ## @dia tus PRs abiertos por repo y los externos que pegaste, con
 goldfish-run: ## @dia ⚠ valida un PR con Elephant-Goldfish (3 agentes con `claude -p`: unos minutos, gasta el asiento del plan). Trae el PR al clon (sólo refs), deja el informe en goldfish/.runs y, si su rama es de una tarea, en sus artifacts y un bloque en su pila. Si es de otro, queda como externo. PR=<url del PR>
 	@test -n "$(PR)" || { echo "falta PR=<url>  ·  ej: make goldfish-run PR=https://github.com/Creditop-SAS/legacy-backend/pull/1693  (los tuyos: make goldfish-list)"; exit 2; }
 	@go run ./goldfish/server -run -pr "$(PR)"
-goldfish-check: ## @dia el paso previo a publicar un PR: Goldfish sobre la rama local (la que tenga el clon), sin el PR todavía. Dos goldfish la revisan en frío y el elephant le da veredicto a cada hallazgo, sin ser estricto: sólo lo de este cambio; lo que no es de la tarea sale como «fuera de alcance». Escribe un resumen corto (qué atender, qué mirar). REPO=<carpeta o ruta> [RAMA=] [BASE=main] [DESC=<md con la descripción del PR: 1.ª línea, el título>] [PROBAR=1 además comprueba corriendo con el harness en local]
+goldfish-check: ## @dia el paso previo a publicar un PR: Goldfish sobre la rama local (la que tenga el clon), sin el PR todavía. Dos goldfish la revisan en frío y el elephant le da veredicto a cada hallazgo, sin ser estricto: sólo lo de este cambio; lo que no es de la tarea sale como «fuera de alcance». Escribe un resumen corto (qué atender, qué mirar). REPO=<carpeta o ruta> [GIT_BRANCH=] [BASE=main] [DESC=<md con la descripción del PR: 1.ª línea, el título>] [PROVE=1 además comprueba corriendo con el harness en local]
 	@test -n "$(REPO)" || { echo "falta REPO=  ·  ej: make goldfish-check REPO=legacy-backend DESC=/tmp/pr.md BASE=main"; exit 2; }
-	@go run ./goldfish/server -check -repo "$(REPO)" $(if $(RAMA),-branch "$(RAMA)") $(if $(BASE),-base "$(BASE)") $(if $(DESC),-desc "$(DESC)") $(if $(PROBAR),-prove)
+	@go run ./goldfish/server -check -repo "$(REPO)" $(if $(GIT_BRANCH),-branch "$(GIT_BRANCH)") $(if $(BASE),-base "$(BASE)") $(if $(DESC),-desc "$(DESC)") $(if $(PROVE),-prove)
 ecommerce: ## @dia abre ecommerce (:5178 · API :5179): escribís el celular de la prueba (o la URL del wizard o el número de solicitud) y dice de qué comercio viene, qué mandó la tienda, a qué usuario quedó pegada y con qué datos, y por qué estados pasó, contra local, qa o prod (prod sólo lee); también cierra la compra (aprobada, negada, cancelada) y dicta las centrales. Es una copia suelta: su .env propio, sin connectors. ⚠ El icono de basura BORRA de verdad la solicitud y lo que cuelga de ella (y, si era la última, puede dar de baja al usuario), en local o qa, con confirmación y copia en ecommerce/.backups/. Por consola: cd ecommerce && go run ./server -target qa -q <url|número>
 	@cd ecommerce && npm run dev
 .PHONY: captura
@@ -160,19 +160,19 @@ chat-uninstall: ## @dia saca el servidor del chat de fondo (vuelve a traerlo Coc
 anatomy: ## @dia ¿cuánto pesa el documento de cada tarea, cuántos bloques tiene su pila, y qué sección con fecha parece historia fuera de lugar? N=<id|slug>
 	@cd tablero/server && go run ./cmd/today -anatomia $(if $(N),-n "$(N)")
 
-worklog-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TAREA=<id|slug> TITULO='…' [NOTA='…'|NOTA_F=archivo] y UNA fuente: LAPSO=HH:MM-HH:MM · PULSO=HH:MM · MIN=N FUENTE='…'. [DIA=AAAA-MM-DD trabajo de un día anterior: con LAPSO, o con MIN y SINCE=HH:MM] [KIND=progress] [SECO=1]
-	@test -n "$(TAREA)" -a -n "$(TITULO)" || { echo "faltan TAREA= y TITULO=  ·  ej: make worklog-add TAREA=84 LAPSO=21:58-22:11 TITULO='…' NOTA='…'"; exit 2; }
-	@cd tablero/server && go run ./cmd/worklog -tarea "$(TAREA)" -titulo "$(TITULO)" $(if $(NOTA),-nota "$(NOTA)") $(if $(NOTA_F),-nota-archivo ../../$(NOTA_F)) \
-	  $(if $(LAPSO),-lapso $(LAPSO)) $(if $(PULSO),-pulso $(PULSO)) $(if $(MIN),-min $(MIN)) $(if $(FUENTE),-fuente "$(FUENTE)") $(if $(DIA),-dia $(DIA)) $(if $(SINCE),-desde $(SINCE)) $(if $(KIND),-kind $(KIND)) $(if $(SECO),-n)
+worklog-add: ## @dia ⚠ ESCRIBE la bitácora con minutos MEDIDOS por el comando. TASK=<id|slug> TITLE='…' [NOTE='…'|NOTE_FILE=archivo] y UNA fuente: SPAN=HH:MM-HH:MM · PULSE=HH:MM · MIN=N SOURCE='…'. [DAY=AAAA-MM-DD trabajo de un día anterior: con LAPSO, o con MIN y SINCE=HH:MM] [KIND=progress] [DRY=1]
+	@test -n "$(TASK)" -a -n "$(TITLE)" || { echo "faltan TASK= y TITLE=  ·  ej: make worklog-add TASK=84 SPAN=21:58-22:11 TITLE='…' NOTE='…'"; exit 2; }
+	@cd tablero/server && go run ./cmd/worklog -tarea "$(TASK)" -titulo "$(TITLE)" $(if $(NOTE),-nota "$(NOTE)") $(if $(NOTE_FILE),-nota-archivo ../../$(NOTE_FILE)) \
+	  $(if $(SPAN),-lapso $(SPAN)) $(if $(PULSE),-pulso $(PULSE)) $(if $(MIN),-min $(MIN)) $(if $(SOURCE),-fuente "$(SOURCE)") $(if $(DAY),-dia $(DAY)) $(if $(SINCE),-desde $(SINCE)) $(if $(KIND),-kind $(KIND)) $(if $(DRY),-n)
 
-task-block: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> ARCHIVO=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOQUE=) · [VIA=harness|db] · [SECO=1]
-	@test -n "$(N)" -a -n "$(ARCHIVO)" || { echo "faltan N= y ARCHIVO=  ·  ej: make task-block N=84 ARCHIVO=tablero/docs/task-context-block.example.md SECO=1"; exit 2; }
-	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -bloque $(if $(filter -,$(ARCHIVO)),-,$(if $(filter /%,$(ARCHIVO)),$(ARCHIVO),../../$(ARCHIVO))) $(if $(VIA),-via $(VIA)) $(if $(SECO),-n)
+task-block: ## @dia ⚠ ESCRIBE un bloque en la pila de una tarea: `# título` y la descripción, en un Markdown. N=<id|slug> FILE=<bloque.md> (o `-`: por stdin, como lo usan las herramientas con BLOCK=) · [VIA=harness|db] · [DRY=1]
+	@test -n "$(N)" -a -n "$(FILE)" || { echo "faltan N= y FILE=  ·  ej: make task-block N=84 FILE=tablero/docs/task-context-block.example.md DRY=1"; exit 2; }
+	@cd tablero/server && go run ./cmd/task-context -tarea "$(N)" -bloque $(if $(filter -,$(FILE)),-,$(if $(filter /%,$(FILE)),$(FILE),../../$(FILE))) $(if $(VIA),-via $(VIA)) $(if $(DRY),-n)
 
 # El formato de hitos se retiró el 2026-09-23. El target queda para que quien siga una guía vieja
 # reciba el camino nuevo en vez de un «No rule to make target».
 task-context-add:
-	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make task-block N=<tarea> ARCHIVO=<bloque.md>"; exit 2
+	@echo "el formato de hitos se retiró el 2026-09-23: la pila es de bloques. Usá make task-block N=<tarea> FILE=<bloque.md>"; exit 2
 
 task-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 	@test -n "$(N)" || { echo "falta N=<id|slug>  ·  ej: make task-context N=84"; exit 2; }
@@ -181,17 +181,17 @@ task-context: ## @dia la pila de una tarea: sus últimos bloques. N=<id|slug>
 pg: ## @dia la puerta a los CONECTORES: base y logs de un ambiente, con la fuente que contestó. ARGS='sql --target prod --query "SELECT …"' · ARGS='logs --target qa --query "{…}" --since 1h' · ARGS=help
 	@bin/pg $(or $(ARGS),help)
 
-tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET obligatorio). TARGET=local|dev|qa|staging|prod SQL='SELECT …' [CSV=1] [MD=1 anotación + tabla, para pegar en la tarea] [BLOQUE=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
+tablero-db: ## @dia SQL de SOLO LECTURA (atajo de `bin/pg sql`, con TARGET obligatorio). TARGET=local|dev|qa|staging|prod SQL='SELECT …' [CSV=1] [MD=1 anotación + tabla, para pegar en la tarea] [BLOCK=<id|slug> la consulta y lo que dio, como bloque de la pila de esa tarea]
 	@test -n "$(TARGET)" || { echo "falta TARGET=local|dev|qa|staging|prod"; exit 2; }
 	@test -n $$'$(subst ','\'',$(SQL))' || { echo "falta SQL='SELECT …'"; exit 2; }
 	@# La consulta la hace el conector (`bin/pg sql`): una sola implementación del formato, la anotación y el bloque.
-	@bin/pg sql --target "$(TARGET)" --query $$'$(subst ','\'',$(SQL))' $(if $(CSV),--csv) $(if $(MD),--md) $(if $(BLOQUE),--bloque $(BLOQUE))
+	@bin/pg sql --target "$(TARGET)" --query $$'$(subst ','\'',$(SQL))' $(if $(CSV),--csv) $(if $(MD),--md) $(if $(BLOCK),--bloque $(BLOCK))
 
-closeout: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DIA=YYYY-MM-DD · JSON=1 · SIN_PRS=1 no consulta GitHub · TAREA=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
-	@cd tablero/server && go run ./cmd/closeout $(if $(DIA),-dia $(DIA)) $(if $(JSON),-json) $(if $(SIN_PRS),-sin-prs) $(if $(TAREA),-tarea $(TAREA))
+closeout: ## @dia el cierre del día: qué tareas tocaste (git, la pila y el pulso) y a cuál le falta el bloque del día, la bitácora o ramas. Sale 1 si falta algo. Avisa (▲, no frena) los pendientes abiertos que citan un PR ya mergeado o cerrado. DAY=YYYY-MM-DD · JSON=1 · NO_PRS=1 no consulta GitHub · TASK=<id|slug> propone el cierre de esa tarea (lapso, commits y los comandos del bloque y la bitácora) sin escribir nada
+	@cd tablero/server && go run ./cmd/closeout $(if $(DAY),-dia $(DAY)) $(if $(JSON),-json) $(if $(NO_PRS),-sin-prs) $(if $(TASK),-tarea $(TASK))
 
-traps: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDICE=1 sólo el índice (sin tocar los repos)
-	@cd tablero/server && go run ./cmd/traps $(if $(INDICE),-index)
+traps: ## @dia las TRAMPAS del sistema (`F-xx`): ¿el índice está completo y sus citas siguen apuntando bien? INDEX=1 sólo el índice (sin tocar los repos)
+	@cd tablero/server && go run ./cmd/traps $(if $(INDEX),-index)
 
 citations: ## @dia ¿las citas `archivo:línea` de un documento siguen apuntando a lo que dicen? (ancla por contenido contra `main`) DOC=<doc.md …> · OK=1 lista también las sanas
 	@test -n "$(DOC)" || { echo "falta DOC=<doc.md>  ·  ej: make citations DOC=tablero/data/traps/doc.md"; exit 2; }
@@ -239,10 +239,10 @@ visor: ## @dia ¿CÓMO ES el diseño de este flujo, y qué tan bien pasa a HTML?
 visor-test: ## @dia las pruebas del visor: la traducción a HTML (flex, absolutas, recortes, dibujos) y el server (rutas de disco, una sola bajada)
 	@go test ./visor/...
 
-visor-fidelity: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave/nodo>: una pantalla, sin contar el suavizado de las letras [NUEVA=1 vuelve a medir]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [SOLO=id,id] [TODAS=1 también las web], con `make visor` corriendo
+visor-fidelity: ## @dia ¿cuánto se parece el HTML traducido a Figma? R=<clave/nodo>: una pantalla, sin contar el suavizado de las letras [FRESH=1 vuelve a medir]; sin el visor corriendo. REF='<url de la sección>': el flujo entero [ONLY=id,id] [ALL=1 también las web], con `make visor` corriendo
 	@test -n "$(R)$(REF)" || { echo "falta R=<clave/nodo> (una pantalla) o REF='<url de la sección de Figma>' (el flujo)"; exit 2; }
-	@if [ -n "$(R)" ]; then cd visor/server && go run . fidelity '$(R)' $(if $(NUEVA),--fresh); \
-	else node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(SOLO),--only $(SOLO)) $(if $(TODAS),--all); fi
+	@if [ -n "$(R)" ]; then cd visor/server && go run . fidelity '$(R)' $(if $(FRESH),--fresh); \
+	else node visor/tools/fidelity.mjs --ref '$(REF)' $(if $(ONLY),--only $(ONLY)) $(if $(ALL),--all); fi
 
 # La API del visor POR CONSOLA (visor/server/cli.go): la interfaz es para mirar, el modelo trabaja con
 # comandos, como con el harness. No necesitan el visor corriendo. La pantalla se nombra como en su ruta
@@ -271,13 +271,13 @@ visor-assets: ## @dia BAJA las imágenes de una pantalla en su resolución ORIGI
 	@test -n "$(R)" || { echo "falta R=<clave/nodo>  ·  ej: make visor-assets R=RkyauDfqEsFbJZBBoqChAV/266-1279 DIR=./recursos"; exit 2; }
 	@cd visor/server && go run . assets '$(R)' $(if $(DIR),--dir "$(abspath $(DIR))") $(if $(SVG),--svg)
 
-visor-layer: ## @dia UNA capa de una pantalla, la que se señaló en el visor: qué es, qué dice Figma, el HTML que la dibuja y los recortes de Figma y del HTML en esa zona, con cuánto se parecen. R='<ruta o enlace con ?capa=>' [CAPA=<id>] [DIR=<carpeta>]
+visor-layer: ## @dia UNA capa de una pantalla, la que se señaló en el visor: qué es, qué dice Figma, el HTML que la dibuja y los recortes de Figma y del HTML en esa zona, con cuánto se parecen. R='<ruta o enlace con ?capa=>' [LAYER=<id>] [DIR=<carpeta>]
 	@test -n "$(R)" || { echo "falta R='<ruta con ?capa=>'  ·  ej: make visor-layer R='uO5zJoYjnJnfDCTqOSG1uR/1-6660?capa=I1-6711_1265-1238'"; exit 2; }
-	@cd visor/server && go run . layer '$(R)' $(if $(CAPA),--capa '$(CAPA)') $(if $(DIR),--dir "$(abspath $(DIR))")
+	@cd visor/server && go run . layer '$(R)' $(if $(LAYER),--capa '$(LAYER)') $(if $(DIR),--dir "$(abspath $(DIR))")
 
-visor-tokens: ## @dia los tokens del diseño de un proyecto: colores y textos con su nombre del sistema. P=<clave> [FORMATO=css|tailwind|json]
-	@test -n "$(P)" || { echo "falta P=<clave del archivo>  ·  ej: make visor-tokens P=7M01d0CZPzzJs0iZeKhwvf FORMATO=tailwind"; exit 2; }
-	@cd visor/server && go run . tokens '$(P)' --$(or $(FORMATO),css)
+visor-tokens: ## @dia los tokens del diseño de un proyecto: colores y textos con su nombre del sistema. P=<clave> [FORMAT=css|tailwind|json]
+	@test -n "$(P)" || { echo "falta P=<clave del archivo>  ·  ej: make visor-tokens P=7M01d0CZPzzJs0iZeKhwvf FORMAT=tailwind"; exit 2; }
+	@cd visor/server && go run . tokens '$(P)' --$(or $(FORMAT),css)
 
 visor-components: ## @dia los componentes del sistema de diseño que usa un flujo, con sus variantes y en qué pantallas. P=<clave>
 	@test -n "$(P)" || { echo "falta P=<clave del archivo>"; exit 2; }
@@ -291,12 +291,12 @@ visor-links: ## @dia ¿siguen vivas las pantallas que enlazan las tareas? recorr
 
 
 
-style-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. SOLO=<herramienta,…>
-	@SOLO="$(SOLO)" node tools/ui-check.mjs
+style-ui: ## @dia verifica teclado, arrastre y persistencia de las UIs encendidas (harness, tablero, radar); con datos de prueba. ONLY=<herramienta,…>
+	@ONLY="$(ONLY)" node tools/ui-check.mjs
 
-style-minimal: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. SOLO=<herramienta,…>
+style-minimal: ## @dia «mínimo o nada» en las cuatro UIs encendidas: ninguna región mide entre 0 y su mínimo, en cuatro anchos de ventana ni con el teclado. ONLY=<herramienta,…>
 	@node --test tools/ui/workbench.test.mjs >/dev/null && echo '  ✓  workbench.js: la lógica, sin navegador'
-	@SOLO="$(SOLO)" node tools/ui-minimum.mjs
+	@ONLY="$(ONLY)" node tools/ui-minimum.mjs
 
 style-components: ## @dia ¿la base pinta lo que dice? dibuja cada componente de tools/ui/spec.json con workbench.css y compara alto, padding, letra, radio e icono contra la especificación. No necesita las herramientas encendidas
 	@node tools/ui-spec.mjs
@@ -316,11 +316,11 @@ style-check: ## @dia ¿las cuatro UIs comparten de verdad UN tema? md5 de los `t
 	@node tools/ui-icons.mjs --check
 	@python3 tools/style.py
 
-style-contrast: ## @dia [THEME=light|dark] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. SOLO=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
-	@THEME="$(THEME)" PALETTE="$(PALETTE)" SOLO="$(SOLO)" node tools/contrast.mjs
+style-contrast: ## @dia [THEME=light|dark] [PALETTE=nord|catppuccin|vintage|monokaipro|ristretto] mide el contraste de lo que SE PINTA en las cuatro UIs (lo que `estilo-check` no puede ver: el color viene de un ancestro y el fondo de otro). Necesita las UIs CORRIENDO. ONLY=<herramienta> · THEME=light|dark fija el tema de las que tienen botón
+	@THEME="$(THEME)" PALETTE="$(PALETTE)" ONLY="$(ONLY)" node tools/contrast.mjs
 
-style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. DE=<archivo.css> (sin DE, sólo dice cuál está puesto)
-	@python3 tools/style.py --tema $(if $(DE),$(DE))
+style-theme: ## @dia cambia el tema de LAS CUATRO UIs de un saque: pegás un export de tweakcn en un archivo y esto lo reparte. FROM=<archivo.css> (sin DE, sólo dice cuál está puesto)
+	@python3 tools/style.py --tema $(if $(FROM),$(FROM))
 
 
 
@@ -374,14 +374,14 @@ sentinel: ## @dia abre Sentinel, el vigía de producción (:5210 · API :5211): 
 sentinel-now: ## @dia Sentinel por consola: cómo está producción AHORA (lo que pide atención, lo que seguís, los servicios con su versión). Lee lo guardado, sin la API. JSON=1 para un agente
 	@bin/sentinel now $(if $(JSON),--json)
 
-sentinel-day: ## @dia Sentinel por consola: el resumen de un DÍA (cuánto entró contra lo normal, qué se salió y cuándo, despliegues, avisos). DIA=AAAA-MM-DD (hoy por defecto); queda escrito en sentinel/.data/days/. JSON=1
-	@bin/sentinel day $(DIA) $(if $(JSON),--json)
+sentinel-day: ## @dia Sentinel por consola: el resumen de un DÍA (cuánto entró contra lo normal, qué se salió y cuándo, despliegues, avisos). DAY=AAAA-MM-DD (hoy por defecto); queda escrito en sentinel/.data/days/. JSON=1
+	@bin/sentinel day $(DAY) $(if $(JSON),--json)
 
 sentinel-signal: ## @dia Sentinel por consola: UNA señal hora por hora, hoy contra lo normal (y los errores de una entidad). S='credifamilia' o S=merchant:94. JSON=1
 	@bin/sentinel signal $(S) $(if $(JSON),--json)
 
-sentinel-deploy: ## @dia Sentinel por consola: ¿se DAÑÓ algo después de un despliegue a producción? REPO=legacy-backend [VERSION=v0.6.46] [HORAS=2]: las horas de después contra las de antes y contra lo normal de esa franja. JSON=1
-	@bin/sentinel deploy $(REPO) $(VERSION) --hours $(or $(HORAS),2) $(if $(JSON),--json)
+sentinel-deploy: ## @dia Sentinel por consola: ¿se DAÑÓ algo después de un despliegue a producción? REPO=legacy-backend [VERSION=v0.6.46] [HOURS=2]: las horas de después contra las de antes y contra lo normal de esa franja. JSON=1
+	@bin/sentinel deploy $(REPO) $(VERSION) --hours $(or $(HOURS),2) $(if $(JSON),--json)
 
 office: ## @dia abre Office (:5220), la llamada en papel cortado donde se ven las personas y sus agentes, y su editor de personajes (/editor.html). Servidor sin caché
 	@python3 office/serve.py $(or $(PORT),5220)
@@ -447,15 +447,15 @@ jarvis_recipe = $(or $(word 2,$(subst :, ,$(filter $(1):%,$(JARVIS_OLD_RECIPES))
 .PHONY: jarvis-map
 jarvis-map: ## @dia el MAPA de una herramienta (jarvis/maps/<app>/map.json): sus pantallas y sus elementos con el localizador que Jarvis verificó. A=show (default) · A=verify abre cada pantalla en la sesión de Jarvis y dice qué elemento ya no está (sale 1) · A=save SCREEN=<nombre> [FRAME='#iframe'|NO_FRAME=1] guarda la pestaña de Jarvis tal como está. APP=vtex [SESSION=N]
 	@test -n "$(APP)" || { echo "  ✗ APP=<app> (vtex, …)"; exit 2; }
-	@JARVIS_SESSION=$(or $(SESSION),$(SESION)) node jarvis/dev/map.ts $(or $(A),show) $(APP) $(SCREEN) $(if $(FRAME),--frame '$(FRAME)') $(if $(NO_FRAME),--no-frame)
+	@JARVIS_SESSION=$(or $(SESSION),$(SESSION)) node jarvis/dev/map.ts $(or $(A),show) $(APP) $(SCREEN) $(if $(FRAME),--frame '$(FRAME)') $(if $(NO_FRAME),--no-frame)
 
 .PHONY: jarvis-walk
-jarvis-walk: ## @dia ⚠ ESCRIBE (en TARGET): cualquier caso del caminador del harness, pero en TU Chrome por Jarvis (el motor de navegador maneja una pestaña del grupo «Jarvis»). Por defecto en LOCAL, con la identidad a mano y el buró dictado al mock: sin qa ni copias de comercios. Es `harness-walk-wizard ENGINE=browser` con JARVIS_CHROME=1, así que acepta sus mismas variables. Medido el 2026-11-07: CrediPullman por la tienda en local, 10 pantallas hasta el 11. CASES='#13874eb6:77' [TARGET=local] [FLOW=ecommerce|self-service|merchant] [CLOSE=1] [MANUAL=1 por defecto] [LAMBDA=1 por defecto en local] [HANDS=1 el motor rellena y marca cada botón: lo tocás vos, hasta una hora] [AMOUNT=…] [FLOW=merchant ASESOR=c<hash>-fake@creditop.com el canal de asesor con la sesión de prueba del comercio (bin/pg advisor status la lista): el asesor en una pestaña y, al elegir una CreditopX, el cliente sigue en otra]
+jarvis-walk: ## @dia ⚠ ESCRIBE (en TARGET): cualquier caso del caminador del harness, pero en TU Chrome por Jarvis (el motor de navegador maneja una pestaña del grupo «Jarvis»). Por defecto en LOCAL, con la identidad a mano y el buró dictado al mock: sin qa ni copias de comercios. Es `harness-walk-wizard ENGINE=browser` con JARVIS_CHROME=1, así que acepta sus mismas variables. Medido el 2026-11-07: CrediPullman por la tienda en local, 10 pantallas hasta el 11. CASES='#13874eb6:77' [TARGET=local] [FLOW=ecommerce|self-service|merchant] [CLOSE=1] [MANUAL=1 por defecto] [LAMBDA=1 por defecto en local] [HANDS=1 el motor rellena y marca cada botón: lo tocás vos, hasta una hora] [AMOUNT=…] [FLOW=merchant ADVISOR=c<hash>-fake@creditop.com el canal de asesor con la sesión de prueba del comercio (bin/pg advisor status la lista): el asesor en una pestaña y, al elegir una CreditopX, el cliente sigue en otra]
 jarvis-walk:
 	@test -n "$(CASES)" || { echo "  ✗ CASES='#hash:entidad' (como en harness-walk-wizard)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"connected":true' || { echo "  ✗ Jarvis no está conectado en Chrome (make jarvis y la extensión cargada)"; exit 2; }
 	@curl -s http://127.0.0.1:5203/api/chrome | grep -q '"driving":false' || { echo "  ✗ hay una sesión de Jarvis manejando Chrome: cerrala (bin/jarvis close) antes"; exit 2; }
-	@$(if $(ASESOR),E2E_ADVISOR_ACCOUNT=$(ASESOR)) JARVIS_CHROME=1 JARVIS_HANDS=$(HANDS) $(MAKE) --no-print-directory harness-walk-wizard ENGINE=browser TARGET=$(or $(TARGET),local) CASES='$(CASES)' FLOW=$(FLOW) CLOSE=$(or $(CLOSE),1) MANUAL=$(or $(MANUAL),1) LAMBDA=$(or $(LAMBDA),$(if $(filter local,$(or $(TARGET),local)),1,)) AMOUNT=$(AMOUNT) $(if $(MANOS),TIMEOUT=3600)
+	@$(if $(ADVISOR),E2E_ADVISOR_ACCOUNT=$(ADVISOR)) JARVIS_CHROME=1 JARVIS_HANDS=$(HANDS) $(MAKE) --no-print-directory harness-walk-wizard ENGINE=browser TARGET=$(or $(TARGET),local) CASES='$(CASES)' FLOW=$(FLOW) CLOSE=$(or $(CLOSE),1) MANUAL=$(or $(MANUAL),1) LAMBDA=$(or $(LAMBDA),$(if $(filter local,$(or $(TARGET),local)),1,)) AMOUNT=$(AMOUNT) $(if $(MANOS),TIMEOUT=3600)
 
 .PHONY: jarvis-vtex-purchase
 jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chrome, sola y a la velocidad del harness: es `harness-vtex CASES=rotativo` (comprador sintético con sus centrales dictadas, la tienda apuntada a la copia de Mario mientras dura y devuelta sola, el pedido por API, el wizard hasta el crédito con la identidad aprobada a mano en qa, VTEX aprobado) con el motor de navegador del caminador manejando una pestaña de tu Chrome por Jarvis (JARVIS_CHROME=1). Necesita la extensión Jarvis conectada y ninguna otra sesión de Jarvis en Chrome. Lanzarlo ES el OK. Medido el 2026-11-07: 2 min 44 s, solicitud en 11 y VTEX Approved. TARGET=qa [HANDS=1 el motor rellena todo y marca cada botón en violeta: lo tocás vos] [VERBOSE=1 el detalle del caminador]
@@ -467,31 +467,31 @@ jarvis-vtex-purchase: ## @dia ⚠ ESCRIBE (qa): una compra VTEX ENTERA en TU Chr
 # radar: cómo se usan DE VERDAD las herramientas, leído de las transcripciones de Claude Code de este
 # repo (my-tools). Sin modelo y sin copias: todo sale de las transcripciones, este Makefile (con sus alias) y
 # su historia en git. Guarda un índice en radar/.cache (una transcripción se relee sólo si cambió).
-RADAR = go run ./radar/server $(if $(DIAS),-days $(DIAS),) $(if $(JSON),-json,)
+RADAR = go run ./radar/server $(if $(DAYS),-days $(DAYS),) $(if $(JSON),-json,)
 .PHONY: radar radar-usage radar-friction radar-drift radar-session
 radar: ## @dia abre radar: el uso real de las herramientas, visual (:5188 · API :5189). Lo mismo que los radar-* de abajo
 	@cd radar && npm run dev
-radar-usage: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DIAS=30 · JSON=1
+radar-usage: ## @dia ¿qué herramientas se usan de verdad? targets, skills, subagentes y conectores, del último mes. DAYS=30 · JSON=1
 	@$(RADAR) -view usage
-radar-friction: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DIAS=30 · JSON=1
+radar-friction: ## @dia ¿qué pidió aprobación y no la tuvo, qué rechazó Miguel, qué frenó un hook, qué falló? DAYS=30 · JSON=1
 	@$(RADAR) -view friction
-radar-drift: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DIAS=30 · JSON=1
+radar-drift: ## @dia ¿qué se sigue usando después de borrado, qué nombres viejos siguen vivos, qué nadie usa? (con fechas) DAYS=30 · JSON=1
 	@$(RADAR) -view drift
-radar-gaps: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DIAS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
+radar-gaps: ## @dia ¿dónde canon no alcanzó? búsquedas vacías y consultas tras las que se fue al código de main, agrupadas. DAYS=30 · JSON=1 · RECHECK=1 vuelve a buscar las vacías (gratis)
 	@$(RADAR) -view gaps $(if $(RECHECK),-recheck)
-radar-session: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESION=<id o su comienzo> (sin él, la última)
-	@$(RADAR) -view session $(if $(SESION),-session $(SESION),)
+radar-session: ## @dia el recorrido de UNA sesión: cada herramienta, en orden, con cómo terminó. SESSION=<id o su comienzo> (sin él, la última)
+	@$(RADAR) -view session $(if $(SESSION),-session $(SESSION),)
 
 # ensayo: ¿un cambio a un CLAUDE.md, una skill, un hook o una memoria mejora lo que hace el modelo? Corre las
 # preguntas fijas de ensayo/preguntas.json con `claude -p` (GASTA modelo), las califica con un juez que no
 # es un modelo y compara la tanda de antes del cambio con la de después. Frente «ensayo con/sin» de #96.
 .PHONY: rehearsal rehearsal-compare
-sweep: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TEMAS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [TOPE=2.5 US$ por agente] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
-	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
-sweep-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TEMAS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [TOPE=2.5] [TOPE_VERIFICADOR=3] · MOCK=1 simula sin gastar
-	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -modo canon -barrido "$(if $(TEMAS),$(TEMAS),auto)" $(if $(N),-n $(N),) $(if $(TOPE),-tope $(TOPE),) $(if $(TOPE_VERIFICADOR),-tope-verificador $(TOPE_VERIFICADOR),)
-rehearsal: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. TANDA=<nombre> [N=3 corridas por pregunta] [SOLO=listado-local,…] [BUDGET=1.5 US$ por corrida] [SECO=1 sólo los jueces, gratis]
-	@go run ./ensayo -tanda "$(TANDA)" $(if $(N),-n $(N),) $(if $(SOLO),-solo $(SOLO),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(SECO),-seco,)
+sweep: ## @dia GASTA modelo: varios agentes SOLOS en paralelo, uno por tema de knowledge/, y un verificador que comprueba cada hallazgo. [TOPICS=a,b] (sin TEMAS, los N de revisión más vieja) [N=3] [CAP=2.5 US$ por agente] [VERIFIER_CAP=3] · MOCK=1 simula sin gastar
+	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -barrido "$(if $(TOPICS),$(TOPICS),auto)" $(if $(N),-n $(N),) $(if $(CAP),-tope $(CAP),) $(if $(VERIFIER_CAP),-tope-verificador $(VERIFIER_CAP),)
+sweep-canon: ## @can GASTA modelo: pone al día canon con agentes en paralelo, uno por tema que la ronda marca con archivos cambiados en main; cada uno arma piezas (verificado o sección reescrita), un verificador las comprueba y las confirmadas se ENSAYAN en canon sin publicar. [TOPICS=a,b] (sin TEMAS, los N con más archivos cambiados) [N=3] [CAP=2.5] [VERIFIER_CAP=3] · MOCK=1 simula sin gastar
+	@$(if $(MOCK),SALA_MOCK=1) go run ./sala -modo canon -barrido "$(if $(TOPICS),$(TOPICS),auto)" $(if $(N),-n $(N),) $(if $(CAP),-tope $(CAP),) $(if $(VERIFIER_CAP),-tope-verificador $(VERIFIER_CAP),)
+rehearsal: ## @dia GASTA modelo: corre las preguntas fijas y las califica contra su juez. BATCH=<nombre> [N=3 corridas por pregunta] [ONLY=listado-local,…] [BUDGET=1.5 US$ por corrida] [DRY=1 sólo los jueces, gratis]
+	@go run ./ensayo -tanda "$(BATCH)" $(if $(N),-n $(N),) $(if $(ONLY),-solo $(ONLY),) $(if $(BUDGET),-budget $(BUDGET),) $(if $(DRY),-seco,)
 rehearsal-compare: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta por pregunta: acierto, ruta, fricción y costo. A=<tanda> B=<tanda> · JSON=1 · sale 1 si no
 	@go run ./ensayo -comparar "$(A),$(B)" $(if $(JSON),-json,)
 
@@ -501,14 +501,13 @@ rehearsal-compare: ## @dia ¿la tanda B se puede adoptar frente a la A? pregunta
 # borran: las tareas del tablero guardan el comando EXACTO de cada medición —es lo que permite volver a
 # correrla y desmentirla—, y sin el nombre viejo cada una quedaría sin forma de repetirse. Una variable
 # vieja llena la nueva; un target viejo corre el nuevo. Ninguno aparece en el catálogo.
-# `SOLO` y `DIAS` no están acá porque también los usan otras herramientas (`estilo-ui SOLO=`, el tablero):
-# se aceptan sólo dentro de `harness-ssr` y `harness-posthog-errors`. Los flags viejos de los scripts los
-# traduce `harness/pkg/cli-aliases.ts`.
+# `SOLO` y `DIAS` no están acá: desde el 2026-11-18 los traduce para todo my-tools `MYTOOLS_OLD_VARS`, al final
+# (`ONLY` y `DAYS`). Los flags viejos de los scripts los traduce `harness/pkg/cli-aliases.ts`.
 HARNESS_OLD_VARS := CASOS:CASES CERRAR:CLOSE COMERCIO:MERCHANT ENTIDAD:LENDER CODIGO:CODE MONTO:AMOUNT CUOTA:DOWN_PAYMENT PAGO:PAYMENT PLAZO:INSTALLMENTS MOTOR:ENGINE PAR:PARALLEL GRUPO:GROUP FOTO:SNAPSHOT CONTRA:COMPARE DESDE:SINCE PANTALLAS:SCREENS NIEGA:DENY INICIAL:DOWN_PAYMENT BONO:BONUS FILTRO:FILTER SEGUIR:FOLLOW SIN_ENDPOINTS:NO_ENDPOINTS RECETA:RECIPE PANTALLA:SCREEN MARCO:FRAME SIN_MARCO:NO_FRAME MANOS:HANDS USUARIO:USER_ID LOTE:BATCH
 define harness_old_var
 ifneq ($$(origin $(1)),undefined)
 $(2) ?= $$($(1))
-$$(info   ⚠ $(1)= se llama $(2)= (el nombre viejo sigue andando))
+$$(shell printf '  ⚠ %s= se llama %s= (el nombre viejo sigue andando)\n' $(1) $(2) >&2)
 endif
 endef
 $(foreach p,$(HARNESS_OLD_VARS),$(eval $(call harness_old_var,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
@@ -580,9 +579,9 @@ harness-mocks: ## @har levanta los mocks del canal QR (Bancolombia :8104 + Corbe
 harness-queue: ## @har la COLA REAL del backend local (Redis + worker) para el cobro viejo de la cuota inicial: con `sync` se consulta a sí mismo sin fin y da 500. El panel la prende sola con un comercio con `initial_fee` y la apaga al cerrarse. A=on|off|status (por defecto status)
 	@cd harness && bin/queue-local $(or $(A),status)
 
-harness-payment-link: ## @har ⚠ ESCRIBE: crea un pedido como lo hará la API payment-link (la tienda pide la URL; Creditop guarda el pedido) y devuelve la URL con ?ref=. TARGET=local (obligatorio) [HASH=c390eed9] [SIN_ACEPTACION=1 → pide el código] [SIN_EXPEDICION=1 → formulario] [VENCIDA=1 → pide el código] [PHONE=… fuera de local, uno de qa_otp_bypass_phones] [JSON=1]
+harness-payment-link: ## @har ⚠ ESCRIBE: crea un pedido como lo hará la API payment-link (la tienda pide la URL; Creditop guarda el pedido) y devuelve la URL con ?ref=. TARGET=local (obligatorio) [HASH=c390eed9] [NO_ACCEPTANCE=1 → pide el código] [NO_EXPEDITION=1 → formulario] [EXPIRED=1 → pide el código] [PHONE=… fuera de local, uno de qa_otp_bypass_phones] [JSON=1]
 	@test -n "$(TARGET)" || { echo "falta TARGET=local: escribe en la base"; exit 2; }
-	@cd harness && E2E_TARGET=$(TARGET) node dev/payment-link.ts $(if $(HASH),--hash $(HASH)) $(if $(SIN_ACEPTACION),--sin-aceptacion) $(if $(SIN_EXPEDICION),--sin-expedicion) $(if $(VENCIDA),--vencida) $(if $(PHONE),--phone $(PHONE)) $(if $(JSON),--json)
+	@cd harness && E2E_TARGET=$(TARGET) node dev/payment-link.ts $(if $(HASH),--hash $(HASH)) $(if $(NO_ACCEPTANCE),--sin-aceptacion) $(if $(NO_EXPEDITION),--sin-expedicion) $(if $(EXPIRED),--vencida) $(if $(PHONE),--phone $(PHONE)) $(if $(JSON),--json)
 
 harness-store: ## @har ⚠ ESCRIBE en local (o en qa por su API): tienda demo que hace de VTEX o Shopify — paga, recibe el aviso y, con VTEX, cobra (settle) con el conector real — contra payment-link (mock del contrato en :8113, o la API de verdad) → http://localhost:8113/. A=start|stop|restart|status|logs · PAYMENT_LINK_URL=… PAYMENT_LINK_TOKEN=… · modo qa: STORE_BRANCHES=<json privado con hash y token> MOCK_PAYMENT_LINK_PUBLIC=https://<túnel a :8113> y el conector con CREDITOP_API_URL=https://api.dev.creditop.com/legacy-api
 	@cd harness && $(if $(PAYMENT_LINK_URL),PAYMENT_LINK_URL=$(PAYMENT_LINK_URL)) $(if $(PAYMENT_LINK_TOKEN),PAYMENT_LINK_TOKEN=$(PAYMENT_LINK_TOKEN)) bin/mock-payment-link $(or $(A),start)
@@ -647,9 +646,9 @@ harness-auto-onboarding: ## @har ¿UN PEDIDO COMPLETO SALTA EL SMS Y EL FORMULAR
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
 	@cd harness && E2E_TARGET=$(TARGET) node dev/auto-onboarding-link.ts $(if $(BRANCH),--branch $(BRANCH)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(CASES),--cases $(CASES))
 
-harness-revolving: ## @har EL CREDITOPX ROTATIVO DE PUNTA A PUNTA, con la copia de Mario Hernández (comercio slug mario-hernadez, entidad 200; se trae de prod con dev/copy-creditopx.ts): dos compras por tienda que cierran por el wizard en navegador hasta loan-approved, una BAJO y otra SOBRE la mitad del cupo (1.500.000). La de arriba es la que fallaba con 403 de cuota inicial (legacy-backend#1881). Identidad a mano (la entidad valida con ADO). Sale 1 si alguna no llega al final. TARGET=local|qa [BAJO=500000] [SOBRE=1000000]
+harness-revolving: ## @har EL CREDITOPX ROTATIVO DE PUNTA A PUNTA, con la copia de Mario Hernández (comercio slug mario-hernadez, entidad 200; se trae de prod con dev/copy-creditopx.ts): dos compras por tienda que cierran por el wizard en navegador hasta loan-approved, una BAJO y otra SOBRE la mitad del cupo (1.500.000). La de arriba es la que fallaba con 403 de cuota inicial (legacy-backend#1881). Identidad a mano (la entidad valida con ADO). Sale 1 si alguna no llega al final. TARGET=local|qa [BELOW=500000] [ABOVE=1000000]
 	@test -n "$(TARGET)" || { echo "  ✗ TARGET es obligatorio: escribe"; exit 2; }
-	@ok=0; for a in $(or $(BAJO),500000) $(or $(SOBRE),1000000); do \
+	@ok=0; for a in $(or $(BELOW),500000) $(or $(ABOVE),1000000); do \
 	  echo "\n  ── rotativo · compra de $$a ──"; \
 	  $(MAKE) -s harness-walk-wizard TARGET=$(TARGET) CASES='mario-hernadez:200' FLOW=ecommerce CLOSE=1 MANUAL=1 LAMBDA=1 ENGINE=browser AMOUNT=$$a || ok=1; \
 	done; exit $$ok
@@ -685,14 +684,14 @@ harness_target = $(strip $(if $(filter prod,$(TARGET) $(E2E_TARGET)),$(error TAR
 harness-journey: ## @har en qué RECORRIDO cae cada entidad de un comercio (canal · riel · producto · variaciones · desenlace), medido en la base del ambiente; sólo lee. MERCHANT=sonria | LENDER=149,172 [CHANNEL=advisor|self-service|store|bancolombia] [JSON=1] [TARGET=local|dev|qa|staging obligatorio: el ambiente]. Los nombres: harness/journeys.json · el porqué: knowledge/origination-paths
 	@cd harness && E2E_TARGET=$(harness_target) node dev/journey.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(CHANNEL),--channel $(CHANNEL)) $(if $(JSON),--json)
 
-harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
-	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/listing.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
+harness-listing: ## @har del COMERCIO al listado de entidades, por API y sin browser: ¿cuáles le salen a un cliente y por qué NO las otras? [MERCHANT=pullman] [AMOUNT=2000000] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOCK=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
+	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOCK=$(BLOCK) node dev/listing.ts $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(BRANCH),--branch $(BRANCH)) $(if $(V2),--v2)
 
-harness-case: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASES='pullman@meddipay=rechaza;pullman@income=900000;pullman@negatives=2,months=8' (por caso: amount · income · score · negatives · delinquencies · consulted · cards · months de empleo · maturation=AAAA-MM-DD; lo no dicho es el cliente por defecto del panel) [PARALLEL=1] [LAMBDA=1 buró y proveedores dictados] [PRE=1 simula la consulta de PRE-APROBADOS del front] [CLOSE=1 = cierra por el lender CreditopX hasta estado 11] [MANUAL=1 identidad aprobada a mano, como en el admin] [CF_FIANZA=anticipada|mensual la pre-aprobación de Credifamilia aprobada con fianza 0.18, por la cédula 2997…/2998… que el mock responde sin estado · CF_FIANZA=1:0.035 con LAMBDA=1 la dicta a la lambda con ese tipo y porcentaje (puede caer en otro contenedor)] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
-	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts $(if $(SUITE),--suite '$(SUITE)') $(if $(CASES),--cases '$(CASES)') $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(PARALLEL),--parallel) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(CLOSE),--close) $(if $(MANUAL),--manual) $(if $(CF_FIANZA),--cf-fianza $(CF_FIANZA)) $(if $(JSON),--json)
+harness-case: ## @har CASOS hipotéticos de punta a punta, en PARALELO. CASES='pullman@meddipay=rechaza;pullman@income=900000;pullman@negatives=2,months=8' (por caso: amount · income · score · negatives · delinquencies · consulted · cards · months de empleo · maturation=AAAA-MM-DD; lo no dicho es el cliente por defecto del panel) [PARALLEL=1] [LAMBDA=1 buró y proveedores dictados] [PRE=1 simula la consulta de PRE-APROBADOS del front] [CLOSE=1 = cierra por el lender CreditopX hasta estado 11] [MANUAL=1 identidad aprobada a mano, como en el admin] [CF_GUARANTEE=anticipada|mensual la pre-aprobación de Credifamilia aprobada con fianza 0.18, por la cédula 2997…/2998… que el mock responde sin estado · CF_GUARANTEE=1:0.035 con LAMBDA=1 la dicta a la lambda con ese tipo y porcentaje (puede caer en otro contenedor)] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOCK=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
+	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOCK=$(BLOCK) node dev/case.ts $(if $(SUITE),--suite '$(SUITE)') $(if $(CASES),--cases '$(CASES)') $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(PARALLEL),--parallel) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(CLOSE),--close) $(if $(MANUAL),--manual) $(if $(CF_GUARANTEE),--cf-fianza $(CF_GUARANTEE)) $(if $(JSON),--json)
 
-harness-walk-wizard: ## @har el WIZARD entero por HTTP, sin navegador: pasa por cada pantalla del FRONT (loaders, actions, zod) y la contrasta con la BD. En PARALELO. Si un caso sale mal, consulta PostHog (qué pantalla registró el error). CASES='#e9409aff:77;pullman:77' [FLOW=self-service|merchant|ecommerce — ecommerce entra por el checkout de la tienda y comprueba que la solicitud quede atada al pedido y personal-info bloqueado] [PARALLEL=1] [CLOSE=1 hasta loan-approved] [MANUAL=1 identidad aprobada a mano] [AMOUNT=2000000] [DOWN_PAYMENT=300000 la cuota inicial que carga el asesor: con >0 el action toma la rama del cobro por pasarela, que con 0 no se ejecuta nunca] [PAYMENT=DECLINED qué contesta el mock de Wompi en `/down-payment` —default APPROVED—; esa pantalla se paga contra `make harness-wompi`, con el mínimo o con CUOTA] [INSTALLMENTS=6 en cuántas cuotas cerrar; sin esto toma el MÁS LARGO que ofrezca la entidad, que es el que más ejercita. ⚠ no confundir con CUOTA, que es plata] [ENGINE=browser Chromium sin ventana, corre el JS del cliente y guarda evidencia] [FORENSE=1 consultar PostHog aunque cierre bien] [LAMBDA=1 le dicta al mock de centrales LOCAL, para la cédula y ANTES de arrancar, un empleo (Empleado · el ingreso del caso) y un buró (score del caso, 1 consulta, 1 tarjeta): sin eso Agildata contesta «sin empleo», Experian su reporte fijo, y el cliente cae en la categoría que exige cuota inicial] [CENTRALES=0|1 el buró de las centrales (el lambda dictado, sin sembrar) o sembrado en la base. Por defecto: centrales donde haya lambda con dictado —hoy qa—; sembrado en local, dev y staging] [GATE=approved|rejected qué contestar en un gate MANUAL —una pantalla de decisión, no de avance, como `entidad/resultado` de BCP—. Sin esto el caminador se detiene ahí a propósito: no elige por nadie. ⚠ `rejected` deja la solicitud NEGADA] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [DOC=<cédula> NAME='…' SURNAME='…' la persona del caso, en vez de la sintética · AGILNAME='…' el nombre completo que devuelve Ágil Data · EXPEDITION=AAAA-MM-DD la fecha de expedición que se escribe (default 2019-05-10)] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
-	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/walk-wizard.ts $(if $(TIMEOUT),--timeout $(TIMEOUT)) $(if $(CASES),--cases '$(CASES)') $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(DOWN_PAYMENT),--down-payment $(DOWN_PAYMENT)) $(if $(PAYMENT),--payment $(PAYMENT)) $(if $(INSTALLMENTS),--installments $(INSTALLMENTS)) $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(MANUAL),--manual) $(if $(FLOW),--flow $(FLOW)) $(if $(ENGINE),--engine $(ENGINE)) $(if $(GATE),--gate $(GATE)) $(if $(LAMBDA),--lambda) $(if $(filter 1,$(CENTRALES)),--centrales) $(if $(filter 0,$(CENTRALES)),--sembrado) $(if $(HEADED),--headed) $(if $(DOC),--doc $(DOC)) $(if $(NAME),--name '$(NAME)') $(if $(SURNAME),--surname '$(SURNAME)') $(if $(AGILNAME),--agilname '$(AGILNAME)') $(if $(EXPEDITION),--expedition $(EXPEDITION))
+harness-walk-wizard: ## @har el WIZARD entero por HTTP, sin navegador: pasa por cada pantalla del FRONT (loaders, actions, zod) y la contrasta con la BD. En PARALELO. Si un caso sale mal, consulta PostHog (qué pantalla registró el error). CASES='#e9409aff:77;pullman:77' [FLOW=self-service|merchant|ecommerce — ecommerce entra por el checkout de la tienda y comprueba que la solicitud quede atada al pedido y personal-info bloqueado] [PARALLEL=1] [CLOSE=1 hasta loan-approved] [MANUAL=1 identidad aprobada a mano] [AMOUNT=2000000] [DOWN_PAYMENT=300000 la cuota inicial que carga el asesor: con >0 el action toma la rama del cobro por pasarela, que con 0 no se ejecuta nunca] [PAYMENT=DECLINED qué contesta el mock de Wompi en `/down-payment` —default APPROVED—; esa pantalla se paga contra `make harness-wompi`, con el mínimo o con CUOTA] [INSTALLMENTS=6 en cuántas cuotas cerrar; sin esto toma el MÁS LARGO que ofrezca la entidad, que es el que más ejercita. ⚠ no confundir con CUOTA, que es plata] [ENGINE=browser Chromium sin ventana, corre el JS del cliente y guarda evidencia] [FORENSE=1 consultar PostHog aunque cierre bien] [LAMBDA=1 le dicta al mock de centrales LOCAL, para la cédula y ANTES de arrancar, un empleo (Empleado · el ingreso del caso) y un buró (score del caso, 1 consulta, 1 tarjeta): sin eso Agildata contesta «sin empleo», Experian su reporte fijo, y el cliente cae en la categoría que exige cuota inicial] [BUREAUS=0|1 el buró de las centrales (el lambda dictado, sin sembrar) o sembrado en la base. Por defecto: centrales donde haya lambda con dictado —hoy qa—; sembrado en local, dev y staging] [GATE=approved|rejected qué contestar en un gate MANUAL —una pantalla de decisión, no de avance, como `entidad/resultado` de BCP—. Sin esto el caminador se detiene ahí a propósito: no elige por nadie. ⚠ `rejected` deja la solicitud NEGADA] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOCK=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [DOC=<cédula> NAME='…' SURNAME='…' la persona del caso, en vez de la sintética · AGILNAME='…' el nombre completo que devuelve Ágil Data · EXPEDITION=AAAA-MM-DD la fecha de expedición que se escribe (default 2019-05-10)] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
+	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOCK=$(BLOCK) node dev/walk-wizard.ts $(if $(TIMEOUT),--timeout $(TIMEOUT)) $(if $(CASES),--cases '$(CASES)') $(if $(MERCHANT),--merchant $(MERCHANT)) $(if $(LENDER),--lender $(LENDER)) $(if $(AMOUNT),--amount $(AMOUNT)) $(if $(DOWN_PAYMENT),--down-payment $(DOWN_PAYMENT)) $(if $(PAYMENT),--payment $(PAYMENT)) $(if $(INSTALLMENTS),--installments $(INSTALLMENTS)) $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(MANUAL),--manual) $(if $(FLOW),--flow $(FLOW)) $(if $(ENGINE),--engine $(ENGINE)) $(if $(GATE),--gate $(GATE)) $(if $(LAMBDA),--lambda) $(if $(filter 1,$(BUREAUS)),--centrales) $(if $(filter 0,$(BUREAUS)),--sembrado) $(if $(HEADED),--headed) $(if $(DOC),--doc $(DOC)) $(if $(NAME),--name '$(NAME)') $(if $(SURNAME),--surname '$(SURNAME)') $(if $(AGILNAME),--agilname '$(AGILNAME)') $(if $(EXPEDITION),--expedition $(EXPEDITION))
 
 harness-session: ## @har ¿sirve la sesión de ASESOR cacheada para este ambiente? Un fetch contra /merchant, sin navegador ni login: valid · invalid · missing · unreachable. TARGET=local|dev|qa|staging (default local; local y dev comparten la misma sesión)
 	@cd harness && E2E_TARGET=$(or $(TARGET),local) node bin/session-check.ts
@@ -712,28 +711,28 @@ harness-signin: ## @har ENTRA y guarda la sesión (admin o asesor) de un ambient
 harness-signout: ## @har borra la sesión guardada (admin o asesor) de un ambiente. KIND=admin|advisor TARGET=local|dev|qa|staging [MERCHANT=<slug|hash> con advisor] [ORIGIN=https://…]
 	@cd harness && node dev/session.ts signout --kind '$(KIND)' --target '$(TARGET)' $(if $(MERCHANT),--merchant '$(MERCHANT)') $(if $(ORIGIN),--origin $(ORIGIN))
 
-harness-allied-create: ## @har Crea un COMERCIO de prueba por el admin real (el mismo formulario, por HTTP y sin ventana), comprueba en la BASE que su asesor de prueba quedó bien —sucursal, cognito_id— y, si se pide, prueba su login y lo borra por id exacto. El alta ESCRIBE (en dev, la base compartida): lo creado lleva el prefijo «PRUEBA AUTO», lo único que se borra. Sesión: local la emite la app; dev y staging salen del perfil donde entraste una vez con `node dev/open-admin.ts /aliados dev`. Producción no; qa usa el admin de dev. Exit 0 bien · 1 algo mal · 2 no se pudo empezar. TARGET=local|dev|staging (default local) [NAME='PRUEBA AUTO x'] [CLEANUP=1 lo borra al terminar] [LOGIN=1 prueba el login del asesor, abre una ventana] [CLEANUP_ID=349 sólo borra uno que creó esta herramienta] [CHECK=1 sólo comprueba la sesión y lee el formulario, no crea nada] [JSON=1] [BLOQUE=<id|slug>]
-	@cd harness && E2E_TARGET=$(or $(TARGET),local) MD=$(MD) BLOQUE=$(BLOQUE) node dev/allied-create.ts $(if $(NAME),--name '$(NAME)') $(if $(CLEANUP),--cleanup) $(if $(LOGIN),--login) $(if $(CLEANUP_ID),--cleanup-id $(CLEANUP_ID)) $(if $(CHECK),--check) $(if $(JSON),--json)
+harness-allied-create: ## @har Crea un COMERCIO de prueba por el admin real (el mismo formulario, por HTTP y sin ventana), comprueba en la BASE que su asesor de prueba quedó bien —sucursal, cognito_id— y, si se pide, prueba su login y lo borra por id exacto. El alta ESCRIBE (en dev, la base compartida): lo creado lleva el prefijo «PRUEBA AUTO», lo único que se borra. Sesión: local la emite la app; dev y staging salen del perfil donde entraste una vez con `node dev/open-admin.ts /aliados dev`. Producción no; qa usa el admin de dev. Exit 0 bien · 1 algo mal · 2 no se pudo empezar. TARGET=local|dev|staging (default local) [NAME='PRUEBA AUTO x'] [CLEANUP=1 lo borra al terminar] [LOGIN=1 prueba el login del asesor, abre una ventana] [CLEANUP_ID=349 sólo borra uno que creó esta herramienta] [CHECK=1 sólo comprueba la sesión y lee el formulario, no crea nada] [JSON=1] [BLOCK=<id|slug>]
+	@cd harness && E2E_TARGET=$(or $(TARGET),local) MD=$(MD) BLOCK=$(BLOCK) node dev/allied-create.ts $(if $(NAME),--name '$(NAME)') $(if $(CLEANUP),--cleanup) $(if $(LOGIN),--login) $(if $(CLEANUP_ID),--cleanup-id $(CLEANUP_ID)) $(if $(CHECK),--check) $(if $(JSON),--json)
 
 harness-prod-run: ## @har la corrida PÚBLICA en PRODUCCIÓN (registro → OTP por SMS → datos personales, para antes del listado) con una cédula de PROD_ALLOWED_DOCS en la sucursal de prueba. Sin APPLY sólo comprueba y muestra el plan; APPLY=1 crea la solicitud de verdad y pide el código del SMS en la terminal. Los datos, de harness/.env.prod [APPLY=1]
 	@cd harness && E2E_TARGET=prod node dev/prod-run.ts $(if $(APPLY),--apply)
 
-harness-prod-advisor: ## @har ¿el ASESOR DE PRUEBA de un comercio de PRODUCCIÓN está bien armado para entrar al wizard? SIN entrar, SOLO LECTURA y sin clave: 1) el asesor, su sucursal, is_test y cognito_id en la base de prod (conector sql), 2) la cuenta en el pool de comercios de prod (aws cognito-idp admin-get-user, perfil `prod`), 3) a qué login manda el wizard de prod. Dice qué hacer con lo que salga mal. NO prueba el login: en prod no se hace. Pide la sesión de AWS de prod al día y la VPN de prod. ALLIED=<id del comercio>|EMAIL=<correo exacto> [JSON=1] [BLOQUE=<id|slug> agrega la corrida a la pila de esa tarea]. Exit 0 lista · 1 con problemas · 2 sin comprobar
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/prod-advisor-check.ts $(if $(ALLIED),--allied $(ALLIED)) $(if $(EMAIL),--email '$(EMAIL)') $(if $(JSON),--json)
+harness-prod-advisor: ## @har ¿el ASESOR DE PRUEBA de un comercio de PRODUCCIÓN está bien armado para entrar al wizard? SIN entrar, SOLO LECTURA y sin clave: 1) el asesor, su sucursal, is_test y cognito_id en la base de prod (conector sql), 2) la cuenta en el pool de comercios de prod (aws cognito-idp admin-get-user, perfil `prod`), 3) a qué login manda el wizard de prod. Dice qué hacer con lo que salga mal. NO prueba el login: en prod no se hace. Pide la sesión de AWS de prod al día y la VPN de prod. ALLIED=<id del comercio>|EMAIL=<correo exacto> [JSON=1] [BLOCK=<id|slug> agrega la corrida a la pila de esa tarea]. Exit 0 lista · 1 con problemas · 2 sin comprobar
+	@cd harness && MD=$(MD) BLOCK=$(BLOCK) node dev/prod-advisor-check.ts $(if $(ALLIED),--allied $(ALLIED)) $(if $(EMAIL),--email '$(EMAIL)') $(if $(JSON),--json)
 
-harness-login-check: ## @har ¿el ASESOR DE PRUEBA de un comercio ENTRA al wizard de cada ambiente? Por ambiente: 1) a qué login alojado manda el front (sin clave ni navegador), 2) el asesor `c…-fake@` del comercio en la base, 3) con clave, entra de verdad en una ventana limpia —acomodada como la del panel—, sin tocar el cache de sesión del harness. La clave compartida sale de ALLIED_TEST_ADVISOR_PASSWORD de connectors/.env.<target>, nunca de la línea de comandos. Sin ALLIED/ACCOUNT sólo descubre el login. Con ventana por defecto (HEADLESS=1 la quita, salvo en qa y staging, F-66); prod no se prueba. Exit 0 todos entraron · 1 alguno no · 2 alguno sin probar. TARGETS=dev,qa,staging [ALLIED=346|last last = el asesor de prueba más reciente del ambiente] [ACCOUNT=correo] [HEADLESS=1] [NORESTART=1 no reinicia el wizard local aunque esté viejo] [JSON=1] [BLOQUE=<id|slug> agrega la corrida a la pila de esa tarea, sólo si hubo un intento real de login]
-	@cd harness && MD=$(MD) BLOQUE=$(BLOQUE) node dev/login-check.ts --targets '$(or $(TARGETS),dev)' $(if $(ALLIED),--allied $(ALLIED)) $(if $(ACCOUNT),--user '$(ACCOUNT)') $(if $(HEADLESS),--headless) $(if $(NORESTART),--no-restart) $(if $(JSON),--json)
+harness-login-check: ## @har ¿el ASESOR DE PRUEBA de un comercio ENTRA al wizard de cada ambiente? Por ambiente: 1) a qué login alojado manda el front (sin clave ni navegador), 2) el asesor `c…-fake@` del comercio en la base, 3) con clave, entra de verdad en una ventana limpia —acomodada como la del panel—, sin tocar el cache de sesión del harness. La clave compartida sale de ALLIED_TEST_ADVISOR_PASSWORD de connectors/.env.<target>, nunca de la línea de comandos. Sin ALLIED/ACCOUNT sólo descubre el login. Con ventana por defecto (HEADLESS=1 la quita, salvo en qa y staging, F-66); prod no se prueba. Exit 0 todos entraron · 1 alguno no · 2 alguno sin probar. TARGETS=dev,qa,staging [ALLIED=346|last last = el asesor de prueba más reciente del ambiente] [ACCOUNT=correo] [HEADLESS=1] [NORESTART=1 no reinicia el wizard local aunque esté viejo] [JSON=1] [BLOCK=<id|slug> agrega la corrida a la pila de esa tarea, sólo si hubo un intento real de login]
+	@cd harness && MD=$(MD) BLOCK=$(BLOCK) node dev/login-check.ts --targets '$(or $(TARGETS),dev)' $(if $(ALLIED),--allied $(ALLIED)) $(if $(ACCOUNT),--user '$(ACCOUNT)') $(if $(HEADLESS),--headless) $(if $(NORESTART),--no-restart) $(if $(JSON),--json)
 
 # ⚠ TEL sólo sirve para sesiones de hasta el 2026-10-29: hasta ahí el wizard identificaba la fase de AUTH (antes de que
 # exista la solicitud) por `phone_<e164>`. Desde el despliegue del 2026-10-30 (frontend-monorepo 8fc1a6b15) ya no lo
 # hace: esos eventos quedan con el id anónimo de la sesión y TEL no los trae (medido en prod: 2 eventos de AUTH con
 # `phone_` contra ~7.500 anónimos en dos días). Lo de la solicitud sigue llegando por `loan_request_id`.
-harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front, su bitácora y el replay (`bin/pg events request`). UREQ=n [TARGET=qa|staging|prod] [VENTANA=1d] [TEL=3001234567 sólo sesiones hasta el 2026-10-29] [LIMIT=n]
+harness-posthog: ## @har ¿qué VIO el cliente y en qué PANTALLA se rompió? eventos del front, su bitácora y el replay (`bin/pg events request`). UREQ=n [TARGET=qa|staging|prod] [WINDOW=1d] [TEL=3001234567 sólo sesiones hasta el 2026-10-29] [LIMIT=n]
 	@test -n "$(UREQ)" || { echo "falta UREQ=<n>  ·  ej: make harness-posthog UREQ=502060 TARGET=qa"; exit 2; }
-	@bin/pg events request --target $(or $(TARGET),qa) --ureq $(UREQ) --since $(or $(VENTANA),1d) $(if $(TEL),--tel $(TEL)) $(if $(LIMIT),--limit $(LIMIT))
+	@bin/pg events request --target $(or $(TARGET),qa) --ureq $(UREQ) --since $(or $(WINDOW),1d) $(if $(TEL),--tel $(TEL)) $(if $(LIMIT),--limit $(LIMIT))
 
 harness-posthog-errors: ## @har qué pantallas del front fallan en el ambiente y con qué mensaje (`bin/pg events errors`). [TARGET=qa|staging|prod] [DAYS=7]
-	@bin/pg events errors --target $(or $(TARGET),qa) --days $(or $(DAYS),$(DIAS),7)
+	@bin/pg events errors --target $(or $(TARGET),qa) --days $(or $(DAYS),$(DAYS),7)
 
 harness-knowledge: ## @har ¿las reglas de knowledge/ que tienen suite siguen en pie CORRIENDO? Corre cada suite que un tema cita (`SUITE=harness/suites/x.json` en su prosa) y dice, por tema, cuál cumple. TARGET=local [TOPIC=lender-profile-rules] [LIST=1 sólo qué temas tienen suite y cuáles sólo están leídos]
 	@cd harness && $(if $(LIST),,E2E_TARGET=$(harness_target)) node dev/knowledge-suites.ts $(if $(TOPIC),--topic $(TOPIC)) $(if $(LIST),--list)
@@ -744,21 +743,21 @@ harness-doctor: ## @har ¿el ambiente LOCAL está listo para que una corrida dig
 harness-regression: ## @har ¿mi cambio rompió OTRO flujo? Corre TODAS las suites del runner de casos (en serie: comparten la base local) después de harness-doctor, y compara cada una con la corrida anterior (`harness/.runs/regression-last.json`): nueva · igual · SE ROMPIÓ · SE ARREGLÓ. Sale 1 si alguna falla, 2 si el ambiente frena. TARGET=local [RESET=1 reinicia antes el cupo local de los perfiles] [ONLY=texto sólo las suites cuyo nombre lo contiene; no guarda] [JSON=1 harness.regression/v1]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/regression.ts $(if $(RESET),--reset) $(if $(ONLY),--only $(ONLY)) $(if $(JSON),--json)
 
-harness-failures: ## @har ¿qué FALLA, desde cuándo, en qué ambiente y con qué comercio? Resume el registro que deja cada corrida del runner de casos (`.runs/registry/cases.ndjson`, de esta máquina): por caso y ambiente, rojo · intermitente · sin veredicto · verde, con la historia, el último desvío y el comando para repetirlo. Sólo lectura. [TARGET=qa] [ESTADO=rojo|intermitente|verde|todos — default: lo que no está verde] [DIAS=7] [JSON=1 para un agente] [HTML=1 escribe el dashboard y dice dónde]
-	@cd harness && node bin/failures.ts $(if $(TARGET),--target $(TARGET)) $(if $(ESTADO),--estado $(ESTADO)) $(if $(DIAS),--dias $(DIAS)) $(if $(JSON),--json) $(if $(HTML),--html)
+harness-failures: ## @har ¿qué FALLA, desde cuándo, en qué ambiente y con qué comercio? Resume el registro que deja cada corrida del runner de casos (`.runs/registry/cases.ndjson`, de esta máquina): por caso y ambiente, rojo · intermitente · sin veredicto · verde, con la historia, el último desvío y el comando para repetirlo. Sólo lectura. [TARGET=qa] [STATUS=rojo|intermitente|verde|todos — default: lo que no está verde] [DAYS=7] [JSON=1 para un agente] [HTML=1 escribe el dashboard y dice dónde]
+	@cd harness && node bin/failures.ts $(if $(TARGET),--target $(TARGET)) $(if $(STATUS),--estado $(STATUS)) $(if $(DAYS),--dias $(DAYS)) $(if $(JSON),--json) $(if $(HTML),--html)
 
 harness-quota-reset: ## @har ⚠ ESCRIBE (sólo local): reinicia el cupo mensual de los perfiles CreditopX (`already_used_loan` en 0), que en local nadie reinicia y las corridas que cierran van agotando. TARGET=local [LENDER=169] [APPLY=1 escribe; sin él sólo muestra]
 	@cd harness && E2E_TARGET=$(harness_target) node dev/quota-reset.ts $(if $(LENDER),--lender $(LENDER)) $(if $(APPLY),--apply)
 
-harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOQUE=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
-	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOQUE=$(BLOQUE) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual) $(if $(JSON),--json)
+harness-suite: ## @har corre una SUITE de casos declarada en JSON y falla si alguno no cumple lo que declara. SUITE=harness/suites/x.json [PARALLEL=1] [CLOSE=1] [LAMBDA=1] [MANUAL=1] [MD=1 la corrida como anotación fechada, con su comando adentro, para pegar en la tarea] [BLOCK=<id|slug> la agrega sola, como bloque, a la pila de esa tarea] [TARGET=local|dev|qa|staging obligatorio: el ambiente]
+	@cd harness && E2E_TARGET=$(harness_target) MD=$(MD) BLOCK=$(BLOCK) node dev/case.ts --suite '$(patsubst harness/%,%,$(SUITE))' $(if $(PARALLEL),--parallel) $(if $(CLOSE),--close) $(if $(LAMBDA),--lambda) $(if $(PRE),--preapprovals) $(if $(MANUAL),--manual) $(if $(JSON),--json)
 
 support-qa: ## @har el chat del cliente contra la API real, con cada respuesta al costado (:5199). Para QA
 	@echo "  → http://localhost:5199/agente-soporte-modificacion-datos.cliente-qa.html    (Ctrl-C para cortar)"
 	@cd tablero/tasks/agente-soporte-modificacion-datos/artifacts && python3 -m http.server 5199
 
-tests-cosigner: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARAR=1 la primera vez
-	@cd harness && bash bin/tests-cosigner.sh $(if $(PREPARAR),--preparar)
+tests-cosigner: ## @har corre la suite del CODEUDOR (desactivada en el repo por CORE-431) en un schema DESECHABLE. PREPARE=1 la primera vez
+	@cd harness && bash bin/tests-cosigner.sh $(if $(PREPARE),--preparar)
 
 harness-rto: ## @har deja el lender Rent to Own usable en LOCAL (categorías, reglas, identidad) — config de PRUEBA, no de negocio
 	@cd harness && node dev/mount-rto.ts
@@ -810,7 +809,7 @@ harness-ssr: ## @har la consola del SSR del wizard: a qué servicio llamó, con 
 	  echo "     Si levantaste el wizard a mano con 'pnpm dev', su salida se fue a ESA terminal y acá no hay nada que mirar."; \
 	  exit 1; \
 	fi; \
-	filtro='.'; [ -n "$(or $(ERRORS),$(SOLO))" ] && filtro='\[outbound\]|[Ee]rror|ELIFECYCLE|ECONN|failed'; \
+	filtro='.'; [ -n "$(or $(ERRORS),$(ONLY))" ] && filtro='\[outbound\]|[Ee]rror|ELIFECYCLE|ECONN|failed'; \
 	if [ -n "$(FOLLOW)" ]; then tail -n $(or $(N),120) -f "$$f" | grep -E --line-buffered "$$filtro"; \
 	else tail -n $(or $(N),120) "$$f" | grep -E "$$filtro"; fi
 
@@ -880,9 +879,9 @@ wally-rust: ## @dia construye la imagen de Docker donde los agentes de Wally com
 	@docker build -t wally-rust wally/rust
 knowledge-check: ## @dia contrastar fuentes con el main de los clones de canon (main_clones). Sin fetch; un cambio o fuente ilegible sale 1 [FETCH=1 trae main a esos clones antes, sin tocar los de trabajo] [JSON=1]
 	@$(if $(FETCH),go run ./cmd/knowledge fetch &&) go run ./cmd/knowledge check $(if $(JSON),--json)
-knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). PASO=paquete|codigo|final|aplicar · [GRUPOS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
-	@test -n "$(PASO)" || { echo "falta PASO=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
-	@python3 tools/canon-deriva/knowledge.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(RUN),--run '$(RUN)')
+knowledge-drift: ## @dia poner knowledge/ al día contra main con el método jerárquico (como canon-deriva). STEP=paquete|codigo|final|aplicar · [GROUPS=8]. Los pasos de modelo arman paquetes + instrucciones (prompts/k-*.md): tools/canon-deriva/CLAUDE.md
+	@test -n "$(STEP)" || { echo "falta STEP=paquete|codigo|final|aplicar  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
+	@python3 tools/canon-deriva/knowledge.py $(STEP) $(if $(GROUPS),--grupos $(GROUPS)) $(if $(RUN),--run '$(RUN)')
 knowledge-test: ## @dia comprobar lectura, fuentes, retoma local y ausencia de consultas automáticas a Canon
 	@go test ./knowledge ./cmd/knowledge ./tablero/server/cmd/today ./tablero/server/cmd/tasks ./tablero/server/internal/hooks ./tablero/server/internal/layout ./tablero/server/internal/store ./tablero/server/cmd/web
 
@@ -910,16 +909,16 @@ canon-write: ## @can ⚠ ESCRIBE en canon: borrador → piezas → cierre, en UN
 	@cd tablero/server && go run ./cmd/canon write $(if $(DRY),-dry) -title '$(or $(TITLE),canon: dictado desde my-tools)' $(foreach p,$(PIECE),$(abspath $(p)))
 canon-round: ## @can la ronda del SERVIDOR: qué archivos que el corpus declara cambiaron en main (contra los clones del servidor: si main avanzó, antes canon-clones SYNC=1). El servidor la cachea 10 min: FORCE=1 la vuelve a medir. Sale 1 si algo cambió
 	@cd tablero/server && go run ./cmd/canon round $(if $(FORCE),-force)
-canon-eval: ## @can ¿canon está parejo y qué código se mueve sin área? tamaño de cada tema, secciones sin área, repos con dos nombres y, por módulo, cambios en main en archivos que ningún área vigila. Sin modelo, sólo lectura. DIAS=90 · TOP=15 · REPOS=legacy-backend,legacy-application,frontend-monorepo · TARGET=prod lee además lo que canon no supo contestar (VPN) · JSON=1
-	@cd tablero/server && go run ./cmd/canon eval -days $(or $(DIAS),90) -top $(or $(TOP),15) $(if $(REPOS),-repos '$(REPOS)') $(if $(TARGET),-target $(TARGET)) $(if $(JSON),-json)
+canon-eval: ## @can ¿canon está parejo y qué código se mueve sin área? tamaño de cada tema, secciones sin área, repos con dos nombres y, por módulo, cambios en main en archivos que ningún área vigila. Sin modelo, sólo lectura. DAYS=90 · TOP=15 · REPOS=legacy-backend,legacy-application,frontend-monorepo · TARGET=prod lee además lo que canon no supo contestar (VPN) · JSON=1
+	@cd tablero/server && go run ./cmd/canon eval -days $(or $(DAYS),90) -top $(or $(TOP),15) $(if $(REPOS),-repos '$(REPOS)') $(if $(TARGET),-target $(TARGET)) $(if $(JSON),-json)
 canon-restructure: ## @can ⚠ ESCRIBE con APPLY=1 (sin él ensaya y muestra el diff): un lote de operaciones de estructura de canon —crear o reubicar temas, editar su introducción, mover secciones, asignar entidades— en UNA revisión. OPS=<ops.json> REASON='…'
 	@test -n "$(OPS)" -a -n "$(REASON)" || { echo "falta OPS=<ops.json> y REASON='<por qué>'"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon restructure $(if $(APPLY),-apply) -reason '$(REASON)' '$(abspath $(OPS))'
 canon-clones: ## @can a qué commit de main está el clon de cada repo EN EL SERVIDOR de canon (la ronda compara contra eso). SYNC=1 le pide que los refresque [REPO=Creditop-SAS/<nombre>]
 	@cd tablero/server && go run ./cmd/canon clones $(if $(SYNC),-sync) $(if $(REPO),-repo '$(REPO)')
-canon-drift: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GRUPOS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
-	@test -n "$(PASO)" || { echo "falta PASO=foto|paquete|triaje|codigo|final|piezas|movidos|estado  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
-	@python3 tools/canon-deriva/deriva.py $(PASO) $(if $(GRUPOS),--grupos $(GRUPOS)) $(if $(APPLY),--apply) $(if $(RUN),--run '$(RUN)')
+canon-drift: ## @can poner canon al día contra main con el método jerárquico, de lo barato a lo caro. STEP=foto|paquete|triaje|codigo|final|piezas|movidos|estado · [GROUPS=6] · [APPLY=1 sólo en movidos]. Los pasos de modelo arman paquetes + instrucciones para agentes: tools/canon-deriva/CLAUDE.md
+	@test -n "$(STEP)" || { echo "falta STEP=foto|paquete|triaje|codigo|final|piezas|movidos|estado  ·  el recorrido: tools/canon-deriva/CLAUDE.md"; exit 2; }
+	@python3 tools/canon-deriva/deriva.py $(STEP) $(if $(GROUPS),--grupos $(GROUPS)) $(if $(APPLY),--apply) $(if $(RUN),--run '$(RUN)')
 canon-export: ## @can baja el corpus de canon, tal como está HOY, a una carpeta nueva para editar archivos enteros (un map.json con fuentes que ya no existen en main). DIR=<carpeta nueva>. Se publica con canon-patch
 	@test -n "$(DIR)" || { echo "falta DIR=<carpeta nueva>"; exit 2; }
 	@cd tablero/server && go run ./cmd/canon export -out '$(abspath $(DIR))'
@@ -999,3 +998,7 @@ MYTOOLS_OLD_TARGETS := \
   knowledge-deriva:knowledge-drift \
 
 $(foreach p,$(MYTOOLS_OLD_TARGETS),$(eval $(call harness_old_target,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))
+
+# Y las variables (2026-11-18): la de antes llena la nueva y avisa por stderr.
+MYTOOLS_OLD_VARS := BLOQUE:BLOCK SOLO:ONLY DIAS:DAYS DIA:DAY HORAS:HOURS TAREA:TASK TITULO:TITLE NOTA:NOTE NOTA_F:NOTE_FILE LAPSO:SPAN PULSO:PULSE FUENTE:SOURCE ESTADO:STATUS FALLAS:FAILURES INDICE:INDEX TOPE:CAP TOPE_VERIFICADOR:VERIFIER_CAP TEMAS:TOPICS SESION:SESSION TANDA:BATCH SUGERIR:SUGGEST ASESOR:ADVISOR CENTRALES:BUREAUS VENTANA:WINDOW SOBRE:ABOVE BAJO:BELOW VENCIDA:EXPIRED TODAS:ALL SECO:DRY APLICAR:APPLY ARCHIVO:FILE PASO:STEP GRUPOS:GROUPS RAMA:GIT_BRANCH EN:EPIC DE:FROM CAPA:LAYER FORMATO:FORMAT NUEVA:FRESH CONTENIDO:CONTENT PROBAR:PROVE PREPARAR:PREPARE SIN_PRS:NO_PRS SIN_EXPEDICION:NO_EXPEDITION SIN_ACEPTACION:NO_ACCEPTANCE CF_FIANZA:CF_GUARANTEE
+$(foreach p,$(MYTOOLS_OLD_VARS),$(eval $(call harness_old_var,$(word 1,$(subst :, ,$(p))),$(word 2,$(subst :, ,$(p))))))

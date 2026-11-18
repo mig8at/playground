@@ -1,7 +1,7 @@
 // sala — agentes independientes que barren temas de knowledge/ en paralelo, y un verificador al final.
 //
 //	make sala              la página (http://127.0.0.1:5201): elegís temas, la larga y ves trabajar a cada agente
-//	make sweep TEMAS=…   lo mismo por consola, sin página
+//	make sweep TOPICS=…   lo mismo por consola, sin página
 //	make sweep-canon     el barrido sobre los temas de CANON que la ronda marca con archivos cambiados (canon.go)
 //
 // Cada agente es una sesión larga de `claude -p` con todas las herramientas de lectura de my-tools, sobre UN tema:

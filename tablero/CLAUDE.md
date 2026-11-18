@@ -15,7 +15,7 @@ skills que se cargan cuando hacen falta:
 operativo: bitácora, pulso, cachés y las trampas del sistema. **Dónde vive cada cosa lo sabe un solo
 lugar: el paquete `server/internal/layout`**; no armes `../data/<algo>` a mano en un comando.
 
-- ⚠ **Antes de crear cualquier archivo, corré `make tasks TODAS=1`.** Cada tarea es de uno de **tres niveles**
+- ⚠ **Antes de crear cualquier archivo, corré `make tasks ALL=1`.** Cada tarea es de uno de **tres niveles**
   (`nivel:` en el frontmatter; decisión de Miguel, 2026-11-13), y el nivel decide si va a Jira:
 
   | nivel | qué es | Jira | contenedor general · por herramienta o repo |
@@ -143,7 +143,7 @@ solo** (con aviso); si está en varios o en ninguno, el error dice dónde está.
 
 Se escribe en un Markdown (`# título` y la descripción) y se agrega con `make task-block N=<id|slug>
 ARCHIVO=<bloque.md>` (`SECO=1` previsualiza; `ARCHIVO=-` lee stdin). **Las herramientas lo hacen solas
-con `BLOQUE=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `tablero-db` y
+con `BLOCK=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-suite`, `tablero-db` y
 `bin/pg sql --bloque`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make task-context N=…` o `make resume`. El contrato de la línea: `docs/task-context.schema.json`.
 
@@ -161,7 +161,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
 ### Avances y artifacts
 
 - **Avances** (`data/entries/`): una entrada por tramo de trabajo, append-only, en la forma **acción
-  realizada → resultado → validación**. Se escriben con `make worklog-add TAREA=<id>` y una fuente de
+  realizada → resultado → validación**. Se escriben con `make worklog-add TASK=<id>` y una fuente de
   tiempo. La pila cuenta qué pasó; los avances, cuánto llevó.
 - **Artifacts** (`tasks/<slug>/artifacts/`): prototipos, consultas, notas. Se abren en la pestaña Artifacts del
   tablero, al lado de la tarea (`bin/cockpit open tablero '#/tareas/<slug>?vista=artifacts'` se la muestra a Miguel). Un prototipo es **un HTML
@@ -182,7 +182,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
-**`make closeout TAREA=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
+**`make closeout TASK=N` lo propone** (o `bin/pg cierre --tarea N`, también como herramienta MCP): el lapso
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en my-tools,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó
@@ -221,7 +221,7 @@ no se escribe a mano. Se lee con `make pulse`. El pulso dice **cuándo**; la bit
 
 ## Retomar una tarea
 
-`make tasks TODAS=1` → `make resume N=<id>`: pila, documento y los temas locales declarados en
+`make tasks ALL=1` → `make resume N=<id>`: pila, documento y los temas locales declarados en
 `knowledge:`. Acepta `lender-listing` o `lender-listing#ancla`. Lee `knowledge/<topic>/rules.md` y sus
 fuentes sin red; avisa si falta una referencia o queda fuera del presupuesto, sin cortar una regla.
 
@@ -264,7 +264,7 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
 
     make tasks                       las abiertas, con etapa, Jira y nodos
     make tasks N=kyc-segundo         una: separa lo PÚBLICO de lo PRIVADO y chequea el guard
-    make tasks STAGE=work TODAS=1 JSON=1
+    make tasks STAGE=work ALL=1 JSON=1
     make task-json N=tablero         una tarea —documento y pila— en el contrato `tablero.task.v3`
     make task-guard F=<archivo>     ¿este texto puede salir a Jira? SALE 1 si no
     make sprint                       el sprint activo con puntos, del SNAPSHOT
@@ -273,8 +273,8 @@ Una pregunta sobre un caso o sobre el estado de un ambiente va al harness, a los
     make today                          la agenda: último bloque, preguntas vencidas, entrega, dormidas
     make resume N=84                 retomar UNA en frío. suma knowledge: local; BRIEF=1 consulta Canon explícitamente
     make closeout                       el cierre del día: a qué tarea tocada le falta qué
-    make worklog-add TAREA=84 …      la bitácora con minutos medidos por el comando
-    make task-block N=84 ARCHIVO=…  apilar un bloque validado
+    make worklog-add TASK=84 …      la bitácora con minutos medidos por el comando
+    make task-block N=84 FILE=…  apilar un bloque validado
     make task-context N=84           leer la pila de una tarea
-    make deploys FALLAS=1             sólo lo que falló en los despliegues, con el error del log
+    make deploys FAILURES=1             sólo lo que falló en los despliegues, con el error del log
     make jira-create JSON=t.json      crear en Jira y meter al sprint activo (skill `tablero-delivery`)

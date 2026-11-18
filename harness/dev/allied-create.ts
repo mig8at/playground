@@ -150,8 +150,8 @@ async function main(): Promise<void> {
 
     if (args.json) console.log(JSON.stringify({ target: TARGET, allied: created.id, name: created.name, flash, advisor: verified.advisor, loginOk, problems }, null, 2));
 
-    // La corrida como bloque de la tarea, igual que las demás herramientas (BLOQUE=<tarea>).
-    if (process.env.MD === '1' || process.env.BLOQUE) {
+    // La corrida como bloque de la tarea, igual que las demás herramientas (BLOCK=<tarea>).
+    if (process.env.MD === '1' || (process.env.BLOCK || process.env.BLOQUE)) {
         const { emit, cmdMake } = await import('../pkg/annotation.ts');
         const summary = problems.length
             ? `el alta del comercio ${created.id} en ${TARGET} dejó ${problems.length} problema(s)`

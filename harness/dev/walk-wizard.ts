@@ -374,7 +374,7 @@ async function correr(c: Case, i: number): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} WINDOW=1d`);
         }
         return r;
     };
@@ -1055,7 +1055,7 @@ async function runBrowser(c: Case, i: number, browser: any): Promise<Result> {
         if (r.ur && walkedPaths.length && (wentWrong || process.env.FORENSE === '1')) {
             await postHogForensic(r.ur, new Date(t0), walkedPaths, (l) => lines.push(l), new Date()).catch(() => {});
         } else if (r.ur && !wentWrong) {
-            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} VENTANA=1d`);
+            lines.push(`  ▸ PostHog: no se consulta porque el caso cerró como se pedía · si lo querés: make harness-posthog UREQ=${r.ur} TARGET=${TARGET} WINDOW=1d`);
         }
         return r;
     };
@@ -1494,7 +1494,7 @@ if (dumpWrites(dump)) console.log(`     detalle sentencia por sentencia → ${du
  * ⚠ SE IMPRIME AL FINAL Y SOLA, sin el resto del informe: el destino es un `Ctrl-C` hacia el `.md` de
  * una tarea, y mezclarla con las cien líneas de la corrida obliga a recortar a mano — que es
  * exactamente la fricción que hace que nadie la pegue. */
-if (process.env.MD === '1' || process.env.BLOQUE) {
+if (process.env.MD === '1' || (process.env.BLOCK || process.env.BLOQUE)) {
       const cerró = (r: Result) => r.fin === 'cerro' || r.fin === 'listo';
       const summary = `${closedOnes}/${results.length} ${flag('close') ? 'cerraron' : 'listaron'}`
             + ` en \`${TARGET}\` · motor ${ENGINE} · ${cases.length} caso(s)`

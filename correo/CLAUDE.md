@@ -74,7 +74,7 @@ Una tarea declara sus seguimientos en el frontmatter (`correo: [vtex]` en integr
 integracion-shopify). Correo no escribe en el tablero; el tablero lo lee:
 
 - `make resume N=…` y `make agent N=…` muestran el correo de la tarea y cómo consultarlo (`bin/correo latest <seguimiento>`).
-- `make closeout TAREA=N` pone en el bloque del día los correos de esos seguimientos que **llegaron** o que **respondiste** en
+- `make closeout TASK=N` pone en el bloque del día los correos de esos seguimientos que **llegaron** o que **respondiste** en
   el lapso, con el enlace a la conversación en Gmail (`tablero/server/cmd/closeout/correo.go`, lee
   `correo/.data/state.json`; `CORREO_DATA` lo cambia).
 - Para un agente que retoma: `bin/correo latest <seguimiento>` dice si se espera a ellos o te toca, y
