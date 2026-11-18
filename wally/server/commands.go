@@ -31,7 +31,7 @@ import (
 type Command struct {
 	ID     string      `json:"id"`
 	Cmd    string      `json:"cmd"`
-	Status string      `json:"status"`           // propuesto · corrido · descartado · no-permitido
+	Status string      `json:"status"`           // propuesto · corriendo · corrido · descartado · no-permitido
 	Reason string      `json:"reason,omitempty"` // por qué no está permitido, o el error al correrlo
 	Exit   int         `json:"exit,omitempty"`
 	Ms     int64       `json:"ms,omitempty"`
@@ -117,6 +117,14 @@ var allowList = []allowed{
 			return a.runSentinel(ctx, "deploy", m[1])
 		}
 		return a.runSentinel(ctx, "deploy", m[1], m[2])
+	}},
+	// Canon, el corpus del equipo, sólo para leer: un tema o una sección, y buscar. Va por el CLI `playground` con la
+	// sesión de Miguel (sin shell). Sirve para pasar un tema de canon a knowledge, verificándolo contra main.
+	{regexp.MustCompile(`^canon tema ([a-z0-9][a-z0-9-]{0,60}/(?:context|operar)(?:#[a-z0-9][a-z0-9-]{0,120})?)$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		return a.runPlayground(ctx, "canon", "read", m[1])
+	}},
+	{regexp.MustCompile(`^canon buscar (?:'([^'"` + "`" + `$\\;&|<>]{2,120})'|"([^'"` + "`" + `$\\;&|<>]{2,120})")$`), func(ctx context.Context, a *app, m []string) (string, int, error) {
+		return a.runPlayground(ctx, "canon", "search", m[1]+m[2])
 	}},
 	// Poner al día la biblioteca (code.go): qué cambió, en qué fuente, y el código de hoy.
 	{regexp.MustCompile(`^cambios$`), func(ctx context.Context, a *app, _ []string) (string, int, error) {
@@ -354,6 +362,11 @@ func (a *app) decideCommand(ctx context.Context, convID, mid, cid, action string
 		return Conversation{}, 409, fmt.Errorf("ese comando ya está %s", cmd.Status)
 	}
 	shown := cmd.Cmd
+	// «corriendo» mientras corre: otra ventana (o `bin/wally ask --auto`) no lo vuelve a correr y la interfaz lo muestra.
+	if action == "run" {
+		cmd.Status = "corriendo"
+		c.Updated = time.Now()
+	}
 	a.store.mu.Unlock()
 
 	result := Command{Status: "descartado"}
@@ -446,4 +459,27 @@ func withoutFrontErrorTexts(text string) string {
 		keep = append(keep, fmt.Sprintf("%s: %d mensaje(s) distintos. Sus textos no se mandan desde acá (pueden traer lo que escribió un cliente): Miguel los ve con bin/sentinel deploy en su consola.", frontErrorsHeader, n))
 	}
 	return strings.Join(keep, "\n")
+}
+
+// runPlayground corre el CLI del playground compartido (`~/.local/bin/playground`), sin shell, con la sesión de Miguel.
+func (a *app) runPlayground(ctx context.Context, args ...string) (string, int, error) {
+	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	defer cancel()
+	bin, err := exec.LookPath("playground")
+	if err != nil {
+		home, _ := os.UserHomeDir()
+		bin = filepath.Join(home, ".local", "bin", "playground")
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	exit := 0
+	if err := cmd.Run(); err != nil {
+		var ee *exec.ExitError
+		if !errors.As(err, &ee) {
+			return "", -1, fmt.Errorf("no pude correr playground %s: %v", strings.Join(args, " "), err)
+		}
+		exit = ee.ExitCode()
+	}
+	return ansi.ReplaceAllString(out.String(), ""), exit, nil
 }

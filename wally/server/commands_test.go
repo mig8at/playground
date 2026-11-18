@@ -62,6 +62,10 @@ func TestOnlyTheWhitelistedReadOnlyCommandsPass(t *testing.T) {
 		"fuentes ../connectors",
 		"tarea ../connectors",
 		"sentinel signal credifamilia",
+		"canon tema ../x",
+		"canon tema asesor/context; ls",
+		"canon buscar 'x'; rm",
+		"canon buscar `id`",
 		"sentinel day ayer",
 		"sentinel deploy legacy-backend; ls",
 		"sentinel deploy ../x",
@@ -146,7 +150,7 @@ func TestSentinelDropsFrontErrorTexts(t *testing.T) {
 	if strings.Contains(got, "3001234567") || strings.Contains(got, "otro") || !strings.Contains(got, "2 mensaje(s)") || !strings.Contains(got, "  ✗ algo") || !strings.Contains(got, "Ojo") {
 		t.Errorf("salida: %q", got)
 	}
-	for _, ok := range []string{"sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
+	for _, ok := range []string{"canon tema asesor/context", "canon tema cuota/context#el-monto", "canon buscar 'deshabilitar asesor'", "sentinel now", "sentinel day", "sentinel day 2026-11-12", "sentinel deploy legacy-backend", "sentinel deploy frontend-monorepo v1.11.12"} {
 		if _, err := commandArgs(ok); err != nil {
 			t.Errorf("%q tenía que pasar: %v", ok, err)
 		}

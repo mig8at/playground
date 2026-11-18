@@ -132,8 +132,18 @@ try {
                 for (const cmd of m.commands) {
                     if (cmd.status === 'no-permitido') { refused.push(cmd.cmd); continue; }
                     if (cmd.status !== 'propuesto') continue;
-                    const r = await post(`/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`, { action: 'run' });
-                    const done = r.messages?.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
+                    // Si otra ventana ya lo tomó (409 «ya está corriendo»), se espera a que termine.
+                    let done: any;
+                    try {
+                        const r = await post(`/api/conversations/${c.id}/messages/${m.id}/commands/${cmd.id}`, { action: 'run' });
+                        done = r.messages?.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
+                    } catch (e: any) {
+                        if (!/ya está/.test(e.message)) throw e;
+                        for (let i = 0; i < 120 && (!done || done.status === 'corriendo' || done.status === 'propuesto'); i++) {
+                            await new Promise((ok) => setTimeout(ok, 2000));
+                            done = (await api(`/api/conversations/${c.id}`)).messages.flatMap((x: any) => x.commands || []).find((x: any) => x.id === cmd.id);
+                        }
+                    }
                     (done?.status === 'corrido' ? ran : refused).push(cmd.cmd);
                 }
                 if (!JSON_OUT) console.error(`  ↻ vuelta ${rounds.length}: corrí ${ran.length}${refused.length ? `, no permitidos ${refused.length} (${refused.join(' · ')})` : ''}`);

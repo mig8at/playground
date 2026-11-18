@@ -12,6 +12,8 @@
 // - ⚠ La conversación es una lista VIRTUAL (`.ds-virtual-list-visible-items`), como AI Studio: lo que queda fuera de la
 //   pantalla puede no estar dibujado. Se trae el último mensaje a la vista antes de leerlo.
 // - ⚠ A diferencia de AI Studio, NO hay chat temporal: cada pregunta queda en el historial de la cuenta.
+// - Un mensaje de ~130 mil caracteres no entra («El contenido es demasiado largo»; 109 mil sí): lo largo va en trozos en
+//   el mismo chat (`splitText`, `CHUNK`), los primeros con «no contestes, respondé OK».
 import { openWorkPage, recordUse } from '../aistudio/page.ts';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -61,9 +63,79 @@ const busy = () => {
 // Lo que DeepSeek contesta cuando no puede (servidor ocupado, límite): sale como respuesta o como aviso.
 const BUSY_TEXT = /server is busy|servidor (está )?ocupado|try again later|inténtalo (de nuevo )?más tarde|too many requests|rate limit/i;
 
+// El aviso de la web cuando el mensaje no entra («El contenido es demasiado largo. Por favor, acórtalo…»). Va debajo
+// del mensaje, no como respuesta: sin reconocerlo, la receta esperaba los 10 min (2026-11-17, Ditto con ~130 mil car.).
+const TOO_LONG = /contenido es demasiado largo|acórtalo e inténtalo|content is too long|message is too long/i;
+const tooLongShown = (re: string) => [...document.querySelectorAll('body *')].some((e) => {
+    const el = e as HTMLElement;
+    return el.childElementCount === 0 && el.innerText && el.innerText.length < 200 && new RegExp(re, 'i').test(el.innerText);
+});
+
+/** Cuánto va en un mensaje (`DEEPSEEK_CHUNK`). Medido el 2026-11-17: 109 mil caracteres entraron de una vez y ~130 mil
+ *  no; se deja margen. */
+export const CHUNK = Number(process.env.DEEPSEEK_CHUNK || 100_000);
+
+/** Parte un texto en trozos de hasta `size`, cortando en un fin de renglón cuando se puede. */
+export function splitText(text: string, size = CHUNK): string[] {
+    const parts: string[] = [];
+    let rest = text;
+    while (rest.length > size) {
+        let cut = rest.lastIndexOf('\n', size);
+        if (cut < size * 0.5) cut = size;
+        parts.push(rest.slice(0, cut));
+        rest = rest.slice(cut);
+    }
+    if (rest) parts.push(rest);
+    return parts;
+}
+
 export type Ask = { think?: boolean; search?: boolean; timeoutMs?: number; log?: (s: string) => void };
 
-/** Una pregunta en un chat nuevo: pone los interruptores, manda el texto y devuelve la respuesta en Markdown. */
+/** Escribe un mensaje en el chat abierto, lo manda y espera la respuesta; devuelve su texto visible. */
+async function sendAndWait(page: any, text: string, timeoutMs: number): Promise<string> {
+    const box = page.getByRole('textbox', { name: 'Mensaje a DeepSeek' });
+    await box.waitFor({ timeout: 30_000 });
+    // Un texto grande va por una variable de la página y el evento `input` (como en AI Studio: un `fill` enorme
+    // cortaba el puente de Chrome).
+    if (text.length <= 200_000) await box.fill(text);
+    else {
+        await page.evaluate(() => { (window as any).__jarvisText = ''; });
+        for (let i = 0; i < text.length; i += 200_000) await page.evaluate((p: string) => { (window as any).__jarvisText += p; }, text.slice(i, i + 200_000));
+        await box.evaluate((el: HTMLTextAreaElement) => {
+            const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
+            set.call(el, (window as any).__jarvisText);
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            delete (window as any).__jarvisText;
+        });
+    }
+    const got = await box.evaluate((el: HTMLTextAreaElement) => el.value.length);
+    if (got !== text.length) throw new Error(`el campo quedó con ${got} caracteres de ${text.length}`);
+    const before = await page.locator('.ds-message').count();
+    await box.press('Enter');
+
+    // Terminó: hay un mensaje nuevo de DeepSeek, el botón ya no es «detener» y el texto no cambió en 2 s.
+    const until = Date.now() + timeoutMs;
+    let seen = '';
+    let stableSince = Date.now();
+    while (Date.now() < until) {
+        const toast: string = await page.evaluate(() => [...document.querySelectorAll('.ds-toast, [role=alert]')].map((e) => (e as HTMLElement).innerText.trim()).join(' · '));
+        if (toast && BUSY_TEXT.test(toast)) throw new Error(`DeepSeek: ${toast}`);
+        if (await page.evaluate(tooLongShown, TOO_LONG.source)) throw new Error(`DeepSeek: el mensaje es demasiado largo para su web (${text.length.toLocaleString('es-CO')} caracteres): bajá DEEPSEEK_CHUNK`);
+        const count = await page.locator('.ds-message').count();
+        const { text: now, assistant } = await page.evaluate(lastAnswer);
+        const running = await page.evaluate(busy);
+        if (now !== seen || running || count <= before || !assistant) { seen = now; stableSince = Date.now(); }
+        else if (now && Date.now() - stableSince >= 2000) break;
+        await page.waitForTimeout(400);
+    }
+    if (!seen) throw new Error('DeepSeek no contestó');
+    if (BUSY_TEXT.test(seen) && seen.length < 200) throw new Error(`DeepSeek: ${seen}`);
+    return seen;
+}
+
+/** Una pregunta en un chat nuevo: pone los interruptores, manda el texto y devuelve la respuesta en Markdown.
+ *  Si no entra en un mensaje (`CHUNK`), va en TROZOS en el mismo chat: cada uno menos el último pide «no contestes,
+ *  respondé sólo OK» (sin Pensamiento Profundo, para que sea rápido), y el último trae lo que hay que contestar. */
 export async function askDeepSeek(page: any, text: string, { think = true, search = false, timeoutMs = 600_000, log = () => {} }: Ask = {}) {
     const t0 = Date.now();
     try {
@@ -71,45 +143,21 @@ export async function askDeepSeek(page: any, text: string, { think = true, searc
         const box = page.getByRole('textbox', { name: 'Mensaje a DeepSeek' });
         await Promise.race([box.waitFor({ timeout: 30_000 }), page.waitForURL(/sign_in/, { timeout: 30_000 })]).catch(() => {});
         if (/sign_in/.test(page.url())) throw new Error('DeepSeek no tiene sesión en este Chrome: entrá a mano en chat.deepseek.com');
-        await setToggle(page, /Pensamiento Profundo|DeepThink/i, think);
-        await setToggle(page, /Búsqueda inteligente|Search/i, search);
-        log(`deepseek · pensamiento ${think ? 'sí' : 'no'} · búsqueda ${search ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres`);
-
-        // Un texto grande va por una variable de la página y el evento `input` (como en AI Studio: un `fill` enorme
-        // cortaba el puente de Chrome).
-        if (text.length <= 200_000) await box.fill(text);
-        else {
-            await page.evaluate(() => { (window as any).__jarvisText = ''; });
-            for (let i = 0; i < text.length; i += 200_000) await page.evaluate((p: string) => { (window as any).__jarvisText += p; }, text.slice(i, i + 200_000));
-            await box.evaluate((el: HTMLTextAreaElement) => {
-                const set = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value')!.set!;
-                set.call(el, (window as any).__jarvisText);
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                delete (window as any).__jarvisText;
-            });
-        }
-        const got = await box.evaluate((el: HTMLTextAreaElement) => el.value.length);
-        if (got !== text.length) throw new Error(`el campo quedó con ${got} caracteres de ${text.length}`);
-        const before = await page.locator('.ds-message').count();
-        await box.press('Enter');
-        log('esperando la respuesta…');
-
-        // Terminó: hay un mensaje nuevo de DeepSeek, el botón ya no es «detener» y el texto no cambió en 2 s.
-        const until = Date.now() + timeoutMs;
+        const parts = splitText(text);
+        log(`deepseek · pensamiento ${think ? 'sí' : 'no'} · búsqueda ${search ? 'sí' : 'no'} · ${text.length.toLocaleString('es-CO')} caracteres${parts.length > 1 ? ` en ${parts.length} trozos` : ''}`);
         let seen = '';
-        let stableSince = Date.now();
-        while (Date.now() < until) {
-            const toast: string = await page.evaluate(() => [...document.querySelectorAll('.ds-toast, [role=alert]')].map((e) => (e as HTMLElement).innerText.trim()).join(' · '));
-            if (toast && BUSY_TEXT.test(toast)) throw new Error(`DeepSeek: ${toast}`);
-            const count = await page.locator('.ds-message').count();
-            const { text: now, assistant } = await page.evaluate(lastAnswer);
-            const running = await page.evaluate(busy);
-            if (now !== seen || running || count <= before || !assistant) { seen = now; stableSince = Date.now(); }
-            else if (now && Date.now() - stableSince >= 2000) break;
-            await page.waitForTimeout(400);
+        for (let i = 0; i < parts.length; i++) {
+            const last = i === parts.length - 1;
+            await setToggle(page, /Pensamiento Profundo|DeepThink/i, last ? think : false);
+            await setToggle(page, /Búsqueda inteligente|Search/i, last ? search : false);
+            const n = parts.length;
+            const body = n === 1 ? parts[i]
+                : last ? `[Trozo ${i + 1} de ${n}, el último] Ya tenés el mensaje entero (los trozos anteriores y éste, en orden). Ahora sí: leelo todo como UN solo mensaje y contestá lo que pide.\n\n${parts[i]}`
+                : `[Trozo ${i + 1} de ${n}] Te mando un mensaje largo en ${n} trozos. NO contestes todavía ni lo resumas: guardalo y respondé sólo «OK ${i + 1}/${n}».\n\n${parts[i]}`;
+            if (n > 1) log(`trozo ${i + 1}/${n} · ${body.length.toLocaleString('es-CO')} caracteres`);
+            seen = await sendAndWait(page, body, last ? timeoutMs : 180_000);
         }
-        if (!seen) throw new Error('DeepSeek no contestó');
-        if (BUSY_TEXT.test(seen) && seen.length < 200) throw new Error(`DeepSeek: ${seen}`);
+        log('listo');
 
         // El Markdown de origen: el botón «copiar» de la respuesta, con el portapapeles interceptado en la página.
         let answer = '';

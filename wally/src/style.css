@@ -354,3 +354,7 @@ button.file-chip:hover, .file-chip.on { border-color: var(--ring) }
 .run-mode { flex: none }
 .run-mode .toggle { height: 28px; padding: 0 var(--space-2); font-size: var(--text-sm) }
 .run-mode .ui-icon { width: 12px; height: 12px }
+
+/* Un comando corriendo (en Auto, o desde `bin/wally ask --auto`): un giro chico en vez de los botones. */
+.running-text { display: inline-flex; align-items: center; gap: 6px; color: var(--fg-2) }
+.running-text .spinner { width: 12px; height: 12px }

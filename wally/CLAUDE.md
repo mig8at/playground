@@ -323,6 +323,28 @@ llave. La primera versión, del mismo día, llamaba a la API con la llave de `co
 - **El código de main sale de los clones de canon** (`main_clones` en `tools/repos.json`): `codigo`, `buscar` y
   `diff` leen `~/Desktop/CREDITOP/canon/repos/<repo>`, a los que se les hace fetch (`make knowledge-fetch`) sin tocar
   las ramas de los clones de trabajo de otras sesiones.
+- **En vivo, también lo que corre desde otro lado** (2026-11-17, Miguel: «verlo en tiempo real»): el servidor anota qué
+  conversación espera respuesta (`GET /api/busy`, de la interfaz o de `bin/wally ask --auto`) y la interfaz lo mira
+  cada 2,5 s: muestra la pregunta y la burbuja «corriendo solo · N s», y recarga la conversación abierta cuando cambia
+  (mensajes nuevos, comandos corridos). Un comando que se está corriendo queda **«corriendo»** en el servidor (otra
+  ventana no lo vuelve a correr: 409 «ya está corriendo», que la interfaz y el CLI toman como «lo tomó otro»); en
+  Auto, o con una corrida de afuera, la tarjeta dice «en cola» y «corriendo…» en vez de Correr/Descartar. Al
+  arrancar, un comando que quedó «corriendo» de un proceso cortado vuelve a «propuesto».
+- **Canon, para leer**: `canon tema <id>[#ancla]` y `canon buscar '…'` (`runPlayground`, el CLI `playground` con la
+  sesión de Miguel, sin shell).
+- **Ditto: un tema de canon a knowledge, solo** ([`agents/ditto.md`](agents/ditto.md)): lee el tema, busca cada
+  afirmación en los dos monolitos (`buscar` acepta una carpeta), lee el rango, y entrega el borrador de `rules.md`, sus
+  fuentes, las diferencias con canon y lo no verificado; no escribe. Primera corrida (2026-11-17, `asesor/context`,
+  por DeepSeek en Auto): 7 vueltas de 4 a 5 búsquedas, hasta que el mensaje llegó a ~130 mil caracteres y la web lo
+  rechazó («El contenido es demasiado largo»); de ahí salieron los trozos (abajo). Las primeras búsquedas en los clones
+  de canon tardaban ~24 s: son clones parciales (`blob:none`) y el primer `git grep` baja los archivos;
+  `make knowledge-fetch` ahora los baja por adelantado.
+- **DeepSeek en TROZOS cuando no entra** (Miguel: «no lo compactemos, partámoslo»; en Gemini no hace falta): la receta
+  (`jarvis/recipes/deepseek/page.ts`) parte lo que pasa de `DEEPSEEK_CHUNK` (100 mil; medido: 109 mil entraron, ~130 mil
+  no) por renglones y lo manda en el MISMO chat: cada trozo menos el último pide «no contestes, respondé sólo OK i/n»
+  (sin Pensamiento Profundo, para que sea rápido) y el último trae la pregunta. Y reconoce el aviso «El contenido es
+  demasiado largo»: antes la receta esperaba los 10 min. Probado retomando a Ditto (con un tope de 60 mil): dos
+  mensajes de 128 y 136 mil caracteres salieron en trozos, en 23 y 52 s, y Ditto entregó en 2 vueltas.
 - **Los grupos de agentes se sacaron** (2026-11-17, Miguel: «al parecer no funciona por el momento»): un grupo
   «Knowledge» con Wally de coordinador y EVA y M-O en paralelo; su única corrida chocó con el cupo de Google. Se fueron
   su pantalla, su sección de la lista, `server/groups.go` y sus rutas; la lista de temas pasó a `server/topics.go`. Su

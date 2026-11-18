@@ -325,6 +325,24 @@ const elapsed = ref(0)
 let tick = null
 let refresher = null
 const busyElsewhere = computed(() => !!pending.value && pending.value.key !== active.value)
+
+// EN VIVO: lo que corre desde otro lado (`bin/wally ask --auto`, otra ventana) se ve igual. Cada 2,5 s, mientras no
+// pregunta esta ventana, se mira qué conversaciones esperan respuesta (`/api/busy`) y se recarga la abierta si cambió.
+const remoteBusy = ref({})   // id → { since, text }
+const remote = computed(() => (pending.value ? null : remoteBusy.value[active.value] || null))
+let live = null
+async function liveTick() {
+  if (document.hidden || pending.value) return
+  try { remoteBusy.value = await api('/api/busy') } catch { return }
+  const id = active.value
+  if (!id || isNew(id) || !loaded.value[id] || running.value) return
+  try {
+    const c = await api(`/api/conversations/${encodeURIComponent(id)}`)
+    const before = loaded.value[id]
+    const sig = (x) => `${x.updated}|${x.messages.length}|${x.messages.flatMap((m) => (m.commands || []).map((k) => k.status)).join(',')}`
+    if (active.value === id && sig(c) !== sig(before)) { loaded.value = { ...loaded.value, [id]: c }; scrollDown() }
+  } catch {}
+}
 async function send() {
   const key = active.value
   const fromAuto = autoSending
@@ -466,7 +484,10 @@ async function autoContinue(id) {
       const updated = await api(`/api/conversations/${encodeURIComponent(id)}/messages/${encodeURIComponent(last.id)}/commands/${encodeURIComponent(x.id)}`,
         { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ action: 'run' }) })
       loaded.value = { ...loaded.value, [id]: updated }
-    } catch (e) { errors.value = { ...errors.value, [id]: e.message } } finally { running.value = '' }
+    } catch (e) {
+      // «ya está corriendo / corrido»: lo tomó otra ventana o `bin/wally ask --auto`; no es un error.
+      if (!/ya está/.test(e.message)) errors.value = { ...errors.value, [id]: e.message }
+    } finally { running.value = '' }
   }
   scrollDown()
   // Los resultados se mandan desde la pestaña de la conversación: si te fuiste a otra, queda la barra «Mandar resultados».
@@ -712,6 +733,7 @@ onMounted(async () => {
   if (!tabs.value.length) { if (mainId.value) openMain(); else newTab() }
   else activate(tabs.value.some((t) => t.key === active.value) ? active.value : tabs.value[0].key)
   // Cada 30 s: si la API no contestaba al abrir, aparece sola, y una pausa que venció habilita «Preguntar».
+  live = setInterval(liveTick, 2500)
   refresher = setInterval(() => { if (!document.hidden && !pending.value) { loadModels(); loadList(); loadAgents(); loadProviders() } }, 30_000)
   loadAgents()
   loadProviders()
@@ -723,6 +745,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('hashchange', readRoute)
   clearInterval(tick)
   clearInterval(refresher)
+  clearInterval(live)
   themeBinding?.destroy?.()
 })
 </script>
@@ -880,10 +903,12 @@ onBeforeUnmount(() => {
             <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ modelName(m.model) }} · {{ seconds(m.ms) }} s</span></div>
             <div class="answer-body" v-html="md(answerText(m))"></div>
             <div v-if="m.commands?.length" class="commands">
-              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ proposedCount(m) ? (autoOn ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
+              <div class="commands-head"><span class="ui-icon" data-icon="console" aria-hidden="true"></span>Wally pide correr {{ m.commands.length === 1 ? 'un comando' : `${m.commands.length} comandos` }} de sólo lectura{{ m.commands.some((c) => c.status === 'corriendo') ? ': corriendo…' : proposedCount(m) ? (autoOn || remote ? ': en Auto los corre solo' : ': decidí cada uno') : '' }}</div>
               <div v-for="c in m.commands" :key="c.id" class="command" :class="`is-${c.status}`">
                 <code class="command-line">{{ c.cmd }}</code>
-                <template v-if="c.status === 'propuesto'">
+                <span v-if="c.status === 'corriendo' || running === c.id" class="command-status running-text"><i class="spinner" aria-hidden="true"></i>corriendo…</span>
+                <span v-else-if="c.status === 'propuesto' && (autoOn || remote)" class="command-status">en cola</span>
+                <template v-else-if="c.status === 'propuesto'">
                   <button type="button" class="btn btn-sm" :disabled="!!running || !!pending" @click="commandAction(m, c, 'run')">
                     <span class="ui-icon" data-icon="play" aria-hidden="true"></span>{{ running === c.id ? 'Corriendo…' : 'Correr' }}
                   </button>
@@ -935,6 +960,16 @@ onBeforeUnmount(() => {
             <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
             <div class="chat-bubble">
               <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>{{ providerName }}, en tu Chrome · {{ elapsed }} s</span></div>
+              <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
+            </div>
+          </article>
+        </template>
+        <template v-if="remote">
+          <div class="block block-user"><div class="user-col"><div class="bubble mine">{{ remote.text }}</div></div></div>
+          <article class="answer chat-in">
+            <span class="msg-avatar" :class="{ wally: !speaker.agent }" :style="agentStyle(speaker.agent && speaker.name)" aria-hidden="true">{{ speaker.name[0] }}</span>
+            <div class="chat-bubble">
+              <div class="answer-who"><b :style="agentInk(speaker.agent && speaker.name)">{{ speaker.name }}</b><span>corriendo solo · {{ Math.max(0, Math.round((now - Date.parse(remote.since)) / 1000)) }} s</span></div>
               <div class="typing" aria-label="pensando"><i></i><i></i><i></i></div>
             </div>
           </article>

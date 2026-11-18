@@ -107,6 +107,10 @@ func run(args []string) int {
 				fmt.Printf("  ✗ %s: %s\n", alias, strings.TrimSpace(string(out)))
 				continue
 			}
+			/* Los clones de canon son parciales (`blob:none`): el primer `git grep` sobre main baja el contenido de los
+			 * archivos de a uno y tardaba ~24 s por búsqueda en Wally. Se baja acá, una vez, con una búsqueda que no
+			 * encuentra nada; después cada búsqueda tarda centésimas. */
+			_ = exec.Command("git", "-C", dir, "grep", "-q", "-F", "-e", "knowledge-fetch: texto que no existe en ningún repo", "FETCH_HEAD").Run()
 			head, _ := exec.Command("git", "-C", dir, "log", "-1", "--format=%h · %cr", "FETCH_HEAD").Output()
 			fmt.Printf("  ✓ %s · %s\n", alias, strings.TrimSpace(string(head)))
 		}

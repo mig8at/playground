@@ -94,6 +94,8 @@ vez de leer la trampa otra vez.
 | `comandos palabra` | sólo las líneas del catálogo que mencionan esa palabra (`comandos harness`, `comandos knowledge`) |
 | `guia herramienta` | la guía de una herramienta: `jarvis`, `cockpit`, `correo`, `harness`, `tablero`, `knowledge`, `goldfish`, `sentinel`, `chat`, `office`, `wally`, `conectores`, `estilo` |
 | `make tareas` | las tareas abiertas de Miguel en su tablero: número, estado y título |
+| `canon tema asesor/context[#ancla]` | un tema de canon (el corpus del equipo) o una sección, con la sesión de Miguel. Es prosa de negocio: lo técnico se verifica contra main antes de darlo por cierto |
+| `canon buscar 'texto'` | qué temas y secciones de canon hablan de algo |
 | `sentinel now` | cómo está producción ahora (Sentinel): lo que pide atención, lo que se sigue y cada servicio con su versión, errores y señal de vida |
 | `sentinel day [2026-11-12]` | el resumen de un día: cuánto entró contra lo normal, qué se salió de lo normal y de qué hora a qué hora, los despliegues y los avisos |
 | `sentinel deploy repo [versión]` | ¿se dañó algo después de un despliegue a producción? Las señales que empeoraron después, contra antes y contra lo normal. Sin versión, el último del repo. Los textos de los errores nuevos del front no llegan: sólo cuántos son |

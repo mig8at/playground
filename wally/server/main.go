@@ -51,6 +51,11 @@ func main() {
 	mux.HandleFunc("DELETE /api/conversations/{id}", a.remove)
 	mux.HandleFunc("DELETE /api/conversations/{id}/messages/{mid}", a.removeMessage)
 	mux.HandleFunc("POST /api/ask", a.ask)
+	mux.HandleFunc("GET /api/busy", func(w http.ResponseWriter, _ *http.Request) {
+		busy := map[string]askingInfo{}
+		a.asking.Range(func(k, v any) bool { busy[k.(string)] = v.(askingInfo); return true })
+		writeJSON(w, 200, busy)
+	})
 	mux.HandleFunc("POST /api/conversations/{id}/messages/{mid}/commands/{cid}", a.commandAction)
 	mux.HandleFunc("GET /api/topics", a.listTopics)
 	mux.HandleFunc("GET /api/main", a.mainConversation)
@@ -156,6 +161,13 @@ func (s *store) load() error {
 				c.Messages[i].ID = newID()
 				fixed = true
 			}
+			// Un comando que quedó «corriendo» es de un proceso que se cortó: vuelve a esperar.
+			for j := range c.Messages[i].Commands {
+				if c.Messages[i].Commands[j].Status == "corriendo" {
+					c.Messages[i].Commands[j].Status = "propuesto"
+					fixed = true
+				}
+			}
 		}
 		s.convs[c.ID] = c
 	}
@@ -201,6 +213,14 @@ type app struct {
 	pool   *pool
 	config *configStore
 	status statusStore
+	// asking: las conversaciones que esperan respuesta del proveedor, sea quien sea que preguntó (la interfaz o
+	// `bin/wally ask --auto`): la interfaz lo consulta para mostrar en vivo lo que corre desde otro lado.
+	asking sync.Map // id → askingInfo
+}
+
+type askingInfo struct {
+	Since time.Time `json:"since"`
+	Text  string    `json:"text"`
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
@@ -612,6 +632,10 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 		in.Model = a.chatModels()[0].Name
 	}
 	files := in.Files
+	if in.ID != "" {
+		a.asking.Store(in.ID, askingInfo{Since: time.Now(), Text: in.Text})
+		defer a.asking.Delete(in.ID)
+	}
 
 	// El historial se copia con el candado tomado, y la pregunta (segundos) va sin él.
 	a.store.mu.Lock()
