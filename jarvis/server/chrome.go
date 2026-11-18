@@ -78,6 +78,9 @@ type ChromeBridge struct {
 	ext         *websocket.Conn
 	extInfo     map[string]any // lo que la extensión dijo de sí al conectarse (versión, navegador)
 	pending     map[int]chan extReply
+	// inline: las respuestas que se entregan EN el lector de la extensión, en el orden en que llegaron respecto de los
+	// eventos (sendThen). Las de los comandos que Playwright reenvía van por acá: ver handleCommand.
+	inline map[int]func(extReply)
 	lastID      int
 	pw          *websocket.Conn
 	shared      map[int]bool // las pestañas que la persona compartió o que abrió el navegador: las únicas que se tocan
@@ -94,7 +97,7 @@ type ChromeBridge struct {
 // browserSession es la sesión «del navegador entero» que Playwright abre con Target.attachToBrowserTarget.
 const browserSession = "navegador-browser"
 
-var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, shared: map[int]bool{}, opened: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
+var chromeBridge = &ChromeBridge{pending: map[int]chan extReply{}, inline: map[int]func(extReply){}, shared: map[int]bool{}, opened: map[int]bool{}, attached: map[int]*chromeTab{}, aliases: map[string]int{}}
 
 // ChromeStatus es lo que muestran la interfaz y `bin/jarvis chrome`.
 type ChromeStatus struct {
@@ -167,7 +170,17 @@ func (b *ChromeBridge) serveExtension(w http.ResponseWriter, r *http.Request) {
 			b.mu.Lock()
 			ch := b.pending[m.ID]
 			delete(b.pending, m.ID)
+			then := b.inline[m.ID]
+			delete(b.inline, m.ID)
 			b.mu.Unlock()
+			if then != nil {
+				var e error
+				if m.Error != "" {
+					e = errors.New(m.Error)
+				}
+				then(extReply{result: m.Result, err: e})
+				continue
+			}
 			if ch != nil {
 				var e error
 				if m.Error != "" {
@@ -187,9 +200,14 @@ func (b *ChromeBridge) serveExtension(w http.ResponseWriter, r *http.Request) {
 		ch <- extReply{err: errors.New("la extensión se desconectó")}
 		delete(b.pending, id)
 	}
+	orphans := b.inline
+	b.inline = map[int]func(extReply){}
 	b.shared = map[int]bool{}
 	pw := b.pw
 	b.mu.Unlock()
+	for _, then := range orphans {
+		then(extReply{err: errors.New("la extensión se desconectó")})
+	}
 	if pw != nil {
 		_ = pw.Close(websocket.StatusGoingAway, "la extensión se desconectó")
 	}
@@ -222,6 +240,29 @@ func (b *ChromeBridge) send(method string, params ...any) (<-chan extReply, erro
 		return nil, err
 	}
 	return ch, nil
+}
+
+// sendThen manda un pedido a la extensión y entrega su respuesta a `then` DESDE el lector de la extensión, o sea en
+// el mismo orden en que llegó respecto de los eventos. `then` no puede esperar otra respuesta de la extensión.
+func (b *ChromeBridge) sendThen(then func(extReply), method string, params ...any) error {
+	raw, err := json.Marshal(params)
+	if err != nil {
+		return err
+	}
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.ext == nil {
+		return errors.New("Jarvis (la extensión de Chrome) no está conectado")
+	}
+	b.lastID++
+	id := b.lastID
+	b.inline[id] = then
+	data, _ := json.Marshal(extMessage{ID: id, Method: method, Params: raw})
+	if err := b.ext.Write(context.Background(), websocket.MessageText, data); err != nil {
+		delete(b.inline, id)
+		return err
+	}
+	return nil
 }
 
 func (b *ChromeBridge) call(method string, params ...any) (json.RawMessage, error) {
@@ -408,7 +449,9 @@ func (b *ChromeBridge) servePlaywright(w http.ResponseWriter, r *http.Request) {
 // handleCommand contesta lo que es del navegador entero y reenvía lo demás. El reenvío sale EN ORDEN (antes de
 // leer el próximo comando); la espera de la respuesta va aparte.
 func (b *ChromeBridge) handleCommand(m cdpMessage) {
+	cdpTraceLine("→ id=%d session=%q %s", m.ID, m.SessionID, m.Method)
 	reply := func(result any, err error) {
+		cdpTraceLine("← id=%d session=%q %s err=%v", m.ID, m.SessionID, m.Method, err)
 		out := cdpMessage{ID: m.ID, SessionID: m.SessionID}
 		if err != nil {
 			out.Error = &cdpError{Message: err.Error()}
@@ -529,23 +572,25 @@ func (b *ChromeBridge) handleCommand(m cdpMessage) {
 	if len(m.Params) > 0 {
 		params = m.Params
 	}
-	ch, err := b.send("chrome.debugger.sendCommand", target, m.Method, params)
-	if err != nil {
-		reply(nil, err)
-		return
-	}
-	go func() {
-		rep := <-ch
+	// La respuesta vuelve a Playwright desde el lector de la extensión, EN ORDEN con los eventos. Antes salía por una
+	// goroutine aparte y, con dos sesiones arrancando a la vez, un `Runtime.executionContextCreated` le ganaba a la
+	// respuesta de `Page.getFrameTree`: Playwright todavía no conocía el frame, descartaba el contexto y la primera
+	// lectura de la página esperaba para siempre («la sesión en vivo no arrancó en 60 s», medido el 2026-11-18).
+	err = b.sendThen(func(rep extReply) {
 		if rep.err != nil {
 			reply(nil, rep.err)
 			return
 		}
+		cdpTraceLine("← id=%d session=%q %s", m.ID, m.SessionID, m.Method)
 		out := cdpMessage{ID: m.ID, SessionID: m.SessionID, Result: rep.result}
 		if len(out.Result) == 0 || string(out.Result) == "null" {
 			out.Result = []byte("{}")
 		}
 		b.toPlaywright(out)
-	}()
+	}, "chrome.debugger.sendCommand", target, m.Method, params)
+	if err != nil {
+		reply(nil, err)
+	}
 }
 
 // debuggerTarget dice a qué pestaña de chrome.debugger va un comando: sin sesión, a cualquiera enganchada (son
@@ -874,6 +919,23 @@ func cdpTrace(tab int, session, method string, params json.RawMessage) {
 		p = p[:300] + "…"
 	}
 	fmt.Fprintf(f, "%s tab=%d session=%q %s %s\n", time.Now().Format("15:04:05.000"), tab, session, method, p)
+}
+
+// cdpTraceLine anota en el mismo archivo cada comando de Playwright (→) y su respuesta (←): un comando sin su ← es
+// el que quedó colgado.
+func cdpTraceLine(format string, args ...any) {
+	path := os.Getenv("JARVIS_CDP_LOG")
+	if path == "" {
+		return
+	}
+	cdpTraceMu.Lock()
+	defer cdpTraceMu.Unlock()
+	f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
+	if err != nil {
+		return
+	}
+	defer f.Close()
+	fmt.Fprintf(f, "%s %s\n", time.Now().Format("15:04:05.000"), fmt.Sprintf(format, args...))
 }
 
 func logf(format string, args ...any) {

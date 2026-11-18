@@ -95,6 +95,15 @@ perfiles de Chromium que quedaron de antes del 2026-11-07 ya no se usan).
   `Target.attachToTarget` sobre esa sesión. `chrome.debugger` da UNA sesión por pestaña: la segunda es un alias
   (`pw-alias-N`) que manda a la misma pestaña y recibe una copia de sus eventos. Si una versión nueva de Playwright
   falla al conectar, el error dice qué comando falta: se contesta en `handleCommand`.
+- **Las respuestas de Chrome vuelven a Playwright en orden con los eventos** (2026-11-18): la respuesta de un comando
+  reenviado se entrega desde el lector de la extensión (`sendThen`), no desde una goroutine aparte. Antes, con dos o
+  tres sesiones abriéndose a la vez, un `Runtime.executionContextCreated` le ganaba a la respuesta de
+  `Page.getFrameTree`: Playwright no conocía el frame, descartaba el contexto y la primera lectura de la página
+  esperaba para siempre («la sesión en vivo no arrancó en 60 s»; y un intento más chocaba con «ya hay otra conexión
+  de Playwright»). Fallaba 1 de cada 2 o 3; después, 15 de 15. Para ver qué pasa por el puente: `JARVIS_CDP_LOG=<archivo>`
+  anota cada comando (→), cada respuesta (←) y los eventos de navegación; un → sin su ← es el que quedó colgado. Con
+  la API de fondo: `launchctl setenv JARVIS_CDP_LOG <archivo>` y `bin/cockpit restart jarvis --wait` (y `unsetenv` al
+  terminar).
 - **Los eventos de depuración tienen que salir en orden**: la extensión mira qué pestañas están permitidas en una
   copia en memoria, sin `await`. Con una lectura asíncrona por evento se pueden desordenar.
 - **Al reconectarse, la extensión suelta el depurador de las pestañas**: si el servidor se reinició con una sesión

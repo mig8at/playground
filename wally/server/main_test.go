@@ -247,3 +247,52 @@ func TestCompactKeepsTheTailAndArchivesTheRest(t *testing.T) {
 		t.Errorf("un resumen vacío no tiene que compactar: %v", err)
 	}
 }
+
+// Una pregunta por conversación a la vez: la segunda, mientras la primera espera su respuesta, se rechaza y no guarda
+// nada; otra conversación sí va en paralelo.
+func TestOneQuestionPerConversationAtATime(t *testing.T) {
+	release := make(chan struct{})
+	started := make(chan string, 4)
+	a := autoApp(t, func(ctx context.Context, job poolJob) (string, string, error) {
+		started <- job.Text
+		<-release
+		return "listo", "", nil
+	})
+	a.store.convs["x"] = &Conversation{ID: "x"}
+	a.store.convs["y"] = &Conversation{ID: "y"}
+	errs := make(chan error, 3)
+	wait := func(what string) {
+		t.Helper()
+		select {
+		case <-started:
+		case err := <-errs:
+			t.Fatalf("%s terminó antes de preguntar: %v", what, err)
+		case <-time.After(10 * time.Second):
+			t.Fatalf("%s no llegó a preguntar", what)
+		}
+	}
+	go func() {
+		_, err := a.askInConversation(context.Background(), askInput{ID: "x", Text: "primera"})
+		errs <- err
+	}()
+	wait("la primera")
+	if _, err := a.askInConversation(context.Background(), askInput{ID: "x", Text: "segunda"}); err == nil {
+		t.Fatal("la segunda pregunta a la misma conversación tenía que rechazarse")
+	} else if _, ok := err.(errBusy); !ok {
+		t.Fatalf("tenía que ser errBusy: %v", err)
+	}
+	go func() {
+		_, err := a.askInConversation(context.Background(), askInput{ID: "y", Text: "otra"})
+		errs <- err
+	}()
+	wait("la de otra conversación")
+	close(release)
+	for i := 0; i < 2; i++ {
+		if err := <-errs; err != nil {
+			t.Fatalf("las dos que corrieron tenían que salir bien: %v", err)
+		}
+	}
+	if n := len(a.store.convs["x"].Messages); n != 2 {
+		t.Fatalf("la conversación x queda con su pregunta y su respuesta: %d bloques", n)
+	}
+}

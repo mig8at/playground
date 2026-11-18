@@ -54,6 +54,37 @@ diff— sino la cascada de identidad, o sea `kyc`. Seguir ese enrutamiento fue l
 ⚠ **Y la lección que atraviesa las cinco: lo que una herramienta AFIRMA sobre otra hay que cablearlo,
 no escribirlo.** Los comentarios «esto coincide con aquello» envejecen sin avisar; los chequeos, no.
 
+## Qué se puede correr en paralelo (medido el 2026-11-18)
+
+Varias sesiones de Claude (o una con subagentes) usan las herramientas a la vez. Esto es lo que se MIDIÓ lanzando los
+comandos en el mismo instante; lo que no se midió lo dice. Las escrituras se probaron sobre una copia (`TABLERO_DATA`).
+
+| qué | a la vez | lo que pasa |
+|---|---|---|
+| leer: `bin/pg` (tareas, sql, logs…), `bin/sentinel`, `bin/correo`, `bin/chat inbox\|history`, `bin/cockpit status\|doctor` | ✅ ×3–4 | cada una contesta lo suyo; `bin/pg` recompilándose en cuatro a la vez, también |
+| `bin/cockpit ensure <app>` | ✅ ×3 | levanta UN solo servidor |
+| `make ui-shot` | ✅ ×3 (dos de la misma app) | cada una su Chromium. Dos de la misma app en el mismo segundo comparten nombre de archivo: pasá `OUT=` |
+| `bin/wally ask` en conversaciones o agentes DISTINTOS | ✅ | independientes |
+| `bin/wally ask` en la MISMA conversación | ⛔ de a una | la segunda sale 1 al instante («ya hay una pregunta en curso», 409); antes se mezclaban los bloques |
+| `bin/jarvis` en pestañas distintas (`tabs new`, y cada comando con `--session N`) | ✅ ×3, 15 de 15 | cada comando lee SU página. Sin `--session` cae en la última pestaña abierta, que puede ser de otra sesión |
+| `make task-block` (o `BLOCK=`) a la misma tarea | ✅ ×6 | los seis bloques quedan, enteros |
+| `make worklog-add` | ✅ ×6 | van en fila (candado en `data/entries/.lock`); un lapso que se pisa con el de otra sesión sale 2 |
+| `git commit -m … -- <rutas>` | ⚠ de a uno | git toma `index.lock`: el segundo FALLA con «Another git process…» y no pierde nada. Se reintenta. 5 de 20 entraron al primer intento |
+| dos tandas del harness | ⛔ (no medido acá) | comparten identidad: lo que va junto va en UNA tanda con `PARALLEL=1` (`harness/CLAUDE.md`) |
+| Knowledge y una sesión editando el mismo tema de `knowledge/` | ⚠ (no medido) | Knowledge corre de a una y commitea por ruta; si una sesión tiene ese archivo a medio editar, su paso de aplicar puede chocar |
+| servidores (`make tablero`, `make panel`…) | ⛔ uno por app | el segundo choca por el puerto: `bin/cockpit status` antes, o `bin/cockpit ensure` |
+
+Tres cosas que salieron de medir, y por qué importan al tocar una herramienta:
+
+- **Un archivo que se reescribe entero necesita candado entre procesos.** La bitácora lee el mes, agrega y reescribe:
+  con cinco a la vez quedó UNA entrada, y una de las perdidas había dicho «ok». Agregar una línea (`O_APPEND`, como la
+  pila de una tarea) no lo necesita.
+- **Lo que se reenvía entre dos conexiones tiene que conservar el orden.** El puente de Jarvis mandaba los eventos de
+  Chrome en orden y las respuestas por una goroutine aparte; con dos sesiones arrancando, un evento le ganaba a su
+  respuesta y la sesión quedaba colgada 60 s (`jarvis/CLAUDE.md`, trampas). Con una sola sesión no se veía nunca.
+- **Un recurso de a uno contesta «ocupado» enseguida**, con código distinto de cero, en vez de encolar en silencio o
+  mezclar: el que llama decide si espera.
+
 ## El idioma del código (la regla entera; el resumen está en el `CLAUDE.md` raíz)
 
 Decisión de Miguel (2026-11-18), para todas las herramientas de my-tools:

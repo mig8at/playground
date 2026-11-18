@@ -28,6 +28,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"creditop/my-tools/connectors/guard"
@@ -35,6 +36,22 @@ import (
 	"creditop/my-tools/tablero/server/internal/pulse"
 	"creditop/my-tools/tablero/server/internal/store"
 )
+
+// lockEntries toma un candado exclusivo (flock) sobre `data/entries/.lock` y espera si otro proceso lo tiene.
+func lockEntries(data string) error {
+	dir := filepath.Join(data, "entries")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	f, err := os.OpenFile(filepath.Join(dir, ".lock"), os.O_CREATE|os.O_RDWR, 0o644)
+	if err != nil {
+		return err
+	}
+	entriesLock = f // queda abierto y referenciado a propósito: cerrarlo (o que lo junte el recolector) suelta el candado
+	return syscall.Flock(int(f.Fd()), syscall.LOCK_EX)
+}
+
+var entriesLock *os.File
 
 // dataDir: la carpeta `data/`; las tareas viven al lado, en `tasks/`. Ver el paquete layout.
 func dataDir() string { return layout.Find().Data }
@@ -248,6 +265,15 @@ func main() {
 		fail("decí de dónde salen los minutos: -span HH:MM-HH:MM · -pulse HH:MM · -min N -source \"…\"")
 	}
 
+	// De acá hasta que el proceso termina, UNA sola escritura de la bitácora a la vez: se lee el mes, se chequea el
+	// solape y se reescribe el archivo entero. Sin esto, cinco entradas mandadas a la vez dejaron una sola (medido
+	// el 2026-11-18: tres fallaron en el rename y, de las dos que dijeron «ok», una se perdió), y el chequeo de
+	// solape no veía la entrada de la otra. El candado se suelta solo al salir.
+	if !*dryRun {
+		if err := lockEntries(data); err != nil {
+			fail("tomando el candado de la bitácora: %v", err)
+		}
+	}
 	if o, ok := overlapping(dayEntries(data, start), start, minutes); ok {
 		fail("el lapso se pisa con la entrada %d (%s a %s, «%s»): ese tiempo ya está contado y sube dos veces a Jira. Empezá a las %s o partilo",
 			o.ID, o.start.Format("15:04"), o.end().Format("15:04"), o.Title, o.end().Format("15:04"))

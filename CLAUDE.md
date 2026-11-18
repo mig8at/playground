@@ -35,7 +35,7 @@ concreto vive al lado de ese algo, y se lee ahí:
 | al tocar… | leé |
 |---|---|
 | estilos o la forma de una UI (tema, regiones, separadores) | [`tools/ui/CLAUDE.md`](tools/ui/CLAUDE.md) |
-| el diseño de una herramienta, o cómo se valida contra otra | [`tools/CLAUDE.md`](tools/CLAUDE.md) |
+| el diseño de una herramienta, cómo se valida contra otra, o **qué se puede correr en paralelo** (varias sesiones o subagentes) | [`tools/CLAUDE.md`](tools/CLAUDE.md) |
 | una tarea del tablero, el cierre de sesión, Jira | [`tablero/CLAUDE.md`](tablero/CLAUDE.md) |
 | el harness, o qué es real en cada ambiente | [`harness/CLAUDE.md`](harness/CLAUDE.md) |
 | Jarvis (configurar paneles admin con guía o con confirmación, en tu Chrome con su extensión; recetas por API y por pantalla; `bin/jarvis`) | [`jarvis/CLAUDE.md`](jarvis/CLAUDE.md) |

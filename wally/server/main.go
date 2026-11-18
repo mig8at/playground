@@ -768,9 +768,13 @@ func (a *app) ask(w http.ResponseWriter, r *http.Request) {
 	c, err := a.askInConversation(r.Context(), askInput{ID: in.ID, Model: in.Model, Text: in.Text, Files: files, Mode: in.Mode, Provider: in.Provider})
 	if err != nil {
 		var bad errBadRequest
-		if errors.As(err, &bad) {
+		var busy errBusy
+		switch {
+		case errors.As(err, &bad):
 			writeErr(w, 400, err)
-		} else {
+		case errors.As(err, &busy):
+			writeErr(w, 409, err)
+		default:
 			writeErr(w, 502, err)
 		}
 		return
@@ -786,6 +790,11 @@ type askInput struct {
 	// conversación al contestar.
 	Provider string
 }
+
+// errBusy: la conversación ya tiene una pregunta en curso (409).
+type errBusy struct{ msg string }
+
+func (e errBusy) Error() string { return e.msg }
 
 type errBadRequest struct{ msg string }
 
@@ -804,7 +813,12 @@ func (a *app) askInConversation(ctx context.Context, in askInput) (Conversation,
 	}
 	files := in.Files
 	if in.ID != "" {
-		a.asking.Store(in.ID, askingInfo{Since: time.Now(), Text: in.Text})
+		// UNA pregunta por conversación a la vez. Dos juntas se contestaban las dos sin verse (las dos partían del mismo
+		// historial) y quedaban guardadas como un solo hilo (medido el 2026-11-18). La interfaz ya lo impedía; por la
+		// API y `bin/wally`, no. Conversaciones distintas sí van en paralelo.
+		if _, busy := a.asking.LoadOrStore(in.ID, askingInfo{Since: time.Now(), Text: in.Text}); busy {
+			return Conversation{}, errBusy{"esa conversación ya está esperando una respuesta: de a una pregunta por conversación (otra conversación sí puede ir a la vez)"}
+		}
 		defer a.asking.Delete(in.ID)
 	}
 

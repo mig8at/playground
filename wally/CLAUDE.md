@@ -102,6 +102,8 @@ Cada punto es la regla vigente en una o dos líneas. El porqué, las mediciones 
   Las **habilidades** (`skills/*.md`) se piden con `help <nombre>`; agregar una es agregar un archivo.
 - **El proveedor es uno para todo**, el de la barra de escribir (se guarda en la configuración). Claude por defecto;
   Gemini por su web necesita Jarvis conectado en Chrome y tiene cupo diario por modelo.
+- **Una pregunta por conversación a la vez** (2026-11-18): la segunda sale 1 al instante («ya hay una pregunta en
+  curso», 409) en vez de mezclar sus bloques con los de la primera. Conversaciones o agentes distintos van en paralelo.
 - **Los adjuntos no se suben al proveedor**: Wally les saca el texto en esta máquina y viaja con la pregunta.
 
 **Qué puede correr un agente (la seguridad está acá, no en el modelo)**
