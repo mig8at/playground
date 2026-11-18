@@ -2,7 +2,7 @@
   "version": 1,
   "title": "Infraestructura: cómo se propone y se aplica un cambio",
   "summary": "Repo infrastructure: PR por rama, un ambiente por PR (development y luego prod), sin plan ni apply local, apply manual desde main, reglas del PR, cómo se publica una ruta en el API Gateway y qué backend elige cada ruta en development.",
-  "reviewedAt": "2026-11-18T20:03:57+00:00",
+  "reviewedAt": "2026-11-18T22:34:53+00:00",
   "sources": [
     {
       "repo": "infrastructure",
@@ -40,8 +40,8 @@
     {
       "repo": "infrastructure",
       "path": "environments/development/api-gateway/terragrunt.hcl",
-      "commit": "3931221c96d76b06309fb6c4bcecbe26e978c8b6",
-      "blob": "fa320e1b18ff51fb3986fb7507dc7cb7def712ff",
+      "commit": "733f832440a0ce40d3355061eebeaacff770c97c",
+      "blob": "1ddda41c1e87f0b062b69244415b99dbef4f59be",
       "sections": [
         "publicar-una-ruta-en-el-api-gateway",
         "en-development-cada-ruta-elige-su-backend"

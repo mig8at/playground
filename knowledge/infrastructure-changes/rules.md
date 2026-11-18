@@ -47,7 +47,7 @@ listas de `inputs`: `routes`, `routes_customers`, `routes_backoffice_legacy` y `
 bajo el límite de 128 KB de una variable de entorno. Las de legacy-backend para ecommerce, mobile-onboarding y
 `debt-summary` están en `routes`. Cada ruta es un objeto con `route_key` (método y ruta pública, por ejemplo
 `POST /legacy-api/ecommerce/payment-link`), `method`, `authorizer_name` (`null` cuando la autenticación
-la hace el backend, como el token de sucursal de ecommerce; `customer-authorizer` o
+la hace el backend, como el token de sucursal de las rutas server-to-server de ecommerce; `customer-authorizer` o
 `backoffice-authorizer` cuando la hace Cognito) y `request_parameters` con dos sobrescrituras:
 `overwrite:header.host` (el servicio interno que contesta, por el ALB interno) y `overwrite:path` (la
 ruta en ese servicio, para legacy-backend con `/api/…`). Un parámetro de ruta seguido de más segmentos
@@ -55,15 +55,17 @@ se escribe con el `local` del archivo (por ejemplo `${local.order_key_var}`), po
 la forma sin llaves.
 
 Las rutas con `customer-authorizer` cuyo backend confía en la identidad que le llega (por ejemplo las de
-`/legacy-api/v1/mobile-onboarding/…`) agregan dos sobrescrituras más, tomadas del contexto del authorizer:
-`overwrite:header.x-user-id` (`$context.authorizer.internal_id`) y `overwrite:header.x-cognito-identity-id`
-(`$context.authorizer.cognito_sub`). Así un valor mandado por quien llama no llega al backend. No todas las
-rutas de cliente las llevan: `GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`.
+`/legacy-api/v1/mobile-onboarding/…` y `POST /legacy-api/v1/mobile/ecommerce/store-link`) agregan dos
+sobrescrituras más, tomadas del contexto del authorizer: `overwrite:header.x-user-id`
+(`$context.authorizer.internal_id`) y `overwrite:header.x-cognito-identity-id` (`$context.authorizer.cognito_sub`).
+Así un valor mandado por quien llama no llega al backend. No todas las rutas de cliente las llevan:
+`GET /legacy-api/loans/debt-summary` arma la ruta con `internal_id_expr` en `overwrite:path`.
 
 Un servicio sólo sale por el gateway si su ruta está declarada: que el backend tenga el endpoint
 desplegado no basta. Una ruta que falta en el gateway responde 404 aunque el backend la tenga, y la
-ruta publicada sin token responde lo que diga el backend (401 en las de ecommerce). Publicar en prod es
-el segundo PR del apartado anterior, con host `*.production.internal.creditop.com`.
+ruta publicada sin token responde lo que diga el backend (401 en las de ecommerce con token de sucursal;
+las de ecommerce con `customer-authorizer` las rechaza el authorizer antes de llegar al backend).
+Publicar en prod es el segundo PR del apartado anterior, con host `*.production.internal.creditop.com`.
 
 ## En development cada ruta elige su backend
 
