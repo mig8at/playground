@@ -187,7 +187,10 @@ comercio chico mira 3, 6 o 24 horas. Avisan las del wizard entero y las de los c
 
 ## Cómo decide (`server/stats.go`)
 
-- **Lo normal es la misma hora en los días comparables**: hábiles con hábiles, fines de semana con fines de semana,
+- **Lo normal es la misma hora en los días comparables**: hábiles con hábiles, y los de descanso —fines de semana y
+  **festivos de Colombia** (`days_off.go`: los fijos, los de la Ley Emiliani trasladados al lunes y los de la Pascua,
+  calculados por año)— entre sí. Antes un festivo se comparaba con hábiles y parecía una caída de todo el día: el lunes
+  16/11/2026 dio 739 solicitudes contra 1.341 y 39 tramos fuera de lo normal; ahora, contra 754 y 30 tramos,
   de los últimos 14 días (`baselineDays`). De ahí, la mediana y la dispersión robusta (MAD × 1,4826, con piso de
   Poisson `√mediana`), y un z = (ahora − mediana) / dispersión.
 - **Volumen (solicitudes): lo malo es que CAIGA.** Para mirar con z ≤ −2,5; alerta con z ≤ −3,5; las dos además con

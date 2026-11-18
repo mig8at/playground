@@ -105,13 +105,18 @@ func TestZeroLinesWhenEveryComparableDayWrote(t *testing.T) {
 	day, i := now, 0
 	for i < len(hourly) {
 		day = day.AddDate(0, 0, -1)
-		if weekend(day) {
+		if restDay(day) {
 			continue
 		}
 		put(day, hourly[i])
 		i++
 	}
 	put(now, 0)
+	// Escribió hasta hace una hora (de 8 a 9): el silencio es de esta hora, no un servicio callado hace días, que
+	// tiene su propia regla (silence) y ganaría sobre ésta.
+	for m := 0; m < 60; m += 5 {
+		total[now.Format("2006-01-02")][bucketOf(now.Add(-2*time.Hour).Add(time.Duration(m)*time.Minute))] = 8
+	}
 	e := evaluator{rules: defaultRules(), data: map[Signal]*series{"logs:x": {total: total}}, have: have, ceils: map[string]float64{}}
 	ev := e.eval("logs:x", now)
 	if ev.Level != levelAlert || !strings.Contains(ev.Why, "no escribió una línea") {
@@ -122,7 +127,7 @@ func TestZeroLinesWhenEveryComparableDayWrote(t *testing.T) {
 	day, i = now, 0
 	for i < len(hourly) {
 		day = day.AddDate(0, 0, -1)
-		if !weekend(day) {
+		if !restDay(day) {
 			i++
 		}
 	}
@@ -198,7 +203,7 @@ func TestErrorsSustainedOverZero(t *testing.T) {
 	day := now
 	for i := 0; i < 10; {
 		day = day.AddDate(0, 0, -1)
-		if weekend(day) {
+		if restDay(day) {
 			continue
 		}
 		key := day.Format("2006-01-02")

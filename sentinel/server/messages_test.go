@@ -101,7 +101,7 @@ func TestOutboundFailRate(t *testing.T) {
 	day := now
 	for i := 0; i < 8; {
 		day = day.AddDate(0, 0, -1)
-		if !weekend(day) {
+		if !restDay(day) {
 			put(day, 120, 12) // 10 % de siempre
 			i++
 		}

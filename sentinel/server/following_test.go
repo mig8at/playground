@@ -67,7 +67,7 @@ func TestFollowedSmallMerchantUsesLongerWindow(t *testing.T) {
 	// Los días hábiles anteriores: una solicitud cada 30 minutos entre las 9 y las 18 (2 por hora); hoy, ninguna.
 	for d := 1; d <= 14; d++ {
 		day := now.AddDate(0, 0, -d)
-		if weekend(day) {
+		if restDay(day) {
 			continue
 		}
 		date := day.Format("2006-01-02")

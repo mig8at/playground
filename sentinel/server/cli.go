@@ -284,8 +284,10 @@ func (c *cli) day(date string) (*DayReport, error) {
 	if se := c.e.data["all:production"]; se != nil {
 		r.Requests = DayTotals{Total: window(se.total, end, minutes), Approved: window(se.approved, end, minutes), Denied: window(se.denied, end, minutes)}
 		var xs []float64
-		for _, past := range comparable(end, c.rules.BaselineDays, c.e.have) {
-			xs = append(xs, float64(window(se.total, past, minutes)))
+		// Los días del mismo tipo que EL DÍA que se resume (start), no que `end`: con el día entero, `end` es la
+		// medianoche del siguiente, y el lunes festivo 16/11/2026 se comparaba con días hábiles por ser martes el 17.
+		for _, past := range comparable(start, c.rules.BaselineDays, c.e.have) {
+			xs = append(xs, float64(window(se.total, past.Add(end.Sub(start)), minutes)))
 		}
 		r.Comparable = len(xs)
 		r.Requests.Normal, r.Requests.Low, r.Requests.High = median(xs), int(quantile(xs, 0.1)), int(quantile(xs, 0.9)+0.5)

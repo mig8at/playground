@@ -169,14 +169,13 @@ func window(m map[string]*[bucketsPerDay]int, to time.Time, minutes int) int {
 	return n
 }
 
-func weekend(t time.Time) bool { return t.Weekday() == time.Saturday || t.Weekday() == time.Sunday }
-
-// comparable: las fechas de la historia del mismo tipo de día que t (hábil o fin de semana), con datos guardados.
+// comparable: las fechas de la historia del mismo tipo de día que t (hábil, o de descanso: fin de semana o festivo,
+// days_off.go), con datos guardados.
 func comparable(t time.Time, history int, have map[string]bool) []time.Time {
 	var out []time.Time
 	for d := 1; d <= history; d++ {
 		past := t.AddDate(0, 0, -d)
-		if weekend(past) == weekend(t) && have[past.Format("2006-01-02")] {
+		if restDay(past) == restDay(t) && have[past.Format("2006-01-02")] {
 			out = append(out, past)
 		}
 	}
@@ -583,7 +582,7 @@ func (e evaluator) shift(sig Signal, now time.Time) *Shift {
 	for d := 1; d <= e.rules.HistoryDays; d++ {
 		past := now.AddDate(0, 0, -d)
 		date := past.Format("2006-01-02")
-		if weekend(past) != weekend(now) || !e.have[date] {
+		if restDay(past) != restDay(now) || !e.have[date] {
 			continue
 		}
 		if d <= 7 {
