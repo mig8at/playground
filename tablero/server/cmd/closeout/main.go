@@ -601,7 +601,7 @@ func main() {
 			rv.Watch = append(rv.Watch, "tocó código y no dice con QUÉ se comprobó: agregá un bloque con el comando y su «Resultado:»")
 		}
 		if len(rv.Missing) > 0 {
-			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TASK="+strconv.Itoa(t.ID)+"` (o `bin/pg cierre --task "+strconv.Itoa(t.ID)+"`)")
+			rv.Missing = append(rv.Missing, "la propuesta, con el lapso y los commits ya puestos: `make closeout TASK="+strconv.Itoa(t.ID)+"` (o `bin/pg closeout --task "+strconv.Itoa(t.ID)+"`)")
 		}
 		inf.MissingPieces += len(rv.Missing)
 		inf.Tasks = append(inf.Tasks, rv)

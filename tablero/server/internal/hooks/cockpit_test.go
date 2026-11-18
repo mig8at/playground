@@ -62,7 +62,7 @@ func TestCockpitTargetFollowsTheToolInUse(t *testing.T) {
 		{"Bash", bash("make harness-case TARGET=local CASES='pullman@score=700'"), "harness", "/local/pullman"},
 		{"Bash", bash("make task-block N=my-tools FILE=b.md"), "tablero", "#/tareas/my-tools"},
 		{"Bash", bash("make task-block N=96 FILE=b.md"), "tablero", ""},
-		{"Bash", bash("bin/pg tarea bloque --task integracion-vtex"), "tablero", "#/tareas/integracion-vtex"},
+		{"Bash", bash("bin/pg task block --task integracion-vtex"), "tablero", "#/tareas/integracion-vtex"},
 		{"Bash", bash("bin/jarvis open http://localhost:5207/"), "jarvis", ""},
 		{"Bash", bash("make goldfish-run REPO=legacy-backend GIT_BRANCH=fix/x"), "goldfish", ""},
 		{"Bash", bash("go run ./goldfish/server -list"), "goldfish", ""},

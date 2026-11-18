@@ -56,7 +56,7 @@ var allowed = []string{
 	// Las demás lecturas de pg (antes, también por su servidor MCP, que se sacó el 2026-11-18): negarlas contaba
 	// como fricción del cambio medido (tanda «agente», 2026-11-02).
 	"Bash(bin/pg request *)", "Bash(bin/pg client *)", "Bash(bin/pg experian *)", "Bash(bin/pg settings *)",
-	"Bash(bin/pg jobs *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)",
+	"Bash(bin/pg jobs *)", "Bash(bin/pg tasks *)", "Bash(bin/pg task stack *)",
 }
 
 var denied = []string{

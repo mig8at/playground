@@ -107,7 +107,7 @@ func ownerCheck(res *http.Response) (*http.Response, error) {
 	_ = json.Unmarshal(body, &answer)
 	switch {
 	case answer.Level == "dueño":
-		return nil, errors.Join(ErrOwner, errors.New("canon no te reconoce como admin: esa cuenta no tiene el rol (`pg canon yo` dice quién te ve canon)"))
+		return nil, errors.Join(ErrOwner, errors.New("canon no te reconoce como admin: esa cuenta no tiene el rol (`pg canon me` dice quién te ve canon)"))
 	case res.StatusCode == http.StatusUnauthorized && strings.Contains(answer.Error, "sesión del playground"):
 		return nil, sessionError("el gateway no reconoce tu sesión: corré " + playgroundLogin)
 	}

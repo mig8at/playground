@@ -265,7 +265,7 @@ func cockpitTarget(tool string, in map[string]any, root string) (app, route stri
 		switch {
 		case regexp.MustCompile(`\bmake (harness-|panel\b)|\bbin/advisor\b|\bharness/(dev|bin)/`).MatchString(cmd):
 			return "harness", harnessRoute(cmd)
-		case regexp.MustCompile(`\bmake (task-|tasks|resume|agent\b|closeout|worklog|tablero|tarea-|tareas|retomar|agente|cierre|bitacora)|\bbin/pg (tarea|tareas|cierre|bitacora)\b`).MatchString(cmd):
+		case regexp.MustCompile(`\bmake (task-|tasks|resume|agent\b|closeout|worklog|tablero|tarea-|tareas|retomar|agente|cierre|bitacora)|\bbin/pg (task|tasks|closeout|worklog|tarea|tareas|cierre|bitacora)\b`).MatchString(cmd):
 			slug := ""
 			if m := taskArg.FindStringSubmatch(cmd); m != nil {
 				slug = m[1]

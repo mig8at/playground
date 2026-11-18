@@ -57,7 +57,7 @@ var denied = []string{
 var sweepTools = []string{"Read", "Grep", "Glob",
 	"Bash(git grep *)", "Bash(git -C *)", "Bash(git show *)", "Bash(git log *)", "Bash(go run ./cmd/repos *)",
 	"Bash(make knowledge-*)", "Bash(make resume *)", "Bash(make tasks *)", "Bash(make traps *)",
-	"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tareas *)", "Bash(bin/pg tarea pila *)",
+	"Bash(bin/pg confluence *)", "Bash(bin/pg jira search *)", "Bash(bin/pg tasks *)", "Bash(bin/pg task stack *)",
 	"Bash(bin/pg sql *)", "Bash(bin/pg events *)", "Bash(bin/pg request *)", "Bash(bin/pg logs *)", "Bash(bin/pg client *)",
 	"Bash(make harness-case *)", "Bash(make harness-listing *)", "Bash(make harness-suite *)", "Bash(make harness-walk-wizard *)",
 	"Bash(make harness-doctor *)", "Bash(make task-verify *)", "Bash(make agent *)", "Bash(lsof -nP -iTCP*)", "Bash(grep *)"}

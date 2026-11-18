@@ -34,7 +34,7 @@ que llega a cada herramienta por la red interna.
 (`https://playground.creditop.com/api/t/canon`) con el token que deja `playground login` en
 `~/.config/creditop-playground/token.json`, en `Authorization: Bearer`; la llave de escritura va en `x-canon-key`. Ya no
 hay cookies del navegador que copiar: `AUTH_GOOGLE` y `PLAYGROUND_SESION` se sacaron de `.env.prod`. Sin sesión vigente,
-`make canon-*` y `pg canon yo` dicen «corré `playground login`».
+`make canon-*` y `pg canon me` dicen «corré `playground login`».
 
 ## Google Drive: con la cuenta de quien entra, sólo lectura
 

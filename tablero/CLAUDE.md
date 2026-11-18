@@ -147,9 +147,9 @@ con `BLOCK=<id|slug>`**: `harness-case` · `-listing` · `-walk-wizard` · `-sui
 `bin/pg sql --block`. `MD=1` da la anotación para un documento que no es una tarea. Se lee
 con `make task-context N=…` o `make resume`. El contrato de la línea: `docs/task-context.schema.json`.
 
-**Un agente escribe y lee sin archivos ni make** con `bin/pg`: `bin/pg tarea bloque --task … --title … --body …`
-(`--dry` valida sin escribir), `bin/pg bitacora add` (con `--span`, `--pulse` o `--min` y `--source`),
-`bin/pg tarea pila` y `bin/pg tareas`. Corren el mismo código del tablero: misma validación y mismas guardas.
+**Un agente escribe y lee sin archivos ni make** con `bin/pg`: `bin/pg task block --task … --title … --body …`
+(`--dry` valida sin escribir), `bin/pg worklog add` (con `--span`, `--pulse` o `--min` y `--source`),
+`bin/pg task stack` y `bin/pg tasks`. Corren el mismo código del tablero: misma validación y mismas guardas.
 
 ⚠ **El server valida la pila también al LEERLA, con su propio código**: después de agregar un tipo de
 enlace, reiniciá el tablero, o la pila entera de esa tarea se ve vacía.
@@ -167,7 +167,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
   autocontenido, sin build**, **con la fecha visible adentro**, y **no gradúa a canon**: describe lo
   propuesto y muere con la tarea.
 - **`ramas:`** en el frontmatter declara sólo los PATRONES; dónde vive cada rama lo mide `make
-  task-branches N=<id|slug>` (segundos; sin `N`, todas) o `bin/pg tarea ramas` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
+  task-branches N=<id|slug>` (segundos; sin `N`, todas) o `bin/pg task branches` (skill `tablero-delivery`). Si el trabajo no tiene rama propia, no inventes un patrón.
   Un patrón es una subcadena del nombre de la rama en TODOS los repos; con `repo:subcadena`
   (`vtex:payment-link`) busca sólo en ese repo, y un worktree cuenta como su repo original.
 
@@ -181,7 +181,7 @@ le pasa al sistema) vive en `data/traps/doc.md` y se entra por su síntoma. `mak
    `LAPSO=HH:MM-HH:MM`, `PULSO=HH:MM` o `MIN=N FUENTE='…'`. ⚠ **Los minutos se MIDEN, no se estiman**:
    suben a Jira. Si el pulso no tiene datos, decí de dónde salió el número.
 
-**`make closeout TASK=N` lo propone** (o `bin/pg cierre --task N`): el lapso
+**`make closeout TASK=N` lo propone** (o `bin/pg closeout --task N`): el lapso
 desde donde terminó la última bitácora del día, los commits de la tarea en ese lapso (en my-tools,
 los que empiezan con su slug o nombran `tarea N`; en los repos, los de sus `ramas:` sin lo que ya está en
 la base) y los dos comandos listos. También las **corridas de Jarvis** que empezaron en el lapso (meta, resultado, si quedó

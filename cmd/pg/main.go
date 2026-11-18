@@ -58,6 +58,7 @@ func main() {
 		}
 		os.Exit(help(len(args) > 1 && args[1] == "--json"))
 	}
+	args = legacyCommand(args)
 	name := args[0]
 	rest := args[1:]
 	if len(rest) > 0 && !strings.HasPrefix(rest[0], "-") {
